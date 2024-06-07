@@ -312,6 +312,7 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelRes
 	}
 
 	delTagType := param.ChildType
+	var childrenTagIds []uint64
 	for _, resourceTag := range resourceTags {
 		// 获取所有关联的子标签
 		childrenTag, _ := p.ListByCond(model.NewCond().RLike("code_path", resourceTag.CodePath).Eq("type", delTagType))
@@ -319,14 +320,16 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelRes
 			continue
 		}
 
-		childrenTagIds := collx.ArrayMap(childrenTag, func(item *entity.TagTree) uint64 {
+		childrenTagIds = append(childrenTagIds, collx.ArrayMap(childrenTag, func(item *entity.TagTree) uint64 {
 			return item.Id
-		})
-		// 删除code_path下的所有子标签
-		return p.deleteByIds(ctx, childrenTagIds)
+		})...)
 	}
 
-	return nil
+	if len(childrenTagIds) == 0 {
+		return nil
+	}
+	// 删除code_path下的所有子标签
+	return p.deleteByIds(ctx, collx.ArrayDeduplicate(childrenTagIds))
 }
 
 func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity any) {

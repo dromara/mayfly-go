@@ -293,6 +293,7 @@ import { getToken } from '@/common/utils/storage';
 import { convertToBytes, formatByteSize } from '@/common/utils/format';
 import { getMachineConfig } from '@/common/sysconfig';
 import { MachineProtocolEnum } from '../enums';
+import { fuzzyMatchField } from '@/common/utils/string';
 
 const props = defineProps({
     machineId: { type: Number },
@@ -371,33 +372,7 @@ onMounted(async () => {
     state.machineConfig = await getMachineConfig();
 });
 
-// watch(
-//     () => props.machineId,
-//     () => {
-//         if (props.protocol != MachineProtocolEnum.Ssh.value) {
-//             userMap.clear();
-//             groupMap.clear();
-//             return;
-//         }
-
-//         const machineId = props.machineId;
-//         machineApi.users.request({ machineId }).then((res: any) => {
-//             for (let user of res) {
-//                 userMap.set(user.uid, user);
-//             }
-//         });
-
-//         machineApi.groups.request({ machineId }).then((res: any) => {
-//             for (let group of res) {
-//                 groupMap.set(group.gid, group);
-//             }
-//         });
-//     }
-// );
-
-const filterFiles = computed(() =>
-    state.files.filter((data: any) => !state.fileNameFilter || data.name.toLowerCase().includes(state.fileNameFilter.toLowerCase()))
-);
+const filterFiles = computed(() => fuzzyMatchField(state.fileNameFilter, state.files, (file: any) => file.name));
 
 const filePathNav = computed(() => {
     let basePath = state.basePath;

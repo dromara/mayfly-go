@@ -264,6 +264,9 @@ func getInterfaceInfo(iInfo string, stats *Stats) (err error) {
 }
 
 func getCPU(cpuInfo string, stats *Stats) (err error) {
+	if !strings.Contains(cpuInfo, ":") {
+		return
+	}
 	// %Cpu(s):  6.1 us,  3.0 sy,  0.0 ni, 90.9 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st
 	value := strings.Split(cpuInfo, ":")[1]
 	values := strings.Split(value, ",")

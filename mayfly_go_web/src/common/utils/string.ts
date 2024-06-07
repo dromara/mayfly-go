@@ -98,43 +98,6 @@ export function getTextWidth(str: string) {
 }
 
 /**
- * 获取内容所需要占用的宽度
- */
-export function getContentWidth(content: any): number {
-    if (!content) {
-        return 50;
-    }
-    // 以下分配的单位长度可根据实际需求进行调整
-    let flexWidth = 0;
-    for (const char of content) {
-        if (flexWidth > 500) {
-            break;
-        }
-        if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'z')) {
-            // 小写字母、数字字符
-            flexWidth += 9.3;
-            continue;
-        }
-        if (char >= 'A' && char <= 'Z') {
-            flexWidth += 9;
-            continue;
-        }
-        if (char >= '\u4e00' && char <= '\u9fa5') {
-            // 如果是中文字符，为字符分配16个单位宽度
-            flexWidth += 20;
-        } else {
-            // 其他种类字符
-            flexWidth += 8;
-        }
-    }
-    // if (flexWidth > 450) {
-    //     // 设置最大宽度
-    //     flexWidth = 450;
-    // }
-    return flexWidth;
-}
-
-/**
  *
  * @returns uuid
  */
@@ -178,4 +141,39 @@ export async function copyToClipboard(txt: string, selector: string = '#copyValu
         // 释放内存
         clipboard.destroy();
     });
+}
+
+export function fuzzyMatchField(keyword: string, fields: any[], ...valueExtractFuncs: Function[]) {
+    keyword = keyword?.toLowerCase();
+    return fields.filter((field) => {
+        for (let valueExtractFunc of valueExtractFuncs) {
+            const value = valueExtractFunc(field)?.toLowerCase();
+            if (isPrefixSubsequence(keyword, value)) {
+                return true;
+            }
+        }
+        return false;
+    });
+}
+
+/**
+ * 匹配是否为前缀子序列 targetTemplate=username prefix=uname -> true，prefix=uname2 -> false
+ * @param prefix 字符串前缀（不连续也可以,但不改变字符的相对顺序）
+ * @param targetTemplate 目标模板
+ * @returns 是否匹配
+ */
+export function isPrefixSubsequence(prefix: string, targetTemplate: string) {
+    let i = 0; // 指向prefix的索引
+    let j = 0; // 指向targetTemplate的索引
+
+    while (i < prefix.length && j < targetTemplate.length) {
+        if (prefix[i] === targetTemplate[j]) {
+            // 字符匹配，两个指针都向前移动
+            i++;
+        }
+        j++; // 目标字符串指针始终向前移动
+    }
+
+    // 如果prefix的所有字符都被找到，返回true
+    return i === prefix.length;
 }

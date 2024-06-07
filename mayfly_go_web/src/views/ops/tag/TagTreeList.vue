@@ -156,6 +156,7 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import EnumValue from '@/common/Enum';
 import TagCodePath from '../component/TagCodePath.vue';
+import { isPrefixSubsequence } from '@/common/utils/string';
 
 const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
 const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
@@ -371,8 +372,7 @@ const setNowTabData = () => {
 };
 
 const filterNode = (value: string, data: Tree) => {
-    if (!value) return true;
-    return data.codePath.toLowerCase().includes(value) || data.name.includes(value);
+    return !value || isPrefixSubsequence(value, data.codePath) || isPrefixSubsequence(value, data.name);
 };
 
 const search = async () => {

@@ -50,6 +50,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
+import { isPrefixSubsequence } from '@/common/utils/string';
 
 const props = defineProps({
     height: {
@@ -102,10 +103,7 @@ const search = async () => {
 };
 
 const filterNode = (value: string, data: any) => {
-    if (!value) {
-        return true;
-    }
-    return data.codePath.toLowerCase().includes(value) || data.name.includes(value);
+    return !value || isPrefixSubsequence(value, data.codePath) || isPrefixSubsequence(value, data.name);
 };
 
 const onFilterValChanged = (val: string) => {

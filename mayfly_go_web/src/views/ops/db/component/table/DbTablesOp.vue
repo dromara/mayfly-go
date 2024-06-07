@@ -131,6 +131,7 @@ import { compatibleMysql, editDbTypes, getDbDialect } from '../../dialect/index'
 import { DbInst } from '../../db';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
+import { fuzzyMatchField } from '@/common/utils/string';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
@@ -219,17 +220,11 @@ const filterTableInfos = computed(() => {
     if (!tableNameSearch && !tableCommentSearch) {
         return tables;
     }
-    return tables.filter((data: any) => {
-        let tnMatch = true;
-        let tcMatch = true;
-        if (tableNameSearch) {
-            tnMatch = data.tableName.toLowerCase().includes(tableNameSearch.toLowerCase());
-        }
-        if (tableCommentSearch) {
-            tcMatch = data.tableComment.includes(tableCommentSearch);
-        }
-        return tnMatch && tcMatch;
-    });
+
+    if (tableNameSearch) {
+        return fuzzyMatchField(tableNameSearch, tables, (table: any) => table.tableName);
+    }
+    return fuzzyMatchField(tableCommentSearch, tables, (table: any) => table.tableComment);
 });
 
 const getTables = async () => {

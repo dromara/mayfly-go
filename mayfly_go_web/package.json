@@ -17,7 +17,7 @@
     "cropperjs": "^1.6.1",
     "dayjs": "^1.11.11",
     "echarts": "^5.5.0",
-    "element-plus": "^2.7.3",
+    "element-plus": "^2.7.4",
     "js-base64": "^3.7.7",
     "jsencrypt": "^3.3.2",
     "lodash": "^4.17.21",
@@ -57,7 +57,7 @@
     "prettier": "^3.2.5",
     "sass": "^1.77.1",
     "typescript": "^5.4.5",
-    "vite": "^5.2.11",
+    "vite": "^5.2.12",
     "vue-eslint-parser": "^9.4.2"
   },
   "browserslist": [

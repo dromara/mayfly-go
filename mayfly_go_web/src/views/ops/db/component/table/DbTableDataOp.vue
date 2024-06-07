@@ -259,7 +259,7 @@ import DbTableData from './DbTableData.vue';
 import { DbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { useEventListener, useStorage } from '@vueuse/core';
-import { copyToClipboard } from '@/common/utils/string';
+import { copyToClipboard, fuzzyMatchField } from '@/common/utils/string';
 import DbTableDataForm from './DbTableDataForm.vue';
 
 const props = defineProps({
@@ -476,10 +476,7 @@ const getColumnTips = (queryString: string, callback: any) => {
 
     let res = [];
     if (columnNameSearch) {
-        columnNameSearch = columnNameSearch.toLowerCase();
-        res = columns.filter((data: any) => {
-            return data.columnName.toLowerCase().includes(columnNameSearch);
-        });
+        res = fuzzyMatchField(columnNameSearch, columns, (x: any) => x.columnName);
     }
 
     completeCond = condition.value;
@@ -534,10 +531,12 @@ const filterColumns = (searchKey: string) => {
     if (!searchKey) {
         return columns;
     }
-    searchKey = searchKey.toLowerCase();
-    return columns.filter((data: any) => {
-        return data.columnName.toLowerCase().includes(searchKey) || data.columnComment.toLowerCase().includes(searchKey);
-    });
+    return fuzzyMatchField(
+        searchKey,
+        columns,
+        (x: any) => x.columnName,
+        (x: any) => x.columnComment
+    );
 };
 
 /**

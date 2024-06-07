@@ -123,6 +123,7 @@ import { formatDate } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { Splitpanes, Pane } from 'splitpanes';
+import { isPrefixSubsequence } from '@/common/utils/string';
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;
@@ -209,10 +210,7 @@ watch(filterResource, (val) => {
 });
 
 const filterNode = (value: string, data: any) => {
-    if (!value) {
-        return true;
-    }
-    return data.name.includes(value);
+    return !value || isPrefixSubsequence(value, data.name);
 };
 
 const search = async () => {
