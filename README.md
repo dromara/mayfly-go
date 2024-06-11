@@ -22,7 +22,7 @@
 
 ### 介绍
 
-web 版 **linux(终端[终端回放、命令过滤] 文件 脚本 进程 计划任务)、数据库（mysql postgres oracle sqlserver 达梦 高斯 sqlite）数据同步 数据迁移、redis(单机 哨兵 集群)、mongo 等集工单流程审批于一体的统一管理操作平台**
+web 版 **linux(终端[终端回放、命令过滤] 文件 脚本 进程 计划任务)、数据库（mysql postgres oracle sqlserver 达梦 高斯 sqlite）数据操作 数据同步 数据迁移、redis(单机 哨兵 集群)、mongo 等集工单流程审批于一体的统一管理操作平台**
 
 ### 开发语言与主要框架
 

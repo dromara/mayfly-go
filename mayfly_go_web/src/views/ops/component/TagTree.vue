@@ -53,6 +53,7 @@ import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
 import { tagApi } from '../tag/api';
+import { isPrefixSubsequence } from '@/common/utils/string';
 
 const props = defineProps({
     resourceType: {
@@ -105,8 +106,7 @@ watch(filterText, (val) => {
 });
 
 const filterNode = (value: string, data: any) => {
-    if (!value) return true;
-    return data.label.includes(value);
+    return !value || isPrefixSubsequence(value, data.label);
 };
 
 /**

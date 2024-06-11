@@ -32,8 +32,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver v1.15.0 // mongo
-	golang.org/x/crypto v0.23.0 // ssh
-	golang.org/x/oauth2 v0.20.0
+	golang.org/x/crypto v0.24.0 // ssh
+	golang.org/x/oauth2 v0.21.0
 	golang.org/x/sync v0.7.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -94,8 +94,8 @@ require (
 	golang.org/x/exp v0.0.0-20230519143937-03e91628a987 // indirect
 	golang.org/x/image v0.13.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect
 	google.golang.org/grpc v1.52.3 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect

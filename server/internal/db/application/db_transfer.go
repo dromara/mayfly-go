@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -326,6 +327,8 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 		columnNames = append(columnNames, targetMeta.QuoteIdentifier(col.ColumnName))
 	}
 
+	dataHelper := targetMeta.GetDataHelper()
+
 	// 从目标库数据中取出源库字段对应的值
 	values := make([][]any, 0)
 	for _, record := range result {
@@ -342,6 +345,14 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 					}
 				}
 			}
+
+			if dataHelper.GetDataType(string(tc.DataType)) == dbi.DataTypeBlob {
+				decodeBytes, err := hex.DecodeString(val.(string))
+				if err == nil {
+					val = decodeBytes
+				}
+			}
+
 			rawValue = append(rawValue, val)
 		}
 		values = append(values, rawValue)

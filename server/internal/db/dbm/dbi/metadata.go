@@ -84,6 +84,13 @@ type Column struct {
 
 // 拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
 func (c *Column) GetColumnType() string {
+	// 哪些mysql数据类型不需要添加字段长度
+	if collx.ArrayAnyMatches([]string{"int", "blob", "float", "double", "date", "year", "json"}, string(c.DataType)) {
+		return string(c.DataType)
+	}
+	if c.DataType == "timestamp" {
+		return "timestamp(6)"
+	}
 	if c.CharMaxLength > 0 {
 		return fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
 	}
@@ -124,6 +131,7 @@ const (
 	CommonTypeVarbinary  ColumnDataType = "varbinary"
 
 	CommonTypeInt      ColumnDataType = "int"
+	CommonTypeBit      ColumnDataType = "bit"
 	CommonTypeSmallint ColumnDataType = "smallint"
 	CommonTypeTinyint  ColumnDataType = "tinyint"
 	CommonTypeNumber   ColumnDataType = "number"
@@ -146,6 +154,7 @@ const (
 	DataTypeDate     DataType = "date"
 	DataTypeTime     DataType = "time"
 	DataTypeDateTime DataType = "datetime"
+	DataTypeBlob     DataType = "blob"
 )
 
 // 列数据处理帮助方法

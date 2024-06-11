@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm"
@@ -13,14 +12,11 @@ import (
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
-
-	"gorm.io/gorm"
 )
 
 type Instance interface {
@@ -171,7 +167,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 }
 
 func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error {
-	instance, err := app.GetById(instanceId, "name")
+	instance, err := app.GetById(instanceId)
 	if err != nil {
 		return errorx.NewBiz("获取数据库实例错误，数据库实例ID为: %d", instance.Id)
 	}
@@ -180,26 +176,16 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		DbInstanceId: instanceId,
 	}
 	err = app.restoreApp.restoreRepo.GetByCond(restore)
-	switch {
-	case err == nil:
-		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库恢复任务。", instance.Name)
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		break
-	default:
-		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
+	if err != nil {
+		return errorx.NewBiz("不能删除数据库实例【%s】,请先删除关联的数据库恢复任务。", instance.Name)
 	}
 
 	backup := &entity.DbBackup{
 		DbInstanceId: instanceId,
 	}
 	err = app.backupApp.backupRepo.GetByCond(backup)
-	switch {
-	case err == nil:
-		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库备份任务。", instance.Name)
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		break
-	default:
-		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
+	if err != nil {
+		return errorx.NewBiz("不能删除数据库实例【%s】,请先删除关联的数据库备份任务。", instance.Name)
 	}
 
 	dbs, _ := app.dbApp.ListByCond(&entity.Db{
