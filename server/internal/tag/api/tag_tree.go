@@ -82,6 +82,11 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 		cond.CodePaths = strings.Split(tagPaths, ",")
 	}
 	cond.Id = uint64(rc.QueryInt("id"))
+	cond.Type = entity.TagType(rc.QueryInt("type"))
+	codes := rc.Query("codes")
+	if codes != "" {
+		cond.Codes = strings.Split(codes, ",")
+	}
 
 	var tagTrees []entity.TagTree
 	p.TagTreeApp.ListByQuery(cond, &tagTrees)

@@ -17,7 +17,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231018071450-ac8d9f0167e9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
 	github.com/may-fly/cast v1.6.1
@@ -26,7 +26,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.6
 	github.com/pquerna/otp v1.4.0
-	github.com/redis/go-redis/v9 v9.5.1
+	github.com/redis/go-redis/v9 v9.5.3
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/sijms/go-ora/v2 v2.8.19
 	github.com/stretchr/testify v1.9.0

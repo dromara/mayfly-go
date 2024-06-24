@@ -1,16 +1,13 @@
 <template>
     <div>
         <el-descriptions :column="3" border>
-            <el-descriptions-item :span="2" label="名称">{{ db?.name }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="id">{{ db?.id }}</el-descriptions-item>
+            <el-descriptions-item :span="3" label="标签"><TagCodePath :path="db.codePaths" /></el-descriptions-item>
 
-            <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="db.tags" /></el-descriptions-item>
-
+            <el-descriptions-item :span="1" label="名称">{{ db?.name }}</el-descriptions-item>
             <el-descriptions-item :span="1" label="主机">{{ `${db?.host}:${db?.port}` }}</el-descriptions-item>
             <el-descriptions-item :span="1" label="类型">
                 <SvgIcon :name="getDbDialect(db?.type).getInfo().icon" :size="20" />{{ db?.type }}
             </el-descriptions-item>
-            <el-descriptions-item :span="1" label="用户名">{{ db?.username }}</el-descriptions-item>
 
             <el-descriptions-item label="数据库">{{ sqlExec.db }}</el-descriptions-item>
             <el-descriptions-item label="表">
@@ -33,7 +30,9 @@ import { dbApi } from '@/views/ops/db/api';
 import { DbSqlExecTypeEnum } from '@/views/ops/db/enums';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
-import ResourceTags from '@/views/ops/component/ResourceTags.vue';
+import { tagApi } from '@/views/ops/tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 
 const props = defineProps({
     // 业务key
@@ -74,6 +73,10 @@ const getDbSqlExec = async (bizKey: string) => {
     state.sqlExec = res.list?.[0];
     const dbRes = await dbApi.dbs.request({ id: state.sqlExec.dbId });
     state.db = dbRes.list?.[0];
+
+    tagApi.listByQuery.request({ type: TagResourceTypeEnum.DbName.value, codes: state.db.code }).then((res) => {
+        state.db.codePaths = res.map((item: any) => item.codePath);
+    });
 };
 </script>
 <style lang="scss"></style>

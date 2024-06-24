@@ -156,7 +156,7 @@
 import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { ElInput, ElMessage } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
-import { DbInst } from '@/views/ops/db/db';
+import { DbInst, DbThemeConfig } from '@/views/ops/db/db';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
@@ -363,7 +363,7 @@ const state = reactive({
 
 const { tableHeight, datas } = toRefs(state);
 
-const dbConfig = useStorage('dbConfig', { showColumnComment: false });
+const dbConfig = useStorage('dbConfig', DbThemeConfig);
 
 /**
  * 行号字段列

@@ -842,3 +842,18 @@ function getTableName4SqlCtx(sql: string, alias: string = '', defaultDb: string)
         return tables.length > 0 ? tables[0] : undefined;
     }
 }
+
+/**
+ * 数据库主题配置
+ */
+export const DbThemeConfig = {
+    /**
+     * 表数据表头是否显示备注
+     */
+    showColumnComment: true,
+
+    /**
+     * 是否自动定位至树节点
+     */
+    locationTreeNode: true,
+};

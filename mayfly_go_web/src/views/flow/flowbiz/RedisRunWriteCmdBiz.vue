@@ -1,11 +1,10 @@
 <template>
     <div>
         <el-descriptions :column="3" border>
-            <el-descriptions-item :span="1" label="名称">{{ redis?.name }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="id">{{ redis?.id }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="用户名">{{ redis?.username }}</el-descriptions-item>
+            <el-descriptions-item :span="3" label="标签"><TagCodePath :path="redis.codePaths" /></el-descriptions-item>
 
-            <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="redis.tags" /></el-descriptions-item>
+            <el-descriptions-item :span="2" label="编号">{{ redis?.code }}</el-descriptions-item>
+            <el-descriptions-item :span="1" label="名称">{{ redis?.name }}</el-descriptions-item>
 
             <el-descriptions-item :span="1" label="主机">{{ `${redis?.host}` }}</el-descriptions-item>
             <el-descriptions-item :span="1" label="库">{{ state.db }}</el-descriptions-item>
@@ -22,8 +21,10 @@
 
 <script lang="ts" setup>
 import { toRefs, reactive, watch, onMounted } from 'vue';
-import ResourceTags from '@/views/ops/component/ResourceTags.vue';
 import { redisApi } from '@/views/ops/redis/api';
+import TagCodePath from '@/views/ops/component/TagCodePath.vue';
+import { tagApi } from '@/views/ops/tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     // 业务表单
@@ -75,6 +76,10 @@ const parseRunCmdForm = async (bizForm: string) => {
         return;
     }
     state.redis = res.list?.[0];
+
+    tagApi.listByQuery.request({ type: TagResourceTypeEnum.Redis.value, codes: state.redis.code }).then((res) => {
+        state.redis.codePaths = res.map((item: any) => item.codePath);
+    });
 };
 </script>
 <style lang="scss"></style>

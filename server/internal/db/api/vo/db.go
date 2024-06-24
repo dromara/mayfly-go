@@ -15,6 +15,7 @@ type DbListVO struct {
 	InstanceId      uint64                   `json:"instanceId"`
 	AuthCertName    string                   `json:"authCertName"`
 
+	InstanceCode string `json:"instanceCode" gorm:"-"`
 	InstanceType string `json:"type" gorm:"-"`
 	Host         string `json:"host" gorm:"-"`
 	Port         int    `json:"port" gorm:"-"`

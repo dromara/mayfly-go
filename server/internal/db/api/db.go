@@ -66,6 +66,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	for _, dbvo := range dbvos {
 		di := instancesMap[dbvo.InstanceId]
 		if di != nil {
+			dbvo.InstanceCode = di.Code
 			dbvo.InstanceType = di.Type
 			dbvo.Host = di.Host
 			dbvo.Port = di.Port
