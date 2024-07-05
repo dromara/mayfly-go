@@ -67,17 +67,9 @@ func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, pagePar
 func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {
 	instanceEntity.Network = instanceEntity.GetNetwork()
 
-	if authCert.Id != 0 {
-		// 密文可能被清除，故需要重新获取
-		authCert, _ = app.resourceAuthCertApp.GetAuthCert(authCert.Name)
-	} else {
-		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
-			publicAuthCert, err := app.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
-			if err != nil {
-				return err
-			}
-			authCert = publicAuthCert
-		}
+	authCert, err := app.resourceAuthCertApp.GetRealAuthCert(authCert)
+	if err != nil {
+		return err
 	}
 
 	dbConn, err := dbm.Conn(app.toDbInfoByAc(instanceEntity, authCert, ""))
@@ -176,7 +168,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		DbInstanceId: instanceId,
 	}
 	err = app.restoreApp.restoreRepo.GetByCond(restore)
-	if err != nil {
+	if err == nil {
 		return errorx.NewBiz("不能删除数据库实例【%s】,请先删除关联的数据库恢复任务。", instance.Name)
 	}
 
@@ -184,7 +176,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		DbInstanceId: instanceId,
 	}
 	err = app.backupApp.backupRepo.GetByCond(backup)
-	if err != nil {
+	if err == nil {
 		return errorx.NewBiz("不能删除数据库实例【%s】,请先删除关联的数据库备份任务。", instance.Name)
 	}
 

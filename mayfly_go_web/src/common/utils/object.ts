@@ -9,7 +9,19 @@ export function getValueByPath(obj: any, path: string) {
     const keys = path.split('.');
     let result = obj;
     for (let key of keys) {
-        if (!result || typeof result !== 'object') {
+        if (!result) {
+            return undefined;
+        }
+        // 如果是字符串，则尝试使用json解析
+        if (typeof result == 'string') {
+            try {
+                result = JSON.parse(result);
+            } catch (e) {
+                console.error(e);
+                return undefined;
+            }
+        }
+        if (typeof result !== 'object') {
             return undefined;
         }
 
@@ -23,7 +35,18 @@ export function getValueByPath(obj: any, path: string) {
             }
 
             const index = parseInt(matchIndex[1]);
-            result = Array.isArray(result[arrayKey]) ? result[arrayKey][index] : undefined;
+
+            let arrValue = result[arrayKey];
+            if (typeof arrValue == 'string') {
+                try {
+                    arrValue = JSON.parse(arrValue);
+                } catch (e) {
+                    result = undefined;
+                    break;
+                }
+            }
+
+            result = Array.isArray(arrValue) ? arrValue[index] : undefined;
         } else {
             result = result[key];
         }

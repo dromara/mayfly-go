@@ -13,37 +13,36 @@ import (
 type MetaData interface {
 	BaseMetaData
 
-	// 获取数据库服务实例信息
+	// GetDbServer 获取数据库服务实例信息
 	GetDbServer() (*DbServer, error)
 
-	// 获取数据库名称列表
+	// GetDbNames 获取数据库名称列表
 	GetDbNames() ([]string, error)
 
-	// 获取表信息
+	// GetTables 获取表信息
 	GetTables(tableNames ...string) ([]Table, error)
 
-	// 获取指定表名的所有列元信息
+	// GetColumns 获取指定表名的所有列元信息
 	GetColumns(tableNames ...string) ([]Column, error)
 
-	// 根据数据库类型修复字段长度、精度等
-	// FixColumn(column *Column)
-
-	// 获取表主键字段名，没有主键标识则默认第一个字段
+	// GetPrimaryKey 获取表主键字段名，没有主键标识则默认第一个字段
 	GetPrimaryKey(tableName string) (string, error)
 
-	// 获取表索引信息
+	// GetTableIndex 获取表索引信息
 	GetTableIndex(tableName string) ([]Index, error)
 
-	// 获取建表ddl
+	// GetTableDDL 获取建表ddl
 	GetTableDDL(tableName string, dropBeforeCreate bool) (string, error)
 
+	// GenerateTableDDL 生成建表ddl
 	GenerateTableDDL(columns []Column, tableInfo Table, dropBeforeCreate bool) []string
 
+	// GenerateIndexDDL 生成索引ddl
 	GenerateIndexDDL(indexs []Index, tableInfo Table) []string
 
 	GetSchemas() ([]string, error)
 
-	// 获取数据处理助手 用于解析格式化列数据等
+	// GetDataHelper 获取数据处理助手 用于解析格式化列数据等
 	GetDataHelper() DataHelper
 }
 

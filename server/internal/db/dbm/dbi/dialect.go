@@ -28,17 +28,19 @@ type Dialect interface {
 	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 	GetDbProgram() (DbProgram, error)
 
-	// 批量保存数据
+	// BatchInsert 批量insert数据
 	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error)
 
-	// 拷贝表
+	// CopyTable 拷贝表
 	CopyTable(copy *DbCopyTable) error
 
+	// CreateTable 创建表
 	CreateTable(columns []Column, tableInfo Table, dropOldTable bool) (int, error)
 
+	// CreateIndex 创建索引
 	CreateIndex(tableInfo Table, indexs []Index) error
 
-	// 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
+	// UpdateSequence 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
 	UpdateSequence(tableName string, columns []Column)
 }
 
