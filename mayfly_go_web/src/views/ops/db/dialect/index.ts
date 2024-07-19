@@ -69,7 +69,7 @@ export enum DataType {
 }
 
 /** 列数据类型角标 */
-export const ColumnTypeSubscript = {
+export const ColumnTypeSubscript: any = {
     /** 字符串 */
     string: 'ab',
     /** 数字 */

@@ -112,6 +112,7 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 		SentinelAddrs:    strings.Split(masterNameAndHosts[1], ","),
 		Username:         re.Username,
 		Password:         re.Password, // no password set
+		SentinelUsername: re.Username,
 		SentinelPassword: re.Password, // 哨兵节点密码需与redis节点密码一致
 		DB:               re.Db,       // use default DB
 		DialTimeout:      8 * time.Second,

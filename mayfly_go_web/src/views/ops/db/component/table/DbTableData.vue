@@ -258,12 +258,10 @@ const cmDataDel = new ContextmenuItem('deleteData', '删除')
         return state.table == '';
     });
 
-const cmDataEdit = new ContextmenuItem('editData', '编辑行')
-    .withIcon('edit')
-    .withOnClick(() => onEditRowData())
-    .withHideFunc(() => {
-        return state.table == '';
-    });
+const cmFormView = new ContextmenuItem('formView', '表单视图').withIcon('Document').withOnClick(() => onEditRowData());
+// .withHideFunc(() => {
+//     return state.table == '';
+// });
 
 const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
     .withIcon('tickets')
@@ -595,7 +593,7 @@ const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: a
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmDataEdit, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
+    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
     contextmenuRef.value.openContextmenu({ column, rowData: data });
 };
 
@@ -627,12 +625,12 @@ const onDeleteData = async () => {
 const onEditRowData = () => {
     const selectionDatas = Array.from(selectionRowsMap.values());
     if (selectionDatas.length > 1) {
-        ElMessage.warning('只能编辑一行数据');
+        ElMessage.warning('只能选择一行数据');
         return;
     }
     const data = selectionDatas[0];
     state.tableDataFormDialog.data = { ...data };
-    state.tableDataFormDialog.title = `编辑表'${props.table}'数据`;
+    state.tableDataFormDialog.title = state.table ? `'${props.table}'表单数据` : '表单视图';
     state.tableDataFormDialog.visible = true;
 };
 
@@ -648,7 +646,7 @@ const onGenerateJson = async () => {
     // 按列字段重新排序对象key
     const jsonObj = [];
     for (let selectionData of selectionDatas) {
-        let obj = {};
+        let obj: any = {};
         for (let column of state.columns) {
             if (column.show) {
                 obj[column.title] = selectionData[column.dataKey];
@@ -752,7 +750,7 @@ const submitUpdateFields = async () => {
 
     for (let updateRow of cellUpdateMap.values()) {
         const rowData = { ...updateRow.rowData };
-        let updateColumnValue = {};
+        let updateColumnValue: any = {};
 
         for (let k of updateRow.columnsMap.keys()) {
             const v = updateRow.columnsMap.get(k);

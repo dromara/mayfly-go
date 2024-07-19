@@ -98,18 +98,19 @@ func NewParserByteStream(width, height int) *ansiterm.ByteStream {
 
 var (
 	enterMarks = [][]byte{
-		[]byte("\x1b[?1049h"),
+		[]byte("\x1b[?1049h"), // 从备用屏幕缓冲区恢复屏幕内容
 		[]byte("\x1b[?1048h"),
 		[]byte("\x1b[?1047h"),
 		[]byte("\x1b[?47h"),
-		[]byte("\x1b[?25l"),
+		[]byte("\x1b[?25l"), // 隐藏光标
 	}
 
 	exitMarks = [][]byte{
-		[]byte("\x1b[?1049l"),
+		[]byte("\x1b[?1049l"), // 从备用屏幕缓冲区恢复屏幕内容
 		[]byte("\x1b[?1048l"),
 		[]byte("\x1b[?1047l"),
 		[]byte("\x1b[?47l"),
+		[]byte("\x1b[?25h"), // 显示光标
 	}
 
 	screenMarks = [][]byte{
