@@ -50,22 +50,6 @@
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <!-- 表数据展示配置 -->
-                    <el-popover
-                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
-                        placement="bottom"
-                        width="auto"
-                        title="展示配置"
-                        trigger="click"
-                    >
-                        <el-checkbox v-model="dbConfig.showColumnComment" label="显示字段备注" :true-value="true" :false-value="false" size="small" />
-                        <template #reference>
-                            <el-link type="primary" icon="setting" :underline="false"></el-link>
-                        </template>
-                    </el-popover>
-
-                    <el-divider direction="vertical" border-style="dashed" />
-
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
                         <el-link @click="submitUpdateFields()" type="success" :underline="false" class="font12">提交</el-link>
                     </el-tooltip>
@@ -258,7 +242,7 @@ import { DbInst } from '@/views/ops/db/db';
 import DbTableData from './DbTableData.vue';
 import { DbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { useEventListener, useStorage } from '@vueuse/core';
+import { useEventListener } from '@vueuse/core';
 import { copyToClipboard, fuzzyMatchField } from '@/common/utils/string';
 import DbTableDataForm from './DbTableDataForm.vue';
 
@@ -287,8 +271,6 @@ const columnNameSearchInputRef: Ref = ref(null);
 const condDialogInputRef: Ref = ref(null);
 
 const defaultPageSize = DbInst.DefaultLimit;
-
-const dbConfig = useStorage('dbConfig', { showColumnComment: false });
 
 const state = reactive({
     datas: [],

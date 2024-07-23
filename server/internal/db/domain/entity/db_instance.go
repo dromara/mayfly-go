@@ -16,7 +16,7 @@ type DbInstance struct {
 	Network            string  `json:"network"`
 	Extra              *string `json:"extra"`  // 连接需要的其他额外参数（json格式）, 如oracle需要sid等
 	Params             *string `json:"params"` // 使用指针类型，可更新为零值（空字符串）
-	Remark             string  `json:"remark"`
+	Remark             *string `json:"remark"`
 	SshTunnelMachineId int     `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 

@@ -222,7 +222,7 @@
 import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
-import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
+import { DbInst, DbThemeConfig, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
 import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
@@ -505,7 +505,7 @@ const state = reactive({
 
 const { nowDbInst, tableCreateDialog } = toRefs(state);
 
-const dbConfig = useStorage('dbConfig', { showColumnComment: false, locationTreeNode: false });
+const dbConfig = useStorage('dbConfig', DbThemeConfig);
 
 const serverInfoReqParam = ref({
     instanceId: 0,

@@ -76,18 +76,9 @@ func (r *redisAppImpl) TestConn(param *dto.SaveRedis) error {
 		db = cast.ToInt(strings.Split(re.Db, ",")[0])
 	}
 
-	authCert := param.AuthCert
-	if authCert.Id != 0 {
-		// 密文可能被清除，故需要重新获取
-		authCert, _ = r.resourceAuthCertApp.GetAuthCert(authCert.Name)
-	} else {
-		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
-			publicAuthCert, err := r.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
-			if err != nil {
-				return err
-			}
-			authCert = publicAuthCert
-		}
+	authCert, err := r.resourceAuthCertApp.GetRealAuthCert(param.AuthCert)
+	if err != nil {
+		return err
 	}
 
 	rc, err := re.ToRedisInfo(db, authCert).Conn()

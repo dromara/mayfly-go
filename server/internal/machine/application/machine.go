@@ -159,17 +159,9 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 func (m *machineAppImpl) TestConn(me *entity.Machine, authCert *tagentity.ResourceAuthCert) error {
 	me.Id = 0
 
-	if authCert.Id != 0 {
-		// 密文可能被清除，故需要重新获取
-		authCert, _ = m.resourceAuthCertApp.GetAuthCert(authCert.Name)
-	} else {
-		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
-			publicAuthCert, err := m.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
-			if err != nil {
-				return err
-			}
-			authCert = publicAuthCert
-		}
+	authCert, err := m.resourceAuthCertApp.GetRealAuthCert(authCert)
+	if err != nil {
+		return err
 	}
 
 	mi, err := m.toMi(me, authCert)

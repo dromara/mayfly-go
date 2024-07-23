@@ -25,7 +25,7 @@
         :clearable="false"
         type="Date"
         value-format="YYYY-MM-DD"
-        placeholder="选择日期"
+        :placeholder="`选择日期-${placeholder}`"
     />
 
     <el-date-picker
@@ -41,7 +41,7 @@
         :clearable="false"
         type="datetime"
         value-format="YYYY-MM-DD HH:mm:ss"
-        placeholder="选择日期时间"
+        :placeholder="`选择日期时间-${placeholder}`"
     />
 
     <el-time-picker
@@ -56,7 +56,7 @@
         v-model="itemValue"
         :clearable="false"
         value-format="HH:mm:ss"
-        placeholder="选择时间"
+        :placeholder="`选择时间-${placeholder}`"
     />
 </template>
 

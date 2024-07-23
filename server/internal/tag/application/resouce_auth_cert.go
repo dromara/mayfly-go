@@ -26,6 +26,9 @@ type ResourceAuthCert interface {
 	// GetAuthCert 根据授权凭证名称获取授权凭证
 	GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error)
 
+	//GetRealAuthCert 获取真实可连接鉴权的授权凭证，主要用于资源测试连接时
+	GetRealAuthCert(authCert *entity.ResourceAuthCert) (*entity.ResourceAuthCert, error)
+
 	// GetResourceAuthCert 获取资源授权凭证，优先获取默认账号，若不存在默认账号则返回特权账号，都不存在则返回第一个
 	GetResourceAuthCert(resourceType entity.TagType, resourceCode string) (*entity.ResourceAuthCert, error)
 
@@ -209,6 +212,25 @@ func (r *resourceAuthCertAppImpl) GetAuthCert(authCertName string) (*entity.Reso
 	}
 
 	return r.decryptAuthCert(authCert)
+}
+
+func (r *resourceAuthCertAppImpl) GetRealAuthCert(authCert *entity.ResourceAuthCert) (*entity.ResourceAuthCert, error) {
+	// 如果使用的是公共授权凭证，则密文为凭证名称
+	if authCert.CiphertextType == entity.AuthCertCiphertextTypePublic {
+		return r.GetAuthCert(authCert.Ciphertext)
+	}
+
+	if authCert.Id != 0 && authCert.Ciphertext == "" {
+		// 密文可能被清除，故需要重新获取
+		ac, err := r.GetAuthCert(authCert.Name)
+		if err != nil {
+			return nil, err
+		}
+		authCert.Ciphertext = ac.Ciphertext
+		return authCert, nil
+	}
+
+	return authCert, nil
 }
 
 func (r *resourceAuthCertAppImpl) GetResourceAuthCert(resourceType entity.TagType, resourceCode string) (*entity.ResourceAuthCert, error) {

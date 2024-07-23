@@ -6,10 +6,10 @@
                 :key="column.columnName"
                 class="w100 mb5"
                 :prop="column.columnName"
-                :required="!column.nullable && !column.isPrimaryKey && !column.isIdentity"
+                :required="props.tableName != '' && !column.nullable && !column.isPrimaryKey && !column.isIdentity"
             >
                 <template #label>
-                    <span class="pointer" :title="`${column.columnType} | ${column.columnComment}`">
+                    <span class="pointer" :title="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType">
                         {{ column.columnName }}
                     </span>
                 </template>
@@ -17,13 +17,13 @@
                 <ColumnFormItem
                     v-model="modelValue[`${column.columnName}`]"
                     :data-type="dbInst.getDialect().getDataType(column.dataType)"
-                    :placeholder="`${column.columnType}  ${column.columnComment}`"
+                    :placeholder="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType"
                     :column-name="column.columnName"
                     :disabled="column.isIdentity"
                 />
             </el-form-item>
         </el-form>
-        <template #footer>
+        <template #footer v-if="props.tableName">
             <span class="dialog-footer">
                 <el-button @click="closeDialog">取消</el-button>
                 <el-button type="primary" @click="confirm">确定</el-button>
@@ -99,7 +99,7 @@ const confirm = async () => {
 
     let sql = '';
     if (oldValue) {
-        const updateColumnValue = {};
+        const updateColumnValue: any = {};
         Object.keys(oldValue).forEach((key) => {
             // 如果新旧值不相等，则为需要更新的字段
             if (oldValue[key] !== modelValue.value[key]) {
