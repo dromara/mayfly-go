@@ -42,7 +42,7 @@ const useCustomFetch = createFetch({
 
 export function useApiFetch<T>(api: Api, params: any = null, reqOptions: RequestInit = {}) {
     const uaf = useCustomFetch<T>(api.url, {
-        beforeFetch({ url, options }) {
+        async beforeFetch({ url, options }) {
             options.method = api.method;
             if (!params) {
                 return;
@@ -57,7 +57,7 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
             }
 
             if (api.beforeHandler) {
-                paramsValue = api.beforeHandler(paramsValue);
+                paramsValue = await api.beforeHandler(paramsValue);
             }
 
             if (paramsValue) {

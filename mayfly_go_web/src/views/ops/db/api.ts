@@ -1,5 +1,5 @@
 import Api from '@/common/Api';
-import { Base64 } from 'js-base64';
+import { DesEncrypt } from '@/common/des';
 
 export const dbApi = {
     // 获取权限列表
@@ -16,20 +16,7 @@ export const dbApi = {
     pgSchemas: Api.newGet('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
     hintTables: Api.newGet('/dbs/{id}/hint-tables'),
-    sqlExec: Api.newPost('/dbs/{id}/exec-sql').withBeforeHandler((param: any) => {
-        // sql编码处理
-        if (param.sql) {
-            // 判断是开发环境就打印sql
-            if (process.env.NODE_ENV === 'development') {
-                console.log(param.sql);
-            }
-            // 非base64编码sql，则进行base64编码（refreshToken时，会重复调用该方法，故简单判断下）
-            if (!Base64.isValid(param.sql)) {
-                param.sql = Base64.encode(param.sql);
-            }
-        }
-        return param;
-    }),
+    sqlExec: Api.newPost('/dbs/{id}/exec-sql').withBeforeHandler(async (param: any) => await encryptField(param, 'sql')),
     // 保存sql
     saveSql: Api.newPost('/dbs/{id}/sql'),
     // 获取保存的sql
@@ -73,13 +60,7 @@ export const dbApi = {
 
     // 数据同步相关
     datasyncTasks: Api.newGet('/datasync/tasks'),
-    saveDatasyncTask: Api.newPost('/datasync/tasks/save').withBeforeHandler((param: any) => {
-        // sql编码处理
-        if (param.dataSql) {
-            param.dataSql = Base64.encode(param.dataSql);
-        }
-        return param;
-    }),
+    saveDatasyncTask: Api.newPost('/datasync/tasks/save').withBeforeHandler(async (param: any) => await encryptField(param, 'dataSql')),
     getDatasyncTask: Api.newGet('/datasync/tasks/{taskId}'),
     deleteDatasyncTask: Api.newDelete('/datasync/tasks/{taskId}/del'),
     updateDatasyncTaskStatus: Api.newPost('/datasync/tasks/{taskId}/status'),
@@ -99,4 +80,18 @@ export const dbApi = {
 export const dbSqlExecApi = {
     // 根据业务key获取sql执行信息
     getSqlExecByBizKey: Api.newGet('/dbs/sql-execs'),
+};
+const encryptField = async (param: any, field: string) => {
+    // sql编码处理
+    if (!param['_encrypted'] && param[field]) {
+        // 判断是开发环境就打印sql
+        if (process.env.NODE_ENV === 'development') {
+            console.log(param[field]);
+        }
+        // 使用rsa公钥加密sql
+        param['_encrypted'] = 1;
+        param[field] = DesEncrypt(param[field]);
+        // console.log('解密结果', DesDecrypt(param[field]));
+    }
+    return param;
 };

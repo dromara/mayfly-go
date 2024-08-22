@@ -69,7 +69,7 @@ class Api {
      */
     async xhrReq(param: any = null, options: any = {}): Promise<any> {
         if (this.beforeHandler) {
-            this.beforeHandler(param);
+            await this.beforeHandler(param);
         }
         return request.xhrReq(this.method, this.url, param, options);
     }

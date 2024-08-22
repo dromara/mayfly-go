@@ -12,6 +12,9 @@
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基本信息" :name="basicTab">
+                        <el-form-item prop="taskName" label="任务名" required>
+                            <el-input v-model.trim="form.taskName" placeholder="请输入任务名" auto-complete="off" />
+                        </el-form-item>
                         <el-form-item prop="srcDbId" label="源数据库" required>
                             <db-select-tree
                                 placeholder="请选择源数据库"
@@ -117,6 +120,7 @@ const tableTab = 'table';
 
 type FormData = {
     id?: number;
+    taskName: string;
     srcDbId?: number;
     srcDbName?: string;
     srcDbType?: string;

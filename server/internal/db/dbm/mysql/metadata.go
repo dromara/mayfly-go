@@ -217,9 +217,17 @@ func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	if !column.Nullable {
 		nullAble = " NOT NULL"
 	}
+	columnType := column.GetColumnType()
+	if nullAble == "" && strings.Contains(columnType, "timestamp") {
+		nullAble = " NULL"
+	}
 
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的  // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的
+	if column.ColumnDefault != "" &&
+		// 当默认值是字符串'NULL'时，不需要设置默认值
+		column.ColumnDefault != "NULL" &&
+		// 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+		!strings.Contains(column.ColumnDefault, "(") {
 		// 哪些字段类型默认值需要加引号
 		mark := false
 		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(dataType)) {
@@ -244,7 +252,7 @@ func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
 		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
 	}
 
-	columnSql := fmt.Sprintf(" %s %s%s%s%s%s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, incr, defVal, comment)
+	columnSql := fmt.Sprintf(" %s %s%s%s%s%s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), columnType, nullAble, incr, defVal, comment)
 	return columnSql
 }
 

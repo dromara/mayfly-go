@@ -8,7 +8,7 @@ const pathResolve = (dir: string): any => {
     return resolve(__dirname, '.', dir);
 };
 
-const { VITE_PORT, VITE_OPEN, VITE_PUBLIC_PATH } = loadEnv();
+const { VITE_PORT, VITE_OPEN, VITE_PUBLIC_PATH, VITE_EDITOR } = loadEnv();
 
 const alias: Record<string, string> = {
     '@': pathResolve('src/'),
@@ -19,6 +19,7 @@ const viteConfig: UserConfig = {
         vue(),
         CodeInspectorPlugin({
             bundler: 'vite',
+            editor: VITE_EDITOR,
         }),
     ],
     root: process.cwd(),

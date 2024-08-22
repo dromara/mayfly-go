@@ -2,6 +2,7 @@ package form
 
 type DbTransferTaskForm struct {
 	Id             uint64 `json:"id"`
+	TaskName       string `binding:"required" json:"taskName"`       // 任务名称
 	CheckedKeys    string `binding:"required" json:"checkedKeys"`    // 选中需要迁移的表
 	DeleteTable    int    `binding:"required" json:"deleteTable"`    // 创建表前是否删除表 1是  2否
 	NameCase       int    `binding:"required" json:"nameCase"`       // 表名、字段大小写转换  1无  2大写  3小写

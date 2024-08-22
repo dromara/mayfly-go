@@ -1,13 +1,13 @@
 package api
 
 import (
-	"encoding/base64"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
@@ -36,9 +36,9 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 	task := req.BindJsonAndCopyTo[*entity.DataSyncTask](rc, form, new(entity.DataSyncTask))
 
 	// 解码base64 sql
-	sqlBytes, err := base64.StdEncoding.DecodeString(task.DataSql)
+	sqlStr, err := cryptox.DesDecryptByToken(task.DataSql, rc.GetLoginAccount().Token)
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
-	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
+	sql := stringx.TrimSpaceAndBr(sqlStr)
 	task.DataSql = sql
 	form.DataSql = sql
 

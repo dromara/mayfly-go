@@ -63,6 +63,7 @@ CREATE TABLE `t_db_transfer_task` (
   `modifier` varchar(100) NOT NULL COMMENT '修改人姓名',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
   `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除',
+  `task_name` varchar(100) NULL comment '任务名',
   `delete_time` datetime DEFAULT NULL COMMENT '删除时间',
   `checked_keys` text NOT NULL COMMENT '选中需要迁移的表',
   `delete_table` tinyint(4) NOT NULL COMMENT '创建表前是否删除表  1是  -1否',

@@ -11,6 +11,7 @@ type DbTransferTaskListVO struct {
 
 	RunningState int    `json:"runningState"`
 	LogId        uint64 `json:"logId"`
+	TaskName     string `json:"taskName"` // 任务名称
 
 	CheckedKeys string `json:"checkedKeys"` // 选中需要迁移的表
 	DeleteTable int    `json:"deleteTable"` // 创建表前是否删除表

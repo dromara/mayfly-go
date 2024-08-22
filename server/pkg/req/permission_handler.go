@@ -67,6 +67,7 @@ func PermissionHandler(rc *Ctx) error {
 	rc.MetaCtx = contextx.WithLoginAccount(rc.MetaCtx, &model.LoginAccount{
 		Id:       userId,
 		Username: userName,
+		Token:    tokenStr,
 	})
 	return nil
 }

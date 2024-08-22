@@ -9,6 +9,7 @@ type DbTransferTask struct {
 
 	RunningState DbTransferRunningState `orm:"column(running_state)" json:"runningState"` // 运行状态
 	LogId        uint64                 `json:"logId"`
+	TaskName     string                 `orm:"column(task_name)" json:"taskName"` // 任务名称
 
 	CheckedKeys string `orm:"column(checked_keys)" json:"checkedKeys"` // 选中需要迁移的表
 	DeleteTable int    `orm:"column(delete_table)" json:"deleteTable"` // 创建表前是否删除表

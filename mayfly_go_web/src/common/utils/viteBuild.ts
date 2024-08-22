@@ -4,6 +4,7 @@ export interface ViteEnv {
     VITE_PORT: number;
     VITE_OPEN: boolean;
     VITE_PUBLIC_PATH: string;
+    VITE_EDITOR: string;
 }
 
 export function loadEnv(): ViteEnv {

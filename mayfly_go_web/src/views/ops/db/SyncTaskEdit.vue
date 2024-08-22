@@ -328,7 +328,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = DbInst.getOrNewInst(db);
         state.form.srcDbType = state.srcDbInst.type;
-        state.form.srcInstName = db.instanceName;
+        state.form.srcInstName = db.name;
     }
 
     //  初始化target数据源
@@ -340,7 +340,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         db.databases = db.database?.split(' ').sort() || [];
         state.targetDbInst = DbInst.getOrNewInst(db);
         state.form.targetDbType = state.targetDbInst.type;
-        state.form.targetInstName = db.instanceName;
+        state.form.targetInstName = db.name;
     }
 
     if (targetDbId && state.form.targetDbName) {

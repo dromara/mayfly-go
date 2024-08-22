@@ -19,6 +19,7 @@ type DataSyncLogQuery struct {
 }
 
 type DbTransferTaskQuery struct {
+	Name string `json:"name" form:"name"`
 }
 
 type DbTransferLogQuery struct {

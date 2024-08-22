@@ -14,11 +14,16 @@
                 <el-button v-auth="perms.del" :disabled="selectionData.length < 1" @click="del()" type="danger" icon="delete">删除</el-button>
             </template>
 
+            <template #taskName="{ data }">
+                <span :style="`${data.taskName ? '' : 'color:red'}`">
+                    {{ data.taskName || '请设置' }}
+                </span>
+            </template>
             <template #srcDb="{ data }">
                 <el-tooltip :content="`${data.srcTagPath} > ${data.srcInstName} > ${data.srcDbName}`">
                     <span>
                         <SvgIcon :name="getDbDialect(data.srcDbType).getInfo().icon" :size="18" />
-                        {{ data.srcInstName }}
+                        {{ data.srcDbName }}
                     </span>
                 </el-tooltip>
             </template>
@@ -26,7 +31,7 @@
                 <el-tooltip :content="`${data.targetTagPath} > ${data.targetInstName} > ${data.targetDbName}`">
                     <span>
                         <SvgIcon :name="getDbDialect(data.targetDbType).getInfo().icon" :size="18" />
-                        {{ data.targetInstName }}
+                        {{ data.targetDbName }}
                     </span>
                 </el-tooltip>
             </template>
@@ -71,8 +76,9 @@ const perms = {
 const searchItems = [SearchItem.input('name', '名称')];
 
 const columns = ref([
-    TableColumn.new('srcDb', '源库').setMinWidth(200).isSlot(),
-    TableColumn.new('targetDb', '目标库').setMinWidth(200).isSlot(),
+    TableColumn.new('taskName', '任务名').setMinWidth(150).isSlot(),
+    TableColumn.new('srcDb', '源库').setMinWidth(150).isSlot(),
+    TableColumn.new('targetDb', '目标库').setMinWidth(150).isSlot(),
     TableColumn.new('runningState', '执行状态').typeTag(DbTransferRunningStateEnum),
     TableColumn.new('creator', '创建人'),
     TableColumn.new('createTime', '创建时间').isTime(),

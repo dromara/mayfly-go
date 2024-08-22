@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/api/form"
@@ -24,6 +23,7 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
 	"strings"
@@ -103,17 +103,18 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 func (d *Db) ExecSql(rc *req.Ctx) {
 	form := req.BindJsonAndValid(rc, new(form.DbSqlExecForm))
 
+	ui := rc.GetLoginAccount()
+
 	dbId := getDbId(rc)
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
-
-	sqlBytes, err := base64.StdEncoding.DecodeString(form.Sql)
+	sqlStr, err := cryptox.DesDecryptByToken(form.Sql, ui.Token)
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
 	// 去除前后空格及换行符
-	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
+	sql := stringx.TrimSpaceAndBr(sqlStr)
 
 	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
