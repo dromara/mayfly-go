@@ -35,38 +35,42 @@
                 <p class="title">时间表达式</p>
                 <table>
                     <thead>
-                        <th v-for="item of tabTitles" width="40" :key="item">{{ item }}</th>
-                        <th>crontab完整表达式</th>
+                        <tr>
+                            <th v-for="item of tabTitles" width="40" :key="item">{{ item }}</th>
+                            <th>crontab完整表达式</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        <td>
-                            <span>{{ crontabValueObj.second }}</span>
-                        </td>
-                        <td>
-                            <span>{{ crontabValueObj.min }}</span>
-                        </td>
-                        <td>
-                            <span>{{ crontabValueObj.hour }}</span>
-                        </td>
-                        <td>
-                            <span>{{ crontabValueObj.day }}</span>
-                        </td>
-                        <td>
-                            <span>{{ crontabValueObj.mouth }}</span>
-                        </td>
-                        <td>
-                            <span>{{ crontabValueObj.week }}</span>
-                        </td>
-                        <td>
-                            <span>{{ crontabValueObj.year }}</span>
-                        </td>
-                        <td>
-                            <span>{{ contabValueString }}</span>
-                        </td>
+                        <tr>
+                            <td>
+                                <span>{{ crontabValueObj.second }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueObj.min }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueObj.hour }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueObj.day }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueObj.mouth }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueObj.week }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueObj.year }}</span>
+                            </td>
+                            <td>
+                                <span>{{ crontabValueString }}</span>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
-            <CrontabResult :ex="contabValueString"></CrontabResult>
+            <CrontabResult :ex="crontabValueString"></CrontabResult>
 
             <div class="pop_btn">
                 <el-button size="small" @click="hidePopup">取消</el-button>
@@ -202,7 +206,7 @@ function hidePopup() {
 
 // 填充表达式
 const submitFill = () => {
-    emit('fill', contabValueString.value);
+    emit('fill', crontabValueString.value);
     hidePopup();
 };
 
@@ -220,7 +224,7 @@ const clearCron = () => {
     changeTab(state.activeName);
 };
 
-const contabValueString = computed(() => {
+const crontabValueString = computed(() => {
     let obj = state.crontabValueObj;
     let str = obj.second + ' ' + obj.min + ' ' + obj.hour + ' ' + obj.day + ' ' + obj.mouth + ' ' + obj.week + (obj.year == '' ? '' : ' ' + obj.year);
     return str;

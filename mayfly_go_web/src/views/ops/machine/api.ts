@@ -5,6 +5,7 @@ import { joinClientParams } from '@/common/request';
 export const machineApi = {
     // 获取权限列表
     list: Api.newGet('/machines'),
+    getByCodes: Api.newGet('/machines/simple'),
     tagList: Api.newGet('/machines/tags'),
     getMachinePwd: Api.newGet('/machines/{id}/pwd'),
     info: Api.newGet('/machines/{id}/sysinfo'),

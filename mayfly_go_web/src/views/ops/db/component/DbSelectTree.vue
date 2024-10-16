@@ -27,25 +27,13 @@ import TagTreeResourceSelect from '../../component/TagTreeResourceSelect.vue';
 import { computed } from 'vue';
 import { DbInst } from '../db';
 
-const props = defineProps({
-    dbId: {
-        type: Number,
-    },
-    instName: {
-        type: String,
-    },
-    dbName: {
-        type: String,
-    },
-    tagPath: {
-        type: String,
-    },
-    dbType: {
-        type: String,
-    },
-});
+const dbId = defineModel<number>('dbId');
+const instName = defineModel<string>('instName');
+const dbName = defineModel<string>('dbName');
+const tagPath = defineModel<string>('tagPath');
+const dbType = defineModel<string>('dbType');
 
-const emits = defineEmits(['update:dbName', 'update:tagPath', 'update:instName', 'update:dbId', 'update:dbType', 'selectDb']);
+const emits = defineEmits(['selectDb']);
 
 /**
  * 树节点类型
@@ -63,7 +51,7 @@ class SqlExecNodeType {
 
 const selectNode = computed({
     get: () => {
-        return props.dbName ? `${props.tagPath} > ${props.instName} > ${props.dbName}` : '';
+        return dbName.value ? `${tagPath.value} > ${instName.value} > ${dbName.value}` : '';
     },
     set: () => {
         //
@@ -116,6 +104,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc(as
             .withParams({
                 tagPath: params.tagPath,
                 id: params.id,
+                code: params.code,
                 instanceId: params.instanceId,
                 name: params.name,
                 type: params.type,
@@ -156,12 +145,12 @@ const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema);
 
 const changeNode = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
-    // postgres
-    emits('update:dbName', params.db);
-    emits('update:instName', params.name);
-    emits('update:dbId', params.id);
-    emits('update:tagPath', params.tagPath);
-    emits('update:dbType', params.type);
+    dbName.value = params.db;
+    instName.value = params.name;
+    dbId.value = params.id;
+    tagPath.value = params.tagPath;
+    dbType.value = params.type;
+
     emits('selectDb', params);
 };
 </script>

@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	RedisRunWriteCmdFlowBizType = "redis_run_write_cmd_flow"
+	RedisRunCmdFlowBizType = "redis_run_cmd_flow"
 )
 
 func InitRedisFlowHandler() {
-	flowapp.RegisterBizHandler(RedisRunWriteCmdFlowBizType, ioc.Get[Redis]("RedisApp"))
+	flowapp.RegisterBizHandler(RedisRunCmdFlowBizType, ioc.Get[Redis]("RedisApp"))
 }

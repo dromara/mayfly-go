@@ -1,5 +1,5 @@
 <template>
-    <el-tag v-bind="$attrs" :type="type" :color="color" effect="plain">{{ enumLabel }}</el-tag>
+    <el-tag :disable-transitions="true" v-bind="$attrs" :type="type" :color="color" effect="plain">{{ enumLabel }}</el-tag>
 </template>
 
 <script lang="ts" setup>

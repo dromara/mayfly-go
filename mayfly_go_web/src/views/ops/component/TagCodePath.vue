@@ -1,13 +1,13 @@
 <template>
-    <div v-if="paths">
-        <el-row v-for="(path, idx) in paths?.slice(0, 1)" :key="idx">
-            <span v-for="item in parseTagPath(path)" :key="item.code">
+    <div v-if="codePaths">
+        <el-row v-for="(path, idx) in codePaths?.slice(0, 1)" :key="idx">
+            <span v-for="item in path" :key="item.code">
                 <SvgIcon
                     :name="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.icon"
                     :color="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.iconColor"
                     class="mr2"
                 />
-                <span> {{ item.code }}</span>
+                <span> {{ item.name ? item.name : item.code }}</span>
                 <SvgIcon v-if="!item.isEnd" class="mr5 ml5" name="arrow-right" />
             </span>
 
@@ -24,7 +24,7 @@
                             :color="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.iconColor"
                             class="mr2"
                         />
-                        <span> {{ item.code }}</span>
+                        <span> {{ item.name ? item.name : item.code }}</span>
                         <SvgIcon v-if="!item.isEnd" class="mr5 ml5" name="arrow-right" />
                     </span>
                 </el-row>
@@ -36,13 +36,20 @@
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
-import { computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { getAllTagInfoByCodePaths } from './tag';
 
 const props = defineProps({
     path: {
         type: [String, Array<string>],
     },
+    tagInfos: {
+        type: Object, // key: code , value: code info
+    },
 });
+
+const codePaths: any = ref([]);
+let allTagInfos: any = {};
 
 const paths = computed(() => {
     if (Array.isArray(props.path)) {
@@ -51,6 +58,32 @@ const paths = computed(() => {
 
     return [props.path];
 });
+
+onMounted(() => {
+    setCodePaths();
+});
+
+watch(
+    () => props.path,
+    () => {
+        setCodePaths();
+    }
+);
+
+const setCodePaths = async () => {
+    if (!paths.value) {
+        return;
+    }
+
+    if (!props.tagInfos || Object.keys(props.tagInfos).length == 0) {
+        const tagInfos = await getAllTagInfoByCodePaths(paths.value as any);
+        allTagInfos = tagInfos;
+    } else {
+        allTagInfos = props.tagInfos;
+    }
+
+    codePaths.value = paths.value.map((p) => parseTagPath(p));
+};
 
 const parseTagPath = (tagPath: string = '') => {
     if (!tagPath) {
@@ -61,27 +94,52 @@ const parseTagPath = (tagPath: string = '') => {
     for (let code of codes) {
         const typeAndCode = code.split('|');
 
+        let tagInfo;
         if (typeAndCode.length == 1) {
             const tagCode = typeAndCode[0];
             if (!tagCode) {
                 continue;
             }
 
-            res.push({
+            tagInfo = {
                 type: TagResourceTypeEnum.Tag.value,
                 code: typeAndCode[0],
-            });
+            };
+            res.push(tagInfo);
             continue;
+        } else {
+            tagInfo = {
+                type: typeAndCode[0],
+                code: typeAndCode[1],
+                name: '',
+            };
         }
 
-        res.push({
-            type: typeAndCode[0],
-            code: typeAndCode[1],
-        });
+        const ti = getTagInfo(tagInfo.type, tagInfo.code);
+        if (ti) {
+            tagInfo.name = ti.name;
+        }
+
+        res.push(tagInfo);
     }
 
     res[res.length - 1].isEnd = true;
     return res;
+};
+
+const getTagInfo = (type: any, code: string) => {
+    if (type == TagResourceTypeEnum.Tag.value) {
+        return {};
+    }
+
+    if (allTagInfos && Object.keys(allTagInfos).length > 0) {
+        const key = `${type}|${code}`;
+        if (allTagInfos[key]) {
+            return allTagInfos[key];
+        }
+    }
+
+    return {};
 };
 </script>
 <style lang="scss"></style>

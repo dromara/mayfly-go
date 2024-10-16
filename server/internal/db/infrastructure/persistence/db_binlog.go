@@ -3,10 +3,11 @@ package persistence
 import (
 	"context"
 	"fmt"
-	"gorm.io/gorm/clause"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/global"
+
+	"gorm.io/gorm/clause"
 )
 
 var _ repository.DbBinlog = (*dbBinlogRepoImpl)(nil)
@@ -16,7 +17,9 @@ type dbBinlogRepoImpl struct {
 }
 
 func NewDbBinlogRepo() repository.DbBinlog {
-	return &dbBinlogRepoImpl{}
+	dr := &dbBinlogRepoImpl{}
+	dr.M = new(entity.DbBinlog)
+	return dr
 }
 
 func (d *dbBinlogRepoImpl) AddJobIfNotExists(_ context.Context, job *entity.DbBinlog) error {

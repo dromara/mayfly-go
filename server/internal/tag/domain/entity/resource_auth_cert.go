@@ -4,8 +4,6 @@ import (
 	"errors"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
-
-	"github.com/may-fly/cast"
 )
 
 const (
@@ -15,6 +13,7 @@ const (
 // 资源授权凭证
 type ResourceAuthCert struct {
 	model.Model
+	model.ExtraData
 
 	Name string `json:"name"` // 名称（全局唯一）
 
@@ -24,7 +23,6 @@ type ResourceAuthCert struct {
 	Username       string                 `json:"username"`       // 用户名
 	Ciphertext     string                 `json:"ciphertext"`     // 密文
 	CiphertextType AuthCertCiphertextType `json:"ciphertextType"` // 密文类型
-	Extra          model.Map[string, any] `json:"extra"`          // 账号需要的其他额外信息（如秘钥口令等）
 	Remark         string                 `json:"remark"`         // 备注
 }
 
@@ -45,7 +43,7 @@ func (m *ResourceAuthCert) CiphertextEncrypt() error {
 			if err != nil {
 				return errors.New("加密秘钥口令失败")
 			}
-			m.SetExtra(ExtraKeyPassphrase, passphrase)
+			m.SetExtraValue(ExtraKeyPassphrase, passphrase)
 		}
 	}
 
@@ -69,7 +67,7 @@ func (m *ResourceAuthCert) CiphertextDecrypt() error {
 			if err != nil {
 				return errors.New("解密秘钥口令失败")
 			}
-			m.SetExtra(ExtraKeyPassphrase, passphrase)
+			m.SetExtraValue(ExtraKeyPassphrase, passphrase)
 		}
 	}
 	return nil
@@ -81,20 +79,7 @@ func (m *ResourceAuthCert) CiphertextClear() {
 	if m.CiphertextType != AuthCertCiphertextTypePublic {
 		m.Ciphertext = ""
 	}
-	m.SetExtra(ExtraKeyPassphrase, "")
-}
-
-func (m *ResourceAuthCert) SetExtra(key string, val any) {
-	if m.Extra != nil {
-		m.Extra[key] = val
-	}
-}
-
-func (m *ResourceAuthCert) GetExtraString(key string) string {
-	if m.Extra == nil {
-		return ""
-	}
-	return cast.ToString(m.Extra[key])
+	m.SetExtraValue(ExtraKeyPassphrase, "")
 }
 
 // HasChanged 与指定授权凭证比较是否有变更

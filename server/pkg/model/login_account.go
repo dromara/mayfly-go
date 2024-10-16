@@ -5,3 +5,7 @@ type LoginAccount struct {
 	Username string
 	Token    string
 }
+
+func (la *LoginAccount) GetAesKey() string {
+	return la.Token[:24]
+}

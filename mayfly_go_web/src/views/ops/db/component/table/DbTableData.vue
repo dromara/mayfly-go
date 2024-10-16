@@ -133,7 +133,7 @@
                     <el-button id="copyValue" @click="copyGenTxt(state.genTxtDialog.txt)" icon="CopyDocument" type="success" size="small">一键复制</el-button>
                 </div>
             </template>
-            <el-input v-model="state.genTxtDialog.txt" type="textarea" rows="20" />
+            <el-input v-model="state.genTxtDialog.txt" type="textarea" :rows="20" />
         </el-dialog>
 
         <DbTableDataForm
@@ -614,10 +614,6 @@ const onDeleteData = async () => {
     const db = state.db;
     const dbInst = getNowDbInst();
     dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as any), null, () => {
-        // 存在流程则恢复原值，需工单流程审批完后自动执行
-        if (dbInst.flowProcdef) {
-            return;
-        }
         emits('dataDelete', deleteDatas);
     });
 };
@@ -765,11 +761,6 @@ const submitUpdateFields = async () => {
     }
 
     dbInst.promptExeSql(db, res, null, () => {
-        // 存在流程则恢复原值，需工单流程审批完后自动执行
-        if (dbInst.flowProcdef) {
-            cancelUpdateFields();
-            return;
-        }
         triggerRefresh();
         cellUpdateMap.clear();
         changeUpdatedField();

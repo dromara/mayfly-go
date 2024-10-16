@@ -23,6 +23,7 @@ export const tagApi = {
 export const resourceAuthCertApi = {
     detail: Api.newGet('/auth-certs/detail'),
     listByQuery: Api.newGet('/auth-certs'),
+    getByCodes: Api.newGet('/auth-certs/simple'),
     save: Api.newPost('/auth-certs'),
     delete: Api.newDelete('/auth-certs/{id}'),
 };

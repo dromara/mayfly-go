@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
@@ -29,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	// "github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"github.com/may-fly/cast"
 )
 
@@ -103,61 +102,67 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 func (d *Db) ExecSql(rc *req.Ctx) {
 	form := req.BindJsonAndValid(rc, new(form.DbSqlExecForm))
 
-	ui := rc.GetLoginAccount()
-
 	dbId := getDbId(rc)
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
-	sqlStr, err := cryptox.DesDecryptByToken(form.Sql, ui.Token)
+	sqlStr, err := cryptox.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
 	// 去除前后空格及换行符
-	sql := stringx.TrimSpaceAndBr(sqlStr)
+	// sql := stringx.TrimSpaceAndBr(sqlStr)
 
-	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sql)
+	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	execReq := &application.DbSqlExecReq{
-		DbId:   dbId,
-		Db:     form.Db,
-		Remark: form.Remark,
-		DbConn: dbConn,
+		DbId:      dbId,
+		Db:        form.Db,
+		Remark:    form.Remark,
+		DbConn:    dbConn,
+		Sql:       sqlStr,
+		CheckFlow: true,
 	}
 
 	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
 	defer cancel()
 
-	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
-	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
-	isMulti := len(sqls) > 1
-	var execResAll *application.DbSqlExecRes
+	execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
+	biz.ErrIsNil(err)
+	rc.ResData = execRes
 
-	for _, s := range sqls {
-		s = stringx.TrimSpaceAndBr(s)
-		// 多条执行，暂不支持查询语句
-		if isMulti && len(s) > 10 {
-			biz.IsTrue(!strings.HasPrefix(strings.ToLower(s[:10]), "select"), "多条语句执行暂不不支持select语句")
-		}
+	// sqls := strings.Split(sql, ";")
+	// sqls = collx.ArrayRemoveBlank(sqls)
+	// // sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
+	// biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
+	// isMulti := len(sqls) > 1
+	// var execResAll *application.DbSqlExecRes
 
-		execReq.Sql = s
-		execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
-		biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
+	// for _, s := range sqls {
+	// 	s = stringx.TrimSpaceAndBr(s)
+	// 	// 多条执行，暂不支持查询语句
+	// 	if isMulti && len(s) > 10 {
+	// 		biz.IsTrue(!strings.HasPrefix(strings.ToLower(s[:10]), "select"), "多条语句执行暂不不支持select语句")
+	// 	}
 
-		if execResAll == nil {
-			execResAll = execRes
-		} else {
-			execResAll.Merge(execRes)
-		}
-	}
+	// 	execReq.Sql = s
+	// 	execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
+	// 	biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
 
-	colAndRes := make(map[string]any)
-	if execResAll != nil {
-		colAndRes["columns"] = execResAll.Columns
-		colAndRes["res"] = execResAll.Res
-	}
-	rc.ResData = colAndRes
+	// 	if execResAll == nil {
+	// 		execResAll = execRes
+	// 	} else {
+	// 		execResAll.Merge(execRes)
+	// 	}
+	// }
+
+	// colAndRes := make(map[string]any)
+	// if execResAll != nil {
+	// 	colAndRes["columns"] = execResAll.Columns
+	// 	colAndRes["res"] = execResAll.Res
+	// }
+	// rc.ResData = colAndRes
 }
 
 // progressCategory sql文件执行进度消息类型
@@ -199,16 +204,17 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	}()
 
 	execReq := &application.DbSqlExecReq{
-		DbId:   dbId,
-		Db:     dbName,
-		Remark: filename,
-		DbConn: dbConn,
+		DbId:      dbId,
+		Db:        dbName,
+		Remark:    filename,
+		DbConn:    dbConn,
+		CheckFlow: true,
 	}
 
 	var sql string
 
-	tokenizer := sqlparser.NewReaderTokenizer(file,
-		sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
+	// tokenizer := sqlparser.NewReaderTokenizer(file,
+	// 	sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
 
 	executedStatements := 0
 	progressId := stringx.Rand(32)
@@ -233,25 +239,25 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		default:
 		}
 		executedStatements++
-		sql, err = sqlparser.SplitNext(tokenizer)
-		if err == io.EOF {
-			break
-		}
+		// sql, err = sqlparser.SplitNext(tokenizer)
+		// if err == io.EOF {
+		// 	break
+		// }
 		biz.ErrIsNilAppendErr(err, "%s")
 
 		const prefixUse = "use "
 		const prefixUSE = "USE "
 		if strings.HasPrefix(sql, prefixUSE) || strings.HasPrefix(sql, prefixUse) {
-			var stmt sqlparser.Statement
-			stmt, err = sqlparser.Parse(sql)
+			// var stmt sqlparser.Statement
+			// stmt, err = sqlparser.Parse(sql)
 			biz.ErrIsNilAppendErr(err, "%s")
 
-			stmtUse, ok := stmt.(*sqlparser.Use)
+			// stmtUse, ok := stmt.(*sqlparser.Use)
 			// 最终执行结果以数据库直接结果为准
-			if !ok {
-				logx.Warnf("sql解析失败: %s", sql)
-			}
-			dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
+			// if !ok {
+			// 	logx.Warnf("sql解析失败: %s", sql)
+			// }
+			// dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
 			biz.ErrIsNil(err)
 			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.CodePath...), "%s")
 			execReq.DbConn = dbConn

@@ -172,7 +172,7 @@ const props = defineProps({
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value), SearchItem.input('code', '编号')];
+const searchItems = [SearchItem.input('keyword', '关键字').withPlaceholder('host / 名称 / 编号'), getTagPathSearchItem(TagResourceTypeEnum.Redis.value)];
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),

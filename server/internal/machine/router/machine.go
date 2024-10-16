@@ -25,6 +25,8 @@ func InitMachineRouter(router *gin.RouterGroup) {
 
 			req.NewGet("", m.Machines),
 
+			req.NewGet("/simple", m.SimpleMachieInfo),
+
 			req.NewGet(":machineId/stats", m.MachineStats),
 
 			req.NewGet(":machineId/process", m.GetProcess),

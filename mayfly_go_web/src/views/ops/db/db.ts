@@ -9,6 +9,7 @@ import { registerCompletionItemProvider } from '@/components/monaco/completionIt
 import { DbDialect, EditorCompletionItem, getDbDialect } from './dialect';
 import { type RemovableRef, useLocalStorage } from '@vueuse/core';
 import { DbGetDbNamesMode } from './enums';
+import { ElMessage } from 'element-plus';
 
 const hintsStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-table-hints', new Map());
 const tableStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-tables', new Map());
@@ -40,11 +41,6 @@ export class DbInst {
      * 数据库类型, mysql postgres
      */
     type: string;
-
-    /**
-     * 流程定义，若存在则需要审批执行
-     */
-    flowProcdef: any;
 
     /**
      * dbName -> db
@@ -226,12 +222,18 @@ export class DbInst {
      * @param remark 执行备注
      */
     async runSql(dbName: string, sql: string, remark: string = '') {
-        return await dbApi.sqlExec.request({
+        const res = await dbApi.sqlExec.request({
             id: this.id,
             db: dbName,
             sql: sql.trim(),
             remark,
         });
+        for (let re of res) {
+            if (re.errorMsg) {
+                ElMessage.error(`${re.sql} -> 执行失败: ${re.errorMsg}`);
+            }
+        }
+        return res;
     }
 
     /**
@@ -311,7 +313,7 @@ export class DbInst {
      * @param columnValue 要更新的列以及对应的值 field->columnName; value->columnValue
      * @param rowData 表的一行完整数据（需要获取主键信息）
      */
-    async genUpdateSql(dbName: string, table: string, columnValue: {}, rowData: {}) {
+    async genUpdateSql(dbName: string, table: string, columnValue: any, rowData: any) {
         let schema = '';
         let dbArr = dbName.split('/');
         if (dbArr.length == 2) {
@@ -360,7 +362,6 @@ export class DbInst {
             dbType: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
-            flowProcdef: this.flowProcdef,
         });
     };
 
@@ -384,11 +385,11 @@ export class DbInst {
         }
         let dbInst = dbInstCache.get(inst.id);
         if (dbInst) {
-            // 更新可能更改的流程定义
-            if (inst.flowProcdef !== undefined) {
-                dbInst.flowProcdef = inst.flowProcdef;
-                dbInstCache.set(dbInst.id, dbInst);
+            // 可能同一个库关联多个标签，展示需要
+            if (inst.tagPath) {
+                dbInst.tagPath = inst.tagPath;
             }
+
             return dbInst;
         }
         console.info(`new dbInst: ${inst.id}, tagPath: ${inst.tagPath}`);
@@ -399,7 +400,6 @@ export class DbInst {
         dbInst.name = inst.name;
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
-        dbInst.flowProcdef = inst.flowProcdef;
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;
@@ -408,7 +408,6 @@ export class DbInst {
     /**
      * 获取数据库实例id，若不存在，则新建一个并缓存
      * @param dbId 数据库实例id
-     * @param dbType 第一次获取时为必传项，即第一次创建时
      * @returns 数据库实例
      */
     static getInst(dbId?: number): DbInst {
@@ -419,7 +418,26 @@ export class DbInst {
         if (dbInst) {
             return dbInst;
         }
-        throw new Error('dbInst不存在! 请在合适调用点使用DbInst.newInst()新建该实例');
+        throw new Error('dbInst不存在! 请在合适调用点使用DbInst.getInstA()新建该实例');
+    }
+
+    /**
+     * 获取数据库实例信息，若不存在，调接口获取数据库信息
+     * @param dbId 数据库id
+     * @returns
+     */
+    static async getInstA(dbId?: number): Promise<DbInst> {
+        if (!dbId) {
+            throw new Error('dbId不能为空');
+        }
+        let dbInst = dbInstCache.get(dbId);
+        if (dbInst) {
+            return Promise.resolve(dbInst);
+        }
+
+        const dbInfoRes = await dbApi.dbs.request({ id: dbId });
+        const db = dbInfoRes.list[0];
+        return Promise.resolve(DbInst.getOrNewInst(db));
     }
 
     /**
@@ -649,7 +667,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
         triggerCharacters: ['.', ' '],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
             let word = model.getWordUntilPosition(position);
-            const dbInst = DbInst.getInst(dbId);
+            const dbInst = await DbInst.getInstA(dbId);
             const { lineNumber, column } = position;
             const { startColumn, endColumn } = word;
 
@@ -856,4 +874,9 @@ export const DbThemeConfig = {
      * 是否自动定位至树节点
      */
     locationTreeNode: true,
+
+    /**
+     * 是否缓存表信息
+     */
+    cacheTable: true,
 };

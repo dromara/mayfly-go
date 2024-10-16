@@ -20,16 +20,8 @@
                         style="width: 100%"
                     />
                 </el-form-item>
-                <el-form-item prop="code" label="编号" required>
-                    <el-input
-                        :disabled="form.id"
-                        v-model.trim="form.code"
-                        placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
-                        auto-complete="off"
-                    ></el-input>
-                </el-form-item>
                 <el-form-item prop="name" label="名称" required>
-                    <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
+                    <el-input v-model.trim="form.name" placeholder="请输入机器名称（不可重复）" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="protocol" label="协议" required>
                     <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
@@ -90,7 +82,6 @@ import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vu
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
@@ -118,18 +109,18 @@ const rules = {
             trigger: ['change'],
         },
     ],
-    code: [
-        {
-            required: true,
-            message: '请输入编码',
-            trigger: ['change', 'blur'],
-        },
-        {
-            pattern: ResourceCodePattern.pattern,
-            message: ResourceCodePattern.message,
-            trigger: ['blur'],
-        },
-    ],
+    // code: [
+    //     {
+    //         required: true,
+    //         message: '请输入编码',
+    //         trigger: ['change', 'blur'],
+    //     },
+    //     {
+    //         pattern: ResourceCodePattern.pattern,
+    //         message: ResourceCodePattern.message,
+    //         trigger: ['blur'],
+    //     },
+    // ],
     name: [
         {
             required: true,

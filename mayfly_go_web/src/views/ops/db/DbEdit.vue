@@ -10,14 +10,6 @@
             width="38%"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item prop="code" label="编号" required>
-                    <el-input
-                        :disabled="form.id"
-                        v-model.trim="form.code"
-                        placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
-                        auto-complete="off"
-                    ></el-input>
-                </el-form-item>
                 <el-form-item prop="name" label="名称" required>
                     <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
@@ -88,7 +80,6 @@ import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import type { CheckboxValueType } from 'element-plus';
 import { DbType } from '@/views/ops/db/dialect';
-import { ResourceCodePattern } from '@/common/pattern';
 
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
@@ -128,18 +119,6 @@ const rules = {
             required: true,
             message: '请选择数据库实例',
             trigger: ['change', 'blur'],
-        },
-    ],
-    code: [
-        {
-            required: true,
-            message: '请输入编码',
-            trigger: ['change', 'blur'],
-        },
-        {
-            pattern: ResourceCodePattern.pattern,
-            message: ResourceCodePattern.message,
-            trigger: ['blur'],
         },
     ],
     name: [

@@ -1,5 +1,5 @@
 import Api from '@/common/Api';
-import { DesEncrypt } from '@/common/des';
+import { AesEncrypt } from '@/common/crypto';
 
 export const dbApi = {
     // 获取权限列表
@@ -90,7 +90,7 @@ const encryptField = async (param: any, field: string) => {
         }
         // 使用rsa公钥加密sql
         param['_encrypted'] = 1;
-        param[field] = DesEncrypt(param[field]);
+        param[field] = AesEncrypt(param[field]);
         // console.log('解密结果', DesDecrypt(param[field]));
     }
     return param;

@@ -19,6 +19,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type Machine interface {
@@ -93,17 +94,25 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 		SshTunnelMachineId: me.SshTunnelMachineId,
 	}
 
+	if me.SshTunnelMachineId > 0 {
+		if err := m.checkSshTunnelMachine(me.Ip, me.Port, me.SshTunnelMachineId, nil); err != nil {
+			return err
+		}
+	}
+
 	err := m.GetByCond(oldMachine)
 	if me.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
 		}
-		if m.CountByCond(&entity.Machine{Code: me.Code}) > 0 {
-			return errorx.NewBiz("该编码已存在")
+		if m.CountByCond(&entity.Machine{Name: me.Name}) > 0 {
+			return errorx.NewBiz("该名称已存在")
 		}
 
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
+		// 生成随机编号
+		me.Code = stringx.Rand(10)
 
 		return m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
@@ -126,7 +135,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	if err == nil && oldMachine.Id != me.Id {
 		return errorx.NewBiz("该机器信息已存在")
 	}
-	// 如果调整了ssh username等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
+	// 如果调整了SshTunnelMachineId Ip port等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMachine.Code == "" {
 		oldMachine, _ = m.GetById(me.Id)
 	}
@@ -366,4 +375,26 @@ func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*
 		Name:     me.Name,
 		Children: authCertTags,
 	}
+}
+
+// checkSshTunnelMachine 校验ssh隧道机器是否存在循环隧道
+func (m *machineAppImpl) checkSshTunnelMachine(ip string, port int, sshTunnelMachineId int, visited map[string]bool) error {
+	if visited == nil {
+		visited = make(map[string]bool)
+	}
+	visited[fmt.Sprintf("%s:%d", ip, port)] = true
+
+	stm, err := m.GetById(uint64(sshTunnelMachineId))
+	if err != nil {
+		return err
+	}
+
+	if visited[fmt.Sprintf("%s:%d", stm.Ip, stm.Port)] {
+		return errorx.NewBiz("存在循环隧道，请重新选择隧道机器")
+	}
+
+	if stm.SshTunnelMachineId > 0 {
+		return m.checkSshTunnelMachine(stm.Ip, stm.Port, stm.SshTunnelMachineId, visited)
+	}
+	return nil
 }

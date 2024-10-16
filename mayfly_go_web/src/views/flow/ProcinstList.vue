@@ -9,7 +9,7 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <!-- <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editFlowDef(false)">添加</el-button> -->
+                <el-button type="primary" icon="plus" @click="startProcInst()">发起流程</el-button>
             </template>
 
             <template #action="{ data }">
@@ -36,6 +36,8 @@
             @val-change="valChange()"
             @cancel="procinstDetail.procinstId = 0"
         />
+
+        <ProcInstEdit v-model:visible="procinstEdit.visible" :title="procinstEdit.title" @val-change="search" />
     </div>
 </template>
 
@@ -49,6 +51,7 @@ import ProcinstDetail from './ProcinstDetail.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus } from './enums';
 import { ElMessage } from 'element-plus';
 import { formatTime } from '@/common/utils/format';
+import ProcInstEdit from './ProcInstEdit.vue';
 
 const searchItems = [
     SearchItem.select('status', '流程状态').withEnum(ProcinstStatus),
@@ -73,7 +76,7 @@ const columns = [
         }
         return formatTime(duration);
     }),
-    TableColumn.new('bizHandleRes', '业务处理结果'),
+    // TableColumn.new('bizHandleRes', '业务处理结果'),
     TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter(),
 ];
 
@@ -98,9 +101,13 @@ const state = reactive({
         procinstId: 0,
         instTaskId: 0,
     },
+    procinstEdit: {
+        title: '发起流程',
+        visible: false,
+    },
 });
 
-const { selectionData, query, procinstDetail } = toRefs(state);
+const { selectionData, query, procinstDetail, procinstEdit } = toRefs(state);
 
 const search = async () => {
     pageTableRef.value.search();
@@ -116,6 +123,10 @@ const showProcinst = (data: any) => {
     state.procinstDetail.procinstId = data.id;
     state.procinstDetail.title = '流程查看';
     state.procinstDetail.visible = true;
+};
+
+const startProcInst = () => {
+    state.procinstEdit.visible = true;
 };
 
 const valChange = () => {

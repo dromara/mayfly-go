@@ -104,7 +104,7 @@ const perms = {
     saveDb: 'db:save',
 };
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.input('code', '编号'), SearchItem.input('name', '名称')];
+const searchItems = [SearchItem.input('keyword', '关键字').withPlaceholder('host / 名称 / 编号'), getTagPathSearchItem(TagResourceTypeEnum.Db.value)];
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
@@ -118,7 +118,7 @@ const columns = ref([
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms(Object.values(perms));
+const actionBtns: any = hasPerms(Object.values(perms));
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 

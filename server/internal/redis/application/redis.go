@@ -4,7 +4,6 @@ import (
 	"context"
 	"mayfly-go/internal/common/consts"
 	flowapp "mayfly-go/internal/flow/application"
-	flowdto "mayfly-go/internal/flow/application/dto"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/domain/entity"
@@ -17,6 +16,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
@@ -103,9 +103,12 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 		if err == nil {
 			return errorx.NewBiz("该实例已存在")
 		}
-		if r.CountByCond(&entity.Redis{Code: re.Code}) > 0 {
-			return errorx.NewBiz("该编码已存在")
+		if r.CountByCond(&entity.Redis{Name: re.Name}) > 0 {
+			return errorx.NewBiz("该名称已存在")
 		}
+
+		// 生成随机编号
+		re.Code = stringx.Rand(10)
 
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)
@@ -138,7 +141,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 			rdm.CloseConn(re.Id, db)
 		}
 	}
-	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
+	// 如果调整了host sshid等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldRedis.Code == "" {
 		oldRedis, _ = r.GetById(re.Id)
 	}
@@ -148,7 +151,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
 		if oldRedis.Name != re.Name {
-			if err := r.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldRedis.Code, re.Name); err != nil {
+			if err := r.tagApp.UpdateTagName(ctx, tagentity.TagTypeRedis, oldRedis.Code, re.Name); err != nil {
 				return err
 			}
 		}
@@ -219,18 +222,16 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 		return nil, errorx.NewBiz("redis连接不存在")
 	}
 
-	// 开启工单流程，并且为写入命令，则开启对应审批流程
-	if procdefId := r.procdefApp.GetProcdefIdByCodePath(ctx, redisConn.Info.CodePath...); procdefId != 0 && rdm.IsWriteCmd(cmdParam.Cmd[0]) {
-		_, err := r.procinstApp.StartProc(ctx, procdefId, &flowdto.StarProc{
-			BizType: RedisRunWriteCmdFlowBizType,
-			BizKey:  stringx.Rand(24),
-			BizForm: jsonx.ToStr(cmdParam),
-			Remark:  cmdParam.Remark,
-		})
-		if err != nil {
-			return nil, err
+	// 开启工单流程，则校验该流程是否需要校验
+	if procdef := r.procdefApp.GetProcdefByCodePath(ctx, redisConn.Info.CodePath...); procdef != nil {
+		cmd := cmdParam.Cmd[0]
+		cmdType := "read"
+		if rdm.IsWriteCmd(cmd) {
+			cmdType = "write"
 		}
-		return nil, nil
+		if needStartProc := procdef.MatchCondition(RedisRunCmdFlowBizType, collx.Kvs("cmdType", cmdType, "cmd", cmd)); needStartProc {
+			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+		}
 	}
 
 	res, err := redisConn.RunCmd(ctx, cmdParam.Cmd...)
@@ -241,26 +242,96 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 	return res, err
 }
 
-func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowapp.BizHandleParam) error {
-	bizKey := bizHandleParam.BizKey
-	procinstStatus := bizHandleParam.ProcinstStatus
+type FlowRedisRunCmdBizForm struct {
+	Id  uint64 `json:"id"`  // redis id
+	Db  int    `json:"db"`  // redis db
+	Cmd string `json:"cmd"` // redis cmd
+}
+
+func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowapp.BizHandleParam) (any, error) {
+	procinst := bizHandleParam.Procinst
+	bizKey := procinst.BizKey
+	procinstStatus := procinst.Status
 
 	logx.Debugf("RedisRunWriteCmd FlowBizHandle -> bizKey: %s, procinstStatus: %s", bizKey, flowentity.ProcinstStatusEnum.GetDesc(procinstStatus))
 	// 流程非完成状态，不处理
 	if procinstStatus != flowentity.ProcinstStatusCompleted {
-		return nil
+		return nil, nil
 	}
 
-	runCmdParam, err := jsonx.To(bizHandleParam.BizForm, new(dto.RunCmd))
+	runCmdParam, err := jsonx.To(procinst.BizForm, new(FlowRedisRunCmdBizForm))
 	if err != nil {
-		return errorx.NewBiz("业务表单信息解析失败: %s", err.Error())
+		return nil, errorx.NewBiz("业务表单信息解析失败: %s", err.Error())
 	}
 
 	redisConn, err := r.GetRedisConn(runCmdParam.Id, runCmdParam.Db)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = redisConn.RunCmd(ctx, runCmdParam.Cmd...)
-	return err
+	handleRes := make([]map[string]any, 0)
+	cmds := strings.Split(runCmdParam.Cmd, ";\n")
+	hasErr := false
+	for _, cmd := range cmds {
+		cmd = strings.TrimSpace(cmd)
+		runRes := collx.Kvs("cmd", cmd)
+		if res, err := redisConn.RunCmd(ctx, collx.ArrayMap[string, any](parseRedisCommand(cmd), func(val string) any { return val })...); err != nil {
+			runRes["res"] = err.Error()
+			hasErr = true
+		} else {
+			runRes["res"] = res
+		}
+		handleRes = append(handleRes, runRes)
+	}
+
+	if hasErr {
+		return handleRes, errorx.NewBiz("存在命令执行失败")
+	}
+	return handleRes, nil
+}
+
+// parseRedisCommand 解析 Redis 命令字符串到数组
+func parseRedisCommand(commandStr string) []string {
+	var args []string
+	inSingleQuote := false
+	inDoubleQuote := false
+	currentArg := ""
+
+	for _, char := range commandStr {
+		switch char {
+		case '\'':
+			if !inDoubleQuote && !inSingleQuote {
+				inSingleQuote = true
+			} else if inSingleQuote && !inDoubleQuote {
+				inSingleQuote = false
+				args = append(args, strings.TrimSpace(currentArg))
+				currentArg = ""
+			}
+		case '"':
+			if !inSingleQuote && !inDoubleQuote {
+				inDoubleQuote = true
+			} else if !inSingleQuote && inDoubleQuote {
+				inDoubleQuote = false
+				args = append(args, strings.TrimSpace(currentArg))
+				currentArg = ""
+			}
+		case ' ':
+			if !inSingleQuote && !inDoubleQuote {
+				if strings.TrimSpace(currentArg) != "" {
+					args = append(args, strings.TrimSpace(currentArg))
+					currentArg = ""
+				}
+			} else {
+				currentArg += string(char)
+			}
+		default:
+			currentArg += string(char)
+		}
+	}
+
+	if strings.TrimSpace(currentArg) != "" {
+		args = append(args, strings.TrimSpace(currentArg))
+	}
+
+	return args
 }

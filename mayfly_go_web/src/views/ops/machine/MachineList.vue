@@ -278,10 +278,8 @@ const perms = {
 };
 
 const searchItems = [
+    SearchItem.input('keyword', '关键字').withPlaceholder('ip / 名称 / 编号'),
     getTagPathSearchItem(TagResourceTypeEnum.MachineAuthCert.value),
-    SearchItem.input('code', '编号'),
-    SearchItem.input('ip', 'IP'),
-    SearchItem.input('name', '名称'),
 ];
 
 const columns = [
@@ -298,7 +296,7 @@ const columns = [
 ];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
-const actionBtns = hasPerms([perms.updateMachine]);
+const actionBtns: any = hasPerms([perms.updateMachine]);
 
 const state = reactive({
     params: {

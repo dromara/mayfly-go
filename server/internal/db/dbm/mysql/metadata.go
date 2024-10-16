@@ -10,7 +10,7 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	// "github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"github.com/may-fly/cast"
 )
 
@@ -338,9 +338,9 @@ func (md *MysqlMetaData) QuoteLiteral(literal string) string {
 	return "'" + literal + "'"
 }
 
-func (md *MysqlMetaData) GetSqlParserDialect() sqlparser.Dialect {
-	return sqlparser.MysqlDialect{}
-}
+// func (md *MysqlMetaData) GetSqlParserDialect() sqlparser.Dialect {
+// 	return sqlparser.MysqlDialect{}
+// }
 
 func (md *MysqlMetaData) GetDataHelper() dbi.DataHelper {
 	return new(DataHelper)

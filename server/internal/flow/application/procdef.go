@@ -23,8 +23,8 @@ type Procdef interface {
 	// 删除流程实例信息
 	DeleteProcdef(ctx context.Context, defId uint64) error
 
-	// GetProcdefIdByCodePath 根据资源编号路径获取对应的流程定义id
-	GetProcdefIdByCodePath(ctx context.Context, codePaths ...string) uint64
+	// GetProcdefByCodePath 根据资源编号路径获取对应的流程定义
+	GetProcdefByCodePath(ctx context.Context, codePaths ...string) *entity.Procdef
 
 	// GetProcdefByResource 根据资源获取对应的流程定义
 	GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) *entity.Procdef
@@ -82,21 +82,13 @@ func (p *procdefAppImpl) DeleteProcdef(ctx context.Context, defId uint64) error 
 	return p.DeleteById(ctx, defId)
 }
 
-func (p *procdefAppImpl) GetProcdefIdByCodePath(ctx context.Context, codePaths ...string) uint64 {
+func (p *procdefAppImpl) GetProcdefByCodePath(ctx context.Context, codePaths ...string) *entity.Procdef {
 	relateIds, err := p.tagTreeRelateApp.GetRelateIds(ctx, tagentity.TagRelateTypeFlowDef, codePaths...)
 	if err != nil || len(relateIds) == 0 {
-		return 0
-	}
-	return relateIds[len(relateIds)-1]
-}
-
-func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) *entity.Procdef {
-	resourceCodePaths := p.tagTreeApp.ListTagPathByTypeAndCode(resourceType, resourceCode)
-	procdefId := p.GetProcdefIdByCodePath(ctx, resourceCodePaths...)
-	if procdefId == 0 {
 		return nil
 	}
 
+	procdefId := relateIds[len(relateIds)-1]
 	procdef, err := p.GetById(procdefId)
 	if err != nil {
 		return nil
@@ -105,6 +97,11 @@ func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType 
 		return nil
 	}
 	return procdef
+}
+
+func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) *entity.Procdef {
+	resourceCodePaths := p.tagTreeApp.ListTagPathByTypeAndCode(resourceType, resourceCode)
+	return p.GetProcdefByCodePath(ctx, resourceCodePaths...)
 }
 
 // 判断该流程实例是否可以执行修改操作

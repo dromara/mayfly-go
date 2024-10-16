@@ -2,11 +2,11 @@ package form
 
 type Redis struct {
 	Id                 uint64   `json:"id"`
-	Code               string   `json:"code" binding:"required"`
 	Name               string   `json:"name"`
 	Host               string   `json:"host" binding:"required"`
 	Username           string   `json:"username"`
 	Password           string   `json:"password"`
+	RedisNodePassword  string   `json:"redisNodePassword"`
 	Mode               string   `json:"mode"`
 	Db                 string   `json:"db"`
 	SshTunnelMachineId int      `json:"sshTunnelMachineId"` // ssh隧道机器id

@@ -83,7 +83,7 @@ func LogHandler(rc *Ctx) error {
 			}
 			attrMap["error"] = rc.Err
 			// 跳过log_handler等相关堆栈
-			attrMap["stacktrace"] = runtimex.StatckStr(5, nFrames)
+			attrMap["stacktrace"] = runtimex.StackStr(5, nFrames)
 		}
 	} else {
 		// 处理文本格式日志信息
@@ -134,6 +134,6 @@ func getErrMsg(rc *Ctx, err any) string {
 		errMsg = fmt.Sprintf("\n<-e errMsg: %s", t)
 	}
 	// 加上堆栈信息
-	errMsg += fmt.Sprintf("\n<-stacktrace: %s", runtimex.StatckStr(5, nFrames))
+	errMsg += fmt.Sprintf("\n<-stacktrace: %s", runtimex.StackStr(5, nFrames))
 	return (msg + errMsg)
 }

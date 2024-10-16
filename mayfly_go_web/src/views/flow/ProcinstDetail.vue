@@ -1,28 +1,20 @@
 <template>
     <div>
-        <el-drawer :title="props.title" v-model="visible" :before-close="cancel" size="40%" :close-on-click-modal="!props.instTaskId">
+        <el-drawer :title="props.title" v-model="visible" :before-close="cancel" size="50%" :close-on-click-modal="!props.instTaskId">
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
             <div>
                 <el-divider content-position="left">流程信息</el-divider>
-                <el-descriptions :column="2" border>
+                <el-descriptions :column="3" border>
                     <el-descriptions-item label="流程名">{{ procinst.procdefName }}</el-descriptions-item>
                     <el-descriptions-item label="业务">
                         <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
                     </el-descriptions-item>
-
                     <el-descriptions-item label="发起人">
                         <AccountInfo :account-id="procinst.creatorId" :username="procinst.creator" />
-                        <!-- {{ procinst.creator }} -->
                     </el-descriptions-item>
-                    <el-descriptions-item label="发起时间">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
-
-                    <div v-if="procinst.duration">
-                        <el-descriptions-item label="持续时间">{{ formatTime(procinst.duration) }}</el-descriptions-item>
-                        <el-descriptions-item label="结束时间">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
-                    </div>
 
                     <el-descriptions-item label="流程状态">
                         <enum-tag :enums="ProcinstStatus" :value="procinst.status"></enum-tag>
@@ -30,6 +22,13 @@
                     <el-descriptions-item label="业务状态">
                         <enum-tag :enums="ProcinstBizStatus" :value="procinst.bizStatus"></enum-tag>
                     </el-descriptions-item>
+
+                    <el-descriptions-item label="发起时间">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
+
+                    <div v-if="procinst.duration">
+                        <el-descriptions-item label="结束时间">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
+                        <el-descriptions-item label="持续时间">{{ formatTime(procinst.duration) }}</el-descriptions-item>
+                    </div>
 
                     <el-descriptions-item label="备注">
                         {{ procinst.remark }}
@@ -44,14 +43,7 @@
 
             <div>
                 <el-divider content-position="left">业务信息</el-divider>
-                <component
-                    v-if="procinst.bizType"
-                    ref="keyValueRef"
-                    :is="bizComponents[procinst.bizType]"
-                    :biz-key="procinst.bizKey"
-                    :biz-form="procinst.bizForm"
-                >
-                </component>
+                <component v-if="procinst.bizType" ref="keyValueRef" :is="bizComponents[procinst.bizType]" :procinst="procinst"> </component>
             </div>
 
             <div v-if="props.instTaskId">
@@ -92,8 +84,8 @@ import EnumTag from '@/components/enumtag/EnumTag.vue';
 import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
 import { formatDate } from '@/common/utils/format';
 
-const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/DbSqlExecBiz.vue'));
-const RedisRunWriteCmdBiz = defineAsyncComponent(() => import('./flowbiz/RedisRunWriteCmdBiz.vue'));
+const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
+const RedisRunCmdBiz = defineAsyncComponent(() => import('./flowbiz/redis/RedisRunCmdBiz.vue'));
 
 const props = defineProps({
     procinstId: {
@@ -114,9 +106,9 @@ const visible = defineModel<boolean>('visible', { default: false });
 const emit = defineEmits(['cancel', 'val-change']);
 
 // 业务组件
-const bizComponents = shallowReactive({
+const bizComponents: any = shallowReactive({
     db_sql_exec_flow: DbSqlExecBiz,
-    redis_run_write_cmd_flow: RedisRunWriteCmdBiz,
+    redis_run_cmd_flow: RedisRunCmdBiz,
 });
 
 const state = reactive({

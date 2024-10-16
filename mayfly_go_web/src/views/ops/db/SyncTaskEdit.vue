@@ -465,7 +465,7 @@ const handleGetSrcFields = async () => {
         return;
     }
 
-    let filedMap = {};
+    let filedMap: any = {};
     if (state.form.fieldMap && state.form.fieldMap.length > 0) {
         state.form.fieldMap.forEach((a: any) => {
             filedMap[a.src] = a.target;

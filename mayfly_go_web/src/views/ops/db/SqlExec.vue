@@ -108,6 +108,16 @@
                                             />
                                         </el-row>
 
+                                        <el-row>
+                                            <el-checkbox
+                                                v-model="dbConfig.cacheTable"
+                                                label="缓存表信息-[不开启则实时获取表信息]"
+                                                :true-value="1"
+                                                :false-value="0"
+                                                size="small"
+                                            />
+                                        </el-row>
+
                                         <template #reference>
                                             <el-link type="primary" icon="setting" :underline="false"></el-link>
                                         </template>
@@ -149,7 +159,7 @@
                                 <template #label>
                                     <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                                         <template #reference>
-                                            <span class="font12">{{ dt.label }}</span>
+                                            <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="font12">{{ dt.label }}</span>
                                         </template>
                                         <template #default>
                                             <el-descriptions :column="1" size="small">
@@ -215,11 +225,13 @@
             v-model:visible="tableCreateDialog.visible"
             @submit-sql="onSubmitEditTableSql"
         />
+
+        <contextmenu ref="tabContextmenuRef" :dropdown="state.tabContextmenu.dropdown" :items="state.tabContextmenu.items" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
+import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
 import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, DbThemeConfig, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
@@ -228,7 +240,7 @@ import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { ContextmenuItem } from '@/components/contextmenu';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
@@ -398,7 +410,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
         let { id, db, type, flowProcdef, schema } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
-        state.reloadStatus = false;
+        state.reloadStatus = !dbConfig.value.cacheTable;
         let dbTableSize = 0;
         const tablesNode = tables.map((x: any) => {
             const tableSize = x.dataLength + x.indexLength;
@@ -471,7 +483,24 @@ const NodeTypeSql = new NodeType(SqlExecNodeType.Sql)
         new ContextmenuItem('delSql', '删除').withIcon('delete').withOnClick((data: any) => deleteSql(data.params.id, data.params.db, data.params.sqlName)),
     ]);
 
+const tabContextmenuItems = [
+    new ContextmenuItem(1, '关闭').withIcon('Close').withOnClick((data: any) => {
+        onRemoveTab(data.key);
+    }),
+
+    new ContextmenuItem(2, '关闭其他').withIcon('CircleClose').withOnClick((data: any) => {
+        const tabName = data.key;
+        const tabNames = [...state.tabs.keys()];
+        for (let tab of tabNames) {
+            if (tab !== tabName) {
+                onRemoveTab(tab);
+            }
+        }
+    }),
+];
+
 const tagTreeRef: any = ref(null);
+const tabContextmenuRef: any = useTemplateRef('tabContextmenuRef');
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
@@ -484,6 +513,10 @@ const state = reactive({
     activeName: '',
     reloadStatus: false,
     tabs,
+    tabContextmenu: {
+        dropdown: { x: 0, y: 0 },
+        items: tabContextmenuItems,
+    },
     dataTabsTableHeight: '600px',
     tablesOpHeight: '600',
     dbServerInfo: {
@@ -516,6 +549,7 @@ const autoOpenResourceStore = useAutoOpenResource();
 const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
 
 onMounted(() => {
+    state.reloadStatus = !dbConfig.value.cacheTable;
     autoOpenDb(autoOpenResource.value.dbCodePath);
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
@@ -538,7 +572,7 @@ const autoOpenDb = (codePath: string) => {
         return;
     }
 
-    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const typeAndCodes: any = getTagTypeCodeByPath(codePath);
     const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
 
     const dbCode = typeAndCodes[TagResourceTypeEnum.DbName.value][0];
@@ -734,6 +768,15 @@ const onTabChange = () => {
     if (dbConfig.value.locationTreeNode) {
         locationNowTreeNode(nowTab);
     }
+};
+
+// 右键点击时：传 x,y 坐标值到子组件中（props）
+const onTabContextmenu = (v: any, e: any) => {
+    console.log('on tab cm');
+    const { clientX, clientY } = e;
+    state.tabContextmenu.dropdown.x = clientX;
+    state.tabContextmenu.dropdown.y = clientY;
+    tabContextmenuRef.value.openContextmenu(v);
 };
 
 /**

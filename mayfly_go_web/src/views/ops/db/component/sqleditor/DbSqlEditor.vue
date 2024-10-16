@@ -297,6 +297,8 @@ const onRunSql = async (newTab = false) => {
     // 去除字符串前的空格、换行等
     sql = sql.replace(/(^\s*)/g, '');
 
+    const sqls = splitSql(sql);
+
     // 简单截取前十个字符
     const sqlPrefix = sql.slice(0, 10).toLowerCase();
     const nonQuery =
@@ -308,27 +310,48 @@ const onRunSql = async (newTab = false) => {
         sqlPrefix.startsWith('create');
 
     // 启用工单审批
-    if (nonQuery && getNowDbInst().flowProcdef) {
-        try {
-            getNowDbInst().promptExeSql(props.dbName, sql, null, () => {
-                ElMessage.success('工单提交成功');
+    // if (nonQuery && getNowDbInst().flowProcdef) {
+    //     try {
+    //         getNowDbInst().promptExeSql(props.dbName, sql, null, () => {
+    //             ElMessage.success('工单提交成功');
+    //         });
+    //     } catch (e) {
+    //         ElMessage.success('工单提交失败');
+    //     }
+    //     return;
+    // }
+
+    if (sqls.length == 1) {
+        let execRemark;
+        if (nonQuery) {
+            const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                inputErrorMessage: '输入执行该sql的备注信息',
             });
-        } catch (e) {
-            ElMessage.success('工单提交失败');
+            execRemark = res.value;
         }
-        return;
+        runSql(sql, execRemark, newTab);
+    } else {
+        let isFirst = true;
+        for (let s of sqls) {
+            if (isFirst) {
+                isFirst = false;
+                runSql(s, '', newTab);
+            } else {
+                runSql(s, '', true);
+            }
+        }
     }
+};
 
-    let execRemark;
-    if (nonQuery) {
-        const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            inputErrorMessage: '输入执行该sql的备注信息',
-        });
-        execRemark = res.value;
-    }
-
+/**
+ * 执行单条sql
+ *
+ * @param sql 单条sql
+ * @param newTab 是否新建tab
+ */
+const runSql = async (sql: string, remark = '', newTab = false) => {
     let execRes: ExecResTab;
     let i = 0;
     let id;
@@ -356,12 +379,16 @@ const onRunSql = async (newTab = false) => {
         execRes.errorMsg = '';
         execRes.sql = '';
 
-        const { data, execute, isFetching, abort } = getNowDbInst().execSql(props.dbName, sql, execRemark);
+        const { data, execute, isFetching, abort } = getNowDbInst().execSql(props.dbName, sql, remark);
         execRes.loading = isFetching;
         execRes.abortFn = abort;
 
         await execute();
-        const colAndData: any = data.value;
+        const colAndData: any = (data.value as any)[0];
+        if (colAndData.errorMsg) {
+            throw { msg: colAndData.errorMsg };
+        }
+
         if (colAndData.res.length == 0) {
             state.tableDataEmptyText = '查无数据';
         }
@@ -381,7 +408,8 @@ const onRunSql = async (newTab = false) => {
         execRes.data = [];
         execRes.tableColumn = [];
         execRes.table = '';
-        execRes.errorMsg = e.msg;
+        // 要实时响应，故需要用索引改变数据才生效
+        state.execResTabs[i].errorMsg = e.msg;
         return;
     } finally {
         execRes.sql = sql;
@@ -402,6 +430,31 @@ const onRunSql = async (newTab = false) => {
         execRes.table = '';
     }
 };
+
+function splitSql(sql: string) {
+    // 移除注释
+    sql = sql.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // 分割SQL语句
+    const statements = sql.split(/;\s*|\/\*[\s\S]*?\*\//g);
+
+    // 移除空语句
+    const filteredStatements = statements.filter((statement) => statement.trim() !== '');
+
+    // 处理包含分号的SQL语句
+    const processedStatements = filteredStatements.map((statement) => {
+        const parts = statement.split(/[\s]+/);
+        const newParts = parts.map((part) => {
+            if (part.includes('(') && part.includes(')')) {
+                return part.replace(/\(/g, '[').replace(/\)/g, ']');
+            }
+            return part;
+        });
+        return newParts.join(' ');
+    });
+
+    return processedStatements;
+}
 
 /**
  * 获取sql，如果有鼠标选中，则返回选中内容，否则返回输入框内所有内容

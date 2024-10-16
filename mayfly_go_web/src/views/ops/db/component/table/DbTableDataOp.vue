@@ -386,7 +386,8 @@ const selectData = async () => {
 
         let sql = dbInst.getDefaultSelectSql(db, table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
-        const colAndData: any = await dbInst.runSql(db, sql);
+        const res: any = await dbInst.runSql(db, sql);
+        const colAndData: any = res[0];
         state.datas = colAndData.res;
     } finally {
         state.loading = false;
@@ -417,7 +418,8 @@ const handleCount = async () => {
         const db = props.dbName;
         const table = props.tableName;
         const dbInst = getNowDbInst();
-        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
+        let countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
+        countRes = countRes[0];
         state.total = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
         state.showTotal = true;
     } catch (e) {

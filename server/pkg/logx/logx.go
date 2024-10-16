@@ -62,7 +62,7 @@ func DebugWithFields(ctx context.Context, msg string, mapFields map[string]any) 
 
 // debug记录，并将堆栈信息添加至msg里，默认记录10个堆栈信息
 func DebugTrace(msg string, err error) {
-	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(msg+" %s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
+	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(msg+" %s\n%s", err.Error(), runtimex.StackStr(2, 10)))
 }
 
 func Info(msg string, args ...any) {
@@ -132,7 +132,7 @@ func ErrorTrace(msg string, err any) {
 	default:
 		errMsg = fmt.Sprintf("%v", t)
 	}
-	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 20)))
+	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StackStr(2, 20)))
 }
 
 func ErrorWithFields(ctx context.Context, msg string, mapFields map[string]any) {

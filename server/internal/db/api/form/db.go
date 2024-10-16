@@ -4,7 +4,6 @@ import "mayfly-go/internal/db/domain/entity"
 
 type DbForm struct {
 	Id              uint64                   `json:"id"`
-	Code            string                   `binding:"required" json:"code"`
 	Name            string                   `binding:"required" json:"name"`
 	GetDatabaseMode entity.DbGetDatabaseMode `json:"getDatabaseMode"` // 获取数据库方式
 	Database        string                   `json:"database"`

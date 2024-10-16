@@ -25,11 +25,12 @@ const (
 type RedisInfo struct {
 	Id uint64 `json:"id"`
 
-	Host     string    `json:"host"`
-	Db       int       `json:"db"` // 库号
-	Mode     RedisMode `json:"mode"`
-	Username string    `json:"-"`
-	Password string    `json:"-"`
+	Host              string    `json:"host"`
+	Db                int       `json:"db"` // 库号
+	Mode              RedisMode `json:"mode"`
+	Username          string    `json:"-"`
+	Password          string    `json:"-"`
+	RedisNodePassword string    `json:"-"`
 
 	Name               string   `json:"-"`
 	CodePath           []string `json:"codePath"`
@@ -111,9 +112,9 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 		MasterName:       masterNameAndHosts[0],
 		SentinelAddrs:    strings.Split(masterNameAndHosts[1], ","),
 		Username:         re.Username,
-		Password:         re.Password, // no password set
+		Password:         re.RedisNodePassword, // no password set
 		SentinelUsername: re.Username,
-		SentinelPassword: re.Password, // 哨兵节点密码需与redis节点密码一致
+		SentinelPassword: re.Password, // 哨兵节点密码
 		DB:               re.Db,       // use default DB
 		DialTimeout:      8 * time.Second,
 		ReadTimeout:      -1, // Disable timeouts, because SSH does not support deadlines.

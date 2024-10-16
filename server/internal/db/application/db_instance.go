@@ -16,6 +16,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
 )
 
@@ -104,9 +105,11 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		if err == nil {
 			return 0, errorx.NewBiz("该数据库实例已存在")
 		}
-		if app.CountByCond(&entity.DbInstance{Code: instanceEntity.Code}) > 0 {
-			return 0, errorx.NewBiz("该编码已存在")
+		if app.CountByCond(&entity.DbInstance{Name: instanceEntity.Name}) > 0 {
+			return 0, errorx.NewBiz("该名称已存在")
 		}
+
+		instanceEntity.Code = stringx.Rand(10)
 
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)
@@ -152,7 +155,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 			}
 		}
 		return app.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
-			ResourceTag:        app.genDbInstanceResourceTag(instanceEntity, authCerts),
+			ResourceTag:        app.genDbInstanceResourceTag(oldInstance, authCerts),
 			ParentTagCodePaths: tagCodePaths,
 		})
 	})

@@ -254,7 +254,7 @@ const perms = {
     restoreDb: 'db:restore',
 };
 
-const actionBtns = hasPerms(Object.values(perms));
+const actionBtns: any = hasPerms(Object.values(perms));
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({

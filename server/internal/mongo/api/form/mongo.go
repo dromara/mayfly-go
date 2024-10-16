@@ -2,7 +2,6 @@ package form
 
 type Mongo struct {
 	Id                 uint64   `json:"id"`
-	Code               string   `json:"code" binding:"required"`
 	Uri                string   `binding:"required" json:"uri"`
 	SshTunnelMachineId int      `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Name               string   `binding:"required" json:"name"`

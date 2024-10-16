@@ -9,7 +9,7 @@ import (
 )
 
 type Query struct {
-	dbModel any // 数据库模型
+	dbModel model.ModelI // 数据库模型
 	table   string
 	joins   string // join 类似 left join emails on emails.user_id = users.id
 
@@ -17,8 +17,13 @@ type Query struct {
 }
 
 // NewQuery 构建查询条件
-func NewQuery(dbModel any, cond *model.QueryCond) *Query {
-	return &Query{dbModel: dbModel, cond: cond}
+func NewQuery(dbModel model.ModelI, cond *model.QueryCond) *Query {
+	q := &Query{dbModel: dbModel, cond: cond}
+	// 如果是逻辑删除，默认加上伪删除过滤条件
+	if dbModel.LogicDelete() {
+		q.Undeleted()
+	}
+	return q
 }
 
 func NewQueryWithTableName(tableName string) *Query {
@@ -84,5 +89,6 @@ func setGdbWhere(gdb *gorm.DB, cond *model.QueryCond) *gorm.DB {
 	for i, v := range cond.GetWheres() {
 		gdb.Where(i, v...)
 	}
+
 	return gdb
 }

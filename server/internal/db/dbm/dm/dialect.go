@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
-
 	_ "gitee.com/chunanyong/dm"
 )
 
@@ -138,7 +136,8 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	ddl = strings.ReplaceAll(ddl, fmt.Sprintf("\"%s\"", strings.ToUpper(tableName)), fmt.Sprintf("\"%s\"", strings.ToUpper(newTableName)))
 	// 去除空格换行
 	ddl = stringx.TrimSpaceAndBr(ddl)
-	sqls, err := sqlparser.SplitStatementToPieces(ddl, sqlparser.WithDialect(dd.dc.GetMetaData().GetSqlParserDialect()))
+	// sqls, err := sqlparser.SplitStatementToPieces(ddl, sqlparser.WithDialect(dd.dc.GetMetaData().GetSqlParserDialect()))
+	sqls := strings.Split(ddl, ";")
 	for _, sql := range sqls {
 		_, _ = dd.dc.Exec(sql)
 	}

@@ -20,6 +20,8 @@ func InitProcinstRouter(router *gin.RouterGroup) {
 
 			req.NewGet("/:id", p.GetProcinstDetail),
 
+			req.NewPost("/start", p.ProcinstStart).Log(req.NewLogSave("流程-启动")),
+
 			req.NewPost("/:id/cancel", p.ProcinstCancel).Log(req.NewLogSave("流程-取消")),
 
 			req.NewGet("/tasks", p.GetTasks),

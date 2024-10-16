@@ -22,15 +22,6 @@
                     />
                 </el-form-item>
 
-                <el-form-item prop="code" label="编号" required>
-                    <el-input
-                        :disabled="form.id"
-                        v-model.trim="form.code"
-                        placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
-                        auto-complete="off"
-                    ></el-input>
-                </el-form-item>
-
                 <el-form-item prop="name" label="名称" required>
                     <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
@@ -132,7 +123,6 @@ import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { DbType, getDbDialect, getDbDialectMap } from './dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
@@ -159,18 +149,6 @@ const rules = {
             required: true,
             message: '请选择标签',
             trigger: ['change'],
-        },
-    ],
-    code: [
-        {
-            required: true,
-            message: '请输入编码',
-            trigger: ['change', 'blur'],
-        },
-        {
-            pattern: ResourceCodePattern.pattern,
-            message: ResourceCodePattern.message,
-            trigger: ['blur'],
         },
     ],
     name: [

@@ -14,7 +14,9 @@ type dbRestoreHistoryRepoImpl struct {
 }
 
 func NewDbRestoreHistoryRepo() repository.DbRestoreHistory {
-	return &dbRestoreHistoryRepoImpl{}
+	dr := &dbRestoreHistoryRepoImpl{}
+	dr.M = new(entity.DbRestoreHistory)
+	return dr
 }
 
 func (d *dbRestoreHistoryRepoImpl) GetDbRestoreHistories(condition *entity.DbRestoreHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

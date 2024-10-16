@@ -66,7 +66,7 @@ const columns = [
 ];
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.save, perms.del]);
+const actionBtns: any = hasPerms([perms.save, perms.del]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
 
 const pageTableRef: Ref<any> = ref(null);

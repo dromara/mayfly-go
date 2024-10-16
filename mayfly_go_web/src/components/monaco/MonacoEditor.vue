@@ -252,7 +252,9 @@ const changeLanguage = (value: any) => {
 };
 
 const setEditorValue = (value: any) => {
-    monacoEditorIns.getModel()?.setValue(value);
+    if (value) {
+        monacoEditorIns.getModel()?.setValue(value);
+    }
 };
 
 /**

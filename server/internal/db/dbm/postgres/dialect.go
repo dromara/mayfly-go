@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
@@ -195,4 +197,8 @@ func (pd *PgsqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
 			_, _ = pd.dc.Exec(fmt.Sprintf("select setval('%s_%s_seq', (SELECT max(%s) from %s))", tableName, column.ColumnName, column.ColumnName, tableName))
 		}
 	}
+}
+
+func (pd *PgsqlDialect) GetSQLParser() sqlparser.SqlParser {
+	return new(pgsql.PgsqlParser)
 }

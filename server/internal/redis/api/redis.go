@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/common/utils"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
@@ -74,14 +75,21 @@ func (r *Redis) Save(rc *req.Ctx) {
 	redisParam := &dto.SaveRedis{
 		Redis:        redis,
 		TagCodePaths: form.TagCodePaths,
-		AuthCert: &tagentity.ResourceAuthCert{
-			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
-			Username:       form.Username,
-			Ciphertext:     form.Password,
-			CiphertextType: tagentity.AuthCertCiphertextTypePassword,
-			Type:           tagentity.AuthCertTypePrivate,
-		},
 	}
+	authCert := &tagentity.ResourceAuthCert{
+		Username:       form.Username,
+		Ciphertext:     form.Password,
+		CiphertextType: tagentity.AuthCertCiphertextTypePassword,
+		Type:           tagentity.AuthCertTypePrivate,
+	}
+
+	if form.Mode == string(rdm.SentinelMode) {
+		encPwd, err := utils.PwdAesEncrypt(form.RedisNodePassword)
+		biz.ErrIsNil(err)
+		authCert.SetExtraValue("redisNodePassword", encPwd)
+	}
+
+	redisParam.AuthCert = authCert
 
 	// 密码脱敏记录日志
 	form.Password = "****"

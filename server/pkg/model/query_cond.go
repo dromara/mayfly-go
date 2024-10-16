@@ -10,7 +10,8 @@ type QueryCond struct {
 	selectColumns []string // 查询的列信息
 	condModel     any      // 条件模型
 
-	wheres  map[string][]any
+	wheres map[string][]any
+
 	orderBy []string
 
 	dest any // 结果集指针
@@ -120,11 +121,11 @@ func (q *QueryCond) Le(column string, val any) *QueryCond {
 }
 
 // And条件
-func (q *QueryCond) And(column string, val ...any) *QueryCond {
+func (q *QueryCond) And(columnOrQuery string, val ...any) *QueryCond {
 	if q.wheres == nil {
 		q.wheres = make(map[string][]any)
 	}
-	q.wheres[column] = val
+	q.wheres[columnOrQuery] = val
 	return q
 }
 

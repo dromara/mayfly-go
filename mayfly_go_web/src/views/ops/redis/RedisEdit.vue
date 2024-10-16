@@ -21,14 +21,6 @@
                                 style="width: 100%"
                             />
                         </el-form-item>
-                        <el-form-item prop="code" label="编号" required>
-                            <el-input
-                                :disabled="form.id"
-                                v-model.trim="form.code"
-                                placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
-                                auto-complete="off"
-                            ></el-input>
-                        </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入redis名称" auto-complete="off"></el-input>
                         </el-form-item>
@@ -51,11 +43,15 @@
                             <el-input v-model.trim="form.username" placeholder="用户名"></el-input>
                         </el-form-item>
                         <el-form-item prop="password" label="密码">
+                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item v-if="form.mode == 'sentinel'" prop="redisNodePassword" label="节点密码">
                             <el-input
                                 type="password"
                                 show-password
-                                v-model.trim="form.password"
-                                placeholder="请输入密码, 修改操作可不填"
+                                v-model.trim="form.redisNodePassword"
+                                placeholder="请输入Redis节点密码"
                                 autocomplete="new-password"
                             >
                             </el-input>
@@ -104,7 +100,6 @@ import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { ResourceCodePattern } from '@/common/pattern';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
 const props = defineProps({
@@ -127,18 +122,6 @@ const rules = {
             required: true,
             message: '请选择标签',
             trigger: ['blur', 'change'],
-        },
-    ],
-    code: [
-        {
-            required: true,
-            message: '请输入编码',
-            trigger: ['change', 'blur'],
-        },
-        {
-            pattern: ResourceCodePattern.pattern,
-            message: ResourceCodePattern.message,
-            trigger: ['blur'],
         },
     ],
     name: [
@@ -186,6 +169,7 @@ const state = reactive({
         host: '',
         username: null,
         password: null,
+        redisNodePassword: null,
         db: '',
         remark: '',
         sshTunnelMachineId: -1,

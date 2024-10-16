@@ -18,18 +18,3 @@ func TestAesEncrypt(t *testing.T) {
 
 	t.Log(string(decrypt))
 }
-
-func TestDes(t *testing.T) {
-	key := []byte("eyJhbGciOiJIUzI1NiIsInR5")
-	data := []byte("SELECT * FROM \"instruct\" OFFSET 0 LIMIT 25;")
-	encrypt, err := DesEncrypt(data, key)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log("encrypt", encrypt)
-	decrypt, err := DesDecrypt(encrypt, key)
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log("decrypt", decrypt)
-}

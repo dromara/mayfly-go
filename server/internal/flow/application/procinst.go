@@ -9,7 +9,11 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type Procinst interface {
@@ -68,9 +72,13 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqPa
 		return nil, errorx.NewBiz("该流程定义非启用状态")
 	}
 
+	bizKey := reqParam.BizKey
+	if bizKey == "" {
+		bizKey = stringx.RandUUID()
+	}
 	procinst := &entity.Procinst{
 		BizType:     reqParam.BizType,
-		BizKey:      reqParam.BizKey,
+		BizKey:      bizKey,
 		BizForm:     reqParam.BizForm,
 		BizStatus:   entity.ProcinstBizStatusWait,
 		ProcdefId:   procdef.Id,
@@ -217,12 +225,14 @@ func (p *procinstAppImpl) cancelInstTasks(ctx context.Context, procinstId uint64
 
 // 触发流程实例状态改变事件
 func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, procinst *entity.Procinst) error {
-	err := FlowBizHandle(ctx, &BizHandleParam{
-		BizType:        procinst.BizType,
-		BizKey:         procinst.BizKey,
-		BizForm:        procinst.BizForm,
-		ProcinstStatus: procinst.Status,
+
+	handleRes, err := FlowBizHandle(ctx, &BizHandleParam{
+		Procinst: *procinst,
 	})
+
+	if !anyx.IsBlank(handleRes) {
+		procinst.BizHandleRes = jsonx.ToStr(handleRes)
+	}
 
 	if err != nil {
 		// 业务处理错误，非完成状态则终止流程
@@ -232,14 +242,20 @@ func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, 
 			p.cancelInstTasks(ctx, procinst.Id, "业务处理失败")
 		}
 		procinst.BizStatus = entity.ProcinstBizStatusFail
-		procinst.BizHandleRes = err.Error()
+		if procinst.BizHandleRes == "" {
+			procinst.BizHandleRes = err.Error()
+		} else {
+			logx.Errorf("流程业务[%s]处理失败: %v", procinst.BizKey, err.Error())
+		}
 		return p.UpdateById(ctx, procinst)
 	}
 
 	// 处理成功，并且状态为完成，则更新业务状态为成功
 	if procinst.Status == entity.ProcinstStatusCompleted {
 		procinst.BizStatus = entity.ProcinstBizStatusSuccess
-		procinst.BizHandleRes = "success"
+		if procinst.BizHandleRes == "" {
+			procinst.BizHandleRes = "success"
+		}
 		return p.UpdateById(ctx, procinst)
 	}
 	return err

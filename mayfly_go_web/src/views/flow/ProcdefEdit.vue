@@ -17,6 +17,25 @@
                         <el-option v-for="item in ProcdefStatus" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                     </el-select>
                 </el-form-item>
+                <el-form-item prop="condition" label="触发条件">
+                    <template #label>
+                        触发条件
+                        <el-tooltip content="go template语法。若输出结果为1，则表示触发该审批流程" placement="top">
+                            <el-icon>
+                                <question-filled />
+                            </el-icon>
+                        </el-tooltip>
+                    </template>
+
+                    <el-input
+                        v-model="form.condition"
+                        :rows="10"
+                        type="textarea"
+                        placeholder="触发条件, 返回值=1, 则表示触发该审批流程"
+                        auto-complete="off"
+                        clearable
+                    ></el-input>
+                </el-form-item>
                 <el-form-item prop="remark" label="备注">
                     <el-input v-model.trim="form.remark" placeholder="备注" auto-complete="off" clearable></el-input>
                 </el-form-item>
@@ -118,6 +137,7 @@ const state = reactive({
         name: null,
         defKey: null,
         status: null,
+        condition: '',
         remark: null,
         // 流程的审批节点任务
         tasks: '',
@@ -141,6 +161,23 @@ watch(props, (newValue: any) => {
         state.tasks = tasks;
     } else {
         state.form = { status: ProcdefStatus.Enable.value } as any;
+        state.form.condition = `{{/* DBMS-执行sql规则;  param参数描述如下 */}}
+{{/* stmtType: select / read / insert / update / delete ;  */}}
+{{ if eq .bizType "db_sql_exec_flow"}}
+    {{/* 不是select和read语句时，开启流程审批 */}}
+    {{ if and (ne .param.stmtType "select") (ne .param.stmtType "read") }}
+        1
+    {{ end }}
+{{ end }}
+
+{{/* Redis-执行命令规则;   param参数描述如下 */}}
+{{/* cmdType: read(读命令) / write(写命令);  */}}
+{{/* cmd: get/set/hset...等 */}}
+{{ if eq .bizType "redis_run_cmd_flow"}}
+    {{ if eq .param.cmdType "write" }}
+        1
+    {{ end }}
+{{ end }}`;
         state.tasks = [];
     }
 });

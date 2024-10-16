@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type ResourceAuthCert interface {
@@ -77,6 +78,13 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 		}
 
 		return nil
+	}
+
+	// 不存在授权凭证名，则随机生成
+	for _, ac := range resourceAuthCerts {
+		if ac.Name == "" {
+			ac.Name = stringx.Rand(10)
+		}
 	}
 
 	name2AuthCert := make(map[string]*entity.ResourceAuthCert, 0)

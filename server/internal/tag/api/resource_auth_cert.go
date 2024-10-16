@@ -2,10 +2,13 @@ package api
 
 import (
 	"mayfly-go/internal/tag/api/form"
+	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"strings"
 
 	"github.com/may-fly/cast"
 )
@@ -28,6 +31,15 @@ func (r *ResourceAuthCert) ListByQuery(rc *req.Ctx) {
 		rac.CiphertextClear()
 	}
 	rc.ResData = res
+}
+
+func (m *ResourceAuthCert) SimpleAc(rc *req.Ctx) {
+	acCodesStr := rc.Query("codes")
+	biz.NotEmpty(acCodesStr, "codes不能为空")
+
+	var vos []vo.SimpleResourceAuthCert
+	m.ResourceAuthCertApp.ListByCondToAny(model.NewCond().In("name", strings.Split(acCodesStr, ",")), &vos)
+	rc.ResData = vos
 }
 
 func (r *ResourceAuthCert) GetCompleteAuthCert(rc *req.Ctx) {

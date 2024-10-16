@@ -34,6 +34,15 @@ func (m *MachineVO) GetCode() string {
 	return m.Code
 }
 
+type SimpleMachineVO struct {
+	Id     uint64  `json:"id"`
+	Code   string  `json:"code"`
+	Name   string  `json:"name"`
+	Ip     string  `json:"ip"`
+	Port   int     `json:"port"`
+	Remark *string `json:"remark"`
+}
+
 type MachineScriptVO struct {
 	Id          *int64  `json:"id"`
 	Name        *string `json:"name"`

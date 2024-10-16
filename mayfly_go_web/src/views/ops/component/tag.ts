@@ -1,5 +1,6 @@
 import { OptionsApi, SearchItem } from '@/components/SearchForm';
 import { ContextmenuItem } from '@/components/contextmenu';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { tagApi } from '../tag/api';
 
 export class TagTreeNode {
@@ -178,7 +179,7 @@ export function getTagPathSearchItem(resourceType: number) {
  * @returns {1: ['xxx'], 11: ['yyy']}
  */
 export function getTagTypeCodeByPath(codePath: string) {
-    const result = {};
+    const result: any = {};
     const parts = codePath.split('/'); // 切分字符串并保留数字和对应的值部分
 
     for (let part of parts) {
@@ -198,6 +199,39 @@ export function getTagTypeCodeByPath(codePath: string) {
     }
 
     return result;
+}
+
+/**
+ * 完善标签路径信息
+ * @param codePaths 标签路径
+ * @returns
+ */
+export async function getAllTagInfoByCodePaths(codePaths: string[]) {
+    const allTypeAndCode: any = {};
+
+    for (let codePath of codePaths) {
+        const typeAndCode = getTagTypeCodeByPath(codePath);
+        for (let type in typeAndCode) {
+            allTypeAndCode[type] = [...new Set(typeAndCode[type].concat(allTypeAndCode[type] || []))];
+        }
+    }
+
+    for (let type in allTypeAndCode) {
+        if (type == TagResourceTypeEnum.Tag.value) {
+            continue;
+        }
+        const tagInfo = await tagApi.listByQuery.request({ type: type, codes: allTypeAndCode[type] });
+        allTypeAndCode[type] = tagInfo;
+    }
+
+    const code2CodeInfo: any = {};
+    for (let type in allTypeAndCode) {
+        for (let code of allTypeAndCode[type]) {
+            code2CodeInfo[`${type}|${code.code}`] = code;
+        }
+    }
+
+    return code2CodeInfo;
 }
 
 export function expandCodePath(codePath: string) {

@@ -52,9 +52,9 @@
                                 />
 
                                 <span class="ml5">
-                                    {{ data.code }}
-                                    <span style="color: #3c8dbc">【</span>
                                     {{ data.name }}
+                                    <span style="color: #3c8dbc">【</span>
+                                    {{ data.code }}
                                     <span style="color: #3c8dbc">】</span>
                                     <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
                                 </span>

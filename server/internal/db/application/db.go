@@ -16,6 +16,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"sort"
 	"strings"
 	"time"
@@ -81,10 +82,11 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 		if err == nil {
 			return errorx.NewBiz("该实例下数据库名已存在")
 		}
-
-		if d.CountByCond(&entity.Db{Code: dbEntity.Code}) > 0 {
+		if d.CountByCond(&entity.Db{Name: dbEntity.Name}) > 0 {
 			return errorx.NewBiz("该编码已存在")
 		}
+
+		dbEntity.Code = stringx.Rand(10)
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)

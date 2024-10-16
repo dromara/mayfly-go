@@ -3,6 +3,8 @@ package dbi
 import (
 	"database/sql"
 	"errors"
+	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/dbm/sqlparser/mysql"
 )
 
 const (
@@ -42,6 +44,8 @@ type Dialect interface {
 
 	// UpdateSequence 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
 	UpdateSequence(tableName string, columns []Column)
+
+	GetSQLParser() sqlparser.SqlParser
 }
 
 type DefaultDialect struct {
@@ -53,3 +57,7 @@ func (dd *DefaultDialect) GetDbProgram() (DbProgram, error) {
 }
 
 func (dd *DefaultDialect) UpdateSequence(tableName string, columns []Column) {}
+
+func (dd *DefaultDialect) GetSQLParser() sqlparser.SqlParser {
+	return new(mysql.MysqlParser)
+}

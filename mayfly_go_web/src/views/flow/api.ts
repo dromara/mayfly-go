@@ -9,6 +9,7 @@ export const procdefApi = {
 
 export const procinstApi = {
     list: Api.newGet('/flow/procinsts'),
+    start: Api.newPost('/flow/procinsts/start'),
     detail: Api.newGet('/flow/procinsts/{id}'),
     cancel: Api.newPost('/flow/procinsts/{id}/cancel'),
     tasks: Api.newGet('/flow/procinsts/tasks'),

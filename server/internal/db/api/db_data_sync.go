@@ -36,7 +36,7 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 	task := req.BindJsonAndCopyTo[*entity.DataSyncTask](rc, form, new(entity.DataSyncTask))
 
 	// 解码base64 sql
-	sqlStr, err := cryptox.DesDecryptByToken(task.DataSql, rc.GetLoginAccount().Token)
+	sqlStr, err := cryptox.AesDecryptByLa(task.DataSql, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
 	sql := stringx.TrimSpaceAndBr(sqlStr)
 	task.DataSql = sql

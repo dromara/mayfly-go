@@ -22,7 +22,7 @@
                 </template>
             </el-table-column>
 
-            <el-table-column prop="name" label="名称" show-overflow-tooltip min-width="100px"> </el-table-column>
+            <!-- <el-table-column prop="name" label="名称" show-overflow-tooltip min-width="100px"> </el-table-column> -->
             <el-table-column prop="username" label="用户名" min-width="120px" show-overflow-tooltip> </el-table-column>
             <el-table-column prop="ciphertextType" label="密文类型" width="100px">
                 <template #default="scope">
@@ -117,17 +117,17 @@ const cancelEdit = () => {
 
 const btnOk = async (authCert: any) => {
     const isEdit = authCert.id;
-    if (!isEdit) {
-        const res = await resourceAuthCertApi.listByQuery.request({
-            name: authCert.name,
-            pageNum: 1,
-            pageSize: 100,
-        });
-        if (res.total) {
-            ElMessage.error('该授权凭证名称已存在');
-            return;
-        }
-    }
+    // if (!isEdit) {
+    //     const res = await resourceAuthCertApi.listByQuery.request({
+    //         name: authCert.name,
+    //         pageNum: 1,
+    //         pageSize: 100,
+    //     });
+    //     if (res.total) {
+    //         ElMessage.error('该授权凭证名称已存在');
+    //         return;
+    //     }
+    // }
 
     if (isEdit || state.idx >= 0) {
         authCerts.value[state.idx] = authCert;
@@ -135,8 +135,8 @@ const btnOk = async (authCert: any) => {
         return;
     }
 
-    if (authCerts.value?.filter((x: any) => x.username == authCert.username || x.name == authCert.name).length > 0) {
-        ElMessage.error('该名称或用户名已存在于该账号列表中');
+    if (authCerts.value?.filter((x: any) => x.username == authCert.username).length > 0) {
+        ElMessage.error('该用户名已存在于该账号列表中');
         return;
     }
 

@@ -26,5 +26,11 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		Eq("code", condition.Code).
 		Eq("protocol", condition.Protocol)
 
+	keyword := condition.Keyword
+	if keyword != "" {
+		keyword = "%" + keyword + "%"
+		qd.And("ip like ? or name like ? or code like ?", keyword, keyword, keyword)
+	}
+
 	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

@@ -1,12 +1,13 @@
 <template>
     <div class="format-viewer-container">
         <div class="mb5 fr">
-            <el-select v-model="selectedView" class="format-selector" size="mini" placeholder="Text">
+            <el-select v-model="selectedView" class="format-selector" size="small" placeholder="Text">
                 <template #prefix>
                     <SvgIcon name="view" />
                 </template>
                 <el-option v-for="item of Object.keys(viewers)" :key="item" :label="item" :value="item"> </el-option>
             </el-select>
+            <el-tag type="primary" :disable-transitions="true" class="ml10">Size: {{ formatByteSize(state.contentSize) }}</el-tag>
         </div>
 
         <component ref="viewerRef" :is="components[viewerComponent]" :content="state.content" :name="selectedView"> </component>
@@ -16,6 +17,7 @@
 import { ref, reactive, computed, shallowReactive, watch, toRefs, onMounted } from 'vue';
 import ViewerText from './ViewerText.vue';
 import ViewerJson from './ViewerJson.vue';
+import { formatByteSize } from '@/common/utils/format';
 
 const props = defineProps({
     content: {
@@ -27,7 +29,7 @@ const props = defineProps({
     },
 });
 
-const components = shallowReactive({
+const components: any = shallowReactive({
     ViewerText,
     ViewerJson,
 });
@@ -35,10 +37,11 @@ const viewerRef: any = ref(null);
 
 const state = reactive({
     content: '',
+    contentSize: 0,
     selectedView: 'Text',
 });
 
-const viewers = {
+const viewers: any = {
     Text: {
         value: 'ViewerText',
     },
@@ -67,6 +70,7 @@ onMounted(() => {
 
 const setContent = (content: string) => {
     state.content = content;
+    state.contentSize = new Blob([content]).size;
     try {
         JSON.parse(content);
         state.selectedView = 'Json';

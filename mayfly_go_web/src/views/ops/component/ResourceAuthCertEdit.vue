@@ -51,7 +51,7 @@
                     </el-form-item>
                 </template>
 
-                <el-form-item prop="name" label="名称" required>
+                <el-form-item v-if="form.type == AuthCertTypeEnum.Public.value" prop="name" label="名称" required>
                     <el-input :disabled="form.id" v-model="form.name" placeholder="请输入凭证名 (全局唯一)"></el-input>
                 </el-form-item>
 

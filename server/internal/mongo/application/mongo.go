@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type Mongo interface {
@@ -84,9 +85,9 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 		if err == nil {
 			return errorx.NewBiz("该名称已存在")
 		}
-		if d.CountByCond(&entity.Mongo{Code: m.Code}) > 0 {
-			return errorx.NewBiz("该编码已存在")
-		}
+
+		// 生成随机编号
+		m.Code = stringx.Rand(10)
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
@@ -95,6 +96,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 				ResourceTag: &tagdto.ResourceTag{
 					Type: tagentity.TagTypeMongo,
 					Code: m.Code,
+					Name: m.Name,
 				},
 				ParentTagCodePaths: tagCodePaths,
 			})
@@ -117,7 +119,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
 		if oldMongo.Name != m.Name {
-			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldMongo.Code, m.Name); err != nil {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMongo, oldMongo.Code, m.Name); err != nil {
 				return err
 			}
 		}

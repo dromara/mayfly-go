@@ -201,7 +201,6 @@ import { Splitpanes, Pane } from 'splitpanes';
 import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
-import { procdefApi } from '@/views/flow/api';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -249,13 +248,11 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
 // redis实例节点类型
 const NodeTypeRedis = new NodeType(RedisNodeType.Redis).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const redisInfo = parentNode.params;
-    const flowProcdef = await procdefApi.getByResource.request({ resourceType: TagResourceTypeEnum.Redis.value, resourceCode: redisInfo.code });
 
     let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
         return new TagTreeNode(x, `db${x}`, NodeTypeDb).withIsLeaf(true).withParams({
             id: redisInfo.id,
             db: x,
-            flowProcdef: flowProcdef,
             name: `db${x}`,
             keys: 0,
         });
@@ -288,7 +285,6 @@ const NodeTypeDb = new NodeType(RedisNodeType.Db).withNodeClickFunc((nodeData: T
 
     redisInst.value.id = nodeData.params.id;
     redisInst.value.db = Number.parseInt(nodeData.params.db);
-    redisInst.value.flowProcdef = nodeData.params.flowProcdef;
 
     scan();
 });
@@ -366,7 +362,7 @@ const autoOpenRedis = (codePath: string) => {
         return;
     }
 
-    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const typeAndCodes: any = getTagTypeCodeByPath(codePath);
     const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
 
     const redisCode = typeAndCodes[TagResourceTypeEnum.Redis.value][0];

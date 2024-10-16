@@ -1049,6 +1049,7 @@ CREATE TABLE `t_flow_procdef` (
   `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '流程名称',
   `status` tinyint DEFAULT NULL COMMENT '状态',
   `tasks` varchar(3000) COLLATE utf8mb4_bin NOT NULL COMMENT '审批节点任务信息',
+  `condition` text NULL COMMENT '触发审批的条件（计算结果返回1则需要启用该流程）',
   `remark` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `create_time` datetime NOT NULL,
   `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,

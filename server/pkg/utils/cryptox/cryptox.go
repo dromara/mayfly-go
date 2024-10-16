@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/des"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
@@ -13,9 +12,9 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"os"
 
 	"golang.org/x/crypto/bcrypt"
@@ -247,6 +246,7 @@ func AesDecrypt(data []byte, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	//获取块的大小
 	blockSize := block.BlockSize()
 	//使用cbc
@@ -281,65 +281,9 @@ func AesDecryptBase64(data string, key []byte) ([]byte, error) {
 	return AesDecrypt(dataByte, key)
 }
 
-// DES加密函数
-func DesEncrypt(data, key []byte) (string, error) {
-	block, err := des.NewTripleDESCipher(key)
-	if err != nil {
-		return "", err
-	}
-	// 对数据进行填充
-	data = pkcs7Padding(data, des.BlockSize)
-
-	// 创建一个初始化向量
-	iv := make([]byte, des.BlockSize)
-	if _, err := rand.Read(iv); err != nil {
-		return "", err
-	}
-	// 创建加密器
-	mode := cipher.NewCBCEncrypter(block, iv)
-
-	// 加密
-	encrypted := make([]byte, len(data))
-	mode.CryptBlocks(encrypted, data)
-
-	// 将IV和加密数据组合
-	result := append(iv, encrypted...)
-
-	// 使用Base64编码
-	return base64.StdEncoding.EncodeToString(result), nil
-}
-
-func DesDecryptByToken(data string, token string) (string, error) {
-	key := []byte(token[:24])
-	return DesDecrypt(data, key)
-}
-
-func DesDecrypt(data string, key []byte) (string, error) {
-	// Base64解码
-	ciphertext, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return "", err
-	}
-
-	block, err := des.NewTripleDESCipher(key)
-	if err != nil {
-		return "", err
-	}
-
-	// 确保密文长度正确
-	if len(ciphertext) < des.BlockSize {
-		return "", fmt.Errorf("ciphertext too short")
-	}
-
-	// 提取IV
-	iv := ciphertext[:des.BlockSize]
-	ciphertext = ciphertext[des.BlockSize:]
-	// 创建解密器
-	mode := cipher.NewCBCDecrypter(block, iv)
-	// 解密仍然用已存在的切片接收结果，无需重新创建切片
-	mode.CryptBlocks(ciphertext, ciphertext)
-	// 去除填充
-	res, err := pkcs7UnPadding(ciphertext)
+func AesDecryptByLa(data string, la *model.LoginAccount) (string, error) {
+	key := []byte(la.GetAesKey())
+	res, err := AesDecryptBase64(data, key)
 	return string(res), err
 }
 

@@ -6,11 +6,13 @@ import (
 	"mayfly-go/internal/flow/api/form"
 	"mayfly-go/internal/flow/api/vo"
 	"mayfly-go/internal/flow/application"
+	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/structx"
 )
 
@@ -31,6 +33,16 @@ func (p *Procinst) GetProcinstPage(rc *req.Ctx) {
 	res, err := p.ProcinstApp.GetPageList(cond, page, new([]entity.Procinst))
 	biz.ErrIsNil(err)
 	rc.ResData = res
+}
+
+func (p *Procinst) ProcinstStart(rc *req.Ctx) {
+	startForm := new(form.ProcinstStart)
+	req.BindJsonAndValid(rc, startForm)
+	_, err := p.ProcinstApp.StartProc(rc.MetaCtx, startForm.ProcdefId, &dto.StarProc{
+		BizType: startForm.BizType,
+		BizForm: jsonx.ToStr(startForm.BizForm),
+	})
+	biz.ErrIsNil(err)
 }
 
 func (p *Procinst) ProcinstCancel(rc *req.Ctx) {

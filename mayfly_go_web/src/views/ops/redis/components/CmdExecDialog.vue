@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog title="待执行cmd" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
-            <el-input type="textarea" disabled v-model="state.cmdStr" class="mt5" rows="5" />
+            <el-input type="textarea" disabled v-model="state.cmdStr" class="mt5" :rows="5" />
             <el-input @keyup.enter="runCmd" ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
 
             <div v-if="props.flowProcdef">

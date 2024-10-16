@@ -21,5 +21,11 @@ func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.P
 		Like("name", condition.Name).
 		Eq("code", condition.Code).
 		In("code", condition.Codes)
+
+	keyword := condition.Keyword
+	if keyword != "" {
+		keyword = "%" + keyword + "%"
+		qd.And("name like ? or code like ?", keyword, keyword)
+	}
 	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

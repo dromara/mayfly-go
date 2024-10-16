@@ -87,6 +87,15 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
+	machineCodesStr := rc.Query("codes")
+	biz.NotEmpty(machineCodesStr, "codes不能为空")
+
+	var vos []vo.SimpleMachineVO
+	m.MachineApp.ListByCondToAny(model.NewCond().In("code", strings.Split(machineCodesStr, ",")), &vos)
+	rc.ResData = vos
+}
+
 func (m *Machine) MachineStats(rc *req.Ctx) {
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")

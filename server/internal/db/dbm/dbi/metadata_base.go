@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	pq "gitee.com/liuzongyang/libpq"
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	// "github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
 type BaseMetaData interface {
@@ -30,7 +30,7 @@ type BaseMetaData interface {
 	// replaced by two backslashes (i.e. "\\") and the C-style escape identifier
 	QuoteLiteral(literal string) string
 
-	GetSqlParserDialect() sqlparser.Dialect
+	// GetSqlParserDialect() sqlparser.Dialect
 
 	// GetColumnHelper
 	GetColumnHelper() ColumnHelper
@@ -59,9 +59,9 @@ func (dd *DefaultMetaData) QuoteLiteral(literal string) string {
 	return pq.QuoteLiteral(literal)
 }
 
-func (dd *DefaultMetaData) GetSqlParserDialect() sqlparser.Dialect {
-	return sqlparser.PostgresDialect{}
-}
+// func (dd *DefaultMetaData) GetSqlParserDialect() sqlparser.Dialect {
+// 	return sqlparser.PostgresDialect{}
+// }
 
 func (dd *DefaultMetaData) GetDumpHelper() DumpHelper {
 	return new(DefaultDumpHelper)
