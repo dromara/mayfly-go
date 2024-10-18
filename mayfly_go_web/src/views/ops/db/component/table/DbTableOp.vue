@@ -152,9 +152,6 @@ const props = defineProps({
     dbType: {
         type: String,
     },
-    flowProcdef: {
-        type: Object,
-    },
 });
 
 //定义事件
@@ -335,7 +332,6 @@ const submit = async () => {
         dbId: props.dbId as any,
         db: props.db as any,
         dbType: dbDialect.getInfo().formatSqlDialect,
-        flowProcdef: props.flowProcdef,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();
@@ -371,11 +367,11 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         return data;
     }
 
-    let oldMap = {},
-        newMap = {};
-    oldArr.forEach((a) => (oldMap[a[key]] = a));
+    let oldMap: any = {},
+        newMap: any = {};
+    oldArr.forEach((a: any) => (oldMap[a[key]] = a));
 
-    nowArr.forEach((a) => {
+    nowArr.forEach((a: any) => {
         let k = a[key];
         newMap[k] = a;
         // 取oldName，因为修改了name，但是oldName不会变
@@ -388,7 +384,7 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         }
     });
 
-    oldArr.forEach((a) => {
+    oldArr.forEach((a: any) => {
         let k = a[key];
         let newData = newMap[k];
         if (!newData) {

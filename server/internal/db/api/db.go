@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/event"
 	msgapp "mayfly-go/internal/msg/application"
@@ -28,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	// "github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"github.com/may-fly/cast"
 )
 
@@ -110,8 +110,6 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
 	sqlStr, err := cryptox.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
-	// 去除前后空格及换行符
-	// sql := stringx.TrimSpaceAndBr(sqlStr)
 
 	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
 	biz.NotEmpty(form.Sql, "sql不能为空")
@@ -131,38 +129,6 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
 	biz.ErrIsNil(err)
 	rc.ResData = execRes
-
-	// sqls := strings.Split(sql, ";")
-	// sqls = collx.ArrayRemoveBlank(sqls)
-	// // sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
-	// biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
-	// isMulti := len(sqls) > 1
-	// var execResAll *application.DbSqlExecRes
-
-	// for _, s := range sqls {
-	// 	s = stringx.TrimSpaceAndBr(s)
-	// 	// 多条执行，暂不支持查询语句
-	// 	if isMulti && len(s) > 10 {
-	// 		biz.IsTrue(!strings.HasPrefix(strings.ToLower(s[:10]), "select"), "多条语句执行暂不不支持select语句")
-	// 	}
-
-	// 	execReq.Sql = s
-	// 	execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
-	// 	biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
-
-	// 	if execResAll == nil {
-	// 		execResAll = execRes
-	// 	} else {
-	// 		execResAll.Merge(execRes)
-	// 	}
-	// }
-
-	// colAndRes := make(map[string]any)
-	// if execResAll != nil {
-	// 	colAndRes["columns"] = execResAll.Columns
-	// 	colAndRes["res"] = execResAll.Res
-	// }
-	// rc.ResData = colAndRes
 }
 
 // progressCategory sql文件执行进度消息类型
@@ -203,19 +169,6 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		}
 	}()
 
-	execReq := &application.DbSqlExecReq{
-		DbId:      dbId,
-		Db:        dbName,
-		Remark:    filename,
-		DbConn:    dbConn,
-		CheckFlow: true,
-	}
-
-	var sql string
-
-	// tokenizer := sqlparser.NewReaderTokenizer(file,
-	// 	sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
-
 	executedStatements := 0
 	progressId := stringx.Rand(32)
 	laId := rc.GetLoginAccount().Id
@@ -227,7 +180,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	}).WithCategory(progressCategory))
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
-	for {
+
+	err = sqlparser.SQLSplit(file, func(sql string) error {
 		select {
 		case <-ticker.C:
 			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
@@ -238,41 +192,13 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}).WithCategory(progressCategory))
 		default:
 		}
+
 		executedStatements++
-		// sql, err = sqlparser.SplitNext(tokenizer)
-		// if err == io.EOF {
-		// 	break
-		// }
-		biz.ErrIsNilAppendErr(err, "%s")
+		_, err = dbConn.Exec(sql)
+		return err
+	})
 
-		const prefixUse = "use "
-		const prefixUSE = "USE "
-		if strings.HasPrefix(sql, prefixUSE) || strings.HasPrefix(sql, prefixUse) {
-			// var stmt sqlparser.Statement
-			// stmt, err = sqlparser.Parse(sql)
-			biz.ErrIsNilAppendErr(err, "%s")
-
-			// stmtUse, ok := stmt.(*sqlparser.Use)
-			// 最终执行结果以数据库直接结果为准
-			// if !ok {
-			// 	logx.Warnf("sql解析失败: %s", sql)
-			// }
-			// dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
-			biz.ErrIsNil(err)
-			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.CodePath...), "%s")
-			execReq.DbConn = dbConn
-		}
-		// 需要记录执行记录
-		const maxRecordStatements = 64
-		if executedStatements < maxRecordStatements {
-			execReq.Sql = sql
-			_, err = d.DbSqlExecApp.Exec(rc.MetaCtx, execReq)
-		} else {
-			_, err = dbConn.Exec(sql)
-		}
-
-		biz.ErrIsNilAppendErr(err, "%s")
-	}
+	biz.ErrIsNilAppendErr(err, "%s")
 	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
 }
 

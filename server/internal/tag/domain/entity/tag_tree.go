@@ -140,7 +140,7 @@ func GetParentPath(codePath string, index int) string {
 	return parentPath + CodePathSeparator
 }
 
-// GetAllCodePath 根据表情路径获取所有相关的标签codePath
+// GetAllCodePath 根据标签路径获取所有相关的标签codePath，如 test1/test2/ -> test1/  test1/test2/
 func GetAllCodePath(codePath string) []string {
 	// 去除末尾的斜杠
 	codePath = strings.TrimSuffix(codePath, CodePathSeparator)

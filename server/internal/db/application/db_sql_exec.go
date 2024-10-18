@@ -89,14 +89,12 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 	allExecRes := make([]*DbSqlExecRes, 0)
 
 	stmts, err := sp.Parse(execSql)
-	// sql解析失败，则直接使用;切割进行执行
+	// sql解析失败，则使用默认方式切割
 	if err != nil {
-		sqlScan := sqlparser.SplitSqls(strings.NewReader(execSql))
-		for sqlScan.Scan() {
+		sqlparser.SQLSplit(strings.NewReader(execSql), func(oneSql string) error {
 			var execRes *DbSqlExecRes
 			var err error
 
-			oneSql := sqlScan.Text()
 			dbSqlExecRecord := createSqlExecRecord(ctx, execSqlReq, oneSql)
 			dbSqlExecRecord.Type = entity.DbSqlExecTypeOther
 			sqlExec := &sqlExecParam{DbConn: dbConn, Sql: oneSql, Procdef: flowProcdef, SqlExecRecord: dbSqlExecRecord}
@@ -124,8 +122,8 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 				d.saveSqlExecLog(dbSqlExecRecord, dbSqlExecRecord.Res)
 			}
 			allExecRes = append(allExecRes, execRes)
-		}
-
+			return nil
+		})
 		return allExecRes, nil
 	}
 
