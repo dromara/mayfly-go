@@ -26,6 +26,7 @@ func SQLSplit(r io.Reader, callback SQLCallback) error {
 // SQLCallback 是解析出一条 SQL 语句后的回调函数
 type SQLCallback func(sql string) error
 
+// parseSQL 主要由阿里通义灵码提供
 func parseSQL(r io.Reader, callback SQLCallback) error {
 	reader := bufio.NewReaderSize(r, 512*1024)
 	buffer := new(bytes.Buffer) // 使用 bytes.Buffer 来处理数据
@@ -34,6 +35,7 @@ func parseSQL(r io.Reader, callback SQLCallback) error {
 	var inMultiLineComment bool
 	var inSingleLineComment bool
 	var stringDelimiter rune
+	var escapeNextChar bool // 用于处理转义符
 
 	for {
 		// 读取数据到缓冲区
@@ -68,10 +70,18 @@ func parseSQL(r io.Reader, callback SQLCallback) error {
 				}
 				buffer.Next(size)
 			case inString:
-				if r == stringDelimiter {
+				if escapeNextChar {
+					currentStatement.WriteRune(r)
+					escapeNextChar = false
+				} else if r == '\\' {
+					escapeNextChar = true
+					currentStatement.WriteRune(r)
+				} else if r == stringDelimiter {
 					inString = false
+					currentStatement.WriteRune(r)
+				} else {
+					currentStatement.WriteRune(r)
 				}
-				currentStatement.WriteRune(r)
 				buffer.Next(size)
 			case r == '/' && buffer.Len() >= 2 && buffer.Bytes()[1] == '*':
 				inMultiLineComment = true

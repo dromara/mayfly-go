@@ -109,6 +109,8 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 				execRes, err = d.doInsert(ctx, sqlExec)
 			} else if isOtherQuery(oneSql) {
 				execRes, err = d.doOtherRead(ctx, sqlExec)
+			} else if isDDL(oneSql) {
+				execRes, err = d.doExecDDL(ctx, sqlExec)
 			} else {
 				execRes, err = d.doExec(ctx, dbConn, oneSql)
 			}
@@ -149,6 +151,18 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 			execRes, err = d.doDelete(ctx, sqlExec)
 		case *sqlstmt.InsertStmt:
 			execRes, err = d.doInsert(ctx, sqlExec)
+		case *sqlstmt.DdlStmt:
+			execRes, err = d.doExecDDL(ctx, sqlExec)
+		case *sqlstmt.CreateDatabase:
+			execRes, err = d.doExecDDL(ctx, sqlExec)
+		case *sqlstmt.CreateTable:
+			execRes, err = d.doExecDDL(ctx, sqlExec)
+		case *sqlstmt.CreateIndex:
+			execRes, err = d.doExecDDL(ctx, sqlExec)
+		case *sqlstmt.AlterDatabase:
+			execRes, err = d.doExecDDL(ctx, sqlExec)
+		case *sqlstmt.AlterTable:
+			execRes, err = d.doExecDDL(ctx, sqlExec)
 		default:
 			execRes, err = d.doExec(ctx, dbConn, sql)
 		}
@@ -308,6 +322,19 @@ func (d *dbSqlExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExe
 	}
 
 	return d.doQuery(ctx, sqlExecParam.DbConn, selectSql)
+}
+
+func (d *dbSqlExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecParam) (*DbSqlExecRes, error) {
+	selectSql := sqlExecParam.Sql
+	sqlExecParam.SqlExecRecord.Type = entity.DbSqlExecTypeDDL
+
+	if procdef := sqlExecParam.Procdef; procdef != nil {
+		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "ddl")); needStartProc {
+			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+		}
+	}
+
+	return d.doExec(ctx, sqlExecParam.DbConn, selectSql)
 }
 
 func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecParam) (*DbSqlExecRes, error) {
@@ -532,4 +559,10 @@ func isInsert(sql string) bool {
 func isOtherQuery(sql string) bool {
 	sqlPrefix := strings.ToLower(sql[:10])
 	return strings.Contains(sqlPrefix, "explain") || strings.Contains(sqlPrefix, "show")
+}
+
+func isDDL(sql string) bool {
+	sqlPrefix := strings.ToLower(sql[:10])
+	return strings.Contains(sqlPrefix, "create") || strings.Contains(sqlPrefix, "alter") ||
+		strings.Contains(sqlPrefix, "drop") || strings.Contains(sqlPrefix, "truncate") || strings.Contains(sqlPrefix, "rename")
 }

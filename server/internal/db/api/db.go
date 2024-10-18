@@ -195,6 +195,9 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 		executedStatements++
 		_, err = dbConn.Exec(sql)
+		if err != nil {
+			return err
+		}
 		return err
 	})
 

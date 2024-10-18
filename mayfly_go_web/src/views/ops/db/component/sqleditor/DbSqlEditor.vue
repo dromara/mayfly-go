@@ -309,18 +309,6 @@ const onRunSql = async (newTab = false) => {
         sqlPrefix.startsWith('drop') ||
         sqlPrefix.startsWith('create');
 
-    // 启用工单审批
-    // if (nonQuery && getNowDbInst().flowProcdef) {
-    //     try {
-    //         getNowDbInst().promptExeSql(props.dbName, sql, null, () => {
-    //             ElMessage.success('工单提交成功');
-    //         });
-    //     } catch (e) {
-    //         ElMessage.success('工单提交失败');
-    //     }
-    //     return;
-    // }
-
     if (sqls.length == 1) {
         let execRemark;
         if (nonQuery) {
@@ -432,28 +420,61 @@ const runSql = async (sql: string, remark = '', newTab = false) => {
 };
 
 function splitSql(sql: string) {
-    // 移除注释
-    sql = sql.replace(/\/\*[\s\S]*?\*\//g, '');
+    let state = 'normal';
+    let buffer = '';
+    let result = [];
+    let inString = null; // 用于记录当前字符串的引号类型（' 或 "）
 
-    // 分割SQL语句
-    const statements = sql.split(/;\s*|\/\*[\s\S]*?\*\//g);
+    for (let i = 0; i < sql.length; i++) {
+        const char = sql[i];
+        const nextChar = sql[i + 1];
 
-    // 移除空语句
-    const filteredStatements = statements.filter((statement) => statement.trim() !== '');
-
-    // 处理包含分号的SQL语句
-    const processedStatements = filteredStatements.map((statement) => {
-        const parts = statement.split(/[\s]+/);
-        const newParts = parts.map((part) => {
-            if (part.includes('(') && part.includes(')')) {
-                return part.replace(/\(/g, '[').replace(/\)/g, ']');
+        if (state === 'normal') {
+            if (char === '-' && nextChar === '-') {
+                state = 'singleLineComment';
+                i++; // 跳过下一个字符
+            } else if (char === '/' && nextChar === '*') {
+                state = 'multiLineComment';
+                i++; // 跳过下一个字符
+            } else if (char === "'" || char === '"') {
+                state = 'string';
+                inString = char;
+                buffer += char;
+            } else if (char === ';') {
+                if (buffer.trim()) {
+                    result.push(buffer.trim());
+                }
+                buffer = '';
+            } else {
+                buffer += char;
             }
-            return part;
-        });
-        return newParts.join(' ');
-    });
+        } else if (state === 'string') {
+            buffer += char;
+            if (char === '\\') {
+                // 处理转义字符
+                buffer += nextChar;
+                i++;
+            } else if (char === inString) {
+                state = 'normal';
+                inString = null;
+            }
+        } else if (state === 'singleLineComment') {
+            if (char === '\n') {
+                state = 'normal';
+            }
+        } else if (state === 'multiLineComment') {
+            if (char === '*' && nextChar === '/') {
+                state = 'normal';
+                i++; // 跳过下一个字符
+            }
+        }
+    }
 
-    return processedStatements;
+    if (buffer.trim()) {
+        result.push(buffer.trim());
+    }
+
+    return result;
 }
 
 /**

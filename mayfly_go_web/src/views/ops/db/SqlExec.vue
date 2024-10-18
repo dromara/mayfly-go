@@ -844,11 +844,20 @@ const onDeleteTable = async (data: any) => {
     let dialect = getDbDialect(state.nowDbInst.type);
     let schemaStr = schema ? `${dialect.quoteIdentifier(schema)}.` : '';
 
-    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName)}` }).then(() => {
-        ElMessage.success('删除成功');
-        setTimeout(() => {
-            parentKey && reloadNode(parentKey);
-        }, 1000);
+    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName)}` }).then((res) => {
+        let success = true;
+        for (let re of res) {
+            if (re.errorMsg) {
+                success = false;
+                ElMessage.error(`${re.sql} -> 执行失败: ${re.errorMsg}`);
+            }
+        }
+        if (success) {
+            ElMessage.success('删除成功');
+            setTimeout(() => {
+                parentKey && reloadNode(parentKey);
+            }, 1000);
+        }
     });
 };
 

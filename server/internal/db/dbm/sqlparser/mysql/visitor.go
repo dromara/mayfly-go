@@ -50,7 +50,7 @@ func (v *MysqlVisitor) VisitEmptyStatement_(ctx *mysqlparser.EmptyStatement_Cont
 }
 
 func (v *MysqlVisitor) VisitDdlStatement(ctx *mysqlparser.DdlStatementContext) interface{} {
-	ddlStmt := sqlstmt.DdlStmt{}
+	ddlStmt := &sqlstmt.DdlStmt{}
 	ddlStmt.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
 	return ddlStmt
 }

@@ -41,6 +41,7 @@ func (p *Procinst) ProcinstStart(rc *req.Ctx) {
 	_, err := p.ProcinstApp.StartProc(rc.MetaCtx, startForm.ProcdefId, &dto.StarProc{
 		BizType: startForm.BizType,
 		BizForm: jsonx.ToStr(startForm.BizForm),
+		Remark:  startForm.Remark,
 	})
 	biz.ErrIsNil(err)
 }

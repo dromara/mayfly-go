@@ -11,6 +11,7 @@ export const DbSqlExecTypeEnum = {
     Delete: EnumValue.of(2, 'DELETE').setTagColor('#F9E2AE'),
     Insert: EnumValue.of(3, 'INSERT').setTagColor('#A8DEE0'),
     Query: EnumValue.of(4, 'QUERY').setTagColor('#A8DEE0'),
+    Ddl: EnumValue.of(5, 'DDL').setTagColor('#F9E2AE'),
     Other: EnumValue.of(-1, 'OTHER').setTagColor('#F9E2AE'),
 };
 
