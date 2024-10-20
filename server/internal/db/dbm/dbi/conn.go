@@ -29,6 +29,10 @@ type QueryColumn struct {
 	Type string `json:"type"` // 类型
 }
 
+func (d *DbConn) GetDb() *sql.DB {
+	return d.db
+}
+
 // 执行查询语句
 // 依次返回 列信息数组(顺序)，结果map，错误
 func (d *DbConn) Query(querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {

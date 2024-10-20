@@ -9,13 +9,13 @@ import (
 )
 
 func init() {
-	dbi.Register(dbi.DbTypeDM, new(DmMeta))
+	dbi.Register(dbi.DbTypeDM, new(Meta))
 }
 
-type DmMeta struct {
+type Meta struct {
 }
 
-func (md *DmMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (dm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "dm"
 	db := d.Database
 	var dbParam string
@@ -40,11 +40,11 @@ func (md *DmMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return sql.Open(driverName, dsn)
 }
 
-func (md *DmMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+func (dm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &DMDialect{dc: conn}
 }
 
-func (md *DmMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+func (dm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
 	return dbi.NewMetaDataX(&DMMetaData{
 		dc: conn,
 	})

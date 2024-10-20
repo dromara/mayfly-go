@@ -14,11 +14,11 @@ export function hasPerm(code: string) {
 
 /**
  * 判断用户是否拥有权限对象里对应的code
- * @param perms { save: "xxx:save"}
  * @returns {"xxx:save": true}  key->permission code
+ * @param permCodes
  */
 export function hasPerms(permCodes: any[]) {
-    const res = {};
+    const res = {} as { [key: string]: boolean };
     for (let permCode of permCodes) {
         if (hasPerm(permCode)) {
             res[permCode] = true;

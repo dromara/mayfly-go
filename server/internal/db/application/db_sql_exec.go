@@ -17,14 +17,16 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
+	"os"
 	"strings"
 )
 
 type DbSqlExecReq struct {
 	DbId      uint64
 	Db        string
-	Sql       string // 需要执行的sql，支持多条
-	Remark    string // 执行备注
+	Sql       string   // 需要执行的sql，支持多条
+	SqlFile   *os.File // sql文件
+	Remark    string   // 执行备注
 	DbConn    *dbi.DbConn
 	CheckFlow bool // 是否检查存储审批流程
 }

@@ -20,16 +20,32 @@ func InitDbTransferRouter(router *gin.RouterGroup) {
 		req.NewGet("", d.Tasks),
 
 		// 保存任务 /datasync/save
-		req.NewPost("save", d.SaveTask).Log(req.NewLogSave("datasync-保存数据迁移任务信息")).RequiredPermissionCode("db:transfer:save"),
+		req.NewPost("save", d.SaveTask).Log(req.NewLogSave("dts-保存数据迁移任务信息")).RequiredPermissionCode("db:transfer:save"),
 
 		// 删除任务 /datasync/:taskId/del
-		req.NewDelete(":taskId/del", d.DeleteTask).Log(req.NewLogSave("datasync-删除数据迁移任务信息")).RequiredPermissionCode("db:transfer:del"),
+		req.NewDelete(":taskId/del", d.DeleteTask).Log(req.NewLogSave("dts-删除数据迁移任务信息")).RequiredPermissionCode("db:transfer:del"),
+
+		// 启停用任务 /datasync/status
+		req.NewPost(":taskId/status", d.ChangeStatus).Log(req.NewLogSave("dts-启停任务")).RequiredPermissionCode("db:transfer:status"),
 
 		// 立即执行任务 /datasync/run
-		req.NewPost(":taskId/run", d.Run).Log(req.NewLog("DBMS-执行数据迁移任务")).RequiredPermissionCode("db:transfer:run"),
+		req.NewPost(":taskId/run", d.Run).Log(req.NewLog("dts-执行数据迁移任务")).RequiredPermissionCode("db:transfer:run"),
 
 		// 停止正在执行中的任务
-		req.NewPost(":taskId/stop", d.Stop).Log(req.NewLogSave("DBMS-终止数据迁移任务")),
+		req.NewPost(":taskId/stop", d.Stop).Log(req.NewLogSave("dts-终止数据迁移任务")).RequiredPermissionCode("db:transfer:run"),
+
+		// 导出文件管理-列表
+		req.NewGet("/files/:taskId", d.Files),
+
+		req.NewPost("/files/rename", d.FileRename).Log(req.NewLogSave("dts-删除迁移文件")).RequiredPermissionCode("db:transfer:files:rename"),
+
+		// 导出文件管理-删除
+		req.NewPost("/files/del/:fileId", d.FileDel).Log(req.NewLogSave("dts-删除迁移文件")).RequiredPermissionCode("db:transfer:files:del"),
+
+		req.NewPost("/files/run", d.FileRun).Log(req.NewLogSave("dts-执行sql文件")).RequiredPermissionCode("db:transfer:files:run"),
+
+		// 导出文件管理-下载
+		req.NewGet("/files/down/:fileUuid", d.FileDown).Log(req.NewLogSave("dts-下载迁移文件")).RequiredPermissionCode("db:transfer:files:down"),
 	}
 
 	req.BatchSetGroup(instances, reqs[:])

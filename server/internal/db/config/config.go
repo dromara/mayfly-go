@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	sysapp "mayfly-go/internal/sys/application"
 	"path/filepath"
 	"runtime"
@@ -33,7 +34,8 @@ func GetDbms() *Dbms {
 }
 
 type DbBackupRestore struct {
-	BackupPath string // 备份文件路径呢
+	BackupPath   string // 备份文件路径呢
+	TransferPath string // 数据库迁移文件存储路径
 }
 
 // 获取数据库备份配置
@@ -43,11 +45,8 @@ func GetDbBackupRestore() *DbBackupRestore {
 
 	dbrc := new(DbBackupRestore)
 
-	backupPath := jm["backupPath"]
-	if backupPath == "" {
-		backupPath = "./db/backup"
-	}
-	dbrc.BackupPath = filepath.Join(backupPath)
+	dbrc.BackupPath = filepath.Join(cmp.Or(jm["backupPath"], "./db/backup"))
+	dbrc.TransferPath = filepath.Join(cmp.Or(jm["transferPath"], "./db/transfer"))
 
 	return dbrc
 }

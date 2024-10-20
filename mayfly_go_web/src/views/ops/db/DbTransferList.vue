@@ -36,16 +36,38 @@
                 </el-tooltip>
             </template>
 
+            <template #status="{ data }">
+                <span v-if="actionBtns[perms.status]">
+                    <el-switch
+                        v-model="data.status"
+                        @click="updStatus(data.id, data.status)"
+                        inline-prompt
+                        active-text="启用"
+                        inactive-text="禁用"
+                        :active-value="1"
+                        :inactive-value="-1"
+                    />
+                </span>
+                <span v-else>
+                    <el-tag v-if="data.status == 1" class="ml-2" type="success">启用</el-tag>
+                    <el-tag v-else class="ml-2" type="danger">禁用</el-tag>
+                </span>
+            </template>
+
             <template #action="{ data }">
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">日志</el-button>
+                <el-button v-if="actionBtns[perms.log]" type="warning" link @click="log(data)">日志</el-button>
                 <el-button v-if="data.runningState === 1" @click="stop(data.id)" type="danger" link>停止</el-button>
-                <el-button v-if="actionBtns[perms.run] && data.runningState !== 1" type="primary" link @click="reRun(data)">运行</el-button>
+                <el-button v-if="actionBtns[perms.run] && data.runningState !== 1 && data.status === 1" type="success" link @click="reRun(data)"
+                    >运行</el-button
+                >
+                <el-button v-if="actionBtns[perms.files] && data.mode === 2" type="success" link @click="openFiles(data)">文件</el-button>
             </template>
         </page-table>
 
         <db-transfer-edit @val-change="search" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
+        <db-transfer-file :title="filesDialog.title" v-model:visible="filesDialog.visible" v-model:data="filesDialog.data" />
 
         <TerminalLog v-model:log-id="logsDialog.logId" v-model:visible="logsDialog.visible" :title="logsDialog.title" />
     </div>
@@ -62,6 +84,7 @@ import { SearchItem } from '@/components/SearchForm';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { DbTransferRunningStateEnum } from './enums';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
+import DbTransferFile from './DbTransferFile.vue';
 
 const DbTransferEdit = defineAsyncComponent(() => import('./DbTransferEdit.vue'));
 
@@ -71,6 +94,7 @@ const perms = {
     status: 'db:transfer:status',
     log: 'db:transfer:log',
     run: 'db:transfer:run',
+    files: 'db:transfer:files',
 };
 
 const searchItems = [SearchItem.input('name', '名称')];
@@ -78,17 +102,17 @@ const searchItems = [SearchItem.input('name', '名称')];
 const columns = ref([
     TableColumn.new('taskName', '任务名').setMinWidth(150).isSlot(),
     TableColumn.new('srcDb', '源库').setMinWidth(150).isSlot(),
-    TableColumn.new('targetDb', '目标库').setMinWidth(150).isSlot(),
+    // TableColumn.new('targetDb', '目标库').setMinWidth(150).isSlot(),
     TableColumn.new('runningState', '执行状态').typeTag(DbTransferRunningStateEnum),
-    TableColumn.new('creator', '创建人'),
-    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('status', '状态').isSlot(),
     TableColumn.new('modifier', '修改人'),
     TableColumn.new('updateTime', '修改时间').isTime(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run]);
-const actionWidth = ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0)) * 55;
+const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.files]);
+const actionWidth =
+    ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.files] ? 1 : 0)) * 55;
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 
@@ -120,9 +144,15 @@ const state = reactive({
         data: null as any,
         running: false,
     },
+    filesDialog: {
+        taskId: 0,
+        title: '迁移文件列表',
+        visible: false,
+        data: null as any,
+    },
 });
 
-const { selectionData, query, editDialog, logsDialog } = toRefs(state);
+const { selectionData, query, editDialog, logsDialog, filesDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -137,10 +167,10 @@ const search = () => {
 const edit = async (data: any) => {
     if (!data) {
         state.editDialog.data = null;
-        state.editDialog.title = '新增数据库迁移任务';
+        state.editDialog.title = '新增数据库迁移任务（迁移不会对源库造成修改）';
     } else {
         state.editDialog.data = data;
-        state.editDialog.title = '修改数据库迁移任务';
+        state.editDialog.title = '修改数据库迁移任务（迁移不会对源库造成修改）';
     }
     state.editDialog.visible = true;
 };
@@ -182,6 +212,22 @@ const reRun = async (data: any) => {
     setTimeout(() => {
         search();
     }, 2000);
+};
+
+const openFiles = async (data: any) => {
+    state.filesDialog.visible = true;
+    state.filesDialog.title = '迁移文件管理';
+    state.filesDialog.taskId = data.id;
+    state.filesDialog.data = data;
+};
+const updStatus = async (id: any, status: 1 | -1) => {
+    try {
+        await dbApi.updateDbTransferTaskStatus.request({ taskId: id, status });
+        ElMessage.success(`${status === 1 ? '启用' : '禁用'}成功`);
+        search();
+    } catch (err) {
+        //
+    }
 };
 
 const del = async () => {

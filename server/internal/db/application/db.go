@@ -1,6 +1,7 @@
 package application
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"mayfly-go/internal/db/application/dto"
@@ -224,7 +225,13 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 }
 
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
-	writer := newGzipWriter(reqParam.Writer)
+
+	log := dto.DefaultDumpLog
+	if reqParam.Log != nil {
+		log = reqParam.Log
+	}
+
+	writer := reqParam.Writer
 	defer writer.Close()
 	dbId := reqParam.DbId
 	dbName := reqParam.DbName
@@ -238,23 +245,47 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
+	writer.WriteString(fmt.Sprintf("\n-- 数据库方言: %s ", cmp.Or(reqParam.TargetDbType, dbConn.Info.Type)))
 	writer.WriteString("\n-- ----------------------------\n\n")
 
-	dbMeta := dbConn.GetMetaData()
+	// 获取目标元数据，仅生成sql，用于生成建表语句和插入数据，不能用于查询
+	targetMeta := dbConn.GetMetaData()
+	if reqParam.TargetDbType != "" && dbConn.Info.Type != reqParam.TargetDbType {
+		// 创建一个假连接，仅用于调用方言生成sql，不做数据库连接操作
+		meta := dbi.GetMeta(reqParam.TargetDbType)
+		dbConn := &dbi.DbConn{Info: &dbi.DbInfo{
+			Type: reqParam.TargetDbType,
+			Meta: meta,
+		}}
+
+		targetMeta = meta.GetMetaData(dbConn)
+	}
+
+	srcMeta := dbConn.GetMetaData()
 	if len(tables) == 0 {
-		ti, err := dbMeta.GetTables()
+		log("获取可导出的表信息...")
+		ti, err := srcMeta.GetTables()
+		if err != nil {
+			log(fmt.Sprintf("获取表信息失败 %s", err.Error()))
+		}
 		biz.ErrIsNil(err)
 		tables = make([]string, len(ti))
 		for i, table := range ti {
 			tables[i] = table.TableName
 		}
+		log(fmt.Sprintf("获取到%d张表", len(tables)))
 	}
 	if len(tables) == 0 {
+		log("不存在可导出的表, 结束导出")
 		return errorx.NewBiz("不存在可导出的表")
 	}
 
+	log("查询列信息...")
 	// 查询列信息，后面生成建表ddl和insert都需要列信息
-	columns, err := dbMeta.GetColumns(tables...)
+	columns, err := srcMeta.GetColumns(tables...)
+	if err != nil {
+		log(fmt.Sprintf("查询列信息失败:%s", err.Error()))
+	}
 	biz.ErrIsNil(err)
 
 	// 以表名分组，存放每个表的列信息
@@ -266,21 +297,24 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	// 按表名排序
 	sort.Strings(tables)
 
-	quoteSchema := dbMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
-	dumpHelper := dbMeta.GetDumpHelper()
-	dataHelper := dbMeta.GetDataHelper()
+	quoteSchema := srcMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
+	dumpHelper := targetMeta.GetDumpHelper()
+	dataHelper := targetMeta.GetDataHelper()
 
 	// 遍历获取每个表的信息
 	for _, tableName := range tables {
-		quoteTableName := dbMeta.QuoteIdentifier(tableName)
+		log(fmt.Sprintf("获取表[%s]信息...", tableName))
+		quoteTableName := targetMeta.QuoteIdentifier(tableName)
 
 		writer.TryFlush()
 		// 查询表信息，主要是为了查询表注释
-		tbs, err := dbMeta.GetTables(tableName)
+		tbs, err := srcMeta.GetTables(tableName)
 		if err != nil {
+			log(fmt.Sprintf("获取表[%s]信息失败: %s", tableName, err.Error()))
 			return err
 		}
 		if len(tbs) <= 0 {
+			log(fmt.Sprintf("获取表[%s]信息失败: 没有查询到表信息", tableName))
 			return errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName))
 		}
 		tabInfo := dbi.Table{
@@ -290,8 +324,9 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 		// 生成表结构信息
 		if reqParam.DumpDDL {
+			log(fmt.Sprintf("生成表[%s]DDL...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", tableName))
-			tbDdlArr := dbMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
+			tbDdlArr := targetMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
 			for _, ddl := range tbDdlArr {
 				writer.WriteString(ddl + ";\n")
 			}
@@ -299,16 +334,17 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 		// 生成insert sql，数据在索引前，加速insert
 		if reqParam.DumpData {
+			log(fmt.Sprintf("生成表[%s]DML...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表数据: %s \n-- ----------------------------\n", tableName))
 
 			dumpHelper.BeforeInsert(writer, quoteTableName)
 			// 获取列信息
 			quoteColNames := make([]string, 0)
 			for _, col := range columnMap[tableName] {
-				quoteColNames = append(quoteColNames, dbMeta.QuoteIdentifier(col.ColumnName))
+				quoteColNames = append(quoteColNames, targetMeta.QuoteIdentifier(col.ColumnName))
 			}
 
-			_, _ = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+			_, _ = dbConn.WalkTableRows(ctx, tableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
 				rowValues := make([]string, len(columnMap[tableName]))
 				for i, col := range columnMap[tableName] {
 					rowValues[i] = dataHelper.WrapValue(row[col.ColumnName], dataHelper.GetDataType(string(col.DataType)))
@@ -323,15 +359,18 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			dumpHelper.AfterInsert(writer, tableName, columnMap[tableName])
 		}
 
-		indexs, err := dbMeta.GetTableIndex(tableName)
+		log(fmt.Sprintf("获取表[%s]索引信息...", tableName))
+		indexs, err := srcMeta.GetTableIndex(tableName)
 		if err != nil {
+			log(fmt.Sprintf("获取表[%s]索引信息失败：%s", tableName, err.Error()))
 			return err
 		}
 
 		if len(indexs) > 0 {
 			// 最后添加索引
+			log(fmt.Sprintf("生成表[%s]索引...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
-			sqlArr := dbMeta.GenerateIndexDDL(indexs, tabInfo)
+			sqlArr := targetMeta.GenerateIndexDDL(indexs, tabInfo)
 			for _, sqlStr := range sqlArr {
 				writer.WriteString(sqlStr + ";\n")
 			}

@@ -7,8 +7,8 @@ import {
     DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
-    QuoteEscape,
     IndexDefinition,
+    QuoteEscape,
     RowDefinition,
     sqlColumnType,
 } from './index';
@@ -85,10 +85,10 @@ const replaceFunctions: EditorCompletionItem[] = [
     { label: 'CURRENT_DATE', insertText: 'CURRENT_DATE', description: '获取当前日期' },
     { label: 'CURRENT_TIMESTAMP', insertText: 'TIMESTAMP', description: '获取当前时间' },
     // 转换函数
-    { label: 'TO_CHAR', insertText: 'TO_CHAR(d|n[,fmt])', description: '把日期和数字转换为制定格式的字符串' },
+    { label: 'TO_CHAR', insertText: `TO_CHAR(d|n, 'yyyy-MM-dd HH24:mi:ss')`, description: '把日期和数字转换为制定格式的字符串' },
     { label: 'TO_DATE', insertText: `TO_DATE(X, 'yyyy-MM-dd HH24:mi:ss')`, description: '把一个字符串以fmt格式转换成一个日期类型' },
-    { label: 'TO_NUMBER', insertText: 'TO_NUMBER(X,[,fmt])', description: '把一个字符串以fmt格式转换为一个数字' },
-    { label: 'TO_TIMESTAMP', insertText: 'TO_TIMESTAMP(X,[,fmt])', description: '把一个字符串以fmt格式转换为日期类型' },
+    { label: 'TO_NUMBER', insertText: `TO_NUMBER(X, 'yyyy-MM-dd HH24:mi:ss')`, description: '把一个字符串以fmt格式转换为一个数字' },
+    { label: 'TO_TIMESTAMP', insertText: `TO_TIMESTAMP(X, 'yyyy-MM-dd HH24:mi:ss.ff')`, description: '把一个字符串以fmt格式转换为日期类型' },
     // 其他
     { label: 'NVL', insertText: 'NVL(X,VALUE)', description: '如果X为空，返回value，否则返回X' },
     { label: 'NVL2', insertText: 'NVL2(x,value1,value2)', description: '如果x非空，返回value1，否则返回value2' },
@@ -293,7 +293,7 @@ class OracleDialect implements DbDialect {
         return '';
     }
 
-    genColumnBasicSql(cl: RowDefinition, create: boolean): string {
+    genColumnBasicSql(cl: RowDefinition, create: boolean, data = {}): string {
         let length = this.getTypeLengthSql(cl);
         // 默认值
         let defVal = this.getDefaultValueSql(cl);
@@ -309,6 +309,11 @@ class OracleDialect implements DbDialect {
         return incr ? baseSql : ` ${baseSql} ${defVal} ${cl.notNull ? 'NOT NULL' : ''} `;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
+    getOtherCreateTableSql(data: any) {
+        return '';
+    }
+
     getCreateTableSql(data: any): string {
         let schemaArr = data.db.split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
@@ -322,7 +327,7 @@ class OracleDialect implements DbDialect {
         // 创建表结构
         let fields: string[] = [];
         data.fields.res.forEach((item: any) => {
-            item.name && fields.push(this.genColumnBasicSql(item, true));
+            item.name && fields.push(this.genColumnBasicSql(item, true, data));
             // 列注释
             if (item.remark) {
                 columCommentSql += ` COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} is '${QuoteEscape(item.remark)}'; `;
@@ -344,7 +349,9 @@ class OracleDialect implements DbDialect {
             tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${QuoteEscape(data.tableComment)}'; `;
         }
 
-        return createSql + tableCommentSql + columCommentSql;
+        // 其余建表信息，如：自增字段在老版本的使用方式是创建自增序列
+        let other = this.getOtherCreateTableSql(data);
+        return createSql + tableCommentSql + columCommentSql + other;
     }
 
     getCreateIndexSql(tableData: any): string {
@@ -391,7 +398,7 @@ class OracleDialect implements DbDialect {
                         commentArr.push(commentSql);
                     }
                 }
-                modifyArr.push(` MODIFY (${this.genColumnBasicSql(a, false)})`);
+                modifyArr.push(` MODIFY (${this.genColumnBasicSql(a, false, tableData)})`);
                 if (a.pri) {
                     priArr.add(`${this.quoteIdentifier(a.name)}`);
                 }
@@ -400,7 +407,7 @@ class OracleDialect implements DbDialect {
 
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                modifyArr.push(` ADD (${this.genColumnBasicSql(a, false)})`);
+                modifyArr.push(` ADD (${this.genColumnBasicSql(a, false, tableData)})`);
                 if (a.remark) {
                     commentArr.push(`COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} is '${QuoteEscape(a.remark)}'`);
                 }

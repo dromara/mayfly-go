@@ -47,6 +47,9 @@ type DbInfo struct {
 	Params   string
 	Database string // 若有schema的库则为'database/scheam'格式
 
+	Version        DbVersion // 数据库版本信息，用于语法兼容
+	DefaultVersion bool      // 经过查询数据库版本信息后，是否仍然使用默认版本
+
 	CodePath           []string
 	SshTunnelMachineId int
 

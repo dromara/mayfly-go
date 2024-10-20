@@ -69,36 +69,73 @@
                             <monaco-editor height="150px" class="task-sql" language="sql" v-model="form.dataSql" />
                         </el-form-item>
 
-                        <el-form-item prop="targetTableName" label="目标库表" required>
-                            <el-select v-model="form.targetTableName" filterable placeholder="请选择目标数据库表">
-                                <el-option
-                                    v-for="item in state.targetTableList"
-                                    :key="item.tableName"
-                                    :label="item.tableName + (item.tableComment && '-' + item.tableComment)"
-                                    :value="item.tableName"
-                                />
-                            </el-select>
+                        <el-form-item>
+                            <el-row class="w100">
+                                <el-col :span="12">
+                                    <el-form-item prop="targetTableName" label="目标库表" required>
+                                        <el-select v-model="form.targetTableName" filterable placeholder="请选择目标数据库表">
+                                            <el-option
+                                                v-for="item in state.targetTableList"
+                                                :key="item.tableName"
+                                                :label="item.tableName + (item.tableComment && '-' + item.tableComment)"
+                                                :value="item.tableName"
+                                            />
+                                        </el-select>
+                                    </el-form-item>
+                                </el-col>
+
+                                <el-col :span="12">
+                                    <el-form-item prop="pageSize" label="分页大小" required>
+                                        <el-input type="number" v-model.number="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" />
+                                    </el-form-item>
+                                </el-col>
+                            </el-row>
                         </el-form-item>
 
                         <el-form-item>
                             <el-row>
                                 <el-col :span="8">
-                                    <el-form-item prop="pageSize" label="分页大小" required>
-                                        <el-input type="number" v-model.number="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" />
+                                    <el-form-item class="w100" prop="updField">
+                                        <template #label>
+                                            更新字段
+                                            <el-tooltip content="查询数据源的时候会带上这个字段当前最大值，支持带别名，如：t.create_time" placement="top">
+                                                <el-icon>
+                                                    <question-filled />
+                                                </el-icon>
+                                            </el-tooltip>
+                                        </template>
+                                        <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
                                 <el-col :span="8">
-                                    <el-tooltip content="查询数据源的时候会带上这个字段当前最大值，支持带别名，如：t.create_time" placement="top">
-                                        <el-form-item prop="updField" label="更新字段" required>
-                                            <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
-                                        </el-form-item>
-                                    </el-tooltip>
+                                    <el-form-item class="w100" prop="updFieldVal">
+                                        <template #label>
+                                            更新值
+                                            <el-tooltip content="记录更新字段当前值，如：当前时间，当前日期等，下次查询数据时会带上该值条件" placement="top">
+                                                <el-icon>
+                                                    <question-filled />
+                                                </el-icon>
+                                            </el-tooltip>
+                                        </template>
+                                        <el-input v-model.trim="form.updFieldVal" placeholder="更新字段当前最大值" auto-complete="off" />
+                                    </el-form-item>
                                 </el-col>
 
                                 <el-col :span="8">
-                                    <el-form-item prop="updFieldVal" label="更新值">
-                                        <el-input v-model.trim="form.updFieldVal" placeholder="更新字段当前最大值" auto-complete="off" />
+                                    <el-form-item class="w100" prop="updFieldSrc">
+                                        <template #label>
+                                            值来源
+                                            <el-tooltip
+                                                content="从查询结果中取更新值的字段名，默认同更新字段，如果查询结果指定了字段别名且与原更新字段不一致，则取这个字段值为当前更新值"
+                                                placement="top"
+                                            >
+                                                <el-icon>
+                                                    <question-filled />
+                                                </el-icon>
+                                            </el-tooltip>
+                                        </template>
+                                        <el-input v-model.trim="form.updFieldSrc" placeholder="更新值来源" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
                             </el-row>
@@ -253,6 +290,7 @@ type FormData = {
     pageSize?: number;
     updField?: string;
     updFieldVal?: string;
+    updFieldSrc?: string;
     fieldMap?: { src: string; target: string }[];
     status?: 1 | 2;
     duplicateStrategy?: -1 | 1 | 2;
@@ -326,7 +364,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         const db = dbInfoRes.list[0];
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
-        state.srcDbInst = DbInst.getOrNewInst(db);
+        state.srcDbInst = await DbInst.getOrNewInst(db);
         state.form.srcDbType = state.srcDbInst.type;
         state.form.srcInstName = db.name;
     }
@@ -338,7 +376,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         const db = dbInfoRes.list[0];
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
-        state.targetDbInst = DbInst.getOrNewInst(db);
+        state.targetDbInst = await DbInst.getOrNewInst(db);
         state.form.targetDbType = state.targetDbInst.type;
         state.form.targetInstName = db.name;
     }
@@ -397,12 +435,12 @@ const refreshPreviewInsertSql = () => {
 const onSelectSrcDb = async (params: any) => {
     //  初始化数据源
     params.databases = params.dbs; // 数据源里需要这个值
-    state.srcDbInst = DbInst.getOrNewInst(params);
+    state.srcDbInst = await DbInst.getOrNewInst(params);
     registerDbCompletionItemProvider(params.id, params.db, params.dbs, params.type);
 };
 
 const onSelectTargetDb = async (params: any) => {
-    state.targetDbInst = DbInst.getOrNewInst(params);
+    state.targetDbInst = await DbInst.getOrNewInst(params);
     await loadDbTables(params.id, params.db);
 };
 

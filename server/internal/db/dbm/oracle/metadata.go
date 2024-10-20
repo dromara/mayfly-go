@@ -25,6 +25,12 @@ type OracleMetaData struct {
 	dbi.DefaultMetaData
 
 	dc *dbi.DbConn
+
+	version dbi.DbVersion
+}
+
+func (od *OracleMetaData11) GetCompatibleDbVersion() dbi.DbVersion {
+	return od.version
 }
 
 func (od *OracleMetaData) GetDbServer() (*dbi.DbServer, error) {
@@ -306,8 +312,17 @@ end`
 	if len(columnComments) > 0 {
 		sqlArr = append(sqlArr, columnComments...)
 	}
+	otherSql := od.GenerateTableOtherDDL(tableInfo, quoteTableName, columns)
+	if len(otherSql) > 0 {
+		sqlArr = append(sqlArr, otherSql...)
+	}
 
 	return sqlArr
+}
+
+// 11g及以下版本会设置自增序列
+func (od *OracleMetaData) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableName string, columns []dbi.Column) []string {
+	return nil
 }
 
 // 获取建表ddl

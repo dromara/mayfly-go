@@ -109,7 +109,7 @@ const state = reactive({
     mouse: null as any,
     touchpad: null as any,
     errorMessage: '',
-    arguments: {},
+    arguments: {} as any,
     status: TerminalStatus.NoConnected,
     size: {
         height: 710,

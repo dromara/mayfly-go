@@ -1,4 +1,4 @@
-package application
+package writer
 
 import (
 	"compress/gzip"
@@ -6,17 +6,17 @@ import (
 	"mayfly-go/pkg/biz"
 )
 
-type gzipWriter struct {
+type GzipWriter struct {
 	tryFlushCount int
 	writer        *gzip.Writer
 	aborted       bool
 }
 
-func newGzipWriter(writer io.Writer) *gzipWriter {
-	return &gzipWriter{writer: gzip.NewWriter(writer)}
+func NewGzipWriter(writer io.Writer) *GzipWriter {
+	return &GzipWriter{writer: gzip.NewWriter(writer)}
 }
 
-func (g *gzipWriter) WriteString(data string) {
+func (g *GzipWriter) WriteString(data string) {
 	if g.aborted {
 		return
 	}
@@ -26,7 +26,7 @@ func (g *gzipWriter) WriteString(data string) {
 	}
 }
 
-func (g *gzipWriter) Write(p []byte) (n int, err error) {
+func (g *GzipWriter) Write(p []byte) (n int, err error) {
 	if g.aborted {
 		return
 	}
@@ -38,11 +38,11 @@ func (g *gzipWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (g *gzipWriter) Close() {
+func (g *GzipWriter) Close() {
 	g.writer.Close()
 }
 
-func (g *gzipWriter) TryFlush() {
+func (g *GzipWriter) TryFlush() {
 	if g.tryFlushCount%1000 == 0 {
 		g.writer.Flush()
 	}

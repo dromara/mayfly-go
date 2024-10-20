@@ -1,5 +1,5 @@
 import Api from '@/common/Api';
-import { AesEncrypt } from '@/common/crypto';
+import {AesEncrypt} from '@/common/crypto';
 
 export const dbApi = {
     // 获取权限列表
@@ -26,6 +26,8 @@ export const dbApi = {
     deleteDbSql: Api.newDelete('/dbs/{id}/sql'),
     // 获取数据库sql执行记录
     getSqlExecs: Api.newGet('/dbs/sql-execs'),
+    // 获取数据库兼容版本
+    getCompatibleDbVersion: Api.newGet('/dbs/{id}/version'),
 
     instances: Api.newGet('/instances'),
     getInstance: Api.newGet('/instances/{instanceId}'),
@@ -72,9 +74,15 @@ export const dbApi = {
     dbTransferTasks: Api.newGet('/dbTransfer'),
     saveDbTransferTask: Api.newPost('/dbTransfer/save'),
     deleteDbTransferTask: Api.newDelete('/dbTransfer/{taskId}/del'),
+    updateDbTransferTaskStatus: Api.newPost('/dbTransfer/{taskId}/status'),
     runDbTransferTask: Api.newPost('/dbTransfer/{taskId}/run'),
     stopDbTransferTask: Api.newPost('/dbTransfer/{taskId}/stop'),
     dbTransferTaskLogs: Api.newGet('/dbTransfer/{taskId}/logs'),
+    dbTransferFileList: Api.newGet('/dbTransfer/files/{taskId}'),
+    dbTransferFileDel: Api.newPost('/dbTransfer/files/del/{fileId}'),
+    dbTransferFileRename: Api.newPost('/dbTransfer/files/rename'),
+    dbTransferFileRun: Api.newPost('/dbTransfer/files/run'),
+    dbTransferFileDown: Api.newGet('/dbTransfer/files/down/{fileUuid}'),
 };
 
 export const dbSqlExecApi = {

@@ -11,15 +11,15 @@ import (
 )
 
 func init() {
-	meta := new(MysqlMeta)
+	meta := new(Meta)
 	dbi.Register(dbi.DbTypeMysql, meta)
 	dbi.Register(dbi.DbTypeMariadb, meta)
 }
 
-type MysqlMeta struct {
+type Meta struct {
 }
 
-func (md *MysqlMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (mm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		sshTunnelMachine, err := dbi.GetSshTunnel(d.SshTunnelMachineId)
@@ -39,10 +39,10 @@ func (md *MysqlMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return sql.Open(driverName, dsn)
 }
 
-func (md *MysqlMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+func (mm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &MysqlDialect{dc: conn}
 }
 
-func (md *MysqlMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+func (mm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
 	return dbi.NewMetaDataX(&MysqlMetaData{dc: conn})
 }

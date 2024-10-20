@@ -52,8 +52,9 @@ type dataSyncAppImpl struct {
 }
 
 var (
-	dateTimeReg = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`)
-	whereReg    = regexp.MustCompile(`(?i)where`)
+	dateTimeReg    = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`)
+	dateTimeIsoReg = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*$`)
+	whereReg       = regexp.MustCompile(`(?i)where`)
 )
 
 func (app *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
@@ -155,7 +156,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 			// 判断UpdFieldVal数据类型
 			var updFieldValType dbi.DataType
 			if _, err = strconv.Atoi(task.UpdFieldVal); err != nil {
-				if dateTimeReg.MatchString(task.UpdFieldVal) {
+				if dateTimeReg.MatchString(task.UpdFieldVal) || dateTimeIsoReg.MatchString(task.UpdFieldVal) {
 					updFieldValType = dbi.DataTypeDateTime
 				} else {
 					updFieldValType = dbi.DataTypeString
@@ -328,13 +329,22 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 
 		data = append(data, rowData)
 	}
-	// 解决字段大小写问题
-	updFieldVal := srcRes[len(srcRes)-1][strings.ToUpper(updFieldName)]
-	if updFieldVal == "" || updFieldVal == nil {
-		updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(updFieldName)]
+
+	setUpdateFieldVal := func(field string) {
+		// 解决字段大小写问题
+		updFieldVal := srcRes[len(srcRes)-1][strings.ToUpper(field)]
+		if updFieldVal == "" || updFieldVal == nil {
+			updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(field)]
+		}
+		task.UpdFieldVal = srcMetaData.GetDataHelper().FormatData(updFieldVal, updFieldType)
 	}
 
-	task.UpdFieldVal = srcMetaData.GetDataHelper().FormatData(updFieldVal, updFieldType)
+	// 如果指定了更新字段，则以更新字段取值
+	if task.UpdFieldSrc != "" {
+		setUpdateFieldVal(task.UpdFieldSrc)
+	} else {
+		setUpdateFieldVal(updFieldName)
+	}
 
 	// 获取目标库字段数组
 	targetWrapColumns := make([]string, 0)

@@ -42,6 +42,8 @@ export class DbInst {
      */
     type: string;
 
+    /** 兼容版本 */
+    version: string;
     /**
      * dbName -> db
      */
@@ -379,7 +381,7 @@ export class DbInst {
      * @param inst 数据库实例，后端返回的列表接口中的信息
      * @returns DbInst
      */
-    static getOrNewInst(inst: any) {
+    static async getOrNewInst(inst: any) {
         if (!inst) {
             throw new Error('inst不能为空');
         }
@@ -400,6 +402,9 @@ export class DbInst {
         dbInst.name = inst.name;
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
+
+        // 获取兼容版本信息
+        dbInst.version = await dbApi.getCompatibleDbVersion.request({ id: inst.id, db: dbInst.databases[0] });
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;

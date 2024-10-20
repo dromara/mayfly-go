@@ -19,7 +19,7 @@ const viteConfig: UserConfig = {
         vue(),
         CodeInspectorPlugin({
             bundler: 'vite',
-            editor: VITE_EDITOR,
+            editor: VITE_EDITOR as any,
         }),
     ],
     root: process.cwd(),

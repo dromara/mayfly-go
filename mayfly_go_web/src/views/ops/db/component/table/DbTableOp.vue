@@ -30,7 +30,7 @@
 
                                     <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
                                         <el-option
-                                            v-for="pgsqlType in getDbDialect(dbType).getInfo().columnTypes"
+                                            v-for="pgsqlType in getDbDialect(dbType!).getInfo().columnTypes"
                                             :key="pgsqlType.dataType"
                                             :value="pgsqlType.udtName"
                                             :label="pgsqlType.dataType"
@@ -127,7 +127,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watch } from 'vue';
+import { computed, reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
 import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
@@ -152,12 +152,15 @@ const props = defineProps({
     dbType: {
         type: String,
     },
+    version: {
+        type: String,
+    },
 });
 
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
 
-let dbDialect = getDbDialect(props.dbType);
+let dbDialect = computed(() => getDbDialect(props.dbType!, props.version));
 
 type ColName = {
     prop: string;
@@ -271,7 +274,7 @@ const { dialogVisible, btnloading, activeName, tableData } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
-    dbDialect = getDbDialect(newValue.dbType);
+    dbDialect.value = getDbDialect(newValue.dbType!);
 });
 
 // 切换到索引tab时，刷新索引字段下拉选项
@@ -306,11 +309,11 @@ const addRow = () => {
 };
 
 const addIndex = () => {
-    state.tableData.indexs.res.push(dbDialect.getDefaultIndex());
+    state.tableData.indexs.res.push(dbDialect.value.getDefaultIndex());
 };
 
 const addDefaultRows = () => {
-    state.tableData.fields.res.push(...dbDialect.getDefaultRows());
+    state.tableData.fields.res.push(...dbDialect.value.getDefaultRows());
 };
 
 const deleteRow = (index: any) => {
@@ -331,7 +334,7 @@ const submit = async () => {
         sql: sql,
         dbId: props.dbId as any,
         db: props.db as any,
-        dbType: dbDialect.getInfo().formatSqlDialect,
+        dbType: dbDialect.value.getInfo().formatSqlDialect,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();
@@ -411,21 +414,22 @@ const genSql = () => {
     let data = state.tableData;
     // 创建表
     if (!props.data?.edit) {
-        let createTable = dbDialect.getCreateTableSql(data);
+        let createTable = dbDialect.value.getCreateTableSql(data);
         let createIndex = '';
         if (data.indexs.res.length > 0) {
-            createIndex = dbDialect.getCreateIndexSql(data);
+            createIndex = dbDialect.value.getCreateIndexSql(data);
         }
         return createTable + ';' + createIndex;
     } else {
         // 修改列
         let changeColData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
-        let colSql = changeColData.changed ? dbDialect.getModifyColumnSql(data, data.tableName, changeColData) : '';
+        let colSql = changeColData.changed ? dbDialect.value.getModifyColumnSql(data, data.tableName, changeColData) : '';
         // 修改索引
         let changeIdxData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
-        let idxSql = changeIdxData.changed ? dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
+        let idxSql = changeIdxData.changed ? dbDialect.value.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
         // 修改表名,表注释
-        let tableInfoSql = data.tableName !== data.oldTableName || data.tableComment !== data.oldTableComment ? dbDialect.getModifyTableInfoSql(data) : '';
+        let tableInfoSql =
+            data.tableName !== data.oldTableName || data.tableComment !== data.oldTableComment ? dbDialect.value.getModifyTableInfoSql(data) : '';
 
         let sqlArr = [];
         colSql && sqlArr.push(colSql);

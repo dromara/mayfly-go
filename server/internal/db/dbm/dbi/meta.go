@@ -1,6 +1,8 @@
 package dbi
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 var (
 	metas = make(map[DbType]Meta)
@@ -15,6 +17,8 @@ func Register(dt DbType, meta Meta) {
 func GetMeta(dt DbType) Meta {
 	return metas[dt]
 }
+
+type DbVersion string
 
 // 数据库元信息，如获取sql.DB、Dialect等
 type Meta interface {

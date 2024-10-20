@@ -156,8 +156,8 @@
             <el-row v-if="props.pageable" class="mt20" type="flex" justify="end">
                 <el-pagination
                     :small="props.size == 'small'"
-                    @current-change="handlePageNumChange"
-                    @size-change="handlePageSizeChange"
+                    @current-change="pageNumChange"
+                    @size-change="pageSizeChange"
                     style="text-align: right"
                     layout="prev, pager, next, total, sizes"
                     :total="total"
@@ -185,7 +185,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { usePageTable } from '@/hooks/usePageTable';
 import { ElTable } from 'element-plus';
 
-const emit = defineEmits(['update:selectionData', 'pageChange']);
+const emit = defineEmits(['update:selectionData', 'pageSizeChange', 'pageNumChange']);
 
 export interface PageTableProps {
     size?: string;
@@ -255,6 +255,15 @@ const changeSimpleFormItem = (searchItem: SearchItem) => {
     // 将之前的值置为空，避免因为只显示一个搜索项却搜索多个条件
     queryForm.value[nowSearchItem.value.prop] = null;
     nowSearchItem.value = searchItem;
+};
+
+const pageSizeChange = (val: number) => {
+    emit('pageSizeChange', val);
+    handlePageSizeChange(val);
+};
+const pageNumChange = (val: number) => {
+    emit('pageNumChange', val);
+    handlePageNumChange(val);
 };
 
 let { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
@@ -353,6 +362,7 @@ defineExpose({
     tableRef: tableRef,
     search: getTableData,
     getData,
+    total,
 });
 </script>
 <style scoped lang="scss">

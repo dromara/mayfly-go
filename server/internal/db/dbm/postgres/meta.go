@@ -15,22 +15,22 @@ import (
 )
 
 func init() {
-	meta := new(PostgresMeta)
+	meta := new(Meta)
 	dbi.Register(dbi.DbTypePostgres, meta)
 	dbi.Register(dbi.DbTypeKingbaseEs, meta)
 	dbi.Register(dbi.DbTypeVastbase, meta)
 
-	gauss := &PostgresMeta{
+	gauss := &Meta{
 		Param: "dbtype=gauss",
 	}
 	dbi.Register(dbi.DbTypeGauss, gauss)
 }
 
-type PostgresMeta struct {
+type Meta struct {
 	Param string
 }
 
-func (pm *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (pm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "postgres"
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
@@ -81,11 +81,11 @@ func (pm *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return sql.Open(driverName, dsn)
 }
 
-func (pm *PostgresMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+func (pm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &PgsqlDialect{dc: conn}
 }
 
-func (pm *PostgresMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+func (pm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
 	return dbi.NewMetaDataX(&PgsqlMetaData{dc: conn})
 }
 

@@ -16,6 +16,9 @@ type MetaData interface {
 	// GetDbServer 获取数据库服务实例信息
 	GetDbServer() (*DbServer, error)
 
+	// GetCompatibleDbVersion 获取兼容版本信息，如果有兼容版本，则需要实现对应版本的特殊方言处理器，以及前端的方言兼容版本
+	GetCompatibleDbVersion() DbVersion
+
 	// GetDbNames 获取数据库名称列表
 	GetDbNames() ([]string, error)
 

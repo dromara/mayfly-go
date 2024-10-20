@@ -1,7 +1,7 @@
-import { OptionsApi, SearchItem } from '@/components/SearchForm';
-import { ContextmenuItem } from '@/components/contextmenu';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { tagApi } from '../tag/api';
+import {OptionsApi, SearchItem} from '@/components/SearchForm';
+import {ContextmenuItem} from '@/components/contextmenu';
+import {TagResourceTypeEnum} from '@/common/commonEnum';
+import {tagApi} from '../tag/api';
 
 export class TagTreeNode {
     /**
@@ -162,7 +162,7 @@ export class NodeType {
  */
 export function getTagPathSearchItem(resourceType: number) {
     return SearchItem.select('tagPath', '标签').withOptionsApi(
-        OptionsApi.new(tagApi.getResourceTagPaths, { resourceType }).withConvertFn((res: any) => {
+        OptionsApi.new(tagApi.getResourceTagPaths, {resourceType}).withConvertFn((res: any) => {
             return res.map((x: any) => {
                 return {
                     label: x,
@@ -180,6 +180,7 @@ export function getTagPathSearchItem(resourceType: number) {
  */
 export function getTagTypeCodeByPath(codePath: string) {
     const result: any = {};
+    if (!codePath) return result
     const parts = codePath.split('/'); // 切分字符串并保留数字和对应的值部分
 
     for (let part of parts) {
@@ -207,6 +208,7 @@ export function getTagTypeCodeByPath(codePath: string) {
  * @returns
  */
 export async function getAllTagInfoByCodePaths(codePaths: string[]) {
+    if (!codePaths) return
     const allTypeAndCode: any = {};
 
     for (let codePath of codePaths) {
@@ -220,7 +222,7 @@ export async function getAllTagInfoByCodePaths(codePaths: string[]) {
         if (type == TagResourceTypeEnum.Tag.value) {
             continue;
         }
-        const tagInfo = await tagApi.listByQuery.request({ type: type, codes: allTypeAndCode[type] });
+        const tagInfo = await tagApi.listByQuery.request({type: type, codes: allTypeAndCode[type]});
         allTypeAndCode[type] = tagInfo;
     }
 

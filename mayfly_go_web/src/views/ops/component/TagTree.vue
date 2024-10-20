@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, watch, toRefs, nextTick } from 'vue';
+import { nextTick, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
@@ -147,10 +147,10 @@ const loadNode = async (node: any, resolve: (data: any) => void, reject: () => v
     return resolve(nodes);
 };
 
-const treeNodeClick = (data: any) => {
+const treeNodeClick = async (data: any) => {
     if (!data.disabled && !data.type.nodeDblclickFunc && data.type.nodeClickFunc) {
         emit('nodeClick', data);
-        data.type.nodeClickFunc(data);
+        await data.type.nodeClickFunc(data);
     }
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();

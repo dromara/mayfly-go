@@ -1,9 +1,9 @@
 import Config from './config';
-import { ElNotification } from 'element-plus';
+import {ElNotification} from 'element-plus';
 import SocketBuilder from './SocketBuilder';
-import { getToken } from '@/common/utils/storage';
+import {getToken} from '@/common/utils/storage';
 
-import { joinClientParams } from './request';
+import {joinClientParams} from './request';
 
 class SysSocket {
     /**
@@ -19,10 +19,11 @@ class SysSocket {
     /**
      * 消息类型
      */
-    messageTypes = {
+    messageTypes: any = {
         0: 'error',
         1: 'success',
         2: 'info',
+        22: 'info',
     };
 
     /**
@@ -57,12 +58,20 @@ class SysSocket {
                 }
 
                 const type = this.getMsgType(message.type);
+                let msg = message.msg
+                let duration = 0
+                if (message.type == 22) {
+                    let obj = JSON.parse(msg);
+                    msg = `文件：${obj['title']} 执行成功: ${obj['executedStatements']} 条`
+                    duration = 2000
+                }
                 ElNotification({
-                    duration: 0,
+                    duration: duration,
                     title: message.title,
-                    message: message.msg,
+                    message: msg,
                     type: type,
                 });
+                console.log(message)
             })
             .open((event: any) => console.log(event))
             .close(() => {

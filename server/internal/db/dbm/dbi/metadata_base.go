@@ -13,6 +13,8 @@ type BaseMetaData interface {
 	// 默认库
 	DefaultDb() string
 
+	DbVersion() string
+
 	// 用于引用 SQL 标识符（关键字）的字符串
 	GetIdentifierQuoteString() string
 
@@ -43,7 +45,14 @@ type BaseMetaData interface {
 type DefaultMetaData struct {
 }
 
+func (dd *DefaultMetaData) GetCompatibleDbVersion() DbVersion {
+	return ""
+}
 func (dd *DefaultMetaData) DefaultDb() string {
+	return ""
+}
+
+func (dd *DefaultMetaData) DbVersion() string {
 	return ""
 }
 

@@ -25,6 +25,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/writer"
 	"mayfly-go/pkg/ws"
 	"strings"
 	"time"
@@ -257,7 +258,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		Tables:   tables,
 		DumpDDL:  needStruct,
 		DumpData: needData,
-		Writer:   rc.GetWriter(),
+		Writer:   writer.NewGzipWriter(rc.GetWriter()),
 	}))
 
 	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType)
@@ -336,6 +337,11 @@ func (d *Db) GetTableDDL(rc *req.Ctx) {
 	res, err := d.getDbConn(rc).GetMetaData().GetTableDDL(tn, false)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
+}
+
+func (d *Db) GetVersion(rc *req.Ctx) {
+	version := d.getDbConn(rc).GetMetaData().GetCompatibleDbVersion()
+	rc.ResData = version
 }
 
 func (d *Db) GetSchemas(rc *req.Ctx) {

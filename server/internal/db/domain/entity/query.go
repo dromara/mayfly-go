@@ -20,7 +20,13 @@ type DataSyncLogQuery struct {
 }
 
 type DbTransferTaskQuery struct {
-	Name string `json:"name" form:"name"`
+	Name     string `json:"name" form:"name"`
+	Status   int8   `json:"status" form:"status"`
+	CronAble int8   `json:"cronAble" form:"cronAble"`
+}
+type DbTransferFileQuery struct {
+	TaskId uint64 `json:"task_id" form:"taskId"`
+	Name   string `json:"name" form:"name"`
 }
 
 type DbTransferLogQuery struct {
