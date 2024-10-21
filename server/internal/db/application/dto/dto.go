@@ -1,10 +1,10 @@
 package dto
 
 import (
+	"io"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	tagentity "mayfly-go/internal/tag/domain/entity"
-	"mayfly-go/pkg/utils/writer"
 )
 
 type SaveDbInstance struct {
@@ -22,7 +22,7 @@ type DumpDb struct {
 
 	LogId uint64
 
-	Writer       writer.CustomWriter
+	Writer       io.WriteCloser
 	Log          func(msg string)
 	TargetDbType dbi.DbType
 }

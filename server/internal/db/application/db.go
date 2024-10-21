@@ -18,6 +18,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/writerx"
 	"sort"
 	"strings"
 	"time"
@@ -231,7 +232,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 		log = reqParam.Log
 	}
 
-	writer := reqParam.Writer
+	writer := writerx.NewStringWriter(reqParam.Writer)
 	defer writer.Close()
 	dbId := reqParam.DbId
 	dbName := reqParam.DbName
@@ -241,6 +242,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	if err != nil {
 		return err
 	}
+
 	writer.WriteString("\n-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
@@ -306,7 +308,6 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 		log(fmt.Sprintf("获取表[%s]信息...", tableName))
 		quoteTableName := targetMeta.QuoteIdentifier(tableName)
 
-		writer.TryFlush()
 		// 查询表信息，主要是为了查询表注释
 		tbs, err := srcMeta.GetTables(tableName)
 		if err != nil {

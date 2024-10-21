@@ -160,7 +160,7 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
 
-let dbDialect = computed(() => getDbDialect(props.dbType!, props.version));
+let dbDialect: any = computed(() => getDbDialect(props.dbType!, props.version));
 
 type ColName = {
     prop: string;

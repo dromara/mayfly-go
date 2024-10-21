@@ -7,7 +7,6 @@ type DbTransferFileListVO struct {
 	CreateTime *time.Time `json:"createTime"`
 	Status     int8       `json:"status"`
 	FileDbType string     `json:"fileDbType"`
-	FileName   string     `json:"fileName"`
-	FileUuid   string     `json:"fileUuid"`
+	FileKey    string     `json:"fileKey"`
 	LogId      uint64     `json:"logId"` // 日志ID
 }

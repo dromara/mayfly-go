@@ -1,30 +1,29 @@
 package api
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
-	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
+	fileapp "mayfly-go/internal/file/application"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 type DbTransferTask struct {
@@ -34,6 +33,7 @@ type DbTransferTask struct {
 	TagApp         tagapp.TagTree             `inject:"TagTreeApp"`
 	MsgApp         msgapp.Msg                 `inject:""`
 	DbSqlExecApp   application.DbSqlExec      `inject:""`
+	FileApp        fileapp.File               `inject:""`
 }
 
 func (d *DbTransferTask) Tasks(rc *req.Ctx) {
@@ -41,11 +41,13 @@ func (d *DbTransferTask) Tasks(rc *req.Ctx) {
 	res, err := d.DbTransferTask.GetPageList(queryCond, page, new([]vo.DbTransferTaskListVO))
 	biz.ErrIsNil(err)
 
-	list := res.List.(*[]vo.DbTransferTaskListVO)
-	for _, item := range *list {
-		item.RunningState = entity.DbTransferTaskRunStateSuccess
-		if d.DbTransferTask.IsRunning(item.Id) {
-			item.RunningState = entity.DbTransferTaskRunStateRunning
+	if res.List != nil {
+		list := res.List.(*[]vo.DbTransferTaskListVO)
+		for _, item := range *list {
+			item.RunningState = entity.DbTransferTaskRunStateSuccess
+			if d.DbTransferTask.IsRunning(item.Id) {
+				item.RunningState = entity.DbTransferTaskRunStateRunning
+			}
 		}
 	}
 
@@ -106,13 +108,6 @@ func (d *DbTransferTask) Files(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-func (d *DbTransferTask) FileRename(rc *req.Ctx) {
-	fm := &form.DbTransferFileForm{}
-	tFile := req.BindJsonAndCopyTo[*entity.DbTransferFile](rc, fm, new(entity.DbTransferFile))
-	_ = d.DbTransferFile.UpdateById(rc.MetaCtx, tFile)
-	rc.ReqParam = fm
-}
-
 func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 	fileId := rc.PathParam("fileId")
 	rc.ReqParam = fileId // 记录操作日志
@@ -120,48 +115,9 @@ func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 
 	uIds := make([]uint64, len(ids))
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		uIds = append(uIds, uint64(value))
+		uIds = append(uIds, cast.ToUint64(v))
 	}
 	biz.ErrIsNil(d.DbTransferFile.Delete(rc.MetaCtx, uIds...))
-}
-
-func (d *DbTransferTask) FileDown(rc *req.Ctx) {
-	fileUuid := rc.PathParam("fileUuid")
-	if fileUuid == "" {
-		panic(errorx.NewBiz("文件id不能为空"))
-	}
-
-	tFile := &entity.DbTransferFile{FileUuid: fileUuid}
-
-	err := d.DbTransferFile.GetByCond(model.NewModelCond(tFile).Dest(tFile))
-	biz.ErrIsNilAppendErr(err, "查询文件出错 %s")
-
-	// 拼接文件地址，并把文件流输出到客户端
-	brc := config.GetDbBackupRestore()
-	filePath := filepath.Join(fmt.Sprintf("%s/%d/%s.sql", brc.TransferPath, tFile.TaskId, fileUuid))
-
-	file, err := os.Open(filePath)
-	biz.ErrIsNilAppendErr(err, "读取文件失败：%s")
-
-	defer file.Close()
-
-	// Get the file information to set the correct response headers
-	fileInfo, err := file.Stat()
-	biz.ErrIsNilAppendErr(err, "读取文件失败：%s")
-
-	rc.ReqParam = tFile // 记录操作日志
-	// 如果文件名不以 .sql 结尾，则加上 .sql
-	if !strings.HasSuffix(tFile.FileName, ".sql") {
-		tFile.FileName += ".sql"
-	}
-
-	rc.Header("Content-Type", "application/octet-stream")
-	rc.Header("Content-Disposition", "attachment; filename="+tFile.FileName)
-	rc.Header("Content-Length", strconv.FormatInt(fileInfo.Size(), 10))
-	_, err = io.Copy(rc.GetWriter(), file)
-
 }
 
 func (d *DbTransferTask) FileRun(rc *req.Ctx) {
@@ -183,7 +139,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 			if len(errInfo) > 300 {
 				errInfo = errInfo[:300] + "..."
 			}
-			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", tFile.FileName, targetDbConn.Info.GetLogDesc(), errInfo)).WithClientId(fm.ClientId))
+			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", tFile.FileKey, targetDbConn.Info.GetLogDesc(), errInfo)).WithClientId(fm.ClientId))
 		}
 	}()
 
@@ -194,13 +150,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFileRunForm, tFile *entity.DbTransferFile, targetDbConn *dbi.DbConn) {
-
-	filePath := d.DbTransferFile.GetFilePath(tFile)
-	_, err := os.Stat(filePath)
-	biz.ErrIsNilAppendErr(err, "sql文件不存在：%s")
-
-	file, err := os.Open(filePath)
-	biz.ErrIsNilAppendErr(err, "sql文件读取出错：%s")
+	filename, reader, err := d.FileApp.GetReader(context.TODO(), tFile.FileKey)
 
 	executedStatements := 0
 	progressId := stringx.Rand(32)
@@ -213,12 +163,12 @@ func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFile
 		biz.ErrIsNilAppendErr(err, "连接目标数据库失败: %s")
 	}
 
-	err = sqlparser.SQLSplit(file, func(sql string) error {
+	err = sqlparser.SQLSplit(reader, func(sql string) error {
 		select {
 		case <-ticker.C:
 			ws.SendJsonMsg(ws.UserId(laId), fm.ClientId, msgdto.InfoSqlProgressMsg("sql脚本执行进度", &progressMsg{
 				Id:                 progressId,
-				Title:              tFile.FileName,
+				Title:              filename,
 				ExecutedStatements: executedStatements,
 				Terminated:         false,
 			}).WithCategory(progressCategory))
@@ -233,5 +183,5 @@ func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFile
 		biz.ErrIsNilAppendErr(err, "执行sql失败: %s")
 	}
 
-	d.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", tFile.FileName)).WithClientId(fm.ClientId))
+	d.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", filename)).WithClientId(fm.ClientId))
 }

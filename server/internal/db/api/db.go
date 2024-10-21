@@ -25,7 +25,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/utils/writer"
+	"mayfly-go/pkg/utils/writerx"
 	"mayfly-go/pkg/ws"
 	"strings"
 	"time"
@@ -196,9 +196,6 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 		executedStatements++
 		_, err = dbConn.Exec(sql)
-		if err != nil {
-			return err
-		}
 		return err
 	})
 
@@ -258,7 +255,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		Tables:   tables,
 		DumpDDL:  needStruct,
 		DumpData: needData,
-		Writer:   writer.NewGzipWriter(rc.GetWriter()),
+		Writer:   writerx.NewGzipWriter(rc.GetWriter()),
 	}))
 
 	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType)

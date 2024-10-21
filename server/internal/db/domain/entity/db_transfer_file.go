@@ -13,8 +13,7 @@ type DbTransferFile struct {
 	TaskId     uint64     `orm:"column(task_id)" json:"taskId"`          // 迁移任务ID
 	LogId      uint64     `orm:"column(log_id)" json:"logId"`            // 日志ID
 	FileDbType string     `orm:"column(file_db_type)" json:"fileDbType"` // sql文件数据库类型
-	FileName   string     `orm:"column(file_name)" json:"fileName"`      // 显式文件名
-	FileUuid   string     `orm:"column(file_uuid)" json:"fileUuid"`      // 文件真实id，拼接后可以下载
+	FileKey    string     `orm:"column(file_key)" json:"fileKey"`        // 文件
 }
 
 func (d *DbTransferFile) TableName() string {

@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/google/uuid"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	fileapp "mayfly-go/internal/file/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/base"
@@ -20,11 +20,12 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/writer"
-	"os"
+	"mayfly-go/pkg/utils/timex"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -57,9 +58,10 @@ type DbTransferTask interface {
 type dbTransferAppImpl struct {
 	base.AppImpl[*entity.DbTransferTask, repository.DbTransferTask]
 
-	dbApp   Db             `inject:"DbApp"`
-	logApp  sysapp.Syslog  `inject:"SyslogApp"`
-	fileApp DbTransferFile `inject:"DbTransferFileApp"`
+	dbApp           Db             `inject:"DbApp"`
+	logApp          sysapp.Syslog  `inject:"SyslogApp"`
+	transferFileApp DbTransferFile `inject:"DbTransferFileApp"`
+	fileApp         fileapp.File   `inject:"FileApp"`
 }
 
 func (app *dbTransferAppImpl) InjectDbTransferTaskRepo(repo repository.DbTransferTask) {
@@ -133,7 +135,7 @@ func (app *dbTransferAppImpl) InitCronJob() {
 		}
 	}
 	// 把所有运行中的文件状态设置为失败
-	_ = app.fileApp.UpdateByCond(context.TODO(), &entity.DbTransferFile{Status: entity.DbTransferFileStatusFail}, &entity.DbTransferFile{Status: entity.DbTransferFileStatusRunning})
+	_ = app.transferFileApp.UpdateByCond(context.TODO(), &entity.DbTransferFile{Status: entity.DbTransferFileStatusFail}, &entity.DbTransferFile{Status: entity.DbTransferFileStatusRunning})
 
 	// 把所有需要定时执行的任务添加到定时任务中
 	pageParam := &model.PageParam{
@@ -255,7 +257,6 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 }
 
 func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, start time.Time, tables []dbi.Table) {
-
 	// 1、新增迁移文件数据
 	nowTime := time.Now()
 	tFile := &entity.DbTransferFile{
@@ -263,14 +264,16 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 		CreateTime: &nowTime,
 		Status:     entity.DbTransferFileStatusRunning,
 		FileDbType: cmp.Or(task.TargetFileDbType, task.TargetDbType),
-		FileName:   fmt.Sprintf("%s.sql", task.TaskName), // 用于下载和展示
-		FileUuid:   uuid.New().String(),                  // 用于存放到磁盘
 		LogId:      logId,
 	}
-	_ = app.fileApp.Save(ctx, tFile)
+	_ = app.transferFileApp.Save(ctx, tFile)
 
-	// 新建一个文件，文件位置为 {transferPath}/{taskId}/{uuid}.sql
-	filePath := app.fileApp.GetFilePath(tFile)
+	filename := fmt.Sprintf("dtf_%s_%s.sql", task.TaskName, timex.TimeNo())
+	fileKey, writer, saveFileFunc, err := app.fileApp.NewWriter(ctx, "", filename)
+	if err != nil {
+		app.EndTransfer(ctx, logId, taskId, "创建文件失败", err, nil)
+		return
+	}
 
 	// 从tables提取表名
 	tableNames := make([]string, 0)
@@ -278,11 +281,12 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 		tableNames = append(tableNames, table.TableName)
 	}
 	// 2、把源库数据迁移到文件
-	app.Log(ctx, logId, fmt.Sprintf("开始迁移表数据到文件： %s", filePath))
+	app.Log(ctx, logId, fmt.Sprintf("开始迁移表数据到文件： %s", filename))
 
 	app.Log(ctx, logId, fmt.Sprintf("目标库文件语言类型： %s", task.TargetFileDbType))
 
 	go func() {
+		defer saveFileFunc()
 		defer app.MarkStop(taskId)
 		defer app.logApp.Flush(logId, true)
 		ctx = context.Background()
@@ -294,7 +298,7 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 			Tables:       tableNames,
 			DumpDDL:      true,
 			DumpData:     true,
-			Writer:       writer.NewFileWriter(filePath),
+			Writer:       writer,
 			Log: func(msg string) { // 记录日志
 				app.Log(ctx, logId, msg)
 			},
@@ -302,15 +306,16 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 		if err != nil {
 			app.EndTransfer(ctx, logId, taskId, "数据库迁移失败", err, nil)
 			tFile.Status = entity.DbTransferFileStatusFail
-			_ = app.fileApp.UpdateById(ctx, tFile)
+			_ = app.transferFileApp.UpdateById(ctx, tFile)
 			// 删除文件
-			_ = os.Remove(filePath)
+			_ = app.fileApp.Remove(ctx, fileKey)
 			return
 		}
 		app.EndTransfer(ctx, logId, taskId, "数据库迁移完成", err, nil)
 
 		tFile.Status = entity.DbTransferFileStatusSuccess
-		_ = app.fileApp.UpdateById(ctx, tFile)
+		tFile.FileKey = fileKey
+		_ = app.transferFileApp.UpdateById(ctx, tFile)
 	}()
 
 }

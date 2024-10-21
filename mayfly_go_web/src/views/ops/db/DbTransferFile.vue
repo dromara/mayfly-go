@@ -1,6 +1,6 @@
 <template>
     <div class="db-transfer-file">
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" width="900px">
+        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" width="1000px">
             <page-table
                 ref="pageTableRef"
                 :data="state.tableData"
@@ -25,6 +25,10 @@
                     <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="del()" type="danger" icon="delete">删除</el-button>
                 </template>
 
+                <template #fileKey="{ data }">
+                    <FileInfo :fileKey="data.fileKey" :canDownload="actionBtns[perms.down] && data.status === 2" />
+                </template>
+
                 <template #fileDbType="{ data }">
                     <span>
                         <SvgIcon :name="getDbDialect(data.fileDbType).getInfo().icon" :size="18" />
@@ -32,37 +36,16 @@
                     </span>
                 </template>
 
-                <template #status="{ data }">
-                    <span>
-                        <el-tag v-if="data.status == 1" class="ml-2" type="primary">执行中</el-tag>
-                        <el-tag v-else-if="data.status == 2" class="ml-2" type="success">成功</el-tag>
-                        <el-tag v-else-if="data.status == -1" class="ml-2" type="danger">失败</el-tag>
-                    </span>
-                </template>
                 <template #action="{ data }">
-                    <el-button v-if="actionBtns[perms.run] && data.status === 2" @click="openRun(data)" type="primary" link>执行</el-button>
-                    <el-button v-if="actionBtns[perms.rename] && data.status === 2" @click="rename(data)" type="warning" link>重命名</el-button>
-                    <el-button v-if="actionBtns[perms.down] && data.status === 2" @click="down(data)" type="primary" link>下载</el-button>
+                    <el-button v-if="actionBtns[perms.run] && data.status === DbTransferFileStatusEnum.Success.value" @click="openRun(data)" type="primary" link
+                        >执行</el-button
+                    >
                     <el-button v-if="data.logId" @click="openLog(data)" type="success" link>日志</el-button>
                 </template>
             </page-table>
             <TerminalLog v-model:log-id="state.logsDialog.logId" v-model:visible="state.logsDialog.visible" :title="state.logsDialog.title" />
         </el-dialog>
 
-        <el-dialog :title="state.renameDialog.title" v-model="state.renameDialog.visible" :destroy-on-close="true" width="400px">
-            <el-form :model="state.renameDialog.renameForm" ref="renameFormRef" label-width="auto">
-                <el-form-item label="文件名" prop="fileName" required>
-                    <el-input v-model="state.renameDialog.renameForm.fileName" placeholder="请输入文件名" />
-                </el-form-item>
-            </el-form>
-
-            <template #footer>
-                <div>
-                    <el-button @click="state.renameDialog.cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="state.renameDialog.loading" @click="state.renameDialog.btnOk">确 定</el-button>
-                </div>
-            </template>
-        </el-dialog>
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
             <el-form :model="state.runDialog.runForm" ref="runFormRef" label-width="auto" :rules="state.runDialog.formRules">
                 <el-form-item label="文件数据库类型" prop="dbType">
@@ -100,10 +83,10 @@ import { TableColumn } from '@/components/pagetable';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { hasPerms } from '@/components/auth/auth';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
-import config from '@/common/config';
-import { joinClientParams } from '@/common/request';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getClientId } from '@/common/utils/storage';
+import FileInfo from '@/components/file/FileInfo.vue';
+import { DbTransferFileStatusEnum } from './enums';
 const props = defineProps({
     data: {
         type: [Object],
@@ -116,22 +99,21 @@ const props = defineProps({
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const columns = ref([
-    TableColumn.new('fileName', '文件名').setMinWidth(150),
-    TableColumn.new('createTime', '创建时间').setMinWidth(180).isTime(),
+    TableColumn.new('fileKey', '文件').setMinWidth(280).isSlot(),
+    TableColumn.new('createTime', '执行时间').setMinWidth(180).isTime(),
     TableColumn.new('fileDbType', 'sql语言').setMinWidth(90).isSlot(),
-    TableColumn.new('status', '状态').isSlot(),
+    TableColumn.new('status', '状态').typeTag(DbTransferFileStatusEnum),
 ]);
 
 const perms = {
     del: 'db:transfer:files:del',
     down: 'db:transfer:files:down',
-    rename: 'db:transfer:files:rename',
     run: 'db:transfer:files:run',
 };
 
-const actionBtns = hasPerms([perms.del, perms.down, perms.rename, perms.run]);
+const actionBtns = hasPerms([perms.del, perms.down, perms.run]);
 
-const actionWidth = ((actionBtns[perms.rename] ? 1 : 0) + (actionBtns[perms.down] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + 1) * 55;
+const actionWidth = ((actionBtns[perms.run] ? 1 : 0) + 1) * 55;
 
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 
@@ -141,7 +123,6 @@ onMounted(async () => {
     }
 });
 
-const renameFormRef: any = ref(null);
 const runFormRef: any = ref(null);
 
 const state = reactive({
@@ -210,31 +191,6 @@ const state = reactive({
             }
         },
     },
-    renameDialog: {
-        visible: false,
-        title: '文件重命名',
-        renameForm: {
-            id: 0,
-            fileName: '',
-        },
-        loading: false,
-        cancel: function () {
-            state.renameDialog.visible = false;
-            state.renameDialog.renameForm = { id: 0, fileName: '' };
-        },
-        btnOk: function () {
-            renameFormRef.value.validate(async (valid: boolean) => {
-                if (!valid) {
-                    ElMessage.error('请正确填写信息');
-                    return false;
-                }
-                await dbApi.dbTransferFileRename.request(state.renameDialog.renameForm);
-                ElMessage.success('保存成功');
-                state.renameDialog.cancel();
-                await search();
-            });
-        },
-    },
     selectionData: [], // 选中的数据
     tableData: [],
 });
@@ -262,18 +218,6 @@ const del = async function () {
     }
 };
 
-const down = function (data: any) {
-    const a = document.createElement('a');
-    a.setAttribute('target', '_blank');
-    a.setAttribute('href', `${config.baseApiUrl}/dbTransfer/files/down/${data.fileUuid}?${joinClientParams()}`);
-    a.click();
-    a.remove();
-};
-const rename = function (data: any) {
-    state.renameDialog.visible = true;
-    const { id, fileName } = data;
-    state.renameDialog.renameForm = { id, fileName };
-};
 const openLog = function (data: any) {
     state.logsDialog.logId = data.logId;
     state.logsDialog.visible = true;

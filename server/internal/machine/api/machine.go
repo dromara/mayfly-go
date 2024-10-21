@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/base64"
 	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/event"
@@ -9,7 +8,6 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/application/dto"
-	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/guac"
 	"mayfly-go/internal/machine/mcm"
@@ -25,8 +23,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/ws"
 	"net/http"
-	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -241,15 +237,6 @@ func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
 	res, err := m.MachineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.GetPageParam(), new([]entity.MachineTermOp))
 	biz.ErrIsNil(err)
 	rc.ResData = res
-}
-
-func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
-	termOp, err := m.MachineTermOpApp.GetById(uint64(rc.PathParamInt("recId")))
-	biz.ErrIsNil(err)
-
-	bytes, err := os.ReadFile(path.Join(config.GetMachine().TerminalRecPath, termOp.RecordFilePath))
-	biz.ErrIsNilAppendErr(err, "读取终端操作记录失败: %s")
-	rc.ResData = base64.StdEncoding.EncodeToString(bytes)
 }
 
 const (

@@ -144,6 +144,7 @@ import { personApi } from '@/views/personal/api';
 import { AccountUsernamePattern } from '@/common/pattern';
 import { getToken } from '@/common/utils/storage';
 import { useThemeConfig } from '@/store/themeConfig';
+import { getFileUrl } from '@/common/request';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -347,18 +348,26 @@ const updateUserInfo = async () => {
     }
 };
 
-const loginResDeal = (loginRes: any) => {
+const loginResDeal = async (loginRes: any) => {
     state.loginRes = loginRes;
     // 用户信息
     const userInfos = {
         name: loginRes.name,
         username: loginRes.username,
-        // 头像
-        photo: letterAvatar(loginRes.username),
         time: new Date().getTime(),
         lastLoginTime: loginRes.lastLoginTime,
         lastLoginIp: loginRes.lastLoginIp,
+        photo: '',
     };
+
+    const avatarFileKey = `avatar_${loginRes.username}`;
+    const avatarFileDetail = await openApi.getFileDetail([avatarFileKey]);
+    // 说明存在头像文件
+    if (avatarFileDetail.length > 0) {
+        userInfos.photo = getFileUrl(avatarFileKey);
+    } else {
+        userInfos.photo = letterAvatar(loginRes.username);
+    }
 
     // 存储用户信息到浏览器缓存
     saveUser(userInfos);
@@ -366,7 +375,7 @@ const loginResDeal = (loginRes: any) => {
     useUserInfo().setUserInfo(userInfos);
 
     const token = loginRes.token;
-    // 如果不需要    otp校验，则该token即为accessToken，否则为otp校验token
+    // 如果不需要otp校验，则该token即为accessToken，否则为otp校验token
     if (loginRes.otp == -1) {
         signInSuccess(token, loginRes.refresh_token);
         return;

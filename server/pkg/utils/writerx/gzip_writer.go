@@ -1,4 +1,4 @@
-package writer
+package writerx
 
 import (
 	"compress/gzip"
@@ -38,8 +38,8 @@ func (g *GzipWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func (g *GzipWriter) Close() {
-	g.writer.Close()
+func (g *GzipWriter) Close() error {
+	return g.writer.Close()
 }
 
 func (g *GzipWriter) TryFlush() {

@@ -14,4 +14,5 @@ export default {
     oauth2Callback: (params: any) => request.get('/auth/oauth2/callback', params),
     getLdapEnabled: () => request.get('/auth/ldap/enabled'),
     ldapLogin: (param: any) => request.post('/auth/ldap/login', param),
+    getFileDetail: (keys: string[]) => request.get(`/sys/files/detail/${keys.join(',')}`),
 };

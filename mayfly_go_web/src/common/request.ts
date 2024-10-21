@@ -209,6 +209,36 @@ export function joinClientParams(): string {
     return `token=${getToken()}&clientId=${getClientId()}`;
 }
 
+/**
+ * 获取文件url地址
+ * @param key 文件key
+ * @returns 文件url
+ */
+export function getFileUrl(key: string) {
+    return `${baseUrl}/sys/files/${key}`;
+}
+
+/**
+ * 获取系统文件上传url
+ * @param key 文件key
+ * @returns 文件上传url
+ */
+export function getUploadFileUrl(key: string = '') {
+    return `${baseUrl}/sys/files/upload?token=${getToken()}&fileKey=${key}`;
+}
+
+/**
+ * 下载文件
+ * @param key 文件key
+ */
+export function downloadFile(key: string) {
+    const a = document.createElement('a');
+    a.setAttribute('href', `${getFileUrl(key)}`);
+    a.setAttribute('target', '_blank');
+    a.click();
+    a.remove();
+}
+
 function parseResult(result: Result) {
     if (result.code === ResultEnum.SUCCESS) {
         return result.data;

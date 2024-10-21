@@ -118,7 +118,7 @@ const unbindOAuth2 = async () => {
 </script>
 
 <style scoped lang="scss">
-@import '../../theme/mixins/index.scss';
+@use '@/theme/mixins/index.scss' as mixins;
 .personal {
     .personal-edit {
         .personal-edit-title {
@@ -159,7 +159,7 @@ const unbindOAuth2 = async () => {
 
                     .personal-edit-safe-item-left-value {
                         color: gray;
-                        @include text-ellipsis(1);
+                        @include mixins.text-ellipsis(1);
                         margin-right: 15px;
                     }
                 }

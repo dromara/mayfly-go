@@ -81,6 +81,11 @@ const viteConfig: UserConfig = {
                 },
             ],
         },
+        preprocessorOptions: {
+            scss: {
+                api: 'modern-compiler', // or 'modern'
+            },
+        },
     },
 };
 

@@ -37,15 +37,10 @@ func InitDbTransferRouter(router *gin.RouterGroup) {
 		// 导出文件管理-列表
 		req.NewGet("/files/:taskId", d.Files),
 
-		req.NewPost("/files/rename", d.FileRename).Log(req.NewLogSave("dts-删除迁移文件")).RequiredPermissionCode("db:transfer:files:rename"),
-
 		// 导出文件管理-删除
 		req.NewPost("/files/del/:fileId", d.FileDel).Log(req.NewLogSave("dts-删除迁移文件")).RequiredPermissionCode("db:transfer:files:del"),
 
 		req.NewPost("/files/run", d.FileRun).Log(req.NewLogSave("dts-执行sql文件")).RequiredPermissionCode("db:transfer:files:run"),
-
-		// 导出文件管理-下载
-		req.NewGet("/files/down/:fileUuid", d.FileDown).Log(req.NewLogSave("dts-下载迁移文件")).RequiredPermissionCode("db:transfer:files:down"),
 	}
 
 	req.BatchSetGroup(instances, reqs[:])

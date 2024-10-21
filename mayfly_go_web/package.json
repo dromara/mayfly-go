@@ -18,7 +18,7 @@
       "crypto-js": "^4.2.0",
       "dayjs": "^1.11.13",
       "echarts": "^5.5.1",
-      "element-plus": "^2.8.5",
+      "element-plus": "^2.8.6",
       "js-base64": "^3.7.7",
       "jsencrypt": "^3.3.2",
       "lodash": "^4.17.21",
@@ -57,7 +57,7 @@
       "eslint": "^8.35.0",
       "eslint-plugin-vue": "^9.28.0",
       "prettier": "^3.2.5",
-      "sass": "^1.79.5",
+      "sass": "^1.80.3",
       "typescript": "^5.6.3",
       "vite": "^5.4.9",
       "vue-eslint-parser": "^9.4.3"

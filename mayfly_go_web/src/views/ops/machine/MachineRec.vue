@@ -10,6 +10,10 @@
             @open="getTermOps()"
         >
             <page-table ref="pageTableRef" :page-api="machineApi.termOpRecs" :lazy="true" height="100%" v-model:query-form="query" :columns="columns">
+                <template #fileKey="{ data }">
+                    <FileInfo :fileKey="data.fileKey" />
+                </template>
+
                 <template #action="{ data }">
                     <el-button @click="playRec(data)" loading-icon="loading" :loading="data.playRecLoding" type="primary" link>回放</el-button>
                     <el-button @click="showExecCmds(data)" type="primary" link>命令</el-button>
@@ -49,6 +53,8 @@ import 'asciinema-player/dist/bundle/asciinema-player.css';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { formatDate } from '@/common/utils/format';
+import { getFileUrl } from '@/common/request';
+import FileInfo from '@/components/file/FileInfo.vue';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -62,7 +68,7 @@ const columns = [
     TableColumn.new('creator', '操作者').setMinWidth(120),
     TableColumn.new('createTime', '开始时间').isTime().setMinWidth(150),
     TableColumn.new('endTime', '结束时间').isTime().setMinWidth(150),
-    TableColumn.new('recordFilePath', '文件路径').setMinWidth(200),
+    TableColumn.new('fileKey', '文件').isSlot(),
     TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
 ];
 
@@ -109,14 +115,9 @@ const playRec = async (rec: any) => {
             player.dispose();
         }
         rec.playRecLoding = true;
-        const content = await machineApi.termOpRec.request({
-            recId: rec.id,
-            id: rec.machineId,
-        });
-
         state.playerDialogVisible = true;
         nextTick(() => {
-            player = AsciinemaPlayer.create(`data:text/plain;base64,${content}`, playerRef.value, {
+            player = AsciinemaPlayer.create(getFileUrl(rec.fileKey), playerRef.value, {
                 autoPlay: true,
                 speed: 1.0,
                 idleTimeLimit: 2,

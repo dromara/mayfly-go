@@ -71,15 +71,19 @@ func parseSQL(r io.Reader, callback SQLCallback) error {
 				buffer.Next(size)
 			case inString:
 				if escapeNextChar {
+					// 当前字符是转义后的字符，直接写入。如后一个为" 避免进入r==stringDelimiter判断被当做字符串结束符中断
 					currentStatement.WriteRune(r)
 					escapeNextChar = false
 				} else if r == '\\' {
+					// 当前字符是转义符，设置标志位并写入
 					escapeNextChar = true
 					currentStatement.WriteRune(r)
 				} else if r == stringDelimiter {
+					// 当前字符是字符串结束符，结束字符串处理
 					inString = false
 					currentStatement.WriteRune(r)
 				} else {
+					// 其他字符，直接写入
 					currentStatement.WriteRune(r)
 				}
 				buffer.Next(size)

@@ -43,3 +43,9 @@ export const DbTransferRunningStateEnum = {
     Fail: EnumValue.of(-1, '失败').setTagType('danger'),
     Stop: EnumValue.of(-2, '手动终止').setTagType('warning'),
 };
+
+export const DbTransferFileStatusEnum = {
+    Running: EnumValue.of(1, '执行中').setTagType('primary'),
+    Success: EnumValue.of(2, '成功').setTagType('success'),
+    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+};

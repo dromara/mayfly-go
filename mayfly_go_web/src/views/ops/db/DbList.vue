@@ -81,7 +81,7 @@
                         <template #dropdown>
                             <el-dropdown-menu>
                                 <el-dropdown-item :command="{ type: 'dumpDb', data }"> 导出 </el-dropdown-item>
-                                <el-dropdown-item
+                                <!-- <el-dropdown-item
                                     :command="{ type: 'backupDb', data }"
                                     v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)"
                                 >
@@ -98,7 +98,7 @@
                                     v-if="actionBtns[perms.restoreDb] && supportAction('restoreDb', data.type)"
                                 >
                                     恢复任务
-                                </el-dropdown-item>
+                                </el-dropdown-item> -->
                             </el-dropdown-menu>
                         </template>
                     </el-dropdown>
