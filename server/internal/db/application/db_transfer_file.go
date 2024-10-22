@@ -54,7 +54,7 @@ func (app *dbTransferFileAppImpl) Delete(ctx context.Context, id ...uint64) erro
 
 	// 删除对应的文件
 	for _, file := range arr {
-		_ = app.fileApp.Remove(ctx, file.FileKey)
+		app.fileApp.Remove(ctx, file.FileKey)
 	}
 
 	// 删除数据

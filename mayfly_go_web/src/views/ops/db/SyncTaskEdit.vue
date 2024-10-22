@@ -1,44 +1,31 @@
 <template>
     <div class="sync-task-edit">
-        <el-dialog
-            :title="title"
-            v-model="dialogVisible"
-            :before-close="cancel"
-            :close-on-click-modal="false"
-            :close-on-press-escape="false"
-            :destroy-on-close="true"
-            width="850px"
-        >
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="45%">
+            <template #header>
+                <DrawerHeader :header="title" :back="cancel" />
+            </template>
+
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-tabs v-model="tabActiveName" style="height: 450px">
+                <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基本信息" :name="basicTab">
                         <el-form-item>
                             <el-row>
-                                <el-col :span="11">
+                                <el-col :span="12">
                                     <el-form-item prop="taskName" label="任务名" required>
                                         <el-input v-model.trim="form.taskName" placeholder="请输入同步任务名" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
-                                <el-col :span="11">
+                                <el-col :span="12">
                                     <el-form-item prop="taskCron" label="cron" required>
                                         <CrontabInput v-model="form.taskCron" />
                                     </el-form-item>
                                 </el-col>
-
-                                <el-col :span="2">
-                                    <el-form-item prop="status" label="状态" label-width="60" required>
-                                        <el-switch
-                                            v-model="form.status"
-                                            inline-prompt
-                                            active-text="启用"
-                                            inactive-text="禁用"
-                                            :active-value="1"
-                                            :inactive-value="-1"
-                                        />
-                                    </el-form-item>
-                                </el-col>
                             </el-row>
+                        </el-form-item>
+
+                        <el-form-item prop="status" label="状态" label-width="60" required>
+                            <el-switch v-model="form.status" inline-prompt active-text="启用" inactive-text="禁用" :active-value="1" :inactive-value="-1" />
                         </el-form-item>
 
                         <el-form-item prop="srcDbId" label="源数据库" required>
@@ -220,7 +207,18 @@
                     <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
-        </el-dialog>
+        </el-drawer>
+
+        <!-- <el-dialog
+            :title="title"
+            v-model="dialogVisible"
+            :before-close="cancel"
+            :close-on-click-modal="false"
+            :close-on-press-escape="false"
+            :destroy-on-close="true"
+            width="850px"
+        >
+        </el-dialog> -->
     </div>
 </template>
 
@@ -233,6 +231,7 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { compatibleDuplicateStrategy, DbType, DuplicateStrategy, getDbDialect } from '@/views/ops/db/dialect';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
 const props = defineProps({
     data: {

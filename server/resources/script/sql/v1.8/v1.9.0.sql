@@ -11,7 +11,7 @@ INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `we
 
 -- 新增数据库迁移相关的系统配置
 DELETE FROM `t_sys_config` WHERE `key` = 'DbBackupRestore';
-UPDATE `t_sys_config` SET param = '[{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB、2GB等)"},{"model":"termOpSaveDays","name":"终端记录保存时间","placeholder":"终端记录保存时间（单位天）"},{"model":"guacdHost","name":"guacd服务ip","placeholder":"guacd服务ip，默认 127.0.0.1","required":false},{"name":"guacd服务端口","model":"guacdPort","placeholder":"guacd服务端口，默认 4822","required":false},{"model":"guacdFilePath","name":"guacd服务文件存储位置","placeholder":"guacd服务文件存储位置，用于挂载RDP文件夹"}]' WHERE `key`='MachineConfig';
+UPDATE `t_sys_config` SET params = '[{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB、2GB等)"},{"model":"termOpSaveDays","name":"终端记录保存时间","placeholder":"终端记录保存时间（单位天）"},{"model":"guacdHost","name":"guacd服务ip","placeholder":"guacd服务ip，默认 127.0.0.1","required":false},{"name":"guacd服务端口","model":"guacdPort","placeholder":"guacd服务端口，默认 4822","required":false},{"model":"guacdFilePath","name":"guacd服务文件存储位置","placeholder":"guacd服务文件存储位置，用于挂载RDP文件夹"}]' WHERE `key`='MachineConfig';
 INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('文件配置', 'FileConfig', '[{"model":"basePath","name":"基础路径","placeholder":"默认为可执行文件对应目录下./file"}]', '{"basePath":"./file"}', '系统文件相关配置', 'admin,', '2024-10-20 22:30:01', 1, 'admin', '2024-10-21 13:51:17', 1, 'admin', 0, NULL);
 
 -- 数据库迁移到文件
@@ -22,6 +22,7 @@ ALTER TABLE `t_db_transfer_task`
     ADD COLUMN `task_key` varchar(100) NULL comment '定时任务唯一uuid key',
     ADD COLUMN `mode` TINYINT(3) NOT NULL DEFAULT 1 comment '数据迁移方式，1、迁移到数据库  2、迁移到文件',
     ADD COLUMN `target_file_db_type` varchar(200) NULL comment '目标文件语言类型，类型枚举同target_db_type',
+    ADD COLUMN `file_save_days` int NULL comment '文件保存天数',
     ADD COLUMN `status` tinyint(3) NOT NULL DEFAULT '1' comment '启用状态 1启用 -1禁用';
 
 UPDATE `t_db_transfer_task` SET mode = 1 WHERE 1=1;

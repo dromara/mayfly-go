@@ -33,6 +33,7 @@
             :before-close="cancelSaveTeam"
             :destroy-on-close="true"
             :close-on-click-modal="false"
+            size="40%"
         >
             <template #header>
                 <DrawerHeader :header="addTeamDialog.form.id ? '编辑团队' : '添加团队'" :back="cancelSaveTeam" />

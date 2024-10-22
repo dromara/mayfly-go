@@ -53,6 +53,9 @@ type DbTransferTask interface {
 	IsRunning(taskId uint64) bool
 
 	Stop(ctx context.Context, taskId uint64) error
+
+	// TimerDeleteTransferFile 定时删除迁移文件
+	TimerDeleteTransferFile()
 }
 
 type dbTransferAppImpl struct {
@@ -79,6 +82,9 @@ func (app *dbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTra
 		err = app.Insert(ctx, taskEntity)
 	} else {
 		err = app.UpdateById(ctx, taskEntity)
+	}
+	if err != nil {
+		return err
 	}
 	// 视情况添加或删除任务
 	task, err := app.GetById(taskEntity.Id)
@@ -547,6 +553,29 @@ func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Tab
 
 	// 通过表名、索引信息生成建索引语句，并执行到目标表
 	return targetDialect.CreateIndex(tableInfo, indexs)
+}
+
+func (d *dbTransferAppImpl) TimerDeleteTransferFile() {
+	logx.Debug("开始定时删除迁移文件...")
+	scheduler.AddFun("@every 100m", func() {
+		dts, err := d.ListByCond(model.NewCond().Eq("mode", entity.DbTransferTaskModeFile).Ge("file_save_days", 1))
+		if err != nil {
+			logx.Errorf("定时获取数据库迁移至文件任务失败: %s", err.Error())
+			return
+		}
+		for _, dt := range dts {
+			needDelFiles, err := d.transferFileApp.ListByCond(model.NewCond().Eq("task_id", dt.Id).Le("create_time", time.Now().AddDate(0, 0, -dt.FileSaveDays)))
+			if err != nil {
+				logx.Errorf("定时获取迁移文件失败: %s", err.Error())
+				continue
+			}
+			for _, nf := range needDelFiles {
+				if err := d.transferFileApp.Delete(context.Background(), nf.Id); err != nil {
+					logx.Errorf("定时删除迁移文件失败: %s", err.Error())
+				}
+			}
+		}
+	})
 }
 
 // MarkRunning 标记任务执行中

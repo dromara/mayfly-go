@@ -89,7 +89,7 @@ func (sd *SqliteMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (sd *SqliteMetaData) getDataTypes(dataType string) (string, string, string) {
 	matches := dataTypeRegexp.FindStringSubmatch(dataType)
 	if len(matches) == 0 {
-		return "", "", ""
+		return dataType, "", ""
 	}
 	return matches[1], matches[2], matches[3]
 }
@@ -133,7 +133,7 @@ func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			} else {
 				column.CharMaxLength = cast.ToInt(length)
 			}
-			column.DataType = dbi.ColumnDataType(dataType)
+			column.DataType = dbi.ColumnDataType(strings.ToLower(dataType))
 			columnHelper.FixColumn(&column)
 
 			columns = append(columns, column)

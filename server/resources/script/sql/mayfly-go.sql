@@ -69,6 +69,7 @@ CREATE TABLE `t_db_transfer_task` (
   `task_key` varchar(100) NULL comment '定时任务唯一uuid key',
   `mode` TINYINT(3) NOT NULL DEFAULT 1 comment '数据迁移方式，1、迁移到数据库  2、迁移到文件',
   `target_file_db_type` varchar(200) NULL comment '目标文件语言类型，类型枚举同target_db_type',
+  `file_save_days` int NULL comment '文件保存天数',
   `status` tinyint(3) NOT NULL DEFAULT '1' comment '启用状态 1启用 -1禁用',
   `upd_field_src` varchar(100) DEFAULT NULL COMMENT '更新值来源字段，默认同更新字段，如果查询结果指定了字段别名且与原更新字段不一致，则取这个字段值为当前更新值',
   `delete_time` datetime DEFAULT NULL COMMENT '删除时间',

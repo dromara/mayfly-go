@@ -15,6 +15,7 @@ type DbTransferTask struct {
 	Cron             string `orm:"column(cron)" json:"cron"`                            // 定时任务cron表达式
 	Mode             int8   `orm:"column(mode)" json:"mode"`                            // 数据迁移方式，1、迁移到数据库  2、迁移到文件
 	TargetFileDbType string `orm:"column(target_file_db_type)" json:"targetFileDbType"` // 目标文件数据库类型
+	FileSaveDays     int    `json:"fileSaveDays"`                                       // 文件保存天数
 	TaskKey          string `orm:"column(key)" json:"taskKey"`                          // 定时任务唯一uuid key
 
 	CheckedKeys string `orm:"column(checked_keys)" json:"checkedKeys"` // 选中需要迁移的表

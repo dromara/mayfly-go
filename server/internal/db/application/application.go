@@ -31,8 +31,10 @@ func Init() {
 		//if err := GetDbBinlogApp().Init(); err != nil {
 		//	panic(fmt.Sprintf("初始化 DbBinlogApp 失败: %v", err))
 		//}
+
 		GetDataSyncTaskApp().InitCronJob()
 		GetDbTransferTaskApp().InitCronJob()
+		GetDbTransferTaskApp().TimerDeleteTransferFile()
 		InitDbFlowHandler()
 	})()
 }
@@ -56,6 +58,7 @@ func GetDbBinlogApp() *DbBinlogApp {
 func GetDataSyncTaskApp() DataSyncTask {
 	return ioc.Get[DataSyncTask]("DbDataSyncTaskApp")
 }
+
 func GetDbTransferTaskApp() DbTransferTask {
 	return ioc.Get[DbTransferTask]("DbTransferTaskApp")
 }

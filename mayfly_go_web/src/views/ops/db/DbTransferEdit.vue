@@ -1,152 +1,137 @@
 <template>
     <div class="db-transfer-edit">
-        <el-dialog
-            :title="title"
-            v-model="dialogVisible"
-            :before-close="cancel"
-            :close-on-click-modal="false"
-            :close-on-press-escape="false"
-            :destroy-on-close="true"
-            width="850px"
-        >
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
+            <template #header>
+                <DrawerHeader :header="title" :back="cancel" />
+            </template>
+
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-tabs v-model="tabActiveName">
-                    <el-tab-pane label="基本信息" :name="basicTab">
-                        <el-form-item>
-                            <el-row class="w100" style="padding-bottom: 20px">
-                                <el-col :span="18">
-                                    <el-form-item prop="taskName" label="任务名" required>
-                                        <el-input v-model.trim="form.taskName" placeholder="请输入任务名" auto-complete="off" />
-                                    </el-form-item>
-                                </el-col>
-                                <el-col :span="6">
-                                    <el-form-item prop="status" label="启用状态">
-                                        <el-switch
-                                            v-model="form.status"
-                                            inline-prompt
-                                            active-text="启用"
-                                            inactive-text="禁用"
-                                            :active-value="1"
-                                            :inactive-value="-1"
-                                        />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                <el-divider content-position="left">基本信息</el-divider>
 
-                        <el-form-item>
-                            <el-row class="w100" style="padding-bottom: 20px">
-                                <el-col :span="8">
-                                    <el-form-item prop="cronAble" label="定时迁移" required>
-                                        <el-radio-group v-model="form.cronAble">
-                                            <el-radio label="是" :value="1" />
-                                            <el-radio label="否" :value="-1" />
-                                        </el-radio-group>
-                                    </el-form-item>
-                                </el-col>
-                                <el-col :span="12">
-                                    <el-form-item prop="cron" label="cron" :required="form.cronAble == 1">
-                                        <CrontabInput v-model="form.cron" />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                <el-form-item prop="taskName" label="任务名" required>
+                    <el-input v-model.trim="form.taskName" placeholder="请输入任务名" auto-complete="off" />
+                </el-form-item>
 
-                        <el-form-item prop="srcDbId" label="源数据库" required>
-                            <db-select-tree
-                                placeholder="请选择源数据库"
-                                v-model:db-id="form.srcDbId"
-                                v-model:inst-name="form.srcInstName"
-                                v-model:db-name="form.srcDbName"
-                                v-model:tag-path="form.srcTagPath"
-                                v-model:db-type="form.srcDbType"
-                                @select-db="onSelectSrcDb"
-                            />
-                        </el-form-item>
+                <el-form-item>
+                    <el-row class="w100">
+                        <el-col :span="12">
+                            <el-form-item prop="status" label="启用状态">
+                                <el-switch v-model="form.status" inline-prompt active-text="启用" inactive-text="禁用" :active-value="1" :inactive-value="-1" />
+                            </el-form-item>
+                        </el-col>
 
-                        <el-form-item>
-                            <el-row class="w100">
-                                <el-col :span="13">
-                                    <el-form-item prop="mode" label="迁移方式" required>
-                                        <el-radio-group v-model="form.mode">
-                                            <el-radio label="迁移到数据库" :value="1" />
-                                            <el-radio label="迁移到文件(自动命名)" :value="2" />
-                                        </el-radio-group>
-                                    </el-form-item>
-                                </el-col>
-                                <el-col :span="11">
-                                    <el-form-item prop="strategy" label="迁移策略" required>
-                                        <el-radio-group v-model="form.strategy">
-                                            <el-radio label="全量" :value="1" />
-                                            <el-radio label="增量（暂不可用）" :value="2" disabled />
-                                        </el-radio-group>
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                        <el-col :span="12">
+                            <el-form-item prop="cronAble" label="定时迁移" required>
+                                <el-radio-group v-model="form.cronAble">
+                                    <el-radio label="是" :value="1" />
+                                    <el-radio label="否" :value="-1" />
+                                </el-radio-group>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </el-form-item>
 
-                        <el-form-item v-if="form.mode === 2" prop="targetFileDbType" label="文件数据库类型" :required="form.mode === 2">
-                            <el-select style="width: 100%" v-model="form.targetFileDbType" placeholder="请选择数据库类型" clearable filterable>
-                                <el-option
-                                    v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
-                                    :key="key"
-                                    :value="dbTypeAndDialect[0]"
-                                    :label="dbTypeAndDialect[1].getInfo().name"
-                                >
-                                    <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
-                                    {{ dbTypeAndDialect[1].getInfo().name }}
-                                </el-option>
-                                <template #prefix>
-                                    <SvgIcon :name="getDbDialect(form.targetFileDbType!).getInfo().icon" :size="20" />
-                                </template>
-                            </el-select>
-                        </el-form-item>
+                <el-form-item prop="cron" label="cron" :required="form.cronAble == 1">
+                    <CrontabInput v-model="form.cron" />
+                </el-form-item>
 
-                        <el-form-item v-if="form.mode == 1" prop="targetDbId" label="目标数据库" :required="form.mode === 1">
-                            <db-select-tree
-                                placeholder="请选择目标数据库"
-                                v-model:db-id="form.targetDbId"
-                                v-model:inst-name="form.targetInstName"
-                                v-model:db-name="form.targetDbName"
-                                v-model:tag-path="form.targetTagPath"
-                                v-model:db-type="form.targetDbType"
-                                @select-db="onSelectTargetDb"
-                            />
-                        </el-form-item>
+                <el-form-item prop="srcDbId" label="源数据库" class="w100" required>
+                    <db-select-tree
+                        placeholder="请选择源数据库"
+                        v-model:db-id="form.srcDbId"
+                        v-model:inst-name="form.srcInstName"
+                        v-model:db-name="form.srcDbName"
+                        v-model:tag-path="form.srcTagPath"
+                        v-model:db-type="form.srcDbType"
+                        @select-db="onSelectSrcDb"
+                    />
+                </el-form-item>
 
-                        <el-form-item prop="nameCase" label="转换表、字段名" required>
-                            <el-radio-group v-model="form.nameCase">
-                                <el-radio label="无" :value="1" />
-                                <el-radio label="大写" :value="2" />
-                                <el-radio label="小写" :value="3" />
-                            </el-radio-group>
-                        </el-form-item>
-                        <!--<el-form-item prop="deleteTable" label="创建前删除表" required>-->
-                        <!--    <el-radio-group v-model="form.deleteTable">-->
-                        <!--        <el-radio label="是" :value="1" />-->
-                        <!--        <el-radio label="否" :value="2" />-->
-                        <!--    </el-radio-group>-->
-                        <!--</el-form-item>-->
-                    </el-tab-pane>
-                    <el-tab-pane label="数据库对象" :name="tableTab" :disabled="!baseFieldCompleted">
-                        <el-form-item>
-                            <el-input v-model="state.filterSrcTableText" style="width: 240px" placeholder="过滤表" />
-                        </el-form-item>
-                        <el-form-item>
-                            <el-tree
-                                ref="srcTreeRef"
-                                style="width: 760px; max-height: 400px; overflow-y: auto"
-                                default-expand-all
-                                :expand-on-click-node="false"
-                                :data="state.srcTableTree"
-                                node-key="id"
-                                show-checkbox
-                                @check-change="handleSrcTableCheckChange"
-                                :filter-node-method="filterSrcTableTreeNode"
-                            />
-                        </el-form-item>
-                    </el-tab-pane>
-                </el-tabs>
+                <el-form-item prop="mode" label="迁移方式" required>
+                    <el-radio-group v-model="form.mode">
+                        <el-radio label="迁移到数据库" :value="1" />
+                        <el-radio label="迁移到文件(自动命名)" :value="2" />
+                    </el-radio-group>
+                </el-form-item>
+
+                <el-form-item v-if="form.mode === 2">
+                    <el-row class="w100">
+                        <el-col :span="12">
+                            <el-form-item prop="targetFileDbType" label="文件数据库类型" :required="form.mode === 2">
+                                <el-select v-model="form.targetFileDbType" placeholder="数据库类型" clearable filterable>
+                                    <el-option
+                                        v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
+                                        :key="key"
+                                        :value="dbTypeAndDialect[0]"
+                                        :label="dbTypeAndDialect[1].getInfo().name"
+                                    >
+                                        <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
+                                        {{ dbTypeAndDialect[1].getInfo().name }}
+                                    </el-option>
+                                    <template #prefix>
+                                        <SvgIcon :name="getDbDialect(form.targetFileDbType!).getInfo().icon" :size="20" />
+                                    </template>
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+
+                        <el-col :span="12">
+                            <el-form-item label="文件保留天数">
+                                <el-input-number v-model="form.fileSaveDays" :min="-1" :max="1000">
+                                    <template #suffix>
+                                        <span>天</span>
+                                    </template>
+                                </el-input-number>
+                            </el-form-item>
+                        </el-col>
+                    </el-row>
+                </el-form-item>
+
+                <el-form-item prop="strategy" label="迁移策略" required>
+                    <el-radio-group v-model="form.strategy">
+                        <el-radio label="全量" :value="1" />
+                        <el-radio label="增量（暂不可用）" :value="2" disabled />
+                    </el-radio-group>
+                </el-form-item>
+
+                <el-form-item v-if="form.mode == 1" prop="targetDbId" label="目标数据库" class="w100" :required="form.mode === 1">
+                    <db-select-tree
+                        placeholder="请选择目标数据库"
+                        v-model:db-id="form.targetDbId"
+                        v-model:inst-name="form.targetInstName"
+                        v-model:db-name="form.targetDbName"
+                        v-model:tag-path="form.targetTagPath"
+                        v-model:db-type="form.targetDbType"
+                        @select-db="onSelectTargetDb"
+                    />
+                </el-form-item>
+
+                <el-form-item prop="nameCase" label="转换表、字段名" required>
+                    <el-radio-group v-model="form.nameCase">
+                        <el-radio label="无" :value="1" />
+                        <el-radio label="大写" :value="2" />
+                        <el-radio label="小写" :value="3" />
+                    </el-radio-group>
+                </el-form-item>
+
+                <el-divider content-position="left">数据库对象</el-divider>
+                <el-form-item>
+                    <el-input v-model="state.filterSrcTableText" placeholder="过滤表" size="small" />
+                </el-form-item>
+                <el-form-item class="w100">
+                    <el-tree
+                        ref="srcTreeRef"
+                        class="w100"
+                        style="max-height: 200px; overflow-y: auto"
+                        default-expand-all
+                        :expand-on-click-node="false"
+                        :data="state.srcTableTree"
+                        node-key="id"
+                        show-checkbox
+                        @check-change="handleSrcTableCheckChange"
+                        :filter-node-method="filterSrcTableTreeNode"
+                    />
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -155,12 +140,12 @@
                     <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
-        </el-dialog>
+        </el-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, reactive, ref, toRefs, watch } from 'vue';
+import { nextTick, reactive, ref, toRefs, watch } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
@@ -168,6 +153,7 @@ import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import _ from 'lodash';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
 const props = defineProps({
     data: {
@@ -223,9 +209,6 @@ const rules = {
 
 const dbForm: any = ref(null);
 
-const basicTab = 'basic';
-const tableTab = 'table';
-
 type FormData = {
     id?: number;
     taskName: string;
@@ -234,6 +217,7 @@ type FormData = {
     cron: string;
     mode: 1 | 2;
     targetFileDbType?: string;
+    fileSaveDays?: number;
     dbType: 1 | 2;
     srcDbId?: number;
     srcDbName?: string;
@@ -270,7 +254,6 @@ const srcTableListDisabled = ref(false);
 const defaultKeys = ['tab-check', 'all', 'table-list'];
 
 const state = reactive({
-    tabActiveName: 'basic',
     form: basicFormData,
     submitForm: {} as any,
     srcTableFields: [] as string[],
@@ -293,20 +276,14 @@ const state = reactive({
     ],
 });
 
-const { tabActiveName, form, submitForm } = toRefs(state);
+const { form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveExec } = dbApi.saveDbTransferTask.useApi(submitForm);
-
-// 基础字段信息是否填写完整
-const baseFieldCompleted = computed(() => {
-    return state.form.srcDbId && (state.form.targetDbId || state.form.targetFileDbType);
-});
 
 watch(dialogVisible, async (newValue: boolean) => {
     if (!newValue) {
         return;
     }
-    state.tabActiveName = 'basic';
     const propsData = props.data as any;
     if (!propsData?.id) {
         let d = {} as FormData;
@@ -447,10 +424,4 @@ const cancel = () => {
     emit('cancel');
 };
 </script>
-<style lang="scss">
-.db-transfer-edit {
-    .el-select {
-        width: 100%;
-    }
-}
-</style>
+<style lang="scss"></style>

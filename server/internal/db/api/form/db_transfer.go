@@ -8,6 +8,7 @@ type DbTransferTaskForm struct {
 	Cron             string `json:"cron"`                        // 定时任务cron表达式
 	Mode             int    `binding:"required" json:"mode"`     // 数据迁移方式，1、迁移到数据库  2、迁移到文件
 	TargetFileDbType string `json:"targetFileDbType"`            // 目标文件数据库类型
+	FileSaveDays     int    `json:"fileSaveDays"`                // 文件保存天数
 	Status           int    `json:"status" form:"status"`        // 启用状态 1启用 -1禁用
 
 	CheckedKeys string `binding:"required" json:"checkedKeys"` // 选中需要迁移的表
