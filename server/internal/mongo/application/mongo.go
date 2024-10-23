@@ -78,14 +78,13 @@ func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
 }
 
 func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePaths ...string) error {
-	oldMongo := &entity.Mongo{Name: m.Name, SshTunnelMachineId: m.SshTunnelMachineId}
+	oldMongo := &entity.Mongo{Uri: m.Uri, SshTunnelMachineId: m.SshTunnelMachineId}
 	err := d.GetByCond(oldMongo)
 
 	if m.Id == 0 {
 		if err == nil {
-			return errorx.NewBiz("该名称已存在")
+			return errorx.NewBiz("该信息已存在")
 		}
-
 		// 生成随机编号
 		m.Code = stringx.Rand(10)
 
@@ -105,7 +104,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldMongo.Id != m.Id {
-		return errorx.NewBiz("该名称已存在")
+		return errorx.NewBiz("该信息已存在")
 	}
 	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMongo.Code == "" {

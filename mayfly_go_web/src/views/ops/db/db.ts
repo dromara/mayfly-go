@@ -403,8 +403,9 @@ export class DbInst {
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
 
-        // 获取兼容版本信息
-        dbInst.version = await dbApi.getCompatibleDbVersion.request({ id: inst.id, db: dbInst.databases[0] });
+        if (dbInst.databases?.[0]) {
+            dbInst.version = await dbApi.getCompatibleDbVersion.request({ id: inst.id, db: dbInst.databases?.[0] });
+        }
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;

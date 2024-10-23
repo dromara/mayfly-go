@@ -184,7 +184,6 @@ func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uin
 }
 
 func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint64) {
-
 	task, err := app.GetById(taskId)
 	if err != nil {
 		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
@@ -288,15 +287,16 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 	}
 	// 2、把源库数据迁移到文件
 	app.Log(ctx, logId, fmt.Sprintf("开始迁移表数据到文件： %s", filename))
-
 	app.Log(ctx, logId, fmt.Sprintf("目标库文件语言类型： %s", task.TargetFileDbType))
 
 	go func() {
-		defer saveFileFunc()
+		var err error
+		defer saveFileFunc(&err)
 		defer app.MarkStop(taskId)
 		defer app.logApp.Flush(logId, true)
 		ctx = context.Background()
-		err := app.dbApp.DumpDb(ctx, &dto.DumpDb{
+
+		err = app.dbApp.DumpDb(ctx, &dto.DumpDb{
 			LogId:        logId,
 			DbId:         uint64(task.SrcDbId),
 			DbName:       task.SrcDbName,
@@ -313,8 +313,6 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 			app.EndTransfer(ctx, logId, taskId, "数据库迁移失败", err, nil)
 			tFile.Status = entity.DbTransferFileStatusFail
 			_ = app.transferFileApp.UpdateById(ctx, tFile)
-			// 删除文件
-			_ = app.fileApp.Remove(ctx, fileKey)
 			return
 		}
 		app.EndTransfer(ctx, logId, taskId, "数据库迁移完成", err, nil)
@@ -323,7 +321,6 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 		tFile.FileKey = fileKey
 		_ = app.transferFileApp.UpdateById(ctx, tFile)
 	}()
-
 }
 
 func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {

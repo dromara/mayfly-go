@@ -125,7 +125,7 @@ func getErrMsg(rc *Ctx, err any) string {
 	nFrames := DefaultLogFrames
 	var errMsg string
 	switch t := err.(type) {
-	case errorx.BizError:
+	case *errorx.BizError:
 		errMsg = fmt.Sprintf("\n<-e %s", t.String())
 		nFrames = nFrames / 2
 	case error:

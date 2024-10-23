@@ -28,7 +28,7 @@
                         :limit="100"
                     >
                         <el-tooltip :show-after="1000" class="box-item" effect="dark" content="SQL脚本执行" placement="top">
-                            <el-link type="success" :underline="false" icon="Document"></el-link>
+                            <el-link v-auth="'db:sqlscript:run'" type="success" :underline="false" icon="Document"></el-link>
                         </el-tooltip>
                     </el-upload>
                 </div>

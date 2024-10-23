@@ -41,8 +41,8 @@ type File interface {
 	//
 	// @return writer 文件writer
 	//
-	// @return saveFunc 保存文件信息的回调函数 (必须要defer中调用才会入库保存该文件信息)
-	NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer *writerx.CountingWriteCloser, saveFunc func() error, err error)
+	// @return saveFunc(*error) 保存文件信息的回调函数 (必须要defer中调用才会入库保存该文件信息)，若*error不为nil则表示业务逻辑处理失败，不需要保存文件信息并将创建的文件删除
+	NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer *writerx.CountingWriteCloser, saveFunc func(*error) error, err error)
 
 	// GetReader 获取文件reader
 	//
@@ -66,19 +66,20 @@ func (f *fileAppImpl) InjectFileRepo(repo repository.File) {
 }
 
 func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename string, r io.Reader) (string, error) {
+	var err error
 	fileKey, writer, saveFileFunc, err := f.NewWriter(ctx, fileKey, filename)
 	if err != nil {
 		return fileKey, err
 	}
-	defer saveFileFunc()
+	defer saveFileFunc(&err)
 
-	if _, err := io.Copy(writer, r); err != nil {
+	if _, err = io.Copy(writer, r); err != nil {
 		return fileKey, err
 	}
 	return fileKey, nil
 }
 
-func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer *writerx.CountingWriteCloser, saveFunc func() error, err error) {
+func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer *writerx.CountingWriteCloser, saveFunc func(*error) error, err error) {
 	isNewFile := true
 	file := &entity.File{}
 
@@ -109,7 +110,16 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 	fileKey = canEmptyFileKey
 	writer = writerx.NewCountingWriteCloser(w)
 	// 创建回调函数
-	saveFunc = func() error {
+	saveFunc = func(e *error) error {
+		if e != nil {
+			err := *e
+			if err != nil {
+				logx.Errorf("写入文件业务逻辑处理失败: %s", err.Error())
+				// 删除已经创建的文件
+				f.remove(ctx, file)
+				return err
+			}
+		}
 		// 获取已写入的字节数
 		file.Size = writer.BytesWritten()
 		writer.Close()

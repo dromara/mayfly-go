@@ -105,9 +105,6 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
 		}
-		if m.CountByCond(&entity.Machine{Name: me.Name}) > 0 {
-			return errorx.NewBiz("该名称已存在")
-		}
 
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable

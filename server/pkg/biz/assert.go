@@ -42,7 +42,7 @@ func IsTrue(exp bool, msg string, params ...any) {
 	}
 }
 
-func IsTrueBy(exp bool, err errorx.BizError) {
+func IsTrueBy(exp bool, err *errorx.BizError) {
 	if !exp {
 		panic(err)
 	}

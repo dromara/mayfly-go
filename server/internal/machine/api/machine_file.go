@@ -323,7 +323,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 					isSuccess = false
 					logx.Errorf("文件上传失败: %s", err)
 					switch t := err.(type) {
-					case errorx.BizError:
+					case *errorx.BizError:
 						m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
 					}
 				}

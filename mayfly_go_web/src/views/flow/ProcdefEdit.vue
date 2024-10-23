@@ -162,7 +162,7 @@ watch(props, (newValue: any) => {
     } else {
         state.form = { status: ProcdefStatus.Enable.value } as any;
         state.form.condition = `{{/* DBMS-执行sql规则;  param参数描述如下 */}}
-{{/* stmtType: select / read / insert / update / delete ;  */}}
+{{/* stmtType: select / read / insert / update / delete / ddl ;  */}}
 {{ if eq .bizType "db_sql_exec_flow"}}
     {{/* 不是select和read语句时，开启流程审批 */}}
     {{ if and (ne .param.stmtType "select") (ne .param.stmtType "read") }}

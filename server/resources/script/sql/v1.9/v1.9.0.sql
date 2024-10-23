@@ -8,6 +8,7 @@ INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `we
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1724395850, 1709194669, 2, 1, '文件-下载', 'db:transfer:files:down', 1724395850, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-08-23 14:50:51', '2024-08-23 14:50:51', 'SmLcpu6c/FmqK4azt/', 0, NULL);
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1724398262, 1709194669, 2, 1, '文件', 'db:transfer:files', 1724376021, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-08-23 15:31:02', '2024-08-23 15:31:16', 'SmLcpu6c/btVtrbhk/', 0, NULL);
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1724998419, 1709194669, 2, 1, '文件-执行', 'db:transfer:files:run', 1724998419, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-08-30 14:13:39', '2024-08-30 14:13:39', 'SmLcpu6c/qINungml/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `ui_path`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `is_deleted`, `delete_time`) VALUES(1729668131, 38, 'dbms23ax/exaeca2x/TGFPA3Ez/', 2, 1, 'SQL脚本执行', 'db:sqlscript:run', 1729668131, 'null', 1, 'admin', 1, 'admin', '2024-10-23 15:22:12', '2024-10-23 15:22:12', 0, NULL);
 
 -- 新增数据库迁移相关的系统配置
 DELETE FROM `t_sys_config` WHERE `key` = 'DbBackupRestore';
@@ -45,6 +46,11 @@ CREATE TABLE `t_db_transfer_files` (
 
 ALTER TABLE `t_flow_procdef`
     ADD COLUMN `condition` text NULL comment '触发审批的条件（计算结果返回1则需要启用该流程）';
+
+UPDATE `t_flow_procinst` 
+SET `biz_type` = 'redis_run_cmd_flow' 
+WHERE
+	`biz_type` = 'redis_run_write_cmd_flow';
 
 CREATE TABLE `t_sys_file`  (
   `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,

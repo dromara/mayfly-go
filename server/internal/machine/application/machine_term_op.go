@@ -49,6 +49,7 @@ func (m *machineTermOpAppImpl) InjectMachineTermOpRepo(repo repository.MachineTe
 func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {
 	var recorder *mcm.Recorder
 	var termOpRecord *entity.MachineTermOp
+	var err error
 
 	// 开启终端操作记录
 	if cli.Info.EnableRecorder == 1 {
@@ -68,7 +69,7 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		if err != nil {
 			return errorx.NewBiz("创建终端回放记录文件失败: %s", err.Error())
 		}
-		defer saveFileFunc()
+		defer saveFileFunc(&err)
 
 		termOpRecord.FileKey = fileKey
 		recorder = mcm.NewRecorder(wc)

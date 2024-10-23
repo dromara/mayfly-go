@@ -103,10 +103,6 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 		if err == nil {
 			return errorx.NewBiz("该实例已存在")
 		}
-		if r.CountByCond(&entity.Redis{Name: re.Name}) > 0 {
-			return errorx.NewBiz("该名称已存在")
-		}
-
 		// 生成随机编号
 		re.Code = stringx.Rand(10)
 

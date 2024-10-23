@@ -11,11 +11,11 @@ type BizError struct {
 }
 
 var (
-	Success            BizError = NewBizCode(200, "success")
-	BizErr             BizError = NewBizCode(400, "biz error")
-	ServerError        BizError = NewBizCode(500, "server error")
-	PermissionErr      BizError = NewBizCode(501, "token error")
-	AccessTokenInvalid BizError = NewBizCode(502, "access token invalid")
+	Success            *BizError = NewBizCode(200, "success")
+	BizErr             *BizError = NewBizCode(400, "biz error")
+	ServerError        *BizError = NewBizCode(500, "server error")
+	PermissionErr      *BizError = NewBizCode(501, "token error")
+	AccessTokenInvalid *BizError = NewBizCode(502, "access token invalid")
 )
 
 // 错误消息
@@ -33,11 +33,11 @@ func (e BizError) String() string {
 }
 
 // 创建业务逻辑错误结构体，默认为业务逻辑错误
-func NewBiz(msg string, formats ...any) BizError {
-	return BizError{code: BizErr.code, err: fmt.Sprintf(msg, formats...)}
+func NewBiz(msg string, formats ...any) *BizError {
+	return &BizError{code: BizErr.code, err: fmt.Sprintf(msg, formats...)}
 }
 
 // 创建业务逻辑错误结构体，可设置指定错误code
-func NewBizCode(code int16, msg string, formats ...any) BizError {
-	return BizError{code: code, err: fmt.Sprintf(msg, formats...)}
+func NewBizCode(code int16, msg string, formats ...any) *BizError {
+	return &BizError{code: code, err: fmt.Sprintf(msg, formats...)}
 }

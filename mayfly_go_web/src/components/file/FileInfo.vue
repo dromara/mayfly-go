@@ -1,9 +1,9 @@
 <template>
-    <el-tooltip :content="formatByteSize(fileDetail.size)" placement="left">
+    <el-tooltip :content="formatByteSize(fileDetail?.size)" placement="left">
         <el-link v-if="props.canDownload" target="_blank" rel="noopener noreferrer" icon="Download" type="primary" :href="getFileUrl(props.fileKey)"></el-link>
     </el-tooltip>
 
-    {{ fileDetail.filename }}
+    {{ fileDetail?.filename }}
 </template>
 
 <script lang="ts" setup>

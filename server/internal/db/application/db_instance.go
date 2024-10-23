@@ -105,10 +105,6 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		if err == nil {
 			return 0, errorx.NewBiz("该数据库实例已存在")
 		}
-		if app.CountByCond(&entity.DbInstance{Name: instanceEntity.Name}) > 0 {
-			return 0, errorx.NewBiz("该名称已存在")
-		}
-
 		instanceEntity.Code = stringx.Rand(10)
 
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {

@@ -102,7 +102,7 @@ func (rc *Ctx) GetLogInfo() *LogInfo {
 func (rc *Ctx) res() {
 	if err := rc.Error; err != nil {
 		switch t := err.(type) {
-		case errorx.BizError:
+		case *errorx.BizError:
 			rc.JSONRes(http.StatusOK, model.Error(t))
 		default:
 			logx.ErrorTrace("服务器错误", t)
