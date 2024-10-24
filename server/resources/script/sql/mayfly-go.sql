@@ -501,8 +501,8 @@ DROP TABLE IF EXISTS `t_machine_term_op`;
 CREATE TABLE `t_machine_term_op` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
   `machine_id` bigint NOT NULL COMMENT '机器id',
-  `username` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '登录用户名',
-  `record_file_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '终端回放文件路径',
+  `username` varchar(60) DEFAULT NULL COMMENT '登录用户名',
+  `file_key` varchar(36) DEFAULT NULL COMMENT '文件',
   `exec_cmds` TEXT NULL COMMENT '执行的命令记录',
   `creator_id` bigint unsigned DEFAULT NULL,
   `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,

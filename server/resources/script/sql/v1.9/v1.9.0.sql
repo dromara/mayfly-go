@@ -43,6 +43,7 @@ CREATE TABLE `t_db_transfer_files` (
    PRIMARY KEY (id)
 ) COMMENT '数据库迁移文件管理';
 
+ALTER TABLE `t_machine_term_op` ADD COLUMN `file_key` varchar(36) DEFAULT NULL COMMENT '文件';
 
 ALTER TABLE `t_flow_procdef`
     ADD COLUMN `condition` text NULL comment '触发审批的条件（计算结果返回1则需要启用该流程）';

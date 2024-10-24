@@ -105,8 +105,8 @@ function buildMac() {
 function buildDocker() {
     echo_yellow "-------------------构建docker镜像开始-------------------"
     imageVersion=$1
-    imageName="mayflygo/mayfly-go:${imageVersion}"
-    docker build --platform linux/amd64 -t "${imageName}" .
+    imageName="mayfly/mayfly-go:${imageVersion}"
+    docker build --platform linux/amd64 --build-arg MAYFLY_GO_VERSION="${imageVersion}" -t "${imageName}" .
     echo_green "docker镜像构建完成->[${imageName}]"
     echo_yellow "-------------------构建docker镜像结束-------------------"
 }
@@ -115,7 +115,7 @@ function buildxDocker() {
     echo_yellow "-------------------docker buildx构建镜像开始-------------------"
     imageVersion=$1
     imageName="ccr.ccs.tencentyun.com/mayfly/mayfly-go:${imageVersion}"
-    docker buildx build --push --platform linux/amd64,linux/arm64 -t "${imageName}" .
+    docker buildx build --push --platform linux/amd64,linux/arm64 --build-arg MAYFLY_GO_VERSION="${imageVersion}" -t "${imageName}" .
     echo_green "docker多版本镜像构建完成->[${imageName}]"
     echo_yellow "-------------------docker buildx构建镜像结束-------------------"
 }
