@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/common/utils"
 	flowapp "mayfly-go/internal/flow/application"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/redis/application/dto"
@@ -266,10 +267,10 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 	}
 
 	handleRes := make([]map[string]any, 0)
-	cmds := strings.Split(runCmdParam.Cmd, ";\n")
 	hasErr := false
-	for _, cmd := range cmds {
-		cmd = strings.TrimSpace(cmd)
+
+	utils.SplitStmts(strings.NewReader(runCmdParam.Cmd), func(stmt string) error {
+		cmd := strings.TrimSpace(stmt)
 		runRes := collx.Kvs("cmd", cmd)
 		if res, err := redisConn.RunCmd(ctx, collx.ArrayMap[string, any](parseRedisCommand(cmd), func(val string) any { return val })...); err != nil {
 			runRes["res"] = err.Error()
@@ -278,7 +279,8 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 			runRes["res"] = res
 		}
 		handleRes = append(handleRes, runRes)
-	}
+		return nil
+	})
 
 	if hasErr {
 		return handleRes, errorx.NewBiz("存在命令执行失败")

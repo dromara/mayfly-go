@@ -78,8 +78,8 @@ type (
 	SelectColumnElement struct {
 		*Node
 
-		FullColumnName *ColumnName
-		Alias          string
+		ColumnName *ColumnName
+		Alias      string
 	}
 
 	SelectFunctionElement struct {

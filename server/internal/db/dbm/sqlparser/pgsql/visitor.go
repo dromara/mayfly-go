@@ -166,6 +166,14 @@ func (v *PgsqlVisitor) VisitSimple_select_pramary(ctx *pgparser.Simple_select_pr
 		qs.From = c.Accept(v).(*sqlstmt.TableSources)
 	}
 
+	if c := ctx.Opt_target_list(); c != nil {
+		qs.SelectElements = c.Accept(v).(*sqlstmt.SelectElements)
+	}
+
+	if c := ctx.Target_list(); c != nil {
+		qs.SelectElements = c.Accept(v).(*sqlstmt.SelectElements)
+	}
+
 	if c := ctx.Where_clause(); c != nil {
 		qs.Where = c.A_expr().Accept(v).(sqlstmt.IExpr)
 	}
@@ -253,6 +261,74 @@ func (v *PgsqlVisitor) VisitTable_ref(ctx *pgparser.Table_refContext) interface{
 
 	tableSourceBase.TableSourceItem = atomTable
 	return tableSourceBase
+}
+
+func (v *PgsqlVisitor) VisitOpt_target_list(ctx *pgparser.Opt_target_listContext) interface{} {
+	if c := ctx.Target_list(); c != nil {
+		return c.Accept(v)
+	}
+
+	ses := new(sqlstmt.SelectElements)
+	ses.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	return ses
+}
+
+func (v *PgsqlVisitor) VisitTarget_list(ctx *pgparser.Target_listContext) interface{} {
+	ses := new(sqlstmt.SelectElements)
+	ses.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+
+	if tecs := ctx.AllTarget_el(); tecs != nil {
+		eles := make([]sqlstmt.ISelectElement, 0)
+		for _, tec := range tecs {
+			eles = append(eles, tec.Accept(v).(sqlstmt.ISelectElement))
+		}
+		ses.Elements = eles
+	}
+	if len(ses.Elements) == 1 && ses.Elements[0].GetText() == "*" {
+		ses.Star = "*"
+	}
+
+	return ses
+}
+
+// Visit a parse tree produced by PostgreSQLParser#target_label.
+func (v *PgsqlVisitor) VisitTarget_label(ctx *pgparser.Target_labelContext) interface{} {
+	sce := new(sqlstmt.SelectColumnElement)
+	sce.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+
+	columnName := new(sqlstmt.ColumnName)
+
+	if c := ctx.Collabel(); c != nil {
+		sce.Alias = c.GetText()
+	}
+	if c := ctx.Identifier(); c != nil {
+		sce.Alias = c.GetText()
+	}
+	if exprCtx := ctx.A_expr(); exprCtx != nil {
+		columnName.Node = sqlstmt.NewNode(ctx.GetParser(), exprCtx)
+		if aextrCtx := exprCtx.A_expr_qual(); aextrCtx != nil {
+			col := aextrCtx.GetText()
+			ownerAndColname := strings.Split(col, ".")
+			if len(ownerAndColname) == 2 {
+				columnName.Owner = ownerAndColname[0]
+				columnName.Identifier = sqlstmt.NewIdentifierValue(ownerAndColname[1])
+			} else {
+				columnName.Identifier = sqlstmt.NewIdentifierValue(col)
+			}
+		}
+	} else {
+		columnName.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	}
+	sce.ColumnName = columnName
+	return sce
+}
+
+// Visit a parse tree produced by PostgreSQLParser#target_star.
+func (v *PgsqlVisitor) VisitTarget_star(ctx *pgparser.Target_starContext) interface{} {
+	sse := new(sqlstmt.SelectStarElement)
+	sse.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	sse.FullId = ctx.STAR().GetText()
+	return sse
 }
 
 func (v *PgsqlVisitor) VisitAlias_clause(ctx *pgparser.Alias_clauseContext) interface{} {

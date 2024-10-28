@@ -275,7 +275,7 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 		case *sqlstmt.SimpleSelectStmt:
 			qs := stmt.QuerySpecification
 			limit = qs.Limit
-			if qs.SelectElements.Star != "" || len(qs.SelectElements.Elements) > 1 {
+			if qs.SelectElements != nil && (qs.SelectElements.Star != "" || len(qs.SelectElements.Elements) > 1) {
 				needCheckLimit = true
 			}
 		case *sqlstmt.UnionSelectStmt:

@@ -279,7 +279,7 @@ func (v *MysqlVisitor) VisitSelectStarElement(ctx *mysqlparser.SelectStarElement
 func (v *MysqlVisitor) VisitSelectColumnElement(ctx *mysqlparser.SelectColumnElementContext) interface{} {
 	sce := new(sqlstmt.SelectColumnElement)
 	sce.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
-	sce.FullColumnName = ctx.FullColumnName().Accept(v).(*sqlstmt.ColumnName)
+	sce.ColumnName = ctx.FullColumnName().Accept(v).(*sqlstmt.ColumnName)
 	if uid := ctx.Uid(); uid != nil {
 		sce.Alias = uid.GetText()
 	}

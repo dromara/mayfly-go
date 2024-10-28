@@ -9,12 +9,12 @@ import (
 func TestParserSimpleSelect(t *testing.T) {
 	parser := new(PgsqlParser)
 
-	sql := `SELECT t.* FROM mayfly.sys_login_log as t  where t.id > 0  OFFSET 0 LIMIT 25;  select * from tdb where id > 1`
+	sql := `SELECT t.*,t.id as tid FROM mayfly.sys_login_log as t  where t.id > 0  OFFSET 0 LIMIT 25;  select * from tdb where id > 1`
 	stmts, err := parser.Parse(sql)
 	if err != nil {
 		t.Fatal(err)
 	}
-	stmt := stmts[1].(*sqlstmt.SimpleSelectStmt)
+	stmt := stmts[0].(*sqlstmt.SimpleSelectStmt)
 
 	t.Log(stmt.QuerySpecification.Where.GetText())
 	fmt.Println(stmt.QuerySpecification.From.GetText())
