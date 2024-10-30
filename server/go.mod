@@ -23,7 +23,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.7.2
 	github.com/mojocn/base64Captcha v1.3.6 // 验证码
 	github.com/pkg/errors v0.9.1
-	github.com/pkg/sftp v1.13.6
+	github.com/pkg/sftp v1.13.7
 	github.com/pquerna/otp v1.4.0
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务

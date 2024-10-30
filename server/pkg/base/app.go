@@ -183,7 +183,7 @@ func (ai *AppImpl[T, R]) Tx(ctx context.Context, funcs ...func(context.Context) 
 		}
 
 		tx.Count--
-		if tx.Count < 1 {
+		if tx.Count == 0 {
 			// 移除当前已执行完成的的数据库事务实例
 			contextx.RmDb(ctx)
 		}
@@ -191,8 +191,8 @@ func (ai *AppImpl[T, R]) Tx(ctx context.Context, funcs ...func(context.Context) 
 
 	for _, f := range funcs {
 		err = f(dbCtx)
-		if err != nil {
-			tx.Count = 0
+		if err != nil && tx.Count > 0 {
+			tx.Count = 1
 			txDb.Rollback()
 			return
 		}

@@ -503,12 +503,12 @@ func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *dto.Resourc
 }
 
 func (p *tagTreeAppImpl) deleteByIds(ctx context.Context, tagIds []uint64) error {
-	if err := p.DeleteById(ctx, tagIds...); err != nil {
-		return err
-	}
-
-	// 删除与标签有关联信息的记录(如团队关联的标签等)
-	return p.tagTreeRelateApp.DeleteByCond(ctx, model.NewCond().In("tag_id", tagIds))
+	return p.Tx(ctx, func(ctx context.Context) error {
+		return p.DeleteById(ctx, tagIds...)
+	}, func(ctx context.Context) error {
+		// 删除与标签有关联信息的记录(如团队关联的标签等)
+		return p.tagTreeRelateApp.DeleteByCond(ctx, model.NewCond().In("tag_id", tagIds))
+	})
 }
 
 // filterCodePaths 根据账号拥有的标签路径以及指定的标签路径，过滤出符合查询条件的标签路径

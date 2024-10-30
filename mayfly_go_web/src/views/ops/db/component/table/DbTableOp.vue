@@ -1,137 +1,141 @@
 <template>
-    <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="70%" :close-on-press-escape="false" :close-on-click-modal="false">
-            <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
-                <el-row>
-                    <el-col :span="12">
-                        <el-form-item prop="tableName" label="表名">
-                            <el-input style="width: 80%" v-model="tableData.tableName" size="small"></el-input>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item prop="tableComment" label="备注">
-                            <el-input style="width: 80%" v-model="tableData.tableComment" size="small"></el-input>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
+    <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="75%">
+        <template #header>
+            <DrawerHeader :header="title" :back="cancel" />
+        </template>
 
-                <el-tabs v-model="activeName">
-                    <el-tab-pane label="字段" name="1">
-                        <el-table :data="tableData.fields.res" :max-height="tableData.height">
-                            <el-table-column
-                                :prop="item.prop"
-                                :label="item.label"
-                                v-for="item in tableData.fields.colNames"
-                                :key="item.prop"
-                                :width="item.width"
-                            >
-                                <template #default="scope">
-                                    <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
+        <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item prop="tableName" label="表名">
+                        <el-input style="width: 80%" v-model="tableData.tableName" size="small"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item prop="tableComment" label="备注">
+                        <el-input style="width: 80%" v-model="tableData.tableComment" size="small"></el-input>
+                    </el-form-item>
+                </el-col>
+            </el-row>
 
-                                    <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
-                                        <el-option
-                                            v-for="pgsqlType in getDbDialect(dbType!).getInfo().columnTypes"
-                                            :key="pgsqlType.dataType"
-                                            :value="pgsqlType.udtName"
-                                            :label="pgsqlType.dataType"
-                                        >
-                                            <span v-if="pgsqlType.dataType === pgsqlType.udtName"
-                                                >{{ pgsqlType.dataType }}{{ pgsqlType.desc && '：' + pgsqlType.desc }}</span
-                                            >
-                                            <span v-else>{{ pgsqlType.dataType }}，别名：{{ pgsqlType.udtName }} {{ pgsqlType.desc }}</span>
-                                        </el-option>
-                                    </el-select>
+            <el-tabs v-model="activeName">
+                <el-tab-pane label="字段" name="1">
+                    <el-table ref="tableRef" :data="tableData.fields.res" :max-height="tableData.height">
+                        <el-table-column
+                            :prop="item.prop"
+                            :label="item.label"
+                            v-for="item in tableData.fields.colNames"
+                            :key="item.prop"
+                            :width="item.width"
+                        >
+                            <template #default="scope">
+                                <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
-                                    <el-input v-else-if="item.prop === 'value'" size="small" v-model="scope.row.value" />
-
-                                    <el-input v-else-if="item.prop === 'length'" type="number" size="small" v-model.number="scope.row.length" />
-
-                                    <el-input v-else-if="item.prop === 'numScale'" type="number" size="small" v-model.number="scope.row.numScale" />
-
-                                    <el-checkbox v-else-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull" />
-
-                                    <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri" />
-
-                                    <el-checkbox
-                                        v-else-if="item.prop === 'auto_increment'"
-                                        size="small"
-                                        v-model="scope.row.auto_increment"
-                                        :disabled="disableEditIncr()"
-                                    />
-
-                                    <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
-
-                                    <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteRow(scope.$index)">
-                                        <template #reference>
-                                            <el-link type="danger" plain size="small" :underline="false">删除</el-link>
-                                        </template>
-                                    </el-popconfirm>
-                                </template>
-                            </el-table-column>
-                        </el-table>
-                        <el-row style="margin-top: 20px">
-                            <el-button @click="addDefaultRows()" link type="warning" icon="plus">添加默认列</el-button>
-                            <el-button @click="addRow()" link type="primary" icon="plus">添加列</el-button>
-                        </el-row>
-                    </el-tab-pane>
-                    <el-tab-pane label="索引" name="2">
-                        <el-table :data="tableData.indexs.res" :max-height="tableData.height">
-                            <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.indexs.colNames" :key="item.prop">
-                                <template #default="scope">
-                                    <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
-
-                                    <el-select
-                                        v-if="item.prop === 'columnNames'"
-                                        v-model="scope.row.columnNames"
-                                        multiple
-                                        collapse-tags
-                                        collapse-tags-tooltip
-                                        filterable
-                                        placeholder="请选择字段"
-                                        @change="indexChanges(scope.row)"
-                                        style="width: 100%"
+                                <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
+                                    <el-option
+                                        v-for="pgsqlType in getDbDialect(dbType!).getInfo().columnTypes"
+                                        :key="pgsqlType.dataType"
+                                        :value="pgsqlType.udtName"
+                                        :label="pgsqlType.dataType"
                                     >
-                                        <el-option v-for="cl in tableData.indexs.columns" :key="cl.name" :label="cl.name" :value="cl.name">
-                                            {{ cl.name + ' - ' + (cl.remark || '') }}
-                                        </el-option>
-                                    </el-select>
+                                        <span v-if="pgsqlType.dataType === pgsqlType.udtName"
+                                            >{{ pgsqlType.dataType }}{{ pgsqlType.desc && '：' + pgsqlType.desc }}</span
+                                        >
+                                        <span v-else>{{ pgsqlType.dataType }}，别名：{{ pgsqlType.udtName }} {{ pgsqlType.desc }}</span>
+                                    </el-option>
+                                </el-select>
 
-                                    <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
-                                    </el-checkbox>
+                                <el-input v-else-if="item.prop === 'value'" size="small" v-model="scope.row.value" />
 
-                                    <el-input v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType" />
+                                <el-input v-else-if="item.prop === 'length'" type="number" size="small" v-model.number="scope.row.length" />
 
-                                    <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
+                                <el-input v-else-if="item.prop === 'numScale'" type="number" size="small" v-model.number="scope.row.numScale" />
 
-                                    <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteIndex(scope.$index)">
-                                        <template #reference>
-                                            <el-link type="danger" plain size="small" :underline="false">删除</el-link>
-                                        </template>
-                                    </el-popconfirm>
-                                </template>
-                            </el-table-column>
-                        </el-table>
+                                <el-checkbox v-else-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull" />
 
-                        <el-row style="margin-top: 20px">
-                            <el-button @click="addIndex()" link type="primary" icon="plus">添加索引</el-button>
-                        </el-row>
-                    </el-tab-pane>
-                </el-tabs>
-            </el-form>
-            <template #footer>
-                <el-button @click="cancel()">取消</el-button>
-                <el-button :loading="btnloading" @click="submit()" type="primary">保存</el-button>
-            </template>
-        </el-dialog>
-    </div>
+                                <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri" />
+
+                                <el-checkbox
+                                    v-else-if="item.prop === 'auto_increment'"
+                                    size="small"
+                                    v-model="scope.row.auto_increment"
+                                    :disabled="disableEditIncr()"
+                                />
+
+                                <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
+
+                                <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteRow(scope.$index)">
+                                    <template #reference>
+                                        <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                    </template>
+                                </el-popconfirm>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                    <el-row style="margin-top: 20px">
+                        <el-button @click="addDefaultRows()" link type="warning" icon="plus">添加默认列</el-button>
+                        <el-button @click="addRow()" link type="primary" icon="plus">添加列</el-button>
+                    </el-row>
+                </el-tab-pane>
+                <el-tab-pane label="索引" name="2">
+                    <el-table :data="tableData.indexs.res" :max-height="tableData.height">
+                        <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.indexs.colNames" :key="item.prop">
+                            <template #default="scope">
+                                <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
+
+                                <el-select
+                                    v-if="item.prop === 'columnNames'"
+                                    v-model="scope.row.columnNames"
+                                    multiple
+                                    collapse-tags
+                                    collapse-tags-tooltip
+                                    filterable
+                                    placeholder="请选择字段"
+                                    @change="indexChanges(scope.row)"
+                                    style="width: 100%"
+                                >
+                                    <el-option v-for="cl in tableData.indexs.columns" :key="cl.name" :label="cl.name" :value="cl.name">
+                                        {{ cl.name + ' - ' + (cl.remark || '') }}
+                                    </el-option>
+                                </el-select>
+
+                                <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
+                                </el-checkbox>
+
+                                <el-input v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType" />
+
+                                <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
+
+                                <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteIndex(scope.$index)">
+                                    <template #reference>
+                                        <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                    </template>
+                                </el-popconfirm>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <el-row style="margin-top: 20px">
+                        <el-button @click="addIndex()" link type="primary" icon="plus">添加索引</el-button>
+                    </el-row>
+                </el-tab-pane>
+            </el-tabs>
+        </el-form>
+        <template #footer>
+            <el-button @click="cancel()">取消</el-button>
+            <el-button :loading="btnloading" @click="submit()" type="primary">保存</el-button>
+        </template>
+    </el-drawer>
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, toRefs, watch } from 'vue';
+import { computed, reactive, ref, toRefs, watch, useTemplateRef, nextTick } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
 import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 import { DbInst } from '../../db';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+
 
 const props = defineProps({
     visible: {
@@ -169,6 +173,8 @@ type ColName = {
 };
 
 const formRef: any = ref();
+const tableRef: any = useTemplateRef('tableRef');
+
 const state = reactive({
     dialogVisible: false,
     btnloading: false,
@@ -265,7 +271,7 @@ const state = reactive({
         tableComment: '',
         oldTableName: '',
         oldTableComment: '',
-        height: 450,
+        height: 'calc(100vh - 310px)',
         db: '',
     },
 });
@@ -306,6 +312,16 @@ const addRow = () => {
         auto_increment: false,
         remark: '',
     });
+
+    // 滚动到最后一行
+  nextTick(() => {
+    if (tableRef.value) {
+      const lastRow = tableRef.value.$el.querySelector('.el-table__body-wrapper tbody tr:last-child');
+      if (lastRow) {
+        lastRow.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  });
 };
 
 const addIndex = () => {
