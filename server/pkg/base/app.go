@@ -160,27 +160,46 @@ func (ai *AppImpl[T, R]) CountByCond(cond any) int64 {
 	return ai.GetRepo().CountByCond(cond)
 }
 
-// 执行事务操作
+// Tx 执行事务操作
 func (ai *AppImpl[T, R]) Tx(ctx context.Context, funcs ...func(context.Context) error) (err error) {
-	tx := global.Db.Begin()
-	dbCtx := contextx.WithDb(ctx, tx)
+	tx := contextx.GetTx(ctx)
+	dbCtx := ctx
+	var txDb *gorm.DB
+
+	if tx == nil {
+		txDb = global.Db.Begin()
+		dbCtx, tx = contextx.WithTxDb(ctx, txDb)
+	} else {
+		txDb = tx.DB
+		tx.Count++
+	}
 
 	defer func() {
-		// 移除当前已执行完成的的数据库事务实例
-		contextx.RmDb(ctx)
 		if r := recover(); r != nil {
-			tx.Rollback()
-			err = fmt.Errorf("%v", err)
+			txDb.Rollback()
+			contextx.RmDb(ctx)
+			err = fmt.Errorf("%v", r)
+			return
+		}
+
+		tx.Count--
+		if tx.Count < 1 {
+			// 移除当前已执行完成的的数据库事务实例
+			contextx.RmDb(ctx)
 		}
 	}()
 
 	for _, f := range funcs {
 		err = f(dbCtx)
 		if err != nil {
-			tx.Rollback()
+			tx.Count = 0
+			txDb.Rollback()
 			return
 		}
 	}
-	err = tx.Commit().Error
+
+	if tx.Count == 1 {
+		err = txDb.Commit().Error
+	}
 	return
 }

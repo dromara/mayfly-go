@@ -49,28 +49,56 @@ func GetTraceId(ctx context.Context) string {
 	return ""
 }
 
-// 将事务db放置context中，使用stack保存。以便多个方法调用实现方法内部各自的事务操作
-func WithDb(ctx context.Context, db *gorm.DB) context.Context {
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*gorm.DB]); ok {
-		dbStack.Push(db)
-		return ctx
-	}
-	dbStack := new(collx.Stack[*gorm.DB])
-	dbStack.Push(db)
-
-	return context.WithValue(ctx, DbKey, dbStack)
+// Tx 事务上下文信息
+type Tx struct {
+	Count int
+	DB    *gorm.DB
 }
 
-// 获取当前操作的栈顶事务数据库实例
+func (t *Tx) Rollback() {
+	if t.Count == 0 {
+		t.DB.Rollback()
+	} else {
+
+	}
+}
+
+// WithTxDb 将事务db放置context中，使用stack保存。以便多个方法调用实现方法内部各自的事务操作
+func WithTxDb(ctx context.Context, db *gorm.DB) (context.Context, *Tx) {
+	tx := &Tx{Count: 1, DB: db}
+	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
+		dbStack.Push(tx)
+		return ctx, tx
+	}
+	dbStack := new(collx.Stack[*Tx])
+	dbStack.Push(tx)
+
+	return context.WithValue(ctx, DbKey, dbStack), tx
+}
+
+// GetDb 获取当前操作的栈顶事务数据库实例
 func GetDb(ctx context.Context) *gorm.DB {
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*gorm.DB]); ok {
-		return dbStack.Top()
+	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
+		if tx := dbStack.Top(); tx != nil {
+			return tx.DB
+		}
 	}
 	return nil
 }
 
-func RmDb(ctx context.Context) *gorm.DB {
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*gorm.DB]); ok {
+// GetTx 获取当前操作的栈顶事务信息
+func GetTx(ctx context.Context) *Tx {
+	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
+		if tx := dbStack.Top(); tx != nil {
+			return tx
+		}
+	}
+	return nil
+}
+
+// RmDb 删除数据库事务db
+func RmDb(ctx context.Context) *Tx {
+	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
 		return dbStack.Pop()
 	}
 	return nil
