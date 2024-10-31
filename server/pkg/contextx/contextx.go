@@ -3,7 +3,6 @@ package contextx
 import (
 	"context"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 
 	"gorm.io/gorm"
@@ -55,51 +54,28 @@ type Tx struct {
 	DB    *gorm.DB
 }
 
-func (t *Tx) Rollback() {
-	if t.Count == 0 {
-		t.DB.Rollback()
-	} else {
-
-	}
-}
-
-// WithTxDb 将事务db放置context中，使用stack保存。以便多个方法调用实现方法内部各自的事务操作
+// WithTxDb 将事务db放置context中
 func WithTxDb(ctx context.Context, db *gorm.DB) (context.Context, *Tx) {
-	tx := &Tx{Count: 1, DB: db}
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
-		dbStack.Push(tx)
+	if tx := GetTx(ctx); tx != nil {
 		return ctx, tx
 	}
-	dbStack := new(collx.Stack[*Tx])
-	dbStack.Push(tx)
 
-	return context.WithValue(ctx, DbKey, dbStack), tx
+	tx := &Tx{Count: 1, DB: db}
+	return context.WithValue(ctx, DbKey, tx), tx
 }
 
-// GetDb 获取当前操作的栈顶事务数据库实例
+// GetDb 获取ctx中的事务db
 func GetDb(ctx context.Context) *gorm.DB {
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
-		if tx := dbStack.Top(); tx != nil {
-			return tx.DB
-		}
+	if tx := GetTx(ctx); tx != nil {
+		return tx.DB
 	}
 	return nil
 }
 
-// GetTx 获取当前操作的栈顶事务信息
+// GetTx 获取当前ctx事务
 func GetTx(ctx context.Context) *Tx {
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
-		if tx := dbStack.Top(); tx != nil {
-			return tx
-		}
-	}
-	return nil
-}
-
-// RmDb 删除数据库事务db
-func RmDb(ctx context.Context) *Tx {
-	if dbStack, ok := ctx.Value(DbKey).(*collx.Stack[*Tx]); ok {
-		return dbStack.Pop()
+	if tx, ok := ctx.Value(DbKey).(*Tx); ok {
+		return tx
 	}
 	return nil
 }

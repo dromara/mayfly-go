@@ -8,7 +8,7 @@ project_path=`pwd`
 # 构建后的二进制执行文件名
 exec_file_name="mayfly-go"
 # web项目目录
-web_folder="${project_path}/mayfly_go_web"
+web_folder="${project_path}/frontend"
 # server目录
 server_folder="${project_path}/server"
 
