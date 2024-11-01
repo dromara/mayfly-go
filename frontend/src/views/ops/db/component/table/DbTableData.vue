@@ -890,7 +890,7 @@ defineExpose({
         font-weight: bold;
         position: absolute;
         top: -7px;
-        padding: 1px;
+        padding: 3px;
     }
 
     .column-right {

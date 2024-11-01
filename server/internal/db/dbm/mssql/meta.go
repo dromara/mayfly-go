@@ -57,6 +57,6 @@ func (mm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &MssqlDialect{dc: conn}
 }
 
-func (mm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&MssqlMetaData{dc: conn})
+func (mm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+	return &MssqlMetadata{dc: conn}
 }

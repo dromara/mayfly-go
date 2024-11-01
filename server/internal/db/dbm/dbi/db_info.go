@@ -72,7 +72,7 @@ func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	database := dbInfo.Database
 	// 如果数据库为空，则使用默认数据库进行连接
 	if database == "" {
-		database = meta.GetMetaData(&DbConn{Info: dbInfo}).DefaultDb()
+		database = meta.GetMetadata(&DbConn{Info: dbInfo}).GetDefaultDb()
 		dbInfo.Database = database
 	}
 

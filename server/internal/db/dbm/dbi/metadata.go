@@ -9,15 +9,20 @@ import (
 	"strings"
 )
 
-// 元数据接口（表、列、等元信息）
-type MetaData interface {
-	BaseMetaData
+// Metadata 元数据接口（表、列、等元信息）
+type Metadata interface {
 
 	// GetDbServer 获取数据库服务实例信息
 	GetDbServer() (*DbServer, error)
 
 	// GetCompatibleDbVersion 获取兼容版本信息，如果有兼容版本，则需要实现对应版本的特殊方言处理器，以及前端的方言兼容版本
 	GetCompatibleDbVersion() DbVersion
+
+	// GetDefaultDb 获取默认库
+	GetDefaultDb() string
+
+	// GetSchemas
+	GetSchemas() ([]string, error)
 
 	// GetDbNames 获取数据库名称列表
 	GetDbNames() ([]string, error)
@@ -36,17 +41,18 @@ type MetaData interface {
 
 	// GetTableDDL 获取建表ddl
 	GetTableDDL(tableName string, dropBeforeCreate bool) (string, error)
+}
 
-	// GenerateTableDDL 生成建表ddl
-	GenerateTableDDL(columns []Column, tableInfo Table, dropBeforeCreate bool) []string
+// 默认实现，若需要覆盖，则由各个数据库MetaData实现去覆盖重写
+type DefaultMetadata struct {
+}
 
-	// GenerateIndexDDL 生成索引ddl
-	GenerateIndexDDL(indexs []Index, tableInfo Table) []string
+func (dd *DefaultMetadata) GetCompatibleDbVersion() DbVersion {
+	return ""
+}
 
-	GetSchemas() ([]string, error)
-
-	// GetDataHelper 获取数据处理助手 用于解析格式化列数据等
-	GetDataHelper() DataHelper
+func (dd *DefaultMetadata) GetDefaultDb() string {
+	return ""
 }
 
 // GenerateSQLStepFunc 生成insert sql的step函数，用于生成insert sql时，每生成100条sql时调用

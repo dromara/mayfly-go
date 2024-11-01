@@ -191,7 +191,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint
 	}
 
 	if app.IsRunning(taskId) {
-		logx.Panicf("[%d]该任务正在运行中...", taskId)
+		logx.Error("[%d]该任务正在运行中...", taskId)
 		return
 	}
 
@@ -218,14 +218,14 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint
 	// 获取迁移表信息
 	var tables []dbi.Table
 	if task.CheckedKeys == "all" {
-		tables, err = srcConn.GetMetaData().GetTables()
+		tables, err = srcConn.GetMetadata().GetTables()
 		if err != nil {
 			app.EndTransfer(ctx, logId, taskId, "获取源表信息失败", err, nil)
 			return
 		}
 	} else {
 		tableNames := strings.Split(task.CheckedKeys, ",")
-		tables, err = srcConn.GetMetaData().GetTables(tableNames...)
+		tables, err = srcConn.GetMetadata().GetTables(tableNames...)
 		if err != nil {
 			app.EndTransfer(ctx, logId, taskId, "获取源表信息失败", err, nil)
 			return
@@ -353,9 +353,10 @@ func (app *dbTransferAppImpl) transferDbTables(ctx context.Context, logId uint64
 	if len(tableNames) == 0 {
 		return errorx.NewBiz("没有需要迁移的表")
 	}
-	srcMeta := srcConn.GetMetaData()
+	srcDialect := srcConn.GetDialect()
+	srcMetadata := srcConn.GetMetadata()
 	// 查询源表列信息
-	columns, err := srcMeta.GetColumns(tableNames...)
+	columns, err := srcMetadata.GetColumns(tableNames...)
 	if err != nil {
 		return errorx.NewBiz("获取源表列信息失败")
 	}
@@ -371,8 +372,8 @@ func (app *dbTransferAppImpl) transferDbTables(ctx context.Context, logId uint64
 	sort.Strings(sortTableNames)
 
 	targetDialect := targetConn.GetDialect()
-	srcColumnHelper := srcMeta.GetColumnHelper()
-	targetColumnHelper := targetConn.GetMetaData().GetColumnHelper()
+	srcColumnHelper := srcDialect.GetColumnHelper()
+	targetColumnHelper := targetConn.GetDialect().GetColumnHelper()
 
 	// 分组迁移
 	tableGroups := collx.ArraySplit[string](sortTableNames, 2)
@@ -394,9 +395,13 @@ func (app *dbTransferAppImpl) transferDbTables(ctx context.Context, logId uint64
 
 				// 通过公共列信息生成目标库的建表语句，并执行目标库建表
 				app.Log(ctx, logId, fmt.Sprintf("开始创建目标表: 表名：%s", tbName))
-				_, err := targetDialect.CreateTable(targetCols, tableMap[tbName], true)
-				if err != nil {
-					return errorx.NewBiz(fmt.Sprintf("创建目标表失败: 表名：%s, error: %s", tbName, err.Error()))
+
+				sqlArr := targetDialect.GenerateTableDDL(targetCols, tableMap[tbName], true)
+				for _, sqlStr := range sqlArr {
+					_, err := targetConn.Exec(sqlStr)
+					if err != nil {
+						return errorx.NewBiz(fmt.Sprintf("创建目标表失败: 表名：%s, error: %s", tbName, err.Error()))
+					}
 				}
 				app.Log(ctx, logId, fmt.Sprintf("创建目标表成功: 表名：%s", tbName))
 
@@ -413,7 +418,7 @@ func (app *dbTransferAppImpl) transferDbTables(ctx context.Context, logId uint64
 
 				// 迁移索引信息
 				app.Log(ctx, logId, fmt.Sprintf("开始迁移索引: 表名：%s", tbName))
-				err = app.transferIndex(ctx, tableMap[tbName], srcConn, targetDialect)
+				err = app.transferIndex(ctx, tableMap[tbName], srcConn, targetConn)
 				if err != nil {
 					return errorx.NewBiz(fmt.Sprintf("迁移索引失败: 表名：%s, error: %s", tbName, err.Error()))
 				}
@@ -432,8 +437,8 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, ta
 	total := 0        // 总条数
 	batchSize := 1000 // 每次查询并迁移1000条数据
 	var err error
-	srcMeta := srcConn.GetMetaData()
-	srcConverter := srcMeta.GetDataHelper()
+	srcDialect := srcConn.GetDialect()
+	srcConverter := srcDialect.GetDataHelper()
 	targetDialect := targetConn.GetDialect()
 	logExtraKey := fmt.Sprintf("`%s` 当前已迁移数据量: ", tableName)
 
@@ -485,15 +490,14 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 	if err != nil {
 		return err
 	}
-	targetMeta := targetConn.GetMetaData()
 
 	// 收集字段名
 	var columnNames []string
 	for _, col := range targetColumns {
-		columnNames = append(columnNames, targetMeta.QuoteIdentifier(col.ColumnName))
+		columnNames = append(columnNames, targetDialect.QuoteIdentifier(col.ColumnName))
 	}
 
-	dataHelper := targetMeta.GetDataHelper()
+	dataHelper := targetDialect.GetDataHelper()
 
 	// 从目标库数据中取出源库字段对应的值
 	values := make([][]any, 0)
@@ -501,7 +505,7 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 		rawValue := make([]any, 0)
 		for _, tc := range targetColumns {
 			columnName := tc.ColumnName
-			val := record[targetMeta.RemoveQuote(columnName)]
+			val := record[targetDialect.RemoveQuote(columnName)]
 			if !tc.Nullable {
 				// 如果val是文本，则设置为空格字符
 				switch val.(type) {
@@ -537,9 +541,9 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 	return err
 }
 
-func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Table, srcConn *dbi.DbConn, targetDialect dbi.Dialect) error {
+func (app *dbTransferAppImpl) transferIndex(ctx context.Context, tableInfo dbi.Table, srcConn *dbi.DbConn, targetConn *dbi.DbConn) error {
 	// 查询源表索引信息
-	indexs, err := srcConn.GetMetaData().GetTableIndex(tableInfo.TableName)
+	indexs, err := srcConn.GetMetadata().GetTableIndex(tableInfo.TableName)
 	if err != nil {
 		logx.Error("获取索引信息失败", err)
 		return err
@@ -549,7 +553,14 @@ func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Tab
 	}
 
 	// 通过表名、索引信息生成建索引语句，并执行到目标表
-	return targetDialect.CreateIndex(tableInfo, indexs)
+	sqlArr := targetConn.GetDialect().GenerateIndexDDL(indexs, tableInfo)
+	for _, sqlStr := range sqlArr {
+		_, err := targetConn.Exec(sqlStr)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *dbTransferAppImpl) TimerDeleteTransferFile() {
@@ -600,6 +611,8 @@ func (app *dbTransferAppImpl) Log(ctx context.Context, logId uint64, msg string,
 }
 
 func (app *dbTransferAppImpl) EndTransfer(ctx context.Context, logId uint64, taskId uint64, msg string, err error, extra map[string]any) {
+	app.MarkStop(taskId)
+
 	logType := sysentity.SyslogTypeSuccess
 	transferState := entity.DbTransferTaskRunStateSuccess
 	if err != nil {

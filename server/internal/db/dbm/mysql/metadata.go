@@ -10,7 +10,6 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
-	// "github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"github.com/may-fly/cast"
 )
 
@@ -22,13 +21,13 @@ const (
 	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
 )
 
-type MysqlMetaData struct {
-	dbi.DefaultMetaData
+type MysqlMetadata struct {
+	dbi.DefaultMetadata
 
 	dc *dbi.DbConn
 }
 
-func (md *MysqlMetaData) GetDbServer() (*dbi.DbServer, error) {
+func (md *MysqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 	_, res, err := md.dc.Query("SELECT VERSION() version")
 	if err != nil {
 		return nil, err
@@ -39,7 +38,7 @@ func (md *MysqlMetaData) GetDbServer() (*dbi.DbServer, error) {
 	return ds, nil
 }
 
-func (md *MysqlMetaData) GetDbNames() ([]string, error) {
+func (md *MysqlMetadata) GetDbNames() ([]string, error) {
 	_, res, err := md.dc.Query(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_DBS))
 	if err != nil {
 		return nil, err
@@ -52,10 +51,10 @@ func (md *MysqlMetaData) GetDbNames() ([]string, error) {
 	return databases, nil
 }
 
-func (md *MysqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
-	meta := md.dc.GetMetaData()
+func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	dialect := md.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
 	}), ",")
 
 	var res []map[string]any
@@ -86,11 +85,11 @@ func (md *MysqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	meta := md.dc.GetMetaData()
-	columnHelper := meta.GetColumnHelper()
+func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	dialect := md.dc.GetDialect()
+	columnHelper := dialect.GetColumnHelper()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
@@ -122,7 +121,7 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 }
 
 // 获取表主键字段名，不存在主键标识则默认第一个字段
-func (md *MysqlMetaData) GetPrimaryKey(tablename string) (string, error) {
+func (md *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 	columns, err := md.GetColumns(tablename)
 	if err != nil {
 		return "", err
@@ -141,7 +140,7 @@ func (md *MysqlMetaData) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (md *MysqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
+func (md *MysqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	_, res, err := md.dc.Query(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName)
 	if err != nil {
 		return nil, err
@@ -178,124 +177,8 @@ func (md *MysqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	return result, nil
 }
 
-// 获取建索引ddl
-func (md *MysqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
-	meta := md.dc.GetMetaData()
-	sqlArr := make([]string, 0)
-	for _, index := range indexs {
-		unique := ""
-		if index.IsUnique {
-			unique = "unique"
-		}
-		// 取出列名，添加引号
-		cols := strings.Split(index.ColumnName, ",")
-		colNames := make([]string, len(cols))
-		for i, name := range cols {
-			colNames[i] = meta.QuoteIdentifier(name)
-		}
-		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE"
-		sqlStr := fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, meta.QuoteIdentifier(index.IndexName), strings.Join(colNames, ","))
-		comment := meta.QuoteEscape(index.IndexComment)
-		if comment != "" {
-			sqlStr += fmt.Sprintf(" COMMENT '%s'", comment)
-		}
-		sqlArr = append(sqlArr, sqlStr)
-	}
-	return sqlArr
-}
-
-func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
-	meta := md.dc.GetMetaData()
-	dataType := string(column.DataType)
-
-	incr := ""
-	if column.IsIdentity {
-		incr = " AUTO_INCREMENT"
-	}
-
-	nullAble := ""
-	if !column.Nullable {
-		nullAble = " NOT NULL"
-	}
-	columnType := column.GetColumnType()
-	if nullAble == "" && strings.Contains(columnType, "timestamp") {
-		nullAble = " NULL"
-	}
-
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的
-	if column.ColumnDefault != "" &&
-		// 当默认值是字符串'NULL'时，不需要设置默认值
-		column.ColumnDefault != "NULL" &&
-		// 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-		!strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(dataType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
-		}
-		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
-	}
-	comment := ""
-	if column.ColumnComment != "" {
-		// 防止注释内含有特殊字符串导致sql出错
-		commentStr := meta.QuoteEscape(column.ColumnComment)
-		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
-	}
-
-	columnSql := fmt.Sprintf(" %s %s%s%s%s%s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), columnType, nullAble, incr, defVal, comment)
-	return columnSql
-}
-
 // 获取建表ddl
-func (md *MysqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
-	meta := md.dc.GetMetaData()
-	sqlArr := make([]string, 0)
-
-	if dropBeforeCreate {
-		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", meta.QuoteIdentifier(tableInfo.TableName)))
-	}
-
-	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
-	fields := make([]string, 0)
-	pks := make([]string, 0)
-
-	for _, column := range columns {
-		if column.IsPrimaryKey {
-			pks = append(pks, column.ColumnName)
-		}
-		fields = append(fields, md.genColumnBasicSql(column))
-	}
-
-	// 建表ddl
-	createSql += strings.Join(fields, ",\n")
-	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
-	}
-	createSql += "\n)"
-
-	// 表注释
-	if tableInfo.TableComment != "" {
-		createSql += fmt.Sprintf(" COMMENT '%s'", meta.QuoteEscape(tableInfo.TableComment))
-	}
-
-	sqlArr = append(sqlArr, createSql)
-
-	return sqlArr
-}
-
-// 获取建表ddl
-func (md *MysqlMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
+func (md *MysqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 	// 1.获取表信息
 	tbs, err := md.GetTables(tableName)
 	tableInfo := &dbi.Table{}
@@ -312,7 +195,9 @@ func (md *MysqlMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (s
 		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	tableDDLArr := md.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
+
+	dialect := md.dc.GetDialect()
+	tableDDLArr := dialect.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
 	// 3.获取索引信息
 	indexs, err := md.GetTableIndex(tableName)
 	if err != nil {
@@ -320,32 +205,10 @@ func (md *MysqlMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (s
 		return "", err
 	}
 	// 组装返回
-	tableDDLArr = append(tableDDLArr, md.GenerateIndexDDL(indexs, *tableInfo)...)
+	tableDDLArr = append(tableDDLArr, dialect.GenerateIndexDDL(indexs, *tableInfo)...)
 	return strings.Join(tableDDLArr, ";\n"), nil
 }
 
-func (md *MysqlMetaData) GetSchemas() ([]string, error) {
+func (md *MysqlMetadata) GetSchemas() ([]string, error) {
 	return nil, errors.New("不支持schema")
-}
-
-func (md *MysqlMetaData) GetIdentifierQuoteString() string {
-	return "`"
-}
-
-func (md *MysqlMetaData) QuoteLiteral(literal string) string {
-	literal = strings.ReplaceAll(literal, `\`, `\\`)
-	literal = strings.ReplaceAll(literal, `'`, `''`)
-	return "'" + literal + "'"
-}
-
-// func (md *MysqlMetaData) GetSqlParserDialect() sqlparser.Dialect {
-// 	return sqlparser.MysqlDialect{}
-// }
-
-func (md *MysqlMetaData) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
-}
-
-func (md *MysqlMetaData) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
 }

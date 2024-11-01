@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/sqlparser"
-	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
@@ -52,7 +50,7 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 		suffix = pd.pgsqlOnDuplicateStrategySql(duplicateStrategy, tableName, columns)
 	}
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s %s", pd.dc.GetMetaData().QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "), suffix)
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s %s", pd.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "), suffix)
 	// 执行批量insert sql
 
 	return pd.dc.TxExec(tx, sqlStr, args...)
@@ -86,7 +84,7 @@ func (pd *PgsqlDialect) pgsqlOnDuplicateStrategySql(duplicateStrategy int, table
 // 高斯db唯一键冲突策略,使用ON DUPLICATE KEY UPDATE 参考：https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
 func (pd *PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
 	suffix := ""
-	metadata := pd.dc.GetMetaData()
+	metadata := pd.dc.GetMetadata()
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		suffix = " \n ON DUPLICATE KEY UPDATE NOTHING"
 	} else if duplicateStrategy == dbi.DuplicateStrategyUpdate {
@@ -110,7 +108,7 @@ func (pd *PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, table
 		suffix = " \n ON DUPLICATE KEY UPDATE "
 		for i, col := range columns {
 			// ON DUPLICATE KEY UPDATE语句不支持更新唯一键字段，所以得去掉
-			if !collx.ArrayContains(uniqueColumns, metadata.RemoveQuote(strings.ToLower(col))) {
+			if !collx.ArrayContains(uniqueColumns, pd.RemoveQuote(strings.ToLower(col))) {
 				suffix += fmt.Sprintf("%s = excluded.%s", col, col)
 				if i < len(columns)-1 {
 					suffix += ", "
@@ -178,17 +176,101 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (pd *PgsqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
-	meta := pd.dc.GetMetaData()
-	sqlArr := meta.GenerateTableDDL(commonColumns, tableInfo, dropOldTable)
-	_, err := pd.dc.Exec(strings.Join(sqlArr, ";"))
-	return len(sqlArr), err
+func (pd *PgsqlDialect) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
+	quoteTableName := pd.QuoteIdentifier(tableInfo.TableName)
+
+	sqlArr := make([]string, 0)
+	if dropBeforeCreate {
+		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteTableName))
+	}
+	// 组装建表语句
+	createSql := fmt.Sprintf("CREATE TABLE %s (\n", quoteTableName)
+	fields := make([]string, 0)
+	pks := make([]string, 0)
+	columnComments := make([]string, 0)
+	commentTmp := "comment on column %s.%s is '%s'"
+
+	for _, column := range columns {
+		if column.IsPrimaryKey {
+			pks = append(pks, pd.QuoteIdentifier(column.ColumnName))
+		}
+
+		fields = append(fields, pd.genColumnBasicSql(column))
+
+		// 防止注释内含有特殊字符串导致sql出错
+		if column.ColumnComment != "" {
+			comment := pd.QuoteEscape(column.ColumnComment)
+			columnComments = append(columnComments, fmt.Sprintf(commentTmp, quoteTableName, pd.QuoteIdentifier(column.ColumnName), comment))
+		}
+	}
+
+	createSql += strings.Join(fields, ",\n")
+	if len(pks) > 0 {
+		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
+	}
+	createSql += "\n)"
+
+	tableCommentSql := ""
+	if tableInfo.TableComment != "" {
+		commentTmp := "comment on table %s is '%s'"
+		tableCommentSql = fmt.Sprintf(commentTmp, quoteTableName, pd.QuoteEscape(tableInfo.TableComment))
+	}
+
+	// create
+	sqlArr = append(sqlArr, createSql)
+
+	// table comment
+	if tableCommentSql != "" {
+		sqlArr = append(sqlArr, tableCommentSql)
+	}
+	// column comment
+	if len(columnComments) > 0 {
+		sqlArr = append(sqlArr, columnComments...)
+	}
+
+	return sqlArr
 }
 
-func (pd *PgsqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
-	sqlArr := pd.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
-	_, err := pd.dc.Exec(strings.Join(sqlArr, ";"))
-	return err
+func (pd *PgsqlDialect) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
+	creates := make([]string, 0)
+	drops := make([]string, 0)
+	comments := make([]string, 0)
+	for _, index := range indexs {
+		unique := ""
+		if index.IsUnique {
+			unique = "unique"
+		}
+
+		// 如果索引名存在，先删除索引
+		drops = append(drops, fmt.Sprintf("drop index if exists %s.%s", pd.dc.Info.CurrentSchema(), index.IndexName))
+
+		// 取出列名，添加引号
+		cols := strings.Split(index.ColumnName, ",")
+		colNames := make([]string, len(cols))
+		for i, name := range cols {
+			colNames[i] = pd.QuoteIdentifier(name)
+		}
+		// 创建索引
+		creates = append(creates, fmt.Sprintf("CREATE %s INDEX %s on %s.%s(%s)", unique, pd.QuoteIdentifier(index.IndexName), pd.QuoteIdentifier(pd.dc.Info.CurrentSchema()), pd.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
+		if index.IndexComment != "" {
+			comment := pd.QuoteEscape(index.IndexComment)
+			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s.%s IS '%s'", pd.dc.Info.CurrentSchema(), index.IndexName, comment))
+		}
+	}
+
+	sqlArr := make([]string, 0)
+
+	if len(drops) > 0 {
+		sqlArr = append(sqlArr, drops...)
+	}
+
+	if len(creates) > 0 {
+		sqlArr = append(sqlArr, creates...)
+	}
+	if len(comments) > 0 {
+		sqlArr = append(sqlArr, comments...)
+	}
+	return sqlArr
 }
 
 func (pd *PgsqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
@@ -199,6 +281,77 @@ func (pd *PgsqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
 	}
 }
 
-func (pd *PgsqlDialect) GetSQLParser() sqlparser.SqlParser {
-	return new(pgsql.PgsqlParser)
+func (pd *PgsqlDialect) GetDataHelper() dbi.DataHelper {
+	return new(DataHelper)
+}
+
+func (pd *PgsqlDialect) GetColumnHelper() dbi.ColumnHelper {
+	return new(ColumnHelper)
+}
+
+func (pd *PgsqlDialect) GetDumpHelper() dbi.DumpHelper {
+	return new(DumpHelper)
+}
+
+func (pd *PgsqlDialect) genColumnBasicSql(column dbi.Column) string {
+	colName := pd.QuoteIdentifier(column.ColumnName)
+	dataType := string(column.DataType)
+
+	// 如果数据类型是数字，则去掉长度
+	if collx.ArrayAnyMatches([]string{"int"}, strings.ToLower(dataType)) {
+		column.NumPrecision = 0
+		column.CharMaxLength = 0
+	}
+
+	// 如果是自增类型，需要转换为serial
+	if column.IsIdentity {
+		if dataType == "int4" {
+			column.DataType = "serial"
+		} else if dataType == "int2" {
+			column.DataType = "smallserial"
+		} else if dataType == "int8" {
+			column.DataType = "bigserial"
+		} else {
+			column.DataType = "bigserial"
+		}
+
+		return fmt.Sprintf(" %s %s NOT NULL", colName, column.GetColumnType())
+	}
+
+	nullAble := ""
+	if !column.Nullable {
+		nullAble = " NOT NULL"
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		mark := false
+		// 哪些字段类型默认值需要加引号
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, dataType) {
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
+				collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+		// 如果数据类型是日期时间，则写死默认值函数
+		if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) {
+			column.ColumnDefault = "CURRENT_TIMESTAMP"
+		}
+
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+		}
+	}
+
+	// 如果是varchar，长度翻倍，防止报错
+	if collx.ArrayAnyMatches([]string{"char"}, strings.ToLower(dataType)) {
+		column.CharMaxLength = column.CharMaxLength * 2
+	}
+	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), nullAble, defVal)
+	return columnSql
 }

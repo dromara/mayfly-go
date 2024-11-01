@@ -44,8 +44,8 @@ func (dm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &DMDialect{dc: conn}
 }
 
-func (dm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&DMMetaData{
+func (dm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+	return &DMMetadata{
 		dc: conn,
-	})
+	}
 }

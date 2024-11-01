@@ -43,6 +43,6 @@ func (mm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &MysqlDialect{dc: conn}
 }
 
-func (mm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&MysqlMetaData{dc: conn})
+func (mm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+	return &MysqlMetadata{dc: conn}
 }

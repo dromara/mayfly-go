@@ -87,7 +87,7 @@ func (om *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &OracleDialect{dc: conn}
 }
 
-func (om *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+func (om *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 
 	// 查询数据库版本信息，以做兼容性处理
 	if conn.Info.Version == "" && !conn.Info.DefaultVersion {
@@ -107,10 +107,10 @@ func (om *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
 	}
 
 	if conn.Info.Version == DbVersionOracle11 {
-		md := &OracleMetaData11{}
+		md := &OracleMetadata11{}
 		md.dc = conn
 		md.version = DbVersionOracle11
-		return dbi.NewMetaDataX(md)
+		return md
 	}
-	return dbi.NewMetaDataX(&OracleMetaData{dc: conn})
+	return &OracleMetadata{dc: conn}
 }

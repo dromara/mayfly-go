@@ -85,8 +85,8 @@ func (pm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &PgsqlDialect{dc: conn}
 }
 
-func (pm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&PgsqlMetaData{dc: conn})
+func (pm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+	return &PgsqlMetadata{dc: conn}
 }
 
 // pgsql dialer

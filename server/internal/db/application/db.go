@@ -222,7 +222,6 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 }
 
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
-
 	log := dto.DefaultDumpLog
 	if reqParam.Log != nil {
 		log = reqParam.Log
@@ -247,7 +246,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	writer.WriteString("\n-- ----------------------------\n\n")
 
 	// 获取目标元数据，仅生成sql，用于生成建表语句和插入数据，不能用于查询
-	targetMeta := dbConn.GetMetaData()
+	targetDialect := dbConn.GetDialect()
 	if reqParam.TargetDbType != "" && dbConn.Info.Type != reqParam.TargetDbType {
 		// 创建一个假连接，仅用于调用方言生成sql，不做数据库连接操作
 		meta := dbi.GetMeta(reqParam.TargetDbType)
@@ -256,10 +255,11 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			Meta: meta,
 		}}
 
-		targetMeta = meta.GetMetaData(dbConn)
+		targetDialect = meta.GetDialect(dbConn)
 	}
 
-	srcMeta := dbConn.GetMetaData()
+	srcMeta := dbConn.GetMetadata()
+	srcDialect := dbConn.GetDialect()
 	if len(tables) == 0 {
 		log("获取可导出的表信息...")
 		ti, err := srcMeta.GetTables()
@@ -295,14 +295,14 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	// 按表名排序
 	sort.Strings(tables)
 
-	quoteSchema := srcMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
-	dumpHelper := targetMeta.GetDumpHelper()
-	dataHelper := targetMeta.GetDataHelper()
+	quoteSchema := srcDialect.QuoteIdentifier(dbConn.Info.CurrentSchema())
+	dumpHelper := targetDialect.GetDumpHelper()
+	dataHelper := targetDialect.GetDataHelper()
 
 	// 遍历获取每个表的信息
 	for _, tableName := range tables {
 		log(fmt.Sprintf("获取表[%s]信息...", tableName))
-		quoteTableName := targetMeta.QuoteIdentifier(tableName)
+		quoteTableName := targetDialect.QuoteIdentifier(tableName)
 
 		// 查询表信息，主要是为了查询表注释
 		tbs, err := srcMeta.GetTables(tableName)
@@ -323,7 +323,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 		if reqParam.DumpDDL {
 			log(fmt.Sprintf("生成表[%s]DDL...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", tableName))
-			tbDdlArr := targetMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
+			tbDdlArr := targetDialect.GenerateTableDDL(columnMap[tableName], tabInfo, true)
 			for _, ddl := range tbDdlArr {
 				writer.WriteString(ddl + ";\n")
 			}
@@ -338,7 +338,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			// 获取列信息
 			quoteColNames := make([]string, 0)
 			for _, col := range columnMap[tableName] {
-				quoteColNames = append(quoteColNames, targetMeta.QuoteIdentifier(col.ColumnName))
+				quoteColNames = append(quoteColNames, targetDialect.QuoteIdentifier(col.ColumnName))
 			}
 
 			_, _ = dbConn.WalkTableRows(ctx, tableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
@@ -367,7 +367,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			// 最后添加索引
 			log(fmt.Sprintf("生成表[%s]索引...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
-			sqlArr := targetMeta.GenerateIndexDDL(indexs, tabInfo)
+			sqlArr := targetDialect.GenerateIndexDDL(indexs, tabInfo)
 			for _, sqlStr := range sqlArr {
 				writer.WriteString(sqlStr + ";\n")
 			}

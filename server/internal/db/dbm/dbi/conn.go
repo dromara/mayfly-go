@@ -126,9 +126,9 @@ func (d *DbConn) GetDialect() Dialect {
 	return d.Info.Meta.GetDialect(d)
 }
 
-// GetMetaData 获取数据库MetaData
-func (d *DbConn) GetMetaData() *MetaDataX {
-	return d.Info.Meta.GetMetaData(d)
+// GetMetadata 获取数据库MetaData
+func (d *DbConn) GetMetadata() Metadata {
+	return d.Info.Meta.GetMetadata(d)
 }
 
 // Stats 返回数据库连接状态

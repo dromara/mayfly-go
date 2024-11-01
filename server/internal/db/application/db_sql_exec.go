@@ -390,7 +390,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 	}
 
 	// 获取表主键列名,排除使用别名
-	primaryKey, err := dbConn.GetMetaData().GetPrimaryKey(tableName)
+	primaryKey, err := dbConn.GetMetadata().GetPrimaryKey(tableName)
 	if err != nil {
 		logx.ErrorfContext(ctx, "Update SQL - 获取主键列失败: %s", err.Error())
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)

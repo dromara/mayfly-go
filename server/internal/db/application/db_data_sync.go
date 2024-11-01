@@ -164,7 +164,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 			} else {
 				updFieldValType = dbi.DataTypeNumber
 			}
-			wrapUpdFieldVal := srcConn.GetMetaData().GetDataHelper().WrapValue(task.UpdFieldVal, updFieldValType)
+			wrapUpdFieldVal := srcConn.GetDialect().GetDataHelper().WrapValue(task.UpdFieldVal, updFieldValType)
 			updSql = fmt.Sprintf("and %s > %s", task.UpdField, wrapUpdFieldVal)
 
 			orderSql = "order by " + task.UpdField + " asc "
@@ -221,7 +221,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		}
 	}()
 
-	srcMetaData := srcConn.GetMetaData()
+	srcDialect := srcConn.GetDialect()
 
 	// task.FieldMap为json数组字符串 [{"src":"id","target":"id"}]，转为map
 	var fieldMap []map[string]string
@@ -251,7 +251,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 			updFieldType = dbi.DataTypeString
 			for _, column := range columns {
 				if strings.EqualFold(column.Name, updFieldName) {
-					updFieldType = srcMetaData.GetDataHelper().GetDataType(column.Type)
+					updFieldType = srcDialect.GetDataHelper().GetDataType(column.Type)
 					break
 				}
 			}
@@ -260,7 +260,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		total++
 		result = append(result, row)
 		if total%batchSize == 0 {
-			if err := app.srcData2TargetDb(result, fieldMap, columns, updFieldType, updFieldName, task, srcMetaData, targetConn, targetDbTx); err != nil {
+			if err := app.srcData2TargetDb(result, fieldMap, columns, updFieldType, updFieldName, task, srcDialect, targetConn, targetDbTx); err != nil {
 				return err
 			}
 
@@ -283,7 +283,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 	// 处理剩余的数据
 	if len(result) > 0 {
-		if err := app.srcData2TargetDb(result, fieldMap, queryColumns, updFieldType, updFieldName, task, srcMetaData, targetConn, targetDbTx); err != nil {
+		if err := app.srcData2TargetDb(result, fieldMap, queryColumns, updFieldType, updFieldName, task, srcDialect, targetConn, targetDbTx); err != nil {
 			targetDbTx.Rollback()
 			return syncLog, err
 		}
@@ -307,7 +307,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	return syncLog, nil
 }
 
-func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, columns []*dbi.QueryColumn, updFieldType dbi.DataType, updFieldName string, task *entity.DataSyncTask, srcMetaData *dbi.MetaDataX, targetDbConn *dbi.DbConn, targetDbTx *sql.Tx) error {
+func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, columns []*dbi.QueryColumn, updFieldType dbi.DataType, updFieldName string, task *entity.DataSyncTask, srcDialect dbi.Dialect, targetDbConn *dbi.DbConn, targetDbTx *sql.Tx) error {
 
 	// 遍历src字段列表，取出字段对应的类型
 	var srcColumnTypes = make(map[string]string)
@@ -336,7 +336,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 		if updFieldVal == "" || updFieldVal == nil {
 			updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(field)]
 		}
-		task.UpdFieldVal = srcMetaData.GetDataHelper().FormatData(updFieldVal, updFieldType)
+		task.UpdFieldVal = srcDialect.GetDataHelper().FormatData(updFieldVal, updFieldType)
 	}
 
 	// 如果指定了更新字段，则以更新字段取值
@@ -351,12 +351,12 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	// 获取源库字段数组
 	srcColumns := make([]string, 0)
 	srcFieldTypes := make(map[string]dbi.DataType)
-	targetMetaData := targetDbConn.GetMetaData()
+	targetDialect := targetDbConn.GetDialect()
 	for _, item := range fieldMap {
 		targetField := item["target"]
 		srcField := item["target"]
-		srcFieldTypes[srcField] = srcMetaData.GetDataHelper().GetDataType(srcColumnTypes[item["src"]])
-		targetWrapColumns = append(targetWrapColumns, targetMetaData.QuoteIdentifier(targetField))
+		srcFieldTypes[srcField] = srcDialect.GetDataHelper().GetDataType(srcColumnTypes[item["src"]])
+		targetWrapColumns = append(targetWrapColumns, targetDialect.QuoteIdentifier(targetField))
 		srcColumns = append(srcColumns, srcField)
 	}
 
@@ -366,14 +366,14 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 		rawValue := make([]any, 0)
 		for _, column := range srcColumns {
 			// 某些情况，如oracle，需要转换时间类型的字符串为time类型
-			res := srcMetaData.GetDataHelper().ParseData(record[column], srcFieldTypes[column])
+			res := srcDialect.GetDataHelper().ParseData(record[column], srcFieldTypes[column])
 			rawValue = append(rawValue, res)
 		}
 		values = append(values, rawValue)
 	}
 
 	// 目标数据库执行sql批量插入
-	_, err := targetDbConn.GetDialect().BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values, task.DuplicateStrategy)
+	_, err := targetDialect.BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values, task.DuplicateStrategy)
 	if err != nil {
 		return err
 	}

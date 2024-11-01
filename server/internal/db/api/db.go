@@ -262,7 +262,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetMetaData().GetTables()
+	res, err := d.getDbConn(rc).GetMetadata().GetTables()
 	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
 	rc.ResData = res
 }
@@ -270,7 +270,7 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetMetaData().GetTableIndex(tn)
+	res, err := d.getDbConn(rc).GetMetadata().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	rc.ResData = res
 }
@@ -281,7 +281,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.getDbConn(rc)
-	res, err := dbi.GetMetaData().GetColumns(tn)
+	res, err := dbi.GetMetadata().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
 	rc.ResData = res
 }
@@ -290,7 +290,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 func (d *Db) HintTables(rc *req.Ctx) {
 	dbi := d.getDbConn(rc)
 
-	metadata := dbi.GetMetaData()
+	metadata := dbi.GetMetadata()
 	// 获取所有表
 	tables, err := metadata.GetTables()
 	biz.ErrIsNil(err)
@@ -331,18 +331,18 @@ func (d *Db) HintTables(rc *req.Ctx) {
 func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetMetaData().GetTableDDL(tn, false)
+	res, err := d.getDbConn(rc).GetMetadata().GetTableDDL(tn, false)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
 
 func (d *Db) GetVersion(rc *req.Ctx) {
-	version := d.getDbConn(rc).GetMetaData().GetCompatibleDbVersion()
+	version := d.getDbConn(rc).GetMetadata().GetCompatibleDbVersion()
 	rc.ResData = version
 }
 
 func (d *Db) GetSchemas(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetMetaData().GetSchemas()
+	res, err := d.getDbConn(rc).GetMetadata().GetSchemas()
 	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
 	rc.ResData = res
 }

@@ -13,15 +13,15 @@ const (
 	ORACLE11_COLUMN_MA_KEY = "ORACLE11_COLUMN_MA"
 )
 
-type OracleMetaData11 struct {
-	OracleMetaData
+type OracleMetadata11 struct {
+	OracleMetadata
 }
 
 // 获取列元信息, 如列名等
-func (od *OracleMetaData11) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	meta := od.dc.GetMetaData()
+func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	dialect := od.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
 	}), ",")
 
 	// 如果表数量超过了1000，需要分批查询
@@ -47,7 +47,7 @@ func (od *OracleMetaData11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 		return nil, err
 	}
 
-	columnHelper := meta.GetColumnHelper()
+	columnHelper := dialect.GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
@@ -70,9 +70,9 @@ func (od *OracleMetaData11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 	return columns, nil
 }
 
-func (od *OracleMetaData11) genColumnBasicSql(column dbi.Column) string {
-	meta := od.dc.GetMetaData()
-	colName := meta.QuoteIdentifier(column.ColumnName)
+func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
+	dialect := od.dc.GetDialect()
+	colName := dialect.QuoteIdentifier(column.ColumnName)
 
 	if column.IsIdentity {
 		// 11g以前的版本 如果是自增，自增列数据类型必须是number，不需要设置默认值和空值，建表后设置自增序列
@@ -94,7 +94,7 @@ func (od *OracleMetaData11) genColumnBasicSql(column dbi.Column) string {
 }
 
 // 11g及以下版本会设置自增序列和触发器
-func (od *OracleMetaData11) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableName string, columns []dbi.Column) []string {
+func (od *OracleMetadata11) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableName string, columns []dbi.Column) []string {
 	result := make([]string, 0)
 	for _, col := range columns {
 		if col.IsIdentity {

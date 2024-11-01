@@ -33,6 +33,6 @@ func (sm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &SqliteDialect{dc: conn}
 }
 
-func (sm *Meta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&SqliteMetaData{dc: conn})
+func (sm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+	return &SqliteMetadata{dc: conn}
 }

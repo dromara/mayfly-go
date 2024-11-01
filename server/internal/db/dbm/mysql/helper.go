@@ -147,7 +147,6 @@ func (dc *DataHelper) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 }
 
 func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
-
 	if dbColumnValue == nil {
 		return "NULL"
 	}
