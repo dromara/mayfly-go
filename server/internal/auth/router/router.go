@@ -45,6 +45,8 @@ func Init(router *gin.RouterGroup) {
 
 		// oauth2回调地址
 		req.NewGet("/oauth2/callback", oauth2Login.OAuth2Callback).Log(req.NewLogSave("oauth2回调")).DontNeedToken(),
+		// oauth2客户端模式回调地址
+		req.NewGet("/oauth2/client/callback", oauth2Login.OAuth2Callback).Log(req.NewLogSave("oauth2回调")).DontNeedToken(),
 
 		req.NewGet("/oauth2/status", oauth2Login.Oauth2Status),
 
