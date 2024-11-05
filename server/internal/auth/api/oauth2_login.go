@@ -131,6 +131,80 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 	}
 }
 
+func (a *Oauth2Login) OAuth2ClientCallback(rc *req.Ctx) {
+	client, oauth := a.getOAuthClient()
+
+	token := rc.Query("accessToken")
+	biz.NotEmpty(token, "accessToken不能为空")
+
+	// 获取用户信息
+	httpCli := client.Client(rc.GetRequest().Context(), token)
+	resp, err := httpCli.Get(oauth.ResourceURL)
+	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
+	defer resp.Body.Close()
+
+	b, err := io.ReadAll(resp.Body)
+	biz.ErrIsNilAppendErr(err, "读取响应的用户信息失败: %s")
+
+	// UserIdentifier格式为 type:fieldPath。如：string:user.username 或 number:user.id
+	userIdTypeAndFieldPath := strings.Split(oauth.UserIdentifier, ":")
+	biz.IsTrue(len(userIdTypeAndFieldPath) == 2, "oauth2配置属性'UserIdentifier'不符合规则")
+
+	// 解析用户唯一标识
+	userIdFieldPath := userIdTypeAndFieldPath[1]
+	userId := ""
+	if userIdTypeAndFieldPath[0] == "string" {
+		userId, err = jsonx.GetStringByBytes(b, userIdFieldPath)
+		biz.ErrIsNilAppendErr(err, "解析用户唯一标识失败: %s")
+	} else {
+		intUserId, err := jsonx.GetIntByBytes(b, userIdFieldPath)
+		biz.ErrIsNilAppendErr(err, "解析用户唯一标识失败: %s")
+		userId = fmt.Sprintf("%d", intUserId)
+	}
+	biz.NotBlank(userId, "用户唯一标识字段值不能为空")
+
+	// 判断是登录还是绑定
+	if stateAction == "login" {
+		a.doLoginAction(rc, userId, oauth)
+	} else if sAccountId, ok := strings.CutPrefix(stateAction, "bind:"); ok {
+		// 绑定
+		accountId, err := strconv.ParseUint(sAccountId, 10, 64)
+		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
+
+		account := new(sysentity.Account)
+		account.Id = accountId
+		err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("username"))
+		biz.ErrIsNilAppendErr(err, "该账号不存在")
+		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
+
+		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
+			AccountId: accountId,
+		}, "account_id", "identity")
+		biz.IsTrue(err != nil, "该账号已被其他用户绑定")
+
+		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
+			Identity: userId,
+		}, "account_id", "identity")
+		biz.IsTrue(err != nil, "您已绑定其他账号")
+
+		now := time.Now()
+		err = a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
+			AccountId:  accountId,
+			Identity:   userId,
+			CreateTime: &now,
+			UpdateTime: &now,
+		})
+		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
+		res := collx.M{
+			"action": "oauthBind",
+			"bind":   true,
+		}
+		rc.ResData = res
+	} else {
+		panic(errorx.NewBiz("state不合法"))
+	}
+}
+
 // 指定登录操作
 func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oauth2Login) {
 	// 查询用户是否存在
