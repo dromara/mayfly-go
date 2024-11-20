@@ -5,9 +5,9 @@ import (
 	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/internal/tag/infrastructure/cache"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -29,7 +29,7 @@ type Team interface {
 
 	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error)
 
-	SaveMember(ctx context.Context, tagTeamMember *entity.TeamMember)
+	SaveMember(ctx context.Context, tagTeamMember *entity.TeamMember) error
 
 	DeleteMember(tx context.Context, teamId, accountId uint64)
 
@@ -66,7 +66,7 @@ func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) err
 
 	if team.Id == 0 {
 		if p.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
-			return errorx.NewBiz("团队名[%s]已存在", saveParam.Name)
+			return errorx.NewBizI(ctx, imsg.ErrNameExist)
 		}
 
 		if err := p.Insert(ctx, team); err != nil {
@@ -74,7 +74,7 @@ func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) err
 		}
 
 		loginAccount := contextx.GetLoginAccount(ctx)
-		logx.DebugfContext(ctx, "将[%s]默认加入至[%s]团队", loginAccount.Username, team.Name)
+		logx.InfoContext(ctx, "Add [%s] to the [%s] team by default", loginAccount.Username, team.Name)
 
 		teamMem := &entity.TeamMember{}
 		teamMem.AccountId = loginAccount.Id
@@ -116,10 +116,12 @@ func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *mod
 }
 
 // 保存团队成员信息
-func (p *teamAppImpl) SaveMember(ctx context.Context, teamMember *entity.TeamMember) {
+func (p *teamAppImpl) SaveMember(ctx context.Context, teamMember *entity.TeamMember) error {
 	teamMember.Id = 0
-	biz.IsTrue(!p.teamMemberRepo.IsExist(teamMember.TeamId, teamMember.AccountId), "该成员已存在")
-	p.teamMemberRepo.Insert(ctx, teamMember)
+	if p.teamMemberRepo.IsExist(teamMember.TeamId, teamMember.AccountId) {
+		return errorx.NewBizI(ctx, imsg.ErrMemeberExist)
+	}
+	return p.teamMemberRepo.Insert(ctx, teamMember)
 }
 
 // 删除团队成员信息

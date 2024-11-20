@@ -2,7 +2,7 @@
     <div>
         <div class="terminal-dialog-container" v-for="openTerminal of terminals" :key="openTerminal.terminalId">
             <el-dialog
-                title="SSH终端"
+                title="SSH Terminal"
                 v-model="openTerminal.visible"
                 top="32px"
                 class="terminal-dialog"
@@ -26,11 +26,13 @@
 
                         <!-- 右侧 -->
                         <div class="title-right-fixed">
-                            <el-popconfirm @confirm="reConnect(openTerminal.terminalId)" title="确认重新连接?">
+                            <el-popconfirm @confirm="reConnect(openTerminal.terminalId)" :title="$t('components.terminal.connConfirm')">
                                 <template #reference>
                                     <div class="mr15 pointer">
-                                        <el-tag v-if="openTerminal.status == TerminalStatus.Connected" type="success" effect="light" round> 已连接 </el-tag>
-                                        <el-tag v-else type="danger" effect="light" round> 未连接 </el-tag>
+                                        <el-tag v-if="openTerminal.status == TerminalStatus.Connected" type="success" effect="light" round>
+                                            {{ $t('components.terminal.connected') }}
+                                        </el-tag>
+                                        <el-tag v-else type="danger" effect="light" round> {{ $t('components.terminal.notConn') }} </el-tag>
                                     </div>
                                 </template>
                             </el-popconfirm>
@@ -39,8 +41,8 @@
                                 <template #reference>
                                     <SvgIcon name="QuestionFilled" :size="20" class="pointer-icon mr10" />
                                 </template>
-                                <div>ctrl | command + f (搜索)</div>
-                                <div class="mt5">点击连接状态可重连</div>
+                                <div>ctrl | command + f ({{ $t('components.terminal.search') }})</div>
+                                <div class="mt5">{{ $t('components.terminal.reConnTips') }}</div>
                             </el-popover>
 
                             <SvgIcon
@@ -49,12 +51,24 @@
                                 @click="minimize(openTerminal.terminalId)"
                                 :size="20"
                                 class="pointer-icon mr10"
-                                title="最小化"
+                                :title="$t('components.terminal.minimize')"
                             />
 
-                            <SvgIcon name="FullScreen" @click="handlerFullScreen(openTerminal)" :size="20" class="pointer-icon mr10" title="全屏|退出全屏" />
+                            <SvgIcon
+                                name="FullScreen"
+                                @click="handlerFullScreen(openTerminal)"
+                                :size="20"
+                                class="pointer-icon mr10"
+                                :title="$t('components.terminal.fullScreenTitle')"
+                            />
 
-                            <SvgIcon name="Close" class="pointer-icon" @click="close(openTerminal.terminalId)" title="关闭" :size="20" />
+                            <SvgIcon
+                                name="Close"
+                                class="pointer-icon"
+                                @click="close(openTerminal.terminalId)"
+                                :title="$t('components.terminal.close')"
+                                :size="20"
+                            />
                         </div>
                     </div>
                 </template>

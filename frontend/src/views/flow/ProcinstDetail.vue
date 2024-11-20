@@ -8,29 +8,28 @@
             <div>
                 <el-divider content-position="left">流程信息</el-divider>
                 <el-descriptions :column="3" border>
-                    <el-descriptions-item label="流程名">{{ procinst.procdefName }}</el-descriptions-item>
-                    <el-descriptions-item label="业务">
+                    <el-descriptions-item :span="1" label="流程名">{{ procinst.procdefName }}</el-descriptions-item>
+                    <el-descriptions-item :span="1" label="业务">
                         <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
                     </el-descriptions-item>
-                    <el-descriptions-item label="发起人">
+                    <el-descriptions-item :span="1" label="发起人">
                         <AccountInfo :account-id="procinst.creatorId" :username="procinst.creator" />
                     </el-descriptions-item>
 
-                    <el-descriptions-item label="流程状态">
+                    <el-descriptions-item :span="1" label="流程状态">
                         <enum-tag :enums="ProcinstStatus" :value="procinst.status"></enum-tag>
                     </el-descriptions-item>
-                    <el-descriptions-item label="业务状态">
+                    <el-descriptions-item :span="1" label="业务状态">
                         <enum-tag :enums="ProcinstBizStatus" :value="procinst.bizStatus"></enum-tag>
                     </el-descriptions-item>
-
-                    <el-descriptions-item label="发起时间">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
+                    <el-descriptions-item :span="1" label="发起时间">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
 
                     <div v-if="procinst.duration">
-                        <el-descriptions-item label="结束时间">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
-                        <el-descriptions-item label="持续时间">{{ formatTime(procinst.duration) }}</el-descriptions-item>
+                        <el-descriptions-item :span="1.5" label="结束时间">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
+                        <el-descriptions-item :span="1.5" label="持续时间">{{ formatTime(procinst.duration) }}</el-descriptions-item>
                     </div>
 
-                    <el-descriptions-item label="备注">
+                    <el-descriptions-item :span="3" label="备注">
                         {{ procinst.remark }}
                     </el-descriptions-item>
                 </el-descriptions>

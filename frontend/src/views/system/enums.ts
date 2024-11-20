@@ -1,22 +1,22 @@
 import { EnumValue } from '@/common/Enum';
 
 export const ResourceTypeEnum = {
-    Menu: EnumValue.of(1, '菜单').tagTypeSuccess(),
-    Permission: EnumValue.of(2, '权限'),
+    Menu: EnumValue.of(1, 'system.menu.menu').tagTypeSuccess(),
+    Permission: EnumValue.of(2, 'system.menu.permission'),
 };
 
 export const AccountStatusEnum = {
-    Enable: EnumValue.of(1, '正常').tagTypeSuccess(),
-    Disable: EnumValue.of(-1, '禁用').tagTypeDanger(),
+    Enable: EnumValue.of(1, 'system.account.statusEnable').tagTypeSuccess(),
+    Disable: EnumValue.of(-1, 'system.account.statusDisable').tagTypeDanger(),
 };
 
 export const RoleStatusEnum = {
-    Enable: EnumValue.of(1, '正常').tagTypeSuccess(),
-    Disable: EnumValue.of(-1, '禁用').tagTypeDanger(),
+    Enable: EnumValue.of(1, 'system.role.statusEnable').tagTypeSuccess(),
+    Disable: EnumValue.of(-1, 'system.role.statusDisable').tagTypeDanger(),
 };
 
 export const LogTypeEnum = {
-    Success: EnumValue.of(1, '成功').tagTypeSuccess(),
-    Error: EnumValue.of(2, '失败').tagTypeDanger(),
-    Running: EnumValue.of(-1, '执行中'),
+    Success: EnumValue.of(1, 'system.syslog.resultSuccess').tagTypeSuccess(),
+    Error: EnumValue.of(2, 'system.syslog.resultFail').tagTypeDanger(),
+    Running: EnumValue.of(-1, 'system.syslog.resultRunning'),
 };

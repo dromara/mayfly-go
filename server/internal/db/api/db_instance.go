@@ -14,8 +14,9 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type Instance struct {
@@ -85,7 +86,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 func (d *Instance) GetInstance(rc *req.Ctx) {
 	dbId := getInstanceId(rc)
 	dbEntity, err := d.InstanceApp.GetById(dbId)
-	biz.ErrIsNil(err, "获取数据库实例错误")
+	biz.ErrIsNilAppendErr(err, "get db instance failed: %s")
 	rc.ResData = dbEntity
 }
 
@@ -97,11 +98,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "删除数据库实例失败: %s")
-		instanceId := uint64(value)
-		err = d.InstanceApp.Delete(rc.MetaCtx, instanceId)
-		biz.ErrIsNilAppendErr(err, "删除数据库实例失败: %s")
+		biz.ErrIsNilAppendErr(d.InstanceApp.Delete(rc.MetaCtx, cast.ToUint64(v)), "delete db instance failed: %s")
 	}
 }
 
@@ -132,6 +129,6 @@ func (d *Instance) GetDbServer(rc *req.Ctx) {
 
 func getInstanceId(rc *req.Ctx) uint64 {
 	instanceId := rc.PathParamInt("instanceId")
-	biz.IsTrue(instanceId > 0, "instanceId 错误")
+	biz.IsTrue(instanceId > 0, "instanceId error")
 	return uint64(instanceId)
 }

@@ -10,11 +10,11 @@
                         popper-style="max-height: 550px; overflow: auto; max-width: 450px"
                         placement="bottom"
                         width="auto"
-                        title="表格字段配置"
+                        :title="$t('db.tableFieldConf')"
                         trigger="click"
                         @hide="triggerCheckedColumns"
                     >
-                        <div><el-input v-model="checkedShowColumns.searchKey" size="small" placeholder="输入列名或备注过滤" /></div>
+                        <div><el-input v-model="checkedShowColumns.searchKey" size="small" :placeholder="$t('db.columnFilterPlaceholder')" /></div>
                         <div>
                             <el-checkbox
                                 v-model="checkedShowColumns.checkedAllColumn"
@@ -22,7 +22,7 @@
                                 @change="handleCheckAllColumnChange"
                                 size="small"
                             >
-                                选择所有
+                                {{ $t('db.selectAll') }}
                             </el-checkbox>
 
                             <el-checkbox-group v-model="checkedShowColumns.columnNames" @change="handleCheckedColumnChange">
@@ -45,17 +45,17 @@
                     <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
+                    <el-tooltip :show-after="500" effect="dark" content="commit" placement="top">
                         <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
-                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="font12">提交</el-link>
+                    <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.submitUpdate')" placement="top">
+                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="font12">{{ $t('common.submit') }}</el-link>
                     </el-tooltip>
                     <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
-                    <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
-                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="font12">取消</el-link>
+                    <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.cancelUpdate')" placement="top">
+                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="font12">{{ $t('common.cancel') }}</el-link>
                     </el-tooltip>
                 </div>
             </el-col>
@@ -66,7 +66,7 @@
                     @keyup.enter.native="onSelectByCondition"
                     @select="handlerColumnSelect"
                     popper-class="my-autocomplete"
-                    placeholder="选择列 或 输入SQL条件表达式后回车或点击查询图标过滤结果, 输入时可根据字段名提示"
+                    :placeholder="$t('db.autoCompleteColumnPlaceholder')"
                     @clear="selectData"
                     size="small"
                     clearable
@@ -97,7 +97,9 @@
                     <template #prepend>
                         <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
                             <template #reference>
-                                <el-button @click.stop="chooseCondColumnName" style="color: var(--el-color-success)" text size="small">选择列</el-button>
+                                <el-button @click.stop="chooseCondColumnName" style="color: var(--el-color-success)" text size="small">
+                                    {{ $t('db.selectColumn') }}
+                                </el-button>
                             </template>
                             <el-table
                                 :data="filterCondColumns"
@@ -110,18 +112,18 @@
                                 "
                                 style="cursor: pointer"
                             >
-                                <el-table-column property="columnName" label="列名" show-overflow-tooltip>
+                                <el-table-column property="columnName" :label="$t('db.columnName')" show-overflow-tooltip>
                                     <template #header>
                                         <el-input
                                             ref="columnNameSearchInputRef"
                                             v-model="state.columnNameSearch"
                                             size="small"
-                                            placeholder="输入列名或备注过滤"
+                                            :placeholder="$t('db.columnFilterPlaceholder')"
                                             @click.stop="(e: any) => e.preventDefault()"
                                         />
                                     </template>
                                 </el-table-column>
-                                <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                                <el-table-column property="columnComment" :label="$t('common.remark')" show-overflow-tooltip> </el-table-column>
                             </el-table>
                         </el-popover>
                     </template>
@@ -158,8 +160,15 @@
             </el-col>
             <el-col :span="12">
                 <el-row :gutter="10" justify="left">
-                    <el-link class="op-page" :underline="false" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" title="首页" />
-                    <el-link class="op-page" :underline="false" @click="pageNum = --pageNum || 1" :disabled="pageNum == 1" icon="Back" title="上一页" />
+                    <el-link class="op-page" :underline="false" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" :title="$t('db.homePage')" />
+                    <el-link
+                        class="op-page"
+                        :underline="false"
+                        @click="pageNum = --pageNum || 1"
+                        :disabled="pageNum == 1"
+                        icon="Back"
+                        :title="$t('db.previousPage')"
+                    />
                     <div class="op-page">
                         <el-input-number
                             style="width: 50px"
@@ -179,20 +188,20 @@
                                 style="font-size: 12px; height: 24px; line-height: 24px"
                                 v-for="(op, i) in pageSizes"
                                 :key="i"
-                                :label="op + '条/页'"
+                                :label="op + $t('db.rowsPage')"
                                 :value="op"
                             />
                         </el-select>
                     </div>
 
                     <el-button @click="handleCount" :loading="state.counting" class="ml10" text bg size="small">
-                        {{ state.showTotal ? `${state.total} 条` : 'count' }}
+                        {{ state.showTotal ? `${state.total} ${$t('db.rows')}` : 'count' }}
                     </el-button>
                 </el-row>
             </el-col>
         </el-row>
 
-        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="460px">
+        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="500px">
             <el-row gutter="5">
                 <el-col :span="5">
                     <el-select v-model="conditionDialog.condition">
@@ -215,8 +224,8 @@
             </el-row>
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="onCancelCondition">取消</el-button>
-                    <el-button type="primary" @click="onConfirmCondition">确定</el-button>
+                    <el-button @click="onCancelCondition">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" @click="onConfirmCondition">{{ $t('common.confirm') }}</el-button>
                 </span>
             </template>
         </el-dialog>
@@ -245,6 +254,9 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { useEventListener } from '@vueuse/core';
 import { copyToClipboard, fuzzyMatchField } from '@/common/utils/string';
 import DbTableDataForm from './DbTableDataForm.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     dbId: {
@@ -528,7 +540,7 @@ const filterColumns = (searchKey: string) => {
  */
 const onConditionRowClick = (event: any) => {
     const row = event[0];
-    state.conditionDialog.title = `请输入 [${row.columnName}] 的值`;
+    state.conditionDialog.title = t('db.conditionInputDialogTitle', { columnName: row.columnName });
     state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
@@ -602,7 +614,7 @@ const cancelUpdateFields = () => {
 };
 
 const onShowAddDataDialog = async () => {
-    state.addDataDialog.title = `添加'${props.tableName}'表数据`;
+    state.addDataDialog.title = t('db.addDataDialogTitle', { tableName: props.tableName });
     state.addDataDialog.visible = true;
 };
 

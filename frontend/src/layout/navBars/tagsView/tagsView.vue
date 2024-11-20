@@ -18,7 +18,7 @@
                 >
                     <SvgIcon name="iconfont icon-tag-view-active" class="layout-navbars-tagsview-ul-li-iconfont font14" v-if="isActive(v)" />
                     <SvgIcon :name="v.icon" class="layout-navbars-tagsview-ul-li-iconfont" v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
-                    <span>{{ v.title }}</span>
+                    <span>{{ $t(v.title) }}</span>
                     <template v-if="isActive(v)">
                         <SvgIcon
                             name="RefreshRight"
@@ -74,7 +74,7 @@ const route = useRoute();
 const router = useRouter();
 
 const contextmenuItems = [
-    new ContextmenuItem(0, '刷新').withIcon('RefreshRight').withOnClick((data: any) => {
+    new ContextmenuItem(0, 'layout.tagsView.refresh').withIcon('RefreshRight').withOnClick((data: any) => {
         // path为fullPath
         let { path } = data;
         let currentTag = tagsViews.value.find((v: any) => v.path === path);
@@ -82,18 +82,18 @@ const contextmenuItems = [
         router.push({ path, query: currentTag?.query });
     }),
 
-    new ContextmenuItem(1, '关闭').withIcon('Close').withOnClick((data: any) => closeCurrentTagsView(data.path)),
+    new ContextmenuItem(1, 'layout.tagsView.close').withIcon('Close').withOnClick((data: any) => closeCurrentTagsView(data.path)),
 
-    new ContextmenuItem(2, '关闭其他').withIcon('CircleClose').withOnClick((data: any) => {
+    new ContextmenuItem(2, 'layout.tagsView.closeOther').withIcon('CircleClose').withOnClick((data: any) => {
         let { path } = data;
         let currentTag = tagsViews.value.find((v: any) => v.path === path);
         router.push({ path, query: currentTag?.query });
         closeOtherTagsView(path);
     }),
 
-    new ContextmenuItem(3, '关闭所有').withIcon('FolderDelete').withOnClick((data: any) => closeAllTagsView(data.path)),
+    new ContextmenuItem(3, 'layout.tagsView.closeAll').withIcon('FolderDelete').withOnClick((data: any) => closeAllTagsView(data.path)),
 
-    new ContextmenuItem(4, '当前页全屏').withIcon('full-screen').withOnClick((data: any) => openCurrenFullscreen(data.path)),
+    new ContextmenuItem(4, 'layout.tagsView.fullscreen').withIcon('full-screen').withOnClick((data: any) => openCurrenFullscreen(data.path)),
 ];
 
 const state = reactive({

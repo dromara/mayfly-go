@@ -15,8 +15,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="handleClose">关 闭</el-button>
-                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">保 存</el-button>
+                    <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">{{ $t('common.save') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -25,10 +25,9 @@
 
 <script lang="ts" setup>
 import { reactive, toRefs, watch } from 'vue';
-import { ElMessage } from 'element-plus';
 import { machineApi } from '../api';
-
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
@@ -86,7 +85,7 @@ const updateContent = async () => {
         authCertName: props.authCertName,
         protocol: props.protocol,
     });
-    ElMessage.success('修改成功');
+    useI18nSaveSuccessMsg();
     handleClose();
     state.content = '';
 };

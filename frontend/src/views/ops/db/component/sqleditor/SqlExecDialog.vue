@@ -1,13 +1,13 @@
 <template>
     <div>
-        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" :close-on-click-modal="false">
+        <el-dialog title="SQL" v-model="dialogVisible" :show-close="false" width="600px" :close-on-click-modal="false">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
-            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" placeholder="执行备注" class="mt5" />
+            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" :placeholder="i18n.global.t('common.remark')" class="mt5" />
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="cancel">取 消</el-button>
-                    <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
+                    <el-button @click="cancel">{{ i18n.global.t('common.cancel') }}</el-button>
+                    <el-button @click="runSql" type="primary" :loading="btnLoading">{{ i18n.global.t('db.run') }}</el-button>
                 </span>
             </template>
         </el-dialog>
@@ -24,6 +24,7 @@ import { format as sqlFormatter } from 'sql-formatter';
 
 import { SqlExecProps } from './SqlExecBox';
 import { isTrue } from '@/common/assert';
+import { i18n } from '@/i18n';
 
 const props = withDefaults(defineProps<SqlExecProps>(), {});
 
@@ -62,12 +63,12 @@ const runSql = async () => {
         for (let re of res) {
             if (re.errorMsg) {
                 isSuccess = false;
-                ElMessage.error(`${re.sql} \n执行失败: ${re.errorMsg}`);
+                ElMessage.error(`${re.sql} ==>: ${re.errorMsg}`);
             }
         }
 
-        isTrue(isSuccess, '存在执行失败sql');
-        ElMessage.success('执行成功');
+        isTrue(isSuccess, 'exist run faild sql');
+        ElMessage.success(i18n.global.t('db.execSuccess'));
     } catch (e) {
         runSuccess = false;
     } finally {

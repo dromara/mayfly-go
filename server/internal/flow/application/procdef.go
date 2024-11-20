@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
+	"mayfly-go/internal/flow/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
@@ -58,12 +59,12 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 
 	if def.Id == 0 {
 		if p.GetByCond(&entity.Procdef{DefKey: def.DefKey}) == nil {
-			return errorx.NewBiz("该流程实例key已存在")
+			return errorx.NewBizI(ctx, imsg.ErrProcdefKeyExist)
 		}
 	} else {
 		// 防止误修改key
 		def.DefKey = ""
-		if err := p.canModify(def.Id); err != nil {
+		if err := p.canModify(ctx, def.Id); err != nil {
 			return err
 		}
 	}
@@ -76,7 +77,7 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 }
 
 func (p *procdefAppImpl) DeleteProcdef(ctx context.Context, defId uint64) error {
-	if err := p.canModify(defId); err != nil {
+	if err := p.canModify(ctx, defId); err != nil {
 		return err
 	}
 	return p.DeleteById(ctx, defId)
@@ -105,12 +106,12 @@ func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType 
 }
 
 // 判断该流程实例是否可以执行修改操作
-func (p *procdefAppImpl) canModify(prodefId uint64) error {
+func (p *procdefAppImpl) canModify(ctx context.Context, prodefId uint64) error {
 	if activeInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusActive}); activeInstCount > 0 {
-		return errorx.NewBiz("存在运行中的流程实例，无法操作")
+		return errorx.NewBizI(ctx, imsg.ErrExistProcinstRunning)
 	}
 	if suspInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusSuspended}); suspInstCount > 0 {
-		return errorx.NewBiz("存在挂起中的流程实例，无法操作")
+		return errorx.NewBizI(ctx, imsg.ErrExistProcinstSuspended)
 	}
 	return nil
 }

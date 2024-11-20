@@ -9,8 +9,9 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
-	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type DataSyncTask struct {
@@ -37,7 +38,7 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 
 	// 解码base64 sql
 	sqlStr, err := cryptox.AesDecryptByLa(task.DataSql, rc.GetLoginAccount())
-	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
+	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 	sql := stringx.TrimSpaceAndBr(sqlStr)
 	task.DataSql = sql
 	form.DataSql = sql
@@ -52,9 +53,7 @@ func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
 	ids := strings.Split(taskId, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		biz.ErrIsNil(d.DataSyncTaskApp.Delete(rc.MetaCtx, uint64(value)))
+		biz.ErrIsNil(d.DataSyncTaskApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
 	}
 }
 
@@ -65,7 +64,7 @@ func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 
 	if task.Status == entity.DataSyncTaskStatusEnable {
 		task, err := d.DataSyncTaskApp.GetById(task.Id)
-		biz.ErrIsNil(err, "该任务不存在")
+		biz.ErrIsNil(err, "task not found")
 		d.DataSyncTaskApp.AddCronJob(rc.MetaCtx, task)
 	} else {
 		d.DataSyncTaskApp.RemoveCronJobById(task.Id)
@@ -98,6 +97,6 @@ func (d *DataSyncTask) GetTask(rc *req.Ctx) {
 
 func (d *DataSyncTask) getTaskId(rc *req.Ctx) uint64 {
 	instanceId := rc.PathParamInt("taskId")
-	biz.IsTrue(instanceId > 0, "instanceId 错误")
+	biz.IsTrue(instanceId > 0, "instanceId error")
 	return uint64(instanceId)
 }

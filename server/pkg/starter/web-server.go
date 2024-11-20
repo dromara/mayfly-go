@@ -5,6 +5,7 @@ import (
 	"errors"
 	"mayfly-go/initialize"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"net/http"
@@ -28,6 +29,8 @@ func runWebServer(ctx context.Context) {
 	// 设置日志保存函数
 	req.SetSaveLogFunc(sysapp.GetSyslogApp().SaveFromReq)
 
+	i18n.SetLang(config.Conf.Server.Lang)
+
 	srv := http.Server{
 		Addr: config.Conf.Server.GetPort(),
 		// 注册路由
@@ -41,7 +44,7 @@ func runWebServer(ctx context.Context) {
 		defer cancel()
 		err := srv.Shutdown(timeout)
 		if err != nil {
-			logx.Errorf("Failed to Shutdown HTTP Server: %v", err)
+			logx.Errorf("failed to Shutdown HTTP Server: %v", err)
 		}
 
 		initialize.Terminate()

@@ -9,6 +9,7 @@ import config from '@/common/config';
 import { unref } from 'vue';
 import { URL_401 } from '@/router/staticRouter';
 import openApi from '@/common/openApi';
+import { useThemeConfig } from '@/store/themeConfig';
 
 const baseUrl: string = config.baseApiUrl;
 
@@ -27,7 +28,11 @@ const useCustomFetch = createFetch({
                 headers.set('Authorization', token);
                 headers.set('ClientId', getClientId());
             }
+
+            const themeConfig = useThemeConfig().themeConfig;
+
             headers.set('Content-Type', 'application/json');
+            headers.set('Accept-Language', themeConfig?.globalI18n);
             options.headers = headers;
 
             return { options };
@@ -89,7 +94,7 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
 
     return {
         execute: async function () {
-            return execUaf(uaf);
+            return execCustomFetch(uaf);
         },
         isFetching: uaf.isFetching,
         data: uaf.data,
@@ -100,7 +105,7 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
 let refreshingToken = false;
 let queue: any[] = [];
 
-async function execUaf(uaf: any) {
+async function execCustomFetch(uaf: any) {
     try {
         await uaf.execute(true);
     } catch (e: any) {
@@ -146,7 +151,7 @@ async function execUaf(uaf: any) {
             // 请求加入队列等待, 防止并发多次请求refreshToken
             return new Promise((resolve) => {
                 queue.push(() => {
-                    resolve(execUaf(uaf));
+                    resolve(execCustomFetch(uaf));
                 });
             });
         }
@@ -170,7 +175,7 @@ async function execUaf(uaf: any) {
             queue = [];
         }
 
-        await execUaf(uaf);
+        await execCustomFetch(uaf);
         return;
     }
 

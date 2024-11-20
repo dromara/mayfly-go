@@ -1,27 +1,27 @@
 <template>
     <div>
         <el-descriptions :column="3" border>
-            <el-descriptions-item :span="3" label="标签"><TagCodePath :path="redis.codePaths" /></el-descriptions-item>
+            <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="redis.codePaths" /></el-descriptions-item>
 
-            <el-descriptions-item :span="2" label="编号">{{ redis?.code }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="名称">{{ redis?.name }}</el-descriptions-item>
+            <el-descriptions-item :span="2" :label="$t('common.code')">{{ redis?.code }}</el-descriptions-item>
+            <el-descriptions-item :span="1" :label="$t('common.name')">{{ redis?.name }}</el-descriptions-item>
 
-            <el-descriptions-item :span="1" label="主机">{{ `${redis?.host}` }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="库">{{ state.db }}</el-descriptions-item>
+            <el-descriptions-item :span="1" label="Host">{{ `${redis?.host}` }}</el-descriptions-item>
+            <el-descriptions-item :span="1" label="DB">{{ state.db }}</el-descriptions-item>
             <el-descriptions-item :span="1" label="mode">
                 {{ redis.mode }}
             </el-descriptions-item>
 
-            <el-descriptions-item :span="3" label="执行Cmd">
+            <el-descriptions-item :span="3" :label="$t('flow.runCmd')">
                 <el-input type="textarea" disabled v-model="cmd" rows="5" />
             </el-descriptions-item>
         </el-descriptions>
 
         <div v-if="runRes && runRes.length > 0">
-            <el-divider content-position="left">处理结果</el-divider>
+            <el-divider content-position="left">{{ $t('flow.handleResult') }}</el-divider>
             <el-table :data="runRes" :max-height="400">
-                <el-table-column prop="cmd" label="命令" show-overflow-tooltip />
-                <el-table-column prop="res" label="执行结果" :min-width="50" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="cmd" label="Cmd" show-overflow-tooltip />
+                <el-table-column prop="res" :label="$t('flow.runResult')" :min-width="50" show-overflow-tooltip> </el-table-column>
             </el-table>
         </div>
     </div>

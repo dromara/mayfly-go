@@ -20,4 +20,14 @@ const (
 	ResourceTypeDb      int8 = 2
 	ResourceTypeRedis   int8 = 3
 	ResourceTypeMongo   int8 = 4
+
+	// imsg起始编号
+	ImsgNumSys     = 10000
+	ImsgNumAuth    = 20000
+	ImsgNumTag     = 30000
+	ImsgNumFlow    = 40000
+	ImsgNumMachine = 50000
+	ImsgNumDb      = 60000
+	ImsgNumRedis   = 70000
+	ImsgNumMongo   = 80000
 )

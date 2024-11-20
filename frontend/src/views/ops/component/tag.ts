@@ -161,7 +161,7 @@ export class NodeType {
  * @returns
  */
 export function getTagPathSearchItem(resourceType: number) {
-    return SearchItem.select('tagPath', '标签').withOptionsApi(
+    return SearchItem.select('tagPath', 'common.tag').withOptionsApi(
         OptionsApi.new(tagApi.getResourceTagPaths, {resourceType}).withConvertFn((res: any) => {
             return res.map((x: any) => {
                 return {

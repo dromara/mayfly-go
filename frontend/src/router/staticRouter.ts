@@ -25,7 +25,7 @@ export const staticRoutes: Array<RouteRecordRaw> = [
         name: 'login',
         component: () => import('@/views/login/index.vue'),
         meta: {
-            title: '登录',
+            title: 'staticRoutes.signIn',
         },
     },
     {
@@ -40,7 +40,7 @@ export const staticRoutes: Array<RouteRecordRaw> = [
         name: 'oauth2Callback',
         component: () => import('@/views/oauth/Oauth2Callback.vue'),
         meta: {
-            title: 'oauth2回调',
+            title: 'oauth2 callback',
         },
     },
     {
@@ -49,7 +49,7 @@ export const staticRoutes: Array<RouteRecordRaw> = [
         component: () => import('@/views/ops/machine/SshTerminalPage.vue'),
         meta: {
             // 将路径 'xxx?name=名字' 里的name字段值替换到title里
-            title: '终端 | {name}',
+            title: 'terminal | {name}',
             // 是否根据query对标题名进行参数替换，即最终显示为‘终端_机器名’
             titleRename: true,
         },
@@ -60,7 +60,7 @@ export const staticRoutes: Array<RouteRecordRaw> = [
         component: () => import('@/views/ops/machine/RdpTerminalPage.vue'),
         meta: {
             // 将路径 'xxx?name=名字' 里的name字段值替换到title里
-            title: '终端 | {name}',
+            title: 'terminal | {name}',
             // 是否根据query对标题名进行参数替换，即最终显示为‘终端_机器名’
             titleRename: true,
         },
@@ -74,7 +74,7 @@ export const errorRoutes: Array<RouteRecordRaw> = [
         name: 'notFound',
         component: () => import('@/views/error/404.vue'),
         meta: {
-            title: '找不到此页面',
+            title: 'staticRoutes.notFound',
         },
     },
     {
@@ -82,7 +82,7 @@ export const errorRoutes: Array<RouteRecordRaw> = [
         name: 'noPower',
         component: () => import('@/views/error/401.vue'),
         meta: {
-            title: '没有权限',
+            title: 'staticRoutes.noPower',
         },
     },
     // Resolve refresh page, route warnings

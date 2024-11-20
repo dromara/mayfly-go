@@ -37,12 +37,12 @@
                     <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTermName" class="h100">
                         <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
-                                <el-popconfirm @confirm="handleReconnect(dt, true)" title="确认重新连接?">
+                                <el-popconfirm @confirm="handleReconnect(dt, true)" :title="$t('machine.reConnTips')">
                                     <template #reference>
                                         <el-icon
                                             class="mr5"
                                             :color="EnumValue.getEnumByValue(TerminalStatusEnum, dt.status)?.extra?.iconColor"
-                                            :title="dt.status == TerminalStatusEnum.Connected.value ? '' : '点击重连'"
+                                            :title="dt.status == TerminalStatusEnum.Connected.value ? '' : $t('machine.clickReConn')"
                                             ><Connection />
                                         </el-icon>
                                     </template>
@@ -55,7 +55,7 @@
                                     </template>
                                     <template #default>
                                         <el-descriptions :column="1" size="small">
-                                            <el-descriptions-item label="机器名"> {{ dt.params?.name }} </el-descriptions-item>
+                                            <el-descriptions-item :label="$t('common.name')"> {{ dt.params?.name }} </el-descriptions-item>
                                             <el-descriptions-item label="host"> {{ dt.params?.ip }} : {{ dt.params?.port }} </el-descriptions-item>
                                             <el-descriptions-item label="username"> {{ dt.params?.selectAuthCert.username }} </el-descriptions-item>
                                             <el-descriptions-item label="remark"> {{ dt.params?.remark }} </el-descriptions-item>
@@ -83,26 +83,40 @@
                         </el-tab-pane>
                     </el-tabs>
 
-                    <el-dialog v-model="infoDialog.visible">
-                        <el-descriptions title="详情" :column="3" border>
-                            <el-descriptions-item :span="1.5" label="机器id">{{ infoDialog.data.id }}</el-descriptions-item>
-                            <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
+                    <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible">
+                        <el-descriptions :title="$t('common.detail')" :column="3" border>
+                            <el-descriptions-item :span="1.5" label="ID">{{ infoDialog.data.id }}</el-descriptions-item>
+                            <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ infoDialog.data.name }}</el-descriptions-item>
 
-                            <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="infoDialog.data.tags" /></el-descriptions-item>
+                            <el-descriptions-item :span="3" :label="$t('tag.relateTag')">
+                                <ResourceTags :tags="infoDialog.data.tags" />
+                            </el-descriptions-item>
 
                             <el-descriptions-item :span="2" label="IP">{{ infoDialog.data.ip }}</el-descriptions-item>
-                            <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
+                            <el-descriptions-item :span="1" :label="$t('machine.port')">{{ infoDialog.data.port }}</el-descriptions-item>
 
-                            <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
+                            <el-descriptions-item :span="3" :label="$t('common.remark')">{{ infoDialog.data.remark }}</el-descriptions-item>
 
-                            <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
-                            <el-descriptions-item :span="1.5" label="终端回放">{{ infoDialog.data.enableRecorder == 1 ? '是' : '否' }} </el-descriptions-item>
+                            <el-descriptions-item :span="1.5" :label="$t('machine.sshTunnel')"
+                                >{{ infoDialog.data.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
+                            </el-descriptions-item>
+                            <el-descriptions-item :span="1.5" :label="$t('machine.terminalPlayback')"
+                                >{{ infoDialog.data.enableRecorder == 1 ? $t('common.yes') : $t('common.no') }}
+                            </el-descriptions-item>
 
-                            <el-descriptions-item :span="2" label="创建时间">{{ formatDate(infoDialog.data.createTime) }} </el-descriptions-item>
-                            <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
+                            <el-descriptions-item :span="2" :label="$t('common.createTime')">
+                                {{ formatDate(infoDialog.data.createTime) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item :span="1" :label="$t('common.creator')">
+                                {{ infoDialog.data.creator }}
+                            </el-descriptions-item>
 
-                            <el-descriptions-item :span="2" label="更新时间">{{ formatDate(infoDialog.data.updateTime) }} </el-descriptions-item>
-                            <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+                            <el-descriptions-item :span="2" :label="$t('common.updateTime')">
+                                {{ formatDate(infoDialog.data.updateTime) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item :span="1" :label="$t('common.modifier')">
+                                {{ infoDialog.data.modifier }}
+                            </el-descriptions-item>
                         </el-descriptions>
                     </el-dialog>
 
@@ -168,6 +182,7 @@ import { MachineProtocolEnum } from './enums';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import EnumValue from '@/common/Enum';
+import { useI18n } from 'vue-i18n';
 
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
@@ -175,6 +190,8 @@ const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'
 const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
 const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
+
+const { t } = useI18n();
 
 const router = useRouter();
 
@@ -255,7 +272,7 @@ const tagTreeRef: any = ref(null);
 const autoOpenResourceStore = useAutoOpenResource();
 const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
 
-let openIds = {};
+let openIds: any = {};
 
 const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (node: TagTreeNode) => {
     // 加载标签树下的机器列表
@@ -293,19 +310,19 @@ const NodeTypeMachine = new NodeType(MachineNodeType.Machine)
         );
     })
     .withContextMenuItems([
-        new ContextmenuItem('detail', '详情').withIcon('More').withOnClick((node: any) => showInfo(node.params)),
+        new ContextmenuItem('detail', 'common.detail').withIcon('More').withOnClick((node: any) => showInfo(node.params)),
 
-        new ContextmenuItem('status', '状态')
+        new ContextmenuItem('status', 'common.status')
             .withIcon('Compass')
             .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
             .withOnClick((node: any) => showMachineStats(node.params)),
 
-        new ContextmenuItem('process', '进程')
+        new ContextmenuItem('process', 'machine.process')
             .withIcon('DataLine')
             .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
             .withOnClick((node: any) => showProcess(node.params)),
 
-        new ContextmenuItem('edit', '终端回放')
+        new ContextmenuItem('edit', 'machine.terminalPlayback')
             .withIcon('Compass')
             .withOnClick((node: any) => showRec(node.params))
             .withHideFunc((node: any) => actionBtns[perms.updateMachine] && node.params.enableRecorder == 1),
@@ -316,11 +333,11 @@ const NodeTypeAuthCert = new NodeType(MachineNodeType.AuthCert)
         openTerminal(node.params);
     })
     .withContextMenuItems([
-        new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params)),
-        new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params, true)),
-        new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick((node: any) => showFileManage(node.params)),
+        new ContextmenuItem('term', 'machine.openTerminal').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params)),
+        new ContextmenuItem('term-ex', 'machine.newTabOpenTerminal').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params, true)),
+        new ContextmenuItem('files', 'machine.fileManage').withIcon('FolderOpened').withOnClick((node: any) => showFileManage(node.params)),
 
-        new ContextmenuItem('scripts', '脚本管理')
+        new ContextmenuItem('scripts', 'machine.scriptManage')
             .withIcon('Files')
             .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
             .withOnClick((node: any) => serviceManager(node.params)),
@@ -443,7 +460,7 @@ const serviceManager = (row: any) => {
  */
 const showMachineStats = async (machine: any) => {
     state.machineStatsDialog.machineId = machine.id;
-    state.machineStatsDialog.title = `机器状态: ${machine.name} => ${machine.ip}`;
+    state.machineStatsDialog.title = `${t('machine.machineState')}: ${machine.name} => ${machine.ip}`;
     state.machineStatsDialog.visible = true;
 };
 
@@ -468,7 +485,7 @@ const showFileManage = (selectionData: any) => {
         state.filesystemDialog.authCertName = authCert.name;
         state.filesystemDialog.fileId = selectionData.id;
         state.filesystemDialog.path = '/';
-        state.filesystemDialog.title = `远程桌面文件管理`;
+        state.filesystemDialog.title = t('machine.remoteFileDesktopManage');
         state.filesystemDialog.visible = true;
     }
 };
@@ -484,7 +501,7 @@ const showProcess = (row: any) => {
 };
 
 const showRec = (row: any) => {
-    state.machineRecDialog.title = `${row.name}[${row.ip}]-终端回放记录`;
+    state.machineRecDialog.title = `${row.name}[${row.ip}]-${t('machine.terminalPlayback')}`;
     state.machineRecDialog.machineId = row.id;
     state.machineRecDialog.visible = true;
 };

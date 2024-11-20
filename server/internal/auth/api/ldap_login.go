@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
+	"mayfly-go/internal/auth/imsg"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
@@ -40,12 +41,12 @@ func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 // @router /auth/ldap/login [post]
 func (a *LdapLogin) Login(rc *req.Ctx) {
 	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
-
+	ctx := rc.MetaCtx
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
 	if accountLoginSecurity.UseCaptcha {
 		// 校验验证码
-		biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
+		biz.IsTrueI(ctx, captcha.Verify(loginForm.Cid, loginForm.Captcha), imsg.ErrCaptchaErr)
 	}
 
 	username := loginForm.Username
@@ -54,27 +55,27 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 	rc.ReqParam = collx.Kvs("username", username, "ip", clientIp)
 
 	originPwd, err := cryptox.DefaultRsaDecrypt(loginForm.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	biz.ErrIsNilAppendErr(err, "decryption password error: %s")
 	// LDAP 用户本地密码为空，不允许本地登录
-	biz.NotEmpty(originPwd, "密码不能为空")
+	biz.NotEmpty(originPwd, "password cannot be empty")
 
 	failCountKey := fmt.Sprintf("account:login:failcount:%s", username)
 	nowFailCount := cache.GetInt(failCountKey)
 	loginFailCount := accountLoginSecurity.LoginFailCount
 	loginFailMin := accountLoginSecurity.LoginFailMin
-	biz.IsTrue(nowFailCount < loginFailCount, "登录失败超过%d次, 请%d分钟后再试", loginFailCount, loginFailMin)
+	biz.IsTrueI(ctx, nowFailCount < loginFailCount, imsg.ErrLoginRestrict, "failCount", loginFailCount, "min", loginFailMin)
 
 	var account *sysentity.Account
 	cols := []string{"Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"}
-	account, err = a.getOrCreateUserWithLdap(username, originPwd, cols...)
+	account, err = a.getOrCreateUserWithLdap(ctx, username, originPwd, cols...)
 
 	if err != nil {
 		nowFailCount++
 		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
-		panic(errorx.NewBiz(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
+		panic(errorx.NewBizI(ctx, imsg.ErrLoginFail, "failCount", nowFailCount))
 	}
 
-	rc.ResData = LastLoginCheck(account, accountLoginSecurity, clientIp)
+	rc.ResData = LastLoginCheck(ctx, account, accountLoginSecurity, clientIp)
 }
 
 func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account, error) {
@@ -95,10 +96,10 @@ func (a *LdapLogin) createUser(userName, displayName string) {
 	biz.ErrIsNil(a.AccountApp.Update(context.TODO(), account))
 }
 
-func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, cols ...string) (*sysentity.Account, error) {
+func (a *LdapLogin) getOrCreateUserWithLdap(ctx context.Context, userName string, password string, cols ...string) (*sysentity.Account, error) {
 	userInfo, err := Authenticate(userName, password)
 	if err != nil {
-		return nil, errors.New("用户名密码错误")
+		return nil, errorx.NewBizI(ctx, imsg.ErrUsernameOrPwdErr)
 	}
 
 	account, err := a.getUser(userName, cols...)
@@ -121,7 +122,7 @@ type UserInfo struct {
 func Authenticate(username, password string) (*UserInfo, error) {
 	ldapConf := config.GetLdapLogin()
 	if !ldapConf.Enable {
-		return nil, errors.Errorf("未启用 LDAP 登录")
+		return nil, errors.Errorf("LDAP login is not enabled")
 	}
 	conn, err := Connect(ldapConf)
 	if err != nil {

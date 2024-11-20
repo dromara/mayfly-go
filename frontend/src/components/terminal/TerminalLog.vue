@@ -30,7 +30,7 @@ import EnumTag from '@/components/enumtag/EnumTag.vue';
 const props = defineProps({
     title: {
         type: String,
-        default: '日志',
+        default: 'Log',
     },
 });
 

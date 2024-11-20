@@ -7,12 +7,12 @@
 
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
-                    <el-tab-pane label="基本信息" :name="basicTab">
+                    <el-tab-pane :label="$t('common.basic')" :name="basicTab">
                         <el-form-item>
                             <el-row>
                                 <el-col :span="12">
-                                    <el-form-item prop="taskName" label="任务名" required>
-                                        <el-input v-model.trim="form.taskName" placeholder="请输入同步任务名" auto-complete="off" />
+                                    <el-form-item prop="taskName" :label="$t('db.taskName')" required>
+                                        <el-input v-model.trim="form.taskName" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
@@ -24,13 +24,19 @@
                             </el-row>
                         </el-form-item>
 
-                        <el-form-item prop="status" label="状态" label-width="60" required>
-                            <el-switch v-model="form.status" inline-prompt active-text="启用" inactive-text="禁用" :active-value="1" :inactive-value="-1" />
+                        <el-form-item prop="status" :label="$t('common.status')" label-width="60" required>
+                            <el-switch
+                                v-model="form.status"
+                                inline-prompt
+                                :active-text="$t('common.enable')"
+                                :inactive-text="$t('common.disable')"
+                                :active-value="1"
+                                :inactive-value="-1"
+                            />
                         </el-form-item>
 
-                        <el-form-item prop="srcDbId" label="源数据库" required>
+                        <el-form-item prop="srcDbId" :label="$t('db.srcDb')" required>
                             <db-select-tree
-                                placeholder="请选择源数据库"
                                 v-model:db-id="form.srcDbId"
                                 v-model:inst-name="form.srcInstName"
                                 v-model:db-name="form.srcDbName"
@@ -40,9 +46,8 @@
                             />
                         </el-form-item>
 
-                        <el-form-item prop="targetDbId" label="目标数据库" required>
+                        <el-form-item prop="targetDbId" :label="$t('db.targetDb')" required>
                             <db-select-tree
-                                placeholder="请选择目标数据库"
                                 v-model:db-id="form.targetDbId"
                                 v-model:inst-name="form.targetInstName"
                                 v-model:db-name="form.targetDbName"
@@ -52,15 +57,15 @@
                             />
                         </el-form-item>
 
-                        <el-form-item prop="dataSql" label="源数据sql" required>
+                        <el-form-item prop="dataSql" :label="$t('db.srcDataSql')" required>
                             <monaco-editor height="150px" class="task-sql" language="sql" v-model="form.dataSql" />
                         </el-form-item>
 
                         <el-form-item>
                             <el-row class="w100">
                                 <el-col :span="12">
-                                    <el-form-item prop="targetTableName" label="目标库表" required>
-                                        <el-select v-model="form.targetTableName" filterable placeholder="请选择目标数据库表">
+                                    <el-form-item prop="targetTableName" :label="$t('db.targetDbTable')" required>
+                                        <el-select v-model="form.targetTableName" filterable>
                                             <el-option
                                                 v-for="item in state.targetTableList"
                                                 :key="item.tableName"
@@ -72,8 +77,13 @@
                                 </el-col>
 
                                 <el-col :span="12">
-                                    <el-form-item prop="pageSize" label="分页大小" required>
-                                        <el-input type="number" v-model.number="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" />
+                                    <el-form-item prop="pageSize" :label="$t('db.pageSize')" required>
+                                        <el-input
+                                            type="number"
+                                            v-model.number="form.pageSize"
+                                            :placeholder="$t('db.pageSizePlaceholder')"
+                                            auto-complete="off"
+                                        />
                                     </el-form-item>
                                 </el-col>
                             </el-row>
@@ -84,56 +94,51 @@
                                 <el-col :span="8">
                                     <el-form-item class="w100" prop="updField">
                                         <template #label>
-                                            更新字段
-                                            <el-tooltip content="查询数据源的时候会带上这个字段当前最大值，支持带别名，如：t.create_time" placement="top">
-                                                <el-icon>
-                                                    <question-filled />
-                                                </el-icon>
+                                            {{ $t('db.updateField') }}
+                                            <el-tooltip :content="$t('db.updateFieldTips')" placement="top">
+                                                <SvgIcon name="question-filled" />
                                             </el-tooltip>
                                         </template>
-                                        <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
+                                        <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
                                 <el-col :span="8">
                                     <el-form-item class="w100" prop="updFieldVal">
                                         <template #label>
-                                            更新值
-                                            <el-tooltip content="记录更新字段当前值，如：当前时间，当前日期等，下次查询数据时会带上该值条件" placement="top">
+                                            {{ $t('db.updateFieldValue') }}
+                                            <el-tooltip :content="$t('db.updateFieldValueTips')" placement="top">
                                                 <el-icon>
                                                     <question-filled />
                                                 </el-icon>
                                             </el-tooltip>
                                         </template>
-                                        <el-input v-model.trim="form.updFieldVal" placeholder="更新字段当前最大值" auto-complete="off" />
+                                        <el-input v-model.trim="form.updFieldVal" :placeholder="$t('db.updateFieldValuePlaceholder')" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
                                 <el-col :span="8">
                                     <el-form-item class="w100" prop="updFieldSrc">
                                         <template #label>
-                                            值来源
-                                            <el-tooltip
-                                                content="从查询结果中取更新值的字段名，默认同更新字段，如果查询结果指定了字段别名且与原更新字段不一致，则取这个字段值为当前更新值"
-                                                placement="top"
-                                            >
+                                            {{ $t('db.fieldValueSrc') }}
+                                            <el-tooltip :content="$t('db.fieldValueSrcTips')" placement="top">
                                                 <el-icon>
                                                     <question-filled />
                                                 </el-icon>
                                             </el-tooltip>
                                         </template>
-                                        <el-input v-model.trim="form.updFieldSrc" placeholder="更新值来源" auto-complete="off" />
+                                        <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
                             </el-row>
                         </el-form-item>
                     </el-tab-pane>
 
-                    <el-tab-pane label="字段映射" :name="fieldTab" :disabled="!baseFieldCompleted">
-                        <el-form-item prop="fieldMap" label="字段映射" required>
+                    <el-tab-pane :label="$t('db.fieldMap')" :name="fieldTab" :disabled="!baseFieldCompleted">
+                        <el-form-item prop="fieldMap" :label="$t('db.fieldMap')" required>
                             <el-table :data="form.fieldMap" :max-height="400" size="small">
-                                <el-table-column prop="src" label="源字段" :width="200" />
-                                <el-table-column prop="target" label="目标字段">
+                                <el-table-column prop="src" :label="$t('db.srcField')" :width="200" />
+                                <el-table-column prop="target" :label="$t('db.targetField')">
                                     <template #default="scope">
                                         <el-select v-model="scope.row.target">
                                             <el-option
@@ -149,19 +154,15 @@
                         </el-form-item>
                     </el-tab-pane>
 
-                    <el-tab-pane label="sql预览" :name="sqlPreviewTab" :disabled="!baseFieldCompleted">
-                        <el-form-item prop="fieldMap" label="查询sql">
+                    <el-tab-pane :label="$t('db.sqlPreview')" :name="sqlPreviewTab" :disabled="!baseFieldCompleted">
+                        <el-form-item prop="fieldMap" :label="$t('db.selectSql')">
                             <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '170px' }" />
                         </el-form-item>
-                        <el-form-item prop="fieldMap" label="插入sql">
+                        <el-form-item prop="fieldMap" :label="$t('db.insertSql')">
                             <el-input type="textarea" v-model="state.previewInsertSql" readonly :input-style="{ height: '170px' }" />
                         </el-form-item>
-                        <el-form-item prop="isReplace" v-if="compatibleDuplicateStrategy(form.targetDbType!)" label="键冲突策略">
-                            <el-select v-model="form.duplicateStrategy" @change="handleDuplicateStrategy" style="width: 100px">
-                                <el-option label="无" :value="DuplicateStrategy.NONE" />
-                                <el-option label="忽略" :value="DuplicateStrategy.IGNORE" />
-                                <el-option label="替换" :value="DuplicateStrategy.REPLACE" />
-                            </el-select>
+                        <el-form-item prop="isReplace" v-if="compatibleDuplicateStrategy(form.targetDbType!)" :label="$t('db.keyDuplicateStrategy')">
+                            <EnumSelect :enums="DbDataSyncDuplicateStrategyEnum" v-model="form.duplicateStrategy" @change="handleDuplicateStrategy" />
                         </el-form-item>
                     </el-tab-pane>
                 </el-tabs>
@@ -183,7 +184,7 @@
                                 }
                             }
                         "
-                        >上一步</el-button
+                        >{{ $t('common.previousStep') }}</el-button
                     >
                     <el-button
                         v-if="tabActiveName != sqlPreviewTab"
@@ -200,11 +201,11 @@
                                 }
                             }
                         "
-                        >下一步</el-button
+                        >{{ $t('common.nextStep') }}</el-button
                     >
 
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -229,9 +230,15 @@ import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
-import { compatibleDuplicateStrategy, DbType, DuplicateStrategy, getDbDialect } from '@/views/ops/db/dialect';
+import { compatibleDuplicateStrategy, DbType, getDbDialect } from '@/views/ops/db/dialect';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import { DbDataSyncDuplicateStrategyEnum } from './enums';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     data: {
@@ -251,14 +258,14 @@ const rules = {
     taskName: [
         {
             required: true,
-            message: '请输入任务名',
+            message: useI18nPleaseInput('db.taskName'),
             trigger: ['change', 'blur'],
         },
     ],
     taskCron: [
         {
             required: true,
-            message: '请输入任务cron表达式',
+            message: useI18nPleaseInput('cron'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -402,7 +409,7 @@ watch(tabActiveName, async (newValue: string) => {
 
             // 判断sql是否以where .*结尾
             let hasCondition = /where/i.test(state.form.dataSql!);
-            state.previewDataSql = `${state.form.dataSql?.trim() || '请输入数据sql'} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${state.form.updFieldVal || ''}'`;
+            state.previewDataSql = `${state.form.dataSql?.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${state.form.updFieldVal || ''}'`;
 
             // 检查字段映射中是否存在重复的目标字段
             let fields = new Set();
@@ -412,7 +419,7 @@ watch(tabActiveName, async (newValue: string) => {
                 }
             });
             if (fields.size < (state.form.fieldMap?.length || 0)) {
-                ElMessage.warning('字段映射中存在重复的目标字段，请检查');
+                ElMessage.warning(t('db.fieldMapError'));
                 state.previewInsertSql = '';
                 return;
             }
@@ -458,21 +465,19 @@ const loadDbTables = async (dbId: number, db: string) => {
 const handleGetSrcFields = async () => {
     // 执行sql，获取字段信息
     if (!state.form.dataSql || !state.form.dataSql.trim()) {
-        ElMessage.warning('请输入数据源sql');
+        ElMessage.warning(t('db.noDataSqlMsg'));
         return;
     }
 
     // 判断sql是否是查询语句
     if (!/^select/i.test(state.form.dataSql.trim()!)) {
-        let msg = 'sql语句错误，请输入select语句';
-        ElMessage.warning(msg);
+        ElMessage.warning(t('db.notSelectSql'));
         return;
     }
 
     // 判断是否有多条sql
     if (/;/i.test(state.form.dataSql!)) {
-        let msg = 'sql语句错误，请输入单条查询语句';
-        ElMessage.warning(msg);
+        ElMessage.warning(t('db.notOneSql'));
         return;
     }
 
@@ -498,7 +503,7 @@ const handleGetSrcFields = async () => {
     });
 
     if (!res.columns) {
-        ElMessage.warning('没有查询到字段，请检查sql');
+        ElMessage.warning(t('db.notColumnSql'));
         return;
     }
 
@@ -547,22 +552,14 @@ const getReqForm = async () => {
 };
 
 const btnOk = async () => {
-    dbForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
-
-        // 正则表达式检测corn表达式正确性
-
-        // 处理一些数字类型
-        state.submitForm = await getReqForm();
-        state.submitForm.fieldMap = JSON.stringify(state.form.fieldMap);
-        await saveExec();
-        ElMessage.success('保存成功');
-        emit('val-change', state.form);
-        cancel();
-    });
+    await useI18nFormValidate(dbForm);
+    // 处理一些数字类型
+    state.submitForm = await getReqForm();
+    state.submitForm.fieldMap = JSON.stringify(state.form.fieldMap);
+    await saveExec();
+    useI18nSaveSuccessMsg();
+    emit('val-change', state.form);
+    cancel();
 };
 
 const cancel = () => {

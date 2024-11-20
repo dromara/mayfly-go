@@ -4,27 +4,27 @@ import App from '@/App.vue';
 import router from './router';
 import pinia from '@/store/index';
 import { directive } from '@/directive/index';
-import { globalComponentSize } from '@/common/utils/componentSize';
 import { registElSvgIcon } from '@/common/utils/svgIcons';
 
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
-import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import { ElMessage } from 'element-plus';
+import { i18n } from '@/i18n/index';
 
 import 'splitpanes/dist/splitpanes.css';
 
 import '@/theme/index.scss';
 import '@/assets/font/font.css';
 import '@/assets/iconfont/iconfont.js';
+import { getThemeConfig } from './common/utils/storage';
 
 const app = createApp(App);
 
 registElSvgIcon(app);
 directive(app);
 
-app.use(pinia).use(router).use(ElementPlus, { size: globalComponentSize, locale: zhCn }).mount('#app');
+app.use(pinia).use(router).use(i18n).use(ElementPlus, { size: getThemeConfig()?.globalComponentSize }).mount('#app');
 
 // 屏蔽警告信息
 app.config.warnHandler = () => null;

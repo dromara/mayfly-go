@@ -1,27 +1,27 @@
 <template>
     <div>
-        <el-dialog width="800px" title="数据库列表" :before-close="close" v-model="databaseDialog.visible">
+        <el-dialog width="800px" :title="$t('mongo.dbList')" :before-close="close" v-model="databaseDialog.visible">
             <div class="mb5">
-                <el-button @click="showCreateDbDialog" type="primary" icon="plus" size="small">新建</el-button>
+                <el-button @click="showCreateDbDialog" type="primary" icon="plus" size="small">{{ $t('common.create') }}</el-button>
             </div>
             <el-table :data="databaseDialog.data" :max-height="500">
-                <el-table-column min-width="130" property="Name" label="库名" />
+                <el-table-column min-width="130" property="Name" :label="$t('common.name')" />
                 <el-table-column min-width="90" property="SizeOnDisk" label="size">
                     <template #default="scope">
                         {{ formatByteSize(scope.row.SizeOnDisk) }}
                     </template>
                 </el-table-column>
-                <el-table-column min-width="80" property="Empty" label="是否为空" />
+                <el-table-column min-width="80" property="Empty" :label="$t('mongo.isEmpty')" />
 
-                <el-table-column min-width="150" label="操作">
+                <el-table-column min-width="150" :label="$t('common.operation')">
                     <template #default="scope">
                         <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">集合</el-link>
+                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">{{ $t('mongo.coll') }}</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-popconfirm @confirm="onDeleteDb(scope.row.Name)" title="确定删除该库?">
+                        <el-popconfirm @confirm="onDeleteDb(scope.row.Name)" :title="$t('mongo.deleteDbConfirm')">
                             <template #reference>
-                                <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
                             </template>
                         </el-popconfirm>
                     </template>
@@ -71,17 +71,17 @@
 
         <el-dialog width="600px" :title="collectionsDialog.title" v-model="collectionsDialog.visible">
             <div class="mb5">
-                <el-button @click="showCreateCollectionDialog" type="primary" icon="plus" size="small">新建</el-button>
+                <el-button @click="showCreateCollectionDialog" type="primary" icon="plus" size="small">{{ $t('common.create') }}</el-button>
             </div>
             <el-table stripe :data="collectionsDialog.data" :max-height="500">
-                <el-table-column prop="name" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column min-width="80" label="操作">
+                <el-table-column prop="name" :label="$t('common.name')" show-overflow-tooltip> </el-table-column>
+                <el-table-column min-width="80" :label="$t('common.operation')">
                     <template #default="scope">
                         <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small" :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-popconfirm @confirm="onDeleteCollection(scope.row.name)" width="160" title="确定删除该集合?">
+                        <el-popconfirm @confirm="onDeleteCollection(scope.row.name)" width="160" :title="$t('mongo.deleteCollConfirm')">
                             <template #reference>
-                                <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
                             </template>
                         </el-popconfirm>
                     </template>
@@ -89,7 +89,7 @@
             </el-table>
 
             <el-dialog width="700px" :title="collectionsDialog.statsDialog.title" v-model="collectionsDialog.statsDialog.visible">
-                <el-descriptions title="集合状态信息" :column="3" border>
+                <el-descriptions :title="$t('mongo.collState')" :column="3" border>
                     <el-descriptions-item label="ns" label-align="right" :span="2" align="center">
                         {{ collectionsDialog.statsDialog.data.ns }}
                     </el-descriptions-item>
@@ -119,33 +119,33 @@
             </el-dialog>
         </el-dialog>
 
-        <el-dialog width="400px" title="新建库&集合" v-model="createDbDialog.visible" :destroy-on-close="true">
+        <el-dialog width="400px" :title="$t('mongo.createDbAndColl')" v-model="createDbDialog.visible" :destroy-on-close="true">
             <el-form :model="createDbDialog.form" label-width="auto">
-                <el-form-item prop="dbName" label="库名" required>
+                <el-form-item prop="dbName" :title="$t('mongo.dbName')" required>
                     <el-input v-model="createDbDialog.form.dbName" clearable></el-input>
                 </el-form-item>
-                <el-form-item prop="collectionName" label="集合名" required>
+                <el-form-item prop="collectionName" :title="$t('mongo.collName')" required>
                     <el-input v-model="createDbDialog.form.collectionName" clearable></el-input>
                 </el-form-item>
             </el-form>
             <template #footer>
                 <div>
-                    <el-button @click="createDbDialog.visible = false">取 消</el-button>
-                    <el-button @click="onCreateDb" type="primary">确 定</el-button>
+                    <el-button @click="createDbDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="onCreateDb" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
 
-        <el-dialog width="400px" title="新建集合" v-model="createCollectionDialog.visible" :destroy-on-close="true">
+        <el-dialog width="400px" :title="$t('mongo.createColl')" v-model="createCollectionDialog.visible" :destroy-on-close="true">
             <el-form :model="createCollectionDialog.form" label-width="auto">
-                <el-form-item prop="name" label="集合名" required>
+                <el-form-item prop="name" :label="$t('mongo.collName')" required>
                     <el-input v-model="createCollectionDialog.form.name" clearable></el-input>
                 </el-form-item>
             </el-form>
             <template #footer>
                 <div>
-                    <el-button @click="createCollectionDialog.visible = false">取 消</el-button>
-                    <el-button @click="onCreateCollection" type="primary">确 定</el-button>
+                    <el-button @click="createCollectionDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="onCreateCollection" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -155,8 +155,11 @@
 <script lang="ts" setup>
 import { mongoApi } from './api';
 import { watch, toRefs, reactive } from 'vue';
-import { ElMessage } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
+import { useI18n } from 'vue-i18n';
+import { useI18nDeleteSuccessMsg, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -245,7 +248,7 @@ const showCollections = async (database: string) => {
     state.collectionsDialog.database = database;
     state.collectionsDialog.data = [];
     setCollections(database);
-    state.collectionsDialog.title = `'${database}' 集合`;
+    state.collectionsDialog.title = t('mongo.collTitle', { dbName: database });
     state.collectionsDialog.visible = true;
 };
 
@@ -288,7 +291,7 @@ const onDeleteCollection = async (collection: string) => {
             },
         ],
     });
-    ElMessage.success('集合删除成功');
+    useI18nDeleteSuccessMsg();
     setCollections(state.collectionsDialog.database);
 };
 
@@ -307,7 +310,7 @@ const onCreateCollection = async () => {
             },
         ],
     });
-    ElMessage.success('集合创建成功');
+    useI18nSaveSuccessMsg();
     state.createCollectionDialog.visible = false;
     state.createCollectionDialog.form = {} as any;
     setCollections(state.collectionsDialog.database);
@@ -328,7 +331,7 @@ const onCreateDb = async () => {
             },
         ],
     });
-    ElMessage.success('数据库与集合创建成功');
+    useI18nSaveSuccessMsg();
     state.createDbDialog.visible = false;
     state.createDbDialog.form = {} as any;
     showDatabases();
@@ -344,7 +347,7 @@ const onDeleteDb = async (db: string) => {
             },
         ],
     });
-    ElMessage.success('库删除成功');
+    useI18nDeleteSuccessMsg();
     showDatabases();
 };
 </script>

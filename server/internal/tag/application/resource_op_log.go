@@ -34,7 +34,7 @@ func (rol *resourceOpLogAppImpl) InjectResourceOpLogRepo(resourceOpLogRepo repos
 func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath string) error {
 	loginAccount := contextx.GetLoginAccount(ctx)
 	if loginAccount == nil {
-		return errorx.NewBiz("当前上下文不存在登录信息")
+		return errorx.NewBiz("Login information does not exist in this context")
 	}
 
 	var logs []*entity.ResourceOpLog
@@ -49,7 +49,7 @@ func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath 
 	}
 	tagTree := &entity.TagTree{CodePath: codePath}
 	if err := rol.tagTreeApp.GetByCond(tagTree); err != nil {
-		return errorx.NewBiz("资源不存在")
+		return errorx.NewBiz("resource not found")
 	}
 
 	return rol.Save(ctx, &entity.ResourceOpLog{

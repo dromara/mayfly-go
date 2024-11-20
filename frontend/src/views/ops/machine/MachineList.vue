@@ -13,8 +13,10 @@
             :lazy="true"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
-                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>{{ $t('common.create') }} </el-button>
+                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #ipPort="{ data }">
@@ -28,7 +30,7 @@
                 <div v-else>
                     <el-row>
                         <el-text size="small" class="font11">
-                            内存(可用/总):
+                            {{ $t('machine.memberInfo') }}:
                             <span :class="getStatsFontClass(data.stat.memAvailable, data.stat.memTotal)"
                                 >{{ formatByteSize(data.stat.memAvailable, 1) }}/{{ formatByteSize(data.stat.memTotal, 1) }}
                             </span>
@@ -36,7 +38,7 @@
                     </el-row>
                     <el-row>
                         <el-text class="font11" size="small">
-                            CPU(空闲): <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
+                            {{ $t('machine.cpuInfo') }}: <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
                         </el-text>
                     </el-row>
                 </div>
@@ -91,7 +93,12 @@
 
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-tooltip v-if="data.protocol == MachineProtocolEnum.Ssh.value" :show-after="500" content="按住ctrl则为新标签打开" placement="top">
+                    <el-tooltip
+                        v-if="data.protocol == MachineProtocolEnum.Ssh.value"
+                        :show-after="500"
+                        :content="$t('machine.newOpenTabTerminalTips')"
+                        placement="top"
+                    >
                         <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>SSH</el-button>
                     </el-tooltip>
 
@@ -102,42 +109,51 @@
                 </span>
 
                 <span v-auth="'machine:file'">
-                    <el-button type="success" :disabled="data.status == -1" @click="showFileManage(data)" link>文件</el-button>
+                    <el-button type="success" :disabled="data.status == -1" @click="showFileManage(data)" link>{{ $t('machine.file') }}</el-button>
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
 
-                <el-button v-if="data.protocol == MachineProtocolEnum.Ssh.value" :disabled="data.status == -1" type="warning" @click="serviceManager(data)" link
-                    >脚本</el-button
+                <el-button
+                    v-if="data.protocol == MachineProtocolEnum.Ssh.value"
+                    :disabled="data.status == -1"
+                    type="warning"
+                    @click="serviceManager(data)"
+                    link
+                    >{{ $t('machine.script') }}</el-button
                 >
                 <el-divider direction="vertical" border-style="dashed" />
 
                 <el-dropdown @command="handleCommand">
                     <span class="el-dropdown-link-machine-list">
-                        更多
+                        {{ $t('common.more') }}
                         <el-icon class="el-icon--right">
                             <arrow-down />
                         </el-icon>
                     </span>
                     <template #dropdown>
                         <el-dropdown-menu>
-                            <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
-
-                            <el-dropdown-item :command="{ type: 'rdp-blank', data }" v-if="data.protocol == MachineProtocolEnum.Rdp.value">
-                                RDP(新窗口)
+                            <el-dropdown-item :command="{ type: 'detail', data }">
+                                {{ $t('common.detail') }}
                             </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]"> 编辑 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'rdp-blank', data }" v-if="data.protocol == MachineProtocolEnum.Rdp.value">
+                                RDP({{ $t('machine.newTab') }})
+                            </el-dropdown-item>
+
+                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]">
+                                {{ $t('common.edit') }}
+                            </el-dropdown-item>
 
                             <el-dropdown-item
                                 v-if="data.protocol == MachineProtocolEnum.Ssh.value"
                                 :command="{ type: 'process', data }"
                                 :disabled="data.status == -1"
                             >
-                                进程
+                                {{ $t('machine.process') }}
                             </el-dropdown-item>
 
                             <el-dropdown-item :command="{ type: 'terminalRec', data }" v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
-                                终端回放
+                                {{ $t('machine.terminalPlayback') }}
                             </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -146,25 +162,39 @@
         </page-table>
 
         <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible">
-            <el-descriptions title="详情" :column="3" border>
-                <el-descriptions-item :span="1.5" label="机器id">{{ infoDialog.data.id }}</el-descriptions-item>
-                <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
+            <el-descriptions :title="$t('common.detail')" :column="3" border>
+                <el-descriptions-item :span="1.5" label="ID">{{ infoDialog.data.id }}</el-descriptions-item>
+                <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ infoDialog.data.name }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="infoDialog.data.tags" /></el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('tag.relateTag')">
+                    <ResourceTags :tags="infoDialog.data.tags" />
+                </el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="IP">{{ infoDialog.data.ip }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('machine.port')">{{ infoDialog.data.port }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('common.remark')">{{ infoDialog.data.remark }}</el-descriptions-item>
 
-                <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
-                <el-descriptions-item :span="1.5" label="终端回放">{{ infoDialog.data.enableRecorder == 1 ? '是' : '否' }} </el-descriptions-item>
+                <el-descriptions-item :span="1.5" :label="$t('machine.sshTunnel')">
+                    {{ infoDialog.data.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1.5" :label="$t('machine.terminalPlayback')">
+                    {{ infoDialog.data.enableRecorder == 1 ? $t('common.yes') : $t('common.no') }}
+                </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(infoDialog.data.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.createTime')">
+                    {{ formatDate(infoDialog.data.createTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.creator')">
+                    {{ infoDialog.data.creator }}
+                </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(infoDialog.data.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.updateTime')">
+                    {{ formatDate(infoDialog.data.updateTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.modifier')">
+                    {{ infoDialog.data.modifier }}
+                </el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
@@ -179,7 +209,7 @@
         </terminal-dialog>
 
         <machine-edit
-            :title="machineEditDialog.title"
+            :title="$t(machineEditDialog.title)"
             v-model:visible="machineEditDialog.visible"
             v-model:machine="machineEditDialog.data"
             @valChange="submitSuccess"
@@ -234,7 +264,6 @@
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -248,6 +277,8 @@ import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import { MachineProtocolEnum } from './enums';
 import MachineRdpDialogComp from '@/components/terminal-rdp/MachineRdpDialog.vue';
+import { useI18n } from 'vue-i18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -257,6 +288,8 @@ const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'
 const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
 const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
+
+const { t } = useI18n();
 
 const props = defineProps({
     lazy: {
@@ -278,21 +311,21 @@ const perms = {
 };
 
 const searchItems = [
-    SearchItem.input('keyword', '关键字').withPlaceholder('ip / 名称 / 编号'),
+    SearchItem.input('keyword', 'common.keyword').withPlaceholder('machine.keywordPlaceholder'),
     getTagPathSearchItem(TagResourceTypeEnum.MachineAuthCert.value),
 ];
 
 const columns = [
-    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('name', '名称'),
-    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
-    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
-    TableColumn.new('status', '状态').isSlot().setMinWidth(85),
-    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
-    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('code', '编号'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
+    TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(50),
+    TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(10),
+    TableColumn.new('status', 'common.status').isSlot().setMinWidth(85),
+    TableColumn.new('stat', 'machine.runningStat').isSlot().setAddWidth(55),
+    TableColumn.new('fs', 'machine.fs').isSlot().setAddWidth(25),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('code', 'common.code'),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter(),
 ];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
@@ -346,7 +379,7 @@ const state = reactive({
     machineEditDialog: {
         visible: false,
         data: null as any,
-        title: '新增机器',
+        title: '',
     },
     machineRecDialog: {
         visible: false,
@@ -457,10 +490,10 @@ const openFormDialog = async (machine: any) => {
     let dialogTitle;
     if (machine) {
         state.machineEditDialog.data = machine;
-        dialogTitle = '编辑机器';
+        dialogTitle = 'machine.editMachine';
     } else {
         state.machineEditDialog.data = null;
-        dialogTitle = '添加机器';
+        dialogTitle = 'machine.createMachine';
     }
 
     state.machineEditDialog.title = dialogTitle;
@@ -469,17 +502,9 @@ const openFormDialog = async (machine: any) => {
 
 const deleteMachine = async () => {
     try {
-        await ElMessageBox.confirm(
-            `确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】机器信息? 该操作将同时删除脚本及文件配置信息`,
-            '提示',
-            {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning',
-            }
-        );
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         await machineApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('操作成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //
@@ -509,7 +534,7 @@ const changeStatus = async (row: any) => {
  */
 const showMachineStats = async (machine: any) => {
     state.machineStatsDialog.machineId = machine.id;
-    state.machineStatsDialog.title = `机器状态: ${machine.name} => ${machine.ip}`;
+    state.machineStatsDialog.title = `${t('machine.machineState')}: ${machine.name} => ${machine.ip}`;
     state.machineStatsDialog.visible = true;
 };
 
@@ -538,7 +563,7 @@ const showFileManage = (data: any) => {
         state.filesystemDialog.fileId = data.id;
         state.filesystemDialog.authCertName = data.selectAuthCert.name;
         state.filesystemDialog.path = '/';
-        state.filesystemDialog.title = `${data.name} => ${data.selectAuthCert.username}@远程桌面文件`;
+        state.filesystemDialog.title = `${data.name} => ${data.selectAuthCert.username}@${t('machine.remoteFileDesktopManage')}`;
         state.filesystemDialog.visible = true;
     }
 };
@@ -566,7 +591,7 @@ const showProcess = (row: any) => {
 };
 
 const showRec = (row: any) => {
-    state.machineRecDialog.title = `${row.name}[${row.ip}]-终端回放记录`;
+    state.machineRecDialog.title = `${row.name}[${row.ip}]-${t('machine.terminalPlayback')}`;
     state.machineRecDialog.machineId = row.id;
     state.machineRecDialog.visible = true;
 };
@@ -583,7 +608,7 @@ const showRDP = (row: any, blank = false) => {
         window.open(href, '_blank');
         return;
     }
-    state.machineRdpDialog.title = `${row.name}[${row.ip}]-远程桌面`;
+    state.machineRdpDialog.title = `${row.name}[${row.ip}]-${t('machine.remoteDesktop')}`;
     state.machineRdpDialog.machineId = row.id;
     state.machineRdpDialog.authCert = row.selectAuthCert.name;
     state.machineRdpDialog.visible = true;

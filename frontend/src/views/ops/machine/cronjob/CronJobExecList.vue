@@ -48,13 +48,13 @@ const props = defineProps({
     },
 });
 
-const searchItems = [SearchItem.input('machineCode', '机器编号'), SearchItem.select('status', '状态').withEnum(CronJobExecStatusEnum)];
+const searchItems = [SearchItem.input('machineCode', 'machine.machineCode'), SearchItem.select('status', 'common.status').withEnum(CronJobExecStatusEnum)];
 
 const columns = ref([
-    TableColumn.new('machineCode', '机器编号').isSlot(),
-    TableColumn.new('status', '状态').typeTag(CronJobExecStatusEnum).setMinWidth(70),
-    TableColumn.new('res', '执行结果').setMinWidth(250).canBeautify(),
-    TableColumn.new('execTime', '执行时间').isTime().setMinWidth(150),
+    TableColumn.new('machineCode', 'machine.machineCode').isSlot(),
+    TableColumn.new('status', 'common.status').typeTag(CronJobExecStatusEnum).setMinWidth(70),
+    TableColumn.new('res', 'machine.cronjobExecResult').setMinWidth(250).canBeautify(),
+    TableColumn.new('execTime', 'machine.cronjobExecTime').isTime().setMinWidth(150),
 ]);
 
 const pageTableRef: Ref<any> = ref(null);

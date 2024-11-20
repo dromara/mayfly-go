@@ -46,12 +46,12 @@ func (mi *MachineInfo) GetTunnelId() string {
 
 // 连接
 func (mi *MachineInfo) Conn() (*Cli, error) {
-	logx.Infof("[%s]机器连接：%s:%d", mi.Name, mi.Ip, mi.Port)
+	logx.Infof("the machine[%s] is connecting: %s:%d", mi.Name, mi.Ip, mi.Port)
 
 	// 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
 	err := mi.IfUseSshTunnelChangeIpPort(false)
 	if err != nil {
-		return nil, errorx.NewBiz("ssh隧道连接失败: %s", err.Error())
+		return nil, errorx.NewBiz("ssh tunnel connection failed: %s", err.Error())
 	}
 
 	cli := &Cli{Info: mi}

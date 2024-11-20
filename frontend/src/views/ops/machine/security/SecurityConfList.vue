@@ -1,7 +1,7 @@
 <template>
     <div class="card">
-        <el-tabs v-model="activeName" class="demo-tabs" @tab-change="handleTabChange">
-            <el-tab-pane label="命令配置" :name="CmdConfTab">
+        <el-tabs v-model="activeName" @tab-change="handleTabChange">
+            <el-tab-pane :label="$t('machine.cmdConfig')" :name="CmdConfTab">
                 <CmdConfList />
             </el-tab-pane>
         </el-tabs>

@@ -6,6 +6,7 @@ export default {
     otpVerify: (param: any) => request.post('/auth/accounts/otp-verify', param),
     getPublicKey: () => request.get('/common/public-key'),
     getConfigValue: (params: any) => request.get('/sys/configs/value', params),
+    getServerConf: () => request.get('/sys/configs/server'),
     oauth2LoginConfig: () => request.get('/auth/oauth2-config'),
     changePwd: (param: any) => request.post('/sys/accounts/change-pwd', param),
     captcha: () => request.get('/sys/captcha'),

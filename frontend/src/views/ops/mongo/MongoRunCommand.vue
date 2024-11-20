@@ -1,18 +1,24 @@
 <template>
     <div>
-        <el-dialog width="700px" title="runCommand" v-model="runCmdDialog.visible" :before-close="close" :destroy-on-close="true">
+        <el-dialog width="750px" title="runCommand" v-model="runCmdDialog.visible" :before-close="close" :destroy-on-close="true">
             <el-form label-width="auto">
                 <el-row class="mb10">
                     <el-col :span="12">
-                        <el-form-item label="模板">
-                            <el-select class="w100" @change="changeCmd" filterable v-model="runCmdDialog.cmdName" placeholder="选择命令模板">
+                        <el-form-item :label="$t('mongo.template')">
+                            <el-select
+                                class="w100"
+                                @change="changeCmd"
+                                filterable
+                                v-model="runCmdDialog.cmdName"
+                                :placeholder="$t('mongo.cmdTemplatePlaceholder')"
+                            >
                                 <el-option v-for="item in mongoCmds" :key="item.name" :label="`${item.name} | ${item.description}`" :value="item.name" />
                             </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :span="8">
-                        <el-form-item label="库">
-                            <el-select v-model="runCmdDialog.db" filterable placeholder="选择库">
+                        <el-form-item :label="$t('mongo.db')">
+                            <el-select v-model="runCmdDialog.db" filterable>
                                 <el-option v-for="item in dbs" :key="item.Name" :label="item.Name" :value="item.Name" />
                             </el-select>
                         </el-form-item>
@@ -21,7 +27,7 @@
                         <el-form-item class="ml10">
                             <el-button @click="onRunCommand" type="primary">Run</el-button>
                             <el-tooltip effect="dark" placement="top">
-                                <template #content> 更多命令查看-> https://www.mongodb.com/docs/manual/reference/command/ </template>
+                                <template #content> {{ $t('mongo.moreCmdTips') }}-> https://www.mongodb.com/docs/manual/reference/command/ </template>
                                 <span class="ml10">
                                     <el-icon><InfoFilled /></el-icon>
                                 </span>
@@ -46,8 +52,11 @@
 import { mongoApi } from './api';
 import { watch, defineAsyncComponent, toRefs, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -62,10 +71,10 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:visible']);
 
-const mongoCmds = {
+const mongoCmds: any = {
     usersInfo: {
         name: 'usersInfo',
-        description: '获取用户信息',
+        description: t('mongo.usersInfoDesc'),
         cmd: {
             usersInfo: 1,
             showCredentials: false,
@@ -77,7 +86,7 @@ const mongoCmds = {
     },
     createUser: {
         name: 'createUser',
-        description: '创建新用户',
+        description: t('mongo.createUserDesc'),
         cmd: {
             createUser: '<username>',
             pwd: '<cleartext password>',
@@ -91,7 +100,7 @@ const mongoCmds = {
     },
     grantRolesToUser: {
         name: 'grantRolesToUser',
-        description: '授予对用户的额外角色',
+        description: t('mongo.grantRolesToUserDesc'),
         cmd: {
             grantRolesToUser: '<user>',
             roles: [''],
@@ -99,14 +108,14 @@ const mongoCmds = {
     },
     dropUser: {
         name: 'dropUser',
-        description: '删除用户',
+        description: t('mongo.dropUserDesc'),
         cmd: {
             dropUser: '<user>',
         },
     },
     roleInfo: {
         name: 'roleInfo',
-        description: '获取角色信息',
+        description: t('mongo.roleInfoDesc'),
         cmd: {
             rolesInfo: 1,
             showAuthenticationRestrictions: false,
@@ -116,7 +125,7 @@ const mongoCmds = {
     },
     createRole: {
         name: 'createRole',
-        description: '创建角色',
+        description: t('mongo.createRoleDesc'),
         cmd: {
             createRole: '<new role>',
             privileges: [{ resource: {}, actions: ['<action>'] }],
@@ -177,7 +186,7 @@ const onRunCommand = async () => {
     const cmdObj = JSON.parse(state.runCmdDialog.cmd);
 
     for (let item of Object.keys(cmdObj)) {
-        let obj = {};
+        let obj: any = {};
         obj[item] = cmdObj[item];
         orderCmds.push(obj);
     }
@@ -189,7 +198,7 @@ const onRunCommand = async () => {
         command: orderCmds,
     });
     state.runCmdDialog.cmdRes = JSON.stringify(res, null, 4);
-    ElMessage.success('执行成功');
+    ElMessage.success(t('mongo.runSuccess'));
 };
 </script>
 

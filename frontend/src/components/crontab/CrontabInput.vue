@@ -1,10 +1,10 @@
 <template>
-    <el-input v-model="cron" placeholder="可点击左边按钮配置">
+    <el-input v-model="cron" :placeholder="$t('components.crontab.crontabInputPlaceholder')">
         <template #prepend>
             <el-button @click="showCron = true" icon="Pointer"></el-button>
         </template>
     </el-input>
-    <el-dialog title="生成 cron" v-model="showCron" width="600px">
+    <el-dialog :title="$t('components.crontab.crontabTitle')" v-model="showCron" width="660px">
         <Crontab :expression="cron" @hide="showCron = false" @fill="(ex: any) => (cron = ex)" />
     </el-dialog>
 </template>

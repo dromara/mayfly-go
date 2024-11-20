@@ -10,23 +10,25 @@
             ref="pageTableRef"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
-                <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)" type="danger" icon="delete"
-                    >删除</el-button
-                >
+                <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #action="{ data }">
-                <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>编辑</el-button>
-                <el-button @click="showResources(data)" type="info" link>权限详情</el-button>
-                <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>权限分配</el-button>
+                <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
+                <el-button @click="showResources(data)" type="info" link>{{ $t('system.role.permissionDetail') }}</el-button>
+                <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>
+                    {{ $t('system.role.permissionAllocate') }}
+                </el-button>
                 <el-button
                     v-if="actionBtns[perms.saveAccountRole]"
                     :disabled="data.code?.indexOf('COMMON') == 0"
                     @click="showAccountAllocation(data)"
                     type="success"
                     link
-                    >用户管理</el-button
+                    >{{ $t('system.role.userManage') }}</el-button
                 >
             </template>
         </page-table>
@@ -59,6 +61,10 @@ import { hasPerms } from '@/components/auth/auth';
 import { RoleStatusEnum } from '../enums';
 import { SearchItem } from '@/components/SearchForm';
 import AccountAllocation from './AccountAllocation.vue';
+import { useI18n } from 'vue-i18n';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const perms = {
     addRole: 'role:add',
@@ -68,20 +74,20 @@ const perms = {
     saveAccountRole: 'account:saveRoles',
 };
 
-const searchItems = [SearchItem.input('name', '角色名')];
+const searchItems = [SearchItem.input('name', 'system.role.roleName')];
 const columns = ref([
-    TableColumn.new('name', '角色名称'),
-    TableColumn.new('code', '角色code'),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('status', '状态').typeTag(RoleStatusEnum),
-    TableColumn.new('creator', '创建账号'),
-    TableColumn.new('createTime', '创建时间').isTime(),
-    TableColumn.new('modifier', '更新账号'),
-    TableColumn.new('updateTime', '更新时间').isTime(),
+    TableColumn.new('name', 'system.role.roleName'),
+    TableColumn.new('code', 'system.role.roleCode'),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('status', 'common.status').typeTag(RoleStatusEnum),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('createTime', 'common.createTime').isTime(),
+    TableColumn.new('modifier', 'common.modifier'),
+    TableColumn.new('updateTime', 'common.updateTime').isTime(),
 ]);
 
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource, perms.saveAccountRole]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(290).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(300).fixedRight().noShowOverflowTooltip().alignCenter();
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -98,7 +104,7 @@ const state = reactive({
         defaultCheckedKeys: [],
     },
     roleEditDialog: {
-        title: '角色编辑',
+        title: '',
         visible: false,
         role: {},
     },
@@ -126,14 +132,16 @@ const search = () => {
 };
 
 const roleEditChange = () => {
-    ElMessage.success('修改成功！');
+    useI18nSaveSuccessMsg();
     search();
 };
 
 const editRole = (data: any) => {
     if (data) {
+        state.roleEditDialog.title = useI18nEditTitle('common.role');
         state.roleEditDialog.role = data;
     } else {
+        state.roleEditDialog.title = useI18nCreateTitle('common.role');
         state.roleEditDialog.role = false;
     }
 
@@ -142,19 +150,11 @@ const editRole = (data: any) => {
 
 const deleteRole = async (data: any) => {
     try {
-        await ElMessageBox.confirm(
-            `此操作将删除【${data.map((x: any) => x.name).join(', ')}】该角色，以及与该角色有关的账号角色关联信息和资源角色关联信息, 是否继续?`,
-            '提示',
-            {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                type: 'warning',
-            }
-        );
+        await useI18nDeleteConfirm(data.map((x: any) => x.name).join('、'));
         await roleApi.del.request({
             id: data.map((x: any) => x.id).join(','),
         });
-        ElMessage.success('删除成功！');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //
@@ -165,7 +165,7 @@ const showResources = async (row: any) => {
     state.showResourceDialog.resources = await roleApi.roleResources.request({
         id: row.id,
     });
-    state.showResourceDialog.title = '"' + row.name + '"的菜单&权限';
+    state.showResourceDialog.title = t('system.role.rolePermissionTitle', { name: row.name });
     state.showResourceDialog.visible = true;
 };
 

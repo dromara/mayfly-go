@@ -6,9 +6,9 @@
             </template>
 
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-divider content-position="left">基本</el-divider>
+                <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
 
-                <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签">
+                <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')">
                     <tag-tree-select
                         multiple
                         @change-tag="
@@ -22,12 +22,12 @@
                     />
                 </el-form-item>
 
-                <el-form-item prop="name" label="名称" required>
-                    <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
+                <el-form-item prop="name" :label="$t('common.name')" required>
+                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="type" label="类型" required>
-                    <el-select @change="changeDbType" style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
+                <el-form-item prop="type" :label="$t('common.type')" required>
+                    <el-select @change="changeDbType" style="width: 100%" v-model="form.type">
                         <el-option
                             v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
                             :key="key"
@@ -44,21 +44,21 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="host" required>
+                <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="Host" required>
                     <el-col :span="18">
-                        <el-input v-model.trim="form.host" placeholder="请输入ip" auto-complete="off"></el-input>
+                        <el-input v-model.trim="form.host" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">
-                        <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
+                        <el-input type="number" v-model.number="form.port" :placeholder="$t('db.port')"></el-input>
                     </el-col>
                 </el-form-item>
 
-                <el-form-item v-if="form.type === DbType.sqlite" prop="host" label="sqlite地址">
-                    <el-input v-model.trim="form.host" placeholder="请输入sqlite文件在服务器的绝对地址"></el-input>
+                <el-form-item v-if="form.type === DbType.sqlite" prop="host" label="Path">
+                    <el-input v-model.trim="form.host" :placeholder="$t('db.sqlitePathPlaceholder')"></el-input>
                 </el-form-item>
 
-                <el-form-item v-if="form.type === DbType.oracle" label="SID|服务名">
+                <el-form-item v-if="form.type === DbType.oracle" label="SID|Service">
                     <el-col :span="5">
                         <el-select
                             @change="
@@ -68,24 +68,23 @@
                                 }
                             "
                             v-model="state.extra.stype"
-                            placeholder="请选择"
                         >
-                            <el-option label="服务名" :value="1" />
+                            <el-option label="Service" :value="1" />
                             <el-option label="SID" :value="2" />
                         </el-select>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="18">
-                        <el-input v-if="state.extra.stype == 1" v-model="state.extra.serviceName" placeholder="请输入服务名"> </el-input>
-                        <el-input v-else v-model="state.extra.sid" placeholder="请输入SID"> </el-input>
+                        <el-input v-if="state.extra.stype == 1" v-model="state.extra.serviceName" placeholder="Service Name"> </el-input>
+                        <el-input v-else v-model="state.extra.sid" placeholder="SID"> </el-input>
                     </el-col>
                 </el-form-item>
 
-                <el-form-item prop="remark" label="备注">
+                <el-form-item prop="remark" :label="$t('common.remark')">
                     <el-input v-model="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
 
-                <el-divider content-position="left">账号</el-divider>
+                <el-divider content-position="left">{{ $t('common.account') }}</el-divider>
                 <div>
                     <ResourceAuthCertTableEdit
                         v-model="form.authCerts"
@@ -97,19 +96,19 @@
                     />
                 </div>
 
-                <el-divider content-position="left">其他</el-divider>
-                <el-form-item prop="params" label="连接参数">
-                    <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"> </el-input>
+                <el-divider content-position="left">{{ $t('common.other') }}</el-divider>
+                <el-form-item prop="params" :label="$t('db.connParam')">
+                    <el-input v-model.trim="form.params" :placeholder="$t('db.connParamPlaceholder')"> </el-input>
                 </el-form-item>
 
-                <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
+                <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
                     <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                 </el-form-item>
             </el-form>
 
             <template #footer>
-                <el-button @click="cancel()">取 消</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>
@@ -127,6 +126,10 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -147,35 +150,35 @@ const rules = {
     tagCodePaths: [
         {
             required: true,
-            message: '请选择标签',
+            message: useI18nPleaseSelect('tag.relateTag'),
             trigger: ['change'],
         },
     ],
     name: [
         {
             required: true,
-            message: '请输入别名',
+            message: useI18nPleaseInput('common.name'),
             trigger: ['change', 'blur'],
         },
     ],
     type: [
         {
             required: true,
-            message: '请选择数据库类型',
+            message: useI18nPleaseSelect('common.type'),
             trigger: ['change', 'blur'],
         },
     ],
     host: [
         {
             required: true,
-            message: '请输入主机ip和port',
+            message: useI18nPleaseInput('Host:Port'),
             trigger: ['blur'],
         },
     ],
     sid: [
         {
             required: true,
-            message: '请输入SID',
+            message: useI18nPleaseInput('SID'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -245,30 +248,18 @@ const getReqForm = async () => {
 };
 
 const testConn = async (authCert: any) => {
-    try {
-        await dbForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(dbForm);
     state.submitForm = await getReqForm();
     state.submitForm.authCerts = [authCert];
     await testConnExec();
-    ElMessage.success('连接成功');
+    ElMessage.success(t('db.connSuccess'));
 };
 
 const btnOk = async () => {
-    try {
-        await dbForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(dbForm);
     state.submitForm = await getReqForm();
     await saveInstanceExec();
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     state.form.id = saveInstanceRes as any;
     emit('val-change', state.form);
     cancel();

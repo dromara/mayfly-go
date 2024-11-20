@@ -23,24 +23,32 @@
                     <el-dropdown-item command="small" :disabled="state.disabledSize === 'small'">小型</el-dropdown-item>
                 </el-dropdown-menu>
             </template>
-        </el-dropdown> -->
+</el-dropdown> -->
+
+        <el-dropdown :show-timeout="70" :hide-timeout="50" trigger="click" @command="onLanguageChange">
+            <div class="layout-navbars-breadcrumb-user-icon">
+                <SvgIcon :size="16" :name="EnumValue.getEnumByValue(I18nEnum, themeConfig.globalI18n)?.extra.icon" :title="$t('layout.user.langSwitch')" />
+            </div>
+            <template #dropdown>
+                <el-dropdown-menu>
+                    <el-dropdown-item v-for="item in I18nEnum" :key="item.value" :command="item.value" :disabled="themeConfig.globalI18n === item.value">
+                        {{ item.label }}
+                    </el-dropdown-item>
+                </el-dropdown-menu>
+            </template>
+        </el-dropdown>
+
         <div class="layout-navbars-breadcrumb-user-icon" @click="onSearchClick">
-            <el-icon title="菜单搜索">
-                <search />
-            </el-icon>
+            <SvgIcon name="search" :title="$t('layout.user.menuSearch')" />
         </div>
         <div class="layout-navbars-breadcrumb-user-icon" @click="onLayoutSetingClick">
-            <el-icon title="布局设置">
-                <setting />
-            </el-icon>
+            <SvgIcon name="setting" :title="$t('layout.user.layoutConf')" />
         </div>
         <div class="layout-navbars-breadcrumb-user-icon">
             <el-popover placement="bottom" trigger="click" :visible="state.isShowUserNewsPopover" :width="300" popper-class="el-popover-pupop-user-news">
                 <template #reference>
                     <el-badge :is-dot="false" @click="state.isShowUserNewsPopover = !state.isShowUserNewsPopover">
-                        <el-icon title="消息">
-                            <bell />
-                        </el-icon>
+                        <SvgIcon name="bell" :title="$t('layout.user.news')" />
                     </el-badge>
                 </template>
                 <transition name="el-zoom-in-top">
@@ -49,12 +57,8 @@
             </el-popover>
         </div>
         <div class="layout-navbars-breadcrumb-user-icon mr10" @click="onScreenfullClick">
-            <el-icon v-if="!state.isScreenfull" title="关全屏">
-                <full-screen />
-            </el-icon>
-            <el-icon v-else title="开全屏">
-                <crop />
-            </el-icon>
+            <SvgIcon v-if="!state.isScreenfull" name="full-screen" :title="$t('layout.user.fullScreenOff')" />
+            <SvgIcon v-else name="crop" />
         </div>
         <el-dropdown trigger="click" :show-timeout="70" :hide-timeout="50" @command="onHandleCommandClick">
             <span class="layout-navbars-breadcrumb-user-link" style="cursor: pointer">
@@ -64,9 +68,9 @@
             </span>
             <template #dropdown>
                 <el-dropdown-menu>
-                    <el-dropdown-item command="/home">首页</el-dropdown-item>
-                    <el-dropdown-item command="/personal">个人中心</el-dropdown-item>
-                    <el-dropdown-item divided command="logOut">退出登录</el-dropdown-item>
+                    <el-dropdown-item command="/home">{{ $t('layout.user.index') }}</el-dropdown-item>
+                    <el-dropdown-item command="/personal">{{ $t('layout.user.personalCenter') }}</el-dropdown-item>
+                    <el-dropdown-item divided command="logOut">{{ $t('layout.user.logout') }}</el-dropdown-item>
                 </el-dropdown-menu>
             </template>
         </el-dropdown>
@@ -88,20 +92,23 @@ import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import SearchMenu from '@/layout/navBars/breadcrumb/search.vue';
 import mittBus from '@/common/utils/mitt';
 import openApi from '@/common/openApi';
-import { saveThemeConfig, getThemeConfig } from '@/common/utils/storage';
+import { getThemeConfig } from '@/common/utils/storage';
 import { useDark, usePreferredDark } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
+import { I18nEnum } from '@/common/commonEnum';
+import EnumValue from '@/common/Enum';
 
 const router = useRouter();
 const searchRef = ref();
 const state = reactive({
     isScreenfull: false,
     isShowUserNewsPopover: false,
-    disabledI18n: 'zh-cn',
     disabledSize: '',
 });
 const { userInfo } = storeToRefs(useUserInfo());
 const themeConfigStore = useThemeConfig();
 const { themeConfig } = storeToRefs(themeConfigStore);
+const { t } = useI18n();
 
 // 设置分割样式
 const layoutUserFlexNum = computed(() => {
@@ -111,6 +118,16 @@ const layoutUserFlexNum = computed(() => {
     else num = '';
     return num;
 });
+
+// 页面加载时
+onMounted(() => {
+    const themeConfig = getThemeConfig();
+    if (themeConfig) {
+        initComponentSize();
+        isDark.value = themeConfig.isDark;
+    }
+});
+
 // 全屏点击时
 const onScreenfullClick = () => {
     if (!screenfull.isEnabled) {
@@ -130,16 +147,16 @@ const onHandleCommandClick = (path: string) => {
         ElMessageBox({
             closeOnClickModal: false,
             closeOnPressEscape: false,
-            title: '提示',
-            message: '此操作将退出登录, 是否继续?',
+            title: t('layout.user.logOutTitle'),
+            message: t('layout.user.logOutMessage'),
             showCancelButton: true,
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
+            confirmButtonText: t('common.confirm'),
+            cancelButtonText: t('common.cancel'),
             beforeClose: async (action, instance, done) => {
                 if (action === 'confirm') {
                     await openApi.logout();
                     instance.confirmButtonLoading = true;
-                    instance.confirmButtonText = '退出中';
+                    instance.confirmButtonText = t('layout.user.logOutExit');
                     setTimeout(() => {
                         done();
                         setTimeout(() => {
@@ -156,7 +173,7 @@ const onHandleCommandClick = (path: string) => {
                 resetRoute(); // 删除/重置路由
                 router.push('/login');
                 setTimeout(() => {
-                    ElMessage.success('安全退出成功！');
+                    ElMessage.success(t('layout.user.logoutSuccess'));
                 }, 300);
             })
             .catch(() => {});
@@ -175,7 +192,6 @@ watch(preDark, (newValue) => {
 
 const switchDark = () => {
     themeConfigStore.switchDark(isDark.value);
-    saveThemeConfig(themeConfig.value);
 };
 
 // // 菜单搜索点击
@@ -211,14 +227,10 @@ const initComponentSize = () => {
     }
 };
 
-// 页面加载时
-onMounted(() => {
-    const themeConfig = getThemeConfig();
-    if (themeConfig) {
-        initComponentSize();
-        isDark.value = themeConfig.isDark;
-    }
-});
+// 语言切换
+const onLanguageChange = (lang: string) => {
+    themeConfig.value.globalI18n = lang;
+};
 </script>
 
 <style scoped lang="scss">

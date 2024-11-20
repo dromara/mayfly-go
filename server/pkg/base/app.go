@@ -3,7 +3,6 @@ package base
 import (
 	"context"
 	"fmt"
-	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 
@@ -162,13 +161,13 @@ func (ai *AppImpl[T, R]) CountByCond(cond any) int64 {
 
 // Tx 执行事务操作
 func (ai *AppImpl[T, R]) Tx(ctx context.Context, funcs ...func(context.Context) error) (err error) {
-	tx := contextx.GetTx(ctx)
+	tx := GetTxFromCtx(ctx)
 	dbCtx := ctx
 	var txDb *gorm.DB
 
 	if tx == nil {
 		txDb = global.Db.Begin()
-		dbCtx, tx = contextx.WithTxDb(ctx, txDb)
+		dbCtx, tx = NewCtxWithTxDb(ctx, txDb)
 	} else {
 		txDb = tx.DB
 		tx.Count++

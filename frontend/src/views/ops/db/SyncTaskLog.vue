@@ -2,8 +2,8 @@
     <div class="sync-task-logs">
         <el-dialog v-model="dialogVisible" :before-close="cancel" :destroy-on-close="false" width="1120px">
             <template #header>
-                <span class="mr10">任务执行日志</span>
-                <el-switch v-model="realTime" @change="watchPolling" inline-prompt active-text="实时" inactive-text="非实时" />
+                <span class="mr10">{{ $t('db.log') }}</span>
+                <el-switch v-model="realTime" @change="watchPolling" inline-prompt :active-text="$t('db.realTime')" :inactive-text="$t('db.noRealTime')" />
                 <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml10"></el-button>
             </template>
             <page-table ref="logTableRef" :page-api="dbApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
@@ -33,11 +33,11 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const columns = ref([
     // 状态:1.成功  -1.失败
-    TableColumn.new('status', '状态').alignCenter().typeTag(DbDataSyncLogStatusEnum),
-    TableColumn.new('createTime', '时间').alignCenter().isTime(),
-    TableColumn.new('errText', '日志'),
+    TableColumn.new('status', 'common.status').alignCenter().typeTag(DbDataSyncLogStatusEnum),
+    TableColumn.new('createTime', 'Time').alignCenter().isTime(),
+    TableColumn.new('errText', 'db.log'),
     TableColumn.new('dataSqlFull', 'SQL').alignCenter(),
-    TableColumn.new('resNum', '数据条数'),
+    TableColumn.new('resNum', 'Rows'),
 ]);
 
 watch(dialogVisible, (newValue: any) => {

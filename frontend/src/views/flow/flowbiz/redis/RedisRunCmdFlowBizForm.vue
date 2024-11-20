@@ -1,19 +1,19 @@
 <template>
     <el-form :model="bizForm" ref="formRef" :rules="rules" label-width="auto">
-        <el-form-item prop="id" label="库" required>
+        <el-form-item prop="id" label="DB" required>
             <TagTreeResourceSelect
                 v-bind="$attrs"
                 v-model="selectRedis"
                 @change="changeRedis"
                 :resource-type="TagResourceTypeEnum.Redis.value"
                 :tag-path-node-type="NodeTypeTagPath"
-                placeholder="请选择Redis实例与库"
+                :placeholder="$t('flow.selectRedisPlaceholder')"
             >
             </TagTreeResourceSelect>
         </el-form-item>
 
         <el-form-item prop="cmd" label="CMD" required>
-            <el-input type="textarea" v-model="bizForm.cmd" placeholder="如: SET 'key' 'value'; 多条命令;分割" :rows="5" />
+            <el-input type="textarea" v-model="bizForm.cmd" :placeholder="$t('flow.cmdPlaceholder')" :rows="5" />
         </el-form-item>
     </el-form>
 </template>
@@ -25,19 +25,23 @@ import TagTreeResourceSelect from '@/views/ops/component/TagTreeResourceSelect.v
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { redisApi } from '@/views/ops/redis/api';
 import { sleep } from '@/common/utils/loading';
+import { useI18n } from 'vue-i18n';
+import { useI18nPleaseInput } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const rules = {
     id: [
         {
             required: true,
-            message: '请选择Redis实例',
+            message: t('flow.selectRedisPlaceholder'),
             trigger: ['change', 'blur'],
         },
     ],
     cmd: [
         {
             required: true,
-            message: '请输入执行CMD',
+            message: useI18nPleaseInput('flow.runCmd'),
             trigger: ['change', 'blur'],
         },
     ],

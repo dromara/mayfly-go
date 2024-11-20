@@ -6,11 +6,11 @@
                 <el-breadcrumb-item v-for="(v, k) in state.breadcrumbList" :key="v.meta.title">
                     <span v-if="k === state.breadcrumbList.length - 1" class="layout-navbars-breadcrumb-span">
                         <SvgIcon :name="v.meta.icon" class="layout-navbars-breadcrumb-iconfont" v-if="themeConfig.isBreadcrumbIcon" />
-                        {{ v.meta.title }}
+                        {{ $t(v.meta.title) }}
                     </span>
                     <a v-else @click.prevent="onBreadcrumbClick(v)">
                         <SvgIcon :name="v.meta.icon" class="layout-navbars-breadcrumb-iconfont" v-if="themeConfig.isBreadcrumbIcon" />
-                        {{ v.meta.title }}
+                        {{ $t(v.meta.title) }}
                     </a>
                 </el-breadcrumb-item>
             </transition-group>

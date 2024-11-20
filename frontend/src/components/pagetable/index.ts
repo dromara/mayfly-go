@@ -2,6 +2,7 @@ import EnumValue from '@/common/Enum';
 import { formatDate } from '@/common/utils/format';
 import { getValueByPath } from '@/common/utils/object';
 import { getTextWidth } from '@/common/utils/string';
+import { i18n } from '@/i18n';
 
 export class TableColumn {
     /**
@@ -183,7 +184,7 @@ export class TableColumn {
      */
     isEnum(enums: any): TableColumn {
         this.setFormatFunc((data: any, prop: string) => {
-            return EnumValue.getLabelByValue(enums, getValueByPath(data, prop));
+            return i18n.global.t(EnumValue.getLabelByValue(enums, getValueByPath(data, prop)));
         });
         return this;
     }
@@ -243,7 +244,7 @@ export class TableColumn {
         // 需要加上表格的内间距等，视情况加
         const contentWidth: number = getTextWidth(maxWidthText) + 30;
         // 获取label的宽度，取较大的宽度
-        const columnWidth: number = getTextWidth(label) + 60;
+        const columnWidth: number = getTextWidth(i18n.global.t(label)) + 60;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         // 设置上限与累加需要额外增加的宽度
         this.minWidth = (flexWidth > 400 ? 400 : flexWidth) + this.addWidth;

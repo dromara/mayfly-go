@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/sys/api"
+	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -21,7 +22,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		// 获取个人账号的权限资源信息
 		req.NewGet("/permissions", a.GetPermissions),
 
-		req.NewPost("/change-pwd", a.ChangePassword).DontNeedToken().Log(req.NewLogSave("用户修改密码")),
+		req.NewPost("/change-pwd", a.ChangePassword).DontNeedToken().Log(req.NewLogSaveI(imsg.LogChangePassword)),
 
 		// 获取个人账号信息
 		req.NewGet("/self", a.AccountInfo),
@@ -40,16 +41,16 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		// 根据账号id获取账号基础信息
 		req.NewGet("/:id", a.AccountDetail),
 
-		req.NewPost("", a.SaveAccount).Log(req.NewLogSave("保存账号信息")).RequiredPermission(addAccountPermission),
+		req.NewPost("", a.SaveAccount).Log(req.NewLogSaveI(imsg.LogAccountCreate)).RequiredPermission(addAccountPermission),
 
-		req.NewPut("change-status/:id/:status", a.ChangeStatus).Log(req.NewLogSave("修改账号状态")).RequiredPermission(addAccountPermission),
+		req.NewPut("change-status/:id/:status", a.ChangeStatus).Log(req.NewLogSaveI(imsg.LogAccountChangeStatus)).RequiredPermission(addAccountPermission),
 
-		req.NewPut(":id/reset-otp", a.ResetOtpSecret).Log(req.NewLogSave("重置OTP密钥")).RequiredPermission(addAccountPermission),
+		req.NewPut(":id/reset-otp", a.ResetOtpSecret).Log(req.NewLogSaveI(imsg.LogResetOtpSecret)).RequiredPermission(addAccountPermission),
 
-		req.NewDelete(":id", a.DeleteAccount).Log(req.NewLogSave("删除账号")).RequiredPermissionCode("account:del"),
+		req.NewDelete(":id", a.DeleteAccount).Log(req.NewLogSaveI(imsg.LogAccountDelete)).RequiredPermissionCode("account:del"),
 
 		// 关联用户角色
-		req.NewPost("/roles", a.RelateRole).Log(req.NewLogSave("关联用户角色")).RequiredPermissionCode("account:saveRoles"),
+		req.NewPost("/roles", a.RelateRole).Log(req.NewLogSaveI(imsg.LogAssignUserRoles)).RequiredPermissionCode("account:saveRoles"),
 
 		// 获取用户角色
 		req.NewGet(":id/roles", a.AccountRoles),

@@ -2,34 +2,36 @@
     <div>
         <el-dialog
             @open="searchAccountRoles()"
-            :title="account == null ? '' : '分配“' + account.username + '”的角色'"
+            :title="account == null ? '' : $t('system.account.allocateRoleTitle', { name: account.username })"
             v-model="dialogVisible"
             :before-close="cancel"
             :destroy-on-close="true"
             width="55%"
         >
             <el-tabs style="min-height: 540px" v-model="state.tabName" @tab-change="onTabChange">
-                <el-tab-pane label="已分配" :name="relatedTabName">
+                <el-tab-pane :label="$t('system.account.allocated')" :name="relatedTabName">
                     <page-table
                         ref="relatePageTableRef"
                         :pageable="false"
                         :page-api="accountApi.roles"
-                        v-model:query-form="releateQuery"
+                        v-model:query-form="releateQuery as any"
                         :columns="relatedColumns"
                         :tool-button="false"
                         lazy
                     >
                         <template #tableHeader>
-                            <el-button @click="showResources" icon="view" type="primary" link>用户菜单&权限</el-button>
+                            <el-button @click="showResources" icon="view" type="primary" link>{{ $t('system.account.menuAndPermission') }}</el-button>
                         </template>
 
                         <template #action="{ data }">
-                            <el-button v-auth="'account:saveRoles'" type="danger" @click="relateRole(-1, data.roleId)" icon="delete" link plain>移除</el-button>
+                            <el-button v-auth="'account:saveRoles'" type="danger" @click="relateRole(-1, data.roleId)" icon="delete" link plain>
+                                {{ $t('system.account.remove') }}
+                            </el-button>
                         </template>
                     </page-table>
                 </el-tab-pane>
 
-                <el-tab-pane label="未分配" :name="unRelatedTabName">
+                <el-tab-pane :label="$t('system.account.undistributed')" :name="unRelatedTabName">
                     <page-table
                         ref="unRelatePageTableRef"
                         :page-api="roleApi.list"
@@ -48,7 +50,7 @@
                                 icon="CirclePlus"
                                 link
                                 plain
-                                >分配</el-button
+                                >{{ $t('system.account.allocation') }}</el-button
                             >
                         </template>
                     </page-table>
@@ -65,8 +67,8 @@
                 >
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
-                            <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ node.label }}</span>
-                            <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ node.label }}</span>
+                            <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
+                            <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
                         </span>
                     </template>
                 </el-tree>
@@ -83,6 +85,9 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     account: Object,
@@ -92,21 +97,21 @@ const props = defineProps({
 const emit = defineEmits(['cancel', 'val-change']);
 
 const relatedColumns = [
-    TableColumn.new('roleName', '角色名'),
-    TableColumn.new('code', '角色code'),
-    TableColumn.new('status', '角色状态').typeTag(RoleStatusEnum),
-    TableColumn.new('creator', '分配者'),
-    TableColumn.new('createTime', '分配时间').isTime(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(80).fixedRight().alignCenter(),
+    TableColumn.new('roleName', 'system.role.roleName'),
+    TableColumn.new('code', 'system.role.roleCode'),
+    TableColumn.new('status', 'system.account.roleStatus').typeTag(RoleStatusEnum),
+    TableColumn.new('creator', 'system.account.assigner'),
+    TableColumn.new('createTime', 'system.account.allocateTime').isTime(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(110).fixedRight().noShowOverflowTooltip().alignCenter(),
 ];
 
-const unRelatedSearchItems = [SearchItem.input('name', '角色名'), SearchItem.input('code', '角色code')];
+const unRelatedSearchItems = [SearchItem.input('name', 'system.role.roleName'), SearchItem.input('code', 'system.role.roleCode')];
 const unRelatedColumns = [
-    TableColumn.new('name', '角色名'),
-    TableColumn.new('code', '角色code'),
-    TableColumn.new('status', '角色状态').typeTag(RoleStatusEnum),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(80).fixedRight().alignCenter(),
+    TableColumn.new('name', 'system.role.roleName'),
+    TableColumn.new('code', 'system.role.roleCode'),
+    TableColumn.new('status', 'system.account.roleStatus').typeTag(RoleStatusEnum),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(110).fixedRight().noShowOverflowTooltip().alignCenter(),
 ];
 
 const relatePageTableRef: any = ref(null);
@@ -172,7 +177,7 @@ const relateRole = async (relateType: number, roleId: number) => {
         roleId,
         relateType,
     });
-    ElMessage.success('操作成功');
+    ElMessage.success(t('common.operateSuccess'));
     if (state.tabName == relatedTabName) {
         searchAccountRoles();
     } else {
@@ -183,7 +188,7 @@ const relateRole = async (relateType: number, roleId: number) => {
 
 const showResources = async () => {
     let showResourceDialog = state.showResourceDialog;
-    showResourceDialog.title = '"' + props.account?.username + '" 的菜单&权限';
+    showResourceDialog.title = t('system.account.userMenuTitle', { name: props.account?.username });
     showResourceDialog.resources = [];
     showResourceDialog.resources = await accountApi.resources.request({
         id: props.account?.id,

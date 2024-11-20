@@ -22,7 +22,7 @@
             >
                 <el-table-column type="selection" width="30" />
 
-                <el-table-column prop="name" label="名称" min-width="380">
+                <el-table-column prop="name" :label="$t('common.name')" min-width="380">
                     <template #header>
                         <div class="machine-file-table-header">
                             <div>
@@ -39,7 +39,7 @@
                                             circle
                                             size="small"
                                             icon="Upload"
-                                            title="上传"
+                                            :title="$t('machine.upload')"
                                         ></el-button>
                                     </span>
                                     <template #dropdown>
@@ -55,13 +55,13 @@
                                                     name="file"
                                                     class="machine-file-upload-exec"
                                                 >
-                                                    <el-link>文件</el-link>
+                                                    <el-link>{{ $t('machine.file') }}</el-link>
                                                 </el-upload>
                                             </el-dropdown-item>
 
                                             <el-dropdown-item>
                                                 <div>
-                                                    <el-link @click="addFinderToList">文件夹</el-link>
+                                                    <el-link @click="addFinderToList">{{ $t('machine.folder') }}</el-link>
                                                     <input
                                                         type="file"
                                                         id="folderUploadInput"
@@ -86,7 +86,7 @@
                                     circle
                                     size="small"
                                     icon="CopyDocument"
-                                    title="复制"
+                                    :title="$t('machine.copy')"
                                 >
                                 </el-button>
 
@@ -99,7 +99,7 @@
                                     circle
                                     size="small"
                                     icon="Rank"
-                                    title="移动"
+                                    :title="$t('machine.move')"
                                 >
                                 </el-button>
 
@@ -111,7 +111,7 @@
                                     circle
                                     size="small"
                                     icon="FolderAdd"
-                                    title="新建"
+                                    :title="$t('common.create')"
                                 >
                                 </el-button>
 
@@ -124,7 +124,7 @@
                                     circle
                                     size="small"
                                     icon="delete"
-                                    title="删除"
+                                    :title="$t('common.delete')"
                                 >
                                 </el-button>
 
@@ -134,8 +134,9 @@
                                             <div v-for="path in state.copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
                                         </template>
 
-                                        <el-button @click="pasteFile" type="primary"
-                                            >{{ isCpFile() ? '复制' : '移动' }}粘贴{{ state.copyOrMvFile.paths.length }}</el-button
+                                        <el-button @click="pasteFile" type="primary">
+                                            {{ isCpFile() ? $t('machine.copy') : $t('machine.move') }}
+                                            {{ $t('machine.paste') }}{{ state.copyOrMvFile.paths.length }}</el-button
                                         >
                                     </el-tooltip>
 
@@ -144,7 +145,7 @@
                             </div>
 
                             <div style="width: 150px">
-                                <el-input v-model="fileNameFilter" size="small" placeholder="名称: 输入可过滤" clearable />
+                                <el-input v-model="fileNameFilter" size="small" :placeholder="$t('machine.fileNameFilterPlaceholder')" clearable />
                             </div>
                         </div>
                     </template>
@@ -171,32 +172,46 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="size" label="大小" min-width="90" sortable>
+                <el-table-column prop="size" label="Size" min-width="90" sortable>
                     <template #default="scope">
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == '-'"> {{ formatByteSize(scope.row.size) }} </span>
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && scope.row.dirSize"> {{ scope.row.dirSize }} </span>
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && !scope.row.dirSize">
-                            <el-button @click="getDirSize(scope.row)" type="primary" link :loading="scope.row.loadingDirSize">计算</el-button>
+                            <el-button @click="getDirSize(scope.row)" type="primary" link :loading="scope.row.loadingDirSize">
+                                {{ $t('machine.calculate') }}
+                            </el-button>
                         </span>
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="mode" label="属性" width="110"> </el-table-column>
-                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" prop="username" label="用户" min-width="55" show-overflow-tooltip>
+                <el-table-column prop="mode" :label="$t('machine.attribute')" width="110"> </el-table-column>
+                <el-table-column
+                    v-if="$props.protocol == MachineProtocolEnum.Ssh.value"
+                    prop="username"
+                    :label="$t('machine.user')"
+                    min-width="55"
+                    show-overflow-tooltip
+                >
                 </el-table-column>
-                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" prop="groupname" label="组" min-width="55" show-overflow-tooltip>
+                <el-table-column
+                    v-if="$props.protocol == MachineProtocolEnum.Ssh.value"
+                    prop="groupname"
+                    :label="$t('machine.group')"
+                    min-width="55"
+                    show-overflow-tooltip
+                >
                 </el-table-column>
-                <el-table-column prop="modTime" label="修改时间" width="160" sortable> </el-table-column>
+                <el-table-column prop="modTime" :label="$t('machine.modificationTime')" width="160" sortable> </el-table-column>
 
-                <el-table-column width="100">
+                <el-table-column :width="130">
                     <template #header>
                         <el-popover placement="top" :width="270" trigger="hover">
                             <template #reference>
                                 <SvgIcon name="QuestionFilled" :size="18" class="pointer-icon mr10" />
                             </template>
-                            <div>rename: 双击文件名单元格修改后回车</div>
+                            <div>{{ $t('machine.renameTips') }}</div>
                         </el-popover>
-                        操作
+                        {{ $t('common.operation') }}
                     </template>
                     <template #default="scope">
                         <el-link
@@ -206,7 +221,7 @@
                             type="danger"
                             icon="delete"
                             :underline="false"
-                            title="删除"
+                            :title="$t('common.delete')"
                         ></el-link>
 
                         <el-link
@@ -217,10 +232,16 @@
                             icon="download"
                             :underline="false"
                             class="ml10"
-                            title="下载"
+                            :title="$t('machine.download')"
                         ></el-link>
 
-                        <el-popover placement="top-start" :title="`${scope.row.path}-文件详情`" :width="520" trigger="click" @show="showFileStat(scope.row)">
+                        <el-popover
+                            placement="top-start"
+                            :title="`${scope.row.path} - ${$t('machine.fileDetail')}`"
+                            :width="520"
+                            trigger="click"
+                            @show="showFileStat(scope.row)"
+                        >
                             <template #reference>
                                 <span style="color: #67c23a; font-weight: bold">
                                     <el-link
@@ -242,7 +263,7 @@
 
         <el-dialog
             :destroy-on-close="true"
-            title="新建文件"
+            :title="$t('machine.createFile')"
             v-model="createFileDialog.visible"
             :before-close="closeCreateFileDialog"
             :close-on-click-modal="false"
@@ -250,21 +271,21 @@
             width="400px"
         >
             <div>
-                <el-form-item prop="name" label="名称">
-                    <el-input v-model.trim="createFileDialog.name" placeholder="请输入名称" auto-complete="off"></el-input>
+                <el-form-item prop="name" :label="$t('common.name')">
+                    <el-input v-model.trim="createFileDialog.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item prop="type" label="类型">
+                <el-form-item prop="type" :label="$t('common.type')">
                     <el-radio-group v-model="createFileDialog.type">
-                        <el-radio value="d" label="d">文件夹</el-radio>
-                        <el-radio value="-" label="-">文件</el-radio>
+                        <el-radio value="d" label="d">{{ $t('machine.file') }}</el-radio>
+                        <el-radio value="-" label="-">{{ $t('machine.folder') }}</el-radio>
                     </el-radio-group>
                 </el-form-item>
             </div>
 
             <template #footer>
                 <div>
-                    <el-button @click="closeCreateFileDialog">关闭</el-button>
-                    <el-button v-auth="'machine:file:write'" type="primary" @click="createFile">确定</el-button>
+                    <el-button @click="closeCreateFileDialog">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'machine:file:write'" type="primary" @click="createFile">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -294,6 +315,10 @@ import { convertToBytes, formatByteSize } from '@/common/utils/format';
 import { getMachineConfig } from '@/common/sysconfig';
 import { MachineProtocolEnum } from '../enums';
 import { fuzzyMatchField } from '@/common/utils/string';
+import { useI18n } from 'vue-i18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     machineId: { type: Number },
@@ -437,7 +462,7 @@ const setCopyOrMvFile = (files: any[], type = 'cp') => {
 
 const pasteFile = async () => {
     const cmFile = state.copyOrMvFile;
-    isTrue(state.nowPath != cmFile.fromPath, '同目录下不能粘贴');
+    isTrue(state.nowPath != cmFile.fromPath, t('machine.sameDirNoPaste'));
     const api = isCpFile() ? machineApi.cpFile : machineApi.mvFile;
     try {
         state.loading = true;
@@ -449,7 +474,7 @@ const pasteFile = async () => {
             toPath: state.nowPath,
             protocol: props.protocol,
         });
-        ElMessage.success('粘贴成功');
+        ElMessage.success(t('machine.pasteSuccess'));
         state.copyOrMvFile.paths = [];
         refresh();
     } finally {
@@ -484,7 +509,7 @@ const fileRename = async (row: any) => {
         row.nameEdit = false;
         return;
     }
-    notBlank(row.name, '新名称不能为空');
+    notBlank(row.name, t('machine.newFileNameNotEmpty'));
     try {
         await machineApi.renameFile.request({
             machineId: parseInt(props.machineId + ''),
@@ -494,7 +519,7 @@ const fileRename = async (row: any) => {
             newname: state.nowPath + pathSep + row.name,
             protocol: props.protocol,
         });
-        ElMessage.success('重命名成功');
+        ElMessage.success(t('machine.renameSuccess'));
         await refresh();
     } catch (e) {
         row.name = state.renameFile.oldname;
@@ -512,7 +537,7 @@ const getFile = async (row: any) => {
     if (row.type == folderType) {
         await setFiles(row.path);
     } else {
-        isTrue(row.size < 1 * 1024 * 1024, '文件太大, 请下载使用');
+        isTrue(row.size < 1 * 1024 * 1024, t('machine.fileTooLargeTips'));
         await showFileContent(row.path);
     }
 };
@@ -711,11 +736,7 @@ function getParentPath(filePath: string) {
 
 const deleteFile = async (files: any) => {
     try {
-        await ElMessageBox.confirm(`此操作将删除 ${files.map((x: any) => `[${x.path}]`).join('\n')}, 是否继续?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(files.map((x: any) => `[${x.path}]`).join('\n'));
         state.loading = true;
         await machineApi.rmFile.request({
             fileId: props.fileId,
@@ -724,7 +745,7 @@ const deleteFile = async (files: any) => {
             authCertName: props.authCertName,
             protocol: props.protocol,
         });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         refresh();
     } catch (e) {
         //
@@ -779,7 +800,7 @@ function uploadFolder(e: any) {
                 timeout: 3 * 60 * 60 * 1000,
             })
             .then(() => {
-                ElMessage.success('上传成功');
+                ElMessage.success(t('machine.uploadSuccess'));
                 setTimeout(() => {
                     refresh();
                     state.uploadProgressShow = false;
@@ -822,7 +843,7 @@ const uploadFile = (content: any) => {
             timeout: 3 * 60 * 60 * 1000,
         })
         .then(() => {
-            ElMessage.success('上传成功');
+            ElMessage.success(t('machine.uploadSuccess'));
             setTimeout(() => {
                 refresh();
                 state.uploadProgressShow = false;
@@ -846,7 +867,7 @@ const beforeUpload = (file: File) => {
 const checkUploadFileSize = (fileSize: number) => {
     const bytes = convertToBytes(state.machineConfig.uploadMaxFileSize);
     if (fileSize > bytes) {
-        ElMessage.error(`上传的文件超过系统配置的[${state.machineConfig.uploadMaxFileSize}]`);
+        ElMessage.error(t('machine.fileExceedsSysConf', { uploadMaxFileSize: state.machineConfig.uploadMaxFileSize }));
         return false;
     }
     return true;

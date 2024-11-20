@@ -4,22 +4,22 @@
             <el-tree style="height: 50vh; overflow: auto" :data="resources" node-key="id" :props="defaultProps">
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
-                        <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ node.label }}</span>
-                        <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ node.label }}</span>
+                        <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
+                        <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
 
-                        <el-popover :show-after="500" placement="right-start" title="资源分配信息" trigger="hover" :width="200">
+                        <el-popover :show-after="500" placement="right-start" :title="$t('system.role.permissionInfo')" trigger="hover" :width="300">
                             <template #reference>
                                 <el-link style="margin-left: 25px" icon="InfoFilled" type="info" :underline="false" />
                             </template>
                             <template #default>
                                 <el-descriptions :column="1" size="small">
-                                    <el-descriptions-item label="资源名称">
-                                        {{ data.name }}
+                                    <el-descriptions-item :label="$t('common.name')">
+                                        {{ $t(data.name) }}
                                     </el-descriptions-item>
-                                    <el-descriptions-item label="分配账号">
+                                    <el-descriptions-item :label="$t('system.role.assigner')">
                                         {{ data.creator }}
                                     </el-descriptions-item>
-                                    <el-descriptions-item label="分配时间">
+                                    <el-descriptions-item :label="$t('system.role.allocateTime')">
                                         {{ formatDate(data.createTime) }}
                                     </el-descriptions-item>
                                 </el-descriptions>

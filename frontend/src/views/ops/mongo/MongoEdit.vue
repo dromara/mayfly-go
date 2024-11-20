@@ -1,10 +1,10 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" width="38%" :destroy-on-close="true">
-            <el-form :model="form" ref="mongoForm" :rules="rules" label-width="85px">
+            <el-form :model="form" ref="mongoForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
-                    <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签" required>
+                    <el-tab-pane :label="$t('common.basic')" name="basic">
+                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')" required>
                             <tag-tree-select
                                 @change-tag="
                                     (tagCodePaths) => {
@@ -18,22 +18,22 @@
                             />
                         </el-form-item>
 
-                        <el-form-item prop="name" label="名称" required>
-                            <el-input v-model.trim="form.name" placeholder="请输入名称" auto-complete="off"></el-input>
+                        <el-form-item prop="name" :label="$t('common.name')" required>
+                            <el-input v-model.trim="form.name" auto-complete="off"></el-input>
                         </el-form-item>
                         <el-form-item prop="uri" label="uri" required>
                             <el-input
                                 type="textarea"
                                 :rows="2"
                                 v-model.trim="form.uri"
-                                placeholder="形如 mongodb://username:password@host1:port1"
+                                placeholder="mongodb://username:password@host1:port1"
                                 auto-complete="off"
                             ></el-input>
                         </el-form-item>
                     </el-tab-pane>
 
-                    <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
+                    <el-tab-pane :label="$t('common.other')" name="other">
+                        <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                         </el-form-item>
                     </el-tab-pane>
@@ -42,9 +42,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -57,6 +57,10 @@ import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -77,21 +81,21 @@ const rules = {
     tagCodePaths: [
         {
             required: true,
-            message: '请选择标签',
+            message: useI18nPleaseSelect('tag.relateTag'),
             trigger: ['change', 'blur'],
         },
     ],
     name: [
         {
             required: true,
-            message: '请输入名称',
+            message: useI18nPleaseInput('common.name'),
             trigger: ['change', 'blur'],
         },
     ],
     uri: [
         {
             required: true,
-            message: '请输入mongo uri',
+            message: useI18nPleaseInput('mongo.connUrl'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -143,28 +147,17 @@ const getReqForm = () => {
 };
 
 const testConn = async () => {
-    try {
-        await mongoForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
+    await useI18nFormValidate(mongoForm);
     state.submitForm = getReqForm();
     await testConnExec();
-    ElMessage.success('连接成功');
+    ElMessage.success(t('ac.connSuccess'));
 };
 
 const btnOk = async () => {
-    try {
-        await mongoForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(mongoForm);
     state.submitForm = getReqForm();
     await saveMongoExec();
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     emit('val-change', state.form);
     cancel();
 };

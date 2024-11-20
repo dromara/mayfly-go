@@ -1,22 +1,29 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :search-items="searchItems" :page-api="configApi.list" :columns="columns" v-model:query-form="query">
+        <page-table
+            ref="pageTableRef"
+            :search-items="searchItems"
+            :page-api="configApi.list"
+            :columns="columns"
+            v-model:query-form="query"
+            :data-handler-fn="handleData"
+        >
             <template #tableHeader>
-                <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
+                <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">{{ $t('common.create') }}</el-button>
             </template>
 
             <template #status="{ data }">
-                <el-tag v-if="data.status == 1" type="success">正常</el-tag>
-                <el-tag v-if="data.status == -1" type="danger">禁用</el-tag>
+                <el-tag v-if="data.status == 1" type="success">{{ $t('common.enable') }}</el-tag>
+                <el-tag v-if="data.status == -1" type="danger">{{ $t('common.disable') }}</el-tag>
             </template>
 
             <template #action="{ data }">
-                <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)" link>配置</el-button>
-                <el-button v-if="actionBtns[perms.saveConfig]" @click="editConfig(data)" type="primary" link>编辑 </el-button>
+                <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)" link>{{ $t('system.sysconf.conf') }}</el-button>
+                <el-button v-if="actionBtns[perms.saveConfig]" @click="editConfig(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
-        <el-dialog @close="closeSetConfigDialog" title="配置项设置" v-model="paramsDialog.visible" width="600px">
+        <el-dialog @close="closeSetConfigDialog" :title="$t('system.sysconf.confItemSetting')" v-model="paramsDialog.visible" width="700px">
             <dynamic-form
                 ref="paramsFormRef"
                 v-if="paramsDialog.paramsFormItem.length > 0"
@@ -25,20 +32,20 @@
             />
 
             <el-form v-else ref="paramsFormRef" label-width="auto">
-                <el-form-item label="配置值" required>
+                <el-form-item :label="$t('system.sysconf.confValue')" required>
                     <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off" clearable></el-input>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="closeSetConfigDialog()">取 消</el-button>
-                    <el-button v-auth="'config:save'" type="primary" @click="setConfig()">确 定</el-button>
+                    <el-button @click="closeSetConfigDialog()">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'config:save'" type="primary" @click="setConfig()">{{ $t('common.confirm') }}</el-button>
                 </span>
             </template>
         </el-dialog>
 
-        <config-edit :title="configEdit.title" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="configEditChange" />
+        <config-edit :title="$t(configEdit.title)" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="configEditChange" />
     </div>
 </template>
 
@@ -52,22 +59,26 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { DynamicForm } from '@/components/dynamic-form';
 import { SearchItem } from '@/components/SearchForm';
+import { useI18n } from 'vue-i18n';
+import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const perms = {
     saveConfig: 'config:save',
 };
 
-const searchItems = [SearchItem.input('key', '配置key')];
+const searchItems = [SearchItem.input('key', 'system.sysconf.confKey')];
 
 const columns = ref([
-    TableColumn.new('name', '配置项'),
-    TableColumn.new('key', '配置key'),
-    TableColumn.new('value', '配置值').canBeautify(),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('modifier', '更新账号'),
-    TableColumn.new('updateTime', '更新时间').isTime(),
+    TableColumn.new('i18nName', 'system.sysconf.confItem'),
+    TableColumn.new('key', 'system.sysconf.confKey'),
+    TableColumn.new('value', 'system.sysconf.confValue').canBeautify(),
+    TableColumn.new('i18nRemark', 'common.remark'),
+    TableColumn.new('modifier', 'common.modifier'),
+    TableColumn.new('updateTime', 'common.updateTime').isTime(),
 ]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
 const actionBtns = hasPerms([perms.saveConfig]);
 
 const pageTableRef: Ref<any> = ref(null);
@@ -87,7 +98,7 @@ const state = reactive({
         paramsFormItem: [] as any,
     },
     configEdit: {
-        title: '配置修改',
+        title: 'common.edit',
         visible: false,
         config: {},
     },
@@ -103,6 +114,16 @@ onMounted(() => {
 
 const search = async () => {
     pageTableRef.value.search();
+};
+
+const handleData = (res: any) => {
+    const dataList = res.list;
+    // 内容国际化
+    for (let x of dataList) {
+        x.i18nName = t(x.name);
+        x.i18nRemark = t(x.remark);
+    }
+    return res;
 };
 
 const showSetConfigDialog = (row: any) => {
@@ -133,7 +154,7 @@ const closeSetConfigDialog = () => {
 };
 
 const setConfig = async () => {
-    let paramsValue = state.paramsDialog.params;
+    let paramsValue: any = state.paramsDialog.params;
     if (state.paramsDialog.paramsFormItem.length > 0) {
         await paramsFormRef.value.validate((valid: boolean) => {
             if (!valid) {
@@ -161,7 +182,7 @@ const setConfig = async () => {
         name: state.paramsDialog.config.name,
         value: paramsValue,
     });
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     closeSetConfigDialog();
     search();
 };
@@ -176,14 +197,16 @@ const hasParam = (paramKey: string, paramItems: any) => {
 };
 
 const configEditChange = () => {
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     search();
 };
 
 const editConfig = (data: any) => {
     if (data) {
+        state.configEdit.title = 'common.edit';
         state.configEdit.config = data;
     } else {
+        state.configEdit.title = 'common.create';
         state.configEdit.config = false;
     }
 

@@ -1,6 +1,6 @@
 <template>
     <el-select v-bind="$attrs" v-model="modelValue">
-        <el-option v-for="item in props.enums" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+        <el-option v-for="item in props.enums" :key="item.value" :label="$t(item.label)" :value="item.value"> </el-option>
     </el-select>
 </template>
 

@@ -16,7 +16,7 @@
                 :is="`el-option`"
                 v-for="(col, index) in item.options"
                 :key="index"
-                :label="col[fieldNames.label]"
+                :label="$t(col[fieldNames.label])"
                 :value="col[fieldNames.value]"
             ></component>
         </template>
@@ -28,6 +28,9 @@
 <script setup lang="ts" name="SearchFormItem">
 import { computed } from 'vue';
 import { SearchItem } from '../index';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 interface SearchFormItemProps {
     item: SearchItem;
@@ -70,7 +73,7 @@ const handleEvents = computed(() => {
 // 处理默认 placeholder
 const placeholder = computed(() => {
     const search = props.item;
-    const label = search.label;
+    const label = t(search.label);
     if (['datetimerange', 'daterange', 'monthrange'].includes(search?.props?.type) || search?.props?.isRange) {
         return {
             rangeSeparator: search?.props?.rangeSeparator ?? '至',
@@ -78,7 +81,9 @@ const placeholder = computed(() => {
             endPlaceholder: search?.props?.endPlaceholder ?? '结束时间',
         };
     }
-    const placeholder = search?.props?.placeholder ?? (search?.type?.includes('input') ? `请输入${label}` : `请选择${label}`);
-    return { placeholder };
+
+    const placeholder =
+        search?.props?.placeholder ?? (search?.type?.includes('input') ? t('common.pleaseInput', { label }) : t('common.pleaseSelect', { label }));
+    return { placeholder: t(placeholder) };
 });
 </script>

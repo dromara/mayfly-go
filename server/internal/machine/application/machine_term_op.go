@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
@@ -67,7 +68,7 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 
 		fileKey, wc, saveFileFunc, err := m.fileApp.NewWriter(ctx, "", fmt.Sprintf("mto_%d_%s.cast", termOpRecord.MachineId, timex.TimeNo()))
 		if err != nil {
-			return errorx.NewBiz("创建终端回放记录文件失败: %s", err.Error())
+			return errorx.NewBiz("failed to create a terminal playback log file: %v", err)
 		}
 		defer saveFileFunc(&err)
 
@@ -90,7 +91,7 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) error {
 			for _, cmdConf := range cmdConfs {
 				if cmdConf.CmdRegexp.Match([]byte(cmd)) {
-					return errorx.NewBiz("该命令已被禁用...")
+					return errorx.NewBizI(ctx, imsg.TerminalCmdDisable)
 				}
 			}
 			return nil
@@ -119,7 +120,7 @@ func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, page
 }
 
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
-	logx.Debug("开始定时删除机器终端回放记录...")
+	logx.Debug("start deleting machine terminal playback records every hour...")
 	scheduler.AddFun("@every 60m", func() {
 		startDate := time.Now().AddDate(0, 0, -config.GetMachine().TermOpSaveDays)
 		cond := &entity.MachineTermOpQuery{
@@ -132,7 +133,7 @@ func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 
 		for _, termOp := range termOps {
 			if err := m.DeleteTermOp(termOp); err != nil {
-				logx.Warnf("删除终端操作记录失败: %s", err.Error())
+				logx.Warnf("failed to delete terminal playback record: %s", err.Error())
 			}
 		}
 	})

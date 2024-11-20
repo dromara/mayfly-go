@@ -1,8 +1,8 @@
 <template>
     <el-form :model="bizForm" ref="formRef" :rules="rules" label-width="auto">
-        <el-form-item prop="dbId" label="数据库" required>
+        <el-form-item prop="dbId" :label="$t('tag.db')" required>
             <db-select-tree
-                placeholder="请选择数据库"
+                :placeholder="$t('flow.selectDbPlaceholder')"
                 v-model:db-id="bizForm.dbId"
                 v-model:db-name="bizForm.dbName"
                 v-model:db-type="dbType"
@@ -24,19 +24,23 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { useI18n } from 'vue-i18n';
+import { useI18nPleaseInput } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const rules = {
     dbId: [
         {
             required: true,
-            message: '请选择数据库',
+            message: t('flow.selectDbPlaceholder'),
             trigger: ['change', 'blur'],
         },
     ],
     sql: [
         {
             required: true,
-            message: '请输入执行SQL',
+            message: useI18nPleaseInput('flow.runSql'),
             trigger: ['change', 'blur'],
         },
     ],

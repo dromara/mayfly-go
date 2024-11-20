@@ -25,7 +25,7 @@
         :clearable="false"
         type="Date"
         value-format="YYYY-MM-DD"
-        :placeholder="`选择日期-${placeholder}`"
+        :placeholder="`date-${placeholder}`"
     />
 
     <el-date-picker
@@ -41,7 +41,7 @@
         :clearable="false"
         type="datetime"
         value-format="YYYY-MM-DD HH:mm:ss"
-        :placeholder="`选择日期时间-${placeholder}`"
+        :placeholder="`datetime-${placeholder}`"
     />
 
     <el-time-picker
@@ -56,7 +56,7 @@
         v-model="itemValue"
         :clearable="false"
         value-format="HH:mm:ss"
-        :placeholder="`选择时间-${placeholder}`"
+        :placeholder="`time-${placeholder}`"
     />
 </template>
 
@@ -66,6 +66,9 @@ import { ElInput, ElMessage } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 export interface ColumnFormItemProps {
     modelValue: string | number; // 绑定的值
@@ -98,7 +101,7 @@ const openEditor = () => {
     let editorLang = getEditorLangByValue(itemValue.value);
     MonacoEditorDialog({
         content: itemValue.value,
-        title: `编辑字段 [${props.columnName}]`,
+        title: `${t('db.editField')} [${props.columnName}]`,
         language: editorLang,
         confirmFn: (newVal: any) => {
             itemValue.value = newVal;
@@ -118,7 +121,7 @@ const handleBlur = () => {
         return;
     }
     if (props.dataType == DataType.Number && itemValue.value && !/^-?\d*\.?\d+$/.test(itemValue.value)) {
-        ElMessage.error('输入内容与类型不匹配');
+        ElMessage.error(t('db.valueTypeNoMatch'));
         return;
     }
     emit('update:modelValue', itemValue.value);

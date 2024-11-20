@@ -114,7 +114,7 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 		if e != nil {
 			err := *e
 			if err != nil {
-				logx.Errorf("写入文件业务逻辑处理失败: %s", err.Error())
+				logx.Errorf("the write file business logic failed: %s", err.Error())
 				// 删除已经创建的文件
 				f.remove(ctx, file)
 				return err
@@ -133,7 +133,7 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 func (f *fileAppImpl) GetReader(ctx context.Context, fileKey string) (string, io.ReadCloser, error) {
 	file := &entity.File{FileKey: fileKey}
 	if err := f.GetByCond(file); err != nil {
-		return "", nil, errorx.NewBiz("文件不存在")
+		return "", nil, errorx.NewBiz("file not found")
 	}
 	r, err := os.Open(filepath.Join(config.GetFileConfig().BasePath, file.Path))
 	return file.Filename, r, err
@@ -142,7 +142,7 @@ func (f *fileAppImpl) GetReader(ctx context.Context, fileKey string) (string, io
 func (f *fileAppImpl) Remove(ctx context.Context, fileKey string) error {
 	file := &entity.File{FileKey: fileKey}
 	if err := f.GetByCond(file); err != nil {
-		return errorx.NewBiz("文件不存在")
+		return errorx.NewBiz("file not found")
 	}
 	f.DeleteById(ctx, file.Id)
 	return f.remove(ctx, file)
@@ -172,7 +172,7 @@ func (f *fileAppImpl) newWriter(filename string) (string, io.WriteCloser, error)
 
 func (f *fileAppImpl) remove(ctx context.Context, file *entity.File) error {
 	if err := os.Remove(filepath.Join(config.GetFileConfig().BasePath, file.Path)); err != nil {
-		logx.ErrorfContext(ctx, "删除旧文件[%s] 失败: %s", file.Path, err.Error())
+		logx.ErrorfContext(ctx, "failed to delete old file [%s]: %s", file.Path, err.Error())
 		return err
 	}
 	return nil

@@ -1,26 +1,26 @@
 <template>
     <div>
         <el-descriptions :column="3" border>
-            <el-descriptions-item :span="3" label="标签"><TagCodePath :path="db.codePaths" /></el-descriptions-item>
+            <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="db.codePaths" /></el-descriptions-item>
 
-            <el-descriptions-item :span="1" label="名称">{{ db?.name }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="主机">
+            <el-descriptions-item :span="1" :label="$t('common.name')">{{ db?.name }}</el-descriptions-item>
+            <el-descriptions-item :span="1" label="Host">
                 <SvgIcon :name="getDbDialect(db?.type).getInfo().icon" :size="20" />
                 {{ `${db?.host}:${db?.port}` }}
             </el-descriptions-item>
-            <el-descriptions-item :span="1" label="数据库">{{ dbName }}</el-descriptions-item>
+            <el-descriptions-item :span="1" :label="$t('tag.db')">{{ dbName }}</el-descriptions-item>
 
-            <el-descriptions-item label="执行SQL">
+            <el-descriptions-item :label="$t('flow.runSql')">
                 <monaco-editor height="300px" language="sql" v-model="sql" :options="{ readOnly: true }" />
             </el-descriptions-item>
         </el-descriptions>
 
         <div v-if="runRes && runRes.length > 0">
-            <el-divider content-position="left">处理结果</el-divider>
+            <el-divider content-position="left">{{ $t('flow.handleResult') }}</el-divider>
             <el-table :data="runRes" :max-height="400">
                 <el-table-column prop="sql" label="SQL" show-overflow-tooltip />
 
-                <el-table-column prop="res" label="执行结果" :min-width="30" show-overflow-tooltip>
+                <el-table-column prop="res" :label="$t('flow.runResult')" :min-width="30" show-overflow-tooltip>
                     <template #default="scope">
                         <el-popover placement="top" :width="400" trigger="hover">
                             <template #reference>

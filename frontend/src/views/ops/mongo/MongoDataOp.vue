@@ -10,16 +10,16 @@
                 >
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == MongoNodeType.Mongo">
-                            <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
+                            <el-popover :show-after="500" placement="right-start" :title="$t('common.detail')" trigger="hover" :width="250">
                                 <template #reference>
                                     <SvgIcon name="iconfont icon-op-mongo" :size="18" />
                                 </template>
                                 <template #default>
                                     <el-descriptions :column="1" size="small">
-                                        <el-descriptions-item label="名称">
+                                        <el-descriptions-item :label="$t('common.name')">
                                             {{ data.params.name }}
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="链接">
+                                        <el-descriptions-item label="url">
                                             {{ data.params.uri }}
                                         </el-descriptions-item>
                                     </el-descriptions>
@@ -87,10 +87,10 @@
                                         <el-input
                                             ref="findParamInputRef"
                                             v-model="dt.findParamStr"
-                                            placeholder="点击输入相应查询条件"
+                                            :placeholder="$t('mongo.queryParamPlaceholder')"
                                             @focus="showFindDialog(dt.key)"
                                         >
-                                            <template #prepend>查询参数</template>
+                                            <template #prepend>{{ $t('mongo.queryParam') }}</template>
                                         </el-input>
                                     </el-col>
                                 </el-row>
@@ -105,7 +105,7 @@
 
                                                         <el-divider direction="vertical" border-style="dashed" />
 
-                                                        <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
+                                                        <el-popconfirm @confirm="onDeleteDoc(item.value)" :title="$t('mongo.deleteDocConfirm')" width="160">
                                                             <template #reference>
                                                                 <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete">
                                                                 </el-link>
@@ -124,7 +124,7 @@
             </Pane>
         </Splitpanes>
 
-        <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
+        <el-dialog width="600px" title="find params" v-model="findDialog.visible">
             <el-form label-width="auto">
                 <el-form-item label="filter">
                     <monaco-editor style="width: 100%" height="150px" ref="monacoEditorRef" v-model="findDialog.findParam.filter" language="json" />
@@ -141,23 +141,23 @@
             </el-form>
             <template #footer>
                 <div>
-                    <el-button @click="findDialog.visible = false">取 消</el-button>
-                    <el-button @click="confirmFindDialog" type="primary">确 定</el-button>
+                    <el-button @click="findDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="confirmFindDialog" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
 
         <el-dialog
             width="60%"
-            :title="`${state.docEditDialog.isAdd ? '新增' : '修改'}'${state.activeName}'集合文档`"
+            :title="`${state.docEditDialog.isAdd ? $t('common.add') : $t('common.edit')} '${state.activeName}' $t('mongo.doc')`"
             v-model="docEditDialog.visible"
             :close-on-click-modal="false"
         >
             <monaco-editor v-model="docEditDialog.doc" language="json" />
             <template #footer>
                 <div>
-                    <el-button @click="docEditDialog.visible = false">取 消</el-button>
-                    <el-button v-auth="perms.saveData" @click="onSaveDoc" type="primary">确 定</el-button>
+                    <el-button @click="docEditDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="perms.saveData" @click="onSaveDoc" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -180,8 +180,12 @@ import { sleep } from '@/common/utils/loading';
 import { Splitpanes, Pane } from 'splitpanes';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
+import { useI18nDeleteSuccessMsg, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
+
+const { t } = useI18n();
 
 const perms = {
     saveData: 'mongo:data:save',
@@ -230,7 +234,7 @@ const NodeTypeMongo = new NodeType(MongoNodeType.Mongo).withLoadNodesFunc(async 
 const NodeTypeDbs = new NodeType(MongoNodeType.Dbs).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
     // 点击数据库列表 -> 加载数据库下拥有的菜单列表
-    return [new TagTreeNode(`${params.id}.${params.database}.mongo-coll`, '集合', NodeTypeCollMenu).withParams(params)];
+    return [new TagTreeNode(`${params.id}.${params.database}.mongo-coll`, 'mongo.coll', NodeTypeCollMenu).withParams(params)];
 });
 
 const NodeTypeCollMenu = new NodeType(MongoNodeType.CollMenu).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
@@ -378,7 +382,7 @@ const findCommand = async (key: string) => {
         filter = findParma.filter ? JSON.parse(findParma.filter) : {};
         sort = findParma.sort ? JSON.parse(findParma.sort) : {};
     } catch (e) {
-        ElMessage.error('filter或sort字段json字符串值错误。注意: json key需双引号');
+        ElMessage.error(t('mongo.findParamErrMsg'));
         return;
     }
 
@@ -453,7 +457,7 @@ const onSaveDoc = async () => {
         try {
             docObj = JSON.parse(state.docEditDialog.doc);
         } catch (e) {
-            ElMessage.error('文档内容错误,无法解析为json对象');
+            ElMessage.error(t('mongo.docErrMsg'));
         }
         const dataTab = getNowDataTab();
         const res = await mongoApi.insertCommand.request({
@@ -462,12 +466,12 @@ const onSaveDoc = async () => {
             collection: dataTab.collection,
             doc: docObj,
         });
-        isTrue(res.InsertedID, '新增失败');
-        ElMessage.success('新增成功');
+        isTrue(res.InsertedID, t('mongo.insertFail'));
+        ElMessage.success(t('mongo.insertSuccess'));
     } else {
         const docObj = parseDocJsonString(state.docEditDialog.doc);
         const id = docObj._id;
-        notBlank(id, '文档的_id属性不存在');
+        notBlank(id, t('mongo.idNotExist'));
         delete docObj['_id'];
         const dataTab = getNowDataTab();
         const res = await mongoApi.updateByIdCommand.request({
@@ -477,8 +481,8 @@ const onSaveDoc = async () => {
             docId: id,
             update: { $set: docObj },
         });
-        isTrue(res.ModifiedCount == 1, '修改失败');
-        ElMessage.success('保存成功');
+        isTrue(res.ModifiedCount == 1, t('common.modifyFail'));
+        useI18nSaveSuccessMsg();
     }
     findCommand(state.activeName);
     state.docEditDialog.visible = false;
@@ -487,7 +491,7 @@ const onSaveDoc = async () => {
 const onDeleteDoc = async (doc: string) => {
     const docObj = parseDocJsonString(doc);
     const id = docObj._id;
-    notBlank(id, '文档的_id属性不存在');
+    notBlank(id, t('mongo.idNotExist'));
     const dataTab = getNowDataTab();
     const res = await mongoApi.deleteByIdCommand.request({
         id: dataTab.mongoId,
@@ -495,8 +499,8 @@ const onDeleteDoc = async (doc: string) => {
         collection: dataTab.collection,
         docId: id,
     });
-    isTrue(res.DeletedCount == 1, '删除失败');
-    ElMessage.success('删除成功');
+    isTrue(res.DeletedCount == 1, t('common.deleteFail'));
+    useI18nDeleteSuccessMsg();
     findCommand(state.activeName);
 };
 
@@ -507,7 +511,7 @@ const parseDocJsonString = (doc: string) => {
     try {
         return JSON.parse(doc);
     } catch (e) {
-        ElMessage.error('文档内容解析为json对象失败');
+        ElMessage.error(t('mongo.docParse2jsonFail'));
         throw e;
     }
 };

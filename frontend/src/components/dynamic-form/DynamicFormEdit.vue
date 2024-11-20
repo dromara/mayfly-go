@@ -1,41 +1,41 @@
 <template>
     <div class="dynamic-form-edit w100">
-        <el-table :data="formItems" stripe class="w100" empty-text="暂无表单项">
+        <el-table :data="formItems" stripe class="w100">
             <el-table-column prop="name" label="model" min-width="100px">
                 <template #header>
                     <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addItem()"> </el-button>
-                    <span class="ml10">model</span>
+                    <span class="ml10">model field</span>
                 </template>
                 <template #default="scope">
-                    <el-input v-model="scope.row['model']" placeholder="字段model" clearable> </el-input>
+                    <el-input v-model="scope.row['model']" :placeholder="$t('components.df.fieldModelPlaceholder')" clearable> </el-input>
                 </template>
             </el-table-column>
 
-            <el-table-column prop="name" label="label" min-width="100px">
+            <el-table-column prop="name" :label="$t('components.df.fieldLabel')" min-width="100px">
                 <template #default="scope">
-                    <el-input v-model="scope.row['name']" placeholder="字段title" clearable> </el-input>
+                    <el-input v-model="scope.row['name']" clearable> </el-input>
                 </template>
             </el-table-column>
 
-            <el-table-column prop="placeholder" label="字段说明" min-width="140px">
+            <el-table-column prop="placeholder" :label="$t('components.df.fieldPlaceholder')" min-width="140px">
                 <template #default="scope">
-                    <el-input v-model="scope.row['placeholder']" placeholder="字段说明" clearable> </el-input>
+                    <el-input v-model="scope.row['placeholder']" clearable> </el-input>
                 </template>
             </el-table-column>
 
-            <el-table-column prop="options" label="可选值" min-width="140px">
+            <el-table-column prop="options" :label="$t('components.df.optionalValues')" min-width="140px">
                 <template #default="scope">
-                    <el-input v-model="scope.row['options']" placeholder="可选值 ,分割" clearable> </el-input>
+                    <el-input v-model="scope.row['options']" :placeholder="$t('components.df.optionalValuesPlaceholder')" clearable> </el-input>
                 </template>
             </el-table-column>
 
-            <el-table-column prop="required" label="必填" min-width="40px">
+            <el-table-column prop="required" :label="$t('components.df.required')" min-width="65px">
                 <template #default="scope">
                     <el-checkbox v-model="scope.row['required']" />
                 </template>
             </el-table-column>
 
-            <el-table-column label="操作" wdith="20px">
+            <el-table-column :label="$t('common.operation')" wdith="20px">
                 <template #default="scope">
                     <el-button type="danger" @click="deleteItem(scope.$index)" icon="delete" plain></el-button>
                 </template>

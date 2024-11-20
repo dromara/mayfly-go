@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button type="primary" icon="plus" @click="editRedis(false)" plain>添加</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除 </el-button>
+                <el-button type="primary" icon="plus" @click="editRedis(false)" plain>{{ $t('common.create') }}</el-button>
+                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>{{ $t('common.delete') }}</el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -21,25 +21,27 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>单机信息</el-button>
-                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>集群信息</el-button>
+                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>
+                    {{ $t('redis.standaloneInfo') }}
+                </el-button>
+                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>{{ $t('redis.clusterInfo') }}</el-button>
 
-                <el-button @click="showDetail(data)" link>详情</el-button>
-                <el-button type="primary" link @click="editRedis(data)">编辑</el-button>
+                <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
+                <el-button type="primary" link @click="editRedis(data)">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
 
-        <el-dialog width="1000px" title="集群信息" v-model="clusterInfoDialog.visible">
+        <el-dialog width="1000px" :title="$t('redis.clusterInfo')" v-model="clusterInfoDialog.visible">
             <el-input type="textarea" :autosize="{ minRows: 12, maxRows: 12 }" v-model="clusterInfoDialog.info"> </el-input>
 
-            <el-divider content-position="left">节点信息</el-divider>
+            <el-divider content-position="left">{{ $t('redis.node') }}</el-divider>
             <el-table :data="clusterInfoDialog.nodes" stripe size="small" border>
                 <el-table-column prop="nodeId" label="nodeId" min-width="300">
                     <template #header>
                         nodeId
-                        <el-tooltip class="box-item" effect="dark" content="节点id" placement="top">
+                        <el-tooltip class="box-item" effect="dark" content="node id" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -49,12 +51,7 @@
                 <el-table-column prop="ip" label="ip" min-width="180">
                     <template #header>
                         ip
-                        <el-tooltip
-                            class="box-item"
-                            effect="dark"
-                            content="ip:port1@port2：port1指redis服务器与客户端通信的端口，port2则是集群内部节点间通信的端口"
-                            placement="top"
-                        >
+                        <el-tooltip class="box-item" effect="dark" :content="$t('redis.clusterIpTips')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -75,12 +72,7 @@
                 <el-table-column prop="masterSlaveRelation" label="masterSlaveRelation" min-width="300">
                     <template #header>
                         masterSlaveRelation
-                        <el-tooltip
-                            class="box-item"
-                            effect="dark"
-                            content="如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'"
-                            placement="top"
-                        >
+                        <el-tooltip class="box-item" effect="dark" :content="$t('redis.masterSlaveRelationTips')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -100,12 +92,7 @@
                 <el-table-column prop="configEpoch" label="configEpoch" min-width="130">
                     <template #header>
                         configEpoch
-                        <el-tooltip
-                            class="box-item"
-                            effect="dark"
-                            content="节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。"
-                            placement="top"
-                        >
+                        <el-tooltip class="box-item" effect="dark" :content="$t('redis.configEpochTips')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -118,23 +105,25 @@
         </el-dialog>
 
         <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
-            <el-descriptions title="详情" :column="3" border>
+            <el-descriptions :title="$t('common.detail')" :column="3" border>
                 <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
-                <el-descriptions-item :span="1.5" label="名称">{{ detailDialog.data.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailDialog.data.name }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="detailDialog.data.tags" /></el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('tag.relateTag')"><ResourceTags :tags="detailDialog.data.tags" /></el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="主机">{{ detailDialog.data.host }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="Host">{{ detailDialog.data.host }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="库">{{ detailDialog.data.db }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
+                <el-descriptions-item :span="3" label="DB">{{ detailDialog.data.db }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('common.remark')">{{ detailDialog.data.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('machine.sshTunnel')">
+                    {{ detailDialog.data.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
+                </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(detailDialog.data.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="创建者">{{ detailDialog.data.creator }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.createTime')">{{ formatDate(detailDialog.data.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.creator')">{{ detailDialog.data.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(detailDialog.data.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="修改者">{{ detailDialog.data.modifier }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.updateTime')">{{ formatDate(detailDialog.data.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.modifier')">{{ detailDialog.data.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
@@ -151,7 +140,6 @@
 import Info from './Info.vue';
 import { redisApi } from './api';
 import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
 import { formatDate } from '@/common/utils/format';
 import ResourceTags from '../component/ResourceTags.vue';
@@ -161,6 +149,7 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
 import { SearchItem } from '@/components/SearchForm';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 
 const props = defineProps({
     lazy: {
@@ -172,16 +161,19 @@ const props = defineProps({
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [SearchItem.input('keyword', '关键字').withPlaceholder('host / 名称 / 编号'), getTagPathSearchItem(TagResourceTypeEnum.Redis.value)];
+const searchItems = [
+    SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder'),
+    getTagPathSearchItem(TagResourceTypeEnum.Redis.value),
+];
 
 const columns = ref([
-    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('name', '名称'),
-    TableColumn.new('host', 'host:port'),
-    TableColumn.new('mode', 'mode'),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('code', '编号'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
+    TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('host', 'Host'),
+    TableColumn.new('mode', 'Mode'),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('code', 'common.code'),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 
 const state = reactive({
@@ -215,7 +207,7 @@ const state = reactive({
     redisEditDialog: {
         visible: false,
         data: null as any,
-        title: '新增redis',
+        title: '',
     },
 });
 
@@ -241,13 +233,9 @@ const showDetail = (detail: any) => {
 
 const deleteRedis = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该【${state.selectionData.map((x: any) => x.name).join(', ')}】redis信息?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //
@@ -261,7 +249,7 @@ const showInfoDialog = async (redis: any) => {
     }
     const res = await redisApi.redisInfo.request({ id: redis.id, host });
     state.infoDialog.info = res;
-    state.infoDialog.title = `[${redis.name || host}] redis信息`;
+    state.infoDialog.title = `[${redis.name || host}] redis`;
     state.infoDialog.visible = true;
 };
 
@@ -283,10 +271,10 @@ const search = async (tagPath: string = '') => {
 const editRedis = async (data: any) => {
     if (!data) {
         state.redisEditDialog.data = null;
-        state.redisEditDialog.title = '新增redis';
+        state.redisEditDialog.title = useI18nCreateTitle('Redis');
     } else {
         state.redisEditDialog.data = data;
-        state.redisEditDialog.title = '修改redis';
+        state.redisEditDialog.title = useI18nEditTitle('Redis');
     }
     state.redisEditDialog.visible = true;
 };

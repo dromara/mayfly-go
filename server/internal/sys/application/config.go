@@ -46,7 +46,7 @@ func (a *configAppImpl) Save(ctx context.Context, config *entity.Config) error {
 
 	oldConfig := a.GetConfig(config.Key)
 	if oldConfig.Permission != "all" && !strings.Contains(oldConfig.Permission, config.Modifier) {
-		return errorx.NewBiz("您无权修改该配置")
+		return errorx.NewBiz("You do not have permission to modify the configuration")
 	}
 
 	if err := a.UpdateById(ctx, config); err != nil {
@@ -67,7 +67,7 @@ func (a *configAppImpl) GetConfig(key string) *entity.Config {
 	}
 
 	if err := a.GetByCond(model.NewModelCond(config).Columns("Id", "Key", "Value", "Permission")); err != nil {
-		logx.Warnf("不存在key = [%s] 的系统配置", key)
+		logx.Warnf("There is no system configuration with key = [%s]", key)
 	} else {
 		cache.SetStr(SysConfigKeyPrefix+key, jsonx.ToStr(config), -1)
 	}

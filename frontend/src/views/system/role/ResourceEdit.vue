@@ -1,6 +1,12 @@
 <template>
     <div>
-        <el-dialog :title="'分配“' + roleInfo?.name + '”菜单&权限'" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="400px">
+        <el-dialog
+            :title="$t('system.role.allocateMenuTitle', { roleName: roleInfo?.name })"
+            v-model="dialogVisible"
+            :before-close="cancel"
+            :show-close="false"
+            width="400px"
+        >
             <el-tree
                 style="height: 50vh; overflow: auto"
                 ref="menuTree"
@@ -12,15 +18,15 @@
             >
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
-                        <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ node.label }}</span>
-                        <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ node.label }}</span>
+                        <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
+                        <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
                     </span>
                 </template>
             </el-tree>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button :loading="state.submiting" @click="cancel">取 消</el-button>
-                    <el-button :loading="state.submiting" type="primary" @click="btnOk">确 定</el-button>
+                    <el-button :loading="state.submiting" @click="cancel">{{ $t('common.cancel') }}</el-button>
+                    <el-button :loading="state.submiting" type="primary" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -32,6 +38,9 @@ import { toRefs, reactive, watch, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { roleApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -89,7 +98,7 @@ const btnOk = async () => {
             id: props.role!.id,
             resourceIds: resources,
         });
-        ElMessage.success('保存成功!');
+        ElMessage.success(t('common.saveSuccess'));
         emit('cancel');
     } finally {
         state.submiting = false;

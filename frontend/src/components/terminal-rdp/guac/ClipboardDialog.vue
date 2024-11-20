@@ -11,7 +11,7 @@
             <el-input v-model="state.modelValue" type="textarea" :rows="20" />
 
             <template #footer>
-                <el-button type="primary" @click="onsubmit">确 定</el-button>
+                <el-button type="primary" @click="onsubmit">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
     </div>

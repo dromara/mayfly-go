@@ -1,28 +1,42 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="500px" :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="600px" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
-                <el-form-item prop="name" label="姓名">
-                    <el-input v-model.trim="form.name" placeholder="请输入姓名" auto-complete="off" clearable></el-input>
+                <el-form-item prop="name" :label="$t('system.account.name')">
+                    <el-input v-model.trim="form.name" auto-complete="off" clearable></el-input>
                 </el-form-item>
-                <el-form-item prop="username" label="用户名">
+
+                <el-form-item prop="username" :label="$t('common.username')">
                     <el-input
                         :disabled="edit"
                         v-model.trim="form.username"
-                        placeholder="请输入账号用户名，密码默认与用户名一致"
+                        :placeholder="$t('system.account.usernamePlacholder')"
                         auto-complete="off"
                         clearable
                     ></el-input>
                 </el-form-item>
-                <el-form-item v-if="edit" prop="password" label="密码">
-                    <el-input type="password" v-model.trim="form.password" placeholder="输入密码可修改用户密码" autocomplete="new-password"></el-input>
+
+                <el-form-item :required="!edit" prop="password" :label="$t('common.password')">
+                    <el-input type="password" v-model.trim="form.password" autocomplete="new-password" show-password>
+                        <template #append>
+                            <el-button
+                                @click="
+                                    {
+                                        form.password = randomPassword(10);
+                                    }
+                                "
+                            >
+                                {{ $t('system.account.random') }}
+                            </el-button>
+                        </template>
+                    </el-input>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -34,6 +48,11 @@ import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
 import { accountApi } from '../api';
 import { ElMessage } from 'element-plus';
 import { AccountUsernamePattern } from '@/common/pattern';
+import { randomPassword } from '@/common/utils/string';
+import { useI18n } from 'vue-i18n';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -56,20 +75,27 @@ const rules = {
     name: [
         {
             required: true,
-            message: '请输入姓名',
+            message: useI18nPleaseInput('system.account.name'),
             trigger: ['change', 'blur'],
         },
     ],
     username: [
         {
             required: true,
-            message: '请输入用户名',
+            message: useI18nPleaseInput('common.username'),
             trigger: ['change', 'blur'],
         },
         {
             pattern: AccountUsernamePattern.pattern,
             message: AccountUsernamePattern.message,
             trigger: ['blur'],
+        },
+    ],
+    password: [
+        {
+            required: true,
+            message: useI18nPleaseInput('common.password'),
+            trigger: ['change', 'blur'],
         },
     ],
 };
@@ -81,7 +107,7 @@ const state = reactive({
         id: null,
         name: null,
         username: null,
-        password: null,
+        password: '',
         repassword: null,
     },
 });
@@ -114,15 +140,9 @@ watchEffect(() => {
 });
 
 const btnOk = async () => {
-    try {
-        await accountForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(accountForm);
     await saveAccountExec();
-    ElMessage.success('操作成功');
+    useI18nSaveSuccessMsg();
     emit('val-change', state.form);
     //重置表单域
     accountForm.value.resetFields();

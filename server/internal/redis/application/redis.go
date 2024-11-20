@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
+	"mayfly-go/internal/redis/imsg"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
@@ -56,7 +57,6 @@ type redisAppImpl struct {
 
 	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 	procdefApp          flowapp.Procdef         `inject:"ProcdefApp"`
-	procinstApp         flowapp.Procinst        `inject:"ProcinstApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
 
@@ -102,7 +102,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 
 	if re.Id == 0 {
 		if err == nil {
-			return errorx.NewBiz("该实例已存在")
+			return errorx.NewBizI(ctx, imsg.ErrRedisInfoExist)
 		}
 		// 生成随机编号
 		re.Code = stringx.Rand(10)
@@ -129,7 +129,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldRedis.Id != re.Id {
-		return errorx.NewBiz("该实例已存在")
+		return errorx.NewBizI(ctx, imsg.ErrRedisInfoExist)
 	}
 	// 如果修改了redis实例的库信息，则关闭旧库的连接
 	if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId {
@@ -173,7 +173,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 	re, err := r.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("该redis信息不存在")
+		return errorx.NewBiz("redis not found")
 	}
 	// 如果存在连接，则关闭所有库连接信息
 	for _, dbStr := range strings.Split(re.Db, ",") {
@@ -204,7 +204,7 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		// 缓存不存在，则回调获取redis信息
 		re, err := r.GetById(id)
 		if err != nil {
-			return nil, errorx.NewBiz("redis信息不存在")
+			return nil, errorx.NewBiz("redis not found")
 		}
 		authCert, err := r.resourceAuthCertApp.GetResourceAuthCert(tagentity.TagTypeRedis, re.Code)
 		if err != nil {
@@ -216,7 +216,7 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 
 func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error) {
 	if redisConn == nil {
-		return nil, errorx.NewBiz("redis连接不存在")
+		return nil, errorx.NewBiz("redis connection not exist")
 	}
 
 	// 开启工单流程，则校验该流程是否需要校验
@@ -227,7 +227,7 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 			cmdType = "write"
 		}
 		if needStartProc := procdef.MatchCondition(RedisRunCmdFlowBizType, collx.Kvs("cmdType", cmdType, "cmd", cmd)); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrSubmitFlowRunCmd)
 		}
 	}
 
@@ -258,7 +258,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 
 	runCmdParam, err := jsonx.To(procinst.BizForm, new(FlowRedisRunCmdBizForm))
 	if err != nil {
-		return nil, errorx.NewBiz("业务表单信息解析失败: %s", err.Error())
+		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
 	}
 
 	redisConn, err := r.GetRedisConn(runCmdParam.Id, runCmdParam.Db)
@@ -283,7 +283,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 	})
 
 	if hasErr {
-		return handleRes, errorx.NewBiz("存在命令执行失败")
+		return handleRes, errorx.NewBizI(ctx, imsg.ErrHasRunFailCmd)
 	}
 	return handleRes, nil
 }

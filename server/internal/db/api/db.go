@@ -11,6 +11,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/event"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
@@ -18,6 +19,7 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -92,9 +94,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 
 	ctx := rc.MetaCtx
 	for _, v := range ids {
-		dbId := cast.ToUint64(v)
-		biz.NotBlank(dbId, "存在错误dbId")
-		biz.ErrIsNil(d.DbApp.Delete(ctx, dbId))
+		biz.ErrIsNil(d.DbApp.Delete(ctx, cast.ToUint64(v)))
 	}
 }
 
@@ -110,10 +110,10 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
 	sqlStr, err := cryptox.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
-	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
+	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 
 	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
-	biz.NotEmpty(form.Sql, "sql不能为空")
+	biz.NotEmpty(form.Sql, "sql cannot be empty")
 
 	execReq := &application.DbSqlExecReq{
 		DbId:      dbId,
@@ -146,9 +146,9 @@ type progressMsg struct {
 // 执行sql文件
 func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	multipart, err := rc.GetRequest().MultipartReader()
-	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to read sql file: %s")
 	file, err := multipart.NextPart()
-	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to read sql file: %s")
 	defer file.Close()
 	filename := file.FileName()
 	dbId := getDbId(rc)
@@ -166,14 +166,14 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if len(errInfo) > 300 {
 				errInfo = errInfo[:300] + "..."
 			}
-			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
+			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), fmt.Sprintf("[%s][%s] execution failure: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
 		}
 	}()
 
 	executedStatements := 0
 	progressId := stringx.Rand(32)
 	laId := rc.GetLoginAccount().Id
-	defer ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+	defer ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
 		Id:                 progressId,
 		Title:              filename,
 		ExecutedStatements: executedStatements,
@@ -185,7 +185,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	err = sqlparser.SQLSplit(file, func(sql string) error {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
 				Id:                 progressId,
 				Title:              filename,
 				ExecutedStatements: executedStatements,
@@ -200,7 +200,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	})
 
 	biz.ErrIsNilAppendErr(err, "%s")
-	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
+	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
 }
 
 // 数据库dump
@@ -243,9 +243,9 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	defer func() {
 		msg := anyx.ToString(recover())
 		if len(msg) > 0 {
-			msg = "数据库导出失败: " + msg
+			msg = "DB dump error: " + msg
 			rc.GetWriter().Write([]byte(msg))
-			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("数据库导出失败", msg))
+			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.T(imsg.DbDumpErr), msg))
 		}
 	}()
 
@@ -263,26 +263,26 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 func (d *Db) TableInfos(rc *req.Ctx) {
 	res, err := d.getDbConn(rc).GetMetadata().GetTables()
-	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get table error: %s")
 	rc.ResData = res
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
+	biz.NotEmpty(tn, "tableName cannot be empty")
 	res, err := d.getDbConn(rc).GetMetadata().GetTableIndex(tn)
-	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get table index error: %s")
 	rc.ResData = res
 }
 
 // @router /api/db/:dbId/c-metadata [get]
 func (d *Db) ColumnMA(rc *req.Ctx) {
 	tn := rc.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
+	biz.NotEmpty(tn, "tableName cannot be empty")
 
 	dbi := d.getDbConn(rc)
 	res, err := dbi.GetMetadata().GetColumns(tn)
-	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get column metadata error: %s")
 	rc.ResData = res
 }
 
@@ -330,9 +330,9 @@ func (d *Db) HintTables(rc *req.Ctx) {
 
 func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
+	biz.NotEmpty(tn, "tableName cannot be empty")
 	res, err := d.getDbConn(rc).GetMetadata().GetTableDDL(tn, false)
-	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
+	biz.ErrIsNilAppendErr(err, "get table DDL error: %s")
 	rc.ResData = res
 }
 
@@ -343,7 +343,7 @@ func (d *Db) GetVersion(rc *req.Ctx) {
 
 func (d *Db) GetSchemas(rc *req.Ctx) {
 	res, err := d.getDbConn(rc).GetMetadata().GetSchemas()
-	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
+	biz.ErrIsNilAppendErr(err, "get schemas error: %s")
 	rc.ResData = res
 }
 
@@ -352,24 +352,24 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 	copy := req.BindJsonAndCopyTo[*dbi.DbCopyTable](rc, form, new(dbi.DbCopyTable))
 
 	conn, err := d.DbApp.GetDbConn(form.Id, form.Db)
-	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
+	biz.ErrIsNilAppendErr(err, "copy table error: %s")
 
 	err = conn.GetDialect().CopyTable(copy)
 	if err != nil {
-		logx.Errorf("拷贝表失败: %s", err.Error())
+		logx.Errorf("copy table error: %s", err.Error())
 	}
-	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
+	biz.ErrIsNilAppendErr(err, "copy table error: %s")
 }
 
 func getDbId(rc *req.Ctx) uint64 {
 	dbId := rc.PathParamInt("dbId")
-	biz.IsTrue(dbId > 0, "dbId错误")
+	biz.IsTrue(dbId > 0, "dbId error")
 	return uint64(dbId)
 }
 
 func getDbName(rc *req.Ctx) string {
 	db := rc.Query("db")
-	biz.NotEmpty(db, "db不能为空")
+	biz.NotEmpty(db, "db cannot be empty")
 	return db
 }
 

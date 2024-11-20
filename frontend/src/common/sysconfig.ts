@@ -74,6 +74,15 @@ export async function getMachineConfig(): Promise<any> {
 }
 
 /**
+ * 获取系统服务启动配置
+ *
+ * @returns 配置信息
+ */
+export async function getServerConf(): Promise<any> {
+    return openApi.getServerConf();
+}
+
+/**
  * 获取系统配置值
  *
  * @param key 配置key

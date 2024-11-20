@@ -25,7 +25,7 @@ type Meta interface {
 	// GetSqlDb 根据数据库信息获取sql.DB
 	GetSqlDb(*DbInfo) (*sql.DB, error)
 
-	// GetDialect 获取数据库方言, 若一些接口（如 GetIdentifierQuoteString）不需要DbConn，则可以传nil
+	// GetDialect 获取数据库方言, 若一些接口（如QuoteIdentifier）不需要DbConn，则可以传nil
 	GetDialect(*DbConn) Dialect
 
 	// GetMetadata 获取元数据信息接口

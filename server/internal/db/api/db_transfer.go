@@ -9,17 +9,19 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
-	"strconv"
 	"strings"
 	"time"
 
@@ -67,12 +69,9 @@ func (d *DbTransferTask) DeleteTask(rc *req.Ctx) {
 	rc.ReqParam = taskId
 	ids := strings.Split(taskId, ",")
 
-	uids := make([]uint64, len(ids))
-	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		uids = append(uids, uint64(value))
-	}
+	uids := collx.ArrayMap[string, uint64](ids, func(val string) uint64 {
+		return cast.ToUint64(val)
+	})
 
 	biz.ErrIsNil(d.DbTransferTask.DeleteById(rc.MetaCtx, uids...))
 }
@@ -83,7 +82,7 @@ func (d *DbTransferTask) ChangeStatus(rc *req.Ctx) {
 	_ = d.DbTransferTask.UpdateById(rc.MetaCtx, task)
 
 	task, err := d.DbTransferTask.GetById(task.Id)
-	biz.ErrIsNil(err, "该任务不存在")
+	biz.ErrIsNil(err, "task not found")
 	d.DbTransferTask.AddCronJob(rc.MetaCtx, task)
 
 	// 记录请求日志
@@ -127,10 +126,10 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 	rc.ReqParam = fm
 
 	tFile, err := d.DbTransferFile.GetById(fm.Id)
-	biz.IsTrue(tFile != nil && err == nil, "文件不存在")
+	biz.IsTrue(tFile != nil && err == nil, "file not found")
 
 	targetDbConn, err := d.DbApp.GetDbConn(fm.TargetDbId, fm.TargetDbName)
-	biz.ErrIsNilAppendErr(err, "连接目标数据库失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to connect to the target database: %s")
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, targetDbConn.Info.CodePath...), "%s")
 
 	defer func() {
@@ -139,7 +138,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 			if len(errInfo) > 300 {
 				errInfo = errInfo[:300] + "..."
 			}
-			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", tFile.FileKey, targetDbConn.Info.GetLogDesc(), errInfo)).WithClientId(fm.ClientId))
+			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), fmt.Sprintf("[%s][%s] run failed: [%s]", tFile.FileKey, targetDbConn.Info.GetLogDesc(), errInfo)).WithClientId(fm.ClientId))
 		}
 	}()
 
@@ -160,13 +159,13 @@ func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFile
 	defer ticker.Stop()
 
 	if err != nil {
-		biz.ErrIsNilAppendErr(err, "连接目标数据库失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to connect to the target database: %s")
 	}
 
 	err = sqlparser.SQLSplit(reader, func(sql string) error {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(ws.UserId(laId), fm.ClientId, msgdto.InfoSqlProgressMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(ws.UserId(laId), fm.ClientId, msgdto.InfoSqlProgressMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
 				Id:                 progressId,
 				Title:              filename,
 				ExecutedStatements: executedStatements,
@@ -180,8 +179,8 @@ func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFile
 	})
 
 	if err != nil {
-		biz.ErrIsNilAppendErr(err, "执行sql失败: %s")
+		biz.ErrIsNilAppendErr(err, "sql execution failed: %s")
 	}
 
-	d.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", filename)).WithClientId(fm.ClientId))
+	d.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("sql execution successfully: %s", filename)).WithClientId(fm.ClientId))
 }

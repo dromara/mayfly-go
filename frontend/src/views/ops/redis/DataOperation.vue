@@ -10,22 +10,22 @@
                 >
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == RedisNodeType.Redis">
-                            <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
+                            <el-popover :show-after="500" placement="right-start" :title="$t('common.detail')" trigger="hover" :width="250">
                                 <template #reference>
                                     <SvgIcon name="iconfont icon-op-redis" :size="18" />
                                 </template>
                                 <template #default>
                                     <el-descriptions :column="1" size="small">
-                                        <el-descriptions-item label="名称">
+                                        <el-descriptions-item :label="$t('common.name')">
                                             {{ data.params.name }}
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="模式">
+                                        <el-descriptions-item label="mode">
                                             {{ data.params.mode }}
                                         </el-descriptions-item>
                                         <el-descriptions-item label="host">
                                             {{ data.params.host }}
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="备注" label-align="right">
+                                        <el-descriptions-item :label="$t('common.remark')" label-align="right">
                                             {{ data.params.remark }}
                                         </el-descriptions-item>
                                     </el-descriptions>
@@ -47,14 +47,14 @@
                     <el-scrollbar>
                         <el-row>
                             <el-col :span="2">
-                                <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
+                                <el-input v-model="state.keySeparator" :placeholder="$t('redis.delimiter')" size="small" class="ml5" />
                             </el-col>
                             <el-col :span="18">
                                 <el-input
                                     @clear="clear"
                                     v-model="scanParam.match"
                                     @keyup.enter.native="searchKey()"
-                                    placeholder="match 支持*模糊key, 回车搜索"
+                                    :placeholder="$t('redis.keyMatchTips')"
                                     clearable
                                     size="small"
                                     class="ml10"
@@ -83,7 +83,7 @@
                                     icon="more"
                                     size="small"
                                     plain
-                                    >加载更多</el-button
+                                    >{{ $t('redis.loadMore') }}</el-button
                                 >
 
                                 <el-button
@@ -94,7 +94,7 @@
                                     icon="plus"
                                     size="small"
                                     plain
-                                    >新增key</el-button
+                                    >{{ $t('redis.addKey') }}</el-button
                                 >
 
                                 <el-button
@@ -159,13 +159,13 @@
 
         <div style="text-align: center; margin-top: 10px"></div>
 
-        <el-dialog title="新增Key" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-dialog :title="$t('redis.addKey')" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form ref="keyForm" label-width="auto">
-                <el-form-item prop="key" label="键名">
-                    <el-input v-model.trim="newKeyDialog.keyInfo.key" placeholder="请输入键名"></el-input>
+                <el-form-item prop="key" label="Key" required>
+                    <el-input v-model.trim="newKeyDialog.keyInfo.key"></el-input>
                 </el-form-item>
-                <el-form-item prop="type" label="类型">
-                    <el-select v-model="newKeyDialog.keyInfo.type" default-first-option style="width: 100%" placeholder="请选择类型">
+                <el-form-item prop="type" :label="$t('common.type')">
+                    <el-select v-model="newKeyDialog.keyInfo.type" default-first-option>
                         <el-option key="string" label="string" value="string"></el-option>
                         <el-option key="hash" label="hash" value="hash"></el-option>
                         <el-option key="set" label="set" value="set"></el-option>
@@ -177,8 +177,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancelNewKey()">取 消</el-button>
-                    <el-button v-auth="'redis:data:save'" type="primary" @click="newKey">确 定</el-button>
+                    <el-button @click="cancelNewKey()">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'redis:data:save'" type="primary" @click="newKey">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -201,22 +201,26 @@ import { Splitpanes, Pane } from 'splitpanes';
 import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
+const { t } = useI18n();
+
 const contextmenuRef = ref();
 
-const cmCopyKey = new ContextmenuItem('copyValue', '复制')
+const cmCopyKey = new ContextmenuItem('copyValue', 'Copy')
     .withIcon('CopyDocument')
     .withHideFunc((data: any) => !data.isLeaf)
     .withOnClick(async (data: any) => await copyToClipboard(data.key));
 
-const cmNewTabOpen = new ContextmenuItem('newTabOpenKey', '新tab打开')
+const cmNewTabOpen = new ContextmenuItem('newTabOpenKey', 'redis.newTabOpen')
     .withIcon('plus')
     .withHideFunc((data: any) => !data.isLeaf)
     .withOnClick((data: any) => showKeyDetail(data.key, true));
 
-const cmDelKey = new ContextmenuItem('delKey', '删除')
+const cmDelKey = new ContextmenuItem('delKey', 'common.delete')
     .withIcon('delete')
     .withPermission('redis:data:del')
     .withHideFunc((data: any) => !data.isLeaf)
@@ -376,8 +380,7 @@ const autoOpenRedis = (codePath: string) => {
 };
 
 const scan = async (appendKey = false) => {
-    isTrue(state.scanParam.id != null, '请先选择redis');
-    notBlank(state.scanParam.db, '请先选择库');
+    isTrue(state.scanParam.id != null, t('redis.redisSelectErr'));
 
     const match: string = state.scanParam.match || '';
     if (!match) {
@@ -543,22 +546,21 @@ const resetScanParam = () => {
 };
 
 const showNewKeyDialog = () => {
-    notNull(state.scanParam.id, '请先选择redis');
-    notNull(state.scanParam.db, '请选择要操作的库');
+    notNull(state.scanParam.id, t('redis.redisSelectErr'));
     resetNewKeyInfo();
     state.newKeyDialog.visible = true;
 };
 
 const flushDb = () => {
-    ElMessageBox.confirm(`确定清空[${state.scanParam.db}]库的所有key?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+    ElMessageBox.confirm(t('redis.flushDbTips', { db: state.scanParam.db }), t('common.hint'), {
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
     })
         .then(() => {
             // FLUSHDB [ASYNC | SYNC]
             redisInst.value.runCmd(['FLUSHDB']).then(() => {
-                ElMessage.success('清除成功！');
+                useI18nOperateSuccessMsg();
                 searchKey();
             });
         })
@@ -573,7 +575,7 @@ const cancelNewKey = () => {
 const newKey = async () => {
     const keyInfo = state.newKeyDialog.keyInfo;
     const key = keyInfo.key;
-    notBlank(key, '键名不能为空');
+    notBlank(key, t('redis.keyNotEmpty'));
 
     showKeyDetail(
         {
@@ -594,21 +596,14 @@ const resetNewKeyInfo = () => {
     state.newKeyDialog.keyInfo.timed = -1;
 };
 
-const delKey = (key: string) => {
-    ElMessageBox.confirm(`确定删除[ ${key} ] 该key?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    })
-        .then(async () => {
-            // DEL key [key ...]
-            await redisInst.value.runCmd(['DEL', key]);
-            ElMessage.success('删除成功！');
-            searchKey();
+const delKey = async (key: string) => {
+    await useI18nDeleteConfirm(key);
+    // DEL key [key ...]
+    await redisInst.value.runCmd(['DEL', key]);
+    useI18nDeleteSuccessMsg();
+    searchKey();
 
-            removeDataTab(key);
-        })
-        .catch(() => {});
+    removeDataTab(key);
 };
 </script>
 

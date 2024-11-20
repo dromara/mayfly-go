@@ -1,27 +1,30 @@
 <template>
     <el-form size="small">
         <el-form-item>
-            <el-radio v-model="radioValue" :label="1"> 小时，允许的通配符[, - * /] </el-radio>
+            <el-radio v-model="radioValue" :label="1"> {{ $t('components.crontab.hour') }}，{{ $t('components.crontab.hourCronType1') }} </el-radio>
         </el-form-item>
 
         <el-form-item>
             <el-radio v-model="radioValue" :label="2">
-                周期从
-                <el-input-number v-model="cycle01" :min="0" :max="60" /> - <el-input-number v-model="cycle02" :min="0" :max="60" /> 小时
+                {{ $t('components.crontab.crontype3') }}
+                <el-input-number v-model="cycle01" :min="0" :max="60" /> - <el-input-number v-model="cycle02" :min="0" :max="60" />
+                {{ $t('components.crontab.hour') }}
             </el-radio>
         </el-form-item>
 
         <el-form-item>
             <el-radio v-model="radioValue" :label="3">
-                从
-                <el-input-number v-model="average01" :min="0" :max="60" /> 小时开始，每 <el-input-number v-model="average02" :min="0" :max="60" /> 小时执行一次
+                {{ $t('components.crontab.crontypeFrom') }}
+                <el-input-number v-model="average01" :min="0" :max="60" /> {{ $t('components.crontab.crontypeStartHour') }}，
+                {{ $t('components.crontab.crontypeEvery') }} <el-input-number v-model="average02" :min="0" :max="60" />
+                {{ $t('components.crontab.crontypeExecHour') }}
             </el-radio>
         </el-form-item>
 
         <el-form-item>
             <div class="flex-align-center w100">
-                <el-radio v-model="radioValue" :label="4" class="mr5"> 指定 </el-radio>
-                <el-select @click="radioValue = 4" class="w100" clearable v-model="checkboxList" placeholder="可多选" multiple>
+                <el-radio v-model="radioValue" :label="4" class="mr5"> {{ $t('components.crontab.appoint') }} </el-radio>
+                <el-select @click="radioValue = 4" class="w100" clearable v-model="checkboxList" multiple>
                     <el-option v-for="item in 60" :key="item" :value="`${item - 1}`">{{ item - 1 }}</el-option>
                 </el-select>
             </div>

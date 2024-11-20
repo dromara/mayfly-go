@@ -1,16 +1,16 @@
 <template>
     <el-form size="small">
         <el-form-item>
-            <el-radio :label="1" v-model="radioValue"> 不填，允许的通配符[, - * /] </el-radio>
+            <el-radio :label="1" v-model="radioValue"> {{ $t('components.crontab.hourCronType1') }} </el-radio>
         </el-form-item>
 
         <el-form-item>
-            <el-radio :label="2" v-model="radioValue"> 每年 </el-radio>
+            <el-radio :label="2" v-model="radioValue"> {{ $t('components.crontab.yearly') }} </el-radio>
         </el-form-item>
 
         <el-form-item>
             <el-radio :label="3" v-model="radioValue">
-                周期从
+                {{ $t('components.crontab.crontype3') }}
                 <el-input-number v-model="cycle01" :min="fullYear" /> -
                 <el-input-number v-model="cycle02" :min="fullYear" />
             </el-radio>
@@ -18,15 +18,17 @@
 
         <el-form-item>
             <el-radio :label="4" v-model="radioValue">
-                从
-                <el-input-number v-model="average01" :min="fullYear" /> 年开始，每 <el-input-number v-model="average02" :min="fullYear" /> 年执行一次
+                {{ $t('components.crontab.crontypeFrom') }}
+                <el-input-number v-model="average01" :min="fullYear" /> {{ $t('components.crontab.crontypeStartYear') }}，
+                {{ $t('components.crontab.crontypeEvery') }}
+                <el-input-number v-model="average02" :min="fullYear" /> {{ $t('components.crontab.crontypeExecYear') }}
             </el-radio>
         </el-form-item>
 
         <el-form-item>
             <div class="flex-align-center w100">
-                <el-radio v-model="radioValue" :label="5" class="mr5"> 指定 </el-radio>
-                <el-select @click="radioValue = 5" class="w100" clearable v-model="checkboxList" placeholder="可多选" multiple>
+                <el-radio v-model="radioValue" :label="5" class="mr5"> {{ $t('components.crontab.appoint') }} </el-radio>
+                <el-select @click="radioValue = 5" class="w100" clearable v-model="checkboxList" multiple>
                     <el-option v-for="item in 9" :key="item" :value="`${item - 1 + fullYear}`" :label="item - 1 + fullYear" />
                 </el-select>
             </div>

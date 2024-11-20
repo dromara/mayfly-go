@@ -15,8 +15,10 @@
                 </template>
 
                 <template #action="{ data }">
-                    <el-button @click="playRec(data)" loading-icon="loading" :loading="data.playRecLoding" type="primary" link>回放</el-button>
-                    <el-button @click="showExecCmds(data)" type="primary" link>命令</el-button>
+                    <el-button @click="playRec(data)" loading-icon="loading" :loading="data.playRecLoding" type="primary" link>
+                        {{ $t('machine.playback') }}
+                    </el-button>
+                    <el-button @click="showExecCmds(data)" type="primary" link>{{ $t('machine.cmd') }}</el-button>
                 </template>
             </page-table>
         </el-dialog>
@@ -32,10 +34,10 @@
             <div ref="playerRef" id="rc-player"></div>
         </el-dialog>
 
-        <el-dialog title="执行命令记录" v-model="execCmdsDialogVisible" :destroy-on-close="true" width="500">
+        <el-dialog :title="$t('machine.execCmdRecord')" v-model="execCmdsDialogVisible" :destroy-on-close="true" width="500">
             <el-table :data="state.execCmds" max-height="480" stripe size="small">
-                <el-table-column prop="cmd" label="命令" show-overflow-tooltip min-width="150px"> </el-table-column>
-                <el-table-column prop="time" label="执行时间" min-width="80" show-overflow-tooltip>
+                <el-table-column prop="cmd" :label="$t('machine.cmd')" show-overflow-tooltip min-width="150px"> </el-table-column>
+                <el-table-column prop="time" :label="$t('machine.execTime')" min-width="80" show-overflow-tooltip>
                     <template #default="scope">
                         {{ formatDate(new Date(scope.row.time * 1000).toString()) }}
                     </template>
@@ -65,11 +67,11 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const columns = [
-    TableColumn.new('creator', '操作者').setMinWidth(120),
-    TableColumn.new('createTime', '开始时间').isTime().setMinWidth(150),
-    TableColumn.new('endTime', '结束时间').isTime().setMinWidth(150),
-    TableColumn.new('fileKey', '文件').isSlot(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
+    TableColumn.new('creator', 'machine.operator').setMinWidth(120),
+    TableColumn.new('createTime', 'machine.beginTime').isTime().setMinWidth(150),
+    TableColumn.new('endTime', 'machine.endTime').isTime().setMinWidth(150),
+    TableColumn.new('fileKey', 'machine.file').isSlot(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(120).fixedRight().alignCenter(),
 ];
 
 const playerRef = ref(null);

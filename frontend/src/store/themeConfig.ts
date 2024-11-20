@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { formatDate } from '@/common/utils/format';
 import { useUserInfo } from '@/store/userInfo';
-import { getSysStyleConfig } from '@/common/sysconfig';
+import { getServerConf, getSysStyleConfig } from '@/common/sysconfig';
 import { getLocal, getThemeConfig } from '@/common/utils/storage';
 
 // 系统默认logo图标，对应于@/assets/image/logo.svg
@@ -154,9 +154,14 @@ export const useThemeConfig = defineStore('themeConfig', {
         initThemeConfig() {
             // 获取缓存中的布局配置
             const tc = getThemeConfig();
+            
             if (tc) {
                 this.themeConfig = tc;
                 document.documentElement.style.cssText = getLocal('themeConfigStyle');
+            } else {
+                getServerConf().then((res) => {
+                    this.themeConfig.globalI18n = res.i18n;
+                })
             }
 
             // 根据后台系统配置初始化

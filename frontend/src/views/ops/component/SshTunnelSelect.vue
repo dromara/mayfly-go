@@ -6,7 +6,7 @@
             style="width: 100%"
             v-model="sshTunnelMachineId"
             @clear="clear"
-            placeholder="请选择SSH隧道机器"
+            placeholder="SSH tunnel machine"
             clearable
         >
             <el-option v-for="item in sshTunnelMachineList" :key="item.id" :label="`${item.ip}:${item.port} [${item.name}]`" :value="item.id"> </el-option>

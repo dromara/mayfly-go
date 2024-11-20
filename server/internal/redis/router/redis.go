@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/redis/api"
+	"mayfly-go/internal/redis/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -26,15 +27,15 @@ func InitRedisRouter(router *gin.RouterGroup) {
 
 		req.NewPost("/test-conn", rs.TestConn),
 
-		req.NewPost("", rs.Save).Log(req.NewLogSave("redis-保存信息")),
+		req.NewPost("", rs.Save).Log(req.NewLogSaveI(imsg.LogRedisSave)),
 
-		req.NewDelete(":id", rs.DeleteRedis).Log(req.NewLogSave("redis-删除信息")),
+		req.NewDelete(":id", rs.DeleteRedis).Log(req.NewLogSaveI(imsg.LogRedisDelete)),
 
 		req.NewGet("/:id/info", rs.RedisInfo),
 
 		req.NewGet(":id/cluster-info", rs.ClusterInfo),
 
-		req.NewPost(":id/:db/run-cmd", rs.RunCmd).Log(req.NewLogSave("redis-runCmd")),
+		req.NewPost(":id/:db/run-cmd", rs.RunCmd).Log(req.NewLogSaveI(imsg.LogRedisRunCmd)),
 
 		// 获取指定redis keys
 		req.NewPost(":id/:db/scan", rs.ScanKeys),

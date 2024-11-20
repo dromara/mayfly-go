@@ -105,7 +105,7 @@ func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols 
 func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) error {
 	_, err := m.machineApp.GetById(mf.MachineId, "Name")
 	if err != nil {
-		return errorx.NewBiz("该机器不存在")
+		return errorx.NewBiz("machine not found")
 	}
 
 	if mf.Id != 0 {
@@ -177,7 +177,7 @@ func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *dto.Machin
 		//du: cannot access ‘/proc/19087/fdinfo/3’: No such file or directory\n
 		//18G     /\n
 		if res == "" {
-			return "", errorx.NewBiz("获取目录大小失败: %s", err.Error())
+			return "", errorx.NewBiz("failed to get directory size: %s", err.Error())
 		}
 		strs := strings.Split(res, "\n")
 		res = strs[len(strs)-2]
@@ -243,7 +243,7 @@ func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *dto.Machin
 	}
 	file, err := sftpCli.Create(path)
 	if err != nil {
-		return nil, errorx.NewBiz("创建文件失败: %s", err.Error())
+		return nil, errorx.NewBiz("failed to create file: %s", err.Error())
 	}
 	defer file.Close()
 	return mi, err
@@ -383,7 +383,7 @@ func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *dto.Machin
 	if err == nil {
 		return minfo, nil
 	}
-	logx.Errorf("使用命令rm删除文件失败: %s", res)
+	logx.Errorf("failed to delete the file using the command rm: %s", res)
 
 	sftpCli, err := mcli.GetSftpCli()
 	if err != nil {
@@ -408,13 +408,13 @@ func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *dto.MachineFileO
 			// 打开源文件
 			srcFile, err := os.Open(srcPath)
 			if err != nil {
-				fmt.Println("Error opening source file:", err)
+				logx.Errorf("error opening source file: %v", err)
 				return nil, err
 			}
 			// 创建目标文件
 			destFile, err := os.Create(targetPath)
 			if err != nil {
-				fmt.Println("Error creating destination file:", err)
+				logx.Errorf("error creating destination file: %v", err)
 				return nil, err
 			}
 			io.Copy(destFile, srcFile)

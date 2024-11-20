@@ -5,7 +5,7 @@
             v-model="state.selectTags"
             @change="changeTag"
             :data="tags"
-            placeholder="请选择关联标签"
+            :placeholder="$t('tag.selectTagPlaceholder')"
             :default-expanded-keys="defaultExpandedKeys"
             show-checkbox
             node-key="codePath"

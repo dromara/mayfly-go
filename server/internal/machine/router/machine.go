@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/machine/api"
+	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -35,15 +36,15 @@ func InitMachineRouter(router *gin.RouterGroup) {
 
 			req.NewGet(":machineId/groups", m.GetGroups),
 
-			req.NewDelete(":machineId/process", m.KillProcess).Log(req.NewLogSave("终止进程")).RequiredPermissionCode("machine:killprocess"),
+			req.NewPost("", m.SaveMachine).Log(req.NewLogSaveI(imsg.LogMachineSave)).RequiredPermission(saveMachineP),
 
-			req.NewPost("", m.SaveMachine).Log(req.NewLogSave("保存机器信息")).RequiredPermission(saveMachineP),
+			req.NewDelete(":machineId", m.DeleteMachine).Log(req.NewLogSaveI(imsg.LogMachineSave)),
 
 			req.NewPost("test-conn", m.TestConn),
 
-			req.NewPut(":machineId/:status", m.ChangeStatus).Log(req.NewLogSave("调整机器状态")).RequiredPermission(saveMachineP),
+			req.NewPut(":machineId/:status", m.ChangeStatus).Log(req.NewLogSaveI(imsg.LogMachineChangeStatus)).RequiredPermission(saveMachineP),
 
-			req.NewDelete(":machineId", m.DeleteMachine).Log(req.NewLogSave("删除机器")),
+			req.NewDelete(":machineId/process", m.KillProcess).Log(req.NewLogSaveI(imsg.LogMachineKillProcess)).RequiredPermissionCode("machine:killprocess"),
 
 			// 获取机器终端回放记录列表,目前具有保存机器信息的权限标识才有权限查看终端回放
 			req.NewGet(":machineId/term-recs", m.MachineTermOpRecords).RequiredPermission(saveMachineP),

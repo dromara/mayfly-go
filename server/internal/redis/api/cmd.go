@@ -13,7 +13,7 @@ import (
 func (r *Redis) RunCmd(rc *req.Ctx) {
 	var cmdReq form.RunCmdForm
 	runCmdParam := req.BindJsonAndCopyTo(rc, &cmdReq, new(dto.RunCmd))
-	biz.IsTrue(len(cmdReq.Cmd) > 0, "redis命令不能为空")
+	biz.IsTrue(len(cmdReq.Cmd) > 0, "redis cmd cannot be empty")
 
 	redisConn := r.getRedisConn(rc)
 	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.CodePath...), "%s")

@@ -1,24 +1,26 @@
 <template>
-    <div class="h100">
-        <el-watermark
-            :zIndex="10000000"
-            :width="210"
-            v-if="themeConfig.isWatermark"
-            :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
-            :content="themeConfig.watermarkText"
-            class="h100"
-        >
-            <router-view v-show="themeConfig.lockScreenTime !== 0" />
-        </el-watermark>
-        <router-view v-if="!themeConfig.isWatermark" v-show="themeConfig.lockScreenTime !== 0" />
+    <el-config-provider :size="getGlobalComponentSize" :locale="getGlobalI18n">
+        <div class="h100">
+            <el-watermark
+                :zIndex="10000000"
+                :width="210"
+                v-if="themeConfig.isWatermark"
+                :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
+                :content="themeConfig.watermarkText"
+                class="h100"
+            >
+                <router-view v-show="themeConfig.lockScreenTime !== 0" />
+            </el-watermark>
+            <router-view v-if="!themeConfig.isWatermark" v-show="themeConfig.lockScreenTime !== 0" />
 
-        <LockScreen v-if="themeConfig.isLockScreen" />
-        <Setings ref="setingsRef" v-show="themeConfig.lockScreenTime !== 0" />
-    </div>
+            <LockScreen v-if="themeConfig.isLockScreen" />
+            <Setings ref="setingsRef" v-show="themeConfig.lockScreenTime !== 0" />
+        </div>
+    </el-config-provider>
 </template>
 
 <script setup lang="ts" name="app">
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -26,12 +28,19 @@ import LockScreen from '@/layout/lockScreen/index.vue';
 import Setings from '@/layout/navBars/breadcrumb/setings.vue';
 import mittBus from '@/common/utils/mitt';
 import { useIntervalFn } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
+import EnumValue from './common/Enum';
+import { I18nEnum } from './common/commonEnum';
+import { saveThemeConfig } from './common/utils/storage';
 
 const setingsRef = ref();
 const route = useRoute();
 
 const themeConfigStores = useThemeConfig();
 const { themeConfig } = storeToRefs(themeConfigStores);
+
+// 定义变量内容
+const { locale, t } = useI18n();
 
 // 布局配置弹窗打开
 const openSetingsDrawer = () => {
@@ -67,6 +76,31 @@ watch(
     }
 );
 
+watch(
+    () => themeConfig.value.globalI18n,
+    (val) => {
+        locale.value = val;
+    }
+);
+
+watch(
+    themeConfig,
+    (val) => {
+        saveThemeConfig(val);
+    },
+    { deep: true }
+);
+
+// 获取全局组件大小
+const getGlobalComponentSize = computed(() => {
+    return themeConfig.value.globalComponentSize;
+});
+
+// 获取全局 i18n
+const getGlobalI18n = computed(() => {
+    return EnumValue.getEnumByValue(I18nEnum, locale.value)?.extra.el;
+});
+
 // 刷新水印时间
 const { pause, resume } = useIntervalFn(() => {
     if (!themeConfig.value.isWatermark) {
@@ -96,7 +130,7 @@ watch(
     () => route.path,
     () => {
         nextTick(() => {
-            document.title = `${route.meta.title} - ${themeConfig.value.globalTitle}` || themeConfig.value.globalTitle;
+            document.title = `${t((route.meta.title as string) || '')} - ${themeConfig.value.globalTitle}` || themeConfig.value.globalTitle;
         });
     }
 );

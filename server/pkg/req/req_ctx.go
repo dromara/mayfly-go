@@ -5,6 +5,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/assert"
@@ -28,7 +29,10 @@ type Ctx struct {
 }
 
 func NewCtx(f F) *Ctx {
-	ctx := &Ctx{MetaCtx: contextx.WithTraceId(f.GetRequest().Context())}
+	metaCtx := contextx.WithTraceId(f.GetRequest().Context())
+	metaCtx = i18n.NewCtxWithLang(metaCtx, f.GetRequest().Header.Get("Accept-Language"))
+
+	ctx := &Ctx{MetaCtx: metaCtx}
 	ctx.wrapperF = NewWrapperF(f)
 	return ctx
 }

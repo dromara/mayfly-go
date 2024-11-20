@@ -6,24 +6,20 @@
             </template>
 
             <el-form :model="form" ref="formRef" :rules="rules" label-width="auto">
-                <el-form-item prop="name" label="名称">
-                    <el-input v-model.trim="form.name" placeholder="请输入流程名称" auto-complete="off" clearable></el-input>
+                <el-form-item prop="name" :label="$t('common.name')">
+                    <el-input v-model.trim="form.name" auto-complete="off" clearable></el-input>
                 </el-form-item>
-                <el-form-item prop="defKey" label="key">
-                    <el-input :disabled="form.id" v-model.trim="form.defKey" placeholder="请输入流程key" auto-complete="off" clearable></el-input>
+                <el-form-item prop="defKey" label="Key">
+                    <el-input :disabled="form.id" v-model.trim="form.defKey" auto-complete="off" clearable></el-input>
                 </el-form-item>
-                <el-form-item prop="status" label="状态">
-                    <el-select v-model="form.status" placeholder="请选择状态">
-                        <el-option v-for="item in ProcdefStatus" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                    </el-select>
+                <el-form-item prop="status" :label="$t('common.status')">
+                    <EnumSelect :enums="ProcdefStatus" v-model="form.status" />
                 </el-form-item>
-                <el-form-item prop="condition" label="触发条件">
+                <el-form-item prop="condition" :label="$t('flow.triggeringCondition')">
                     <template #label>
-                        触发条件
-                        <el-tooltip content="go template语法。若输出结果为1，则表示触发该审批流程" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
+                        {{ $t('flow.triggeringCondition') }}
+                        <el-tooltip :content="$t('flow.triggeringConditionTips')" placement="top">
+                            <SvgIcon name="question-filled" />
                         </el-tooltip>
                     </template>
 
@@ -31,42 +27,46 @@
                         v-model="form.condition"
                         :rows="10"
                         type="textarea"
-                        placeholder="触发条件, 返回值=1, 则表示触发该审批流程"
+                        :placeholder="$t('flow.conditionPlaceholder')"
                         auto-complete="off"
                         clearable
                     ></el-input>
                 </el-form-item>
-                <el-form-item prop="remark" label="备注">
-                    <el-input v-model.trim="form.remark" placeholder="备注" auto-complete="off" clearable></el-input>
+                <el-form-item prop="remark" :label="$t('common.remark')">
+                    <el-input v-model.trim="form.remark" auto-complete="off" clearable></el-input>
                 </el-form-item>
 
-                <el-form-item ref="tagSelectRef" prop="codePaths" label="关联资源">
+                <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('tag.relateTag')">
                     <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypeEnum.DbName.value, TagResourceTypeEnum.Redis.value]" />
                 </el-form-item>
 
-                <el-divider content-position="left">审批节点</el-divider>
+                <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
 
                 <el-table ref="taskTableRef" :data="tasks" row-key="taskKey" stripe style="width: 100%">
-                    <el-table-column prop="name" label="名称" min-width="100px">
+                    <el-table-column prop="name" min-width="100px">
                         <template #header>
                             <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addTask()"> </el-button>
-                            <span class="ml10">节点名称</span>
-                            <el-tooltip content="点击指定节点可进行拖拽排序" placement="top">
-                                <el-icon class="ml5">
-                                    <question-filled />
-                                </el-icon>
+                            <span class="ml10">{{ $t('flow.nodeName') }}<span class="ml5" style="color: red">*</span></span>
+                            <el-tooltip :content="$t('flow.nodeNameTips')" placement="top">
+                                <SvgIcon class="ml5" name="question-filled" />
                             </el-tooltip>
                         </template>
                         <template #default="scope">
                             <el-input v-model="scope.row.name"> </el-input>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="userId" label="审核人员" min-width="150px" show-overflow-tooltip>
+
+                    <el-table-column prop="userId" min-width="150px" show-overflow-tooltip>
+                        <template #header>
+                            <span class="ml10">{{ $t('flow.auditor') }}<span class="ml5" style="color: red">*</span></span>
+                        </template>
+
                         <template #default="scope">
                             <AccountSelectFormItem v-model="scope.row.userId" label="" />
                         </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="60px">
+
+                    <el-table-column :label="$t('common.operation')" width="110px">
                         <template #default="scope">
                             <el-link @click="deleteTask(scope.$index)" class="ml5" type="danger" icon="delete" plain></el-link>
                         </template>
@@ -76,8 +76,8 @@
 
             <template #footer>
                 <div>
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -95,6 +95,11 @@ import { randomUuid } from '../../common/utils/string';
 import { ProcdefStatus } from './enums';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     data: {
@@ -117,14 +122,14 @@ const rules = {
     name: [
         {
             required: true,
-            message: '请输入流程名称',
+            message: useI18nPleaseInput('common.name'),
             trigger: ['change', 'blur'],
         },
     ],
     defKey: [
         {
             required: true,
-            message: '请输入流程key',
+            message: useI18nPleaseInput('Key'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -161,23 +166,7 @@ watch(props, (newValue: any) => {
         state.tasks = tasks;
     } else {
         state.form = { status: ProcdefStatus.Enable.value } as any;
-        state.form.condition = `{{/* DBMS-执行sql规则;  param参数描述如下 */}}
-{{/* stmtType: select / read / insert / update / delete / ddl ;  */}}
-{{ if eq .bizType "db_sql_exec_flow"}}
-    {{/* 不是select和read语句时，开启流程审批 */}}
-    {{ if and (ne .param.stmtType "select") (ne .param.stmtType "read") }}
-        1
-    {{ end }}
-{{ end }}
-
-{{/* Redis-执行命令规则;   param参数描述如下 */}}
-{{/* cmdType: read(读命令) / write(写命令);  */}}
-{{/* cmd: get/set/hset...等 */}}
-{{ if eq .bizType "redis_run_cmd_flow"}}
-    {{ if eq .param.cmdType "write" }}
-        1
-    {{ end }}
-{{ end }}`;
+        state.form.condition = t('flow.conditionDefault');
         state.tasks = [];
     }
 });
@@ -205,13 +194,7 @@ const deleteTask = (idx: any) => {
 };
 
 const btnOk = async () => {
-    try {
-        await formRef.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(formRef);
     const checkRes = checkTasks();
     if (checkRes.err) {
         ElMessage.error(checkRes.err);
@@ -220,7 +203,7 @@ const btnOk = async () => {
 
     state.form.tasks = JSON.stringify(checkRes.tasks);
     await saveFlowDefExec();
-    ElMessage.success('操作成功');
+    useI18nSaveSuccessMsg();
     emit('val-change', state.form);
     //重置表单域
     formRef.value.resetFields();
@@ -229,14 +212,14 @@ const btnOk = async () => {
 
 const checkTasks = () => {
     if (state.tasks?.length == 0) {
-        return { err: '请完善审批节点任务' };
+        return { err: t('flow.tasksNotEmpty') };
     }
 
     const tasks = [];
     for (let i = 0; i < state.tasks.length; i++) {
         const task = { ...state.tasks[i] };
         if (!task.name || !task.userId) {
-            return { err: `请完善第${i + 1}个审批节点任务信息` };
+            return { err: t('flow.tasksNoComplete', { index: i + 1 }) };
         }
         // 转为字符串(方便后续万一需要调整啥的)
         task.userId = `${task.userId}`;

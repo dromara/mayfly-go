@@ -32,14 +32,17 @@ func (v *MysqlVisitor) VisitSqlStatements(ctx *mysqlparser.SqlStatementsContext)
 }
 
 func (v *MysqlVisitor) VisitSqlStatement(ctx *mysqlparser.SqlStatementContext) interface{} {
-	if ctx.DmlStatement() != nil {
+	if c := ctx.DmlStatement(); c != nil {
 		return ctx.DmlStatement().Accept(v)
 	}
-	if ctx.DdlStatement() != nil {
+	if c := ctx.DdlStatement(); c != nil {
 		return ctx.DdlStatement().Accept(v)
 	}
-	if ctx.AdministrationStatement() != nil {
-		return ctx.AdministrationStatement().Accept(v)
+	if c := ctx.AdministrationStatement(); c != nil {
+		return c.Accept(v)
+	}
+	if c := ctx.UtilityStatement(); c != nil {
+		return c.Accept(v)
 	}
 
 	return sqlstmt.NewNode(ctx.GetParser(), ctx)
@@ -77,6 +80,16 @@ func (v *MysqlVisitor) VisitDmlStatement(ctx *mysqlparser.DmlStatementContext) i
 func (v *MysqlVisitor) VisitAdministrationStatement(ctx *mysqlparser.AdministrationStatementContext) interface{} {
 	if ssc := ctx.ShowStatement(); ssc != nil {
 		return ssc.Accept(v)
+	}
+	return sqlstmt.NewNode(ctx.GetParser(), ctx)
+}
+
+func (v *MysqlVisitor) VisitUtilityStatement(ctx *mysqlparser.UtilityStatementContext) interface{} {
+	if c := ctx.SimpleDescribeStatement(); c != nil {
+		return c.Accept(v)
+	}
+	if c := ctx.FullDescribeStatement(); c != nil {
+		return c.Accept(v)
 	}
 	return sqlstmt.NewNode(ctx.GetParser(), ctx)
 }

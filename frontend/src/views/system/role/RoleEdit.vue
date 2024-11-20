@@ -1,26 +1,29 @@
 <template>
     <div class="role-dialog">
-        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px" :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="600px" :destroy-on-close="true">
             <el-form ref="roleForm" :model="form" :rules="rules" label-width="auto">
-                <el-form-item prop="name" label="角色名称" required>
+                <el-form-item prop="name" :label="$t('system.role.roleName')" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item prop="code" label="角色code" required>
-                    <el-input :disabled="form.id != null" v-model="form.code" placeholder="COMMON开头则为所有账号共有角色" auto-complete="off"></el-input>
+                <el-form-item prop="code" :label="$t('system.role.roleCode')" required>
+                    <el-input
+                        :disabled="form.id != null"
+                        v-model="form.code"
+                        :placeholder="$t('system.role.roleCodePlaceholder')"
+                        auto-complete="off"
+                    ></el-input>
                 </el-form-item>
-                <el-form-item prop="status" label="状态" required>
-                    <el-select v-model="form.status" placeholder="请选择状态" class="w100">
-                        <el-option v-for="item in RoleStatusEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                    </el-select>
+                <el-form-item prop="status" :label="$t('common.status')" required>
+                    <EnumSelect :enums="RoleStatusEnum" v-model="form.status" />
                 </el-form-item>
-                <el-form-item label="角色描述">
-                    <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入角色描述"></el-input>
+                <el-form-item :label="$t('common.remark')">
+                    <el-input v-model="form.remark" type="textarea" :rows="3"></el-input>
                 </el-form-item>
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -31,26 +34,31 @@
 import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
+import { useI18n } from 'vue-i18n';
+import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const rules = {
     name: [
         {
             required: true,
-            message: '请输入角色名称',
+            message: useI18nPleaseInput('system.role.roleName'),
             trigger: ['change', 'blur'],
         },
     ],
     code: [
         {
             required: true,
-            message: '请输入角色编号',
+            message: useI18nPleaseInput('system.role.roleCode'),
             trigger: ['change', 'blur'],
         },
     ],
     status: [
         {
             required: true,
-            message: '请选择状态',
+            message: useI18nPleaseSelect('common.status'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -104,12 +112,7 @@ const cancel = () => {
 };
 
 const btnOk = async () => {
-    try {
-        await roleForm.value.validate();
-    } catch (e: any) {
-        return false;
-    }
-
+    await useI18nFormValidate(roleForm);
     await saveRoleExec();
     emit('val-change', state.form);
     cancel();

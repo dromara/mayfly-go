@@ -1,14 +1,14 @@
-import {MysqlDialect} from './mysql_dialect';
-import {PostgresqlDialect} from './postgres_dialect';
-import {DMDialect} from '@/views/ops/db/dialect/dm_dialect';
-import {OracleDialect} from '@/views/ops/db/dialect/oracle_dialect';
-import {MariadbDialect} from '@/views/ops/db/dialect/mariadb_dialect';
-import {SqliteDialect} from '@/views/ops/db/dialect/sqlite_dialect';
-import {MssqlDialect} from '@/views/ops/db/dialect/mssql_dialect';
-import {GaussDialect} from '@/views/ops/db/dialect/gauss_dialect';
-import {KingbaseEsDialect} from '@/views/ops/db/dialect/kingbaseES_dialect';
-import {VastbaseDialect} from '@/views/ops/db/dialect/vastbase_dialect';
-import {Oracle11Dialect} from "@/views/ops/db/dialect/oracle11_dialect";
+import { MysqlDialect } from './mysql_dialect';
+import { PostgresqlDialect } from './postgres_dialect';
+import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
+import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
+import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
+import { SqliteDialect } from '@/views/ops/db/dialect/sqlite_dialect';
+import { MssqlDialect } from '@/views/ops/db/dialect/mssql_dialect';
+import { GaussDialect } from '@/views/ops/db/dialect/gauss_dialect';
+import { KingbaseEsDialect } from '@/views/ops/db/dialect/kingbaseES_dialect';
+import { VastbaseDialect } from '@/views/ops/db/dialect/vastbase_dialect';
+import { Oracle11Dialect } from '@/views/ops/db/dialect/oracle11_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -214,11 +214,15 @@ export interface DbDialect {
      * @param tableName 表名
      * @param changeData 改变信息
      */
-    getModifyColumnSql(tableData: any, tableName: string, changeData: {
-        del: RowDefinition[];
-        add: RowDefinition[];
-        upd: RowDefinition[]
-    }): string;
+    getModifyColumnSql(
+        tableData: any,
+        tableName: string,
+        changeData: {
+            del: RowDefinition[];
+            add: RowDefinition[];
+            upd: RowDefinition[];
+        }
+    ): string;
 
     /**
      * 生成编辑索引sql

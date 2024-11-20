@@ -4,10 +4,10 @@ import (
 	"context"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/cryptox"
 )
 
 type Account interface {
@@ -39,10 +39,8 @@ func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, pageParam *
 
 func (a *accountAppImpl) Create(ctx context.Context, account *entity.Account) error {
 	if a.GetByCond(&entity.Account{Username: account.Username}) == nil {
-		return errorx.NewBiz("该账号用户名已存在")
+		return errorx.NewBizI(ctx, imsg.ErrUsernameExist)
 	}
-	// 默认密码为账号用户名
-	account.Password = cryptox.PwdHash(account.Username)
 	account.Status = entity.AccountEnable
 	return a.Insert(ctx, account)
 }
@@ -52,7 +50,7 @@ func (a *accountAppImpl) Update(ctx context.Context, account *entity.Account) er
 		unAcc := &entity.Account{Username: account.Username}
 		err := a.GetByCond(unAcc)
 		if err == nil && unAcc.Id != account.Id {
-			return errorx.NewBiz("该用户名已存在")
+			return errorx.NewBizI(ctx, imsg.ErrUsernameExist)
 		}
 	}
 

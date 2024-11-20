@@ -10,11 +10,13 @@ import (
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/mcm"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
@@ -73,43 +75,45 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	var mi *mcm.MachineInfo
 	var err error
 	if opForm.Type == dir {
-		attrs["type"] = "目录"
+		attrs["type"] = "Folder"
 		mi, err = m.MachineFileApp.MkDir(rc.MetaCtx, opForm.MachineFileOp)
 	} else {
-		attrs["type"] = "文件"
+		attrs["type"] = "File"
 		mi, err = m.MachineFileApp.CreateFile(rc.MetaCtx, opForm.MachineFileOp)
 	}
 	attrs["machine"] = mi
 	rc.ReqParam = attrs
-	biz.ErrIsNilAppendErr(err, "创建目录失败: %s")
+	biz.ErrIsNil(err)
 }
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
 	readPath := opForm.Path
+	ctx := rc.MetaCtx
+
 	// 特殊处理rdp文件
 	if opForm.Protocol == entity.MachineProtocolRdp {
 		path := m.MachineFileApp.GetRdpFilePath(rc.GetLoginAccount(), opForm.Path)
 		fi, err := os.Stat(path)
-		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
-		biz.IsTrue(fi.Size() < max_read_size, "文件超过1m，请使用下载查看")
+		biz.ErrIsNil(err)
+		biz.IsTrueI(ctx, fi.Size() < max_read_size, imsg.ErrFileTooLargeUseDownload)
 		datas, err := os.ReadFile(path)
-		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
+		biz.ErrIsNil(err)
 		rc.ResData = string(datas)
 		return
 	}
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(rc.MetaCtx, opForm)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
-	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
+	biz.ErrIsNil(err)
 	defer sftpFile.Close()
 
 	fileInfo, _ := sftpFile.Stat()
 	filesize := fileInfo.Size()
+	biz.IsTrueI(ctx, filesize < max_read_size, imsg.ErrFileTooLargeUseDownload)
 
-	biz.IsTrue(filesize < max_read_size, "文件超过1m，请使用下载查看")
 	datas, err := io.ReadAll(sftpFile)
-	biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
+	biz.ErrIsNil(err)
 
 	rc.ResData = string(datas)
 }
@@ -136,7 +140,7 @@ func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(rc.MetaCtx, opForm)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
-	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "open file error: %s")
 	defer sftpFile.Close()
 
 	rc.Download(sftpFile, fileName)
@@ -148,7 +152,7 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
 	fis, err := m.MachineFileApp.ReadDir(rc.MetaCtx, opForm)
-	biz.ErrIsNilAppendErr(err, "读取目录失败: %s")
+	biz.ErrIsNilAppendErr(err, "read dir error: %s")
 
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
@@ -202,7 +206,7 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 
 	mi, err := m.MachineFileApp.WriteFileContent(rc.MetaCtx, opForm.MachineFileOp, []byte(opForm.Content))
 	rc.ReqParam = collx.Kvs("machine", mi, "path", path)
-	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "open file error: %s")
 }
 
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
@@ -212,10 +216,12 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	authCertName := rc.PostForm("authCertName")
 
 	fileheader, err := rc.FormFile("file")
-	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "read form file error: %s")
+
+	ctx := rc.MetaCtx
 
 	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
-	biz.IsTrue(fileheader.Size <= maxUploadFileSize, "文件大小不能超过%d字节", maxUploadFileSize)
+	biz.IsTrueI(ctx, fileheader.Size <= maxUploadFileSize, imsg.ErrUploadFileOutOfLimit, "size", maxUploadFileSize)
 
 	file, _ := fileheader.Open()
 	defer file.Close()
@@ -223,8 +229,8 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	la := rc.GetLoginAccount()
 	defer func() {
 		if anyx.ToString(recover()) != "" {
-			logx.Errorf("文件上传失败: %s", err)
-			m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e : %s", err)))
+			logx.Errorf("upload file error: %s", err)
+			m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.TC(ctx, imsg.ErrFileUploadFail), fmt.Sprintf("%s: \n<-e : %s", i18n.TC(ctx, imsg.ErrFileUploadFail), err)))
 		}
 	}()
 
@@ -235,11 +241,11 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 		Path:         path,
 	}
 
-	mi, err := m.MachineFileApp.UploadFile(rc.MetaCtx, opForm, fileheader.Filename, file)
+	mi, err := m.MachineFileApp.UploadFile(ctx, opForm, fileheader.Filename, file)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", path, fileheader.Filename))
-	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "upload file error: %s")
 	// 保存消息并发送文件上传成功通知
-	m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
+	m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.TC(ctx, imsg.MsgUploadFileSuccess), fmt.Sprintf("[%s] -> %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
 }
 
 type FolderFile struct {
@@ -249,18 +255,19 @@ type FolderFile struct {
 
 func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	mf, err := rc.MultipartForm()
-	biz.ErrIsNilAppendErr(err, "获取表单信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get multipart form error: %s")
 	basePath := mf.Value["basePath"][0]
-	biz.NotEmpty(basePath, "基础路径不能为空")
+	biz.NotEmpty(basePath, "basePath cannot be empty")
 
 	fileheaders := mf.File["files"]
-	biz.IsTrue(len(fileheaders) > 0, "文件不能为空")
+	biz.IsTrue(len(fileheaders) > 0, "files cannot be empty")
 	allFileSize := collx.ArrayReduce(fileheaders, 0, func(i int64, fh *multipart.FileHeader) int64 {
 		return i + fh.Size
 	})
 
+	ctx := rc.MetaCtx
 	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
-	biz.IsTrue(allFileSize <= maxUploadFileSize, "文件夹总大小不能超过%d字节", maxUploadFileSize)
+	biz.IsTrueI(ctx, allFileSize <= maxUploadFileSize, imsg.ErrUploadFileOutOfLimit, "size", maxUploadFileSize)
 
 	paths := mf.Value["paths"]
 	authCertName := mf.Value["authCertName"][0]
@@ -275,7 +282,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	}
 
 	if protocol == entity.MachineProtocolRdp {
-		m.MachineFileApp.UploadFiles(rc.MetaCtx, opForm, basePath, fileheaders, paths)
+		m.MachineFileApp.UploadFiles(ctx, opForm, basePath, fileheaders, paths)
 		return
 	}
 
@@ -295,7 +302,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 		dir := filepath.Dir(path)
 		// 目录已建，则无需重复建
 		if !mkdirs[dir] {
-			biz.ErrIsNilAppendErr(sftpCli.MkdirAll(basePath+"/"+dir), "创建目录失败: %s")
+			biz.ErrIsNilAppendErr(sftpCli.MkdirAll(basePath+"/"+dir), "create dir error: %s")
 			mkdirs[dir] = true
 		}
 		folderFiles[i] = FolderFile{
@@ -321,10 +328,10 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				wg.Done()
 				if err := recover(); err != nil {
 					isSuccess = false
-					logx.Errorf("文件上传失败: %s", err)
+					logx.Errorf("upload file error: %s", err)
 					switch t := err.(type) {
 					case *errorx.BizError:
-						m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
+						m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.TC(ctx, imsg.ErrFileUploadFail), fmt.Sprintf("%s: \n<-e errCode: %d, errMsg: %s", i18n.TC(ctx, imsg.ErrFileUploadFail), t.Code(), t.Error())))
 					}
 				}
 			}()
@@ -335,10 +342,10 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				file, _ := fileHeader.Open()
 				defer file.Close()
 
-				logx.Debugf("上传文件夹: dir=%s -> filename=%s", dir, fileHeader.Filename)
+				logx.Debugf("upload folder: dir=%s -> filename=%s", dir, fileHeader.Filename)
 
 				createfile, err := sftpCli.Create(fmt.Sprintf("%s/%s/%s", basePath, dir, fileHeader.Filename))
-				biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
+				biz.ErrIsNilAppendErr(err, "create file error: %s")
 				defer createfile.Close()
 				io.Copy(createfile, file)
 			}
@@ -349,7 +356,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	wg.Wait()
 	if isSuccess {
 		// 保存消息并发送文件上传成功通知
-		m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+		m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.TC(ctx, imsg.MsgUploadFileSuccess), fmt.Sprintf("[%s] -> %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
 	}
 }
 
@@ -358,13 +365,13 @@ func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 
 	mi, err := m.MachineFileApp.RemoveFile(rc.MetaCtx, opForm.MachineFileOp, opForm.Paths...)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", opForm)
-	biz.ErrIsNilAppendErr(err, "删除文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "remove file error: %s")
 }
 
 func (m *MachineFile) CopyFile(rc *req.Ctx) {
 	opForm := req.BindJsonAndValid(rc, new(form.CopyFileForm))
 	mi, err := m.MachineFileApp.Copy(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
-	biz.ErrIsNilAppendErr(err, "文件拷贝失败: %s")
+	biz.ErrIsNilAppendErr(err, "file copy error: %s")
 	rc.ReqParam = collx.Kvs("machine", mi, "cp", opForm)
 }
 
@@ -372,14 +379,14 @@ func (m *MachineFile) MvFile(rc *req.Ctx) {
 	opForm := req.BindJsonAndValid(rc, new(form.CopyFileForm))
 	mi, err := m.MachineFileApp.Mv(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
 	rc.ReqParam = collx.Kvs("machine", mi, "mv", opForm)
-	biz.ErrIsNilAppendErr(err, "文件移动失败: %s")
+	biz.ErrIsNilAppendErr(err, "file move error: %s")
 }
 
 func (m *MachineFile) Rename(rc *req.Ctx) {
 	renameForm := req.BindJsonAndValid(rc, new(form.RenameForm))
 	mi, err := m.MachineFileApp.Rename(rc.MetaCtx, renameForm.MachineFileOp, renameForm.Newname)
 	rc.ReqParam = collx.Kvs("machine", mi, "rename", renameForm)
-	biz.ErrIsNilAppendErr(err, "文件重命名失败: %s")
+	biz.ErrIsNilAppendErr(err, "file rename error: %s")
 }
 
 func getFileType(fm fs.FileMode) string {
@@ -394,6 +401,6 @@ func getFileType(fm fs.FileMode) string {
 
 func GetMachineFileId(rc *req.Ctx) uint64 {
 	fileId := rc.PathParamInt("fileId")
-	biz.IsTrue(fileId != 0, "fileId错误")
+	biz.IsTrue(fileId != 0, "fileId error")
 	return uint64(fileId)
 }

@@ -36,7 +36,7 @@ func FlowBizHandle(ctx context.Context, bizHandleParam *BizHandleParam) (any, er
 	flowBizType := bizHandleParam.Procinst.BizType
 	if handler, ok := handlers[flowBizType]; !ok {
 		logx.Warnf("flow biz handler not found: bizType=%s", flowBizType)
-		return nil, errorx.NewBiz("业务处理器不存在")
+		return nil, errorx.NewBiz("flow biz handler not found")
 	} else {
 		return handler.FlowBizHandle(ctx, bizHandleParam)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/runtimex"
@@ -25,14 +26,24 @@ type LogInfo struct {
 	save    bool // 是否保存日志
 }
 
-// 新建日志信息，默认不保存该日志
+// NewLog 新建日志信息，默认不保存该日志
 func NewLog(description string) *LogInfo {
 	return &LogInfo{Description: description, LogResp: false, save: false}
 }
 
-// 新建日志信息,并且需要保存该日志信息
+// NewLogI 使用msgId新建日志信息，默认不保存该日志
+func NewLogI(msgId i18n.MsgId) *LogInfo {
+	return &LogInfo{Description: i18n.T(msgId), LogResp: false, save: false}
+}
+
+// NewLogSave 新建日志信息,并且需要保存该日志信息
 func NewLogSave(description string) *LogInfo {
 	return &LogInfo{Description: description, LogResp: false, save: true}
+}
+
+// NewLogSaveI 使用msgId新建日志信息，并且需要保存该日志信息
+func NewLogSaveI(msgId i18n.MsgId) *LogInfo {
+	return &LogInfo{Description: i18n.T(msgId), LogResp: false, save: true}
 }
 
 // 记录返回结果

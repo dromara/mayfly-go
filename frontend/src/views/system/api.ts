@@ -8,6 +8,7 @@ export const resourceApi = {
     del: Api.newDelete('/sys/resources/{id}'),
     changeStatus: Api.newPut('/sys/resources/{id}/{status}'),
     sort: Api.newPost('/sys/resources/sort'),
+    roles: Api.newGet('/sys/resources/{id}/roles'),
 };
 
 export const roleApi = {

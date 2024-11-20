@@ -12,10 +12,10 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
-                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete"
-                    >删除</el-button
-                >
+                <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete">{{
+                    $t('common.delete')
+                }}</el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -33,31 +33,33 @@
             </template>
 
             <template #action="{ data }">
-                <el-button @click="showInfo(data)" link>详情</el-button>
-                <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>库管理</el-button>
+                <el-button @click="showInfo(data)" link>{{ $t('common.detail') }}</el-button>
+                <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
+                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>{{ $t('db.dbManage') }}</el-button>
             </template>
         </page-table>
 
-        <el-dialog v-model="infoDialog.visible" title="详情">
+        <el-dialog v-model="infoDialog.visible" :title="$t('common.detail')">
             <el-descriptions :column="3" border>
-                <el-descriptions-item :span="2" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="主机">{{ infoDialog.data.host }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.name')">{{ infoDialog.data.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="ID">{{ infoDialog.data.id }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="Host">{{ infoDialog.data.host }}</el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('db.port')">{{ infoDialog.data.port }}</el-descriptions-item>
 
-                <el-descriptions-item :span="1" label="类型">{{ infoDialog.data.type }}</el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.type')">{{ infoDialog.data.type }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="连接参数">{{ infoDialog.data.params }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('db.connParam')">{{ infoDialog.data.params }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('common.remark')">{{ infoDialog.data.remark }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('machine.sshTunnel')">
+                    {{ infoDialog.data.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
+                </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(infoDialog.data.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.createTime')">{{ formatDate(infoDialog.data.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.creator')">{{ infoDialog.data.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(infoDialog.data.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.updateTime')">{{ formatDate(infoDialog.data.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.modifier')">{{ infoDialog.data.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
@@ -87,9 +89,13 @@ import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { getTagPathSearchItem } from '../component/tag';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
 const DbList = defineAsyncComponent(() => import('./DbList.vue'));
+
+const { t } = useI18n();
 
 const props = defineProps({
     lazy: {
@@ -104,22 +110,25 @@ const perms = {
     saveDb: 'db:save',
 };
 
-const searchItems = [SearchItem.input('keyword', '关键字').withPlaceholder('host / 名称 / 编号'), getTagPathSearchItem(TagResourceTypeEnum.Db.value)];
+const searchItems = [
+    SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder'),
+    getTagPathSearchItem(TagResourceTypeEnum.Db.value),
+];
 
 const columns = ref([
-    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('name', '名称'),
-    TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
+    TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('type', 'common.type').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
-    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
-    TableColumn.new('params', '连接参数'),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('code', '编号'),
+    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert').setAddWidth(10),
+    TableColumn.new('params', 'db.connParam'),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('code', 'common.code'),
 ]);
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns: any = hasPerms(Object.values(perms));
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
@@ -146,12 +155,12 @@ const state = reactive({
     instanceEditDialog: {
         visible: false,
         data: null as any,
-        title: '新增数据库实例',
+        title: '',
     },
     dbEditDialog: {
         visible: false,
         instance: null as any,
-        title: '新增数据库实例',
+        title: '',
     },
 });
 
@@ -190,23 +199,19 @@ const showInfo = (info: any) => {
 const editInstance = async (data: any) => {
     if (!data) {
         state.instanceEditDialog.data = null;
-        state.instanceEditDialog.title = '新增数据库实例';
+        state.instanceEditDialog.title = useI18nCreateTitle('db.dbInst');
     } else {
         state.instanceEditDialog.data = data;
-        state.instanceEditDialog.title = '修改数据库实例';
+        state.instanceEditDialog.title = useI18nEditTitle('db.dbInst');
     }
     state.instanceEditDialog.visible = true;
 };
 
 const deleteInstance = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除数据库实例【${state.selectionData.map((x: any) => x.name).join(', ')}】?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         await dbApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //
@@ -215,7 +220,7 @@ const deleteInstance = async () => {
 
 const editDb = (data: any) => {
     state.dbEditDialog.instance = data;
-    state.dbEditDialog.title = `管理 "${data.name}" 数据库`;
+    state.dbEditDialog.title = t('db.manageDbTitle', { instName: data.name });
     state.dbEditDialog.visible = true;
 };
 

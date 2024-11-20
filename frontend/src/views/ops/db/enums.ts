@@ -1,8 +1,8 @@
 import { EnumValue } from '@/common/Enum';
 
 export const DbGetDbNamesMode = {
-    Auto: EnumValue.of(-1, '实时获取').setTagType('warning'),
-    Assign: EnumValue.of(1, '指定库名').setTagType('primary'),
+    Auto: EnumValue.of(-1, 'db.getDbNamesModeAuto').setTagType('warning'),
+    Assign: EnumValue.of(1, 'db.getDbNamesModeAssign').setTagType('primary'),
 };
 
 // 数据库sql执行类型
@@ -16,36 +16,42 @@ export const DbSqlExecTypeEnum = {
 };
 
 export const DbSqlExecStatusEnum = {
-    Success: EnumValue.of(2, '成功').setTagType('success'),
-    Fail: EnumValue.of(-2, '失败').setTagType('danger'),
+    Success: EnumValue.of(2, 'common.success').setTagType('success'),
+    Fail: EnumValue.of(-2, 'common.fail').setTagType('danger'),
+};
+
+export const DbDataSyncDuplicateStrategyEnum = {
+    None: EnumValue.of(-1, 'db.none'),
+    Ignore: EnumValue.of(1, 'db.ingore'),
+    Replace: EnumValue.of(2, 'db.replace'),
 };
 
 export const DbDataSyncRecentStateEnum = {
-    Success: EnumValue.of(1, '成功').setTagType('success'),
-    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+    Success: EnumValue.of(1, 'common.success').setTagType('success'),
+    Fail: EnumValue.of(-1, 'common.fail').setTagType('danger'),
 };
 
 export const DbDataSyncLogStatusEnum = {
-    Success: EnumValue.of(1, '成功').setTagType('success'),
-    Wait: EnumValue.of(2, '同步中').setTagType('primary'),
-    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+    Success: EnumValue.of(1, 'common.success').setTagType('success'),
+    Running: EnumValue.of(2, 'db.running').setTagType('primary'),
+    Fail: EnumValue.of(-1, 'common.fail').setTagType('danger'),
 };
 
 export const DbDataSyncRunningStateEnum = {
-    Success: EnumValue.of(1, '运行中').setTagType('success'),
-    Wait: EnumValue.of(2, '待运行').setTagType('primary'),
-    Fail: EnumValue.of(3, '已停止').setTagType('danger'),
+    Running: EnumValue.of(1, 'db.running').setTagType('success'),
+    WaitRun: EnumValue.of(2, 'db.waitRun').setTagType('primary'),
+    Stop: EnumValue.of(3, 'db.stop').setTagType('danger'),
 };
 
 export const DbTransferRunningStateEnum = {
-    Success: EnumValue.of(2, '成功').setTagType('success'),
-    Wait: EnumValue.of(1, '执行中').setTagType('primary'),
-    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
-    Stop: EnumValue.of(-2, '手动终止').setTagType('warning'),
+    Success: EnumValue.of(2, 'common.success').setTagType('success'),
+    Running: EnumValue.of(1, 'db.running').setTagType('primary'),
+    Fail: EnumValue.of(-1, 'common.fail').setTagType('danger'),
+    Stop: EnumValue.of(-2, 'db.stop').setTagType('warning'),
 };
 
 export const DbTransferFileStatusEnum = {
-    Running: EnumValue.of(1, '执行中').setTagType('primary'),
-    Success: EnumValue.of(2, '成功').setTagType('success'),
-    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+    Running: EnumValue.of(1, 'db.running').setTagType('primary'),
+    Success: EnumValue.of(2, 'common.success').setTagType('success'),
+    Fail: EnumValue.of(-1, 'common.fail').setTagType('danger'),
 };

@@ -1,7 +1,9 @@
 package errorx
 
 import (
+	"context"
 	"fmt"
+	"mayfly-go/pkg/i18n"
 )
 
 // 业务错误
@@ -32,9 +34,17 @@ func (e BizError) String() string {
 	return fmt.Sprintf("errCode: %d, errMsg: %s", e.Code(), e.Error())
 }
 
-// 创建业务逻辑错误结构体，默认为业务逻辑错误
-func NewBiz(msg string, formats ...any) *BizError {
-	return &BizError{code: BizErr.code, err: fmt.Sprintf(msg, formats...)}
+// NewBiz 创建业务逻辑错误结构体，默认为业务逻辑错误
+func NewBiz(msg string, formatValues ...any) *BizError {
+	return &BizError{code: BizErr.code, err: fmt.Sprintf(msg, formatValues...)}
+}
+
+// NewBizI 使用i18n的msgId创建业务逻辑错误结构体，默认为业务逻辑错误 (使用ctx中的国际化语言)
+//
+//	// NameErr =  {{.name}} is invalid  =>  xxx is invalid
+//	NewBizI(ctx, imsg.NameErr, "name", "xxxx")
+func NewBizI(ctx context.Context, msgId i18n.MsgId, attrs ...any) *BizError {
+	return &BizError{code: BizErr.code, err: i18n.TC(ctx, msgId, attrs...)}
 }
 
 // 创建业务逻辑错误结构体，可设置指定错误code

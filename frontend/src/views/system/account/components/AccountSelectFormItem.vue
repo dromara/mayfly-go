@@ -6,7 +6,7 @@
             :remote-method="getAccount"
             v-model="accountId"
             filterable
-            placeholder="请输入账号模糊搜索并选择"
+            :placeholder="$t('system.account.accountSearchPlaceholder')"
             v-bind="$attrs"
             :ref="(el: any) => props.focus && el?.focus()"
         >

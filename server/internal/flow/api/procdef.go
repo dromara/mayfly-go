@@ -11,8 +11,9 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type Procdef struct {
@@ -55,8 +56,6 @@ func (p *Procdef) Delete(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		biz.ErrIsNilAppendErr(p.ProcdefApp.DeleteProcdef(rc.MetaCtx, uint64(value)), "删除失败：%s")
+		biz.ErrIsNilAppendErr(p.ProcdefApp.DeleteProcdef(rc.MetaCtx, cast.ToUint64(v)), "delete error: %s")
 	}
 }

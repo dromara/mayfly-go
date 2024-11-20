@@ -1,22 +1,22 @@
 <template>
     <el-form size="small">
         <el-form-item>
-            <el-radio v-model="radioValue" :label="1"> 周，允许的通配符[, - * / L #] </el-radio>
+            <el-radio v-model="radioValue" :label="1"> {{ $t('components.crontab.weekCronType1') }} </el-radio>
         </el-form-item>
 
         <el-form-item>
-            <el-radio v-model="radioValue" :label="2"> 不指定 </el-radio>
+            <el-radio v-model="radioValue" :label="2"> {{ $t('components.crontab.crontype2') }} </el-radio>
         </el-form-item>
 
         <el-form-item>
             <el-radio v-model="radioValue" :label="3">
-                周期从星期
+                {{ $t('components.crontab.crontype3') }}
                 <el-input-number v-model="cycle01" :min="1" :max="7" /> -
                 <el-input-number v-model="cycle02" :min="1" :max="7" />
             </el-radio>
         </el-form-item>
 
-        <el-form-item>
+        <!-- <el-form-item>
             <el-radio v-model="radioValue" :label="4">
                 第
                 <el-input-number v-model="average01" :min="1" :max="4" /> 周的星期
@@ -29,13 +29,13 @@
                 本月最后一个星期
                 <el-input-number v-model="weekday" :min="1" :max="7" />
             </el-radio>
-        </el-form-item>
+        </el-form-item> -->
 
         <el-form-item>
             <div class="flex-align-center w100">
-                <el-radio v-model="radioValue" :label="6" class="mr5"> 指定 </el-radio>
-                <el-select @click="radioValue = 6" class="w100" clearable v-model="checkboxList" placeholder="可多选" multiple>
-                    <el-option v-for="(item, index) of weekList" :label="item" :key="index" :value="`${index + 1}`">{{ item }}</el-option>
+                <el-radio v-model="radioValue" :label="6" class="mr5"> {{ $t('components.crontab.appoint') }} </el-radio>
+                <el-select @click="radioValue = 6" class="w100" clearable v-model="checkboxList" multiple>
+                    <el-option v-for="(item, index) of weekList" :label="item" :key="index" :value="`${index + 1}`">{{ $t(item) }}</el-option>
                 </el-select>
             </div>
         </el-form-item>
@@ -56,7 +56,15 @@ const state = reactive({
     average01: 1,
     average02: 1,
     checkboxList: [] as any,
-    weekList: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+    weekList: [
+        'components.crontab.monday',
+        'components.crontab.tuesday',
+        'components.crontab.wednesday',
+        'components.crontab.thursday',
+        'components.crontab.friday',
+        'components.crontab.saturday',
+        'components.crontab.sunday',
+    ],
 });
 
 const { radioValue, cycle01, cycle02, average01, average02, checkboxList, weekday, weekList } = toRefs(state);

@@ -7,8 +7,8 @@
 
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
-                    <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签" required>
+                    <el-tab-pane :label="$t('common.basic')" name="basic">
+                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')" required>
                             <tag-tree-select
                                 @change-tag="
                                     (tagCodePaths) => {
@@ -21,42 +21,29 @@
                                 style="width: 100%"
                             />
                         </el-form-item>
-                        <el-form-item prop="name" label="名称" required>
-                            <el-input v-model.trim="form.name" placeholder="请输入redis名称" auto-complete="off"></el-input>
+                        <el-form-item prop="name" :label="$t('common.name')" required>
+                            <el-input v-model.trim="form.name" auto-complete="off"></el-input>
                         </el-form-item>
                         <el-form-item prop="mode" label="mode" required>
-                            <el-select style="width: 100%" v-model="form.mode" placeholder="请选择模式">
+                            <el-select v-model="form.mode">
                                 <el-option label="standalone" value="standalone"> </el-option>
                                 <el-option label="cluster" value="cluster"> </el-option>
                                 <el-option label="sentinel" value="sentinel"> </el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item prop="host" label="host" required>
-                            <el-input
-                                v-model.trim="form.host"
-                                placeholder="请输入host:port；sentinel模式为: mastername=sentinelhost:port，若集群或哨兵需设多个节点可使用','分割"
-                                auto-complete="off"
-                                type="textarea"
-                            ></el-input>
+                            <el-input v-model.trim="form.host" :placeholder="$t('redis.hostTips')" auto-complete="off" type="textarea"></el-input>
                         </el-form-item>
-                        <el-form-item prop="username" label="用户名">
-                            <el-input v-model.trim="form.username" placeholder="用户名"></el-input>
+                        <el-form-item prop="username" :label="$t('common.username')">
+                            <el-input v-model.trim="form.username"></el-input>
                         </el-form-item>
-                        <el-form-item prop="password" label="密码">
-                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
-                            </el-input>
+                        <el-form-item prop="password" :label="$t('common.password')">
+                            <el-input type="password" show-password v-model.trim="form.password" autocomplete="new-password"> </el-input>
                         </el-form-item>
-                        <el-form-item v-if="form.mode == 'sentinel'" prop="redisNodePassword" label="节点密码">
-                            <el-input
-                                type="password"
-                                show-password
-                                v-model.trim="form.redisNodePassword"
-                                placeholder="请输入Redis节点密码"
-                                autocomplete="new-password"
-                            >
-                            </el-input>
+                        <el-form-item v-if="form.mode == 'sentinel'" prop="redisNodePassword" :label="$t('redis.nodePassword')">
+                            <el-input type="password" show-password v-model.trim="form.redisNodePassword" autocomplete="new-password"> </el-input>
                         </el-form-item>
-                        <el-form-item prop="db" label="库号" required>
+                        <el-form-item prop="db" label="DB" required>
                             <el-select
                                 @change="changeDb"
                                 :disabled="form.mode == 'cluster'"
@@ -64,19 +51,18 @@
                                 multiple
                                 allow-create
                                 filterable
-                                placeholder="请选择可操作库号"
                                 style="width: 100%"
                             >
                                 <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
                             </el-select>
                         </el-form-item>
-                        <el-form-item prop="remark" label="备注">
+                        <el-form-item prop="remark" :label="$t('common.remark')">
                             <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                         </el-form-item>
                     </el-tab-pane>
 
-                    <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
+                    <el-tab-pane :label="$t('common.other')" name="other">
+                        <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                         </el-form-item>
                     </el-tab-pane>
@@ -85,9 +71,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -101,6 +87,10 @@ import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -120,35 +110,35 @@ const rules = {
     tagCodePaths: [
         {
             required: true,
-            message: '请选择标签',
+            message: useI18nPleaseSelect('tag.relateTag'),
             trigger: ['blur', 'change'],
         },
     ],
     name: [
         {
             required: true,
-            message: '请输入名称',
+            message: useI18nPleaseInput('common.name'),
             trigger: ['change', 'blur'],
         },
     ],
     host: [
         {
             required: true,
-            message: '请输入主机ip:port',
+            message: useI18nPleaseInput('ip:port'),
             trigger: ['change', 'blur'],
         },
     ],
     db: [
         {
             required: true,
-            message: '请选择库号',
+            message: useI18nPleaseSelect('DB'),
             trigger: ['change', 'blur'],
         },
     ],
     mode: [
         {
             required: true,
-            message: '请选择模式',
+            message: useI18nPleaseSelect('mode'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -218,7 +208,7 @@ const changeDb = () => {
 const getReqForm = async () => {
     const reqForm = { ...state.form };
     if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
-        ElMessage.error('sentinel模式host需为: mastername=sentinelhost:sentinelport模式');
+        ElMessage.error(t('redis.sentinelHostErr'));
         return;
     }
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
@@ -228,29 +218,17 @@ const getReqForm = async () => {
 };
 
 const testConn = async () => {
-    try {
-        await redisForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(redisForm);
     state.submitForm = await getReqForm();
     await testConnExec();
-    ElMessage.success('连接成功');
+    ElMessage.success(t('ac.connSuccess'));
 };
 
 const btnOk = async () => {
-    try {
-        await redisForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(redisForm);
     state.submitForm = await getReqForm();
     await saveRedisExec();
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     emit('val-change', state.form);
     cancel();
 };

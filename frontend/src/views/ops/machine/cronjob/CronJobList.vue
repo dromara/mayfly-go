@@ -10,13 +10,15 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.saveCronJob" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
-                <el-button v-auth="perms.delCronJob" :disabled="selectionData.length < 1" @click="deleteCronJob()" type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.saveCronJob" type="primary" icon="plus" @click="openFormDialog(false)" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delCronJob" :disabled="selectionData.length < 1" @click="deleteCronJob()" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #running="{ data }">
-                <el-tag v-if="data.running" type="success" effect="plain">运行中</el-tag>
-                <el-tag v-else type="danger" effect="plain">未运行</el-tag>
+                <el-tag v-if="data.running" type="success" effect="plain">{{ $t('machine.cronjobRunning') }}</el-tag>
+                <el-tag v-else type="danger" effect="plain">{{ $t('machine.cronjobNoRun') }}</el-tag>
             </template>
 
             <template #codePaths="{ data }">
@@ -25,10 +27,10 @@
 
             <template #action="{ data }">
                 <el-button :disabled="data.status == CronJobStatusEnum.Disable.value" v-auth="perms.saveCronJob" type="primary" @click="runCronJob(data)" link
-                    >执行</el-button
-                >
-                <el-button v-auth="perms.saveCronJob" type="primary" @click="openFormDialog(data)" link>编辑</el-button>
-                <el-button type="primary" @click="showExec(data)" link>执行记录</el-button>
+                    >{{ $t('machine.cronjobRun') }}
+                </el-button>
+                <el-button v-auth="perms.saveCronJob" type="primary" @click="openFormDialog(data)" link>{{ $t('common.edit') }}</el-button>
+                <el-button type="primary" @click="showExec(data)" link>{{ $t('machine.cronjobExecRecord') }}</el-button>
             </template>
         </page-table>
 
@@ -46,28 +48,32 @@ import { TableColumn } from '@/components/pagetable';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
 import { SearchItem } from '@/components/SearchForm';
 import TagCodePath from '../../component/TagCodePath.vue';
+import { useI18n } from 'vue-i18n';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 
 const CronJobEdit = defineAsyncComponent(() => import('./CronJobEdit.vue'));
 const CronJobExecList = defineAsyncComponent(() => import('./CronJobExecList.vue'));
+
+const { t } = useI18n();
 
 const perms = {
     saveCronJob: 'machine:cronjob:save',
     delCronJob: 'machine:cronjob:del',
 };
 
-const searchItems = [SearchItem.input('name', '名称'), SearchItem.select('status', '状态').withEnum(CronJobStatusEnum)];
+const searchItems = [SearchItem.input('name', 'common.name'), SearchItem.select('status', 'common.status').withEnum(CronJobStatusEnum)];
 
 const columns = ref([
     TableColumn.new('key', 'key'),
-    TableColumn.new('name', '名称'),
+    TableColumn.new('name', 'common.name'),
     TableColumn.new('cron', 'cron'),
-    TableColumn.new('script', '脚本').canBeautify(),
-    TableColumn.new('status', '状态').typeTag(CronJobStatusEnum),
-    TableColumn.new('running', '运行状态').isSlot(),
-    TableColumn.new('saveExecResType', '记录类型').typeTag(CronJobSaveExecResTypeEnum),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('codePaths', '关联机器').isSlot().setMinWidth('250px'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter(),
+    TableColumn.new('script', 'machine.script').canBeautify(),
+    TableColumn.new('status', 'common.status').typeTag(CronJobStatusEnum),
+    TableColumn.new('running', 'machine.cronjobRunState').isSlot(),
+    TableColumn.new('saveExecResType', 'machine.execResRecordType').typeTag(CronJobSaveExecResTypeEnum),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('codePaths', 'machine.relateMachine').isSlot().setMinWidth('250px'),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().alignCenter(),
 ]);
 
 const pageTableRef: Ref<any> = ref(null);
@@ -88,7 +94,7 @@ const state = reactive({
     cronJobEdit: {
         visible: false,
         data: null as any,
-        title: '新增机器',
+        title: '',
     },
 });
 
@@ -100,10 +106,10 @@ const openFormDialog = async (data: any) => {
     let dialogTitle;
     if (data) {
         state.cronJobEdit.data = data;
-        dialogTitle = '编辑计划任务';
+        dialogTitle = useI18nEditTitle('machine.cronjob');
     } else {
         state.cronJobEdit.data = null;
-        dialogTitle = '添加计划任务';
+        dialogTitle = useI18nCreateTitle('machine.cronjob');
     }
 
     state.cronJobEdit.title = dialogTitle;
@@ -112,18 +118,14 @@ const openFormDialog = async (data: any) => {
 
 const runCronJob = async (data: any) => {
     await cronJobApi.run.request({ key: data.key });
-    ElMessage.success('执行成功');
+    ElMessage.success(t('machine.runSuccess'));
 };
 
 const deleteCronJob = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】计划任务信息? 该操作将同时删除执行记录`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         await cronJobApi.delete.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('操作成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //

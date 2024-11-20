@@ -3,7 +3,7 @@
         <el-row :gutter="15">
             <!-- 个人信息 -->
             <el-col :xs="24" :sm="16">
-                <el-card shadow="hover" header="个人信息">
+                <el-card shadow="hover" :header="$t('home.personalInfo')">
                     <div class="personal-user">
                         <div class="personal-user-left">
                             <el-upload
@@ -20,17 +20,17 @@
                         </div>
                         <div class="personal-user-right">
                             <el-row>
-                                <el-col :span="24" class="personal-title mb18"
-                                    >{{ currentTime }}，{{ userInfo.name }}，生活变的再糟糕，也不妨碍我变得更好！
+                                <el-col :span="24" class="personal-title mb18">
+                                    {{ $t('home.welcomeMsg', { name: userInfo.name }) }}
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
                                         <el-col :xs="24" :sm="12" class="personal-item mb6">
-                                            <div class="personal-item-label">用户名：</div>
+                                            <div class="personal-item-label">{{ $t('common.username') }}：</div>
                                             <div class="personal-item-value">{{ userInfo.username }}</div>
                                         </el-col>
                                         <el-col :xs="24" :sm="12" class="personal-item mb6">
-                                            <div class="personal-item-label">角色：</div>
+                                            <div class="personal-item-label">{{ $t('common.role') }}：</div>
                                             <div class="personal-item-value">{{ roleInfo }}</div>
                                         </el-col>
                                     </el-row>
@@ -38,11 +38,11 @@
                                 <el-col :span="24">
                                     <el-row>
                                         <el-col :xs="24" :sm="12" class="personal-item mb6">
-                                            <div class="personal-item-label">上次登录IP：</div>
+                                            <div class="personal-item-label">{{ $t('home.lastLoginIp') }}：</div>
                                             <div class="personal-item-value">{{ userInfo.lastLoginIp }}</div>
                                         </el-col>
                                         <el-col :xs="24" :sm="12" class="personal-item mb6">
-                                            <div class="personal-item-label">上次登录时间：</div>
+                                            <div class="personal-item-label">{{ $t('home.lastLoginTime') }}：</div>
                                             <div class="personal-item-value">{{ formatDate(userInfo.lastLoginTime) }}</div>
                                         </el-col>
                                     </el-row>
@@ -57,13 +57,13 @@
             <el-col :xs="24" :sm="8" class="pl15 personal-info">
                 <el-card shadow="hover">
                     <template #header>
-                        <span>消息通知</span>
-                        <span @click="showMsgs" class="personal-info-more">更多</span>
+                        <span>{{ $t('home.msgNotify') }}</span>
+                        <span @click="showMsgs" class="personal-info-more">{{ $t('common.more') }}</span>
                     </template>
                     <div class="personal-info-box">
                         <ul class="personal-info-ul">
                             <li v-for="(v, k) in state.msgs as any" :key="k" class="personal-info-li">
-                                <a class="personal-info-li-title">{{ `[${getMsgTypeDesc(v.type)}] ${v.msg}` }}</a>
+                                <a class="personal-info-li-title">{{ `[${$t(EnumValue.getLabelByValue(MsgTypeEnum, v.type))}] ${v.msg}` }}</a>
                             </li>
                         </ul>
                     </div>
@@ -89,7 +89,13 @@
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.machine.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
+                            <el-table
+                                :data="state.machine.opLogs"
+                                :height="state.resourceOpTableHeight"
+                                stripe
+                                size="small"
+                                :empty-text="$t('home.noOpRecord')"
+                            >
                                 <el-table-column prop="createTime" show-overflow-tooltip width="135">
                                     <template #default="scope">
                                         {{ formatDate(scope.row.createTime) }}
@@ -123,7 +129,7 @@
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.db.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
+                            <el-table :data="state.db.opLogs" :height="state.resourceOpTableHeight" stripe size="small" :empty-text="$t('home.noOpRecord')">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
                                         {{ formatDate(scope.row.createTime) }}
@@ -164,7 +170,7 @@
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.redis.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
+                            <el-table :data="state.redis.opLogs" :height="state.resourceOpTableHeight" stripe size="small" :empty-text="$t('home.noOpRecord')">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
                                         {{ formatDate(scope.row.createTime) }}
@@ -203,7 +209,7 @@
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.mongo.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
+                            <el-table :data="state.mongo.opLogs" :height="state.resourceOpTableHeight" stripe size="small" :empty-text="$t('home.noOpRecord')">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
                                         {{ formatDate(scope.row.createTime) }}
@@ -226,15 +232,15 @@
             </el-col>
         </el-row>
 
-        <el-dialog width="900px" title="消息" v-model="msgDialog.visible">
+        <el-dialog width="900px" :title="$t('common.msg')" v-model="msgDialog.visible">
             <el-table border :data="msgDialog.msgs.list" size="small">
-                <el-table-column property="type" label="类型" width="60">
+                <el-table-column property="type" :label="$t('common.type')" width="60">
                     <template #default="scope">
-                        {{ getMsgTypeDesc(scope.row.type) }}
+                        {{ $t(EnumValue.getLabelByValue(MsgTypeEnum, scope.row.type)) }}
                     </template>
                 </el-table-column>
-                <el-table-column property="msg" label="消息"></el-table-column>
-                <el-table-column property="createTime" label="时间" width="150">
+                <el-table-column property="msg" :label="$t('common.msg')"></el-table-column>
+                <el-table-column property="createTime" :label="$t('common.time')" width="150">
                     <template #default="scope">
                         {{ formatDate(scope.row.createTime) }}
                     </template>
@@ -274,6 +280,8 @@ import { getAllTagInfoByCodePaths } from '../ops/component/tag';
 import { ElMessage } from 'element-plus';
 import { getFileUrl, getUploadFileUrl } from '@/common/request';
 import { saveUser } from '@/common/utils/storage';
+import EnumValue from '../../common/Enum';
+import { MsgTypeEnum } from './enums';
 
 const router = useRouter();
 const { userInfo } = storeToRefs(useUserInfo());
@@ -350,15 +358,6 @@ const showMsgs = async () => {
 
 const searchMsg = async () => {
     state.msgDialog.msgs = await getMsgs();
-};
-
-const getMsgTypeDesc = (type: number) => {
-    if (type == 1) {
-        return '登录';
-    }
-    if (type == 2) {
-        return '通知';
-    }
 };
 
 const getAccountInfo = async () => {

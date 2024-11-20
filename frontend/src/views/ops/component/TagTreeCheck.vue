@@ -1,6 +1,6 @@
 <template>
     <div class="w100 tag-tree-check">
-        <el-input v-model="filterTag" @input="onFilterValChanged" clearable placeholder="输入关键字过滤" size="small" />
+        <el-input v-model="filterTag" @input="onFilterValChanged" clearable :placeholder="$t('tag.keywordFilterPlaceholder')" size="small" />
         <div class="mt3" style="border: 1px solid var(--el-border-color)">
             <el-scrollbar :style="{ height: props.height }">
                 <el-tree

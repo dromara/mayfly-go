@@ -13,8 +13,10 @@
             </template>
 
             <template #action="{ data }">
-                <el-button link @click="showProcinst(data, false)" type="primary">查看</el-button>
-                <el-button v-if="data.status == ProcinstTaskStatus.Process.value" link @click="showProcinst(data, true)" type="primary">审核</el-button>
+                <el-button link @click="showProcinst(data, false)" type="primary">{{ $t('common.detail') }}</el-button>
+                <el-button v-if="data.status == ProcinstTaskStatus.Process.value" link @click="showProcinst(data, true)" type="primary">
+                    {{ $t('flow.audit') }}
+                </el-button>
             </template>
         </page-table>
 
@@ -38,28 +40,35 @@ import { SearchItem } from '@/components/SearchForm';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { FlowBizType, ProcinstStatus, ProcinstTaskStatus } from './enums';
 import { formatTime } from '@/common/utils/format';
+import { useI18nDetailTitle } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
 
-const searchItems = [SearchItem.select('status', '任务状态').withEnum(ProcinstTaskStatus), SearchItem.select('bizType', '业务类型').withEnum(FlowBizType)];
+const { t } = useI18n();
+
+const searchItems = [
+    SearchItem.select('status', 'common.status').withEnum(ProcinstTaskStatus),
+    SearchItem.select('bizType', 'flow.bizType').withEnum(FlowBizType),
+];
 const columns = [
-    TableColumn.new('procinst.bizType', '业务').typeTag(FlowBizType),
-    TableColumn.new('procinst.remark', '备注'),
-    TableColumn.new('procinst.creator', '发起人'),
-    TableColumn.new('procinst.status', '流程状态').typeTag(ProcinstStatus),
-    TableColumn.new('status', '任务状态').typeTag(ProcinstTaskStatus),
-    TableColumn.new('procinst.bizKey', '业务key'),
-    TableColumn.new('procinst.procdefName', '流程名'),
-    TableColumn.new('taskName', '当前节点'),
-    TableColumn.new('procinst.createTime', '发起时间').isTime(),
-    TableColumn.new('createTime', '开始时间').isTime(),
-    TableColumn.new('endTime', '结束时间').isTime(),
-    TableColumn.new('duration', '持续时间').setFormatFunc((data: any, prop: string) => {
+    TableColumn.new('procinst.bizType', 'flow.bizType').typeTag(FlowBizType),
+    TableColumn.new('procinst.remark', 'common.remark'),
+    TableColumn.new('procinst.creator', 'flow.initiator'),
+    TableColumn.new('procinst.status', 'flow.procinstStatus').typeTag(ProcinstStatus),
+    TableColumn.new('status', 'flow.taskStatus').typeTag(ProcinstTaskStatus),
+    TableColumn.new('procinst.bizKey', 'flow.bizKey'),
+    TableColumn.new('procinst.procdefName', 'flow.procdefName'),
+    TableColumn.new('taskName', 'flow.taskName'),
+    TableColumn.new('procinst.createTime', 'flow.startingTime').isTime(),
+    TableColumn.new('createTime', 'flow.taskBeginTime').isTime(),
+    TableColumn.new('endTime', 'flow.endTime').isTime(),
+    TableColumn.new('duration', 'flow.duration').setFormatFunc((data: any, prop: string) => {
         const duration = data[prop];
         if (!duration) {
             return '';
         }
         return formatTime(duration);
     }),
-    TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter(),
 ];
 
 const pageTableRef: Ref<any> = ref(null);
@@ -78,7 +87,7 @@ const state = reactive({
         pageSize: 0,
     },
     procinstDetail: {
-        title: '查看流程',
+        title: '',
         visible: false,
         procinstId: 0,
         instTaskId: 0,
@@ -95,10 +104,10 @@ const showProcinst = (data: any, audit: boolean) => {
     state.procinstDetail.procinstId = data.procinstId;
     if (!audit) {
         state.procinstDetail.instTaskId = 0;
-        state.procinstDetail.title = '流程查看';
+        state.procinstDetail.title = useI18nDetailTitle('flow.proc');
     } else {
         state.procinstDetail.instTaskId = data.id;
-        state.procinstDetail.title = '流程审批';
+        state.procinstDetail.title = t('flow.flowAudit');
     }
     state.procinstDetail.visible = true;
 };

@@ -27,14 +27,14 @@
                         multiple
                         :limit="100"
                     >
-                        <el-tooltip :show-after="1000" class="box-item" effect="dark" content="SQL脚本执行" placement="top">
+                        <el-tooltip :show-after="1000" class="box-item" effect="dark" :content="$t('db.sqlScriptRun')" placement="top">
                             <el-link v-auth="'db:sqlscript:run'" type="success" :underline="false" icon="Document"></el-link>
                         </el-tooltip>
                     </el-upload>
                 </div>
 
                 <div>
-                    <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">保存SQL</el-button>
+                    <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">{{ $t('db.saveSql') }}</el-button>
                 </div>
             </div>
         </div>
@@ -55,7 +55,7 @@
                     <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" @tab-change="active" v-model="state.activeTab">
                         <el-tab-pane class="h100" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                             <template #label>
-                                <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
+                                <el-popover :show-after="1000" placement="top-start" :title="$t('db.execInfo')" trigger="hover" :width="300">
                                     <template #reference>
                                         <div>
                                             <span>
@@ -68,7 +68,7 @@
                                                 </span>
                                             </span>
 
-                                            <span> 结果{{ dt.id }} </span>
+                                            <span> {{ $t('db.result') }}-{{ dt.id }} </span>
                                         </div>
                                     </template>
                                     <template #default>
@@ -78,8 +78,8 @@
                                                     <el-text size="small" truncated :title="dt.sql"> {{ dt.sql }} </el-text>
                                                 </div>
                                             </el-descriptions-item>
-                                            <el-descriptions-item label="耗时 :"> {{ dt.execTime }}ms </el-descriptions-item>
-                                            <el-descriptions-item label="结果集 :">
+                                            <el-descriptions-item :label="`${$t('db.times')} :`"> {{ dt.execTime }}ms </el-descriptions-item>
+                                            <el-descriptions-item :label="`${$t('db.resultSet')} :`">
                                                 {{ dt.data?.length }}
                                             </el-descriptions-item>
                                         </el-descriptions>
@@ -91,13 +91,13 @@
                                 <span v-if="dt.hasUpdatedFileds" class="mt5">
                                     <span>
                                         <el-link type="success" :underline="false" @click="submitUpdateFields(dt)"
-                                            ><span style="font-size: 12px">提交</span></el-link
+                                            ><span style="font-size: 12px">{{ $t('common.submit') }}</span></el-link
                                         >
                                     </span>
                                     <span>
                                         <el-divider direction="vertical" border-style="dashed" />
                                         <el-link type="warning" :underline="false" @click="cancelUpdateFields(dt)"
-                                            ><span style="font-size: 12px">取消</span></el-link
+                                            ><span style="font-size: 12px">{{ $t('common.cancel') }}</span></el-link
                                         >
                                     </span>
                                 </span>
@@ -118,7 +118,7 @@
                                 @data-delete="onDeleteData($event, dt)"
                             ></db-table-data>
 
-                            <el-result v-else icon="error" title="执行失败" :sub-title="dt.errorMsg"> </el-result>
+                            <el-result v-else icon="error" :title="$t('db.execFail')" :sub-title="dt.errorMsg"> </el-result>
                         </el-tab-pane>
                     </el-tabs>
                 </div>
@@ -149,8 +149,12 @@ import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { Pane, Splitpanes } from 'splitpanes';
+import { useI18n } from 'vue-i18n';
+import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const emits = defineEmits(['saveSqlSuccess']);
+
+const { t } = useI18n();
 
 const props = defineProps({
     dbId: {
@@ -221,7 +225,7 @@ const state = reactive({
     activeTab: 1,
     editorHeight: '500',
     tableDataHeight: '250px',
-    tableDataEmptyText: 'tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改',
+    tableDataEmptyText: t('db.tableDataEmptyTextTips'),
 });
 
 const { tableDataHeight } = toRefs(state);
@@ -293,7 +297,7 @@ const getKey = () => {
 const onRunSql = async (newTab = false) => {
     // 没有选中的文本，则为全部文本
     let sql = getSql() as string;
-    notBlank(sql && sql.trim(), '请选中需要执行的sql');
+    notBlank(sql && sql.trim(), t('db.noSelctRunSqlMsg'));
     // 去除字符串前的空格、换行等
     sql = sql.replace(/(^\s*)/g, '');
 
@@ -312,10 +316,10 @@ const onRunSql = async (newTab = false) => {
     if (sqls.length == 1) {
         let execRemark;
         if (nonQuery) {
-            const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                inputErrorMessage: '输入执行该sql的备注信息',
+            const res: any = await ElMessageBox.prompt(t('db.enterExecRemarkTips'), 'Tip', {
+                confirmButtonText: t('common.confirm'),
+                cancelButtonText: t('common.cancel'),
+                inputErrorMessage: t('db.execRemarkPlaceholder'),
             });
             execRemark = res.value;
         }
@@ -355,7 +359,7 @@ const runSql = async (sql: string, remark = '', newTab = false) => {
         i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
         execRes = state.execResTabs[i];
         if (unref(execRes.loading)) {
-            ElMessage.error('当前结果集tab正在执行, 请使用新标签执行');
+            ElMessage.error(t('db.currentSqlTabIsRunning'));
             return;
         }
         id = execRes.id;
@@ -378,7 +382,7 @@ const runSql = async (sql: string, remark = '', newTab = false) => {
         }
 
         if (colAndData.res.length == 0) {
-            state.tableDataEmptyText = '查无数据';
+            state.tableDataEmptyText = 'No Data';
         }
 
         // 要实时响应，故需要用索引改变数据才生效
@@ -501,16 +505,16 @@ const getSql = () => {
 
 const saveSql = async () => {
     const sql = monacoEditor.getModel()?.getValue();
-    notBlank(sql, 'sql内容不能为空');
+    notBlank(sql, t('db.sqlCannotEmpty'));
 
     let sqlName = state.sqlName;
     if (!sqlName) {
         try {
-            const input = await ElMessageBox.prompt('请输入SQL脚本名', 'SQL名', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
+            const input = await ElMessageBox.prompt(t('db.enterSqlScriptNameTips'), 'SQL Name', {
+                confirmButtonText: t('common.confirm'),
+                cancelButtonText: t('common.cancel'),
                 inputPattern: /.+/,
-                inputErrorMessage: '请输入SQL脚本名',
+                inputErrorMessage: t('db.enterSqlScriptNameTips'),
             });
             sqlName = input.value;
             state.sqlName = sqlName;
@@ -520,7 +524,7 @@ const saveSql = async () => {
     }
 
     await dbApi.saveSql.request({ id: props.dbId, db: props.dbName, sql: sql, type: 1, name: sqlName });
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     // 保存sql脚本成功事件
     emits('saveSqlSuccess', props.dbId, props.dbName);
 };
@@ -594,7 +598,7 @@ const replaceSelection = (str: string, selection: any) => {
  */
 const sqlExecNotifyMap: Map<string, any> = new Map();
 const beforeUpload = (file: File) => {
-    ElMessage.success(`'${file.name}' 正在上传执行, 请关注结果通知`);
+    ElMessage.success(t('db.scriptFileUploadRunning', { filename: file.name }));
     syssocket.registerMsgHandler('execSqlFileProgress', function (message: any) {
         const content = JSON.parse(message.msg);
         const id = content.id;
@@ -674,7 +678,7 @@ const initMonacoEditor = () => {
         // id: 'run-sql-action' + state.ti.key,
         id: 'run-sql-action' + getKey(),
         // A label of the action that will be presented to the user.
-        label: '执行SQL',
+        label: t('db.runSql'),
         // A precondition for this action.
         precondition: undefined,
         // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
@@ -702,7 +706,7 @@ const initMonacoEditor = () => {
         // id: 'run-sql-action' + state.ti.key,
         id: 'run-sql-action-on-newtab' + getKey(),
         // A label of the action that will be presented to the user.
-        label: '新标签执行SQL',
+        label: t('db.newTabRunSql'),
         // A precondition for this action.
         precondition: undefined,
         // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
@@ -729,7 +733,7 @@ const initMonacoEditor = () => {
         // An unique identifier of the contributed action.
         id: 'format-sql-action' + getKey(),
         // A label of the action that will be presented to the user.
-        label: '格式化SQL',
+        label: t('db.formatSql'),
         // A precondition for this action.
         precondition: undefined,
         // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
@@ -756,7 +760,7 @@ const initMonacoEditor = () => {
         // An unique identifier of the contributed action.
         id: 'save-sql-action' + getKey(),
         // A label of the action that will be presented to the user.
-        label: '保存SQL',
+        label: t('db.saveSql'),
         // A precondition for this action.
         precondition: undefined,
         // A rule to evaluate on top of the precondition in order to dispatch the keybindings.

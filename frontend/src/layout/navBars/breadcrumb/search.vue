@@ -4,7 +4,7 @@
             <el-autocomplete
                 v-model="state.menuQuery"
                 :fetch-suggestions="menuSearch"
-                placeholder="菜单搜索"
+                :placeholder="$t('layout.user.searchPlaceholder')"
                 prefix-icon="el-icon-search"
                 ref="layoutMenuAutocompleteRef"
                 @select="onHandleSelect"
@@ -16,7 +16,7 @@
                     </el-icon>
                 </template>
                 <template #default="{ item }">
-                    <div><SvgIcon :name="item.meta.icon" class="mr5" />{{ item.meta.title }}</div>
+                    <div><SvgIcon :name="item.meta.icon" class="mr5" />{{ $t(item.meta.title) }}</div>
                 </template>
             </el-autocomplete>
         </el-dialog>
@@ -27,6 +27,9 @@
 import { reactive, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutesList } from '@/store/routesList';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const layoutMenuAutocompleteRef: any = ref(null);
 const router = useRouter();
@@ -50,16 +53,18 @@ const openSearch = () => {
 const closeSearch = () => {
     state.isShowSearch = false;
 };
+
 // 菜单搜索数据过滤
 const menuSearch = (queryString: any, cb: any) => {
-    let results = queryString ? state.tagsViewList.filter(createFilter(queryString)) : state.tagsViewList;
+    let results = queryString ? state.tagsViewList.filter(createFilter(t(queryString))) : state.tagsViewList;
     cb(results);
 };
 // 菜单搜索过滤
 const createFilter = (queryString: any) => {
     return (restaurant: any) => {
         return (
-            restaurant.path.toLowerCase().indexOf(queryString.toLowerCase()) > -1 || restaurant.meta.title.toLowerCase().indexOf(queryString.toLowerCase()) > -1
+            t(restaurant.path).toLowerCase().indexOf(queryString.toLowerCase()) > -1 ||
+            t(restaurant.meta.title).toLowerCase().indexOf(queryString.toLowerCase()) > -1
         );
     };
 };

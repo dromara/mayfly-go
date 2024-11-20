@@ -21,13 +21,7 @@
             <el-tabs v-model="activeName">
                 <el-tab-pane label="字段" name="1">
                     <el-table ref="tableRef" :data="tableData.fields.res" :max-height="tableData.height">
-                        <el-table-column
-                            :prop="item.prop"
-                            :label="item.label"
-                            v-for="item in tableData.fields.colNames"
-                            :key="item.prop"
-                            :width="item.width"
-                        >
+                        <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.fields.colNames" :key="item.prop" :width="item.width">
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
@@ -135,7 +129,6 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 import { DbInst } from '../../db';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-
 
 const props = defineProps({
     visible: {
@@ -314,14 +307,14 @@ const addRow = () => {
     });
 
     // 滚动到最后一行
-  nextTick(() => {
-    if (tableRef.value) {
-      const lastRow = tableRef.value.$el.querySelector('.el-table__body-wrapper tbody tr:last-child');
-      if (lastRow) {
-        lastRow.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  });
+    nextTick(() => {
+        if (tableRef.value) {
+            const lastRow = tableRef.value.$el.querySelector('.el-table__body-wrapper tbody tr:last-child');
+            if (lastRow) {
+                lastRow.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    });
 };
 
 const addIndex = () => {

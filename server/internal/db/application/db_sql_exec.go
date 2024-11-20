@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	"mayfly-go/internal/db/imsg"
 	flowapp "mayfly-go/internal/flow/application"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/pkg/contextx"
@@ -202,7 +203,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 
 	execSqlBizForm, err := jsonx.To(procinst.BizForm, new(FlowDbExecSqlBizForm))
 	if err != nil {
-		return nil, errorx.NewBiz("业务表单信息解析失败: %s", err.Error())
+		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
 	}
 
 	dbConn, err := d.dbApp.GetDbConn(execSqlBizForm.DbId, execSqlBizForm.DbName)
@@ -225,7 +226,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 	// 存在一条错误的sql，则表示业务处理失败
 	for _, er := range execRes {
 		if er.ErrorMsg != "" {
-			return execRes, errorx.NewBiz("存在执行错误的sql")
+			return execRes, errorx.NewBizI(ctx, imsg.ErrExistRunFailSql)
 		}
 	}
 
@@ -264,7 +265,7 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
 		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "select")); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
@@ -287,10 +288,10 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 		// 如果配置为0，则不校验分页参数
 		if needCheckLimit && maxCount != 0 {
 			if limit == nil {
-				return nil, errorx.NewBiz("请完善分页信息后执行")
+				return nil, errorx.NewBizI(ctx, imsg.ErrNoLimitStmt)
 			}
 			if limit.RowCount > maxCount {
-				return nil, errorx.NewBiz("查询结果集数需小于系统配置的%d条", maxCount)
+				return nil, errorx.NewBizI(ctx, imsg.ErrLimitInvalid, "count", maxCount)
 			}
 		}
 	} else {
@@ -304,7 +305,7 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 				!strings.Contains(selectSql, " top ") {
 				// 判断是不是count语句
 				if !strings.Contains(selectSql, "count(") {
-					return nil, errorx.NewBiz("请完善分页信息后执行")
+					return nil, errorx.NewBizI(ctx, imsg.ErrNoLimitStmt)
 				}
 			}
 		}
@@ -319,7 +320,7 @@ func (d *dbSqlExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExe
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
 		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "read")); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
@@ -332,7 +333,7 @@ func (d *dbSqlExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecP
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
 		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "ddl")); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
@@ -344,7 +345,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
 		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "update")); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
@@ -364,7 +365,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 	tableSources := updatestmt.TableSources.TableSources
 	// 不支持多表更新记录旧值
 	if len(tableSources) != 1 {
-		logx.ErrorContext(ctx, "Update SQL - 记录旧值只支持单表更新")
+		logx.ErrorContext(ctx, "Update SQL - logging old values only supports single-table updates")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 
@@ -378,21 +379,21 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 	}
 
 	if tableName == "" {
-		logx.ErrorContext(ctx, "Update SQL - 获取表名失败")
+		logx.ErrorContext(ctx, "Update SQL - failed to get table name")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 	execRecord.Table = tableName
 
 	whereStr := updatestmt.Where.GetText()
 	if whereStr == "" {
-		logx.ErrorContext(ctx, "Update SQL - 不存在where条件")
+		logx.ErrorContext(ctx, "Update SQL - there is no where condition")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 
 	// 获取表主键列名,排除使用别名
 	primaryKey, err := dbConn.GetMetadata().GetPrimaryKey(tableName)
 	if err != nil {
-		logx.ErrorfContext(ctx, "Update SQL - 获取主键列失败: %s", err.Error())
+		logx.ErrorfContext(ctx, "Update SQL - failed to get primary key column: %s", err.Error())
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 
@@ -416,12 +417,12 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 		nowRec++
 		res = append(res, row)
 		if nowRec == maxRec {
-			return errorx.NewBiz(fmt.Sprintf("Update SQL -超出更新最大查询条数限制: %d", maxRec))
+			return errorx.NewBiz(fmt.Sprintf("Update SQL - the maximum number of updated queries is exceeded: %d", maxRec))
 		}
 		return nil
 	})
 	if err != nil {
-		logx.ErrorfContext(ctx, "Update SQL - 获取更新旧值失败: %s", err.Error())
+		logx.ErrorfContext(ctx, "Update SQL - failed to get the updated old value: %s", err.Error())
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 	execRecord.OldValue = jsonx.ToStr(res)
@@ -432,7 +433,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecParam) (*DbSqlExecRes, error) {
 	if procdef := sqlExecParam.Procdef; procdef != nil {
 		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "delete")); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
@@ -453,7 +454,7 @@ func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 	tableSources := deletestmt.TableSources.TableSources
 	// 不支持多表删除记录旧值
 	if len(tableSources) != 1 {
-		logx.ErrorContext(ctx, "Delete SQL - 记录旧值只支持单表删除")
+		logx.ErrorContext(ctx, "Delete SQL - logging old values only supports single-table deletion")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 
@@ -467,14 +468,14 @@ func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 	}
 
 	if tableName == "" {
-		logx.ErrorContext(ctx, "Delete SQL - 获取表名失败")
+		logx.ErrorContext(ctx, "Delete SQL - failed to get table name")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 	execRecord.Table = tableName
 
 	whereStr := deletestmt.Where.GetText()
 	if whereStr == "" {
-		logx.ErrorContext(ctx, "Delete SQL - 不存在where条件")
+		logx.ErrorContext(ctx, "Delete SQL - there is no where condition")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 
@@ -489,7 +490,7 @@ func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 func (d *dbSqlExecAppImpl) doInsert(ctx context.Context, sqlExecParam *sqlExecParam) (*DbSqlExecRes, error) {
 	if procdef := sqlExecParam.Procdef; procdef != nil {
 		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "insert")); needStartProc {
-			return nil, errorx.NewBiz("该操作需要提交工单审批执行")
+			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 

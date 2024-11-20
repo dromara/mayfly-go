@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/tag/api"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -19,16 +20,16 @@ func InitTeamRouter(router *gin.RouterGroup) {
 			// 获取团队列表
 			req.NewGet("", m.GetTeams),
 
-			req.NewPost("", m.SaveTeam).Log(req.NewLogSave("团队-保存信息")).RequiredPermissionCode("team:save"),
+			req.NewPost("", m.SaveTeam).Log(req.NewLogSaveI(imsg.LogTeamSave)).RequiredPermissionCode("team:save"),
 
-			req.NewDelete(":id", m.DelTeam).Log(req.NewLogSave("团队-删除信息")).RequiredPermissionCode("team:del"),
+			req.NewDelete(":id", m.DelTeam).Log(req.NewLogSaveI(imsg.LogTeamDelete)).RequiredPermissionCode("team:del"),
 
 			// 获取团队的成员信息列表
 			req.NewGet("/:id/members", m.GetTeamMembers),
 
-			req.NewPost("/:id/members", m.SaveTeamMember).Log(req.NewLogSave("团队-新增成员")).RequiredPermissionCode("team:member:save"),
+			req.NewPost("/:id/members", m.SaveTeamMember).Log(req.NewLogSaveI(imsg.LogTeamAddMember)).RequiredPermissionCode("team:member:save"),
 
-			req.NewDelete("/:id/members/:accountId", m.DelTeamMember).Log(req.NewLogSave("团队-删除成员")).RequiredPermissionCode("team:member:del"),
+			req.NewDelete("/:id/members/:accountId", m.DelTeamMember).Log(req.NewLogSaveI(imsg.LogTeamRemoveMember)).RequiredPermissionCode("team:member:del"),
 		}
 
 		req.BatchSetGroup(team, reqs[:])

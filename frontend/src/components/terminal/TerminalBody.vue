@@ -22,6 +22,9 @@ import { TerminalStatus } from './common';
 import { useEventListener } from '@vueuse/core';
 import themes from './themes';
 import { TrzszFilter } from 'trzsz';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     // mounted时，是否执行init方法
@@ -166,7 +169,7 @@ function initSocket() {
 
     // 监听socket错误信息
     socket.onerror = (e: Event) => {
-        term.writeln('\r\n\x1b[31m提示: 连接错误...');
+        term.writeln(`\r\n\x1b[31m${t('components.terminal.connErrMsg')}`);
         state.status = TerminalStatus.Error;
         console.log('连接错误', e);
     };

@@ -21,7 +21,7 @@
                 v-model:selection-data="selectionData"
             >
                 <template #tableHeader>
-                    <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus" plain>添加</el-button>
+                    <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus" plain>{{ $t('common.create') }}</el-button>
                     <el-button
                         v-auth="'machine:script:del'"
                         :disabled="selectionData.length < 1"
@@ -29,22 +29,22 @@
                         @click="deleteRow(selectionData)"
                         icon="delete"
                         plain
-                        >删除</el-button
+                        >{{ $t('common.delete') }}</el-button
                     >
                 </template>
 
                 <template #action="{ data }">
                     <el-button v-auth="'machine:script:run'" v-if="data.id != null" @click="runScript(data)" type="primary" icon="video-play" link
-                        >执行
+                        >{{ $t('machine.execute') }}
                     </el-button>
 
-                    <el-button @click="editScript(data)" type="primary" icon="tickets" link>查看 </el-button>
+                    <el-button @click="editScript(data)" type="primary" icon="tickets" link>{{ $t('common.detail') }}</el-button>
                 </template>
             </page-table>
         </el-dialog>
 
         <dynamic-form-dialog
-            title="脚本参数"
+            :title="$t('machine.scriptParam')"
             width="400px"
             v-model:visible="scriptParamsDialog.visible"
             ref="paramsForm"
@@ -54,7 +54,7 @@
         >
         </dynamic-form-dialog>
 
-        <el-dialog title="执行结果" v-model="resultDialog.visible" width="50%">
+        <el-dialog :title="$t('machine.execResult')" v-model="resultDialog.visible" width="50%">
             <div style="white-space: pre-line; padding: 10px; color: #000000">
                 <el-input v-model="resultDialog.result" :rows="20" type="textarea" />
             </div>
@@ -62,7 +62,7 @@
 
         <el-dialog
             v-if="terminalDialog.visible"
-            title="终端"
+            title="Terminal"
             v-model="terminalDialog.visible"
             width="80%"
             :close-on-click-modal="false"
@@ -87,7 +87,7 @@
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, watch, Ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { ScriptResultEnum, ScriptTypeEnum } from './enums';
@@ -96,6 +96,10 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { DynamicFormDialog } from '@/components/dynamic-form';
 import { SearchItem } from '@/components/SearchForm';
+import { useI18n } from 'vue-i18n';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -112,12 +116,12 @@ const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     dialogVisible: false,
     selectionData: [],
-    searchItems: [SearchItem.select('type', '类型').withEnum(ScriptTypeEnum)],
+    searchItems: [SearchItem.select('type', 'common.type').withEnum(ScriptTypeEnum)],
     columns: [
-        TableColumn.new('name', '名称'),
-        TableColumn.new('description', '描述'),
-        TableColumn.new('type', '类型').isEnum(ScriptResultEnum),
-        TableColumn.new('action', '操作').isSlot().setMinWidth(130).alignCenter(),
+        TableColumn.new('name', 'common.name'),
+        TableColumn.new('description', 'common.remark'),
+        TableColumn.new('type', 'common.type').typeTag(ScriptResultEnum),
+        TableColumn.new('action', 'common.operation').isSlot().setMinWidth(140).alignCenter(),
     ],
     query: {
         machineId: 0 as any,
@@ -201,7 +205,7 @@ const run = async (script: any) => {
         });
 
         if (noResult) {
-            ElMessage.success('执行完成');
+            ElMessage.success(t('machine.execCompleted'));
             return;
         }
         state.resultDialog.result = res;
@@ -242,9 +246,9 @@ const editScript = (data: any) => {
     state.editDialog.machineId = props.machineId as any;
     state.editDialog.data = data;
     if (data) {
-        state.editDialog.title = '查看编辑脚本';
+        state.editDialog.title = useI18nEditTitle('machine.script');
     } else {
-        state.editDialog.title = '新增脚本';
+        state.editDialog.title = useI18nCreateTitle('machine.script');
     }
     state.editDialog.visible = true;
 };
@@ -253,22 +257,14 @@ const submitSuccess = () => {
     getScripts();
 };
 
-const deleteRow = (rows: any) => {
-    ElMessageBox.confirm(`此操作将删除【${rows.map((x: any) => x.name).join(', ')}】脚本信息, 是否继续?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    }).then(() => {
-        machineApi.deleteScript
-            .request({
-                machineId: props.machineId,
-                scriptId: rows.map((x: any) => x.id).join(','),
-            })
-            .then(() => {
-                getScripts();
-            });
-        // 删除配置文件
+const deleteRow = async (rows: any) => {
+    await useI18nDeleteConfirm(rows.map((x: any) => x.name).join('、'));
+    await machineApi.deleteScript.request({
+        machineId: props.machineId,
+        scriptId: rows.map((x: any) => x.id).join(','),
     });
+    useI18nDeleteSuccessMsg();
+    getScripts();
 };
 
 /**

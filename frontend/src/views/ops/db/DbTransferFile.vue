@@ -22,7 +22,9 @@
                 "
             >
                 <template #tableHeader>
-                    <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="del()" type="danger" icon="delete">删除</el-button>
+                    <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="del()" type="danger" icon="delete">
+                        {{ $t('common.delete') }}
+                    </el-button>
                 </template>
 
                 <template #fileKey="{ data }">
@@ -37,10 +39,14 @@
                 </template>
 
                 <template #action="{ data }">
-                    <el-button v-if="actionBtns[perms.run] && data.status === DbTransferFileStatusEnum.Success.value" @click="openRun(data)" type="primary" link
-                        >执行</el-button
+                    <el-button
+                        v-if="actionBtns[perms.run] && data.status === DbTransferFileStatusEnum.Success.value"
+                        @click="openRun(data)"
+                        type="primary"
+                        link
+                        >{{ $t('db.run') }}</el-button
                     >
-                    <el-button v-if="data.logId" @click="openLog(data)" type="success" link>日志</el-button>
+                    <el-button v-if="data.logId" @click="openLog(data)" type="success" link>{{ $t('db.log') }}</el-button>
                 </template>
             </page-table>
             <TerminalLog v-model:log-id="state.logsDialog.logId" v-model:visible="state.logsDialog.visible" :title="state.logsDialog.title" />
@@ -48,12 +54,11 @@
 
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
             <el-form :model="state.runDialog.runForm" ref="runFormRef" label-width="auto" :rules="state.runDialog.formRules">
-                <el-form-item label="文件数据库类型" prop="dbType">
+                <el-form-item :label="$t('db.dbFileType')" prop="dbType">
                     <SvgIcon :name="getDbDialect(state.runDialog.runForm.dbType).getInfo().icon" :size="18" /> {{ state.runDialog.runForm.dbType }}
                 </el-form-item>
-                <el-form-item label="选择目标数据库" prop="targetDbId" required>
+                <el-form-item :label="$t('db.targetDb')" prop="targetDbId" required>
                     <db-select-tree
-                        placeholder="请选择目标数据库"
                         v-model:db-id="state.runDialog.runForm.targetDbId"
                         v-model:inst-name="state.runDialog.runForm.targetInstName"
                         v-model:db-name="state.runDialog.runForm.targetDbName"
@@ -66,8 +71,8 @@
 
             <template #footer>
                 <div>
-                    <el-button @click="state.runDialog.cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="state.runDialog.loading" @click="state.runDialog.btnOk">确 定</el-button>
+                    <el-button @click="state.runDialog.cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="state.runDialog.loading" @click="state.runDialog.btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -87,6 +92,11 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getClientId } from '@/common/utils/storage';
 import FileInfo from '@/components/file/FileInfo.vue';
 import { DbTransferFileStatusEnum } from './enums';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
+
 const props = defineProps({
     data: {
         type: [Object],
@@ -99,10 +109,10 @@ const props = defineProps({
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const columns = ref([
-    TableColumn.new('fileKey', '文件').setMinWidth(280).isSlot(),
-    TableColumn.new('createTime', '执行时间').setMinWidth(180).isTime(),
-    TableColumn.new('fileDbType', 'sql语言').setMinWidth(90).isSlot(),
-    TableColumn.new('status', '状态').typeTag(DbTransferFileStatusEnum),
+    TableColumn.new('fileKey', 'db.file').setMinWidth(280).isSlot(),
+    TableColumn.new('createTime', 'db.execTime').setMinWidth(180).isTime(),
+    TableColumn.new('fileDbType', 'db.fileDbType').setMinWidth(90).isSlot(),
+    TableColumn.new('status', 'common.status').typeTag(DbTransferFileStatusEnum),
 ]);
 
 const perms = {
@@ -115,7 +125,7 @@ const actionBtns = hasPerms([perms.del, perms.down, perms.run]);
 
 const actionWidth = ((actionBtns[perms.run] ? 1 : 0) + 1) * 55;
 
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -140,14 +150,14 @@ const state = reactive({
         running: false,
     },
     runDialog: {
-        title: '指定数据库执行sql文件',
+        title: t('db.transferFileRunDialogTitle'),
         visible: false,
         data: null as any,
         formRules: {
             targetDbId: [
                 {
                     required: true,
-                    message: '请选择目标数据库',
+                    message: useI18nPleaseSelect('db.targetDb'),
                     trigger: ['change', 'blur'],
                 },
             ],
@@ -167,27 +177,22 @@ const state = reactive({
             state.runDialog.visible = false;
             state.runDialog.runForm = {} as any;
         },
-        btnOk: function () {
-            runFormRef.value.validate(async (valid: boolean) => {
-                if (!valid) {
-                    ElMessage.error('请正确填写信息');
-                    return false;
-                }
-                console.log(state.runDialog.runForm);
-                if (state.runDialog.runForm.targetDbType !== state.runDialog.runForm.dbType) {
-                    ElMessage.warning(`请选择[${state.runDialog.runForm.dbType}]数据库`);
-                    return false;
-                }
-                state.runDialog.runForm.clientId = getClientId();
-                await dbApi.dbTransferFileRun.request(state.runDialog.runForm);
-                ElMessage.success('保存成功');
-                state.runDialog.cancel();
-                await search();
-            });
+        btnOk: async function () {
+            await useI18nFormValidate(runFormRef);
+            console.log(state.runDialog.runForm);
+            if (state.runDialog.runForm.targetDbType !== state.runDialog.runForm.dbType) {
+                ElMessage.warning(t('db.targetDbTypeSelectError', { dbType: state.runDialog.runForm.dbType }));
+                return false;
+            }
+            state.runDialog.runForm.clientId = getClientId();
+            await dbApi.dbTransferFileRun.request(state.runDialog.runForm);
+            useI18nSaveSuccessMsg();
+            state.runDialog.cancel();
+            await search();
         },
         onSelectRunTargetDb: function (param: any) {
             if (param.type !== state.runDialog.runForm.dbType) {
-                ElMessage.warning(`请选择[${state.runDialog.runForm.dbType}]数据库`);
+                ElMessage.warning(t('db.targetDbTypeSelectError', { dbType: state.runDialog.runForm.dbType }));
             }
         },
     },
@@ -205,13 +210,9 @@ const pageTableRef: Ref<any> = ref(null);
 
 const del = async function () {
     try {
-        await ElMessageBox.confirm(`将会删除sql文件，确定删除?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.fileKey).join('、'));
         await dbApi.dbTransferFileDel.request({ fileId: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         await search();
     } catch (err) {
         //
@@ -221,7 +222,7 @@ const del = async function () {
 const openLog = function (data: any) {
     state.logsDialog.logId = data.logId;
     state.logsDialog.visible = true;
-    state.logsDialog.title = '数据库迁移日志';
+    state.logsDialog.title = t('db.log');
     state.logsDialog.running = data.state === 1;
 };
 

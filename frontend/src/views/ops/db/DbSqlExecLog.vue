@@ -10,7 +10,7 @@
             :columns="columns"
         >
             <template #dbSelect>
-                <el-select v-model="query.db" placeholder="请选择数据库" filterable clearable>
+                <el-select v-model="query.db" :placeholder="$t('db.selectDbPlaceholder')" filterable clearable>
                     <el-option v-for="item in dbs" :key="item" :label="`${item}`" :value="item"> </el-option>
                 </el-select>
             </template>
@@ -18,6 +18,7 @@
             <template #action="{ data }">
                 <el-link
                     v-if="
+                        data.oldValue != '' &&
                         data.status == DbSqlExecStatusEnum.Success.value &&
                         (data.type == DbSqlExecTypeEnum.Update.value || data.type == DbSqlExecTypeEnum.Delete.value)
                     "
@@ -27,12 +28,12 @@
                     :underline="false"
                     @click="onShowRollbackSql(data)"
                 >
-                    还原SQL</el-link
+                    {{ $t('db.restoreSql') }}</el-link
                 >
             </template>
         </page-table>
 
-        <el-dialog width="55%" :title="`还原SQL`" v-model="rollbackSqlDialog.visible">
+        <el-dialog width="55%" :title="$t('db.restoreSql')" v-model="rollbackSqlDialog.visible">
             <el-input type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="rollbackSqlDialog.sql" size="small"> </el-input>
         </el-dialog>
     </div>
@@ -58,23 +59,23 @@ const props = defineProps({
 });
 
 const searchItems = [
-    SearchItem.slot('db', '数据库', 'dbSelect'),
-    SearchItem.input('table', '表名'),
-    SearchItem.select('type', '操作类型').withEnum(DbSqlExecTypeEnum),
+    SearchItem.slot('db', 'db.db', 'dbSelect'),
+    SearchItem.input('table', 'db.table'),
+    SearchItem.select('type', 'db.stmtType').withEnum(DbSqlExecTypeEnum),
 ];
 
 const columns = ref([
-    TableColumn.new('db', '数据库'),
-    TableColumn.new('table', '表'),
-    TableColumn.new('type', '类型').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
-    TableColumn.new('creator', '执行人'),
+    TableColumn.new('db', 'db.db'),
+    TableColumn.new('table', 'db.type'),
+    TableColumn.new('type', 'db.stmtType').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
+    TableColumn.new('creator', 'db.execUser'),
     TableColumn.new('sql', 'SQL').canBeautify(),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('status', '执行状态').typeTag(DbSqlExecStatusEnum),
-    TableColumn.new('res', '执行结果'),
-    TableColumn.new('createTime', '执行时间').isTime(),
-    TableColumn.new('oldValue', '原值').canBeautify(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(90).fixedRight().alignCenter(),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('status', 'common.status').typeTag(DbSqlExecStatusEnum),
+    TableColumn.new('res', 'db.execRes'),
+    TableColumn.new('createTime', 'db.execTime').isTime(),
+    TableColumn.new('oldValue', 'db.oldValue').canBeautify(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(90).fixedRight().alignCenter(),
 ]);
 
 const pageTableRef: Ref<any> = ref(null);

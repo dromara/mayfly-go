@@ -3,43 +3,43 @@
         <el-row class="mb5">
             <el-popover v-model:visible="state.dumpInfo.visible" trigger="click" :width="470" placement="right">
                 <template #reference>
-                    <el-button :disabled="state.dumpInfo.tables?.length == 0" class="ml5" type="success" size="small">导出</el-button>
+                    <el-button :disabled="state.dumpInfo.tables?.length == 0" class="ml5" type="success" size="small">{{ $t('db.dump') }}</el-button>
                 </template>
-                <el-form-item label="导出内容: ">
+                <el-form-item :label="$t('db.exportContent')">
                     <el-radio-group v-model="dumpInfo.type">
-                        <el-radio :value="1" size="small">结构</el-radio>
-                        <el-radio :value="2" size="small">数据</el-radio>
-                        <el-radio :value="3" size="small">结构＋数据</el-radio>
+                        <el-radio :value="1" size="small">{{ $t('db.structure') }}</el-radio>
+                        <el-radio :value="2" size="small">{{ $t('db.data') }}</el-radio>
+                        <el-radio :value="3" size="small">{{ $t('db.structure') }} ＋ {{ $t('db.data') }}</el-radio>
                     </el-radio-group>
                 </el-form-item>
 
                 <el-form-item>
-                    <el-table :data="state.dumpInfo.tables" empty-text="请先选择要导出的表" max-height="300" size="small">
-                        <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip> </el-table-column>
-                        <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip> </el-table-column>
+                    <el-table :data="state.dumpInfo.tables" :empty-text="$t('db.selectExportTable')" max-height="300" size="small">
+                        <el-table-column property="tableName" :label="$t('db.table')" min-width="150" show-overflow-tooltip> </el-table-column>
+                        <el-table-column property="tableComment" :label="$t('db.comment')" min-width="150" show-overflow-tooltip> </el-table-column>
                     </el-table>
                 </el-form-item>
 
                 <div style="text-align: right">
-                    <el-button @click="state.dumpInfo.visible = false" size="small">取消</el-button>
-                    <el-button @click="dump(db)" type="success" size="small">确定</el-button>
+                    <el-button @click="state.dumpInfo.visible = false" size="small">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="dump(db)" type="success" size="small">{{ $t('common.confirm') }}</el-button>
                 </div>
             </el-popover>
 
-            <el-button type="primary" size="small" @click="openEditTable(false)">创建表</el-button>
+            <el-button type="primary" size="small" @click="openEditTable(false)">{{ $t('db.createTable') }}</el-button>
         </el-row>
 
         <el-table v-loading="loading" @selection-change="handleDumpTableSelectionChange" border stripe :data="filterTableInfos" size="small" :height="height">
             <el-table-column type="selection" width="30" />
 
-            <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip>
+            <el-table-column property="tableName" :label="$t('db.table')" min-width="150" show-overflow-tooltip>
                 <template #header>
-                    <el-input v-model="tableNameSearch" size="small" placeholder="表名: 输入可过滤" clearable />
+                    <el-input v-model="tableNameSearch" size="small" :placeholder="$t('db.tableNamePlaceholder')" clearable />
                 </template>
             </el-table-column>
-            <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip>
+            <el-table-column property="tableComment" :label="$t('db.comment')" min-width="150" show-overflow-tooltip>
                 <template #header>
-                    <el-input v-model="tableCommentSearch" size="small" placeholder="备注: 输入可过滤" clearable />
+                    <el-input v-model="tableCommentSearch" size="small" :placeholder="$t('db.commentPlaceholder')" clearable />
                 </template>
             </el-table-column>
             <el-table-column
@@ -49,14 +49,19 @@
                 sortable
                 :sort-method="(a: any, b: any) => parseInt(a.tableRows) - parseInt(b.tableRows)"
             ></el-table-column>
-            <el-table-column property="dataLength" label="数据大小" sortable :sort-method="(a: any, b: any) => parseInt(a.dataLength) - parseInt(b.dataLength)">
+            <el-table-column
+                property="dataLength"
+                :label="$t('db.dataSize')"
+                sortable
+                :sort-method="(a: any, b: any) => parseInt(a.dataLength) - parseInt(b.dataLength)"
+            >
                 <template #default="scope">
                     {{ formatByteSize(scope.row.dataLength) }}
                 </template>
             </el-table-column>
             <el-table-column
                 property="indexLength"
-                label="索引大小"
+                :label="$t('db.indexSize')"
                 sortable
                 :sort-method="(a: any, b: any) => parseInt(a.indexLength) - parseInt(b.indexLength)"
             >
@@ -64,38 +69,40 @@
                     {{ formatByteSize(scope.row.indexLength) }}
                 </template>
             </el-table-column>
-            <el-table-column v-if="compatibleMysql(dbType)" property="createTime" label="创建时间" min-width="150"> </el-table-column>
-            <el-table-column label="更多信息" min-width="160">
+            <el-table-column v-if="compatibleMysql(dbType)" property="createTime" :label="$t('common.createTime')" min-width="150"> </el-table-column>
+            <el-table-column :label="$t('common.more')" min-width="160">
                 <template #default="scope">
-                    <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
-                    <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                    <el-link class="ml5" v-if="editDbTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
+                    <el-link @click.prevent="showColumns(scope.row)" type="primary">{{ $t('db.column') }}</el-link>
+                    <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">{{ $t('db.index') }}</el-link>
+                    <el-link class="ml5" v-if="editDbTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning">
+                        {{ $t('db.editTable') }}
+                    </el-link>
                     <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                 </template>
             </el-table-column>
-            <el-table-column label="操作" min-width="80">
+            <el-table-column :label="$t('common.operation')" min-width="80">
                 <template #default="scope">
-                    <el-link @click.prevent="dropTable(scope.row)" type="danger">删除</el-link>
+                    <el-link @click.prevent="dropTable(scope.row)" type="danger">{{ $t('common.delete') }}</el-link>
                 </template>
             </el-table-column>
         </el-table>
 
-        <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
+        <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.column')}`" v-model="columnDialog.visible">
             <el-table border stripe :data="columnDialog.columns" size="small">
-                <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
-                <el-table-column width="80" prop="nullable" label="是否可为空" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnName" :label="$t('common.columnName')" show-overflow-tooltip> </el-table-column>
+                <el-table-column width="120" prop="columnType" :label="$t('common.type')" show-overflow-tooltip> </el-table-column>
+                <el-table-column width="80" prop="nullable" :label="$t('db.nullable')" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnComment" :label="$t('db.comment')" show-overflow-tooltip> </el-table-column>
             </el-table>
         </el-dialog>
 
-        <el-dialog width="40%" :title="`${chooseTableName} 索引信息`" v-model="indexDialog.visible">
+        <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.index')}`" v-model="indexDialog.visible">
             <el-table border stripe :data="indexDialog.indexs" size="small">
-                <el-table-column prop="indexName" label="索引名" min-width="120" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="columnName" label="列名" min-width="120" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="indexType" label="类型"> </el-table-column>
-                <el-table-column prop="indexComment" label="备注" min-width="130" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="indexName" :label="$t('common.name')" min-width="120" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnName" :label="$t('db.columnName')" min-width="120" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="seqInIndex" :label="$t('db.seqInIndex')" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="indexType" :label="$t('common.type')"> </el-table-column>
+                <el-table-column prop="indexComment" :label="$t('db.comment')" min-width="130" show-overflow-tooltip> </el-table-column>
             </el-table>
         </el-dialog>
 
@@ -119,7 +126,6 @@
 
 <script lang="ts" setup>
 import { computed, defineAsyncComponent, onMounted, reactive, toRefs, watch } from 'vue';
-import { ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from '@/views/ops/db/api';
 import SqlExecBox from '../sqleditor/SqlExecBox';
@@ -131,8 +137,12 @@ import { DbInst } from '../../db';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
 import { fuzzyMatchField } from '@/common/utils/string';
+import { useI18n } from 'vue-i18n';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
+
+const { t } = useI18n();
 
 const props = defineProps({
     height: {
@@ -180,7 +190,7 @@ const state = reactive({
         ddl: '',
     },
     tableCreateDialog: {
-        title: '创建表',
+        title: '',
         visible: false,
         activeName: '1',
         type: '',
@@ -246,7 +256,7 @@ const handleDumpTableSelectionChange = (vals: any) => {
  * 数据库信息导出
  */
 const dump = (db: string) => {
-    isTrue(state.dumpInfo.tables.length > 0, '请先选择要导出的表');
+    isTrue(state.dumpInfo.tables.length > 0, t('db.selectExportTable'));
     const tableNames = state.dumpInfo.tables.map((x: any) => x.tableName);
     const a = document.createElement('a');
     a.setAttribute(
@@ -299,11 +309,7 @@ const showCreateDdl = async (row: any) => {
 const dropTable = async (row: any) => {
     try {
         const tableName = row.tableName;
-        await ElMessageBox.confirm(`确定删除'${tableName}'表?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(tableName);
         SqlExecBox({
             sql: `DROP TABLE ${tableName}`,
             dbId: props.dbId as any,
@@ -322,13 +328,13 @@ const openEditTable = async (row: any) => {
     state.tableCreateDialog.visible = true;
     state.tableCreateDialog.activeName = '1';
 
-    if (row === false) {
+    if (!row === false) {
         state.tableCreateDialog.data = { edit: false, row: {}, indexs: [], columns: [] };
-        state.tableCreateDialog.title = '创建表';
+        state.tableCreateDialog.title = useI18nCreateTitle('db.table');
     }
 
     if (row.tableName) {
-        state.tableCreateDialog.title = '修改表';
+        state.tableCreateDialog.title = useI18nEditTitle('db.table');
         let indexs = await dbApi.tableIndex.request({
             id: props.dbId,
             db: props.db,

@@ -22,13 +22,13 @@
                     <div class="login-right-warp-main-form">
                         <div v-if="!state.isScan">
                             <el-tabs v-model="state.tabsActiveName">
-                                <el-tab-pane label="账号密码登录" name="account">
+                                <el-tab-pane :label="$t('login.accountPasswordLogin')" name="account">
                                     <Account ref="loginForm" />
                                 </el-tab-pane>
                             </el-tabs>
                         </div>
                         <div class="mt20" v-show="state.oauth2LoginConfig.enable">
-                            <el-button link size="small">第三方登录: </el-button>
+                            <el-button link size="small">{{ $t('login.thirdPartyLogin') }}: </el-button>
                             <el-tooltip :content="state.oauth2LoginConfig.name" placement="top-start">
                                 <el-button link size="small" type="primary" @click="oauth2Login">
                                     <el-icon :size="18">
@@ -52,6 +52,7 @@ import loginBgSplitImg from '@/assets/image/login-bg-split.svg';
 import openApi from '@/common/openApi';
 import config from '@/common/config';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
 // 引入组件
 const Account = defineAsyncComponent(() => import('./component/AccountLogin.vue'));
@@ -61,18 +62,20 @@ const loginForm = ref<{ loginResDeal: (data: any) => void } | null>(null);
 // 定义变量内容
 const storesThemeConfig = useThemeConfig();
 const { themeConfig } = storeToRefs(storesThemeConfig);
+const { locale } = useI18n();
 
 const state = reactive({
     tabsActiveName: 'account',
     isScan: false,
     oauth2LoginConfig: {
-        name: 'OAuth2登录',
+        name: 'OAuth2 Login',
         enable: false,
     },
 });
 
 onMounted(async () => {
     storesThemeConfig.setWatermarkUser(true);
+    locale.value = themeConfig.value.globalI18n;
     state.oauth2LoginConfig = await openApi.oauth2LoginConfig();
 });
 
@@ -104,11 +107,13 @@ const oauth2Login = () => {
 .login-container {
     height: 100%;
     background: var(--bg-main-color);
+
     .login-left {
         flex: 1;
         position: relative;
         background-color: rgba(211, 239, 255, 1);
         margin-right: 100px;
+
         .login-left-logo {
             display: flex;
             align-items: center;
@@ -117,24 +122,29 @@ const oauth2Login = () => {
             left: 80px;
             z-index: 1;
             animation: logoAnimation 0.3s ease;
+
             img {
                 width: 52px;
                 height: 52px;
             }
+
             .login-left-logo-text {
                 display: flex;
                 flex-direction: column;
+
                 span {
                     margin-left: 10px;
                     font-size: 28px;
                     color: #26a59a;
                 }
+
                 .login-left-logo-text-msg {
                     font-size: 12px;
                     color: #32a99e;
                 }
             }
         }
+
         .login-left-img {
             position: absolute;
             top: 50%;
@@ -142,20 +152,24 @@ const oauth2Login = () => {
             transform: translate(-50%, -50%);
             width: 100%;
             height: 52%;
+
             img {
                 width: 100%;
                 height: 100%;
                 animation: error-num 0.6s ease;
             }
         }
+
         .login-left-waves {
             position: absolute;
             top: 0;
             right: -100px;
         }
     }
+
     .login-right {
         width: 700px;
+
         .login-right-warp {
             border: 1px solid var(--el-color-primary-light-3);
             border-radius: 3px;
@@ -164,12 +178,14 @@ const oauth2Login = () => {
             position: relative;
             overflow: hidden;
             background-color: var(--bg-main-color);
+
             .login-right-warp-one,
             .login-right-warp-two {
                 position: absolute;
                 display: block;
                 width: inherit;
                 height: inherit;
+
                 &::before,
                 &::after {
                     content: '';
@@ -177,6 +193,7 @@ const oauth2Login = () => {
                     z-index: 1;
                 }
             }
+
             .login-right-warp-one {
                 &::before {
                     filter: hue-rotate(0deg);
@@ -187,6 +204,7 @@ const oauth2Login = () => {
                     background: linear-gradient(90deg, transparent, var(--el-color-primary));
                     animation: loginLeft 3s linear infinite;
                 }
+
                 &::after {
                     filter: hue-rotate(60deg);
                     top: -100%;
@@ -198,6 +216,7 @@ const oauth2Login = () => {
                     animation-delay: 0.7s;
                 }
             }
+
             .login-right-warp-two {
                 &::before {
                     filter: hue-rotate(120deg);
@@ -209,6 +228,7 @@ const oauth2Login = () => {
                     animation: loginRight 3s linear infinite;
                     animation-delay: 1.4s;
                 }
+
                 &::after {
                     filter: hue-rotate(300deg);
                     bottom: -100%;
@@ -220,10 +240,12 @@ const oauth2Login = () => {
                     animation-delay: 2.1s;
                 }
             }
+
             .login-right-warp-mian {
                 display: flex;
                 flex-direction: column;
                 height: 100%;
+
                 .login-right-warp-main-title {
                     height: 110px;
                     line-height: 110px;
@@ -234,9 +256,11 @@ const oauth2Login = () => {
                     animation-delay: 0.3s;
                     color: var(--el-text-color-primary);
                 }
+
                 .login-right-warp-main-form {
                     flex: 1;
                     padding: 0 50px 50px;
+
                     .login-content-main-sacn {
                         position: absolute;
                         top: 0;
@@ -247,6 +271,7 @@ const oauth2Login = () => {
                         cursor: pointer;
                         transition: all ease 0.3s;
                         color: var(--el-color-primary);
+
                         &-delta {
                             position: absolute;
                             width: 35px;
@@ -257,11 +282,13 @@ const oauth2Login = () => {
                             background: var(--el-color-white);
                             transform: rotate(-45deg);
                         }
+
                         &:hover {
                             opacity: 1;
                             transition: all ease 0.3s;
                             color: var(--el-color-primary) !important;
                         }
+
                         i {
                             width: 47px;
                             height: 50px;

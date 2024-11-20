@@ -15,7 +15,7 @@ type File struct {
 
 func (f *File) GetFileByKeys(rc *req.Ctx) {
 	keysStr := rc.PathParam("keys")
-	biz.NotEmpty(keysStr, "keys不能为空")
+	biz.NotEmpty(keysStr, "keys cannot be empty")
 
 	var files []vo.SimpleFile
 	err := f.FileApp.ListByCondToAny(model.NewCond().In("file_key", strings.Split(keysStr, ",")), &files)
@@ -25,7 +25,7 @@ func (f *File) GetFileByKeys(rc *req.Ctx) {
 
 func (f *File) GetFileContent(rc *req.Ctx) {
 	key := rc.PathParam("key")
-	biz.NotEmpty(key, "key不能为空")
+	biz.NotEmpty(key, "key cannot be empty")
 
 	filename, reader, err := f.FileApp.GetReader(rc.MetaCtx, key)
 	if err != nil {
@@ -38,9 +38,9 @@ func (f *File) GetFileContent(rc *req.Ctx) {
 
 func (f *File) Upload(rc *req.Ctx) {
 	multipart, err := rc.GetRequest().MultipartReader()
-	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "read file error: %s")
 	file, err := multipart.NextPart()
-	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "read file error: %s")
 	defer file.Close()
 
 	fileKey, err := f.FileApp.Upload(rc.MetaCtx, rc.Query("fileKey"), file.FileName(), file)

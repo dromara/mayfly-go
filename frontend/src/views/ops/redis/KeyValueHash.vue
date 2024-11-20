@@ -1,24 +1,24 @@
 <template>
     <div>
-        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">添加新行</el-button>
+        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">{{ $t('redis.addNewLine') }}</el-button>
         <el-table size="small" border :data="hashValues" height="500" min-height="300" stripe>
             <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
             <el-table-column resizable sortable prop="field" label="field" show-overflow-tooltip min-width="100"> </el-table-column>
             <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
-            <el-table-column label="操作">
+            <el-table-column :label="$t('common.operation')">
                 <template #header>
                     <el-input
                         class="key-detail-filter-value"
                         v-model="state.filterValue"
                         @keyup.enter="hscan(true, true)"
-                        placeholder="关键词回车搜索"
+                        :placeholder="$t('redis.filterPlaceholder')"
                         clearable
                         size="small"
                     />
                 </template>
                 <template #default="scope">
                     <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit" plain></el-link>
-                    <el-popconfirm title="确定删除?" @confirm="hdel(scope.row.field, scope.$index)">
+                    <el-popconfirm :title="$t('redis.deleteConfirm')" @confirm="hdel(scope.row.field, scope.$index)">
                         <template #reference>
                             <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml5"></el-link>
                         </template>
@@ -28,10 +28,10 @@
         </el-table>
         <!-- load more content -->
         <div class="content-more-container">
-            <el-button size="small" @click="hscan()" :disabled="loadMoreDisable" class="content-more-btn"> 加载更多 </el-button>
+            <el-button size="small" @click="hscan()" :disabled="loadMoreDisable" class="content-more-btn"> {{ $t('redis.loadMore') }} </el-button>
         </div>
 
-        <el-dialog title="添加新行" v-model="editDialog.visible" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-dialog :title="$t('redis.addNewLine')" v-model="editDialog.visible" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form>
                 <el-form-item>
                     <el-input v-model="editDialog.field" placeholder="field" />
@@ -43,8 +43,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="editDialog.visible = false">取 消</el-button>
-                    <el-button v-auth="'redis:data:save'" type="primary" @click="confirmEditData">确 定</el-button>
+                    <el-button @click="editDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'redis:data:save'" type="primary" @click="confirmEditData">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -52,10 +52,10 @@
 </template>
 <script lang="ts" setup>
 import { ref, onMounted, reactive, toRefs } from 'vue';
-import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
+import { useI18nDeleteSuccessMsg, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const props = defineProps({
     redis: {
@@ -134,7 +134,7 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
 const hdel = async (field: any, index: any) => {
     await props.redis.runCmd(['HDEL', state.key, field]);
 
-    ElMessage.success('删除成功');
+    useI18nDeleteSuccessMsg();
     state.hashValues.splice(index, 1);
     state.total--;
 };
@@ -148,13 +148,13 @@ const showEditDialog = (row: any) => {
 
 const confirmEditData = async () => {
     const field = state.editDialog.field;
-    notBlank(field, 'field不能为空');
+    notBlank(field, 'field not empty');
 
     // 获取hash value内容并新增
     const value = formatViewerRef.value.getContent();
 
     const res = await props.redis.runCmd(['HSET', state.key, field, value]);
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     // 响应0则为被覆盖，则重新scan
     if (res == 0) {
         hscan(true, true);

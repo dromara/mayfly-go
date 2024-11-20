@@ -2,28 +2,26 @@
     <div class="file-manage">
         <el-dialog v-if="dialogVisible" :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="50%">
             <el-table :data="fileTable" stripe style="width: 100%" v-loading="loading">
-                <el-table-column prop="name" label="名称" min-width="100px">
+                <el-table-column prop="name" :label="$t('common.name')" min-width="100px">
                     <template #header>
                         <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="add()"> </el-button>
-                        <span class="ml10">名称</span>
+                        <span class="ml10">{{ $t('common.name') }}</span>
                     </template>
                     <template #default="scope">
                         <el-input v-model="scope.row.name" :disabled="scope.row.id != null" clearable> </el-input>
                     </template>
                 </el-table-column>
-                <el-table-column prop="name" label="类型" width="130px">
+                <el-table-column prop="name" :label="$t('common.type')" width="130px">
                     <template #default="scope">
-                        <el-select :disabled="scope.row.id != null" v-model="scope.row.type" style="width: 100px" placeholder="请选择">
-                            <el-option v-for="item in FileTypeEnum as any" :key="item.value" :label="item.label" :value="item.value"></el-option>
-                        </el-select>
+                        <EnumSelect :enums="FileTypeEnum" :disabled="scope.row.id != null" v-model="scope.row.type" />
                     </template>
                 </el-table-column>
-                <el-table-column prop="path" label="路径" min-width="180" show-overflow-tooltip>
+                <el-table-column prop="path" :label="$t('common.path')" min-width="180" show-overflow-tooltip>
                     <template #default="scope">
                         <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable> </el-input>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" min-width="130">
+                <el-table-column :label="$t('common.operation')" min-width="130">
                     <template #default="scope">
                         <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success-filled" plain></el-button>
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets" plain></el-button>
@@ -73,6 +71,11 @@ import { machineApi } from '../api';
 import { FileTypeEnum } from '../enums';
 import MachineFile from './MachineFile.vue';
 import MachineFileContent from './MachineFileContent.vue';
+import { useI18n } from 'vue-i18n';
+import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import { useI18nDeleteConfirm, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -153,27 +156,19 @@ const add = () => {
 const addFiles = async (row: any) => {
     row.machineId = props.machineId;
     await addFile.request(row);
-    ElMessage.success('添加成功');
+    useI18nSaveSuccessMsg();
     getFiles();
 };
 
-const deleteRow = (idx: any, row: any) => {
+const deleteRow = async (idx: any, row: any) => {
     if (row.id) {
-        ElMessageBox.confirm(`此操作将删除 [${row.name}], 是否继续?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        }).then(() => {
-            // 删除配置文件
-            delFile
-                .request({
-                    machineId: props.machineId,
-                    id: row.id,
-                })
-                .then(() => {
-                    getFiles();
-                });
+        await useI18nDeleteConfirm(row.name);
+        // 删除配置文件
+        await delFile.request({
+            machineId: props.machineId,
+            id: row.id,
         });
+        getFiles();
     } else {
         state.fileTable.splice(idx, 1);
     }

@@ -51,29 +51,29 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	scriptId := GetMachineScriptId(rc)
 	ac := GetMachineAc(rc)
 	ms, err := m.MachineScriptApp.GetById(scriptId, "MachineId", "Name", "Script")
-	biz.ErrIsNil(err, "该脚本不存在")
+	biz.ErrIsNil(err, "script not found")
 
 	script := ms.Script
 	// 如果有脚本参数，则用脚本参数替换脚本中的模板占位符参数
 	if params := rc.Query("params"); params != "" {
 		script, err = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
-		biz.ErrIsNilAppendErr(err, "脚本模板参数解析失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to parse the script template parameter: %s")
 	}
 	cli, err := m.MachineApp.GetCliByAc(ac)
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数
 	rc.ReqParam = collx.Kvs("machine", cli.Info, "scriptId", scriptId, "name", ms.Name)
 	if res == "" {
-		biz.ErrIsNilAppendErr(err, "执行命令失败：%s")
+		biz.ErrIsNilAppendErr(err, "failed to execute: %s")
 	}
 	rc.ResData = res
 }
 
 func GetMachineScriptId(rc *req.Ctx) uint64 {
 	scriptId := rc.PathParamInt("scriptId")
-	biz.IsTrue(scriptId > 0, "scriptId错误")
+	biz.IsTrue(scriptId > 0, "scriptId error")
 	return uint64(scriptId)
 }

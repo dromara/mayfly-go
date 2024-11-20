@@ -362,8 +362,12 @@ func (md *MssqlDialect) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table
 	return sqls
 }
 
-func (md *MssqlDialect) GetIdentifierQuoteString() string {
-	return "["
+func (dx *MssqlDialect) QuoteIdentifier(name string) string {
+	return fmt.Sprintf("[%s]", name)
+}
+
+func (dx *MssqlDialect) RemoveQuote(name string) string {
+	return strings.Trim(name, "[]")
 }
 
 func (md *MssqlDialect) GetDataHelper() dbi.DataHelper {

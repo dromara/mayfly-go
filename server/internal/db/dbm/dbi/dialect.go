@@ -3,7 +3,6 @@ package dbi
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"io"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
@@ -11,6 +10,8 @@ import (
 
 	pq "gitee.com/liuzongyang/libpq"
 )
+
+const DefaultQuoter = `"`
 
 const (
 	// -1. 无操作
@@ -30,9 +31,6 @@ type DbCopyTable struct {
 
 // BaseDialect 基础dialect，在DefaultDialect 都有默认的实现方法
 type BaseDialect interface {
-
-	// GetIdentifierQuoteString 用于引用 SQL 标识符（关键字）的字符串
-	GetIdentifierQuoteString() string
 
 	// QuoteIdentifier quotes an "identifier" (e.g. a table or a column name) to be
 	// used as part of an SQL statement.  For example:
@@ -106,33 +104,16 @@ type DefaultDialect struct {
 
 var _ (BaseDialect) = (*DefaultDialect)(nil)
 
-func (dd *DefaultDialect) GetIdentifierQuoteString() string {
-	return `"`
-}
-
 func (dx *DefaultDialect) QuoteIdentifier(name string) string {
-	quoter := dx.GetIdentifierQuoteString()
-	// 兼容mssql
-	if quoter == "[" {
-		return fmt.Sprintf("[%s]", name)
-	}
-
 	end := strings.IndexRune(name, 0)
 	if end > -1 {
 		name = name[:end]
 	}
-	return quoter + strings.Replace(name, quoter, quoter+quoter, -1) + quoter
+	return DefaultQuoter + strings.Replace(name, DefaultQuoter, DefaultQuoter+DefaultQuoter, -1) + DefaultQuoter
 }
 
 func (dx *DefaultDialect) RemoveQuote(name string) string {
-	quoter := dx.GetIdentifierQuoteString()
-
-	// 兼容mssql
-	if quoter == "[" {
-		return strings.Trim(name, "[]")
-	}
-
-	return strings.ReplaceAll(name, quoter, "")
+	return strings.ReplaceAll(name, DefaultQuoter, "")
 }
 
 func (dd *DefaultDialect) QuoteEscape(str string) string {

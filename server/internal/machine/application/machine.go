@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/infrastructure/cache"
 	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
@@ -85,7 +86,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	resourceType := tagentity.TagTypeMachine
 
 	if len(authCerts) == 0 {
-		return errorx.NewBiz("授权凭证信息不能为空")
+		return errorx.NewBiz("ac cannot be empty")
 	}
 
 	oldMachine := &entity.Machine{
@@ -95,7 +96,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	}
 
 	if me.SshTunnelMachineId > 0 {
-		if err := m.checkSshTunnelMachine(me.Ip, me.Port, me.SshTunnelMachineId, nil); err != nil {
+		if err := m.checkSshTunnelMachine(ctx, me.Ip, me.Port, me.SshTunnelMachineId, nil); err != nil {
 			return err
 		}
 	}
@@ -103,7 +104,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	err := m.GetByCond(oldMachine)
 	if me.Id == 0 {
 		if err == nil {
-			return errorx.NewBiz("该机器信息已存在")
+			return errorx.NewBizI(ctx, imsg.ErrMachineExist)
 		}
 
 		// 新增机器，默认启用状态
@@ -130,7 +131,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldMachine.Id != me.Id {
-		return errorx.NewBiz("该机器信息已存在")
+		return errorx.NewBizI(ctx, imsg.ErrMachineExist)
 	}
 	// 如果调整了SshTunnelMachineId Ip port等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMachine.Code == "" {
@@ -197,7 +198,7 @@ func (m *machineAppImpl) ChangeStatus(ctx context.Context, id uint64, status int
 func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 	machine, err := m.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("机器信息不存在")
+		return errorx.NewBiz("machine not found")
 	}
 	// 关闭连接
 	mcm.DeleteCli(id)
@@ -258,24 +259,24 @@ func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*mcm.SshTunnelMachi
 }
 
 func (m *machineAppImpl) TimerUpdateStats() {
-	logx.Debug("开始定时收集并缓存服务器状态信息...")
+	logx.Debug("start collecting and caching machine state information periodically...")
 	scheduler.AddFun("@every 2m", func() {
 		machineIds, _ := m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"))
 		for _, ma := range machineIds {
 			go func(mid uint64) {
 				defer func() {
 					if err := recover(); err != nil {
-						logx.ErrorTrace(fmt.Sprintf("定时获取机器[id=%d]状态信息失败", mid), err.(error))
+						logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", mid), err.(error))
 					}
 				}()
-				logx.Debugf("定时获取机器[id=%d]状态信息开始", mid)
+				logx.Debugf("time to get machine [id=%d] status information start", mid)
 				cli, err := m.GetCli(mid)
 				if err != nil {
-					logx.Errorf("定时获取机器[id=%d]状态信息失败, 获取机器cli失败: %s", mid, err.Error())
+					logx.Errorf("failed to get machine [id=%d] status information periodically, failed to get machine cli: %s", mid, err.Error())
 					return
 				}
 				cache.SaveMachineStats(mid, cli.GetAllStats())
-				logx.Debugf("定时获取机器[id=%d]状态信息结束", mid)
+				logx.Debugf("time to get the machine [id=%d] status information end", mid)
 			}(ma.Id)
 		}
 	})
@@ -296,7 +297,7 @@ func (m *machineAppImpl) ToMachineInfoByAc(authCertName string) (*mcm.MachineInf
 		Code: authCert.ResourceCode,
 	}
 	if err := m.GetByCond(machine); err != nil {
-		return nil, errorx.NewBiz("该授权凭证关联的机器信息不存在")
+		return nil, errorx.NewBiz("the machine information associated with the authorization credential does not exist")
 	}
 
 	return m.toMi(machine, authCert)
@@ -315,10 +316,10 @@ func (m *machineAppImpl) ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, 
 func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machine, *tagentity.ResourceAuthCert, error) {
 	me, err := m.GetById(machineId)
 	if err != nil {
-		return nil, nil, errorx.NewBiz("[%d]机器信息不存在", machineId)
+		return nil, nil, errorx.NewBiz("[%d] machine not found", machineId)
 	}
 	if me.Status != entity.MachineStatusEnable && me.Protocol == 1 {
-		return nil, nil, errorx.NewBiz("[%s]该机器已被停用", me.Code)
+		return nil, nil, errorx.NewBiz("[%s] machine has been disable", me.Code)
 	}
 
 	authCert, err := m.resourceAuthCertApp.GetResourceAuthCert(tagentity.TagTypeMachine, me.Code)
@@ -375,7 +376,7 @@ func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*
 }
 
 // checkSshTunnelMachine 校验ssh隧道机器是否存在循环隧道
-func (m *machineAppImpl) checkSshTunnelMachine(ip string, port int, sshTunnelMachineId int, visited map[string]bool) error {
+func (m *machineAppImpl) checkSshTunnelMachine(ctx context.Context, ip string, port int, sshTunnelMachineId int, visited map[string]bool) error {
 	if visited == nil {
 		visited = make(map[string]bool)
 	}
@@ -387,11 +388,11 @@ func (m *machineAppImpl) checkSshTunnelMachine(ip string, port int, sshTunnelMac
 	}
 
 	if visited[fmt.Sprintf("%s:%d", stm.Ip, stm.Port)] {
-		return errorx.NewBiz("存在循环隧道，请重新选择隧道机器")
+		return errorx.NewBizI(ctx, imsg.ErrSshTunnelCircular)
 	}
 
 	if stm.SshTunnelMachineId > 0 {
-		return m.checkSshTunnelMachine(stm.Ip, stm.Port, stm.SshTunnelMachineId, visited)
+		return m.checkSshTunnelMachine(ctx, stm.Ip, stm.Port, stm.SshTunnelMachineId, visited)
 	}
 	return nil
 }

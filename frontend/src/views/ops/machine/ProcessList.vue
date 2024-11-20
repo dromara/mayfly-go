@@ -1,19 +1,19 @@
 <template>
     <div class="file-manage">
-        <el-dialog title="进程信息" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="65%">
+        <el-dialog :title="$t('machine.process')" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="65%">
             <div class="card pd5">
                 <el-row>
                     <el-col :span="4">
-                        <el-input size="small" placeholder="进程名" v-model="params.name" plain clearable></el-input>
+                        <el-input size="small" :placeholder="$t('machine.processName')" v-model="params.name" plain clearable></el-input>
                     </el-col>
                     <el-col :span="4" class="ml5">
-                        <el-select class="w100" @change="getProcess" size="small" v-model="params.sortType" placeholder="请选择排序类型">
-                            <el-option key="cpu" label="cpu降序" value="1"> </el-option>
-                            <el-option key="cpu" label="mem降序" value="2"> </el-option>
+                        <el-select class="w100" @change="getProcess" size="small" v-model="params.sortType" :placeholder="$t('machine.selectSortType')">
+                            <el-option key="cpu" :label="$t('machine.cpuDesc')" value="1"> </el-option>
+                            <el-option key="cpu" :label="$t('machine.memDesc')" value="2"> </el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="4" class="ml5">
-                        <el-select class="w100" @change="getProcess" size="small" v-model="params.count" placeholder="请选择进程个数">
+                        <el-select class="w100" @change="getProcess" size="small" v-model="params.count" :placeholder="$t('machine.selectProcessNum')">
                             <el-option key="10" label="10" value="10"> </el-option>
                             <el-option key="15" label="15" value="15"> </el-option>
                             <el-option key="20" label="20" value="20"> </el-option>
@@ -21,7 +21,7 @@
                         </el-select>
                     </el-col>
                     <el-col :span="6">
-                        <el-button class="ml5" @click="getProcess" type="primary" icon="tickets" size="small" plain>刷新 </el-button>
+                        <el-button class="ml5" @click="getProcess" type="primary" icon="refresh" size="small" plain>{{ $t('common.refresh') }}</el-button>
                     </el-col>
                 </el-row>
             </div>
@@ -34,7 +34,7 @@
                 <el-table-column prop="vsz" label="vsz" :min-width="55">
                     <template #header>
                         VSZ
-                        <el-tooltip class="box-item" effect="dark" content="虚拟内存" placement="top">
+                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.virtualMemory')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -44,7 +44,7 @@
                 <el-table-column prop="rss" :min-width="52">
                     <template #header>
                         RSS
-                        <el-tooltip class="box-item" effect="dark" content="固定内存" placement="top">
+                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.fixedMemory')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -54,7 +54,7 @@
                 <el-table-column prop="stat" :min-width="50">
                     <template #header>
                         STAT
-                        <el-tooltip class="box-item" effect="dark" content="进程状态" placement="top">
+                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.procState')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -64,7 +64,7 @@
                 <el-table-column prop="start" :min-width="50">
                     <template #header>
                         START
-                        <el-tooltip class="box-item" effect="dark" content="启动时间" placement="top">
+                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.startTime')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -74,7 +74,7 @@
                 <el-table-column prop="time" :min-width="50">
                     <template #header>
                         TIME
-                        <el-tooltip class="box-item" effect="dark" content="该进程实际使用CPU运作的时间" placement="top">
+                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.procCpuRunTime')" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -83,14 +83,13 @@
                 </el-table-column>
                 <el-table-column prop="command" label="command" :min-width="120" show-overflow-tooltip> </el-table-column>
 
-                <el-table-column label="操作">
+                <el-table-column :label="$t('common.operation')">
                     <template #default="scope">
-                        <el-popconfirm title="确定终止该进程?" @confirm="confirmKillProcess(scope.row.pid)" width="160">
+                        <el-popconfirm :title="$t('machine.killProcConfirm')" @confirm="confirmKillProcess(scope.row.pid)" width="160">
                             <template #reference>
-                                <el-button v-auth="'machine:killprocess'" type="danger" icon="delete" size="small" plain>终止</el-button>
+                                <el-button v-auth="'machine:killprocess'" type="danger" icon="delete" size="small" plain>{{ $t('machine.kill') }}</el-button>
                             </template>
                         </el-popconfirm>
-                        <!-- <el-button @click="addFiles(scope.row)" type="danger" icon="delete" size="small" plain>终止</el-button> -->
                     </template>
                 </el-table-column>
             </el-table>

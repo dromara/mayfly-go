@@ -6,15 +6,15 @@
             </template>
 
             <el-form :model="form" ref="formRef" :rules="rules" label-width="auto">
-                <el-form-item prop="bizType" label="业务类型">
-                    <EnumSelect v-model="form.bizType" :enums="FlowBizType" placeholder="请选择业务类型" />
+                <el-form-item prop="bizType" :label="$t('flow.bizType')">
+                    <EnumSelect v-model="form.bizType" :enums="FlowBizType" />
                 </el-form-item>
 
-                <el-form-item prop="remark" label="备注">
-                    <el-input v-model.trim="form.remark" type="textarea" placeholder="备注" auto-complete="off" clearable></el-input>
+                <el-form-item prop="remark" :label="$t('common.remark')">
+                    <el-input v-model.trim="form.remark" type="textarea" auto-complete="off" clearable></el-input>
                 </el-form-item>
 
-                <el-divider content-position="left">业务信息</el-divider>
+                <el-divider content-position="left">{{ $t('flow.bizInfo') }}</el-divider>
                 <component
                     ref="bizFormRef"
                     v-if="form.bizType"
@@ -26,17 +26,18 @@
             </el-form>
 
             <span v-if="flowProcdef || !state.form.procdefId">
-                <el-divider content-position="left">审批节点</el-divider>
+                <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
 
                 <ProcdefTasks v-if="flowProcdef" :procdef="flowProcdef" />
 
-                <el-result v-if="!state.form.procdefId" icon="error" title="不存在审批节点" sub-title="该资源无需审批操作"> </el-result>
+                <el-result v-if="!state.form.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')">
+                </el-result>
             </span>
 
             <template #footer>
                 <div>
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!state.form.procdefId">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!state.form.procdefId">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -52,8 +53,12 @@ import { FlowBizType } from './enums';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
+import { useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
 
 const DbSqlExecFlowBizForm = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecFlowBizForm.vue'));
+
+const { t } = useI18n();
 
 const props = defineProps({
     title: {
@@ -79,14 +84,14 @@ const rules = {
     bizType: [
         {
             required: true,
-            message: '请选择流程业务类型',
+            message: useI18nPleaseSelect('flow.bizType'),
             trigger: ['change', 'blur'],
         },
     ],
     remark: [
         {
             required: true,
-            message: '请输入申请备注',
+            message: useI18nPleaseInput('common.remark'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -125,12 +130,12 @@ const btnOk = async () => {
         await formRef.value.validate();
         await bizFormRef.value.validateBizForm();
     } catch (e: any) {
-        ElMessage.error('请正确填写信息');
+        ElMessage.error(t('flow.procinstFormError'));
         return false;
     }
 
     await procinstStart();
-    ElMessage.success('流程发起成功');
+    ElMessage.success(t('flow.procinstStartSuccess'));
     emit('val-change', state.form);
     //重置表单域
     cancel();

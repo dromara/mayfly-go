@@ -30,7 +30,7 @@ const KeyValueSet = defineAsyncComponent(() => import('./KeyValueSet.vue'));
 const KeyValueList = defineAsyncComponent(() => import('./KeyValueList.vue'));
 const KeyValueZset = defineAsyncComponent(() => import('./KeyValueZset.vue'));
 
-const components = shallowReactive({
+const components: any = shallowReactive({
     KeyValueString,
     KeyValueHash,
     KeyValueSet,
@@ -56,7 +56,7 @@ const state = reactive({
     keyInfo: {} as any,
 });
 
-const componentMap = {
+const componentMap: any = {
     string: 'KeyValueString',
     hash: 'KeyValueHash',
     zset: 'KeyValueZset',

@@ -10,8 +10,10 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.save" type="primary" icon="plus" @click="editFlowDef(false)">添加</el-button>
-                <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="deleteProcdef()" type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.save" type="primary" icon="plus" @click="editFlowDef(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="deleteProcdef()" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #tasks="{ data }">
@@ -23,7 +25,7 @@
             </template>
 
             <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.save]" @click="editFlowDef(data)" type="primary">编辑</el-button>
+                <el-button link v-if="actionBtns[perms.save]" @click="editFlowDef(data)" type="primary">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
@@ -38,7 +40,6 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { procdefApi } from './api';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
@@ -47,27 +48,31 @@ import ProcdefEdit from './ProcdefEdit.vue';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import { ProcdefStatus } from './enums';
 import TagCodePath from '../ops/component/TagCodePath.vue';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const perms = {
     save: 'flow:procdef:save',
     del: 'flow:procdef:del',
 };
 
-const searchItems = [SearchItem.input('name', '名称'), SearchItem.input('defKey', 'key')];
+const searchItems = [SearchItem.input('name', 'common.name'), SearchItem.input('defKey', 'key')];
 const columns = [
-    TableColumn.new('name', '名称'),
-    TableColumn.new('defKey', 'key'),
-    TableColumn.new('status', '状态').typeTag(ProcdefStatus),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('tasks', '审批节点').isSlot().alignCenter().setMinWidth(60),
-    TableColumn.new('codePaths', '关联资源').isSlot().setMinWidth('250px'),
-    TableColumn.new('creator', '创建账号'),
-    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('defKey', 'Key'),
+    TableColumn.new('status', 'common.status').typeTag(ProcdefStatus),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('tasks', 'flow.approvalNode').isSlot().alignCenter().setMinWidth(60),
+    TableColumn.new('codePaths', 'tag.relateTag').isSlot().setMinWidth('250px'),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('createTime', 'common.createTime').isTime(),
 ];
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns: any = hasPerms([perms.save, perms.del]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -84,7 +89,7 @@ const state = reactive({
         pageSize: 0,
     },
     flowDefEditor: {
-        title: '新建流程定义',
+        title: '',
         visible: false,
         data: null as any,
     },
@@ -109,17 +114,17 @@ const search = async () => {
 
 const showProcdefTasks = (procdef: any) => {
     state.flowTasksDialog.tasks = procdef.tasks;
-    state.flowTasksDialog.title = procdef.name + '-审批节点';
+    state.flowTasksDialog.title = procdef.name + ' - ' + t('flow.approvalNode');
     state.flowTasksDialog.visible = true;
 };
 
 const editFlowDef = (data: any) => {
     if (!data) {
         state.flowDefEditor.data = null;
-        state.flowDefEditor.title = '新建流程定义';
+        state.flowDefEditor.title = useI18nCreateTitle('flow.procdef');
     } else {
         state.flowDefEditor.data = data;
-        state.flowDefEditor.title = '编辑流程定义';
+        state.flowDefEditor.title = useI18nEditTitle('flow.procdef');
     }
     state.flowDefEditor.visible = true;
 };
@@ -131,13 +136,9 @@ const valChange = () => {
 
 const deleteProcdef = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】的流程定义?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join(', '));
         await procdefApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //

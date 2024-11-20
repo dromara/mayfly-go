@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const Quoter = "`"
+
 type MysqlDialect struct {
 	dbi.DefaultDialect
 
@@ -188,8 +190,16 @@ func (md *MysqlDialect) genColumnBasicSql(column dbi.Column) string {
 	return columnSql
 }
 
-func (md *MysqlDialect) GetIdentifierQuoteString() string {
-	return "`"
+func (dx *MysqlDialect) QuoteIdentifier(name string) string {
+	end := strings.IndexRune(name, 0)
+	if end > -1 {
+		name = name[:end]
+	}
+	return Quoter + strings.Replace(name, Quoter, Quoter+Quoter, -1) + Quoter
+}
+
+func (dx *MysqlDialect) RemoveQuote(name string) string {
+	return strings.ReplaceAll(name, Quoter, "")
 }
 
 func (md *MysqlDialect) QuoteLiteral(literal string) string {

@@ -3,13 +3,15 @@
         <Splitpanes class="default-theme">
             <Pane size="25" min-size="20" max-size="30">
                 <div class="card pd5 mr5">
-                    <el-input v-model="filterResource" clearable placeholder="输入关键字过滤(右击操作)" style="width: 200px; margin-right: 10px" />
+                    <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" style="width: 200px; margin-right: 10px" />
                     <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
 
                     <div class="fr">
                         <el-tooltip placement="top">
-                            <template #content> 红色、橙色字体表示禁用状态 (右击资源进行操作) </template>
-                            <span> <SvgIcon name="question-filled" /> </span>
+                            <template #content> {{ $t('system.menu.opTips') }} </template>
+                            <span>
+                                <SvgIcon name="question-filled" />
+                            </span>
                         </el-tooltip>
                     </div>
                 </div>
@@ -37,14 +39,18 @@
                             <span class="custom-tree-node">
                                 <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                                     <span style="color: #3c8dbc">【</span>
-                                    <span v-if="data.status == 1">{{ data.name }}</span>
-                                    <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
+                                    <span v-if="data.status == 1">{{ $t(data.name) }}</span>
+                                    <span v-if="data.status == -1" style="color: #e6a23c">{{ $t(data.name) }}</span>
                                     <span style="color: #3c8dbc">】</span>
-                                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                                    <el-tag v-if="data.children !== null" size="small">
+                                        {{ data.children.length }}
+                                    </el-tag>
                                 </span>
                                 <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
                                     <span style="color: #3c8dbc">【</span>
-                                    <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
+                                    <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">
+                                        {{ $t(data.name) }}
+                                    </span>
                                     <span style="color: #3c8dbc">】</span>
                                 </span>
                             </span>
@@ -55,44 +61,65 @@
 
             <Pane min-size="40">
                 <div class="ml10">
-                    <el-tabs v-model="state.activeTabName" v-if="currentResource">
-                        <el-tab-pane label="菜单资源详情" :name="ResourceDetail">
-                            <el-descriptions title="资源信息" :column="2" border>
-                                <el-descriptions-item label="类型">
+                    <el-tabs v-model="state.activeTabName" @tab-click="onTabClick" v-if="currentResource">
+                        <el-tab-pane :label="$t('common.detail')" :name="ResourceDetail">
+                            <el-descriptions :title="$t('system.menu.info')" :column="2" border>
+                                <el-descriptions-item :label="$t('common.type')">
                                     <enum-tag :enums="ResourceTypeEnum" :value="currentResource?.type" />
                                 </el-descriptions-item>
-                                <el-descriptions-item label="名称">{{ currentResource.name }}</el-descriptions-item>
-                                <el-descriptions-item label="code[菜单path]">{{ currentResource.code }}</el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="图标">
+                                <el-descriptions-item :label="$t('common.name')">{{ currentResource.name }}</el-descriptions-item>
+                                <el-descriptions-item :label="`code[${$t('system.menu.menu')} path]`">{{ currentResource.code }}</el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.icon')">
                                     <SvgIcon :name="currentResource.meta.icon" />
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="路由名">
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.routerName')">
                                     {{ currentResource.meta.routeName }}
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="组件路径">
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.componentPath')">
                                     {{ currentResource.meta.component }}
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="是否缓存">
-                                    {{ currentResource.meta.isKeepAlive ? '是' : '否' }}
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.isCache')">
+                                    {{ currentResource.meta.isKeepAlive ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="是否隐藏">
-                                    {{ currentResource.meta.isHide ? '是' : '否' }}
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.isHide')">
+                                    {{ currentResource.meta.isHide ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="tag不可删除">
-                                    {{ currentResource.meta.isAffix ? '是' : '否' }}
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.tagIsDelete')">
+                                    {{ currentResource.meta.isAffix ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="外链">
-                                    {{ currentResource.meta.linkType ? '是' : '否' }}
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.externalLink')">
+                                    {{ currentResource.meta.linkType ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue && currentResource.meta.linkType > 0" label="外链">
+                                <el-descriptions-item
+                                    v-if="currentResource.type == menuTypeValue && currentResource.meta.linkType > 0"
+                                    :label="$t('system.menu.externalLink')"
+                                >
                                     {{ currentResource.meta.link }}
                                 </el-descriptions-item>
 
-                                <el-descriptions-item label="创建者">{{ currentResource.creator }}</el-descriptions-item>
-                                <el-descriptions-item label="创建时间">{{ formatDate(currentResource.createTime) }} </el-descriptions-item>
-                                <el-descriptions-item label="修改者">{{ currentResource.modifier }}</el-descriptions-item>
-                                <el-descriptions-item label="更新时间">{{ formatDate(currentResource.updateTime) }} </el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.creator')">{{ currentResource.creator }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.createTime')">{{ formatDate(currentResource.createTime) }} </el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.modifier')">{{ currentResource.modifier }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.updateTime')">{{ formatDate(currentResource.updateTime) }} </el-descriptions-item>
                             </el-descriptions>
+                        </el-tab-pane>
+
+                        <el-tab-pane :label="$t('system.menu.assignedRole')" :name="ResourceRoles">
+                            <el-table :loading="state.rolesLoading" :data="state.roles" max-height="calc(100vh - 200px)">
+                                <el-table-column prop="roleCode" :label="$t('system.role.roleCode')"></el-table-column>
+                                <el-table-column prop="roleName" :label="$t('system.role.roleName')"></el-table-column>
+                                <el-table-column prop="roleStatus" :label="$t('system.account.roleStatus')">
+                                    <template #default="scope">
+                                        <enum-tag :enums="RoleStatusEnum" :value="scope.row.roleStatus"></enum-tag>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column prop="assigner" :label="$t('system.role.assigner')"></el-table-column>
+                                <el-table-column prop="allocateTime" :label="$t('system.role.allocateTime')">
+                                    <template #default="scope">
+                                        {{ formatDate(scope.row.allocateTime) }}
+                                    </template>
+                                </el-table-column>
+                            </el-table>
                         </el-tab-pane>
                     </el-tabs>
                 </div>
@@ -117,13 +144,17 @@
 import { ref, toRefs, reactive, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
-import { ResourceTypeEnum } from '../enums';
+import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { resourceApi } from '../api';
 import { formatDate } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { Splitpanes, Pane } from 'splitpanes';
 import { isPrefixSubsequence } from '@/common/utils/string';
+import { useI18n } from 'vue-i18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;
@@ -145,31 +176,32 @@ const filterResource = ref();
 const resourceTreeRef = ref();
 
 const ResourceDetail = 'resourceDetail';
+const ResourceRoles = 'resourceRoles';
 
-const contextmenuAdd = new ContextmenuItem('add', '添加子资源')
+const contextmenuAdd = new ContextmenuItem('add', 'system.menu.addSubResource')
     .withIcon('circle-plus')
     .withPermission(perms.addResource)
     .withHideFunc((data: any) => data.type !== menuTypeValue)
     .withOnClick((data: any) => addResource(data));
 
-const contextmenuEdit = new ContextmenuItem('edit', '编辑')
+const contextmenuEdit = new ContextmenuItem('edit', 'common.edit')
     .withIcon('edit')
     .withPermission(perms.updateResource)
     .withOnClick((data: any) => editResource(data));
 
-const contextmenuEnable = new ContextmenuItem('enable', '启用')
+const contextmenuEnable = new ContextmenuItem('enable', 'system.menu.enable')
     .withIcon('circle-check')
     .withPermission(perms.updateResource)
     .withHideFunc((data: any) => data.status === 1)
     .withOnClick((data: any) => changeStatus(data, 1));
 
-const contextmenuDisable = new ContextmenuItem('disable', '禁用')
+const contextmenuDisable = new ContextmenuItem('disable', 'system.menu.disable')
     .withIcon('circle-close')
     .withPermission(perms.updateResource)
     .withHideFunc((data: any) => data.status === -1)
     .withOnClick((data: any) => changeStatus(data, -1));
 
-const contextmenuDel = new ContextmenuItem('delete', '删除')
+const contextmenuDel = new ContextmenuItem('delete', 'common.delete')
     .withIcon('delete')
     .withPermission(perms.delResource)
     .withOnClick((data: any) => deleteMenu(data));
@@ -192,7 +224,8 @@ const state = reactive({
         typeDisabled: true,
     },
     data: [],
-
+    rolesLoading: false,
+    roles: [], // 资源关联的角色列表
     // 展开的节点
     defaultExpandedKeys: [] as any[],
     activeTabName: ResourceDetail,
@@ -210,7 +243,7 @@ watch(filterResource, (val) => {
 });
 
 const filterNode = (value: string, data: any) => {
-    return !value || isPrefixSubsequence(value, data.name);
+    return !value || isPrefixSubsequence(value, t(data.name));
 };
 
 const search = async () => {
@@ -227,6 +260,7 @@ const nodeContextmenu = (event: any, data: any) => {
 };
 
 const treeNodeClick = async (data: any) => {
+    state.activeTabName = ResourceDetail;
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
 
@@ -237,21 +271,25 @@ const treeNodeClick = async (data: any) => {
     }
 };
 
-const deleteMenu = (data: any) => {
-    ElMessageBox.confirm(`此操作将删除 [${data.name}], 是否继续?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    }).then(() => {
-        resourceApi.del
-            .request({
-                id: data.id,
-            })
-            .then(() => {
-                ElMessage.success('删除成功！');
-                search();
-            });
+const onTabClick = async (activeTab: any) => {
+    if (activeTab.paneName === ResourceRoles) {
+        try {
+            state.rolesLoading = true;
+            state.roles = await resourceApi.roles.request({ id: state.currentResource.id });
+        } finally {
+            state.rolesLoading = false;
+        }
+    }
+};
+
+const deleteMenu = async (data: any) => {
+    await useI18nDeleteConfirm(data.name);
+    await resourceApi.del.request({
+        id: data.id,
     });
+
+    useI18nDeleteSuccessMsg();
+    search();
 };
 
 const addResource = (data: any) => {
@@ -261,14 +299,14 @@ const addResource = (data: any) => {
     if (!data) {
         dialog.typeDisabled = true;
         dialog.data.type = menuTypeValue;
-        dialog.title = '添加顶级菜单';
+        dialog.title = t('system.menu.addTopMenu');
         dialog.visible = true;
         return;
     }
     // 添加子菜单，把当前菜单id作为新增菜单pid
     dialog.data.pid = data.id;
 
-    dialog.title = '添加“' + data.name + '”的子资源 ';
+    dialog.title = t('system.menu.addChildrenMenuTitle', { parentName: t(data.name) });
     if (data.children === null || data.children.length === 0) {
         // 如果子节点不存在，则资源类型可选择
         dialog.typeDisabled = false;
@@ -301,7 +339,7 @@ const editResource = async (data: any) => {
 
     state.dialogForm.data = res;
     state.dialogForm.typeDisabled = true;
-    state.dialogForm.title = '修改“' + data.name + '”菜单';
+    state.dialogForm.title = t('system.menu.updateMenu', { name: t(data.name) });
     state.dialogForm.visible = true;
 };
 
@@ -316,7 +354,7 @@ const changeStatus = async (data: any, status: any) => {
         status: status,
     });
     search();
-    ElMessage.success((status === 1 ? '启用' : '禁用') + '成功！');
+    ElMessage.success((status === 1 ? t('system.menu.enable') : t('system.menu.disable')) + ' ' + t('system.menu.success'));
 };
 
 // 节点被展开时触发的事件

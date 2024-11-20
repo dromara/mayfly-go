@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -64,15 +65,15 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 	resourceAuthCerts := params.AuthCerts
 
 	if resourceCode == "" {
-		return errorx.NewBiz("授权凭证的资源编号不能为空")
+		return errorx.NewBiz("The resource code of the authorization credential cannot be empty")
 	}
 	if resourceType == 0 {
-		return errorx.NewBiz("授权凭证的资源类型不能为空")
+		return errorx.NewBiz("The resource type of the authorization credential cannot be empty")
 	}
 
 	// 删除授权信息
 	if len(resourceAuthCerts) == 0 {
-		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-删除所有关联的授权凭证信息", resourceType, resourceCode)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - Remove all associated authorization credential information", resourceType, resourceCode)
 		if err := r.DeleteByCond(ctx, &entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType}); err != nil {
 			return err
 		}
@@ -109,7 +110,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 	// 新增、删除以及不变的授权凭证名
 	var addAcNames, delAcNames, unmodifyAcNames []string
 	if len(oldAuthCert) == 0 {
-		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-不存在已有的授权凭证信息, 为新增资源授权凭证", resourceType, resourceCode)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - There is no existing authorization credential information, the current operation is the authorization credential of the new resource", resourceType, resourceCode)
 		addAcNames = collx.MapKeys(name2AuthCert)
 	} else {
 		oldNames := collx.ArrayMap(oldAuthCert, func(ac *entity.ResourceAuthCert) string {
@@ -125,7 +126,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 
 		existNameAc := &entity.ResourceAuthCert{Name: addAcName}
 		if r.GetByCond(existNameAc) == nil && existNameAc.ResourceCode != resourceCode {
-			return errorx.NewBiz("授权凭证的名称不能重复[%s]", addAcName)
+			return errorx.NewBiz("The name of the authorization credential cannot be repeated: [%s]", addAcName)
 		}
 
 		addAuthCerts = append(addAuthCerts, addAc)
@@ -133,14 +134,14 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 
 	// 处理新增的授权凭证
 	if len(addAuthCerts) > 0 {
-		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-新增授权凭证-[%v]", resourceType, resourceCode, addAcNames)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - Add authorization credentials - [%v]", resourceType, resourceCode, addAcNames)
 		if err := r.BatchInsert(ctx, addAuthCerts); err != nil {
 			return err
 		}
 	}
 
 	for _, delAcName := range delAcNames {
-		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-删除授权凭证-[%v]", resourceType, resourceCode, delAcName)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - Delete authorization credentials - [%v]", resourceType, resourceCode, delAcName)
 		if err := r.DeleteByCond(ctx, &entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType, Name: delAcName}); err != nil {
 			return err
 		}
@@ -157,7 +158,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 
 			oldAuthCert := oldName2AuthCert[unmodifyAcName]
 			if !unmodifyAc.HasChanged(oldAuthCert) {
-				logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-授权凭证[%s]未发生字段变更", resourceType, resourceCode, unmodifyAcName)
+				logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - Authorization credential [%s] No field changes", resourceType, resourceCode, unmodifyAcName)
 				continue
 			}
 
@@ -165,7 +166,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 			if oldAuthCert.Username != unmodifyAc.Username && acTagType != 0 {
 				r.tagTreeApp.UpdateTagName(ctx, acTagType, unmodifyAcName, unmodifyAc.Username)
 			}
-			logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-更新授权凭证-[%v]", resourceType, resourceCode, unmodifyAcName)
+			logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - Update Authorization credential - [%v]", resourceType, resourceCode, unmodifyAcName)
 			if err := r.UpdateByCond(ctx, unmodifyAc, &entity.ResourceAuthCert{Name: unmodifyAcName, ResourceCode: resourceCode, ResourceType: resourceType}); err != nil {
 				return err
 			}
@@ -186,19 +187,19 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, rac *entity.
 func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64) error {
 	rac, err := r.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("授权凭证不存在")
+		return errorx.NewBiz("ac not found")
 	}
 
 	if rac.Type == entity.AuthCertTypePublic {
 		if r.CountByCond(&entity.ResourceAuthCert{Ciphertext: rac.Name}) > 0 {
-			return errorx.NewBiz("该公共授权凭证[%s]已被关联", rac.Name)
+			return errorx.NewBizI(ctx, imsg.ErrPublicAcRelated)
 		}
 		// 公共授权凭证直接删除即可
 		return r.DeleteById(ctx, id)
 	}
 
 	if r.CountByCond(&entity.ResourceAuthCert{ResourceCode: rac.ResourceCode, ResourceType: rac.ResourceType}) <= 1 {
-		return errorx.NewBiz("资源至少需要绑定一个授权凭证，无法删除该凭证[%s]", rac.Name)
+		return errorx.NewBizI(ctx, imsg.ErrResourceNoBindAc)
 	}
 
 	return r.Tx(ctx,
@@ -216,7 +217,7 @@ func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64)
 func (r *resourceAuthCertAppImpl) GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error) {
 	authCert := &entity.ResourceAuthCert{Name: authCertName}
 	if err := r.GetByCond(authCert); err != nil {
-		return nil, errorx.NewBiz("该授权凭证不存在")
+		return nil, errorx.NewBiz("ac not found")
 	}
 
 	return r.decryptAuthCert(authCert)
@@ -251,7 +252,7 @@ func (r *resourceAuthCertAppImpl) GetResourceAuthCert(resourceType entity.TagTyp
 	}
 
 	if len(resourceAuthCerts) == 0 {
-		return nil, errorx.NewBiz("该资源不存在授权凭证账号")
+		return nil, errorx.NewBiz("An authorization credential account does not exist for this resource")
 	}
 
 	for _, resourceAuthCert := range resourceAuthCerts {
@@ -282,7 +283,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCertByAcs(authCerts []*entity.Resource
 	for _, authCert := range authCerts {
 		resource := resourceCode2Resource[authCert.ResourceCode]
 		if resource == nil {
-			logx.Debugf("FillAuthCert-授权凭证[%s]未匹配到对应的资源[%s]", authCert.Name, authCert.ResourceCode)
+			logx.Debugf("FillAuthCert - Credential [%s] does not match resource [%s]", authCert.Name, authCert.ResourceCode)
 			continue
 		}
 
@@ -315,7 +316,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...e
 // addAuthCert 添加授权凭证
 func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
 	if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
-		return errorx.NewBiz("授权凭证的名称不能重复[%s]", rac.Name)
+		return errorx.NewBizI(ctx, imsg.ErrAcNameExist, "acName", rac.Name)
 	}
 	// 公共凭证
 	if rac.Type == entity.AuthCertTypePublic {
@@ -340,11 +341,11 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 			return tag.CodePath
 		})
 		if len(resourceTagCodePaths) == 0 {
-			return errorx.NewBiz("资源标签不存在[%s], 请检查资源编号是否正确", resourceCode)
+			return errorx.NewBizI(ctx, imsg.ErrResourceTagNotExist, "resourceCode", resourceCode)
 		}
 	} else {
 		if r.CountByCond(&entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType}) == 0 {
-			return errorx.NewBiz("该授权凭证关联的资源信息不存在, 请检查资源编号")
+			return errorx.NewBizI(ctx, imsg.ErrResourceNotExist)
 		}
 	}
 
@@ -356,7 +357,7 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 	return r.Tx(ctx, func(ctx context.Context) error {
 		// 若存在需要关联到的资源标签，则关联到对应的资源标签下
 		if len(resourceTagCodePaths) > 0 {
-			logx.DebugfContext(ctx, "[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, rac.Name, resourceTagCodePaths)
+			logx.DebugfContext(ctx, "[%d-%s] - AC tag [%d-%s] associated to the resource tag [%v] ", resourceType, resourceCode, authCertTagType, rac.Name, resourceTagCodePaths)
 			return r.tagTreeApp.SaveResourceTag(ctx, &dto.SaveResourceTag{
 				ResourceTag: &dto.ResourceTag{
 					Code: rac.Name,
@@ -376,7 +377,7 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
 	oldRac, err := r.GetById(rac.Id)
 	if err != nil {
-		return errorx.NewBiz("该授权凭证不存在")
+		return errorx.NewBiz("ac not found")
 	}
 
 	if !oldRac.HasChanged(rac) {
@@ -386,15 +387,17 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 	if oldRac.Type == entity.AuthCertTypePublic {
 		// 如果旧凭证为公共凭证，则不允许修改凭证类型
 		if rac.Type != entity.AuthCertTypePublic {
-			return errorx.NewBiz("公共授权凭证不允许修改凭证类型")
+			return errorx.NewBizI(ctx, imsg.ErrPublicAcNotAllowModifyType)
 		}
 
 		if rac.CiphertextType == entity.AuthCertCiphertextTypePublic {
-			return errorx.NewBiz("公共授权凭证不允许绑定其他公共授权凭证")
+			// 公共授权凭证不允许绑定其他公共授权凭证
+			return errorx.NewBiz("Public authorization credentials are not allowed to bind other public authorization credentials")
 		}
 	} else {
 		if rac.Type == entity.AuthCertTypePublic {
-			return errorx.NewBiz("非公共授权凭证不允许修改为公共凭证")
+			// 非公共授权凭证不允许修改为公共凭证
+			return errorx.NewBiz("Non-public authorization credentials are not allowed to be modified to public credentials")
 		}
 
 		// 修改了用户名，则需要同步更新对应授权凭证标签里的名称
@@ -402,7 +405,7 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 			authCertTagType := GetResourceAuthCertTagType(entity.TagType(oldRac.ResourceType))
 			if authCertTagType != 0 {
 				if err := r.tagTreeApp.UpdateTagName(ctx, authCertTagType, oldRac.Name, rac.Username); err != nil {
-					return errorx.NewBiz("同步更新授权凭证标签名称失败")
+					return errorx.NewBiz("Synchronously updating the authorization credential tag name failed")
 				}
 			}
 		}
@@ -426,7 +429,7 @@ func (r *resourceAuthCertAppImpl) decryptAuthCert(authCert *entity.ResourceAuthC
 		// 如果是公共授权凭证，则密文为公共授权凭证名称，需要使用该名称再去获取对应的授权凭证
 		realAuthCert := &entity.ResourceAuthCert{Name: authCert.Ciphertext}
 		if err := r.GetByCond(realAuthCert); err != nil {
-			return nil, errorx.NewBiz("该公共授权凭证[%s]不存在", authCert.Ciphertext)
+			return nil, errorx.NewBizI(context.Background(), imsg.ErrPublicAcNotExist, "acName", authCert.Ciphertext)
 		}
 
 		// 使用该凭证关联的公共凭证进行密文等内容覆盖

@@ -201,7 +201,7 @@ func GetLocalSql(file, key string) string {
 	}
 
 	bytes, err := metasql.ReadFile(file)
-	biz.ErrIsNilAppendErr(err, "获取sql meta文件内容失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to get the contents of the sql meta file: %s")
 	allSql := string(bytes)
 
 	sqls := strings.Split(allSql, "---------------------------------------")

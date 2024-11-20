@@ -110,10 +110,10 @@
                         <div class="el-loading-mask" style="display: flex; flex-direction: column; align-items: center; justify-content: center">
                             <div>
                                 <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
-                                <el-text class="ml5" tag="b">执行时间 - {{ state.execTime.toFixed(1) }}s</el-text>
+                                <el-text class="ml5" tag="b">{{ $t('db.execTime') }} - {{ state.execTime.toFixed(1) }}s</el-text>
                             </div>
                             <div v-if="loading && abortFn" class="mt10">
-                                <el-button @click="cancelLoading" type="info" size="small" plain>取 消</el-button>
+                                <el-button @click="cancelLoading" type="info" size="small" plain>{{ $t('common.cancel') }}</el-button>
                             </div>
                         </div>
                     </template>
@@ -130,7 +130,9 @@
         <el-dialog @close="state.genTxtDialog.visible = false" v-model="state.genTxtDialog.visible" :title="state.genTxtDialog.title" width="1000px">
             <template #header>
                 <div class="mr15" style="display: flex; justify-content: flex-end">
-                    <el-button id="copyValue" @click="copyGenTxt(state.genTxtDialog.txt)" icon="CopyDocument" type="success" size="small">一键复制</el-button>
+                    <el-button id="copyValue" @click="copyGenTxt(state.genTxtDialog.txt)" icon="CopyDocument" type="success" size="small">
+                        {{ $t('db.oneClickCopy') }}
+                    </el-button>
                 </div>
             </template>
             <el-input v-model="state.genTxtDialog.txt" type="textarea" :rows="20" />
@@ -165,6 +167,9 @@ import { useIntervalFn, useStorage } from '@vueuse/core';
 import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
 import DbTableDataForm from './DbTableDataForm.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -196,7 +201,7 @@ const props = defineProps({
     },
     emptyText: {
         type: String,
-        default: '暂无数据',
+        default: 'No Data',
     },
     showColumnTip: {
         type: Boolean,
@@ -213,35 +218,35 @@ const tableRef = ref();
 
 /**  表头 menu items  **/
 
-const cmHeaderAsc = new ContextmenuItem('asc', '升序')
+const cmHeaderAsc = new ContextmenuItem('asc', 'db.asc')
     .withIcon('top')
     .withOnClick((data: any) => {
         onTableSortChange({ columnName: data.dataKey, order: 'asc' });
     })
     .withHideFunc(() => !props.showColumnTip);
 
-const cmHeaderDesc = new ContextmenuItem('desc', '降序')
+const cmHeaderDesc = new ContextmenuItem('desc', 'db.desc')
     .withIcon('bottom')
     .withOnClick((data: any) => {
         onTableSortChange({ columnName: data.dataKey, order: 'desc' });
     })
     .withHideFunc(() => !props.showColumnTip);
 
-const cmHeaderFixed = new ContextmenuItem('fixed', '固定')
+const cmHeaderFixed = new ContextmenuItem('fixed', 'db.fixed')
     .withIcon('Paperclip')
     .withOnClick((data: any) => {
         data.fixed = true;
     })
     .withHideFunc((data: any) => data.fixed);
 
-const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', '取消固定')
+const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', 'db.cancelFiexd')
     .withIcon('Minus')
     .withOnClick((data: any) => (data.fixed = false))
     .withHideFunc((data: any) => !data.fixed);
 
 /**  表数据 contextmenu items  **/
 
-const cmDataCopyCell = new ContextmenuItem('copyValue', '复制')
+const cmDataCopyCell = new ContextmenuItem('copyValue', 'common.copy')
     .withIcon('CopyDocument')
     .withOnClick(async (data: any) => {
         await copyToClipboard(data.rowData[data.column.dataKey]);
@@ -251,14 +256,14 @@ const cmDataCopyCell = new ContextmenuItem('copyValue', '复制')
         return selectionRowsMap.size > 1;
     });
 
-const cmDataDel = new ContextmenuItem('deleteData', '删除')
+const cmDataDel = new ContextmenuItem('deleteData', 'common.delete')
     .withIcon('delete')
     .withOnClick(() => onDeleteData())
     .withHideFunc(() => {
         return state.table == '';
     });
 
-const cmFormView = new ContextmenuItem('formView', '表单视图').withIcon('Document').withOnClick(() => onEditRowData());
+const cmFormView = new ContextmenuItem('formView', 'db.formView').withIcon('Document').withOnClick(() => onEditRowData());
 // .withHideFunc(() => {
 //     return state.table == '';
 // });
@@ -270,11 +275,11 @@ const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
         return state.table == '';
     });
 
-const cmDataGenJson = new ContextmenuItem('genJson', '生成JSON').withIcon('tickets').withOnClick(() => onGenerateJson());
+const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withIcon('tickets').withOnClick(() => onGenerateJson());
 
-const cmDataExportCsv = new ContextmenuItem('exportCsv', '导出CSV').withIcon('document').withOnClick(() => onExportCsv());
+const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv').withIcon('document').withOnClick(() => onExportCsv());
 
-const cmDataExportSql = new ContextmenuItem('exportSql', '导出SQL')
+const cmDataExportSql = new ContextmenuItem('exportSql', 'db.exportSql')
     .withIcon('document')
     .withOnClick(() => onExportSql())
     .withHideFunc(() => {
@@ -621,12 +626,12 @@ const onDeleteData = async () => {
 const onEditRowData = () => {
     const selectionDatas = Array.from(selectionRowsMap.values());
     if (selectionDatas.length > 1) {
-        ElMessage.warning('只能选择一行数据');
+        ElMessage.warning(t('db.onlySelectOneData'));
         return;
     }
     const data = selectionDatas[0];
     state.tableDataFormDialog.data = { ...data };
-    state.tableDataFormDialog.title = state.table ? `'${props.table}'表单数据` : '表单视图';
+    state.tableDataFormDialog.title = state.table ? `'${props.table}' ${t('db.formView')}` : t('db.formView');
     state.tableDataFormDialog.visible = true;
 };
 
@@ -671,15 +676,12 @@ const onExportCsv = () => {
             columnNames.push(column.columnName);
         }
     }
-    exportCsv(`数据导出-${state.table}-${formatDate(new Date(), 'yyyyMMddHHmm')}`, columnNames, dataList);
+    exportCsv(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}`, columnNames, dataList);
 };
 
 const onExportSql = async () => {
     const selectionDatas = state.datas;
-    exportFile(
-        `数据导出-${state.table}-${formatDate(new Date(), 'yyyyMMddHHmm')}.sql`,
-        await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas)
-    );
+    exportFile(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}.sql`, await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas));
 };
 
 const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {

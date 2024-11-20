@@ -1,30 +1,37 @@
 <template>
     <div class="db-transfer-edit">
-        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="45%">
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-divider content-position="left">基本信息</el-divider>
+                <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
 
-                <el-form-item prop="taskName" label="任务名" required>
-                    <el-input v-model.trim="form.taskName" placeholder="请输入任务名" auto-complete="off" />
+                <el-form-item prop="taskName" :label="$t('db.taskName')" required>
+                    <el-input v-model.trim="form.taskName" auto-complete="off" />
                 </el-form-item>
 
                 <el-form-item>
                     <el-row class="w100">
                         <el-col :span="12">
-                            <el-form-item prop="status" label="启用状态">
-                                <el-switch v-model="form.status" inline-prompt active-text="启用" inactive-text="禁用" :active-value="1" :inactive-value="-1" />
+                            <el-form-item prop="status" :label="$t('common.status')">
+                                <el-switch
+                                    v-model="form.status"
+                                    inline-prompt
+                                    :active-text="$t('common.enable')"
+                                    :inactive-text="$t('common.disable')"
+                                    :active-value="1"
+                                    :inactive-value="-1"
+                                />
                             </el-form-item>
                         </el-col>
 
                         <el-col :span="12">
-                            <el-form-item prop="cronAble" label="定时迁移" required>
+                            <el-form-item prop="cronAble" :label="$t('db.cronAble')" required>
                                 <el-radio-group v-model="form.cronAble">
-                                    <el-radio label="是" :value="1" />
-                                    <el-radio label="否" :value="-1" />
+                                    <el-radio :label="$t('common.yes')" :value="1" />
+                                    <el-radio :label="$t('common.no')" :value="-1" />
                                 </el-radio-group>
                             </el-form-item>
                         </el-col>
@@ -35,9 +42,8 @@
                     <CrontabInput v-model="form.cron" />
                 </el-form-item>
 
-                <el-form-item prop="srcDbId" label="源数据库" class="w100" required>
+                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="w100" required>
                     <db-select-tree
-                        placeholder="请选择源数据库"
                         v-model:db-id="form.srcDbId"
                         v-model:inst-name="form.srcInstName"
                         v-model:db-name="form.srcDbName"
@@ -47,18 +53,18 @@
                     />
                 </el-form-item>
 
-                <el-form-item prop="mode" label="迁移方式" required>
+                <el-form-item prop="mode" :label="$t('db.transferMode')" required>
                     <el-radio-group v-model="form.mode">
-                        <el-radio label="迁移到数据库" :value="1" />
-                        <el-radio label="迁移到文件(自动命名)" :value="2" />
+                        <el-radio :label="$t('db.transfer2Db')" :value="1" />
+                        <el-radio :label="$t('db.transfer2File')" :value="2" />
                     </el-radio-group>
                 </el-form-item>
 
                 <el-form-item v-if="form.mode === 2">
                     <el-row class="w100">
                         <el-col :span="12">
-                            <el-form-item prop="targetFileDbType" label="文件数据库类型" :required="form.mode === 2">
-                                <el-select v-model="form.targetFileDbType" placeholder="数据库类型" clearable filterable>
+                            <el-form-item prop="targetFileDbType" :label="$t('db.dbFileType')" :required="form.mode === 2">
+                                <el-select v-model="form.targetFileDbType" clearable filterable>
                                     <el-option
                                         v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
                                         :key="key"
@@ -76,10 +82,10 @@
                         </el-col>
 
                         <el-col :span="12">
-                            <el-form-item label="文件保留天数">
+                            <el-form-item :label="$t('db.fileSaveDays')">
                                 <el-input-number v-model="form.fileSaveDays" :min="-1" :max="1000">
                                     <template #suffix>
-                                        <span>天</span>
+                                        <span>{{ $t('db.day') }}</span>
                                     </template>
                                 </el-input-number>
                             </el-form-item>
@@ -87,16 +93,15 @@
                     </el-row>
                 </el-form-item>
 
-                <el-form-item prop="strategy" label="迁移策略" required>
+                <el-form-item prop="strategy" :label="$t('db.transferStrategy')" required>
                     <el-radio-group v-model="form.strategy">
-                        <el-radio label="全量" :value="1" />
-                        <el-radio label="增量（暂不可用）" :value="2" disabled />
+                        <el-radio :label="$t('db.transferFull')" :value="1" />
+                        <el-radio :label="$t('db.transferIncrement')" :value="2" disabled />
                     </el-radio-group>
                 </el-form-item>
 
-                <el-form-item v-if="form.mode == 1" prop="targetDbId" label="目标数据库" class="w100" :required="form.mode === 1">
+                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="w100" :required="form.mode === 1">
                     <db-select-tree
-                        placeholder="请选择目标数据库"
                         v-model:db-id="form.targetDbId"
                         v-model:inst-name="form.targetInstName"
                         v-model:db-name="form.targetDbName"
@@ -106,17 +111,17 @@
                     />
                 </el-form-item>
 
-                <el-form-item prop="nameCase" label="转换表、字段名" required>
+                <el-form-item prop="nameCase" :label="$t('db.nameCase')" required>
                     <el-radio-group v-model="form.nameCase">
-                        <el-radio label="无" :value="1" />
-                        <el-radio label="大写" :value="2" />
-                        <el-radio label="小写" :value="3" />
+                        <el-radio :label="$t('db.none')" :value="1" />
+                        <el-radio :label="$t('db.upper')" :value="2" />
+                        <el-radio :label="$t('db.lower')" :value="3" />
                     </el-radio-group>
                 </el-form-item>
 
-                <el-divider content-position="left">数据库对象</el-divider>
+                <el-divider content-position="left">{{ $t('db.dbObj') }}</el-divider>
                 <el-form-item>
-                    <el-input v-model="state.filterSrcTableText" placeholder="过滤表" size="small" />
+                    <el-input v-model="state.filterSrcTableText" placeholder="filter table" size="small" />
                 </el-form-item>
                 <el-form-item class="w100">
                     <el-tree
@@ -136,8 +141,8 @@
 
             <template #footer>
                 <div>
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -154,6 +159,10 @@ import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import _ from 'lodash';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     data: {
@@ -173,35 +182,35 @@ const rules = {
     taskName: [
         {
             required: true,
-            message: '请输入任务名',
+            message: useI18nPleaseInput('db.taskName'),
             trigger: ['change', 'blur'],
         },
     ],
     srcDbId: [
         {
             required: true,
-            message: '请选择源库',
+            message: useI18nPleaseSelect('db.srcDb'),
             trigger: ['change', 'blur'],
         },
     ],
     targetDbId: [
         {
             required: true,
-            message: '请选择目标库',
+            message: useI18nPleaseSelect('db.targetDb'),
             trigger: ['change', 'blur'],
         },
     ],
     targetFileDbType: [
         {
             required: true,
-            message: '请选择目标文件语言类型',
+            message: useI18nPleaseSelect('db.dbFileType'),
             trigger: ['change', 'blur'],
         },
     ],
     cron: [
         {
             required: true,
-            message: '请选择cron表达式',
+            message: useI18nPleaseSelect('cron'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -262,12 +271,12 @@ const state = reactive({
     srcTableTree: [
         {
             id: 'tab-check',
-            label: '表',
+            label: t('db.table'),
             children: [
-                { id: 'all', label: '全部表（*）' },
+                { id: 'all', label: `${t('db.allTable')}（*）` },
                 {
                     id: 'table-list',
-                    label: '自定义',
+                    label: t('db.custom'),
                     disabled: srcTableListDisabled,
                     children: [] as any[],
                 },
@@ -394,29 +403,23 @@ const getCheckedKeys = () => {
 };
 
 const btnOk = async () => {
-    dbForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    await useI18nFormValidate(dbForm);
+    state.submitForm = await getReqForm();
 
-        state.submitForm = await getReqForm();
+    let checkedKeys = getCheckedKeys();
+    if (checkedKeys.length > 0) {
+        state.submitForm.checkedKeys = checkedKeys.join(',');
+    }
 
-        let checkedKeys = getCheckedKeys();
-        if (checkedKeys.length > 0) {
-            state.submitForm.checkedKeys = checkedKeys.join(',');
-        }
+    if (!state.submitForm.checkedKeys) {
+        ElMessage.error(t('db.noTransferTableMsg'));
+        return false;
+    }
 
-        if (!state.submitForm.checkedKeys) {
-            ElMessage.error('请选择需要迁移的表');
-            return false;
-        }
-
-        await saveExec();
-        ElMessage.success('保存成功');
-        emit('val-change', state.form);
-        cancel();
-    });
+    await saveExec();
+    useI18nSaveSuccessMsg();
+    emit('val-change', state.form);
+    cancel();
 };
 
 const cancel = () => {

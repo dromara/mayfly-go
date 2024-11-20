@@ -1,107 +1,121 @@
 {
-  "id": "3953964",
-  "name": "mayfly-go",
-  "font_family": "iconfont",
-  "css_prefix_text": "icon-",
-  "description": "",
-  "glyphs": [
-    {
-      "icon_id": "23957582",
-      "name": "MongoDB",
-      "font_class": "mongo",
-      "unicode": "e646",
-      "unicode_decimal": 58950
-    },
-    {
-      "icon_id": "4969649",
-      "name": "Redis",
-      "font_class": "op-redis",
-      "unicode": "e728",
-      "unicode_decimal": 59176
-    },
-    {
-      "icon_id": "22442993",
-      "name": "PostgreSQL",
-      "font_class": "op-postgres",
-      "unicode": "e8b7",
-      "unicode_decimal": 59575
-    },
-    {
-        "icon_id": "12295203",
-        "name": "达梦数据库",
-        "font_class": "db-dm",
-        "unicode": "e6f0",
-        "unicode_decimal": 59120
-    },
-    {
-      "icon_id": "10055634",
-      "name": "云数据库MongoDB",
-      "font_class": "op-mongo",
-      "unicode": "e7d7",
-      "unicode_decimal": 59351
-    },
-    {
-      "icon_id": "10055642",
-      "name": "云数据库 RDS MySQL",
-      "font_class": "op-mysql",
-      "unicode": "e7d8",
-      "unicode_decimal": 59352
-    },
-    {
-      "icon_id": "3876165",
-      "name": "redis",
-      "font_class": "redis",
-      "unicode": "e619",
-      "unicode_decimal": 58905
-    },
-    {
-      "icon_id": "25271976",
-      "name": "oracle",
-      "font_class": "oracle",
-      "unicode": "e507",
-      "unicode_decimal": 58631
-    },
-    {
-      "icon_id": "8105644",
-      "name": "mariadb",
-      "font_class": "mariadb",
-      "unicode": "e513",
-      "unicode_decimal": 58643
-    },
-    {
-      "icon_id": "13601813",
-      "name": "sqlite",
-      "font_class": "sqlite",
-      "unicode": "e546",
-      "unicode_decimal": 58694
-    },
-    {
-      "icon_id": "29340317",
-      "name": "temp-mssql",
-      "font_class": "MSSQLNATIVE",
-      "unicode": "e600",
-      "unicode_decimal": 58880
-    },
-    {
-      "icon_id": "7699332",
-      "name": "gaussdb",
-      "font_class": "gauss",
-      "unicode": "e683",
-      "unicode_decimal": 59011
-    },
-    {
-      "icon_id": "34836637",
-      "name": "kingbase",
-      "font_class": "kingbase",
-      "unicode": "e882",
-      "unicode_decimal": 59522
-    },
-    {
-      "icon_id": "33047500",
-      "name": "vastbase",
-      "font_class": "vastbase",
-      "unicode": "e62b",
-      "unicode_decimal": 58923
-    }
-  ]
+    "id": "3953964",
+    "name": "mayfly-go",
+    "font_family": "iconfont",
+    "css_prefix_text": "icon-",
+    "description": "",
+    "glyphs": [
+        {
+            "icon_id": "2967035",
+            "name": "符号-英文",
+            "font_class": "fuhao-yingwen",
+            "unicode": "e712",
+            "unicode_decimal": 59154
+        },
+        {
+            "icon_id": "26283783",
+            "name": "符号-中文",
+            "font_class": "fuhao-zhongwen",
+            "unicode": "e603",
+            "unicode_decimal": 58883
+        },
+        {
+            "icon_id": "23957582",
+            "name": "MongoDB",
+            "font_class": "mongo",
+            "unicode": "e646",
+            "unicode_decimal": 58950
+        },
+        {
+            "icon_id": "4969649",
+            "name": "Redis",
+            "font_class": "op-redis",
+            "unicode": "e728",
+            "unicode_decimal": 59176
+        },
+        {
+            "icon_id": "22442993",
+            "name": "PostgreSQL",
+            "font_class": "op-postgres",
+            "unicode": "e8b7",
+            "unicode_decimal": 59575
+        },
+        {
+            "icon_id": "12295203",
+            "name": "达梦数据库",
+            "font_class": "db-dm",
+            "unicode": "e6f0",
+            "unicode_decimal": 59120
+        },
+        {
+            "icon_id": "10055634",
+            "name": "云数据库MongoDB",
+            "font_class": "op-mongo",
+            "unicode": "e7d7",
+            "unicode_decimal": 59351
+        },
+        {
+            "icon_id": "10055642",
+            "name": "云数据库 RDS MySQL",
+            "font_class": "op-mysql",
+            "unicode": "e7d8",
+            "unicode_decimal": 59352
+        },
+        {
+            "icon_id": "3876165",
+            "name": "redis",
+            "font_class": "redis",
+            "unicode": "e619",
+            "unicode_decimal": 58905
+        },
+        {
+            "icon_id": "25271976",
+            "name": "oracle",
+            "font_class": "oracle",
+            "unicode": "e507",
+            "unicode_decimal": 58631
+        },
+        {
+            "icon_id": "8105644",
+            "name": "mariadb",
+            "font_class": "mariadb",
+            "unicode": "e513",
+            "unicode_decimal": 58643
+        },
+        {
+            "icon_id": "13601813",
+            "name": "sqlite",
+            "font_class": "sqlite",
+            "unicode": "e546",
+            "unicode_decimal": 58694
+        },
+        {
+            "icon_id": "29340317",
+            "name": "temp-mssql",
+            "font_class": "MSSQLNATIVE",
+            "unicode": "e600",
+            "unicode_decimal": 58880
+        },
+        {
+            "icon_id": "7699332",
+            "name": "gaussdb",
+            "font_class": "gauss",
+            "unicode": "e683",
+            "unicode_decimal": 59011
+        },
+        {
+            "icon_id": "34836637",
+            "name": "kingbase",
+            "font_class": "kingbase",
+            "unicode": "e882",
+            "unicode_decimal": 59522
+        },
+        {
+            "icon_id": "33047500",
+            "name": "vastbase",
+            "font_class": "vastbase",
+            "unicode": "e62b",
+            "unicode_decimal": 58923
+        }
+    ]
 }

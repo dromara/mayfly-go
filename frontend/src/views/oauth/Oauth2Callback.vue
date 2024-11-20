@@ -7,8 +7,11 @@ import { onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import openApi from '@/common/openApi';
+import { useI18n } from 'vue-i18n';
 
 const route = useRoute();
+
+const { t } = useI18n();
 
 onMounted(async () => {
     try {
@@ -26,7 +29,7 @@ onMounted(async () => {
         }
 
         const res: any = await openApi.oauth2Callback(queryParam);
-        ElMessage.success('授权认证成功');
+        ElMessage.success(t('system.oauth.authSuccess'));
         top?.opener.postMessage(res);
         window.close();
     } catch (e: any) {

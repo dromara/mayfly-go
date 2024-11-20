@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -48,14 +49,14 @@ func (p *tagTreeRelateAppImpl) InjectTagTreeRelateRepo(tagTreeRelateRepo reposit
 
 func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error {
 	if hasConflictPath(tagCodePaths) {
-		return errorx.NewBiz("存在冲突的编号路径")
+		return errorx.NewBizI(ctx, imsg.ErrConflictingCodePath)
 	}
 
 	var tags []*entity.TagTree
 	if len(tagCodePaths) > 0 {
 		tr.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: tagCodePaths}, &tags)
 		if len(tags) != len(tagCodePaths) {
-			return errorx.NewBiz("存在错误标签路径")
+			return errorx.NewBiz("There is an error tag path")
 		}
 	}
 

@@ -14,7 +14,7 @@
                                 @show="showDbInfo(data.params)"
                                 :show-after="500"
                                 placement="right-start"
-                                title="数据库实例信息"
+                                :title="$t('db.dbInstInfo')"
                                 trigger="hover"
                                 :width="250"
                             >
@@ -23,19 +23,19 @@
                                 </template>
                                 <template #default>
                                     <el-descriptions :column="1" size="small">
-                                        <el-descriptions-item label="名称">
+                                        <el-descriptions-item :label="$t('common.name')">
                                             {{ data.params.name }}
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="host">
+                                        <el-descriptions-item label="Host">
                                             {{ `${data.params.host}:${data.params.port}` }}
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="数据库版本">
+                                        <el-descriptions-item label="version">
                                             <span v-loading="loadingServerInfo"> {{ `${dbServerInfo?.version}` }}</span>
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="授权凭证">
+                                        <el-descriptions-item :label="$t('db.acName')">
                                             {{ data.params.authCertName }}
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="备注">
+                                        <el-descriptions-item :label="$t('common.remark')">
                                             {{ data.params.remark }}
                                         </el-descriptions-item>
                                     </el-descriptions>
@@ -58,7 +58,7 @@
                     <el-row>
                         <el-col :span="24" v-if="state.db">
                             <el-descriptions :column="4" size="small" border>
-                                <el-descriptions-item label-align="right" label="操作">
+                                <el-descriptions-item label-align="right" :label="$t('common.operation')">
                                     <el-button
                                         :disabled="!state.db || !nowDbInst.id"
                                         type="primary"
@@ -70,13 +70,13 @@
                                                 state.db
                                             )
                                         "
-                                        title="新建查询"
+                                        :title="$t('db.newQuery')"
                                     >
                                     </el-button>
 
                                     <template v-if="!dbConfig.locationTreeNode">
                                         <el-divider direction="vertical" border-style="dashed" />
-                                        <el-button @click="locationNowTreeNode(null)" title="定位至左侧树的指定位置" icon="Location" link></el-button>
+                                        <el-button @click="locationNowTreeNode(null)" :title="$t('db.locationTagTree')" icon="Location" link></el-button>
                                     </template>
 
                                     <el-divider direction="vertical" border-style="dashed" />
@@ -85,13 +85,13 @@
                                         popper-style="max-height: 550px; overflow: auto; max-width: 450px"
                                         placement="bottom"
                                         width="auto"
-                                        title="数据库展示配置"
+                                        :title="$t('db.dbShowSetting')"
                                         trigger="click"
                                     >
                                         <el-row>
                                             <el-checkbox
                                                 v-model="dbConfig.showColumnComment"
-                                                label="显示字段备注"
+                                                :label="$t('db.showFieldComments')"
                                                 :true-value="1"
                                                 :false-value="0"
                                                 size="small"
@@ -101,7 +101,7 @@
                                         <el-row>
                                             <el-checkbox
                                                 v-model="dbConfig.locationTreeNode"
-                                                label="自动定位树节点"
+                                                :label="$t('db.autoLocationTagTree')"
                                                 :true-value="1"
                                                 :false-value="0"
                                                 size="small"
@@ -111,7 +111,7 @@
                                         <el-row>
                                             <el-checkbox
                                                 v-model="dbConfig.cacheTable"
-                                                label="缓存表信息-[不开启则实时获取表信息]"
+                                                :label="$t('db.cacheTableInfo')"
                                                 :true-value="1"
                                                 :false-value="0"
                                                 size="small"
@@ -130,7 +130,7 @@
                                     <template #label>
                                         <div>
                                             <SvgIcon :name="nowDbInst.getDialect().getInfo().icon" :size="18" />
-                                            实例
+                                            {{ $t('db.dbInst') }}
                                         </div>
                                     </template>
                                     {{ nowDbInst.id }}
@@ -140,7 +140,7 @@
                                     {{ nowDbInst.host }}
                                 </el-descriptions-item>
 
-                                <el-descriptions-item label="库名" label-align="right">{{ state.db }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('db.dbName')" label-align="right">{{ state.db }}</el-descriptions-item>
                             </el-descriptions>
                         </el-col>
                     </el-row>
@@ -166,14 +166,14 @@
                                                 <el-descriptions-item label="tagPath">
                                                     {{ dt.params.tagPath }}
                                                 </el-descriptions-item>
-                                                <el-descriptions-item label="名称">
+                                                <el-descriptions-item :label="$t('common.name')">
                                                     {{ dt.params.name }}
                                                 </el-descriptions-item>
-                                                <el-descriptions-item label="host">
+                                                <el-descriptions-item label="Host">
                                                     <SvgIcon :name="getDbDialect(dt.params.type).getInfo().icon" :size="18" />
                                                     {{ dt.params.host }}
                                                 </el-descriptions-item>
-                                                <el-descriptions-item label="库名">
+                                                <el-descriptions-item :label="$t('db.dbName')">
                                                     {{ dt.params.dbName }}
                                                 </el-descriptions-item>
                                             </el-descriptions>
@@ -254,11 +254,15 @@ import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import { format as sqlFormatter } from 'sql-formatter';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { useI18n } from 'vue-i18n';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 
 const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
 const DbTablesOp = defineAsyncComponent(() => import('./component/table/DbTablesOp.vue'));
+
+const { t } = useI18n();
 
 /**
  * 树节点类型
@@ -313,7 +317,7 @@ const nodeClickChangeDb = async (nodeData: TagTreeNode) => {
     }
 };
 
-const ContextmenuItemRefresh = new ContextmenuItem('refresh', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key));
+const ContextmenuItemRefresh = new ContextmenuItem('refresh', 'common.refresh').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key));
 
 // tagpath 节点类型
 const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
@@ -385,7 +389,7 @@ const getNodeTypeTables = (params: any) => {
     let tableKey = `${params.id}.${params.db}.table-menu`;
     let sqlKey = getSqlMenuNodeKey(params.id, params.db);
     return [
-        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu)
+        new TagTreeNode(`${params.id}.${params.db}.table-menu`, t('db.table'), NodeTypeTableMenu)
             .withParams({
                 ...params,
                 key: tableKey,
@@ -409,8 +413,8 @@ const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
 const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     .withContextMenuItems([
         ContextmenuItemRefresh,
-        new ContextmenuItem('createTable', '创建表').withIcon('Plus').withOnClick((data: any) => onEditTable(data)),
-        new ContextmenuItem('tablesOp', '表操作').withIcon('Setting').withOnClick((data: any) => {
+        new ContextmenuItem('createTable', 'db.createTable').withIcon('Plus').withOnClick((data: any) => onEditTable(data)),
+        new ContextmenuItem('tablesOp', 'db.tableOp').withIcon('Setting').withOnClick((data: any) => {
             const params = data.params;
             addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: data.key });
         }),
@@ -473,10 +477,10 @@ const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
 // 表节点类型
 const NodeTypeTable = new NodeType(SqlExecNodeType.Table)
     .withContextMenuItems([
-        new ContextmenuItem('copyTable', '复制表').withIcon('copyDocument').withOnClick((data: any) => onCopyTable(data)),
-        new ContextmenuItem('renameTable', '重命名').withIcon('edit').withOnClick((data: any) => onRenameTable(data)),
-        new ContextmenuItem('editTable', '编辑表').withIcon('edit').withOnClick((data: any) => onEditTable(data)),
-        new ContextmenuItem('delTable', '删除表').withIcon('Delete').withOnClick((data: any) => onDeleteTable(data)),
+        new ContextmenuItem('copyTable', 'db.copyTable').withIcon('copyDocument').withOnClick((data: any) => onCopyTable(data)),
+        new ContextmenuItem('renameTable', 'db.renameTable').withIcon('edit').withOnClick((data: any) => onRenameTable(data)),
+        new ContextmenuItem('editTable', 'db.editTable').withIcon('edit').withOnClick((data: any) => onEditTable(data)),
+        new ContextmenuItem('delTable', 'db.delTable').withIcon('Delete').withOnClick((data: any) => onDeleteTable(data)),
         new ContextmenuItem('ddl', 'DDL').withIcon('Document').withOnClick((data: any) => onGenDdl(data)),
     ])
     .withNodeClickFunc((nodeData: TagTreeNode) => {
@@ -491,15 +495,17 @@ const NodeTypeSql = new NodeType(SqlExecNodeType.Sql)
         addQueryTab({ id: params.id, nodeKey: nodeData.key, dbs: params.dbs }, params.db, params.sqlName);
     })
     .withContextMenuItems([
-        new ContextmenuItem('delSql', '删除').withIcon('delete').withOnClick((data: any) => deleteSql(data.params.id, data.params.db, data.params.sqlName)),
+        new ContextmenuItem('delSql', 'common.delete')
+            .withIcon('delete')
+            .withOnClick((data: any) => deleteSql(data.params.id, data.params.db, data.params.sqlName)),
     ]);
 
 const tabContextmenuItems = [
-    new ContextmenuItem(1, '关闭').withIcon('Close').withOnClick((data: any) => {
+    new ContextmenuItem(1, 'db.close').withIcon('Close').withOnClick((data: any) => {
         onRemoveTab(data.key);
     }),
 
-    new ContextmenuItem(2, '关闭其他').withIcon('CircleClose').withOnClick((data: any) => {
+    new ContextmenuItem(2, 'db.closeOther').withIcon('CircleClose').withOnClick((data: any) => {
         const tabName = data.key;
         const tabNames = [...state.tabs.keys()];
         for (let tab of tabNames) {
@@ -655,7 +661,7 @@ const loadTableData = async (db: any, dbName: string, tableName: string) => {
 // 新建查询tab
 const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
     if (!dbName || !db.id) {
-        ElMessage.warning('请选择数据库实例及对应的schema');
+        ElMessage.warning(t('db.noDbInstMsg'));
         return;
     }
     await changeDb(db, dbName);
@@ -665,7 +671,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
     let key;
     // 存在sql模板名，则该模板名只允许一个tab
     if (sqlName) {
-        label = `查询-${sqlName}`;
+        label = `${t('db.query')}-${sqlName}`;
         key = `query:${dbId}.${dbName}.${sqlName}`;
     } else {
         let count = 1;
@@ -674,7 +680,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
                 count++;
             }
         });
-        label = `新查询-${count}`;
+        label = `${t('db.nQuery')}-${count}`;
         key = `query:${count}.${dbId}.${dbName}`;
     }
     state.activeName = key;
@@ -706,7 +712,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
 const addTablesOpTab = async (db: any) => {
     const dbName = db.db;
     if (!db || !db.id) {
-        ElMessage.warning('请选择数据库实例及对应的schema');
+        ElMessage.warning(t('db.noDbInstMsg'));
         return;
     }
     await changeDb(db, dbName);
@@ -721,7 +727,7 @@ const addTablesOpTab = async (db: any) => {
     }
     tab = new TabInfo();
     tab.key = key;
-    tab.label = `表操作-${dbName}`;
+    tab.label = `${t('db.tableOp')}-${dbName}`;
     tab.treeNodeKey = db.nodeKey;
     tab.dbId = dbId;
     tab.db = dbName;
@@ -788,7 +794,6 @@ const onTabChange = () => {
 
 // 右键点击时：传 x,y 坐标值到子组件中（props）
 const onTabContextmenu = (v: any, e: any) => {
-    console.log('on tab cm');
     const { clientX, clientY } = e;
     state.tabContextmenu.dropdown.x = clientX;
     state.tabContextmenu.dropdown.y = clientY;
@@ -811,13 +816,9 @@ const reloadSqls = (dbId: number, db: string) => {
 
 const deleteSql = async (dbId: any, db: string, sqlName: string) => {
     try {
-        await ElMessageBox.confirm(`确定删除【${sqlName}】该SQL内容?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(sqlName);
         await dbApi.deleteDbSql.request({ id: dbId, db: db, name: sqlName });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         reloadSqls(dbId, db);
     } catch (err) {
         //
@@ -837,14 +838,14 @@ const onEditTable = async (data: any) => {
     let { db, id, tableName, tableComment, type, parentKey, key, version } = data.params;
     // data.label就是表名
     if (tableName) {
-        state.tableCreateDialog.title = '修改表';
+        state.tableCreateDialog.title = useI18nEditTitle('db.table');
         let indexs = await dbApi.tableIndex.request({ id, db, tableName });
         let columns = await dbApi.columnMetadata.request({ id, db, tableName });
         let row = { tableName, tableComment };
         state.tableCreateDialog.data = { edit: true, row, indexs, columns };
         state.tableCreateDialog.parentKey = parentKey;
     } else {
-        state.tableCreateDialog.title = '创建表';
+        state.tableCreateDialog.title = useI18nCreateTitle('db.table');
         state.tableCreateDialog.data = { edit: false, row: {} };
         state.tableCreateDialog.parentKey = key;
     }
@@ -859,11 +860,7 @@ const onEditTable = async (data: any) => {
 
 const onDeleteTable = async (data: any) => {
     let { db, id, tableName, parentKey, schema } = data.params;
-    await ElMessageBox.confirm(`此操作是永久性且无法撤销，确定删除【${tableName}】? `, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    });
+    await useI18nDeleteConfirm(tableName);
 
     // 执行sql
     let dialect = getDbDialect(state.nowDbInst.type);
@@ -874,11 +871,11 @@ const onDeleteTable = async (data: any) => {
         for (let re of res) {
             if (re.errorMsg) {
                 success = false;
-                ElMessage.error(`${re.sql} -> 执行失败: ${re.errorMsg}`);
+                ElMessage.error(`${re.sql} -> ${re.errorMsg}`);
             }
         }
         if (success) {
-            ElMessage.success('删除成功');
+            useI18nDeleteSuccessMsg();
             setTimeout(() => {
                 parentKey && reloadNode(parentKey);
             }, 1000);
@@ -900,16 +897,16 @@ const onRenameTable = async (data: any) => {
 
     let value = ref(tableName);
     // 弹出确认框
-    const promptValue = await ElMessageBox.prompt('', `重命名表【${db}.${tableName}】`, {
+    const promptValue = await ElMessageBox.prompt('', t('db.renamePrompt', { db, tableName }), {
         inputValue: value.value,
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
     });
 
     tableData.tableName = promptValue.value;
     let sql = nowDbInst.value.getDialect().getModifyTableInfoSql(tableData);
     if (!sql) {
-        ElMessage.warning('无更改');
+        ElMessage.warning(t('db.noChange'));
         return;
     }
 
@@ -933,12 +930,12 @@ const onCopyTable = async (data: any) => {
 
     // 弹出确认框，并选择是否复制数据
     await ElMessageBox({
-        title: `复制表【${tableName}】`,
+        title: `${t('db.copyTable')}【${tableName}】`,
         type: 'warning',
         //  icon: markRaw(Delete),
         message: () =>
             h(ElCheckbox, {
-                label: '是否复制数据?',
+                label: t('db.isCopyTableData'),
                 modelValue: checked.value,
                 'onUpdate:modelValue': (val: boolean | string | number) => {
                     if (typeof val === 'boolean') {
@@ -950,7 +947,7 @@ const onCopyTable = async (data: any) => {
             if (action === 'confirm') {
                 // 执行sql
                 dbApi.copyTable.request({ id, db, tableName, copyData: checked.value }).then(() => {
-                    ElMessage.success('复制成功');
+                    useI18nOperateSuccessMsg();
                     setTimeout(() => {
                         parentKey && reloadNode(parentKey);
                     }, 1000);

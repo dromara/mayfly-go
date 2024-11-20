@@ -46,12 +46,12 @@
                 <template #database="{ data }">
                     <el-popover placement="bottom" :width="200" trigger="click">
                         <template #reference>
-                            <el-button @click="getDbNames(data)" type="primary" link>查看库</el-button>
+                            <el-button @click="getDbNames(data)" type="primary" link>{{ $t('db.showDb') }}</el-button>
                         </template>
                         <el-table :data="filterDbs" v-loading="state.loadingDbNames" size="small">
-                            <el-table-column prop="dbName" label="数据库">
+                            <el-table-column prop="dbName" :label="$t('db.db')">
                                 <template #header>
-                                    <el-input v-model="state.dbNameSearch" size="small" placeholder="库名: 输入可过滤" clearable />
+                                    <el-input v-model="state.dbNameSearch" size="small" :placeholder="$t('db.dbFilterPlaceholder')" clearable />
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -63,24 +63,24 @@
                 </template>
 
                 <template #action="{ data }">
-                    <el-button v-auth="perms.saveDb" @click="editDb(data)" type="primary" link>编辑</el-button>
+                    <el-button v-auth="perms.saveDb" @click="editDb(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
 
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-button type="primary" @click="onShowSqlExec(data)" link>SQL记录</el-button>
+                    <el-button type="primary" @click="onShowSqlExec(data)" link>{{ $t('db.sqlRecord') }}</el-button>
 
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-dropdown @command="handleMoreActionCommand">
                         <span class="el-dropdown-link-more">
-                            更多
+                            {{ $t('common.more') }}
                             <el-icon class="el-icon--right">
                                 <arrow-down />
                             </el-icon>
                         </span>
                         <template #dropdown>
                             <el-dropdown-menu>
-                                <el-dropdown-item :command="{ type: 'dumpDb', data }"> 导出 </el-dropdown-item>
+                                <el-dropdown-item :command="{ type: 'dumpDb', data }"> {{ $t('db.dump') }} </el-dropdown-item>
                                 <!-- <el-dropdown-item
                                     :command="{ type: 'backupDb', data }"
                                     v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)"
@@ -106,18 +106,18 @@
             </page-table>
         </el-drawer>
 
-        <el-dialog width="750px" :title="`${exportDialog.db} 数据库导出`" v-model="exportDialog.visible">
+        <el-dialog width="750px" :title="`${exportDialog.db} DB Dump`" v-model="exportDialog.visible">
             <el-row justify="space-between">
                 <el-col :span="9">
-                    <el-form-item label="导出内容: ">
+                    <el-form-item :label="$t('db.dumpContent')">
                         <el-checkbox-group v-model="exportDialog.contents" :min="1">
-                            <el-checkbox label="结构" value="结构" />
-                            <el-checkbox label="数据" value="数据" />
+                            <el-checkbox :label="$t('db.structure')" value="结构" />
+                            <el-checkbox :label="$t('db.data')" value="数据" />
                         </el-checkbox-group>
                     </el-form-item>
                 </el-col>
                 <el-col :span="9">
-                    <el-form-item label="扩展名: ">
+                    <el-form-item :label="$t('db.extName')">
                         <el-radio-group v-model="exportDialog.extName">
                             <el-radio label="sql" value="sql" />
                             <el-radio label="gzip" value="gzip" />
@@ -130,8 +130,8 @@
                 <el-transfer
                     v-model="exportDialog.value"
                     filterable
-                    filter-placeholder="按数据库名称筛选"
-                    :titles="['全部数据库', '导出数据库']"
+                    :filter-placeholder="$t('db.dbFilterPlacehoder')"
+                    :titles="[$t('db.allDb'), $t('db.dumpDb')]"
                     :data="exportDialog.data"
                     max-height="300"
                     size="small"
@@ -140,15 +140,15 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="exportDialog.visible = false">取消</el-button>
-                    <el-button @click="dumpDbs()" type="primary">确定</el-button>
+                    <el-button @click="exportDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="dumpDbs()" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
 
         <el-dialog
             width="90%"
-            :title="`${sqlExecLogDialog.title} - SQL执行记录`"
+            :title="`${sqlExecLogDialog.title} - SQL`"
             :before-close="onBeforeCloseSqlExecDialog"
             :close-on-click-modal="false"
             v-model="sqlExecLogDialog.visible"
@@ -157,7 +157,7 @@
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>
 
-        <el-dialog
+        <!-- <el-dialog
             width="80%"
             :title="`${dbBackupDialog.title} - 数据库备份`"
             :close-on-click-modal="false"
@@ -185,7 +185,7 @@
             v-model="dbRestoreDialog.visible"
         >
             <db-restore-list :dbId="dbRestoreDialog.dbId" :dbNames="dbRestoreDialog.dbs" />
-        </el-dialog>
+        </el-dialog> -->
 
         <db-edit
             @confirm="confirmEditDb"
@@ -210,17 +210,18 @@ import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
 import { DbType } from './dialect';
 import { getDbDialect } from './dialect/index';
-import DbBackupList from './DbBackupList.vue';
-import DbBackupHistoryList from './DbBackupHistoryList.vue';
-import DbRestoreList from './DbRestoreList.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { sleep } from '@/common/utils/loading';
 import { DbGetDbNamesMode } from './enums';
 import { DbInst } from './db';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
+
+const { t } = useI18n();
 
 const props = defineProps({
     instance: {
@@ -237,13 +238,13 @@ const dialogVisible = defineModel<boolean>('visible');
 const emit = defineEmits(['cancel']);
 
 const columns = ref([
-    TableColumn.new('name', '名称'),
-    TableColumn.new('authCertName', '授权凭证'),
-    TableColumn.new('getDatabaseMode', '获库方式').typeTag(DbGetDbNamesMode),
-    TableColumn.new('database', '库').isSlot().setMinWidth(80),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('code', '编号'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(210).fixedRight().alignCenter(),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('authCertName', 'db.acName'),
+    TableColumn.new('getDatabaseMode', 'db.getDbMode').typeTag(DbGetDbNamesMode),
+    TableColumn.new('database', 'DB').isSlot().setMinWidth(80),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('code', 'common.code'),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(210).fixedRight().alignCenter(),
 ]);
 
 const perms = {
@@ -319,7 +320,7 @@ const state = reactive({
     dbEditDialog: {
         visible: false,
         data: null as any,
-        title: '新增数据库',
+        title: '',
     },
     filterDb: {
         param: '',
@@ -367,14 +368,14 @@ const editDb = (data: any) => {
             instanceId: props.instance.id,
         };
     }
-    state.dbEditDialog.title = data ? '编辑数据库' : '新增数据库';
+    state.dbEditDialog.title = data ? useI18nEditTitle('db.db') : useI18nCreateTitle('db.db');
     state.dbEditDialog.visible = true;
 };
 
 const confirmEditDb = async (db: any) => {
     db.instanceId = props.instance.id;
     await dbApi.saveDb.request(db);
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     search();
     cancelEditDb();
 };
@@ -386,15 +387,11 @@ const cancelEditDb = () => {
 
 const deleteDb = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】库?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         for (let db of state.selectionData) {
             await dbApi.deleteDb.request({ id: db.id });
         }
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
     } catch (err) {
         //
     } finally {
@@ -480,7 +477,7 @@ const onDumpDbs = async (row: any) => {
     state.exportDialog.value = [];
     state.exportDialog.data = data;
     state.exportDialog.dbId = row.id;
-    state.exportDialog.contents = ['结构', '数据'];
+    state.exportDialog.contents = [t('db.structure'), t('db.data')];
     state.exportDialog.extName = 'sql';
     state.exportDialog.visible = true;
 };
@@ -489,7 +486,7 @@ const onDumpDbs = async (row: any) => {
  * 数据库信息导出
  */
 const dumpDbs = async () => {
-    isTrue(state.exportDialog.value.length > 0, '请添加要导出的数据库');
+    isTrue(state.exportDialog.value.length > 0, t('db.noDumpDbMsg'));
     let type = 0;
     for (let c of state.exportDialog.contents) {
         if (c == '结构') {

@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/sys/api"
+	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -19,13 +20,15 @@ func InitResourceRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":id", r.GetById),
 
-		req.NewPost("", r.SaveResource).Log(req.NewLogSave("保存资源")).RequiredPermissionCode("resource:add"),
+		req.NewGet(":id/roles", r.GetResourceRoles),
 
-		req.NewPut(":id/:status", r.ChangeStatus).Log(req.NewLogSave("修改资源状态")).RequiredPermissionCode("resource:changeStatus"),
+		req.NewPost("", r.SaveResource).Log(req.NewLogSaveI(imsg.LogResourceSave)).RequiredPermissionCode("resource:add"),
 
-		req.NewPost("sort", r.Sort).Log(req.NewLogSave("资源排序")),
+		req.NewPut(":id/:status", r.ChangeStatus).Log(req.NewLogSaveI(imsg.LogChangeResourceStatus)).RequiredPermissionCode("resource:changeStatus"),
 
-		req.NewDelete(":id", r.DelResource).Log(req.NewLogSave("删除资源")).RequiredPermissionCode("resource:delete"),
+		req.NewPost("sort", r.Sort).Log(req.NewLogSaveI(imsg.LogSortResource)),
+
+		req.NewDelete(":id", r.DelResource).Log(req.NewLogSaveI(imsg.LogResourceDelete)).RequiredPermissionCode("resource:delete"),
 	}
 
 	req.BatchSetGroup(rg, reqs[:])

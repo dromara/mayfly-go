@@ -54,7 +54,7 @@ func (p *Procinst) ProcinstCancel(rc *req.Ctx) {
 
 func (p *Procinst) GetProcinstDetail(rc *req.Ctx) {
 	pi, err := p.ProcinstApp.GetById(uint64(rc.PathParamInt("id")))
-	biz.ErrIsNil(err, "流程实例不存在")
+	biz.ErrIsNil(err, "procinst not found")
 	pivo := new(vo.ProcinstVO)
 	structx.Copy(pivo, pi)
 

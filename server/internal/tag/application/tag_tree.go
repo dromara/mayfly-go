@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/internal/tag/infrastructure/cache"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
@@ -86,12 +87,12 @@ func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.Ta
 	// 新建项目树节点信息
 	if tag.Id == 0 {
 		if strings.Contains(tag.Code, entity.CodePathSeparator) {
-			return errorx.NewBiz("标识符不能包含'/'")
+			return errorx.NewBizI(ctx, imsg.ErrTagCodeInvalid)
 		}
 		if pid != 0 {
 			parentTag, err := p.GetById(pid)
 			if err != nil {
-				return errorx.NewBiz("父节点不存在")
+				return errorx.NewBiz("parent tag not found")
 			}
 			// if p.tagResourceApp.CountByCond(&entity.TagResource{TagId: tag.Pid}) > 0 {
 			// 	return errorx.NewBiz("该父标签已关联资源, 无法添加子标签")
@@ -100,19 +101,19 @@ func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.Ta
 			tag.CodePath = parentTag.CodePath + tag.Code + entity.CodePathSeparator
 		} else {
 			if accountId != consts.AdminId {
-				return errorx.NewBiz("非管理员无法添加根标签")
+				return errorx.NewBizI(ctx, imsg.ErrNoAdminCreateTag)
 			}
 			tag.CodePath = tag.Code + entity.CodePathSeparator
 		}
 		if p.CanAccess(accountId, tag.CodePath) != nil {
-			return errorx.NewBiz("无权添加该标签")
+			return errorx.NewBizI(ctx, imsg.ErrNoPermissionCreateTag)
 		}
 
 		// 判断该路径是否存在
 		var hasLikeTags []entity.TagTree
 		p.GetRepo().SelectByCondition(&entity.TagTreeQuery{CodePathLike: tag.CodePath}, &hasLikeTags)
 		if len(hasLikeTags) > 0 {
-			return errorx.NewBiz("已存在该标签路径开头的标签, 请修改该标识code")
+			return errorx.NewBizI(ctx, imsg.ErrTagCodePathLikeExist)
 		}
 
 		// 普通标签类型
@@ -132,10 +133,10 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 	parentTagCodePaths := param.ParentTagCodePaths
 
 	if code == "" {
-		return errorx.NewBiz("保存资源标签失败: 资源编号不能为空")
+		return errorx.NewBiz("save resource tag failed: resource code can not be empty")
 	}
 	if tagType == 0 {
-		return errorx.NewBiz("保存资源标签失败:资源类型不能为空")
+		return errorx.NewBiz("save resource tag failed: resource type can not be empty")
 	}
 
 	// 如果tagIds为空数组，则为删除该资源标签
@@ -149,7 +150,8 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 	// 获取所有关联的父标签
 	parentTags, _ := p.ListByCond(model.NewCond().In("code_path", parentTagCodePaths))
 	if len(parentTags) == 0 || len(parentTags) != len(parentTagCodePaths) {
-		return errorx.NewBiz("保存资源标签失败: 存在错误的关联标签")
+		// 存在错误的关联标签
+		return errorx.NewBiz("save resource tag failed: There is an incorrect relate tag")
 	}
 
 	newTags := p.toTags(parentTags, param.ResourceTag)
@@ -176,7 +178,7 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 	addCodePaths, delCodePaths, _ = collx.ArrayCompare(collx.MapKeys(newCodePath2Tag), collx.MapKeys(oldCodePath2Tag))
 
 	if len(addCodePaths) > 0 {
-		logx.DebugfContext(ctx, "SaveResourceTag-新增标签[%v]", addCodePaths)
+		logx.DebugfContext(ctx, "SaveResourceTag - add tag[%v]", addCodePaths)
 		addTags := make([]*entity.TagTree, 0)
 		for _, addCodePath := range addCodePaths {
 			addTags = append(addTags, newCodePath2Tag[addCodePath])
@@ -187,7 +189,7 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 	}
 
 	if len(delCodePaths) > 0 {
-		logx.DebugfContext(ctx, "SaveResourceTag-删除标签[%v]", delCodePaths)
+		logx.DebugfContext(ctx, "SaveResourceTag - delete tag[%v]", delCodePaths)
 
 		var delTagIds []uint64
 		for _, delCodePath := range delCodePaths {
@@ -215,7 +217,8 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *dto
 	})
 
 	if len(parentTagCodePaths) == 0 {
-		return errorx.NewBiz("不存在满足[type=%d, code=%s]的标签", parentTagType, parentTagCode)
+		// 不满足满足条件的标签
+		return errorx.NewBiz("There is no tag that satisfies [type=%d, code=%s]", parentTagType, parentTagCode)
 	}
 
 	for _, tag := range param.Tags {
@@ -238,12 +241,12 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 	// 获取资源编号对应的资源标签信息
 	resourceTags, _ := p.ListByCond(&entity.TagTree{Type: tagType, Code: tagCode})
 	if len(resourceTags) == 0 {
-		logx.WarnfContext(ctx, "ChangeParentTag-[%d-%s]标签信息不存在", tagType, tagCode)
+		logx.WarnfContext(ctx, "ChangeParentTag - [%d-%s] tag not found", tagType, tagCode)
 		return nil
 	}
 
 	if p.CountByCond(&entity.TagTree{Type: parentTagType, Code: newParentCode}) == 0 {
-		return errorx.NewBiz("该父标签不存在")
+		return errorx.NewBiz("parent tag not found")
 	}
 
 	// 获取该资源编号对应的所有子资源标签信息
@@ -275,12 +278,12 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 func (p *tagTreeAppImpl) MovingTag(ctx context.Context, fromTagPath string, toTagPath string) error {
 	fromTag := &entity.TagTree{CodePath: fromTagPath}
 	if err := p.GetByCond(fromTag); err != nil {
-		return errorx.NewBiz("移动标签不存在")
+		return errorx.NewBiz("move tag not found")
 	}
 
 	toTag := &entity.TagTree{CodePath: toTagPath}
 	if err := p.GetByCond(toTag); err != nil {
-		return errorx.NewBiz("目标标签不存在")
+		return errorx.NewBiz("target tag not found")
 	}
 
 	// 获取要移动标签的所有子标签
@@ -307,7 +310,7 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelRes
 	resourceTags, _ := p.ListByCond(cond)
 
 	if len(resourceTags) == 0 {
-		logx.DebugfContext(ctx, "TagTreeApp.DeleteTagByParam[%d-%s]不存在可删除的标签", param.ResourceType, param.ResourceCode)
+		logx.DebugfContext(ctx, "TagTreeApp.DeleteTagByParam[%d-%s] - There are no deletable tags", param.ResourceType, param.ResourceCode)
 		return nil
 	}
 
@@ -421,7 +424,7 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
 		}
 	}
 
-	return errorx.NewBiz("您无权操作该资源")
+	return errorx.NewBizI(context.Background(), imsg.ErrNoPermissionOpResource)
 }
 
 func (p *tagTreeAppImpl) FillTagInfo(resourceTagType entity.TagType, resources ...entity.ITagResource) {
@@ -451,10 +454,10 @@ func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 	accountId := contextx.GetLoginAccount(ctx).Id
 	tag, err := p.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("该标签不存在")
+		return errorx.NewBiz("tag not found")
 	}
 	if err := p.CanAccess(accountId, tag.CodePath); err != nil {
-		return errorx.NewBiz("您无权删除该标签")
+		return errorx.NewBizI(ctx, imsg.ErrNoPermissionDeleteTag)
 	}
 
 	return p.DeleteTagByParam(ctx, &dto.DelResourceTag{

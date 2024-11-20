@@ -2,12 +2,20 @@
     <div>
         <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form" size="large">
             <el-form-item prop="username">
-                <el-input type="text" placeholder="请输入用户名" prefix-icon="user" v-model="loginForm.username" clearable autocomplete="off"> </el-input>
+                <el-input
+                    type="text"
+                    :placeholder="$t('login.inputUsernamePlaceholder')"
+                    prefix-icon="user"
+                    v-model="loginForm.username"
+                    clearable
+                    autocomplete="off"
+                >
+                </el-input>
             </el-form-item>
             <el-form-item prop="password">
                 <el-input
                     type="password"
-                    placeholder="请输入密码"
+                    :placeholder="$t('login.inputPasswordPlaceholder')"
                     prefix-icon="lock"
                     v-model="loginForm.password"
                     autocomplete="off"
@@ -22,7 +30,7 @@
                         <el-input
                             type="text"
                             maxlength="6"
-                            placeholder="请输入验证码"
+                            :placeholder="$t('login.inputCaptchaPlaceholder')"
                             prefix-icon="position"
                             v-model="loginForm.captcha"
                             clearable
@@ -38,30 +46,35 @@
                 </el-row>
             </el-form-item>
             <el-form-item v-if="ldapEnabled" prop="ldapLogin">
-                <el-checkbox v-model="loginForm.ldapLogin" label="LDAP 登录" size="small" />
+                <el-checkbox v-model="loginForm.ldapLogin" :label="$t('login.ldapLogin')" size="small" />
             </el-form-item>
             <span v-if="showLoginFailTips" style="color: #f56c6c; font-size: 12px">
-                提示：登录失败超过{{ accountLoginSecurity.loginFailCount }}次后将被限制{{ accountLoginSecurity.loginFailMin }}分钟内不可再次登录
+                {{
+                    $t('login.loginFailTip', {
+                        loginFailCount: accountLoginSecurity.loginFailCount,
+                        loginFailMin: accountLoginSecurity.loginFailMin,
+                    })
+                }}
             </span>
             <el-form-item>
                 <el-button type="primary" class="login-content-submit" round @click="login" :loading="loading.signIn">
-                    <span>登 录</span>
+                    <span>{{ $t('login.login') }}</span>
                 </el-button>
             </el-form-item>
         </el-form>
 
-        <el-dialog title="修改密码" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
+        <el-dialog :title="$t('login.changePassword')" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
             <el-form :model="changePwdDialog.form" :rules="changePwdDialog.rules" ref="changePwdFormRef" label-width="auto">
-                <el-form-item prop="username" label="用户名" required>
+                <el-form-item prop="username" :label="$t('common.username')" required>
                     <el-input v-model.trim="changePwdDialog.form.username" disabled></el-input>
                 </el-form-item>
-                <el-form-item prop="oldPassword" label="旧密码" required>
+                <el-form-item prop="oldPassword" :label="$t('login.oldPassword')" required>
                     <el-input v-model.trim="changePwdDialog.form.oldPassword" autocomplete="new-password" type="password"></el-input>
                 </el-form-item>
-                <el-form-item prop="newPassword" label="新密码" required>
+                <el-form-item prop="newPassword" :label="$t('login.newPassword')" required>
                     <el-input
                         v-model.trim="changePwdDialog.form.newPassword"
-                        placeholder="须为8位以上且包含字⺟⼤⼩写+数字+特殊符号"
+                        :placeholder="$t('login.passwordRuleTip')"
                         type="password"
                         autocomplete="new-password"
                     ></el-input>
@@ -70,14 +83,16 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancelChangePwd">取 消</el-button>
-                    <el-button @click="changePwd" type="primary" :loading="loading.changePwd">确 定</el-button>
+                    <el-button @click="cancelChangePwd">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="changePwd" type="primary" :loading="loading.changePwd">
+                        {{ $t('common.confirm') }}
+                    </el-button>
                 </div>
             </template>
         </el-dialog>
 
         <el-dialog
-            title="OTP校验"
+            :title="$t('login.otpValidation')"
             v-model="otpDialog.visible"
             @close="loading.signIn = false"
             :close-on-click-modal="false"
@@ -85,7 +100,7 @@
             :destroy-on-close="true"
         >
             <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.native.prevent label-width="auto">
-                <el-form-item v-if="otpDialog.otpUrl" label="二维码">
+                <el-form-item v-if="otpDialog.otpUrl" :label="$t('login.qrCode')">
                     <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
                 </el-form-item>
 
@@ -96,31 +111,35 @@
                         v-model.trim="otpDialog.form.code"
                         clearable
                         @keyup.enter="otpVerify"
-                        placeholder="请输入令牌APP中显示的授权码"
+                        :placeholder="$t('login.enterOtpCodeTip')"
                     ></el-input>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="otpVerify" type="primary" :loading="loading.otpConfirm">确 定</el-button>
+                    <el-button @click="otpVerify" type="primary" :loading="loading.otpConfirm">
+                        {{ $t('common.confirm') }}
+                    </el-button>
                 </div>
             </template>
         </el-dialog>
 
-        <el-dialog title="修改基本信息" v-model="baseInfoDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
+        <el-dialog :title="$t('updateBasicInfo')" v-model="baseInfoDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
             <el-form :model="baseInfoDialog.form" :rules="baseInfoDialog.rules" ref="baseInfoFormRef" label-width="auto">
-                <el-form-item prop="username" label="用户名" required>
+                <el-form-item prop="username" :label="$t('common.username')" required>
                     <el-input v-model.trim="baseInfoDialog.form.username"></el-input>
                 </el-form-item>
-                <el-form-item prop="name" label="姓名" required>
+                <el-form-item prop="name" :label="$t('login.name')" required>
                     <el-input v-model.trim="baseInfoDialog.form.name"></el-input>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="updateUserInfo()" type="primary" :loading="loading.updateUserConfirm">确 定</el-button>
+                    <el-button @click="updateUserInfo()" type="primary" :loading="loading.updateUserConfirm">
+                        {{ $t('common.confirm') }}
+                    </el-button>
                 </div>
             </template>
         </el-dialog>
@@ -145,11 +164,14 @@ import { AccountUsernamePattern } from '@/common/pattern';
 import { getToken } from '@/common/utils/storage';
 import { useThemeConfig } from '@/store/themeConfig';
 import { getFileUrl } from '@/common/request';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const rules = {
-    username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-    password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-    captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+    username: [{ required: true, message: t('login.inputUsernamePlaceholder'), trigger: 'blur' }],
+    password: [{ required: true, message: t('login.inputPasswordPlaceholder'), trigger: 'blur' }],
+    captcha: [{ required: true, message: t('login.inputCaptchaPlaceholder'), trigger: 'blur' }],
 };
 
 // 定义变量内容
@@ -189,10 +211,10 @@ const state = reactive({
         },
         rules: {
             newPassword: [
-                { required: true, message: '请输入新密码', trigger: 'blur' },
+                { required: true, message: t('login.inputNewPasswordPlaceholder'), trigger: 'blur' },
                 {
                     pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[`~!@#$%^&*()_+<>?:"{},.\/\\;'[\]])[A-Za-z\d`~!@#$%^&*()_+<>?:"{},.\/\\;'[\]]{8,}$/,
-                    message: '须为8位以上且包含字⺟⼤⼩写+数字+特殊符号',
+                    message: t('login.passwordRuleTip'),
                     trigger: 'blur',
                 },
             ],
@@ -206,7 +228,7 @@ const state = reactive({
             otpToken: '',
         },
         rules: {
-            code: [{ required: true, message: '请输入OTP授权码', trigger: 'blur' }],
+            code: [{ required: true, message: t('login.inputOtpCodePlaceholder'), trigger: 'blur' }],
         },
     },
     baseInfoDialog: {
@@ -217,14 +239,14 @@ const state = reactive({
         },
         rules: {
             username: [
-                { required: true, message: '请输入用户名', trigger: 'blur' },
+                { required: true, message: t('login.inputUsernamePlaceholder'), trigger: 'blur' },
                 {
                     pattern: AccountUsernamePattern.pattern,
                     message: AccountUsernamePattern.message,
                     trigger: ['blur'],
                 },
             ],
-            name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+            name: [{ required: true, message: t('login.inputNamePlaceholder'), trigger: 'blur' }],
         },
     },
     loading: {
@@ -424,7 +446,7 @@ const toIndex = async () => {
     setTimeout(async () => {
         // 关闭 loading
         state.loading.signIn = true;
-        ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
+        ElMessage.success(t('login.loginSuccessTip'));
         // 水印设置用户信息
         storesThemeConfig.setWatermarkUser();
     }, 300);
@@ -444,7 +466,7 @@ const changePwd = async () => {
         changePwdReq.oldPassword = await RsaEncrypt(form.oldPassword);
         changePwdReq.newPassword = await RsaEncrypt(form.newPassword);
         await openApi.changePwd(changePwdReq);
-        ElMessage.success('密码修改成功, 新密码已填充至登录密码框');
+        ElMessage.success(t('login.passwordChangeSuccessTip'));
         state.loginForm.password = state.changePwdDialog.form.newPassword;
         state.changePwdDialog.visible = false;
         getCaptcha();

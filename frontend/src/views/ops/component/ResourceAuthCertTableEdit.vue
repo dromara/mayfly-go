@@ -1,6 +1,6 @@
 <template>
     <div class="auth-cert-manage">
-        <el-table :data="authCerts" max-height="180" stripe size="small">
+        <el-table :data="authCerts" :max-height="180" stripe size="small">
             <el-table-column min-wdith="120px">
                 <template #header>
                     <el-button v-auth="'authcert:save'" class="ml0" type="primary" circle size="small" icon="Plus" @click="edit(null)"> </el-button>
@@ -10,7 +10,7 @@
                     <el-button class="ml1" v-auth="'authcert:del'" type="danger" @click="deleteRow(scope.$index)" icon="delete" link></el-button>
 
                     <el-button
-                        title="测试连接"
+                        :title="$t('ac.testConn')"
                         :loading="props.testConnBtnLoading && scope.$index == state.idx"
                         :disabled="props.testConnBtnLoading"
                         class="ml1"
@@ -22,19 +22,18 @@
                 </template>
             </el-table-column>
 
-            <!-- <el-table-column prop="name" label="名称" show-overflow-tooltip min-width="100px"> </el-table-column> -->
-            <el-table-column prop="username" label="用户名" min-width="120px" show-overflow-tooltip> </el-table-column>
-            <el-table-column prop="ciphertextType" label="密文类型" width="100px">
+            <el-table-column prop="username" :label="$t('common.username')" min-width="120px" show-overflow-tooltip> </el-table-column>
+            <el-table-column prop="ciphertextType" :label="$t('ac.ciphertextType')" width="100px">
                 <template #default="scope">
                     <EnumTag :value="scope.row.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
                 </template>
             </el-table-column>
-            <el-table-column prop="type" label="凭证类型" width="100px">
+            <el-table-column prop="type" :label="$t('ac.credentialType')" width="100px">
                 <template #default="scope">
                     <EnumTag :value="scope.row.type" :enums="AuthCertTypeEnum" />
                 </template>
             </el-table-column>
-            <el-table-column prop="remark" label="备注" show-overflow-tooltip width="120px"> </el-table-column>
+            <el-table-column prop="remark" :label="$t('common.remark')" show-overflow-tooltip width="120px"> </el-table-column>
         </el-table>
 
         <ResourceAuthCertEdit
@@ -55,6 +54,9 @@ import { resourceAuthCertApi } from '../tag/api';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import ResourceAuthCertEdit from './ResourceAuthCertEdit.vue';
 import { ElMessage } from 'element-plus';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     resourceType: { type: Number },
@@ -117,17 +119,6 @@ const cancelEdit = () => {
 
 const btnOk = async (authCert: any) => {
     const isEdit = authCert.id;
-    // if (!isEdit) {
-    //     const res = await resourceAuthCertApi.listByQuery.request({
-    //         name: authCert.name,
-    //         pageNum: 1,
-    //         pageSize: 100,
-    //     });
-    //     if (res.total) {
-    //         ElMessage.error('该授权凭证名称已存在');
-    //         return;
-    //     }
-    // }
 
     if (isEdit || state.idx >= 0) {
         authCerts.value[state.idx] = authCert;
@@ -136,7 +127,7 @@ const btnOk = async (authCert: any) => {
     }
 
     if (authCerts.value?.filter((x: any) => x.username == authCert.username).length > 0) {
-        ElMessage.error('该用户名已存在于该账号列表中');
+        ElMessage.error(t('ac.usernameExist'));
         return;
     }
 

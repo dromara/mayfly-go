@@ -28,7 +28,7 @@ var (
 type CheckSshTunnelMachineHasUseFunc func(int) bool
 
 func startCheckUse() {
-	logx.Info("开启定时检测ssh隧道机器是否还有被使用")
+	logx.Info("start periodically checking if the ssh tunnel machine is still in use")
 	// 每十分钟检查一次隧道机器是否还有被使用
 	scheduler.AddFun("@every 10m", func() {
 		if !mutex.TryLock() {
@@ -37,7 +37,7 @@ func startCheckUse() {
 		defer mutex.Unlock()
 		// 遍历隧道机器，都未被使用将会被关闭
 		for mid, sshTunnelMachine := range sshTunnelMachines {
-			logx.Debugf("开始定时检查ssh隧道机器[%d]是否还有被使用...", mid)
+			logx.Debugf("periodically check if the ssh tunnel machine [%d] is still in use...", mid)
 			hasUse := false
 			for _, checkUseFunc := range checkSshTunnelMachineHasUseFuncs {
 				// 如果一个在使用则返回不关闭，不继续后续检查
@@ -129,10 +129,10 @@ func (stm *SshTunnelMachine) Close() {
 	}
 
 	if stm.SshClient != nil {
-		logx.Infof("ssh隧道机器[%d]未被使用, 关闭隧道...", stm.machineId)
+		logx.Infof("ssh tunnel machine [%d] is not in use, close tunnel...", stm.machineId)
 		err := stm.SshClient.Close()
 		if err != nil {
-			logx.Errorf("关闭ssh隧道机器[%d]发生错误: %s", stm.machineId, err.Error())
+			logx.Errorf("error in closing ssh tunnel machine [%d]: %s", stm.machineId, err.Error())
 		}
 	}
 	delete(sshTunnelMachines, stm.machineId)
@@ -159,7 +159,7 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*MachineInfo, e
 	}
 	sshTunnelMachine = &SshTunnelMachine{SshClient: sshClient, machineId: machineId, tunnels: map[string]*Tunnel{}}
 
-	logx.Infof("初次连接ssh隧道机器[%d][%s:%d]", machineId, me.Ip, me.Port)
+	logx.Infof("connect to the ssh tunnel machine for the first time[%d][%s:%d]", machineId, me.Ip, me.Port)
 	sshTunnelMachines[machineId] = sshTunnelMachine
 
 	// 如果实用了隧道机器且还没开始定时检查是否还被实用，则执行定时任务检测隧道是否还被使用

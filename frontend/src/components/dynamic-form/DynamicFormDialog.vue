@@ -6,8 +6,8 @@
             <template #footer>
                 <span>
                     <slot name="btns">
-                        <el-button @click="dialogVisible = false">取 消</el-button>
-                        <el-button type="primary" @click="confirm">确 定</el-button>
+                        <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+                        <el-button type="primary" @click="confirm">{{ $t('common.confirm') }}</el-button>
                     </slot>
                 </span>
             </template>

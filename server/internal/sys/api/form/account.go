@@ -2,7 +2,7 @@ package form
 
 type AccountCreateForm struct {
 	Id       uint64 `json:"id"`
-	Name     string `json:"name" binding:"required,max=16" msg:"required=姓名不能为空,max=姓名最大长度不能超过16位"`
+	Name     string `json:"name" binding:"required,max=16" msg:"required=name cannot be blank,max=The maximum length of a name cannot exceed 16 characters"`
 	Username string `json:"username" binding:"pattern=account_username"`
 	Password string `json:"password"`
 }

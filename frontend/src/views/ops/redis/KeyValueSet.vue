@@ -1,23 +1,23 @@
 <template>
     <div>
-        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">添加新行</el-button>
+        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">{{ $t('redis.addNewLine') }}</el-button>
         <el-table size="small" border :data="setDatas" height="450" min-height="300" stripe>
             <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
             <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
-            <el-table-column label="操作">
+            <el-table-column :label="$t('common.operation')">
                 <template #header>
                     <el-input
                         class="key-detail-filter-value"
                         v-model="state.filterValue"
                         @keyup.enter="sscanData(true, true)"
-                        placeholder="输入关键词回车搜索"
+                        :placeholder="$t('redis.filterPlaceholder')"
                         clearable
                         size="small"
                     />
                 </template>
                 <template #default="scope">
                     <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit" plain></el-link>
-                    <el-popconfirm title="确定删除?" @confirm="srem(scope.row, scope.$index)">
+                    <el-popconfirm :title="$t('redis.deleteConfirm')" @confirm="srem(scope.row, scope.$index)">
                         <template #reference>
                             <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml5"></el-link>
                         </template>
@@ -27,10 +27,10 @@
         </el-table>
         <!-- load more content -->
         <div class="content-more-container">
-            <el-button size="small" @click="sscanData(false)" :disabled="loadMoreDisable" class="content-more-btn"> 加载更多 </el-button>
+            <el-button size="small" @click="sscanData(false)" :disabled="loadMoreDisable" class="content-more-btn"> {{ $t('redis.loadMore') }} </el-button>
         </div>
 
-        <el-dialog title="添加新行" v-model="editDialog.visible" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-dialog :title="$t('redis.addNewLine')" v-model="editDialog.visible" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form>
                 <el-form-item>
                     <format-viewer class="w100" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
@@ -39,8 +39,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="editDialog.visible = false">取 消</el-button>
-                    <el-button v-auth="'redis:data:save'" type="primary" @click="confirmEditData">确 定</el-button>
+                    <el-button @click="editDialog.visible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'redis:data:save'" type="primary" @click="confirmEditData">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -48,9 +48,9 @@
 </template>
 <script lang="ts" setup>
 import { ref, reactive, toRefs, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
+import { useI18nDeleteSuccessMsg, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const props = defineProps({
     redis: {
@@ -144,7 +144,7 @@ const confirmEditData = async () => {
     // SADD key member [member ...]
     await props.redis.runCmd(['SADD', state.key, member]);
 
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     if (dataRow) {
         state.editDialog.dataRow.value = member;
     } else {
@@ -158,7 +158,7 @@ const confirmEditData = async () => {
 const srem = async (row: any, index: any) => {
     // SREM key member [member ...]
     await props.redis.runCmd(['SREM', state.key, row.value]);
-    ElMessage.success('删除成功');
+    useI18nDeleteSuccessMsg();
     state.setDatas.splice(index, 1);
     state.total--;
 };

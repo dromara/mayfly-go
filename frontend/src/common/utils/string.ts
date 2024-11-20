@@ -177,3 +177,40 @@ export function isPrefixSubsequence(prefix: string, targetTemplate: string) {
     // 如果prefix的所有字符都被找到，返回true
     return i === prefix.length;
 }
+
+/**
+ *  生成随机密码
+ * @param length 密码长度
+ */
+export function randomPassword(length = 10) {
+    const lowerCase = 'abcdefghijklmnopqrstuvwxyz';
+    const upperCase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const specialChars = '!@#$%^&*()-_=+[]{}|;:,.<>?';
+
+    // 确保每个类别至少包含一个字符
+    let password = [getRandomChar(lowerCase), getRandomChar(upperCase), getRandomChar(numbers), getRandomChar(specialChars)];
+
+    // 剩余字符从所有字符集中随机选择
+    const allChars = lowerCase + upperCase + numbers + specialChars;
+    for (let i = 4; i < length; i++) {
+        password.push(getRandomChar(allChars));
+    }
+
+    // 打乱数组顺序以增加随机性
+    shuffleArray(password);
+
+    return password.join('');
+}
+
+function getRandomChar(charSet: string) {
+    const randomIndex = Math.floor(Math.random() * charSet.length);
+    return charSet[randomIndex];
+}
+
+function shuffleArray(array: string[]) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}

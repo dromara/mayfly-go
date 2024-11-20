@@ -54,7 +54,7 @@ func (m *machineCmdConfAppImpl) SaveCmdConf(ctx context.Context, cmdConfParam *d
 func (m *machineCmdConfAppImpl) DeleteCmdConf(ctx context.Context, id uint64) error {
 	_, err := m.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("该命令配置不存在")
+		return errorx.NewBiz("cmd config not found")
 	}
 
 	return m.Tx(ctx, func(ctx context.Context) error {
@@ -71,7 +71,7 @@ func (m *machineCmdConfAppImpl) GetCmdConfsByMachineTags(ctx context.Context, ta
 	var cmds []*MachineCmd
 	cmdConfIds, err := m.tagTreeRelateApp.GetRelateIds(ctx, tagentity.TagRelateTypeMachineCmd, tagPaths...)
 	if err != nil {
-		logx.Errorf("获取命令配置信息失败: %s", err.Error())
+		logx.Errorf("failed to get cmd config: %s", err.Error())
 		return cmds
 	}
 	if len(cmdConfIds) == 0 {
@@ -82,7 +82,7 @@ func (m *machineCmdConfAppImpl) GetCmdConfsByMachineTags(ctx context.Context, ta
 	for _, cmdConf := range cmdConfs {
 		for _, cmd := range cmdConf.Cmds {
 			if p, err := regexp.Compile(cmd); err != nil {
-				logx.Errorf("命令配置[%s]，正则编译失败", cmd)
+				logx.Errorf("cmd config [%s], regex compilation failed", cmd)
 			} else {
 				cmds = append(cmds, &MachineCmd{CmdRegexp: p})
 			}

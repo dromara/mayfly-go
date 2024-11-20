@@ -1,11 +1,11 @@
 <template>
     <div id="search-card" v-show="search.visible" @keydown.esc="closeSearch">
-        <el-card title="搜索" size="small">
+        <el-card :title="$t('components.terminal.search')" size="small">
             <!-- 搜索框 -->
             <el-input
                 class="search-input"
                 ref="searchInputRef"
-                placeholder="请输入查找内容,回车搜索"
+                :placeholder="$t('components.terminal.serachPlaceholder')"
                 v-model="search.value"
                 @keyup.enter.native="searchKeywords(true)"
                 clearable
@@ -15,24 +15,30 @@
             <div class="search-options">
                 <el-row>
                     <el-col :span="12">
-                        <el-checkbox class="usn" v-model="search.regex"> 正则匹配 </el-checkbox>
+                        <el-checkbox class="usn" v-model="search.regex"> {{ $t('components.terminal.regexMatch') }} </el-checkbox>
                     </el-col>
                     <el-col :span="12">
-                        <el-checkbox class="usn" v-model="search.words"> 单词全匹配 </el-checkbox>
+                        <el-checkbox class="usn" v-model="search.words"> {{ $t('components.terminal.fullWordMatching') }} </el-checkbox>
                     </el-col>
                     <el-col :span="12">
-                        <el-checkbox class="usn" v-model="search.matchCase"> 区分大小写 </el-checkbox>
+                        <el-checkbox class="usn" v-model="search.matchCase"> {{ $t('components.terminal.caseSensitive') }} </el-checkbox>
                     </el-col>
                     <el-col :span="12">
-                        <el-checkbox class="usn" v-model="search.incremental"> 增量查找 </el-checkbox>
+                        <el-checkbox class="usn" v-model="search.incremental"> {{ $t('components.terminal.incrementalSearch') }} </el-checkbox>
                     </el-col>
                 </el-row>
             </div>
             <!-- 按钮 -->
             <div class="search-buttons">
-                <el-button class="terminal-search-button search-button-prev" type="primary" size="small" @click="searchKeywords(false)"> 上一个 </el-button>
-                <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="searchKeywords(true)"> 下一个 </el-button>
-                <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="closeSearch"> 关闭 </el-button>
+                <el-button class="terminal-search-button search-button-prev" type="primary" size="small" @click="searchKeywords(false)">
+                    {{ $t('components.terminal.previous') }}}}
+                </el-button>
+                <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="searchKeywords(true)">
+                    {{ $t('components.terminal.next') }}}}
+                </el-button>
+                <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="closeSearch">
+                    {{ $t('components.terminal.close') }}
+                </el-button>
             </div>
         </el-card>
     </div>
@@ -41,6 +47,9 @@
 import { ref, toRefs, nextTick, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
 import { SearchAddon, ISearchOptions } from 'xterm-addon-search';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     searchAddon: {
@@ -101,7 +110,7 @@ function searchKeywords(direction: any) {
         res = props.searchAddon?.findPrevious(state.search.value, getSearchOptions(option));
     }
     if (!res) {
-        ElMessage.info('未查询到匹配项');
+        ElMessage.info(t('components.terminal.noMatchMsg'));
     }
 }
 

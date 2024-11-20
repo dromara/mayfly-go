@@ -18,9 +18,9 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"strconv"
 	"strings"
 
+	"github.com/may-fly/cast"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -104,9 +104,7 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		r.RedisApp.Delete(rc.MetaCtx, uint64(value))
+		r.RedisApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
@@ -123,7 +121,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 		redisCli = ri.Cli
 	} else if mode == rdm.ClusterMode {
 		host := rc.Query("host")
-		biz.NotEmpty(host, "集群模式host信息不能为空")
+		biz.NotEmpty(host, "the cluster mode host info cannot be empty")
 		clusterClient := ri.ClusterCli
 		// 遍历集群的master节点找到该redis client
 		clusterClient.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
@@ -141,7 +139,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 				return nil
 			})
 		}
-		biz.NotNil(redisCli, "该实例不在该集群中")
+		biz.NotNil(redisCli, "the instance is not in the cluster")
 	}
 
 	var res string
@@ -151,7 +149,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 		res, err = redisCli.Info(ctx, section).Result()
 	}
 
-	biz.ErrIsNilAppendErr(err, "获取redis info失败: %s")
+	biz.ErrIsNilAppendErr(err, "get redis info error: %s")
 
 	datas := strings.Split(res, "\r\n")
 	i := 0
@@ -190,7 +188,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	ri, err := r.RedisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
-	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "非集群模式")
+	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "non-cluster mode")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
 
@@ -234,7 +232,7 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 // 校验查询参数中的key为必填项，并返回redis实例
 func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 	key := rc.Query("key")
-	biz.NotEmpty(key, "key不能为空")
+	biz.NotEmpty(key, "key cannot be empty")
 	return r.getRedisConn(rc), key
 }
 

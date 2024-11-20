@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除 </el-button>
+                <el-button type="primary" icon="plus" @click="editMongo(true)" plain>{{ $t('common.create') }}</el-button>
+                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>{{ $t('common.delete') }}</el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -21,11 +21,11 @@
             </template>
 
             <template #action="{ data }">
-                <el-button @click="showDatabases(data.id)" link>数据库</el-button>
+                <el-button @click="showDatabases(data.id)" link>{{ $t('mongo.db') }}</el-button>
 
                 <el-button @click="showUsers(data.id)" link type="success">cmd</el-button>
 
-                <el-button @click="editMongo(data)" link type="primary">编辑</el-button>
+                <el-button @click="editMongo(data)" link type="primary">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
@@ -45,7 +45,6 @@
 <script lang="ts" setup>
 import { mongoApi } from './api';
 import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
@@ -53,6 +52,7 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
 import { SearchItem } from '@/components/SearchForm';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
@@ -68,16 +68,19 @@ const props = defineProps({
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [SearchItem.input('keyword', '关键字').withPlaceholder('host / 名称 / 编号'), getTagPathSearchItem(TagResourceTypeEnum.Mongo.value)];
+const searchItems = [
+    SearchItem.input('keyword', 'common.keyword').withPlaceholder('mongo.keywordPlaceholder'),
+    getTagPathSearchItem(TagResourceTypeEnum.Mongo.value),
+];
 
 const columns = [
-    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('name', '名称'),
-    TableColumn.new('uri', '连接uri'),
-    TableColumn.new('createTime', '创建时间').isTime(),
-    TableColumn.new('creator', '创建人'),
-    TableColumn.new('code', '编号'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),
+    TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('uri', 'mongo.connUrl'),
+    TableColumn.new('createTime', 'common.createTime').isTime(),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('code', 'common.code'),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(170).fixedRight().alignCenter(),
 ];
 
 const state = reactive({
@@ -94,7 +97,7 @@ const state = reactive({
     mongoEditDialog: {
         visible: false,
         data: null as any,
-        title: '新增mongo',
+        title: '',
     },
     dbsVisible: false,
     usersVisible: false,
@@ -127,13 +130,9 @@ const showUsers = async (id: number) => {
 
 const deleteMongo = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】mongo信息?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //
@@ -150,10 +149,10 @@ const search = async (tagPath: string = '') => {
 const editMongo = async (data: any) => {
     if (!data) {
         state.mongoEditDialog.data = null;
-        state.mongoEditDialog.title = '新增mongo';
+        state.mongoEditDialog.title = useI18nCreateTitle('mongo.mongo');
     } else {
         state.mongoEditDialog.data = data;
-        state.mongoEditDialog.title = '修改mongo';
+        state.mongoEditDialog.title = useI18nEditTitle('mongo.mongo');
     }
     state.mongoEditDialog.visible = true;
 };

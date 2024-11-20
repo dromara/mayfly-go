@@ -3,23 +3,23 @@
         <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
             <el-row :gutter="20">
                 <el-col :lg="12" :md="12">
-                    <el-descriptions size="small" title="基础信息" :column="2" border>
+                    <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border>
                         <template #extra>
                             <el-link @click="onRefresh" icon="refresh" :underline="false" type="success"></el-link>
                         </template>
-                        <el-descriptions-item label="主机名">
+                        <el-descriptions-item :label="$t('machine.hostname')">
                             {{ stats.hostname }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="运行时间">
+                        <el-descriptions-item :label="$t('machine.runTime')">
                             {{ stats.uptime }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="总任务">
+                        <el-descriptions-item :label="$t('machine.totalTask')">
                             {{ stats.totalProcs }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="运行中任务">
+                        <el-descriptions-item :label="$t('machine.runningTask')">
                             {{ stats.runningProcs }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="负载"> {{ stats.load1 }} {{ stats.load5 }} {{ stats.load10 }} </el-descriptions-item>
+                        <el-descriptions-item :label="$t('machine.load')"> {{ stats.load1 }} {{ stats.load5 }} {{ stats.load10 }} </el-descriptions-item>
                     </el-descriptions>
                 </el-col>
 
@@ -34,15 +34,15 @@
 
             <el-row :gutter="20">
                 <el-col :lg="8" :md="8">
-                    <span style="font-size: 16px; font-weight: 700">磁盘</span>
+                    <span style="font-size: 16px; font-weight: 700">{{ $t('machine.disk') }}</span>
                     <el-table :data="stats.fSInfos" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="mountPoint" label="挂载点" min-width="100" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="used" label="可使用" min-width="70" show-overflow-tooltip>
+                        <el-table-column prop="mountPoint" :label="$t('machine.mountPoint')" min-width="100" show-overflow-tooltip> </el-table-column>
+                        <el-table-column :label="$t('machine.available')" min-width="70" show-overflow-tooltip>
                             <template #default="scope">
                                 {{ formatByteSize(scope.row.free) }}
                             </template>
                         </el-table-column>
-                        <el-table-column prop="Used" label="已使用" min-width="70" show-overflow-tooltip>
+                        <el-table-column prop="Used" :label="$t('machine.used')" min-width="70" show-overflow-tooltip>
                             <template #default="scope">
                                 {{ formatByteSize(scope.row.used) }}
                             </template>
@@ -51,17 +51,17 @@
                 </el-col>
 
                 <el-col :lg="16" :md="16">
-                    <span style="font-size: 16px; font-weight: 700">网卡</span>
+                    <span style="font-size: 16px; font-weight: 700">{{ $t('machine.networkCard') }}</span>
                     <el-table :data="netInter" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="name" label="网卡" min-width="120" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="name" :label="$t('machine.networkCard')" min-width="120" show-overflow-tooltip></el-table-column>
                         <el-table-column prop="ipv4" label="IPv4" min-width="130" show-overflow-tooltip> </el-table-column>
                         <el-table-column prop="ipv6" label="IPv6" min-width="130" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="rx" label="接收(rx)" min-width="110" show-overflow-tooltip>
+                        <el-table-column prop="rx" :label="`${$t('machine.receive')}(rx)`" min-width="110" show-overflow-tooltip>
                             <template #default="scope">
                                 {{ formatByteSize(scope.row.rx) }}
                             </template>
                         </el-table-column>
-                        <el-table-column prop="tx" label="发送(tx)" min-width="110" show-overflow-tooltip>
+                        <el-table-column prop="tx" :label="`${$t('machine.send')}(tx)`" min-width="110" show-overflow-tooltip>
                             <template #default="scope">
                                 {{ formatByteSize(scope.row.tx) }}
                             </template>
@@ -79,6 +79,9 @@ import { formatByteSize } from '@/common/utils/format';
 import { machineApi } from './api';
 import ECharts from '@/components/echarts/ECharts.vue';
 import { ECOption } from '@/components/echarts/config';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -127,16 +130,16 @@ const onRefresh = async () => {
 const initMemStats = () => {
     const mem = state.stats.memInfo;
     const data = [
-        { name: '可用内存', value: mem.available },
+        { name: t('machine.available'), value: mem.available },
         {
-            name: '已用内存',
+            name: t('machine.used'),
             value: mem.total - mem.available,
         },
     ];
 
     const option: ECOption = {
         title: {
-            text: '内存',
+            text: t('machine.memory'),
             textStyle: { fontSize: 15 },
         },
         tooltip: {
@@ -151,7 +154,7 @@ const initMemStats = () => {
         },
         series: [
             {
-                name: '内存',
+                name: t('machine.memory'),
                 type: 'pie',
                 radius: ['30%', '60%'], // 饼图内圈和外圈大小
                 center: ['60%', '50%'], // 饼图位置，0: 左右；1: 上下
@@ -197,7 +200,7 @@ const initCpuStats = () => {
 
     const option: ECOption = {
         title: {
-            text: 'CPU使用率',
+            text: t('machine.cpuUsageRate'),
             textStyle: { fontSize: 15 },
         },
         tooltip: {

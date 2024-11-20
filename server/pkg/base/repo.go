@@ -100,7 +100,7 @@ type RepoImpl[T model.ModelI] struct {
 }
 
 func (br *RepoImpl[T]) Insert(ctx context.Context, e T) error {
-	if db := contextx.GetDb(ctx); db != nil {
+	if db := GetDbFromCtx(ctx); db != nil {
 		return br.InsertWithDb(ctx, db, e)
 	}
 	return gormx.Insert(br.fillBaseInfo(ctx, e))
@@ -111,7 +111,7 @@ func (br *RepoImpl[T]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 }
 
 func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
-	if db := contextx.GetDb(ctx); db != nil {
+	if db := GetDbFromCtx(ctx); db != nil {
 		return br.BatchInsertWithDb(ctx, db, es)
 	}
 	for _, e := range es {
@@ -129,7 +129,7 @@ func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []
 }
 
 func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T, columns ...string) error {
-	return br.UpdateByIdWithDb(ctx, contextx.GetDb(ctx), e, columns...)
+	return br.UpdateByIdWithDb(ctx, GetDbFromCtx(ctx), e, columns...)
 }
 
 func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error {
@@ -140,7 +140,7 @@ func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, c
 }
 
 func (br *RepoImpl[T]) UpdateByCond(ctx context.Context, values any, cond any) error {
-	return br.UpdateByCondWithDb(ctx, contextx.GetDb(ctx), values, cond)
+	return br.UpdateByCondWithDb(ctx, GetDbFromCtx(ctx), values, cond)
 }
 
 func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error {
@@ -190,7 +190,7 @@ func (br *RepoImpl[T]) SaveWithDb(ctx context.Context, db *gorm.DB, e T) error {
 }
 
 func (br *RepoImpl[T]) DeleteById(ctx context.Context, id ...uint64) error {
-	if db := contextx.GetDb(ctx); db != nil {
+	if db := GetDbFromCtx(ctx); db != nil {
 		return br.DeleteByIdWithDb(ctx, db, id...)
 	}
 	return gormx.DeleteById(br.getModel(), id...)
@@ -201,7 +201,7 @@ func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id ...
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
-	if db := contextx.GetDb(ctx); db != nil {
+	if db := GetDbFromCtx(ctx); db != nil {
 		return br.DeleteByCondWithDb(ctx, db, cond)
 	}
 	return gormx.DeleteByCond(br.getModel(), toQueryCond(cond))

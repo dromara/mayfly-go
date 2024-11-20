@@ -10,20 +10,26 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">添加</el-button>
-                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()" type="danger" icon="delete"
-                    >删除</el-button
-                >
+                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)" type="primary">编辑</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)" type="primary">{{ $t('common.edit') }}</el-button>
 
-                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)" type="success">角色分配</el-button>
+                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)" type="success">
+                    {{ $t('system.account.roleAllocation') }}
+                </el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="changeStatus(data)" type="danger">禁用</el-button>
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="changeStatus(data)" type="danger">
+                    {{ $t('common.disable') }}
+                </el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success" @click="changeStatus(data)">启用</el-button>
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success" @click="changeStatus(data)">
+                    {{ $t('common.enable') }}
+                </el-button>
 
                 <el-button
                     link
@@ -31,16 +37,17 @@
                     :disabled="!data.otpSecret || data.otpSecret == '-'"
                     @click="resetOtpSecret(data)"
                     type="warning"
-                    >重置OTP
+                >
+                    {{ $t('system.account.resetOtp') }}
                 </el-button>
             </template>
         </page-table>
 
         <el-dialog width="500px" :title="showRoleDialog.title" v-model="showRoleDialog.visible">
             <el-table border :data="showRoleDialog.accountRoles">
-                <el-table-column property="name" label="角色名" width="125"></el-table-column>
-                <el-table-column property="creator" label="分配账号" width="125"></el-table-column>
-                <el-table-column property="createTime" label="分配时间">
+                <el-table-column property="name" :label="$t('system.role.roleName')" width="125"></el-table-column>
+                <el-table-column property="creator" :label="$t('system.account.assigner')" width="125"></el-table-column>
+                <el-table-column property="createTime" :label="$t('system.account.allocateTime')">
                     <template #default="scope">
                         {{ formatDate(scope.row.createTime) }}
                     </template>
@@ -49,7 +56,7 @@
         </el-dialog>
 
         <role-allocation v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="cancel()" />
-        <account-edit v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="valChange()" />
+        <account-edit :title="accountDialog.title" v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="valChange()" />
     </div>
 </template>
 
@@ -59,12 +66,12 @@ import RoleAllocation from './RoleAllocation.vue';
 import AccountEdit from './AccountEdit.vue';
 import { AccountStatusEnum } from '../enums';
 import { accountApi } from '../api';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatDate } from '@/common/utils/format';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/SearchForm';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 
 const perms = {
     addAccount: 'account:add',
@@ -73,21 +80,21 @@ const perms = {
     changeAccountStatus: 'account:changeStatus',
 };
 
-const searchItems = [SearchItem.input('username', '用户名')];
+const searchItems = [SearchItem.input('username', 'common.username')];
 const columns = [
-    TableColumn.new('name', '姓名'),
-    TableColumn.new('username', '用户名'),
-    TableColumn.new('status', '状态').typeTag(AccountStatusEnum),
-    TableColumn.new('lastLoginTime', '最后登录时间').isTime(),
-    TableColumn.new('creator', '创建账号'),
-    TableColumn.new('createTime', '创建时间').isTime(),
-    TableColumn.new('modifier', '更新账号'),
-    TableColumn.new('updateTime', '更新时间').isTime(),
+    TableColumn.new('name', 'system.account.name'),
+    TableColumn.new('username', 'common.username'),
+    TableColumn.new('status', 'common.status').typeTag(AccountStatusEnum),
+    TableColumn.new('lastLoginTime', 'system.account.lastLoginTime').isTime(),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('createTime', 'common.createTime').isTime(),
+    TableColumn.new('modifier', 'common.modifier'),
+    TableColumn.new('updateTime', 'common.updateTime').isTime(),
 ];
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -123,6 +130,7 @@ const state = reactive({
         roles: [],
     },
     accountDialog: {
+        title: '',
         visible: false,
         data: null as any,
     },
@@ -147,7 +155,7 @@ const changeStatus = async (row: any) => {
         id,
         status,
     });
-    ElMessage.success('操作成功');
+    useI18nOperateSuccessMsg();
     search();
 };
 
@@ -156,14 +164,16 @@ const resetOtpSecret = async (row: any) => {
     await accountApi.resetOtpSecret.request({
         id,
     });
-    ElMessage.success('操作成功');
+    useI18nOperateSuccessMsg();
     row.otpSecret = '-';
 };
 
 const editAccount = (data: any) => {
     if (!data) {
+        state.accountDialog.title = useI18nCreateTitle('personal.accountInfo');
         state.accountDialog.data = null;
     } else {
+        state.accountDialog.title = useI18nEditTitle('personal.accountInfo');
         state.accountDialog.data = data;
     }
     state.accountDialog.visible = true;
@@ -185,18 +195,10 @@ const valChange = () => {
 };
 
 const deleteAccount = async () => {
-    try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】的账号?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
-        await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
-        search();
-    } catch (err) {
-        //
-    }
+    await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.username).join('、'));
+    await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+    useI18nDeleteSuccessMsg();
+    search();
 };
 </script>
 <style lang="scss"></style>

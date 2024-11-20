@@ -69,7 +69,7 @@ export function convertToBytes(sizeStr: string) {
  * @returns
  */
 export function formatTime(time: number, unit: string = 's') {
-    const units = {
+    const units: any = {
         y: 31536000,
         M: 2592000,
         d: 86400,

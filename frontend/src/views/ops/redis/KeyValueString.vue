@@ -6,7 +6,7 @@
             </div>
         </el-form>
         <div class="mt10 fr">
-            <el-button @click="saveValue" type="primary" v-auth="'redis:data:save'">保 存</el-button>
+            <el-button @click="saveValue" type="primary" v-auth="'redis:data:save'">{{ $t('common.save') }}</el-button>
         </div>
     </div>
 </template>

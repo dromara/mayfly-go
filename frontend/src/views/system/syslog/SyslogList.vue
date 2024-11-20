@@ -18,8 +18,8 @@ import { OptionsApi, SearchItem } from '@/components/SearchForm';
 import AccountInfo from '../account/components/AccountInfo.vue';
 
 const searchItems = [
-    SearchItem.select('creatorId', '操作人')
-        .withPlaceholder('请输入并选择账号')
+    SearchItem.select('creatorId', 'system.syslog.operator')
+        .withPlaceholder('system.syslog.operatorPlaceholder')
         .withOptionsApi(
             OptionsApi.new(accountApi.list, { username: null })
                 .withConvertFn((res: any) => {
@@ -33,17 +33,17 @@ const searchItems = [
                 })
                 .isRemote('username')
         ),
-    SearchItem.select('type', '操作结果').withEnum(LogTypeEnum),
-    SearchItem.input('description', '描述'),
+    SearchItem.select('type', 'system.syslog.result').withEnum(LogTypeEnum),
+    SearchItem.input('description', 'system.syslog.description'),
 ];
 
 const columns = [
-    TableColumn.new('creator', '操作人').isSlot().noShowOverflowTooltip(),
-    TableColumn.new('createTime', '操作时间').isTime(),
-    TableColumn.new('description', '描述'),
-    TableColumn.new('type', '结果').typeTag(LogTypeEnum),
-    TableColumn.new('reqParam', '操作信息').canBeautify(),
-    TableColumn.new('resp', '响应信息').canBeautify(),
+    TableColumn.new('creator', 'system.syslog.operator').isSlot().noShowOverflowTooltip(),
+    TableColumn.new('createTime', 'system.syslog.operatingTime').isTime(),
+    TableColumn.new('description', 'system.syslog.description'),
+    TableColumn.new('type', 'system.syslog.result').typeTag(LogTypeEnum),
+    TableColumn.new('reqParam', 'system.syslog.operatingInfo').canBeautify(),
+    TableColumn.new('resp', 'system.syslog.response').canBeautify(),
 ];
 
 const state = reactive({

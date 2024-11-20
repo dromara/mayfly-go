@@ -1,6 +1,6 @@
 <template>
     <div class="card pd5">
-        <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5 w100" />
+        <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="mb5 w100" />
         <el-scrollbar class="tag-tree">
             <el-tree
                 ref="treeRef"
@@ -26,11 +26,11 @@
                         <slot v-else :node="node" :data="data" name="prefix"></slot>
 
                         <span class="ml3" :title="data.labelRemark">
-                            <slot name="label" :data="data" v-if="!data.disabled"> {{ data.label }}</slot>
+                            <slot name="label" :data="data" v-if="!data.disabled"> {{ $t(data.label) }}</slot>
                             <!-- 禁用状态 -->
                             <slot name="disabledLabel" :data="data" v-else>
                                 <el-link type="danger" disabled :underline="false">
-                                    {{ `${data.label}` }}
+                                    {{ `${$t(data.label)}` }}
                                 </el-link>
                             </slot>
                         </span>

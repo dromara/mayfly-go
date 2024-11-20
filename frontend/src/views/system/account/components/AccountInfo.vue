@@ -1,16 +1,23 @@
 <template>
     <div>
-        <el-popover v-if="props.accountId" @show="getAccountInfo(props.accountId)" placement="top-start" title="账号信息" :width="400" trigger="click">
+        <el-popover
+            v-if="props.accountId"
+            @show="getAccountInfo(props.accountId)"
+            placement="top-start"
+            :title="$t('system.account.accountInfo')"
+            :width="400"
+            trigger="click"
+        >
             <template #reference>
                 <el-link type="primary">{{ props.username }}</el-link>
             </template>
             <el-descriptions v-loading="loading" :column="2" border>
                 <el-descriptions-item label="username">{{ account.username }}</el-descriptions-item>
-                <el-descriptions-item label="姓名">
+                <el-descriptions-item :label="$t('system.account.name')">
                     {{ account.name }}
                 </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="角色">
+                <el-descriptions-item :span="2" :label="$t('common.role')">
                     <el-tag v-for="role in account.roles" :key="role.code" class="ml5">
                         {{ role.roleName }}
                     </el-tag>

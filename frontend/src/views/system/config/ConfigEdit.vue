@@ -1,14 +1,18 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="900px" :destroy-on-close="true">
+        <el-drawer :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" size="1000px" :destroy-on-close="true">
+            <template #header>
+                <DrawerHeader :header="title" :back="cancel" />
+            </template>
+
             <el-form ref="configForm" :model="form" :rules="rules" label-width="auto">
-                <el-form-item prop="name" label="配置项" required>
+                <el-form-item prop="name" :label="$t('system.sysconf.confItem')" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
-                <el-form-item prop="key" label="配置key" required>
+                <el-form-item prop="key" :label="$t('system.sysconf.confKey')" required>
                     <el-input :disabled="form.id != null" v-model="form.key"></el-input>
                 </el-form-item>
-                <el-form-item prop="permission" label="权限">
+                <el-form-item prop="permission" :label="$t('system.sysconf.permission')">
                     <el-select
                         style="width: 100%"
                         remote
@@ -16,48 +20,49 @@
                         v-model="state.permissionAccount"
                         filterable
                         multiple
-                        placeholder="请输入账号模糊搜索并选择"
+                        :placeholder="$t('system.sysconf.permissionPlaceholder')"
                     >
                         <el-option v-for="item in state.accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.username"> </el-option>
                     </el-select>
                 </el-form-item>
 
-                <el-form-item label="配置项" class="w100">
+                <el-form-item :label="$t('system.sysconf.confItem')" class="w100">
                     <dynamic-form-edit v-model="params" />
                 </el-form-item>
 
-                <el-form-item label="备注">
+                <el-form-item :label="$t('common.remark')">
                     <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
                 </el-form-item>
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
-        </el-dialog>
+        </el-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch, watchEffect } from 'vue';
+import { ref, toRefs, reactive, watch } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
-import { ElMessage } from 'element-plus';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { useI18nFormValidate, useI18nPleaseInput } from '@/hooks/useI18n';
 
 const rules = {
     name: [
         {
             required: true,
-            message: '请输入配置项',
+            message: useI18nPleaseInput('system.sysconf.confItem'),
             trigger: ['change', 'blur'],
         },
     ],
     key: [
         {
             required: true,
-            message: '请输入配置key',
+            message: useI18nPleaseInput('system.sysconf.confKey'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -146,13 +151,7 @@ const getAccount = (username: any) => {
 };
 
 const btnOk = async () => {
-    try {
-        await configForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(configForm);
     if (state.params) {
         state.form.params = JSON.stringify(state.params);
     }

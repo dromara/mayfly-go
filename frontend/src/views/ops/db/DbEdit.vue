@@ -10,12 +10,12 @@
             width="38%"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item prop="name" label="名称" required>
-                    <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
+                <el-form-item prop="name" :label="$t('common.name')" required>
+                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="authCertName" label="授权凭证" required>
-                    <el-select v-model="form.authCertName" placeholder="请选择授权凭证" filterable>
+                <el-form-item prop="authCertName" :label="$t('db.acName')" required>
+                    <el-select v-model="form.authCertName" filterable>
                         <el-option v-for="item in state.authCerts" :key="item.id" :label="`${item.name}`" :value="item.name">
                             {{ item.name }}
 
@@ -31,13 +31,11 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item prop="getDatabaseMode" label="获库方式" required>
-                    <el-select v-model="form.getDatabaseMode" @change="onChangeGetDatabaseMode" placeholder="请选择库名获取方式">
-                        <el-option v-for="item in DbGetDbNamesMode" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                    </el-select>
+                <el-form-item prop="getDatabaseMode" :label="$t('db.getDbMode')" required>
+                    <EnumSelect :enums="DbGetDbNamesMode" v-model="form.getDatabaseMode" @change="onChangeGetDatabaseMode" />
                 </el-form-item>
 
-                <el-form-item prop="database" label="数据库名">
+                <el-form-item prop="database" label="DB">
                     <el-select
                         :disabled="form.getDatabaseMode == DbGetDbNamesMode.Auto.value || !form.authCertName"
                         v-model="dbNamesSelected"
@@ -48,26 +46,28 @@
                         filterable
                         :filter-method="filterDbNames"
                         allow-create
-                        placeholder="获库方式为‘指定库名’时，可选择"
+                        :placeholder="$t('db.selectDbPlacehoder')"
                         @focus="getAllDatabase(form.authCertName)"
                         :loading="state.loadingDbNames"
                     >
                         <template #header>
-                            <el-checkbox v-model="checkAllDbNames" :indeterminate="indeterminateDbNames" @change="handleCheckAll"> 全选 </el-checkbox>
+                            <el-checkbox v-model="checkAllDbNames" :indeterminate="indeterminateDbNames" @change="handleCheckAll">
+                                {{ $t('db.allSelect') }}
+                            </el-checkbox>
                         </template>
                         <el-option v-for="db in state.dbNamesFiltered" :key="db" :label="db" :value="db" />
                     </el-select>
                 </el-form-item>
 
-                <el-form-item prop="remark" label="备注">
+                <el-form-item prop="remark" :label="$t('common.remark')">
                     <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -77,7 +77,6 @@
 <script lang="ts" setup>
 import { toRefs, reactive, watch, ref } from 'vue';
 import { dbApi } from './api';
-import { ElMessage } from 'element-plus';
 import type { CheckboxValueType } from 'element-plus';
 import { DbType } from '@/views/ops/db/dialect';
 
@@ -86,6 +85,8 @@ import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { DbGetDbNamesMode } from './enums';
+import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
 
 const props = defineProps({
     visible: {
@@ -106,39 +107,31 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'confirm']);
 
 const rules = {
-    tagId: [
-        {
-            required: true,
-            message: '请选择标签',
-            trigger: ['change', 'blur'],
-        },
-    ],
-
     instanceId: [
         {
             required: true,
-            message: '请选择数据库实例',
+            message: useI18nPleaseSelect('db.dbInst'),
             trigger: ['change', 'blur'],
         },
     ],
     name: [
         {
             required: true,
-            message: '请输入别名',
+            message: useI18nPleaseInput('common.name'),
             trigger: ['change', 'blur'],
         },
     ],
     authCertName: [
         {
             required: true,
-            message: '请选择授权凭证',
+            message: useI18nPleaseSelect('db.acName'),
             trigger: ['change', 'blur'],
         },
     ],
     getDatabaseMode: [
         {
             required: true,
-            message: '请选择库名获取方式',
+            message: useI18nPleaseSelect('db.getDbMode'),
             trigger: ['change', 'blur'],
         },
     ],
@@ -237,13 +230,7 @@ const open = async () => {
 };
 
 const btnOk = async () => {
-    try {
-        await dbForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(dbForm);
     emit('confirm', state.form);
 };
 

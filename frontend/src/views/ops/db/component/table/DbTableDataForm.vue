@@ -25,8 +25,8 @@
         </el-form>
         <template #footer v-if="props.tableName">
             <span class="dialog-footer">
-                <el-button @click="closeDialog">取消</el-button>
-                <el-button type="primary" @click="confirm">确定</el-button>
+                <el-button @click="closeDialog">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" @click="confirm">{{ $t('common.confirm') }}</el-button>
             </span>
         </template>
     </el-dialog>
@@ -36,7 +36,7 @@
 import { ref, watch, onMounted } from 'vue';
 import ColumnFormItem from './ColumnFormItem.vue';
 import { DbInst } from '../../db';
-import { ElMessage } from 'element-plus';
+import { useI18nFormValidate } from '@/hooks/useI18n';
 
 export interface ColumnFormItemProps {
     dbInst: DbInst;
@@ -85,12 +85,7 @@ const closeDialog = () => {
 };
 
 const confirm = async () => {
-    try {
-        await dataForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写数据信息');
-        return false;
-    }
+    await useI18nFormValidate(dataForm);
 
     const dbInst = props.dbInst;
     const data = modelValue.value;

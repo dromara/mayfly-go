@@ -3,7 +3,7 @@
         <Splitpanes class="default-theme">
             <Pane size="30" min-size="25" max-size="35">
                 <div class="card pd5 mr5">
-                    <el-input v-model="filterTag" clearable placeholder="关键字过滤(右击节点操作)" style="width: 200px; margin-right: 10px" />
+                    <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" style="width: 200px; margin-right: 10px" />
                     <el-button
                         v-if="useUserInfo().userInfo.username == 'admin'"
                         v-auth="'tag:save'"
@@ -14,8 +14,10 @@
                     <div style="float: right">
                         <el-tooltip placement="top">
                             <template #content>
-                                1. 用于将资产进行归类
-                                <br />2. 可在团队管理中进行分配，用于资源隔离 <br />3. 拥有父标签的团队成员可访问操作其自身或子标签关联的资源
+                                {{ $t('tag.tagTips1') }}
+                                <br />
+                                {{ $t('tag.tagTips2') }} <br />
+                                {{ $t('tag.tagTips3') }}
                             </template>
                             <span>
                                 <el-icon>
@@ -67,36 +69,40 @@
             <Pane min-size="40">
                 <div class="ml10">
                     <el-tabs @tab-change="tabChange" v-model="state.activeTabName" v-if="currentTag">
-                        <el-tab-pane label="标签详情" :name="TagDetail">
+                        <el-tab-pane :label="$t('common.detail')" :name="TagDetail">
                             <el-descriptions :column="2" border>
-                                <el-descriptions-item label="类型">
+                                <el-descriptions-item :label="$t('common.type')">
                                     <EnumTag :enums="TagResourceTypeEnum" :value="currentTag.type" />
                                 </el-descriptions-item>
                                 <el-descriptions-item label="code">{{ currentTag.code }}</el-descriptions-item>
 
-                                <el-descriptions-item label="路径" :span="2">
+                                <el-descriptions-item :label="$t('common.path')" :span="2">
                                     <TagCodePath :path="currentTag.codePath" />
                                 </el-descriptions-item>
 
-                                <el-descriptions-item label="名称">{{ currentTag.name }}</el-descriptions-item>
-                                <el-descriptions-item label="备注">{{ currentTag.remark }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.name')">{{ currentTag.name }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.remark')">{{ currentTag.remark }}</el-descriptions-item>
 
-                                <el-descriptions-item label="创建者">{{ currentTag.creator }}</el-descriptions-item>
-                                <el-descriptions-item label="创建时间">{{ formatDate(currentTag.createTime) }}</el-descriptions-item>
-                                <el-descriptions-item label="修改者">{{ currentTag.modifier }}</el-descriptions-item>
-                                <el-descriptions-item label="更新时间">{{ formatDate(currentTag.updateTime) }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.creator')">{{ currentTag.creator }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.createTime')">{{ formatDate(currentTag.createTime) }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.modifier')">{{ currentTag.modifier }}</el-descriptions-item>
+                                <el-descriptions-item :label="$t('common.updateTime')">{{ formatDate(currentTag.updateTime) }}</el-descriptions-item>
                             </el-descriptions>
                         </el-tab-pane>
 
                         <el-tab-pane
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
-                            :label="`机器 (${resourceCount.machine || 0})`"
+                            :label="`${$t('tag.machine')} (${resourceCount.machine || 0})`"
                             :name="MachineTag"
                         >
                             <MachineList lazy ref="machineListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane :disabled="currentTag.type != TagResourceTypeEnum.Tag.value" :label="`数据库 (${resourceCount.db || 0})`" :name="DbTag">
+                        <el-tab-pane
+                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
+                            :label="`${$t('tag.db')} (${resourceCount.db || 0})`"
+                            :name="DbTag"
+                        >
                             <InstanceList lazy ref="dbInstanceListRef" />
                         </el-tab-pane>
 
@@ -122,20 +128,20 @@
 
         <el-dialog width="500px" :title="saveTabDialog.title" :before-close="cancelSaveTag" v-model="saveTabDialog.visible">
             <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
-                <el-form-item prop="code" label="标识:" required>
+                <el-form-item prop="code" :label="$t('tag.code')" required>
                     <el-input :disabled="saveTabDialog.form.id ? true : false" v-model="saveTabDialog.form.code" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item prop="name" label="名称:" required>
+                <el-form-item prop="name" :label="$t('common.name')" required>
                     <el-input v-model="saveTabDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="备注:">
+                <el-form-item :label="$t('common.remark')">
                     <el-input v-model="saveTabDialog.form.remark" auto-complete="off"></el-input>
                 </el-form-item>
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancelSaveTag()">取 消</el-button>
-                    <el-button @click="saveTag" type="primary">确 定</el-button>
+                    <el-button @click="cancelSaveTag()">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="saveTag" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -157,11 +163,23 @@ import EnumTag from '@/components/enumtag/EnumTag.vue';
 import EnumValue from '@/common/Enum';
 import TagCodePath from '../component/TagCodePath.vue';
 import { isPrefixSubsequence } from '@/common/utils/string';
+import { useI18n } from 'vue-i18n';
+import {
+    useI18nCreateTitle,
+    useI18nDeleteConfirm,
+    useI18nDeleteSuccessMsg,
+    useI18nEditTitle,
+    useI18nFormValidate,
+    useI18nPleaseInput,
+    useI18nSaveSuccessMsg,
+} from '@/hooks/useI18n';
 
 const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
 const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
 const RedisList = defineAsyncComponent(() => import('../redis/RedisList.vue'));
 const MongoList = defineAsyncComponent(() => import('../mongo/MongoList.vue'));
+
+const { t } = useI18n();
 
 interface Tree {
     id: number;
@@ -185,7 +203,7 @@ const DbTag = 'dbTag';
 const RedisTag = 'redisTag';
 const MongoTag = 'mongoTag';
 
-const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
+const contextmenuAdd = new ContextmenuItem('addTag', 'tag.createSubTag')
     .withIcon('circle-plus')
     .withPermission('tag:save')
     .withHideFunc((data: any) => {
@@ -194,7 +212,7 @@ const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
     })
     .withOnClick((data: any) => showSaveTagDialog(data));
 
-const contextmenuEdit = new ContextmenuItem('edit', '编辑')
+const contextmenuEdit = new ContextmenuItem('edit', 'common.edit')
     .withIcon('edit')
     .withPermission('tag:save')
     .withHideFunc((data: any) => {
@@ -202,7 +220,7 @@ const contextmenuEdit = new ContextmenuItem('edit', '编辑')
     })
     .withOnClick((data: any) => showEditTagDialog(data));
 
-const contextmenuDel = new ContextmenuItem('delete', '删除')
+const contextmenuDel = new ContextmenuItem('delete', 'common.delete')
     .withIcon('delete')
     .withPermission('tag:del')
     .withHideFunc((data: any) => {
@@ -214,7 +232,7 @@ const contextmenuDel = new ContextmenuItem('delete', '删除')
 const state = reactive({
     data: [],
     saveTabDialog: {
-        title: '新增标签',
+        title: '',
         visible: false,
         form: { id: 0, pid: 0, code: '', name: '', remark: '' },
     },
@@ -246,8 +264,8 @@ const props = {
 };
 
 const rules = {
-    code: [{ required: true, message: '标识符不能为空', trigger: 'blur' }],
-    name: [{ required: true, message: '名称不能为空', trigger: 'blur' }],
+    code: [{ required: true, message: useI18nPleaseInput('tag.code'), trigger: 'blur' }],
+    name: [{ required: true, message: useI18nPleaseInput('common.name'), trigger: 'blur' }],
 };
 
 onMounted(() => {
@@ -402,9 +420,9 @@ const treeNodeClick = async (data: any) => {
 const showSaveTagDialog = (data: any) => {
     if (data) {
         state.saveTabDialog.form.pid = data.id;
-        state.saveTabDialog.title = `新增[ ${data.codePath} ]子标签信息`;
+        state.saveTabDialog.title = t('tag.createSubTagTitle', { codePath: data.codePath });
     } else {
-        state.saveTabDialog.title = '新增根标签信息';
+        state.saveTabDialog.title = useI18nCreateTitle('tag.rootTag');
     }
     state.saveTabDialog.visible = true;
 };
@@ -414,21 +432,18 @@ const showEditTagDialog = (data: any) => {
     state.saveTabDialog.form.code = data.code;
     state.saveTabDialog.form.name = data.name;
     state.saveTabDialog.form.remark = data.remark;
-    state.saveTabDialog.title = `修改 [${data.codePath}] 信息`;
+    state.saveTabDialog.title = useI18nEditTitle(data.codePath);
     state.saveTabDialog.visible = true;
 };
 
 const saveTag = async () => {
-    tagForm.value.validate(async (valid: any) => {
-        if (valid) {
-            const form = state.saveTabDialog.form;
-            await tagApi.saveTagTree.request(form);
-            ElMessage.success('保存成功');
-            search();
-            cancelSaveTag();
-            state.currentTag = null;
-        }
-    });
+    await useI18nFormValidate(tagForm);
+    const form = state.saveTabDialog.form;
+    await tagApi.saveTagTree.request(form);
+    useI18nSaveSuccessMsg();
+    search();
+    cancelSaveTag();
+    state.currentTag = null;
 };
 
 const cancelSaveTag = () => {
@@ -437,16 +452,11 @@ const cancelSaveTag = () => {
     tagForm.value.resetFields();
 };
 
-const deleteTag = (data: any) => {
-    ElMessageBox.confirm(`此操作将删除 [${data.codePath}], 是否继续?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    }).then(async () => {
-        await tagApi.delTagTree.request({ id: data.id });
-        ElMessage.success('删除成功！');
-        search();
-    });
+const deleteTag = async (data: any) => {
+    await useI18nDeleteConfirm(data.codePath);
+    await tagApi.delTagTree.request({ id: data.id });
+    useI18nDeleteSuccessMsg();
+    search();
 };
 
 // 节点被展开时触发的事件

@@ -104,9 +104,9 @@ func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.D
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		taskId := taskEntity.Id
 		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
-			logx.Infof("开始执行同步任务: %d", taskId)
+			logx.Infof("start the data synchronization task: %d", taskId)
 			if err := app.RunCronJob(ctx, taskId); err != nil {
-				logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
+				logx.Errorf("the data synchronization task failed to execute at a scheduled time: %s", err.Error())
 			}
 		})
 	}
@@ -130,15 +130,15 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 	// 查询最新的任务信息
 	task, err := app.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("任务不存在")
+		return errorx.NewBiz("task not found")
 	}
 	if task.RunningState == entity.DataSyncTaskRunStateRunning {
-		return errorx.NewBiz("该任务正在执行中")
+		return errorx.NewBiz("the task is in progress")
 	}
 	// 开始运行时，修改状态为运行中
 	app.changeRunningState(id, entity.DataSyncTaskRunStateRunning)
 
-	logx.InfofContext(ctx, "开始执行数据同步任务：%s => %s", task.TaskName, task.TaskKey)
+	logx.InfofContext(ctx, "start the data synchronization task: %s => %s", task.TaskName, task.TaskKey)
 
 	go func() {
 		// 通过占位符格式化sql
@@ -147,7 +147,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 		if task.UpdFieldVal != "0" && task.UpdFieldVal != "" && task.UpdField != "" {
 			srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 			if err != nil {
-				logx.ErrorfContext(ctx, "数据源连接不可用, %s", err.Error())
+				logx.ErrorfContext(ctx, "data source connection unavailable: %s", err.Error())
 				return
 			}
 
@@ -180,7 +180,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 
 		log, err := app.doDataSync(ctx, sql, task)
 		if err != nil {
-			log.ErrText = fmt.Sprintf("执行失败: %s", err.Error())
+			log.ErrText = fmt.Sprintf("execution failure: %s", err.Error())
 			logx.ErrorContext(ctx, log.ErrText)
 			log.Status = entity.DataSyncTaskStateFail
 			app.endRunning(task, log)
@@ -202,17 +202,17 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	// 获取源数据库连接
 	srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 	if err != nil {
-		return syncLog, errorx.NewBiz("连接源数据库失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("failed to connect to the source database: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
 	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
-		return syncLog, errorx.NewBiz("连接目标数据库失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("failed to connect to the target database: %s", err.Error())
 	}
 	targetDbTx, err := targetConn.Begin()
 	if err != nil {
-		return syncLog, errorx.NewBiz("开启目标数据库事务失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("failed to start the target database transaction: %s", err.Error())
 	}
 	defer func() {
 		if r := recover(); r != nil {
@@ -227,7 +227,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	var fieldMap []map[string]string
 	err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
 	if err != nil {
-		return syncLog, errorx.NewBiz("解析字段映射json出错: %s", err.Error())
+		return syncLog, errorx.NewBiz("there was an error parsing the field map json: %s", err.Error())
 	}
 	var updFieldType dbi.DataType
 
@@ -265,7 +265,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 			}
 
 			// 记录当前已同步的数据量
-			syncLog.ErrText = fmt.Sprintf("本次任务执行中，已同步：%d条", total)
+			syncLog.ErrText = fmt.Sprintf("during the execution of this task, %d has been synchronized", total)
 			logx.InfoContext(ctx, syncLog.ErrText)
 			syncLog.ResNum = total
 			app.saveLog(syncLog)
@@ -292,14 +292,14 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	// 如果是mssql，暂不手动提交事务，否则报错 mssql: The COMMIT TRANSACTION request has no corresponding BEGIN TRANSACTION.
 	if err := targetDbTx.Commit(); err != nil {
 		if targetConn.Info.Type != dbi.DbTypeMssql {
-			return syncLog, errorx.NewBiz("数据同步-目标数据库事务提交失败: %s", err.Error())
+			return syncLog, errorx.NewBiz("data synchronization - The target database transaction failed to commit: %s", err.Error())
 		}
 	}
 
-	logx.InfofContext(ctx, "同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
+	logx.InfofContext(ctx, "synchronous task: [%s], finished execution, save records successfully: [%d]", task.TaskName, total)
 
 	// 保存执行成功日志
-	syncLog.ErrText = fmt.Sprintf("本次任务执行成功，新数据：%d 条", total)
+	syncLog.ErrText = fmt.Sprintf("the synchronous task was executed successfully. New data: %d", total)
 	syncLog.Status = entity.DataSyncTaskStateSuccess
 	syncLog.ResNum = total
 	app.endRunning(task, syncLog)
@@ -381,7 +381,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	// 运行过程中，判断状态是否为已关闭，是则结束运行，否则继续运行
 	taskParam, _ := app.GetById(task.Id)
 	if taskParam.RunningState == entity.DataSyncTaskRunStateStop {
-		return errorx.NewBiz("该任务已被手动终止")
+		return errorx.NewBiz("the task has been terminated manually")
 	}
 
 	return nil
@@ -415,7 +415,7 @@ func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
 func (app *dataSyncAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
-			logx.ErrorTrace("数据同步任务初始化失败: %s", err.(error))
+			logx.ErrorTrace("the data synchronization task failed to initialize: %s", err.(error))
 		}
 	}()
 

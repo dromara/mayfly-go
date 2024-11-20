@@ -1,35 +1,35 @@
 <template>
     <div class="layout-breadcrumb-seting">
-        <el-drawer title="布局设置" v-model="themeConfig.isDrawer" direction="rtl" destroy-on-close size="240px" @close="onDrawerClose">
+        <el-drawer :title="$t('layout.config.configTitle')" v-model="themeConfig.isDrawer" direction="rtl" destroy-on-close size="240px" @close="onDrawerClose">
             <el-scrollbar class="layout-breadcrumb-seting-bar">
                 <!-- ssh终端主题 -->
-                <el-divider content-position="left">终端主题</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.terminalTheme') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">主题</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.theme') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select @change="setLocalThemeConfig" v-model="themeConfig.terminalTheme" size="small" style="width: 140px">
+                        <el-select v-model="themeConfig.terminalTheme" size="small" style="width: 140px">
                             <el-option v-for="(_, k) in themes" :key="k" :label="k" :value="k"> </el-option>
-                            <el-option label="自定义" value="custom"> </el-option>
+                            <el-option :label="$t('layout.config.custom')" value="custom"> </el-option>
                         </el-select>
                     </div>
                 </div>
                 <template v-if="themeConfig.terminalTheme == 'custom'">
                     <div class="layout-breadcrumb-seting-bar-flex mt10">
-                        <div class="layout-breadcrumb-seting-bar-flex-label">字体颜色</div>
+                        <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.fontColor') }}</div>
                         <div class="layout-breadcrumb-seting-bar-flex-value">
                             <el-color-picker v-model="themeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')">
                             </el-color-picker>
                         </div>
                     </div>
                     <div class="layout-breadcrumb-seting-bar-flex">
-                        <div class="layout-breadcrumb-seting-bar-flex-label">背景颜色</div>
+                        <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.backgroundColor') }}</div>
                         <div class="layout-breadcrumb-seting-bar-flex-value">
                             <el-color-picker v-model="themeConfig.terminalBackground" size="small" @change="onColorPickerChange('terminalBackground')">
                             </el-color-picker>
                         </div>
                     </div>
                     <div class="layout-breadcrumb-seting-bar-flex">
-                        <div class="layout-breadcrumb-seting-bar-flex-label">cursor颜色</div>
+                        <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.cursorColor') }}</div>
                         <div class="layout-breadcrumb-seting-bar-flex-value">
                             <el-color-picker v-model="themeConfig.terminalCursor" size="small" @change="onColorPickerChange('terminalCursor')">
                             </el-color-picker>
@@ -38,35 +38,27 @@
                 </template>
 
                 <div class="layout-breadcrumb-seting-bar-flex mt10">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">字体大小</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.fontSize') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-input-number
-                            v-model="themeConfig.terminalFontSize"
-                            controls-position="right"
-                            :min="12"
-                            :max="24"
-                            @change="setLocalThemeConfig"
-                            size="small"
-                            style="width: 90px"
-                        >
+                        <el-input-number v-model="themeConfig.terminalFontSize" controls-position="right" :min="12" :max="24" size="small" style="width: 90px">
                         </el-input-number>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt10">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">字体粗细</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.fontWeight') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select @change="setLocalThemeConfig" v-model="themeConfig.terminalFontWeight" size="small" style="width: 90px">
+                        <el-select v-model="themeConfig.terminalFontWeight" size="small" style="width: 90px">
                             <el-option label="normal" value="normal"> </el-option>
                             <el-option label="bold" value="bold"> </el-option>
                         </el-select>
                     </div>
                 </div>
 
-                <el-divider content-position="left">editor 设置</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.editorSetting') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">主题</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.theme') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select @change="setLocalThemeConfig" v-model="themeConfig.editorTheme" size="small" style="width: 130px">
+                        <el-select v-model="themeConfig.editorTheme" size="small" style="width: 130px">
                             <el-option label="vs" value="vs"> </el-option>
                             <el-option label="vs-dark" value="vs-dark"> </el-option>
                             <el-option label="SolarizedLight" value="SolarizedLight"> </el-option>
@@ -75,16 +67,15 @@
                 </div>
 
                 <!-- 全局设置 -->
-                <el-divider content-position="left">全局设置</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.globalSetting') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">分页size</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.pagesize') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-input-number
                             v-model="themeConfig.defaultListPageSize"
                             controls-position="right"
                             :min="10"
                             :max="50"
-                            @change="setLocalThemeConfig"
                             size="small"
                             style="width: 90px"
                         >
@@ -93,7 +84,7 @@
                 </div>
 
                 <!-- 全局主题 -->
-                <el-divider content-position="left">全局主题</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.globalTheme') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">primary</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
@@ -125,129 +116,156 @@
                     </div>
                 </div>
 
-                <!-- 菜单 / 顶栏 -->
-                <el-divider content-position="left">菜单 / 顶栏</el-divider>
+                <!-- 菜单 -->
+                <el-divider content-position="left">{{ $t('layout.config.menuSetting') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">顶栏背景</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.topBar" size="small" @change="onBgColorPickerChange('topBar')"> </el-color-picker>
-                    </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">菜单背景</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.menuBar') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-color-picker v-model="themeConfig.menuBar" size="small" @change="onBgColorPickerChange('menuBar')"> </el-color-picker>
                     </div>
                 </div>
+
+                <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.menuBarFontColor') }}
+                    </div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-color-picker v-model="themeConfig.menuBarColor" size="small" @change="onBgColorPickerChange('menuBarColor')"> </el-color-picker>
+                    </div>
+                </div>
+
+                <div class="layout-breadcrumb-seting-bar-flex mt14">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.menuBarActiveColor') }}
+                    </div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-switch v-model="themeConfig.isMenuBarColorHighlight" @change="onMenuBarHighlightChange"></el-switch>
+                    </div>
+                </div>
+
+                <div class="layout-breadcrumb-seting-bar-flex mt14">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isMenuBarColorGradual') }}
+                    </div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-switch v-model="themeConfig.isMenuBarColorGradual" @change="onMenuBarGradualChange"></el-switch>
+                    </div>
+                </div>
+
+                <!-- <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">顶栏背景</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-color-picker v-model="themeConfig.topBar" size="small"
+                            @change="onBgColorPickerChange('topBar')">
+                        </el-color-picker>
+                    </div>
+                </div>
+
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">分栏菜单背景</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.columnsMenuBar" size="small" @change="onBgColorPickerChange('columnsMenuBar')"> </el-color-picker>
+                        <el-color-picker v-model="themeConfig.columnsMenuBar" size="small"
+                            @change="onBgColorPickerChange('columnsMenuBar')"> </el-color-picker>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">顶栏默认字体颜色</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.topBarColor" size="small" @change="onBgColorPickerChange('topBarColor')"> </el-color-picker>
+                        <el-color-picker v-model="themeConfig.topBarColor" size="small"
+                            @change="onBgColorPickerChange('topBarColor')">
+                        </el-color-picker>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">菜单默认字体颜色</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.menuBarColor" size="small" @change="onBgColorPickerChange('menuBarColor')"> </el-color-picker>
-                    </div>
-                </div>
+
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">分栏菜单默认字体颜色</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.columnsMenuBarColor" size="small" @change="onBgColorPickerChange('columnsMenuBarColor')">
+                        <el-color-picker v-model="themeConfig.columnsMenuBarColor" size="small"
+                            @change="onBgColorPickerChange('columnsMenuBarColor')">
                         </el-color-picker>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt10">
                     <div class="layout-breadcrumb-seting-bar-flex-label">顶栏背景渐变</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isTopBarColorGradual" @change="onTopBarGradualChange"></el-switch>
-                    </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt14">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">菜单背景渐变</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isMenuBarColorGradual" @change="onMenuBarGradualChange"></el-switch>
-                    </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt14">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">分栏菜单背景渐变</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isColumnsMenuBarColorGradual" @change="onColumnsMenuBarGradualChange"></el-switch>
-                    </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt14">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">菜单字体背景高亮</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isMenuBarColorHighlight" @change="onMenuBarHighlightChange"></el-switch>
+                        <el-switch v-model="themeConfig.isTopBarColorGradual"
+                            @change="onTopBarGradualChange"></el-switch>
                     </div>
                 </div>
 
+                <div class="layout-breadcrumb-seting-bar-flex mt14">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">分栏菜单背景渐变</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-switch v-model="themeConfig.isColumnsMenuBarColorGradual"
+                            @change="onColumnsMenuBarGradualChange"></el-switch>
+                    </div>
+                </div> -->
+
                 <!-- 界面设置 -->
-                <el-divider content-position="left">界面设置</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.interfaceSetting') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">菜单水平折叠</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isCollapse') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isCollapse" @change="onThemeConfigChange"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">菜单手风琴</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isUniqueOpened') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isUniqueOpened" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isUniqueOpened"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">固定 Header</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isFixedHeader') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isFixedHeader" @change="onIsFixedHeaderChange"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15" :style="{ opacity: themeConfig.layout !== 'classic' ? 0.5 : 1 }">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">经典布局分割菜单</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isClassicSplitMenu') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isClassicSplitMenu" :disabled="themeConfig.layout !== 'classic'" @change="onClassicSplitMenuChange">
                         </el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启锁屏</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isLockScreen') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isLockScreen" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isLockScreen"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt11">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">自动锁屏(s/秒)</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.lockScreenTime') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-input-number
-                            v-model="themeConfig.lockScreenTime"
-                            controls-position="right"
-                            :min="0"
-                            :max="9999"
-                            @change="setLocalThemeConfig"
-                            size="small"
-                            style="width: 90px"
-                        >
+                        <el-input-number v-model="themeConfig.lockScreenTime" controls-position="right" :min="0" :max="9999" size="small" style="width: 90px">
                         </el-input-number>
                     </div>
                 </div>
 
                 <!-- 界面显示 -->
-                <el-divider content-position="left">界面显示</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.interfaceDisplay') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">侧边栏 Logo</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isShowLogo') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isShowLogo" @change="onIsShowLogoChange"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15" :style="{ opacity: themeConfig.layout === 'transverse' ? 0.5 : 1 }">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启Breadcrumb</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isBreadcrumb') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch
                             v-model="themeConfig.isBreadcrumb"
@@ -257,60 +275,68 @@
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启Breadcrumb图标</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isBreadcrumbIcon') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isBreadcrumbIcon" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isBreadcrumbIcon"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启 Tagsview</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isTagsview') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isTagsview" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isTagsview"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启 Tagsview图标</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isTagsviewIcon') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isTagsviewIcon" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isTagsviewIcon"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启 TagsView缓存</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isCacheTagsView') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isCacheTagsView" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isCacheTagsView"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启 TagsView拖拽</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.isSortableTagsView') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isSortableTagsView" @change="onSortableTagsViewChange"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启 Footer</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isFooter') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="themeConfig.isFooter" @change="setLocalThemeConfig"></el-switch>
+                        <el-switch v-model="themeConfig.isFooter"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">灰色模式</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isGrayscale') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isGrayscale" @change="onAddFilterChange('grayscale')"></el-switch>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">色弱模式</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isInvert') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isInvert" @change="onAddFilterChange('invert')"></el-switch>
                     </div>
                 </div>
 
                 <!-- 其它设置 -->
-                <el-divider content-position="left">其他设置</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.otherSetting') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">Tagsview 风格</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.tagsStyle') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select v-model="themeConfig.tagsStyle" placeholder="请选择" size="small" style="width: 90px" @change="setLocalThemeConfig">
+                        <el-select v-model="themeConfig.tagsStyle" placeholder="请选择" size="small" style="width: 90px">
                             <el-option label="风格1" value="tags-style-one"></el-option>
                             <el-option label="风格2" value="tags-style-two"></el-option>
                             <el-option label="风格3" value="tags-style-three"></el-option>
@@ -318,9 +344,9 @@
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">主页面切换动画</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.animation') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select v-model="themeConfig.animation" placeholder="请选择" size="small" style="width: 90px" @change="setLocalThemeConfig">
+                        <el-select v-model="themeConfig.animation" size="small" style="width: 90px">
                             <el-option label="slide-right" value="slide-right"></el-option>
                             <el-option label="slide-left" value="slide-left"></el-option>
                             <el-option label="opacitys" value="opacitys"></el-option>
@@ -328,9 +354,11 @@
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex mt15 mb28">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">分栏高亮风格</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">
+                        {{ $t('layout.config.columnsAsideStyle') }}
+                    </div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select v-model="themeConfig.columnsAsideStyle" placeholder="请选择" size="small" style="width: 90px" @change="setLocalThemeConfig">
+                        <el-select v-model="themeConfig.columnsAsideStyle" placeholder="请选择" size="small" style="width: 90px">
                             <el-option label="圆角" value="columns-round"></el-option>
                             <el-option label="卡片" value="columns-card"></el-option>
                         </el-select>
@@ -338,7 +366,7 @@
                 </div>
 
                 <!-- 布局切换 -->
-                <el-divider content-position="left">布局切换</el-divider>
+                <el-divider content-position="left">{{ $t('layout.config.layoutSwitch') }}</el-divider>
                 <div class="layout-drawer-content-flex">
                     <!-- defaults 布局 -->
                     <div class="layout-drawer-content-item" @click="onSetLayout('defaults')">
@@ -351,7 +379,7 @@
                         </section>
                         <div class="layout-tips-warp" :class="{ 'layout-tips-warp-active': themeConfig.layout === 'defaults' }">
                             <div class="layout-tips-box">
-                                <p class="layout-tips-txt">默认</p>
+                                <p class="layout-tips-txt">{{ $t('layout.config.defaults') }}</p>
                             </div>
                         </div>
                     </div>
@@ -368,7 +396,7 @@
                         </section>
                         <div class="layout-tips-warp" :class="{ 'layout-tips-warp-active': themeConfig.layout === 'classic' }">
                             <div class="layout-tips-box">
-                                <p class="layout-tips-txt">经典</p>
+                                <p class="layout-tips-txt">{{ $t('layout.config.classic') }}</p>
                             </div>
                         </div>
                     </div>
@@ -384,7 +412,7 @@
                         </section>
                         <div class="layout-tips-warp" :class="{ 'layout-tips-warp-active': themeConfig.layout === 'transverse' }">
                             <div class="layout-tips-box">
-                                <p class="layout-tips-txt">横向</p>
+                                <p class="layout-tips-txt">{{ $t('layout.config.transverse') }}</p>
                             </div>
                         </div>
                     </div>
@@ -400,7 +428,7 @@
                         </section>
                         <div class="layout-tips-warp" :class="{ 'layout-tips-warp-active': themeConfig.layout === 'columns' }">
                             <div class="layout-tips-box">
-                                <p class="layout-tips-txt">分栏</p>
+                                <p class="layout-tips-txt">{{ $t('layout.config.columns') }}</p>
                             </div>
                         </div>
                     </div>
@@ -429,12 +457,12 @@ import ClipboardJS from 'clipboard';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { getLightColor } from '@/common/utils/theme';
-import { setLocal, getLocal, removeLocal } from '@/common/utils/storage';
+import { setLocal, getLocal } from '@/common/utils/storage';
 import mittBus from '@/common/utils/mitt';
 import themes from '@/components/terminal/themes';
 
 const copyConfigBtnRef = ref();
-const { themeConfig } = storeToRefs(useThemeConfig());
+const { themeConfig } = storeToRefs(useThemeConfig()) as any;
 
 // 1、全局主题
 const onColorPickerChange = (color: string) => {
@@ -475,7 +503,7 @@ const setGraduaFun = (el: string, bool: boolean, color: string) => {
         if (!els) return false;
         if (bool) els.setAttribute('style', `background-image:linear-gradient(to bottom left , ${color}, ${getLightColor(color, 0.6)})`);
         else els.setAttribute('style', `background-image:${color}`);
-        setLocalThemeConfig();
+
         const elNavbars: any = document.querySelector('.layout-navbars-breadcrumb-index');
         const elAside: any = document.querySelector('.layout-container .el-aside');
         const elColumns: any = document.querySelector('.layout-container .layout-columns-aside');
@@ -498,7 +526,6 @@ const onMenuBarHighlightChange = () => {
             } else {
                 elActive.setAttribute('id', ``);
             }
-            setLocalThemeConfig();
         }, 0);
     });
 };
@@ -510,30 +537,26 @@ const onThemeConfigChange = () => {
 // 3、界面设置 --> 固定 Header
 const onIsFixedHeaderChange = () => {
     themeConfig.value.isFixedHeaderChange = themeConfig.value.isFixedHeader ? false : true;
-    setLocalThemeConfig();
 };
 // 3、界面设置 --> 经典布局分割菜单
 const onClassicSplitMenuChange = () => {
     themeConfig.value.isBreadcrumb = false;
-    setLocalThemeConfig();
+
     mittBus.emit('getBreadcrumbIndexSetFilterRoutes');
 };
 // 4、界面显示 --> 侧边栏 Logo
 const onIsShowLogoChange = () => {
     themeConfig.value.isShowLogoChange = themeConfig.value.isShowLogo ? false : true;
-    setLocalThemeConfig();
 };
 // 4、界面显示 --> 面包屑 Breadcrumb
 const onIsBreadcrumbChange = () => {
     if (themeConfig.value.layout === 'classic') {
         themeConfig.value.isClassicSplitMenu = false;
     }
-    setLocalThemeConfig();
 };
 // 4、界面显示 --> 开启 TagsView 拖拽
 const onSortableTagsViewChange = () => {
     mittBus.emit('openOrCloseSortable');
-    setLocalThemeConfig();
 };
 // 4、界面显示 --> 暗模式/灰色模式/色弱模式
 const onAddFilterChange = (attr: string) => {
@@ -545,7 +568,7 @@ const onAddFilterChange = (attr: string) => {
     const cssAttr = attr === 'grayscale' ? `grayscale(${themeConfig.value.isGrayscale ? 1 : 0})` : `invert(${themeConfig.value.isInvert ? '80%' : '0%'})`;
     const appEle: any = document.querySelector('#app');
     appEle.setAttribute('style', `filter: ${cssAttr}`);
-    setLocalThemeConfig();
+
     setLocal('appFilterStyle', appEle.style.cssText);
 };
 // 5、布局切换
@@ -603,7 +626,6 @@ const onDrawerClose = () => {
     themeConfig.value.isFixedHeaderChange = false;
     themeConfig.value.isShowLogoChange = false;
     themeConfig.value.isDrawer = false;
-    setLocalThemeConfig();
 };
 // 布局配置弹窗打开
 const openDrawer = () => {
@@ -613,16 +635,12 @@ const openDrawer = () => {
         onCopyConfigClick(copyConfigBtnRef.value?.$el);
     });
 };
+
 // 触发 store 布局配置更新
 const setDispatchThemeConfig = () => {
-    setLocalThemeConfig();
     setLocalThemeConfigStyle();
 };
-// 存储布局配置
-const setLocalThemeConfig = () => {
-    removeLocal('themeConfig');
-    setLocal('themeConfig', themeConfig.value);
-};
+
 // 存储布局配置全局主题样式（html根标签）
 const setLocalThemeConfigStyle = () => {
     setLocal('themeConfigStyle', document.documentElement.style.cssText);

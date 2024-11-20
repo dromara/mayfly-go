@@ -10,6 +10,7 @@ import (
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/guac"
+	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -85,7 +86,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 
 func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
 	machineCodesStr := rc.Query("codes")
-	biz.NotEmpty(machineCodesStr, "codes不能为空")
+	biz.NotEmpty(machineCodesStr, "codes cannot be empty")
 
 	var vos []vo.SimpleMachineVO
 	m.MachineApp.ListByCondToAny(model.NewCond().In("code", strings.Split(machineCodesStr, ",")), &vos)
@@ -94,7 +95,7 @@ func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
 
 func (m *Machine) MachineStats(rc *req.Ctx) {
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	rc.ResData = cli.GetAllStats()
 }
 
@@ -116,7 +117,7 @@ func (m *Machine) TestConn(rc *req.Ctx) {
 	machineForm := new(form.MachineForm)
 	me := req.BindJsonAndCopyTo(rc, machineForm, new(entity.Machine))
 	// 测试连接
-	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me, machineForm.AuthCerts[0]), "该机器无法连接: %s")
+	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me, machineForm.AuthCerts[0]), "connection error: %s")
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
@@ -132,9 +133,7 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineApp.Delete(rc.MetaCtx, uint64(value))
+		m.MachineApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
@@ -157,30 +156,30 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(cmd)
-	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
+	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 // 终止进程
 func (m *Machine) KillProcess(rc *req.Ctx) {
 	pid := rc.Query("pid")
-	biz.NotEmpty(pid, "进程id不能为空")
+	biz.NotEmpty(pid, "pid cannot be empty")
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
-	biz.ErrIsNil(err, "终止进程失败: %s", res)
+	biz.ErrIsNil(err, "kill fail: %s", res)
 }
 
 func (m *Machine) GetUsers(rc *req.Ctx) {
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	res, err := cli.GetUsers()
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -188,7 +187,7 @@ func (m *Machine) GetUsers(rc *req.Ctx) {
 
 func (m *Machine) GetGroups(rc *req.Ctx) {
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	res, err := cli.GetGroups()
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -204,17 +203,17 @@ func (m *Machine) WsSSH(g *gin.Context) {
 			wsConn.Close()
 		}
 	}()
-	biz.ErrIsNilAppendErr(err, "升级websocket失败: %s")
+	biz.ErrIsNilAppendErr(err, "Upgrade websocket fail: %s")
 	wsConn.WriteMessage(websocket.TextMessage, []byte("Connecting to host..."))
 
 	// 权限校验
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
-		panic(errorx.NewBiz(mcm.GetErrorContentRn("您没有权限操作该机器终端,请重新登录后再试~")))
+		panic(errorx.NewBiz(mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~")))
 	}
 
 	cli, err := m.MachineApp.NewCli(GetMachineAc(rc))
-	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("获取客户端连接失败: %s"))
+	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connection error: %s"))
 	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
 
@@ -224,12 +223,12 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	rows := rc.QueryIntDefault("rows", 32)
 
 	// 记录系统操作日志
-	rc.WithLog(req.NewLogSave("机器-终端操作"))
+	rc.WithLog(req.NewLogSaveI(imsg.LogMachineTerminalOp))
 	rc.ReqParam = cli.Info
 	req.LogHandler(rc)
 
 	err = m.MachineTermOpApp.TermConn(rc.MetaCtx, cli, wsConn, rows, cols)
-	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("连接失败: %s"))
+	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connect fail: %s"))
 }
 
 func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
@@ -263,7 +262,7 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
-		panic(errorx.NewBiz(mcm.GetErrorContentRn("您没有权限操作该机器终端,请重新登录后再试~")))
+		panic(errorx.NewBiz(mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~")))
 	}
 
 	ac := GetMachineAc(rc)
@@ -344,12 +343,12 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 
 func GetMachineId(rc *req.Ctx) uint64 {
 	machineId, _ := strconv.Atoi(rc.PathParam("machineId"))
-	biz.IsTrue(machineId != 0, "machineId错误")
+	biz.IsTrue(machineId != 0, "machineId error")
 	return uint64(machineId)
 }
 
 func GetMachineAc(rc *req.Ctx) string {
 	ac := rc.PathParam("ac")
-	biz.IsTrue(ac != "", "authCertName错误")
+	biz.IsTrue(ac != "", "authCertName error")
 	return ac
 }

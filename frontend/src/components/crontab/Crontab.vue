@@ -1,43 +1,43 @@
 <template>
     <div class="crontab">
         <el-tabs v-model="state.activeName" @tab-change="changeTab(state.activeName)" type="border-card">
-            <el-tab-pane label="秒" name="second" v-if="shouldHide('second')">
+            <el-tab-pane :label="$t('components.crontab.second')" name="second" v-if="shouldHide('second')">
                 <CrontabSecond :cron="crontabValueObj" ref="secondRef" />
             </el-tab-pane>
 
-            <el-tab-pane label="分钟" name="min" v-if="shouldHide('min')">
+            <el-tab-pane :label="$t('components.crontab.minute')" name="min" v-if="shouldHide('min')">
                 <CrontabMin :cron="crontabValueObj" ref="minRef" />
             </el-tab-pane>
 
-            <el-tab-pane label="小时" name="hour" v-if="shouldHide('hour')">
+            <el-tab-pane :label="$t('components.crontab.hour')" name="hour" v-if="shouldHide('hour')">
                 <CrontabHour :cron="crontabValueObj" ref="hourRef" />
             </el-tab-pane>
 
-            <el-tab-pane label="日" name="day" v-if="shouldHide('day')">
+            <el-tab-pane :label="$t('components.crontab.day')" name="day" v-if="shouldHide('day')">
                 <CrontabDay :cron="crontabValueObj" ref="dayRef" />
             </el-tab-pane>
 
-            <el-tab-pane label="月" name="mouth" v-if="shouldHide('mouth')">
+            <el-tab-pane :label="$t('components.crontab.month')" name="mouth" v-if="shouldHide('mouth')">
                 <CrontabMouth :cron="crontabValueObj" ref="mouthRef" />
             </el-tab-pane>
 
-            <el-tab-pane label="周" name="week" v-if="shouldHide('week')">
+            <el-tab-pane :label="$t('components.crontab.week')" name="week" v-if="shouldHide('week')">
                 <CrontabWeek :cron="crontabValueObj" ref="weekRef" />
             </el-tab-pane>
 
-            <el-tab-pane label="年" name="year" v-if="shouldHide('year')">
+            <el-tab-pane :label="$t('components.crontab.year')" name="year" v-if="shouldHide('year')">
                 <CrontabYear :cron="crontabValueObj" ref="yearRef" />
             </el-tab-pane>
         </el-tabs>
 
         <div class="popup-main">
             <div class="popup-result">
-                <p class="title">时间表达式</p>
+                <p class="title">{{ $t('components.crontab.timeExpression') }}</p>
                 <table>
                     <thead>
                         <tr>
                             <th v-for="item of tabTitles" width="40" :key="item">{{ item }}</th>
-                            <th>crontab完整表达式</th>
+                            <th>{{ $t('components.crontab.crontabCompleteExpression') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -73,9 +73,9 @@
             <CrontabResult :ex="crontabValueString"></CrontabResult>
 
             <div class="pop_btn">
-                <el-button size="small" @click="hidePopup">取消</el-button>
-                <el-button size="small" type="warning" @click="clearCron">重置</el-button>
-                <el-button size="small" type="primary" @click="submitFill">确定</el-button>
+                <el-button size="small" @click="hidePopup">{{ $t('common.cancel') }}</el-button>
+                <el-button size="small" type="warning" @click="clearCron">{{ $t('common.reset') }}</el-button>
+                <el-button size="small" type="primary" @click="submitFill">{{ $t('common.confirm') }}</el-button>
             </div>
         </div>
     </div>

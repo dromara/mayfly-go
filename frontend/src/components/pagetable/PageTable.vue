@@ -2,7 +2,8 @@
     <div>
         <transition name="el-zoom-in-top">
             <!-- 查询表单 -->
-            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm" :search="search" :reset="reset" :search-col="searchCol">
+            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm" :search="search"
+                :reset="reset" :search-col="searchCol">
                 <!-- 遍历父组件传入的 solts 透传给子组件 -->
                 <template v-for="(_, key) in useSlots()" v-slot:[key]>
                     <slot :name="key"></slot>
@@ -27,54 +28,45 @@
                                         <SvgIcon :size="16" name="CaretBottom" class="mr4 mt6 simple-search-form-btn" />
                                         <template #dropdown>
                                             <el-dropdown-menu>
-                                                <el-dropdown-item
-                                                    v-for="searchItem in searchItems"
-                                                    :key="searchItem.prop"
-                                                    @click="changeSimpleFormItem(searchItem)"
-                                                >
-                                                    {{ searchItem.label }}
+                                                <el-dropdown-item v-for="searchItem in searchItems"
+                                                    :key="searchItem.prop" @click="changeSimpleFormItem(searchItem)">
+                                                    {{ $t(searchItem.label) }}
                                                 </el-dropdown-item>
                                             </el-dropdown-menu>
                                         </template>
                                     </el-dropdown>
 
                                     <div class="simple-search-form-label mt5">
-                                        <el-text truncated tag="b">{{ `${nowSearchItem?.label} : ` }}</el-text>
+                                        <el-text truncated tag="b">{{ `${$t(nowSearchItem?.label)} : ` }}</el-text>
                                     </div>
 
                                     <el-form-item style="width: 200px" :key="nowSearchItem.prop">
-                                        <SearchFormItem
-                                            @keyup.enter.native="searchFormItemKeyUpEnter"
-                                            v-if="!nowSearchItem.slot"
-                                            :item="nowSearchItem"
-                                            v-model="queryForm[nowSearchItem.prop]"
-                                        />
+                                        <SearchFormItem @keyup.enter.native="searchFormItemKeyUpEnter"
+                                            v-if="!nowSearchItem.slot" :item="nowSearchItem"
+                                            v-model="queryForm[nowSearchItem.prop]" />
 
-                                        <slot @keyup.enter.native="searchFormItemKeyUpEnter" v-else :name="nowSearchItem.slot"></slot>
+                                        <slot @keyup.enter.native="searchFormItemKeyUpEnter" v-else
+                                            :name="nowSearchItem.slot">
+                                        </slot>
                                     </el-form-item>
                                 </div>
 
                                 <div>
-                                    <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search" circle @click="search" />
+                                    <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search"
+                                        circle @click="search" />
 
                                     <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
 
-                                    <el-button
-                                        v-if="showToolButton('search') && searchItems?.length > 1"
-                                        :icon="isShowSearch ? 'ArrowDown' : 'ArrowUp'"
-                                        circle
-                                        @click="isShowSearch = !isShowSearch"
-                                    />
+                                    <el-button v-if="showToolButton('search') && searchItems?.length > 1"
+                                        :icon="isShowSearch ? 'ArrowDown' : 'ArrowUp'" circle
+                                        @click="isShowSearch = !isShowSearch" />
 
-                                    <el-popover
-                                        placement="bottom"
-                                        title="表格配置"
-                                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
-                                        width="auto"
-                                        trigger="click"
-                                    >
+                                    <el-popover placement="bottom" title="表格配置"
+                                        popper-style="max-height: 550px; overflow: auto; max-width: 450px" width="auto"
+                                        trigger="click">
                                         <div v-for="(item, index) in tableColumns" :key="index">
-                                            <el-checkbox v-model="item.show" :label="item.label" :true-value="true" :false-value="false" />
+                                            <el-checkbox v-model="item.show" :label="item.label" :true-value="true"
+                                                :false-value="false" />
                                         </div>
                                         <template #reference>
                                             <el-button icon="Operation" circle :size="props.size"></el-button>
@@ -86,33 +78,16 @@
                     </div>
                 </div>
 
-                <el-table
-                    ref="tableRef"
-                    v-bind="$attrs"
-                    :max-height="tableMaxHeight"
-                    @selection-change="handleSelectionChange"
-                    :data="tableData"
-                    highlight-current-row
-                    v-loading="loading"
-                    :size="props.size as any"
-                    :border="border"
-                >
+                <el-table ref="tableRef" v-bind="$attrs" :max-height="tableMaxHeight"
+                    @selection-change="handleSelectionChange" :data="tableData" highlight-current-row
+                    v-loading="loading" :size="props.size as any" :border="border">
                     <el-table-column v-if="props.showSelection" :selectable="selectable" type="selection" width="40" />
 
                     <template v-for="(item, index) in tableColumns">
-                        <el-table-column
-                            :key="index"
-                            v-if="item.show"
-                            :prop="item.prop"
-                            :label="item.label"
-                            :fixed="item.fixed"
-                            :align="item.align"
-                            :show-overflow-tooltip="item.showOverflowTooltip"
-                            :min-width="item.minWidth"
-                            :sortable="item.sortable || false"
-                            :type="item.type"
-                            :width="item.width"
-                        >
+                        <el-table-column :key="index" v-if="item.show" :prop="item.prop" :label="$t(item.label)"
+                            :fixed="item.fixed" :align="item.align" :show-overflow-tooltip="item.showOverflowTooltip"
+                            :min-width="item.minWidth" :sortable="item.sortable || false" :type="item.type"
+                            :width="item.width">
                             <!-- 插槽：预留功能 -->
                             <template #default="scope" v-if="item.slot">
                                 <slot :name="item.slotName ? item.slotName : item.prop" :data="scope.row"></slot>
@@ -120,29 +95,21 @@
 
                             <!-- 枚举类型使用tab展示 -->
                             <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag :size="props.size" :enums="item.typeParam" :value="item.getValueByData(scope.row)"></enum-tag>
+                                <enum-tag :size="props.size" :enums="item.typeParam"
+                                    :value="item.getValueByData(scope.row)"></enum-tag>
                             </template>
 
                             <template #default="scope" v-else>
                                 <!-- 配置了美化文本按钮以及文本内容大于指定长度，则显示美化按钮 -->
-                                <el-popover
-                                    v-if="item.isBeautify && item.getValueByData(scope.row)?.length > 35"
-                                    effect="light"
-                                    trigger="click"
-                                    placement="top"
-                                    width="600px"
-                                >
+                                <el-popover v-if="item.isBeautify && item.getValueByData(scope.row)?.length > 35"
+                                    effect="light" trigger="click" placement="top" width="600px">
                                     <template #default>
-                                        <el-input :autosize="{ minRows: 3, maxRows: 15 }" disabled v-model="formatVal" type="textarea" />
+                                        <el-input :autosize="{ minRows: 3, maxRows: 15 }" disabled v-model="formatVal"
+                                            type="textarea" />
                                     </template>
                                     <template #reference>
-                                        <el-link
-                                            @click="formatText(item.getValueByData(scope.row))"
-                                            :underline="false"
-                                            type="success"
-                                            icon="MagicStick"
-                                            class="mr5"
-                                        ></el-link>
+                                        <el-link @click="formatText(item.getValueByData(scope.row))" :underline="false"
+                                            type="success" icon="MagicStick" class="mr5"></el-link>
                                     </template>
                                 </el-popover>
 
@@ -154,17 +121,10 @@
             </div>
 
             <el-row v-if="props.pageable" class="mt20" type="flex" justify="end">
-                <el-pagination
-                    :small="props.size == 'small'"
-                    @current-change="pageNumChange"
-                    @size-change="pageSizeChange"
-                    style="text-align: right"
-                    layout="prev, pager, next, total, sizes"
-                    :total="total"
-                    v-model:current-page="queryForm.pageNum"
-                    v-model:page-size="queryForm.pageSize"
-                    :page-sizes="pageSizes"
-                />
+                <el-pagination :small="props.size == 'small'" @current-change="pageNumChange"
+                    @size-change="pageSizeChange" style="text-align: right" layout="prev, pager, next, total, sizes"
+                    :total="total" v-model:current-page="queryForm.pageNum" v-model:page-size="queryForm.pageSize"
+                    :page-sizes="pageSizes" />
             </el-row>
         </div>
     </div>
@@ -184,6 +144,7 @@ import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { usePageTable } from '@/hooks/usePageTable';
 import { ElTable } from 'element-plus';
+
 
 const emit = defineEmits(['update:selectionData', 'pageSizeChange', 'pageNumChange']);
 
@@ -377,6 +338,7 @@ defineExpose({
     // 表格 header 样式
     .table-header {
         width: 100%;
+
         .header-button-lf {
             float: left;
         }
@@ -445,7 +407,7 @@ defineExpose({
         // }
 
         // 设置 el-table 中 header 文字不换行，并省略
-        .el-table__header .el-table__cell > .cell {
+        .el-table__header .el-table__cell>.cell {
             // white-space: nowrap;
             white-space: wrap;
         }

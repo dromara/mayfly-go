@@ -8,7 +8,7 @@
             :columns="state.columns"
         >
             <template #tableHeader>
-                <el-button v-auth="'authcert:save'" type="primary" icon="plus" @click="edit(false)">添加</el-button>
+                <el-button v-auth="'authcert:save'" type="primary" icon="plus" @click="edit(false)">{{ $t('common.create') }}</el-button>
             </template>
 
             <template #resourceCode="{ data }">
@@ -20,9 +20,9 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-auth="'authcert:save'" @click="edit(data)" type="primary" link>编辑</el-button>
+                <el-button v-auth="'authcert:save'" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
 
-                <el-button v-auth="'authcert:del'" @click="deleteAc(data)" type="danger" link>删除</el-button>
+                <el-button v-auth="'authcert:del'" @click="deleteAc(data)" type="danger" link>{{ $t('common.delete') }}</el-button>
             </template>
         </page-table>
 
@@ -50,6 +50,7 @@ import { AuthCertCiphertextTypeEnum, AuthCertTypeEnum } from './enums';
 import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
 import EnumValue from '@/common/Enum';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -59,24 +60,24 @@ const state = reactive({
         name: null,
     },
     searchItems: [
-        SearchItem.input('resourceCode', '资源编号'),
-        SearchItem.input('name', '凭证名称'),
-        SearchItem.select('resourceType', '资源类型').withEnum(ResourceTypeEnum),
-        SearchItem.select('type', '凭证类型').withEnum(AuthCertTypeEnum),
-        SearchItem.select('ciphertextType', '密文类型').withEnum(AuthCertCiphertextTypeEnum),
+        SearchItem.input('resourceCode', 'ac.resourceCode'),
+        SearchItem.input('name', 'ac.credentialName'),
+        SearchItem.select('resourceType', 'ac.resourceType').withEnum(ResourceTypeEnum),
+        SearchItem.select('type', 'ac.credentialType').withEnum(AuthCertTypeEnum),
+        SearchItem.select('ciphertextType', 'ac.ciphertextType').withEnum(AuthCertCiphertextTypeEnum),
     ],
     columns: [
-        TableColumn.new('name', '名称'),
-        TableColumn.new('type', '凭证类型').typeTag(AuthCertTypeEnum),
-        TableColumn.new('username', '用户名'),
-        TableColumn.new('ciphertextType', '密文类型').typeTag(AuthCertCiphertextTypeEnum),
-        TableColumn.new('resourceCode', '资源编号').isSlot().setAddWidth(30),
-        TableColumn.new('remark', '备注'),
-        TableColumn.new('creator', '创建人'),
-        TableColumn.new('createTime', '创建时间').isTime(),
-        TableColumn.new('modifier', '修改者'),
-        TableColumn.new('updateTime', '修改时间').isTime(),
-        TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(120).alignCenter(),
+        TableColumn.new('name', 'common.name'),
+        TableColumn.new('type', 'ac.credentialType').typeTag(AuthCertTypeEnum),
+        TableColumn.new('username', 'common.username'),
+        TableColumn.new('ciphertextType', 'ac.ciphertextType').typeTag(AuthCertCiphertextTypeEnum),
+        TableColumn.new('resourceCode', 'ac.resourceCode').isSlot().setAddWidth(30),
+        TableColumn.new('remark', 'common.remark'),
+        TableColumn.new('creator', 'common.creator'),
+        TableColumn.new('createTime', 'common.createTime').isTime(),
+        TableColumn.new('modifier', 'common.modifier'),
+        TableColumn.new('updateTime', 'common.updateTime').isTime(),
+        TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(120).alignCenter(),
     ],
     paramsDialog: {
         visible: false,
@@ -85,7 +86,7 @@ const state = reactive({
         paramsFormItem: [] as any,
     },
     editor: {
-        title: '添加授权凭证',
+        title: '',
         visible: false,
         authcert: {},
     },
@@ -105,7 +106,7 @@ const edit = (data: any) => {
     state.disableAuthCertType = [];
     state.disableAuthCertCiphertextType = [];
     if (data) {
-        state.editor.title = `编辑授权凭证-[${data.name}]`;
+        state.editor.title = useI18nEditTitle('ac.ac');
         state.editor.authcert = data;
         //  如果数据为公共授权凭证，则不允许修改凭证类型
         if (data.type == AuthCertTypeEnum.Public.value) {
@@ -116,7 +117,7 @@ const edit = (data: any) => {
             state.disableAuthCertType = [AuthCertTypeEnum.Public.value];
         }
     } else {
-        state.editor.title = '添加授权凭证';
+        state.editor.title = useI18nCreateTitle('ac.ac');
         state.editor.authcert = {
             type: AuthCertTypeEnum.Public.value,
             ciphertextType: AuthCertCiphertextTypeEnum.Password.value,
@@ -129,20 +130,16 @@ const edit = (data: any) => {
 
 const confirmSave = async (authCert: any) => {
     await resourceAuthCertApi.save.request(authCert);
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     state.editor.visible = false;
     search();
 };
 
 const deleteAc = async (data: any) => {
     try {
-        await ElMessageBox.confirm(`确定删除该【${data.name}授权凭证?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
+        await useI18nDeleteConfirm(data.name);
         await resourceAuthCertApi.delete.request({ id: data.id });
-        ElMessage.success('删除成功');
+        useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
         //

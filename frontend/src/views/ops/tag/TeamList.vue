@@ -10,8 +10,10 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
-                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #tags="{ data }">
@@ -21,14 +23,14 @@
             <template #validityDate="{ data }"> {{ data.validityStartDate }} ~ {{ data.validityEndDate }} </template>
 
             <template #action="{ data }">
-                <el-button @click.prevent="showMembers(data)" link type="primary">成员</el-button>
+                <el-button @click.prevent="showMembers(data)" link type="primary">{{ $t('team.member') }}</el-button>
 
-                <el-button v-auth="'team:save'" @click.prevent="showSaveTeamDialog(data)" link type="warning">编辑</el-button>
+                <el-button v-auth="'team:save'" @click.prevent="showSaveTeamDialog(data)" link type="warning">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
         <el-drawer
-            :title="addTeamDialog.form.id ? '编辑团队' : '添加团队'"
+            :title="addTeamDialog.title"
             v-model="addTeamDialog.visible"
             :before-close="cancelSaveTeam"
             :destroy-on-close="true"
@@ -36,20 +38,20 @@
             size="40%"
         >
             <template #header>
-                <DrawerHeader :header="addTeamDialog.form.id ? '编辑团队' : '添加团队'" :back="cancelSaveTeam" />
+                <DrawerHeader :header="addTeamDialog.title" :back="cancelSaveTeam" />
             </template>
 
             <el-form ref="teamForm" :model="addTeamDialog.form" :rules="teamFormRules" label-width="auto">
-                <el-form-item prop="name" label="团队名" required>
+                <el-form-item prop="name" :label="$t('common.name')" required>
                     <el-input :disabled="addTeamDialog.form.id" v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="validityDate" label="生效时间" required>
+                <el-form-item prop="validityDate" :label="$t('team.validity')" required>
                     <el-date-picker
                         v-model="addTeamDialog.form.validityDate"
                         type="datetimerange"
-                        start-placeholder="生效开始时间"
-                        end-placeholder="生效结束时间"
+                        :start-placeholder="$t('team.effectiveStartTime')"
+                        :end-placeholder="$t('team.effectiveEndTime')"
                         format="YYYY-MM-DD HH:mm:ss"
                         value-format="YYYY-MM-DD HH:mm:ss"
                         date-format="YYYY-MM-DD"
@@ -57,18 +59,18 @@
                     />
                 </el-form-item>
 
-                <el-form-item label="备注">
+                <el-form-item :label="$t('common.remark')">
                     <el-input v-model="addTeamDialog.form.remark" auto-complete="off"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="tag" label="标签">
+                <el-form-item prop="tag" :label="$t('common.tag')">
                     <TagTreeCheck height="calc(100vh - 390px)" v-model="state.addTeamDialog.form.codePaths" :tag-type="0" />
                 </el-form-item>
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancelSaveTeam()">取 消</el-button>
-                    <el-button @click="saveTeam" type="primary">确 定</el-button>
+                    <el-button @click="cancelSaveTeam()">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="saveTeam" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -83,7 +85,7 @@
                 :columns="showMemDialog.columns"
             >
                 <template #tableHeader>
-                    <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus">添加</el-button>
+                    <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus">{{ $t('common.add') }}</el-button>
                 </template>
 
                 <template #action="{ data }">
@@ -91,14 +93,14 @@
                 </template>
             </page-table>
 
-            <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
+            <el-dialog width="400px" :title="$t('team.addMember')" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
                     <AccountSelectFormItem v-model="showMemDialog.memForm.accountIds" multiple focus />
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button @click="cancelAddMember()">取 消</el-button>
-                        <el-button @click="addMember" type="primary">确 定</el-button>
+                        <el-button @click="cancelAddMember()">{{ $t('common.cancel') }}</el-button>
+                        <el-button @click="addMember" type="primary">{{ $t('common.confirm') }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -119,6 +121,20 @@ import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagTreeCheck from '../component/TagTreeCheck.vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import { formatDate } from '@/common/utils/format';
+import { useI18n } from 'vue-i18n';
+import {
+    useI18nCreateTitle,
+    useI18nDeleteConfirm,
+    useI18nDeleteSuccessMsg,
+    useI18nEditTitle,
+    useI18nFormValidate,
+    useI18nOperateSuccessMsg,
+    useI18nPleaseInput,
+    useI18nPleaseSelect,
+    useI18nSaveSuccessMsg,
+} from '@/hooks/useI18n';
+
+const { t } = useI18n();
 
 const teamForm: any = ref(null);
 const pageTableRef: Ref<any> = ref(null);
@@ -128,35 +144,36 @@ const teamFormRules = {
     name: [
         {
             required: true,
-            message: '请输入团队名',
+            message: useI18nPleaseInput('common.name'),
             trigger: ['change', 'blur'],
         },
     ],
     validityDate: [
         {
             required: true,
-            message: '请选择生效时间',
+            message: useI18nPleaseSelect('team.validity'),
             trigger: ['change', 'blur'],
         },
     ],
 };
 
-const searchItems = [SearchItem.input('name', '团队名称')];
+const searchItems = [SearchItem.input('name', 'common.name')];
 const columns = [
-    TableColumn.new('name', '团队名称'),
-    TableColumn.new('tags', '分配标签').isSlot().setAddWidth(40),
-    TableColumn.new('validityDate', '有效期').isSlot('validityDate').setMinWidth(310),
-    TableColumn.new('remark', '备注'),
-    TableColumn.new('creator', '创建者'),
-    TableColumn.new('createTime', '创建时间').isTime(),
-    TableColumn.new('modifier', '修改者'),
-    TableColumn.new('updateTime', '修改时间').isTime(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('tags', 'team.allocateTag').isSlot().setAddWidth(40),
+    TableColumn.new('validityDate', 'team.validity').isSlot('validityDate').setMinWidth(310),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('createTime', 'common.createTime').isTime(),
+    TableColumn.new('modifier', 'common.modifier'),
+    TableColumn.new('updateTime', 'common.updateTime').isTime(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(130).fixedRight().noShowOverflowTooltip().alignCenter(),
 ];
 
 const state = reactive({
     currentEditPermissions: false,
     addTeamDialog: {
+        title: '',
         visible: false,
         form: { id: 0, name: '', validityDate: ['', ''], validityStartDate: '', validityEndDate: '', remark: '', codePaths: [] },
     },
@@ -167,13 +184,13 @@ const state = reactive({
     },
     selectionData: [],
     showMemDialog: {
-        searchItems: [SearchItem.input('username', '用户名').withSpan(2)],
+        searchItems: [SearchItem.input('username', 'common.username').withSpan(2)],
         columns: [
-            TableColumn.new('name', '姓名'),
-            TableColumn.new('username', '账号'),
-            TableColumn.new('createTime', '加入时间').isTime(),
-            TableColumn.new('creator', '分配者'),
-            TableColumn.new('action', '操作').isSlot().setMinWidth(80).fixedRight().alignCenter(),
+            TableColumn.new('name', 'team.accountName'),
+            TableColumn.new('username', 'common.username'),
+            TableColumn.new('createTime', 'team.joinTime').isTime(),
+            TableColumn.new('creator', 'team.assigner'),
+            TableColumn.new('action', 'common.operation').isSlot().setMinWidth(80).fixedRight().alignCenter(),
         ],
         visible: false,
         query: {
@@ -206,12 +223,14 @@ const search = async () => {
 
 const showSaveTeamDialog = async (data: any) => {
     if (data) {
+        state.addTeamDialog.title = useI18nEditTitle('team.team');
         state.addTeamDialog.form.id = data.id;
         state.addTeamDialog.form.name = data.name;
         state.addTeamDialog.form.validityDate = [data.validityStartDate, data.validityEndDate];
         state.addTeamDialog.form.remark = data.remark;
         state.addTeamDialog.form.codePaths = data.tags?.map((tag: any) => tag.codePath);
     } else {
+        state.addTeamDialog.title = useI18nCreateTitle('team.team');
         let end = new Date();
         end.setFullYear(end.getFullYear() + 10);
         state.addTeamDialog.form.validityDate = [formatDate(new Date()), formatDate(end)];
@@ -221,18 +240,12 @@ const showSaveTeamDialog = async (data: any) => {
 };
 
 const saveTeam = async () => {
-    try {
-        await teamForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
-    }
-
+    await useI18nFormValidate(teamForm);
     const form = state.addTeamDialog.form;
     form.validityStartDate = form.validityDate[0];
     form.validityEndDate = form.validityDate[1];
     await tagApi.saveTeam.request(form);
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     search();
     cancelSaveTeam();
 };
@@ -245,16 +258,11 @@ const cancelSaveTeam = () => {
     }, 500);
 };
 
-const deleteTeam = () => {
-    ElMessageBox.confirm(`此操作将删除【${state.selectionData.map((x: any) => x.name).join(', ')}】团队信息, 是否继续?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    }).then(async () => {
-        await tagApi.delTeam.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功！');
-        search();
-    });
+const deleteTeam = async () => {
+    await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
+    await tagApi.delTeam.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+    useI18nDeleteSuccessMsg();
+    search();
 };
 
 /********** 团队成员相关 ***********/
@@ -262,12 +270,12 @@ const deleteTeam = () => {
 const showMembers = async (team: any) => {
     state.showMemDialog.query.teamId = team.id;
     state.showMemDialog.visible = true;
-    state.showMemDialog.title = `[${team.name}] 成员信息`;
+    state.showMemDialog.title = t('team.teamMember', { teamName: team.name });
 };
 
 const deleteMember = async (data: any) => {
     await tagApi.delTeamMem.request(data);
-    ElMessage.success('移除成功');
+    useI18nOperateSuccessMsg();
     // 重新赋值成员列表
     setMemebers();
 };
@@ -286,10 +294,10 @@ const showAddMemberDialog = () => {
 const addMember = async () => {
     const memForm = state.showMemDialog.memForm;
     memForm.teamId = state.showMemDialog.query.teamId;
-    notBlank(memForm.accountIds, '请先选择账号');
+    notBlank(memForm.accountIds, t('team.selectAccountTips'));
 
     await tagApi.saveTeamMem.request(memForm);
-    ElMessage.success('保存成功');
+    useI18nSaveSuccessMsg();
     setMemebers();
     cancelAddMember();
 };

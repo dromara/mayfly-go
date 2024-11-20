@@ -64,7 +64,7 @@ func (d *DbInfo) GetLogDesc() string {
 // 连接数据库
 func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	if meta == nil {
-		return nil, errorx.NewBiz("数据库元信息接口不能为空")
+		return nil, errorx.NewBiz("the database meta information interface cannot be empty")
 	}
 
 	// 赋值Meta，方便后续获取dialect等
@@ -78,14 +78,14 @@ func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 
 	conn, err := meta.GetSqlDb(dbInfo)
 	if err != nil {
-		logx.Errorf("连接db失败: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
-		return nil, errorx.NewBiz(fmt.Sprintf("数据库连接失败: %s", err.Error()))
+		logx.Errorf("db connection failed: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
+		return nil, errorx.NewBiz(fmt.Sprintf("db connection failed: %s", err.Error()))
 	}
 
 	err = conn.Ping()
 	if err != nil {
-		logx.Errorf("db ping失败: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
-		return nil, errorx.NewBiz(fmt.Sprintf("数据库连接失败: %s", err.Error()))
+		logx.Errorf("db ping failed: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
+		return nil, errorx.NewBiz(fmt.Sprintf("db connection failed: %s", err.Error()))
 	}
 
 	dbc := &DbConn{Id: GetDbConnId(dbInfo.Id, database), Info: dbInfo}
@@ -97,7 +97,7 @@ func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	// 设置闲置连接数
 	conn.SetMaxIdleConns(1)
 	dbc.db = conn
-	logx.Infof("连接db: %s:%d/%s", dbInfo.Host, dbInfo.Port, database)
+	logx.Infof("db connection: %s:%d/%s", dbInfo.Host, dbInfo.Port, database)
 
 	return dbc, nil
 }

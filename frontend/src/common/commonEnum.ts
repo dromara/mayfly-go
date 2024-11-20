@@ -1,4 +1,13 @@
 import EnumValue from './Enum';
+// element plus 自带国际化
+import zhcnLocale from 'element-plus/es/locale/lang/zh-cn';
+import enLocale from 'element-plus/es/locale/lang/en';
+
+// i18n
+export const I18nEnum = {
+    ZhCn: EnumValue.of('zh-cn', '简体中文').setExtra({ icon: 'iconfont icon-fuhao-zhongwen', el: zhcnLocale }),
+    En: EnumValue.of('en', 'English').setExtra({ icon: 'iconfont icon-fuhao-yingwen', el: enLocale }),
+};
 
 // 资源类型
 export const ResourceTypeEnum = {
