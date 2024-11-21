@@ -5,7 +5,6 @@
                 <img :src="themeConfig.logoIcon" />
                 <div class="login-left-logo-text">
                     <span>{{ themeConfig.globalViceTitle }}</span>
-                    <!-- <span class="login-left-logo-text-msg">mayfly-go</span> -->
                 </div>
             </div>
             <div class="login-left-img">
@@ -13,12 +12,49 @@
             </div>
             <img :src="loginBgSplitImg" class="login-left-waves" />
         </div>
+
         <div class="login-right flex">
             <div class="login-right-warp flex-margin">
-                <span class="login-right-warp-one"></span>
+                <span class="login-right-warp-one"> </span>
                 <span class="login-right-warp-two"></span>
+
                 <div class="login-right-warp-mian">
-                    <div class="login-right-warp-main-title">{{ themeConfig.globalViceTitle }}</div>
+                    <div class="login-right-warp-main-title">
+                        {{ themeConfig.globalViceTitle }}
+
+                        <el-dropdown
+                            :show-timeout="70"
+                            :hide-timeout="50"
+                            trigger="click"
+                            @command="
+                                (lang: string) => {
+                                    themeConfig.globalI18n = lang;
+                                }
+                            "
+                        >
+                            <div>
+                                <SvgIcon
+                                    :size="16"
+                                    :name="EnumValue.getEnumByValue(I18nEnum, themeConfig.globalI18n)?.extra.icon"
+                                    :title="$t('layout.user.langSwitch')"
+                                    style="margin-top: 50px; margin-left: 20px"
+                                />
+                            </div>
+                            <template #dropdown>
+                                <el-dropdown-menu>
+                                    <el-dropdown-item
+                                        v-for="item in I18nEnum"
+                                        :key="item.value"
+                                        :command="item.value"
+                                        :disabled="themeConfig.globalI18n === item.value"
+                                    >
+                                        {{ item.label }}
+                                    </el-dropdown-item>
+                                </el-dropdown-menu>
+                            </template>
+                        </el-dropdown>
+                    </div>
+
                     <div class="login-right-warp-main-form">
                         <div v-if="!state.isScan">
                             <el-tabs v-model="state.tabsActiveName">
@@ -27,9 +63,9 @@
                                 </el-tab-pane>
                             </el-tabs>
                         </div>
-                        <div class="mt20" v-show="state.oauth2LoginConfig.enable">
-                            <el-button link size="small">{{ $t('login.thirdPartyLogin') }}: </el-button>
-                            <el-tooltip :content="state.oauth2LoginConfig.name" placement="top-start">
+                        <div class="mt20" v-if="state.oauth2LoginConfig.enable">
+                            <el-text size="small">{{ $t('login.thirdPartyLogin') }}: </el-text>
+                            <el-tooltip :content="state.oauth2LoginConfig.name" placement="bottom-start">
                                 <el-button link size="small" type="primary" @click="oauth2Login">
                                     <el-icon :size="18">
                                         <Link />
@@ -53,6 +89,8 @@ import openApi from '@/common/openApi';
 import config from '@/common/config';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import EnumValue from '../../common/Enum';
+import { I18nEnum } from '../../common/commonEnum';
 
 // 引入组件
 const Account = defineAsyncComponent(() => import('./component/AccountLogin.vue'));

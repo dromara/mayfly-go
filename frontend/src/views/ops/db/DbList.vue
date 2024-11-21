@@ -214,7 +214,6 @@ import ResourceTags from '../component/ResourceTags.vue';
 import { sleep } from '@/common/utils/loading';
 import { DbGetDbNamesMode } from './enums';
 import { DbInst } from './db';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
@@ -241,10 +240,10 @@ const columns = ref([
     TableColumn.new('name', 'common.name'),
     TableColumn.new('authCertName', 'db.acName'),
     TableColumn.new('getDatabaseMode', 'db.getDbMode').typeTag(DbGetDbNamesMode),
-    TableColumn.new('database', 'DB').isSlot().setMinWidth(80),
+    TableColumn.new('database', 'DB').isSlot().setMinWidth(90),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(210).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(210).fixedRight().noShowOverflowTooltip().alignCenter(),
 ]);
 
 const perms = {

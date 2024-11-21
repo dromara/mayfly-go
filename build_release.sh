@@ -28,13 +28,13 @@ function buildWeb() {
     cd ${web_folder}
     copy2Server=$1
 
-    echo_yellow "-------------------打包前端开始-------------------"
+    echo_yellow "-------------------Start bundling frontends-------------------"
     yarn run build
     if [ "${copy2Server}" == "2" ] ; then
-        echo_green '将打包后的静态文件拷贝至server/static/static'
+        echo_green 'Copy the packaged static files to server/static/static'
         rm -rf ${server_folder}/static/static && mkdir -p ${server_folder}/static/static && cp -r ${web_folder}/dist/* ${server_folder}/static/static
     fi
-    echo_yellow ">>>>>>>>>>>>>>>>>>>打包前端结束<<<<<<<<<<<<<<<<<<<<\n"
+    echo_yellow ">>>>>>>>>>>>>>>>>>>End of packaging frontend<<<<<<<<<<<<<<<<<<<<\n"
 }
 
 function build() {
@@ -46,10 +46,10 @@ function build() {
     arch=$3
     copyDocScript=$4
 
-    echo_yellow "-------------------${os}-${arch}打包构建开始-------------------"
+    echo_yellow "-------------------Start a bundle build - ${os}-${arch}-------------------"
 
     cd ${server_folder}
-    echo_green "打包构建可执行文件..."
+    echo_green "Package build executables..."
 
     execFileName=${exec_file_name}
     # 如果是windows系统,可执行文件需要添加.exe结尾
@@ -59,13 +59,13 @@ function build() {
     CGO_ENABLE=0 GOOS=${os} GOARCH=${arch} go build -ldflags=-w -o ${execFileName} main.go
 
     if [ -d ${toFolder} ] ; then
-        echo_green "目标文件夹已存在,清空文件夹"
+        echo_green "The desired folder already exists. Clear the folder"
         sudo rm -rf ${toFolder}
     fi
-    echo_green "创建'${toFolder}'目录"
+    echo_green "Create '${toFolder}' Directory"
     mkdir ${toFolder}
 
-    echo_green "移动二进制文件至'${toFolder}'"
+    echo_green "Move binary to '${toFolder}'"
     mv ${server_folder}/${execFileName} ${toFolder}
 
     # if [ "${copy2Server}" == "1" ] ; then
@@ -74,16 +74,17 @@ function build() {
     # fi
 
     if [ "${copyDocScript}" == "1" ] ; then
-        echo_green "拷贝脚本等资源文件[config.yml.example、mayfly-go.sql、mayfly-go.sqlite、readme.txt、startup.sh、shutdown.sh]"
+        echo_green "Copy resources such as scripts [config.yml.example、mayfly-go.sql、mayfly-go.sqlite、readme.txt、startup.sh、shutdown.sh]"
         cp ${server_folder}/config.yml.example ${toFolder}
         cp ${server_folder}/readme.txt ${toFolder}
+        cp ${server_folder}/readme_cn.txt ${toFolder}
         cp ${server_folder}/resources/script/startup.sh ${toFolder}
         cp ${server_folder}/resources/script/shutdown.sh ${toFolder}
         cp ${server_folder}/resources/script/sql/mayfly-go.sql ${toFolder}
         cp ${server_folder}/resources/data/mayfly-go.sqlite ${toFolder}
     fi
 
-    echo_yellow ">>>>>>>>>>>>>>>>>>>${os}-${arch}打包构建完成<<<<<<<<<<<<<<<<<<<<\n"
+    echo_yellow ">>>>>>>>>>>>>>>>>>> ${os}-${arch} - Bundle build complete <<<<<<<<<<<<<<<<<<<<\n"
 }
 
 function buildLinuxAmd64() {
@@ -103,25 +104,25 @@ function buildMac() {
 }
 
 function buildDocker() {
-    echo_yellow "-------------------构建docker镜像开始-------------------"
+    echo_yellow "-------------------Start building the docker image-------------------"
     imageVersion=$1
     imageName="mayfly/mayfly-go:${imageVersion}"
     docker build --no-cache --platform linux/amd64 --build-arg MAYFLY_GO_VERSION="${imageVersion}" -t "${imageName}" .
-    echo_green "docker镜像构建完成->[${imageName}]"
-    echo_yellow "-------------------构建docker镜像结束-------------------"
+    echo_green "The docker image is built -> [${imageName}]"
+    echo_yellow "-------------------Finished building the docker image-------------------"
 }
 
 function buildxDocker() {
-    echo_yellow "-------------------docker buildx构建镜像开始-------------------"
+    echo_yellow "-------------------The docker buildx build image starts-------------------"
     imageVersion=$1
     imageName="ccr.ccs.tencentyun.com/mayfly/mayfly-go:${imageVersion}"
     docker buildx build --no-cache --push --platform linux/amd64,linux/arm64 --build-arg MAYFLY_GO_VERSION="${imageVersion}" -t "${imageName}" .
-    echo_green "docker多版本镜像构建完成->[${imageName}]"
-    echo_yellow "-------------------docker buildx构建镜像结束-------------------"
+    echo_green "The docker multi-architecture version image is built -> [${imageName}]"
+    echo_yellow "-------------------The docker buildx image is finished-------------------"
 }
 
 function runBuild() {
-    read -p "请选择构建版本[0|其他->除docker镜像外其他 1->linux-amd64 2->linux-arm64 3->windows 4->mac 5->docker 6->docker buildx]: " buildType
+    read -p "Select build version [0 | Other->Other than docker image 1->linux-amd64 2->linux-arm64 3->windows 4->mac 5->docker 6->docker buildx]: " buildType
 
     toPath="."
     imageVersion="latest"
@@ -129,16 +130,16 @@ function runBuild() {
 
     if [[ "${buildType}" != "5" ]] && [[ "${buildType}" != "6" ]] ; then
         # 构建结果的目的路径
-        read -p "请输入构建产物输出目录[默认当前路径]: " toPath
+        read -p "Please enter the build product output directory [default current path]: " toPath
         if [ ! -d ${toPath} ] ; then
-            echo_red "构建产物输出目录不存在!"
+            echo_red "Build product output directory does not exist!"
             exit;
         fi
         if [ "${toPath}" == "" ] ; then
             toPath="."
         fi
 
-        read -p "是否拷贝文档&脚本[0->否 1->是][默认是]: " copyDocScript
+        read -p "Whether to copy documents & Scripts [0-> No 1-> Yes][Default yes]: " copyDocScript
         if [ "${copyDocScript}" == "" ] ; then
             copyDocScript="1"
         fi
@@ -154,7 +155,7 @@ function runBuild() {
     fi
 
     if [[ "${buildType}" == "5" ]] || [[ "${buildType}" == "6" ]] ; then
-        read -p "请输入docker镜像版本号[默认latest]: " imageVersion
+        read -p "Please enter the docker image version (default latest) : " imageVersion
 
         if [ "${imageVersion}" == "" ] ; then
             imageVersion="latest"
@@ -189,7 +190,7 @@ function runBuild() {
     esac
 
     if [[ "${buildType}" != "5" ]] && [[ "${buildType}" != "6" ]] ; then
-        echo_green "删除['${server_folder}/static/static']下静态资源文件."
+        echo_green "Delete static assets under ['${server_folder}/static/static']."
         # 删除静态资源文件，保留一个favicon.ico，否则后端启动会报错
         rm -rf ${server_folder}/static/static/assets
         rm -rf ${server_folder}/static/static/config.js

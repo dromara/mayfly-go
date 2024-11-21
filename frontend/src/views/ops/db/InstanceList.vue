@@ -128,7 +128,7 @@ const columns = ref([
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns: any = hasPerms(Object.values(perms));
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({

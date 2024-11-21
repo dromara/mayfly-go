@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"mayfly-go/pkg/i18n"
 )
 
 type Server struct {
@@ -17,7 +18,7 @@ type Server struct {
 
 func (s *Server) Default() {
 	if s.Lang == "" {
-		s.Lang = "zh_CN"
+		s.Lang = i18n.Zh_CN
 	}
 	if s.Model == "" {
 		s.Model = "release"

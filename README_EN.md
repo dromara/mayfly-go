@@ -1,9 +1,9 @@
 # 🌈mayfly-go
 
 <p align="center">
-    <a href="./README_EN.md">English</a> | 
-    <a href="https://www.yuque.com/may-fly/mayfly-go">项目文档</a> | 
-    <a href="https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854">操作视频</a> | 
+    <a href="./README.md">中文介绍</a> | 
+    <a href="https://www.yuque.com/may-fly/mayfly-go">Documentation</a> | 
+    <a href="https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854">Operate Video</a> 
 </p>
 
 <p align="center">
@@ -26,84 +26,80 @@
   </a>
 </p>
 
-## 前言
+## Preface
 
-web 版 **linux(终端[终端回放、命令过滤] 文件 脚本 进程 计划任务)。数据库（mysql postgres oracle sqlserver 达梦 高斯 sqlite）数据操作、数据同步、数据迁移。redis(单机 哨兵 集群)。mongo 等集工单流程审批于一体的统一管理操作平台。**
+Browser-based management platform. **linux(Terminal [terminal playback, command filtering], file, script, process, cronjob), database (mysql, postgres, oracle, sqlserver, Dameng, gauss, sqlite) data operation, data synchronization, data migration, redis(standlone, sentinel, cluster), mongo and other unified management and operation platforms that integrate work order process approval.**
 
-## 开发语言与主要框架
+## Development languages and major frameworks
 
-- 前端：typescript、vue3、element-plus
-- 后端：golang、gin、gorm
+- frontend：typescript、vue3、element-plus
+- backend：golang、gin、gorm
 
-## 交流及问题反馈加 QQ 群
-
-<a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=IdJSHW0jTMhmWFHBUS9a83wxtrxDDhFj&jump_from=webapi">119699946</a>
-
-## 演示环境
+## Demo
 
 http://go.mayfly.run
-账号/密码：test/test123.
+account/password：test/test123.
 
-## 系统核心功能截图
+## Screenshots of core features
 
-#### 首页
+#### Home page
 
 ![首页](https://foruda.gitee.com/images/1714378104294194769/149fd257_1240250.png "屏幕截图")
 
-#### 机器操作
+#### Machine Operation
 
-##### 状态查看
+##### Status
 
 ![机器状态查看](https://foruda.gitee.com/images/1714378556642584686/93c46ec0_1240250.png "屏幕截图")
 
-##### ssh 终端
+##### SSH Terminal
 
 ![终端操作](https://foruda.gitee.com/images/1714378353790214943/2864ba66_1240250.png "屏幕截图")
 
-##### 文件操作
+##### File Operation
 
 ![文件操作](https://foruda.gitee.com/images/1714378417206086701/74a188d8_1240250.png "屏幕截图")
 
 ![文件查看](https://foruda.gitee.com/images/1714378482611638688/7753faf6_1240250.png "屏幕截图")
 
-#### 数据库操作
+#### Database Operation
 
-##### sql 编辑器
+##### SQL Editor
 
 ![sql编辑器](https://foruda.gitee.com/images/1714378747473077515/3c9387c0_1240250.png "屏幕截图")
 
-##### 在线增删改查数据
+##### Add, delete, update and check data online
 
 ![选表查数据](https://foruda.gitee.com/images/1714378625059063750/3951e5a8_1240250.png "屏幕截图")
 
-#### Redis 操作
+#### Redis Operation
 
 ![redis操作](https://foruda.gitee.com/images/1714378855845451114/4c3f0097_1240250.png "屏幕截图")
 
-#### Mongo 操作
+#### Mongo Operation
 
 ![mongo操作](https://foruda.gitee.com/images/1714378916425714642/77fc0ed9_1240250.png "屏幕截图")
 
-#### 工单流程审批
+#### Work order process approval
 
 ![流程审批](https://foruda.gitee.com/images/1714379057627690037/ad136862_1240250.png "屏幕截图")
 
-#### 系统管理
+#### System Management
 
-##### 账号管理
+##### Account
 
 ![账号管理](https://foruda.gitee.com/images/1714379179491881231/c6d802ae_1240250.png "屏幕截图")
 
-##### 角色管理
+##### Role
 
 ![角色管理](https://foruda.gitee.com/images/1714379269408676381/6ac1e85c_1240250.png "屏幕截图")
 
-##### 菜单资源管理
+##### Menu & Permission
 
 ![菜单资源管理](https://foruda.gitee.com/images/1714379321338009940/a00d6a02_1240250.png "屏幕截图")
 
-**其他更多功能&操作指南可查看上述项目文档**
+**Additional features & instructions can be found in the project documentation above.**
 
-## 💌 支持作者
+## 💌 Supporting Author
 
-如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> 或者 <a target="_blank" href="https://gitee.com/dromara/mayfly-go">Gitee</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。
+If you think the project is good, or you are already using it, I hope you can go to <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> to help me click ⭐ Star, which will be a great encouragement and support for me.

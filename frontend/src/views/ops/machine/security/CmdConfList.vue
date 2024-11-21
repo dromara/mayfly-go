@@ -17,7 +17,7 @@
             <el-table-column prop="remark" :label="$t('common.remark')" show-overflow-tooltip width="120px"> </el-table-column>
             <el-table-column prop="creator" :label="$t('common.creator')" show-overflow-tooltip width="100px"> </el-table-column>
 
-            <el-table-column :label="$t('common.operation')" min-wdith="100px">
+            <el-table-column :label="$t('common.operation')" min-width="120px">
                 <template #header>
                     <el-text tag="b">{{ $t('common.operation') }}</el-text>
                     <el-button v-auth="'cmdconf:save'" class="ml5" type="primary" circle size="small" icon="Plus" @click="openFormDialog(false)"> </el-button>
@@ -95,15 +95,11 @@
 import { ref, toRefs, reactive, onMounted, nextTick } from 'vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { cmdConfApi } from '../api';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagCodePath from '../../component/TagCodePath.vue';
 import _ from 'lodash';
-import { useI18n } from 'vue-i18n';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
-
-const { t } = useI18n();
 
 const rules = {
     tags: [

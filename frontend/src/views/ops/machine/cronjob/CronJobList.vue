@@ -73,7 +73,7 @@ const columns = ref([
     TableColumn.new('saveExecResType', 'machine.execResRecordType').typeTag(CronJobSaveExecResTypeEnum),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('codePaths', 'machine.relateMachine').isSlot().setMinWidth('250px'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter(),
 ]);
 
 const pageTableRef: Ref<any> = ref(null);
