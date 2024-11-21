@@ -332,7 +332,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 		// 生成insert sql，数据在索引前，加速insert
 		if reqParam.DumpData {
-			log(fmt.Sprintf("生成表[%s]DML...", tableName))
+			log(fmt.Sprintf("Generate table [%s] DML...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Data: %s \n-- ----------------------------\n", tableName))
 
 			dumpHelper.BeforeInsert(writer, quoteTableName)

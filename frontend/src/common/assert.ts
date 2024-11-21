@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n';
+
 /**
  * 不符合业务断言错误
  */
@@ -29,6 +31,16 @@ export function isTrue(condition: boolean, msg: string) {
  */
 export function notBlank(obj: any, msg: string) {
     isTrue(obj, msg);
+}
+
+/**
+ * 断言不能为空值，即null,0,''等
+ *
+ * @param obj 对象
+ * @param field 字段（支持i18n msgKey）
+ */
+export function notBlankI18n(obj: any, field: string) {
+    notBlank(obj, i18n.global.t('common.fieldNotEmpty', { field: i18n.global.t(field) }));
 }
 
 /**
@@ -64,4 +76,14 @@ export function notEmpty(str: string, msg: string) {
     if (str == null || str == undefined || str == '') {
         throw new AssertError(msg);
     }
+}
+
+/**
+ * 断言字符串不能为空
+ *
+ * @param str 字符串
+ * @param field 字段（支持i18n msgKey）
+ */
+export function notEmptyI18n(str: string, field: string) {
+    notEmpty(str, i18n.global.t('common.fieldNotEmpty', { field: i18n.global.t(field) }));
 }

@@ -12,10 +12,11 @@
 </template>
 <script lang="ts" setup>
 import { ref, watch, reactive, toRefs, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
-import { notEmpty } from '@/common/assert';
+import { notEmptyI18n } from '@/common/assert';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
+import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { redisApi } from './api';
 
 const props = defineProps({
     redis: {
@@ -69,10 +70,21 @@ const getStringValue = async () => {
 
 const saveValue = async () => {
     state.string.value = formatViewerRef.value.getContent();
-    notEmpty(state.string.value, 'value不能为空');
+    notEmptyI18n(state.string.value, 'value');
 
-    await props.redis.runCmd(['SET', state.key, state.string.value]);
-    ElMessage.success('数据保存成功');
+    const ttl = await redisApi.keyTtl.request({
+        id: props.redis.id,
+        db: props.redis.db,
+        key: state.key,
+    });
+
+    let tArr = [];
+    if (ttl > 0) {
+        tArr.push('EX', ttl);
+    }
+
+    await props.redis.runCmd(['SET', state.key, state.string.value, ...tArr]);
+    useI18nSaveSuccessMsg();
 };
 
 defineExpose({ initData });

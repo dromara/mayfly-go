@@ -55,6 +55,7 @@ export default {
         saveSuccess: 'save successfully',
         deleteSuccess: 'delete successfully',
         operateSuccess: 'operate successfully',
+        fieldNotEmpty: '{field} cannot be empty',
     },
     layout: {
         user: {

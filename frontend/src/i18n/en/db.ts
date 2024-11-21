@@ -99,7 +99,7 @@ export default {
         columnName: 'Column Name',
         homePage: 'Home Page',
         previousPage: 'Previous Page',
-        rowsPage: 'rows/page',
+        rowsPage: ' rows/page',
         rows: 'rows',
         conditionInputDialogTitle: 'Enter the value of [{columnName}]',
         addDataDialogTitle: 'Add `{tableName}` table data',

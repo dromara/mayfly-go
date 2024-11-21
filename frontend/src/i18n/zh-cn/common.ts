@@ -55,6 +55,7 @@ export default {
         saveSuccess: '保存成功',
         deleteSuccess: '删除成功',
         operateSuccess: '操作成功',
+        fieldNotEmpty: '{field}不能为空',
     },
     layout: {
         user: {
