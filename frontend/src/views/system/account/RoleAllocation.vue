@@ -14,7 +14,7 @@
                         ref="relatePageTableRef"
                         :pageable="false"
                         :page-api="accountApi.roles"
-                        v-model:query-form="releateQuery as any"
+                        v-model:query-form="releateQuery"
                         :columns="relatedColumns"
                         :tool-button="false"
                         lazy
@@ -133,6 +133,8 @@ const state = reactive({
     },
     releateQuery: {
         id: 0, //账号id
+        pageNum: 1,
+        pageSize: 1000,
     },
     showResourceDialog: {
         title: '',

@@ -107,6 +107,9 @@ export default {
         cronjobRunState: 'Run State',
         execResRecordType: 'Result record type',
         cronExpression: 'Cron Expression',
+        noRecord: 'Not recorded',
+        onErrorRecord: 'Record on error',
+        record: 'Record',
 
         // file
         upload: 'Upload',

@@ -200,7 +200,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	})
 
 	biz.ErrIsNilAppendErr(err, "%s")
-	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
+	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("execution success: %s", rc.ReqParam)).WithClientId(clientId))
 }
 
 // 数据库dump

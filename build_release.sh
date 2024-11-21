@@ -77,7 +77,7 @@ function build() {
         echo_green "Copy resources such as scripts [config.yml.example、mayfly-go.sql、mayfly-go.sqlite、readme.txt、startup.sh、shutdown.sh]"
         cp ${server_folder}/config.yml.example ${toFolder}
         cp ${server_folder}/readme.txt ${toFolder}
-        cp ${server_folder}/readme_cn.txt ${toFolder}
+        cp ${server_folder}/readme_en.txt ${toFolder}
         cp ${server_folder}/resources/script/startup.sh ${toFolder}
         cp ${server_folder}/resources/script/shutdown.sh ${toFolder}
         cp ${server_folder}/resources/script/sql/mayfly-go.sql ${toFolder}

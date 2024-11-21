@@ -189,7 +189,7 @@
                     v-if="$props.protocol == MachineProtocolEnum.Ssh.value"
                     prop="username"
                     :label="$t('machine.user')"
-                    min-width="55"
+                    min-width="70"
                     show-overflow-tooltip
                 >
                 </el-table-column>
@@ -197,7 +197,7 @@
                     v-if="$props.protocol == MachineProtocolEnum.Ssh.value"
                     prop="groupname"
                     :label="$t('machine.group')"
-                    min-width="55"
+                    min-width="70"
                     show-overflow-tooltip
                 >
                 </el-table-column>

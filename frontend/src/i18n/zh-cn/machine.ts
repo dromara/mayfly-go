@@ -108,6 +108,9 @@ export default {
         cronjobRunState: '运行状态',
         execResRecordType: '结果记录类型',
         cronExpression: 'cron表达式',
+        noRecord: '不记录',
+        onErrorRecord: '错误时记录',
+        record: '记录',
 
         // file
         upload: '上传',

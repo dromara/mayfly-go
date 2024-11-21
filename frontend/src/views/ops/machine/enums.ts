@@ -33,9 +33,9 @@ export const CronJobStatusEnum = {
 
 // 计划任务保存执行结果类型
 export const CronJobSaveExecResTypeEnum = {
-    No: EnumValue.of(-1, '不记录').tagTypeDanger(),
-    OnError: EnumValue.of(1, '错误时记录').tagTypeWarning(),
-    Yes: EnumValue.of(2, '记录').tagTypeSuccess(),
+    No: EnumValue.of(-1, 'machine.noRecord').tagTypeDanger(),
+    OnError: EnumValue.of(1, 'machine.onErrorRecord').tagTypeWarning(),
+    Yes: EnumValue.of(2, 'machine.record').tagTypeSuccess(),
 };
 
 // 计划任务执行记录状态

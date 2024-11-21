@@ -71,13 +71,12 @@
             <template #status="{ data }">
                 <el-switch
                     v-auth:disabled="'machine:update'"
-                    :width="52"
                     v-model="data.status"
                     :active-value="1"
                     :inactive-value="-1"
                     inline-prompt
-                    active-text="启用"
-                    inactive-text="停用"
+                    :active-text="$t('common.enable')"
+                    :inactive-text="$t('common.disable')"
                     style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
                     @change="changeStatus(data)"
                 ></el-switch>
@@ -320,7 +319,7 @@ const columns = [
     TableColumn.new('name', 'common.name'),
     TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(50),
     TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(10),
-    TableColumn.new('status', 'common.status').isSlot().setMinWidth(85),
+    TableColumn.new('status', 'common.status').isSlot(),
     TableColumn.new('stat', 'machine.runningStat').isSlot().setAddWidth(55),
     TableColumn.new('fs', 'machine.fs').isSlot().setAddWidth(25),
     TableColumn.new('remark', 'common.remark'),
