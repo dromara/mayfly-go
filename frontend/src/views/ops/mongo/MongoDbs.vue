@@ -121,10 +121,10 @@
 
         <el-dialog width="400px" :title="$t('mongo.createDbAndColl')" v-model="createDbDialog.visible" :destroy-on-close="true">
             <el-form :model="createDbDialog.form" label-width="auto">
-                <el-form-item prop="dbName" :title="$t('mongo.dbName')" required>
+                <el-form-item prop="dbName" :label="$t('mongo.dbName')" required>
                     <el-input v-model="createDbDialog.form.dbName" clearable></el-input>
                 </el-form-item>
-                <el-form-item prop="collectionName" :title="$t('mongo.collName')" required>
+                <el-form-item prop="collectionName" :label="$t('mongo.collName')" required>
                     <el-input v-model="createDbDialog.form.collectionName" clearable></el-input>
                 </el-form-item>
             </el-form>

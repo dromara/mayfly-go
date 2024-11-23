@@ -31,5 +31,7 @@ var En = map[i18n.MsgId]string{
 	ErrFileUploadFail:          "File upload failure",
 	MsgUploadFileSuccess:       "File uploaded successfully",
 
-	TerminalCmdDisable: "This command has been disabled...",
+	LogMachineSecurityCmdSave:   "Machine - Security - Save command configuration",
+	LogMachineSecurityCmdDelete: "Machine - Security - Delete command configuration",
+	TerminalCmdDisable:          "This command has been disabled...",
 }

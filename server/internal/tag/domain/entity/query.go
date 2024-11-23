@@ -5,12 +5,10 @@ import "mayfly-go/pkg/model"
 type TagTreeQuery struct {
 	model.Model
 
-	Type          TagType `json:"type"`
 	Types         []TagType
 	Codes         []string
 	CodePaths     []string // 标识路径
 	Name          string   `json:"name"` // 名称
-	CodePathLike  string   // 标识符路径模糊查询
 	CodePathLikes []string
 }
 

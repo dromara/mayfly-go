@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/tag/api/form"
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
@@ -54,7 +53,7 @@ func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) []*dto.SimpleTa
 	// 如tagPath = tag1/tag2/tag3/ 需要转为该路径所关联的所有标签路径即 tag1/  tag1/tag2/  tag1/tag2/tag3/三个相关联标签，才可以构造成一棵树
 	allTagPaths := make([]string, 0)
 	for _, tagPath := range collx.MapKeys(codePath2Tag) {
-		allTagPaths = append(allTagPaths, entity.GetAllCodePath(tagPath)...)
+		allTagPaths = append(allTagPaths, entity.CodePath(tagPath).GetAllPath()...)
 	}
 	allTagPaths = collx.ArrayDeduplicate(allTagPaths)
 
@@ -82,7 +81,7 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 		cond.CodePaths = strings.Split(tagPaths, ",")
 	}
 	cond.Id = uint64(rc.QueryInt("id"))
-	cond.Type = entity.TagType(rc.QueryInt("type"))
+	cond.Types = collx.AsArray(entity.TagType(rc.QueryInt("type")))
 	codes := rc.Query("codes")
 	if codes != "" {
 		cond.Codes = strings.Split(codes, ",")
@@ -117,10 +116,10 @@ func (p *TagTree) MovingTag(rc *req.Ctx) {
 func (p *TagTree) TagResources(rc *req.Ctx) {
 	resourceType := int8(rc.PathParamInt("rtype"))
 	accountId := rc.GetLoginAccount().Id
-	tagResources := p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType)})
+	tagResources := p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{Types: collx.AsArray(entity.TagType(resourceType))})
 
 	tagPath2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(tagResource *dto.SimpleTagTree) string {
-		return entity.GetTagPath(tagResource.CodePath)
+		return string(entity.CodePath(tagResource.CodePath).GetTag())
 	})
 
 	tagPaths := collx.MapKeys(tagPath2Resource)
@@ -133,14 +132,27 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 	tagPath := rc.Query("tagPath")
 	accountId := rc.GetLoginAccount().Id
 
-	machineCodes := entity.GetCodeByPath(entity.TagTypeMachine, p.TagTreeApp.GetAccountTagCodePaths(accountId, entity.TagTypeMachineAuthCert, tagPath)...)
-	dbCodes := entity.GetCodeByPath(entity.TagTypeDb, p.TagTreeApp.GetAccountTagCodePaths(accountId, entity.TagTypeDbName, tagPath)...)
+	machineCodes := entity.GetCodesByCodePaths(entity.TagTypeMachine, p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+		Types:         collx.AsArray(entity.TagTypeMachineAuthCert),
+		CodePathLikes: collx.AsArray(tagPath),
+	}).GetCodePaths()...)
+
+	dbCodes := entity.GetCodesByCodePaths(entity.TagTypeDbInstance, p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+		Types:         collx.AsArray(entity.TagTypeDb),
+		CodePathLikes: collx.AsArray(tagPath),
+	}).GetCodePaths()...)
 
 	rc.ResData = collx.M{
 		"machine": len(machineCodes),
 		"db":      len(dbCodes),
-		"redis":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeRedis, tagPath)),
-		"mongo":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeMongo, tagPath)),
+		"redis": len(p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+			Types:         collx.AsArray(entity.TagTypeRedis),
+			CodePathLikes: collx.AsArray(tagPath),
+		}).GetCodes()),
+		"mongo": len(p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+			Types:         collx.AsArray(entity.TagTypeMongo),
+			CodePathLikes: collx.AsArray(tagPath),
+		}).GetCodes()),
 	}
 }
 

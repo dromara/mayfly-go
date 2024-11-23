@@ -33,12 +33,15 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.MongoQuery](rc, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := m.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeMongo, queryCond.TagPath)
-	if len(codes) == 0 {
+	tags := m.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         []tagentity.TagType{tagentity.TagTypeMongo},
+		CodePathLikes: []string{queryCond.TagPath},
+	})
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.Codes = codes
+	queryCond.Codes = tags.GetCodes()
 
 	var mongovos []*vo.Mongo
 	res, err := m.MongoApp.GetPageList(queryCond, page, &mongovos)

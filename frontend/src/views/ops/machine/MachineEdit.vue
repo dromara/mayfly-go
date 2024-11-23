@@ -54,7 +54,7 @@
                 </div>
 
                 <el-divider content-position="left">{{ $t('common.other') }}</el-divider>
-                <el-form-item prop="enableRecorder" :label="$t('machine.sshTunnel')">
+                <el-form-item prop="enableRecorder" :label="$t('machine.terminalPlayback')">
                     <el-checkbox v-model="form.enableRecorder" :true-value="1" :false-value="-1"></el-checkbox>
                 </el-form-item>
 

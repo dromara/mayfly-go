@@ -27,7 +27,7 @@ export function useI18nPleaseSelect(labelI18nKey: string) {
  * @returns
  */
 export async function useI18nDeleteConfirm(name: string = '') {
-    return useI18nConfirm('common.deleteConfirm', { name });
+    return useI18nConfirm('common.deleteConfirm2', { name });
 }
 
 /**

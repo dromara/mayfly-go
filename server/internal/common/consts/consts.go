@@ -16,10 +16,10 @@ const (
 	// RedisConnExpireTime   = 2 * time.Minute
 	// MongoConnExpireTime   = 2 * time.Minute
 
-	ResourceTypeMachine int8 = 1
-	ResourceTypeDb      int8 = 2
-	ResourceTypeRedis   int8 = 3
-	ResourceTypeMongo   int8 = 4
+	ResourceTypeMachine    int8 = 1
+	ResourceTypeDbInstance int8 = 2
+	ResourceTypeRedis      int8 = 3
+	ResourceTypeMongo      int8 = 4
 
 	// imsg起始编号
 	ImsgNumSys     = 10000

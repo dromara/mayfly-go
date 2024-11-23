@@ -48,13 +48,7 @@ type TagTree interface {
 	// GetAccountTags 获取指定账号有权限操作的标签列表
 	// @param accountId 账号id
 	// @param query 查询条件
-	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*dto.SimpleTagTree
-
-	// GetAccountTagCodes 获取指定账号有权限操作的标签codes
-	GetAccountTagCodes(accountId uint64, resourceType int8, tagPath string) []string
-
-	// GetAccountTagCodePaths 获取指定账号有权限操作的codePaths
-	GetAccountTagCodePaths(accountId uint64, tagType entity.TagType, tagPath string) []string
+	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) dto.SimpleTagTrees
 
 	// 根据标签类型和标签code获取对应的标签路径列表
 	ListTagPathByTypeAndCode(resourceType int8, resourceCode string) []string
@@ -111,7 +105,7 @@ func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.Ta
 
 		// 判断该路径是否存在
 		var hasLikeTags []entity.TagTree
-		p.GetRepo().SelectByCondition(&entity.TagTreeQuery{CodePathLike: tag.CodePath}, &hasLikeTags)
+		p.GetRepo().SelectByCondition(&entity.TagTreeQuery{CodePathLikes: []string{tag.CodePath}}, &hasLikeTags)
 		if len(hasLikeTags) > 0 {
 			return errorx.NewBizI(ctx, imsg.ErrTagCodePathLikeExist)
 		}
@@ -257,16 +251,16 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 
 	// 更新父标签的codepath
 	for _, tag := range resourceChildrenTags {
-		pathSection := entity.GetTagPathSections(tag.CodePath)
-		for i, ps := range pathSection {
+		pathSections := entity.CodePath(tag.CodePath).GetPathSections()
+		for i, ps := range pathSections {
 			if ps.Type == tagType && ps.Code == tagCode {
 				// 将父标签编号修改为对应的新编号与类型
-				pathSection[i-1].Code = newParentCode
-				pathSection[i-1].Type = parentTagType
+				pathSections[i-1].Code = newParentCode
+				pathSections[i-1].Type = parentTagType
 			}
 		}
 
-		tag.CodePath = pathSection.ToCodePath()
+		tag.CodePath = pathSections.ToCodePath()
 		if err := p.UpdateById(ctx, tag); err != nil {
 			return err
 		}
@@ -288,10 +282,10 @@ func (p *tagTreeAppImpl) MovingTag(ctx context.Context, fromTagPath string, toTa
 
 	// 获取要移动标签的所有子标签
 	var childrenTags []*entity.TagTree
-	p.ListByQuery(&entity.TagTreeQuery{CodePathLike: fromTagPath}, &childrenTags)
+	p.ListByQuery(&entity.TagTreeQuery{CodePathLikes: []string{fromTagPath}}, &childrenTags)
 
 	// 获取父路径, 若fromTagPath=tag1/tag2/1|xxx则返回 tag1/tag2/
-	fromParentPath := entity.GetParentPath(fromTagPath, 0)
+	fromParentPath := string(entity.CodePath(fromTagPath).GetParent(0))
 	for _, childTag := range childrenTags {
 		// 替换path，若childPath = tag1/tag2/1|xxx/11|yyy, toTagPath=tag3/tag4则替换为tag3/tag4/1|xxx/11|yyy/
 		childTag.CodePath = strings.Replace(childTag.CodePath, fromParentPath, toTagPath, 1)
@@ -339,10 +333,10 @@ func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity an
 	p.GetRepo().SelectByCondition(condition, toEntity)
 }
 
-func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*dto.SimpleTagTree {
+func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQuery) dto.SimpleTagTrees {
+	types := query.Types
 	tagResourceQuery := &entity.TagTreeQuery{
-		Type:  query.Type,
-		Types: query.Types,
+		Types: types,
 	}
 
 	var tagResources []*dto.SimpleTagTree
@@ -360,7 +354,7 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	tagPaths := collx.ArrayRemoveBlank(query.CodePathLikes)
 	// 如果需要查询指定标签下的资源标签，则需要与用户拥有的权限进行过滤，避免越权
 	if len(tagPaths) > 0 {
-		// admin 则直接赋值需要获取的标签
+		// 为空则说明为admin 则直接赋值需要获取的标签
 		if len(accountTagPaths) == 0 {
 			accountTagPaths = tagPaths
 		} else {
@@ -372,26 +366,6 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	tagResourceQuery.CodePathLikes = accountTagPaths
 	p.ListByQuery(tagResourceQuery, &tagResources)
 	return tagResources
-}
-
-func (p *tagTreeAppImpl) GetAccountTagCodes(accountId uint64, resourceType int8, tagPath string) []string {
-	tagResources := p.GetAccountTags(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType), CodePathLikes: []string{tagPath}})
-	// resouce code去重
-	code2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(val *dto.SimpleTagTree) string {
-		return val.Code
-	})
-
-	return collx.MapKeys(code2Resource)
-}
-
-func (p *tagTreeAppImpl) GetAccountTagCodePaths(accountId uint64, tagType entity.TagType, tagPath string) []string {
-	tagResources := p.GetAccountTags(accountId, &entity.TagTreeQuery{Type: tagType, CodePathLikes: []string{tagPath}})
-	// resouce code去重
-	code2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(val *dto.SimpleTagTree) string {
-		return val.CodePath
-	})
-
-	return collx.MapKeys(code2Resource)
 }
 
 func (p *tagTreeAppImpl) ListTagPathByTypeAndCode(resourceType int8, resourceCode string) []string {
@@ -439,13 +413,13 @@ func (p *tagTreeAppImpl) FillTagInfo(resourceTagType entity.TagType, resources .
 
 	// 获取所有资源code关联的标签列表信息
 	var tagResources []*entity.TagTree
-	p.ListByQuery(&entity.TagTreeQuery{Codes: collx.MapKeys(resourceCode2Resouce), Type: resourceTagType}, &tagResources)
+	p.ListByQuery(&entity.TagTreeQuery{Codes: collx.MapKeys(resourceCode2Resouce), Types: []entity.TagType{resourceTagType}}, &tagResources)
 
 	for _, tr := range tagResources {
 		// 赋值标签信息
 		resource := resourceCode2Resouce[tr.Code]
 		if resource != nil {
-			resource.SetTagInfo(entity.ResourceTag{TagId: tr.Id, CodePath: tr.GetTagPath()})
+			resource.SetTagInfo(entity.ResourceTag{TagId: tr.Id, CodePath: string(entity.CodePath(tr.CodePath).GetTag())})
 		}
 	}
 }

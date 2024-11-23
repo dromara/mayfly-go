@@ -31,14 +31,18 @@ type Instance struct {
 func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
 
-	tagCodePaths := d.TagApp.GetAccountTagCodePaths(rc.GetLoginAccount().Id, tagentity.TagTypeDbAuthCert, queryCond.TagPath)
+	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         collx.AsArray(tagentity.TagTypeDbAuthCert),
+		CodePathLikes: collx.AsArray(queryCond.TagPath),
+	})
 	// 不存在可操作的数据库，即没有可操作数据
-	if len(tagCodePaths) == 0 {
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 
-	dbInstCodes := tagentity.GetCodeByPath(tagentity.TagTypeDb, tagCodePaths...)
+	tagCodePaths := tags.GetCodePaths()
+	dbInstCodes := tagentity.GetCodesByCodePaths(tagentity.TagTypeDbInstance, tagCodePaths...)
 	queryCond.Codes = dbInstCodes
 
 	var instvos []*vo.InstanceListVO
@@ -46,12 +50,12 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充授权凭证信息
-	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodeByPath(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
+	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
 		return vos
 	})...)
 
 	// 填充标签信息
-	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDb), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
+	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDbInstance), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
 		return insvo
 	})...)
 

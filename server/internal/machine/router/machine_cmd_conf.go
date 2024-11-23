@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/machine/api"
+	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -18,9 +19,9 @@ func InitMachineCmdConfRouter(router *gin.RouterGroup) {
 	reqs := [...]*req.Conf{
 		req.NewGet("", mcc.MachineCmdConfs),
 
-		req.NewPost("", mcc.Save).Log(req.NewLogSave("机器命令配置-保存")).RequiredPermissionCode("cmdconf:save"),
+		req.NewPost("", mcc.Save).Log(req.NewLogSaveI(imsg.LogMachineSecurityCmdSave)).RequiredPermissionCode("cmdconf:save"),
 
-		req.NewDelete(":id", mcc.Delete).Log(req.NewLogSave("机器命令配置-删除")).RequiredPermissionCode("cmdconf:del"),
+		req.NewDelete(":id", mcc.Delete).Log(req.NewLogSaveI(imsg.LogMachineSecurityCmdDelete)).RequiredPermissionCode("cmdconf:del"),
 	}
 
 	req.BatchSetGroup(mccs, reqs[:])

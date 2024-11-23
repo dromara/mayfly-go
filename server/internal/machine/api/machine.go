@@ -43,14 +43,18 @@ type Machine struct {
 func (m *Machine) Machines(rc *req.Ctx) {
 	condition, pageParam := req.BindQueryAndPage(rc, new(entity.MachineQuery))
 
-	tagCodePaths := m.TagApp.GetAccountTagCodePaths(rc.GetLoginAccount().Id, tagentity.TagTypeMachineAuthCert, condition.TagPath)
+	tags := m.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         collx.AsArray(tagentity.TagTypeMachineAuthCert),
+		CodePathLikes: collx.AsArray(condition.TagPath),
+	})
 	// 不存在可操作的机器-授权凭证标签，即没有可操作数据
-	if len(tagCodePaths) == 0 {
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 
-	machineCodes := tagentity.GetCodeByPath(tagentity.TagTypeMachine, tagCodePaths...)
+	tagCodePaths := tags.GetCodePaths()
+	machineCodes := tagentity.GetCodesByCodePaths(tagentity.TagTypeMachine, tagCodePaths...)
 	condition.Codes = collx.ArrayDeduplicate(machineCodes)
 
 	var machinevos []*vo.MachineVO
@@ -67,7 +71,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	})...)
 
 	// 填充授权凭证信息
-	m.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodeByPath(tagentity.TagTypeMachineAuthCert, tagCodePaths...), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
+	m.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeMachineAuthCert, tagCodePaths...), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
 		return mvo
 	})...)
 

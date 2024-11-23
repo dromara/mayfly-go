@@ -48,12 +48,15 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := d.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, int8(tagentity.TagTypeDbName), queryCond.TagPath)
-	if len(codes) == 0 {
+	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         collx.AsArray(tagentity.TagTypeDb),
+		CodePathLikes: collx.AsArray(queryCond.TagPath),
+	})
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.Codes = codes
+	queryCond.Codes = tags.GetCodes()
 
 	var dbvos []*vo.DbListVO
 	res, err := d.DbApp.GetPageList(queryCond, page, &dbvos)

@@ -185,22 +185,19 @@
                 </el-table-column>
 
                 <el-table-column prop="mode" :label="$t('machine.attribute')" width="110"> </el-table-column>
-                <el-table-column
-                    v-if="$props.protocol == MachineProtocolEnum.Ssh.value"
-                    prop="username"
-                    :label="$t('machine.user')"
-                    min-width="70"
-                    show-overflow-tooltip
-                >
+
+                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" :label="$t('machine.user')" min-width="70" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ userMap.get(scope.row.uid)?.uname || scope.row.uid }}
+                    </template>
                 </el-table-column>
-                <el-table-column
-                    v-if="$props.protocol == MachineProtocolEnum.Ssh.value"
-                    prop="groupname"
-                    :label="$t('machine.group')"
-                    min-width="70"
-                    show-overflow-tooltip
-                >
+
+                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" :label="$t('machine.group')" min-width="70" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ groupMap.get(scope.row.gid)?.gname || scope.row.gid }}
+                    </template>
                 </el-table-column>
+
                 <el-table-column prop="modTime" :label="$t('machine.modificationTime')" width="160" sortable> </el-table-column>
 
                 <el-table-column :width="130">
@@ -303,7 +300,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, reactive, ref, toRefs } from 'vue';
-import { ElInput, ElMessage, ElMessageBox } from 'element-plus';
+import { ElInput, ElMessage } from 'element-plus';
 import { machineApi } from '../api';
 
 import { joinClientParams } from '@/common/request';
@@ -334,8 +331,8 @@ const folderUploadRef: any = ref();
 
 const folderType = 'd';
 
-const userMap = new Map<number, any>();
-const groupMap = new Map<number, any>();
+const userMap = ref(new Map<number, any>());
+const groupMap = ref(new Map<number, any>());
 
 // 路径分隔符
 const pathSep = '/';
@@ -382,13 +379,13 @@ onMounted(async () => {
     if (props.protocol == MachineProtocolEnum.Ssh.value) {
         machineApi.users.request({ id: machineId }).then((res: any) => {
             for (let user of res) {
-                userMap.set(user.uid, user);
+                userMap.value.set(user.uid, user);
             }
         });
 
         machineApi.groups.request({ id: machineId }).then((res: any) => {
             for (let group of res) {
-                groupMap.set(group.gid, group);
+                groupMap.value.set(group.gid, group);
             }
         });
     }
@@ -565,11 +562,6 @@ const lsFile = async (path: string) => {
         path,
     });
     for (const file of res) {
-        if (props.protocol == MachineProtocolEnum.Ssh.value) {
-            file.username = userMap.get(file.uid)?.uname || file.uid;
-            file.groupname = groupMap.get(file.gid)?.gname || file.gid;
-        }
-
         const type = file.type;
         if (type == folderType) {
             file.isFolder = true;

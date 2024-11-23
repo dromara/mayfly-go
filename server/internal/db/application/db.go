@@ -94,7 +94,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 			return d.tagApp.RelateTagsByCodeAndType(ctx, &tagdto.RelateTagsByCodeAndType{
 				Tags: []*tagdto.ResourceTag{{
 					Code: dbEntity.Code,
-					Type: tagentity.TagTypeDbName,
+					Type: tagentity.TagTypeDb,
 					Name: dbEntity.Name,
 				}},
 				ParentTagCode: authCert.Name,
@@ -136,12 +136,12 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
 		if old.Name != dbEntity.Name {
-			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeDbName, old.Code, dbEntity.Name); err != nil {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeDb, old.Code, dbEntity.Name); err != nil {
 				return err
 			}
 		}
 		if authCert.Name != old.AuthCertName {
-			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDbName, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
+			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDb, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
 		}
 		return nil
 	})
@@ -170,7 +170,7 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		}, func(ctx context.Context) error {
 			return d.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 				ResourceCode: db.Code,
-				ResourceType: tagentity.TagTypeDbName,
+				ResourceType: tagentity.TagTypeDb,
 			})
 		})
 }
@@ -191,7 +191,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		if err != nil {
 			return nil, err
 		}
-		di.CodePath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDbName), db.Code)
+		di.CodePath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDb), db.Code)
 		di.Id = db.Id
 
 		checkDb := di.GetDatabase()

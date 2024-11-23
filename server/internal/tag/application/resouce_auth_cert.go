@@ -451,7 +451,7 @@ func GetResourceAuthCertTagType(resourceType entity.TagType) entity.TagType {
 		return entity.TagTypeMachineAuthCert
 	}
 
-	if resourceType == entity.TagTypeDb {
+	if resourceType == entity.TagTypeDbInstance {
 		return entity.TagTypeDbAuthCert
 	}
 

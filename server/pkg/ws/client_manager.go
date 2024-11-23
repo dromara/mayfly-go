@@ -163,9 +163,9 @@ func (manager *ClientManager) HeartbeatTimer() {
 					}
 					if err := cli.Ping(); err != nil {
 						manager.CloseClient(cli)
-						logx.Debugf("WS发送心跳失败: uid=%v, cid=%s, usercount=%d", userId, cli.ClientId, Manager.Count())
+						logx.Debugf("WS - failed to send heartbeat: uid=%v, cid=%s, usercount=%d", userId, cli.ClientId, Manager.Count())
 					} else {
-						logx.Debugf("WS发送心跳成功: uid=%v, cid=%s", userId, cli.ClientId)
+						logx.Debugf("WS - send heartbeat successfully: uid=%v, cid=%s", userId, cli.ClientId)
 					}
 				}
 			}

@@ -151,7 +151,7 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 
 	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
 	var machineTags []tagentity.TagTree
-	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Type: tagentity.TagTypeMachine}, &machineTags)
+	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Types: []tagentity.TagType{tagentity.TagTypeMachine}}, &machineTags)
 	machines, _ := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
 		return tag.Code
 	})), "id")

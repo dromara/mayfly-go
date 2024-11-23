@@ -112,7 +112,7 @@ const perms = {
 
 const searchItems = [
     SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder'),
-    getTagPathSearchItem(TagResourceTypeEnum.Db.value),
+    getTagPathSearchItem(TagResourceTypeEnum.DbAuthCert.value),
 ];
 
 const columns = ref([

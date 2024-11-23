@@ -155,7 +155,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch, Ref } from 'vue';
 import { ElInput, ElMessage } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
 import { DbInst, DbThemeConfig } from '@/views/ops/db/db';
@@ -239,9 +239,11 @@ const cmHeaderFixed = new ContextmenuItem('fixed', 'db.fixed')
     })
     .withHideFunc((data: any) => data.fixed);
 
-const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', 'db.cancelFiexd')
+const cmHeaderCancelFixed = new ContextmenuItem('cancelFixed', 'db.cancelFiexd')
     .withIcon('Minus')
-    .withOnClick((data: any) => (data.fixed = false))
+    .withOnClick((data: any) => {
+        data.fixed = false;
+    })
     .withHideFunc((data: any) => !data.fixed);
 
 /**  表数据 contextmenu items  **/
@@ -253,7 +255,7 @@ const cmDataCopyCell = new ContextmenuItem('copyValue', 'common.copy')
     })
     .withHideFunc(() => {
         // 选中多条则隐藏该复制按钮
-        return selectionRowsMap.size > 1;
+        return selectionRowsMap.value.size > 1;
     });
 
 const cmDataDel = new ContextmenuItem('deleteData', 'common.delete')
@@ -307,7 +309,7 @@ class UpdatedRow {
     /**
      * 修改到的列信息, columnName -> tablecelldata
      */
-    columnsMap: Map<string, TableCellData> = new Map();
+    columnsMap = new Map<string, TableCellData>();
 }
 
 class TableCellData {
@@ -319,16 +321,16 @@ class TableCellData {
 
 let dbDialect: DbDialect = null as any;
 
-let nowSortColumn = null as any;
+let nowSortColumn = ref(null) as any;
 
 // 当前正在更新的单元格
-let nowUpdateCell: NowUpdateCell = null as any;
+let nowUpdateCell: Ref<NowUpdateCell> = ref(null) as any;
 
 // 选中的数据， key->rowIndex  value->primaryKeyValue
-const selectionRowsMap: Map<number, any> = new Map();
+const selectionRowsMap = ref(new Map<number, any>());
 
 // 更新单元格  key-> rowIndex  value -> 更新行
-const cellUpdateMap: Map<number, UpdatedRow> = new Map();
+const cellUpdateMap = ref(new Map<number, UpdatedRow>());
 
 // 数据加载时间计时器
 const { pause, resume } = useIntervalFn(() => {
@@ -467,8 +469,8 @@ const formatDataValues = (datas: any) => {
 
 const setTableData = (datas: any) => {
     tableRef.value?.scrollTo({ scrollLeft: 0, scrollTop: 0 });
-    selectionRowsMap.clear();
-    cellUpdateMap.clear();
+    selectionRowsMap.value.clear();
+    cellUpdateMap.value.clear();
     formatDataValues(datas);
     state.datas = datas;
     setTableColumns(props.columns);
@@ -520,7 +522,7 @@ const cancelLoading = async () => {
  * @param colIndex ci
  */
 const canEdit = (rowIndex: number, colIndex: number) => {
-    return state.table && nowUpdateCell?.rowIndex == rowIndex && nowUpdateCell?.colIndex == colIndex;
+    return state.table && nowUpdateCell.value?.rowIndex == rowIndex && nowUpdateCell.value?.colIndex == colIndex;
 };
 
 /**
@@ -529,7 +531,7 @@ const canEdit = (rowIndex: number, colIndex: number) => {
  * @param columnName cn
  */
 const isUpdated = (rowIndex: number, columnName: string) => {
-    return cellUpdateMap.get(rowIndex)?.columnsMap.get(columnName);
+    return cellUpdateMap.value.get(rowIndex)?.columnsMap.get(columnName);
 };
 
 /**
@@ -537,7 +539,7 @@ const isUpdated = (rowIndex: number, columnName: string) => {
  * @param rowIndex
  */
 const isSelection = (rowIndex: number): boolean => {
-    return selectionRowsMap.get(rowIndex);
+    return selectionRowsMap.value.get(rowIndex);
 };
 
 /**
@@ -549,16 +551,14 @@ const isSelection = (rowIndex: number): boolean => {
 const selectionRow = (rowIndex: number, rowData: any, isMultiple = false) => {
     if (isMultiple) {
         // 如果重复点击，则取消改选中数据
-        if (selectionRowsMap.get(rowIndex)) {
-            selectionRowsMap.delete(rowIndex);
-            triggerRefresh();
+        if (selectionRowsMap.value.get(rowIndex)) {
+            selectionRowsMap.value.delete(rowIndex);
             return;
         }
     } else {
-        selectionRowsMap.clear();
+        selectionRowsMap.value.clear();
     }
-    selectionRowsMap.set(rowIndex, rowData);
-    triggerRefresh();
+    selectionRowsMap.value.set(rowIndex, rowData);
 };
 
 /**
@@ -584,7 +584,7 @@ const headerContextmenuClick = (event: any, data: any) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancenFixed];
+    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancelFixed];
     contextmenuRef.value.openContextmenu(data);
 };
 
@@ -606,7 +606,7 @@ const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: a
  * 表排序字段变更
  */
 const onTableSortChange = async (sort: any) => {
-    nowSortColumn = sort;
+    nowSortColumn.value = sort;
     cancelUpdateFields();
     emits('sortChange', sort);
 };
@@ -615,7 +615,7 @@ const onTableSortChange = async (sort: any) => {
  * 执行删除数据事件
  */
 const onDeleteData = async () => {
-    const deleteDatas = Array.from(selectionRowsMap.values());
+    const deleteDatas = Array.from(selectionRowsMap.value.values());
     const db = state.db;
     const dbInst = getNowDbInst();
     dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as any), null, () => {
@@ -624,7 +624,7 @@ const onDeleteData = async () => {
 };
 
 const onEditRowData = () => {
-    const selectionDatas = Array.from(selectionRowsMap.values());
+    const selectionDatas = Array.from(selectionRowsMap.value.values());
     if (selectionDatas.length > 1) {
         ElMessage.warning(t('db.onlySelectOneData'));
         return;
@@ -636,14 +636,14 @@ const onEditRowData = () => {
 };
 
 const onGenerateInsertSql = async () => {
-    const selectionDatas = Array.from(selectionRowsMap.values());
+    const selectionDatas = Array.from(selectionRowsMap.value.values());
     state.genTxtDialog.txt = await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas);
     state.genTxtDialog.title = 'SQL';
     state.genTxtDialog.visible = true;
 };
 
 const onGenerateJson = async () => {
-    const selectionDatas = Array.from(selectionRowsMap.values());
+    const selectionDatas = Array.from(selectionRowsMap.value.values());
     // 按列字段重新排序对象key
     const jsonObj = [];
     for (let selectionData of selectionDatas) {
@@ -689,8 +689,7 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
         return;
     }
 
-    triggerRefresh();
-    nowUpdateCell = {
+    nowUpdateCell.value = {
         rowIndex: rowIndex,
         colIndex: columnIndex,
         oldValue: rowData[column.dataKey],
@@ -702,21 +701,20 @@ const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
     if (!nowUpdateCell) {
         return;
     }
-    const oldValue = nowUpdateCell.oldValue;
+    const oldValue = nowUpdateCell.value.oldValue;
     const newValue = rowData[column.dataKey];
 
     // 未改变单元格值
     if (oldValue == newValue) {
-        nowUpdateCell = null as any;
-        triggerRefresh();
+        nowUpdateCell.value = null as any;
         return;
     }
 
-    let updatedRow = cellUpdateMap.get(rowIndex);
+    let updatedRow = cellUpdateMap.value.get(rowIndex);
     if (!updatedRow) {
         updatedRow = new UpdatedRow();
         updatedRow.rowData = rowData;
-        cellUpdateMap.set(rowIndex, updatedRow);
+        cellUpdateMap.value.set(rowIndex, updatedRow);
     }
 
     const columnName = column.dataKey;
@@ -724,7 +722,7 @@ const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
     if (cellData) {
         // 多次修改情况，可能又修改回原值，则移除该修改单元格
         if (cellData.oldValue == newValue) {
-            cellUpdateMap.delete(rowIndex);
+            cellUpdateMap.value.delete(rowIndex);
         }
     } else {
         cellData = new TableCellData();
@@ -732,21 +730,20 @@ const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
         updatedRow.columnsMap.set(columnName, cellData);
     }
 
-    nowUpdateCell = null as any;
-    triggerRefresh();
+    nowUpdateCell.value = null as any;
     changeUpdatedField();
 };
 
 const submitUpdateFields = async () => {
     const dbInst = getNowDbInst();
-    if (cellUpdateMap.size == 0) {
+    if (cellUpdateMap.value.size == 0) {
         return;
     }
 
     const db = state.db;
     let res = '';
 
-    for (let updateRow of cellUpdateMap.values()) {
+    for (let updateRow of cellUpdateMap.value.values()) {
         const rowData = { ...updateRow.rowData };
         let updateColumnValue: any = {};
 
@@ -763,14 +760,13 @@ const submitUpdateFields = async () => {
     }
 
     dbInst.promptExeSql(db, res, null, () => {
-        triggerRefresh();
-        cellUpdateMap.clear();
+        cellUpdateMap.value.clear();
         changeUpdatedField();
     });
 };
 
 const cancelUpdateFields = () => {
-    const updateRows = cellUpdateMap.values();
+    const updateRows = cellUpdateMap.value.values();
     // 恢复原值
     for (let updateRow of updateRows) {
         const rowData = updateRow.rowData;
@@ -778,12 +774,12 @@ const cancelUpdateFields = () => {
             rowData[k] = v.oldValue;
         });
     }
-    cellUpdateMap.clear();
+    cellUpdateMap.value.clear();
     changeUpdatedField();
 };
 
 const changeUpdatedField = () => {
-    emits('changeUpdatedField', cellUpdateMap);
+    emits('changeUpdatedField', cellUpdateMap.value);
 };
 
 const rowClass = (row: any) => {
@@ -816,18 +812,6 @@ const getFormatTimeValue = (dataType: DataType, originValue: string): string => 
             return formatDate(originValue, 'YYYY-MM-DD HH:mm:ss');
         default:
             return originValue;
-    }
-};
-
-/**
- * 触发响应式实时刷新，否则需要滑动或移动才能使样式实时生效
- */
-const triggerRefresh = () => {
-    // 改变columns等属性值，才能触发slot中的if条件等, 暂不知为啥
-    if (state.columns[0].opTimes) {
-        state.columns[0].opTimes = state.columns[0].opTimes + 1;
-    } else {
-        state.columns[0].opTimes = 1;
     }
 };
 

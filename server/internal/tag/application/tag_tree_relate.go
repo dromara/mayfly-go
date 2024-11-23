@@ -102,7 +102,7 @@ func (tr *tagTreeRelateAppImpl) GetRelateIds(ctx context.Context, relateType ent
 	poisibleTagPaths := make([]string, 0)
 	for _, tagPath := range canAccessTagPaths {
 		// 追加可能关联的标签路径，如tagPath = tag1/tag2/1|xxx/，需要获取所有关联的自身及父标签（tag1/  tag1/tag2/ tag1/tag2/1|xxx）
-		poisibleTagPaths = append(poisibleTagPaths, entity.GetAllCodePath(tagPath)...)
+		poisibleTagPaths = append(poisibleTagPaths, entity.CodePath(tagPath).GetAllPath()...)
 	}
 	return tr.tagTreeRelateRepo.SelectRelateIdsByTagPaths(relateType, poisibleTagPaths...)
 }

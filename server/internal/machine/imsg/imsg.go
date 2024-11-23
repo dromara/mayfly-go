@@ -39,5 +39,9 @@ const (
 	ErrFileUploadFail
 	MsgUploadFileSuccess
 
+	// security
+	LogMachineSecurityCmdSave
+	LogMachineSecurityCmdDelete
+
 	TerminalCmdDisable
 )

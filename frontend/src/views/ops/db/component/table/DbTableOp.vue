@@ -7,21 +7,27 @@
         <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
             <el-row>
                 <el-col :span="12">
-                    <el-form-item prop="tableName" label="表名">
+                    <el-form-item prop="tableName" :label="$t('db.tableName')">
                         <el-input style="width: 80%" v-model="tableData.tableName" size="small"></el-input>
                     </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                    <el-form-item prop="tableComment" label="备注">
+                    <el-form-item prop="tableComment" :label="$t('db.comment')">
                         <el-input style="width: 80%" v-model="tableData.tableComment" size="small"></el-input>
                     </el-form-item>
                 </el-col>
             </el-row>
 
             <el-tabs v-model="activeName">
-                <el-tab-pane label="字段" name="1">
+                <el-tab-pane :label="$t('db.column')" name="1">
                     <el-table ref="tableRef" :data="tableData.fields.res" :max-height="tableData.height">
-                        <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.fields.colNames" :key="item.prop" :width="item.width">
+                        <el-table-column
+                            :prop="item.prop"
+                            :label="$t(item.label)"
+                            v-for="item in tableData.fields.colNames"
+                            :key="item.prop"
+                            :width="item.width"
+                        >
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
@@ -35,7 +41,7 @@
                                         <span v-if="pgsqlType.dataType === pgsqlType.udtName"
                                             >{{ pgsqlType.dataType }}{{ pgsqlType.desc && '：' + pgsqlType.desc }}</span
                                         >
-                                        <span v-else>{{ pgsqlType.dataType }}，别名：{{ pgsqlType.udtName }} {{ pgsqlType.desc }}</span>
+                                        <span v-else>{{ pgsqlType.dataType }}，{{ $t('db.alias') }}: {{ pgsqlType.udtName }} {{ pgsqlType.desc }}</span>
                                     </el-option>
                                 </el-select>
 
@@ -58,20 +64,20 @@
 
                                 <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
 
-                                <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteRow(scope.$index)">
+                                <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.delete')" @confirm="deleteRow(scope.$index)">
                                     <template #reference>
-                                        <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                        <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
                                     </template>
                                 </el-popconfirm>
                             </template>
                         </el-table-column>
                     </el-table>
                     <el-row style="margin-top: 20px">
-                        <el-button @click="addDefaultRows()" link type="warning" icon="plus">添加默认列</el-button>
-                        <el-button @click="addRow()" link type="primary" icon="plus">添加列</el-button>
+                        <el-button @click="addDefaultRows()" link type="warning" icon="plus">{{ $t('db.addDefaultColumn') }}</el-button>
+                        <el-button @click="addRow()" link type="primary" icon="plus">{{ $t('db.addColumn') }}</el-button>
                     </el-row>
                 </el-tab-pane>
-                <el-tab-pane label="索引" name="2">
+                <el-tab-pane :label="$t('db.index')" name="2">
                     <el-table :data="tableData.indexs.res" :max-height="tableData.height">
                         <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.indexs.colNames" :key="item.prop">
                             <template #default="scope">
@@ -84,7 +90,6 @@
                                     collapse-tags
                                     collapse-tags-tooltip
                                     filterable
-                                    placeholder="请选择字段"
                                     @change="indexChanges(scope.row)"
                                     style="width: 100%"
                                 >
@@ -100,9 +105,9 @@
 
                                 <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
 
-                                <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteIndex(scope.$index)">
+                                <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.deleteConfirm')" @confirm="deleteIndex(scope.$index)">
                                     <template #reference>
-                                        <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                        <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
                                     </template>
                                 </el-popconfirm>
                             </template>
@@ -110,14 +115,14 @@
                     </el-table>
 
                     <el-row style="margin-top: 20px">
-                        <el-button @click="addIndex()" link type="primary" icon="plus">添加索引</el-button>
+                        <el-button @click="addIndex()" link type="primary" icon="plus">{{ $t('db.addIndex') }}</el-button>
                     </el-row>
                 </el-tab-pane>
             </el-tabs>
         </el-form>
         <template #footer>
-            <el-button @click="cancel()">取消</el-button>
-            <el-button :loading="btnloading" @click="submit()" type="primary">保存</el-button>
+            <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+            <el-button :loading="btnloading" @click="submit()" type="primary">{{ $t('common.save') }}</el-button>
         </template>
     </el-drawer>
 </template>
@@ -129,6 +134,9 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 import { DbInst } from '../../db';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps({
     visible: {
@@ -177,52 +185,52 @@ const state = reactive({
             colNames: [
                 {
                     prop: 'name',
-                    label: '字段名称',
+                    label: 'db.columnName',
                     width: 200,
                 },
                 {
                     prop: 'type',
-                    label: '字段类型',
+                    label: 'common.type',
                     width: 120,
                 },
                 {
                     prop: 'length',
-                    label: '长度',
+                    label: 'db.length',
                     width: 120,
                 },
                 {
                     prop: 'numScale',
-                    label: '小数精度',
+                    label: 'db.numScale',
                     width: 120,
                 },
                 {
                     prop: 'value',
-                    label: '默认值',
+                    label: 'db.defaultValue',
                     width: 120,
                 },
 
                 {
                     prop: 'notNull',
-                    label: '非空',
+                    label: 'db.notNull',
                     width: 60,
                 },
                 {
                     prop: 'pri',
-                    label: '主键',
+                    label: 'db.primaryKey',
                     width: 60,
                 },
                 {
                     prop: 'auto_increment',
-                    label: '自增',
+                    label: 'db.autoIncrement',
                     width: 60,
                 },
                 {
                     prop: 'remark',
-                    label: '备注',
+                    label: 'db.comment',
                 },
                 {
                     prop: 'action',
-                    label: '操作',
+                    label: 'common.operation',
                     width: 70,
                 },
             ] as ColName[],
@@ -233,27 +241,27 @@ const state = reactive({
             colNames: [
                 {
                     prop: 'indexName',
-                    label: '索引名',
+                    label: 'db.indexName',
                 },
                 {
                     prop: 'columnNames',
-                    label: '列名',
+                    label: 'db.columnName',
                 },
                 {
                     prop: 'unique',
-                    label: '唯一',
+                    label: 'db.unique',
                 },
                 {
                     prop: 'indexType',
-                    label: '类型',
+                    label: 'common.type',
                 },
                 {
                     prop: 'indexComment',
-                    label: '备注',
+                    label: 'db.comment',
                 },
                 {
                     prop: 'action',
-                    label: '操作',
+                    label: 'common.operation',
                 },
             ],
             columns: [{ name: '', remark: '' }],
@@ -336,7 +344,7 @@ const deleteIndex = (index: any) => {
 const submit = async () => {
     let sql = genSql();
     if (!sql) {
-        ElMessage.warning('没有更改');
+        ElMessage.warning(t('db.noChange'));
         return;
     }
     SqlExecBox({
@@ -472,10 +480,10 @@ const indexChanges = (row: any) => {
     }
 
     let suffix = row.unique ? 'udx' : 'idx';
-    let commentSuffix = row.unique ? '唯一索引' : '普通索引';
+    let commentSuffix = row.unique ? t('db.uniqueIndex') : t('db.normalIndex');
     // 以表名为前缀
     row.indexName = `${tableData.value.tableName}_${name}_${suffix}`.replaceAll(' ', '');
-    row.indexComment = `${tableData.value.tableName}表(${name.replaceAll('_', ',')})${commentSuffix}`;
+    row.indexComment = `${tableData.value.tableName} ${t('db.table')} (${name.replaceAll('_', ',')})${commentSuffix}`;
 };
 
 const disableEditIncr = () => {

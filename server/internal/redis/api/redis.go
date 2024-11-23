@@ -33,12 +33,15 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.RedisQuery](rc, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := r.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeRedis, queryCond.TagPath)
-	if len(codes) == 0 {
+	tags := r.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         collx.AsArray(tagentity.TagTypeRedis),
+		CodePathLikes: collx.AsArray(queryCond.TagPath),
+	})
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.Codes = codes
+	queryCond.Codes = tags.GetCodes()
 
 	var redisvos []*vo.Redis
 	res, err := r.RedisApp.GetPageList(queryCond, page, &redisvos)

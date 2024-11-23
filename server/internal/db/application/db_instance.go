@@ -84,7 +84,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 	instanceEntity := instance.DbInstance
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
-	resourceType := consts.ResourceTypeDb
+	resourceType := consts.ResourceTypeDbInstance
 	authCerts := instance.AuthCerts
 	tagCodePaths := instance.TagCodePaths
 
@@ -145,7 +145,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		})
 	}, func(ctx context.Context) error {
 		if instanceEntity.Name != oldInstance.Name {
-			if err := app.tagApp.UpdateTagName(ctx, tagentity.TagTypeDb, oldInstance.Code, instanceEntity.Name); err != nil {
+			if err := app.tagApp.UpdateTagName(ctx, tagentity.TagTypeDbInstance, oldInstance.Code, instanceEntity.Name); err != nil {
 				return err
 			}
 		}
@@ -172,12 +172,12 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		// 删除该实例关联的授权凭证信息
 		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: instance.Code,
-			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
+			ResourceType: tagentity.TagType(consts.ResourceTypeDbInstance),
 		})
 	}, func(ctx context.Context) error {
 		return app.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 			ResourceCode: instance.Code,
-			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
+			ResourceType: tagentity.TagType(consts.ResourceTypeDbInstance),
 		})
 	}, func(ctx context.Context) error {
 		// 删除所有库配置
@@ -276,7 +276,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		authCertName2DbTags[db.AuthCertName] = append(authCertName2DbTags[db.AuthCertName], &tagdto.ResourceTag{
 			Code: db.Code,
 			Name: db.Name,
-			Type: tagentity.TagTypeDbName,
+			Type: tagentity.TagTypeDb,
 		})
 	}
 
@@ -287,7 +287,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 
 	return &tagdto.ResourceTag{
 		Code:     me.Code,
-		Type:     tagentity.TagTypeDb,
+		Type:     tagentity.TagTypeDbInstance,
 		Name:     me.Name,
 		Children: authCertTags,
 	}

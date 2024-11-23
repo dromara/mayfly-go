@@ -34,7 +34,7 @@ func (m *TagTreeVOS) ToTrees(pid uint64) []*TagTreeItem {
 		if node.Root {
 			continue
 		}
-		parentCodePath := node.GetParentPath(0)
+		parentCodePath := node.GetParentPath()
 		parentNode := tagMap[parentCodePath]
 		if parentNode != nil {
 			parentNode.Children = append(parentNode.Children, node)
