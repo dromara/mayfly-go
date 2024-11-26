@@ -3,16 +3,10 @@ package dbi
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"fmt"
-	"gitee.com/chunanyong/dm"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/anyx"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 // 游标遍历查询结果集处理函数
@@ -30,6 +24,16 @@ type DbConn struct {
 type QueryColumn struct {
 	Name string `json:"name"` // 列名
 	Type string `json:"type"` // 类型
+
+	SqlColType *sql.ColumnType `json:"-"`
+}
+
+func NewQueryColumn(colName string, col *sql.ColumnType) *QueryColumn {
+	return &QueryColumn{
+		Name:       col.Name(),
+		Type:       col.DatabaseTypeName(),
+		SqlColType: col,
+	}
 }
 
 func (d *DbConn) GetDb() *sql.DB {
@@ -76,7 +80,7 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
 func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
-	return walkQueryRows(ctx, d.db, querySql, walkFn, args...)
+	return walkQueryRows(ctx, d.GetDialect(), d.db, querySql, walkFn, args...)
 }
 
 // WalkTableRows 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
@@ -154,7 +158,7 @@ func (d *DbConn) Close() {
 }
 
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
-func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+func walkQueryRows(ctx context.Context, dialect Dialect, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
@@ -165,6 +169,8 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
 	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
 	defer rows.Close()
+
+	columnHelper := dialect.GetColumnHelper()
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
@@ -182,15 +188,9 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		if colName == "" {
 			colName = fmt.Sprintf("<anonymous%d>", k+1)
 		}
-		cols[k] = &QueryColumn{Name: colName, Type: colType.DatabaseTypeName()}
-		// 这里scans引用values，把数据填充到[]byte里
-		if cols[k].Type == "st_point" { // 达梦的空间坐标数据
-			var point dm.DmStruct
-			scans[k] = &point
-		} else {
-			var s = make([]byte, 0)
-			scans[k] = &s
-		}
+		qc := NewQueryColumn(colName, colType)
+		cols[k] = qc
+		scans[k] = columnHelper.GetScanDestPtr(qc)
 	}
 
 	for rows.Next() {
@@ -202,10 +202,10 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		rowData := make(map[string]any, lenCols)
 		// 把values中的数据复制到row中
 		for i, v := range scans {
-			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
+			rowData[cols[i].Name] = columnHelper.ConvertScanDestValue(v, cols[i])
 		}
 		if err = walkFn(rowData, cols); err != nil {
-			logx.ErrorfContext(ctx, "[%s]游标遍历查询结果集出错, 退出遍历: %s", selectSql, err.Error())
+			logx.ErrorfContext(ctx, "[%s] cursor traversal query result set error, exit traversal: %s", selectSql, err.Error())
 			cancelFunc()
 			return cols, err
 		}
@@ -214,108 +214,13 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	return cols, nil
 }
 
-func ParseDmStruct(dmStruct *dm.DmStruct) string {
-	if !dmStruct.Valid {
-		return ""
-	}
-
-	name, _ := dmStruct.GetSQLTypeName()
-	attributes, _ := dmStruct.GetAttributes()
-	arr := make([]string, len(attributes))
-	arr = append(arr, name, "(")
-
-	for i, v := range attributes {
-		if blb, ok1 := v.(*dm.DmBlob); ok1 {
-			if blb.Valid {
-				length, _ := blb.GetLength()
-				var dest = make([]byte, length)
-				_, _ = blb.Read(dest)
-				// 2进制转16进制字符串
-				hexStr := hex.EncodeToString(dest)
-				arr = append(arr, "0x", strings.ToUpper(hexStr))
-			}
-		} else {
-			arr = append(arr, anyx.ToString(v))
-		}
-		if i < len(attributes)-1 {
-			arr = append(arr, ",")
-		}
-	}
-
-	arr = append(arr, ")")
-	return strings.Join(arr, "")
-
-}
-
-// 将查询的值转为对应列类型的实际值，不全部转为字符串
-func valueConvert(data interface{}, colType *sql.ColumnType) any {
-	if data == nil {
-		return nil
-	}
-
-	// 达梦特殊数据类型
-	if dmStruct, ok := data.(*dm.DmStruct); ok {
-		return ParseDmStruct(dmStruct)
-	}
-
-	// 列的数据库类型名
-	colDatabaseTypeName := strings.ToLower(colType.DatabaseTypeName())
-
-	// 这里把[]byte数据转成string
-	stringV := ""
-	if slicePtr, ok := data.(*[]uint8); ok {
-		stringV = string(*slicePtr)
-		// 如果类型是bit，则直接返回第一个字节即可
-		if strings.Contains(colDatabaseTypeName, "bit") {
-			return (*slicePtr)[0]
-		}
-
-		if colDatabaseTypeName == "blob" {
-			return hex.EncodeToString(*slicePtr)
-		}
-	}
-
-	if colType == nil || colType.ScanType() == nil {
-		return stringV
-	}
-	colScanType := strings.ToLower(colType.ScanType().Name())
-
-	if strings.Contains(colScanType, "int") {
-		// 如果长度超过16位，则返回字符串，因为前端js长度大于16会丢失精度
-		if len(stringV) > 16 {
-			return stringV
-		}
-		intV, _ := strconv.Atoi(stringV)
-		switch colType.ScanType().Kind() {
-		case reflect.Int8:
-			return int8(intV)
-		case reflect.Uint8:
-			return uint8(intV)
-		case reflect.Int64:
-			return int64(intV)
-		case reflect.Uint64:
-			return uint64(intV)
-		case reflect.Uint:
-			return uint(intV)
-		default:
-			return intV
-		}
-	}
-	if strings.Contains(colScanType, "float") || strings.Contains(colDatabaseTypeName, "decimal") {
-		floatV, _ := strconv.ParseFloat(stringV, 64)
-		return floatV
-	}
-
-	return stringV
-}
-
 // 包装sql执行相关错误
 func wrapSqlError(err error) error {
 	if err == context.Canceled {
-		return errorx.NewBiz("取消执行")
+		return errorx.NewBiz("execution cancel")
 	}
 	if err == context.DeadlineExceeded {
-		return errorx.NewBiz("执行超时")
+		return errorx.NewBiz("execution timeout")
 	}
 	return err
 }

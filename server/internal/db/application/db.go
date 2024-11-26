@@ -98,7 +98,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 					Name: dbEntity.Name,
 				}},
 				ParentTagCode: authCert.Name,
-				ParentTagType: tagentity.TagTypeDbAuthCert,
+				ParentTagType: tagentity.TagTypeAuthCert,
 			})
 		})
 	}
@@ -141,7 +141,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 			}
 		}
 		if authCert.Name != old.AuthCertName {
-			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDb, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
+			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDb, old.Code, tagentity.TagTypeAuthCert, authCert.Name)
 		}
 		return nil
 	})

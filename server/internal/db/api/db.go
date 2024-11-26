@@ -49,7 +49,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		Types:         collx.AsArray(tagentity.TagTypeDb),
+		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert, tagentity.TagTypeDb)),
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
 	if len(tags) == 0 {

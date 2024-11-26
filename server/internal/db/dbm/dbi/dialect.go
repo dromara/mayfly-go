@@ -2,13 +2,17 @@ package dbi
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"io"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"reflect"
+	"strconv"
 	"strings"
 
 	pq "gitee.com/liuzongyang/libpq"
+	"github.com/may-fly/cast"
 )
 
 const DefaultQuoter = `"`
@@ -157,6 +161,12 @@ type ColumnHelper interface {
 
 	// FixColumn 根据数据库类型修复字段长度、精度等
 	FixColumn(column *Column)
+
+	// GetScanDestPtr 获取scan列目标值指针，用于在*sql.Rows.Scan()填充该值
+	GetScanDestPtr(*QueryColumn) any
+
+	// ConvertScanDestValue 将scan的填充的原始值data转为可阅读的值，如[]byte -> string or number...
+	ConvertScanDestValue(data any, qc *QueryColumn) any
 }
 
 type DefaultColumnHelper struct {
@@ -167,6 +177,74 @@ func (dd *DefaultColumnHelper) ToCommonColumn(dialectColumn *Column) {}
 func (dd *DefaultColumnHelper) ToColumn(commonColumn *Column) {}
 
 func (dd *DefaultColumnHelper) FixColumn(column *Column) {}
+
+func (dd *DefaultColumnHelper) GetScanDestPtr(qc *QueryColumn) any {
+	return &[]byte{}
+}
+
+func (dd *DefaultColumnHelper) ConvertScanDestValue(data any, qc *QueryColumn) any {
+	if data == nil {
+		return nil
+	}
+
+	colType := qc.SqlColType
+	// 列的数据库类型名
+	colDatabaseTypeName := strings.ToLower(colType.DatabaseTypeName())
+
+	stringV := ""
+	if slicePtr, ok := data.(*[]uint8); ok {
+		bytes := *slicePtr
+		if bytes == nil {
+			return nil
+		}
+
+		// 如果类型是bit，则直接返回第一个字节即可
+		if strings.Contains(colDatabaseTypeName, "bit") {
+			return (bytes)[0]
+		}
+
+		if colDatabaseTypeName == "blob" {
+			return hex.EncodeToString(bytes)
+		}
+		// 把[]byte数据转成string
+		stringV = string(bytes)
+	} else {
+		stringV = cast.ToString(data)
+	}
+
+	if colType == nil || colType.ScanType() == nil {
+		return stringV
+	}
+	colScanType := strings.ToLower(colType.ScanType().Name())
+
+	if strings.Contains(colScanType, "int") {
+		// 如果长度超过16位，则返回字符串，因为前端js长度大于16会丢失精度
+		if len(stringV) > 16 {
+			return stringV
+		}
+		intV, _ := strconv.Atoi(stringV)
+		switch colType.ScanType().Kind() {
+		case reflect.Int8:
+			return int8(intV)
+		case reflect.Uint8:
+			return uint8(intV)
+		case reflect.Int64:
+			return int64(intV)
+		case reflect.Uint64:
+			return uint64(intV)
+		case reflect.Uint:
+			return uint(intV)
+		default:
+			return intV
+		}
+	}
+	if strings.Contains(colScanType, "float") || strings.Contains(colDatabaseTypeName, "decimal") {
+		floatV, _ := strconv.ParseFloat(stringV, 64)
+		return floatV
+	}
+
+	return stringV
+}
 
 // DumpHelper 导出辅助方法
 type DumpHelper interface {

@@ -177,6 +177,7 @@ func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string
 }
 
 type ColumnHelper struct {
+	dbi.DefaultColumnHelper
 }
 
 func (ch *ColumnHelper) ToCommonColumn(dialectColumn *dbi.Column) {

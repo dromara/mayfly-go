@@ -18,8 +18,6 @@ var (
 
 	dataTypeRegexp = regexp.MustCompile(`(\w+)\((\d*),?(\d*)\)`)
 
-	dateHelper = new(DataHelper)
-
 	//  sqlite数据类型 映射 公共数据类型
 	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"int":               dbi.CommonTypeInt,
@@ -100,27 +98,27 @@ func (dc *DataHelper) FormatData(dbColumnValue any, dataType dbi.DataType) strin
 	switch dataType {
 	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
 		// 尝试用时间格式解析
-		res, err := time.Parse(time.DateTime, str)
+		_, err := time.Parse(time.DateTime, str)
 		if err == nil {
 			return str
 		}
-		res, _ = time.Parse(time.RFC3339, str)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
 	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
 		// 尝试用时间格式解析
-		res, err := time.Parse(time.DateOnly, str)
+		_, err := time.Parse(time.DateOnly, str)
 		if err == nil {
 			return str
 		}
-		res, _ = time.Parse(time.RFC3339, str)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateOnly)
 	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
 		// 尝试用时间格式解析
-		res, err := time.Parse(time.TimeOnly, str)
+		_, err := time.Parse(time.TimeOnly, str)
 		if err == nil {
 			return str
 		}
-		res, _ = time.Parse(time.RFC3339, str)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.TimeOnly)
 	}
 	return str
@@ -152,6 +150,7 @@ func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string
 }
 
 type ColumnHelper struct {
+	dbi.DefaultColumnHelper
 }
 
 func (ch *ColumnHelper) ToCommonColumn(dialectColumn *dbi.Column) {
@@ -174,10 +173,6 @@ func (ch *ColumnHelper) ToColumn(commonColumn *dbi.Column) {
 	} else {
 		ch.FixColumn(commonColumn)
 	}
-}
-
-func (ch *ColumnHelper) FixColumn(column *dbi.Column) {
-
 }
 
 type DumpHelper struct {

@@ -6,7 +6,7 @@
                 <tag-tree
                     class="machine-terminal-tree"
                     ref="tagTreeRef"
-                    :resource-type="TagResourceTypeEnum.MachineAuthCert.value"
+                    :resource-type="TagResourceTypeEnum.Machine.value"
                     :tag-path-node-type="NodeTypeTagPath"
                     :default-expanded-keys="state.defaultExpendKey"
                 >
@@ -378,7 +378,7 @@ const autoOpenTerminal = (codePath: string) => {
     const machineCode = typeAndCodes[TagResourceTypeEnum.Machine.value][0];
     state.defaultExpendKey = [tagPath, machineCode];
 
-    const authCertName = typeAndCodes[TagResourceTypeEnum.MachineAuthCert.value][0];
+    const authCertName = typeAndCodes[TagResourceTypeEnum.PublicAuthCert.value][0];
     setTimeout(() => {
         // 置空
         autoOpenResourceStore.setMachineCodePath('');

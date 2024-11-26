@@ -269,7 +269,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { formatByteSize, formatDate } from '@/common/utils/format';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypePath } from '@/common/commonEnum';
 import { SearchItem } from '@/components/SearchForm';
 import { getTagPathSearchItem } from '../component/tag';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
@@ -311,7 +311,7 @@ const perms = {
 
 const searchItems = [
     SearchItem.input('keyword', 'common.keyword').withPlaceholder('machine.keywordPlaceholder'),
-    getTagPathSearchItem(TagResourceTypeEnum.MachineAuthCert.value),
+    getTagPathSearchItem(TagResourceTypePath.MachineAuthCert),
 ];
 
 const columns = [

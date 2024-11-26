@@ -32,7 +32,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
 
 	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		Types:         collx.AsArray(tagentity.TagTypeDbAuthCert),
+		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert)),
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
 	// 不存在可操作的数据库，即没有可操作数据
@@ -50,7 +50,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充授权凭证信息
-	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
+	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
 		return vos
 	})...)
 

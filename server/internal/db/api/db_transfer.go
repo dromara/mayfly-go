@@ -158,10 +158,21 @@ func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFile
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 
+	defer func() {
+		if err := recover(); err != nil {
+			errInfo := anyx.ToString(err)
+			if len(errInfo) > 500 {
+				errInfo = errInfo[:500] + "..."
+			}
+			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), errInfo).WithClientId(fm.ClientId))
+		}
+	}()
+
 	if err != nil {
 		biz.ErrIsNilAppendErr(err, "failed to connect to the target database: %s")
 	}
 
+	errSql := ""
 	err = sqlparser.SQLSplit(reader, func(sql string) error {
 		select {
 		case <-ticker.C:
@@ -175,11 +186,14 @@ func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFile
 		}
 		executedStatements++
 		_, err = targetDbConn.Exec(sql)
+		if err != nil {
+			errSql = sql
+		}
 		return err
 	})
 
 	if err != nil {
-		biz.ErrIsNilAppendErr(err, "sql execution failed: %s")
+		biz.ErrIsNil(err, "[%s] execution failed: %s", errSql, err)
 	}
 
 	d.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("sql execution successfully: %s", filename)).WithClientId(fm.ClientId))

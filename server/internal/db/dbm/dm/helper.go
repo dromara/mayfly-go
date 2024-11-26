@@ -1,6 +1,7 @@
 package dm
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -9,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"gitee.com/chunanyong/dm"
 )
 
 var (
@@ -174,6 +177,7 @@ func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string
 }
 
 type ColumnHelper struct {
+	dbi.DefaultColumnHelper
 }
 
 func (ch *ColumnHelper) ToCommonColumn(dialectColumn *dbi.Column) {
@@ -210,6 +214,58 @@ func (ch *ColumnHelper) FixColumn(column *dbi.Column) {
 	if collx.ArrayAnyMatches([]string{"char"}, strings.ToLower(string(column.DataType))) && column.CharMaxLength == 0 {
 		column.CharMaxLength = 2000
 	}
+}
+
+func (dd *ColumnHelper) GetScanDestPtr(qc *dbi.QueryColumn) any {
+	if qc.Type == "st_point" {
+		return &dm.DmStruct{}
+	}
+	return dd.DefaultColumnHelper.GetScanDestPtr(qc)
+}
+
+func (dd *ColumnHelper) ConvertScanDestValue(data any, qc *dbi.QueryColumn) any {
+	if data == nil {
+		return nil
+	}
+
+	// 达梦特殊数据类型
+	if dmStruct, ok := data.(*dm.DmStruct); ok {
+		return ParseDmStruct(dmStruct)
+	}
+
+	return dd.DefaultColumnHelper.ConvertScanDestValue(data, qc)
+}
+
+func ParseDmStruct(dmStruct *dm.DmStruct) string {
+	if !dmStruct.Valid {
+		return ""
+	}
+
+	name, _ := dmStruct.GetSQLTypeName()
+	attributes, _ := dmStruct.GetAttributes()
+	arr := make([]string, len(attributes))
+	arr = append(arr, name, "(")
+
+	for i, v := range attributes {
+		if blb, ok1 := v.(*dm.DmBlob); ok1 {
+			if blb.Valid {
+				length, _ := blb.GetLength()
+				var dest = make([]byte, length)
+				_, _ = blb.Read(dest)
+				// 2进制转16进制字符串
+				hexStr := hex.EncodeToString(dest)
+				arr = append(arr, "0x", strings.ToUpper(hexStr))
+			}
+		} else {
+			arr = append(arr, anyx.ToString(v))
+		}
+		if i < len(attributes)-1 {
+			arr = append(arr, ",")
+		}
+	}
+
+	arr = append(arr, ")")
+	return strings.Join(arr, "")
 }
 
 type DumpHelper struct {

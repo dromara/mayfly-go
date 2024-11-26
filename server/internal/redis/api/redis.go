@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/internal/redis/api/form"
@@ -34,7 +33,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := r.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		Types:         collx.AsArray(tagentity.TagTypeRedis),
+		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeRedis)),
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
 	if len(tags) == 0 {
@@ -59,15 +58,22 @@ func (r *Redis) TestConn(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
+	authCert := &tagentity.ResourceAuthCert{
+		Username:       form.Username,
+		Ciphertext:     form.Password,
+		CiphertextType: tagentity.AuthCertCiphertextTypePassword,
+		Type:           tagentity.AuthCertTypePrivate,
+	}
+
+	if form.Mode == string(rdm.SentinelMode) {
+		encPwd, err := utils.PwdAesEncrypt(form.RedisNodePassword)
+		biz.ErrIsNil(err)
+		authCert.SetExtraValue("redisNodePassword", encPwd)
+	}
+
 	biz.ErrIsNil(r.RedisApp.TestConn(&dto.SaveRedis{
-		Redis: redis,
-		AuthCert: &tagentity.ResourceAuthCert{
-			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
-			Username:       form.Username,
-			Ciphertext:     form.Password,
-			CiphertextType: tagentity.AuthCertCiphertextTypePassword,
-			Type:           tagentity.AuthCertTypePrivate,
-		},
+		Redis:    redis,
+		AuthCert: authCert,
 	}))
 }
 

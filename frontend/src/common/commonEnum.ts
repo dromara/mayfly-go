@@ -19,15 +19,22 @@ export const ResourceTypeEnum = {
 
 // 标签关联的资源类型
 export const TagResourceTypeEnum = {
-    AuthCert: EnumValue.of(-2, '公共凭证').setExtra({ icon: 'Ticket' }),
+    PublicAuthCert: EnumValue.of(-2, '公共凭证').setExtra({ icon: 'Ticket' }),
     Tag: EnumValue.of(-1, '标签').setExtra({ icon: 'CollectionTag' }),
 
     Machine: ResourceTypeEnum.Machine,
-    Db: ResourceTypeEnum.Db,
+    DbInstance: ResourceTypeEnum.Db,
     Redis: ResourceTypeEnum.Redis,
     Mongo: ResourceTypeEnum.Mongo,
+    AuthCert: EnumValue.of(5, '授权凭证').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
 
-    MachineAuthCert: EnumValue.of(11, '机器-授权凭证').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
-    DbAuthCert: EnumValue.of(21, '数据库-授权凭证').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
-    DbName: EnumValue.of(22, '数据库').setExtra({ icon: 'Coin' }),
+    Db: EnumValue.of(22, '数据库').setExtra({ icon: 'Coin' }),
+};
+
+// 标签关联的资源类型路径
+export const TagResourceTypePath = {
+    MachineAuthCert: `${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`,
+
+    DbInstanceAuthCert: `${TagResourceTypeEnum.DbInstance.value}/${TagResourceTypeEnum.AuthCert.value}`,
+    Db: `${TagResourceTypeEnum.DbInstance.value}/${TagResourceTypeEnum.AuthCert.value}/${TagResourceTypeEnum.Db.value}`,
 };

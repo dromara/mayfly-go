@@ -12,8 +12,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"sort"
 	"strings"
-
-	"github.com/may-fly/cast"
 )
 
 type TagTree struct {
@@ -23,14 +21,14 @@ type TagTree struct {
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
 	tagTypesStr := rc.Query("type")
-	var tagTypes []entity.TagType
+	var typePaths []entity.TypePath
 	if tagTypesStr != "" {
-		tagTypes = collx.ArrayMap[string, entity.TagType](strings.Split(tagTypesStr, ","), func(val string) entity.TagType {
-			return entity.TagType(cast.ToInt8(val))
+		typePaths = collx.ArrayMap[string, entity.TypePath](strings.Split(tagTypesStr, ","), func(val string) entity.TypePath {
+			return entity.TypePath(val)
 		})
 	}
 
-	accountTags := p.TagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &entity.TagTreeQuery{Types: tagTypes})
+	accountTags := p.TagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &entity.TagTreeQuery{TypePaths: typePaths})
 	if len(accountTags) == 0 {
 		rc.ResData = []any{}
 		return
@@ -114,9 +112,9 @@ func (p *TagTree) MovingTag(rc *req.Ctx) {
 
 // 获取用户可操作的标签路径
 func (p *TagTree) TagResources(rc *req.Ctx) {
-	resourceType := int8(rc.PathParamInt("rtype"))
-	accountId := rc.GetLoginAccount().Id
-	tagResources := p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{Types: collx.AsArray(entity.TagType(resourceType))})
+	resourceType := rc.Query("resourceType")
+	biz.NotEmpty(resourceType, "resourceType cannot be empty")
+	tagResources := p.TagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &entity.TagTreeQuery{TypePaths: collx.AsArray(entity.TypePath(resourceType))})
 
 	tagPath2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(tagResource *dto.SimpleTagTree) string {
 		return string(entity.CodePath(tagResource.CodePath).GetTag())
@@ -133,11 +131,11 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
 
 	machineCodes := entity.GetCodesByCodePaths(entity.TagTypeMachine, p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeMachineAuthCert),
+		TypePaths:     collx.AsArray(entity.NewTypePaths(entity.TagTypeMachine, entity.TagTypeAuthCert)),
 		CodePathLikes: collx.AsArray(tagPath),
 	}).GetCodePaths()...)
 
-	dbCodes := entity.GetCodesByCodePaths(entity.TagTypeDbInstance, p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+	dbCodes := entity.GetCodesByCodePaths(entity.TagTypeDb, p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
 		Types:         collx.AsArray(entity.TagTypeDb),
 		CodePathLikes: collx.AsArray(tagPath),
 	}).GetCodePaths()...)

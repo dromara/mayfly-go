@@ -34,13 +34,9 @@ const (
 	TagTypeDbInstance TagType = TagType(consts.ResourceTypeDbInstance) // 数据库实例
 	TagTypeRedis      TagType = TagType(consts.ResourceTypeRedis)
 	TagTypeMongo      TagType = TagType(consts.ResourceTypeMongo)
+	TagTypeAuthCert   TagType = 5 // 授权凭证类型
 
-	// ----- （单独声明各个资源的授权凭证类型而不统一使用一个授权凭证类型是为了获取登录账号的授权凭证标签(ResourceAuthCertApp.GetAccountAuthCert)时，避免查出所有资源的授权凭证）
-
-	TagTypeMachineAuthCert TagType = 11 // 机器-授权凭证
-
-	TagTypeDbAuthCert TagType = 21 // 数据库-授权凭证
-	TagTypeDb         TagType = 22 // 数据库名
+	TagTypeDb TagType = 22 // 数据库名
 )
 
 // 标签接口资源，如果要实现资源结构体填充标签信息，则资源结构体需要实现该接口
@@ -173,6 +169,14 @@ func (cp CodePath) GetAllPath() []string {
 	return collx.ArrayMap(cp.GetPathSections(), func(section *PathSection) string {
 		return section.Path
 	})
+}
+
+// CanAccess 判断该标签路径是否允许访问操作指定标签路径，即是否为指定标签路径的父级路径。cp通常为用户拥有的标签路径
+//
+//	// cp = tag1/tag2/  codePath = tag1/tag2/test/  -> true
+//	// cp = tag1/tag2/  codePath = tag1/ -> false
+func (cp CodePath) CanAccess(codePath string) bool {
+	return strings.HasPrefix(codePath, string(cp))
 }
 
 // PathSection 标签路径段

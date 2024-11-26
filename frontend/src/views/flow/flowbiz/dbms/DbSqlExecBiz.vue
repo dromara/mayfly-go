@@ -95,7 +95,7 @@ const parseBizForm = async (bizFormStr: string) => {
     const dbRes = await dbApi.dbs.request({ id: bizForm.dbId });
     state.db = dbRes.list?.[0];
 
-    tagApi.listByQuery.request({ type: TagResourceTypeEnum.DbName.value, codes: state.db.code }).then((res) => {
+    tagApi.listByQuery.request({ type: TagResourceTypeEnum.Db.value, codes: state.db.code }).then((res) => {
         state.db.codePaths = res.map((item: any) => item.codePath);
     });
 };

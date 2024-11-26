@@ -15,7 +15,10 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"slices"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type TagTree interface {
@@ -342,29 +345,110 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	var tagResources []*dto.SimpleTagTree
 	var accountTagPaths []string
 
-	if accountId != consts.AdminId {
+	if accountId == consts.AdminId {
+		// admin账号，获取所有root tag进行查找过滤
+		tagTypeTags, _ := p.ListByCond(&entity.TagTree{Type: entity.TagTypeTag}, "code_path")
+		accountTagPaths = collx.ArrayFilter(collx.ArrayMap(tagTypeTags, func(item *entity.TagTree) string {
+			return item.CodePath
+		}), func(path string) bool {
+			return len(entity.CodePath(path).GetPathSections()) == 1
+		})
+	} else {
 		// 获取账号有权限操作的标签路径列表
 		accountTagPaths = p.ListTagByAccountId(accountId)
-		if len(accountTagPaths) == 0 {
-			return tagResources
-		}
+	}
+
+	if len(accountTagPaths) == 0 {
+		return tagResources
 	}
 
 	// 去除空字符串标签
 	tagPaths := collx.ArrayRemoveBlank(query.CodePathLikes)
 	// 如果需要查询指定标签下的资源标签，则需要与用户拥有的权限进行过滤，避免越权
 	if len(tagPaths) > 0 {
-		// 为空则说明为admin 则直接赋值需要获取的标签
-		if len(accountTagPaths) == 0 {
-			accountTagPaths = tagPaths
-		} else {
-			accountTagPaths = filterCodePaths(accountTagPaths, tagPaths)
+		accountTagPaths = filterCodePaths(accountTagPaths, tagPaths)
+	}
+
+	codePathLikes := accountTagPaths
+	needFilterAccountTagPaths := accountTagPaths
+
+	needFilter := false
+	typePaths := query.TypePaths
+	if len(typePaths) > 0 {
+		needFilterAccountTagPaths = make([]string, 0)
+		codePathLikes = []string{}
+
+		for _, typePath := range typePaths {
+			childOrderTypes := typePath.ToTagTypes()
+			// 如果不是获取所有子节点，则需要追加Type进行过滤
+			if !query.GetAllChildren {
+				tagResourceQuery.Types = append(tagResourceQuery.Types, childOrderTypes[len(childOrderTypes)-1])
+			}
+
+			// 资源类型模糊匹配，若childTypes = [machineType, authcertType]  => machineType|%/authcertType|%/
+			// 标签加上路径即可过滤出需要的标签，-> tag1/tag2/machineType|%/authcertType|%/
+			childOrderTypesMatch := strings.Join(collx.ArrayMap(childOrderTypes, func(tt entity.TagType) string {
+				return cast.ToString(int8(tt)) + entity.CodePathResourceSeparator + "%"
+			}), entity.CodePathSeparator) + entity.CodePathSeparator
+
+			// 根据用户拥有的标签路径，赋值要过滤匹配的标签路径条件
+			for _, accountTag := range accountTagPaths {
+				accountTagCodePath := entity.CodePath(accountTag)
+				// 标签路径，不包含资源段，如tag1/tag2/1|xxx => tag1/tag2/
+				tagPath := accountTagCodePath.GetTag()
+				// 纯纯的标签类型(不包含资源段)，则直接在该标签路径上补上对应的子资源类型匹配表达式
+				if tagPath == accountTagCodePath {
+					needFilterAccountTagPaths = append(needFilterAccountTagPaths, accountTag)
+					// 查询标签类型为标签时，特殊处理
+					if len(childOrderTypes) == 1 && childOrderTypes[0] == entity.TagTypeTag {
+						codePathLikes = append(codePathLikes, accountTag)
+						continue
+					}
+
+					// 纯标签可能还有其他子标签的纯标签，故需要多加一个匹配，如tagPath = tag1/，而系统还有 tag1/tag2/  tag1/tag2/tag3等，故需要多一个tag模糊匹配，即tag1/%/xxx
+					codePathLikes = append(codePathLikes, accountTag+childOrderTypesMatch, accountTag+"%"+entity.CodePathSeparator+childOrderTypesMatch)
+					continue
+				}
+
+				// 将用户有权限操作的标签如  tag1/tag2/1|xxx 替换为tag1/tag2/1|%，并与需要查询的资源类型进行匹配
+				accountTagCodePathSections := accountTagCodePath.GetPathSections()
+				for _, section := range accountTagCodePathSections {
+					if section.Type == entity.TagTypeTag {
+						continue
+					}
+					section.Code = "%"
+				}
+
+				codePathLike := string(tagPath) + childOrderTypesMatch
+				if entity.CodePath(accountTagCodePathSections.ToCodePath()).CanAccess(codePathLike) {
+					codePathLikes = append(codePathLikes, codePathLike)
+					needFilterAccountTagPaths = append(needFilterAccountTagPaths, accountTag)
+				}
+			}
 		}
+
+		// 去重处理
+		codePathLikes = collx.ArrayDeduplicate(codePathLikes)
+		needFilter = true
+	}
+
+	// 账号权限经过处理为空，则说明没有用户可以操作的标签，直接返回即可
+	if needFilter && len(needFilterAccountTagPaths) == 0 {
+		return tagResources
 	}
 
 	tagResourceQuery.Codes = query.Codes
-	tagResourceQuery.CodePathLikes = accountTagPaths
+	tagResourceQuery.CodePathLikes = codePathLikes
 	p.ListByQuery(tagResourceQuery, &tagResources)
+
+	if needFilter {
+		tagResources = collx.ArrayFilter(tagResources, func(tr *dto.SimpleTagTree) bool {
+			return slices.ContainsFunc(needFilterAccountTagPaths, func(accountTagPath string) bool {
+				return entity.CodePath(accountTagPath).CanAccess(tr.CodePath)
+			})
+		})
+	}
+
 	return tagResources
 }
 
@@ -391,8 +475,9 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
 	tagPaths := p.ListTagByAccountId(accountId)
 	// 判断该资源标签是否为该账号拥有的标签或其子标签
 	for _, v := range tagPaths {
+		accountTagCodePath := entity.CodePath(v)
 		for _, tp := range tagPath {
-			if strings.HasPrefix(tp, v) {
+			if accountTagCodePath.CanAccess(tp) {
 				return nil
 			}
 		}

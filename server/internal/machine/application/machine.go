@@ -337,7 +337,7 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
-	mi.CodePath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
+	mi.CodePath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeAuthCert), authCert.Name)
 	mi.EnableRecorder = me.EnableRecorder
 	mi.Protocol = me.Protocol
 
@@ -363,7 +363,7 @@ func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*
 		return &tagdto.ResourceTag{
 			Code: val.Name,
 			Name: val.Username,
-			Type: tagentity.TagTypeMachineAuthCert,
+			Type: tagentity.TagTypeAuthCert,
 		}
 	})
 

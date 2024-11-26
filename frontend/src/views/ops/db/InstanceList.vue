@@ -13,9 +13,9 @@
         >
             <template #tableHeader>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete">{{
-                    $t('common.delete')
-                }}</el-button>
+                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete">
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -76,7 +76,6 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import { formatDate } from '@/common/utils/format';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -88,7 +87,7 @@ import { SearchItem } from '@/components/SearchForm';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { getTagPathSearchItem } from '../component/tag';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypePath } from '@/common/commonEnum';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 
@@ -110,10 +109,7 @@ const perms = {
     saveDb: 'db:save',
 };
 
-const searchItems = [
-    SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder'),
-    getTagPathSearchItem(TagResourceTypeEnum.DbAuthCert.value),
-];
+const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder'), getTagPathSearchItem(TagResourceTypePath.Db)];
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),

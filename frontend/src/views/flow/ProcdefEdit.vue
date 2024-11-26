@@ -37,7 +37,7 @@
                 </el-form-item>
 
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('tag.relateTag')">
-                    <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypeEnum.DbName.value, TagResourceTypeEnum.Redis.value]" />
+                    <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
                 </el-form-item>
 
                 <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
@@ -94,7 +94,7 @@ import Sortable from 'sortablejs';
 import { randomUuid } from '../../common/utils/string';
 import { ProcdefStatus } from './enums';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';

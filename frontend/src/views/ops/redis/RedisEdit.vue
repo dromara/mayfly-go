@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>

@@ -260,7 +260,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		return &tagdto.ResourceTag{
 			Code: val.Name,
 			Name: val.Username,
-			Type: tagentity.TagTypeDbAuthCert,
+			Type: tagentity.TagTypeAuthCert,
 		}
 	})
 

@@ -39,7 +39,11 @@
                 /></el-form-item>
 
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('machine.relateMachine')">
-                    <tag-tree-check height="200px" :tag-type="TagResourceTypeEnum.Machine.value" v-model="form.codePaths" />
+                    <tag-tree-check
+                        height="200px"
+                        :tag-type="`${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`"
+                        v-model="form.codePaths"
+                    />
                 </el-form-item>
             </el-form>
 

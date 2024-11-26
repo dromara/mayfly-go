@@ -64,7 +64,7 @@
 
                                 <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
 
-                                <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.delete')" @confirm="deleteRow(scope.$index)">
+                                <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.deleteConfirm')" @confirm="deleteRow(scope.$index)">
                                     <template #reference>
                                         <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
                                     </template>

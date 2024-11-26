@@ -34,7 +34,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := m.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		Types:         []tagentity.TagType{tagentity.TagTypeMongo},
+		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMongo)),
 		CodePathLikes: []string{queryCond.TagPath},
 	})
 	if len(tags) == 0 {

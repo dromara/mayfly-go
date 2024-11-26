@@ -344,7 +344,7 @@ const allowDrag = (node: any) => {
     const tagType = node.data.type;
     return (
         tagType == TagResourceTypeEnum.Tag.value ||
-        tagType == TagResourceTypeEnum.Db.value ||
+        tagType == TagResourceTypeEnum.DbInstance.value ||
         tagType == TagResourceTypeEnum.Redis.value ||
         tagType == TagResourceTypeEnum.Machine.value ||
         tagType == TagResourceTypeEnum.Mongo.value

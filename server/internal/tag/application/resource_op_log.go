@@ -49,12 +49,23 @@ func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath 
 	}
 	tagTree := &entity.TagTree{CodePath: codePath}
 	if err := rol.tagTreeApp.GetByCond(tagTree); err != nil {
-		return errorx.NewBiz("resource not found")
+		return errorx.NewBiz("tag resource not found")
+	}
+
+	resourceType := tagTree.Type
+	// 获取第一段资源类型即可
+	pathSections := entity.CodePath(tagTree.CodePath).GetPathSections()
+	for _, ps := range pathSections {
+		if ps.Type == entity.TagTypeTag {
+			continue
+		}
+		resourceType = ps.Type
+		break
 	}
 
 	return rol.Save(ctx, &entity.ResourceOpLog{
 		ResourceCode: tagTree.Code,
-		ResourceType: int8(tagTree.Type),
+		ResourceType: int8(resourceType),
 		CodePath:     tagTree.CodePath,
 	})
 }

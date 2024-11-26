@@ -7,7 +7,7 @@ export const tagApi = {
     delTagTree: Api.newDelete('/tag-trees/{id}'),
     movingTag: Api.newPost('/tag-trees/moving'),
 
-    getResourceTagPaths: Api.newGet('/tag-trees/resources/{resourceType}/tag-paths'),
+    getResourceTagPaths: Api.newGet('/tag-trees/resources/tag-paths'),
     countTagResource: Api.newGet('/tag-trees/resources/count'),
     getRelateTagIds: Api.newGet('/tag-trees/relate/{relateType}/{relateId}'),
 

@@ -198,7 +198,7 @@ const getAuthCerts = async () => {
     const inst: any = props.instance;
     const res = await resourceAuthCertApi.listByQuery.request({
         resourceCode: inst.code,
-        resourceType: TagResourceTypeEnum.Db.value,
+        resourceType: TagResourceTypeEnum.DbInstance.value,
         pageSize: 100,
     });
     state.authCerts = res.list || [];

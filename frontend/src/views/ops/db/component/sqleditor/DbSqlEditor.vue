@@ -309,7 +309,7 @@ const onRunSql = async (newTab = false) => {
         sqlPrefix.startsWith('update') ||
         sqlPrefix.startsWith('insert') ||
         sqlPrefix.startsWith('delete') ||
-        sqlPrefix.startsWith('alert') ||
+        sqlPrefix.startsWith('alter') ||
         sqlPrefix.startsWith('drop') ||
         sqlPrefix.startsWith('create');
 

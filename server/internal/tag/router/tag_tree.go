@@ -29,7 +29,7 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 
 			req.NewPost("/moving", m.MovingTag).Log(req.NewLogSaveI(imsg.LogTagMove)).RequiredPermissionCode("tag:save"),
 
-			req.NewGet("/resources/:rtype/tag-paths", m.TagResources),
+			req.NewGet("/resources/tag-paths", m.TagResources),
 
 			req.NewGet("/resources/count", m.CountTagResource),
 
