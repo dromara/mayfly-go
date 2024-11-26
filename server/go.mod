@@ -3,8 +3,8 @@ module mayfly-go
 go 1.23.0
 
 require (
-	gitee.com/chunanyong/dm v1.8.16
-	gitee.com/liuzongyang/libpq v1.0.9
+	gitee.com/chunanyong/dm v1.8.17
+	gitee.com/liuzongyang/libpq v1.10.11
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/emirpasic/gods v1.18.1
 	github.com/gin-gonic/gin v1.10.0

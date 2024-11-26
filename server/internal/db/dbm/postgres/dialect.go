@@ -282,11 +282,11 @@ func (pd *PgsqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
 }
 
 func (pd *PgsqlDialect) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
+	return dataHelper
 }
 
 func (pd *PgsqlDialect) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
+	return columnHelper
 }
 
 func (pd *PgsqlDialect) GetDumpHelper() dbi.DumpHelper {

@@ -3,10 +3,13 @@ package dbi
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
+	"gitee.com/chunanyong/dm"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/anyx"
 	"reflect"
 	"strconv"
 	"strings"
@@ -173,7 +176,6 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	// 这里表示一行填充数据
 	scans := make([]any, lenCols)
 	// 这里表示一行所有列的值，用[]byte表示
-	values := make([][]byte, lenCols)
 	for k, colType := range colTypes {
 		// 处理字段名，如果为空，则命名为匿名列
 		colName := colType.Name()
@@ -182,7 +184,13 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		}
 		cols[k] = &QueryColumn{Name: colName, Type: colType.DatabaseTypeName()}
 		// 这里scans引用values，把数据填充到[]byte里
-		scans[k] = &values[k]
+		if cols[k].Type == "st_point" { // 达梦的空间坐标数据
+			var point dm.DmStruct
+			scans[k] = &point
+		} else {
+			var s = make([]byte, 0)
+			scans[k] = &s
+		}
 	}
 
 	for rows.Next() {
@@ -193,7 +201,7 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		// 每行数据
 		rowData := make(map[string]any, lenCols)
 		// 把values中的数据复制到row中
-		for i, v := range values {
+		for i, v := range scans {
 			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
 		}
 		if err = walkFn(rowData, cols); err != nil {
@@ -206,27 +214,67 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	return cols, nil
 }
 
+func ParseDmStruct(dmStruct *dm.DmStruct) string {
+	if !dmStruct.Valid {
+		return ""
+	}
+
+	name, _ := dmStruct.GetSQLTypeName()
+	attributes, _ := dmStruct.GetAttributes()
+	arr := make([]string, len(attributes))
+	arr = append(arr, name, "(")
+
+	for i, v := range attributes {
+		if blb, ok1 := v.(*dm.DmBlob); ok1 {
+			if blb.Valid {
+				length, _ := blb.GetLength()
+				var dest = make([]byte, length)
+				_, _ = blb.Read(dest)
+				// 2进制转16进制字符串
+				hexStr := hex.EncodeToString(dest)
+				arr = append(arr, "0x", strings.ToUpper(hexStr))
+			}
+		} else {
+			arr = append(arr, anyx.ToString(v))
+		}
+		if i < len(attributes)-1 {
+			arr = append(arr, ",")
+		}
+	}
+
+	arr = append(arr, ")")
+	return strings.Join(arr, "")
+
+}
+
 // 将查询的值转为对应列类型的实际值，不全部转为字符串
-func valueConvert(data []byte, colType *sql.ColumnType) any {
+func valueConvert(data interface{}, colType *sql.ColumnType) any {
 	if data == nil {
 		return nil
 	}
+
+	// 达梦特殊数据类型
+	if dmStruct, ok := data.(*dm.DmStruct); ok {
+		return ParseDmStruct(dmStruct)
+	}
+
 	// 列的数据库类型名
 	colDatabaseTypeName := strings.ToLower(colType.DatabaseTypeName())
 
-	// 如果类型是bit，则直接返回第一个字节即可
-	if strings.Contains(colDatabaseTypeName, "bit") {
-		return data[0]
-	}
-	if colDatabaseTypeName == "blob" {
-		return fmt.Sprintf("%x", data)
+	// 这里把[]byte数据转成string
+	stringV := ""
+	if slicePtr, ok := data.(*[]uint8); ok {
+		stringV = string(*slicePtr)
+		// 如果类型是bit，则直接返回第一个字节即可
+		if strings.Contains(colDatabaseTypeName, "bit") {
+			return (*slicePtr)[0]
+		}
+
+		if colDatabaseTypeName == "blob" {
+			return hex.EncodeToString(*slicePtr)
+		}
 	}
 
-	// 这里把[]byte数据转成string
-	stringV := string(data)
-	if stringV == "" {
-		return ""
-	}
 	if colType == nil || colType.ScanType() == nil {
 		return stringV
 	}

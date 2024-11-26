@@ -1,15 +1,15 @@
 /* eslint-disable no-unused-vars */
-import { dbApi } from './api';
-import { getTextWidth } from '@/common/utils/string';
+import {dbApi} from './api';
+import {getTextWidth} from '@/common/utils/string';
 import SqlExecBox from './component/sqleditor/SqlExecBox';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { editor, languages, Position } from 'monaco-editor';
+import {editor, languages, Position} from 'monaco-editor';
 
-import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import { DbDialect, EditorCompletionItem, getDbDialect } from './dialect';
-import { type RemovableRef, useLocalStorage } from '@vueuse/core';
-import { DbGetDbNamesMode } from './enums';
-import { ElMessage } from 'element-plus';
+import {registerCompletionItemProvider} from '@/components/monaco/completionItemProvider';
+import {DbDialect, EditorCompletionItem, getDbDialect} from './dialect';
+import {type RemovableRef, useLocalStorage} from '@vueuse/core';
+import {DbGetDbNamesMode} from './enums';
+import {ElMessage} from 'element-plus';
 
 const hintsStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-table-hints', new Map());
 const tableStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-tables', new Map());
@@ -101,12 +101,13 @@ export class DbInst {
         // 重置列信息缓存与表提示信息
         db.columnsMap?.clear();
         console.log(`load tables -> dbName: ${dbName}`);
-        tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
+        tables = await dbApi.tableInfos.request({id: this.id, db: dbName});
         tableStorage.value.set(key, tables);
         db.tables = tables;
 
         // 异步加载表提示信息
-        this.loadDbHints(dbName, true).then(() => {});
+        this.loadDbHints(dbName, true).then(() => {
+        });
         return tables;
     }
 
@@ -115,7 +116,7 @@ export class DbInst {
         // 表名联想
         let suggestions: languages.CompletionItem[] = [];
         tables?.forEach((tableMeta: any, index: any) => {
-            const { tableName, tableComment } = tableMeta;
+            const {tableName, tableComment} = tableMeta;
             suggestions.push({
                 label: {
                     label: tableName + ' - ' + tableComment,
@@ -128,7 +129,7 @@ export class DbInst {
                 sortText: 300 + index + '',
             });
         });
-        return { suggestions };
+        return {suggestions};
     }
 
     /** 加载列信息提示 */
@@ -153,7 +154,7 @@ export class DbInst {
             });
         });
 
-        return { suggestions };
+        return {suggestions};
     }
 
     /**
@@ -211,7 +212,7 @@ export class DbInst {
             return hints;
         }
         console.log(`load db-hits -> dbName: ${dbName}`);
-        hints = await dbApi.hintTables.request({ id: this.id, db: db.name });
+        hints = await dbApi.hintTables.request({id: this.id, db: db.name});
         db.tableHints = hints;
         hintsStorage.value.set(key, hints);
         return hints;
@@ -261,7 +262,8 @@ export class DbInst {
      * @returns count sql
      */
     getDefaultCountSql = (table: string, condition?: string) => {
-        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
+        return `SELECT COUNT(*) count
+                FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
     };
 
     // 获取指定表的默认查询sql
@@ -303,7 +305,8 @@ export class DbInst {
                 colNames.push(this.wrapName(colName));
                 values.push(dbDialect.wrapValue(column.dataType, data[colName]));
             }
-            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
+            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')})
+                       VALUES (${values.join(', ')})`);
         }
         return sqls.join(';\n') + ';';
     }
@@ -322,7 +325,8 @@ export class DbInst {
             schema = this.wrapName(dbArr[1]) + '.';
         }
 
-        let sql = `UPDATE ${schema}${this.wrapName(table)} SET `;
+        let sql = `UPDATE ${schema}${this.wrapName(table)}
+                   SET `;
         // 主键列信息
         const primaryKey = await this.loadTableColumn(dbName, table);
         let primaryKeyType = primaryKey.dataType;
@@ -350,7 +354,9 @@ export class DbInst {
         const primaryKey = await this.loadTableColumn(db, table);
         const primaryKeyColumnName = primaryKey.columnName;
         const ids = datas.map((d: any) => `${this.getDialect().wrapValue(primaryKey.dataType, d[primaryKeyColumnName])}`).join(',');
-        return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
+        return `DELETE
+                FROM ${this.wrapName(table)}
+                WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
     }
 
     /*
@@ -404,7 +410,7 @@ export class DbInst {
         dbInst.databases = inst.databases;
 
         if (dbInst.databases?.[0]) {
-            dbInst.version = await dbApi.getCompatibleDbVersion.request({ id: inst.id, db: dbInst.databases?.[0] });
+            dbInst.version = await dbApi.getCompatibleDbVersion.request({id: inst.id, db: dbInst.databases?.[0]});
         }
 
         dbInstCache.set(dbInst.id, dbInst);
@@ -441,7 +447,7 @@ export class DbInst {
             return Promise.resolve(dbInst);
         }
 
-        const dbInfoRes = await dbApi.dbs.request({ id: dbId });
+        const dbInfoRes = await dbApi.dbs.request({id: dbId});
         const db = dbInfoRes.list[0];
         return Promise.resolve(DbInst.getOrNewInst(db));
     }
@@ -459,7 +465,7 @@ export class DbInst {
      * @returns
      */
     static isNumber(columnType: string) {
-        return columnType && columnType.match(/int|double|float|number|decimal|byte|bit/gi);
+        return columnType && columnType.match(/^(int|uint|double|float|number|decimal|byte|bit)/i);
     }
 
     /**
@@ -539,7 +545,7 @@ export class DbInst {
             return db.database.split(' ');
         }
 
-        return await dbApi.getDbNamesByAc.request({ authCertName: db.authCertName });
+        return await dbApi.getDbNamesByAc.request({authCertName: db.authCertName});
     }
 }
 
@@ -647,9 +653,9 @@ function registerCompletions(
 ) {
     // mysql关键字
     completions.forEach((item: EditorCompletionItem) => {
-        let { label, insertText, description } = item;
+        let {label, insertText, description} = item;
         suggestions.push({
-            label: { label, description },
+            label: {label, description},
             kind,
             insertText: insertText || label,
             range,
@@ -668,20 +674,20 @@ function registerCompletions(
 export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: any[] = [], dbType: string) {
     let dbDialect = getDbDialect(dbType);
     let dbDialectInfo = dbDialect.getInfo();
-    let { keywords, operators, functions, variables } = dbDialectInfo.editorCompletions;
+    let {keywords, operators, functions, variables} = dbDialectInfo.editorCompletions;
     registerCompletionItemProvider('sql', {
         triggerCharacters: ['.', ' '],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
             let word = model.getWordUntilPosition(position);
             const dbInst = await DbInst.getInstA(dbId);
-            const { lineNumber, column } = position;
-            const { startColumn, endColumn } = word;
+            const {lineNumber, column} = position;
+            const {startColumn, endColumn} = word;
 
             // 当前行文本
             let lineContent = model.getLineContent(lineNumber);
             // 注释行不需要代码提示
             if (lineContent.startsWith('--')) {
-                return { suggestions: [] };
+                return {suggestions: []};
             }
 
             let range = {
@@ -806,7 +812,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
             // 当前库的表名联想
             const tables = await dbInst.loadTables(db);
             tables.forEach((tableMeta: any, index: any) => {
-                const { tableName, tableComment } = tableMeta;
+                const {tableName, tableComment} = tableMeta;
                 suggestions.push({
                     label: {
                         label: tableName + ' - ' + tableComment,
@@ -833,7 +839,11 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
     });
 }
 
-function getTableName4SqlCtx(sql: string, alias: string = '', defaultDb: string): { tableName: string; tableAlias: string; db: string } | undefined {
+function getTableName4SqlCtx(sql: string, alias: string = '', defaultDb: string): {
+    tableName: string;
+    tableAlias: string;
+    db: string
+} | undefined {
     // 去除多余的换行、空格和制表符
     sql = sql.replace(/[\r\n\s\t]+/g, ' ');
 
@@ -855,7 +865,7 @@ function getTableName4SqlCtx(sql: string, alias: string = '', defaultDb: string)
             tableName = info[1];
         }
         const tableAlias = matches[2] ? matches[2].replace(/[`"]/g, '') : tableName;
-        tables.push({ tableName, tableAlias, db });
+        tables.push({tableName, tableAlias, db});
     }
 
     if (alias) {

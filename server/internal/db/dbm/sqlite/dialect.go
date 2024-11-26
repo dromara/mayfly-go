@@ -171,11 +171,11 @@ func (sd *SqliteDialect) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 }
 
 func (sd *SqliteDialect) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
+	return dataHelper
 }
 
 func (sd *SqliteDialect) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
+	return columnHelper
 }
 
 func (sd *SqliteDialect) GetDumpHelper() dbi.DumpHelper {

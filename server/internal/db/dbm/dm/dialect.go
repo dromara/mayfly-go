@@ -230,11 +230,11 @@ func (dd *DMDialect) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) [
 }
 
 func (dd *DMDialect) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
+	return dataHelper
 }
 
 func (dd *DMDialect) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
+	return columnHelper
 }
 
 func (dd *DMDialect) GetDumpHelper() dbi.DumpHelper {

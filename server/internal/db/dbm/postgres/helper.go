@@ -73,7 +73,13 @@ var (
 		dbi.CommonTypeEnum:       "varchar(2000)",
 		dbi.CommonTypeJSON:       "varchar(2000)",
 	}
+	dataHelper   = &DataHelper{}
+	columnHelper = &ColumnHelper{}
 )
+
+func GetDataHelper() *DataHelper {
+	return dataHelper
+}
 
 type DataHelper struct {
 }

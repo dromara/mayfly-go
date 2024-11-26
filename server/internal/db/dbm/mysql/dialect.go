@@ -209,11 +209,11 @@ func (md *MysqlDialect) QuoteLiteral(literal string) string {
 }
 
 func (md *MysqlDialect) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
+	return dataHelper
 }
 
 func (md *MysqlDialect) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
+	return columnHelper
 }
 
 func (pd *MysqlDialect) GetSQLParser() sqlparser.SqlParser {

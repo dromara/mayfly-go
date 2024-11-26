@@ -54,6 +54,21 @@ const DM_TYPE_LIST: sqlColumnType[] = [
     { udtName: 'BLOB', dataType: 'BLOB', desc: '变长的二进制大对象', space: '', range: '100G-1' },
     { udtName: 'CLOB', dataType: 'CLOB', desc: '同TEXT', space: '', range: '100G-1' },
     { udtName: 'BFILE', dataType: 'BFILE', desc: '二进制文件', space: '', range: '100G-1' },
+
+    // 达梦系统特有的字段类型  从 ALL_TYPES 表中查询得到
+    {udtName: 'SYSGEO.ST_GEOMETRY', dataType: 'SYSGEO.ST_GEOMETRY', desc: '通用几何对象类型，可以表示点、线、面等任何几何形状', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_LINESTRING', dataType: 'SYSGEO.ST_LINESTRING', desc: '表示一条或多条连续的线段', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_CURVE', dataType: 'SYSGEO.ST_CURVE', desc: '表示一条曲线，可以是圆弧、抛物线等', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_GEOMCOLLECTION', dataType: 'SYSGEO.ST_GEOMCOLLECTION', desc: '表示一个几何对象集合，可以包含多个不同类型的几何对象', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_MULTICURVE', dataType: 'SYSGEO.ST_MULTICURVE', desc: '表示多个曲线的集合', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_MULTIPOINT', dataType: 'SYSGEO.ST_MULTIPOINT', desc: '表示多个点的集合', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_MULTISURFACE', dataType: 'SYSGEO.ST_MULTISURFACE', desc: '表示多个表面的集合', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_POINT', dataType: 'SYSGEO.ST_POINT', desc: '表示一个点', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_SURFACE', dataType: 'SYSGEO.ST_SURFACE', desc: '表示一个表面，通常是一个多边形', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_MULTILINESTRING', dataType: 'SYSGEO.ST_MULTILINESTRING', desc: '表示多个线串的集合', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_MULTIPOLYGON', dataType: 'SYSGEO.ST_MULTIPOLYGON', desc: '表示多个多边形的集合', space: '', range: ''},
+    {udtName: 'SYSGEO.ST_POLYGON', dataType: 'SYSGEO.ST_POLYGON', desc: '表示一个多边形', space: '', range: ''},
+
 ];
 
 // 参考官方文档：https://eco.dameng.com/document/dm/zh-cn/pm/function.html

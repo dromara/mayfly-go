@@ -31,7 +31,7 @@
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
-                                <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
+                                <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type" allow-create>
                                     <el-option
                                         v-for="pgsqlType in getDbDialect(dbType!).getInfo().columnTypes"
                                         :key="pgsqlType.dataType"

@@ -371,11 +371,11 @@ func (dx *MssqlDialect) RemoveQuote(name string) string {
 }
 
 func (md *MssqlDialect) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
+	return dataHelper
 }
 
 func (md *MssqlDialect) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
+	return columnHelper
 }
 
 func (md *MssqlDialect) GetDumpHelper() dbi.DumpHelper {

@@ -256,11 +256,11 @@ func (od *OracleDialect) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableNa
 }
 
 func (od *OracleDialect) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
+	return dataHelper
 }
 
 func (od *OracleDialect) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
+	return columnHelper
 }
 
 func (od *OracleDialect) genColumnBasicSql(column dbi.Column) string {
