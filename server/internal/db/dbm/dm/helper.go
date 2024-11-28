@@ -77,6 +77,22 @@ var (
 		dbi.CommonTypeEnum:       "TEXT",
 		dbi.CommonTypeJSON:       "TEXT",
 	}
+
+	dmStructTypes = map[string]bool{
+		"ST_CURVE":           true, // 表示一条曲线，可以是圆弧、抛物线等
+		"ST_LINESTRING":      true, // 表示一条或多条连续的线段
+		"ST_GEOMCOLLECTION":  true, // 表示一个几何对象集合，可以包含多个不同类型的几何对象
+		"ST_GEOMETRY":        true, // 通用几何对象类型，可以表示点、线、面等任何几何形状
+		"ST_MULTICURVE":      true, // 表示多个曲线的集合
+		"ST_MULTILINESTRING": true, // 表示多个线串的集合
+		"ST_MULTIPOINT":      true, // 表示多个点的集合
+		"ST_MULTIPOLYGON":    true, // 表示多个多边形的集合
+		"ST_MULTISURFACE":    true, // 表示多个表面的集合
+		"ST_POINT":           true, // 表示一个点
+		"ST_POLYGON":         true, // 表示一个多边形
+		"ST_SURFACE":         true, // 表示一个表面，通常是一个多边形
+	}
+
 	dataHelper   = &DataHelper{}
 	columnHelper = &ColumnHelper{}
 )
@@ -217,7 +233,7 @@ func (ch *ColumnHelper) FixColumn(column *dbi.Column) {
 }
 
 func (dd *ColumnHelper) GetScanDestPtr(qc *dbi.QueryColumn) any {
-	if qc.Type == "st_point" {
+	if dmStructTypes[strings.ToUpper(qc.Type)] {
 		return &dm.DmStruct{}
 	}
 	return dd.DefaultColumnHelper.GetScanDestPtr(qc)

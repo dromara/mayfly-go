@@ -174,7 +174,7 @@ func (v *PgsqlVisitor) VisitSimple_select_pramary(ctx *pgparser.Simple_select_pr
 		qs.SelectElements = c.Accept(v).(*sqlstmt.SelectElements)
 	}
 
-	if c := ctx.Where_clause(); c != nil {
+	if c := ctx.Where_clause(); c != nil && c.A_expr() != nil {
 		qs.Where = c.A_expr().Accept(v).(sqlstmt.IExpr)
 	}
 
