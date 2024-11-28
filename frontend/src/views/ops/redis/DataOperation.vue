@@ -160,7 +160,7 @@
         <div style="text-align: center; margin-top: 10px"></div>
 
         <el-dialog :title="$t('redis.addKey')" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
-            <el-form ref="keyForm" label-width="auto">
+            <el-form ref="keyForm" label-width="auto" :rules="keyFormRules" :model="newKeyDialog.keyInfo">
                 <el-form-item prop="key" label="Key" required>
                     <el-input v-model.trim="newKeyDialog.keyInfo.key"></el-input>
                 </el-form-item>
@@ -187,9 +187,9 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick, Ref, watch } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { isTrue, notBlank, notNull } from '@/common/assert';
+import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick, Ref, watch, useTemplateRef } from 'vue';
+import { ElMessageBox } from 'element-plus';
+import { isTrue, notNull } from '@/common/assert';
 import { copyToClipboard } from '@/common/utils/string';
 import { TagTreeNode, NodeType, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
@@ -202,13 +202,21 @@ import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg, useI18nPleaseInput } from '@/hooks/useI18n';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
 const { t } = useI18n();
 
-const contextmenuRef = ref();
+const keyFormRules = {
+    key: [
+        {
+            required: true,
+            message: useI18nPleaseInput('Key'),
+            trigger: ['change', 'blur'],
+        },
+    ],
+};
 
 const cmCopyKey = new ContextmenuItem('copyValue', 'Copy')
     .withIcon('CopyDocument')
@@ -301,8 +309,11 @@ const treeProps = {
 
 const defaultCount = 250;
 
+const contextmenuRef = ref();
 const keyTreeRef: any = ref(null);
 const tagTreeRef: any = ref(null);
+const keyFormRef = useTemplateRef('keyForm');
+
 const redisInst: Ref<RedisInst> = ref(new RedisInst());
 
 const state = reactive({
@@ -573,9 +584,9 @@ const cancelNewKey = () => {
 };
 
 const newKey = async () => {
+    await useI18nFormValidate(keyFormRef);
     const keyInfo = state.newKeyDialog.keyInfo;
     const key = keyInfo.key;
-    notBlank(key, t('redis.keyNotEmpty'));
 
     showKeyDetail(
         {

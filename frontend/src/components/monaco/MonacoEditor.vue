@@ -196,6 +196,9 @@ watch(
     (newValue: any) => {
         if (!monacoEditorIns.hasTextFocus()) {
             state.languageMode = props.language;
+            if (newValue == null) {
+                newValue = '';
+            }
             monacoEditorIns?.setValue(newValue);
         }
     }

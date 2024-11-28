@@ -198,6 +198,12 @@ func (tps PathSections) ToCodePath() string {
 	}), CodePathSeparator) + CodePathSeparator
 }
 
+func (tps PathSections) GetSection(tagType TagType) []*PathSection {
+	return collx.ArrayFilter(tps, func(tp *PathSection) bool {
+		return tp.Type == tagType
+	})
+}
+
 // GetCodesByCodePaths 从codePaths中提取指定标签类型的所有tagCode并去重
 // 如：codePaths = tag1/tag2/1|xxxcode/11|yyycode/,  tagType = 1 -> xxxcode,  tagType = 11 -> yyycode
 func GetCodesByCodePaths(tagType TagType, codePaths ...string) []string {

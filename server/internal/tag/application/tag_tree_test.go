@@ -25,6 +25,13 @@ func TestTagPathMatch(t *testing.T) {
 	codePathLike := "default/2|%/22|%/"
 	accountCodePath := "default/2|db_local/5|db_local_root/"
 
+	//  strings.HasPrefix(resourceTagPath, accountPath)
+	// resourceTagPath -> default/2|%/5|%/
+	// account  -> default/2|%/5|%/22|%/    "default/2|db_local/5|db_local_root/22|cWMpm6137g/"
+
+	// resourceTagPath -> default/2|%/5|%/
+	// account  -> default/2|%/    "default/2|db_local/"
+
 	sections := entity.CodePath(accountCodePath).GetPathSections()
 	for _, section := range sections {
 		if section.Type == entity.TagTypeTag {

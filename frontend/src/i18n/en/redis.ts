@@ -19,7 +19,6 @@ export default {
         newTabOpen: 'New tab opens',
         redisSelectErr: 'Select redis first',
         flushDbTips: 'Make sure to clear all keys of the [{db}] library?',
-        keyNotEmpty: 'The Key cannot be empty',
 
         // info
         redisInfoTitle: 'Redis server information',

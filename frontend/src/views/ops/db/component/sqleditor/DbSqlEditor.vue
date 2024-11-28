@@ -303,17 +303,17 @@ const onRunSql = async (newTab = false) => {
 
     const sqls = splitSql(sql);
 
-    // 简单截取前十个字符
-    const sqlPrefix = sql.slice(0, 10).toLowerCase();
-    const nonQuery =
-        sqlPrefix.startsWith('update') ||
-        sqlPrefix.startsWith('insert') ||
-        sqlPrefix.startsWith('delete') ||
-        sqlPrefix.startsWith('alter') ||
-        sqlPrefix.startsWith('drop') ||
-        sqlPrefix.startsWith('create');
-
     if (sqls.length == 1) {
+        const oneSql = sqls[0];
+        // 简单截取前十个字符
+        const sqlPrefix = oneSql.slice(0, 10).toLowerCase();
+        const nonQuery =
+            sqlPrefix.startsWith('update') ||
+            sqlPrefix.startsWith('insert') ||
+            sqlPrefix.startsWith('delete') ||
+            sqlPrefix.startsWith('alter') ||
+            sqlPrefix.startsWith('drop') ||
+            sqlPrefix.startsWith('create');
         let execRemark;
         if (nonQuery) {
             const res: any = await ElMessageBox.prompt(t('db.enterExecRemarkTips'), 'Tip', {
@@ -323,7 +323,7 @@ const onRunSql = async (newTab = false) => {
             });
             execRemark = res.value;
         }
-        runSql(sql, execRemark, newTab);
+        runSql(oneSql, execRemark, newTab);
     } else {
         let isFirst = true;
         for (let s of sqls) {

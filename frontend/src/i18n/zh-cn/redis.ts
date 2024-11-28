@@ -17,7 +17,6 @@ export default {
         newTabOpen: '新tab打开',
         redisSelectErr: '请先选择redis',
         flushDbTips: '确定清空[{db}]库的所有key?',
-        keyNotEmpty: 'Key不能为空',
 
         // info
         redisInfoTitle: 'Redis服务器信息',

@@ -483,7 +483,6 @@ const setTableColumns = (columns: any) => {
         x.dataType = dbDialect.getDataType(x.columnType);
         x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
         x.remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
-        console.log(x);
         return {
             ...x,
             key: columnName,

@@ -47,7 +47,7 @@ export default {
         copy: '复制',
         pleaseInput: '请输入{label}',
         pleaseSelect: '请选择{label}',
-        formValidationError: '请正确填写表单信息',
+        formValidationError: '信息填写有误，请检查',
         createTitle: '创建{name}',
         editTitle: '编辑{name}',
         detailTitle: '{name}详情',

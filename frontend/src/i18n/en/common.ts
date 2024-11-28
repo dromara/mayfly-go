@@ -47,7 +47,7 @@ export default {
         copy: 'Copy',
         pleaseInput: 'Please enter {label}',
         pleaseSelect: 'Please select {label}',
-        formValidationError: 'Please fill in the form information correctly',
+        formValidationError: 'Please check the form',
         createTitle: 'Create {name}',
         editTitle: 'Edit {name}',
         detailTitle: '{name} Details',

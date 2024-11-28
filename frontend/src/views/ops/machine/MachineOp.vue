@@ -6,7 +6,7 @@
                 <tag-tree
                     class="machine-terminal-tree"
                     ref="tagTreeRef"
-                    :resource-type="TagResourceTypeEnum.Machine.value"
+                    :resource-type="TagResourceTypePath.MachineAuthCert"
                     :tag-path-node-type="NodeTypeTagPath"
                     :default-expanded-keys="state.defaultExpendKey"
                 >
@@ -168,7 +168,7 @@ import { useRouter } from 'vue-router';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { formatDate } from '@/common/utils/format';
 import { hasPerms } from '@/components/auth/auth';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { Pane, Splitpanes } from 'splitpanes';

@@ -370,12 +370,9 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	}
 
 	codePathLikes := accountTagPaths
-	needFilterAccountTagPaths := accountTagPaths
-
-	needFilter := false
+	needFilterAccountTagPaths := make(map[string][]string, 0)
 	typePaths := query.TypePaths
 	if len(typePaths) > 0 {
-		needFilterAccountTagPaths = make([]string, 0)
 		codePathLikes = []string{}
 
 		for _, typePath := range typePaths {
@@ -391,14 +388,13 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 				return cast.ToString(int8(tt)) + entity.CodePathResourceSeparator + "%"
 			}), entity.CodePathSeparator) + entity.CodePathSeparator
 
-			// 根据用户拥有的标签路径，赋值要过滤匹配的标签路径条件
+			// 根据用户拥有的标签路径，赋值要过滤匹配的标签类型路径
 			for _, accountTag := range accountTagPaths {
 				accountTagCodePath := entity.CodePath(accountTag)
 				// 标签路径，不包含资源段，如tag1/tag2/1|xxx => tag1/tag2/
 				tagPath := accountTagCodePath.GetTag()
 				// 纯纯的标签类型(不包含资源段)，则直接在该标签路径上补上对应的子资源类型匹配表达式
 				if tagPath == accountTagCodePath {
-					needFilterAccountTagPaths = append(needFilterAccountTagPaths, accountTag)
 					// 查询标签类型为标签时，特殊处理
 					if len(childOrderTypes) == 1 && childOrderTypes[0] == entity.TagTypeTag {
 						codePathLikes = append(codePathLikes, accountTag)
@@ -410,7 +406,7 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 					continue
 				}
 
-				// 将用户有权限操作的标签如  tag1/tag2/1|xxx 替换为tag1/tag2/1|%，并与需要查询的资源类型进行匹配
+				// 将用户有权限操作的标签如  tag1/tag2/type|code 替换为tag1/tag2/type|%，并与需要查询的资源类型进行匹配
 				accountTagCodePathSections := accountTagCodePath.GetPathSections()
 				for _, section := range accountTagCodePathSections {
 					if section.Type == entity.TagTypeTag {
@@ -419,21 +415,33 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 					section.Code = "%"
 				}
 
+				// tag1/tag2/type1|%/type2|%
 				codePathLike := string(tagPath) + childOrderTypesMatch
-				if entity.CodePath(accountTagCodePathSections.ToCodePath()).CanAccess(codePathLike) {
-					codePathLikes = append(codePathLikes, codePathLike)
-					needFilterAccountTagPaths = append(needFilterAccountTagPaths, accountTag)
+				accountMatchPath := accountTagCodePathSections.ToCodePath()
+				// 用户有权限操作该标签则直接添加即可
+				if entity.CodePath(accountMatchPath).CanAccess(codePathLike) {
+					codePathLikes = append(codePathLikes, accountTag)
+					continue
+				}
+
+				// 如用户分配了: "default/type1|code1/type2|code2/type3|code3/", 需要查询的codePathLike为: default/type1|%/type2|%/，即用户分配的标签路径是查询的子节点。
+				// 若需要获取所有子节点，则codePathLike 使用default/type1|code1/type2|code2/去查。否则需要单独再去查一遍
+				if strings.HasPrefix(accountMatchPath, codePathLike) {
+					actualMatchCodePath := accountTagCodePathSections[len(entity.CodePath(codePathLike).GetPathSections())-1].Path
+					needFilterAccountTagPaths[actualMatchCodePath] = append(needFilterAccountTagPaths[actualMatchCodePath], accountTag)
+					if query.GetAllChildren {
+						codePathLikes = append(codePathLikes, actualMatchCodePath)
+					}
 				}
 			}
 		}
 
 		// 去重处理
 		codePathLikes = collx.ArrayDeduplicate(codePathLikes)
-		needFilter = true
 	}
 
 	// 账号权限经过处理为空，则说明没有用户可以操作的标签，直接返回即可
-	if needFilter && len(needFilterAccountTagPaths) == 0 {
+	if len(codePathLikes) == 0 {
 		return tagResources
 	}
 
@@ -441,11 +449,28 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	tagResourceQuery.CodePathLikes = codePathLikes
 	p.ListByQuery(tagResourceQuery, &tagResources)
 
-	if needFilter {
+	// 不是获取所有子节点，则需要额外查询需要过滤的节点信息。如用户分配了default/2|db_local/5|db_local_root/22|cWMpm6137g/标签，但是typePath为default/2|%/5|%/
+	// 由于不是获取所有子节点，则会被追加Type进行过滤，故获取不到default/2|db_local/5|db_local_root/的信息，需要额外查询
+	if !query.GetAllChildren && len(needFilterAccountTagPaths) > 0 {
+		var otherTags []*dto.SimpleTagTree
+		p.ListByQuery(&entity.TagTreeQuery{
+			CodePaths: collx.MapKeys(needFilterAccountTagPaths),
+		}, &otherTags)
+		tagResources = append(tagResources, otherTags...)
+		// 清空，因为不是获取所有子节点，so 后续不需要进行过滤
+		clear(needFilterAccountTagPaths)
+	}
+
+	if len(needFilterAccountTagPaths) > 0 {
 		tagResources = collx.ArrayFilter(tagResources, func(tr *dto.SimpleTagTree) bool {
-			return slices.ContainsFunc(needFilterAccountTagPaths, func(accountTagPath string) bool {
-				return entity.CodePath(accountTagPath).CanAccess(tr.CodePath)
-			})
+			for codePathLike, accountTags := range needFilterAccountTagPaths {
+				if strings.HasPrefix(tr.CodePath, codePathLike) {
+					return slices.ContainsFunc(accountTags, func(accountTag string) bool {
+						return entity.CodePath(accountTag).CanAccess(tr.CodePath)
+					})
+				}
+			}
+			return true
 		})
 	}
 
