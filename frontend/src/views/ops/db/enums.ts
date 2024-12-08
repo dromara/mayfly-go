@@ -22,7 +22,7 @@ export const DbSqlExecStatusEnum = {
 
 export const DbDataSyncDuplicateStrategyEnum = {
     None: EnumValue.of(-1, 'db.none'),
-    Ignore: EnumValue.of(1, 'db.ingore'),
+    Ignore: EnumValue.of(1, 'db.ignore'),
     Replace: EnumValue.of(2, 'db.replace'),
 };
 

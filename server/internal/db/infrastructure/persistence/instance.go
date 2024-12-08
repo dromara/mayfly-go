@@ -12,7 +12,7 @@ type instanceRepoImpl struct {
 }
 
 func NewInstanceRepo() repository.Instance {
-	return &instanceRepoImpl{base.RepoImpl[*entity.DbInstance]{M: new(entity.DbInstance)}}
+	return &instanceRepoImpl{}
 }
 
 // 分页获取数据库信息列表

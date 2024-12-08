@@ -18,11 +18,13 @@ import '@/theme/index.scss';
 import '@/assets/font/font.css';
 import '@/assets/iconfont/iconfont.js';
 import { getThemeConfig } from './common/utils/storage';
+import { initSysMsgs } from './common/sysmsgs';
 
 const app = createApp(App);
 
 registElSvgIcon(app);
 directive(app);
+initSysMsgs();
 
 app.use(pinia).use(router).use(i18n).use(ElementPlus, { size: getThemeConfig()?.globalComponentSize }).mount('#app');
 

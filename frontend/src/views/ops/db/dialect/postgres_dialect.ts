@@ -209,8 +209,7 @@ class PostgresqlDialect implements DbDialect {
     }
 
     quoteIdentifier = (name: string) => {
-        // 后端sql解析器暂不支持pgsql
-        return name;
+        return `"${name}"`;
     };
 
     matchType(text: string, arr: string[]): boolean {

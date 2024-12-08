@@ -79,7 +79,7 @@
                 </el-tab-pane>
                 <el-tab-pane :label="$t('db.index')" name="2">
                     <el-table :data="tableData.indexs.res" :max-height="tableData.height">
-                        <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.indexs.colNames" :key="item.prop">
+                        <el-table-column :prop="item.prop" :label="$t(item.label)" v-for="item in tableData.indexs.colNames" :key="item.prop">
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
 
@@ -241,7 +241,7 @@ const state = reactive({
             colNames: [
                 {
                     prop: 'indexName',
-                    label: 'db.indexName',
+                    label: 'common.name',
                 },
                 {
                     prop: 'columnNames',

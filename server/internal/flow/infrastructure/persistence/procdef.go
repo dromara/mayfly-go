@@ -12,7 +12,7 @@ type procdefImpl struct {
 }
 
 func newProcdefRepo() repository.Procdef {
-	return &procdefImpl{base.RepoImpl[*entity.Procdef]{M: new(entity.Procdef)}}
+	return &procdefImpl{}
 }
 
 func (p *procdefImpl) GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

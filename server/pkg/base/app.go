@@ -161,39 +161,39 @@ func (ai *AppImpl[T, R]) CountByCond(cond any) int64 {
 
 // Tx 执行事务操作
 func (ai *AppImpl[T, R]) Tx(ctx context.Context, funcs ...func(context.Context) error) (err error) {
-	tx := GetTxFromCtx(ctx)
 	dbCtx := ctx
-	var txDb *gorm.DB
+	isCreateTx := false
+	txDb := GetDbFromCtx(ctx)
 
-	if tx == nil {
+	if txDb == nil {
 		txDb = global.Db.Begin()
-		dbCtx, tx = NewCtxWithTxDb(ctx, txDb)
-	} else {
-		txDb = tx.DB
-		tx.Count++
+		if txDb.Error != nil {
+			return txDb.Error
+		}
+
+		dbCtx = NewCtxWithDb(ctx, txDb)
+		// 只有创建事务的方法，才允许其提交或回滚
+		isCreateTx = true
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
-			tx.Count = 0
-			txDb.Rollback()
 			err = fmt.Errorf("%v", r)
-			return
 		}
 
-		tx.Count--
+		// Make sure to rollback when panic, Block error or Commit error
+		if isCreateTx && err != nil {
+			txDb.Rollback()
+		}
 	}()
 
 	for _, f := range funcs {
-		err = f(dbCtx)
-		if err != nil && tx.Count > 0 {
-			tx.Count = 0
-			txDb.Rollback()
+		if err = f(dbCtx); err != nil {
 			return
 		}
 	}
 
-	if tx.Count == 1 {
+	if isCreateTx {
 		err = txDb.Commit().Error
 	}
 	return

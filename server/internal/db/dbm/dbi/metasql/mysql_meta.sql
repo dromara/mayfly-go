@@ -36,6 +36,7 @@ SELECT
   IF(non_unique, 0, 1) isUnique,
   SEQ_IN_INDEX seqInIndex,
   INDEX_COMMENT indexComment,
+  SUB_PART subPart,
   index_name = 'PRIMARY' as isPrimaryKey
 FROM
   information_schema.STATISTICS

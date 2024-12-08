@@ -11,7 +11,7 @@ type roleResourceRepoImpl struct {
 }
 
 func newRoleResourceRepo() repository.RoleResource {
-	return &roleResourceRepoImpl{base.RepoImpl[*entity.RoleResource]{M: new(entity.RoleResource)}}
+	return &roleResourceRepoImpl{}
 }
 
 // 获取角色拥有的资源id数组

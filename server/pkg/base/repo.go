@@ -15,16 +15,16 @@ import (
 // 基础repo接口
 type Repo[T model.ModelI] interface {
 
-	// 新增一个实体
+	// Insert 新增一个实体
 	Insert(ctx context.Context, e T) error
 
-	// 使用指定gorm db执行，主要用于事务执行
+	// InsertWithDb 使用指定gorm db执行，主要用于事务执行
 	InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 
-	// 批量新增实体
+	// BatchInsert 批量新增实体
 	BatchInsert(ctx context.Context, models []T) error
 
-	// 使用指定gorm db执行，主要用于事务执行
+	// BatchInsertWithDb 使用指定gorm db执行，主要用于事务执行
 	BatchInsertWithDb(ctx context.Context, db *gorm.DB, models []T) error
 
 	// 根据实体id更新实体信息
@@ -42,31 +42,32 @@ type Repo[T model.ModelI] interface {
 	// @param values 需要模型结构体或map
 	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error
 
-	// 保存实体，实体IsCreate返回true则新增，否则更新
+	// Save 保存实体，实体IsCreate返回true则新增，否则更新
 	Save(ctx context.Context, e T) error
 
-	// 保存实体，实体IsCreate返回true则新增，否则更新。
+	// SaveWithDb 保存实体，实体IsCreate返回true则新增，否则更新。
 	// 使用指定gorm db执行，主要用于事务执行
 	SaveWithDb(ctx context.Context, db *gorm.DB, e T) error
 
-	// 根据实体主键删除实体
+	// DeleteById 根据实体主键删除实体
 	DeleteById(ctx context.Context, id ...uint64) error
 
-	// 使用指定gorm db执行，主要用于事务执行
+	// DeleteByIdWithDb 使用指定gorm db执行，主要用于事务执行
 	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id ...uint64) error
 
-	// 根据实体条件删除实体
+	// DeleteByCond 根据实体条件删除实体
 	DeleteByCond(ctx context.Context, cond any) error
 
-	// 使用指定gorm db执行，主要用于事务执行
+	// DeleteByCondWithDb 使用指定gorm db执行，主要用于事务执行
 	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
 
 	// ExecBySql 执行原生sql
 	ExecBySql(sql string, params ...any) error
 
-	// 根据实体id查询
+	// GetById 根据实体id查询
 	GetById(id uint64, cols ...string) (T, error)
 
+	// GetByIds 根据实体ids查询
 	GetByIds(ids []uint64, cols ...string) ([]T, error)
 
 	// GetByCond 根据实体条件查询实体信息（单个结果集）
@@ -88,13 +89,13 @@ type Repo[T model.ModelI] interface {
 	// SelectBySql 根据sql语句查询数据
 	SelectBySql(sql string, res any, params ...any) error
 
-	// 根据指定条件统计model表的数量
+	// CountByCond 根据指定条件统计model表的数量
 	CountByCond(cond any) int64
 }
 
 // 基础repo接口
 type RepoImpl[T model.ModelI] struct {
-	M T // 模型实例
+	model any // 模型实例
 
 	modelType reflect.Type // 模型类型
 }
@@ -120,7 +121,6 @@ func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
 	return gormx.BatchInsert[T](es)
 }
 
-// 使用指定gorm db执行，主要用于事务执行
 func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error {
 	for _, e := range es {
 		br.fillBaseInfo(ctx, e)
@@ -281,7 +281,12 @@ func (br *RepoImpl[T]) NewModel() T {
 
 // getModel 获取表的模型实例
 func (br *RepoImpl[T]) getModel() T {
-	return br.M
+	if br.model != nil {
+		return br.model.(T)
+	}
+
+	br.model = br.NewModel()
+	return br.model.(T)
 }
 
 // getModelType 获取模型类型(非指针模型)
@@ -290,7 +295,8 @@ func (br *RepoImpl[T]) getModelType() reflect.Type {
 		return br.modelType
 	}
 
-	modelType := reflect.TypeOf(br.M)
+	var model T
+	modelType := reflect.TypeOf(model)
 	// 检查 model 是否为指针类型
 	if modelType.Kind() == reflect.Ptr {
 		// 获取指针指向的类型

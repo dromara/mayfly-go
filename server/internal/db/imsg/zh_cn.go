@@ -16,7 +16,7 @@ var Zh_CN = map[i18n.MsgId]string{
 
 	SqlScriptRunFail:    "sql脚本执行失败",
 	SqlScriptRunSuccess: "sql脚本执行成功",
-	SqlScripRunProgress: "sql脚本执行进度",
+	SqlScripRunProgress: "sql执行进度",
 	DbDumpErr:           "数据库导出失败",
 	ErrDbNameExist:      "该实例下数据库名已存在",
 	ErrDbNotAccess:      "未配置数据库【{{.dbName}}】的操作权限",

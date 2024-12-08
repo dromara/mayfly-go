@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"strings"
 
@@ -12,11 +13,12 @@ import (
 )
 
 func init() {
-	dbi.Register(dbi.DbTypeOracle, new(Meta))
+	dbi.Register(DbTypeOracle, new(Meta))
 }
 
 const (
 	DbVersionOracle11 dbi.DbVersion = "11"
+	DbTypeOracle      dbi.DbType    = "oracle"
 )
 
 type Meta struct {
@@ -113,4 +115,38 @@ func (om *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 		return md
 	}
 	return &OracleMetadata{dc: conn}
+}
+
+func (sm *Meta) GetDbDataTypes() []*dbi.DbDataType {
+	return collx.AsArray[*dbi.DbDataType](
+		CHAR,
+		NCHAR,
+		VARCHAR2,
+		NVARCHAR2,
+		TEXT,
+		LONG,
+		LONGVARCHAR,
+		IMAGE,
+		LONGVARBINARY,
+		CLOB,
+		BLOB,
+		DECIMAL,
+		NUMBER,
+		INTEGER,
+		INT,
+		BIGINT,
+		TINYINT,
+		BYTE,
+		SMALLINT,
+		BIT,
+		DOUBLE,
+		FLOAT,
+		TIME,
+		DATE,
+		TIMESTAMP,
+	)
+}
+
+func (mm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
+	return &commonTypeConverter{}
 }

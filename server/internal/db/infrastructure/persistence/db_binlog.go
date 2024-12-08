@@ -17,9 +17,7 @@ type dbBinlogRepoImpl struct {
 }
 
 func NewDbBinlogRepo() repository.DbBinlog {
-	dr := &dbBinlogRepoImpl{}
-	dr.M = new(entity.DbBinlog)
-	return dr
+	return &dbBinlogRepoImpl{}
 }
 
 func (d *dbBinlogRepoImpl) AddJobIfNotExists(_ context.Context, job *entity.DbBinlog) error {

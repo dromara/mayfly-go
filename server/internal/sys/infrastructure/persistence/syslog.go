@@ -12,7 +12,7 @@ type syslogRepoImpl struct {
 }
 
 func newSyslogRepo() repository.Syslog {
-	return &syslogRepoImpl{base.RepoImpl[*entity.SysLog]{M: new(entity.SysLog)}}
+	return &syslogRepoImpl{}
 }
 
 func (m *syslogRepoImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

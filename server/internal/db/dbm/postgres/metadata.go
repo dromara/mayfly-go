@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
@@ -54,7 +53,7 @@ func (pd *PgsqlMetadata) GetDbNames() ([]string, error) {
 func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := pd.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	var res []map[string]any
@@ -88,7 +87,7 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := pd.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
@@ -96,13 +95,12 @@ func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return nil, err
 	}
 
-	columnHelper := dialect.GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
 			TableName:     cast.ToString(re["tableName"]),
 			ColumnName:    cast.ToString(re["columnName"]),
-			DataType:      dbi.ColumnDataType(cast.ToString(re["dataType"])),
+			DataType:      cast.ToString(re["dataType"]),
 			CharMaxLength: cast.ToInt(re["charMaxLength"]),
 			ColumnComment: cast.ToString(re["columnComment"]),
 			Nullable:      cast.ToString(re["nullable"]) == "YES",
@@ -112,7 +110,9 @@ func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			NumPrecision:  cast.ToInt(re["numPrecision"]),
 			NumScale:      cast.ToInt(re["numScale"]),
 		}
-		columnHelper.FixColumn(&column)
+
+		pd.dc.GetDbDataType(column.DataType).FixColumn(&column)
+		FixColumnDefault(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -164,7 +164,9 @@ func (pd *PgsqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			// 索引字段已根据名称和顺序排序，故取最后一个即可
 			i := len(result) - 1
 			// 同索引字段以逗号连接
-			result[i].ColumnName = result[i].ColumnName + "," + v.ColumnName
+			if result[i].ColumnName != v.ColumnName {
+				result[i].ColumnName = result[i].ColumnName + "," + v.ColumnName
+			}
 		} else {
 			key = in
 			result = append(result, v)
@@ -175,33 +177,7 @@ func (pd *PgsqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 // 获取建表ddl
 func (pd *PgsqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
-	// 1.获取表信息
-	tbs, err := pd.GetTables(tableName)
-	tableInfo := &dbi.Table{}
-	if err != nil || tbs == nil || len(tbs) <= 0 {
-		logx.Errorf("获取表信息失败, %s", tableName)
-		return "", err
-	}
-	tableInfo.TableName = tbs[0].TableName
-	tableInfo.TableComment = tbs[0].TableComment
-
-	// 2.获取列信息
-	columns, err := pd.GetColumns(tableName)
-	if err != nil {
-		logx.Errorf("获取列信息失败, %s", tableName)
-		return "", err
-	}
-	dialect := pd.dc.GetDialect()
-	tableDDLArr := dialect.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
-	// 3.获取索引信息
-	indexs, err := pd.GetTableIndex(tableName)
-	if err != nil {
-		logx.Errorf("获取索引信息失败, %s", tableName)
-		return "", err
-	}
-	// 组装返回
-	tableDDLArr = append(tableDDLArr, dialect.GenerateIndexDDL(indexs, *tableInfo)...)
-	return strings.Join(tableDDLArr, ";\n"), nil
+	return dbi.GenTableDDL(pd.dc.GetDialect(), pd, tableName, dropBeforeCreate)
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames
@@ -220,11 +196,11 @@ func (pd *PgsqlMetadata) GetSchemas() ([]string, error) {
 
 func (pd *PgsqlMetadata) GetDefaultDb() string {
 	switch pd.dc.Info.Type {
-	case dbi.DbTypePostgres, dbi.DbTypeGauss:
+	case DbTypePostgres, DbTypeGauss:
 		return "postgres"
-	case dbi.DbTypeKingbaseEs:
+	case DbTypeKingbaseEs:
 		return "security"
-	case dbi.DbTypeVastbase:
+	case DbTypeVastbase:
 		return "vastbase"
 	default:
 		return ""

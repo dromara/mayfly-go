@@ -12,7 +12,7 @@ type mongoRepoImpl struct {
 }
 
 func newMongoRepo() repository.Mongo {
-	return &mongoRepoImpl{base.RepoImpl[*entity.Mongo]{M: new(entity.Mongo)}}
+	return &mongoRepoImpl{}
 }
 
 // 分页获取数据库信息列表

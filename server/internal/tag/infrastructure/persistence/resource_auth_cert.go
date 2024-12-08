@@ -11,5 +11,5 @@ type resourceAuthCertRepoImpl struct {
 }
 
 func newResourceAuthCertRepoImpl() repository.ResourceAuthCert {
-	return &resourceAuthCertRepoImpl{base.RepoImpl[*entity.ResourceAuthCert]{M: new(entity.ResourceAuthCert)}}
+	return &resourceAuthCertRepoImpl{}
 }

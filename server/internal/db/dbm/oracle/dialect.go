@@ -59,6 +59,8 @@ func (od *OracleDialect) batchInsertSimple(tableName string, columns []string, v
 			ignore = fmt.Sprintf("/*+ IGNORE_ROW_ON_DUPKEY_INDEX(%s(%s)) */", tableName, strings.Join(arr, ","))
 		}
 	}
+
+	quote := od.Quoter().Quote
 	effRows := 0
 	for _, value := range values {
 		// 拼接带占位符的sql oracle的占位符是:1,:2,:3....
@@ -66,7 +68,7 @@ func (od *OracleDialect) batchInsertSimple(tableName string, columns []string, v
 		for i := 0; i < len(value); i++ {
 			placeholder = append(placeholder, fmt.Sprintf(":%d", i+1))
 		}
-		sqlTemp := fmt.Sprintf("INSERT %s INTO %s (%s) VALUES (%s)", ignore, od.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholder, ","))
+		sqlTemp := fmt.Sprintf("INSERT %s INTO %s (%s) VALUES (%s)", ignore, quote(tableName), strings.Join(columns, ","), strings.Join(placeholder, ","))
 
 		// oracle数据库为了兼容ignore主键冲突，只能一条条的执行insert
 		res, err := od.dc.TxExec(tx, sqlTemp, value...)
@@ -83,6 +85,7 @@ func (od *OracleDialect) batchInsertMergeSql(tableName string, columns []string,
 	uniqueCols := make([]string, 0)
 	caseSqls := make([]string, 0)
 	metadata := od.dc.GetMetadata()
+	quote := od.Quoter().Quote
 	// 查询唯一索引涉及到的字段，并组装到match条件内
 	indexs, _ := metadata.GetTableIndex(tableName)
 	if indexs != nil {
@@ -94,7 +97,7 @@ func (od *OracleDialect) batchInsertMergeSql(tableName string, columns []string,
 					if !collx.ArrayContains(uniqueCols, col) {
 						uniqueCols = append(uniqueCols, col)
 					}
-					tmp = append(tmp, fmt.Sprintf(" T1.%s = T2.%s ", od.QuoteIdentifier(col), od.QuoteIdentifier(col)))
+					tmp = append(tmp, fmt.Sprintf(" T1.%s = T2.%s ", quote(col), quote(col)))
 				}
 				caseSqls = append(caseSqls, fmt.Sprintf("( %s )", strings.Join(tmp, " AND ")))
 			}
@@ -110,8 +113,9 @@ func (od *OracleDialect) batchInsertMergeSql(tableName string, columns []string,
 	insertVals := make([]string, 0)
 	upds := make([]string, 0)
 	insertCols := make([]string, 0)
+	quoteTrim := od.Quoter().Trim
 	for _, column := range columns {
-		if !collx.ArrayContains(uniqueCols, od.RemoveQuote(column)) {
+		if !collx.ArrayContains(uniqueCols, quoteTrim(column)) {
 			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", column, column))
 		}
 		insertCols = append(insertCols, fmt.Sprintf("T1.%s", column))
@@ -132,7 +136,7 @@ func (od *OracleDialect) batchInsertMergeSql(tableName string, columns []string,
 
 	t2 := strings.Join(t2s, " UNION ALL ")
 
-	sqlTemp := "MERGE INTO " + od.QuoteIdentifier(tableName) + " T1 USING (" + t2 + ") T2 ON (" + strings.Join(caseSqls, " OR ") + ") "
+	sqlTemp := "MERGE INTO " + quote(tableName) + " T1 USING (" + t2 + ") T2 ON (" + strings.Join(caseSqls, " OR ") + ") "
 	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ") "
 	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(upds, ",")
 
@@ -157,7 +161,8 @@ func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 // 获取建表ddl
 func (od *OracleDialect) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
-	quoteTableName := od.QuoteIdentifier(tableInfo.TableName)
+	quote := od.Quoter().Quote
+	quoteTableName := quote(tableInfo.TableName)
 	sqlArr := make([]string, 0)
 
 	if dropBeforeCreate {
@@ -181,13 +186,13 @@ end`
 	// 把通用类型转换为达梦类型
 	for _, column := range columns {
 		if column.IsPrimaryKey {
-			pks = append(pks, od.QuoteIdentifier(column.ColumnName))
+			pks = append(pks, quote(column.ColumnName))
 		}
 		fields = append(fields, od.genColumnBasicSql(column))
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
-			comment := od.QuoteEscape(column.ColumnComment)
-			columnComments = append(columnComments, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", quoteTableName, od.QuoteIdentifier(column.ColumnName), comment))
+			comment := dbi.QuoteEscape(column.ColumnComment)
+			columnComments = append(columnComments, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", quoteTableName, quote(column.ColumnName), comment))
 		}
 	}
 
@@ -202,7 +207,7 @@ end`
 	// 表注释
 	tableCommentSql := ""
 	if tableInfo.TableComment != "" {
-		tableCommentSql = fmt.Sprintf("COMMENT ON TABLE %s is '%s'", od.QuoteIdentifier(tableInfo.TableName), od.QuoteEscape(tableInfo.TableComment))
+		tableCommentSql = fmt.Sprintf("COMMENT ON TABLE %s is '%s'", quote(tableInfo.TableName), dbi.QuoteEscape(tableInfo.TableComment))
 		sqlArr = append(sqlArr, tableCommentSql)
 	}
 
@@ -222,7 +227,7 @@ end`
 func (od *OracleDialect) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
 	sqls := make([]string, 0)
 	comments := make([]string, 0)
-
+	quote := od.Quoter().Quote
 	for _, index := range indexs {
 		unique := ""
 		if index.IsUnique {
@@ -233,10 +238,10 @@ func (od *OracleDialect) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 		cols := strings.Split(index.ColumnName, ",")
 		colNames := make([]string, len(cols))
 		for i, name := range cols {
-			colNames[i] = od.QuoteIdentifier(name)
+			colNames[i] = quote(name)
 		}
 
-		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, od.QuoteIdentifier(index.IndexName), od.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
+		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, quote(index.IndexName), quote(tableInfo.TableName), strings.Join(colNames, ",")))
 	}
 
 	sqlArr := make([]string, 0)
@@ -255,16 +260,15 @@ func (od *OracleDialect) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableNa
 	return nil
 }
 
-func (od *OracleDialect) GetDataHelper() dbi.DataHelper {
-	return dataHelper
-}
-
-func (od *OracleDialect) GetColumnHelper() dbi.ColumnHelper {
-	return columnHelper
+func (od *OracleDialect) GetSQLGenerator() dbi.SQLGenerator {
+	return &SQLGenerator{
+		Dialect:  od,
+		Metadata: od.dc.GetMetadata(),
+	}
 }
 
 func (od *OracleDialect) genColumnBasicSql(column dbi.Column) string {
-	colName := od.QuoteIdentifier(column.ColumnName)
+	colName := od.Quoter().Quote(column.ColumnName)
 
 	if column.IsIdentity {
 		// 如果是自增，不需要设置默认值和空值，自增列数据类型必须是number

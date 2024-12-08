@@ -12,7 +12,7 @@ type redisRepoImpl struct {
 }
 
 func newRedisRepo() repository.Redis {
-	return &redisRepoImpl{base.RepoImpl[*entity.Redis]{M: new(entity.Redis)}}
+	return &redisRepoImpl{}
 }
 
 // 分页获取redis信息列表

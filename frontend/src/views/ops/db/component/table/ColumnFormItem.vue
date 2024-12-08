@@ -1,36 +1,54 @@
 <template>
     <div class="string-input-container w100" v-if="dataType == DataType.String || dataType == DataType.Number">
         <el-input
-            :ref="(el: any) => focus && el?.focus()"
+            :ref="
+                (el: any) => {
+                    nextTick(() => {
+                        focus && el?.focus();
+                    });
+                }
+            "
             :disabled="disabled"
             @blur="handleBlur"
             :class="`w100 mb4 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
             size="small"
             v-model="itemValue"
-            :placeholder="placeholder"
+            :placeholder="placeholder ?? $t('common.pleaseInput')"
         />
         <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon" name="FullScreen" :size="10" />
     </div>
 
     <el-date-picker
         v-else-if="dataType == DataType.Date"
-        :ref="(el: any) => focus && el?.focus()"
+        :ref="
+            (el: any) => {
+                nextTick(() => {
+                    focus && el?.focus();
+                });
+            }
+        "
         :disabled="disabled"
-        @change="emit('blur')"
+        @change="handleBlur"
         @blur="handleBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
         v-model="itemValue"
         :clearable="false"
-        type="Date"
+        type="date"
         value-format="YYYY-MM-DD"
-        :placeholder="`date-${placeholder}`"
+        :placeholder="`date-${placeholder ?? $t('common.pleaseSelect')}`"
     />
 
     <el-date-picker
         v-else-if="dataType == DataType.DateTime"
-        :ref="(el: any) => focus && el?.focus()"
+        :ref="
+            (el: any) => {
+                nextTick(() => {
+                    focus && el?.focus();
+                });
+            }
+        "
         :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
@@ -41,12 +59,18 @@
         :clearable="false"
         type="datetime"
         value-format="YYYY-MM-DD HH:mm:ss"
-        :placeholder="`datetime-${placeholder}`"
+        :placeholder="`datetime-${placeholder ?? $t('common.pleaseSelect')}`"
     />
 
     <el-time-picker
         v-else-if="dataType == DataType.Time"
-        :ref="(el: any) => focus && el?.focus()"
+        :ref="
+            (el: any) => {
+                nextTick(() => {
+                    focus && el?.focus();
+                });
+            }
+        "
         :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
@@ -56,12 +80,12 @@
         v-model="itemValue"
         :clearable="false"
         value-format="HH:mm:ss"
-        :placeholder="`time-${placeholder}`"
+        :placeholder="`time-${placeholder ?? $t('common.pleaseSelect')}`"
     />
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, Ref } from 'vue';
+import { computed, nextTick, ref, Ref } from 'vue';
 import { ElInput, ElMessage } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import SvgIcon from '@/components/svgIcon/index.vue';

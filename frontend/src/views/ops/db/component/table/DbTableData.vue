@@ -164,7 +164,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { formatDate } from '@/common/utils/format';
 import { useIntervalFn, useStorage } from '@vueuse/core';
-import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, getDbDialect } from '../../dialect/index';
+import { ColumnTypeSubscript, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
 import DbTableDataForm from './DbTableDataForm.vue';
 import { useI18n } from 'vue-i18n';
@@ -454,24 +454,11 @@ onBeforeUnmount(() => {
     endLoading();
 });
 
-const formatDataValues = (datas: any) => {
-    // mysql数据暂不做处理
-    if (compatibleMysql(getNowDbInst().type)) {
-        return;
-    }
-
-    for (let data of datas) {
-        for (let column of props.columns!) {
-            data[column.columnName] = getFormatTimeValue(dbDialect.getDataType(column.dataType), data[column.columnName]);
-        }
-    }
-};
-
 const setTableData = (datas: any) => {
     tableRef.value?.scrollTo({ scrollLeft: 0, scrollTop: 0 });
     selectionRowsMap.value.clear();
     cellUpdateMap.value.clear();
-    formatDataValues(datas);
+    // formatDataValues(datas);
     state.datas = datas;
     setTableColumns(props.columns);
 };
@@ -684,7 +671,8 @@ const onExportSql = async () => {
 };
 
 const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
-    if (!state.table) {
+    // 不存在表，或者已经在编辑中，则不处理
+    if (!state.table || nowUpdateCell.value) {
         return;
     }
 
@@ -697,7 +685,7 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
 };
 
 const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
-    if (!nowUpdateCell) {
+    if (!nowUpdateCell.value) {
         return;
     }
     const oldValue = nowUpdateCell.value.oldValue;
@@ -786,32 +774,6 @@ const rowClass = (row: any) => {
         return 'data-selection';
     }
     return '';
-};
-
-/**
- * 根据数据库返回的时间字段类型，获取格式化后的时间值
- * @param dataType getDataType返回的数据类型
- * @param originValue 原始值
- * @return 格式化后的值
- */
-const getFormatTimeValue = (dataType: DataType, originValue: string): string => {
-    if (!originValue || dataType === DataType.Number || dataType === DataType.String) {
-        return originValue;
-    }
-
-    // 把Z去掉
-    originValue = originValue.replace('Z', '');
-
-    switch (dataType) {
-        case DataType.Time:
-            return formatDate(originValue, 'HH:mm:ss');
-        case DataType.Date:
-            return formatDate(originValue, 'YYYY-MM-DD');
-        case DataType.DateTime:
-            return formatDate(originValue, 'YYYY-MM-DD HH:mm:ss');
-        default:
-            return originValue;
-    }
 };
 
 const scrollLeftValue = ref(0);

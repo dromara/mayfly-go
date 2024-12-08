@@ -1,8 +1,8 @@
 package api
 
 import (
+	"mayfly-go/internal/auth/pkg/captcha"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )

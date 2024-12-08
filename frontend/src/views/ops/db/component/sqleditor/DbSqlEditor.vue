@@ -104,7 +104,7 @@
                             </el-row>
                             <db-table-data
                                 v-if="!dt.errorMsg"
-                                :ref="(el) => (dt.dbTableRef = el)"
+                                :ref="(el: any) => (dt.dbTableRef = el)"
                                 :db-id="dbId"
                                 :db="dbName"
                                 :data="dt.data"
@@ -128,12 +128,12 @@
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, onMounted, reactive, ref, toRefs, unref } from 'vue';
+import { nextTick, onMounted, reactive, ref, toRefs, unref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
-import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor } from 'monaco-editor';
@@ -144,9 +144,6 @@ import { dbApi } from '../../api';
 
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { joinClientParams } from '@/common/request';
-import { buildProgressProps } from '@/components/progress-notify/progress-notify';
-import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
-import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { Pane, Splitpanes } from 'splitpanes';
 import { useI18n } from 'vue-i18n';
@@ -593,44 +590,8 @@ const replaceSelection = (str: string, selection: any) => {
     });
 };
 
-/**
- * sql文件执行进度通知缓存
- */
-const sqlExecNotifyMap: Map<string, any> = new Map();
 const beforeUpload = (file: File) => {
     ElMessage.success(t('db.scriptFileUploadRunning', { filename: file.name }));
-    syssocket.registerMsgHandler('execSqlFileProgress', function (message: any) {
-        const content = JSON.parse(message.msg);
-        const id = content.id;
-        let progress = sqlExecNotifyMap.get(id);
-        if (content.terminated) {
-            if (progress != undefined) {
-                progress.notification?.close();
-                sqlExecNotifyMap.delete(id);
-                progress = undefined;
-            }
-            return;
-        }
-
-        if (progress == undefined) {
-            progress = {
-                props: reactive(buildProgressProps()),
-                notification: undefined,
-            };
-        }
-        progress.props.progress.title = content.title;
-        progress.props.progress.executedStatements = content.executedStatements;
-        if (!sqlExecNotifyMap.has(id)) {
-            progress.notification = ElNotification({
-                duration: 0,
-                title: message.title,
-                message: h(ProgressNotify, progress.props),
-                type: syssocket.getMsgType(message.type),
-                showClose: false,
-            });
-            sqlExecNotifyMap.set(id, progress);
-        }
-    });
 };
 
 // 执行sql成功

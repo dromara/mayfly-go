@@ -5,7 +5,6 @@ import (
 )
 
 func Init(router *gin.RouterGroup) {
-	InitCaptchaRouter(router)
 	InitAccountRouter(router) // 注册account路由
 	InitResourceRouter(router)
 	InitRoleRouter(router)

@@ -205,7 +205,7 @@ const editInstance = async (data: any) => {
 
 const deleteInstance = async () => {
     try {
-        useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
+        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
         await dbApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         useI18nDeleteSuccessMsg();
         search();

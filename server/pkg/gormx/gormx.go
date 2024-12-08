@@ -109,7 +109,7 @@ func UpdateByIdWithDb(db *gorm.DB, model model.ModelI, columns ...string) error 
 	return db.Model(model).Select(columns).Updates(model).Error
 }
 
-// UpdateByCondWithDb 使用指定gorm.DB更新满足条件的数据(model的主键值需为空，否则会带上主键条件)
+// UpdateByCond 使用默认global.Dd更新满足条件的数据(model的主键值需为空，否则会带上主键条件)
 func UpdateByCond(dbModel model.ModelI, values any, cond *model.QueryCond) error {
 	return UpdateByCondWithDb(global.Db, dbModel, values, cond)
 }

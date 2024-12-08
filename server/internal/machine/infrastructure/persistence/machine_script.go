@@ -12,7 +12,7 @@ type machineScriptRepoImpl struct {
 }
 
 func newMachineScriptRepo() repository.MachineScript {
-	return &machineScriptRepoImpl{base.RepoImpl[*entity.MachineScript]{M: new(entity.MachineScript)}}
+	return &machineScriptRepoImpl{}
 }
 
 // 分页获取机器信息列表

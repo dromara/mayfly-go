@@ -140,7 +140,7 @@
                                 <el-table-column prop="src" :label="$t('db.srcField')" :width="200" />
                                 <el-table-column prop="target" :label="$t('db.targetField')">
                                     <template #default="scope">
-                                        <el-select v-model="scope.row.target">
+                                        <el-select v-model="scope.row.target" allow-create filterable>
                                             <el-option
                                                 v-for="item in state.targetColumnList"
                                                 :key="item.columnName"
@@ -502,10 +502,12 @@ const handleGetSrcFields = async () => {
         sql,
     });
 
-    if (!res.columns) {
+    if (res.length && !res[0].columns) {
         ElMessage.warning(t('db.notColumnSql'));
         return;
     }
+
+    let data = res[0];
 
     let filedMap: any = {};
     if (state.form.fieldMap && state.form.fieldMap.length > 0) {
@@ -514,11 +516,11 @@ const handleGetSrcFields = async () => {
         });
     }
 
-    state.srcTableFields = res.columns.map((a: any) => a.name);
+    state.srcTableFields = data.columns.map((a: any) => a.name);
 
-    state.form.fieldMap = res.columns.map((a: any) => ({ src: a.name, target: filedMap[a.name] || '' }));
+    state.form.fieldMap = data.columns.map((a: any) => ({ src: a.name, target: filedMap[a.name] || '' }));
 
-    state.previewRes = res;
+    state.previewRes = data;
 };
 
 const handleGetTargetFields = async () => {

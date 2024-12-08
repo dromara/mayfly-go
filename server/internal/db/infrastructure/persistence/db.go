@@ -12,7 +12,7 @@ type dbRepoImpl struct {
 }
 
 func newDbRepo() repository.Db {
-	return &dbRepoImpl{base.RepoImpl[*entity.Db]{M: new(entity.Db)}}
+	return &dbRepoImpl{}
 }
 
 // 分页获取数据库信息列表

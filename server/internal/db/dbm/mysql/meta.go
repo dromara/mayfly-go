@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/utils/collx"
 	"net"
 
 	"github.com/go-sql-driver/mysql"
@@ -12,9 +13,14 @@ import (
 
 func init() {
 	meta := new(Meta)
-	dbi.Register(dbi.DbTypeMysql, meta)
-	dbi.Register(dbi.DbTypeMariadb, meta)
+	dbi.Register(DbTypeMysql, meta)
+	dbi.Register(DbTypeMariadb, meta)
 }
+
+const (
+	DbTypeMysql   dbi.DbType = "mysql"
+	DbTypeMariadb dbi.DbType = "mariadb"
+)
 
 type Meta struct {
 }
@@ -31,7 +37,7 @@ func (mm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 		})
 	}
 	// 设置dataSourceName  -> 更多参数参考：https://github.com/go-sql-driver/mysql#dsn-data-source-name
-	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
+	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true&timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
 	if d.Params != "" {
 		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 	}
@@ -45,4 +51,18 @@ func (mm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 
 func (mm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 	return &MysqlMetadata{dc: conn}
+}
+
+func (mm *Meta) GetDbDataTypes() []*dbi.DbDataType {
+	return collx.AsArray(
+		UnsignedBigint, Bigint, Tinyint, Smallint, Int, Bit, Float, Double, Decimal,
+		Varchar, Char, Text, Longtext, Mediumtext,
+		Datetime, Date, Time, Timestamp,
+		Enum, JSON, Set,
+		Binary, Blob, Longblob, Mediumblob, Varbinary,
+	)
+}
+
+func (mm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
+	return &commonTypeConverter{}
 }

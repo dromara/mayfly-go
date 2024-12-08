@@ -4,13 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/utils/collx"
 	"net/url"
 	"strings"
 )
 
 func init() {
-	dbi.Register(dbi.DbTypeDM, new(Meta))
+	dbi.Register(DbTypeDM, new(Meta))
 }
+
+const (
+	DbTypeDM dbi.DbType = "dm"
+)
 
 type Meta struct {
 }
@@ -48,4 +53,18 @@ func (dm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 	return &DMMetadata{
 		dc: conn,
 	}
+}
+
+func (sm *Meta) GetDbDataTypes() []*dbi.DbDataType {
+	return collx.AsArray[*dbi.DbDataType](CHAR, VARCHAR, TEXT, LONG, LONGVARCHAR, IMAGE, LONGVARBINARY, CLOB,
+		BLOB,
+		NUMERIC, DECIMAL, NUMBER, INTEGER, INT, BIGINT, TINYINT, BYTE, SMALLINT, BIT, DOUBLE, FLOAT,
+		TIME, DATE, TIMESTAMP,
+		ST_CURVE, ST_LINESTRING, ST_GEOMCOLLECTION, ST_GEOMETRY, ST_MULTICURVE, ST_MULTILINESTRING,
+		ST_MULTIPOINT, ST_MULTIPOLYGON, ST_MULTISURFACE, ST_POINT, ST_POLYGON, ST_SURFACE,
+	)
+}
+
+func (mm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
+	return &commonTypeConverter{}
 }

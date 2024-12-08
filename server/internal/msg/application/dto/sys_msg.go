@@ -7,7 +7,6 @@ import "mayfly-go/pkg/utils/anyx"
 const SuccessSysMsgType = 1
 const ErrorSysMsgType = 0
 const InfoSysMsgType = 2
-const InfoTypeSqlExecProgress = 22
 
 // websocket消息
 type SysMsg struct {
@@ -42,9 +41,6 @@ func (sm *SysMsg) WithClientId(clientId string) *SysMsg {
 // 普通消息
 func InfoSysMsg(title string, msg any) *SysMsg {
 	return &SysMsg{Type: InfoSysMsgType, Title: title, Msg: anyx.ToString(msg)}
-}
-func InfoSqlProgressMsg(title string, msg any) *SysMsg {
-	return &SysMsg{Type: InfoTypeSqlExecProgress, Title: title, Msg: anyx.ToString(msg)}
 }
 
 // 成功消息

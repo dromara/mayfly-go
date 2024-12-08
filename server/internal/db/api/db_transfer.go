@@ -2,28 +2,18 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
-	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/domain/entity"
-	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
 	msgapp "mayfly-go/internal/msg/application"
-	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/i18n"
-	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/ws"
 	"strings"
-	"time"
 
 	"github.com/may-fly/cast"
 )
@@ -120,7 +110,6 @@ func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) FileRun(rc *req.Ctx) {
-
 	fm := req.BindJsonAndValid(rc, &form.DbTransferFileRunForm{})
 
 	rc.ReqParam = fm
@@ -132,69 +121,15 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "failed to connect to the target database: %s")
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, targetDbConn.Info.CodePath...), "%s")
 
-	defer func() {
-		if err := recover(); err != nil {
-			errInfo := anyx.ToString(err)
-			if len(errInfo) > 300 {
-				errInfo = errInfo[:300] + "..."
-			}
-			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), fmt.Sprintf("[%s][%s] run failed: [%s]", tFile.FileKey, targetDbConn.Info.GetLogDesc(), errInfo)).WithClientId(fm.ClientId))
-		}
-	}()
-
-	go func() {
-		d.fileRun(rc.GetLoginAccount(), fm, tFile, targetDbConn)
-	}()
-
-}
-
-func (d *DbTransferTask) fileRun(la *model.LoginAccount, fm *form.DbTransferFileRunForm, tFile *entity.DbTransferFile, targetDbConn *dbi.DbConn) {
 	filename, reader, err := d.FileApp.GetReader(context.TODO(), tFile.FileKey)
-
-	executedStatements := 0
-	progressId := stringx.Rand(32)
-	laId := la.Id
-
-	ticker := time.NewTicker(time.Second * 1)
-	defer ticker.Stop()
-
-	defer func() {
-		if err := recover(); err != nil {
-			errInfo := anyx.ToString(err)
-			if len(errInfo) > 500 {
-				errInfo = errInfo[:500] + "..."
-			}
-			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), errInfo).WithClientId(fm.ClientId))
-		}
+	biz.ErrIsNil(err)
+	go func() {
+		biz.ErrIsNil(d.DbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
+			Reader:   reader,
+			Filename: filename,
+			DbConn:   targetDbConn,
+			ClientId: fm.ClientId,
+		}))
 	}()
 
-	if err != nil {
-		biz.ErrIsNilAppendErr(err, "failed to connect to the target database: %s")
-	}
-
-	errSql := ""
-	err = sqlparser.SQLSplit(reader, func(sql string) error {
-		select {
-		case <-ticker.C:
-			ws.SendJsonMsg(ws.UserId(laId), fm.ClientId, msgdto.InfoSqlProgressMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
-				Id:                 progressId,
-				Title:              filename,
-				ExecutedStatements: executedStatements,
-				Terminated:         false,
-			}).WithCategory(progressCategory))
-		default:
-		}
-		executedStatements++
-		_, err = targetDbConn.Exec(sql)
-		if err != nil {
-			errSql = sql
-		}
-		return err
-	})
-
-	if err != nil {
-		biz.ErrIsNil(err, "[%s] execution failed: %s", errSql, err)
-	}
-
-	d.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("sql execution successfully: %s", filename)).WithClientId(fm.ClientId))
 }

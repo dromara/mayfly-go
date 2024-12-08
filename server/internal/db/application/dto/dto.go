@@ -23,10 +23,16 @@ type DumpDb struct {
 	LogId uint64
 
 	Writer       io.WriteCloser
-	Log          func(msg string)
 	TargetDbType dbi.DbType
+
+	Log      func(msg string)
+	Progress func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) // dump进度
 }
 
 func DefaultDumpLog(msg string) {
+
+}
+
+func DefaultDumpProgress(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
 
 }

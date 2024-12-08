@@ -12,7 +12,7 @@ type machineTermOpRepoImpl struct {
 }
 
 func newMachineTermOpRepoImpl() repository.MachineTermOp {
-	return &machineTermOpRepoImpl{base.RepoImpl[*entity.MachineTermOp]{M: new(entity.MachineTermOp)}}
+	return &machineTermOpRepoImpl{}
 }
 
 func (m *machineTermOpRepoImpl) GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

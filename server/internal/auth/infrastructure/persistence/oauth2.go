@@ -11,5 +11,5 @@ type oauth2AccountRepoImpl struct {
 }
 
 func newAuthAccountRepo() repository.Oauth2Account {
-	return &oauth2AccountRepoImpl{base.RepoImpl[*entity.Oauth2Account]{M: new(entity.Oauth2Account)}}
+	return &oauth2AccountRepoImpl{}
 }

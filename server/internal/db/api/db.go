@@ -9,7 +9,6 @@ import (
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/event"
@@ -26,9 +25,7 @@ import (
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
-	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/writerx"
-	"mayfly-go/pkg/ws"
 	"strings"
 	"time"
 
@@ -118,7 +115,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
 	biz.NotEmpty(form.Sql, "sql cannot be empty")
 
-	execReq := &application.DbSqlExecReq{
+	execReq := &dto.DbSqlExecReq{
 		DbId:      dbId,
 		Db:        form.Db,
 		Remark:    form.Remark,
@@ -163,47 +160,12 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
-	defer func() {
-		if err := recover(); err != nil {
-			errInfo := anyx.ToString(err)
-			if len(errInfo) > 300 {
-				errInfo = errInfo[:300] + "..."
-			}
-			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), fmt.Sprintf("[%s][%s] execution failure: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
-		}
-	}()
-
-	executedStatements := 0
-	progressId := stringx.Rand(32)
-	laId := rc.GetLoginAccount().Id
-	defer ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
-		Id:                 progressId,
-		Title:              filename,
-		ExecutedStatements: executedStatements,
-		Terminated:         true,
-	}).WithCategory(progressCategory))
-	ticker := time.NewTicker(time.Second * 1)
-	defer ticker.Stop()
-
-	err = sqlparser.SQLSplit(file, func(sql string) error {
-		select {
-		case <-ticker.C:
-			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
-				Id:                 progressId,
-				Title:              filename,
-				ExecutedStatements: executedStatements,
-				Terminated:         false,
-			}).WithCategory(progressCategory))
-		default:
-		}
-
-		executedStatements++
-		_, err = dbConn.Exec(sql)
-		return err
-	})
-
-	biz.ErrIsNilAppendErr(err, "%s")
-	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("execution success: %s", rc.ReqParam)).WithClientId(clientId))
+	biz.ErrIsNil(d.DbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
+		Reader:   file,
+		Filename: filename,
+		DbConn:   dbConn,
+		ClientId: clientId,
+	}))
 }
 
 // 数据库dump

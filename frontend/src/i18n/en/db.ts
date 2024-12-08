@@ -214,7 +214,7 @@ export default {
         getDbNamesModeAssign: 'Specifying the db name',
 
         ignore: 'Ignore',
-        replate: 'Replate',
+        replace: 'Replate',
 
         running: 'Running',
         waitRun: 'Wait Run',

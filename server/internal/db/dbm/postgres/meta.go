@@ -16,15 +16,22 @@ import (
 
 func init() {
 	meta := new(Meta)
-	dbi.Register(dbi.DbTypePostgres, meta)
-	dbi.Register(dbi.DbTypeKingbaseEs, meta)
-	dbi.Register(dbi.DbTypeVastbase, meta)
+	dbi.Register(DbTypePostgres, meta)
+	dbi.Register(DbTypeKingbaseEs, meta)
+	dbi.Register(DbTypeVastbase, meta)
 
 	gauss := &Meta{
 		Param: "dbtype=gauss",
 	}
-	dbi.Register(dbi.DbTypeGauss, gauss)
+	dbi.Register(DbTypeGauss, gauss)
 }
+
+const (
+	DbTypePostgres   dbi.DbType = "postgres"
+	DbTypeGauss      dbi.DbType = "gauss"
+	DbTypeKingbaseEs dbi.DbType = "kingbaseEs"
+	DbTypeVastbase   dbi.DbType = "vastbase"
+)
 
 type Meta struct {
 	Param string
@@ -87,6 +94,20 @@ func (pm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 
 func (pm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 	return &PgsqlMetadata{dc: conn}
+}
+
+func (pm *Meta) GetDbDataTypes() []*dbi.DbDataType {
+	return collx.AsArray(
+		Bool, Int2, Int4, Int8, Numeric, Decimal, Smallserial, Serial, Bigserial, Largeserial,
+		Money,
+		Char, Nchar, Varchar, Text, Json,
+		Date, Time, Timestamp,
+		Bytea,
+	)
+}
+
+func (pm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
+	return &commonTypeConverter{}
 }
 
 // pgsql dialer
