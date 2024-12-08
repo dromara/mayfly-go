@@ -1,0 +1,10 @@
+@use './index.scss' as index;
+
+/* 页面宽度小于576px
+------------------------------- */
+@media screen and (max-width: index.$xs) {
+    .el-cascader__dropdown.el-popper {
+        overflow: auto;
+        max-width: 100%;
+    }
+}

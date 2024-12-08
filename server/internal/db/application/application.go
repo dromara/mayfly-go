@@ -1,7 +1,6 @@
 package application
 
 import (
-	"fmt"
 	"mayfly-go/pkg/ioc"
 	"sync"
 )
@@ -13,6 +12,7 @@ func InitIoc() {
 	ioc.Register(new(dbSqlAppImpl), ioc.WithComponentName("DbSqlApp"))
 	ioc.Register(new(dataSyncAppImpl), ioc.WithComponentName("DbDataSyncTaskApp"))
 	ioc.Register(new(dbTransferAppImpl), ioc.WithComponentName("DbTransferTaskApp"))
+	ioc.Register(new(dbTransferFileAppImpl), ioc.WithComponentName("DbTransferFileApp"))
 
 	ioc.Register(newDbScheduler(), ioc.WithComponentName("DbScheduler"))
 	ioc.Register(new(DbBackupApp), ioc.WithComponentName("DbBackupApp"))
@@ -22,17 +22,19 @@ func InitIoc() {
 
 func Init() {
 	sync.OnceFunc(func() {
-		if err := GetDbBackupApp().Init(); err != nil {
-			panic(fmt.Sprintf("初始化 DbBackupApp 失败: %v", err))
-		}
-		if err := GetDbRestoreApp().Init(); err != nil {
-			panic(fmt.Sprintf("初始化 DbRestoreApp 失败: %v", err))
-		}
-		if err := GetDbBinlogApp().Init(); err != nil {
-			panic(fmt.Sprintf("初始化 DbBinlogApp 失败: %v", err))
-		}
+		//if err := GetDbBackupApp().Init(); err != nil {
+		//	panic(fmt.Sprintf("初始化 DbBackupApp 失败: %v", err))
+		//}
+		//if err := GetDbRestoreApp().Init(); err != nil {
+		//	panic(fmt.Sprintf("初始化 DbRestoreApp 失败: %v", err))
+		//}
+		//if err := GetDbBinlogApp().Init(); err != nil {
+		//	panic(fmt.Sprintf("初始化 DbBinlogApp 失败: %v", err))
+		//}
+
 		GetDataSyncTaskApp().InitCronJob()
-		GetDbTransferTaskApp().InitJob()
+		GetDbTransferTaskApp().InitCronJob()
+		GetDbTransferTaskApp().TimerDeleteTransferFile()
 		InitDbFlowHandler()
 	})()
 }
@@ -56,6 +58,7 @@ func GetDbBinlogApp() *DbBinlogApp {
 func GetDataSyncTaskApp() DataSyncTask {
 	return ioc.Get[DataSyncTask]("DbDataSyncTaskApp")
 }
+
 func GetDbTransferTaskApp() DbTransferTask {
 	return ioc.Get[DbTransferTask]("DbTransferTaskApp")
 }

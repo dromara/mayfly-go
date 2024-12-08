@@ -2,6 +2,7 @@ package dto
 
 import (
 	"io"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 )
@@ -19,5 +20,13 @@ type DumpDb struct {
 	DumpDDL  bool // 是否dump ddl
 	DumpData bool // 是否dump data
 
-	Writer io.Writer
+	LogId uint64
+
+	Writer       io.WriteCloser
+	Log          func(msg string)
+	TargetDbType dbi.DbType
+}
+
+func DefaultDumpLog(msg string) {
+
 }

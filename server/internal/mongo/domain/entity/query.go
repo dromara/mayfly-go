@@ -7,6 +7,7 @@ type MongoQuery struct {
 
 	Code               string `json:"code" form:"code"`
 	Name               string
+	Keyword            string `json:"keyword" form:"keyword"`
 	Uri                string
 	SshTunnelMachineId uint64 // ssh隧道机器id
 	TagPath            string `json:"tagPath" form:"tagPath"`

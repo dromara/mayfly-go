@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/tag/api"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -22,11 +23,11 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 			// 根据条件获取标签
 			req.NewGet("query", m.ListByQuery),
 
-			req.NewPost("", m.SaveTagTree).Log(req.NewLogSave("标签树-保存信息")).RequiredPermissionCode("tag:save"),
+			req.NewPost("", m.SaveTagTree).Log(req.NewLogSaveI(imsg.LogTagSave)).RequiredPermissionCode("tag:save"),
 
-			req.NewDelete(":id", m.DelTagTree).Log(req.NewLogSave("标签树-删除信息")).RequiredPermissionCode("tag:del"),
+			req.NewDelete(":id", m.DelTagTree).Log(req.NewLogSaveI(imsg.LogTagDelete)).RequiredPermissionCode("tag:del"),
 
-			req.NewPost("/moving", m.MovingTag).Log(req.NewLogSave("标签树-移动标签")).RequiredPermissionCode("tag:save"),
+			req.NewPost("/moving", m.MovingTag).Log(req.NewLogSaveI(imsg.LogTagMove)).RequiredPermissionCode("tag:save"),
 
 			req.NewGet("/resources/:rtype/tag-paths", m.TagResources),
 

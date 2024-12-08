@@ -9,6 +9,6 @@ import (
 
 func GenerateCaptcha(rc *req.Ctx) {
 	id, image, err := captcha.Generate()
-	biz.ErrIsNilAppendErr(err, "获取验证码错误: %s")
+	biz.ErrIsNilAppendErr(err, "failed to generate the CAPTCHA: %s")
 	rc.ResData = collx.M{"base64Captcha": image, "cid": id}
 }

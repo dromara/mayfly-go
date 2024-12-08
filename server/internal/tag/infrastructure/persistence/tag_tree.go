@@ -20,8 +20,6 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		Eq("id", condition.Id).
 		In("code", condition.Codes).
 		In("code_path", condition.CodePaths).
-		RLike("code_path", condition.CodePathLike).
-		Eq("type", condition.Type).
 		In("type", condition.Types).
 		OrderByAsc("type").OrderByAsc("code_path")
 

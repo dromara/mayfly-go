@@ -9,8 +9,14 @@ import (
 
 const DefaultDateTimeFormat = "2006-01-02 15:04:05"
 
+// DefaultFormat 使用默认格式进行格式化: 2006-01-02 15:04:05
 func DefaultFormat(time time.Time) string {
 	return time.Format(DefaultDateTimeFormat)
+}
+
+// TimeNo 获取当前时间编号，格式为20060102150405
+func TimeNo() string {
+	return time.Now().Format("20060102150405")
 }
 
 func NewNullTime(t time.Time) NullTime {

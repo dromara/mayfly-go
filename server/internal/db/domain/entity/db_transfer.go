@@ -7,8 +7,16 @@ import (
 type DbTransferTask struct {
 	model.Model
 
-	RunningState DbTransferRunningState `orm:"column(running_state)" json:"runningState"` // 运行状态
-	LogId        uint64                 `json:"logId"`
+	RunningState     int8   `orm:"column(running_state)" json:"runningState"` // 运行状态
+	LogId            uint64 `json:"logId"`
+	TaskName         string `orm:"column(task_name)" json:"taskName"`                   // 任务名称
+	Status           int8   `orm:"column(status)" json:"status"`                        // 启用状态 1启用 -1禁用
+	CronAble         int8   `orm:"column(cron_able)" json:"cronAble"`                   // 是否定时  1是 -1否
+	Cron             string `orm:"column(cron)" json:"cron"`                            // 定时任务cron表达式
+	Mode             int8   `orm:"column(mode)" json:"mode"`                            // 数据迁移方式，1、迁移到数据库  2、迁移到文件
+	TargetFileDbType string `orm:"column(target_file_db_type)" json:"targetFileDbType"` // 目标文件数据库类型
+	FileSaveDays     int    `json:"fileSaveDays"`                                       // 文件保存天数
+	TaskKey          string `orm:"column(key)" json:"taskKey"`                          // 定时任务唯一uuid key
 
 	CheckedKeys string `orm:"column(checked_keys)" json:"checkedKeys"` // 选中需要迁移的表
 	DeleteTable int    `orm:"column(delete_table)" json:"deleteTable"` // 创建表前是否删除表
@@ -33,14 +41,18 @@ func (d *DbTransferTask) TableName() string {
 	return "t_db_transfer_task"
 }
 
-type DbTransferRunningState int8
-
 const (
-	DbTransferTaskStatusEnable  int = 1  // 启用状态
-	DbTransferTaskStatusDisable int = -1 // 禁用状态
+	DbTransferTaskStatusEnable  int8 = 1  // 启用状态
+	DbTransferTaskStatusDisable int8 = -1 // 禁用状态
 
-	DbTransferTaskRunStateSuccess DbTransferRunningState = 2  // 执行成功
-	DbTransferTaskRunStateRunning DbTransferRunningState = 1  // 运行中状态
-	DbTransferTaskRunStateFail    DbTransferRunningState = -1 // 执行失败
-	DbTransferTaskRunStateStop    DbTransferRunningState = -2 // 手动终止
+	DbTransferTaskCronAbleEnable  int8 = 1  // 是否定时  1是
+	DbTransferTaskCronAbleDisable int8 = -1 // 是否定时  -1否
+
+	DbTransferTaskModeDb   int8 = 1 // 数据迁移方式，1、迁移到数据库
+	DbTransferTaskModeFile int8 = 2 // 数据迁移方式，2、迁移到文件
+
+	DbTransferTaskRunStateSuccess int8 = 2  // 执行成功
+	DbTransferTaskRunStateRunning int8 = 1  // 运行中状态
+	DbTransferTaskRunStateFail    int8 = -1 // 执行失败
+	DbTransferTaskRunStateStop    int8 = -2 // 手动终止
 )

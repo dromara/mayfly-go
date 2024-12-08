@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/consts"
 	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/model"
@@ -15,7 +16,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/structx"
-	"strconv"
 	"strings"
 	"time"
 
@@ -62,28 +62,30 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 }
 
 func (a *Account) ChangePassword(rc *req.Ctx) {
+	ctx := rc.MetaCtx
+
 	form := req.BindJsonAndValid(rc, new(form.AccountChangePasswordForm))
 
 	originOldPwd, err := cryptox.DefaultRsaDecrypt(form.OldPassword, true)
-	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
+	biz.ErrIsNilAppendErr(err, "Wrong to decrypt old password: %s")
 
 	account := &entity.Account{Username: form.Username}
 	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username", "Password", "Status"))
-	biz.ErrIsNil(err, "旧密码错误")
-	biz.IsTrue(cryptox.CheckPwdHash(originOldPwd, account.Password), "旧密码错误")
-	biz.IsTrue(account.IsEnable(), "该账号不可用")
+	biz.ErrIsNilI(ctx, err, imsg.ErrOldPasswordWrong)
+	biz.IsTrueI(ctx, cryptox.CheckPwdHash(originOldPwd, account.Password), imsg.ErrOldPasswordWrong)
+	biz.IsTrue(account.IsEnable(), "This account is not available")
 
 	originNewPwd, err := cryptox.DefaultRsaDecrypt(form.NewPassword, true)
-	biz.ErrIsNilAppendErr(err, "解密新密码错误: %s")
-	biz.IsTrue(utils.CheckAccountPasswordLever(originNewPwd), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
+	biz.ErrIsNilAppendErr(err, "Wrong to decrypt new password: %s")
+	biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(originNewPwd), imsg.ErrAccountPasswordNotFollowRule)
 
 	updateAccount := new(entity.Account)
 	updateAccount.Id = account.Id
 	updateAccount.Password = cryptox.PwdHash(originNewPwd)
-	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, updateAccount), "更新账号密码失败")
+	biz.ErrIsNilAppendErr(a.AccountApp.Update(ctx, updateAccount), "failed to update account password: %s")
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
-	contextx.WithLoginAccount(rc.MetaCtx, &model.LoginAccount{
+	contextx.WithLoginAccount(ctx, &model.LoginAccount{
 		Id:       account.Id,
 		Username: account.Username,
 	})
@@ -103,19 +105,20 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 	// 账号id为登录者账号
 	updateAccount.Id = rc.GetLoginAccount().Id
 
+	ctx := rc.MetaCtx
 	if updateAccount.Password != "" {
-		biz.IsTrue(utils.CheckAccountPasswordLever(updateAccount.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
+		biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(updateAccount.Password), imsg.ErrAccountPasswordNotFollowRule)
 		updateAccount.Password = cryptox.PwdHash(updateAccount.Password)
 	}
 
 	oldAcc, err := a.AccountApp.GetById(updateAccount.Id)
-	biz.ErrIsNil(err, "账号信息不存在")
+	biz.ErrIsNilAppendErr(err, "Account does not exist: %s")
 	// 账号创建十分钟内允许修改用户名（兼容oauth2首次登录修改用户名），否则不允许修改
 	if oldAcc.CreateTime.Add(10 * time.Minute).Before(time.Now()) {
 		// 禁止更新用户名，防止误传被更新
 		updateAccount.Username = ""
 	}
-	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, updateAccount))
+	biz.ErrIsNil(a.AccountApp.Update(ctx, updateAccount))
 }
 
 /**    后台账号操作    **/
@@ -149,7 +152,7 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 func (a *Account) AccountDetail(rc *req.Ctx) {
 	accountId := uint64(rc.PathParamInt("id"))
 	account, err := a.AccountApp.GetById(accountId)
-	biz.ErrIsNil(err, "账号不存在")
+	biz.ErrIsNilAppendErr(err, "Account does not exist: %s")
 	accountvo := new(vo.SimpleAccountVO)
 	structx.Copy(accountvo, account)
 
@@ -164,17 +167,21 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 
 	form.Password = "*****"
 	rc.ReqParam = form
+	ctx := rc.MetaCtx
 
 	if account.Id == 0 {
+		biz.NotEmpty(account.Password, "password is required")
+		biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(account.Password), imsg.ErrAccountPasswordNotFollowRule)
+		account.Password = cryptox.PwdHash(account.Password)
 		biz.ErrIsNil(a.AccountApp.Create(rc.MetaCtx, account))
 	} else {
 		if account.Password != "" {
-			biz.IsTrue(utils.CheckAccountPasswordLever(account.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
+			biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(account.Password), imsg.ErrAccountPasswordNotFollowRule)
 			account.Password = cryptox.PwdHash(account.Password)
 		}
 		// 更新操作不允许修改用户名、防止误传更新
 		account.Username = ""
-		biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
+		biz.ErrIsNil(a.AccountApp.Update(ctx, account))
 	}
 }
 
@@ -196,9 +203,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		biz.ErrIsNilAppendErr(a.AccountApp.Delete(rc.MetaCtx, uint64(value)), "删除失败：%s")
+		biz.ErrIsNil(a.AccountApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
 	}
 }
 

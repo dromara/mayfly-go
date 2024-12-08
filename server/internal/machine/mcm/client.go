@@ -21,14 +21,14 @@ type Cli struct {
 // GetSftpCli 获取sftp client
 func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	if c.sshClient == nil {
-		return nil, errorx.NewBiz("请先进行机器客户端连接")
+		return nil, errorx.NewBiz("please connect to the machine client first")
 	}
 	sftpclient := c.sftpClient
 	// 如果sftpClient为nil，则连接
 	if sftpclient == nil {
 		sc, serr := sftp.NewClient(c.sshClient)
 		if serr != nil {
-			return nil, errorx.NewBiz("获取sftp client失败: %s", serr.Error())
+			return nil, errorx.NewBiz("failed to obtain the sftp client: %s", serr.Error())
 		}
 		sftpclient = sc
 		c.sftpClient = sftpclient
@@ -40,12 +40,12 @@ func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 // GetSession 获取session
 func (c *Cli) GetSession() (*ssh.Session, error) {
 	if c.sshClient == nil {
-		return nil, errorx.NewBiz("请先进行机器客户端连接")
+		return nil, errorx.NewBiz("please connect to the machine client first")
 	}
 	session, err := c.sshClient.NewSession()
 	if err != nil {
-		logx.Errorf("获取机器客户端session失败: %s", err.Error())
-		return nil, errorx.NewBiz("获取会话失败, 请稍后重试...")
+		logx.Errorf("failed to retrieve the machine client session: %s", err.Error())
+		return nil, errorx.NewBiz("the acquisition session failed, please try again later...")
 	}
 	return session, nil
 }
@@ -98,7 +98,7 @@ func (c *Cli) GetAllStats() *Stats {
 	stats := new(Stats)
 	res, err := c.Run(StatsShell)
 	if err != nil {
-		logx.Errorf("执行机器[id=%d, name=%s]运行状态信息脚本失败: %s", c.Info.Id, c.Info.Name, err.Error())
+		logx.Errorf("failed to execute machine [id=%d, name=%s] running status information script: %s", c.Info.Id, c.Info.Name, err.Error())
 		return stats
 	}
 

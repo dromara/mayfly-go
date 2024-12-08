@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/auth/config"
+	"mayfly-go/internal/auth/imsg"
 	msgapp "mayfly-go/internal/msg/application"
 	msgentity "mayfly-go/internal/msg/domain/entity"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -27,8 +29,8 @@ const (
 )
 
 // 最后的登录校验（共用）。校验通过返回登录成功响应结果map
-func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.AccountLoginSecurity, loginIp string) map[string]any {
-	biz.IsTrue(account.IsEnable(), "该账号不可用")
+func LastLoginCheck(ctx context.Context, account *sysentity.Account, accountLoginSecurity *config.AccountLoginSecurity, loginIp string) map[string]any {
+	biz.IsTrueI(ctx, account.IsEnable(), imsg.ErrAccountNotAvailable)
 	username := account.Username
 
 	res := collx.M{
@@ -42,7 +44,7 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 	otpStatus := OtpStatusNone
 	// 访问系统使用的token
 	accessToken, refreshToken, err := req.CreateToken(account.Id, username)
-	biz.ErrIsNilAppendErr(err, "token创建失败: %s")
+	biz.ErrIsNilAppendErr(err, "token create failed: %s")
 
 	// 若系统配置中设置开启otp双因素校验，则进行otp校验
 	if accountLoginSecurity.UseOtp {
@@ -56,7 +58,7 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 		res["refresh_token"] = refreshToken
 		// 不进行otp二次校验则直接返回accessToken
 		// 保存登录消息
-		go saveLogin(account, loginIp)
+		go saveLogin(ctx, account, loginIp)
 	}
 
 	// 赋值otp状态
@@ -80,7 +82,7 @@ func useOtp(account *sysentity.Account, otpIssuer, accessToken string, refreshTo
 			AccountName: account.Username,
 			Issuer:      otpIssuer,
 		})
-		biz.ErrIsNilAppendErr(err, "otp生成失败: %s")
+		biz.ErrIsNilAppendErr(err, "otp generate failed: %s")
 		otpUrl = key.URL()
 		otpSecret = key.Secret()
 	}
@@ -104,7 +106,7 @@ func getIpAndRegion(rc *req.Ctx) string {
 }
 
 // 保存更新账号登录信息
-func saveLogin(account *sysentity.Account, ip string) {
+func saveLogin(ctx context.Context, account *sysentity.Account, ip string) {
 	// 更新账号最后登录时间
 	now := time.Now()
 	updateAccount := &sysentity.Account{LastLoginTime: &now}
@@ -116,7 +118,7 @@ func saveLogin(account *sysentity.Account, ip string) {
 	// 创建登录消息
 	loginMsg := &msgentity.Msg{
 		RecipientId: int64(account.Id),
-		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, timex.DefaultFormat(now)),
+		Msg:         i18n.TC(ctx, imsg.LoginMsg, "ip", ip, "time", timex.DefaultFormat(now)),
 		Type:        1,
 	}
 	loginMsg.CreateTime = &now

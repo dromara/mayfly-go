@@ -1,0 +1,1 @@
+java -jar antlr-4.13.1-complete.jar -Dlanguage=Go -package parser -visitor *.g4 

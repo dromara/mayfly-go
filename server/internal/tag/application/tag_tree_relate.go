@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -48,14 +49,14 @@ func (p *tagTreeRelateAppImpl) InjectTagTreeRelateRepo(tagTreeRelateRepo reposit
 
 func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error {
 	if hasConflictPath(tagCodePaths) {
-		return errorx.NewBiz("存在冲突的编号路径")
+		return errorx.NewBizI(ctx, imsg.ErrConflictingCodePath)
 	}
 
 	var tags []*entity.TagTree
 	if len(tagCodePaths) > 0 {
 		tr.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: tagCodePaths}, &tags)
 		if len(tags) != len(tagCodePaths) {
-			return errorx.NewBiz("存在错误标签路径")
+			return errorx.NewBiz("There is an error tag path")
 		}
 	}
 
@@ -101,7 +102,7 @@ func (tr *tagTreeRelateAppImpl) GetRelateIds(ctx context.Context, relateType ent
 	poisibleTagPaths := make([]string, 0)
 	for _, tagPath := range canAccessTagPaths {
 		// 追加可能关联的标签路径，如tagPath = tag1/tag2/1|xxx/，需要获取所有关联的自身及父标签（tag1/  tag1/tag2/ tag1/tag2/1|xxx）
-		poisibleTagPaths = append(poisibleTagPaths, entity.GetAllCodePath(tagPath)...)
+		poisibleTagPaths = append(poisibleTagPaths, entity.CodePath(tagPath).GetAllPath()...)
 	}
 	return tr.tagTreeRelateRepo.SelectRelateIdsByTagPaths(relateType, poisibleTagPaths...)
 }

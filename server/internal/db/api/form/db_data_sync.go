@@ -14,6 +14,7 @@ type DataSyncTaskForm struct {
 	PageSize    int    `binding:"required" json:"pageSize"`
 	UpdField    string `binding:"required" json:"updField"`
 	UpdFieldVal string `binding:"required" json:"updFieldVal"`
+	UpdFieldSrc string `json:"updFieldSrc"`
 
 	TargetDbId        int64  `binding:"required" json:"targetDbId"`
 	TargetDbName      string `binding:"required" json:"targetDbName"`

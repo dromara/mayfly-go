@@ -21,13 +21,13 @@ const (
 	DM_COLUMN_MA_KEY  = "DM_COLUMN_MA"
 )
 
-type DMMetaData struct {
-	dbi.DefaultMetaData
+type DMMetadata struct {
+	dbi.DefaultMetadata
 
 	dc *dbi.DbConn
 }
 
-func (dd *DMMetaData) GetDbServer() (*dbi.DbServer, error) {
+func (dd *DMMetadata) GetDbServer() (*dbi.DbServer, error) {
 	_, res, err := dd.dc.Query("select * from v$instance")
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (dd *DMMetaData) GetDbServer() (*dbi.DbServer, error) {
 	return ds, nil
 }
 
-func (dd *DMMetaData) GetDbNames() ([]string, error) {
+func (dd *DMMetadata) GetDbNames() ([]string, error) {
 	_, res, err := dd.dc.Query("SELECT name AS DBNAME FROM v$database")
 	if err != nil {
 		return nil, err
@@ -52,9 +52,10 @@ func (dd *DMMetaData) GetDbNames() ([]string, error) {
 	return databases, nil
 }
 
-func (dd *DMMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	dialect := dd.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbi.RemoveQuote(dd, val))
+		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
 	}), ",")
 
 	var res []map[string]any
@@ -85,9 +86,10 @@ func (dd *DMMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	dialect := dd.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbi.RemoveQuote(dd, val))
+		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
 	}), ",")
 
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
@@ -95,7 +97,7 @@ func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 		return nil, err
 	}
 
-	columnHelper := dd.dc.GetMetaData().GetColumnHelper()
+	columnHelper := dd.dc.GetDialect().GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
@@ -117,7 +119,7 @@ func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	return columns, nil
 }
 
-func (dd *DMMetaData) GetPrimaryKey(tablename string) (string, error) {
+func (dd *DMMetadata) GetPrimaryKey(tablename string) (string, error) {
 	columns, err := dd.GetColumns(tablename)
 	if err != nil {
 		return "", err
@@ -135,7 +137,7 @@ func (dd *DMMetaData) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (dd *DMMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
+func (dd *DMMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
@@ -172,117 +174,8 @@ func (dd *DMMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	return result, nil
 }
 
-func (dd *DMMetaData) genColumnBasicSql(column dbi.Column) string {
-	meta := dd.dc.GetMetaData()
-	colName := meta.QuoteIdentifier(column.ColumnName)
-	dataType := string(column.DataType)
-
-	incr := ""
-	if column.IsIdentity {
-		incr = " IDENTITY"
-	}
-
-	nullAble := ""
-	if !column.Nullable {
-		nullAble = " NOT NULL"
-	}
-
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(dataType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
-		}
-		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
-	}
-
-	columnSql := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
-	return columnSql
-
-}
-
-func (dd *DMMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
-	meta := dd.dc.GetMetaData()
-	sqls := make([]string, 0)
-	for _, index := range indexs {
-		unique := ""
-		if index.IsUnique {
-			unique = "unique"
-		}
-
-		// 取出列名，添加引号
-		cols := strings.Split(index.ColumnName, ",")
-		colNames := make([]string, len(cols))
-		for i, name := range cols {
-			colNames[i] = meta.QuoteIdentifier(name)
-		}
-
-		sqls = append(sqls, fmt.Sprintf("create %s index %s on %s(%s)", unique, meta.QuoteIdentifier(index.IndexName), meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
-	}
-	return sqls
-}
-
-func (dd *DMMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
-	meta := dd.dc.GetMetaData()
-	tbName := meta.QuoteIdentifier(tableInfo.TableName)
-	sqlArr := make([]string, 0)
-
-	if dropBeforeCreate {
-		sqlArr = append(sqlArr, fmt.Sprintf("drop table if exists %s", tbName))
-	}
-	// 组装建表语句
-	createSql := fmt.Sprintf("create table %s (", tbName)
-	fields := make([]string, 0)
-	pks := make([]string, 0)
-	columnComments := make([]string, 0)
-
-	for _, column := range columns {
-		if column.IsPrimaryKey {
-			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
-		}
-		fields = append(fields, dd.genColumnBasicSql(column))
-		if column.ColumnComment != "" {
-			comment := meta.QuoteEscape(column.ColumnComment)
-			columnComments = append(columnComments, fmt.Sprintf("comment on column %s.%s is '%s'", tbName, meta.QuoteIdentifier(column.ColumnName), comment))
-		}
-	}
-	createSql += strings.Join(fields, ",\n")
-	if len(pks) > 0 {
-		createSql += fmt.Sprintf(",\n PRIMARY KEY (%s)", strings.Join(pks, ","))
-	}
-	createSql += "\n)"
-
-	tableCommentSql := ""
-	if tableInfo.TableComment != "" {
-		comment := meta.QuoteEscape(tableInfo.TableComment)
-		tableCommentSql = fmt.Sprintf("comment on table %s is '%s'", tbName, comment)
-	}
-
-	sqlArr = append(sqlArr, createSql)
-	if tableCommentSql != "" {
-		sqlArr = append(sqlArr, tableCommentSql)
-	}
-
-	if len(columnComments) > 0 {
-		sqlArr = append(sqlArr, columnComments...)
-	}
-
-	return sqlArr
-}
-
 // 获取建表ddl
-func (dd *DMMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
+func (dd *DMMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 
 	// 1.获取表信息
 	tbs, err := dd.GetTables(tableName)
@@ -300,7 +193,8 @@ func (dd *DMMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (stri
 		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	tableDDLArr := dd.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
+	dialect := dd.dc.GetDialect()
+	tableDDLArr := dialect.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
 	// 3.获取索引信息
 	indexs, err := dd.GetTableIndex(tableName)
 	if err != nil {
@@ -308,12 +202,12 @@ func (dd *DMMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (stri
 		return "", err
 	}
 	// 组装返回
-	tableDDLArr = append(tableDDLArr, dd.GenerateIndexDDL(indexs, *tableInfo)...)
+	tableDDLArr = append(tableDDLArr, dialect.GenerateIndexDDL(indexs, *tableInfo)...)
 	return strings.Join(tableDDLArr, ";\n"), nil
 }
 
 // 获取DM当前连接的库可访问的schemaNames
-func (dd *DMMetaData) GetSchemas() ([]string, error) {
+func (dd *DMMetadata) GetSchemas() ([]string, error) {
 	sql := dbi.GetLocalSql(DM_META_FILE, DM_DB_SCHEMAS)
 	_, res, err := dd.dc.Query(sql)
 	if err != nil {
@@ -324,16 +218,4 @@ func (dd *DMMetaData) GetSchemas() ([]string, error) {
 		schemaNames = append(schemaNames, cast.ToString(re["SCHEMA_NAME"]))
 	}
 	return schemaNames, nil
-}
-
-func (dd *DMMetaData) GetDataHelper() dbi.DataHelper {
-	return new(DataHelper)
-}
-
-func (dd *DMMetaData) GetColumnHelper() dbi.ColumnHelper {
-	return new(ColumnHelper)
-}
-
-func (dd *DMMetaData) GetDumpHelper() dbi.DumpHelper {
-	return new(DumpHelper)
 }

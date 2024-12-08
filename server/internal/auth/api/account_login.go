@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/auth/imsg"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
@@ -33,12 +33,13 @@ type AccountLogin struct {
 // @router /auth/accounts/login [post]
 func (a *AccountLogin) Login(rc *req.Ctx) {
 	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
+	ctx := rc.MetaCtx
 
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
 	if accountLoginSecurity.UseCaptcha {
 		// 校验验证码
-		biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
+		biz.IsTrueI(ctx, captcha.Verify(loginForm.Cid, loginForm.Captcha), imsg.ErrCaptchaErr)
 	}
 
 	username := loginForm.Username
@@ -47,7 +48,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	rc.ReqParam = collx.Kvs("username", username, "ip", clientIp)
 
 	originPwd, err := cryptox.DefaultRsaDecrypt(loginForm.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	biz.ErrIsNilAppendErr(err, "decryption password error: %s")
 
 	account := &sysentity.Account{Username: username}
 	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"))
@@ -56,17 +57,17 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	nowFailCount := cache.GetInt(failCountKey)
 	loginFailCount := accountLoginSecurity.LoginFailCount
 	loginFailMin := accountLoginSecurity.LoginFailMin
-	biz.IsTrue(nowFailCount < loginFailCount, "登录失败超过%d次, 请%d分钟后再试", loginFailCount, loginFailMin)
+	biz.IsTrueI(ctx, nowFailCount < loginFailCount, imsg.ErrLoginRestrict, "failCount", loginFailCount, "min", loginFailMin)
 
 	if err != nil || !cryptox.CheckPwdHash(originPwd, account.Password) {
 		nowFailCount++
 		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
-		panic(errorx.NewBiz(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
+		panic(errorx.NewBizI(ctx, imsg.ErrLoginFail, "failCount", nowFailCount))
 	}
 
 	// 校验密码强度（新用户第一次登录密码与账号名一致）
-	biz.IsTrueBy(utils.CheckAccountPasswordLever(originPwd), errorx.NewBizCode(401, "您的密码安全等级较低，请修改后重新登录"))
-	rc.ResData = LastLoginCheck(account, accountLoginSecurity, clientIp)
+	// biz.IsTrueBy(utils.CheckAccountPasswordLever(originPwd), errorx.NewBizCode(401, "您的密码安全等级较低，请修改后重新登录"))
+	rc.ResData = LastLoginCheck(ctx, account, accountLoginSecurity, clientIp)
 }
 
 type OtpVerifyInfo struct {
@@ -82,15 +83,16 @@ type OtpVerifyInfo struct {
 func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	otpVerify := new(form.OtpVerfiy)
 	req.BindJsonAndValid(rc, otpVerify)
+	ctx := rc.MetaCtx
 
 	tokenKey := fmt.Sprintf("otp:token:%s", otpVerify.OtpToken)
 	otpInfo := new(OtpVerifyInfo)
 	ok := cache.Get(tokenKey, otpInfo)
-	biz.IsTrue(ok, "otpToken错误或失效, 请重新登陆获取")
+	biz.IsTrueI(ctx, ok, imsg.ErrOtpTokenInvalid)
 
 	failCountKey := fmt.Sprintf("account:otp:failcount:%d", otpInfo.AccountId)
 	failCount := cache.GetInt(failCountKey)
-	biz.IsTrue(failCount < 5, "双因素校验失败超过5次, 请10分钟后再试")
+	biz.IsTrueI(ctx, failCount < 5, imsg.ErrOtpCheckRestrict)
 
 	otpStatus := otpInfo.OptStatus
 	accessToken := otpInfo.AccessToken
@@ -99,7 +101,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 	if !otp.Validate(otpVerify.Code, otpSecret) {
 		cache.SetStr(failCountKey, strconv.Itoa(failCount+1), time.Minute*time.Duration(10))
-		panic(errorx.NewBiz("双因素认证授权码不正确"))
+		panic(errorx.NewBizI(ctx, imsg.ErrOtpCheckFail))
 	}
 
 	// 如果是未注册状态，则更新account表的otpSecret信息
@@ -112,7 +114,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 	la := &sysentity.Account{Username: otpInfo.Username}
 	la.Id = accountId
-	go saveLogin(la, getIpAndRegion(rc))
+	go saveLogin(ctx, la, getIpAndRegion(rc))
 
 	cache.Del(tokenKey)
 	rc.ResData = collx.Kvs("token", accessToken, "refresh_token", otpInfo.RefreshToken)
@@ -120,7 +122,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 func (a *AccountLogin) RefreshToken(rc *req.Ctx) {
 	refreshToken := rc.Query("refresh_token")
-	biz.NotEmpty(refreshToken, "refresh_token不能为空")
+	biz.NotEmpty(refreshToken, "refresh_token cannot be empty")
 
 	accountId, username, err := req.ParseToken(refreshToken)
 	biz.IsTrueBy(err == nil, errorx.PermissionErr)

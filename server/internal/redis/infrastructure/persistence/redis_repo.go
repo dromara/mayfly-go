@@ -22,5 +22,12 @@ func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *mo
 		Like("host", condition.Host).
 		Eq("code", condition.Code).
 		In("code", condition.Codes)
+
+	keyword := condition.Keyword
+	if keyword != "" {
+		keyword = "%" + keyword + "%"
+		qd.And("host like ? or name like ? or code like ?", keyword, keyword, keyword)
+	}
+
 	return r.PageByCondToAny(qd, pageParam, toEntity)
 }

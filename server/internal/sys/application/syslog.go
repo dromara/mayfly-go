@@ -96,7 +96,7 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		syslog.Type = entity.SyslogTypeError
 		var errMsg string
 		switch t := err.(type) {
-		case errorx.BizError:
+		case *errorx.BizError:
 			errMsg = fmt.Sprintf("errCode: %d, errMsg: %s", t.Code(), t.Error())
 		case error:
 			errMsg = t.Error()

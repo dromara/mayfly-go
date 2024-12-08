@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/tag/api"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -18,11 +19,13 @@ func InitResourceAuthCertRouter(router *gin.RouterGroup) {
 		reqs := [...]*req.Conf{
 			req.NewGet("", m.ListByQuery),
 
-			req.NewGet("/detail", m.GetCompleteAuthCert).Log(req.NewLogSave("授权凭证-查看密文")).RequiredPermissionCode("authcert:showciphertext"),
+			req.NewGet("/simple", m.SimpleAc),
 
-			req.NewPost("", m.SaveAuthCert).Log(req.NewLogSave("授权凭证-保存")).RequiredPermissionCode("authcert:save"),
+			req.NewGet("/detail", m.GetCompleteAuthCert).Log(req.NewLogSaveI(imsg.LogAcShowPwd)).RequiredPermissionCode("authcert:showciphertext"),
 
-			req.NewDelete(":id", m.Delete).Log(req.NewLogSave("授权凭证-删除")).RequiredPermissionCode("authcert:del"),
+			req.NewPost("", m.SaveAuthCert).Log(req.NewLogSaveI(imsg.LogAcSave)).RequiredPermissionCode("authcert:save"),
+
+			req.NewDelete(":id", m.Delete).Log(req.NewLogSaveI(imsg.LogAcDelete)).RequiredPermissionCode("authcert:del"),
 		}
 
 		req.BatchSetGroup(resourceAuthCert, reqs[:])

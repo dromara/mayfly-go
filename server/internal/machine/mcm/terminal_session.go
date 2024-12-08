@@ -106,7 +106,7 @@ func (r TerminalSession) Stop() {
 	if r.terminal != nil {
 		if err := r.terminal.Close(); err != nil {
 			if err != io.EOF {
-				logx.Errorf("关闭机器ssh终端失败: %s", err.Error())
+				logx.Errorf("failed to close the machine ssh terminal: %s", err.Error())
 			}
 		}
 	}
@@ -129,7 +129,7 @@ func (ts TerminalSession) readFromTerminal() {
 			rn, size, err := ts.terminal.ReadRune()
 			if err != nil {
 				if err != io.EOF {
-					logx.Error("机器ssh终端读取消息失败: ", err)
+					logx.Error("the machine ssh terminal failed to read the message: ", err)
 				}
 				return
 			}
@@ -156,7 +156,7 @@ func (ts TerminalSession) writeToWebsocket() {
 
 			s := string(buf)
 			if err := ts.WriteToWs(s); err != nil {
-				logx.Error("机器ssh终端发送消息至websocket失败: ", err)
+				logx.Error("the machine ssh endpoint failed to send a message to the websocket: ", err)
 				return
 			}
 
@@ -197,14 +197,14 @@ func (ts *TerminalSession) receiveWsMsg() {
 			// read websocket msg
 			_, wsData, err := ts.wsConn.ReadMessage()
 			if err != nil {
-				logx.Debugf("机器ssh终端读取websocket消息失败: %s", err.Error())
+				logx.Debugf("the machine ssh terminal failed to read the websocket message: %s", err.Error())
 				return
 			}
 			// 解析消息
 			msgObj, err := parseMsg(wsData)
 			if err != nil {
-				ts.WriteToWs(GetErrorContentRn("消息内容解析失败..."))
-				logx.Error("机器ssh终端消息解析失败: ", err)
+				ts.WriteToWs(GetErrorContentRn("failed to parse the message content..."))
+				logx.Error("machine ssh terminal message parsing failed: ", err)
 				return
 			}
 
@@ -228,13 +228,13 @@ func (ts *TerminalSession) receiveWsMsg() {
 
 				_, err := ts.terminal.Write([]byte(msgObj.Msg))
 				if err != nil {
-					logx.Errorf("写入数据至ssh终端失败: %s", err)
-					ts.WriteToWs(GetErrorContentRn(fmt.Sprintf("写入数据至ssh终端失败: %s", err.Error())))
+					logx.Errorf("failed to write data to the ssh terminal: %s", err)
+					ts.WriteToWs(GetErrorContentRn(fmt.Sprintf("failed to write data to the ssh terminal: %s", err.Error())))
 				}
 			case Ping:
 				_, err := ts.terminal.SshSession.SendRequest("ping", true, nil)
 				if err != nil {
-					ts.WriteToWs(GetErrorContentRn("终端连接已断开..."))
+					ts.WriteToWs(GetErrorContentRn("the terminal connection has been disconnected..."))
 					return
 				}
 			}
@@ -254,7 +254,7 @@ func parseMsg(msg []byte) (*WsMsg, error) {
 	// 查找第一个 "|" 的位置
 	index := strings.Index(msgStr, MsgSplit)
 	if index == -1 {
-		return nil, errorx.NewBiz("消息内容不符合指定规则")
+		return nil, errorx.NewBiz("the message content does not conform to the specified rules")
 	}
 
 	// 获取消息类型, 提取第一个 "|" 之前的内容

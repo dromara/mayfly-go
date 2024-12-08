@@ -25,11 +25,12 @@ const (
 type RedisInfo struct {
 	Id uint64 `json:"id"`
 
-	Host     string    `json:"host"`
-	Db       int       `json:"db"` // 库号
-	Mode     RedisMode `json:"mode"`
-	Username string    `json:"-"`
-	Password string    `json:"-"`
+	Host              string    `json:"host"`
+	Db                int       `json:"db"` // 库号
+	Mode              RedisMode `json:"mode"`
+	Username          string    `json:"-"`
+	Password          string    `json:"-"`
+	RedisNodePassword string    `json:"-"`
 
 	Name               string   `json:"-"`
 	CodePath           []string `json:"codePath"`
@@ -69,10 +70,10 @@ func (re *RedisInfo) connStandalone() (*RedisConn, error) {
 	_, e := cli.Ping(context.Background()).Result()
 	if e != nil {
 		cli.Close()
-		return nil, errorx.NewBiz("redis连接失败: %s", e.Error())
+		return nil, errorx.NewBiz("redis standalone connection failed: %s", e.Error())
 	}
 
-	logx.Infof("连接redis standalone: %s/%d", re.Host, re.Db)
+	logx.Infof("redis standalone connection: %s/%d", re.Host, re.Db)
 
 	rc := &RedisConn{Id: getConnId(re.Id, re.Db), Info: re}
 	rc.Cli = cli
@@ -94,10 +95,10 @@ func (re *RedisInfo) connCluster() (*RedisConn, error) {
 	_, e := cli.Ping(context.Background()).Result()
 	if e != nil {
 		cli.Close()
-		return nil, errorx.NewBiz("redis集群连接失败: %s", e.Error())
+		return nil, errorx.NewBiz("redis cluster connection failed: %s", e.Error())
 	}
 
-	logx.Infof("连接redis cluster: %s/%d", re.Host, re.Db)
+	logx.Infof("redis cluster connection: %s/%d", re.Host, re.Db)
 
 	rc := &RedisConn{Id: getConnId(re.Id, re.Db), Info: re}
 	rc.ClusterCli = cli
@@ -111,9 +112,9 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 		MasterName:       masterNameAndHosts[0],
 		SentinelAddrs:    strings.Split(masterNameAndHosts[1], ","),
 		Username:         re.Username,
-		Password:         re.Password, // no password set
+		Password:         re.RedisNodePassword, // no password set
 		SentinelUsername: re.Username,
-		SentinelPassword: re.Password, // 哨兵节点密码需与redis节点密码一致
+		SentinelPassword: re.Password, // 哨兵节点密码
 		DB:               re.Db,       // use default DB
 		DialTimeout:      8 * time.Second,
 		ReadTimeout:      -1, // Disable timeouts, because SSH does not support deadlines.
@@ -127,10 +128,10 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 	_, e := cli.Ping(context.Background()).Result()
 	if e != nil {
 		cli.Close()
-		return nil, errorx.NewBiz("redis sentinel连接失败: %s", e.Error())
+		return nil, errorx.NewBiz("redis sentinel connection failed: %s", e.Error())
 	}
 
-	logx.Infof("连接redis sentinel: %s/%d", re.Host, re.Db)
+	logx.Infof("redis sentinel connection: %s/%d", re.Host, re.Db)
 
 	rc := &RedisConn{Id: getConnId(re.Id, re.Db), Info: re}
 	rc.Cli = cli

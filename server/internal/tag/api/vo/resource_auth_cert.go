@@ -33,3 +33,9 @@ type AuthCertBaseVO struct {
 	CiphertextType entity.AuthCertCiphertextType `json:"ciphertextType"` // 密文类型
 	Remark         string                        `json:"remark"`         // 备注
 }
+
+type SimpleResourceAuthCert struct {
+	Id       uint64 `json:"id"`
+	Name     string `json:"code"`     // 名称
+	Username string `json:"username"` // 用户名
+}

@@ -1,6 +1,12 @@
 # 🌈mayfly-go
 
 <p align="center">
+    <a href="./README_EN.md">English</a> | 
+    <a href="https://www.yuque.com/may-fly/mayfly-go">项目文档</a> | 
+    <a href="https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854">操作视频</a> | 
+</p>
+
+<p align="center">
   <a href="https://gitee.com/dromara/mayfly-go" target="_blank">
     <img src="https://gitee.com/dromara/mayfly-go/badge/star.svg?theme=white" alt="star"/>
     <img src="https://gitee.com/dromara/mayfly-go/badge/fork.svg" alt="fork"/>
@@ -20,30 +26,25 @@
   </a>
 </p>
 
-### 介绍
+## 前言
 
-web 版 **linux(终端[终端回放、命令过滤] 文件 脚本 进程 计划任务)、数据库（mysql postgres oracle sqlserver 达梦 高斯 sqlite）数据操作 数据同步 数据迁移、redis(单机 哨兵 集群)、mongo 等集工单流程审批于一体的统一管理操作平台**
+web 版 **linux(终端[终端回放、命令过滤] 文件 脚本 进程 计划任务)。数据库（mysql postgres oracle sqlserver 达梦 高斯 sqlite）数据操作、数据同步、数据迁移。redis(单机 哨兵 集群)。mongo 等集工单流程审批于一体的统一管理操作平台。**
 
-### 开发语言与主要框架
+## 开发语言与主要框架
 
 - 前端：typescript、vue3、element-plus
 - 后端：golang、gin、gorm
 
-### 交流及问题反馈加 QQ 群
+## 交流及问题反馈加 QQ 群
 
 <a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=IdJSHW0jTMhmWFHBUS9a83wxtrxDDhFj&jump_from=webapi">119699946</a>
 
-### 系统相关资料
-
-- 项目文档: https://www.yuque.com/may-fly/mayfly-go
-- 系统操作视频: https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854
-
-### 演示环境
+## 演示环境
 
 http://go.mayfly.run
 账号/密码：test/test123.
 
-### 系统核心功能截图
+## 系统核心功能截图
 
 #### 首页
 
@@ -101,8 +102,8 @@ http://go.mayfly.run
 
 ![菜单资源管理](https://foruda.gitee.com/images/1714379321338009940/a00d6a02_1240250.png "屏幕截图")
 
-**其他更多功能&操作指南可查看在线文档**: https://www.yuque.com/may-fly/mayfly-go
+**其他更多功能&操作指南可查看上述项目文档**
 
-#### 💌 支持作者
+## 💌 支持作者
 
 如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> 或者 <a target="_blank" href="https://gitee.com/dromara/mayfly-go">Gitee</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。

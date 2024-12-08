@@ -50,7 +50,7 @@ func (r *RedisConn) Close() {
 	mode := r.Info.Mode
 	if mode == StandaloneMode || mode == SentinelMode {
 		if err := r.Cli.Close(); err != nil {
-			logx.Errorf("关闭redis单机实例[%s]连接失败: %s", r.Id, err.Error())
+			logx.Errorf("close redis standalone instance [%s] connection failed: %s", r.Id, err.Error())
 		}
 		r.Cli = nil
 		return
@@ -58,7 +58,7 @@ func (r *RedisConn) Close() {
 
 	if mode == ClusterMode {
 		if err := r.ClusterCli.Close(); err != nil {
-			logx.Errorf("关闭redis集群实例[%s]连接失败: %s", r.Id, err.Error())
+			logx.Errorf("close redis cluster instance [%s] connection failed: %s", r.Id, err.Error())
 		}
 		r.ClusterCli = nil
 	}

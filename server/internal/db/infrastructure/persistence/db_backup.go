@@ -17,7 +17,9 @@ type dbBackupRepoImpl struct {
 }
 
 func NewDbBackupRepo() repository.DbBackup {
-	return &dbBackupRepoImpl{}
+	dr := &dbBackupRepoImpl{}
+	dr.M = new(entity.DbBackup)
+	return dr
 }
 
 func (d *dbBackupRepoImpl) GetDbNamesWithoutBackup(instanceId uint64, dbNames []string) ([]string, error) {

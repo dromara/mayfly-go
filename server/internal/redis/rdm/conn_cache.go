@@ -14,7 +14,7 @@ import (
 var connCache = cache.NewTimedCache(consts.RedisConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
-		logx.Info(fmt.Sprintf("删除redis连接缓存 id = %s", key))
+		logx.Info(fmt.Sprintf("remove the redis connection cache id = %s", key))
 		value.(*RedisConn).Close()
 	})
 

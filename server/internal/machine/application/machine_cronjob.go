@@ -76,7 +76,7 @@ func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *d
 	} else {
 		oldMcj, err := m.GetById(mcj.Id)
 		if err != nil {
-			return errorx.NewBiz("该计划任务不存在")
+			return errorx.NewBiz("cronjob not found")
 		}
 		mcj.Key = oldMcj.Key
 	}
@@ -102,7 +102,7 @@ func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
 func (m *machineCronJobAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
-			logx.ErrorTrace("机器计划任务初始化失败: %s", err.(error))
+			logx.ErrorTrace("the machine cronjob failed to initialize: %v", err.(error))
 		}
 	}()
 
@@ -151,7 +151,7 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 
 	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
 	var machineTags []tagentity.TagTree
-	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Type: tagentity.TagTypeMachine}, &machineTags)
+	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Types: []tagentity.TagType{tagentity.TagTypeMachine}}, &machineTags)
 	machines, _ := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
 		return tag.Code
 	})), "id")
@@ -193,9 +193,9 @@ func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 			if res == "" {
 				res = err.Error()
 			}
-			logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+			logx.Errorf("machine[%d] failed to execute cronjob[%s]: %s", mid, cronJob.Name, res)
 		} else {
-			logx.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
+			logx.Debugf("machine[%d] successfully executed cronjob[%s], execution result: %s", mid, cronJob.Name, res)
 		}
 	}
 	execRes.Res = res

@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-// 获取指定堆栈描述信息
+// StackStr 获取指定堆栈描述信息
 //
 // @param skip: 跳过堆栈个数
 // @param nFrames: 需要描述的堆栈个数
-func StatckStr(skip, nFrames int) string {
+func StackStr(skip, nFrames int) string {
 	pcs := make([]uintptr, nFrames+1)
 	n := runtime.Callers(skip+1, pcs)
 	if n == 0 {

@@ -22,8 +22,9 @@ type DataSyncTask struct {
 	SrcTagPath  string `orm:"column(src_tag_path)" json:"srcTagPath"`
 	DataSql     string `orm:"column(data_sql)" json:"dataSql"`          // 数据源查询sql
 	PageSize    int    `orm:"column(page_size)" json:"pageSize"`        // 配置分页sql查询的条数
-	UpdField    string `orm:"column(upd_field)" json:"updField"`        //更新字段， 选择由哪个字段为更新字段，查询数据源的时候会带上这个字段，如：where update_time > {最近更新的最大值}
+	UpdField    string `orm:"column(upd_field)" json:"updField"`        // 更新字段， 选择由哪个字段为更新字段，查询数据源的时候会带上这个字段，如：where update_time > {最近更新的最大值}
 	UpdFieldVal string `orm:"column(upd_field_val)" json:"updFieldVal"` // 更新字段当前值
+	UpdFieldSrc string `orm:"column(upd_field_src)" json:"updFieldSrc"` // 更新值来源, 如select name as user_name from user;  则updFieldSrc的值为user_name
 
 	// 目标数据库信息
 	TargetDbId        int64  `orm:"column(target_db_id)" json:"targetDbId"`

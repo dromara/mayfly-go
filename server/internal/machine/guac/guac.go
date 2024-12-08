@@ -101,7 +101,7 @@ func WsToGuacd(ws *websocket.Conn, tunnel Tunnel, guacd io.Writer) {
 	for {
 		_, data, err := ws.ReadMessage()
 		if err != nil {
-			logx.Warnf("Error reading message from ws: %v", err)
+			logx.Warnf("error reading message from ws: %v", err)
 			_ = tunnel.Close()
 			return
 		}
@@ -112,7 +112,7 @@ func WsToGuacd(ws *websocket.Conn, tunnel Tunnel, guacd io.Writer) {
 		}
 
 		if _, err = guacd.Write(data); err != nil {
-			logx.Warnf("Failed writing to guacd: %v", err)
+			logx.Warnf("failed writing to guacd: %v", err)
 			return
 		}
 	}
@@ -124,7 +124,7 @@ func GuacdToWs(ws *websocket.Conn, tunnel Tunnel, guacd InstructionReader) {
 	for {
 		ins, err := guacd.ReadSome()
 		if err != nil {
-			logx.Warnf("Error reading message from guacd: %v", err)
+			logx.Warnf("error reading message from guacd: %v", err)
 			_ = tunnel.Close()
 			return
 		}
@@ -135,7 +135,7 @@ func GuacdToWs(ws *websocket.Conn, tunnel Tunnel, guacd InstructionReader) {
 		}
 		logx.Debugf("guacd msg: %s", string(ins))
 		if _, err = buf.Write(ins); err != nil {
-			logx.Warnf("Failed to buffer guacd to ws: %v", err)
+			logx.Warnf("failed to buffer guacd to ws: %v", err)
 			return
 		}
 
@@ -145,7 +145,7 @@ func GuacdToWs(ws *websocket.Conn, tunnel Tunnel, guacd InstructionReader) {
 				if errors.Is(err, websocket.ErrCloseSent) {
 					return
 				}
-				logx.Warnf("Failed sending message to ws: %v", err)
+				logx.Warnf("failed sending message to ws: %v", err)
 				return
 			}
 			buf.Reset()

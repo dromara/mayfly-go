@@ -75,7 +75,7 @@ func GetMachineCliById(machineId uint64) (*Cli, error) {
 	if machineCli != nil {
 		return machineCli, nil
 	}
-	return nil, errors.New("不存在该机器id的连接")
+	return nil, errors.New("no connection exists for this machine id")
 }
 
 // 删除指定机器缓存客户端，并关闭客户端连接

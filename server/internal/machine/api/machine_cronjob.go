@@ -65,7 +65,7 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 
 func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
 	cronJobKey := rc.PathParam("key")
-	biz.NotEmpty(cronJobKey, "cronJob key不能为空")
+	biz.NotEmpty(cronJobKey, "cronJob key cannot be empty")
 	m.MachineCronJobApp.RunCronJob(cronJobKey)
 }
 

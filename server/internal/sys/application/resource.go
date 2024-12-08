@@ -3,8 +3,10 @@ package application
 import (
 	"context"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/sys/application/dto"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
@@ -26,13 +28,18 @@ type Resource interface {
 	Sort(ctx context.Context, re *entity.Resource) error
 
 	GetAccountResources(accountId uint64, toEntity any) error
+
+	GetResourceRoles(resourceId uint64) ([]*dto.ResourceRole, error)
 }
 
 type resourceAppImpl struct {
 	base.AppImpl[*entity.Resource, repository.Resource]
 
 	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
+	roleApp          Role                    `inject:"RoleApp"`
 }
+
+var _ (Resource) = (*resourceAppImpl)(nil)
 
 // 注入ResourceRepo
 func (r *resourceAppImpl) InjectResourceRepo(repo repository.Resource) {
@@ -45,11 +52,11 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 		if resource.Code != "" {
 			oldRes, err := r.GetById(resource.Id, "Code")
 			if err != nil {
-				return errorx.NewBiz("更新失败, 该资源不存在")
+				return errorx.NewBiz("Resource does not exist")
 			}
 			// 如果修改了code，则校验新code是否存在
 			if oldRes.Code != resource.Code {
-				if err := r.checkCode(resource.Code); err != nil {
+				if err := r.checkCode(ctx, resource.Code); err != nil {
 					return err
 				}
 			}
@@ -62,7 +69,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 	if pid := resource.Pid; pid != 0 {
 		pResource, err := r.GetById(uint64(pid))
 		if err != nil {
-			return errorx.NewBiz("该父资源不存在")
+			return errorx.NewBiz("pid does not exist")
 		}
 		resource.UiPath = pResource.UiPath + ui + entity.ResourceUiPathSp
 	} else {
@@ -72,7 +79,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 	if resource.Status == 0 {
 		resource.Status = entity.ResourceStatusEnable
 	}
-	if err := r.checkCode(resource.Code); err != nil {
+	if err := r.checkCode(ctx, resource.Code); err != nil {
 		return err
 	}
 	resource.Weight = int(time.Now().Unix())
@@ -82,7 +89,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, status int8) error {
 	resource, err := r.GetById(resourceId)
 	if err != nil {
-		return errorx.NewBiz("资源不存在")
+		return errorx.NewBiz("Resource does not exist")
 	}
 	resource.Status = status
 	return r.GetRepo().UpdateByUiPathLike(resource)
@@ -91,7 +98,7 @@ func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, s
 func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resource) error {
 	resource, err := r.GetById(sortResource.Id)
 	if err != nil {
-		return errorx.NewBiz("资源不存在")
+		return errorx.NewBiz("Resource does not exist")
 	}
 
 	// 未改变父节点，则更新排序值即可
@@ -117,7 +124,7 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 	if sortResource.Pid != 0 {
 		newParentResource, err := r.GetById(uint64(sortResource.Pid))
 		if err != nil {
-			return errorx.NewBiz("父资源不存在")
+			return errorx.NewBiz("pid does not exist")
 		}
 		newParentResourceUiPath = newParentResource.UiPath
 	}
@@ -148,12 +155,12 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 	return r.UpdateByCond(ctx, updateMap, condition)
 }
 
-func (r *resourceAppImpl) checkCode(code string) error {
+func (r *resourceAppImpl) checkCode(ctx context.Context, code string) error {
 	if strings.Contains(code, ",") {
-		return errorx.NewBiz("code不能包含','")
+		return errorx.NewBizI(ctx, imsg.ErrResourceCodeInvalid)
 	}
 	if r.CountByCond(&entity.Resource{Code: code}) != 0 {
-		return errorx.NewBiz("该code已存在")
+		return errorx.NewBizI(ctx, imsg.ErrResourceCodeExist)
 	}
 	return nil
 }
@@ -161,7 +168,7 @@ func (r *resourceAppImpl) checkCode(code string) error {
 func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
 	resource, err := r.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("资源不存在")
+		return errorx.NewBiz("Resource does not exist")
 	}
 
 	// 删除当前节点及其所有子节点
@@ -184,4 +191,30 @@ func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) er
 	}
 
 	return r.GetRepo().GetAccountResources(accountId, toEntity)
+}
+
+func (r *resourceAppImpl) GetResourceRoles(resourceId uint64) ([]*dto.ResourceRole, error) {
+	rr, err := r.roleApp.GetResourceRoles(resourceId)
+	if err != nil {
+		return nil, err
+	}
+	roleId2Rr := collx.ArrayToMap[*entity.RoleResource, uint64](rr, func(val *entity.RoleResource) uint64 { return val.RoleId })
+
+	roleIds := collx.MapKeys(roleId2Rr)
+	roles, err := r.roleApp.GetByIds(roleIds)
+	if err != nil {
+		return nil, err
+	}
+
+	return collx.ArrayMap[*entity.Role, *dto.ResourceRole](roles, func(val *entity.Role) *dto.ResourceRole {
+		role := roleId2Rr[val.Id]
+		return &dto.ResourceRole{
+			RoleId:       val.Id,
+			RoleName:     val.Name,
+			RoleCode:     val.Code,
+			RoleStatus:   val.Status,
+			AllocateTime: role.CreateTime,
+			Assigner:     role.Creator,
+		}
+	}), nil
 }

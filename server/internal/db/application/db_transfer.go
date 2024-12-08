@@ -1,23 +1,31 @@
 package application
 
 import (
+	"cmp"
 	"context"
 	"encoding/hex"
 	"fmt"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	fileapp "mayfly-go/internal/file/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/timex"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -32,20 +40,31 @@ type DbTransferTask interface {
 
 	Delete(ctx context.Context, id uint64) error
 
-	InitJob()
+	InitCronJob()
+
+	AddCronJob(ctx context.Context, taskEntity *entity.DbTransferTask)
+
+	RemoveCronJobById(taskId uint64)
 
 	CreateLog(ctx context.Context, taskId uint64) (uint64, error)
 
 	Run(ctx context.Context, taskId uint64, logId uint64)
 
+	IsRunning(taskId uint64) bool
+
 	Stop(ctx context.Context, taskId uint64) error
+
+	// TimerDeleteTransferFile 定时删除迁移文件
+	TimerDeleteTransferFile()
 }
 
 type dbTransferAppImpl struct {
 	base.AppImpl[*entity.DbTransferTask, repository.DbTransferTask]
 
-	dbApp  Db            `inject:"DbApp"`
-	logApp sysapp.Syslog `inject:"SyslogApp"`
+	dbApp           Db             `inject:"DbApp"`
+	logApp          sysapp.Syslog  `inject:"SyslogApp"`
+	transferFileApp DbTransferFile `inject:"DbTransferFileApp"`
+	fileApp         fileapp.File   `inject:"FileApp"`
 }
 
 func (app *dbTransferAppImpl) InjectDbTransferTaskRepo(repo repository.DbTransferTask) {
@@ -58,46 +77,121 @@ func (app *dbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery,
 
 func (app *dbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTransferTask) error {
 	var err error
-	if taskEntity.Id == 0 {
+	if taskEntity.Id == 0 { // 新建时生成key
+		taskEntity.TaskKey = uuid.New().String()
 		err = app.Insert(ctx, taskEntity)
 	} else {
 		err = app.UpdateById(ctx, taskEntity)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	// 视情况添加或删除任务
+	task, err := app.GetById(taskEntity.Id)
+	if err != nil {
+		return err
+	}
+	app.AddCronJob(ctx, task)
+	return nil
 }
 
 func (app *dbTransferAppImpl) Delete(ctx context.Context, id uint64) error {
 	if err := app.DeleteById(ctx, id); err != nil {
 		return err
 	}
+	app.RemoveCronJobById(id)
+
 	return nil
 }
 
-func (app *dbTransferAppImpl) InitJob() {
-	app.UpdateByCond(context.TODO(), &entity.DbTransferTask{RunningState: entity.DbTransferTaskRunStateStop}, &entity.DbTransferTask{RunningState: entity.DbTransferTaskRunStateRunning})
+func (app *dbTransferAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.DbTransferTask) {
+	key := taskEntity.TaskKey
+	// 先移除旧的任务
+	scheduler.RemoveByKey(key)
+
+	// 根据状态添加新的任务
+	if taskEntity.Status == entity.DbTransferTaskStatusEnable && taskEntity.CronAble == entity.DbTransferTaskCronAbleEnable {
+		if key == "" {
+			taskEntity.TaskKey = uuid.New().String()
+			key = taskEntity.TaskKey
+			_ = app.UpdateById(ctx, taskEntity)
+		}
+
+		taskId := taskEntity.Id
+		scheduler.AddFunByKey(key, taskEntity.Cron, func() {
+			logx.Infof("start the synchronization task: %d", taskId)
+			logId, _ := app.CreateLog(ctx, taskId)
+			app.Run(ctx, taskId, logId)
+		})
+	}
+}
+
+func (app *dbTransferAppImpl) InitCronJob() {
+	// 重启后，把正在运行的状态设置为停止
+	_ = app.UpdateByCond(context.TODO(), &entity.DbTransferTask{RunningState: entity.DbTransferTaskRunStateStop}, &entity.DbTransferTask{RunningState: entity.DbTransferTaskRunStateRunning})
+	ent := &entity.DbTransferTask{}
+	list, err := app.ListByCond(model.NewModelCond(ent).Columns("id"))
+	if err != nil {
+		return
+	}
+	if len(list) > 0 {
+		// 移除所有正在运行的任务
+		for _, task := range list {
+			app.MarkStop(task.Id)
+		}
+	}
+	// 把所有运行中的文件状态设置为失败
+	_ = app.transferFileApp.UpdateByCond(context.TODO(), &entity.DbTransferFile{Status: entity.DbTransferFileStatusFail}, &entity.DbTransferFile{Status: entity.DbTransferFileStatusRunning})
+
+	// 把所有需要定时执行的任务添加到定时任务中
+	pageParam := &model.PageParam{
+		PageSize: 100,
+		PageNum:  1,
+	}
+	cond := new(entity.DbTransferTaskQuery)
+	cond.Status = entity.DbTransferTaskStatusEnable
+	cond.CronAble = entity.DbTransferTaskCronAbleEnable
+	jobs := new([]entity.DbTransferTask)
+
+	pr, _ := app.GetPageList(cond, pageParam, jobs)
+	if nil == pr || pr.Total == 0 {
+		return
+	}
+	total := pr.Total
+	add := 0
+
+	for {
+		for _, job := range *jobs {
+			app.AddCronJob(contextx.NewTraceId(), &job)
+			add++
+		}
+		if add >= int(total) {
+			return
+		}
+		pageParam.PageNum++
+		_, _ = app.GetPageList(cond, pageParam, jobs)
+	}
 }
 
 func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uint64, error) {
 	logId, err := app.logApp.CreateLog(ctx, &sysapp.CreateLogReq{
-		Description: "DBMS-执行数据迁移",
+		Description: "DBMS - Execution DB Transfer",
 		ReqParam:    collx.Kvs("taskId", taskId),
 		Type:        sysentity.SyslogTypeRunning,
-		Resp:        "开始执行数据迁移...",
+		Resp:        "Data transfer starts...",
 	})
 	return logId, err
 }
 
 func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint64) {
-	defer app.logApp.Flush(logId, true)
-
 	task, err := app.GetById(taskId)
 	if err != nil {
-		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
+		logx.Errorf("Create DBMS- Failed to perform data transfer log: %v", err)
 		return
 	}
 
 	if app.IsRunning(taskId) {
-		logx.Warnf("[%d]该任务正在运行中...", taskId)
+		logx.Error("[%d] the task is running...", taskId)
 		return
 	}
 
@@ -106,62 +200,137 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint
 	task.LogId = logId
 	task.RunningState = entity.DbTransferTaskRunStateRunning
 	if err = app.UpdateById(ctx, task); err != nil {
-		logx.Errorf("更新任务执行状态失败")
+		logx.Errorf("failed to update task execution status")
 		return
 	}
 
 	// 标记该任务开始执行
-	app.MarkRuning(taskId)
-	defer app.MarkStop(taskId)
+	app.MarkRunning(taskId)
 
 	// 获取源库连接、目标库连接，判断连接可用性，否则记录日志：xx连接不可用
 	// 获取源库表信息
 	srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 	if err != nil {
-		app.EndTransfer(ctx, logId, taskId, "获取源库连接失败", err, nil)
-		return
-	}
-	// 获取目标库表信息
-	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
-	if err != nil {
-		app.EndTransfer(ctx, logId, taskId, "获取目标库连接失败", err, nil)
+		app.EndTransfer(ctx, logId, taskId, "failed to obtain source db connection", err, nil)
 		return
 	}
 
+	// 获取迁移表信息
 	var tables []dbi.Table
-
 	if task.CheckedKeys == "all" {
-		tables, err = srcConn.GetMetaData().GetTables()
+		tables, err = srcConn.GetMetadata().GetTables()
 		if err != nil {
-			app.EndTransfer(ctx, logId, taskId, "获取源表信息失败", err, nil)
+			app.EndTransfer(ctx, logId, taskId, "failed to get source table information", err, nil)
 			return
 		}
 	} else {
 		tableNames := strings.Split(task.CheckedKeys, ",")
-		tables, err = srcConn.GetMetaData().GetTables(tableNames...)
+		tables, err = srcConn.GetMetadata().GetTables(tableNames...)
 		if err != nil {
-			app.EndTransfer(ctx, logId, taskId, "获取源表信息失败", err, nil)
+			app.EndTransfer(ctx, logId, taskId, "failed to get source table information", err, nil)
 			return
 		}
 	}
 
+	// 迁移到文件或数据库
+	if task.Mode == entity.DbTransferTaskModeFile {
+		app.transfer2File(ctx, taskId, logId, task, srcConn, start, tables)
+	} else if task.Mode == entity.DbTransferTaskModeDb {
+		defer app.MarkStop(taskId)
+		defer app.logApp.Flush(logId, true)
+		app.transfer2Db(ctx, taskId, logId, task, srcConn, start, tables)
+	} else {
+		app.EndTransfer(ctx, logId, taskId, "error in transfer mode, only migrating to files or databases is currently supported", err, nil)
+		return
+	}
+}
+
+func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, start time.Time, tables []dbi.Table) {
+	// 获取目标库表信息
+	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
+	if err != nil {
+		app.EndTransfer(ctx, logId, taskId, "failed to get target db connection", err, nil)
+		return
+	}
 	// 迁移表
-	if err = app.transferTables(ctx, logId, task, srcConn, targetConn, tables); err != nil {
-		app.EndTransfer(ctx, logId, taskId, "迁移表失败", err, nil)
+	if err = app.transferDbTables(ctx, logId, task, srcConn, targetConn, tables); err != nil {
+		app.EndTransfer(ctx, logId, taskId, "transfer table failed", err, nil)
 		return
 	}
 
-	app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("执行迁移完成，执行迁移任务[taskId = %d]完成, 耗时：%v", taskId, time.Since(start)), nil, nil)
+	app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("execute transfer task [taskId = %d] complete, time: %v", taskId, time.Since(start)), nil, nil)
+}
+
+func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, start time.Time, tables []dbi.Table) {
+	// 1、新增迁移文件数据
+	nowTime := time.Now()
+	tFile := &entity.DbTransferFile{
+		TaskId:     taskId,
+		CreateTime: &nowTime,
+		Status:     entity.DbTransferFileStatusRunning,
+		FileDbType: cmp.Or(task.TargetFileDbType, task.TargetDbType),
+		LogId:      logId,
+	}
+	_ = app.transferFileApp.Save(ctx, tFile)
+
+	filename := fmt.Sprintf("dtf_%s_%s.sql", task.TaskName, timex.TimeNo())
+	fileKey, writer, saveFileFunc, err := app.fileApp.NewWriter(ctx, "", filename)
+	if err != nil {
+		app.EndTransfer(ctx, logId, taskId, "create file error", err, nil)
+		return
+	}
+
+	// 从tables提取表名
+	tableNames := make([]string, 0)
+	for _, table := range tables {
+		tableNames = append(tableNames, table.TableName)
+	}
+	// 2、把源库数据迁移到文件
+	app.Log(ctx, logId, fmt.Sprintf("start transfer table data to files: %s", filename))
+	app.Log(ctx, logId, fmt.Sprintf("dialect type of target db file: %s", task.TargetFileDbType))
+
+	go func() {
+		var err error
+		defer saveFileFunc(&err)
+		defer app.MarkStop(taskId)
+		defer app.logApp.Flush(logId, true)
+		ctx = context.Background()
+
+		err = app.dbApp.DumpDb(ctx, &dto.DumpDb{
+			LogId:        logId,
+			DbId:         uint64(task.SrcDbId),
+			DbName:       task.SrcDbName,
+			TargetDbType: dbi.DbType(task.TargetFileDbType),
+			Tables:       tableNames,
+			DumpDDL:      true,
+			DumpData:     true,
+			Writer:       writer,
+			Log: func(msg string) { // 记录日志
+				app.Log(ctx, logId, msg)
+			},
+		})
+		if err != nil {
+			app.EndTransfer(ctx, logId, taskId, "db transfer to file failed", err, nil)
+			tFile.Status = entity.DbTransferFileStatusFail
+			_ = app.transferFileApp.UpdateById(ctx, tFile)
+			return
+		}
+		app.EndTransfer(ctx, logId, taskId, "database transfer complete", err, nil)
+
+		tFile.Status = entity.DbTransferFileStatusSuccess
+		tFile.FileKey = fileKey
+		_ = app.transferFileApp.UpdateById(ctx, tFile)
+	}()
 }
 
 func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
 	task, err := app.GetById(taskId)
 	if err != nil {
-		return errorx.NewBiz("任务不存在")
+		return errorx.NewBiz("task not found")
 	}
 
 	if task.RunningState != entity.DbTransferTaskRunStateRunning {
-		return errorx.NewBiz("该任务未在执行")
+		return errorx.NewBiz("the task is not being executed")
 	}
 	task.RunningState = entity.DbTransferTaskRunStateStop
 	if err = app.UpdateById(ctx, task); err != nil {
@@ -173,7 +342,7 @@ func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
 }
 
 // 迁移表
-func (app *dbTransferAppImpl) transferTables(ctx context.Context, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, targetConn *dbi.DbConn, tables []dbi.Table) error {
+func (app *dbTransferAppImpl) transferDbTables(ctx context.Context, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, targetConn *dbi.DbConn, tables []dbi.Table) error {
 	tableNames := make([]string, 0)
 	tableMap := make(map[string]dbi.Table) // 以表名分组，存放表信息
 	for _, table := range tables {
@@ -182,13 +351,14 @@ func (app *dbTransferAppImpl) transferTables(ctx context.Context, logId uint64, 
 	}
 
 	if len(tableNames) == 0 {
-		return errorx.NewBiz("没有需要迁移的表")
+		return errorx.NewBiz("there are no tables to migrate")
 	}
-	srcMeta := srcConn.GetMetaData()
+	srcDialect := srcConn.GetDialect()
+	srcMetadata := srcConn.GetMetadata()
 	// 查询源表列信息
-	columns, err := srcMeta.GetColumns(tableNames...)
+	columns, err := srcMetadata.GetColumns(tableNames...)
 	if err != nil {
-		return errorx.NewBiz("获取源表列信息失败")
+		return errorx.NewBiz("failed to get the source table column information")
 	}
 
 	// 以表名分组，存放每个表的列信息
@@ -202,8 +372,8 @@ func (app *dbTransferAppImpl) transferTables(ctx context.Context, logId uint64, 
 	sort.Strings(sortTableNames)
 
 	targetDialect := targetConn.GetDialect()
-	srcColumnHelper := srcMeta.GetColumnHelper()
-	targetColumnHelper := targetConn.GetMetaData().GetColumnHelper()
+	srcColumnHelper := srcDialect.GetColumnHelper()
+	targetColumnHelper := targetConn.GetDialect().GetColumnHelper()
 
 	// 分组迁移
 	tableGroups := collx.ArraySplit[string](sortTableNames, 2)
@@ -224,41 +394,42 @@ func (app *dbTransferAppImpl) transferTables(ctx context.Context, logId uint64, 
 				}
 
 				// 通过公共列信息生成目标库的建表语句，并执行目标库建表
-				app.Log(ctx, logId, fmt.Sprintf("开始创建目标表: 表名：%s", tbName))
-				_, err := targetDialect.CreateTable(targetCols, tableMap[tbName], true)
-				if err != nil {
-					return errorx.NewBiz(fmt.Sprintf("创建目标表失败: 表名：%s, error: %s", tbName, err.Error()))
+				app.Log(ctx, logId, fmt.Sprintf("start creating the target table: %s", tbName))
+
+				sqlArr := targetDialect.GenerateTableDDL(targetCols, tableMap[tbName], true)
+				for _, sqlStr := range sqlArr {
+					_, err := targetConn.Exec(sqlStr)
+					if err != nil {
+						return errorx.NewBiz(fmt.Sprintf("failed to create target table: %s, error: %s", tbName, err.Error()))
+					}
 				}
-				app.Log(ctx, logId, fmt.Sprintf("创建目标表成功: 表名：%s", tbName))
+				app.Log(ctx, logId, fmt.Sprintf("target table created successfully: %s", tbName))
 
 				// 迁移数据
-				app.Log(ctx, logId, fmt.Sprintf("开始迁移数据: 表名：%s", tbName))
+				app.Log(ctx, logId, fmt.Sprintf("start transfer data: %s", tbName))
 				total, err := app.transferData(ctx, logId, task.Id, tbName, targetCols, srcConn, targetConn)
 				if err != nil {
-					return errorx.NewBiz(fmt.Sprintf("迁移数据失败: 表名：%s, error: %s", tbName, err.Error()))
+					return errorx.NewBiz(fmt.Sprintf("failed to transfer => table: %s, error: %s", tbName, err.Error()))
 				}
-				app.Log(ctx, logId, fmt.Sprintf("迁移数据成功: 表名：%s, 数据：%d 条", tbName, total))
+				app.Log(ctx, logId, fmt.Sprintf("successfully transfer data => table: %s, data: %d entries", tbName, total))
 
 				// 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
 				targetDialect.UpdateSequence(tbName, targetCols)
 
 				// 迁移索引信息
-				app.Log(ctx, logId, fmt.Sprintf("开始迁移索引: 表名：%s", tbName))
-				err = app.transferIndex(ctx, tableMap[tbName], srcConn, targetDialect)
+				app.Log(ctx, logId, fmt.Sprintf("start transfer index => table: %s", tbName))
+				err = app.transferIndex(ctx, tableMap[tbName], srcConn, targetConn)
 				if err != nil {
-					return errorx.NewBiz(fmt.Sprintf("迁移索引失败: 表名：%s, error: %s", tbName, err.Error()))
+					return errorx.NewBiz(fmt.Sprintf("failed to transfer index => table: %s, error: %s", tbName, err.Error()))
 				}
-				app.Log(ctx, logId, fmt.Sprintf("迁移索引成功: 表名：%s", tbName))
+				app.Log(ctx, logId, fmt.Sprintf("successfully transfer index => table: %s", tbName))
 			}
 
 			return nil
 		})
 	}
 
-	if err := errGroup.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return errGroup.Wait()
 }
 
 func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, taskId uint64, tableName string, targetColumns []dbi.Column, srcConn *dbi.DbConn, targetConn *dbi.DbConn) (int, error) {
@@ -266,10 +437,10 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, ta
 	total := 0        // 总条数
 	batchSize := 1000 // 每次查询并迁移1000条数据
 	var err error
-	srcMeta := srcConn.GetMetaData()
-	srcConverter := srcMeta.GetDataHelper()
+	srcDialect := srcConn.GetDialect()
+	srcConverter := srcDialect.GetDataHelper()
 	targetDialect := targetConn.GetDialect()
-	logExtraKey := fmt.Sprintf("`%s` 当前已迁移数据量: ", tableName)
+	logExtraKey := fmt.Sprintf("`%s` amount of transfer data currently: ", tableName)
 
 	// 游标查询源表数据，并批量插入目标表
 	_, err = srcConn.WalkTableRows(context.Background(), tableName, func(row map[string]any, columns []*dbi.QueryColumn) error {
@@ -284,7 +455,7 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, ta
 		if total%batchSize == 0 {
 			err = app.transfer2Target(taskId, targetConn, targetColumns, result, targetDialect, tableName)
 			if err != nil {
-				logx.ErrorfContext(ctx, "批量插入目标表数据失败: %v", err)
+				logx.ErrorfContext(ctx, "batch insert data to target table failed: %v", err)
 				return err
 			}
 			result = result[:0]
@@ -301,7 +472,7 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, ta
 	if len(result) > 0 {
 		err = app.transfer2Target(taskId, targetConn, targetColumns, result, targetDialect, tableName)
 		if err != nil {
-			logx.ErrorfContext(ctx, "批量插入目标表数据失败，表名：%s error: %v", tableName, err)
+			logx.ErrorfContext(ctx, "batch insert data to target table failed => table: %s, error: %v", tableName, err)
 			return 0, err
 		}
 	}
@@ -312,22 +483,21 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, ta
 
 func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbConn, targetColumns []dbi.Column, result []map[string]any, targetDialect dbi.Dialect, tbName string) error {
 	if !app.IsRunning(taskId) {
-		return errorx.NewBiz("迁移终止")
+		return errorx.NewBiz("transfer stopped")
 	}
 
 	tx, err := targetConn.Begin()
 	if err != nil {
 		return err
 	}
-	targetMeta := targetConn.GetMetaData()
 
 	// 收集字段名
 	var columnNames []string
 	for _, col := range targetColumns {
-		columnNames = append(columnNames, targetMeta.QuoteIdentifier(col.ColumnName))
+		columnNames = append(columnNames, targetDialect.QuoteIdentifier(col.ColumnName))
 	}
 
-	dataHelper := targetMeta.GetDataHelper()
+	dataHelper := targetDialect.GetDataHelper()
 
 	// 从目标库数据中取出源库字段对应的值
 	values := make([][]any, 0)
@@ -335,7 +505,7 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 		rawValue := make([]any, 0)
 		for _, tc := range targetColumns {
 			columnName := tc.ColumnName
-			val := record[targetMeta.RemoveQuote(columnName)]
+			val := record[targetDialect.RemoveQuote(columnName)]
 			if !tc.Nullable {
 				// 如果val是文本，则设置为空格字符
 				switch val.(type) {
@@ -363,7 +533,7 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			logx.Errorf("批量插入目标表数据失败: %v", r)
+			logx.Errorf("batch insert data to target table failed: %v", r)
 		}
 	}()
 
@@ -371,11 +541,11 @@ func (app *dbTransferAppImpl) transfer2Target(taskId uint64, targetConn *dbi.DbC
 	return err
 }
 
-func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Table, srcConn *dbi.DbConn, targetDialect dbi.Dialect) error {
+func (app *dbTransferAppImpl) transferIndex(ctx context.Context, tableInfo dbi.Table, srcConn *dbi.DbConn, targetConn *dbi.DbConn) error {
 	// 查询源表索引信息
-	indexs, err := srcConn.GetMetaData().GetTableIndex(tableInfo.TableName)
+	indexs, err := srcConn.GetMetadata().GetTableIndex(tableInfo.TableName)
 	if err != nil {
-		logx.Error("获取索引信息失败", err)
+		logx.Errorf("failed to get index information: %s", err)
 		return err
 	}
 	if len(indexs) == 0 {
@@ -383,11 +553,41 @@ func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Tab
 	}
 
 	// 通过表名、索引信息生成建索引语句，并执行到目标表
-	return targetDialect.CreateIndex(tableInfo, indexs)
+	sqlArr := targetConn.GetDialect().GenerateIndexDDL(indexs, tableInfo)
+	for _, sqlStr := range sqlArr {
+		_, err := targetConn.Exec(sqlStr)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// MarkRuning 标记任务执行中
-func (app *dbTransferAppImpl) MarkRuning(taskId uint64) {
+func (d *dbTransferAppImpl) TimerDeleteTransferFile() {
+	logx.Debug("start deleting transfer files periodically...")
+	scheduler.AddFun("@every 100m", func() {
+		dts, err := d.ListByCond(model.NewCond().Eq("mode", entity.DbTransferTaskModeFile).Ge("file_save_days", 1))
+		if err != nil {
+			logx.Errorf("the task to periodically get database transfer to file failed: %s", err.Error())
+			return
+		}
+		for _, dt := range dts {
+			needDelFiles, err := d.transferFileApp.ListByCond(model.NewCond().Eq("task_id", dt.Id).Le("create_time", time.Now().AddDate(0, 0, -dt.FileSaveDays)))
+			if err != nil {
+				logx.Errorf("failed to obtain the transfer file periodically: %s", err.Error())
+				continue
+			}
+			for _, nf := range needDelFiles {
+				if err := d.transferFileApp.Delete(context.Background(), nf.Id); err != nil {
+					logx.Errorf("failed to delete transfer files periodically: %s", err.Error())
+				}
+			}
+		}
+	})
+}
+
+// MarkRunning 标记任务执行中
+func (app *dbTransferAppImpl) MarkRunning(taskId uint64) {
 	cache.Set(fmt.Sprintf("mayfly:db:transfer:%d", taskId), 1, -1)
 }
 
@@ -411,6 +611,8 @@ func (app *dbTransferAppImpl) Log(ctx context.Context, logId uint64, msg string,
 }
 
 func (app *dbTransferAppImpl) EndTransfer(ctx context.Context, logId uint64, taskId uint64, msg string, err error, extra map[string]any) {
+	app.MarkStop(taskId)
+
 	logType := sysentity.SyslogTypeSuccess
 	transferState := entity.DbTransferTaskRunStateSuccess
 	if err != nil {
@@ -433,4 +635,11 @@ func (app *dbTransferAppImpl) EndTransfer(ctx context.Context, logId uint64, tas
 	task.Id = taskId
 	task.RunningState = transferState
 	app.UpdateById(context.Background(), task)
+}
+
+func (app *dbTransferAppImpl) RemoveCronJobById(taskId uint64) {
+	task, err := app.GetById(taskId)
+	if err == nil {
+		scheduler.RemoveByKey(task.TaskKey)
+	}
 }

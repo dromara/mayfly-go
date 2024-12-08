@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/sys/api"
+	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -17,15 +18,15 @@ func InitRoleRouter(router *gin.RouterGroup) {
 	reqs := [...]*req.Conf{
 		req.NewGet("", r.Roles),
 
-		req.NewPost("", r.SaveRole).Log(req.NewLogSave("保存角色")).RequiredPermissionCode("role:add"),
+		req.NewPost("", r.SaveRole).Log(req.NewLogSaveI(imsg.LogRoleSave)).RequiredPermissionCode("role:add"),
 
-		req.NewDelete(":id", r.DelRole).Log(req.NewLogSave("删除角色")).RequiredPermissionCode("role:del"),
+		req.NewDelete(":id", r.DelRole).Log(req.NewLogSaveI(imsg.LogRoleDelete)).RequiredPermissionCode("role:del"),
 
 		req.NewGet(":id/resourceIds", r.RoleResourceIds),
 
 		req.NewGet(":id/resources", r.RoleResource),
 
-		req.NewPost(":id/resources", r.SaveResource).Log(req.NewLogSave("保存角色资源")).RequiredPermissionCode("role:saveResources"),
+		req.NewPost(":id/resources", r.SaveResource).Log(req.NewLogSaveI(imsg.LogAssignRoleResource)).RequiredPermissionCode("role:saveResources"),
 
 		req.NewGet(":id/accounts", r.RoleAccount),
 	}

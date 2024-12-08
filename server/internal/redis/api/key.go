@@ -98,7 +98,7 @@ func (r *Redis) KeyInfo(rc *req.Ctx) {
 	cmd := ri.GetCmdable()
 	ctx := context.Background()
 	ttl, err := cmd.TTL(ctx, key).Result()
-	biz.ErrIsNilAppendErr(err, "ttl失败: %s")
+	biz.ErrIsNilAppendErr(err, "ttl error: %s")
 
 	ttlInt := -1
 	if ttl != -1 {
@@ -106,7 +106,7 @@ func (r *Redis) KeyInfo(rc *req.Ctx) {
 	}
 
 	typeRes, err := cmd.Type(ctx, key).Result()
-	biz.ErrIsNilAppendErr(err, "获取key type失败: %s")
+	biz.ErrIsNilAppendErr(err, "get key type error: %s")
 
 	rc.ResData = &vo.KeyInfo{
 		Key:  key,
@@ -118,7 +118,7 @@ func (r *Redis) KeyInfo(rc *req.Ctx) {
 func (r *Redis) TtlKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
 	ttl, err := ri.GetCmdable().TTL(context.Background(), key).Result()
-	biz.ErrIsNilAppendErr(err, "ttl失败: %s")
+	biz.ErrIsNilAppendErr(err, "ttl error: %s")
 
 	if ttl == -1 {
 		rc.ResData = -1

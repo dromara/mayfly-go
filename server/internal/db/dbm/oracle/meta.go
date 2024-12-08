@@ -12,13 +12,17 @@ import (
 )
 
 func init() {
-	dbi.Register(dbi.DbTypeOracle, new(OraMeta))
+	dbi.Register(dbi.DbTypeOracle, new(Meta))
 }
 
-type OraMeta struct {
+const (
+	DbVersionOracle11 dbi.DbVersion = "11"
+)
+
+type Meta struct {
 }
 
-func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (om *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	err := d.IfUseSshTunnelChangeIpPort()
 	if err != nil {
 		return nil, err
@@ -75,13 +79,38 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			return nil, err
 		}
 	}
+
 	return conn, err
 }
 
-func (om *OraMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+func (om *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &OracleDialect{dc: conn}
 }
 
-func (om *OraMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&OracleMetaData{dc: conn})
+func (om *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+
+	// 查询数据库版本信息，以做兼容性处理
+	if conn.Info.Version == "" && !conn.Info.DefaultVersion {
+		if conn.GetDb() != nil {
+			_, res, _ := conn.Query("select VERSION from v$instance")
+			if len(res) > 0 {
+				version := cast.ToString(res[0]["VERSION"])
+				// 11开头为11g版本
+				if strings.HasPrefix(version, "11") {
+					conn.Info.Version = DbVersionOracle11
+					conn.Info.DefaultVersion = false
+				} else {
+					conn.Info.DefaultVersion = true
+				}
+			}
+		}
+	}
+
+	if conn.Info.Version == DbVersionOracle11 {
+		md := &OracleMetadata11{}
+		md.dc = conn
+		md.version = DbVersionOracle11
+		return md
+	}
+	return &OracleMetadata{dc: conn}
 }

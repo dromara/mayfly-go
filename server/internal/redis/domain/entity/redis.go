@@ -1,8 +1,10 @@
 package entity
 
 import (
+	"mayfly-go/internal/common/utils"
 	"mayfly-go/internal/redis/rdm"
 	tagentity "mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/structx"
 )
@@ -27,5 +29,16 @@ func (r *Redis) ToRedisInfo(db int, authCert *tagentity.ResourceAuthCert, tagPat
 	redisInfo.Password = authCert.Ciphertext
 	redisInfo.Db = db
 	redisInfo.CodePath = tagPath
+
+	if redisInfo.Mode == rdm.SentinelMode {
+		// // 密码替换为解密后的密码
+		password, err := utils.PwdAesDecrypt(authCert.GetExtraString("redisNodePassword"))
+		if err != nil {
+			logx.Errorf("redis节点密码解密失败: %s", err.Error())
+		} else {
+			redisInfo.RedisNodePassword = password
+		}
+	}
+
 	return redisInfo
 }

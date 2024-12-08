@@ -16,9 +16,9 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"regexp"
-	"strconv"
 	"strings"
 
+	"github.com/may-fly/cast"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -33,12 +33,15 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.MongoQuery](rc, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := m.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeMongo, queryCond.TagPath)
-	if len(codes) == 0 {
+	tags := m.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         []tagentity.TagType{tagentity.TagTypeMongo},
+		CodePathLikes: []string{queryCond.TagPath},
+	})
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.Codes = codes
+	queryCond.Codes = tags.GetCodes()
 
 	var mongovos []*vo.Mongo
 	res, err := m.MongoApp.GetPageList(queryCond, page, &mongovos)
@@ -55,7 +58,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 func (m *Mongo) TestConn(rc *req.Ctx) {
 	form := &form.Mongo{}
 	mongo := req.BindJsonAndCopyTo[*entity.Mongo](rc, form, new(entity.Mongo))
-	biz.ErrIsNilAppendErr(m.MongoApp.TestConn(mongo), "连接失败: %s")
+	biz.ErrIsNilAppendErr(m.MongoApp.TestConn(mongo), "connection error: %s")
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
@@ -78,9 +81,7 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MongoApp.Delete(rc.MetaCtx, uint64(value))
+		m.MongoApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
@@ -88,7 +89,7 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	res, err := conn.Cli.ListDatabases(context.TODO(), bson.D{})
-	biz.ErrIsNilAppendErr(err, "获取mongo所有库信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get mongo dbs error: %s")
 	rc.ResData = res
 }
 
@@ -99,10 +100,10 @@ func (m *Mongo) Collections(rc *req.Ctx) {
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.CodePath[0])
 
 	db := rc.Query("database")
-	biz.NotEmpty(db, "database不能为空")
+	biz.NotEmpty(db, "database cannot be empty")
 	ctx := context.TODO()
 	res, err := conn.Cli.Database(db).ListCollectionNames(ctx, bson.D{})
-	biz.ErrIsNilAppendErr(err, "获取库集合信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get db collections error: %s")
 	rc.ResData = res
 }
 
@@ -132,7 +133,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 		commands,
 	).Decode(&bm)
 
-	biz.ErrIsNilAppendErr(err, "执行命令失败: %s")
+	biz.ErrIsNilAppendErr(err, "command execution failed: %s")
 	rc.ResData = bm
 }
 
@@ -145,7 +146,7 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 
 	limit := commandForm.Limit
 	if limit != 0 {
-		biz.IsTrue(limit <= 100, "limit不能超过100")
+		biz.IsTrue(limit <= 100, "the limit cannot exceed 100")
 	}
 	opts := options.Find().SetSort(commandForm.Sort).
 		SetSkip(commandForm.Skip).
@@ -163,7 +164,7 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 	}
 
 	cur, err := cli.Database(commandForm.Database).Collection(commandForm.Collection).Find(ctx, commandForm.Filter, opts)
-	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
+	biz.ErrIsNilAppendErr(err, "command execution failed: %s")
 
 	var res []bson.M
 	cur.All(ctx, &res)
@@ -188,7 +189,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	}
 
 	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).UpdateByID(context.TODO(), docId, commandForm.Update)
-	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
+	biz.ErrIsNilAppendErr(err, "command execution failed: %s")
 
 	rc.ResData = res
 }
@@ -211,7 +212,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	}
 
 	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).DeleteOne(context.TODO(), bson.D{{Key: "_id", Value: docId}})
-	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
+	biz.ErrIsNilAppendErr(err, "command execution failed: %s")
 	rc.ResData = res
 }
 
@@ -223,13 +224,13 @@ func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)
-	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
+	biz.ErrIsNilAppendErr(err, "command execution failed: %s")
 	rc.ResData = res
 }
 
 // 获取请求路径上的mongo id
 func (m *Mongo) GetMongoId(rc *req.Ctx) uint64 {
 	dbId := rc.PathParamInt("id")
-	biz.IsTrue(dbId > 0, "mongoId错误")
+	biz.IsTrue(dbId > 0, "mongoId error")
 	return uint64(dbId)
 }

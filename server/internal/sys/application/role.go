@@ -28,6 +28,8 @@ type Role interface {
 
 	GetRoleResources(roleId uint64, toEntity any)
 
+	GetResourceRoles(resourceId uint64) ([]*entity.RoleResource, error)
+
 	// 保存角色资源关联记录
 	SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64) error
 
@@ -47,6 +49,8 @@ type roleAppImpl struct {
 	accountRoleRepo  repository.AccountRole  `inject:"AccountRoleRepo"`
 	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
 }
+
+var _ (Role) = (*roleAppImpl)(nil)
 
 func (r *roleAppImpl) InjectRoleRepo(repo repository.Role) {
 	r.Repo = repo
@@ -90,6 +94,10 @@ func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
 	m.roleResourceRepo.GetRoleResources(roleId, toEntity)
 }
 
+func (m *roleAppImpl) GetResourceRoles(resourceId uint64) ([]*entity.RoleResource, error) {
+	return m.roleResourceRepo.SelectByCond(&entity.RoleResource{ResourceId: resourceId})
+}
+
 func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64) error {
 	oIds := m.GetRoleResourceIds(roleId)
 
@@ -129,7 +137,7 @@ func (m *roleAppImpl) RelateAccountRole(ctx context.Context, accountId, roleId u
 
 	err := m.accountRoleRepo.GetByCond(accountRole)
 	if err == nil {
-		return errorx.NewBiz("该用户已拥有该权限")
+		return errorx.NewBiz("The user already owns the role")
 	}
 
 	la := contextx.GetLoginAccount(ctx)

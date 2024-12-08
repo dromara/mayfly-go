@@ -73,3 +73,30 @@ FROM ALL_TAB_COLUMNS a
 WHERE a.OWNER = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM DUAL)
   AND a.TABLE_NAME in (%s)
 order by a.COLUMN_ID
+---------------------------------------
+--ORACLE11_COLUMN_MA 11版本的列信息
+SELECT a.TABLE_NAME                                              as TABLE_NAME,
+       a.COLUMN_NAME                                             as COLUMN_NAME,
+       case
+           when a.NULLABLE = 'Y' then 'YES'
+           when a.NULLABLE = 'N' then 'NO'
+           else 'NO' end                                         as NULLABLE,
+       a.DATA_TYPE                                               as DATA_TYPE,
+       a.DATA_LENGTH                                             as CHAR_MAX_LENGTH,
+       a.DATA_PRECISION                                          as NUM_PRECISION,
+       a.DATA_SCALE                                              as NUM_SCALE,
+       b.COMMENTS                                                as COLUMN_COMMENT,
+       a.DATA_DEFAULT                                            as COLUMN_DEFAULT,
+       CASE WHEN d.pri IS NOT NULL THEN 1 ELSE 0 END             as IS_PRIMARY_KEY
+FROM ALL_TAB_COLUMNS a
+         LEFT JOIN ALL_COL_COMMENTS b
+                   on a.OWNER = b.OWNER AND a.TABLE_NAME = b.TABLE_NAME AND a.COLUMN_NAME = b.COLUMN_NAME
+         LEFT JOIN (select ac.TABLE_NAME, ac.OWNER, cc.COLUMN_NAME, 1 as pri
+                    from ALL_CONSTRAINTS ac
+                             join ALL_CONS_COLUMNS cc on cc.CONSTRAINT_NAME = ac.CONSTRAINT_NAME AND cc.OWNER = ac.OWNER
+                    where cc.CONSTRAINT_NAME IS NOT NULL
+                      AND ac.CONSTRAINT_TYPE = 'P') d
+                   on d.OWNER = a.OWNER AND d.TABLE_NAME = a.TABLE_NAME AND d.COLUMN_NAME = a.COLUMN_NAME
+WHERE a.OWNER = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM DUAL)
+  AND a.TABLE_NAME in (%s)
+order by a.COLUMN_ID

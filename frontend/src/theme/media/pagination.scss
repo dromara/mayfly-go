@@ -1,0 +1,16 @@
+@use './index.scss' as index;
+
+/* 页面宽度小于576px
+------------------------------- */
+@media screen and (max-width: index.$xs) {
+
+    .el-pager,
+    .el-pagination__jump {
+        display: none !important;
+    }
+}
+
+// 默认居中对齐
+.el-pagination {
+    text-align: center !important;
+}

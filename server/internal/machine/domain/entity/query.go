@@ -11,7 +11,8 @@ type MachineQuery struct {
 	TagPath  string `json:"tagPath" form:"tagPath"`
 	Protocol int8   `json:"protocol" form:"protocol"`
 
-	Codes []string
+	Keyword string `json:"keyword" form:"keyword"`
+	Codes   []string
 }
 
 type AuthCertQuery struct {

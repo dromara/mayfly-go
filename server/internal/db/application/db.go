@@ -1,6 +1,7 @@
 package application
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"mayfly-go/internal/db/application/dto"
@@ -8,6 +9,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	"mayfly-go/internal/db/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -16,6 +18,8 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/writerx"
 	"sort"
 	"strings"
 	"time"
@@ -73,18 +77,15 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 
 	authCert, err := d.resourceAuthCertApp.GetAuthCert(dbEntity.AuthCertName)
 	if err != nil {
-		return errorx.NewBiz("授权凭证不存在")
+		return errorx.NewBiz("ac not found")
 	}
 
 	err = d.GetByCond(oldDb)
 	if dbEntity.Id == 0 {
 		if err == nil {
-			return errorx.NewBiz("该实例下数据库名已存在")
+			return errorx.NewBizI(ctx, imsg.ErrDbNameExist)
 		}
-
-		if d.CountByCond(&entity.Db{Code: dbEntity.Code}) > 0 {
-			return errorx.NewBiz("该编码已存在")
-		}
+		dbEntity.Code = stringx.Rand(10)
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)
@@ -93,7 +94,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 			return d.tagApp.RelateTagsByCodeAndType(ctx, &tagdto.RelateTagsByCodeAndType{
 				Tags: []*tagdto.ResourceTag{{
 					Code: dbEntity.Code,
-					Type: tagentity.TagTypeDbName,
+					Type: tagentity.TagTypeDb,
 					Name: dbEntity.Name,
 				}},
 				ParentTagCode: authCert.Name,
@@ -104,13 +105,13 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldDb.Id != dbEntity.Id {
-		return errorx.NewBiz("该实例下数据库名已存在")
+		return errorx.NewBizI(ctx, imsg.ErrDbNameExist)
 	}
 
 	dbId := dbEntity.Id
 	old, err := d.GetById(dbId)
 	if err != nil {
-		return errorx.NewBiz("该数据库不存在")
+		return errorx.NewBiz("db not found")
 	}
 
 	oldDbs := strings.Split(old.Database, " ")
@@ -135,12 +136,12 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
 		if old.Name != dbEntity.Name {
-			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeDbName, old.Code, dbEntity.Name); err != nil {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeDb, old.Code, dbEntity.Name); err != nil {
 				return err
 			}
 		}
 		if authCert.Name != old.AuthCertName {
-			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDbName, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
+			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDb, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
 		}
 		return nil
 	})
@@ -149,7 +150,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 	db, err := d.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("该数据库不存在")
+		return errorx.NewBiz("db not found")
 	}
 	dbs := strings.Split(db.Database, " ")
 	for _, v := range dbs {
@@ -169,7 +170,7 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		}, func(ctx context.Context) error {
 			return d.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 				ResourceCode: db.Code,
-				ResourceType: tagentity.TagTypeDbName,
+				ResourceType: tagentity.TagTypeDb,
 			})
 		})
 }
@@ -178,24 +179,24 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 	return dbm.GetDbConn(dbId, dbName, func() (*dbi.DbInfo, error) {
 		db, err := d.GetById(dbId)
 		if err != nil {
-			return nil, errorx.NewBiz("数据库信息不存在")
+			return nil, errorx.NewBiz("db not found")
 		}
 
 		instance, err := d.dbInstanceApp.GetById(db.InstanceId)
 		if err != nil {
-			return nil, errorx.NewBiz("数据库实例不存在")
+			return nil, errorx.NewBiz("db instance not found")
 		}
 
 		di, err := d.dbInstanceApp.ToDbInfo(instance, db.AuthCertName, dbName)
 		if err != nil {
 			return nil, err
 		}
-		di.CodePath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDbName), db.Code)
+		di.CodePath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDb), db.Code)
 		di.Id = db.Id
 
 		checkDb := di.GetDatabase()
 		if db.GetDatabaseMode == entity.DbGetDatabaseModeAssign && !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
-			return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
+			return nil, errorx.NewBizI(context.Background(), imsg.ErrDbNotAccess, "dbName", dbName)
 		}
 
 		return di, nil
@@ -210,10 +211,10 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 
 	dbs, err := d.ListByCond(&entity.Db{InstanceId: instanceId}, "id", "database")
 	if err != nil {
-		return nil, errorx.NewBiz("获取数据库列表失败")
+		return nil, errorx.NewBiz("failed to get database list")
 	}
 	if len(dbs) == 0 {
-		return nil, errorx.NewBiz("实例[%d]未配置数据库, 请先进行配置", instanceId)
+		return nil, errorx.NewBiz("DB instance [%d] Database is not configured, please configure it first", instanceId)
 	}
 
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
@@ -222,7 +223,12 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 }
 
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
-	writer := newGzipWriter(reqParam.Writer)
+	log := dto.DefaultDumpLog
+	if reqParam.Log != nil {
+		log = reqParam.Log
+	}
+
+	writer := writerx.NewStringWriter(reqParam.Writer)
 	defer writer.Close()
 	dbId := reqParam.DbId
 	dbName := reqParam.DbName
@@ -232,27 +238,53 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	if err != nil {
 		return err
 	}
+
 	writer.WriteString("\n-- ----------------------------")
-	writer.WriteString("\n-- 导出平台: mayfly-go")
-	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
-	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
+	writer.WriteString("\n-- Dump Platform: mayfly-go")
+	writer.WriteString(fmt.Sprintf("\n-- Dump Time: %s ", time.Now().Format("2006-01-02 15:04:05")))
+	writer.WriteString(fmt.Sprintf("\n-- Dump DB: %s ", dbName))
+	writer.WriteString(fmt.Sprintf("\n-- DB Dialect: %s ", cmp.Or(reqParam.TargetDbType, dbConn.Info.Type)))
 	writer.WriteString("\n-- ----------------------------\n\n")
 
-	dbMeta := dbConn.GetMetaData()
+	// 获取目标元数据，仅生成sql，用于生成建表语句和插入数据，不能用于查询
+	targetDialect := dbConn.GetDialect()
+	if reqParam.TargetDbType != "" && dbConn.Info.Type != reqParam.TargetDbType {
+		// 创建一个假连接，仅用于调用方言生成sql，不做数据库连接操作
+		meta := dbi.GetMeta(reqParam.TargetDbType)
+		dbConn := &dbi.DbConn{Info: &dbi.DbInfo{
+			Type: reqParam.TargetDbType,
+			Meta: meta,
+		}}
+
+		targetDialect = meta.GetDialect(dbConn)
+	}
+
+	srcMeta := dbConn.GetMetadata()
+	srcDialect := dbConn.GetDialect()
 	if len(tables) == 0 {
-		ti, err := dbMeta.GetTables()
+		log("Gets the table information that can be export...")
+		ti, err := srcMeta.GetTables()
+		if err != nil {
+			log(fmt.Sprintf("Failed to get table info %s", err.Error()))
+		}
 		biz.ErrIsNil(err)
 		tables = make([]string, len(ti))
 		for i, table := range ti {
 			tables[i] = table.TableName
 		}
+		log(fmt.Sprintf("Get %d tables", len(tables)))
 	}
 	if len(tables) == 0 {
-		return errorx.NewBiz("不存在可导出的表")
+		log("No table to export. End export")
+		return errorx.NewBiz("there is no table to export")
 	}
 
+	log("Querying column information...")
 	// 查询列信息，后面生成建表ddl和insert都需要列信息
-	columns, err := dbMeta.GetColumns(tables...)
+	columns, err := srcMeta.GetColumns(tables...)
+	if err != nil {
+		log(fmt.Sprintf("Failed to query column information: %s", err.Error()))
+	}
 	biz.ErrIsNil(err)
 
 	// 以表名分组，存放每个表的列信息
@@ -264,22 +296,24 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	// 按表名排序
 	sort.Strings(tables)
 
-	quoteSchema := dbMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
-	dumpHelper := dbMeta.GetDumpHelper()
-	dataHelper := dbMeta.GetDataHelper()
+	quoteSchema := srcDialect.QuoteIdentifier(dbConn.Info.CurrentSchema())
+	dumpHelper := targetDialect.GetDumpHelper()
+	dataHelper := targetDialect.GetDataHelper()
 
 	// 遍历获取每个表的信息
 	for _, tableName := range tables {
-		quoteTableName := dbMeta.QuoteIdentifier(tableName)
+		log(fmt.Sprintf("Get table [%s] information...", tableName))
+		quoteTableName := targetDialect.QuoteIdentifier(tableName)
 
-		writer.TryFlush()
 		// 查询表信息，主要是为了查询表注释
-		tbs, err := dbMeta.GetTables(tableName)
+		tbs, err := srcMeta.GetTables(tableName)
 		if err != nil {
+			log(fmt.Sprintf("Failed to get table [%s] information: %s", tableName, err.Error()))
 			return err
 		}
 		if len(tbs) <= 0 {
-			return errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName))
+			log(fmt.Sprintf("Failed to get table [%s] information: No table information was retrieved", tableName))
+			return errorx.NewBiz(fmt.Sprintf("Failed to get table information: %s", tableName))
 		}
 		tabInfo := dbi.Table{
 			TableName:    tableName,
@@ -288,8 +322,9 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 		// 生成表结构信息
 		if reqParam.DumpDDL {
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", tableName))
-			tbDdlArr := dbMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
+			log(fmt.Sprintf("Generate table [%s] DDL...", tableName))
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Table structure: %s \n-- ----------------------------\n", tableName))
+			tbDdlArr := targetDialect.GenerateTableDDL(columnMap[tableName], tabInfo, true)
 			for _, ddl := range tbDdlArr {
 				writer.WriteString(ddl + ";\n")
 			}
@@ -297,16 +332,17 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 		// 生成insert sql，数据在索引前，加速insert
 		if reqParam.DumpData {
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表数据: %s \n-- ----------------------------\n", tableName))
+			log(fmt.Sprintf("Generate table [%s] DML...", tableName))
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Data: %s \n-- ----------------------------\n", tableName))
 
 			dumpHelper.BeforeInsert(writer, quoteTableName)
 			// 获取列信息
 			quoteColNames := make([]string, 0)
 			for _, col := range columnMap[tableName] {
-				quoteColNames = append(quoteColNames, dbMeta.QuoteIdentifier(col.ColumnName))
+				quoteColNames = append(quoteColNames, targetDialect.QuoteIdentifier(col.ColumnName))
 			}
 
-			_, _ = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+			_, _ = dbConn.WalkTableRows(ctx, tableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
 				rowValues := make([]string, len(columnMap[tableName]))
 				for i, col := range columnMap[tableName] {
 					rowValues[i] = dataHelper.WrapValue(row[col.ColumnName], dataHelper.GetDataType(string(col.DataType)))
@@ -321,15 +357,18 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			dumpHelper.AfterInsert(writer, tableName, columnMap[tableName])
 		}
 
-		indexs, err := dbMeta.GetTableIndex(tableName)
+		log(fmt.Sprintf("Get table [%s] index information...", tableName))
+		indexs, err := srcMeta.GetTableIndex(tableName)
 		if err != nil {
+			log(fmt.Sprintf("Failed to get table [%s] index information: %s", tableName, err.Error()))
 			return err
 		}
 
 		if len(indexs) > 0 {
 			// 最后添加索引
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
-			sqlArr := dbMeta.GenerateIndexDDL(indexs, tabInfo)
+			log(fmt.Sprintf("Generate table [%s] index...", tableName))
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Table Index: %s \n-- ----------------------------\n", tableName))
+			sqlArr := targetDialect.GenerateIndexDDL(indexs, tabInfo)
 			for _, sqlStr := range sqlArr {
 				writer.WriteString(sqlStr + ";\n")
 			}

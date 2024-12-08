@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/auth/application"
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/domain/entity"
+	"mayfly-go/internal/auth/imsg"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
@@ -52,42 +53,42 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 	client, oauth := a.getOAuthClient()
 
 	code := rc.Query("code")
-	biz.NotEmpty(code, "code不能为空")
+	biz.NotEmpty(code, "code cannot be empty")
 
 	state := rc.Query("state")
-	biz.NotEmpty(state, "state不能为空")
+	biz.NotEmpty(state, "state canot be empty")
 
 	stateAction := cache.GetStr("oauth2:state:" + state)
 	biz.NotEmpty(stateAction, "state已过期, 请重新登录")
 
 	token, err := client.Exchange(rc, code)
-	biz.ErrIsNilAppendErr(err, "获取OAuth2 accessToken失败: %s")
+	biz.ErrIsNilAppendErr(err, "get OAuth2 accessToken fail: %s")
 
 	// 获取用户信息
 	httpCli := client.Client(rc.GetRequest().Context(), token)
 	resp, err := httpCli.Get(oauth.ResourceURL)
-	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get user info error: %s")
 	defer resp.Body.Close()
 
 	b, err := io.ReadAll(resp.Body)
-	biz.ErrIsNilAppendErr(err, "读取响应的用户信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to read the response user information: %s")
 
 	// UserIdentifier格式为 type:fieldPath。如：string:user.username 或 number:user.id
 	userIdTypeAndFieldPath := strings.Split(oauth.UserIdentifier, ":")
-	biz.IsTrue(len(userIdTypeAndFieldPath) == 2, "oauth2配置属性'UserIdentifier'不符合规则")
+	biz.IsTrue(len(userIdTypeAndFieldPath) == 2, "oauth2 configuration property 'UserIdentifier' is not compliant")
 
 	// 解析用户唯一标识
 	userIdFieldPath := userIdTypeAndFieldPath[1]
 	userId := ""
 	if userIdTypeAndFieldPath[0] == "string" {
 		userId, err = jsonx.GetStringByBytes(b, userIdFieldPath)
-		biz.ErrIsNilAppendErr(err, "解析用户唯一标识失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to resolve the user unique identity: %s")
 	} else {
 		intUserId, err := jsonx.GetIntByBytes(b, userIdFieldPath)
-		biz.ErrIsNilAppendErr(err, "解析用户唯一标识失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to resolve the user unique identity: %s")
 		userId = fmt.Sprintf("%d", intUserId)
 	}
-	biz.NotBlank(userId, "用户唯一标识字段值不能为空")
+	biz.NotBlank(userId, "the user unique identification field value cannot be null")
 
 	// 判断是登录还是绑定
 	if stateAction == "login" {
@@ -95,23 +96,23 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 	} else if sAccountId, ok := strings.CutPrefix(stateAction, "bind:"); ok {
 		// 绑定
 		accountId, err := strconv.ParseUint(sAccountId, 10, 64)
-		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to bind user: %s")
 
 		account := new(sysentity.Account)
 		account.Id = accountId
 		err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("username"))
-		biz.ErrIsNilAppendErr(err, "该账号不存在")
+		biz.ErrIsNilAppendErr(err, "this account does not exist")
 		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
 
 		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			AccountId: accountId,
 		}, "account_id", "identity")
-		biz.IsTrue(err != nil, "该账号已被其他用户绑定")
+		biz.IsTrue(err != nil, "the account has been linked by another user")
 
 		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			Identity: userId,
 		}, "account_id", "identity")
-		biz.IsTrue(err != nil, "您已绑定其他账号")
+		biz.IsTrue(err != nil, "you are bound to another account")
 
 		now := time.Now()
 		err = a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
@@ -120,14 +121,14 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 			CreateTime: &now,
 			UpdateTime: &now,
 		})
-		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to bind user: %s")
 		res := collx.M{
 			"action": "oauthBind",
 			"bind":   true,
 		}
 		rc.ResData = res
 	} else {
-		panic(errorx.NewBiz("state不合法"))
+		panic(errorx.NewBiz("state is invalid"))
 	}
 }
 
@@ -136,12 +137,12 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	// 查询用户是否存在
 	oauthAccount := &entity.Oauth2Account{Identity: userId}
 	err := a.Oauth2App.GetOAuthAccount(oauthAccount, "account_id", "identity")
-
+	ctx := rc.MetaCtx
 	var accountId uint64
 	isFirst := false
 	// 不存在,进行注册
 	if err != nil {
-		biz.IsTrue(oauth.AutoRegister, "系统未开启自动注册, 请先让管理员添加对应账号")
+		biz.IsTrueI(ctx, oauth.AutoRegister, imsg.ErrOauth2NoAutoRegister)
 		now := time.Now()
 		account := &sysentity.Account{
 			Model: model.Model{
@@ -163,7 +164,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 			CreateTime: &now,
 			UpdateTime: &now,
 		})
-		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
+		biz.ErrIsNilAppendErr(err, "failed to bind user: %s")
 		accountId = account.Id
 		isFirst = true
 	} else {
@@ -172,12 +173,12 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 
 	// 进行登录
 	account, err := a.AccountApp.GetById(accountId, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
-	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
+	biz.ErrIsNilAppendErr(err, "get user info error: %s")
 
 	clientIp := getIpAndRegion(rc)
 	rc.ReqParam = collx.Kvs("username", account.Username, "ip", clientIp, "type", "login")
 
-	res := LastLoginCheck(account, config.GetAccountLoginSecurity(), clientIp)
+	res := LastLoginCheck(ctx, account, config.GetAccountLoginSecurity(), clientIp)
 	res["action"] = "oauthLogin"
 	res["isFirstOauth2Login"] = isFirst
 	rc.ResData = res
@@ -185,8 +186,8 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 
 func (a *Oauth2Login) getOAuthClient() (*oauth2.Config, *config.Oauth2Login) {
 	oath2LoginConfig := config.GetOauth2Login()
-	biz.IsTrue(oath2LoginConfig.Enable, "请先配置oauth2或启用oauth2登录")
-	biz.IsTrue(oath2LoginConfig.ClientId != "", "oauth2 clientId不能为空")
+	biz.IsTrue(oath2LoginConfig.Enable, "please configure oauth2 or enable oauth2 login first")
+	biz.IsTrue(oath2LoginConfig.ClientId != "", "oauth2 clientId cannot be empty")
 
 	client := &oauth2.Config{
 		ClientID:     oath2LoginConfig.ClientId,

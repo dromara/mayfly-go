@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
+	"mayfly-go/pkg/i18n"
 )
 
 type Server struct {
+	Lang        string         `yaml:"lang"`
 	Port        int            `yaml:"port"`
 	Model       string         `yaml:"model"`
 	ContextPath string         `yaml:"context-path"` // 请求路径上下文
@@ -15,6 +17,9 @@ type Server struct {
 }
 
 func (s *Server) Default() {
+	if s.Lang == "" {
+		s.Lang = i18n.Zh_CN
+	}
 	if s.Model == "" {
 		s.Model = "release"
 	}

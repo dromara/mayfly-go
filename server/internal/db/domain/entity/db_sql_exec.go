@@ -27,6 +27,7 @@ const (
 	DbSqlExecTypeDelete int8 = 2  // 删除类型
 	DbSqlExecTypeInsert int8 = 3  // 插入类型
 	DbSqlExecTypeQuery  int8 = 4  // 查询类型，如select、show等
+	DbSqlExecTypeDDL    int8 = 5  // DDL
 
 	DbSqlExecStatusWait    = 1
 	DbSqlExecStatusSuccess = 2

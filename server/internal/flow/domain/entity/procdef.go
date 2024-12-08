@@ -5,17 +5,21 @@ import (
 	"mayfly-go/pkg/enumx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
+	"strings"
 )
 
 // 流程定义信息
 type Procdef struct {
 	model.Model
 
-	Name   string        `json:"name" form:"name"`     // 名称
-	DefKey string        `json:"defKey" form:"defKey"` //
-	Tasks  string        `json:"tasks"`                // 审批节点任务信息
-	Status ProcdefStatus `json:"status"`               // 状态
-	Remark string        `json:"remark"`
+	Name      string        `json:"name" form:"name"`     // 名称
+	DefKey    string        `json:"defKey" form:"defKey"` //
+	Tasks     string        `json:"tasks"`                // 审批节点任务信息
+	Status    ProcdefStatus `json:"status"`               // 状态
+	Condition *string       `json:"condition"`            // 触发审批的条件（计算结果返回1则需要启用该流程）
+	Remark    *string       `json:"remark"`
 }
 
 func (p *Procdef) TableName() string {
@@ -32,6 +36,19 @@ func (p *Procdef) GetTasks() []*ProcdefTask {
 	}
 
 	return tasks
+}
+
+// MatchCondition 是否匹配审批条件，匹配则需要启用该流程
+// @param bizType 业务类型
+// @param param 业务参数
+// Condition返回值为1，则表面该操作需要启用流程
+func (p *Procdef) MatchCondition(bizType string, param map[string]any) bool {
+	if p.Condition == nil || *p.Condition == "" {
+		return true
+	}
+
+	res := stringx.TemplateResolve(*p.Condition, collx.Kvs("bizType", bizType, "param", param))
+	return strings.TrimSpace(res) == "1"
 }
 
 type ProcdefTask struct {

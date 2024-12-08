@@ -14,8 +14,9 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type Instance struct {
@@ -30,14 +31,18 @@ type Instance struct {
 func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
 
-	tagCodePaths := d.TagApp.GetAccountTagCodePaths(rc.GetLoginAccount().Id, tagentity.TagTypeDbAuthCert, queryCond.TagPath)
+	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         collx.AsArray(tagentity.TagTypeDbAuthCert),
+		CodePathLikes: collx.AsArray(queryCond.TagPath),
+	})
 	// 不存在可操作的数据库，即没有可操作数据
-	if len(tagCodePaths) == 0 {
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 
-	dbInstCodes := tagentity.GetCodeByPath(tagentity.TagTypeDb, tagCodePaths...)
+	tagCodePaths := tags.GetCodePaths()
+	dbInstCodes := tagentity.GetCodesByCodePaths(tagentity.TagTypeDbInstance, tagCodePaths...)
 	queryCond.Codes = dbInstCodes
 
 	var instvos []*vo.InstanceListVO
@@ -45,12 +50,12 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充授权凭证信息
-	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodeByPath(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
+	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
 		return vos
 	})...)
 
 	// 填充标签信息
-	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDb), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
+	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDbInstance), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
 		return insvo
 	})...)
 
@@ -85,7 +90,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 func (d *Instance) GetInstance(rc *req.Ctx) {
 	dbId := getInstanceId(rc)
 	dbEntity, err := d.InstanceApp.GetById(dbId)
-	biz.ErrIsNil(err, "获取数据库实例错误")
+	biz.ErrIsNilAppendErr(err, "get db instance failed: %s")
 	rc.ResData = dbEntity
 }
 
@@ -97,11 +102,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "删除数据库实例失败: %s")
-		instanceId := uint64(value)
-		err = d.InstanceApp.Delete(rc.MetaCtx, instanceId)
-		biz.ErrIsNilAppendErr(err, "删除数据库实例失败: %s")
+		biz.ErrIsNilAppendErr(d.InstanceApp.Delete(rc.MetaCtx, cast.ToUint64(v)), "delete db instance failed: %s")
 	}
 }
 
@@ -125,13 +126,13 @@ func (d *Instance) GetDbServer(rc *req.Ctx) {
 	instanceId := getInstanceId(rc)
 	conn, err := d.DbApp.GetDbConnByInstanceId(instanceId)
 	biz.ErrIsNil(err)
-	res, err := conn.GetMetaData().GetDbServer()
+	res, err := conn.GetMetadata().GetDbServer()
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func getInstanceId(rc *req.Ctx) uint64 {
 	instanceId := rc.PathParamInt("instanceId")
-	biz.IsTrue(instanceId > 0, "instanceId 错误")
+	biz.IsTrue(instanceId > 0, "instanceId error")
 	return uint64(instanceId)
 }

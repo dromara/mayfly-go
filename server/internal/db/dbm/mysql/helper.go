@@ -38,7 +38,7 @@ var (
 		"longblob":   dbi.CommonTypeLongblob,
 		"longtext":   dbi.CommonTypeLongtext,
 		"mediumblob": dbi.CommonTypeBlob,
-		"mediumtext": dbi.CommonTypeText,
+		"mediumtext": dbi.CommonTypeMediumtext,
 		"bit":        dbi.CommonTypeBit,
 		"set":        dbi.CommonTypeVarchar,
 		"smallint":   dbi.CommonTypeSmallint,
@@ -60,7 +60,7 @@ var (
 		dbi.CommonTypeLongtext:   "longtext",
 		dbi.CommonTypeBinary:     "binary",
 		dbi.CommonTypeMediumblob: "blob",
-		dbi.CommonTypeMediumtext: "text",
+		dbi.CommonTypeMediumtext: "mediumtext",
 		dbi.CommonTypeVarbinary:  "varbinary",
 		dbi.CommonTypeInt:        "int",
 		dbi.CommonTypeBit:        "bit",
@@ -147,7 +147,6 @@ func (dc *DataHelper) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 }
 
 func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
-
 	if dbColumnValue == nil {
 		return "NULL"
 	}

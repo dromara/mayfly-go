@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
+	"mayfly-go/internal/db/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -24,19 +25,21 @@ func InitDbRouter(router *gin.RouterGroup) {
 		// 获取数据库列表
 		req.NewGet("", d.Dbs),
 
-		req.NewPost("", d.Save).Log(req.NewLogSave("db-保存数据库信息")),
+		req.NewPost("", d.Save).Log(req.NewLogSaveI(imsg.LogDbSave)),
 
-		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
+		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSaveI(imsg.LogDbDelete)),
 
 		req.NewGet(":dbId/t-create-ddl", d.GetTableDDL),
 
+		req.NewGet(":dbId/version", d.GetVersion),
+
 		req.NewGet(":dbId/pg/schemas", d.GetSchemas),
 
-		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
+		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLogI(imsg.LogDbRunSql)),
 
-		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSave("db-执行Sql文件")),
+		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSaveI(imsg.LogDbRunSqlFile)).RequiredPermissionCode("db:sqlscript:run"),
 
-		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSave("db-导出sql文件")).NoRes(),
+		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
 
 		req.NewGet(":dbId/t-infos", d.TableInfos),
 

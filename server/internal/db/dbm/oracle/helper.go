@@ -15,6 +15,9 @@ import (
 var (
 	// 数字类型
 	numberTypeRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	dateTimeReg      = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`)
+	dateTimeIsoReg   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*$`)
+
 	// 日期时间类型
 	datetimeTypeRegexp = regexp.MustCompile(`(?i)date|timestamp`)
 
@@ -83,6 +86,9 @@ func (dc *DataHelper) GetDataType(dbColumnType string) dbi.DataType {
 
 func (dc *DataHelper) FormatData(dbColumnValue any, dataType dbi.DataType) string {
 	str := anyx.ToString(dbColumnValue)
+	if dateTimeReg.MatchString(str) || dateTimeIsoReg.MatchString(str) {
+		dataType = dbi.DataTypeDateTime
+	}
 	switch dataType {
 	// oracle把日期类型数据格式化输出
 	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
@@ -122,7 +128,7 @@ func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string
 		val = strings.Replace(val, "\n", "\\n", -1)
 		return fmt.Sprintf("'%s'", val)
 	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
-		return fmt.Sprintf("to_timestamp('%s', 'yyyy-mm-dd hh24:mi:ss')", dc.FormatData(dbColumnValue, dataType))
+		return fmt.Sprintf("to_date('%s', 'yyyy-mm-dd hh24:mi:ss')", dc.FormatData(dbColumnValue, dataType))
 	}
 	return fmt.Sprintf("'%s'", dbColumnValue)
 }

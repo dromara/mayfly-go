@@ -44,7 +44,7 @@ func (m *machineScriptAppImpl) Save(ctx context.Context, ms *entity.MachineScrip
 	if machineId := ms.MachineId; machineId != Common_Script_Machine_Id {
 		_, err := m.machineApp.GetById(machineId, "Name")
 		if err != nil {
-			return errorx.NewBiz("该机器不存在")
+			return errorx.NewBiz("machine not found")
 		}
 	}
 

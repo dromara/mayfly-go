@@ -14,6 +14,7 @@ import (
 	"errors"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"os"
 
 	"golang.org/x/crypto/bcrypt"
@@ -245,6 +246,7 @@ func AesDecrypt(data []byte, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	//获取块的大小
 	blockSize := block.BlockSize()
 	//使用cbc
@@ -277,6 +279,12 @@ func AesDecryptBase64(data string, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return AesDecrypt(dataByte, key)
+}
+
+func AesDecryptByLa(data string, la *model.LoginAccount) (string, error) {
+	key := []byte(la.GetAesKey())
+	res, err := AesDecryptBase64(data, key)
+	return string(res), err
 }
 
 // pkcs7Padding 填充

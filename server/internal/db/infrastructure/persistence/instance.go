@@ -23,5 +23,12 @@ func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, page
 		Like("name", condition.Name).
 		Like("code", condition.Code).
 		In("code", condition.Codes)
+
+	keyword := condition.Keyword
+	if keyword != "" {
+		keyword = "%" + keyword + "%"
+		qd.And("host like ? or name like ? or code like ?", keyword, keyword, keyword)
+	}
+
 	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

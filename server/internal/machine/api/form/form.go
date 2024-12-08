@@ -5,7 +5,6 @@ import tagentity "mayfly-go/internal/tag/domain/entity"
 type MachineForm struct {
 	Id       uint64 `json:"id"`
 	Protocol int    `json:"protocol" binding:"required"`
-	Code     string `json:"code" binding:"pattern=resource_code"`
 	Name     string `json:"name" binding:"required"`
 	Ip       string `json:"ip" binding:"required"`   // IP地址
 	Port     int    `json:"port" binding:"required"` // 端口号

@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// AsArray 将可变参数列表为数组
+func AsArray[T comparable](el ...T) []T {
+	return el
+}
+
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
 func ArrayCompare[T comparable](newArr []T, oldArr []T) ([]T, []T, []T) {

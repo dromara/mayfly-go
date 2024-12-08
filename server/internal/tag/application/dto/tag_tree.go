@@ -2,6 +2,7 @@ package dto
 
 import (
 	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
 )
 
@@ -48,11 +49,33 @@ type SimpleTagTree struct {
 
 func (pt *SimpleTagTree) IsRoot() bool {
 	// 去除路径两端可能存在的斜杠
-	path := strings.Trim(pt.CodePath, "/")
+	path := strings.Trim(string(pt.CodePath), "/")
 	return len(strings.Split(path, "/")) == 1
 }
 
-// GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> index = 0 => test/test1/  index = 1 => test/
-func (pt *SimpleTagTree) GetParentPath(index int) string {
-	return entity.GetParentPath(pt.CodePath, index)
+// GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> test/test1/
+func (pt *SimpleTagTree) GetParentPath() string {
+	return string(entity.CodePath(pt.CodePath).GetParent(0))
+}
+
+type SimpleTagTrees []*SimpleTagTree
+
+// GetCodes 获取code数组
+func (ts SimpleTagTrees) GetCodes() []string {
+	// resouce code去重
+	code2Resource := collx.ArrayToMap[*SimpleTagTree, string](ts, func(val *SimpleTagTree) string {
+		return val.Code
+	})
+
+	return collx.MapKeys(code2Resource)
+}
+
+// GetCodePaths 获取codePath数组
+func (ts SimpleTagTrees) GetCodePaths() []string {
+	// codepath去重
+	codepath2Resource := collx.ArrayToMap[*SimpleTagTree, string](ts, func(val *SimpleTagTree) string {
+		return val.CodePath
+	})
+
+	return collx.MapKeys(codepath2Resource)
 }

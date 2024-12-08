@@ -1,4 +1,6 @@
 server:
+  # en,zh-cn, 默认zh-cn
+  lang: zh-cn
   # debug release test
   model: release
   port: 18888

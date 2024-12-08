@@ -2,16 +2,16 @@ package api
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/event"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
@@ -19,17 +19,19 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/writerx"
 	"mayfly-go/pkg/ws"
 	"strings"
 	"time"
 
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"github.com/may-fly/cast"
 )
 
@@ -46,12 +48,15 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := d.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, int8(tagentity.TagTypeDbName), queryCond.TagPath)
-	if len(codes) == 0 {
+	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		Types:         collx.AsArray(tagentity.TagTypeDb),
+		CodePathLikes: collx.AsArray(queryCond.TagPath),
+	})
+	if len(tags) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.Codes = codes
+	queryCond.Codes = tags.GetCodes()
 
 	var dbvos []*vo.DbListVO
 	res, err := d.DbApp.GetPageList(queryCond, page, &dbvos)
@@ -92,9 +97,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 
 	ctx := rc.MetaCtx
 	for _, v := range ids {
-		dbId := cast.ToUint64(v)
-		biz.NotBlank(dbId, "存在错误dbId")
-		biz.ErrIsNil(d.DbApp.Delete(ctx, dbId))
+		biz.ErrIsNil(d.DbApp.Delete(ctx, cast.ToUint64(v)))
 	}
 }
 
@@ -109,54 +112,27 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
+	sqlStr, err := cryptox.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
+	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 
-	sqlBytes, err := base64.StdEncoding.DecodeString(form.Sql)
-	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
-	// 去除前后空格及换行符
-	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
-
-	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sql)
-	biz.NotEmpty(form.Sql, "sql不能为空")
+	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
+	biz.NotEmpty(form.Sql, "sql cannot be empty")
 
 	execReq := &application.DbSqlExecReq{
-		DbId:   dbId,
-		Db:     form.Db,
-		Remark: form.Remark,
-		DbConn: dbConn,
+		DbId:      dbId,
+		Db:        form.Db,
+		Remark:    form.Remark,
+		DbConn:    dbConn,
+		Sql:       sqlStr,
+		CheckFlow: true,
 	}
 
 	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
 	defer cancel()
 
-	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
-	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
-	isMulti := len(sqls) > 1
-	var execResAll *application.DbSqlExecRes
-
-	for _, s := range sqls {
-		s = stringx.TrimSpaceAndBr(s)
-		// 多条执行，暂不支持查询语句
-		if isMulti && len(s) > 10 {
-			biz.IsTrue(!strings.HasPrefix(strings.ToLower(s[:10]), "select"), "多条语句执行暂不不支持select语句")
-		}
-
-		execReq.Sql = s
-		execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
-		biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
-
-		if execResAll == nil {
-			execResAll = execRes
-		} else {
-			execResAll.Merge(execRes)
-		}
-	}
-
-	colAndRes := make(map[string]any)
-	if execResAll != nil {
-		colAndRes["columns"] = execResAll.Columns
-		colAndRes["res"] = execResAll.Res
-	}
-	rc.ResData = colAndRes
+	execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
+	biz.ErrIsNil(err)
+	rc.ResData = execRes
 }
 
 // progressCategory sql文件执行进度消息类型
@@ -173,9 +149,9 @@ type progressMsg struct {
 // 执行sql文件
 func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	multipart, err := rc.GetRequest().MultipartReader()
-	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to read sql file: %s")
 	file, err := multipart.NextPart()
-	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
+	biz.ErrIsNilAppendErr(err, "failed to read sql file: %s")
 	defer file.Close()
 	filename := file.FileName()
 	dbId := getDbId(rc)
@@ -193,26 +169,14 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if len(errInfo) > 300 {
 				errInfo = errInfo[:300] + "..."
 			}
-			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
+			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg(i18n.T(imsg.SqlScriptRunFail), fmt.Sprintf("[%s][%s] execution failure: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
 		}
 	}()
-
-	execReq := &application.DbSqlExecReq{
-		DbId:   dbId,
-		Db:     dbName,
-		Remark: filename,
-		DbConn: dbConn,
-	}
-
-	var sql string
-
-	tokenizer := sqlparser.NewReaderTokenizer(file,
-		sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
 
 	executedStatements := 0
 	progressId := stringx.Rand(32)
 	laId := rc.GetLoginAccount().Id
-	defer ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+	defer ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
 		Id:                 progressId,
 		Title:              filename,
 		ExecutedStatements: executedStatements,
@@ -220,10 +184,11 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	}).WithCategory(progressCategory))
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
-	for {
+
+	err = sqlparser.SQLSplit(file, func(sql string) error {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
 				Id:                 progressId,
 				Title:              filename,
 				ExecutedStatements: executedStatements,
@@ -231,42 +196,14 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}).WithCategory(progressCategory))
 		default:
 		}
+
 		executedStatements++
-		sql, err = sqlparser.SplitNext(tokenizer)
-		if err == io.EOF {
-			break
-		}
-		biz.ErrIsNilAppendErr(err, "%s")
+		_, err = dbConn.Exec(sql)
+		return err
+	})
 
-		const prefixUse = "use "
-		const prefixUSE = "USE "
-		if strings.HasPrefix(sql, prefixUSE) || strings.HasPrefix(sql, prefixUse) {
-			var stmt sqlparser.Statement
-			stmt, err = sqlparser.Parse(sql)
-			biz.ErrIsNilAppendErr(err, "%s")
-
-			stmtUse, ok := stmt.(*sqlparser.Use)
-			// 最终执行结果以数据库直接结果为准
-			if !ok {
-				logx.Warnf("sql解析失败: %s", sql)
-			}
-			dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
-			biz.ErrIsNil(err)
-			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.CodePath...), "%s")
-			execReq.DbConn = dbConn
-		}
-		// 需要记录执行记录
-		const maxRecordStatements = 64
-		if executedStatements < maxRecordStatements {
-			execReq.Sql = sql
-			_, err = d.DbSqlExecApp.Exec(rc.MetaCtx, execReq)
-		} else {
-			_, err = dbConn.Exec(sql)
-		}
-
-		biz.ErrIsNilAppendErr(err, "%s")
-	}
-	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
+	biz.ErrIsNilAppendErr(err, "%s")
+	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), fmt.Sprintf("execution success: %s", rc.ReqParam)).WithClientId(clientId))
 }
 
 // 数据库dump
@@ -309,9 +246,9 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	defer func() {
 		msg := anyx.ToString(recover())
 		if len(msg) > 0 {
-			msg = "数据库导出失败: " + msg
+			msg = "DB dump error: " + msg
 			rc.GetWriter().Write([]byte(msg))
-			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("数据库导出失败", msg))
+			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.T(imsg.DbDumpErr), msg))
 		}
 	}()
 
@@ -321,34 +258,34 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		Tables:   tables,
 		DumpDDL:  needStruct,
 		DumpData: needData,
-		Writer:   rc.GetWriter(),
+		Writer:   writerx.NewGzipWriter(rc.GetWriter()),
 	}))
 
 	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetMetaData().GetTables()
-	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
+	res, err := d.getDbConn(rc).GetMetadata().GetTables()
+	biz.ErrIsNilAppendErr(err, "get table error: %s")
 	rc.ResData = res
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetMetaData().GetTableIndex(tn)
-	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
+	biz.NotEmpty(tn, "tableName cannot be empty")
+	res, err := d.getDbConn(rc).GetMetadata().GetTableIndex(tn)
+	biz.ErrIsNilAppendErr(err, "get table index error: %s")
 	rc.ResData = res
 }
 
 // @router /api/db/:dbId/c-metadata [get]
 func (d *Db) ColumnMA(rc *req.Ctx) {
 	tn := rc.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
+	biz.NotEmpty(tn, "tableName cannot be empty")
 
 	dbi := d.getDbConn(rc)
-	res, err := dbi.GetMetaData().GetColumns(tn)
-	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	res, err := dbi.GetMetadata().GetColumns(tn)
+	biz.ErrIsNilAppendErr(err, "get column metadata error: %s")
 	rc.ResData = res
 }
 
@@ -356,7 +293,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 func (d *Db) HintTables(rc *req.Ctx) {
 	dbi := d.getDbConn(rc)
 
-	metadata := dbi.GetMetaData()
+	metadata := dbi.GetMetadata()
 	// 获取所有表
 	tables, err := metadata.GetTables()
 	biz.ErrIsNil(err)
@@ -396,15 +333,20 @@ func (d *Db) HintTables(rc *req.Ctx) {
 
 func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetMetaData().GetTableDDL(tn, false)
-	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
+	biz.NotEmpty(tn, "tableName cannot be empty")
+	res, err := d.getDbConn(rc).GetMetadata().GetTableDDL(tn, false)
+	biz.ErrIsNilAppendErr(err, "get table DDL error: %s")
 	rc.ResData = res
 }
 
+func (d *Db) GetVersion(rc *req.Ctx) {
+	version := d.getDbConn(rc).GetMetadata().GetCompatibleDbVersion()
+	rc.ResData = version
+}
+
 func (d *Db) GetSchemas(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetMetaData().GetSchemas()
-	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
+	res, err := d.getDbConn(rc).GetMetadata().GetSchemas()
+	biz.ErrIsNilAppendErr(err, "get schemas error: %s")
 	rc.ResData = res
 }
 
@@ -413,24 +355,24 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 	copy := req.BindJsonAndCopyTo[*dbi.DbCopyTable](rc, form, new(dbi.DbCopyTable))
 
 	conn, err := d.DbApp.GetDbConn(form.Id, form.Db)
-	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
+	biz.ErrIsNilAppendErr(err, "copy table error: %s")
 
 	err = conn.GetDialect().CopyTable(copy)
 	if err != nil {
-		logx.Errorf("拷贝表失败: %s", err.Error())
+		logx.Errorf("copy table error: %s", err.Error())
 	}
-	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
+	biz.ErrIsNilAppendErr(err, "copy table error: %s")
 }
 
 func getDbId(rc *req.Ctx) uint64 {
 	dbId := rc.PathParamInt("dbId")
-	biz.IsTrue(dbId > 0, "dbId错误")
+	biz.IsTrue(dbId > 0, "dbId error")
 	return uint64(dbId)
 }
 
 func getDbName(rc *req.Ctx) string {
 	db := rc.Query("db")
-	biz.NotEmpty(db, "db不能为空")
+	biz.NotEmpty(db, "db cannot be empty")
 	return db
 }
 

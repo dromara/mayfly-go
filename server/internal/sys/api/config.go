@@ -5,7 +5,9 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type Config struct {
@@ -22,7 +24,7 @@ func (c *Config) Configs(rc *req.Ctx) {
 
 func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
 	key := rc.Query("key")
-	biz.NotEmpty(key, "key不能为空")
+	biz.NotEmpty(key, "key cannot be empty")
 
 	config := c.ConfigApp.GetConfig(key)
 	// 判断是否为公开配置
@@ -39,4 +41,10 @@ func (c *Config) SaveConfig(rc *req.Ctx) {
 	config := req.BindJsonAndCopyTo(rc, form, new(entity.Config))
 	rc.ReqParam = form
 	biz.ErrIsNil(c.ConfigApp.Save(rc.MetaCtx, config))
+}
+
+// GetServerConfig 获取当前系统启动配置
+func (c *Config) GetServerConfig(rc *req.Ctx) {
+	conf := config.Conf
+	rc.ResData = collx.Kvs("i18n", conf.Server.Lang)
 }

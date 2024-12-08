@@ -20,7 +20,7 @@ func (s *System) ConnectWs(g *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
 			errInfo := anyx.ToString(err)
-			logx.Errorf("websocket连接失败: %s", errInfo)
+			logx.Errorf("websocket connect error: %s", errInfo)
 			if wsConn != nil {
 				wsConn.WriteMessage(websocket.TextMessage, []byte(errInfo))
 				wsConn.Close()
@@ -28,14 +28,14 @@ func (s *System) ConnectWs(g *gin.Context) {
 		}
 	}()
 
-	biz.ErrIsNilAppendErr(err, "%s")
+	biz.ErrIsNil(err)
 	clientId := g.Query("clientId")
-	biz.NotEmpty(clientId, "clientId不能为空")
+	biz.NotEmpty(clientId, "clientId cannot be empty")
 
 	// 权限校验
 	rc := req.NewCtxWithGin(g)
 	err = req.PermissionHandler(rc)
-	biz.ErrIsNil(err, "sys websocket没有权限连接")
+	biz.ErrIsNil(err, "sys-websocket connect without permission")
 
 	// 登录账号信息
 	la := rc.GetLoginAccount()

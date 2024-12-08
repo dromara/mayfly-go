@@ -7,6 +7,7 @@ type InstanceQuery struct {
 	Code    string `json:"code" form:"code"`
 	Host    string `json:"host" form:"host"`
 	TagPath string `json:"tagPath" form:"tagPath"`
+	Keyword string `json:"keyword" form:"keyword"`
 	Codes   []string
 }
 
@@ -19,6 +20,13 @@ type DataSyncLogQuery struct {
 }
 
 type DbTransferTaskQuery struct {
+	Name     string `json:"name" form:"name"`
+	Status   int8   `json:"status" form:"status"`
+	CronAble int8   `json:"cronAble" form:"cronAble"`
+}
+type DbTransferFileQuery struct {
+	TaskId uint64 `json:"task_id" form:"taskId"`
+	Name   string `json:"name" form:"name"`
 }
 
 type DbTransferLogQuery struct {

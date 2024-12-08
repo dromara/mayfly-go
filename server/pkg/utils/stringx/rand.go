@@ -2,7 +2,10 @@ package stringx
 
 import (
 	"math/rand"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const Nums = "0123456789"
@@ -12,6 +15,11 @@ const UpperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 // 生成随机字符串
 func Rand(l int) string {
 	return RandByChars(l, Nums+LowerChars+UpperChars)
+}
+
+// RandUUID
+func RandUUID() string {
+	return strings.Replace(uuid.New().String(), "-", "", -1)
 }
 
 // 根据传入的chars，随机生成指定位数的字符串

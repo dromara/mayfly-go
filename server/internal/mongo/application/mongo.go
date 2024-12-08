@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/domain/repository"
+	"mayfly-go/internal/mongo/imsg"
 	"mayfly-go/internal/mongo/mgm"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
@@ -12,6 +13,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type Mongo interface {
@@ -51,7 +53,7 @@ func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *mode
 func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 	mongoEntity, err := d.GetById(id)
 	if err != nil {
-		return errorx.NewBiz("mongo信息不存在")
+		return errorx.NewBiz("mongo not found")
 	}
 
 	mgm.CloseConn(id)
@@ -77,16 +79,15 @@ func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
 }
 
 func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePaths ...string) error {
-	oldMongo := &entity.Mongo{Name: m.Name, SshTunnelMachineId: m.SshTunnelMachineId}
+	oldMongo := &entity.Mongo{Uri: m.Uri, SshTunnelMachineId: m.SshTunnelMachineId}
 	err := d.GetByCond(oldMongo)
 
 	if m.Id == 0 {
 		if err == nil {
-			return errorx.NewBiz("该名称已存在")
+			return errorx.NewBizI(ctx, imsg.ErrMongoInfoExist)
 		}
-		if d.CountByCond(&entity.Mongo{Code: m.Code}) > 0 {
-			return errorx.NewBiz("该编码已存在")
-		}
+		// 生成随机编号
+		m.Code = stringx.Rand(10)
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
@@ -95,6 +96,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 				ResourceTag: &tagdto.ResourceTag{
 					Type: tagentity.TagTypeMongo,
 					Code: m.Code,
+					Name: m.Name,
 				},
 				ParentTagCodePaths: tagCodePaths,
 			})
@@ -103,7 +105,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldMongo.Id != m.Id {
-		return errorx.NewBiz("该名称已存在")
+		return errorx.NewBizI(ctx, imsg.ErrMongoInfoExist)
 	}
 	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMongo.Code == "" {
@@ -117,7 +119,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
 		if oldMongo.Name != m.Name {
-			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldMongo.Code, m.Name); err != nil {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMongo, oldMongo.Code, m.Name); err != nil {
 				return err
 			}
 		}
@@ -136,7 +138,7 @@ func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 	return mgm.GetMongoConn(id, func() (*mgm.MongoInfo, error) {
 		me, err := d.GetById(id)
 		if err != nil {
-			return nil, errorx.NewBiz("mongo信息不存在")
+			return nil, errorx.NewBiz("mongo not found")
 		}
 		return me.ToMongoInfo(d.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeMongo, me.Code)...), nil
 	})

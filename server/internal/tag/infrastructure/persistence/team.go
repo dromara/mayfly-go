@@ -12,7 +12,7 @@ type teamRepoImpl struct {
 }
 
 func newTeamRepo() repository.Team {
-	return &teamRepoImpl{}
+	return &teamRepoImpl{base.RepoImpl[*entity.Team]{M: new(entity.Team)}}
 }
 
 func (p *teamRepoImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

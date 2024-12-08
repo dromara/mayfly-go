@@ -16,7 +16,7 @@ type Dashbord struct {
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
 
-	tagCodePaths := m.TagTreeApp.GetAccountTagCodePaths(accountId, tagentity.TagTypeDbName, "")
+	tagCodePaths := m.TagTreeApp.GetAccountTags(accountId, &tagentity.TagTreeQuery{Types: collx.AsArray(tagentity.TagTypeDb)}).GetCodePaths()
 
 	rc.ResData = collx.M{
 		"dbNum": len(tagCodePaths),

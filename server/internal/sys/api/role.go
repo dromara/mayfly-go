@@ -8,7 +8,6 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"strconv"
 	"strings"
 
 	"github.com/may-fly/cast"
@@ -50,9 +49,7 @@ func (r *Role) DelRole(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		r.RoleApp.DeleteRole(rc.MetaCtx, uint64(value))
+		biz.ErrIsNil(r.RoleApp.DeleteRole(rc.MetaCtx, cast.ToUint64(v)))
 	}
 }
 
@@ -79,7 +76,7 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 		return cast.ToUint64(val)
 	})
 
-	biz.ErrIsNilAppendErr(r.RoleApp.SaveRoleResource(rc.MetaCtx, form.Id, newIds), "保存角色资源失败: %s")
+	biz.ErrIsNilAppendErr(r.RoleApp.SaveRoleResource(rc.MetaCtx, form.Id, newIds), "save role resource failed: %s")
 }
 
 // 查看角色关联的用户

@@ -8,13 +8,13 @@ import (
 )
 
 func init() {
-	dbi.Register(dbi.DbTypeSqlite, new(SqliteMeta))
+	dbi.Register(dbi.DbTypeSqlite, new(Meta))
 }
 
-type SqliteMeta struct {
+type Meta struct {
 }
 
-func (md *SqliteMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (md *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	// 用host字段来存sqlite的文件路径
 	// 检查文件是否存在,否则报错，基于sqlite会自动创建文件，为了服务器文件安全，所以先确定文件存在再连接，不自动创建
 	if _, err := os.Stat(d.Host); err != nil {
@@ -29,10 +29,10 @@ func (md *SqliteMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return db, err
 }
 
-func (sm *SqliteMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+func (sm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &SqliteDialect{dc: conn}
 }
 
-func (sm *SqliteMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
-	return dbi.NewMetaDataX(&SqliteMetaData{dc: conn})
+func (sm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
+	return &SqliteMetadata{dc: conn}
 }

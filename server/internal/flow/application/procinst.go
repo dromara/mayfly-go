@@ -6,10 +6,16 @@ import (
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
+	"mayfly-go/internal/flow/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type Procinst interface {
@@ -61,16 +67,20 @@ func (p *procinstAppImpl) GetProcinstTasks(condition *entity.ProcinstTaskQuery, 
 func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqParam *dto.StarProc) (*entity.Procinst, error) {
 	procdef, err := p.procdefApp.GetById(procdefId)
 	if err != nil {
-		return nil, errorx.NewBiz("流程实例[%d]不存在", procdefId)
+		return nil, errorx.NewBiz("procdef not found")
 	}
 
 	if procdef.Status != entity.ProcdefStatusEnable {
-		return nil, errorx.NewBiz("该流程定义非启用状态")
+		return nil, errorx.NewBizI(ctx, imsg.ErrProcdefNotEnable)
 	}
 
+	bizKey := reqParam.BizKey
+	if bizKey == "" {
+		bizKey = stringx.RandUUID()
+	}
 	procinst := &entity.Procinst{
 		BizType:     reqParam.BizType,
-		BizKey:      reqParam.BizKey,
+		BizKey:      bizKey,
 		BizForm:     reqParam.BizForm,
 		BizStatus:   entity.ProcinstBizStatusWait,
 		ProcdefId:   procdef.Id,
@@ -91,22 +101,22 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqPa
 func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) error {
 	procinst, err := p.GetById(procinstId)
 	if err != nil {
-		return errorx.NewBiz("流程不存在")
+		return errorx.NewBiz("procinst not found")
 	}
 
 	la := contextx.GetLoginAccount(ctx)
 	if la == nil {
-		return errorx.NewBiz("未登录")
+		return errorx.NewBiz("no login")
 	}
 	if procinst.CreatorId != la.Id {
-		return errorx.NewBiz("只能取消自己创建的流程")
+		return errorx.NewBizI(ctx, imsg.ErrProcinstCancelSelf)
 	}
 	procinst.Status = entity.ProcinstStatusCancelled
 	procinst.BizStatus = entity.ProcinstBizStatusNo
 	procinst.SetEnd()
 
 	return p.Tx(ctx, func(ctx context.Context) error {
-		return p.cancelInstTasks(ctx, procinstId, "流程已取消")
+		return p.cancelInstTasks(ctx, procinstId, i18n.T(imsg.ErrProcinstCancelled))
 	}, func(ctx context.Context) error {
 		return p.Save(ctx, procinst)
 	}, func(ctx context.Context) error {
@@ -217,29 +227,37 @@ func (p *procinstAppImpl) cancelInstTasks(ctx context.Context, procinstId uint64
 
 // 触发流程实例状态改变事件
 func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, procinst *entity.Procinst) error {
-	err := FlowBizHandle(ctx, &BizHandleParam{
-		BizType:        procinst.BizType,
-		BizKey:         procinst.BizKey,
-		BizForm:        procinst.BizForm,
-		ProcinstStatus: procinst.Status,
+
+	handleRes, err := FlowBizHandle(ctx, &BizHandleParam{
+		Procinst: *procinst,
 	})
+
+	if !anyx.IsBlank(handleRes) {
+		procinst.BizHandleRes = jsonx.ToStr(handleRes)
+	}
 
 	if err != nil {
 		// 业务处理错误，非完成状态则终止流程
 		if procinst.Status != entity.ProcinstStatusCompleted {
 			procinst.Status = entity.ProcinstStatusTerminated
 			procinst.SetEnd()
-			p.cancelInstTasks(ctx, procinst.Id, "业务处理失败")
+			p.cancelInstTasks(ctx, procinst.Id, i18n.T(imsg.ErrBizHandlerFail))
 		}
 		procinst.BizStatus = entity.ProcinstBizStatusFail
-		procinst.BizHandleRes = err.Error()
+		if procinst.BizHandleRes == "" {
+			procinst.BizHandleRes = err.Error()
+		} else {
+			logx.Errorf("process business [%s] processing failed: %v", procinst.BizKey, err.Error())
+		}
 		return p.UpdateById(ctx, procinst)
 	}
 
 	// 处理成功，并且状态为完成，则更新业务状态为成功
 	if procinst.Status == entity.ProcinstStatusCompleted {
 		procinst.BizStatus = entity.ProcinstBizStatusSuccess
-		procinst.BizHandleRes = "success"
+		if procinst.BizHandleRes == "" {
+			procinst.BizHandleRes = "success"
+		}
 		return p.UpdateById(ctx, procinst)
 	}
 	return err
@@ -249,12 +267,12 @@ func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, 
 func (p *procinstAppImpl) getAndValidInstTask(ctx context.Context, instTaskId uint64) (*entity.ProcinstTask, error) {
 	instTask, err := p.procinstTaskRepo.GetById(instTaskId)
 	if err != nil {
-		return nil, errorx.NewBiz("流程实例任务不存在")
+		return nil, errorx.NewBiz("procinst not found")
 	}
 
 	la := contextx.GetLoginAccount(ctx)
 	if instTask.Assignee != fmt.Sprintf("%d", la.Id) {
-		return nil, errorx.NewBiz("当前用户不是任务处理人，无法完成任务")
+		return nil, errorx.NewBiz("the current user is not a task handler and cannot complete the task")
 	}
 
 	return instTask, nil

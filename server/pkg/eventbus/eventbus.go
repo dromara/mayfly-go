@@ -113,7 +113,7 @@ func (bus *EventBus) Unsubscribe(topic string, subId string) error {
 	defer bus.lock.Unlock()
 	subManager := bus.subscriberManager[topic]
 	if subManager == nil {
-		return errors.New("该主题不存在订阅者")
+		return errors.New("there is no subscriber for this topic")
 	}
 	subManager.delSubscriber(subId)
 	return nil
@@ -122,7 +122,7 @@ func (bus *EventBus) Unsubscribe(topic string, subId string) error {
 func (bus *EventBus) Publish(ctx context.Context, topic string, val any) {
 	bus.lock.Lock() // will unlock if handler is not found or always after setUpPublish
 	defer bus.lock.Unlock()
-	logx.Debugf("主题-[%s]-发布了事件", topic)
+	logx.Debugf("topic - [%s] - published the event", topic)
 	event := &Event{
 		Topic: topic,
 		Val:   val,
@@ -138,7 +138,7 @@ func (bus *EventBus) Publish(ctx context.Context, topic string, val any) {
 	}
 
 	for subId, handler := range handlers {
-		logx.Debugf("订阅者-[%s]-开始执行主题-[%s]-发布的事件", subId, topic)
+		logx.Debugf("subscriber - [%s] - starts executing events published by topic - [%s]", subId, topic)
 		if handler.once {
 			subscriberManager.delSubscriber(subId)
 		}
@@ -164,7 +164,7 @@ func (bus *EventBus) WaitAsync() {
 func (bus *EventBus) doSubscribe(topic string, subId string, handler *eventHandler) error {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
-	logx.Debugf("订阅者-[%s]-订阅了主题-[%s]", subId, topic)
+	logx.Debugf("subscribers - [%s] - subscribed to topic - [%s]", subId, topic)
 	subManager := bus.subscriberManager[topic]
 	if subManager == nil {
 		subManager = NewSubscriberManager()
@@ -177,7 +177,7 @@ func (bus *EventBus) doSubscribe(topic string, subId string, handler *eventHandl
 func (bus *EventBus) doPublish(ctx context.Context, handler *eventHandler, event *Event) error {
 	err := handler.handlerFunc(ctx, event)
 	if err != nil {
-		logx.Errorf("订阅者执行主题[%s]失败: %s", event.Topic, err.Error())
+		logx.Errorf("subscriber failed to execute topic [%s]: %s", event.Topic, err.Error())
 	}
 	return err
 }

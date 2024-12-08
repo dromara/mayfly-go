@@ -17,7 +17,9 @@ type dbRestoreRepoImpl struct {
 }
 
 func NewDbRestoreRepo() repository.DbRestore {
-	return &dbRestoreRepoImpl{}
+	dr := &dbRestoreRepoImpl{}
+	dr.M = new(entity.DbRestore)
+	return dr
 }
 
 func (d *dbRestoreRepoImpl) GetDbNamesWithoutRestore(instanceId uint64, dbNames []string) ([]string, error) {

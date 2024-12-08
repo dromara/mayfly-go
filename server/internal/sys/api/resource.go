@@ -24,7 +24,7 @@ func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 
 func (r *Resource) GetById(rc *req.Ctx) {
 	res, err := r.ResourceApp.GetById(uint64(rc.PathParamInt("id")))
-	biz.ErrIsNil(err, "该资源不存在")
+	biz.ErrIsNil(err, "The resource does not exist")
 	rc.ResData = res
 }
 
@@ -62,4 +62,11 @@ func (r *Resource) Sort(rc *req.Ctx) {
 		sortE.Id = uint64(v.Id)
 		r.ResourceApp.Sort(rc.MetaCtx, sortE)
 	}
+}
+
+// GetResourceRoles
+func (r *Resource) GetResourceRoles(rc *req.Ctx) {
+	rrs, err := r.ResourceApp.GetResourceRoles(uint64(rc.PathParamInt("id")))
+	biz.ErrIsNil(err)
+	rc.ResData = rrs
 }

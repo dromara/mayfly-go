@@ -29,6 +29,10 @@ type QueryColumn struct {
 	Type string `json:"type"` // 类型
 }
 
+func (d *DbConn) GetDb() *sql.DB {
+	return d.db
+}
+
 // 执行查询语句
 // 依次返回 列信息数组(顺序)，结果map，错误
 func (d *DbConn) Query(querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
@@ -122,9 +126,9 @@ func (d *DbConn) GetDialect() Dialect {
 	return d.Info.Meta.GetDialect(d)
 }
 
-// GetMetaData 获取数据库MetaData
-func (d *DbConn) GetMetaData() *MetaDataX {
-	return d.Info.Meta.GetMetaData(d)
+// GetMetadata 获取数据库MetaData
+func (d *DbConn) GetMetadata() Metadata {
+	return d.Info.Meta.GetMetadata(d)
 }
 
 // Stats 返回数据库连接状态

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/runtimex"
@@ -25,14 +26,24 @@ type LogInfo struct {
 	save    bool // 是否保存日志
 }
 
-// 新建日志信息，默认不保存该日志
+// NewLog 新建日志信息，默认不保存该日志
 func NewLog(description string) *LogInfo {
 	return &LogInfo{Description: description, LogResp: false, save: false}
 }
 
-// 新建日志信息,并且需要保存该日志信息
+// NewLogI 使用msgId新建日志信息，默认不保存该日志
+func NewLogI(msgId i18n.MsgId) *LogInfo {
+	return &LogInfo{Description: i18n.T(msgId), LogResp: false, save: false}
+}
+
+// NewLogSave 新建日志信息,并且需要保存该日志信息
 func NewLogSave(description string) *LogInfo {
 	return &LogInfo{Description: description, LogResp: false, save: true}
+}
+
+// NewLogSaveI 使用msgId新建日志信息，并且需要保存该日志信息
+func NewLogSaveI(msgId i18n.MsgId) *LogInfo {
+	return &LogInfo{Description: i18n.T(msgId), LogResp: false, save: true}
 }
 
 // 记录返回结果
@@ -83,7 +94,7 @@ func LogHandler(rc *Ctx) error {
 			}
 			attrMap["error"] = rc.Err
 			// 跳过log_handler等相关堆栈
-			attrMap["stacktrace"] = runtimex.StatckStr(5, nFrames)
+			attrMap["stacktrace"] = runtimex.StackStr(5, nFrames)
 		}
 	} else {
 		// 处理文本格式日志信息
@@ -125,7 +136,7 @@ func getErrMsg(rc *Ctx, err any) string {
 	nFrames := DefaultLogFrames
 	var errMsg string
 	switch t := err.(type) {
-	case errorx.BizError:
+	case *errorx.BizError:
 		errMsg = fmt.Sprintf("\n<-e %s", t.String())
 		nFrames = nFrames / 2
 	case error:
@@ -134,6 +145,6 @@ func getErrMsg(rc *Ctx, err any) string {
 		errMsg = fmt.Sprintf("\n<-e errMsg: %s", t)
 	}
 	// 加上堆栈信息
-	errMsg += fmt.Sprintf("\n<-stacktrace: %s", runtimex.StatckStr(5, nFrames))
+	errMsg += fmt.Sprintf("\n<-stacktrace: %s", runtimex.StackStr(5, nFrames))
 	return (msg + errMsg)
 }

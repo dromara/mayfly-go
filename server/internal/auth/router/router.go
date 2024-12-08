@@ -2,6 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/auth/api"
+	"mayfly-go/internal/auth/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
@@ -24,7 +25,7 @@ func Init(router *gin.RouterGroup) {
 	reqs := [...]*req.Conf{
 
 		// 用户账号密码登录
-		req.NewPost("/accounts/login", accountLogin.Login).Log(req.NewLogSave("用户登录")).DontNeedToken(),
+		req.NewPost("/accounts/login", accountLogin.Login).Log(req.NewLogSaveI(imsg.LogAccountLogin)).DontNeedToken(),
 
 		req.NewGet("/accounts/refreshToken", accountLogin.RefreshToken).DontNeedToken(),
 
@@ -44,15 +45,15 @@ func Init(router *gin.RouterGroup) {
 		req.NewGet("/oauth2/bind", oauth2Login.OAuth2Bind),
 
 		// oauth2回调地址
-		req.NewGet("/oauth2/callback", oauth2Login.OAuth2Callback).Log(req.NewLogSave("oauth2回调")).DontNeedToken(),
+		req.NewGet("/oauth2/callback", oauth2Login.OAuth2Callback).Log(req.NewLogSaveI(imsg.LogOauth2Callback)).DontNeedToken(),
 
 		req.NewGet("/oauth2/status", oauth2Login.Oauth2Status),
 
-		req.NewGet("/oauth2/unbind", oauth2Login.Oauth2Unbind).Log(req.NewLogSave("oauth2解绑")),
+		req.NewGet("/oauth2/unbind", oauth2Login.Oauth2Unbind).Log(req.NewLogSaveI(imsg.LogOauth2Unbind)),
 
 		// LDAP 登录
 		req.NewGet("/ldap/enabled", ldapLogin.GetLdapEnabled).DontNeedToken(),
-		req.NewPost("/ldap/login", ldapLogin.Login).Log(req.NewLogSave("LDAP 登录")).DontNeedToken(),
+		req.NewPost("/ldap/login", ldapLogin.Login).Log(req.NewLogSaveI(imsg.LogLdapLogin)).DontNeedToken(),
 	}
 
 	req.BatchSetGroup(rg, reqs[:])

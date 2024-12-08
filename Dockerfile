@@ -1,43 +1,26 @@
-# 构建前端资源
-FROM node:18-bookworm-slim as fe-builder
+ARG BASEIMAGES=m.daocloud.io/docker.io/alpine:3.20.2
 
-WORKDIR /mayfly
+FROM ${BASEIMAGES} AS builder
+ARG TARGETARCH
 
-COPY mayfly_go_web .
+ARG MAYFLY_GO_VERSION
+ARG MAYFLY_GO_DIR_NAME=mayfly-go-linux-${TARGETARCH}
+ARG MAYFLY_GO_URL=https://gitee.com/dromara/mayfly-go/releases/download/${MAYFLY_GO_VERSION}/${MAYFLY_GO_DIR_NAME}.zip
 
-RUN yarn config set registry 'https://registry.npmmirror.com' && \
-    yarn install && \
-    yarn build
+RUN wget -cO mayfly-go.zip ${MAYFLY_GO_URL} && \
+    unzip mayfly-go.zip && \
+    mv ${MAYFLY_GO_DIR_NAME}/* /opt
 
-# 构建后端资源
-FROM golang:1.22 as be-builder
 
-ENV GOPROXY https://goproxy.cn
-WORKDIR /mayfly
+FROM ${BASEIMAGES}
 
-# Copy the go source for building server
-COPY server .
-
-RUN go mod tidy && go mod download
-
-COPY --from=fe-builder /mayfly/dist /mayfly/static/static
-
-# Build
-RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
-    go build -a -ldflags=-w \
-    -o mayfly-go main.go
-
-FROM debian:bookworm-slim
-
-RUN apt-get update && \
-    apt-get install -y ca-certificates expat libncurses5 && \
-    apt-get clean
-
-ENV TZ=Asia/Shanghai
+ARG TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-WORKDIR /mayfly
+COPY --from=builder /opt/mayfly-go /usr/local/bin/mayfly-go
 
-COPY --from=be-builder /mayfly/mayfly-go /usr/local/bin/mayfly-go
+WORKDIR /mayfly-go
+
+EXPOSE 18888
 
 CMD ["mayfly-go"]

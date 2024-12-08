@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	"mayfly-go/internal/db/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -16,6 +17,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
 )
 
@@ -48,8 +50,6 @@ type instanceAppImpl struct {
 	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 	dbApp               Db                      `inject:"DbApp"`
-	backupApp           *DbBackupApp            `inject:"DbBackupApp"`
-	restoreApp          *DbRestoreApp           `inject:"DbRestoreApp"`
 }
 
 var _ (Instance) = (*instanceAppImpl)(nil)
@@ -84,12 +84,12 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 	instanceEntity := instance.DbInstance
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
-	resourceType := consts.ResourceTypeDb
+	resourceType := consts.ResourceTypeDbInstance
 	authCerts := instance.AuthCerts
 	tagCodePaths := instance.TagCodePaths
 
 	if len(authCerts) == 0 {
-		return 0, errorx.NewBiz("授权凭证信息不能为空")
+		return 0, errorx.NewBiz("ac cannot be empty")
 	}
 
 	// 查找是否存在该库
@@ -102,11 +102,9 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 	err := app.GetByCond(oldInstance)
 	if instanceEntity.Id == 0 {
 		if err == nil {
-			return 0, errorx.NewBiz("该数据库实例已存在")
+			return 0, errorx.NewBizI(ctx, imsg.ErrDbInstExist)
 		}
-		if app.CountByCond(&entity.DbInstance{Code: instanceEntity.Code}) > 0 {
-			return 0, errorx.NewBiz("该编码已存在")
-		}
+		instanceEntity.Code = stringx.Rand(10)
 
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)
@@ -127,13 +125,13 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil {
 		if oldInstance.Id != instanceEntity.Id {
-			return 0, errorx.NewBiz("该数据库实例已存在")
+			return 0, errorx.NewBizI(ctx, imsg.ErrDbInstExist)
 		}
 	} else {
 		// 根据host等未查到旧数据，则需要根据id重新获取，因为后续需要使用到code
 		oldInstance, err = app.GetById(instanceEntity.Id)
 		if err != nil {
-			return 0, errorx.NewBiz("该数据库实例不存在")
+			return 0, errorx.NewBiz("db instance not found")
 		}
 	}
 
@@ -147,12 +145,12 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		})
 	}, func(ctx context.Context) error {
 		if instanceEntity.Name != oldInstance.Name {
-			if err := app.tagApp.UpdateTagName(ctx, tagentity.TagTypeDb, oldInstance.Code, instanceEntity.Name); err != nil {
+			if err := app.tagApp.UpdateTagName(ctx, tagentity.TagTypeDbInstance, oldInstance.Code, instanceEntity.Name); err != nil {
 				return err
 			}
 		}
 		return app.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
-			ResourceTag:        app.genDbInstanceResourceTag(instanceEntity, authCerts),
+			ResourceTag:        app.genDbInstanceResourceTag(oldInstance, authCerts),
 			ParentTagCodePaths: tagCodePaths,
 		})
 	})
@@ -161,23 +159,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error {
 	instance, err := app.GetById(instanceId)
 	if err != nil {
-		return errorx.NewBiz("获取数据库实例错误，数据库实例ID为: %d", instance.Id)
-	}
-
-	restore := &entity.DbRestore{
-		DbInstanceId: instanceId,
-	}
-	err = app.restoreApp.restoreRepo.GetByCond(restore)
-	if err == nil {
-		return errorx.NewBiz("不能删除数据库实例【%s】,请先删除关联的数据库恢复任务。", instance.Name)
-	}
-
-	backup := &entity.DbBackup{
-		DbInstanceId: instanceId,
-	}
-	err = app.backupApp.backupRepo.GetByCond(backup)
-	if err == nil {
-		return errorx.NewBiz("不能删除数据库实例【%s】,请先删除关联的数据库备份任务。", instance.Name)
+		return errorx.NewBiz("db instnace not found")
 	}
 
 	dbs, _ := app.dbApp.ListByCond(&entity.Db{
@@ -190,12 +172,12 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		// 删除该实例关联的授权凭证信息
 		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: instance.Code,
-			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
+			ResourceType: tagentity.TagType(consts.ResourceTypeDbInstance),
 		})
 	}, func(ctx context.Context) error {
 		return app.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 			ResourceCode: instance.Code,
-			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
+			ResourceType: tagentity.TagType(consts.ResourceTypeDbInstance),
 		})
 	}, func(ctx context.Context) error {
 		// 删除所有库配置
@@ -228,13 +210,13 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance, authCert *tagent
 func (app *instanceAppImpl) GetDatabasesByAc(acName string) ([]string, error) {
 	ac, err := app.resourceAuthCertApp.GetAuthCert(acName)
 	if err != nil {
-		return nil, errorx.NewBiz("该授权凭证不存在")
+		return nil, errorx.NewBiz("db ac not found")
 	}
 
 	instance := &entity.DbInstance{Code: ac.ResourceCode}
 	err = app.GetByCond(instance)
 	if err != nil {
-		return nil, errorx.NewBiz("不存在该授权凭证对应的数据库实例信息")
+		return nil, errorx.NewBiz("the db instance information for this ac does not exist")
 	}
 
 	return app.getDatabases(instance, ac)
@@ -259,7 +241,7 @@ func (app *instanceAppImpl) getDatabases(instance *entity.DbInstance, ac *tagent
 	}
 	defer dbConn.Close()
 
-	return dbConn.GetMetaData().GetDbNames()
+	return dbConn.GetMetadata().GetDbNames()
 }
 
 func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert, database string) *dbi.DbInfo {
@@ -286,7 +268,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		InstanceId: me.Id,
 	})
 	if err != nil {
-		logx.Errorf("获取实例关联的数据库失败: %v", err)
+		logx.Errorf("failed to retrieve the database associated with the instance: %v", err)
 	}
 
 	authCertName2DbTags := make(map[string][]*tagdto.ResourceTag)
@@ -294,7 +276,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		authCertName2DbTags[db.AuthCertName] = append(authCertName2DbTags[db.AuthCertName], &tagdto.ResourceTag{
 			Code: db.Code,
 			Name: db.Name,
-			Type: tagentity.TagTypeDbName,
+			Type: tagentity.TagTypeDb,
 		})
 	}
 
@@ -305,7 +287,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 
 	return &tagdto.ResourceTag{
 		Code:     me.Code,
-		Type:     tagentity.TagTypeDb,
+		Type:     tagentity.TagTypeDbInstance,
 		Name:     me.Name,
 		Children: authCertTags,
 	}
