@@ -74,11 +74,6 @@ type tagTreeAppImpl struct {
 
 var _ (TagTree) = (*tagTreeAppImpl)(nil)
 
-// 注入TagTreeRepo
-func (p *tagTreeAppImpl) InjectTagTreeRepo(tagTreeRepo repository.TagTree) {
-	p.Repo = tagTreeRepo
-}
-
 func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.TagTree) error {
 	accountId := contextx.GetLoginAccount(ctx).Id
 	// 新建项目树节点信息

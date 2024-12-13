@@ -42,11 +42,6 @@ type machineTermOpAppImpl struct {
 	fileApp           fileapp.File   `inject:"FileApp"`
 }
 
-// 注入MachineTermOpRepo
-func (m *machineTermOpAppImpl) InjectMachineTermOpRepo(repo repository.MachineTermOp) {
-	m.Repo = repo
-}
-
 func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {
 	var recorder *mcm.Recorder
 	var termOpRecord *entity.MachineTermOp

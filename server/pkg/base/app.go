@@ -72,7 +72,7 @@ type App[T model.ModelI] interface {
 
 // 基础application接口实现
 type AppImpl[T model.ModelI, R Repo[T]] struct {
-	Repo R // repo接口
+	Repo R `inject:"T"` // repo接口, 根据类型进行注入
 }
 
 // 获取repo

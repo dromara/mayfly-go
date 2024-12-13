@@ -52,10 +52,6 @@ type roleAppImpl struct {
 
 var _ (Role) = (*roleAppImpl)(nil)
 
-func (r *roleAppImpl) InjectRoleRepo(repo repository.Role) {
-	r.Repo = repo
-}
-
 func (m *roleAppImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
 }

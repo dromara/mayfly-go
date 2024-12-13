@@ -60,11 +60,6 @@ type redisAppImpl struct {
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
 
-// 注入RedisRepo
-func (r *redisAppImpl) InjectRedisRepo(repo repository.Redis) {
-	r.Repo = repo
-}
-
 // 分页获取redis列表
 func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return r.GetRepo().GetRedisList(condition, pageParam, toEntity, orderBy...)

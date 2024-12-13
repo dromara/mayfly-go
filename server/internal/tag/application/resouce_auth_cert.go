@@ -54,11 +54,6 @@ type resourceAuthCertAppImpl struct {
 	tagTreeApp TagTree `inject:"TagTreeApp"`
 }
 
-// 注入Repo
-func (r *resourceAuthCertAppImpl) InjectResourceAuthCertRepo(resourceAuthCertRepo repository.ResourceAuthCert) {
-	r.Repo = resourceAuthCertRepo
-}
-
 func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dto.RelateAuthCert) error {
 	resourceCode := params.ResourceCode
 	resourceType := int8(params.ResourceType)

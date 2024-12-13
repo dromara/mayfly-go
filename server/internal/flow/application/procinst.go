@@ -51,11 +51,6 @@ type procinstAppImpl struct {
 
 var _ (Procinst) = (*procinstAppImpl)(nil)
 
-// 注入repo
-func (p *procinstAppImpl) InjectProcinstRepo(procinstRepo repository.Procinst) {
-	p.Repo = procinstRepo
-}
-
 func (p *procinstAppImpl) GetPageList(condition *entity.ProcinstQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.Repo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }

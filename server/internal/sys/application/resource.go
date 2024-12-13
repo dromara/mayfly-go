@@ -41,11 +41,6 @@ type resourceAppImpl struct {
 
 var _ (Resource) = (*resourceAppImpl)(nil)
 
-// 注入ResourceRepo
-func (r *resourceAppImpl) InjectResourceRepo(repo repository.Resource) {
-	r.Repo = repo
-}
-
 func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {
 	// 更新操作
 	if resource.Id != 0 {

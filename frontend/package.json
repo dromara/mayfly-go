@@ -24,7 +24,7 @@
         "jsencrypt": "^3.3.2",
         "lodash": "^4.17.21",
         "mitt": "^3.0.1",
-        "monaco-editor": "^0.52.0",
+        "monaco-editor": "^0.52.2",
         "monaco-sql-languages": "^0.12.2",
         "monaco-themes": "^0.4.4",
         "nprogress": "^0.2.0",

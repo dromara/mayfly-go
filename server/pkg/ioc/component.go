@@ -1,5 +1,7 @@
 package ioc
 
+import "reflect"
+
 type ComponentOption func(component *Component)
 
 // 组件名
@@ -12,6 +14,8 @@ func WithComponentName(name string) ComponentOption {
 // 组件
 type Component struct {
 	Name string // 组件名
+
+	Type reflect.Type // 组件类型
 
 	Value any // 组件实例
 }

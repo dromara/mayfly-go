@@ -123,7 +123,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.File,
                 detail: tableComment,
-                insertText: dbDialect.quoteIdentifier(tableName) + ' ',
+                insertText: dbDialect.quoteIdentifier(tableName),
                 range,
                 sortText: 300 + index + '',
             });
@@ -147,7 +147,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.Property,
                 detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: dbDialect.quoteIdentifier(fieldName) + ' ', // create_time
+                insertText: dbDialect.quoteIdentifier(fieldName), // create_time
                 range,
                 sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
             });
@@ -819,7 +819,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     },
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
-                    insertText: dbDialect.quoteIdentifier(tableName) + ' ',
+                    insertText: dbDialect.quoteIdentifier(tableName),
                     range,
                     sortText: 300 + index + '',
                 });

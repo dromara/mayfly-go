@@ -51,11 +51,6 @@ type machineCronJobAppImpl struct {
 
 var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)
 
-// 注入MachineCronJobRepo
-func (m *machineCronJobAppImpl) InjectMachineCronJobRepo(repo repository.MachineCronJob) {
-	m.Repo = repo
-}
-
 // 分页获取机器脚本任务列表
 func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)

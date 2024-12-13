@@ -31,10 +31,10 @@
             <!-- 按钮 -->
             <div class="search-buttons">
                 <el-button class="terminal-search-button search-button-prev" type="primary" size="small" @click="searchKeywords(false)">
-                    {{ $t('components.terminal.previous') }}}}
+                    {{ $t('components.terminal.previous') }}
                 </el-button>
                 <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="searchKeywords(true)">
-                    {{ $t('components.terminal.next') }}}}
+                    {{ $t('components.terminal.next') }}
                 </el-button>
                 <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="closeSearch">
                     {{ $t('components.terminal.close') }}

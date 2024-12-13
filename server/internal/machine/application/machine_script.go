@@ -26,11 +26,6 @@ type machineScriptAppImpl struct {
 	machineApp Machine `inject:"MachineApp"`
 }
 
-// 注入MachineScriptRepo
-func (m *machineScriptAppImpl) InjectMachineScriptRepo(repo repository.MachineScript) {
-	m.Repo = repo
-}
-
 const Common_Script_Machine_Id = 9999999
 
 // 分页获取机器脚本信息列表

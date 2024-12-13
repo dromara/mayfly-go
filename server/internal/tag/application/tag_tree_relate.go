@@ -42,11 +42,6 @@ type tagTreeRelateAppImpl struct {
 
 var _ (TagTreeRelate) = (*tagTreeRelateAppImpl)(nil)
 
-// 注入TagTreeRelateRepo
-func (p *tagTreeRelateAppImpl) InjectTagTreeRelateRepo(tagTreeRelateRepo repository.TagTreeRelate) {
-	p.Repo = tagTreeRelateRepo
-}
-
 func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error {
 	if hasConflictPath(tagCodePaths) {
 		return errorx.NewBizI(ctx, imsg.ErrConflictingCodePath)

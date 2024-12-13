@@ -42,11 +42,6 @@ type procdefAppImpl struct {
 
 var _ (Procdef) = (*procdefAppImpl)(nil)
 
-// 注入repo
-func (p *procdefAppImpl) InjectProcdefRepo(procdefRepo repository.Procdef) {
-	p.Repo = procdefRepo
-}
-
 func (p *procdefAppImpl) GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.Repo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }

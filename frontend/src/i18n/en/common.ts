@@ -45,6 +45,7 @@ export default {
         previousStep: 'Previous Step',
         nextStep: 'Next Step',
         copy: 'Copy',
+        search: 'Search',
         pleaseInput: 'Please enter {label}',
         pleaseSelect: 'Please select {label}',
         formValidationError: 'Please check the form',

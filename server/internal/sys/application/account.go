@@ -28,11 +28,6 @@ type accountAppImpl struct {
 	accountRoleRepo repository.AccountRole `inject:"AccountRoleRepo"`
 }
 
-// 注入AccountRepo
-func (a *accountAppImpl) InjectAccountRepo(repo repository.Account) {
-	a.Repo = repo
-}
-
 func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }

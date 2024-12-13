@@ -26,11 +26,6 @@ type resourceOpLogAppImpl struct {
 
 var _ (ResourceOpLog) = (*resourceOpLogAppImpl)(nil)
 
-// 注入ResourceOpLogRepo
-func (rol *resourceOpLogAppImpl) InjectResourceOpLogRepo(resourceOpLogRepo repository.ResourceOpLog) {
-	rol.Repo = resourceOpLogRepo
-}
-
 func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath string) error {
 	loginAccount := contextx.GetLoginAccount(ctx)
 	if loginAccount == nil {

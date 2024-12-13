@@ -45,6 +45,7 @@ export default {
         previousStep: '上一步',
         nextStep: '下一步',
         copy: '复制',
+        search: '搜索',
         pleaseInput: '请输入{label}',
         pleaseSelect: '请选择{label}',
         formValidationError: '信息填写有误，请检查',

@@ -32,8 +32,8 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver v1.16.0 // mongo
-	golang.org/x/crypto v0.30.0 // ssh
-	golang.org/x/oauth2 v0.23.0
+	golang.org/x/crypto v0.31.0 // ssh
+	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sync v0.10.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1

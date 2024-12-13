@@ -31,10 +31,6 @@ type configAppImpl struct {
 	base.AppImpl[*entity.Config, repository.Config]
 }
 
-func (a *configAppImpl) InjectConfigRepo(repo repository.Config) {
-	a.Repo = repo
-}
-
 func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }

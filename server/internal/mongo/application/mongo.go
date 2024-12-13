@@ -40,11 +40,6 @@ type mongoAppImpl struct {
 	tagApp tagapp.TagTree `inject:"TagTreeApp"`
 }
 
-// 注入MongoRepo
-func (d *mongoAppImpl) InjectMongoRepo(repo repository.Mongo) {
-	d.Repo = repo
-}
-
 // 分页获取数据库信息列表
 func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return d.GetRepo().GetList(condition, pageParam, toEntity, orderBy...)

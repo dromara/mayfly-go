@@ -69,11 +69,6 @@ type machineAppImpl struct {
 
 var _ (Machine) = (*machineAppImpl)(nil)
 
-// 注入MachineRepo
-func (m *machineAppImpl) InjectMachineRepo(repo repository.Machine) {
-	m.Repo = repo
-}
-
 // 分页获取机器信息列表
 func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
