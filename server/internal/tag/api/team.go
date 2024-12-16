@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -19,19 +20,38 @@ import (
 )
 
 type Team struct {
-	TeamApp          application.Team          `inject:""`
-	TagTreeApp       application.TagTree       `inject:""`
-	TagTreeRelateApp application.TagTreeRelate `inject:""`
-	AccountApp       sys_applicaiton.Account   `inject:""`
+	teamApp          application.Team          `inject:"T"`
+	tagTreeRelateApp application.TagTreeRelate `inject:"T"`
+	accountApp       sys_applicaiton.Account   `inject:"T"`
+}
+
+func (t *Team) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取团队列表
+		req.NewGet("", t.GetTeams),
+
+		req.NewPost("", t.SaveTeam).Log(req.NewLogSaveI(imsg.LogTeamSave)).RequiredPermissionCode("team:save"),
+
+		req.NewDelete(":id", t.DelTeam).Log(req.NewLogSaveI(imsg.LogTeamDelete)).RequiredPermissionCode("team:del"),
+
+		// 获取团队的成员信息列表
+		req.NewGet("/:id/members", t.GetTeamMembers),
+
+		req.NewPost("/:id/members", t.SaveTeamMember).Log(req.NewLogSaveI(imsg.LogTeamAddMember)).RequiredPermissionCode("team:member:save"),
+
+		req.NewDelete("/:id/members/:accountId", t.DelTeamMember).Log(req.NewLogSaveI(imsg.LogTeamRemoveMember)).RequiredPermissionCode("team:member:del"),
+	}
+
+	return req.NewConfs("/teams", reqs[:]...)
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage(rc, new(entity.TeamQuery))
 	var teams []*vo.Team
-	res, err := p.TeamApp.GetPageList(queryCond, page, &teams)
+	res, err := p.teamApp.GetPageList(queryCond, page, &teams)
 	biz.ErrIsNil(err)
 
-	p.TagTreeRelateApp.FillTagInfo(entity.TagRelateTypeTeam, collx.ArrayMap(teams, func(mvo *vo.Team) entity.IRelateTag {
+	p.tagTreeRelateApp.FillTagInfo(entity.TagRelateTypeTeam, collx.ArrayMap(teams, func(mvo *vo.Team) entity.IRelateTag {
 		return mvo
 	})...)
 
@@ -41,7 +61,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 func (p *Team) SaveTeam(rc *req.Ctx) {
 	team := req.BindJsonAndValid(rc, new(dto.SaveTeam))
 	rc.ReqParam = team
-	biz.ErrIsNil(p.TeamApp.SaveTeam(rc.MetaCtx, team))
+	biz.ErrIsNil(p.teamApp.SaveTeam(rc.MetaCtx, team))
 }
 
 func (p *Team) DelTeam(rc *req.Ctx) {
@@ -50,7 +70,7 @@ func (p *Team) DelTeam(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		p.TeamApp.Delete(rc.MetaCtx, cast.ToUint64(v))
+		p.teamApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
@@ -59,7 +79,7 @@ func (p *Team) GetTeamMembers(rc *req.Ctx) {
 	condition := &entity.TeamMember{TeamId: uint64(rc.PathParamInt("id"))}
 	condition.Username = rc.Query("username")
 
-	res, err := p.TeamApp.GetMemberPage(condition, rc.GetPageParam(), &[]vo.TeamMember{})
+	res, err := p.teamApp.GetMemberPage(condition, rc.GetPageParam(), &[]vo.TeamMember{})
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -71,7 +91,7 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 	teamId := teamMems.TeamId
 
 	for _, accountId := range teamMems.AccountIds {
-		if p.TeamApp.IsExistMember(teamId, accountId) {
+		if p.teamApp.IsExistMember(teamId, accountId) {
 			continue
 		}
 
@@ -79,13 +99,13 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 		account := &sys_entity.Account{}
 		account.Id = accountId
 
-		biz.ErrIsNil(p.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username")), "账号不存在")
+		biz.ErrIsNil(p.accountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username")), "账号不存在")
 
 		teamMember := new(entity.TeamMember)
 		teamMember.TeamId = teamId
 		teamMember.AccountId = accountId
 		teamMember.Username = account.Username
-		p.TeamApp.SaveMember(rc.MetaCtx, teamMember)
+		p.teamApp.SaveMember(rc.MetaCtx, teamMember)
 	}
 
 	rc.ReqParam = teamMems
@@ -97,5 +117,5 @@ func (p *Team) DelTeamMember(rc *req.Ctx) {
 	aid := rc.PathParamInt("accountId")
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
-	p.TeamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
+	p.teamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
 }

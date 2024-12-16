@@ -29,7 +29,7 @@ func initGormDb() *gorm.DB {
 }
 
 func initMysql(m config.Mysql) *gorm.DB {
-	logx.Infof("连接mysql [%s]", m.Host)
+	logx.Infof("connecting to mysql [%s]", m.Host)
 	mysqlConfig := mysql.Config{
 		DSN:                       m.Dsn(), // DSN data source name
 		DefaultStringSize:         191,     // string 类型字段的默认长度
@@ -40,7 +40,7 @@ func initMysql(m config.Mysql) *gorm.DB {
 	}
 
 	if db, err := gorm.Open(mysql.New(mysqlConfig), getGormConfig()); err != nil {
-		logx.Panicf("连接mysql失败! [%s]", err.Error())
+		logx.Panicf("failed to connect to mysql! [%s]", err.Error())
 		return nil
 	} else {
 		sqlDB, _ := db.DB()
@@ -51,9 +51,9 @@ func initMysql(m config.Mysql) *gorm.DB {
 }
 
 func initSqlite(sc config.Sqlite) *gorm.DB {
-	logx.Infof("连接sqlite [%s]", sc.Path)
+	logx.Infof("connecting to sqlite [%s]", sc.Path)
 	if db, err := gorm.Open(sqlite.Open(sc.Path), getGormConfig()); err != nil {
-		logx.Panicf("连接sqlite失败! [%s]", err.Error())
+		logx.Panicf("failed to connect to sqlite! [%s]", err.Error())
 		return nil
 	} else {
 		sqlDB, _ := db.DB()

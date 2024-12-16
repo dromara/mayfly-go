@@ -2,7 +2,6 @@ package api
 
 import (
 	"mayfly-go/internal/common/utils"
-	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
@@ -29,11 +28,56 @@ const (
 )
 
 type Account struct {
-	AccountApp  application.Account  `inject:""`
-	ResourceApp application.Resource `inject:""`
-	RoleApp     application.Role     `inject:""`
-	MsgApp      msgapp.Msg           `inject:""`
-	ConfigApp   application.Config   `inject:""`
+	accountApp  application.Account  `inject:"T"`
+	resourceApp application.Resource `inject:"T"`
+	roleApp     application.Role     `inject:"T"`
+}
+
+func (a *Account) ReqConfs() *req.Confs {
+	addAccountPermission := req.NewPermission("account:add")
+	reqs := [...]*req.Conf{
+
+		// 获取个人账号的权限资源信息
+		req.NewGet("/permissions", a.GetPermissions),
+
+		req.NewPost("/change-pwd", a.ChangePassword).DontNeedToken().Log(req.NewLogSaveI(imsg.LogChangePassword)),
+
+		// 获取个人账号信息
+		req.NewGet("/self", a.AccountInfo),
+
+		// 更新个人账号信息
+		req.NewPut("/self", a.UpdateAccount),
+
+		/**   后台管理接口  **/
+
+		// 获取所有用户列表
+		req.NewGet("", a.Accounts),
+
+		// 获取用户列表信息（只包含最基础信息）
+		req.NewGet("/simple", a.SimpleAccounts),
+
+		// 根据账号id获取账号基础信息
+		req.NewGet("/:id", a.AccountDetail),
+
+		req.NewPost("", a.SaveAccount).Log(req.NewLogSaveI(imsg.LogAccountCreate)).RequiredPermission(addAccountPermission),
+
+		req.NewPut("change-status/:id/:status", a.ChangeStatus).Log(req.NewLogSaveI(imsg.LogAccountChangeStatus)).RequiredPermission(addAccountPermission),
+
+		req.NewPut(":id/reset-otp", a.ResetOtpSecret).Log(req.NewLogSaveI(imsg.LogResetOtpSecret)).RequiredPermission(addAccountPermission),
+
+		req.NewDelete(":id", a.DeleteAccount).Log(req.NewLogSaveI(imsg.LogAccountDelete)).RequiredPermissionCode("account:del"),
+
+		// 关联用户角色
+		req.NewPost("/roles", a.RelateRole).Log(req.NewLogSaveI(imsg.LogAssignUserRoles)).RequiredPermissionCode("account:saveRoles"),
+
+		// 获取用户角色
+		req.NewGet(":id/roles", a.AccountRoles),
+
+		// 获取用户资源列表
+		req.NewGet(":id/resources", a.AccountResources),
+	}
+
+	return req.NewConfs("sys/accounts", reqs[:]...)
 }
 
 // 获取当前登录用户的菜单与权限码
@@ -42,7 +86,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.ResourceApp.GetAccountResources(account.Id, &resources))
+	biz.ErrIsNil(a.resourceApp.GetAccountResources(account.Id, &resources))
 	// 菜单树与权限code数组
 	var menus vo.AccountResourceVOList
 	var permissions []string
@@ -70,7 +114,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "Wrong to decrypt old password: %s")
 
 	account := &entity.Account{Username: form.Username}
-	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username", "Password", "Status"))
+	err = a.accountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username", "Password", "Status"))
 	biz.ErrIsNilI(ctx, err, imsg.ErrOldPasswordWrong)
 	biz.IsTrueI(ctx, cryptox.CheckPwdHash(originOldPwd, account.Password), imsg.ErrOldPasswordWrong)
 	biz.IsTrue(account.IsEnable(), "This account is not available")
@@ -82,7 +126,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	updateAccount := new(entity.Account)
 	updateAccount.Id = account.Id
 	updateAccount.Password = cryptox.PwdHash(originNewPwd)
-	biz.ErrIsNilAppendErr(a.AccountApp.Update(ctx, updateAccount), "failed to update account password: %s")
+	biz.ErrIsNilAppendErr(a.accountApp.Update(ctx, updateAccount), "failed to update account password: %s")
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
 	contextx.WithLoginAccount(ctx, &model.LoginAccount{
@@ -111,14 +155,14 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 		updateAccount.Password = cryptox.PwdHash(updateAccount.Password)
 	}
 
-	oldAcc, err := a.AccountApp.GetById(updateAccount.Id)
+	oldAcc, err := a.accountApp.GetById(updateAccount.Id)
 	biz.ErrIsNilAppendErr(err, "Account does not exist: %s")
 	// 账号创建十分钟内允许修改用户名（兼容oauth2首次登录修改用户名），否则不允许修改
 	if oldAcc.CreateTime.Add(10 * time.Minute).Before(time.Now()) {
 		// 禁止更新用户名，防止误传被更新
 		updateAccount.Username = ""
 	}
-	biz.ErrIsNil(a.AccountApp.Update(ctx, updateAccount))
+	biz.ErrIsNil(a.accountApp.Update(ctx, updateAccount))
 }
 
 /**    后台账号操作    **/
@@ -128,7 +172,7 @@ func (a *Account) Accounts(rc *req.Ctx) {
 	condition := &entity.AccountQuery{}
 	condition.Username = rc.Query("username")
 	condition.Name = rc.Query("name")
-	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.AccountManageVO))
+	res, err := a.accountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.AccountManageVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -143,7 +187,7 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 			return cast.ToUint64(val)
 		})
 	}
-	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.SimpleAccountVO))
+	res, err := a.accountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.SimpleAccountVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -151,7 +195,7 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 // 获取账号详情
 func (a *Account) AccountDetail(rc *req.Ctx) {
 	accountId := uint64(rc.PathParamInt("id"))
-	account, err := a.AccountApp.GetById(accountId)
+	account, err := a.accountApp.GetById(accountId)
 	biz.ErrIsNilAppendErr(err, "Account does not exist: %s")
 	accountvo := new(vo.SimpleAccountVO)
 	structx.Copy(accountvo, account)
@@ -173,7 +217,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 		biz.NotEmpty(account.Password, "password is required")
 		biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(account.Password), imsg.ErrAccountPasswordNotFollowRule)
 		account.Password = cryptox.PwdHash(account.Password)
-		biz.ErrIsNil(a.AccountApp.Create(rc.MetaCtx, account))
+		biz.ErrIsNil(a.accountApp.Create(rc.MetaCtx, account))
 	} else {
 		if account.Password != "" {
 			biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(account.Password), imsg.ErrAccountPasswordNotFollowRule)
@@ -181,7 +225,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 		}
 		// 更新操作不允许修改用户名、防止误传更新
 		account.Username = ""
-		biz.ErrIsNil(a.AccountApp.Update(ctx, account))
+		biz.ErrIsNil(a.accountApp.Update(ctx, account))
 	}
 }
 
@@ -194,7 +238,7 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 	account.Status = status
 
 	rc.ReqParam = collx.Kvs("accountId", account.Id, "status", account.Status)
-	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
+	biz.ErrIsNil(a.accountApp.Update(rc.MetaCtx, account))
 }
 
 func (a *Account) DeleteAccount(rc *req.Ctx) {
@@ -203,7 +247,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		biz.ErrIsNil(a.AccountApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
+		biz.ErrIsNil(a.accountApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
 	}
 }
 
@@ -215,7 +259,7 @@ func (a *Account) AccountRoles(rc *req.Ctx) {
 func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 	vos := make([]*vo.AccountRoleVO, 0)
 
-	accountRoles, err := a.RoleApp.GetAccountRoles(accountId)
+	accountRoles, err := a.roleApp.GetAccountRoles(accountId)
 	biz.ErrIsNil(err)
 
 	if len(accountRoles) == 0 {
@@ -226,7 +270,7 @@ func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 	roleIds := collx.ArrayMap[*entity.AccountRole, uint64](accountRoles, func(val *entity.AccountRole) uint64 {
 		return val.RoleId
 	})
-	roles, err := a.RoleApp.ListByQuery(&entity.RoleQuery{Ids: roleIds})
+	roles, err := a.roleApp.ListByQuery(&entity.RoleQuery{Ids: roleIds})
 	biz.ErrIsNil(err)
 	roleId2Role := collx.ArrayToMap[*entity.Role, uint64](roles, func(val *entity.Role) uint64 {
 		return val.Id
@@ -253,7 +297,7 @@ func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.ResourceApp.GetAccountResources(uint64(rc.PathParamInt("id")), &resources))
+	biz.ErrIsNil(a.resourceApp.GetAccountResources(uint64(rc.PathParamInt("id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 
@@ -261,7 +305,7 @@ func (a *Account) AccountResources(rc *req.Ctx) {
 func (a *Account) RelateRole(rc *req.Ctx) {
 	form := req.BindJsonAndValid(rc, new(form.AccountRoleForm))
 	rc.ReqParam = form
-	biz.ErrIsNil(a.RoleApp.RelateAccountRole(rc.MetaCtx, form.Id, form.RoleId, consts.AccountRoleRelateType(form.RelateType)))
+	biz.ErrIsNil(a.roleApp.RelateAccountRole(rc.MetaCtx, form.Id, form.RoleId, consts.AccountRoleRelateType(form.RelateType)))
 }
 
 // 重置otp秘钥
@@ -270,5 +314,5 @@ func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	accountId := uint64(rc.PathParamInt("id"))
 	account.Id = accountId
 	rc.ReqParam = collx.Kvs("accountId", accountId)
-	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
+	biz.ErrIsNil(a.accountApp.Update(rc.MetaCtx, account))
 }

@@ -28,22 +28,58 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/may-fly/cast"
 )
 
 type Machine struct {
-	MachineApp          application.Machine       `inject:""`
-	MachineTermOpApp    application.MachineTermOp `inject:""`
-	TagApp              tagapp.TagTree            `inject:"TagTreeApp"`
-	ResourceAuthCertApp tagapp.ResourceAuthCert   `inject:""`
+	machineApp          application.Machine       `inject:"T"`
+	machineTermOpApp    application.MachineTermOp `inject:"T"`
+	tagTreeApp          tagapp.TagTree            `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert   `inject:"T"`
+}
+
+func (m *Machine) ReqConfs() *req.Confs {
+	saveMachineP := req.NewPermission("machine:update")
+
+	reqs := [...]*req.Conf{
+		req.NewGet("", m.Machines),
+
+		req.NewGet("/simple", m.SimpleMachieInfo),
+
+		req.NewGet(":machineId/stats", m.MachineStats),
+
+		req.NewGet(":machineId/process", m.GetProcess),
+
+		req.NewGet(":machineId/users", m.GetUsers),
+
+		req.NewGet(":machineId/groups", m.GetGroups),
+
+		req.NewPost("", m.SaveMachine).Log(req.NewLogSaveI(imsg.LogMachineSave)).RequiredPermission(saveMachineP),
+
+		req.NewDelete(":machineId", m.DeleteMachine).Log(req.NewLogSaveI(imsg.LogMachineSave)),
+
+		req.NewPost("test-conn", m.TestConn),
+
+		req.NewPut(":machineId/:status", m.ChangeStatus).Log(req.NewLogSaveI(imsg.LogMachineChangeStatus)).RequiredPermission(saveMachineP),
+
+		req.NewDelete(":machineId/process", m.KillProcess).Log(req.NewLogSaveI(imsg.LogMachineKillProcess)).RequiredPermissionCode("machine:killprocess"),
+
+		// 获取机器终端回放记录列表,目前具有保存机器信息的权限标识才有权限查看终端回放
+		req.NewGet(":machineId/term-recs", m.MachineTermOpRecords).RequiredPermission(saveMachineP),
+
+		// 终端操作
+		req.NewGet("terminal/:ac", m.WsSSH),
+		req.NewGet("rdp/:ac", m.WsGuacamole),
+	}
+
+	return req.NewConfs("machines", reqs[:]...)
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
 	condition, pageParam := req.BindQueryAndPage(rc, new(entity.MachineQuery))
 
-	tags := m.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMachine, tagentity.TagTypeAuthCert)),
 		CodePathLikes: collx.AsArray(condition.TagPath),
 	})
@@ -58,7 +94,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	condition.Codes = collx.ArrayDeduplicate(machineCodes)
 
 	var machinevos []*vo.MachineVO
-	res, err := m.MachineApp.GetMachineList(condition, pageParam, &machinevos)
+	res, err := m.machineApp.GetMachineList(condition, pageParam, &machinevos)
 	biz.ErrIsNil(err)
 	if res.Total == 0 {
 		rc.ResData = res
@@ -66,17 +102,17 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 
 	// 填充标签信息
-	m.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMachine), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
+	m.tagTreeApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMachine), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
 		return mvo
 	})...)
 
 	// 填充授权凭证信息
-	m.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeAuthCert, tagCodePaths...), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
+	m.resourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeAuthCert, tagCodePaths...), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
 		return mvo
 	})...)
 
 	for _, mv := range machinevos {
-		if machineStats, err := m.MachineApp.GetMachineStats(mv.Id); err == nil {
+		if machineStats, err := m.machineApp.GetMachineStats(mv.Id); err == nil {
 			mv.Stat = collx.M{
 				"cpuIdle":      machineStats.CPU.Idle,
 				"memAvailable": machineStats.MemInfo.Available,
@@ -93,12 +129,12 @@ func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
 	biz.NotEmpty(machineCodesStr, "codes cannot be empty")
 
 	var vos []vo.SimpleMachineVO
-	m.MachineApp.ListByCondToAny(model.NewCond().In("code", strings.Split(machineCodesStr, ",")), &vos)
+	m.machineApp.ListByCondToAny(model.NewCond().In("code", strings.Split(machineCodesStr, ",")), &vos)
 	rc.ResData = vos
 }
 
 func (m *Machine) MachineStats(rc *req.Ctx) {
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	rc.ResData = cli.GetAllStats()
 }
@@ -110,7 +146,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 
 	rc.ReqParam = machineForm
 
-	biz.ErrIsNil(m.MachineApp.SaveMachine(rc.MetaCtx, &dto.SaveMachine{
+	biz.ErrIsNil(m.machineApp.SaveMachine(rc.MetaCtx, &dto.SaveMachine{
 		Machine:      me,
 		TagCodePaths: machineForm.TagCodePaths,
 		AuthCerts:    machineForm.AuthCerts,
@@ -121,14 +157,14 @@ func (m *Machine) TestConn(rc *req.Ctx) {
 	machineForm := new(form.MachineForm)
 	me := req.BindJsonAndCopyTo(rc, machineForm, new(entity.Machine))
 	// 测试连接
-	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me, machineForm.AuthCerts[0]), "connection error: %s")
+	biz.ErrIsNilAppendErr(m.machineApp.TestConn(me, machineForm.AuthCerts[0]), "connection error: %s")
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
 	id := uint64(rc.PathParamInt("machineId"))
 	status := int8(rc.PathParamInt("status"))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)
-	biz.ErrIsNil(m.MachineApp.ChangeStatus(rc.MetaCtx, id, status))
+	biz.ErrIsNil(m.machineApp.ChangeStatus(rc.MetaCtx, id, status))
 }
 
 func (m *Machine) DeleteMachine(rc *req.Ctx) {
@@ -137,7 +173,7 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		m.MachineApp.Delete(rc.MetaCtx, cast.ToUint64(v))
+		m.machineApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
@@ -159,9 +195,9 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 	count := rc.QueryIntDefault("count", 10)
 	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(cmd)
 	biz.ErrIsNil(err)
@@ -173,16 +209,16 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 	pid := rc.Query("pid")
 	biz.NotEmpty(pid, "pid cannot be empty")
 
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
 	biz.ErrIsNil(err, "kill fail: %s", res)
 }
 
 func (m *Machine) GetUsers(rc *req.Ctx) {
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	res, err := cli.GetUsers()
 	biz.ErrIsNil(err)
@@ -190,15 +226,15 @@ func (m *Machine) GetUsers(rc *req.Ctx) {
 }
 
 func (m *Machine) GetGroups(rc *req.Ctx) {
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
 	res, err := cli.GetGroups()
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
-func (m *Machine) WsSSH(g *gin.Context) {
-	wsConn, err := ws.Upgrader.Upgrade(g.Writer, g.Request, nil)
+func (m *Machine) WsSSH(rc *req.Ctx) {
+	wsConn, err := ws.Upgrader.Upgrade(rc.GetWriter(), rc.GetRequest(), nil)
 	defer func() {
 		if wsConn != nil {
 			if err := recover(); err != nil {
@@ -211,15 +247,15 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	wsConn.WriteMessage(websocket.TextMessage, []byte("Connecting to host..."))
 
 	// 权限校验
-	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
+	rc = rc.WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
 		panic(errorx.NewBiz(mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~")))
 	}
 
-	cli, err := m.MachineApp.NewCli(GetMachineAc(rc))
+	cli, err := m.machineApp.NewCli(GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connection error: %s"))
 	defer cli.Close()
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
+	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.CodePath[0])
 
@@ -231,13 +267,13 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	rc.ReqParam = cli.Info
 	req.LogHandler(rc)
 
-	err = m.MachineTermOpApp.TermConn(rc.MetaCtx, cli, wsConn, rows, cols)
+	err = m.machineTermOpApp.TermConn(rc.MetaCtx, cli, wsConn, rows, cols)
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connect fail: %s"))
 }
 
 func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
 	mid := GetMachineId(rc)
-	res, err := m.MachineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.GetPageParam(), new([]entity.MachineTermOp))
+	res, err := m.machineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.GetPageParam(), new([]entity.MachineTermOp))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -253,7 +289,7 @@ var (
 	sessions = guac.NewMemorySessionStore()
 )
 
-func (m *Machine) WsGuacamole(g *gin.Context) {
+func (m *Machine) WsGuacamole(rc *req.Ctx) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  websocketReadBufferSize,
 		WriteBufferSize: websocketWriteBufferSize,
@@ -261,17 +297,21 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 			return true
 		},
 	}
-	wsConn, err := upgrader.Upgrade(g.Writer, g.Request, nil)
+
+	reqWriter := rc.GetWriter()
+	request := rc.GetRequest()
+
+	wsConn, err := upgrader.Upgrade(reqWriter, request, nil)
 	biz.ErrIsNil(err)
 
-	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
+	rc = rc.WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
 		panic(errorx.NewBiz(mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~")))
 	}
 
 	ac := GetMachineAc(rc)
 
-	mi, err := m.MachineApp.ToMachineInfoByAc(ac)
+	mi, err := m.machineApp.ToMachineInfoByAc(ac)
 	if err != nil {
 		return
 	}
@@ -307,10 +347,9 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 		}
 	}()
 
-	query := g.Request.URL.Query()
-	if query.Get("force") != "" {
+	if rc.Query("force") != "" {
 		// 判断是否强制连接，是的话，查询是否有正在连接的会话，有的话强制关闭
-		if cast.ToBool(query.Get("force")) {
+		if cast.ToBool(rc.Query("force")) {
 			tn := sessions.Get(ac)
 			if tn != nil {
 				_ = tn.Close()
@@ -318,7 +357,7 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 		}
 	}
 
-	tunnel, err := guac.DoConnect(query, params, rc.GetLoginAccount().Username)
+	tunnel, err := guac.DoConnect(request.URL.Query(), params, rc.GetLoginAccount().Username)
 	if err != nil {
 		return
 	}
@@ -328,9 +367,9 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 		}
 	}()
 
-	sessions.Add(ac, wsConn, g.Request, tunnel)
+	sessions.Add(ac, wsConn, request, tunnel)
 
-	defer sessions.Delete(ac, wsConn, g.Request, tunnel)
+	defer sessions.Delete(ac, wsConn, request, tunnel)
 
 	writer := tunnel.AcquireWriter()
 	reader := tunnel.AcquireReader()

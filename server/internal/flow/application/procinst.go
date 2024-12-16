@@ -45,8 +45,8 @@ type Procinst interface {
 type procinstAppImpl struct {
 	base.AppImpl[*entity.Procinst, repository.Procinst]
 
-	procinstTaskRepo repository.ProcinstTask `inject:"ProcinstTaskRepo"`
-	procdefApp       Procdef                 `inject:"ProcdefApp"`
+	procinstTaskRepo repository.ProcinstTask `inject:"T"`
+	procdefApp       Procdef                 `inject:"T"`
 }
 
 var _ (Procinst) = (*procinstAppImpl)(nil)

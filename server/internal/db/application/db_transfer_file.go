@@ -25,11 +25,7 @@ var _ DbTransferFile = (*dbTransferFileAppImpl)(nil)
 type dbTransferFileAppImpl struct {
 	base.AppImpl[*entity.DbTransferFile, repository.DbTransferFile]
 
-	fileApp fileapp.File `inject:"FileApp"`
-}
-
-func (app *dbTransferFileAppImpl) InjectDbTransferFileRepo(repo repository.DbTransferFile) {
-	app.Repo = repo
+	fileApp fileapp.File `inject:"T"`
 }
 
 func (app *dbTransferFileAppImpl) GetPageList(condition *entity.DbTransferFileQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

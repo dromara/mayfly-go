@@ -8,16 +8,25 @@ import (
 )
 
 type Syslog struct {
-	SyslogApp application.Syslog `inject:""`
+	syslogApp application.Syslog `inject:"T"`
+}
+
+func (s *Syslog) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("", s.Syslogs),
+		req.NewGet("/:id", s.SyslogDetail),
+	}
+
+	return req.NewConfs("syslogs", reqs[:]...)
 }
 
 func (r *Syslog) Syslogs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.SysLogQuery](rc, new(entity.SysLogQuery))
-	res, err := r.SyslogApp.GetPageList(queryCond, page, new([]entity.SysLog), "create_time DESC")
+	res, err := r.syslogApp.GetPageList(queryCond, page, new([]entity.SysLog), "create_time DESC")
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (r *Syslog) SyslogDetail(rc *req.Ctx) {
-	rc.ResData = r.SyslogApp.GetLogDetail(uint64(rc.PathParamInt("id")))
+	rc.ResData = r.syslogApp.GetLogDetail(uint64(rc.PathParamInt("id")))
 }

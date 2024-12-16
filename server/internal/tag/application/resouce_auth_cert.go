@@ -51,7 +51,7 @@ type ResourceAuthCert interface {
 type resourceAuthCertAppImpl struct {
 	base.AppImpl[*entity.ResourceAuthCert, repository.ResourceAuthCert]
 
-	tagTreeApp TagTree `inject:"TagTreeApp"`
+	tagTreeApp TagTree `inject:"T"`
 }
 
 func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dto.RelateAuthCert) error {

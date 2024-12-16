@@ -4,23 +4,19 @@ import (
 	"fmt"
 	"io/fs"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/middleware"
+	"mayfly-go/pkg/req"
 	"mayfly-go/static"
 	"net/http"
+	"reflect"
 
 	"github.com/gin-gonic/gin"
 )
 
-// 初始化路由函数
-type InitRouterFunc func(router *gin.RouterGroup)
-
-var (
-	initRouterFuncs = make([]InitRouterFunc, 0)
-)
-
-// 添加初始化路由函数，由各个默认自行添加
-func AddInitRouterFunc(initRouterFunc InitRouterFunc) {
-	initRouterFuncs = append(initRouterFuncs, initRouterFunc)
+type RouterApi interface {
+	// ReqConfs 获取请求配置信息
+	ReqConfs() *req.Confs
 }
 
 func InitRouter() *gin.Engine {
@@ -46,11 +42,17 @@ func InitRouter() *gin.Engine {
 
 	// 设置路由组
 	api := router.Group(serverConfig.ContextPath + "/api")
-	// 调用所有模块注册的初始化路由函数
-	for _, initRouterFunc := range initRouterFuncs {
-		initRouterFunc(api)
+
+	// 获取所有实现了RouterApi接口的实例，并注册对应路由
+	ras := ioc.GetBeansByType[RouterApi](reflect.TypeOf((*RouterApi)(nil)).Elem())
+	for _, ra := range ras {
+		confs := ra.ReqConfs()
+		if group := confs.Group; group != "" {
+			req.BatchSetGroup(api.Group(group), confs.Confs)
+		} else {
+			req.BatchSetGroup(api, confs.Confs)
+		}
 	}
-	initRouterFuncs = nil
 
 	return router
 }

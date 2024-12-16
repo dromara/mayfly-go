@@ -1,23 +1,28 @@
 package api
 
 import (
-	"mayfly-go/internal/machine/application"
 	tagapp "mayfly-go/internal/tag/application"
-	"mayfly-go/internal/tag/domain/entity"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )
 
 type Dashbord struct {
-	TagTreeApp tagapp.TagTree      `inject:""`
-	MachineApp application.Machine `inject:""`
+	tagTreeApp tagapp.TagTree `inject:"T"`
+}
+
+func (d *Dashbord) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("/machines/dashbord", d.Dashbord),
+	}
+
+	return req.NewConfs("", reqs[:]...)
 }
 
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
 
-	tagCodePaths := m.TagTreeApp.GetAccountTags(accountId, &tagentity.TagTreeQuery{TypePaths: collx.AsArray(entity.NewTypePaths(tagentity.TagTypeMachine, tagentity.TagTypeAuthCert))}).GetCodePaths()
+	tagCodePaths := m.tagTreeApp.GetAccountTags(accountId, &tagentity.TagTreeQuery{TypePaths: collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMachine, tagentity.TagTypeAuthCert))}).GetCodePaths()
 	machineCodes := tagentity.GetCodesByCodePaths(tagentity.TagTypeMachine, tagCodePaths...)
 
 	rc.ResData = collx.M{

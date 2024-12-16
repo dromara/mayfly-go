@@ -21,7 +21,7 @@ type ResourceOpLog interface {
 type resourceOpLogAppImpl struct {
 	base.AppImpl[*entity.ResourceOpLog, repository.ResourceOpLog]
 
-	tagTreeApp TagTree `inject:"TagTreeApp"`
+	tagTreeApp TagTree `inject:"T"`
 }
 
 var _ (ResourceOpLog) = (*resourceOpLogAppImpl)(nil)

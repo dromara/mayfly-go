@@ -10,7 +10,21 @@ import (
 )
 
 type File struct {
-	FileApp application.File `inject:""`
+	fileApp application.File `inject:"T"`
+}
+
+func (f *File) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("/detail/:keys", f.GetFileByKeys).DontNeedToken(),
+
+		req.NewGet("/:key", f.GetFileContent).DontNeedToken().NoRes(),
+
+		req.NewPost("/upload", f.Upload).Log(req.NewLogSave("file-文件上传")),
+
+		req.NewDelete("/:key", f.Remove).Log(req.NewLogSave("file-文件删除")),
+	}
+
+	return req.NewConfs("/sys/files", reqs[:]...)
 }
 
 func (f *File) GetFileByKeys(rc *req.Ctx) {
@@ -18,7 +32,7 @@ func (f *File) GetFileByKeys(rc *req.Ctx) {
 	biz.NotEmpty(keysStr, "keys cannot be empty")
 
 	var files []vo.SimpleFile
-	err := f.FileApp.ListByCondToAny(model.NewCond().In("file_key", strings.Split(keysStr, ",")), &files)
+	err := f.fileApp.ListByCondToAny(model.NewCond().In("file_key", strings.Split(keysStr, ",")), &files)
 	biz.ErrIsNil(err)
 	rc.ResData = files
 }
@@ -27,7 +41,7 @@ func (f *File) GetFileContent(rc *req.Ctx) {
 	key := rc.PathParam("key")
 	biz.NotEmpty(key, "key cannot be empty")
 
-	filename, reader, err := f.FileApp.GetReader(rc.MetaCtx, key)
+	filename, reader, err := f.fileApp.GetReader(rc.MetaCtx, key)
 	if err != nil {
 		rc.GetWriter().Write([]byte(err.Error()))
 		return
@@ -43,11 +57,11 @@ func (f *File) Upload(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "read file error: %s")
 	defer file.Close()
 
-	fileKey, err := f.FileApp.Upload(rc.MetaCtx, rc.Query("fileKey"), file.FileName(), file)
+	fileKey, err := f.fileApp.Upload(rc.MetaCtx, rc.Query("fileKey"), file.FileName(), file)
 	biz.ErrIsNil(err)
 	rc.ResData = fileKey
 }
 
 func (f *File) Remove(rc *req.Ctx) {
-	biz.ErrIsNil(f.FileApp.Remove(rc.MetaCtx, rc.PathParam("key")))
+	biz.ErrIsNil(f.fileApp.Remove(rc.MetaCtx, rc.PathParam("key")))
 }

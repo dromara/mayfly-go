@@ -25,7 +25,7 @@ type Account interface {
 type accountAppImpl struct {
 	base.AppImpl[*entity.Account, repository.Account]
 
-	accountRoleRepo repository.AccountRole `inject:"AccountRoleRepo"`
+	accountRoleRepo repository.AccountRole `inject:"T"`
 }
 
 func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

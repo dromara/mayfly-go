@@ -47,15 +47,13 @@ type DataSyncTask interface {
 type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
 
-	dbDataSyncLogRepo repository.DataSyncLog `inject:"DbDataSyncLogRepo"`
+	dbDataSyncLogRepo repository.DataSyncLog `inject:"T"`
 
-	dbApp Db `inject:"DbApp"`
+	dbApp Db `inject:"T"`
 }
 
 var (
-	dateTimeReg    = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`)
-	dateTimeIsoReg = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*$`)
-	whereReg       = regexp.MustCompile(`(?i)where`)
+	whereReg = regexp.MustCompile(`(?i)where`)
 )
 
 func (app *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {

@@ -2,18 +2,18 @@ package init
 
 import (
 	"mayfly-go/initialize"
+	"mayfly-go/internal/db/api"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/infrastructure/persistence"
-	"mayfly-go/internal/db/router"
 )
 
 func init() {
 	initialize.AddInitIocFunc(func() {
 		persistence.InitIoc()
 		application.InitIoc()
+		api.InitIoc()
 	})
 
-	initialize.AddInitRouterFunc(router.Init)
 	initialize.AddInitFunc(application.Init)
 	initialize.AddTerminateFunc(Terminate)
 }

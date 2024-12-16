@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/internal/machine/imsg"
 
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -15,18 +16,30 @@ import (
 )
 
 type MachineCmdConf struct {
-	MachineCmdConfApp application.MachineCmdConf `inject:""`
-	TagTreeRelateApp  tagapp.TagTreeRelate       `inject:"TagTreeRelateApp"`
+	machineCmdConfApp application.MachineCmdConf `inject:"T"`
+	tagTreeRelateApp  tagapp.TagTreeRelate       `inject:"T"`
+}
+
+func (mcc *MachineCmdConf) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("", mcc.MachineCmdConfs),
+
+		req.NewPost("", mcc.Save).Log(req.NewLogSaveI(imsg.LogMachineSecurityCmdSave)).RequiredPermissionCode("cmdconf:save"),
+
+		req.NewDelete(":id", mcc.Delete).Log(req.NewLogSaveI(imsg.LogMachineSecurityCmdDelete)).RequiredPermissionCode("cmdconf:del"),
+	}
+
+	return req.NewConfs("machine/security/cmd-confs", reqs[:]...)
 }
 
 func (m *MachineCmdConf) MachineCmdConfs(rc *req.Ctx) {
 	cond := req.BindQuery(rc, new(entity.MachineCmdConf))
 
 	var vos []*vo.MachineCmdConfVO
-	err := m.MachineCmdConfApp.ListByCondToAny(cond, &vos)
+	err := m.machineCmdConfApp.ListByCondToAny(cond, &vos)
 	biz.ErrIsNil(err)
 
-	m.TagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeMachineCmd, collx.ArrayMap(vos, func(mvo *vo.MachineCmdConfVO) tagentity.IRelateTag {
+	m.tagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeMachineCmd, collx.ArrayMap(vos, func(mvo *vo.MachineCmdConfVO) tagentity.IRelateTag {
 		return mvo
 	})...)
 
@@ -38,7 +51,7 @@ func (m *MachineCmdConf) Save(rc *req.Ctx) {
 	mcj := req.BindJsonAndCopyTo[*entity.MachineCmdConf](rc, cmdForm, new(entity.MachineCmdConf))
 	rc.ReqParam = cmdForm
 
-	err := m.MachineCmdConfApp.SaveCmdConf(rc.MetaCtx, &dto.SaveMachineCmdConf{
+	err := m.machineCmdConfApp.SaveCmdConf(rc.MetaCtx, &dto.SaveMachineCmdConf{
 		CmdConf:   mcj,
 		CodePaths: cmdForm.CodePaths,
 	})
@@ -46,5 +59,5 @@ func (m *MachineCmdConf) Save(rc *req.Ctx) {
 }
 
 func (m *MachineCmdConf) Delete(rc *req.Ctx) {
-	m.MachineCmdConfApp.DeleteCmdConf(rc.MetaCtx, uint64(rc.PathParamInt("id")))
+	m.machineCmdConfApp.DeleteCmdConf(rc.MetaCtx, uint64(rc.PathParamInt("id")))
 }

@@ -69,7 +69,7 @@ type TagTree interface {
 type tagTreeAppImpl struct {
 	base.AppImpl[*entity.TagTree, repository.TagTree]
 
-	tagTreeRelateApp TagTreeRelate `inject:"TagTreeRelateApp"`
+	tagTreeRelateApp TagTreeRelate `inject:"T"`
 }
 
 var _ (TagTree) = (*tagTreeAppImpl)(nil)

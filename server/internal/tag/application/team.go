@@ -47,10 +47,6 @@ type teamAppImpl struct {
 
 var _ (Team) = (*teamAppImpl)(nil)
 
-func (p *teamAppImpl) InjectTeamRepo(repo repository.Team) {
-	p.Repo = repo
-}
-
 func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
 }
@@ -64,39 +60,43 @@ func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) err
 	}
 	team.Id = saveParam.Id
 
-	if team.Id == 0 {
-		if p.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
-			return errorx.NewBizI(ctx, imsg.ErrNameExist)
+	return p.Tx(ctx, func(ctx context.Context) error {
+		if team.Id == 0 {
+			if p.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
+				return errorx.NewBizI(ctx, imsg.ErrNameExist)
+			}
+
+			if err := p.Insert(ctx, team); err != nil {
+				return err
+			}
+
+			loginAccount := contextx.GetLoginAccount(ctx)
+			logx.InfoContext(ctx, "Add [%s] to the [%s] team by default", loginAccount.Username, team.Name)
+
+			teamMem := &entity.TeamMember{}
+			teamMem.AccountId = loginAccount.Id
+			teamMem.Username = loginAccount.Username
+			teamMem.TeamId = team.Id
+			if err := p.SaveMember(ctx, teamMem); err != nil {
+				return err
+			}
+		} else {
+			// 置空名称，防止变更
+			team.Name = ""
+			if err := p.UpdateById(ctx, team); err != nil {
+				return err
+			}
 		}
 
-		if err := p.Insert(ctx, team); err != nil {
-			return err
+		// 删除该团队关联账号的标签缓存
+		teamMembers, _ := p.teamMemberRepo.SelectByCond(&entity.TeamMember{TeamId: team.Id})
+		for _, tm := range teamMembers {
+			cache.DelAccountTagPaths(tm.AccountId)
 		}
 
-		loginAccount := contextx.GetLoginAccount(ctx)
-		logx.InfoContext(ctx, "Add [%s] to the [%s] team by default", loginAccount.Username, team.Name)
-
-		teamMem := &entity.TeamMember{}
-		teamMem.AccountId = loginAccount.Id
-		teamMem.Username = loginAccount.Username
-		teamMem.TeamId = team.Id
-		p.SaveMember(ctx, teamMem)
-	} else {
-		// 置空名称，防止变更
-		team.Name = ""
-		if err := p.UpdateById(ctx, team); err != nil {
-			return err
-		}
-	}
-
-	// 删除该团队关联账号的标签缓存
-	teamMembers, _ := p.teamMemberRepo.SelectByCond(&entity.TeamMember{TeamId: team.Id})
-	for _, tm := range teamMembers {
-		cache.DelAccountTagPaths(tm.AccountId)
-	}
-
-	// 保存团队关联的标签信息
-	return p.tagTreeRelateApp.RelateTag(ctx, entity.TagRelateTypeTeam, team.Id, saveParam.CodePaths...)
+		// 保存团队关联的标签信息
+		return p.tagTreeRelateApp.RelateTag(ctx, entity.TagRelateTypeTeam, team.Id, saveParam.CodePaths...)
+	})
 }
 
 func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {

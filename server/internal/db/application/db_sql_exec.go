@@ -65,11 +65,11 @@ type DbSqlExec interface {
 }
 
 type dbSqlExecAppImpl struct {
-	dbApp         Db                   `inject:"DbApp"`
-	dbSqlExecRepo repository.DbSqlExec `inject:"DbSqlExecRepo"`
+	dbApp         Db                   `inject:"T"`
+	dbSqlExecRepo repository.DbSqlExec `inject:"T"`
 
-	flowProcdefApp flowapp.Procdef `inject:"ProcdefApp"`
-	msgApp         msgapp.Msg      `inject:"MsgApp"`
+	flowProcdefApp flowapp.Procdef `inject:"T"`
+	msgApp         msgapp.Msg      `inject:"T"`
 }
 
 func createSqlExecRecord(ctx context.Context, execSqlReq *dto.DbSqlExecReq, sql string) *entity.DbSqlExec {

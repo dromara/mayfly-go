@@ -52,19 +52,14 @@ type Db interface {
 type dbAppImpl struct {
 	base.AppImpl[*entity.Db, repository.Db]
 
-	dbSqlRepo           repository.DbSql        `inject:"DbSqlRepo"`
-	dbInstanceApp       Instance                `inject:"DbInstanceApp"`
-	dbSqlExecApp        DbSqlExec               `inject:"DbSqlExecApp"`
-	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
+	dbSqlRepo           repository.DbSql        `inject:"T"`
+	dbInstanceApp       Instance                `inject:"T"`
+	dbSqlExecApp        DbSqlExec               `inject:"T"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
 var _ (Db) = (*dbAppImpl)(nil)
-
-// 注入DbRepo
-func (d *dbAppImpl) InjectDbRepo(repo repository.Db) {
-	d.Repo = repo
-}
 
 // 分页获取数据库信息列表
 func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

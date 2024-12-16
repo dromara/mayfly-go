@@ -8,12 +8,20 @@ import (
 )
 
 type Dashbord struct {
-	TagTreeApp tagapp.TagTree `inject:""`
+	tagTreeApp tagapp.TagTree `inject:"T"`
+}
+
+func (d *Dashbord) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("/mongos/dashbord", d.Dashbord),
+	}
+
+	return req.NewConfs("", reqs[:]...)
 }
 
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
-	mongoNum := len(m.TagTreeApp.GetAccountTags(accountId, &tagentity.TagTreeQuery{Types: []tagentity.TagType{
+	mongoNum := len(m.tagTreeApp.GetAccountTags(accountId, &tagentity.TagTreeQuery{Types: []tagentity.TagType{
 		tagentity.TagTypeMongo,
 	}}))
 

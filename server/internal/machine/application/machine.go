@@ -63,8 +63,8 @@ type Machine interface {
 type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
-	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
 var _ (Machine) = (*machineAppImpl)(nil)

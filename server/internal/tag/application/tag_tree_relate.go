@@ -35,9 +35,7 @@ type TagTreeRelate interface {
 type tagTreeRelateAppImpl struct {
 	base.AppImpl[*entity.TagTreeRelate, repository.TagTreeRelate]
 
-	tagTreeRelateRepo repository.TagTreeRelate `inject:"TagTreeRelateRepo"`
-
-	tagTreeApp TagTree `inject:"TagTreeApp"`
+	tagTreeApp TagTree `inject:"T"`
 }
 
 var _ (TagTreeRelate) = (*tagTreeRelateAppImpl)(nil)
@@ -99,15 +97,15 @@ func (tr *tagTreeRelateAppImpl) GetRelateIds(ctx context.Context, relateType ent
 		// 追加可能关联的标签路径，如tagPath = tag1/tag2/1|xxx/，需要获取所有关联的自身及父标签（tag1/  tag1/tag2/ tag1/tag2/1|xxx）
 		poisibleTagPaths = append(poisibleTagPaths, entity.CodePath(tagPath).GetAllPath()...)
 	}
-	return tr.tagTreeRelateRepo.SelectRelateIdsByTagPaths(relateType, poisibleTagPaths...)
+	return tr.GetRepo().SelectRelateIdsByTagPaths(relateType, poisibleTagPaths...)
 }
 
 func (tr *tagTreeRelateAppImpl) GetTagPathsByAccountId(accountId uint64) []string {
-	return tr.tagTreeRelateRepo.SelectTagPathsByAccountId(accountId)
+	return tr.GetRepo().SelectTagPathsByAccountId(accountId)
 }
 
 func (tr *tagTreeRelateAppImpl) GetTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) []string {
-	return tr.tagTreeRelateRepo.SelectTagPathsByRelate(relateType, relateId)
+	return tr.GetRepo().SelectTagPathsByRelate(relateType, relateId)
 }
 
 func (tr *tagTreeRelateAppImpl) FillTagInfo(relateType entity.TagRelateType, relates ...entity.IRelateTag) {

@@ -61,14 +61,10 @@ type DbTransferTask interface {
 type dbTransferAppImpl struct {
 	base.AppImpl[*entity.DbTransferTask, repository.DbTransferTask]
 
-	dbApp           Db             `inject:"DbApp"`
-	logApp          sysapp.Syslog  `inject:"SyslogApp"`
-	transferFileApp DbTransferFile `inject:"DbTransferFileApp"`
-	fileApp         fileapp.File   `inject:"FileApp"`
-}
-
-func (app *dbTransferAppImpl) InjectDbTransferTaskRepo(repo repository.DbTransferTask) {
-	app.Repo = repo
+	dbApp           Db             `inject:"T"`
+	logApp          sysapp.Syslog  `inject:"T"`
+	transferFileApp DbTransferFile `inject:"T"`
+	fileApp         fileapp.File   `inject:"T"`
 }
 
 func (app *dbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

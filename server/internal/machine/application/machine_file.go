@@ -83,7 +83,7 @@ type MachineFile interface {
 type machineFileAppImpl struct {
 	base.AppImpl[*entity.MachineFile, repository.MachineFile]
 
-	machineApp Machine `inject:"MachineApp"`
+	machineApp Machine `inject:"T"`
 }
 
 // 注入MachineFileRepo

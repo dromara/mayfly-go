@@ -46,8 +46,8 @@ type Role interface {
 type roleAppImpl struct {
 	base.AppImpl[*entity.Role, repository.Role]
 
-	accountRoleRepo  repository.AccountRole  `inject:"AccountRoleRepo"`
-	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
+	accountRoleRepo  repository.AccountRole  `inject:"T"`
+	roleResourceRepo repository.RoleResource `inject:"T"`
 }
 
 var _ (Role) = (*roleAppImpl)(nil)

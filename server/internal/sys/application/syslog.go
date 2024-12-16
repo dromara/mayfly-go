@@ -56,11 +56,11 @@ type Syslog interface {
 }
 
 type syslogAppImpl struct {
-	SyslogRepo repository.Syslog `inject:""`
+	syslogRepo repository.Syslog `inject:"T"`
 }
 
 func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.SyslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return m.syslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
@@ -106,7 +106,7 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		syslog.Type = entity.SyslogTypeSuccess
 	}
 
-	m.SyslogRepo.Insert(req.MetaCtx, syslog)
+	m.syslogRepo.Insert(req.MetaCtx, syslog)
 }
 
 func (m *syslogAppImpl) GetLogDetail(logId uint64) *entity.SysLog {
@@ -114,7 +114,7 @@ func (m *syslogAppImpl) GetLogDetail(logId uint64) *entity.SysLog {
 	if syslog != nil {
 		return syslog
 	}
-	syslog, err := m.SyslogRepo.GetById(logId)
+	syslog, err := m.syslogRepo.GetById(logId)
 	if err != nil {
 		return nil
 	}
@@ -128,7 +128,7 @@ func (m *syslogAppImpl) CreateLog(ctx context.Context, log *CreateLogReq) (uint6
 	if len(log.Extra) > 0 {
 		syslog.Extra = jsonx.ToStr(log.Extra)
 	}
-	if err := m.SyslogRepo.Insert(ctx, syslog); err != nil {
+	if err := m.syslogRepo.Insert(ctx, syslog); err != nil {
 		return 0, err
 	}
 	return syslog.Id, nil
@@ -137,7 +137,7 @@ func (m *syslogAppImpl) CreateLog(ctx context.Context, log *CreateLogReq) (uint6
 func (m *syslogAppImpl) AppendLog(logId uint64, appendLog *AppendLogReq) {
 	syslog := m.GetCacheLog(logId)
 	if syslog == nil {
-		sl, err := m.SyslogRepo.GetById(logId)
+		sl, err := m.syslogRepo.GetById(logId)
 		if err != nil {
 			logx.Warnf("追加日志不存在: %d", logId)
 			return
@@ -159,7 +159,7 @@ func (m *syslogAppImpl) AppendLog(logId uint64, appendLog *AppendLogReq) {
 func (m *syslogAppImpl) SetExtra(logId uint64, key string, val any) {
 	syslog := m.GetCacheLog(logId)
 	if syslog == nil {
-		sl, err := m.SyslogRepo.GetById(logId)
+		sl, err := m.syslogRepo.GetById(logId)
 		if err != nil {
 			logx.Warnf("追加日志不存在: %d", logId)
 			return
@@ -195,7 +195,7 @@ func (m *syslogAppImpl) Flush(logId uint64, clearExtra bool) {
 	if clearExtra {
 		syslog.Extra = ""
 	}
-	m.SyslogRepo.UpdateById(context.Background(), syslog)
+	m.syslogRepo.UpdateById(context.Background(), syslog)
 	m.DelCacheLog(logId)
 }
 

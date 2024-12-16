@@ -16,12 +16,12 @@ func (r *Redis) RunCmd(rc *req.Ctx) {
 	biz.IsTrue(len(cmdReq.Cmd) > 0, "redis cmd cannot be empty")
 
 	redisConn := r.getRedisConn(rc)
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(r.tagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.CodePath...), "%s")
 	rc.ReqParam = collx.Kvs("redis", redisConn.Info, "cmd", cmdReq.Cmd)
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, redisConn.Info.CodePath[0])
 
-	res, err := r.RedisApp.RunCmd(rc.MetaCtx, redisConn, runCmdParam)
+	res, err := r.redisApp.RunCmd(rc.MetaCtx, redisConn, runCmdParam)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

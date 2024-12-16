@@ -31,7 +31,7 @@ type MachineCmdConf interface {
 type machineCmdConfAppImpl struct {
 	base.AppImpl[*entity.MachineCmdConf, repository.MachineCmdConf]
 
-	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
 var _ (MachineCmdConf) = (*machineCmdConfAppImpl)(nil)

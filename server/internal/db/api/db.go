@@ -33,11 +33,46 @@ import (
 )
 
 type Db struct {
-	InstanceApp  application.Instance  `inject:"DbInstanceApp"`
-	DbApp        application.Db        `inject:""`
-	DbSqlExecApp application.DbSqlExec `inject:""`
-	MsgApp       msgapp.Msg            `inject:""`
-	TagApp       tagapp.TagTree        `inject:"TagTreeApp"`
+	instanceApp  application.Instance  `inject:"T"`
+	dbApp        application.Db        `inject:"T"`
+	dbSqlExecApp application.DbSqlExec `inject:"T"`
+	msgApp       msgapp.Msg            `inject:"T"`
+	tagApp       tagapp.TagTree        `inject:"T"`
+}
+
+func (d *Db) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取数据库列表
+		req.NewGet("", d.Dbs),
+
+		req.NewPost("", d.Save).Log(req.NewLogSaveI(imsg.LogDbSave)),
+
+		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSaveI(imsg.LogDbDelete)),
+
+		req.NewGet(":dbId/t-create-ddl", d.GetTableDDL),
+
+		req.NewGet(":dbId/version", d.GetVersion),
+
+		req.NewGet(":dbId/pg/schemas", d.GetSchemas),
+
+		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLogI(imsg.LogDbRunSql)),
+
+		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSaveI(imsg.LogDbRunSqlFile)).RequiredPermissionCode("db:sqlscript:run"),
+
+		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
+
+		req.NewGet(":dbId/t-infos", d.TableInfos),
+
+		req.NewGet(":dbId/t-index", d.TableIndex),
+
+		req.NewGet(":dbId/c-metadata", d.ColumnMA),
+
+		req.NewGet(":dbId/hint-tables", d.HintTables),
+
+		req.NewPost(":dbId/copy-table", d.CopyTable),
+	}
+
+	return req.NewConfs("/dbs", reqs[:]...)
 }
 
 // @router /api/dbs [get]
@@ -45,7 +80,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert, tagentity.TagTypeDb)),
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
@@ -56,10 +91,10 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond.Codes = tags.GetCodes()
 
 	var dbvos []*vo.DbListVO
-	res, err := d.DbApp.GetPageList(queryCond, page, &dbvos)
+	res, err := d.dbApp.GetPageList(queryCond, page, &dbvos)
 	biz.ErrIsNil(err)
 
-	instances, _ := d.InstanceApp.GetByIds(collx.ArrayMap(dbvos, func(i *vo.DbListVO) uint64 {
+	instances, _ := d.instanceApp.GetByIds(collx.ArrayMap(dbvos, func(i *vo.DbListVO) uint64 {
 		return i.InstanceId
 	}))
 	instancesMap := collx.ArrayToMap(instances, func(i *entity.DbInstance) uint64 {
@@ -84,7 +119,7 @@ func (d *Db) Save(rc *req.Ctx) {
 
 	rc.ReqParam = form
 
-	biz.ErrIsNil(d.DbApp.SaveDb(rc.MetaCtx, db))
+	biz.ErrIsNil(d.dbApp.SaveDb(rc.MetaCtx, db))
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
@@ -94,7 +129,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 
 	ctx := rc.MetaCtx
 	for _, v := range ids {
-		biz.ErrIsNil(d.DbApp.Delete(ctx, cast.ToUint64(v)))
+		biz.ErrIsNil(d.dbApp.Delete(ctx, cast.ToUint64(v)))
 	}
 }
 
@@ -104,9 +139,9 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	form := req.BindJsonAndValid(rc, new(form.DbSqlExecForm))
 
 	dbId := getDbId(rc)
-	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
+	dbConn, err := d.dbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
 	sqlStr, err := cryptox.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
@@ -127,7 +162,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
 	defer cancel()
 
-	execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
+	execRes, err := d.dbSqlExecApp.Exec(ctx, execReq)
 	biz.ErrIsNil(err)
 	rc.ResData = execRes
 }
@@ -155,12 +190,12 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	dbName := getDbName(rc)
 	clientId := rc.Query("clientId")
 
-	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
+	dbConn, err := d.dbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
-	biz.ErrIsNil(d.DbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
+	biz.ErrIsNil(d.dbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
 		Reader:   file,
 		Filename: filename,
 		DbConn:   dbConn,
@@ -188,9 +223,9 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	needData := dumpType == "2" || dumpType == "3"
 
 	la := rc.GetLoginAccount()
-	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
+	dbConn, err := d.dbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, dbConn.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(la.Id, dbConn.Info.CodePath...), "%s")
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s-%s.%s.sql%s", dbConn.Info.Name, dbName, now.Format("20060102150405"), extName)
@@ -210,11 +245,11 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		if len(msg) > 0 {
 			msg = "DB dump error: " + msg
 			rc.GetWriter().Write([]byte(msg))
-			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.T(imsg.DbDumpErr), msg))
+			d.msgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.T(imsg.DbDumpErr), msg))
 		}
 	}()
 
-	biz.ErrIsNil(d.DbApp.DumpDb(rc.MetaCtx, &dto.DumpDb{
+	biz.ErrIsNil(d.dbApp.DumpDb(rc.MetaCtx, &dto.DumpDb{
 		DbId:     dbId,
 		DbName:   dbName,
 		Tables:   tables,
@@ -316,7 +351,7 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 	form := &form.DbCopyTableForm{}
 	copy := req.BindJsonAndCopyTo[*dbi.DbCopyTable](rc, form, new(dbi.DbCopyTable))
 
-	conn, err := d.DbApp.GetDbConn(form.Id, form.Db)
+	conn, err := d.dbApp.GetDbConn(form.Id, form.Db)
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")
 
 	err = conn.GetDialect().CopyTable(copy)
@@ -339,7 +374,7 @@ func getDbName(rc *req.Ctx) string {
 }
 
 func (d *Db) getDbConn(rc *req.Ctx) *dbi.DbConn {
-	dc, err := d.DbApp.GetDbConn(getDbId(rc), getDbName(rc))
+	dc, err := d.dbApp.GetDbConn(getDbId(rc), getDbName(rc))
 	biz.ErrIsNil(err)
 	return dc
 }

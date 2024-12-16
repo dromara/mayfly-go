@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/internal/tag/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -14,7 +15,23 @@ import (
 )
 
 type ResourceAuthCert struct {
-	ResourceAuthCertApp application.ResourceAuthCert `inject:""`
+	resourceAuthCertApp application.ResourceAuthCert `inject:"T"`
+}
+
+func (r *ResourceAuthCert) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("", r.ListByQuery),
+
+		req.NewGet("/simple", r.SimpleAc),
+
+		req.NewGet("/detail", r.GetCompleteAuthCert).Log(req.NewLogSaveI(imsg.LogAcShowPwd)).RequiredPermissionCode("authcert:showciphertext"),
+
+		req.NewPost("", r.SaveAuthCert).Log(req.NewLogSaveI(imsg.LogAcSave)).RequiredPermissionCode("authcert:save"),
+
+		req.NewDelete(":id", r.Delete).Log(req.NewLogSaveI(imsg.LogAcDelete)).RequiredPermissionCode("authcert:del"),
+	}
+
+	return req.NewConfs("/auth-certs", reqs[:]...)
 }
 
 func (r *ResourceAuthCert) ListByQuery(rc *req.Ctx) {
@@ -25,7 +42,7 @@ func (r *ResourceAuthCert) ListByQuery(rc *req.Ctx) {
 	cond.CiphertextType = entity.AuthCertCiphertextType(rc.QueryInt("ciphertextType"))
 	cond.Name = rc.Query("name")
 
-	res, err := r.ResourceAuthCertApp.PageByCond(cond, rc.GetPageParam())
+	res, err := r.resourceAuthCertApp.PageByCond(cond, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	for _, rac := range res.List {
 		rac.CiphertextClear()
@@ -38,7 +55,7 @@ func (m *ResourceAuthCert) SimpleAc(rc *req.Ctx) {
 	biz.NotEmpty(acCodesStr, "codes不能为空")
 
 	var vos []vo.SimpleResourceAuthCert
-	m.ResourceAuthCertApp.ListByCondToAny(model.NewCond().In("name", strings.Split(acCodesStr, ",")), &vos)
+	m.resourceAuthCertApp.ListByCondToAny(model.NewCond().In("name", strings.Split(acCodesStr, ",")), &vos)
 	rc.ResData = vos
 }
 
@@ -48,7 +65,7 @@ func (r *ResourceAuthCert) GetCompleteAuthCert(rc *req.Ctx) {
 	rc.ReqParam = acName
 
 	res := &entity.ResourceAuthCert{Name: acName}
-	err := r.ResourceAuthCertApp.GetByCond(res)
+	err := r.resourceAuthCertApp.GetByCond(res)
 	biz.ErrIsNil(err)
 	res.CiphertextDecrypt()
 	rc.ResData = res
@@ -62,11 +79,11 @@ func (c *ResourceAuthCert) SaveAuthCert(rc *req.Ctx) {
 	acForm.Ciphertext = "***"
 	rc.ReqParam = acForm
 
-	biz.ErrIsNil(c.ResourceAuthCertApp.SaveAuthCert(rc.MetaCtx, ac))
+	biz.ErrIsNil(c.resourceAuthCertApp.SaveAuthCert(rc.MetaCtx, ac))
 }
 
 func (c *ResourceAuthCert) Delete(rc *req.Ctx) {
 	id := rc.PathParamInt("id")
 	rc.ReqParam = id
-	biz.ErrIsNil(c.ResourceAuthCertApp.DeleteAuthCert(rc.MetaCtx, cast.ToUint64(id)))
+	biz.ErrIsNil(c.resourceAuthCertApp.DeleteAuthCert(rc.MetaCtx, cast.ToUint64(id)))
 }

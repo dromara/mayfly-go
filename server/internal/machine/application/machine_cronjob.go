@@ -42,11 +42,11 @@ type MachineCronJob interface {
 type machineCronJobAppImpl struct {
 	base.AppImpl[*entity.MachineCronJob, repository.MachineCronJob]
 
-	machineCronJobExecRepo repository.MachineCronJobExec `inject:"MachineCronJobExecRepo"`
-	machineApp             Machine                       `inject:"MachineApp"`
+	machineCronJobExecRepo repository.MachineCronJobExec `inject:"T"`
+	machineApp             Machine                       `inject:"T"`
 
-	tagTreeApp       tagapp.TagTree       `inject:"TagTreeApp"`
-	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
+	tagTreeApp       tagapp.TagTree       `inject:"T"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
 var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)

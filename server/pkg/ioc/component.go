@@ -15,9 +15,12 @@ func WithComponentName(name string) ComponentOption {
 type Component struct {
 	Name string // 组件名
 
-	Type reflect.Type // 组件类型
-
 	Value any // 组件实例
+}
+
+// GetType 获取组件实例类型
+func (c *Component) GetType() reflect.Type {
+	return reflect.TypeOf(c.Value)
 }
 
 func NewComponent(val any, opts ...ComponentOption) *Component {

@@ -13,8 +13,3 @@ type DbSql interface {
 type dbSqlAppImpl struct {
 	base.AppImpl[*entity.DbSql, repository.DbSql]
 }
-
-// 注入DbSqlRepo
-func (d *dbSqlAppImpl) InjectDbSqlRepo(repo repository.DbSql) {
-	d.Repo = repo
-}

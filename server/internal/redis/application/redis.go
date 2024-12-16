@@ -55,9 +55,9 @@ type Redis interface {
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
-	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
-	procdefApp          flowapp.Procdef         `inject:"ProcdefApp"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+	procdefApp          flowapp.Procdef         `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
 // 分页获取redis列表
