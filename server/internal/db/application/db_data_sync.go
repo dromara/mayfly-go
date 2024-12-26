@@ -148,7 +148,24 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 				logx.ErrorfContext(ctx, "data source connection unavailable: %s", err.Error())
 				return
 			}
-			updSql = fmt.Sprintf("and %s > %s", task.UpdField, strings.Trim(task.UpdFieldVal, " "))
+			srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+			if err != nil {
+				logx.ErrorfContext(ctx, "failed to connect to the source database: %s", err.Error())
+				return
+			}
+
+			updFieldDataType := dbi.DefaultDbDataType
+			srcConn.WalkQueryRows(context.Background(), task.DataSql, func(row map[string]any, columns []*dbi.QueryColumn) error {
+				for _, column := range columns {
+					if strings.EqualFold(column.Name, cmp.Or(task.UpdFieldSrc, task.UpdField)) {
+						updFieldDataType = column.DbDataType
+						break
+					}
+				}
+				return errorx.NewBiz("get column data type")
+			})
+
+			updSql = fmt.Sprintf("and %s > %s", task.UpdField, updFieldDataType.DataType.SQLValue(task.UpdFieldVal))
 			orderSql = "order by " + task.UpdField + " asc "
 		}
 		// 正则判断DataSql是否以where .*结尾，如果是则不添加where 1 = 1
@@ -158,9 +175,9 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 		}
 
 		// 组装查询sql
-		sql := fmt.Sprintf("%s %s %s %s", task.DataSql, where, updSql, orderSql)
+		sqlStr := fmt.Sprintf("%s %s %s %s", task.DataSql, where, updSql, orderSql)
 
-		log, err := app.doDataSync(ctx, sql, task)
+		log, err := app.doDataSync(ctx, sqlStr, task)
 		if err != nil {
 			log.ErrText = fmt.Sprintf("execution failure: %s", err.Error())
 			logx.ErrorContext(ctx, log.ErrText)
@@ -335,11 +352,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	}
 
 	// 如果指定了更新字段，则以更新字段取值
-	if task.UpdFieldSrc != "" {
-		setUpdateFieldVal(task.UpdFieldSrc)
-	} else {
-		setUpdateFieldVal(updFieldName)
-	}
+	setUpdateFieldVal(cmp.Or(task.UpdFieldSrc, updFieldName))
 
 	targetDialect := targetDbConn.GetDialect()
 

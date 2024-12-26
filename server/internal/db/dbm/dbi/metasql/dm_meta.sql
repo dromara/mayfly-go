@@ -1,8 +1,8 @@
 --DM_DB_SCHEMAS 库schemas
-select
-    distinct owner as SCHEMA_NAME
-from all_objects
-order by owner
+SELECT
+    DISTINCT object_name as SCHEMA_NAME
+FROM ALL_OBJECTS
+WHERE OBJECT_TYPE = 'SCH'
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
 SELECT a.object_name                                      as TABLE_NAME,

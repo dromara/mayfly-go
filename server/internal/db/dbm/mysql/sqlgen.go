@@ -96,7 +96,7 @@ func (msg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, value
 }
 
 func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
-	dataType := string(column.DataType)
+	dataType := column.DataType
 
 	incr := ""
 	if column.IsIdentity {

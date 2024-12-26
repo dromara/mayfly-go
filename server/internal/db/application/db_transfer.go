@@ -309,6 +309,7 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 
 			err = sqlparser.SQLSplit(pr, func(stmt string) error {
 				if _, err := targetConn.TxExecContext(ctx, tx, stmt); err != nil {
+					app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("执行sql出错: %s", stmt), err, nil)
 					pw.CloseWithError(err)
 					return err
 				}

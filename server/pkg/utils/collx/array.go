@@ -185,3 +185,12 @@ func ArrayFilter[T any](array []T, fn func(T) bool) []T {
 	}
 	return filtered
 }
+
+func AnyMatch[T any](array []T, fn func(T) bool) bool {
+	for _, val := range array {
+		if fn(val) {
+			return true
+		}
+	}
+	return false
+}
