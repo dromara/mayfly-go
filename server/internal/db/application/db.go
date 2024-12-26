@@ -308,7 +308,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 		}
 		if len(tbs) <= 0 {
 			log(fmt.Sprintf("failed to get table [%s] information: No table information was retrieved", tableName))
-			return errorx.NewBiz(fmt.Sprintf("Failed to get table information: %s", tableName))
+			return errorx.NewBiz("Failed to get table information: %s", tableName)
 		}
 
 		tableInfo := tbs[0]

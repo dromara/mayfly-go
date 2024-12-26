@@ -446,11 +446,11 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 	}
 	execRecord.Table = tableName
 
-	whereStr := updatestmt.Where.GetText()
-	if whereStr == "" {
+	if updatestmt.Where == nil {
 		logx.ErrorContext(ctx, "update SQL - there is no where condition")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
+	whereStr := updatestmt.Where.GetText()
 
 	// 获取表主键列名,排除使用别名
 	primaryKey, err := dbConn.GetMetadata().GetPrimaryKey(tableName)
