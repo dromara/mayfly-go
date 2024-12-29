@@ -100,14 +100,16 @@ func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) []*dto.SimpleTa
 
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
 	cond := new(entity.TagTreeQuery)
-	tagPaths := rc.Query("tagPaths")
-	if tagPaths != "" {
+
+	cond.Id = uint64(rc.QueryInt("id"))
+
+	if tagPaths := rc.Query("tagPaths"); tagPaths != "" {
 		cond.CodePaths = strings.Split(tagPaths, ",")
 	}
-	cond.Id = uint64(rc.QueryInt("id"))
-	cond.Types = collx.AsArray(entity.TagType(rc.QueryInt("type")))
-	codes := rc.Query("codes")
-	if codes != "" {
+	if tagType := rc.QueryInt("type"); tagType > 0 {
+		cond.Types = collx.AsArray(entity.TagType(tagType))
+	}
+	if codes := rc.Query("codes"); codes != "" {
 		cond.Codes = strings.Split(codes, ",")
 	}
 

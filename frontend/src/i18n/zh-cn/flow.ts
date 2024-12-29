@@ -80,6 +80,9 @@ export default {
         redisRunCmd: 'Redis-执行命令',
 
         // task
+        approveNode: '审批节点',
+        approveForm: '审批表单',
+        approveResult: '审批结果',
         audit: '审核',
         procinstStatus: '流程状态',
         taskStatus: '任务状态',

@@ -7,6 +7,7 @@ export type MonacoEditorDialogProps = {
     language: string;
     height?: string;
     width?: string;
+    showConfirmButton?: boolean;
     confirmFn?: Function; // 点击确认的回调函数，入参editor value
     cancelFn?: Function; // 点击取消 或 关闭弹窗的回调函数
 };
@@ -16,7 +17,8 @@ const boxId = 'monaco-editor-dialog-id';
 let boxInstance: VNode;
 
 const MonacoEditorDialog = (props: MonacoEditorDialogProps): void => {
-    if (!boxInstance) {
+    const container = document.getElementById(boxId);
+    if (!container) {
         const container = document.createElement('div');
         container.id = boxId;
         // 创建 虚拟dom

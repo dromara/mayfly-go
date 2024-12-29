@@ -31,12 +31,9 @@
                         <el-tab-pane lazy label="ele" name="ele">
                             <IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
                         </el-tab-pane>
-                        <el-tab-pane lazy label="ali" name="ali">
+                        <el-tab-pane lazy label="other" name="other">
                             <IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
                         </el-tab-pane>
-                        <!-- <el-tab-pane lazy label="awe" name="awe">
-							<IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
-						</el-tab-pane> -->
                     </el-tabs>
                 </div>
             </template>
@@ -108,9 +105,8 @@ const state = reactive({
     fontIconPlaceholder: '',
     fontIconTabActive: 'ele',
     fontIconList: {
-        ali: [],
         ele: [],
-        awe: [],
+        other: [],
     },
 });
 
@@ -128,6 +124,7 @@ const onIconBlur = () => {
         if (icon.length <= 0) state.fontIconSearch = '';
     }, 300);
 };
+
 // 图标搜索及图标数据显示
 const fontIconSheetsFilterList = computed(() => {
     const list = fontIconTabNameList();
@@ -137,14 +134,15 @@ const fontIconSheetsFilterList = computed(() => {
         if (item.toLowerCase().indexOf(search) !== -1) return item;
     });
 });
+
 // 根据 tab name 类型设置图标
 const fontIconTabNameList = () => {
     let iconList: any = [];
-    if (state.fontIconTabActive === 'ali') iconList = state.fontIconList.ali;
-    else if (state.fontIconTabActive === 'ele') iconList = state.fontIconList.ele;
-    else if (state.fontIconTabActive === 'awe') iconList = state.fontIconList.awe;
+    if (state.fontIconTabActive === 'ele') iconList = state.fontIconList.ele;
+    else if (state.fontIconTabActive === 'other') iconList = state.fontIconList.other;
     return iconList;
 };
+
 // 处理 icon 双向绑定数值回显
 const initModeValueEcho = () => {
     if (props.modelValue === '') return ((<string | undefined>state.fontIconPlaceholder) = props.placeholder);
@@ -154,36 +152,24 @@ const initModeValueEcho = () => {
 // 处理 icon 类型，用于回显时，tab 高亮与初始化数据
 const initFontIconName = () => {
     let name = 'ele';
-    if (props.modelValue!.indexOf('iconfont') > -1) {
-        name = 'ali';
-    } else {
-        name = 'ele';
+    if (props.modelValue!.indexOf('icon ') > -1) {
+        name = 'other';
     }
-    // else if (props.modelValue!.indexOf('ele-') > -1) name = 'ele';
-    // else if (props.modelValue!.indexOf('fa') > -1) name = 'awe';
     // 初始化 tab 高亮回显
     state.fontIconTabActive = name;
     return name;
 };
 // 初始化数据
 const initFontIconData = async (name: string) => {
-    if (name === 'ali') {
-        // 阿里字体图标使用 `iconfont xxx`
-        if (state.fontIconList.ali.length > 0) return;
-        const res: any = await initIconfont.ali();
-        state.fontIconList.ali = res.map((i: string) => `iconfont ${i}`);
-    } else if (name === 'ele') {
+    if (name === 'ele') {
         // element plus 图标
         if (state.fontIconList.ele.length > 0) return;
         await initIconfont.ele().then((res: any) => {
             state.fontIconList.ele = res;
         });
-    } else if (name === 'awe') {
-        // fontawesome字体图标使用 `fa xxx`
-        // if (state.fontIconList.awe.length > 0) return;
-        // await initIconfont.awe().then((res: any) => {
-        // 	state.fontIconList.awe = res.map((i: string) => `fa ${i}`);
-        // });
+    } else if (name === 'other') {
+        // 本地导入svg图标, icon xxx
+        state.fontIconList.other = initIconfont.other() as any;
     }
     // 初始化 input 的 placeholder
     // 参考（单项数据流）：https://cn.vuejs.org/v2/guide/components-props.html?#%E5%8D%95%E5%90%91%E6%95%B0%E6%8D%AE%E6%B5%81

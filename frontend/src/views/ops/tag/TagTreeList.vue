@@ -152,7 +152,6 @@
 
 <script lang="ts" setup>
 import { toRefs, ref, watch, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
 import { formatDate } from '@/common/utils/format';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';

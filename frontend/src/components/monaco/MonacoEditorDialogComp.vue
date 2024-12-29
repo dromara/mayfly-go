@@ -4,8 +4,8 @@
             <monaco-editor ref="editorRef" :height="state.height" class="editor" :language="state.language" v-model="contentValue" can-change-mode />
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="cancel">取消</el-button>
-                    <el-button @click="confirm" type="primary">确定</el-button>
+                    <el-button @click="cancel">{{ i18n.global.t('common.cancel') }}</el-button>
+                    <el-button v-if="state.showConfirmButton" @click="confirm" type="primary">{{ i18n.global.t('common.confirm') }}</el-button>
                 </span>
             </template>
         </el-dialog>
@@ -18,6 +18,7 @@ import { ElDialog, ElButton, ElMessage } from 'element-plus';
 // import base style
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { MonacoEditorDialogProps } from './MonacoEditorDialog';
+import { i18n } from '@/i18n';
 
 const editorRef: any = ref(null);
 
@@ -28,6 +29,7 @@ const state = reactive({
     contentValue: '',
     title: '',
     language: '',
+    showConfirmButton: true,
 });
 
 let confirmFn: any;
@@ -104,6 +106,12 @@ const formatXML = function (xml: string, tab?: string) {
 const open = (optionProps: MonacoEditorDialogProps) => {
     confirmFn = optionProps.confirmFn;
     cancelFn = optionProps.cancelFn;
+
+    if (optionProps.showConfirmButton === undefined) {
+        state.showConfirmButton = true;
+    } else {
+        state.showConfirmButton = optionProps.showConfirmButton;
+    }
 
     const language = optionProps.language;
     state.language = language;

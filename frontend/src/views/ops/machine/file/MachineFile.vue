@@ -573,42 +573,42 @@ const lsFile = async (path: string) => {
             switch (fileExtension) {
                 case 'doc':
                 case 'docx':
-                    file.icon = 'iconfont icon-word';
+                    file.icon = 'icon file/word';
                     break;
                 case 'xls':
                 case 'xlsx':
-                    file.icon = 'iconfont icon-excel';
+                    file.icon = 'icon file/excel';
                     break;
                 case 'ppt':
                 case 'pptx':
-                    file.icon = 'iconfont icon-ppt';
+                    file.icon = 'icon file/ppt';
                     break;
                 case 'pdf':
-                    file.icon = 'iconfont icon-pdf';
+                    file.icon = 'icon file/pdf';
                     break;
                 case 'xml':
-                    file.icon = 'iconfont icon-xml';
+                    file.icon = 'icon file/xml';
                     break;
                 case 'html':
-                    file.icon = 'iconfont icon-html';
+                    file.icon = 'icon file/html';
                     break;
                 case 'yaml':
                 case 'yml':
-                    file.icon = 'iconfont icon-yaml';
+                    file.icon = 'icon file/yaml';
                     break;
                 case 'css':
-                    file.icon = 'iconfont icon-file-css';
+                    file.icon = 'icon file/css';
                     break;
                 case 'js':
                 case 'ts':
-                    file.icon = 'iconfont icon-file-js';
+                    file.icon = 'icon file/js';
                     break;
                 case 'mp4':
                 case 'rmvb':
-                    file.icon = 'iconfont icon-file-video';
+                    file.icon = 'icon file/video';
                     break;
                 case 'mp3':
-                    file.icon = 'iconfont icon-file-audio';
+                    file.icon = 'icon file/audio';
                     break;
                 case 'bmp':
                 case 'jpg':
@@ -623,13 +623,13 @@ const lsFile = async (path: string) => {
                 case 'psd':
                 case 'ai':
                 case 'webp':
-                    file.icon = 'iconfont icon-file-image';
+                    file.icon = 'icon file/image';
                     break;
                 case 'md':
-                    file.icon = 'iconfont icon-md';
+                    file.icon = 'icon file/md';
                     break;
                 case 'txt':
-                    file.icon = 'iconfont icon-txt';
+                    file.icon = 'icon file/txt';
                     break;
                 case 'zip':
                 case 'rar':
@@ -637,10 +637,10 @@ const lsFile = async (path: string) => {
                 case 'gz':
                 case 'tar':
                 case 'tgz':
-                    file.icon = 'iconfont icon-file-zip';
+                    file.icon = 'icon file/zip';
                     break;
                 default:
-                    file.icon = 'iconfont icon-file';
+                    file.icon = 'icon file/file';
                     break;
             }
         }

@@ -20,7 +20,7 @@ function initI18n() {
     const messages: any = {};
     const itemizeMap = new Map<string, any[]>();
 
-    // 对自动引入的 modules 进行分类 en-us、zh-cn
+    // 对自动引入的 modules 进行分类 en、zh-cn
     // https://vitejs.cn/vite3-cn/guide/features.html#glob-import
     for (const path in modules) {
         const parts = path.split('/');

@@ -80,6 +80,9 @@ export default {
         redisRunCmd: 'Redis-Run Cmd',
 
         // task
+        approveNode: 'Approve Node',
+        approveForm: 'Approve Form',
+        approveResult: 'Result',
         audit: 'Audit',
         procinstStatus: 'Process status',
         taskStatus: 'Task status',

@@ -12,7 +12,7 @@ export class VastbaseDialect extends PostgresqlDialect {
         vastDialectInfo = {} as DialectInfo;
         Object.assign(vastDialectInfo, super.getInfo());
         vastDialectInfo.name = 'VastbaseG100';
-        vastDialectInfo.icon = 'iconfont icon-vastbase';
+        vastDialectInfo.icon = 'icon db/vastbase';
         return vastDialectInfo;
     }
 }

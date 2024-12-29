@@ -3,8 +3,8 @@
         <component :is="getIconName" :style="setIconSvgStyle" />
     </i>
 
-    <svg v-else-if="isIconfont()" class="el-icon iconfont-icon icon-middle" aria-hidden="true" :style="setIconSvgStyle">
-        <use :xlink:href="'#' + getIconfontName()"></use>
+    <svg v-else-if="isLocalIcon()" class="el-icon local-icon icon-middle" aria-hidden="true" :style="setIconSvgStyle">
+        <use :xlink:href="'#' + getLocalIconName()"></use>
     </svg>
 
     <div v-else-if="isShowIconImg" :style="setIconImgOutStyle">
@@ -39,10 +39,13 @@ const props = defineProps({
 });
 
 // 在线链接、本地引入地址前缀
-const linesString = ['https', 'http', '/src', '/assets', 'data:image', import.meta.env.VITE_PUBLIC_PATH];
+const linesString = ['https', 'http', '/src', '/assets', 'icon ', 'data:image', import.meta.env.VITE_PUBLIC_PATH];
 
 // 获取 icon 图标名称
 const getIconName = computed(() => {
+    // if (props.name?.startsWith('icon ')) {
+    //     return getIcon(props?.name?.split(' ')[1] as any);
+    // }
     return props?.name as any;
 });
 
@@ -55,12 +58,12 @@ const isShowIconSvg = computed(() => {
     return ss.length == 1;
 });
 
-const isIconfont = () => {
-    return props?.name?.startsWith('iconfont');
+const isLocalIcon = () => {
+    return props?.name?.startsWith('icon ');
 };
 
-const getIconfontName = () => {
-    // iconfont icon-xxxx 获取icon-xxx即可
+const getLocalIconName = () => {
+    // icon icon-xxxx 获取icon-xxx即可
     return props?.name?.split(' ')[1];
 };
 
@@ -76,20 +79,24 @@ const setIconSvgStyle = computed(() => {
 
 // 设置图片样式
 const setIconImgOutStyle = computed(() => {
-    return `width: ${props.size}px;height: ${props.size}px;display: inline-block;overflow: hidden;`;
+    return `width: ${props.size}px;height: ${props.size}px;display: inline-block;overflow: hidden;line-height:${props.size}px;vertical-align: middle;`;
 });
 
 // 设置图片样式
 const setIconSvgInsStyle = computed(() => {
-    const filterStyle: string[] = [];
-    const compatibles: string[] = ['-webkit', '-ms', '-o', '-moz'];
-    compatibles.forEach((j) => filterStyle.push(`${j}-filter: drop-shadow(${props.color} 30px 0);`));
-    return `width: ${props.size}px;height: ${props.size}px;position: relative;left: -${props.size}px;${filterStyle.join('')}`;
+    if (props.color) {
+        const filterStyle: string[] = [];
+        const compatibles: string[] = ['-webkit', '-ms', '-o', '-moz'];
+        compatibles.forEach((j) => filterStyle.push(`${j}-filter: drop-shadow(${props.color} ${props.size}px 0);`));
+        return `width: ${props.size}px;height: ${props.size}px;position: relative;left: -${props.size}px;${filterStyle.join('')}`;
+    }
+
+    return `width: ${props.size}px;height: ${props.size}px;position: relative;`;
 });
 </script>
 
-<style type="text/css">
-.iconfont-icon {
+<style type="text/css" scoped>
+.local-icon {
     vertical-align: -0.15em;
     fill: currentColor;
     overflow: hidden;

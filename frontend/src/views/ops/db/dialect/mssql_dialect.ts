@@ -119,7 +119,7 @@ class MssqlDialect implements DbDialect {
 
         mssqlDialectInfo = {
             name: 'MSSQL',
-            icon: 'iconfont icon-MSSQLNATIVE',
+            icon: 'icon db/sqlserver',
             defaultPort: 1433,
             formatSqlDialect: 'transactsql',
             columnTypes: MSSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),

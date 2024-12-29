@@ -5,8 +5,8 @@ import enLocale from 'element-plus/es/locale/lang/en';
 
 // i18n
 export const I18nEnum = {
-    ZhCn: EnumValue.of('zh-cn', '简体中文').setExtra({ icon: 'iconfont icon-fuhao-zhongwen', el: zhcnLocale }),
-    En: EnumValue.of('en', 'English').setExtra({ icon: 'iconfont icon-fuhao-yingwen', el: enLocale }),
+    ZhCn: EnumValue.of('zh-cn', '简体中文').setExtra({ icon: 'icon layout/cn', el: zhcnLocale }),
+    En: EnumValue.of('en', 'English').setExtra({ icon: 'icon layout/en', el: enLocale }),
 };
 
 // 资源类型
