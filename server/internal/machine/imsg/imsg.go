@@ -39,6 +39,10 @@ const (
 	ErrFileUploadFail
 	MsgUploadFileSuccess
 
+	LogMachineCronJobSave
+	LogMachineCronJobDelete
+	LogMachineCronJobRun
+
 	// security
 	LogMachineSecurityCmdSave
 	LogMachineSecurityCmdDelete

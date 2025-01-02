@@ -12,7 +12,7 @@ type machineCropJobExecRepoImpl struct {
 }
 
 func newMachineCronJobExecRepo() repository.MachineCronJobExec {
-	return &machineCropJobExecRepoImpl{base.RepoImpl[*entity.MachineCronJobExec]{M: new(entity.MachineCronJobExec)}}
+	return &machineCropJobExecRepoImpl{}
 }
 
 // 分页获取机器信息列表

@@ -9,7 +9,6 @@ import (
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/domain/entity"
 	"mayfly-go/internal/auth/imsg"
-	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -29,9 +28,28 @@ import (
 )
 
 type Oauth2Login struct {
-	Oauth2App  application.Oauth2 `inject:""`
-	AccountApp sysapp.Account     `inject:""`
-	MsgApp     msgapp.Msg         `inject:""`
+	oauth2App  application.Oauth2 `inject:"T"`
+	accountApp sysapp.Account     `inject:"T"`
+}
+
+func (o *Oauth2Login) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("/config", o.Oauth2Config).DontNeedToken(),
+
+		// oauth2登录
+		req.NewGet("/login", o.OAuth2Login).DontNeedToken(),
+
+		req.NewGet("/bind", o.OAuth2Bind),
+
+		// oauth2回调地址
+		req.NewGet("/callback", o.OAuth2Callback).Log(req.NewLogSaveI(imsg.LogOauth2Callback)).DontNeedToken(),
+
+		req.NewGet("/status", o.Oauth2Status),
+
+		req.NewGet("/unbind", o.Oauth2Unbind).Log(req.NewLogSaveI(imsg.LogOauth2Unbind)),
+	}
+
+	return req.NewConfs("/auth/oauth2", reqs[:]...)
 }
 
 func (a *Oauth2Login) OAuth2Login(rc *req.Ctx) {
@@ -100,22 +118,22 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 
 		account := new(sysentity.Account)
 		account.Id = accountId
-		err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("username"))
+		err = a.accountApp.GetByCond(model.NewModelCond(account).Columns("username"))
 		biz.ErrIsNilAppendErr(err, "this account does not exist")
 		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
 
-		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
+		err = a.oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			AccountId: accountId,
 		}, "account_id", "identity")
 		biz.IsTrue(err != nil, "the account has been linked by another user")
 
-		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
+		err = a.oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			Identity: userId,
 		}, "account_id", "identity")
 		biz.IsTrue(err != nil, "you are bound to another account")
 
 		now := time.Now()
-		err = a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
+		err = a.oauth2App.BindOAuthAccount(&entity.Oauth2Account{
 			AccountId:  accountId,
 			Identity:   userId,
 			CreateTime: &now,
@@ -136,7 +154,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oauth2Login) {
 	// 查询用户是否存在
 	oauthAccount := &entity.Oauth2Account{Identity: userId}
-	err := a.Oauth2App.GetOAuthAccount(oauthAccount, "account_id", "identity")
+	err := a.oauth2App.GetOAuthAccount(oauthAccount, "account_id", "identity")
 	ctx := rc.MetaCtx
 	var accountId uint64
 	isFirst := false
@@ -156,9 +174,9 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 			Name:     userId,
 			Username: userId,
 		}
-		biz.ErrIsNil(a.AccountApp.Create(context.TODO(), account))
+		biz.ErrIsNil(a.accountApp.Create(context.TODO(), account))
 		// 绑定
-		err := a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
+		err := a.oauth2App.BindOAuthAccount(&entity.Oauth2Account{
 			AccountId:  account.Id,
 			Identity:   oauthAccount.Identity,
 			CreateTime: &now,
@@ -172,7 +190,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	}
 
 	// 进行登录
-	account, err := a.AccountApp.GetById(accountId, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	account, err := a.accountApp.GetById(accountId, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
 	biz.ErrIsNilAppendErr(err, "get user info error: %s")
 
 	clientIp := getIpAndRegion(rc)
@@ -207,7 +225,7 @@ func (a *Oauth2Login) Oauth2Status(ctx *req.Ctx) {
 	oauth2LoginConfig := config.GetOauth2Login()
 	res.Enable = oauth2LoginConfig.Enable
 	if res.Enable {
-		err := a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
+		err := a.oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			AccountId: ctx.GetLoginAccount().Id,
 		}, "account_id", "identity")
 		res.Bind = err == nil
@@ -217,7 +235,7 @@ func (a *Oauth2Login) Oauth2Status(ctx *req.Ctx) {
 }
 
 func (a *Oauth2Login) Oauth2Unbind(rc *req.Ctx) {
-	a.Oauth2App.Unbind(rc.GetLoginAccount().Id)
+	a.oauth2App.Unbind(rc.GetLoginAccount().Id)
 }
 
 // 获取oauth2登录配置信息，因为有些字段是敏感字段，故单独使用接口获取

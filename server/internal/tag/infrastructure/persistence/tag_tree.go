@@ -12,7 +12,7 @@ type tagTreeRepoImpl struct {
 }
 
 func newTagTreeRepo() repository.TagTree {
-	return &tagTreeRepoImpl{base.RepoImpl[*entity.TagTree]{M: new(entity.TagTree)}}
+	return &tagTreeRepoImpl{}
 }
 
 func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string) {

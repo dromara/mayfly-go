@@ -31,6 +31,10 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrFileUploadFail:          "文件上传失败",
 	MsgUploadFileSuccess:       "文件上传成功",
 
+	LogMachineCronJobSave:   "机器-保存计划任务",
+	LogMachineCronJobDelete: "机器-删除计划任务",
+	LogMachineCronJobRun:    "机器-执行计划任务",
+
 	LogMachineSecurityCmdSave:   "机器-安全-保存命令配置",
 	LogMachineSecurityCmdDelete: "机器-安全-删除命令配置",
 	TerminalCmdDisable:          "该命令已被禁用...",

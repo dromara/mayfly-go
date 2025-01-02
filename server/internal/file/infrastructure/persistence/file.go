@@ -11,5 +11,5 @@ type fileRepoImpl struct {
 }
 
 func newFileRepo() repository.File {
-	return &fileRepoImpl{base.RepoImpl[*entity.File]{M: new(entity.File)}}
+	return &fileRepoImpl{}
 }

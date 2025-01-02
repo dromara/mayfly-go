@@ -11,5 +11,5 @@ type dbSqlRepoImpl struct {
 }
 
 func newDbSqlRepo() repository.DbSql {
-	return &dbSqlRepoImpl{base.RepoImpl[*entity.DbSql]{M: new(entity.DbSql)}}
+	return &dbSqlRepoImpl{}
 }

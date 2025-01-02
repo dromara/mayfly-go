@@ -592,7 +592,7 @@ const onSelectByCondition = async () => {
  */
 const onTableSortChange = async (sort: any) => {
     const sortType = sort.order == 'desc' ? 'DESC' : 'ASC';
-    state.orderBy = `ORDER BY ${sort.columnName} ${sortType}`;
+    state.orderBy = `ORDER BY ${state.dbDialect.quoteIdentifier(sort.columnName)} ${sortType}`;
     await onRefresh();
 };
 

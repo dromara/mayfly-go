@@ -1,4 +1,4 @@
-# 🌈mayfly-go
+# 🌈Dromara mayfly-go
 
 <p align="center">
     <a href="./README.md">中文介绍</a> | 

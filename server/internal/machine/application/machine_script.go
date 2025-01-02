@@ -23,12 +23,7 @@ type MachineScript interface {
 type machineScriptAppImpl struct {
 	base.AppImpl[*entity.MachineScript, repository.MachineScript]
 
-	machineApp Machine `inject:"MachineApp"`
-}
-
-// 注入MachineScriptRepo
-func (m *machineScriptAppImpl) InjectMachineScriptRepo(repo repository.MachineScript) {
-	m.Repo = repo
+	machineApp Machine `inject:"T"`
 }
 
 const Common_Script_Machine_Id = 9999999

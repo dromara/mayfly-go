@@ -12,7 +12,7 @@ type roleRepoImpl struct {
 }
 
 func newRoleRepo() repository.Role {
-	return &roleRepoImpl{base.RepoImpl[*entity.Role]{M: new(entity.Role)}}
+	return &roleRepoImpl{}
 }
 
 func (m *roleRepoImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

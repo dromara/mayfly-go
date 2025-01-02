@@ -7,12 +7,11 @@ import (
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/imsg"
-	msgapp "mayfly-go/internal/msg/application"
+	"mayfly-go/internal/auth/pkg/captcha"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -28,8 +27,16 @@ import (
 )
 
 type LdapLogin struct {
-	AccountApp sysapp.Account `inject:""`
-	MsgApp     msgapp.Msg     `inject:""`
+	accountApp sysapp.Account `inject:"T"`
+}
+
+func (l *LdapLogin) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("/enabled", l.GetLdapEnabled).DontNeedToken(),
+		req.NewPost("/login", l.Login).Log(req.NewLogSaveI(imsg.LogLdapLogin)).DontNeedToken(),
+	}
+
+	return req.NewConfs("/auth/ldap", reqs[:]...)
 }
 
 // @router /auth/ldap/enabled [get]
@@ -80,7 +87,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 
 func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account, error) {
 	account := &sysentity.Account{Username: userName}
-	if err := a.AccountApp.GetByCond(model.NewModelCond(account).Columns(cols...)); err != nil {
+	if err := a.accountApp.GetByCond(model.NewModelCond(account).Columns(cols...)); err != nil {
 		return nil, err
 	}
 	return account, nil
@@ -90,10 +97,10 @@ func (a *LdapLogin) createUser(userName, displayName string) {
 	account := &sysentity.Account{Username: userName}
 	account.FillBaseInfo(model.IdGenTypeNone, nil)
 	account.Name = displayName
-	biz.ErrIsNil(a.AccountApp.Create(context.TODO(), account))
+	biz.ErrIsNil(a.accountApp.Create(context.TODO(), account))
 	// 将 LADP 用户本地密码设置为空，不允许本地登录
 	account.Password = cryptox.PwdHash("")
-	biz.ErrIsNil(a.AccountApp.Update(context.TODO(), account))
+	biz.ErrIsNil(a.accountApp.Update(context.TODO(), account))
 }
 
 func (a *LdapLogin) getOrCreateUserWithLdap(ctx context.Context, userName string, password string, cols ...string) (*sysentity.Account, error) {

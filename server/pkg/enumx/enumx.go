@@ -32,7 +32,7 @@ func (e *Enum[T]) Valid(value T) error {
 		return nil
 	}
 
-	errMsg := fmt.Sprintf("%s可选值为: ", e.name)
+	errMsg := fmt.Sprintf("%s the optional value is: ", e.name)
 	for val, desc := range e.values {
 		errMsg = fmt.Sprintf("%s [%v->%s]", errMsg, val, desc)
 	}

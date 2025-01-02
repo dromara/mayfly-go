@@ -13,7 +13,16 @@ import (
 )
 
 type DbSqlExec struct {
-	DbSqlExecApp application.DbSqlExec `inject:""`
+	dbSqlExecApp application.DbSqlExec `inject:"T"`
+}
+
+func (d *DbSqlExec) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取所有数据库sql执行记录列表
+		req.NewGet("/sql-execs", d.DbSqlExecs),
+	}
+
+	return req.NewConfs("/dbs", reqs[:]...)
 }
 
 func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
@@ -24,7 +33,7 @@ func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
 			return cast.ToInt8(val)
 		})
 	}
-	res, err := d.DbSqlExecApp.GetPageList(queryCond, page, new([]entity.DbSqlExec))
+	res, err := d.dbSqlExecApp.GetPageList(queryCond, page, new([]entity.DbSqlExec))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

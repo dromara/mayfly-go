@@ -12,34 +12,19 @@ const (
 	DbKey CtxKey = "db"
 )
 
-// Tx 事务上下文信息
-type Tx struct {
-	Count int
-	DB    *gorm.DB
-}
-
-// NewCtxWithTxDb 将事务db放置context中
-func NewCtxWithTxDb(ctx context.Context, db *gorm.DB) (context.Context, *Tx) {
-	if tx := GetTxFromCtx(ctx); tx != nil {
-		return ctx, tx
+// NewCtxWithDb 将事务db放置context中，若已存在，则直接返回ctx
+func NewCtxWithDb(ctx context.Context, db *gorm.DB) context.Context {
+	if tx := GetDbFromCtx(ctx); tx != nil {
+		return ctx
 	}
 
-	tx := &Tx{Count: 1, DB: db}
-	return context.WithValue(ctx, DbKey, tx), tx
+	return context.WithValue(ctx, DbKey, db)
 }
 
 // GetDbFromCtx 获取ctx中的事务db
 func GetDbFromCtx(ctx context.Context) *gorm.DB {
-	if tx := GetTxFromCtx(ctx); tx != nil {
-		return tx.DB
-	}
-	return nil
-}
-
-// GetTxFromCtx 获取当前ctx事务
-func GetTxFromCtx(ctx context.Context) *Tx {
-	if tx, ok := ctx.Value(DbKey).(*Tx); ok {
-		return tx
+	if txdb, ok := ctx.Value(DbKey).(*gorm.DB); ok {
+		return txdb
 	}
 	return nil
 }

@@ -17,14 +17,29 @@ import (
 )
 
 type MachineScript struct {
-	MachineScriptApp application.MachineScript `inject:""`
-	MachineApp       application.Machine       `inject:""`
-	TagApp           tagapp.TagTree            `inject:"TagTreeApp"`
+	machineScriptApp application.MachineScript `inject:"T"`
+	machineApp       application.Machine       `inject:"T"`
+	tagApp           tagapp.TagTree            `inject:"T"`
+}
+
+func (ms *MachineScript) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取指定机器脚本列表
+		req.NewGet(":machineId/scripts", ms.MachineScripts),
+
+		req.NewPost(":machineId/scripts", ms.SaveMachineScript).Log(req.NewLogSave("机器-保存脚本")).RequiredPermissionCode("machine:script:save"),
+
+		req.NewDelete(":machineId/scripts/:scriptId", ms.DeleteMachineScript).Log(req.NewLogSave("机器-删除脚本")).RequiredPermissionCode("machine:script:del"),
+
+		req.NewGet("scripts/:scriptId/:ac/run", ms.RunMachineScript).Log(req.NewLogSave("机器-执行脚本")).RequiredPermissionCode("machine:script:run"),
+	}
+
+	return req.NewConfs("machines", reqs[:]...)
 }
 
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 	condition := &entity.MachineScript{MachineId: GetMachineId(rc)}
-	res, err := m.MachineScriptApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineScriptVO))
+	res, err := m.machineScriptApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineScriptVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -34,7 +49,7 @@ func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 	machineScript := req.BindJsonAndCopyTo(rc, form, new(entity.MachineScript))
 
 	rc.ReqParam = form
-	biz.ErrIsNil(m.MachineScriptApp.Save(rc.MetaCtx, machineScript))
+	biz.ErrIsNil(m.machineScriptApp.Save(rc.MetaCtx, machineScript))
 }
 
 func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
@@ -43,14 +58,14 @@ func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		m.MachineScriptApp.Delete(rc.MetaCtx, cast.ToUint64(v))
+		m.machineScriptApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
 func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	scriptId := GetMachineScriptId(rc)
 	ac := GetMachineAc(rc)
-	ms, err := m.MachineScriptApp.GetById(scriptId, "MachineId", "Name", "Script")
+	ms, err := m.machineScriptApp.GetById(scriptId, "MachineId", "Name", "Script")
 	biz.ErrIsNil(err, "script not found")
 
 	script := ms.Script
@@ -59,9 +74,9 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 		script, err = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
 		biz.ErrIsNilAppendErr(err, "failed to parse the script template parameter: %s")
 	}
-	cli, err := m.MachineApp.GetCliByAc(ac)
+	cli, err := m.machineApp.GetCliByAc(ac)
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
+	biz.ErrIsNilAppendErr(m.tagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数

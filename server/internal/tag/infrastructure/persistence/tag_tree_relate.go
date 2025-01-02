@@ -12,7 +12,7 @@ type tagTreeRelateRepoImpl struct {
 }
 
 func newTagTreeRelateRepo() repository.TagTreeRelate {
-	return &tagTreeRelateRepoImpl{base.RepoImpl[*entity.TagTreeRelate]{M: new(entity.TagTreeRelate)}}
+	return &tagTreeRelateRepoImpl{}
 }
 
 // SelectRelateIdsByTagPaths 根据标签路径查询相关联的id

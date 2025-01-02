@@ -16,7 +16,7 @@ var En = map[i18n.MsgId]string{
 
 	SqlScriptRunFail:    "sql script failed to execute",
 	SqlScriptRunSuccess: "sql script executed successfully",
-	SqlScripRunProgress: "sql script execution progress",
+	SqlScripRunProgress: "sql execution progress",
 	DbDumpErr:           "Database export failed",
 	ErrDbNameExist:      "The database name already exists in this instance",
 	ErrDbNotAccess:      "The operation permissions of database [{{.dbName}}] are not configured",

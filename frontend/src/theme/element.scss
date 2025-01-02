@@ -12,30 +12,25 @@
 
 /* Form 表单
 ------------------------------- */
-.el-form {
+// .el-form {
 
-    // 用于修改弹窗时表单内容间隔太大问题，如系统设置的新增菜单弹窗里的表单内容
-    .el-form-item:last-of-type {
-        margin-bottom: 0 !important;
-    }
+//     // 修复行内表单最后一个 el-form-item 位置下移问题
+//     &.el-form--inline {
+//         .el-form-item--large.el-form-item:last-of-type {
+//             margin-bottom: 22px !important;
+//         }
 
-    // 修复行内表单最后一个 el-form-item 位置下移问题
-    &.el-form--inline {
-        .el-form-item--large.el-form-item:last-of-type {
-            margin-bottom: 22px !important;
-        }
+//         .el-form-item--default.el-form-item:last-of-type,
+//         .el-form-item--small.el-form-item:last-of-type {
+//             margin-bottom: 18px !important;
+//         }
+//     }
 
-        .el-form-item--default.el-form-item:last-of-type,
-        .el-form-item--small.el-form-item:last-of-type {
-            margin-bottom: 18px !important;
-        }
-    }
 
-    // https://gitee.com/lyt-top/vue-next-admin/issues/I5K1PM
-    .el-form-item .el-form-item__label .el-icon {
-        margin-right: 0px;
-    }
-}
+//     .el-form-item .el-form-item__label .el-icon {
+//         margin-right: 0px;
+//     }
+// }
 
 /* Alert 警告
 ------------------------------- */

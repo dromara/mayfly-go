@@ -2,9 +2,11 @@ package init
 
 import (
 	"mayfly-go/initialize"
-	"mayfly-go/internal/common/router"
+	"mayfly-go/internal/common/api"
 )
 
 func init() {
-	initialize.AddInitRouterFunc(router.Init)
+	initialize.AddInitIocFunc(func() {
+		api.InitIoc()
+	})
 }

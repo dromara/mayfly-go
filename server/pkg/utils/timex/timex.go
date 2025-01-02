@@ -8,10 +8,16 @@ import (
 )
 
 const DefaultDateTimeFormat = "2006-01-02 15:04:05"
+const DefaultDateFormat = "2006-01-02"
 
 // DefaultFormat 使用默认格式进行格式化: 2006-01-02 15:04:05
 func DefaultFormat(time time.Time) string {
 	return time.Format(DefaultDateTimeFormat)
+}
+
+// DefaultFormatDate 使用默认格式进行格式化: 2006-01-02
+func DefaultFormatDate(time time.Time) string {
+	return time.Format(DefaultDateFormat)
 }
 
 // TimeNo 获取当前时间编号，格式为20060102150405

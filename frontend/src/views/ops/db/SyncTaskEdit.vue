@@ -136,11 +136,11 @@
 
                     <el-tab-pane :label="$t('db.fieldMap')" :name="fieldTab" :disabled="!baseFieldCompleted">
                         <el-form-item prop="fieldMap" :label="$t('db.fieldMap')" required>
-                            <el-table :data="form.fieldMap" :max-height="400" size="small">
+                            <el-table :data="form.fieldMap" :max-height="650" size="small">
                                 <el-table-column prop="src" :label="$t('db.srcField')" :width="200" />
                                 <el-table-column prop="target" :label="$t('db.targetField')">
                                     <template #default="scope">
-                                        <el-select v-model="scope.row.target">
+                                        <el-select v-model="scope.row.target" allow-create filterable>
                                             <el-option
                                                 v-for="item in state.targetColumnList"
                                                 :key="item.columnName"
@@ -155,14 +155,14 @@
                     </el-tab-pane>
 
                     <el-tab-pane :label="$t('db.sqlPreview')" :name="sqlPreviewTab" :disabled="!baseFieldCompleted">
-                        <el-form-item prop="fieldMap" :label="$t('db.selectSql')">
-                            <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '170px' }" />
-                        </el-form-item>
-                        <el-form-item prop="fieldMap" :label="$t('db.insertSql')">
-                            <el-input type="textarea" v-model="state.previewInsertSql" readonly :input-style="{ height: '170px' }" />
-                        </el-form-item>
                         <el-form-item prop="isReplace" v-if="compatibleDuplicateStrategy(form.targetDbType!)" :label="$t('db.keyDuplicateStrategy')">
                             <EnumSelect :enums="DbDataSyncDuplicateStrategyEnum" v-model="form.duplicateStrategy" @change="handleDuplicateStrategy" />
+                        </el-form-item>
+                        <el-form-item prop="fieldMap" :label="$t('db.selectSql')">
+                            <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '300px' }" />
+                        </el-form-item>
+                        <el-form-item prop="fieldMap" :label="$t('db.insertSql')">
+                            <el-input type="textarea" v-model="state.previewInsertSql" readonly :input-style="{ height: '300px' }" />
                         </el-form-item>
                     </el-tab-pane>
                 </el-tabs>
@@ -502,10 +502,12 @@ const handleGetSrcFields = async () => {
         sql,
     });
 
-    if (!res.columns) {
+    if (res.length && !res[0].columns) {
         ElMessage.warning(t('db.notColumnSql'));
         return;
     }
+
+    let data = res[0];
 
     let filedMap: any = {};
     if (state.form.fieldMap && state.form.fieldMap.length > 0) {
@@ -514,11 +516,11 @@ const handleGetSrcFields = async () => {
         });
     }
 
-    state.srcTableFields = res.columns.map((a: any) => a.name);
+    state.srcTableFields = data.columns.map((a: any) => a.name);
 
-    state.form.fieldMap = res.columns.map((a: any) => ({ src: a.name, target: filedMap[a.name] || '' }));
+    state.form.fieldMap = data.columns.map((a: any) => ({ src: a.name, target: filedMap[a.name] || '' }));
 
-    state.previewRes = res;
+    state.previewRes = data;
 };
 
 const handleGetTargetFields = async () => {

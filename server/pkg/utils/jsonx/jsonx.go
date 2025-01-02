@@ -9,6 +9,9 @@ import (
 
 // json字符串转map
 func ToMap(jsonStr string) map[string]any {
+	if jsonStr == "" {
+		return map[string]any{}
+	}
 	return ToMapByBytes([]byte(jsonStr))
 }
 
@@ -22,7 +25,7 @@ func ToMapByBytes(bytes []byte) map[string]any {
 	var res map[string]any
 	err := json.Unmarshal(bytes, &res)
 	if err != nil {
-		logx.Errorf("json字符串转map失败: %s", err.Error())
+		logx.ErrorTrace("json字符串转map失败", err)
 	}
 	return res
 }

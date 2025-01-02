@@ -38,7 +38,11 @@
                                 :value="TagResourceTypeEnum.Machine.value"
                             />
 
-                            <el-option :key="TagResourceTypeEnum.Db.value" :label="TagResourceTypeEnum.Db.label" :value="TagResourceTypeEnum.Db.value" />
+                            <el-option
+                                :key="TagResourceTypeEnum.DbInstance.value"
+                                :label="TagResourceTypeEnum.DbInstance.label"
+                                :value="TagResourceTypeEnum.DbInstance.value"
+                            />
                             <el-option
                                 :key="TagResourceTypeEnum.Redis.value"
                                 :label="$t(TagResourceTypeEnum.Redis.label)"
@@ -154,7 +158,7 @@ const DefaultForm = {
     username: '',
     ciphertextType: AuthCertCiphertextTypeEnum.Password.value,
     type: AuthCertTypeEnum.Private.value,
-    resourceType: TagResourceTypeEnum.AuthCert.value,
+    resourceType: TagResourceTypeEnum.PublicAuthCert.value,
     resourceCode: '',
     ciphertext: '',
     extra: {} as any,

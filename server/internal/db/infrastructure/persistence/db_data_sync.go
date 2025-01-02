@@ -12,7 +12,7 @@ type dataSyncTaskRepoImpl struct {
 }
 
 func newDataSyncTaskRepo() repository.DataSyncTask {
-	return &dataSyncTaskRepoImpl{base.RepoImpl[*entity.DataSyncTask]{M: new(entity.DataSyncTask)}}
+	return &dataSyncTaskRepoImpl{}
 }
 
 // 分页获取数据库信息列表
@@ -35,5 +35,5 @@ func (d *dataSyncLogRepoImpl) GetTaskLogList(condition *entity.DataSyncLogQuery,
 }
 
 func newDataSyncLogRepo() repository.DataSyncLog {
-	return &dataSyncLogRepoImpl{base.RepoImpl[*entity.DataSyncLog]{M: new(entity.DataSyncLog)}}
+	return &dataSyncLogRepoImpl{}
 }

@@ -35,16 +35,11 @@ type Resource interface {
 type resourceAppImpl struct {
 	base.AppImpl[*entity.Resource, repository.Resource]
 
-	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
-	roleApp          Role                    `inject:"RoleApp"`
+	roleResourceRepo repository.RoleResource `inject:"T"`
+	roleApp          Role                    `inject:"T"`
 }
 
 var _ (Resource) = (*resourceAppImpl)(nil)
-
-// 注入ResourceRepo
-func (r *resourceAppImpl) InjectResourceRepo(repo repository.Resource) {
-	r.Repo = repo
-}
 
 func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {
 	// 更新操作

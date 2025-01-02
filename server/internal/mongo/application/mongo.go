@@ -37,12 +37,7 @@ type Mongo interface {
 type mongoAppImpl struct {
 	base.AppImpl[*entity.Mongo, repository.Mongo]
 
-	tagApp tagapp.TagTree `inject:"TagTreeApp"`
-}
-
-// 注入MongoRepo
-func (d *mongoAppImpl) InjectMongoRepo(repo repository.Mongo) {
-	d.Repo = repo
+	tagTreeApp tagapp.TagTree `inject:"T"`
 }
 
 // 分页获取数据库信息列表
@@ -62,7 +57,7 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 			return d.DeleteById(ctx, id)
 		},
 		func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{ResourceTag: &tagdto.ResourceTag{
+			return d.tagTreeApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{ResourceTag: &tagdto.ResourceTag{
 				Type: tagentity.TagTypeMongo,
 				Code: mongoEntity.Code,
 			}})
@@ -92,7 +87,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+			return d.tagTreeApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
 				ResourceTag: &tagdto.ResourceTag{
 					Type: tagentity.TagTypeMongo,
 					Code: m.Code,
@@ -119,12 +114,12 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
 		if oldMongo.Name != m.Name {
-			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMongo, oldMongo.Code, m.Name); err != nil {
+			if err := d.tagTreeApp.UpdateTagName(ctx, tagentity.TagTypeMongo, oldMongo.Code, m.Name); err != nil {
 				return err
 			}
 		}
 
-		return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+		return d.tagTreeApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
 			ResourceTag: &tagdto.ResourceTag{
 				Type: tagentity.TagTypeMongo,
 				Code: oldMongo.Code,
@@ -140,6 +135,6 @@ func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("mongo not found")
 		}
-		return me.ToMongoInfo(d.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeMongo, me.Code)...), nil
+		return me.ToMongoInfo(d.tagTreeApp.ListTagPathByTypeAndCode(consts.ResourceTypeMongo, me.Code)...), nil
 	})
 }

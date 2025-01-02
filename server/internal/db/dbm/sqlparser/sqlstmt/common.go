@@ -59,6 +59,14 @@ type (
 
 		ExprAtom IExprAtom
 	}
+
+	PredicateLike struct {
+		Predicate
+
+		InPredicate IPredicate
+		Exprs       []IExpr
+		SelectStmt  ISelectStmt
+	}
 )
 
 func (*Predicate) isPredicate() {}

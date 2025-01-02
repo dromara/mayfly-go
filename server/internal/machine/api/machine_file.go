@@ -34,9 +34,47 @@ import (
 )
 
 type MachineFile struct {
-	MachineApp     application.Machine     `inject:""`
-	MachineFileApp application.MachineFile `inject:""`
-	MsgApp         msgapp.Msg              `inject:""`
+	machineFileApp application.MachineFile `inject:"T"`
+	msgApp         msgapp.Msg              `inject:"T"`
+}
+
+func (mf *MachineFile) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取指定机器文件列表
+		req.NewGet(":machineId/files", mf.MachineFiles),
+
+		req.NewPost(":machineId/files", mf.SaveMachineFiles).Log(req.NewLogSaveI(imsg.LogMachineFileConfSave)).RequiredPermissionCode("machine:file:add"),
+
+		req.NewDelete(":machineId/files/:fileId", mf.DeleteFile).Log(req.NewLogSaveI(imsg.LogMachineFileConfDelete)).RequiredPermissionCode("machine:file:del"),
+
+		req.NewGet(":machineId/files/:fileId/read", mf.ReadFileContent).Log(req.NewLogSaveI(imsg.LogMachineFileRead)),
+
+		req.NewGet(":machineId/files/:fileId/download", mf.DownloadFile).NoRes().Log(req.NewLogSaveI(imsg.LogMachineFileDownload)),
+
+		req.NewGet(":machineId/files/:fileId/read-dir", mf.GetDirEntry),
+
+		req.NewGet(":machineId/files/:fileId/dir-size", mf.GetDirSize),
+
+		req.NewGet(":machineId/files/:fileId/file-stat", mf.GetFileStat),
+
+		req.NewPost(":machineId/files/:fileId/write", mf.WriteFileContent).Log(req.NewLogSaveI(imsg.LogMachineFileModify)).RequiredPermissionCode("machine:file:write"),
+
+		req.NewPost(":machineId/files/:fileId/create-file", mf.CreateFile).Log(req.NewLogSaveI(imsg.LogMachineFileCreate)),
+
+		req.NewPost(":machineId/files/:fileId/upload", mf.UploadFile).Log(req.NewLogSaveI(imsg.LogMachineFileUpload)).RequiredPermissionCode("machine:file:upload"),
+
+		req.NewPost(":machineId/files/:fileId/upload-folder", mf.UploadFolder).Log(req.NewLogSaveI(imsg.LogMachineFileUploadFolder)).RequiredPermissionCode("machine:file:upload"),
+
+		req.NewPost(":machineId/files/:fileId/remove", mf.RemoveFile).Log(req.NewLogSaveI(imsg.LogMachineFileDelete)).RequiredPermissionCode("machine:file:rm"),
+
+		req.NewPost(":machineId/files/:fileId/cp", mf.CopyFile).Log(req.NewLogSaveI(imsg.LogMachineFileCopy)).RequiredPermissionCode("machine:file:rm"),
+
+		req.NewPost(":machineId/files/:fileId/mv", mf.MvFile).Log(req.NewLogSaveI(imsg.LogMachineFileMove)).RequiredPermissionCode("machine:file:rm"),
+
+		req.NewPost(":machineId/files/:fileId/rename", mf.Rename).Log(req.NewLogSaveI(imsg.LogMachineFileRename)).RequiredPermissionCode("machine:file:write"),
+	}
+
+	return req.NewConfs("machines", reqs[:]...)
 }
 
 const (
@@ -48,7 +86,7 @@ const (
 
 func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 	condition := &entity.MachineFile{MachineId: GetMachineId(rc)}
-	res, err := m.MachineFileApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineFileVO))
+	res, err := m.machineFileApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineFileVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -58,11 +96,11 @@ func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 	entity := req.BindJsonAndCopyTo[*entity.MachineFile](rc, fileForm, new(entity.MachineFile))
 
 	rc.ReqParam = fileForm
-	biz.ErrIsNil(m.MachineFileApp.Save(rc.MetaCtx, entity))
+	biz.ErrIsNil(m.machineFileApp.Save(rc.MetaCtx, entity))
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	biz.ErrIsNil(m.MachineFileApp.DeleteById(rc.MetaCtx, GetMachineFileId(rc)))
+	biz.ErrIsNil(m.machineFileApp.DeleteById(rc.MetaCtx, GetMachineFileId(rc)))
 }
 
 /***      sftp相关操作      */
@@ -76,10 +114,10 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	var err error
 	if opForm.Type == dir {
 		attrs["type"] = "Folder"
-		mi, err = m.MachineFileApp.MkDir(rc.MetaCtx, opForm.MachineFileOp)
+		mi, err = m.machineFileApp.MkDir(rc.MetaCtx, opForm.MachineFileOp)
 	} else {
 		attrs["type"] = "File"
-		mi, err = m.MachineFileApp.CreateFile(rc.MetaCtx, opForm.MachineFileOp)
+		mi, err = m.machineFileApp.CreateFile(rc.MetaCtx, opForm.MachineFileOp)
 	}
 	attrs["machine"] = mi
 	rc.ReqParam = attrs
@@ -93,7 +131,7 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 
 	// 特殊处理rdp文件
 	if opForm.Protocol == entity.MachineProtocolRdp {
-		path := m.MachineFileApp.GetRdpFilePath(rc.GetLoginAccount(), opForm.Path)
+		path := m.machineFileApp.GetRdpFilePath(rc.GetLoginAccount(), opForm.Path)
 		fi, err := os.Stat(path)
 		biz.ErrIsNil(err)
 		biz.IsTrueI(ctx, fi.Size() < max_read_size, imsg.ErrFileTooLargeUseDownload)
@@ -103,7 +141,7 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 		return
 	}
 
-	sftpFile, mi, err := m.MachineFileApp.ReadFile(rc.MetaCtx, opForm)
+	sftpFile, mi, err := m.machineFileApp.ReadFile(rc.MetaCtx, opForm)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
 	biz.ErrIsNil(err)
 	defer sftpFile.Close()
@@ -128,7 +166,7 @@ func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 	fileName := path[len(path)-1]
 
 	if opForm.Protocol == entity.MachineProtocolRdp {
-		path := m.MachineFileApp.GetRdpFilePath(rc.GetLoginAccount(), opForm.Path)
+		path := m.machineFileApp.GetRdpFilePath(rc.GetLoginAccount(), opForm.Path)
 		file, err := os.Open(path)
 		if err != nil {
 			return
@@ -138,7 +176,7 @@ func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 		return
 	}
 
-	sftpFile, mi, err := m.MachineFileApp.ReadFile(rc.MetaCtx, opForm)
+	sftpFile, mi, err := m.machineFileApp.ReadFile(rc.MetaCtx, opForm)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
 	biz.ErrIsNilAppendErr(err, "open file error: %s")
 	defer sftpFile.Close()
@@ -151,7 +189,7 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	readPath := opForm.Path
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
-	fis, err := m.MachineFileApp.ReadDir(rc.MetaCtx, opForm)
+	fis, err := m.machineFileApp.ReadDir(rc.MetaCtx, opForm)
 	biz.ErrIsNilAppendErr(err, "read dir error: %s")
 
 	fisVO := make([]vo.MachineFileInfo, 0)
@@ -188,14 +226,14 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
 
-	size, err := m.MachineFileApp.GetDirSize(rc.MetaCtx, opForm)
+	size, err := m.machineFileApp.GetDirSize(rc.MetaCtx, opForm)
 	biz.ErrIsNil(err)
 	rc.ResData = size
 }
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
 	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
-	res, err := m.MachineFileApp.FileStat(rc.MetaCtx, opForm)
+	res, err := m.machineFileApp.FileStat(rc.MetaCtx, opForm)
 	biz.ErrIsNil(err, res)
 	rc.ResData = res
 }
@@ -204,7 +242,7 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 	opForm := req.BindJsonAndValid(rc, new(form.WriteFileContentForm))
 	path := opForm.Path
 
-	mi, err := m.MachineFileApp.WriteFileContent(rc.MetaCtx, opForm.MachineFileOp, []byte(opForm.Content))
+	mi, err := m.machineFileApp.WriteFileContent(rc.MetaCtx, opForm.MachineFileOp, []byte(opForm.Content))
 	rc.ReqParam = collx.Kvs("machine", mi, "path", path)
 	biz.ErrIsNilAppendErr(err, "open file error: %s")
 }
@@ -230,7 +268,7 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	defer func() {
 		if anyx.ToString(recover()) != "" {
 			logx.Errorf("upload file error: %s", err)
-			m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.TC(ctx, imsg.ErrFileUploadFail), fmt.Sprintf("%s: \n<-e : %s", i18n.TC(ctx, imsg.ErrFileUploadFail), err)))
+			m.msgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.TC(ctx, imsg.ErrFileUploadFail), fmt.Sprintf("%s: \n<-e : %s", i18n.TC(ctx, imsg.ErrFileUploadFail), err)))
 		}
 	}()
 
@@ -241,11 +279,11 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 		Path:         path,
 	}
 
-	mi, err := m.MachineFileApp.UploadFile(ctx, opForm, fileheader.Filename, file)
+	mi, err := m.machineFileApp.UploadFile(ctx, opForm, fileheader.Filename, file)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", path, fileheader.Filename))
 	biz.ErrIsNilAppendErr(err, "upload file error: %s")
 	// 保存消息并发送文件上传成功通知
-	m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.TC(ctx, imsg.MsgUploadFileSuccess), fmt.Sprintf("[%s] -> %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
+	m.msgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.TC(ctx, imsg.MsgUploadFileSuccess), fmt.Sprintf("[%s] -> %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
 }
 
 type FolderFile struct {
@@ -282,12 +320,12 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	}
 
 	if protocol == entity.MachineProtocolRdp {
-		m.MachineFileApp.UploadFiles(ctx, opForm, basePath, fileheaders, paths)
+		m.machineFileApp.UploadFiles(ctx, opForm, basePath, fileheaders, paths)
 		return
 	}
 
 	folderName := filepath.Dir(paths[0])
-	mcli, err := m.MachineFileApp.GetMachineCli(authCertName)
+	mcli, err := m.machineFileApp.GetMachineCli(authCertName)
 	biz.ErrIsNil(err)
 	mi := mcli.Info
 
@@ -331,7 +369,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 					logx.Errorf("upload file error: %s", err)
 					switch t := err.(type) {
 					case *errorx.BizError:
-						m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.TC(ctx, imsg.ErrFileUploadFail), fmt.Sprintf("%s: \n<-e errCode: %d, errMsg: %s", i18n.TC(ctx, imsg.ErrFileUploadFail), t.Code(), t.Error())))
+						m.msgApp.CreateAndSend(la, msgdto.ErrSysMsg(i18n.TC(ctx, imsg.ErrFileUploadFail), fmt.Sprintf("%s: \n<-e errCode: %d, errMsg: %s", i18n.TC(ctx, imsg.ErrFileUploadFail), t.Code(), t.Error())))
 					}
 				}
 			}()
@@ -356,35 +394,35 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	wg.Wait()
 	if isSuccess {
 		// 保存消息并发送文件上传成功通知
-		m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.TC(ctx, imsg.MsgUploadFileSuccess), fmt.Sprintf("[%s] -> %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+		m.msgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.TC(ctx, imsg.MsgUploadFileSuccess), fmt.Sprintf("[%s] -> %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
 	}
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 	opForm := req.BindJsonAndValid(rc, new(form.RemoveFileForm))
 
-	mi, err := m.MachineFileApp.RemoveFile(rc.MetaCtx, opForm.MachineFileOp, opForm.Paths...)
+	mi, err := m.machineFileApp.RemoveFile(rc.MetaCtx, opForm.MachineFileOp, opForm.Paths...)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", opForm)
 	biz.ErrIsNilAppendErr(err, "remove file error: %s")
 }
 
 func (m *MachineFile) CopyFile(rc *req.Ctx) {
 	opForm := req.BindJsonAndValid(rc, new(form.CopyFileForm))
-	mi, err := m.MachineFileApp.Copy(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
+	mi, err := m.machineFileApp.Copy(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
 	biz.ErrIsNilAppendErr(err, "file copy error: %s")
 	rc.ReqParam = collx.Kvs("machine", mi, "cp", opForm)
 }
 
 func (m *MachineFile) MvFile(rc *req.Ctx) {
 	opForm := req.BindJsonAndValid(rc, new(form.CopyFileForm))
-	mi, err := m.MachineFileApp.Mv(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
+	mi, err := m.machineFileApp.Mv(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
 	rc.ReqParam = collx.Kvs("machine", mi, "mv", opForm)
 	biz.ErrIsNilAppendErr(err, "file move error: %s")
 }
 
 func (m *MachineFile) Rename(rc *req.Ctx) {
 	renameForm := req.BindJsonAndValid(rc, new(form.RenameForm))
-	mi, err := m.MachineFileApp.Rename(rc.MetaCtx, renameForm.MachineFileOp, renameForm.Newname)
+	mi, err := m.machineFileApp.Rename(rc.MetaCtx, renameForm.MachineFileOp, renameForm.Newname)
 	rc.ReqParam = collx.Kvs("machine", mi, "rename", renameForm)
 	biz.ErrIsNilAppendErr(err, "file rename error: %s")
 }

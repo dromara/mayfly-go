@@ -122,7 +122,12 @@
                     <template #header>
                         <el-row justify="center">
                             <div class="resource-num pointer-icon" @click="toPage('db')">
-                                <SvgIcon class="mb5 mr5" :size="28" :name="TagResourceTypeEnum.Db.extra.icon" :color="TagResourceTypeEnum.Db.extra.iconColor" />
+                                <SvgIcon
+                                    class="mb5 mr5"
+                                    :size="28"
+                                    :name="TagResourceTypeEnum.DbInstance.extra.icon"
+                                    :color="TagResourceTypeEnum.DbInstance.extra.iconColor"
+                                />
                                 <span class="">{{ state.db.num }}</span>
                             </div>
                         </el-row>
@@ -388,7 +393,7 @@ const handleAvatarSuccess = (response: any, uploadFile: any) => {
 // 初始化数字滚动
 const initData = async () => {
     resourceOpLogApi.getAccountResourceOpLogs
-        .request({ resourceType: TagResourceTypeEnum.MachineAuthCert.value, pageSize: state.defaultLogSize })
+        .request({ resourceType: TagResourceTypeEnum.Machine.value, pageSize: state.defaultLogSize })
         .then(async (res: any) => {
             const tagInfos = await getAllTagInfoByCodePaths(res.list?.map((item: any) => item.codePath));
             state.machine.tagInfos = tagInfos;
@@ -396,7 +401,7 @@ const initData = async () => {
         });
 
     resourceOpLogApi.getAccountResourceOpLogs
-        .request({ resourceType: TagResourceTypeEnum.DbName.value, pageSize: state.defaultLogSize })
+        .request({ resourceType: TagResourceTypeEnum.DbInstance.value, pageSize: state.defaultLogSize })
         .then(async (res: any) => {
             const tagInfos = await getAllTagInfoByCodePaths(res.list?.map((item: any) => item.codePath));
             state.db.tagInfos = tagInfos;

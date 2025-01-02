@@ -3,17 +3,17 @@
         <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="800px">
             <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="auto">
                 <el-row :gutter="35">
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
                         <el-form-item class="w100" prop="type" :label="$t('common.type')" required>
                             <enum-select :enums="ResourceTypeEnum" v-model="form.type" :disabled="typeDisabled" />
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
                         <el-form-item class="w100" prop="name" :label="$t('common.name')" required>
                             <el-input v-model.trim="form.name" auto-complete="off"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
                         <el-form-item class="w100" prop="code" label="path|code">
                             <template #label>
                                 path|code
@@ -26,12 +26,12 @@
                             <el-input v-model.trim="form.code" :placeholder="$t('system.menu.menuCodePlaceholder')" auto-complete="off"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100" :label="$t('system.menu.icon')">
                             <icon-selector v-model="form.meta.icon" />
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100">
                             <template #label>
                                 {{ $t('system.menu.routerName') }}
@@ -44,7 +44,7 @@
                             <el-input v-model.trim="form.meta.routeName"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100" prop="code">
                             <template #label>
                                 {{ $t('system.menu.componentPath') }}
@@ -57,7 +57,7 @@
                             <el-input v-model.trim="form.meta.component"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100" prop="isKeepAlive">
                             <template #label>
                                 {{ $t('system.menu.isCache') }}
@@ -72,7 +72,7 @@
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100">
                             <template #label>
                                 {{ $t('system.menu.isHide') }}
@@ -87,14 +87,14 @@
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100" prop="code" :label="$t('system.menu.tagIsDelete')">
                             <el-select v-model="form.meta.isAffix" class="w100">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100" prop="linkType">
                             <template #label>
                                 {{ $t('system.menu.externalLink') }}
@@ -111,7 +111,7 @@
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue && form.meta.linkType > 0">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue && form.meta.linkType > 0">
                         <el-form-item prop="code" :label="$t('system.menu.linkAddress')" class="w100">
                             <el-input v-model.trim="form.meta.link" :placeholder="$t('system.menu.linkPlaceholder')"></el-input>
                         </el-form-item>

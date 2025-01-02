@@ -18,7 +18,6 @@ type dbBackupRepoImpl struct {
 
 func NewDbBackupRepo() repository.DbBackup {
 	dr := &dbBackupRepoImpl{}
-	dr.M = new(entity.DbBackup)
 	return dr
 }
 

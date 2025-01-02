@@ -12,7 +12,7 @@ type dbSqlExecRepoImpl struct {
 }
 
 func newDbSqlExecRepo() repository.DbSqlExec {
-	return &dbSqlExecRepoImpl{base.RepoImpl[*entity.DbSqlExec]{M: new(entity.DbSqlExec)}}
+	return &dbSqlExecRepoImpl{}
 }
 
 // 分页获取

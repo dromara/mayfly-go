@@ -46,15 +46,11 @@ type Role interface {
 type roleAppImpl struct {
 	base.AppImpl[*entity.Role, repository.Role]
 
-	accountRoleRepo  repository.AccountRole  `inject:"AccountRoleRepo"`
-	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
+	accountRoleRepo  repository.AccountRole  `inject:"T"`
+	roleResourceRepo repository.RoleResource `inject:"T"`
 }
 
 var _ (Role) = (*roleAppImpl)(nil)
-
-func (r *roleAppImpl) InjectRoleRepo(repo repository.Role) {
-	r.Repo = repo
-}
 
 func (m *roleAppImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)

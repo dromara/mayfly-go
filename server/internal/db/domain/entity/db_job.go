@@ -110,7 +110,7 @@ func (d *DbJobBaseImpl) setLastStatus(jobType DbJobType, status DbJobStatus, err
 	if err != nil {
 		result = fmt.Sprintf("%s: %v", result, err)
 	}
-	d.LastResult = stringx.TruncateStr(result, LastResultSize)
+	d.LastResult = stringx.Truncate(result, LastResultSize, LastResultSize, "")
 	d.LastTime = timex.NewNullTime(time.Now())
 }
 

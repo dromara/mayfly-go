@@ -12,7 +12,7 @@ type configRepoImpl struct {
 }
 
 func newConfigRepo() repository.Config {
-	return &configRepoImpl{base.RepoImpl[*entity.Config]{M: new(entity.Config)}}
+	return &configRepoImpl{}
 }
 
 func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

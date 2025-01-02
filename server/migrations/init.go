@@ -62,6 +62,7 @@ func insertResource(tx *gorm.DB, res *entity.Resource) error {
 	if err := tx.Save(res).Error; err != nil {
 		return err
 	}
+
 	return tx.Save(&entity.RoleResource{
 		DeletedModel: model.DeletedModel{},
 		RoleId:       1,

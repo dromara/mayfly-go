@@ -10,7 +10,22 @@ import (
 )
 
 type DbSql struct {
-	DbSqlApp application.DbSql `inject:""`
+	dbSqlApp application.DbSql `inject:"T"`
+}
+
+func (d *DbSql) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 用户sql相关
+		req.NewPost(":dbId/sql", d.SaveSql),
+
+		req.NewGet(":dbId/sql", d.GetSql),
+
+		req.NewDelete(":dbId/sql", d.DeleteSql),
+
+		req.NewGet(":dbId/sql-names", d.GetSqlNames),
+	}
+
+	return req.NewConfs("/dbs", reqs[:]...)
 }
 
 // @router /api/db/:dbId/sql [post]
@@ -25,14 +40,14 @@ func (d *DbSql) SaveSql(rc *req.Ctx) {
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name, Db: dbSqlForm.Db}
 	dbSql.CreatorId = account.Id
-	e := d.DbSqlApp.GetByCond(dbSql)
+	e := d.dbSqlApp.GetByCond(dbSql)
 
 	// 更新sql信息
 	dbSql.Sql = dbSqlForm.Sql
 	if e == nil {
-		d.DbSqlApp.UpdateById(rc.MetaCtx, dbSql)
+		d.dbSqlApp.UpdateById(rc.MetaCtx, dbSql)
 	} else {
-		d.DbSqlApp.Insert(rc.MetaCtx, dbSql)
+		d.dbSqlApp.Insert(rc.MetaCtx, dbSql)
 	}
 }
 
@@ -43,7 +58,7 @@ func (d *DbSql) GetSqlNames(rc *req.Ctx) {
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
 	dbSql.CreatorId = rc.GetLoginAccount().Id
-	sqls, _ := d.DbSqlApp.ListByCond(model.NewModelCond(dbSql).Columns("id", "name"))
+	sqls, _ := d.dbSqlApp.ListByCond(model.NewModelCond(dbSql).Columns("id", "name"))
 
 	rc.ResData = sqls
 }
@@ -55,7 +70,7 @@ func (d *DbSql) DeleteSql(rc *req.Ctx) {
 	dbSql.Name = rc.Query("name")
 	dbSql.Db = rc.Query("db")
 
-	biz.ErrIsNil(d.DbSqlApp.DeleteByCond(rc.MetaCtx, dbSql))
+	biz.ErrIsNil(d.dbSqlApp.DeleteByCond(rc.MetaCtx, dbSql))
 }
 
 // @router /api/db/:dbId/sql [get]
@@ -67,7 +82,7 @@ func (d *DbSql) GetSql(rc *req.Ctx) {
 	dbSql.CreatorId = rc.GetLoginAccount().Id
 	dbSql.Name = rc.Query("name")
 
-	e := d.DbSqlApp.GetByCond(dbSql)
+	e := d.dbSqlApp.GetByCond(dbSql)
 	if e != nil {
 		return
 	}

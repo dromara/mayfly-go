@@ -47,17 +47,12 @@ type Instance interface {
 type instanceAppImpl struct {
 	base.AppImpl[*entity.DbInstance, repository.Instance]
 
-	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
-	dbApp               Db                      `inject:"DbApp"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
+	dbApp               Db                      `inject:"T"`
 }
 
 var _ (Instance) = (*instanceAppImpl)(nil)
-
-// 注入DbInstanceRepo
-func (app *instanceAppImpl) InjectDbInstanceRepo(repo repository.Instance) {
-	app.Repo = repo
-}
 
 // GetPageList 分页获取数据库实例
 func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -260,7 +255,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		return &tagdto.ResourceTag{
 			Code: val.Name,
 			Name: val.Username,
-			Type: tagentity.TagTypeDbAuthCert,
+			Type: tagentity.TagTypeAuthCert,
 		}
 	})
 

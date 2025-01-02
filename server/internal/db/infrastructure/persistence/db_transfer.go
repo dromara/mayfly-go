@@ -12,7 +12,7 @@ type dbTransferTaskRepoImpl struct {
 }
 
 func newDbTransferTaskRepo() repository.DbTransferTask {
-	return &dbTransferTaskRepoImpl{base.RepoImpl[*entity.DbTransferTask]{M: new(entity.DbTransferTask)}}
+	return &dbTransferTaskRepoImpl{}
 }
 
 // 分页获取数据库信息列表

@@ -43,7 +43,7 @@ import { tagApi } from '../tag/api';
 
 const props = defineProps({
     resourceType: {
-        type: [Number],
+        type: [Number, String],
         required: true,
     },
     tagPathNodeType: {

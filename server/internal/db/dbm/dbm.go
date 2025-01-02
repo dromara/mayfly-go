@@ -21,7 +21,7 @@ import (
 var connCache = cache.NewTimedCache(consts.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
-		logx.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
+		logx.Info(fmt.Sprintf("delete db conn cache, id = %s", key))
 		value.(*dbi.DbConn).Close()
 	})
 

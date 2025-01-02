@@ -56,9 +56,9 @@ func (svc *DbProgramMysql) getMysqlBin() *config.MysqlBin {
 	dbInfo := svc.dbInfo()
 	var mysqlBin *config.MysqlBin
 	switch dbInfo.Type {
-	case dbi.DbTypeMariadb:
+	case DbTypeMariadb:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMariadbBin)
-	case dbi.DbTypeMysql:
+	case DbTypeMysql:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMysqlBin)
 	default:
 		panic(fmt.Sprintf("不兼容 MySQL 的数据库类型: %v", dbInfo.Type))

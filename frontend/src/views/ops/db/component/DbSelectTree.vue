@@ -3,7 +3,7 @@
         v-bind="$attrs"
         v-model="selectNode"
         @change="changeNode"
-        :resource-type="TagResourceTypeEnum.Db.value"
+        :resource-type="TagResourceTypePath.Db"
         :tag-path-node-type="NodeTypeTagPath"
     >
         <template #iconPrefix>
@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { dbApi } from '@/views/ops/db/api';
 import { sleep } from '@/common/utils/loading';

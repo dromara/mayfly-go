@@ -56,6 +56,7 @@ function build() {
     if [ "${os}" == "windows" ];then
         execFileName="${execFileName}.exe"
     fi
+    go mod tidy
     CGO_ENABLE=0 GOOS=${os} GOARCH=${arch} go build -ldflags=-w -o ${execFileName} main.go
 
     if [ -d ${toFolder} ] ; then

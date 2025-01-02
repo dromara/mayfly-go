@@ -61,10 +61,6 @@ type fileAppImpl struct {
 	base.AppImpl[*entity.File, repository.File]
 }
 
-func (f *fileAppImpl) InjectFileRepo(repo repository.File) {
-	f.Repo = repo
-}
-
 func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename string, r io.Reader) (string, error) {
 	var err error
 	fileKey, writer, saveFileFunc, err := f.NewWriter(ctx, fileKey, filename)

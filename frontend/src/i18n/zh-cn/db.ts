@@ -210,7 +210,7 @@ export default {
         getDbNamesModeAssign: '指定库名',
 
         ignore: '忽略',
-        replate: '替换',
+        replace: '替换',
 
         running: '运行中',
         waitRun: '待运行',

@@ -13,7 +13,7 @@ type teamMemberRepoImpl struct {
 }
 
 func newTeamMemberRepo() repository.TeamMember {
-	return &teamMemberRepoImpl{base.RepoImpl[*entity.TeamMember]{M: new(entity.TeamMember)}}
+	return &teamMemberRepoImpl{}
 }
 
 func (p *teamMemberRepoImpl) ListMemeber(condition *entity.TeamMember, toEntity any, orderBy ...string) {

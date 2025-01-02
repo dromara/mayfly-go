@@ -12,7 +12,7 @@ type procinstImpl struct {
 }
 
 func newProcinstRepo() repository.Procinst {
-	return &procinstImpl{base.RepoImpl[*entity.Procinst]{M: new(entity.Procinst)}}
+	return &procinstImpl{}
 }
 
 func (p *procinstImpl) GetPageList(condition *entity.ProcinstQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -27,7 +27,7 @@ type procinstTaskImpl struct {
 }
 
 func newProcinstTaskRepo() repository.ProcinstTask {
-	return &procinstTaskImpl{base.RepoImpl[*entity.ProcinstTask]{M: new(entity.ProcinstTask)}}
+	return &procinstTaskImpl{}
 }
 
 func (p *procinstTaskImpl) GetPageList(condition *entity.ProcinstTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

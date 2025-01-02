@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/utils/collx"
 	"net/url"
 	"strings"
 
@@ -12,8 +13,12 @@ import (
 
 func init() {
 	meta := new(Meta)
-	dbi.Register(dbi.DbTypeMssql, meta)
+	dbi.Register(DbTypeMssql, meta)
 }
+
+const (
+	DbTypeMssql dbi.DbType = "mssql"
+)
 
 type Meta struct {
 }
@@ -59,4 +64,46 @@ func (mm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 
 func (mm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 	return &MssqlMetadata{dc: conn}
+}
+
+func (sm *Meta) GetDbDataTypes() []*dbi.DbDataType {
+	return collx.AsArray[*dbi.DbDataType](Bigint,
+		Numeric,
+		Bit,
+		Smallint,
+		Decimal,
+		Smallmoney,
+		Int,
+		Tinyint,
+		Money,
+		Float,
+		Real,
+		Date,
+		Datetimeoffset,
+		Datetime2,
+		Smalldatetime,
+		Datetime,
+		Time,
+		Char,
+		Varchar,
+		Text,
+		Nchar,
+		Nvarchar,
+		Ntext,
+		Binary,
+		Varbinary,
+		Cursor,
+		Rowversion,
+		Hierarchyid,
+		Uniqueidentifier,
+		Sql_variant,
+		Xml,
+		Table,
+		Geometry,
+		Geography,
+	)
+}
+
+func (sm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
+	return &commonTypeConverter{}
 }

@@ -52,19 +52,14 @@ type Db interface {
 type dbAppImpl struct {
 	base.AppImpl[*entity.Db, repository.Db]
 
-	dbSqlRepo           repository.DbSql        `inject:"DbSqlRepo"`
-	dbInstanceApp       Instance                `inject:"DbInstanceApp"`
-	dbSqlExecApp        DbSqlExec               `inject:"DbSqlExecApp"`
-	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
+	dbSqlRepo           repository.DbSql        `inject:"T"`
+	dbInstanceApp       Instance                `inject:"T"`
+	dbSqlExecApp        DbSqlExec               `inject:"T"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
 var _ (Db) = (*dbAppImpl)(nil)
-
-// 注入DbRepo
-func (d *dbAppImpl) InjectDbRepo(repo repository.Db) {
-	d.Repo = repo
-}
 
 // 分页获取数据库信息列表
 func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -98,7 +93,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 					Name: dbEntity.Name,
 				}},
 				ParentTagCode: authCert.Name,
-				ParentTagType: tagentity.TagTypeDbAuthCert,
+				ParentTagType: tagentity.TagTypeAuthCert,
 			})
 		})
 	}
@@ -141,7 +136,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 			}
 		}
 		if authCert.Name != old.AuthCertName {
-			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDb, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
+			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDb, old.Code, tagentity.TagTypeAuthCert, authCert.Name)
 		}
 		return nil
 	})
@@ -214,7 +209,7 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 		return nil, errorx.NewBiz("failed to get database list")
 	}
 	if len(dbs) == 0 {
-		return nil, errorx.NewBiz("DB instance [%d] Database is not configured, please configure it first", instanceId)
+		return nil, errorx.NewBiz("DB instance [%d] database is not configured, please configure it first", instanceId)
 	}
 
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
@@ -226,6 +221,10 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	log := dto.DefaultDumpLog
 	if reqParam.Log != nil {
 		log = reqParam.Log
+	}
+	progress := dto.DefaultDumpProgress
+	if reqParam.Progress != nil {
+		progress = reqParam.Progress
 	}
 
 	writer := writerx.NewStringWriter(reqParam.Writer)
@@ -249,23 +248,16 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	// 获取目标元数据，仅生成sql，用于生成建表语句和插入数据，不能用于查询
 	targetDialect := dbConn.GetDialect()
 	if reqParam.TargetDbType != "" && dbConn.Info.Type != reqParam.TargetDbType {
-		// 创建一个假连接，仅用于调用方言生成sql，不做数据库连接操作
-		meta := dbi.GetMeta(reqParam.TargetDbType)
-		dbConn := &dbi.DbConn{Info: &dbi.DbInfo{
-			Type: reqParam.TargetDbType,
-			Meta: meta,
-		}}
-
-		targetDialect = meta.GetDialect(dbConn)
+		targetDialect = dbi.GetDialect(reqParam.TargetDbType)
 	}
 
 	srcMeta := dbConn.GetMetadata()
 	srcDialect := dbConn.GetDialect()
 	if len(tables) == 0 {
-		log("Gets the table information that can be export...")
+		log("gets the table information that can be export...")
 		ti, err := srcMeta.GetTables()
 		if err != nil {
-			log(fmt.Sprintf("Failed to get table info %s", err.Error()))
+			log(fmt.Sprintf("failed to get table info %s", err.Error()))
 		}
 		biz.ErrIsNil(err)
 		tables = make([]string, len(ti))
@@ -275,105 +267,133 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 		log(fmt.Sprintf("Get %d tables", len(tables)))
 	}
 	if len(tables) == 0 {
-		log("No table to export. End export")
+		log("no table to export. end export")
 		return errorx.NewBiz("there is no table to export")
 	}
 
-	log("Querying column information...")
+	log("querying column information...")
 	// 查询列信息，后面生成建表ddl和insert都需要列信息
 	columns, err := srcMeta.GetColumns(tables...)
 	if err != nil {
-		log(fmt.Sprintf("Failed to query column information: %s", err.Error()))
+		log(fmt.Sprintf("failed to query column information: %s", err.Error()))
 	}
 	biz.ErrIsNil(err)
 
 	// 以表名分组，存放每个表的列信息
 	columnMap := make(map[string][]dbi.Column)
 	for _, column := range columns {
+		if err := dbi.ConvToTargetDbColumn(dbConn.Info.Type, cmp.Or(reqParam.TargetDbType, dbConn.Info.Type), targetDialect, &column); err != nil {
+			return err
+		}
 		columnMap[column.TableName] = append(columnMap[column.TableName], column)
 	}
 
 	// 按表名排序
 	sort.Strings(tables)
-
-	quoteSchema := srcDialect.QuoteIdentifier(dbConn.Info.CurrentSchema())
+	quoteSchema := srcDialect.Quoter().Quote(dbConn.Info.CurrentSchema())
 	dumpHelper := targetDialect.GetDumpHelper()
-	dataHelper := targetDialect.GetDataHelper()
 
+	targetSqlGenerator := targetDialect.GetSQLGenerator()
+	targetDialectQuote := targetDialect.Quoter().Quote
 	// 遍历获取每个表的信息
 	for _, tableName := range tables {
-		log(fmt.Sprintf("Get table [%s] information...", tableName))
-		quoteTableName := targetDialect.QuoteIdentifier(tableName)
+		log(fmt.Sprintf("get table [%s] information...", tableName))
+		quoteTableName := targetDialectQuote(tableName)
 
 		// 查询表信息，主要是为了查询表注释
 		tbs, err := srcMeta.GetTables(tableName)
 		if err != nil {
-			log(fmt.Sprintf("Failed to get table [%s] information: %s", tableName, err.Error()))
+			log(fmt.Sprintf("failed to get table [%s] information: %s", tableName, err.Error()))
 			return err
 		}
 		if len(tbs) <= 0 {
-			log(fmt.Sprintf("Failed to get table [%s] information: No table information was retrieved", tableName))
-			return errorx.NewBiz(fmt.Sprintf("Failed to get table information: %s", tableName))
+			log(fmt.Sprintf("failed to get table [%s] information: No table information was retrieved", tableName))
+			return errorx.NewBiz("Failed to get table information: %s", tableName)
 		}
-		tabInfo := dbi.Table{
-			TableName:    tableName,
-			TableComment: tbs[0].TableComment,
-		}
+
+		tableInfo := tbs[0]
+		columns := columnMap[tableName]
 
 		// 生成表结构信息
 		if reqParam.DumpDDL {
-			log(fmt.Sprintf("Generate table [%s] DDL...", tableName))
+			log(fmt.Sprintf("generate table [%s] DDL...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Table structure: %s \n-- ----------------------------\n", tableName))
-			tbDdlArr := targetDialect.GenerateTableDDL(columnMap[tableName], tabInfo, true)
+			tbDdlArr := targetSqlGenerator.GenTableDDL(tableInfo, columns, true)
 			for _, ddl := range tbDdlArr {
-				writer.WriteString(ddl + ";\n")
+				if _, err := writer.WriteString(ddl + ";\n"); err != nil {
+					return err
+				}
 			}
+			progress(tableName, dbi.StmtTypeDDL, len(tbDdlArr), true)
 		}
 
 		// 生成insert sql，数据在索引前，加速insert
 		if reqParam.DumpData {
-			log(fmt.Sprintf("Generate table [%s] DML...", tableName))
+			log(fmt.Sprintf("generate table [%s] DML...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Data: %s \n-- ----------------------------\n", tableName))
 
 			dumpHelper.BeforeInsert(writer, quoteTableName)
-			// 获取列信息
-			quoteColNames := make([]string, 0)
-			for _, col := range columnMap[tableName] {
-				quoteColNames = append(quoteColNames, targetDialect.QuoteIdentifier(col.ColumnName))
-			}
 
-			_, _ = dbConn.WalkTableRows(ctx, tableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
-				rowValues := make([]string, len(columnMap[tableName]))
-				for i, col := range columnMap[tableName] {
-					rowValues[i] = dataHelper.WrapValue(row[col.ColumnName], dataHelper.GetDataType(string(col.DataType)))
+			dataCount := 0
+			rows := make([][]any, 0)
+			_, err = dbConn.WalkTableRows(ctx, tableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+				rowValues := make([]any, len(columns))
+				for i, col := range columns {
+					rowValues[i] = row[col.ColumnName]
+				}
+				rows = append(rows, rowValues)
+				dataCount++
+				if dataCount%500 != 0 {
+					return nil
 				}
 
 				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
-				insertSQL := fmt.Sprintf("%s INSERT INTO %s (%s) values(%s)", beforeInsert, quoteTableName, strings.Join(quoteColNames, ", "), strings.Join(rowValues, ", "))
-				writer.WriteString(insertSQL + ";\n")
+				writer.WriteString(beforeInsert)
+				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
+				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
+					return err
+				}
+				progress(tableName, dbi.StmtTypeInsert, dataCount, false)
+				rows = make([][]any, 0)
 				return nil
 			})
 
-			dumpHelper.AfterInsert(writer, tableName, columnMap[tableName])
+			if err != nil {
+				return err
+			}
+
+			if len(rows) > 0 {
+				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
+				writer.WriteString(beforeInsert)
+				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
+				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
+					return err
+				}
+			}
+
+			dumpHelper.AfterInsert(writer, tableName, columns)
+			progress(tableName, dbi.StmtTypeInsert, dataCount, true)
 		}
 
-		log(fmt.Sprintf("Get table [%s] index information...", tableName))
+		log(fmt.Sprintf("get table [%s] index information...", tableName))
 		indexs, err := srcMeta.GetTableIndex(tableName)
 		if err != nil {
-			log(fmt.Sprintf("Failed to get table [%s] index information: %s", tableName, err.Error()))
+			log(fmt.Sprintf("failed to get table [%s] index information: %s", tableName, err.Error()))
 			return err
 		}
 
 		if len(indexs) > 0 {
 			// 最后添加索引
-			log(fmt.Sprintf("Generate table [%s] index...", tableName))
+			log(fmt.Sprintf("generate table [%s] index...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Table Index: %s \n-- ----------------------------\n", tableName))
-			sqlArr := targetDialect.GenerateIndexDDL(indexs, tabInfo)
+			sqlArr := targetSqlGenerator.GenIndexDDL(tableInfo, indexs)
 			for _, sqlStr := range sqlArr {
-				writer.WriteString(sqlStr + ";\n")
+				if _, err := writer.WriteString(sqlStr + ";\n"); err != nil {
+					return err
+				}
 			}
+			progress(tableName, dbi.StmtTypeDDL, len(sqlArr), true)
 		}
-
 	}
 
 	return nil

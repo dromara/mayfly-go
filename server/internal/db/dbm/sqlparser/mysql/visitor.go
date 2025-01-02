@@ -441,23 +441,27 @@ func (v *MysqlVisitor) VisitInPredicate(ctx *mysqlparser.InPredicateContext) int
 }
 
 func (v *MysqlVisitor) VisitBetweenPredicate(ctx *mysqlparser.BetweenPredicateContext) interface{} {
-	node := sqlstmt.NewNode(ctx.GetParser(), ctx)
-	return node
+	predicate := new(sqlstmt.PredicateLike)
+	predicate.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	return predicate
 }
 
 func (v *MysqlVisitor) VisitIsNullPredicate(ctx *mysqlparser.IsNullPredicateContext) interface{} {
-	node := sqlstmt.NewNode(ctx.GetParser(), ctx)
-	return node
+	predicate := new(sqlstmt.PredicateLike)
+	predicate.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	return predicate
 }
 
 func (v *MysqlVisitor) VisitLikePredicate(ctx *mysqlparser.LikePredicateContext) interface{} {
-	node := sqlstmt.NewNode(ctx.GetParser(), ctx)
-	return node
+	likePredicate := new(sqlstmt.PredicateLike)
+	likePredicate.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	return likePredicate
 }
 
 func (v *MysqlVisitor) VisitRegexpPredicate(ctx *mysqlparser.RegexpPredicateContext) interface{} {
-	node := sqlstmt.NewNode(ctx.GetParser(), ctx)
-	return node
+	predicate := new(sqlstmt.PredicateLike)
+	predicate.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	return predicate
 }
 
 func (v *MysqlVisitor) VisitUnaryExpressionAtom(ctx *mysqlparser.UnaryExpressionAtomContext) interface{} {

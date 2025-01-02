@@ -4,12 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 // 游标遍历查询结果集处理函数
@@ -26,7 +24,31 @@ type DbConn struct {
 // 执行数据库查询返回的列信息
 type QueryColumn struct {
 	Name string `json:"name"` // 列名
-	Type string `json:"type"` // 类型
+	Type string `json:"type"` // 数据类型
+
+	DbDataType *DbDataType `json:"-"`
+	valuer     Valuer      `json:"-"`
+}
+
+func NewQueryColumn(colName string, columnType *DbDataType) *QueryColumn {
+	return &QueryColumn{
+		Name:       colName,
+		Type:       columnType.DataType.Name,
+		DbDataType: columnType,
+		valuer:     columnType.DataType.Valuer(),
+	}
+}
+
+func (qc *QueryColumn) getValuePtr() any {
+	return qc.valuer.NewValuePtr()
+}
+
+func (qc *QueryColumn) value() any {
+	return qc.valuer.Value()
+}
+
+func (qc *QueryColumn) SQLValue(val any) any {
+	return qc.DbDataType.DataType.SQLValue(val)
 }
 
 func (d *DbConn) GetDb() *sql.DB {
@@ -73,7 +95,7 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
 func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
-	return walkQueryRows(ctx, d.db, querySql, walkFn, args...)
+	return d.walkQueryRows(ctx, querySql, walkFn, args...)
 }
 
 // WalkTableRows 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
@@ -131,6 +153,11 @@ func (d *DbConn) GetMetadata() Metadata {
 	return d.Info.Meta.GetMetadata(d)
 }
 
+// GetDbDataType 获取定义的数据库数据类型
+func (d *DbConn) GetDbDataType(dataType string) *DbDataType {
+	return GetDbDataType(d.Info.Type, dataType)
+}
+
 // Stats 返回数据库连接状态
 func (d *DbConn) Stats(ctx context.Context, execSql string, args ...any) sql.DBStats {
 	return d.db.Stats()
@@ -142,8 +169,8 @@ func (d *DbConn) Close() {
 		if err := d.db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
 		}
-		// 如果是达梦并且使用了ssh隧道，则需要手动将其关闭
-		if d.Info.Type == DbTypeDM && d.Info.SshTunnelMachineId > 0 {
+		// 如果是使用了自己实现的ssh隧道转发，则需要手动将其关闭
+		if d.Info.useSshTunnel {
 			mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
 		}
 		d.db = nil
@@ -151,11 +178,11 @@ func (d *DbConn) Close() {
 }
 
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
-func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	rows, err := db.QueryContext(cancelCtx, selectSql, args...)
+	rows, err := d.db.QueryContext(cancelCtx, selectSql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -173,16 +200,15 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	// 这里表示一行填充数据
 	scans := make([]any, lenCols)
 	// 这里表示一行所有列的值，用[]byte表示
-	values := make([][]byte, lenCols)
 	for k, colType := range colTypes {
 		// 处理字段名，如果为空，则命名为匿名列
 		colName := colType.Name()
 		if colName == "" {
 			colName = fmt.Sprintf("<anonymous%d>", k+1)
 		}
-		cols[k] = &QueryColumn{Name: colName, Type: colType.DatabaseTypeName()}
-		// 这里scans引用values，把数据填充到[]byte里
-		scans[k] = &values[k]
+		qc := NewQueryColumn(colName, d.GetDbDataType(colType.DatabaseTypeName()))
+		cols[k] = qc
+		scans[k] = qc.getValuePtr()
 	}
 
 	for rows.Next() {
@@ -193,11 +219,11 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		// 每行数据
 		rowData := make(map[string]any, lenCols)
 		// 把values中的数据复制到row中
-		for i, v := range values {
-			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
+		for i := range scans {
+			rowData[cols[i].Name] = cols[i].value()
 		}
 		if err = walkFn(rowData, cols); err != nil {
-			logx.ErrorfContext(ctx, "[%s]游标遍历查询结果集出错, 退出遍历: %s", selectSql, err.Error())
+			logx.ErrorfContext(ctx, "[%s] cursor traversal query result set error, exit traversal: %s", selectSql, err.Error())
 			cancelFunc()
 			return cols, err
 		}
@@ -206,68 +232,13 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	return cols, nil
 }
 
-// 将查询的值转为对应列类型的实际值，不全部转为字符串
-func valueConvert(data []byte, colType *sql.ColumnType) any {
-	if data == nil {
-		return nil
-	}
-	// 列的数据库类型名
-	colDatabaseTypeName := strings.ToLower(colType.DatabaseTypeName())
-
-	// 如果类型是bit，则直接返回第一个字节即可
-	if strings.Contains(colDatabaseTypeName, "bit") {
-		return data[0]
-	}
-	if colDatabaseTypeName == "blob" {
-		return fmt.Sprintf("%x", data)
-	}
-
-	// 这里把[]byte数据转成string
-	stringV := string(data)
-	if stringV == "" {
-		return ""
-	}
-	if colType == nil || colType.ScanType() == nil {
-		return stringV
-	}
-	colScanType := strings.ToLower(colType.ScanType().Name())
-
-	if strings.Contains(colScanType, "int") {
-		// 如果长度超过16位，则返回字符串，因为前端js长度大于16会丢失精度
-		if len(stringV) > 16 {
-			return stringV
-		}
-		intV, _ := strconv.Atoi(stringV)
-		switch colType.ScanType().Kind() {
-		case reflect.Int8:
-			return int8(intV)
-		case reflect.Uint8:
-			return uint8(intV)
-		case reflect.Int64:
-			return int64(intV)
-		case reflect.Uint64:
-			return uint64(intV)
-		case reflect.Uint:
-			return uint(intV)
-		default:
-			return intV
-		}
-	}
-	if strings.Contains(colScanType, "float") || strings.Contains(colDatabaseTypeName, "decimal") {
-		floatV, _ := strconv.ParseFloat(stringV, 64)
-		return floatV
-	}
-
-	return stringV
-}
-
 // 包装sql执行相关错误
 func wrapSqlError(err error) error {
 	if err == context.Canceled {
-		return errorx.NewBiz("取消执行")
+		return errorx.NewBiz("execution cancel")
 	}
 	if err == context.DeadlineExceeded {
-		return errorx.NewBiz("执行超时")
+		return errorx.NewBiz("execution timeout")
 	}
 	return err
 }

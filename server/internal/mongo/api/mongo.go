@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/mongo/api/vo"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
+	"mayfly-go/internal/mongo/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -25,16 +26,53 @@ import (
 )
 
 type Mongo struct {
-	MongoApp application.Mongo `inject:""`
-	TagApp   tagapp.TagTree    `inject:"TagTreeApp"`
+	mongoApp   application.Mongo `inject:"T"`
+	tagTreeApp tagapp.TagTree    `inject:"T"`
+}
+
+func (ma *Mongo) ReqConfs() *req.Confs {
+	saveDataPerm := req.NewPermission("mongo:data:save")
+
+	reqs := [...]*req.Conf{
+		// 获取所有mongo列表
+		req.NewGet("", ma.Mongos),
+
+		req.NewPost("/test-conn", ma.TestConn),
+
+		req.NewPost("", ma.Save).Log(req.NewLogSaveI(imsg.LogMongoSave)),
+
+		req.NewDelete(":id", ma.DeleteMongo).Log(req.NewLogSaveI(imsg.LogMongoDelete)),
+
+		// 获取mongo下的所有数据库
+		req.NewGet(":id/databases", ma.Databases),
+
+		// 获取mongo指定库的所有集合
+		req.NewGet(":id/collections", ma.Collections),
+
+		// mongo runCommand
+		req.NewPost(":id/run-command", ma.RunCommand).Log(req.NewLogSaveI(imsg.LogMongoRunCmd)),
+
+		// 执行mongo find命令
+		req.NewPost(":id/command/find", ma.FindCommand),
+
+		req.NewPost(":id/command/update-by-id", ma.UpdateByIdCommand).RequiredPermission(saveDataPerm).Log(req.NewLogSaveI(imsg.LogUpdateDocs)),
+
+		// 执行mongo delete by id命令
+		req.NewPost(":id/command/delete-by-id", ma.DeleteByIdCommand).RequiredPermission(req.NewPermission("mongo:data:del")).Log(req.NewLogSaveI(imsg.LogDelDocs)),
+
+		// 执行mongo insert 命令
+		req.NewPost(":id/command/insert", ma.InsertOneCommand).RequiredPermission(saveDataPerm).Log(req.NewLogSaveI(imsg.LogInsertDocs)),
+	}
+
+	return req.NewConfs("/mongos", reqs[:]...)
 }
 
 func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.MongoQuery](rc, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tags := m.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		Types:         []tagentity.TagType{tagentity.TagTypeMongo},
+	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMongo)),
 		CodePathLikes: []string{queryCond.TagPath},
 	})
 	if len(tags) == 0 {
@@ -44,11 +82,11 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond.Codes = tags.GetCodes()
 
 	var mongovos []*vo.Mongo
-	res, err := m.MongoApp.GetPageList(queryCond, page, &mongovos)
+	res, err := m.mongoApp.GetPageList(queryCond, page, &mongovos)
 	biz.ErrIsNil(err)
 
 	// 填充标签信息
-	m.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMongo), collx.ArrayMap(mongovos, func(mvo *vo.Mongo) tagentity.ITagResource {
+	m.tagTreeApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMongo), collx.ArrayMap(mongovos, func(mvo *vo.Mongo) tagentity.ITagResource {
 		return mvo
 	})...)
 
@@ -58,7 +96,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 func (m *Mongo) TestConn(rc *req.Ctx) {
 	form := &form.Mongo{}
 	mongo := req.BindJsonAndCopyTo[*entity.Mongo](rc, form, new(entity.Mongo))
-	biz.ErrIsNilAppendErr(m.MongoApp.TestConn(mongo), "connection error: %s")
+	biz.ErrIsNilAppendErr(m.mongoApp.TestConn(mongo), "connection error: %s")
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
@@ -72,7 +110,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 	}(form.Uri)
 	rc.ReqParam = form
 
-	biz.ErrIsNil(m.MongoApp.SaveMongo(rc.MetaCtx, mongo, form.TagCodePaths...))
+	biz.ErrIsNil(m.mongoApp.SaveMongo(rc.MetaCtx, mongo, form.TagCodePaths...))
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {
@@ -81,12 +119,12 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		m.MongoApp.Delete(rc.MetaCtx, cast.ToUint64(v))
+		m.mongoApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 
 func (m *Mongo) Databases(rc *req.Ctx) {
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	res, err := conn.Cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "get mongo dbs error: %s")
@@ -94,7 +132,7 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 }
 
 func (m *Mongo) Collections(rc *req.Ctx) {
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.CodePath[0])
@@ -111,7 +149,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
 	req.BindJsonAndValid(rc, commandForm)
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -140,7 +178,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 func (m *Mongo) FindCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoFindCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	cli := conn.Cli
 
@@ -174,7 +212,7 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoUpdateByIdCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -197,7 +235,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoUpdateByIdCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -219,7 +257,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoInsertCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 

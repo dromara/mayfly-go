@@ -71,7 +71,7 @@ func ArrayToMap[T any, K comparable](arr []T, keyFunc func(val T) K) map[K]T {
 }
 
 // 数组映射，即将一数组元素通过映射函数转换为另一数组
-func ArrayMap[T any, K comparable](arr []T, mapFunc func(val T) K) []K {
+func ArrayMap[T any, K any](arr []T, mapFunc func(val T) K) []K {
 	res := make([]K, len(arr))
 	for i, val := range arr {
 		res[i] = mapFunc(val)
@@ -184,4 +184,13 @@ func ArrayFilter[T any](array []T, fn func(T) bool) []T {
 		}
 	}
 	return filtered
+}
+
+func AnyMatch[T any](array []T, fn func(T) bool) bool {
+	for _, val := range array {
+		if fn(val) {
+			return true
+		}
+	}
+	return false
 }

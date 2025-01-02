@@ -123,7 +123,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.File,
                 detail: tableComment,
-                insertText: dbDialect.quoteIdentifier(tableName) + ' ',
+                insertText: dbDialect.quoteIdentifier(tableName),
                 range,
                 sortText: 300 + index + '',
             });
@@ -147,7 +147,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.Property,
                 detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: dbDialect.quoteIdentifier(fieldName) + ' ', // create_time
+                insertText: dbDialect.quoteIdentifier(fieldName), // create_time
                 range,
                 sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
             });
@@ -261,7 +261,8 @@ export class DbInst {
      * @returns count sql
      */
     getDefaultCountSql = (table: string, condition?: string) => {
-        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
+        return `SELECT COUNT(*) count
+                FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
     };
 
     // 获取指定表的默认查询sql
@@ -303,7 +304,8 @@ export class DbInst {
                 colNames.push(this.wrapName(colName));
                 values.push(dbDialect.wrapValue(column.dataType, data[colName]));
             }
-            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
+            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')})
+                       VALUES (${values.join(', ')})`);
         }
         return sqls.join(';\n') + ';';
     }
@@ -322,7 +324,8 @@ export class DbInst {
             schema = this.wrapName(dbArr[1]) + '.';
         }
 
-        let sql = `UPDATE ${schema}${this.wrapName(table)} SET `;
+        let sql = `UPDATE ${schema}${this.wrapName(table)}
+                   SET `;
         // 主键列信息
         const primaryKey = await this.loadTableColumn(dbName, table);
         let primaryKeyType = primaryKey.dataType;
@@ -350,7 +353,9 @@ export class DbInst {
         const primaryKey = await this.loadTableColumn(db, table);
         const primaryKeyColumnName = primaryKey.columnName;
         const ids = datas.map((d: any) => `${this.getDialect().wrapValue(primaryKey.dataType, d[primaryKeyColumnName])}`).join(',');
-        return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
+        return `DELETE
+                FROM ${this.wrapName(table)}
+                WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
     }
 
     /*
@@ -459,7 +464,7 @@ export class DbInst {
      * @returns
      */
     static isNumber(columnType: string) {
-        return columnType && columnType.match(/int|double|float|number|decimal|byte|bit/gi);
+        return columnType && columnType.match(/(int|uint|double|float|number|decimal|byte|bit)/gi);
     }
 
     /**
@@ -814,7 +819,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     },
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
-                    insertText: dbDialect.quoteIdentifier(tableName) + ' ',
+                    insertText: dbDialect.quoteIdentifier(tableName),
                     range,
                     sortText: 300 + index + '',
                 });
@@ -833,7 +838,17 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
     });
 }
 
-function getTableName4SqlCtx(sql: string, alias: string = '', defaultDb: string): { tableName: string; tableAlias: string; db: string } | undefined {
+function getTableName4SqlCtx(
+    sql: string,
+    alias: string = '',
+    defaultDb: string
+):
+    | {
+          tableName: string;
+          tableAlias: string;
+          db: string;
+      }
+    | undefined {
     // 去除多余的换行、空格和制表符
     sql = sql.replace(/[\r\n\s\t]+/g, ' ');
 

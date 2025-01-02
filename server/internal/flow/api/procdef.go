@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/flow/application"
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
+	"mayfly-go/internal/flow/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -17,17 +18,31 @@ import (
 )
 
 type Procdef struct {
-	ProcdefApp       application.Procdef  `inject:""`
-	TagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
+	procdefApp       application.Procdef  `inject:"T"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
+}
+
+func (p *Procdef) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("", p.GetProcdefPage),
+
+		req.NewGet("/:resourceType/:resourceCode", p.GetProcdef),
+
+		req.NewPost("", p.Save).Log(req.NewLogSaveI(imsg.LogProcdefSave)).RequiredPermissionCode("flow:procdef:save"),
+
+		req.NewDelete(":id", p.Delete).Log(req.NewLogSaveI(imsg.LogProcdefDelete)).RequiredPermissionCode("flow:procdef:del"),
+	}
+
+	return req.NewConfs("/flow/procdefs", reqs[:]...)
 }
 
 func (p *Procdef) GetProcdefPage(rc *req.Ctx) {
 	cond, page := req.BindQueryAndPage(rc, new(entity.Procdef))
 	var procdefs []*vo.Procdef
-	res, err := p.ProcdefApp.GetPageList(cond, page, &procdefs)
+	res, err := p.procdefApp.GetPageList(cond, page, &procdefs)
 	biz.ErrIsNil(err)
 
-	p.TagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeFlowDef, collx.ArrayMap(procdefs, func(mvo *vo.Procdef) tagentity.IRelateTag {
+	p.tagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeFlowDef, collx.ArrayMap(procdefs, func(mvo *vo.Procdef) tagentity.IRelateTag {
 		return mvo
 	})...)
 
@@ -37,14 +52,14 @@ func (p *Procdef) GetProcdefPage(rc *req.Ctx) {
 func (p *Procdef) GetProcdef(rc *req.Ctx) {
 	resourceType := rc.PathParamInt("resourceType")
 	resourceCode := rc.PathParam("resourceCode")
-	rc.ResData = p.ProcdefApp.GetProcdefByResource(rc.MetaCtx, int8(resourceType), resourceCode)
+	rc.ResData = p.procdefApp.GetProcdefByResource(rc.MetaCtx, int8(resourceType), resourceCode)
 }
 
 func (a *Procdef) Save(rc *req.Ctx) {
 	form := &form.Procdef{}
 	procdef := req.BindJsonAndCopyTo(rc, form, new(entity.Procdef))
 	rc.ReqParam = form
-	biz.ErrIsNil(a.ProcdefApp.SaveProcdef(rc.MetaCtx, &dto.SaveProcdef{
+	biz.ErrIsNil(a.procdefApp.SaveProcdef(rc.MetaCtx, &dto.SaveProcdef{
 		Procdef:   procdef,
 		CodePaths: form.CodePaths,
 	}))
@@ -56,6 +71,6 @@ func (p *Procdef) Delete(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		biz.ErrIsNilAppendErr(p.ProcdefApp.DeleteProcdef(rc.MetaCtx, cast.ToUint64(v)), "delete error: %s")
+		biz.ErrIsNilAppendErr(p.procdefApp.DeleteProcdef(rc.MetaCtx, cast.ToUint64(v)), "delete error: %s")
 	}
 }

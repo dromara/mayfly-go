@@ -21,15 +21,10 @@ type ResourceOpLog interface {
 type resourceOpLogAppImpl struct {
 	base.AppImpl[*entity.ResourceOpLog, repository.ResourceOpLog]
 
-	tagTreeApp TagTree `inject:"TagTreeApp"`
+	tagTreeApp TagTree `inject:"T"`
 }
 
 var _ (ResourceOpLog) = (*resourceOpLogAppImpl)(nil)
-
-// 注入ResourceOpLogRepo
-func (rol *resourceOpLogAppImpl) InjectResourceOpLogRepo(resourceOpLogRepo repository.ResourceOpLog) {
-	rol.Repo = resourceOpLogRepo
-}
 
 func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath string) error {
 	loginAccount := contextx.GetLoginAccount(ctx)
@@ -49,12 +44,23 @@ func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath 
 	}
 	tagTree := &entity.TagTree{CodePath: codePath}
 	if err := rol.tagTreeApp.GetByCond(tagTree); err != nil {
-		return errorx.NewBiz("resource not found")
+		return errorx.NewBiz("tag resource not found")
+	}
+
+	resourceType := tagTree.Type
+	// 获取第一段资源类型即可
+	pathSections := entity.CodePath(tagTree.CodePath).GetPathSections()
+	for _, ps := range pathSections {
+		if ps.Type == entity.TagTypeTag {
+			continue
+		}
+		resourceType = ps.Type
+		break
 	}
 
 	return rol.Save(ctx, &entity.ResourceOpLog{
 		ResourceCode: tagTree.Code,
-		ResourceType: int8(tagTree.Type),
+		ResourceType: int8(resourceType),
 		CodePath:     tagTree.CodePath,
 	})
 }

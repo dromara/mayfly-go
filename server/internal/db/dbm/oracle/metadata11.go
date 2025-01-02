@@ -21,7 +21,7 @@ type OracleMetadata11 struct {
 func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := od.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	// 如果表数量超过了1000，需要分批查询
@@ -47,13 +47,12 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 		return nil, err
 	}
 
-	columnHelper := dialect.GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
 			TableName:     cast.ToString(re["TABLE_NAME"]),
 			ColumnName:    cast.ToString(re["COLUMN_NAME"]),
-			DataType:      dbi.ColumnDataType(cast.ToString(re["DATA_TYPE"])),
+			DataType:      cast.ToString(re["DATA_TYPE"]),
 			CharMaxLength: cast.ToInt(re["CHAR_MAX_LENGTH"]),
 			ColumnComment: cast.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      cast.ToString(re["NULLABLE"]) == "YES",
@@ -64,7 +63,7 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
-		columnHelper.FixColumn(&column)
+		od.dc.GetDbDataType(column.DataType).FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -72,7 +71,7 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 
 func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
 	dialect := od.dc.GetDialect()
-	colName := dialect.QuoteIdentifier(column.ColumnName)
+	colName := dialect.Quoter().Quote(column.ColumnName)
 
 	if column.IsIdentity {
 		// 11g以前的版本 如果是自增，自增列数据类型必须是number，不需要设置默认值和空值，建表后设置自增序列

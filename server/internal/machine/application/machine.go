@@ -63,16 +63,11 @@ type Machine interface {
 type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
-	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
 var _ (Machine) = (*machineAppImpl)(nil)
-
-// 注入MachineRepo
-func (m *machineAppImpl) InjectMachineRepo(repo repository.Machine) {
-	m.Repo = repo
-}
 
 // 分页获取机器信息列表
 func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -337,7 +332,7 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
-	mi.CodePath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
+	mi.CodePath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeAuthCert), authCert.Name)
 	mi.EnableRecorder = me.EnableRecorder
 	mi.Protocol = me.Protocol
 
@@ -363,7 +358,7 @@ func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*
 		return &tagdto.ResourceTag{
 			Code: val.Name,
 			Name: val.Username,
-			Type: tagentity.TagTypeMachineAuthCert,
+			Type: tagentity.TagTypeAuthCert,
 		}
 	})
 

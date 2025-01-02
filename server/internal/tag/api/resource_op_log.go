@@ -8,7 +8,15 @@ import (
 )
 
 type ResourceOpLog struct {
-	ResourceOpLogApp application.ResourceOpLog `inject:""`
+	resourceOpLogApp application.ResourceOpLog `inject:"T"`
+}
+
+func (r *ResourceOpLog) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("/account", r.PageAccountOpLog),
+	}
+
+	return req.NewConfs("/resource-op-logs", reqs[:]...)
 }
 
 func (r *ResourceOpLog) PageAccountOpLog(rc *req.Ctx) {
@@ -17,7 +25,7 @@ func (r *ResourceOpLog) PageAccountOpLog(rc *req.Ctx) {
 	cond.ResourceType = int8(rc.QueryInt("resourceType"))
 	cond.CreatorId = rc.GetLoginAccount().Id
 
-	rols, err := r.ResourceOpLogApp.PageByCond(cond, rc.GetPageParam())
+	rols, err := r.resourceOpLogApp.PageByCond(cond, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = rols
 }

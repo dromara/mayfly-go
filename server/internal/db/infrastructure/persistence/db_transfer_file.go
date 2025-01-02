@@ -12,7 +12,7 @@ type dbTransferFileRepoImpl struct {
 }
 
 func newDbTransferFileRepo() repository.DbTransferFile {
-	return &dbTransferFileRepoImpl{base.RepoImpl[*entity.DbTransferFile]{M: new(entity.DbTransferFile)}}
+	return &dbTransferFileRepoImpl{}
 }
 
 // 分页获取数据库信息列表

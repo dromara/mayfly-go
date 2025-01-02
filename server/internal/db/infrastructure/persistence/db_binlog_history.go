@@ -21,9 +21,7 @@ type dbBinlogHistoryRepoImpl struct {
 }
 
 func NewDbBinlogHistoryRepo() repository.DbBinlogHistory {
-	dr := &dbBinlogHistoryRepoImpl{}
-	dr.M = new(entity.DbBinlogHistory)
-	return dr
+	return &dbBinlogHistoryRepoImpl{}
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetHistoryByTime(instanceId uint64, targetTime time.Time) (*entity.DbBinlogHistory, error) {

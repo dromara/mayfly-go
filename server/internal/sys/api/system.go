@@ -7,16 +7,22 @@ import (
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/ws"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
 type System struct {
 }
 
+func (s *System) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		req.NewGet("", s.ConnectWs),
+	}
+	return req.NewConfs("sysmsg", reqs[:]...)
+}
+
 // 连接websocket
-func (s *System) ConnectWs(g *gin.Context) {
-	wsConn, err := ws.Upgrader.Upgrade(g.Writer, g.Request, nil)
+func (s *System) ConnectWs(rc *req.Ctx) {
+	wsConn, err := ws.Upgrader.Upgrade(rc.GetWriter(), rc.GetRequest(), nil)
 	defer func() {
 		if err := recover(); err != nil {
 			errInfo := anyx.ToString(err)
@@ -29,11 +35,11 @@ func (s *System) ConnectWs(g *gin.Context) {
 	}()
 
 	biz.ErrIsNil(err)
-	clientId := g.Query("clientId")
+	clientId := rc.Query("clientId")
 	biz.NotEmpty(clientId, "clientId cannot be empty")
 
 	// 权限校验
-	rc := req.NewCtxWithGin(g)
+	// rc := req.NewCtxWithGin(g)
 	err = req.PermissionHandler(rc)
 	biz.ErrIsNil(err, "sys-websocket connect without permission")
 

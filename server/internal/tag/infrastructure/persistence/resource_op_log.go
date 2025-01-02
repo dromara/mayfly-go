@@ -11,5 +11,5 @@ type resourceOpLogRepoImpl struct {
 }
 
 func newResourceOpLogRepo() repository.ResourceOpLog {
-	return &resourceOpLogRepoImpl{base.RepoImpl[*entity.ResourceOpLog]{M: new(entity.ResourceOpLog)}}
+	return &resourceOpLogRepoImpl{}
 }

@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/db/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
@@ -15,19 +16,48 @@ import (
 )
 
 type DataSyncTask struct {
-	DataSyncTaskApp application.DataSyncTask `inject:"DbDataSyncTaskApp"`
+	dataSyncTaskApp application.DataSyncTask `inject:"T"`
+}
+
+func (d *DataSyncTask) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取任务列表 /datasync
+		req.NewGet("", d.Tasks),
+
+		req.NewGet(":taskId/logs", d.Logs).RequiredPermissionCode("db:sync:log"),
+
+		// 保存任务 /datasync/save
+		req.NewPost("save", d.SaveTask).Log(req.NewLogSaveI(imsg.LogDataSyncSave)).RequiredPermissionCode("db:sync:save"),
+
+		// 获取单个详情 /datasync/:taskId
+		req.NewGet(":taskId", d.GetTask),
+
+		// 删除任务 /datasync/:taskId/del
+		req.NewDelete(":taskId/del", d.DeleteTask).Log(req.NewLogSaveI(imsg.LogDataSyncDelete)).RequiredPermissionCode("db:sync:del"),
+
+		// 启停用任务 /datasync/status
+		req.NewPost(":taskId/status", d.ChangeStatus).Log(req.NewLogSaveI(imsg.LogDataSyncChangeStatus)).RequiredPermissionCode("db:sync:status"),
+
+		// 立即执行任务 /datasync/run
+		req.NewPost(":taskId/run", d.Run),
+
+		// 停止正在执行中的任务
+		req.NewPost(":taskId/stop", d.Stop),
+	}
+
+	return req.NewConfs("/datasync/tasks", reqs[:]...)
 }
 
 func (d *DataSyncTask) Tasks(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DataSyncTaskQuery](rc, new(entity.DataSyncTaskQuery))
-	res, err := d.DataSyncTaskApp.GetPageList(queryCond, page, new([]vo.DataSyncTaskListVO))
+	res, err := d.dataSyncTaskApp.GetPageList(queryCond, page, new([]vo.DataSyncTaskListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (d *DataSyncTask) Logs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DataSyncLogQuery](rc, new(entity.DataSyncLogQuery))
-	res, err := d.DataSyncTaskApp.GetTaskLogList(queryCond, page, new([]vo.DataSyncLogListVO))
+	res, err := d.dataSyncTaskApp.GetTaskLogList(queryCond, page, new([]vo.DataSyncLogListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -44,7 +74,7 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 	form.DataSql = sql
 
 	rc.ReqParam = form
-	biz.ErrIsNil(d.DataSyncTaskApp.Save(rc.MetaCtx, task))
+	biz.ErrIsNil(d.dataSyncTaskApp.Save(rc.MetaCtx, task))
 }
 
 func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
@@ -53,21 +83,21 @@ func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
 	ids := strings.Split(taskId, ",")
 
 	for _, v := range ids {
-		biz.ErrIsNil(d.DataSyncTaskApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
+		biz.ErrIsNil(d.dataSyncTaskApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
 	}
 }
 
 func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 	form := &form.DataSyncTaskStatusForm{}
 	task := req.BindJsonAndCopyTo[*entity.DataSyncTask](rc, form, new(entity.DataSyncTask))
-	_ = d.DataSyncTaskApp.UpdateById(rc.MetaCtx, task)
+	_ = d.dataSyncTaskApp.UpdateById(rc.MetaCtx, task)
 
 	if task.Status == entity.DataSyncTaskStatusEnable {
-		task, err := d.DataSyncTaskApp.GetById(task.Id)
+		task, err := d.dataSyncTaskApp.GetById(task.Id)
 		biz.ErrIsNil(err, "task not found")
-		d.DataSyncTaskApp.AddCronJob(rc.MetaCtx, task)
+		d.dataSyncTaskApp.AddCronJob(rc.MetaCtx, task)
 	} else {
-		d.DataSyncTaskApp.RemoveCronJobById(task.Id)
+		d.dataSyncTaskApp.RemoveCronJobById(task.Id)
 	}
 	// 记录请求日志
 	rc.ReqParam = form
@@ -76,7 +106,7 @@ func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 func (d *DataSyncTask) Run(rc *req.Ctx) {
 	taskId := d.getTaskId(rc)
 	rc.ReqParam = taskId
-	_ = d.DataSyncTaskApp.RunCronJob(rc.MetaCtx, taskId)
+	_ = d.dataSyncTaskApp.RunCronJob(rc.MetaCtx, taskId)
 }
 
 func (d *DataSyncTask) Stop(rc *req.Ctx) {
@@ -86,12 +116,12 @@ func (d *DataSyncTask) Stop(rc *req.Ctx) {
 	task := new(entity.DataSyncTask)
 	task.Id = taskId
 	task.RunningState = entity.DataSyncTaskRunStateStop
-	_ = d.DataSyncTaskApp.UpdateById(rc.MetaCtx, task)
+	_ = d.dataSyncTaskApp.UpdateById(rc.MetaCtx, task)
 }
 
 func (d *DataSyncTask) GetTask(rc *req.Ctx) {
 	taskId := d.getTaskId(rc)
-	dbEntity, _ := d.DataSyncTaskApp.GetById(taskId)
+	dbEntity, _ := d.dataSyncTaskApp.GetById(taskId)
 	rc.ResData = dbEntity
 }
 

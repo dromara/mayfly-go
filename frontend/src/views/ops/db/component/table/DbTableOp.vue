@@ -31,7 +31,7 @@
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
-                                <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
+                                <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type" allow-create>
                                     <el-option
                                         v-for="pgsqlType in getDbDialect(dbType!).getInfo().columnTypes"
                                         :key="pgsqlType.dataType"
@@ -64,7 +64,7 @@
 
                                 <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
 
-                                <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.delete')" @confirm="deleteRow(scope.$index)">
+                                <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.deleteConfirm')" @confirm="deleteRow(scope.$index)">
                                     <template #reference>
                                         <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
                                     </template>
@@ -79,7 +79,7 @@
                 </el-tab-pane>
                 <el-tab-pane :label="$t('db.index')" name="2">
                     <el-table :data="tableData.indexs.res" :max-height="tableData.height">
-                        <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.indexs.colNames" :key="item.prop">
+                        <el-table-column :prop="item.prop" :label="$t(item.label)" v-for="item in tableData.indexs.colNames" :key="item.prop">
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
 
@@ -241,7 +241,7 @@ const state = reactive({
             colNames: [
                 {
                     prop: 'indexName',
-                    label: 'db.indexName',
+                    label: 'common.name',
                 },
                 {
                     prop: 'columnNames',

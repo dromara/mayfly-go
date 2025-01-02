@@ -58,7 +58,7 @@ const props = defineProps({
         default: 'calc(100vh - 330px)',
     },
     tagType: {
-        type: [Number, Array<Number>],
+        type: [Number, Array<Number>, String, Array<String>],
         default: TagResourceTypeEnum.Tag.value,
     },
     nodeKey: {

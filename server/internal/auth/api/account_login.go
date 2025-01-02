@@ -6,15 +6,14 @@ import (
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/imsg"
-	msgapp "mayfly-go/internal/msg/application"
+	"mayfly-go/internal/auth/pkg/captcha"
+	"mayfly-go/internal/auth/pkg/otp"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
@@ -24,8 +23,24 @@ import (
 )
 
 type AccountLogin struct {
-	AccountApp sysapp.Account `inject:""`
-	MsgApp     msgapp.Msg     `inject:""`
+	accountApp sysapp.Account `inject:"T"`
+}
+
+func (a *AccountLogin) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 用户账号密码登录
+		req.NewPost("/login", a.Login).Log(req.NewLogSaveI(imsg.LogAccountLogin)).DontNeedToken(),
+
+		req.NewGet("/refreshToken", a.RefreshToken).DontNeedToken(),
+
+		// 用户退出登录
+		req.NewPost("/logout", a.Logout),
+
+		// 用户otp双因素校验
+		req.NewPost("/otp-verify", a.OtpVerify).DontNeedToken(),
+	}
+
+	return req.NewConfs("/auth/accounts", reqs[:]...)
 }
 
 /**   用户账号密码登录   **/
@@ -51,7 +66,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "decryption password error: %s")
 
 	account := &sysentity.Account{Username: username}
-	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"))
+	err = a.accountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"))
 
 	failCountKey := fmt.Sprintf("account:login:failcount:%s", username)
 	nowFailCount := cache.GetInt(failCountKey)
@@ -109,7 +124,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 		update := &sysentity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
 		biz.ErrIsNil(update.OtpSecretEncrypt())
-		biz.ErrIsNil(a.AccountApp.Update(context.Background(), update))
+		biz.ErrIsNil(a.accountApp.Update(context.Background(), update))
 	}
 
 	la := &sysentity.Account{Username: otpInfo.Username}

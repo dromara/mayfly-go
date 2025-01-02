@@ -4,7 +4,7 @@
             <Pane size="20" max-size="30">
                 <tag-tree
                     :default-expanded-keys="state.defaultExpendKey"
-                    :resource-type="TagResourceTypeEnum.DbName.value"
+                    :resource-type="TagResourceTypePath.Db"
                     :tag-path-node-type="NodeTypeTagPath"
                     ref="tagTreeRef"
                 >
@@ -246,7 +246,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener, useStorage } from '@vueuse/core';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
@@ -597,7 +597,7 @@ const autoOpenDb = (codePath: string) => {
     const typeAndCodes: any = getTagTypeCodeByPath(codePath);
     const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
 
-    const dbCode = typeAndCodes[TagResourceTypeEnum.DbName.value][0];
+    const dbCode = typeAndCodes[TagResourceTypeEnum.Db.value][0];
     state.defaultExpendKey = [tagPath, dbCode];
 
     setTimeout(() => {

@@ -11,19 +11,6 @@ import (
 
 type DbType string
 
-const (
-	DbTypeMysql      DbType = "mysql"
-	DbTypeMariadb    DbType = "mariadb"
-	DbTypePostgres   DbType = "postgres"
-	DbTypeGauss      DbType = "gauss"
-	DbTypeDM         DbType = "dm"
-	DbTypeOracle     DbType = "oracle"
-	DbTypeSqlite     DbType = "sqlite"
-	DbTypeMssql      DbType = "mssql"
-	DbTypeKingbaseEs DbType = "kingbaseEs"
-	DbTypeVastbase   DbType = "vastbase"
-)
-
 func ToDbType(dbType string) DbType {
 	return DbType(dbType)
 }
@@ -52,6 +39,7 @@ type DbInfo struct {
 
 	CodePath           []string
 	SshTunnelMachineId int
+	useSshTunnel       bool // 是否使用系统自己实现的ssh隧道连接,而非库自带的
 
 	Meta Meta
 }
@@ -116,6 +104,7 @@ func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
 		}
 		di.Host = exposedIp
 		di.Port = exposedPort
+		di.useSshTunnel = true
 	}
 	return nil
 }

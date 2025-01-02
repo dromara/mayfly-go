@@ -66,7 +66,7 @@ const searchItems = [
 
 const columns = ref([
     TableColumn.new('db', 'db.db'),
-    TableColumn.new('table', 'db.type'),
+    TableColumn.new('table', 'db.table'),
     TableColumn.new('type', 'db.stmtType').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
     TableColumn.new('creator', 'db.execUser'),
     TableColumn.new('sql', 'SQL').canBeautify(),

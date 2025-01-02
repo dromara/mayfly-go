@@ -1,5 +1,7 @@
 package ioc
 
+import "reflect"
+
 type ComponentOption func(component *Component)
 
 // 组件名
@@ -14,6 +16,11 @@ type Component struct {
 	Name string // 组件名
 
 	Value any // 组件实例
+}
+
+// GetType 获取组件实例类型
+func (c *Component) GetType() reflect.Type {
+	return reflect.TypeOf(c.Value)
 }
 
 func NewComponent(val any, opts ...ComponentOption) *Component {

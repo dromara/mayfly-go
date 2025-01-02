@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
@@ -12,6 +13,11 @@ import (
 	"sync"
 
 	"golang.org/x/sync/errgroup"
+)
+
+const (
+	InjectTag           = "inject"
+	ByTypeComponentName = "T" // 根据类型注入的组件名
 )
 
 // 容器
@@ -34,32 +40,33 @@ func (c *Container) Register(bean any, opts ...ComponentOption) {
 	component := NewComponent(bean, opts...)
 
 	componentName := component.Name
-	cType := structx.IndirectType(reflect.TypeOf(component.Value))
-	// 组件名为空，则取组件类型名称作为组件名
+	indirectCType := structx.IndirectType(component.GetType())
+	// 组件名为空，则取组件类型`包名路径.名称`作为组件名
 	if componentName == "" {
-		componentName = cType.Name()
+		componentName = fmt.Sprintf("%s.%s", indirectCType.PkgPath(), indirectCType.Name())
 		component.Name = componentName
 	}
 
 	if _, ok := c.components[componentName]; ok {
-		logx.Warnf("组件名[%s]已经注册至容器, 重复注册...", componentName)
+		logx.Warnf("the component name [%s] has been registered to the container. Repeat the registration...", componentName)
 	}
 
-	logx.Debugf("ioc register : %s = %s.%s", componentName, cType.PkgPath(), cType.Name())
+	logx.Debugf("ioc register : %s = %s.%s", componentName, indirectCType.PkgPath(), indirectCType.Name())
 	c.components[componentName] = component
 }
 
-// 注册对象实例的字段含有inject:"xxx"标签或者Setter方法，则注入对应组件实例
+// Inject 注册对象实例的字段含有注入标签或者Setter方法，则注入对应组件实例
 func (c *Container) Inject(obj any) error {
 	objValue := reflect.ValueOf(obj)
 	if structx.Indirect(objValue).Kind() != reflect.Struct {
 		return nil
 	}
 
-	if err := c.injectWithField(objValue); err != nil {
+	ctx := contextx.NewTraceId()
+	if err := c.injectWithField(ctx, objValue); err != nil {
 		return err
 	}
-	if err := c.injectWithMethod(objValue); err != nil {
+	if err := c.injectWithMethod(ctx, objValue); err != nil {
 		return err
 	}
 	return nil
@@ -93,8 +100,17 @@ func (c *Container) InjectComponents() error {
 	return nil
 }
 
-// 根据组件实例名，获取对应实例信息
+// Get 根据组件实例名，获取对应实例信息
 func (c *Container) Get(name string) (any, error) {
+	if comp, err := c.GetComponent(name); err == nil {
+		return comp.Value, nil
+	} else {
+		return nil, err
+	}
+}
+
+// GetComponent 根据组件名，获取对应组件信息
+func (c *Container) GetComponent(name string) (*Component, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -103,59 +119,142 @@ func (c *Container) Get(name string) (any, error) {
 		return nil, errors.New("component not found: " + name)
 	}
 
-	return component.Value, nil
+	return component, nil
 }
 
-// 根据实例字段的inject:"xxx"标签进行依赖注入
-func (c *Container) injectWithField(objValue reflect.Value) error {
+// GetByType 根据组件实例类型获取组件实例
+func (c *Container) GetByType(fieldType reflect.Type) (any, error) {
+	if comp, err := c.GetComponentByType(fieldType); err == nil {
+		return comp.Value, nil
+	} else {
+		return nil, err
+	}
+}
+
+// GetComponentByType 根据组件实例类型获取组件信息
+func (c *Container) GetComponentByType(fieldType reflect.Type) (*Component, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	for _, component := range c.components {
+		if component.GetType().AssignableTo(fieldType) {
+			return component, nil
+		}
+	}
+
+	return nil, errors.New("component type not found: " + fmt.Sprintf("%s.%s", fieldType.PkgPath(), fieldType.Name()))
+}
+
+// GetBeansByType 根据组件实例类型获取所有对应类型的组件实例
+func (c *Container) GetBeansByType(fieldType reflect.Type) []any {
+	return collx.ArrayMap(c.GetComponentsByType(fieldType), func(comp *Component) any { return comp.Value })
+}
+
+// GetComponentsByType 根据组件实例类型获取指定类型的所有组件信息
+func (c *Container) GetComponentsByType(fieldType reflect.Type) []*Component {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	components := make([]*Component, 0)
+	for _, component := range c.components {
+		if component.GetType().AssignableTo(fieldType) {
+			components = append(components, component)
+		}
+	}
+
+	return components
+}
+
+// injectWithField 根据实例字段的inject:"xxx"或injectByType:""标签进行依赖注入
+func (c *Container) injectWithField(context context.Context, objValue reflect.Value) error {
 	objValue = structx.Indirect(objValue)
 	objType := objValue.Type()
 
+	logx.DebugfContext(context, "start ioc inject with field: %s.%s", objType.PkgPath(), objType.Name())
+
 	for i := 0; i < objType.NumField(); i++ {
 		field := objType.Field(i)
+		fieldValue := objValue.Field(i)
 
-		componentName, ok := field.Tag.Lookup("inject")
+		// 检查字段是否是通过组合包含在当前结构体中的，即嵌套结构体
+		if field.Anonymous && structx.IndirectType(field.Type).Kind() == reflect.Struct {
+			c.injectWithField(context, fieldValue)
+			continue
+		}
+
+		componentName, ok := field.Tag.Lookup(InjectTag)
 		if !ok {
 			continue
 		}
-		// inject tag字段名为空则默认为字段名
-		if componentName == "" {
-			componentName = field.Name
-		}
 
-		injectInfo := fmt.Sprintf("ioc field inject [%s -> %s.%s#%s]", componentName, objType.PkgPath(), objType.Name(), field.Name)
-		logx.Debugf(injectInfo)
-
-		component, err := c.Get(componentName)
-		if err != nil {
-			return fmt.Errorf("%s error: %s", injectInfo, err.Error())
-		}
-
-		// 判断字段类型与需要注入的组件类型是否为可赋值关系
-		componentType := reflect.TypeOf(component)
-		if !componentType.AssignableTo(field.Type) {
-			componentType = structx.IndirectType(componentType)
-			return fmt.Errorf("%s error: 注入类型不一致(期望类型->%s.%s, 组件类型->%s.%s)", injectInfo, field.Type.PkgPath(), field.Type.Name(), componentType.PkgPath(), componentType.Name())
-		}
-
-		fieldValue := objValue.Field(i)
-		if !fieldValue.IsValid() || !fieldValue.CanSet() {
-			// 不可导出变量处理
-			fieldPtrValue := reflect.NewAt(fieldValue.Type(), fieldValue.Addr().UnsafePointer())
-			fieldValue = fieldPtrValue.Elem()
-			if !fieldValue.IsValid() || !fieldValue.CanSet() {
-				return fmt.Errorf("%s error: 字段无效或为不可导出类型", injectInfo)
+		// 如果组件名为指定的根据类型注入值，则根据类型注入
+		if componentName == ByTypeComponentName {
+			if err := c.injectByType(context, objType, field, fieldValue); err != nil {
+				return err
 			}
+			continue
 		}
 
-		fieldValue.Set(reflect.ValueOf(component))
+		if err := c.injectByName(context, objType, field, fieldValue, componentName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// injectByName 根据实例组件名进行依赖注入
+func (c *Container) injectByName(context context.Context, structType reflect.Type, field reflect.StructField, fieldValue reflect.Value, componentName string) error {
+	// inject tag字段名为空则默认为字段名
+	if componentName == "" {
+		componentName = field.Name
+	}
+
+	injectInfo := fmt.Sprintf("ioc field inject by name => [%s -> %s.%s#%s]", componentName, structType.PkgPath(), structType.Name(), field.Name)
+
+	component, err := c.GetComponent(componentName)
+	if err != nil {
+		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
+	}
+
+	// 判断字段类型与需要注入的组件类型是否为可赋值关系
+	componentType := component.GetType()
+	if !componentType.AssignableTo(field.Type) {
+		indirectComponentType := structx.IndirectType(componentType)
+		return fmt.Errorf("%s error: injection types are inconsistent(Expected type -> %s.%s, Component type -> %s.%s)", injectInfo, field.Type.PkgPath(), field.Type.Name(), indirectComponentType.PkgPath(), indirectComponentType.Name())
+	}
+
+	logx.DebugfContext(context, fmt.Sprintf("ioc field inject by name => [%s (%s) -> %s.%s#%s]", componentName, getComponentValueDesc(componentType), structType.PkgPath(), structType.Name(), field.Name))
+
+	if err := setFieldValue(fieldValue, component.Value); err != nil {
+		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
+	}
+
+	return nil
+}
+
+// injectByType 根据实例类型进行依赖注入
+func (c *Container) injectByType(context context.Context, structType reflect.Type, field reflect.StructField, fieldValue reflect.Value) error {
+	fieldType := field.Type
+
+	injectInfo := fmt.Sprintf("ioc field inject by type => [%s.%s -> %s.%s#%s]", fieldType.PkgPath(), fieldType.Name(), structType.PkgPath(), structType.Name(), field.Name)
+
+	component, err := c.GetComponentByType(fieldType)
+	if err != nil {
+		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
+	}
+
+	logx.DebugfContext(context, fmt.Sprintf("ioc field inject by type => [%s.%s (%s) -> %s.%s#%s]", fieldType.PkgPath(), fieldType.Name(), getComponentValueDesc(component.GetType()), structType.PkgPath(), structType.Name(), field.Name))
+
+	if err := setFieldValue(fieldValue, component.Value); err != nil {
+		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
 	}
 
 	return nil
 }
 
 // 根据实例的Inject方法进行依赖注入
-func (c *Container) injectWithMethod(objValue reflect.Value) error {
+func (c *Container) injectWithMethod(context context.Context, objValue reflect.Value) error {
 	objType := objValue.Type()
 
 	for i := 0; i < objType.NumMethod(); i++ {
@@ -171,10 +270,10 @@ func (c *Container) injectWithMethod(objValue reflect.Value) error {
 		componentName := methodName[6:]
 
 		injectInfo := fmt.Sprintf("ioc method inject [%s.%s#%s(%s)]", objType.Elem().PkgPath(), objType.Elem().Name(), methodName, componentName)
-		logx.Debugf(injectInfo)
+		logx.DebugfContext(context, injectInfo)
 
 		if method.Type.NumIn() != 2 {
-			logx.Warnf("%s error: 方法入参不为1个, 无法进行注入", injectInfo)
+			logx.WarnfContext(context, "%s error: the method cannot be injected if it does not have one parameter", injectInfo)
 			continue
 		}
 
@@ -188,11 +287,33 @@ func (c *Container) injectWithMethod(objValue reflect.Value) error {
 		expectedComponentType := method.Type.In(1)
 		if !componentType.AssignableTo(expectedComponentType) {
 			componentType = structx.IndirectType(componentType)
-			return fmt.Errorf("%s error: 注入类型不一致(期望类型->%s.%s, 组件类型->%s.%s)", injectInfo, expectedComponentType.PkgPath(), expectedComponentType.Name(), componentType.PkgPath(), componentType.Name())
+			return fmt.Errorf("%s error: injection types are inconsistent(Expected type -> %s.%s, Component type -> %s.%s)", injectInfo, expectedComponentType.PkgPath(), expectedComponentType.Name(), componentType.PkgPath(), componentType.Name())
 		}
 
 		method.Func.Call([]reflect.Value{objValue, reflect.ValueOf(component)})
 	}
 
 	return nil
+}
+
+func setFieldValue(fieldValue reflect.Value, component any) error {
+	if !fieldValue.IsValid() || !fieldValue.CanSet() {
+		// 不可导出变量处理
+		fieldPtrValue := reflect.NewAt(fieldValue.Type(), fieldValue.Addr().UnsafePointer())
+		fieldValue = fieldPtrValue.Elem()
+		if !fieldValue.IsValid() || !fieldValue.CanSet() {
+			return errors.New("the field is invalid or a non-exportable type")
+		}
+	}
+
+	fieldValue.Set(reflect.ValueOf(component))
+	return nil
+}
+
+func getComponentValueDesc(componentValueType reflect.Type) string {
+	if componentValueType.Kind() == reflect.Ptr {
+		componentValueType = structx.IndirectType(componentValueType)
+		return fmt.Sprintf("*%s.%s", componentValueType.PkgPath(), componentValueType.Name())
+	}
+	return fmt.Sprintf("%s.%s", componentValueType.PkgPath(), componentValueType.Name())
 }

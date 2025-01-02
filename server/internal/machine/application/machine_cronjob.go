@@ -42,19 +42,14 @@ type MachineCronJob interface {
 type machineCronJobAppImpl struct {
 	base.AppImpl[*entity.MachineCronJob, repository.MachineCronJob]
 
-	machineCronJobExecRepo repository.MachineCronJobExec `inject:"MachineCronJobExecRepo"`
-	machineApp             Machine                       `inject:"MachineApp"`
+	machineCronJobExecRepo repository.MachineCronJobExec `inject:"T"`
+	machineApp             Machine                       `inject:"T"`
 
-	tagTreeApp       tagapp.TagTree       `inject:"TagTreeApp"`
-	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
+	tagTreeApp       tagapp.TagTree       `inject:"T"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
 var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)
-
-// 注入MachineCronJobRepo
-func (m *machineCronJobAppImpl) InjectMachineCronJobRepo(repo repository.MachineCronJob) {
-	m.Repo = repo
-}
 
 // 分页获取机器脚本任务列表
 func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

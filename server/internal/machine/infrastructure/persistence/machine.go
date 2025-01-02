@@ -12,7 +12,7 @@ type machineRepoImpl struct {
 }
 
 func newMachineRepo() repository.Machine {
-	return &machineRepoImpl{base.RepoImpl[*entity.Machine]{M: new(entity.Machine)}}
+	return &machineRepoImpl{}
 }
 
 // 分页获取机器信息列表

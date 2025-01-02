@@ -273,8 +273,8 @@
                 </el-form-item>
                 <el-form-item prop="type" :label="$t('common.type')">
                     <el-radio-group v-model="createFileDialog.type">
-                        <el-radio value="d" label="d">{{ $t('machine.file') }}</el-radio>
-                        <el-radio value="-" label="-">{{ $t('machine.folder') }}</el-radio>
+                        <el-radio value="d" label="d">{{ $t('machine.folder') }}</el-radio>
+                        <el-radio value="-" label="-">{{ $t('machine.file') }}</el-radio>
                     </el-radio-group>
                 </el-form-item>
             </div>

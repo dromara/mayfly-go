@@ -11,9 +11,7 @@ type resourceRepoImpl struct {
 }
 
 func newResourceRepo() repository.Resource {
-	return &resourceRepoImpl{
-		base.RepoImpl[*entity.Resource]{M: new(entity.Resource)},
-	}
+	return &resourceRepoImpl{}
 }
 
 func (r *resourceRepoImpl) GetChildren(uiPath string) []entity.Resource {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -55,7 +54,7 @@ func (dd *DMMetadata) GetDbNames() ([]string, error) {
 func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := dd.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	var res []map[string]any
@@ -89,7 +88,7 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := dd.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
@@ -97,13 +96,12 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 		return nil, err
 	}
 
-	columnHelper := dd.dc.GetDialect().GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
 			TableName:     cast.ToString(re["TABLE_NAME"]),
 			ColumnName:    cast.ToString(re["COLUMN_NAME"]),
-			DataType:      dbi.ColumnDataType(anyx.ToString(re["DATA_TYPE"])),
+			DataType:      anyx.ToString(re["DATA_TYPE"]),
 			CharMaxLength: cast.ToInt(re["CHAR_MAX_LENGTH"]),
 			ColumnComment: cast.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      cast.ToString(re["NULLABLE"]) == "YES",
@@ -113,7 +111,7 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
-		columnHelper.FixColumn(&column)
+		dd.dc.GetDbDataType(column.DataType).FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -176,34 +174,7 @@ func (dd *DMMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 // 获取建表ddl
 func (dd *DMMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
-
-	// 1.获取表信息
-	tbs, err := dd.GetTables(tableName)
-	tableInfo := &dbi.Table{}
-	if err != nil || tbs == nil || len(tbs) <= 0 {
-		logx.Errorf("获取表信息失败, %s", tableName)
-		return "", err
-	}
-	tableInfo.TableName = tbs[0].TableName
-	tableInfo.TableComment = tbs[0].TableComment
-
-	// 2.获取列信息
-	columns, err := dd.GetColumns(tableName)
-	if err != nil {
-		logx.Errorf("获取列信息失败, %s", tableName)
-		return "", err
-	}
-	dialect := dd.dc.GetDialect()
-	tableDDLArr := dialect.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
-	// 3.获取索引信息
-	indexs, err := dd.GetTableIndex(tableName)
-	if err != nil {
-		logx.Errorf("获取索引信息失败, %s", tableName)
-		return "", err
-	}
-	// 组装返回
-	tableDDLArr = append(tableDDLArr, dialect.GenerateIndexDDL(indexs, *tableInfo)...)
-	return strings.Join(tableDDLArr, ";\n"), nil
+	return dbi.GenTableDDL(dd.dc.GetDialect(), dd, tableName, dropBeforeCreate)
 }
 
 // 获取DM当前连接的库可访问的schemaNames

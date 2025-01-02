@@ -12,7 +12,7 @@ type msgRepoImpl struct {
 }
 
 func newMsgRepo() repository.Msg {
-	return &msgRepoImpl{base.RepoImpl[*entity.Msg]{M: new(entity.Msg)}}
+	return &msgRepoImpl{}
 }
 
 func (m *msgRepoImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

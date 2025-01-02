@@ -9,13 +9,13 @@
                 v-model:selection-data="state.selectionData"
                 :columns="columns"
                 @page-num-change="
-                    (args) => {
+                    (args: any) => {
                         state.query.pageNum = args.pageNum;
                         search();
                     }
                 "
                 @page-size-change="
-                    (args) => {
+                    (args: any) => {
                         state.query.pageSize = args.pageNum;
                         search();
                     }
@@ -85,14 +85,14 @@ import { dbApi } from '@/views/ops/db/api';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { hasPerms } from '@/components/auth/auth';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getClientId } from '@/common/utils/storage';
 import FileInfo from '@/components/file/FileInfo.vue';
 import { DbTransferFileStatusEnum } from './enums';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg, useI18nPleaseSelect } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -179,14 +179,13 @@ const state = reactive({
         },
         btnOk: async function () {
             await useI18nFormValidate(runFormRef);
-            console.log(state.runDialog.runForm);
             if (state.runDialog.runForm.targetDbType !== state.runDialog.runForm.dbType) {
                 ElMessage.warning(t('db.targetDbTypeSelectError', { dbType: state.runDialog.runForm.dbType }));
                 return false;
             }
             state.runDialog.runForm.clientId = getClientId();
             await dbApi.dbTransferFileRun.request(state.runDialog.runForm);
-            useI18nSaveSuccessMsg();
+            useI18nOperateSuccessMsg();
             state.runDialog.cancel();
             await search();
         },
@@ -228,9 +227,7 @@ const openLog = function (data: any) {
 
 // 运行sql，弹出选择需要运行的库，默认运行当前数据库，需要保证数据库类型与sql文件一致
 const openRun = function (data: any) {
-    console.log(data);
     state.runDialog.runForm = { id: data.id, dbType: data.fileDbType } as any;
-    console.log(state.runDialog.runForm);
     state.runDialog.visible = true;
 };
 

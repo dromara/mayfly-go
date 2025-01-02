@@ -6,7 +6,7 @@
                 <tag-tree
                     class="machine-terminal-tree"
                     ref="tagTreeRef"
-                    :resource-type="TagResourceTypeEnum.MachineAuthCert.value"
+                    :resource-type="TagResourceTypePath.MachineAuthCert"
                     :tag-path-node-type="NodeTypeTagPath"
                     :default-expanded-keys="state.defaultExpendKey"
                 >
@@ -168,7 +168,7 @@ import { useRouter } from 'vue-router';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { formatDate } from '@/common/utils/format';
 import { hasPerms } from '@/components/auth/auth';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { Pane, Splitpanes } from 'splitpanes';
@@ -378,7 +378,7 @@ const autoOpenTerminal = (codePath: string) => {
     const machineCode = typeAndCodes[TagResourceTypeEnum.Machine.value][0];
     state.defaultExpendKey = [tagPath, machineCode];
 
-    const authCertName = typeAndCodes[TagResourceTypeEnum.MachineAuthCert.value][0];
+    const authCertName = typeAndCodes[TagResourceTypeEnum.PublicAuthCert.value][0];
     setTimeout(() => {
         // 置空
         autoOpenResourceStore.setMachineCodePath('');

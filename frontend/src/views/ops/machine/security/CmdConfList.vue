@@ -33,7 +33,7 @@
             :title="$t('machine.cmdConfig')"
             v-model="dialogVisible"
             :show-close="false"
-            width="600px"
+            size="40%"
             :destroy-on-close="true"
             :close-on-click-modal="false"
         >
@@ -78,7 +78,11 @@
                 </el-form-item>
 
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('machine.relateMachine')">
-                    <tag-tree-check height="calc(100vh - 430px)" :tag-type="TagResourceTypeEnum.MachineAuthCert.value" v-model="form.codePaths" />
+                    <tag-tree-check
+                        height="calc(100vh - 430px)"
+                        :tag-type="`${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`"
+                        v-model="form.codePaths"
+                    />
                 </el-form-item>
             </el-form>
             <template #footer>

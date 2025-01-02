@@ -57,7 +57,7 @@ import { isPrefixSubsequence } from '@/common/utils/string';
 
 const props = defineProps({
     resourceType: {
-        type: [Number],
+        type: [Number, String],
         required: true,
     },
     defaultExpandedKeys: {

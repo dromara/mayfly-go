@@ -1,8 +1,8 @@
 --DM_DB_SCHEMAS 库schemas
-select
-    distinct owner as SCHEMA_NAME
-from all_objects
-order by owner
+SELECT
+    DISTINCT object_name as SCHEMA_NAME
+FROM ALL_OBJECTS
+WHERE OBJECT_TYPE = 'SCH'
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
 SELECT a.object_name                                      as TABLE_NAME,
@@ -56,7 +56,7 @@ select a.owner,
        a.table_name                                                                        as TABLE_NAME,
        a.column_name                                                                       as COLUMN_NAME,
        case when a.NULLABLE = 'Y' then 'YES' when a.NULLABLE = 'N' then 'NO' else 'NO' end as NULLABLE,
-       a.data_type                                                                         as DATA_TYPE,
+       case when t3.TYPE_NAME != '' then 'SYSGEO.' || UPPER(t3.TYPE_NAME) else a.DATA_TYPE end as DATA_TYPE,
        a.char_col_decl_length                                                              as CHAR_MAX_LENGTH,
        a.data_precision                                                                    as NUM_PRECISION,
        a.data_scale                                                                        as NUM_SCALE,
@@ -77,6 +77,7 @@ from all_tab_columns a
                     from all_ind_columns uic
                              left join all_constraints uc on uic.index_name = uc.index_name) t2
                    on t2.table_name = t.object_name and a.column_name = t2.column_name and t2.OWNER = a.owner
+         left join USER_TYPES t3 ON  ('CLASS' || t3.TYPEID) = a.DATA_TYPE
 where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and a.table_name in (%s)
 order by a.table_name,

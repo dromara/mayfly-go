@@ -19,6 +19,10 @@ const (
 	SQLITE_INDEX_INFO_KEY = "SQLITE_INDEX_INFO"
 )
 
+var (
+	dataTypeRegexp = regexp.MustCompile(`(\w+)\((\d*),?(\d*)\)`)
+)
+
 type SqliteMetadata struct {
 	dbi.DefaultMetadata
 
@@ -53,7 +57,7 @@ func (sd *SqliteMetadata) GetDbNames() ([]string, error) {
 func (sd *SqliteMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := sd.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	var res []map[string]any
@@ -98,7 +102,6 @@ func (sd *SqliteMetadata) getDataTypes(dataType string) (string, string, string)
 // 获取列元信息, 如列名等
 func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	columns := make([]dbi.Column, 0)
-	columnHelper := sd.dc.GetDialect().GetColumnHelper()
 	for i := 0; i < len(tableNames); i++ {
 		tableName := tableNames[i]
 		_, res, err := sd.dc.Query(fmt.Sprintf("PRAGMA table_info(%s)", tableName))
@@ -134,9 +137,9 @@ func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			} else {
 				column.CharMaxLength = cast.ToInt(length)
 			}
-			column.DataType = dbi.ColumnDataType(strings.ToLower(dataType))
-			columnHelper.FixColumn(&column)
+			column.DataType = strings.ToLower(dataType)
 
+			sd.dc.GetDbDataType(column.DataType).FixColumn(&column)
 			columns = append(columns, column)
 		}
 	}

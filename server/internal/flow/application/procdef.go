@@ -34,18 +34,13 @@ type Procdef interface {
 type procdefAppImpl struct {
 	base.AppImpl[*entity.Procdef, repository.Procdef]
 
-	procinstApp Procinst `inject:"ProcinstApp"`
+	procinstApp Procinst `inject:"T"`
 
-	tagTreeApp       tagapp.TagTree       `inject:"TagTreeApp"`
-	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
+	tagTreeApp       tagapp.TagTree       `inject:"T"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
 var _ (Procdef) = (*procdefAppImpl)(nil)
-
-// 注入repo
-func (p *procdefAppImpl) InjectProcdefRepo(procdefRepo repository.Procdef) {
-	p.Repo = procdefRepo
-}
 
 func (p *procdefAppImpl) GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.Repo.GetPageList(condition, pageParam, toEntity, orderBy...)

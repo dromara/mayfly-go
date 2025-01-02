@@ -15,6 +15,15 @@ type Conf struct {
 	noRes              bool        // 无需返回结果，即文件下载等
 }
 
+type Confs struct {
+	Group string
+	Confs []*Conf
+}
+
+func NewConfs(group string, confs ...*Conf) *Confs {
+	return &Confs{group, confs}
+}
+
 func New(method, path string, handler HandlerFunc) *Conf {
 	return &Conf{method: method, path: path, handler: handler, noRes: false}
 }

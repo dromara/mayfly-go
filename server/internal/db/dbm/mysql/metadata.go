@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
@@ -54,7 +53,7 @@ func (md *MysqlMetadata) GetDbNames() ([]string, error) {
 func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := md.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	var res []map[string]any
@@ -87,9 +86,8 @@ func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 // 获取列元信息, 如列名等
 func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := md.dc.GetDialect()
-	columnHelper := dialect.GetColumnHelper()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
@@ -103,7 +101,7 @@ func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		column := dbi.Column{
 			TableName:     cast.ToString(re["tableName"]),
 			ColumnName:    cast.ToString(re["columnName"]),
-			DataType:      dbi.ColumnDataType(cast.ToString(re["dataType"])),
+			DataType:      cast.ToString(re["dataType"]),
 			ColumnComment: cast.ToString(re["columnComment"]),
 			Nullable:      cast.ToString(re["nullable"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,
@@ -114,7 +112,7 @@ func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			NumScale:      cast.ToInt(re["numScale"]),
 		}
 
-		columnHelper.FixColumn(&column)
+		md.dc.GetDbDataType(column.DataType).FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -156,6 +154,7 @@ func (md *MysqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
 			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
 			IsPrimaryKey: cast.ToInt(re["isPrimaryKey"]) == 1,
+			Extra:        collx.Kvs(IndexSubPartKey, cast.ToInt(re[IndexSubPartKey])),
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -179,34 +178,7 @@ func (md *MysqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 // 获取建表ddl
 func (md *MysqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
-	// 1.获取表信息
-	tbs, err := md.GetTables(tableName)
-	tableInfo := &dbi.Table{}
-	if err != nil || tbs == nil || len(tbs) <= 0 {
-		logx.Errorf("获取表信息失败, %s", tableName)
-		return "", err
-	}
-	tableInfo.TableName = tbs[0].TableName
-	tableInfo.TableComment = tbs[0].TableComment
-
-	// 2.获取列信息
-	columns, err := md.GetColumns(tableName)
-	if err != nil {
-		logx.Errorf("获取列信息失败, %s", tableName)
-		return "", err
-	}
-
-	dialect := md.dc.GetDialect()
-	tableDDLArr := dialect.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
-	// 3.获取索引信息
-	indexs, err := md.GetTableIndex(tableName)
-	if err != nil {
-		logx.Errorf("获取索引信息失败, %s", tableName)
-		return "", err
-	}
-	// 组装返回
-	tableDDLArr = append(tableDDLArr, dialect.GenerateIndexDDL(indexs, *tableInfo)...)
-	return strings.Join(tableDDLArr, ";\n"), nil
+	return dbi.GenTableDDL(md.dc.GetDialect(), md, tableName, dropBeforeCreate)
 }
 
 func (md *MysqlMetadata) GetSchemas() ([]string, error) {

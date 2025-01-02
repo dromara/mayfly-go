@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/db/imsg"
 
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -20,10 +21,35 @@ import (
 )
 
 type Instance struct {
-	InstanceApp         application.Instance    `inject:"DbInstanceApp"`
-	DbApp               application.Db          `inject:""`
-	ResourceAuthCertApp tagapp.ResourceAuthCert `inject:""`
-	TagApp              tagapp.TagTree          `inject:"TagTreeApp"`
+	instanceApp         application.Instance    `inject:"T"`
+	dbApp               application.Db          `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
+	tagApp              tagapp.TagTree          `inject:"T"`
+}
+
+func (d *Instance) ReqConfs() *req.Confs {
+	reqs := [...]*req.Conf{
+		// 获取数据库列表
+		req.NewGet("", d.Instances),
+
+		req.NewPost("/test-conn", d.TestConn),
+
+		req.NewPost("", d.SaveInstance).Log(req.NewLogSaveI(imsg.LogDbInstSave)),
+
+		req.NewGet(":instanceId", d.GetInstance),
+
+		// 获取数据库实例的所有数据库名
+		req.NewPost("/databases", d.GetDatabaseNames),
+
+		// 根据授权凭证名获取其所有库名
+		req.NewGet("/databases/:ac", d.GetDatabaseNamesByAc),
+
+		req.NewGet(":instanceId/server-info", d.GetDbServer),
+
+		req.NewDelete(":instanceId", d.DeleteInstance).Log(req.NewLogSaveI(imsg.LogDbInstDelete)),
+	}
+
+	return req.NewConfs("/instances", reqs[:]...)
 }
 
 // Instances 获取数据库实例信息
@@ -31,8 +57,8 @@ type Instance struct {
 func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
 
-	tags := d.TagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		Types:         collx.AsArray(tagentity.TagTypeDbAuthCert),
+	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
+		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert)),
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
 	// 不存在可操作的数据库，即没有可操作数据
@@ -46,16 +72,16 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond.Codes = dbInstCodes
 
 	var instvos []*vo.InstanceListVO
-	res, err := d.InstanceApp.GetPageList(queryCond, page, &instvos)
+	res, err := d.instanceApp.GetPageList(queryCond, page, &instvos)
 	biz.ErrIsNil(err)
 
 	// 填充授权凭证信息
-	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
+	d.resourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
 		return vos
 	})...)
 
 	// 填充标签信息
-	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDbInstance), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
+	d.tagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDbInstance), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
 		return insvo
 	})...)
 
@@ -66,7 +92,7 @@ func (d *Instance) TestConn(rc *req.Ctx) {
 	form := &form.InstanceForm{}
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
-	biz.ErrIsNil(d.InstanceApp.TestConn(instance, form.AuthCerts[0]))
+	biz.ErrIsNil(d.instanceApp.TestConn(instance, form.AuthCerts[0]))
 }
 
 // SaveInstance 保存数据库实例信息
@@ -76,7 +102,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
 	rc.ReqParam = form
-	id, err := d.InstanceApp.SaveDbInstance(rc.MetaCtx, &dto.SaveDbInstance{
+	id, err := d.instanceApp.SaveDbInstance(rc.MetaCtx, &dto.SaveDbInstance{
 		DbInstance:   instance,
 		AuthCerts:    form.AuthCerts,
 		TagCodePaths: form.TagCodePaths,
@@ -89,7 +115,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 // @router /api/instances/:instance [GET]
 func (d *Instance) GetInstance(rc *req.Ctx) {
 	dbId := getInstanceId(rc)
-	dbEntity, err := d.InstanceApp.GetById(dbId)
+	dbEntity, err := d.instanceApp.GetById(dbId)
 	biz.ErrIsNilAppendErr(err, "get db instance failed: %s")
 	rc.ResData = dbEntity
 }
@@ -102,7 +128,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		biz.ErrIsNilAppendErr(d.InstanceApp.Delete(rc.MetaCtx, cast.ToUint64(v)), "delete db instance failed: %s")
+		biz.ErrIsNilAppendErr(d.instanceApp.Delete(rc.MetaCtx, cast.ToUint64(v)), "delete db instance failed: %s")
 	}
 }
 
@@ -110,13 +136,13 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	form := &form.InstanceDbNamesForm{}
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
-	res, err := d.InstanceApp.GetDatabases(instance, form.AuthCert)
+	res, err := d.instanceApp.GetDatabases(instance, form.AuthCert)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (d *Instance) GetDatabaseNamesByAc(rc *req.Ctx) {
-	res, err := d.InstanceApp.GetDatabasesByAc(rc.PathParam("ac"))
+	res, err := d.instanceApp.GetDatabasesByAc(rc.PathParam("ac"))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -124,7 +150,7 @@ func (d *Instance) GetDatabaseNamesByAc(rc *req.Ctx) {
 // 获取数据库实例server信息
 func (d *Instance) GetDbServer(rc *req.Ctx) {
 	instanceId := getInstanceId(rc)
-	conn, err := d.DbApp.GetDbConnByInstanceId(instanceId)
+	conn, err := d.dbApp.GetDbConnByInstanceId(instanceId)
 	biz.ErrIsNil(err)
 	res, err := conn.GetMetadata().GetDbServer()
 	biz.ErrIsNil(err)

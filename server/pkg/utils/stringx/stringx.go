@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"text/template"
+	"unicode/utf8"
 )
 
 // 逻辑空字符串（由于gorm更新结构体只更新非零值，所以使用该值最为逻辑空字符串，方便更新结构体）
@@ -124,16 +125,36 @@ func ReverStrTemplate(temp, str string, res map[string]any) {
 	}
 }
 
-func TruncateStr(s string, length int) string {
-	if length >= len(s) {
+// Truncate 截断字符串并在中间部分显示指定的替换字符串
+func Truncate(s string, length int, prefixLen int, replace string) string {
+	totalRunes := utf8.RuneCountInString(s)
+
+	// 如果字符串长度小于或等于指定的 length，直接返回原字符串
+	if totalRunes <= length {
 		return s
 	}
-	var last int
-	for i := range s {
-		if i > length {
-			break
-		}
-		last = i
+
+	// 如果字符串长度小于或等于 prefixLen，直接返回原字符串
+	if totalRunes <= prefixLen {
+		return s
 	}
-	return s[:last]
+
+	// 计算 suffixLen
+	suffixLen := length - prefixLen
+
+	// 确保 suffixLen 不会越界
+	if suffixLen <= 0 {
+		runes := []rune(s)
+		return string(runes[:length]) + replace
+	}
+
+	// 获取前 prefixLen 个字符
+	runes := []rune(s)
+	prefix := string(runes[:prefixLen])
+
+	// 获取后 suffixLen 个字符
+	suffix := string(runes[len(runes)-suffixLen:])
+
+	// 返回格式化后的字符串
+	return prefix + replace + suffix
 }

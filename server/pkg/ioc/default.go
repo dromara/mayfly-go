@@ -1,5 +1,10 @@
 package ioc
 
+import (
+	"mayfly-go/pkg/utils/collx"
+	"reflect"
+)
+
 // 全局默认实例容器
 var DefaultContainer = NewContainer()
 
@@ -12,6 +17,13 @@ func Register(component any, opts ...ComponentOption) {
 func Get[T any](name string) T {
 	c, _ := DefaultContainer.Get(name)
 	return c.(T)
+}
+
+// GetBeansByType 根据组件实例类型从全局默认ioc容器获取实例
+func GetBeansByType[T any](valueType reflect.Type) []T {
+	return collx.ArrayMap(DefaultContainer.GetBeansByType(valueType), func(val any) T {
+		return val.(T)
+	})
 }
 
 // 使用全局默认ioc容器中已注册的组件实例 -> 注入到指定实例所依赖的组件实例

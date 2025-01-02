@@ -31,6 +31,10 @@ var En = map[i18n.MsgId]string{
 	ErrFileUploadFail:          "File upload failure",
 	MsgUploadFileSuccess:       "File uploaded successfully",
 
+	LogMachineCronJobSave:   "Machine - save cronjob",
+	LogMachineCronJobDelete: "Machine - delete cronjob",
+	LogMachineCronJobRun:    "Machine - run cronjob",
+
 	LogMachineSecurityCmdSave:   "Machine - Security - Save command configuration",
 	LogMachineSecurityCmdDelete: "Machine - Security - Delete command configuration",
 	TerminalCmdDisable:          "This command has been disabled...",

@@ -38,13 +38,8 @@ type MachineTermOp interface {
 type machineTermOpAppImpl struct {
 	base.AppImpl[*entity.MachineTermOp, repository.MachineTermOp]
 
-	machineCmdConfApp MachineCmdConf `inject:"MachineCmdConfApp"`
-	fileApp           fileapp.File   `inject:"FileApp"`
-}
-
-// 注入MachineTermOpRepo
-func (m *machineTermOpAppImpl) InjectMachineTermOpRepo(repo repository.MachineTermOp) {
-	m.Repo = repo
+	machineCmdConfApp MachineCmdConf `inject:"T"`
+	fileApp           fileapp.File   `inject:"T"`
 }
 
 func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {

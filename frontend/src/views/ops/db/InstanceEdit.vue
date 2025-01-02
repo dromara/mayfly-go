@@ -89,7 +89,7 @@
                     <ResourceAuthCertTableEdit
                         v-model="form.authCerts"
                         :resource-code="form.code"
-                        :resource-type="TagResourceTypeEnum.Db.value"
+                        :resource-type="TagResourceTypeEnum.DbInstance.value"
                         :test-conn-btn-loading="testConnBtnLoading"
                         @test-conn="testConn"
                         :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
@@ -128,6 +128,7 @@ import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { notBlankI18n } from '@/common/assert';
 
 const { t } = useI18n();
 
@@ -258,6 +259,7 @@ const testConn = async (authCert: any) => {
 const btnOk = async () => {
     await useI18nFormValidate(dbForm);
     state.submitForm = await getReqForm();
+    notBlankI18n(state.submitForm.authCerts, 'db.acName');
     await saveInstanceExec();
     useI18nSaveSuccessMsg();
     state.form.id = saveInstanceRes as any;

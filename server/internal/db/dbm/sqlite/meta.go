@@ -4,12 +4,17 @@ import (
 	"database/sql"
 	"errors"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/utils/collx"
 	"os"
 )
 
 func init() {
-	dbi.Register(dbi.DbTypeSqlite, new(Meta))
+	dbi.Register(DbTypeSqlite, new(Meta))
 }
+
+const (
+	DbTypeSqlite dbi.DbType = "sqlite"
+)
 
 type Meta struct {
 }
@@ -35,4 +40,17 @@ func (sm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 
 func (sm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 	return &SqliteMetadata{dc: conn}
+}
+
+func (sm *Meta) GetDbDataTypes() []*dbi.DbDataType {
+	return collx.AsArray(
+		Integer, Real,
+		Text,
+		Blob,
+		DateTime, Date, Time,
+	)
+}
+
+func (sm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
+	return &commonTypeConverter{}
 }

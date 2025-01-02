@@ -31,15 +31,10 @@ type MachineCmdConf interface {
 type machineCmdConfAppImpl struct {
 	base.AppImpl[*entity.MachineCmdConf, repository.MachineCmdConf]
 
-	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
 var _ (MachineCmdConf) = (*machineCmdConfAppImpl)(nil)
-
-// 注入MachineCmdConfRepo
-func (m *machineCmdConfAppImpl) InjectMachineCmdConfRepo(repo repository.MachineCmdConf) {
-	m.Repo = repo
-}
 
 func (m *machineCmdConfAppImpl) SaveCmdConf(ctx context.Context, cmdConfParam *dto.SaveMachineCmdConf) error {
 	cmdConf := cmdConfParam.CmdConf
