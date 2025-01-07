@@ -13,8 +13,8 @@ export const I18nEnum = {
 export const ResourceTypeEnum = {
     Machine: EnumValue.of(1, '机器').setExtra({ icon: 'Monitor', iconColor: 'var(--el-color-primary)' }).tagTypeSuccess(),
     Db: EnumValue.of(2, '数据库实例').setExtra({ icon: 'Coin', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
-    Redis: EnumValue.of(3, 'redis').setExtra({ icon: 'iconfont icon-redis', iconColor: 'var(--el-color-danger)' }).tagTypeInfo(),
-    Mongo: EnumValue.of(4, 'mongo').setExtra({ icon: 'iconfont icon-mongo', iconColor: 'var(--el-color-success)' }).tagTypeDanger(),
+    Redis: EnumValue.of(3, 'redis').setExtra({ icon: 'icon redis/redis', iconColor: 'var(--el-color-danger)' }).tagTypeInfo(),
+    Mongo: EnumValue.of(4, 'mongo').setExtra({ icon: 'icon mongo/mongo', iconColor: 'var(--el-color-success)' }).tagTypeDanger(),
 };
 
 // 标签关联的资源类型

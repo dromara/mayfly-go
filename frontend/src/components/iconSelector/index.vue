@@ -25,8 +25,8 @@
             virtual-triggering
         >
             <template #default>
+                <div class="ml5 mt5">{{ $t(title) }}</div>
                 <div class="icon-selector-warp">
-                    <div class="ml10 mt10">{{ title }}</div>
                     <el-tabs v-model="state.fontIconTabActive" @tab-click="onIconClick">
                         <el-tab-pane lazy label="ele" name="ele">
                             <IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
@@ -57,7 +57,7 @@ const props = defineProps({
     // 输入框占位文本
     placeholder: {
         type: String,
-        default: () => '请输入内容搜索图标或者选择图标',
+        default: () => 'components.iconSelector.placeholder',
     },
     // 输入框占位文本
     size: {
@@ -67,7 +67,7 @@ const props = defineProps({
     // 弹窗标题
     title: {
         type: String,
-        default: () => '请选择图标',
+        default: () => 'components.iconSelector.title',
     },
     // 禁用
     disabled: {

@@ -319,7 +319,7 @@ const columns = [
     TableColumn.new('name', 'common.name'),
     TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(50),
     TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(10),
-    TableColumn.new('status', 'common.status').isSlot(),
+    TableColumn.new('status', 'common.status').isSlot().setAddWidth(5),
     TableColumn.new('stat', 'machine.runningStat').isSlot().setAddWidth(55),
     TableColumn.new('fs', 'machine.fs').isSlot().setAddWidth(25),
     TableColumn.new('remark', 'common.remark'),

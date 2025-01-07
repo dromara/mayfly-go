@@ -1,4 +1,4 @@
-const allSvgIcons = import.meta.glob('./**/*.svg', { eager: true, as: 'raw' });
+const allSvgIcons = import.meta.glob('./**/*.svg', { eager: true, query: 'raw' });
 
 const iconNames = [];
 
@@ -45,7 +45,7 @@ function convertSvgToSymbol(svgString, symbolId) {
         // 转为 df/input
         const name = path.replace('.svg', '').replace(/^\.\//, '');
         iconNames.push(`icon ${name}`);
-        svgsymbols += convertSvgToSymbol(allSvgIcons[path], name);
+        svgsymbols += convertSvgToSymbol(allSvgIcons[path].default, name);
     }
     svgsymbols += '</svg>';
 

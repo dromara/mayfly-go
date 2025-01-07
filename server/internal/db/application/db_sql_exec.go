@@ -479,7 +479,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 		nowRec++
 		res = append(res, row)
 		if nowRec == maxRec {
-			return errorx.NewBiz(fmt.Sprintf("update SQL - the maximum number of updated queries is exceeded: %d", maxRec))
+			return errorx.NewBiz("update SQL - the maximum number of updated queries is exceeded: %d", maxRec)
 		}
 		return nil
 	})
@@ -535,12 +535,13 @@ func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 	}
 	execRecord.Table = tableName
 
-	whereStr := deletestmt.Where.GetText()
-	if whereStr == "" {
+	deleteWhere := deletestmt.Where
+	if deleteWhere == nil {
 		logx.ErrorContext(ctx, "delete SQL - there is no where condition")
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 	}
 
+	whereStr := deleteWhere.GetText()
 	// 查询删除数据
 	selectSql := fmt.Sprintf("SELECT * FROM %s where %s LIMIT 200", tableName+" "+tableAlias, whereStr)
 	_, res, _ := dbConn.QueryContext(ctx, selectSql)

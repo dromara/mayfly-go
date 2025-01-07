@@ -88,8 +88,8 @@
 }
 
 // 第三方图标字体间距/大小设置
-.el-menu-item .iconfont,
-.el-sub-menu .iconfont,
+.el-menu-item .icon,
+.el-sub-menu .icon,
 .el-menu-item .fa,
 .el-sub-menu .fa {
     @include mixins.generalIcon;

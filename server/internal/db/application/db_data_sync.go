@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/may-fly/cast"
 )
 
 type DataSyncTask interface {
@@ -348,7 +349,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 			updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(field)]
 		}
 
-		task.UpdFieldVal = updFieldType.DataType.SQLValue(updFieldVal)
+		task.UpdFieldVal = cast.ToString(updFieldVal)
 	}
 
 	// 如果指定了更新字段，则以更新字段取值
