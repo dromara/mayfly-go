@@ -1,6 +1,7 @@
 import { VNode, h, render } from 'vue';
 import MonacoEditorDialog from './MonacoEditorDialog.vue';
 import * as monaco from 'monaco-editor';
+import { ElMessage } from 'element-plus';
 
 export type MonacoEditorDialogProps = {
     content: string;
@@ -53,7 +54,23 @@ const MonacoEditorBox = (props: MonacoEditorDialogProps): void => {
                 console.log('close editor');
             },
             onConfirm: () => {
-                props.confirmFn && props.confirmFn(props.content);
+                let value = props.content;
+                if (props.language === 'json') {
+                    let val;
+                    try {
+                        val = JSON.parse(value);
+                        if (typeof val !== 'object') {
+                            ElMessage.error('Invalid json');
+                            return;
+                        }
+                    } catch (e) {
+                        ElMessage.error('Invalid json');
+                        return;
+                    }
+                    // 压缩json字符串
+                    value = JSON.stringify(val);
+                }
+                props.confirmFn && props.confirmFn(value);
             },
         });
         // 将虚拟dom渲染到 container dom 上

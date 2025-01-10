@@ -76,11 +76,11 @@ const confirm = async () => {
         try {
             val = JSON.parse(value);
             if (typeof val !== 'object') {
-                ElMessage.error('请输入正确的json');
+                ElMessage.error('Invalid json');
                 return;
             }
         } catch (e) {
-            ElMessage.error('请输入正确的json');
+            ElMessage.error('Invalid json');
             return;
         }
 

@@ -5,7 +5,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/anyx"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,7 +21,7 @@ func GetStr(key string) string {
 		if val == nil {
 			return ""
 		}
-		return val.(string)
+		return cast.ToString(val)
 	}
 
 	if res, err := rediscli.Get(key); err == nil {
@@ -36,12 +35,7 @@ func GetInt(key string) int {
 	if val == "" {
 		return 0
 	}
-	if intV, err := strconv.Atoi(val); err != nil {
-		logx.Error("获取缓存中的int值转换失败", err)
-		return 0
-	} else {
-		return intV
-	}
+	return cast.ToInt(key)
 }
 
 // Get 获取缓存值，并使用json反序列化。返回是否获取成功。若不存在或者解析失败，则返回false

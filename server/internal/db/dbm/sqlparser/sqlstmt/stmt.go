@@ -70,6 +70,10 @@ type OtherReadStmt struct {
 	*Node
 }
 
+type WithStmt struct {
+	*Node
+}
+
 func IsSelectStmt(stmt Stmt) bool {
 	return reflect.TypeOf(stmt).AssignableTo(reflect.TypeOf(&SelectStmt{}))
 }

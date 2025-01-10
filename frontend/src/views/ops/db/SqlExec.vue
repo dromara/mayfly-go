@@ -295,7 +295,7 @@ const TableIcon = {
 };
 
 const SqlIcon = {
-    name: 'Files',
+    name: 'icon db/sql',
     color: '#f56c6c',
 };
 
@@ -450,11 +450,11 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
         // 设置父节点参数的表大小
         parentNode.params.dbTableSize = dbTableSize == 0 ? '' : formatByteSize(dbTableSize);
         return tablesNode;
-    })
-    .withNodeDblclickFunc((node: TagTreeNode) => {
-        const params = node.params;
-        addTablesOpTab({ id: params.id, db: params.db, type: params.type, version: params.version, nodeKey: node.key });
     });
+// .withNodeDblclickFunc((node: TagTreeNode) => {
+//     const params = node.params;
+//     addTablesOpTab({ id: params.id, db: params.db, type: params.type, version: params.version, nodeKey: node.key });
+// });
 
 // 数据库sql模板菜单节点
 const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)

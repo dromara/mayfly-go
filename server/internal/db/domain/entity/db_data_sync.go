@@ -58,7 +58,7 @@ const (
 	DataSyncTaskStatusDisable int8 = -1 // 禁用状态
 
 	DataSyncTaskStateSuccess int8 = 1  // 执行成功状态
-	DataSyncTaskStateRunning int8 = 2  // 执行成功状态
+	DataSyncTaskStateRunning int8 = 2  // 执行中状态
 	DataSyncTaskStateFail    int8 = -1 // 执行失败状态
 
 	DataSyncTaskRunStateRunning int8 = 1 // 运行中状态

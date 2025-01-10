@@ -8,21 +8,19 @@
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane :label="$t('common.basic')" :name="basicTab">
-                        <el-form-item>
-                            <el-row>
-                                <el-col :span="12">
-                                    <el-form-item prop="taskName" :label="$t('db.taskName')" required>
-                                        <el-input v-model.trim="form.taskName" auto-complete="off" />
-                                    </el-form-item>
-                                </el-col>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item prop="taskName" :label="$t('db.taskName')" required>
+                                    <el-input v-model.trim="form.taskName" auto-complete="off" />
+                                </el-form-item>
+                            </el-col>
 
-                                <el-col :span="12">
-                                    <el-form-item prop="taskCron" label="cron" required>
-                                        <CrontabInput v-model="form.taskCron" />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                            <el-col :span="12">
+                                <el-form-item prop="taskCron" label="cron" required>
+                                    <CrontabInput v-model="form.taskCron" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
 
                         <el-form-item prop="status" :label="$t('common.status')" label-width="60" required>
                             <el-switch
@@ -61,81 +59,70 @@
                             <monaco-editor height="200px" class="task-sql" language="sql" v-model="form.dataSql" />
                         </el-form-item>
 
-                        <el-form-item>
-                            <el-row class="w100">
-                                <el-col :span="12">
-                                    <el-form-item prop="targetTableName" :label="$t('db.targetDbTable')" required>
-                                        <el-select v-model="form.targetTableName" filterable>
-                                            <el-option
-                                                v-for="item in state.targetTableList"
-                                                :key="item.tableName"
-                                                :label="item.tableName + (item.tableComment && '-' + item.tableComment)"
-                                                :value="item.tableName"
-                                            />
-                                        </el-select>
-                                    </el-form-item>
-                                </el-col>
-
-                                <el-col :span="12">
-                                    <el-form-item prop="pageSize" :label="$t('db.pageSize')" required>
-                                        <el-input
-                                            type="number"
-                                            v-model.number="form.pageSize"
-                                            :placeholder="$t('db.pageSizePlaceholder')"
-                                            auto-complete="off"
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item prop="targetTableName" :label="$t('db.targetDbTable')" required>
+                                    <el-select v-model="form.targetTableName" filterable>
+                                        <el-option
+                                            v-for="item in state.targetTableList"
+                                            :key="item.tableName"
+                                            :label="item.tableName + (item.tableComment && '-' + item.tableComment)"
+                                            :value="item.tableName"
                                         />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                                    </el-select>
+                                </el-form-item>
+                            </el-col>
 
-                        <el-form-item>
-                            <el-row class="w100">
-                                <el-col :span="12">
-                                    <el-form-item class="w100" prop="updField">
-                                        <template #label>
-                                            {{ $t('db.updateField') }}
-                                            <el-tooltip :content="$t('db.updateFieldTips')" placement="top">
-                                                <SvgIcon name="question-filled" />
-                                            </el-tooltip>
-                                        </template>
-                                        <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
-                                    </el-form-item>
-                                </el-col>
+                            <el-col :span="12">
+                                <el-form-item prop="pageSize" :label="$t('db.pageSize')" required>
+                                    <el-input type="number" v-model.number="form.pageSize" :placeholder="$t('db.pageSizePlaceholder')" auto-complete="off" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
 
-                                <el-col :span="12">
-                                    <el-form-item class="w100" prop="updFieldVal">
-                                        <template #label>
-                                            {{ $t('db.updateFieldValue') }}
-                                            <el-tooltip :content="$t('db.updateFieldValueTips')" placement="top">
-                                                <el-icon>
-                                                    <question-filled />
-                                                </el-icon>
-                                            </el-tooltip>
-                                        </template>
-                                        <el-input v-model.trim="form.updFieldVal" :placeholder="$t('db.updateFieldValuePlaceholder')" auto-complete="off" />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item class="w100" prop="updField">
+                                    <template #label>
+                                        {{ $t('db.updateField') }}
+                                        <el-tooltip :content="$t('db.updateFieldTips')" placement="top">
+                                            <SvgIcon name="question-filled" />
+                                        </el-tooltip>
+                                    </template>
+                                    <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
+                                </el-form-item>
+                            </el-col>
 
-                        <el-form-item>
-                            <el-row class="w100">
-                                <el-col :span="12">
-                                    <el-form-item class="w100" prop="updFieldSrc">
-                                        <template #label>
-                                            {{ $t('db.fieldValueSrc') }}
-                                            <el-tooltip :content="$t('db.fieldValueSrcTips')" placement="top">
-                                                <el-icon>
-                                                    <question-filled />
-                                                </el-icon>
-                                            </el-tooltip>
-                                        </template>
-                                        <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                        </el-form-item>
+                            <el-col :span="12">
+                                <el-form-item class="w100" prop="updFieldVal">
+                                    <template #label>
+                                        {{ $t('db.updateFieldValue') }}
+                                        <el-tooltip :content="$t('db.updateFieldValueTips')" placement="top">
+                                            <el-icon>
+                                                <question-filled />
+                                            </el-icon>
+                                        </el-tooltip>
+                                    </template>
+                                    <el-input v-model.trim="form.updFieldVal" :placeholder="$t('db.updateFieldValuePlaceholder')" auto-complete="off" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item class="w100" prop="updFieldSrc">
+                                    <template #label>
+                                        {{ $t('db.fieldValueSrc') }}
+                                        <el-tooltip :content="$t('db.fieldValueSrcTips')" placement="top">
+                                            <el-icon>
+                                                <question-filled />
+                                            </el-icon>
+                                        </el-tooltip>
+                                    </template>
+                                    <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
                     </el-tab-pane>
 
                     <el-tab-pane :label="$t('db.fieldMap')" :name="fieldTab" :disabled="!baseFieldCompleted">

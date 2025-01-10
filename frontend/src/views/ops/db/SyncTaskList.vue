@@ -50,7 +50,6 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
@@ -58,12 +57,9 @@ import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/SearchForm';
 import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from './enums';
 import { useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
-import { useI18n } from 'vue-i18n';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
-
-const { t } = useI18n();
 
 const perms = {
     save: 'db:sync:save',
@@ -77,6 +73,7 @@ const searchItems = [SearchItem.input('name', 'common.name')];
 // 任务名、修改人、修改时间、最近一次任务执行状态、状态(停用启用)、操作
 const columns = ref([
     TableColumn.new('taskName', 'db.taskName'),
+    TableColumn.new('cron', 'Cron'),
     TableColumn.new('runningState', 'db.runState').typeTag(DbDataSyncRunningStateEnum),
     TableColumn.new('recentState', 'db.recentState').typeTag(DbDataSyncRecentStateEnum),
     TableColumn.new('status', 'common.status').isSlot(),
