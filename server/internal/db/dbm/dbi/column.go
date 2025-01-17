@@ -59,7 +59,7 @@ func (c *Column) GetColumnType() string {
 		}
 	}
 
-	return string(c.DataType)
+	return c.DataType
 }
 
 // 数据库对应的数据类型

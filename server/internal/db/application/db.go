@@ -365,9 +365,13 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			if len(rows) > 0 {
 				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
 				writer.WriteString(beforeInsert)
-				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
-				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
-					return err
+				sqls := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
+
+				for _, sqlStr := range sqls {
+					_, err := writer.WriteString(sqlStr)
+					if err != nil {
+						return err
+					}
 				}
 			}
 

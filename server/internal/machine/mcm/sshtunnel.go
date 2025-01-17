@@ -85,10 +85,6 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 		return "", 0, err
 	}
 
-	if err != nil {
-		return "", 0, err
-	}
-
 	localHost := "0.0.0.0"
 	localAddr := fmt.Sprintf("%s:%d", localHost, localPort)
 	listener, err := net.Listen("tcp", localAddr)
@@ -223,8 +219,8 @@ func (r *Tunnel) Open(sshClient *ssh.Client) {
 		r.remoteConnections = append(r.remoteConnections, remoteConn)
 
 		logx.Debugf("隧道 %v 连接远程主机成功", r.id)
-		go copyConn(localConn, remoteConn)
-		go copyConn(remoteConn, localConn)
+		go r.copyConn(localConn, remoteConn)
+		go r.copyConn(remoteConn, localConn)
 		logx.Debugf("隧道 %v 开始转发数据 [%v]->[%v]", r.id, localAddr, remoteAddr)
 		logx.Debug("~~~~~~~~~~~~~~~~~~~~分割线~~~~~~~~~~~~~~~~~~~~~~~~")
 	}
@@ -243,6 +239,6 @@ func (r *Tunnel) Close() {
 	logx.Debugf("隧道 %s 监听器关闭", r.id)
 }
 
-func copyConn(writer, reader net.Conn) {
+func (r *Tunnel) copyConn(writer, reader net.Conn) {
 	_, _ = io.Copy(writer, reader)
 }

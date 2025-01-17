@@ -199,7 +199,7 @@ const onClearFontIcon = () => {
 // 获取 input 的宽度
 const getInputWidth = () => {
     nextTick(() => {
-        state.fontIconWidth = inputWidthRef.value.$el.offsetWidth;
+        state.fontIconWidth = inputWidthRef.value?.$el.offsetWidth;
     });
 };
 // 监听页面宽度改变

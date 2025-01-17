@@ -45,38 +45,38 @@ type DbInfo struct {
 }
 
 // 获取记录日志的描述
-func (d *DbInfo) GetLogDesc() string {
-	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", d.Id, d.CodePath, d.Name, d.Host, d.Port, d.Database)
+func (di *DbInfo) GetLogDesc() string {
+	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", di.Id, di.CodePath, di.Name, di.Host, di.Port, di.Database)
 }
 
 // 连接数据库
-func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
+func (di *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	if meta == nil {
 		return nil, errorx.NewBiz("the database meta information interface cannot be empty")
 	}
 
 	// 赋值Meta，方便后续获取dialect等
-	dbInfo.Meta = meta
-	database := dbInfo.Database
+	di.Meta = meta
+	database := di.Database
 	// 如果数据库为空，则使用默认数据库进行连接
 	if database == "" {
-		database = meta.GetMetadata(&DbConn{Info: dbInfo}).GetDefaultDb()
-		dbInfo.Database = database
+		database = meta.GetMetadata(&DbConn{Info: di}).GetDefaultDb()
+		di.Database = database
 	}
 
-	conn, err := meta.GetSqlDb(dbInfo)
+	conn, err := meta.GetSqlDb(di)
 	if err != nil {
-		logx.Errorf("db connection failed: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
+		logx.Errorf("db connection failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBiz("db connection failed: %s", err.Error())
 	}
 
 	err = conn.Ping()
 	if err != nil {
-		logx.Errorf("db ping failed: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
+		logx.Errorf("db ping failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBiz("db connection failed: %s", err.Error())
 	}
 
-	dbc := &DbConn{Id: GetDbConnId(dbInfo.Id, database), Info: dbInfo}
+	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di}
 
 	// 最大连接周期，超过时间的连接就close
 	// conn.SetConnMaxLifetime(100 * time.Second)
@@ -85,7 +85,7 @@ func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	// 设置闲置连接数
 	conn.SetMaxIdleConns(1)
 	dbc.db = conn
-	logx.Infof("db connection: %s:%d/%s", dbInfo.Host, dbInfo.Port, database)
+	logx.Infof("db connection: %s:%d/%s", di.Host, di.Port, database)
 
 	return dbc, nil
 }

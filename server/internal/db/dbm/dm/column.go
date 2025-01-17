@@ -2,15 +2,17 @@ package dm
 
 import (
 	"encoding/hex"
+	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/anyx"
+	"reflect"
 	"strings"
 
 	"gitee.com/chunanyong/dm"
 )
 
 var (
-	CHAR          = dbi.NewDbDataType("CHAR", dbi.DTString).WithCT(dbi.CTChar)
+	CHAR          = dbi.NewDbDataType("VARCHAR", dbi.DTString).WithCT(dbi.CTVarchar)
 	VARCHAR       = dbi.NewDbDataType("VARCHAR", dbi.DTString).WithCT(dbi.CTVarchar)
 	TEXT          = dbi.NewDbDataType("TEXT", dbi.DTString).WithCT(dbi.CTText)
 	LONG          = dbi.NewDbDataType("LONG", dbi.DTString).WithCT(dbi.CTText)
@@ -36,6 +38,7 @@ var (
 
 	TIME      = dbi.NewDbDataType("TIME", dbi.DTTime).WithCT(dbi.CTTime).WithFixColumn(dbi.ClearCharMaxLength)
 	DATE      = dbi.NewDbDataType("DATE", dbi.DTDate).WithCT(dbi.CTDate).WithFixColumn(dbi.ClearCharMaxLength)
+	DATETIME  = dbi.NewDbDataType("DATETIME", dbi.DTDateTime).WithCT(dbi.CTDateTime).WithFixColumn(dbi.ClearCharMaxLength)
 	TIMESTAMP = dbi.NewDbDataType("TIMESTAMP", dbi.DTDateTime).WithCT(dbi.CTTimestamp).WithFixColumn(dbi.ClearCharMaxLength)
 
 	ST_CURVE           = dbi.NewDbDataType("ST_CURVE", DTDmStruct).WithCT(dbi.CTVarchar)           // 表示一条曲线，可以是圆弧、抛物线等
@@ -50,6 +53,8 @@ var (
 	ST_POINT           = dbi.NewDbDataType("ST_POINT", DTDmStruct).WithCT(dbi.CTVarchar)           // 表示一个点
 	ST_POLYGON         = dbi.NewDbDataType("ST_POLYGON", DTDmStruct).WithCT(dbi.CTVarchar)         //表示一个多边形
 	ST_SURFACE         = dbi.NewDbDataType("ST_SURFACE", DTDmStruct).WithCT(dbi.CTVarchar)         // 表示一个表面
+
+	TABLES = dbi.NewDbDataType("TABLES", DTDmArray).WithCT(dbi.CTVarchar) // 表示一个数组
 )
 
 var DTDmStruct = &dbi.DataType{
@@ -103,4 +108,61 @@ func ParseDmStruct(dmStruct *dm.DmStruct) string {
 
 	arr = append(arr, ")")
 	return strings.Join(arr, "")
+}
+
+var DTDmArray = &dbi.DataType{
+	Name: "dm_struct",
+	Valuer: func() dbi.Valuer {
+		return &dmArrayValuer{
+			DefaultValuer: new(dbi.DefaultValuer[dm.DmArray]),
+		}
+	},
+	SQLValue: dbi.SQLValueString,
+}
+
+type dmArrayValuer struct {
+	*dbi.DefaultValuer[dm.DmArray]
+}
+
+func (s *dmArrayValuer) Value() any {
+	if !s.ValuePtr.Valid {
+		return ""
+	}
+	return ParseDmArray(s.ValuePtr)
+}
+
+func ParseDmArray(dmArray *dm.DmArray) string {
+	if !dmArray.Valid {
+		return ""
+	}
+
+	name, err := dmArray.GetBaseTypeName()
+	if err != nil {
+		return err.Error()
+	}
+
+	arr, err := dmArray.GetArray()
+	if err != nil {
+		return err.Error()
+	}
+
+	// 获取变量的类型和值
+	t := reflect.TypeOf(arr)
+	v := reflect.ValueOf(arr)
+
+	// 检查类型是否为数组
+	if t.Kind() != reflect.Array && t.Kind() != reflect.Slice {
+		return fmt.Sprintf("%s(%s)", name, anyx.ToString(arr))
+	}
+	// 获取数组的长度
+	length := v.Len()
+	elements := make([]string, length)
+
+	// 遍历数组并将每个元素转换为字符串
+	for i := 0; i < length; i++ {
+		element := v.Index(i).Interface()
+		elements[i] = fmt.Sprintf("%v", element)
+	}
+
+	return fmt.Sprintf("%s(%s)", name, strings.Join(elements, ","))
 }

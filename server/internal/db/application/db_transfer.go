@@ -300,15 +300,14 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 				}
 			}()
 
-			tx, err := targetConn.Begin()
 			if err != nil {
 				pw.CloseWithError(err)
 				app.EndTransfer(ctx, logId, taskId, "transfer table failed", err, nil)
 				return err
 			}
-
+			tx, _ := targetConn.Begin()
 			err = sqlparser.SQLSplit(pr, func(stmt string) error {
-				if _, err := targetConn.TxExecContext(ctx, tx, stmt); err != nil {
+				if _, err := targetConn.TxExec(tx, stmt); err != nil {
 					app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("执行sql出错: %s", stmt), err, nil)
 					pw.CloseWithError(err)
 					return err

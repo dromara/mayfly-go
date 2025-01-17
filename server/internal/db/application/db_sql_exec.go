@@ -227,6 +227,7 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 		}).WithCategory(progressCategory))
 	}
 
+	tx, _ := dbConn.Begin()
 	err := sqlparser.SQLSplit(execReader.Reader, func(sql string) error {
 		if executedStatements%50 == 0 {
 			if needSendMsg {
@@ -240,15 +241,17 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 		}
 
 		executedStatements++
-		if _, err := dbConn.Exec(sql); err != nil {
+		if _, err := dbConn.TxExec(tx, sql); err != nil {
 			return err
 		}
 		return nil
 	})
-
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
+	_ = tx.Commit()
+
 	if needSendMsg {
 		d.msgApp.CreateAndSend(la, msgdto.SuccessSysMsg(i18n.T(imsg.SqlScriptRunSuccess), "execution success").WithClientId(clientId))
 	}
