@@ -35,6 +35,7 @@ export default {
             linkAddress: 'Link Address',
             linkPlaceholder: 'External/embedded links (http://xxx.com)',
             menuNameRuleMsg: 'Please enter a resource name',
+            codeRuleMsg: 'Please enter a resource code',
             routeNameNotEmpty: 'Route names cannot be empty',
             resourceCodePatternErrMsg: 'Only 1-32 uppercase letters, numbers, and -.: characters are allowed',
             assignedRole: 'Assigned Role',

@@ -7,6 +7,7 @@ import (
 )
 
 type MachineVO struct {
+	model.ExtraData
 	tagentity.ResourceTags // 标签信息
 	tagentity.AuthCerts    // 授权凭证信息
 

@@ -67,6 +67,8 @@
                 >
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
+                            <SvgIcon :name="getMenuIcon(data)" class="mb3 mr3" />
+
                             <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
                             <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
                         </span>
@@ -86,6 +88,7 @@ import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { useI18n } from 'vue-i18n';
+import { getMenuIcon } from '../resource/index';
 
 const { t } = useI18n();
 

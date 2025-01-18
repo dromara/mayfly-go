@@ -327,6 +327,7 @@ func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machin
 
 func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAuthCert) (*mcm.MachineInfo, error) {
 	mi := new(mcm.MachineInfo)
+	mi.ExtraData = me.ExtraData
 	mi.Id = me.Id
 	mi.Code = me.Code
 	mi.Name = me.Name

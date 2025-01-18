@@ -18,7 +18,6 @@
                             }
                         "
                         :select-tags="form.tagCodePaths"
-                        style="width: 100%"
                     />
                 </el-form-item>
 

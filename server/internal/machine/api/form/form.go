@@ -1,8 +1,13 @@
 package form
 
-import tagentity "mayfly-go/internal/tag/domain/entity"
+import (
+	tagentity "mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/model"
+)
 
 type MachineForm struct {
+	model.ExtraData
+
 	Id       uint64 `json:"id"`
 	Protocol int    `json:"protocol" binding:"required"`
 	Name     string `json:"name" binding:"required"`

@@ -11,7 +11,7 @@
     },
     "dependencies": {
         "@element-plus/icons-vue": "^2.3.1",
-        "@vueuse/core": "^12.3.0",
+        "@vueuse/core": "^12.4.0",
         "asciinema-player": "^3.8.1",
         "axios": "^1.6.2",
         "clipboard": "^2.0.11",
@@ -19,7 +19,7 @@
         "crypto-js": "^4.2.0",
         "dayjs": "^1.11.13",
         "echarts": "^5.6.0",
-        "element-plus": "^2.9.2",
+        "element-plus": "^2.9.3",
         "js-base64": "^3.7.7",
         "jsencrypt": "^3.3.2",
         "lodash": "^4.17.21",
@@ -60,8 +60,8 @@
         "eslint": "^8.35.0",
         "eslint-plugin-vue": "^9.31.0",
         "prettier": "^3.2.5",
-        "sass": "^1.83.1",
-        "typescript": "^5.7.2",
+        "sass": "^1.83.4",
+        "typescript": "^5.7.3",
         "vite": "^6.0.7",
         "vue-eslint-parser": "^9.4.3"
     },

@@ -15,14 +15,8 @@
                 <el-form-item prop="status" :label="$t('common.status')">
                     <EnumSelect :enums="ProcdefStatus" v-model="form.status" />
                 </el-form-item>
-                <el-form-item prop="condition" :label="$t('flow.triggeringCondition')">
-                    <template #label>
-                        {{ $t('flow.triggeringCondition') }}
-                        <el-tooltip :content="$t('flow.triggeringConditionTips')" placement="top">
-                            <SvgIcon name="question-filled" />
-                        </el-tooltip>
-                    </template>
 
+                <FormItemTooltip prop="condition" :label="$t('flow.triggeringCondition')" :tooltip="$t('flow.triggeringConditionTips')">
                     <el-input
                         v-model="form.condition"
                         :rows="10"
@@ -31,7 +25,8 @@
                         auto-complete="off"
                         clearable
                     ></el-input>
-                </el-form-item>
+                </FormItemTooltip>
+
                 <el-form-item prop="remark" :label="$t('common.remark')">
                     <el-input v-model.trim="form.remark" auto-complete="off" clearable></el-input>
                 </el-form-item>
@@ -98,6 +93,7 @@ import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 
 const { t } = useI18n();
 

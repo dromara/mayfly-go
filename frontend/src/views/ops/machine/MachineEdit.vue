@@ -17,7 +17,6 @@
                             }
                         "
                         :select-tags="form.tagCodePaths"
-                        style="width: 100%"
                     />
                 </el-form-item>
                 <el-form-item prop="name" :label="$t('common.name')" required>
@@ -60,6 +59,13 @@
 
                 <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
                     <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+                </el-form-item>
+
+                <el-form-item prop="ciphers" :label="$t('machine.ciphers')">
+                    <el-input v-model="form.extra.ciphers" :placeholder="$t('machine.multiValuePlaceholder')"></el-input>
+                </el-form-item>
+                <el-form-item prop="keyExchanges" :label="$t('machine.keyExchanges')">
+                    <el-input v-model="form.extra.keyExchanges" :placeholder="$t('machine.multiValuePlaceholder')"></el-input>
                 </el-form-item>
             </el-form>
 
@@ -152,6 +158,7 @@ const defaultForm = {
     remark: '',
     sshTunnelMachineId: null as any,
     enableRecorder: -1,
+    extra: { ciphers: '', keyExchanges: '' },
 };
 
 const state = reactive({
@@ -175,6 +182,7 @@ watchEffect(() => {
         state.form = { ...machine };
         state.form.tagCodePaths = machine.tags.map((t: any) => t.codePath);
         state.form.authCerts = machine.authCerts || [];
+        state.form.extra = machine.extra || {};
     } else {
         state.form = { ...defaultForm };
         state.form.authCerts = [];

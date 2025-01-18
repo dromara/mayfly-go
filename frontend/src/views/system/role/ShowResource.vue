@@ -4,6 +4,8 @@
             <el-tree style="height: 50vh; overflow: auto" :data="resources" node-key="id" :props="defaultProps">
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
+                        <SvgIcon :name="getMenuIcon(data)" class="mb3 mr3" />
+
                         <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
                         <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
 
@@ -36,6 +38,7 @@
 import { toRefs, reactive, watch } from 'vue';
 import { ResourceTypeEnum } from '../enums';
 import { formatDate } from '@/common/utils/format';
+import { getMenuIcon } from '../resource/index';
 
 const props = defineProps({
     visible: {

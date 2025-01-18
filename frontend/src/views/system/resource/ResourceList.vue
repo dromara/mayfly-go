@@ -37,6 +37,8 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
+                                <SvgIcon :name="getMenuIcon(data)" class="mb3" />
+
                                 <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                                     <span style="color: #3c8dbc">【</span>
                                     <span v-if="data.status == 1">{{ $t(data.name) }}</span>
@@ -46,6 +48,7 @@
                                         {{ data.children.length }}
                                     </el-tag>
                                 </span>
+
                                 <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
                                     <span style="color: #3c8dbc">【</span>
                                     <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">
@@ -142,7 +145,7 @@
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, watch } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { resourceApi } from '../api';
@@ -153,6 +156,7 @@ import { Splitpanes, Pane } from 'splitpanes';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import { useI18n } from 'vue-i18n';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';
+import { getMenuIcon } from './index';
 
 const { t } = useI18n();
 

@@ -6,6 +6,7 @@ import (
 
 type Machine struct {
 	model.Model
+	model.ExtraData
 
 	Code               string `json:"code"`
 	Name               string `json:"name"`

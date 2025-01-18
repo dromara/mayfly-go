@@ -3,7 +3,7 @@ module mayfly-go
 go 1.23.0
 
 require (
-	gitee.com/chunanyong/dm v1.8.17
+	gitee.com/chunanyong/dm v1.8.18
 	gitee.com/liuzongyang/libpq v1.10.11
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/emirpasic/gods v1.18.1
@@ -19,7 +19,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
-	github.com/may-fly/cast v1.6.1
+	github.com/may-fly/cast v1.7.1
 	github.com/microsoft/go-mssqldb v1.7.2
 	github.com/mojocn/base64Captcha v1.3.6 // 验证码
 	github.com/pkg/errors v0.9.1

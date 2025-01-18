@@ -1,34 +1,32 @@
 <template>
-    <div>
-        <el-tree-select
-            v-bind="$attrs"
-            v-model="state.selectTags"
-            @change="changeTag"
-            :data="tags"
-            :placeholder="$t('tag.selectTagPlaceholder')"
-            :default-expanded-keys="defaultExpandedKeys"
-            show-checkbox
-            node-key="codePath"
-            :props="{
-                value: 'codePath',
-                label: 'codePath',
-                children: 'children',
-            }"
-        >
-            <template #default="{ data }">
-                <span class="custom-tree-node">
-                    <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" class="mr2" />
-                    <span style="font-size: 13px">
-                        {{ data.code }}
-                        <span style="color: #3c8dbc">【</span>
-                        {{ data.name }}
-                        <span style="color: #3c8dbc">】</span>
-                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
-                    </span>
+    <el-tree-select
+        v-bind="$attrs"
+        v-model="state.selectTags"
+        @change="changeTag"
+        :data="tags"
+        :placeholder="$t('tag.selectTagPlaceholder')"
+        :default-expanded-keys="defaultExpandedKeys"
+        show-checkbox
+        node-key="codePath"
+        :props="{
+            value: 'codePath',
+            label: 'codePath',
+            children: 'children',
+        }"
+    >
+        <template #default="{ data }">
+            <span class="custom-tree-node">
+                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" class="mr2" />
+                <span style="font-size: 13px">
+                    {{ data.code }}
+                    <span style="color: #3c8dbc">【</span>
+                    {{ data.name }}
+                    <span style="color: #3c8dbc">】</span>
+                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
                 </span>
-            </template>
-        </el-tree-select>
-    </div>
+            </span>
+        </template>
+    </el-tree-select>
 </template>
 
 <script lang="ts" setup>

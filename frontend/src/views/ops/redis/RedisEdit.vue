@@ -18,7 +18,6 @@
                                 "
                                 multiple
                                 :select-tags="form.tagCodePaths"
-                                style="width: 100%"
                             />
                         </el-form-item>
                         <el-form-item prop="name" :label="$t('common.name')" required>

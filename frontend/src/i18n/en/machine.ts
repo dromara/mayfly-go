@@ -31,6 +31,9 @@ export default {
         ipAndPort: 'ip and port',
         connSuccess: 'be connected successfully',
         noAcErrMsg: 'Please complete the voucher account information',
+        ciphers: 'Ciphers',
+        keyExchanges: 'Key Exchanges',
+        multiValuePlaceholder: `multiple values are separated by ','`,
 
         // MachineRec
         playback: 'Playback',
