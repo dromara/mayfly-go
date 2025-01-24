@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import type { UserConfig } from 'vite';
 import { loadEnv } from './src/common/utils/viteBuild';
 import { CodeInspectorPlugin } from 'code-inspector-plugin';
+import progress from 'vite-plugin-progress';
 
 const pathResolve = (dir: string): any => {
     return resolve(__dirname, '.', dir);
@@ -21,6 +22,7 @@ const viteConfig: UserConfig = {
             bundler: 'vite',
             editor: VITE_EDITOR as any,
         }),
+        progress(),
     ],
     root: process.cwd(),
     resolve: {

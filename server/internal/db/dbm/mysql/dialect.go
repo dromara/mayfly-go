@@ -52,7 +52,7 @@ func (md *MysqlDialect) Quoter() dbi.Quoter {
 	return mysqlQuoter
 }
 
-func (pd *MysqlDialect) GetSQLParser() sqlparser.SqlParser {
+func (md *MysqlDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(mysql.MysqlParser)
 }
 

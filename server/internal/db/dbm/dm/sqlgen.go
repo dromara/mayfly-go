@@ -102,7 +102,7 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 		// 达梦数据库只能一条条的执行insert语句，所以这里需要将values拆分成多条insert语句
 		sqls := collx.ArrayMap(values, func(value []any) string {
 			columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(sg.Dialect, DbTypeDM, columns, [][]any{value})
-			return fmt.Sprintf("insert into %s %s values %s ;", quote(tableName), columnStr, valuesStrs[0])
+			return fmt.Sprintf("insert into %s %s values %s", quote(tableName), columnStr, valuesStrs[0])
 		})
 
 		res = append(res, sqls...)
