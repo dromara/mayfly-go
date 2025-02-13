@@ -6,7 +6,7 @@ import "mayfly-go/pkg/model"
 type ResourceOpLog struct {
 	model.CreateModel
 
-	CodePath     string `json:"codePath"`     // 标签路径
-	ResourceCode string `json:"resourceCode"` // 资源编号
-	ResourceType int8   `json:"relateType"`   // 资源类型
+	CodePath     string `json:"codePath" gorm:"size:255;not null;"`    // 标签路径
+	ResourceCode string `json:"resourceCode" gorm:"size:50;not null;"` // 资源编号
+	ResourceType int8   `json:"relateType" gorm:"not null;"`           // 资源类型
 }

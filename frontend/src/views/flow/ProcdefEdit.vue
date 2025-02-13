@@ -57,7 +57,7 @@
                         </template>
 
                         <template #default="scope">
-                            <AccountSelectFormItem v-model="scope.row.userId" label="" />
+                            <AccountSelectFormItem style="margin-bottom: 0px" v-model="scope.row.userId" label="" />
                         </template>
                     </el-table-column>
 

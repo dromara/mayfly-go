@@ -11,13 +11,13 @@ import (
 type Account struct {
 	model.Model
 
-	Name          string        `json:"name"`
-	Username      string        `json:"username"`
-	Password      string        `json:"-"`
-	Status        AccountStatus `json:"status"`
+	Name          string        `json:"name" gorm:"size:30;not null;"`
+	Username      string        `json:"username" gorm:"size:30;not null;"`
+	Password      string        `json:"-" gorm:"size:64;not null;"`
+	Status        AccountStatus `json:"status" gorm:"not null;"`
 	LastLoginTime *time.Time    `json:"lastLoginTime"`
-	LastLoginIp   string        `json:"lastLoginIp"`
-	OtpSecret     string        `json:"-"`
+	LastLoginIp   string        `json:"lastLoginIp" gorm:"size:50;"`
+	OtpSecret     string        `json:"-" gorm:"size:100;"`
 }
 
 func (a *Account) TableName() string {

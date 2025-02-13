@@ -1,7 +1,7 @@
 package form
 
 type ResourceForm struct {
-	Pid    int            `json:"pid"`
+	Pid    int64          `json:"pid"`
 	Id     int            `json:"id"`
 	Code   string         `json:"code" binding:"required"`
 	Name   string         `json:"name" binding:"required"`

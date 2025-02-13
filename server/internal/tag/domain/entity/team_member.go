@@ -6,7 +6,7 @@ import "mayfly-go/pkg/model"
 type TeamMember struct {
 	model.Model
 
-	TeamId    uint64 `json:"teamId"`
-	AccountId uint64 `json:"accountId"`
-	Username  string `json:"username"`
+	TeamId    uint64 `json:"teamId" gorm:"not null;"`
+	AccountId uint64 `json:"accountId" gorm:"not null;"`
+	Username  string `json:"username" gorm:"size:50;not null;"`
 }

@@ -23,8 +23,6 @@ aes:
   key: 1111111111111111
 # 若存在mysql配置，优先使用mysql
 mysql:
-  # 自动升级数据库
-  auto-migration: false
   host: mysql:3306
   username: root
   password: 111049

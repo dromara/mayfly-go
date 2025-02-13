@@ -95,7 +95,7 @@ const encryptField = async (param: any, field: string) => {
         if (process.env.NODE_ENV === 'development') {
             console.log(param[field]);
         }
-        // 使用rsa公钥加密sql
+        // 使用aes加密sql
         param['_encrypted'] = 1;
         param[field] = AesEncrypt(param[field]);
         // console.log('解密结果', DesDecrypt(param[field]));

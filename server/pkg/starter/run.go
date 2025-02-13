@@ -3,7 +3,7 @@ package starter
 import (
 	"context"
 	"mayfly-go/initialize"
-	"mayfly-go/migrations"
+	"mayfly-go/migration"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
@@ -37,8 +37,8 @@ func RunWebServer() {
 	initRedis()
 
 	// 数据库升级操作
-	if err := migrations.RunMigrations(global.Db); err != nil {
-		logx.Panicf("数据库升级失败: %v", err)
+	if err := migration.RunMigrations(global.Db); err != nil {
+		logx.Panicf("db migration failed: %v", err)
 	}
 
 	// 参数校验器初始化、如错误提示中文转译等

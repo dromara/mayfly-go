@@ -10,19 +10,19 @@ import (
 type Procinst struct {
 	model.Model
 
-	ProcdefId   uint64 `json:"procdefId"`   // 流程定义id
-	ProcdefName string `json:"procdefName"` // 流程定义名称
+	ProcdefId   uint64 `json:"procdefId" gorm:"not null;index:idx_procdef_id;comment:流程定义id"` // 流程定义id
+	ProcdefName string `json:"procdefName" gorm:"not null;size:64;comment:流程定义名称"`            // 流程定义名称
 
-	BizType      string            `json:"bizType"`      // 业务类型
-	BizKey       string            `json:"bizKey"`       // 业务key
-	BizForm      string            `json:"bizForm"`      // 业务表单
-	BizStatus    ProcinstBizStatus `json:"bizStatus"`    // 业务状态
-	BizHandleRes string            `json:"bizHandleRes"` // 业务处理结果
-	TaskKey      string            `json:"taskKey"`      // 当前任务key
-	Status       ProcinstStatus    `json:"status"`       // 状态
-	Remark       string            `json:"remark"`
-	EndTime      *time.Time        `json:"endTime"`
-	Duration     int64             `json:"duration"` // 持续时间（开始到结束）
+	BizType      string            `json:"bizType" gorm:"not null;size:64;comment:关联业务类型"`  // 业务类型
+	BizKey       string            `json:"bizKey" gorm:"not null;size:64;comment:关联业务key"`  // 业务key
+	BizForm      string            `json:"bizForm" gorm:"type:text;comment:业务form"`         // 业务表单
+	BizStatus    ProcinstBizStatus `json:"bizStatus" gorm:"comment:业务状态"`                   // 业务状态
+	BizHandleRes string            `json:"bizHandleRes" gorm:"size:4000;comment:关联的业务处理结果"` // 业务处理结果
+	TaskKey      string            `json:"taskKey" gorm:"size:100;comment:当前任务key"`         // 当前任务key
+	Status       ProcinstStatus    `json:"status" gorm:"comment:状态"`                        // 状态
+	Remark       string            `json:"remark" gorm:"size:255;"`
+	EndTime      *time.Time        `json:"endTime" gorm:"comment:结束时间"`
+	Duration     int64             `json:"duration" gorm:"comment:流程持续时间（开始到结束）"` // 持续时间（开始到结束）
 }
 
 func (a *Procinst) TableName() string {
@@ -68,15 +68,15 @@ const (
 type ProcinstTask struct {
 	model.Model
 
-	ProcinstId uint64 `json:"procinstId"` // 流程实例id
-	TaskKey    string `json:"taskKey"`    // 当前任务key
-	TaskName   string `json:"taskName"`   // 当前任务名称
-	Assignee   string `json:"assignee"`   // 分配到该任务的用户
+	ProcinstId uint64 `json:"procinstId" gorm:"not null;index:idx_procinst_id;comment:流程实例id"` // 流程实例id
+	TaskKey    string `json:"taskKey" gorm:"not null;size:64;comment:任务key"`                   // 当前任务key
+	TaskName   string `json:"taskName" gorm:"size:64;comment:任务名称"`                            // 当前任务名称
+	Assignee   string `json:"assignee" gorm:"size:64;comment:分配到该任务的用户"`                       // 分配到该任务的用户
 
-	Status   ProcinstTaskStatus `json:"status"` // 状态
-	Remark   string             `json:"remark"`
-	EndTime  *time.Time         `json:"endTime"`
-	Duration int64              `json:"duration"` // 持续时间（开始到结束）
+	Status   ProcinstTaskStatus `json:"status" ` // 状态
+	Remark   string             `json:"remark" gorm:"size:255;"`
+	EndTime  *time.Time         `json:"endTime" gorm:"comment:结束时间"`
+	Duration int64              `json:"duration" gorm:"comment:任务持续时间（开始到结束）"` // 持续时间（开始到结束）
 }
 
 func (a *ProcinstTask) TableName() string {

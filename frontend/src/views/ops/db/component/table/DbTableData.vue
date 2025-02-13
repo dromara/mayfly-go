@@ -235,14 +235,22 @@ const cmHeaderDesc = new ContextmenuItem('desc', 'db.desc')
 const cmHeaderFixed = new ContextmenuItem('fixed', 'db.fixed')
     .withIcon('Paperclip')
     .withOnClick((data: any) => {
-        data.fixed = true;
+        state.columns.forEach((column: any) => {
+            if (column.dataKey == data.dataKey) {
+                column.fixed = true;
+            }
+        });
     })
     .withHideFunc((data: any) => data.fixed);
 
 const cmHeaderCancelFixed = new ContextmenuItem('cancelFixed', 'db.cancelFiexd')
     .withIcon('Minus')
     .withOnClick((data: any) => {
-        data.fixed = false;
+        state.columns.forEach((column: any) => {
+            if (column.dataKey == data.dataKey) {
+                column.fixed = false;
+            }
+        });
     })
     .withHideFunc((data: any) => !data.fixed);
 

@@ -203,6 +203,15 @@ export function randomPassword(length = 10) {
     return password.join('');
 }
 
+export function randomString(length = 8) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += getRandomChar(chars);
+    }
+    return result;
+}
+
 function getRandomChar(charSet: string) {
     const randomIndex = Math.floor(Math.random() * charSet.length);
     return charSet[randomIndex];

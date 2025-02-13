@@ -159,7 +159,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 						break
 					}
 				}
-				return errorx.NewBiz("get column data type")
+				return errorx.NewBiz("get column data type... ignore~")
 			})
 
 			updSql = fmt.Sprintf("and %s > %s", task.UpdField, updFieldDataType.DataType.SQLValue(task.UpdFieldVal))
@@ -394,7 +394,7 @@ func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
 func (app *dataSyncAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
-			logx.ErrorTrace("the data synchronization task failed to initialize: %s", err.(error))
+			logx.ErrorTrace("the data synchronization task failed to initialize", err)
 		}
 	}()
 
@@ -410,7 +410,12 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	cond.Status = entity.DataSyncTaskStatusEnable
 	jobs := new([]entity.DataSyncTask)
 
-	pr, _ := app.GetPageList(cond, pageParam, jobs)
+	pr, err := app.GetPageList(cond, pageParam, jobs)
+	if err != nil {
+		logx.ErrorTrace("the data synchronization task failed to initialize", err)
+		return
+	}
+
 	total := pr.Total
 	add := 0
 

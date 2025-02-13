@@ -14,12 +14,12 @@ import (
 type Procdef struct {
 	model.Model
 
-	Name      string        `json:"name" form:"name"`     // 名称
-	DefKey    string        `json:"defKey" form:"defKey"` //
-	Tasks     string        `json:"tasks"`                // 审批节点任务信息
-	Status    ProcdefStatus `json:"status"`               // 状态
-	Condition *string       `json:"condition"`            // 触发审批的条件（计算结果返回1则需要启用该流程）
-	Remark    *string       `json:"remark"`
+	Name      string        `json:"name" form:"name" gorm:"size:150;comment:流程名称"`                 // 名称
+	DefKey    string        `json:"defKey" form:"defKey" gorm:"not null;size:100;comment:流程定义key"` //
+	Tasks     string        `json:"tasks" gorm:"not null;size:3000;comment:审批节点任务信息"`              // 审批节点任务信息
+	Status    ProcdefStatus `json:"status" gorm:"comment:状态"`                                      // 状态
+	Condition *string       `json:"condition" gorm:"type:text;comment:触发审批的条件（计算结果返回1则需要启用该流程）"`   // 触发审批的条件（计算结果返回1则需要启用该流程）
+	Remark    *string       `json:"remark" gorm:"size:255;"`
 }
 
 func (p *Procdef) TableName() string {

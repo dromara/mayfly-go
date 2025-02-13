@@ -8,7 +8,7 @@ import (
 // 授权凭证
 type AuthCertForm struct {
 	Id             uint64                        `json:"id"`
-	Name           string                        `json:"name" binding:"required"`           // 名称
+	Name           string                        `json:"name"`                              // 名称
 	ResourceCode   string                        `json:"resourceCode"`                      // 资源编号
 	ResourceType   int8                          `json:"resourceType"`                      // 资源类型
 	Username       string                        `json:"username"`                          // 用户名

@@ -11,6 +11,8 @@ const pathResolve = (dir: string): any => {
 
 const { VITE_PORT, VITE_OPEN, VITE_PUBLIC_PATH, VITE_EDITOR } = loadEnv();
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const alias: Record<string, string> = {
     '@': pathResolve('src/'),
 };
@@ -28,7 +30,7 @@ const viteConfig: UserConfig = {
     resolve: {
         alias,
     },
-    base: process.env.NODE_ENV === 'production' ? VITE_PUBLIC_PATH : './',
+    base: isProd ? VITE_PUBLIC_PATH : './',
     optimizeDeps: {
         include: ['element-plus/es/locale/lang/zh-cn'],
     },
@@ -62,6 +64,9 @@ const viteConfig: UserConfig = {
                 },
             },
         },
+    },
+    esbuild: {
+        drop: isProd ? ['console', 'debugger'] : [],
     },
     define: {
         __VUE_I18N_LEGACY_API__: JSON.stringify(false),

@@ -8,11 +8,11 @@ import (
 type SysLog struct {
 	model.CreateModel
 
-	Type        int8   `json:"type"`
-	Description string `json:"description"`
-	ReqParam    string `json:"reqParam" gorm:"column:req_param;type:varchar(1000)"` // 请求参数
-	Resp        string `json:"resp" gorm:"column:resp;type:varchar(10000)"`         // 响应结构
-	Extra       string `json:"extra"`                                               // 日志额外信息
+	Type        int8   `json:"type" gorm:"not null;"`
+	Description string `json:"description" gorm:"size:255;"`
+	ReqParam    string `json:"reqParam" gorm:"size:2000"` // 请求参数
+	Resp        string `json:"resp" gorm:"type:text;"`    // 响应结构
+	Extra       string `json:"extra" gorm:"type:text;"`   // 日志额外信息
 }
 
 func (a *SysLog) TableName() string {

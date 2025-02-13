@@ -6,9 +6,9 @@ import "mayfly-go/pkg/model"
 type TagTreeRelate struct {
 	model.Model
 
-	TagId      uint64        `json:"tagId"`
-	RelateId   uint64        `json:"relateId"`   // 关联的id
-	RelateType TagRelateType `json:"relateType"` // 关联的类型
+	TagId      uint64        `json:"tagId" gorm:"not null;index:idx_tag_id;comment:标签树id"` // 标签树id
+	RelateId   uint64        `json:"relateId" gorm:"not null;comment:关联的资源id"`             // 关联的资源id
+	RelateType TagRelateType `json:"relateType" gorm:"not null;comment:关联类型"`              // 关联的类型
 }
 
 type TagRelateType int8

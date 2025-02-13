@@ -43,7 +43,7 @@ type ModelI interface {
 }
 
 type IdModel struct {
-	Id uint64 `json:"id"`
+	Id uint64 `json:"id" gorm:"primarykey;AUTO_INCREMENT"`
 }
 
 func (m *IdModel) SetId(id uint64) {
@@ -69,7 +69,7 @@ func (m *IdModel) LogicDelete() bool {
 // 含有删除字段模型
 type DeletedModel struct {
 	IdModel
-	IsDeleted  int8       `json:"-" gorm:"column:is_deleted;default:0"`
+	IsDeleted  int8       `json:"-" gorm:"column:is_deleted;not null;default:0;"`
 	DeleteTime *time.Time `json:"-"`
 }
 
@@ -87,9 +87,9 @@ func (m *DeletedModel) LogicDelete() bool {
 // CreateModelNLD 含有创建等信息，但不包含逻辑删除信息
 type CreateModelNLD struct {
 	IdModel
-	CreateTime *time.Time `json:"createTime"`
-	CreatorId  uint64     `json:"creatorId"`
-	Creator    string     `json:"creator"`
+	CreateTime *time.Time `json:"createTime" gorm:"not null;"`
+	CreatorId  uint64     `json:"creatorId" gorm:"not null;"`
+	Creator    string     `json:"creator" gorm:"size:32;not null;"`
 }
 
 func (m *CreateModelNLD) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
@@ -109,9 +109,9 @@ func (m *CreateModelNLD) FillBaseInfo(idGenType IdGenType, account *LoginAccount
 // 含有删除、创建字段模型
 type CreateModel struct {
 	DeletedModel
-	CreateTime *time.Time `json:"createTime"`
-	CreatorId  uint64     `json:"creatorId"`
-	Creator    string     `json:"creator"`
+	CreateTime *time.Time `json:"createTime" gorm:"not null;"`
+	CreatorId  uint64     `json:"creatorId" gorm:"not null;"`
+	Creator    string     `json:"creator" gorm:"size:32;not null;"`
 }
 
 func (m *CreateModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
@@ -132,9 +132,9 @@ func (m *CreateModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 type ModelNLD struct {
 	CreateModelNLD
 
-	UpdateTime *time.Time `json:"updateTime"`
-	ModifierId uint64     `json:"modifierId"`
-	Modifier   string     `json:"modifier"`
+	UpdateTime *time.Time `json:"updateTime" gorm:"not null;"`
+	ModifierId uint64     `json:"modifierId" gorm:"not null;"`
+	Modifier   string     `json:"modifier" gorm:"size:32;not null;"`
 }
 
 // 设置基础信息. 如创建时间，修改时间，创建者，修改者信息
@@ -164,9 +164,9 @@ func (m *ModelNLD) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 type Model struct {
 	CreateModel
 
-	UpdateTime *time.Time `json:"updateTime"`
-	ModifierId uint64     `json:"modifierId"`
-	Modifier   string     `json:"modifier"`
+	UpdateTime *time.Time `json:"updateTime" gorm:"not null;"`
+	ModifierId uint64     `json:"modifierId" gorm:"not null;"`
+	Modifier   string     `json:"modifier" gorm:"size:32;not null;"`
 }
 
 // 设置基础信息. 如创建时间，修改时间，创建者，修改者信息
@@ -223,7 +223,7 @@ func (s Slice[T]) Value() (driver.Value, error) {
 
 // 带有额外其他信息字段的结构体
 type ExtraData struct {
-	Extra Map[string, any] `json:"extra"`
+	Extra Map[string, any] `json:"extra" gorm:"type:varchar(1000)"`
 }
 
 // SetExtraValue 设置额外信息字段值

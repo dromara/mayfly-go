@@ -15,15 +15,15 @@ type ResourceAuthCert struct {
 	model.Model
 	model.ExtraData
 
-	Name string `json:"name"` // 名称（全局唯一）
+	Name string `json:"name" gorm:"size:50;comment:账号名称"` // 名称（全局唯一）
 
-	ResourceCode   string                 `json:"resourceCode"`   // 资源编号
-	ResourceType   int8                   `json:"resourceType"`   // 资源类型
-	Type           AuthCertType           `json:"type"`           // 凭证类型
-	Username       string                 `json:"username"`       // 用户名
-	Ciphertext     string                 `json:"ciphertext"`     // 密文
-	CiphertextType AuthCertCiphertextType `json:"ciphertextType"` // 密文类型
-	Remark         string                 `json:"remark"`         // 备注
+	ResourceCode   string                 `json:"resourceCode" gorm:"size:36;comment:资源编码"`                         // 资源编号
+	ResourceType   int8                   `json:"resourceType" gorm:"not null;comment:资源类型"`                        // 资源类型
+	Type           AuthCertType           `json:"type" gorm:"comment:凭证类型"`                                         // 凭证类型
+	Username       string                 `json:"username" gorm:"size:100;comment:用户名"`                             // 用户名
+	Ciphertext     string                 `json:"ciphertext" gorm:"size:5000;comment:密文内容"`                         // 密文
+	CiphertextType AuthCertCiphertextType `json:"ciphertextType" gorm:"not null;comment:密文类型（-1.公共授权凭证 1.密码 2.秘钥）"` // 密文类型
+	Remark         string                 `json:"remark" gorm:"size:255;comment:备注"`                                // 备注
 }
 
 // CiphertextEncrypt 密文加密
