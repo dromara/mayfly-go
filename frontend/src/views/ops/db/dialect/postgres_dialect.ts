@@ -126,7 +126,7 @@ class PostgresqlDialect implements DbDialect {
 
         pgDialectInfo = {
             name: 'PostgreSQL',
-            icon: 'iconfont icon-op-postgres',
+            icon: 'icon db/postgres',
             defaultPort: 5432,
             formatSqlDialect: 'postgresql',
             columnTypes: GAUSS_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),

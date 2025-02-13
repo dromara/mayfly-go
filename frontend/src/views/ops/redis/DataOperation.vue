@@ -12,7 +12,7 @@
                         <span v-if="data.type.value == RedisNodeType.Redis">
                             <el-popover :show-after="500" placement="right-start" :title="$t('common.detail')" trigger="hover" :width="250">
                                 <template #reference>
-                                    <SvgIcon name="iconfont icon-op-redis" :size="18" />
+                                    <SvgIcon name="icon redis/redis-color" :size="18" />
                                 </template>
                                 <template #default>
                                     <el-descriptions :column="1" size="small">

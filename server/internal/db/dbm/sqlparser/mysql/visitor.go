@@ -62,6 +62,9 @@ func (v *MysqlVisitor) VisitDmlStatement(ctx *mysqlparser.DmlStatementContext) i
 	if ssc := ctx.SelectStatement(); ssc != nil {
 		return ssc.Accept(v)
 	}
+	if withStmt := ctx.WithStatement(); withStmt != nil {
+		return withStmt.Accept(v)
+	}
 	if usc := ctx.UpdateStatement(); usc != nil {
 		return usc.Accept(v)
 	}
@@ -92,6 +95,12 @@ func (v *MysqlVisitor) VisitUtilityStatement(ctx *mysqlparser.UtilityStatementCo
 		return c.Accept(v)
 	}
 	return sqlstmt.NewNode(ctx.GetParser(), ctx)
+}
+
+func (v *MysqlVisitor) VisitWithStatement(ctx *mysqlparser.WithStatementContext) interface{} {
+	ort := new(sqlstmt.WithStmt)
+	ort.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+	return ort
 }
 
 func (v *MysqlVisitor) VisitSimpleSelect(ctx *mysqlparser.SimpleSelectContext) interface{} {

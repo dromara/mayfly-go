@@ -6,65 +6,65 @@
             </template>
 
             <div>
-                <el-divider content-position="left">流程信息</el-divider>
+                <el-divider content-position="left">{{ $t('flow.proc') }}</el-divider>
                 <el-descriptions :column="3" border>
-                    <el-descriptions-item :span="1" label="流程名">{{ procinst.procdefName }}</el-descriptions-item>
-                    <el-descriptions-item :span="1" label="业务">
+                    <el-descriptions-item :span="1" :label="$t('flow.procdefName')">{{ procinst.procdefName }}</el-descriptions-item>
+                    <el-descriptions-item :span="1" :label="$t('flow.bizType')">
                         <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
                     </el-descriptions-item>
-                    <el-descriptions-item :span="1" label="发起人">
+                    <el-descriptions-item :span="1" :label="$t('flow.initiator')">
                         <AccountInfo :account-id="procinst.creatorId" :username="procinst.creator" />
                     </el-descriptions-item>
 
-                    <el-descriptions-item :span="1" label="流程状态">
+                    <el-descriptions-item :span="1" :label="$t('flow.procinstStatus')">
                         <enum-tag :enums="ProcinstStatus" :value="procinst.status"></enum-tag>
                     </el-descriptions-item>
-                    <el-descriptions-item :span="1" label="业务状态">
+                    <el-descriptions-item :span="1" :label="$t('flow.bizStatus')">
                         <enum-tag :enums="ProcinstBizStatus" :value="procinst.bizStatus"></enum-tag>
                     </el-descriptions-item>
-                    <el-descriptions-item :span="1" label="发起时间">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
+                    <el-descriptions-item :span="1" :label="$t('flow.startingTime')">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
 
                     <div v-if="procinst.duration">
-                        <el-descriptions-item :span="1.5" label="结束时间">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
-                        <el-descriptions-item :span="1.5" label="持续时间">{{ formatTime(procinst.duration) }}</el-descriptions-item>
+                        <el-descriptions-item :span="1.5" :label="$t('flow.endTime')">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
+                        <el-descriptions-item :span="1.5" :label="$t('flow.duration')">{{ formatTime(procinst.duration) }}</el-descriptions-item>
                     </div>
 
-                    <el-descriptions-item :span="3" label="备注">
+                    <el-descriptions-item :span="3" :label="$t('common.remark')">
                         {{ procinst.remark }}
                     </el-descriptions-item>
                 </el-descriptions>
             </div>
 
             <div>
-                <el-divider content-position="left">审批节点</el-divider>
+                <el-divider content-position="left">{{ $t('flow.approveNode') }}</el-divider>
                 <procdef-tasks :tasks="procinst?.procdef?.tasks" :procinst-tasks="procinst.procinstTasks" />
             </div>
 
             <div>
-                <el-divider content-position="left">业务信息</el-divider>
+                <el-divider content-position="left">{{ $t('flow.bizInfo') }}</el-divider>
                 <component v-if="procinst.bizType" ref="keyValueRef" :is="bizComponents[procinst.bizType]" :procinst="procinst"> </component>
             </div>
 
             <div v-if="props.instTaskId">
-                <el-divider content-position="left">审批表单</el-divider>
+                <el-divider content-position="left">{{ $t('flow.approveForm') }}</el-divider>
                 <el-form :model="form" label-width="auto">
-                    <el-form-item prop="status" label="结果" required>
-                        <el-select v-model="form.status" placeholder="请选择审批结果">
-                            <el-option :label="ProcinstTaskStatus.Pass.label" :value="ProcinstTaskStatus.Pass.value"> </el-option>
+                    <el-form-item prop="status" :label="$t('flow.approveResult')" required>
+                        <el-select v-model="form.status">
+                            <el-option :label="$t(ProcinstTaskStatus.Pass.label)" :value="ProcinstTaskStatus.Pass.value"> </el-option>
                             <!-- <el-option :label="ProcinstTaskStatus.Back.label" :value="ProcinstTaskStatus.Back.value"> </el-option> -->
-                            <el-option :label="ProcinstTaskStatus.Reject.label" :value="ProcinstTaskStatus.Reject.value"> </el-option>
+                            <el-option :label="$t(ProcinstTaskStatus.Reject.label)" :value="ProcinstTaskStatus.Reject.value"> </el-option>
                         </el-select>
                     </el-form-item>
-                    <el-form-item prop="remark" label="备注">
-                        <el-input v-model.trim="form.remark" placeholder="备注" type="textarea" clearable></el-input>
+                    <el-form-item prop="remark" :label="$t('common.remark')">
+                        <el-input v-model.trim="form.remark" :placeholder="$t('common.remark')" type="textarea" clearable></el-input>
                     </el-form-item>
                 </el-form>
             </div>
 
             <template #footer v-if="props.instTaskId">
                 <div>
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>

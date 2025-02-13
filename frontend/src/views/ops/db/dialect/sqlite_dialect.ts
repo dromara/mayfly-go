@@ -138,7 +138,7 @@ class SqliteDialect implements DbDialect {
 
         sqliteDialectInfo = {
             name: 'Sqlite3',
-            icon: 'iconfont icon-sqlite',
+            icon: 'icon db/sqlite',
             defaultPort: 0,
             formatSqlDialect: 'sql',
             columnTypes: SQLITE_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),

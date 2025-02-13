@@ -112,11 +112,7 @@ func (d *DataSyncTask) Run(rc *req.Ctx) {
 func (d *DataSyncTask) Stop(rc *req.Ctx) {
 	taskId := d.getTaskId(rc)
 	rc.ReqParam = taskId
-
-	task := new(entity.DataSyncTask)
-	task.Id = taskId
-	task.RunningState = entity.DataSyncTaskRunStateStop
-	_ = d.dataSyncTaskApp.UpdateById(rc.MetaCtx, task)
+	biz.ErrIsNil(d.dataSyncTaskApp.StopTask(rc.MetaCtx, taskId))
 }
 
 func (d *DataSyncTask) GetTask(rc *req.Ctx) {

@@ -116,7 +116,7 @@ class MysqlDialect implements DbDialect {
 
         mysqlDialectInfo = {
             name: 'MySQL',
-            icon: 'iconfont icon-op-mysql',
+            icon: 'icon db/mysql',
             defaultPort: 3306,
             formatSqlDialect: 'mysql',
             columnTypes: MYSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),

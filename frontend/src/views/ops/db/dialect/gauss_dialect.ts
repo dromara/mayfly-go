@@ -10,7 +10,7 @@ export class GaussDialect extends PostgresqlDialect {
 
         gsDialectInfo = {} as DialectInfo;
         Object.assign(gsDialectInfo, super.getInfo());
-        gsDialectInfo.icon = 'iconfont icon-gauss';
+        gsDialectInfo.icon = 'icon db/guass';
         gsDialectInfo.name = 'GaussDB';
         return gsDialectInfo;
     }

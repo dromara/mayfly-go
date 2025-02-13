@@ -12,7 +12,7 @@
                         <span v-if="data.type.value == MongoNodeType.Mongo">
                             <el-popover :show-after="500" placement="right-start" :title="$t('common.detail')" trigger="hover" :width="250">
                                 <template #reference>
-                                    <SvgIcon name="iconfont icon-op-mongo" :size="18" />
+                                    <SvgIcon name="icon mongo/mongo-color" :size="18" />
                                 </template>
                                 <template #default>
                                     <el-descriptions :column="1" size="small">

@@ -12,7 +12,7 @@ export class KingbaseEsDialect extends PostgresqlDialect {
         kbpgDialectInfo = {} as DialectInfo;
         Object.assign(kbpgDialectInfo, super.getInfo());
         kbpgDialectInfo.name = 'KingbaseES';
-        kbpgDialectInfo.icon = 'iconfont icon-kingbase';
+        kbpgDialectInfo.icon = 'icon db/kingbase';
         return kbpgDialectInfo;
     }
 }

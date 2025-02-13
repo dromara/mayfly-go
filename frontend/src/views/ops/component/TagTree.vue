@@ -18,7 +18,12 @@
                 :default-expanded-keys="props.defaultExpandedKeys"
             >
                 <template #default="{ node, data }">
-                    <span :id="node.key" @dblclick="treeNodeDblclick(data)" :class="data.type.nodeDblclickFunc ? 'none-select' : ''">
+                    <span
+                        :id="node.key"
+                        @dblclick="treeNodeDblclick(data, node)"
+                        class="node-container none-select"
+                        :class="data.type.nodeDblclickFunc ? 'none-select' : ''"
+                    >
                         <span v-if="data.type.value == TagTreeNode.TagPath">
                             <tag-info :tag-path="data.label" />
                         </span>
@@ -157,7 +162,13 @@ const treeNodeClick = async (data: any) => {
 };
 
 // 树节点双击事件
-const treeNodeDblclick = (data: any) => {
+const treeNodeDblclick = (data: any, node: any) => {
+    if (node.expanded) {
+        node.collapse();
+    } else {
+        node.expand();
+    }
+
     // emit('nodeDblick', data);
     if (!data.disabled && data.type.nodeDblclickFunc) {
         data.type.nodeDblclickFunc(data);
@@ -244,6 +255,13 @@ defineExpose({
         color: #c4c9c4;
         font-size: 10px;
         margin-top: 2px;
+    }
+
+    .node-container {
+        display: flex;
+        align-items: center;
+        width: 100%; // 确保容器宽度占满整个节点区域
+        cursor: pointer; // 添加鼠标指针样式
     }
 }
 </style>

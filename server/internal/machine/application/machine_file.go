@@ -279,7 +279,7 @@ func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *dto.
 		return nil, err
 	}
 
-	f, err := sftpCli.OpenFile(path, os.O_RDWR)
+	f, err := sftpCli.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_TRUNC)
 	if err != nil {
 		return mi, err
 	}

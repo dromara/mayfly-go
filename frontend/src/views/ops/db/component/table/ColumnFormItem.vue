@@ -89,7 +89,7 @@ import { computed, nextTick, ref, Ref } from 'vue';
 import { ElInput, ElMessage } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
+import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -123,7 +123,7 @@ const openEditor = () => {
     editorOpening.value = true;
     // 编辑器语言，如：json、html、text
     let editorLang = getEditorLangByValue(itemValue.value);
-    MonacoEditorDialog({
+    MonacoEditorBox({
         content: itemValue.value,
         title: `${t('db.editField')} [${props.columnName}]`,
         language: editorLang,
@@ -131,7 +131,7 @@ const openEditor = () => {
             itemValue.value = newVal;
             closeEditorDialog();
         },
-        cancelFn: closeEditorDialog,
+        closeFn: closeEditorDialog,
     });
 };
 

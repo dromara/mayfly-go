@@ -157,7 +157,7 @@ class OracleDialect implements DbDialect {
 
         oracleDialectInfo = {
             name: 'Oracle',
-            icon: 'iconfont icon-oracle',
+            icon: 'icon db/oracle',
             defaultPort: 1521,
             formatSqlDialect: 'plsql',
             columnTypes: ORACLE_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),

@@ -1,6 +1,6 @@
 <template>
     <div class="monaco-editor" style="border: 1px solid var(--el-border-color-light, #ebeef5); height: 100%">
-        <div class="monaco-editor-content" ref="monacoTextarea" :style="{ height: height }"></div>
+        <div class="monaco-editor-content" ref="monacoTextareaRef" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage" filterable>
             <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
         </el-select>
@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, toRefs, reactive, onMounted, onBeforeUnmount } from 'vue';
+import { watch, toRefs, reactive, onMounted, onBeforeUnmount, useTemplateRef, Ref } from 'vue';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 // 相关语言
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution.js';
@@ -45,6 +45,7 @@ import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 // import Dracula from 'monaco-themes/themes/Dracula.json'
 import SolarizedLight from 'monaco-themes/themes/Solarized-light.json';
 import { language as shellLan } from 'monaco-editor/esm/vs/basic-languages/shell/shell.js';
+
 import { ElOption, ElSelect } from 'element-plus';
 
 import { storeToRefs } from 'pinia';
@@ -53,9 +54,6 @@ import { useThemeConfig } from '@/store/themeConfig';
 const { themeConfig } = storeToRefs(useThemeConfig());
 
 const props = defineProps({
-    modelValue: {
-        type: String,
-    },
     language: {
         type: String,
         default: null,
@@ -74,12 +72,11 @@ const props = defineProps({
     },
     options: {
         type: Object,
-        default: null,
+        default: () => {},
     },
 });
 
-//定义事件
-const emit = defineEmits(['update:modelValue']);
+const modelValue = defineModel<any>('modelValue', { required: true });
 
 const languageArr = [
     {
@@ -154,7 +151,7 @@ const defaultOptions = {
     },
 };
 
-const monacoTextarea: any = ref();
+const monacoTextareaRef: Ref<any> = useTemplateRef('monacoTextareaRef');
 
 let monacoEditorIns: editor.IStandaloneCodeEditor = null as any;
 let completionItemProvider: any = null;
@@ -177,7 +174,7 @@ const { languageMode } = toRefs(state);
 onMounted(() => {
     state.languageMode = props.language;
     initMonacoEditorIns();
-    setEditorValue(props.modelValue);
+    setEditorValue(modelValue.value);
     registerCompletionItemProvider();
 });
 
@@ -191,18 +188,15 @@ onBeforeUnmount(() => {
     }
 });
 
-watch(
-    () => props.modelValue,
-    (newValue: any) => {
-        if (!monacoEditorIns.hasTextFocus()) {
-            state.languageMode = props.language;
-            if (newValue == null) {
-                newValue = '';
-            }
-            monacoEditorIns?.setValue(newValue);
+watch(modelValue, (newValue: any) => {
+    if (!monacoEditorIns.hasTextFocus()) {
+        state.languageMode = props.language;
+        if (newValue == null) {
+            newValue = '';
         }
+        monacoEditorIns?.setValue(newValue);
     }
-);
+});
 
 watch(
     () => props.language,
@@ -227,11 +221,11 @@ const initMonacoEditorIns = () => {
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
     defaultOptions.language = state.languageMode;
     defaultOptions.theme = themeConfig.value.editorTheme;
-    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(defaultOptions, props.options as any));
+    monacoEditorIns = monaco.editor.create(monacoTextareaRef.value, Object.assign(defaultOptions, props.options as any));
 
     // 监听内容改变,双向绑定
     monacoEditorIns.onDidChangeModelContent(() => {
-        emit('update:modelValue', monacoEditorIns.getModel()?.getValue());
+        modelValue.value = monacoEditorIns.getModel()?.getValue();
     });
 };
 

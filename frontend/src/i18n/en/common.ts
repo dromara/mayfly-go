@@ -444,5 +444,9 @@ export default {
             last5runTimes: 'Last 5 running times',
             calculationing: 'In the calculation result',
         },
+        iconSelector: {
+            title: 'please select the icon',
+            placeholder: 'please enter content search icon or select icon',
+        },
     },
 };

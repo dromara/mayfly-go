@@ -16,7 +16,7 @@ import 'splitpanes/dist/splitpanes.css';
 
 import '@/theme/index.scss';
 import '@/assets/font/font.css';
-import '@/assets/iconfont/iconfont.js';
+import '@/assets/icon/icon.js';
 import { getThemeConfig } from './common/utils/storage';
 import { initSysMsgs } from './common/sysmsgs';
 

@@ -452,5 +452,9 @@ export default {
             last5runTimes: '最近5次运行时间',
             calculationing: '计算结果中',
         },
+        iconSelector: {
+            title: '请选择图标',
+            placeholder: '请输入内容搜索图标或者选择图标',
+        },
     },
 };

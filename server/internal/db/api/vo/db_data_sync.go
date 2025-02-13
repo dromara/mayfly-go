@@ -5,6 +5,7 @@ import "time"
 type DataSyncTaskListVO struct {
 	Id           int64      `json:"id"`
 	TaskName     string     `json:"taskName"`
+	TaskCron     string     `json:"cron"`
 	CreateTime   *time.Time `json:"createTime"`
 	Creator      string     `json:"creator"`
 	UpdateTime   *time.Time `json:"updateTime"`
