@@ -6,7 +6,7 @@
                 :key="column.columnName"
                 class="w100 mb5"
                 :prop="column.columnName"
-                :required="props.tableName != '' && !column.nullable && !column.isPrimaryKey && !column.isIdentity"
+                :required="props.tableName != '' && !column.nullable && !column.isPrimaryKey && !column.autoIncrement"
             >
                 <template #label>
                     <span class="pointer" :title="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType">
@@ -19,7 +19,7 @@
                     :data-type="dbInst.getDialect().getDataType(column.dataType)"
                     :placeholder="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType"
                     :column-name="column.columnName"
-                    :disabled="column.isIdentity"
+                    :disabled="column.autoIncrement"
                 />
             </el-form-item>
         </el-form>

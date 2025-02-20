@@ -8,7 +8,7 @@ type MachineFileForm struct {
 	Id        uint64 `json:"id"`
 	Name      string `json:"name" binding:"required"`
 	MachineId uint64 `json:"machineId" binding:"required"`
-	Type      int    `json:"type" binding:"required"`
+	Type      int8   `json:"type" binding:"required"`
 	Path      string `json:"path" binding:"required"`
 }
 

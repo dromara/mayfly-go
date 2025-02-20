@@ -57,7 +57,7 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 			ColumnComment: cast.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      cast.ToString(re["NULLABLE"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
-			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
+			AutoIncrement: cast.ToInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: cast.ToString(re["COLUMN_DEFAULT"]),
 			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
@@ -73,7 +73,7 @@ func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
 	dialect := od.dc.GetDialect()
 	colName := dialect.Quoter().Quote(column.ColumnName)
 
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		// 11g以前的版本 如果是自增，自增列数据类型必须是number，不需要设置默认值和空值，建表后设置自增序列
 		return fmt.Sprintf(" %s NUMBER", colName)
 	}
@@ -96,7 +96,7 @@ func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
 func (od *OracleMetadata11) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableName string, columns []dbi.Column) []string {
 	result := make([]string, 0)
 	for _, col := range columns {
-		if col.IsIdentity {
+		if col.AutoIncrement {
 			seqName := fmt.Sprintf("%s_%s_seq", tableInfo.TableName, col.ColumnName)
 			trgName := fmt.Sprintf("%s_%s_trg", tableInfo.TableName, col.ColumnName)
 			result = append(result, fmt.Sprintf("CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1", seqName))

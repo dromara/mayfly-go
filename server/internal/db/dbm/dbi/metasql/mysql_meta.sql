@@ -67,7 +67,7 @@ SELECT table_name     tableName,
            WHEN extra LIKE '%%auto_increment%%' THEN
                1
            ELSE 0
-           END AS     isIdentity,
+           END AS     autoIncrement,
        is_nullable    nullable,
        CHARACTER_MAXIMUM_LENGTH charMaxLength,
        NUMERIC_SCALE  numScale,

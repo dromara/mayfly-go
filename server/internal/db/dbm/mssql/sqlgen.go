@@ -190,7 +190,7 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 	// 设置允许填充自增列之后，显示指定列名可以插入自增列
 	identityInsertOn := ""
 	for _, column := range columns {
-		if column.IsIdentity {
+		if column.AutoIncrement {
 			identityInsertOn = fmt.Sprintf("SET IDENTITY_INSERT [%s].[%s] ON", schema, tableName)
 		}
 	}
@@ -221,7 +221,7 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 	hashIdentity := false
 
 	for _, col := range columns {
-		if col.IsIdentity {
+		if col.AutoIncrement {
 			hashIdentity = true
 			identityCols = append(identityCols, col.ColumnName)
 		}
@@ -286,7 +286,7 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 	dataType := column.DataType
 
 	incr := ""
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		incr = " IDENTITY(1,1)"
 	}
 

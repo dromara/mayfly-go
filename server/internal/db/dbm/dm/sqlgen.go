@@ -93,7 +93,7 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 		identityInsertOn := ""
 		identityInsertOff := ""
 		// 有自增列的才加上这个语句
-		if collx.AnyMatch(columns, func(column dbi.Column) bool { return column.IsIdentity }) {
+		if collx.AnyMatch(columns, func(column dbi.Column) bool { return column.AutoIncrement }) {
 			identityInsertOn = fmt.Sprintf("set identity_insert %s on;", quote(tableName))
 			hasIdentity = true
 			res = append(res, identityInsertOn)
@@ -124,7 +124,7 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 			uniqueCols = append(uniqueCols, col.ColumnName)
 			caseSqls = append(caseSqls, fmt.Sprintf("( T1.%s = T2.%s )", quote(col.ColumnName), quote(col.ColumnName)))
 		}
-		if col.IsIdentity {
+		if col.AutoIncrement {
 			// 自增字段不放入insert内，即使是设置了identity_insert on也不起作用
 			identityCols = append(identityCols, quote(col.ColumnName))
 		}
@@ -178,7 +178,7 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 	dataType := column.DataType
 
 	incr := ""
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		incr = " IDENTITY"
 	}
 

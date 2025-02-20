@@ -537,7 +537,7 @@ watch(
                     numScale: a.showScale,
                     notNull: !a.nullable,
                     pri: a.isPrimaryKey,
-                    auto_increment: a.isIdentity /*a.extra?.indexOf('auto_increment') > -1*/,
+                    auto_increment: a.autoIncrement /*a.extra?.indexOf('auto_increment') > -1*/,
                     remark: a.columnComment,
                 };
                 state.tableData.fields.res.push(data);

@@ -99,7 +99,7 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 	dataType := column.DataType
 
 	incr := ""
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		incr = " AUTO_INCREMENT"
 	}
 

@@ -37,7 +37,7 @@ type Column struct {
 	DataType      string  `json:"dataType"`      // 数据类型
 	ColumnComment string  `json:"columnComment"` // 列备注
 	IsPrimaryKey  bool    `json:"isPrimaryKey"`  // 是否为主键
-	IsIdentity    bool    `json:"isIdentity"`    // 是否自增
+	AutoIncrement bool    `json:"autoIncrement"` // 是否自增
 	ColumnDefault string  `json:"columnDefault"` // 默认值
 	Nullable      bool    `json:"nullable"`      // 是否可为null
 	CharMaxLength int     `json:"charMaxLength"` // 字符最大长度

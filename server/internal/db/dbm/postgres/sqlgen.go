@@ -214,7 +214,7 @@ func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 	}
 
 	// 如果是自增类型，需要转换为serial
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		if dataType == "int4" {
 			column.DataType = "serial"
 		} else if dataType == "int2" {
