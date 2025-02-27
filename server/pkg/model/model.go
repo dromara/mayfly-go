@@ -204,26 +204,38 @@ func GetIdByGenType(genType IdGenType) uint64 {
 type Map[K comparable, V any] map[K]V
 
 func (m *Map[K, V]) Scan(value any) error {
-	return json.Unmarshal(value.([]byte), m)
+	if v, ok := value.([]byte); ok && len(v) > 0 {
+		return json.Unmarshal(v, m)
+	}
+	return nil
 }
 
 func (m Map[K, V]) Value() (driver.Value, error) {
+	if m == nil {
+		return nil, nil
+	}
 	return json.Marshal(m)
 }
 
 type Slice[T int | string | Map[string, any]] []T
 
 func (s *Slice[T]) Scan(value any) error {
-	return json.Unmarshal(value.([]byte), s)
+	if v, ok := value.([]byte); ok && len(v) > 0 {
+		return json.Unmarshal(v, s)
+	}
+	return nil
 }
 
 func (s Slice[T]) Value() (driver.Value, error) {
+	if s == nil {
+		return nil, nil
+	}
 	return json.Marshal(s)
 }
 
 // 带有额外其他信息字段的结构体
 type ExtraData struct {
-	Extra Map[string, any] `json:"extra" gorm:"type:varchar(1000)"`
+	Extra Map[string, any] `json:"extra" gorm:"type:varchar(2000)"`
 }
 
 // SetExtraValue 设置额外信息字段值

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"strings"
 )
 
@@ -20,6 +21,8 @@ func (dbType DbType) Equal(typ string) bool {
 }
 
 type DbInfo struct {
+	model.ExtraData // 连接需要的其他额外参数（json字符串），如oracle数据库需要指定sid等
+
 	InstanceId uint64 // 实例id
 	Id         uint64 // dbId
 	Name       string
@@ -27,7 +30,6 @@ type DbInfo struct {
 	Type     DbType // 类型，mysql postgres等
 	Host     string
 	Port     int
-	Extra    string // 连接需要的其他额外参数（json字符串），如oracle数据库需要指定sid等
 	Network  string
 	Username string
 	Password string

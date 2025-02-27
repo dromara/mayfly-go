@@ -18,21 +18,21 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20241220152942-06eb5c6e8230
 	github.com/may-fly/cast v1.7.1
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/mojocn/base64Captcha v1.3.8 // 验证码
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.7
 	github.com/pquerna/otp v1.4.0
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.1
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
-	github.com/sijms/go-ora/v2 v2.8.23
+	github.com/sijms/go-ora/v2 v2.8.24
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver v1.16.0 // mongo
-	golang.org/x/crypto v0.33.0 // ssh
+	golang.org/x/crypto v0.35.0 // ssh
 	golang.org/x/oauth2 v0.26.0
 	golang.org/x/sync v0.11.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1

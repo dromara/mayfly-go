@@ -51,7 +51,7 @@ func Init() []*gormigrate.Migration {
 
 					new(machineentity.Machine),
 					new(machineentity.MachineFile),
-					new(machineentity.MachineMonitor),
+					new(machineentity.MachineTermOp),
 					new(machineentity.MachineScript),
 					new(machineentity.MachineCronJob),
 					new(machineentity.MachineCronJobExec),

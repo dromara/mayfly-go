@@ -7,11 +7,11 @@
 </template>
 
 <script lang="ts" setup>
-import 'xterm/css/xterm.css';
-import { Terminal, ITheme } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import { SearchAddon } from 'xterm-addon-search';
-import { WebLinksAddon } from 'xterm-addon-web-links';
+import '@xterm/xterm/css/xterm.css';
+import { Terminal, ITheme } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -238,7 +238,7 @@ const getTerminalTheme = () => {
     const terminalTheme = themeConfig.value.terminalTheme;
     // 如果不是自定义主题，则返回内置主题
     if (terminalTheme != 'custom') {
-        return themes[terminalTheme];
+        return (themes as any)[terminalTheme];
     }
 
     // 自定义主题

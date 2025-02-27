@@ -244,6 +244,7 @@ func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagent
 	di.InstanceId = instance.Id
 	di.Database = database
 	structx.Copy(di, instance)
+	di.Extra = instance.Extra
 
 	di.Username = ac.Username
 	di.Password = ac.Ciphertext

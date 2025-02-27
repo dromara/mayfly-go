@@ -194,7 +194,7 @@ const DefaultForm = {
     name: null,
     host: '',
     port: getDbDialect(DbType.mysql).getInfo().defaultPort,
-    extra: '', // 连接需要的额外参数（json字符串）
+    extra: null, // 连接需要的额外参数（json字符串）
     params: null,
     remark: '',
     sshTunnelMachineId: null as any,
@@ -223,11 +223,7 @@ watchEffect(() => {
     if (dbInst) {
         state.form = { ...dbInst };
         state.form.tagCodePaths = dbInst.tags.map((t: any) => t.codePath) || [];
-        try {
-            state.extra = JSON.parse(state.form.extra);
-        } catch (e) {
-            state.extra = {};
-        }
+        state.extra = dbInst.extra || {};
     } else {
         state.form = { ...DefaultForm };
         state.form.authCerts = [];
@@ -242,7 +238,7 @@ const getReqForm = async () => {
         reqForm.sshTunnelMachineId = -1;
     }
     if (Object.keys(state.extra).length > 0) {
-        reqForm.extra = JSON.stringify(state.extra);
+        reqForm.extra = state.extra;
     }
     return reqForm;
 };

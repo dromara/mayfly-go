@@ -46,7 +46,7 @@
 <script lang="ts" setup>
 import { ref, toRefs, nextTick, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
-import { SearchAddon, ISearchOptions } from 'xterm-addon-search';
+import { SearchAddon, ISearchOptions } from '@xterm/addon-search';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();

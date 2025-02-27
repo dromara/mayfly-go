@@ -8,6 +8,7 @@ import (
 // DbInstance 数据库实例信息
 type DbInstance struct {
 	model.Model
+	model.ExtraData // 连接需要的其他额外参数（json字符串），如oracle数据库需要指定sid等
 
 	Code               string  `json:"code" gorm:"size:32;not null;"`
 	Name               string  `json:"name" gorm:"size:32;not null;"`
@@ -15,8 +16,7 @@ type DbInstance struct {
 	Host               string  `json:"host" gorm:"size:255;not null;"`
 	Port               int     `json:"port"`
 	Network            string  `json:"network" gorm:"size:20;"`
-	Extra              *string `json:"extra" gorm:"size:1000;comment:连接需要的额外参数，如oracle数据库需要sid等"` // 连接需要的其他额外参数（json格式）, 如oracle需要sid等
-	Params             *string `json:"params" gorm:"size:255;comment:其他连接参数"`                     // 使用指针类型，可更新为零值（空字符串）
+	Params             *string `json:"params" gorm:"size:255;comment:其他连接参数"` // 使用指针类型，可更新为零值（空字符串）
 	Remark             *string `json:"remark" gorm:"size:255;"`
 	SshTunnelMachineId int     `json:"sshTunnelMachineId"` // ssh隧道机器id
 }

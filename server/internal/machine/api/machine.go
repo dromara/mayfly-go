@@ -15,7 +15,6 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -69,8 +68,8 @@ func (m *Machine) ReqConfs() *req.Confs {
 		req.NewGet(":machineId/term-recs", m.MachineTermOpRecords).RequiredPermission(saveMachineP),
 
 		// 终端操作
-		req.NewGet("terminal/:ac", m.WsSSH),
-		req.NewGet("rdp/:ac", m.WsGuacamole),
+		req.NewGet("terminal/:ac", m.WsSSH).NoRes(),
+		req.NewGet("rdp/:ac", m.WsGuacamole).NoRes(),
 	}
 
 	return req.NewConfs("machines", reqs[:]...)
@@ -248,9 +247,8 @@ func (m *Machine) WsSSH(rc *req.Ctx) {
 
 	// 权限校验
 	rc = rc.WithRequiredPermission(req.NewPermission("machine:terminal"))
-	if err = req.PermissionHandler(rc); err != nil {
-		panic(errorx.NewBiz(mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~")))
-	}
+	err = req.PermissionHandler(rc)
+	biz.ErrIsNil(err, mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~"))
 
 	cli, err := m.machineApp.NewCli(GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connection error: %s"))
@@ -265,7 +263,6 @@ func (m *Machine) WsSSH(rc *req.Ctx) {
 	// 记录系统操作日志
 	rc.WithLog(req.NewLogSaveI(imsg.LogMachineTerminalOp))
 	rc.ReqParam = cli.Info
-	req.LogHandler(rc)
 
 	err = m.machineTermOpApp.TermConn(rc.MetaCtx, cli, wsConn, rows, cols)
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connect fail: %s"))
@@ -305,9 +302,8 @@ func (m *Machine) WsGuacamole(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	rc = rc.WithRequiredPermission(req.NewPermission("machine:terminal"))
-	if err = req.PermissionHandler(rc); err != nil {
-		panic(errorx.NewBiz(mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~")))
-	}
+	err = req.PermissionHandler(rc)
+	biz.ErrIsNil(err, mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~"))
 
 	ac := GetMachineAc(rc)
 
