@@ -212,7 +212,6 @@ const oauth2Login = () => {
             border: 1px solid var(--el-color-primary-light-3);
             border-radius: 3px;
             width: 500px;
-            height: 500px;
             position: relative;
             overflow: hidden;
             background-color: var(--bg-main-color);

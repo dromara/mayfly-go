@@ -23,6 +23,7 @@ export default {
         time: '时间',
         account: '账号',
         password: '密码',
+        captcha: '验证码',
         createTime: '创建时间',
         creator: '创建者',
         updateTime: '更新时间',
@@ -348,9 +349,6 @@ export default {
         accountPasswordLogin: '账号密码登录',
         thirdPartyLogin: '第三方登录',
         ldapLogin: 'LDAP 登录',
-        inputUsernamePlaceholder: '请输入用户名',
-        inputPasswordPlaceholder: '请输入密码',
-        inputCaptchaPlaceholder: '请输入验证码',
         login: '登 录',
         loginFailTip: '提示：登录失败超过{loginFailCount}次后将被限制{loginFailMin}分钟内不可再次登录',
         loginSuccessTip: '欢迎回来！',
@@ -364,7 +362,6 @@ export default {
         enterOtpCodeTip: '请输入令牌APP中显示的授权码',
         updateBasicInfo: '修改基本信息',
         name: '姓名',
-        inputNamePlaceholder: '请输入姓名',
     },
     components: {
         df: {

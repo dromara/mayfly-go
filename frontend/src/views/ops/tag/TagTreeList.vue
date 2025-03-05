@@ -169,9 +169,9 @@ import {
     useI18nDeleteSuccessMsg,
     useI18nEditTitle,
     useI18nFormValidate,
-    useI18nPleaseInput,
     useI18nSaveSuccessMsg,
 } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
 const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
@@ -263,8 +263,8 @@ const props = {
 };
 
 const rules = {
-    code: [{ required: true, message: useI18nPleaseInput('tag.code'), trigger: 'blur' }],
-    name: [{ required: true, message: useI18nPleaseInput('common.name'), trigger: 'blur' }],
+    code: [Rules.requiredInput('tag.code')],
+    name: [Rules.requiredInput('common.name')],
 };
 
 onMounted(() => {

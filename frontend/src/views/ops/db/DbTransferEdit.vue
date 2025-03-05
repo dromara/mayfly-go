@@ -159,8 +159,9 @@ import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import _ from 'lodash';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -179,41 +180,11 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
-    taskName: [
-        {
-            required: true,
-            message: useI18nPleaseInput('db.taskName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    srcDbId: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.srcDb'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    targetDbId: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.targetDb'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    targetFileDbType: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.dbFileType'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    cron: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('cron'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    taskName: [Rules.requiredInput('db.taskName')],
+    srcDbId: [Rules.requiredSelect('db.srcDb')],
+    targetDbId: [Rules.requiredSelect('db.targetDb')],
+    targetFileDbType: [Rules.requiredSelect('db.dbFileType')],
+    cron: [Rules.requiredSelect('cron')],
 };
 
 const dbForm: any = ref(null);

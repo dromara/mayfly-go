@@ -204,9 +204,10 @@ import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import { DbDataSyncDuplicateStrategyEnum } from './enums';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -225,20 +226,8 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
-    taskName: [
-        {
-            required: true,
-            message: useI18nPleaseInput('db.taskName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    taskCron: [
-        {
-            required: true,
-            message: useI18nPleaseInput('cron'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    taskName: [Rules.requiredInput('db.taskName')],
+    taskCron: [Rules.requiredInput('cron')],
 };
 
 const dbForm: any = ref(null);

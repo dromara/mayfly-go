@@ -39,11 +39,7 @@
                 /></el-form-item>
 
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('machine.relateMachine')">
-                    <tag-tree-check
-                        height="200px"
-                        :tag-type="`${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`"
-                        v-model="form.codePaths"
-                    />
+                    <tag-tree-check height="200px" :tag-type="`${TagResourceTypeEnum.Machine.value}`" v-model="form.codePaths" />
                 </el-form-item>
             </el-form>
 
@@ -61,7 +57,6 @@
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, watch, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
 import { cronJobApi, machineApi } from '../api';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
@@ -70,10 +65,8 @@ import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18n } from 'vue-i18n';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
-
-const { t } = useI18n();
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const props = defineProps({
     visible: {
@@ -92,41 +85,11 @@ const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
 const formRef: any = ref(null);
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    cron: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.cronExpression'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    status: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('common.status'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    saveExecResType: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('machine.execResRecordType'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    script: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.script'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    cron: [Rules.requiredInput('machine.cronExpression')],
+    status: [Rules.requiredSelect('common.status')],
+    saveExecResType: [Rules.requiredSelect('machine.execResRecordType')],
+    script: [Rules.requiredInput('machine.script')],
 };
 
 const state = reactive({

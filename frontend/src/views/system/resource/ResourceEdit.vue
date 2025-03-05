@@ -101,6 +101,7 @@ import iconSelector from '@/components/iconSelector/index.vue';
 import { useI18n } from 'vue-i18n';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -139,20 +140,8 @@ const defaultMeta = {
 };
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: t('system.menu.menuNameRuleMsg'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    code: [
-        {
-            required: true,
-            message: t('system.menu.codeRuleMsg'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    code: [Rules.requiredInput('code')],
 };
 
 const trueFalseOption = [

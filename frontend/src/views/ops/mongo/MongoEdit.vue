@@ -56,8 +56,9 @@ import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -77,27 +78,9 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
-    tagCodePaths: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('tag.relateTag'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    uri: [
-        {
-            required: true,
-            message: useI18nPleaseInput('mongo.connUrl'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
+    name: [Rules.requiredInput('common.name')],
+    uri: [Rules.requiredInput('mongo.connUrl')],
 };
 
 const mongoForm: any = ref(null);

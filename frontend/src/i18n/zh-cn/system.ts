@@ -33,8 +33,6 @@ export default {
             inline: '内嵌',
             linkAddress: '链接地址',
             linkPlaceholder: '外链/内嵌的链接地址（http://xxx.com）',
-            menuNameRuleMsg: '请输入资源名称',
-            codeRuleMsg: '请输入code',
             routeNameNotEmpty: '路由名不能为空',
             resourceCodePatternErrMsg: '只允许输入1-32位大小写字母、数字、_-.:',
             assignedRole: '已分配角色',

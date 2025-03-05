@@ -89,8 +89,9 @@ import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -112,34 +113,10 @@ const emit = defineEmits(['cancel', 'val-change']);
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
-    tagCodePaths: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('tag.relateTag'),
-            trigger: ['change'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    protocol: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('machine.protocol'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    ip: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.ipAndPort'),
-            trigger: ['blur'],
-        },
-    ],
+    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
+    name: [Rules.requiredInput('common.name')],
+    protocol: [Rules.requiredSelect('machine.protocol')],
+    ip: [Rules.requiredInput('machine.ipAndPort')],
 };
 
 const machineForm: any = ref(null);

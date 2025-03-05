@@ -24,26 +24,11 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { useI18n } from 'vue-i18n';
-import { useI18nPleaseInput } from '@/hooks/useI18n';
-
-const { t } = useI18n();
+import { Rules } from '@/common/rule';
 
 const rules = {
-    dbId: [
-        {
-            required: true,
-            message: t('flow.selectDbPlaceholder'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    sql: [
-        {
-            required: true,
-            message: useI18nPleaseInput('flow.runSql'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    dbId: [Rules.requiredSelect('db.db')],
+    sql: [Rules.requiredInput('flow.runSql')],
 };
 
 const emit = defineEmits(['changeResourceCode']);

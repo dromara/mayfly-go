@@ -202,20 +202,15 @@ import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg, useI18nPleaseInput } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
 const { t } = useI18n();
 
 const keyFormRules = {
-    key: [
-        {
-            required: true,
-            message: useI18nPleaseInput('Key'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    key: [Rules.requiredInput('Key')],
 };
 
 const cmCopyKey = new ContextmenuItem('copyValue', 'Copy')

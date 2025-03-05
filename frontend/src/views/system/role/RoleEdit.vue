@@ -34,34 +34,14 @@
 import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
-import { useI18n } from 'vue-i18n';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
-
-const { t } = useI18n();
+import { useI18nFormValidate } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.role.roleName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    code: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.role.roleCode'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    status: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('common.status'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('system.role.roleName')],
+    code: [Rules.requiredInput('system.role.roleCode')],
+    status: [Rules.requiredSelect('common.status')],
 };
 
 const props = defineProps({

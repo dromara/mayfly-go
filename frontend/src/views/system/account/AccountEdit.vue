@@ -46,13 +46,9 @@
 <script lang="ts" setup>
 import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
 import { accountApi } from '../api';
-import { ElMessage } from 'element-plus';
-import { AccountUsernamePattern } from '@/common/pattern';
 import { randomPassword } from '@/common/utils/string';
-import { useI18n } from 'vue-i18n';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
-
-const { t } = useI18n();
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const props = defineProps({
     visible: {
@@ -72,32 +68,9 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 const accountForm: any = ref(null);
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.account.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    username: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.username'),
-            trigger: ['change', 'blur'],
-        },
-        {
-            pattern: AccountUsernamePattern.pattern,
-            message: AccountUsernamePattern.message,
-            trigger: ['blur'],
-        },
-    ],
-    password: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.password'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('system.account.name')],
+    username: [Rules.requiredInput('common.username'), Rules.accountUsername],
+    password: [Rules.requiredInput('common.password')],
 };
 
 const state = reactive({

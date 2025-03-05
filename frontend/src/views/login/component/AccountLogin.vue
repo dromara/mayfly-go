@@ -2,20 +2,14 @@
     <div>
         <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form" size="large">
             <el-form-item prop="username">
-                <el-input
-                    type="text"
-                    :placeholder="$t('login.inputUsernamePlaceholder')"
-                    prefix-icon="user"
-                    v-model="loginForm.username"
-                    clearable
-                    autocomplete="off"
-                >
+                <el-input type="text" :placeholder="$t('common.username')" prefix-icon="user" v-model="loginForm.username" clearable autocomplete="off">
                 </el-input>
             </el-form-item>
+
             <el-form-item prop="password">
                 <el-input
                     type="password"
-                    :placeholder="$t('login.inputPasswordPlaceholder')"
+                    :placeholder="$t('common.password')"
                     prefix-icon="lock"
                     v-model="loginForm.password"
                     autocomplete="off"
@@ -24,13 +18,14 @@
                 >
                 </el-input>
             </el-form-item>
+
             <el-form-item v-if="accountLoginSecurity.useCaptcha" prop="captcha">
                 <el-row :gutter="15">
                     <el-col :span="16">
                         <el-input
                             type="text"
                             maxlength="6"
-                            :placeholder="$t('login.inputCaptchaPlaceholder')"
+                            :placeholder="$t('common.captcha')"
                             prefix-icon="position"
                             v-model="loginForm.captcha"
                             clearable
@@ -45,9 +40,11 @@
                     </el-col>
                 </el-row>
             </el-form-item>
+
             <el-form-item v-if="ldapEnabled" prop="ldapLogin">
                 <el-checkbox v-model="loginForm.ldapLogin" :label="$t('login.ldapLogin')" size="small" />
             </el-form-item>
+
             <span v-if="showLoginFailTips" style="color: #f56c6c; font-size: 12px">
                 {{
                     $t('login.loginFailTip', {
@@ -56,6 +53,7 @@
                     })
                 }}
             </span>
+
             <el-form-item>
                 <el-button type="primary" class="login-content-submit" round @click="login" :loading="loading.signIn">
                     <span>{{ $t('login.login') }}</span>
@@ -147,12 +145,11 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
+import { nextTick, onMounted, ref, toRefs, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
 import { getRefreshToken, saveRefreshToken, saveToken, saveUser } from '@/common/utils/storage';
-import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
 import { getAccountLoginSecurity, getLdapEnabled } from '@/common/sysconfig';
@@ -160,18 +157,18 @@ import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
 import { personApi } from '@/views/personal/api';
-import { AccountUsernamePattern } from '@/common/pattern';
 import { getToken } from '@/common/utils/storage';
 import { useThemeConfig } from '@/store/themeConfig';
 import { getFileUrl } from '@/common/request';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
 const rules = {
-    username: [{ required: true, message: t('login.inputUsernamePlaceholder'), trigger: 'blur' }],
-    password: [{ required: true, message: t('login.inputPasswordPlaceholder'), trigger: 'blur' }],
-    captcha: [{ required: true, message: t('login.inputCaptchaPlaceholder'), trigger: 'blur' }],
+    username: [Rules.requiredInput('common.username')],
+    password: [Rules.requiredInput('common.password')],
+    captcha: [Rules.requiredInput('common.captcha')],
 };
 
 // 定义变量内容
@@ -210,14 +207,7 @@ const state = reactive({
             newPassword: '',
         },
         rules: {
-            newPassword: [
-                { required: true, message: t('login.inputNewPasswordPlaceholder'), trigger: 'blur' },
-                {
-                    pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[`~!@#$%^&*()_+<>?:"{},.\/\\;'[\]])[A-Za-z\d`~!@#$%^&*()_+<>?:"{},.\/\\;'[\]]{8,}$/,
-                    message: t('login.passwordRuleTip'),
-                    trigger: 'blur',
-                },
-            ],
+            newPassword: [Rules.requiredInput('login.newPassword'), Rules.accountPassword],
         },
     },
     otpDialog: {
@@ -228,7 +218,7 @@ const state = reactive({
             otpToken: '',
         },
         rules: {
-            code: [{ required: true, message: t('login.inputOtpCodePlaceholder'), trigger: 'blur' }],
+            code: [Rules.requiredInput('OTP')],
         },
     },
     baseInfoDialog: {
@@ -238,15 +228,8 @@ const state = reactive({
             name: '',
         },
         rules: {
-            username: [
-                { required: true, message: t('login.inputUsernamePlaceholder'), trigger: 'blur' },
-                {
-                    pattern: AccountUsernamePattern.pattern,
-                    message: AccountUsernamePattern.message,
-                    trigger: ['blur'],
-                },
-            ],
-            name: [{ required: true, message: t('login.inputNamePlaceholder'), trigger: 'blur' }],
+            username: [Rules.requiredInput('common.username'), Rules.accountUsername],
+            name: [Rules.requiredInput('common.name')],
         },
     },
     loading: {
@@ -284,11 +267,6 @@ const getCaptcha = async () => {
     state.captchaImage = res.base64Captcha;
     state.loginForm.cid = res.cid;
 };
-
-// 时间获取
-const currentTime = computed(() => {
-    return formatAxis(new Date());
-});
 
 // 校验登录表单并登录
 const login = () => {
@@ -436,8 +414,6 @@ const signInSuccess = async (accessToken: string = '', refreshToken = '') => {
 };
 
 const toIndex = async () => {
-    // 初始化登录成功时间问候语
-    let currentTimeInfo = currentTime.value;
     // 登录成功，跳到转首页
     // 添加完动态路由，再进行 router 跳转，否则可能报错 No match found for location with path "/"
     // 如果是复制粘贴的路径，非首页/登录页，那么登录成功后重定向到对应的路径中

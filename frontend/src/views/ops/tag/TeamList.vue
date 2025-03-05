@@ -111,7 +111,6 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { tagApi } from './api';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
@@ -129,10 +128,9 @@ import {
     useI18nEditTitle,
     useI18nFormValidate,
     useI18nOperateSuccessMsg,
-    useI18nPleaseInput,
-    useI18nPleaseSelect,
     useI18nSaveSuccessMsg,
 } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -141,20 +139,8 @@ const pageTableRef: Ref<any> = ref(null);
 const showMemPageTableRef: Ref<any> = ref(null);
 
 const teamFormRules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    validityDate: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('team.validity'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    validityDate: [Rules.requiredSelect('team.validity')],
 };
 
 const searchItems = [SearchItem.input('name', 'common.name')];

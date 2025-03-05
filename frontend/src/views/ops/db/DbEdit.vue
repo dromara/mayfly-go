@@ -86,7 +86,8 @@ import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { DbGetDbNamesMode } from './enums';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
+import { useI18nFormValidate } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const props = defineProps({
     visible: {
@@ -107,34 +108,10 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'confirm']);
 
 const rules = {
-    instanceId: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.dbInst'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    authCertName: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.acName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    getDatabaseMode: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.getDbMode'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    instanceId: [Rules.requiredSelect('db.dbInst')],
+    name: [Rules.requiredInput('common.name')],
+    authCertName: [Rules.requiredSelect('db.acName')],
+    getDatabaseMode: [Rules.requiredSelect('db.getDbMode')],
 };
 
 const checkAllDbNames = ref(false);

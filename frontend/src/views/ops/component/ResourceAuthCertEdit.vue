@@ -125,11 +125,8 @@ import { reactive, ref, toRefs, computed, watch } from 'vue';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { resourceAuthCertApi } from '../tag/api';
-import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { useI18n } from 'vue-i18n';
-
-const { t } = useI18n();
+import { Rules } from '@/common/rule';
 
 const props = defineProps({
     title: {
@@ -166,25 +163,8 @@ const DefaultForm = {
 };
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: t('common.pleaseInput', { label: t('common.name') }),
-            trigger: ['change', 'blur'],
-        },
-        {
-            pattern: ResourceCodePattern.pattern,
-            message: ResourceCodePattern.message,
-            trigger: ['blur'],
-        },
-    ],
-    resourceCode: [
-        {
-            required: true,
-            message: t('common.pleaseInput', { label: t('ac.resourceCode') }),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name'), Rules.resourceCode],
+    resourceCode: [Rules.requiredInput('ac.resourceCode')],
 };
 
 const emit = defineEmits(['confirm', 'cancel']);

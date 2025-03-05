@@ -125,9 +125,10 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import { notBlankI18n } from '@/common/assert';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -147,41 +148,10 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
-    tagCodePaths: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('tag.relateTag'),
-            trigger: ['change'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    type: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('common.type'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    host: [
-        {
-            required: true,
-            message: useI18nPleaseInput('Host:Port'),
-            trigger: ['blur'],
-        },
-    ],
-    sid: [
-        {
-            required: true,
-            message: useI18nPleaseInput('SID'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
+    name: [Rules.requiredInput('common.name')],
+    type: [Rules.requiredSelect('common.type')],
+    host: [Rules.requiredInput('Host:Port')],
 };
 
 const dbForm: any = ref(null);

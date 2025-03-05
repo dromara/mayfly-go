@@ -91,9 +91,10 @@ import { ProcdefStatus } from './enums';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -115,20 +116,8 @@ const formRef: any = ref(null);
 const taskTableRef: any = ref(null);
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    defKey: [
-        {
-            required: true,
-            message: useI18nPleaseInput('Key'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    defKey: [Rules.requiredInput('key')],
 };
 
 const state = reactive({

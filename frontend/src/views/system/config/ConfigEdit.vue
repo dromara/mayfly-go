@@ -49,23 +49,12 @@ import { ref, toRefs, reactive, watch } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { useI18nFormValidate, useI18nPleaseInput } from '@/hooks/useI18n';
+import { useI18nFormValidate } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.sysconf.confItem'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    key: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.sysconf.confKey'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('system.sysconf.confItem')],
+    key: [Rules.requiredInput('system.sysconf.confKey')],
 };
 
 const props = defineProps({

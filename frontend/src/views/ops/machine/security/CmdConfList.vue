@@ -103,30 +103,13 @@ import { cmdConfApi } from '../api';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagCodePath from '../../component/TagCodePath.vue';
 import _ from 'lodash';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const rules = {
-    tags: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.relateMachine'),
-            trigger: ['change'],
-        },
-    ],
-    cmds: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.cmd'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    tags: [Rules.requiredInput('machine.relateMachine')],
+    cmds: [Rules.requiredInput('machine.cmd')],
+    name: [Rules.requiredInput('common.name')],
 };
 
 const tagSelectRef: any = ref(null);
