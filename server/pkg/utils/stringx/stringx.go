@@ -7,14 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-// 逻辑空字符串（由于gorm更新结构体只更新非零值，所以使用该值最为逻辑空字符串，方便更新结构体）
-const LogicEmptyStr = "-"
-
-// 是否为逻辑上空字符串
-func IsLogicEmpty(str string) bool {
-	return str == "" || str == LogicEmptyStr
-}
-
 // 可判断中文
 func Len(str string) int {
 	return len([]rune(str))
@@ -89,15 +81,18 @@ func UnicodeIndex(str, substr string) int {
 }
 
 // 字符串模板解析
-func TemplateResolve(temp string, data any) string {
-	t, _ := template.New("string-temp").Parse(temp)
+func TemplateResolve(temp string, data any) (string, error) {
+	t, err := template.New("string-temp").Parse(temp)
+	if err != nil {
+		return "", err
+	}
 	var tmplBytes bytes.Buffer
 
-	err := t.Execute(&tmplBytes, data)
+	err = t.Execute(&tmplBytes, data)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	return tmplBytes.String()
+	return tmplBytes.String(), nil
 }
 
 func ReverStrTemplate(temp, str string, res map[string]any) {

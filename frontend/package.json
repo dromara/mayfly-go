@@ -11,7 +11,7 @@
     },
     "dependencies": {
         "@element-plus/icons-vue": "^2.3.1",
-        "@vueuse/core": "^12.7.0",
+        "@vueuse/core": "^12.8.2",
         "@xterm/addon-fit": "^0.10.0",
         "@xterm/addon-search": "^0.15.0",
         "@xterm/addon-web-links": "^0.11.0",
@@ -59,9 +59,9 @@
         "eslint": "^8.35.0",
         "eslint-plugin-vue": "^9.31.0",
         "prettier": "^3.2.5",
-        "sass": "^1.85.0",
-        "typescript": "^5.7.3",
-        "vite": "^6.2.0",
+        "sass": "^1.85.1",
+        "typescript": "^5.8.2",
+        "vite": "^6.2.1",
         "vite-plugin-progress": "0.0.7",
         "vue-eslint-parser": "^9.4.3"
     },

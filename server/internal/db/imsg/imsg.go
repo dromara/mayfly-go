@@ -33,8 +33,6 @@ const (
 
 	ErrExistRunFailSql
 	ErrNeedSubmitWorkTicket
-	ErrNoLimitStmt
-	ErrLimitInvalid
 
 	// db transfer
 	LogDtsSave

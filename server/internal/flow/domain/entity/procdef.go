@@ -47,7 +47,11 @@ func (p *Procdef) MatchCondition(bizType string, param map[string]any) bool {
 		return true
 	}
 
-	res := stringx.TemplateResolve(*p.Condition, collx.Kvs("bizType", bizType, "param", param))
+	res, err := stringx.TemplateResolve(*p.Condition, collx.Kvs("bizType", bizType, "param", param))
+	if err != nil {
+		logx.ErrorTrace("parse condition error", err.Error())
+		return true
+	}
 	return strings.TrimSpace(res) == "1"
 }
 

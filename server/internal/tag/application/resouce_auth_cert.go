@@ -316,6 +316,12 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 			return errorx.NewBizI(ctx, imsg.ErrAcNameExist, "acName", rac.Name)
 		}
 	}
+	if rac.Type == 0 {
+		rac.Type = entity.AuthCertTypePrivate
+	}
+	if rac.CiphertextType == 0 {
+		rac.CiphertextType = entity.AuthCertCiphertextTypePassword
+	}
 
 	// 公共凭证
 	if rac.Type == entity.AuthCertTypePublic {

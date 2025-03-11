@@ -1,8 +1,7 @@
 <template>
     <div class="flex-all-center">
-        <!--    文档： https://antoniandre.github.io/splitpanes/    -->
-        <Splitpanes class="default-theme" @resized="onResizeTagTree">
-            <Pane size="20" max-size="30">
+        <ResourceOpPanel @resized="onResizeTagTree">
+            <template #left>
                 <tag-tree
                     class="machine-terminal-tree"
                     ref="tagTreeRef"
@@ -30,9 +29,9 @@
                         }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane>
+            <template #right>
                 <div class="machine-terminal-tabs card pd5">
                     <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTermName" class="h100">
                         <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
@@ -157,8 +156,8 @@
 
                     <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title" />
                 </div>
-            </Pane>
-        </Splitpanes>
+            </template>
+        </ResourceOpPanel>
     </div>
 </template>
 
@@ -171,7 +170,6 @@ import { hasPerms } from '@/components/auth/auth';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
-import { Pane, Splitpanes } from 'splitpanes';
 import { ContextmenuItem } from '@/components/contextmenu/index';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { TerminalStatus, TerminalStatusEnum } from '@/components/terminal/common';
@@ -183,6 +181,7 @@ import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import EnumValue from '@/common/Enum';
 import { useI18n } from 'vue-i18n';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));

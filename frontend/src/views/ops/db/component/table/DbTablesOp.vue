@@ -89,7 +89,7 @@
 
         <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.column')}`" v-model="columnDialog.visible">
             <el-table border stripe :data="columnDialog.columns" size="small">
-                <el-table-column prop="columnName" :label="$t('common.columnName')" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnName" :label="$t('db.columnName')" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="120" prop="columnType" :label="$t('common.type')" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="80" prop="nullable" :label="$t('db.nullable')" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnComment" :label="$t('db.comment')" show-overflow-tooltip> </el-table-column>

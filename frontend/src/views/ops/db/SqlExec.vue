@@ -1,7 +1,7 @@
 <template>
     <div class="db-sql-exec">
-        <Splitpanes class="default-theme">
-            <Pane size="20" max-size="30">
+        <ResourceOpPanel>
+            <template #left>
                 <tag-tree
                     :default-expanded-keys="state.defaultExpendKey"
                     :resource-type="TagResourceTypePath.Db"
@@ -51,9 +51,9 @@
                         <span v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{ ` ${data.params.dbTableSize}` }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane>
+            <template #right>
                 <div class="card db-op pd5">
                     <el-row>
                         <el-col :span="24" v-if="state.db">
@@ -211,8 +211,9 @@
                         </el-tabs>
                     </div>
                 </div>
-            </Pane>
-        </Splitpanes>
+            </template>
+        </ResourceOpPanel>
+
         <db-table-op
             :title="tableCreateDialog.title"
             :active-name="tableCreateDialog.activeName"
@@ -247,7 +248,6 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
-import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener, useStorage } from '@vueuse/core';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
@@ -256,6 +256,7 @@ import { format as sqlFormatter } from 'sql-formatter';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));

@@ -157,6 +157,15 @@ func initRole(tx *gorm.DB) error {
 	role.Creator = "admin"
 	role.Modifier = "admin"
 
+	roleResource := &sysentity.RoleResource{
+		RoleId:     role.Id,
+		ResourceId: 1,
+		CreateTime: &now,
+		CreatorId:  1,
+		Creator:    "admin",
+	}
+
+	tx.Create(roleResource)
 	return tx.Create(role).Error
 }
 

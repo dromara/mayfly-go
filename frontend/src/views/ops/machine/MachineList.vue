@@ -317,7 +317,7 @@ const searchItems = [
 const columns = [
     TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', 'common.name'),
-    TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(50),
+    TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(55),
     TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(10),
     TableColumn.new('status', 'common.status').isSlot().setAddWidth(5),
     TableColumn.new('stat', 'machine.runningStat').isSlot().setAddWidth(55),

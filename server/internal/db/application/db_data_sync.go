@@ -159,7 +159,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 						break
 					}
 				}
-				return errorx.NewBiz("get column data type... ignore~")
+				return dbi.NewStopWalkQueryError("get column data type... ignore~")
 			})
 
 			updSql = fmt.Sprintf("and %s > %s", task.UpdField, updFieldDataType.DataType.SQLValue(task.UpdFieldVal))

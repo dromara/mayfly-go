@@ -32,9 +32,9 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver v1.16.0 // mongo
-	golang.org/x/crypto v0.35.0 // ssh
+	golang.org/x/crypto v0.36.0 // ssh
 	golang.org/x/oauth2 v0.26.0
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.12.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
@@ -93,8 +93,8 @@ require (
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/image v0.23.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect

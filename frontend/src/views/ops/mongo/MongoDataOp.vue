@@ -1,7 +1,7 @@
 <template>
     <div class="flex-all-center">
-        <Splitpanes class="default-theme">
-            <Pane size="20" max-size="30">
+        <ResourceOpPanel>
+            <template #left>
                 <tag-tree
                     ref="tagTreeRef"
                     :default-expanded-keys="state.defaultExpendKey"
@@ -40,9 +40,9 @@
                         <span v-if="data.type.value == MongoNodeType.Dbs">{{ formatByteSize(data.params.size) }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane>
+            <template #right>
                 <div class="mongo-data-tab card pd5 w100">
                     <el-row v-if="nowColl">
                         <el-descriptions class="w100" :column="10" size="small" border>
@@ -121,8 +121,8 @@
                         </el-tabs>
                     </el-row>
                 </div>
-            </Pane>
-        </Splitpanes>
+            </template>
+        </ResourceOpPanel>
 
         <el-dialog width="600px" title="find params" v-model="findDialog.visible">
             <el-form label-width="auto">
@@ -177,11 +177,11 @@ import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { sleep } from '@/common/utils/loading';
-import { Splitpanes, Pane } from 'splitpanes';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useI18nDeleteSuccessMsg, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 

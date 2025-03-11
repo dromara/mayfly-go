@@ -13,26 +13,31 @@ order by
     n.nspname
 ---------------------------------------
 --PGSQL_TABLE_INFO 表详细信息
-SELECT
-    c.relname AS "tableName",
-    obj_description(c.oid) AS "tableComment",
-    pg_total_relation_size(c.oid) AS "dataLength",
-    pg_indexes_size(c.oid) AS "indexLength",
-    psut.n_live_tup AS "tableRows"
+SELECT DISTINCT
+  c.relname AS "tableName",
+  COALESCE(b.description, '') AS "tableComment",
+  pg_total_relation_size(c.oid) AS "dataLength",
+  pg_indexes_size(c.oid) AS "indexLength",
+  psut.n_live_tup AS "tableRows"
 FROM
-    pg_class c
-JOIN
-    pg_namespace n ON c.relnamespace = n.oid
-JOIN
-    pg_stat_user_tables psut ON psut.relid = c.oid
+  pg_class c
+  LEFT JOIN pg_description b ON c.oid = b.objoid AND b.objsubid = 0
+  JOIN pg_stat_user_tables psut ON psut.relid = c.oid
 WHERE
-    has_table_privilege(c.oid, 'SELECT')
-    and n.nspname = current_schema()
-    {{if .tableNames}}
-        and c.relname in ({{.tableNames}})
-    {{end}}
+  c.relkind = 'r'
+  AND c.relnamespace = (
+    SELECT
+      oid
+    FROM
+      pg_namespace
+    WHERE
+      nspname = current_schema()
+        {{if .tableNames}}
+            and c.relname in ({{.tableNames}})
+        {{end}}
+  )
 ORDER BY
-    c.relname;
+  c.relname;
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT a.indexname                                                         AS "indexName",

@@ -23,8 +23,6 @@ var En = map[i18n.MsgId]string{
 
 	ErrExistRunFailSql:      "There is an execution error in sql",
 	ErrNeedSubmitWorkTicket: "This operation needs to submit a work ticket for approval",
-	ErrNoLimitStmt:          "Please complete the paging information before executing",
-	ErrLimitInvalid:         "The number of query result sets should be less than the {{.count}} number configured by the system",
 
 	// db transfer
 	LogDtsSave:         "dts - Save data transfer task",

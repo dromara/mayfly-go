@@ -70,11 +70,7 @@ func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any)
 		return nil
 	}, args...)
 
-	if err != nil {
-		return nil, nil, wrapSqlError(err)
-	}
-
-	return cols, result, nil
+	return cols, result, err
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
@@ -95,7 +91,15 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
 func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
-	return d.walkQueryRows(ctx, querySql, walkFn, args...)
+	if qcs, err := d.walkQueryRows(ctx, querySql, walkFn, args...); err != nil {
+		// 如果是手动停止 则默认返回当前已遍历查询的数据即可
+		if _, ok := err.(*StopWalkQueryError); ok {
+			return qcs, nil
+		}
+		return qcs, wrapSqlError(err)
+	} else {
+		return qcs, nil
+	}
 }
 
 // WalkTableRows 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
@@ -241,4 +245,19 @@ func wrapSqlError(err error) error {
 		return errorx.NewBiz("execution timeout")
 	}
 	return err
+}
+
+// StopWalkQueryError 自定义的停止遍历查询错误类型
+type StopWalkQueryError struct {
+	Reason string
+}
+
+// Error 实现 error 接口
+func (e *StopWalkQueryError) Error() string {
+	return fmt.Sprintf("stop walk query: %s", e.Reason)
+}
+
+// NewStopWalkQueryError 创建一个带有reason的StopWalkQueryError
+func NewStopWalkQueryError(reason string) *StopWalkQueryError {
+	return &StopWalkQueryError{Reason: reason}
 }

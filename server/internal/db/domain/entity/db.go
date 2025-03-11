@@ -7,7 +7,7 @@ import (
 type Db struct {
 	model.Model
 
-	Code            string            `json:"code" gorm:"size:32;not null;index:idx_code"`
+	Code            string            `json:"code" gorm:"size:32;not null;index:idx_db_code"`
 	Name            string            `json:"name" gorm:"size:255;not null;"`
 	GetDatabaseMode DbGetDatabaseMode `json:"getDatabaseMode" gorm:"comment:库名获取方式（-1.实时获取、1.指定库名）"` // 获取数据库方式
 	Database        string            `json:"database" gorm:"size:2000;"`
