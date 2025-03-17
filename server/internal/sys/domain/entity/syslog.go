@@ -10,9 +10,9 @@ type SysLog struct {
 
 	Type        int8   `json:"type" gorm:"not null;"`
 	Description string `json:"description" gorm:"size:255;"`
-	ReqParam    string `json:"reqParam" gorm:"size:2000"` // 请求参数
-	Resp        string `json:"resp" gorm:"type:text;"`    // 响应结构
-	Extra       string `json:"extra" gorm:"type:text;"`   // 日志额外信息
+	ReqParam    string `json:"reqParam" gorm:"type:text;"` // 请求参数
+	Resp        string `json:"resp" gorm:"type:text;"`     // 响应结构
+	Extra       string `json:"extra" gorm:"type:text;"`    // 日志额外信息
 }
 
 func (a *SysLog) TableName() string {

@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	Bool        = dbi.NewDbDataType("bool", dbi.DTBit).WithCT(dbi.CTBit).WithFixColumn(dbi.ClearNumScale)
+	Bool        = dbi.NewDbDataType("bool", dbi.DTBool).WithCT(dbi.CTBool).WithFixColumn(dbi.ClearNumScale)
 	Int2        = dbi.NewDbDataType("int2", dbi.DTInt16).WithCT(dbi.CTInt2).WithFixColumn(dbi.ClearNumScale)
 	Int4        = dbi.NewDbDataType("int4", dbi.DTInt32).WithCT(dbi.CTInt4).WithFixColumn(dbi.ClearNumScale)
 	Int8        = dbi.NewDbDataType("int8", dbi.DTInt64).WithCT(dbi.CTInt8).WithFixColumn(dbi.ClearNumScale)

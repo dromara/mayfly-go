@@ -16,7 +16,7 @@ type TagTree struct {
 
 	Type     TagType `json:"type" gorm:"not null;default:-1;comment:类型： -1.普通标签； 1机器  2db 3redis 4mongo"`        // 类型： -1.普通标签； 其他值则为对应的资源类型
 	Code     string  `json:"code" gorm:"not null;size:50;index:idx_tag_code;comment:标识符"`                        // 标识编码, 若类型不为-1，则为对应资源编码
-	CodePath string  `json:"codePath" gorm:"not null;size:800;index:idx_tag_code_path,length:255;comment:标识符路径"` // 标识路径，tag1/tag2/tagType1|tagCode/tagType2|yyycode/，非普通标签类型段含有标签类型
+	CodePath string  `json:"codePath" gorm:"not null;size:700;index:idx_tag_code_path,length:255;comment:标识符路径"` // 标识路径，tag1/tag2/tagType1|tagCode/tagType2|yyycode/，非普通标签类型段含有标签类型
 	Name     string  `json:"name" gorm:"size:50;comment:名称"`                                                     // 名称
 	Remark   string  `json:"remark" gorm:"size:255;"`                                                            // 备注说明
 }

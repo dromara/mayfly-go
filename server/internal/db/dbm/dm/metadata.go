@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -13,11 +14,13 @@ import (
 )
 
 const (
-	DM_META_FILE      = "metasql/dm_meta.sql"
-	DM_DB_SCHEMAS     = "DM_DB_SCHEMAS"
-	DM_TABLE_INFO_KEY = "DM_TABLE_INFO"
-	DM_INDEX_INFO_KEY = "DM_INDEX_INFO"
-	DM_COLUMN_MA_KEY  = "DM_COLUMN_MA"
+	DM_META_FILE            = "metasql/dm_meta.sql"
+	DM_DB_SCHEMAS           = "DM_DB_SCHEMAS"
+	DM_TABLE_INFO_KEY       = "DM_TABLE_INFO"
+	DM_TABLE_INFO_NAME_ONLY = "DM_TABLE_INFO_NAME_ONLY" // 当查询表详情失败时，可能是因为没有系统表查询权限，所以尝试只查表名
+	DM_INDEX_INFO_KEY       = "DM_INDEX_INFO"
+	DM_COLUMN_MA_KEY        = "DM_COLUMN_MA"
+	DM_COLUMN_MA_EX_KEY     = "DM_COLUMN_MA_EX"
 )
 
 type DMMetadata struct {
@@ -67,7 +70,12 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 
 	_, res, err = dd.dc.Query(sql)
 	if err != nil {
-		return nil, err
+		// 尝试只查表名
+		sql, err = stringx.TemplateParse(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_NAME_ONLY), collx.M{"tableNames": names})
+		_, res, err = dd.dc.Query(sql)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	tables := make([]dbi.Table, 0)
@@ -93,7 +101,10 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
-		return nil, err
+		_, res, err = dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_EX_KEY), tableName))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	columns := make([]dbi.Column, 0)
@@ -138,7 +149,8 @@ func (dd *DMMetadata) GetPrimaryKey(tablename string) (string, error) {
 func (dd *DMMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
 	if err != nil {
-		return nil, err
+		logx.Error("查询达梦索引信息失败", err)
+		return nil, nil
 	}
 
 	indexs := make([]dbi.Index, 0)

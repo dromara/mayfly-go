@@ -156,6 +156,12 @@ func SQLValueNumeric(val any) string {
 	}
 	return fmt.Sprintf("%v", val)
 }
+func SQLValueBool(val any) string {
+	if val == nil {
+		return "false"
+	}
+	return fmt.Sprintf("%v", cast.ToBool(val))
+}
 
 func SQLValueString(val any) string {
 	if val == nil {
@@ -175,6 +181,12 @@ var (
 		Name:     "bit",
 		Valuer:   ValuerBit,
 		SQLValue: SQLValueNumeric,
+	}
+
+	DTBool = &DataType{
+		Name:     "bool",
+		Valuer:   ValuerBit,
+		SQLValue: SQLValueBool,
 	}
 
 	DTByte = &DataType{

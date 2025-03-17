@@ -682,7 +682,7 @@ CREATE TABLE `t_sys_log` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `type` tinyint(4) NOT NULL COMMENT '类型',
   `description` varchar(255) DEFAULT NULL COMMENT '描述',
-  `req_param` varchar(2000) DEFAULT NULL COMMENT '请求信息',
+  `req_param` text DEFAULT NULL COMMENT '请求信息',
   `resp` text DEFAULT NULL COMMENT '响应信息',
   `creator` varchar(36) NOT NULL COMMENT '调用者',
   `creator_id` bigint(20) NOT NULL COMMENT '调用者id',
