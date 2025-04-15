@@ -3,7 +3,7 @@ module mayfly-go
 go 1.24
 
 require (
-	gitee.com/chunanyong/dm v1.8.18
+	gitee.com/chunanyong/dm v1.8.19
 	gitee.com/liuzongyang/libpq v1.10.11
 	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/emirpasic/gods v1.18.1
@@ -14,8 +14,8 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.25.0
-	github.com/go-sql-driver/mysql v1.9.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/go-sql-driver/mysql v1.9.2
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20241220152942-06eb5c6e8230
@@ -23,18 +23,18 @@ require (
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/mojocn/base64Captcha v1.3.8 // 验证码
 	github.com/pkg/errors v0.9.1
-	github.com/pkg/sftp v1.13.7
+	github.com/pkg/sftp v1.13.9
 	github.com/pquerna/otp v1.4.0
-	github.com/redis/go-redis/v9 v9.7.1
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/sijms/go-ora/v2 v2.8.24
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver v1.16.0 // mongo
-	golang.org/x/crypto v0.36.0 // ssh
-	golang.org/x/oauth2 v0.26.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/crypto v0.37.0 // ssh
+	golang.org/x/oauth2 v0.29.0
+	golang.org/x/sync v0.13.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
@@ -93,8 +93,8 @@ require (
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/image v0.23.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect

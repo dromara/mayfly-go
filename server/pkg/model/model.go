@@ -217,7 +217,7 @@ func (m Map[K, V]) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
-type Slice[T int | string | Map[string, any]] []T
+type Slice[T int | uint64 | string | Map[string, any]] []T
 
 func (s *Slice[T]) Scan(value any) error {
 	if v, ok := value.([]byte); ok && len(v) > 0 {
@@ -253,4 +253,20 @@ func (e ExtraData) GetExtraString(key string) string {
 		return ""
 	}
 	return cast.ToString(e.Extra[key])
+}
+
+// GetExtraInt 获取额外信息中的int类型字段值
+func (e ExtraData) GetExtraInt(key string) int {
+	if e.Extra == nil {
+		return 0
+	}
+	return cast.ToInt(e.Extra[key])
+}
+
+// GetExtraBool 获取额外信息中的bool类型字段值
+func (e ExtraData) GetExtraBool(key string) bool {
+	if e.Extra == nil {
+		return false
+	}
+	return cast.ToBool(e.Extra[key])
 }

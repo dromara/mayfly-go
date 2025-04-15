@@ -12,7 +12,7 @@ export const URL_404: string = '/404';
 export const LAYOUT_ROUTE_NAME: string = 'layout';
 
 // 路由白名单地址（本地存在的路由 staticRouter.ts 中）
-export const ROUTER_WHITE_LIST: string[] = [URL_404, URL_401, '/oauth2/callback'];
+export const ROUTER_WHITE_LIST: string[] = [URL_404, URL_401, '/oauth2/callback', '/form-design'];
 
 // 静态路由
 export const staticRoutes: Array<RouteRecordRaw> = [
@@ -58,6 +58,17 @@ export const staticRoutes: Array<RouteRecordRaw> = [
         path: '/machine/terminal-rdp',
         name: 'machineTerminalRdp',
         component: () => import('@/views/ops/machine/RdpTerminalPage.vue'),
+        meta: {
+            // 将路径 'xxx?name=名字' 里的name字段值替换到title里
+            title: 'terminal | {name}',
+            // 是否根据query对标题名进行参数替换，即最终显示为‘终端_机器名’
+            titleRename: true,
+        },
+    },
+    {
+        path: '/form-design',
+        name: 'formDesign',
+        component: () => import('@/components/df/design.vue'),
         meta: {
             // 将路径 'xxx?name=名字' 里的name字段值替换到title里
             title: 'terminal | {name}',

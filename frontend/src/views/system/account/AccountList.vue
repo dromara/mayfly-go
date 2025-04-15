@@ -84,6 +84,8 @@ const searchItems = [SearchItem.input('username', 'common.username')];
 const columns = [
     TableColumn.new('name', 'system.account.name'),
     TableColumn.new('username', 'common.username'),
+    TableColumn.new('mobile', 'common.mobile'),
+    TableColumn.new('email', 'common.email'),
     TableColumn.new('status', 'common.status').typeTag(AccountStatusEnum),
     TableColumn.new('lastLoginTime', 'system.account.lastLoginTime').isTime(),
     TableColumn.new('creator', 'common.creator'),

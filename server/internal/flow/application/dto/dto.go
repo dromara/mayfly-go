@@ -4,6 +4,7 @@ import "mayfly-go/internal/flow/domain/entity"
 
 type SaveProcdef struct {
 	Procdef   *entity.Procdef
+	MsgTmplId uint64 // 消息模板id
 	CodePaths []string
 }
 

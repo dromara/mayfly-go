@@ -30,4 +30,5 @@ const (
 	ImsgNumDb      = 60000
 	ImsgNumRedis   = 70000
 	ImsgNumMongo   = 80000
+	ImsgNumMsg     = 90000
 )

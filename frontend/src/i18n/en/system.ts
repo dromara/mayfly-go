@@ -48,7 +48,7 @@ export default {
             lastLoginTime: 'Last Login Time',
             usernamePlacholder: '5-16 uppercase letters, numbers, -.: characters',
             random: 'Random',
-            usernamePatternErrMsg: 'Only 5-16 uppercase letters, numbers, and -.: characters are allowed',
+            usernamePatternErrMsg: 'Only 5-16 uppercase letters, numbers, and -@.: characters are allowed',
             accountSearchPlaceholder: 'Enter account fuzzy search and select',
             accountInfo: 'Account Information',
             allocateRoleTitle: 'Allocate the `{name}` role',

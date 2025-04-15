@@ -44,12 +44,12 @@
 
             <template #right>
                 <Splitpanes class="default-theme">
-                    <Pane size="40" max-size="45">
+                    <Pane size="35" max-size="50">
                         <div class="key-list-vtree card pd5">
                             <el-scrollbar>
-                                <el-row>
+                                <el-row :gutter="5">
                                     <el-col :span="2">
-                                        <el-input v-model="state.keySeparator" :placeholder="$t('redis.delimiter')" size="small" class="ml5" />
+                                        <el-input v-model="state.keySeparator" :placeholder="$t('redis.delimiter')" size="small" />
                                     </el-col>
                                     <el-col :span="18">
                                         <el-input
@@ -59,12 +59,10 @@
                                             :placeholder="$t('redis.keyMatchTips')"
                                             clearable
                                             size="small"
-                                            class="ml10"
                                         />
                                     </el-col>
                                     <el-col :span="4">
                                         <el-button
-                                            class="ml15"
                                             :disabled="!scanParam.id || !scanParam.db"
                                             @click="searchKey()"
                                             type="success"
@@ -75,18 +73,11 @@
                                     </el-col>
                                 </el-row>
 
-                                <el-row class="mb5 mt5">
+                                <el-row :gutter="5" class="mb5 mt5">
                                     <el-col :span="19">
-                                        <el-button
-                                            class="ml5"
-                                            :disabled="!scanParam.id || !scanParam.db"
-                                            @click="scan(true)"
-                                            type="success"
-                                            icon="more"
-                                            size="small"
-                                            plain
-                                            >{{ $t('redis.loadMore') }}</el-button
-                                        >
+                                        <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain>
+                                            {{ $t('redis.loadMore') }}
+                                        </el-button>
 
                                         <el-button
                                             v-auth="'redis:data:save'"
@@ -96,8 +87,10 @@
                                             icon="plus"
                                             size="small"
                                             plain
-                                            >{{ $t('redis.addKey') }}</el-button
+                                            class="ml5"
                                         >
+                                            {{ $t('redis.addKey') }}
+                                        </el-button>
 
                                         <el-button
                                             :disabled="!scanParam.id || !scanParam.db"
@@ -107,11 +100,13 @@
                                             v-auth="'redis:data:del'"
                                             size="small"
                                             icon="delete"
-                                            >flush</el-button
+                                            class="ml5"
                                         >
+                                            flush
+                                        </el-button>
                                     </el-col>
                                     <el-col :span="5">
-                                        <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
+                                        <span class="mt5" style="display: inline-block">keys:{{ state.dbsize }}</span>
                                     </el-col>
                                 </el-row>
 
@@ -148,7 +143,7 @@
                         </div>
                     </Pane>
 
-                    <Pane min-size="40">
+                    <Pane>
                         <div class="key-detail card pd5">
                             <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                                 <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">

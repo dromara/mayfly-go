@@ -1,6 +1,6 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="600px" :destroy-on-close="true">
+        <el-dialog :title="title" v-model="visible" :before-close="cancel" :show-close="false" width="600px" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
                 <el-form-item prop="name" :label="$t('system.account.name')">
                     <el-input v-model.trim="form.name" auto-complete="off" clearable></el-input>
@@ -14,6 +14,14 @@
                         auto-complete="off"
                         clearable
                     ></el-input>
+                </el-form-item>
+
+                <el-form-item prop="mobile" :label="$t('common.mobile')">
+                    <el-input v-model.trim="form.mobile" clearable></el-input>
+                </el-form-item>
+
+                <el-form-item prop="email" :label="$t('common.email')">
+                    <el-input v-model.trim="form.email" auto-complete="off" clearable></el-input>
                 </el-form-item>
 
                 <el-form-item :required="!edit" prop="password" :label="$t('common.password')">
@@ -31,29 +39,31 @@
                         </template>
                     </el-input>
                 </el-form-item>
+
+                <el-form-item :label="$t('system.account.qywxUserId')">
+                    <el-input v-model.trim="form.extra.qywxUserId" clearable></el-input>
+                </el-form-item>
+                <el-form-item :label="$t('system.account.feishuUserId')">
+                    <el-input v-model.trim="form.extra.feishuUserId" clearable></el-input>
+                </el-form-item>
             </el-form>
 
             <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
+import { toRefs, reactive, watch, ref } from 'vue';
 import { accountApi } from '../api';
 import { randomPassword } from '@/common/utils/string';
 import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     account: {
         type: [Boolean, Object],
     },
@@ -65,6 +75,8 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
+const visible = defineModel<boolean>('visible', { default: false });
+
 const accountForm: any = ref(null);
 
 const rules = {
@@ -73,43 +85,42 @@ const rules = {
     password: [Rules.requiredInput('common.password')],
 };
 
-const state = reactive({
-    dialogVisible: false,
-    edit: false,
-    form: {
+const defaultForm = () => {
+    return {
         id: null,
         name: null,
         username: null,
+        mobile: null,
+        email: null,
         password: '',
         repassword: null,
-    },
+        extra: {
+            qywxUserId: '',
+            feishuUserId: '',
+        },
+    };
+};
+
+const state = reactive({
+    edit: false,
+    form: defaultForm(),
 });
 
-const { dialogVisible, edit, form } = toRefs(state);
+const { edit, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveAccountExec } = accountApi.save.useApi(form);
 
 watch(props, (newValue: any) => {
     if (newValue.account) {
         state.form = { ...newValue.account };
+        if (!state.form.extra) {
+            state.form.extra = {} as any;
+        }
         state.edit = true;
     } else {
         state.edit = false;
-        state.form = {} as any;
+        state.form = defaultForm();
     }
-    state.dialogVisible = newValue.visible;
-});
-
-watchEffect(() => {
-    const account: any = props.account;
-    if (account) {
-        state.form = { ...account };
-        state.edit = true;
-    } else {
-        state.edit = false;
-        state.form = {} as any;
-    }
-    state.dialogVisible = props.visible;
 });
 
 const btnOk = async () => {
@@ -119,11 +130,10 @@ const btnOk = async () => {
     emit('val-change', state.form);
     //重置表单域
     accountForm.value.resetFields();
-    state.form = {} as any;
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

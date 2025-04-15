@@ -59,8 +59,9 @@ func ArrayContains[T comparable](arr []T, el T) bool {
 	return false
 }
 
-// 数组转为map
-// @param keyFunc key的主键
+// ArrayToMap 数组转为map
+//
+// keyFunc key的主键
 func ArrayToMap[T any, K comparable](arr []T, keyFunc func(val T) K) map[K]T {
 	res := make(map[K]T, len(arr))
 	for _, val := range arr {
@@ -70,11 +71,23 @@ func ArrayToMap[T any, K comparable](arr []T, keyFunc func(val T) K) map[K]T {
 	return res
 }
 
-// 数组映射，即将一数组元素通过映射函数转换为另一数组
+// ArrayMap 数组映射，即将一数组元素通过映射函数转换为另一数组
 func ArrayMap[T any, K any](arr []T, mapFunc func(val T) K) []K {
 	res := make([]K, len(arr))
 	for i, val := range arr {
 		res[i] = mapFunc(val)
+	}
+	return res
+}
+
+// ArrayMapFilter 数组映射并过滤，若mapFunc返回false，则不映射该元素到新数组。
+func ArrayMapFilter[T any, K any](arr []T, mapFilterFunc func(val T) (K, bool)) []K {
+	res := make([]K, 0)
+	for _, val := range arr {
+		mapRes, needMap := mapFilterFunc(val)
+		if needMap {
+			res = append(res, mapRes)
+		}
 	}
 	return res
 }

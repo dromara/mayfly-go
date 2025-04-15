@@ -226,9 +226,10 @@ var (
 		SQLValue: SQLValueNumeric,
 	}
 
+	// 使用string进行转换，避免长度过长导致精度丢失等
 	DTNumeric = &DataType{
 		Name:     "numeric",
-		Valuer:   ValuerFloat64,
+		Valuer:   ValuerString,
 		SQLValue: SQLValueNumeric,
 	}
 

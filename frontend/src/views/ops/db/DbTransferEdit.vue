@@ -157,11 +157,11 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import _ from 'lodash';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import { Rules } from '@/common/rule';
+import { deepClone } from '@/common/utils/object';
 
 const { t } = useI18n();
 
@@ -274,7 +274,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         });
         return;
     }
-    state.form = _.cloneDeep(props.data) as FormData;
+
+    state.form = deepClone(props.data) as FormData;
     let { srcDbId, targetDbId } = state.form;
 
     //  初始化src数据源

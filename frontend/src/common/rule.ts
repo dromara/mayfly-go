@@ -23,7 +23,7 @@ export const Rules = {
     },
 
     accountUsername: {
-        pattern: /^[a-zA-Z0-9_]{5,16}$/g,
+        pattern: /^[a-zA-Z0-9_.@:-]{5,16}$/,
         message: i18n.global.t('system.account.usernamePatternErrMsg'),
         trigger: 'blur',
     },

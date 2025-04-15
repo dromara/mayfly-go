@@ -10,9 +10,12 @@ import (
 
 type Account struct {
 	model.Model
+	model.ExtraData
 
 	Name          string        `json:"name" gorm:"size:30;not null;"`
 	Username      string        `json:"username" gorm:"size:30;not null;"`
+	Mobile        string        `json:"mobile" gorm:"size:20;"`
+	Email         string        `json:"email" gorm:"size:100;"`
 	Password      string        `json:"-" gorm:"size:64;not null;"`
 	Status        AccountStatus `json:"status" gorm:"not null;"`
 	LastLoginTime *time.Time    `json:"lastLoginTime"`

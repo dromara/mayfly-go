@@ -31,6 +31,10 @@
                     <el-input v-model.trim="form.remark" auto-complete="off" clearable></el-input>
                 </el-form-item>
 
+                <el-form-item prop="msgTmplId" :label="$t('flow.notify')">
+                    <MsgTmplSelect v-model="form.msgTmplId" clearable />
+                </el-form-item>
+
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('tag.relateTag')">
                     <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
                 </el-form-item>
@@ -95,6 +99,7 @@ import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 import { Rules } from '@/common/rule';
+import MsgTmplSelect from '../msg/components/MsgTmplSelect.vue';
 
 const { t } = useI18n();
 
@@ -129,6 +134,7 @@ const state = reactive({
         status: null,
         condition: '',
         remark: null,
+        msgTmplId: null,
         // 流程的审批节点任务
         tasks: '',
         codePaths: [],
@@ -140,9 +146,9 @@ const { form, tasks } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
+watch(props, async (newValue: any) => {
     if (newValue.data) {
-        state.form = { ...newValue.data };
+        state.form = await procdefApi.detail.request({ id: newValue.data.id });
         state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
         const tasks = JSON.parse(state.form.tasks);
         tasks.forEach((t: any) => {

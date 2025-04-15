@@ -73,8 +73,7 @@ import { TerminalExpose } from '@/components/terminal-rdp/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import { exitFullscreen, launchIntoFullscreen, unWatchFullscreenChange, watchFullscreenChange } from '@/components/terminal-rdp/guac/screen';
-import { useEventListener } from '@vueuse/core';
-import { debounce } from 'lodash';
+import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { ClientState, TunnelState } from '@/components/terminal-rdp/guac/states';
 import { ElMessage } from 'element-plus';
 import { joinClientParams } from '@/common/request';
@@ -191,7 +190,7 @@ const installClipboard = () => {
 
 const installResize = () => {
     // 在resize事件结束后300毫秒执行
-    useEventListener('resize', debounce(resize, 300));
+    useEventListener('resize', useDebounceFn(resize, 300));
 };
 
 const installDisplay = () => {

@@ -44,7 +44,7 @@ func run(db *gorm.DB, fs ...func() []*gormigrate.Migration) error {
 		IDColumnName:              "id",
 		IDColumnSize:              300,
 		UseTransaction:            true,
-		ValidateUnknownMigrations: true,
+		ValidateUnknownMigrations: false,
 	}, ms)
 	if err := m.Migrate(); err != nil {
 		return err

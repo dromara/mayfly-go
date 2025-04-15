@@ -187,17 +187,17 @@ const ttlConveter = (ttl: any) => {
 }
 
 .key-header-item.key-name-input {
-    width: calc(100% - 332px);
-    min-width: 220px;
+    width: calc(100% - 322px);
+    min-width: 230px;
     max-width: 800px;
-    margin-right: 10px;
-    margin-bottom: 10px;
+    margin-right: 5px;
+    margin-bottom: 5px;
 }
 
 .key-header-item.key-ttl-input {
-    width: 200px;
-    margin-right: 10px;
-    margin-bottom: 10px;
+    width: 190px;
+    margin-right: 5px;
+    margin-bottom: 5px;
 }
 
 /*hide number input button*/

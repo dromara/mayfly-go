@@ -8,6 +8,8 @@ import (
 type Procdef struct {
 	tagentity.RelateTags // 标签信息
 	entity.Procdef
+
+	MsgTmplId *uint64 `json:"msgTmplId" gorm:"-"` // 消息模板ID
 }
 
 func (p *Procdef) GetRelateId() uint64 {

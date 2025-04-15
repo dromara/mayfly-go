@@ -16,12 +16,12 @@ var (
 	initFuncs    = make([]InitFunc, 0)
 )
 
-// 添加初始化ioc函数，由各个默认自行添加(直接init方法中ioc.Register注册不会打印ioc相关日志)
+// 添加初始化ioc函数，由各个模块自行添加(直接init方法中ioc.Register注册不会打印ioc相关日志)
 func AddInitIocFunc(initIocFunc InitIocFunc) {
 	initIocFuncs = append(initIocFuncs, initIocFunc)
 }
 
-// 添加初始化函数，由各个默认自行添加
+// 添加初始化函数，由各个模块自行添加
 func AddInitFunc(initFunc InitFunc) {
 	initFuncs = append(initFuncs, initFunc)
 }

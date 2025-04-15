@@ -102,9 +102,9 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { cmdConfApi } from '../api';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagCodePath from '../../component/TagCodePath.vue';
-import _ from 'lodash';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
+import { deepClone } from '@/common/utils/object';
 
 const rules = {
     tags: [Rules.requiredInput('machine.relateMachine')],
@@ -166,7 +166,7 @@ const openFormDialog = (data: any) => {
     if (!data) {
         state.form = { ...DefaultForm };
     } else {
-        state.form = _.cloneDeep(data);
+        state.form = deepClone(data);
         state.form.codePaths = data.tags?.map((tag: any) => tag.codePath);
     }
     state.dialogVisible = true;

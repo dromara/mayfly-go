@@ -7,11 +7,14 @@ import (
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/imsg"
+	msgapp "mayfly-go/internal/msg/application"
+	msgentity "mayfly-go/internal/msg/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/structx"
 	"strings"
 
 	"github.com/may-fly/cast"
@@ -20,11 +23,14 @@ import (
 type Procdef struct {
 	procdefApp       application.Procdef  `inject:"T"`
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
+	msgTmplBizApp    msgapp.MsgTmplBiz    `inject:"T"`
 }
 
 func (p *Procdef) ReqConfs() *req.Confs {
 	reqs := [...]*req.Conf{
 		req.NewGet("", p.GetProcdefPage),
+
+		req.NewGet("/detail/:id", p.GetProcdefDetail),
 
 		req.NewGet("/:resourceType/:resourceCode", p.GetProcdef),
 
@@ -49,6 +55,25 @@ func (p *Procdef) GetProcdefPage(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (p *Procdef) GetProcdefDetail(rc *req.Ctx) {
+	def, err := p.procdefApp.GetById(cast.ToUint64(rc.PathParamInt("id")))
+	biz.ErrIsNil(err)
+	res := new(vo.Procdef)
+	biz.ErrIsNil(structx.Copy(res, def))
+
+	p.tagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeFlowDef, res)
+
+	bizMsgTmpl := &msgentity.MsgTmplBiz{
+		BizId:   res.Id,
+		BizType: application.FlowTaskNotifyBizKey,
+	}
+	if p.msgTmplBizApp.GetByCond(bizMsgTmpl) == nil {
+		res.MsgTmplId = &bizMsgTmpl.TmplId
+	}
+
+	rc.ResData = res
+}
+
 func (p *Procdef) GetProcdef(rc *req.Ctx) {
 	resourceType := rc.PathParamInt("resourceType")
 	resourceCode := rc.PathParam("resourceCode")
@@ -61,6 +86,7 @@ func (a *Procdef) Save(rc *req.Ctx) {
 	rc.ReqParam = form
 	biz.ErrIsNil(a.procdefApp.SaveProcdef(rc.MetaCtx, &dto.SaveProcdef{
 		Procdef:   procdef,
+		MsgTmplId: form.MsgTmplId,
 		CodePaths: form.CodePaths,
 	}))
 }

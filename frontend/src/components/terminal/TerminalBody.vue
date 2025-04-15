@@ -17,9 +17,8 @@ import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { ref, nextTick, reactive, onMounted, onBeforeUnmount, watch } from 'vue';
 import TerminalSearch from './TerminalSearch.vue';
-import { debounce } from 'lodash';
 import { TerminalStatus } from './common';
-import { useEventListener } from '@vueuse/core';
+import { useDebounceFn, useEventListener } from '@vueuse/core';
 import themes from './themes';
 import { TrzszFilter } from 'trzsz';
 import { useI18n } from 'vue-i18n';
@@ -129,7 +128,7 @@ async function initTerm() {
     term.loadAddon(fitAddon);
     fitTerminal();
     // 注册窗口大小监听器
-    useEventListener('resize', debounce(fitTerminal, 400));
+    useEventListener('resize', useDebounceFn(fitTerminal, 400));
 
     initSocket();
     // 注册其他插件

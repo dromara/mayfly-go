@@ -117,7 +117,7 @@
                                     </template>
                                 </el-table-column>
                                 <el-table-column prop="assigner" :label="$t('system.role.assigner')"></el-table-column>
-                                <el-table-column prop="allocateTime" :label="$t('system.role.allocateTime')">
+                                <el-table-column prop="allocateTime" :label="$t('system.role.allocateTime')" min-width="150">
                                     <template #default="scope">
                                         {{ formatDate(scope.row.allocateTime) }}
                                     </template>

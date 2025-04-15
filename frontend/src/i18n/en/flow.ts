@@ -89,5 +89,6 @@ export default {
         taskName: 'Task Name',
         taskBeginTime: 'Begin Time',
         flowAudit: 'Approval Process',
+        notify: 'Notification',
     },
 };

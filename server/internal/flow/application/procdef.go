@@ -6,6 +6,8 @@ import (
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/internal/flow/imsg"
+	msgapp "mayfly-go/internal/msg/application"
+	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
@@ -36,6 +38,7 @@ type procdefAppImpl struct {
 
 	procinstApp Procinst `inject:"T"`
 
+	msgTmplBizApp    msgapp.MsgTmplBiz    `inject:"T"`
 	tagTreeApp       tagapp.TagTree       `inject:"T"`
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
@@ -67,6 +70,14 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 	return p.Tx(ctx, func(ctx context.Context) error {
 		return p.Save(ctx, def)
 	}, func(ctx context.Context) error {
+		// 保存通知消息模板
+		if err := p.msgTmplBizApp.SaveBizTmpl(ctx, msgdto.MsgTmplBizSave{
+			TmplId:  defParam.MsgTmplId,
+			BizType: FlowTaskNotifyBizKey,
+			BizId:   def.Id,
+		}); err != nil {
+			return err
+		}
 		return p.tagTreeRelateApp.RelateTag(ctx, tagentity.TagRelateTypeFlowDef, def.Id, defParam.CodePaths...)
 	})
 }

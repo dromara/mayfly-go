@@ -8,8 +8,12 @@ import (
 
 type AccountManageVO struct {
 	model.Model
+	model.ExtraData
+
 	Name          string               `json:"name"`
 	Username      string               `json:"username"`
+	Mobile        string               `json:"mobile"`
+	Email         string               `json:"email"`
 	Status        entity.AccountStatus `json:"status"`
 	LastLoginTime *time.Time           `json:"lastLoginTime"`
 	OtpSecret     string               `json:"otpSecret"`
@@ -19,6 +23,8 @@ type SimpleAccountVO struct {
 	Id       uint64 `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
+	Mobile   string `json:"mobile"`
+	Email    string `json:"email"`
 
 	Roles []*AccountRoleVO `json:"roles" gorm:"-"`
 }
