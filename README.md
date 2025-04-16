@@ -108,9 +108,9 @@ http://go.mayfly.run
 
 如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> 或者 <a target="_blank" href="https://gitee.com/dromara/mayfly-go">Gitee</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。
 
-> 喝杯咖啡 ☕️ 或者来杯奶茶 🧋，让作者更有精神，写出更棒的代码！这将是对作者最大的鼓励和支持！
+> 喝杯咖啡 ☕️ 或者来杯奶茶 🧋，让作者更有精神，写出更棒的代码！
 
 <img class="no-margin" src="https://foruda.gitee.com/images/1744113367791412282/36a3c23b_1240250.png" alt="微信打赏" width="200" height="200">
 
 > **特别感谢：**
-> 赞助金额达 199 元以上，加微信（wx-error），我将邀请您进入付费交流群，享受更快、更优先的技术支持！
+> 赞助金额达 199 元以上，加微信（wx-error），可受邀进入付费交流群，享受更快、更优先的技术支持与交流服务！

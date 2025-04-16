@@ -47,7 +47,7 @@ export default {
             deleteAccountConfirm: '确定删除【{name}】的账号?',
             usernamePlacholder: '5-16位大小写字母、数字、_-.:',
             random: '随机',
-            usernamePatternErrMsg: '只允许输入5-16位大小写字母、数字、_-@.:',
+            usernamePatternErrMsg: "只允许输入5-16位大小写字母、数字、_-.:{'@'}",
             accountSearchPlaceholder: '输入账号模糊搜索并选择',
             accountInfo: '账号信息',
             allocateRoleTitle: '分配 `{name}` 的角色',

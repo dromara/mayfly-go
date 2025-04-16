@@ -15,6 +15,6 @@ export default {
         send: '发送',
         sendMsg: '发送消息',
         selectTmplPlaceholder: '选择消息模板，支持编号模糊搜索',
-        msgTmplTooltip: '消息模板支持变量替换，变量格式为{{.变量名}}，以下为通用内置变量 <br/>{{.receiver}}：用于@指定接收人',
+        msgTmplTooltip: "消息模板支持变量替换，变量格式为{'{{.变量名}}'}，以下为通用内置变量 <br/>{'{{.receiver}}'}：用于{'@'}指定接收人",
     },
 };

@@ -47,6 +47,8 @@ type DataSyncTask interface {
 	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
+var _ (DataSyncTask) = (*dataSyncAppImpl)(nil)
+
 type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
 
@@ -105,12 +107,14 @@ func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.D
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		taskId := taskEntity.Id
-		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
+		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
 			logx.Infof("start the data synchronization task: %d", taskId)
 			if err := app.RunCronJob(ctx, taskId); err != nil {
 				logx.Errorf("the data synchronization task failed to execute at a scheduled time: %s", err.Error())
 			}
-		})
+		}); err != nil {
+			logx.ErrorTrace("add db data sync cron job failed", err)
+		}
 	}
 }
 

@@ -2,7 +2,6 @@ package biz
 
 import (
 	"context"
-	"fmt"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/utils/anyx"
@@ -22,7 +21,7 @@ func ErrIsNil(err error, msgAndParams ...any) {
 			panic(errorx.NewBiz(err.Error()))
 		}
 
-		panic(errorx.NewBiz(fmt.Sprintf(msgAndParams[0].(string), msgAndParams[1:]...)))
+		panic(errorx.NewBiz(msgAndParams[0].(string), msgAndParams[1:]...))
 	}
 }
 
@@ -44,7 +43,7 @@ func ErrIsNilI(ctx context.Context, err error, msgId i18n.MsgId, attrs ...any) {
 
 func ErrNotNil(err error, msg string, params ...any) {
 	if err == nil {
-		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
+		panic(errorx.NewBiz(msg, params...))
 	}
 }
 
@@ -54,7 +53,7 @@ func ErrNotNil(err error, msg string, params ...any) {
 //	biz.ErrIsNilAppendErr(err, "xxxx: %s")
 func ErrIsNilAppendErr(err error, msg string) {
 	if err != nil {
-		panic(errorx.NewBiz(fmt.Sprintf(msg, err.Error())))
+		panic(errorx.NewBiz(msg, err.Error()))
 	}
 }
 
@@ -64,13 +63,13 @@ func ErrIsNilAppendErr(err error, msg string) {
 //	biz.ErrIsNilAppendErr(err, "xxxx: %s")
 func ErrIsNilAppendErrI(ctx context.Context, err error, msgId i18n.MsgId) {
 	if err != nil {
-		panic(errorx.NewBiz(fmt.Sprintf(i18n.TC(ctx, msgId), err.Error())))
+		panic(errorx.NewBiz(i18n.TC(ctx, msgId), err.Error()))
 	}
 }
 
 func IsTrue(exp bool, msg string, params ...any) {
 	if !exp {
-		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
+		panic(errorx.NewBiz(msg, params...))
 	}
 }
 
@@ -88,19 +87,19 @@ func IsTrueBy(exp bool, err *errorx.BizError) {
 
 func NotEmpty(str string, msg string, params ...any) {
 	if str == "" {
-		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
+		panic(errorx.NewBiz(msg, params...))
 	}
 }
 
 func NotNil(data any, msg string, params ...any) {
 	if reflect.ValueOf(data).IsNil() {
-		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
+		panic(errorx.NewBiz(msg, params...))
 	}
 }
 
 func NotBlank(data any, msg string, params ...any) {
 	if anyx.IsBlank(data) {
-		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
+		panic(errorx.NewBiz(msg, params...))
 	}
 }
 

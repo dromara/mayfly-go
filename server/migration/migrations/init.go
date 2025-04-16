@@ -563,15 +563,6 @@ func initResource(tx *gorm.DB) error {
 			Weight: 19999999,
 		},
 		{
-			Model:  model.Model{CreateModel: model.CreateModel{DeletedModel: model.DeletedModel{IdModel: model.IdModel{Id: 30}}}},
-			Pid:    14,
-			UiPath: "Xlqig32x/sfslfel/32xax2xA/",
-			Name:   "menu.accountEdit",
-			Code:   "account:update",
-			Type:   2,
-			Weight: 19999999,
-		},
-		{
 			Model:  model.Model{CreateModel: model.CreateModel{DeletedModel: model.DeletedModel{IdModel: model.IdModel{Id: 31}}}},
 			Pid:    14,
 			UiPath: "Xlqig32x/sfslfel/eubale13/",

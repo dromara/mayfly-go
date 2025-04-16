@@ -58,6 +58,8 @@ type DbTransferTask interface {
 	TimerDeleteTransferFile()
 }
 
+var _ (DbTransferTask) = (*dbTransferAppImpl)(nil)
+
 type dbTransferAppImpl struct {
 	base.AppImpl[*entity.DbTransferTask, repository.DbTransferTask]
 
@@ -114,11 +116,13 @@ func (app *dbTransferAppImpl) AddCronJob(ctx context.Context, taskEntity *entity
 		}
 
 		taskId := taskEntity.Id
-		scheduler.AddFunByKey(key, taskEntity.Cron, func() {
+		if err := scheduler.AddFunByKey(key, taskEntity.Cron, func() {
 			logx.Infof("start the synchronization task: %d", taskId)
 			logId, _ := app.CreateLog(ctx, taskId)
 			app.Run(ctx, taskId, logId)
-		})
+		}); err != nil {
+			logx.ErrorTrace("add db transfer cron job failed", err)
+		}
 	}
 }
 

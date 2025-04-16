@@ -16,6 +16,6 @@ export default {
         sendMsg: 'Send Message',
         selectTmplPlaceholder: 'Select message template, support fuzzy search by number',
         msgTmplTooltip:
-            'Message template supports variable replacement, the variable format is {{.variable}}, the following are common built-in variables <br/>{{.receiver}}: used to @ specify the recipient',
+            "Message template supports variable replacement, the variable format is {'{{.variable}}'} </br> the following are common built-in variables <br/>{'{{.receiver}}'}: used to {'@'} specify the recipient",
     },
 };

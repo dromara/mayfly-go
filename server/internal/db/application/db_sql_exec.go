@@ -64,6 +64,8 @@ type DbSqlExec interface {
 	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
+var _ (DbSqlExec) = (*dbSqlExecAppImpl)(nil)
+
 type dbSqlExecAppImpl struct {
 	dbApp         Db                   `inject:"T"`
 	dbSqlExecRepo repository.DbSqlExec `inject:"T"`
