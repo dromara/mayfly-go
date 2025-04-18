@@ -28,7 +28,7 @@
                         <div class="title-right-fixed">
                             <el-popconfirm @confirm="reConnect(openTerminal.terminalId)" :title="$t('components.terminal.connConfirm')">
                                 <template #reference>
-                                    <div class="mr15 pointer">
+                                    <div class="mr-4 cursor-pointer">
                                         <el-tag v-if="openTerminal.status == TerminalStatus.Connected" type="success" effect="light" round>
                                             {{ $t('components.terminal.connected') }}
                                         </el-tag>
@@ -39,10 +39,10 @@
 
                             <el-popover placement="bottom" :width="200" trigger="hover">
                                 <template #reference>
-                                    <SvgIcon name="QuestionFilled" :size="20" class="pointer-icon mr10" />
+                                    <SvgIcon name="QuestionFilled" :size="20" class="pointer-icon !mr-2" />
                                 </template>
                                 <div>ctrl | command + f ({{ $t('components.terminal.search') }})</div>
-                                <div class="mt5">{{ $t('components.terminal.reConnTips') }}</div>
+                                <div class="mt-1">{{ $t('components.terminal.reConnTips') }}</div>
                             </el-popover>
 
                             <SvgIcon
@@ -50,7 +50,7 @@
                                 v-if="props.visibleMinimize"
                                 @click="minimize(openTerminal.terminalId)"
                                 :size="20"
-                                class="pointer-icon mr10"
+                                class="pointer-icon mr-2"
                                 :title="$t('components.terminal.minimize')"
                             />
 
@@ -58,7 +58,7 @@
                                 name="FullScreen"
                                 @click="handlerFullScreen(openTerminal)"
                                 :size="20"
-                                class="pointer-icon mr10"
+                                class="pointer-icon mr-2"
                                 :title="$t('components.terminal.fullScreenTitle')"
                             />
 
@@ -88,7 +88,7 @@
             <el-card
                 v-for="minimizeTerminal of minimizeTerminals"
                 :key="minimizeTerminal.terminalId"
-                :class="`terminal-minimize-item pointer ${minimizeTerminal.styleClass}`"
+                :class="`terminal-minimize-item cursor-pointer ${minimizeTerminal.styleClass}`"
                 size="small"
                 @click="maximize(minimizeTerminal.terminalId)"
             >
@@ -99,7 +99,7 @@
                 </el-tooltip>
 
                 <!-- 关闭按钮 -->
-                <SvgIcon name="CloseBold" @click.stop="closeMinimizeTerminal(minimizeTerminal.terminalId)" class="ml10 pointer-icon fr" :size="20" />
+                <SvgIcon name="CloseBold" @click.stop="closeMinimizeTerminal(minimizeTerminal.terminalId)" class="ml-2 pointer-icon float-right" :size="20" />
             </el-card>
         </div>
     </div>

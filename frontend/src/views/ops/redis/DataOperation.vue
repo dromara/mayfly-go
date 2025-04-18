@@ -45,7 +45,7 @@
             <template #right>
                 <Splitpanes class="default-theme">
                     <Pane size="35" max-size="50">
-                        <div class="key-list-vtree card pd5">
+                        <div class="key-list-vtree card !p-1">
                             <el-scrollbar>
                                 <el-row :gutter="5">
                                     <el-col :span="2">
@@ -73,7 +73,7 @@
                                     </el-col>
                                 </el-row>
 
-                                <el-row :gutter="5" class="mb5 mt5">
+                                <el-row :gutter="5" class="mb-1 mt-1">
                                     <el-col :span="19">
                                         <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain>
                                             {{ $t('redis.loadMore') }}
@@ -87,7 +87,7 @@
                                             icon="plus"
                                             size="small"
                                             plain
-                                            class="ml5"
+                                            class="!ml-0.5"
                                         >
                                             {{ $t('redis.addKey') }}
                                         </el-button>
@@ -100,13 +100,13 @@
                                             v-auth="'redis:data:del'"
                                             size="small"
                                             icon="delete"
-                                            class="ml5"
+                                            class="!ml-0.5"
                                         >
                                             flush
                                         </el-button>
                                     </el-col>
                                     <el-col :span="5">
-                                        <span class="mt5" style="display: inline-block">keys:{{ state.dbsize }}</span>
+                                        <span class="mt-1" style="display: inline-block">keys:{{ state.dbsize }}</span>
                                     </el-col>
                                 </el-row>
 
@@ -129,11 +129,11 @@
                                             <span v-if="data.type == 1">
                                                 <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
                                             </span>
-                                            <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
+                                            <span :class="'ml-1 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
                                                 {{ node.label }}
                                             </span>
 
-                                            <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
+                                            <span v-if="!node.isLeaf" class="ml-1" style="font-weight: bold"> ({{ data.keyCount }}) </span>
                                         </span>
                                     </template>
                                 </el-tree>
@@ -144,7 +144,7 @@
                     </Pane>
 
                     <Pane>
-                        <div class="key-detail card pd5">
+                        <div class="key-detail card !p-1">
                             <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                                 <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                     <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :page-api="cronJobApi.list"

@@ -40,7 +40,7 @@
 
                 <FormItemTooltip prop="tmpl" :label="$t('msg.tmpl')" :tooltip="$t('msg.msgTmplTooltip')">
                     <MonacoEditor
-                        class="w100"
+                        class="!w-full"
                         height="200px"
                         v-model="formData.tmpl"
                         :language="EnumValue.getLabelByValue(TmplTypeEnum, formData.msgType)"

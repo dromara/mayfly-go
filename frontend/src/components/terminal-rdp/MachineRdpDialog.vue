@@ -24,7 +24,7 @@
                     <div class="title-right-fixed">
                         <el-popconfirm @confirm="connect(true)" title="确认重新连接?">
                             <template #reference>
-                                <div class="mr10 pointer">
+                                <div class="mr-2 cursor-pointer">
                                     <el-tag v-if="state.status == TerminalStatus.Connected" type="success" effect="light" round> 已连接 </el-tag>
                                     <el-tag v-else type="danger" effect="light" round> 未连接，点击重连 </el-tag>
                                 </div>

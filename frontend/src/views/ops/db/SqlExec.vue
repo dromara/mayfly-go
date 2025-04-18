@@ -54,7 +54,7 @@
             </template>
 
             <template #right>
-                <div class="card db-op pd5">
+                <div class="card db-op !p-1">
                     <el-row>
                         <el-col :span="24" v-if="state.db">
                             <el-descriptions :column="4" size="small" border>
@@ -145,7 +145,7 @@
                         </el-col>
                     </el-row>
 
-                    <div id="data-exec" class="mt5">
+                    <div id="data-exec" class="mt-1">
                         <el-tabs
                             v-if="state.tabs.size > 0"
                             type="card"
@@ -153,13 +153,13 @@
                             @tab-change="onTabChange"
                             style="width: 100%"
                             v-model="state.activeName"
-                            class="h100"
+                            class="!h-full"
                         >
-                            <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                            <el-tab-pane class="!h-full" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                                 <template #label>
                                     <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                                         <template #reference>
-                                            <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="font12">{{ dt.label }}</span>
+                                            <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="!text-[12px]">{{ dt.label }}</span>
                                         </template>
                                         <template #default>
                                             <el-descriptions :column="1" size="small">

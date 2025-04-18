@@ -2,8 +2,8 @@ package sqlparser
 
 import (
 	"io"
-	"mayfly-go/internal/common/utils"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
+	"mayfly-go/internal/pkg/utils"
 )
 
 type DbDialect string

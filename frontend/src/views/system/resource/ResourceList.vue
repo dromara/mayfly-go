@@ -2,11 +2,11 @@
     <div class="card system-resouce-list">
         <Splitpanes class="default-theme">
             <Pane size="25" min-size="20" max-size="30">
-                <div class="card pd5 mr5">
+                <div class="card !p-1 mr-1">
                     <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" style="width: 200px; margin-right: 10px" />
                     <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
 
-                    <div class="fr">
+                    <div class="float-right">
                         <el-tooltip placement="top">
                             <template #content> {{ $t('system.menu.opTips') }} </template>
                             <span>
@@ -37,7 +37,7 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
-                                <SvgIcon :name="getMenuIcon(data)" class="mb3" />
+                                <SvgIcon :name="getMenuIcon(data)" class="!mb-0.5" />
 
                                 <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                                     <span style="color: #3c8dbc">【</span>
@@ -63,7 +63,7 @@
             </Pane>
 
             <Pane min-size="40">
-                <div class="ml10">
+                <div class="ml-2">
                     <el-tabs v-model="state.activeTabName" @tab-click="onTabClick" v-if="currentResource">
                         <el-tab-pane :label="$t('common.detail')" :name="ResourceDetail">
                             <el-descriptions :title="$t('system.menu.info')" :column="2" border>

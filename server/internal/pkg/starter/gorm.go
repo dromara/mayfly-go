@@ -2,7 +2,7 @@ package starter
 
 import (
 	"log"
-	"mayfly-go/pkg/config"
+	"mayfly-go/internal/pkg/config"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"time"

@@ -3,7 +3,7 @@ package starter
 import (
 	"context"
 	"fmt"
-	"mayfly-go/pkg/config"
+	"mayfly-go/internal/pkg/config"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
 

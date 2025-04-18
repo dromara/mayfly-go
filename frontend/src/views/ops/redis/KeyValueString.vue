@@ -5,7 +5,7 @@
                 <format-viewer ref="formatViewerRef" height="250px" :content="string.value"></format-viewer>
             </div>
         </el-form>
-        <div class="mt10 fr">
+        <div class="!mt-2 float-right">
             <el-button @click="saveValue" type="primary" v-auth="'redis:data:save'">{{ $t('common.save') }}</el-button>
         </div>
     </div>

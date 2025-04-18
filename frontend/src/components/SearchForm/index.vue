@@ -107,7 +107,6 @@ const handleItemKeyupEnter = (item: SearchItem) => {
     margin-bottom: 10px;
 
     box-sizing: border-box;
-    overflow-x: hidden;
     background-color: var(--el-bg-color);
     border: 1px solid var(--el-border-color-light);
     border-radius: 6px;

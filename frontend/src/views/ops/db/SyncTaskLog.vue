@@ -2,9 +2,9 @@
     <div class="sync-task-logs">
         <el-dialog v-model="dialogVisible" :before-close="cancel" :destroy-on-close="false" width="1120px">
             <template #header>
-                <span class="mr10">{{ $t('db.log') }}</span>
+                <span class="mr-2">{{ $t('db.log') }}</span>
                 <el-switch v-model="realTime" @change="watchPolling" inline-prompt :active-text="$t('db.realTime')" :inactive-text="$t('db.noRealTime')" />
-                <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml10"></el-button>
+                <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml-2"></el-button>
             </template>
             <page-table ref="logTableRef" :page-api="dbApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
             </page-table>

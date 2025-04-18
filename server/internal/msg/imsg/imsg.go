@@ -1,7 +1,7 @@
 package imsg
 
 import (
-	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/i18n"
 )
 

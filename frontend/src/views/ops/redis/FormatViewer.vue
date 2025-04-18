@@ -1,13 +1,13 @@
 <template>
     <div class="format-viewer-container">
-        <div class="mb5 fr">
+        <div class="mb-1 float-right">
             <el-select v-model="selectedView" class="format-selector" size="small" placeholder="Text">
                 <template #prefix>
                     <SvgIcon name="view" />
                 </template>
                 <el-option v-for="item of Object.keys(viewers)" :key="item" :label="item" :value="item"> </el-option>
             </el-select>
-            <el-tag type="primary" :disable-transitions="true" class="ml10">Size: {{ formatByteSize(state.contentSize) }}</el-tag>
+            <el-tag type="primary" :disable-transitions="true" class="ml-2">Size: {{ formatByteSize(state.contentSize) }}</el-tag>
         </div>
 
         <component ref="viewerRef" :is="components[viewerComponent]" :content="state.content" :name="selectedView"> </component>

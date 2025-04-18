@@ -1,12 +1,12 @@
 package api
 
 import (
+	"mayfly-go/internal/pkg/config"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/imsg"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )

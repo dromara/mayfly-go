@@ -13,7 +13,7 @@
                 </el-form-item>
 
                 <el-form-item>
-                    <el-row class="w100">
+                    <el-row class="!w-full">
                         <el-col :span="12">
                             <el-form-item prop="status" :label="$t('common.status')">
                                 <el-switch
@@ -42,7 +42,7 @@
                     <CrontabInput v-model="form.cron" />
                 </el-form-item>
 
-                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="w100" required>
+                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="!w-full" required>
                     <db-select-tree
                         v-model:db-id="form.srcDbId"
                         v-model:inst-name="form.srcInstName"
@@ -61,7 +61,7 @@
                 </el-form-item>
 
                 <el-form-item v-if="form.mode === 2">
-                    <el-row class="w100">
+                    <el-row class="!w-full">
                         <el-col :span="12">
                             <el-form-item prop="targetFileDbType" :label="$t('db.dbFileType')" :required="form.mode === 2">
                                 <el-select v-model="form.targetFileDbType" clearable filterable>
@@ -100,7 +100,7 @@
                     </el-radio-group>
                 </el-form-item>
 
-                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="w100" :required="form.mode === 1">
+                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="!w-full" :required="form.mode === 1">
                     <db-select-tree
                         v-model:db-id="form.targetDbId"
                         v-model:inst-name="form.targetInstName"
@@ -123,10 +123,10 @@
                 <el-form-item>
                     <el-input v-model="state.filterSrcTableText" placeholder="filter table" size="small" />
                 </el-form-item>
-                <el-form-item class="w100">
+                <el-form-item class="!w-full">
                     <el-tree
                         ref="srcTreeRef"
-                        class="w100"
+                        class="!w-full"
                         style="max-height: 200px; overflow-y: auto"
                         default-expand-all
                         :expand-on-click-node="false"

@@ -22,7 +22,7 @@
                     <EnumSelect :enums="ScriptResultEnum" v-model="form.type" default-first-option />
                 </el-form-item>
 
-                <el-form-item class="w100">
+                <el-form-item class="!w-full">
                     <template #label>
                         <el-tooltip placement="top">
                             <template #content>

@@ -26,7 +26,7 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item :label="$t('system.sysconf.confItem')" class="w100">
+                <el-form-item :label="$t('system.sysconf.confItem')" class="!w-full">
                     <dynamic-form-edit v-model="params" />
                 </el-form-item>
 

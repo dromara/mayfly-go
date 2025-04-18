@@ -1,13 +1,13 @@
 <template>
-    <el-main class="layout-main">
-        <el-scrollbar ref="layoutScrollbarRef" v-show="!state.currentRouteMeta.link && state.currentRouteMeta.linkType != 1">
+    <el-main class="layout-main !h-full">
+        <el-scrollbar ref="layoutScrollbarRef" view-class="!h-full" v-show="!state.currentRouteMeta.link && state.currentRouteMeta.linkType != 1">
             <LayoutParentView />
         </el-scrollbar>
 
-        <Link class="h100" :meta="state.currentRouteMeta" v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2" />
+        <Link class="!h-full" :meta="state.currentRouteMeta" v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2" />
 
         <Iframes
-            class="h100"
+            class="!h-full"
             :meta="state.currentRouteMeta"
             v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 1 && state.isShowLink"
             @getCurrentRouteMeta="onGetCurrentRouteMeta"

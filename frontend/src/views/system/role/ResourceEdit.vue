@@ -18,7 +18,7 @@
             >
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
-                        <SvgIcon :name="getMenuIcon(data)" class="mb3 mr3" />
+                        <SvgIcon :name="getMenuIcon(data)" class="mb-0.5 mr-0.5" />
                         <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
                         <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
                     </span>

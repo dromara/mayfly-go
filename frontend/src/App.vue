@@ -1,13 +1,13 @@
 <template>
     <el-config-provider :size="getGlobalComponentSize" :locale="getGlobalI18n">
-        <div class="h100">
+        <div class="!h-full">
             <el-watermark
                 :zIndex="10000000"
                 :width="210"
                 v-if="themeConfig.isWatermark"
                 :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
                 :content="themeConfig.watermarkText"
-                class="h100"
+                class="!h-full"
             >
                 <router-view v-show="themeConfig.lockScreenTime !== 0" />
             </el-watermark>

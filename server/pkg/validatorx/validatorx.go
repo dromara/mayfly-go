@@ -50,9 +50,6 @@ func Init() {
 
 	// 注册自定义校验器
 	validate.RegisterValidation(CustomPatternTagName, patternValidFunc)
-
-	// 注册自定义正则校验规则
-	RegisterCustomPatterns()
 }
 
 // Translate 翻译错误信息

@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">{{ $t('redis.addNewLine') }}</el-button>
+        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb-2">{{ $t('redis.addNewLine') }}</el-button>
         <el-table size="small" border :data="values" height="450" min-height="300" stripe>
             <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
             <el-table-column resizable sortable prop="score" label="score" show-overflow-tooltip min-width="100"> </el-table-column>
@@ -20,7 +20,7 @@
                     <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit" plain></el-link>
                     <el-popconfirm :title="$t('redis.deleteConfirm')" @confirm="zrem(scope.row, scope.$index)">
                         <template #reference>
-                            <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml5"></el-link>
+                            <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml-1"></el-link>
                         </template>
                     </el-popconfirm>
                 </template>
@@ -37,7 +37,7 @@
                     <el-input type="number" v-model.number="editDialog.score" placeholder="score" />
                 </el-form-item>
                 <el-form-item>
-                    <format-viewer class="w100" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
+                    <format-viewer class="!w-full" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
                 </el-form-item>
             </el-form>
 

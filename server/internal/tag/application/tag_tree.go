@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
-	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"

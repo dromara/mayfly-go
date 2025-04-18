@@ -32,14 +32,21 @@
             </template>
 
             <template #right>
-                <div class="machine-terminal-tabs card pd5">
-                    <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTermName" class="h100">
-                        <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                <div class="machine-terminal-tabs card !p-1">
+                    <el-tabs
+                        v-if="state.tabs.size > 0"
+                        type="card"
+                        @tab-remove="onRemoveTab"
+                        style="width: 100%"
+                        v-model="state.activeTermName"
+                        class="!h-full"
+                    >
+                        <el-tab-pane class="!h-full" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
                                 <el-popconfirm @confirm="handleReconnect(dt, true)" :title="$t('machine.reConnTips')">
                                     <template #reference>
                                         <el-icon
-                                            class="mr5"
+                                            class="mr-1"
                                             :color="EnumValue.getEnumByValue(TerminalStatusEnum, dt.status)?.extra?.iconColor"
                                             :title="dt.status == TerminalStatusEnum.Connected.value ? '' : $t('machine.clickReConn')"
                                             ><Connection />

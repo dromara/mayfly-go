@@ -2,7 +2,7 @@ package entity
 
 import (
 	"errors"
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/pkg/enumx"
 	"mayfly-go/pkg/model"
 	"time"

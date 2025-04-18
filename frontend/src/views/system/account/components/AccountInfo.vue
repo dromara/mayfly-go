@@ -18,7 +18,7 @@
                 </el-descriptions-item>
 
                 <el-descriptions-item :span="2" :label="$t('common.role')">
-                    <el-tag v-for="role in account.roles" :key="role.code" class="ml5">
+                    <el-tag v-for="role in account.roles" :key="role.code" class="ml-1">
                         {{ role.roleName }}
                     </el-tag>
                 </el-descriptions-item>

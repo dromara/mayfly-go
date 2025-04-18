@@ -45,9 +45,9 @@
                     <el-table-column prop="name" min-width="100px">
                         <template #header>
                             <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addTask()"> </el-button>
-                            <span class="ml10">{{ $t('flow.nodeName') }}<span class="ml5" style="color: red">*</span></span>
+                            <span class="ml-2">{{ $t('flow.nodeName') }}<span class="ml-1" style="color: red">*</span></span>
                             <el-tooltip :content="$t('flow.nodeNameTips')" placement="top">
-                                <SvgIcon class="ml5" name="question-filled" />
+                                <SvgIcon class="ml-1" name="question-filled" />
                             </el-tooltip>
                         </template>
                         <template #default="scope">
@@ -57,7 +57,7 @@
 
                     <el-table-column prop="userId" min-width="150px" show-overflow-tooltip>
                         <template #header>
-                            <span class="ml10">{{ $t('flow.auditor') }}<span class="ml5" style="color: red">*</span></span>
+                            <span class="ml-2">{{ $t('flow.auditor') }}<span class="ml-1" style="color: red">*</span></span>
                         </template>
 
                         <template #default="scope">
@@ -67,7 +67,7 @@
 
                     <el-table-column :label="$t('common.operation')" width="110px">
                         <template #default="scope">
-                            <el-link @click="deleteTask(scope.$index)" class="ml5" type="danger" icon="delete" plain></el-link>
+                            <el-link @click="deleteTask(scope.$index)" class="ml-1" type="danger" icon="delete" plain></el-link>
                         </template>
                     </el-table-column>
                 </el-table>

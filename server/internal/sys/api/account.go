@@ -1,7 +1,7 @@
 package api
 
 import (
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"

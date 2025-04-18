@@ -1,10 +1,10 @@
 <template>
-    <div class="dynamic-form-edit w100">
-        <el-table :data="formItems" stripe class="w100">
+    <div class="dynamic-form-edit !w-full">
+        <el-table :data="formItems" stripe class="!w-full">
             <el-table-column prop="name" label="model" min-width="100px">
                 <template #header>
                     <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addItem()"> </el-button>
-                    <span class="ml10">model field</span>
+                    <span class="ml-2">model field</span>
                 </template>
                 <template #default="scope">
                     <el-input v-model="scope.row['model']" :placeholder="$t('components.df.fieldModelPlaceholder')" clearable> </el-input>

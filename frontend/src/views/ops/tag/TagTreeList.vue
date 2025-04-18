@@ -2,7 +2,7 @@
     <div class="tag-tree-list card">
         <Splitpanes class="default-theme">
             <Pane size="30" min-size="25" max-size="35">
-                <div class="card pd5 mr5">
+                <div class="card !p-1 !mb-1 !mr-1">
                     <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" style="width: 200px; margin-right: 10px" />
                     <el-button
                         v-if="useUserInfo().userInfo.username == 'admin'"
@@ -11,7 +11,7 @@
                         icon="plus"
                         @click="showSaveTagDialog(null)"
                     ></el-button>
-                    <div style="float: right">
+                    <div class="float-right">
                         <el-tooltip placement="top">
                             <template #content>
                                 {{ $t('tag.tagTips1') }}
@@ -53,7 +53,7 @@
                                     :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.iconColor"
                                 />
 
-                                <span class="ml5">
+                                <span class="ml-1">
                                     {{ data.name }}
                                     <span style="color: #3c8dbc">【</span>
                                     {{ data.code }}
@@ -66,8 +66,8 @@
                 </el-scrollbar>
             </Pane>
 
-            <Pane min-size="40">
-                <div class="ml10">
+            <Pane min-size="40" size="70">
+                <div class="ml-2">
                     <el-tabs @tab-change="tabChange" v-model="state.activeTabName" v-if="currentTag">
                         <el-tab-pane :label="$t('common.detail')" :name="TagDetail">
                             <el-descriptions :column="2" border>

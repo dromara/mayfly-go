@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"mayfly-go/pkg/config"
+	"mayfly-go/internal/pkg/config"
 	"regexp"
 )
 

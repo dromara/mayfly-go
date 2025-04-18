@@ -11,7 +11,7 @@
         </el-form-item>
 
         <el-form-item prop="sql" label="SQL" required>
-            <div class="w100">
+            <div class="!w-full">
                 <monaco-editor height="300px" language="sql" v-model="bizForm.sql" />
             </div>
         </el-form-item>

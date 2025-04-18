@@ -2,7 +2,7 @@
     <div>
         <el-dialog title="SQL" v-model="dialogVisible" :show-close="false" width="600px" :close-on-click-modal="false">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
-            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" :placeholder="i18n.global.t('common.remark')" class="mt5" />
+            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" :placeholder="i18n.global.t('common.remark')" class="mt-1" />
 
             <template #footer>
                 <span class="dialog-footer">

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table
             :search-items="searchItems"
             v-model:query-form="query"

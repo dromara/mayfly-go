@@ -5,7 +5,7 @@
                 <el-table-column prop="name" :label="$t('common.name')" min-width="100px">
                     <template #header>
                         <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="add()"> </el-button>
-                        <span class="ml10">{{ $t('common.name') }}</span>
+                        <span class="ml-2">{{ $t('common.name') }}</span>
                     </template>
                     <template #default="scope">
                         <el-input v-model="scope.row.name" :disabled="scope.row.id != null" clearable> </el-input>

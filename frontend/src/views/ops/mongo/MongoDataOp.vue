@@ -43,9 +43,9 @@
             </template>
 
             <template #right>
-                <div class="mongo-data-tab card pd5 w100">
+                <div class="mongo-data-tab card !p-1 !w-full">
                     <el-row v-if="nowColl">
-                        <el-descriptions class="w100" :column="10" size="small" border>
+                        <el-descriptions class="!w-full" :column="10" size="small" border>
                             <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
                             <el-descriptions-item label="ns" label-align="right">
@@ -73,11 +73,11 @@
                     </el-row>
 
                     <el-row type="flex">
-                        <el-tabs @tab-remove="removeDataTab" class="w100 ml5" v-model="state.activeName">
+                        <el-tabs @tab-remove="removeDataTab" class="!w-full ml-1" v-model="state.activeName">
                             <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                 <el-row>
                                     <el-col :span="2">
-                                        <div class="mt5">
+                                        <div class="mt-1">
                                             <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
                                             <el-divider direction="vertical" border-style="dashed" />
                                             <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" :underline="false"> </el-link>
@@ -99,7 +99,7 @@
                                         <el-col :span="6" v-for="item in dt.datas" :key="item">
                                             <el-card :body-style="{ padding: '0px', position: 'relative' }">
                                                 <el-input type="textarea" v-model="item.value" :rows="10" />
-                                                <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                                <div style="padding: 3px; float: right" class="mr-1 mongo-doc-btns">
                                                     <div>
                                                         <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
 

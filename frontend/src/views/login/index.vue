@@ -63,7 +63,7 @@
                                 </el-tab-pane>
                             </el-tabs>
                         </div>
-                        <div class="mt20" v-if="state.oauth2LoginConfig.enable">
+                        <div class="!mt-4" v-if="state.oauth2LoginConfig.enable">
                             <el-text size="small">{{ $t('login.thirdPartyLogin') }}: </el-text>
                             <el-tooltip :content="state.oauth2LoginConfig.name" placement="bottom-start">
                                 <el-button link size="small" type="primary" @click="oauth2Login">

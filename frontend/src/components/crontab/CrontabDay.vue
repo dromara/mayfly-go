@@ -37,9 +37,9 @@
         </el-form-item>
 
         <el-form-item>
-            <div class="flex-align-center w100">
-                <el-radio v-model="radioValue" :label="7" class="mr5"> {{ $t('components.crontab.appoint') }} </el-radio>
-                <el-select @click="radioValue = 7" class="w100" clearable v-model="checkboxList" multiple>
+            <div class="flex items-center w-full">
+                <el-radio v-model="radioValue" :label="7" class="mr-1"> {{ $t('components.crontab.appoint') }} </el-radio>
+                <el-select @click="radioValue = 7" class="!w-full" clearable v-model="checkboxList" multiple>
                     <el-option v-for="item in 31" :key="item" :value="`${item}`">{{ item }}</el-option>
                 </el-select>
             </div>

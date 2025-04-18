@@ -2,7 +2,7 @@ package entity
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"strings"

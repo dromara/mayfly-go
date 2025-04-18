@@ -16,7 +16,7 @@
     >
         <template #default="{ data }">
             <span class="custom-tree-node">
-                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" class="mr2" />
+                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" class="mr-0.5" />
                 <span style="font-size: 13px">
                     {{ data.code }}
                     <span style="color: #3c8dbc">【</span>

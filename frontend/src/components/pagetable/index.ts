@@ -38,7 +38,7 @@ export class TableColumn {
     /**
      * 插槽名，
      */
-    private slotName: string = '';
+    slotName: string = '';
 
     showOverflowTooltip: boolean = true;
 
@@ -73,12 +73,12 @@ export class TableColumn {
     /**
      * 是否显示该列
      */
-    private show: boolean = true;
+    show: boolean = true;
 
     /**
      * 是否展示美化按钮（主要用于美化json文本等）
      */
-    private isBeautify: boolean = false;
+    isBeautify: boolean = false;
 
     constructor(prop: string, label: string) {
         this.prop = prop;

@@ -1,6 +1,6 @@
 <template>
-    <div class="card pd5">
-        <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="mb5 w100" />
+    <div class="card !p-1">
+        <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="!mb-1 w-full" />
         <el-scrollbar class="tag-tree">
             <el-tree
                 ref="treeRef"
@@ -30,7 +30,7 @@
 
                         <slot v-else :node="node" :data="data" name="prefix"></slot>
 
-                        <span class="ml3" :title="data.labelRemark">
+                        <span class="ml-0.5" :title="data.labelRemark">
                             <slot name="label" :data="data" v-if="!data.disabled"> {{ $t(data.label) }}</slot>
                             <!-- 禁用状态 -->
                             <slot name="disabledLabel" :data="data" v-else>
@@ -242,7 +242,7 @@ defineExpose({
 
 <style lang="scss" scoped>
 .tag-tree {
-    height: calc(100vh - 148px);
+    height: calc(100vh - 143px);
 
     .el-tree {
         display: inline-block;

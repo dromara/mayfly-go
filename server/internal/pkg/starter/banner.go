@@ -2,7 +2,7 @@ package starter
 
 import (
 	"fmt"
-	"mayfly-go/pkg/config"
+	"mayfly-go/internal/pkg/config"
 	"mayfly-go/pkg/logx"
 	"os"
 	"runtime/debug"

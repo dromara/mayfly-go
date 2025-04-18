@@ -4,6 +4,7 @@ import type { UserConfig } from 'vite';
 import { loadEnv } from './src/common/utils/viteBuild';
 import { CodeInspectorPlugin } from 'code-inspector-plugin';
 import progress from 'vite-plugin-progress';
+import tailwindcss from '@tailwindcss/vite';
 
 const pathResolve = (dir: string): any => {
     return resolve(__dirname, '.', dir);
@@ -20,6 +21,7 @@ const alias: Record<string, string> = {
 const viteConfig: UserConfig = {
     plugins: [
         vue(),
+        tailwindcss(),
         CodeInspectorPlugin({
             bundler: 'vite',
             editor: VITE_EDITOR as any,

@@ -56,13 +56,13 @@
                 </transition>
             </el-popover>
         </div>
-        <div class="layout-navbars-breadcrumb-user-icon mr10" @click="onScreenfullClick">
+        <div class="layout-navbars-breadcrumb-user-icon mr-2" @click="onScreenfullClick">
             <SvgIcon v-if="!state.isScreenfull" name="full-screen" :title="$t('layout.user.fullScreenOff')" />
             <SvgIcon v-else name="crop" />
         </div>
         <el-dropdown trigger="click" :show-timeout="70" :hide-timeout="50" @command="onHandleCommandClick">
-            <span class="layout-navbars-breadcrumb-user-link" style="cursor: pointer">
-                <img :src="userInfo.photo" class="layout-navbars-breadcrumb-user-link-photo mr5" />
+            <span class="layout-navbars-breadcrumb-user-link cursor-pointer">
+                <img :src="userInfo.photo" class="layout-navbars-breadcrumb-user-link-photo mr-1" />
                 {{ userInfo.name || userInfo.username }}
                 <i class="el-icon-arrow-down el-icon--right"></i>
             </span>

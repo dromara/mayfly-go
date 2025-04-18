@@ -2,11 +2,11 @@ package application
 
 import (
 	"context"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/internal/mongo/imsg"
 	"mayfly-go/internal/mongo/mgm"
+	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"

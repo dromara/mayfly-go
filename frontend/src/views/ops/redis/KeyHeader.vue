@@ -24,8 +24,8 @@
                     <!-- 时间转换 -->
                     <el-tooltip effect="dark" placement="top">
                         <template #content>{{ ttlConveter(ki.timed) }}</template>
-                        <span class="ml10">
-                            <el-icon class="mr5"><InfoFilled /></el-icon>
+                        <span class="ml-2">
+                            <el-icon class="mr-1"><InfoFilled /></el-icon>
                         </span>
                     </el-tooltip>
 

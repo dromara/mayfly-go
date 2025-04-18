@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/internal/flow/imsg"
 	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -108,7 +109,7 @@ func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) err
 	if la == nil {
 		return errorx.NewBiz("no login")
 	}
-	if procinst.CreatorId != la.Id {
+	if procinst.CreatorId != consts.AdminId && procinst.CreatorId != la.Id {
 		return errorx.NewBizI(ctx, imsg.ErrProcinstCancelSelf)
 	}
 	procinst.Status = entity.ProcinstStatusCancelled

@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/internal/redis/rdm"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/logx"

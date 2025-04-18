@@ -1,5 +1,5 @@
 <template>
-    <div class="db-list">
+    <div class="db-list h-full">
         <el-drawer
             :title="title"
             v-model="dialogVisible"
@@ -12,7 +12,7 @@
             <template #header>
                 <DrawerHeader :header="title" :back="cancel">
                     <template #extra>
-                        <div class="mr20">
+                        <div class="mr-4.5">
                             <span>{{ $props.instance?.tags?.[0]?.codePath }}</span>
                             <el-divider direction="vertical" border-style="dashed" />
                             <SvgIcon :name="getDbDialect($props.instance?.type).getInfo()?.icon" :size="20" />

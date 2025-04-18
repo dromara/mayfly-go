@@ -1,19 +1,19 @@
 <template>
     <div class="file-manage">
         <el-dialog :title="$t('machine.process')" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="65%">
-            <div class="card pd5">
+            <div class="card !p-1">
                 <el-row>
                     <el-col :span="4">
                         <el-input size="small" :placeholder="$t('machine.processName')" v-model="params.name" plain clearable></el-input>
                     </el-col>
-                    <el-col :span="4" class="ml5">
-                        <el-select class="w100" @change="getProcess" size="small" v-model="params.sortType" :placeholder="$t('machine.selectSortType')">
+                    <el-col :span="4" class="ml-1">
+                        <el-select class="!w-full" @change="getProcess" size="small" v-model="params.sortType" :placeholder="$t('machine.selectSortType')">
                             <el-option key="cpu" :label="$t('machine.cpuDesc')" value="1"> </el-option>
                             <el-option key="cpu" :label="$t('machine.memDesc')" value="2"> </el-option>
                         </el-select>
                     </el-col>
-                    <el-col :span="4" class="ml5">
-                        <el-select class="w100" @change="getProcess" size="small" v-model="params.count" :placeholder="$t('machine.selectProcessNum')">
+                    <el-col :span="4" class="ml-1">
+                        <el-select class="!w-full" @change="getProcess" size="small" v-model="params.count" :placeholder="$t('machine.selectProcessNum')">
                             <el-option key="10" label="10" value="10"> </el-option>
                             <el-option key="15" label="15" value="15"> </el-option>
                             <el-option key="20" label="20" value="20"> </el-option>
@@ -21,7 +21,7 @@
                         </el-select>
                     </el-col>
                     <el-col :span="6">
-                        <el-button class="ml5" @click="getProcess" type="primary" icon="refresh" size="small" plain>{{ $t('common.refresh') }}</el-button>
+                        <el-button class="ml-1" @click="getProcess" type="primary" icon="refresh" size="small" plain>{{ $t('common.refresh') }}</el-button>
                     </el-col>
                 </el-row>
             </div>

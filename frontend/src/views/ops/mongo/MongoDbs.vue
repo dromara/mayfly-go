@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog width="800px" :title="$t('mongo.dbList')" :before-close="close" v-model="databaseDialog.visible">
-            <div class="mb5">
+            <div class="mb-1">
                 <el-button @click="showCreateDbDialog" type="primary" icon="plus" size="small">{{ $t('common.create') }}</el-button>
             </div>
             <el-table :data="databaseDialog.data" :max-height="500">
@@ -70,7 +70,7 @@
         </el-dialog>
 
         <el-dialog width="600px" :title="collectionsDialog.title" v-model="collectionsDialog.visible">
-            <div class="mb5">
+            <div class="mb-1">
                 <el-button @click="showCreateCollectionDialog" type="primary" icon="plus" size="small">{{ $t('common.create') }}</el-button>
             </div>
             <el-table stripe :data="collectionsDialog.data" :max-height="500">
