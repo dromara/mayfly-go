@@ -1,8 +1,9 @@
 <template>
-    <div class="card !p-1">
+    <el-card class="h-full flex" body-class="!p-1 flex flex-col flex-1 overflow-auto">
         <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="!mb-1 w-full" />
-        <el-scrollbar class="tag-tree">
+        <el-scrollbar>
             <el-tree
+                class="min-w-full inline-block"
                 ref="treeRef"
                 :highlight-current="true"
                 :indent="10"
@@ -21,7 +22,7 @@
                     <span
                         :id="node.key"
                         @dblclick="treeNodeDblclick(data, node)"
-                        class="node-container none-select"
+                        class="node-container flex items-center w-full cursor-pointer none-select"
                         :class="data.type.nodeDblclickFunc ? 'none-select' : ''"
                     >
                         <span v-if="data.type.value == TagTreeNode.TagPath">
@@ -40,7 +41,7 @@
                             </slot>
                         </span>
 
-                        <span class="label-suffix">
+                        <span class="absolute right-2.5 mt-0.5 text-[10px] text-gray-400">
                             <slot :node="node" :data="data" name="suffix"></slot>
                         </span>
                     </span>
@@ -49,7 +50,7 @@
 
             <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
         </el-scrollbar>
-    </div>
+    </el-card>
 </template>
 
 <script lang="ts" setup>
@@ -240,28 +241,4 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped>
-.tag-tree {
-    height: calc(100vh - 143px);
-
-    .el-tree {
-        display: inline-block;
-        min-width: 100%;
-    }
-
-    .label-suffix {
-        position: absolute;
-        right: 10px;
-        color: #c4c9c4;
-        font-size: 10px;
-        margin-top: 2px;
-    }
-
-    .node-container {
-        display: flex;
-        align-items: center;
-        width: 100%; // 确保容器宽度占满整个节点区域
-        cursor: pointer; // 添加鼠标指针样式
-    }
-}
-</style>
+<style lang="scss" scoped></style>

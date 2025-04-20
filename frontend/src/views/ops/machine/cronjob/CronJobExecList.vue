@@ -9,6 +9,7 @@
             :show-close="true"
             :destroy-on-close="true"
             width="65%"
+            body-class="h-200"
         >
             <page-table
                 ref="pageTableRef"

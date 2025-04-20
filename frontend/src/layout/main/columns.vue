@@ -5,10 +5,10 @@
             <Aside />
             <el-container class="flex-center layout-backtop">
                 <Header v-if="isFixedHeader" />
-                <el-scrollbar>
-                    <Header v-if="!isFixedHeader" />
-                    <Main />
-                </el-scrollbar>
+                <!-- <el-scrollbar> -->
+                <Header v-if="!isFixedHeader" />
+                <Main />
+                <!-- </el-scrollbar> -->
             </el-container>
         </div>
         <el-backtop target=".layout-backtop .el-scrollbar__wrap"></el-backtop>

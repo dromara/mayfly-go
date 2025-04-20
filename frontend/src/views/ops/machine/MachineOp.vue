@@ -1,5 +1,5 @@
 <template>
-    <div class="flex-all-center">
+    <div class="flex-all-center h-full">
         <ResourceOpPanel @resized="onResizeTagTree">
             <template #left>
                 <tag-tree
@@ -32,15 +32,8 @@
             </template>
 
             <template #right>
-                <div class="machine-terminal-tabs card !p-1">
-                    <el-tabs
-                        v-if="state.tabs.size > 0"
-                        type="card"
-                        @tab-remove="onRemoveTab"
-                        style="width: 100%"
-                        v-model="state.activeTermName"
-                        class="!h-full"
-                    >
+                <el-card class="h-full" body-class="machine-terminal-tabs h-full !p-1 flex flex-col flex-1">
+                    <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" v-model="state.activeTermName" class="!h-full w-full">
                         <el-tab-pane class="!h-full" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
                                 <el-popconfirm @confirm="handleReconnect(dt, true)" :title="$t('machine.reConnTips')">
@@ -162,7 +155,7 @@
                     <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title" />
 
                     <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title" />
-                </div>
+                </el-card>
             </template>
         </ResourceOpPanel>
     </div>
@@ -584,7 +577,6 @@ const handleReconnect = (tab: any, force = false) => {
 
 <style lang="scss">
 .machine-terminal-tabs {
-    height: calc(100vh - 108px);
     --el-tabs-header-height: 30px;
 
     .el-tabs {

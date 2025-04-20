@@ -1,5 +1,5 @@
 <template>
-    <div class="flex-all-center">
+    <div class="flex-all-center h-full">
         <ResourceOpPanel>
             <template #left>
                 <tag-tree
@@ -43,7 +43,7 @@
             </template>
 
             <template #right>
-                <div class="mongo-data-tab card !p-1 !w-full">
+                <div class="mongo-data-tab card h-full !p-1 w-full">
                     <el-row v-if="nowColl">
                         <el-descriptions class="!w-full" :column="10" size="small" border>
                             <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
@@ -546,12 +546,6 @@ const getNowDataTab = () => {
 }
 
 .mongo-data-tab {
-    height: calc(100vh - 108px);
-}
-
-.mongo-data-tab {
-    margin-top: 1px;
-
     .mongo-data-tab-data {
         height: calc(100vh - 230px);
     }

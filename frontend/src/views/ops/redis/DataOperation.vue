@@ -1,5 +1,5 @@
 <template>
-    <div class="redis-data-op flex-all-center">
+    <div class="redis-data-op flex-all-center h-full">
         <ResourceOpPanel>
             <template #left>
                 <tag-tree
@@ -45,7 +45,7 @@
             <template #right>
                 <Splitpanes class="default-theme">
                     <Pane size="35" max-size="50">
-                        <div class="key-list-vtree card !p-1">
+                        <div class="key-list-vtree h-full card !p-1">
                             <el-scrollbar>
                                 <el-row :gutter="5">
                                     <el-col :span="2">
@@ -144,7 +144,7 @@
                     </Pane>
 
                     <Pane>
-                        <div class="key-detail card !p-1">
+                        <div class="h-full card !p-1">
                             <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                                 <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                     <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
@@ -613,13 +613,8 @@ const delKey = async (key: string) => {
 };
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .redis-data-op {
-    .key-list-vtree,
-    .key-detail {
-        height: calc(100vh - 108px);
-    }
-
     .key-list-vtree .folder-label {
         font-weight: bold;
     }

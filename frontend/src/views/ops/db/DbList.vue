@@ -1,5 +1,5 @@
 <template>
-    <div class="db-list h-full">
+    <div class="db-list">
         <el-drawer
             :title="title"
             v-model="dialogVisible"
@@ -153,6 +153,7 @@
             :close-on-click-modal="false"
             v-model="sqlExecLogDialog.visible"
             :destroy-on-close="true"
+            body-class="h-250"
         >
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>

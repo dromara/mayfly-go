@@ -4,7 +4,7 @@
             <template #default="{ height, width }">
                 <el-table-v2
                     ref="tableRef"
-                    :header-height="showColumnTip && dbConfig.showColumnComment ? 45 : 30"
+                    :header-height="showColumnTip && dbConfig.showColumnComment ? 48 : 30"
                     :row-height="30"
                     :row-class="rowClass"
                     :row-key="null"
@@ -50,13 +50,13 @@
                                         </div>
 
                                         <!-- 字段备注信息 -->
-                                        <span
+                                        <div
                                             v-if="dbConfig.showColumnComment"
                                             style="color: var(--el-color-info-light-3)"
                                             class="!text-[10px] el-text el-text--small is-truncated"
                                         >
                                             {{ column.columnComment }}
-                                        </span>
+                                        </div>
                                     </div>
 
                                     <div v-else class="header-column-title">
@@ -107,7 +107,7 @@
                     </template>
 
                     <template v-if="state.loading" #overlay>
-                        <div class="el-loading-mask" style="display: flex; flex-direction: column; align-items: center; justify-content: center">
+                        <div class="el-loading-mask flex flex-col items-center justify-center">
                             <div>
                                 <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
                                 <el-text class="ml-1" tag="b">{{ $t('db.execTime') }} - {{ state.execTime.toFixed(1) }}s</el-text>
@@ -119,9 +119,7 @@
                     </template>
 
                     <template #empty>
-                        <div style="text-align: center">
-                            <el-empty :description="props.emptyText" :image-size="100" />
-                        </div>
+                        <el-empty class="text-center" :description="props.emptyText" :image-size="60" />
                     </template>
                 </el-table-v2>
             </template>

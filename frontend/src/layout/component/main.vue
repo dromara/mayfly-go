@@ -33,7 +33,6 @@ const { proxy } = getCurrentInstance() as any;
 const { themeConfig } = storeToRefs(useThemeConfig());
 const route = useRoute();
 const state = reactive({
-    headerHeight: '',
     currentRouteMeta: {} as any,
     isShowLink: false,
 });
@@ -50,20 +49,12 @@ const initCurrentRouteMeta = (meta: object) => {
         state.isShowLink = true;
     }, 100);
 };
-// 设置 main 的高度
-const initHeaderHeight = () => {
-    let { isTagsview } = themeConfig.value;
-    if (isTagsview) return (state.headerHeight = `77px`);
-    else return (state.headerHeight = `50px`);
-};
 // 页面加载前
 onBeforeMount(() => {
     initCurrentRouteMeta(route.meta);
-    initHeaderHeight();
 });
 // 监听 themeConfig 配置文件的变化，更新菜单 el-scrollbar 的高度
 watch(themeConfig.value, (val) => {
-    state.headerHeight = val.isTagsview ? '77px' : '50px';
     if (val.isFixedHeaderChange !== val.isFixedHeader) {
         if (!proxy.$refs.layoutScrollbarRef) return false;
         proxy.$refs.layoutScrollbarRef.update();

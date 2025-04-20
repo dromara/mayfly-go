@@ -1,5 +1,5 @@
 <template>
-    <div class="db-sql-exec">
+    <div class="db-sql-exec h-full">
         <ResourceOpPanel>
             <template #left>
                 <tag-tree
@@ -54,7 +54,7 @@
             </template>
 
             <template #right>
-                <div class="card db-op !p-1">
+                <el-card class="h-full" body-class="h-full !p-1 flex flex-col flex-1">
                     <el-row>
                         <el-col :span="24" v-if="state.db">
                             <el-descriptions :column="4" size="small" border>
@@ -151,9 +151,8 @@
                             type="card"
                             @tab-remove="onRemoveTab"
                             @tab-change="onTabChange"
-                            style="width: 100%"
                             v-model="state.activeName"
-                            class="!h-full"
+                            class="!h-full w-full"
                         >
                             <el-tab-pane class="!h-full" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                                 <template #label>
@@ -210,7 +209,7 @@
                             </el-tab-pane>
                         </el-tabs>
                     </div>
-                </div>
+                </el-card>
             </template>
         </ResourceOpPanel>
 
@@ -980,18 +979,14 @@ const getNowDbInfo = () => {
 };
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .db-sql-exec {
-    .db-op {
-        height: calc(100vh - 106px);
-    }
-
     #data-exec {
-        .el-tabs {
+        ::v-deep(.el-tabs) {
             --el-tabs-header-height: 30px;
         }
 
-        .el-tabs__header {
+        ::v-deep(.el-tabs__header) {
             margin: 0 0 5px;
 
             .el-tabs__item {
@@ -999,8 +994,10 @@ const getNowDbInfo = () => {
             }
         }
 
-        .el-tabs__nav-next,
-        .el-tabs__nav-prev {
+        ::v-deep(.el-tabs__nav-next) {
+            line-height: 30px;
+        }
+        ::v-deep(.el-tabs__nav-prev) {
             line-height: 30px;
         }
     }
