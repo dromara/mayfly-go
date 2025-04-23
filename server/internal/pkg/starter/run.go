@@ -33,8 +33,8 @@ func RunWebServer() {
 	// 初始化并赋值数据库全局变量
 	initDb()
 
-	// 有配置redis信息，则初始化redis。多台机器部署需要使用redis存储验证码、权限、公私钥等
-	initRedis()
+	// 初始化缓存
+	initCache()
 
 	// 数据库升级操作
 	if err := migration.RunMigrations(global.Db); err != nil {

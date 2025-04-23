@@ -28,7 +28,7 @@ func AddInitFunc(initFunc InitFunc) {
 
 // 系统启动时，调用各个模块的初始化函数
 func InitOther() {
-	// 调用各个默认ioc组件注册初始化，优先调用ioc初始化注册函数和注入函数（可能在后续的InitFunc中需要用到依赖实例）
+	// 调用各个模块ioc组件注册初始化，优先调用ioc初始化注册函数和注入函数（可能在后续的InitFunc中需要用到依赖实例）
 	for _, initIocFunc := range initIocFuncs {
 		initIocFunc()
 	}

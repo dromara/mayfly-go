@@ -1,17 +1,19 @@
 <template>
-    <div class="tag-tree-list card">
+    <div class="tag-tree-list card h-full flex">
         <Splitpanes class="default-theme">
-            <Pane size="30" min-size="25" max-size="35">
-                <div class="card !p-1 !mb-1 !mr-1">
-                    <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" style="width: 200px; margin-right: 10px" />
-                    <el-button
-                        v-if="useUserInfo().userInfo.username == 'admin'"
-                        v-auth="'tag:save'"
-                        type="primary"
-                        icon="plus"
-                        @click="showSaveTagDialog(null)"
-                    ></el-button>
-                    <div class="float-right">
+            <Pane size="30" min-size="25" max-size="35" class="flex flex-col flex-1">
+                <div class="card !p-1 !mb-1 !mr-1 flex justify-between">
+                    <div class="mb-1">
+                        <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" class="mr-2 !w-[200px]" />
+                        <el-button
+                            v-if="useUserInfo().userInfo.username == 'admin'"
+                            v-auth="'tag:save'"
+                            type="primary"
+                            icon="plus"
+                            @click="showSaveTagDialog(null)"
+                        ></el-button>
+                    </div>
+                    <div>
                         <el-tooltip placement="top">
                             <template #content>
                                 {{ $t('tag.tagTips1') }}
@@ -19,11 +21,7 @@
                                 {{ $t('tag.tagTips2') }} <br />
                                 {{ $t('tag.tagTips3') }}
                             </template>
-                            <span>
-                                <el-icon>
-                                    <question-filled />
-                                </el-icon>
-                            </span>
+                            <SvgIcon name="question-filled" />
                         </el-tooltip>
                     </div>
                 </div>
@@ -67,8 +65,8 @@
             </Pane>
 
             <Pane min-size="40" size="70">
-                <div class="ml-2">
-                    <el-tabs @tab-change="tabChange" v-model="state.activeTabName" v-if="currentTag">
+                <div class="ml-2 h-full">
+                    <el-tabs class="h-full" @tab-change="tabChange" v-model="state.activeTabName" v-if="currentTag">
                         <el-tab-pane :label="$t('common.detail')" :name="TagDetail">
                             <el-descriptions :column="2" border>
                                 <el-descriptions-item :label="$t('common.type')">
@@ -91,6 +89,7 @@
                         </el-tab-pane>
 
                         <el-tab-pane
+                            class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
                             :label="`${$t('tag.machine')} (${resourceCount.machine || 0})`"
                             :name="MachineTag"
@@ -99,6 +98,7 @@
                         </el-tab-pane>
 
                         <el-tab-pane
+                            class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
                             :label="`${$t('tag.db')} (${resourceCount.db || 0})`"
                             :name="DbTag"
@@ -107,6 +107,7 @@
                         </el-tab-pane>
 
                         <el-tab-pane
+                            class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
                             :label="`Redis (${resourceCount.redis || 0})`"
                             :name="RedisTag"
@@ -115,6 +116,7 @@
                         </el-tab-pane>
 
                         <el-tab-pane
+                            class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
                             :label="`Mongo (${resourceCount.mongo || 0})`"
                             :name="MongoTag"
@@ -490,17 +492,10 @@ const removeDeafultExpandId = (id: any) => {
 <style lang="scss">
 .tag-tree-list {
     .tag-tree-data {
-        height: calc(100vh - 202px);
-
         .el-tree-node__content {
             height: 40px;
             line-height: 40px;
         }
-    }
-
-    .el-tree {
-        display: inline-block;
-        min-width: 100%;
     }
 }
 </style>

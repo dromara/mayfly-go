@@ -419,14 +419,12 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 					continue
 				}
 
-				// 如用户分配了: "default/type1|code1/type2|code2/type3|code3/", 需要查询的codePathLike为: default/type1|%/type2|%/，即用户分配的标签路径是查询的子节点。
-				// 若需要获取所有子节点，则codePathLike 使用default/type1|code1/type2|code2/去查。否则需要单独再去查一遍
+				// 如用户分配了: "default/type1|code1/type2|code2/type3|code3/",即accountMathPath=default/type1|%/type2|%/type3/%/, 需要查询的codePathLike为: default/type1|%/type2|%/，即用户分配的标签路径是查询的子节点。
+				// 则codePathLike 使用default/type1|code1/type2|code2/去查
 				if strings.HasPrefix(accountMatchPath, codePathLike) {
 					actualMatchCodePath := accountTagCodePathSections[len(entity.CodePath(codePathLike).GetPathSections())-1].Path
 					needFilterAccountTagPaths[actualMatchCodePath] = append(needFilterAccountTagPaths[actualMatchCodePath], accountTag)
-					if query.GetAllChildren {
-						codePathLikes = append(codePathLikes, actualMatchCodePath)
-					}
+					codePathLikes = append(codePathLikes, actualMatchCodePath)
 				}
 			}
 		}
@@ -444,19 +442,8 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	tagResourceQuery.CodePathLikes = codePathLikes
 	p.ListByQuery(tagResourceQuery, &tagResources)
 
-	// 不是获取所有子节点，则需要额外查询需要过滤的节点信息。如用户分配了default/2|db_local/5|db_local_root/22|cWMpm6137g/标签，但是typePath为default/2|%/5|%/
-	// 由于不是获取所有子节点，则会被追加Type进行过滤，故获取不到default/2|db_local/5|db_local_root/的信息，需要额外查询
-	if !query.GetAllChildren && len(needFilterAccountTagPaths) > 0 {
-		var otherTags []*dto.SimpleTagTree
-		p.ListByQuery(&entity.TagTreeQuery{
-			CodePaths: collx.MapKeys(needFilterAccountTagPaths),
-		}, &otherTags)
-		tagResources = append(tagResources, otherTags...)
-		// 清空，因为不是获取所有子节点，so 后续不需要进行过滤
-		clear(needFilterAccountTagPaths)
-	}
-
-	if len(needFilterAccountTagPaths) > 0 {
+	// 获取所有子节点，并且存在需要过滤的路径，则进行过滤处理
+	if query.GetAllChildren && len(needFilterAccountTagPaths) > 0 {
 		tagResources = collx.ArrayFilter(tagResources, func(tr *dto.SimpleTagTree) bool {
 			for codePathLike, accountTags := range needFilterAccountTagPaths {
 				if strings.HasPrefix(tr.CodePath, codePathLike) {

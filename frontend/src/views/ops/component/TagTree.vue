@@ -22,8 +22,8 @@
                     <span
                         :id="node.key"
                         @dblclick="treeNodeDblclick(data, node)"
-                        class="node-container flex items-center w-full cursor-pointer none-select"
-                        :class="data.type.nodeDblclickFunc ? 'none-select' : ''"
+                        class="node-container flex items-center w-full cursor-pointer select-none"
+                        :class="data.type.nodeDblclickFunc ? 'select-none' : ''"
                     >
                         <span v-if="data.type.value == TagTreeNode.TagPath">
                             <tag-info :tag-path="data.label" />

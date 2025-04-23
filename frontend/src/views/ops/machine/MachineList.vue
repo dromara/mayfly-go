@@ -324,7 +324,7 @@ const columns = [
     TableColumn.new('fs', 'machine.fs').isSlot().setAddWidth(25),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter().noShowOverflowTooltip(),
 ];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效

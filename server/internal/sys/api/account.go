@@ -110,7 +110,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 
 	form := req.BindJsonAndValid(rc, new(form.AccountChangePasswordForm))
 
-	originOldPwd, err := cryptox.DefaultRsaDecrypt(form.OldPassword, true)
+	originOldPwd, err := utils.DefaultRsaDecrypt(form.OldPassword, true)
 	biz.ErrIsNilAppendErr(err, "Wrong to decrypt old password: %s")
 
 	account := &entity.Account{Username: form.Username}
@@ -119,7 +119,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	biz.IsTrueI(ctx, cryptox.CheckPwdHash(originOldPwd, account.Password), imsg.ErrOldPasswordWrong)
 	biz.IsTrue(account.IsEnable(), "This account is not available")
 
-	originNewPwd, err := cryptox.DefaultRsaDecrypt(form.NewPassword, true)
+	originNewPwd, err := utils.DefaultRsaDecrypt(form.NewPassword, true)
 	biz.ErrIsNilAppendErr(err, "Wrong to decrypt new password: %s")
 	biz.IsTrueI(ctx, utils.CheckAccountPasswordLever(originNewPwd), imsg.ErrAccountPasswordNotFollowRule)
 

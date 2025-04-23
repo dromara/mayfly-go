@@ -1,6 +1,6 @@
 <template>
     <el-config-provider :size="getGlobalComponentSize" :locale="getGlobalI18n">
-        <div class="!h-full">
+        <div class="h-full">
             <el-watermark
                 :zIndex="10000000"
                 :width="210"

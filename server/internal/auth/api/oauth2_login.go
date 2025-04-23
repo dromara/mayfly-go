@@ -55,14 +55,14 @@ func (o *Oauth2Login) ReqConfs() *req.Confs {
 func (a *Oauth2Login) OAuth2Login(rc *req.Ctx) {
 	client, _ := a.getOAuthClient()
 	state := stringx.Rand(32)
-	cache.SetStr("oauth2:state:"+state, "login", 5*time.Minute)
+	cache.Set("oauth2:state:"+state, "login", 5*time.Minute)
 	rc.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
 
 func (a *Oauth2Login) OAuth2Bind(rc *req.Ctx) {
 	client, _ := a.getOAuthClient()
 	state := stringx.Rand(32)
-	cache.SetStr("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.GetLoginAccount().Id, 10),
+	cache.Set("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.GetLoginAccount().Id, 10),
 		5*time.Minute)
 	rc.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }

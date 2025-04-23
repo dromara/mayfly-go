@@ -1,24 +1,23 @@
 <template>
-    <div class="card system-resouce-list">
+    <div class="card system-resource-list h-full flex">
         <Splitpanes class="default-theme">
-            <Pane size="25" min-size="20" max-size="30">
-                <div class="card !p-1 mr-1">
-                    <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" style="width: 200px; margin-right: 10px" />
-                    <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
+            <Pane size="30" min-size="25" max-size="35" class="flex flex-col flex-1">
+                <div class="card !p-1 mr-1 flex justify-between">
+                    <div class="mb-1">
+                        <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" class="mr-2 !w-[200px]" />
+                        <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
+                    </div>
 
-                    <div class="float-right">
+                    <div>
                         <el-tooltip placement="top">
                             <template #content> {{ $t('system.menu.opTips') }} </template>
-                            <span>
-                                <SvgIcon name="question-filled" />
-                            </span>
+                            <SvgIcon name="question-filled" />
                         </el-tooltip>
                     </div>
                 </div>
-                <el-scrollbar class="tree-data">
+                <el-scrollbar>
                     <el-tree
                         ref="resourceTreeRef"
-                        class="none-select"
                         :indent="24"
                         node-key="id"
                         :props="props"
@@ -62,7 +61,7 @@
                 </el-scrollbar>
             </Pane>
 
-            <Pane min-size="40">
+            <Pane min-size="40" size="70">
                 <div class="ml-2">
                     <el-tabs v-model="state.activeTabName" @tab-click="onTabClick" v-if="currentResource">
                         <el-tab-pane :label="$t('common.detail')" :name="ResourceDetail">
@@ -437,29 +436,10 @@ const removeDeafultExpandId = (id: any) => {
 };
 </script>
 <style lang="scss">
-.system-resouce-list {
+.system-resource-list {
     .el-tree-node__content {
         height: 40px;
         line-height: 40px;
     }
-
-    .tree-data {
-        height: calc(100vh - 202px);
-    }
-
-    .el-tree {
-        display: inline-block;
-        min-width: 100%;
-    }
-}
-
-.none-select {
-    moz-user-select: -moz-none;
-    -moz-user-select: none;
-    -o-user-select: none;
-    -khtml-user-select: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
 }
 </style>
