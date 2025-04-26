@@ -1,7 +1,7 @@
 <template>
     <div>
-        <el-dialog @close="closeDialog" :title="title" :before-close="closeDialog" v-model="dialogVisible" width="400px">
-            <el-tree style="height: 50vh; overflow: auto" :data="resources" node-key="id" :props="defaultProps">
+        <el-dialog @close="closeDialog" :title="props.title" :before-close="closeDialog" v-model="visible" width="400px">
+            <el-tree style="height: 50vh; overflow: auto" :data="props.resources" node-key="id" :props="defaultProps">
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
                         <SvgIcon :name="getMenuIcon(data)" class="mb-0.5 mr-0.5" />
@@ -35,15 +35,11 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch } from 'vue';
 import { ResourceTypeEnum } from '../enums';
 import { formatDate } from '@/common/utils/format';
 import { getMenuIcon } from '../resource/index';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     resources: {
         type: Array,
     },
@@ -52,29 +48,15 @@ const props = defineProps({
     },
 });
 
-//定义事件
-const emit = defineEmits(['update:visible', 'update:resources']);
+const visible = defineModel<boolean>('visible', { default: false });
 
 const defaultProps = {
     children: 'children',
     label: 'name',
 };
 
-const state = reactive({
-    dialogVisible: false,
-});
-const { dialogVisible } = toRefs(state);
-
-watch(
-    () => props.visible,
-    (newValue) => {
-        state.dialogVisible = newValue;
-    }
-);
-
 const closeDialog = () => {
-    emit('update:visible', false);
-    emit('update:resources', []);
+    visible.value = false;
 };
 </script>
 

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="flex">
         <!-- key name -->
         <div class="key-header-item key-name-input">
             <el-input ref="keyNameInput" v-model="ki.key" :title="$t('redis.renameTips')" placeholder="KeyName">
@@ -178,12 +178,6 @@ const ttlConveter = (ttl: any) => {
 
 .cursor-pointer {
     cursor: pointer;
-}
-
-.key-header-item {
-    /*padding-right: 15px;*/
-    /*margin-bottom: 10px;*/
-    float: left;
 }
 
 .key-header-item.key-name-input {

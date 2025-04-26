@@ -1,5 +1,5 @@
 <template>
-    <div class="redis-data-op flex-all-center h-full">
+    <div class="redis-data-op h-full">
         <ResourceOpPanel>
             <template #left>
                 <tag-tree
@@ -144,9 +144,9 @@
                     </Pane>
 
                     <Pane>
-                        <div class="h-full card !p-1">
-                            <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
-                                <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                        <div class="h-full card !p-1 key-deatil">
+                            <el-tabs class="h-full" @tab-remove="removeDataTab" v-model="state.activeName">
+                                <el-tab-pane class="h-full" closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                     <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
                                 </el-tab-pane>
                             </el-tabs>
@@ -614,6 +614,18 @@ const delKey = async (key: string) => {
 </script>
 
 <style lang="scss" scoped>
+.key-deatil {
+    .el-tabs__header {
+        background-color: var(--el-color-white);
+        border-bottom: 1px solid var(--el-border-color);
+    }
+
+    ::v-deep(.el-tabs__item) {
+        padding: 0 10px;
+        height: 29px;
+    }
+}
+
 .redis-data-op {
     .key-list-vtree .folder-label {
         font-weight: bold;

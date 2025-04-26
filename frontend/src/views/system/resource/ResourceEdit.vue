@@ -1,6 +1,6 @@
 <template>
-    <div class="system-menu-dialog-container layout-pd">
-        <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="800px">
+    <div>
+        <el-dialog :title="title" :destroy-on-close="true" v-model="visible" width="800px">
             <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="auto">
                 <el-row :gutter="35">
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
@@ -111,9 +111,6 @@ import { Rules } from '@/common/rule';
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -125,8 +122,10 @@ const props = defineProps({
     },
 });
 
+const visible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const menuForm: any = ref(null);
 
@@ -161,7 +160,6 @@ const trueFalseOption = [
 ];
 
 const state = reactive({
-    dialogVisible: false,
     form: {
         id: null,
         name: null,
@@ -183,12 +181,14 @@ const state = reactive({
     submitForm: {},
 });
 
-const { dialogVisible, form, submitForm } = toRefs(state);
+const { form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.save.useApi(submitForm);
 
 watchEffect(() => {
-    state.dialogVisible = props.visible;
+    if (!visible.value) {
+        return;
+    }
     if (props.data) {
         state.form = { ...(props.data as any) };
     } else {
@@ -271,7 +271,7 @@ const parseMenuMeta = (meta: any) => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

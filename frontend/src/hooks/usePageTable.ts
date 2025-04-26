@@ -22,7 +22,7 @@ export const usePageTable = (
 ) => {
     const state = reactive({
         // 表格数据
-        tableData: [],
+        tableData: [{}],
         // 总数量
         total: 0,
         // 查询参数,包含分页参数

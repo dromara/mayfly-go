@@ -1,21 +1,10 @@
 <template>
-    <div>
-        <el-container direction="vertical" class="key-tab-container">
-            <!-- key info -->
-            <key-header
-                ref="keyHeader"
-                :redis="props.redis"
-                :key-info="state.keyInfo"
-                @refresh-content="refreshContent"
-                @del-key="delKey"
-                @change-key="changeKey"
-                class="key-header-info"
-            >
-            </key-header>
+    <div class="flex flex-col h-full">
+        <!-- key info -->
+        <key-header :redis="props.redis" :key-info="state.keyInfo" @refresh-content="refreshContent" @del-key="delKey" @change-key="changeKey"> </key-header>
 
-            <!-- key content -->
-            <component ref="keyValueRef" :is="components[componentName]" :redis="props.redis" :key-info="keyInfo"> </component>
-        </el-container>
+        <!-- key content , 暂不懂为啥要用h-0或者其他随便设个高度？，h-full就是不行会导致loadMore按钮不显示 -->
+        <component class="h-0 flex-1" ref="keyValueRef" :is="components[componentName]" :redis="props.redis" :key-info="keyInfo"> </component>
     </div>
 </template>
 <script lang="ts" setup>
@@ -106,23 +95,9 @@ onMounted(() => {
 });
 </script>
 <style lang="scss">
-.key-tab-container {
-    /*padding-left: 5px;*/
-}
-
-.key-header-info {
-    // margin-top: 15px;
-}
-
 .key-content-container {
     margin-top: 15px;
 }
-
-// .key-detail-filter-value {
-//     width: 90%;
-//     height: 24px;
-//     padding: 0 5px;
-// }
 
 /*tooltip in table width limit*/
 .el-tooltip__popper {

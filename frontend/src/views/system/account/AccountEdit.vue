@@ -1,5 +1,5 @@
 <template>
-    <div class="account-dialog">
+    <div>
         <el-dialog :title="title" v-model="visible" :before-close="cancel" :show-close="false" width="600px" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
                 <el-form-item prop="name" :label="$t('system.account.name')">
@@ -73,7 +73,7 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 

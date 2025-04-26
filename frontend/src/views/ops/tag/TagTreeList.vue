@@ -27,6 +27,7 @@
                 </div>
                 <el-scrollbar class="tag-tree-data">
                     <el-tree
+                        class="min-w-full inline-block"
                         ref="tagTreeRef"
                         node-key="id"
                         highlight-current

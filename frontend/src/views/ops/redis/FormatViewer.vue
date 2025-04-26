@@ -1,6 +1,6 @@
 <template>
     <div class="format-viewer-container">
-        <div class="mb-1 float-right">
+        <div class="mb-1 flex justify-end">
             <el-select v-model="selectedView" class="format-selector" size="small" placeholder="Text">
                 <template #prefix>
                     <SvgIcon name="view" />

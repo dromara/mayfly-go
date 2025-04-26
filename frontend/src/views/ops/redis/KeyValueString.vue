@@ -1,11 +1,9 @@
 <template>
-    <div>
-        <el-form class="key-content-string" label-width="auto">
-            <div>
-                <format-viewer ref="formatViewerRef" height="250px" :content="string.value"></format-viewer>
-            </div>
+    <div class="flex flex-col h-full">
+        <el-form label-width="auto">
+            <format-viewer ref="formatViewerRef" height="280px" :content="string.value"></format-viewer>
         </el-form>
-        <div class="!mt-2 float-right">
+        <div class="mt-2 flex justify-end">
             <el-button @click="saveValue" type="primary" v-auth="'redis:data:save'">{{ $t('common.save') }}</el-button>
         </div>
     </div>
@@ -89,19 +87,4 @@ const saveValue = async () => {
 
 defineExpose({ initData });
 </script>
-<style lang="scss">
-// .key-content-string .format-viewer-container {
-//     min-height: calc(100vh - 253px);
-// }
-
-// /*text viewer box*/
-// .key-content-string .el-textarea textarea {
-//     font-size: 14px;
-//     height: calc(100vh - 436px);
-// }
-
-// /*json in monaco editor*/
-// .key-content-string .monaco-editor-content {
-//     height: calc(100vh - 450px) !important;
-// }
-</style>
+<style lang="scss"></style>

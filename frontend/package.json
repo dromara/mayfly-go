@@ -63,7 +63,7 @@
         "sass": "^1.87.0",
         "tailwindcss": "^4.1.4",
         "typescript": "^5.8.2",
-        "vite": "^6.3.2",
+        "vite": "^6.3.3",
         "vite-plugin-progress": "0.0.7",
         "vue-eslint-parser": "^10.1.3"
     },

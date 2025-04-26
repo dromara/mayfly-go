@@ -1,6 +1,6 @@
 <template>
-    <div id="terminal-body" :style="{ height }">
-        <div ref="terminalRef" class="terminal" />
+    <div class="h-full w-full flex">
+        <div ref="terminalRef" class="h-full w-full" :style="{ background: getTerminalTheme().background }" />
 
         <TerminalSearch ref="terminalSearchRef" :search-addon="state.addon.search" @close="focus" />
     </div>
@@ -18,7 +18,7 @@ import { useThemeConfig } from '@/store/themeConfig';
 import { ref, nextTick, reactive, onMounted, onBeforeUnmount, watch } from 'vue';
 import TerminalSearch from './TerminalSearch.vue';
 import { TerminalStatus } from './common';
-import { useDebounceFn, useEventListener } from '@vueuse/core';
+import { useDebounceFn, useEventListener, useIntervalFn } from '@vueuse/core';
 import themes from './themes';
 import { TrzszFilter } from 'trzsz';
 import { useI18n } from 'vue-i18n';
@@ -41,13 +41,6 @@ const props = defineProps({
     socketUrl: {
         type: String,
     },
-    /**
-     * 高度
-     */
-    height: {
-        type: [String, Number],
-        default: '100%',
-    },
 });
 
 const emit = defineEmits(['statusChange']);
@@ -60,7 +53,6 @@ const { themeConfig } = storeToRefs(useThemeConfig());
 // 终端实例
 let term: Terminal;
 let socket: WebSocket;
-let pingInterval: any;
 
 const state = reactive({
     // 插件
@@ -89,7 +81,9 @@ watch(
 watch(
     () => themeConfig.value.terminalTheme,
     () => {
-        term.options.theme = getTerminalTheme();
+        if (term) {
+            term.options.theme = getTerminalTheme();
+        }
     }
 );
 
@@ -154,7 +148,8 @@ function initSocket() {
     // 监听socket连接
     socket.onopen = () => {
         // 注册心跳
-        pingInterval = setInterval(sendPing, 15000);
+        useIntervalFn(sendPing, 15000);
+
         state.status = TerminalStatus.Connected;
 
         focus();
@@ -289,8 +284,6 @@ function sendCmd(key: any) {
 function closeSocket() {
     // 关闭 websocket
     socket && socket.readyState === 1 && socket.close();
-    // 清除 ping
-    pingInterval && clearInterval(pingInterval);
 }
 
 function close() {
@@ -310,17 +303,4 @@ const getStatus = (): TerminalStatus => {
 
 defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize, write2Term, writeln2Term });
 </script>
-<style lang="scss">
-#terminal-body {
-    width: 100%;
-
-    .terminal {
-        width: 100%;
-        height: 100%;
-
-        // .xterm .xterm-viewport {
-        //     overflow-y: hidden;
-        // }
-    }
-}
-</style>
+<style lang="scss"></style>

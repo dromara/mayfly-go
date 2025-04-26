@@ -1,5 +1,5 @@
 <template>
-    <div class="monaco-editor-custom h-full" style="border: 1px solid var(--el-border-color-light, #ebeef5)">
+    <div class="monaco-editor-custom relative h-full" style="border: 1px solid var(--el-border-color-light, #ebeef5)">
         <div class="monaco-editor-content" ref="monacoTextareaRef" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage" filterable>
             <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>

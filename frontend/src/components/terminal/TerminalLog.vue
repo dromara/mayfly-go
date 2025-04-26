@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-drawer v-model="visible" :before-close="cancel" size="50%">
+        <el-drawer v-model="visible" :before-close="cancel" size="50%" body-class="flex flex-col">
             <template #header>
                 <DrawerHeader :header="props.title" :back="cancel">
                     <template #extra>
@@ -13,7 +13,7 @@
                 <el-descriptions-item v-for="(value, key) in extra" :key="key" :span="1" :label="key">{{ value }}</el-descriptions-item>
             </el-descriptions>
 
-            <TerminalBody class="mb-2" ref="terminalRef" height="calc(100vh - 220px)" />
+            <TerminalBody class="mb-2 flex-1" ref="terminalRef" />
         </el-drawer>
     </div>
 </template>

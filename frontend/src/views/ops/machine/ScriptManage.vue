@@ -1,5 +1,5 @@
 <template>
-    <div class="file-manage">
+    <div>
         <el-dialog
             @open="getScripts()"
             :title="title"
@@ -68,10 +68,11 @@
             :close-on-click-modal="false"
             :modal="false"
             @close="closeTermnial"
+            body-class="h-[560px]"
             draggable
             append-to-body
         >
-            <TerminalBody ref="terminal" :cmd="terminalDialog.cmd" :socket-url="getMachineTerminalSocketUrl(props.authCertName)" height="560px" />
+            <TerminalBody ref="terminal" :cmd="terminalDialog.cmd" :socket-url="getMachineTerminalSocketUrl(props.authCertName)" />
         </el-dialog>
 
         <script-edit
@@ -86,7 +87,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch, Ref } from 'vue';
+import { ref, toRefs, reactive, Ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
@@ -102,19 +103,19 @@ import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: { type: Boolean },
     machineId: { type: Number },
     authCertName: { type: String },
     title: { type: String },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const emit = defineEmits(['cancel', 'update:machineId']);
 
 const paramsForm: any = ref(null);
 const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
-    dialogVisible: false,
     selectionData: [],
     searchItems: [SearchItem.select('type', 'common.type').withEnum(ScriptTypeEnum)],
     columns: [
@@ -151,11 +152,7 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
-
-watch(props, async (newValue) => {
-    state.dialogVisible = newValue.visible;
-});
+const { columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
 
 const getScripts = async () => {
     pageTableRef.value.search();
@@ -271,7 +268,7 @@ const deleteRow = async (rows: any) => {
  * 关闭取消按钮触发的事件
  */
 const handleClose = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('update:machineId', null);
     emit('cancel');
     state.query.type = ScriptTypeEnum.Private.value;

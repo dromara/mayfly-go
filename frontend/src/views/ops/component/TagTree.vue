@@ -1,5 +1,5 @@
 <template>
-    <el-card class="h-full flex" body-class="!p-1 flex flex-col flex-1 overflow-auto">
+    <el-card class="h-full flex" body-class="!p-1 flex flex-col w-full">
         <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="!mb-1 w-full" />
         <el-scrollbar>
             <el-tree
@@ -22,7 +22,7 @@
                     <span
                         :id="node.key"
                         @dblclick="treeNodeDblclick(data, node)"
-                        class="node-container flex items-center w-full cursor-pointer select-none"
+                        class="node-container flex items-center cursor-pointer select-none"
                         :class="data.type.nodeDblclickFunc ? 'select-none' : ''"
                     >
                         <span v-if="data.type.value == TagTreeNode.TagPath">

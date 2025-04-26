@@ -1,5 +1,5 @@
 <template>
-    <div class="mock-data-dialog">
+    <div>
         <el-dialog
             :title="title"
             v-model="dialogVisible"
@@ -35,8 +35,8 @@
                     <dynamic-form-edit v-model="params" />
                 </el-form-item>
 
-                <el-form-item required prop="script" class="100w">
-                    <div style="width: 100%">
+                <el-form-item required prop="script">
+                    <div class="w-full">
                         <monaco-editor v-model="form.script" language="shell" height="300px" />
                     </div>
                 </el-form-item>
@@ -66,9 +66,6 @@ import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: Object,
     },
@@ -83,7 +80,9 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const emit = defineEmits(['cancel', 'submitSuccess']);
 
 const rules = {
     name: [Rules.requiredInput('common.name')],
@@ -96,7 +95,6 @@ const { isCommon, machineId } = toRefs(props);
 const scriptForm: any = ref(null);
 
 const state = reactive({
-    dialogVisible: false,
     params: [] as any,
     form: {
         id: null,
@@ -110,11 +108,10 @@ const state = reactive({
     btnLoading: false,
 });
 
-const { dialogVisible, params, form, btnLoading } = toRefs(state);
+const { params, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (!newValue.visible) {
+    if (!dialogVisible.value) {
         return;
     }
     if (newValue.data) {
@@ -142,7 +139,7 @@ const btnOk = async () => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
     state.params = [];
 };

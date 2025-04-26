@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" size="1000px" :destroy-on-close="true">
+        <el-drawer :title="title" v-model="visible" :show-close="false" :before-close="cancel" size="1000px" :destroy-on-close="true">
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
@@ -14,7 +14,6 @@
                 </el-form-item>
                 <el-form-item prop="permission" :label="$t('system.sysconf.permission')">
                     <el-select
-                        style="width: 100%"
                         remote
                         :remote-method="getAccount"
                         v-model="state.permissionAccount"
@@ -58,9 +57,6 @@ const rules = {
 };
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -69,13 +65,14 @@ const props = defineProps({
     },
 });
 
+const visible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const configForm: any = ref(null);
 
 const state = reactive({
-    dvisible: false,
     params: [] as any,
     accounts: [] as any,
     permissionAccount: [] as any,
@@ -90,42 +87,37 @@ const state = reactive({
     },
 });
 
-const { dvisible, params, form } = toRefs(state);
+const { params, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi(form);
 
-watch(
-    () => props.visible,
-    () => {
-        state.dvisible = props.visible;
-        if (!state.dvisible) {
-            return;
-        }
+watch(visible, () => {
+    if (!visible.value) {
+        return;
+    }
 
-        if (props.data) {
-            state.form = { ...(props.data as any) };
-            if (state.form.params) {
-                state.params = JSON.parse(state.form.params);
-            } else {
-                state.params = [];
-            }
+    if (props.data) {
+        state.form = { ...(props.data as any) };
+        if (state.form.params) {
+            state.params = JSON.parse(state.form.params);
         } else {
-            state.form = { permission: 'all' } as any;
             state.params = [];
         }
-
-        if (state.form.permission != 'all') {
-            const accounts = state.form.permission.split(',');
-            state.permissionAccount = accounts.slice(0, accounts.length - 1);
-        } else {
-            state.permissionAccount = [];
-        }
+    } else {
+        state.form = { permission: 'all' } as any;
+        state.params = [];
     }
-);
+
+    if (state.form.permission != 'all') {
+        const accounts = state.form.permission.split(',');
+        state.permissionAccount = accounts.slice(0, accounts.length - 1);
+    } else {
+        state.permissionAccount = [];
+    }
+});
 
 const cancel = () => {
-    // 更新父组件visible prop对应的值为false
-    emit('update:visible', false);
+    visible.value = false;
     // 若父组件有取消事件，则调用
     emit('cancel');
     state.permissionAccount = [];

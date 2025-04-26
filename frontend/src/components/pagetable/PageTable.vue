@@ -10,7 +10,7 @@
             </SearchForm>
         </transition>
 
-        <el-card class="h-full" body-class="h-full">
+        <el-card class="h-full" body-class="h-full flex flex-col">
             <!-- 表格头部 操作按钮 -->
             <div class="flex justify-between">
                 <div>
@@ -79,8 +79,9 @@
                 </slot>
             </div>
 
-            <div class="h-[calc(100%-90px)]">
+            <div class="flex-1 overflow-auto">
                 <el-table
+                    v-show="showTable"
                     ref="tableRef"
                     v-bind="$attrs"
                     height="100%"
@@ -152,7 +153,6 @@
                     :small="props.size == 'small'"
                     @current-change="pageNumChange"
                     @size-change="pageSizeChange"
-                    style="text-align: right"
                     layout="prev, pager, next, total, sizes"
                     :total="total"
                     v-model:current-page="queryForm.pageNum"
@@ -165,7 +165,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, reactive, onMounted, Ref, ref, useSlots, toValue } from 'vue';
+import { toRefs, watch, reactive, onMounted, Ref, ref, useSlots, toValue, h } from 'vue';
 import { TableColumn } from './index';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -176,7 +176,7 @@ import { SearchItem } from '../SearchForm/index';
 import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { usePageTable } from '@/hooks/usePageTable';
-import { ElTable } from 'element-plus';
+import { ElInput, ElTable } from 'element-plus';
 
 const emit = defineEmits(['update:selectionData', 'pageSizeChange', 'pageNumChange']);
 
@@ -240,6 +240,10 @@ const showToolButton = (key: 'setting' | 'search') => {
 
 const nowSearchItem: Ref<SearchItem> = ref(null) as any;
 
+// 是否已经计算列宽度
+const isCalculatedWidth: Ref<boolean> = ref(false);
+const showTable: Ref<boolean> = ref(false);
+
 /**
  * 改变当前的搜索项
  * @param searchItem 当前点击的搜索项
@@ -276,14 +280,30 @@ const state = reactive({
 const { pageSizes, formatVal } = toRefs(state);
 
 watch(tableData, (newValue: any) => {
-    if (newValue && newValue.length > 0) {
-        props.columns.forEach((item) => {
-            if (item.autoWidth && item.show) {
-                item.autoCalculateMinWidth(tableData.value);
-            }
-        });
+    calculateTableColumnMinWidth();
+    // 需要计算完才能显示表格，否则会有表格闪烁的问题
+    if (!showTable.value) {
+        showTable.value = true;
     }
 });
+
+/**
+ * 计算表格列宽
+ */
+const calculateTableColumnMinWidth = () => {
+    if (isCalculatedWidth.value || !tableData.value || tableData.value.length === 0) {
+        return;
+    }
+
+    // 计算表格列宽
+    props.columns.forEach((item) => {
+        if (item.autoWidth && item.show) {
+            item.autoCalculateMinWidth(tableData.value);
+        }
+    });
+
+    isCalculatedWidth.value = true;
+};
 
 watch(
     () => props.data,

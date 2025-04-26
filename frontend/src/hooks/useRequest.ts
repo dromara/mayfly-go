@@ -2,11 +2,11 @@ import router from '@/router';
 import { clearUser, getClientId, getRefreshToken, getToken, saveRefreshToken, saveToken } from '@/common/utils/storage';
 import { templateResolve } from '@/common/utils/string';
 import { ElMessage } from 'element-plus';
-import { createFetch } from '@vueuse/core';
+import { createFetch, UseFetchReturn } from '@vueuse/core';
 import Api from '@/common/Api';
 import { Result, ResultEnum } from '@/common/request';
 import config from '@/common/config';
-import { unref } from 'vue';
+import { ref, unref } from 'vue';
 import { URL_401 } from '@/router/staticRouter';
 import openApi from '@/common/openApi';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -92,12 +92,15 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
         },
     });
 
+    // 统一处理后的返回结果，如果直接使用uaf.data，则数据会出现由{code: x, data: {}} -> data 的变化导致某些结果绑定报错
+    const data = ref<T | null>(null);
     return {
         execute: async function () {
-            return execCustomFetch(uaf);
+            await execCustomFetch(uaf);
+            data.value = uaf.data.value;
         },
         isFetching: uaf.isFetching,
-        data: uaf.data,
+        data: data,
         abort: uaf.abort,
     };
 }
@@ -105,7 +108,7 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
 let refreshingToken = false;
 let queue: any[] = [];
 
-async function execCustomFetch(uaf: any) {
+async function execCustomFetch(uaf: UseFetchReturn<any>) {
     try {
         await uaf.execute(true);
     } catch (e: any) {
@@ -118,22 +121,22 @@ async function execCustomFetch(uaf: any) {
 
         const respStatus = uaf.response.value?.status;
         if (respStatus == 404) {
-            ElMessage.error('请求接口不存在');
+            ElMessage.error('url not found');
             return rejectPromise;
         }
         if (respStatus == 500) {
-            ElMessage.error('服务器响应异常');
+            ElMessage.error('server error');
             return rejectPromise;
         }
 
         console.error(e);
-        ElMessage.error('网络请求错误');
+        ElMessage.error('network error');
         return rejectPromise;
     }
 
     const result: Result = uaf.data.value as any;
     if (!result) {
-        ElMessage.error('网络请求失败');
+        ElMessage.error('network request failed');
         return Promise.reject(result);
     }
 

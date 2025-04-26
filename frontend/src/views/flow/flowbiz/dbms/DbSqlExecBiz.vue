@@ -22,14 +22,21 @@
 
                 <el-table-column prop="res" :label="$t('flow.runResult')" :min-width="30" show-overflow-tooltip>
                     <template #default="scope">
-                        <el-popover placement="top" :width="400" trigger="hover">
+                        <el-popover placement="top" width="50%" trigger="hover">
                             <template #reference>
                                 <el-link icon="view" :type="scope.row.errorMsg ? 'danger' : 'success'" :underline="false"> </el-link>
                             </template>
 
                             <el-text v-if="scope.row.errorMsg">{{ scope.row.errorMsg }}</el-text>
-                            <el-table v-else :data="scope.row.res" size="small">
-                                <el-table-column v-for="col in scope.row.columns" :key="col.name" :label="col.name" :prop="col.name" />
+                            <el-table max-height="600px" v-else :data="scope.row.res" size="small">
+                                <el-table-column
+                                    :width="DbInst.flexColumnWidth(col.name, scope.row.res)"
+                                    v-for="col in scope.row.columns"
+                                    :key="col.name"
+                                    :label="col.name"
+                                    :prop="col.name"
+                                    show-overflow-tooltip
+                                />
                             </el-table>
                         </el-popover>
                     </template>
@@ -50,6 +57,7 @@ import { tagApi } from '@/views/ops/tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import { DbInst } from '@/views/ops/db/db';
 
 const props = defineProps({
     procinst: {

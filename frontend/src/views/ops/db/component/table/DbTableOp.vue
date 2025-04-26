@@ -4,23 +4,23 @@
             <DrawerHeader :header="title" :back="cancel" />
         </template>
 
-        <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
-            <el-row>
+        <el-form label-position="left" ref="formRef" :model="tableData" label-width="auto">
+            <el-row :gutter="20">
                 <el-col :span="12">
                     <el-form-item prop="tableName" :label="$t('db.tableName')">
-                        <el-input style="width: 80%" v-model="tableData.tableName" size="small"></el-input>
+                        <el-input v-model="tableData.tableName" size="small"></el-input>
                     </el-form-item>
                 </el-col>
                 <el-col :span="12">
                     <el-form-item prop="tableComment" :label="$t('db.comment')">
-                        <el-input style="width: 80%" v-model="tableData.tableComment" size="small"></el-input>
+                        <el-input v-model="tableData.tableComment" size="small"></el-input>
                     </el-form-item>
                 </el-col>
             </el-row>
 
             <el-tabs v-model="activeName">
                 <el-tab-pane :label="$t('db.column')" name="1">
-                    <el-table ref="tableRef" :data="tableData.fields.res" :max-height="tableData.height">
+                    <el-table ref="tableRef" :data="tableData.fields.res" :height="tableHeight">
                         <el-table-column
                             :prop="item.prop"
                             :label="$t(item.label)"
@@ -72,13 +72,13 @@
                             </template>
                         </el-table-column>
                     </el-table>
-                    <el-row style="margin-top: 20px">
+                    <el-row class="mt-4">
                         <el-button @click="addDefaultRows()" link type="warning" icon="plus">{{ $t('db.addDefaultColumn') }}</el-button>
                         <el-button @click="addRow()" link type="primary" icon="plus">{{ $t('db.addColumn') }}</el-button>
                     </el-row>
                 </el-tab-pane>
                 <el-tab-pane :label="$t('db.index')" name="2">
-                    <el-table :data="tableData.indexs.res" :max-height="tableData.height">
+                    <el-table :data="tableData.indexs.res" :height="tableHeight">
                         <el-table-column :prop="item.prop" :label="$t(item.label)" v-for="item in tableData.indexs.colNames" :key="item.prop">
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
@@ -90,8 +90,8 @@
                                     collapse-tags
                                     collapse-tags-tooltip
                                     filterable
+                                    size="small"
                                     @change="indexChanges(scope.row)"
-                                    style="width: 100%"
                                 >
                                     <el-option v-for="cl in tableData.indexs.columns" :key="cl.name" :label="cl.name" :value="cl.name">
                                         {{ cl.name + ' - ' + (cl.remark || '') }}
@@ -114,7 +114,7 @@
                         </el-table-column>
                     </el-table>
 
-                    <el-row style="margin-top: 20px">
+                    <el-row class="mt-4">
                         <el-button @click="addIndex()" link type="primary" icon="plus">{{ $t('db.addIndex') }}</el-button>
                     </el-row>
                 </el-tab-pane>
@@ -172,6 +172,8 @@ type ColName = {
     label: string;
     width?: number;
 };
+
+const tableHeight = 'calc(100vh - 320px)';
 
 const formRef: any = ref();
 const tableRef: any = useTemplateRef('tableRef');
@@ -272,7 +274,6 @@ const state = reactive({
         tableComment: '',
         oldTableName: '',
         oldTableComment: '',
-        height: 'calc(100vh - 310px)',
         db: '',
     },
 });

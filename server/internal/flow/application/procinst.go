@@ -109,7 +109,7 @@ func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) err
 	if la == nil {
 		return errorx.NewBiz("no login")
 	}
-	if procinst.CreatorId != consts.AdminId && procinst.CreatorId != la.Id {
+	if la.Id != consts.AdminId && procinst.CreatorId != la.Id {
 		return errorx.NewBizI(ctx, imsg.ErrProcinstCancelSelf)
 	}
 	procinst.Status = entity.ProcinstStatusCancelled

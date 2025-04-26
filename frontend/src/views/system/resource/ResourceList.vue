@@ -17,6 +17,7 @@
                 </div>
                 <el-scrollbar>
                     <el-tree
+                        class="inline-block min-w-full"
                         ref="resourceTreeRef"
                         :indent="24"
                         node-key="id"

@@ -1,5 +1,5 @@
 <template>
-    <div class="machine-file-content">
+    <div>
         <el-dialog
             destroy-on-close
             :before-close="handleClose"
@@ -9,28 +9,25 @@
             top="5vh"
             width="65%"
         >
-            <div>
-                <monaco-editor :can-change-mode="true" v-model="content" :language="fileType" />
+            <div v-loading="loadingContent">
+                <monaco-editor :can-change-mode="true" v-model="fileContent" :language="fileType" />
             </div>
 
             <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
-                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">{{ $t('common.save') }}</el-button>
-                </div>
+                <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
+                <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">{{ $t('common.save') }}</el-button>
             </template>
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { reactive, toRefs, watch } from 'vue';
+import { computed, reactive, toRefs, watch } from 'vue';
 import { machineApi } from '../api';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
 const props = defineProps({
-    visible: { type: Boolean, default: false },
     protocol: { type: Number, default: 1 },
     title: { type: String, default: '' },
     machineId: { type: Number },
@@ -39,41 +36,50 @@ const props = defineProps({
     path: { type: String, default: '' },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const emit = defineEmits(['cancel', 'update:machineId']);
 
 const updateFileContent = machineApi.updateFileContent;
 
 const state = reactive({
-    dialogVisible: false,
+    loadingContent: false,
     content: '',
     fileType: '',
 });
 
-const { dialogVisible, content, fileType } = toRefs(state);
+const { fileType } = toRefs(state);
+
+const {
+    isFetching: loadingContent,
+    execute: getFileContentExec,
+    data: fileContent,
+} = machineApi.fileContent.useApi(
+    computed(() => {
+        return {
+            fileId: props.fileId,
+            path: props.path,
+            machineId: props.machineId,
+            authCertName: props.authCertName,
+            protocol: props.protocol,
+        };
+    })
+);
 
 watch(props, async (newValue) => {
-    if (newValue.visible) {
+    if (dialogVisible.value) {
         await getFileContent();
     }
-    state.dialogVisible = newValue.visible;
 });
 
 const getFileContent = async () => {
-    const path = props.path;
-    const res = await machineApi.fileContent.request({
-        fileId: props.fileId,
-        path,
-        machineId: props.machineId,
-        authCertName: props.authCertName,
-        protocol: props.protocol,
-    });
-    state.fileType = getFileType(path);
-    state.content = res;
+    fileContent.value = '';
+    state.fileType = getFileType(props.path);
+    await getFileContentExec();
 };
 
 const handleClose = () => {
-    state.dialogVisible = false;
-    emit('update:visible', false);
+    dialogVisible.value = false;
 };
 
 const updateContent = async () => {
