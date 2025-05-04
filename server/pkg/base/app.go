@@ -70,6 +70,8 @@ type App[T model.ModelI] interface {
 	Tx(ctx context.Context, funcs ...func(context.Context) error) (err error)
 }
 
+var _ (App[*model.Model]) = (*AppImpl[*model.Model, *RepoImpl[*model.Model]])(nil)
+
 // 基础application接口实现
 type AppImpl[T model.ModelI, R Repo[T]] struct {
 	Repo R `inject:"T"` // repo接口, 根据类型进行注入

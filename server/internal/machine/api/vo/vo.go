@@ -7,6 +7,7 @@ import (
 )
 
 type MachineVO struct {
+	model.ExtraData
 	tagentity.ResourceTags // 标签信息
 	tagentity.AuthCerts    // 授权凭证信息
 
@@ -73,11 +74,11 @@ func (mcj *MachineCronJobVO) GetRelateId() uint64 {
 }
 
 type MachineFileVO struct {
-	Id        *int64  `json:"id"`
-	Name      *string `json:"name"`
-	Path      *string `json:"path"`
-	Type      *int    `json:"type"`
-	MachineId *uint64 `json:"machineId"`
+	Id        int64  `json:"id"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Type      int8   `json:"type"`
+	MachineId uint64 `json:"machineId"`
 }
 
 type MachineFileInfo struct {

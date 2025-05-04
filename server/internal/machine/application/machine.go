@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"mayfly-go/internal/event"
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
@@ -15,7 +14,6 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
@@ -65,6 +63,9 @@ type machineAppImpl struct {
 
 	tagApp              tagapp.TagTree          `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
+
+	machineScriptApp MachineScript `inject:"T"`
+	machineFileApp   MachineFile   `inject:"T"`
 }
 
 var _ (Machine) = (*machineAppImpl)(nil)
@@ -198,12 +199,15 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 	// 关闭连接
 	mcm.DeleteCli(id)
 
-	// 发布机器删除事件
-	global.EventBus.Publish(ctx, event.EventTopicDeleteMachine, machine)
-
 	resourceType := tagentity.TagTypeMachine
 	return m.Tx(ctx,
 		func(ctx context.Context) error {
+			if err := m.machineFileApp.DeleteByCond(ctx, &entity.MachineFile{MachineId: id}); err != nil {
+				return err
+			}
+			if err := m.machineScriptApp.DeleteByCond(ctx, &entity.MachineScript{MachineId: id}); err != nil {
+				return err
+			}
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
 			return m.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
@@ -327,6 +331,7 @@ func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machin
 
 func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAuthCert) (*mcm.MachineInfo, error) {
 	mi := new(mcm.MachineInfo)
+	mi.ExtraData = me.ExtraData
 	mi.Id = me.Id
 	mi.Code = me.Code
 	mi.Name = me.Name

@@ -1,10 +1,8 @@
 <template>
-    <div class="flex-all-center">
-        <!--    文档： https://antoniandre.github.io/splitpanes/    -->
-        <Splitpanes class="default-theme" @resized="onResizeTagTree">
-            <Pane size="20" max-size="30">
+    <div class="h-full">
+        <ResourceOpPanel @resized="onResizeTagTree">
+            <template #left>
                 <tag-tree
-                    class="machine-terminal-tree"
                     ref="tagTreeRef"
                     :resource-type="TagResourceTypePath.MachineAuthCert"
                     :tag-path-node-type="NodeTypeTagPath"
@@ -30,17 +28,17 @@
                         }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane>
-                <div class="machine-terminal-tabs card pd5">
-                    <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTermName" class="h100">
-                        <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+            <template #right>
+                <el-card class="h-full" body-class="machine-terminal-tabs h-full !p-1 flex flex-col flex-1">
+                    <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" v-model="state.activeTermName" class="!h-full w-full">
+                        <el-tab-pane class="!h-full flex flex-col" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
                                 <el-popconfirm @confirm="handleReconnect(dt, true)" :title="$t('machine.reConnTips')">
                                     <template #reference>
                                         <el-icon
-                                            class="mr5"
+                                            class="mr-1"
                                             :color="EnumValue.getEnumByValue(TerminalStatusEnum, dt.status)?.extra?.iconColor"
                                             :title="dt.status == TerminalStatusEnum.Connected.value ? '' : $t('machine.clickReConn')"
                                             ><Connection />
@@ -64,7 +62,7 @@
                                 </el-popover>
                             </template>
 
-                            <div :ref="(el: any) => setTerminalWrapperRef(el, dt.key)" class="terminal-wrapper" style="height: calc(100vh - 155px)">
+                            <div :ref="(el: any) => setTerminalWrapperRef(el, dt.key)" class="terminal-wrapper flex-1 h-[calc(100vh-155px)]">
                                 <TerminalBody
                                     v-if="dt.params.protocol == MachineProtocolEnum.Ssh.value"
                                     :mount-init="false"
@@ -156,9 +154,9 @@
                     <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title" />
 
                     <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title" />
-                </div>
-            </Pane>
-        </Splitpanes>
+                </el-card>
+            </template>
+        </ResourceOpPanel>
     </div>
 </template>
 
@@ -171,7 +169,6 @@ import { hasPerms } from '@/components/auth/auth';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
-import { Pane, Splitpanes } from 'splitpanes';
 import { ContextmenuItem } from '@/components/contextmenu/index';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { TerminalStatus, TerminalStatusEnum } from '@/components/terminal/common';
@@ -183,6 +180,7 @@ import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import EnumValue from '@/common/Enum';
 import { useI18n } from 'vue-i18n';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
@@ -578,7 +576,6 @@ const handleReconnect = (tab: any, force = false) => {
 
 <style lang="scss">
 .machine-terminal-tabs {
-    height: calc(100vh - 108px);
     --el-tabs-header-height: 30px;
 
     .el-tabs {

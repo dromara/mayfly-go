@@ -1,19 +1,19 @@
 <template>
     <div>
-        <el-drawer v-model="visible" :before-close="cancel" size="50%">
+        <el-drawer v-model="visible" :before-close="cancel" size="50%" body-class="flex flex-col">
             <template #header>
                 <DrawerHeader :header="props.title" :back="cancel">
                     <template #extra>
-                        <EnumTag :enums="LogTypeEnum" :value="log?.type" class="mr20" />
+                        <EnumTag :enums="LogTypeEnum" :value="log?.type" class="mr-4.5" />
                     </template>
                 </DrawerHeader>
             </template>
 
-            <el-descriptions class="mb10" :column="1" border v-if="extra">
+            <el-descriptions class="mb-2" :column="1" border v-if="extra">
                 <el-descriptions-item v-for="(value, key) in extra" :key="key" :span="1" :label="key">{{ value }}</el-descriptions-item>
             </el-descriptions>
 
-            <TerminalBody class="mb10" ref="terminalRef" height="calc(100vh - 220px)" />
+            <TerminalBody class="mb-2 flex-1" ref="terminalRef" />
         </el-drawer>
     </div>
 </template>

@@ -13,7 +13,7 @@
                 </el-form-item>
 
                 <el-form-item>
-                    <el-row class="w100">
+                    <el-row class="!w-full">
                         <el-col :span="12">
                             <el-form-item prop="status" :label="$t('common.status')">
                                 <el-switch
@@ -42,7 +42,7 @@
                     <CrontabInput v-model="form.cron" />
                 </el-form-item>
 
-                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="w100" required>
+                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="!w-full" required>
                     <db-select-tree
                         v-model:db-id="form.srcDbId"
                         v-model:inst-name="form.srcInstName"
@@ -61,7 +61,7 @@
                 </el-form-item>
 
                 <el-form-item v-if="form.mode === 2">
-                    <el-row class="w100">
+                    <el-row class="!w-full">
                         <el-col :span="12">
                             <el-form-item prop="targetFileDbType" :label="$t('db.dbFileType')" :required="form.mode === 2">
                                 <el-select v-model="form.targetFileDbType" clearable filterable>
@@ -100,7 +100,7 @@
                     </el-radio-group>
                 </el-form-item>
 
-                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="w100" :required="form.mode === 1">
+                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="!w-full" :required="form.mode === 1">
                     <db-select-tree
                         v-model:db-id="form.targetDbId"
                         v-model:inst-name="form.targetInstName"
@@ -123,10 +123,10 @@
                 <el-form-item>
                     <el-input v-model="state.filterSrcTableText" placeholder="filter table" size="small" />
                 </el-form-item>
-                <el-form-item class="w100">
+                <el-form-item class="!w-full">
                     <el-tree
                         ref="srcTreeRef"
-                        class="w100"
+                        class="!w-full"
                         style="max-height: 200px; overflow-y: auto"
                         default-expand-all
                         :expand-on-click-node="false"
@@ -157,10 +157,11 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import _ from 'lodash';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
+import { deepClone } from '@/common/utils/object';
 
 const { t } = useI18n();
 
@@ -179,41 +180,11 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
-    taskName: [
-        {
-            required: true,
-            message: useI18nPleaseInput('db.taskName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    srcDbId: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.srcDb'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    targetDbId: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.targetDb'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    targetFileDbType: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.dbFileType'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    cron: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('cron'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    taskName: [Rules.requiredInput('db.taskName')],
+    srcDbId: [Rules.requiredSelect('db.srcDb')],
+    targetDbId: [Rules.requiredSelect('db.targetDb')],
+    targetFileDbType: [Rules.requiredSelect('db.dbFileType')],
+    cron: [Rules.requiredSelect('cron')],
 };
 
 const dbForm: any = ref(null);
@@ -303,7 +274,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         });
         return;
     }
-    state.form = _.cloneDeep(props.data) as FormData;
+
+    state.form = deepClone(props.data) as FormData;
     let { srcDbId, targetDbId } = state.form;
 
     //  初始化src数据源

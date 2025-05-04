@@ -1,5 +1,5 @@
 <template>
-    <div class="mock-data-dialog">
+    <div>
         <el-dialog
             :title="title"
             v-model="dialogVisible"
@@ -22,7 +22,7 @@
                     <EnumSelect :enums="ScriptResultEnum" v-model="form.type" default-first-option />
                 </el-form-item>
 
-                <el-form-item class="w100">
+                <el-form-item class="!w-full">
                     <template #label>
                         <el-tooltip placement="top">
                             <template #content>
@@ -35,8 +35,8 @@
                     <dynamic-form-edit v-model="params" />
                 </el-form-item>
 
-                <el-form-item required prop="script" class="100w">
-                    <div style="width: 100%">
+                <el-form-item required prop="script">
+                    <div class="w-full">
                         <monaco-editor v-model="form.script" language="shell" height="300px" />
                     </div>
                 </el-form-item>
@@ -62,12 +62,10 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DynamicFormEdit } from '@/components/dynamic-form';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: Object,
     },
@@ -82,44 +80,21 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const emit = defineEmits(['cancel', 'submitSuccess']);
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    description: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.remark'),
-            trigger: ['blur', 'change'],
-        },
-    ],
-    type: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('common.type'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    script: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.script'),
-            trigger: ['blur', 'change'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    description: [Rules.requiredInput('common.remark')],
+    type: [Rules.requiredSelect('common.type')],
+    script: [Rules.requiredInput('machine.script')],
 };
 
 const { isCommon, machineId } = toRefs(props);
 const scriptForm: any = ref(null);
 
 const state = reactive({
-    dialogVisible: false,
     params: [] as any,
     form: {
         id: null,
@@ -133,11 +108,10 @@ const state = reactive({
     btnLoading: false,
 });
 
-const { dialogVisible, params, form, btnLoading } = toRefs(state);
+const { params, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (!newValue.visible) {
+    if (!dialogVisible.value) {
         return;
     }
     if (newValue.data) {
@@ -165,7 +139,7 @@ const btnOk = async () => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
     state.params = [];
 };

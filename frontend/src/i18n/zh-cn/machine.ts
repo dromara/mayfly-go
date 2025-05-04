@@ -32,6 +32,9 @@ export default {
         ipAndPort: 'ip和port',
         connSuccess: '连接成功',
         noAcErrMsg: '请完善授权凭证账号信息',
+        ciphers: '加密算法',
+        keyExchanges: '密钥交换',
+        multiValuePlaceholder: `多个值用 ',' 隔开`,
 
         // MachineRec
         playback: '回放',

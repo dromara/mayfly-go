@@ -1,5 +1,5 @@
 <template>
-    <div class="db-sql-exec-log">
+    <div class="db-sql-exec-log h-full">
         <page-table
             ref="pageTableRef"
             :page-api="dbApi.getSqlExecs"

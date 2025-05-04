@@ -9,10 +9,10 @@ import (
 	_ "mayfly-go/internal/machine/init"
 	_ "mayfly-go/internal/mongo/init"
 	_ "mayfly-go/internal/msg/init"
+	"mayfly-go/internal/pkg/starter"
 	_ "mayfly-go/internal/redis/init"
 	_ "mayfly-go/internal/sys/init"
 	_ "mayfly-go/internal/tag/init"
-	"mayfly-go/pkg/starter"
 )
 
 func main() {

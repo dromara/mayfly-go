@@ -12,7 +12,7 @@
             <template #header>
                 <DrawerHeader :header="title" :back="cancel">
                     <template #extra>
-                        <div class="mr20">
+                        <div class="mr-4.5">
                             <span>{{ $props.instance?.tags?.[0]?.codePath }}</span>
                             <el-divider direction="vertical" border-style="dashed" />
                             <SvgIcon :name="getDbDialect($props.instance?.type).getInfo()?.icon" :size="20" />
@@ -153,6 +153,7 @@
             :close-on-click-modal="false"
             v-model="sqlExecLogDialog.visible"
             :destroy-on-close="true"
+            body-class="h-250"
         >
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>

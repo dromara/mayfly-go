@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :page-api="redisApi.redisList"
@@ -63,7 +63,7 @@
                             effect="plain"
                             type="success"
                             size="small"
-                            style="cursor: pointer"
+                            class="cursor-pointer"
                             >{{ scope.row.ip }}
                         </el-tag>
                     </template>

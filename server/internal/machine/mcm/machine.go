@@ -5,8 +5,10 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/netx"
 	"net"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -14,6 +16,8 @@ import (
 
 // 机器信息
 type MachineInfo struct {
+	model.ExtraData
+
 	Key      string `json:"key"` // 缓存key
 	Id       uint64 `json:"id"`
 	Name     string `json:"name"`
@@ -130,6 +134,13 @@ func GetSshClient(m *MachineInfo, jumpClient *ssh.Client) (*ssh.Client, error) {
 		},
 		Timeout: 5 * time.Second,
 	}
+	if ciphers := m.GetExtraString("ciphers"); ciphers != "" {
+		config.Ciphers = strings.Split(ciphers, ",")
+	}
+	if keyExchanges := m.GetExtraString("keyExchanges"); keyExchanges != "" {
+		config.KeyExchanges = strings.Split(keyExchanges, ",")
+	}
+
 	if m.AuthMethod == int8(tagentity.AuthCertCiphertextTypePassword) {
 		config.Auth = []ssh.AuthMethod{ssh.Password(m.Password)}
 	} else if m.AuthMethod == int8(tagentity.AuthCertCiphertextTypePrivateKey) {

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :page-api="procinstApi.tasks"
@@ -47,6 +47,7 @@ const { t } = useI18n();
 
 const searchItems = [
     SearchItem.select('status', 'common.status').withEnum(ProcinstTaskStatus),
+    SearchItem.input('bizKey', 'flow.bizKey'),
     SearchItem.select('bizType', 'flow.bizType').withEnum(FlowBizType),
 ];
 const columns = [

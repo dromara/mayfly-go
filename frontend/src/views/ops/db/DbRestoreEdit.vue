@@ -16,7 +16,7 @@
                         placeholder="数据库名称"
                         filterable
                         clearable
-                        class="w100"
+                        class="!w-full"
                     >
                         <el-option v-for="item in props.dbNames" :key="item" :label="`${item}`" :value="item"> </el-option>
                     </el-select>
@@ -33,7 +33,7 @@
                         placeholder="数据库备份"
                         filterable
                         clearable
-                        class="w100"
+                        class="!w-full"
                     >
                         <el-option
                             v-for="item in state.histories"

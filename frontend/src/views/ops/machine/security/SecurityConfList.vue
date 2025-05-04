@@ -1,5 +1,5 @@
 <template>
-    <div class="card">
+    <div class="card h-full">
         <el-tabs v-model="activeName" @tab-change="handleTabChange">
             <el-tab-pane :label="$t('machine.cmdConfig')" :name="CmdConfTab">
                 <CmdConfList />

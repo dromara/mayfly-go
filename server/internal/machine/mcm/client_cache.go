@@ -2,7 +2,7 @@ package mcm
 
 import (
 	"errors"
-	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/pkg/consts"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"

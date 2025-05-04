@@ -15,14 +15,8 @@
                 <el-form-item prop="status" :label="$t('common.status')">
                     <EnumSelect :enums="ProcdefStatus" v-model="form.status" />
                 </el-form-item>
-                <el-form-item prop="condition" :label="$t('flow.triggeringCondition')">
-                    <template #label>
-                        {{ $t('flow.triggeringCondition') }}
-                        <el-tooltip :content="$t('flow.triggeringConditionTips')" placement="top">
-                            <SvgIcon name="question-filled" />
-                        </el-tooltip>
-                    </template>
 
+                <FormItemTooltip prop="condition" :label="$t('flow.triggeringCondition')" :tooltip="$t('flow.triggeringConditionTips')">
                     <el-input
                         v-model="form.condition"
                         :rows="10"
@@ -31,9 +25,14 @@
                         auto-complete="off"
                         clearable
                     ></el-input>
-                </el-form-item>
+                </FormItemTooltip>
+
                 <el-form-item prop="remark" :label="$t('common.remark')">
                     <el-input v-model.trim="form.remark" auto-complete="off" clearable></el-input>
+                </el-form-item>
+
+                <el-form-item prop="msgTmplId" :label="$t('flow.notify')">
+                    <MsgTmplSelect v-model="form.msgTmplId" clearable />
                 </el-form-item>
 
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('tag.relateTag')">
@@ -46,9 +45,9 @@
                     <el-table-column prop="name" min-width="100px">
                         <template #header>
                             <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addTask()"> </el-button>
-                            <span class="ml10">{{ $t('flow.nodeName') }}<span class="ml5" style="color: red">*</span></span>
+                            <span class="ml-2">{{ $t('flow.nodeName') }}<span class="ml-1" style="color: red">*</span></span>
                             <el-tooltip :content="$t('flow.nodeNameTips')" placement="top">
-                                <SvgIcon class="ml5" name="question-filled" />
+                                <SvgIcon class="ml-1" name="question-filled" />
                             </el-tooltip>
                         </template>
                         <template #default="scope">
@@ -58,17 +57,17 @@
 
                     <el-table-column prop="userId" min-width="150px" show-overflow-tooltip>
                         <template #header>
-                            <span class="ml10">{{ $t('flow.auditor') }}<span class="ml5" style="color: red">*</span></span>
+                            <span class="ml-2">{{ $t('flow.auditor') }}<span class="ml-1" style="color: red">*</span></span>
                         </template>
 
                         <template #default="scope">
-                            <AccountSelectFormItem v-model="scope.row.userId" label="" />
+                            <AccountSelectFormItem style="margin-bottom: 0px" v-model="scope.row.userId" label="" />
                         </template>
                     </el-table-column>
 
                     <el-table-column :label="$t('common.operation')" width="110px">
                         <template #default="scope">
-                            <el-link @click="deleteTask(scope.$index)" class="ml5" type="danger" icon="delete" plain></el-link>
+                            <el-link @click="deleteTask(scope.$index)" class="ml-1" type="danger" icon="delete" plain></el-link>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -96,8 +95,11 @@ import { ProcdefStatus } from './enums';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { Rules } from '@/common/rule';
+import MsgTmplSelect from '../msg/components/MsgTmplSelect.vue';
 
 const { t } = useI18n();
 
@@ -119,20 +121,8 @@ const formRef: any = ref(null);
 const taskTableRef: any = ref(null);
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    defKey: [
-        {
-            required: true,
-            message: useI18nPleaseInput('Key'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    defKey: [Rules.requiredInput('key')],
 };
 
 const state = reactive({
@@ -144,6 +134,7 @@ const state = reactive({
         status: null,
         condition: '',
         remark: null,
+        msgTmplId: null,
         // 流程的审批节点任务
         tasks: '',
         codePaths: [],
@@ -155,9 +146,9 @@ const { form, tasks } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
+watch(props, async (newValue: any) => {
     if (newValue.data) {
-        state.form = { ...newValue.data };
+        state.form = await procdefApi.detail.request({ id: newValue.data.id });
         state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
         const tasks = JSON.parse(state.form.tasks);
         tasks.forEach((t: any) => {

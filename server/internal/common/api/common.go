@@ -1,9 +1,9 @@
 package api
 
 import (
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils/cryptox"
 )
 
 type Common struct {
@@ -19,7 +19,7 @@ func (c *Common) ReqConfs() *req.Confs {
 }
 
 func (i *Common) RasPublicKey(rc *req.Ctx) {
-	publicKeyStr, err := cryptox.GetRsaPublicKey()
+	publicKeyStr, err := utils.GetRsaPublicKey()
 	biz.ErrIsNilAppendErr(err, "rsa - failed to genenrate public key")
 	rc.ResData = publicKeyStr
 }

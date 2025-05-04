@@ -1,5 +1,5 @@
 <template>
-    <div class="icon-selector w100 h100">
+    <div class="icon-selector !w-full !h-full">
         <el-input
             v-model="state.fontIconSearch"
             :placeholder="state.fontIconPlaceholder"
@@ -12,7 +12,7 @@
             @blur="onIconBlur"
         >
             <template #prepend>
-                <SvgIcon :name="state.fontIconPrefix === '' ? prepend : state.fontIconPrefix" class="font14" />
+                <SvgIcon :name="state.fontIconPrefix === '' ? prepend : state.fontIconPrefix" class="!text-[14px]" />
             </template>
         </el-input>
         <el-popover
@@ -25,7 +25,7 @@
             virtual-triggering
         >
             <template #default>
-                <div class="ml5 mt5">{{ $t(title) }}</div>
+                <div class="ml-1 mt-1">{{ $t(title) }}</div>
                 <div class="icon-selector-warp">
                     <el-tabs v-model="state.fontIconTabActive" @tab-click="onIconClick">
                         <el-tab-pane lazy label="ele" name="ele">
@@ -199,7 +199,7 @@ const onClearFontIcon = () => {
 // 获取 input 的宽度
 const getInputWidth = () => {
     nextTick(() => {
-        state.fontIconWidth = inputWidthRef.value.$el.offsetWidth;
+        state.fontIconWidth = inputWidthRef.value?.$el.offsetWidth;
     });
 };
 // 监听页面宽度改变

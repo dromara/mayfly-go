@@ -15,6 +15,7 @@ const (
 	CTLongtext
 
 	CTBit  // 1 bit
+	CTBool // 1 bit
 	CTInt1 // 1字节 -128~127
 	CTInt2 // 2字节 -32768~32767
 	CTInt4 // 4字节 -2147483648~2147483647

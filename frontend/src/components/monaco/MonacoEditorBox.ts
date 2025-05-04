@@ -32,6 +32,9 @@ const MonacoEditorBox = (props: MonacoEditorDialogProps): void => {
         if (props.canChangeLang === undefined) {
             props.canChangeLang = true;
         }
+        if (props.content === undefined) {
+            props.content = '';
+        }
 
         // 创建 虚拟dom
         boxInstance = h(MonacoEditorDialog, {
@@ -51,7 +54,6 @@ const MonacoEditorBox = (props: MonacoEditorDialogProps): void => {
                 // 移除 container DOM 元素
                 document.body.removeChild(container);
                 props.closeFn && props.closeFn();
-                console.log('close editor');
             },
             onConfirm: () => {
                 let value = props.content;

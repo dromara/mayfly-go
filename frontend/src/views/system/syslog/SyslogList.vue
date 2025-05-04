@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
             <template #creator="{ data }">
                 <account-info :account-id="data.creatorId" :username="data.creator" />

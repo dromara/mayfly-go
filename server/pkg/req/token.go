@@ -2,15 +2,33 @@ package req
 
 import (
 	"errors"
-	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/utils/stringx"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// JwtConf jwt配置
+type JwtConf struct {
+	Key                    string
+	ExpireTime             uint64 // 过期时间，单位分钟
+	RefreshTokenExpireTime uint64 // 刷新token的过期时间，单位分钟
+}
+
+// 默认jwt配置
+var jwtConf = JwtConf{
+	Key:                    stringx.RandUUID(),
+	ExpireTime:             60,
+	RefreshTokenExpireTime: 360,
+}
+
+// SetJwtConf 设置jwt配置
+func SetJwtConf(conf JwtConf) {
+	jwtConf = conf
+}
+
 // 创建用户token
 func CreateToken(userId uint64, username string) (accessToken string, refreshToken string, err error) {
-	jwtConf := config.Conf.Jwt
 	now := time.Now()
 
 	// 带权限创建令牌
@@ -46,7 +64,7 @@ func ParseToken(tokenStr string) (uint64, string, error) {
 
 	// Parse token
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
-		return []byte(config.Conf.Jwt.Key), nil
+		return []byte(jwtConf.Key), nil
 	})
 	if err != nil || token == nil {
 		return 0, "", err

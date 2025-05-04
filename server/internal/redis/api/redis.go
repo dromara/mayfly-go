@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"mayfly-go/internal/common/consts"
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/consts"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"

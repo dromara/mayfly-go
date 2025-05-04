@@ -8,17 +8,17 @@ import (
 type DbSqlExec struct {
 	model.Model `orm:"-"`
 
-	DbId     uint64 `json:"dbId"`
-	Db       string `json:"db"`
-	Table    string `json:"table"`
-	Type     int8   `json:"type"` // 类型
-	Sql      string `json:"sql"`  // 执行的sql
-	OldValue string `json:"oldValue"`
-	Remark   string `json:"remark"`
-	Status   int8   `json:"status"` // 执行状态
-	Res      string `json:"res"`    // 执行结果
+	DbId     uint64 `json:"dbId" gorm:"not null;"`
+	Db       string `json:"db" gorm:"size:150;not null;"`
+	Table    string `json:"table" gorm:"size:150;"`
+	Type     int8   `json:"type" gorm:"not null;"`          // 类型
+	Sql      string `json:"sql" gorm:"size:5000;not null;"` // 执行的sql
+	OldValue string `json:"oldValue" gorm:"size:5000;"`
+	Remark   string `json:"remark" gorm:"size:255;"`
+	Status   int8   `json:"status"`                // 执行状态
+	Res      string `json:"res" gorm:"size:1000;"` // 执行结果
 
-	FlowBizKey string `json:"flowBizKey"` // 流程业务key
+	FlowBizKey string `json:"flowBizKey" gorm:"size:50;index:idx_flow_biz_key;comment:流程关联的业务key"` // 流程业务key
 }
 
 const (

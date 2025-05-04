@@ -4,14 +4,14 @@ import "mayfly-go/pkg/model"
 
 type Resource struct {
 	model.Model
-	Pid    int    `json:"pid"`
-	UiPath string `json:"ui_path"` // 唯一标识路径
-	Type   int8   `json:"type"`    // 1：菜单路由；2：资源（按钮等）
-	Status int8   `json:"status"`  // 1：可用；-1：不可用
-	Code   string `json:"code"`
-	Name   string `json:"name"`
+	Pid    int64  `json:"pid" gorm:"not null;comment:父节点id;"`
+	UiPath string `json:"ui_path" gorm:"size:300;comment:唯一标识路径;"`        // 唯一标识路径
+	Type   int8   `json:"type" gorm:"not null;comment:1：菜单路由；2：资源（按钮等）;"` // 1：菜单路由；2：资源（按钮等）
+	Status int8   `json:"status" gorm:"not null;comment:状态；1:可用，-1:禁用;"`  // 1：可用；-1：不可用
+	Code   string `json:"code" gorm:"size:300;comment:菜单路由为path，其他为唯一标识;"`
+	Name   string `json:"name" gorm:"size:255;not null;"`
 	Weight int    `json:"weight"`
-	Meta   string `json:"meta"`
+	Meta   string `json:"meta" gorm:"size:500;"`
 }
 
 func (a *Resource) TableName() string {

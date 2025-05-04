@@ -12,7 +12,7 @@ import (
 const MachineStatCacheKey = "mayfly:machine:%d:stat"
 
 func SaveMachineStats(machineId uint64, stat *mcm.Stats) error {
-	return global_cache.SetStr(fmt.Sprintf(MachineStatCacheKey, machineId), jsonx.ToStr(stat), 10*time.Minute)
+	return global_cache.Set(fmt.Sprintf(MachineStatCacheKey, machineId), stat, 10*time.Minute)
 }
 
 func GetMachineStats(machineId uint64) (*mcm.Stats, error) {

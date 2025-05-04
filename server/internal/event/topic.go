@@ -1,6 +1,6 @@
 package event
 
 const (
-	EventTopicDeleteMachine = "machine:delete" // 删除机器的事件主题名
-	EventTopicResourceOp    = "resource:op"    // 资源操作主题
+	EventTopicResourceOp     = "resource:op"      // 资源操作主题
+	EventTopicBizMsgTmplSend = "biz:msgtmpl:send" // 发送业务关联的消息模板
 )

@@ -3,12 +3,12 @@
         <div ref="viewportRef" class="viewport" :style="{ width: state.size.width + 'px', height: state.size.height + 'px' }">
             <div ref="displayRef" class="display" tabindex="0" />
             <div class="btn-box">
-                <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr10" title="剪贴板" />
-                <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr10" title="文件管理" />
-                <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr10" title="全屏" />
+                <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr-2" title="剪贴板" />
+                <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr-2" title="文件管理" />
+                <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr-2" title="全屏" />
 
                 <el-dropdown>
-                    <SvgIcon name="Monitor" :size="20" class="pointer-icon mr10" title="发送快捷键" style="color: #fff" />
+                    <SvgIcon name="Monitor" :size="20" class="pointer-icon mr-2" title="发送快捷键" style="color: #fff" />
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65535'])"> Ctrl + Alt + Delete </el-dropdown-item>
@@ -21,7 +21,7 @@
                     </template>
                 </el-dropdown>
 
-                <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr10" title="重新连接" />
+                <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr-2" title="重新连接" />
             </div>
             <clipboard-dialog ref="clipboardRef" v-model:visible="state.clipboardDialog.visible" @close="closePaste" @submit="onsubmitClipboard" />
 
@@ -73,8 +73,7 @@ import { TerminalExpose } from '@/components/terminal-rdp/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import { exitFullscreen, launchIntoFullscreen, unWatchFullscreenChange, watchFullscreenChange } from '@/components/terminal-rdp/guac/screen';
-import { useEventListener } from '@vueuse/core';
-import { debounce } from 'lodash';
+import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { ClientState, TunnelState } from '@/components/terminal-rdp/guac/states';
 import { ElMessage } from 'element-plus';
 import { joinClientParams } from '@/common/request';
@@ -191,7 +190,7 @@ const installClipboard = () => {
 
 const installResize = () => {
     // 在resize事件结束后300毫秒执行
-    useEventListener('resize', debounce(resize, 300));
+    useEventListener('resize', useDebounceFn(resize, 300));
 };
 
 const installDisplay = () => {

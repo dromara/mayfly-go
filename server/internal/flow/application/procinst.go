@@ -3,19 +3,25 @@ package application
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/event"
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/internal/flow/imsg"
+	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
+
+	"github.com/may-fly/cast"
 )
 
 type Procinst interface {
@@ -103,7 +109,7 @@ func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) err
 	if la == nil {
 		return errorx.NewBiz("no login")
 	}
-	if procinst.CreatorId != la.Id {
+	if la.Id != consts.AdminId && procinst.CreatorId != la.Id {
 		return errorx.NewBizI(ctx, imsg.ErrProcinstCancelSelf)
 	}
 	procinst.Status = entity.ProcinstStatusCancelled
@@ -140,6 +146,7 @@ func (p *procinstAppImpl) CompleteTask(ctx context.Context, instTaskId uint64, r
 		procinst.SetEnd()
 	} else {
 		procinst.TaskKey = task.TaskKey
+
 	}
 
 	return p.Tx(ctx, func(ctx context.Context) error {
@@ -287,7 +294,26 @@ func (p *procinstAppImpl) createProcinstTask(ctx context.Context, procinst *enti
 		TaskName: task.Name,
 		Assignee: task.UserId,
 	}
-	return p.procinstTaskRepo.Insert(ctx, procinstTask)
+
+	if err := p.procinstTaskRepo.Insert(ctx, procinstTask); err != nil {
+		return err
+	}
+
+	// 发送通知消息
+	global.EventBus.Publish(ctx, event.EventTopicBizMsgTmplSend, msgdto.BizMsgTmplSend{
+		BizType: FlowTaskNotifyBizKey,
+		BizId:   procinst.ProcdefId,
+		Params: map[string]any{
+			"creator":        procinst.Creator,
+			"procdefName":    procinst.ProcdefName,
+			"bizKey":         procinst.BizKey,
+			"taskName":       task.Name,
+			"procinstRemark": procinst.Remark,
+		},
+		ReceiverIds: []uint64{cast.ToUint64(task.UserId)},
+	})
+
+	return nil
 }
 
 // 获取下一审批节点任务

@@ -1,11 +1,11 @@
 <template>
-    <div class="file-manage">
+    <div>
         <el-dialog v-if="dialogVisible" :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="50%">
-            <el-table :data="fileTable" stripe style="width: 100%" v-loading="loading">
+            <el-table :data="fileTable" stripe v-loading="loading">
                 <el-table-column prop="name" :label="$t('common.name')" min-width="100px">
                     <template #header>
                         <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="add()"> </el-button>
-                        <span class="ml10">{{ $t('common.name') }}</span>
+                        <span class="ml-2">{{ $t('common.name') }}</span>
                     </template>
                     <template #default="scope">
                         <el-input v-model="scope.row.name" :disabled="scope.row.id != null" clearable> </el-input>
@@ -29,9 +29,8 @@
                     </template>
                 </el-table-column>
             </el-table>
-            <el-row style="margin-top: 10px" type="flex" justify="end">
+            <el-row class="mt-2" type="flex" justify="end">
                 <el-pagination
-                    style="text-align: center"
                     :total="total"
                     layout="prev, pager, next, total, jumper"
                     v-model:current-page="query.pageNum"
@@ -41,7 +40,7 @@
                 </el-pagination>
             </el-row>
 
-            <el-dialog destroy-on-close :title="fileDialog.title" v-model="fileDialog.visible" :close-on-click-modal="false" width="70%">
+            <el-drawer destroy-on-close :title="fileDialog.title" v-model="fileDialog.visible" :close-on-click-modal="false" size="70%" header-class="!mb-0">
                 <machine-file
                     :title="fileDialog.title"
                     :machine-id="machineId"
@@ -50,7 +49,7 @@
                     :path="fileDialog.path"
                     :protocol="protocol"
                 />
-            </el-dialog>
+            </el-drawer>
 
             <machine-file-content
                 :title="fileContent.title"
@@ -66,33 +65,29 @@
 
 <script lang="ts" setup>
 import { reactive, toRefs, watch } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from '../api';
 import { FileTypeEnum } from '../enums';
 import MachineFile from './MachineFile.vue';
 import MachineFileContent from './MachineFileContent.vue';
-import { useI18n } from 'vue-i18n';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import { useI18nDeleteConfirm, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 
-const { t } = useI18n();
-
 const props = defineProps({
-    visible: { type: Boolean },
     protocol: { type: Number, default: 1 },
     machineId: { type: Number },
     authCertName: { type: String },
     title: { type: String },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const emit = defineEmits(['cancel', 'update:machineId']);
 
 const addFile = machineApi.addConf;
 const delFile = machineApi.delConf;
 const files = machineApi.files;
 
 const state = reactive({
-    dialogVisible: false,
     query: {
         id: 0,
         pageNum: 1,
@@ -122,11 +117,10 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, loading, query, total, fileTable, fileDialog, fileContent } = toRefs(state);
+const { loading, query, total, fileTable, fileDialog, fileContent } = toRefs(state);
 
 watch(props, async (newValue) => {
-    state.dialogVisible = newValue.visible;
-    if (newValue.machineId && newValue.visible) {
+    if (newValue.machineId && dialogVisible.value) {
         await getFiles();
     }
 });
@@ -198,28 +192,10 @@ const showFileContent = async (fileId: number, path: string) => {
  * 关闭取消按钮触发的事件
  */
 const handleClose = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('update:machineId', null);
     emit('cancel');
     state.fileTable = [];
 };
 </script>
-<style lang="scss">
-.machine-file-upload-exec {
-    display: inline-flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
-    position: relative;
-    text-decoration: none;
-}
-.inline-block {
-    display: inline-block;
-    margin-right: 10px;
-}
-.margin-change {
-    display: inline-block;
-    margin-left: 10px;
-}
-</style>
+<style lang="scss"></style>

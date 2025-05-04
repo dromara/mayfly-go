@@ -1,9 +1,11 @@
 <template>
-    <div class="machine-file">
-        <div>
-            <el-progress v-if="uploadProgressShow" style="width: 90%; margin-left: 20px" :text-inside="true" :stroke-width="20" :percentage="progressNum" />
+    <div class="machine-file h-full">
+        <div class="h-full flex flex-col">
+            <!-- 文件上传进度条 -->
+            <el-progress v-if="uploadProgressShow" class="ml-4 w-[90%]" :text-inside="true" :stroke-width="20" :percentage="progressNum" />
 
-            <el-row class="mb10">
+            <!-- 文件路径 -->
+            <el-row class="mb-2 ml-4">
                 <el-breadcrumb separator-icon="ArrowRight">
                     <el-breadcrumb-item v-for="path in filePathNav" :key="path">
                         <el-link @click="setFiles(path.path)" style="font-weight: bold">{{ path.name }}</el-link>
@@ -11,251 +13,259 @@
                 </el-breadcrumb>
             </el-row>
 
-            <el-table
-                ref="fileTableRef"
-                @cell-dblclick="cellDbclick"
-                @selection-change="handleSelectionChange"
-                height="65vh"
-                :data="filterFiles"
-                highlight-current-row
-                v-loading="loading"
-            >
-                <el-table-column type="selection" width="30" />
+            <!-- 文件列表 -->
+            <div class="flex-1 overflow-auto">
+                <el-table
+                    ref="fileTableRef"
+                    @cell-dblclick="cellDbclick"
+                    @selection-change="handleSelectionChange"
+                    height="100%"
+                    :data="filterFiles"
+                    highlight-current-row
+                    v-loading="loading"
+                >
+                    <el-table-column type="selection" width="30" />
 
-                <el-table-column prop="name" :label="$t('common.name')" min-width="380">
-                    <template #header>
-                        <div class="machine-file-table-header">
-                            <div>
-                                <el-button :disabled="nowPath == basePath" type="primary" circle size="small" icon="Back" @click="back()"> </el-button>
-                                <el-button class="ml5" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
+                    <!-- 文件名 -->
+                    <el-table-column prop="name" :label="$t('common.name')" min-width="380">
+                        <template #header>
+                            <div class="machine-file-table-header">
+                                <div>
+                                    <el-button :disabled="nowPath == basePath" type="primary" circle size="small" icon="Back" @click="back()"> </el-button>
+                                    <el-button class="!ml-1" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
 
-                                <!-- 文件&文件夹上传 -->
-                                <el-dropdown class="machine-file-upload-exec" trigger="click" size="small">
-                                    <span>
-                                        <el-button
-                                            v-auth="'machine:file:upload'"
-                                            class="ml5"
-                                            type="primary"
-                                            circle
-                                            size="small"
-                                            icon="Upload"
-                                            :title="$t('machine.upload')"
-                                        ></el-button>
-                                    </span>
-                                    <template #dropdown>
-                                        <el-dropdown-menu>
-                                            <el-dropdown-item>
-                                                <el-upload
-                                                    :before-upload="beforeUpload"
-                                                    :on-success="uploadSuccess"
-                                                    action=""
-                                                    :http-request="uploadFile"
-                                                    :headers="{ token }"
-                                                    :show-file-list="false"
-                                                    name="file"
-                                                    class="machine-file-upload-exec"
-                                                >
-                                                    <el-link>{{ $t('machine.file') }}</el-link>
-                                                </el-upload>
-                                            </el-dropdown-item>
+                                    <!-- 文件&文件夹上传 -->
+                                    <el-dropdown class="machine-file-upload-exec" trigger="click" size="small">
+                                        <span>
+                                            <el-button
+                                                v-auth="'machine:file:upload'"
+                                                class="!ml-1"
+                                                type="primary"
+                                                circle
+                                                size="small"
+                                                icon="Upload"
+                                                :title="$t('machine.upload')"
+                                            ></el-button>
+                                        </span>
+                                        <template #dropdown>
+                                            <el-dropdown-menu>
+                                                <el-dropdown-item>
+                                                    <el-upload
+                                                        :before-upload="beforeUpload"
+                                                        :on-success="uploadSuccess"
+                                                        action=""
+                                                        :http-request="uploadFile"
+                                                        :headers="{ token }"
+                                                        :show-file-list="false"
+                                                        name="file"
+                                                        class="machine-file-upload-exec"
+                                                    >
+                                                        <el-link>{{ $t('machine.file') }}</el-link>
+                                                    </el-upload>
+                                                </el-dropdown-item>
 
-                                            <el-dropdown-item>
-                                                <div>
-                                                    <el-link @click="addFinderToList">{{ $t('machine.folder') }}</el-link>
-                                                    <input
-                                                        type="file"
-                                                        id="folderUploadInput"
-                                                        ref="folderUploadRef"
-                                                        webkitdirectory
-                                                        directory
-                                                        @change="uploadFolder"
-                                                        style="display: none"
-                                                    />
-                                                </div>
-                                            </el-dropdown-item>
-                                        </el-dropdown-menu>
-                                    </template>
-                                </el-dropdown>
-
-                                <el-button
-                                    :disabled="state.selectionFiles.length == 0"
-                                    v-auth="'machine:file:rm'"
-                                    @click="copyFile(state.selectionFiles)"
-                                    class="ml5"
-                                    type="primary"
-                                    circle
-                                    size="small"
-                                    icon="CopyDocument"
-                                    :title="$t('machine.copy')"
-                                >
-                                </el-button>
-
-                                <el-button
-                                    :disabled="state.selectionFiles.length == 0"
-                                    v-auth="'machine:file:rm'"
-                                    @click="mvFile(state.selectionFiles)"
-                                    class="ml5"
-                                    type="primary"
-                                    circle
-                                    size="small"
-                                    icon="Rank"
-                                    :title="$t('machine.move')"
-                                >
-                                </el-button>
-
-                                <el-button
-                                    v-auth="'machine:file:write'"
-                                    @click="showCreateFileDialog()"
-                                    class="ml5"
-                                    type="primary"
-                                    circle
-                                    size="small"
-                                    icon="FolderAdd"
-                                    :title="$t('common.create')"
-                                >
-                                </el-button>
-
-                                <el-button
-                                    :disabled="state.selectionFiles.length == 0"
-                                    v-auth="'machine:file:rm'"
-                                    @click="deleteFile(state.selectionFiles)"
-                                    class="ml5"
-                                    type="danger"
-                                    circle
-                                    size="small"
-                                    icon="delete"
-                                    :title="$t('common.delete')"
-                                >
-                                </el-button>
-
-                                <el-button-group v-if="state.copyOrMvFile.paths.length > 0" size="small" class="ml5">
-                                    <el-tooltip effect="customized" raw-content placement="top">
-                                        <template #content>
-                                            <div v-for="path in state.copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
+                                                <el-dropdown-item>
+                                                    <div>
+                                                        <el-link @click="addFinderToList">{{ $t('machine.folder') }}</el-link>
+                                                        <input
+                                                            type="file"
+                                                            id="folderUploadInput"
+                                                            ref="folderUploadRef"
+                                                            webkitdirectory
+                                                            directory
+                                                            @change="uploadFolder"
+                                                            style="display: none"
+                                                        />
+                                                    </div>
+                                                </el-dropdown-item>
+                                            </el-dropdown-menu>
                                         </template>
+                                    </el-dropdown>
 
-                                        <el-button @click="pasteFile" type="primary">
-                                            {{ isCpFile() ? $t('machine.copy') : $t('machine.move') }}
-                                            {{ $t('machine.paste') }}{{ state.copyOrMvFile.paths.length }}</el-button
-                                        >
-                                    </el-tooltip>
+                                    <el-button
+                                        :disabled="state.selectionFiles.length == 0"
+                                        v-auth="'machine:file:rm'"
+                                        @click="copyFile(state.selectionFiles)"
+                                        class="!ml-1"
+                                        type="primary"
+                                        circle
+                                        size="small"
+                                        icon="CopyDocument"
+                                        :title="$t('machine.copy')"
+                                    >
+                                    </el-button>
 
-                                    <el-button icon="CloseBold" @click="cancelCopy" />
-                                </el-button-group>
+                                    <el-button
+                                        :disabled="state.selectionFiles.length == 0"
+                                        v-auth="'machine:file:rm'"
+                                        @click="mvFile(state.selectionFiles)"
+                                        class="!ml-1"
+                                        type="primary"
+                                        circle
+                                        size="small"
+                                        icon="Rank"
+                                        :title="$t('machine.move')"
+                                    >
+                                    </el-button>
+
+                                    <el-button
+                                        v-auth="'machine:file:write'"
+                                        @click="showCreateFileDialog()"
+                                        class="!ml-1"
+                                        type="primary"
+                                        circle
+                                        size="small"
+                                        icon="FolderAdd"
+                                        :title="$t('common.create')"
+                                    >
+                                    </el-button>
+
+                                    <el-button
+                                        :disabled="state.selectionFiles.length == 0"
+                                        v-auth="'machine:file:rm'"
+                                        @click="deleteFile(state.selectionFiles)"
+                                        class="!ml-1"
+                                        type="danger"
+                                        circle
+                                        size="small"
+                                        icon="delete"
+                                        :title="$t('common.delete')"
+                                    >
+                                    </el-button>
+
+                                    <el-button-group v-if="state.copyOrMvFile.paths.length > 0" size="small" class="!ml-1">
+                                        <el-tooltip effect="customized" raw-content placement="top">
+                                            <template #content>
+                                                <div v-for="path in state.copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
+                                            </template>
+
+                                            <el-button @click="pasteFile" type="primary">
+                                                {{ isCpFile() ? $t('machine.copy') : $t('machine.move') }}
+                                                {{ $t('machine.paste') }}{{ state.copyOrMvFile.paths.length }}</el-button
+                                            >
+                                        </el-tooltip>
+
+                                        <el-button icon="CloseBold" @click="cancelCopy" />
+                                    </el-button-group>
+                                </div>
+
+                                <div class="w-[150px]">
+                                    <el-input v-model="fileNameFilter" size="small" :placeholder="$t('machine.fileNameFilterPlaceholder')" clearable />
+                                </div>
                             </div>
+                        </template>
 
-                            <div style="width: 150px">
-                                <el-input v-model="fileNameFilter" size="small" :placeholder="$t('machine.fileNameFilterPlaceholder')" clearable />
+                        <template #default="scope">
+                            <span v-if="scope.row.isFolder">
+                                <SvgIcon :size="15" name="folder" color="#007AFF" />
+                            </span>
+                            <span v-else>
+                                <SvgIcon :size="15" :name="scope.row.icon" />
+                            </span>
+
+                            <span class="!ml-1 inline-block w-[90%]">
+                                <div v-if="scope.row.nameEdit">
+                                    <el-input
+                                        @keyup.enter="fileRename(scope.row)"
+                                        :ref="(el: any) => el?.focus()"
+                                        @blur="filenameBlur(scope.row)"
+                                        v-model="scope.row.name"
+                                    />
+                                </div>
+                                <el-link v-else @click="getFile(scope.row)" style="font-weight: bold" :underline="false">{{ scope.row.name }}</el-link>
+                            </span>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column prop="size" label="Size" min-width="90" sortable>
+                        <template #default="scope">
+                            <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == '-'"> {{ formatByteSize(scope.row.size) }} </span>
+                            <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && scope.row.dirSize"> {{ scope.row.dirSize }} </span>
+                            <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && !scope.row.dirSize">
+                                <el-button @click="getDirSize(scope.row)" type="primary" link :loading="scope.row.loadingDirSize">
+                                    {{ $t('machine.calculate') }}
+                                </el-button>
+                            </span>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column prop="mode" :label="$t('machine.attribute')" width="110"> </el-table-column>
+
+                    <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" :label="$t('machine.user')" min-width="70" show-overflow-tooltip>
+                        <template #default="scope">
+                            {{ userMap.get(scope.row.uid)?.uname || scope.row.uid }}
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" :label="$t('machine.group')" min-width="70" show-overflow-tooltip>
+                        <template #default="scope">
+                            {{ groupMap.get(scope.row.gid)?.gname || scope.row.gid }}
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column prop="modTime" :label="$t('machine.modificationTime')" width="160" sortable> </el-table-column>
+
+                    <el-table-column :width="100">
+                        <template #header>
+                            <el-popover placement="top" :width="270" trigger="hover">
+                                <template #reference>
+                                    <SvgIcon name="QuestionFilled" :size="18" class="pointer-icon mr-2" />
+                                </template>
+                                <div>{{ $t('machine.renameTips') }}</div>
+                            </el-popover>
+                            {{ $t('common.operation') }}
+                        </template>
+
+                        <template #default="scope">
+                            <div class="flex gap-1.5">
+                                <!-- 基础信息 -->
+                                <el-popover
+                                    placement="top-start"
+                                    :title="`${scope.row.path} - ${$t('machine.fileDetail')}`"
+                                    :width="520"
+                                    trigger="click"
+                                    @show="showFileStat(scope.row)"
+                                >
+                                    <template #reference>
+                                        <span style="color: #67c23a; font-weight: bold">
+                                            <el-link
+                                                @click="showFileStat(scope.row)"
+                                                icon="InfoFilled"
+                                                :underline="false"
+                                                link
+                                                :loading="scope.row.loadingStat"
+                                            ></el-link>
+                                        </span>
+                                    </template>
+                                    <el-input disabled autosize v-model="scope.row.stat" type="textarea" />
+                                </el-popover>
+
+                                <!-- 下载文件 -->
+                                <el-link
+                                    @click="downloadFile(scope.row)"
+                                    v-if="scope.row.type == '-'"
+                                    v-auth="'machine:file:write'"
+                                    type="primary"
+                                    icon="download"
+                                    :underline="false"
+                                    :title="$t('machine.download')"
+                                ></el-link>
+
+                                <!-- 删除文件 -->
+                                <el-link
+                                    @click="deleteFile([scope.row])"
+                                    v-if="!dontOperate(scope.row)"
+                                    v-auth="'machine:file:rm'"
+                                    type="danger"
+                                    icon="delete"
+                                    :underline="false"
+                                    :title="$t('common.delete')"
+                                ></el-link>
                             </div>
-                        </div>
-                    </template>
-
-                    <template #default="scope">
-                        <span v-if="scope.row.isFolder">
-                            <SvgIcon :size="15" name="folder" color="#007AFF" />
-                        </span>
-                        <span v-else>
-                            <SvgIcon :size="15" :name="scope.row.icon" />
-                        </span>
-
-                        <span class="ml5" style="display: inline-block; width: 90%">
-                            <div v-if="scope.row.nameEdit">
-                                <el-input
-                                    @keyup.enter="fileRename(scope.row)"
-                                    :ref="(el: any) => el?.focus()"
-                                    @blur="filenameBlur(scope.row)"
-                                    v-model="scope.row.name"
-                                />
-                            </div>
-                            <el-link v-else @click="getFile(scope.row)" style="font-weight: bold" :underline="false">{{ scope.row.name }}</el-link>
-                        </span>
-                    </template>
-                </el-table-column>
-
-                <el-table-column prop="size" label="Size" min-width="90" sortable>
-                    <template #default="scope">
-                        <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == '-'"> {{ formatByteSize(scope.row.size) }} </span>
-                        <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && scope.row.dirSize"> {{ scope.row.dirSize }} </span>
-                        <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && !scope.row.dirSize">
-                            <el-button @click="getDirSize(scope.row)" type="primary" link :loading="scope.row.loadingDirSize">
-                                {{ $t('machine.calculate') }}
-                            </el-button>
-                        </span>
-                    </template>
-                </el-table-column>
-
-                <el-table-column prop="mode" :label="$t('machine.attribute')" width="110"> </el-table-column>
-
-                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" :label="$t('machine.user')" min-width="70" show-overflow-tooltip>
-                    <template #default="scope">
-                        {{ userMap.get(scope.row.uid)?.uname || scope.row.uid }}
-                    </template>
-                </el-table-column>
-
-                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" :label="$t('machine.group')" min-width="70" show-overflow-tooltip>
-                    <template #default="scope">
-                        {{ groupMap.get(scope.row.gid)?.gname || scope.row.gid }}
-                    </template>
-                </el-table-column>
-
-                <el-table-column prop="modTime" :label="$t('machine.modificationTime')" width="160" sortable> </el-table-column>
-
-                <el-table-column :width="130">
-                    <template #header>
-                        <el-popover placement="top" :width="270" trigger="hover">
-                            <template #reference>
-                                <SvgIcon name="QuestionFilled" :size="18" class="pointer-icon mr10" />
-                            </template>
-                            <div>{{ $t('machine.renameTips') }}</div>
-                        </el-popover>
-                        {{ $t('common.operation') }}
-                    </template>
-                    <template #default="scope">
-                        <el-link
-                            @click="deleteFile([scope.row])"
-                            v-if="!dontOperate(scope.row)"
-                            v-auth="'machine:file:rm'"
-                            type="danger"
-                            icon="delete"
-                            :underline="false"
-                            :title="$t('common.delete')"
-                        ></el-link>
-
-                        <el-link
-                            @click="downloadFile(scope.row)"
-                            v-if="scope.row.type == '-'"
-                            v-auth="'machine:file:write'"
-                            type="primary"
-                            icon="download"
-                            :underline="false"
-                            class="ml10"
-                            :title="$t('machine.download')"
-                        ></el-link>
-
-                        <el-popover
-                            placement="top-start"
-                            :title="`${scope.row.path} - ${$t('machine.fileDetail')}`"
-                            :width="520"
-                            trigger="click"
-                            @show="showFileStat(scope.row)"
-                        >
-                            <template #reference>
-                                <span style="color: #67c23a; font-weight: bold">
-                                    <el-link
-                                        @click="showFileStat(scope.row)"
-                                        icon="InfoFilled"
-                                        :underline="false"
-                                        link
-                                        class="ml10"
-                                        :loading="scope.row.loadingStat"
-                                    ></el-link>
-                                </span>
-                            </template>
-                            <el-input disabled autosize v-model="scope.row.stat" type="textarea" />
-                        </el-popover>
-                    </template>
-                </el-table-column>
-            </el-table>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
         </div>
 
         <el-dialog

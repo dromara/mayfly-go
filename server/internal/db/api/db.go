@@ -14,6 +14,7 @@ import (
 	"mayfly-go/internal/event"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/utils"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -24,7 +25,6 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/writerx"
 	"strings"
 	"time"
@@ -144,7 +144,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
-	sqlStr, err := cryptox.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
+	sqlStr, err := utils.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 
 	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)

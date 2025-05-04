@@ -165,9 +165,11 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 		return
 	}
 
-	scheduler.AddFunByKey(key, mcj.Cron, func() {
+	if err := scheduler.AddFunByKey(key, mcj.Cron, func() {
 		m.RunCronJob(key)
-	})
+	}); err != nil {
+		logx.ErrorTrace("add machine cron job failed", err)
+	}
 }
 
 func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {

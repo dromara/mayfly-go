@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/auth/imsg"
 	"mayfly-go/internal/auth/pkg/captcha"
 	"mayfly-go/internal/auth/pkg/otp"
+	"mayfly-go/internal/pkg/utils"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -18,7 +19,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/ws"
-	"strconv"
 	"time"
 )
 
@@ -62,7 +62,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	clientIp := getIpAndRegion(rc)
 	rc.ReqParam = collx.Kvs("username", username, "ip", clientIp)
 
-	originPwd, err := cryptox.DefaultRsaDecrypt(loginForm.Password, true)
+	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "decryption password error: %s")
 
 	account := &sysentity.Account{Username: username}
@@ -76,7 +76,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 
 	if err != nil || !cryptox.CheckPwdHash(originPwd, account.Password) {
 		nowFailCount++
-		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
+		cache.Set(failCountKey, nowFailCount, time.Minute*time.Duration(loginFailMin))
 		panic(errorx.NewBizI(ctx, imsg.ErrLoginFail, "failCount", nowFailCount))
 	}
 
@@ -115,7 +115,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	otpSecret := otpInfo.OtpSecret
 
 	if !otp.Validate(otpVerify.Code, otpSecret) {
-		cache.SetStr(failCountKey, strconv.Itoa(failCount+1), time.Minute*time.Duration(10))
+		cache.Set(failCountKey, failCount+1, time.Minute*time.Duration(10))
 		panic(errorx.NewBizI(ctx, imsg.ErrOtpCheckFail))
 	}
 

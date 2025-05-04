@@ -14,18 +14,18 @@ services:
     restart: always
 
   server:
-    image: ccr.ccs.tencentyun.com/mayfly/mayfly-go:v1.8.5
+    image: ccr.ccs.tencentyun.com/mayfly/mayfly-go:latest
     build:
       context: .
       dockerfile: Dockerfile
     container_name: mayfly-go-server
     ports:
-      - "8888:8888"
+      - "18888:18888"
     environment:
       TZ: Asia/Shanghai
       WAIT_HOSTS: mysql:3306
     volumes:
-      - ./server/config.yml.example:/mayfly/config.yml
+      - ./server/config.yml:/mayfly/config.yml
     depends_on:
       - mysql
     restart: always

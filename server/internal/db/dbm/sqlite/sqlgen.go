@@ -83,7 +83,7 @@ func (ssg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, value
 
 func (ssg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
 	incr := ""
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		incr = " AUTOINCREMENT"
 	}
 

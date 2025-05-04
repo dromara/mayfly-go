@@ -2,7 +2,7 @@ package entity
 
 import (
 	"errors"
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/pkg/enumx"
 	"mayfly-go/pkg/model"
 	"time"
@@ -10,14 +10,17 @@ import (
 
 type Account struct {
 	model.Model
+	model.ExtraData
 
-	Name          string        `json:"name"`
-	Username      string        `json:"username"`
-	Password      string        `json:"-"`
-	Status        AccountStatus `json:"status"`
+	Name          string        `json:"name" gorm:"size:30;not null;"`
+	Username      string        `json:"username" gorm:"size:30;not null;"`
+	Mobile        string        `json:"mobile" gorm:"size:20;"`
+	Email         string        `json:"email" gorm:"size:100;"`
+	Password      string        `json:"-" gorm:"size:64;not null;"`
+	Status        AccountStatus `json:"status" gorm:"not null;"`
 	LastLoginTime *time.Time    `json:"lastLoginTime"`
-	LastLoginIp   string        `json:"lastLoginIp"`
-	OtpSecret     string        `json:"-"`
+	LastLoginIp   string        `json:"lastLoginIp" gorm:"size:50;"`
+	OtpSecret     string        `json:"-" gorm:"size:100;"`
 }
 
 func (a *Account) TableName() string {

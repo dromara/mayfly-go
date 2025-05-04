@@ -53,8 +53,8 @@ import { FlowBizType } from './enums';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
-import { useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const DbSqlExecFlowBizForm = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecFlowBizForm.vue'));
 
@@ -81,20 +81,8 @@ const bizComponents: any = shallowReactive({
 });
 
 const rules = {
-    bizType: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('flow.bizType'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    remark: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.remark'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    bizType: [Rules.requiredSelect('flow.bizType')],
+    remark: [Rules.requiredInput('common.remark')],
 };
 
 const defaultForm = {

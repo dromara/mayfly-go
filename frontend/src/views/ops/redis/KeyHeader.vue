@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="flex">
         <!-- key name -->
         <div class="key-header-item key-name-input">
             <el-input ref="keyNameInput" v-model="ki.key" :title="$t('redis.renameTips')" placeholder="KeyName">
@@ -24,8 +24,8 @@
                     <!-- 时间转换 -->
                     <el-tooltip effect="dark" placement="top">
                         <template #content>{{ ttlConveter(ki.timed) }}</template>
-                        <span class="ml10">
-                            <el-icon class="mr5"><InfoFilled /></el-icon>
+                        <span class="ml-2">
+                            <el-icon class="mr-1"><InfoFilled /></el-icon>
                         </span>
                     </el-tooltip>
 
@@ -180,24 +180,18 @@ const ttlConveter = (ttl: any) => {
     cursor: pointer;
 }
 
-.key-header-item {
-    /*padding-right: 15px;*/
-    /*margin-bottom: 10px;*/
-    float: left;
-}
-
 .key-header-item.key-name-input {
-    width: calc(100% - 332px);
-    min-width: 220px;
+    width: calc(100% - 322px);
+    min-width: 230px;
     max-width: 800px;
-    margin-right: 10px;
-    margin-bottom: 10px;
+    margin-right: 5px;
+    margin-bottom: 5px;
 }
 
 .key-header-item.key-ttl-input {
-    width: 200px;
-    margin-right: 10px;
-    margin-bottom: 10px;
+    width: 190px;
+    margin-right: 5px;
+    margin-bottom: 5px;
 }
 
 /*hide number input button*/

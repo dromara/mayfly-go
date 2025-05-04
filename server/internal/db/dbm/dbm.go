@@ -2,7 +2,6 @@ package dbm
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm/dbi"
 	_ "mayfly-go/internal/db/dbm/dm"
 	_ "mayfly-go/internal/db/dbm/mssql"
@@ -11,6 +10,7 @@ import (
 	_ "mayfly-go/internal/db/dbm/postgres"
 	_ "mayfly-go/internal/db/dbm/sqlite"
 	"mayfly-go/internal/machine/mcm"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
 	"sync"

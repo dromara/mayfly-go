@@ -15,6 +15,7 @@ type ProcinstTaskQuery struct {
 	ProcinstId   uint64             `json:"procinstId"`   // 流程实例id
 	ProcinstName string             `json:"procinstName"` // 流程实例名称
 	BizType      string             `json:"bizType" form:"bizType"`
+	BizKey       string             `json:"bizKey" form:"bizKey"` // 业务key
 	Assignee     string             `json:"assignee"`             // 分配到该任务的用户
 	Status       ProcinstTaskStatus `json:"status" form:"status"` // 状态
 }

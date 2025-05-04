@@ -1,43 +1,54 @@
 <template>
-    <div>
-        <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">{{ $t('redis.addNewLine') }}</el-button>
-        <el-table size="small" border :data="values" height="450" min-height="300" stripe>
-            <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
-            <el-table-column resizable sortable prop="score" label="score" show-overflow-tooltip min-width="100"> </el-table-column>
-            <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
-            <el-table-column :label="$t('common.operation')">
-                <template #header>
-                    <el-input
-                        class="key-detail-filter-value"
-                        v-model="state.filterValue"
-                        @keyup.enter="zscanData(true)"
-                        :placeholder="$t('redis.filterPlaceholder')"
-                        clearable
-                        size="small"
-                    />
-                </template>
-                <template #default="scope">
-                    <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit" plain></el-link>
-                    <el-popconfirm :title="$t('redis.deleteConfirm')" @confirm="zrem(scope.row, scope.$index)">
-                        <template #reference>
-                            <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml5"></el-link>
-                        </template>
-                    </el-popconfirm>
-                </template>
-            </el-table-column>
-        </el-table>
+    <div class="flex flex-col">
+        <div>
+            <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb-2">{{ $t('redis.addNewLine') }}</el-button>
+        </div>
+
+        <div class="flex-1 overflow-auto">
+            <el-table size="small" border :data="values" height="100%" stripe>
+                <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
+                <el-table-column resizable sortable prop="score" label="score" show-overflow-tooltip min-width="100"> </el-table-column>
+                <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
+                <el-table-column :label="$t('common.operation')">
+                    <template #header>
+                        <el-input
+                            v-model="state.filterValue"
+                            @keyup.enter="zscanData(true)"
+                            :placeholder="$t('redis.filterPlaceholder')"
+                            clearable
+                            size="small"
+                        />
+                    </template>
+                    <template #default="scope">
+                        <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit" plain></el-link>
+                        <el-popconfirm :title="$t('redis.deleteConfirm')" @confirm="zrem(scope.row, scope.$index)">
+                            <template #reference>
+                                <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml-1"></el-link>
+                            </template>
+                        </el-popconfirm>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </div>
         <!-- load more content -->
         <div class="content-more-container">
             <el-button size="small" @click="loadDatas()" :disabled="loadMoreDisable" class="content-more-btn"> {{ $t('redis.loadMore') }} </el-button>
         </div>
 
-        <el-dialog :title="$t('redis.addNewLine')" v-model="editDialog.visible" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-dialog
+            :title="$t('redis.addNewLine')"
+            v-model="editDialog.visible"
+            width="600px"
+            :destroy-on-close="true"
+            :close-on-click-modal="false"
+            body-class="p-1"
+        >
             <el-form>
                 <el-form-item>
                     <el-input type="number" v-model.number="editDialog.score" placeholder="score" />
                 </el-form-item>
                 <el-form-item>
-                    <format-viewer class="w100" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
+                    <format-viewer class="!w-full" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
                 </el-form-item>
             </el-form>
 

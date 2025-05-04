@@ -1,7 +1,7 @@
 <template>
-    <div class="w100 tag-tree-check">
+    <div class="!w-full tag-tree-check">
         <el-input v-model="filterTag" @input="onFilterValChanged" clearable :placeholder="$t('tag.keywordFilterPlaceholder')" size="small" />
-        <div class="mt3" style="border: 1px solid var(--el-border-color)">
+        <div class="mt-0.5" style="border: 1px solid var(--el-border-color)">
             <el-scrollbar :style="{ height: props.height }">
                 <el-tree
                     v-bind="$attrs"
@@ -30,7 +30,7 @@
                                 :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.iconColor"
                             />
 
-                            <span class="font13 ml5">
+                            <span class="!text-[13px] ml-1">
                                 {{ data.name }}
                                 <span style="color: #3c8dbc">【</span>
                                 {{ data.code }}

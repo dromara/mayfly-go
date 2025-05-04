@@ -7,7 +7,7 @@
                     <div class="personal-user">
                         <div class="personal-user-left">
                             <el-upload
-                                class="h100 personal-user-left-upload"
+                                class="!h-full personal-user-left-upload"
                                 :action="getUploadFileUrl(`avatar_${userInfo.username}`)"
                                 :limit="1"
                                 :show-file-list="false"
@@ -20,16 +20,16 @@
                         </div>
                         <div class="personal-user-right">
                             <el-row>
-                                <el-col :span="24" class="personal-title mb18">
+                                <el-col :span="24" class="personal-title mb-4">
                                     {{ $t('home.welcomeMsg', { name: userInfo.name }) }}
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
-                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item !mb-1.5">
                                             <div class="personal-item-label">{{ $t('common.username') }}：</div>
                                             <div class="personal-item-value">{{ userInfo.username }}</div>
                                         </el-col>
-                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item !mb-1.5">
                                             <div class="personal-item-label">{{ $t('common.role') }}：</div>
                                             <div class="personal-item-value">{{ roleInfo }}</div>
                                         </el-col>
@@ -37,11 +37,11 @@
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
-                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item !mb-1.5">
                                             <div class="personal-item-label">{{ $t('home.lastLoginIp') }}：</div>
                                             <div class="personal-item-value">{{ userInfo.lastLoginIp }}</div>
                                         </el-col>
-                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item !mb-1.5">
                                             <div class="personal-item-label">{{ $t('home.lastLoginTime') }}：</div>
                                             <div class="personal-item-value">{{ formatDate(userInfo.lastLoginTime) }}</div>
                                         </el-col>
@@ -71,14 +71,14 @@
             </el-col>
         </el-row>
 
-        <el-row :gutter="20" class="mt20 resource-info">
+        <el-row :gutter="20" class="!mt-4 resource-info">
             <el-col :sm="12">
                 <el-card shadow="hover">
                     <template #header>
                         <el-row justify="center">
                             <div class="resource-num pointer-icon" @click="toPage('machine')">
                                 <SvgIcon
-                                    class="mb5 mr5"
+                                    class="mb-1 mr-1"
                                     :size="28"
                                     :name="TagResourceTypeEnum.Machine.extra.icon"
                                     :color="TagResourceTypeEnum.Machine.extra.iconColor"
@@ -123,7 +123,7 @@
                         <el-row justify="center">
                             <div class="resource-num pointer-icon" @click="toPage('db')">
                                 <SvgIcon
-                                    class="mb5 mr5"
+                                    class="mb-1 mr-1"
                                     :size="28"
                                     :name="TagResourceTypeEnum.DbInstance.extra.icon"
                                     :color="TagResourceTypeEnum.DbInstance.extra.iconColor"
@@ -157,14 +157,14 @@
             </el-col>
         </el-row>
 
-        <el-row :gutter="20" class="mt20 resource-info">
+        <el-row :gutter="20" class="!mt-4 resource-info">
             <el-col :sm="12">
                 <el-card shadow="hover">
                     <template #header>
                         <el-row justify="center">
                             <div class="resource-num pointer-icon" @click="toPage('redis')">
                                 <SvgIcon
-                                    class="mb5 mr5"
+                                    class="mb-1 mr-1"
                                     :size="28"
                                     :name="TagResourceTypeEnum.Redis.extra.icon"
                                     :color="TagResourceTypeEnum.Redis.extra.iconColor"
@@ -203,7 +203,7 @@
                         <el-row justify="center">
                             <div class="resource-num pointer-icon" @click="toPage('mongo')">
                                 <SvgIcon
-                                    class="mb5 mr5"
+                                    class="mb-1 mr-1"
                                     :size="28"
                                     :name="TagResourceTypeEnum.Mongo.extra.icon"
                                     :color="TagResourceTypeEnum.Mongo.extra.iconColor"
@@ -251,7 +251,7 @@
                     </template>
                 </el-table-column>
             </el-table>
-            <el-row type="flex" class="mt5" justify="center">
+            <el-row type="flex" class="mt-1" justify="center">
                 <el-pagination
                     small
                     @current-change="searchMsg"

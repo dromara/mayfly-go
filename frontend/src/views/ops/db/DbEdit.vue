@@ -65,10 +65,8 @@
             </el-form>
 
             <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" @click="btnOk">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" @click="btnOk">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
     </div>
@@ -86,12 +84,10 @@ import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { DbGetDbNamesMode } from './enums';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
+import { useI18nFormValidate } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     instance: {
         type: [Boolean, Object],
     },
@@ -103,38 +99,16 @@ const props = defineProps({
     },
 });
 
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'confirm']);
+const emit = defineEmits(['cancel', 'val-change', 'confirm']);
 
 const rules = {
-    instanceId: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.dbInst'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    authCertName: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.acName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    getDatabaseMode: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('db.getDbMode'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    instanceId: [Rules.requiredSelect('db.dbInst')],
+    name: [Rules.requiredInput('common.name')],
+    authCertName: [Rules.requiredSelect('db.acName')],
+    getDatabaseMode: [Rules.requiredSelect('db.getDbMode')],
 };
 
 const checkAllDbNames = ref(false);
@@ -144,7 +118,6 @@ const dbForm: any = ref(null);
 // const tagSelectRef: any = ref(null);
 
 const state = reactive({
-    dialogVisible: false,
     allDatabases: [] as any,
     dbNamesSelected: [] as any,
     dbNamesFiltered: [] as any,
@@ -165,28 +138,24 @@ const state = reactive({
     loadingDbNames: false,
 });
 
-const { dialogVisible, allDatabases, form, dbNamesSelected } = toRefs(state);
+const { allDatabases, form, dbNamesSelected } = toRefs(state);
 
-watch(
-    () => props.visible,
-    () => {
-        state.dialogVisible = props.visible;
-        if (!state.dialogVisible) {
-            return;
-        }
-        const db: any = props.db;
-        if (db.code) {
-            state.form = { ...db };
-            if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
-                // 将数据库名使用空格切割，获取所有数据库列表
-                state.dbNamesSelected = db.database.split(' ');
-            }
-        } else {
-            state.form = { getDatabaseMode: DbGetDbNamesMode.Auto.value } as any;
-            state.dbNamesSelected = [];
-        }
+watch(dialogVisible, () => {
+    if (!dialogVisible.value) {
+        return;
     }
-);
+    const db: any = props.db;
+    if (db.code) {
+        state.form = { ...db };
+        if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
+            // 将数据库名使用空格切割，获取所有数据库列表
+            state.dbNamesSelected = db.database.split(' ');
+        }
+    } else {
+        state.form = { getDatabaseMode: DbGetDbNamesMode.Auto.value } as any;
+        state.dbNamesSelected = [];
+    }
+});
 
 const onChangeGetDatabaseMode = (val: any) => {
     if (val == DbGetDbNamesMode.Auto.value) {
@@ -241,7 +210,7 @@ const resetInputDb = () => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
     setTimeout(() => {
         resetInputDb();

@@ -7,7 +7,7 @@
 <script lang="ts" setup>
 const props = defineProps({
     enums: {
-        type: Object, // 需要为EnumValue类型
+        type: Object || Array, // 需要为EnumValue类型
         required: true,
     },
 });

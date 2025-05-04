@@ -1,9 +1,9 @@
 <template>
     <div>
         <div>
-            <div class="card pd5 flex-justify-between">
+            <div class="card !p-1 flex items-center justify-between">
                 <div>
-                    <el-link @click="onRunSql()" :underline="false" class="ml15" icon="VideoPlay"> </el-link>
+                    <el-link @click="onRunSql()" :underline="false" class="ml-3.5" icon="VideoPlay"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
@@ -47,24 +47,30 @@
             style="height: calc(100vh - 233px)"
         >
             <Pane :size="state.editorSize" max-size="80">
-                <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
+                <MonacoEditor ref="monacoEditorRef" class="mt-1" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
             </Pane>
 
             <Pane :size="100 - state.editorSize">
-                <div class="mt5 sql-exec-res h100">
-                    <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" @tab-change="active" v-model="state.activeTab">
-                        <el-tab-pane class="h100" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
+                <div class="mt-1 sql-exec-res !h-full">
+                    <el-tabs
+                        class="!h-full !w-full"
+                        v-if="state.execResTabs.length > 0"
+                        @tab-remove="onRemoveTab"
+                        @tab-change="active"
+                        v-model="state.activeTab"
+                    >
+                        <el-tab-pane class="!h-full" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                             <template #label>
                                 <el-popover :show-after="1000" placement="top-start" :title="$t('db.execInfo')" trigger="hover" :width="300">
                                     <template #reference>
                                         <div>
                                             <span>
                                                 <span v-if="dt.loading">
-                                                    <SvgIcon class="mb2 is-loading" name="Loading" color="var(--el-color-primary)" />
+                                                    <SvgIcon class="!mb-0.5 is-loading" name="Loading" color="var(--el-color-primary)" />
                                                 </span>
                                                 <span v-else>
-                                                    <SvgIcon class="mb2" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
-                                                    <SvgIcon class="mb2" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
+                                                    <SvgIcon class="!mb-0.5" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
+                                                    <SvgIcon class="!mb-0.5" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
                                                 </span>
                                             </span>
 
@@ -88,7 +94,7 @@
                             </template>
 
                             <el-row>
-                                <span v-if="dt.hasUpdatedFileds" class="mt5">
+                                <span v-if="dt.hasUpdatedFileds" class="mt-1">
                                     <span>
                                         <el-link type="success" :underline="false" @click="submitUpdateFields(dt)"
                                             ><span style="font-size: 12px">{{ $t('common.submit') }}</span></el-link

@@ -190,7 +190,7 @@ func TestTemplateResolve(t *testing.T) {
 	d := make(map[string]string)
 	d["Name"] = "黄先生"
 	d["Age"] = "23jlfdsjf"
-	resolve := stringx.TemplateResolve("{{.Name}} is name, and {{.Age}} is age", d)
+	resolve, _ := stringx.TemplateResolve("{{.Name}} is name, and {{.Age}} is age", d)
 	fmt.Println(resolve)
 
 }

@@ -105,7 +105,7 @@ func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			ColumnComment: cast.ToString(re["columnComment"]),
 			Nullable:      cast.ToString(re["nullable"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,
-			IsIdentity:    cast.ToInt(re["isIdentity"]) == 1,
+			AutoIncrement: cast.ToInt(re["autoIncrement"]) == 1,
 			ColumnDefault: cast.ToString(re["columnDefault"]),
 			NumPrecision:  cast.ToInt(re["numPrecision"]),
 			NumScale:      cast.ToInt(re["numScale"]),

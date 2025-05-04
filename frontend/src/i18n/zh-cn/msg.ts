@@ -1,0 +1,20 @@
+export default {
+    msg: {
+        name: '名称',
+        email: '邮箱',
+        dingBot: '钉钉机器人',
+        qywxBot: '企微机器人',
+        feishuBot: '飞书机器人',
+        msgChannel: '消息渠道',
+        smtpAccount: 'SMTP账号',
+        smtpPassword: 'SMTP密码',
+        msgTmpl: '消息模板',
+        relateChannel: '关联渠道',
+        title: '标题',
+        tmpl: '模板',
+        send: '发送',
+        sendMsg: '发送消息',
+        selectTmplPlaceholder: '选择消息模板，支持编号模糊搜索',
+        msgTmplTooltip: "消息模板支持变量替换，变量格式为{'{{.变量名}}'}，以下为通用内置变量 <br/>{'{{.receiver}}'}：用于{'@'}指定接收人",
+    },
+};

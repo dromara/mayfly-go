@@ -1,15 +1,7 @@
 package mssql
 
 import (
-	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-)
-
-var (
-	DTOracleDate = dbi.DTDateTime.Copy().WithSQLValue(func(val any) string {
-		// oracle date型需要用函数包裹：to_date('%s', 'yyyy-mm-dd hh24:mi:ss')
-		return fmt.Sprintf("to_date('%s', 'yyyy-mm-dd hh24:mi:ss')", val)
-	})
 )
 
 var (

@@ -108,5 +108,7 @@ const setIconSvgInsStyle = computed(() => {
     align-items: center;
     cursor: pointer;
     vertical-align: middle;
+    height: 100%; /* 确保高度与父元素一致 */
+    line-height: 1; /* 确保行高与高度一致 */
 }
 </style>

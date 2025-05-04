@@ -5,34 +5,35 @@ import (
 	"time"
 )
 
+// DataSyncTask 数据同步
 type DataSyncTask struct {
 	model.Model
 
 	// 基本信息
-	TaskName     string `orm:"column(task_name)" json:"taskName"`         // 任务名
-	TaskCron     string `orm:"column(task_cron)" json:"taskCron"`         // 任务Cron表达式
-	Status       int8   `orm:"column(status)" json:"status"`              // 状态 1启用  2禁用
-	TaskKey      string `orm:"column(key)" json:"taskKey"`                // 任务唯一标识
-	RecentState  int8   `orm:"column(recent_state)" json:"recentState"`   // 最近执行状态 1成功 -1失败
-	RunningState int8   `orm:"column(running_state)" json:"runningState"` // 运行时状态 1运行中、2待运行、3已停止
+	TaskName     string `json:"taskName" gorm:"not null;size:255;comment:任务名"`                       // 任务名
+	TaskCron     string `json:"taskCron" gorm:"not null;size:50;comment:任务Cron表达式"`                  // 任务Cron表达式
+	Status       int8   `json:"status" gorm:"not null;default:1;comment:状态 1启用  2禁用"`                // 状态 1启用  2禁用
+	TaskKey      string `json:"taskKey" gorm:"size:100;comment:任务唯一标识"`                              // 任务唯一标识
+	RecentState  int8   `json:"recentState" gorm:"not null;default:0;comment:最近执行状态 1成功 -1失败"`       // 最近执行状态 1成功 -1失败
+	RunningState int8   `json:"runningState" gorm:"not null;default:2;comment:运行时状态 1运行中、2待运行、3已停止"` // 运行时状态 1运行中、2待运行、3已停止
 
 	// 源数据库信息
-	SrcDbId     int64  `orm:"column(src_db_id)" json:"srcDbId"`
-	SrcDbName   string `orm:"column(src_db_name)" json:"srcDbName"`
-	SrcTagPath  string `orm:"column(src_tag_path)" json:"srcTagPath"`
-	DataSql     string `orm:"column(data_sql)" json:"dataSql"`          // 数据源查询sql
-	PageSize    int    `orm:"column(page_size)" json:"pageSize"`        // 配置分页sql查询的条数
-	UpdField    string `orm:"column(upd_field)" json:"updField"`        // 更新字段， 选择由哪个字段为更新字段，查询数据源的时候会带上这个字段，如：where update_time > {最近更新的最大值}
-	UpdFieldVal string `orm:"column(upd_field_val)" json:"updFieldVal"` // 更新字段当前值
-	UpdFieldSrc string `orm:"column(upd_field_src)" json:"updFieldSrc"` // 更新值来源, 如select name as user_name from user;  则updFieldSrc的值为user_name
+	SrcDbId     int64  `json:"srcDbId" gorm:"not null;comment:源数据库ID"`                                                           // 源数据库ID
+	SrcDbName   string `json:"srcDbName" gorm:"size:100;comment:源数据库名"`                                                          // 源数据库名
+	SrcTagPath  string `json:"srcTagPath" gorm:"size:200;comment:源数据库tag路径"`                                                     // 源数据库tag路径
+	DataSql     string `json:"dataSql" gorm:"not null;type:text;comment:数据查询sql"`                                                // 数据源查询sql
+	PageSize    int    `json:"pageSize" gorm:"not null;comment:数据同步分页大小"`                                                        // 配置分页sql查询的条数
+	UpdField    string `json:"updField" gorm:"not null;size:100;default:'id';comment:更新字段，默认'id'"`                               // 更新字段， 选择由哪个字段为更新字段，查询数据源的时候会带上这个字段，如：where update_time > {最近更新的最大值}
+	UpdFieldVal string `json:"updFieldVal" gorm:"size:100;comment:当前更新值"`                                                        // 更新字段当前值
+	UpdFieldSrc string `json:"updFieldSrc" gorm:"comment:更新值来源, 如select name as user_name from user;  则updFieldSrc的值为user_name"` // 更新值来源, 如select name as user_name from user;  则updFieldSrc的值为user_name
 
 	// 目标数据库信息
-	TargetDbId        int64  `orm:"column(target_db_id)" json:"targetDbId"`
-	TargetDbName      string `orm:"column(target_db_name)" json:"targetDbName"`
-	TargetTagPath     string `orm:"column(target_tag_path)" json:"targetTagPath"`
-	TargetTableName   string `orm:"column(target_table_name)" json:"targetTableName"`
-	FieldMap          string `orm:"column(field_map)" json:"fieldMap"`                   // 字段映射json
-	DuplicateStrategy int    `orm:"column(duplicate_strategy)" json:"duplicateStrategy"` // 冲突策略 -1：无，1：忽略，2：覆盖
+	TargetDbId        int64  `json:"targetDbId" gorm:"not null;comment:目标数据库ID"`                                  // 目标数据库ID
+	TargetDbName      string `json:"targetDbName" gorm:"size:150;comment:目标数据库名"`                                 // 目标数据库名
+	TargetTagPath     string `json:"targetTagPath" gorm:"size:255;comment:目标数据库tag路径"`                            // 目标数据库tag路径
+	TargetTableName   string `json:"targetTableName" gorm:"size:150;comment:目标数据库表名"`                             // 目标数据库表名
+	FieldMap          string `json:"fieldMap" gorm:"type:text;comment:字段映射json"`                                  // 字段映射json
+	DuplicateStrategy int    `json:"duplicateStrategy" gorm:"not null;default:-1;comment:唯一键冲突策略 -1：无，1：忽略，2：覆盖"` // 冲突策略 -1：无，1：忽略，2：覆盖
 }
 
 func (d *DataSyncTask) TableName() string {
@@ -41,12 +42,13 @@ func (d *DataSyncTask) TableName() string {
 
 type DataSyncLog struct {
 	model.IdModel
-	TaskId      uint64     `orm:"column(task_id)" json:"taskId"` // 任务表id
-	CreateTime  *time.Time `orm:"column(create_time)" json:"createTime"`
-	DataSqlFull string     `orm:"column(data_sql_full)" json:"dataSqlFull"` // 执行的完整sql
-	ResNum      int        `orm:"column(res_num)" json:"resNum"`            // 收到数据条数
-	ErrText     string     `orm:"column(err_text)" json:"errText"`          // 错误日志
-	Status      int8       `orm:"column(status)" json:"status"`             // 状态:1.成功  -1.失败
+
+	CreateTime  *time.Time `json:"createTime" gorm:"not null;"`                            // 创建时间
+	TaskId      uint64     `json:"taskId" gorm:"not null;comment:同步任务表id"`                 // 任务表id
+	DataSqlFull string     `json:"dataSqlFull" gorm:"not null;type:text;comment:执行的完整sql"` // 执行的完整sql
+	ResNum      int        `json:"resNum" gorm:"comment:收到数据条数"`                           // 收到数据条数
+	ErrText     string     `json:"errText" gorm:"type:text;comment:日志"`                    // 日志
+	Status      int8       `json:"status" gorm:"not null;default:1;comment:状态:1.成功  0.失败"` // 状态:1.成功  0.失败
 }
 
 func (d *DataSyncLog) TableName() string {

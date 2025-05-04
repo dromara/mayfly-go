@@ -17,6 +17,7 @@ import (
 
 const (
 	InjectTag           = "inject"
+	InjectMethodPrefix  = "Inject"
 	ByTypeComponentName = "T" // 根据类型注入的组件名
 )
 
@@ -74,14 +75,13 @@ func (c *Container) Inject(obj any) error {
 
 // 对所有组件实例执行Inject。即为实例字段注入依赖的组件实例
 func (c *Container) InjectComponents() error {
-	componentsGroups := collx.ArraySplit[*Component](collx.MapValues(c.components), 5)
+	componentsGroups := collx.ArraySplit[*Component](collx.MapValues(c.components), 10)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errGroup, _ := errgroup.WithContext(ctx)
 
 	for _, components := range componentsGroups {
-		components := components // 创建局部变量以在闭包中使用
 		errGroup.Go(func() error {
 			for _, v := range components {
 				if err := c.Inject(v.Value); err != nil {
@@ -165,7 +165,7 @@ func (c *Container) GetComponentsByType(fieldType reflect.Type) []*Component {
 	return components
 }
 
-// injectWithField 根据实例字段的inject:"xxx"或injectByType:""标签进行依赖注入
+// injectWithField 根据实例字段的inject:"xxx"标签进行依赖注入
 func (c *Container) injectWithField(context context.Context, objValue reflect.Value) error {
 	objValue = structx.Indirect(objValue)
 	objType := objValue.Type()
@@ -224,7 +224,7 @@ func (c *Container) injectByName(context context.Context, structType reflect.Typ
 		return fmt.Errorf("%s error: injection types are inconsistent(Expected type -> %s.%s, Component type -> %s.%s)", injectInfo, field.Type.PkgPath(), field.Type.Name(), indirectComponentType.PkgPath(), indirectComponentType.Name())
 	}
 
-	logx.DebugfContext(context, fmt.Sprintf("ioc field inject by name => [%s (%s) -> %s.%s#%s]", componentName, getComponentValueDesc(componentType), structType.PkgPath(), structType.Name(), field.Name))
+	logx.DebugfContext(context, "ioc field inject by name => [%s (%s) -> %s.%s#%s]", componentName, getComponentValueDesc(componentType), structType.PkgPath(), structType.Name(), field.Name)
 
 	if err := setFieldValue(fieldValue, component.Value); err != nil {
 		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
@@ -244,7 +244,7 @@ func (c *Container) injectByType(context context.Context, structType reflect.Typ
 		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
 	}
 
-	logx.DebugfContext(context, fmt.Sprintf("ioc field inject by type => [%s.%s (%s) -> %s.%s#%s]", fieldType.PkgPath(), fieldType.Name(), getComponentValueDesc(component.GetType()), structType.PkgPath(), structType.Name(), field.Name))
+	logx.DebugfContext(context, "ioc field inject by type => [%s.%s (%s) -> %s.%s#%s]", fieldType.PkgPath(), fieldType.Name(), getComponentValueDesc(component.GetType()), structType.PkgPath(), structType.Name(), field.Name)
 
 	if err := setFieldValue(fieldValue, component.Value); err != nil {
 		return fmt.Errorf("%s error: %s", injectInfo, err.Error())
@@ -261,8 +261,8 @@ func (c *Container) injectWithMethod(context context.Context, objValue reflect.V
 		method := objType.Method(i)
 
 		methodName := method.Name
-		// 不是以Inject开头的函数，则默认跳过
-		if !strings.HasPrefix(methodName, "Inject") {
+		// 不是以指定方法名前缀开头的函数，则默认跳过
+		if !strings.HasPrefix(methodName, InjectMethodPrefix) {
 			continue
 		}
 

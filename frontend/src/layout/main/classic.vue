@@ -1,7 +1,7 @@
 <template>
     <el-container class="layout-container flex-center">
         <Header />
-        <el-container class="layout-mian-height-50">
+        <el-container class="flex-1 overflow-auto">
             <Aside />
             <div class="flex-center layout-backtop">
                 <TagsView v-if="themeConfig.isTagsview" />

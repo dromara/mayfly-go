@@ -2,7 +2,7 @@ package application
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/utils"
 	"strings"
 	"testing"
 )

@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/internal/redis/rdm"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/logx"
@@ -12,13 +12,13 @@ import (
 type Redis struct {
 	model.Model
 
-	Code               string `orm:"column(code)" json:"code"`
-	Name               string `orm:"column(name)" json:"name"`
-	Host               string `orm:"column(host)" json:"host"`
-	Mode               string `json:"mode"`
-	Db                 string `orm:"column(database)" json:"db"`
-	SshTunnelMachineId int    `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
-	Remark             string
+	Code               string `json:"code" gorm:"size:32;not null;"`                // code
+	Name               string `json:"name" gorm:"size:255;not null;"`               // 名称
+	Host               string `json:"host" gorm:"size:255;not null;"`               // 主机地址
+	Mode               string `json:"mode" gorm:"size:32;"`                         // 模式
+	Db                 string `json:"db" gorm:"size:64;comment:库号: 多个库用,分割"`        // 库号: 多个库用,分割
+	SshTunnelMachineId int    `json:"sshTunnelMachineId" gorm:"comment:ssh隧道的机器id"` // ssh隧道机器id
+	Remark             string `json:"remark" gorm:"size:255;"`
 }
 
 // ToRedisInfo 转换为redisInfo进行连接

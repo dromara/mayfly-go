@@ -92,8 +92,9 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getClientId } from '@/common/utils/storage';
 import FileInfo from '@/components/file/FileInfo.vue';
 import { DbTransferFileStatusEnum } from './enums';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg, useI18nPleaseSelect } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -154,13 +155,7 @@ const state = reactive({
         visible: false,
         data: null as any,
         formRules: {
-            targetDbId: [
-                {
-                    required: true,
-                    message: useI18nPleaseSelect('db.targetDb'),
-                    trigger: ['change', 'blur'],
-                },
-            ],
+            targetDbId: [Rules.requiredSelect('db.targetDb')],
         },
         runForm: {
             id: 0,

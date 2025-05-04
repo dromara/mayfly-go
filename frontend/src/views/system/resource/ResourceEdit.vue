@@ -1,118 +1,85 @@
 <template>
-    <div class="system-menu-dialog-container layout-pd">
-        <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="800px">
+    <div>
+        <el-dialog :title="title" :destroy-on-close="true" v-model="visible" width="800px">
             <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="auto">
                 <el-row :gutter="35">
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
-                        <el-form-item class="w100" prop="type" :label="$t('common.type')" required>
+                        <el-form-item class="!w-full" prop="type" :label="$t('common.type')" required>
                             <enum-select :enums="ResourceTypeEnum" v-model="form.type" :disabled="typeDisabled" />
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
-                        <el-form-item class="w100" prop="name" :label="$t('common.name')" required>
+                        <el-form-item class="!w-full" prop="name" :label="$t('common.name')" required>
                             <el-input v-model.trim="form.name" auto-complete="off"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
-                        <el-form-item class="w100" prop="code" label="path|code">
-                            <template #label>
-                                path|code
-                                <el-tooltip :content="$t('system.menu.menuCodeTips')" placement="top">
-                                    <el-icon>
-                                        <question-filled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </template>
+                        <FormItemTooltip class="!w-full" label="path|code" prop="code" :tooltip="$t('system.menu.menuCodeTips')">
                             <el-input v-model.trim="form.code" :placeholder="$t('system.menu.menuCodePlaceholder')" auto-complete="off"></el-input>
-                        </el-form-item>
+                        </FormItemTooltip>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" :label="$t('system.menu.icon')">
+                        <el-form-item class="!w-full" :label="$t('system.menu.icon')">
                             <icon-selector v-model="form.meta.icon" />
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100">
-                            <template #label>
-                                {{ $t('system.menu.routerName') }}
-                                <el-tooltip :content="$t('system.menu.routerNameTips')" placement="top">
-                                    <el-icon>
-                                        <question-filled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </template>
+                        <FormItemTooltip
+                            class="!w-full"
+                            :label="$t('system.menu.routerName')"
+                            prop="meta.routeName"
+                            :tooltip="$t('system.menu.routerNameTips')"
+                        >
                             <el-input v-model.trim="form.meta.routeName"></el-input>
-                        </el-form-item>
+                        </FormItemTooltip>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code">
-                            <template #label>
-                                {{ $t('system.menu.componentPath') }}
-                                <el-tooltip :content="$t('system.menu.componentPathTips')" placement="top">
-                                    <el-icon>
-                                        <question-filled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </template>
+                        <FormItemTooltip
+                            class="!w-full"
+                            :label="$t('system.menu.routerName')"
+                            prop="meta.component"
+                            :tooltip="$t('system.menu.componentPathTips')"
+                        >
                             <el-input v-model.trim="form.meta.component"></el-input>
-                        </el-form-item>
+                        </FormItemTooltip>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="isKeepAlive">
-                            <template #label>
-                                {{ $t('system.menu.isCache') }}
-                                <el-tooltip :content="$t('system.menu.isCacheTips')" placement="top">
-                                    <el-icon>
-                                        <question-filled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </template>
-                            <el-select v-model="form.meta.isKeepAlive" class="w100">
+                        <FormItemTooltip class="!w-full" :label="$t('system.menu.isCache')" prop="meta.isKeepAlive" :tooltip="$t('system.menu.isCacheTips')">
+                            <el-select v-model="form.meta.isKeepAlive" class="!w-full">
+                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+                            </el-select>
+                        </FormItemTooltip>
+                    </el-col>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
+                        <FormItemTooltip class="!w-full" :label="$t('system.menu.isHide')" prop="meta.isHide" :tooltip="$t('system.menu.isHideTips')">
+                            <el-select v-model="form.meta.isHide" class="!w-full">
+                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+                            </el-select>
+                        </FormItemTooltip>
+                    </el-col>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
+                        <el-form-item class="!w-full" prop="meta.isAffix" :label="$t('system.menu.tagIsDelete')">
+                            <el-select v-model="form.meta.isAffix" class="!w-full">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100">
-                            <template #label>
-                                {{ $t('system.menu.isHide') }}
-                                <el-tooltip :content="$t('system.menu.isHideTips')" placement="top">
-                                    <el-icon>
-                                        <question-filled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </template>
-                            <el-select v-model="form.meta.isHide" class="w100">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" :label="$t('system.menu.tagIsDelete')">
-                            <el-select v-model="form.meta.isAffix" class="w100">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="linkType">
-                            <template #label>
-                                {{ $t('system.menu.externalLink') }}
-                                <el-tooltip content="" placement="top">
-                                    <el-icon>
-                                        <question-filled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </template>
-                            <el-select class="w100" @change="changeLinkType" v-model="form.meta.linkType">
+                        <FormItemTooltip
+                            class="!w-full"
+                            :label="$t('system.menu.externalLink')"
+                            prop="meta.linkType"
+                            :tooltip="$t('system.menu.externalLinkTips')"
+                        >
+                            <el-select class="!w-full" @change="changeLinkType" v-model="form.meta.linkType">
                                 <el-option :key="0" :label="$t('system.menu.no')" :value="0"> </el-option>
                                 <el-option :key="1" :label="$t('system.menu.inline')" :value="1"> </el-option>
                                 <el-option :key="2" :label="$t('system.menu.externalLink')" :value="2"> </el-option>
                             </el-select>
-                        </el-form-item>
+                        </FormItemTooltip>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue && form.meta.linkType > 0">
-                        <el-form-item prop="code" :label="$t('system.menu.linkAddress')" class="w100">
+                        <el-form-item prop="meta.link" :label="$t('system.menu.linkAddress')" class="!w-full">
                             <el-input v-model.trim="form.meta.link" :placeholder="$t('system.menu.linkPlaceholder')"></el-input>
                         </el-form-item>
                     </el-col>
@@ -138,13 +105,12 @@ import { notEmpty } from '@/common/assert';
 import iconSelector from '@/components/iconSelector/index.vue';
 import { useI18n } from 'vue-i18n';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -156,8 +122,10 @@ const props = defineProps({
     },
 });
 
+const visible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const menuForm: any = ref(null);
 
@@ -176,13 +144,8 @@ const defaultMeta = {
 };
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: t('system.menu.menuNameRuleMsg'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('common.name')],
+    code: [Rules.requiredInput('code')],
 };
 
 const trueFalseOption = [
@@ -197,7 +160,6 @@ const trueFalseOption = [
 ];
 
 const state = reactive({
-    dialogVisible: false,
     form: {
         id: null,
         name: null,
@@ -219,12 +181,14 @@ const state = reactive({
     submitForm: {},
 });
 
-const { dialogVisible, form, submitForm } = toRefs(state);
+const { form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.save.useApi(submitForm);
 
 watchEffect(() => {
-    state.dialogVisible = props.visible;
+    if (!visible.value) {
+        return;
+    }
     if (props.data) {
         state.form = { ...(props.data as any) };
     } else {
@@ -307,7 +271,7 @@ const parseMenuMeta = (meta: any) => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

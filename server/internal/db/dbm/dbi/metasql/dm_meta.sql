@@ -1,8 +1,5 @@
 --DM_DB_SCHEMAS 库schemas
-SELECT
-    DISTINCT object_name as SCHEMA_NAME
-FROM ALL_OBJECTS
-WHERE OBJECT_TYPE = 'SCH'
+SELECT NAME as SCHEMA_NAME FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' ORDER BY NAME ASC
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
 SELECT a.object_name                                      as TABLE_NAME,
@@ -19,7 +16,7 @@ SELECT a.object_name                                      as TABLE_NAME,
                        WHERE OWNER = 'wxb'
                          AND TABLE_NAME = a.object_name)) as INDEX_LENGTH,
        c.num_rows                                         as TABLE_ROWS
-FROM all_objects a
+FROM SYSOBJECTS a
          LEFT JOIN ALL_TAB_COMMENTS b ON b.TABLE_TYPE = 'TABLE'
     AND a.object_name = b.TABLE_NAME
     AND b.owner = a.owner
@@ -32,6 +29,18 @@ WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
         and a.object_name in ({{.tableNames}})
     {{end}}
 ORDER BY a.object_name
+---------------------------------------
+--DM_TABLE_INFO_NAME_ONLY 表名列表
+SELECT TABS.NAME as TABLE_NAME FROM
+ (SELECT ID, PID FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' AND NAME = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))) SCHEMAS,
+ (SELECT ID, SCHID, NAME FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCHOBJ' AND SUBTYPE$ IN ('UTAB', 'STAB', 'VIEW', 'SYNOM')
+                                       AND ((SUBTYPE$ ='UTAB' AND CAST((INFO3 & 0x00FF & 0x003F) AS INT) not in (9, 27, 29, 25, 12, 7, 21, 23, 18, 5))
+         OR SUBTYPE$ in ('STAB', 'VIEW', 'SYNOM'))) TABS
+WHERE TABS.SCHID = SCHEMAS.ID 
+  AND SF_CHECK_PRIV_OPT(UID(), CURRENT_USERTYPE(), TABS.ID, SCHEMAS.PID, -1, TABS.ID) = 1
+{{if .tableNames}}
+    and TABS.NAME in ({{.tableNames}})
+{{end}}
 ---------------------------------------
 --DM_INDEX_INFO 表索引信息
 select a.index_name                                        as INDEX_NAME,
@@ -82,3 +91,22 @@ where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and a.table_name in (%s)
 order by a.table_name,
          a.column_id
+---------------------------------------
+--DM_COLUMN_MA_EX 表列信息
+SELECT
+    TABS.TABLE_NAME           TABLE_NAME,
+    COLS.NAME                 COLUMN_NAME,
+    case when COLS.NULLABLE$ = 'Y' then 'YES' when COLS.NULLABLE$ = 'N' then 'NO' else 'NO' end as NULLABLE,
+    COLS.TYPE$                DATA_TYPE,
+    COLS.LENGTH$              CHAR_MAX_LENGTH,
+    COLS.SCALE                NUM_SCALE,
+    COLS.DEFVAL               COLUMN_DEFAULT,
+    case when COLS.INFO2 & 0x01 = 0x01 then 1 else 0 end  as IS_IDENTITY,
+    case when COLS.INFO2 & 0x01 = 0x01 then 1 else 0 end  as IS_PRIMARY_KEY
+
+FROM
+    (SELECT ID FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' AND NAME = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))) SCHS,
+    (SELECT ID,SCHID,NAME TABLE_NAME FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCHOBJ' AND SUBTYPE$ IN ('UTAB', 'STAB', 'VIEW') AND NAME  in (%s)) TABS,
+    SYS.SYSCOLUMNS COLS
+
+WHERE TABS.ID = COLS.ID AND SCHS.ID = TABS.SCHID;

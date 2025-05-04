@@ -47,6 +47,8 @@ type DataSyncTask interface {
 	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
+var _ (DataSyncTask) = (*dataSyncAppImpl)(nil)
+
 type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
 
@@ -105,12 +107,14 @@ func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.D
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		taskId := taskEntity.Id
-		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
+		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
 			logx.Infof("start the data synchronization task: %d", taskId)
 			if err := app.RunCronJob(ctx, taskId); err != nil {
 				logx.Errorf("the data synchronization task failed to execute at a scheduled time: %s", err.Error())
 			}
-		})
+		}); err != nil {
+			logx.ErrorTrace("add db data sync cron job failed", err)
+		}
 	}
 }
 
@@ -159,7 +163,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 						break
 					}
 				}
-				return errorx.NewBiz("get column data type")
+				return dbi.NewStopWalkQueryError("get column data type... ignore~")
 			})
 
 			updSql = fmt.Sprintf("and %s > %s", task.UpdField, updFieldDataType.DataType.SQLValue(task.UpdFieldVal))
@@ -299,20 +303,20 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 		targetData = append(targetData, data)
 	}
 
-	tragetValues := make([][]any, 0)
+	targetValues := make([][]any, 0)
 	for _, item := range targetData {
 		var values = make([]any, 0)
 		for _, column := range targetInsertColumns {
 			values = append(values, item[column.ColumnName])
 		}
-		tragetValues = append(tragetValues, values)
+		targetValues = append(targetValues, values)
 	}
 
 	// 执行插入
 	targetDialect := targetDbConn.GetDialect()
 
 	// 生成目标数据库批量插入sql，并执行
-	sqls := targetDialect.GetSQLGenerator().GenInsert(task.TargetTableName, targetInsertColumns, tragetValues, cmp.Or(task.DuplicateStrategy, dbi.DuplicateStrategyNone))
+	sqls := targetDialect.GetSQLGenerator().GenInsert(task.TargetTableName, targetInsertColumns, targetValues, cmp.Or(task.DuplicateStrategy, dbi.DuplicateStrategyNone))
 
 	// 开启本批次执行事务
 	targetDbTx, err := targetDbConn.Begin()
@@ -394,7 +398,7 @@ func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
 func (app *dataSyncAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
-			logx.ErrorTrace("the data synchronization task failed to initialize: %s", err.(error))
+			logx.ErrorTrace("the data synchronization task failed to initialize", err)
 		}
 	}()
 
@@ -410,7 +414,12 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	cond.Status = entity.DataSyncTaskStatusEnable
 	jobs := new([]entity.DataSyncTask)
 
-	pr, _ := app.GetPageList(cond, pageParam, jobs)
+	pr, err := app.GetPageList(cond, pageParam, jobs)
+	if err != nil {
+		logx.ErrorTrace("the data synchronization task failed to initialize", err)
+		return
+	}
+
 	total := pr.Total
 	add := 0
 

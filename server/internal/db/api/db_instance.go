@@ -1,13 +1,13 @@
 package api
 
 import (
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
+	"mayfly-go/internal/pkg/consts"
 
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"

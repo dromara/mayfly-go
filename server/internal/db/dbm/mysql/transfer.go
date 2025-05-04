@@ -97,6 +97,7 @@ func (c *commonTypeConverter) Blob(col *dbi.Column) *dbi.DbDataType {
 	return Blob
 }
 func (c *commonTypeConverter) Longblob(col *dbi.Column) *dbi.DbDataType {
+	col.CharMaxLength = 0
 	return Longblob
 }
 

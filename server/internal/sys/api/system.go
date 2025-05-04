@@ -15,7 +15,7 @@ type System struct {
 
 func (s *System) ReqConfs() *req.Confs {
 	reqs := [...]*req.Conf{
-		req.NewGet("", s.ConnectWs),
+		req.NewGet("", s.ConnectWs).NoRes(),
 	}
 	return req.NewConfs("sysmsg", reqs[:]...)
 }
@@ -39,7 +39,6 @@ func (s *System) ConnectWs(rc *req.Ctx) {
 	biz.NotEmpty(clientId, "clientId cannot be empty")
 
 	// 权限校验
-	// rc := req.NewCtxWithGin(g)
 	err = req.PermissionHandler(rc)
 	biz.ErrIsNil(err, "sys-websocket connect without permission")
 

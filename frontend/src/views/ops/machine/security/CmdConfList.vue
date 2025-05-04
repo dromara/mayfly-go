@@ -4,7 +4,7 @@
             <el-table-column prop="name" :label="$t('common.name')" show-overflow-tooltip min-width="100px"> </el-table-column>
             <el-table-column prop="cmds" :label="$t('machine.filterCmds')" min-width="320px" show-overflow-tooltip>
                 <template #default="scope">
-                    <el-tag class="ml2 mt2" v-for="cmd in scope.row.cmds" :key="cmd" type="danger">
+                    <el-tag class="ml-0.5 mt-0.5" v-for="cmd in scope.row.cmds" :key="cmd" type="danger">
                         {{ cmd }}
                     </el-tag>
                 </template>
@@ -20,7 +20,7 @@
             <el-table-column :label="$t('common.operation')" min-width="120px">
                 <template #header>
                     <el-text tag="b">{{ $t('common.operation') }}</el-text>
-                    <el-button v-auth="'cmdconf:save'" class="ml5" type="primary" circle size="small" icon="Plus" @click="openFormDialog(false)"> </el-button>
+                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="openFormDialog(false)"> </el-button>
                 </template>
                 <template #default="scope">
                     <el-button v-auth="'cmdconf:save'" @click="openFormDialog(scope.row)" type="primary" link>{{ $t('common.edit') }}</el-button>
@@ -49,7 +49,7 @@
                 <el-form-item prop="cmds" :label="$t('machine.filterCmds')" required>
                     <el-row>
                         <el-tag
-                            class="ml2 mt2"
+                            class="ml-0.5 mt-0.5"
                             v-for="tag in form.cmds"
                             :key="tag"
                             closable
@@ -63,13 +63,13 @@
                             v-if="state.inputCmdVisible"
                             ref="cmdInputRef"
                             v-model="state.cmdInputValue"
-                            class="mt3"
+                            class="mt-0.5"
                             size="small"
                             @keyup.enter="handleCmdInputConfirm"
                             @blur="handleCmdInputConfirm"
                             :placeholder="$t('machine.cmdPlaceholder')"
                         />
-                        <el-button v-else class="ml2 mt2" size="small" @click="showCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
+                        <el-button v-else class="ml-0.5 mt-0.5" size="small" @click="showCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
                     </el-row>
                 </el-form-item>
 
@@ -102,31 +102,14 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { cmdConfApi } from '../api';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagCodePath from '../../component/TagCodePath.vue';
-import _ from 'lodash';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
+import { deepClone } from '@/common/utils/object';
 
 const rules = {
-    tags: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.relateMachine'),
-            trigger: ['change'],
-        },
-    ],
-    cmds: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.cmd'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    tags: [Rules.requiredInput('machine.relateMachine')],
+    cmds: [Rules.requiredInput('machine.cmd')],
+    name: [Rules.requiredInput('common.name')],
 };
 
 const tagSelectRef: any = ref(null);
@@ -183,7 +166,7 @@ const openFormDialog = (data: any) => {
     if (!data) {
         state.form = { ...DefaultForm };
     } else {
-        state.form = _.cloneDeep(data);
+        state.form = deepClone(data);
         state.form.codePaths = data.tags?.map((tag: any) => tag.codePath);
     }
     state.dialogVisible = true;

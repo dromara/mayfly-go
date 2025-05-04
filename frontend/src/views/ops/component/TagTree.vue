@@ -1,8 +1,9 @@
 <template>
-    <div class="card pd5">
-        <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="mb5 w100" />
-        <el-scrollbar class="tag-tree">
+    <el-card class="h-full flex" body-class="!p-1 flex flex-col w-full">
+        <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="!mb-1 w-full" />
+        <el-scrollbar>
             <el-tree
+                class="min-w-full inline-block"
                 ref="treeRef"
                 :highlight-current="true"
                 :indent="10"
@@ -21,8 +22,8 @@
                     <span
                         :id="node.key"
                         @dblclick="treeNodeDblclick(data, node)"
-                        class="node-container none-select"
-                        :class="data.type.nodeDblclickFunc ? 'none-select' : ''"
+                        class="node-container flex items-center cursor-pointer select-none"
+                        :class="data.type.nodeDblclickFunc ? 'select-none' : ''"
                     >
                         <span v-if="data.type.value == TagTreeNode.TagPath">
                             <tag-info :tag-path="data.label" />
@@ -30,7 +31,7 @@
 
                         <slot v-else :node="node" :data="data" name="prefix"></slot>
 
-                        <span class="ml3" :title="data.labelRemark">
+                        <span class="ml-0.5" :title="data.labelRemark">
                             <slot name="label" :data="data" v-if="!data.disabled"> {{ $t(data.label) }}</slot>
                             <!-- 禁用状态 -->
                             <slot name="disabledLabel" :data="data" v-else>
@@ -40,7 +41,7 @@
                             </slot>
                         </span>
 
-                        <span class="label-suffix">
+                        <span class="absolute right-2.5 mt-0.5 text-[10px] text-gray-400">
                             <slot :node="node" :data="data" name="suffix"></slot>
                         </span>
                     </span>
@@ -49,7 +50,7 @@
 
             <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
         </el-scrollbar>
-    </div>
+    </el-card>
 </template>
 
 <script lang="ts" setup>
@@ -240,28 +241,4 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped>
-.tag-tree {
-    height: calc(100vh - 148px);
-
-    .el-tree {
-        display: inline-block;
-        min-width: 100%;
-    }
-
-    .label-suffix {
-        position: absolute;
-        right: 10px;
-        color: #c4c9c4;
-        font-size: 10px;
-        margin-top: 2px;
-    }
-
-    .node-container {
-        display: flex;
-        align-items: center;
-        width: 100%; // 确保容器宽度占满整个节点区域
-        cursor: pointer; // 添加鼠标指针样式
-    }
-}
-</style>
+<style lang="scss" scoped></style>

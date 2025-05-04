@@ -1,7 +1,7 @@
 <template>
-    <div class="flex-all-center">
-        <Splitpanes class="default-theme">
-            <Pane size="20" max-size="30">
+    <div class="flex-all-center h-full">
+        <ResourceOpPanel>
+            <template #left>
                 <tag-tree
                     ref="tagTreeRef"
                     :default-expanded-keys="state.defaultExpendKey"
@@ -40,12 +40,12 @@
                         <span v-if="data.type.value == MongoNodeType.Dbs">{{ formatByteSize(data.params.size) }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane>
-                <div class="mongo-data-tab card pd5 w100">
+            <template #right>
+                <div class="mongo-data-tab card h-full !p-1 w-full">
                     <el-row v-if="nowColl">
-                        <el-descriptions class="w100" :column="10" size="small" border>
+                        <el-descriptions class="!w-full" :column="10" size="small" border>
                             <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
                             <el-descriptions-item label="ns" label-align="right">
@@ -73,11 +73,11 @@
                     </el-row>
 
                     <el-row type="flex">
-                        <el-tabs @tab-remove="removeDataTab" class="w100 ml5" v-model="state.activeName">
+                        <el-tabs @tab-remove="removeDataTab" class="!w-full ml-1" v-model="state.activeName">
                             <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                 <el-row>
                                     <el-col :span="2">
-                                        <div class="mt5">
+                                        <div class="mt-1">
                                             <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
                                             <el-divider direction="vertical" border-style="dashed" />
                                             <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" :underline="false"> </el-link>
@@ -99,7 +99,7 @@
                                         <el-col :span="6" v-for="item in dt.datas" :key="item">
                                             <el-card :body-style="{ padding: '0px', position: 'relative' }">
                                                 <el-input type="textarea" v-model="item.value" :rows="10" />
-                                                <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                                <div style="padding: 3px; float: right" class="mr-1 mongo-doc-btns">
                                                     <div>
                                                         <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
 
@@ -121,8 +121,8 @@
                         </el-tabs>
                     </el-row>
                 </div>
-            </Pane>
-        </Splitpanes>
+            </template>
+        </ResourceOpPanel>
 
         <el-dialog width="600px" title="find params" v-model="findDialog.visible">
             <el-form label-width="auto">
@@ -177,11 +177,11 @@ import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { sleep } from '@/common/utils/loading';
-import { Splitpanes, Pane } from 'splitpanes';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useI18nDeleteSuccessMsg, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
@@ -546,12 +546,6 @@ const getNowDataTab = () => {
 }
 
 .mongo-data-tab {
-    height: calc(100vh - 108px);
-}
-
-.mongo-data-tab {
-    margin-top: 1px;
-
     .mongo-data-tab-data {
         height: calc(100vh - 230px);
     }

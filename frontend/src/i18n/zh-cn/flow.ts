@@ -36,7 +36,7 @@ export default {
         startProcess: '发起流程',
         cancelProcessConfirm: '确认取消该流程?',
         bizType: '业务类型',
-        bizKey: '业务Key',
+        bizKey: '业务编号',
         initiator: '发起人',
         procdefName: '流程名',
         bizStatus: '业务状态',
@@ -89,5 +89,6 @@ export default {
         taskName: '当前节点',
         taskBeginTime: '开始时间',
         flowAudit: '流程审批',
+        notify: '通知',
     },
 };

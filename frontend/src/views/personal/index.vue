@@ -3,11 +3,11 @@
         <el-row>
             <!-- 更新信息 -->
             <el-col :span="24">
-                <el-card shadow="hover" class="mt15 personal-edit" :header="$t('personal.updateInfo')">
+                <el-card shadow="hover" class="!mt-3.5 personal-edit" :header="$t('personal.updateInfo')">
                     <div class="personal-edit-title">{{ $t('personal.basicInfo') }}</div>
-                    <el-form :model="accountForm" label-width="auto" class="mt35 mb35">
+                    <el-form :model="accountForm" label-width="auto" class="mt-8 mb-8">
                         <el-row :gutter="35">
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
+                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="!mb-4">
                                 <el-form-item :label="$t('common.password')">
                                     <el-input
                                         type="password"
@@ -28,7 +28,7 @@
                     </el-form>
 
                     <span v-show="authStatus.enable">
-                        <div class="personal-edit-title mb15">{{ $t('personal.accountInfo') }}</div>
+                        <div class="personal-edit-title mb-2">{{ $t('personal.accountInfo') }}</div>
                         <div class="personal-edit-safe-box">
                             <div class="personal-edit-safe-item">
                                 <div class="personal-edit-safe-item-left">

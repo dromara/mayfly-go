@@ -1,7 +1,7 @@
 <template>
-    <div class="db-sql-exec">
-        <Splitpanes class="default-theme">
-            <Pane size="20" max-size="30">
+    <div class="db-sql-exec h-full">
+        <ResourceOpPanel>
+            <template #left>
                 <tag-tree
                     :default-expanded-keys="state.defaultExpendKey"
                     :resource-type="TagResourceTypePath.Db"
@@ -51,10 +51,10 @@
                         <span v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{ ` ${data.params.dbTableSize}` }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane>
-                <div class="card db-op pd5">
+            <template #right>
+                <el-card class="h-full" body-class="h-full !p-1 flex flex-col flex-1">
                     <el-row>
                         <el-col :span="24" v-if="state.db">
                             <el-descriptions :column="4" size="small" border>
@@ -145,21 +145,20 @@
                         </el-col>
                     </el-row>
 
-                    <div id="data-exec" class="mt5">
+                    <div id="data-exec" class="mt-1">
                         <el-tabs
                             v-if="state.tabs.size > 0"
                             type="card"
                             @tab-remove="onRemoveTab"
                             @tab-change="onTabChange"
-                            style="width: 100%"
                             v-model="state.activeName"
-                            class="h100"
+                            class="!h-full w-full"
                         >
-                            <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                            <el-tab-pane class="!h-full" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                                 <template #label>
                                     <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                                         <template #reference>
-                                            <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="font12">{{ dt.label }}</span>
+                                            <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="!text-[12px]">{{ dt.label }}</span>
                                         </template>
                                         <template #default>
                                             <el-descriptions :column="1" size="small">
@@ -210,9 +209,10 @@
                             </el-tab-pane>
                         </el-tabs>
                     </div>
-                </div>
-            </Pane>
-        </Splitpanes>
+                </el-card>
+            </template>
+        </ResourceOpPanel>
+
         <db-table-op
             :title="tableCreateDialog.title"
             :active-name="tableCreateDialog.activeName"
@@ -247,7 +247,6 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
-import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener, useStorage } from '@vueuse/core';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
@@ -256,6 +255,7 @@ import { format as sqlFormatter } from 'sql-formatter';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
@@ -979,18 +979,14 @@ const getNowDbInfo = () => {
 };
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .db-sql-exec {
-    .db-op {
-        height: calc(100vh - 106px);
-    }
-
     #data-exec {
-        .el-tabs {
+        ::v-deep(.el-tabs) {
             --el-tabs-header-height: 30px;
         }
 
-        .el-tabs__header {
+        ::v-deep(.el-tabs__header) {
             margin: 0 0 5px;
 
             .el-tabs__item {
@@ -998,8 +994,10 @@ const getNowDbInfo = () => {
             }
         }
 
-        .el-tabs__nav-next,
-        .el-tabs__nav-prev {
+        ::v-deep(.el-tabs__nav-next) {
+            line-height: 30px;
+        }
+        ::v-deep(.el-tabs__nav-prev) {
             line-height: 30px;
         }
     }

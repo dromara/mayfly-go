@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/imsg"
 	"mayfly-go/internal/auth/pkg/captcha"
+	"mayfly-go/internal/pkg/utils"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -17,7 +18,6 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
-	"strconv"
 	"strings"
 	"time"
 
@@ -61,7 +61,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 	clientIp := getIpAndRegion(rc)
 	rc.ReqParam = collx.Kvs("username", username, "ip", clientIp)
 
-	originPwd, err := cryptox.DefaultRsaDecrypt(loginForm.Password, true)
+	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "decryption password error: %s")
 	// LDAP 用户本地密码为空，不允许本地登录
 	biz.NotEmpty(originPwd, "password cannot be empty")
@@ -78,7 +78,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 
 	if err != nil {
 		nowFailCount++
-		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
+		cache.Set(failCountKey, nowFailCount, time.Minute*time.Duration(loginFailMin))
 		panic(errorx.NewBizI(ctx, imsg.ErrLoginFail, "failCount", nowFailCount))
 	}
 

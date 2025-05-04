@@ -10,11 +10,11 @@ type Msg struct {
 
 	CreateTime *time.Time `json:"createTime"`
 	CreatorId  uint64     `json:"creatorId"`
-	Creator    string     `json:"creator"`
+	Creator    string     `json:"creator" gorm:"size:50"`
 
-	Type        int    `json:"type"`
-	Msg         string `json:"msg"`
-	RecipientId int64  `json:"recipientId"` // 接受者id
+	Type        int8   `json:"type"`
+	Msg         string `json:"msg" gorm:"size:2000"`
+	RecipientId int64  `json:"recipientId"` // 接收人id，-1为所有接收
 }
 
 func (a *Msg) TableName() string {

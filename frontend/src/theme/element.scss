@@ -52,6 +52,9 @@
 
 /* NavMenu 导航菜单
 ------------------------------- */
+$radius: 6px;
+$menuHeight: 46px !important;
+
 // 鼠标 hover 时颜色
 .el-menu-hover-bg-color {
     background-color: var(--bg-menuBarActiveColor) !important;
@@ -64,13 +67,15 @@
 }
 
 .el-menu-item {
-    height: 56px !important;
-    line-height: 56px !important;
+    height: $menuHeight;
+    line-height: $menuHeight;
+    border-radius: $radius;
 }
 
 .el-menu-item,
 .el-sub-menu__title {
     color: var(--bg-menuBarColor);
+    height: $menuHeight;
 }
 
 // 修复点击左侧菜单折叠再展开时，宽度不跟随问题
@@ -100,20 +105,18 @@
 .el-sub-menu.is-active .el-sub-menu__title,
 .el-sub-menu:not(.is-opened):hover .el-sub-menu__title {
     @extend .el-menu-hover-bg-color;
+    border-radius: $radius;
 }
 
 .el-menu-item:hover {
     @extend .el-menu-hover-bg-color;
+    border-radius: $radius;
 }
 
 .el-sub-menu.is-active.is-opened .el-sub-menu__title {
     background-color: unset !important;
 }
 
-// 子级菜单背景颜色
-// .el-menu--inline {
-// 	background: var(--next-bg-menuBar-light-1);
-// }
 // 水平菜单、横向菜单折叠 a 标签
 .el-popper.is-dark a {
     color: var(--el-color-white) !important;

@@ -1,7 +1,7 @@
 <template>
-    <div class="redis-data-op flex-all-center">
-        <Splitpanes class="default-theme">
-            <Pane size="20" max-size="30">
+    <div class="redis-data-op h-full">
+        <ResourceOpPanel>
+            <template #left>
                 <tag-tree
                     ref="tagTreeRef"
                     :default-expanded-keys="state.defaultExpendKey"
@@ -40,122 +40,121 @@
                         <span v-if="data.type.value == RedisNodeType.Db">{{ data.params.keys }}</span>
                     </template>
                 </tag-tree>
-            </Pane>
+            </template>
 
-            <Pane min-size="20" size="30">
-                <div class="key-list-vtree card pd5">
-                    <el-scrollbar>
-                        <el-row>
-                            <el-col :span="2">
-                                <el-input v-model="state.keySeparator" :placeholder="$t('redis.delimiter')" size="small" class="ml5" />
-                            </el-col>
-                            <el-col :span="18">
-                                <el-input
-                                    @clear="clear"
-                                    v-model="scanParam.match"
-                                    @keyup.enter.native="searchKey()"
-                                    :placeholder="$t('redis.keyMatchTips')"
-                                    clearable
-                                    size="small"
-                                    class="ml10"
-                                />
-                            </el-col>
-                            <el-col :span="4">
-                                <el-button
-                                    class="ml15"
-                                    :disabled="!scanParam.id || !scanParam.db"
-                                    @click="searchKey()"
-                                    type="success"
-                                    icon="search"
-                                    size="small"
-                                    plain
-                                ></el-button>
-                            </el-col>
-                        </el-row>
+            <template #right>
+                <Splitpanes class="default-theme">
+                    <Pane size="35" max-size="50">
+                        <div class="key-list-vtree h-full card !p-1">
+                            <el-scrollbar>
+                                <el-row :gutter="5">
+                                    <el-col :span="2">
+                                        <el-input v-model="state.keySeparator" :placeholder="$t('redis.delimiter')" size="small" />
+                                    </el-col>
+                                    <el-col :span="18">
+                                        <el-input
+                                            @clear="clear"
+                                            v-model="scanParam.match"
+                                            @keyup.enter.native="searchKey()"
+                                            :placeholder="$t('redis.keyMatchTips')"
+                                            clearable
+                                            size="small"
+                                        />
+                                    </el-col>
+                                    <el-col :span="4">
+                                        <el-button
+                                            :disabled="!scanParam.id || !scanParam.db"
+                                            @click="searchKey()"
+                                            type="success"
+                                            icon="search"
+                                            size="small"
+                                            plain
+                                        ></el-button>
+                                    </el-col>
+                                </el-row>
 
-                        <el-row class="mb5 mt5">
-                            <el-col :span="19">
-                                <el-button
-                                    class="ml5"
-                                    :disabled="!scanParam.id || !scanParam.db"
-                                    @click="scan(true)"
-                                    type="success"
-                                    icon="more"
-                                    size="small"
-                                    plain
-                                    >{{ $t('redis.loadMore') }}</el-button
+                                <el-row :gutter="5" class="mb-1 mt-1">
+                                    <el-col :span="19">
+                                        <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain>
+                                            {{ $t('redis.loadMore') }}
+                                        </el-button>
+
+                                        <el-button
+                                            v-auth="'redis:data:save'"
+                                            :disabled="!scanParam.id || !scanParam.db"
+                                            @click="showNewKeyDialog"
+                                            type="primary"
+                                            icon="plus"
+                                            size="small"
+                                            plain
+                                            class="!ml-0.5"
+                                        >
+                                            {{ $t('redis.addKey') }}
+                                        </el-button>
+
+                                        <el-button
+                                            :disabled="!scanParam.id || !scanParam.db"
+                                            @click="flushDb"
+                                            type="danger"
+                                            plain
+                                            v-auth="'redis:data:del'"
+                                            size="small"
+                                            icon="delete"
+                                            class="!ml-0.5"
+                                        >
+                                            flush
+                                        </el-button>
+                                    </el-col>
+                                    <el-col :span="5">
+                                        <span class="mt-1" style="display: inline-block">keys:{{ state.dbsize }}</span>
+                                    </el-col>
+                                </el-row>
+
+                                <el-tree
+                                    ref="keyTreeRef"
+                                    :highlight-current="true"
+                                    :data="keyTreeData"
+                                    :props="treeProps"
+                                    :indent="8"
+                                    node-key="key"
+                                    :auto-expand-parent="false"
+                                    :default-expanded-keys="Array.from(state.keyTreeExpanded)"
+                                    @node-click="handleKeyTreeNodeClick"
+                                    @node-expand="keyTreeNodeExpand"
+                                    @node-collapse="keyTreeNodeCollapse"
+                                    @node-contextmenu="rightClickNode"
                                 >
+                                    <template #default="{ node, data }">
+                                        <span class="el-dropdown-link key-list-custom-node" :title="node.label">
+                                            <span v-if="data.type == 1">
+                                                <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
+                                            </span>
+                                            <span :class="'ml-1 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
+                                                {{ node.label }}
+                                            </span>
 
-                                <el-button
-                                    v-auth="'redis:data:save'"
-                                    :disabled="!scanParam.id || !scanParam.db"
-                                    @click="showNewKeyDialog"
-                                    type="primary"
-                                    icon="plus"
-                                    size="small"
-                                    plain
-                                    >{{ $t('redis.addKey') }}</el-button
-                                >
+                                            <span v-if="!node.isLeaf" class="ml-1" style="font-weight: bold"> ({{ data.keyCount }}) </span>
+                                        </span>
+                                    </template>
+                                </el-tree>
+                            </el-scrollbar>
 
-                                <el-button
-                                    :disabled="!scanParam.id || !scanParam.db"
-                                    @click="flushDb"
-                                    type="danger"
-                                    plain
-                                    v-auth="'redis:data:del'"
-                                    size="small"
-                                    icon="delete"
-                                    >flush</el-button
-                                >
-                            </el-col>
-                            <el-col :span="5">
-                                <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
-                            </el-col>
-                        </el-row>
+                            <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
+                        </div>
+                    </Pane>
 
-                        <el-tree
-                            ref="keyTreeRef"
-                            :highlight-current="true"
-                            :data="keyTreeData"
-                            :props="treeProps"
-                            :indent="8"
-                            node-key="key"
-                            :auto-expand-parent="false"
-                            :default-expanded-keys="Array.from(state.keyTreeExpanded)"
-                            @node-click="handleKeyTreeNodeClick"
-                            @node-expand="keyTreeNodeExpand"
-                            @node-collapse="keyTreeNodeCollapse"
-                            @node-contextmenu="rightClickNode"
-                        >
-                            <template #default="{ node, data }">
-                                <span class="el-dropdown-link key-list-custom-node" :title="node.label">
-                                    <span v-if="data.type == 1">
-                                        <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
-                                    </span>
-                                    <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
-                                        {{ node.label }}
-                                    </span>
-
-                                    <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
-                                </span>
-                            </template>
-                        </el-tree>
-                    </el-scrollbar>
-
-                    <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
-                </div>
-            </Pane>
-
-            <Pane min-size="40">
-                <div class="key-detail card pd5">
-                    <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
-                        <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
-                            <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
-                        </el-tab-pane>
-                    </el-tabs>
-                </div>
-            </Pane>
-        </Splitpanes>
+                    <Pane>
+                        <div class="h-full card !p-1 key-deatil">
+                            <el-tabs class="h-full" @tab-remove="removeDataTab" v-model="state.activeName">
+                                <el-tab-pane class="h-full" closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                                    <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
+                                </el-tab-pane>
+                            </el-tabs>
+                        </div>
+                    </Pane>
+                </Splitpanes>
+            </template>
+        </ResourceOpPanel>
 
         <div style="text-align: center; margin-top: 10px"></div>
 
@@ -202,20 +201,16 @@ import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg, useI18nPleaseInput } from '@/hooks/useI18n';
+import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
+import ResourceOpPanel from '../component/ResourceOpPanel.vue';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
 const { t } = useI18n();
 
 const keyFormRules = {
-    key: [
-        {
-            required: true,
-            message: useI18nPleaseInput('Key'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    key: [Rules.requiredInput('Key')],
 };
 
 const cmCopyKey = new ContextmenuItem('copyValue', 'Copy')
@@ -618,13 +613,20 @@ const delKey = async (key: string) => {
 };
 </script>
 
-<style lang="scss">
-.redis-data-op {
-    .key-list-vtree,
-    .key-detail {
-        height: calc(100vh - 108px);
+<style lang="scss" scoped>
+.key-deatil {
+    .el-tabs__header {
+        background-color: var(--el-color-white);
+        border-bottom: 1px solid var(--el-border-color);
     }
 
+    ::v-deep(.el-tabs__item) {
+        padding: 0 10px;
+        height: 29px;
+    }
+}
+
+.redis-data-op {
     .key-list-vtree .folder-label {
         font-weight: bold;
     }

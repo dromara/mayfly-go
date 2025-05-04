@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/internal/sys/application/dto"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"

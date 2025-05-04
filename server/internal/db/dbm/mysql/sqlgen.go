@@ -67,8 +67,8 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 			colNames[0] = fmt.Sprintf("%s(%d)", colNames[0], subPart)
 		}
 
-		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING %s"
-		sqlStr := fmt.Sprintf(sqlTmp, quoter.Quote(table.TableName), unique, quoter.Quote(index.IndexName), strings.Join(colNames, ","), index.IndexType)
+		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE"
+		sqlStr := fmt.Sprintf(sqlTmp, quoter.Quote(table.TableName), unique, quoter.Quote(index.IndexName), strings.Join(colNames, ","))
 		comment := dbi.QuoteEscape(index.IndexComment)
 		if comment != "" {
 			sqlStr += fmt.Sprintf(" COMMENT '%s'", comment)
@@ -99,7 +99,7 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 	dataType := column.DataType
 
 	incr := ""
-	if column.IsIdentity {
+	if column.AutoIncrement {
 		incr = " AUTO_INCREMENT"
 	}
 
@@ -130,6 +130,8 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 			}
 		}
 		if mark {
+			// 去掉单引号
+			column.ColumnDefault = strings.Trim(column.ColumnDefault, "'")
 			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
 		} else {
 			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)

@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/event"
 	"mayfly-go/internal/mongo/api/form"
 	"mayfly-go/internal/mongo/api/vo"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/imsg"
+	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"

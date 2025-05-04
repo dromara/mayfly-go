@@ -54,7 +54,7 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			hasIdentity := false
 			for _, v := range columns {
 				columnNames = append(columnNames, fmt.Sprintf("[%s]", v.ColumnName))
-				if v.IsIdentity {
+				if v.AutoIncrement {
 					hasIdentity = true
 				}
 

@@ -1,5 +1,5 @@
 <template>
-    <div class="string-input-container w100" v-if="dataType == DataType.String || dataType == DataType.Number">
+    <div class="string-input-container !w-full" v-if="dataType == DataType.String || dataType == DataType.Number">
         <el-input
             :ref="
                 (el: any) => {
@@ -10,7 +10,7 @@
             "
             :disabled="disabled"
             @blur="handleBlur"
-            :class="`w100 mb4 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
+            :class="`!w-full !mb-1 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
             size="small"
             v-model="itemValue"
             :placeholder="placeholder ?? $t('common.pleaseInput')"
@@ -30,7 +30,7 @@
         :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
-        class="edit-time-picker mb4"
+        class="edit-time-picker !mb-1"
         popper-class="edit-time-picker-popper"
         size="small"
         v-model="itemValue"
@@ -52,7 +52,7 @@
         :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
-        class="edit-time-picker mb4"
+        class="edit-time-picker !mb-1"
         popper-class="edit-time-picker-popper"
         size="small"
         v-model="itemValue"
@@ -74,7 +74,7 @@
         :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
-        class="edit-time-picker mb4"
+        class="edit-time-picker !mb-1"
         popper-class="edit-time-picker-popper"
         size="small"
         v-model="itemValue"

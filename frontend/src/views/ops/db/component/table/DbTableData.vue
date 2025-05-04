@@ -1,10 +1,10 @@
 <template>
-    <div class="db-table-data mt5" :style="{ height: tableHeight }">
+    <div class="db-table-data mt-1" :style="{ height: tableHeight }">
         <el-auto-resizer>
             <template #default="{ height, width }">
                 <el-table-v2
                     ref="tableRef"
-                    :header-height="showColumnTip && dbConfig.showColumnComment ? 45 : 30"
+                    :header-height="showColumnTip && dbConfig.showColumnComment ? 48 : 30"
                     :row-height="30"
                     :row-class="rowClass"
                     :row-key="null"
@@ -39,24 +39,24 @@
                                         <span v-if="column.dataTypeSubscript === 'icon-clock'">
                                             <SvgIcon :size="9" name="Clock" style="cursor: unset" />
                                         </span>
-                                        <span class="font8" v-else>{{ column.dataTypeSubscript }}</span>
+                                        <span class="!text-[8px]" v-else>{{ column.dataTypeSubscript }}</span>
                                     </div>
 
                                     <div v-if="showColumnTip">
                                         <div class="header-column-title">
-                                            <b :title="column.remark" class="el-text" style="cursor: pointer">
+                                            <b :title="column.remark" class="el-text cursor-pointer">
                                                 {{ column.title }}
                                             </b>
                                         </div>
 
                                         <!-- 字段备注信息 -->
-                                        <span
+                                        <div
                                             v-if="dbConfig.showColumnComment"
                                             style="color: var(--el-color-info-light-3)"
-                                            class="font10 el-text el-text--small is-truncated"
+                                            class="!text-[10px] el-text el-text--small is-truncated"
                                         >
                                             {{ column.columnComment }}
-                                        </span>
+                                        </div>
                                     </div>
 
                                     <div v-else class="header-column-title">
@@ -95,7 +95,7 @@
                                     />
                                 </div>
 
-                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active ml2 mr2' : 'ml2 mr2'">
+                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active ml-0.5 mr-0.5' : 'ml-0.5 mr-0.5'">
                                     <span v-if="rowData[column.dataKey!] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
 
                                     <span v-else :title="rowData[column.dataKey!]" class="el-text el-text--small is-truncated">
@@ -107,21 +107,19 @@
                     </template>
 
                     <template v-if="state.loading" #overlay>
-                        <div class="el-loading-mask" style="display: flex; flex-direction: column; align-items: center; justify-content: center">
+                        <div class="el-loading-mask flex flex-col items-center justify-center">
                             <div>
                                 <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
-                                <el-text class="ml5" tag="b">{{ $t('db.execTime') }} - {{ state.execTime.toFixed(1) }}s</el-text>
+                                <el-text class="ml-1" tag="b">{{ $t('db.execTime') }} - {{ state.execTime.toFixed(1) }}s</el-text>
                             </div>
-                            <div v-if="loading && abortFn" class="mt10">
+                            <div v-if="loading && abortFn" class="!mt-2">
                                 <el-button @click="cancelLoading" type="info" size="small" plain>{{ $t('common.cancel') }}</el-button>
                             </div>
                         </div>
                     </template>
 
                     <template #empty>
-                        <div style="text-align: center">
-                            <el-empty :description="props.emptyText" :image-size="100" />
-                        </div>
+                        <el-empty class="text-center" :description="props.emptyText" :image-size="60" />
                     </template>
                 </el-table-v2>
             </template>
@@ -129,7 +127,7 @@
 
         <el-dialog @close="state.genTxtDialog.visible = false" v-model="state.genTxtDialog.visible" :title="state.genTxtDialog.title" width="1000px">
             <template #header>
-                <div class="mr15" style="display: flex; justify-content: flex-end">
+                <div class="mr-2" style="display: flex; justify-content: flex-end">
                     <el-button id="copyValue" @click="copyGenTxt(state.genTxtDialog.txt)" icon="CopyDocument" type="success" size="small">
                         {{ $t('db.oneClickCopy') }}
                     </el-button>
@@ -235,14 +233,22 @@ const cmHeaderDesc = new ContextmenuItem('desc', 'db.desc')
 const cmHeaderFixed = new ContextmenuItem('fixed', 'db.fixed')
     .withIcon('Paperclip')
     .withOnClick((data: any) => {
-        data.fixed = true;
+        state.columns.forEach((column: any) => {
+            if (column.dataKey == data.dataKey) {
+                column.fixed = true;
+            }
+        });
     })
     .withHideFunc((data: any) => data.fixed);
 
 const cmHeaderCancelFixed = new ContextmenuItem('cancelFixed', 'db.cancelFiexd')
     .withIcon('Minus')
     .withOnClick((data: any) => {
-        data.fixed = false;
+        state.columns.forEach((column: any) => {
+            if (column.dataKey == data.dataKey) {
+                column.fixed = false;
+            }
+        });
     })
     .withHideFunc((data: any) => !data.fixed);
 
@@ -837,7 +843,7 @@ defineExpose({
         font-weight: bold;
         position: absolute;
         top: -7px;
-        padding: 3px;
+        padding: 2px;
     }
 
     .column-right {

@@ -122,7 +122,7 @@ func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 				ColumnComment: "",
 				Nullable:      cast.ToInt(re["notnull"]) != 1,
 				IsPrimaryKey:  cast.ToInt(re["pk"]) == 1,
-				IsIdentity:    cast.ToInt(re["pk"]) == 1,
+				AutoIncrement: cast.ToInt(re["pk"]) == 1,
 				ColumnDefault: defaultValue,
 				NumScale:      0,
 			}

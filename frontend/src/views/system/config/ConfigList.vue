@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :search-items="searchItems"
@@ -53,7 +53,6 @@
 import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import ConfigEdit from './ConfigEdit.vue';
 import { configApi } from '../api';
-import { ElMessage } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';

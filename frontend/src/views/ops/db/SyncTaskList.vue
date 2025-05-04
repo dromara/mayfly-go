@@ -1,5 +1,5 @@
 <template>
-    <div class="db-list">
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :page-api="dbApi.datasyncTasks"

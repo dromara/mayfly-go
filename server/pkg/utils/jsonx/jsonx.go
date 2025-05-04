@@ -8,9 +8,9 @@ import (
 )
 
 // json字符串转map
-func ToMap(jsonStr string) map[string]any {
+func ToMap(jsonStr string) (map[string]any, error) {
 	if jsonStr == "" {
-		return map[string]any{}
+		return map[string]any{}, nil
 	}
 	return ToMapByBytes([]byte(jsonStr))
 }
@@ -21,13 +21,10 @@ func To[T any](jsonStr string, res T) (T, error) {
 }
 
 // json字节数组转map
-func ToMapByBytes(bytes []byte) map[string]any {
+func ToMapByBytes(bytes []byte) (map[string]any, error) {
 	var res map[string]any
 	err := json.Unmarshal(bytes, &res)
-	if err != nil {
-		logx.ErrorTrace("json字符串转map失败", err)
-	}
-	return res
+	return res, err
 }
 
 // 转换为json字符串

@@ -7,7 +7,7 @@ var (
 	terminateFuncs = make([]TerminateFunc, 0)
 )
 
-// 添加系统退出终止时执行的函数，由各个默认自行添加
+// 添加系统退出终止时执行的函数，由各个模块自行添加
 func AddTerminateFunc(terminateFunc TerminateFunc) {
 	terminateFuncs = append(terminateFuncs, terminateFunc)
 }

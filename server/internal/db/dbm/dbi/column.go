@@ -37,7 +37,7 @@ type Column struct {
 	DataType      string  `json:"dataType"`      // 数据类型
 	ColumnComment string  `json:"columnComment"` // 列备注
 	IsPrimaryKey  bool    `json:"isPrimaryKey"`  // 是否为主键
-	IsIdentity    bool    `json:"isIdentity"`    // 是否自增
+	AutoIncrement bool    `json:"autoIncrement"` // 是否自增
 	ColumnDefault string  `json:"columnDefault"` // 默认值
 	Nullable      bool    `json:"nullable"`      // 是否可为null
 	CharMaxLength int     `json:"charMaxLength"` // 字符最大长度
@@ -59,7 +59,7 @@ func (c *Column) GetColumnType() string {
 		}
 	}
 
-	return string(c.DataType)
+	return c.DataType
 }
 
 // 数据库对应的数据类型
@@ -156,6 +156,12 @@ func SQLValueNumeric(val any) string {
 	}
 	return fmt.Sprintf("%v", val)
 }
+func SQLValueBool(val any) string {
+	if val == nil {
+		return "false"
+	}
+	return fmt.Sprintf("%v", cast.ToBool(val))
+}
 
 func SQLValueString(val any) string {
 	if val == nil {
@@ -175,6 +181,12 @@ var (
 		Name:     "bit",
 		Valuer:   ValuerBit,
 		SQLValue: SQLValueNumeric,
+	}
+
+	DTBool = &DataType{
+		Name:     "bool",
+		Valuer:   ValuerBit,
+		SQLValue: SQLValueBool,
 	}
 
 	DTByte = &DataType{
@@ -214,9 +226,10 @@ var (
 		SQLValue: SQLValueNumeric,
 	}
 
+	// 使用string进行转换，避免长度过长导致精度丢失等
 	DTNumeric = &DataType{
 		Name:     "numeric",
-		Valuer:   ValuerFloat64,
+		Valuer:   ValuerString,
 		SQLValue: SQLValueNumeric,
 	}
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/jsonx"
 	"strings"
 
 	"github.com/may-fly/cast"
@@ -59,13 +58,9 @@ func (om *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	}
 
 	// 从extra获取sid或serviceName
-	serviceName := ""
-	if d.Extra != "" {
-		extraMap := jsonx.ToMap(d.Extra)
-		serviceName = cast.ToString(extraMap["serviceName"])
-		if sid := cast.ToString(extraMap["sid"]); sid != "" {
-			urlOptions["SID"] = sid
-		}
+	serviceName := d.GetExtraString("serviceName")
+	if sid := d.GetExtraString("sid"); sid != "" {
+		urlOptions["SID"] = sid
 	}
 
 	urlOptions["TIMEOUT"] = "1000"

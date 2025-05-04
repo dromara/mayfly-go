@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/flow/api/form"
 	"mayfly-go/internal/flow/api/vo"
 	"mayfly-go/internal/flow/application"
@@ -10,6 +9,7 @@ import (
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/internal/flow/imsg"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"

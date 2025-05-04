@@ -10,6 +10,7 @@ type Procdef struct {
 	Status    entity.ProcdefStatus `json:"status" binding:"required"`
 	Condition string               `json:"condition"`
 	Remark    string               `json:"remark"`
+	MsgTmplId uint64               `json:"msgTmplId"`
 
 	CodePaths []string `json:"codePaths"`
 }

@@ -23,8 +23,6 @@ var Zh_CN = map[i18n.MsgId]string{
 
 	ErrExistRunFailSql:      "存在执行错误的sql",
 	ErrNeedSubmitWorkTicket: "该操作需要提交工单审批执行",
-	ErrNoLimitStmt:          "请完善分页信息后执行",
-	ErrLimitInvalid:         "查询结果集数需小于系统配置的{{.count}}条",
 
 	// db transfer
 	LogDtsSave:         "dts-保存数据迁移任务",

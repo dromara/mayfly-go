@@ -2,7 +2,7 @@
     <div>
         <el-dialog
             :title="$t('system.role.allocateMenuTitle', { roleName: roleInfo?.name })"
-            v-model="dialogVisible"
+            v-model="visible"
             :before-close="cancel"
             :show-close="false"
             width="400px"
@@ -18,6 +18,7 @@
             >
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
+                        <SvgIcon :name="getMenuIcon(data)" class="mb-0.5 mr-0.5" />
                         <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ $t(node.label) }}</span>
                         <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ $t(node.label) }}</span>
                     </span>
@@ -39,13 +40,12 @@ import { ElMessage } from 'element-plus';
 import { roleApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
 import { useI18n } from 'vue-i18n';
+import SvgIcon from '@/components/svgIcon/index.vue';
+import { getMenuIcon } from '../resource';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     title: {
         type: String,
     },
@@ -62,8 +62,10 @@ const props = defineProps({
     },
 });
 
+const visible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const defaultProps = {
     children: 'children',
@@ -73,17 +75,15 @@ const defaultProps = {
 const menuTree: any = ref(null);
 
 const state = reactive({
-    dialogVisible: false,
     roleInfo: null as any,
     submiting: false,
 });
 
-const { dialogVisible, roleInfo } = toRefs(state);
+const { roleInfo } = toRefs(state);
 
 watch(
-    () => props.visible,
+    () => visible,
     (newValue) => {
-        state.dialogVisible = newValue;
         state.roleInfo = props.role;
     }
 );
@@ -106,8 +106,7 @@ const btnOk = async () => {
 };
 
 const cancel = () => {
-    // 更新父组件visible prop对应的值为false
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

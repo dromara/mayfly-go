@@ -2,11 +2,11 @@
     <div>
         <el-dialog width="750px" title="runCommand" v-model="runCmdDialog.visible" :before-close="close" :destroy-on-close="true">
             <el-form label-width="auto">
-                <el-row class="mb10">
+                <el-row class="mb-2">
                     <el-col :span="12">
                         <el-form-item :label="$t('mongo.template')">
                             <el-select
-                                class="w100"
+                                class="!w-full"
                                 @change="changeCmd"
                                 filterable
                                 v-model="runCmdDialog.cmdName"
@@ -24,11 +24,11 @@
                         </el-form-item>
                     </el-col>
                     <el-col :span="4">
-                        <el-form-item class="ml10">
+                        <el-form-item class="ml-2">
                             <el-button @click="onRunCommand" type="primary">Run</el-button>
                             <el-tooltip effect="dark" placement="top">
                                 <template #content> {{ $t('mongo.moreCmdTips') }}-> https://www.mongodb.com/docs/manual/reference/command/ </template>
-                                <span class="ml10">
+                                <span class="ml-2">
                                     <el-icon><InfoFilled /></el-icon>
                                 </span>
                             </el-tooltip>

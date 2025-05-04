@@ -15,6 +15,7 @@ import { i18n } from '@/i18n/index';
 import 'splitpanes/dist/splitpanes.css';
 
 import '@/theme/index.scss';
+import '@/theme/tailwind.css';
 import '@/assets/font/font.css';
 import '@/assets/icon/icon.js';
 import { getThemeConfig } from './common/utils/storage';

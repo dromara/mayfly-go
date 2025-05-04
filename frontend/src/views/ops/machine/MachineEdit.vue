@@ -17,7 +17,6 @@
                             }
                         "
                         :select-tags="form.tagCodePaths"
-                        style="width: 100%"
                     />
                 </el-form-item>
                 <el-form-item prop="name" :label="$t('common.name')" required>
@@ -61,6 +60,13 @@
                 <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
                     <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                 </el-form-item>
+
+                <el-form-item prop="ciphers" :label="$t('machine.ciphers')">
+                    <el-input v-model="form.extra.ciphers" :placeholder="$t('machine.multiValuePlaceholder')"></el-input>
+                </el-form-item>
+                <el-form-item prop="keyExchanges" :label="$t('machine.keyExchanges')">
+                    <el-input v-model="form.extra.keyExchanges" :placeholder="$t('machine.multiValuePlaceholder')"></el-input>
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -83,8 +89,9 @@ import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -106,34 +113,10 @@ const emit = defineEmits(['cancel', 'val-change']);
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
-    tagCodePaths: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('tag.relateTag'),
-            trigger: ['change'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    protocol: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('machine.protocol'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    ip: [
-        {
-            required: true,
-            message: useI18nPleaseInput('machine.ipAndPort'),
-            trigger: ['blur'],
-        },
-    ],
+    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
+    name: [Rules.requiredInput('common.name')],
+    protocol: [Rules.requiredSelect('machine.protocol')],
+    ip: [Rules.requiredInput('machine.ipAndPort')],
 };
 
 const machineForm: any = ref(null);
@@ -152,6 +135,7 @@ const defaultForm = {
     remark: '',
     sshTunnelMachineId: null as any,
     enableRecorder: -1,
+    extra: { ciphers: '', keyExchanges: '' },
 };
 
 const state = reactive({
@@ -175,6 +159,7 @@ watchEffect(() => {
         state.form = { ...machine };
         state.form.tagCodePaths = machine.tags.map((t: any) => t.codePath);
         state.form.authCerts = machine.authCerts || [];
+        state.form.extra = machine.extra || {};
     } else {
         state.form = { ...defaultForm };
         state.form.authCerts = [];

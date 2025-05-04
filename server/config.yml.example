@@ -23,11 +23,9 @@ aes:
   key: 1111111111111111
 # 若存在mysql配置，优先使用mysql
 mysql:
-  # 自动升级数据库
-  auto-migration: false
-  host: localhost:3366
+  host: mysql:3306
   username: root
-  password: root
+  password: 111049
   db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
@@ -107,7 +106,7 @@ type DefaultPermissionCodeRegistry struct {
 
 func (r *DefaultPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
 	if r.cache == nil {
-		r.cache = cache.NewTimedCache(time.Minute*time.Duration(config.Conf.Jwt.ExpireTime), 5*time.Second)
+		r.cache = cache.NewTimedCache(time.Minute*time.Duration(jwtConf.ExpireTime), 5*time.Second)
 	}
 	r.cache.Put(fmt.Sprintf("%v", userId), codes)
 }
@@ -138,7 +137,7 @@ type RedisPermissionCodeRegistry struct {
 }
 
 func (r *RedisPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
-	rediscli.Set(fmt.Sprintf("mayfly:%v:codes", userId), anyx.ToString(codes), time.Minute*time.Duration(config.Conf.Jwt.ExpireTime))
+	rediscli.Set(fmt.Sprintf("mayfly:%v:codes", userId), anyx.ToString(codes), time.Minute*time.Duration(jwtConf.ExpireTime))
 }
 
 func (r *RedisPermissionCodeRegistry) HasCode(userId uint64, code string) bool {

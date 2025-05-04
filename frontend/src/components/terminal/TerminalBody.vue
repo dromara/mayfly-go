@@ -1,25 +1,24 @@
 <template>
-    <div id="terminal-body" :style="{ height }">
-        <div ref="terminalRef" class="terminal" />
+    <div class="h-full w-full flex">
+        <div ref="terminalRef" class="h-full w-full" :style="{ background: getTerminalTheme().background }" />
 
         <TerminalSearch ref="terminalSearchRef" :search-addon="state.addon.search" @close="focus" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import 'xterm/css/xterm.css';
-import { Terminal, ITheme } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import { SearchAddon } from 'xterm-addon-search';
-import { WebLinksAddon } from 'xterm-addon-web-links';
+import '@xterm/xterm/css/xterm.css';
+import { Terminal, ITheme } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { ref, nextTick, reactive, onMounted, onBeforeUnmount, watch } from 'vue';
 import TerminalSearch from './TerminalSearch.vue';
-import { debounce } from 'lodash';
 import { TerminalStatus } from './common';
-import { useEventListener } from '@vueuse/core';
+import { useDebounceFn, useEventListener, useIntervalFn } from '@vueuse/core';
 import themes from './themes';
 import { TrzszFilter } from 'trzsz';
 import { useI18n } from 'vue-i18n';
@@ -42,13 +41,6 @@ const props = defineProps({
     socketUrl: {
         type: String,
     },
-    /**
-     * 高度
-     */
-    height: {
-        type: [String, Number],
-        default: '100%',
-    },
 });
 
 const emit = defineEmits(['statusChange']);
@@ -61,7 +53,6 @@ const { themeConfig } = storeToRefs(useThemeConfig());
 // 终端实例
 let term: Terminal;
 let socket: WebSocket;
-let pingInterval: any;
 
 const state = reactive({
     // 插件
@@ -90,7 +81,9 @@ watch(
 watch(
     () => themeConfig.value.terminalTheme,
     () => {
-        term.options.theme = getTerminalTheme();
+        if (term) {
+            term.options.theme = getTerminalTheme();
+        }
     }
 );
 
@@ -129,7 +122,7 @@ async function initTerm() {
     term.loadAddon(fitAddon);
     fitTerminal();
     // 注册窗口大小监听器
-    useEventListener('resize', debounce(fitTerminal, 400));
+    useEventListener('resize', useDebounceFn(fitTerminal, 400));
 
     initSocket();
     // 注册其他插件
@@ -155,7 +148,8 @@ function initSocket() {
     // 监听socket连接
     socket.onopen = () => {
         // 注册心跳
-        pingInterval = setInterval(sendPing, 15000);
+        useIntervalFn(sendPing, 15000);
+
         state.status = TerminalStatus.Connected;
 
         focus();
@@ -238,7 +232,7 @@ const getTerminalTheme = () => {
     const terminalTheme = themeConfig.value.terminalTheme;
     // 如果不是自定义主题，则返回内置主题
     if (terminalTheme != 'custom') {
-        return themes[terminalTheme];
+        return (themes as any)[terminalTheme];
     }
 
     // 自定义主题
@@ -290,8 +284,6 @@ function sendCmd(key: any) {
 function closeSocket() {
     // 关闭 websocket
     socket && socket.readyState === 1 && socket.close();
-    // 清除 ping
-    pingInterval && clearInterval(pingInterval);
 }
 
 function close() {
@@ -311,17 +303,4 @@ const getStatus = (): TerminalStatus => {
 
 defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize, write2Term, writeln2Term });
 </script>
-<style lang="scss">
-#terminal-body {
-    width: 100%;
-
-    .terminal {
-        width: 100%;
-        height: 100%;
-
-        // .xterm .xterm-viewport {
-        //     overflow-y: hidden;
-        // }
-    }
-}
-</style>
+<style lang="scss"></style>

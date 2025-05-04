@@ -75,14 +75,13 @@ function build() {
     # fi
 
     if [ "${copyDocScript}" == "1" ] ; then
-        echo_green "Copy resources such as scripts [config.yml.example、mayfly-go.sql、mayfly-go.sqlite、readme.txt、startup.sh、shutdown.sh]"
+        echo_green "Copy resources such as scripts [config.yml.example、readme.txt、startup.sh、shutdown.sh]"
         cp ${server_folder}/config.yml.example ${toFolder}
+        mv ${toFolder}/config.yml.example ${toFolder}/config.yml
         cp ${server_folder}/readme.txt ${toFolder}
         cp ${server_folder}/readme_en.txt ${toFolder}
         cp ${server_folder}/resources/script/startup.sh ${toFolder}
         cp ${server_folder}/resources/script/shutdown.sh ${toFolder}
-        cp ${server_folder}/resources/script/sql/mayfly-go.sql ${toFolder}
-        cp ${server_folder}/resources/data/mayfly-go.sqlite ${toFolder}
     fi
 
     echo_yellow ">>>>>>>>>>>>>>>>>>> ${os}-${arch} - Bundle build complete <<<<<<<<<<<<<<<<<<<<\n"

@@ -42,6 +42,7 @@ function initI18n() {
     // https://vue-i18n.intlify.dev/guide/essentials/fallback.html#explicit-fallback-with-one-locale
     return createI18n({
         legacy: false,
+        globalInjection: true, // 在所有组件中都可以使用 $i18n $t $rt $d $n $tm
         silentTranslationWarn: true,
         missingWarn: false,
         silentFallbackWarn: true,

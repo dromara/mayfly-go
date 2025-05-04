@@ -2,10 +2,12 @@ package vo
 
 import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/model"
 	"time"
 )
 
 type InstanceListVO struct {
+	model.ExtraData
 	tagentity.AuthCerts // 授权凭证信息
 	tagentity.ResourceTags
 
@@ -16,7 +18,6 @@ type InstanceListVO struct {
 	Port       *int       `json:"port"`
 	Type       *string    `json:"type"`
 	Params     string     `json:"params"`
-	Extra      string     `json:"extra"`
 	Remark     *string    `json:"remark"`
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`

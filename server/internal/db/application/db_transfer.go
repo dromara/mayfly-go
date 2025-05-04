@@ -58,6 +58,8 @@ type DbTransferTask interface {
 	TimerDeleteTransferFile()
 }
 
+var _ (DbTransferTask) = (*dbTransferAppImpl)(nil)
+
 type dbTransferAppImpl struct {
 	base.AppImpl[*entity.DbTransferTask, repository.DbTransferTask]
 
@@ -114,11 +116,13 @@ func (app *dbTransferAppImpl) AddCronJob(ctx context.Context, taskEntity *entity
 		}
 
 		taskId := taskEntity.Id
-		scheduler.AddFunByKey(key, taskEntity.Cron, func() {
+		if err := scheduler.AddFunByKey(key, taskEntity.Cron, func() {
 			logx.Infof("start the synchronization task: %d", taskId)
 			logId, _ := app.CreateLog(ctx, taskId)
 			app.Run(ctx, taskId, logId)
-		})
+		}); err != nil {
+			logx.ErrorTrace("add db transfer cron job failed", err)
+		}
 	}
 }
 
@@ -300,15 +304,14 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 				}
 			}()
 
-			tx, err := targetConn.Begin()
 			if err != nil {
 				pw.CloseWithError(err)
 				app.EndTransfer(ctx, logId, taskId, "transfer table failed", err, nil)
 				return err
 			}
-
+			tx, _ := targetConn.Begin()
 			err = sqlparser.SQLSplit(pr, func(stmt string) error {
-				if _, err := targetConn.TxExecContext(ctx, tx, stmt); err != nil {
+				if _, err := targetConn.TxExec(tx, stmt); err != nil {
 					app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("执行sql出错: %s", stmt), err, nil)
 					pw.CloseWithError(err)
 					return err

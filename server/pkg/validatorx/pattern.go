@@ -14,13 +14,6 @@ var (
 	patternErrMsg map[string]string
 )
 
-// 注册自定义正则表达式校验规则
-func RegisterCustomPatterns() {
-	// 账号用户名校验
-	RegisterPattern("account_username", "^[a-zA-Z0-9_]{5,20}$", "只允许输入5-20位大小写字母、数字、下划线")
-	RegisterPattern("resource_code", "^[a-zA-Z0-9_\\-.:]{1,32}$", "只允许输入1-32位大小写字母、数字、_-.:")
-}
-
 // 注册自定义正则表达式
 func RegisterPattern(patternName string, regexpStr string, errMsg string) {
 	if regexpMap == nil {

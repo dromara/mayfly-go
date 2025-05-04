@@ -2,8 +2,8 @@
     <div>
         <el-row>
             <el-col :span="8">
-                <div class="mt5">
-                    <el-link :disabled="state.loading" @click="onRefresh()" icon="refresh" :underline="false" class="ml5"> </el-link>
+                <div class="mt-1">
+                    <el-link :disabled="state.loading" @click="onRefresh()" icon="refresh" :underline="false" class="ml-1"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-popover
@@ -51,11 +51,11 @@
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.submitUpdate')" placement="top">
-                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="font12">{{ $t('common.submit') }}</el-link>
+                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="!text-[12px]">{{ $t('common.submit') }}</el-link>
                     </el-tooltip>
                     <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.cancelUpdate')" placement="top">
-                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="font12">{{ $t('common.cancel') }}</el-link>
+                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="!text-[12px]">{{ $t('common.cancel') }}</el-link>
                     </el-tooltip>
                 </div>
             </el-col>
@@ -70,7 +70,7 @@
                     @clear="selectData"
                     size="small"
                     clearable
-                    class="w100"
+                    class="!w-full"
                     highlight-first-item
                     value-key="columnName"
                     ref="condInputRef"
@@ -110,7 +110,7 @@
                                         onConditionRowClick(event);
                                     }
                                 "
-                                style="cursor: pointer"
+                                class="cursor-pointer"
                             >
                                 <el-table-column property="columnName" :label="$t('db.columnName')" show-overflow-tooltip>
                                     <template #header>
@@ -147,12 +147,12 @@
             @data-delete="onRefresh"
         ></db-table-data>
 
-        <el-row type="flex" class="mt5" :gutter="10" justify="space-between" style="user-select: none">
+        <el-row type="flex" class="mt-2" :gutter="10" justify="space-between" style="user-select: none">
             <el-col :span="12">
                 <el-text
                     id="copyValue"
                     style="color: var(--el-color-info-light-3)"
-                    class="is-truncated font12 mt5"
+                    class="is-truncated !text-[12px] mt-1"
                     @click="copyToClipboard(sql)"
                     :title="sql"
                     >{{ sql }}</el-text
@@ -182,7 +182,7 @@
                     </div>
                     <el-link class="op-page" :underline="false" @click="++pageNum" :disabled="datas.length < pageSize" icon="Right" />
                     <el-link class="op-page" :underline="false" @click="handleEndPage" :disabled="datas.length < pageSize" icon="DArrowRight" />
-                    <div style="width: 90px" class="op-page ml10">
+                    <div style="width: 90px" class="op-page ml-2">
                         <el-select size="small" :default-first-option="true" v-model="pageSize" @change="handleSizeChange">
                             <el-option
                                 style="font-size: 12px; height: 24px; line-height: 24px"
@@ -194,7 +194,7 @@
                         </el-select>
                     </div>
 
-                    <el-button @click="handleCount" :loading="state.counting" class="ml10" text bg size="small">
+                    <el-button @click="handleCount" :loading="state.counting" class="ml-2" text bg size="small">
                         {{ state.showTotal ? `${state.total} ${$t('db.rows')}` : 'count' }}
                     </el-button>
                 </el-row>

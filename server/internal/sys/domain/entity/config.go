@@ -13,12 +13,12 @@ const (
 
 type Config struct {
 	model.Model
-	Name       string `json:"name"` // 配置名
-	Key        string `json:"key"`  // 配置key
-	Params     string `json:"params" gorm:"column:params;type:varchar(1500)"`
-	Value      string `json:"value" gorm:"column:value;type:varchar(1500)"`
-	Remark     string `json:"remark"`
-	Permission string `json:"permission"` // 可操作该配置的权限
+	Name       string `json:"name" gorm:"size:60;not null;"` // 配置名
+	Key        string `json:"key" gorm:"size:60;not null;"`  // 配置key
+	Params     string `json:"params" gorm:"size:1500"`
+	Value      string `json:"value" gorm:"size:1500"`
+	Remark     string `json:"remark" gorm:"size:255"`
+	Permission string `json:"permission" gorm:"size:255;comment:操作权限"` // 可操作该配置的权限
 }
 
 func (a *Config) TableName() string {

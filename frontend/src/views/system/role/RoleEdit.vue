@@ -1,6 +1,6 @@
 <template>
-    <div class="role-dialog">
-        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="600px" :destroy-on-close="true">
+    <div>
+        <el-dialog :title="title" v-model="visible" :show-close="false" :before-close="cancel" width="600px" :destroy-on-close="true">
             <el-form ref="roleForm" :model="form" :rules="rules" label-width="auto">
                 <el-form-item prop="name" :label="$t('system.role.roleName')" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
@@ -34,40 +34,17 @@
 import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
-import { useI18n } from 'vue-i18n';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect } from '@/hooks/useI18n';
-
-const { t } = useI18n();
+import { useI18nFormValidate } from '@/hooks/useI18n';
+import { Rules } from '@/common/rule';
 
 const rules = {
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.role.roleName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    code: [
-        {
-            required: true,
-            message: useI18nPleaseInput('system.role.roleCode'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    status: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('common.status'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    name: [Rules.requiredInput('system.role.roleName')],
+    code: [Rules.requiredInput('system.role.roleCode')],
+    status: [Rules.requiredSelect('common.status')],
 };
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -76,12 +53,13 @@ const props = defineProps({
     },
 });
 
+const visible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const roleForm: any = ref(null);
 const state = reactive({
-    dvisible: false,
     form: {
         id: null,
         name: '',
@@ -91,12 +69,14 @@ const state = reactive({
     },
 });
 
-const { dvisible, form } = toRefs(state);
+const { form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveRoleExec } = roleApi.save.useApi(form);
 
 watchEffect(() => {
-    state.dvisible = props.visible;
+    if (!visible.value) {
+        return;
+    }
     if (props.data) {
         state.form = { ...(props.data as any) };
     } else {
@@ -105,8 +85,7 @@ watchEffect(() => {
 });
 
 const cancel = () => {
-    // 更新父组件visible prop对应的值为false
-    emit('update:visible', false);
+    visible.value = false;
     // 若父组件有取消事件，则调用
     emit('cancel');
 };

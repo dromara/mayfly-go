@@ -96,7 +96,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 
 		// 密文加密
 		if err := resourceAuthCert.CiphertextEncrypt(); err != nil {
-			return errorx.NewBiz(err.Error())
+			return err
 		}
 	}
 
@@ -309,9 +309,20 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...e
 
 // addAuthCert 添加授权凭证
 func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
-	if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
-		return errorx.NewBizI(ctx, imsg.ErrAcNameExist, "acName", rac.Name)
+	if rac.Name == "" {
+		rac.Name = stringx.Rand(10)
+	} else {
+		if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
+			return errorx.NewBizI(ctx, imsg.ErrAcNameExist, "acName", rac.Name)
+		}
 	}
+	if rac.Type == 0 {
+		rac.Type = entity.AuthCertTypePrivate
+	}
+	if rac.CiphertextType == 0 {
+		rac.CiphertextType = entity.AuthCertCiphertextTypePassword
+	}
+
 	// 公共凭证
 	if rac.Type == entity.AuthCertTypePublic {
 		rac.ResourceCode = "-"

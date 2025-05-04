@@ -1,24 +1,24 @@
 <template>
-    <div class="card system-resouce-list">
+    <div class="card system-resource-list h-full flex">
         <Splitpanes class="default-theme">
-            <Pane size="25" min-size="20" max-size="30">
-                <div class="card pd5 mr5">
-                    <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" style="width: 200px; margin-right: 10px" />
-                    <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
+            <Pane size="30" min-size="25" max-size="35" class="flex flex-col flex-1">
+                <div class="card !p-1 mr-1 flex justify-between">
+                    <div class="mb-1">
+                        <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" class="mr-2 !w-[200px]" />
+                        <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
+                    </div>
 
-                    <div class="fr">
+                    <div>
                         <el-tooltip placement="top">
                             <template #content> {{ $t('system.menu.opTips') }} </template>
-                            <span>
-                                <SvgIcon name="question-filled" />
-                            </span>
+                            <SvgIcon name="question-filled" />
                         </el-tooltip>
                     </div>
                 </div>
-                <el-scrollbar class="tree-data">
+                <el-scrollbar>
                     <el-tree
+                        class="inline-block min-w-full"
                         ref="resourceTreeRef"
-                        class="none-select"
                         :indent="24"
                         node-key="id"
                         :props="props"
@@ -37,6 +37,8 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
+                                <SvgIcon :name="getMenuIcon(data)" class="!mb-0.5" />
+
                                 <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                                     <span style="color: #3c8dbc">【</span>
                                     <span v-if="data.status == 1">{{ $t(data.name) }}</span>
@@ -46,6 +48,7 @@
                                         {{ data.children.length }}
                                     </el-tag>
                                 </span>
+
                                 <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
                                     <span style="color: #3c8dbc">【</span>
                                     <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">
@@ -59,8 +62,8 @@
                 </el-scrollbar>
             </Pane>
 
-            <Pane min-size="40">
-                <div class="ml10">
+            <Pane min-size="40" size="70">
+                <div class="ml-2">
                     <el-tabs v-model="state.activeTabName" @tab-click="onTabClick" v-if="currentResource">
                         <el-tab-pane :label="$t('common.detail')" :name="ResourceDetail">
                             <el-descriptions :title="$t('system.menu.info')" :column="2" border>
@@ -114,7 +117,7 @@
                                     </template>
                                 </el-table-column>
                                 <el-table-column prop="assigner" :label="$t('system.role.assigner')"></el-table-column>
-                                <el-table-column prop="allocateTime" :label="$t('system.role.allocateTime')">
+                                <el-table-column prop="allocateTime" :label="$t('system.role.allocateTime')" min-width="150">
                                     <template #default="scope">
                                         {{ formatDate(scope.row.allocateTime) }}
                                     </template>
@@ -142,7 +145,7 @@
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, watch } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { resourceApi } from '../api';
@@ -153,6 +156,7 @@ import { Splitpanes, Pane } from 'splitpanes';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import { useI18n } from 'vue-i18n';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';
+import { getMenuIcon } from './index';
 
 const { t } = useI18n();
 
@@ -433,29 +437,10 @@ const removeDeafultExpandId = (id: any) => {
 };
 </script>
 <style lang="scss">
-.system-resouce-list {
+.system-resource-list {
     .el-tree-node__content {
         height: 40px;
         line-height: 40px;
     }
-
-    .tree-data {
-        height: calc(100vh - 202px);
-    }
-
-    .el-tree {
-        display: inline-block;
-        min-width: 100%;
-    }
-}
-
-.none-select {
-    moz-user-select: -moz-none;
-    -moz-user-select: none;
-    -o-user-select: none;
-    -khtml-user-select: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
 }
 </style>

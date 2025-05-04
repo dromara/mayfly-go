@@ -15,7 +15,6 @@ import (
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/netx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/timex"
@@ -95,7 +94,7 @@ func useOtp(account *sysentity.Account, otpIssuer, accessToken string, refreshTo
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}
-	cache.SetStr(fmt.Sprintf("otp:token:%s", token), jsonx.ToStr(otpInfo), time.Minute*time.Duration(3))
+	cache.Set(fmt.Sprintf("otp:token:%s", token), otpInfo, time.Minute*time.Duration(3))
 	return otpInfo, otpUrl, token
 }
 

@@ -18,7 +18,6 @@
                                 "
                                 multiple
                                 :select-tags="form.tagCodePaths"
-                                style="width: 100%"
                             />
                         </el-form-item>
                         <el-form-item prop="name" :label="$t('common.name')" required>
@@ -87,8 +86,9 @@ import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -107,41 +107,11 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'val-change', 'cancel']);
 
 const rules = {
-    tagCodePaths: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('tag.relateTag'),
-            trigger: ['blur', 'change'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    host: [
-        {
-            required: true,
-            message: useI18nPleaseInput('ip:port'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    db: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('DB'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    mode: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('mode'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
+    name: [Rules.requiredInput('common.name')],
+    host: [Rules.requiredInput('ip:port')],
+    db: [Rules.requiredSelect('DB')],
+    mode: [Rules.requiredSelect('mode')],
 };
 
 const redisForm: any = ref(null);

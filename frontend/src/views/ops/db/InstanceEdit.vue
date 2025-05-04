@@ -5,7 +5,7 @@
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
-            <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
+            <el-form :model="form" ref="dbFormRef" :rules="rules" label-width="auto">
                 <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
 
                 <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')">
@@ -18,7 +18,6 @@
                             }
                         "
                         :select-tags="form.tagCodePaths"
-                        style="width: 100%"
                     />
                 </el-form-item>
 
@@ -73,7 +72,7 @@
                             <el-option label="SID" :value="2" />
                         </el-select>
                     </el-col>
-                    <el-col style="text-align: center" :span="1">:</el-col>
+                    <el-col class="text-center" :span="1">:</el-col>
                     <el-col :span="18">
                         <el-input v-if="state.extra.stype == 1" v-model="state.extra.serviceName" placeholder="Service Name"> </el-input>
                         <el-input v-else v-model="state.extra.sid" placeholder="SID"> </el-input>
@@ -115,7 +114,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watchEffect } from 'vue';
+import { computed, reactive, ref, toRefs, watchEffect } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
@@ -126,16 +125,14 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nPleaseSelect, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import { notBlankI18n } from '@/common/assert';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -144,48 +141,19 @@ const props = defineProps({
     },
 });
 
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const rules = {
-    tagCodePaths: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('tag.relateTag'),
-            trigger: ['change'],
-        },
-    ],
-    name: [
-        {
-            required: true,
-            message: useI18nPleaseInput('common.name'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    type: [
-        {
-            required: true,
-            message: useI18nPleaseSelect('common.type'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    host: [
-        {
-            required: true,
-            message: useI18nPleaseInput('Host:Port'),
-            trigger: ['blur'],
-        },
-    ],
-    sid: [
-        {
-            required: true,
-            message: useI18nPleaseInput('SID'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
+    name: [Rules.requiredInput('common.name')],
+    type: [Rules.requiredSelect('common.type')],
+    host: [Rules.requiredInput('Host:Port')],
 };
 
-const dbForm: any = ref(null);
+const dbFormRef: any = ref(null);
 const tagSelectRef: any = ref(null);
 
 const DefaultForm = {
@@ -195,7 +163,7 @@ const DefaultForm = {
     name: null,
     host: '',
     port: getDbDialect(DbType.mysql).getInfo().defaultPort,
-    extra: '', // 连接需要的额外参数（json字符串）
+    extra: null, // 连接需要的额外参数（json字符串）
     params: null,
     remark: '',
     sshTunnelMachineId: null as any,
@@ -204,38 +172,13 @@ const DefaultForm = {
 };
 
 const state = reactive({
-    dialogVisible: false,
     extra: {} as any, // 连接需要的额外参数（json）
     form: DefaultForm,
-    submitForm: {} as any,
 });
 
-const { dialogVisible, form, submitForm } = toRefs(state);
+const { form } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi(submitForm);
-const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi(submitForm);
-
-watchEffect(() => {
-    state.dialogVisible = props.visible;
-    if (!state.dialogVisible) {
-        return;
-    }
-    const dbInst: any = props.data;
-    if (dbInst) {
-        state.form = { ...dbInst };
-        state.form.tagCodePaths = dbInst.tags.map((t: any) => t.codePath) || [];
-        try {
-            state.extra = JSON.parse(state.form.extra);
-        } catch (e) {
-            state.extra = {};
-        }
-    } else {
-        state.form = { ...DefaultForm };
-        state.form.authCerts = [];
-    }
-});
-
-const getReqForm = async () => {
+const submitForm = computed(() => {
     const reqForm: any = { ...state.form };
     reqForm.selectAuthCert = null;
     reqForm.tags = null;
@@ -243,23 +186,39 @@ const getReqForm = async () => {
         reqForm.sshTunnelMachineId = -1;
     }
     if (Object.keys(state.extra).length > 0) {
-        reqForm.extra = JSON.stringify(state.extra);
+        reqForm.extra = state.extra;
     }
     return reqForm;
-};
+});
+
+const { isFetching: saveBtnLoading, execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi(submitForm);
+const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi(submitForm);
+
+watchEffect(() => {
+    if (!dialogVisible.value) {
+        return;
+    }
+    const dbInst: any = props.data;
+    if (dbInst) {
+        state.form = { ...dbInst };
+        state.form.tagCodePaths = dbInst.tags.map((t: any) => t.codePath) || [];
+        state.extra = dbInst.extra || {};
+    } else {
+        state.form = { ...DefaultForm };
+        state.form.authCerts = [];
+    }
+});
 
 const testConn = async (authCert: any) => {
-    await useI18nFormValidate(dbForm);
-    state.submitForm = await getReqForm();
-    state.submitForm.authCerts = [authCert];
+    await useI18nFormValidate(dbFormRef);
+    submitForm.value.authCerts = [authCert];
     await testConnExec();
     ElMessage.success(t('db.connSuccess'));
 };
 
 const btnOk = async () => {
-    await useI18nFormValidate(dbForm);
-    state.submitForm = await getReqForm();
-    notBlankI18n(state.submitForm.authCerts, 'db.acName');
+    await useI18nFormValidate(dbFormRef);
+    notBlankI18n(submitForm.value.authCerts, 'db.acName');
     await saveInstanceExec();
     useI18nSaveSuccessMsg();
     state.form.id = saveInstanceRes as any;
@@ -268,7 +227,7 @@ const btnOk = async () => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
     state.extra = {};
 };

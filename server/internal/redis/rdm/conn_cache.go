@@ -2,8 +2,8 @@ package rdm
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/mcm"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
 	"sync"

@@ -1,4 +1,4 @@
-function getBaseApiUrl() {
+export function getBaseApiUrl() {
     let path = window.location.pathname;
     if (path == '/') {
         return window.location.host;
@@ -15,7 +15,7 @@ const config = {
     baseWsUrl: `${(window as any).globalConfig.BaseWsUrl || `${location.protocol == 'https:' ? 'wss:' : 'ws:'}//${getBaseApiUrl()}`}/api`,
 
     // 系统版本
-    version: 'v1.9.2',
+    version: 'v1.9.4',
 };
 
 export default config;

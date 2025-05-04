@@ -1,11 +1,6 @@
 package application
 
 import (
-	"context"
-	"mayfly-go/internal/event"
-	"mayfly-go/internal/machine/domain/entity"
-	"mayfly-go/pkg/eventbus"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/ioc"
 	"sync"
 )
@@ -26,16 +21,6 @@ func Init() {
 		GetMachineApp().TimerUpdateStats()
 
 		GetMachineTermOpApp().TimerDeleteTermOp()
-
-		global.EventBus.Subscribe(event.EventTopicDeleteMachine, "machineFile", func(ctx context.Context, event *eventbus.Event) error {
-			me := event.Val.(*entity.Machine)
-			return GetMachineFileApp().DeleteByCond(ctx, &entity.MachineFile{MachineId: me.Id})
-		})
-
-		global.EventBus.Subscribe(event.EventTopicDeleteMachine, "machineScript", func(ctx context.Context, event *eventbus.Event) error {
-			me := event.Val.(*entity.Machine)
-			return GetMachineScriptApp().DeleteByCond(ctx, &entity.MachineScript{MachineId: me.Id})
-		})
 	})()
 }
 

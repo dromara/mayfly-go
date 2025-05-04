@@ -1,9 +1,9 @@
 <template>
     <div class="db-table">
-        <el-row class="mb5">
+        <el-row class="mb-1">
             <el-popover v-model:visible="state.dumpInfo.visible" trigger="click" :width="470" placement="right">
                 <template #reference>
-                    <el-button :disabled="state.dumpInfo.tables?.length == 0" class="ml5" type="success" size="small">{{ $t('db.dump') }}</el-button>
+                    <el-button :disabled="state.dumpInfo.tables?.length == 0" class="ml-1" type="success" size="small">{{ $t('db.dump') }}</el-button>
                 </template>
                 <el-form-item :label="$t('db.exportContent')">
                     <el-radio-group v-model="dumpInfo.type">
@@ -73,11 +73,11 @@
             <el-table-column :label="$t('common.more')" min-width="160">
                 <template #default="scope">
                     <el-link @click.prevent="showColumns(scope.row)" type="primary">{{ $t('db.column') }}</el-link>
-                    <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">{{ $t('db.index') }}</el-link>
-                    <el-link class="ml5" v-if="editDbTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning">
+                    <el-link class="ml-1" @click.prevent="showTableIndex(scope.row)" type="success">{{ $t('db.index') }}</el-link>
+                    <el-link class="ml-1" v-if="editDbTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning">
                         {{ $t('db.editTable') }}
                     </el-link>
-                    <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
+                    <el-link class="ml-1" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                 </template>
             </el-table-column>
             <el-table-column :label="$t('common.operation')" min-width="80">
@@ -89,7 +89,7 @@
 
         <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.column')}`" v-model="columnDialog.visible">
             <el-table border stripe :data="columnDialog.columns" size="small">
-                <el-table-column prop="columnName" :label="$t('common.columnName')" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnName" :label="$t('db.columnName')" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="120" prop="columnType" :label="$t('common.type')" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="80" prop="nullable" :label="$t('db.nullable')" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnComment" :label="$t('db.comment')" show-overflow-tooltip> </el-table-column>

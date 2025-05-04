@@ -2,6 +2,7 @@ import Api from '@/common/Api';
 
 export const procdefApi = {
     list: Api.newGet('/flow/procdefs'),
+    detail: Api.newGet('/flow/procdefs/detail/{id}'),
     getByResource: Api.newGet('/flow/procdefs/{resourceType}/{resourceCode}'),
     save: Api.newPost('/flow/procdefs'),
     del: Api.newDelete('/flow/procdefs/{id}'),

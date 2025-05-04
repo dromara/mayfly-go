@@ -8,11 +8,11 @@ import (
 type Oauth2Account struct {
 	model.DeletedModel
 
-	AccountId uint64 `json:"accountId" gorm:"column:account_id;index:account_id,unique"`
-	Identity  string `json:"identity" gorm:"column:identity;index:identity,unique"`
+	AccountId uint64 `json:"accountId" gorm:"not null;column:account_id;index:account_id,unique;comment:账号ID"`
+	Identity  string `json:"identity" gorm:"size:64;column:identity;index:idx_identity,unique;comment:身份标识"`
 
-	CreateTime *time.Time `json:"createTime"`
-	UpdateTime *time.Time `json:"updateTime"`
+	CreateTime *time.Time `json:"createTime" gorm:"not null;"`
+	UpdateTime *time.Time `json:"updateTime" gorm:"not null;"`
 }
 
 func (Oauth2Account) TableName() string {

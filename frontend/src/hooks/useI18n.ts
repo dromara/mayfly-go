@@ -79,16 +79,29 @@ export function useI18nDetailTitle(i18nKey: string) {
 }
 
 export function useI18nOperateSuccessMsg() {
-    const t = i18n.global.t;
-    ElMessage.success(t('common.operateSuccess'));
+    MsgSuccess('common.operateSuccess');
 }
 
 export function useI18nSaveSuccessMsg() {
-    const t = i18n.global.t;
-    ElMessage.success(t('common.saveSuccess'));
+    MsgSuccess('common.saveSuccess');
 }
 
 export function useI18nDeleteSuccessMsg() {
-    const t = i18n.global.t;
-    ElMessage.success(t('common.deleteSuccess'));
+    MsgSuccess('common.deleteSuccess');
+}
+
+/**
+ * error msg
+ * @param msg msg(支持i8n msgkey)
+ */
+export function MsgError(msg: string) {
+    ElMessage.error(i18n.global.t(msg));
+}
+
+/**
+ * success msg
+ * @param msg msg(支持i8n msgkey)
+ */
+export function MsgSuccess(msg: string) {
+    ElMessage.success(i18n.global.t(msg));
 }

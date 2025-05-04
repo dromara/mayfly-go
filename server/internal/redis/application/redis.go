@@ -2,10 +2,10 @@ package application
 
 import (
 	"context"
-	"mayfly-go/internal/common/consts"
-	"mayfly-go/internal/common/utils"
 	flowapp "mayfly-go/internal/flow/application"
 	flowentity "mayfly-go/internal/flow/domain/entity"
+	"mayfly-go/internal/pkg/consts"
+	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"

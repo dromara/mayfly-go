@@ -93,6 +93,8 @@ type Repo[T model.ModelI] interface {
 	CountByCond(cond any) int64
 }
 
+var _ (Repo[*model.Model]) = (*RepoImpl[*model.Model])(nil)
+
 // 基础repo接口
 type RepoImpl[T model.ModelI] struct {
 	model any // 模型实例

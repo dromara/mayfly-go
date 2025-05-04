@@ -22,10 +22,8 @@ func init() {
 }
 
 func Init() {
-
 	global.EventBus.SubscribeAsync(event.EventTopicResourceOp, "ResourceOpLogApp", func(ctx context.Context, event *eventbus.Event) error {
 		codePath := event.Val.(string)
 		return application.GetResourceOpLogApp().AddResourceOpLog(ctx, codePath)
 	}, false)
-
 }

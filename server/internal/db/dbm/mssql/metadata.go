@@ -110,7 +110,7 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			ColumnComment: anyx.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      anyx.ToString(re["NULLABLE"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
-			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
+			AutoIncrement: cast.ToInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: cast.ToString(re["COLUMN_DEFAULT"]),
 			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),

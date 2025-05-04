@@ -1,5 +1,5 @@
 <template>
-    <div class="machine-list">
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :page-api="machineApi.list"
@@ -29,7 +29,7 @@
                 <span v-if="!data.stat">-</span>
                 <div v-else>
                     <el-row>
-                        <el-text size="small" class="font11">
+                        <el-text size="small" class="!text-[11px]">
                             {{ $t('machine.memberInfo') }}:
                             <span :class="getStatsFontClass(data.stat.memAvailable, data.stat.memTotal)"
                                 >{{ formatByteSize(data.stat.memAvailable, 1) }}/{{ formatByteSize(data.stat.memTotal, 1) }}
@@ -37,7 +37,7 @@
                         </el-text>
                     </el-row>
                     <el-row>
-                        <el-text class="font11" size="small">
+                        <el-text class="!text-[11px]" size="small">
                             {{ $t('machine.cpuInfo') }}: <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
                         </el-text>
                     </el-row>
@@ -48,18 +48,18 @@
                 <span v-if="!data.stat?.fsInfos">-</span>
                 <div v-else>
                     <el-row v-for="(i, idx) in data.stat.fsInfos.slice(0, 2)" :key="i.mountPoint">
-                        <el-text class="font11" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                        <el-text class="!text-[11px]" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
                             {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
                         </el-text>
 
                         <!-- 展示剩余的磁盘信息 -->
                         <el-popover :show-after="300" v-if="data.stat.fsInfos.length > 2 && idx == 1" placement="top-start" width="230" trigger="hover">
                             <template #reference>
-                                <SvgIcon class="mt5 ml5" color="var(--el-color-primary)" name="MoreFilled" />
+                                <SvgIcon class="mt-1 ml-1" color="var(--el-color-primary)" name="MoreFilled" />
                             </template>
 
                             <el-row v-for="i in data.stat.fsInfos.slice(2)" :key="i.mountPoint">
-                                <el-text class="font11" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                                <el-text class="!text-[11px]" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
                                     {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
                                 </el-text>
                             </el-row>
@@ -317,14 +317,14 @@ const searchItems = [
 const columns = [
     TableColumn.new('tags[0].tagPath', 'tag.relateTag').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', 'common.name'),
-    TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(50),
+    TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(55),
     TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(10),
     TableColumn.new('status', 'common.status').isSlot().setAddWidth(5),
     TableColumn.new('stat', 'machine.runningStat').isSlot().setAddWidth(55),
     TableColumn.new('fs', 'machine.fs').isSlot().setAddWidth(25),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter().noShowOverflowTooltip(),
 ];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效

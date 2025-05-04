@@ -82,45 +82,23 @@
 
                         <el-row>
                             <el-col :span="12">
-                                <el-form-item class="w100" prop="updField">
-                                    <template #label>
-                                        {{ $t('db.updateField') }}
-                                        <el-tooltip :content="$t('db.updateFieldTips')" placement="top">
-                                            <SvgIcon name="question-filled" />
-                                        </el-tooltip>
-                                    </template>
+                                <FormItemTooltip :label="$t('db.updateField')" prop="updField" :tooltip="$t('db.updateFieldTips')">
                                     <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
-                                </el-form-item>
+                                </FormItemTooltip>
                             </el-col>
 
                             <el-col :span="12">
-                                <el-form-item class="w100" prop="updFieldVal">
-                                    <template #label>
-                                        {{ $t('db.updateFieldValue') }}
-                                        <el-tooltip :content="$t('db.updateFieldValueTips')" placement="top">
-                                            <el-icon>
-                                                <question-filled />
-                                            </el-icon>
-                                        </el-tooltip>
-                                    </template>
+                                <FormItemTooltip :label="$t('db.updateFieldValue')" prop="updFieldVal" :tooltip="$t('db.updateFieldValueTips')">
                                     <el-input v-model.trim="form.updFieldVal" :placeholder="$t('db.updateFieldValuePlaceholder')" auto-complete="off" />
-                                </el-form-item>
+                                </FormItemTooltip>
                             </el-col>
                         </el-row>
 
                         <el-row>
                             <el-col :span="12">
-                                <el-form-item class="w100" prop="updFieldSrc">
-                                    <template #label>
-                                        {{ $t('db.fieldValueSrc') }}
-                                        <el-tooltip :content="$t('db.fieldValueSrcTips')" placement="top">
-                                            <el-icon>
-                                                <question-filled />
-                                            </el-icon>
-                                        </el-tooltip>
-                                    </template>
+                                <FormItemTooltip :label="$t('db.fieldValueSrc')" prop="updFieldSrc" :tooltip="$t('db.fieldValueSrcTips')">
                                     <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
-                                </el-form-item>
+                                </FormItemTooltip>
                             </el-col>
                         </el-row>
                     </el-tab-pane>
@@ -226,8 +204,10 @@ import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import { DbDataSyncDuplicateStrategyEnum } from './enums';
-import { useI18nFormValidate, useI18nPleaseInput, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { Rules } from '@/common/rule';
 
 const { t } = useI18n();
 
@@ -246,20 +226,8 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
-    taskName: [
-        {
-            required: true,
-            message: useI18nPleaseInput('db.taskName'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    taskCron: [
-        {
-            required: true,
-            message: useI18nPleaseInput('cron'),
-            trigger: ['change', 'blur'],
-        },
-    ],
+    taskName: [Rules.requiredInput('db.taskName')],
+    taskCron: [Rules.requiredInput('cron')],
 };
 
 const dbForm: any = ref(null);

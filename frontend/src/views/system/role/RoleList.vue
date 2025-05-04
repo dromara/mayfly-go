@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <page-table
             :search-items="searchItems"
             v-model:query-form="query"
@@ -54,7 +54,6 @@ import RoleEdit from './RoleEdit.vue';
 import ResourceEdit from './ResourceEdit.vue';
 import ShowResource from './ShowResource.vue';
 import { roleApi, resourceApi } from '../api';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';

@@ -348,7 +348,9 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 				}
 
 				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
-				writer.WriteString(beforeInsert)
+				if beforeInsert != "" {
+					writer.WriteString(beforeInsert)
+				}
 				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
 				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
 					return err
@@ -364,7 +366,9 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 			if len(rows) > 0 {
 				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
-				writer.WriteString(beforeInsert)
+				if beforeInsert != "" {
+					writer.WriteString(beforeInsert)
+				}
 				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
 				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
 					return err
