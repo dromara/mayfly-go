@@ -8,6 +8,11 @@ type SaveProcdef struct {
 	CodePaths []string
 }
 
+type SaveFlowDef struct {
+	Id      uint64
+	FlowDef *entity.FlowDef // 消息模板id
+}
+
 // 启动流程实例请求入参
 type StarProc struct {
 	BizType string // 业务类型

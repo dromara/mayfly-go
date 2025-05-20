@@ -30,7 +30,7 @@ type MachineFile interface {
 	base.App[*entity.MachineFile]
 
 	// 分页获取机器文件信息列表
-	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MachineFile, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineFile], error)
 
 	// 根据条件获取
 	GetMachineFile(condition *entity.MachineFile, cols ...string) error
@@ -91,9 +91,9 @@ func (m *machineFileAppImpl) InjectMachineFileRepo(repo repository.MachineFile) 
 	m.Repo = repo
 }
 
-// 分页获取机器脚本信息列表
-func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
+// 分页获取机器文件配置信息列表
+func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineFile], error) {
+	return m.GetRepo().GetPageList(condition, pageParam, orderBy...)
 }
 
 // 根据条件获取

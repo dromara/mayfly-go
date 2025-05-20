@@ -3,7 +3,7 @@
         <el-row>
             <el-col :span="8">
                 <div class="mt-1">
-                    <el-link :disabled="state.loading" @click="onRefresh()" icon="refresh" :underline="false" class="ml-1"> </el-link>
+                    <el-link :disabled="state.loading" @click="onRefresh()" icon="refresh" underline="never" class="ml-1"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-popover
@@ -37,25 +37,25 @@
                             </el-checkbox-group>
                         </div>
                         <template #reference>
-                            <el-link icon="Operation" size="small" :underline="false"></el-link>
+                            <el-link icon="Operation" size="small" underline="never"></el-link>
                         </template>
                     </el-popover>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
+                    <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" underline="never"></el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" effect="dark" content="commit" placement="top">
-                        <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
+                        <el-link @click="onCommit()" type="success" icon="CircleCheck" underline="never"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.submitUpdate')" placement="top">
-                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="!text-[12px]">{{ $t('common.submit') }}</el-link>
+                        <el-link @click="submitUpdateFields()" type="success" underline="never" class="!text-[12px]">{{ $t('common.submit') }}</el-link>
                     </el-tooltip>
                     <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.cancelUpdate')" placement="top">
-                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="!text-[12px]">{{ $t('common.cancel') }}</el-link>
+                        <el-link @click="cancelUpdateFields" type="warning" underline="never" class="!text-[12px]">{{ $t('common.cancel') }}</el-link>
                     </el-tooltip>
                 </div>
             </el-col>
@@ -160,10 +160,10 @@
             </el-col>
             <el-col :span="12">
                 <el-row :gutter="10" justify="left">
-                    <el-link class="op-page" :underline="false" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" :title="$t('db.homePage')" />
+                    <el-link class="op-page" underline="never" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" :title="$t('db.homePage')" />
                     <el-link
                         class="op-page"
-                        :underline="false"
+                        underline="never"
                         @click="pageNum = --pageNum || 1"
                         :disabled="pageNum == 1"
                         icon="Back"
@@ -180,8 +180,8 @@
                             @keydown.enter="handleSetPageNum"
                         />
                     </div>
-                    <el-link class="op-page" :underline="false" @click="++pageNum" :disabled="datas.length < pageSize" icon="Right" />
-                    <el-link class="op-page" :underline="false" @click="handleEndPage" :disabled="datas.length < pageSize" icon="DArrowRight" />
+                    <el-link class="op-page" underline="never" @click="++pageNum" :disabled="datas.length < pageSize" icon="Right" />
+                    <el-link class="op-page" underline="never" @click="handleEndPage" :disabled="datas.length < pageSize" icon="DArrowRight" />
                     <div style="width: 90px" class="op-page ml-2">
                         <el-select size="small" :default-first-option="true" v-model="pageSize" @change="handleSizeChange">
                             <el-option

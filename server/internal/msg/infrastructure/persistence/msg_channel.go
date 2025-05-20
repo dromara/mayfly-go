@@ -15,10 +15,10 @@ func newMsgChannelRepo() repository.MsgChannel {
 	return &msgChannelRepoImpl{}
 }
 
-func (m *msgChannelRepoImpl) GetPageList(condition *entity.MsgChannel, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *msgChannelRepoImpl) GetPageList(condition *entity.MsgChannel, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgChannel], error) {
 	pd := model.NewCond().
 		Eq("id", condition.Id).
 		Like("code", condition.Code).
 		OrderBy(orderBy...)
-	return m.PageByCondToAny(pd, pageParam, toEntity)
+	return m.PageByCond(pd, pageParam)
 }

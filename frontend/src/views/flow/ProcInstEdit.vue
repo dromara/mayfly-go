@@ -28,7 +28,7 @@
             <span v-if="flowProcdef || !state.form.procdefId">
                 <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
 
-                <ProcdefTasks v-if="flowProcdef" :procdef="flowProcdef" />
+                <FlowDesign height="300px" v-if="flowProcdef" :data="flowProcdef.flowDef" disabled center />
 
                 <el-result v-if="!state.form.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')">
                 </el-result>
@@ -51,10 +51,10 @@ import { ElMessage } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { FlowBizType } from './enums';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import ProcdefTasks from './components/ProcdefTasks.vue';
 import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
 import { useI18n } from 'vue-i18n';
 import { Rules } from '@/common/rule';
+import FlowDesign from './components/flowdesign/FlowDesign.vue';
 
 const DbSqlExecFlowBizForm = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecFlowBizForm.vue'));
 

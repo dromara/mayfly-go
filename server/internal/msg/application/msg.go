@@ -11,7 +11,7 @@ import (
 )
 
 type Msg interface {
-	GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.Msg, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Msg], error)
 
 	Create(ctx context.Context, msg *entity.Msg)
 
@@ -19,12 +19,14 @@ type Msg interface {
 	CreateAndSend(la *model.LoginAccount, msg *dto.SysMsg)
 }
 
+var _ (Msg) = (*msgAppImpl)(nil)
+
 type msgAppImpl struct {
 	msgRepo repository.Msg `inject:"T"`
 }
 
-func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return a.msgRepo.GetPageList(condition, pageParam, toEntity)
+func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Msg], error) {
+	return a.msgRepo.GetPageList(condition, pageParam)
 }
 
 func (a *msgAppImpl) Create(ctx context.Context, msg *entity.Msg) {

@@ -1,8 +1,8 @@
 <template>
     <div>
         <el-popover
-            v-if="props.accountId"
-            @show="getAccountInfo(props.accountId)"
+            v-if="props.username"
+            @show="getAccountInfo(props.username)"
             placement="top-start"
             :title="$t('system.account.accountInfo')"
             :width="400"
@@ -32,9 +32,6 @@
 import { reactive, toRefs } from 'vue';
 import { accountApi } from '../../api';
 const props = defineProps({
-    accountId: {
-        type: [Number],
-    },
     username: {
         type: [String],
         required: true,
@@ -48,10 +45,10 @@ const state = reactive({
 
 const { account, loading } = toRefs(state);
 
-const getAccountInfo = async (id: number) => {
+const getAccountInfo = async (username: string) => {
     try {
         state.loading = true;
-        state.account = await accountApi.getAccountDetail.request({ id });
+        state.account = await accountApi.getAccountDetail.request({ username });
     } finally {
         state.loading = false;
     }

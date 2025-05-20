@@ -16,7 +16,7 @@ func newMachineRepo() repository.Machine {
 }
 
 // 分页获取机器信息列表
-func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, orderBy ...string) (*model.PageResult[*entity.Machine], error) {
 	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Eq("status", condition.Status).
@@ -32,5 +32,5 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		qd.And("ip like ? or name like ? or code like ?", keyword, keyword, keyword)
 	}
 
-	return m.PageByCondToAny(qd, pageParam, toEntity)
+	return m.PageByCond(qd, condition.PageParam)
 }

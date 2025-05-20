@@ -9,5 +9,5 @@ import (
 type Procdef interface {
 	base.Repo[*entity.Procdef]
 
-	GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.Procdef, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.ProcdefPagePO], error)
 }

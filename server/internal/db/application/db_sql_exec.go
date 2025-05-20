@@ -61,7 +61,7 @@ type DbSqlExec interface {
 	DeleteBy(ctx context.Context, condition *entity.DbSqlExec) error
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error)
 }
 
 var _ (DbSqlExec) = (*dbSqlExecAppImpl)(nil)
@@ -313,8 +313,8 @@ func (d *dbSqlExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSql
 	return d.dbSqlExecRepo.DeleteByCond(ctx, condition)
 }
 
-func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error) {
+	return d.dbSqlExecRepo.GetPageList(condition, orderBy...)
 }
 
 // 保存sql执行记录，如果是查询类则根据系统配置判断是否保存

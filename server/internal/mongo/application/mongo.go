@@ -20,7 +20,7 @@ type Mongo interface {
 	base.App[*entity.Mongo]
 
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MongoQuery, orderBy ...string) (*model.PageResult[*entity.Mongo], error)
 
 	TestConn(entity *entity.Mongo) error
 
@@ -40,9 +40,11 @@ type mongoAppImpl struct {
 	tagTreeApp tagapp.TagTree `inject:"T"`
 }
 
+var _ Mongo = (*mongoAppImpl)(nil)
+
 // 分页获取数据库信息列表
-func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return d.GetRepo().GetList(condition, pageParam, toEntity, orderBy...)
+func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, orderBy ...string) (*model.PageResult[*entity.Mongo], error) {
+	return d.GetRepo().GetList(condition, orderBy...)
 }
 
 func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {

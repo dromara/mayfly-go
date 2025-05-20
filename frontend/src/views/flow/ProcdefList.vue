@@ -10,36 +10,36 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.save" type="primary" icon="plus" @click="editFlowDef(false)">{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="deleteProcdef()" type="danger" icon="delete">
+                <el-button v-auth="perms.save" type="primary" icon="plus" @click="onEditFlowDef(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.del" :disabled="state.selectionData.length < 1" @click="onDeleteProcdef()" type="danger" icon="delete">
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
 
-            <template #tasks="{ data }">
-                <el-link @click="showProcdefTasks(data)" icon="view" type="primary" :underline="false"> </el-link>
-            </template>
-
             <template #codePaths="{ data }">
-                <TagCodePath :path="data.tags?.map((tag: any) => tag.codePath)" />
+                <TagCodePath :path="data.tags" />
             </template>
 
             <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.save]" @click="editFlowDef(data)" type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button link v-if="actionBtns[perms.save]" @click="onEditFlowDef(data)" type="primary">{{ $t('common.edit') }}</el-button>
+
+                <el-button link v-if="actionBtns[perms.save]" @click="onShowFlowDesign(data)" type="primary">{{ $t('flow.flowDesign') }}</el-button>
             </template>
         </page-table>
 
-        <el-dialog v-model="flowTasksDialog.visible" :title="flowTasksDialog.title">
-            <procdef-tasks :tasks="flowTasksDialog.tasks" />
-        </el-dialog>
-
-        <procdef-edit v-model:visible="flowDefEditor.visible" :title="flowDefEditor.title" v-model:data="flowDefEditor.data" @val-change="valChange()" />
+        <procdef-edit v-model:visible="flowDefEditor.visible" :title="flowDefEditor.title" v-model:data="flowDefEditor.data" @val-change="handleValChange()" />
+        <FlowDesignDrawer
+            :disabled="flowDesignEditor.disabled"
+            v-model:visible="flowDesignEditor.visible"
+            :data="flowDesignEditor.data"
+            @save="onSaveFlowDesign"
+        />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
-import { procdefApi } from './api';
+import { procdefApi, procinstApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
@@ -48,8 +48,9 @@ import ProcdefEdit from './ProcdefEdit.vue';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import { ProcdefStatus } from './enums';
 import TagCodePath from '../ops/component/TagCodePath.vue';
-import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
+import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import FlowDesignDrawer from './components/flowdesign/FlowDesignDrawer.vue';
 
 const { t } = useI18n();
 
@@ -64,7 +65,6 @@ const columns = [
     TableColumn.new('defKey', 'Key'),
     TableColumn.new('status', 'common.status').typeTag(ProcdefStatus),
     TableColumn.new('remark', 'common.remark'),
-    TableColumn.new('tasks', 'flow.approvalNode').isSlot().alignCenter().setMinWidth(60),
     TableColumn.new('codePaths', 'tag.relateTag').isSlot().setMinWidth('250px'),
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('createTime', 'common.createTime').isTime(),
@@ -93,14 +93,16 @@ const state = reactive({
         visible: false,
         data: null as any,
     },
-    flowTasksDialog: {
+    flowDesignEditor: {
         title: '',
+        disabled: false,
         visible: false,
-        tasks: '',
+        procdefId: 0,
+        data: null as any,
     },
 });
 
-const { selectionData, query, flowDefEditor, flowTasksDialog } = toRefs(state);
+const { selectionData, query, flowDefEditor, flowDesignEditor } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -112,13 +114,7 @@ const search = async () => {
     pageTableRef.value.search();
 };
 
-const showProcdefTasks = (procdef: any) => {
-    state.flowTasksDialog.tasks = procdef.tasks;
-    state.flowTasksDialog.title = procdef.name + ' - ' + t('flow.approvalNode');
-    state.flowTasksDialog.visible = true;
-};
-
-const editFlowDef = (data: any) => {
+const onEditFlowDef = (data: any) => {
     if (!data) {
         state.flowDefEditor.data = null;
         state.flowDefEditor.title = useI18nCreateTitle('flow.procdef');
@@ -129,12 +125,12 @@ const editFlowDef = (data: any) => {
     state.flowDefEditor.visible = true;
 };
 
-const valChange = () => {
+const handleValChange = () => {
     state.flowDefEditor.visible = false;
     search();
 };
 
-const deleteProcdef = async () => {
+const onDeleteProcdef = async () => {
     try {
         await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join(', '));
         await procdefApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
@@ -143,6 +139,19 @@ const deleteProcdef = async () => {
     } catch (err) {
         //
     }
+};
+
+const onShowFlowDesign = async (data: any) => {
+    state.flowDesignEditor.procdefId = data.id;
+    state.flowDesignEditor.data = await procdefApi.flowDef.request({ id: data.id });
+    state.flowDesignEditor.title = t('flow.procDesign');
+    state.flowDesignEditor.visible = true;
+};
+
+const onSaveFlowDesign = async (data: any) => {
+    await procdefApi.saveFlowDef.request({ id: state.flowDesignEditor.procdefId, flow: data });
+    useI18nSaveSuccessMsg();
+    state.flowDesignEditor.visible = false;
 };
 </script>
 <style lang="scss"></style>

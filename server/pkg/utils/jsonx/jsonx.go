@@ -3,12 +3,13 @@ package jsonx
 import (
 	"encoding/json"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/collx"
 
 	"github.com/tidwall/gjson"
 )
 
 // json字符串转map
-func ToMap(jsonStr string) (map[string]any, error) {
+func ToMap(jsonStr string) (collx.M, error) {
 	if jsonStr == "" {
 		return map[string]any{}, nil
 	}
@@ -21,7 +22,7 @@ func To[T any](jsonStr string, res T) (T, error) {
 }
 
 // json字节数组转map
-func ToMapByBytes(bytes []byte) (map[string]any, error) {
+func ToMapByBytes(bytes []byte) (collx.M, error) {
 	var res map[string]any
 	err := json.Unmarshal(bytes, &res)
 	return res, err

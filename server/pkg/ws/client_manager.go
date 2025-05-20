@@ -130,10 +130,10 @@ func (manager *ClientManager) WriteMessage() {
 				cli := manager.GetByUidAndCid(uid, cid)
 				if cli != nil {
 					if err := cli.WriteMsg(msg); err != nil {
-						logx.Warnf("ws消息发送失败[uid=%d, cid=%s]: %s", uid, cid, err.Error())
+						logx.Warnf("ws send message failed - [uid=%d, cid=%s]: %s", uid, cid, err.Error())
 					}
 				} else {
-					logx.Warnf("[uid=%v, cid=%s]的ws连接不存在", uid, cid)
+					logx.Warnf("[uid=%v, cid=%s] ws conn not exist", uid, cid)
 				}
 				continue
 			}
@@ -141,7 +141,7 @@ func (manager *ClientManager) WriteMessage() {
 			// cid为空，则向该用户所有客户端发送该消息
 			for _, cli := range manager.GetByUid(uid) {
 				if err := cli.WriteMsg(msg); err != nil {
-					logx.Warnf("ws消息发送失败[uid=%d, cid=%s]: %s", uid, cli.ClientId, err.Error())
+					logx.Warnf("ws send message failed - [uid=%d, cid=%s]: %s", uid, cli.ClientId, err.Error())
 				}
 			}
 		}
@@ -181,7 +181,7 @@ func (manager *ClientManager) doConnect(client *Client) {
 		manager.doDisconnect(cli)
 	}
 	manager.addUserClient2Map(client)
-	logx.Debugf("WS客户端已连接: uid=%d, cid=%s, usercount=%d", client.UserId, client.ClientId, manager.Count())
+	logx.Debugf("WS client connected: uid=%d, cid=%s, usercount=%d", client.UserId, client.ClientId, manager.Count())
 }
 
 // 处理断开连接
@@ -192,7 +192,7 @@ func (manager *ClientManager) doDisconnect(client *Client) {
 		client.WsConn = nil
 	}
 	manager.delUserClient4Map(client)
-	logx.Debugf("WS客户端已断开: uid=%d, cid=%s, usercount=%d", client.UserId, client.ClientId, Manager.Count())
+	logx.Debugf("WS client disconnected: uid=%d, cid=%s, usercount=%d", client.UserId, client.ClientId, Manager.Count())
 }
 
 func (manager *ClientManager) addUserClient2Map(client *Client) {

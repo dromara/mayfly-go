@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -16,7 +17,8 @@ func newDbRepo() repository.Db {
 }
 
 // 分页获取数据库信息列表
-func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, orderBy ...string) (*model.PageResult[*entity.DbListPO], error) {
 	pd := model.NewCond().Eq("instance_id", condition.InstanceId).In("code", condition.Codes).Eq("id", condition.Id)
-	return d.PageByCondToAny(pd, pageParam, toEntity)
+	list := []*entity.DbListPO{}
+	return gormx.PageByCond(d.GetModel(), pd, condition.PageParam, list)
 }

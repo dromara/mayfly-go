@@ -8,16 +8,18 @@ import (
 )
 
 // BusSubscriber defines subscription-related bus behavior
-type BusSubscriber interface {
-	Subscribe(topic string, subId string, fn EventHandleFunc) error
-	SubscribeAsync(topic string, subId string, fn EventHandleFunc, transactional bool) error
-	SubscribeOnce(topic string, subId string, fn EventHandleFunc) error
+type BusSubscriber[T any] interface {
+	Subscribe(topic string, subId string, fn EventHandleFunc[T]) error
+	SubscribeAsync(topic string, subId string, fn EventHandleFunc[T], transactional bool) error
+	SubscribeOnce(topic string, subId string, fn EventHandleFunc[T]) error
 	Unsubscribe(topic string, subId string) error
 }
 
 // BusPublisher defines publishing-related bus behavior
-type BusPublisher interface {
-	Publish(ctx context.Context, topic string, val any)
+type BusPublisher[T any] interface {
+	Publish(ctx context.Context, topic string, val T)
+
+	PublishSync(ctx context.Context, topic string, val T) error
 }
 
 // BusController defines bus control behavior (checking handler's presence, synchronization)
@@ -25,90 +27,90 @@ type BusController interface {
 	WaitAsync()
 }
 
-// Bus englobes global (subscribe, publish, control) bus behavior
-type Bus interface {
-	BusController
-	BusSubscriber
-	BusPublisher
-}
-
-// EventBus - box for handlers and callbacks.
-type EventBus struct {
-	subscriberManager map[string]*SubscriberManager // topic -> SubscriberManager
-	lock              sync.Mutex                    // a lock for the map
-	wg                sync.WaitGroup
-}
-
-func New() Bus {
-	b := &EventBus{
-		make(map[string]*SubscriberManager),
-		sync.Mutex{},
-		sync.WaitGroup{},
-	}
-	return Bus(b)
-}
-
-type Event struct {
+type Event[T any] struct {
 	Topic string
-	Val   any
+	Val   T
 }
 
 // 订阅者们的事件处理器
-type SubscriberManager struct {
+type SubscriberManager[T any] struct {
 	// 事件处理器 subId -> handler
-	handlers map[string]*eventHandler
+	handlers map[string]*eventHandler[T]
 }
 
-func NewSubscriberManager() *SubscriberManager {
-	return &SubscriberManager{
-		handlers: make(map[string]*eventHandler),
+func NewSubscriberManager[T any]() *SubscriberManager[T] {
+	return &SubscriberManager[T]{
+		handlers: make(map[string]*eventHandler[T]),
 	}
 }
 
-func (sm *SubscriberManager) addSubscriber(subId string, eventHandler *eventHandler) {
+func (sm *SubscriberManager[T]) addSubscriber(subId string, eventHandler *eventHandler[T]) {
 	sm.handlers[subId] = eventHandler
 }
 
-func (sm *SubscriberManager) delSubscriber(subId string) {
+func (sm *SubscriberManager[T]) delSubscriber(subId string) {
 	delete(sm.handlers, subId)
 }
 
 // 事件处理函数
-type EventHandleFunc func(ctx context.Context, event *Event) error
+type EventHandleFunc[T any] func(ctx context.Context, event *Event[T]) error
 
-type eventHandler struct {
-	handlerFunc   EventHandleFunc // 事件处理函数
-	once          bool            // 是否只执行一次
+type eventHandler[T any] struct {
+	handlerFunc   EventHandleFunc[T] // 事件处理函数
+	once          bool               // 是否只执行一次
 	async         bool
 	transactional bool
 
 	sync.Mutex // lock for an event handler - useful for running async callbacks serially
 }
 
-func (bus *EventBus) Subscribe(topic string, subId string, fn EventHandleFunc) error {
-	eh := &eventHandler{}
+// Bus englobes global (subscribe, publish, control) bus behavior
+type Bus[T any] interface {
+	BusController
+	BusSubscriber[T]
+	BusPublisher[T]
+}
+
+// EventBus - box for handlers and callbacks.
+type EventBus[T any] struct {
+	subscriberManager map[string]*SubscriberManager[T] // topic -> SubscriberManager
+	lock              sync.Mutex                       // a lock for the map
+	wg                sync.WaitGroup
+}
+
+func New[T any]() Bus[T] {
+	b := &EventBus[T]{
+		make(map[string]*SubscriberManager[T]),
+		sync.Mutex{},
+		sync.WaitGroup{},
+	}
+	return Bus[T](b)
+}
+
+func (bus *EventBus[T]) Subscribe(topic string, subId string, fn EventHandleFunc[T]) error {
+	eh := &eventHandler[T]{}
 	eh.handlerFunc = fn
 	return bus.doSubscribe(topic, subId, eh)
 }
 
 // SubscribeAsync subscribes to a topic with an asynchronous callback
 // Transactional determines whether subsequent callbacks for a topic are
-func (bus *EventBus) SubscribeAsync(topic string, subId string, fn EventHandleFunc, transactional bool) error {
-	eh := &eventHandler{}
+func (bus *EventBus[T]) SubscribeAsync(topic string, subId string, fn EventHandleFunc[T], transactional bool) error {
+	eh := &eventHandler[T]{}
 	eh.handlerFunc = fn
 	eh.async = true
 	return bus.doSubscribe(topic, subId, eh)
 }
 
 // SubscribeOnce subscribes to a topic once. Handler will be removed after executing.
-func (bus *EventBus) SubscribeOnce(topic string, subId string, fn EventHandleFunc) error {
-	eh := &eventHandler{}
+func (bus *EventBus[T]) SubscribeOnce(topic string, subId string, fn EventHandleFunc[T]) error {
+	eh := &eventHandler[T]{}
 	eh.handlerFunc = fn
 	eh.once = true
 	return bus.doSubscribe(topic, subId, eh)
 }
 
-func (bus *EventBus) Unsubscribe(topic string, subId string) error {
+func (bus *EventBus[T]) Unsubscribe(topic string, subId string) error {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
 	subManager := bus.subscriberManager[topic]
@@ -119,73 +121,91 @@ func (bus *EventBus) Unsubscribe(topic string, subId string) error {
 	return nil
 }
 
-func (bus *EventBus) Publish(ctx context.Context, topic string, val any) {
-	bus.lock.Lock() // will unlock if handler is not found or always after setUpPublish
+func (bus *EventBus[T]) Publish(ctx context.Context, topic string, val T) {
+	bus.publishInternal(ctx, topic, val, false)
+}
+
+func (bus *EventBus[T]) PublishSync(ctx context.Context, topic string, val T) error {
+	return bus.publishInternal(ctx, topic, val, true)
+}
+
+func (bus *EventBus[T]) publishInternal(ctx context.Context, topic string, val T, syncSubHandleErrorOnStop bool) error {
+	bus.lock.Lock()
 	defer bus.lock.Unlock()
-	logx.Debugf("topic - [%s] - published the event", topic)
-	event := &Event{
-		Topic: topic,
-		Val:   val,
-	}
-	subscriberManager := bus.subscriberManager[topic]
-	if subscriberManager == nil {
-		return
+
+	event := &Event[T]{Topic: topic, Val: val}
+	logx.Debugf("topic-[%s] - published the event", topic)
+
+	subManager := bus.subscriberManager[topic]
+	if subManager == nil || len(subManager.handlers) == 0 {
+		return nil
 	}
 
-	handlers := subscriberManager.handlers
-	if len(handlers) == 0 {
-		return
-	}
-
-	for subId, handler := range handlers {
-		logx.Debugf("subscriber - [%s] - starts executing events published by topic - [%s]", subId, topic)
+	var syncSubError error
+	for subId, handler := range subManager.handlers {
 		if handler.once {
-			subscriberManager.delSubscriber(subId)
+			subManager.delSubscriber(subId)
 		}
+
+		// 同步执行处理
 		if !handler.async {
-			bus.doPublish(ctx, handler, event)
-		} else {
-			bus.wg.Add(1)
-			if handler.transactional {
-				bus.lock.Unlock()
-				handler.Lock()
-				bus.lock.Lock()
+			// 同步订阅者其中一个执行失败则停止后续订阅者处理字段设置为true，并且已经出现订阅者处理失败则跳过后续同步订阅者的处理
+			if syncSubHandleErrorOnStop && syncSubError != nil {
+				continue
 			}
-			go bus.doPublishAsync(ctx, handler, event)
+
+			logx.Debugf("subscriber-[%s] - starts executing events published by topic-[%s]", subId, topic)
+
+			err := bus.doPublish(ctx, handler, event)
+			if err != nil {
+				syncSubError = err
+				logx.Errorf("subscriber-[%s] failed to handle event topic-[%s]: %v", subId, topic, err)
+			}
+			continue
 		}
+
+		logx.Debugf("async subscriber-[%s] - starts executing events published by topic-[%s]", subId, topic)
+		// 异步执行
+		bus.wg.Add(1)
+		if handler.transactional {
+			bus.lock.Unlock()
+			handler.Lock()
+			bus.lock.Lock()
+		}
+		go bus.doPublishAsync(ctx, subId, handler, event)
 	}
+
+	return syncSubError
 }
 
 // WaitAsync waits for all async callbacks to complete
-func (bus *EventBus) WaitAsync() {
+func (bus *EventBus[T]) WaitAsync() {
 	bus.wg.Wait()
 }
 
-func (bus *EventBus) doSubscribe(topic string, subId string, handler *eventHandler) error {
+func (bus *EventBus[T]) doSubscribe(topic string, subId string, handler *eventHandler[T]) error {
 	bus.lock.Lock()
 	defer bus.lock.Unlock()
-	logx.Debugf("subscribers - [%s] - subscribed to topic - [%s]", subId, topic)
+	logx.Debugf("subscribers-[%s] -> subscribed to topic-[%s]", subId, topic)
 	subManager := bus.subscriberManager[topic]
 	if subManager == nil {
-		subManager = NewSubscriberManager()
+		subManager = NewSubscriberManager[T]()
 		bus.subscriberManager[topic] = subManager
 	}
 	subManager.addSubscriber(subId, handler)
 	return nil
 }
 
-func (bus *EventBus) doPublish(ctx context.Context, handler *eventHandler, event *Event) error {
-	err := handler.handlerFunc(ctx, event)
-	if err != nil {
-		logx.Errorf("subscriber failed to execute topic [%s]: %s", event.Topic, err.Error())
-	}
-	return err
+func (bus *EventBus[T]) doPublish(ctx context.Context, handler *eventHandler[T], event *Event[T]) error {
+	return handler.handlerFunc(ctx, event)
 }
 
-func (bus *EventBus) doPublishAsync(ctx context.Context, handler *eventHandler, event *Event) {
+func (bus *EventBus[T]) doPublishAsync(ctx context.Context, subId string, handler *eventHandler[T], event *Event[T]) {
 	defer bus.wg.Done()
 	if handler.transactional {
 		defer handler.Unlock()
 	}
-	bus.doPublish(ctx, handler, event)
+	if err := bus.doPublish(ctx, handler, event); err != nil {
+		logx.Errorf("async subscriber-[%s] failed to execute topic-[%s]: %s", subId, event.Topic, err.Error())
+	}
 }

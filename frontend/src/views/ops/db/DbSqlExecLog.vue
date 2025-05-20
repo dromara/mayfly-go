@@ -25,7 +25,7 @@
                     type="primary"
                     plain
                     size="small"
-                    :underline="false"
+                    underline="never"
                     @click="onShowRollbackSql(data)"
                 >
                     {{ $t('db.restoreSql') }}</el-link

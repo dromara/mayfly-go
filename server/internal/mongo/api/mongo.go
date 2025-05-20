@@ -68,7 +68,7 @@ func (ma *Mongo) ReqConfs() *req.Confs {
 }
 
 func (m *Mongo) Mongos(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.MongoQuery](rc, new(entity.MongoQuery))
+	queryCond := req.BindQuery(rc, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -76,21 +76,22 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 		CodePathLikes: []string{queryCond.TagPath},
 	})
 	if len(tags) == 0 {
-		rc.ResData = model.EmptyPageResult[any]()
+		rc.ResData = model.NewEmptyPageResult[any]()
 		return
 	}
 	queryCond.Codes = tags.GetCodes()
 
-	var mongovos []*vo.Mongo
-	res, err := m.mongoApp.GetPageList(queryCond, page, &mongovos)
+	res, err := m.mongoApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.Mongo, *vo.Mongo](res)
+	mongovos := resVo.List
 
 	// 填充标签信息
 	m.tagTreeApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMongo), collx.ArrayMap(mongovos, func(mvo *vo.Mongo) tagentity.ITagResource {
 		return mvo
 	})...)
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (m *Mongo) TestConn(rc *req.Ctx) {

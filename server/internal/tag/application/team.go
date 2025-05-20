@@ -18,7 +18,7 @@ type Team interface {
 	base.App[*entity.Team]
 
 	// 分页获取项目团队信息列表
-	GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.TeamQuery, orderBy ...string) (*model.PageResult[*entity.Team], error)
 
 	// SaveTeam 保存团队信息
 	SaveTeam(ctx context.Context, team *dto.SaveTeam) error
@@ -27,7 +27,7 @@ type Team interface {
 
 	//--------------- 团队成员相关接口 ---------------
 
-	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error)
+	GetMemberPage(condition *entity.TeamMember, pageParam model.PageParam) (*model.PageResult[*entity.TeamMemberPO], error)
 
 	SaveMember(ctx context.Context, tagTeamMember *entity.TeamMember) error
 
@@ -47,15 +47,15 @@ type teamAppImpl struct {
 
 var _ (Team) = (*teamAppImpl)(nil)
 
-func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return p.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
+func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, orderBy ...string) (*model.PageResult[*entity.Team], error) {
+	return p.GetRepo().GetPageList(condition, orderBy...)
 }
 
 func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) error {
 	team := &entity.Team{
 		Name:              saveParam.Name,
-		ValidityStartDate: saveParam.ValidityStartDate,
-		ValidityEndDate:   saveParam.ValidityEndDate,
+		ValidityStartDate: &saveParam.ValidityStartDate.Time,
+		ValidityEndDate:   &saveParam.ValidityEndDate.Time,
 		Remark:            saveParam.Remark,
 	}
 	team.Id = saveParam.Id
@@ -111,8 +111,8 @@ func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {
 
 // --------------- 团队成员相关接口 ---------------
 
-func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error) {
-	return p.teamMemberRepo.GetPageList(condition, pageParam, toEntity)
+func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam model.PageParam) (*model.PageResult[*entity.TeamMemberPO], error) {
+	return p.teamMemberRepo.GetPageList(condition, pageParam)
 }
 
 // 保存团队成员信息

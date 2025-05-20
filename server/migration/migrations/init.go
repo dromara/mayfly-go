@@ -263,10 +263,11 @@ func initTag(tx *gorm.DB) error {
 	tag.Creator = "admin"
 	tag.Modifier = "admin"
 
+	end := now.AddDate(20, 0, 0)
 	team := &tagentity.Team{
 		Name:              "default_team",
-		ValidityStartDate: &model.JsonTime{Time: now},
-		ValidityEndDate:   &model.JsonTime{Time: now.AddDate(20, 0, 0)},
+		ValidityStartDate: &now,
+		ValidityEndDate:   &end,
 		Remark:            "默认团队",
 	}
 	team.Id = 1

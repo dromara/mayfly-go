@@ -7,7 +7,7 @@
                     v-bind="$attrs"
                     ref="tagTreeRef"
                     :data="state.tags"
-                    :default-expanded-keys="state.defaultExpandedKeys"
+                    :default-expanded-keys="checkedTags"
                     :default-checked-keys="checkedTags"
                     multiple
                     :render-after-expand="true"
@@ -75,12 +75,10 @@ const tagTreeRef: any = ref(null);
 const filterTag = ref('');
 
 const state = reactive({
-    defaultExpandedKeys: [] as any,
     tags: [],
 });
 
 onMounted(() => {
-    state.defaultExpandedKeys = checkedTags.value;
     search();
 });
 

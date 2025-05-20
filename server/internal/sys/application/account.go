@@ -13,7 +13,7 @@ import (
 type Account interface {
 	base.App[*entity.Account]
 
-	GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.AccountQuery, orderBy ...string) (*model.PageResult[*entity.Account], error)
 
 	Create(ctx context.Context, account *entity.Account) error
 
@@ -22,14 +22,16 @@ type Account interface {
 	Delete(ctx context.Context, id uint64) error
 }
 
+var _ Account = (*accountAppImpl)(nil)
+
 type accountAppImpl struct {
 	base.AppImpl[*entity.Account, repository.Account]
 
 	accountRoleRepo repository.AccountRole `inject:"T"`
 }
 
-func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
+func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, orderBy ...string) (*model.PageResult[*entity.Account], error) {
+	return a.GetRepo().GetPageList(condition)
 }
 
 func (a *accountAppImpl) Create(ctx context.Context, account *entity.Account) error {

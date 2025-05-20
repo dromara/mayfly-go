@@ -1,10 +1,12 @@
 import { i18n } from '@/i18n';
+import { ElMessage } from 'element-plus';
 
 /**
  * 不符合业务断言错误
  */
 class AssertError extends Error {
     constructor(message: string) {
+        ElMessage.error(message);
         super(message);
         // 错误类名
         this.name = 'AssertError';
@@ -15,11 +17,11 @@ class AssertError extends Error {
  * 断言表达式为true
  *
  * @param condition 条件表达式
- * @param msg 错误消息
+ * @param msgOrI18nKey 错误消息 或者 i18n key
  */
-export function isTrue(condition: boolean, msg: string) {
+export function isTrue(condition: boolean, msgOrI18nKey: string) {
     if (!condition) {
-        throw new AssertError(msg);
+        throw new AssertError(i18n.global.t(msgOrI18nKey));
     }
 }
 

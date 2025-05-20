@@ -10,5 +10,5 @@ type DbTransferFile interface {
 	base.Repo[*entity.DbTransferFile]
 
 	// 分页获取数据库实例信息列表
-	GetPageList(condition *entity.DbTransferFileQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DbTransferFileQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferFile], error)
 }

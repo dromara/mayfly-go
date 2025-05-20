@@ -386,7 +386,7 @@ const autoOpenRedis = (codePath: string) => {
 };
 
 const scan = async (appendKey = false) => {
-    isTrue(state.scanParam.id != null, t('redis.redisSelectErr'));
+    isTrue(state.scanParam.id != null, 'redis.redisSelectErr');
 
     const match: string = state.scanParam.match || '';
     if (!match) {

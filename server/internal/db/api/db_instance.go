@@ -55,7 +55,7 @@ func (d *Instance) ReqConfs() *req.Confs {
 // Instances 获取数据库实例信息
 // @router /api/instances [get]
 func (d *Instance) Instances(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
+	queryCond := req.BindQuery(rc, new(entity.InstanceQuery))
 
 	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert)),
@@ -63,7 +63,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	})
 	// 不存在可操作的数据库，即没有可操作数据
 	if len(tags) == 0 {
-		rc.ResData = model.EmptyPageResult[any]()
+		rc.ResData = model.NewEmptyPageResult[any]()
 		return
 	}
 
@@ -71,9 +71,10 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	dbInstCodes := tagentity.GetCodesByCodePaths(tagentity.TagTypeDbInstance, tagCodePaths...)
 	queryCond.Codes = dbInstCodes
 
-	var instvos []*vo.InstanceListVO
-	res, err := d.instanceApp.GetPageList(queryCond, page, &instvos)
+	res, err := d.instanceApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.DbInstance, *vo.InstanceListVO](res)
+	instvos := resVo.List
 
 	// 填充授权凭证信息
 	d.resourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodesByCodePaths(tagentity.TagTypeAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
@@ -85,7 +86,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 		return insvo
 	})...)
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (d *Instance) TestConn(rc *req.Ctx) {

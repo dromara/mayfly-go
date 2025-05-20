@@ -35,7 +35,7 @@
                             <slot name="label" :data="data" v-if="!data.disabled"> {{ $t(data.label) }}</slot>
                             <!-- 禁用状态 -->
                             <slot name="disabledLabel" :data="data" v-else>
-                                <el-link type="danger" disabled :underline="false">
+                                <el-link type="danger" disabled underline="never">
                                     {{ `${$t(data.label)}` }}
                                 </el-link>
                             </slot>

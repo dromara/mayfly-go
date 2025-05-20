@@ -133,7 +133,7 @@
                                     <template #reference>
                                         <el-link
                                             @click="formatText(item.getValueByData(scope.row))"
-                                            :underline="false"
+                                            underline="never"
                                             type="success"
                                             icon="MagicStick"
                                             class="mr-1"

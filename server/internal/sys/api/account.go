@@ -56,8 +56,8 @@ func (a *Account) ReqConfs() *req.Confs {
 		// 获取用户列表信息（只包含最基础信息）
 		req.NewGet("/simple", a.SimpleAccounts),
 
-		// 根据账号id获取账号基础信息
-		req.NewGet("/:id", a.AccountDetail),
+		// 根据username获取账号基础信息
+		req.NewGet("/detail", a.AccountDetail),
 
 		req.NewPost("", a.SaveAccount).Log(req.NewLogSaveI(imsg.LogAccountCreate)).RequiredPermission(addAccountPermission),
 
@@ -172,9 +172,10 @@ func (a *Account) Accounts(rc *req.Ctx) {
 	condition := &entity.AccountQuery{}
 	condition.Username = rc.Query("username")
 	condition.Name = rc.Query("name")
-	res, err := a.accountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.AccountManageVO))
+	condition.PageParam = rc.GetPageParam()
+	res, err := a.accountApp.GetPageList(condition)
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.Account, *vo.AccountManageVO](res)
 }
 
 func (a *Account) SimpleAccounts(rc *req.Ctx) {
@@ -187,20 +188,23 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 			return cast.ToUint64(val)
 		})
 	}
-	res, err := a.accountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.SimpleAccountVO))
+	condition.PageParam = rc.GetPageParam()
+	res, err := a.accountApp.GetPageList(condition)
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.Account, *vo.SimpleAccountVO](res)
 }
 
 // 获取账号详情
 func (a *Account) AccountDetail(rc *req.Ctx) {
-	accountId := uint64(rc.PathParamInt("id"))
-	account, err := a.accountApp.GetById(accountId)
+	username := rc.Query("username")
+	biz.NotEmpty(username, "username is required")
+	account := &entity.Account{Username: username}
+	err := a.accountApp.GetByCond(account)
 	biz.ErrIsNilAppendErr(err, "Account does not exist: %s")
 	accountvo := new(vo.SimpleAccountVO)
 	structx.Copy(accountvo, account)
 
-	accountvo.Roles = a.getAccountRoles(accountId)
+	accountvo.Roles = a.getAccountRoles(account.Id)
 	rc.ResData = accountvo
 }
 

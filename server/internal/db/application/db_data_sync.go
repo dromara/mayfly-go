@@ -28,7 +28,7 @@ type DataSyncTask interface {
 	base.App[*entity.DataSyncTask]
 
 	// GetPageList 分页获取数据库实例
-	GetPageList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DataSyncTaskQuery, orderBy ...string) (*model.PageResult[*entity.DataSyncTask], error)
 
 	Save(ctx context.Context, instanceEntity *entity.DataSyncTask) error
 
@@ -44,7 +44,7 @@ type DataSyncTask interface {
 
 	StopTask(ctx context.Context, id uint64) error
 
-	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetTaskLogList(condition *entity.DataSyncLogQuery, orderBy ...string) (*model.PageResult[*entity.DataSyncLog], error)
 }
 
 var _ (DataSyncTask) = (*dataSyncAppImpl)(nil)
@@ -65,8 +65,8 @@ func (app *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTas
 	app.Repo = repo
 }
 
-func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.GetRepo().GetTaskList(condition, pageParam, toEntity, orderBy...)
+func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, orderBy ...string) (*model.PageResult[*entity.DataSyncTask], error) {
+	return app.GetRepo().GetTaskList(condition, orderBy...)
 }
 
 func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyncTask) error {
@@ -406,39 +406,36 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning})
 
 	// 把所有正常任务添加到定时任务中
-	pageParam := &model.PageParam{
-		PageSize: 100,
-		PageNum:  1,
-	}
 	cond := new(entity.DataSyncTaskQuery)
+	cond.PageNum = 1
+	cond.PageSize = 100
 	cond.Status = entity.DataSyncTaskStatusEnable
-	jobs := new([]entity.DataSyncTask)
 
-	pr, err := app.GetPageList(cond, pageParam, jobs)
+	tasks, err := app.GetPageList(cond)
 	if err != nil {
 		logx.ErrorTrace("the data synchronization task failed to initialize", err)
 		return
 	}
 
-	total := pr.Total
+	total := tasks.Total
 	add := 0
 
 	for {
-		for _, job := range *jobs {
-			app.AddCronJob(contextx.NewTraceId(), &job)
+		for _, job := range tasks.List {
+			app.AddCronJob(contextx.NewTraceId(), job)
 			add++
 		}
 		if add >= int(total) {
 			return
 		}
 
-		pageParam.PageNum++
-		_, _ = app.GetPageList(cond, pageParam, jobs)
+		cond.PageNum = cond.PageNum + 1
+		tasks, _ = app.GetPageList(cond)
 	}
 }
 
-func (app *dataSyncAppImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.dbDataSyncLogRepo.GetTaskLogList(condition, pageParam, toEntity, orderBy...)
+func (app *dataSyncAppImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, orderBy ...string) (*model.PageResult[*entity.DataSyncLog], error) {
+	return app.dbDataSyncLogRepo.GetTaskLogList(condition, orderBy...)
 }
 
 // MarkRunning 标记任务执行中

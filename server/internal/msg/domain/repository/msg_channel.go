@@ -9,5 +9,5 @@ import (
 type MsgChannel interface {
 	base.Repo[*entity.MsgChannel]
 
-	GetPageList(condition *entity.MsgChannel, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MsgChannel, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgChannel], error)
 }

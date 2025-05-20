@@ -11,7 +11,7 @@
             </el-table-column>
             <el-table-column prop="codePaths" :label="$t('machine.relateMachine')" min-width="250px" show-overflow-tooltip>
                 <template #default="scope">
-                    <TagCodePath :path="scope.row.tags?.map((tag: any) => tag.codePath)" />
+                    <TagCodePath :path="scope.row.tags" />
                 </template>
             </el-table-column>
             <el-table-column prop="remark" :label="$t('common.remark')" show-overflow-tooltip width="120px"> </el-table-column>

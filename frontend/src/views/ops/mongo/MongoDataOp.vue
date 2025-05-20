@@ -78,9 +78,9 @@
                                 <el-row>
                                     <el-col :span="2">
                                         <div class="mt-1">
-                                            <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
+                                            <el-link @click="findCommand(state.activeName)" icon="refresh" underline="never" class=""> </el-link>
                                             <el-divider direction="vertical" border-style="dashed" />
-                                            <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" :underline="false"> </el-link>
+                                            <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" underline="never"> </el-link>
                                         </div>
                                     </el-col>
                                     <el-col :span="22">
@@ -101,13 +101,13 @@
                                                 <el-input type="textarea" v-model="item.value" :rows="10" />
                                                 <div style="padding: 3px; float: right" class="mr-1 mongo-doc-btns">
                                                     <div>
-                                                        <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+                                                        <el-link @click="onEditDoc(item)" underline="never" type="success" icon="MagicStick"></el-link>
 
                                                         <el-divider direction="vertical" border-style="dashed" />
 
                                                         <el-popconfirm @confirm="onDeleteDoc(item.value)" :title="$t('mongo.deleteDocConfirm')" width="160">
                                                             <template #reference>
-                                                                <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete">
+                                                                <el-link v-auth="perms.delData" underline="never" type="danger" icon="DocumentDelete">
                                                                 </el-link>
                                                             </template>
                                                         </el-popconfirm>
@@ -466,7 +466,7 @@ const onSaveDoc = async () => {
             collection: dataTab.collection,
             doc: docObj,
         });
-        isTrue(res.InsertedID, t('mongo.insertFail'));
+        isTrue(res.InsertedID, 'mongo.insertFail');
         ElMessage.success(t('mongo.insertSuccess'));
     } else {
         const docObj = parseDocJsonString(state.docEditDialog.doc);
@@ -481,7 +481,7 @@ const onSaveDoc = async () => {
             docId: id,
             update: { $set: docObj },
         });
-        isTrue(res.ModifiedCount == 1, t('common.modifyFail'));
+        isTrue(res.ModifiedCount == 1, 'common.modifyFail');
         useI18nSaveSuccessMsg();
     }
     findCommand(state.activeName);
@@ -499,7 +499,7 @@ const onDeleteDoc = async (doc: string) => {
         collection: dataTab.collection,
         docId: id,
     });
-    isTrue(res.DeletedCount == 1, t('common.deleteFail'));
+    isTrue(res.DeletedCount == 1, 'common.deleteFail');
     useI18nDeleteSuccessMsg();
     findCommand(state.activeName);
 };

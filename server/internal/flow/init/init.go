@@ -13,4 +13,6 @@ func init() {
 		application.InitIoc()
 		api.InitIoc()
 	})
+
+	initialize.AddInitFunc(application.Init)
 }

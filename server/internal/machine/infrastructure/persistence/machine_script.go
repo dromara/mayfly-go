@@ -16,7 +16,7 @@ func newMachineScriptRepo() repository.MachineScript {
 }
 
 // 分页获取机器信息列表
-func (m *machineScriptRepoImpl) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *machineScriptRepoImpl) GetPageList(condition *entity.MachineScript, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineScript], error) {
 	qd := model.NewModelCond(condition).OrderBy(orderBy...)
-	return m.PageByCondToAny(qd, pageParam, toEntity)
+	return m.PageByCond(qd, pageParam)
 }

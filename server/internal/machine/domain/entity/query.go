@@ -1,8 +1,13 @@
 package entity
 
-import "time"
+import (
+	"mayfly-go/pkg/model"
+	"time"
+)
 
 type MachineQuery struct {
+	model.PageParam
+
 	Id       uint64 `json:"id" form:"id"`
 	Code     string `json:"code" form:"code"`
 	Name     string `json:"name" form:"name"`

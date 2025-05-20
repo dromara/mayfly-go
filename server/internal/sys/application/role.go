@@ -16,7 +16,7 @@ import (
 type Role interface {
 	base.App[*entity.Role]
 
-	GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.RoleQuery, orderBy ...string) (*model.PageResult[*entity.Role], error)
 
 	ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error)
 
@@ -40,7 +40,7 @@ type Role interface {
 	GetAccountRoles(accountId uint64) ([]*entity.AccountRole, error)
 
 	// 获取角色关联的用户信息
-	GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetRoleAccountPage(condition *entity.RoleAccountQuery, orderBy ...string) (*model.PageResult[*entity.AccountRolePO], error)
 }
 
 type roleAppImpl struct {
@@ -52,8 +52,8 @@ type roleAppImpl struct {
 
 var _ (Role) = (*roleAppImpl)(nil)
 
-func (m *roleAppImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *roleAppImpl) GetPageList(condition *entity.RoleQuery, orderBy ...string) (*model.PageResult[*entity.Role], error) {
+	return m.GetRepo().GetPageList(condition, orderBy...)
 }
 
 func (m *roleAppImpl) ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error) {
@@ -148,6 +148,6 @@ func (m *roleAppImpl) GetAccountRoles(accountId uint64) ([]*entity.AccountRole, 
 	return m.accountRoleRepo.SelectByCond(&entity.AccountRole{AccountId: accountId})
 }
 
-func (m *roleAppImpl) GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.accountRoleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *roleAppImpl) GetRoleAccountPage(condition *entity.RoleAccountQuery, orderBy ...string) (*model.PageResult[*entity.AccountRolePO], error) {
+	return m.accountRoleRepo.GetPageList(condition, orderBy...)
 }

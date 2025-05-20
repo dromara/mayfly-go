@@ -13,11 +13,4 @@ func InitIoc() {
 	ioc.Register(newDataSyncLogRepo(), ioc.WithComponentName("DbDataSyncLogRepo"))
 	ioc.Register(newDbTransferTaskRepo(), ioc.WithComponentName("DbTransferTaskRepo"))
 	ioc.Register(newDbTransferFileRepo(), ioc.WithComponentName("DbTransferFileRepo"))
-
-	ioc.Register(NewDbBackupRepo(), ioc.WithComponentName("DbBackupRepo"))
-	ioc.Register(NewDbBackupHistoryRepo(), ioc.WithComponentName("DbBackupHistoryRepo"))
-	ioc.Register(NewDbRestoreRepo(), ioc.WithComponentName("DbRestoreRepo"))
-	ioc.Register(NewDbRestoreHistoryRepo(), ioc.WithComponentName("DbRestoreHistoryRepo"))
-	ioc.Register(NewDbBinlogRepo(), ioc.WithComponentName("DbBinlogRepo"))
-	ioc.Register(NewDbBinlogHistoryRepo(), ioc.WithComponentName("DbBinlogHistoryRepo"))
 }

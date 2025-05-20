@@ -2,7 +2,10 @@ package entity
 
 import (
 	"mayfly-go/pkg/enumx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/jsonx"
 	"time"
 )
 
@@ -10,19 +13,21 @@ import (
 type Procinst struct {
 	model.Model
 
-	ProcdefId   uint64 `json:"procdefId" gorm:"not null;index:idx_procdef_id;comment:流程定义id"` // 流程定义id
-	ProcdefName string `json:"procdefName" gorm:"not null;size:64;comment:流程定义名称"`            // 流程定义名称
+	ProcdefId   uint64  `json:"procdefId" gorm:"not null;index:idx_procdef_id;comment:流程定义id"` // 流程定义id
+	ProcdefName string  `json:"procdefName" gorm:"not null;size:64;comment:流程定义名称"`            // 流程定义名称
+	FlowDef     string  `json:"flowDef" gorm:"type:text;comment:流程定义json"`                     // 流程定义json
+	Vars        collx.M `json:"vars" gorm:"type:text;comment:流程变量"`                            // 流程变量
 
 	BizType      string            `json:"bizType" gorm:"not null;size:64;comment:关联业务类型"`  // 业务类型
 	BizKey       string            `json:"bizKey" gorm:"not null;size:64;comment:关联业务key"`  // 业务key
 	BizForm      string            `json:"bizForm" gorm:"type:text;comment:业务form"`         // 业务表单
 	BizStatus    ProcinstBizStatus `json:"bizStatus" gorm:"comment:业务状态"`                   // 业务状态
-	BizHandleRes string            `json:"bizHandleRes" gorm:"size:4000;comment:关联的业务处理结果"` // 业务处理结果
-	TaskKey      string            `json:"taskKey" gorm:"size:100;comment:当前任务key"`         // 当前任务key
-	Status       ProcinstStatus    `json:"status" gorm:"comment:状态"`                        // 状态
-	Remark       string            `json:"remark" gorm:"size:255;"`
-	EndTime      *time.Time        `json:"endTime" gorm:"comment:结束时间"`
-	Duration     int64             `json:"duration" gorm:"comment:流程持续时间（开始到结束）"` // 持续时间（开始到结束）
+	BizHandleRes string            `json:"bizHandleRes" gorm:"type:text;comment:关联的业务处理结果"` // 业务处理结果
+
+	Status   ProcinstStatus `json:"status" gorm:"comment:流程状态"` // 流程状态
+	Remark   string         `json:"remark" gorm:"size:255;"`
+	EndTime  *time.Time     `json:"endTime" gorm:"comment:结束时间"`
+	Duration int64          `json:"duration" gorm:"comment:流程持续时间（开始到结束）"` // 持续时间（开始到结束）
 }
 
 func (a *Procinst) TableName() string {
@@ -34,6 +39,17 @@ func (a *Procinst) SetEnd() {
 	nowTime := time.Now()
 	a.EndTime = &nowTime
 	a.Duration = int64(time.Since(*a.CreateTime).Seconds())
+}
+
+// GetProcdefFlow 获取流程定义信息
+func (p *Procinst) GetFlowDef() *FlowDef {
+	flow, err := jsonx.To(p.FlowDef, new(FlowDef))
+	if err != nil {
+		logx.ErrorTrace("parse procdef flow failed", err)
+		return flow
+	}
+
+	return flow
 }
 
 type ProcinstStatus int8
@@ -60,42 +76,4 @@ const (
 	ProcinstBizStatusSuccess ProcinstBizStatus = 2  // 成功
 	ProcinstBizStatusNo      ProcinstBizStatus = -1 // 不处理
 	ProcinstBizStatusFail    ProcinstBizStatus = -2 // 失败
-)
-
-//----------流程实例关联任务-----------
-
-// 流程实例关联的审批节点任务
-type ProcinstTask struct {
-	model.Model
-
-	ProcinstId uint64 `json:"procinstId" gorm:"not null;index:idx_procinst_id;comment:流程实例id"` // 流程实例id
-	TaskKey    string `json:"taskKey" gorm:"not null;size:64;comment:任务key"`                   // 当前任务key
-	TaskName   string `json:"taskName" gorm:"size:64;comment:任务名称"`                            // 当前任务名称
-	Assignee   string `json:"assignee" gorm:"size:64;comment:分配到该任务的用户"`                       // 分配到该任务的用户
-
-	Status   ProcinstTaskStatus `json:"status" ` // 状态
-	Remark   string             `json:"remark" gorm:"size:255;"`
-	EndTime  *time.Time         `json:"endTime" gorm:"comment:结束时间"`
-	Duration int64              `json:"duration" gorm:"comment:任务持续时间（开始到结束）"` // 持续时间（开始到结束）
-}
-
-func (a *ProcinstTask) TableName() string {
-	return "t_flow_procinst_task"
-}
-
-// 设置流程任务终止结束的一些信息
-func (p *ProcinstTask) SetEnd() {
-	nowTime := time.Now()
-	p.EndTime = &nowTime
-	p.Duration = int64(time.Since(*p.CreateTime).Seconds())
-}
-
-type ProcinstTaskStatus int8
-
-const (
-	ProcinstTaskStatusProcess  ProcinstTaskStatus = 1  // 处理中
-	ProcinstTaskStatusPass     ProcinstTaskStatus = 2  // 通过
-	ProcinstTaskStatusReject   ProcinstTaskStatus = -1 // 拒绝
-	ProcinstTaskStatusBack     ProcinstTaskStatus = -2 // 驳回
-	ProcinstTaskStatusCanceled ProcinstTaskStatus = -3 // 取消
 )

@@ -9,10 +9,10 @@
                 <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
                 <el-table-column :label="$t('common.operation')">
                     <template #default="scope">
-                        <el-link @click="showEditDialog(scope.row, scope.$index)" :underline="false" type="primary" icon="edit" plain></el-link>
+                        <el-link @click="showEditDialog(scope.row, scope.$index)" underline="never" type="primary" icon="edit" plain></el-link>
                         <el-popconfirm :title="$t('redis.deleteConfirm')" @confirm="lrem(scope.row, scope.$index)">
                             <template #reference>
-                                <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml-1"></el-link>
+                                <el-link v-auth="'redis:data:del'" underline="never" type="danger" icon="delete" size="small" plain class="ml-1"></el-link>
                             </template>
                         </el-popconfirm>
                     </template>

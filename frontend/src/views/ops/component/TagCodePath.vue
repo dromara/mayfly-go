@@ -1,36 +1,34 @@
 <template>
-    <div v-if="codePaths">
-        <el-row v-for="(path, idx) in codePaths?.slice(0, 1)" :key="idx">
-            <span v-for="item in path" :key="item.code">
-                <SvgIcon
-                    :name="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.icon"
-                    :color="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.iconColor"
-                    class="mr-0.5"
-                />
-                <span> {{ item.name ? item.name : item.code }}</span>
-                <SvgIcon v-if="!item.isEnd" class="mr-1 ml-1" name="arrow-right" />
-            </span>
+    <el-row v-for="(path, idx) in codePaths?.slice(0, 1)" :key="idx">
+        <span v-for="item in path" :key="item.code">
+            <SvgIcon
+                :name="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.icon"
+                :color="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.iconColor"
+                class="mr-0.5"
+            />
+            <span> {{ item.name ? item.name : item.code }}</span>
+            <SvgIcon v-if="!item.isEnd" class="mr-1 ml-1" name="arrow-right" />
+        </span>
 
-            <!-- 展示剩余的标签信息 -->
-            <el-popover :show-after="300" v-if="paths.length > 1 && idx == 0" placement="bottom" width="500" trigger="hover">
-                <template #reference>
-                    <SvgIcon class="mt-1 ml-1" color="var(--el-color-primary)" name="MoreFilled" />
-                </template>
+        <!-- 展示剩余的标签信息 -->
+        <el-popover :show-after="300" v-if="paths.length > 1 && idx == 0" placement="bottom" width="500" trigger="hover">
+            <template #reference>
+                <SvgIcon class="mt-1 ml-1" color="var(--el-color-primary)" name="MoreFilled" />
+            </template>
 
-                <el-row v-for="i in paths.slice(1)" :key="i">
-                    <span v-for="item in parseTagPath(i)" :key="item.code">
-                        <SvgIcon
-                            :name="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.icon"
-                            :color="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.iconColor"
-                            class="mr-0.5"
-                        />
-                        <span> {{ item.name ? item.name : item.code }}</span>
-                        <SvgIcon v-if="!item.isEnd" class="mr-1 ml-1" name="arrow-right" />
-                    </span>
-                </el-row>
-            </el-popover>
-        </el-row>
-    </div>
+            <el-row v-for="i in paths.slice(1)" :key="i">
+                <span v-for="item in parseTagPath(i)" :key="item.code">
+                    <SvgIcon
+                        :name="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.icon"
+                        :color="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.iconColor"
+                        class="mr-0.5"
+                    />
+                    <span> {{ item.name ? item.name : item.code }}</span>
+                    <SvgIcon v-if="!item.isEnd" class="mr-1 ml-1" name="arrow-right" />
+                </span>
+            </el-row>
+        </el-popover>
+    </el-row>
 </template>
 
 <script lang="ts" setup>
@@ -41,7 +39,7 @@ import { getAllTagInfoByCodePaths } from './tag';
 
 const props = defineProps({
     path: {
-        type: [String, Array<string>],
+        type: [String, Array<string>, Array<Object>],
     },
     tagInfos: {
         type: Object, // key: code , value: code info
@@ -53,7 +51,16 @@ let allTagInfos: any = {};
 
 const paths = computed(() => {
     if (Array.isArray(props.path)) {
-        return props.path;
+        const ps = [];
+        // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]
+        for (let p of props.path as any) {
+            if (typeof p === 'string') {
+                ps.push(p);
+            } else {
+                ps.push(p.codePath);
+            }
+        }
+        return ps;
     }
 
     return [props.path];

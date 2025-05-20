@@ -137,12 +137,9 @@ import { DbInst } from '../../db';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
 import { fuzzyMatchField } from '@/common/utils/string';
-import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
-
-const { t } = useI18n();
 
 const props = defineProps({
     height: {
@@ -256,7 +253,7 @@ const handleDumpTableSelectionChange = (vals: any) => {
  * 数据库信息导出
  */
 const dump = (db: string) => {
-    isTrue(state.dumpInfo.tables.length > 0, t('db.selectExportTable'));
+    isTrue(state.dumpInfo.tables.length > 0, 'db.selectExportTable');
     const tableNames = state.dumpInfo.tables.map((x: any) => x.tableName);
     const a = document.createElement('a');
     a.setAttribute(

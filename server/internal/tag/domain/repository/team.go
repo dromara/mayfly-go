@@ -9,5 +9,5 @@ import (
 type Team interface {
 	base.Repo[*entity.Team]
 
-	GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.TeamQuery, orderBy ...string) (*model.PageResult[*entity.Team], error)
 }

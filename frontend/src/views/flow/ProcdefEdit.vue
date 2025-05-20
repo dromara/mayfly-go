@@ -1,8 +1,8 @@
 <template>
     <div>
-        <el-drawer @open="initSort" :title="title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
+        <el-drawer :title="title" v-model="visible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+                <DrawerHeader :header="title" :back="onCancel" />
             </template>
 
             <el-form :model="form" ref="formRef" :rules="rules" label-width="auto">
@@ -38,45 +38,12 @@
                 <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('tag.relateTag')">
                     <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
                 </el-form-item>
-
-                <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
-
-                <el-table ref="taskTableRef" :data="tasks" row-key="taskKey" stripe style="width: 100%">
-                    <el-table-column prop="name" min-width="100px">
-                        <template #header>
-                            <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addTask()"> </el-button>
-                            <span class="ml-2">{{ $t('flow.nodeName') }}<span class="ml-1" style="color: red">*</span></span>
-                            <el-tooltip :content="$t('flow.nodeNameTips')" placement="top">
-                                <SvgIcon class="ml-1" name="question-filled" />
-                            </el-tooltip>
-                        </template>
-                        <template #default="scope">
-                            <el-input v-model="scope.row.name"> </el-input>
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column prop="userId" min-width="150px" show-overflow-tooltip>
-                        <template #header>
-                            <span class="ml-2">{{ $t('flow.auditor') }}<span class="ml-1" style="color: red">*</span></span>
-                        </template>
-
-                        <template #default="scope">
-                            <AccountSelectFormItem style="margin-bottom: 0px" v-model="scope.row.userId" label="" />
-                        </template>
-                    </el-table-column>
-
-                    <el-table-column :label="$t('common.operation')" width="110px">
-                        <template #default="scope">
-                            <el-link @click="deleteTask(scope.$index)" class="ml-1" type="danger" icon="delete" plain></el-link>
-                        </template>
-                    </el-table-column>
-                </el-table>
             </el-form>
 
             <template #footer>
                 <div>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="onSave">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -84,13 +51,9 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref, nextTick } from 'vue';
+import { toRefs, reactive, watch, ref } from 'vue';
 import { procdefApi } from './api';
-import { ElMessage } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
-import Sortable from 'sortablejs';
-import { randomUuid } from '../../common/utils/string';
 import { ProcdefStatus } from './enums';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
@@ -118,7 +81,6 @@ const visible = defineModel<boolean>('visible', { default: false });
 const emit = defineEmits(['cancel', 'val-change']);
 
 const formRef: any = ref(null);
-const taskTableRef: any = ref(null);
 
 const rules = {
     name: [Rules.requiredInput('common.name')],
@@ -135,14 +97,11 @@ const state = reactive({
         condition: '',
         remark: null,
         msgTmplId: null,
-        // 流程的审批节点任务
-        tasks: '',
         codePaths: [],
     },
-    sortable: '' as any,
 });
 
-const { form, tasks } = toRefs(state);
+const { form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(form);
 
@@ -150,11 +109,6 @@ watch(props, async (newValue: any) => {
     if (newValue.data) {
         state.form = await procdefApi.detail.request({ id: newValue.data.id });
         state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
-        const tasks = JSON.parse(state.form.tasks);
-        tasks.forEach((t: any) => {
-            t.userId = Number.parseInt(t.userId);
-        });
-        state.tasks = tasks;
     } else {
         state.form = { status: ProcdefStatus.Enable.value } as any;
         state.form.condition = t('flow.conditionDefault');
@@ -162,37 +116,8 @@ watch(props, async (newValue: any) => {
     }
 });
 
-const initSort = () => {
-    nextTick(() => {
-        const table = taskTableRef.value.$el.querySelector('table > tbody') as any;
-        state.sortable = Sortable.create(table, {
-            animation: 200,
-            //拖拽结束事件
-            onEnd: (evt) => {
-                const curRow = state.tasks.splice(evt.oldIndex, 1)[0];
-                state.tasks.splice(evt.newIndex, 0, curRow);
-            },
-        });
-    });
-};
-
-const addTask = () => {
-    state.tasks.push({ taskKey: randomUuid() });
-};
-
-const deleteTask = (idx: any) => {
-    state.tasks.splice(idx, 1);
-};
-
-const btnOk = async () => {
+const onSave = async () => {
     await useI18nFormValidate(formRef);
-    const checkRes = checkTasks();
-    if (checkRes.err) {
-        ElMessage.error(checkRes.err);
-        return false;
-    }
-
-    state.form.tasks = JSON.stringify(checkRes.tasks);
     await saveFlowDefExec();
     useI18nSaveSuccessMsg();
     emit('val-change', state.form);
@@ -201,29 +126,7 @@ const btnOk = async () => {
     state.form = {} as any;
 };
 
-const checkTasks = () => {
-    if (state.tasks?.length == 0) {
-        return { err: t('flow.tasksNotEmpty') };
-    }
-
-    const tasks = [];
-    for (let i = 0; i < state.tasks.length; i++) {
-        const task = { ...state.tasks[i] };
-        if (!task.name || !task.userId) {
-            return { err: t('flow.tasksNoComplete', { index: i + 1 }) };
-        }
-        // 转为字符串(方便后续万一需要调整啥的)
-        task.userId = `${task.userId}`;
-        if (!task.taskKey) {
-            task.taskKey = randomUuid();
-        }
-        tasks.push(task);
-    }
-
-    return { tasks: tasks };
-};
-
-const cancel = () => {
+const onCancel = () => {
     visible.value = false;
     emit('cancel');
 };

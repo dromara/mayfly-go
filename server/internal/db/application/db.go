@@ -29,7 +29,7 @@ type Db interface {
 	base.App[*entity.Db]
 
 	// 分页获取
-	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DbQuery, orderBy ...string) (*model.PageResult[*entity.DbListPO], error)
 
 	SaveDb(ctx context.Context, entity *entity.Db) error
 
@@ -62,8 +62,8 @@ type dbAppImpl struct {
 var _ (Db) = (*dbAppImpl)(nil)
 
 // 分页获取数据库信息列表
-func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return d.GetRepo().GetDbList(condition, pageParam, toEntity, orderBy...)
+func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, orderBy ...string) (*model.PageResult[*entity.DbListPO], error) {
+	return d.GetRepo().GetDbList(condition, orderBy...)
 }
 
 func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {

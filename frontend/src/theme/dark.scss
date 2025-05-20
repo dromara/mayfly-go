@@ -1,29 +1,29 @@
 html.dark {
     // 变量(自定义时，只需修改这里的值)
-	--next-bg-main: #1f1f1f;
-	--next-color-white: #ffffff;
-	--next-color-disabled: #191919;
-	--next-color-bar: #dadada;
-	--next-color-primary: #303030;
-	--next-border-color: #424242;
-	--next-border-black: #333333;
-	--next-border-columns: #2a2a2a;
-	--next-color-seting: #505050;
-	--next-text-color-regular: #9b9da1;
-	--next-text-color-placeholder: #7a7a7a;
-	--next-color-hover: #3c3c3c;
-	--next-color-hover-rgba: rgba(0, 0, 0, 0.3);
+    --next-bg-main: #1f1f1f;
+    --next-color-white: #ffffff;
+    --next-color-disabled: #191919;
+    --next-color-bar: #dadada;
+    --next-color-primary: #303030;
+    --next-border-color: #424242;
+    --next-border-black: #333333;
+    --next-border-columns: #2a2a2a;
+    --next-color-seting: #505050;
+    --next-text-color-regular: #9b9da1;
+    --next-text-color-placeholder: #7a7a7a;
+    --next-color-hover: #3c3c3c;
+    --next-color-hover-rgba: rgba(0, 0, 0, 0.3);
 
     /* 自定义深色背景颜色 */
     // root
-	--bg-main-color: var(--next-bg-main) !important;
-	--bg-topBar: var(--next-color-disabled) !important;
-	--bg-topBarColor: var(--next-color-bar) !important;
-	--bg-menuBar: var(--next-color-disabled) !important;
-	--bg-menuBarColor: var(--next-color-bar) !important;
-	--bg-menuBarActiveColor: var(--next-color-hover-rgba) !important;
-	--bg-columnsMenuBar: var(--next-color-disabled) !important;
-	--bg-columnsMenuBarColor: var(--next-color-bar) !important;
+    --bg-main-color: var(--next-bg-main) !important;
+    --bg-topBar: var(--next-color-disabled) !important;
+    --bg-topBarColor: var(--next-color-bar) !important;
+    --bg-menuBar: var(--next-color-disabled) !important;
+    --bg-menuBarColor: var(--next-color-bar) !important;
+    --bg-menuBarActiveColor: var(--next-color-hover-rgba) !important;
+    --bg-columnsMenuBar: var(--next-color-disabled) !important;
+    --bg-columnsMenuBarColor: var(--next-color-bar) !important;
 
     --tagsview3-active-background-color: var(--next-color-hover);
-  }
+}

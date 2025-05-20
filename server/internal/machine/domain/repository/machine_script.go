@@ -10,5 +10,5 @@ type MachineScript interface {
 	base.Repo[*entity.MachineScript]
 
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MachineScript, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineScript], error)
 }

@@ -16,7 +16,7 @@ func newAccountRoleRepo() repository.AccountRole {
 	return &accountRoleRepoImpl{}
 }
 
-func (m *accountRoleRepoImpl) GetPageList(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *accountRoleRepoImpl) GetPageList(condition *entity.RoleAccountQuery, orderBy ...string) (*model.PageResult[*entity.AccountRolePO], error) {
 	qd := gormx.NewQueryWithTableName("t_sys_account_role t").
 		Joins("JOIN t_sys_account a ON t.account_id = a.id AND a.status = 1").
 		WithCond(model.NewCond().Columns("t.creator, t.create_time, a.username, a.name accountName, a.status accountStatus, a.id accountId").
@@ -27,5 +27,6 @@ func (m *accountRoleRepoImpl) GetPageList(condition *entity.RoleAccountQuery, pa
 			Eq("t.role_id", condition.RoleId).
 			OrderByDesc("t.id"))
 
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	var res []*entity.AccountRolePO
+	return gormx.PageQuery(qd, condition.PageParam, res)
 }

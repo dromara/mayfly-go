@@ -9,7 +9,7 @@ import (
 type MsgTmpl interface {
 	base.Repo[*entity.MsgTmpl]
 
-	GetPageList(condition *entity.MsgTmpl, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MsgTmpl, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgTmpl], error)
 }
 
 type MsgTmplChannel interface {

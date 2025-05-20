@@ -60,7 +60,7 @@ func (rs *Redis) ReqConfs() *req.Confs {
 }
 
 func (r *Redis) RedisList(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.RedisQuery](rc, new(entity.RedisQuery))
+	queryCond := req.BindQuery(rc, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := r.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -68,21 +68,22 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
 	if len(tags) == 0 {
-		rc.ResData = model.EmptyPageResult[any]()
+		rc.ResData = model.NewEmptyPageResult[any]()
 		return
 	}
 	queryCond.Codes = tags.GetCodes()
 
-	var redisvos []*vo.Redis
-	res, err := r.redisApp.GetPageList(queryCond, page, &redisvos)
+	res, err := r.redisApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.Redis, *vo.Redis](res)
+	redisvos := resVo.List
 
 	// 填充标签信息
 	r.tagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeRedis), collx.ArrayMap(redisvos, func(rvo *vo.Redis) tagentity.ITagResource {
 		return rvo
 	})...)
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (r *Redis) TestConn(rc *req.Ctx) {

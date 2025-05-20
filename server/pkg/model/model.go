@@ -1,11 +1,7 @@
 package model
 
 import (
-	"database/sql/driver"
-	"encoding/json"
 	"time"
-
-	"github.com/may-fly/cast"
 )
 
 type IdGenType int
@@ -199,74 +195,4 @@ func GetIdByGenType(genType IdGenType) uint64 {
 		return uint64(time.Now().Unix())
 	}
 	return 0
-}
-
-type Map[K comparable, V any] map[K]V
-
-func (m *Map[K, V]) Scan(value any) error {
-	if v, ok := value.([]byte); ok && len(v) > 0 {
-		return json.Unmarshal(v, m)
-	}
-	return nil
-}
-
-func (m Map[K, V]) Value() (driver.Value, error) {
-	if m == nil {
-		return nil, nil
-	}
-	return json.Marshal(m)
-}
-
-type Slice[T int | uint64 | string | Map[string, any]] []T
-
-func (s *Slice[T]) Scan(value any) error {
-	if v, ok := value.([]byte); ok && len(v) > 0 {
-		return json.Unmarshal(v, s)
-	}
-	return nil
-}
-
-func (s Slice[T]) Value() (driver.Value, error) {
-	if s == nil {
-		return nil, nil
-	}
-	return json.Marshal(s)
-}
-
-// 带有额外其他信息字段的结构体
-type ExtraData struct {
-	Extra Map[string, any] `json:"extra" gorm:"type:varchar(2000)"`
-}
-
-// SetExtraValue 设置额外信息字段值
-func (m *ExtraData) SetExtraValue(key string, val any) {
-	if m.Extra != nil {
-		m.Extra[key] = val
-	} else {
-		m.Extra = Map[string, any]{key: val}
-	}
-}
-
-// GetExtraString 获取额外信息中的string类型字段值
-func (e ExtraData) GetExtraString(key string) string {
-	if e.Extra == nil {
-		return ""
-	}
-	return cast.ToString(e.Extra[key])
-}
-
-// GetExtraInt 获取额外信息中的int类型字段值
-func (e ExtraData) GetExtraInt(key string) int {
-	if e.Extra == nil {
-		return 0
-	}
-	return cast.ToInt(e.Extra[key])
-}
-
-// GetExtraBool 获取额外信息中的bool类型字段值
-func (e ExtraData) GetExtraBool(key string) bool {
-	if e.Extra == nil {
-		return false
-	}
-	return cast.ToBool(e.Extra[key])
 }

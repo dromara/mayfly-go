@@ -1,6 +1,14 @@
 <template>
     <div>
-        <el-drawer :title="props.title" v-model="visible" :before-close="cancel" size="50%" :close-on-click-modal="!props.instTaskId">
+        <el-drawer
+            :title="props.title"
+            v-model="visible"
+            :before-close="cancel"
+            size="50%"
+            body-class="!p-2"
+            header-class="!mb-2"
+            :close-on-click-modal="!props.instTaskId"
+        >
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
@@ -13,7 +21,7 @@
                         <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
                     </el-descriptions-item>
                     <el-descriptions-item :span="1" :label="$t('flow.initiator')">
-                        <AccountInfo :account-id="procinst.creatorId" :username="procinst.creator" />
+                        <AccountInfo :username="procinst.creator" />
                     </el-descriptions-item>
 
                     <el-descriptions-item :span="1" :label="$t('flow.procinstStatus')">
@@ -33,11 +41,6 @@
                         {{ procinst.remark }}
                     </el-descriptions-item>
                 </el-descriptions>
-            </div>
-
-            <div>
-                <el-divider content-position="left">{{ $t('flow.approveNode') }}</el-divider>
-                <procdef-tasks :tasks="procinst?.procdef?.tasks" :procinst-tasks="procinst.procinstTasks" />
             </div>
 
             <div>
@@ -61,11 +64,14 @@
                 </el-form>
             </div>
 
+            <div v-if="flowDef">
+                <el-divider content-position="left">{{ $t('flow.approveNode') }}</el-divider>
+                <FlowDesign height="300px" disabled center :data="flowDef" />
+            </div>
+
             <template #footer v-if="props.instTaskId">
-                <div>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>
@@ -73,15 +79,15 @@
 
 <script lang="ts" setup>
 import { toRefs, reactive, watch, defineAsyncComponent, shallowReactive } from 'vue';
-import { procinstApi } from './api';
+import { procinstApi, procinstTaskApi } from './api';
 import { ElMessage } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstTaskStatus, ProcinstStatus } from './enums';
-import ProcdefTasks from './components/ProcdefTasks.vue';
 import { formatTime } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
 import { formatDate } from '@/common/utils/format';
+import FlowDesign from './components/flowdesign/FlowDesign.vue';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
 const RedisRunCmdBiz = defineAsyncComponent(() => import('./flowbiz/redis/RedisRunCmdBiz.vue'));
@@ -112,6 +118,7 @@ const bizComponents: any = shallowReactive({
 
 const state = reactive({
     procinst: {} as any,
+    flowDef: null as any,
     tasks: [] as any,
     form: {
         status: ProcinstTaskStatus.Pass.value,
@@ -121,26 +128,66 @@ const state = reactive({
     sortable: '' as any,
 });
 
-const { procinst, form, saveBtnLoading } = toRefs(state);
+const { procinst, flowDef, form, saveBtnLoading } = toRefs(state);
 
 watch(
     () => props.procinstId,
     async (newValue: any) => {
-        if (newValue) {
-            state.procinst = await procinstApi.detail.request({ id: newValue });
-        } else {
+        if (!newValue) {
             state.procinst = {};
+            state.flowDef = null;
+            return;
         }
+
+        state.procinst = await procinstApi.detail.request({ id: newValue });
+
+        const flowdef = JSON.parse(state.procinst.flowDef);
+        procinstApi.hisOp.request({ id: newValue }).then((res: any) => {
+            const nodeKey2Ops = res.reduce(
+                (acc: { [x: string]: any[] }, item: { nodeKey: any }) => {
+                    const key = item.nodeKey;
+                    if (!acc[key]) {
+                        acc[key] = [];
+                    }
+                    acc[key].push(item);
+                    return acc;
+                },
+                {} as Record<string, typeof res>
+            );
+
+            const nodeKey2Tasks = state.procinst.procinstTasks.reduce(
+                (acc: { [x: string]: any[] }, item: { nodeKey: any }) => {
+                    const key = item.nodeKey;
+                    if (!acc[key]) {
+                        acc[key] = [];
+                    }
+                    acc[key].push(item);
+                    return acc;
+                },
+                {} as Record<string, typeof res>
+            );
+
+            flowdef.nodes.forEach((node: any) => {
+                const key = node.key;
+                if (nodeKey2Ops[key]) {
+                    // 将操作记录挂载到 node 下，例如命名为 historyList
+                    node.extra.opLog = nodeKey2Ops[key][0];
+                    node.extra.tasks = nodeKey2Tasks[key];
+                }
+            });
+
+            state.flowDef = flowdef;
+        });
     }
 );
 
 const btnOk = async () => {
     const status = state.form.status;
-    let api = procinstApi.completeTask;
+    let api = procinstTaskApi.passTask;
     if (status === ProcinstTaskStatus.Back.value) {
-        api = procinstApi.backTask;
+        api = procinstTaskApi.backTask;
     } else if (status === ProcinstTaskStatus.Reject.value) {
-        api = procinstApi.rejectTask;
+        api = procinstTaskApi.rejectTask;
     }
 
     try {

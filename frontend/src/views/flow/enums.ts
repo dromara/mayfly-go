@@ -5,6 +5,12 @@ export const ProcdefStatus = {
     Disable: EnumValue.of(-1, 'flow.disable').setTagType('warning'),
 };
 
+export const UserTaskCandidateType = {
+    Account: EnumValue.of('account', 'common.account'),
+    Role: EnumValue.of('role', 'common.role'),
+    Other: EnumValue.of('other', 'common.other'),
+};
+
 export const ProcinstStatus = {
     Active: EnumValue.of(1, 'flow.active').setTagType('primary'),
     Completed: EnumValue.of(2, 'flow.completed').setTagType('success'),
@@ -26,6 +32,12 @@ export const ProcinstTaskStatus = {
     Reject: EnumValue.of(-1, 'flow.reject').setTagType('danger'),
     Back: EnumValue.of(-2, 'flow.back').setTagType('warning'),
     Canceled: EnumValue.of(-3, 'flow.canceled').setTagType('warning'),
+};
+
+export const HisProcinstOpState = {
+    Pending: EnumValue.of(1, 'flow.waitProcess').setTagType('primary'),
+    Completed: EnumValue.of(2, 'flow.pass').setTagType('success'),
+    Failed: EnumValue.of(-1, 'flow.reject').setTagType('danger'),
 };
 
 export const FlowBizType = {

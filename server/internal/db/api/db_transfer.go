@@ -11,6 +11,7 @@ import (
 	fileapp "mayfly-go/internal/file/application"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
@@ -60,21 +61,20 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 }
 
 func (d *DbTransferTask) Tasks(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.DbTransferTaskQuery](rc, new(entity.DbTransferTaskQuery))
-	res, err := d.dbTransferTask.GetPageList(queryCond, page, new([]vo.DbTransferTaskListVO))
-	biz.ErrIsNil(err)
+	queryCond := req.BindQuery(rc, new(entity.DbTransferTaskQuery))
 
-	if res.List != nil {
-		list := res.List.(*[]vo.DbTransferTaskListVO)
-		for _, item := range *list {
-			item.RunningState = entity.DbTransferTaskRunStateSuccess
-			if d.dbTransferTask.IsRunning(item.Id) {
-				item.RunningState = entity.DbTransferTaskRunStateRunning
-			}
+	res, err := d.dbTransferTask.GetPageList(queryCond)
+	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.DbTransferTask, *vo.DbTransferTaskListVO](res)
+
+	for _, item := range resVo.List {
+		item.RunningState = entity.DbTransferTaskRunStateSuccess
+		if d.dbTransferTask.IsRunning(item.Id) {
+			item.RunningState = entity.DbTransferTaskRunStateRunning
 		}
 	}
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (d *DbTransferTask) SaveTask(rc *req.Ctx) {
@@ -122,8 +122,9 @@ func (d *DbTransferTask) Stop(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) Files(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.DbTransferFileQuery](rc, new(entity.DbTransferFileQuery))
-	res, err := d.dbTransferFile.GetPageList(queryCond, page, new([]vo.DbTransferFileListVO))
+	queryCond := req.BindQuery(rc, new(entity.DbTransferFileQuery))
+
+	res, err := d.dbTransferFile.GetPageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

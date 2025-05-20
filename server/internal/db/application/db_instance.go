@@ -25,7 +25,7 @@ type Instance interface {
 	base.App[*entity.DbInstance]
 
 	// GetPageList 分页获取数据库实例
-	GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
 
 	TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
 
@@ -55,8 +55,8 @@ type instanceAppImpl struct {
 var _ (Instance) = (*instanceAppImpl)(nil)
 
 // GetPageList 分页获取数据库实例
-func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.GetRepo().GetInstanceList(condition, pageParam, toEntity, orderBy...)
+func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error) {
+	return app.GetRepo().GetInstanceList(condition, orderBy...)
 }
 
 func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {

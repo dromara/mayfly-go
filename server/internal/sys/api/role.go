@@ -39,16 +39,22 @@ func (r *Role) ReqConfs() *req.Confs {
 }
 
 func (r *Role) Roles(rc *req.Ctx) {
-	cond, pageParam := req.BindQueryAndPage(rc, new(entity.RoleQuery))
+	cond := req.BindQuery(rc, new(entity.RoleQuery))
 
 	notIdsStr := rc.Query("notIds")
 	if notIdsStr != "" {
-		cond.NotIds = collx.ArrayMap[string, uint64](strings.Split(notIdsStr, ","), func(val string) uint64 {
+		cond.NotIds = collx.ArrayMap(strings.Split(notIdsStr, ","), func(val string) uint64 {
+			return cast.ToUint64(val)
+		})
+	}
+	ids := rc.Query("ids")
+	if ids != "" {
+		cond.Ids = collx.ArrayMap(strings.Split(ids, ","), func(val string) uint64 {
 			return cast.ToUint64(val)
 		})
 	}
 
-	res, err := r.roleApp.GetPageList(cond, pageParam, new([]entity.Role))
+	res, err := r.roleApp.GetPageList(cond)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -101,10 +107,9 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 
 // 查看角色关联的用户
 func (r *Role) RoleAccount(rc *req.Ctx) {
-	cond, pageParam := req.BindQueryAndPage[*entity.RoleAccountQuery](rc, new(entity.RoleAccountQuery))
+	cond := req.BindQuery(rc, new(entity.RoleAccountQuery))
 	cond.RoleId = uint64(rc.PathParamInt("id"))
-	var accounts []*vo.AccountRoleVO
-	res, err := r.roleApp.GetRoleAccountPage(cond, pageParam, &accounts)
+	res, err := r.roleApp.GetRoleAccountPage(cond)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

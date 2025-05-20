@@ -9,11 +9,5 @@ import (
 type Procinst interface {
 	base.Repo[*entity.Procinst]
 
-	GetPageList(condition *entity.ProcinstQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
-}
-
-type ProcinstTask interface {
-	base.Repo[*entity.ProcinstTask]
-
-	GetPageList(condition *entity.ProcinstTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.ProcinstQuery, orderBy ...string) (*model.PageResult[*entity.Procinst], error)
 }

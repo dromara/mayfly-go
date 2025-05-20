@@ -22,10 +22,10 @@ type MachineCronJob interface {
 	base.App[*entity.MachineCronJob]
 
 	// 分页获取机器任务列表信息
-	GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MachineCronJob, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineCronJob], error)
 
 	// 获取分页执行结果列表
-	GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetExecPageList(condition *entity.MachineCronJobExec, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineCronJobExec], error)
 
 	SaveMachineCronJob(ctx context.Context, param *dto.SaveMachineCronJob) error
 
@@ -52,13 +52,13 @@ type machineCronJobAppImpl struct {
 var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)
 
 // 分页获取机器脚本任务列表
-func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineCronJob], error) {
+	return m.GetRepo().GetPageList(condition, pageParam, orderBy...)
 }
 
 // 获取分页执行结果列表
-func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.machineCronJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineCronJobExec], error) {
+	return m.machineCronJobExecRepo.GetPageList(condition, pageParam, orderBy...)
 }
 
 // 保存机器任务信息
@@ -101,14 +101,14 @@ func (m *machineCronJobAppImpl) InitCronJob() {
 		}
 	}()
 
-	pageParam := &model.PageParam{
+	pageParam := model.PageParam{
 		PageSize: 100,
 		PageNum:  1,
 	}
 
 	var mcjs []*entity.MachineCronJob
 	cond := &entity.MachineCronJob{Status: entity.MachineCronJobStatusEnable}
-	pr, _ := m.GetPageList(cond, pageParam, &mcjs)
+	pr, _ := m.GetPageList(cond, pageParam)
 	total := pr.Total
 	add := 0
 
@@ -122,7 +122,7 @@ func (m *machineCronJobAppImpl) InitCronJob() {
 		}
 
 		pageParam.PageNum = pageParam.PageNum + 1
-		m.GetPageList(cond, pageParam, mcjs)
+		m.GetPageList(cond, pageParam)
 	}
 }
 

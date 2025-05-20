@@ -17,10 +17,10 @@
             </template>
 
             <template #tags="{ data }">
-                <TagCodePath :path="data.tags?.map((tag: any) => tag.codePath)" />
+                <TagCodePath :path="data.tags" />
             </template>
 
-            <template #validityDate="{ data }"> {{ data.validityStartDate }} ~ {{ data.validityEndDate }} </template>
+            <template #validityDate="{ data }"> {{ formatDate(data.validityStartDate) }} ~ {{ formatDate(data.validityEndDate) }} </template>
 
             <template #action="{ data }">
                 <el-button @click.prevent="showMembers(data)" link type="primary">{{ $t('team.member') }}</el-button>
@@ -228,8 +228,8 @@ const showSaveTeamDialog = async (data: any) => {
 const saveTeam = async () => {
     await useI18nFormValidate(teamForm);
     const form = state.addTeamDialog.form;
-    form.validityStartDate = form.validityDate[0];
-    form.validityEndDate = form.validityDate[1];
+    form.validityStartDate = formatDate(form.validityDate[0]);
+    form.validityEndDate = formatDate(form.validityDate[1]);
     await tagApi.saveTeam.request(form);
     useI18nSaveSuccessMsg();
     search();

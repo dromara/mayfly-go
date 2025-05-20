@@ -20,7 +20,7 @@
             </template>
 
             <template #ipPort="{ data }">
-                <el-link :disabled="data.status == -1" @click="showMachineStats(data)" type="primary" :underline="false">
+                <el-link :disabled="data.status == -1" @click="showMachineStats(data)" type="primary" underline="never">
                     {{ `${data.ip}:${data.port}` }}
                 </el-link>
             </template>

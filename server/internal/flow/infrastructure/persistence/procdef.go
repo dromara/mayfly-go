@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -15,9 +16,11 @@ func newProcdefRepo() repository.Procdef {
 	return &procdefImpl{}
 }
 
-func (p *procdefImpl) GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (p *procdefImpl) GetPageList(condition *entity.Procdef, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.ProcdefPagePO], error) {
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		Like("def_key", condition.DefKey)
-	return p.PageByCondToAny(qd, pageParam, toEntity)
+
+	var res []*entity.ProcdefPagePO
+	return gormx.PageByCond(p.GetModel(), qd, pageParam, res)
 }

@@ -20,7 +20,7 @@ import (
 type MsgTmpl interface {
 	base.App[*entity.MsgTmpl]
 
-	GetPageList(condition *entity.MsgTmpl, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MsgTmpl, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgTmpl], error)
 
 	SaveTmpl(ctx context.Context, msgTmpl *dto.MsgTmplSave) error
 
@@ -47,8 +47,8 @@ type msgTmplAppImpl struct {
 
 var _ (MsgTmpl) = (*msgTmplAppImpl)(nil)
 
-func (m *msgTmplAppImpl) GetPageList(condition *entity.MsgTmpl, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.Repo.GetPageList(condition, pageParam, toEntity)
+func (m *msgTmplAppImpl) GetPageList(condition *entity.MsgTmpl, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgTmpl], error) {
+	return m.Repo.GetPageList(condition, pageParam)
 }
 
 func (m *msgTmplAppImpl) SaveTmpl(ctx context.Context, msgTmpl *dto.MsgTmplSave) error {

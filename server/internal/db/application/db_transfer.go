@@ -34,7 +34,7 @@ type DbTransferTask interface {
 	base.App[*entity.DbTransferTask]
 
 	// GetPageList 分页获取数据库实例
-	GetPageList(condition *entity.DbTransferTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DbTransferTaskQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferTask], error)
 
 	Save(ctx context.Context, instanceEntity *entity.DbTransferTask) error
 
@@ -69,8 +69,8 @@ type dbTransferAppImpl struct {
 	fileApp         fileapp.File   `inject:"T"`
 }
 
-func (app *dbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.GetRepo().GetTaskList(condition, pageParam, toEntity, orderBy...)
+func (app *dbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferTask], error) {
+	return app.GetRepo().GetTaskList(condition, orderBy...)
 }
 
 func (app *dbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTransferTask) error {
@@ -144,16 +144,15 @@ func (app *dbTransferAppImpl) InitCronJob() {
 	_ = app.transferFileApp.UpdateByCond(context.TODO(), &entity.DbTransferFile{Status: entity.DbTransferFileStatusFail}, &entity.DbTransferFile{Status: entity.DbTransferFileStatusRunning})
 
 	// 把所有需要定时执行的任务添加到定时任务中
-	pageParam := &model.PageParam{
-		PageSize: 100,
-		PageNum:  1,
-	}
 	cond := new(entity.DbTransferTaskQuery)
+	cond.PageNum = 1
+	cond.PageSize = 100
+
 	cond.Status = entity.DbTransferTaskStatusEnable
 	cond.CronAble = entity.DbTransferTaskCronAbleEnable
-	jobs := new([]entity.DbTransferTask)
+	jobs := []entity.DbTransferTask{}
 
-	pr, _ := app.GetPageList(cond, pageParam, jobs)
+	pr, _ := app.GetPageList(cond)
 	if nil == pr || pr.Total == 0 {
 		return
 	}
@@ -161,15 +160,15 @@ func (app *dbTransferAppImpl) InitCronJob() {
 	add := 0
 
 	for {
-		for _, job := range *jobs {
+		for _, job := range jobs {
 			app.AddCronJob(contextx.NewTraceId(), &job)
 			add++
 		}
 		if add >= int(total) {
 			return
 		}
-		pageParam.PageNum++
-		_, _ = app.GetPageList(cond, pageParam, jobs)
+		cond.PageNum++
+		_, _ = app.GetPageList(cond)
 	}
 }
 

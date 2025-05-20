@@ -10,5 +10,5 @@ type MachineFile interface {
 	base.Repo[*entity.MachineFile]
 
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MachineFile, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineFile], error)
 }

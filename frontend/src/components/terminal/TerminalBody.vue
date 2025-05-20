@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
     close();
 });
 
-function init() {
+const init = () => {
     state.status = TerminalStatus.NoConnected;
     if (term) {
         console.log('重新连接...');
@@ -100,9 +100,9 @@ function init() {
     nextTick(() => {
         initTerm();
     });
-}
+};
 
-async function initTerm() {
+const initTerm = async () => {
     term = new Terminal({
         fontSize: themeConfig.value.terminalFontSize || 15,
         fontWeight: themeConfig.value.terminalFontWeight || 'normal',
@@ -138,9 +138,9 @@ async function initTerm() {
 
         return true;
     });
-}
+};
 
-function initSocket() {
+const initSocket = () => {
     if (!props.socketUrl) {
         return;
     }
@@ -157,7 +157,7 @@ function initSocket() {
 
         // 如果有初始要执行的命令，则发送执行命令
         if (props.cmd) {
-            sendCmd(props.cmd + ' \r');
+            sendData(props.cmd + ' \r');
         }
     };
 
@@ -172,9 +172,9 @@ function initSocket() {
         console.log('terminal socket close...', e.reason);
         state.status = TerminalStatus.Disconnected;
     };
-}
+};
 
-function loadAddon() {
+const loadAddon = () => {
     // 注册搜索组件
     const searchAddon = new SearchAddon();
     state.addon.search = searchAddon;
@@ -191,7 +191,7 @@ function loadAddon() {
         // write the server output to the terminal
         writeToTerminal: (data: any) => term.write(typeof data === 'string' ? data : new Uint8Array(data)),
         // send the user input to the server
-        sendToServer: sendCmd,
+        sendToServer: sendData,
         // the terminal columns
         terminalColumns: term.cols,
         // there is a windows shell
@@ -217,7 +217,7 @@ function loadAddon() {
             .then(() => console.log('upload success'))
             .catch((err: any) => console.log(err));
     });
-}
+};
 
 // 写入内容至终端
 const write2Term = (data: any) => {
@@ -265,28 +265,28 @@ enum MsgType {
     Ping = 3,
 }
 
-const send = (msg: any) => {
-    state.status == TerminalStatus.Connected && socket?.send(msg);
+const send2Socket = (data: any) => {
+    state.status == TerminalStatus.Connected && socket?.send(data);
 };
 
 const sendResize = (cols: number, rows: number) => {
-    send(`${MsgType.Resize}|${rows}|${cols}`);
+    send2Socket(`${MsgType.Resize}|${rows}|${cols}`);
 };
 
 const sendPing = () => {
-    send(`${MsgType.Ping}|ping`);
+    send2Socket(`${MsgType.Ping}|ping`);
 };
 
-function sendCmd(key: any) {
-    send(`${MsgType.Data}|${key}`);
-}
+const sendData = (key: any) => {
+    send2Socket(`${MsgType.Data}|${key}`);
+};
 
-function closeSocket() {
+const closeSocket = () => {
     // 关闭 websocket
     socket && socket.readyState === 1 && socket.close();
-}
+};
 
-function close() {
+const close = () => {
     console.log('in terminal body close');
     closeSocket();
     if (term) {
@@ -295,7 +295,7 @@ function close() {
         state.addon.weblinks.dispose();
         term.dispose();
     }
-}
+};
 
 const getStatus = (): TerminalStatus => {
     return state.status;

@@ -16,7 +16,7 @@ func newMongoRepo() repository.Mongo {
 }
 
 // 分页获取数据库信息列表
-func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, orderBy ...string) (*model.PageResult[*entity.Mongo], error) {
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		Eq("code", condition.Code).
@@ -27,5 +27,5 @@ func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.P
 		keyword = "%" + keyword + "%"
 		qd.And("name like ? or code like ?", keyword, keyword)
 	}
-	return d.PageByCondToAny(qd, pageParam, toEntity)
+	return d.PageByCond(qd, condition.PageParam)
 }

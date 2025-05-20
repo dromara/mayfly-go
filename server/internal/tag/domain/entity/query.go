@@ -21,6 +21,7 @@ func NewTypePaths(types ...TagType) TypePath {
 }
 
 type TagTreeQuery struct {
+	model.PageParam
 	model.Model
 
 	Types         []TagType
@@ -34,6 +35,7 @@ type TagTreeQuery struct {
 }
 
 type TeamQuery struct {
+	model.PageParam
 	model.Model
 
 	Name string `json:"name" form:"name"` // 团队名称

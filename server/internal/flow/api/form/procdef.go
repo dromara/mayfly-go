@@ -14,3 +14,8 @@ type Procdef struct {
 
 	CodePaths []string `json:"codePaths"`
 }
+
+type ProcdefFlow struct {
+	Id   uint64          `json:"id" binding:"required"`
+	Flow *entity.FlowDef `json:"flow" binding:"required"`
+}

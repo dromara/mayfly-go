@@ -15,10 +15,10 @@ func newAccountRepo() repository.Account {
 	return &AccountRepoImpl{}
 }
 
-func (m *AccountRepoImpl) GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *AccountRepoImpl) GetPageList(condition *entity.AccountQuery, orderBy ...string) (*model.PageResult[*entity.Account], error) {
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		Like("username", condition.Username).
 		In("id", condition.Ids)
-	return m.PageByCondToAny(qd, pageParam, toEntity)
+	return m.PageByCond(qd, condition.PageParam)
 }

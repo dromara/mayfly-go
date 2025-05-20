@@ -87,8 +87,8 @@ func (wf *wrapperF) QueryIntDefault(qm string, defaultInt int) int {
 }
 
 // 获取分页参数
-func (wf *wrapperF) GetPageParam() *model.PageParam {
-	return &model.PageParam{PageNum: wf.QueryIntDefault("pageNum", 1), PageSize: wf.QueryIntDefault("pageSize", 100)}
+func (wf *wrapperF) GetPageParam() model.PageParam {
+	return model.PageParam{PageNum: wf.QueryIntDefault("pageNum", 1), PageSize: wf.QueryIntDefault("pageSize", 100)}
 }
 
 // 获取路径参数

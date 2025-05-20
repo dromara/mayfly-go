@@ -19,7 +19,7 @@
             <template #relateChannel="{ data }">
                 <el-popover placement="top-start" trigger="click" width="auto">
                     <template #reference>
-                        <el-link @click="getRelateChannels(data.id)" icon="view" type="primary" :underline="false"></el-link>
+                        <el-link @click="getRelateChannels(data.id)" icon="view" type="primary" underline="never"></el-link>
                     </template>
                     <el-row v-for="item in state.relateChannels" :key="item.id">
                         {{ $t(EnumValue.getLabelByValue(ChannelTypeEnum, item.type)) }}

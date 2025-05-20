@@ -16,7 +16,7 @@ func newDbSqlExecRepo() repository.DbSqlExec {
 }
 
 // 分页获取
-func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error) {
 	qd := model.NewCond().
 		Eq("db_id", condition.DbId).
 		Eq("`table`", condition.Table).
@@ -25,5 +25,5 @@ func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pagePa
 		Eq("flow_biz_key", condition.FlowBizKey).
 		In("status", condition.Status).
 		RLike("db", condition.Db).OrderBy(orderBy...)
-	return d.PageByCondToAny(qd, pageParam, toEntity)
+	return d.PageByCond(qd, condition.PageParam)
 }

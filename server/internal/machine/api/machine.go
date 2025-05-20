@@ -76,7 +76,7 @@ func (m *Machine) ReqConfs() *req.Confs {
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
-	condition, pageParam := req.BindQueryAndPage(rc, new(entity.MachineQuery))
+	condition := req.BindQuery(rc, new(entity.MachineQuery))
 
 	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMachine, tagentity.TagTypeAuthCert)),
@@ -84,7 +84,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	})
 	// 不存在可操作的机器-授权凭证标签，即没有可操作数据
 	if len(tags) == 0 {
-		rc.ResData = model.EmptyPageResult[any]()
+		rc.ResData = model.NewEmptyPageResult[any]()
 		return
 	}
 
@@ -92,13 +92,15 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	machineCodes := tagentity.GetCodesByCodePaths(tagentity.TagTypeMachine, tagCodePaths...)
 	condition.Codes = collx.ArrayDeduplicate(machineCodes)
 
-	var machinevos []*vo.MachineVO
-	res, err := m.machineApp.GetMachineList(condition, pageParam, &machinevos)
+	res, err := m.machineApp.GetMachineList(condition)
 	biz.ErrIsNil(err)
 	if res.Total == 0 {
 		rc.ResData = res
 		return
 	}
+
+	resVo := model.PageResultConv[*entity.Machine, *vo.MachineVO](res)
+	machinevos := resVo.List
 
 	// 填充标签信息
 	m.tagTreeApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMachine), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
@@ -120,7 +122,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 			}
 		}
 	}
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
@@ -270,7 +272,7 @@ func (m *Machine) WsSSH(rc *req.Ctx) {
 
 func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
 	mid := GetMachineId(rc)
-	res, err := m.machineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.GetPageParam(), new([]entity.MachineTermOp))
+	res, err := m.machineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

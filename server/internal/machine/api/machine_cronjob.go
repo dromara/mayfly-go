@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
@@ -44,9 +45,10 @@ func (mcj *MachineCronJob) ReqConfs() *req.Confs {
 func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 	cond, pageParam := req.BindQueryAndPage(rc, new(entity.MachineCronJob))
 
-	var vos []*vo.MachineCronJobVO
-	pageRes, err := m.machineCronJobApp.GetPageList(cond, pageParam, &vos)
+	pageRes, err := m.machineCronJobApp.GetPageList(cond, pageParam)
 	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.MachineCronJob, *vo.MachineCronJobVO](pageRes)
+	vos := resVo.List
 
 	for _, mcj := range vos {
 		mcj.Running = scheduler.ExistKey(mcj.Key)
@@ -56,7 +58,7 @@ func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 		return mvo
 	})...)
 
-	rc.ResData = pageRes
+	rc.ResData = resVo
 }
 
 func (m *MachineCronJob) Save(rc *req.Ctx) {
@@ -89,7 +91,7 @@ func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
 
 func (m *MachineCronJob) CronJobExecs(rc *req.Ctx) {
 	cond, pageParam := req.BindQueryAndPage[*entity.MachineCronJobExec](rc, new(entity.MachineCronJobExec))
-	res, err := m.machineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))
+	res, err := m.machineCronJobApp.GetExecPageList(cond, pageParam)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

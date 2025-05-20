@@ -24,7 +24,7 @@
                     <template #default="scope">
                         <el-popover placement="top" width="50%" trigger="hover">
                             <template #reference>
-                                <el-link icon="view" :type="scope.row.errorMsg ? 'danger' : 'success'" :underline="false"> </el-link>
+                                <el-link icon="view" :type="scope.row.errorMsg ? 'danger' : 'success'" underline="never"> </el-link>
                             </template>
 
                             <el-text v-if="scope.row.errorMsg">{{ scope.row.errorMsg }}</el-text>

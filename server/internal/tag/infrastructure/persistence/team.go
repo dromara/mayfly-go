@@ -15,9 +15,9 @@ func newTeamRepo() repository.Team {
 	return &teamRepoImpl{}
 }
 
-func (p *teamRepoImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (p *teamRepoImpl) GetPageList(condition *entity.TeamQuery, orderBy ...string) (*model.PageResult[*entity.Team], error) {
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		OrderBy(orderBy...)
-	return p.PageByCondToAny(qd, pageParam, toEntity)
+	return p.PageByCond(qd, condition.PageParam)
 }

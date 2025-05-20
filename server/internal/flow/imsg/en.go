@@ -7,8 +7,11 @@ var En = map[i18n.MsgId]string{
 	LogProcdefDelete: "ProcDef - Delete",
 
 	ErrProcdefKeyExist:        "the process instance key already exists",
+	ErrProcdefFlowNotExist:    "The process definition does not exist",
 	ErrExistProcinstRunning:   "There is a running process instance that cannot be manipulated",
 	ErrExistProcinstSuspended: "There is a pending process instance that cannot be manipulated",
+
+	ErrUserTaskNodeCandidateNotEmpty: "The candidate of the user task node [{{.name}}] cannot be empty",
 
 	// procinst
 	LogProcinstStart:  "Process - Start",

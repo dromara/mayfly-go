@@ -35,7 +35,7 @@ type AppendLogReq struct {
 }
 
 type Syslog interface {
-	GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.SysLogQuery, orderBy ...string) (*model.PageResult[*entity.SysLog], error)
 
 	// 从请求上下文的参数保存系统日志
 	SaveFromReq(req *req.Ctx)
@@ -55,12 +55,14 @@ type Syslog interface {
 	Flush(logId uint64, clearExtra bool)
 }
 
+var _ (Syslog) = (*syslogAppImpl)(nil)
+
 type syslogAppImpl struct {
 	syslogRepo repository.Syslog `inject:"T"`
 }
 
-func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.syslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, orderBy ...string) (*model.PageResult[*entity.SysLog], error) {
+	return m.syslogRepo.GetPageList(condition, orderBy...)
 }
 
 func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {

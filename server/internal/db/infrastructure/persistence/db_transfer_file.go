@@ -16,10 +16,10 @@ func newDbTransferFileRepo() repository.DbTransferFile {
 }
 
 // 分页获取数据库信息列表
-func (d *dbTransferFileRepoImpl) GetPageList(condition *entity.DbTransferFileQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (d *dbTransferFileRepoImpl) GetPageList(condition *entity.DbTransferFileQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferFile], error) {
 	qd := model.NewCond().
 		Eq("task_id", condition.TaskId).
 		OrderByDesc("create_time")
 	//Eq("status", condition.Status)
-	return d.PageByCondToAny(qd, pageParam, toEntity)
+	return d.PageByCond(qd, condition.PageParam)
 }

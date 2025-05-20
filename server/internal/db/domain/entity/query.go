@@ -1,7 +1,11 @@
 package entity
 
+import "mayfly-go/pkg/model"
+
 // InstanceQuery 数据库实例查询
 type InstanceQuery struct {
+	model.PageParam
+
 	Id      uint64 `json:"id" form:"id"`
 	Name    string `json:"name" form:"name"`
 	Code    string `json:"code" form:"code"`
@@ -12,19 +16,27 @@ type InstanceQuery struct {
 }
 
 type DataSyncTaskQuery struct {
+	model.PageParam
+
 	Name   string `json:"name" form:"name"`
 	Status int8   `json:"status" form:"status"`
 }
 type DataSyncLogQuery struct {
+	model.PageParam
+
 	TaskId uint64 `json:"task_id" form:"taskId"`
 }
 
 type DbTransferTaskQuery struct {
+	model.PageParam
+
 	Name     string `json:"name" form:"name"`
 	Status   int8   `json:"status" form:"status"`
 	CronAble int8   `json:"cronAble" form:"cronAble"`
 }
 type DbTransferFileQuery struct {
+	model.PageParam
+
 	TaskId uint64 `json:"task_id" form:"taskId"`
 	Name   string `json:"name" form:"name"`
 }
@@ -35,6 +47,8 @@ type DbTransferLogQuery struct {
 
 // 数据库查询实体，不与数据库表字段一一对应
 type DbQuery struct {
+	model.PageParam
+
 	Id         uint64 `form:"id"`
 	TagPath    string `form:"tagPath"`
 	Code       string `json:"code" form:"code"`
@@ -43,6 +57,8 @@ type DbQuery struct {
 }
 
 type DbSqlExecQuery struct {
+	model.PageParam
+
 	Id         uint64 `json:"id" form:"id"`
 	DbId       uint64 `json:"dbId" form:"dbId"`
 	Db         string `json:"db" form:"db"`
@@ -76,6 +92,8 @@ type DbBackupHistoryQuery struct {
 
 // DbRestoreQuery 数据库备份任务查询
 type DbRestoreQuery struct {
+	*model.PageParam
+
 	Id           uint64   `json:"id" form:"id"`
 	DbName       string   `json:"dbName" form:"dbName"`
 	InDbNames    []string `json:"-" form:"-"`

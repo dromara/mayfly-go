@@ -9,7 +9,6 @@ import { registElSvgIcon } from '@/common/utils/svgIcons';
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
-import { ElMessage } from 'element-plus';
 import { i18n } from '@/i18n/index';
 
 import 'splitpanes/dist/splitpanes.css';
@@ -31,12 +30,3 @@ app.use(pinia).use(router).use(i18n).use(ElementPlus, { size: getThemeConfig()?.
 
 // 屏蔽警告信息
 app.config.warnHandler = () => null;
-// 全局error处理
-app.config.errorHandler = function (err: any, vm, info) {
-    // 如果是断言错误，则进行提示即可
-    if (err.name == 'AssertError') {
-        ElMessage.error(err.message);
-    } else {
-        console.error(err, info);
-    }
-};

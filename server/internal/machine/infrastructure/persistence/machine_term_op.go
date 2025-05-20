@@ -15,9 +15,9 @@ func newMachineTermOpRepoImpl() repository.MachineTermOp {
 	return &machineTermOpRepoImpl{}
 }
 
-func (m *machineTermOpRepoImpl) GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *machineTermOpRepoImpl) GetPageList(condition *entity.MachineTermOp, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineTermOp], error) {
 	pd := model.NewModelCond(condition).OrderBy(orderBy...)
-	return m.PageByCondToAny(pd, pageParam, toEntity)
+	return m.PageByCond(pd, pageParam)
 }
 
 // 根据条件获取记录列表

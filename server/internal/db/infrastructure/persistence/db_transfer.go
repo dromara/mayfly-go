@@ -16,11 +16,11 @@ func newDbTransferTaskRepo() repository.DbTransferTask {
 }
 
 // 分页获取数据库信息列表
-func (d *dbTransferTaskRepoImpl) GetTaskList(condition *entity.DbTransferTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (d *dbTransferTaskRepoImpl) GetTaskList(condition *entity.DbTransferTaskQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferTask], error) {
 	qd := model.NewCond().
 		Like("task_name", condition.Name).
 		Eq("status", condition.Status).
 		Eq("cron_able", condition.CronAble)
 	//Eq("status", condition.Status)
-	return d.PageByCondToAny(qd, pageParam, toEntity)
+	return d.PageByCond(qd, condition.PageParam)
 }

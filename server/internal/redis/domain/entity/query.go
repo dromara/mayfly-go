@@ -1,6 +1,10 @@
 package entity
 
+import "mayfly-go/pkg/model"
+
 type RedisQuery struct {
+	model.PageParam
+
 	Id                 uint64 `form:"id"`
 	Code               string `json:"code" form:"code"`
 	Name               string `orm:"column(name)" json:"name" form:"name"`

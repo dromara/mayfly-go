@@ -46,16 +46,17 @@ func (t *Team) ReqConfs() *req.Confs {
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage(rc, new(entity.TeamQuery))
-	var teams []*vo.Team
-	res, err := p.teamApp.GetPageList(queryCond, page, &teams)
-	biz.ErrIsNil(err)
+	queryCond := req.BindQuery(rc, new(entity.TeamQuery))
 
+	res, err := p.teamApp.GetPageList(queryCond)
+	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.Team, *vo.Team](res)
+	teams := resVo.List
 	p.tagTreeRelateApp.FillTagInfo(entity.TagRelateTypeTeam, collx.ArrayMap(teams, func(mvo *vo.Team) entity.IRelateTag {
 		return mvo
 	})...)
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
@@ -79,7 +80,7 @@ func (p *Team) GetTeamMembers(rc *req.Ctx) {
 	condition := &entity.TeamMember{TeamId: uint64(rc.PathParamInt("id"))}
 	condition.Username = rc.Query("username")
 
-	res, err := p.teamApp.GetMemberPage(condition, rc.GetPageParam(), &[]vo.TeamMember{})
+	res, err := p.teamApp.GetMemberPage(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

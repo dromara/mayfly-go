@@ -172,7 +172,7 @@
                                         v-model="scope.row.name"
                                     />
                                 </div>
-                                <el-link v-else @click="getFile(scope.row)" style="font-weight: bold" :underline="false">{{ scope.row.name }}</el-link>
+                                <el-link v-else @click="getFile(scope.row)" style="font-weight: bold" underline="never">{{ scope.row.name }}</el-link>
                             </span>
                         </template>
                     </el-table-column>
@@ -231,7 +231,7 @@
                                             <el-link
                                                 @click="showFileStat(scope.row)"
                                                 icon="InfoFilled"
-                                                :underline="false"
+                                                underline="never"
                                                 link
                                                 :loading="scope.row.loadingStat"
                                             ></el-link>
@@ -247,7 +247,7 @@
                                     v-auth="'machine:file:write'"
                                     type="primary"
                                     icon="download"
-                                    :underline="false"
+                                    underline="never"
                                     :title="$t('machine.download')"
                                 ></el-link>
 
@@ -258,7 +258,7 @@
                                     v-auth="'machine:file:rm'"
                                     type="danger"
                                     icon="delete"
-                                    :underline="false"
+                                    underline="never"
                                     :title="$t('common.delete')"
                                 ></el-link>
                             </div>
@@ -469,7 +469,7 @@ const setCopyOrMvFile = (files: any[], type = 'cp') => {
 
 const pasteFile = async () => {
     const cmFile = state.copyOrMvFile;
-    isTrue(state.nowPath != cmFile.fromPath, t('machine.sameDirNoPaste'));
+    isTrue(state.nowPath != cmFile.fromPath, 'machine.sameDirNoPaste');
     const api = isCpFile() ? machineApi.cpFile : machineApi.mvFile;
     try {
         state.loading = true;
@@ -544,7 +544,7 @@ const getFile = async (row: any) => {
     if (row.type == folderType) {
         await setFiles(row.path);
     } else {
-        isTrue(row.size < 1 * 1024 * 1024, t('machine.fileTooLargeTips'));
+        isTrue(row.size < 1 * 1024 * 1024, 'machine.fileTooLargeTips');
         await showFileContent(row.path);
     }
 };

@@ -9,5 +9,5 @@ import (
 type Syslog interface {
 	base.Repo[*entity.SysLog]
 
-	GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.SysLogQuery, orderBy ...string) (*model.PageResult[*entity.SysLog], error)
 }

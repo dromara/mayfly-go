@@ -26,7 +26,7 @@ func init() {
 func Init() {
 	msgTmplBizApp := ioc.Get[application.MsgTmplBiz]("MsgTmplBizApp")
 
-	global.EventBus.SubscribeAsync(event.EventTopicBizMsgTmplSend, "BizMsgTmplSend", func(ctx context.Context, event *eventbus.Event) error {
+	global.EventBus.SubscribeAsync(event.EventTopicBizMsgTmplSend, "BizMsgTmplSend", func(ctx context.Context, event *eventbus.Event[any]) error {
 		return msgTmplBizApp.Send(ctx, event.Val.(dto.BizMsgTmplSend))
 	}, false)
 }

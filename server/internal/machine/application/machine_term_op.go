@@ -29,7 +29,7 @@ type MachineTermOp interface {
 	// 终端连接操作
 	TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error
 
-	GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MachineTermOp, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineTermOp], error)
 
 	// 定时删除终端文件回放记录
 	TimerDeleteTermOp()
@@ -110,8 +110,8 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 	return nil
 }
 
-func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.GetRepo().GetPageList(condition, pageParam, toEntity)
+func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineTermOp], error) {
+	return m.GetRepo().GetPageList(condition, pageParam)
 }
 
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {

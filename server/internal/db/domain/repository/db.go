@@ -10,5 +10,5 @@ type Db interface {
 	base.Repo[*entity.Db]
 
 	// 分页获取数据信息列表
-	GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetDbList(condition *entity.DbQuery, orderBy ...string) (*model.PageResult[*entity.DbListPO], error)
 }

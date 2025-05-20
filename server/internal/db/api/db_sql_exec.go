@@ -26,14 +26,13 @@ func (d *DbSqlExec) ReqConfs() *req.Confs {
 }
 
 func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage(rc, new(entity.DbSqlExecQuery))
-
+	queryCond := req.BindQuery(rc, new(entity.DbSqlExecQuery))
 	if statusStr := rc.Query("status"); statusStr != "" {
 		queryCond.Status = collx.ArrayMap[string, int8](strings.Split(statusStr, ","), func(val string) int8 {
 			return cast.ToInt8(val)
 		})
 	}
-	res, err := d.dbSqlExecApp.GetPageList(queryCond, page, new([]entity.DbSqlExec))
+	res, err := d.dbSqlExecApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

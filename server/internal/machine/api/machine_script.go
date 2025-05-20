@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
@@ -39,9 +40,9 @@ func (ms *MachineScript) ReqConfs() *req.Confs {
 
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 	condition := &entity.MachineScript{MachineId: GetMachineId(rc)}
-	res, err := m.machineScriptApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineScriptVO))
+	res, err := m.machineScriptApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.MachineScript, *vo.MachineScriptVO](res)
 }
 
 func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {

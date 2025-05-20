@@ -10,5 +10,5 @@ type Mongo interface {
 	base.Repo[*entity.Mongo]
 
 	// 分页获取列表
-	GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetList(condition *entity.MongoQuery, orderBy ...string) (*model.PageResult[*entity.Mongo], error)
 }

@@ -119,7 +119,7 @@
                                         </el-row>
 
                                         <template #reference>
-                                            <el-link type="primary" icon="setting" :underline="false"></el-link>
+                                            <el-link type="primary" icon="setting" underline="never"></el-link>
                                         </template>
                                     </el-popover>
                                 </el-descriptions-item>

@@ -9,5 +9,5 @@ import (
 var (
 	Db *gorm.DB // gorm
 
-	EventBus eventbus.Bus = eventbus.New()
+	EventBus eventbus.Bus[any] = eventbus.New[any]()
 )

@@ -13,15 +13,19 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/jsonx"
 )
 
 type Procdef interface {
 	base.App[*entity.Procdef]
 
-	GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.Procdef, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.ProcdefPagePO], error)
 
 	// 保存流程实例信息
 	SaveProcdef(ctx context.Context, def *dto.SaveProcdef) error
+
+	// SaveFlowDef 保存流程定义流程信息
+	SaveFlowDef(ctx context.Context, def *dto.SaveFlowDef) error
 
 	// 删除流程实例信息
 	DeleteProcdef(ctx context.Context, defId uint64) error
@@ -45,8 +49,8 @@ type procdefAppImpl struct {
 
 var _ (Procdef) = (*procdefAppImpl)(nil)
 
-func (p *procdefAppImpl) GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return p.Repo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (p *procdefAppImpl) GetPageList(condition *entity.Procdef, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.ProcdefPagePO], error) {
+	return p.Repo.GetPageList(condition, pageParam, orderBy...)
 }
 
 func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProcdef) error {
@@ -80,6 +84,18 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 		}
 		return p.tagTreeRelateApp.RelateTag(ctx, tagentity.TagRelateTypeFlowDef, def.Id, defParam.CodePaths...)
 	})
+}
+
+func (p *procdefAppImpl) SaveFlowDef(ctx context.Context, def *dto.SaveFlowDef) error {
+	if err := validateFlowDef(ctx, def.FlowDef); err != nil {
+		return err
+	}
+
+	procdef := &entity.Procdef{
+		FlowDef: jsonx.ToStr(def.FlowDef),
+	}
+	procdef.Id = def.Id
+	return p.Save(ctx, procdef)
 }
 
 func (p *procdefAppImpl) DeleteProcdef(ctx context.Context, defId uint64) error {
@@ -119,5 +135,32 @@ func (p *procdefAppImpl) canModify(ctx context.Context, prodefId uint64) error {
 	if suspInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusSuspended}); suspInstCount > 0 {
 		return errorx.NewBizI(ctx, imsg.ErrExistProcinstSuspended)
 	}
+	return nil
+}
+
+// validateFlowDef 校验流程定义信息
+func validateFlowDef(ctx context.Context, p *entity.FlowDef) error {
+	// 检查是否有开始节点
+	startNodes := p.GetNodeByType(FlowNodeTypeStart)
+	if len(startNodes) != 1 {
+		return errorx.NewBiz("not one start node")
+	}
+
+	// 检查是否有结束节点
+	endNodes := p.GetNodeByType(FlowNodeTypeEnd)
+	if len(endNodes) != 1 {
+		return errorx.NewBiz("not one end node")
+	}
+
+	// 校验节点自身逻辑
+	for _, node := range p.Nodes {
+		nh, _ := nodeBehaviorRegistry.GetNode(node.Type)
+		if nh != nil {
+			if err := nh.Validate(ctx, p, node); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }

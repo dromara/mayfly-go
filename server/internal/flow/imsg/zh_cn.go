@@ -7,8 +7,11 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogProcdefDelete: "流程定义-删除",
 
 	ErrProcdefKeyExist:        "该流程实例key已存在",
+	ErrProcdefFlowNotExist:    "流程审批流未设置",
 	ErrExistProcinstRunning:   "存在运行中的流程实例，无法操作",
 	ErrExistProcinstSuspended: "存在挂起中的流程实例，无法操作",
+
+	ErrUserTaskNodeCandidateNotEmpty: "用户任务节点 [{{.name}}] 的候选人不能为空",
 
 	// procinst
 	LogProcinstStart:  "流程-启动",

@@ -5,7 +5,7 @@
                 <el-col :lg="12" :md="12">
                     <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border>
                         <template #extra>
-                            <el-link @click="onRefresh" icon="refresh" :underline="false" type="success"></el-link>
+                            <el-link @click="onRefresh" icon="refresh" underline="never" type="success"></el-link>
                         </template>
                         <el-descriptions-item :label="$t('machine.hostname')">
                             {{ stats.hostname }}

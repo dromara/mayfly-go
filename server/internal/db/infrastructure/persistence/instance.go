@@ -16,7 +16,7 @@ func NewInstanceRepo() repository.Instance {
 }
 
 // 分页获取数据库信息列表
-func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error) {
 	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Eq("host", condition.Host).
@@ -30,5 +30,5 @@ func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, page
 		qd.And("host like ? or name like ? or code like ?", keyword, keyword, keyword)
 	}
 
-	return d.PageByCondToAny(qd, pageParam, toEntity)
+	return d.PageByCond(qd, condition.PageParam)
 }

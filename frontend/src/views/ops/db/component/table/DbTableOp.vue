@@ -66,7 +66,7 @@
 
                                 <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.deleteConfirm')" @confirm="deleteRow(scope.$index)">
                                     <template #reference>
-                                        <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
+                                        <el-link type="danger" plain size="small" underline="never">{{ $t('common.delete') }}</el-link>
                                     </template>
                                 </el-popconfirm>
                             </template>
@@ -107,7 +107,7 @@
 
                                 <el-popconfirm v-else-if="item.prop === 'action'" :title="$t('common.deleteConfirm')" @confirm="deleteIndex(scope.$index)">
                                     <template #reference>
-                                        <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
+                                        <el-link type="danger" plain size="small" underline="never">{{ $t('common.delete') }}</el-link>
                                     </template>
                                 </el-popconfirm>
                             </template>

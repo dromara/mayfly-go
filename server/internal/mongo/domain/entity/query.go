@@ -4,6 +4,7 @@ import "mayfly-go/pkg/model"
 
 type MongoQuery struct {
 	model.Model
+	model.PageParam
 
 	Code               string `json:"code" form:"code"`
 	Name               string

@@ -22,7 +22,7 @@
             </template>
 
             <template #codePaths="{ data }">
-                <TagCodePath :path="data.tags?.map((tag: any) => tag.codePath)" />
+                <TagCodePath :path="data.tags" />
             </template>
 
             <template #action="{ data }">

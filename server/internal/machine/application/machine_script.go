@@ -13,7 +13,7 @@ type MachineScript interface {
 	base.App[*entity.MachineScript]
 
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MachineScript, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineScript], error)
 
 	Save(ctx context.Context, entity *entity.MachineScript) error
 
@@ -29,8 +29,8 @@ type machineScriptAppImpl struct {
 const Common_Script_Machine_Id = 9999999
 
 // 分页获取机器脚本信息列表
-func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineScript], error) {
+	return m.GetRepo().GetPageList(condition, pageParam, orderBy...)
 }
 
 // 保存机器脚本

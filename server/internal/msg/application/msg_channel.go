@@ -12,7 +12,7 @@ import (
 type MsgChannel interface {
 	base.App[*entity.MsgChannel]
 
-	GetPageList(condition *entity.MsgChannel, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.MsgChannel, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgChannel], error)
 
 	SaveChannel(ctx context.Context, msgChannel *entity.MsgChannel) error
 
@@ -27,8 +27,8 @@ type msgChannelAppImpl struct {
 
 var _ (MsgChannel) = (*msgChannelAppImpl)(nil)
 
-func (m *msgChannelAppImpl) GetPageList(condition *entity.MsgChannel, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.Repo.GetPageList(condition, pageParam, toEntity)
+func (m *msgChannelAppImpl) GetPageList(condition *entity.MsgChannel, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgChannel], error) {
+	return m.Repo.GetPageList(condition, pageParam)
 }
 
 func (m *msgChannelAppImpl) SaveChannel(ctx context.Context, msgChannel *entity.MsgChannel) error {

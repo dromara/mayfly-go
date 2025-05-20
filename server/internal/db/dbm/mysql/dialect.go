@@ -24,7 +24,8 @@ type MysqlDialect struct {
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 func (md *MysqlDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return NewDbProgramMysql(md.dc), nil
+	return nil, nil
+	// return NewDbProgramMysql(md.dc), nil
 }
 
 func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {

@@ -17,7 +17,7 @@ const SysConfigKeyPrefix = "mayfly:sys:config:"
 type Config interface {
 	base.App[*entity.Config]
 
-	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.Config, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Config], error)
 
 	Save(ctx context.Context, config *entity.Config) error
 
@@ -25,12 +25,14 @@ type Config interface {
 	GetConfig(key string) *entity.Config
 }
 
+var _ (Config) = (*configAppImpl)(nil)
+
 type configAppImpl struct {
 	base.AppImpl[*entity.Config, repository.Config]
 }
 
-func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
+func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Config], error) {
+	return a.GetRepo().GetPageList(condition, pageParam)
 }
 
 func (a *configAppImpl) Save(ctx context.Context, config *entity.Config) error {

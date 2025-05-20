@@ -35,7 +35,7 @@ func (c *Config) ReqConfs() *req.Confs {
 func (c *Config) Configs(rc *req.Ctx) {
 	condition := &entity.Config{Key: rc.Query("key")}
 	condition.Permission = rc.GetLoginAccount().Username
-	res, err := c.configApp.GetPageList(condition, rc.GetPageParam(), new([]entity.Config))
+	res, err := c.configApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

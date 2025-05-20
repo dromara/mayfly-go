@@ -9,7 +9,7 @@ import (
 type Role interface {
 	base.Repo[*entity.Role]
 
-	GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.RoleQuery, orderBy ...string) (*model.PageResult[*entity.Role], error)
 
 	ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error)
 }
@@ -17,7 +17,7 @@ type Role interface {
 type AccountRole interface {
 	base.Repo[*entity.AccountRole]
 
-	GetPageList(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.RoleAccountQuery, orderBy ...string) (*model.PageResult[*entity.AccountRolePO], error)
 }
 
 type RoleResource interface {

@@ -15,8 +15,11 @@ const (
 	LogProcdefDelete
 
 	ErrProcdefKeyExist
+	ErrProcdefFlowNotExist
 	ErrExistProcinstRunning
 	ErrExistProcinstSuspended
+
+	ErrUserTaskNodeCandidateNotEmpty
 
 	// procinst
 	LogProcinstStart

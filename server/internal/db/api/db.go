@@ -77,7 +77,7 @@ func (d *Db) ReqConfs() *req.Confs {
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
+	queryCond := req.BindQuery[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -85,14 +85,15 @@ func (d *Db) Dbs(rc *req.Ctx) {
 		CodePathLikes: collx.AsArray(queryCond.TagPath),
 	})
 	if len(tags) == 0 {
-		rc.ResData = model.EmptyPageResult[any]()
+		rc.ResData = model.NewEmptyPageResult[any]()
 		return
 	}
 	queryCond.Codes = tags.GetCodes()
 
-	var dbvos []*vo.DbListVO
-	res, err := d.dbApp.GetPageList(queryCond, page, &dbvos)
+	res, err := d.dbApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.DbListPO, *vo.DbListVO](res)
+	dbvos := resVo.List
 
 	instances, _ := d.instanceApp.GetByIds(collx.ArrayMap(dbvos, func(i *vo.DbListVO) uint64 {
 		return i.InstanceId
@@ -110,7 +111,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 		}
 	}
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (d *Db) Save(rc *req.Ctx) {

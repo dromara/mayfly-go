@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/pkg/utils"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
@@ -49,17 +50,17 @@ func (d *DataSyncTask) ReqConfs() *req.Confs {
 }
 
 func (d *DataSyncTask) Tasks(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.DataSyncTaskQuery](rc, new(entity.DataSyncTaskQuery))
-	res, err := d.dataSyncTaskApp.GetPageList(queryCond, page, new([]vo.DataSyncTaskListVO))
+	queryCond := req.BindQuery[*entity.DataSyncTaskQuery](rc, new(entity.DataSyncTaskQuery))
+	res, err := d.dataSyncTaskApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.DataSyncTask, *vo.DataSyncLogListVO](res)
 }
 
 func (d *DataSyncTask) Logs(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.DataSyncLogQuery](rc, new(entity.DataSyncLogQuery))
-	res, err := d.dataSyncTaskApp.GetTaskLogList(queryCond, page, new([]vo.DataSyncLogListVO))
+	queryCond := req.BindQuery(rc, new(entity.DataSyncLogQuery))
+	res, err := d.dataSyncTaskApp.GetTaskLogList(queryCond)
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.DataSyncLog, *vo.DataSyncLogListVO](res)
 }
 
 func (d *DataSyncTask) SaveTask(rc *req.Ctx) {

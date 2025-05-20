@@ -486,7 +486,7 @@ const onDumpDbs = async (row: any) => {
  * 数据库信息导出
  */
 const dumpDbs = async () => {
-    isTrue(state.exportDialog.value.length > 0, t('db.noDumpDbMsg'));
+    isTrue(state.exportDialog.value.length > 0, 'db.noDumpDbMsg');
     let type = 0;
     for (let c of state.exportDialog.contents) {
         if (c == '结构') {

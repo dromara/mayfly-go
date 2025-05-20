@@ -21,8 +21,8 @@ func (s *Syslog) ReqConfs() *req.Confs {
 }
 
 func (r *Syslog) Syslogs(rc *req.Ctx) {
-	queryCond, page := req.BindQueryAndPage[*entity.SysLogQuery](rc, new(entity.SysLogQuery))
-	res, err := r.syslogApp.GetPageList(queryCond, page, new([]entity.SysLog), "create_time DESC")
+	queryCond := req.BindQuery(rc, new(entity.SysLogQuery))
+	res, err := r.syslogApp.GetPageList(queryCond, "create_time DESC")
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

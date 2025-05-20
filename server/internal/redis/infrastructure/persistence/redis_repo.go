@@ -16,7 +16,7 @@ func newRedisRepo() repository.Redis {
 }
 
 // 分页获取redis信息列表
-func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, orderBy ...string) (*model.PageResult[*entity.Redis], error) {
 	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Like("host", condition.Host).
@@ -29,5 +29,5 @@ func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *mo
 		qd.And("host like ? or name like ? or code like ?", keyword, keyword, keyword)
 	}
 
-	return r.PageByCondToAny(qd, pageParam, toEntity)
+	return r.PageByCond(qd, condition.PageParam)
 }

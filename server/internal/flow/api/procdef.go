@@ -12,6 +12,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
@@ -36,6 +37,10 @@ func (p *Procdef) ReqConfs() *req.Confs {
 
 		req.NewPost("", p.Save).Log(req.NewLogSaveI(imsg.LogProcdefSave)).RequiredPermissionCode("flow:procdef:save"),
 
+		req.NewPost("/flowdef", p.SaveFlowDef).Log(req.NewLogSaveI(imsg.LogProcdefSave)).RequiredPermissionCode("flow:procdef:save"),
+
+		req.NewGet("/flowdef/:id", p.GetFlowDef),
+
 		req.NewDelete(":id", p.Delete).Log(req.NewLogSaveI(imsg.LogProcdefDelete)).RequiredPermissionCode("flow:procdef:del"),
 	}
 
@@ -44,15 +49,16 @@ func (p *Procdef) ReqConfs() *req.Confs {
 
 func (p *Procdef) GetProcdefPage(rc *req.Ctx) {
 	cond, page := req.BindQueryAndPage(rc, new(entity.Procdef))
-	var procdefs []*vo.Procdef
-	res, err := p.procdefApp.GetPageList(cond, page, &procdefs)
-	biz.ErrIsNil(err)
 
-	p.tagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeFlowDef, collx.ArrayMap(procdefs, func(mvo *vo.Procdef) tagentity.IRelateTag {
+	res, err := p.procdefApp.GetPageList(cond, page)
+	biz.ErrIsNil(err)
+	resVo := model.PageResultConv[*entity.ProcdefPagePO, *vo.Procdef](res)
+
+	p.tagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeFlowDef, collx.ArrayMap(resVo.List, func(mvo *vo.Procdef) tagentity.IRelateTag {
 		return mvo
 	})...)
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (p *Procdef) GetProcdefDetail(rc *req.Ctx) {
@@ -89,6 +95,23 @@ func (a *Procdef) Save(rc *req.Ctx) {
 		MsgTmplId: form.MsgTmplId,
 		CodePaths: form.CodePaths,
 	}))
+}
+
+func (a *Procdef) SaveFlowDef(rc *req.Ctx) {
+	form := req.BindJsonAndValid(rc, &form.ProcdefFlow{})
+	rc.ReqParam = form
+
+	biz.ErrIsNil(a.procdefApp.SaveFlowDef(rc.MetaCtx, &dto.SaveFlowDef{
+		Id:      form.Id,
+		FlowDef: form.Flow,
+	}))
+}
+
+func (a *Procdef) GetFlowDef(rc *req.Ctx) {
+	defId := rc.PathParamInt("id")
+	procdef, err := a.procdefApp.GetById(uint64(defId))
+	biz.ErrIsNil(err)
+	rc.ResData = procdef.GetFlowDef()
 }
 
 func (p *Procdef) Delete(rc *req.Ctx) {

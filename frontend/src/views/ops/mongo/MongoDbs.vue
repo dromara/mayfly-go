@@ -15,13 +15,13 @@
 
                 <el-table-column min-width="150" :label="$t('common.operation')">
                     <template #default="scope">
-                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
+                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" underline="never">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">{{ $t('mongo.coll') }}</el-link>
+                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" underline="never">{{ $t('mongo.coll') }}</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-popconfirm @confirm="onDeleteDb(scope.row.Name)" :title="$t('mongo.deleteDbConfirm')">
                             <template #reference>
-                                <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
+                                <el-link type="danger" plain size="small" underline="never">{{ $t('common.delete') }}</el-link>
                             </template>
                         </el-popconfirm>
                     </template>
@@ -77,11 +77,11 @@
                 <el-table-column prop="name" :label="$t('common.name')" show-overflow-tooltip> </el-table-column>
                 <el-table-column min-width="80" :label="$t('common.operation')">
                     <template #default="scope">
-                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small" :underline="false">stats</el-link>
+                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small" underline="never">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-popconfirm @confirm="onDeleteCollection(scope.row.name)" width="160" :title="$t('mongo.deleteCollConfirm')">
                             <template #reference>
-                                <el-link type="danger" plain size="small" :underline="false">{{ $t('common.delete') }}</el-link>
+                                <el-link type="danger" plain size="small" underline="never">{{ $t('common.delete') }}</el-link>
                             </template>
                         </el-popconfirm>
                     </template>

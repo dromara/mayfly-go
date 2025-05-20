@@ -35,7 +35,7 @@ type Machine interface {
 	Delete(ctx context.Context, id uint64) error
 
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetMachineList(condition *entity.MachineQuery, orderBy ...string) (*model.PageResult[*entity.Machine], error)
 
 	// 新建机器客户端连接（需手动调用Close）
 	NewCli(authCertName string) (*mcm.Cli, error)
@@ -71,8 +71,8 @@ type machineAppImpl struct {
 var _ (Machine) = (*machineAppImpl)(nil)
 
 // 分页获取机器信息列表
-func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
+func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, orderBy ...string) (*model.PageResult[*entity.Machine], error) {
+	return m.GetRepo().GetMachineList(condition, orderBy...)
 }
 
 func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine) error {

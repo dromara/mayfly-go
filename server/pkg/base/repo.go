@@ -1,6 +1,7 @@
 package base
 
 import (
+	"cmp"
 	"context"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
@@ -80,11 +81,8 @@ type Repo[T model.ModelI] interface {
 	// SelectByCond 根据条件查询模型实例数组
 	SelectByCond(cond any, cols ...string) ([]T, error)
 
-	// PageByCondToAny 根据查询条件分页查询，并绑定至指定res
-	PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
-
 	// PageByCond 根据查询条件分页查询
-	PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error)
+	PageByCond(cond any, pageParam model.PageParam, cols ...string) (*model.PageResult[T], error)
 
 	// SelectBySql 根据sql语句查询数据
 	SelectBySql(sql string, res any, params ...any) error
@@ -172,9 +170,9 @@ func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, valu
 	}
 
 	if db == nil {
-		return gormx.UpdateByCond(br.getModel(), values, toQueryCond(cond))
+		return gormx.UpdateByCond(br.GetModel(), values, toQueryCond(cond))
 	}
-	return gormx.UpdateByCondWithDb(db, br.getModel(), values, toQueryCond(cond))
+	return gormx.UpdateByCondWithDb(db, br.GetModel(), values, toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) Save(ctx context.Context, e T) error {
@@ -195,22 +193,22 @@ func (br *RepoImpl[T]) DeleteById(ctx context.Context, id ...uint64) error {
 	if db := GetDbFromCtx(ctx); db != nil {
 		return br.DeleteByIdWithDb(ctx, db, id...)
 	}
-	return gormx.DeleteById(br.getModel(), id...)
+	return gormx.DeleteById(br.GetModel(), id...)
 }
 
 func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id ...uint64) error {
-	return gormx.DeleteByIdWithDb(db, br.getModel(), id...)
+	return gormx.DeleteByIdWithDb(db, br.GetModel(), id...)
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
 	if db := GetDbFromCtx(ctx); db != nil {
 		return br.DeleteByCondWithDb(ctx, db, cond)
 	}
-	return gormx.DeleteByCond(br.getModel(), toQueryCond(cond))
+	return gormx.DeleteByCond(br.GetModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
-	return gormx.DeleteByCondWithDb(db, br.getModel(), toQueryCond(cond))
+	return gormx.DeleteByCondWithDb(db, br.GetModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) ExecBySql(sql string, params ...any) error {
@@ -228,11 +226,11 @@ func (br *RepoImpl[T]) GetByIds(ids []uint64, cols ...string) ([]T, error) {
 }
 
 func (br *RepoImpl[T]) GetByCond(cond any) error {
-	return gormx.GetByCond(br.getModel(), toQueryCond(cond))
+	return gormx.GetByCond(br.GetModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) SelectByCondToAny(cond any, res any) error {
-	return gormx.SelectByCond(br.getModel(), toQueryCond(cond).Dest(res))
+	return gormx.SelectByCond(br.GetModel(), toQueryCond(cond).Dest(res))
 }
 
 func (br *RepoImpl[T]) SelectByCond(cond any, cols ...string) ([]T, error) {
@@ -240,20 +238,9 @@ func (br *RepoImpl[T]) SelectByCond(cond any, cols ...string) ([]T, error) {
 	return models, br.SelectByCondToAny(toQueryCond(cond).Dest(models).Columns(cols...), &models)
 }
 
-func (br *RepoImpl[T]) PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
-	return gormx.PageByCond(br.getModel(), toQueryCond(cond), pageParam, toModels)
-}
-
-func (br *RepoImpl[T]) PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error) {
+func (br *RepoImpl[T]) PageByCond(cond any, pageParam model.PageParam, cols ...string) (*model.PageResult[T], error) {
 	var models []T
-	res, err := br.PageByCondToAny(toQueryCond(cond).Columns(cols...), pageParam, &models)
-	if err != nil {
-		return nil, err
-	}
-	return &model.PageResult[[]T]{
-		List:  models,
-		Total: res.Total,
-	}, nil
+	return gormx.PageByCond(br.GetModel(), toQueryCond(cond).Columns(cols...), pageParam, models)
 }
 
 func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
@@ -261,7 +248,7 @@ func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
 }
 
 func (br *RepoImpl[T]) CountByCond(cond any) int64 {
-	return gormx.CountByCond(br.getModel(), toQueryCond(cond))
+	return gormx.CountByCond(br.GetModel(), toQueryCond(cond))
 }
 
 // NewModel 新建模型实例
@@ -282,7 +269,7 @@ func (br *RepoImpl[T]) NewModel() T {
 // }
 
 // getModel 获取表的模型实例
-func (br *RepoImpl[T]) getModel() T {
+func (br *RepoImpl[T]) GetModel() T {
 	if br.model != nil {
 		return br.model.(T)
 	}
@@ -311,7 +298,7 @@ func (br *RepoImpl[T]) getModelType() reflect.Type {
 // 从上下文获取登录账号信息，并赋值至实体
 func (br *RepoImpl[T]) fillBaseInfo(ctx context.Context, e T) T {
 	// 默认使用数据库id策略, 若要改变则实体结构体自行覆盖FillBaseInfo方法。可参考 sys/entity.Resource
-	e.FillBaseInfo(model.IdGenTypeNone, contextx.GetLoginAccount(ctx))
+	e.FillBaseInfo(model.IdGenTypeNone, cmp.Or(contextx.GetLoginAccount(ctx), model.SysAccount))
 	return e
 }
 

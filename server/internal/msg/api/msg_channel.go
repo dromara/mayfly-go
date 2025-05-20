@@ -30,7 +30,7 @@ func (m *MsgChannel) ReqConfs() *req.Confs {
 
 func (m *MsgChannel) GetMsgChannels(rc *req.Ctx) {
 	condition := &entity.MsgChannel{}
-	res, err := m.msgChannelApp.GetPageList(condition, rc.GetPageParam(), new([]entity.MsgChannel))
+	res, err := m.msgChannelApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

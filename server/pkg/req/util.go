@@ -35,7 +35,7 @@ func BindQuery[T any](rc *Ctx, data T) T {
 }
 
 // 绑定查询字符串到指定结构体，并将分页信息也返回
-func BindQueryAndPage[T any](rc *Ctx, data T) (T, *model.PageParam) {
+func BindQueryAndPage[T any](rc *Ctx, data T) (T, model.PageParam) {
 	if err := rc.BindQuery(data); err != nil {
 		panic(ConvBindValidationError(data, err))
 	} else {

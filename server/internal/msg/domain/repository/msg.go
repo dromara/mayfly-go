@@ -9,5 +9,5 @@ import (
 type Msg interface {
 	base.Repo[*entity.Msg]
 
-	GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.Msg, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Msg], error)
 }

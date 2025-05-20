@@ -9,5 +9,5 @@ import (
 type Config interface {
 	base.Repo[*entity.Config]
 
-	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.Config, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Config], error)
 }

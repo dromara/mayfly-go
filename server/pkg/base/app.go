@@ -54,13 +54,9 @@ type App[T model.ModelI] interface {
 	// @param cond 可为*model.QueryCond也可以为普通查询model
 	ListByCond(cond any, cols ...string) ([]T, error)
 
-	// PageByCondToAny 分页查询并绑定至指定toModels
-	// @param cond 可为*model.QueryCond也可以为普通查询model
-	PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
-
 	// PageByCond 根据指定条件分页查询
 	// @param cond 可为*model.QueryCond也可以为普通查询model
-	PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error)
+	PageByCond(cond any, pageParam model.PageParam, cols ...string) (*model.PageResult[T], error)
 
 	// CountByCond 根据指定条件统计model表的数量
 	// @param cond 可为*model.QueryCond也可以为普通查询model
@@ -147,12 +143,7 @@ func (ai *AppImpl[T, R]) ListByCond(cond any, cols ...string) ([]T, error) {
 	return ai.GetRepo().SelectByCond(cond, cols...)
 }
 
-// PageByCondToAny 分页查询
-func (ai *AppImpl[T, R]) PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
-	return ai.GetRepo().PageByCondToAny(cond, pageParam, toModels)
-}
-
-func (ai *AppImpl[T, R]) PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error) {
+func (ai *AppImpl[T, R]) PageByCond(cond any, pageParam model.PageParam, cols ...string) (*model.PageResult[T], error) {
 	return ai.GetRepo().PageByCond(cond, pageParam, cols...)
 }
 

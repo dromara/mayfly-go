@@ -11,7 +11,7 @@
 
                         <el-popover :show-after="500" placement="right-start" :title="$t('system.role.permissionInfo')" trigger="hover" :width="300">
                             <template #reference>
-                                <el-link style="margin-left: 25px" icon="InfoFilled" type="info" :underline="false" />
+                                <el-link style="margin-left: 25px" icon="InfoFilled" type="info" underline="never" />
                             </template>
                             <template #default>
                                 <el-descriptions :column="1" size="small">

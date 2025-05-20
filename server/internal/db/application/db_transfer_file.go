@@ -13,7 +13,7 @@ type DbTransferFile interface {
 	base.App[*entity.DbTransferFile]
 
 	// GetPageList 分页获取数据库实例
-	GetPageList(condition *entity.DbTransferFileQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DbTransferFileQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferFile], error)
 
 	Save(ctx context.Context, instanceEntity *entity.DbTransferFile) error
 
@@ -28,8 +28,8 @@ type dbTransferFileAppImpl struct {
 	fileApp fileapp.File `inject:"T"`
 }
 
-func (app *dbTransferFileAppImpl) GetPageList(condition *entity.DbTransferFileQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
+func (app *dbTransferFileAppImpl) GetPageList(condition *entity.DbTransferFileQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferFile], error) {
+	return app.GetRepo().GetPageList(condition, orderBy...)
 }
 
 func (app *dbTransferFileAppImpl) Save(ctx context.Context, taskEntity *entity.DbTransferFile) error {

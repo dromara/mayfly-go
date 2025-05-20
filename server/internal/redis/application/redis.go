@@ -33,7 +33,7 @@ type Redis interface {
 	flowapp.FlowBizHandler
 
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.RedisQuery, orderBy ...string) (*model.PageResult[*entity.Redis], error)
 
 	// 测试连接
 	TestConn(re *dto.SaveRedis) error
@@ -52,6 +52,8 @@ type Redis interface {
 	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error)
 }
 
+var _ Redis = (*redisAppImpl)(nil)
+
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
@@ -61,8 +63,8 @@ type redisAppImpl struct {
 }
 
 // 分页获取redis列表
-func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return r.GetRepo().GetRedisList(condition, pageParam, toEntity, orderBy...)
+func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, orderBy ...string) (*model.PageResult[*entity.Redis], error) {
+	return r.GetRepo().GetRedisList(condition, orderBy...)
 }
 
 func (r *redisAppImpl) TestConn(param *dto.SaveRedis) error {

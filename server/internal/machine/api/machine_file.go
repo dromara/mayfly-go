@@ -18,6 +18,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
@@ -86,9 +87,9 @@ const (
 
 func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 	condition := &entity.MachineFile{MachineId: GetMachineId(rc)}
-	res, err := m.machineFileApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineFileVO))
+	res, err := m.machineFileApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.MachineFile, *vo.MachineFileVO](res)
 }
 
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {

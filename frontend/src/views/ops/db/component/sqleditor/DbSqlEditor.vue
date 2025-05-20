@@ -3,16 +3,16 @@
         <div>
             <div class="card !p-1 flex items-center justify-between">
                 <div>
-                    <el-link @click="onRunSql()" :underline="false" class="ml-3.5" icon="VideoPlay"> </el-link>
+                    <el-link @click="onRunSql()" underline="never" class="ml-3.5" icon="VideoPlay"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
-                        <el-link @click="formatSql()" type="primary" :underline="false" icon="MagicStick"> </el-link>
+                        <el-link @click="formatSql()" type="primary" underline="never" icon="MagicStick"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="1000" class="box-item" effect="dark" content="commit" placement="top">
-                        <el-link @click="onCommit()" type="success" :underline="false" icon="CircleCheck"> </el-link>
+                        <el-link @click="onCommit()" type="success" underline="never" icon="CircleCheck"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
@@ -28,7 +28,7 @@
                         :limit="100"
                     >
                         <el-tooltip :show-after="1000" class="box-item" effect="dark" :content="$t('db.sqlScriptRun')" placement="top">
-                            <el-link v-auth="'db:sqlscript:run'" type="success" :underline="false" icon="Document"></el-link>
+                            <el-link v-auth="'db:sqlscript:run'" type="success" underline="never" icon="Document"></el-link>
                         </el-tooltip>
                     </el-upload>
                 </div>
@@ -96,13 +96,13 @@
                             <el-row>
                                 <span v-if="dt.hasUpdatedFileds" class="mt-1">
                                     <span>
-                                        <el-link type="success" :underline="false" @click="submitUpdateFields(dt)"
+                                        <el-link type="success" underline="never" @click="submitUpdateFields(dt)"
                                             ><span style="font-size: 12px">{{ $t('common.submit') }}</span></el-link
                                         >
                                     </span>
                                     <span>
                                         <el-divider direction="vertical" border-style="dashed" />
-                                        <el-link type="warning" :underline="false" @click="cancelUpdateFields(dt)"
+                                        <el-link type="warning" underline="never" @click="cancelUpdateFields(dt)"
                                             ><span style="font-size: 12px">{{ $t('common.cancel') }}</span></el-link
                                         >
                                     </span>

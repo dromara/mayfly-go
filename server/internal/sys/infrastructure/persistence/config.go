@@ -15,10 +15,10 @@ func newConfigRepo() repository.Config {
 	return &configRepoImpl{}
 }
 
-func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Config], error) {
 	qd := model.NewCond().
 		Like("`key`", condition.Key).
 		And("permission = 'all' OR permission LIKE ?", "%"+condition.Permission+",%").
 		OrderBy(orderBy...)
-	return m.PageByCondToAny(qd, pageParam, toEntity)
+	return m.PageByCond(qd, pageParam)
 }

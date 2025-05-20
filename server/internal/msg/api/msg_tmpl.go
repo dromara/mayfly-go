@@ -38,7 +38,7 @@ func (m *MsgTmpl) GetMsgTmpls(rc *req.Ctx) {
 		Code: rc.Query("code"),
 	}
 	condition.Id = cast.ToUint64(rc.QueryInt("id"))
-	res, err := m.msgTmplApp.GetPageList(condition, rc.GetPageParam(), new([]entity.MsgTmpl))
+	res, err := m.msgTmplApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
