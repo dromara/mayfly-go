@@ -1,5 +1,5 @@
 import request from './request';
-import { useApiFetch } from '@/hooks/useRequest';
+import { RequestOptions, useApiFetch } from '@/hooks/useRequest';
 
 /**
  * 可用于各模块定义各自api请求
@@ -49,7 +49,7 @@ class Api {
      * @param reqOptions 其他可选值
      * @returns
      */
-    useApi<T>(params: any = null, reqOptions: RequestInit = {}) {
+    useApi<T>(params: any = null, reqOptions?: RequestOptions) {
         return useApiFetch<T>(this, params, reqOptions);
     }
 
@@ -59,8 +59,8 @@ class Api {
      */
     async request(param: any = null, options: any = {}): Promise<any> {
         const { execute, data } = this.useApi(param, options);
-        await execute();
-        return data.value;
+        const res = await execute();
+        return data.value || res;
     }
 
     /**

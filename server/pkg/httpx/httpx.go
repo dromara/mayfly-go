@@ -54,8 +54,8 @@ func (r *Req) Header(name, value string) *Req {
 	return r
 }
 
-func (r *Req) Timeout(timeout int) *Req {
-	r.timeout = timeout
+func (r *Req) Timeout(second int) *Req {
+	r.timeout = second
 	return r
 }
 
@@ -105,6 +105,25 @@ func (r *Req) PostForm(params string) *Resp {
 	}
 	r.header["Content-type"] = "application/x-www-form-urlencoded"
 	return sendRequest(r)
+}
+
+func (r *Req) PutJson(body string) *Resp {
+	buf := bytes.NewBufferString(body)
+	r.method = "PUT"
+	r.body = buf
+	if r.header == nil {
+		r.header = make(map[string]string)
+	}
+	r.header["Content-type"] = "application/json"
+	return sendRequest(r)
+}
+
+func (r *Req) PutObj(body any) *Resp {
+	marshal, err := json.Marshal(body)
+	if err != nil {
+		return &Resp{err: errors.New("解析json obj错误")}
+	}
+	return r.PutJson(string(marshal))
 }
 
 func (r *Req) PostMulipart(files []MultipartFile, reqParams collx.M) *Resp {

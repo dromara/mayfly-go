@@ -45,7 +45,6 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/SearchForm';
 import ProcdefEdit from './ProcdefEdit.vue';
-import ProcdefTasks from './components/ProcdefTasks.vue';
 import { ProcdefStatus } from './enums';
 import TagCodePath from '../ops/component/TagCodePath.vue';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';

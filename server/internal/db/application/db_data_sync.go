@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -150,6 +151,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 				return
 			}
 			srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+			defer dbm.PutDbConn(srcConn)
 			if err != nil {
 				logx.ErrorfContext(ctx, "failed to connect to the source database: %s", err.Error())
 				return
@@ -204,12 +206,15 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 	// 获取源数据库连接
 	srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+	defer dbm.PutDbConn(srcConn)
+
 	if err != nil {
 		return syncLog, errorx.NewBiz("failed to connect to the source database: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
 	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
+	defer dbm.PutDbConn(targetConn)
 	if err != nil {
 		return syncLog, errorx.NewBiz("failed to connect to the target database: %s", err.Error())
 	}

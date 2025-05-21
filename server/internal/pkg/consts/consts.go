@@ -9,6 +9,7 @@ const (
 	DbConnExpireTime      = 120 * time.Minute
 	RedisConnExpireTime   = 30 * time.Minute
 	MongoConnExpireTime   = 30 * time.Minute
+	EsConnExpireTime      = 30 * time.Minute
 
 	/****  开发测试使用   ****/
 	// MachineConnExpireTime = 4 * time.Minute
@@ -20,6 +21,8 @@ const (
 	ResourceTypeDbInstance int8 = 2
 	ResourceTypeRedis      int8 = 3
 	ResourceTypeMongo      int8 = 4
+	ResourceTypeAuthCert   int8 = 5
+	ResourceTypeEsInstance int8 = 6
 
 	// imsg起始编号
 	ImsgNumSys     = 10000
@@ -31,4 +34,5 @@ const (
 	ImsgNumRedis   = 70000
 	ImsgNumMongo   = 80000
 	ImsgNumMsg     = 90000
+	ImsgNumEs      = 100000
 )

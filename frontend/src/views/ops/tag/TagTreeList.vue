@@ -110,6 +110,14 @@
                         <el-tab-pane
                             class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
+                            :label="`${$t('tag.es')} (${resourceCount.es || 0})`"
+                            :name="EsTag"
+                        >
+                            <EsInstanceList lazy ref="esInstanceListRef" />
+                        </el-tab-pane>
+
+                        <el-tab-pane
+                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
                             :label="`Redis (${resourceCount.redis || 0})`"
                             :name="RedisTag"
                         >
@@ -178,6 +186,7 @@ import { Rules } from '@/common/rule';
 
 const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
 const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
+const EsInstanceList = defineAsyncComponent(() => import('../es/InstanceList.vue'));
 const RedisList = defineAsyncComponent(() => import('../redis/RedisList.vue'));
 const MongoList = defineAsyncComponent(() => import('../mongo/MongoList.vue'));
 
@@ -196,12 +205,14 @@ const filterTag = ref('');
 const contextmenuRef = ref();
 const machineListRef: Ref<any> = ref(null);
 const dbInstanceListRef: Ref<any> = ref(null);
+const esInstanceListRef: Ref<any> = ref(null);
 const redisListRef: Ref<any> = ref(null);
 const mongoListRef: Ref<any> = ref(null);
 
 const TagDetail = 'tagDetail';
 const MachineTag = 'machineTag';
 const DbTag = 'dbTag';
+const EsTag = 'EsTag';
 const RedisTag = 'redisTag';
 const MongoTag = 'mongoTag';
 
@@ -379,6 +390,9 @@ const setNowTabData = () => {
             break;
         case DbTag:
             dbInstanceListRef.value.search(tagPath);
+            break;
+        case EsTag:
+            esInstanceListRef.value.search(tagPath);
             break;
         case RedisTag:
             redisListRef.value.search(tagPath);

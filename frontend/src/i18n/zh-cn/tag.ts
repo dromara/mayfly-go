@@ -9,6 +9,7 @@ export default {
         tagTips3: '3. 拥有父标签的团队成员可访问操作其自身或子标签关联的资源',
         machine: '机器',
         db: '数据库',
+        es: 'ES',
         code: '编号',
         createSubTag: '创建子标签',
         createSubTagTitle: '创建【{codePath}】的子标签',

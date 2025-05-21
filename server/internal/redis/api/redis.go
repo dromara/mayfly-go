@@ -152,6 +152,7 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 func (r *Redis) RedisInfo(rc *req.Ctx) {
 	ri, err := r.redisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
+	defer rdm.PutRedisConn(ri)
 
 	section := rc.Query("section")
 	mode := ri.Info.Mode
@@ -229,6 +230,8 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	ri, err := r.redisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
+	defer rdm.PutRedisConn(ri)
+
 	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "non-cluster mode")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
@@ -280,6 +283,8 @@ func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
 	ri, err := r.redisApp.GetRedisConn(getIdAndDbNum(rc))
 	biz.ErrIsNil(err)
+	defer rdm.PutRedisConn(ri)
+
 	biz.ErrIsNilAppendErr(r.tagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.CodePath...), "%s")
 	return ri
 }

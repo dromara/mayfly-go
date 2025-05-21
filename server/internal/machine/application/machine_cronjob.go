@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
@@ -178,12 +179,14 @@ func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 		ExecTime:  time.Now(),
 	}
 
-	machineCli, err := m.machineApp.GetCli(uint64(mid))
+	machineCli, err := m.machineApp.GetCli(mid)
 	res := ""
 	if err != nil {
 		machine, _ := m.machineApp.GetById(mid)
 		execRes.MachineCode = machine.Code
 	} else {
+		defer mcm.PutMachineCli(machineCli)
+
 		execRes.MachineCode = machineCli.Info.Code
 		res, err = machineCli.Run(cronJob.Script)
 		if err != nil {

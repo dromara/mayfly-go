@@ -16,8 +16,7 @@
                         }
                     "
                 >
-                    <SvgIcon name="icon layout/tag-view-active" class="layout-navbars-tagsview-ul-li-iconfont !text-[14px]" v-if="isActive(v)" />
-                    <SvgIcon :name="v.icon" class="layout-navbars-tagsview-ul-li-iconfont" v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
+                    <SvgIcon :name="v.icon" class="layout-navbars-tagsview-ul-li-iconfont" v-if="themeConfig.isTagsviewIcon" />
                     <span>{{ $t(v.title) }}</span>
                     <template v-if="isActive(v)">
                         <SvgIcon

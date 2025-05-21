@@ -32,9 +32,10 @@ const (
 	TagTypeTag        TagType = -1
 	TagTypeMachine    TagType = TagType(consts.ResourceTypeMachine)
 	TagTypeDbInstance TagType = TagType(consts.ResourceTypeDbInstance) // 数据库实例
+	TagTypeEsInstance TagType = TagType(consts.ResourceTypeEsInstance) // es实例
 	TagTypeRedis      TagType = TagType(consts.ResourceTypeRedis)
 	TagTypeMongo      TagType = TagType(consts.ResourceTypeMongo)
-	TagTypeAuthCert   TagType = 5 // 授权凭证类型
+	TagTypeAuthCert   TagType = TagType(consts.ResourceTypeAuthCert) // 授权凭证类型
 
 	TagTypeDb TagType = 22 // 数据库名
 )

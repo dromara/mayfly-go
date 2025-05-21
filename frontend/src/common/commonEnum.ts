@@ -15,6 +15,8 @@ export const ResourceTypeEnum = {
     Db: EnumValue.of(2, '数据库实例').setExtra({ icon: 'Coin', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
     Redis: EnumValue.of(3, 'redis').setExtra({ icon: 'icon redis/redis', iconColor: 'var(--el-color-danger)' }).tagTypeInfo(),
     Mongo: EnumValue.of(4, 'mongo').setExtra({ icon: 'icon mongo/mongo', iconColor: 'var(--el-color-success)' }).tagTypeDanger(),
+    AuthCert: EnumValue.of(5, '授权凭证').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
+    Es: EnumValue.of(6, 'ES实例').setExtra({ icon: 'Coin', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
 };
 
 // 标签关联的资源类型
@@ -24,9 +26,10 @@ export const TagResourceTypeEnum = {
 
     Machine: ResourceTypeEnum.Machine,
     DbInstance: ResourceTypeEnum.Db,
+    EsInstance: ResourceTypeEnum.Es,
     Redis: ResourceTypeEnum.Redis,
     Mongo: ResourceTypeEnum.Mongo,
-    AuthCert: EnumValue.of(5, '授权凭证').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
+    AuthCert: ResourceTypeEnum.AuthCert,
 
     Db: EnumValue.of(22, '数据库').setExtra({ icon: 'Coin' }),
 };
@@ -37,4 +40,5 @@ export const TagResourceTypePath = {
 
     DbInstanceAuthCert: `${TagResourceTypeEnum.DbInstance.value}/${TagResourceTypeEnum.AuthCert.value}`,
     Db: `${TagResourceTypeEnum.DbInstance.value}/${TagResourceTypeEnum.AuthCert.value}/${TagResourceTypeEnum.Db.value}`,
+    Es: `${TagResourceTypeEnum.EsInstance.value}/${TagResourceTypeEnum.AuthCert.value}`,
 };

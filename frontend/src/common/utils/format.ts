@@ -30,6 +30,18 @@ export function formatByteSize(size: number, fixed = 2) {
     return parseFloat((size / Math.pow(base, exponent)).toFixed(fixed)) + units[exponent];
 }
 
+export function formatDocSize(size: number, fixed = 2) {
+    if (size === 0) {
+        return '0';
+    }
+
+    const units = ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+    const base = 1000;
+    const exponent = Math.floor(Math.log(size) / Math.log(base));
+
+    return parseFloat((size / Math.pow(base, exponent)).toFixed(fixed)) + units[exponent];
+}
+
 /**
  * 容量转为对应的字节大小，如 1KB转为 1024
  * @param sizeString  1kb 1gb等
@@ -86,8 +98,8 @@ export function formatTime(time: number, unit: string = 's') {
     let result = '';
 
     const timeUnits = Object.entries(units).map(([unit, duration]) => {
-        const value = Math.floor(seconds / duration);
-        seconds %= duration;
+        const value = Math.floor(seconds / (duration as any));
+        seconds %= duration as any;
         return { value, unit };
     });
 

@@ -219,4 +219,11 @@ export default {
         running: 'Running',
         waitRun: 'Wait Run',
     },
+    es: {
+        keywordPlaceholder: 'host / name / code',
+        port: 'Port',
+        acName: 'Credential',
+        dbInst: 'Es Instance',
+        connSuccess: 'be connected successfully',
+    },
 };

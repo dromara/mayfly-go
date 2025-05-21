@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
@@ -79,6 +80,8 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	}
 	cli, err := m.machineApp.GetCliByAc(ac)
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
+	defer mcm.PutMachineCli(cli)
+
 	biz.ErrIsNilAppendErr(m.tagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(script)

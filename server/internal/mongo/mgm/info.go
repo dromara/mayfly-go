@@ -75,5 +75,5 @@ func getConnId(id uint64) string {
 	if id == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d", id)
+	return fmt.Sprintf("mongo:%d", id)
 }

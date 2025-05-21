@@ -43,6 +43,9 @@ func NewPut(path string, handler HandlerFunc) *Conf {
 func NewDelete(path string, handler HandlerFunc) *Conf {
 	return New("DELETE", path, handler)
 }
+func NewAny(path string, handler HandlerFunc) *Conf {
+	return New("any", path, handler)
+}
 
 func (r *Conf) ToGinHFunc() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -82,7 +85,11 @@ func (r *Conf) NoRes() *Conf {
 
 // 注册至group
 func (r *Conf) Group(gr *gin.RouterGroup) *Conf {
-	gr.Handle(r.method, r.path, r.ToGinHFunc())
+	if r.method == "any" {
+		gr.Any(r.path, r.ToGinHFunc())
+	} else {
+		gr.Handle(r.method, r.path, r.ToGinHFunc())
+	}
 	return r
 }
 

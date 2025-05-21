@@ -1,15 +1,15 @@
 <template>
-    <div class="monaco-editor-custom relative h-full" style="border: 1px solid var(--el-border-color-light, #ebeef5)">
+    <div class="monaco-editor-custom relative h-full">
         <div class="monaco-editor-content" ref="monacoTextareaRef" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage" filterable>
-            <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
+            <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value" />
         </el-select>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { watch, toRefs, reactive, onMounted, onBeforeUnmount, useTemplateRef, Ref } from 'vue';
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import * as monaco from 'monaco-editor';
 // 相关语言
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution.js';
 import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js';
@@ -31,7 +31,6 @@ import 'monaco-editor/esm/vs/editor/contrib/format//browser/formatActions.js';
 // 提示
 import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestController.js';
 import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestInlineCompletions.js';
-
 import { editor, languages } from 'monaco-editor';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
@@ -134,6 +133,7 @@ const defaultOptions = {
     theme: 'SolarizedLight',
     automaticLayout: true, //自适应宽高布局
     foldingStrategy: 'indentation', //代码可分小段折叠
+    folding: true,
     roundedSelection: false, // 禁用选择文本背景的圆角
     matchBrackets: 'near',
     linkedEditing: true,
@@ -149,7 +149,13 @@ const defaultOptions = {
     minimap: {
         enabled: false, // 不要小地图
     },
-};
+    renderLineHighlight: 'all',
+    selectOnLineNumbers: false,
+    readOnly: false,
+    scrollBeyondLastLine: false,
+    lineNumbers: 'on',
+    lineNumbersMinChars: 3,
+} as editor.IStandaloneEditorConstructionOptions;
 
 const monacoTextareaRef: Ref<any> = useTemplateRef('monacoTextareaRef');
 
@@ -221,7 +227,8 @@ const initMonacoEditorIns = () => {
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
     defaultOptions.language = state.languageMode;
     defaultOptions.theme = themeConfig.value.editorTheme;
-    monacoEditorIns = monaco.editor.create(monacoTextareaRef.value, Object.assign(defaultOptions, props.options as any));
+    let options = Object.assign(defaultOptions, props.options as any);
+    monacoEditorIns = monaco.editor.create(monacoTextareaRef.value, options);
 
     // 监听内容改变,双向绑定
     monacoEditorIns.onDidChangeModelContent(() => {
@@ -317,5 +324,8 @@ defineExpose({ getEditor, format, focus });
         top: 10px;
         max-width: 130px;
     }
+
+    border: 1px solid var(--el-border-color-light, #ebeef5);
+    width: 100%;
 }
 </style>

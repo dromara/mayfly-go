@@ -328,6 +328,8 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	folderName := filepath.Dir(paths[0])
 	mcli, err := m.machineFileApp.GetMachineCli(authCertName)
 	biz.ErrIsNil(err)
+	defer mcm.PutMachineCli(mcli)
+
 	mi := mcli.Info
 
 	sftpCli, err := mcli.GetSftpCli()

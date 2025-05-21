@@ -46,6 +46,11 @@ func initMysql(m config.Mysql) *gorm.DB {
 		sqlDB, _ := db.DB()
 		sqlDB.SetMaxIdleConns(m.MaxIdleConns)
 		sqlDB.SetMaxOpenConns(m.MaxOpenConns)
+
+		// 如果是开发环境时，打印sql语句
+		if logx.GetConfig().IsDebug() {
+			db = db.Debug()
+		}
 		return db
 	}
 }

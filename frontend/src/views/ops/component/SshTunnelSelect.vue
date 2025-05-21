@@ -8,6 +8,7 @@
             @clear="clear"
             placeholder="SSH tunnel machine"
             clearable
+            filterable
         >
             <el-option v-for="item in sshTunnelMachineList" :key="item.id" :label="`${item.ip}:${item.port} [${item.name}]`" :value="item.id"> </el-option>
         </el-select>

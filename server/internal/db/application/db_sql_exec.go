@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
@@ -283,6 +284,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 	}
 
 	dbConn, err := d.dbApp.GetDbConn(execSqlBizForm.DbId, execSqlBizForm.DbName)
+	defer dbm.PutDbConn(dbConn)
 	if err != nil {
 		return nil, err
 	}

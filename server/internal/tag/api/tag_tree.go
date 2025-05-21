@@ -168,9 +168,15 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 		CodePathLikes: collx.AsArray(tagPath),
 	}).GetCodePaths()...)
 
+	esCodes := entity.GetCodesByCodePaths(entity.TagTypeEsInstance, p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+		Types:         collx.AsArray(entity.TagTypeEsInstance),
+		CodePathLikes: collx.AsArray(tagPath),
+	}).GetCodePaths()...)
+
 	rc.ResData = collx.M{
 		"machine": len(machineCodes),
 		"db":      len(dbCodes),
+		"es":      len(esCodes),
 		"redis": len(p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
 			Types:         collx.AsArray(entity.TagTypeRedis),
 			CodePathLikes: collx.AsArray(tagPath),

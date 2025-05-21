@@ -62,7 +62,7 @@ func (mi *MachineInfo) Conn() (*Cli, error) {
 	sshClient, err := GetSshClient(mi, nil)
 	if err != nil {
 		if mi.UseSshTunnel() {
-			CloseSshTunnelMachine(int(mi.TempSshMachineId), mi.GetTunnelId())
+			CloseSshTunnelMachine(mi.TempSshMachineId, mi.GetTunnelId())
 		}
 		return nil, err
 	}

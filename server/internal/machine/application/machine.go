@@ -239,11 +239,6 @@ func (m *machineAppImpl) GetCliByAc(authCertName string) (*mcm.Cli, error) {
 }
 
 func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {
-	cli, err := mcm.GetMachineCliById(machineId)
-	if err == nil {
-		return cli, nil
-	}
-
 	_, authCert, err := m.getMachineAndAuthCert(machineId)
 	if err != nil {
 		return nil, err

@@ -9,3 +9,6 @@ mayfly_rsa.pub
 /db/mysql/
 # mariadb 程序目录
 /db/mariadb/
+
+*.sqlite
+file

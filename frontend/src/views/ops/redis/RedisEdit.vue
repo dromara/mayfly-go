@@ -6,66 +6,51 @@
             </template>
 
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
-                <el-tabs v-model="tabActiveName">
-                    <el-tab-pane :label="$t('common.basic')" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')" required>
-                            <tag-tree-select
-                                @change-tag="
-                                    (tagCodePaths) => {
-                                        form.tagCodePaths = tagCodePaths;
-                                        tagSelectRef.validate();
-                                    }
-                                "
-                                multiple
-                                :select-tags="form.tagCodePaths"
-                            />
-                        </el-form-item>
-                        <el-form-item prop="name" :label="$t('common.name')" required>
-                            <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                        </el-form-item>
-                        <el-form-item prop="mode" label="mode" required>
-                            <el-select v-model="form.mode">
-                                <el-option label="standalone" value="standalone"> </el-option>
-                                <el-option label="cluster" value="cluster"> </el-option>
-                                <el-option label="sentinel" value="sentinel"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item prop="host" label="host" required>
-                            <el-input v-model.trim="form.host" :placeholder="$t('redis.hostTips')" auto-complete="off" type="textarea"></el-input>
-                        </el-form-item>
-                        <el-form-item prop="username" :label="$t('common.username')">
-                            <el-input v-model.trim="form.username"></el-input>
-                        </el-form-item>
-                        <el-form-item prop="password" :label="$t('common.password')">
-                            <el-input type="password" show-password v-model.trim="form.password" autocomplete="new-password"> </el-input>
-                        </el-form-item>
-                        <el-form-item v-if="form.mode == 'sentinel'" prop="redisNodePassword" :label="$t('redis.nodePassword')">
-                            <el-input type="password" show-password v-model.trim="form.redisNodePassword" autocomplete="new-password"> </el-input>
-                        </el-form-item>
-                        <el-form-item prop="db" label="DB" required>
-                            <el-select
-                                @change="changeDb"
-                                :disabled="form.mode == 'cluster'"
-                                v-model="dbList"
-                                multiple
-                                allow-create
-                                filterable
-                                style="width: 100%"
-                            >
-                                <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item prop="remark" :label="$t('common.remark')">
-                            <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
-                        </el-form-item>
-                    </el-tab-pane>
-
-                    <el-tab-pane :label="$t('common.other')" name="other">
-                        <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
-                            <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                        </el-form-item>
-                    </el-tab-pane>
-                </el-tabs>
+                <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')" required>
+                    <tag-tree-select
+                        @change-tag="
+                            (tagCodePaths) => {
+                                form.tagCodePaths = tagCodePaths;
+                                tagSelectRef.validate();
+                            }
+                        "
+                        multiple
+                        :select-tags="form.tagCodePaths"
+                    />
+                </el-form-item>
+                <el-form-item prop="name" :label="$t('common.name')" required>
+                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item prop="mode" label="mode" required>
+                    <el-select v-model="form.mode">
+                        <el-option label="standalone" value="standalone"> </el-option>
+                        <el-option label="cluster" value="cluster"> </el-option>
+                        <el-option label="sentinel" value="sentinel"> </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item prop="host" label="host" required>
+                    <el-input v-model.trim="form.host" :placeholder="$t('redis.hostTips')" auto-complete="off" type="textarea"></el-input>
+                </el-form-item>
+                <el-form-item prop="username" :label="$t('common.username')">
+                    <el-input v-model.trim="form.username"></el-input>
+                </el-form-item>
+                <el-form-item prop="password" :label="$t('common.password')">
+                    <el-input type="password" show-password v-model.trim="form.password" autocomplete="new-password"> </el-input>
+                </el-form-item>
+                <el-form-item v-if="form.mode == 'sentinel'" prop="redisNodePassword" :label="$t('redis.nodePassword')">
+                    <el-input type="password" show-password v-model.trim="form.redisNodePassword" autocomplete="new-password"> </el-input>
+                </el-form-item>
+                <el-form-item prop="db" label="DB" required>
+                    <el-select @change="changeDb" :disabled="form.mode == 'cluster'" v-model="dbList" multiple allow-create filterable style="width: 100%">
+                        <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
+                    </el-select>
+                </el-form-item>
+                <el-form-item prop="remark" :label="$t('common.remark')">
+                    <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
+                </el-form-item>
+                <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
+                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+                </el-form-item>
             </el-form>
 
             <template #footer>

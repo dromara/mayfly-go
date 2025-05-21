@@ -8,6 +8,7 @@
             :style="`top: ${state.dropdown.y + 5}px;left: ${state.dropdown.x}px;`"
             :key="Math.random()"
             v-show="state.isShow && !allHide"
+            @contextmenu="headerContextmenuClick"
         >
             <ul class="el-dropdown-menu">
                 <template v-for="(v, k) in state.dropdownList">
@@ -123,6 +124,10 @@ const onCurrentContextmenuClick = (ci: ContextmenuItem) => {
         ci.onClickFunc(state.item);
     }
     emit('currentContextmenuClick', { id: ci.clickId, item: state.item });
+};
+
+const headerContextmenuClick = (event: any, data: any) => {
+    event.preventDefault(); // 阻止默认的右击菜单行为
 };
 
 // 打开右键菜单：判断是否固定，固定则不显示关闭按钮

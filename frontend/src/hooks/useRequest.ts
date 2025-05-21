@@ -38,14 +38,19 @@ const useCustomFetch = createFetch({
             return { options };
         },
         async afterFetch(ctx) {
-            const result: Result = await ctx.response.json();
-            ctx.data = result;
+            ctx.data = await ctx.response.json();
             return ctx;
         },
     },
 });
 
-export function useApiFetch<T>(api: Api, params: any = null, reqOptions: RequestInit = {}) {
+interface EsReq {
+    esProxyReq: boolean;
+}
+
+export interface RequestOptions extends RequestInit, EsReq {}
+
+export function useApiFetch<T>(api: Api, params: any = null, reqOptions?: RequestOptions) {
     const uaf = useCustomFetch<T>(api.url, {
         async beforeFetch({ url, options }) {
             options.method = api.method;
@@ -90,13 +95,20 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
                 },
             };
         },
-    });
+        onFetchError: (ctx) => {
+            if (reqOptions?.esProxyReq) {
+                uaf.data = { value: JSON.parse(ctx.data) };
+                return Promise.resolve(uaf.data);
+            }
+            return ctx;
+        },
+    }) as any;
 
     // 统一处理后的返回结果，如果直接使用uaf.data，则数据会出现由{code: x, data: {}} -> data 的变化导致某些结果绑定报错
     const data = ref<T | null>(null);
     return {
         execute: async function () {
-            await execCustomFetch(uaf);
+            await execCustomFetch(uaf, reqOptions);
             data.value = uaf.data.value;
         },
         isFetching: uaf.isFetching,
@@ -108,36 +120,43 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
 let refreshingToken = false;
 let queue: any[] = [];
 
-async function execCustomFetch(uaf: UseFetchReturn<any>) {
+async function execCustomFetch(uaf: UseFetchReturn<any>, reqOptions?: RequestOptions) {
     try {
         await uaf.execute(true);
     } catch (e: any) {
-        const rejectPromise = Promise.reject(e);
+        if (!reqOptions?.esProxyReq) {
+            const rejectPromise = Promise.reject(e);
 
-        if (e?.name == 'AbortError') {
-            console.log('请求已取消');
+            if (e?.name == 'AbortError') {
+                console.log('请求已取消');
+                return rejectPromise;
+            }
+
+            const respStatus = uaf.response.value?.status;
+            if (respStatus == 404) {
+                ElMessage.error('url not found');
+                return rejectPromise;
+            }
+            if (respStatus == 500) {
+                ElMessage.error('server error');
+                return rejectPromise;
+            }
+
+            console.error(e);
+            ElMessage.error('network error');
             return rejectPromise;
         }
-
-        const respStatus = uaf.response.value?.status;
-        if (respStatus == 404) {
-            ElMessage.error('url not found');
-            return rejectPromise;
-        }
-        if (respStatus == 500) {
-            ElMessage.error('server error');
-            return rejectPromise;
-        }
-
-        console.error(e);
-        ElMessage.error('network error');
-        return rejectPromise;
     }
 
-    const result: Result = uaf.data.value as any;
+    const result: Result & { error: any; status: number } = uaf.data.value as any;
     if (!result) {
         ElMessage.error('network request failed');
         return Promise.reject(result);
+    }
+    // es代理请求
+    if (reqOptions?.esProxyReq) {
+        uaf.data.value = result;
+        return Promise.resolve(result);
     }
 
     const resultCode = result.code;
@@ -154,7 +173,7 @@ async function execCustomFetch(uaf: UseFetchReturn<any>) {
             // 请求加入队列等待, 防止并发多次请求refreshToken
             return new Promise((resolve) => {
                 queue.push(() => {
-                    resolve(execCustomFetch(uaf));
+                    resolve(execCustomFetch(uaf, reqOptions));
                 });
             });
         }
@@ -178,13 +197,13 @@ async function execCustomFetch(uaf: UseFetchReturn<any>) {
             queue = [];
         }
 
-        await execCustomFetch(uaf);
+        await execCustomFetch(uaf, reqOptions);
         return;
     }
 
     // 如果提示没有权限，则跳转至无权限页面
     if (resultCode === ResultEnum.NO_PERMISSION) {
-        router.push({
+        await router.push({
             path: URL_401,
         });
         return Promise.reject(result);

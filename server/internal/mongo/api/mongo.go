@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/imsg"
+	"mayfly-go/internal/mongo/mgm"
 	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -127,6 +128,8 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 func (m *Mongo) Databases(rc *req.Ctx) {
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
+
 	res, err := conn.Cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "get mongo dbs error: %s")
 	rc.ResData = res
@@ -135,6 +138,7 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 func (m *Mongo) Collections(rc *req.Ctx) {
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.CodePath[0])
 
@@ -152,6 +156,8 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
+
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	// 顺序执行
@@ -181,6 +187,8 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
+
 	cli := conn.Cli
 
 	limit := commandForm.Limit
@@ -215,6 +223,8 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
+
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
@@ -238,6 +248,8 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
+
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
@@ -260,6 +272,8 @@ func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 
 	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+	defer mgm.PutMongoConn(conn)
+
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)

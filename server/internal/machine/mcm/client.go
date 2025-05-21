@@ -18,6 +18,11 @@ type Cli struct {
 	sftpClient *sftp.Client // sftp客户端
 }
 
+func (c *Cli) Ping() error {
+	_, _, err := c.sshClient.Conn.SendRequest("ping", true, nil)
+	return err
+}
+
 // GetSftpCli 获取sftp client
 func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	if c.sshClient == nil {
@@ -89,7 +94,7 @@ func (c *Cli) Close() {
 	}
 	if sshTunnelMachineId != 0 {
 		logx.Debugf("close machine ssh tunnel -> machineId=%d, sshTunnelMachineId=%d", m.Id, sshTunnelMachineId)
-		CloseSshTunnelMachine(int(sshTunnelMachineId), m.GetTunnelId())
+		CloseSshTunnelMachine(sshTunnelMachineId, m.GetTunnelId())
 	}
 }
 

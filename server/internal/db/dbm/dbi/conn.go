@@ -3,9 +3,9 @@ package dbi
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
-	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 )
@@ -173,12 +173,16 @@ func (d *DbConn) Close() {
 		if err := d.db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
 		}
-		// 如果是使用了自己实现的ssh隧道转发，则需要手动将其关闭
-		if d.Info.useSshTunnel {
-			mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
-		}
+		// TODO 关闭实例隧道会影响其他正在使用的连接，所以暂时不关闭
+		//if d.Info.useSshTunnel {
+		//	mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
+		//}
 		d.db = nil
 	}
+}
+
+func (d *DbConn) Ping() error {
+	return d.db.Ping()
 }
 
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
@@ -238,10 +242,10 @@ func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn Wal
 
 // 包装sql执行相关错误
 func wrapSqlError(err error) error {
-	if err == context.Canceled {
+	if errors.Is(err, context.Canceled) {
 		return errorx.NewBiz("execution cancel")
 	}
-	if err == context.DeadlineExceeded {
+	if errors.Is(err, context.DeadlineExceeded) {
 		return errorx.NewBiz("execution timeout")
 	}
 	return err

@@ -137,6 +137,8 @@ func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
 func (m *Machine) MachineStats(rc *req.Ctx) {
 	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
+	defer mcm.PutMachineCli(cli)
+
 	rc.ResData = cli.GetAllStats()
 }
 
@@ -198,6 +200,8 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
+	defer mcm.PutMachineCli(cli)
+
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(cmd)
@@ -212,6 +216,8 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 
 	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
+	defer mcm.PutMachineCli(cli)
+
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
@@ -221,6 +227,8 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 func (m *Machine) GetUsers(rc *req.Ctx) {
 	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
+	defer mcm.PutMachineCli(cli)
+
 	res, err := cli.GetUsers()
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -229,6 +237,8 @@ func (m *Machine) GetUsers(rc *req.Ctx) {
 func (m *Machine) GetGroups(rc *req.Ctx) {
 	cli, err := m.machineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
+	defer mcm.PutMachineCli(cli)
+
 	res, err := cli.GetGroups()
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -252,9 +262,12 @@ func (m *Machine) WsSSH(rc *req.Ctx) {
 	err = req.PermissionHandler(rc)
 	biz.ErrIsNil(err, mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~"))
 
-	cli, err := m.machineApp.NewCli(GetMachineAc(rc))
+	cli, err := m.machineApp.GetCliByAc(GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connection error: %s"))
-	defer cli.Close()
+	defer func() {
+		cli.Close()
+		mcm.PutMachineCli(cli)
+	}()
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.CodePath[0])

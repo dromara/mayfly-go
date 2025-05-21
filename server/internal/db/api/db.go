@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
@@ -142,6 +143,8 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	dbConn, err := d.dbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
+	defer dbm.PutDbConn(dbConn)
+
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
@@ -193,6 +196,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	dbConn, err := d.dbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
+	defer dbm.PutDbConn(dbConn)
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
@@ -226,6 +230,8 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	la := rc.GetLoginAccount()
 	dbConn, err := d.dbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
+	defer dbm.PutDbConn(dbConn)
+
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(la.Id, dbConn.Info.CodePath...), "%s")
 
 	now := time.Now()
@@ -354,6 +360,7 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 
 	conn, err := d.dbApp.GetDbConn(form.Id, form.Db)
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")
+	defer dbm.PutDbConn(conn)
 
 	err = conn.GetDialect().CopyTable(copy)
 	if err != nil {
@@ -377,5 +384,6 @@ func getDbName(rc *req.Ctx) string {
 func (d *Db) getDbConn(rc *req.Ctx) *dbi.DbConn {
 	dc, err := d.dbApp.GetDbConn(getDbId(rc), getDbName(rc))
 	biz.ErrIsNil(err)
+	defer dbm.PutDbConn(dc)
 	return dc
 }

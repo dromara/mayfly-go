@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
@@ -151,6 +152,8 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 
 	targetDbConn, err := d.dbApp.GetDbConn(fm.TargetDbId, fm.TargetDbName)
 	biz.ErrIsNilAppendErr(err, "failed to connect to the target database: %s")
+	defer dbm.PutDbConn(targetDbConn)
+
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, targetDbConn.Info.CodePath...), "%s")
 
 	filename, reader, err := d.fileApp.GetReader(context.TODO(), tFile.FileKey)

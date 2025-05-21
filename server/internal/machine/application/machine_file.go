@@ -170,6 +170,8 @@ func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *dto.Machin
 	if err != nil {
 		return "", err
 	}
+	defer mcm.PutMachineCli(mcli)
+
 	res, err := mcli.Run(fmt.Sprintf("du -sh %s", path))
 	if err != nil {
 		// 若存在目录为空，则可能会返回如下内容。最后一行即为真正目录内容所占磁盘空间大小
@@ -202,6 +204,8 @@ func (m *machineFileAppImpl) FileStat(ctx context.Context, opParam *dto.MachineF
 	if err != nil {
 		return "", err
 	}
+	defer mcm.PutMachineCli(mcli)
+
 	return mcli.Run(fmt.Sprintf("stat -L %s", path))
 }
 
@@ -379,6 +383,8 @@ func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *dto.Machin
 	if err != nil {
 		return nil, err
 	}
+	defer mcm.PutMachineCli(mcli)
+
 	minfo := mcli.Info
 
 	// 优先使用命令删除（速度快），sftp需要递归遍历删除子文件等
@@ -429,6 +435,7 @@ func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *dto.MachineFileO
 	if err != nil {
 		return nil, err
 	}
+	defer mcm.PutMachineCli(mcli)
 
 	mi := mcli.Info
 	res, err := mcli.Run(fmt.Sprintf("cp -r %s %s", strings.Join(path, " "), toPath))
@@ -458,6 +465,7 @@ func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *dto.MachineFileOp,
 	if err != nil {
 		return nil, err
 	}
+	defer mcm.PutMachineCli(mcli)
 
 	mi := mcli.Info
 	res, err := mcli.Run(fmt.Sprintf("mv %s %s", strings.Join(path, " "), toPath))
@@ -493,6 +501,7 @@ func (m *machineFileAppImpl) GetMachineSftpCli(opParam *dto.MachineFileOp) (*mcm
 	if err != nil {
 		return nil, nil, err
 	}
+	defer mcm.PutMachineCli(mcli)
 
 	sftpCli, err := mcli.GetSftpCli()
 	if err != nil {

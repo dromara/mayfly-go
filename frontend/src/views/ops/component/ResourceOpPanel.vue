@@ -19,8 +19,6 @@ const emit = defineEmits(['resize']);
 
 const { width } = useWindowSize();
 
-console.log(width);
-
 const leftPaneSize = computed(() => (width.value >= 1600 ? 20 : 24));
 
 // 处理 resize 事件

@@ -112,7 +112,7 @@ export const useThemeConfig = defineStore('themeConfig', {
             /* 布局切换
             ------------------------------- */
             // 默认布局，可选 1、默认 defaults 2、经典 classic 3、横向 transverse 4、分栏 columns
-            layout: 'classic',
+            layout: 'transverse',
 
             terminalTheme: 'light',
             // ssh终端字体颜色
@@ -154,14 +154,14 @@ export const useThemeConfig = defineStore('themeConfig', {
         initThemeConfig() {
             // 获取缓存中的布局配置
             const tc = getThemeConfig();
-            
+
             if (tc) {
                 this.themeConfig = tc;
                 document.documentElement.style.cssText = getLocal('themeConfigStyle');
             } else {
                 getServerConf().then((res) => {
                     this.themeConfig.globalI18n = res.i18n;
-                })
+                });
             }
 
             // 根据后台系统配置初始化
