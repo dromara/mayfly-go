@@ -19,7 +19,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
-	"time"
 )
 
 type Instance interface {
@@ -28,9 +27,9 @@ type Instance interface {
 	GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.EsInstance], error)
 
 	// DoConn 获取连接并执行函数
-	DoConn(instanceId uint64, fn func(*esi.EsConn) error) error
+	DoConn(ctx context.Context, instanceId uint64, fn func(*esi.EsConn) error) error
 
-	TestConn(instance *entity.EsInstance, ac *tagentity.ResourceAuthCert) (map[string]any, error)
+	TestConn(ctx context.Context, instance *entity.EsInstance, ac *tagentity.ResourceAuthCert) (map[string]any, error)
 
 	SaveInst(ctx context.Context, d *dto.SaveEsInstance) (uint64, error)
 
@@ -39,7 +38,7 @@ type Instance interface {
 
 var _ Instance = &instanceAppImpl{}
 
-var connPool = make(map[uint64]pool.Pool)
+var poolGroup = pool.NewPoolGroup[*esi.EsConn]()
 
 type instanceAppImpl struct {
 	base.AppImpl[*entity.EsInstance, repository.EsInstance]
@@ -53,54 +52,24 @@ func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy
 	return app.GetRepo().GetInstanceList(condition, orderBy...)
 }
 
-func (app *instanceAppImpl) DoConn(instanceId uint64, fn func(*esi.EsConn) error) error {
-	// 通过实例id获取实例连接信息
-	p, err := app.getPool(instanceId)
+func (app *instanceAppImpl) DoConn(ctx context.Context, instanceId uint64, fn func(*esi.EsConn) error) error {
+	p, err := poolGroup.GetChanPool(fmt.Sprintf("es-%d", instanceId), func() (*esi.EsConn, error) {
+		return app.createConn(ctx, instanceId)
+	})
+
 	if err != nil {
 		return err
 	}
 	// 从连接池中获取一个可用的连接
-	c, err := p.Get()
+	c, err := p.Get(ctx)
 	if err != nil {
 		return err
 	}
-	ec := c.(*esi.EsConn)
 
-	// 用完后放回连接池
-	defer p.Put(c)
-
-	return fn(ec)
+	return fn(c)
 }
 
-func (app *instanceAppImpl) getPool(instanceId uint64) (pool.Pool, error) {
-	// 获取连接池，如果没有，则创建一个
-	if p, ok := connPool[instanceId]; !ok {
-		var err error
-		p, err = pool.NewChannelPool(&pool.Config{
-			InitialCap:  1,                //资源池初始连接数
-			MaxCap:      10,               //最大空闲连接数
-			MaxIdle:     10,               //最大并发连接数
-			IdleTimeout: 10 * time.Minute, // 连接最大空闲时间，过期则失效
-			Factory: func() (interface{}, error) {
-				return app.createConn(instanceId)
-			},
-			Close: func(v interface{}) error {
-				return v.(*esi.EsConn).Close()
-			},
-			Ping: func(v interface{}) error {
-				return v.(*esi.EsConn).Ping()
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		connPool[instanceId] = p
-		return p, nil
-	} else {
-		return p, nil
-	}
-}
-func (app *instanceAppImpl) createConn(instanceId uint64) (*esi.EsConn, error) {
+func (app *instanceAppImpl) createConn(ctx context.Context, instanceId uint64) (*esi.EsConn, error) {
 	// 缓存不存在，则重新连接
 	instance, err := app.GetById(instanceId)
 	if err != nil {
@@ -113,7 +82,7 @@ func (app *instanceAppImpl) createConn(instanceId uint64) (*esi.EsConn, error) {
 	}
 	ei.CodePath = app.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeEsInstance), instance.Code)
 
-	conn, _, err := ei.Conn()
+	conn, _, err := ei.Conn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +120,7 @@ func (app *instanceAppImpl) ToEsInfo(instance *entity.EsInstance, ac *tagentity.
 	return ei, nil
 }
 
-func (app *instanceAppImpl) TestConn(instance *entity.EsInstance, ac *tagentity.ResourceAuthCert) (map[string]any, error) {
+func (app *instanceAppImpl) TestConn(ctx context.Context, instance *entity.EsInstance, ac *tagentity.ResourceAuthCert) (map[string]any, error) {
 	instance.Network = instance.GetNetwork()
 
 	ei, err := app.ToEsInfo(instance, ac)
@@ -159,7 +128,7 @@ func (app *instanceAppImpl) TestConn(instance *entity.EsInstance, ac *tagentity.
 		return nil, err
 	}
 
-	_, res, err := ei.Conn()
+	_, res, err := ei.Conn(ctx)
 	if err != nil {
 		return nil, err
 	}

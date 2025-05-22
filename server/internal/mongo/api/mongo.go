@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/imsg"
-	"mayfly-go/internal/mongo/mgm"
 	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -126,9 +125,8 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 }
 
 func (m *Mongo) Databases(rc *req.Ctx) {
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	res, err := conn.Cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "get mongo dbs error: %s")
@@ -136,9 +134,8 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 }
 
 func (m *Mongo) Collections(rc *req.Ctx) {
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.CodePath[0])
 
@@ -154,9 +151,8 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
 	req.BindJsonAndValid(rc, commandForm)
 
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -185,9 +181,8 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 func (m *Mongo) FindCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoFindCommand))
 
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	cli := conn.Cli
 
@@ -221,9 +216,8 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoUpdateByIdCommand))
 
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -246,9 +240,8 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoUpdateByIdCommand))
 
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -270,9 +263,8 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	commandForm := req.BindJsonAndValid(rc, new(form.MongoInsertCommand))
 
-	conn, err := m.mongoApp.GetMongoConn(m.GetMongoId(rc))
+	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	defer mgm.PutMongoConn(conn)
 
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 

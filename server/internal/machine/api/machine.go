@@ -135,9 +135,8 @@ func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
 }
 
 func (m *Machine) MachineStats(rc *req.Ctx) {
-	cli, err := m.machineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	defer mcm.PutMachineCli(cli)
 
 	rc.ResData = cli.GetAllStats()
 }
@@ -160,7 +159,7 @@ func (m *Machine) TestConn(rc *req.Ctx) {
 	machineForm := new(form.MachineForm)
 	me := req.BindJsonAndCopyTo(rc, machineForm, new(entity.Machine))
 	// 测试连接
-	biz.ErrIsNilAppendErr(m.machineApp.TestConn(me, machineForm.AuthCerts[0]), "connection error: %s")
+	biz.ErrIsNilAppendErr(m.machineApp.TestConn(rc.MetaCtx, me, machineForm.AuthCerts[0]), "connection error: %s")
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
@@ -198,9 +197,8 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 	count := rc.QueryIntDefault("count", 10)
 	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
-	cli, err := m.machineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	defer mcm.PutMachineCli(cli)
 
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
@@ -214,9 +212,8 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 	pid := rc.Query("pid")
 	biz.NotEmpty(pid, "pid cannot be empty")
 
-	cli, err := m.machineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	defer mcm.PutMachineCli(cli)
 
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
@@ -225,9 +222,8 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 }
 
 func (m *Machine) GetUsers(rc *req.Ctx) {
-	cli, err := m.machineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	defer mcm.PutMachineCli(cli)
 
 	res, err := cli.GetUsers()
 	biz.ErrIsNil(err)
@@ -235,9 +231,8 @@ func (m *Machine) GetUsers(rc *req.Ctx) {
 }
 
 func (m *Machine) GetGroups(rc *req.Ctx) {
-	cli, err := m.machineApp.GetCli(GetMachineId(rc))
+	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
-	defer mcm.PutMachineCli(cli)
 
 	res, err := cli.GetGroups()
 	biz.ErrIsNil(err)
@@ -262,12 +257,9 @@ func (m *Machine) WsSSH(rc *req.Ctx) {
 	err = req.PermissionHandler(rc)
 	biz.ErrIsNil(err, mcm.GetErrorContentRn("You do not have permission to operate the machine terminal, please log in again and try again ~"))
 
-	cli, err := m.machineApp.GetCliByAc(GetMachineAc(rc))
+	cli, err := m.machineApp.NewCli(rc.MetaCtx, GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("connection error: %s"))
-	defer func() {
-		cli.Close()
-		mcm.PutMachineCli(cli)
-	}()
+	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.CodePath[0])
@@ -327,7 +319,7 @@ func (m *Machine) WsGuacamole(rc *req.Ctx) {
 		return
 	}
 
-	err = mi.IfUseSshTunnelChangeIpPort(true)
+	err = mi.IfUseSshTunnelChangeIpPort(rc.MetaCtx, true)
 	if err != nil {
 		return
 	}

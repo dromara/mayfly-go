@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -23,8 +24,8 @@ const (
 type Meta struct {
 }
 
-func (om *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
-	err := d.IfUseSshTunnelChangeIpPort()
+func (om *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+	err := d.IfUseSshTunnelChangeIpPort(ctx)
 	if err != nil {
 		return nil, err
 	}

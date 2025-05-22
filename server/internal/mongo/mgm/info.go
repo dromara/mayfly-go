@@ -58,7 +58,7 @@ type MongoSshDialer struct {
 }
 
 func (sd *MongoSshDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	stm, err := machineapp.GetMachineApp().GetSshTunnelMachine(sd.machineId)
+	stm, err := machineapp.GetMachineApp().GetSshTunnelMachine(ctx, sd.machineId)
 	if err != nil {
 		return nil, err
 	}

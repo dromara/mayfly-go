@@ -1,21 +1,27 @@
 package pool
 
-import "errors"
-
-var (
-	//ErrClosed 连接池已经关闭Error
-	ErrClosed = errors.New("pool is closed")
+import (
+	"context"
 )
 
-// Pool 基本方法
-type Pool interface {
-	Get() (interface{}, error)
+// Conn 连接接口
+// 连接池的连接必须实现 Conn 接口
+type Conn interface {
+	// Close 关闭连接
+	Close() error
 
-	Put(interface{}) error
+	// Ping 检查连接是否有效
+	Ping() error
+}
 
-	Close(interface{}) error
+// Pool 连接池接口
+type Pool[T Conn] interface {
+	// 核心方法
+	Get(ctx context.Context) (T, error)
+	Put(T) error
+	Close()
 
-	Release()
-
-	Len() int
+	// 管理方法
+	Resize(int)       // 动态调整大小
+	Stats() PoolStats // 获取统计信息
 }

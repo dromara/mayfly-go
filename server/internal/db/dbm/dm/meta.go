@@ -1,6 +1,7 @@
 package dm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -20,7 +21,7 @@ const (
 type Meta struct {
 }
 
-func (dm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (dm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "dm"
 	db := d.Database
 	var dbParam string
@@ -36,7 +37,7 @@ func (dm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 		dbParam = "?escapeProcess=true"
 	}
 
-	err := d.IfUseSshTunnelChangeIpPort()
+	err := d.IfUseSshTunnelChangeIpPort(ctx)
 	if err != nil {
 		return nil, err
 	}

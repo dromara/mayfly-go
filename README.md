@@ -15,11 +15,14 @@
     <img src="https://img.shields.io/github/stars/dromara/mayfly-go.svg?style=social" alt="github star"/>
     <img src="https://img.shields.io/github/forks/dromara/mayfly-go.svg?style=social" alt="github fork"/>
   </a>
+  <a href="https://github.com/dromara/mayfly-go" target="_blank">
+    <img src="https://gitcode.com/dromara/mayfly-go/star/badge.svg" alt="github star"/>
+  </a>
   <a href="https://hub.docker.com/r/mayflygo/mayfly-go/tags" target="_blank">
     <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
   </a>
   <a href="https://github.com/golang/go" target="_blank">
-    <img src="https://img.shields.io/badge/Golang-1.22%2B-yellow.svg" alt="golang"/>
+    <img src="https://img.shields.io/badge/Golang-1.24%2B-yellow.svg" alt="golang"/>
   </a>
   <a href="https://cn.vuejs.org" target="_blank">
     <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
@@ -106,7 +109,7 @@ http://go.mayfly.run
 
 ## 💌 支持作者
 
-如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> 或者 <a target="_blank" href="https://gitee.com/dromara/mayfly-go">Gitee</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。
+如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> 或 <a target="_blank" href="https://gitee.com/dromara/mayfly-go">Gitee</a> 或 <a target="_blank" href="https://gitcode.com/dromara/mayfly-go">Gitcode</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。
 
 > 喝杯咖啡 ☕️ 或者来杯奶茶 🧋，让作者更有精神，写出更棒的代码！
 

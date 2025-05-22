@@ -1,26 +1,26 @@
 package migrations
 
 import (
-	"github.com/go-gormigrate/gormigrate/v2"
-	"gorm.io/gorm"
 	esentity "mayfly-go/internal/es/domain/entity"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/model"
 	"time"
+
+	"github.com/go-gormigrate/gormigrate/v2"
+	"gorm.io/gorm"
 )
 
 func V1_10() []*gormigrate.Migration {
 	var migrations []*gormigrate.Migration
 	migrations = append(migrations, V1_10_0()...)
-	migrations = append(migrations, V1_10_1()...)
 	return migrations
 }
 
 func V1_10_0() []*gormigrate.Migration {
 	return []*gormigrate.Migration{
 		{
-			ID: "20250213-v1.10.0-flow-recode",
+			ID: "20250520-v1.10.0-flow-recode",
 			Migrate: func(tx *gorm.DB) error {
 				err := tx.AutoMigrate(&flowentity.Procdef{},
 					&flowentity.Procinst{},
@@ -32,19 +32,6 @@ func V1_10_0() []*gormigrate.Migration {
 					return err
 				}
 
-				return nil
-			},
-			Rollback: func(tx *gorm.DB) error {
-				return nil
-			},
-		},
-	}
-}
-func V1_10_1() []*gormigrate.Migration {
-	return []*gormigrate.Migration{
-		{
-			ID: "20250422-v1.10.1-es",
-			Migrate: func(tx *gorm.DB) error {
 				// 添加实例表
 				entities := [...]any{
 					new(esentity.EsInstance),
@@ -55,7 +42,7 @@ func V1_10_1() []*gormigrate.Migration {
 					}
 				}
 
-				// 添加菜单资源
+				// 添加ES相关菜单资源
 				resources := []*sysentity.Resource{
 					{
 						Model:  model.Model{CreateModel: model.CreateModel{DeletedModel: model.DeletedModel{IdModel: model.IdModel{Id: 1745292787}}}},
@@ -65,7 +52,7 @@ func V1_10_1() []*gormigrate.Migration {
 						Code:   "/es",
 						Type:   1,
 						Meta:   `{"icon":"icon es/es-color","isKeepAlive":true,"routeName":"ES"}`,
-						Weight: 7,
+						Weight: 50000001,
 					},
 					{
 						Model:  model.Model{CreateModel: model.CreateModel{DeletedModel: model.DeletedModel{IdModel: model.IdModel{Id: 1745319348}}}},

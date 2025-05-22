@@ -25,10 +25,10 @@ const (
 type Meta struct {
 }
 
-func (mm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (mm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
-		sshTunnelMachine, err := dbi.GetSshTunnel(d.SshTunnelMachineId)
+		sshTunnelMachine, err := dbi.GetSshTunnel(ctx, d.SshTunnelMachineId)
 		if err != nil {
 			return nil, err
 		}

@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -19,7 +20,7 @@ const (
 type Meta struct {
 }
 
-func (md *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (md *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	// 用host字段来存sqlite的文件路径
 	// 检查文件是否存在,否则报错，基于sqlite会自动创建文件，为了服务器文件安全，所以先确定文件存在再连接，不自动创建
 	if _, err := os.Stat(d.Host); err != nil {

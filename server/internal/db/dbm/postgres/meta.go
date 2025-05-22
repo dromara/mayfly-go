@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -37,7 +38,7 @@ type Meta struct {
 	Param string
 }
 
-func (pm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (pm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "postgres"
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
@@ -120,7 +121,8 @@ func (pd *PqSqlDialer) Open(name string) (driver.Conn, error) {
 }
 
 func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	sshTunnel, err := dbi.GetSshTunnel(pd.sshTunnelMachineId)
+	// todo context.Background可能存在问题
+	sshTunnel, err := dbi.GetSshTunnel(context.Background(), pd.sshTunnelMachineId)
 	if err != nil {
 		return nil, err
 	}

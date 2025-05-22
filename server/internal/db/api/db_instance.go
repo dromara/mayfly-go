@@ -93,7 +93,7 @@ func (d *Instance) TestConn(rc *req.Ctx) {
 	form := &form.InstanceForm{}
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
-	biz.ErrIsNil(d.instanceApp.TestConn(instance, form.AuthCerts[0]))
+	biz.ErrIsNil(d.instanceApp.TestConn(rc.MetaCtx, instance, form.AuthCerts[0]))
 }
 
 // SaveInstance 保存数据库实例信息
@@ -137,13 +137,13 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	form := &form.InstanceDbNamesForm{}
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
-	res, err := d.instanceApp.GetDatabases(instance, form.AuthCert)
+	res, err := d.instanceApp.GetDatabases(rc.MetaCtx, instance, form.AuthCert)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (d *Instance) GetDatabaseNamesByAc(rc *req.Ctx) {
-	res, err := d.instanceApp.GetDatabasesByAc(rc.PathParam("ac"))
+	res, err := d.instanceApp.GetDatabasesByAc(rc.MetaCtx, rc.PathParam("ac"))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -151,7 +151,7 @@ func (d *Instance) GetDatabaseNamesByAc(rc *req.Ctx) {
 // 获取数据库实例server信息
 func (d *Instance) GetDbServer(rc *req.Ctx) {
 	instanceId := getInstanceId(rc)
-	conn, err := d.dbApp.GetDbConnByInstanceId(instanceId)
+	conn, err := d.dbApp.GetDbConnByInstanceId(rc.MetaCtx, instanceId)
 	biz.ErrIsNil(err)
 	res, err := conn.GetMetadata().GetDbServer()
 	biz.ErrIsNil(err)

@@ -1,6 +1,7 @@
 package dbi
 
 import (
+	"context"
 	"database/sql"
 )
 
@@ -14,7 +15,7 @@ type DbVersion string
 // Meta 数据库元信息，如获取sql.DB、Dialect等
 type Meta interface {
 	// GetSqlDb 根据数据库信息获取sql.DB
-	GetSqlDb(*DbInfo) (*sql.DB, error)
+	GetSqlDb(context.Context, *DbInfo) (*sql.DB, error)
 
 	// GetDialect 获取数据库方言, 若一些接口不需要DbConn，则可以传nil
 	GetDialect(*DbConn) Dialect

@@ -139,8 +139,8 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 }
 
 func getRedisDialer(machineId int) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	return func(_ context.Context, network, addr string) (net.Conn, error) {
-		sshTunnel, err := machineapp.GetMachineApp().GetSshTunnelMachine(machineId)
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		sshTunnel, err := machineapp.GetMachineApp().GetSshTunnelMachine(ctx, machineId)
 		if err != nil {
 			return nil, err
 		}

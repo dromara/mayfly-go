@@ -1,6 +1,7 @@
 package mssql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -23,8 +24,8 @@ const (
 type Meta struct {
 }
 
-func (mm *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
-	err := d.IfUseSshTunnelChangeIpPort()
+func (mm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+	err := d.IfUseSshTunnelChangeIpPort(ctx)
 	if err != nil {
 		return nil, err
 	}

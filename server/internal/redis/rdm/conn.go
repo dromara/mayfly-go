@@ -17,6 +17,34 @@ type RedisConn struct {
 	ClusterCli *redis.ClusterClient
 }
 
+/******************* pool.Conn impl *******************/
+
+func (r *RedisConn) Close() error {
+	mode := r.Info.Mode
+	if mode == StandaloneMode || mode == SentinelMode {
+		if err := r.Cli.Close(); err != nil {
+			logx.Errorf("close redis standalone instance [%s] connection failed: %s", r.Id, err.Error())
+			return err
+		}
+		r.Cli = nil
+		return nil
+	}
+
+	if mode == ClusterMode {
+		if err := r.ClusterCli.Close(); err != nil {
+			logx.Errorf("close redis cluster instance [%s] connection failed: %s", r.Id, err.Error())
+			return err
+		}
+		r.ClusterCli = nil
+	}
+	return nil
+}
+
+func (r *RedisConn) Ping() error {
+	_, err := r.Cli.Ping(context.Background()).Result()
+	return err
+}
+
 // 获取命令执行接口的具体实现
 func (r *RedisConn) GetCmdable() redis.Cmdable {
 	redisMode := r.Info.Mode
@@ -44,22 +72,4 @@ func (r *RedisConn) RunCmd(ctx context.Context, args ...any) (any, error) {
 		return r.ClusterCli.Do(ctx, args...).Result()
 	}
 	return nil, errorx.NewBiz("redis mode error")
-}
-
-func (r *RedisConn) Close() {
-	mode := r.Info.Mode
-	if mode == StandaloneMode || mode == SentinelMode {
-		if err := r.Cli.Close(); err != nil {
-			logx.Errorf("close redis standalone instance [%s] connection failed: %s", r.Id, err.Error())
-		}
-		r.Cli = nil
-		return
-	}
-
-	if mode == ClusterMode {
-		if err := r.ClusterCli.Close(); err != nil {
-			logx.Errorf("close redis cluster instance [%s] connection failed: %s", r.Id, err.Error())
-		}
-		r.ClusterCli = nil
-	}
 }

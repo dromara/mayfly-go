@@ -40,10 +40,10 @@ type Db interface {
 	// @param id 数据库id
 	//
 	// @param dbName 数据库名
-	GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error)
+	GetDbConn(ctx context.Context, dbId uint64, dbName string) (*dbi.DbConn, error)
 
 	// 根据数据库实例id获取连接，随机返回该instanceId下已连接的conn，若不存在则是使用该instanceId关联的db进行连接并返回。
-	GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error)
+	GetDbConnByInstanceId(ctx context.Context, instanceId uint64) (*dbi.DbConn, error)
 
 	// DumpDb dumpDb
 	DumpDb(ctx context.Context, reqParam *dto.DumpDb) error
@@ -170,8 +170,8 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		})
 }
 
-func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
-	return dbm.GetDbConn(dbId, dbName, func() (*dbi.DbInfo, error) {
+func (d *dbAppImpl) GetDbConn(ctx context.Context, dbId uint64, dbName string) (*dbi.DbConn, error) {
+	return dbm.GetDbConn(ctx, dbId, dbName, func() (*dbi.DbInfo, error) {
 		db, err := d.GetById(dbId)
 		if err != nil {
 			return nil, errorx.NewBiz("db not found")
@@ -198,8 +198,8 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 	})
 }
 
-func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error) {
-	conn := dbm.GetDbConnByInstanceId(instanceId)
+func (d *dbAppImpl) GetDbConnByInstanceId(ctx context.Context, instanceId uint64) (*dbi.DbConn, error) {
+	conn := dbm.GetDbConnByInstanceId(ctx, instanceId)
 	if conn != nil {
 		return conn, nil
 	}
@@ -214,7 +214,7 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
 	firstDb := dbs[0]
-	return d.GetDbConn(firstDb.Id, strings.Split(firstDb.Database, " ")[0])
+	return d.GetDbConn(ctx, firstDb.Id, strings.Split(firstDb.Database, " ")[0])
 }
 
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
@@ -233,7 +233,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	dbName := reqParam.DbName
 	tables := reqParam.Tables
 
-	dbConn, err := d.GetDbConn(dbId, dbName)
+	dbConn, err := d.GetDbConn(ctx, dbId, dbName)
 	if err != nil {
 		return err
 	}

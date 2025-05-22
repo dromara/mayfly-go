@@ -1,7 +1,6 @@
 package api
 
 import (
-	"github.com/may-fly/cast"
 	"mayfly-go/internal/es/api/form"
 	"mayfly-go/internal/es/api/vo"
 	"mayfly-go/internal/es/application"
@@ -19,6 +18,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type Instance struct {
@@ -99,7 +100,7 @@ func (d *Instance) TestConn(rc *req.Ctx) {
 		ac = fm.AuthCerts[0]
 	}
 
-	res, err := d.inst.TestConn(instance, ac)
+	res, err := d.inst.TestConn(rc.MetaCtx, instance, ac)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -133,7 +134,7 @@ func (d *Instance) Proxy(rc *req.Ctx) {
 	r := rc.GetRequest()
 	_ = RemoveQueryParam(r, "id", "path")
 
-	err := d.inst.DoConn(instanceId, func(conn *esi.EsConn) error {
+	err := d.inst.DoConn(rc.MetaCtx, instanceId, func(conn *esi.EsConn) error {
 		conn.Proxy(rc.GetWriter(), r, path)
 		return nil
 	})

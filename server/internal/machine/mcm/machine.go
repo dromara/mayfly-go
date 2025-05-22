@@ -1,6 +1,7 @@
 package mcm
 
 import (
+	"context"
 	"fmt"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/errorx"
@@ -49,11 +50,11 @@ func (mi *MachineInfo) GetTunnelId() string {
 }
 
 // 连接
-func (mi *MachineInfo) Conn() (*Cli, error) {
+func (mi *MachineInfo) Conn(ctx context.Context) (*Cli, error) {
 	logx.Infof("the machine[%s] is connecting: %s:%d", mi.Name, mi.Ip, mi.Port)
 
 	// 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
-	err := mi.IfUseSshTunnelChangeIpPort(false)
+	err := mi.IfUseSshTunnelChangeIpPort(ctx, false)
 	if err != nil {
 		return nil, errorx.NewBiz("ssh tunnel connection failed: %s", err.Error())
 	}
@@ -71,7 +72,7 @@ func (mi *MachineInfo) Conn() (*Cli, error) {
 }
 
 // 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
-func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(out bool) error {
+func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(ctx context.Context, out bool) error {
 	if !mi.UseSshTunnel() {
 		return nil
 	}
@@ -82,8 +83,9 @@ func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(out bool) error {
 		mi.Id = uint64(time.Now().Nanosecond())
 	}
 
-	sshTunnelMachine, err := GetSshTunnelMachine(int(mi.SshTunnelMachine.Id), func(u uint64) (*MachineInfo, error) {
-		return mi.SshTunnelMachine, nil
+	stm := mi.SshTunnelMachine
+	sshTunnelMachine, err := GetSshTunnelMachine(ctx, int(stm.Id), func(u uint64) (*MachineInfo, error) {
+		return stm, nil
 	})
 	if err != nil {
 		return err
@@ -102,7 +104,7 @@ func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(out bool) error {
 	mi.Ip = exposeIp
 	mi.Port = exposePort
 	// 代理之后置空跳板机信息，防止重复跳
-	mi.TempSshMachineId = mi.SshTunnelMachine.Id
+	mi.TempSshMachineId = stm.Id
 	mi.SshTunnelMachine = nil
 	return nil
 }

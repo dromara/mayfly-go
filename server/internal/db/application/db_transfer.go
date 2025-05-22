@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/application/dto"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
@@ -209,8 +208,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint
 
 	// 获取源库连接、目标库连接，判断连接可用性，否则记录日志：xx连接不可用
 	// 获取源库表信息
-	srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
-	defer dbm.PutDbConn(srcConn)
+	srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
 	if err != nil {
 		app.EndTransfer(ctx, logId, taskId, "failed to obtain source db connection", err, nil)
 		return
@@ -248,8 +246,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint
 
 func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, start time.Time, tables []dbi.Table) {
 	// 获取目标库表信息
-	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
-	defer dbm.PutDbConn(targetConn)
+	targetConn, err := app.dbApp.GetDbConn(ctx, uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
 		app.EndTransfer(ctx, logId, taskId, "failed to get target db connection", err, nil)
 		return

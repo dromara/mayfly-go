@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -110,7 +109,9 @@ func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.D
 		taskId := taskEntity.Id
 		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
 			logx.Infof("start the data synchronization task: %d", taskId)
-			if err := app.RunCronJob(ctx, taskId); err != nil {
+			cancelCtx, cancelFunc := context.WithCancel(ctx)
+			defer cancelFunc()
+			if err := app.RunCronJob(cancelCtx, taskId); err != nil {
 				logx.Errorf("the data synchronization task failed to execute at a scheduled time: %s", err.Error())
 			}
 		}); err != nil {
@@ -150,8 +151,7 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 				logx.ErrorfContext(ctx, "data source connection unavailable: %s", err.Error())
 				return
 			}
-			srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
-			defer dbm.PutDbConn(srcConn)
+			srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
 			if err != nil {
 				logx.ErrorfContext(ctx, "failed to connect to the source database: %s", err.Error())
 				return
@@ -205,16 +205,14 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	}
 
 	// 获取源数据库连接
-	srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
-	defer dbm.PutDbConn(srcConn)
+	srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
 
 	if err != nil {
 		return syncLog, errorx.NewBiz("failed to connect to the source database: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
-	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
-	defer dbm.PutDbConn(targetConn)
+	targetConn, err := app.dbApp.GetDbConn(ctx, uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
 		return syncLog, errorx.NewBiz("failed to connect to the target database: %s", err.Error())
 	}

@@ -46,7 +46,7 @@ type Redis interface {
 	// 获取数据库连接实例
 	// id: 数据库实例id
 	// db: 库号
-	GetRedisConn(id uint64, db int) (*rdm.RedisConn, error)
+	GetRedisConn(ctx context.Context, id uint64, db int) (*rdm.RedisConn, error)
 
 	// 执行redis命令
 	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error)
@@ -196,8 +196,8 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 }
 
 // 获取数据库连接实例
-func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
-	return rdm.GetRedisConn(id, db, func() (*rdm.RedisInfo, error) {
+func (r *redisAppImpl) GetRedisConn(ctx context.Context, id uint64, db int) (*rdm.RedisConn, error) {
+	return rdm.GetRedisConn(ctx, id, db, func() (*rdm.RedisInfo, error) {
 		// 缓存不存在，则回调获取redis信息
 		re, err := r.GetById(id)
 		if err != nil {
@@ -258,7 +258,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
 	}
 
-	redisConn, err := r.GetRedisConn(runCmdParam.Id, runCmdParam.Db)
+	redisConn, err := r.GetRedisConn(ctx, runCmdParam.Id, runCmdParam.Db)
 	if err != nil {
 		return nil, err
 	}

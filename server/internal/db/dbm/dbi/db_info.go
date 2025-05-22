@@ -1,6 +1,7 @@
 package dbi
 
 import (
+	"context"
 	"fmt"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/mcm"
@@ -52,7 +53,7 @@ func (di *DbInfo) GetLogDesc() string {
 }
 
 // 连接数据库
-func (di *DbInfo) Conn(meta Meta) (*DbConn, error) {
+func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 	if meta == nil {
 		return nil, errorx.NewBiz("the database meta information interface cannot be empty")
 	}
@@ -66,7 +67,7 @@ func (di *DbInfo) Conn(meta Meta) (*DbConn, error) {
 		di.Database = database
 	}
 
-	conn, err := meta.GetSqlDb(di)
+	conn, err := meta.GetSqlDb(ctx, di)
 	if err != nil {
 		logx.Errorf("db connection failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBiz("db connection failed: %s", err.Error())
@@ -83,7 +84,7 @@ func (di *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	// 最大连接周期，超过时间的连接就close
 	// conn.SetConnMaxLifetime(100 * time.Second)
 	// 设置最大连接数
-	conn.SetMaxOpenConns(5)
+	conn.SetMaxOpenConns(6)
 	// 设置闲置连接数
 	conn.SetMaxIdleConns(1)
 	dbc.db = conn
@@ -93,10 +94,10 @@ func (di *DbInfo) Conn(meta Meta) (*DbConn, error) {
 }
 
 // 如果使用了ssh隧道，将其host port改变其本地映射host port
-func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
+func (di *DbInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
-		sshTunnelMachine, err := GetSshTunnel(di.SshTunnelMachineId)
+		sshTunnelMachine, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
 		if err != nil {
 			return err
 		}
@@ -133,8 +134,8 @@ func (di *DbInfo) GetDatabase() string {
 }
 
 // 根据ssh tunnel机器id返回ssh tunnel
-func GetSshTunnel(sshTunnelMachineId int) (*mcm.SshTunnelMachine, error) {
-	return machineapp.GetMachineApp().GetSshTunnelMachine(sshTunnelMachineId)
+func GetSshTunnel(ctx context.Context, sshTunnelMachineId int) (*mcm.SshTunnelMachine, error) {
+	return machineapp.GetMachineApp().GetSshTunnelMachine(ctx, sshTunnelMachineId)
 }
 
 // 获取连接id
@@ -143,5 +144,5 @@ func GetDbConnId(dbId uint64, db string) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%d:%s", dbId, db)
+	return fmt.Sprintf("db-%d:%s", dbId, db)
 }

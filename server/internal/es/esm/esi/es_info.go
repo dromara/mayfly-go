@@ -1,6 +1,7 @@
 package esi
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	machineapp "mayfly-go/internal/machine/application"
@@ -46,7 +47,7 @@ func (di *EsInfo) GetLogDesc() string {
 }
 
 // 连接数据库
-func (di *EsInfo) Conn() (*EsConn, map[string]any, error) {
+func (di *EsInfo) Conn(ctx context.Context) (*EsConn, map[string]any, error) {
 	// 使用basic加密用户名和密码
 	if di.Username != "" && di.Password != "" {
 		encodeString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", di.Username, di.Password)))
@@ -54,7 +55,7 @@ func (di *EsInfo) Conn() (*EsConn, map[string]any, error) {
 	}
 
 	// 使用ssh隧道
-	err := di.IfUseSshTunnelChangeIpPort()
+	err := di.IfUseSshTunnelChangeIpPort(ctx)
 	if err != nil {
 		logx.Errorf("es ssh failed: %s, err:%s", di.baseUrl, err.Error())
 		return nil, nil, errorx.NewBiz("es ssh failed: %s", err.Error())
@@ -115,10 +116,10 @@ func (di *EsInfo) ExecApi(method, path string, data any, timeoutSecond ...int) (
 }
 
 // 如果使用了ssh隧道，将其host port改变其本地映射host port
-func (di *EsInfo) IfUseSshTunnelChangeIpPort() error {
+func (di *EsInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
-		stm, err := GetSshTunnel(di.SshTunnelMachineId)
+		stm, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
 		if err != nil {
 			return err
 		}
@@ -137,6 +138,6 @@ func (di *EsInfo) IfUseSshTunnelChangeIpPort() error {
 }
 
 // 根据ssh tunnel机器id返回ssh tunnel
-func GetSshTunnel(sshTunnelMachineId int) (*mcm.SshTunnelMachine, error) {
-	return machineapp.GetMachineApp().GetSshTunnelMachine(sshTunnelMachineId)
+func GetSshTunnel(ctx context.Context, sshTunnelMachineId int) (*mcm.SshTunnelMachine, error) {
+	return machineapp.GetMachineApp().GetSshTunnelMachine(ctx, sshTunnelMachineId)
 }

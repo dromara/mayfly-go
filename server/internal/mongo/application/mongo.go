@@ -31,7 +31,7 @@ type Mongo interface {
 
 	// 获取mongo连接实例
 	// @param id mongo id
-	GetMongoConn(id uint64) (*mgm.MongoConn, error)
+	GetMongoConn(ctx context.Context, id uint64) (*mgm.MongoConn, error)
 }
 
 type mongoAppImpl struct {
@@ -131,8 +131,8 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 	})
 }
 
-func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
-	return mgm.GetMongoConn(id, func() (*mgm.MongoInfo, error) {
+func (d *mongoAppImpl) GetMongoConn(ctx context.Context, id uint64) (*mgm.MongoConn, error) {
+	return mgm.GetMongoConn(ctx, id, func() (*mgm.MongoInfo, error) {
 		me, err := d.GetById(id)
 		if err != nil {
 			return nil, errorx.NewBiz("mongo not found")

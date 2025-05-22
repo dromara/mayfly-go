@@ -21,6 +21,29 @@ type DbConn struct {
 	db *sql.DB
 }
 
+/******************* pool.Conn impl *******************/
+
+// 关闭连接
+func (d *DbConn) Close() error {
+	if d.db != nil {
+		logx.Debugf("dbm - conn close, connId: %s", d.Id)
+		if err := d.db.Close(); err != nil {
+			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
+		}
+		// TODO 关闭实例隧道会影响其他正在使用的连接，所以暂时不关闭
+		//if d.Info.useSshTunnel {
+		//	mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
+		//}
+		d.db = nil
+	}
+
+	return nil
+}
+
+func (d *DbConn) Ping() error {
+	return d.db.Ping()
+}
+
 // 执行数据库查询返回的列信息
 type QueryColumn struct {
 	Name string `json:"name"` // 列名
@@ -165,24 +188,6 @@ func (d *DbConn) GetDbDataType(dataType string) *DbDataType {
 // Stats 返回数据库连接状态
 func (d *DbConn) Stats(ctx context.Context, execSql string, args ...any) sql.DBStats {
 	return d.db.Stats()
-}
-
-// 关闭连接
-func (d *DbConn) Close() {
-	if d.db != nil {
-		if err := d.db.Close(); err != nil {
-			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
-		}
-		// TODO 关闭实例隧道会影响其他正在使用的连接，所以暂时不关闭
-		//if d.Info.useSshTunnel {
-		//	mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
-		//}
-		d.db = nil
-	}
-}
-
-func (d *DbConn) Ping() error {
-	return d.db.Ping()
 }
 
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历

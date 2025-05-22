@@ -27,7 +27,7 @@ type Instance interface {
 	// GetPageList 分页获取数据库实例
 	GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
 
-	TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
+	TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
 
 	SaveDbInstance(ctx context.Context, instance *dto.SaveDbInstance) (uint64, error)
 
@@ -35,10 +35,10 @@ type Instance interface {
 	Delete(ctx context.Context, id uint64) error
 
 	// GetDatabases 获取数据库实例的所有数据库列表
-	GetDatabases(entity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error)
+	GetDatabases(ctx context.Context, entity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error)
 
 	// GetDatabasesByAc 根据授权凭证名获取所有数据库名称列表
-	GetDatabasesByAc(acName string) ([]string, error)
+	GetDatabasesByAc(ctx context.Context, acName string) ([]string, error)
 
 	// ToDbInfo 根据实例与授权凭证返回对应的DbInfo
 	ToDbInfo(instance *entity.DbInstance, authCertName string, database string) (*dbi.DbInfo, error)
@@ -59,7 +59,7 @@ func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy
 	return app.GetRepo().GetInstanceList(condition, orderBy...)
 }
 
-func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {
+func (app *instanceAppImpl) TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {
 	instanceEntity.Network = instanceEntity.GetNetwork()
 
 	authCert, err := app.resourceAuthCertApp.GetRealAuthCert(authCert)
@@ -67,7 +67,7 @@ func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert
 		return err
 	}
 
-	dbConn, err := dbm.Conn(app.toDbInfoByAc(instanceEntity, authCert, ""))
+	dbConn, err := dbm.Conn(ctx, app.toDbInfoByAc(instanceEntity, authCert, ""))
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 	})
 }
 
-func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error) {
+func (app *instanceAppImpl) GetDatabases(ctx context.Context, ed *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error) {
 	if authCert.Id != 0 {
 		// 密文可能被清除，故需要重新获取
 		authCert, _ = app.resourceAuthCertApp.GetAuthCert(authCert.Name)
@@ -199,10 +199,10 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance, authCert *tagent
 		}
 	}
 
-	return app.getDatabases(ed, authCert)
+	return app.getDatabases(ctx, ed, authCert)
 }
 
-func (app *instanceAppImpl) GetDatabasesByAc(acName string) ([]string, error) {
+func (app *instanceAppImpl) GetDatabasesByAc(ctx context.Context, acName string) ([]string, error) {
 	ac, err := app.resourceAuthCertApp.GetAuthCert(acName)
 	if err != nil {
 		return nil, errorx.NewBiz("db ac not found")
@@ -214,7 +214,7 @@ func (app *instanceAppImpl) GetDatabasesByAc(acName string) ([]string, error) {
 		return nil, errorx.NewBiz("the db instance information for this ac does not exist")
 	}
 
-	return app.getDatabases(instance, ac)
+	return app.getDatabases(ctx, instance, ac)
 }
 
 func (app *instanceAppImpl) ToDbInfo(instance *entity.DbInstance, authCertName string, database string) (*dbi.DbInfo, error) {
@@ -226,11 +226,11 @@ func (app *instanceAppImpl) ToDbInfo(instance *entity.DbInstance, authCertName s
 	return app.toDbInfoByAc(instance, ac, database), nil
 }
 
-func (app *instanceAppImpl) getDatabases(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert) ([]string, error) {
+func (app *instanceAppImpl) getDatabases(ctx context.Context, instance *entity.DbInstance, ac *tagentity.ResourceAuthCert) ([]string, error) {
 	instance.Network = instance.GetNetwork()
 	dbi := app.toDbInfoByAc(instance, ac, "")
 
-	dbConn, err := dbm.Conn(dbi)
+	dbConn, err := dbm.Conn(ctx, dbi)
 	if err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ type MachineFile interface {
 	Save(ctx context.Context, entity *entity.MachineFile) error
 
 	// 获取机器cli
-	GetMachineCli(authCertName string) (*mcm.Cli, error)
+	GetMachineCli(ctx context.Context, authCertName string) (*mcm.Cli, error)
 
 	GetRdpFilePath(ua *model.LoginAccount, path string) string
 
@@ -85,6 +85,8 @@ type machineFileAppImpl struct {
 
 	machineApp Machine `inject:"T"`
 }
+
+var _ MachineFile = (*machineFileAppImpl)(nil)
 
 // 注入MachineFileRepo
 func (m *machineFileAppImpl) InjectMachineFileRepo(repo repository.MachineFile) {
@@ -134,7 +136,7 @@ func (m *machineFileAppImpl) ReadDir(ctx context.Context, opParam *dto.MachineFi
 		}), nil
 	}
 
-	_, sftpCli, err := m.GetMachineSftpCli(opParam)
+	_, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, err
 	}
@@ -166,11 +168,10 @@ func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *dto.Machin
 		return bytex.FormatSize(totalSize), nil
 	}
 
-	mcli, err := m.GetMachineCli(opParam.AuthCertName)
+	mcli, err := m.GetMachineCli(ctx, opParam.AuthCertName)
 	if err != nil {
 		return "", err
 	}
-	defer mcm.PutMachineCli(mcli)
 
 	res, err := mcli.Run(fmt.Sprintf("du -sh %s", path))
 	if err != nil {
@@ -200,11 +201,10 @@ func (m *machineFileAppImpl) FileStat(ctx context.Context, opParam *dto.MachineF
 		return fmt.Sprintf("%v", stat), err
 	}
 
-	mcli, err := m.GetMachineCli(opParam.AuthCertName)
+	mcli, err := m.GetMachineCli(ctx, opParam.AuthCertName)
 	if err != nil {
 		return "", err
 	}
-	defer mcm.PutMachineCli(mcli)
 
 	return mcli.Run(fmt.Sprintf("stat -L %s", path))
 }
@@ -221,7 +221,7 @@ func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *dto.MachineFile
 		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 	}
 
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *dto.Machin
 		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, err
 	}
 
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *dto.Machin
 }
 
 func (m *machineFileAppImpl) ReadFile(ctx context.Context, opParam *dto.MachineFileOp) (*sftp.File, *mcm.MachineInfo, error) {
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -278,7 +278,7 @@ func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *dto.
 		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, err
 	}
 
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (m *machineFileAppImpl) UploadFile(ctx context.Context, opParam *dto.Machin
 		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 	}
 
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, err
 	}
@@ -379,11 +379,10 @@ func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *dto.Machin
 		return nil, nil
 	}
 
-	mcli, err := m.GetMachineCli(opParam.AuthCertName)
+	mcli, err := m.GetMachineCli(ctx, opParam.AuthCertName)
 	if err != nil {
 		return nil, err
 	}
-	defer mcm.PutMachineCli(mcli)
 
 	minfo := mcli.Info
 
@@ -431,11 +430,10 @@ func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *dto.MachineFileO
 		return nil, nil
 	}
 
-	mcli, err := m.GetMachineCli(opParam.AuthCertName)
+	mcli, err := m.GetMachineCli(ctx, opParam.AuthCertName)
 	if err != nil {
 		return nil, err
 	}
-	defer mcm.PutMachineCli(mcli)
 
 	mi := mcli.Info
 	res, err := mcli.Run(fmt.Sprintf("cp -r %s %s", strings.Join(path, " "), toPath))
@@ -461,11 +459,10 @@ func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *dto.MachineFileOp,
 		return nil, nil
 	}
 
-	mcli, err := m.GetMachineCli(opParam.AuthCertName)
+	mcli, err := m.GetMachineCli(ctx, opParam.AuthCertName)
 	if err != nil {
 		return nil, err
 	}
-	defer mcm.PutMachineCli(mcli)
 
 	mi := mcli.Info
 	res, err := mcli.Run(fmt.Sprintf("mv %s %s", strings.Join(path, " "), toPath))
@@ -483,7 +480,7 @@ func (m *machineFileAppImpl) Rename(ctx context.Context, opParam *dto.MachineFil
 		return nil, os.Rename(oldname, newname)
 	}
 
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
 	if err != nil {
 		return nil, err
 	}
@@ -491,17 +488,16 @@ func (m *machineFileAppImpl) Rename(ctx context.Context, opParam *dto.MachineFil
 }
 
 // 获取文件机器cli
-func (m *machineFileAppImpl) GetMachineCli(authCertName string) (*mcm.Cli, error) {
-	return m.machineApp.GetCliByAc(authCertName)
+func (m *machineFileAppImpl) GetMachineCli(ctx context.Context, authCertName string) (*mcm.Cli, error) {
+	return m.machineApp.GetCliByAc(ctx, authCertName)
 }
 
 // 获取文件机器 sftp cli
-func (m *machineFileAppImpl) GetMachineSftpCli(opParam *dto.MachineFileOp) (*mcm.MachineInfo, *sftp.Client, error) {
-	mcli, err := m.GetMachineCli(opParam.AuthCertName)
+func (m *machineFileAppImpl) GetMachineSftpCli(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, *sftp.Client, error) {
+	mcli, err := m.GetMachineCli(ctx, opParam.AuthCertName)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer mcm.PutMachineCli(mcli)
 
 	sftpCli, err := mcli.GetSftpCli()
 	if err != nil {

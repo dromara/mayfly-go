@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
@@ -140,10 +139,12 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 func (d *Db) ExecSql(rc *req.Ctx) {
 	form := req.BindJsonAndValid(rc, new(form.DbSqlExecForm))
 
+	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
+	defer cancel()
+
 	dbId := getDbId(rc)
-	dbConn, err := d.dbApp.GetDbConn(dbId, form.Db)
+	dbConn, err := d.dbApp.GetDbConn(ctx, dbId, form.Db)
 	biz.ErrIsNil(err)
-	defer dbm.PutDbConn(dbConn)
 
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
@@ -162,9 +163,6 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		Sql:       sqlStr,
 		CheckFlow: true,
 	}
-
-	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
-	defer cancel()
 
 	execRes, err := d.dbSqlExecApp.Exec(ctx, execReq)
 	biz.ErrIsNil(err)
@@ -194,9 +192,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	dbName := getDbName(rc)
 	clientId := rc.Query("clientId")
 
-	dbConn, err := d.dbApp.GetDbConn(dbId, dbName)
+	dbConn, err := d.dbApp.GetDbConn(rc.MetaCtx, dbId, dbName)
 	biz.ErrIsNil(err)
-	defer dbm.PutDbConn(dbConn)
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
@@ -228,9 +225,8 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	needData := dumpType == "2" || dumpType == "3"
 
 	la := rc.GetLoginAccount()
-	dbConn, err := d.dbApp.GetDbConn(dbId, dbName)
+	dbConn, err := d.dbApp.GetDbConn(rc.MetaCtx, dbId, dbName)
 	biz.ErrIsNil(err)
-	defer dbm.PutDbConn(dbConn)
 
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(la.Id, dbConn.Info.CodePath...), "%s")
 
@@ -358,9 +354,8 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 	form := &form.DbCopyTableForm{}
 	copy := req.BindJsonAndCopyTo[*dbi.DbCopyTable](rc, form, new(dbi.DbCopyTable))
 
-	conn, err := d.dbApp.GetDbConn(form.Id, form.Db)
+	conn, err := d.dbApp.GetDbConn(rc.MetaCtx, form.Id, form.Db)
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")
-	defer dbm.PutDbConn(conn)
 
 	err = conn.GetDialect().CopyTable(copy)
 	if err != nil {
@@ -382,8 +377,7 @@ func getDbName(rc *req.Ctx) string {
 }
 
 func (d *Db) getDbConn(rc *req.Ctx) *dbi.DbConn {
-	dc, err := d.dbApp.GetDbConn(getDbId(rc), getDbName(rc))
+	dc, err := d.dbApp.GetDbConn(rc.MetaCtx, getDbId(rc), getDbName(rc))
 	biz.ErrIsNil(err)
-	defer dbm.PutDbConn(dc)
 	return dc
 }

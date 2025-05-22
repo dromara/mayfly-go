@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
@@ -283,8 +282,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
 	}
 
-	dbConn, err := d.dbApp.GetDbConn(execSqlBizForm.DbId, execSqlBizForm.DbName)
-	defer dbm.PutDbConn(dbConn)
+	dbConn, err := d.dbApp.GetDbConn(ctx, execSqlBizForm.DbId, execSqlBizForm.DbName)
 	if err != nil {
 		return nil, err
 	}
