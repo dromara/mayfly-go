@@ -66,9 +66,6 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 	} else {
 		// 防止误修改key
 		def.DefKey = ""
-		if err := p.canModify(ctx, def.Id); err != nil {
-			return err
-		}
 	}
 
 	return p.Tx(ctx, func(ctx context.Context) error {

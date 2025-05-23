@@ -40,7 +40,7 @@
         </div>
 
         <Splitpanes
-            @pane-maximize="resizeTableHeight([{ size: 0 }])"
+            @pane-maximize="resizeTableHeight({ panes: [{ size: 0 }] })"
             @resize="resizeTableHeight"
             horizontal
             class="default-theme"
@@ -241,9 +241,9 @@ onMounted(async () => {
     console.log('in query mounted');
 
     // 第一个pane为sql editor
-    resizeTableHeight([{ size: state.editorSize }]);
+    resizeTableHeight({ panes: [{ size: state.editorSize }] });
     window.onresize = () => {
-        resizeTableHeight([{ size: state.editorSize }]);
+        resizeTableHeight({ panes: [{ size: state.editorSize }] });
     };
 
     // 默认新建一个结果集tab
@@ -281,7 +281,7 @@ const onRemoveTab = (targetId: number) => {
 
 const resizeTableHeight = (e: any) => {
     const vh = window.innerHeight;
-    state.editorSize = e[0].size;
+    state.editorSize = e.panes[0].size;
     const plitpaneHeight = vh - 233;
     const editorHeight = plitpaneHeight * (state.editorSize / 100);
     state.tableDataHeight = plitpaneHeight - editorHeight - 40 + 'px';

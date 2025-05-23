@@ -95,11 +95,11 @@
                                         <el-col :span="20">
                                             <el-space>
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('common.refresh')">
-                                                    <el-link @click="onRefreshData(dt)" icon="refresh" :underline="false" />
+                                                    <el-link @click="onRefreshData(dt)" icon="refresh" underline="never" />
                                                 </el-tooltip>
 
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.opSearch')">
-                                                    <el-link @click="onBasicSearch(dt)" icon="Search" :underline="false" />
+                                                    <el-link @click="onBasicSearch(dt)" icon="Search" underline="never" />
                                                 </el-tooltip>
 
                                                 <el-tooltip
@@ -109,7 +109,7 @@
                                                     placement="top"
                                                     :content="t('common.create')"
                                                 >
-                                                    <el-link @click="onAddDoc(dt)" icon="plus" :underline="false" />
+                                                    <el-link @click="onAddDoc(dt)" icon="plus" underline="never" />
                                                 </el-tooltip>
                                                 <el-tooltip
                                                     :show-after="tooltipTime"
@@ -118,7 +118,7 @@
                                                     placement="top"
                                                     :content="t('common.delete')"
                                                 >
-                                                    <el-link :disabled="dt.selectKeys.length === 0" @click="onDeleteDocs(dt)" icon="Minus" :underline="false" />
+                                                    <el-link :disabled="dt.selectKeys.length === 0" @click="onDeleteDocs(dt)" icon="Minus" underline="never" />
                                                 </el-tooltip>
                                                 <el-tooltip
                                                     :show-after="tooltipTime"
@@ -131,22 +131,22 @@
                                                         :disabled="dt.selectKeys.length !== 1"
                                                         @click="onEditSelectDoc(dt)"
                                                         icon="EditPen"
-                                                        :underline="false"
+                                                        underline="never"
                                                     />
                                                 </el-tooltip>
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.indexDetail')">
-                                                    <el-link @click="onIndexDetail(dt)" icon="InfoFilled" :underline="false" />
+                                                    <el-link @click="onIndexDetail(dt)" icon="InfoFilled" underline="never" />
                                                 </el-tooltip>
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.page.home')">
-                                                    <el-link :disabled="dt.search.from === 0" @click="onFirstPage(dt)" icon="DArrowLeft" :underline="false" />
+                                                    <el-link :disabled="dt.search.from === 0" @click="onFirstPage(dt)" icon="DArrowLeft" underline="never" />
                                                 </el-tooltip>
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.page.prev')">
-                                                    <el-link :disabled="dt.search.from === 0" @click="onPrevPage(dt)" icon="ArrowLeft" :underline="false" />
+                                                    <el-link :disabled="dt.search.from === 0" @click="onPrevPage(dt)" icon="ArrowLeft" underline="never" />
                                                 </el-tooltip>
 
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.page.changeSize')">
                                                     <el-dropdown placement="bottom" size="small">
-                                                        <el-link :underline="false" :style="{ fontSize: '12px' }">
+                                                        <el-link underline="never" :style="{ fontSize: '12px' }">
                                                             {{ dt.currentFrom + 1 }} - {{ Math.min(dt.currentFrom + dt.search.size, dt.total) }}</el-link
                                                         >
                                                         <template #dropdown>
@@ -163,7 +163,7 @@
                                                 /
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.page.total')">
                                                     <el-link
-                                                        :underline="false"
+                                                        underline="never"
                                                         @click="onSwitchTrackTotal(dt)"
                                                         :type="dt.search.track_total_hits === true ? 'success' : ''"
                                                         :style="{ fontSize: '12px' }"
@@ -176,22 +176,22 @@
                                                         :disabled="dt.search.from + dt.search.size >= (dt.total || 0)"
                                                         @click="onNextPage(dt)"
                                                         icon="ArrowRight"
-                                                        :underline="false"
+                                                        underline="never"
                                                     />
                                                 </el-tooltip>
 
                                                 <!-- <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('common.download')">-->
-                                                <!--     <el-link @click="onDownload(dt)" icon="Download" :underline="false" />-->
+                                                <!--     <el-link @click="onDownload(dt)" icon="Download" underline="never" />-->
                                                 <!-- </el-tooltip>-->
                                                 <!-- <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('common.upload')">-->
-                                                <!--     <el-link @click="onUpload(dt)" icon="Upload" :underline="false" />-->
+                                                <!--     <el-link @click="onUpload(dt)" icon="Upload" underline="never" />-->
                                                 <!-- </el-tooltip>-->
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.Reindex')">
-                                                    <el-link @click="onReindex(dt.params.instId, dt.idxName)" icon="Switch" :underline="false" />
+                                                    <el-link @click="onReindex(dt.params.instId, dt.idxName)" icon="Switch" underline="never" />
                                                 </el-tooltip>
                                                 <el-tooltip :show-after="tooltipTime" effect="dark" placement="top" :content="t('es.opViewColumns')">
                                                     <el-dropdown placement="bottom" size="small" :max-height="300" :hide-on-click="false" trigger="click">
-                                                        <el-link icon="Operation" :underline="false" />
+                                                        <el-link icon="Operation" underline="never" />
                                                         <template #dropdown>
                                                             <el-dropdown-menu class="dropdown-menu">
                                                                 <el-dropdown-item>

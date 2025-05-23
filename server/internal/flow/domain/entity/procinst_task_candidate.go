@@ -10,9 +10,9 @@ type ProcinstTaskCandidate struct {
 	model.Model
 	model.ExtraData
 
-	ProcinstId uint64 `json:"procinstId" gorm:"not null;index:idx_procinst_id;comment:流程实例id"`
-	TaskId     uint64 `json:"taskId" gorm:"not null;index:idx_task_id;comment:流程实例任务id"` // 流程实例任务id
-	Candidate  string `json:"condidate" gorm:"size:64;comment:处理候选人"`                    // 处理候选人
+	ProcinstId uint64 `json:"procinstId" gorm:"index:idx_ptc_procinst_id;comment:流程实例id"`
+	TaskId     uint64 `json:"taskId" gorm:"index:idx_ptc_task_id;comment:流程实例任务id"` // 流程实例任务id
+	Candidate  string `json:"condidate" gorm:"size:64;comment:处理候选人"`               // 处理候选人
 
 	Handler  *string            `json:"handler" gorm:"size:60;"` // 处理人
 	Status   ProcinstTaskStatus `json:"status" `                 // 状态

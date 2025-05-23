@@ -17,21 +17,21 @@ var ChanPoolDefaultConfig = PoolConfig{
 	HealthCheckInterval: 10 * time.Minute,
 }
 
-// ConnWrapper 封装连接及其元数据
-type ConnWrapper[T Conn] struct {
+// chanConn 封装连接及其元数据
+type chanConn[T Conn] struct {
 	conn       T
 	lastActive time.Time // 最后活跃时间
 	isValid    bool      // 连接是否有效
 }
 
-func (w *ConnWrapper[T]) Ping() error {
+func (w *chanConn[T]) Ping() error {
 	if !w.isValid {
 		return errors.New("connection marked invalid")
 	}
 	return w.conn.Ping()
 }
 
-func (w *ConnWrapper[T]) Close() error {
+func (w *chanConn[T]) Close() error {
 	w.isValid = false
 	return w.conn.Close()
 }
@@ -40,7 +40,7 @@ func (w *ConnWrapper[T]) Close() error {
 type ChanPool[T Conn] struct {
 	mu           sync.RWMutex
 	factory      func() (T, error)
-	idleConns    chan *ConnWrapper[T]
+	idleConns    chan *chanConn[T]
 	config       PoolConfig
 	currentConns int32
 	stats        PoolStats
@@ -66,7 +66,7 @@ func NewChannelPool[T Conn](factory func() (T, error), opts ...Option) *ChanPool
 	// 2. 创建连接池
 	p := &ChanPool[T]{
 		factory:   factory,
-		idleConns: make(chan *ConnWrapper[T], config.MaxConns),
+		idleConns: make(chan *chanConn[T], config.MaxConns),
 		config:    config,
 		closeChan: make(chan struct{}),
 	}
@@ -111,6 +111,15 @@ func (p *ChanPool[T]) Get(ctx context.Context) (T, error) {
 }
 
 func (p *ChanPool[T]) get() (T, error) {
+	// 检查连接池是否已关闭
+	p.mu.RLock()
+	if p.closed {
+		p.mu.RUnlock()
+		var zero T
+		return zero, ErrPoolClosed
+	}
+	p.mu.RUnlock()
+
 	// 优先从 channel 获取空闲连接（无锁）
 	select {
 	case wrapper := <-p.idleConns:
@@ -185,9 +194,17 @@ func (p *ChanPool[T]) Put(conn T) error {
 		return nil
 	}
 
+	// 检查连接池是否已关闭
+	p.mu.RLock()
+	if p.closed {
+		p.mu.RUnlock()
+		return conn.Close()
+	}
+	p.mu.RUnlock()
+
 	// 快速路径
 	select {
-	case p.idleConns <- &ConnWrapper[T]{conn: conn, lastActive: time.Now(), isValid: true}:
+	case p.idleConns <- &chanConn[T]{conn: conn, lastActive: time.Now(), isValid: true}:
 		atomic.AddInt32(&p.stats.IdleConns, 1)
 		atomic.AddInt32(&p.stats.ActiveConns, -1)
 		return nil
@@ -198,6 +215,11 @@ func (p *ChanPool[T]) Put(conn T) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// 再次检查是否已关闭
+	if p.closed {
+		return conn.Close()
+	}
+
 	// 检查是否超过最大连接数
 	if atomic.LoadInt32(&p.currentConns) > int32(p.config.MaxConns) {
 		conn.Close()
@@ -205,7 +227,7 @@ func (p *ChanPool[T]) Put(conn T) error {
 	} else {
 		// 直接放入空闲队列
 		select {
-		case p.idleConns <- &ConnWrapper[T]{conn: conn, lastActive: time.Now(), isValid: true}:
+		case p.idleConns <- &chanConn[T]{conn: conn, lastActive: time.Now(), isValid: true}:
 		default:
 			conn.Close()
 			atomic.AddInt32(&p.currentConns, -1)
@@ -228,7 +250,7 @@ func (p *ChanPool[T]) Close() {
 	close(p.closeChan)
 
 	// 2. 临时转移空闲连接
-	idle := make([]*ConnWrapper[T], 0, len(p.idleConns))
+	idle := make([]*chanConn[T], 0, len(p.idleConns))
 	for len(p.idleConns) > 0 {
 		idle = append(idle, <-p.idleConns)
 	}
@@ -269,7 +291,7 @@ func (p *ChanPool[T]) checkIdleConns() {
 		return
 	}
 
-	idle := make([]*ConnWrapper[T], 0, len(p.idleConns))
+	idle := make([]*chanConn[T], 0, len(p.idleConns))
 	for len(p.idleConns) > 0 {
 		idle = append(idle, <-p.idleConns)
 	}
@@ -303,7 +325,7 @@ func (p *ChanPool[T]) Resize(newMaxConns int) {
 		closed := 0
 
 		// 非阻塞取出待关闭的连接
-		var wrappers []*ConnWrapper[T]
+		var wrappers []*chanConn[T]
 		for len(p.idleConns) > 0 && closed < toClose {
 			wrappers = append(wrappers, <-p.idleConns)
 			closed++
@@ -318,7 +340,7 @@ func (p *ChanPool[T]) Resize(newMaxConns int) {
 	}
 
 	// 重建空闲连接通道（无需迁移连接，因 channel 本身无状态）
-	p.idleConns = make(chan *ConnWrapper[T], newMaxConns)
+	p.idleConns = make(chan *chanConn[T], newMaxConns)
 }
 
 func (p *ChanPool[T]) CheckLeaks() []T {
@@ -329,7 +351,7 @@ func (p *ChanPool[T]) CheckLeaks() []T {
 	now := time.Now()
 
 	// 检查所有空闲连接
-	idle := make([]*ConnWrapper[T], 0, len(p.idleConns))
+	idle := make([]*chanConn[T], 0, len(p.idleConns))
 	for len(p.idleConns) > 0 {
 		idle = append(idle, <-p.idleConns)
 	}

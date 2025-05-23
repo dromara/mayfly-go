@@ -186,7 +186,7 @@ import { Rules } from '@/common/rule';
 
 const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
 const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
-const EsInstanceList = defineAsyncComponent(() => import('../es/InstanceList.vue'));
+const EsInstanceList = defineAsyncComponent(() => import('../es/EsInstanceList.vue'));
 const RedisList = defineAsyncComponent(() => import('../redis/RedisList.vue'));
 const MongoList = defineAsyncComponent(() => import('../mongo/MongoList.vue'));
 

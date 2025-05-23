@@ -88,7 +88,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 		return insvo
 	})...)
 
-	rc.ResData = res
+	rc.ResData = resVo
 }
 
 func (d *Instance) TestConn(rc *req.Ctx) {

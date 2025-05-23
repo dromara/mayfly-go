@@ -20,6 +20,12 @@ type cacheEntry[T Conn] struct {
 	lastActive time.Time
 }
 
+func (e *cacheEntry[T]) Close() {
+	if err := e.conn.Close(); err != nil {
+		logx.Errorf("cache pool - closing connection error: %v", err)
+	}
+}
+
 type CachePool[T Conn] struct {
 	factory func() (T, error)
 	mu      sync.RWMutex
@@ -48,26 +54,38 @@ func NewCachePool[T Conn](factory func() (T, error), opts ...Option) *CachePool[
 
 // Get 获取连接（自动创建或复用缓存连接）
 func (p *CachePool[T]) Get(ctx context.Context) (T, error) {
+	var zero T
+
+	// 先尝试加读锁，仅用于查找可用连接
+	p.mu.RLock()
+	for _, entry := range p.cache {
+		if time.Since(entry.lastActive) <= p.config.IdleTimeout {
+			p.mu.RUnlock() // 找到后释放读锁
+			return entry.conn, nil
+		}
+	}
+	p.mu.RUnlock()
+
+	// 没有找到可用连接，升级为写锁进行清理和创建
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	var zero T
 
 	if p.closed {
 		return zero, ErrPoolClosed
 	}
 
-	// 1. 尝试从缓存中获取可用连接
+	// 再次检查是否已有可用连接（防止并发创建）
 	for key, entry := range p.cache {
 		if time.Since(entry.lastActive) <= p.config.IdleTimeout {
-			entry.lastActive = time.Now() // 更新活跃时间
+			entry.lastActive = time.Now()
 			return entry.conn, nil
 		}
-		// 自动清理闲置超时的连接
-		entry.conn.Close()
+		// 清理超时连接
+		entry.Close()
 		delete(p.cache, key)
 	}
 
-	// 2. 创建新连接并缓存
+	// 创建新连接
 	conn, err := p.factory()
 	if err != nil {
 		return zero, err
@@ -134,9 +152,7 @@ func (p *CachePool[T]) Close() {
 	close(p.closeCh)
 
 	for _, entry := range p.cache {
-		if err := entry.conn.Close(); err != nil {
-			logx.Errorf("cache pool - error closing connection: %v", err)
-		}
+		entry.Close()
 	}
 
 	// 触发关闭回调
@@ -197,7 +213,7 @@ func (p *CachePool[T]) cleanupIdle() {
 	cutoff := time.Now().Add(-p.config.IdleTimeout)
 	for key, entry := range p.cache {
 		if entry.lastActive.Before(cutoff) {
-			entry.conn.Close()
+			entry.Close()
 			delete(p.cache, key)
 		}
 	}

@@ -15,12 +15,10 @@ import (
 )
 
 var (
-	mutex sync.Mutex
-
 	// 所有检测ssh隧道机器是否被使用的函数
 	checkSshTunnelMachineHasUseFuncs []CheckSshTunnelMachineHasUseFunc
 
-	tunnelPool = make(map[int]pool.Pool[*SshTunnelMachine])
+	tunnelPoolGroup = pool.NewPoolGroup[*SshTunnelMachine]()
 )
 
 // 检查ssh隧道机器是否有被使用
@@ -68,7 +66,6 @@ func (stm *SshTunnelMachine) Close() error {
 			logx.Errorf("error in closing ssh tunnel machine [%d]: %s", stm.machineId, err.Error())
 		}
 	}
-	delete(tunnelPool, stm.machineId)
 
 	return nil
 }
@@ -117,13 +114,9 @@ func (stm *SshTunnelMachine) GetDialConn(network string, addr string) (net.Conn,
 	return stm.SshClient.Dial(network, addr)
 }
 
-func getTunnelPool(machineId int, getMachine func(uint64) (*MachineInfo, error)) (pool.Pool[*SshTunnelMachine], error) {
-	// 获取连接池，如果没有，则创建一个
-	if p, ok := tunnelPool[machineId]; ok {
-		return p, nil
-	}
-
-	p := pool.NewChannelPool(func() (*SshTunnelMachine, error) {
+// 获取ssh隧道机器，方便统一管理充当ssh隧道的机器，避免创建多个ssh client
+func GetSshTunnelMachine(ctx context.Context, machineId int, getMachine func(uint64) (*MachineInfo, error)) (*SshTunnelMachine, error) {
+	pool, err := tunnelPoolGroup.GetCachePool(fmt.Sprintf("machine-tunnel-%d", machineId), func() (*SshTunnelMachine, error) {
 		mi, err := getMachine(uint64(machineId))
 		if err != nil {
 			return nil, err
@@ -139,22 +132,12 @@ func getTunnelPool(machineId int, getMachine func(uint64) (*MachineInfo, error))
 		logx.Infof("connect to the ssh tunnel machine for the first time[%d][%s:%d]", machineId, mi.Ip, mi.Port)
 
 		return stm, err
-	}, pool.WithOnPoolClose(func() error {
-		delete(tunnelPool, machineId)
-		return nil
-	}))
-	tunnelPool[machineId] = p
-	return p, nil
-}
-
-// 获取ssh隧道机器，方便统一管理充当ssh隧道的机器，避免创建多个ssh client
-func GetSshTunnelMachine(ctx context.Context, machineId int, getMachine func(uint64) (*MachineInfo, error)) (*SshTunnelMachine, error) {
-	p, err := getTunnelPool(machineId, getMachine)
+	})
 	if err != nil {
 		return nil, err
 	}
 	// 从连接池中获取一个可用的连接
-	return p.Get(ctx)
+	return pool.Get(ctx)
 }
 
 // 关闭ssh隧道机器的指定隧道

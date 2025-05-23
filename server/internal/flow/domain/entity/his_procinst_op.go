@@ -10,7 +10,7 @@ type HisProcinstOp struct {
 	model.Model
 	model.ExtraData
 
-	ProcinstId  uint64 `json:"procinstId" gorm:"not null;index:idx_procinst_id;comment:流程实例id"` // 流程实例id
+	ProcinstId  uint64 `json:"procinstId" gorm:"not null;index:idx_hpo_procinst_id;comment:流程实例id"` // 流程实例id
 	ExecutionId uint64 `json:"executionId" gorm:"not null;index:idx_execution_id;comment:执行流id"`
 
 	NodeKey  string       `json:"nodeKey" gorm:"not null;size:64;comment:节点key"` // 当前任务key

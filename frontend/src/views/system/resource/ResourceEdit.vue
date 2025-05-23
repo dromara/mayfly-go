@@ -36,7 +36,7 @@
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <FormItemTooltip
                             class="!w-full"
-                            :label="$t('system.menu.routerName')"
+                            :label="$t('system.menu.componentPath')"
                             prop="meta.component"
                             :tooltip="$t('system.menu.componentPathTips')"
                         >

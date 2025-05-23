@@ -376,7 +376,7 @@ const autoOpenTerminal = (codePath: string) => {
     const machineCode = typeAndCodes[TagResourceTypeEnum.Machine.value][0];
     state.defaultExpendKey = [tagPath, machineCode];
 
-    const authCertName = typeAndCodes[TagResourceTypeEnum.PublicAuthCert.value][0];
+    const authCertName = typeAndCodes[TagResourceTypeEnum.AuthCert.value][0];
     setTimeout(() => {
         // 置空
         autoOpenResourceStore.setMachineCodePath('');

@@ -53,7 +53,7 @@ func (d *DataSyncTask) Tasks(rc *req.Ctx) {
 	queryCond := req.BindQuery[*entity.DataSyncTaskQuery](rc, new(entity.DataSyncTaskQuery))
 	res, err := d.dataSyncTaskApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
-	rc.ResData = model.PageResultConv[*entity.DataSyncTask, *vo.DataSyncLogListVO](res)
+	rc.ResData = model.PageResultConv[*entity.DataSyncTask, *vo.DataSyncTaskListVO](res)
 }
 
 func (d *DataSyncTask) Logs(rc *req.Ctx) {

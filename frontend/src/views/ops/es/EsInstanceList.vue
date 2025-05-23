@@ -1,5 +1,5 @@
 <template>
-    <div class="es-list">
+    <div class="h-full">
         <page-table
             ref="pageTableRef"
             :page-api="esApi.instances"
@@ -76,7 +76,7 @@ import { getTagPathSearchItem } from '../component/tag';
 import { TagResourceTypePath } from '@/common/commonEnum';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 
-const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
+const InstanceEdit = defineAsyncComponent(() => import('./EsInstanceEdit.vue'));
 
 const props = defineProps({
     lazy: {

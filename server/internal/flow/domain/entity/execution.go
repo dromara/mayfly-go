@@ -9,7 +9,7 @@ import (
 type Execution struct {
 	model.Model
 
-	ProcinstId uint64 `json:"procinstId" gorm:"not null;index:idx_procinst_id;comment:流程实例id"`
+	ProcinstId uint64 `json:"procinstId" gorm:"not null;index:idx_exe_procinst_id;comment:流程实例id"`
 	ParentId   uint64 `json:"parentId" gorm:"default:0;comment:父级执行id"` // 父执行流ID（并行网关分支时指向网关的Execution ID）
 
 	Vars     collx.M      `json:"vars" gorm:"type:text;comment:执行流变量"`

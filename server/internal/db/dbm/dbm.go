@@ -17,7 +17,7 @@ var (
 	poolGroup = pool.NewPoolGroup[*dbi.DbConn]()
 )
 
-// GetDbConn 从连接池中获取连接信息，记的用完连接后必须调用 PutDbConn 还回池
+// GetDbConn 从连接池中获取连接信息
 func GetDbConn(ctx context.Context, dbId uint64, database string, getDbInfo func() (*dbi.DbInfo, error)) (*dbi.DbConn, error) {
 	connId := dbi.GetDbConnId(dbId, database)
 
@@ -29,7 +29,7 @@ func GetDbConn(ctx context.Context, dbId uint64, database string, getDbInfo func
 		}
 		logx.Debugf("dbm - conn create, connId: %s, dbInfo: %v", connId, dbInfo)
 		// 连接数据库
-		return Conn(ctx, dbInfo)
+		return Conn(context.Background(), dbInfo)
 	})
 
 	if err != nil {

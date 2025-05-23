@@ -13,9 +13,9 @@ type ProcinstTask struct {
 	model.Model
 	model.ExtraData
 
-	ProcinstId  uint64       `json:"procinstId" gorm:"not null;index:idx_procinst_id;comment:流程实例id"` // 流程实例id
-	ExecutionId uint64       `json:"executionId" gorm:"not null;comment:执行流id"`
-	NodeKey     string       `json:"nodeKey" gorm:"not null;size:64;comment:节点key"`
+	ProcinstId  uint64       `json:"procinstId" gorm:"not null;index:idx_pt_procinst_id;comment:流程实例id"` // 流程实例id
+	ExecutionId uint64       `json:"executionId" gorm:"comment:执行流id"`
+	NodeKey     string       `json:"nodeKey" gorm:"size:64;comment:节点key"`
 	NodeName    string       `json:"nodeName" gorm:"size:64;comment:节点名称"`
 	NodeType    FlowNodeType `json:"nodeType" gorm:"comment:节点类型"`
 	Vars        collx.M      `json:"vars" gorm:"type:text;comment:任务变量"`
