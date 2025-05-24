@@ -8,17 +8,8 @@
             <el-form :model="form" ref="dbFormRef" :rules="rules" label-width="auto">
                 <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
 
-                <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')">
-                    <tag-tree-select
-                        multiple
-                        @change-tag="
-                            (paths: any) => {
-                                form.tagCodePaths = paths;
-                                tagSelectRef.validate();
-                            }
-                        "
-                        :select-tags="form.tagCodePaths"
-                    />
+                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')">
+                    <tag-tree-select multiple v-model="form.tagCodePaths" />
                 </el-form-item>
 
                 <el-form-item prop="name" :label="$t('common.name')" required>
@@ -114,7 +105,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, toRefs, watchEffect } from 'vue';
+import { computed, reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
@@ -153,8 +144,7 @@ const rules = {
     host: [Rules.requiredInput('Host:Port')],
 };
 
-const dbFormRef: any = ref(null);
-const tagSelectRef: any = ref(null);
+const dbFormRef: any = useTemplateRef('dbFormRef');
 
 const DefaultForm = {
     id: null,

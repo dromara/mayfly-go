@@ -1,7 +1,6 @@
 package model
 
 import (
-	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
 )
 
@@ -27,13 +26,8 @@ func PageResultConv[F any, T any](pageResult *PageResult[F]) *PageResult[T] {
 	if pageResult == nil {
 		return NewEmptyPageResult[T]()
 	}
-
 	return &PageResult[T]{
 		Total: pageResult.Total,
-		List: collx.ArrayMap(pageResult.List, func(item F) T {
-			t := structx.NewInstance[T]()
-			structx.Copy(t, item)
-			return t
-		}),
+		List:  structx.CopySliceTo[F, T](pageResult.List),
 	}
 }

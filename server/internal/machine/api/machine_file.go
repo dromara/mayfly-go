@@ -93,8 +93,7 @@ func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 }
 
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
-	fileForm := new(form.MachineFileForm)
-	entity := req.BindJsonAndCopyTo[*entity.MachineFile](rc, fileForm, new(entity.MachineFile))
+	fileForm, entity := req.BindJsonAndCopyTo[*form.MachineFileForm, *entity.MachineFile](rc)
 
 	rc.ReqParam = fileForm
 	biz.ErrIsNil(m.machineFileApp.Save(rc.MetaCtx, entity))
@@ -107,7 +106,7 @@ func (m *MachineFile) DeleteFile(rc *req.Ctx) {
 /***      sftp相关操作      */
 
 func (m *MachineFile) CreateFile(rc *req.Ctx) {
-	opForm := req.BindJsonAndValid(rc, new(form.CreateFileForm))
+	opForm := req.BindJsonAndValid[*form.CreateFileForm](rc)
 	path := opForm.Path
 
 	attrs := collx.Kvs("path", path)
@@ -126,7 +125,7 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 }
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
-	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
+	opForm := req.BindQuery[*dto.MachineFileOp](rc)
 	readPath := opForm.Path
 	ctx := rc.MetaCtx
 
@@ -158,7 +157,7 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 }
 
 func (m *MachineFile) DownloadFile(rc *req.Ctx) {
-	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
+	opForm := req.BindQuery[*dto.MachineFileOp](rc)
 
 	readPath := opForm.Path
 
@@ -186,7 +185,7 @@ func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 }
 
 func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
-	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
+	opForm := req.BindQuery[*dto.MachineFileOp](rc)
 	readPath := opForm.Path
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
@@ -225,7 +224,7 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 }
 
 func (m *MachineFile) GetDirSize(rc *req.Ctx) {
-	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
+	opForm := req.BindQuery[*dto.MachineFileOp](rc)
 
 	size, err := m.machineFileApp.GetDirSize(rc.MetaCtx, opForm)
 	biz.ErrIsNil(err)
@@ -233,14 +232,14 @@ func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 }
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
-	opForm := req.BindQuery(rc, new(dto.MachineFileOp))
+	opForm := req.BindQuery[*dto.MachineFileOp](rc)
 	res, err := m.machineFileApp.FileStat(rc.MetaCtx, opForm)
 	biz.ErrIsNil(err, res)
 	rc.ResData = res
 }
 
 func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
-	opForm := req.BindJsonAndValid(rc, new(form.WriteFileContentForm))
+	opForm := req.BindJsonAndValid[*form.WriteFileContentForm](rc)
 	path := opForm.Path
 
 	mi, err := m.machineFileApp.WriteFileContent(rc.MetaCtx, opForm.MachineFileOp, []byte(opForm.Content))
@@ -401,7 +400,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {
-	opForm := req.BindJsonAndValid(rc, new(form.RemoveFileForm))
+	opForm := req.BindJsonAndValid[*form.RemoveFileForm](rc)
 
 	mi, err := m.machineFileApp.RemoveFile(rc.MetaCtx, opForm.MachineFileOp, opForm.Paths...)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", opForm)
@@ -409,21 +408,21 @@ func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 }
 
 func (m *MachineFile) CopyFile(rc *req.Ctx) {
-	opForm := req.BindJsonAndValid(rc, new(form.CopyFileForm))
+	opForm := req.BindJsonAndValid[*form.CopyFileForm](rc)
 	mi, err := m.machineFileApp.Copy(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
 	biz.ErrIsNilAppendErr(err, "file copy error: %s")
 	rc.ReqParam = collx.Kvs("machine", mi, "cp", opForm)
 }
 
 func (m *MachineFile) MvFile(rc *req.Ctx) {
-	opForm := req.BindJsonAndValid(rc, new(form.CopyFileForm))
+	opForm := req.BindJsonAndValid[*form.CopyFileForm](rc)
 	mi, err := m.machineFileApp.Mv(rc.MetaCtx, opForm.MachineFileOp, opForm.ToPath, opForm.Paths...)
 	rc.ReqParam = collx.Kvs("machine", mi, "mv", opForm)
 	biz.ErrIsNilAppendErr(err, "file move error: %s")
 }
 
 func (m *MachineFile) Rename(rc *req.Ctx) {
-	renameForm := req.BindJsonAndValid(rc, new(form.RenameForm))
+	renameForm := req.BindJsonAndValid[*form.RenameForm](rc)
 	mi, err := m.machineFileApp.Rename(rc.MetaCtx, renameForm.MachineFileOp, renameForm.Newname)
 	rc.ReqParam = collx.Kvs("machine", mi, "rename", renameForm)
 	biz.ErrIsNilAppendErr(err, "file rename error: %s")

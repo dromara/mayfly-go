@@ -61,7 +61,7 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 }
 
 func (d *DbTransferTask) Tasks(rc *req.Ctx) {
-	queryCond := req.BindQuery(rc, new(entity.DbTransferTaskQuery))
+	queryCond := req.BindQuery[*entity.DbTransferTaskQuery](rc)
 
 	res, err := d.dbTransferTask.GetPageList(queryCond)
 	biz.ErrIsNil(err)
@@ -78,8 +78,7 @@ func (d *DbTransferTask) Tasks(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) SaveTask(rc *req.Ctx) {
-	reqForm := &form.DbTransferTaskForm{}
-	task := req.BindJsonAndCopyTo[*entity.DbTransferTask](rc, reqForm, new(entity.DbTransferTask))
+	reqForm, task := req.BindJsonAndCopyTo[*form.DbTransferTaskForm, *entity.DbTransferTask](rc)
 
 	rc.ReqParam = reqForm
 	biz.ErrIsNil(d.dbTransferTask.Save(rc.MetaCtx, task))
@@ -98,8 +97,7 @@ func (d *DbTransferTask) DeleteTask(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) ChangeStatus(rc *req.Ctx) {
-	form := &form.DbTransferTaskStatusForm{}
-	task := req.BindJsonAndCopyTo[*entity.DbTransferTask](rc, form, new(entity.DbTransferTask))
+	form, task := req.BindJsonAndCopyTo[*form.DbTransferTaskStatusForm, *entity.DbTransferTask](rc)
 	_ = d.dbTransferTask.UpdateById(rc.MetaCtx, task)
 
 	task, err := d.dbTransferTask.GetById(task.Id)
@@ -122,7 +120,7 @@ func (d *DbTransferTask) Stop(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) Files(rc *req.Ctx) {
-	queryCond := req.BindQuery(rc, new(entity.DbTransferFileQuery))
+	queryCond := req.BindQuery[*entity.DbTransferFileQuery](rc)
 
 	res, err := d.dbTransferFile.GetPageList(queryCond)
 	biz.ErrIsNil(err)
@@ -142,7 +140,7 @@ func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) FileRun(rc *req.Ctx) {
-	fm := req.BindJsonAndValid(rc, &form.DbTransferFileRunForm{})
+	fm := req.BindJsonAndValid[*form.DbTransferFileRunForm](rc)
 
 	rc.ReqParam = fm
 

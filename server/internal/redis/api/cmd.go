@@ -11,8 +11,7 @@ import (
 )
 
 func (r *Redis) RunCmd(rc *req.Ctx) {
-	var cmdReq form.RunCmdForm
-	runCmdParam := req.BindJsonAndCopyTo(rc, &cmdReq, new(dto.RunCmd))
+	cmdReq, runCmdParam := req.BindJsonAndCopyTo[*form.RunCmdForm, *dto.RunCmd](rc)
 	biz.IsTrue(len(cmdReq.Cmd) > 0, "redis cmd cannot be empty")
 
 	redisConn := r.getRedisConn(rc)

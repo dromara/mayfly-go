@@ -1,11 +1,11 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="visible" :show-close="false" :before-close="cancel" size="1000px" :destroy-on-close="true">
+        <el-drawer :title="title" v-model="visible" :show-close="false" :before-close="onCancel" size="1000px" :destroy-on-close="true">
             <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+                <DrawerHeader :header="title" :back="onCancel" />
             </template>
 
-            <el-form ref="configForm" :model="form" :rules="rules" label-width="auto">
+            <el-form ref="configFormRef" :model="form" :rules="rules" label-width="auto">
                 <el-form-item prop="name" :label="$t('system.sysconf.confItem')" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
@@ -35,8 +35,8 @@
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -44,7 +44,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { toRefs, reactive, watch, useTemplateRef } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
@@ -70,7 +70,7 @@ const visible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const configForm: any = ref(null);
+const configFormRef: any = useTemplateRef('configFormRef');
 
 const state = reactive({
     params: [] as any,
@@ -116,7 +116,7 @@ watch(visible, () => {
     }
 });
 
-const cancel = () => {
+const onCancel = () => {
     visible.value = false;
     // 若父组件有取消事件，则调用
     emit('cancel');
@@ -131,8 +131,8 @@ const getAccount = (username: any) => {
     }
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(configForm);
+const onConfirm = async () => {
+    await useI18nFormValidate(configFormRef);
     if (state.params) {
         state.form.params = JSON.stringify(state.params);
     }
@@ -144,7 +144,7 @@ const btnOk = async () => {
 
     await saveConfigExec();
     emit('val-change', state.form);
-    cancel();
+    onCancel();
 };
 </script>
 <style lang="scss"></style>

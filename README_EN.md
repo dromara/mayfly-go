@@ -28,7 +28,7 @@
 
 ## Preface
 
-Web-based **Unified Management and Operation Platform**, integrating comprehensive operation support for Linux systems (including terminal management [terminal playback, command filtering], file management, script execution, process monitoring, and cronjob settings). It also provides data operation, data synchronization, and data migration for multiple databases (such as MySQL, PostgreSQL, Oracle, SQL Server, Dameng, Gauss, SQLite, etc.). Additionally, it supports Redis operations (standalone, sentinel, and cluster modes) and MongoDB management, combined with work order process approval functionality to offer enterprises an all-in-one solution for operations and management.
+Web-based **Unified Management and Operation Platform**, integrating comprehensive operation support for Linux systems (including terminal management [terminal playback, command filtering], file management, script execution, process monitoring, and cronjob settings). It also provides data operation, data synchronization, and data migration for multiple databases (such as MySQL, PostgreSQL, Oracle, SQL Server, Dameng, Gauss, SQLite, etc.). Additionally, it supports Redis operations (standalone, sentinel, and cluster modes) and MongoDB、Es management, combined with work order process approval functionality to offer enterprises an all-in-one solution for operations and management.
 
 ## Development languages and major frameworks
 

@@ -8,7 +8,7 @@
             :columns="state.columns"
         >
             <template #tableHeader>
-                <el-button v-auth="'authcert:save'" type="primary" icon="plus" @click="edit(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'authcert:save'" type="primary" icon="plus" @click="onEdit(false)">{{ $t('common.create') }}</el-button>
             </template>
 
             <template #resourceCode="{ data }">
@@ -20,9 +20,9 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-auth="'authcert:save'" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'authcert:save'" @click="onEdit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
 
-                <el-button v-auth="'authcert:del'" @click="deleteAc(data)" type="danger" link>{{ $t('common.delete') }}</el-button>
+                <el-button v-auth="'authcert:del'" @click="onDeleteAc(data)" type="danger" link>{{ $t('common.delete') }}</el-button>
             </template>
         </page-table>
 
@@ -30,7 +30,7 @@
             :title="editor.title"
             v-model:visible="editor.visible"
             :auth-cert="editor.authcert"
-            @confirm="confirmSave"
+            @confirm="onConfirmSave"
             @cancel="editor.authcert = {}"
             :disable-type="state.disableAuthCertType"
             :disable-ciphertext-type="state.disableAuthCertCiphertextType"
@@ -102,7 +102,7 @@ const search = async () => {
     pageTableRef.value.search();
 };
 
-const edit = (data: any) => {
+const onEdit = (data: any) => {
     state.disableAuthCertType = [];
     state.disableAuthCertCiphertextType = [];
     if (data) {
@@ -128,14 +128,14 @@ const edit = (data: any) => {
     state.editor.visible = true;
 };
 
-const confirmSave = async (authCert: any) => {
+const onConfirmSave = async (authCert: any) => {
     await resourceAuthCertApi.save.request(authCert);
     useI18nSaveSuccessMsg();
     state.editor.visible = false;
     search();
 };
 
-const deleteAc = async (data: any) => {
+const onDeleteAc = async (data: any) => {
     try {
         await useI18nDeleteConfirm(data.name);
         await resourceAuthCertApi.delete.request({ id: data.id });

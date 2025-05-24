@@ -104,7 +104,9 @@ func (e *executionAppImpl) MoveTo(ctx *ExecutionCtx, nextNode *entity.FlowNode) 
 	}
 
 	// 记录当前节点结束
-	e.hisProcinstOpApp.RecordEnd(ctx, "copmpleted")
+	if err := e.hisProcinstOpApp.RecordEnd(ctx, "copmpleted"); err != nil {
+		return err
+	}
 
 	// 下一个节点为空，说明流程已结束
 	if nextNode == nil {
@@ -163,7 +165,9 @@ func (e *executionAppImpl) executeNode(ctx *ExecutionCtx) error {
 	}
 
 	// 节点开始操作记录
-	e.hisProcinstOpApp.RecordStart(ctx)
+	if err := e.hisProcinstOpApp.RecordStart(ctx); err != nil {
+		return err
+	}
 
 	// 执行节点逻辑
 	return node.Execute(ctx)

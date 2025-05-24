@@ -8,14 +8,14 @@ import (
 type EsInstance struct {
 	model.Model
 
-	Code               string `json:"code" gorm:"size:32;not null;"`
-	Name               string `json:"name" gorm:"size:32;not null;"`
-	Host               string `json:"host" gorm:"size:255;not null;"`
-	Port               int    `json:"port"`
-	Network            string `json:"network" gorm:"size:20;"`
-	Version            string `json:"version" gorm:"size:50;"`
-	AuthCertName       string `json:"authCertName" gorm:"size:255;"`
-	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
+	Code               string  `json:"code" gorm:"size:32;not null;"`
+	Name               string  `json:"name" gorm:"size:32;not null;"`
+	Host               string  `json:"host" gorm:"size:255;not null;"`
+	Port               int     `json:"port"`
+	Network            string  `json:"network" gorm:"size:20;"`
+	Version            string  `json:"version" gorm:"size:50;"`
+	Remark             *string `json:"remark" gorm:"size:255;"`
+	SshTunnelMachineId int     `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 
 func (d *EsInstance) TableName() string {

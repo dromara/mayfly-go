@@ -26,7 +26,7 @@ func (d *DbSqlExec) ReqConfs() *req.Confs {
 }
 
 func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
-	queryCond := req.BindQuery(rc, new(entity.DbSqlExecQuery))
+	queryCond := req.BindQuery[*entity.DbSqlExecQuery](rc)
 	if statusStr := rc.Query("status"); statusStr != "" {
 		queryCond.Status = collx.ArrayMap[string, int8](strings.Split(statusStr, ","), func(val string) int8 {
 			return cast.ToInt8(val)

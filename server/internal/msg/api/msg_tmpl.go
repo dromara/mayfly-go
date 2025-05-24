@@ -57,9 +57,8 @@ func (m *MsgTmpl) GetMsgTmplChannels(rc *req.Ctx) {
 }
 
 func (m *MsgTmpl) SaveMsgTmpl(rc *req.Ctx) {
-	form := &form.MsgTmpl{}
+	form, channel := req.BindJsonAndCopyTo[*form.MsgTmpl, *dto.MsgTmplSave](rc)
 	rc.ReqParam = form
-	channel := req.BindJsonAndCopyTo(rc, form, new(dto.MsgTmplSave))
 	biz.ErrIsNil(m.msgTmplApp.SaveTmpl(rc.MetaCtx, channel))
 }
 
@@ -75,7 +74,7 @@ func (m *MsgTmpl) DelMsgTmpls(rc *req.Ctx) {
 
 func (m *MsgTmpl) SendMsg(rc *req.Ctx) {
 	code := rc.PathParam("code")
-	form := req.BindJsonAndValid(rc, new(form.SendMsg))
+	form := req.BindJsonAndValid[*form.SendMsg](rc)
 
 	rc.ReqParam = form
 

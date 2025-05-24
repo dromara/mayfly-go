@@ -10,8 +10,8 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">{{ $t('common.create') }}</el-button>
-                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger" icon="delete">
+                <el-button v-auth="'team:save'" type="primary" icon="plus" @click="onShowSaveTeamDialog(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="onDeleteTeam()" type="danger" icon="delete">
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -23,22 +23,22 @@
             <template #validityDate="{ data }"> {{ formatDate(data.validityStartDate) }} ~ {{ formatDate(data.validityEndDate) }} </template>
 
             <template #action="{ data }">
-                <el-button @click.prevent="showMembers(data)" link type="primary">{{ $t('team.member') }}</el-button>
+                <el-button @click.prevent="onShowMembers(data)" link type="primary">{{ $t('team.member') }}</el-button>
 
-                <el-button v-auth="'team:save'" @click.prevent="showSaveTeamDialog(data)" link type="warning">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'team:save'" @click.prevent="onShowSaveTeamDialog(data)" link type="warning">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
         <el-drawer
             :title="addTeamDialog.title"
             v-model="addTeamDialog.visible"
-            :before-close="cancelSaveTeam"
+            :before-close="onCancelSaveTeam"
             :destroy-on-close="true"
             :close-on-click-modal="false"
             size="40%"
         >
             <template #header>
-                <DrawerHeader :header="addTeamDialog.title" :back="cancelSaveTeam" />
+                <DrawerHeader :header="addTeamDialog.title" :back="onCancelSaveTeam" />
             </template>
 
             <el-form ref="teamForm" :model="addTeamDialog.form" :rules="teamFormRules" label-width="auto">
@@ -69,8 +69,8 @@
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancelSaveTeam()">{{ $t('common.cancel') }}</el-button>
-                    <el-button @click="saveTeam" type="primary">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="onCancelSaveTeam()">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="onSaveTeam" type="primary">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -85,22 +85,22 @@
                 :columns="showMemDialog.columns"
             >
                 <template #tableHeader>
-                    <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus">{{ $t('common.add') }}</el-button>
+                    <el-button v-auth="'team:member:save'" @click="onShowAddMemberDialog()" type="primary" icon="plus">{{ $t('common.add') }}</el-button>
                 </template>
 
                 <template #action="{ data }">
-                    <el-button v-auth="'team:member:del'" @click="deleteMember(data)" type="danger" link icon="delete"></el-button>
+                    <el-button v-auth="'team:member:del'" @click="onDeleteMember(data)" type="danger" link icon="delete"></el-button>
                 </template>
             </page-table>
 
-            <el-dialog width="400px" :title="$t('team.addMember')" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
+            <el-dialog width="400px" :title="$t('team.addMember')" :before-close="onCancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
                     <AccountSelectFormItem v-model="showMemDialog.memForm.accountIds" multiple focus />
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button @click="cancelAddMember()">{{ $t('common.cancel') }}</el-button>
-                        <el-button @click="addMember" type="primary">{{ $t('common.confirm') }}</el-button>
+                        <el-button @click="onCancelAddMember()">{{ $t('common.cancel') }}</el-button>
+                        <el-button @click="onAddMember" type="primary">{{ $t('common.confirm') }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -207,7 +207,7 @@ const search = async () => {
     pageTableRef.value.search();
 };
 
-const showSaveTeamDialog = async (data: any) => {
+const onShowSaveTeamDialog = async (data: any) => {
     if (data) {
         state.addTeamDialog.title = useI18nEditTitle('team.team');
         state.addTeamDialog.form.id = data.id;
@@ -225,7 +225,7 @@ const showSaveTeamDialog = async (data: any) => {
     state.addTeamDialog.visible = true;
 };
 
-const saveTeam = async () => {
+const onSaveTeam = async () => {
     await useI18nFormValidate(teamForm);
     const form = state.addTeamDialog.form;
     form.validityStartDate = formatDate(form.validityDate[0]);
@@ -233,10 +233,10 @@ const saveTeam = async () => {
     await tagApi.saveTeam.request(form);
     useI18nSaveSuccessMsg();
     search();
-    cancelSaveTeam();
+    onCancelSaveTeam();
 };
 
-const cancelSaveTeam = () => {
+const onCancelSaveTeam = () => {
     state.addTeamDialog.visible = false;
     teamForm.value.resetFields();
     setTimeout(() => {
@@ -244,7 +244,7 @@ const cancelSaveTeam = () => {
     }, 500);
 };
 
-const deleteTeam = async () => {
+const onDeleteTeam = async () => {
     await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
     await tagApi.delTeam.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
     useI18nDeleteSuccessMsg();
@@ -253,13 +253,13 @@ const deleteTeam = async () => {
 
 /********** 团队成员相关 ***********/
 
-const showMembers = async (team: any) => {
+const onShowMembers = async (team: any) => {
     state.showMemDialog.query.teamId = team.id;
     state.showMemDialog.visible = true;
     state.showMemDialog.title = t('team.teamMember', { teamName: team.name });
 };
 
-const deleteMember = async (data: any) => {
+const onDeleteMember = async (data: any) => {
     await tagApi.delTeamMem.request(data);
     useI18nOperateSuccessMsg();
     // 重新赋值成员列表
@@ -273,11 +273,11 @@ const setMemebers = async () => {
     showMemPageTableRef.value.search();
 };
 
-const showAddMemberDialog = () => {
+const onShowAddMemberDialog = () => {
     state.showMemDialog.addVisible = true;
 };
 
-const addMember = async () => {
+const onAddMember = async () => {
     const memForm = state.showMemDialog.memForm;
     memForm.teamId = state.showMemDialog.query.teamId;
     notBlank(memForm.accountIds, t('team.selectAccountTips'));
@@ -285,10 +285,10 @@ const addMember = async () => {
     await tagApi.saveTeamMem.request(memForm);
     useI18nSaveSuccessMsg();
     setMemebers();
-    cancelAddMember();
+    onCancelAddMember();
 };
 
-const cancelAddMember = () => {
+const onCancelAddMember = () => {
     state.showMemDialog.memForm = {} as any;
     state.showMemDialog.addVisible = false;
 };

@@ -1,22 +1,13 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+                <DrawerHeader :header="title" :back="onCancel" />
             </template>
 
-            <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
-                <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')" required>
-                    <tag-tree-select
-                        @change-tag="
-                            (tagCodePaths) => {
-                                form.tagCodePaths = tagCodePaths;
-                                tagSelectRef.validate();
-                            }
-                        "
-                        multiple
-                        :select-tags="form.tagCodePaths"
-                    />
+            <el-form :model="form" ref="redisFormRef" :rules="rules" label-width="auto">
+                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')" required>
+                    <tag-tree-select multiple v-model="form.tagCodePaths" />
                 </el-form-item>
                 <el-form-item prop="name" :label="$t('common.name')" required>
                     <el-input v-model.trim="form.name" auto-complete="off"></el-input>
@@ -55,9 +46,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="onTestConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
+                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -65,7 +56,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, ref, watch } from 'vue';
+import { toRefs, reactive, watch, useTemplateRef } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -78,9 +69,6 @@ import { Rules } from '@/common/rule';
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     redis: {
         type: [Boolean, Object],
     },
@@ -89,7 +77,9 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'val-change', 'cancel']);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const emit = defineEmits(['val-change', 'cancel']);
 
 const rules = {
     tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
@@ -99,12 +89,9 @@ const rules = {
     mode: [Rules.requiredSelect('mode')],
 };
 
-const redisForm: any = ref(null);
-const tagSelectRef: any = ref(null);
+const redisFormRef: any = useTemplateRef('redisFormRef');
 
 const state = reactive({
-    dialogVisible: false,
-    tabActiveName: 'basic',
     form: {
         id: null,
         code: '',
@@ -124,30 +111,26 @@ const state = reactive({
     pwd: '',
 });
 
-const { dialogVisible, tabActiveName, form, submitForm, dbList } = toRefs(state);
+const { form, submitForm, dbList } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi(submitForm);
 
-watch(
-    () => props.visible,
-    () => {
-        state.dialogVisible = props.visible;
-        if (!state.dialogVisible) {
-            return;
-        }
-        state.tabActiveName = 'basic';
-        const redis: any = props.redis;
-        if (redis) {
-            state.form = { ...redis };
-            state.form.tagCodePaths = redis.tags.map((t: any) => t.codePath);
-            convertDb(state.form.db);
-        } else {
-            state.form = { db: '0', tagCodePaths: [] } as any;
-            state.dbList = [0];
-        }
+watch(dialogVisible, () => {
+    if (!dialogVisible.value) {
+        return;
     }
-);
+
+    const redis: any = props.redis;
+    if (redis) {
+        state.form = { ...redis };
+        state.form.tagCodePaths = redis.tags.map((t: any) => t.codePath);
+        convertDb(state.form.db);
+    } else {
+        state.form = { db: '0', tagCodePaths: [] } as any;
+        state.dbList = [0];
+    }
+});
 
 const convertDb = (db: string) => {
     state.dbList = db.split(',').map((x) => Number.parseInt(x));
@@ -172,24 +155,24 @@ const getReqForm = async () => {
     return reqForm;
 };
 
-const testConn = async () => {
-    await useI18nFormValidate(redisForm);
+const onTestConn = async () => {
+    await useI18nFormValidate(redisFormRef);
     state.submitForm = await getReqForm();
     await testConnExec();
     ElMessage.success(t('ac.connSuccess'));
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(redisForm);
+const onConfirm = async () => {
+    await useI18nFormValidate(redisFormRef);
     state.submitForm = await getReqForm();
     await saveRedisExec();
     useI18nSaveSuccessMsg();
     emit('val-change', state.form);
-    cancel();
+    onCancel();
 };
 
-const cancel = () => {
-    emit('update:visible', false);
+const onCancel = () => {
+    dialogVisible.value = false;
     emit('cancel');
 };
 </script>

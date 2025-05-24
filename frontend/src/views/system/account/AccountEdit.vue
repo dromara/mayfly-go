@@ -1,7 +1,7 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="visible" :before-close="cancel" :show-close="false" width="600px" :destroy-on-close="true">
-            <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
+        <el-dialog :title="title" v-model="visible" :before-close="onCancel" :show-close="false" width="600px" :destroy-on-close="true">
+            <el-form :model="form" ref="accountFormRef" :rules="rules" label-width="auto">
                 <el-form-item prop="name" :label="$t('system.account.name')">
                     <el-input v-model.trim="form.name" auto-complete="off" clearable></el-input>
                 </el-form-item>
@@ -49,15 +49,15 @@
             </el-form>
 
             <template #footer>
-                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, watch, useTemplateRef } from 'vue';
 import { accountApi } from '../api';
 import { randomPassword } from '@/common/utils/string';
 import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
@@ -77,7 +77,7 @@ const emit = defineEmits(['cancel', 'val-change']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const accountForm: any = ref(null);
+const accountFormRef: any = useTemplateRef('accountFormRef');
 
 const rules = {
     name: [Rules.requiredInput('system.account.name')],
@@ -123,16 +123,16 @@ watch(props, (newValue: any) => {
     }
 });
 
-const btnOk = async () => {
-    await useI18nFormValidate(accountForm);
+const onConfirm = async () => {
+    await useI18nFormValidate(accountFormRef);
     await saveAccountExec();
     useI18nSaveSuccessMsg();
     emit('val-change', state.form);
     //重置表单域
-    accountForm.value.resetFields();
+    accountFormRef.value.resetFields();
 };
 
-const cancel = () => {
+const onCancel = () => {
     visible.value = false;
     emit('cancel');
 };

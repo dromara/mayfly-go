@@ -9,11 +9,11 @@
         >
             <page-table ref="pageTableRef" :page-api="roleApi.roleAccounts" :search-items="searchItems" v-model:query-form="query" :columns="columns" lazy>
                 <template #tableHeader>
-                    <el-button v-auth="perms.saveAccountRole" type="primary" icon="plus" @click="showAddAccount()">{{ $t('common.add') }}</el-button>
+                    <el-button v-auth="perms.saveAccountRole" type="primary" icon="plus" @click="onShowAddAccount()">{{ $t('common.add') }}</el-button>
                 </template>
 
                 <template #action="{ data }">
-                    <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="relateAccount(-1, data.accountId)" icon="delete" type="danger">
+                    <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="onRelateAccount(-1, data.accountId)" icon="delete" type="danger">
                         {{ $t('common.remove') }}
                     </el-button>
                 </template>
@@ -22,7 +22,7 @@
             <el-dialog
                 width="400px"
                 :title="$t('system.role.addAccount')"
-                :before-close="cancelAddAccount"
+                :before-close="onCancelAddAccount"
                 v-model="addAccountDialog.visible"
                 :destroy-on-close="true"
             >
@@ -31,8 +31,8 @@
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button @click="cancelAddAccount()">{{ $t('common.cancel') }}</el-button>
-                        <el-button @click="relateAccount(1, addAccountDialog.accountId)" type="primary">{{ $t('common.confirm') }}</el-button>
+                        <el-button @click="onCancelAddAccount()">{{ $t('common.cancel') }}</el-button>
+                        <el-button @click="onRelateAccount(1, addAccountDialog.accountId)" type="primary">{{ $t('common.confirm') }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -107,7 +107,7 @@ const searchRoleAccount = () => {
     pageTableRef.value.search();
 };
 
-const relateAccount = async (relateType: number, accountId: number) => {
+const onRelateAccount = async (relateType: number, accountId: number) => {
     await accountApi.saveRole.request({
         id: accountId,
         roleId: props.role?.id,
@@ -116,16 +116,16 @@ const relateAccount = async (relateType: number, accountId: number) => {
     useI18nOperateSuccessMsg();
     // 如果是新增账号，则关闭新增账号弹窗
     if (relateType == 1) {
-        cancelAddAccount();
+        onCancelAddAccount();
     }
     searchRoleAccount();
 };
 
-const showAddAccount = () => {
+const onShowAddAccount = () => {
     state.addAccountDialog.visible = true;
 };
 
-const cancelAddAccount = () => {
+const onCancelAddAccount = () => {
     state.addAccountDialog.accountId = null;
     state.addAccountDialog.accounts = [];
     state.addAccountDialog.visible = false;

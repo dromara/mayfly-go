@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/structx"
 
 	"github.com/tidwall/gjson"
 )
@@ -16,9 +17,10 @@ func ToMap(jsonStr string) (collx.M, error) {
 	return ToMapByBytes([]byte(jsonStr))
 }
 
-// json字符串转结构体
-func To[T any](jsonStr string, res T) (T, error) {
-	return res, json.Unmarshal([]byte(jsonStr), &res)
+// json字符串转结构体, T需为指针类型
+func To[T any](jsonStr string) (T, error) {
+	res := structx.NewInstance[T]()
+	return res, json.Unmarshal([]byte(jsonStr), res)
 }
 
 // json字节数组转map

@@ -253,7 +253,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 		return nil, nil
 	}
 
-	runCmdParam, err := jsonx.To(procinst.BizForm, new(FlowRedisRunCmdBizForm))
+	runCmdParam, err := jsonx.To[*FlowRedisRunCmdBizForm](procinst.BizForm)
 	if err != nil {
 		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
 	}

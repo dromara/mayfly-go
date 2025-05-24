@@ -39,7 +39,7 @@ func (r *Role) ReqConfs() *req.Confs {
 }
 
 func (r *Role) Roles(rc *req.Ctx) {
-	cond := req.BindQuery(rc, new(entity.RoleQuery))
+	cond := req.BindQuery[*entity.RoleQuery](rc)
 
 	notIdsStr := rc.Query("notIds")
 	if notIdsStr != "" {
@@ -61,8 +61,7 @@ func (r *Role) Roles(rc *req.Ctx) {
 
 // 保存角色信息
 func (r *Role) SaveRole(rc *req.Ctx) {
-	form := &form.RoleForm{}
-	role := req.BindJsonAndCopyTo(rc, form, new(entity.Role))
+	form, role := req.BindJsonAndCopyTo[*form.RoleForm, *entity.Role](rc)
 	rc.ReqParam = form
 
 	r.roleApp.SaveRole(rc.MetaCtx, role)
@@ -93,8 +92,7 @@ func (r *Role) RoleResource(rc *req.Ctx) {
 
 // 保存角色资源
 func (r *Role) SaveResource(rc *req.Ctx) {
-	var form form.RoleResourceForm
-	req.BindJsonAndValid(rc, &form)
+	form := req.BindJsonAndValid[*form.RoleResourceForm](rc)
 	rc.ReqParam = form
 
 	// 将,拼接的字符串进行切割并转换
@@ -107,7 +105,7 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 
 // 查看角色关联的用户
 func (r *Role) RoleAccount(rc *req.Ctx) {
-	cond := req.BindQuery(rc, new(entity.RoleAccountQuery))
+	cond := req.BindQuery[*entity.RoleAccountQuery](rc)
 	cond.RoleId = uint64(rc.PathParamInt("id"))
 	res, err := r.roleApp.GetRoleAccountPage(cond)
 	biz.ErrIsNil(err)

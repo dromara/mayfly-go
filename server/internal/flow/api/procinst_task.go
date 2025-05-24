@@ -41,7 +41,7 @@ func (p *ProcinstTask) ReqConfs() *req.Confs {
 }
 
 func (p *ProcinstTask) GetTasks(rc *req.Ctx) {
-	instTaskQuery := req.BindQuery(rc, new(entity.ProcinstTaskQuery))
+	instTaskQuery := req.BindQuery[*entity.ProcinstTaskQuery](rc)
 	if laId := rc.GetLoginAccount().Id; laId != consts.AdminId {
 		// 赋值操作人为当前登录账号
 		instTaskQuery.Assignee = fmt.Sprintf("%d", rc.GetLoginAccount().Id)
@@ -74,7 +74,7 @@ func (p *ProcinstTask) GetTasks(rc *req.Ctx) {
 }
 
 func (p *ProcinstTask) PassTask(rc *req.Ctx) {
-	auditForm := req.BindJsonAndValid(rc, new(form.ProcinstTaskAudit))
+	auditForm := req.BindJsonAndValid[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
 
 	la := rc.GetLoginAccount()
@@ -84,7 +84,7 @@ func (p *ProcinstTask) PassTask(rc *req.Ctx) {
 }
 
 func (p *ProcinstTask) RejectTask(rc *req.Ctx) {
-	auditForm := req.BindJsonAndValid(rc, new(form.ProcinstTaskAudit))
+	auditForm := req.BindJsonAndValid[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
 
 	la := rc.GetLoginAccount()
@@ -94,7 +94,7 @@ func (p *ProcinstTask) RejectTask(rc *req.Ctx) {
 }
 
 func (p *ProcinstTask) BackTask(rc *req.Ctx) {
-	auditForm := req.BindJsonAndValid(rc, new(form.ProcinstTaskAudit))
+	auditForm := req.BindJsonAndValid[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
 	biz.ErrIsNil(p.procinstTaskApp.BackTask(rc.MetaCtx, dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark}))
 }

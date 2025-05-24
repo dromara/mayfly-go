@@ -4,7 +4,7 @@
             :title="title"
             v-model="dialogVisible"
             @open="open"
-            :before-close="cancel"
+            :before-close="onCancel"
             :close-on-click-modal="false"
             :destroy-on-close="true"
             width="38%"
@@ -51,7 +51,7 @@
                         :loading="state.loadingDbNames"
                     >
                         <template #header>
-                            <el-checkbox v-model="checkAllDbNames" :indeterminate="indeterminateDbNames" @change="handleCheckAll">
+                            <el-checkbox v-model="checkAllDbNames" :indeterminate="indeterminateDbNames" @change="onCheckAll">
                                 {{ $t('db.allSelect') }}
                             </el-checkbox>
                         </template>
@@ -65,8 +65,8 @@
             </el-form>
 
             <template #footer>
-                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
     </div>
@@ -198,7 +198,7 @@ const open = async () => {
     }
 };
 
-const btnOk = async () => {
+const onConfirm = async () => {
     await useI18nFormValidate(dbForm);
     emit('confirm', state.form);
 };
@@ -209,7 +209,7 @@ const resetInputDb = () => {
     state.instances = [];
 };
 
-const cancel = () => {
+const onCancel = () => {
     dialogVisible.value = false;
     emit('cancel');
     setTimeout(() => {
@@ -243,7 +243,7 @@ watch(allDatabases, (val: string[]) => {
     state.dbNamesFiltered = val.map((dbName: string) => dbName);
 });
 
-const handleCheckAll = (val: CheckboxValueType) => {
+const onCheckAll = (val: CheckboxValueType) => {
     const otherSelected = state.dbNamesSelected.filter((dbName: string) => {
         return !state.dbNamesFiltered.includes(dbName);
     });

@@ -35,7 +35,7 @@ func (p *Procinst) ReqConfs() *req.Confs {
 }
 
 func (p *Procinst) GetProcinstPage(rc *req.Ctx) {
-	cond := req.BindQuery(rc, new(entity.ProcinstQuery))
+	cond := req.BindQuery[*entity.ProcinstQuery](rc)
 	// 非管理员只能获取自己申请的流程
 	if laId := rc.GetLoginAccount().Id; laId != consts.AdminId {
 		cond.CreatorId = laId
@@ -47,8 +47,7 @@ func (p *Procinst) GetProcinstPage(rc *req.Ctx) {
 }
 
 func (p *Procinst) ProcinstStart(rc *req.Ctx) {
-	startForm := new(form.ProcinstStart)
-	req.BindJsonAndValid(rc, startForm)
+	startForm := req.BindJsonAndValid[*form.ProcinstStart](rc)
 	_, err := p.procinstApp.StartProc(rc.MetaCtx, startForm.ProcdefId, &dto.StarProc{
 		BizType: startForm.BizType,
 		BizForm: jsonx.ToStr(startForm.BizForm),

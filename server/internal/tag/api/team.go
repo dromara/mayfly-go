@@ -46,7 +46,7 @@ func (t *Team) ReqConfs() *req.Confs {
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
-	queryCond := req.BindQuery(rc, new(entity.TeamQuery))
+	queryCond := req.BindQuery[*entity.TeamQuery](rc)
 
 	res, err := p.teamApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
@@ -60,7 +60,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
-	team := req.BindJsonAndValid(rc, new(dto.SaveTeam))
+	team := req.BindJsonAndValid[*dto.SaveTeam](rc)
 	rc.ReqParam = team
 	biz.ErrIsNil(p.teamApp.SaveTeam(rc.MetaCtx, team))
 }
@@ -87,7 +87,7 @@ func (p *Team) GetTeamMembers(rc *req.Ctx) {
 
 // 保存团队信息
 func (p *Team) SaveTeamMember(rc *req.Ctx) {
-	teamMems := req.BindJsonAndValid(rc, new(form.TeamMember))
+	teamMems := req.BindJsonAndValid[*form.TeamMember](rc)
 
 	teamId := teamMems.TeamId
 

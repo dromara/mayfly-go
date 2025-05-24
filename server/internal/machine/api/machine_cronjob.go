@@ -43,7 +43,7 @@ func (mcj *MachineCronJob) ReqConfs() *req.Confs {
 }
 
 func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
-	cond, pageParam := req.BindQueryAndPage(rc, new(entity.MachineCronJob))
+	cond, pageParam := req.BindQueryAndPage[*entity.MachineCronJob](rc)
 
 	pageRes, err := m.machineCronJobApp.GetPageList(cond, pageParam)
 	biz.ErrIsNil(err)
@@ -62,8 +62,7 @@ func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 }
 
 func (m *MachineCronJob) Save(rc *req.Ctx) {
-	jobForm := new(form.MachineCronJobForm)
-	mcj := req.BindJsonAndCopyTo[*entity.MachineCronJob](rc, jobForm, new(entity.MachineCronJob))
+	jobForm, mcj := req.BindJsonAndCopyTo[*form.MachineCronJobForm, *entity.MachineCronJob](rc)
 	rc.ReqParam = jobForm
 
 	err := m.machineCronJobApp.SaveMachineCronJob(rc.MetaCtx, &dto.SaveMachineCronJob{
@@ -90,7 +89,7 @@ func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
 }
 
 func (m *MachineCronJob) CronJobExecs(rc *req.Ctx) {
-	cond, pageParam := req.BindQueryAndPage[*entity.MachineCronJobExec](rc, new(entity.MachineCronJobExec))
+	cond, pageParam := req.BindQueryAndPage[*entity.MachineCronJobExec](rc)
 	res, err := m.machineCronJobApp.GetExecPageList(cond, pageParam)
 	biz.ErrIsNil(err)
 	rc.ResData = res

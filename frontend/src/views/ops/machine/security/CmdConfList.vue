@@ -20,11 +20,12 @@
             <el-table-column :label="$t('common.operation')" min-width="120px">
                 <template #header>
                     <el-text tag="b">{{ $t('common.operation') }}</el-text>
-                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="openFormDialog(false)"> </el-button>
+                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="onOpenFormDialog(false)">
+                    </el-button>
                 </template>
                 <template #default="scope">
-                    <el-button v-auth="'cmdconf:save'" @click="openFormDialog(scope.row)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                    <el-button v-auth="'cmdconf:del'" @click="deleteCmdConf(scope.row)" type="danger" link>{{ $t('common.delete') }}</el-button>
+                    <el-button v-auth="'cmdconf:save'" @click="onOpenFormDialog(scope.row)" type="primary" link>{{ $t('common.edit') }}</el-button>
+                    <el-button v-auth="'cmdconf:del'" @click="onDeleteCmdConf(scope.row)" type="danger" link>{{ $t('common.delete') }}</el-button>
                 </template>
             </el-table-column>
         </el-table>
@@ -38,7 +39,7 @@
             :close-on-click-modal="false"
         >
             <template #header>
-                <DrawerHeader :header="$t('machine.cmdConfig')" :back="cancelEdit" />
+                <DrawerHeader :header="$t('machine.cmdConfig')" :back="onCancelEdit" />
             </template>
 
             <el-form ref="formRef" :model="state.form" :rules="rules" label-width="auto">
@@ -46,7 +47,7 @@
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="cmds" :label="$t('machine.filterCmds')" required>
+                <el-form-item prop="cmds" :label="$t('machine.filterCmds')">
                     <el-row>
                         <el-tag
                             class="ml-0.5 mt-0.5"
@@ -54,7 +55,7 @@
                             :key="tag"
                             closable
                             :disable-transitions="false"
-                            @close="handleCmdClose(tag)"
+                            @close="onCmdClose(tag)"
                             type="danger"
                         >
                             {{ tag }}
@@ -65,11 +66,11 @@
                             v-model="state.cmdInputValue"
                             class="mt-0.5"
                             size="small"
-                            @keyup.enter="handleCmdInputConfirm"
-                            @blur="handleCmdInputConfirm"
+                            @keyup.enter="onCmdInputConfirm"
+                            @blur="onCmdInputConfirm"
                             :placeholder="$t('machine.cmdPlaceholder')"
                         />
-                        <el-button v-else class="ml-0.5 mt-0.5" size="small" @click="showCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
+                        <el-button v-else class="ml-0.5 mt-0.5" size="small" @click="onShowCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
                     </el-row>
                 </el-form-item>
 
@@ -87,8 +88,8 @@
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button :loading="submiting" @click="cancelEdit">{{ $t('common.cancel') }}</el-button>
-                    <el-button v-auth="'cmdconf:save'" type="primary" :loading="submiting" @click="submitForm">{{ $t('common.confirm') }}</el-button>
+                    <el-button :loading="submiting" @click="onCancelEdit">{{ $t('common.cancel') }}</el-button>
+                    <el-button v-auth="'cmdconf:save'" type="primary" :loading="submiting" @click="onSubmitForm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -143,18 +144,18 @@ const getCmdConfs = async () => {
     state.cmdConfs = await cmdConfApi.list.request();
 };
 
-const handleCmdClose = (tag: string) => {
+const onCmdClose = (tag: string) => {
     state.form.cmds.splice(state.form.cmds.indexOf(tag), 1);
 };
 
-const showCmdInput = () => {
+const onShowCmdInput = () => {
     state.inputCmdVisible = true;
     nextTick(() => {
         cmdInputRef.value!.input!.focus();
     });
 };
 
-const handleCmdInputConfirm = () => {
+const onCmdInputConfirm = () => {
     if (state.cmdInputValue) {
         state.form.cmds.push(state.cmdInputValue);
     }
@@ -162,24 +163,25 @@ const handleCmdInputConfirm = () => {
     state.cmdInputValue = '';
 };
 
-const openFormDialog = (data: any) => {
+const onOpenFormDialog = (data: any) => {
     if (!data) {
         state.form = { ...DefaultForm };
     } else {
         state.form = deepClone(data);
         state.form.codePaths = data.tags?.map((tag: any) => tag.codePath);
+        state.form.cmds = data.cmds || [];
     }
     state.dialogVisible = true;
 };
 
-const deleteCmdConf = async (data: any) => {
+const onDeleteCmdConf = async (data: any) => {
     await useI18nDeleteConfirm(data.name);
     await cmdConfApi.delete.request({ id: data.id });
     useI18nDeleteSuccessMsg();
     getCmdConfs();
 };
 
-const cancelEdit = () => {
+const onCancelEdit = () => {
     state.dialogVisible = false;
     // 取消表单的校验
     setTimeout(() => {
@@ -188,14 +190,14 @@ const cancelEdit = () => {
     }, 200);
 };
 
-const submitForm = async () => {
+const onSubmitForm = async () => {
     try {
         await useI18nFormValidate(formRef);
         state.submiting = true;
         await cmdConfApi.save.request(state.form);
         useI18nSaveSuccessMsg();
 
-        cancelEdit();
+        onCancelEdit();
         getCmdConfs();
     } finally {
         state.submiting = false;

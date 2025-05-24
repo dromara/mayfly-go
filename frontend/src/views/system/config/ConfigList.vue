@@ -9,7 +9,7 @@
             :data-handler-fn="handleData"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="onEditConfig(false)">{{ $t('common.create') }}</el-button>
             </template>
 
             <template #status="{ data }">
@@ -19,11 +19,11 @@
 
             <template #action="{ data }">
                 <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)" link>{{ $t('system.sysconf.conf') }}</el-button>
-                <el-button v-if="actionBtns[perms.saveConfig]" @click="editConfig(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
+                <el-button v-if="actionBtns[perms.saveConfig]" @click="onEditConfig(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
-        <el-dialog @close="closeSetConfigDialog" :title="$t('system.sysconf.confItemSetting')" v-model="paramsDialog.visible" width="700px">
+        <el-dialog @close="onCloseSetConfigDialog" :title="$t('system.sysconf.confItemSetting')" v-model="paramsDialog.visible" width="700px">
             <dynamic-form
                 ref="paramsFormRef"
                 v-if="paramsDialog.paramsFormItem.length > 0"
@@ -39,13 +39,13 @@
 
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="closeSetConfigDialog()">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="onCloseSetConfigDialog()">{{ $t('common.cancel') }}</el-button>
                     <el-button v-auth="'config:save'" type="primary" @click="setConfig()">{{ $t('common.confirm') }}</el-button>
                 </span>
             </template>
         </el-dialog>
 
-        <config-edit :title="$t(configEdit.title)" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="configEditChange" />
+        <config-edit :title="$t(configEdit.title)" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="onConfigEditChange" />
     </div>
 </template>
 
@@ -143,7 +143,7 @@ const showSetConfigDialog = (row: any) => {
     state.paramsDialog.visible = true;
 };
 
-const closeSetConfigDialog = () => {
+const onCloseSetConfigDialog = () => {
     state.paramsDialog.visible = false;
     setTimeout(() => {
         state.paramsDialog.config = {};
@@ -182,7 +182,7 @@ const setConfig = async () => {
         value: paramsValue,
     });
     useI18nSaveSuccessMsg();
-    closeSetConfigDialog();
+    onCloseSetConfigDialog();
     search();
 };
 
@@ -195,12 +195,12 @@ const hasParam = (paramKey: string, paramItems: any) => {
     return false;
 };
 
-const configEditChange = () => {
+const onConfigEditChange = () => {
     useI18nSaveSuccessMsg();
     search();
 };
 
-const editConfig = (data: any) => {
+const onEditConfig = (data: any) => {
     if (data) {
         state.configEdit.title = 'common.edit';
         state.configEdit.config = data;

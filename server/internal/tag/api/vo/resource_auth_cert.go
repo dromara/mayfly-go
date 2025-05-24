@@ -7,6 +7,8 @@ import (
 )
 
 type ResourceAuthCert struct {
+	model.ExtraData
+
 	Id             uint64                        `json:"id"`
 	Name           string                        `json:"name"`           // 名称
 	ResourceCode   string                        `json:"resourceCode"`   // 资源编号
@@ -14,7 +16,6 @@ type ResourceAuthCert struct {
 	Username       string                        `json:"username"`       // 用户名
 	Ciphertext     string                        `json:"ciphertext"`     // 密文
 	CiphertextType entity.AuthCertCiphertextType `json:"ciphertextType"` // 密文类型
-	Extra          model.Map[string, any]        `json:"extra"`          // 账号需要的其他额外信息（如秘钥口令等）
 	Type           entity.AuthCertType           `json:"type"`           // 凭证类型
 	Remark         string                        `json:"remark"`         // 备注
 

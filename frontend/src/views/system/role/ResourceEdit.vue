@@ -3,7 +3,7 @@
         <el-dialog
             :title="$t('system.role.allocateMenuTitle', { roleName: roleInfo?.name })"
             v-model="visible"
-            :before-close="cancel"
+            :before-close="onCancel"
             :show-close="false"
             width="400px"
         >
@@ -26,8 +26,8 @@
             </el-tree>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button :loading="state.submiting" @click="cancel">{{ $t('common.cancel') }}</el-button>
-                    <el-button :loading="state.submiting" type="primary" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button :loading="state.submiting" @click="onCancel">{{ $t('common.cancel') }}</el-button>
+                    <el-button :loading="state.submiting" type="primary" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -88,7 +88,7 @@ watch(
     }
 );
 
-const btnOk = async () => {
+const onConfirm = async () => {
     let menuIds = menuTree.value.getCheckedKeys();
     let halfMenuIds = menuTree.value.getHalfCheckedKeys();
     let resources = [].concat(menuIds, halfMenuIds).join(',');
@@ -105,7 +105,7 @@ const btnOk = async () => {
     }
 };
 
-const cancel = () => {
+const onCancel = () => {
     visible.value = false;
     emit('cancel');
 };

@@ -108,7 +108,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 func (a *Account) ChangePassword(rc *req.Ctx) {
 	ctx := rc.MetaCtx
 
-	form := req.BindJsonAndValid(rc, new(form.AccountChangePasswordForm))
+	form := req.BindJsonAndValid[*form.AccountChangePasswordForm](rc)
 
 	originOldPwd, err := utils.DefaultRsaDecrypt(form.OldPassword, true)
 	biz.ErrIsNilAppendErr(err, "Wrong to decrypt old password: %s")
@@ -145,9 +145,10 @@ func (a *Account) AccountInfo(rc *req.Ctx) {
 
 // 更新个人账号信息
 func (a *Account) UpdateAccount(rc *req.Ctx) {
-	updateAccount := req.BindJsonAndCopyTo[*entity.Account](rc, new(form.AccountUpdateForm), new(entity.Account))
+	form, updateAccount := req.BindJsonAndCopyTo[*form.AccountUpdateForm, *entity.Account](rc)
 	// 账号id为登录者账号
 	updateAccount.Id = rc.GetLoginAccount().Id
+	rc.ReqParam = form
 
 	ctx := rc.MetaCtx
 	if updateAccount.Password != "" {
@@ -210,8 +211,7 @@ func (a *Account) AccountDetail(rc *req.Ctx) {
 
 // @router /accounts
 func (a *Account) SaveAccount(rc *req.Ctx) {
-	form := &form.AccountCreateForm{}
-	account := req.BindJsonAndCopyTo(rc, form, new(entity.Account))
+	form, account := req.BindJsonAndCopyTo[*form.AccountCreateForm, *entity.Account](rc)
 
 	form.Password = "*****"
 	rc.ReqParam = form
@@ -307,7 +307,7 @@ func (a *Account) AccountResources(rc *req.Ctx) {
 
 // 关联账号角色
 func (a *Account) RelateRole(rc *req.Ctx) {
-	form := req.BindJsonAndValid(rc, new(form.AccountRoleForm))
+	form := req.BindJsonAndValid[*form.AccountRoleForm](rc)
 	rc.ReqParam = form
 	biz.ErrIsNil(a.roleApp.RelateAccountRole(rc.MetaCtx, form.Id, form.RoleId, consts.AccountRoleRelateType(form.RelateType)))
 }

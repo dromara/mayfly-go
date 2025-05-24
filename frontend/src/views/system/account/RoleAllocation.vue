@@ -4,7 +4,7 @@
             @open="searchAccountRoles()"
             :title="account == null ? '' : $t('system.account.allocateRoleTitle', { name: account.username })"
             v-model="dialogVisible"
-            :before-close="cancel"
+            :before-close="onCancel"
             :destroy-on-close="true"
             width="55%"
         >
@@ -20,11 +20,11 @@
                         lazy
                     >
                         <template #tableHeader>
-                            <el-button @click="showResources" icon="view" type="primary" link>{{ $t('system.account.menuAndPermission') }}</el-button>
+                            <el-button @click="onShowResources" icon="view" type="primary" link>{{ $t('system.account.menuAndPermission') }}</el-button>
                         </template>
 
                         <template #action="{ data }">
-                            <el-button v-auth="'account:saveRoles'" type="danger" @click="relateRole(-1, data.roleId)" icon="delete" link plain>
+                            <el-button v-auth="'account:saveRoles'" type="danger" @click="onRelateRole(-1, data.roleId)" icon="delete" link plain>
                                 {{ $t('system.account.remove') }}
                             </el-button>
                         </template>
@@ -44,7 +44,7 @@
                         <template #action="{ data }">
                             <el-button
                                 v-auth="'account:saveRoles'"
-                                @click="relateRole(1, data.id)"
+                                @click="onRelateRole(1, data.id)"
                                 :disabled="data.code?.indexOf('COMMON') == 0 || data.status == RoleStatusEnum.Disable.value"
                                 type="success"
                                 icon="CirclePlus"
@@ -176,7 +176,7 @@ const onTabChange = () => {
     searchAccountRoles();
 };
 
-const relateRole = async (relateType: number, roleId: number) => {
+const onRelateRole = async (relateType: number, roleId: number) => {
     await accountApi.saveRole.request({
         id: props.account!.id,
         roleId,
@@ -191,7 +191,7 @@ const relateRole = async (relateType: number, roleId: number) => {
     }
 };
 
-const showResources = async () => {
+const onShowResources = async () => {
     let showResourceDialog = state.showResourceDialog;
     showResourceDialog.title = t('system.account.userMenuTitle', { name: props.account?.username });
     showResourceDialog.resources = [];
@@ -204,7 +204,7 @@ const showResources = async () => {
 /**
  * 取消
  */
-const cancel = () => {
+const onCancel = () => {
     state.unRelatedQuery.pageNum = 1;
     state.unRelatedQuery.name = null;
     state.unRelatedQuery.code = null;

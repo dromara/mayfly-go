@@ -72,8 +72,7 @@ func (r *ResourceAuthCert) GetCompleteAuthCert(rc *req.Ctx) {
 }
 
 func (c *ResourceAuthCert) SaveAuthCert(rc *req.Ctx) {
-	acForm := &form.AuthCertForm{}
-	ac := req.BindJsonAndCopyTo(rc, acForm, new(entity.ResourceAuthCert))
+	acForm, ac := req.BindJsonAndCopyTo[*form.AuthCertForm, *entity.ResourceAuthCert](rc)
 
 	// 脱敏记录日志
 	acForm.Ciphertext = "***"

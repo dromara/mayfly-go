@@ -1,8 +1,8 @@
 package cache
 
 import (
+	"encoding/json"
 	"mayfly-go/pkg/utils/anyx"
-	"mayfly-go/pkg/utils/jsonx"
 	"time"
 
 	"github.com/may-fly/cast"
@@ -65,7 +65,7 @@ func (dc *defaultCache) GetInt(k string) (int, bool) {
 
 func (dc *defaultCache) GetJson(k string, valPtr any) bool {
 	if val, ok := dc.GetStr(k); ok {
-		jsonx.To(val, valPtr)
+		json.Unmarshal([]byte(val), valPtr)
 		return true
 	}
 	return false

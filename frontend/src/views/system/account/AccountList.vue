@@ -10,24 +10,24 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()" type="danger" icon="delete">
+                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="onEditAccount(false)">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="onDeleteAccount()" type="danger" icon="delete">
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
 
             <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)" type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]" @click="onEditAccount(data)" type="primary">{{ $t('common.edit') }}</el-button>
 
-                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)" type="success">
+                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="onShowRoleEdit(data)" type="success">
                     {{ $t('system.account.roleAllocation') }}
                 </el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="changeStatus(data)" type="danger">
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="onChangeStatus(data)" type="danger">
                     {{ $t('common.disable') }}
                 </el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success" @click="changeStatus(data)">
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success" @click="onChangeStatus(data)">
                     {{ $t('common.enable') }}
                 </el-button>
 
@@ -35,7 +35,7 @@
                     link
                     v-if="actionBtns[perms.addAccount]"
                     :disabled="!data.otpSecret || data.otpSecret == '-'"
-                    @click="resetOtpSecret(data)"
+                    @click="onResetOtpSecret(data)"
                     type="warning"
                 >
                     {{ $t('system.account.resetOtp') }}
@@ -55,8 +55,8 @@
             </el-table>
         </el-dialog>
 
-        <role-allocation v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="cancel()" />
-        <account-edit :title="accountDialog.title" v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="valChange()" />
+        <role-allocation v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="onCancel()" />
+        <account-edit :title="accountDialog.title" v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="onValChange()" />
     </div>
 </template>
 
@@ -150,7 +150,7 @@ const search = async () => {
     pageTableRef.value.search();
 };
 
-const changeStatus = async (row: any) => {
+const onChangeStatus = async (row: any) => {
     let id = row.id;
     let status = row.status == AccountStatusEnum.Disable.value ? AccountStatusEnum.Enable.value : AccountStatusEnum.Disable.value;
     await accountApi.changeStatus.request({
@@ -161,7 +161,7 @@ const changeStatus = async (row: any) => {
     search();
 };
 
-const resetOtpSecret = async (row: any) => {
+const onResetOtpSecret = async (row: any) => {
     let id = row.id;
     await accountApi.resetOtpSecret.request({
         id,
@@ -170,7 +170,7 @@ const resetOtpSecret = async (row: any) => {
     row.otpSecret = '-';
 };
 
-const editAccount = (data: any) => {
+const onEditAccount = (data: any) => {
     if (!data) {
         state.accountDialog.title = useI18nCreateTitle('personal.accountInfo');
         state.accountDialog.data = null;
@@ -181,22 +181,22 @@ const editAccount = (data: any) => {
     state.accountDialog.visible = true;
 };
 
-const showRoleEdit = (data: any) => {
+const onShowRoleEdit = (data: any) => {
     state.roleDialog.visible = true;
     state.roleDialog.account = data;
 };
 
-const cancel = () => {
+const onCancel = () => {
     state.roleDialog.visible = false;
     state.roleDialog.account = null;
 };
 
-const valChange = () => {
+const onValChange = () => {
     state.accountDialog.visible = false;
     search();
 };
 
-const deleteAccount = async () => {
+const onDeleteAccount = async () => {
     await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.username).join('、'));
     await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
     useI18nDeleteSuccessMsg();

@@ -1,20 +1,11 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" width="38%" :destroy-on-close="true">
-            <el-form :model="form" ref="mongoForm" :rules="rules" label-width="auto">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="onCancel" :close-on-click-modal="false" width="38%" :destroy-on-close="true">
+            <el-form :model="form" ref="mongoFormRef" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane :label="$t('common.basic')" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')" required>
-                            <tag-tree-select
-                                @change-tag="
-                                    (tagCodePaths) => {
-                                        form.tagCodePaths = tagCodePaths;
-                                        tagSelectRef.validate();
-                                    }
-                                "
-                                multiple
-                                :select-tags="form.tagCodePaths"
-                            />
+                        <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')" required>
+                            <tag-tree-select multiple v-model="form.tagCodePaths" />
                         </el-form-item>
 
                         <el-form-item prop="name" :label="$t('common.name')" required>
@@ -41,9 +32,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="onTestConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
+                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -51,7 +42,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, ref, watchEffect } from 'vue';
+import { toRefs, reactive, watchEffect, useTemplateRef } from 'vue';
 import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -63,9 +54,6 @@ import { Rules } from '@/common/rule';
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     mongo: {
         type: [Boolean, Object],
     },
@@ -74,8 +62,10 @@ const props = defineProps({
     },
 });
 
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const rules = {
     tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
@@ -83,11 +73,9 @@ const rules = {
     uri: [Rules.requiredInput('mongo.connUrl')],
 };
 
-const mongoForm: any = ref(null);
-const tagSelectRef: any = ref(null);
+const mongoFormRef: any = useTemplateRef('mongoFormRef');
 
 const state = reactive({
-    dialogVisible: false,
     tabActiveName: 'basic',
     form: {
         id: null,
@@ -100,14 +88,13 @@ const state = reactive({
     submitForm: {},
 });
 
-const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
+const { tabActiveName, form, submitForm } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMongoExec } = mongoApi.saveMongo.useApi(submitForm);
 
 watchEffect(() => {
-    state.dialogVisible = props.visible;
-    if (!state.dialogVisible) {
+    if (!dialogVisible.value) {
         return;
     }
     state.tabActiveName = 'basic';
@@ -116,7 +103,7 @@ watchEffect(() => {
         state.form = { ...mongo };
         state.form.tagCodePaths = mongo.tags.map((t: any) => t.codePath);
     } else {
-        state.form = { db: 0 } as any;
+        state.form = { db: 0, tagCodePaths: [] } as any;
     }
 });
 
@@ -128,24 +115,24 @@ const getReqForm = () => {
     return reqForm;
 };
 
-const testConn = async () => {
-    await useI18nFormValidate(mongoForm);
+const onTestConn = async () => {
+    await useI18nFormValidate(mongoFormRef);
     state.submitForm = getReqForm();
     await testConnExec();
     ElMessage.success(t('ac.connSuccess'));
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(mongoForm);
+const onConfirm = async () => {
+    await useI18nFormValidate(mongoFormRef);
     state.submitForm = getReqForm();
     await saveMongoExec();
     useI18nSaveSuccessMsg();
     emit('val-change', state.form);
-    cancel();
+    onCancel();
 };
 
-const cancel = () => {
-    emit('update:visible', false);
+const onCancel = () => {
+    dialogVisible.value = false;
     emit('cancel');
 };
 </script>

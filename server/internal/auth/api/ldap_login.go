@@ -47,7 +47,7 @@ func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 
 // @router /auth/ldap/login [post]
 func (a *LdapLogin) Login(rc *req.Ctx) {
-	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
+	loginForm := req.BindJsonAndValid[*form.LoginForm](rc)
 	ctx := rc.MetaCtx
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验

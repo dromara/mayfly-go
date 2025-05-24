@@ -1,23 +1,14 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+                <DrawerHeader :header="title" :back="onCancel" />
             </template>
 
-            <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
+            <el-form :model="form" ref="machineFormRef" :rules="rules" label-width="auto">
                 <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
-                <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="$t('tag.relateTag')">
-                    <tag-tree-select
-                        multiple
-                        @change-tag="
-                            (paths) => {
-                                form.tagCodePaths = paths;
-                                tagSelectRef.validate();
-                            }
-                        "
-                        :select-tags="form.tagCodePaths"
-                    />
+                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')">
+                    <tag-tree-select multiple v-model="form.tagCodePaths" />
                 </el-form-item>
                 <el-form-item prop="name" :label="$t('common.name')" required>
                     <el-input v-model.trim="form.name" auto-complete="off"></el-input>
@@ -48,7 +39,7 @@
                         :resource-code="form.code"
                         :resource-type="TagResourceTypeEnum.Machine.value"
                         :test-conn-btn-loading="testConnBtnLoading"
-                        @test-conn="testConn"
+                        @test-conn="onTestConn"
                     />
                 </div>
 
@@ -71,8 +62,8 @@
 
             <template #footer>
                 <div>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </el-drawer>
@@ -80,7 +71,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -119,8 +110,7 @@ const rules = {
     ip: [Rules.requiredInput('machine.ipAndPort')],
 };
 
-const machineForm: any = ref(null);
-const tagSelectRef: any = ref(null);
+const machineFormRef: any = useTemplateRef('machineFormRef');
 
 const defaultForm = {
     id: null,
@@ -166,8 +156,8 @@ watchEffect(() => {
     }
 });
 
-const testConn = async (authCert: any) => {
-    await useI18nFormValidate(machineForm);
+const onTestConn = async (authCert: any) => {
+    await useI18nFormValidate(machineFormRef);
 
     state.submitForm = getReqForm();
     state.submitForm.authCerts = [authCert];
@@ -175,8 +165,8 @@ const testConn = async (authCert: any) => {
     ElMessage.success(t('machine.connSuccess'));
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(machineForm);
+const onConfirm = async () => {
+    await useI18nFormValidate(machineFormRef);
 
     if (state.form.authCerts.length == 0) {
         ElMessage.error(t('machine.noAcErrMsg'));
@@ -187,7 +177,7 @@ const btnOk = async () => {
     await saveMachineExec();
     useI18nSaveSuccessMsg();
     emit('val-change', submitForm);
-    cancel();
+    onCancel();
 };
 
 const getReqForm = () => {
@@ -208,7 +198,7 @@ const handleChangeProtocol = (val: any) => {
     }
 };
 
-const cancel = () => {
+const onCancel = () => {
     dialogVisible.value = false;
     emit('cancel');
 };

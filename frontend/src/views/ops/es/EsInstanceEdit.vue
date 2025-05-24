@@ -1,24 +1,15 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+                <DrawerHeader :header="title" :back="onCancel" />
             </template>
 
-            <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
+            <el-form :model="form" ref="dbFormRef" :rules="rules" label-width="auto">
                 <el-divider content-position="left">{{ t('common.basic') }}</el-divider>
 
-                <el-form-item ref="tagSelectRef" prop="tagCodePaths" :label="t('tag.relateTag')">
-                    <tag-tree-select
-                        multiple
-                        @change-tag="
-                            (paths: any) => {
-                                form.tagCodePaths = paths;
-                                tagSelectRef.validate();
-                            }
-                        "
-                        :select-tags="form.tagCodePaths"
-                    />
+                <el-form-item prop="tagCodePaths" :label="t('tag.relateTag')">
+                    <tag-tree-select multiple v-model="form.tagCodePaths" />
                 </el-form-item>
 
                 <el-form-item prop="name" :label="t('common.name')" required>
@@ -50,7 +41,7 @@
                         :resource-code="form.code"
                         :resource-type="TagResourceTypeEnum.EsInstance.value"
                         :test-conn-btn-loading="testConnBtnLoading"
-                        @test-conn="testConn"
+                        @test-conn="onTestConn"
                         :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
                     />
                 </div>
@@ -63,16 +54,16 @@
             </el-form>
 
             <template #footer>
-                <el-button @click="testConn(null)" type="success" v-if="form.authCerts?.length <= 0">{{ t('ac.testConn') }}</el-button>
-                <el-button @click="cancel()">{{ t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ t('common.confirm') }}</el-button>
+                <el-button @click="onTestConn(null)" type="success" v-if="form.authCerts?.length <= 0">{{ t('ac.testConn') }}</el-button>
+                <el-button @click="onCancel()">{{ t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
 import { esApi } from './api';
 import { ElMessage } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
@@ -88,9 +79,6 @@ import { Rules } from '@/common/rule';
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -98,6 +86,8 @@ const props = defineProps({
         type: String,
     },
 });
+
+const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
@@ -109,8 +99,7 @@ const rules = {
     host: [Rules.requiredInput('Host:Port')],
 };
 
-const dbForm: any = ref(null);
-const tagSelectRef: any = ref(null);
+const dbFormRef: any = useTemplateRef('dbFormRef');
 
 const DefaultForm = {
     id: null,
@@ -126,19 +115,17 @@ const DefaultForm = {
 };
 
 const state = reactive({
-    dialogVisible: false,
     form: DefaultForm,
     submitForm: {} as any,
 });
 
-const { dialogVisible, form, submitForm } = toRefs(state);
+const { form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveInstanceExec, data: saveInstanceRes } = esApi.saveInstance.useApi(submitForm);
 const { isFetching: testConnBtnLoading, execute: testConnExec, data: testConnRes } = esApi.testConn.useApi<any>(submitForm);
 
 watchEffect(() => {
-    state.dialogVisible = props.visible;
-    if (!state.dialogVisible) {
+    if (!dialogVisible.value) {
         return;
     }
     const dbInst: any = props.data;
@@ -161,8 +148,8 @@ const getReqForm = async () => {
     return reqForm;
 };
 
-const testConn = async (authCert: any) => {
-    await useI18nFormValidate(dbForm);
+const onTestConn = async (authCert: any) => {
+    await useI18nFormValidate(dbFormRef);
     state.submitForm = await getReqForm();
     if (authCert) {
         state.submitForm.authCerts = [authCert];
@@ -172,23 +159,23 @@ const testConn = async (authCert: any) => {
     ElMessage.success(t('es.connSuccess'));
 };
 
-const btnOk = async () => {
+const onConfirm = async () => {
     if (!state.form.version) {
         ElMessage.warning(t('es.shouldTestConn'));
         return;
     }
 
-    await useI18nFormValidate(dbForm);
+    await useI18nFormValidate(dbFormRef);
     state.submitForm = await getReqForm();
     await saveInstanceExec();
     useI18nSaveSuccessMsg();
     state.form.id = saveInstanceRes as any;
     emit('val-change', state.form);
-    cancel();
+    onCancel();
 };
 
-const cancel = () => {
-    emit('update:visible', false);
+const onCancel = () => {
+    dialogVisible.value = false;
     emit('cancel');
 };
 </script>

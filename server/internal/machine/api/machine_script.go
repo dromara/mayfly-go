@@ -46,8 +46,7 @@ func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 }
 
 func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
-	form := new(form.MachineScriptForm)
-	machineScript := req.BindJsonAndCopyTo(rc, form, new(entity.MachineScript))
+	form, machineScript := req.BindJsonAndCopyTo[*form.MachineScriptForm, *entity.MachineScript](rc)
 
 	rc.ReqParam = form
 	biz.ErrIsNil(m.machineScriptApp.Save(rc.MetaCtx, machineScript))

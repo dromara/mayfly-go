@@ -12,7 +12,7 @@
             lazy
         >
             <template #tableHeader>
-                <el-button type="primary" icon="plus" @click="editMongo(true)" plain>{{ $t('common.create') }}</el-button>
+                <el-button type="primary" icon="plus" @click="editMongo(false)" plain>{{ $t('common.create') }}</el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>{{ $t('common.delete') }}</el-button>
             </template>
 
