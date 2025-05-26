@@ -9,6 +9,27 @@ var (
 	poolGroup = pool.NewPoolGroup[*Cli]()
 )
 
+func init() {
+	AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
+		// 遍历所有redis连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
+		items := poolGroup.AllPool()
+		for _, v := range items {
+			if v.Stats().TotalConns == 0 {
+				continue // 连接池中没有连接，跳过
+			}
+			cli, err := v.Get(context.Background())
+			if err != nil {
+				continue // 获取连接失败，跳过
+			}
+			sshTunnelMachine := cli.Info.SshTunnelMachine
+			if sshTunnelMachine != nil && sshTunnelMachine.Id == uint64(machineId) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建。
 // @param 机器的授权凭证名
 func GetMachineCli(ctx context.Context, authCertName string, getMachine func(string) (*MachineInfo, error)) (*Cli, error) {
@@ -39,7 +60,7 @@ func DeleteCli(id uint64) {
 			continue
 		}
 		if conn.Info.Id == id {
-			pool.Close()
+			poolGroup.Close(conn.Info.AuthCertName)
 		}
 	}
 }

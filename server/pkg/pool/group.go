@@ -23,7 +23,7 @@ func NewPoolGroup[T Conn]() *PoolGroup[T] {
 func (pg *PoolGroup[T]) GetOrCreate(
 	key string,
 	poolFactory func() Pool[T],
-	opts ...Option,
+	opts ...Option[T],
 ) (Pool[T], error) {
 	// 先尝试读锁获取
 	pg.mu.RLock()
@@ -63,17 +63,27 @@ func (pg *PoolGroup[T]) GetOrCreate(
 }
 
 // GetChanPool 获取或创建 ChannelPool 类型连接池
-func (pg *PoolGroup[T]) GetChanPool(key string, factory func() (T, error), opts ...Option) (Pool[T], error) {
+func (pg *PoolGroup[T]) GetChanPool(key string, factory func() (T, error), opts ...Option[T]) (Pool[T], error) {
 	return pg.GetOrCreate(key, func() Pool[T] {
 		return NewChannelPool(factory, opts...)
 	}, opts...)
 }
 
 // GetCachePool 获取或创建 CachePool 类型连接池
-func (pg *PoolGroup[T]) GetCachePool(key string, factory func() (T, error), opts ...Option) (Pool[T], error) {
+func (pg *PoolGroup[T]) GetCachePool(key string, factory func() (T, error), opts ...Option[T]) (Pool[T], error) {
 	return pg.GetOrCreate(key, func() Pool[T] {
 		return NewCachePool(factory, opts...)
 	}, opts...)
+}
+
+// Get 获取指定 key 的连接池
+func (pg *PoolGroup[T]) Get(key string) (Pool[T], bool) {
+	pg.mu.RLock()
+	defer pg.mu.RUnlock()
+	if p, ok := pg.poolGroup[key]; ok {
+		return p, true
+	}
+	return nil, false
 }
 
 func (pg *PoolGroup[T]) Close(key string) error {

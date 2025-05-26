@@ -1,10 +1,9 @@
 <template>
-    <el-dialog v-model="visible" :title="title" :destroy-on-close="true" width="600px">
-        <el-form ref="dataForm" :model="modelValue" :show-message="false" label-width="auto" size="small">
+    <el-dialog v-model="visible" :title="title" :destroy-on-close="true" width="600px" body-class="h-[65vh] overflow-auto">
+        <el-form ref="dataForm" :model="modelValue" scroll-to-error :show-message="false" label-width="auto" size="small">
             <el-form-item
                 v-for="column in columns"
                 :key="column.columnName"
-                class="mb-1 w-full"
                 :prop="column.columnName"
                 :required="props.tableName != '' && !column.nullable && !column.isPrimaryKey && !column.autoIncrement"
             >
@@ -24,10 +23,8 @@
             </el-form-item>
         </el-form>
         <template #footer v-if="props.tableName">
-            <span class="dialog-footer">
-                <el-button @click="closeDialog">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" @click="confirm">{{ $t('common.confirm') }}</el-button>
-            </span>
+            <el-button @click="onCloseDialog">{{ $t('common.cancel') }}</el-button>
+            <el-button type="primary" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
         </template>
     </el-dialog>
 </template>
@@ -79,12 +76,12 @@ const setOldValue = () => {
     }
 };
 
-const closeDialog = () => {
+const onCloseDialog = () => {
     visible.value = false;
     modelValue.value = {};
 };
 
-const confirm = async () => {
+const onConfirm = async () => {
     await useI18nFormValidate(dataForm);
 
     const dbInst = props.dbInst;
@@ -107,7 +104,7 @@ const confirm = async () => {
     }
 
     dbInst.promptExeSql(db, sql, null, () => {
-        closeDialog();
+        onCloseDialog();
         emit('submitSuccess');
     });
 };

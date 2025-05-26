@@ -10,9 +10,14 @@ import (
 	"mayfly-go/pkg/utils/netx"
 	"net"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
+
+// type SshTunnelAble interface {
+// 	GetSshTunnelMachineId() int
+// }
 
 var (
 	// 所有检测ssh隧道机器是否被使用的函数
@@ -132,7 +137,20 @@ func GetSshTunnelMachine(ctx context.Context, machineId int, getMachine func(uin
 		logx.Infof("connect to the ssh tunnel machine for the first time[%d][%s:%d]", machineId, mi.Ip, mi.Port)
 
 		return stm, err
-	})
+	}, pool.WithIdleTimeout[*SshTunnelMachine](50*time.Minute), pool.WithOnConnClose(func(conn *SshTunnelMachine) error {
+		mid := int(conn.mi.Id)
+		logx.Debugf("periodically check if the ssh tunnel machine [%d] is still in use...", mid)
+
+		for _, checkUseFunc := range checkSshTunnelMachineHasUseFuncs {
+			// 如果一个在使用则返回不关闭，不继续后续检查
+			if checkUseFunc(mid) {
+				return fmt.Errorf("ssh tunnel machine [%s] is still in use", conn.mi.Name)
+			}
+		}
+
+		return nil
+	}))
+
 	if err != nil {
 		return nil, err
 	}
@@ -142,18 +160,19 @@ func GetSshTunnelMachine(ctx context.Context, machineId int, getMachine func(uin
 
 // 关闭ssh隧道机器的指定隧道
 func CloseSshTunnelMachine(machineId uint64, tunnelId string) {
-	//sshTunnelMachine := mcIdPool[machineId]
-	//if sshTunnelMachine == nil {
-	//	return
-	//}
-	//
-	//sshTunnelMachine.mutex.Lock()
-	//defer sshTunnelMachine.mutex.Unlock()
-	//t := sshTunnelMachine.tunnels[tunnelId]
-	//if t != nil {
-	//	t.Close()
-	//	delete(sshTunnelMachine.tunnels, tunnelId)
-	//}
+	sshTunnelMachinePool, ok := tunnelPoolGroup.Get(fmt.Sprintf("machine-tunnel-%d", machineId))
+	if !ok {
+		return
+	}
+	sshTunnelMachine, err := sshTunnelMachinePool.Get(context.Background())
+	if err != nil {
+		return
+	}
+	t := sshTunnelMachine.tunnels[tunnelId]
+	if t != nil {
+		t.Close()
+		delete(sshTunnelMachine.tunnels, tunnelId)
+	}
 }
 
 type Tunnel struct {

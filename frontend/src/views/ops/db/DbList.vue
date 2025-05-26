@@ -153,7 +153,7 @@
             :close-on-click-modal="false"
             v-model="sqlExecLogDialog.visible"
             :destroy-on-close="true"
-            body-class="h-250"
+            body-class="h-[65vh]"
         >
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>

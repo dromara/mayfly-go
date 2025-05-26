@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/es/domain/repository"
 	"mayfly-go/internal/es/esm/esi"
 	"mayfly-go/internal/es/imsg"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
@@ -39,6 +40,25 @@ type Instance interface {
 var _ Instance = &instanceAppImpl{}
 
 var poolGroup = pool.NewPoolGroup[*esi.EsConn]()
+
+func init() {
+	mcm.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
+		items := poolGroup.AllPool()
+		for _, v := range items {
+			if v.Stats().TotalConns == 0 {
+				continue // 连接池中没有连接，跳过
+			}
+			conn, err := v.Get(context.Background())
+			if err != nil {
+				continue // 获取连接失败，跳过
+			}
+			if conn.Info.SshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
+}
 
 type instanceAppImpl struct {
 	base.AppImpl[*entity.EsInstance, repository.EsInstance]
@@ -233,6 +253,8 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 	if err != nil {
 		return errorx.NewBiz("db instnace not found")
 	}
+
+	poolGroup.Close(fmt.Sprintf("es-%d", instanceId))
 
 	return app.Tx(ctx, func(ctx context.Context) error {
 		// 删除该实例

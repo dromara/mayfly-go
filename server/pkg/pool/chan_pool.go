@@ -10,13 +10,6 @@ import (
 	"time"
 )
 
-var ChanPoolDefaultConfig = PoolConfig{
-	MaxConns:            5,
-	IdleTimeout:         60 * time.Minute,
-	WaitTimeout:         10 * time.Second,
-	HealthCheckInterval: 10 * time.Minute,
-}
-
 // chanConn 封装连接及其元数据
 type chanConn[T Conn] struct {
 	conn       T
@@ -41,7 +34,7 @@ type ChanPool[T Conn] struct {
 	mu           sync.RWMutex
 	factory      func() (T, error)
 	idleConns    chan *chanConn[T]
-	config       PoolConfig
+	config       PoolConfig[T]
 	currentConns int32
 	stats        PoolStats
 	closeChan    chan struct{} // 用于关闭健康检查 goroutine
@@ -56,9 +49,14 @@ type PoolStats struct {
 	WaitCount   int64 // 等待连接次数
 }
 
-func NewChannelPool[T Conn](factory func() (T, error), opts ...Option) *ChanPool[T] {
+func NewChannelPool[T Conn](factory func() (T, error), opts ...Option[T]) *ChanPool[T] {
 	// 1. 初始化配置（使用默认值 + Option 覆盖）
-	config := ChanPoolDefaultConfig
+	config := PoolConfig[T]{
+		MaxConns:            5,
+		IdleTimeout:         60 * time.Minute,
+		WaitTimeout:         10 * time.Second,
+		HealthCheckInterval: 10 * time.Minute,
+	}
 	for _, opt := range opts {
 		opt(&config)
 	}

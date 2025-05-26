@@ -8,35 +8,27 @@ import (
 	"time"
 )
 
-var CachePoolDefaultConfig = PoolConfig{
-	MaxConns:            1,
-	IdleTimeout:         60 * time.Minute,
-	WaitTimeout:         10 * time.Second,
-	HealthCheckInterval: 10 * time.Minute,
-}
-
 type cacheEntry[T Conn] struct {
 	conn       T
 	lastActive time.Time
-}
-
-func (e *cacheEntry[T]) Close() {
-	if err := e.conn.Close(); err != nil {
-		logx.Errorf("cache pool - closing connection error: %v", err)
-	}
 }
 
 type CachePool[T Conn] struct {
 	factory func() (T, error)
 	mu      sync.RWMutex
 	cache   map[string]*cacheEntry[T] // 使用字符串键的缓存
-	config  PoolConfig
+	config  PoolConfig[T]
 	closeCh chan struct{}
 	closed  bool
 }
 
-func NewCachePool[T Conn](factory func() (T, error), opts ...Option) *CachePool[T] {
-	config := CachePoolDefaultConfig
+func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePool[T] {
+	config := PoolConfig[T]{
+		MaxConns:            1,
+		IdleTimeout:         60 * time.Minute,
+		WaitTimeout:         10 * time.Second,
+		HealthCheckInterval: 10 * time.Minute,
+	}
 	for _, opt := range opts {
 		opt(&config)
 	}
@@ -81,8 +73,9 @@ func (p *CachePool[T]) Get(ctx context.Context) (T, error) {
 			return entry.conn, nil
 		}
 		// 清理超时连接
-		entry.Close()
-		delete(p.cache, key)
+		if !p.closeConn(key, entry, false) {
+			return entry.conn, nil
+		}
 	}
 
 	// 创建新连接
@@ -151,8 +144,9 @@ func (p *CachePool[T]) Close() {
 	p.closed = true
 	close(p.closeCh)
 
-	for _, entry := range p.cache {
-		entry.Close()
+	for key, entry := range p.cache {
+		// 强制关闭连接
+		p.closeConn(key, entry, true)
 	}
 
 	// 触发关闭回调
@@ -212,11 +206,31 @@ func (p *CachePool[T]) cleanupIdle() {
 
 	cutoff := time.Now().Add(-p.config.IdleTimeout)
 	for key, entry := range p.cache {
-		if entry.lastActive.Before(cutoff) {
-			entry.Close()
-			delete(p.cache, key)
+		if entry.lastActive.Before(cutoff) || entry.conn.Ping() != nil {
+			logx.Infof("cache pool - cleaning up idle connection, key: %s", key)
+			// 如果连接超时或不可用，则关闭连接
+			p.closeConn(key, entry, false)
 		}
 	}
+}
+
+func (p *CachePool[T]) closeConn(key string, entry *cacheEntry[T], force bool) bool {
+	if !force {
+		// 如果不是强制关闭且有连接关闭回调，则调用回调
+		// 如果回调返回错误，则不关闭连接
+		if onConnClose := p.config.OnConnClose; onConnClose != nil {
+			if err := onConnClose(entry.conn); err != nil {
+				logx.Infof("cache pool - connection close callback returned error, skip closing connection:: %v", err)
+				return false
+			}
+		}
+	}
+
+	if err := entry.conn.Close(); err != nil {
+		logx.Errorf("cache pool - closing connection error: %v", err)
+	}
+	delete(p.cache, key)
+	return true
 }
 
 // 生成缓存键

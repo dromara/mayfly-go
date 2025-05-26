@@ -2,12 +2,32 @@ package mgm
 
 import (
 	"context"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/pool"
 )
 
 var (
 	poolGroup = pool.NewPoolGroup[*MongoConn]()
 )
+
+func init() {
+	mcm.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
+		items := poolGroup.AllPool()
+		for _, v := range items {
+			if v.Stats().TotalConns == 0 {
+				continue // 连接池中没有连接，跳过
+			}
+			conn, err := v.Get(context.Background())
+			if err != nil {
+				continue // 获取连接失败，跳过
+			}
+			if conn.Info.SshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
+}
 
 // 从缓存中获取mongo连接信息, 若缓存中不存在则会使用回调函数获取mongoInfo进行连接并缓存
 func GetMongoConn(ctx context.Context, mongoId uint64, getMongoInfo func() (*MongoInfo, error)) (*MongoConn, error) {

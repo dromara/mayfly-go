@@ -88,10 +88,10 @@ func newMockConn(id int) *mockConn {
 
 func TestChanPool_Basic(t *testing.T) {
 	var idGen int
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		idGen++
 		return newMockConn(idGen), nil
-	}, WithMaxConns(2), WithIdleTimeout(time.Second))
+	}, WithMaxConns[*mockConn](2), WithIdleTimeout[*mockConn](time.Second))
 
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
@@ -112,9 +112,9 @@ func TestChanPool_Basic(t *testing.T) {
 }
 
 func TestChanPool_WaitTimeout(t *testing.T) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(1), WithWaitTimeout(100*time.Millisecond))
+	}, WithMaxConns[*mockConn](1), WithWaitTimeout[*mockConn](100*time.Millisecond))
 
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
@@ -132,9 +132,9 @@ func TestChanPool_WaitTimeout(t *testing.T) {
 }
 
 func TestChanPool_ContextCancel(t *testing.T) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(1))
+	}, WithMaxConns[*mockConn](1))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	conn, _ := pool.Get(ctx)
@@ -145,9 +145,9 @@ func TestChanPool_ContextCancel(t *testing.T) {
 }
 
 func TestChanPool_Resize(t *testing.T) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(2))
+	}, WithMaxConns[*mockConn](2))
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
 	conn2, _ := pool.Get(ctx)
@@ -158,9 +158,9 @@ func TestChanPool_Resize(t *testing.T) {
 }
 
 func TestChanPool_HealthCheck(t *testing.T) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(1), WithIdleTimeout(10*time.Millisecond), WithHealthCheckInterval(10*time.Millisecond))
+	}, WithMaxConns[*mockConn](1), WithIdleTimeout[*mockConn](10*time.Millisecond), WithHealthCheckInterval[*mockConn](10*time.Millisecond))
 	ctx := context.Background()
 	conn, _ := pool.Get(ctx)
 	_ = pool.Put(conn)
@@ -176,10 +176,10 @@ func TestChanPool_HealthCheck(t *testing.T) {
 
 func TestCachePool_Basic(t *testing.T) {
 	var idGen int
-	pool := NewCachePool(func() (Conn, error) {
+	pool := NewCachePool(func() (*mockConn, error) {
 		idGen++
 		return newMockConn(idGen), nil
-	}, WithMaxConns(2), WithIdleTimeout(time.Second))
+	}, WithMaxConns[*mockConn](2), WithIdleTimeout[*mockConn](time.Second))
 
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
@@ -193,9 +193,9 @@ func TestCachePool_Basic(t *testing.T) {
 }
 
 func TestCachePool_TimeoutCleanup(t *testing.T) {
-	pool := NewCachePool(func() (Conn, error) {
+	pool := NewCachePool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(1), WithIdleTimeout(10*time.Millisecond), WithHealthCheckInterval(10*time.Millisecond))
+	}, WithMaxConns[*mockConn](1), WithIdleTimeout[*mockConn](10*time.Millisecond), WithHealthCheckInterval[*mockConn](10*time.Millisecond))
 	ctx := context.Background()
 	conn, _ := pool.Get(ctx)
 	_ = pool.Put(conn)
@@ -209,10 +209,10 @@ func TestCachePool_TimeoutCleanup(t *testing.T) {
 
 func TestCachePool_OverMaxConns(t *testing.T) {
 	var idGen int
-	pool := NewCachePool(func() (Conn, error) {
+	pool := NewCachePool(func() (*mockConn, error) {
 		idGen++
 		return newMockConn(idGen), nil
-	}, WithMaxConns(1))
+	}, WithMaxConns[*mockConn](1))
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
 	_ = pool.Put(conn1)
@@ -231,9 +231,9 @@ func TestCachePool_OverMaxConns(t *testing.T) {
 }
 
 func TestCachePool_Resize(t *testing.T) {
-	pool := NewCachePool(func() (Conn, error) {
+	pool := NewCachePool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(2))
+	}, WithMaxConns[*mockConn](2))
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
 	_ = pool.Put(conn1)
@@ -288,9 +288,9 @@ func TestPoolGroup_Concurrent(t *testing.T) {
 // ========== 压力测试 ==========
 
 func BenchmarkChanPool_Concurrent(b *testing.B) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(100))
+	}, WithMaxConns[*mockConn](100))
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -307,9 +307,9 @@ func BenchmarkChanPool_Concurrent(b *testing.B) {
 }
 
 func BenchmarkCachePool_Concurrent(b *testing.B) {
-	pool := NewCachePool(func() (Conn, error) {
+	pool := NewCachePool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(100))
+	}, WithMaxConns[*mockConn](100))
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
@@ -332,9 +332,9 @@ func TestChanPool_Stress(t *testing.T) {
 		iterations = 1000
 	)
 
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(20), WithWaitTimeout(time.Second))
+	}, WithMaxConns[*mockConn](20), WithWaitTimeout[*mockConn](time.Second))
 
 	var wg sync.WaitGroup
 	var errCount int32
@@ -389,9 +389,9 @@ func TestCachePool_Stress(t *testing.T) {
 		iterations = 1000
 	)
 
-	pool := NewCachePool(func() (Conn, error) {
+	pool := NewCachePool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(20), WithIdleTimeout(time.Minute))
+	}, WithMaxConns[*mockConn](20), WithIdleTimeout[*mockConn](time.Minute))
 
 	var wg sync.WaitGroup
 	var errCount int32
@@ -430,11 +430,11 @@ func TestCachePool_Stress(t *testing.T) {
 
 // 测试连接池在连接失效时的行为
 func TestChanPool_InvalidConn(t *testing.T) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		conn := newMockConn(1)
 		conn.pingErr = errors.New("connection invalid")
 		return conn, nil
-	}, WithMaxConns(1), WithHealthCheckInterval(10*time.Millisecond))
+	}, WithMaxConns[*mockConn](1), WithHealthCheckInterval[*mockConn](10*time.Millisecond))
 
 	ctx := context.Background()
 	conn, _ := pool.Get(ctx)
@@ -458,9 +458,9 @@ func TestChanPool_InvalidConn(t *testing.T) {
 
 // 测试连接池在并发关闭时的行为
 func TestChanPool_ConcurrentClose(t *testing.T) {
-	pool := NewChannelPool(func() (Conn, error) {
+	pool := NewChannelPool(func() (*mockConn, error) {
 		return newMockConn(1), nil
-	}, WithMaxConns(10))
+	}, WithMaxConns[*mockConn](10))
 
 	var wg sync.WaitGroup
 	const goroutines = 10

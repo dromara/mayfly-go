@@ -15,14 +15,14 @@
 
             <template #footer>
                 <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
-                <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">{{ $t('common.save') }}</el-button>
+                <el-button v-loading="saveing" v-auth="'machine:file:write'" type="primary" @click="updateContent">{{ $t('common.save') }}</el-button>
             </template>
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, toRefs, watch } from 'vue';
+import { computed, reactive, Ref, ref, toRefs, watch } from 'vue';
 import { machineApi } from '../api';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
@@ -42,9 +42,10 @@ const emit = defineEmits(['cancel', 'update:machineId']);
 
 const updateFileContent = machineApi.updateFileContent;
 
+const saveing: Ref<any> = ref(false);
+
 const state = reactive({
     loadingContent: false,
-    content: '',
     fileType: '',
 });
 
@@ -83,17 +84,22 @@ const handleClose = () => {
 };
 
 const updateContent = async () => {
-    await updateFileContent.request({
-        content: state.content,
-        id: props.fileId,
-        path: props.path,
-        machineId: props.machineId,
-        authCertName: props.authCertName,
-        protocol: props.protocol,
-    });
-    useI18nSaveSuccessMsg();
-    handleClose();
-    state.content = '';
+    try {
+        saveing.value = true;
+        await updateFileContent.request({
+            content: fileContent.value,
+            id: props.fileId,
+            path: props.path,
+            machineId: props.machineId,
+            authCertName: props.authCertName,
+            protocol: props.protocol,
+        });
+        useI18nSaveSuccessMsg();
+        handleClose();
+        fileContent.value = '';
+    } finally {
+        saveing.value = false;
+    }
 };
 
 const getFileType = (path: string) => {

@@ -68,7 +68,7 @@
             :close-on-click-modal="false"
             :modal="false"
             @close="closeTermnial"
-            body-class="h-[560px]"
+            body-class="h-[65vh]"
             draggable
             append-to-body
         >

@@ -9,6 +9,7 @@ import (
 	_ "mayfly-go/internal/db/dbm/oracle"
 	_ "mayfly-go/internal/db/dbm/postgres"
 	_ "mayfly-go/internal/db/dbm/sqlite"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/pool"
 )
@@ -16,6 +17,25 @@ import (
 var (
 	poolGroup = pool.NewPoolGroup[*dbi.DbConn]()
 )
+
+func init() {
+	mcm.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
+		items := poolGroup.AllPool()
+		for _, v := range items {
+			if v.Stats().TotalConns == 0 {
+				continue // 连接池中没有连接，跳过
+			}
+			conn, err := v.Get(context.Background())
+			if err != nil {
+				continue // 获取连接失败，跳过
+			}
+			if conn.Info.SshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
+}
 
 // GetDbConn 从连接池中获取连接信息
 func GetDbConn(ctx context.Context, dbId uint64, database string, getDbInfo func() (*dbi.DbInfo, error)) (*dbi.DbConn, error) {
