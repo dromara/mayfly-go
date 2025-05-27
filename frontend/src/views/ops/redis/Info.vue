@@ -1,6 +1,13 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" width="1000px" @close="close()">
+        <el-dialog
+            :title="title"
+            v-model="dialogVisible"
+            :show-close="true"
+            width="1000px"
+            @close="close()"
+            body-class="h-[65vh] overflow-y-auto overflow-x-hidden"
+        >
             <el-row :gutter="20">
                 <el-col :lg="16" :md="16">
                     <el-descriptions class="redis-info info-server" :title="$t('redis.redisInfoTitle')" :column="3" size="small" border>

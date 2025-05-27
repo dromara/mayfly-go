@@ -62,3 +62,20 @@ func WithOnConnClose[T Conn](fn func(conn T) error) Option[T] {
 		c.OnConnClose = fn
 	}
 }
+
+/**** GetOption Config ****/
+
+// GetOption 用于配置 Get 的行为
+type GetOption func(*getOptions)
+
+// 控制 Get 行为的选项
+type getOptions struct {
+	updateLastActive bool // 是否更新 lastActive，默认 true
+}
+
+// WithNoUpdateLastActive 返回一个 Option，禁用更新 lastActive
+func WithNoUpdateLastActive() GetOption {
+	return func(o *getOptions) {
+		o.updateLastActive = false
+	}
+}

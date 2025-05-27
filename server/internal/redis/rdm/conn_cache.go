@@ -18,7 +18,7 @@ func init() {
 			if v.Stats().TotalConns == 0 {
 				continue // 连接池中没有连接，跳过
 			}
-			rc, err := v.Get(context.Background())
+			rc, err := v.Get(context.Background(), pool.WithNoUpdateLastActive())
 			if err != nil {
 				continue // 获取连接失败，跳过
 			}

@@ -2,6 +2,7 @@ package mcm
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/pkg/pool"
 )
 
@@ -51,11 +52,11 @@ func GetMachineCli(ctx context.Context, authCertName string, getMachine func(str
 
 // 删除指定机器缓存客户端，并关闭客户端连接
 func DeleteCli(id uint64) {
-	for _, pool := range poolGroup.AllPool() {
-		if pool.Stats().TotalConns == 0 {
+	for _, p := range poolGroup.AllPool() {
+		if p.Stats().TotalConns == 0 {
 			continue
 		}
-		conn, err := pool.Get(context.Background())
+		conn, err := p.Get(context.Background(), pool.WithNoUpdateLastActive())
 		if err != nil {
 			continue
 		}
@@ -63,4 +64,6 @@ func DeleteCli(id uint64) {
 			poolGroup.Close(conn.Info.AuthCertName)
 		}
 	}
+	// 删除隧道
+	tunnelPoolGroup.Close(fmt.Sprintf("machine-tunnel-%d", id))
 }

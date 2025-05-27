@@ -17,7 +17,7 @@ type Conn interface {
 // Pool 连接池接口
 type Pool[T Conn] interface {
 	// 核心方法
-	Get(ctx context.Context) (T, error)
+	Get(ctx context.Context, opts ...GetOption) (T, error)
 	Put(T) error
 	Close()
 

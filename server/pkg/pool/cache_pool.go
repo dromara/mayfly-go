@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"math/rand"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
 	"sync"
@@ -45,20 +46,36 @@ func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePo
 }
 
 // Get 获取连接（自动创建或复用缓存连接）
-func (p *CachePool[T]) Get(ctx context.Context) (T, error) {
+func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 	var zero T
+
+	options := getOptions{updateLastActive: true} // 默认更新 lastActive
+	for _, apply := range opts {
+		apply(&options)
+	}
 
 	// 先尝试加读锁，仅用于查找可用连接
 	p.mu.RLock()
-	for _, entry := range p.cache {
-		if time.Since(entry.lastActive) <= p.config.IdleTimeout {
-			p.mu.RUnlock() // 找到后释放读锁
-			return entry.conn, nil
+	if len(p.cache) >= p.config.MaxConns {
+		keys := make([]string, 0, len(p.cache))
+		for k := range p.cache {
+			keys = append(keys, k)
 		}
+
+		randomKey := keys[rand.Intn(len(keys))]
+		entry := p.cache[randomKey]
+		conn := entry.conn
+
+		if options.updateLastActive {
+			// 更新最后活跃时间
+			entry.lastActive = time.Now()
+		}
+		p.mu.RUnlock()
+		return conn, nil
 	}
 	p.mu.RUnlock()
 
-	// 没有找到可用连接，升级为写锁进行清理和创建
+	// 没有找到可用连接，升级为写锁进行创建
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -66,14 +83,13 @@ func (p *CachePool[T]) Get(ctx context.Context) (T, error) {
 		return zero, ErrPoolClosed
 	}
 
-	// 再次检查是否已有可用连接（防止并发创建）
-	for key, entry := range p.cache {
-		if time.Since(entry.lastActive) <= p.config.IdleTimeout {
-			entry.lastActive = time.Now()
-			return entry.conn, nil
-		}
-		// 清理超时连接
-		if !p.closeConn(key, entry, false) {
+	// 再次检查是否已创建（防止并发）
+	if len(p.cache) >= p.config.MaxConns {
+		for _, entry := range p.cache {
+			if options.updateLastActive {
+				// 更新最后活跃时间
+				entry.lastActive = time.Now()
+			}
 			return entry.conn, nil
 		}
 	}
@@ -206,11 +222,26 @@ func (p *CachePool[T]) cleanupIdle() {
 
 	cutoff := time.Now().Add(-p.config.IdleTimeout)
 	for key, entry := range p.cache {
-		if entry.lastActive.Before(cutoff) || entry.conn.Ping() != nil {
+		if entry.lastActive.Before(cutoff) || !p.ping(entry.conn) {
 			logx.Infof("cache pool - cleaning up idle connection, key: %s", key)
 			// 如果连接超时或不可用，则关闭连接
 			p.closeConn(key, entry, false)
 		}
+	}
+}
+
+func (p *CachePool[T]) ping(conn T) bool {
+	done := make(chan struct{})
+	var result bool
+	go func() {
+		result = conn.Ping() == nil
+		close(done)
+	}()
+	select {
+	case <-done:
+		return result
+	case <-time.After(2 * time.Second): // 设置超时
+		return false // 超时认为不可用
 	}
 }
 

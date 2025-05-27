@@ -74,12 +74,17 @@ func NewChannelPool[T Conn](factory func() (T, error), opts ...Option[T]) *ChanP
 	return p
 }
 
-func (p *ChanPool[T]) Get(ctx context.Context) (T, error) {
+func (p *ChanPool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 	connChan := make(chan T, 1)
 	errChan := make(chan error, 1)
 
+	options := getOptions{updateLastActive: true} // 默认更新 lastActive
+	for _, apply := range opts {
+		apply(&options)
+	}
+
 	go func() {
-		conn, err := p.get()
+		conn, err := p.get(options)
 		if err != nil {
 			errChan <- err
 		} else {
@@ -108,7 +113,7 @@ func (p *ChanPool[T]) Get(ctx context.Context) (T, error) {
 	}
 }
 
-func (p *ChanPool[T]) get() (T, error) {
+func (p *ChanPool[T]) get(opts getOptions) (T, error) {
 	// 检查连接池是否已关闭
 	p.mu.RLock()
 	if p.closed {
@@ -123,7 +128,9 @@ func (p *ChanPool[T]) get() (T, error) {
 	case wrapper := <-p.idleConns:
 		atomic.AddInt32(&p.stats.IdleConns, -1)
 		atomic.AddInt32(&p.stats.ActiveConns, 1)
-		wrapper.lastActive = time.Now()
+		if opts.updateLastActive {
+			wrapper.lastActive = time.Now()
+		}
 		return wrapper.conn, nil
 	default:
 		return p.createConn()
