@@ -73,7 +73,7 @@ func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy
 }
 
 func (app *instanceAppImpl) DoConn(ctx context.Context, instanceId uint64, fn func(*esi.EsConn) error) error {
-	p, err := poolGroup.GetChanPool(fmt.Sprintf("es-%d", instanceId), func() (*esi.EsConn, error) {
+	p, err := poolGroup.GetCachePool(fmt.Sprintf("es-%d", instanceId), func() (*esi.EsConn, error) {
 		return app.createConn(context.Background(), instanceId)
 	})
 

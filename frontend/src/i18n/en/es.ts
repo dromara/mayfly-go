@@ -59,7 +59,6 @@ export default {
         docJsonError: 'Document JSON Format Error',
         sortParams: 'Sort',
         otherParams: 'Other',
-        previewParams: 'Preview',
         closeIndexConfirm: 'This operation will close index [{name}]. Do you want to continue?',
         openIndexConfirm: 'This operation will open index [{name}]. Do you want to continue?',
         clearCacheConfirm: 'This operation will clear index [{name}] cache. Do you want to continue?',
