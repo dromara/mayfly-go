@@ -116,7 +116,6 @@
 
         <template #footer>
             <div>
-                <el-button size="small" @click="onPreviewParam" icon="view">{{ t('es.previewParams') }}</el-button>
                 <el-button size="small" @click="onClearParam" icon="refresh">{{ t('common.reset') }}</el-button>
                 <!-- <el-button size="small" @click="onSaveParam" type="primary" icon="check">{{ t('common.save') }}</el-button>-->
 
@@ -472,7 +471,7 @@ const onSaveParam = () => {
     // 保存查询条件
 };
 
-const onPreviewParam = () => {
+const onSearch = () => {
     parseParams();
     MonacoEditorBox({
         content: JSON.stringify(state.search, null, 2),
@@ -480,7 +479,10 @@ const onPreviewParam = () => {
         language: 'json',
         width: state.searchBoxWidth,
         canChangeLang: false,
-        options: { wordWrap: 'on', tabSize: 2, readOnly: true }, // 自动换行
+        options: { wordWrap: 'on', tabSize: 2, readOnly: false }, // 自动换行
+        confirmFn: (val: string) => {
+            emit('search', JSON.parse(val));
+        },
     });
 };
 
@@ -571,11 +573,6 @@ const parseParams = () => {
     } else {
         delete state.search['minimum_should_match'];
     }
-};
-
-const onSearch = () => {
-    parseParams();
-    emit('search', state.search);
 };
 </script>
 

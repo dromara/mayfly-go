@@ -183,11 +183,11 @@ func TestCachePool_Basic(t *testing.T) {
 
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)
+	_ = pool.Put(conn1)
 	conn2, _ := pool.Get(ctx)
 	if conn1 != conn2 {
 		t.Fatal("缓存池应复用同一连接")
 	}
-	_ = pool.Put(conn1)
 	_ = pool.Put(conn2)
 	pool.Close()
 }
@@ -564,6 +564,12 @@ func TestPoolGroup_ConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 
+	// 等待所有池关闭完成
+	err := group.WaitForClose(10 * time.Second)
+	if err != nil {
+		t.Errorf("等待池关闭超时: %v", err)
+	}
+
 	// 验证所有池都已关闭
 	pools = group.AllPool()
 	if len(pools) != 0 {
@@ -596,6 +602,12 @@ func TestPoolGroup_ConcurrentClose(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+
+	// 等待所有池关闭完成
+	err := group.WaitForClose(10 * time.Second)
+	if err != nil {
+		t.Errorf("等待池关闭超时: %v", err)
+	}
 
 	// 验证所有池都已关闭
 	pools := group.AllPool()

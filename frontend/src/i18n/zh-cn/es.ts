@@ -58,7 +58,6 @@ export default {
         docJsonError: '文档JSON格式错误',
         sortParams: '排序',
         otherParams: '其他',
-        previewParams: '预览',
         closeIndexConfirm: '将会关闭索引：[{name}]。 确认继续吗？',
         openIndexConfirm: '将会打开索引：[{name}]。 确认继续吗？',
         clearCacheConfirm: '将会清除索引：[{name}]缓存。 确认继续吗？',
