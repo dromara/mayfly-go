@@ -5,7 +5,10 @@ import (
 	"time"
 )
 
-var ErrPoolClosed = errors.New("pool is closed")
+var (
+	ErrPoolClosed      = errors.New("pool is closed")
+	ErrNoAvailableConn = errors.New("no available connection")
+)
 
 // PoolConfig 连接池配置
 type PoolConfig[T Conn] struct {
@@ -71,11 +74,26 @@ type GetOption func(*getOptions)
 // 控制 Get 行为的选项
 type getOptions struct {
 	updateLastActive bool // 是否更新 lastActive，默认 true
+	newConn          bool // 连接不存在时是否创建新连接，默认 true
 }
 
-// WithNoUpdateLastActive 返回一个 Option，禁用更新 lastActive
-func WithNoUpdateLastActive() GetOption {
+var (
+	defaultGetOptions = getOptions{
+		updateLastActive: true,
+		newConn:          true,
+	}
+)
+
+// WithGetNoUpdateLastActive 返回一个 Option，禁用更新 lastActive
+func WithGetNoUpdateLastActive() GetOption {
 	return func(o *getOptions) {
 		o.updateLastActive = false
+	}
+}
+
+// WithGetNoCreateConn 禁用获取时连接不存在创建连接
+func WithGetNoNewConn() GetOption {
+	return func(o *getOptions) {
+		o.newConn = false
 	}
 }

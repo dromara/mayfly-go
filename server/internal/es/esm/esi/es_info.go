@@ -18,7 +18,7 @@ import (
 type EsVersion string
 
 type EsInfo struct {
-	model.ExtraData // 连接需要的其他额外参数（json字符串），如oracle数据库需要指定sid等
+	model.ExtraData // 连接需要的其他额外参数（json字符串）
 
 	InstanceId uint64 // 实例id
 	Name       string

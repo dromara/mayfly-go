@@ -49,7 +49,7 @@ func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePo
 func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 	var zero T
 
-	options := getOptions{updateLastActive: true} // 默认更新 lastActive
+	options := defaultGetOptions // 默认更新 lastActive
 	for _, apply := range opts {
 		apply(&options)
 	}
@@ -74,6 +74,10 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 		return conn, nil
 	}
 	p.mu.RUnlock()
+
+	if !options.newConn {
+		return zero, ErrNoAvailableConn
+	}
 
 	// 没有找到可用连接，升级为写锁进行创建
 	p.mu.Lock()
@@ -241,6 +245,7 @@ func (p *CachePool[T]) ping(conn T) bool {
 	case <-done:
 		return result
 	case <-time.After(2 * time.Second): // 设置超时
+		logx.Debug("ping timeout")
 		return false // 超时认为不可用
 	}
 }

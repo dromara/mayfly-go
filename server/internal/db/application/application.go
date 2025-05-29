@@ -17,16 +17,6 @@ func InitIoc() {
 
 func Init() {
 	sync.OnceFunc(func() {
-		//if err := GetDbBackupApp().Init(); err != nil {
-		//	panic(fmt.Sprintf("初始化 DbBackupApp 失败: %v", err))
-		//}
-		//if err := GetDbRestoreApp().Init(); err != nil {
-		//	panic(fmt.Sprintf("初始化 DbRestoreApp 失败: %v", err))
-		//}
-		//if err := GetDbBinlogApp().Init(); err != nil {
-		//	panic(fmt.Sprintf("初始化 DbBinlogApp 失败: %v", err))
-		//}
-
 		GetDataSyncTaskApp().InitCronJob()
 		GetDbTransferTaskApp().InitCronJob()
 		GetDbTransferTaskApp().TimerDeleteTransferFile()

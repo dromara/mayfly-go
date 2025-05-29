@@ -76,6 +76,7 @@ func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyn
 		taskEntity.TaskKey = uuid.New().String()
 		err = app.Insert(ctx, taskEntity)
 	} else {
+		taskEntity.TaskKey = ""
 		err = app.UpdateById(ctx, taskEntity)
 	}
 
@@ -107,15 +108,13 @@ func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.D
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		taskId := taskEntity.Id
+		logx.Infof("start add the data sync task job: %s, cron[%s]", taskEntity.TaskName, taskEntity.TaskCron)
 		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
-			logx.Infof("start the data synchronization task: %d", taskId)
-			cancelCtx, cancelFunc := context.WithCancel(ctx)
-			defer cancelFunc()
-			if err := app.RunCronJob(cancelCtx, taskId); err != nil {
-				logx.Errorf("the data synchronization task failed to execute at a scheduled time: %s", err.Error())
+			if err := app.RunCronJob(context.Background(), taskId); err != nil {
+				logx.Errorf("the data sync task failed to execute at a scheduled time: %s", err.Error())
 			}
 		}); err != nil {
-			logx.ErrorTrace("add db data sync cron job failed", err)
+			logx.ErrorTrace("add db data sync job failed", err)
 		}
 	}
 }
@@ -133,14 +132,15 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 	if err != nil {
 		return errorx.NewBiz("task not found")
 	}
+
+	logx.InfofContext(ctx, "start the data sync task: %s => %s", task.TaskName, task.TaskKey)
+
 	if task.RunningState == entity.DataSyncTaskRunStateRunning {
 		return errorx.NewBiz("the task is in progress")
 	}
 
 	// 标记该任务运行中
 	app.MarkRunning(id)
-
-	logx.InfofContext(ctx, "start the data synchronization task: %s => %s", task.TaskName, task.TaskKey)
 
 	go func() {
 		// 通过占位符格式化sql

@@ -22,10 +22,7 @@ func init() {
 	mcm.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
 		items := poolGroup.AllPool()
 		for _, v := range items {
-			if v.Stats().TotalConns == 0 {
-				continue // 连接池中没有连接，跳过
-			}
-			conn, err := v.Get(context.Background(), pool.WithNoUpdateLastActive())
+			conn, err := v.Get(context.Background(), pool.WithGetNoUpdateLastActive(), pool.WithGetNoNewConn())
 			if err != nil {
 				continue // 获取连接失败，跳过
 			}

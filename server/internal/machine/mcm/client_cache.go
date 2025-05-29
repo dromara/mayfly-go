@@ -53,10 +53,7 @@ func GetMachineCli(ctx context.Context, authCertName string, getMachine func(str
 // 删除指定机器缓存客户端，并关闭客户端连接
 func DeleteCli(id uint64) {
 	for _, p := range poolGroup.AllPool() {
-		if p.Stats().TotalConns == 0 {
-			continue
-		}
-		conn, err := p.Get(context.Background(), pool.WithNoUpdateLastActive())
+		conn, err := p.Get(context.Background(), pool.WithGetNoUpdateLastActive(), pool.WithGetNoNewConn())
 		if err != nil {
 			continue
 		}

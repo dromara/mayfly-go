@@ -174,8 +174,7 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 	}
 	// 如果存在连接，则关闭所有库连接信息
 	for _, dbStr := range strings.Split(re.Db, ",") {
-		db, _ := strconv.Atoi(dbStr)
-		rdm.CloseConn(re.Id, db)
+		rdm.CloseConn(re.Id, cast.ToInt(dbStr))
 	}
 
 	return r.Tx(ctx, func(ctx context.Context) error {

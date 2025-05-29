@@ -78,7 +78,7 @@ func (p *ChanPool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 	connChan := make(chan T, 1)
 	errChan := make(chan error, 1)
 
-	options := getOptions{updateLastActive: true} // 默认更新 lastActive
+	options := defaultGetOptions // 默认更新 lastActive
 	for _, apply := range opts {
 		apply(&options)
 	}
@@ -114,11 +114,11 @@ func (p *ChanPool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 }
 
 func (p *ChanPool[T]) get(opts getOptions) (T, error) {
+	var zero T
 	// 检查连接池是否已关闭
 	p.mu.RLock()
 	if p.closed {
 		p.mu.RUnlock()
-		var zero T
 		return zero, ErrPoolClosed
 	}
 	p.mu.RUnlock()
@@ -133,6 +133,9 @@ func (p *ChanPool[T]) get(opts getOptions) (T, error) {
 		}
 		return wrapper.conn, nil
 	default:
+		if !opts.newConn {
+			return zero, ErrNoAvailableConn
+		}
 		return p.createConn()
 	}
 }

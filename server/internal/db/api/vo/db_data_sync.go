@@ -19,7 +19,7 @@ type DataSyncTaskListVO struct {
 type DataSyncLogListVO struct {
 	CreateTime  *time.Time `json:"createTime"`
 	DataSqlFull string     `json:"dataSqlFull"`
-	ResNum      string     `json:"resNum"`
+	ResNum      int        `json:"resNum"`
 	ErrText     string     `json:"errText"`
 	Status      *int       `json:"status"`
 }

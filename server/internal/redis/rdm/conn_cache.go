@@ -15,10 +15,7 @@ func init() {
 		// 遍历所有redis连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := poolGroup.AllPool()
 		for _, v := range items {
-			if v.Stats().TotalConns == 0 {
-				continue // 连接池中没有连接，跳过
-			}
-			rc, err := v.Get(context.Background(), pool.WithNoUpdateLastActive())
+			rc, err := v.Get(context.Background(), pool.WithGetNoUpdateLastActive(), pool.WithGetNoNewConn())
 			if err != nil {
 				continue // 获取连接失败，跳过
 			}

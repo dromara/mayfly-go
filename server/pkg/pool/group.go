@@ -117,8 +117,8 @@ func (pg *PoolGroup[T]) asyncClose(pool Pool[T], key string) {
 		select {
 		case <-done:
 			logx.Infof("pool group - pool closed successfully, key: %s", key)
-		case <-time.After(5 * time.Second):
-			logx.Errorf("pool group - pool close timeout, possible deadlock detected, key: %s", key)
+		case <-time.After(10 * time.Second):
+			logx.Errorf("pool group - pool close timeout, key: %s", key)
 			// 打印当前 goroutine 的堆栈信息
 			buf := make([]byte, 1<<16)
 			runtime.Stack(buf, true)
