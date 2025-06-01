@@ -101,28 +101,11 @@ func (m *machineCronJobAppImpl) InitCronJob() {
 		}
 	}()
 
-	pageParam := model.PageParam{
-		PageSize: 100,
-		PageNum:  1,
-	}
-
-	var mcjs []*entity.MachineCronJob
-	cond := &entity.MachineCronJob{Status: entity.MachineCronJobStatusEnable}
-	pr, _ := m.GetPageList(cond, pageParam)
-	total := pr.Total
-	add := 0
-
-	for {
-		for _, mcj := range mcjs {
-			m.addCronJob(mcj)
-			add++
-		}
-		if add >= int(total) {
-			return
-		}
-
-		pageParam.PageNum = pageParam.PageNum + 1
-		m.GetPageList(cond, pageParam)
+	if err := m.CursorByCond(&entity.MachineCronJob{Status: entity.MachineCronJobStatusEnable}, func(mcj *entity.MachineCronJob) error {
+		m.addCronJob(mcj)
+		return nil
+	}); err != nil {
+		logx.ErrorTrace("the machine cronjob failed to initialize: %v", err)
 	}
 }
 

@@ -143,32 +143,11 @@ func (app *dbTransferAppImpl) InitCronJob() {
 	// 把所有运行中的文件状态设置为失败
 	_ = app.transferFileApp.UpdateByCond(context.TODO(), &entity.DbTransferFile{Status: entity.DbTransferFileStatusFail}, &entity.DbTransferFile{Status: entity.DbTransferFileStatusRunning})
 
-	// 把所有需要定时执行的任务添加到定时任务中
-	cond := new(entity.DbTransferTaskQuery)
-	cond.PageNum = 1
-	cond.PageSize = 100
-
-	cond.Status = entity.DbTransferTaskStatusEnable
-	cond.CronAble = entity.DbTransferTaskCronAbleEnable
-	jobs := []entity.DbTransferTask{}
-
-	pr, _ := app.GetPageList(cond)
-	if nil == pr || pr.Total == 0 {
-		return
-	}
-	total := pr.Total
-	add := 0
-
-	for {
-		for _, job := range jobs {
-			app.AddCronJob(contextx.NewTraceId(), &job)
-			add++
-		}
-		if add >= int(total) {
-			return
-		}
-		cond.PageNum++
-		_, _ = app.GetPageList(cond)
+	if err := app.CursorByCond(&entity.DbTransferTaskQuery{Status: entity.DbTransferTaskStatusEnable, CronAble: entity.DbTransferTaskCronAbleEnable}, func(dtt *entity.DbTransferTask) error {
+		app.AddCronJob(contextx.NewTraceId(), dtt)
+		return nil
+	}); err != nil {
+		logx.ErrorTrace("the db data transfer task failed to initialize", err)
 	}
 }
 

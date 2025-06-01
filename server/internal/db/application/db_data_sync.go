@@ -408,32 +408,11 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	// 修改执行中状态为待执行
 	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning})
 
-	// 把所有正常任务添加到定时任务中
-	cond := new(entity.DataSyncTaskQuery)
-	cond.PageNum = 1
-	cond.PageSize = 100
-	cond.Status = entity.DataSyncTaskStatusEnable
-
-	tasks, err := app.GetPageList(cond)
-	if err != nil {
-		logx.ErrorTrace("the data synchronization task failed to initialize", err)
-		return
-	}
-
-	total := tasks.Total
-	add := 0
-
-	for {
-		for _, job := range tasks.List {
-			app.AddCronJob(contextx.NewTraceId(), job)
-			add++
-		}
-		if add >= int(total) {
-			return
-		}
-
-		cond.PageNum = cond.PageNum + 1
-		tasks, _ = app.GetPageList(cond)
+	if err := app.CursorByCond(&entity.DataSyncTaskQuery{Status: entity.DataSyncTaskStatusEnable}, func(dst *entity.DataSyncTask) error {
+		app.AddCronJob(contextx.NewTraceId(), dst)
+		return nil
+	}); err != nil {
+		logx.ErrorTrace("the db data sync task failed to initialize: %v", err)
 	}
 }
 

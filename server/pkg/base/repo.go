@@ -89,6 +89,9 @@ type Repo[T model.ModelI] interface {
 
 	// CountByCond 根据指定条件统计model表的数量
 	CountByCond(cond any) int64
+
+	// SelectByCondWithOffset 根据条件查询数据并支持 offset + limit 分页
+	SelectByCondWithOffset(cond any, limit int, offset int) ([]T, error)
 }
 
 var _ (Repo[*model.Model]) = (*RepoImpl[*model.Model])(nil)
@@ -249,6 +252,15 @@ func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
 
 func (br *RepoImpl[T]) CountByCond(cond any) int64 {
 	return gormx.CountByCond(br.GetModel(), toQueryCond(cond))
+}
+
+func (br *RepoImpl[T]) SelectByCondWithOffset(cond any, limit int, offset int) ([]T, error) {
+	var models []T
+	err := gormx.NewQuery(br.GetModel(), toQueryCond(cond)).GenGdb().Limit(limit).Offset(offset).Find(&models).Error
+	if err != nil {
+		return nil, err
+	}
+	return models, nil
 }
 
 // NewModel 新建模型实例
