@@ -7,7 +7,7 @@
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
-                        <el-link @click="formatSql()" type="primary" underline="never" icon="MagicStick"> </el-link>
+                        <el-link @click="onFormatSql()" type="primary" underline="never" icon="MagicStick"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
@@ -39,19 +39,13 @@
             </div>
         </div>
 
-        <Splitpanes
-            @pane-maximize="resizeTableHeight({ panes: [{ size: 0 }] })"
-            @resize="resizeTableHeight"
-            horizontal
-            class="default-theme"
-            style="height: calc(100vh - 233px)"
-        >
-            <Pane :size="state.editorSize" max-size="80">
+        <el-splitter style="height: calc(100vh - 200px)" layout="vertical" @resize-end="onResizeTableHeight">
+            <el-splitter-panel :size="state.editorSize" max="80%">
                 <MonacoEditor ref="monacoEditorRef" class="mt-1" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
-            </Pane>
+            </el-splitter-panel>
 
-            <Pane :size="100 - state.editorSize">
-                <div class="mt-1 sql-exec-res !h-full">
+            <el-splitter-panel>
+                <div class="sql-exec-res !h-full">
                     <el-tabs
                         class="!h-full !w-full"
                         v-if="state.execResTabs.length > 0"
@@ -128,8 +122,8 @@
                         </el-tab-pane>
                     </el-tabs>
                 </div>
-            </Pane>
-        </Splitpanes>
+            </el-splitter-panel>
+        </el-splitter>
     </div>
 </template>
 
@@ -151,9 +145,9 @@ import { dbApi } from '../../api';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { joinClientParams } from '@/common/request';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { Pane, Splitpanes } from 'splitpanes';
 import { useI18n } from 'vue-i18n';
 import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+import { useDebounceFn, useEventListener } from '@vueuse/core';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -241,10 +235,11 @@ onMounted(async () => {
     console.log('in query mounted');
 
     // 第一个pane为sql editor
-    resizeTableHeight({ panes: [{ size: state.editorSize }] });
-    window.onresize = () => {
-        resizeTableHeight({ panes: [{ size: state.editorSize }] });
-    };
+    onResizeTableHeight(0, [-1]);
+    useEventListener(
+        'resize',
+        useDebounceFn(() => onResizeTableHeight(0, [-1]), 200)
+    );
 
     // 默认新建一个结果集tab
     state.execResTabs.push(new ExecResTab(1));
@@ -279,12 +274,24 @@ const onRemoveTab = (targetId: number) => {
     }
 };
 
-const resizeTableHeight = (e: any) => {
+const onResizeTableHeight = (index: number, sizes: number[]) => {
+    if (!sizes || sizes.length === 0) {
+        return;
+    }
+
     const vh = window.innerHeight;
-    state.editorSize = e.panes[0].size;
-    const plitpaneHeight = vh - 233;
-    const editorHeight = plitpaneHeight * (state.editorSize / 100);
-    state.tableDataHeight = plitpaneHeight - editorHeight - 40 + 'px';
+    const plitpaneHeight = vh - 200;
+
+    let editorHeight = sizes[0];
+    if (editorHeight < 0 || editorHeight > plitpaneHeight - 43) {
+        // 默认占50%
+        editorHeight = plitpaneHeight / 2;
+    }
+
+    let tableDataHeight = plitpaneHeight - editorHeight - 43;
+
+    state.editorSize = editorHeight;
+    state.tableDataHeight = tableDataHeight + 'px';
 };
 
 const getKey = () => {
@@ -535,7 +542,7 @@ const saveSql = async () => {
 /**
  * 格式化sql
  */
-const formatSql = () => {
+const onFormatSql = () => {
     let selection = monacoEditor.getSelection();
     if (!selection) {
         return;
@@ -715,7 +722,7 @@ const initMonacoEditor = () => {
         // @param editor The editor instance is passed in as a convenience
         run: async function () {
             try {
-                await formatSql();
+                await onFormatSql();
             } catch (e: any) {
                 e.message && ElMessage.error(e.message);
             }

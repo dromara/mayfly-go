@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-popover
-            v-if="props.username"
+            v-if="props.username && props.username != '-'"
             @show="getAccountInfo(props.username)"
             placement="top-start"
             :title="$t('system.account.accountInfo')"

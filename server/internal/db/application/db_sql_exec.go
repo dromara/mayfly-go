@@ -81,7 +81,6 @@ func createSqlExecRecord(ctx context.Context, execSqlReq *dto.DbSqlExecReq, sql 
 	dbSqlExecRecord.Sql = sql
 	dbSqlExecRecord.Remark = execSqlReq.Remark
 	dbSqlExecRecord.Status = entity.DbSqlExecStatusSuccess
-	dbSqlExecRecord.FillBaseInfo(model.IdGenTypeNone, contextx.GetLoginAccount(ctx))
 	return dbSqlExecRecord
 }
 
@@ -130,7 +129,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 				}
 				execRes.ErrorMsg = err.Error()
 			} else {
-				d.saveSqlExecLog(dbSqlExecRecord, dbSqlExecRecord.Res)
+				d.saveSqlExecLog(ctx, dbSqlExecRecord, dbSqlExecRecord.Res)
 			}
 			allExecRes = append(allExecRes, execRes)
 			return nil
@@ -191,7 +190,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 			}
 			execRes.ErrorMsg = err.Error()
 		} else {
-			d.saveSqlExecLog(dbSqlExecRecord, execRes.Res)
+			d.saveSqlExecLog(ctx, dbSqlExecRecord, execRes.Res)
 		}
 		allExecRes = append(allExecRes, execRes)
 	}
@@ -318,10 +317,10 @@ func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, orderBy
 }
 
 // 保存sql执行记录，如果是查询类则根据系统配置判断是否保存
-func (d *dbSqlExecAppImpl) saveSqlExecLog(dbSqlExecRecord *entity.DbSqlExec, res any) {
+func (d *dbSqlExecAppImpl) saveSqlExecLog(ctx context.Context, dbSqlExecRecord *entity.DbSqlExec, res any) {
 	if dbSqlExecRecord.Type != entity.DbSqlExecTypeQuery {
 		dbSqlExecRecord.Res = jsonx.ToStr(res)
-		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
+		d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord)
 		return
 	}
 
@@ -329,7 +328,7 @@ func (d *dbSqlExecAppImpl) saveSqlExecLog(dbSqlExecRecord *entity.DbSqlExec, res
 		dbSqlExecRecord.Table = "-"
 		dbSqlExecRecord.OldValue = "-"
 		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
-		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
+		d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord)
 	}
 }
 

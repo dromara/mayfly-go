@@ -43,8 +43,8 @@
             </template>
 
             <template #right>
-                <Splitpanes class="default-theme">
-                    <Pane size="35" max-size="50">
+                <el-splitter>
+                    <el-splitter-panel size="35%" max="50%">
                         <div class="key-list-vtree h-full card !p-1">
                             <el-scrollbar>
                                 <el-row :gutter="5">
@@ -141,9 +141,9 @@
 
                             <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
                         </div>
-                    </Pane>
+                    </el-splitter-panel>
 
-                    <Pane>
+                    <el-splitter-panel>
                         <div class="h-full card !p-1 key-deatil">
                             <el-tabs class="h-full" @tab-remove="removeDataTab" v-model="state.activeName">
                                 <el-tab-pane class="h-full" closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
@@ -151,8 +151,8 @@
                                 </el-tab-pane>
                             </el-tabs>
                         </div>
-                    </Pane>
-                </Splitpanes>
+                    </el-splitter-panel>
+                </el-splitter>
             </template>
         </ResourceOpPanel>
 
@@ -196,7 +196,6 @@ import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { Splitpanes, Pane } from 'splitpanes';
 import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';

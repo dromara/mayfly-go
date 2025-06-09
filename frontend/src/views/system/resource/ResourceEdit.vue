@@ -34,16 +34,6 @@
                         </FormItemTooltip>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <FormItemTooltip
-                            class="!w-full"
-                            :label="$t('system.menu.componentPath')"
-                            prop="meta.component"
-                            :tooltip="$t('system.menu.componentPathTips')"
-                        >
-                            <el-input v-model.trim="form.meta.component"></el-input>
-                        </FormItemTooltip>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
                         <FormItemTooltip class="!w-full" :label="$t('system.menu.isCache')" prop="meta.isKeepAlive" :tooltip="$t('system.menu.isCacheTips')">
                             <el-select v-model="form.meta.isKeepAlive" class="!w-full">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>

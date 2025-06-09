@@ -12,6 +12,6 @@ func (la *LoginAccount) GetAesKey() string {
 
 // 系统账号
 var SysAccount = &LoginAccount{
-	Id:       1,
-	Username: "system",
+	Id:       0,
+	Username: "-",
 }

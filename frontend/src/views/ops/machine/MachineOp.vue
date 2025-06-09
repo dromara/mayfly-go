@@ -1,6 +1,6 @@
 <template>
     <div class="h-full">
-        <ResourceOpPanel @resized="onResizeTagTree">
+        <ResourceOpPanel @resize="onResizeTagTree">
             <template #left>
                 <tag-tree
                     ref="tagTreeRef"

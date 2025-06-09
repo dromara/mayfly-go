@@ -1,7 +1,7 @@
 <template>
-    <div class="card system-resource-list h-full flex">
-        <Splitpanes class="default-theme">
-            <Pane size="30" min-size="25" max-size="35" class="flex flex-col flex-1">
+    <div class="card !p-2 system-resource-list h-full flex">
+        <el-splitter>
+            <el-splitter-panel size="30%" max="35%" min="25%" class="flex flex-col flex-1">
                 <div class="card !p-1 mr-1 flex justify-between">
                     <div class="mb-1">
                         <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" class="mr-2 !w-[200px]" />
@@ -60,9 +60,9 @@
                         </template>
                     </el-tree>
                 </el-scrollbar>
-            </Pane>
+            </el-splitter-panel>
 
-            <Pane min-size="40" size="70">
+            <el-splitter-panel>
                 <div class="ml-2">
                     <el-tabs v-model="state.activeTabName" @tab-click="onTabClick" v-if="currentResource">
                         <el-tab-pane :label="$t('common.detail')" :name="ResourceDetail">
@@ -77,9 +77,6 @@
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.routerName')">
                                     {{ currentResource.meta.routeName }}
-                                </el-descriptions-item>
-                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.componentPath')">
-                                    {{ currentResource.meta.component }}
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.isCache')">
                                     {{ currentResource.meta.isKeepAlive ? $t('system.menu.yes') : $t('system.menu.no') }}
@@ -126,8 +123,8 @@
                         </el-tab-pane>
                     </el-tabs>
                 </div>
-            </Pane>
-        </Splitpanes>
+            </el-splitter-panel>
+        </el-splitter>
 
         <ResourceEdit
             :title="dialogForm.title"
@@ -152,7 +149,6 @@ import { resourceApi } from '../api';
 import { formatDate } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import { Splitpanes, Pane } from 'splitpanes';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import { useI18n } from 'vue-i18n';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';

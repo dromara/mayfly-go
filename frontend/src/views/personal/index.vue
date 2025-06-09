@@ -58,6 +58,10 @@ import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { useI18n } from 'vue-i18n';
 
+defineOptions({
+    name: 'Personal',
+});
+
 const { t } = useI18n();
 
 const state = reactive({

@@ -25,7 +25,7 @@ export default {
             success: '成功',
             menuCodeTips: `菜单类型则为访问路径（若菜单路径不以'/'开头则访问地址会自动拼接父菜单路径）、否则为资源唯一编码`,
             menuCodePlaceholder: `菜单不以'/'开头则自动拼接父菜单路径`,
-            routerNameTips: '与vue的组件名一致才可使组件缓存生效，如ResourceList',
+            routerNameTips: '前端模块下route.ts中对应的key，与vue的组件名一致才可使组件缓存生效，如ResourceList',
             componentPathTips: '访问的组件路径，如：`system/resource/ResourceList`，默认在`views`目录下',
             isCacheTips: '选择是则会被`keep-alive`缓存(重新进入页面不会刷新页面及重新请求数据)，需要路由名与vue的组件名一致',
             isHideTips: '选择隐藏则路由将不会出现在菜单栏中，但仍然可以访问。禁用则不可访问与操作',

@@ -1,7 +1,7 @@
 <template>
-    <div class="tag-tree-list card h-full flex">
-        <Splitpanes class="default-theme">
-            <Pane size="30" min-size="25" max-size="35" class="flex flex-col flex-1">
+    <div class="tag-tree-list card !p-2 h-full flex">
+        <el-splitter>
+            <el-splitter-panel size="30%" min="25%" max="35%" class="flex flex-col flex-1">
                 <div class="card !p-1 !mb-1 !mr-1 flex justify-between">
                     <div class="mb-1">
                         <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" class="mr-2 !w-[200px]" />
@@ -63,9 +63,9 @@
                         </template>
                     </el-tree>
                 </el-scrollbar>
-            </Pane>
+            </el-splitter-panel>
 
-            <Pane min-size="40" size="70">
+            <el-splitter-panel>
                 <div class="ml-2 h-full">
                     <el-tabs class="h-full" @tab-change="onTabChange" v-model="state.activeTabName" v-if="currentTag">
                         <el-tab-pane :label="$t('common.detail')" :name="TagDetail">
@@ -134,8 +134,8 @@
                         </el-tab-pane>
                     </el-tabs>
                 </div>
-            </Pane>
-        </Splitpanes>
+            </el-splitter-panel>
+        </el-splitter>
 
         <el-dialog width="500px" :title="saveTabDialog.title" :before-close="onCancelSaveTag" v-model="saveTabDialog.visible">
             <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
@@ -167,7 +167,6 @@ import { tagApi } from './api';
 import { formatDate } from '@/common/utils/format';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
 import { useUserInfo } from '@/store/userInfo';
-import { Splitpanes, Pane } from 'splitpanes';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import EnumValue from '@/common/Enum';

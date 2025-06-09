@@ -65,6 +65,9 @@ type DbSqlExecQuery struct {
 	Table      string `json:"table" form:"table"`
 	Type       int8   `json:"type" form:"type"` // 类型
 	FlowBizKey string `json:"flowBizKey" form:"flowBizKey"`
+	Keyword    string `json:"keyword" form:"keyword"`
+	StartTime  string `json:"startTime" form:"startTime"`
+	EndTime    string `json:"endTime" form:"endTime"`
 
 	Status    []int8
 	CreatorId uint64
