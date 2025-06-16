@@ -21,7 +21,7 @@
                         <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
                     </el-descriptions-item>
                     <el-descriptions-item :span="1" :label="$t('flow.initiator')">
-                        <AccountInfo :username="procinst.creator" />
+                        <AccountInfo :username="procinst.creator || ''" />
                     </el-descriptions-item>
 
                     <el-descriptions-item :span="1" :label="$t('flow.procinstStatus')">

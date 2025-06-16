@@ -19,10 +19,9 @@
                 :default-expanded-keys="props.defaultExpandedKeys"
             >
                 <template #default="{ node, data }">
-                    <span
+                    <div
                         :id="node.key"
-                        @dblclick="treeNodeDblclick(data, node)"
-                        class="node-container flex items-center cursor-pointer select-none"
+                        class="w-full node-container flex items-center cursor-pointer select-none"
                         :class="data.type.nodeDblclickFunc ? 'select-none' : ''"
                     >
                         <span v-if="data.type.value == TagTreeNode.TagPath">
@@ -44,7 +43,7 @@
                         <span class="absolute right-2.5 mt-0.5 text-[10px] text-gray-400">
                             <slot :node="node" :data="data" name="suffix"></slot>
                         </span>
-                    </span>
+                    </div>
                 </template>
             </el-tree>
 
@@ -153,7 +152,16 @@ const loadNode = async (node: any, resolve: (data: any) => void, reject: () => v
     return resolve(nodes);
 };
 
-const treeNodeClick = async (data: any) => {
+let lastNodeClickTime = 0;
+
+const treeNodeClick = async (data: any, node: any) => {
+    const currentClickNodeTime = Date.now();
+    if (currentClickNodeTime - lastNodeClickTime < 300) {
+        treeNodeDblclick(data, node);
+        return;
+    }
+    lastNodeClickTime = currentClickNodeTime;
+
     if (!data.disabled && !data.type.nodeDblclickFunc && data.type.nodeClickFunc) {
         emit('nodeClick', data);
         await data.type.nodeClickFunc(data);
@@ -170,7 +178,6 @@ const treeNodeDblclick = (data: any, node: any) => {
         node.expand();
     }
 
-    // emit('nodeDblick', data);
     if (!data.disabled && data.type.nodeDblclickFunc) {
         data.type.nodeDblclickFunc(data);
     }

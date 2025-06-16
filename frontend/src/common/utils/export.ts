@@ -42,4 +42,5 @@ export function exportFile(filename: string, content: string) {
     link.setAttribute('download', `${filename}`);
     document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link); // 下载完成后移除元素
 }

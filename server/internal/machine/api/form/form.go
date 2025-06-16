@@ -32,6 +32,7 @@ type MachineScriptForm struct {
 	Name        string `json:"name" binding:"required"`
 	MachineId   uint64 `json:"machineId" binding:"required"`
 	Type        int    `json:"type" binding:"required"`
+	Category    string `json:"category"`
 	Description string `json:"description" binding:"required"`
 	Params      string `json:"params"`
 	Script      string `json:"script" binding:"required"`

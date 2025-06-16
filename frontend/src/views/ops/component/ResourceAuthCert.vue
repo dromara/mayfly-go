@@ -19,6 +19,7 @@ const props = defineProps({
     authCerts: {
         type: [Array<any>],
         required: true,
+        default: () => [],
     },
 });
 

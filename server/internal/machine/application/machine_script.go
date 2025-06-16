@@ -7,6 +7,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type MachineScript interface {
@@ -15,10 +16,15 @@ type MachineScript interface {
 	// 分页获取机器脚本信息列表
 	GetPageList(condition *entity.MachineScript, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineScript], error)
 
+	// GetScriptCategorys 获取脚本分类
+	GetScriptCategorys(ctx context.Context) ([]string, error)
+
 	Save(ctx context.Context, entity *entity.MachineScript) error
 
 	Delete(ctx context.Context, id uint64)
 }
+
+var _ (MachineScript) = (*machineScriptAppImpl)(nil)
 
 type machineScriptAppImpl struct {
 	base.AppImpl[*entity.MachineScript, repository.MachineScript]
@@ -31,6 +37,15 @@ const Common_Script_Machine_Id = 9999999
 // 分页获取机器脚本信息列表
 func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineScript], error) {
 	return m.GetRepo().GetPageList(condition, pageParam, orderBy...)
+}
+
+func (m *machineScriptAppImpl) GetScriptCategorys(ctx context.Context) ([]string, error) {
+	scripts, err := m.ListByCond(new(entity.MachineScript), "category")
+	if err != nil {
+		return nil, err
+	}
+
+	return collx.ArrayRemoveBlank(collx.ArrayDeduplicate(collx.ArrayMap(scripts, func(script *entity.MachineScript) string { return script.Category }))), nil
 }
 
 // 保存机器脚本

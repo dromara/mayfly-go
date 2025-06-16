@@ -155,7 +155,7 @@ const state = reactive({
     },
     dbEditDialog: {
         visible: false,
-        instance: null as any,
+        instance: {},
         title: '',
     },
 });

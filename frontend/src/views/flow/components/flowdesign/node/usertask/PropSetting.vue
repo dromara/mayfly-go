@@ -10,7 +10,7 @@
 
                 <el-table-column :label="$t('flow.approver')" min-width="100">
                     <template #default="scope">
-                        <AccountInfo :username="scope.row.handler" />
+                        <AccountInfo :username="scope.row.handler || ''" />
                     </template>
                 </el-table-column>
 

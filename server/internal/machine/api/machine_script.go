@@ -28,6 +28,8 @@ func (ms *MachineScript) ReqConfs() *req.Confs {
 		// 获取指定机器脚本列表
 		req.NewGet(":machineId/scripts", ms.MachineScripts),
 
+		req.NewGet("/scripts/categorys", ms.MachineScriptCategorys),
+
 		req.NewPost(":machineId/scripts", ms.SaveMachineScript).Log(req.NewLogSave("机器-保存脚本")).RequiredPermissionCode("machine:script:save"),
 
 		req.NewDelete(":machineId/scripts/:scriptId", ms.DeleteMachineScript).Log(req.NewLogSave("机器-删除脚本")).RequiredPermissionCode("machine:script:del"),
@@ -39,10 +41,16 @@ func (ms *MachineScript) ReqConfs() *req.Confs {
 }
 
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {
-	condition := &entity.MachineScript{MachineId: GetMachineId(rc)}
+	condition := &entity.MachineScript{MachineId: GetMachineId(rc), Category: rc.Query("category")}
 	res, err := m.machineScriptApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = model.PageResultConv[*entity.MachineScript, *vo.MachineScriptVO](res)
+}
+
+func (m *MachineScript) MachineScriptCategorys(rc *req.Ctx) {
+	res, err := m.machineScriptApp.GetScriptCategorys(rc.MetaCtx)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {

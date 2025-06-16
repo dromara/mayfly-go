@@ -12,8 +12,9 @@ const props = defineProps({
         required: true,
     },
     value: {
-        type: [Object, String, Number],
+        type: [Object, String, Number, null],
         required: true,
+        default: () => null,
     },
 });
 
@@ -40,7 +41,7 @@ onMounted(() => {
 });
 
 const convert = (value: any) => {
-    const enumValue = EnumValue.getEnumByValue(props.enums, value) as any;
+    const enumValue = EnumValue.getEnumByValue(props.enums, value);
     if (!enumValue) {
         state.enumLabel = '-';
         state.type = 'danger';
@@ -50,8 +51,8 @@ const convert = (value: any) => {
 
     state.enumLabel = enumValue?.label || '';
     if (enumValue.tag) {
-        state.color = enumValue.tag.color;
-        state.type = enumValue.tag.type;
+        state.color = enumValue.tag.color || '';
+        state.type = enumValue.tag.type || defaultType;
     } else {
         state.type = defaultType;
     }

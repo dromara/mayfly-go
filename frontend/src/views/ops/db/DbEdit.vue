@@ -89,7 +89,7 @@ import { Rules } from '@/common/rule';
 
 const props = defineProps({
     instance: {
-        type: [Boolean, Object],
+        type: [Boolean, Object, null],
     },
     db: {
         type: [Boolean, Object],

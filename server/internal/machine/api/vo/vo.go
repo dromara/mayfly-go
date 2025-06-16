@@ -49,6 +49,7 @@ type MachineScriptVO struct {
 	Name        *string `json:"name"`
 	Script      *string `json:"script"`
 	Type        *int    `json:"type"`
+	Category    string  `json:"category"`
 	Description *string `json:"description"`
 	Params      *string `json:"params"`
 	MachineId   *uint64 `json:"machineId"`

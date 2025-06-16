@@ -26,6 +26,7 @@ const props = defineProps({
     tags: {
         type: [Array<any>],
         required: true,
+        default: () => [],
     },
 });
 </script>

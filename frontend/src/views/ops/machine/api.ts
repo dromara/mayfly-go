@@ -23,6 +23,7 @@ export const machineApi = {
     // 删除机器
     del: Api.newDelete('/machines/{id}'),
     scripts: Api.newGet('/machines/{machineId}/scripts'),
+    scriptCategorys: Api.newGet('/machines/scripts/categorys'),
     runScript: Api.newGet('/machines/scripts/{scriptId}/{ac}/run'),
     saveScript: Api.newPost('/machines/{machineId}/scripts'),
     deleteScript: Api.newDelete('/machines/{machineId}/scripts/{scriptId}'),

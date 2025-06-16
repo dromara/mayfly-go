@@ -99,6 +99,7 @@ import { DynamicFormDialog } from '@/components/dynamic-form';
 import { SearchItem } from '@/components/SearchForm';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
+import { OptionsApi } from '@/components/SearchForm/index';
 
 const { t } = useI18n();
 
@@ -117,11 +118,24 @@ const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     selectionData: [],
-    searchItems: [SearchItem.select('type', 'common.type').withEnum(ScriptTypeEnum)],
+    searchItems: [
+        SearchItem.select('type', 'common.type').withEnum(ScriptTypeEnum),
+        SearchItem.select('category', 'machine.category').withOptionsApi(
+            OptionsApi.new(machineApi.scriptCategorys, {}).withConvertFn((res) => {
+                return res.map((x: any) => {
+                    return {
+                        label: x,
+                        value: x,
+                    };
+                });
+            })
+        ),
+    ],
     columns: [
         TableColumn.new('name', 'common.name'),
         TableColumn.new('description', 'common.remark'),
         TableColumn.new('type', 'common.type').typeTag(ScriptResultEnum),
+        TableColumn.new('category', 'machine.category'),
         TableColumn.new('action', 'common.operation').isSlot().setMinWidth(140).alignCenter(),
     ],
     query: {

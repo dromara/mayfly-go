@@ -88,6 +88,8 @@ export default {
         scriptResultEnumRealTime: '实时交互',
         scriptTypeEnumPrivate: '私有',
         scriptTypeEnumPublic: '公共',
+        category: '分类',
+        categoryTips: '支持输入新分类并选择',
 
         // security
         cmdConfig: '命令配置',

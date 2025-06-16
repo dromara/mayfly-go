@@ -58,11 +58,21 @@ const viteConfig: UserConfig = {
                 entryFileNames: `assets/[name]-[hash].js`,
                 chunkFileNames: `assets/[name]-[hash].js`,
                 assetFileNames: `assets/[name]-[hash].[ext]`,
-                compact: true,
-                manualChunks: {
-                    vue: ['vue', 'vue-router', 'pinia'],
-                    echarts: ['echarts'],
-                    monaco: ['monaco-editor'],
+                advancedChunks: {
+                    groups: [
+                        {
+                            name: 'vue',
+                            test: /(vue|vue-router|pinia)/i,
+                        },
+                        {
+                            name: 'echarts',
+                            test: /(echarts)/i,
+                        },
+                        {
+                            name: 'monaco',
+                            test: /(monaco-editor)/i,
+                        },
+                    ],
                 },
             },
         },

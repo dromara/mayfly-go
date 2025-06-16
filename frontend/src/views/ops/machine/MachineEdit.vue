@@ -61,10 +61,8 @@
             </el-form>
 
             <template #footer>
-                <div>
-                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>

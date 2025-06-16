@@ -83,9 +83,8 @@ type RouterConvCallbackFunc = (router: any) => void;
  * @param name ==> title，路由标题 相当于route.meta.title
  *
  * @param meta ==> 路由菜单元信息
- * @param meta.routeName ==> route.name -> 路由 name (对应页面组件 name, 可用作 KeepAlive 缓存标识 && 按钮权限筛选)
+ * @param meta.routeName ==> route.name -> 路由 name (对应页面组件 name, 可用作 KeepAlive 缓存标识 && 按钮权限筛选) -> 对应模块下route.ts字段key
  * @param meta.redirect ==> route.redirect -> 路由重定向地址
- * @param meta.component ==> 文件路径
  * @param meta.icon ==> 菜单和面包屑对应的图标
  * @param meta.isHide ==> 是否在菜单中隐藏 (通常列表详情页需要隐藏)
  * @param meta.isFull ==> 菜单是否全屏 (示例：数据大屏页面)

@@ -117,6 +117,7 @@
                         </el-tab-pane>
 
                         <el-tab-pane
+                            class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
                             :label="`Redis (${resourceCount.redis || 0})`"
                             :name="RedisTag"

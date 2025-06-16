@@ -71,9 +71,9 @@ export class TableColumn {
     formatFunc: Function;
 
     /**
-     * 是否显示该列
+     * 是否显示该列,1显示 0不显示
      */
-    show: boolean = true;
+    show: number = 1;
 
     /**
      * 是否展示美化按钮（主要用于美化json文本等）

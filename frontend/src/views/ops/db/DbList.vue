@@ -365,7 +365,7 @@ const editDb = (data: any) => {
         state.dbEditDialog.data = { ...data };
     } else {
         state.dbEditDialog.data = {
-            instanceId: props.instance.id,
+            instanceId: props.instance?.id,
         };
     }
     state.dbEditDialog.title = data ? useI18nEditTitle('db.db') : useI18nCreateTitle('db.db');
@@ -373,7 +373,7 @@ const editDb = (data: any) => {
 };
 
 const confirmEditDb = async (db: any) => {
-    db.instanceId = props.instance.id;
+    db.instanceId = props.instance?.id;
     await dbApi.saveDb.request(db);
     useI18nSaveSuccessMsg();
     search();

@@ -68,7 +68,7 @@ func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, orderBy ...string) (*
 
 func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 	// 查找是否存在
-	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
+	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId, AuthCertName: dbEntity.AuthCertName}
 
 	authCert, err := d.resourceAuthCertApp.GetAuthCert(dbEntity.AuthCertName)
 	if err != nil {

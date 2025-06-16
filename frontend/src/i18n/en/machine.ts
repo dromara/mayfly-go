@@ -87,6 +87,8 @@ export default {
         scriptResultEnumRealTime: 'Real-time',
         scriptTypeEnumPrivate: 'Private',
         scriptTypeEnumPublic: 'Public',
+        category: 'Category',
+        categoryTips: 'support input new category and selection',
 
         // security
         cmdConfig: 'Command Config',
