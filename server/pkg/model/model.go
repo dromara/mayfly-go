@@ -96,10 +96,11 @@ func (m *CreateModelNLD) FillBaseInfo(idGenType IdGenType, account *LoginAccount
 	m.IdModel.FillBaseInfo(idGenType, account)
 	nowTime := time.Now()
 	m.CreateTime = &nowTime
-	if account != nil {
-		m.CreatorId = account.Id
-		m.Creator = account.Username
+	if account == nil {
+		account = SysAccount
 	}
+	m.CreatorId = account.Id
+	m.Creator = account.Username
 }
 
 // 含有删除、创建字段模型
@@ -118,10 +119,11 @@ func (m *CreateModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	m.DeletedModel.FillBaseInfo(idGenType, account)
 	nowTime := time.Now()
 	m.CreateTime = &nowTime
-	if account != nil {
-		m.CreatorId = account.Id
-		m.Creator = account.Username
+	if account == nil {
+		account = SysAccount
 	}
+	m.CreatorId = account.Id
+	m.Creator = account.Username
 }
 
 // 基础实体模型，数据表最基础字段，不包含逻辑删除
@@ -144,7 +146,11 @@ func (m *ModelNLD) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	m.UpdateTime = &nowTime
 
 	if account == nil {
-		return
+		if isCreate {
+			account = SysAccount
+		} else {
+			return
+		}
 	}
 	id := account.Id
 	name := account.Username
@@ -177,7 +183,11 @@ func (m *Model) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	m.UpdateTime = &nowTime
 
 	if account == nil {
-		return
+		if isCreate {
+			account = SysAccount
+		} else {
+			return
+		}
 	}
 	id := account.Id
 	name := account.Username

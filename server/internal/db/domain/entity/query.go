@@ -18,8 +18,8 @@ type InstanceQuery struct {
 type DataSyncTaskQuery struct {
 	model.PageParam
 
-	Name   string `json:"name" form:"name"`
-	Status int8   `json:"status" form:"status"`
+	Name   string             `json:"name" form:"name"`
+	Status DataSyncTaskStatus `json:"status" form:"status"`
 }
 type DataSyncLogQuery struct {
 	model.PageParam

@@ -23,7 +23,7 @@ DROP COLUMN delete_time;
   ⑸ 其他工作；⑹ 甲方现场要求乙方完成的其它临时工作。', '{"ip":"::1 ","username":"test_user"}', 'errCode: 401, errMsg: 您的密码安全等级较低，请修改后重新登录;\n信息嘻嘻嘻', '-', 0, '2024-04-23 20:00:35', 0, NULL, '');
   `
 
-	err := SQLSplit(strings.NewReader(allsql), func(sql string) error {
+	err := SQLSplit(strings.NewReader(allsql), ';', func(sql string) error {
 		// if strings.Contains(sql, "INSERT") {
 		// 	return fmt.Errorf("不能存在INSERT语句")
 		// }

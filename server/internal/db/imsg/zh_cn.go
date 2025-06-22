@@ -37,4 +37,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogDataSyncSave:         "datasync-保存数据同步任务",
 	LogDataSyncDelete:       "datasync-删除数据同步任务",
 	LogDataSyncChangeStatus: "datasync-启停任务",
+	DataSyncSuccessMsg:      "执行成功，本次同步{{.count}}条",
+	DataSyncFailMsg:         "执行失败: {{.msg}}",
+	DataSyncingMsg:          "执行中，已同步{{.count}}条",
 }

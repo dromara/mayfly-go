@@ -37,4 +37,7 @@ var En = map[i18n.MsgId]string{
 	LogDataSyncSave:         "datasync - Save data sync task",
 	LogDataSyncDelete:       "datasync - Delete data sync task",
 	LogDataSyncChangeStatus: "datasync - Change status",
+	DataSyncSuccessMsg:      "the synchronous task was executed successfully. New data: {{.count}}",
+	DataSyncFailMsg:         "execution failure: {{.msg}}",
+	DataSyncingMsg:          "during the execution of this task, {{.count}} has been synchronized",
 }

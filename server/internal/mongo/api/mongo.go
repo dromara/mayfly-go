@@ -20,9 +20,9 @@ import (
 	"strings"
 
 	"github.com/may-fly/cast"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type Mongo struct {
@@ -196,7 +196,7 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 	// 处理_id查询字段,使用ObjectId函数包装
 	id, ok := filter["_id"].(string)
 	if ok && id != "" {
-		objId, err := primitive.ObjectIDFromHex(id)
+		objId, err := bson.ObjectIDFromHex(id)
 		if err == nil {
 			filter["_id"] = objId
 		}
@@ -222,7 +222,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	docId := commandForm.DocId
 	docIdVal, ok := docId.(string)
 	if ok {
-		objId, err := primitive.ObjectIDFromHex(docIdVal)
+		objId, err := bson.ObjectIDFromHex(docIdVal)
 		if err == nil {
 			docId = objId
 		}
@@ -246,7 +246,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	docId := commandForm.DocId
 	docIdVal, ok := docId.(string)
 	if ok {
-		objId, err := primitive.ObjectIDFromHex(docIdVal)
+		objId, err := bson.ObjectIDFromHex(docIdVal)
 		if err == nil {
 			docId = objId
 		}

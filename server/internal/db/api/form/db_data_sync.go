@@ -26,5 +26,5 @@ type DataSyncTaskForm struct {
 
 type DataSyncTaskStatusForm struct {
 	Id     uint64 `binding:"required" json:"taskId"`
-	Status int    `json:"status"`
+	Status int8   `json:"status"`
 }

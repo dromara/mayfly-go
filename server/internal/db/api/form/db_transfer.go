@@ -30,7 +30,7 @@ type DbTransferTaskForm struct {
 }
 type DbTransferTaskStatusForm struct {
 	Id     uint64 `binding:"required" json:"taskId" form:"taskId"`
-	Status int    `json:"status" form:"status"`
+	Status int8   `json:"status" form:"status"`
 }
 type DbTransferFileForm struct {
 	Id       uint64 `json:"id"`

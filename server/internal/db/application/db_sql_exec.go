@@ -99,7 +99,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 	stmts, err := sp.Parse(execSql)
 	// sql解析失败，则使用默认方式切割
 	if err != nil {
-		sqlparser.SQLSplit(strings.NewReader(execSql), func(oneSql string) error {
+		sqlparser.SQLSplit(strings.NewReader(execSql), ';', func(oneSql string) error {
 			var execRes *dto.DbSqlExecRes
 			var err error
 
@@ -229,7 +229,7 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 	}
 
 	tx, _ := dbConn.Begin()
-	err := sqlparser.SQLSplit(execReader.Reader, func(sql string) error {
+	err := sqlparser.SQLSplit(execReader.Reader, ';', func(sql string) error {
 		if executedStatements%50 == 0 {
 			if needSendMsg {
 				ws.SendJsonMsg(ws.UserId(la.Id), clientId, msgdto.InfoSysMsg(i18n.T(imsg.SqlScripRunProgress), &progressMsg{
@@ -589,28 +589,35 @@ func (d *dbSqlExecAppImpl) doExec(ctx context.Context, dbConn *dbi.DbConn, sql s
 }
 
 func isSelect(sql string) bool {
-	return strings.Contains(strings.ToLower(sql[:10]), "select")
+	return strings.Contains(getSqlPrefix(sql), "select")
 }
 
 func isUpdate(sql string) bool {
-	return strings.Contains(strings.ToLower(sql[:10]), "update")
+	return strings.Contains(getSqlPrefix(sql), "update")
 }
 
 func isDelete(sql string) bool {
-	return strings.Contains(strings.ToLower(sql[:10]), "delete")
+	return strings.Contains(getSqlPrefix(sql), "delete")
 }
 
 func isInsert(sql string) bool {
-	return strings.Contains(strings.ToLower(sql[:10]), "insert")
+	return strings.Contains(getSqlPrefix(sql), "insert")
 }
 
 func isOtherQuery(sql string) bool {
-	sqlPrefix := strings.ToLower(sql[:10])
+	sqlPrefix := getSqlPrefix(sql)
 	return strings.Contains(sqlPrefix, "explain") || strings.Contains(sqlPrefix, "show") || strings.Contains(sqlPrefix, "with")
 }
 
 func isDDL(sql string) bool {
-	sqlPrefix := strings.ToLower(sql[:10])
+	sqlPrefix := getSqlPrefix(sql)
 	return strings.Contains(sqlPrefix, "create") || strings.Contains(sqlPrefix, "alter") ||
 		strings.Contains(sqlPrefix, "drop") || strings.Contains(sqlPrefix, "truncate") || strings.Contains(sqlPrefix, "rename")
+}
+
+func getSqlPrefix(sql string) string {
+	if len(sql) < 10 {
+		return strings.ToLower(sql)
+	}
+	return strings.ToLower(sql[:10])
 }

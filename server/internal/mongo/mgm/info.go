@@ -11,8 +11,8 @@ import (
 
 	machineapp "mayfly-go/internal/machine/application"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type MongoInfo struct {
@@ -36,7 +36,7 @@ func (mi *MongoInfo) Conn() (*MongoConn, error) {
 		mongoOptions.SetDialer(&MongoSshDialer{machineId: mi.SshTunnelMachineId})
 	}
 
-	client, err := mongo.Connect(ctx, mongoOptions)
+	client, err := mongo.Connect(mongoOptions)
 	if err != nil {
 		return nil, err
 	}

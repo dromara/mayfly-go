@@ -24,7 +24,7 @@ func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, orderB
 		Eq("creator_id", condition.CreatorId).
 		Eq("flow_biz_key", condition.FlowBizKey).
 		In("status", condition.Status).
-		Like("sql", condition.Keyword).
+		Like("`sql`", condition.Keyword).
 		Ge("create_time", condition.StartTime).
 		Le("create_time", condition.EndTime).
 		RLike("db", condition.Db).OrderBy(orderBy...)

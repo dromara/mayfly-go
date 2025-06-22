@@ -11,8 +11,8 @@ import (
 // StmtCallback stmt回调函数
 type StmtCallback func(stmt string) error
 
-// SplitStmts 语句切割（用于以;结尾为一条语句，并且去除// -- /**/等注释）主要由阿里通义灵码提供
-func SplitStmts(r io.Reader, callback StmtCallback) error {
+// SplitStmts 语句切割（用于以指定delimiter结尾为一条语句，并且去除// -- /**/等注释）主要由阿里通义灵码提供
+func SplitStmts(r io.Reader, delimiter rune, callback StmtCallback) error {
 	reader := bufio.NewReaderSize(r, 512*1024)
 	buffer := new(bytes.Buffer) // 使用 bytes.Buffer 来处理数据
 	var currentStatement bytes.Buffer
@@ -83,7 +83,7 @@ func SplitStmts(r io.Reader, callback StmtCallback) error {
 				stringDelimiter = r
 				currentStatement.WriteRune(r)
 				buffer.Next(size)
-			case r == ';' && !inString && !inMultiLineComment && !inSingleLineComment:
+			case r == delimiter && !inString && !inMultiLineComment && !inSingleLineComment:
 				sql := strings.TrimSpace(currentStatement.String())
 				if sql != "" {
 					if err := callback(sql); err != nil {

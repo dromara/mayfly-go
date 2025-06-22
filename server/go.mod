@@ -14,24 +14,24 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.26.0
-	github.com/go-sql-driver/mysql v1.9.2
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20250508043914-ed57fa5c5274
 	github.com/may-fly/cast v1.7.1
-	github.com/microsoft/go-mssqldb v1.8.0
+	github.com/microsoft/go-mssqldb v1.8.2
 	github.com/mojocn/base64Captcha v1.3.8 // 验证码
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.9
 	github.com/pquerna/otp v1.5.0
 	github.com/redis/go-redis/v9 v9.10.0
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
-	github.com/sijms/go-ora/v2 v2.8.24
+	github.com/sijms/go-ora/v2 v2.9.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/veops/go-ansiterm v0.0.5
-	go.mongodb.org/mongo-driver v1.16.0 // mongo
+	go.mongodb.org/mongo-driver/v2 v2.2.2 // mongo
 	golang.org/x/crypto v0.39.0 // ssh
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.15.0
@@ -62,11 +62,11 @@ require (
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/golang/snappy v0.0.4 // indirect
+	github.com/golang/snappy v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.16.5 // indirect
+	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -74,7 +74,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
@@ -88,7 +87,7 @@ require (
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
-	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/arch v0.14.0 // indirect
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	golang.org/x/image v0.23.0 // indirect

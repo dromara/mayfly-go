@@ -16,6 +16,6 @@ type SqlParser interface {
 }
 
 // SQLSplit sql切割
-func SQLSplit(r io.Reader, callback utils.StmtCallback) error {
-	return utils.SplitStmts(r, callback)
+func SQLSplit(r io.Reader, delimiter rune, callback utils.StmtCallback) error {
+	return utils.SplitStmts(r, delimiter, callback)
 }

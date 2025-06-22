@@ -433,7 +433,7 @@ const runSql = async (sql: string, remark = '', newTab = false) => {
     }
 };
 
-function splitSql(sql: string) {
+function splitSql(sql: string, delimiter: string = ';') {
     let state = 'normal';
     let buffer = '';
     let result = [];
@@ -454,7 +454,7 @@ function splitSql(sql: string) {
                 state = 'string';
                 inString = char;
                 buffer += char;
-            } else if (char === ';') {
+            } else if (char === delimiter) {
                 if (buffer.trim()) {
                     result.push(buffer.trim());
                 }

@@ -265,7 +265,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 	handleRes := make([]map[string]any, 0)
 	hasErr := false
 
-	utils.SplitStmts(strings.NewReader(runCmdParam.Cmd), func(stmt string) error {
+	utils.SplitStmts(strings.NewReader(runCmdParam.Cmd), ';', func(stmt string) error {
 		cmd := strings.TrimSpace(stmt)
 		runRes := collx.Kvs("cmd", cmd)
 		if res, err := redisConn.RunCmd(ctx, collx.ArrayMap[string, any](parseRedisCommand(cmd), func(val string) any { return val })...); err != nil {

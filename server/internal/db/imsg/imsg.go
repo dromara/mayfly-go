@@ -47,4 +47,7 @@ const (
 	LogDataSyncSave
 	LogDataSyncDelete
 	LogDataSyncChangeStatus
+	DataSyncSuccessMsg
+	DataSyncFailMsg
+	DataSyncingMsg
 )

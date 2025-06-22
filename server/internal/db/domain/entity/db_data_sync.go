@@ -10,12 +10,12 @@ type DataSyncTask struct {
 	model.Model
 
 	// 基本信息
-	TaskName     string `json:"taskName" gorm:"not null;size:255;comment:任务名"`                       // 任务名
-	TaskCron     string `json:"taskCron" gorm:"not null;size:50;comment:任务Cron表达式"`                  // 任务Cron表达式
-	Status       int8   `json:"status" gorm:"not null;default:1;comment:状态 1启用  2禁用"`                // 状态 1启用  2禁用
-	TaskKey      string `json:"taskKey" gorm:"size:100;comment:任务唯一标识"`                              // 任务唯一标识
-	RecentState  int8   `json:"recentState" gorm:"not null;default:0;comment:最近执行状态 1成功 -1失败"`       // 最近执行状态 1成功 -1失败
-	RunningState int8   `json:"runningState" gorm:"not null;default:2;comment:运行时状态 1运行中、2待运行、3已停止"` // 运行时状态 1运行中、2待运行、3已停止
+	TaskName     string             `json:"taskName" gorm:"not null;size:255;comment:任务名"`                       // 任务名
+	TaskCron     string             `json:"taskCron" gorm:"not null;size:50;comment:任务Cron表达式"`                  // 任务Cron表达式
+	Status       DataSyncTaskStatus `json:"status" gorm:"not null;default:1;comment:状态 1启用  2禁用"`                // 状态 1启用  2禁用
+	TaskKey      string             `json:"taskKey" gorm:"size:100;comment:任务唯一标识"`                              // 任务唯一标识
+	RecentState  int8               `json:"recentState" gorm:"not null;default:0;comment:最近执行状态 1成功 -1失败"`       // 最近执行状态 1成功 -1失败
+	RunningState int8               `json:"runningState" gorm:"not null;default:2;comment:运行时状态 1运行中、2待运行、3已停止"` // 运行时状态 1运行中、2待运行、3已停止
 
 	// 源数据库信息
 	SrcDbId     int64  `json:"srcDbId" gorm:"not null;comment:源数据库ID"`                                                           // 源数据库ID
@@ -55,9 +55,12 @@ func (d *DataSyncLog) TableName() string {
 	return "t_db_data_sync_log"
 }
 
+// DataSyncTaskQuery 数据同步任务状态
+type DataSyncTaskStatus int8
+
 const (
-	DataSyncTaskStatusEnable  int8 = 1  // 启用状态
-	DataSyncTaskStatusDisable int8 = -1 // 禁用状态
+	DataSyncTaskStatusEnable  DataSyncTaskStatus = 1  // 启用状态
+	DataSyncTaskStatusDisable DataSyncTaskStatus = -1 // 禁用状态
 
 	DataSyncTaskStateSuccess int8 = 1  // 执行成功状态
 	DataSyncTaskStateRunning int8 = 2  // 执行中状态

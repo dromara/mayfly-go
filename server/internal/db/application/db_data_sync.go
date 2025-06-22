@@ -8,10 +8,12 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	"mayfly-go/internal/db/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
@@ -36,11 +38,7 @@ type DataSyncTask interface {
 
 	InitCronJob()
 
-	AddCronJob(ctx context.Context, taskEntity *entity.DataSyncTask)
-
-	RemoveCronJobById(taskId uint64)
-
-	RunCronJob(ctx context.Context, id uint64) error
+	Run(ctx context.Context, id uint64) error
 
 	StopTask(ctx context.Context, id uint64) error
 
@@ -61,10 +59,6 @@ var (
 	whereReg = regexp.MustCompile(`(?i)where`)
 )
 
-func (app *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
-	app.Repo = repo
-}
-
 func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, orderBy ...string) (*model.PageResult[*entity.DataSyncTask], error) {
 	return app.GetRepo().GetTaskList(condition, orderBy...)
 }
@@ -79,55 +73,31 @@ func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyn
 		taskEntity.TaskKey = ""
 		err = app.UpdateById(ctx, taskEntity)
 	}
-
 	if err != nil {
 		return err
 	}
 
-	task, err := app.GetById(taskEntity.Id)
-	if err != nil {
-		return err
-	}
-	app.AddCronJob(ctx, task)
+	app.addCronJob(ctx, taskEntity)
 	return nil
 }
 
 func (app *dataSyncAppImpl) Delete(ctx context.Context, id uint64) error {
-	if err := app.DeleteById(ctx, id); err != nil {
-		return err
-	}
-	app.RemoveCronJobById(id)
-	return nil
-}
-
-func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.DataSyncTask) {
-	key := taskEntity.TaskKey
-	// 先移除旧的任务
-	scheduler.RemoveByKey(key)
-
-	// 根据状态添加新的任务
-	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
-		taskId := taskEntity.Id
-		logx.Infof("start add the data sync task job: %s, cron[%s]", taskEntity.TaskName, taskEntity.TaskCron)
-		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
-			if err := app.RunCronJob(context.Background(), taskId); err != nil {
-				logx.Errorf("the data sync task failed to execute at a scheduled time: %s", err.Error())
-			}
-		}); err != nil {
-			logx.ErrorTrace("add db data sync job failed", err)
-		}
-	}
-}
-
-func (app *dataSyncAppImpl) RemoveCronJobById(taskId uint64) {
-	task, err := app.GetById(taskId)
+	task, err := app.GetById(id)
 	if err == nil {
-		scheduler.RemoveByKey(task.TaskKey)
+		return errorx.NewBiz("sync task not found")
 	}
-	app.MarkStop(taskId)
+	scheduler.RemoveByKey(task.TaskKey)
+	app.MarkStop(id)
+
+	return app.DeleteById(ctx, id)
 }
 
-func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
+func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
+	if app.IsRunning(id) {
+		logx.Warn("[%d] the db sync task is running...", id)
+		return nil
+	}
+
 	task, err := app.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("task not found")
@@ -139,10 +109,25 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 		return errorx.NewBiz("the task is in progress")
 	}
 
+	updateStateTask := &entity.DataSyncTask{
+		RunningState: entity.DataSyncTaskRunStateRunning,
+	}
+	updateStateTask.Id = id
+	if err := app.UpdateById(ctx, updateStateTask); err != nil {
+		return errorx.NewBiz("failed to update task running state: %s", err.Error())
+	}
+
 	// 标记该任务运行中
 	app.MarkRunning(id)
-
 	go func() {
+		now := time.Now()
+		syncLog := &entity.DataSyncLog{
+			TaskId:     task.Id,
+			CreateTime: &now,
+			Status:     entity.DataSyncTaskStateFail, // 默认失败
+		}
+		defer app.endRunning(task, syncLog)
+
 		// 通过占位符格式化sql
 		updSql := ""
 		orderSql := ""
@@ -179,49 +164,40 @@ func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 
 		// 组装查询sql
 		sqlStr := fmt.Sprintf("%s %s %s %s", task.DataSql, where, updSql, orderSql)
+		syncLog.DataSqlFull = sqlStr
 
-		log, err := app.doDataSync(ctx, sqlStr, task)
+		err := app.doDataSync(ctx, sqlStr, task, syncLog)
 		if err != nil {
-			log.ErrText = fmt.Sprintf("execution failure: %s", err.Error())
-			logx.ErrorContext(ctx, log.ErrText)
-			log.Status = entity.DataSyncTaskStateFail
+			syncLog.ErrText = i18n.T(imsg.DataSyncFailMsg, "msg", err.Error())
+			logx.ErrorContext(ctx, syncLog.ErrText)
+			syncLog.Status = entity.DataSyncTaskStateFail
 		} else {
-			log.Status = entity.DataSyncTaskStateSuccess
+			syncLog.Status = entity.DataSyncTaskStateSuccess
 		}
-
-		app.endRunning(task, log)
 	}()
 
 	return nil
 }
 
-func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *entity.DataSyncTask) (*entity.DataSyncLog, error) {
-	now := time.Now()
-	syncLog := &entity.DataSyncLog{
-		TaskId:      task.Id,
-		CreateTime:  &now,
-		DataSqlFull: sql,
-		Status:      entity.DataSyncTaskStateRunning,
-	}
-
+func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *entity.DataSyncTask, syncLog *entity.DataSyncLog) error {
 	// 获取源数据库连接
 	srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
 
 	if err != nil {
-		return syncLog, errorx.NewBiz("failed to connect to the source database: %s", err.Error())
+		return errorx.NewBiz("failed to connect to the source database: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
 	targetConn, err := app.dbApp.GetDbConn(ctx, uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
-		return syncLog, errorx.NewBiz("failed to connect to the target database: %s", err.Error())
+		return errorx.NewBiz("failed to connect to the target database: %s", err.Error())
 	}
 
 	// task.FieldMap为json数组字符串 [{"src":"id","target":"id"}]，转为map
 	var fieldMap []map[string]string
 	err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
 	if err != nil {
-		return syncLog, errorx.NewBiz("there was an error parsing the field map json: %s", err.Error())
+		return errorx.NewBiz("there was an error parsing the field map json: %s", err.Error())
 	}
 
 	// 记录本次同步数据总数
@@ -237,7 +213,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 	targetTableColumns, err := targetConn.GetMetadata().GetColumns(task.TargetTableName)
 	if err != nil {
-		return syncLog, errorx.NewBiz("failed to get target table columns: %s", err.Error())
+		return errorx.NewBiz("failed to get target table columns: %s", err.Error())
 	}
 	targetColumnName2Column := collx.ArrayToMap(targetTableColumns, func(column dbi.Column) string {
 		return column.ColumnName
@@ -257,7 +233,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 			}
 
 			// 记录当前已同步的数据量
-			syncLog.ErrText = fmt.Sprintf("during the execution of this task, %d has been synchronized", total)
+			syncLog.ErrText = i18n.T(imsg.DataSyncingMsg, "count", total)
 			logx.InfoContext(ctx, syncLog.ErrText)
 			syncLog.ResNum = total
 			app.saveLog(syncLog)
@@ -274,23 +250,23 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	})
 
 	if err != nil {
-		return syncLog, err
+		return err
 	}
 
 	// 处理剩余的数据
 	if len(result) > 0 {
 		if err := app.srcData2TargetDb(result, fieldMap, updFieldName, task, targetConn, targetInsertColumns); err != nil {
-			return syncLog, err
+			return err
 		}
 	}
 
 	logx.InfofContext(ctx, "synchronous task: [%s], finished execution, save records successfully: [%d]", task.TaskName, total)
 
 	// 执行成功日志
-	syncLog.ErrText = fmt.Sprintf("the synchronous task was executed successfully. New data: %d", total)
+	syncLog.ErrText = i18n.T(imsg.DataSyncSuccessMsg, "count", total)
 	syncLog.ResNum = total
 
-	return syncLog, nil
+	return nil
 }
 
 func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldName string, task *entity.DataSyncTask, targetDbConn *dbi.DbConn, targetInsertColumns []dbi.Column) (err error) {
@@ -383,11 +359,6 @@ func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, log *ent
 	task.RecentState = state
 	task.UpdFieldVal = taskEntity.UpdFieldVal
 	task.RunningState = entity.DataSyncTaskRunStateReady
-	// 运行失败之后设置任务状态为禁用
-	//if state == entity.DataSyncTaskStateFail {
-	//	taskEntity.Status = entity.DataSyncTaskStatusDisable
-	//	app.RemoveCronJob(taskEntity)
-	//}
 	_ = app.UpdateById(context.Background(), task)
 	// 保存执行日志
 	app.saveLog(log)
@@ -409,7 +380,7 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning})
 
 	if err := app.CursorByCond(&entity.DataSyncTaskQuery{Status: entity.DataSyncTaskStatusEnable}, func(dst *entity.DataSyncTask) error {
-		app.AddCronJob(contextx.NewTraceId(), dst)
+		app.addCronJob(contextx.NewTraceId(), dst)
 		return nil
 	}); err != nil {
 		logx.ErrorTrace("the db data sync task failed to initialize: %v", err)
@@ -422,11 +393,6 @@ func (app *dataSyncAppImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, o
 
 // MarkRunning 标记任务执行中
 func (app *dataSyncAppImpl) MarkRunning(taskId uint64) {
-	task := new(entity.DataSyncTask)
-	task.Id = taskId
-	task.RunningState = entity.DataSyncTaskRunStateRunning
-	_ = app.UpdateById(context.Background(), task)
-
 	cache.Set(fmt.Sprintf("mayfly:db:syncdata:%d", taskId), 1, -1)
 }
 
@@ -438,4 +404,23 @@ func (app *dataSyncAppImpl) MarkStop(taskId uint64) {
 // IsRunning 判断任务是否执行中
 func (app *dataSyncAppImpl) IsRunning(taskId uint64) bool {
 	return cache.GetStr(fmt.Sprintf("mayfly:db:syncdata:%d", taskId)) != ""
+}
+
+func (app *dataSyncAppImpl) addCronJob(ctx context.Context, taskEntity *entity.DataSyncTask) {
+	key := taskEntity.TaskKey
+	// 先移除旧的任务
+	scheduler.RemoveByKey(key)
+
+	// 根据状态添加新的任务
+	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
+		taskId := taskEntity.Id
+		logx.Infof("start add the data sync task job: %s, cron[%s]", taskEntity.TaskName, taskEntity.TaskCron)
+		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
+			if err := app.Run(context.Background(), taskId); err != nil {
+				logx.Errorf("the data sync task failed to execute at a scheduled time: %s", err.Error())
+			}
+		}); err != nil {
+			logx.ErrorTrace("add db data sync job failed", err)
+		}
+	}
 }

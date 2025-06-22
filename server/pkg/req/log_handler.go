@@ -52,7 +52,7 @@ func (i *LogInfo) WithLogResp() *LogInfo {
 	return i
 }
 
-const DefaultLogFrames = 10
+const DefaultLogFrames = 18
 
 func LogHandler(rc *Ctx) error {
 	if rc.Conf == nil || rc.Conf.logInfo == nil {
