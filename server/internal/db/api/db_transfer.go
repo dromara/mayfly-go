@@ -15,7 +15,7 @@ import (
 	"mayfly-go/pkg/req"
 	"strings"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type DbTransferTask struct {

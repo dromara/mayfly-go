@@ -6,7 +6,7 @@ import (
 	mysqlparser "mayfly-go/internal/db/dbm/sqlparser/mysql/antlr4"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type MysqlVisitor struct {

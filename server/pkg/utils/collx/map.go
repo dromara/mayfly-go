@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"mayfly-go/pkg/utils/anyx"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 // M is a shortcut for map[string]any

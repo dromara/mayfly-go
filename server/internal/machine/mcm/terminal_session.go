@@ -1,13 +1,14 @@
 package mcm
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 
 	"strings"
 	"time"
@@ -258,15 +259,15 @@ func parseMsg(msg []byte) (*WsMsg, error) {
 	}
 
 	// 获取消息类型, 提取第一个 "|" 之前的内容
-	msgType := cast.ToIntD(msgStr[:index], Ping)
+	msgType := cmp.Or(cast.ToInt(msgStr[:index]), Ping)
 	// 其余内容则为消息内容
 	msgContent := msgStr[index+1:]
 
 	wsMsg := &WsMsg{Type: msgType, Msg: msgContent}
 	if msgType == Resize {
 		rowsAndCols := strings.Split(msgContent, MsgSplit)
-		wsMsg.Rows = cast.ToIntD(rowsAndCols[0], 80)
-		wsMsg.Cols = cast.ToIntD(rowsAndCols[1], 80)
+		wsMsg.Rows = cmp.Or(cast.ToInt(rowsAndCols[0]), 80)
+		wsMsg.Cols = cmp.Or(cast.ToInt(rowsAndCols[1]), 80)
 	}
 	return wsMsg, nil
 }

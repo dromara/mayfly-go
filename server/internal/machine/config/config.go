@@ -1,11 +1,12 @@
 package config
 
 import (
+	"cmp"
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/bytex"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 const (
@@ -38,11 +39,11 @@ func GetMachine() *Machine {
 		}
 	}
 	mc.UploadMaxFileSize = uploadMaxFileSize
-	mc.TermOpSaveDays = cast.ToIntD(jm["termOpSaveDays"], 30)
+	mc.TermOpSaveDays = cmp.Or(cast.ToInt(jm["termOpSaveDays"]), 30)
 	// guacd
 	mc.GuacdHost = cast.ToString(jm["guacdHost"])
-	mc.GuacdPort = cast.ToIntD(jm["guacdPort"], 4822)
-	mc.GuacdFilePath = cast.ToStringD(jm["guacdFilePath"], "")
+	mc.GuacdPort = cmp.Or(cast.ToInt(jm["guacdPort"]), 4822)
+	mc.GuacdFilePath = cast.ToString(jm["guacdFilePath"])
 
 	return mc
 }

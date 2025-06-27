@@ -7,7 +7,7 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 
 	"strings"
 )

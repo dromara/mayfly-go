@@ -8,7 +8,7 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 const (

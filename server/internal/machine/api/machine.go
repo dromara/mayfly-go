@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type Machine struct {

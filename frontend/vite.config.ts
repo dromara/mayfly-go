@@ -77,9 +77,6 @@ const viteConfig: UserConfig = {
             },
         },
     },
-    esbuild: {
-        drop: isProd ? ['console', 'debugger'] : [],
-    },
     define: {
         __VUE_I18N_LEGACY_API__: JSON.stringify(false),
         __VUE_I18N_FULL_INSTALL__: JSON.stringify(false),
@@ -99,11 +96,6 @@ const viteConfig: UserConfig = {
                     },
                 },
             ],
-        },
-        preprocessorOptions: {
-            scss: {
-                api: 'modern-compiler', // or 'modern'
-            },
         },
     },
 };

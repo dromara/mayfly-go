@@ -5,8 +5,8 @@ import (
 	"mayfly-go/pkg/logx"
 	"strings"
 
-	"github.com/may-fly/cast"
 	"github.com/pkg/sftp"
+	"github.com/spf13/cast"
 	"golang.org/x/crypto/ssh"
 )
 

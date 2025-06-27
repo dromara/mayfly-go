@@ -30,8 +30,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/may-fly/cast"
 	"github.com/pkg/sftp"
+	"github.com/spf13/cast"
 )
 
 type MachineFile struct {

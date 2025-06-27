@@ -1,6 +1,6 @@
 package rdm
 
-import "github.com/may-fly/cast"
+import "github.com/spf13/cast"
 
 // write cmd
 var writeCmd = map[string]string{

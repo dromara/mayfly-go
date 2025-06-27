@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 const (
@@ -29,7 +29,7 @@ func GetDbms() *Dbms {
 	dbmsConf := new(Dbms)
 	dbmsConf.QuerySqlSave = c.ConvBool(jm["querySqlSave"], false)
 	dbmsConf.MaxResultSet = cast.ToInt(jm["maxResultSet"])
-	dbmsConf.SqlExecTl = cast.ToIntD(jm["sqlExecTl"], 60)
+	dbmsConf.SqlExecTl = cmp.Or(cast.ToInt(jm["sqlExecTl"]), 60)
 	return dbmsConf
 }
 

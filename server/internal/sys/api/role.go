@@ -11,7 +11,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type Role struct {

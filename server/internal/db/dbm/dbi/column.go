@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 var (

@@ -1,10 +1,11 @@
 package config
 
 import (
+	"cmp"
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/utils/stringx"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 const (
@@ -28,8 +29,8 @@ func GetAccountLoginSecurity() *AccountLoginSecurity {
 	als := new(AccountLoginSecurity)
 	als.UseCaptcha = c.ConvBool(jm["useCaptcha"], true)
 	als.UseOtp = c.ConvBool(jm["useOtp"], false)
-	als.LoginFailCount = cast.ToIntD(jm["loginFailCount"], 5)
-	als.LoginFailMin = cast.ToIntD(jm["loginFailMin"], 10)
+	als.LoginFailCount = cmp.Or(cast.ToInt(jm["loginFailCount"]), 5)
+	als.LoginFailMin = cmp.Or(cast.ToInt(jm["loginFailMin"]), 10)
 	otpIssuer := jm["otpIssuer"]
 	if otpIssuer == "" {
 		otpIssuer = "mayfly-go"

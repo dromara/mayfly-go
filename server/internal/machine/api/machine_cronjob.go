@@ -17,7 +17,7 @@ import (
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type MachineCronJob struct {

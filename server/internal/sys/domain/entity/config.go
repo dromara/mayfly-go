@@ -1,10 +1,11 @@
 package entity
 
 import (
+	"cmp"
 	"encoding/json"
 	"mayfly-go/pkg/model"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 const (
@@ -50,7 +51,7 @@ func (c *Config) IntValue(defaultValue int) int {
 	if c.Id == 0 {
 		return defaultValue
 	}
-	return cast.ToIntD(c.Value, defaultValue)
+	return cmp.Or(cast.ToInt(c.Value), defaultValue)
 }
 
 // 转换配置中的值为bool类型（默认"1"或"true"为true，其他为false）

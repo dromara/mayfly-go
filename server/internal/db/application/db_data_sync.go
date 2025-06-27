@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type DataSyncTask interface {

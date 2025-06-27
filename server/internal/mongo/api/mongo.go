@@ -19,7 +19,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"

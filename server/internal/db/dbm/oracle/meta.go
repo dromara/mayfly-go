@@ -8,8 +8,8 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 
-	"github.com/may-fly/cast"
 	go_ora "github.com/sijms/go-ora/v2"
+	"github.com/spf13/cast"
 )
 
 func init() {

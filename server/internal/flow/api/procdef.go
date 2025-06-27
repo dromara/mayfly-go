@@ -18,7 +18,7 @@ import (
 	"mayfly-go/pkg/utils/structx"
 	"strings"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 type Procdef struct {

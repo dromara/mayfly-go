@@ -11,7 +11,7 @@ import (
 	"mayfly-go/pkg/global"
 	"strings"
 
-	"github.com/may-fly/cast"
+	"github.com/spf13/cast"
 )
 
 /******************* 用户任务节点 *******************/
