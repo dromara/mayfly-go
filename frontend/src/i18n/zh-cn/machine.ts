@@ -66,7 +66,7 @@ export default {
         processName: '进程名',
         selectSortType: '请选择排序类型',
         selectProcessNum: '请选择进程个数',
-        cpuDesc: 'CUP降序',
+        cpuDesc: 'CPU降序',
         memDesc: '内存降序',
         virtualMemory: '虚拟内存',
         fixedMemory: '固定内存',

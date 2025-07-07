@@ -50,28 +50,18 @@ const viteConfig: UserConfig = {
     },
     build: {
         outDir: 'dist',
-        minify: 'esbuild',
-        sourcemap: false,
         chunkSizeWarningLimit: 1500,
         rollupOptions: {
             output: {
-                entryFileNames: `assets/[name]-[hash].js`,
-                chunkFileNames: `assets/[name]-[hash].js`,
-                assetFileNames: `assets/[name]-[hash].[ext]`,
+                entryFileNames: `assets/[hash]-[name].js`,
+                chunkFileNames: `assets/[hash]-[name].js`,
+                assetFileNames: `assets/[hash]-[name].[ext]`,
+                hashCharacters: 'hex',
                 advancedChunks: {
                     groups: [
-                        {
-                            name: 'vue',
-                            test: /(vue|vue-router|pinia)/i,
-                        },
-                        {
-                            name: 'echarts',
-                            test: /(echarts)/i,
-                        },
-                        {
-                            name: 'monaco',
-                            test: /(monaco-editor)/i,
-                        },
+                        { name: 'vue-vendor', test: /[\\/]node_modules[\\/](vue|@vue|vue-router|pinia)[\\/]/ },
+                        { name: 'echarts', test: /(echarts)/i },
+                        { name: 'monaco', test: /(monaco-editor)/i },
                     ],
                 },
             },

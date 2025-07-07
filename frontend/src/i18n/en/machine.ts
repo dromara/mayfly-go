@@ -65,7 +65,7 @@ export default {
         processName: 'Process Name',
         selectSortType: 'Please select a sort type',
         selectProcessNum: 'Please select the number of processes',
-        cpuDesc: 'CUP descending',
+        cpuDesc: 'CPU descending',
         memDesc: 'Memory descending',
         virtualMemory: 'Virtual Memory',
         fixedMemory: 'Fixed Memory',
