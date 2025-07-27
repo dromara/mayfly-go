@@ -1,6 +1,7 @@
 package sender
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -16,7 +17,7 @@ import (
 
 type EmailSender struct{}
 
-func (e EmailSender) Send(channel *msgx.Channel, msg *msgx.Msg) error {
+func (e EmailSender) Send(ctx context.Context, channel *msgx.Channel, msg *msgx.Msg) error {
 	return e.SendEmail(channel, msg)
 }
 
@@ -44,8 +45,8 @@ func (e EmailSender) SendEmail(channel *msgx.Channel, msg *msgx.Msg) error {
 		smtpPort = cast.ToInt(serverAndPort[1])
 	}
 
-	smtpAccount := channel.GetExtraString("smtpAccount")
-	smtpPassword := channel.GetExtraString("smtpPassword")
+	smtpAccount := channel.Extra.GetStr("smtpAccount")
+	smtpPassword := channel.Extra.GetStr("smtpPassword")
 
 	encodedSubject := fmt.Sprintf("=?UTF-8?B?%s?=", base64.StdEncoding.EncodeToString([]byte(subject)))
 	mail := []byte(fmt.Sprintf("To: %s\r\n"+

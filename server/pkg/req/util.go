@@ -9,8 +9,8 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// 绑定并校验请求结构体参数
-func BindJsonAndValid[T any](rc *Ctx) T {
+// BindJson 绑定并校验请求结构体参数
+func BindJson[T any](rc *Ctx) T {
 	data := structx.NewInstance[T]()
 	if err := rc.BindJSON(data); err != nil {
 		panic(ConvBindValidationError(data, err))
@@ -19,13 +19,13 @@ func BindJsonAndValid[T any](rc *Ctx) T {
 	}
 }
 
-// 绑定请求体中的json至form结构体，并拷贝至指定结构体
+// BindJsonAndCopyTo 绑定请求体中的json至form结构体，并拷贝至指定结构体
 func BindJsonAndCopyTo[F, T any](rc *Ctx) (F, T) {
-	f := BindJsonAndValid[F](rc)
+	f := BindJson[F](rc)
 	return f, structx.CopyTo[T](f)
 }
 
-// 绑定查询字符串到指定结构体
+// BindQuery 绑定查询字符串到指定结构体
 func BindQuery[T any](rc *Ctx) T {
 	data := structx.NewInstance[T]()
 	if err := rc.BindQuery(data); err != nil {
@@ -35,7 +35,7 @@ func BindQuery[T any](rc *Ctx) T {
 	}
 }
 
-// 绑定查询字符串到指定结构体，并将分页信息也返回
+// BindQueryAndPage 绑定查询字符串到指定结构体，并将分页信息也返回
 func BindQueryAndPage[T any](rc *Ctx) (T, model.PageParam) {
 	data := structx.NewInstance[T]()
 	if err := rc.BindQuery(data); err != nil {

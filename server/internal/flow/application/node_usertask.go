@@ -2,11 +2,11 @@ package application
 
 import (
 	"context"
-	"mayfly-go/internal/event"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/imsg"
-	"mayfly-go/internal/flow/infrastructure/persistence"
+	"mayfly-go/internal/flow/infra/persistence"
 	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/event"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"strings"

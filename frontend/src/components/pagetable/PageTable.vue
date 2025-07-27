@@ -21,7 +21,7 @@
                     <div class="flex">
                         <!-- 简易单个搜索项 -->
                         <div v-if="nowSearchItem" class="flex">
-                            <el-dropdown v-if="searchItems?.length > 1">
+                            <el-dropdown v-if="props.searchItems?.length > 1">
                                 <SvgIcon :size="16" name="CaretBottom" class="!mr-1 !mt-1.5 simple-search-form-btn" />
                                 <template #dropdown>
                                     <el-dropdown-menu>
@@ -54,7 +54,7 @@
                             <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
 
                             <el-button
-                                v-if="showToolButton('search') && searchItems?.length > 1"
+                                v-if="showToolButton('search') && props.searchItems?.length > 1"
                                 :icon="isShowSearch ? 'ArrowDown' : 'ArrowUp'"
                                 circle
                                 @click="isShowSearch = !isShowSearch"

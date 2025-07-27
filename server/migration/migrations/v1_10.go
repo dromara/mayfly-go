@@ -4,6 +4,7 @@ import (
 	esentity "mayfly-go/internal/es/domain/entity"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	machineentity "mayfly-go/internal/machine/domain/entity"
+	msgentity "mayfly-go/internal/msg/domain/entity"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/model"
 	"time"
@@ -16,6 +17,7 @@ func V1_10() []*gormigrate.Migration {
 	var migrations []*gormigrate.Migration
 	migrations = append(migrations, V1_10_0()...)
 	migrations = append(migrations, V1_10_1()...)
+	migrations = append(migrations, V1_10_2()...)
 	return migrations
 }
 
@@ -144,6 +146,24 @@ func V1_10_1() []*gormigrate.Migration {
 					if err := tx.Migrator().AddColumn(&machineentity.MachineScript{}, "category"); err != nil {
 						return err
 					}
+				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+}
+
+func V1_10_2() []*gormigrate.Migration {
+	return []*gormigrate.Migration{
+		{
+			ID: "20250726-v1.10.2",
+			Migrate: func(tx *gorm.DB) error {
+				// 新增subtype,extra
+				if err := tx.Migrator().AutoMigrate(&msgentity.Msg{}); err != nil {
+					return err
 				}
 				return nil
 			},

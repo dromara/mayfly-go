@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"mayfly-go/internal/event"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
@@ -12,6 +11,7 @@ import (
 	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/internal/pkg/consts"
+	"mayfly-go/internal/pkg/event"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"

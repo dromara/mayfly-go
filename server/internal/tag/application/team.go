@@ -6,7 +6,7 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/internal/tag/imsg"
-	"mayfly-go/internal/tag/infrastructure/cache"
+	"mayfly-go/internal/tag/infra/cache"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"

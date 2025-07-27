@@ -6,13 +6,13 @@ import (
 	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/auth/imsg"
 	"mayfly-go/internal/auth/pkg/otp"
-	msgapp "mayfly-go/internal/msg/application"
-	msgentity "mayfly-go/internal/msg/domain/entity"
+	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/event"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/i18n"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/netx"
@@ -114,14 +114,12 @@ func saveLogin(ctx context.Context, account *sysentity.Account, ip string) {
 	// 偷懒为了方便直接获取accountApp
 	biz.ErrIsNil(sysapp.GetAccountApp().Update(context.TODO(), updateAccount))
 
-	// 创建登录消息
-	loginMsg := &msgentity.Msg{
-		RecipientId: int64(account.Id),
-		Msg:         i18n.TC(ctx, imsg.LoginMsg, "ip", ip, "time", timex.DefaultFormat(now)),
-		Type:        1,
-	}
-	loginMsg.CreateTime = &now
-	loginMsg.Creator = account.Username
-	loginMsg.CreatorId = account.Id
-	msgapp.GetMsgApp().Create(context.TODO(), loginMsg)
+	global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, &msgdto.MsgTmplSendEvent{
+		TmplChannel: msgdto.MsgTmplLogin,
+		Params: collx.M{
+			"ip":   ip,
+			"time": timex.DefaultFormat(now),
+		},
+		ReceiverIds: []uint64{account.Id},
+	})
 }

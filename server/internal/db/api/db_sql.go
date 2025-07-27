@@ -30,7 +30,7 @@ func (d *DbSql) ReqConfs() *req.Confs {
 
 // @router /api/db/:dbId/sql [post]
 func (d *DbSql) SaveSql(rc *req.Ctx) {
-	dbSqlForm := req.BindJsonAndValid[*form.DbSqlSaveForm](rc)
+	dbSqlForm := req.BindJson[*form.DbSqlSaveForm](rc)
 	rc.ReqParam = dbSqlForm
 
 	dbId := getDbId(rc)

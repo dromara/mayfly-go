@@ -7,7 +7,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/imsg"
-	"mayfly-go/internal/machine/infrastructure/cache"
+	"mayfly-go/internal/machine/infra/cache"
 	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"

@@ -92,7 +92,7 @@ func (r *Role) RoleResource(rc *req.Ctx) {
 
 // 保存角色资源
 func (r *Role) SaveResource(rc *req.Ctx) {
-	form := req.BindJsonAndValid[*form.RoleResourceForm](rc)
+	form := req.BindJson[*form.RoleResourceForm](rc)
 	rc.ReqParam = form
 
 	// 将,拼接的字符串进行切割并转换

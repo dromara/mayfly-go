@@ -3,10 +3,10 @@ package init
 import (
 	"context"
 	"mayfly-go/initialize"
-	"mayfly-go/internal/event"
+	"mayfly-go/internal/pkg/event"
 	"mayfly-go/internal/tag/api"
 	"mayfly-go/internal/tag/application"
-	"mayfly-go/internal/tag/infrastructure/persistence"
+	"mayfly-go/internal/tag/infra/persistence"
 	"mayfly-go/pkg/eventbus"
 	"mayfly-go/pkg/global"
 )

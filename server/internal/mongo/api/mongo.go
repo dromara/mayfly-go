@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"mayfly-go/internal/event"
 	"mayfly-go/internal/mongo/api/form"
 	"mayfly-go/internal/mongo/api/vo"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/imsg"
 	"mayfly-go/internal/pkg/consts"
+	"mayfly-go/internal/pkg/event"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -146,7 +146,7 @@ func (m *Mongo) Collections(rc *req.Ctx) {
 }
 
 func (m *Mongo) RunCommand(rc *req.Ctx) {
-	commandForm := req.BindJsonAndValid[*form.MongoRunCommand](rc)
+	commandForm := req.BindJson[*form.MongoRunCommand](rc)
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -176,7 +176,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) FindCommand(rc *req.Ctx) {
-	commandForm := req.BindJsonAndValid[*form.MongoFindCommand](rc)
+	commandForm := req.BindJson[*form.MongoFindCommand](rc)
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -211,7 +211,7 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
-	commandForm := req.BindJsonAndValid[*form.MongoUpdateByIdCommand](rc)
+	commandForm := req.BindJson[*form.MongoUpdateByIdCommand](rc)
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -235,7 +235,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
-	commandForm := req.BindJsonAndValid[*form.MongoUpdateByIdCommand](rc)
+	commandForm := req.BindJson[*form.MongoUpdateByIdCommand](rc)
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -258,7 +258,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
-	commandForm := req.BindJsonAndValid[*form.MongoInsertCommand](rc)
+	commandForm := req.BindJson[*form.MongoInsertCommand](rc)
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)

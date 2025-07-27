@@ -17,7 +17,7 @@ import (
 func (r *Redis) ScanKeys(rc *req.Ctx) {
 	ri := r.getRedisConn(rc)
 
-	form := req.BindJsonAndValid[*form.RedisScanForm](rc)
+	form := req.BindJson[*form.RedisScanForm](rc)
 
 	cmd := ri.GetCmdable()
 	ctx := context.Background()

@@ -204,6 +204,24 @@ function getApiUrl(url: string) {
     return baseUrl + url + '?' + joinClientParams();
 }
 
+/**
+ * 创建 websocket
+ */
+export const createWebSocket = (url: string): Promise<WebSocket> => {
+    return new Promise<WebSocket>((resolve, reject) => {
+        const clientParam = (url.includes('?') ? '&' : '?') + joinClientParams();
+        const socket = new WebSocket(`${config.baseWsUrl}${url}${clientParam}`);
+
+        socket.onopen = () => {
+            resolve(socket);
+        };
+
+        socket.onerror = (e) => {
+            reject(e);
+        };
+    });
+};
+
 // 组装客户端参数，包括 token 和 clientId
 export function joinClientParams(): string {
     return `token=${getToken()}&clientId=${getClientId()}`;

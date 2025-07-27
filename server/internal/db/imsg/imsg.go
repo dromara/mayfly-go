@@ -24,10 +24,7 @@ const (
 	LogDbRunSqlFile
 	LogDbDump
 
-	SqlScriptRunFail
-	SqlScriptRunSuccess
 	SqlScripRunProgress
-	DbDumpErr
 	ErrDbNameExist
 	ErrDbNotAccess
 

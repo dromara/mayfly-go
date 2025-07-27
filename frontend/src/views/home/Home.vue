@@ -2,7 +2,7 @@
     <div class="home-container personal">
         <el-row :gutter="15">
             <!-- 个人信息 -->
-            <el-col :xs="24" :sm="16">
+            <el-col :xs="24" :sm="24">
                 <el-card shadow="hover" :header="$t('home.personalInfo')">
                     <div class="personal-user">
                         <div class="personal-user-left">
@@ -49,23 +49,6 @@
                                 </el-col>
                             </el-row>
                         </div>
-                    </div>
-                </el-card>
-            </el-col>
-
-            <!-- 消息通知 -->
-            <el-col :xs="24" :sm="8" class="pl15 personal-info">
-                <el-card shadow="hover">
-                    <template #header>
-                        <span>{{ $t('home.msgNotify') }}</span>
-                        <span @click="showMsgs" class="personal-info-more">{{ $t('common.more') }}</span>
-                    </template>
-                    <div class="personal-info-box">
-                        <ul class="personal-info-ul">
-                            <li v-for="(v, k) in state.msgs as any" :key="k" class="personal-info-li">
-                                <a class="personal-info-li-title">{{ `[${$t(EnumValue.getLabelByValue(MsgTypeEnum, v.type))}] ${v.msg}` }}</a>
-                            </li>
-                        </ul>
                     </div>
                 </el-card>
             </el-col>
@@ -236,39 +219,11 @@
                 </el-card>
             </el-col>
         </el-row>
-
-        <el-dialog width="900px" :title="$t('common.msg')" v-model="msgDialog.visible">
-            <el-table border :data="msgDialog.msgs.list" size="small">
-                <el-table-column property="type" :label="$t('common.type')" width="60">
-                    <template #default="scope">
-                        {{ $t(EnumValue.getLabelByValue(MsgTypeEnum, scope.row.type)) }}
-                    </template>
-                </el-table-column>
-                <el-table-column property="msg" :label="$t('common.msg')"></el-table-column>
-                <el-table-column property="createTime" :label="$t('common.time')" width="150">
-                    <template #default="scope">
-                        {{ formatDate(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row type="flex" class="mt-1" justify="center">
-                <el-pagination
-                    small
-                    @current-change="searchMsg"
-                    style="text-align: center"
-                    background
-                    layout="prev, pager, next, total, jumper"
-                    :total="msgDialog.msgs.total"
-                    v-model:current-page="msgDialog.query.pageNum"
-                    :page-size="msgDialog.query.pageSize"
-                />
-            </el-row>
-        </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, reactive, toRefs } from 'vue';
+import { computed, onMounted, reactive } from 'vue';
 // import * as echarts from 'echarts';
 import { formatAxis, formatDate } from '@/common/utils/format';
 import { indexApi } from './api';
@@ -285,8 +240,6 @@ import { getAllTagInfoByCodePaths } from '../ops/component/tag';
 import { ElMessage } from 'element-plus';
 import { getFileUrl, getUploadFileUrl } from '@/common/request';
 import { saveUser } from '@/common/utils/storage';
-import EnumValue from '../../common/Enum';
-import { MsgTypeEnum } from './enums';
 
 const router = useRouter();
 const { userInfo } = storeToRefs(useUserInfo());
@@ -296,17 +249,6 @@ const state = reactive({
         roles: [],
     },
     msgs: [],
-    msgDialog: {
-        visible: false,
-        query: {
-            pageSize: 10,
-            pageNum: 1,
-        },
-        msgs: {
-            list: [],
-            total: null,
-        },
-    },
     resourceOpTableHeight: 180,
     defaultLogSize: 5,
     machine: {
@@ -331,8 +273,6 @@ const state = reactive({
     },
 });
 
-const { msgDialog } = toRefs(state);
-
 const roleInfo = computed(() => {
     if (state.accountInfo.roles.length == 0) {
         return '';
@@ -349,28 +289,10 @@ const currentTime = computed(() => {
 onMounted(() => {
     initData();
     getAccountInfo();
-
-    getMsgs().then((res) => {
-        state.msgs = res.list;
-    });
 });
-
-const showMsgs = async () => {
-    state.msgDialog.query.pageNum = 1;
-    searchMsg();
-    state.msgDialog.visible = true;
-};
-
-const searchMsg = async () => {
-    state.msgDialog.msgs = await getMsgs();
-};
 
 const getAccountInfo = async () => {
     state.accountInfo = await personApi.accountInfo.request();
-};
-
-const getMsgs = async () => {
-    return await personApi.getMsgs.request(state.msgDialog.query);
 };
 
 const beforeAvatarUpload = (rawFile: any) => {

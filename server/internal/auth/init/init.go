@@ -4,7 +4,7 @@ import (
 	"mayfly-go/initialize"
 	"mayfly-go/internal/auth/api"
 	"mayfly-go/internal/auth/application"
-	"mayfly-go/internal/auth/infrastructure/persistence"
+	"mayfly-go/internal/auth/infra/persistence"
 )
 
 func init() {

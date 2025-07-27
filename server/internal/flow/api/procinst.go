@@ -47,7 +47,7 @@ func (p *Procinst) GetProcinstPage(rc *req.Ctx) {
 }
 
 func (p *Procinst) ProcinstStart(rc *req.Ctx) {
-	startForm := req.BindJsonAndValid[*form.ProcinstStart](rc)
+	startForm := req.BindJson[*form.ProcinstStart](rc)
 	_, err := p.procinstApp.StartProc(rc.MetaCtx, startForm.ProcdefId, &dto.StarProc{
 		BizType: startForm.BizType,
 		BizForm: jsonx.ToStr(startForm.BizForm),

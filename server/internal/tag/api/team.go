@@ -60,7 +60,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
-	team := req.BindJsonAndValid[*dto.SaveTeam](rc)
+	team := req.BindJson[*dto.SaveTeam](rc)
 	rc.ReqParam = team
 	biz.ErrIsNil(p.teamApp.SaveTeam(rc.MetaCtx, team))
 }
@@ -87,7 +87,7 @@ func (p *Team) GetTeamMembers(rc *req.Ctx) {
 
 // 保存团队信息
 func (p *Team) SaveTeamMember(rc *req.Ctx) {
-	teamMems := req.BindJsonAndValid[*form.TeamMember](rc)
+	teamMems := req.BindJson[*form.TeamMember](rc)
 
 	teamId := teamMems.TeamId
 

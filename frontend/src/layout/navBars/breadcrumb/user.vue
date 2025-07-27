@@ -41,25 +41,27 @@
         <div class="layout-navbars-breadcrumb-user-icon" @click="onSearchClick">
             <SvgIcon name="search" :title="$t('layout.user.menuSearch')" />
         </div>
+
         <div class="layout-navbars-breadcrumb-user-icon" @click="onLayoutSetingClick">
             <SvgIcon name="setting" :title="$t('layout.user.layoutConf')" />
         </div>
-        <div class="layout-navbars-breadcrumb-user-icon">
-            <el-popover placement="bottom" trigger="click" :visible="state.isShowUserNewsPopover" :width="300" popper-class="el-popover-pupop-user-news">
-                <template #reference>
-                    <el-badge :is-dot="false" @click="state.isShowUserNewsPopover = !state.isShowUserNewsPopover">
+
+        <el-popover @show="onShowMsgs" placement="bottom" trigger="click" :width="450">
+            <template #reference>
+                <div class="layout-navbars-breadcrumb-user-icon">
+                    <el-badge :show-zero="false" :value="state.unreadMsgCount">
                         <SvgIcon name="bell" :title="$t('layout.user.news')" />
                     </el-badge>
-                </template>
-                <transition name="el-zoom-in-top">
-                    <UserNews v-show="state.isShowUserNewsPopover" />
-                </transition>
-            </el-popover>
-        </div>
+                </div>
+            </template>
+            <UserNews ref="userNewsRef" @update:count="state.unreadMsgCount = $event" />
+        </el-popover>
+
         <div class="layout-navbars-breadcrumb-user-icon mr-2" @click="onScreenfullClick">
             <SvgIcon v-if="!state.isScreenfull" name="full-screen" :title="$t('layout.user.fullScreenOff')" />
             <SvgIcon v-else name="crop" />
         </div>
+
         <el-dropdown trigger="click" :show-timeout="70" :hide-timeout="50" @command="onHandleCommandClick">
             <span class="layout-navbars-breadcrumb-user-link cursor-pointer">
                 <img :src="userInfo.photo" class="layout-navbars-breadcrumb-user-link-photo mr-1" />
@@ -79,7 +81,7 @@
 </template>
 
 <script setup lang="ts" name="layoutBreadcrumbUser">
-import { ref, computed, reactive, onMounted, watch } from 'vue';
+import { ref, computed, reactive, onMounted, watch, useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import screenfull from 'screenfull';
@@ -100,10 +102,12 @@ import EnumValue from '@/common/Enum';
 
 const router = useRouter();
 const searchRef = ref();
+const userNewsRef = useTemplateRef('userNewsRef');
+
 const state = reactive({
     isScreenfull: false,
-    isShowUserNewsPopover: false,
     disabledSize: '',
+    unreadMsgCount: 0,
 });
 const { userInfo } = storeToRefs(useUserInfo());
 const themeConfigStore = useThemeConfig();
@@ -126,7 +130,14 @@ onMounted(() => {
         initComponentSize();
         isDark.value = themeConfig.isDark;
     }
+
+    // 获取未读消息数量
+    state.unreadMsgCount = 0;
 });
+
+const onShowMsgs = () => {
+    userNewsRef.value?.loadMsgs(true);
+};
 
 // 全屏点击时
 const onScreenfullClick = () => {

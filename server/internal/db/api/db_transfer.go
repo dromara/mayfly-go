@@ -93,7 +93,7 @@ func (d *DbTransferTask) DeleteTask(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) ChangeStatus(rc *req.Ctx) {
-	form := req.BindJsonAndValid[*form.DbTransferTaskStatusForm](rc)
+	form := req.BindJson[*form.DbTransferTaskStatusForm](rc)
 	rc.ReqParam = form
 
 	task, err := d.dbTransferTaskApp.GetById(form.Id)
@@ -136,7 +136,7 @@ func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) FileRun(rc *req.Ctx) {
-	fm := req.BindJsonAndValid[*form.DbTransferFileRunForm](rc)
+	fm := req.BindJson[*form.DbTransferFileRunForm](rc)
 
 	rc.ReqParam = fm
 

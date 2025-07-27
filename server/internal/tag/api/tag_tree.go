@@ -131,7 +131,7 @@ func (p *TagTree) DelTagTree(rc *req.Ctx) {
 }
 
 func (p *TagTree) MovingTag(rc *req.Ctx) {
-	movingForm := req.BindJsonAndValid[*form.MovingTag](rc)
+	movingForm := req.BindJson[*form.MovingTag](rc)
 	rc.ReqParam = movingForm
 	biz.ErrIsNil(p.tagTreeApp.MovingTag(rc.MetaCtx, movingForm.FromPath, movingForm.ToPath))
 }

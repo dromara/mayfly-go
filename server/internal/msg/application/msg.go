@@ -1,27 +1,30 @@
 package application
 
 import (
+	"cmp"
 	"context"
-	"mayfly-go/internal/msg/application/dto"
 	"mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/internal/msg/domain/repository"
+	"mayfly-go/internal/msg/msgx"
+	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/ws"
-	"time"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 type Msg interface {
+	msgx.MsgSender
+
+	base.App[*entity.Msg]
+
 	GetPageList(condition *entity.Msg, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Msg], error)
-
-	Create(ctx context.Context, msg *entity.Msg)
-
-	// 创建消息，并通过ws发送
-	CreateAndSend(la *model.LoginAccount, msg *dto.SysMsg)
 }
 
 var _ (Msg) = (*msgAppImpl)(nil)
 
 type msgAppImpl struct {
+	base.AppImpl[*entity.Msg, repository.Msg]
+
 	msgRepo repository.Msg `inject:"T"`
 }
 
@@ -29,13 +32,29 @@ func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam model.PagePara
 	return a.msgRepo.GetPageList(condition, pageParam)
 }
 
-func (a *msgAppImpl) Create(ctx context.Context, msg *entity.Msg) {
-	a.msgRepo.Insert(ctx, msg)
-}
+func (a *msgAppImpl) Send(ctx context.Context, channel *msgx.Channel, msg *msgx.Msg) error {
+	// 存在i18n msgId，content则使用msgId翻译
+	if msgId := msg.TmplExtra.GetInt("msgId"); msgId != 0 {
+		msg.Content = i18n.TC(ctx, i18n.MsgId(msgId))
+	}
+	content, err := stringx.TemplateParse(msg.Content, msg.Params)
+	if err != nil {
+		return err
+	}
 
-func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *dto.SysMsg) {
-	now := time.Now()
-	msg := &entity.Msg{Type: 2, Msg: wmsg.Msg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
-	a.msgRepo.Insert(context.TODO(), msg)
-	ws.SendJsonMsg(ws.UserId(la.Id), wmsg.ClientId, wmsg)
+	for _, receiver := range msg.Receivers {
+		msgEntity := &entity.Msg{
+			Msg:         content,
+			RecipientId: int64(receiver.Id),
+			Type:        entity.MsgType(msg.TmplExtra.GetInt("type")),
+			Subtype:     entity.MsgSubtype(msg.TmplExtra.GetStr("subtype")),
+			Status:      cmp.Or(entity.MsgStatus(msg.TmplExtra.GetInt("status")), entity.MsgStatusRead),
+		}
+		msgEntity.Extra = msg.Params
+		if err := a.Save(ctx, msgEntity); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

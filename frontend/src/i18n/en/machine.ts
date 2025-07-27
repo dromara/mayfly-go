@@ -138,5 +138,7 @@ export default {
         fileTooLargeTips: 'The file is too large, please download and use it',
         uploadSuccess: 'Upload successfully',
         fileExceedsSysConf: 'The uploaded file exceeds the system configuration [{uploadMaxFileSize}]',
+        fileUploadSuccess: 'Machine file upload successful',
+        fileUploadFail: 'Machine file upload failed',
     },
 };

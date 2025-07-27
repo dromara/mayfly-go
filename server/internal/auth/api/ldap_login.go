@@ -47,7 +47,7 @@ func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 
 // @router /auth/ldap/login [post]
 func (a *LdapLogin) Login(rc *req.Ctx) {
-	loginForm := req.BindJsonAndValid[*form.LoginForm](rc)
+	loginForm := req.BindJson[*form.LoginForm](rc)
 	ctx := rc.MetaCtx
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
@@ -197,14 +197,14 @@ func dial(ldapConf *config.LdapLogin) (*ldap.Conn, error) {
 		InsecureSkipVerify: ldapConf.SkipTLSVerify,
 	}
 	if ldapConf.SecurityProtocol == "LDAPS" {
-		conn, err := ldap.DialTLS("tcp", addr, tlsConfig)
+		conn, err := ldap.DialURL("ldaps://"+addr, ldap.DialWithTLSConfig(tlsConfig))
 		if err != nil {
 			return nil, errors.Errorf("dial TLS: %v", err)
 		}
 		return conn, nil
 	}
 
-	conn, err := ldap.Dial("tcp", addr)
+	conn, err := ldap.DialURL("ldap://" + addr)
 	if err != nil {
 		return nil, errors.Errorf("dial: %v", err)
 	}

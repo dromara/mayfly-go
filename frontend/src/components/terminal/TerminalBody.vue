@@ -22,6 +22,7 @@ import { useDebounceFn, useEventListener, useIntervalFn } from '@vueuse/core';
 import themes from './themes';
 import { TrzszFilter } from 'trzsz';
 import { useI18n } from 'vue-i18n';
+import { createWebSocket } from '@/common/request';
 
 const { t } = useI18n();
 
@@ -124,7 +125,7 @@ const initTerm = async () => {
     // 注册窗口大小监听器
     useEventListener('resize', useDebounceFn(fitTerminal, 400));
 
-    initSocket();
+    await initSocket();
     // 注册其他插件
     loadAddon();
 
@@ -140,33 +141,31 @@ const initTerm = async () => {
     });
 };
 
-const initSocket = () => {
+const initSocket = async () => {
     if (!props.socketUrl) {
         return;
     }
-    socket = new WebSocket(`${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`);
-    // 监听socket连接
-    socket.onopen = () => {
-        // 注册心跳
-        useIntervalFn(sendPing, 15000);
-
-        state.status = TerminalStatus.Connected;
-
-        focus();
-        fitTerminal();
-
-        // 如果有初始要执行的命令，则发送执行命令
-        if (props.cmd) {
-            sendData(props.cmd + ' \r');
-        }
-    };
-
-    // 监听socket错误信息
-    socket.onerror = (e: Event) => {
+    try {
+        socket = await createWebSocket(`${props.socketUrl}?rows=${term?.rows}&cols=${term?.cols}`);
+    } catch (e) {
         term.writeln(`\r\n\x1b[31m${t('components.terminal.connErrMsg')}`);
         state.status = TerminalStatus.Error;
         console.log('连接错误', e);
-    };
+        return;
+    }
+
+    // 注册心跳
+    useIntervalFn(sendPing, 15000);
+
+    state.status = TerminalStatus.Connected;
+
+    focus();
+    fitTerminal();
+
+    // 如果有初始要执行的命令，则发送执行命令
+    if (props.cmd) {
+        sendData(props.cmd + ' \r');
+    }
 
     socket.onclose = (e: CloseEvent) => {
         console.log('terminal socket close...', e.reason);

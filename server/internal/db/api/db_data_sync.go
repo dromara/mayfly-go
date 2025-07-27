@@ -87,7 +87,7 @@ func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
 }
 
 func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
-	form := req.BindJsonAndValid[*form.DataSyncTaskStatusForm](rc)
+	form := req.BindJson[*form.DataSyncTaskStatusForm](rc)
 	rc.ReqParam = form
 
 	task, err := d.dataSyncTaskApp.GetById(form.Id)

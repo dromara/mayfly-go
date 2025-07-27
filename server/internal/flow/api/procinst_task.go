@@ -74,7 +74,7 @@ func (p *ProcinstTask) GetTasks(rc *req.Ctx) {
 }
 
 func (p *ProcinstTask) PassTask(rc *req.Ctx) {
-	auditForm := req.BindJsonAndValid[*form.ProcinstTaskAudit](rc)
+	auditForm := req.BindJson[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
 
 	la := rc.GetLoginAccount()
@@ -84,7 +84,7 @@ func (p *ProcinstTask) PassTask(rc *req.Ctx) {
 }
 
 func (p *ProcinstTask) RejectTask(rc *req.Ctx) {
-	auditForm := req.BindJsonAndValid[*form.ProcinstTaskAudit](rc)
+	auditForm := req.BindJson[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
 
 	la := rc.GetLoginAccount()
@@ -94,7 +94,7 @@ func (p *ProcinstTask) RejectTask(rc *req.Ctx) {
 }
 
 func (p *ProcinstTask) BackTask(rc *req.Ctx) {
-	auditForm := req.BindJsonAndValid[*form.ProcinstTaskAudit](rc)
+	auditForm := req.BindJson[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
 	biz.ErrIsNil(p.procinstTaskApp.BackTask(rc.MetaCtx, dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark}))
 }

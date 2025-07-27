@@ -97,7 +97,7 @@ func (a *Procdef) Save(rc *req.Ctx) {
 }
 
 func (a *Procdef) SaveFlowDef(rc *req.Ctx) {
-	form := req.BindJsonAndValid[*form.ProcdefFlow](rc)
+	form := req.BindJson[*form.ProcdefFlow](rc)
 	rc.ReqParam = form
 
 	biz.ErrIsNil(a.procdefApp.SaveFlowDef(rc.MetaCtx, &dto.SaveFlowDef{

@@ -15,7 +15,6 @@ var En = map[i18n.MsgId]string{
 	ErrOtpCheckRestrict:     "Two-factor validation failed more than 5 times. Try again in 10 minutes",
 	ErrOtpCheckFail:         "Two-factor authentication authorization code is incorrect",
 	ErrAccountNotAvailable:  "Account is not available",
-	LoginMsg:                "Log in to [{{.ip}}]-[{{.time}}]",
 	ErrUsernameOrPwdErr:     "Wrong username or password",
 	ErrOauth2NoAutoRegister: "the system does not enable automatic registration, please ask the administrator to add the corresponding account first",
 }

@@ -151,7 +151,7 @@ import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
 import { getRefreshToken, saveRefreshToken, saveToken, saveUser } from '@/common/utils/storage';
 import openApi from '@/common/openApi';
-import { RsaEncrypt } from '@/common/rsa';
+import { RsaEncrypt } from '@/common/crypto';
 import { getAccountLoginSecurity, getLdapEnabled } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';

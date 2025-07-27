@@ -42,3 +42,27 @@ export const TagResourceTypePath = {
     Db: `${TagResourceTypeEnum.DbInstance.value}/${TagResourceTypeEnum.AuthCert.value}/${TagResourceTypeEnum.Db.value}`,
     Es: `${TagResourceTypeEnum.EsInstance.value}/${TagResourceTypeEnum.AuthCert.value}`,
 };
+
+// 消息子类型
+export const MsgSubtypeEnum = {
+    UserLogin: EnumValue.of('user.login', 'login.login').setExtra({
+        notifyType: 'primary',
+    }),
+
+    MachineFileUploadSuccess: EnumValue.of('machine.file.upload.success', 'machine.fileUploadSuccess').setExtra({
+        notifyType: 'success',
+    }),
+    MachineFileUploadFail: EnumValue.of('machine.file.upload.fail', 'machine.fileUploadFail').setExtra({
+        notifyType: 'error',
+    }),
+
+    DbDumpFail: EnumValue.of('db.dump.fail', 'db.dbDumpFail').setExtra({
+        notifyType: 'error',
+    }),
+    SqlScriptRunSuccess: EnumValue.of('db.sqlscript.run.success', 'db.sqlScriptRunSuccess').setExtra({
+        notifyType: 'success',
+    }),
+    SqlScriptRunFail: EnumValue.of('db.sqlscript.run.fail', 'db.sqlScriptRunFail').setExtra({
+        notifyType: 'error',
+    }),
+};

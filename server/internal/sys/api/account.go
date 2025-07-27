@@ -108,7 +108,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 func (a *Account) ChangePassword(rc *req.Ctx) {
 	ctx := rc.MetaCtx
 
-	form := req.BindJsonAndValid[*form.AccountChangePasswordForm](rc)
+	form := req.BindJson[*form.AccountChangePasswordForm](rc)
 
 	originOldPwd, err := utils.DefaultRsaDecrypt(form.OldPassword, true)
 	biz.ErrIsNilAppendErr(err, "Wrong to decrypt old password: %s")
@@ -307,7 +307,7 @@ func (a *Account) AccountResources(rc *req.Ctx) {
 
 // 关联账号角色
 func (a *Account) RelateRole(rc *req.Ctx) {
-	form := req.BindJsonAndValid[*form.AccountRoleForm](rc)
+	form := req.BindJson[*form.AccountRoleForm](rc)
 	rc.ReqParam = form
 	biz.ErrIsNil(a.roleApp.RelateAccountRole(rc.MetaCtx, form.Id, form.RoleId, consts.AccountRoleRelateType(form.RelateType)))
 }

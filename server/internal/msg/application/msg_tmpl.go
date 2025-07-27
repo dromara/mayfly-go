@@ -31,6 +31,8 @@ type MsgTmpl interface {
 	// Send 发送消息
 	Send(ctx context.Context, tmplCode string, params map[string]any, receiverId ...uint64) error
 
+	SendMsg(ctx context.Context, mts *dto.MsgTmplSend) error
+
 	// DeleteTmplChannel 删除指定渠道关联的模板
 	DeleteTmplChannel(ctx context.Context, channelId uint64) error
 }
@@ -153,47 +155,52 @@ func (m *msgTmplAppImpl) Send(ctx context.Context, tmplCode string, params map[s
 		return err
 	}
 
-	// content, err := stringx.TemplateParse(tmpl.Tmpl, params)
-	// if err != nil {
-	// 	return err
-	// }
+	return m.SendMsg(ctx, &dto.MsgTmplSend{
+		Tmpl:        tmpl,
+		Channels:    channels,
+		Params:      params,
+		ReceiverIds: receiverId,
+	})
+}
 
-	// toAll := len(receiverId) == 0
-	accounts, err := m.accountApp.GetByIds(receiverId)
-	if err != nil {
-		return err
-	}
-
+func (m *msgTmplAppImpl) SendMsg(ctx context.Context, mts *dto.MsgTmplSend) error {
+	tmpl := mts.Tmpl
 	msg := &msgx.Msg{
 		Content:   tmpl.Tmpl,
-		Params:    params,
+		Params:    mts.Params,
 		Title:     tmpl.Title,
 		Type:      tmpl.MsgType,
-		ExtraData: tmpl.ExtraData,
+		TmplExtra: tmpl.Extra,
+	}
+
+	accounts, err := m.accountApp.GetByIds(mts.ReceiverIds)
+	if err != nil {
+		return err
 	}
 
 	if len(accounts) > 0 {
 		msg.Receivers = collx.ArrayMap(accounts, func(account *sysentity.Account) msgx.Receiver {
 			return msgx.Receiver{
-				ExtraData: account.ExtraData,
-				Email:     account.Email,
-				Mobile:    account.Mobile,
+				Id:     account.Id,
+				Extra:  account.Extra,
+				Email:  account.Email,
+				Mobile: account.Mobile,
 			}
 		})
 	}
 
-	for _, channel := range channels {
+	for _, channel := range mts.Channels {
 		if channel.Status != entity.ChannelStatusEnable {
 			logx.Warnf("channel is disabled => %s", channel.Code)
 			continue
 		}
 
 		go func(channel *entity.MsgChannel) {
-			if err := msgx.Send(&msgx.Channel{
-				Type:      channel.Type,
-				Name:      channel.Name,
-				URL:       channel.Url,
-				ExtraData: channel.ExtraData,
+			if err := msgx.Send(ctx, &msgx.Channel{
+				Type:  channel.Type,
+				Name:  channel.Name,
+				URL:   channel.Url,
+				Extra: channel.Extra,
 			}, msg); err != nil {
 				logx.Errorf("send msg error => channel=%s, msg=%s, err -> %v", channel.Code, msg.Content, err)
 			}

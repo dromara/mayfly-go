@@ -9,4 +9,13 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogMsgTmplSave:   "消息模板-保存",
 	LogMsgTmplDelete: "消息模板-删除",
 	LogMsgTmplSend:   "消息模板-发送",
+
+	LoginMsg: "于[{{.ip}}]-[{{.time}}]登录",
+
+	MachineFileUploadSuccessMsg: "[{{.filename}}] -> {{.machineName}}[{{.machineIp}}:{{.path}}]",
+	MachineFileUploadFailMsg:    "[{{.filename}}] -> {{.machineName}}[{{.machineIp}}:{{.path}}]。错误信息：{{.error}}",
+
+	DbDumpFailMsg:          "数据库dump失败，错误信息：{{.error}}",
+	SqlScriptRunFailMsg:    "数据库 {{.db}} 的脚本 {{.filename}} 执行失败，错误：{{.error}}",
+	SqlScriptRunSuccessMsg: "数据库 {{.db}} 的脚本 {{.filename}} 执行成功，耗时 {{.cost}}",
 }
