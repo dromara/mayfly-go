@@ -61,7 +61,7 @@ import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 import { tmplApi } from '../api';
 import { TmplStatusEnum, TmplTypeEnum, ChannelTypeEnum } from '../enums';

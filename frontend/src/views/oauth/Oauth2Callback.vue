@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted } from 'vue';
+import { onMounted, toRaw, unref } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import openApi from '@/common/openApi';
@@ -30,12 +30,13 @@ onMounted(async () => {
 
         const res: any = await openApi.oauth2Callback(queryParam);
         ElMessage.success(t('system.oauth.authSuccess'));
-        top?.opener.postMessage(res);
+        top?.opener.postMessage(toRaw(res), '*');
         window.close();
     } catch (e: any) {
+        console.error('oauth2 callback handle error: ', e);
         setTimeout(() => {
             window.close();
-        }, 1500);
+        }, 5000);
     }
 });
 </script>

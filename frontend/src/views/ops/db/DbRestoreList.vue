@@ -64,7 +64,7 @@ import { toRefs, reactive, defineAsyncComponent, Ref, ref } from 'vue';
 import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatDate } from '@/common/utils/format';
 const DbRestoreEdit = defineAsyncComponent(() => import('./DbRestoreEdit.vue'));

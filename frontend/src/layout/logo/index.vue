@@ -18,7 +18,6 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import config from '@/common/config';
-import mittBus from '@/common/utils/mitt';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 
@@ -30,7 +29,6 @@ const setShowLogo = computed(() => {
 // logo 点击实现菜单展开/收起
 const onThemeConfigChange = () => {
     if (themeConfig.value.layout === 'transverse') return false;
-    mittBus.emit('onMenuClick');
     themeConfig.value.isCollapse = !themeConfig.value.isCollapse;
 };
 </script>

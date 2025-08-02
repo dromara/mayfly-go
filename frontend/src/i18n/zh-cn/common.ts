@@ -69,6 +69,7 @@ export default {
         fieldNotEmpty: '{field}不能为空',
         selectAll: '全选',
         MultiPlaceholder: '多个用逗号隔开',
+        appSlogan: '简洁 · 高效 · 安全',
     },
     layout: {
         user: {
@@ -152,8 +153,6 @@ export default {
             isUniqueOpened: '菜单手风琴',
             isFixedHeader: '固定 Header',
             isClassicSplitMenu: '经典布局分割菜单',
-            isLockScreen: '开启锁屏',
-            lockScreenTime: '自动锁屏(s/秒)',
             interfaceDisplay: '界面显示',
             isShowLogo: '侧边栏 Logo',
             isBreadcrumb: '开启 Breadcrumb',

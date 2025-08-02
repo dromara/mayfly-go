@@ -32,11 +32,12 @@
 /* NavMenu 导航菜单
 ------------------------------- */
 $radius: 6px;
-$menuHeight: 46px !important;
+$menuHeight: 42px !important;
+$spacing: 8px;
 
 // 鼠标 hover 时颜色
 .el-menu-hover-bg-color {
-    background-color: var(--bg-menuBarActiveColor) !important;
+    background-color: #f0f8ff !important; // 更舒适的悬停背景色
 }
 
 // 默认样式修改
@@ -45,21 +46,45 @@ $menuHeight: 46px !important;
     width: 220px;
 }
 
-.el-menu-item {
+.el-menu-item,
+.el-sub-menu__title {
     height: $menuHeight;
     line-height: $menuHeight;
     border-radius: $radius;
+    color: #5a5a5a; // 统一调整菜单字体颜色为更舒适的深灰色
+    transition: all 0.2s ease;
+
+    // 第三方图标字体间距/大小设置
+    .icon,
+    .fa {
+        @include mixins.generalIcon;
+    }
 }
 
-.el-menu-item,
-.el-sub-menu__title {
-    color: var(--bg-menuBarColor);
-    height: $menuHeight;
+.el-menu-item {
+    margin: 2px $spacing;
+    width: calc(100% - #{2 * $spacing});
 }
 
 // 修复点击左侧菜单折叠再展开时，宽度不跟随问题
 .el-menu--collapse {
     width: 64px !important;
+
+    // 菜单收起时，图标不居中问题
+    .el-menu-item,
+    .el-sub-menu__title {
+        margin: 4px 0;
+        width: auto;
+
+        .iconfont,
+        .fa {
+            margin-right: 0 !important;
+        }
+    }
+
+    .el-sub-menu__title {
+        padding-right: 0 !important;
+    }
 }
 
 // 外部链接时
@@ -71,29 +96,48 @@ $menuHeight: 46px !important;
     text-decoration: none;
 }
 
-// 第三方图标字体间距/大小设置
-.el-menu-item .icon,
-.el-sub-menu .icon,
-.el-menu-item .fa,
-.el-sub-menu .fa {
-    @include mixins.generalIcon;
-}
-
 // 水平菜单、横向菜单高亮 背景色，鼠标 hover 时，有子级菜单的背景色
 .el-menu-item.is-active,
-.el-sub-menu.is-active .el-sub-menu__title,
+.el-sub-menu.is-active>.el-sub-menu__title,
 .el-sub-menu:not(.is-opened):hover .el-sub-menu__title {
     @extend .el-menu-hover-bg-color;
-    border-radius: $radius;
+    color: #409eff;
 }
 
 .el-menu-item:hover {
     @extend .el-menu-hover-bg-color;
-    border-radius: $radius;
+    transform: translateX(2px);
 }
 
-.el-sub-menu.is-active.is-opened .el-sub-menu__title {
+// 确保展开的子菜单项在hover时也使用统一的样式
+.el-sub-menu.is-opened .el-sub-menu__title:hover {
+    @extend .el-menu-hover-bg-color;
+}
+
+// 只有直接激活的菜单项才应用高亮样式
+.el-menu-item.is-active {
+    color: #409eff !important;
+}
+
+// 只有当前路由匹配的菜单项才应用高亮样式
+.el-menu-item.is-active:not(.is-disabled) {
+    color: #409eff !important;
+}
+
+// 重置所有子菜单标题的默认样式，确保与普通菜单项一致
+.el-sub-menu .el-sub-menu__title {
+    color: #5a5a5a !important;
+}
+
+// 只有真正激活且未展开的子菜单才应用高亮样式
+.el-sub-menu.is-active:not(.is-opened)>.el-sub-menu__title {
+    color: #409eff !important;
+}
+
+// 展开的子菜单保持默认样式
+.el-sub-menu.is-active.is-opened>.el-sub-menu__title {
     background-color: unset !important;
+    color: #5a5a5a !important;
 }
 
 // 水平菜单、横向菜单折叠 a 标签
@@ -107,23 +151,10 @@ $menuHeight: 46px !important;
 
     // 水平菜单
     .el-menu--vertical {
-        background: var(--bg-menuBar);
+        background: #fafafa; // 更舒适的背景色
 
         .el-sub-menu.is-active .el-sub-menu__title {
             color: var(--el-menu-active-color);
-        }
-
-        .el-popper.is-pure.is-light {
-            .el-menu--vertical {
-                .el-sub-menu .el-sub-menu__title {
-                    background-color: unset !important;
-                    color: var(--bg-menuBarColor);
-                }
-
-                .el-sub-menu.is-active .el-sub-menu__title {
-                    color: var(--el-menu-active-color);
-                }
-            }
         }
     }
 
@@ -133,33 +164,31 @@ $menuHeight: 46px !important;
 
         .el-menu-item,
         .el-sub-menu {
-            height: 48px !important;
-            line-height: 48px !important;
+            height: $menuHeight;
+            line-height: $menuHeight;
             color: var(--bg-topBarColor);
+            border-radius: $radius;
+            padding: 0 10px !important; // 减小内边距
 
             .el-sub-menu__title {
-                height: 48px !important;
-                line-height: 48px !important;
+                height: $menuHeight;
+                line-height: $menuHeight;
                 color: var(--bg-topBarColor);
-            }
-
-            .el-popper.is-pure.is-light {
-                .el-menu--horizontal {
-                    .el-sub-menu .el-sub-menu__title {
-                        background-color: unset !important;
-                        color: var(--bg-topBarColor);
-                    }
-
-                    .el-sub-menu.is-active .el-sub-menu__title {
-                        color: var(--el-menu-active-color);
-                    }
-                }
+                border-radius: $radius;
+                padding: 0 10px !important; // 减小内边距
             }
         }
 
         .el-menu-item.is-active,
         .el-sub-menu.is-active .el-sub-menu__title {
-            color: var(--el-menu-active-color);
+            color: #409eff;
+            background-color: rgba(64, 158, 255, 0.1);
+        }
+
+        .el-menu-item:hover,
+        .el-sub-menu:not(.is-active):hover .el-sub-menu__title {
+            background-color: rgba(64, 158, 255, 0.05);
+            transform: translateY(-1px);
         }
     }
 }
@@ -171,28 +200,107 @@ $menuHeight: 46px !important;
 
     .el-menu-item,
     .el-sub-menu__title {
-        height: 48px !important;
+        height: $menuHeight;
+        line-height: $menuHeight;
         color: var(--bg-topBarColor);
+        border-radius: $radius;
+        transition: all 0.2s ease;
+        padding: 0 10px !important; // 减小内边距
+        border-bottom: none !important;
     }
 
     .el-menu-item:not(.is-active):hover,
     .el-sub-menu:not(.is-active):hover .el-sub-menu__title {
         color: var(--bg-topBarColor);
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    .el-menu-item.is-active,
+    .el-sub-menu.is-active .el-sub-menu__title {
+        background-color: rgba(64, 158, 255, 0.1);
+        color: #409eff;
+        font-weight: 500;
+        border-bottom: none !important;
+    }
+
+    // 为水平菜单的子菜单项正确处理箭头图标位置
+    .el-sub-menu {
+        .el-sub-menu__title {
+            padding-right: 20px !important; // 调整箭头图标空间
+            border-bottom: none !important;
+        }
+
+        // 确保水平菜单的箭头图标正确显示在右侧
+        .el-sub-menu__icon-arrow {
+            right: 8px !important;
+            margin-top: -6px !important;
+        }
+    }
+
+    // 移除可能的伪元素下划线
+    .el-menu-item::after,
+    .el-sub-menu__title::after {
+        display: none !important;
     }
 }
 
-// 菜单收起时，图标不居中问题
-.el-menu--collapse {
-
-    .el-menu-item .iconfont,
-    .el-sub-menu .iconfont,
-    .el-menu-item .fa,
-    .el-sub-menu .fa {
-        margin-right: 0 !important;
+// 暗黑模式下的菜单样式
+html.dark {
+    .el-menu-hover-bg-color {
+        background-color: #2c2c2c !important; // 暗黑模式下的悬停背景色
     }
 
+    .el-menu-item,
     .el-sub-menu__title {
-        padding-right: 0 !important;
+        color: #b2b2b2; // 暗黑模式下的菜单字体颜色
+    }
+
+    .el-menu-item.is-active,
+    .el-menu-item.is-active:not(.is-disabled) {
+        color: #409eff !important;
+    }
+
+    // 重置所有子菜单标题的默认样式，确保与普通菜单项一致 - 暗黑模式
+    .el-sub-menu .el-sub-menu__title {
+        color: #b2b2b2 !important;
+    }
+
+    // 只有真正激活且未展开的子菜单才应用高亮样式 - 暗黑模式
+    .el-sub-menu.is-active:not(.is-opened)>.el-sub-menu__title {
+        color: #409eff !important;
+    }
+
+    // 展开的子菜单保持默认样式 - 暗黑模式
+    .el-sub-menu.is-active.is-opened>.el-sub-menu__title {
+        background-color: unset !important;
+        color: #b2b2b2 !important;
+    }
+
+    // 水平菜单、横向菜单折叠背景色 - 暗黑模式
+    .el-popper.is-pure.is-light {
+
+        // 水平菜单
+        .el-menu--vertical {
+            background: #1f1f1f; // 暗黑模式下的背景色
+        }
+    }
+
+    // 横向菜单（经典、横向）布局 - 暗黑模式
+    .el-menu.el-menu--horizontal {
+
+        .el-menu-item,
+        .el-sub-menu__title {
+            color: #b2b2b2; // 暗黑模式下的字体颜色
+        }
+    }
+
+    .el-menu {
+        background-color: #1f1f1f; // 暗黑模式下的菜单背景色
+    }
+
+    // 确保暗黑模式下展开的子菜单项在hover时也使用统一的样式
+    .el-sub-menu.is-opened .el-sub-menu__title:hover {
+        @extend .el-menu-hover-bg-color;
     }
 }
 

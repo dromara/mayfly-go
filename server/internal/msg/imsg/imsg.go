@@ -26,4 +26,6 @@ const (
 	DbDumpFailMsg
 	SqlScriptRunFailMsg
 	SqlScriptRunSuccessMsg
+
+	FlowUserTaskTodoMsg
 )

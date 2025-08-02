@@ -287,7 +287,7 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	}
 	if mi != nil {
 		msgEvent.Params["machineName"] = mi.Name
-		msgEvent.Params["machineIp"] = mi.Ip
+		msgEvent.Params["machineCode"] = mi.Code
 	}
 	global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, msgEvent)
 
@@ -364,7 +364,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 			"filename":    folderName,
 			"path":        basePath,
 			"machineName": mi.Name,
-			"machineIp":   mi.Ip,
+			"machineCode": mi.Code,
 		},
 		ReceiverIds: []uint64{rc.GetLoginAccount().Id},
 	}

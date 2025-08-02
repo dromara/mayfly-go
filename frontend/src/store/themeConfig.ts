@@ -63,10 +63,6 @@ export const useThemeConfig = defineStore('themeConfig', {
             isFixedHeaderChange: false,
             // 是否开启经典布局分割菜单（仅经典布局生效）
             isClassicSplitMenu: false,
-            // 是否开启自动锁屏
-            isLockScreen: false,
-            // 开启自动锁屏倒计时(s/秒)
-            lockScreenTime: 30,
 
             /* 界面显示
             ------------------------------- */
@@ -138,6 +134,7 @@ export const useThemeConfig = defineStore('themeConfig', {
             globalTitle: 'mayfly',
             // 网站副标题（登录页顶部文字）
             globalViceTitle: 'mayfly-go',
+            appSlogan: 'common.appSlogan',
             // 网站logo icon, base64编码内容
             logoIcon: logoIcon,
             // 默认初始语言，可选值"<zh-cn|en|zh-tw>"，默认 zh-cn

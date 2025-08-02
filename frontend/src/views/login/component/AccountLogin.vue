@@ -504,4 +504,11 @@ defineExpose({
         margin-top: 15px;
     }
 }
+
+// 修复表单label与输入框不对齐的问题
+:deep(.el-form-item .el-form-item__label) {
+    align-items: center;
+    display: flex;
+    height: 100%;
+}
 </style>

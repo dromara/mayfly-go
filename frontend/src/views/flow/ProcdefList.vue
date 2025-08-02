@@ -43,7 +43,7 @@ import { procdefApi, procinstApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import ProcdefEdit from './ProcdefEdit.vue';
 import { ProcdefStatus } from './enums';
 import TagCodePath from '../ops/component/TagCodePath.vue';

@@ -14,12 +14,16 @@
 </template>
 
 <script lang="ts" setup name="layoutColumns">
-import { computed } from 'vue';
+import { computed, provide, ref } from 'vue';
 import Aside from '@/layout/component/aside.vue';
 import Header from '@/layout/component/header.vue';
 import Main from '@/layout/component/main.vue';
 import ColumnsAside from '@/layout/component/columnsAside.vue';
 import { useThemeConfig } from '@/store/themeConfig';
+
+// 提供响应式数据给子组件
+const columnsMenuData = ref<any>(null);
+provide('columnsMenuData', columnsMenuData);
 
 const isFixedHeader = computed(() => {
     return useThemeConfig().themeConfig.isFixedHeader;

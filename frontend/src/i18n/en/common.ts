@@ -69,6 +69,7 @@ export default {
         fieldNotEmpty: '{field} cannot be empty',
         selectAll: 'Select all',
         MultiPlaceholder: 'Multiple are separated by commas',
+        appSlogan: 'Simple, efficient and secure',
     },
     layout: {
         user: {
@@ -150,8 +151,6 @@ export default {
             isUniqueOpened: 'Menu accordion',
             isFixedHeader: 'Fixed header',
             isClassicSplitMenu: 'Classic layout split menu',
-            isLockScreen: 'Open the lock screen',
-            lockScreenTime: 'screen locking(s/s)',
             interfaceDisplay: 'Interface display',
             isShowLogo: 'Sidebar logo',
             isBreadcrumb: 'Open breadcrumb',

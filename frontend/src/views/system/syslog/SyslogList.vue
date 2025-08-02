@@ -14,7 +14,7 @@ import { logApi, accountApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { LogTypeEnum } from '../enums';
-import { OptionsApi, SearchItem } from '@/components/SearchForm';
+import { OptionsApi, SearchItem } from '@/components/pagetable/SearchForm';
 import AccountInfo from '../account/components/AccountInfo.vue';
 
 const searchItems = [

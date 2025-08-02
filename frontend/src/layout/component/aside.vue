@@ -1,5 +1,5 @@
 <template>
-    <el-aside class="layout-aside" :class="setCollapseWidth" v-if="state.clientWidth > 1000">
+    <el-aside class="layout-aside" :class="setCollapseWidth" v-if="clientWidth > 1000">
         <Logo v-if="setShowLogo" />
         <el-scrollbar class="flex-auto" ref="layoutAsideScrollbarRef">
             <Vertical :menuList="state.menuList" :class="setCollapseWidth" />
@@ -16,24 +16,29 @@
 </template>
 
 <script lang="ts" setup name="layoutAside">
-import { reactive, computed, watch, getCurrentInstance, onBeforeMount, onUnmounted } from 'vue';
+import { reactive, computed, watch, getCurrentInstance, onBeforeMount, onUnmounted, inject } from 'vue';
 import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
 import Logo from '@/layout/logo/index.vue';
 import Vertical from '@/layout/navMenu/vertical.vue';
-import mittBus from '@/common/utils/mitt';
+import { useWindowSize } from '@vueuse/core';
 
 const { proxy } = getCurrentInstance() as any;
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());
 
-const state: any = reactive({
-    menuList: [],
-    clientWidth: '',
+const { width: clientWidth } = useWindowSize();
+
+const state = reactive({
+    menuList: [] as any[],
 });
+
+// 注入 菜单数据
+const columnsMenuData: any = inject('columnsMenuData', null);
+const classicMenuData: any = inject('classicMenuData', null);
 
 // 设置菜单展开/收起时的宽度
 const setCollapseWidth = computed(() => {
@@ -64,7 +69,9 @@ const setShowLogo = computed(() => {
 
 // 设置/过滤路由（非静态路由/是否显示在菜单中）
 const setFilterRoutes = () => {
-    if (themeConfig.value.layout === 'columns') return false;
+    if (themeConfig.value.layout === 'columns') {
+        return false;
+    }
     state.menuList = filterRoutesFun(routesList.value);
 };
 
@@ -78,53 +85,58 @@ const filterRoutesFun = (arr: Array<object>) => {
             return item;
         });
 };
-// 设置菜单导航是否固定（移动端）
-const initMenuFixed = (clientWidth: number) => {
-    state.clientWidth = clientWidth;
-};
 
 // 监听 themeConfig 配置文件的变化，更新菜单 el-scrollbar 的高度
 watch(themeConfig.value, (val) => {
     if (val.isShowLogoChange !== val.isShowLogo) {
-        if (!proxy.$refs.layoutAsideScrollbarRef) return false;
+        if (!proxy.$refs.layoutAsideScrollbarRef) {
+            return false;
+        }
         proxy.$refs.layoutAsideScrollbarRef.update();
     }
 });
 
 // 监听路由的变化，动态赋值给菜单中
 watch(pinia.state, (val) => {
-    if (val.routesList.routesList.length === state.menuList.length) return false;
+    if (val.routesList.routesList.length === state.menuList.length) {
+        return false;
+    }
     let { layout, isClassicSplitMenu } = val.themeConfig.themeConfig;
-    if (layout === 'classic' && isClassicSplitMenu) return false;
+    if (layout === 'classic' && isClassicSplitMenu) {
+        return;
+    }
     setFilterRoutes();
 });
 
+// 监听经典布局分割菜单的变化
+watch(
+    () => themeConfig.value.isClassicSplitMenu,
+    () => {
+        // 当经典布局分割菜单选项变化时，重新设置过滤路由
+        setFilterRoutes();
+    }
+);
+
 // 页面加载前
 onBeforeMount(() => {
-    initMenuFixed(document.body.clientWidth);
     setFilterRoutes();
-    mittBus.on('setSendColumnsChildren', (res: any) => {
-        state.menuList = res.children;
-    });
-    mittBus.on('setSendClassicChildren', (res: any) => {
-        let { layout, isClassicSplitMenu } = themeConfig.value;
-        if (layout === 'classic' && isClassicSplitMenu) {
-            state.menuList = [];
-            state.menuList = res.children;
-        }
-    });
-    mittBus.on('getBreadcrumbIndexSetFilterRoutes', () => {
-        setFilterRoutes();
-    });
-    mittBus.on('layoutMobileResize', (res: any) => {
-        initMenuFixed(res.clientWidth);
-    });
-});
-// 页面卸载时
-onUnmounted(() => {
-    mittBus.off('setSendColumnsChildren');
-    mittBus.off('setSendClassicChildren');
-    mittBus.off('getBreadcrumbIndexSetFilterRoutes');
-    mittBus.off('layoutMobileResize');
+
+    if (columnsMenuData) {
+        watch(columnsMenuData, (newVal) => {
+            if (newVal) {
+                state.menuList = newVal.children;
+            }
+        });
+    }
+
+    if (classicMenuData) {
+        watch(classicMenuData, (newVal) => {
+            let { layout, isClassicSplitMenu } = themeConfig.value;
+            if (newVal && layout === 'classic' && isClassicSplitMenu) {
+                state.menuList = [];
+                state.menuList = newVal.children;
+            }
+        });
+    }
 });
 </script>

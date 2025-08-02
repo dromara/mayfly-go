@@ -9,6 +9,11 @@ export const I18nEnum = {
     En: EnumValue.of('en', 'English').setExtra({ icon: 'icon layout/en', el: enLocale }),
 };
 
+export const LinkTypeEnum = {
+    Iframes: EnumValue.of(1, 'ifrmaes'),
+    Link: EnumValue.of(2, 'link'),
+};
+
 // 资源类型
 export const ResourceTypeEnum = {
     Machine: EnumValue.of(1, '机器').setExtra({ icon: 'Monitor', iconColor: 'var(--el-color-primary)' }).tagTypeSuccess(),
@@ -53,16 +58,20 @@ export const MsgSubtypeEnum = {
         notifyType: 'success',
     }),
     MachineFileUploadFail: EnumValue.of('machine.file.upload.fail', 'machine.fileUploadFail').setExtra({
-        notifyType: 'error',
+        notifyType: 'danger',
     }),
 
     DbDumpFail: EnumValue.of('db.dump.fail', 'db.dbDumpFail').setExtra({
-        notifyType: 'error',
+        notifyType: 'danger',
     }),
     SqlScriptRunSuccess: EnumValue.of('db.sqlscript.run.success', 'db.sqlScriptRunSuccess').setExtra({
         notifyType: 'success',
     }),
     SqlScriptRunFail: EnumValue.of('db.sqlscript.run.fail', 'db.sqlScriptRunFail').setExtra({
-        notifyType: 'error',
+        notifyType: 'danger',
+    }),
+
+    FlowUserTaskTodo: EnumValue.of('flow.usertask.todo', 'flow.todoTask').setExtra({
+        notifyType: 'primary',
     }),
 };

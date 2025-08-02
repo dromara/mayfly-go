@@ -18,7 +18,6 @@ import Breadcrumb from '@/layout/navBars/breadcrumb/breadcrumb.vue';
 import User from '@/layout/navBars/breadcrumb/user.vue';
 import Logo from '@/layout/logo/index.vue';
 import Horizontal from '@/layout/navMenu/horizontal.vue';
-import mittBus from '@/common/utils/mitt';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());
@@ -42,8 +41,6 @@ const setFilterRoutes = () => {
     let { layout, isClassicSplitMenu } = themeConfig.value;
     if (layout === 'classic' && isClassicSplitMenu) {
         state.menuList = delClassicChildren(filterRoutesFun(routesList.value));
-        const resData = setSendClassicChildren(route.path);
-        mittBus.emit('setSendClassicChildren', resData);
     } else {
         state.menuList = filterRoutesFun(routesList.value);
     }
@@ -87,13 +84,6 @@ watch(pinia.state, (val) => {
 // 页面加载时
 onMounted(() => {
     setFilterRoutes();
-    mittBus.on('getBreadcrumbIndexSetFilterRoutes', () => {
-        setFilterRoutes();
-    });
-});
-// 页面卸载时
-onUnmounted(() => {
-    mittBus.off('getBreadcrumbIndexSetFilterRoutes');
 });
 </script>
 

@@ -50,7 +50,7 @@ import { toRefs, reactive, defineAsyncComponent, Ref, ref } from 'vue';
 import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const DbBackupEdit = defineAsyncComponent(() => import('./DbBackupEdit.vue'));

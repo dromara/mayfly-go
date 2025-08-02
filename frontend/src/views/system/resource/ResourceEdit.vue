@@ -63,8 +63,8 @@
                         >
                             <el-select class="!w-full" @change="onChangeLinkType" v-model="form.meta.linkType">
                                 <el-option :key="0" :label="$t('system.menu.no')" :value="0"> </el-option>
-                                <el-option :key="1" :label="$t('system.menu.inline')" :value="1"> </el-option>
-                                <el-option :key="2" :label="$t('system.menu.externalLink')" :value="2"> </el-option>
+                                <el-option :key="1" :label="$t('system.menu.inline')" :value="LinkTypeEnum.Iframes.value"> </el-option>
+                                <el-option :key="2" :label="$t('system.menu.externalLink')" :value="LinkTypeEnum.Link.value"> </el-option>
                             </el-select>
                         </FormItemTooltip>
                     </el-col>
@@ -85,7 +85,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watchEffect, useTemplateRef } from 'vue';
+import { toRefs, reactive, watchEffect, useTemplateRef, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { resourceApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
@@ -96,6 +96,7 @@ import EnumSelect from '@/components/enumselect/EnumSelect.vue';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 import { Rules } from '@/common/rule';
 import { useI18nFormValidate } from '@/hooks/useI18n';
+import { LinkTypeEnum } from '@/common/commonEnum';
 
 const { t } = useI18n();
 
@@ -159,7 +160,6 @@ const state = reactive({
             routeName: '',
             icon: '',
             redirect: '',
-            component: '',
             isKeepAlive: true,
             isHide: false,
             isAffix: false,
@@ -174,7 +174,7 @@ const { form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.save.useApi(submitForm);
 
-watchEffect(() => {
+watch(visible, () => {
     if (!visible.value) {
         return;
     }
@@ -197,9 +197,7 @@ watchEffect(() => {
 });
 
 // 改变外链类型
-const onChangeLinkType = () => {
-    state.form.meta.component = '';
-};
+const onChangeLinkType = (linkType: number) => {};
 
 const onConfirm = async () => {
     await useI18nFormValidate(menuFormRef);

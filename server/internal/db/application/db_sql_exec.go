@@ -211,7 +211,7 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 
 	msgEvent := &msgdto.MsgTmplSendEvent{
 		TmplChannel: msgdto.MsgTmplSqlScriptRunSuccess,
-		Params:      collx.M{"filename": filename, "db": dbConn.Info.GetLogDesc()},
+		Params:      collx.M{"filename": filename, "dbId": dbConn.Info.Id, "dbName": dbConn.Info.Name},
 	}
 
 	progressMsgEvent := &msgdto.MsgTmplSendEvent{

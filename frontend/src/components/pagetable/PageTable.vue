@@ -1,6 +1,6 @@
 <template>
     <div class="h-full flex flex-col flex-1 overflow-hidden">
-        <transition name="el-zoom-in-top">
+        <transition name="page-table-search-form">
             <!-- 查询表单 -->
             <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm" :search="search" :reset="reset" :search-col="searchCol">
                 <!-- 遍历父组件传入的 solts 透传给子组件 -->
@@ -171,9 +171,9 @@ import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
 import { storeToRefs } from 'pinia';
 import Api from '@/common/Api';
-import SearchForm from '@/components/SearchForm/index.vue';
-import { SearchItem } from '../SearchForm/index';
-import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
+import SearchForm from '@/components/pagetable/SearchForm/index.vue';
+import { SearchItem } from './SearchForm/index';
+import SearchFormItem from './SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { usePageTable } from '@/hooks/usePageTable';
 import { ElInput, ElTable } from 'element-plus';
@@ -365,4 +365,22 @@ defineExpose({
     total,
 });
 </script>
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.page-table-search-form-enter-active {
+    transition: all 0.3s ease-out;
+}
+
+.page-table-search-form-leave-active {
+    transition: all 0.3s ease-in;
+}
+
+.page-table-search-form-enter-from {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+}
+
+.page-table-search-form-leave-to {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+}
+</style>

@@ -46,7 +46,7 @@
             <SvgIcon name="setting" :title="$t('layout.user.layoutConf')" />
         </div>
 
-        <el-popover @show="onShowMsgs" placement="bottom" trigger="click" :width="450">
+        <el-popover @show="onShowMsgs" @hide="userNewsRef?.clearMsg()" placement="bottom" trigger="click" :width="500">
             <template #reference>
                 <div class="layout-navbars-breadcrumb-user-icon">
                     <el-badge :show-zero="false" :value="state.unreadMsgCount">
@@ -92,7 +92,6 @@ import { useThemeConfig } from '@/store/themeConfig';
 import { clearSession } from '@/common/utils/storage';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import SearchMenu from '@/layout/navBars/breadcrumb/search.vue';
-import mittBus from '@/common/utils/mitt';
 import openApi from '@/common/openApi';
 import { getThemeConfig } from '@/common/utils/storage';
 import { useDark, usePreferredDark } from '@vueuse/core';
@@ -150,7 +149,7 @@ const onScreenfullClick = () => {
 };
 // 布局配置 icon 点击时
 const onLayoutSetingClick = () => {
-    mittBus.emit('openSetingsDrawer');
+    themeConfig.value.isDrawer = true;
 };
 // 下拉菜单点击时
 const onHandleCommandClick = (path: string) => {

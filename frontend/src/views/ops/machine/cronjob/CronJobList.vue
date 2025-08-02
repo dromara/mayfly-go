@@ -46,7 +46,7 @@ import { cronJobApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import TagCodePath from '../../component/TagCodePath.vue';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';

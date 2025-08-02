@@ -69,7 +69,7 @@ import { formatDate } from '@/common/utils/format';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { getTagPathSearchItem } from '../component/tag';

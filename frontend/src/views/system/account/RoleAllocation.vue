@@ -85,7 +85,7 @@ import { roleApi, accountApi } from '../api';
 import { ElMessage } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { useI18n } from 'vue-i18n';
 import { getMenuIcon } from '../resource/index';

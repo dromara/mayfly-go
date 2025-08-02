@@ -21,7 +21,7 @@
                     <span>{{ $t(val.meta.title) }}</span>
                 </template>
                 <template #title v-else>
-                    <a :href="val.meta.link" target="_blank">{{ $t(val.meta.title) }}</a></template
+                    <a class="w-full" :href="val.meta.link" target="_blank">{{ $t(val.meta.title) }}</a></template
                 >
             </el-menu-item>
         </template>
@@ -34,7 +34,6 @@ import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
 import SubItem from '@/layout/navMenu/subItem.vue';
-import mittBus from '@/common/utils/mitt';
 
 // 定义父组件传过来的值
 const props = defineProps({
@@ -46,23 +45,29 @@ const props = defineProps({
 });
 
 const { themeConfig } = storeToRefs(useThemeConfig());
+
 const route = useRoute();
+
 const state = reactive({
     defaultActive: route.path,
 });
+
 // 获取父级菜单数据
 const menuLists = computed(() => {
     return props.menuList;
 });
+
 // 设置菜单的收起/展开
 const setIsCollapse = computed(() => {
     return document.body.clientWidth < 1000 ? false : themeConfig.value.isCollapse;
 });
+
 // 路由更新时
 onBeforeRouteUpdate((to) => {
     state.defaultActive = to.path;
-    mittBus.emit('onMenuClick');
     const clientWidth = document.body.clientWidth;
-    if (clientWidth < 1000) themeConfig.value.isCollapse = false;
+    if (clientWidth < 1000) {
+        themeConfig.value.isCollapse = false;
+    }
 });
 </script>

@@ -382,6 +382,24 @@ export class DbInst {
     };
 
     /**
+     * 判断sql是否为查询类sql
+     * @param sql sql
+     * @returns
+     */
+    isQuerySql(sql: string) {
+        // 简单截取前十个字符
+        const sqlPrefix = sql.slice(0, 10).toLowerCase();
+        const nonQuery =
+            sqlPrefix.startsWith('update') ||
+            sqlPrefix.startsWith('insert') ||
+            sqlPrefix.startsWith('delete') ||
+            sqlPrefix.startsWith('alter') ||
+            sqlPrefix.startsWith('drop') ||
+            sqlPrefix.startsWith('create');
+        return !nonQuery;
+    }
+
+    /**
      * 获取或新建dbInst，如果缓存中不存在则新建，否则直接返回
      * @param inst 数据库实例，后端返回的列表接口中的信息
      * @returns DbInst

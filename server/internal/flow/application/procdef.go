@@ -72,7 +72,7 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 		return p.Save(ctx, def)
 	}, func(ctx context.Context) error {
 		// 保存通知消息模板
-		if err := p.msgTmplBizApp.SaveBizTmpl(ctx, msgdto.MsgTmplBizSave{
+		if err := p.msgTmplBizApp.SaveBizTmpl(ctx, &msgdto.MsgTmplBizSave{
 			TmplId:  defParam.MsgTmplId,
 			BizType: FlowTaskNotifyBizKey,
 			BizId:   def.Id,

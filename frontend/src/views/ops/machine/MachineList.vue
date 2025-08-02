@@ -270,7 +270,7 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { formatByteSize, formatDate } from '@/common/utils/format';
 import { TagResourceTypePath } from '@/common/commonEnum';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { getTagPathSearchItem } from '../component/tag';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';

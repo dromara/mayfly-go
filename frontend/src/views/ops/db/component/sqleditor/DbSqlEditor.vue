@@ -301,13 +301,13 @@ const getKey = () => {
     return props.dbId + ':' + props.dbName;
 };
 
-/**
+/*
  * 执行sql
  */
 const onRunSql = async (newTab = false) => {
     // 没有选中的文本，则为全部文本
     let sql = getSql() as string;
-    notBlank(sql && sql.trim(), t('db.noSelctRunSqlMsg'));
+    notBlank(sql && sql.trim(), t('db.noSelctRunSqlTips'));
     // 去除字符串前的空格、换行等
     sql = sql.replace(/(^\s*)/g, '');
 
@@ -315,17 +315,8 @@ const onRunSql = async (newTab = false) => {
 
     if (sqls.length == 1) {
         const oneSql = sqls[0];
-        // 简单截取前十个字符
-        const sqlPrefix = oneSql.slice(0, 10).toLowerCase();
-        const nonQuery =
-            sqlPrefix.startsWith('update') ||
-            sqlPrefix.startsWith('insert') ||
-            sqlPrefix.startsWith('delete') ||
-            sqlPrefix.startsWith('alter') ||
-            sqlPrefix.startsWith('drop') ||
-            sqlPrefix.startsWith('create');
         let execRemark;
-        if (nonQuery) {
+        if (!getNowDbInst().isQuerySql(oneSql)) {
             const res: any = await ElMessageBox.prompt(t('db.enterExecRemarkTips'), 'Tip', {
                 confirmButtonText: t('common.confirm'),
                 cancelButtonText: t('common.cancel'),
@@ -334,17 +325,115 @@ const onRunSql = async (newTab = false) => {
             execRemark = res.value;
         }
         runSql(oneSql, execRemark, newTab);
+        return;
+    }
+
+    // 处理多条SQL - 合并相同类型的结果
+    await runMultipleSqls(sqls, newTab);
+};
+
+/**
+ * 执行多条SQL并合并结果
+ */
+const runMultipleSqls = async (sqls: string[], newTab: boolean) => {
+    // 分类SQL语句
+    const nonQuerySqls: string[] = []; // 影响行数类SQL (UPDATE, INSERT, DELETE等)
+    const querySqls: string[] = []; // 查询类SQL (SELECT等)
+
+    const dbInst = getNowDbInst();
+    // 分类SQL
+    sqls.forEach((sql) => {
+        if (!dbInst.isQuerySql(sql)) {
+            nonQuerySqls.push(sql);
+        } else {
+            querySqls.push(sql);
+        }
+    });
+
+    // 先执行非查询类SQL（可以合并结果）
+    if (nonQuerySqls.length > 0) {
+        await runNonQuerySqls(nonQuerySqls, newTab);
+        newTab = true; // 后续查询需要新标签页
+    }
+
+    // 再执行查询类SQL（每条需要独立标签页）
+    for (let i = 0; i < querySqls.length; i++) {
+        const sql = querySqls[i];
+        await runSql(sql, '', newTab || i > 0);
+    }
+};
+
+/**
+ * 执行非查询类SQL并合并结果
+ */
+const runNonQuerySqls = async (sqls: string[], newTab: boolean) => {
+    let execRes: ExecResTab;
+    let i = 0;
+    let id;
+
+    // 获取或创建结果标签页
+    if (newTab || state.execResTabs.length == 0) {
+        id = state.execResTabs.length == 0 ? 1 : state.execResTabs[state.execResTabs.length - 1].id + 1;
+        execRes = new ExecResTab(id);
+        state.execResTabs.push(execRes);
+        i = state.execResTabs.length - 1;
     } else {
-        let isFirst = true;
-        for (let s of sqls) {
-            if (isFirst) {
-                isFirst = false;
-                runSql(s, '', newTab);
-            } else {
-                runSql(s, '', true);
+        i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
+        execRes = state.execResTabs[i];
+        if (unref(execRes.loading)) {
+            ElMessage.error(t('db.currentSqlTabIsRunning'));
+            return;
+        }
+        id = execRes.id;
+    }
+
+    state.activeTab = id;
+    const startTime = new Date().getTime();
+
+    try {
+        execRes.errorMsg = '';
+        execRes.sql = sqls.join('\n\n---\n\n'); // 显示所有SQL
+
+        // 执行所有非查询SQL
+        const results: any[] = [];
+        for (const sql of sqls) {
+            try {
+                const { data, execute } = getNowDbInst().execSql(props.dbName, sql, '');
+                await execute();
+                const result: any = (data.value as any)[0];
+                results.push({
+                    sql: result.sql,
+                    rowsAffected: result.res?.[0]?.rowsAffected,
+                    error: result.errorMsg || '-',
+                });
+            } catch (error: any) {
+                results.push({
+                    sql: sql,
+                    error: error.message || error.msg,
+                });
             }
         }
+
+        // 设置表格列
+        state.execResTabs[i].tableColumn = [
+            { columnName: 'sql', columnType: 'string', show: true },
+            { columnName: 'rowsAffected', columnType: 'number', show: true },
+            { columnName: 'error', columnType: 'string', show: true },
+        ];
+
+        state.execResTabs[i].data = results;
+        cancelUpdateFields(execRes);
+    } catch (e: any) {
+        execRes.data = [];
+        execRes.tableColumn = [];
+        execRes.table = '';
+        state.execResTabs[i].errorMsg = e.message || e.msg || 'Execution failed';
+        return;
+    } finally {
+        execRes.execTime = new Date().getTime() - startTime;
     }
+
+    execRes.table = '';
 };
 
 /**

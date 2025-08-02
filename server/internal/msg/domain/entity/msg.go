@@ -40,6 +40,9 @@ const (
 	MsgSubtypeDbDumpFail          MsgSubtype = "db.dump.fail"
 	MsgSubtypeSqlScriptRunFail    MsgSubtype = "db.sqlscript.run.fail"
 	MsgSubtypeSqlScriptRunSuccess MsgSubtype = "db.sqlscript.run.success"
+
+	// flow
+	MsgSubtypeFlowUserTaskTodo MsgSubtype = "flow.usertask.todo" // 用户任务待办
 )
 
 type MsgStatus int8

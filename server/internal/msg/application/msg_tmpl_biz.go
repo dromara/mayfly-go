@@ -13,7 +13,7 @@ type MsgTmplBiz interface {
 	base.App[*entity.MsgTmplBiz]
 
 	// SaveBizTmpl 保存消息模板关联业务信息
-	SaveBizTmpl(ctx context.Context, bizTmpl dto.MsgTmplBizSave) error
+	SaveBizTmpl(ctx context.Context, bizTmpl *dto.MsgTmplBizSave) error
 
 	// DeleteByBiz 根据业务删除消息模板业务关联
 	DeleteByBiz(ctx context.Context, bizType string, bizId uint64) error
@@ -22,7 +22,7 @@ type MsgTmplBiz interface {
 	DeleteByTmplId(ctx context.Context, tmplId uint64) error
 
 	// Send 发送消息
-	Send(ctx context.Context, sendParam dto.BizMsgTmplSend) error
+	Send(ctx context.Context, sendParam *dto.BizMsgTmplSend) error
 }
 
 type msgTmplBizAppImpl struct {
@@ -33,7 +33,7 @@ type msgTmplBizAppImpl struct {
 
 var _ (MsgTmplBiz) = (*msgTmplBizAppImpl)(nil)
 
-func (m *msgTmplBizAppImpl) SaveBizTmpl(ctx context.Context, bizTmpl dto.MsgTmplBizSave) error {
+func (m *msgTmplBizAppImpl) SaveBizTmpl(ctx context.Context, bizTmpl *dto.MsgTmplBizSave) error {
 	msgTmplId := bizTmpl.TmplId
 	bizId := bizTmpl.BizId
 	bizType := bizTmpl.BizType
@@ -83,7 +83,7 @@ func (m *msgTmplBizAppImpl) DeleteByTmplId(ctx context.Context, tmplId uint64) e
 	return m.DeleteByCond(ctx, &entity.MsgTmplBiz{TmplId: tmplId})
 }
 
-func (m *msgTmplBizAppImpl) Send(ctx context.Context, sendParam dto.BizMsgTmplSend) error {
+func (m *msgTmplBizAppImpl) Send(ctx context.Context, sendParam *dto.BizMsgTmplSend) error {
 	// 获取业务关联的消息模板
 	msgTmplBiz := &entity.MsgTmplBiz{
 		BizId:   sendParam.BizId,

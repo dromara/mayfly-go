@@ -47,7 +47,7 @@ import { accountApi, roleApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import AccountSelectFormItem from '../account/components/AccountSelectFormItem.vue';
 import { useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 

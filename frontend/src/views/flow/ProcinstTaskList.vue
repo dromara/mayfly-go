@@ -63,7 +63,7 @@ import { ref, toRefs, reactive, Ref, useTemplateRef } from 'vue';
 import { procinstTaskApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { FlowBizType, ProcinstStatus, ProcinstTaskStatus } from './enums';
 import { formatTime } from '@/common/utils/format';

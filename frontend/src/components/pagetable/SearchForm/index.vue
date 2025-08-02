@@ -37,11 +37,11 @@
 </template>
 <script setup lang="ts" name="SearchForm">
 import { computed, ref } from 'vue';
-import { BreakPoint } from '@/components/Grid/interface/index';
+import { BreakPoint } from '@/components/pagetable/Grid/interface/index';
 import { Delete, Search, ArrowDown, ArrowUp } from '@element-plus/icons-vue';
 import SearchFormItem from './components/SearchFormItem.vue';
-import Grid from '@/components/Grid/index.vue';
-import GridItem from '@/components/Grid/components/GridItem.vue';
+import Grid from '@/components/pagetable/Grid/index.vue';
+import GridItem from '@/components/pagetable/Grid/components/GridItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { SearchItem } from './index';
 

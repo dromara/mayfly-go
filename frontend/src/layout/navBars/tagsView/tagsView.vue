@@ -46,12 +46,11 @@
 </template>
 
 <script lang="ts" setup name="layoutTagsView">
-import { reactive, onMounted, computed, ref, nextTick, onBeforeUpdate, onBeforeMount, onUnmounted, getCurrentInstance } from 'vue';
+import { reactive, onMounted, computed, ref, nextTick, onBeforeUpdate, getCurrentInstance, watch } from 'vue';
 import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
 import screenfull from 'screenfull';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import mittBus from '@/common/utils/mitt';
 import Sortable from 'sortablejs';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { getTagViews, setTagViews, removeTagViews } from '@/common/utils/storage';
@@ -185,7 +184,7 @@ const refreshCurrentTagsView = async (path: string) => {
     const item = getTagsView(path);
     await keepAliveNamesStores.delCachedView(item);
     keepAliveNamesStores.addCachedView(item);
-    mittBus.emit('onTagsViewRefreshRouterView', path);
+    useTagsViews().setCurrentRefreshPath(path);
 };
 
 const getTagsView = (path: string) => {
@@ -375,18 +374,15 @@ const initSortable = () => {
     }
 };
 
-// 页面加载前
-onBeforeMount(() => {
-    // 监听布局配置界面开启/关闭拖拽
-    mittBus.on('openOrCloseSortable', () => {
-        initSortable();
-    });
-});
-// 页面卸载时
-onUnmounted(() => {
-    // 取消监听布局配置界面开启/关闭拖拽
-    mittBus.off('openOrCloseSortable');
-});
+watch(
+    () => themeConfig.value.isSortableTagsView,
+    (isSortableTagsView: boolean) => {
+        if (isSortableTagsView) {
+            initSortable();
+        }
+    }
+);
+
 // 页面更新时
 onBeforeUpdate(() => {
     tagsRefs.value = [];

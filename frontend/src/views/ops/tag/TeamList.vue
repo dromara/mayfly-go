@@ -114,7 +114,7 @@ import { tagApi } from './api';
 import { notBlank } from '@/common/assert';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TagTreeCheck from '../component/TagTreeCheck.vue';

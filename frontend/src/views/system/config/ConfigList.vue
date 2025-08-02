@@ -57,7 +57,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { DynamicForm } from '@/components/dynamic-form';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18n } from 'vue-i18n';
 import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 

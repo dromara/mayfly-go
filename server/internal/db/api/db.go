@@ -234,7 +234,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 			rc.GetWriter().Write([]byte(msg))
 			global.EventBus.Publish(rc.MetaCtx, event.EventTopicMsgTmplSend, &msgdto.MsgTmplSendEvent{
 				TmplChannel: msgdto.MsgTmplDbDumpFail,
-				Params:      collx.M{"error": msg},
+				Params:      collx.M{"dbId": dbConn.Info.Id, "dbName": dbConn.Info.Name, "error": msg},
 				ReceiverIds: []uint64{la.Id},
 			})
 		}

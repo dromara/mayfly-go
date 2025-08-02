@@ -1,4 +1,4 @@
-import { OptionsApi, SearchItem } from '@/components/SearchForm';
+import { OptionsApi, SearchItem } from '@/components/pagetable/SearchForm';
 import { ContextmenuItem } from '@/components/contextmenu';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { tagApi } from '../tag/api';

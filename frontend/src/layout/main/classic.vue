@@ -19,6 +19,11 @@ import Aside from '@/layout/component/aside.vue';
 import Header from '@/layout/component/header.vue';
 import Main from '@/layout/component/main.vue';
 import TagsView from '@/layout/navBars/tagsView/tagsView.vue';
+import { provide, ref } from 'vue';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
+
+// 提供 classic 布局的菜单数据
+const classicMenuData = ref<any>(null);
+provide('classicMenuData', classicMenuData);
 </script>

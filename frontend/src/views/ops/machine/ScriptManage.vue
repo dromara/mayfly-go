@@ -96,10 +96,10 @@ import ScriptEdit from './ScriptEdit.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { DynamicFormDialog } from '@/components/dynamic-form';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
-import { OptionsApi } from '@/components/SearchForm/index';
+import { OptionsApi } from '@/components/pagetable/SearchForm/index';
 
 const { t } = useI18n();
 

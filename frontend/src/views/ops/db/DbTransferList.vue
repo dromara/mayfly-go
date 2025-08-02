@@ -88,7 +88,7 @@ import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { DbTransferRunningStateEnum } from './enums';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';

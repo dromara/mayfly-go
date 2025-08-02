@@ -1,51 +1,129 @@
 .loading-next {
-	width: 100%;
-	height: 100%;
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+    z-index: 999999;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+
+    &.dark {
+        background: linear-gradient(135deg, #1a2a3a 0%, #111827 100%);
+    }
 }
-.loading-next .loading-next-box {
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	transform: translate(-50%, -50%);
+
+.loading-next-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
 }
-.loading-next .loading-next-box-warp {
-	width: 80px;
-	height: 80px;
+
+.loading-next-box-warp {
+    width: 40px;
+    height: 40px;
+    position: relative;
+    transform: rotate(45deg);
+    animation: loading-next-box-warp 2s infinite linear;
 }
-.loading-next .loading-next-box-warp .loading-next-box-item {
-	width: 33.333333%;
-	height: 33.333333%;
-	background: var(--el-color-primary);
-	float: left;
-	animation: loading-next-animation 1.2s infinite ease;
-	border-radius: 1px;
+
+.loading-next-box-item {
+    width: 10px;
+    height: 10px;
+    position: absolute;
+    background: #0ea5e9; // cyan-500
+    border-radius: 2px;
+    animation: loading-next-box-item 2s infinite linear;
+
+    &:nth-child(1) {
+        top: 0;
+        left: 0;
+    }
+
+    &:nth-child(2) {
+        top: 0;
+        right: 0;
+        animation-delay: 0.2s;
+    }
+
+    &:nth-child(3) {
+        bottom: 0;
+        right: 0;
+        animation-delay: 0.4s;
+    }
+
+    &:nth-child(4) {
+        bottom: 0;
+        left: 0;
+        animation-delay: 0.6s;
+    }
+
+    &:nth-child(5) {
+        top: 0;
+        left: 15px;
+        animation-delay: 0.1s;
+    }
+
+    &:nth-child(6) {
+        top: 15px;
+        right: 0;
+        animation-delay: 0.3s;
+    }
+
+    &:nth-child(7) {
+        bottom: 15px;
+        right: 0;
+        animation-delay: 0.5s;
+    }
+
+    &:nth-child(8) {
+        bottom: 0;
+        left: 15px;
+        animation-delay: 0.7s;
+    }
+
+    &:nth-child(9) {
+        top: 15px;
+        left: 0;
+        animation-delay: 0.8s;
+    }
 }
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(7) {
-	animation-delay: 0s;
+
+@keyframes loading-next-box-warp {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(4),
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(8) {
-	animation-delay: 0.1s;
+
+@keyframes loading-next-box-item {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.5);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(1),
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(5),
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(9) {
-	animation-delay: 0.2s;
-}
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(2),
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(6) {
-	animation-delay: 0.3s;
-}
-.loading-next .loading-next-box-warp .loading-next-box-item:nth-child(3) {
-	animation-delay: 0.4s;
-}
-@keyframes loading-next-animation {
-	0%,
-	70%,
-	100% {
-		transform: scale3D(1, 1, 1);
-	}
-	35% {
-		transform: scale3D(0, 0, 1);
-	}
+
+// 暗黑模式样式
+.dark {
+    .loading-next-box-item {
+        background: #06b6d4; // cyan-400 (暗色模式下更亮一些)
+    }
 }

@@ -148,7 +148,7 @@ import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 
 const props = defineProps({

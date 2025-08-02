@@ -1,7 +1,7 @@
 <template>
-    <div class="layout-columns-aside">
+    <div class="w-[64px] h-full bg-[var(--bg-columnsMenuBar)]">
         <el-scrollbar>
-            <ul>
+            <ul class="relative">
                 <li
                     v-for="(v, k) in state.columnsAsideList"
                     :key="k"
@@ -11,63 +11,86 @@
                             if (el) columnsAsideOffsetTopRefs[k] = el;
                         }
                     "
-                    :class="{ 'layout-columns-active': state.liIndex === k }"
+                    :class="[
+                        { 'text-white': state.liIndex === k },
+                        'color-[var(--bg-columnsMenuBarColor)] w-full h-[50px] text-center flex cursor-pointer relative z-[1] transition-[color] duration-300 ease-in-out',
+                    ]"
                     :title="$t(v.meta.title)"
                 >
-                    <div class="layout-columns-aside-li-box" v-if="!v.meta.link || (v.meta.link && v.meta.linkType == 1)">
+                    <div class="mx-auto my-auto" v-if="!v.meta.link || (v.meta.link && v.meta.linkType == 1)">
                         <i :class="v.meta.icon"></i>
-                        <div class="layout-columns-aside-li-box-title !text-[12px]">
-                            {{ $t(v.meta.title) && $t(v.meta.title).length >= 4 ? $t(v.meta.title).substr(0, 4) : $t(v.meta.title) }}
+                        <div class="pt-[1px] !text-[12px]">
+                            {{ $t(v.meta.title) && $t(v.meta.title).length >= 4 ? $t(v.meta.title).substring(0, 4) : $t(v.meta.title) }}
                         </div>
                     </div>
-                    <div class="layout-columns-aside-li-box" v-else>
-                        <a :href="v.meta.link" target="_blank">
+                    <div class="mx-auto my-auto" v-else>
+                        <a :href="v.meta.link" target="_blank" class="no-underline color-[var(--bg-columnsMenuBarColor)]">
                             <i :class="v.meta.icon"></i>
-                            <div class="layout-columns-aside-li-box-title !text-[12px]">
-                                {{ $t(v.meta.title) && $t(v.meta.title).length >= 4 ? $t(v.meta.title).substr(0, 4) : $t(v.meta.title) }}
+                            <div class="pt-[1px] !text-[12px]">
+                                {{ $t(v.meta.title) && $t(v.meta.title).length >= 4 ? $t(v.meta.title).substring(0, 4) : $t(v.meta.title) }}
                             </div>
                         </a>
                     </div>
                 </li>
-                <div ref="columnsAsideActiveRef" :class="setColumnsAsideStyle"></div>
+                <div
+                    ref="columnsAsideActiveRef"
+                    :class="[
+                        'absolute z-[0] bg-[var(--el-color-primary)] text-white transition-all duration-300 ease-in-out',
+                        setColumnsAsideStyle === 'columnsRound'
+                            ? 'left-1/2 top-[2px] h-[44px] w-[58px] -translate-x-1/2 rounded-[5px]'
+                            : 'left-0 top-0 h-[50px] w-full rounded-[0]',
+                    ]"
+                ></div>
             </ul>
         </el-scrollbar>
     </div>
 </template>
 
 <script lang="ts" setup name="layoutColumnsAside">
-import { reactive, ref, computed, onMounted, nextTick, getCurrentInstance, watch } from 'vue';
+import { reactive, ref, computed, onMounted, nextTick, watch, inject } from 'vue';
 import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
 import pinia from '@/store/index';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
-import mittBus from '@/common/utils/mitt';
 
 const columnsAsideOffsetTopRefs: any = ref([]);
 const columnsAsideActiveRef = ref();
 const route = useRoute();
 const router = useRouter();
-const state: any = reactive({
-    columnsAsideList: [],
+const state = reactive({
+    columnsAsideList: [] as any[],
     liIndex: 0,
     difference: 0,
-    routeSplit: [],
+    routeSplit: [] as any[],
 });
+
+// 注入 columnsMenuData
+const columnsMenuData: any = inject('columnsMenuData');
+
 // 设置高亮样式
 const setColumnsAsideStyle = computed(() => {
     return useThemeConfig().themeConfig.columnsAsideStyle;
 });
+
 // 设置菜单高亮位置移动
 const setColumnsAsideMove = (k: number) => {
     state.liIndex = k;
     columnsAsideActiveRef.value.style.top = `${columnsAsideOffsetTopRefs.value[k].offsetTop + state.difference}px`;
 };
+
 // 菜单高亮点击事件
-const onColumnsAsideMenuClick = (v: Object, k: number) => {
+const onColumnsAsideMenuClick = (v: any, k: number) => {
     setColumnsAsideMove(k);
-    let { path, redirect } = v as any;
-    if (redirect) router.push(redirect);
-    else router.push(path);
+    if (v.children && v.children.length > 0) {
+        router.push(v.children[0].path);
+    } else {
+        router.push(v.path);
+    }
+    // if (redirect) {
+    //     router.push(redirect);
+    // } else {
+    //     router.push(path);
+    // }
 };
 // 设置高亮动态位置
 const onColumnsAsideDown = (k: number) => {
@@ -80,119 +103,92 @@ const setFilterRoutes = () => {
     state.columnsAsideList = filterRoutesFun(useRoutesList().routesList);
     const resData: any = setSendChildren(route.path);
     onColumnsAsideDown(resData.item[0].k);
-    mittBus.emit('setSendColumnsChildren', resData);
+    if (columnsMenuData) {
+        columnsMenuData.value = resData;
+    }
 };
 // 传送当前子级数据到菜单中
 const setSendChildren = (path: string) => {
-    const currentPathSplit = path.split('/');
     let currentData: any = {};
-    state.columnsAsideList.map((v: any, k: number) => {
-        if (v.path === `/${currentPathSplit[1]}`) {
-            v['k'] = k;
-            currentData['item'] = [{ ...v }];
-            currentData['children'] = [{ ...v }];
-            if (v.children) currentData['children'] = v.children;
+    const result = findRootRoute(state.columnsAsideList, path);
+
+    if (result) {
+        const k = state.columnsAsideList.findIndex((v: any) => v === result);
+        if (k !== -1) {
+            result['k'] = k;
+            currentData['item'] = [{ ...result }];
+            currentData['children'] = [{ ...result }];
+            if (result.children) currentData['children'] = result.children;
         }
-    });
+    }
+
     return currentData;
 };
+
 // 路由过滤递归函数
 const filterRoutesFun = (arr: Array<object>) => {
     return arr
         .filter((item: any) => !item.meta.isHide)
         .map((item: any) => {
             item = Object.assign({}, item);
-            if (item.children) item.children = filterRoutesFun(item.children);
+            if (item.children) {
+                item.children = filterRoutesFun(item.children);
+            }
             return item;
         });
 };
+
 // tagsView 点击时，根据路由查找下标 columnsAsideList，实现左侧菜单高亮
 const setColumnsMenuHighlight = (path: string) => {
-    state.routeSplit = path.split('/');
-    state.routeSplit.shift();
-    const routeFirst = `/${state.routeSplit[0]}`;
-    const currentSplitRoute = state.columnsAsideList.find((v: any) => v.path === routeFirst);
-    // 延迟拿值，防止取不到
-    setTimeout(() => {
-        onColumnsAsideDown(currentSplitRoute.k);
-    }, 0);
+    const rootRoute = findRootRoute(state.columnsAsideList, path);
+    if (rootRoute) {
+        // 延迟拿值，防止取不到
+        setTimeout(() => {
+            onColumnsAsideDown(rootRoute.k);
+        }, 0);
+    }
 };
+
+// 递归查找路由并返回根节点
+const findRootRoute = (routes: any[], currentPath: string): any => {
+    for (const route of routes) {
+        // 直接匹配
+        if (route.path === currentPath) {
+            return route;
+        }
+
+        // 在子路由中查找
+        if (route.children && route.children.length > 0) {
+            const found = findRootRoute(route.children, currentPath);
+            if (found) {
+                // 如果在子路由中找到了，返回根节点
+                return route;
+            }
+        }
+    }
+    return null;
+};
+
 // 监听路由的变化，动态赋值给菜单中
 watch(pinia.state, (val) => {
     val.themeConfig.themeConfig.columnsAsideStyle === 'columnsRound' ? (state.difference = 3) : (state.difference = 0);
-    if (val.routesList.routesList.length === state.columnsAsideList.length) return false;
+    if (val.routesList.routesList.length === state.columnsAsideList.length) {
+        return;
+    }
     setFilterRoutes();
 });
+
 // 页面加载时
 onMounted(() => {
     setFilterRoutes();
 });
+
 // 路由更新时
 onBeforeRouteUpdate((to) => {
     setColumnsMenuHighlight(to.path);
-    mittBus.emit('setSendColumnsChildren', setSendChildren(to.path));
+
+    if (columnsMenuData) {
+        columnsMenuData.value = setSendChildren(to.path);
+    }
 });
 </script>
-
-<style scoped lang="scss">
-.layout-columns-aside {
-    width: 64px;
-    height: 100%;
-    background: var(--bg-columnsMenuBar);
-
-    ul {
-        position: relative;
-
-        li {
-            color: var(--bg-columnsMenuBarColor);
-            width: 100%;
-            height: 50px;
-            text-align: center;
-            display: flex;
-            cursor: pointer;
-            position: relative;
-            z-index: 1;
-
-            .layout-columns-aside-li-box {
-                margin: auto;
-
-                .layout-columns-aside-li-box-title {
-                    padding-top: 1px;
-                }
-            }
-
-            a {
-                text-decoration: none;
-                color: var(--bg-columnsMenuBarColor);
-            }
-        }
-
-        .layout-columns-active {
-            color: #ffffff;
-            transition: 0.3s ease-in-out;
-        }
-
-        .columns-round {
-            background: var(--el-color-primary);
-            color: #ffffff;
-            position: absolute;
-            left: 50%;
-            top: 2px;
-            height: 44px;
-            width: 58px;
-            transform: translateX(-50%);
-            z-index: 0;
-            transition: 0.3s ease-in-out;
-            border-radius: 5px;
-        }
-
-        .columns-card {
-            @extend .columns-round;
-            top: 0;
-            height: 50px;
-            width: 100%;
-            border-radius: 0;
-        }
-    }
-}
-</style>

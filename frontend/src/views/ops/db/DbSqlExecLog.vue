@@ -45,7 +45,7 @@ import { dbApi } from './api';
 import { DbSqlExecTypeEnum, DbSqlExecStatusEnum } from './enums';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import { formatDate } from '@/common/utils/format';
 
 const props = defineProps({

@@ -103,17 +103,24 @@ func (u *UserTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 
 			// 用户账号类型
 			if !strings.Contains(candidate, ":") {
+				params := map[string]any{
+					"creator":        procinst.Creator,
+					"procdefName":    procinst.ProcdefName,
+					"bizKey":         procinst.BizKey,
+					"taskName":       flowNode.Name,
+					"procinstRemark": procinst.Remark,
+				}
 				// 发送通知消息
-				global.EventBus.Publish(ctx, event.EventTopicBizMsgTmplSend, msgdto.BizMsgTmplSend{
-					BizType: FlowTaskNotifyBizKey,
-					BizId:   procinst.ProcdefId,
-					Params: map[string]any{
-						"creator":        procinst.Creator,
-						"procdefName":    procinst.ProcdefName,
-						"bizKey":         procinst.BizKey,
-						"taskName":       flowNode.Name,
-						"procinstRemark": procinst.Remark,
-					},
+				global.EventBus.Publish(context.Background(), event.EventTopicBizMsgTmplSend, &msgdto.BizMsgTmplSend{
+					BizType:     FlowTaskNotifyBizKey,
+					BizId:       procinst.ProcdefId,
+					Params:      params,
+					ReceiverIds: []uint64{cast.ToUint64(candidate)},
+				})
+
+				global.EventBus.Publish(context.Background(), event.EventTopicMsgTmplSend, &msgdto.MsgTmplSendEvent{
+					TmplChannel: msgdto.MsgTmplFlowUserTaskTodo,
+					Params:      params,
 					ReceiverIds: []uint64{cast.ToUint64(candidate)},
 				})
 			}

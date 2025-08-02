@@ -4,6 +4,8 @@ import { createWebSocket } from './request';
 import { ElNotification } from 'element-plus';
 import { MsgSubtypeEnum } from './commonEnum';
 import EnumValue from './Enum';
+import { h } from 'vue';
+import { MessageRenderer } from '@/components/message/message';
 
 class SysSocket {
     /**
@@ -66,7 +68,7 @@ class SysSocket {
                 ElNotification({
                     duration: 0,
                     title,
-                    message: message.msg,
+                    message: h(MessageRenderer, { content: message.msg }),
                     type: msgSubtype?.extra.notifyType || 'info',
                 });
             };

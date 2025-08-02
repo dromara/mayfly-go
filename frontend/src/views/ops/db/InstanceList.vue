@@ -83,7 +83,7 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from './dialect';
-import { SearchItem } from '@/components/SearchForm';
+import { SearchItem } from '@/components/pagetable/SearchForm';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { getTagPathSearchItem } from '../component/tag';

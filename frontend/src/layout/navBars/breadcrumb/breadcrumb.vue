@@ -24,7 +24,6 @@ import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
-import mittBus from '@/common/utils/mitt';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());
@@ -45,7 +44,6 @@ const onBreadcrumbClick = (v: any) => {
 };
 // 展开/收起左侧菜单点击
 const onThemeConfigChange = () => {
-    mittBus.emit('onMenuClick');
     themeConfig.value.isCollapse = !themeConfig.value.isCollapse;
 };
 // 处理面包屑数据

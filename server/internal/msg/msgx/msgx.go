@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/pkg/utils/collx"
+	"sync"
 )
 
 type MsgType int8
@@ -70,18 +71,18 @@ type MsgSender interface {
 	Send(ctx context.Context, channel *Channel, msg *Msg) error
 }
 
-var messageSenders = make(map[ChannelType]MsgSender)
+var messageSenders sync.Map
 
 // RegisterMsgSender 注册消息发送器
 func RegisterMsgSender(channel ChannelType, sender MsgSender) {
-	messageSenders[channel] = sender
+	messageSenders.Store(channel, sender)
 }
 
 // GetMsgSender 获取消息发送器
 func GetMsgSender(channel ChannelType) (MsgSender, error) {
-	sender, ok := messageSenders[channel]
+	sender, ok := messageSenders.Load(channel)
 	if !ok {
 		return nil, fmt.Errorf("unsupported message channel %s", channel)
 	}
-	return sender, nil
+	return sender.(MsgSender), nil
 }

@@ -79,6 +79,12 @@ var (
 		},
 		Channels: []*entity.MsgChannel{MsgChannelWs},
 	}
+
+	MsgTmplFlowUserTaskTodo = newMsgTmpl(entity.MsgTypeNotify,
+		entity.MsgSubtypeFlowUserTaskTodo,
+		entity.MsgStatusUnRead,
+		imsg.FlowUserTaskTodoMsg,
+		MsgChannelSite)
 )
 
 func newMsgTmpl(mtype entity.MsgType, subtype entity.MsgSubtype, status entity.MsgStatus, msgId i18n.MsgId, channels ...*entity.MsgChannel) *MsgTmplChannel {

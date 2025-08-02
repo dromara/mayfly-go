@@ -12,10 +12,12 @@ var En = map[i18n.MsgId]string{
 
 	LoginMsg: "Log in to [{{.ip}}]-[{{.time}}]",
 
-	MachineFileUploadSuccessMsg: "[{{.filename}}] -> {{.machineName}}[{{.machineIp}}:{{.path}}]",
-	MachineFileUploadFailMsg:    "[{{.filename}}] -> {{.machineName}}[{{.machineIp}}:{{.path}}]. error: {{.error}}",
+	MachineFileUploadSuccessMsg: "[{{.filename}}] -> <machine-info code={{.machineCode}}>{{.machineName}}</machine-info> [{{.path}}]",
+	MachineFileUploadFailMsg:    "[{{.filename}}] -> <machine-info code={{.machineCode}}>{{.machineName}}</machine-info> [{{.path}}]. error: {{.error}}",
 
-	DbDumpFailMsg:          "Database dump failed, error: {{.error}}",
-	SqlScriptRunFailMsg:    "Script {{.filename}} execution failed on database {{.db}}, error: {{.error}}",
-	SqlScriptRunSuccessMsg: "Script {{.filename}} executed successfully on database {{.db}}, cost {{.cost}}",
+	DbDumpFailMsg:          "Database [<db-info id={{.dbId}}>{{.dbName}}</db-info>] dump failed, error: <error-text>{{.error}}</error-text>",
+	SqlScriptRunFailMsg:    "Script {{.filename}} execution failed on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], error: <error-text>{{.error}}</error-text>",
+	SqlScriptRunSuccessMsg: "Script {{.filename}} executed successfully on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], cost {{.cost}}",
+
+	FlowUserTaskTodoMsg: "Work order [{{.procdefName}}] submitted by [{{.creator}}] is now at [{{.taskName}}] node. Please process it promptly. <a href='#/flow/procinst-tasks'>Handle it >>></a>",
 }
