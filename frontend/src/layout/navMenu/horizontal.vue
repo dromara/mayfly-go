@@ -34,11 +34,12 @@
 </template>
 
 <script lang="ts" setup name="navMenuHorizontal">
-import { reactive, computed, onMounted, inject } from 'vue';
+import { reactive, computed, onMounted, inject, defineAsyncComponent } from 'vue';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
-import SubItem from '@/layout/navMenu/subItem.vue';
 import { useRoutesList } from '@/store/routesList';
 import { useThemeConfig } from '@/store/themeConfig';
+
+const SubItem = defineAsyncComponent(() => import('@/layout/navMenu/subItem.vue'));
 
 // 定义父组件传过来的值
 const props = defineProps({

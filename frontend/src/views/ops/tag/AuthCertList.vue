@@ -42,7 +42,6 @@
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted, ref, Ref } from 'vue';
 import { resourceAuthCertApi } from './api';
-import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/pagetable/SearchForm';

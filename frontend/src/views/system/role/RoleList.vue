@@ -49,19 +49,20 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
-import RoleEdit from './RoleEdit.vue';
-import ResourceEdit from './ResourceEdit.vue';
-import ShowResource from './ShowResource.vue';
+import { ref, toRefs, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
 import { roleApi, resourceApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { RoleStatusEnum } from '../enums';
 import { SearchItem } from '@/components/pagetable/SearchForm';
-import AccountAllocation from './AccountAllocation.vue';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const RoleEdit = defineAsyncComponent(() => import('./RoleEdit.vue'));
+const ShowResource = defineAsyncComponent(() => import('./ShowResource.vue'));
+const ResourceEdit = defineAsyncComponent(() => import('./ResourceEdit.vue'));
+const AccountAllocation = defineAsyncComponent(() => import('./AccountAllocation.vue'));
 
 const { t } = useI18n();
 

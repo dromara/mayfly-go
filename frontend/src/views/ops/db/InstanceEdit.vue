@@ -17,7 +17,7 @@
                 </el-form-item>
 
                 <el-form-item prop="type" :label="$t('common.type')" required>
-                    <el-select @change="changeDbType" style="width: 100%" v-model="form.type">
+                    <el-select @change="changeDbType" v-model="form.type">
                         <el-option
                             v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
                             :key="key"
@@ -34,11 +34,15 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="Host" required>
+                <el-form-item v-if="form.type !== DbType.sqlite" label="Host" required>
                     <el-col :span="18">
-                        <el-input v-model.trim="form.host" auto-complete="off"></el-input>
+                        <el-form-item prop="host" required>
+                            <el-input v-model.trim="form.host" auto-complete="off"></el-input>
+                        </el-form-item>
                     </el-col>
-                    <el-col style="text-align: center" :span="1">:</el-col>
+
+                    <el-col class="text-center" :span="1">:</el-col>
+
                     <el-col :span="5">
                         <el-input type="number" v-model.number="form.port" :placeholder="$t('db.port')"></el-input>
                     </el-col>

@@ -9,17 +9,17 @@
                 <Main />
             </el-container>
         </div>
-        <el-backtop target=".layout-backtop .el-scrollbar__wrap"></el-backtop>
     </el-container>
 </template>
 
 <script lang="ts" setup name="layoutColumns">
-import { computed, provide, ref } from 'vue';
-import Aside from '@/layout/component/aside.vue';
-import Header from '@/layout/component/header.vue';
-import Main from '@/layout/component/main.vue';
-import ColumnsAside from '@/layout/component/columnsAside.vue';
+import { computed, defineAsyncComponent, provide, ref } from 'vue';
 import { useThemeConfig } from '@/store/themeConfig';
+
+const Aside = defineAsyncComponent(() => import('@/layout/component/aside.vue'));
+const Header = defineAsyncComponent(() => import('@/layout/component/header.vue'));
+const Main = defineAsyncComponent(() => import('@/layout/component/main.vue'));
+const ColumnsAside = defineAsyncComponent(() => import('@/layout/component/columnsAside.vue'));
 
 // 提供响应式数据给子组件
 const columnsMenuData = ref<any>(null);

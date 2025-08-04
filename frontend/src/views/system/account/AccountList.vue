@@ -61,9 +61,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
-import RoleAllocation from './RoleAllocation.vue';
-import AccountEdit from './AccountEdit.vue';
+import { ref, toRefs, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
 import { AccountStatusEnum } from '../enums';
 import { accountApi } from '../api';
 import { formatDate } from '@/common/utils/format';
@@ -72,6 +70,9 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+
+const AccountEdit = defineAsyncComponent(() => import('./AccountEdit.vue'));
+const RoleAllocation = defineAsyncComponent(() => import('./RoleAllocation.vue'));
 
 const perms = {
     addAccount: 'account:add',

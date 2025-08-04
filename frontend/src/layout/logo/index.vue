@@ -1,7 +1,7 @@
 <template>
     <div class="layout-logo" v-if="setShowLogo" @click="onThemeConfigChange">
         <img :src="themeConfig.logoIcon" class="layout-logo-medium-img" />
-        <span>
+        <span class="logo-title">
             {{ `${themeConfig.globalTitle}` }}
             <sub
                 ><span style="font-size: 10px; color: goldenrod">{{ ` ${config.version}` }}</span></sub
@@ -53,8 +53,17 @@ const onThemeConfigChange = () => {
     }
 
     &-medium-img {
-        width: 20px;
-        margin-right: 5px;
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+
+    .logo-title {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: calc(100% - 32px);
     }
 }
 
@@ -64,10 +73,12 @@ const onThemeConfigChange = () => {
     display: flex;
     cursor: pointer;
     animation: logoAnimation 0.3s ease-in-out;
+    justify-content: center;
+    align-items: center;
 
     &-img {
-        width: 20px;
-        margin: auto;
+        width: 24px;
+        height: 24px;
     }
 
     &:hover {

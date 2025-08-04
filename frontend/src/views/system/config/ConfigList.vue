@@ -45,13 +45,17 @@
             </template>
         </el-dialog>
 
-        <config-edit :title="$t(configEdit.title)" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="onConfigEditChange" />
+        <config-edit
+            :title="$t(state.configEdit.title)"
+            v-model:visible="state.configEdit.visible"
+            :data="state.configEdit.config"
+            @val-change="onConfigEditChange"
+        />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
-import ConfigEdit from './ConfigEdit.vue';
+import { ref, toRefs, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
 import { configApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
@@ -60,6 +64,8 @@ import { DynamicForm } from '@/components/dynamic-form';
 import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18n } from 'vue-i18n';
 import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const ConfigEdit = defineAsyncComponent(() => import('./ConfigEdit.vue'));
 
 const { t } = useI18n();
 
@@ -103,7 +109,7 @@ const state = reactive({
     },
 });
 
-const { query, paramsDialog, configEdit } = toRefs(state);
+const { query, paramsDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {

@@ -8,16 +8,17 @@
 </template>
 
 <script lang="ts" setup name="layoutBreadcrumbIndex">
-import { computed, reactive, onMounted, onUnmounted, watch } from 'vue';
+import { computed, reactive, onMounted, watch, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
-import Breadcrumb from '@/layout/navBars/breadcrumb/breadcrumb.vue';
-import User from '@/layout/navBars/breadcrumb/user.vue';
-import Logo from '@/layout/logo/index.vue';
-import Horizontal from '@/layout/navMenu/horizontal.vue';
+
+const Breadcrumb = defineAsyncComponent(() => import('@/layout/navBars/breadcrumb/breadcrumb.vue'));
+const User = defineAsyncComponent(() => import('@/layout/navBars/breadcrumb/user.vue'));
+const Logo = defineAsyncComponent(() => import('@/layout/logo/index.vue'));
+const Horizontal = defineAsyncComponent(() => import('@/layout/navMenu/horizontal.vue'));
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());

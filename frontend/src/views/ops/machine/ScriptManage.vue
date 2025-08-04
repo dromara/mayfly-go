@@ -87,12 +87,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, Ref } from 'vue';
+import { ref, toRefs, reactive, Ref, defineAsyncComponent } from 'vue';
 import { ElMessage } from 'element-plus';
-import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { ScriptResultEnum, ScriptTypeEnum } from './enums';
-import ScriptEdit from './ScriptEdit.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { DynamicFormDialog } from '@/components/dynamic-form';
@@ -100,6 +98,9 @@ import { SearchItem } from '@/components/pagetable/SearchForm';
 import { useI18n } from 'vue-i18n';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle } from '@/hooks/useI18n';
 import { OptionsApi } from '@/components/pagetable/SearchForm/index';
+
+const ScriptEdit = defineAsyncComponent(() => import('./ScriptEdit.vue'));
+const TerminalBody = defineAsyncComponent(() => import('@/components/terminal/TerminalBody.vue'));
 
 const { t } = useI18n();
 

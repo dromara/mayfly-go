@@ -6,17 +6,17 @@
             <Header v-if="!isFixedHeader" />
             <Main />
         </el-container>
-        <el-backtop target=".layout-backtop .el-scrollbar__wrap"></el-backtop>
     </el-container>
 </template>
 
 <script lang="ts" setup name="layoutDefaults">
-import { computed, getCurrentInstance, watch } from 'vue';
+import { computed, defineAsyncComponent, getCurrentInstance, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import Aside from '@/layout/component/aside.vue';
-import Header from '@/layout/component/header.vue';
-import Main from '@/layout/component/main.vue';
 import { useThemeConfig } from '@/store/themeConfig';
+
+const Aside = defineAsyncComponent(() => import('@/layout/component/aside.vue'));
+const Header = defineAsyncComponent(() => import('@/layout/component/header.vue'));
+const Main = defineAsyncComponent(() => import('@/layout/component/main.vue'));
 
 const { proxy } = getCurrentInstance() as any;
 const route = useRoute();

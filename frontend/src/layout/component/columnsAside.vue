@@ -103,9 +103,14 @@ const setFilterRoutes = () => {
     state.columnsAsideList = filterRoutesFun(useRoutesList().routesList);
     const resData: any = setSendChildren(route.path);
     onColumnsAsideDown(resData.item[0].k);
-    if (columnsMenuData) {
-        columnsMenuData.value = resData;
-    }
+
+    nextTick(() => {
+        setTimeout(() => {
+            if (columnsMenuData) {
+                columnsMenuData.value = resData;
+            }
+        }, 300);
+    });
 };
 // 传送当前子级数据到菜单中
 const setSendChildren = (path: string) => {

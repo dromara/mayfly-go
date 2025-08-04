@@ -16,14 +16,15 @@
 </template>
 
 <script lang="ts" setup name="layoutAside">
-import { reactive, computed, watch, getCurrentInstance, onBeforeMount, onUnmounted, inject } from 'vue';
+import { reactive, computed, watch, getCurrentInstance, onBeforeMount, inject, defineAsyncComponent } from 'vue';
 import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
-import Logo from '@/layout/logo/index.vue';
-import Vertical from '@/layout/navMenu/vertical.vue';
 import { useWindowSize } from '@vueuse/core';
+
+const Logo = defineAsyncComponent(() => import('@/layout/logo/index.vue'));
+const Vertical = defineAsyncComponent(() => import('@/layout/navMenu/vertical.vue'));
 
 const { proxy } = getCurrentInstance() as any;
 

@@ -22,10 +22,11 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, Ref, ref, toRefs, watch } from 'vue';
+import { computed, reactive, Ref, ref, toRefs, watch, defineAsyncComponent } from 'vue';
 import { machineApi } from '../api';
-import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18nSaveSuccessMsg } from '@/hooks/useI18n';
+
+const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
 const props = defineProps({
     protocol: { type: Number, default: 1 },

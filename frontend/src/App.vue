@@ -1,34 +1,33 @@
 <template>
     <el-config-provider :size="getGlobalComponentSize" :locale="getGlobalI18n">
-        <div class="h-full">
-            <el-watermark
-                :zIndex="100000"
-                :width="210"
-                v-if="themeConfig.isWatermark"
-                :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
-                :content="themeConfig.watermarkText"
-                class="!h-full"
-            >
-                <router-view />
-            </el-watermark>
-            <router-view v-if="!themeConfig.isWatermark" />
+        <el-watermark
+            :zIndex="100000"
+            :width="210"
+            v-if="themeConfig.isWatermark"
+            :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
+            :content="themeConfig.watermarkText"
+            class="!h-full"
+        >
+            <router-view />
+        </el-watermark>
+        <router-view v-if="!themeConfig.isWatermark" />
 
-            <Setings />
-        </div>
+        <Setings />
     </el-config-provider>
 </template>
 
 <script setup lang="ts" name="app">
-import { onMounted, nextTick, watch, computed } from 'vue';
+import { onMounted, nextTick, watch, computed, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import Setings from '@/layout/navBars/breadcrumb/setings.vue';
 import { useIntervalFn } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import EnumValue from './common/Enum';
 import { I18nEnum } from './common/commonEnum';
 import { saveThemeConfig } from './common/utils/storage';
+
+const Setings = defineAsyncComponent(() => import('@/layout/navBars/breadcrumb/setings.vue'));
 
 const route = useRoute();
 

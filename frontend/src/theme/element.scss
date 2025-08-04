@@ -1,34 +1,5 @@
 @use 'mixins/index' as mixins;
 
-/* Button 按钮
-------------------------------- */
-
-/* Input 输入框、InputNumber 计数器
-------------------------------- */
-// 菜单搜索
-.el-autocomplete-suggestion__wrap {
-    max-height: 280px !important;
-}
-
-
-/* Alert 警告
-------------------------------- */
-.el-alert {
-    border: 1px solid;
-}
-
-.el-alert__title {
-    word-break: break-all;
-}
-
-/* Message 消息提示
-------------------------------- */
-.el-message {
-    min-width: unset !important;
-    padding: 15px !important;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.02);
-}
-
 /* NavMenu 导航菜单
 ------------------------------- */
 $radius: 6px;
@@ -306,9 +277,6 @@ html.dark {
 
 /* Tabs 标签页
 ------------------------------- */
-.el-tabs__nav-wrap::after {
-    height: 1px !important;
-}
 
 /* Dropdown 下拉菜单
 ------------------------------- */
@@ -326,8 +294,6 @@ html.dark {
     }
 }
 
-/* Dialog 对话框
-------------------------------- */
 
 /* Card 卡片
 ------------------------------- */
@@ -335,62 +301,6 @@ html.dark {
     padding: 15px 20px;
 }
 
-/* Table 表格 element plus 2.2.0 版本
-------------------------------- */
-.el-table {
-    .el-button.is-text {
-        padding: 0;
-    }
-}
-
-/* scrollbar
-------------------------------- */
-.el-scrollbar__bar {
-    z-index: 4;
-}
-
-/*防止页面切换时，滚动条高度不变的问题（滚动条高度非滚动条滚动高度）*/
-.el-scrollbar__wrap {
-    max-height: 100%;
-}
-
-.el-select-dropdown .el-scrollbar__wrap {
-    overflow-x: scroll !important;
-}
-
-/*修复Select 选择器高度问题*/
-.el-select-dropdown__wrap {
-    max-height: 274px !important;
-}
-
-/*修复Cascader 级联选择器高度问题*/
-.el-cascader-menu__wrap.el-scrollbar__wrap {
-    height: 204px !important;
-}
-
-/*用于界面高度自适应（main.vue），区分 scrollbar__view，防止其它使用 scrollbar 的地方出现滚动条消失*/
-.layout-container-view .el-scrollbar__view {
-    height: 100%;
-}
-
-/*防止分栏布局二级菜单很多时，滚动条消失问题*/
-.layout-columns-warp .layout-aside .el-scrollbar__view {
-    height: unset !important;
-}
-
-/* Pagination 分页
-------------------------------- */
-.el-pagination__editor {
-    margin-right: 8px;
-}
-
-/*深色模式时分页高亮问题*/
-.el-pagination.is-background .btn-next.is-active,
-.el-pagination.is-background .btn-prev.is-active,
-.el-pagination.is-background .el-pager li.is-active {
-    background-color: var(--el-color-primary) !important;
-    color: var(--el-color-white) !important;
-}
 
 /* Breadcrumb 面包屑
 ------------------------------- */
@@ -418,6 +328,8 @@ html.dark {
 }
 
 
+/* Dialog 对话框
+------------------------------- */
 .el-dialog {
     border-radius: 6px;
     /* 设置圆角 */

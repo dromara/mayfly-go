@@ -29,11 +29,12 @@
 </template>
 
 <script lang="ts" setup name="navMenuVertical">
-import { reactive, computed } from 'vue';
+import { reactive, computed, defineAsyncComponent } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
-import SubItem from '@/layout/navMenu/subItem.vue';
+
+const SubItem = defineAsyncComponent(() => import('@/layout/navMenu/subItem.vue'));
 
 // 定义父组件传过来的值
 const props = defineProps({

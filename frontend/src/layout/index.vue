@@ -1,17 +1,18 @@
 <template>
-    <Defaults v-if="themeConfig.layout === 'defaults'" />
-    <Classic v-else-if="themeConfig.layout === 'classic'" />
-    <Transverse v-else-if="themeConfig.layout === 'transverse'" />
-    <Columns v-else-if="themeConfig.layout === 'columns'" />
+    <component :is="layouts[themeConfig.layout]" />
 </template>
 
 <script setup lang="ts" name="layout">
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import Defaults from '@/layout/main/defaults.vue';
-import Classic from '@/layout/main/classic.vue';
-import Transverse from '@/layout/main/transverse.vue';
-import Columns from '@/layout/main/columns.vue';
+import { defineAsyncComponent } from 'vue';
+
+const layouts: any = {
+    defaults: defineAsyncComponent(() => import('@/layout/main/defaults.vue')),
+    classic: defineAsyncComponent(() => import('@/layout/main/classic.vue')),
+    transverse: defineAsyncComponent(() => import('@/layout/main/transverse.vue')),
+    columns: defineAsyncComponent(() => import('@/layout/main/columns.vue')),
+};
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 </script>

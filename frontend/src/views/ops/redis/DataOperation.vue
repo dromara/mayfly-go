@@ -623,6 +623,13 @@ const delKey = async (key: string) => {
         padding: 0 10px;
         height: 29px;
     }
+
+    ::v-deep(.el-tabs__nav-next) {
+        line-height: 29px;
+    }
+    ::v-deep(.el-tabs__nav-prev) {
+        line-height: 29px;
+    }
 }
 
 .redis-data-op {

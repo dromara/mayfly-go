@@ -9,6 +9,9 @@ import { RouteRecordRaw } from 'vue-router';
 import { LAYOUT_ROUTE_NAME } from './staticRouter';
 import { LinkTypeEnum } from '@/common/commonEnum';
 
+const Link = () => import('@/layout/routerView/link.vue');
+const Iframe = () => import('@/layout/routerView/iframes.vue');
+
 /**
  * 获取目录下的 route.ts 全部文件
  * @method import.meta.glob
@@ -125,9 +128,9 @@ export function backEndRouterConverter(allModuleRoutes: any, routes: any, callba
         // 如果是外链类型，name的路由名都是Link 或者 Iframes会导致路由名重复，无法添加多个外链
         if (item.meta.link) {
             if (item.meta.linkType == LinkTypeEnum.Link.value) {
-                item.component = () => import('@/layout/routerView/link.vue');
+                item.component = Link;
             } else {
-                item.component = () => import('@/layout/routerView/iframes.vue');
+                item.component = Iframe;
             }
         } else {
             // routerName == 模块下route.ts 字段key == 组件名

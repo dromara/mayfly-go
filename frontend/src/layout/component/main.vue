@@ -3,6 +3,8 @@
         <el-scrollbar ref="layoutScrollbarRef" view-class="!h-full">
             <LayoutParentView />
         </el-scrollbar>
+
+        <el-backtop target=".layout-backtop .el-main .el-scrollbar__wrap"></el-backtop>
     </el-main>
 
     <el-footer v-if="themeConfig.isFooter">

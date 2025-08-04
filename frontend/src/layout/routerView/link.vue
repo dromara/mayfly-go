@@ -31,9 +31,6 @@ const state = reactive({
 // 立即前往
 const onGotoFullPage = () => {
     window.open(state.link);
-    // const { origin, pathname } = window.location;
-    // if (verifyUrl(<string>state.isLink)) window.open(state.isLink);
-    // else window.open(`${origin}${pathname}#${state.isLink}`);
 };
 
 // 监听路由的变化，设置内容

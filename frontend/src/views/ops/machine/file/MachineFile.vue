@@ -309,14 +309,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref, toRefs } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
 import { ElInput, ElMessage } from 'element-plus';
 import { machineApi } from '../api';
 
 import { joinClientParams } from '@/common/request';
 import config from '@/common/config';
 import { isTrue, notBlank } from '@/common/assert';
-import MachineFileContent from './MachineFileContent.vue';
 import { getToken } from '@/common/utils/storage';
 import { convertToBytes, formatByteSize } from '@/common/utils/format';
 import { getMachineConfig } from '@/common/sysconfig';
@@ -324,6 +323,8 @@ import { MachineProtocolEnum } from '../enums';
 import { fuzzyMatchField } from '@/common/utils/string';
 import { useI18n } from 'vue-i18n';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg } from '@/hooks/useI18n';
+
+const MachineFileContent = defineAsyncComponent(() => import('./MachineFileContent.vue'));
 
 const { t } = useI18n();
 
@@ -556,6 +557,8 @@ const setFiles = async (path: string) => {
         }
         state.fileNameFilter = '';
         state.loading = true;
+        state.files = []; // 清空旧数据，可能出现莫名其妙的文件展示错误，先这么处理
+        state.nowPath = '';
         state.files = await lsFile(path);
         state.nowPath = path;
     } finally {
