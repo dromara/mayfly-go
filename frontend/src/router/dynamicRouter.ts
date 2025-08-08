@@ -21,55 +21,46 @@ const routeModules: Record<string, any> = import.meta.glob(['../views/**/route.{
 
 // 后端控制路由：执行路由数据初始化
 export async function initBackendRoutes() {
-    let allModuleRoutes = {};
-    for (const path in routeModules) {
-        // 获取默认导出的路由
-        const routes = routeModules[path]?.default;
-        allModuleRoutes = { ...allModuleRoutes, ...routes };
-    }
+    // 合并所有模块路由
+    const allModuleRoutes = Object.values(routeModules).reduce((acc: any, module: any) => {
+        return { ...acc, ...module.default };
+    }, {});
 
-    const token = getToken(); // 获取浏览器缓存 token 值
+    const token = getToken();
     if (!token) {
-        // 无 token 停止执行下一步
         return false;
     }
+
     useUserInfo().setUserInfo({});
-    // 获取路由
-    let menuRoute = await getBackEndControlRoutes();
 
-    const cacheList: Array<string> = [];
-    // 处理路由（component）
-    const routes = backEndRouterConverter(allModuleRoutes, menuRoute, (router: any) => {
-        // 可能为false时不存在isKeepAlive属性
-        if (!router.meta.isKeepAlive) {
-            router.meta.isKeepAlive = false;
-        }
-        if (router.meta.isKeepAlive) {
-            cacheList.push(router.name);
-        }
-    });
-
-    routes.forEach((item: any) => {
-        if (item.meta.isFull) {
-            // 菜单为全屏展示 (示例：数据大屏页面等)
-            router.addRoute(item as RouteRecordRaw);
-        } else {
-            // 要将嵌套路由添加到现有的路由中，可以将路由的 name 作为第一个参数传递给 router.addRoute()，这将有效地添加路由，就像通过 children 添加的一样
-            router.addRoute(LAYOUT_ROUTE_NAME, item as RouteRecordRaw);
-        }
-    });
-
-    useKeepALiveNames().setCacheKeepAlive(cacheList);
-    useRoutesList().setRoutesList(routes);
-}
-
-// 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
-export async function getBackEndControlRoutes() {
     try {
+        // 获取路由和权限
         const menuAndPermission = await openApi.getPermissions();
-        // 赋值权限码，用于控制按钮等
         useUserInfo().userInfo.permissions = menuAndPermission.permissions;
-        return menuAndPermission.menus;
+        const menuRoute = menuAndPermission.menus;
+
+        const cacheList: string[] = [];
+
+        // 处理路由（component）
+        const routes = backEndRouterConverter(allModuleRoutes, menuRoute, (router: any) => {
+            // 确保 isKeepAlive 属性存在
+            router.meta.isKeepAlive = router.meta.isKeepAlive ?? false;
+            if (router.meta.isKeepAlive) {
+                cacheList.push(router.name as string);
+            }
+        });
+
+        // 添加路由
+        routes.forEach((item: any) => {
+            if (item.meta.isFull) {
+                router.addRoute(item as RouteRecordRaw);
+            } else {
+                router.addRoute(LAYOUT_ROUTE_NAME, item as RouteRecordRaw);
+            }
+        });
+
+        useKeepALiveNames().setCacheKeepAlive(cacheList);
+        useRoutesList().setRoutesList(routes);
     } catch (e: any) {
         console.error('获取菜单权限信息失败', e);
         clearSession();
@@ -97,57 +88,52 @@ type RouterConvCallbackFunc = (router: any) => void;
  * @param meta.linkType ==> 外链类型, 内嵌: 以iframe展示、外链: 新标签打开
  * @param meta.link ==> 外链地址
  * */
-export function backEndRouterConverter(allModuleRoutes: any, routes: any, callbackFunc: RouterConvCallbackFunc = null as any, parentPath: string = '/') {
-    if (!routes) {
-        return [];
-    }
+export function backEndRouterConverter(allModuleRoutes: any, routes: any, callbackFunc?: RouterConvCallbackFunc, parentPath = '/'): any[] {
+    if (!routes) return [];
 
-    const routeItems = [];
-    for (let item of routes) {
-        if (!item.meta) {
-            return item;
-        }
+    return routes.map((item: any) => {
+        if (!item.meta) return item;
+
         // 将json字符串的meta转为对象
-        item.meta = JSON.parse(item.meta);
+        const meta = typeof item.meta === 'string' ? JSON.parse(item.meta) : item.meta;
 
+        // 处理路径
         let path = item.code;
-        // 如果不是以 / 开头，则路径需要拼接父路径
         if (!path.startsWith('/')) {
-            path = parentPath + '/' + path;
+            path = `${parentPath}/${path}`.replace(/\/+/g, '/');
         }
-        item.path = path;
-        delete item['code'];
 
-        // route.meta.title == resource.name
-        item.meta.title = item.name;
-        delete item['name'];
+        // 构建路由对象
+        const routeItem: any = {
+            path,
+            name: meta.routeName,
+            meta: {
+                ...meta,
+                title: item.name,
+            },
+        };
 
-        // route.name == resource.meta.routeName
-        const routerName = item.meta.routeName;
-        item.name = routerName;
-        // 如果是外链类型，name的路由名都是Link 或者 Iframes会导致路由名重复，无法添加多个外链
-        if (item.meta.link) {
-            if (item.meta.linkType == LinkTypeEnum.Link.value) {
-                item.component = Link;
-            } else {
-                item.component = Iframe;
-            }
+        // 处理外链
+        if (meta.link) {
+            routeItem.component = meta.linkType == LinkTypeEnum.Link.value ? Link : Iframe;
         } else {
-            // routerName == 模块下route.ts 字段key == 组件名
-            item.component = allModuleRoutes[routerName];
+            // 使用模块路由组件
+            routeItem.component = allModuleRoutes[meta.routeName];
         }
-        delete item.meta['routeName'];
 
-        // route.redirect == resource.meta.redirect
-        if (item.meta.redirect) {
-            item.redirect = item.meta.redirect;
-            delete item.meta['redirect'];
+        // 处理重定向
+        if (meta.redirect) {
+            routeItem.redirect = meta.redirect;
         }
-        // 存在回调，则执行回调
-        callbackFunc && callbackFunc(item);
-        item.children && backEndRouterConverter(allModuleRoutes, item.children, callbackFunc, item.path);
-        routeItems.push(item);
-    }
 
-    return routeItems;
+        // 处理子路由
+        if (item.children) {
+            routeItem.children = backEndRouterConverter(allModuleRoutes, item.children, callbackFunc, path);
+        }
+
+        // 执行回调
+        callbackFunc?.(routeItem);
+
+        return routeItem;
+    });
 }

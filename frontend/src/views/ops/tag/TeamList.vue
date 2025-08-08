@@ -43,7 +43,7 @@
 
             <el-form ref="teamForm" :model="addTeamDialog.form" :rules="teamFormRules" label-width="auto">
                 <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input :disabled="addTeamDialog.form.id" v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
+                    <el-input :disabled="addTeamDialog.form.id > 0" v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="validityDate" :label="$t('team.validity')" required>
@@ -98,10 +98,8 @@
                     <AccountSelectFormItem v-model="showMemDialog.memForm.accountIds" multiple focus />
                 </el-form>
                 <template #footer>
-                    <div class="dialog-footer">
-                        <el-button @click="onCancelAddMember()">{{ $t('common.cancel') }}</el-button>
-                        <el-button @click="onAddMember" type="primary">{{ $t('common.confirm') }}</el-button>
-                    </div>
+                    <el-button @click="onCancelAddMember()">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="onAddMember" type="primary">{{ $t('common.confirm') }}</el-button>
                 </template>
             </el-dialog>
         </el-dialog>
@@ -238,8 +236,8 @@ const onSaveTeam = async () => {
 
 const onCancelSaveTeam = () => {
     state.addTeamDialog.visible = false;
-    teamForm.value.resetFields();
     setTimeout(() => {
+        teamForm.value?.resetFields();
         state.addTeamDialog.form = {} as any;
     }, 500);
 };

@@ -139,6 +139,14 @@ type (
 		TableName *TableName // 表名
 		Alias     string     // 别名
 	}
+
+	// SubqueryTableItem 表示子查询表项，如 (SELECT * FROM table1) AS alias
+	SubqueryTableItem struct {
+		TableSourceItem
+
+		SubQuery ISelectStmt
+		Alias    string
+	}
 )
 
 func (*TableSource) isTableSource() {}

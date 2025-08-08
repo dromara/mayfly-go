@@ -6,7 +6,6 @@ require (
 	gitee.com/chunanyong/dm v1.8.20
 	gitee.com/liuzongyang/libpq v1.10.11
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/emirpasic/gods v1.18.1
 	github.com/gin-gonic/gin v1.10.1
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-gormigrate/gormigrate/v2 v2.1.4
@@ -15,7 +14,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/golang-jwt/jwt/v5 v5.2.3
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20250630080345-f9402614f6ba

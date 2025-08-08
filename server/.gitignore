@@ -11,4 +11,3 @@ mayfly_rsa.pub
 /db/mariadb/
 
 *.sqlite
-file

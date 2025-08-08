@@ -347,6 +347,25 @@ func (v *MysqlVisitor) VisitAtomTableItem(ctx *mysqlparser.AtomTableItemContext)
 	return tableSourceItem
 }
 
+func (v *MysqlVisitor) VisitSubqueryTableItem(ctx *mysqlparser.SubqueryTableItemContext) interface{} {
+	sti := new(sqlstmt.SubqueryTableItem)
+	sti.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
+
+	// 解析子查询
+	if ss := ctx.SelectStatement(); ss != nil {
+		sti.SubQuery = ss.Accept(v).(sqlstmt.ISelectStmt)
+	}
+
+	// 获取别名
+	if alias := ctx.GetAlias(); alias != nil {
+		sti.Alias = alias.GetText()
+	} else if uid := ctx.Uid(); uid != nil {
+		sti.Alias = uid.GetText()
+	}
+
+	return sti
+}
+
 func (v *MysqlVisitor) VisitInnerJoin(ctx *mysqlparser.InnerJoinContext) interface{} {
 	ij := new(sqlstmt.InnerJoin)
 	ij.Node = sqlstmt.NewNode(ctx.GetParser(), ctx)
