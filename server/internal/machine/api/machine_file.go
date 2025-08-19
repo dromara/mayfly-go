@@ -379,7 +379,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 
 	isSuccess := true
 	for _, chunk := range chunks {
-		go func(files []FolderFile, wg *sync.WaitGroup) {
+		wg.Go(func() {
 			defer func() {
 				// 协程执行完成后调用Done方法
 				wg.Done()
@@ -397,7 +397,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				}
 			}()
 
-			for _, file := range files {
+			for _, file := range chunk {
 				fileHeader := file.Fileheader
 				dir := file.Dir
 				file, _ := fileHeader.Open()
@@ -410,7 +410,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				defer createfile.Close()
 				io.Copy(createfile, file)
 			}
-		}(chunk, &wg)
+		})
 	}
 
 	// 等待所有协程执行完成

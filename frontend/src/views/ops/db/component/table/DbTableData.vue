@@ -33,7 +33,7 @@
                                 </div>
 
                                 <!-- 字段名列 -->
-                                <div v-else @contextmenu="headerContextmenuClick($event, column)" style="position: relative">
+                                <div v-else style="position: relative" @mouseenter="showColumnAction(column)" @mouseleave="hideColumnAction">
                                     <!-- 字段列的数据类型 -->
                                     <div class="column-type">
                                         <span v-if="column.dataTypeSubscript === 'icon-clock'">
@@ -65,9 +65,56 @@
 
                                     <!-- 字段列右部分内容 -->
                                     <div class="column-right">
-                                        <span v-if="column.title == nowSortColumn?.columnName">
-                                            <SvgIcon color="var(--el-color-primary)" :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"></SvgIcon>
-                                        </span>
+                                        <el-dropdown
+                                            @command="handleColumnCommand(column, $event)"
+                                            @visibleChange="onColumnActionVisibleChange(column, $event)"
+                                            trigger="click"
+                                            v-if="column.key !== rowNoColumn.key"
+                                            size="small"
+                                        >
+                                            <span class="column-actions-trigger">
+                                                <!-- 排序箭头图标 -->
+                                                <SvgIcon
+                                                    v-if="
+                                                        column.title == nowSortColumn?.columnName &&
+                                                        !showColumnActions[column.key] &&
+                                                        !columnActionVisible[column.key]
+                                                    "
+                                                    :color="'var(--el-color-primary)'"
+                                                    :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
+                                                    :size="14"
+                                                />
+                                                <!-- 更多操作图标 -->
+                                                <SvgIcon
+                                                    v-if="columnActionVisible[column.key] || showColumnActions[column.key]"
+                                                    name="MoreFilled"
+                                                    :size="14"
+                                                    :color="'var(--el-color-primary)'"
+                                                    class="column-more-icon"
+                                                    :class="{ 'column-more-icon-visible': columnActionVisible[column.key] || showColumnActions[column.key] }"
+                                                />
+                                            </span>
+                                            <template #dropdown>
+                                                <el-dropdown-menu>
+                                                    <el-dropdown-item command="sort-asc">
+                                                        <SvgIcon name="top" class="mr-1" />
+                                                        {{ $t('db.asc') }}
+                                                    </el-dropdown-item>
+                                                    <el-dropdown-item command="sort-desc">
+                                                        <SvgIcon name="bottom" class="mr-1" />
+                                                        {{ $t('db.desc') }}
+                                                    </el-dropdown-item>
+                                                    <el-dropdown-item v-if="!column.fixed" command="fix">
+                                                        <SvgIcon name="Paperclip" class="mr-1" />
+                                                        {{ $t('db.fixed') }}
+                                                    </el-dropdown-item>
+                                                    <el-dropdown-item v-else command="unfix">
+                                                        <SvgIcon name="Minus" class="mr-1" />
+                                                        {{ $t('db.cancelFiexd') }}
+                                                    </el-dropdown-item>
+                                                </el-dropdown-menu>
+                                            </template>
+                                        </el-dropdown>
                                     </div>
                                 </div>
                             </div>
@@ -214,43 +261,9 @@ const props = defineProps({
 const contextmenuRef = ref();
 const tableRef = ref();
 
-/**  表头 menu items  **/
-
-const cmHeaderAsc = new ContextmenuItem('asc', 'db.asc')
-    .withIcon('top')
-    .withOnClick((data: any) => {
-        onTableSortChange({ columnName: data.dataKey, order: 'asc' });
-    })
-    .withHideFunc(() => !props.showColumnTip);
-
-const cmHeaderDesc = new ContextmenuItem('desc', 'db.desc')
-    .withIcon('bottom')
-    .withOnClick((data: any) => {
-        onTableSortChange({ columnName: data.dataKey, order: 'desc' });
-    })
-    .withHideFunc(() => !props.showColumnTip);
-
-const cmHeaderFixed = new ContextmenuItem('fixed', 'db.fixed')
-    .withIcon('Paperclip')
-    .withOnClick((data: any) => {
-        state.columns.forEach((column: any) => {
-            if (column.dataKey == data.dataKey) {
-                column.fixed = true;
-            }
-        });
-    })
-    .withHideFunc((data: any) => data.fixed);
-
-const cmHeaderCancelFixed = new ContextmenuItem('cancelFixed', 'db.cancelFiexd')
-    .withIcon('Minus')
-    .withOnClick((data: any) => {
-        state.columns.forEach((column: any) => {
-            if (column.dataKey == data.dataKey) {
-                column.fixed = false;
-            }
-        });
-    })
-    .withHideFunc((data: any) => !data.fixed);
+// 用于控制列操作按钮的显示
+const showColumnActions = ref({} as any);
+const columnActionVisible = ref({} as any);
 
 /**  表数据 contextmenu items  **/
 
@@ -509,6 +522,55 @@ const cancelLoading = async () => {
 };
 
 /**
+ * 显示列操作按钮
+ */
+const showColumnAction = (column: any) => {
+    showColumnActions.value[column.key] = true;
+};
+
+/**
+ * 隐藏列操作按钮
+ */
+const hideColumnAction = () => {
+    showColumnActions.value = {};
+};
+
+/**
+ * 处理列操作命令
+ */
+const handleColumnCommand = (column: any, command: string) => {
+    switch (command) {
+        case 'sort-asc':
+            onTableSortChange({ columnName: column.dataKey, order: 'asc' });
+            break;
+        case 'sort-desc':
+            onTableSortChange({ columnName: column.dataKey, order: 'desc' });
+            break;
+        case 'fix':
+            state.columns.forEach((col: any) => {
+                if (col.dataKey == column.dataKey) {
+                    col.fixed = true;
+                }
+            });
+            break;
+        case 'unfix':
+            state.columns.forEach((col: any) => {
+                if (col.dataKey == column.dataKey) {
+                    col.fixed = false;
+                }
+            });
+            break;
+    }
+    // 点击了取消固定等操作后，可能更多的icon还是显示在列上，所以需要重新置为空对象。暂时不懂是组件bug还是啥
+    columnActionVisible.value = {};
+};
+
+const onColumnActionVisibleChange = (column: any, visible: boolean) => {
+    columnActionVisible.value = {}; // 只显示一个列的更多icon
+    columnActionVisible.value[column.key] = visible;
+};
+
+/**
  * 当前单元格是否允许编辑
  * @param rowIndex ri
  * @param colIndex ci
@@ -568,16 +630,6 @@ const rowEventHandlers = {
         }
         selectionRow(rowIndex, rowData);
     },
-};
-
-const headerContextmenuClick = (event: any, data: any) => {
-    event.preventDefault(); // 阻止默认的右击菜单行为
-
-    const { clientX, clientY } = event;
-    state.contextmenu.dropdown.x = clientX;
-    state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancelFixed];
-    contextmenuRef.value.openContextmenu(data);
 };
 
 const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: any) => {
@@ -851,6 +903,31 @@ defineExpose({
         top: 2px;
         right: 0;
         padding: 2px;
+        display: flex;
+        align-items: center;
+    }
+
+    .column-actions-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        cursor: pointer;
+
+        &:hover {
+            background-color: var(--el-fill-color-light);
+        }
+    }
+
+    .column-more-icon {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .column-more-icon-visible {
+        opacity: 1 !important;
     }
 }
 </style>

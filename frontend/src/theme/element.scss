@@ -131,35 +131,10 @@ $spacing: 8px;
 
     // 横向菜单
     .el-menu--horizontal {
-        background: var(--bg-topBar);
 
         .el-menu-item,
         .el-sub-menu {
-            height: $menuHeight;
-            line-height: $menuHeight;
             color: var(--bg-topBarColor);
-            border-radius: $radius;
-            padding: 0 10px !important; // 减小内边距
-
-            .el-sub-menu__title {
-                height: $menuHeight;
-                line-height: $menuHeight;
-                color: var(--bg-topBarColor);
-                border-radius: $radius;
-                padding: 0 10px !important; // 减小内边距
-            }
-        }
-
-        .el-menu-item.is-active,
-        .el-sub-menu.is-active .el-sub-menu__title {
-            color: #409eff;
-            background-color: rgba(64, 158, 255, 0.1);
-        }
-
-        .el-menu-item:hover,
-        .el-sub-menu:not(.is-active):hover .el-sub-menu__title {
-            background-color: rgba(64, 158, 255, 0.05);
-            transform: translateY(-1px);
         }
     }
 }
@@ -171,33 +146,15 @@ $spacing: 8px;
 
     .el-menu-item,
     .el-sub-menu__title {
-        height: $menuHeight;
-        line-height: $menuHeight;
         color: var(--bg-topBarColor);
-        border-radius: $radius;
-        transition: all 0.2s ease;
         padding: 0 10px !important; // 减小内边距
-        border-bottom: none !important;
-    }
-
-    .el-menu-item:not(.is-active):hover,
-    .el-sub-menu:not(.is-active):hover .el-sub-menu__title {
-        color: var(--bg-topBarColor);
-        background-color: rgba(0, 0, 0, 0.03);
-    }
-
-    .el-menu-item.is-active,
-    .el-sub-menu.is-active .el-sub-menu__title {
-        background-color: rgba(64, 158, 255, 0.1);
-        color: #409eff;
-        font-weight: 500;
         border-bottom: none !important;
     }
 
     // 为水平菜单的子菜单项正确处理箭头图标位置
     .el-sub-menu {
         .el-sub-menu__title {
-            padding-right: 20px !important; // 调整箭头图标空间
+            padding-right: 22px !important; // 调整箭头图标空间
             border-bottom: none !important;
         }
 

@@ -66,7 +66,7 @@ import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI
 import { tmplApi } from '../api';
 import { TmplStatusEnum, TmplTypeEnum, ChannelTypeEnum } from '../enums';
 import TmplEdit from './TmplEdit.vue';
-import EnumValue from '../../../common/Enum';
+import EnumValue from '@/common/Enum';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 
 const perms = {

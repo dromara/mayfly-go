@@ -497,8 +497,8 @@ export class DbInst {
             return;
         }
 
-        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符、排序图标等
-        const columnWidth: number = getTextWidth(prop + 'abc') + 10;
+        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符、更多/排序图标等
+        const columnWidth: number = getTextWidth(prop + 'abc') + 25;
         // prop为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
             return columnWidth;

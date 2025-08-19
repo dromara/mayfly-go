@@ -1,6 +1,12 @@
 <template>
-    <el-card class="h-full flex" body-class="!p-1 flex flex-col w-full">
-        <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="!mb-1 w-full" />
+    <el-card class="h-full flex tag-tree-card" body-class="!p-0 flex flex-col w-full">
+        <div class="tag-tree-header">
+            <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="tag-tree-search w-full">
+                <template #prefix>
+                    <SvgIcon class="tag-tree-search-icon" name="search" />
+                </template>
+            </el-input>
+        </div>
         <el-scrollbar>
             <el-tree
                 class="min-w-full inline-block"
@@ -30,7 +36,7 @@
 
                         <slot v-else :node="node" :data="data" name="prefix"></slot>
 
-                        <span class="ml-0.5" :title="data.labelRemark">
+                        <span class="ml-1" :title="data.labelRemark">
                             <slot name="label" :data="data" v-if="!data.disabled"> {{ $t(data.label) }}</slot>
                             <!-- 禁用状态 -->
                             <slot name="disabledLabel" :data="data" v-else>
@@ -40,7 +46,7 @@
                             </slot>
                         </span>
 
-                        <span class="absolute right-2.5 mt-0.5 text-[10px] text-gray-400">
+                        <span class="ml-auto pr-1.5 text-[10px] text-gray-400">
                             <slot :node="node" :data="data" name="suffix"></slot>
                         </span>
                     </div>
@@ -59,6 +65,7 @@ import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
 import { tagApi } from '../tag/api';
 import { isPrefixSubsequence } from '@/common/utils/string';
+import SvgIcon from '@/components/svgIcon/index.vue';
 
 const props = defineProps({
     resourceType: {
@@ -248,4 +255,22 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.tag-tree-card {
+    :deep(.el-card__body) {
+        padding: 0;
+    }
+}
+
+.tag-tree-header {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--el-border-color-light);
+}
+
+.tag-tree-search {
+    :deep(.el-input__wrapper) {
+        border-radius: 14px;
+        height: 24px;
+    }
+}
+</style>

@@ -34,12 +34,11 @@
 </template>
 
 <script lang="ts" setup name="navMenuHorizontal">
-import { reactive, computed, onMounted, inject, defineAsyncComponent } from 'vue';
+import { reactive, computed, onMounted, inject } from 'vue';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
+import SubItem from '@/layout/navMenu/subItem.vue';
 import { useRoutesList } from '@/store/routesList';
 import { useThemeConfig } from '@/store/themeConfig';
-
-const SubItem = defineAsyncComponent(() => import('@/layout/navMenu/subItem.vue'));
 
 // 定义父组件传过来的值
 const props = defineProps({
@@ -117,42 +116,29 @@ onBeforeRouteUpdate((to) => {
     overflow: hidden;
     margin-right: 30px;
 
-    .horizontal-menu {
-        border: none !important;
+    ::v-deep(.el-scrollbar__bar.is-vertical) {
+        display: none;
+    }
+
+    ::v-deep(a) {
+        width: 100%;
+    }
+
+    .el-menu.el-menu--horizontal {
+        display: flex;
         height: 100%;
         width: 100%;
         box-sizing: border-box;
-
-        ::v-deep(.el-menu-item) {
-            height: 42px;
-            line-height: 42px;
-            padding: 0 15px !important;
-            margin: 0 5px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-        }
-
-        ::v-deep(.el-sub-menu__title) {
-            height: 42px;
-            line-height: 42px;
-            padding: 0 25px 0 15px !important; /* 右边留出更多空间给箭头图标 */
-            margin: 0 5px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-        }
-
-        ::v-deep(.el-sub-menu__icon-arrow) {
-            right: 5px !important;
-            margin-top: -5px !important;
-        }
-
-        ::v-deep(.el-menu-item.is-active),
-        ::v-deep(.el-sub-menu.is-active .el-sub-menu__title) {
-            color: #409eff;
-            background-color: rgba(64, 158, 255, 0.1);
-        }
+        border-bottom: none !important;
     }
+}
+
+// 菜单项基础样式
+.horizontal-menu :deep(.el-menu-item),
+.horizontal-menu :deep(.el-sub-menu__title) {
+    margin: 0 5px !important;
+    justify-content: center;
+    max-width: 160px;
+    min-width: 100px;
 }
 </style>
