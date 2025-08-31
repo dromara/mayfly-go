@@ -1,15 +1,3 @@
-/* 第三方图标字体间距/大小设置
-------------------------------- */
-@mixin generalIcon {
-    font-size: 14px !important;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 5px;
-    width: 24px;
-    text-align: center;
-    justify-content: center;
-}
-
 /* 文本不换行
 ------------------------------- */
 @mixin text-no-wrap() {

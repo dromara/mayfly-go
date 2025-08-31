@@ -506,8 +506,9 @@ export class DbInst {
 
         // 获取该列中最长的数据(内容)
         let maxWidthText = '';
+        const length = tableData.length > 10 ? 10 : tableData.length; // 只取前几条数据计算宽度
         // 获取该列中最长的数据(内容)
-        for (let i = 0; i < tableData.length; i++) {
+        for (let i = 0; i < length; i++) {
             let nowValue = tableData[i][prop];
             if (!nowValue) {
                 continue;

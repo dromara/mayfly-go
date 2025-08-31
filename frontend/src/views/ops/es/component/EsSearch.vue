@@ -355,7 +355,7 @@ const defaultSearch = {
 } as any;
 
 interface Props {
-    instId: string;
+    instId: number;
     idxName: string;
 }
 

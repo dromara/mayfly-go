@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete">
+                <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>

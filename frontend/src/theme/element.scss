@@ -1,5 +1,3 @@
-@use 'mixins/index' as mixins;
-
 /* NavMenu 导航菜单
 ------------------------------- */
 $radius: 6px;
@@ -24,12 +22,6 @@ $spacing: 8px;
     border-radius: $radius;
     color: #5a5a5a; // 统一调整菜单字体颜色为更舒适的深灰色
     transition: all 0.2s ease;
-
-    // 第三方图标字体间距/大小设置
-    .icon,
-    .fa {
-        @include mixins.generalIcon;
-    }
 }
 
 .el-menu-item {

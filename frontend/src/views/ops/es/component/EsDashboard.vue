@@ -5,7 +5,7 @@
                 {{ t('es.dashboard.nodes') }}
                 <el-button v-if="state.tabName === 'nodesStats'" icon="refresh" @click="fetchNodesStats" link type="primary" />
             </template>
-            <el-descriptions class="nodes-num" column="3" border>
+            <el-descriptions class="nodes-num" :column="3" border>
                 <el-descriptions-item label="total">
                     {{ state.nodesStats._nodes?.total }}
                 </el-descriptions-item>
@@ -52,8 +52,8 @@
                                 <el-progress
                                     striped
                                     striped-flow
-                                    duration="50"
-                                    style="width: 100%"
+                                    :duration="50"
+                                    class="w-full"
                                     :percentage="node.os.mem.used_percent"
                                     :color="getPercentColor(node.os.mem.used_percent)"
                                 />
@@ -64,8 +64,8 @@
                                 <el-progress
                                     striped
                                     striped-flow
-                                    duration="50"
-                                    style="width: 100%"
+                                    :duration="50"
+                                    class="w-full"
                                     :percentage="node.jvm.mem.heap_used_percent"
                                     :color="getPercentColor(node.jvm.mem.heap_used_percent)"
                                 />
@@ -75,8 +75,8 @@
                                 <el-progress
                                     striped
                                     striped-flow
-                                    duration="50"
-                                    style="width: 100%"
+                                    :duration="50"
+                                    class="w-full"
                                     :percentage="node.os.cpu.percent"
                                     :color="getPercentColor(node.os.cpu.percent)"
                                 />
@@ -88,8 +88,8 @@
                                 <el-progress
                                     striped
                                     striped-flow
-                                    duration="50"
-                                    style="width: 100%"
+                                    :duration="50"
+                                    class="w-full"
                                     :percentage="
                                         Math.round(((node.fs.total.total_in_bytes - node.fs.total.free_in_bytes) * 100) / node.fs.total.total_in_bytes)
                                     "
@@ -152,7 +152,7 @@
                         </el-select>
                     </el-form-item>
                     <el-form-item :label="t('es.dashboard.text')" required prop="text">
-                        <el-input type="textarea" rows="5" v-model="state.analyze.text" />
+                        <el-input type="textarea" :rows="5" v-model="state.analyze.text" />
                     </el-form-item>
                 </el-form>
                 <el-button @click="onAnalyze" :loading="state.analyze.loading">{{ t('es.dashboard.startAnalyze') }}</el-button>

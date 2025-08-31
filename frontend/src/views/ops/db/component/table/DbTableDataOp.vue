@@ -159,7 +159,7 @@
                 >
             </el-col>
             <el-col :span="12">
-                <el-row :gutter="10" justify="left">
+                <el-row :gutter="10" justify="start">
                     <el-link class="op-page" underline="never" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" :title="$t('db.homePage')" />
                     <el-link
                         class="op-page"

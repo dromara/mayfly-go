@@ -15,6 +15,12 @@ export default {
         createSubTagTitle: '创建【{codePath}】的子标签',
         rootTag: '根标签',
         selectTagPlaceholder: '请选择关联标签',
+        machineOp: '机器操作',
+        dbDataOp: '数据库操作',
+        redisDataOp: 'Redis操作',
+        esDataOp: 'ES操作',
+        mongoDataOp: 'Mongo操作',
+        allResource: '所有资源',
     },
     team: {
         team: '团队',

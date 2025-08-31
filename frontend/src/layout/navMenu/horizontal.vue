@@ -133,12 +133,14 @@ onBeforeRouteUpdate((to) => {
     }
 }
 
-// 菜单项基础样式
+// 菜单项基础样式 - 统一一级菜单和子菜单目录的宽度
 .horizontal-menu :deep(.el-menu-item),
 .horizontal-menu :deep(.el-sub-menu__title) {
     margin: 0 5px !important;
     justify-content: center;
-    max-width: 160px;
-    min-width: 100px;
+    max-width: 150px;
+    min-width: 120px; // 统一最小宽度
+    text-align: center; // 使文字居中对齐
+    padding: 0 8px !important; // 统一内边距
 }
 </style>

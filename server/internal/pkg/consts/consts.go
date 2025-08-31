@@ -21,4 +21,5 @@ const (
 	ImsgNumMongo   = 80000
 	ImsgNumMsg     = 90000
 	ImsgNumEs      = 100000
+	ImsgNumDocker  = 110000
 )

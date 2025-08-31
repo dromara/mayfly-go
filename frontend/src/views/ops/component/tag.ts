@@ -2,6 +2,49 @@ import { OptionsApi, SearchItem } from '@/components/pagetable/SearchForm';
 import { ContextmenuItem } from '@/components/contextmenu';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { tagApi } from '../tag/api';
+import { markRaw } from 'vue';
+
+// 资源配置
+export interface ResourceConfig {
+    order?: number;
+    resourceType: number; // 资源类型
+    rootNodeType: NodeType; // 资源根节点类型
+
+    // 资源管理组件配置
+    manager?: {
+        componentConf: ResourceComponentConfig; // 组件
+        countKey?: string; // 统计数key，tab展示的数字对象key
+        permCode?: string; // 权限码
+    };
+}
+
+export interface ResourceComponentConfig {
+    name: string; // 名称
+    component?: any; // 组件
+    icon?: {
+        name: string;
+        color?: string;
+    };
+}
+
+export interface ResourceOpCtx {
+    /**
+     * 添加资源相关组件
+     * @param component 资源相关组件配置
+     * @returns 组件引用
+     */
+    addResourceComponent(component: ResourceComponentConfig): Promise<any>;
+
+    /**
+     * 获取树节点
+     * @param nodeKey 节点key
+     */
+    getTreeNode(nodeKey: string): any;
+
+    setCurrentTreeKey(nodeKey: string): void;
+
+    reloadTreeNode(nodeKey: string): void;
+}
 
 export class TagTreeNode {
     /**
@@ -41,12 +84,24 @@ export class TagTreeNode {
 
     icon: any;
 
+    // 节点组件
+    nodeComponent?: any;
+
+    /**
+     * 节点上下文
+     */
+    ctx?: ResourceOpCtx;
+
     static TagPath = -1;
 
     constructor(key: any, label: string, type?: NodeType) {
         this.key = key;
         this.label = label;
         this.type = type || new NodeType(TagTreeNode.TagPath);
+    }
+
+    static new(parent: TagTreeNode, key: any, label: string, type?: NodeType) {
+        return new TagTreeNode(key, label, type).withContext(parent.ctx);
     }
 
     withLabelRemark(labelRemark: any) {
@@ -71,6 +126,16 @@ export class TagTreeNode {
 
     withIcon(icon: any) {
         this.icon = icon;
+        return this;
+    }
+
+    withNodeComponent(component: any) {
+        this.nodeComponent = markRaw(component);
+        return this;
+    }
+
+    withContext(ctx: ResourceOpCtx | undefined) {
+        this.ctx = ctx;
         return this;
     }
 
@@ -108,7 +173,7 @@ export class NodeType {
     nodeClickFunc: (node: TagTreeNode) => void;
 
     // 节点双击事件
-    nodeDblclickFunc: (node: TagTreeNode) => void;
+    nodeDblclickFunc?: (node: TagTreeNode) => void;
 
     constructor(value: number) {
         this.value = value;

@@ -4,6 +4,7 @@ import (
 	_ "mayfly-go/internal/auth/init"
 	_ "mayfly-go/internal/common/init"
 	_ "mayfly-go/internal/db/init"
+	_ "mayfly-go/internal/docker/init"
 	_ "mayfly-go/internal/es/init"
 	_ "mayfly-go/internal/file/init"
 	_ "mayfly-go/internal/flow/init"

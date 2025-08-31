@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	Resize = 1
-	Data   = 2
-	Ping   = 3
+	MsgTypeResize = 1
+	MsgTypeData   = 2
+	MsgTypePing   = 3
 
 	MsgSplit = "|"
 )
@@ -202,7 +202,7 @@ func (ts *TerminalSession) receiveWsMsg() {
 				return
 			}
 			// 解析消息
-			msgObj, err := parseMsg(wsData)
+			msgObj, err := ParseMsg(wsData)
 			if err != nil {
 				ts.WriteToWs(GetErrorContentRn("failed to parse the message content..."))
 				logx.Error("machine ssh terminal message parsing failed: ", err)
@@ -210,13 +210,13 @@ func (ts *TerminalSession) receiveWsMsg() {
 			}
 
 			switch msgObj.Type {
-			case Resize:
+			case MsgTypeResize:
 				if msgObj.Cols > 0 && msgObj.Rows > 0 {
 					if err := ts.terminal.WindowChange(msgObj.Rows, msgObj.Cols); err != nil {
 						logx.Error("ssh pty change windows size failed")
 					}
 				}
-			case Data:
+			case MsgTypeData:
 				data := []byte(msgObj.Msg)
 				if ts.handler != nil {
 					if err := ts.handler.PreWriteHandle(data); err != nil {
@@ -232,7 +232,7 @@ func (ts *TerminalSession) receiveWsMsg() {
 					logx.Errorf("failed to write data to the ssh terminal: %s", err)
 					ts.WriteToWs(GetErrorContentRn(fmt.Sprintf("failed to write data to the ssh terminal: %s", err.Error())))
 				}
-			case Ping:
+			case MsgTypePing:
 				_, err := ts.terminal.SshSession.SendRequest("ping", true, nil)
 				if err != nil {
 					ts.WriteToWs(GetErrorContentRn("the terminal connection has been disconnected..."))
@@ -249,7 +249,7 @@ func (ts *TerminalSession) WriteToWs(msg string) error {
 }
 
 // 解析消息
-func parseMsg(msg []byte) (*WsMsg, error) {
+func ParseMsg(msg []byte) (*WsMsg, error) {
 	// 消息格式为 msgType|msgContent， 如果msgType为resize则为msgType|rows|cols
 	msgStr := string(msg)
 	// 查找第一个 "|" 的位置
@@ -259,12 +259,12 @@ func parseMsg(msg []byte) (*WsMsg, error) {
 	}
 
 	// 获取消息类型, 提取第一个 "|" 之前的内容
-	msgType := cmp.Or(cast.ToInt(msgStr[:index]), Ping)
+	msgType := cmp.Or(cast.ToInt(msgStr[:index]), MsgTypePing)
 	// 其余内容则为消息内容
 	msgContent := msgStr[index+1:]
 
 	wsMsg := &WsMsg{Type: msgType, Msg: msgContent}
-	if msgType == Resize {
+	if msgType == MsgTypeResize {
 		rowsAndCols := strings.Split(msgContent, MsgSplit)
 		wsMsg.Rows = cmp.Or(cast.ToInt(rowsAndCols[0]), 80)
 		wsMsg.Cols = cmp.Or(cast.ToInt(rowsAndCols[1]), 80)

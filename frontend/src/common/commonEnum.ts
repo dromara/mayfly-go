@@ -16,12 +16,12 @@ export const LinkTypeEnum = {
 
 // 资源类型
 export const ResourceTypeEnum = {
-    Machine: EnumValue.of(1, '机器').setExtra({ icon: 'Monitor', iconColor: 'var(--el-color-primary)' }).tagTypeSuccess(),
-    Db: EnumValue.of(2, '数据库实例').setExtra({ icon: 'Coin', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
+    Machine: EnumValue.of(1, 'tag.machine').setExtra({ icon: 'icon machine/machine', iconColor: 'var(--el-color-primary)' }).tagTypeSuccess(),
+    Db: EnumValue.of(2, 'tag.db').setExtra({ icon: 'icon db/db', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
     Redis: EnumValue.of(3, 'redis').setExtra({ icon: 'icon redis/redis', iconColor: 'var(--el-color-danger)' }).tagTypeInfo(),
     Mongo: EnumValue.of(4, 'mongo').setExtra({ icon: 'icon mongo/mongo', iconColor: 'var(--el-color-success)' }).tagTypeDanger(),
-    AuthCert: EnumValue.of(5, '授权凭证').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
-    Es: EnumValue.of(6, 'ES实例').setExtra({ icon: 'icon es/es-color', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
+    AuthCert: EnumValue.of(5, 'ac.ac').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
+    Es: EnumValue.of(6, 'tag.es').setExtra({ icon: 'icon es/es-color', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
 };
 
 // 标签关联的资源类型
@@ -36,7 +36,7 @@ export const TagResourceTypeEnum = {
     Mongo: ResourceTypeEnum.Mongo,
     AuthCert: ResourceTypeEnum.AuthCert,
 
-    Db: EnumValue.of(22, '数据库').setExtra({ icon: 'Coin' }),
+    Db: EnumValue.of(22, '数据库').setExtra({ icon: 'icon db/db' }),
 };
 
 // 标签关联的资源类型路径

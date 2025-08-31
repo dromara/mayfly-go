@@ -5,7 +5,7 @@ import { useUserInfo } from '@/store/userInfo';
  * @param code 权限code
  * @returns
  */
-export function hasPerm(code: string) {
+export function hasPerm(code: string): boolean {
     if (!code) {
         return true;
     }
@@ -17,7 +17,7 @@ export function hasPerm(code: string) {
  * @returns {"xxx:save": true}  key->permission code
  * @param permCodes
  */
-export function hasPerms(permCodes: any[]) {
+export function hasPerms(permCodes: any[]): Record<string, boolean> {
     const res = {} as { [key: string]: boolean };
     for (let permCode of permCodes) {
         if (hasPerm(permCode)) {

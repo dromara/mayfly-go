@@ -365,30 +365,14 @@ const initData = async () => {
 
 const toPage = (item: any, codePath = '') => {
     let path;
+    useAutoOpenResource().setCodePath(codePath);
     switch (item) {
         case 'personal': {
             router.push('/personal');
             break;
         }
-        case 'mongo': {
-            useAutoOpenResource().setMongoCodePath(codePath);
-            path = '/mongo/mongo-data-operation';
-            break;
-        }
-        case 'machine': {
-            useAutoOpenResource().setMachineCodePath(codePath);
-            path = '/machine/machines-op';
-            break;
-        }
-        case 'db': {
-            useAutoOpenResource().setDbCodePath(codePath);
-            path = '/dbms/sql-exec';
-            break;
-        }
-        case 'redis': {
-            useAutoOpenResource().setRedisCodePath(codePath);
-            path = '/redis/data-operation';
-            break;
+        default: {
+            path = '/my-resource';
         }
     }
 

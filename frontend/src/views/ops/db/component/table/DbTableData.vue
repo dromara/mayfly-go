@@ -71,6 +71,7 @@
                                             trigger="click"
                                             v-if="column.key !== rowNoColumn.key"
                                             size="small"
+                                            placement="bottom-start"
                                         >
                                             <span class="column-actions-trigger">
                                                 <!-- 排序箭头图标 -->

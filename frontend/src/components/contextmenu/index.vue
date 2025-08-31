@@ -1,7 +1,7 @@
 <template>
     <transition @enter="onEnter" name="el-zoom-in-center">
         <div
-            aria-hidden="true"
+            :aria-hidden="state.isShow ? 'false' : 'true'"
             class="el-dropdown__popper el-popper is-light is-pure custom-contextmenu"
             role="tooltip"
             data-popper-placement="bottom"
@@ -126,7 +126,7 @@ const onCurrentContextmenuClick = (ci: ContextmenuItem) => {
     emit('currentContextmenuClick', { id: ci.clickId, item: state.item });
 };
 
-const headerContextmenuClick = (event: any, data: any) => {
+const headerContextmenuClick = (event: any) => {
     event.preventDefault(); // 阻止默认的右击菜单行为
 };
 

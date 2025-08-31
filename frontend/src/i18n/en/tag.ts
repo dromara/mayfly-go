@@ -14,6 +14,12 @@ export default {
         createSubTagTitle: 'Creates a child tag for {codePath}',
         rootTag: 'Root Tag',
         selectTagPlaceholder: 'Select the associated tag',
+        machineOp: 'Machine Operation',
+        dbDataOp: 'Db Operation',
+        redisDataOp: 'Redis Operation',
+        esDataOp: 'Es Operation',
+        mongoDataOp: 'Mongo Operation',
+        allResource: 'All Resource',
     },
     team: {
         team: 'Team',

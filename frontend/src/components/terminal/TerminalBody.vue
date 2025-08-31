@@ -146,7 +146,7 @@ const initSocket = async () => {
         return;
     }
     try {
-        socket = await createWebSocket(`${props.socketUrl}?rows=${term?.rows}&cols=${term?.cols}`);
+        socket = await createWebSocket(`${props.socketUrl}${props.socketUrl.includes('?') ? '&' : '?'}rows=${term?.rows}&cols=${term?.cols}`);
     } catch (e) {
         term.writeln(`\r\n\x1b[31m${t('components.terminal.connErrMsg')}`);
         state.status = TerminalStatus.Error;

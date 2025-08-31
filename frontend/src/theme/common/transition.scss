@@ -40,6 +40,41 @@
     opacity: 0;
 }
 
+// 淡入淡出滑动效果
+.slide-fade-enter-active {
+    transition: all 0.3s ease;
+}
+
+.slide-fade-leave-active {
+    transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from {
+    transform: translateX(20px);
+    opacity: 0;
+}
+
+.slide-fade-leave-to {
+    transform: translateX(-20px);
+    opacity: 0;
+}
+
+// 水平滑动效果
+.slide-x-enter-active,
+.slide-x-leave-active {
+    transition: all 0.25s ease-out;
+}
+
+.slide-x-enter-from {
+    opacity: 0;
+    transform: translateX(30px);
+}
+
+.slide-x-leave-to {
+    opacity: 0;
+    transform: translateX(-30px);
+}
+
 /* Breadcrumb 面包屑过渡动画
 ------------------------------- */
 .breadcrumb-enter-active,

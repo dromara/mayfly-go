@@ -2,13 +2,11 @@
     <div class="card !p-2 system-resource-list h-full flex">
         <el-splitter>
             <el-splitter-panel size="30%" max="35%" min="25%" class="flex flex-col flex-1">
-                <div class="card !p-1 mr-1 flex justify-between">
-                    <div class="mb-1">
-                        <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" class="mr-2 !w-[200px]" />
-                        <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="onAddResource(false)"></el-button>
-                    </div>
+                <div class="card !p-1 mr-1 flex flex-row items-center justify-between overflow-hidden">
+                    <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" class="mr-2" />
+                    <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="onAddResource(false)"></el-button>
 
-                    <div>
+                    <div class="ml-1">
                         <el-tooltip placement="top">
                             <template #content> {{ $t('system.menu.opTips') }} </template>
                             <SvgIcon name="question-filled" />
@@ -436,8 +434,8 @@ const removeDeafultExpandId = (id: any) => {
 <style lang="scss">
 .system-resource-list {
     .el-tree-node__content {
-        height: 40px;
-        line-height: 40px;
+        height: 35px;
+        line-height: 35px;
     }
 }
 </style>

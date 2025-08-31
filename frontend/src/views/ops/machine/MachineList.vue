@@ -14,7 +14,7 @@
         >
             <template #tableHeader>
                 <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>{{ $t('common.create') }} </el-button>
-                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">
+                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>

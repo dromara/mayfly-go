@@ -1,6 +1,6 @@
 <template>
     <el-splitter @resize="handleResize">
-        <el-splitter-panel :size="leftPaneSize + '%'" max="30%">
+        <el-splitter-panel :size="leftPaneSize + '%'" max="40%">
             <slot name="left"></slot>
         </el-splitter-panel>
 

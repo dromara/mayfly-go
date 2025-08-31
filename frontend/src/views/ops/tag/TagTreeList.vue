@@ -1,18 +1,16 @@
 <template>
     <div class="tag-tree-list card !p-2 h-full flex">
         <el-splitter>
-            <el-splitter-panel size="30%" min="25%" max="35%" class="flex flex-col flex-1">
-                <div class="card !p-1 !mb-1 !mr-1 flex justify-between">
-                    <div class="mb-1">
-                        <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" class="mr-2 !w-[200px]" />
-                        <el-button
-                            v-if="useUserInfo().userInfo.username == 'admin'"
-                            v-auth="'tag:save'"
-                            type="primary"
-                            icon="plus"
-                            @click="onShowSaveTagDialog(null)"
-                        ></el-button>
-                    </div>
+            <el-splitter-panel size="25%" max="35%" class="flex flex-col flex-1">
+                <div class="card !p-1 !mr-1 flex flex-row items-center justify-between overflow-hidden">
+                    <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" class="mr-2" />
+                    <el-button
+                        v-if="useUserInfo().userInfo.username == 'admin'"
+                        v-auth="'tag:save'"
+                        type="primary"
+                        icon="plus"
+                        @click="onShowSaveTagDialog(null)"
+                    ></el-button>
                     <div>
                         <el-tooltip placement="top">
                             <template #content>
@@ -21,13 +19,14 @@
                                 {{ $t('tag.tagTips2') }} <br />
                                 {{ $t('tag.tagTips3') }}
                             </template>
-                            <SvgIcon name="question-filled" />
+                            <SvgIcon class="ml-1" name="question-filled" />
                         </el-tooltip>
                     </div>
                 </div>
                 <el-scrollbar class="tag-tree-data">
                     <el-tree
                         class="min-w-full inline-block"
+                        :indent="10"
                         ref="tagTreeRef"
                         node-key="id"
                         highlight-current
@@ -54,10 +53,12 @@
 
                                 <span class="ml-1">
                                     {{ data.name }}
-                                    <span style="color: #3c8dbc">【</span>
-                                    {{ data.code }}
-                                    <span style="color: #3c8dbc">】</span>
-                                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                                    <template v-if="data.code">
+                                        <span style="color: #3c8dbc">【</span>
+                                        {{ data.code }}
+                                        <span style="color: #3c8dbc">】</span>
+                                    </template>
+                                    <el-tag v-if="data.children !== null && data.id != allNode.id" size="small">{{ data.children.length }}</el-tag>
                                 </span>
                             </span>
                         </template>
@@ -68,7 +69,7 @@
             <el-splitter-panel>
                 <div class="ml-2 h-full">
                     <el-tabs class="h-full" @tab-change="onTabChange" v-model="state.activeTabName" v-if="currentTag">
-                        <el-tab-pane :label="$t('common.detail')" :name="TagDetail">
+                        <el-tab-pane v-if="currentTag.id != allNode.id" :label="$t('common.detail')" :name="TagDetail">
                             <el-descriptions :column="2" border>
                                 <el-descriptions-item :label="$t('common.type')">
                                     <EnumTag :enums="TagResourceTypeEnum" :value="currentTag.type" />
@@ -92,46 +93,20 @@
                         <el-tab-pane
                             class="h-full"
                             :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
-                            :label="`${$t('tag.machine')} (${resourceCount.machine || 0})`"
-                            :name="MachineTag"
+                            :label="`${$t(resource?.componentConf.name || '')} (${resourceCount[resource?.countKey || ''] || 0})`"
+                            :name="index"
+                            v-for="(resource, index) in resources"
                         >
-                            <MachineList lazy ref="machineListRef" />
-                        </el-tab-pane>
+                            <template #label>
+                                <SvgIcon :name="resource?.componentConf.icon?.name" :color="resource?.componentConf.icon?.color" />
+                                <span class="ml-1">
+                                    {{ `${$t(resource?.componentConf.name || '')} (${resourceCount[resource?.countKey || ''] || 0})` }}
+                                </span>
+                            </template>
 
-                        <el-tab-pane
-                            class="h-full"
-                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
-                            :label="`${$t('tag.db')} (${resourceCount.db || 0})`"
-                            :name="DbTag"
-                        >
-                            <InstanceList lazy ref="dbInstanceListRef" />
-                        </el-tab-pane>
-
-                        <el-tab-pane
-                            class="h-full"
-                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
-                            :label="`${$t('tag.es')} (${resourceCount.es || 0})`"
-                            :name="EsTag"
-                        >
-                            <EsInstanceList lazy ref="esInstanceListRef" />
-                        </el-tab-pane>
-
-                        <el-tab-pane
-                            class="h-full"
-                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
-                            :label="`Redis (${resourceCount.redis || 0})`"
-                            :name="RedisTag"
-                        >
-                            <RedisList lazy ref="redisListRef" />
-                        </el-tab-pane>
-
-                        <el-tab-pane
-                            class="h-full"
-                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
-                            :label="`Mongo (${resourceCount.mongo || 0})`"
-                            :name="MongoTag"
-                        >
-                            <MongoList lazy ref="mongoListRef" />
+                            <div class="h-full" v-if="Number.isInteger(state.activeTabName) && Number.parseInt(state.activeTabName) === index">
+                                <component lazy :ref="(el: any) => setComponentRef(el, index)" :is="resource?.componentConf.component"></component>
+                            </div>
                         </el-tab-pane>
                     </el-tabs>
                 </div>
@@ -151,10 +126,8 @@
                 </el-form-item>
             </el-form>
             <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="onCancelSaveTag()">{{ $t('common.cancel') }}</el-button>
-                    <el-button @click="onSaveTag" type="primary">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="onCancelSaveTag()">{{ $t('common.cancel') }}</el-button>
+                <el-button @click="onSaveTag" type="primary">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
 
@@ -163,7 +136,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, ref, watch, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
+import { toRefs, ref, watch, reactive, onMounted, computed, nextTick, useTemplateRef } from 'vue';
 import { tagApi } from './api';
 import { formatDate } from '@/common/utils/format';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
@@ -183,12 +156,13 @@ import {
     useI18nSaveSuccessMsg,
 } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
+import { getResourceConfigs } from '@/views/ops/resource/resource';
+import { hasPerm } from '@/components/auth/auth';
 
-const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
-const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
-const EsInstanceList = defineAsyncComponent(() => import('../es/EsInstanceList.vue'));
-const RedisList = defineAsyncComponent(() => import('../redis/RedisList.vue'));
-const MongoList = defineAsyncComponent(() => import('../mongo/MongoList.vue'));
+const compRefs = ref<Array<any>>([]);
+const setComponentRef = (el: any, index: number) => {
+    compRefs.value[index] = el;
+};
 
 const { t } = useI18n();
 
@@ -200,21 +174,32 @@ interface Tree {
 }
 
 const tagForm: any = ref(null);
-const tagTreeRef: any = ref(null);
+const tagTreeRef: any = useTemplateRef('tagTreeRef');
 const filterTag = ref('');
 const contextmenuRef = ref();
-const machineListRef: Ref<any> = ref(null);
-const dbInstanceListRef: Ref<any> = ref(null);
-const esInstanceListRef: Ref<any> = ref(null);
-const redisListRef: Ref<any> = ref(null);
-const mongoListRef: Ref<any> = ref(null);
 
 const TagDetail = 'tagDetail';
-const MachineTag = 'machineTag';
-const DbTag = 'dbTag';
-const EsTag = 'EsTag';
-const RedisTag = 'redisTag';
-const MongoTag = 'mongoTag';
+
+const allNode = {
+    id: -1,
+    name: t('tag.allResource'),
+    type: TagResourceTypeEnum.Tag.value,
+    children: [],
+};
+
+const resources = computed(() => {
+    return getResourceConfigs()
+        .filter((x) => {
+            if (!x.manager?.componentConf) {
+                return true;
+            }
+            if (!x.manager.permCode) {
+                return true;
+            }
+            return hasPerm(x.manager.permCode);
+        })
+        .map((x) => x.manager);
+});
 
 const contextmenuAdd = new ContextmenuItem('addTag', 'tag.createSubTag')
     .withIcon('circle-plus')
@@ -283,6 +268,8 @@ const rules = {
 
 onMounted(() => {
     search();
+    tagTreeRef.value.setCurrentKey(allNode.id);
+    onTreeNodeClick(allNode);
 });
 
 watch(filterTag, (val) => {
@@ -382,27 +369,28 @@ const onTabChange = () => {
     setNowTabData();
 };
 
-const setNowTabData = () => {
-    const tagPath = state.currentTag.codePath;
-    switch (state.activeTabName) {
-        case MachineTag:
-            machineListRef.value.search(tagPath);
-            break;
-        case DbTag:
-            dbInstanceListRef.value.search(tagPath);
-            break;
-        case EsTag:
-            esInstanceListRef.value.search(tagPath);
-            break;
-        case RedisTag:
-            redisListRef.value.search(tagPath);
-            break;
-        case MongoTag:
-            mongoListRef.value.search(tagPath);
-            break;
-        default:
-            break;
+const setNowTabData = async () => {
+    if (Number.isInteger(state.activeTabName)) {
+        (await getResouceCompRef(Number.parseInt(state.activeTabName))).search(state.currentTag.codePath);
     }
+};
+
+const getResouceCompRef = (index: number): Promise<any> => {
+    // 使用一个 Promise 来确保组件引用已经被设置
+    return new Promise((resolve) => {
+        const checkRef = () => {
+            if (compRefs.value[index]) {
+                resolve(compRefs.value[index]);
+            } else {
+                // 如果引用还没有设置，稍后再检查
+                setTimeout(checkRef, 10);
+            }
+        };
+        // 先等待 nextTick 确保 DOM 更新
+        nextTick().then(() => {
+            checkRef();
+        });
+    });
 };
 
 const filterNode = (value: string, data: Tree) => {
@@ -411,6 +399,7 @@ const filterNode = (value: string, data: Tree) => {
 
 const search = async () => {
     let res = await tagApi.getTagTrees.request(null);
+    res.unshift(allNode);
     state.data = res;
 };
 
@@ -428,10 +417,18 @@ const onNodeContextmenu = (event: any, data: any) => {
 };
 
 const onTreeNodeClick = async (data: any) => {
-    state.currentTag = await getDetail(data.id);
-    state.activeTabName = TagDetail;
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
+
+    if (data.id == allNode.id) {
+        state.currentTag = data;
+        state.activeTabName = 0 as any;
+        onTabChange();
+        return;
+    }
+
+    state.currentTag = await getDetail(data.id);
+    state.activeTabName = TagDetail;
 };
 
 const onShowSaveTagDialog = (data: any) => {
@@ -508,10 +505,10 @@ const removeDeafultExpandId = (id: any) => {
 <style lang="scss">
 .tag-tree-list {
     .tag-tree-data {
-        .el-tree-node__content {
-            height: 40px;
-            line-height: 40px;
-        }
+        // .el-tree-node__content {
+        //     height: 40px;
+        //     line-height: 40px;
+        // }
     }
 }
 </style>

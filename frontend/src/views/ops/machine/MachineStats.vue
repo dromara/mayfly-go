@@ -1,76 +1,74 @@
 <template>
-    <div>
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
-            <el-row :gutter="20">
-                <el-col :lg="12" :md="12">
-                    <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border>
-                        <template #extra>
-                            <el-link @click="onRefresh" icon="refresh" underline="never" type="success"></el-link>
+    <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
+        <el-row :gutter="20">
+            <el-col :lg="12" :md="12">
+                <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border>
+                    <template #extra>
+                        <el-link @click="onRefresh" icon="refresh" underline="never" type="success"></el-link>
+                    </template>
+                    <el-descriptions-item :label="$t('machine.hostname')">
+                        {{ stats.hostname }}
+                    </el-descriptions-item>
+                    <el-descriptions-item :label="$t('machine.runTime')">
+                        {{ stats.uptime }}
+                    </el-descriptions-item>
+                    <el-descriptions-item :label="$t('machine.totalTask')">
+                        {{ stats.totalProcs }}
+                    </el-descriptions-item>
+                    <el-descriptions-item :label="$t('machine.runningTask')">
+                        {{ stats.runningProcs }}
+                    </el-descriptions-item>
+                    <el-descriptions-item :label="$t('machine.load')"> {{ stats.load1 }} {{ stats.load5 }} {{ stats.load10 }} </el-descriptions-item>
+                </el-descriptions>
+            </el-col>
+
+            <el-col :lg="6" :md="6">
+                <ECharts height="200" :option="state.memOption" />
+            </el-col>
+
+            <el-col :lg="6" :md="6">
+                <ECharts height="200" :option="state.cpuOption" />
+            </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+            <el-col :lg="8" :md="8">
+                <span style="font-size: 16px; font-weight: 700">{{ $t('machine.disk') }}</span>
+                <el-table :data="stats.fSInfos" stripe max-height="250" style="width: 100%" border>
+                    <el-table-column prop="mountPoint" :label="$t('machine.mountPoint')" min-width="100" show-overflow-tooltip> </el-table-column>
+                    <el-table-column :label="$t('machine.available')" min-width="70" show-overflow-tooltip>
+                        <template #default="scope">
+                            {{ formatByteSize(scope.row.free) }}
                         </template>
-                        <el-descriptions-item :label="$t('machine.hostname')">
-                            {{ stats.hostname }}
-                        </el-descriptions-item>
-                        <el-descriptions-item :label="$t('machine.runTime')">
-                            {{ stats.uptime }}
-                        </el-descriptions-item>
-                        <el-descriptions-item :label="$t('machine.totalTask')">
-                            {{ stats.totalProcs }}
-                        </el-descriptions-item>
-                        <el-descriptions-item :label="$t('machine.runningTask')">
-                            {{ stats.runningProcs }}
-                        </el-descriptions-item>
-                        <el-descriptions-item :label="$t('machine.load')"> {{ stats.load1 }} {{ stats.load5 }} {{ stats.load10 }} </el-descriptions-item>
-                    </el-descriptions>
-                </el-col>
+                    </el-table-column>
+                    <el-table-column prop="Used" :label="$t('machine.used')" min-width="70" show-overflow-tooltip>
+                        <template #default="scope">
+                            {{ formatByteSize(scope.row.used) }}
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-col>
 
-                <el-col :lg="6" :md="6">
-                    <ECharts height="200" :option="state.memOption" />
-                </el-col>
-
-                <el-col :lg="6" :md="6">
-                    <ECharts height="200" :option="state.cpuOption" />
-                </el-col>
-            </el-row>
-
-            <el-row :gutter="20">
-                <el-col :lg="8" :md="8">
-                    <span style="font-size: 16px; font-weight: 700">{{ $t('machine.disk') }}</span>
-                    <el-table :data="stats.fSInfos" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="mountPoint" :label="$t('machine.mountPoint')" min-width="100" show-overflow-tooltip> </el-table-column>
-                        <el-table-column :label="$t('machine.available')" min-width="70" show-overflow-tooltip>
-                            <template #default="scope">
-                                {{ formatByteSize(scope.row.free) }}
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="Used" :label="$t('machine.used')" min-width="70" show-overflow-tooltip>
-                            <template #default="scope">
-                                {{ formatByteSize(scope.row.used) }}
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-col>
-
-                <el-col :lg="16" :md="16">
-                    <span style="font-size: 16px; font-weight: 700">{{ $t('machine.networkCard') }}</span>
-                    <el-table :data="netInter" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="name" :label="$t('machine.networkCard')" min-width="120" show-overflow-tooltip></el-table-column>
-                        <el-table-column prop="ipv4" label="IPv4" min-width="130" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="ipv6" label="IPv6" min-width="130" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="rx" :label="`${$t('machine.receive')}(rx)`" min-width="110" show-overflow-tooltip>
-                            <template #default="scope">
-                                {{ formatByteSize(scope.row.rx) }}
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="tx" :label="`${$t('machine.send')}(tx)`" min-width="110" show-overflow-tooltip>
-                            <template #default="scope">
-                                {{ formatByteSize(scope.row.tx) }}
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-col>
-            </el-row>
-        </el-dialog>
-    </div>
+            <el-col :lg="16" :md="16">
+                <span style="font-size: 16px; font-weight: 700">{{ $t('machine.networkCard') }}</span>
+                <el-table :data="netInter" stripe max-height="250" style="width: 100%" border>
+                    <el-table-column prop="name" :label="$t('machine.networkCard')" min-width="120" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="ipv4" label="IPv4" min-width="130" show-overflow-tooltip> </el-table-column>
+                    <el-table-column prop="ipv6" label="IPv6" min-width="130" show-overflow-tooltip> </el-table-column>
+                    <el-table-column prop="rx" :label="`${$t('machine.receive')}(rx)`" min-width="110" show-overflow-tooltip>
+                        <template #default="scope">
+                            {{ formatByteSize(scope.row.rx) }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="tx" :label="`${$t('machine.send')}(tx)`" min-width="110" show-overflow-tooltip>
+                        <template #default="scope">
+                            {{ formatByteSize(scope.row.tx) }}
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-col>
+        </el-row>
+    </el-dialog>
 </template>
 
 <script lang="ts" setup>
