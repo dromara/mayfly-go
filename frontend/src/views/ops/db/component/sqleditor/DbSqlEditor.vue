@@ -580,6 +580,7 @@ function splitSql(sql: string, delimiter: string = ';') {
     return result;
 }
 
+
 /**
  * 获取sql，如果有鼠标选中，则返回选中内容，否则返回输入框内所有内容
  */
@@ -595,12 +596,135 @@ const getSql = () => {
         res = monacoEditor.getModel()?.getValueInRange(selection);
     }
 
-    // 整个编辑器的sql
-    if (!res) {
-        return monacoEditor.getModel()?.getValue();
+    // 如果有选中的内容且不为空，直接返回
+    if (res && res.trim()) {
+        return res;
     }
+
+    // 没有选中任何内容时，自动选择当前光标所在的SQL语句行
+    const currentPosition = monacoEditor.getPosition();
+    if (currentPosition) {
+        const model = monacoEditor.getModel();
+        if (model) {
+            const fullSql = model.getValue();
+            const sqlStatement = getCurrentStatement(fullSql, currentPosition, model);
+            if (sqlStatement) {
+                return sqlStatement;
+            }
+        }
+    }
+
+    // 整个编辑器的sql
     return res;
 };
+
+/**
+ * 获取光标所在的SQL语句
+ * @param fullSql 完整的SQL文本
+ * @param position 光标位置
+ * @param model Monaco编辑器模型
+ */
+function getCurrentStatement(fullSql: string, position: monaco.Position, model: monaco.editor.ITextModel): string | null {
+    // 使用与splitSql相同的逻辑来分割SQL语句，但同时记录每个语句的位置
+    let state = 'normal';
+    let buffer = '';
+    let statements: { text: string; start: number; end: number }[] = [];
+    let inString = null;
+    let startPos = 0;
+
+    for (let i = 0; i < fullSql.length; i++) {
+        const char = fullSql[i];
+        const nextChar = fullSql[i + 1];
+
+        if (state === 'normal') {
+            if (char === '-' && nextChar === '-') {
+                state = 'singleLineComment';
+                buffer += char + nextChar;
+                i++; // 跳过下一个字符
+            } else if (char === '/' && nextChar === '*') {
+                state = 'multiLineComment';
+                buffer += char + nextChar;
+                i++; // 跳过下一个字符
+            } else if (char === "'" || char === '"') {
+                state = 'string';
+                inString = char;
+                buffer += char;
+            } else if (char === ';') {
+                if (buffer.trim()) {
+                    statements.push({
+                        text: buffer.trim(),
+                        start: startPos,
+                        end: i
+                    });
+                }
+                buffer = '';
+                startPos = i + 1;
+            } else {
+                buffer += char;
+            }
+        } else if (state === 'string') {
+            buffer += char;
+            if (char === '\\') {
+                // 处理转义字符
+                buffer += nextChar;
+                i++;
+            } else if (char === inString) {
+                state = 'normal';
+                inString = null;
+            }
+        } else if (state === 'singleLineComment') {
+            buffer += char;
+            if (char === '\n') {
+                state = 'normal';
+            }
+        } else if (state === 'multiLineComment') {
+            buffer += char;
+            if (char === '*' && nextChar === '/') {
+                buffer += nextChar;
+                state = 'normal';
+                i++; // 跳过下一个字符
+            }
+        }
+    }
+
+    // 处理最后一个语句（没有以分号结尾的情况）
+    const endPos = fullSql.length;
+    if (buffer.trim()) {
+        statements.push({
+            text: buffer.trim(),
+            start: startPos,
+            end: endPos
+        });
+    }
+
+    // 根据光标位置找到对应的SQL语句
+    if (position) {
+        const offset = model.getOffsetAt(position);
+
+        // 遍历所有语句，找到光标所在的语句
+        for (let i = 0; i < statements.length; i++) {
+            const stmt = statements[i];
+            // 光标在语句范围内（包括末尾分号）
+            if (offset >= stmt.start && offset <= stmt.end) {
+                return stmt.text;
+            }
+            // 光标在语句分号后一个位置
+            if (offset === stmt.end + 1) {
+                return stmt.text;
+            }
+        }
+
+        // 如果光标处没有SQL，则执行光标前的最后一个SQL
+        for (let i = statements.length - 1; i >= 0; i--) {
+            const stmt = statements[i];
+            if (offset > stmt.end) {
+                return stmt.text;
+            }
+        }
+    }
+
+    return null;
+}
 
 const saveSql = async () => {
     const sql = monacoEditor.getModel()?.getValue();
