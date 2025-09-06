@@ -1,7 +1,7 @@
 <template>
     <div class="tag-tree-list card !p-2 h-full flex">
         <el-splitter>
-            <el-splitter-panel size="25%" max="35%" class="flex flex-col flex-1">
+            <el-splitter-panel size="24%" max="35%" class="flex flex-col flex-1">
                 <div class="card !p-1 !mr-1 flex flex-row items-center justify-between overflow-hidden">
                     <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" class="mr-2" />
                     <el-button
@@ -502,7 +502,7 @@ const removeDeafultExpandId = (id: any) => {
     }
 };
 </script>
-<style lang="scss">
+<style lang="scss" scoped>
 .tag-tree-list {
     .tag-tree-data {
         // .el-tree-node__content {

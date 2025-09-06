@@ -110,6 +110,7 @@
                                 :data="dt.data"
                                 :table="dt.table"
                                 :columns="dt.tableColumn"
+                                :column-more-actions="['fixed']"
                                 :loading="dt.loading"
                                 :abort-fn="dt.abortFn"
                                 :height="tableDataHeight"
@@ -305,13 +306,8 @@ const getKey = () => {
  * 执行sql
  */
 const onRunSql = async (newTab = false) => {
-    // 没有选中的文本，则为全部文本
-    let sql = getSql() as string;
-    notBlank(sql && sql.trim(), t('db.noSelctRunSqlTips'));
-    // 去除字符串前的空格、换行等
-    sql = sql.replace(/(^\s*)/g, '');
-
-    const sqls = splitSql(sql);
+    const sqls = getSql();
+    notBlank(sqls, t('db.noSelectRunSqlMsg'));
 
     if (sqls.length == 1) {
         const oneSql = sqls[0];
@@ -522,83 +518,26 @@ const runSql = async (sql: string, remark = '', newTab = false) => {
     }
 };
 
-function splitSql(sql: string, delimiter: string = ';') {
-    let state = 'normal';
-    let buffer = '';
-    let result = [];
-    let inString = null; // 用于记录当前字符串的引号类型（' 或 "）
-
-    for (let i = 0; i < sql.length; i++) {
-        const char = sql[i];
-        const nextChar = sql[i + 1];
-
-        if (state === 'normal') {
-            if (char === '-' && nextChar === '-') {
-                state = 'singleLineComment';
-                i++; // 跳过下一个字符
-            } else if (char === '/' && nextChar === '*') {
-                state = 'multiLineComment';
-                i++; // 跳过下一个字符
-            } else if (char === "'" || char === '"') {
-                state = 'string';
-                inString = char;
-                buffer += char;
-            } else if (char === delimiter) {
-                if (buffer.trim()) {
-                    result.push(buffer.trim());
-                }
-                buffer = '';
-            } else {
-                buffer += char;
-            }
-        } else if (state === 'string') {
-            buffer += char;
-            if (char === '\\') {
-                // 处理转义字符
-                buffer += nextChar;
-                i++;
-            } else if (char === inString) {
-                state = 'normal';
-                inString = null;
-            }
-        } else if (state === 'singleLineComment') {
-            if (char === '\n') {
-                state = 'normal';
-            }
-        } else if (state === 'multiLineComment') {
-            if (char === '*' && nextChar === '/') {
-                state = 'normal';
-                i++; // 跳过下一个字符
-            }
-        }
-    }
-
-    if (buffer.trim()) {
-        result.push(buffer.trim());
-    }
-
-    return result;
-}
-
-
 /**
- * 获取sql，如果有鼠标选中，则返回选中内容，否则返回输入框内所有内容
+ * 获取sql，如果有鼠标选中，则返回选中内容，否则返回当前光标附近的sql
  */
-const getSql = () => {
-    let res = '' as string | undefined;
+const getSql = (): string[] => {
     // 编辑器还没初始化
     if (!monacoEditor?.getModel()) {
-        return res;
+        return [];
     }
+
+    let sql = '' as string | undefined;
     // 选择选中的sql
     let selection = monacoEditor.getSelection();
     if (selection) {
-        res = monacoEditor.getModel()?.getValueInRange(selection);
+        sql = monacoEditor.getModel()?.getValueInRange(selection);
+        sql = sql?.replace(/(^\s*)/g, '');
     }
 
     // 如果有选中的内容且不为空，直接返回
-    if (res && res.trim()) {
-        return res;
+    if (sql && sql.trim()) {
+        return splitSqlStatements(sql).map((x) => x.text);
     }
 
     // 没有选中任何内容时，自动选择当前光标所在的SQL语句行
@@ -609,52 +548,50 @@ const getSql = () => {
             const fullSql = model.getValue();
             const sqlStatement = getCurrentStatement(fullSql, currentPosition, model);
             if (sqlStatement) {
-                return sqlStatement;
+                return [sqlStatement];
             }
         }
     }
 
-    // 整个编辑器的sql
-    return res;
+    return [];
 };
 
 /**
- * 获取光标所在的SQL语句
- * @param fullSql 完整的SQL文本
- * @param position 光标位置
- * @param model Monaco编辑器模型
+ * 通用SQL解析器，用于提取SQL语句及其位置信息
+ * @param sql 完整的SQL文本
+ * @param delimiter SQL语句分隔符，默认为分号
+ * @param withPosition 是否需要返回位置信息
  */
-function getCurrentStatement(fullSql: string, position: monaco.Position, model: monaco.editor.ITextModel): string | null {
-    // 使用与splitSql相同的逻辑来分割SQL语句，但同时记录每个语句的位置
+function splitSqlStatements(sql: string, delimiter: string = ';') {
     let state = 'normal';
     let buffer = '';
-    let statements: { text: string; start: number; end: number }[] = [];
-    let inString = null;
+    let result = [];
+    let inString = null; // 用于记录当前字符串的引号类型（' 或 "）
     let startPos = 0;
 
-    for (let i = 0; i < fullSql.length; i++) {
-        const char = fullSql[i];
-        const nextChar = fullSql[i + 1];
+    for (let i = 0; i < sql.length; i++) {
+        const char = sql[i];
+        const nextChar = sql[i + 1];
 
         if (state === 'normal') {
             if (char === '-' && nextChar === '-') {
                 state = 'singleLineComment';
-                buffer += char + nextChar;
+                // buffer += char + nextChar;
                 i++; // 跳过下一个字符
             } else if (char === '/' && nextChar === '*') {
                 state = 'multiLineComment';
-                buffer += char + nextChar;
+                // buffer += char + nextChar;
                 i++; // 跳过下一个字符
             } else if (char === "'" || char === '"') {
                 state = 'string';
                 inString = char;
                 buffer += char;
-            } else if (char === ';') {
+            } else if (char === delimiter) {
                 if (buffer.trim()) {
-                    statements.push({
+                    result.push({
                         text: buffer.trim(),
                         start: startPos,
-                        end: i
+                        end: i,
                     });
                 }
                 buffer = '';
@@ -673,12 +610,12 @@ function getCurrentStatement(fullSql: string, position: monaco.Position, model: 
                 inString = null;
             }
         } else if (state === 'singleLineComment') {
-            buffer += char;
+            // buffer += char;
             if (char === '\n') {
                 state = 'normal';
             }
         } else if (state === 'multiLineComment') {
-            buffer += char;
+            // buffer += char;
             if (char === '*' && nextChar === '/') {
                 buffer += nextChar;
                 state = 'normal';
@@ -688,14 +625,26 @@ function getCurrentStatement(fullSql: string, position: monaco.Position, model: 
     }
 
     // 处理最后一个语句（没有以分号结尾的情况）
-    const endPos = fullSql.length;
     if (buffer.trim()) {
-        statements.push({
+        result.push({
             text: buffer.trim(),
             start: startPos,
-            end: endPos
+            end: sql.length,
         });
     }
+
+    return result;
+}
+
+/**
+ * 获取光标所在的SQL语句
+ * @param fullSql 完整的SQL文本
+ * @param position 光标位置
+ * @param model Monaco编辑器模型
+ */
+function getCurrentStatement(fullSql: string, position: monaco.Position, model: monaco.editor.ITextModel): string | null {
+    // 使用通用SQL解析器来分割SQL语句，并记录每个语句的位置
+    const statements: { text: string; start: number; end: number }[] = splitSqlStatements(fullSql);
 
     // 根据光标位置找到对应的SQL语句
     if (position) {

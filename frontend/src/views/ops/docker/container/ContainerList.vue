@@ -27,7 +27,7 @@
         <el-table-column prop="name" :label="$t('docker.name')" :min-width="120" show-overflow-tooltip> </el-table-column>
         <el-table-column prop="imageName" :label="$t('docker.image')" :min-width="150" show-overflow-tooltip> </el-table-column>
 
-        <el-table-column prop="state" :label="$t('common.status')" :min-width="80">
+        <el-table-column prop="state" :label="$t('common.status')" :min-width="110">
             <template #default="{ row }">
                 <el-dropdown @command="handleCommand">
                     <el-button :type="EnumValue.getEnumByValue(ContainerStateEnum, row.state)?.tag.type" round plain size="small">
@@ -50,7 +50,7 @@
             </template>
         </el-table-column>
 
-        <el-table-column v-loading="true" prop="stats" :label="$t('docker.stats')" :min-width="90">
+        <el-table-column v-loading="true" prop="stats" :label="$t('docker.stats')" :min-width="130">
             <template #default="{ row }">
                 <SvgIcon v-if="getLoadingState(row.containerId)" class="is-loading" name="loading" color="var(--el-color-primary)" />
 
@@ -122,7 +122,7 @@
 
         <el-table-column prop="status" label="运行时长" :min-width="120"> </el-table-column>
 
-        <el-table-column :label="$t('common.operation')" :min-width="140">
+        <el-table-column :label="$t('common.operation')" :min-width="180">
             <template #default="{ row }">
                 <el-row>
                     <el-button @click="openTerminal(row)" :disabled="row.state != ContainerStateEnum.Running.value" type="primary" link plain> SSH </el-button>
@@ -157,16 +157,16 @@
         draggable
         append-to-body
     >
-        <TerminalBody ref="terminal" :socket-url="getDockerExecSocketUrl(params.host, terminalDialog.containerId)" />
+        <TerminalBody ref="terminal" :socket-url="getDockerExecSocketUrl(props.id, terminalDialog.containerId)" />
     </el-dialog>
 
-    <ContainerLog v-model:visible="logDialog.visible" :host="params.host" :container-id="logDialog.containerId" />
+    <ContainerLog v-model:visible="logDialog.visible" :id="props.id" :container-id="logDialog.containerId" :title="logDialog.title" />
 
-    <ContainerCreate v-model:visible="containerCreateDialog.visible" :host="params.host" @success="getContainers" />
+    <ContainerCreate v-model:visible="containerCreateDialog.visible" :id="props.id" @success="getContainers" />
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onMounted, reactive, toRefs } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, toRefs, watch } from 'vue';
 import { dockerApi, getDockerExecSocketUrl } from '../api';
 import { formatByteSize, formatDate } from '@/common/utils/format';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
@@ -182,15 +182,15 @@ const ContainerLog = defineAsyncComponent(() => import('./ContainerLog.vue'));
 const ContainerCreate = defineAsyncComponent(() => import('./ContainerCreate.vue'));
 
 const props = defineProps({
-    host: {
-        type: String,
-        default: '',
+    id: {
+        type: Number,
+        default: 0,
     },
 });
 
 const state = reactive({
     params: {
-        host: props.host,
+        id: props.id,
         name: '',
         state: null,
     },
@@ -222,6 +222,13 @@ onMounted(() => {
     getContainers();
 });
 
+watch(
+    () => props.id,
+    () => {
+        getContainers();
+    }
+);
+
 const filterTableDatas = computed(() => {
     let tables: any = state.containers;
     const nameSearch = state.params.name;
@@ -241,6 +248,10 @@ const filterTableDatas = computed(() => {
 });
 
 const getContainers = async () => {
+    if (!props.id) {
+        return;
+    }
+    state.params.id = props.id;
     state.loadingContainers = true;
     try {
         state.containers = await dockerApi.containers.request(state.params);
@@ -281,21 +292,21 @@ const setContainersStats = () => {
 };
 
 const containerRestart = async (param: any) => {
-    await dockerApi.containerRestart.request({ host: state.params.host, containerId: param.containerId });
+    await dockerApi.containerRestart.request({ id: props.id, containerId: param.containerId });
     useI18nOperateSuccessMsg();
     getContainers();
 };
 
 const containerStop = async (param: any) => {
     await useI18nConfirm('docker.stopContainerConfirm', { name: param.name });
-    await dockerApi.containerStop.request({ host: state.params.host, containerId: param.containerId });
+    await dockerApi.containerStop.request({ id: props.id, containerId: param.containerId });
     useI18nOperateSuccessMsg();
     getContainers();
 };
 
 const containerRemove = async (param: any) => {
     await useI18nConfirm('docker.removeContainerConfirm', { name: param.name });
-    await dockerApi.containerRemove.request({ host: state.params.host, containerId: param.containerId });
+    await dockerApi.containerRemove.request({ id: props.id, containerId: param.containerId });
     useI18nDeleteSuccessMsg();
     getContainers();
 };
@@ -314,11 +325,6 @@ const openLog = (row: any) => {
     state.logDialog.containerId = row.containerId;
     state.logDialog.title = `Log - ${row.name}`;
     state.logDialog.visible = true;
-};
-
-const openUrl = (row: any) => {
-    const port = row.ports[0];
-    window.open('http://' + props.host.split('//')[1].split(':')[0] + ':' + port.split('->')[0]?.split(':')[1] + '/lab');
 };
 
 const handleCommand = async (commond: any) => {

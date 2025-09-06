@@ -92,6 +92,8 @@ export default {
         mongoManage: 'Mongo Manage',
         mongoManageBase: 'Base Permission',
 
+        containerManageBase: 'Container Manage - Base Permission',
+
         flow: 'Flow',
         myTask: 'My Task',
         myFlow: 'My Flow',

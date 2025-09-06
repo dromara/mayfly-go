@@ -36,6 +36,7 @@ const (
 	TagTypeRedis      TagType = TagType(consts.ResourceTypeRedis)
 	TagTypeMongo      TagType = TagType(consts.ResourceTypeMongo)
 	TagTypeAuthCert   TagType = TagType(consts.ResourceTypeAuthCert) // 授权凭证类型
+	TagTypeContainer  TagType = TagType(consts.ResourceTypeContainer)
 
 	TagTypeDb TagType = 22 // 数据库名
 )

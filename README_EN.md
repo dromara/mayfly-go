@@ -46,39 +46,34 @@ account/password：test/test123.
 
 ![首页](https://foruda.gitee.com/images/1714378104294194769/149fd257_1240250.png "屏幕截图")
 
-#### Machine Operation
+#### Resource Manage
 
-##### Status
+![资源树](https://foruda.gitee.com/images/1757163958991119284/83eb2171_1240250.png "屏幕截图")
 
-![机器状态查看](https://foruda.gitee.com/images/1714378556642584686/93c46ec0_1240250.png "屏幕截图")
+#### Resource Operation
 
-##### SSH Terminal
+![终端操作](https://foruda.gitee.com/images/1757164093410206293/1c7dda30_1240250.png)
 
-![终端操作](https://foruda.gitee.com/images/1714378353790214943/2864ba66_1240250.png "屏幕截图")
-
-##### File Operation
-
-![文件操作](https://foruda.gitee.com/images/1714378417206086701/74a188d8_1240250.png "屏幕截图")
+![文件操作](https://foruda.gitee.com/images/1757164149388450531/0542398c_1240250.png)
 
 ![文件查看](https://foruda.gitee.com/images/1714378482611638688/7753faf6_1240250.png "屏幕截图")
 
-#### Database Operation
 
-##### SQL Editor
+![sql编辑器](https://foruda.gitee.com/images/1757164386318836686/c3b17a52_1240250.png)
 
-![sql编辑器](https://foruda.gitee.com/images/1714378747473077515/3c9387c0_1240250.png "屏幕截图")
 
-##### Add, delete, update and check data online
+![选表查数据](https://foruda.gitee.com/images/1757164281011401749/5109485f_1240250.png)
 
-![选表查数据](https://foruda.gitee.com/images/1714378625059063750/3951e5a8_1240250.png "屏幕截图")
 
-#### Redis Operation
+![redis操作](https://foruda.gitee.com/images/1757164442298752845/4af1b296_1240250.png)
 
-![redis操作](https://foruda.gitee.com/images/1714378855845451114/4c3f0097_1240250.png "屏幕截图")
-
-#### Mongo Operation
 
 ![mongo操作](https://foruda.gitee.com/images/1714378916425714642/77fc0ed9_1240250.png "屏幕截图")
+
+![es操作](https://foruda.gitee.com/images/1757164553845346963/b5b70381_1240250.png)
+
+![容器操作](https://foruda.gitee.com/images/1757164625186816754/2b195e25_1240250.png)
+
 
 #### Work order process approval
 

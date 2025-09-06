@@ -18,4 +18,6 @@ const (
 
 	LogDockerImageRemove
 	LogDockerImageLoad
+
+	ErrContainerConfExist
 )

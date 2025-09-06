@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="h-full">
         <monaco-editor
             ref="editorRef"
             :height="props.height"
@@ -22,7 +22,7 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 const props = defineProps({
     height: {
         type: String,
-        default: 'calc(100vh - 200px)',
+        default: '100%',
     },
     wsUrl: {
         type: String,
@@ -45,14 +45,20 @@ watch(data, (value) => {
     // eslint-disable-next-line no-control-regex
     modelValue.value = modelValue.value + value.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '');
     setTimeout(() => {
-        editorRef.value?.revealLastLine();
+        revealLastLine();
     }, 200);
 });
 
 const reload = (wsUrl: string) => {
     modelValue.value = '';
-    editorRef.value?.revealLastLine();
     websocketUrl.value = wsUrl;
+    revealLastLine();
+};
+
+const revealLastLine = () => {
+    const editor = editorRef.value.getEditor();
+    const lineCount = editor?.getModel().getLineCount();
+    editor.revealLine(lineCount);
 };
 
 defineExpose({

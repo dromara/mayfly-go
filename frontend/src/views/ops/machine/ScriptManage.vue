@@ -7,7 +7,7 @@
             :destroy-on-close="true"
             :show-close="true"
             :before-close="handleClose"
-            width="55%"
+            width="60%"
         >
             <page-table
                 ref="pageTableRef"

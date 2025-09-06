@@ -64,7 +64,7 @@ export default {
         times: '耗时',
         resultSet: '结果集',
         tableDataEmptyTextTips: 'tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改',
-        noSelctRunSqlMsg: '请选中需要执行的sql',
+        noSelectRunSqlMsg: '请选中需要执行的sql或将光标移动到要执行sql附近',
         enterExecRemarkTips: '请输入备注',
         execRemarkPlaceholder: '输入执行该sql的备注信息',
         currentSqlTabIsRunning: '当前结果集tab正在执行, 请使用新标签执行',

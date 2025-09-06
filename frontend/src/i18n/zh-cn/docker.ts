@@ -1,5 +1,9 @@
 export default {
     docker: {
+        containerConf: '容器配置',
+        addr: '地址',
+        addrTips: '如：unix:///var/run/docker.sock 、tcp://192.168.1.1',
+
         container: '容器',
         containerName: '容器名',
         running: '运行中',

@@ -97,19 +97,19 @@
                                             </span>
                                             <template #dropdown>
                                                 <el-dropdown-menu>
-                                                    <el-dropdown-item command="sort-asc">
+                                                    <el-dropdown-item v-if="showColumnActionSort" command="sort-asc">
                                                         <SvgIcon name="top" class="mr-1" />
                                                         {{ $t('db.asc') }}
                                                     </el-dropdown-item>
-                                                    <el-dropdown-item command="sort-desc">
+                                                    <el-dropdown-item v-if="showColumnActionSort" command="sort-desc">
                                                         <SvgIcon name="bottom" class="mr-1" />
                                                         {{ $t('db.desc') }}
                                                     </el-dropdown-item>
-                                                    <el-dropdown-item v-if="!column.fixed" command="fix">
+                                                    <el-dropdown-item v-if="showColumnActionFixed && !column.fixed" command="fix">
                                                         <SvgIcon name="Paperclip" class="mr-1" />
                                                         {{ $t('db.fixed') }}
                                                     </el-dropdown-item>
-                                                    <el-dropdown-item v-else command="unfix">
+                                                    <el-dropdown-item v-if="showColumnActionFixed && column.fixed" command="unfix">
                                                         <SvgIcon name="Minus" class="mr-1" />
                                                         {{ $t('db.cancelFiexd') }}
                                                     </el-dropdown-item>
@@ -201,7 +201,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch, Ref } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch, Ref, computed } from 'vue';
 import { ElInput, ElMessage } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
 import { DbInst, DbThemeConfig } from '@/views/ops/db/db';
@@ -237,6 +237,10 @@ const props = defineProps({
     },
     columns: {
         type: Array<any>,
+    },
+    columnMoreActions: {
+        type: Array,
+        default: () => ['sort', 'fixed'],
     },
     loading: {
         type: Boolean,
@@ -451,6 +455,16 @@ watch(
         }
     }
 );
+
+// 显示列排序
+const showColumnActionSort = computed(() => {
+    return props.columnMoreActions.includes('sort');
+});
+
+// 显示列固定
+const showColumnActionFixed = computed(() => {
+    return props.columnMoreActions.includes('fixed');
+});
 
 onMounted(async () => {
     console.log('in DbTable mounted');

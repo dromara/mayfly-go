@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	dockerentity "mayfly-go/internal/docker/domain/entity"
 	esentity "mayfly-go/internal/es/domain/entity"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	machineentity "mayfly-go/internal/machine/domain/entity"
@@ -18,6 +19,7 @@ func V1_10() []*gormigrate.Migration {
 	migrations = append(migrations, V1_10_0()...)
 	migrations = append(migrations, V1_10_1()...)
 	migrations = append(migrations, V1_10_2()...)
+	migrations = append(migrations, V1_10_3()...)
 	return migrations
 }
 
@@ -264,6 +266,57 @@ func V1_10_2() []*gormigrate.Migration {
 					Creator:    "admin",
 				}
 				tx.Create(roleResource)
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+}
+
+func V1_10_3() []*gormigrate.Migration {
+	return []*gormigrate.Migration{
+		{
+			ID: "20250904-v1.10.3",
+			Migrate: func(tx *gorm.DB) error {
+				tx.AutoMigrate(&dockerentity.Container{})
+
+				// 删除容器菜单
+				tx.Exec("update t_sys_resource set is_deleted = 1 where code = '/container'")
+
+				// 新增容器管理基本权限
+				tx.Exec("INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (1757145306, 94, 'Tag3fhad/glxajg23/Bbrte5UH/', 2, 1, 'menu.containerManageBase', 'container', 1757145306, 'null', 1, 'admin', 1, 'admin', '2025-09-06 15:55:06', '2025-09-06 15:56:10', 0, NULL)")
+
+				// 机器列表相关菜单权限
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Alw1Xkq3/', pid=1756122788 where ui_path = 'Tag3fhad/glxajg23/Alw1Xkq3/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Lsew24Kx/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Lsew24Kx/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Keiqkx4L/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Keiqkx4L/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Keal2Xke/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Keal2Xke/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Ihfs2xaw/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Ihfs2xaw/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/3ldkxJDx/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/3ldkxJDx/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Ljewix43/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Ljewix43/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/L12wix43/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/L12wix43/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Ljewisd3/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Ljewisd3/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Ljeew43/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Ljeew43/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/ODewix43/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/ODewix43/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/LIEwix43/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/LIEwix43/'")
+
+				// redis
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/IUlxia23/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/IUlxia23/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/Gxlagheg/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/Gxlagheg/'")
+
+				// db
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/TGFPA3Ez/', pid=1756122788 where ui_path = 'Tag3fhad/glxajg23/TGFPA3Ez/'")
+
+				// es
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/SQNFhhhn/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/SQNFhhhn/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/XAgy5Uvp/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/XAgy5Uvp/'")
+
+				// mongo
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/xvpKk36u/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/xvpKk36u/'")
+				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/3sblw1Wb/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/3sblw1Wb/'")
 
 				return nil
 			},

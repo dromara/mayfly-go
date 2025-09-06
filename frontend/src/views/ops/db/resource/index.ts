@@ -1,7 +1,7 @@
 import { ContextmenuItem } from '@/components/contextmenu';
 
 import { NodeType, TagTreeNode, ResourceConfig } from '../../component/tag';
-import { ResourceTypeEnum } from '@/common/commonEnum';
+import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import { defineAsyncComponent } from 'vue';
 import { dbApi } from '../api';
 import { sleep } from '@/common/utils/loading';
@@ -13,6 +13,7 @@ import { formatByteSize } from '@/common/utils/format';
 const DbInstList = defineAsyncComponent(() => import('../InstanceList.vue'));
 const DbDataOp = defineAsyncComponent(() => import('./DbDataOp.vue'));
 const NodeDbInst = defineAsyncComponent(() => import('./NodeDbInst.vue'));
+const NodeDb = defineAsyncComponent(() => import('./NodeDb.vue'));
 const NodeDbTable = defineAsyncComponent(() => import('./NodeDbTable.vue'));
 
 const DbIcon = {
@@ -65,34 +66,58 @@ const ContextmenuItemRefresh = new ContextmenuItem('refresh', 'common.refresh')
     .withIcon('RefreshRight')
     .withOnClick(async (node: TagTreeNode) => (await node.ctx?.addResourceComponent(DbDataOpComp)).reloadNode(node.key));
 
-// tagpath 节点类型
-const NodeTypeDbTag = new NodeType(TagTreeNode.TagPath)
-    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-        parentNode.ctx?.addResourceComponent(DbDataOpComp);
+// 数据库实例节点类型
+const NodeTypeDbInst = new NodeType(TagResourceTypeEnum.DbInstance.value).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    parentNode.ctx?.addResourceComponent(DbDataOpComp);
+    const tagPath = parentNode.params.tagPath;
 
-        const tagPath = parentNode.params.tagPath;
-        const dbInfoRes = await dbApi.dbs.request({ tagPath });
+    const dbInstancesRes = await dbApi.instances.request({ tagPath, pageSize: 100 });
+    const dbInstances = dbInstancesRes.list;
+    if (!dbInstances) {
+        return [];
+    }
+
+    // 防止过快加载会出现一闪而过，对眼睛不好
+    await sleep(100);
+    return dbInstances?.map((x: any) => {
+        x.tagPath = tagPath;
+        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeDbConf).withParams(x).withNodeComponent(NodeDbInst);
+    });
+});
+
+// 数据库配置节点类型
+const NodeTypeDbConf = new NodeType(TagResourceTypeEnum.Db.value)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+
+        const tagPath = params.tagPath;
+        const authCerts = {} as any;
+        for (let authCert of params.authCerts) {
+            authCerts[authCert.name] = authCert;
+        }
+
+        const dbInfoRes = await dbApi.dbs.request({
+            tagPath: `${tagPath}${TagResourceTypeEnum.DbInstance.value}|${params.code}`,
+        });
         const dbInfos = dbInfoRes.list;
         if (!dbInfos) {
             return [];
         }
 
-        // 防止过快加载会出现一闪而过，对眼睛不好
-        await sleep(100);
         return dbInfos?.map((x: any) => {
             x.tagPath = tagPath;
-            return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeDbInst).withParams(x).withNodeComponent(NodeDbInst);
+            x.username = authCerts[x.authCertName]?.username;
+            return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeDbs).withParams(x).withIcon(DbIcon).withNodeComponent(NodeDb);
         });
     })
     .withContextMenuItems([ContextmenuItemRefresh]);
 
-// 数据库实例节点类型
-const NodeTypeDbInst = new NodeType(1).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+// 数据库列表名类型
+const NodeTypeDbs = new NodeType(222).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
     const dbs = (await DbInst.getDbNames(params))?.sort();
     // 查询数据库版本信息
     const version = await dbApi.getCompatibleDbVersion.request({ id: params.id, db: dbs[0] });
-
     return dbs.map((x: any) => {
         return TagTreeNode.new(parentNode, `${parentNode.key}.${x}`, x, NodeTypeDb)
             .withParams({
@@ -282,7 +307,7 @@ const getSqlMenuNodeKey = (dbId: number, db: string) => {
 export default {
     order: 2,
     resourceType: ResourceTypeEnum.Db.value,
-    rootNodeType: NodeTypeDbTag,
+    rootNodeType: NodeTypeDbInst,
     manager: {
         componentConf: {
             component: DbInstList,

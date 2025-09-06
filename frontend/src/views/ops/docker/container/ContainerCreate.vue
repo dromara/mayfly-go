@@ -17,7 +17,7 @@
                 <template #label>
                     {{ $t('docker.image') }}
                     <el-tooltip :content="$t('docker.imageTips')" placement="top">
-                        <SvgIcon class="mb10" name="question-filled" />
+                        <SvgIcon class="mb-1" name="question-filled" />
                     </el-tooltip>
                 </template>
 
@@ -34,9 +34,7 @@
             </el-form-item>
 
             <el-form-item prop="cmdStr" :label="$t('Command')">
-                <el-select v-model="form.cmdStr" filterable allow-create>
-                    <el-option v-for="item in defaultCommands" :key="item" :label="item" :value="item"></el-option>
-                </el-select>
+                <el-input v-model="form.cmdStr" />
             </el-form-item>
 
             <el-form-item :label="$t('docker.port')">
@@ -283,8 +281,8 @@ const rules = {
 };
 
 const props = defineProps({
-    host: {
-        type: String,
+    id: {
+        type: Number,
         required: true,
     },
 });
@@ -310,8 +308,6 @@ const defaultForm = {
     labelsStr: '',
     envsStr: '',
 };
-
-const defaultCommands = ["start.sh jupyter notebook --NotebookApp.token=''"];
 
 const state = reactive({
     dockerInfo: {} as any,
@@ -349,10 +345,10 @@ const runtimeSelect = computed(() => {
 const init = async () => {
     state.form = deepClone(defaultForm);
     state.submitForm = {};
-    dockerApi.info.request({ host: props.host }).then((res) => {
+    dockerApi.info.request({ id: props.id }).then((res) => {
         state.dockerInfo = res;
     });
-    state.images = await dockerApi.images.request({ host: props.host });
+    state.images = await dockerApi.images.request({ id: props.id });
 };
 
 const handlePortsAdd = () => {
@@ -398,7 +394,7 @@ const btnOk = async () => {
     await useI18nFormValidate(formRef);
 
     state.submitForm = { ...state.form };
-    state.submitForm.host = props.host;
+    state.submitForm.id = props.id;
 
     if (state.submitForm.exposedPorts) {
         state.submitForm.exposedPorts = state.form.exposedPorts.map((item: any) => {

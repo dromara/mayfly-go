@@ -10,4 +10,6 @@ var Zh_CN = map[i18n.MsgId]string{
 
 	LogDockerImageRemove: "镜像-删除",
 	LogDockerImageLoad:   "镜像-导入",
+
+	ErrContainerConfExist: "容器配置已存在",
 }

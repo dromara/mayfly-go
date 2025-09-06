@@ -12,7 +12,7 @@ const props = defineProps({
         required: true,
     },
     value: {
-        type: [Object, String, Number, null],
+        type: [Object, String, Number, null, Boolean],
         required: true,
         default: () => null,
     },

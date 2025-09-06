@@ -35,7 +35,7 @@
             </template>
         </el-table-column>
 
-        <el-table-column prop="size" :label="$t('docker.size')" :min-width="50">
+        <el-table-column prop="size" :label="$t('docker.size')" :min-width="60">
             <template #default="{ row }">
                 {{ formatByteSize(row.size) }}
             </template>
@@ -79,7 +79,7 @@
         draggable
         append-to-body
     >
-        <TerminalBody ref="terminal" :socket-url="getDockerExecSocketUrl(params.host, terminalDialog.containerId)" height="560px" />
+        <TerminalBody ref="terminal" :socket-url="getDockerExecSocketUrl(props.id, terminalDialog.containerId)" height="560px" />
     </el-dialog>
 </template>
 
@@ -99,15 +99,15 @@ import { ElMessage } from 'element-plus';
 import { i18n } from '@/i18n';
 
 const props = defineProps({
-    host: {
-        type: String,
+    id: {
+        type: Number,
         default: '',
     },
 });
 
 const state = reactive({
     params: {
-        host: props.host,
+        id: 0,
         name: '',
         state: null,
     },
@@ -147,6 +147,10 @@ const filterTableDatas = computed(() => {
 });
 
 const getImages = async () => {
+    if (!props.id) {
+        return;
+    }
+    state.params.id = props.id;
     state.loadingImages = true;
     try {
         state.images = await dockerApi.images.request(state.params);
@@ -157,7 +161,7 @@ const getImages = async () => {
 
 const exportImage = async (row: any) => {
     const a = document.createElement('a');
-    a.setAttribute('href', `${config.baseApiUrl}/docker/images/save?host=${state.params.host}&tag=${row.tags[0]}&${joinClientParams()}`);
+    a.setAttribute('href', `${config.baseApiUrl}/docker/${props.id}/images/save?id=${props.id}&tag=${row.tags[0]}&${joinClientParams()}`);
     a.setAttribute('target', '_blank');
     a.click();
 };
@@ -166,7 +170,7 @@ const uploadImage = (content: any) => {
     const params = new FormData();
     // const path = state.nowPath;
     params.append('file', content.file);
-    params.append('host', state.params.host);
+    params.append('id', props.id + '');
     params.append('token', token);
     dockerApi.imageUpload
         .xhrReq(params, {
@@ -193,7 +197,7 @@ const uploadSuccess = (res: any) => {
 };
 
 const imageRemove = async (row: any) => {
-    await dockerApi.imageRemove.request({ host: state.params.host, imageId: row.id });
+    await dockerApi.imageRemove.request({ id: props.id, imageId: row.id });
     getImages();
 };
 

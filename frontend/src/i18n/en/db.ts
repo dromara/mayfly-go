@@ -65,7 +65,7 @@ export default {
         resultSet: 'Result Set',
         tableDataEmptyTextTips:
             'tips: Single table query at the beginning of select * or click the default query data of the table name, double-click the data online modification',
-        noSelctRunSqlMsg: 'Select the sql you want to execute',
+        noSelectRunSqlMsg: 'Select the sql you want to execute or move the cursor near the sql you want to execute',
         enterExecRemarkTips: 'Please enter remark',
         execRemarkPlaceholder: 'Enter the remark to execute the sql',
         currentSqlTabIsRunning: 'The current result set tab is being executed, please use the new TAB to execute',

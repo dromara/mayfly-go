@@ -6,7 +6,6 @@ import (
 	"io"
 	"mayfly-go/internal/docker/api/form"
 	"mayfly-go/internal/docker/api/vo"
-	"mayfly-go/internal/docker/dkm"
 	"mayfly-go/internal/docker/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
@@ -52,12 +51,11 @@ func (d *Container) ReqConfs() *req.Confs {
 		req.NewGet("/logs", d.ContainerLogs).NoRes(),
 	}
 
-	return req.NewConfs("docker/containers", reqs[:]...)
+	return req.NewConfs("docker/:id/containers", reqs[:]...)
 }
 
 func (d *Container) GetContainers(rc *req.Ctx) {
-	cli, err := dkm.GetCli(rc.Query("host"))
-	biz.ErrIsNil(err)
+	cli := GetCli(rc)
 	cs, err := cli.ContainerList()
 	biz.ErrIsNil(err)
 
@@ -89,8 +87,7 @@ func (d *Container) GetContainers(rc *req.Ctx) {
 }
 
 func (d *Container) GetContainersStats(rc *req.Ctx) {
-	cli, err := dkm.GetCli(rc.Query("host"))
-	biz.ErrIsNil(err)
+	cli := GetCli(rc)
 	cs, err := cli.ContainerList()
 	biz.ErrIsNil(err)
 
@@ -141,8 +138,7 @@ func (d *Container) ContainerCreate(rc *req.Ctx) {
 
 	rc.ReqParam = containerCreate
 
-	cli, err := dkm.GetCli(containerCreate.Host)
-	biz.ErrIsNil(err)
+	cli := GetCli(rc)
 
 	config, hostConfig, networkConfig, err := loadConfigInfo(true, containerCreate, nil)
 	biz.ErrIsNil(err)
@@ -167,36 +163,30 @@ func (d *Container) ContainerStop(rc *req.Ctx) {
 	containerOp := &form.ContainerOp{}
 	biz.ErrIsNil(rc.BindJSON(containerOp))
 
-	rc.ReqParam = collx.Kvs("host", containerOp.Host, "containerId", containerOp.ContainerId)
+	cli := GetCli(rc)
+	rc.ReqParam = collx.Kvs("addr", cli.Server.Addr, "containerId", containerOp.ContainerId)
 
-	cli, err := dkm.GetCli(containerOp.Host)
-	biz.ErrIsNil(err)
-	err = cli.ContainerStop(containerOp.ContainerId)
-	biz.ErrIsNil(err)
+	biz.ErrIsNil(cli.ContainerStop(containerOp.ContainerId))
 }
 
 func (d *Container) ContainerRemove(rc *req.Ctx) {
 	containerOp := &form.ContainerOp{}
 	biz.ErrIsNil(rc.BindJSON(containerOp))
 
-	rc.ReqParam = collx.Kvs("host", containerOp.Host, "containerId", containerOp.ContainerId)
+	cli := GetCli(rc)
+	rc.ReqParam = collx.Kvs("addr", cli.Server.Addr, "containerId", containerOp.ContainerId)
 
-	cli, err := dkm.GetCli(containerOp.Host)
-	biz.ErrIsNil(err)
-	err = cli.ContainerRemove(containerOp.ContainerId)
-	biz.ErrIsNil(err)
+	biz.ErrIsNil(cli.ContainerRemove(containerOp.ContainerId))
 }
 
 func (d *Container) ContainerRestart(rc *req.Ctx) {
 	containerOp := &form.ContainerOp{}
 	biz.ErrIsNil(rc.BindJSON(containerOp))
 
-	rc.ReqParam = collx.Kvs("host", containerOp.Host, "containerId", containerOp.ContainerId)
+	cli := GetCli(rc)
+	rc.ReqParam = collx.Kvs("addr", cli.Server.Addr, "containerId", containerOp.ContainerId)
 
-	cli, err := dkm.GetCli(containerOp.Host)
-	biz.ErrIsNil(err)
-	err = cli.ContainerRestart(containerOp.ContainerId)
-	biz.ErrIsNil(err)
+	biz.ErrIsNil(cli.ContainerRestart(containerOp.ContainerId))
 }
 
 func (d *Container) ContainerLogs(rc *req.Ctx) {
@@ -211,9 +201,7 @@ func (d *Container) ContainerLogs(rc *req.Ctx) {
 	}()
 	biz.ErrIsNilAppendErr(err, "Upgrade websocket fail: %s")
 
-	cli, err := dkm.GetCli(rc.Query("host"))
-	biz.ErrIsNil(err)
-
+	cli := GetCli(rc)
 	ctx, cancel := context.WithCancel(rc.MetaCtx)
 	defer cancel()
 
@@ -288,9 +276,7 @@ func (d *Container) ContainerExecAttach(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "Upgrade websocket fail: %s")
 	wsConn.WriteMessage(websocket.TextMessage, []byte("Connecting to container..."))
 
-	cli, err := dkm.GetCli(rc.Query("host"))
-	biz.ErrIsNil(err)
-
+	cli := GetCli(rc)
 	cols := rc.QueryIntDefault("cols", 80)
 	rows := rc.QueryIntDefault("rows", 32)
 
@@ -311,9 +297,7 @@ func (d *Container) ContainerProxy(rc *req.Ctx) {
 	containerID := pathParts[2]
 	remainingPath := strings.Join(pathParts[3:], "/")
 
-	cli, err := dkm.GetCli(rc.Query("host"))
-	biz.ErrIsNil(err)
-
+	cli := GetCli(rc)
 	ctx := rc.MetaCtx
 	containerJSON, err := cli.DockerClient.ContainerInspect(ctx, containerID)
 	biz.ErrIsNil(err)

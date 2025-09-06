@@ -12,7 +12,13 @@ import { ElMessage } from 'element-plus';
 export function templateResolve(template: string, param: any) {
     return template.replace(/\{\w+\}/g, (word) => {
         const key = word.substring(1, word.length - 1);
-        const value = param[key];
+        let value;
+        // 兼容FormData类型的参数
+        if (param instanceof FormData) {
+            value = param.get(key);
+        } else {
+            value = param[key];
+        }
         if (value != null || value != undefined) {
             return value;
         }

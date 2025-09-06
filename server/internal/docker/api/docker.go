@@ -1,7 +1,6 @@
 package api
 
 import (
-	"mayfly-go/internal/docker/dkm"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 )
@@ -14,13 +13,11 @@ func (d *Docker) ReqConfs() *req.Confs {
 		req.NewGet("/info", d.GetDockerInfo),
 	}
 
-	return req.NewConfs("docker", reqs[:]...)
+	return req.NewConfs("docker/:id", reqs[:]...)
 }
 
 func (d *Docker) GetDockerInfo(rc *req.Ctx) {
-	host := rc.Query("host")
-	cli, err := dkm.GetCli(host)
-	biz.ErrIsNil(err)
+	cli := GetCli(rc)
 	info, err := cli.DockerClient.Info(rc.MetaCtx)
 	biz.ErrIsNil(err)
 	rc.ResData = info

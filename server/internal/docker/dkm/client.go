@@ -3,6 +3,7 @@ package dkm
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/logx"
@@ -26,13 +27,13 @@ const (
 	DefaultServer = "unix:///var/run/docker.sock"
 )
 
-type DockerServer struct {
-	Host string
-
-	Client *client.Client
+type ContainerServer struct {
+	Id   uint64
+	Addr string
 }
 
 type Client struct {
+	Server       *ContainerServer
 	DockerClient *client.Client
 }
 
@@ -46,12 +47,13 @@ func (c *Client) Ping() error {
 }
 
 // GetCli get docker cli
-func GetCli(host string) (*Client, error) {
-	if host == "" {
-		host = DefaultServer
-	}
-	pool, err := poolGroup.GetCachePool(host, func() (*Client, error) {
-		return NewClient(&DockerServer{Host: host})
+func GetCli(id uint64, getContainer func(uint64) (*ContainerServer, error)) (*Client, error) {
+	pool, err := poolGroup.GetCachePool(fmt.Sprintf("%d", id), func() (*Client, error) {
+		containerServer, err := getContainer(id)
+		if err != nil {
+			return nil, err
+		}
+		return NewClient(containerServer)
 	})
 	if err != nil {
 		return nil, err
@@ -59,18 +61,23 @@ func GetCli(host string) (*Client, error) {
 	return pool.Get(context.Background())
 }
 
+func CloseCli(id uint64) error {
+	return poolGroup.Close(fmt.Sprintf("%d", id))
+}
+
 // NewClient new docker client
-func NewClient(server *DockerServer) (*Client, error) {
-	if server.Host == "" {
-		server.Host = DefaultServer
+func NewClient(server *ContainerServer) (*Client, error) {
+	if server.Addr == "" {
+		server.Addr = DefaultServer
 	}
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(server.Host), client.WithAPIVersionNegotiation())
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithHost(server.Addr), client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, err
 	}
 
 	return &Client{
 		DockerClient: cli,
+		Server:       server,
 	}, nil
 }
 

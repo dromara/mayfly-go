@@ -2,32 +2,34 @@
     <div>
         <el-drawer title="logs" v-model="visible" @close="close" :destroy-on-close="true" :close-on-click-modal="true" size="60%">
             <template #header>
-                <DrawerHeader :header="props.host" :back="() => (visible = false)">
+                <DrawerHeader :header="`${props.title}`" :back="() => (visible = false)">
                     <template #extra>
                         <div class="mr20"></div>
                     </template>
                 </DrawerHeader>
             </template>
 
-            <el-row :gutter="10" class="mb20">
-                <el-col :span="6">
-                    <el-select @change="searchLog" v-model.number="state.tail">
-                        <template #prefix>{{ $t('docker.lines') }}</template>
-                        <el-option :value="100" :label="100" />
-                        <el-option :value="200" :label="200" />
-                        <el-option :value="500" :label="500" />
-                        <el-option :value="1000" :label="1000" />
-                    </el-select>
-                </el-col>
+            <div class="flex flex-col flex-1">
+                <el-row :gutter="10" class="mb-2">
+                    <el-col :span="6">
+                        <el-select @change="searchLog" v-model.number="state.tail">
+                            <template #prefix>{{ $t('docker.lines') }}</template>
+                            <el-option :value="100" :label="100" />
+                            <el-option :value="200" :label="200" />
+                            <el-option :value="500" :label="500" />
+                            <el-option :value="1000" :label="1000" />
+                        </el-select>
+                    </el-col>
 
-                <el-col :span="6">
-                    <el-checkbox @change="searchLog" border v-model="state.isWatch">
-                        {{ $t('docker.follow') }}
-                    </el-checkbox>
-                </el-col>
-            </el-row>
+                    <el-col :span="6">
+                        <el-checkbox @change="searchLog" border v-model="state.isWatch">
+                            {{ $t('docker.follow') }}
+                        </el-checkbox>
+                    </el-col>
+                </el-row>
 
-            <RealLogViewer ref="realLogViewerRef" :ws-url="wsUrl" height="calc(100vh - 200px)" />
+                <RealLogViewer ref="realLogViewerRef" :ws-url="wsUrl" height="calc(100vh - 200px)" />
+            </div>
         </el-drawer>
     </div>
 </template>
@@ -39,7 +41,11 @@ import { getContainerLogSocketUrl } from '../api';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
 const props = defineProps({
-    host: {
+    id: {
+        type: Number,
+        default: '',
+    },
+    title: {
         type: String,
         default: '',
     },
@@ -60,7 +66,7 @@ const state = reactive({
 });
 
 const wsUrl = computed(
-    () => `${getContainerLogSocketUrl(props.host, props.containerId)}&tail=${state.tail}&follow=${state.isWatch ? '1' : '0'}&since=${state.since}`
+    () => `${getContainerLogSocketUrl(props.id, props.containerId)}&tail=${state.tail}&follow=${state.isWatch ? '1' : '0'}&since=${state.since}`
 );
 
 const searchLog = () => {

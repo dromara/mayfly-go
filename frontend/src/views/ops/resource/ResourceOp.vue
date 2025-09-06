@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <ResourceOpPanel @resize="onResizeOpPanel">
-            <template #left>
+        <el-splitter @resize="onResizeOpPanel">
+            <el-splitter-panel size="24%" max="40%">
                 <el-card class="h-full flex tag-tree-card" body-class="!p-0 flex flex-col w-full">
                     <div class="tag-tree-header flex flex-row justify-between items-center">
                         <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="tag-tree-search w-full">
@@ -19,7 +19,7 @@
                                         <el-dropdown-item
                                             :command="{ name }"
                                             v-for="(compConf, name) in resourceComponents"
-                                            :disabled="name == activeResourceComp"
+                                            :disabled="name == activeResourceCompName"
                                         >
                                             <SvgIcon v-if="compConf.icon" :name="compConf.icon.name" :color="compConf.icon.color" />
                                             <div class="ml-1">{{ $t(name) }}</div>
@@ -53,18 +53,18 @@
                         </el-tree>
                     </el-scrollbar>
                 </el-card>
-            </template>
+            </el-splitter-panel>
 
-            <template #right>
+            <el-splitter-panel>
                 <el-card class="h-full" body-class=" h-full !p-1 flex flex-col flex-1">
                     <transition name="slide-x" mode="out-in">
                         <keep-alive>
-                            <component :is="resourceComponents[activeResourceComp]?.component" :key="activeResourceComp" @init="initResourceComp" />
+                            <component :is="resourceComponents[activeResourceCompName]?.component" :key="activeResourceCompName" @init="initResourceComp" />
                         </keep-alive>
                     </transition>
                 </el-card>
-            </template>
-        </ResourceOpPanel>
+            </el-splitter-panel>
+        </el-splitter>
     </div>
 </template>
 
@@ -78,7 +78,6 @@ import EnumValue from '@/common/Enum';
 import { getResourceNodeType, getResourceTypes, ResourceOpCtxKey } from './resource';
 import BaseTreeNode from './BaseTreeNode.vue';
 import { tagApi } from '@/views/ops/tag/api';
-import ResourceOpPanel from '@/views/ops/component/ResourceOpPanel.vue';
 import { TagTreeNode, ResourceComponentConfig, ResourceOpCtx } from '@/views/ops/component/tag';
 import { useI18n } from 'vue-i18n';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
@@ -110,10 +109,14 @@ const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
 
 const treeRef: any = useTemplateRef('treeRef');
 
-// 存储所有注册的资源组件引用
+// 存储所有注册的资源组件引用，key -> 组件名称
 const resourceComponents = ref<Record<string, ResourceComponentConfig>>({});
-// 当前激活的资源组件
-const activeResourceComp = ref<string>('');
+
+// 存储当前组件对应的最后操作的节点key，用户切换资源操作组件时，定位到相应的树节点
+const resourceComponentsNodeKey = ref<Record<string, string>>({});
+
+// 当前激活（正在操作）的资源组件
+const activeResourceCompName = ref<string>('');
 
 const resourceComponentRefs = ref<Record<string, any>>({});
 
@@ -214,20 +217,26 @@ let lastNodeClickTime = 0;
 
 const treeNodeClick = async (data: any, node: any) => {
     const currentClickNodeTime = Date.now();
+    // 双击节点
     if (currentClickNodeTime - lastNodeClickTime < 300) {
-        treeNodeDblclick(data, node);
-        return;
+        await treeNodeDblclick(data, node);
+    } else {
+        lastNodeClickTime = currentClickNodeTime;
+        if (!data.disabled && !data.type.nodeDblclickFunc && data.type.nodeClickFunc) {
+            emit('nodeClick', data);
+            await data.type.nodeClickFunc(data);
+        }
     }
-    lastNodeClickTime = currentClickNodeTime;
 
-    if (!data.disabled && !data.type.nodeDblclickFunc && data.type.nodeClickFunc) {
-        emit('nodeClick', data);
-        await data.type.nodeClickFunc(data);
-    }
+    setTimeout(() => {
+        if (activeResourceCompName.value) {
+            resourceComponentsNodeKey.value[activeResourceCompName.value] = data.key;
+        }
+    }, 500);
 };
 
 // 树节点双击事件
-const treeNodeDblclick = (data: any, node: any) => {
+const treeNodeDblclick = async (data: any, node: any) => {
     if (node.expanded) {
         node.collapse();
     } else {
@@ -235,7 +244,7 @@ const treeNodeDblclick = (data: any, node: any) => {
     }
 
     if (!data.disabled && data.type.nodeDblclickFunc) {
-        data.type.nodeDblclickFunc(data);
+        await data.type.nodeDblclickFunc(data);
     }
 };
 
@@ -248,7 +257,6 @@ const initResourceComp = (val: any) => {
 };
 
 const addResourceComponent = async (componentConf: ResourceComponentConfig) => {
-    console.log(componentConf);
     const compName = componentConf.name;
 
     if (!resourceComponents.value[compName]) {
@@ -259,7 +267,7 @@ const addResourceComponent = async (componentConf: ResourceComponentConfig) => {
         };
     }
 
-    activeResourceComp.value = compName;
+    activeResourceCompName.value = compName;
 
     // 使用一个 Promise 来确保组件引用已经被设置
     return new Promise((resolve) => {
@@ -279,7 +287,11 @@ const addResourceComponent = async (componentConf: ResourceComponentConfig) => {
 };
 
 const changeResourceOp = (data: any) => {
-    activeResourceComp.value = data.name;
+    const compName = data.name;
+    activeResourceCompName.value = compName;
+    if (resourceComponentsNodeKey.value[compName]) {
+        setCurrentKey(resourceComponentsNodeKey.value[compName]);
+    }
 };
 
 const reloadNode = (nodeKey: any) => {

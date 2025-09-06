@@ -183,6 +183,10 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 			Types:         collx.AsArray(entity.TagTypeMongo),
 			CodePathLikes: collx.AsArray(tagPath),
 		}).GetCodes()),
+		"container": len(p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
+			Types:         collx.AsArray(entity.TagTypeContainer),
+			CodePathLikes: collx.AsArray(tagPath),
+		}).GetCodes()),
 	}
 }
 

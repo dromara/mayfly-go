@@ -5,7 +5,6 @@ import (
 	"io"
 	"mayfly-go/internal/docker/api/form"
 	"mayfly-go/internal/docker/api/vo"
-	"mayfly-go/internal/docker/dkm"
 	"mayfly-go/internal/docker/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
@@ -32,12 +31,11 @@ func (d *Image) ReqConfs() *req.Confs {
 		req.NewPost("/load", d.ImageLoad).Log(req.NewLogSaveI(imsg.LogDockerImageLoad)),
 	}
 
-	return req.NewConfs("docker/images", reqs[:]...)
+	return req.NewConfs("docker/:id/images", reqs[:]...)
 }
 
 func (d *Image) GetImages(rc *req.Ctx) {
-	cli, err := dkm.GetCli(rc.Query("host"))
-	biz.ErrIsNil(err)
+	cli := GetCli(rc)
 	is, err := cli.ImageList()
 	biz.ErrIsNil(err)
 
@@ -62,18 +60,12 @@ func (d *Image) ImageRemove(rc *req.Ctx) {
 	imageOp := &form.ImageOp{}
 	biz.ErrIsNil(rc.BindJSON(imageOp))
 
-	rc.ReqParam = collx.Kvs("host", imageOp.Host, "imageId", imageOp.ImageId)
-	cli, err := dkm.GetCli(imageOp.Host)
-	biz.ErrIsNil(err)
-	err = cli.ImageRemove(imageOp.ImageId)
-	biz.ErrIsNil(err)
+	rc.ReqParam = collx.Kvs("imageId", imageOp.ImageId)
+	cli := GetCli(rc)
+	biz.ErrIsNil(cli.ImageRemove(imageOp.ImageId))
 }
 
 func (d *Image) ImageLoad(rc *req.Ctx) {
-	host := rc.PostForm("host")
-	biz.NotEmpty(host, "host cannot be empty")
-	rc.ReqParam = host
-
 	fileheader, err := rc.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "read form file error: %s")
 
@@ -81,8 +73,9 @@ func (d *Image) ImageLoad(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 	defer file.Close()
 
-	cli, err := dkm.GetCli(host)
-	biz.ErrIsNil(err)
+	cli := GetCli(rc)
+	rc.ReqParam = cli.Server
+
 	resp, err := cli.DockerClient.ImageLoad(rc.MetaCtx, file)
 	biz.ErrIsNil(err)
 	defer resp.Body.Close()
@@ -94,14 +87,10 @@ func (d *Image) ImageLoad(rc *req.Ctx) {
 }
 
 func (d *Image) ImageExport(rc *req.Ctx) {
-	host := rc.Query("host")
-	biz.NotEmpty(host, "host cannot be empty")
 	tag := rc.Query("tag")
 	biz.NotEmpty(tag, "tag cannot be empty")
 
-	cli, err := dkm.GetCli(host)
-	biz.ErrIsNil(err)
-
+	cli := GetCli(rc)
 	reader, err := cli.DockerClient.ImageSave(rc.MetaCtx, []string{tag}, client.ImageSaveWithPlatforms())
 	biz.ErrIsNil(err)
 	defer reader.Close()

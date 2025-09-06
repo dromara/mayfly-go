@@ -16,9 +16,9 @@
                         <el-descriptions-item label="version">
                             <span v-loading="loadingServerInfo"> {{ `${dbServerInfo?.version}` }}</span>
                         </el-descriptions-item>
-                        <el-descriptions-item :label="$t('db.acName')">
+                        <!-- <el-descriptions-item :label="$t('db.acName')">
                             {{ data.params.authCertName }}
-                        </el-descriptions-item>
+                        </el-descriptions-item> -->
                         <el-descriptions-item :label="$t('common.remark')">
                             {{ data.params.remark }}
                         </el-descriptions-item>
@@ -45,7 +45,7 @@ const showDbInfo = async (db: any) => {
     if (dbServerInfo.value) {
         dbServerInfo.value.version = '';
     }
-    serverInfoReqParam.value.instanceId = db.instanceId;
+    serverInfoReqParam.value.instanceId = db.id;
     await getDbServerInfo();
 };
 </script>

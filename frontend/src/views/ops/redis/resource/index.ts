@@ -43,7 +43,7 @@ const NodeTypeRedis = new NodeType(2).withLoadNodesFunc(async (parentNode: TagTr
     const redisInfo = parentNode.params;
 
     let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
-        return TagTreeNode.new(parentNode, x, `db${x}`, NodeTypeDb)
+        return TagTreeNode.new(parentNode, `${parentNode.key}.${x}`, `db${x}`, NodeTypeDb)
             .withIsLeaf(true)
             .withParams({
                 id: redisInfo.id,

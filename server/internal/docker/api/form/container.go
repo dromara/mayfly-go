@@ -1,12 +1,22 @@
 package form
 
+import "mayfly-go/pkg/model"
+
+type ContainerSave struct {
+	model.ExtraData
+
+	Id           uint64   `json:"id"`
+	Addr         string   `json:"addr" binding:"required"`
+	Name         string   `json:"name" binding:"required"`
+	Remark       string   `json:"remark"`
+	TagCodePaths []string `json:"tagCodePaths" binding:"required"`
+}
+
 type ContainerOp struct {
-	Host        string `json:"host"`
 	ContainerId string `json:"containerId" binding:"required"`
 }
 
 type ContainerCreate struct {
-	Host          string          `json:"host" binding:"required"`
 	ContainerID   string          `json:"containerId"`
 	Name          string          `json:"name" validate:"required"`
 	Image         string          `json:"image" validate:"required"`

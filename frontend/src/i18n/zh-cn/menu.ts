@@ -92,6 +92,8 @@ export default {
         mongoManage: 'Mongo管理',
         mongoManageBase: 'Mongo-管理-基本权限',
 
+        containerManageBase: '容器-管理-基本权限',
+
         flow: '工单流程',
         myTask: '我的任务',
         myFlow: '我的流程',

@@ -41,7 +41,7 @@
             </el-dropdown>
         </span>
 
-        <span v-else class="ml-auto pr-1.5 text-[10px] text-gray-400">
+        <span v-else class="ml-auto pr-2 text-[10px] text-gray-400">
             <slot :node="node" :data="data" name="suffix"></slot>
         </span>
     </div>

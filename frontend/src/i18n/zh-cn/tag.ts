@@ -10,6 +10,7 @@ export default {
         machine: '机器',
         db: '数据库',
         es: 'ES',
+        container: '容器',
         code: '编号',
         createSubTag: '创建子标签',
         createSubTagTitle: '创建【{codePath}】的子标签',
@@ -20,6 +21,7 @@ export default {
         redisDataOp: 'Redis操作',
         esDataOp: 'ES操作',
         mongoDataOp: 'Mongo操作',
+        containerOp: '容器操作',
         allResource: '所有资源',
     },
     team: {
