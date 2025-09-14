@@ -42,7 +42,7 @@ func (dm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 		return nil, err
 	}
 
-	dsn := fmt.Sprintf("dm://%s:%s@%s:%d/%s", d.Username, url.PathEscape(d.Password), d.Host, d.Port, dbParam)
+	dsn := fmt.Sprintf("dm://%s:%s@%s:%d%s", d.Username, url.PathEscape(d.Password), d.Host, d.Port, dbParam)
 	return sql.Open(driverName, dsn)
 }
 

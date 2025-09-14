@@ -37,10 +37,9 @@
                                 :label="$t(TagResourceTypeEnum.Machine.label)"
                                 :value="TagResourceTypeEnum.Machine.value"
                             />
-
                             <el-option
                                 :key="TagResourceTypeEnum.DbInstance.value"
-                                :label="TagResourceTypeEnum.DbInstance.label"
+                                :label="$t(TagResourceTypeEnum.DbInstance.label)"
                                 :value="TagResourceTypeEnum.DbInstance.value"
                             />
                             <el-option

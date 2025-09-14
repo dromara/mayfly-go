@@ -4,8 +4,8 @@ export default {
         personalCenter: 'Personal Center',
         myResource: 'Resource',
 
-        tag: 'Tag',
-        tagTree: 'Tag Tree',
+        tag: 'Resource',
+        tagTree: 'Resource Tree',
         tagSave: 'Save Tag',
         tagDelete: 'Delete Tag',
         authorization: 'Authorization',

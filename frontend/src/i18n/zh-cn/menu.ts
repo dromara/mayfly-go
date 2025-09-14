@@ -4,8 +4,8 @@ export default {
         personalCenter: '个人中心',
         myResource: '我的资源',
 
-        tag: '标签',
-        tagTree: '标签树',
+        tag: '资源',
+        tagTree: '资源树',
         tagSave: '保存标签',
         tagDelete: '删除标签',
         authorization: '授权凭证',

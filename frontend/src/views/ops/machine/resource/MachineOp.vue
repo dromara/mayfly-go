@@ -30,7 +30,7 @@
                     </el-popover>
                 </template>
 
-                <div :ref="(el: any) => setTerminalWrapperRef(el, dt.key)" class="terminal-wrapper flex-1 h-[calc(100vh-155px)]">
+                <div class="terminal-wrapper flex-1 h-[calc(100vh-155px)]">
                     <TerminalBody
                         v-if="dt.params.protocol == MachineProtocolEnum.Ssh.value"
                         :mount-init="false"
@@ -161,11 +161,6 @@ const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
 
 const emits = defineEmits(['init']);
 
-class MachineNodeType {
-    static Machine = 1;
-    static AuthCert = 2;
-}
-
 const resourceOpCtx: ResourceOpCtx | undefined = inject(ResourceOpCtxKey);
 
 const state = reactive({
@@ -294,10 +289,11 @@ const openTerminal = (machine: any, ex?: boolean) => {
     };
 
     state.tabs.set(key, tab);
-    state.activeTermName = key;
 
     nextTick(() => {
         handleReconnect(tab);
+        state.activeTermName = key;
+        setTimeout(() => fitTerminal(), 300);
     });
 };
 
@@ -398,17 +394,6 @@ const setTerminalRef = (el: any, key: any) => {
     }
 };
 
-const terminalWrapperRefs: any = {};
-const setTerminalWrapperRef = (el: any, key: any) => {
-    if (key) {
-        terminalWrapperRefs[key] = el;
-    }
-};
-
-const onResizeTagTree = () => {
-    fitTerminal();
-};
-
 const fitTerminal = () => {
     setTimeout(() => {
         let info = state.tabs.get(state.activeTermName);
@@ -419,9 +404,7 @@ const fitTerminal = () => {
 };
 
 const handleReconnect = (tab: any, force = false) => {
-    let width = terminalWrapperRefs[tab.key]?.offsetWidth;
-    let height = terminalWrapperRefs[tab.key]?.offsetHeight;
-    terminalRefs[tab.key]?.init(width, height, force);
+    terminalRefs[tab.key]?.init();
 };
 
 defineExpose({

@@ -654,8 +654,9 @@ const onCopyConfigClick = (target: any) => {
 };
 
 const checkClientWidth = () => {
-    const oldLayout = getLocal('oldLayout');
+    let oldLayout = getLocal('oldLayout');
     if (!oldLayout) {
+        oldLayout = themeConfig.value.layout;
         setLocal('oldLayout', themeConfig.value.layout);
     }
     if (width.value < 1000) {
