@@ -1,5 +1,5 @@
 # 构建前端资源
-FROM m.daocloud.io/docker.io/node:18-bookworm-slim AS fe-builder
+FROM m.daocloud.io/docker.io/node:20-bookworm-slim AS fe-builder
 
 WORKDIR /mayfly
 
@@ -10,9 +10,9 @@ RUN yarn config set registry 'https://registry.npmmirror.com' && \
     yarn build
 
 # 构建后端资源
-FROM m.daocloud.io/docker.io/golang:1.23 AS be-builder
+FROM m.daocloud.io/docker.io/golang:1.25 AS be-builder
 
-ENV GOPROXY https://goproxy.cn
+ENV GOPROXY=https://goproxy.cn
 WORKDIR /mayfly
 
 # Copy the go source for building server
@@ -36,4 +36,5 @@ WORKDIR /mayfly-go
 
 COPY --from=be-builder /mayfly/mayfly-go /usr/local/bin/mayfly-go
 
+EXPOSE 18888
 CMD ["mayfly-go"]
