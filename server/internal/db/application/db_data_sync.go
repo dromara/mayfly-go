@@ -94,7 +94,7 @@ func (app *dataSyncAppImpl) Delete(ctx context.Context, id uint64) error {
 
 func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 	if app.IsRunning(id) {
-		logx.Warn("[%d] the db sync task is running...", id)
+		logx.Warnf("[%d] the db sync task is running...", id)
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 				logx.ErrorfContext(ctx, "data source connection unavailable: %s", err.Error())
 				return
 			}
-			srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
+			srcConn, err := app.dbApp.GetDbConn(context.Background(), uint64(task.SrcDbId), task.SrcDbName)
 			if err != nil {
 				logx.ErrorfContext(ctx, "failed to connect to the source database: %s", err.Error())
 				return
@@ -381,6 +381,7 @@ func (app *dataSyncAppImpl) InitCronJob() {
 
 	if err := app.CursorByCond(&entity.DataSyncTaskQuery{Status: entity.DataSyncTaskStatusEnable}, func(dst *entity.DataSyncTask) error {
 		app.addCronJob(contextx.NewTraceId(), dst)
+		app.MarkStop(dst.Id)
 		return nil
 	}); err != nil {
 		logx.ErrorTrace("the db data sync task failed to initialize: %v", err)

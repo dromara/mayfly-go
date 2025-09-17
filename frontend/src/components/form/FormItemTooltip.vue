@@ -1,14 +1,16 @@
 <template>
     <el-form-item v-bind="$attrs">
         <template #label>
-            {{ props.label }}
+            <div class="flex items-center">
+                {{ props.label }}
 
-            <el-tooltip :placement="props.placement">
-                <template #content>
-                    <span v-html="props.tooltip"></span>
-                </template>
-                <SvgIcon name="QuestionFilled" />
-            </el-tooltip>
+                <el-tooltip :placement="props.placement">
+                    <template #content>
+                        <span v-html="props.tooltip"></span>
+                    </template>
+                    <SvgIcon name="QuestionFilled" class="ml-1" />
+                </el-tooltip>
+            </div>
         </template>
 
         <!-- 遍历父组件传入的 solts 透传给子组件 -->
@@ -24,14 +26,15 @@ import { useSlots } from 'vue';
 const props = defineProps({
     label: {
         type: String,
-        require: true,
+        required: true,
     },
     tooltip: {
         type: String,
-        require: true,
+        required: true,
     },
     placement: {
         type: String,
+        required: true,
         default: 'top',
     },
 });

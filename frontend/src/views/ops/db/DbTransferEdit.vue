@@ -5,38 +5,36 @@
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
-            <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
+            <el-form :model="form" ref="dbForm" :rules="rules" label-position="top" label-width="auto">
                 <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
 
                 <el-form-item prop="taskName" :label="$t('db.taskName')" required>
                     <el-input v-model.trim="form.taskName" auto-complete="off" />
                 </el-form-item>
 
-                <el-form-item>
-                    <el-row class="!w-full">
-                        <el-col :span="12">
-                            <el-form-item prop="status" :label="$t('common.status')">
-                                <el-switch
-                                    v-model="form.status"
-                                    inline-prompt
-                                    :active-text="$t('common.enable')"
-                                    :inactive-text="$t('common.disable')"
-                                    :active-value="1"
-                                    :inactive-value="-1"
-                                />
-                            </el-form-item>
-                        </el-col>
+                <el-row class="!w-full">
+                    <el-col :span="12">
+                        <el-form-item prop="status" :label="$t('common.status')" label-position="left">
+                            <el-switch
+                                v-model="form.status"
+                                inline-prompt
+                                :active-text="$t('common.enable')"
+                                :inactive-text="$t('common.disable')"
+                                :active-value="1"
+                                :inactive-value="-1"
+                            />
+                        </el-form-item>
+                    </el-col>
 
-                        <el-col :span="12">
-                            <el-form-item prop="cronAble" :label="$t('db.cronAble')" required>
-                                <el-radio-group v-model="form.cronAble">
-                                    <el-radio :label="$t('common.yes')" :value="1" />
-                                    <el-radio :label="$t('common.no')" :value="-1" />
-                                </el-radio-group>
-                            </el-form-item>
-                        </el-col>
-                    </el-row>
-                </el-form-item>
+                    <el-col :span="12">
+                        <el-form-item prop="cronAble" :label="$t('db.cronAble')" required label-position="left">
+                            <el-radio-group v-model="form.cronAble">
+                                <el-radio :label="$t('common.yes')" :value="1" />
+                                <el-radio :label="$t('common.no')" :value="-1" />
+                            </el-radio-group>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
 
                 <el-form-item prop="cron" label="cron" :required="form.cronAble == 1">
                     <CrontabInput v-model="form.cron" />

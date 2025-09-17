@@ -6,11 +6,11 @@ require (
 	gitee.com/chunanyong/dm v1.8.20
 	gitee.com/liuzongyang/libpq v1.10.11
 	github.com/antlr4-go/antlr/v4 v4.13.1
-	github.com/docker/docker v28.3.3+incompatible
+	github.com/docker/docker v28.4.0+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/glebarez/sqlite v1.11.0
-	github.com/go-gormigrate/gormigrate/v2 v2.1.4
+	github.com/go-gormigrate/gormigrate/v2 v2.1.5
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -26,11 +26,11 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.9
 	github.com/pquerna/otp v1.5.0
-	github.com/redis/go-redis/v9 v9.13.0
+	github.com/redis/go-redis/v9 v9.14.0
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/sijms/go-ora/v2 v2.9.0
-	github.com/spf13/cast v1.9.2
-	github.com/stretchr/testify v1.10.0
+	github.com/spf13/cast v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/gjson v1.18.0
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver/v2 v2.3.0 // mongo
@@ -41,7 +41,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.6.0
-	gorm.io/gorm v1.30.5
+	gorm.io/gorm v1.31.0
 )
 
 require (
@@ -69,7 +69,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect

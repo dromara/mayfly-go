@@ -24,17 +24,16 @@ type Meta struct {
 func (dm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "dm"
 	db := d.Database
-	var dbParam string
+	dbParam := "?escapeProcess=true"
 	if db != "" {
 		// dm database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
 		ss := strings.Split(db, "/")
 		if len(ss) > 1 {
-			dbParam = fmt.Sprintf("%s?schema=\"%s\"&escapeProcess=true", ss[0], ss[len(ss)-1])
-		} else {
-			dbParam = db + "?escapeProcess=true"
+			dbParam = fmt.Sprintf("%s&schema=\"%s\"", dbParam, ss[len(ss)-1])
 		}
-	} else {
-		dbParam = "?escapeProcess=true"
+	}
+	if d.Params != "" {
+		dbParam += "&" + d.Params
 	}
 
 	err := d.IfUseSshTunnelChangeIpPort(ctx)

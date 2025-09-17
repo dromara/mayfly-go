@@ -30,17 +30,16 @@ func (ucs UserClients) Count() int {
 
 // 连接管理
 type ClientManager struct {
-	UserClientsMap map[UserId]UserClients // 全部的用户连接, key->userid, value->UserClients
-	RwLock         sync.RWMutex           // 读写锁
+	UserClientsMap sync.Map // 全部的用户连接, key->userid, value->UserClients
 
 	ConnectChan    chan *Client // 连接处理
 	DisConnectChan chan *Client // 断开连接处理
-	MsgChan        chan *Msg    //  消息信息channel通道
+	MsgChan        chan *Msg    // 消息信息channel通道
 }
 
 func NewClientManager() (clientManager *ClientManager) {
 	return &ClientManager{
-		UserClientsMap: make(map[UserId]UserClients),
+		UserClientsMap: sync.Map{},
 		ConnectChan:    make(chan *Client, 10),
 		DisConnectChan: make(chan *Client, 10),
 		MsgChan:        make(chan *Msg, 100),
@@ -78,24 +77,30 @@ func (manager *ClientManager) CloseClient(client *Client) {
 
 // 根据用户id关闭客户端连接
 func (manager *ClientManager) CloseByUid(userId UserId) {
-	for _, client := range manager.GetByUid(userId) {
+	userClients := manager.GetByUid(userId)
+	for _, client := range userClients {
 		manager.CloseClient(client)
 	}
 }
 
 // 获取所有的客户端
 func (manager *ClientManager) AllUserClient() map[UserId]UserClients {
-	manager.RwLock.RLock()
-	defer manager.RwLock.RUnlock()
-
-	return manager.UserClientsMap
+	result := make(map[UserId]UserClients)
+	manager.UserClientsMap.Range(func(key, value any) bool {
+		userId := key.(UserId)
+		userClients := value.(UserClients)
+		result[userId] = userClients
+		return true
+	})
+	return result
 }
 
 // 通过userId获取用户所有客户端信息
 func (manager *ClientManager) GetByUid(userId UserId) UserClients {
-	manager.RwLock.RLock()
-	defer manager.RwLock.RUnlock()
-	return manager.UserClientsMap[userId]
+	if value, ok := manager.UserClientsMap.Load(userId); ok {
+		return value.(UserClients)
+	}
+	return nil
 }
 
 // 通过userId和clientId获取客户端信息
@@ -108,9 +113,12 @@ func (manager *ClientManager) GetByUidAndCid(uid UserId, clientId string) *Clien
 
 // 客户端数量
 func (manager *ClientManager) Count() int {
-	manager.RwLock.RLock()
-	defer manager.RwLock.RUnlock()
-	return len(manager.UserClientsMap)
+	count := 0
+	manager.UserClientsMap.Range(func(key, value any) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 // 发送json数据给指定用户
@@ -139,7 +147,8 @@ func (manager *ClientManager) WriteMessage() {
 			}
 
 			// cid为空，则向该用户所有客户端发送该消息
-			for _, cli := range manager.GetByUid(uid) {
+			userClients := manager.GetByUid(uid)
+			for _, cli := range userClients {
 				if err := cli.WriteMsg(msg); err != nil {
 					logx.Warnf("ws send message failed - [uid=%d, cid=%s]: %s", uid, cli.ClientId, err.Error())
 				}
@@ -156,21 +165,23 @@ func (manager *ClientManager) HeartbeatTimer() {
 		for {
 			<-ticker.C
 			//发送心跳
-			for userId, clis := range manager.AllUserClient() {
+			manager.UserClientsMap.Range(func(key, value any) bool {
+				userId := key.(UserId)
+				clis := value.(UserClients)
 				for _, cli := range clis {
 					if cli == nil || cli.WsConn == nil {
 						continue
 					}
 					if err := cli.Ping(); err != nil {
 						manager.CloseClient(cli)
-						logx.Debugf("WS - failed to send heartbeat: uid=%v, cid=%s, usercount=%d", userId, cli.ClientId, Manager.Count())
+						logx.Debugf("WS - failed to send heartbeat: uid=%v, cid=%s, usercount=%d", userId, cli.ClientId, manager.Count())
 					} else {
 						logx.Debugf("WS - send heartbeat successfully: uid=%v, cid=%s", userId, cli.ClientId)
 					}
 				}
-			}
+				return true
+			})
 		}
-
 	}()
 }
 
@@ -192,31 +203,29 @@ func (manager *ClientManager) doDisconnect(client *Client) {
 		client.WsConn = nil
 	}
 	manager.delUserClient4Map(client)
-	logx.Debugf("WS client disconnected: uid=%d, cid=%s, usercount=%d", client.UserId, client.ClientId, Manager.Count())
+	logx.Debugf("WS client disconnected: uid=%d, cid=%s, usercount=%d", client.UserId, client.ClientId, manager.Count())
 }
 
 func (manager *ClientManager) addUserClient2Map(client *Client) {
-	manager.RwLock.Lock()
-	defer manager.RwLock.Unlock()
-
-	userClients := manager.UserClientsMap[client.UserId]
-	if userClients == nil {
-		userClients = make(UserClients)
-		manager.UserClientsMap[client.UserId] = userClients
+	// 先尝试加载现有的UserClients
+	if value, ok := manager.UserClientsMap.Load(client.UserId); ok {
+		userClients := value.(UserClients)
+		userClients.AddClient(client)
+	} else {
+		// 创建新的UserClients
+		userClients := make(UserClients)
+		userClients.AddClient(client)
+		manager.UserClientsMap.Store(client.UserId, userClients)
 	}
-	userClients.AddClient(client)
 }
 
 func (manager *ClientManager) delUserClient4Map(client *Client) {
-	manager.RwLock.Lock()
-	defer manager.RwLock.Unlock()
-
-	userClients := manager.UserClientsMap[client.UserId]
-	if userClients != nil {
+	if value, ok := manager.UserClientsMap.Load(client.UserId); ok {
+		userClients := value.(UserClients)
 		userClients.DeleteByCid(client.ClientId)
 		// 如果用户所有客户端都关闭，则移除manager中的UserClientsMap值
 		if userClients.Count() == 0 {
-			delete(manager.UserClientsMap, client.UserId)
+			manager.UserClientsMap.Delete(client.UserId)
 		}
 	}
 }

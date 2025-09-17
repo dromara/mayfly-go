@@ -22,7 +22,7 @@ var (
 	UnsignedMediumint = dbi.NewDbDataType("unsigned mediumint", dbi.DTInt64).WithCT(dbi.CTUnsignedInt4).WithFixColumn(dbi.ClearNumScale)
 
 	Decimal = dbi.NewDbDataType("decimal", dbi.DTDecimal).WithCT(dbi.CTDecimal)
-	Double  = dbi.NewDbDataType("double", dbi.DTNumeric).WithCT(dbi.CTNumeric)
+	Double  = dbi.NewDbDataType("double", dbi.DTNumeric).WithCT(dbi.CTNumeric).WithFixColumn(dbi.ClearNumPrecision)
 	Float   = dbi.NewDbDataType("float", dbi.DTNumeric).WithCT(dbi.CTNumeric)
 
 	Varchar    = dbi.NewDbDataType("varchar", dbi.DTString).WithCT(dbi.CTVarchar)
@@ -40,9 +40,9 @@ var (
 	Enum = dbi.NewDbDataType("enum", dbi.DTString).WithCT(dbi.CTEnum)
 	Set  = dbi.NewDbDataType("set", dbi.DTString).WithCT(dbi.CTVarchar)
 
-	Blob       = dbi.NewDbDataType("blob", dbi.DTBytes).WithCT(dbi.CTBlob)
-	Mediumblob = dbi.NewDbDataType("mediumblob", dbi.DTBytes).WithCT(dbi.CTMediumblob)
-	Longblob   = dbi.NewDbDataType("longblob", dbi.DTBytes).WithCT(dbi.CTLongblob)
+	Blob       = dbi.NewDbDataType("blob", dbi.DTBytes).WithCT(dbi.CTBlob).WithFixColumn(dbi.ClearNumScale)
+	Mediumblob = dbi.NewDbDataType("mediumblob", dbi.DTBytes).WithCT(dbi.CTMediumblob).WithFixColumn(dbi.ClearNumScale)
+	Longblob   = dbi.NewDbDataType("longblob", dbi.DTBytes).WithCT(dbi.CTLongblob).WithFixColumn(dbi.ClearNumScale)
 	Binary     = dbi.NewDbDataType("binary", dbi.DTBytes).WithCT(dbi.CTBinary)
 	Varbinary  = dbi.NewDbDataType("varbinary", dbi.DTBytes).WithCT(dbi.CTVarbinary)
 )

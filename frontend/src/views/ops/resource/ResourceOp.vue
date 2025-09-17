@@ -44,6 +44,7 @@
                             :filter-node-method="filterNode"
                             @node-click="treeNodeClick"
                             @node-expand="treeNodeClick"
+                            @node-contextmenu="onNodeContextmenu"
                             :default-expanded-keys="state.defaultExpandedKeys"
                         >
                             <template #default="{ node, data }">
@@ -65,12 +66,15 @@
                 </el-card>
             </el-splitter-panel>
         </el-splitter>
+
+        <Contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { markRaw, nextTick, provide, reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
 
+import { Contextmenu } from '@/components/contextmenu';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
@@ -108,6 +112,7 @@ const { t } = useI18n();
 const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
 
 const treeRef: any = useTemplateRef('treeRef');
+const contextmenuRef: any = useTemplateRef('contextmenuRef');
 
 // 存储所有注册的资源组件引用，key -> 组件名称
 const resourceComponents = ref<Record<string, ResourceComponentConfig>>({});
@@ -134,6 +139,11 @@ const setResourceComponentRefs = async (name: string, ref: any) => {
 const state = reactive({
     defaultExpandedKeys: [] as string[],
     filterText: '',
+    contextmenuItems: [],
+    dropdown: {
+        x: 0,
+        y: 0,
+    },
 });
 
 const { filterText } = toRefs(state);
@@ -216,6 +226,9 @@ const loadNode = async (node: any, resolve: (data: any) => void, reject: () => v
 let lastNodeClickTime = 0;
 
 const treeNodeClick = async (data: any, node: any) => {
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value?.closeContextmenu();
+
     const currentClickNodeTime = Date.now();
     // 双击节点
     if (currentClickNodeTime - lastNodeClickTime < 300) {
@@ -246,6 +259,29 @@ const treeNodeDblclick = async (data: any, node: any) => {
     if (!data.disabled && data.type.nodeDblclickFunc) {
         await data.type.nodeDblclickFunc(data);
     }
+};
+
+// 树节点右击事件
+const onNodeContextmenu = (event: any, data: any) => {
+    if (data.disabled) {
+        return;
+    }
+
+    // 加载当前节点是否需要显示右击菜单
+    let items = data.type.contextMenuItems;
+    if (!items || items.length == 0) {
+        if (props.loadContextmenuItems) {
+            items = props.loadContextmenuItems(data);
+        }
+    }
+    if (!items) {
+        return;
+    }
+    state.contextmenuItems = items;
+    const { clientX, clientY } = event;
+    state.dropdown.x = clientX;
+    state.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(data);
 };
 
 // 初始化资源组件ref

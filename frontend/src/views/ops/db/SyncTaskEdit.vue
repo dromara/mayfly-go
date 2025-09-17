@@ -5,10 +5,10 @@
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
-            <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
+            <el-form :model="form" ref="dbForm" :rules="rules" label-position="top" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane :label="$t('common.basic')" :name="basicTab">
-                        <el-row>
+                        <el-row gutter="10">
                             <el-col :span="12">
                                 <el-form-item prop="taskName" :label="$t('db.taskName')" required>
                                     <el-input v-model.trim="form.taskName" auto-complete="off" />
@@ -22,7 +22,7 @@
                             </el-col>
                         </el-row>
 
-                        <el-form-item prop="status" :label="$t('common.status')" label-width="60" required>
+                        <el-form-item prop="status" :label="$t('common.status')" label-position="left" label-width="60" required>
                             <el-switch
                                 v-model="form.status"
                                 inline-prompt
@@ -59,7 +59,7 @@
                             <monaco-editor height="200px" class="task-sql" language="sql" v-model="form.dataSql" />
                         </el-form-item>
 
-                        <el-row>
+                        <el-row gutter="10">
                             <el-col :span="12">
                                 <el-form-item prop="targetTableName" :label="$t('db.targetDbTable')" required>
                                     <el-select v-model="form.targetTableName" filterable>
@@ -80,7 +80,7 @@
                             </el-col>
                         </el-row>
 
-                        <el-row>
+                        <el-row gutter="10">
                             <el-col :span="12">
                                 <FormItemTooltip :label="$t('db.updateField')" prop="updField" :tooltip="$t('db.updateFieldTips')">
                                     <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
@@ -94,7 +94,7 @@
                             </el-col>
                         </el-row>
 
-                        <el-row>
+                        <el-row gutter="10">
                             <el-col :span="12">
                                 <FormItemTooltip :label="$t('db.fieldValueSrc')" prop="updFieldSrc" :tooltip="$t('db.fieldValueSrcTips')">
                                     <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
@@ -105,17 +105,32 @@
 
                     <el-tab-pane :label="$t('db.fieldMap')" :name="fieldTab" :disabled="!baseFieldCompleted">
                         <el-form-item prop="fieldMap" :label="$t('db.fieldMap')" required>
-                            <el-table :data="form.fieldMap" :max-height="fieldMapTableHeight" size="small">
-                                <el-table-column prop="src" :label="$t('db.srcField')" :width="200" />
+                            <el-table :data="form.fieldMap" :max-height="fieldMapTableHeight">
+                                <el-table-column prop="src" :label="$t('db.srcField')" :width="200"></el-table-column>
                                 <el-table-column prop="target" :label="$t('db.targetField')">
                                     <template #default="scope">
                                         <el-select v-model="scope.row.target" allow-create filterable>
+                                            <template #label="{ label, value }">
+                                                <div class="flex justify-between">
+                                                    <el-text tag="b">{{ value }}</el-text>
+                                                    <el-text size="small">{{ label }}</el-text>
+                                                </div>
+                                            </template>
+
                                             <el-option
                                                 v-for="item in state.targetColumnList"
                                                 :key="item.columnName"
-                                                :label="item.columnName + ` ${item.columnType}` + (item.columnComment && ' - ' + item.columnComment)"
+                                                :label="`${item.columnType}${item.columnComment && ' - ' + item.columnComment}`"
                                                 :value="item.columnName"
-                                            />
+                                            >
+                                                <div class="flex justify-between">
+                                                    {{ item.columnName }}
+
+                                                    <el-text size="small">
+                                                        {{ item.columnType }}{{ item.columnComment && ' - ' + item.columnComment }}
+                                                    </el-text>
+                                                </div>
+                                            </el-option>
                                         </el-select>
                                     </template>
                                 </el-table-column>

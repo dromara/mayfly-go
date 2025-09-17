@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"mayfly-go/pkg/utils/collx"
+	"strconv"
 	"strings"
 	"time"
 
@@ -111,6 +112,12 @@ func ClearNumScale(column *Column) {
 	column.CharMaxLength = 0
 }
 
+func ClearNumPrecision(column *Column) {
+	column.NumScale = 0
+	column.NumPrecision = 0
+	column.CharMaxLength = 0
+}
+
 // DataType 数据类型, 对应于go类型，如int int64等。可自定义其他类型
 type DataType struct {
 	Name string //  类型名
@@ -173,7 +180,13 @@ func SQLValueString(val any) string {
 		return fmt.Sprintf("%v", val)
 	}
 
-	return fmt.Sprintf("'%s'", strings.ReplaceAll(strings.ReplaceAll(strVal, "'", "''"), `\`, `\\`))
+	// 使用 strconv.Quote 来处理所有特殊字符
+	quoted := strconv.Quote(strVal)
+	// 去掉 strconv.Quote 添加的外层引号，因为会在最后添加 SQL 的单引号
+	quoted = quoted[1 : len(quoted)-1]
+	// 处理 SQL 中的单引号
+	quoted = strings.ReplaceAll(quoted, "'", "''")
+	return fmt.Sprintf("'%s'", quoted)
 }
 
 var (

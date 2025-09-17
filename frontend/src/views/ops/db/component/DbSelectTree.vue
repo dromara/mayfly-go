@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
+import { TagResourceTypePath } from '@/common/commonEnum';
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { dbApi } from '@/views/ops/db/api';
 import { sleep } from '@/common/utils/loading';

@@ -111,8 +111,6 @@
             </el-splitter-panel>
         </el-splitter>
 
-        <div style="text-align: center; margin-top: 10px"></div>
-
         <el-dialog :title="$t('redis.addKey')" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form ref="keyForm" label-width="auto" :rules="keyFormRules" :model="newKeyDialog.keyInfo">
                 <el-form-item prop="key" label="Key" required>
