@@ -33,13 +33,9 @@
 
                 <el-descriptions-item :span="3" :label="$t('tag.relateTag')"><ResourceTags :tags="detailDialog.data.tags" /></el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="Host">{{ detailDialog.data.host }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('docker.addr')">{{ detailDialog.data.addr }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="DB">{{ detailDialog.data.db }}</el-descriptions-item>
                 <el-descriptions-item :span="3" :label="$t('common.remark')">{{ detailDialog.data.remark }}</el-descriptions-item>
-                <el-descriptions-item :span="3" :label="$t('machine.sshTunnel')">
-                    {{ detailDialog.data.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
-                </el-descriptions-item>
 
                 <el-descriptions-item :span="2" :label="$t('common.createTime')">{{ formatDate(detailDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" :label="$t('common.creator')">{{ detailDialog.data.creator }}</el-descriptions-item>

@@ -370,9 +370,11 @@ func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
 }
 
 func (app *dataSyncAppImpl) InitCronJob() {
+	ctx := contextx.NewTraceId()
+
 	defer func() {
 		if err := recover(); err != nil {
-			logx.ErrorTrace("the data synchronization task failed to initialize", err)
+			logx.ErrorTraceContext(ctx, "the data synchronization task failed to initialize", err)
 		}
 	}()
 
@@ -380,11 +382,11 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning})
 
 	if err := app.CursorByCond(&entity.DataSyncTaskQuery{Status: entity.DataSyncTaskStatusEnable}, func(dst *entity.DataSyncTask) error {
-		app.addCronJob(contextx.NewTraceId(), dst)
 		app.MarkStop(dst.Id)
+		app.addCronJob(ctx, dst)
 		return nil
 	}); err != nil {
-		logx.ErrorTrace("the db data sync task failed to initialize: %v", err)
+		logx.ErrorTraceContext(ctx, "the db data sync task failed to initialize: %v", err)
 	}
 }
 
@@ -415,13 +417,13 @@ func (app *dataSyncAppImpl) addCronJob(ctx context.Context, taskEntity *entity.D
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		taskId := taskEntity.Id
-		logx.Infof("start add the data sync task job: %s, cron[%s]", taskEntity.TaskName, taskEntity.TaskCron)
+		logx.InfofContext(ctx, "start add the data sync task job: %s, cron[%s]", taskEntity.TaskName, taskEntity.TaskCron)
 		if err := scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
 			if err := app.Run(context.Background(), taskId); err != nil {
-				logx.Errorf("the data sync task failed to execute at a scheduled time: %s", err.Error())
+				logx.ErrorfContext(ctx, "the data sync task failed to execute at a scheduled time: %s", err.Error())
 			}
 		}); err != nil {
-			logx.ErrorTrace("add db data sync job failed", err)
+			logx.ErrorTraceContext(ctx, "add db data sync job failed", err)
 		}
 	}
 }

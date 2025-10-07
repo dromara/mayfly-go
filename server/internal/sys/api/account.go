@@ -87,6 +87,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
 	biz.ErrIsNil(a.resourceApp.GetAccountResources(account.Id, &resources))
+	biz.IsTrue(len(resources) > 0, "no permission")
 	// 菜单树与权限code数组
 	var menus vo.AccountResourceVOList
 	var permissions []string

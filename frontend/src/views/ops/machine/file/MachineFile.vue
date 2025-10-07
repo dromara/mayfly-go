@@ -8,7 +8,7 @@
             <el-row class="mb-2 ml-4">
                 <el-breadcrumb separator-icon="ArrowRight">
                     <el-breadcrumb-item v-for="path in filePathNav" :key="path">
-                        <el-link @click="setFiles(path.path)" style="font-weight: bold">{{ path.name }}</el-link>
+                        <el-link @click="setFiles(path.path)" class="!cursor-pointer !font-bold">{{ path.name }}</el-link>
                     </el-breadcrumb-item>
                 </el-breadcrumb>
             </el-row>

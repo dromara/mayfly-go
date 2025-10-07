@@ -1,7 +1,9 @@
 package req
 
 import (
+	"cmp"
 	"context"
+	"fmt"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -109,8 +111,8 @@ func (rc *Ctx) res() {
 		case *errorx.BizError:
 			rc.JSONRes(http.StatusOK, model.Error(t))
 		default:
-			logx.ErrorTrace("服务器错误", t)
-			rc.JSONRes(http.StatusOK, model.ServerError())
+			logx.ErrorTrace("server error", t)
+			rc.JSONRes(http.StatusOK, model.ServerError(fmt.Sprintf("server error [%d-%s]", errorx.ServerError.Code(), cmp.Or(contextx.GetTraceId(rc.MetaCtx), "none"))))
 		}
 		return
 	}

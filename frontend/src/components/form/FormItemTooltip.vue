@@ -34,7 +34,6 @@ const props = defineProps({
     },
     placement: {
         type: String,
-        required: true,
         default: 'top',
     },
 });

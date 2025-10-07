@@ -16,18 +16,18 @@ const NodeDbInst = defineAsyncComponent(() => import('./NodeDbInst.vue'));
 const NodeDb = defineAsyncComponent(() => import('./NodeDb.vue'));
 const NodeDbTable = defineAsyncComponent(() => import('./NodeDbTable.vue'));
 
-const DbIcon = {
+export const DbIcon = {
     name: ResourceTypeEnum.Db.extra.icon,
     color: ResourceTypeEnum.Db.extra.iconColor,
 };
 
 // pgsql schema icon
-const SchemaIcon = {
+export const SchemaIcon = {
     name: 'List',
     color: '#67c23a',
 };
 
-const TableIcon = {
+export const TableIcon = {
     name: 'icon db/table',
     color: '#409eff',
 };

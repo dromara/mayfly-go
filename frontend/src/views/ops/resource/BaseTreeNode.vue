@@ -2,7 +2,7 @@
     <div
         :id="props.node.key"
         class="w-full node-container flex items-center cursor-pointer select-none"
-        :class="props.data.type.nodeDblclickFunc ? 'select-none' : ''"
+        :class="props.data.type?.nodeDblclickFunc ? 'select-none' : ''"
         @mouseenter="showActions = true"
         @mouseleave="showActions = false"
     >
@@ -55,7 +55,7 @@ import { ContextmenuItem } from '@/components/contextmenu';
 import { ResourceOpCtx, TagTreeNode } from '@/views/ops/component/tag';
 import { ResourceOpCtxKey } from '@/views/ops/resource/resource';
 
-const resourceOpCtx: ResourceOpCtx | undefined = inject(ResourceOpCtxKey);
+const resourceOpCtx: ResourceOpCtx | undefined = inject(ResourceOpCtxKey, undefined);
 
 const props = defineProps({
     node: {

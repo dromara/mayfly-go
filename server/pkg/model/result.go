@@ -49,8 +49,9 @@ func Error(bizerr *errorx.BizError) *Result {
 }
 
 // 返回服务器错误Result
-func ServerError() *Result {
-	return Error(errorx.ServerError)
+func ServerError(msg string) *Result {
+	serverErr := errorx.NewBizCode(errorx.ServerError.Code(), msg)
+	return Error(serverErr)
 }
 
 func TokenError() *Result {

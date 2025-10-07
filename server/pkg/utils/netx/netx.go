@@ -53,7 +53,7 @@ func Ip2Region(ip string) string {
 	}
 
 	// 2、用全局的 vIndex 创建带 VectorIndex 缓存的查询对象。
-	searcher, err := xdb.NewWithVectorIndex(ip2RegionDbPath, vectorIndex)
+	searcher, err := xdb.NewWithVectorIndex(xdb.IPv4, ip2RegionDbPath, vectorIndex)
 	if err != nil {
 		logx.Errorf("failed to create searcher with vector index: %s\n", err)
 		return ""

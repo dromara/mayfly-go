@@ -7,6 +7,7 @@ export default {
         tagTips1: '1. Used to group assets',
         tagTips2: '2. Can be allocated in team management for resource isolation',
         tagTips3: '3. Team members who own a parent tag have access to resources that manipulate their own or child tag associations',
+        tagTips4: '4. Right-click nodes to edit or add child tags',
         machine: 'Machine',
         db: 'Db',
         code: 'Code',

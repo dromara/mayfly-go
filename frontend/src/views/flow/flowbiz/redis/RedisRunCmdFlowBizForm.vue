@@ -1,7 +1,7 @@
 <template>
     <el-form :model="bizForm" ref="formRef" :rules="rules" label-width="auto">
         <el-form-item prop="id" label="DB" required>
-            <TagTreeResourceSelect
+            <ResourceSelect
                 v-bind="$attrs"
                 v-model="selectRedis"
                 @change="changeRedis"
@@ -9,7 +9,7 @@
                 :tag-path-node-type="NodeTypeTagPath"
                 :placeholder="$t('flow.selectRedisPlaceholder')"
             >
-            </TagTreeResourceSelect>
+            </ResourceSelect>
         </el-form-item>
 
         <el-form-item prop="cmd" label="CMD" required>
@@ -21,12 +21,13 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import TagTreeResourceSelect from '@/views/ops/component/TagTreeResourceSelect.vue';
+import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { redisApi } from '@/views/ops/redis/api';
 import { sleep } from '@/common/utils/loading';
 import { useI18n } from 'vue-i18n';
 import { Rules } from '@/common/rule';
+import { RedisIcon } from '@/views/ops/redis/resource';
 
 const { t } = useI18n();
 
@@ -52,7 +53,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     await sleep(100);
     return redisInfos.map((x: any) => {
         x.tagPath = parentNode.key;
-        return new TagTreeNode(`${x.code}`, x.name, NodeTypeRedis).withParams(x);
+        return new TagTreeNode(`${x.code}`, x.name, NodeTypeRedis).withParams(x).withIcon(RedisIcon);
     });
 });
 
@@ -61,15 +62,18 @@ const NodeTypeRedis = new NodeType(1).withLoadNodesFunc(async (parentNode: TagTr
     const redisInfo = parentNode.params;
 
     let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
-        return new TagTreeNode(x, `db${x}`, 2 as any).withIsLeaf(true).withParams({
-            id: redisInfo.id,
-            db: x,
-            name: `db${x}`,
-            keys: 0,
-            tagPath: redisInfo.tagPath,
-            redisName: redisInfo.name,
-            code: redisInfo.code,
-        });
+        return new TagTreeNode(x, `db${x}`, 2 as any)
+            .withIsLeaf(true)
+            .withParams({
+                id: redisInfo.id,
+                db: x,
+                name: `db${x}`,
+                keys: 0,
+                tagPath: redisInfo.tagPath,
+                redisName: redisInfo.name,
+                code: redisInfo.code,
+            })
+            .withIcon({ name: 'Coin', color: '#67c23a' });
     });
 
     if (redisInfo.mode == 'cluster') {

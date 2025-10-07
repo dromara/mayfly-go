@@ -4,7 +4,7 @@ import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import { redisApi } from '../api';
 import { sleep } from '@/common/utils/loading';
 
-const RedisIcon = {
+export const RedisIcon = {
     name: ResourceTypeEnum.Redis.extra.icon,
     color: ResourceTypeEnum.Redis.extra.iconColor,
 };

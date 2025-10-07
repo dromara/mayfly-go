@@ -8,7 +8,7 @@
             <el-form :model="form" ref="dbForm" :rules="rules" label-position="top" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane :label="$t('common.basic')" :name="basicTab">
-                        <el-row gutter="10">
+                        <el-row :gutter="10">
                             <el-col :span="12">
                                 <el-form-item prop="taskName" :label="$t('db.taskName')" required>
                                     <el-input v-model.trim="form.taskName" auto-complete="off" />
@@ -59,7 +59,7 @@
                             <monaco-editor height="200px" class="task-sql" language="sql" v-model="form.dataSql" />
                         </el-form-item>
 
-                        <el-row gutter="10">
+                        <el-row :gutter="10">
                             <el-col :span="12">
                                 <el-form-item prop="targetTableName" :label="$t('db.targetDbTable')" required>
                                     <el-select v-model="form.targetTableName" filterable>
@@ -80,7 +80,7 @@
                             </el-col>
                         </el-row>
 
-                        <el-row gutter="10">
+                        <el-row :gutter="10">
                             <el-col :span="12">
                                 <FormItemTooltip :label="$t('db.updateField')" prop="updField" :tooltip="$t('db.updateFieldTips')">
                                     <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
@@ -94,7 +94,7 @@
                             </el-col>
                         </el-row>
 
-                        <el-row gutter="10">
+                        <el-row :gutter="10">
                             <el-col :span="12">
                                 <FormItemTooltip :label="$t('db.fieldValueSrc')" prop="updFieldSrc" :tooltip="$t('db.fieldValueSrcTips')">
                                     <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
@@ -320,7 +320,7 @@ watch(dialogVisible, async (newValue: boolean) => {
     state.tabActiveName = 'basic';
     const propsData = props.data as any;
     if (!propsData?.id) {
-        let d = {} as FormData;
+        let d = { taskCron: '' } as FormData;
         Object.assign(d, basicFormData);
         state.form = d;
         return;
@@ -416,6 +416,7 @@ const refreshPreviewInsertSql = () => {
 const onSelectSrcDb = async (params: any) => {
     //  初始化数据源
     params.databases = params.dbs; // 数据源里需要这个值
+    console.log(params.dbs);
     state.srcDbInst = await DbInst.getOrNewInst(params);
     registerDbCompletionItemProvider(params.id, params.db, params.dbs, params.type);
 };

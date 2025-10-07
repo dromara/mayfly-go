@@ -18,28 +18,18 @@
             <slot name="iconPrefix" :node="node" :data="data" />
         </template>
         <template #default="{ node, data }">
-            <span>
-                <span v-if="data.type.value == TagTreeNode.TagPath">
-                    <tag-info :tag-path="data.label" />
-                </span>
-
-                <slot v-else :node="node" :data="data" name="prefix"></slot>
-
-                <span class="ml-0.5" :title="data.labelRemark">
-                    <slot name="label" :data="data"> {{ data.label }}</slot>
-                </span>
-
-                <slot :node="node" :data="data" name="suffix"></slot>
-            </span>
+            <component v-if="data.nodeComponent" :is="data.nodeComponent" :node="node" :data="data" />
+            <BaseTreeNode v-else :node="node" :data="data" />
         </template>
     </el-tree-select>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, reactive, ref, toRefs, watch } from 'vue';
-import { NodeType, TagTreeNode } from './tag';
-import TagInfo from './TagInfo.vue';
-import { tagApi } from '../tag/api';
+
+import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
+import { tagApi } from '@/views/ops/tag/api';
+import BaseTreeNode from '@/views/ops/resource/BaseTreeNode.vue';
 
 const props = defineProps({
     resourceType: {
