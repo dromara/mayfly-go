@@ -88,7 +88,7 @@
                             </template>
 
                             <el-row>
-                                <span v-if="dt.hasUpdatedFileds" class="mt-1">
+                                <span v-if="dt.hasUpdatedFields" class="mt-1">
                                     <span>
                                         <el-link type="success" underline="never" @click="submitUpdateFields(dt)"
                                             ><span style="font-size: 12px">{{ $t('common.submit') }}</span></el-link
@@ -200,7 +200,7 @@ class ExecResTab {
     /**
      * 是否有更新字段
      */
-    hasUpdatedFileds: boolean;
+    hasUpdatedFields: boolean;
 
     errorMsg: string;
 
@@ -783,7 +783,7 @@ const getUploadSqlFileUrl = () => {
 
 const changeUpdatedField = (updatedFields: any, dt: ExecResTab) => {
     // 如果存在要更新字段，则显示提交和取消按钮
-    dt.hasUpdatedFileds = updatedFields && updatedFields.size > 0;
+    dt.hasUpdatedFields = updatedFields && updatedFields.size > 0;
 };
 
 /**
