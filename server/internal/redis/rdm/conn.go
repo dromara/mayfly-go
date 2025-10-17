@@ -2,6 +2,7 @@ package rdm
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 
@@ -41,7 +42,19 @@ func (r *RedisConn) Close() error {
 }
 
 func (r *RedisConn) Ping() error {
-	_, err := r.Cli.Ping(context.Background()).Result()
+	// 首先检查r是否为nil
+	if r == nil {
+		return fmt.Errorf("redis connection is nil")
+	}
+	// 然后检查r.Cli是否为nil，这是避免空指针异常的关键
+	if r.Cli == nil {
+		return fmt.Errorf("redis client is nil")
+	}
+	cmd := r.Cli.Ping(context.Background())
+	if cmd == nil {
+		return fmt.Errorf("the ping cmd is nil")
+	}
+	_, err := cmd.Result()
 	return err
 }
 

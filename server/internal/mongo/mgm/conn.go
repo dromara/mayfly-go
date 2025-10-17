@@ -2,6 +2,7 @@ package mgm
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/pkg/logx"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -28,5 +29,14 @@ func (mc *MongoConn) Close() error {
 }
 
 func (mc *MongoConn) Ping() error {
+	// 首先检查mc是否为nil
+	if mc == nil {
+		return fmt.Errorf("mc connection is nil")
+	}
+
+	// 然后检查mc.Cli是否为nil，这是避免空指针异常的关键
+	if mc.Cli == nil {
+		return fmt.Errorf("mc client is nil")
+	}
 	return mc.Cli.Ping(context.Background(), nil)
 }
