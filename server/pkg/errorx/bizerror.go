@@ -35,8 +35,13 @@ func (e BizError) String() string {
 }
 
 // NewBiz 创建业务逻辑错误结构体，默认为业务逻辑错误
-func NewBiz(msg string, formatValues ...any) *BizError {
-	return &BizError{code: BizErr.code, err: fmt.Sprintf(msg, formatValues...)}
+func NewBiz(msg string) *BizError {
+	return &BizError{code: BizErr.code, err: msg}
+}
+
+// NewBizf 创建业务逻辑错误结构体，可设置格式化参数
+func NewBizf(format string, formatValues ...any) *BizError {
+	return NewBiz(fmt.Sprintf(format, formatValues...))
 }
 
 // NewBizI 使用i18n的msgId创建业务逻辑错误结构体，默认为业务逻辑错误 (使用ctx中的国际化语言)
@@ -47,7 +52,12 @@ func NewBizI(ctx context.Context, msgId i18n.MsgId, attrs ...any) *BizError {
 	return &BizError{code: BizErr.code, err: i18n.TC(ctx, msgId, attrs...)}
 }
 
-// 创建业务逻辑错误结构体，可设置指定错误code
-func NewBizCode(code int16, msg string, formats ...any) *BizError {
-	return &BizError{code: code, err: fmt.Sprintf(msg, formats...)}
+// NewBizCode 创建业务逻辑错误结构体，可设置指定错误code
+func NewBizCode(code int16, msg string) *BizError {
+	return &BizError{code: code, err: msg}
+}
+
+// NewBizCodef 创建业务逻辑错误结构体，可设置指定错误code，并且支持格式化参数
+func NewBizCodef(code int16, format string, formats ...any) *BizError {
+	return NewBizCode(code, fmt.Sprintf(format, formats...))
 }

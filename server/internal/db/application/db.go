@@ -209,7 +209,7 @@ func (d *dbAppImpl) GetDbConnByInstanceId(ctx context.Context, instanceId uint64
 		return nil, errorx.NewBiz("failed to get database list")
 	}
 	if len(dbs) == 0 {
-		return nil, errorx.NewBiz("DB instance [%d] database is not configured, please configure it first", instanceId)
+		return nil, errorx.NewBizf("DB instance [%d] database is not configured, please configure it first", instanceId)
 	}
 
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
@@ -308,7 +308,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 		}
 		if len(tbs) <= 0 {
 			log(fmt.Sprintf("failed to get table [%s] information: No table information was retrieved", tableName))
-			return errorx.NewBiz("Failed to get table information: %s", tableName)
+			return errorx.NewBizf("Failed to get table information: %s", tableName)
 		}
 
 		tableInfo := tbs[0]

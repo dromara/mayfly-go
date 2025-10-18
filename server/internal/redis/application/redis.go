@@ -254,7 +254,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 
 	runCmdParam, err := jsonx.To[*FlowRedisRunCmdBizForm](procinst.BizForm)
 	if err != nil {
-		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
+		return nil, errorx.NewBizf("failed to parse the business form information: %s", err.Error())
 	}
 
 	redisConn, err := r.GetRedisConn(ctx, runCmdParam.Id, runCmdParam.Db)

@@ -70,13 +70,13 @@ func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 	conn, err := meta.GetSqlDb(ctx, di)
 	if err != nil {
 		logx.Errorf("db connection failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
-		return nil, errorx.NewBiz("db connection failed: %s", err.Error())
+		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
 
 	err = conn.Ping()
 	if err != nil {
 		logx.Errorf("db ping failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
-		return nil, errorx.NewBiz("db connection failed: %s", err.Error())
+		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
 
 	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di}

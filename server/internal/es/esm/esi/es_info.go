@@ -58,14 +58,14 @@ func (di *EsInfo) Conn(ctx context.Context) (*EsConn, map[string]any, error) {
 	err := di.IfUseSshTunnelChangeIpPort(ctx)
 	if err != nil {
 		logx.Errorf("es ssh failed: %s, err:%s", di.baseUrl, err.Error())
-		return nil, nil, errorx.NewBiz("es ssh failed: %s", err.Error())
+		return nil, nil, errorx.NewBizf("es ssh failed: %s", err.Error())
 	}
 
 	// 尝试获取es版本信息，调用接口：get /
 	res, err := di.Ping()
 	if err != nil {
 		logx.Errorf("es ping failed: %s, err:%s", di.baseUrl, err.Error())
-		return nil, nil, errorx.NewBiz("es ping failed: %s", err.Error())
+		return nil, nil, errorx.NewBizf("es ping failed: %s", err.Error())
 	}
 
 	esc := &EsConn{Id: di.InstanceId, Info: di}
@@ -111,7 +111,7 @@ func (di *EsInfo) ExecApi(method, path string, data any, timeoutSecond ...int) (
 		return request.PutObj(data).BodyToMap()
 	}
 
-	return nil, errorx.NewBiz("不支持的请求方法: %s", method)
+	return nil, errorx.NewBizf("不支持的请求方法: %s", method)
 
 }
 

@@ -114,7 +114,7 @@ func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 	}
 	updateStateTask.Id = id
 	if err := app.UpdateById(ctx, updateStateTask); err != nil {
-		return errorx.NewBiz("failed to update task running state: %s", err.Error())
+		return errorx.NewBizf("failed to update task running state: %s", err.Error())
 	}
 
 	// 标记该任务运行中
@@ -184,20 +184,20 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
 
 	if err != nil {
-		return errorx.NewBiz("failed to connect to the source database: %s", err.Error())
+		return errorx.NewBizf("failed to connect to the source database: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
 	targetConn, err := app.dbApp.GetDbConn(ctx, uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
-		return errorx.NewBiz("failed to connect to the target database: %s", err.Error())
+		return errorx.NewBizf("failed to connect to the target database: %s", err.Error())
 	}
 
 	// task.FieldMap为json数组字符串 [{"src":"id","target":"id"}]，转为map
 	var fieldMap []map[string]string
 	err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
 	if err != nil {
-		return errorx.NewBiz("there was an error parsing the field map json: %s", err.Error())
+		return errorx.NewBizf("there was an error parsing the field map json: %s", err.Error())
 	}
 
 	// 记录本次同步数据总数
@@ -213,7 +213,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 	targetTableColumns, err := targetConn.GetMetadata().GetColumns(task.TargetTableName)
 	if err != nil {
-		return errorx.NewBiz("failed to get target table columns: %s", err.Error())
+		return errorx.NewBizf("failed to get target table columns: %s", err.Error())
 	}
 	targetColumnName2Column := collx.ArrayToMap(targetTableColumns, func(column dbi.Column) string {
 		return column.ColumnName
@@ -300,7 +300,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	// 开启本批次执行事务
 	targetDbTx, err := targetDbConn.Begin()
 	if err != nil {
-		return errorx.NewBiz("failed to start the target database transaction: %s", err.Error())
+		return errorx.NewBizf("failed to start the target database transaction: %s", err.Error())
 	}
 	defer func() {
 		if r := recover(); r != nil {
@@ -320,7 +320,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	// 如果是mssql，暂不手动提交事务，否则报错 mssql: The COMMIT TRANSACTION request has no corresponding BEGIN TRANSACTION.
 	if err := targetDbTx.Commit(); err != nil {
 		if targetDbConn.Info.Type != dbi.ToDbType("mssql") {
-			return errorx.NewBiz("data synchronization - The target database transaction failed to commit: %s", err.Error())
+			return errorx.NewBizf("data synchronization - The target database transaction failed to commit: %s", err.Error())
 		}
 	}
 

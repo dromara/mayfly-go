@@ -121,7 +121,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 
 		existNameAc := &entity.ResourceAuthCert{Name: addAcName}
 		if r.GetByCond(existNameAc) == nil && existNameAc.ResourceCode != resourceCode {
-			return errorx.NewBiz("The name of the authorization credential cannot be repeated: [%s]", addAcName)
+			return errorx.NewBizf("The name of the authorization credential cannot be repeated: [%s]", addAcName)
 		}
 
 		addAuthCerts = append(addAuthCerts, addAc)

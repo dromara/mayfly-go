@@ -63,7 +63,7 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 
 		fileKey, wc, saveFileFunc, err := m.fileApp.NewWriter(ctx, "", fmt.Sprintf("mto_%d_%s.cast", termOpRecord.MachineId, timex.TimeNo()))
 		if err != nil {
-			return errorx.NewBiz("failed to create a terminal playback log file: %v", err)
+			return errorx.NewBizf("failed to create a terminal playback log file: %v", err)
 		}
 		defer saveFileFunc(&err)
 

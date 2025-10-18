@@ -312,10 +312,10 @@ func (m *machineAppImpl) ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, 
 func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machine, *tagentity.ResourceAuthCert, error) {
 	me, err := m.GetById(machineId)
 	if err != nil {
-		return nil, nil, errorx.NewBiz("[%d] machine not found", machineId)
+		return nil, nil, errorx.NewBizf("[%d] machine not found", machineId)
 	}
 	if me.Status != entity.MachineStatusEnable && me.Protocol == 1 {
-		return nil, nil, errorx.NewBiz("[%s] machine has been disable", me.Code)
+		return nil, nil, errorx.NewBizf("[%s] machine has been disable", me.Code)
 	}
 
 	authCert, err := m.resourceAuthCertApp.GetResourceAuthCert(tagentity.TagTypeMachine, me.Code)

@@ -148,7 +148,7 @@ func (od *OracleMetadata) GetPrimaryKey(tablename string) (string, error) {
 		return "", err
 	}
 	if len(columns) == 0 {
-		return "", errorx.NewBiz("[%s] 表不存在", tablename)
+		return "", errorx.NewBizf("[%s] 表不存在", tablename)
 	}
 	for _, v := range columns {
 		if v.IsPrimaryKey {

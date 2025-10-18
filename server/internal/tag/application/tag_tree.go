@@ -210,7 +210,7 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *dto
 
 	if len(parentTagCodePaths) == 0 {
 		// 不满足满足条件的标签
-		return errorx.NewBiz("There is no tag that satisfies [type=%d, code=%s]", parentTagType, parentTagCode)
+		return errorx.NewBizf("There is no tag that satisfies [type=%d, code=%s]", parentTagType, parentTagCode)
 	}
 
 	for _, tag := range param.Tags {

@@ -70,7 +70,7 @@ func (re *RedisInfo) connStandalone() (*RedisConn, error) {
 	_, e := cli.Ping(context.Background()).Result()
 	if e != nil {
 		cli.Close()
-		return nil, errorx.NewBiz("redis standalone connection failed: %s", e.Error())
+		return nil, errorx.NewBizf("redis standalone connection failed: %s", e.Error())
 	}
 
 	logx.Infof("redis standalone connection: %s/%d", re.Host, re.Db)
@@ -95,7 +95,7 @@ func (re *RedisInfo) connCluster() (*RedisConn, error) {
 	_, e := cli.Ping(context.Background()).Result()
 	if e != nil {
 		cli.Close()
-		return nil, errorx.NewBiz("redis cluster connection failed: %s", e.Error())
+		return nil, errorx.NewBizf("redis cluster connection failed: %s", e.Error())
 	}
 
 	logx.Infof("redis cluster connection: %s/%d", re.Host, re.Db)
@@ -128,7 +128,7 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 	_, e := cli.Ping(context.Background()).Result()
 	if e != nil {
 		cli.Close()
-		return nil, errorx.NewBiz("redis sentinel connection failed: %s", e.Error())
+		return nil, errorx.NewBizf("redis sentinel connection failed: %s", e.Error())
 	}
 
 	logx.Infof("redis sentinel connection: %s/%d", re.Host, re.Db)

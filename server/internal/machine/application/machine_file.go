@@ -180,7 +180,7 @@ func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *dto.Machin
 		//du: cannot access ‘/proc/19087/fdinfo/3’: No such file or directory\n
 		//18G     /\n
 		if res == "" {
-			return "", errorx.NewBiz("failed to get directory size: %s", err.Error())
+			return "", errorx.NewBizf("failed to get directory size: %s", err.Error())
 		}
 		strs := strings.Split(res, "\n")
 		res = strs[len(strs)-2]
@@ -247,7 +247,7 @@ func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *dto.Machin
 	}
 	file, err := sftpCli.Create(path)
 	if err != nil {
-		return nil, errorx.NewBiz("failed to create file: %s", err.Error())
+		return nil, errorx.NewBizf("failed to create file: %s", err.Error())
 	}
 	defer file.Close()
 	return mi, err

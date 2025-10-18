@@ -63,7 +63,7 @@ func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	if sftpclient == nil {
 		sc, serr := sftp.NewClient(c.sshClient)
 		if serr != nil {
-			return nil, errorx.NewBiz("failed to obtain the sftp client: %s", serr.Error())
+			return nil, errorx.NewBizf("failed to obtain the sftp client: %s", serr.Error())
 		}
 		sftpclient = sc
 		c.sftpClient = sftpclient

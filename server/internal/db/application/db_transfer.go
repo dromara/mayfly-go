@@ -122,12 +122,12 @@ func (app *dbTransferAppImpl) InitCronJob() {
 
 func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, error) {
 	if app.IsRunning(taskId) {
-		return 0, errorx.NewBiz("the db transfer task [%d] is running, please do not repeat the operation", taskId)
+		return 0, errorx.NewBizf("the db transfer task [%d] is running, please do not repeat the operation", taskId)
 	}
 
 	task, err := app.GetById(taskId)
 	if err != nil {
-		return 0, errorx.NewBiz("db transfer task [%d] not found", taskId)
+		return 0, errorx.NewBizf("db transfer task [%d] not found", taskId)
 	}
 
 	logId, _ := app.CreateLog(ctx, taskId)

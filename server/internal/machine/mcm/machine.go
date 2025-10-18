@@ -56,7 +56,7 @@ func (mi *MachineInfo) Conn(ctx context.Context) (*Cli, error) {
 	// 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
 	err := mi.IfUseSshTunnelChangeIpPort(ctx, false)
 	if err != nil {
-		return nil, errorx.NewBiz("ssh tunnel connection failed: %s", err.Error())
+		return nil, errorx.NewBizf("ssh tunnel connection failed: %s", err.Error())
 	}
 
 	cli := &Cli{Info: mi}

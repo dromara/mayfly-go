@@ -300,7 +300,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 
 	execSqlBizForm, err := jsonx.To[*FlowDbExecSqlBizForm](procinst.BizForm)
 	if err != nil {
-		return nil, errorx.NewBiz("failed to parse the business form information: %s", err.Error())
+		return nil, errorx.NewBizf("failed to parse the business form information: %s", err.Error())
 	}
 
 	dbConn, err := d.dbApp.GetDbConn(ctx, execSqlBizForm.DbId, execSqlBizForm.DbName)
@@ -471,7 +471,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 		nowRec++
 		res = append(res, row)
 		if nowRec == maxRec {
-			return errorx.NewBiz("update SQL - the maximum number of updated queries is exceeded: %d", maxRec)
+			return errorx.NewBizf("update SQL - the maximum number of updated queries is exceeded: %d", maxRec)
 		}
 		return nil
 	})

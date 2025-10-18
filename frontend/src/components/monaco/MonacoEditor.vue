@@ -155,6 +155,7 @@ const defaultOptions = {
     scrollBeyondLastLine: false,
     lineNumbers: 'on',
     lineNumbersMinChars: 3,
+    fixedOverflowWidgets: true, // 使弹出层不被容器限制
 } as editor.IStandaloneEditorConstructionOptions;
 
 const monacoTextareaRef: Ref<any> = useTemplateRef('monacoTextareaRef');

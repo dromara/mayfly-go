@@ -148,14 +148,14 @@ func (d *Container) ContainerCreate(rc *req.Ctx) {
 
 	if err != nil {
 		_ = cli.DockerClient.ContainerRemove(ctx, containerCreate.Name, container.RemoveOptions{RemoveVolumes: true, Force: true})
-		panic(errorx.NewBiz("create container failed, err: %v", err))
+		panic(errorx.NewBizf("create container failed, err: %v", err))
 	}
 
 	logx.Infof("create container %s successful! now check if the container is started and delete the container information if it is not.", containerCreate.Name)
 
 	if err := cli.DockerClient.ContainerStart(ctx, con.ID, container.StartOptions{}); err != nil {
 		_ = cli.DockerClient.ContainerRemove(ctx, containerCreate.Name, container.RemoveOptions{RemoveVolumes: true, Force: true})
-		panic(errorx.NewBiz("create successful but start failed, err: %v", err))
+		panic(errorx.NewBizf("create successful but start failed, err: %v", err))
 	}
 }
 
