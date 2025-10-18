@@ -41,6 +41,15 @@ func (d *DbConn) Close() error {
 }
 
 func (d *DbConn) Ping() error {
+	// 首先检查d是否为nil
+	if d == nil {
+		return fmt.Errorf("d is nil")
+	}
+
+	// 然后检查d.db是否为nil，这是避免空指针异常的关键
+	if d.db == nil {
+		return fmt.Errorf("db is nil")
+	}
 	return d.db.Ping()
 }
 
