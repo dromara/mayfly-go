@@ -19,6 +19,13 @@
                 <el-form-item prop="version" :label="t('common.version')">
                     <el-input v-model.trim="form.version" auto-complete="off" disabled></el-input>
                 </el-form-item>
+                <!-- 增加协议下拉框 http和https，默认http-->
+                 <el-form-item prop="protocol" :label="t('es.protocol')">
+                    <el-select v-model="form.protocol" placeholder="http">
+                        <el-option label="http" value="http"></el-option>
+                        <el-option label="https" value="https"></el-option>
+                    </el-select>
+                </el-form-item>
 
                 <el-form-item prop="host" label="Host" required>
                     <el-col :span="18">
@@ -105,6 +112,7 @@ const DefaultForm = {
     id: null,
     code: '',
     name: null,
+    protocol: 'http',
     host: '',
     version: '',
     port: 9200,

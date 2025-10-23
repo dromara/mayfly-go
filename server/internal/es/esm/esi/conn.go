@@ -1,6 +1,7 @@
 package esi
 
 import (
+	"crypto/tls"
 	"fmt"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/logx"
@@ -52,6 +53,16 @@ func (d *EsConn) StartProxy() error {
 	d.proxy = httputil.NewSingleHostReverseProxy(targetURL)
 	// 设置 proxy buffer pool
 	d.proxy.BufferPool = NewBufferPool()
+
+	// Configure TLS to skip certificate verification for non-compliant certificates
+	if targetURL.Scheme == "https" {
+		d.proxy.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+	}
+
 	return nil
 }
 

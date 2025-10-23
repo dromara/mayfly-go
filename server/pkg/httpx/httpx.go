@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,6 +40,16 @@ type MultipartFile struct {
 // 创建一个请求
 func NewReq(url string) *Req {
 	return &Req{url: url, client: http.Client{}}
+}
+
+// 创建一个请求(不验证TLS证书)
+func NewReqWithInsecureTLS(url string) *Req {
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+	return &Req{url: url, client: http.Client{Transport: transport}}
 }
 
 func (r *Req) Url(url string) *Req {
