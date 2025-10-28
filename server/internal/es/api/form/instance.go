@@ -6,6 +6,7 @@ import (
 
 type InstanceForm struct {
 	Id                 uint64  `json:"id"`
+	Protocol           string  `binding:"required" json:"protocol"`
 	Name               string  `binding:"required" json:"name"`
 	Host               string  `binding:"required" json:"host"`
 	Port               int     `binding:"required" json:"port"`

@@ -1,6 +1,7 @@
 export default {
     es: {
         keywordPlaceholder: 'host / 名称 / 编号',
+        protocol: '协议',
         port: '端口',
         size: '存储大小',
         docs: '文档数',

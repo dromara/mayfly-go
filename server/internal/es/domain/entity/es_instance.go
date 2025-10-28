@@ -10,6 +10,7 @@ type EsInstance struct {
 
 	Code               string  `json:"code" gorm:"size:32;not null;"`
 	Name               string  `json:"name" gorm:"size:32;not null;"`
+	Protocol           string  `json:"protocol" gorm:"size:10;not null;"`
 	Host               string  `json:"host" gorm:"size:255;not null;"`
 	Port               int     `json:"port"`
 	Network            string  `json:"network" gorm:"size:20;"`

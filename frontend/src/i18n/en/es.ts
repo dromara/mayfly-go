@@ -1,6 +1,7 @@
 export default {
     es: {
         keywordPlaceholder: 'host / name / code',
+        protocol: 'Protocol',
         port: 'Port',
         size: 'size',
         docs: 'docs',

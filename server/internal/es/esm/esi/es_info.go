@@ -23,6 +23,7 @@ type EsInfo struct {
 	InstanceId uint64 // 实例id
 	Name       string
 
+	Protocol string // 协议，默认http
 	Host     string
 	Port     int
 	Network  string
@@ -90,7 +91,14 @@ func (di *EsInfo) Ping() (map[string]any, error) {
 
 // ExecApi 执行api
 func (di *EsInfo) ExecApi(method, path string, data any, timeoutSecond ...int) (map[string]any, error) {
-	request := httpx.NewReq(di.baseUrl + path)
+	var request *httpx.Req
+	// Use insecure TLS client for HTTPS connections to handle non-compliant certificates
+	if di.Protocol == "https" {
+		request = httpx.NewReqWithInsecureTLS(di.baseUrl + path)
+	} else {
+		request = httpx.NewReq(di.baseUrl + path)
+	}
+
 	if di.authorization != "" {
 		request.Header("Authorization", di.authorization)
 	}
@@ -117,6 +125,11 @@ func (di *EsInfo) ExecApi(method, path string, data any, timeoutSecond ...int) (
 
 // 如果使用了ssh隧道，将其host port改变其本地映射host port
 func (di *EsInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
+	// 设置默认协议
+	if di.Protocol == "" {
+		di.Protocol = "http"
+	}
+
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
 		stm, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
@@ -130,9 +143,9 @@ func (di *EsInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
 		di.Host = exposedIp
 		di.Port = exposedPort
 		di.useSshTunnel = true
-		di.baseUrl = fmt.Sprintf("http://%s:%d", exposedIp, exposedPort)
+		di.baseUrl = fmt.Sprintf("%s://%s:%d", di.Protocol, exposedIp, exposedPort)
 	} else {
-		di.baseUrl = fmt.Sprintf("http://%s:%d", di.Host, di.Port)
+		di.baseUrl = fmt.Sprintf("%s://%s:%d", di.Protocol, di.Host, di.Port)
 	}
 	return nil
 }

@@ -20,6 +20,7 @@ func V1_10() []*gormigrate.Migration {
 	migrations = append(migrations, V1_10_1()...)
 	migrations = append(migrations, V1_10_2()...)
 	migrations = append(migrations, V1_10_3()...)
+	migrations = append(migrations, V1_10_4()...)
 	return migrations
 }
 
@@ -318,6 +319,31 @@ func V1_10_3() []*gormigrate.Migration {
 				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/xvpKk36u/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/xvpKk36u/'")
 				tx.Exec("Update t_sys_resource set ui_path='ocdrUNaa/3sblw1Wb/', pid=1756122788  where ui_path = 'Tag3fhad/glxajg23/3sblw1Wb/'")
 
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+}
+
+func V1_10_4() []*gormigrate.Migration {
+	return []*gormigrate.Migration{
+		{
+			ID: "20251023-v1.10.4",
+			Migrate: func(tx *gorm.DB) error {
+				// 给EsInstance表添加protocol列，默认值为http, 20251023,fudawei
+				if !tx.Migrator().HasColumn(&esentity.EsInstance{}, "protocol") {
+					// 先添加可为空的列
+					if err := tx.Exec("ALTER TABLE t_es_instance ADD COLUMN protocol VARCHAR(10) DEFAULT 'http'").Error; err != nil {
+						return err
+					}
+					// 更新所有现有记录为默认值http
+					if err := tx.Exec("UPDATE t_es_instance SET protocol = 'http' WHERE protocol IS NULL OR protocol = ''").Error; err != nil {
+						return err
+					}
+				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
