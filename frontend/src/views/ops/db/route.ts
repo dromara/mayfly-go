@@ -1,4 +1,4 @@
 export default {
-    SyncTaskList: () => import('@/views/ops/db/SyncTaskList.vue'),
-    DbTransferList: () => import('@/views/ops/db/DbTransferList.vue'),
+    SyncTaskList: () => import('@/views/ops/db/sync/SyncTaskList.vue'),
+    DbTransferList: () => import('@/views/ops/db/transfer/DbTransferList.vue'),
 };

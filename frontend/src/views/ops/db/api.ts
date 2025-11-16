@@ -59,36 +59,13 @@ export const dbApi = {
     enableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/enable'),
     disableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/disable'),
     saveDbRestore: Api.newPut('/dbs/{dbId}/restores/{id}'),
-
-    // 数据同步相关
-    datasyncTasks: Api.newGet('/datasync/tasks'),
-    saveDatasyncTask: Api.newPost('/datasync/tasks/save').withBeforeHandler(async (param: any) => await encryptField(param, 'dataSql')),
-    getDatasyncTask: Api.newGet('/datasync/tasks/{taskId}'),
-    deleteDatasyncTask: Api.newDelete('/datasync/tasks/{taskId}/del'),
-    updateDatasyncTaskStatus: Api.newPost('/datasync/tasks/{taskId}/status'),
-    runDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/run'),
-    stopDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/stop'),
-    datasyncLogs: Api.newGet('/datasync/tasks/{taskId}/logs'),
-
-    // 数据库迁移相关
-    dbTransferTasks: Api.newGet('/dbTransfer'),
-    saveDbTransferTask: Api.newPost('/dbTransfer/save'),
-    deleteDbTransferTask: Api.newDelete('/dbTransfer/{taskId}/del'),
-    updateDbTransferTaskStatus: Api.newPost('/dbTransfer/{taskId}/status'),
-    runDbTransferTask: Api.newPost('/dbTransfer/{taskId}/run'),
-    stopDbTransferTask: Api.newPost('/dbTransfer/{taskId}/stop'),
-    dbTransferTaskLogs: Api.newGet('/dbTransfer/{taskId}/logs'),
-    dbTransferFileList: Api.newGet('/dbTransfer/files/{taskId}'),
-    dbTransferFileDel: Api.newPost('/dbTransfer/files/del/{fileId}'),
-    dbTransferFileRun: Api.newPost('/dbTransfer/files/run'),
-    dbTransferFileDown: Api.newGet('/dbTransfer/files/down/{fileUuid}'),
 };
 
 export const dbSqlExecApi = {
     // 根据业务key获取sql执行信息
     getSqlExecByBizKey: Api.newGet('/dbs/sql-execs'),
 };
-const encryptField = async (param: any, field: string) => {
+export const encryptField = async (param: any, field: string) => {
     // sql编码处理
     if (!param['_encrypted'] && param[field]) {
         // 判断是开发环境就打印sql

@@ -209,7 +209,6 @@
 
 <script lang="ts" setup>
 import { computed, reactive, ref, toRefs, watch } from 'vue';
-import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
@@ -218,11 +217,13 @@ import { compatibleDuplicateStrategy, DbType, getDbDialect } from '@/views/ops/d
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import { DbDataSyncDuplicateStrategyEnum } from './enums';
 import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 import { Rules } from '@/common/rule';
+import { DbDataSyncDuplicateStrategyEnum } from '@/views/ops/db/sync/enums';
+import { dbSyncApi } from '@/views/ops/db/sync/api';
+import { dbApi } from '@/views/ops/db/api';
 
 const { t } = useI18n();
 
@@ -306,7 +307,7 @@ const state = reactive({
 
 const { tabActiveName, form, submitForm, fieldMapTableHeight } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: saveExec } = dbApi.saveDatasyncTask.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi(submitForm);
 
 // 基础字段信息是否填写完整
 const baseFieldCompleted = computed(() => {
@@ -326,7 +327,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         return;
     }
 
-    let data = await dbApi.getDatasyncTask.request({ taskId: propsData?.id });
+    let data = await dbSyncApi.getDatasyncTask.request({ taskId: propsData?.id });
     state.form = data;
     if (!state.form.duplicateStrategy) {
         state.form.duplicateStrategy = -1;

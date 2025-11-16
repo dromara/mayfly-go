@@ -6,7 +6,7 @@
                 <el-switch v-model="realTime" @change="watchPolling" inline-prompt :active-text="$t('db.realTime')" :inactive-text="$t('db.noRealTime')" />
                 <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml-2"></el-button>
             </template>
-            <page-table ref="logTableRef" :page-api="dbApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
+            <page-table ref="logTableRef" :page-api="dbSyncApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
             </page-table>
         </el-dialog>
     </div>
@@ -14,10 +14,10 @@
 
 <script lang="ts" setup>
 import { reactive, Ref, ref, toRefs, watch } from 'vue';
-import { dbApi } from '@/views/ops/db/api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { DbDataSyncLogStatusEnum } from './enums';
+import { dbSyncApi } from '@/views/ops/db/sync/api';
+import { DbDataSyncLogStatusEnum } from '@/views/ops/db/sync/enums';
 
 const props = defineProps({
     taskId: {

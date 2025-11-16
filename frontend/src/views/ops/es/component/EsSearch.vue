@@ -569,9 +569,9 @@ const parseParams = () => {
 
     // minimum_should_match 需要结合should使用，默认为1，表示至少一个should条件满足
     if (should.length > 0) {
-        state.search['minimum_should_match'] = Math.max(1, state.minimum_should_match);
+        state.search.query.bool['minimum_should_match'] = Math.max(1, state.minimum_should_match);
     } else {
-        delete state.search['minimum_should_match'];
+        delete state.search.query.bool['minimum_should_match'];
     }
 };
 </script>

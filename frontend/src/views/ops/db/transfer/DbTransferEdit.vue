@@ -12,7 +12,7 @@
                     <el-input v-model.trim="form.taskName" auto-complete="off" />
                 </el-form-item>
 
-                <el-row class="!w-full">
+                <el-row class="w-full!">
                     <el-col :span="12">
                         <el-form-item prop="status" :label="$t('common.status')" label-position="left">
                             <el-switch
@@ -40,7 +40,7 @@
                     <CrontabInput v-model="form.cron" />
                 </el-form-item>
 
-                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="!w-full" required>
+                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="w-full!" required>
                     <db-select-tree
                         v-model:db-id="form.srcDbId"
                         v-model:inst-name="form.srcInstName"
@@ -59,7 +59,7 @@
                 </el-form-item>
 
                 <el-form-item v-if="form.mode === 2">
-                    <el-row class="!w-full">
+                    <el-row class="w-full!">
                         <el-col :span="12">
                             <el-form-item prop="targetFileDbType" :label="$t('db.dbFileType')" :required="form.mode === 2">
                                 <el-select v-model="form.targetFileDbType" clearable filterable>
@@ -98,7 +98,7 @@
                     </el-radio-group>
                 </el-form-item>
 
-                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="!w-full" :required="form.mode === 1">
+                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="w-full!" :required="form.mode === 1">
                     <db-select-tree
                         v-model:db-id="form.targetDbId"
                         v-model:inst-name="form.targetInstName"
@@ -121,11 +121,11 @@
                 <el-form-item>
                     <el-input v-model="state.filterSrcTableText" placeholder="filter table" size="small" />
                 </el-form-item>
-                <el-form-item class="!w-full">
+                <el-form-item class="w-full!">
                     <el-tree
                         ref="srcTreeRef"
-                        class="!w-full"
-                        style="max-height: 200px; overflow-y: auto"
+                        class="w-full! overflow-y-auto"
+                        style="max-height: 200px"
                         default-expand-all
                         :expand-on-click-node="false"
                         :data="state.srcTableTree"
@@ -149,7 +149,7 @@
 
 <script lang="ts" setup>
 import { nextTick, reactive, ref, toRefs, watch } from 'vue';
-import { dbApi } from './api';
+
 import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
@@ -160,6 +160,8 @@ import { useI18nFormValidate, useI18nSaveSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
+import { dbApi } from '@/views/ops/db/api';
+import { dbTransferApi } from '@/views/ops/db/transfer/api';
 
 const { t } = useI18n();
 
@@ -256,7 +258,7 @@ const state = reactive({
 
 const { form, submitForm } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: saveExec } = dbApi.saveDbTransferTask.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveExec } = dbTransferApi.saveDbTransferTask.useApi(submitForm);
 
 watch(dialogVisible, async (newValue: boolean) => {
     if (!newValue) {

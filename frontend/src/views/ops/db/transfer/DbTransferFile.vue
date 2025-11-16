@@ -12,7 +12,7 @@
             <page-table
                 ref="pageTableRef"
                 v-model:query-form="state.query"
-                :page-api="dbApi.dbTransferFileList"
+                :page-api="dbTransferApi.dbTransferFileList"
                 :lazy="true"
                 :show-selection="true"
                 v-model:selection-data="state.selectionData"
@@ -79,7 +79,6 @@
 
 <script lang="ts" setup>
 import { onMounted, reactive, Ref, ref, useTemplateRef, watch } from 'vue';
-import { dbApi } from '@/views/ops/db/api';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
@@ -89,10 +88,11 @@ import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getClientId } from '@/common/utils/storage';
 import FileInfo from '@/components/file/FileInfo.vue';
-import { DbTransferFileStatusEnum } from './enums';
 import { useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nFormValidate, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import { Rules } from '@/common/rule';
+import { dbTransferApi } from '@/views/ops/db/transfer/api';
+import { DbTransferFileStatusEnum } from '@/views/ops/db/transfer/enums';
 
 const { t } = useI18n();
 
@@ -179,7 +179,7 @@ const state = reactive({
                 return false;
             }
             state.runDialog.runForm.clientId = getClientId();
-            await dbApi.dbTransferFileRun.request(state.runDialog.runForm);
+            await dbTransferApi.dbTransferFileRun.request(state.runDialog.runForm);
             useI18nOperateSuccessMsg();
             state.runDialog.onCancel();
             await search();
@@ -196,7 +196,7 @@ const state = reactive({
 
 const search = async () => {
     pageTableRef.value?.search();
-    // const { total, list } = await dbApi.dbTransferFileList.request(state.query);
+    // const { total, list } = await dbTransferApi.dbTransferFileList.request(state.query);
     // state.tableData = list;
     // pageTableRef.value.total = total;
 };
@@ -204,7 +204,7 @@ const search = async () => {
 const onDel = async function () {
     try {
         await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.fileKey).join('、'));
-        await dbApi.dbTransferFileDel.request({ fileId: state.selectionData.map((x: any) => x.id).join(',') });
+        await dbTransferApi.dbTransferFileDel.request({ fileId: state.selectionData.map((x: any) => x.id).join(',') });
         useI18nDeleteSuccessMsg();
         await search();
     } catch (err) {

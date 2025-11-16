@@ -2,7 +2,7 @@
     <div class="h-full">
         <page-table
             ref="pageTableRef"
-            :page-api="dbApi.datasyncTasks"
+            :page-api="dbSyncApi.datasyncTasks"
             :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
@@ -50,13 +50,13 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/pagetable/SearchForm';
-import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from './enums';
 import { useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nEditTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
+import { dbSyncApi } from '@/views/ops/db/sync/api';
+import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
@@ -143,14 +143,14 @@ const edit = async (data: any) => {
 
 const run = async (id: any) => {
     await useI18nConfirm('db.runConfirm');
-    await dbApi.runDatasyncTask.request({ taskId: id });
+    await dbSyncApi.runDatasyncTask.request({ taskId: id });
     useI18nOperateSuccessMsg();
     setTimeout(search, 1000);
 };
 
 const stop = async (id: any) => {
     await useI18nConfirm('db.stopConfirm');
-    await dbApi.stopDatasyncTask.request({ taskId: id });
+    await dbSyncApi.stopDatasyncTask.request({ taskId: id });
     useI18nOperateSuccessMsg();
     search();
 };
@@ -163,7 +163,7 @@ const log = async (data: any) => {
 
 const updStatus = async (id: any, status: 1 | -1) => {
     try {
-        await dbApi.updateDatasyncTaskStatus.request({ taskId: id, status });
+        await dbSyncApi.updateDatasyncTaskStatus.request({ taskId: id, status });
         useI18nOperateSuccessMsg();
         search();
     } catch (err) {
@@ -174,7 +174,7 @@ const updStatus = async (id: any, status: 1 | -1) => {
 const del = async () => {
     try {
         await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.taskName).join('、'));
-        await dbApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: any) => x.id).join(',') });
+        await dbSyncApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: any) => x.id).join(',') });
         useI18nDeleteSuccessMsg();
         search();
     } catch (err) {

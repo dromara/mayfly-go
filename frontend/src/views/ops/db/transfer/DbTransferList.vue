@@ -2,7 +2,7 @@
     <div class="h-full">
         <page-table
             ref="pageTableRef"
-            :page-api="dbApi.dbTransferTasks"
+            :page-api="dbTransferApi.dbTransferTasks"
             :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
@@ -84,19 +84,19 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/pagetable/SearchForm';
 import { getDbDialect } from '@/views/ops/db/dialect';
-import { DbTransferRunningStateEnum } from './enums';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
-import DbTransferFile from './DbTransferFile.vue';
 import { useI18nConfirm, useI18nDeleteConfirm, useI18nDeleteSuccessMsg, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import { dbTransferApi } from '@/views/ops/db/transfer/api';
+import { DbTransferRunningStateEnum } from '@/views/ops/db/transfer/enums';
 
 const DbTransferEdit = defineAsyncComponent(() => import('./DbTransferEdit.vue'));
+const DbTransferFile = defineAsyncComponent(() => import('./DbTransferFile.vue'));
 
 const { t } = useI18n();
 
@@ -189,7 +189,7 @@ const edit = async (data: any) => {
 
 const stop = async (id: any) => {
     await useI18nConfirm('db.stopConfirm');
-    await dbApi.stopDbTransferTask.request({ taskId: id });
+    await dbTransferApi.stopDbTransferTask.request({ taskId: id });
     useI18nOperateSuccessMsg();
     search();
 };
@@ -204,7 +204,7 @@ const onOpenLog = (data: any) => {
 const onReRun = async (data: any) => {
     await useI18nConfirm('db.runConfirm');
     try {
-        let res = await dbApi.runDbTransferTask.request({ taskId: data.id });
+        let res = await dbTransferApi.runDbTransferTask.request({ taskId: data.id });
         useI18nOperateSuccessMsg();
         // 拿到日志id之后，弹出日志弹窗
         onOpenLog({ logId: res, state: DbTransferRunningStateEnum.Running.value });
@@ -225,7 +225,7 @@ const openFiles = async (data: any) => {
 };
 const updStatus = async (id: any, status: 1 | -1) => {
     try {
-        await dbApi.updateDbTransferTaskStatus.request({ taskId: id, status });
+        await dbTransferApi.updateDbTransferTaskStatus.request({ taskId: id, status });
         useI18nOperateSuccessMsg();
         search();
     } catch (err) {
@@ -236,7 +236,7 @@ const updStatus = async (id: any, status: 1 | -1) => {
 const del = async () => {
     try {
         await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.taskName).join('、'));
-        await dbApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: any) => x.id).join(',') });
+        await dbTransferApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: any) => x.id).join(',') });
         useI18nDeleteSuccessMsg();
         search();
     } catch (err) {
