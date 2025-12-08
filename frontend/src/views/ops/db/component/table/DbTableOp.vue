@@ -128,10 +128,10 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, toRefs, watch, useTemplateRef, nextTick } from 'vue';
+import { computed, reactive, ref, toRefs, watch, useTemplateRef, nextTick, Ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
+import { DbDialect, DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 import { DbInst } from '../../db';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { useI18n } from 'vue-i18n';
@@ -165,7 +165,7 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
 
-let dbDialect: any = computed(() => getDbDialect(props.dbType!, props.version));
+let dbDialect: Ref<DbDialect> = computed(() => getDbDialect(props.dbType!, props.version));
 
 type ColName = {
     prop: string;

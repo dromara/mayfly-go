@@ -24,14 +24,20 @@ export const NodeTypeEnum = {
         text: i18n.global.t('flow.usertask'),
     }),
 
-    Serial: EnumValue.of('serial', i18n.global.t('flow.serial')).setExtra({
+    AiTask: EnumValue.of('aitask', i18n.global.t('flow.aitask')).setExtra({
         order: 3,
+        type: 'aitask',
+        text: i18n.global.t('flow.aitask'),
+    }),
+
+    Serial: EnumValue.of('serial', i18n.global.t('flow.serial')).setExtra({
+        order: 4,
         text: i18n.global.t('flow.serial'),
-        defaultProp: { condition: `{{ procinstTaskStatus == 1 }}` },
+        defaultProp: { condition: `{{ procinstTaskStatus == 1.0 }}` },
     }),
 
     Parallel: EnumValue.of('parallel', i18n.global.t('flow.parallel')).setExtra({
-        order: 4,
+        order: 5,
         text: i18n.global.t('flow.parallel'),
         defaultProp: {},
     }),

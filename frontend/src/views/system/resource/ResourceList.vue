@@ -1,8 +1,8 @@
 <template>
-    <div class="card !p-2 system-resource-list h-full flex">
+    <div class="card p-2! system-resource-list h-full flex">
         <el-splitter>
             <el-splitter-panel size="30%" max="35%" min="25%" class="flex flex-col flex-1">
-                <div class="card !p-1 mr-1 flex flex-row items-center justify-between overflow-hidden">
+                <div class="card p-1! mr-1 flex flex-row items-center justify-between overflow-hidden">
                     <el-input v-model="filterResource" clearable :placeholder="$t('system.menu.filterPlaceholder')" class="mr-2" />
                     <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="onAddResource(false)"></el-button>
 
@@ -35,7 +35,7 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
-                                <SvgIcon :name="getMenuIcon(data)" class="!mb-0.5" />
+                                <SvgIcon :name="getMenuIcon(data)" class="mb-0.5!" />
 
                                 <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                                     <span style="color: #3c8dbc">【</span>
@@ -180,7 +180,6 @@ const ResourceRoles = 'resourceRoles';
 const contextmenuAdd = new ContextmenuItem('add', 'system.menu.addSubResource')
     .withIcon('circle-plus')
     .withPermission(perms.addResource)
-    .withHideFunc((data: any) => data.type !== menuTypeValue)
     .withOnClick((data: any) => onAddResource(data));
 
 const contextmenuEdit = new ContextmenuItem('edit', 'common.edit')
@@ -294,37 +293,24 @@ const onDeleteMenu = async (data: any) => {
 const onAddResource = (data: any) => {
     let dialog = state.dialogForm;
     dialog.data = { pid: 0, type: 1 };
+    dialog.typeDisabled = false;
     // 添加顶级菜单情况
     if (!data) {
-        dialog.typeDisabled = true;
         dialog.data.type = menuTypeValue;
         dialog.title = t('system.menu.addTopMenu');
         dialog.visible = true;
         return;
     }
+
+    // 父节点为权限类型，子节点也只允许添加权限类型
+    if (data.type === permissionTypeValue) {
+        dialog.typeDisabled = true;
+        dialog.data.type = permissionTypeValue;
+    }
+
     // 添加子菜单，把当前菜单id作为新增菜单pid
     dialog.data.pid = data.id;
-
     dialog.title = t('system.menu.addChildrenMenuTitle', { parentName: t(data.name) });
-    if (data.children === null || data.children.length === 0) {
-        // 如果子节点不存在，则资源类型可选择
-        dialog.typeDisabled = false;
-    } else {
-        dialog.typeDisabled = true;
-        let hasPermission = false;
-        for (let c of data.children) {
-            if (c.type === permissionTypeValue) {
-                hasPermission = true;
-                break;
-            }
-        }
-        // 如果子节点中存在权限资源，则只能新增权限资源，否则只能新增菜单资源
-        if (hasPermission) {
-            dialog.data.type = permissionTypeValue;
-        } else {
-            dialog.data.type = menuTypeValue;
-        }
-    }
     dialog.visible = true;
 };
 

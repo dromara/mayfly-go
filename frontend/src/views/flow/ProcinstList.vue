@@ -15,8 +15,18 @@
             <template #action="{ data }">
                 <el-button link @click="showProcinst(data)" type="primary">{{ $t('common.detail') }}</el-button>
 
+                <el-button
+                    v-if="data.status == ProcinstStatus.Back.value && data.creator == useUserInfo().userInfo.username"
+                    link
+                    @click="startProcInst(data)"
+                    type="primary"
+                    >{{ $t('common.edit') }}
+                </el-button>
+
                 <el-popconfirm
-                    v-if="data.status == ProcinstStatus.Active.value || data.status == ProcinstStatus.Suspended.value"
+                    v-if="
+                        data.status == ProcinstStatus.Active.value || data.status == ProcinstStatus.Suspended.value || data.status == ProcinstStatus.Back.value
+                    "
                     :title="$t('flow.cancelProcessConfirm')"
                     width="160"
                     @confirm="procinstCancel(data)"
@@ -37,7 +47,7 @@
             @cancel="procinstDetail.procinstId = 0"
         />
 
-        <ProcInstEdit v-model:visible="procinstEdit.visible" :title="procinstEdit.title" @val-change="search" />
+        <ProcinstEdit v-model="procinstEdit.procinst" v-model:visible="procinstEdit.visible" :title="procinstEdit.title" @val-change="search" />
     </div>
 </template>
 
@@ -50,9 +60,10 @@ import { SearchItem } from '@/components/pagetable/SearchForm';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus } from './enums';
 import { formatTime } from '@/common/utils/format';
-import ProcInstEdit from './ProcInstEdit.vue';
 import { useI18nDetailTitle, useI18nOperateSuccessMsg } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import ProcinstEdit from '@/views/flow/ProcinstEdit.vue';
+import { useUserInfo } from '@/store/userInfo';
 
 const { t } = useI18n();
 
@@ -106,6 +117,7 @@ const state = reactive({
     procinstEdit: {
         title: '',
         visible: false,
+        procinst: {},
     },
 });
 
@@ -127,8 +139,19 @@ const showProcinst = (data: any) => {
     state.procinstDetail.visible = true;
 };
 
-const startProcInst = () => {
+const startProcInst = (procinst: any = null) => {
     state.procinstEdit.title = t('flow.startProcess');
+    if (procinst) {
+        const data = { ...procinst };
+        data.bizForm = JSON.parse(procinst.bizForm || {});
+        state.procinstEdit.procinst = data;
+    } else {
+        state.procinstEdit.procinst = {
+            bizType: FlowBizType.DbSqlExec.value,
+            bizForm: {},
+        };
+    }
+
     state.procinstEdit.visible = true;
 };
 

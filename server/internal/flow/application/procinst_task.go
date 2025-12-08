@@ -116,28 +116,54 @@ func (p *procinstTaskAppImpl) RejectTask(ctx context.Context, taskOp dto.UserTas
 }
 
 func (p *procinstTaskAppImpl) BackTask(ctx context.Context, taskOp dto.UserTaskOp) error {
-	// instTask, err := p.getAndValidInstTask(ctx, instTaskId)
-	// if err != nil {
-	// 	return err
-	// }
+	taskId := taskOp.TaskId
+	instTask, taskCandidates, procinst, execution, err := p.getAndValidInstTask(ctx, taskId, taskOp.Candidate)
+	if err != nil {
+		return err
+	}
 
-	// // 赋值状态和备注
-	// instTask.Status = entity.ProcinstTaskStatusBack
-	// instTask.Remark = remark
+	// 赋值状态和备注
+	instTask.Status = entity.ProcinstTaskStatusBack
+	instTask.Remark = taskOp.Remark
 
-	// procinst, _ := p.GetById(instTask.ProcinstId)
+	// 更新流程实例为退回状态，支持重新提交
+	procinst.Status = entity.ProcinstStatusBack
 
-	// // 更新流程实例为挂起状态，等待重新提交
-	// procinst.Status = entity.ProcinstStatusSuspended
+	// 执行流挂起
+	execution.State = entity.ExectionStateSuspended
 
-	// return p.Tx(ctx, func(ctx context.Context) error {
-	// 	return p.UpdateById(ctx, procinst)
-	// }, func(ctx context.Context) error {
-	// 	return p.procinstTaskRepo.UpdateById(ctx, instTask)
-	// }, func(ctx context.Context) error {
-	// 	return p.triggerProcinstStatusChangeEvent(ctx, procinst)
-	// })
-	return nil
+	procinstId := procinst.Id
+
+	return p.Tx(ctx, func(ctx context.Context) error {
+		executionCtx := NewExecutionCtx(ctx, procinst, execution)
+		executionCtx.OpExtra.Set("approvalResult", instTask.Status)
+
+		for _, taskCandidate := range taskCandidates {
+			taskCandidate.Status = entity.ProcinstTaskStatusBack
+			taskCandidate.SetEnd()
+			taskCandidate.Handler = &taskOp.Handler
+			if err := p.procinstTaskCandidateRepo.UpdateById(ctx, taskCandidate); err != nil {
+				return err
+			}
+		}
+
+		if err := p.procinstApp.Save(ctx, procinst); err != nil {
+			return err
+		}
+		if err := p.Save(ctx, instTask); err != nil {
+			return err
+		}
+		if err := p.UpdateByCond(ctx, &entity.ProcinstTask{Status: entity.ProcinstTaskStatusCanceled}, &entity.ProcinstTask{ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess}); err != nil {
+			return err
+		}
+		// 跳转至开始节点
+		if err := p.executionApp.MoveTo(executionCtx, executionCtx.GetFlowDef().GetNodeByType(FlowNodeTypeStart)[0]); err != nil {
+			return err
+		}
+
+		// 删除待处理的其他候选人任务
+		return p.procinstTaskCandidateRepo.DeleteByCond(ctx, &entity.ProcinstTaskCandidate{ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess})
+	})
 }
 
 func (p *procinstTaskAppImpl) CompleteTask(ctx context.Context, taskOp dto.UserTaskOp) error {

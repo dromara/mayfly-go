@@ -205,7 +205,10 @@ class MysqlDialect implements DbDialect {
     genColumnBasicSql(cl: any): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
-        let length = cl.length ? `(${cl.length})` : '';
+        let length = cl.length;
+        if (length) {
+            length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
+        }
         let onUpdate = 'update_time' === cl.name ? ' ON UPDATE CURRENT_TIMESTAMP ' : '';
         return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${
             cl.auto_increment ? 'AUTO_INCREMENT' : ''

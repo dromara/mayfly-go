@@ -195,16 +195,16 @@ func (m *msgTmplAppImpl) SendMsg(ctx context.Context, mts *dto.MsgTmplSend) erro
 			continue
 		}
 
-		go func(channel *entity.MsgChannel) {
+		go func(ch entity.MsgChannel) {
 			if err := msgx.Send(ctx, &msgx.Channel{
-				Type:  channel.Type,
-				Name:  channel.Name,
-				URL:   channel.Url,
-				Extra: channel.Extra,
+				Type:  ch.Type,
+				Name:  ch.Name,
+				URL:   ch.Url,
+				Extra: ch.Extra,
 			}, msg); err != nil {
-				logx.Errorf("send msg error => channel=%s, msg=%s, err -> %v", channel.Code, msg.Content, err)
+				logx.Errorf("send msg error => channel=%s, msg=%s, err -> %v", ch.Code, msg.Content, err)
 			}
-		}(channel)
+		}(*channel)
 	}
 
 	return nil

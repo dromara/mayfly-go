@@ -104,15 +104,14 @@ const bizForm = defineModel<any>('bizForm', {
         id: 0,
         db: 0,
         cmd: '',
+        tagPath: '',
+        redisName: '',
     },
 });
 
-const redisName = ref('');
-const tagPath = ref('');
-
 const selectRedis = computed({
     get: () => {
-        return redisName.value ? `${tagPath.value} > ${redisName.value} > db${bizForm.value.db}` : '';
+        return bizForm.value.redisName ? `${bizForm.value.tagPath} > ${bizForm.value.redisName} > db${bizForm.value.db}` : '';
     },
     set: () => {
         //
@@ -121,8 +120,8 @@ const selectRedis = computed({
 
 const changeRedis = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
-    tagPath.value = params.tagPath;
-    redisName.value = params.redisName;
+    bizForm.value.tagPath = params.tagPath;
+    bizForm.value.redisName = params.redisName;
     bizForm.value.id = params.id;
     bizForm.value.db = parseInt(params.db);
 

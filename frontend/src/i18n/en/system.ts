@@ -190,6 +190,15 @@ export default {
             loginFailCountPlaceholder: 'Disable login after n failed login attempts',
             loginFainMin: 'Prohibited login time',
             loginFailMinPlaceholder: 'After a specified number of login failures, re-login is prohibited within m minutes',
+
+            aiModelConf: 'AI Model Config',
+            aiModelType: 'Model Type',
+            aiModelTypePlaceholder: 'Please select a model type',
+            aiModel: 'Model',
+            aiModelPlaceholder: 'Please enter the model',
+            aiBaseUrl: 'Base URL',
+            aiBaseUrlPlaceholder: 'Please enter the model request URL',
+            aiApiKey: 'API Key',
         },
         syslog: {
             operator: 'Operator',

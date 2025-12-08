@@ -23,6 +23,8 @@ class UserTaskModel extends RectNodeModel {
         if (opLog.state == HisProcinstOpState.Completed.value && opLog.extra) {
             if (opLog.extra.approvalResult == ProcinstTaskStatus.Pass.value) {
                 style.stroke = 'green';
+            } else if (opLog.extra.approvalResult == ProcinstTaskStatus.Back.value) {
+                style.stroke = '#e6a23c';
             } else {
                 style.stroke = 'red';
             }

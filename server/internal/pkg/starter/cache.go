@@ -16,11 +16,11 @@ func initCache() {
 	redisCli := connRedis()
 
 	if redisCli == nil {
-		logx.Info("no redis configuration exists, local cache is used")
+		logx.Info("no redis configuration, using local cache")
 		return
 	}
 
-	logx.Info("redis connection is successful, redis cache is used")
+	logx.Info("redis connected successfully, using Redis for caching")
 	rediscli.SetCli(connRedis())
 	cache.SetCache(cache.NewRedisCache(redisCli))
 }

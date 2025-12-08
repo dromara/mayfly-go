@@ -5,13 +5,15 @@
                 :placeholder="$t('flow.selectDbPlaceholder')"
                 v-model:db-id="bizForm.dbId"
                 v-model:db-name="bizForm.dbName"
-                v-model:db-type="dbType"
+                v-model:inst-name="bizForm.instName"
+                v-model:db-type="bizForm.dbType"
+                v-model:tag-path="bizForm.tagPath"
                 @select-db="changeResourceCode"
             />
         </el-form-item>
 
         <el-form-item prop="sql" label="SQL" required>
-            <div class="!w-full">
+            <div class="w-full!">
                 <monaco-editor height="300px" language="sql" v-model="bizForm.sql" />
             </div>
         </el-form-item>
@@ -19,7 +21,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { registerDbCompletionItemProvider } from '@/views/ops/db/db';
@@ -38,17 +40,24 @@ const formRef: any = ref(null);
 const bizForm = defineModel<any>('bizForm', {
     default: {
         dbId: 0,
+        instName: '',
         dbName: '',
+        dbType: '',
+        tagPath: '',
         sql: '',
     },
 });
 
-const dbType = ref('');
+onMounted(() => {
+    if (bizForm.value.dbId) {
+        registerDbCompletionItemProvider(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType);
+    }
+});
 
 watch(
     () => bizForm.value.dbId,
     () => {
-        registerDbCompletionItemProvider(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], dbType.value);
+        registerDbCompletionItemProvider(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType);
     }
 );
 

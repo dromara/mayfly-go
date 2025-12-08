@@ -15,6 +15,7 @@ export const ProcinstStatus = {
     Active: EnumValue.of(1, 'flow.active').setTagType('primary'),
     Completed: EnumValue.of(2, 'flow.completed').setTagType('success'),
     Suspended: EnumValue.of(-1, 'flow.suspended').setTagType('warning'),
+    Back: EnumValue.of(-11, 'flow.back').setTagType('warning'),
     Terminated: EnumValue.of(-2, 'flow.terminated').setTagType('danger'),
     Cancelled: EnumValue.of(-3, 'flow.cancelled').setTagType('warning'),
 };

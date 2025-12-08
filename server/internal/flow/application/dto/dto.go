@@ -16,7 +16,7 @@ type SaveFlowDef struct {
 // 启动流程实例请求入参
 type StarProc struct {
 	BizType string // 业务类型
-	BizKey  string // 业务key
+	BizKey  string // 业务key，若已存在则为修改重新提交流程
 	Remark  string // 备注
 	BizForm string // 业务表单信息
 }

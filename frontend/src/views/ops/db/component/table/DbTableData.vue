@@ -207,7 +207,7 @@ import { copyToClipboard } from '@/common/utils/string';
 import { DbInst, DbThemeConfig } from '@/views/ops/db/db';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { exportCsv, exportFile } from '@/common/utils/export';
+import { exportCsv, exportExcel, exportFile } from '@/common/utils/export';
 import { formatDate } from '@/common/utils/format';
 import { useIntervalFn, useStorage } from '@vueuse/core';
 import { ColumnTypeSubscript, DataType, DbDialect, getDbDialect } from '../../dialect/index';
@@ -304,6 +304,8 @@ const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
 const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withIcon('tickets').withOnClick(() => onGenerateJson());
 
 const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv').withIcon('document').withOnClick(() => onExportCsv());
+
+const cmDataExportExcel = new ContextmenuItem('exportExcel', 'db.exportExcel').withIcon('document').withOnClick(() => onExportExcel());
 
 const cmDataExportSql = new ContextmenuItem('exportSql', 'db.exportSql')
     .withIcon('document')
@@ -657,7 +659,7 @@ const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: a
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
+    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGenInsertSql, cmDataGenJson, cmDataExportExcel, cmDataExportCsv, cmDataExportSql];
     contextmenuRef.value.openContextmenu({ column, rowData: data });
 };
 
@@ -736,6 +738,20 @@ const onExportCsv = () => {
         }
     }
     exportCsv(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}`, columnNames, dataList);
+};
+
+/**
+ * 导出当前页数据
+ */
+const onExportExcel = () => {
+    const dataList = state.datas as any;
+    let columnNames = [];
+    for (let column of state.columns) {
+        if (column.show) {
+            columnNames.push(column.columnName);
+        }
+    }
+    exportExcel(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}`, [{ name: 'Data', columns: columnNames, datas: dataList }]);
 };
 
 const onExportSql = async () => {

@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"errors"
 	dockerentity "mayfly-go/internal/docker/domain/entity"
 	esentity "mayfly-go/internal/es/domain/entity"
 	flowentity "mayfly-go/internal/flow/domain/entity"
@@ -21,6 +22,7 @@ func V1_10() []*gormigrate.Migration {
 	migrations = append(migrations, V1_10_2()...)
 	migrations = append(migrations, V1_10_3()...)
 	migrations = append(migrations, V1_10_4()...)
+	migrations = append(migrations, V1_10_5()...)
 	return migrations
 }
 
@@ -344,6 +346,43 @@ func V1_10_4() []*gormigrate.Migration {
 						return err
 					}
 				}
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+}
+
+func V1_10_5() []*gormigrate.Migration {
+	return []*gormigrate.Migration{
+		{
+			ID: "20251207-v1.10.5",
+			Migrate: func(tx *gorm.DB) error {
+				config := &sysentity.Config{}
+				// 查询是否存在该配置
+				result := tx.Model(config).Where("key = ?", "AiModelConfig").First(config)
+				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+					// 如果不存在，则创建默认配置
+					now := time.Now()
+					aiConfig := &sysentity.Config{
+						Key:        "AiModelConfig",
+						Name:       "system.sysconf.aiModelConf'",
+						Value:      "{}", // 默认空JSON值
+						Params:     `[{"model":"modelType","name":"system.sysconf.aiModelType","placeholder":"system.sysconf.aiModelTypePlaceholder","options":"openai"},{"model":"model","name":"system.sysconf.aiModel","placeholder":"system.sysconf.aiModelPlaceholder"},{"model":"baseUrl","name":"system.sysconf.aiBaseUrl","placeholder":"system.sysconf.aiBaseUrlPlaceholder"},{"model":"apiKey","name":"ApiKey","placeholder":"api key"}]`,
+						Permission: "all",
+					}
+					aiConfig.CreateTime = &now
+					aiConfig.Modifier = "admin"
+					aiConfig.ModifierId = 1
+					aiConfig.UpdateTime = &now
+					aiConfig.Creator = "admin"
+					aiConfig.CreatorId = 1
+					aiConfig.IsDeleted = 0
+					return tx.Create(aiConfig).Error
+				}
+
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {

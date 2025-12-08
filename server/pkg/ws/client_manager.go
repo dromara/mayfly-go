@@ -180,9 +180,11 @@ func (manager *ClientManager) WriteMessage() {
 
 			// cid为空，则向该用户所有客户端发送该消息
 			userClients := manager.GetByUid(uid)
-			for _, cli := range userClients.AllClients() {
-				if err := cli.WriteMsg(msg); err != nil {
-					logx.Warnf("ws send message failed - [uid=%d, cid=%s]: %s", uid, cli.ClientId, err.Error())
+			if userClients != nil {
+				for _, cli := range userClients.AllClients() {
+					if err := cli.WriteMsg(msg); err != nil {
+						logx.Warnf("ws send message failed - [uid=%d, cid=%s]: %s", uid, cli.ClientId, err.Error())
+					}
 				}
 			}
 		}

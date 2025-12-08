@@ -55,17 +55,19 @@ func (p *Procinst) GetFlowDef() *FlowDef {
 type ProcinstStatus int8
 
 const (
-	ProcinstStatusActive     ProcinstStatus = 1  // 流程实例正在执行中，当前有活动任务等待执行或者正在运行的流程节点
-	ProcinstStatusCompleted  ProcinstStatus = 2  // 流程实例已经成功执行完成，没有剩余任务或者等待事件
-	ProcinstStatusSuspended  ProcinstStatus = -1 // 流程实例被挂起，暂停执行，可能被驳回等待修改重新提交
-	ProcinstStatusTerminated ProcinstStatus = -2 // 流程实例被终止，可能是由于某种原因如被拒绝等导致流程无法正常执行
-	ProcinstStatusCancelled  ProcinstStatus = -3 // 流程实例被取消，通常是用户手动操作取消了流程的执行
+	ProcinstStatusActive     ProcinstStatus = 1   // 流程实例正在执行中，当前有活动任务等待执行或者正在运行的流程节点
+	ProcinstStatusCompleted  ProcinstStatus = 2   // 流程实例已经成功执行完成，没有剩余任务或者等待事件
+	ProcinstStatusSuspended  ProcinstStatus = -1  // 流程实例被挂起，暂停执行，可能被驳回等待修改重新提交
+	ProcinstStatusBack       ProcinstStatus = -11 // 流程实例被驳回，等待重新提交或修改
+	ProcinstStatusTerminated ProcinstStatus = -2  // 流程实例被终止，可能是由于某种原因如被拒绝等导致流程无法正常执行
+	ProcinstStatusCancelled  ProcinstStatus = -3  // 流程实例被取消，通常是用户手动操作取消了流程的执行
 )
 
 var ProcinstStatusEnum = enumx.NewEnum[ProcinstStatus]("流程状态").
 	Add(ProcinstStatusActive, "执行中").
 	Add(ProcinstStatusCompleted, "完成").
 	Add(ProcinstStatusSuspended, "挂起").
+	Add(ProcinstStatusBack, "退回").
 	Add(ProcinstStatusTerminated, "终止").
 	Add(ProcinstStatusCancelled, "取消")
 

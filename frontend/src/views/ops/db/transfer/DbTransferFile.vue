@@ -25,7 +25,7 @@
                 </template>
 
                 <template #fileKey="{ data }">
-                    <FileInfo :fileKey="data.fileKey" :canDownload="actionBtns[perms.down] && data.status === 2" />
+                    <FileInfo :fileKey="data.fileKey" show-file-size :canDownload="actionBtns[perms.down] && data.status === 2" />
                 </template>
 
                 <template #fileDbType="{ data }">

@@ -50,6 +50,7 @@ func (p *Procinst) ProcinstStart(rc *req.Ctx) {
 	startForm := req.BindJson[*form.ProcinstStart](rc)
 	_, err := p.procinstApp.StartProc(rc.MetaCtx, startForm.ProcdefId, &dto.StarProc{
 		BizType: startForm.BizType,
+		BizKey:  startForm.BizKey,
 		BizForm: jsonx.ToStr(startForm.BizForm),
 		Remark:  startForm.Remark,
 	})

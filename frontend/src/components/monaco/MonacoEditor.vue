@@ -34,15 +34,8 @@ import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestInlineComplet
 import { editor, languages } from 'monaco-editor';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-// 主题仓库 https://github.com/brijeshb42/monaco-themes
-// 主题例子 https://editor.bitwiser.in/
-// import Monokai from 'monaco-themes/themes/Monokai.json'
-// import Active4D from 'monaco-themes/themes/Active4D.json'
-// import ahe from 'monaco-themes/themes/All Hallows Eve.json'
-// import bop from 'monaco-themes/themes/Birds of Paradise.json'
-// import krTheme from 'monaco-themes/themes/krTheme.json'
-// import Dracula from 'monaco-themes/themes/Dracula.json'
-import SolarizedLight from 'monaco-themes/themes/Solarized-light.json';
+import SolarizedLight from './themes/Solarized-light.json';
+import SolarizedDark from './themes/Solarized-dark.json';
 import { language as shellLan } from 'monaco-editor/esm/vs/basic-languages/shell/shell.js';
 
 import { ElOption, ElSelect } from 'element-plus';
@@ -226,6 +219,7 @@ const initMonacoEditorIns = () => {
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
+    monaco.editor.defineTheme('SolarizedDark', SolarizedDark);
     defaultOptions.language = state.languageMode;
     defaultOptions.theme = themeConfig.value.editorTheme;
     let options = Object.assign(defaultOptions, props.options as any);

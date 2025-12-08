@@ -5,47 +5,45 @@
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
-            <el-form :model="form" ref="formRef" :rules="rules" label-width="auto">
+            <el-form :model="modelValue" ref="formRef" :rules="rules" label-width="auto">
                 <el-form-item prop="bizType" :label="$t('flow.bizType')">
-                    <EnumSelect v-model="form.bizType" :enums="FlowBizType" />
+                    <EnumSelect v-model="modelValue.bizType" :enums="FlowBizType" @change="changeBizType" />
                 </el-form-item>
 
                 <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model.trim="form.remark" type="textarea" auto-complete="off" clearable></el-input>
+                    <el-input v-model.trim="modelValue.remark" type="textarea" auto-complete="off" clearable></el-input>
                 </el-form-item>
 
                 <el-divider content-position="left">{{ $t('flow.bizInfo') }}</el-divider>
                 <component
                     ref="bizFormRef"
-                    v-if="form.bizType"
-                    :is="bizComponents[form.bizType]"
-                    v-model:bizForm="form.bizForm"
+                    v-if="modelValue.bizType"
+                    :is="bizComponents[modelValue.bizType]"
+                    v-model:bizForm="modelValue.bizForm"
                     @changeResourceCode="changeResourceCode"
                 >
                 </component>
             </el-form>
 
-            <span v-if="flowProcdef || !state.form.procdefId">
+            <span v-if="flowProcdef || !modelValue.procdefId">
                 <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
 
                 <FlowDesign height="300px" v-if="flowProcdef" :data="flowProcdef.flowDef" disabled center />
 
-                <el-result v-if="!state.form.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')">
+                <el-result v-if="!modelValue.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')">
                 </el-result>
             </span>
 
             <template #footer>
-                <div>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!state.form.procdefId">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!modelValue.procdefId">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, defineAsyncComponent, shallowReactive, useTemplateRef } from 'vue';
+import { toRefs, reactive, defineAsyncComponent, shallowReactive, useTemplateRef, watch, onMounted } from 'vue';
 import { procdefApi, procinstApi } from './api';
 import { ElMessage } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
@@ -68,6 +66,17 @@ const props = defineProps({
 
 const visible = defineModel<boolean>('visible', { default: false });
 
+const modelValue = defineModel('modelValue', {
+    default: () => ({
+        bizType: FlowBizType.DbSqlExec.value,
+        procdefId: 0,
+        status: null,
+        remark: '',
+        bizKey: '',
+        bizForm: {},
+    }),
+});
+
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
@@ -85,32 +94,40 @@ const rules = {
     remark: [Rules.requiredInput('common.remark')],
 };
 
-const defaultForm = {
-    bizType: FlowBizType.DbSqlExec.value,
-    procdefId: -1,
-    status: null,
-    remark: '',
-    bizForm: {},
-};
-
 const state = reactive({
     tasks: [] as any,
-    form: { ...defaultForm },
     flowProcdef: null as any,
     sortable: '' as any,
 });
 
-const { form, flowProcdef } = toRefs(state);
+const { flowProcdef } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: procinstStart } = procinstApi.start.useApi(form);
+const { isFetching: saveBtnLoading, execute: procinstStart } = procinstApi.start.useApi(modelValue);
+
+watch(
+    () => modelValue.value.procdefId,
+    async () => {
+        if (!modelValue.value.procdefId || state.flowProcdef) {
+            return;
+        }
+        state.flowProcdef = await procdefApi.detail.request({ id: modelValue.value.procdefId });
+    }
+);
 
 const changeResourceCode = async (resourceType: any, code: string) => {
     state.flowProcdef = await procdefApi.getByResource.request({ resourceType, resourceCode: code });
     if (!state.flowProcdef) {
-        state.form.procdefId = 0;
+        modelValue.value.procdefId = 0;
     } else {
-        state.form.procdefId = state.flowProcdef.id;
+        modelValue.value.procdefId = state.flowProcdef.id;
     }
+};
+
+const changeBizType = () => {
+    //重置流程定义ID
+    modelValue.value.procdefId = 0;
+    state.flowProcdef = null;
+    modelValue.value.bizForm = {};
 };
 
 const btnOk = async () => {
@@ -124,7 +141,7 @@ const btnOk = async () => {
 
     await procinstStart();
     ElMessage.success(t('flow.procinstStartSuccess'));
-    emit('val-change', state.form);
+    emit('val-change', modelValue.value);
     //重置表单域
     cancel();
 };
@@ -136,7 +153,9 @@ const cancel = () => {
     formRef.value.resetFields();
     bizFormRef.value.resetBizForm();
 
-    state.form = { ...defaultForm };
+    setTimeout(() => {
+        modelValue.value = {} as any;
+    }, 500);
 };
 </script>
 <style lang="scss"></style>

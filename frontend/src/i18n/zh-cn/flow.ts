@@ -94,7 +94,7 @@ export default {
         waitProcess: '待处理',
         pass: '通过',
         reject: '拒绝',
-        back: '回退',
+        back: '退回',
         canceled: '取消',
         // FlowBizType
         dbSqlExec: 'DBMS-执行SQL',
@@ -113,5 +113,9 @@ export default {
         taskBeginTime: '开始时间',
         flowAudit: '流程审批',
         notify: '通知',
+
+        aitask: 'AI任务',
+        aiAuditRule: '审核规则',
+        aiAuditRuleTip: '请输入审核规则',
     },
 };

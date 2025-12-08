@@ -1,6 +1,6 @@
 <template>
     <div :style="{ height: props.height }" class="flex flex-col" v-loading="saveing">
-        <div class="h-[100vh]" ref="flowContainerRef"></div>
+        <div class="h-screen" ref="flowContainerRef"></div>
     </div>
 
     <PropSettingDrawer

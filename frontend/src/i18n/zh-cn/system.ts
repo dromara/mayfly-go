@@ -190,6 +190,15 @@ export default {
             loginFailCountPlaceholder: '登录失败n次后禁止登录',
             loginFainMin: '登录失败禁止登录时间',
             loginFailMinPlaceholder: '登录失败指定次数后禁止m分钟内再次登录',
+
+            aiModelConf: 'AI模型配置',
+            aiModelType: '模型类型',
+            aiModelTypePlaceholder: '选择AI模型类型',
+            aiModel: '模型',
+            aiModelPlaceholder: '请输入模型',
+            aiBaseUrl: '地址',
+            aiBaseUrlPlaceholder: '请输入模型请求地址',
+            aiApiKey: 'API Key',
         },
         syslog: {
             operator: '操作人',

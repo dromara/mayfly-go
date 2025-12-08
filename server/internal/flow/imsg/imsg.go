@@ -32,4 +32,6 @@ const (
 	ErrProcinstCancelSelf
 	ErrProcinstCancelled
 	ErrBizHandlerFail
+
+	ErrAiTaskNodeAuditRuleNotEmpty
 )

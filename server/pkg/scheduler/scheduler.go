@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"errors"
 	"mayfly-go/pkg/logx"
 	"sync"
 
@@ -51,6 +52,9 @@ func AddFun(spec string, cmd func()) (cron.EntryID, error) {
 // AddFunByKey 根据key添加定时任务
 func AddFunByKey(key, spec string, cmd func()) error {
 	logx.Debugf("add cron func => [key = %s]", key)
+	if key == "" {
+		return errors.New("scheduler key cannot be empty")
+	}
 	RemoveByKey(key)
 	id, err := AddFun(spec, cmd)
 	if err != nil {

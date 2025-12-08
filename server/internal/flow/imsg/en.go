@@ -24,4 +24,6 @@ var En = map[i18n.MsgId]string{
 	ErrProcinstCancelSelf: "You can only cancel processes you initiated",
 	ErrProcinstCancelled:  "Process has been cancelled",
 	ErrBizHandlerFail:     "Business process failure",
+
+	ErrAiTaskNodeAuditRuleNotEmpty: "The audit rule of the AI task node [{{.name}}] cannot be empty",
 }

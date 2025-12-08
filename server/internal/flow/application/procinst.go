@@ -57,13 +57,8 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqPa
 		return nil, errorx.NewBizI(ctx, imsg.ErrProcdefFlowNotExist)
 	}
 
-	bizKey := reqParam.BizKey
-	if bizKey == "" {
-		bizKey = stringx.RandUUID()
-	}
 	procinst := &entity.Procinst{
 		BizType:     reqParam.BizType,
-		BizKey:      bizKey,
 		BizForm:     reqParam.BizForm,
 		BizStatus:   entity.ProcinstBizStatusWait,
 		ProcdefId:   procdef.Id,
@@ -72,6 +67,24 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqPa
 		Status:      entity.ProcinstStatusActive,
 		FlowDef:     procdef.FlowDef,
 	}
+
+	bizKey := reqParam.BizKey
+	if bizKey == "" {
+		bizKey = stringx.RandUUID()
+	} else {
+		// 若业务key已存在，则为修改重新提交流程
+		existProcinst := &entity.Procinst{BizKey: bizKey}
+		if err := p.GetByCond(existProcinst); err == nil {
+			if existProcinst.Status != entity.ProcinstStatusBack {
+				return nil, errorx.NewBiz("该工单非退回状态，无法修改")
+			}
+			if existProcinst.CreatorId != contextx.GetLoginAccount(ctx).Id {
+				return nil, errorx.NewBiz("该工单非当前用户创建，无法修改")
+			}
+			procinst.Id = existProcinst.Id
+		}
+	}
+	procinst.BizKey = bizKey
 
 	return procinst, p.Tx(ctx, func(ctx context.Context) error {
 		if err := p.Save(ctx, procinst); err != nil {

@@ -2,6 +2,12 @@
     <el-tabs v-model="activeTabName">
         <el-tab-pane :name="approvalRecordTabName" v-if="activeTabName == approvalRecordTabName" :label="$t('flow.approvalRecord')">
             <el-table :data="props.node?.properties?.tasks" stripe width="100%">
+                <el-table-column :label="$t('common.createTime')" min-width="135">
+                    <template #default="scope">
+                        {{ formatDate(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+
                 <el-table-column :label="$t('common.time')" min-width="135">
                     <template #default="scope">
                         {{ formatDate(scope.row.endTime) }}

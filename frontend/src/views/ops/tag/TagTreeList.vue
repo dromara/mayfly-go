@@ -1,16 +1,10 @@
 <template>
-    <div class="tag-tree-list card !p-2 h-full flex">
+    <div class="tag-tree-list card p-2! h-full flex">
         <el-splitter>
             <el-splitter-panel size="24%" max="35%" class="flex flex-col flex-1">
-                <div class="card !p-1 !mr-1 flex flex-row items-center justify-between overflow-hidden">
+                <div class="card p-1! mr-1! flex flex-row items-center justify-between overflow-hidden">
                     <el-input v-model="filterTag" clearable :placeholder="$t('tag.nameFilterPlaceholder')" class="mr-2" />
-                    <el-button
-                        v-if="useUserInfo().userInfo.username == 'admin'"
-                        v-auth="'tag:save'"
-                        type="primary"
-                        icon="plus"
-                        @click="onShowSaveTagDialog(null)"
-                    ></el-button>
+                    <el-button v-auth="'tag:save'" type="primary" icon="plus" @click="onShowSaveTagDialog(null)"></el-button>
                     <div>
                         <el-tooltip placement="top">
                             <template #content>

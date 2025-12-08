@@ -7,6 +7,7 @@
             size="50%"
             body-class="!p-2"
             header-class="!mb-2"
+            :destroy-on-close="true"
             :close-on-click-modal="!props.instTaskId"
         >
             <template #header>
@@ -54,7 +55,7 @@
                     <el-form-item prop="status" :label="$t('flow.approveResult')" required>
                         <el-select v-model="form.status">
                             <el-option :label="$t(ProcinstTaskStatus.Pass.label)" :value="ProcinstTaskStatus.Pass.value"> </el-option>
-                            <!-- <el-option :label="ProcinstTaskStatus.Back.label" :value="ProcinstTaskStatus.Back.value"> </el-option> -->
+                            <el-option :label="$t(ProcinstTaskStatus.Back.label)" :value="ProcinstTaskStatus.Back.value"> </el-option>
                             <el-option :label="$t(ProcinstTaskStatus.Reject.label)" :value="ProcinstTaskStatus.Reject.value"> </el-option>
                         </el-select>
                     </el-form-item>
@@ -133,6 +134,9 @@ const { procinst, flowDef, form, saveBtnLoading } = toRefs(state);
 watch(
     () => props.procinstId,
     async (newValue: any) => {
+        state.form.status = ProcinstTaskStatus.Pass.value;
+        state.form.remark = '';
+
         if (!newValue) {
             state.procinst = {};
             state.flowDef = null;
@@ -155,7 +159,7 @@ watch(
                 {} as Record<string, typeof res>
             );
 
-            const nodeKey2Tasks = state.procinst.procinstTasks.reduce(
+            const nodeKey2Tasks = state.procinst.procinstTasks?.reduce(
                 (acc: { [x: string]: any[] }, item: { nodeKey: any }) => {
                     const key = item.nodeKey;
                     if (!acc[key]) {
@@ -172,7 +176,7 @@ watch(
                 if (nodeKey2Ops[key]) {
                     // 将操作记录挂载到 node 下，例如命名为 historyList
                     node.extra.opLog = nodeKey2Ops[key][0];
-                    node.extra.tasks = nodeKey2Tasks[key];
+                    node.extra.tasks = nodeKey2Tasks?.[key];
                 }
             });
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -20,9 +21,11 @@ func DefaultFormatDate(time time.Time) string {
 	return time.Format(DefaultDateFormat)
 }
 
-// TimeNo 获取当前时间编号，格式为20060102150405
+// TimeNo 获取当前时间编号（毫秒），格式为20060102150405000
 func TimeNo() string {
-	return time.Now().Format("20060102150405")
+	formatted := time.Now().Format("20060102150405.000")
+	// 移除小数点
+	return strings.Replace(formatted, ".", "", 1)
 }
 
 func NewNullTime(t time.Time) NullTime {

@@ -336,7 +336,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 			dataCount := 0
 			rows := make([][]any, 0)
-			_, err = dbConn.WalkTableRows(ctx, tableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+			_, err = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
 				rowValues := make([]any, len(columns))
 				for i, col := range columns {
 					rowValues[i] = row[col.ColumnName]

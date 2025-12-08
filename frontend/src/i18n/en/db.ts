@@ -1,3 +1,5 @@
+import { exportExcel } from '@/common/utils/export';
+
 export default {
     db: {
         // db instance
@@ -99,6 +101,7 @@ export default {
         cancelFiexd: 'Cancel Fixed',
         formView: 'Form View',
         genJson: 'Generating JSON',
+        exportExcel: 'Export Excel',
         exportCsv: 'Export CSV',
         exportSql: 'Export SQL',
         onlySelectOneData: 'Only one row can be selected',

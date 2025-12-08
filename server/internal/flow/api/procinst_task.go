@@ -96,7 +96,11 @@ func (p *ProcinstTask) RejectTask(rc *req.Ctx) {
 func (p *ProcinstTask) BackTask(rc *req.Ctx) {
 	auditForm := req.BindJson[*form.ProcinstTaskAudit](rc)
 	rc.ReqParam = auditForm
-	biz.ErrIsNil(p.procinstTaskApp.BackTask(rc.MetaCtx, dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark}))
+
+	la := rc.GetLoginAccount()
+	op := dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark, Handler: la.Username}
+	op.Candidate = p.GetLaCandidates(la)
+	biz.ErrIsNil(p.procinstTaskApp.BackTask(rc.MetaCtx, op))
 }
 
 func (p *ProcinstTask) GetLaCandidates(la *model.LoginAccount) []string {

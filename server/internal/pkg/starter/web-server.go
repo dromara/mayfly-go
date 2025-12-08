@@ -58,6 +58,8 @@ func runWebServer(ctx context.Context) {
 		router.Use(middleware.Cors())
 	}
 
+	router.Use(gin.Recovery())
+
 	srv := http.Server{
 		Addr: config.Conf.Server.GetPort(),
 		// 注册路由

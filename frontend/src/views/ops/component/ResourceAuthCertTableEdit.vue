@@ -7,13 +7,13 @@
                 </template>
                 <template #default="scope">
                     <el-button v-auth="'authcert:save'" @click="edit(scope.row, scope.$index)" type="primary" icon="edit" link></el-button>
-                    <el-button class="!ml-0.5" v-auth="'authcert:del'" type="danger" @click="deleteRow(scope.$index)" icon="delete" link></el-button>
+                    <el-button class="ml-0.5!" v-auth="'authcert:del'" type="danger" @click="deleteRow(scope.$index)" icon="delete" link></el-button>
 
                     <el-button
                         :title="$t('ac.testConn')"
                         :loading="props.testConnBtnLoading && scope.$index == state.idx"
                         :disabled="props.testConnBtnLoading"
-                        class="!ml-0.5"
+                        class="ml-0.5!"
                         type="success"
                         @click="testConn(scope.row, scope.$index)"
                         icon="Link"

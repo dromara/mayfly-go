@@ -120,7 +120,7 @@ const getNode = (nodeKey: any) => {
 };
 
 const changeNode = (val: any) => {
-    // 触发改变时间，并传递节点数据
+    // 触发改变事件，并传递节点数据
     emit('change', getNode(val)?.data);
 };
 </script>

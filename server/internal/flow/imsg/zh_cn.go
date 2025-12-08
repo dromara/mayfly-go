@@ -24,4 +24,6 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrProcinstCancelSelf: "只能取消自己发起的流程",
 	ErrProcinstCancelled:  "流程已取消",
 	ErrBizHandlerFail:     "业务处理失败",
+
+	ErrAiTaskNodeAuditRuleNotEmpty: "Ai任务节点 [{{.name}}] 的审核规则不能为空",
 }

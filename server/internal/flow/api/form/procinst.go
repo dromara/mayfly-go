@@ -6,9 +6,10 @@ import (
 
 type ProcinstStart struct {
 	ProcdefId uint64  `json:"procdefId" binding:"required"` // 流程定义id
-	BizType   string  `json:"bizType" binding:"required"`   // 业务类型
-	Remark    string  `json:"remark"`                       // 流程备注
-	BizForm   collx.M `json:"bizForm" binding:"required"`   // 业务表单
+	BizKey    string  `json:"bizKey"`
+	BizType   string  `json:"bizType" binding:"required"` // 业务类型
+	Remark    string  `json:"remark"`                     // 流程备注
+	BizForm   collx.M `json:"bizForm" binding:"required"` // 业务表单
 }
 
 type ProcinstTaskAudit struct {

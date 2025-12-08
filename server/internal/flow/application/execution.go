@@ -43,6 +43,7 @@ func (e *executionAppImpl) Init() {
 	nodeBehaviorRegistry.Register(&StartNodeBehavior{})
 	nodeBehaviorRegistry.Register(&EndNodeBehavior{})
 	nodeBehaviorRegistry.Register(&UserTaskNodeBehavior{})
+	nodeBehaviorRegistry.Register(&AiTaskNodeBehavior{})
 
 	const subId = "ExecutionApp"
 
@@ -66,15 +67,20 @@ func (e *executionAppImpl) CreateExecution(ctx context.Context, procinst *entity
 	}
 	startNode := startNodes[0]
 
-	// 创建执行流
 	execution := &entity.Execution{
-		ProcinstId:   procinst.Id,
-		ParentId:     0,
-		NodeKey:      startNode.Key,
-		NodeName:     startNode.Name,
-		NodeType:     startNode.Type,
-		State:        entity.ExectionStateActive,
-		IsConcurrent: -1,
+		ProcinstId: procinst.Id,
+		ParentId:   0,
+		NodeKey:    startNode.Key,
+		NodeName:   startNode.Name,
+		NodeType:   startNode.Type,
+		State:      entity.ExectionStateSuspended,
+	}
+	if err := e.GetByCond(execution); err == nil {
+		// 已存在挂起的流程实例，则直接激活继续执行
+		execution.State = entity.ExectionStateActive
+	} else {
+		execution.State = entity.ExectionStateActive
+		execution.IsConcurrent = -1
 	}
 
 	return e.Tx(ctx, func(ctx context.Context) error {
@@ -124,7 +130,12 @@ func (e *executionAppImpl) MoveTo(ctx *ExecutionCtx, nextNode *entity.FlowNode) 
 			return err
 		}
 
-		return e.executeNode(ctx)
+		if execution.State == entity.ExectionStateActive {
+			// 继续推进执行节点
+			return e.executeNode(ctx)
+		}
+
+		return nil
 	})
 }
 
@@ -170,5 +181,10 @@ func (e *executionAppImpl) executeNode(ctx *ExecutionCtx) error {
 	}
 
 	// 执行节点逻辑
+	if node.IsAsync() {
+		go node.Execute(ctx)
+		return nil
+	}
+
 	return node.Execute(ctx)
 }

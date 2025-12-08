@@ -118,6 +118,9 @@ type NodeBehavior interface {
 
 	// Leave 离开节点
 	Leave(*ExecutionCtx) error
+
+	// IsAsync 是否异步节点
+	IsAsync() bool
 }
 
 type DefaultNodeBehavior struct {
@@ -134,6 +137,10 @@ func (h *DefaultNodeBehavior) Execute(ctx *ExecutionCtx) error {
 func (h *DefaultNodeBehavior) Leave(ctx *ExecutionCtx) error {
 	// 默认执行流推进下一节点
 	return GetExecutionApp().ContinueExecution(ctx)
+}
+
+func (h *DefaultNodeBehavior) IsAsync() bool {
+	return false
 }
 
 /******************* 节点注册器 *******************/

@@ -38,10 +38,8 @@
             </el-form>
 
             <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="onCloseSetConfigDialog()">{{ $t('common.cancel') }}</el-button>
-                    <el-button v-auth="'config:save'" type="primary" @click="setConfig()">{{ $t('common.confirm') }}</el-button>
-                </span>
+                <el-button @click="onCloseSetConfigDialog()">{{ $t('common.cancel') }}</el-button>
+                <el-button v-auth="'config:save'" type="primary" @click="setConfig()">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-dialog>
 

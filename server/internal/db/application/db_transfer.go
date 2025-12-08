@@ -290,7 +290,7 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 	}
 	_ = app.transferFileApp.Save(ctx, tFile)
 
-	filename := fmt.Sprintf("dtf_%s_%s.sql", task.TaskName, timex.TimeNo())
+	filename := fmt.Sprintf("dtf_%s.sql", timex.TimeNo())
 	fileKey, writer, saveFileFunc, err := app.fileApp.NewWriter(ctx, "", filename)
 	if err != nil {
 		app.EndTransfer(ctx, logId, taskId, "create file error", err, nil)
@@ -393,7 +393,7 @@ func (app *dbTransferAppImpl) addCronJob(ctx context.Context, taskEntity *entity
 
 		taskId := taskEntity.Id
 		if err := scheduler.AddFunByKey(key, taskEntity.Cron, func() {
-			logx.Infof("start the synchronization task: %d", taskId)
+			logx.Infof("start the transfer task: %d", taskId)
 			if _, err := app.Run(ctx, taskId); err != nil {
 				logx.Warn(err.Error())
 			}

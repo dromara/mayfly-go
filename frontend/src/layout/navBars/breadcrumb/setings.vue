@@ -62,6 +62,7 @@
                             <el-option label="vs" value="vs"> </el-option>
                             <el-option label="vs-dark" value="vs-dark"> </el-option>
                             <el-option label="SolarizedLight" value="SolarizedLight"> </el-option>
+                            <el-option label="SolarizedDark" value="SolarizedDark"> </el-option>
                         </el-select>
                     </div>
                 </div>

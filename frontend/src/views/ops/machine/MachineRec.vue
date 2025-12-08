@@ -11,7 +11,7 @@
         >
             <page-table ref="pageTableRef" :page-api="machineApi.termOpRecs" :lazy="true" height="100%" v-model:query-form="query" :columns="columns">
                 <template #fileKey="{ data }">
-                    <FileInfo :fileKey="data.fileKey" />
+                    <FileInfo :fileKey="data.fileKey" show-file-size />
                 </template>
 
                 <template #action="{ data }">

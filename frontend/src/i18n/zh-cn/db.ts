@@ -98,6 +98,7 @@ export default {
         cancelFiexd: '取消固定',
         formView: '表单视图',
         genJson: '生成JSON',
+        exportExcel: '导出Excel',
         exportCsv: '导出CSV',
         exportSql: '导出SQL',
         onlySelectOneData: '只能选择一行数据',

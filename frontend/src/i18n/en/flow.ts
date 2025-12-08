@@ -113,5 +113,9 @@ export default {
         taskBeginTime: 'Start Time',
         flowAudit: 'Process Audit',
         notify: 'Notify',
+
+        aitask: 'AI Task',
+        aiAuditRule: 'Audit Rule',
+        aiAuditRuleTip: 'Please input the audit rule',
     },
 };
