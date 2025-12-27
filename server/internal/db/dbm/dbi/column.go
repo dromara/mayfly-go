@@ -9,23 +9,31 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cast"
 )
 
 var (
-	dbDataTypes = make(map[DbType]map[string]*DbDataType) // 列类型
+	dbDataTypes      = make(map[DbType]map[string]*DbDataType) // 列类型
+	dbDataTypesMutex sync.RWMutex                              // 读写锁
 )
 
 // registerColumnDbDataTypes 注册数据库对应的数据类型
 func registerColumnDbDataTypes(dbType DbType, cts ...*DbDataType) {
+	dbDataTypesMutex.Lock()
+	defer dbDataTypesMutex.Unlock()
+
 	dbDataTypes[dbType] = collx.ArrayToMap(cts, func(ct *DbDataType) string {
 		return strings.ToLower(string(ct.Name))
 	})
 }
 
 func GetDbDataType(dbType DbType, databaseColumnType string) *DbDataType {
+	dbDataTypesMutex.RLock()
+	defer dbDataTypesMutex.RUnlock()
+
 	return cmp.Or(dbDataTypes[dbType][strings.ToLower(databaseColumnType)], DefaultDbDataType)
 }
 
