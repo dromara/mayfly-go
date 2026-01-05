@@ -42,14 +42,16 @@ func (r *RedisConn) Close() error {
 }
 
 func (r *RedisConn) Ping() error {
-	// 首先检查r是否为nil
-	if r == nil {
-		return fmt.Errorf("redis connection is nil")
-	}
-	// 然后检查r.Cli是否为nil，这是避免空指针异常的关键
 	if r.Cli == nil {
 		return fmt.Errorf("redis client is nil")
 	}
+
+	stats := r.Cli.PoolStats()
+	if stats.TotalConns == 0 {
+		return fmt.Errorf("no open connections")
+	}
+	logx.Debugf("[%s] redis stats -> open: %d, idle: %d", r.Info.Name, stats.TotalConns, stats.IdleConns)
+
 	cmd := r.Cli.Ping(context.Background())
 	if cmd == nil {
 		return fmt.Errorf("the ping cmd is nil")

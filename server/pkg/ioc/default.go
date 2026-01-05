@@ -13,25 +13,32 @@ func Register(component any, opts ...ComponentOption) {
 	DefaultContainer.Register(component, opts...)
 }
 
-// 根据组件名从全局默认ioc容器获取实例
-func Get[T any](name string) T {
+// Get 根据组件实例类型从全局默认ioc容器获取实例
+func Get[T any]() T {
+	c, _ := DefaultContainer.GetByType(reflect.TypeOf((*T)(nil)).Elem())
+	return c.(T)
+}
+
+// GetByName 根据组件名从全局默认ioc容器获取实例
+func GetByName[T any](name string) T {
 	c, _ := DefaultContainer.Get(name)
 	return c.(T)
 }
 
+
 // GetBeansByType 根据组件实例类型从全局默认ioc容器获取实例
-func GetBeansByType[T any](valueType reflect.Type) []T {
-	return collx.ArrayMap(DefaultContainer.GetBeansByType(valueType), func(val any) T {
+func GetBeansByType[T any]() []T {
+	return collx.ArrayMap(DefaultContainer.GetBeansByType(reflect.TypeOf((*T)(nil)).Elem()), func(val any) T {
 		return val.(T)
 	})
 }
 
-// 使用全局默认ioc容器中已注册的组件实例 -> 注入到指定实例所依赖的组件实例
+// Inject 使用全局默认ioc容器中已注册的组件实例 -> 注入到指定实例所依赖的组件实例
 func Inject(component any) error {
 	return DefaultContainer.Inject(component)
 }
 
-// 注入默认ioc容器内组件所依赖的其他组件实例
+// InjectComponents 注入默认ioc容器内组件所依赖的其他组件实例
 func InjectComponents() error {
 	return DefaultContainer.InjectComponents()
 }

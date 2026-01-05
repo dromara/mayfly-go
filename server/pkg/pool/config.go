@@ -12,6 +12,9 @@ var (
 
 // PoolConfig 连接池配置
 type PoolConfig[T Conn] struct {
+	Group    *PoolGroup[T] // 所属连接池组
+	GroupKey string        // 连接池组中的key
+
 	MaxConns            int           // 最大连接数
 	IdleTimeout         time.Duration // 空闲连接超时时间
 	WaitTimeout         time.Duration // 获取连接超时时间
@@ -24,6 +27,20 @@ type PoolConfig[T Conn] struct {
 // Option 函数类型，用于配置 Pool
 type Option[T Conn] func(*PoolConfig[T])
 
+// WithGroup 设置连接池所属组
+func WithGroup[T Conn](group *PoolGroup[T]) Option[T] {
+	return func(c *PoolConfig[T]) {
+		c.Group = group
+	}
+}
+
+// WithGroupKey 配置连接池组中的key
+func WithGroupKey[T Conn](key string) Option[T] {
+	return func(c *PoolConfig[T]) {
+		c.GroupKey = key
+	}
+}
+
 // WithMaxConns 设置最大连接数
 func WithMaxConns[T Conn](maxConns int) Option[T] {
 	return func(c *PoolConfig[T]) {
@@ -31,7 +48,7 @@ func WithMaxConns[T Conn](maxConns int) Option[T] {
 	}
 }
 
-// WithIdleTimeout 设置空闲超时
+// WithIdleTimeout 设置空闲超时, <= 0 不超时清理连接
 func WithIdleTimeout[T Conn](timeout time.Duration) Option[T] {
 	return func(c *PoolConfig[T]) {
 		c.IdleTimeout = timeout

@@ -9,6 +9,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"strings"
+	"time"
 )
 
 type DbType string
@@ -81,12 +82,13 @@ func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 
 	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di}
 
-	// 最大连接周期，超过时间的连接就close
-	// conn.SetConnMaxLifetime(100 * time.Second)
+	conn.SetConnMaxLifetime(5 * time.Hour)
+	conn.SetConnMaxIdleTime(3 * time.Hour)
 	// 设置最大连接数
-	conn.SetMaxOpenConns(6)
-	// 设置闲置连接数
+	conn.SetMaxOpenConns(10)
+	// 设置闲置连接
 	conn.SetMaxIdleConns(1)
+
 	dbc.db = conn
 	logx.Infof("db connection: %s:%d/%s", di.Host, di.Port, database)
 

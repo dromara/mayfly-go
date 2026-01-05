@@ -26,14 +26,15 @@ type DbConn struct {
 // 关闭连接
 func (d *DbConn) Close() error {
 	if d.db != nil {
-		logx.Debugf("dbm - conn close, connId: %s", d.Id)
 		if err := d.db.Close(); err != nil {
-			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
+			logx.Errorf("关闭数据库实例[%s]连接失败: %v", d.Id, err)
+			return err
 		}
+		logx.Debugf("dbm - conn close success, connId: %s", d.Id)
 		// TODO 关闭实例隧道会影响其他正在使用的连接，所以暂时不关闭
-		//if d.Info.useSshTunnel {
-		//	mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
-		//}
+		// if d.Info.useSshTunnel {
+		// 	mcm.CloseSshTunnelMachine(uint64(d.Info.SshTunnelMachineId), fmt.Sprintf("db:%d", d.Info.Id))
+		// }
 		d.db = nil
 	}
 
@@ -41,15 +42,16 @@ func (d *DbConn) Close() error {
 }
 
 func (d *DbConn) Ping() error {
-	// 首先检查d是否为nil
-	if d == nil {
-		return fmt.Errorf("d is nil")
-	}
-
-	// 然后检查d.db是否为nil，这是避免空指针异常的关键
 	if d.db == nil {
 		return fmt.Errorf("db is nil")
 	}
+
+	stats := d.db.Stats()
+	logx.Debugf("[%s] db stats -> open: %d, idle: %d,  inUse: %d, maxOpen: %d", d.Info.Name, stats.OpenConnections, stats.Idle, stats.InUse, stats.MaxOpenConnections)
+	if stats.OpenConnections == 0 {
+		return errors.New("no open connections")
+	}
+
 	return d.db.Ping()
 }
 

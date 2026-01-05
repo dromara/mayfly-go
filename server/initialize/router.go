@@ -5,7 +5,6 @@ import (
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 	"net/http"
-	"reflect"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,7 +30,7 @@ func InitRouter(router *gin.Engine, conf RouterConfig) *gin.Engine {
 	api := router.Group(conf.ContextPath + "/api")
 
 	// 获取所有实现了RouterApi接口的实例，并注册对应路由
-	ras := ioc.GetBeansByType[RouterApi](reflect.TypeOf((*RouterApi)(nil)).Elem())
+	ras := ioc.GetBeansByType[RouterApi]()
 	for _, ra := range ras {
 		confs := ra.ReqConfs()
 		if group := confs.Group; group != "" {

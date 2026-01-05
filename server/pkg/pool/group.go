@@ -70,15 +70,23 @@ func (pg *PoolGroup[T]) GetOrCreate(
 }
 
 // GetChanPool 获取或创建 ChannelPool 类型连接池
+// key: 连接池标识
+// factory: 连接创建函数
+// opts: 配置项
 func (pg *PoolGroup[T]) GetChanPool(key string, factory func() (T, error), opts ...Option[T]) (Pool[T], error) {
 	return pg.GetOrCreate(key, func() Pool[T] {
+		opts = append(opts, WithGroup(pg), WithGroupKey[T](key))
 		return NewChannelPool(factory, opts...)
 	}, opts...)
 }
 
 // GetCachePool 获取或创建 CachePool 类型连接池
+// key: 连接池标识
+// factory: 连接创建函数
+// opts: 配置项
 func (pg *PoolGroup[T]) GetCachePool(key string, factory func() (T, error), opts ...Option[T]) (Pool[T], error) {
 	return pg.GetOrCreate(key, func() Pool[T] {
+		opts = append(opts, WithGroup(pg), WithGroupKey[T](key))
 		return NewCachePool(factory, opts...)
 	}, opts...)
 }

@@ -54,4 +54,4 @@ function initI18n() {
 }
 
 // 导出语言国际化
-export const i18n = initI18n();
+export const i18n: any = initI18n();

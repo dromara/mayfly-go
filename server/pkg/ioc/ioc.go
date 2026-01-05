@@ -270,7 +270,7 @@ func (c *Container) injectWithMethod(context context.Context, objValue reflect.V
 		componentName := methodName[6:]
 
 		injectInfo := fmt.Sprintf("ioc method inject [%s.%s#%s(%s)]", objType.Elem().PkgPath(), objType.Elem().Name(), methodName, componentName)
-		logx.DebugfContext(context, injectInfo)
+		logx.DebugContext(context, injectInfo)
 
 		if method.Type.NumIn() != 2 {
 			logx.WarnfContext(context, "%s error: the method cannot be injected if it does not have one parameter", injectInfo)

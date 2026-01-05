@@ -1,10 +1,10 @@
 <template>
-    <div class="flex min-h-screen bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-gray-900 dark:to-gray-950">
+    <div class="flex min-h-screen bg-linear-to-br from-blue-50 to-cyan-100 dark:from-gray-900 dark:to-gray-950">
         <div class="w-full flex items-center justify-center p-4">
             <div
                 class="bg-white/90 backdrop-blur-lg border border-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden dark:bg-gray-800/90 dark:border-gray-700/50 transition-all duration-300 hover:shadow-2xl flex flex-col my-8"
             >
-                <div class="bg-gradient-to-br from-cyan-500/5 to-blue-600/5 dark:from-cyan-400/5 dark:to-blue-500/5 flex-grow"></div>
+                <div class="bg-linear-to-br from-cyan-500/5 to-blue-600/5 dark:from-cyan-400/5 dark:to-blue-500/5 grow"></div>
 
                 <!-- Logo and Title Section -->
                 <div class="text-center pt-10 pb-6 px-4">
@@ -13,7 +13,7 @@
                             <img :src="themeConfig.logoIcon" class="w-16 h-16 drop-shadow-lg mr-3" />
                             <div>
                                 <h1
-                                    class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400"
+                                    class="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-br from-cyan-600 to-blue-600 dark:from-cyan-400 dark:to-blue-400"
                                 >
                                     {{ themeConfig.globalViceTitle }}
                                 </h1>
@@ -61,7 +61,7 @@
                 </div>
 
                 <!-- Login Form Section -->
-                <div class="px-8 pb-8 flex-grow">
+                <div class="px-8 pb-8 grow">
                     <div v-if="!state.isScan">
                         <el-tabs v-model="state.tabsActiveName" class="custom-tabs">
                             <el-tab-pane :label="$t('login.accountPasswordLogin')" name="account">

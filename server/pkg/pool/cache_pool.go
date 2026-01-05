@@ -9,19 +9,22 @@ import (
 	"time"
 )
 
+// 缓存条目
 type cacheEntry[T Conn] struct {
-	conn       T
-	lastActive time.Time
+	conn       T // 连接
+	lastActive time.Time // 最后活跃时间
 }
 
 type CachePool[T Conn] struct {
-	factory func() (T, error)
+	factory func() (T, error) // 创建连接的工厂方法
 	mu      sync.RWMutex
 	cache   map[string]*cacheEntry[T] // 使用字符串键的缓存
-	config  PoolConfig[T]
+	config  PoolConfig[T] // 池配置
 	closeCh chan struct{}
 	closed  bool
 }
+
+var _ Pool[Conn] = (*CachePool[Conn])(nil)
 
 func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePool[T] {
 	config := PoolConfig[T]{
@@ -42,6 +45,7 @@ func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePo
 	}
 
 	go p.backgroundMaintenance()
+	
 	return p
 }
 
@@ -147,8 +151,7 @@ func (p *CachePool[T]) removeOldest() {
 	}
 
 	if oldestKey != "" {
-		p.cache[oldestKey].conn.Close()
-		delete(p.cache, oldestKey)
+		p.closeConn(oldestKey, p.cache[oldestKey], true)
 	}
 }
 
@@ -219,32 +222,49 @@ func (p *CachePool[T]) backgroundMaintenance() {
 	}
 }
 
-// 清理闲置超时的连接
+// cleanupIdle 清理ping失败或者闲置超时的连接
 func (p *CachePool[T]) cleanupIdle() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	cutoff := time.Now().Add(-p.config.IdleTimeout)
-	for key, entry := range p.cache {
-		if entry.lastActive.Before(cutoff) || !p.ping(entry.conn) {
-			logx.Infof("cache pool - cleaning up idle connection, key: %s", key)
-			// 如果连接超时或不可用，则关闭连接
-			p.closeConn(key, entry, false)
-		}
-	}
+    defer p.mu.Unlock()
+    
+    for key, entry := range p.cache {
+        shouldClean := false
+        
+        // 检查是否设置了超时时间，且连接已超时
+        if p.config.IdleTimeout > 0 {
+            cutoff := time.Now().Add(-p.config.IdleTimeout)
+            if entry.lastActive.Before(cutoff) {
+                shouldClean = true
+            }
+        }
+        
+        // 检查连接健康状态
+        if !shouldClean && !p.ping(entry.conn) {
+            shouldClean = true
+        }
+        
+        if shouldClean {
+            logx.Infof("cache pool - cleaning up connection (timeout or ping failed), key: %s", key)
+            p.closeConn(key, entry, false)
+        }
+    }
 }
 
 func (p *CachePool[T]) ping(conn T) bool {
 	done := make(chan struct{})
 	var result bool
 	go func() {
-		result = conn.Ping() == nil
+		err := conn.Ping()
+		if err != nil {
+			logx.Errorf("conn pool - ping failed: %s", err.Error())
+		}
+		result = err == nil
 		close(done)
 	}()
 	select {
 	case <-done:
 		return result
-	case <-time.After(2 * time.Second): // 设置超时
+	case <-time.After(5 * time.Second): // 设置超时
 		logx.Debug("ping timeout")
 		return false // 超时认为不可用
 	}
@@ -264,8 +284,16 @@ func (p *CachePool[T]) closeConn(key string, entry *cacheEntry[T], force bool) b
 
 	if err := entry.conn.Close(); err != nil {
 		logx.Errorf("cache pool - closing connection error: %v", err)
+		return false;
 	}
 	delete(p.cache, key)
+
+	// 如果连接池组存在且当前缓存已空，则从组中移除该池
+	if group := p.config.Group; group != nil && p.config.GroupKey != "" && len(p.cache) == 0 {
+		logx.Infof("cache pool - closing group pool, key: %s", p.config.GroupKey)
+		group.Close(p.config.GroupKey)
+	}
+	
 	return true
 }
 

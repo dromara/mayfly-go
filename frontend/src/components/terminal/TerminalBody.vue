@@ -111,7 +111,6 @@ const initTerm = async () => {
         cursorBlink: true,
         disableStdin: false,
         allowProposedApi: true,
-        fastScrollModifier: 'ctrl',
         theme: getTerminalTheme(),
     });
 

@@ -358,7 +358,7 @@ func V1_10_4() []*gormigrate.Migration {
 func V1_10_5() []*gormigrate.Migration {
 	return []*gormigrate.Migration{
 		{
-			ID: "20251207-v1.10.5",
+			ID: "20251207-v1.10.4.1",
 			Migrate: func(tx *gorm.DB) error {
 				config := &sysentity.Config{}
 				// 查询是否存在该配置

@@ -61,6 +61,8 @@ func (re *RedisInfo) connStandalone() (*RedisConn, error) {
 		DialTimeout:  8 * time.Second,
 		ReadTimeout:  -1, // Disable timeouts, because SSH does not support deadlines.
 		WriteTimeout: -1,
+		PoolSize:     2, // 连接池大小
+		MaxIdleConns: 1,
 	}
 	if re.SshTunnelMachineId > 0 {
 		redisOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
@@ -82,10 +84,12 @@ func (re *RedisInfo) connStandalone() (*RedisConn, error) {
 
 func (re *RedisInfo) connCluster() (*RedisConn, error) {
 	redisClusterOptions := &redis.ClusterOptions{
-		Addrs:       strings.Split(re.Host, ","),
-		Username:    re.Username,
-		Password:    re.Password,
-		DialTimeout: 8 * time.Second,
+		Addrs:        strings.Split(re.Host, ","),
+		Username:     re.Username,
+		Password:     re.Password,
+		DialTimeout:  8 * time.Second,
+		PoolSize:     2, // 连接池大小
+		MaxIdleConns: 1,
 	}
 	if re.SshTunnelMachineId > 0 {
 		redisClusterOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
@@ -119,6 +123,8 @@ func (re *RedisInfo) connSentinel() (*RedisConn, error) {
 		DialTimeout:      8 * time.Second,
 		ReadTimeout:      -1, // Disable timeouts, because SSH does not support deadlines.
 		WriteTimeout:     -1,
+		PoolSize:         2, // 连接池大小
+		MaxIdleConns:     1,
 	}
 	if re.SshTunnelMachineId > 0 {
 		sentinelOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)

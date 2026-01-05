@@ -9,5 +9,5 @@ func InitIoc() {
 }
 
 func GetContainerApp() Container {
-	return ioc.Get[Container]("ContainerApp")
+	return ioc.Get[Container]()
 }

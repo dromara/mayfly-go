@@ -15,5 +15,5 @@ func InitIoc() {
 }
 
 func GetProcinstTaskCandidateRepo() repository.ProcinstTaskCandidate {
-	return ioc.Get[repository.ProcinstTaskCandidate]("ProcinstTaskCandidateRepo")
+	return ioc.Get[repository.ProcinstTaskCandidate]()
 }

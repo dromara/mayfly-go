@@ -47,7 +47,7 @@ func GetDbConn(ctx context.Context, dbId uint64, database string, getDbInfo func
 		logx.Debugf("dbm - conn create, connId: %s, dbInfo: %v", connId, dbInfo)
 		// 连接数据库
 		return Conn(context.Background(), dbInfo)
-	})
+	}, pool.WithIdleTimeout[*dbi.DbConn](0))
 
 	if err != nil {
 		return nil, err

@@ -13,9 +13,9 @@ func InitIoc() {
 }
 
 func GetMsgApp() Msg {
-	return ioc.Get[Msg]("MsgApp")
+	return ioc.Get[Msg]()
 }
 
 func GetMsgTmplApp() MsgTmpl {
-	return ioc.Get[MsgTmpl]("MsgTmplApp")
+	return ioc.Get[MsgTmpl]()
 }

@@ -13,13 +13,13 @@ func InitIoc() {
 }
 
 func GetAccountApp() Account {
-	return ioc.Get[Account]("AccountApp")
+	return ioc.Get[Account]()
 }
 
 func GetConfigApp() Config {
-	return ioc.Get[Config]("ConfigApp")
+	return ioc.Get[Config]()
 }
 
 func GetSyslogApp() Syslog {
-	return ioc.Get[Syslog]("SyslogApp")
+	return ioc.Get[Syslog]()
 }

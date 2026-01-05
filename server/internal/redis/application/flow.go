@@ -10,5 +10,5 @@ const (
 )
 
 func InitRedisFlowHandler() {
-	flowapp.RegisterBizHandler(RedisRunCmdFlowBizType, ioc.Get[Redis]("RedisApp"))
+	flowapp.RegisterBizHandler(RedisRunCmdFlowBizType, ioc.Get[Redis]())
 }

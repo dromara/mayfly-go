@@ -1,4 +1,4 @@
-import { createApp } from 'vue';
+import { createApp, vaporInteropPlugin } from 'vue';
 import App from '@/App.vue';
 
 import router from './router';
@@ -24,7 +24,7 @@ registElSvgIcon(app);
 directive(app);
 initSysMsgs();
 
-app.use(pinia).use(router).use(i18n).use(ElementPlus, { size: getThemeConfig()?.globalComponentSize }).mount('#app');
+app.use(vaporInteropPlugin).use(pinia).use(router).use(i18n).use(ElementPlus, { size: getThemeConfig()?.globalComponentSize }).mount('#app');
 
 // 屏蔽警告信息
 app.config.warnHandler = () => null;

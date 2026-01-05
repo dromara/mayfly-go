@@ -10,6 +10,7 @@ import (
 
 const (
 	FLOW_BIZ_AUDIT = "FLOW_BIZ_AUDIT"
+	SQL_GENERATE   = "SQL_GENERATE"
 )
 
 //go:embed prompts.txt

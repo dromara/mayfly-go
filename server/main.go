@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "mayfly-go/internal/ai/init"
 	_ "mayfly-go/internal/auth/init"
 	_ "mayfly-go/internal/common/init"
 	_ "mayfly-go/internal/db/init"

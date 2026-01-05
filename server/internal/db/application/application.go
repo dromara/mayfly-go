@@ -24,14 +24,18 @@ func Init() {
 	})()
 }
 
+func GetDbApp() Db {
+	return ioc.Get[Db]()
+}
+
 func GetDbSqlExecApp() DbSqlExec {
-	return ioc.Get[DbSqlExec]("DbSqlExecApp")
+	return ioc.Get[DbSqlExec]()
 }
 
 func GetDataSyncTaskApp() DataSyncTask {
-	return ioc.Get[DataSyncTask]("DbDataSyncTaskApp")
+	return ioc.Get[DataSyncTask]()
 }
 
 func GetDbTransferTaskApp() DbTransferTask {
-	return ioc.Get[DbTransferTask]("DbTransferTaskApp")
+	return ioc.Get[DbTransferTask]()
 }

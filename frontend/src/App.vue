@@ -6,7 +6,7 @@
             v-if="themeConfig.isWatermark"
             :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
             :content="themeConfig.watermarkText"
-            class="!h-full"
+            class="h-full!"
         >
             <router-view />
         </el-watermark>

@@ -25,21 +25,21 @@ func Init() {
 }
 
 func GetMachineApp() Machine {
-	return ioc.Get[Machine]("MachineApp")
+	return ioc.Get[Machine]()
 }
 
 func GetMachineFileApp() MachineFile {
-	return ioc.Get[MachineFile]("MachineFileApp")
+	return ioc.Get[MachineFile]()
 }
 
 func GetMachineScriptApp() MachineScript {
-	return ioc.Get[MachineScript]("MachineScriptApp")
+	return ioc.Get[MachineScript]()
 }
 
 func GetMachineCronJobApp() MachineCronJob {
-	return ioc.Get[MachineCronJob]("MachineCronJobApp")
+	return ioc.Get[MachineCronJob]()
 }
 
 func GetMachineTermOpApp() MachineTermOp {
-	return ioc.Get[MachineTermOp]("MachineTermOpApp")
+	return ioc.Get[MachineTermOp]()
 }

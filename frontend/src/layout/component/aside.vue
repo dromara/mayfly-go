@@ -6,7 +6,7 @@
         </el-scrollbar>
     </el-aside>
     <el-drawer v-model="themeConfig.isCollapse" :with-header="false" direction="ltr" size="220px" v-else>
-        <el-aside class="layout-aside !w-full !h-full">
+        <el-aside class="layout-aside w-full! h-full!">
             <Logo v-if="setShowLogo" />
             <el-scrollbar class="flex-auto" ref="layoutAsideScrollbarRef">
                 <Vertical :menuList="state.menuList" />

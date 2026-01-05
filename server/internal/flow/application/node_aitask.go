@@ -69,7 +69,7 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 	flowNode := ctx.GetFlowNode()
 	aitaskNode := ToAiTaskNode(flowNode)
 
-	aiagent, err := agent.NewAiAgent(ctx)
+	aiagent, err := agent.NewAiAgent(ctx, agent.ToolTypeDb)
 	if err != nil {
 		return err
 	}
@@ -88,20 +88,24 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 	}
 	procinstTask.CreateTime = &now
 
-	cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancelFunc()
-	res := aiagent.GetChatMsg(cancelCtx, sysPrompt, procinst.BizForm)
-	resJson, err := jsonx.ToMap(res)
-
 	allowExecute := false
 	suggestion := ""
+
+	cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancelFunc()
+	res, err := aiagent.GetChatMsg(cancelCtx, sysPrompt, jsonx.ToStr(procinst.BizForm))
 	if err != nil {
-		suggestion = fmt.Sprintf("AI agent response parsing to JSON failed: %v, response: %s", err, res)
+		suggestion = fmt.Sprintf("AI agent response failed: %v", err)
 		logx.Error(suggestion)
-		// return err
 	} else {
-		allowExecute = cast.ToBool(resJson["allowExecute"])
-		suggestion = cast.ToString(resJson["suggestion"])
+		resJson, err := jsonx.ToMap(res)
+		if err != nil {
+			suggestion = fmt.Sprintf("AI agent response parsing to JSON failed: %v, response: %s", err, res)
+			logx.Error(suggestion)
+		} else {
+			allowExecute = cast.ToBool(resJson["allowExecute"])
+			suggestion = cast.ToString(resJson["suggestion"])
+		}
 	}
 
 	procinstTask.Remark = suggestion

@@ -2,8 +2,8 @@
     <div class="h-full">
         <el-splitter @resize="onResizeOpPanel">
             <el-splitter-panel size="24%" max="40%">
-                <el-card class="h-full flex tag-tree-card" body-class="!p-0 flex flex-col w-full">
-                    <div class="tag-tree-header flex flex-row justify-between items-center">
+                <el-card class="h-full flex" body-class="bg-(--el-bg-color) !p-0 flex flex-col w-full">
+                    <div class="tag-tree-header flex justify-between items-center">
                         <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="tag-tree-search w-full">
                             <template #prefix>
                                 <SvgIcon class="tag-tree-search-icon" name="search" />

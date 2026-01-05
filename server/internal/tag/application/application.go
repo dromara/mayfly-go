@@ -13,5 +13,5 @@ func InitIoc() {
 }
 
 func GetResourceOpLogApp() ResourceOpLog {
-	return ioc.Get[ResourceOpLog]("ResourceOpLogApp")
+	return ioc.Get[ResourceOpLog]()
 }

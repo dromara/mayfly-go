@@ -29,12 +29,12 @@ func Init() {
 	// 注册站内消息发送器
 	msgx.RegisterMsgSender(msgx.ChannelTypeSiteMsg, application.GetMsgApp())
 
-	msgTmplBizApp := ioc.Get[application.MsgTmplBiz]("MsgTmplBizApp")
+	msgTmplBizApp := ioc.Get[application.MsgTmplBiz]()
 	global.EventBus.SubscribeAsync(event.EventTopicBizMsgTmplSend, "BizMsgTmplSend", func(ctx context.Context, event *eventbus.Event[any]) error {
 		return msgTmplBizApp.Send(ctx, event.Val.(*dto.BizMsgTmplSend))
 	}, false)
 
-	msgTmplApp := ioc.Get[application.MsgTmpl]("MsgTmplApp")
+	msgTmplApp := ioc.Get[application.MsgTmpl]()
 	global.EventBus.SubscribeAsync(event.EventTopicMsgTmplSend, "MsgTmplSend", func(ctx context.Context, event *eventbus.Event[any]) error {
 		eventVal, ok := event.Val.(*dto.MsgTmplSendEvent)
 		if !ok {

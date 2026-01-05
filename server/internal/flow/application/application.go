@@ -19,21 +19,21 @@ func Init() {
 }
 
 func GetProcdefApp() Procdef {
-	return ioc.Get[Procdef]("ProcdefApp")
+	return ioc.Get[Procdef]()
 }
 
 func GetProcinstApp() Procinst {
-	return ioc.Get[Procinst]("ProcinstApp")
+	return ioc.Get[Procinst]()
 }
 
 func GetExecutionApp() Execution {
-	return ioc.Get[Execution]("ExecutionApp")
+	return ioc.Get[Execution]()
 }
 
 func GetHisProcinstOpApp() HisProcinstOp {
-	return ioc.Get[HisProcinstOp]("HisProcinstOpApp")
+	return ioc.Get[HisProcinstOp]()
 }
 
 func GetProcinstTaskApp() ProcinstTask {
-	return ioc.Get[ProcinstTask]("ProcinstTaskApp")
+	return ioc.Get[ProcinstTask]()
 }
