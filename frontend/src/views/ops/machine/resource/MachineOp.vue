@@ -1,7 +1,7 @@
 <template>
     <div class="h-full machine-terminal-tabs">
         <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" v-model="state.activeTermName" class="!h-full w-full">
-            <el-tab-pane class="!h-full flex flex-col" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+            <el-tab-pane class="h-full! flex flex-col" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                 <template #label>
                     <el-popconfirm @confirm="handleReconnect(dt, true)" :title="$t('machine.reConnTips')">
                         <template #reference>

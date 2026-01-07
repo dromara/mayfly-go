@@ -3,7 +3,9 @@
         <el-row class="mb-1">
             <el-popover v-model:visible="state.dumpInfo.visible" trigger="click" :width="470" placement="right">
                 <template #reference>
-                    <el-button :disabled="state.dumpInfo.tables?.length == 0" class="ml-1" type="success" size="small">{{ $t('db.dump') }}</el-button>
+                    <el-button v-auth="'db:data:export'" :disabled="state.dumpInfo.tables?.length == 0" class="ml-1" type="success" size="small">
+                        {{ $t('db.dump') }}
+                    </el-button>
                 </template>
                 <el-form-item :label="$t('db.exportContent')">
                     <el-radio-group v-model="dumpInfo.type">

@@ -1,19 +1,19 @@
 <template>
     <div class="file-manage">
         <el-dialog :title="$t('machine.process')" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="65%">
-            <div class="card !p-1">
+            <div class="card p-1!">
                 <el-row>
                     <el-col :span="4">
                         <el-input size="small" :placeholder="$t('machine.processName')" v-model="params.name" plain clearable></el-input>
                     </el-col>
                     <el-col :span="4" class="ml-1">
-                        <el-select class="!w-full" @change="getProcess" size="small" v-model="params.sortType" :placeholder="$t('machine.selectSortType')">
+                        <el-select @change="getProcess" size="small" v-model="params.sortType" :placeholder="$t('machine.selectSortType')">
                             <el-option key="cpu" :label="$t('machine.cpuDesc')" value="1"> </el-option>
                             <el-option key="cpu" :label="$t('machine.memDesc')" value="2"> </el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="4" class="ml-1">
-                        <el-select class="!w-full" @change="getProcess" size="small" v-model="params.count" :placeholder="$t('machine.selectProcessNum')">
+                        <el-select @change="getProcess" size="small" v-model="params.count" :placeholder="$t('machine.selectProcessNum')">
                             <el-option key="10" label="10" value="10"> </el-option>
                             <el-option key="15" label="15" value="15"> </el-option>
                             <el-option key="20" label="20" value="20"> </el-option>
@@ -26,7 +26,7 @@
                 </el-row>
             </div>
 
-            <el-table :data="processList" size="small" style="width: 100%">
+            <el-table :data="processList" size="small" :height="500">
                 <el-table-column prop="user" label="USER" :min-width="50"> </el-table-column>
                 <el-table-column prop="pid" label="PID" :min-width="50" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="cpu" label="%CPU" :min-width="40"> </el-table-column>

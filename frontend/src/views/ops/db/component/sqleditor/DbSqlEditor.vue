@@ -1,7 +1,7 @@
 <template>
     <div>
         <div>
-            <div class="card !p-1 flex items-center justify-between">
+            <div class="card p-1! flex items-center justify-between">
                 <div>
                     <el-link @click="onRunSql()" underline="never" class="ml-3.5" icon="VideoPlay"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
@@ -39,32 +39,32 @@
             </div>
         </div>
 
-        <el-splitter style="height: calc(100vh - 200px)" layout="vertical" @resize-end="onResizeTableHeight">
+        <el-splitter style="height: calc(100vh - 215px)" layout="vertical" @resize-end="onResizeTableHeight">
             <el-splitter-panel :size="state.editorSize" max="80%">
                 <MonacoEditor ref="monacoEditorRef" class="mt-1" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
             </el-splitter-panel>
 
             <el-splitter-panel>
-                <div class="sql-exec-res !h-full">
+                <div class="sql-exec-res h-full!">
                     <el-tabs
-                        class="!h-full !w-full"
+                        class="h-full! w-full!"
                         v-if="state.execResTabs.length > 0"
                         @tab-remove="onRemoveTab"
                         @tab-change="active"
                         v-model="state.activeTab"
                     >
-                        <el-tab-pane class="!h-full" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
+                        <el-tab-pane class="h-full!" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                             <template #label>
                                 <el-popover :show-after="1000" placement="top-start" :title="$t('db.execInfo')" trigger="hover" :width="300">
                                     <template #reference>
                                         <div>
                                             <span>
                                                 <span v-if="dt.loading">
-                                                    <SvgIcon class="!mb-0.5 is-loading" name="Loading" color="var(--el-color-primary)" />
+                                                    <SvgIcon class="mb-0.5! is-loading" name="Loading" color="var(--el-color-primary)" />
                                                 </span>
                                                 <span v-else>
-                                                    <SvgIcon class="!mb-0.5" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
-                                                    <SvgIcon class="!mb-0.5" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
+                                                    <SvgIcon class="mb-0.5!" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
+                                                    <SvgIcon class="mb-0.5!" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
                                                 </span>
                                             </span>
 

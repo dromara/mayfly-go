@@ -47,10 +47,10 @@ func (r *RedisConn) Ping() error {
 	}
 
 	stats := r.Cli.PoolStats()
-	if stats.TotalConns == 0 {
-		return fmt.Errorf("no open connections")
-	}
 	logx.Debugf("[%s] redis stats -> open: %d, idle: %d", r.Info.Name, stats.TotalConns, stats.IdleConns)
+	if stats.TotalConns == 0 {
+		logx.Info("redis stats: no open connections")
+	}
 
 	cmd := r.Cli.Ping(context.Background())
 	if cmd == nil {

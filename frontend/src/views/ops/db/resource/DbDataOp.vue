@@ -86,13 +86,13 @@
                 @tab-remove="onRemoveTab"
                 @tab-change="onTabChange"
                 v-model="state.activeName"
-                class="!h-full w-full"
+                class="h-full! w-full"
             >
-                <el-tab-pane class="!h-full" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                <el-tab-pane class="h-full!" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                     <template #label>
                         <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                             <template #reference>
-                                <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="!text-[12px]">{{ dt.label }}</span>
+                                <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="text-[12px]!">{{ dt.label }}</span>
                             </template>
                             <template #default>
                                 <el-descriptions :column="1" size="small">

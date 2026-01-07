@@ -39,7 +39,7 @@
                                         <span v-if="column.dataTypeSubscript === 'icon-clock'">
                                             <SvgIcon :size="9" name="Clock" style="cursor: unset" />
                                         </span>
-                                        <span class="!text-[8px]" v-else>{{ column.dataTypeSubscript }}</span>
+                                        <span class="text-[8px]!" v-else>{{ column.dataTypeSubscript }}</span>
                                     </div>
 
                                     <div v-if="showColumnTip">
@@ -53,7 +53,7 @@
                                         <div
                                             v-if="dbConfig.showColumnComment"
                                             style="color: var(--el-color-info-light-3)"
-                                            class="!text-[10px] el-text el-text--small is-truncated"
+                                            class="text-[10px]! el-text el-text--small is-truncated"
                                         >
                                             {{ column.columnComment }}
                                         </div>
@@ -160,7 +160,7 @@
                                 <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
                                 <el-text class="ml-1" tag="b">{{ $t('db.execTime') }} - {{ state.execTime.toFixed(1) }}s</el-text>
                             </div>
-                            <div v-if="loading && abortFn" class="!mt-2">
+                            <div v-if="loading && abortFn" class="mt-2!">
                                 <el-button @click="cancelLoading" type="info" size="small" plain>{{ $t('common.cancel') }}</el-button>
                             </div>
                         </div>
@@ -303,16 +303,23 @@ const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
 
 const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withIcon('tickets').withOnClick(() => onGenerateJson());
 
-const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv').withIcon('document').withOnClick(() => onExportCsv());
+const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv')
+    .withIcon('document')
+    .withOnClick(() => onExportCsv())
+    .withPermission('db:data:export');
 
-const cmDataExportExcel = new ContextmenuItem('exportExcel', 'db.exportExcel').withIcon('document').withOnClick(() => onExportExcel());
+const cmDataExportExcel = new ContextmenuItem('exportExcel', 'db.exportExcel')
+    .withIcon('document')
+    .withOnClick(() => onExportExcel())
+    .withPermission('db:data:export');
 
 const cmDataExportSql = new ContextmenuItem('exportSql', 'db.exportSql')
     .withIcon('document')
     .withOnClick(() => onExportSql())
     .withHideFunc(() => {
         return state.table == '';
-    });
+    })
+    .withPermission('db:data:export');
 
 class NowUpdateCell {
     rowIndex: number;

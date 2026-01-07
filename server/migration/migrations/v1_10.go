@@ -352,23 +352,18 @@ func V1_10_4() []*gormigrate.Migration {
 				return nil
 			},
 		},
-	}
-}
-
-func V1_10_5() []*gormigrate.Migration {
-	return []*gormigrate.Migration{
 		{
 			ID: "20251207-v1.10.4.1",
 			Migrate: func(tx *gorm.DB) error {
 				config := &sysentity.Config{}
 				// 查询是否存在该配置
-				result := tx.Model(config).Where("key = ?", "AiModelConfig").First(config)
+				result := tx.Model(config).Where("`key` = ?", "AiModelConfig").First(config)
 				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 					// 如果不存在，则创建默认配置
 					now := time.Now()
 					aiConfig := &sysentity.Config{
 						Key:        "AiModelConfig",
-						Name:       "system.sysconf.aiModelConf'",
+						Name:       "system.sysconf.aiModelConf",
 						Value:      "{}", // 默认空JSON值
 						Params:     `[{"model":"modelType","name":"system.sysconf.aiModelType","placeholder":"system.sysconf.aiModelTypePlaceholder","options":"openai"},{"model":"model","name":"system.sysconf.aiModel","placeholder":"system.sysconf.aiModelPlaceholder"},{"model":"baseUrl","name":"system.sysconf.aiBaseUrl","placeholder":"system.sysconf.aiBaseUrlPlaceholder"},{"model":"apiKey","name":"ApiKey","placeholder":"api key"}]`,
 						Permission: "all",
@@ -381,6 +376,38 @@ func V1_10_5() []*gormigrate.Migration {
 					aiConfig.CreatorId = 1
 					aiConfig.IsDeleted = 0
 					return tx.Create(aiConfig).Error
+				}
+
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+}
+
+func V1_10_5() []*gormigrate.Migration {
+	return []*gormigrate.Migration{
+		{
+			ID: "20260107-v1.10.5",
+			Migrate: func(tx *gorm.DB) error {
+				resource := &sysentity.Resource{}
+				// 查询是否存在该配置
+				result := tx.Model(resource).Where("code = ?", "db:data:export").First(resource)
+				if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+					// 如果不存在，则创建默认配置
+					resource = &sysentity.Resource{
+						Code:   "db:data:export",
+						Name:   "menu.dbDataExport",
+						Type:   sysentity.ResourceTypePermission,
+						UiPath: "ocdrUNaa/fo59olyi/",
+						Pid:    1756122788,
+						Status: sysentity.ResourceStatusEnable,
+					}
+					resource.FillBaseInfo(model.IdGenTypeTimestamp, model.SysAccount)
+					resource.Id = 1767788697
+					return tx.Create(resource).Error
 				}
 
 				return nil

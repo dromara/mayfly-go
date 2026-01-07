@@ -741,7 +741,11 @@ function getParentPath(filePath: string) {
 
 const deleteFile = async (files: any) => {
     try {
-        await useI18nDeleteConfirm(files.map((x: any) => `[${x.path}]`).join('\n'));
+        let confirmMsg = files.map((x: any) => `[${x.path}]`).join('\n');
+        if (confirmMsg.length > 400) {
+            confirmMsg = confirmMsg.substring(0, 400) + '...';
+        }
+        await useI18nDeleteConfirm(confirmMsg);
         state.loading = true;
         await machineApi.rmFile.request({
             fileId: props.fileId,
