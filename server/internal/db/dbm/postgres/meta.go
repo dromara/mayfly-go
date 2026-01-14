@@ -101,7 +101,7 @@ func (pm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 	return collx.AsArray(
 		Bool, Int2, Int4, Int8, Numeric, Decimal, Smallserial, Serial, Bigserial, Largeserial,
 		Money,
-		Char, Nchar, Varchar, Text, Json,
+		Char, Nchar, Varchar, Text, Json, Jsonb,
 		Date, Time, Timestamp,
 		Bytea,
 	)

@@ -24,7 +24,7 @@
         "crypto-js": "^4.2.0",
         "dayjs": "^1.11.19",
         "echarts": "^6.0.0",
-        "element-plus": "^2.13.0",
+        "element-plus": "^2.13.1",
         "js-base64": "^3.7.8",
         "jsencrypt": "^3.5.4",
         "monaco-editor": "^0.55.1",

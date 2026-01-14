@@ -3,7 +3,7 @@ package scheduler
 import (
 	"errors"
 	"mayfly-go/pkg/logx"
-	"sync"
+	"mayfly-go/pkg/utils/collx"
 
 	"github.com/robfig/cron/v3"
 )
@@ -14,7 +14,7 @@ func init() {
 
 var (
 	cronService = cron.New(cron.WithSeconds())
-	key2IdMap   sync.Map
+	key2IdMap  *collx.SM[string, cron.EntryID] = collx.NewSM[string, cron.EntryID]()
 )
 
 func Start() {
@@ -35,7 +35,7 @@ func RemoveByKey(key string) {
 	logx.Debugf("remove cron func => [key = %s]", key)
 	id, ok := key2IdMap.Load(key)
 	if ok {
-		Remove(id.(cron.EntryID))
+		Remove(id)
 		key2IdMap.Delete(key)
 	}
 }

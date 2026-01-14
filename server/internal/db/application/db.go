@@ -291,14 +291,16 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	// 按表名排序
 	sort.Strings(tables)
 	quoteSchema := srcDialect.Quoter().Quote(dbConn.Info.CurrentSchema())
-	dumpHelper := targetDialect.GetDumpHelper()
-
+	targetDumpHelper := targetDialect.GetDumpHelper()
 	targetSqlGenerator := targetDialect.GetSQLGenerator()
-	targetDialectQuote := targetDialect.Quoter().Quote
+	// targetDialectQuote := targetDialect.Quoter().Quote
+
+	srcDialectQuote := srcDialect.Quoter().Quote
 	// 遍历获取每个表的信息
 	for _, tableName := range tables {
 		log(fmt.Sprintf("get table [%s] information...", tableName))
-		quoteTableName := targetDialectQuote(tableName)
+		// targetQuoteTableName := targetDialectQuote(tableName)
+		srcQuoteTableName := srcDialectQuote(tableName)
 
 		// 查询表信息，主要是为了查询表注释
 		tbs, err := srcMeta.GetTables(tableName)
@@ -332,22 +334,22 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			log(fmt.Sprintf("generate table [%s] DML...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Data: %s \n-- ----------------------------\n", tableName))
 
-			dumpHelper.BeforeInsert(writer, quoteTableName)
+			targetDumpHelper.BeforeInsert(writer, tableName)
 
 			dataCount := 0
 			rows := make([][]any, 0)
-			_, err = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+			_, err = dbConn.WalkTableRows(ctx, srcQuoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
 				rowValues := make([]any, len(columns))
 				for i, col := range columns {
 					rowValues[i] = row[col.ColumnName]
 				}
 				rows = append(rows, rowValues)
 				dataCount++
-				if dataCount%500 != 0 {
+				if dataCount%100 != 0 {
 					return nil
 				}
 
-				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
+				beforeInsert := targetDumpHelper.BeforeInsertSql(quoteSchema, tableName)
 				if beforeInsert != "" {
 					writer.WriteString(beforeInsert)
 				}
@@ -365,7 +367,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			}
 
 			if len(rows) > 0 {
-				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
+				beforeInsert := targetDumpHelper.BeforeInsertSql(quoteSchema, tableName)
 				if beforeInsert != "" {
 					writer.WriteString(beforeInsert)
 				}
@@ -375,7 +377,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 				}
 			}
 
-			dumpHelper.AfterInsert(writer, tableName, columns)
+			targetDumpHelper.AfterInsert(writer, tableName, columns)
 			progress(tableName, dbi.StmtTypeInsert, dataCount, true)
 		}
 

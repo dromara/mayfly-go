@@ -43,6 +43,7 @@ var DefaultDbDataType = NewDbDataType("string", DTString).WithCT(CTVarchar)
 type Column struct {
 	TableName     string  `json:"tableName"`     // 表名
 	ColumnName    string  `json:"columnName"`    // 列名
+	ColumnType    string  `json:"columnType"`    // 完整列类型，带有数据类型以及长度、精度等。如varchar(2000)，decimal(20,2)
 	DataType      string  `json:"dataType"`      // 数据类型
 	ColumnComment string  `json:"columnComment"` // 列备注
 	IsPrimaryKey  bool    `json:"isPrimaryKey"`  // 是否为主键
@@ -57,6 +58,10 @@ type Column struct {
 
 // GetColumnType 获取完整的列类型，拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
 func (c *Column) GetColumnType() string {
+	if c.ColumnType != "" {
+		return c.ColumnType
+	}
+
 	if c.CharMaxLength > 0 {
 		return fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
 	}
@@ -178,6 +183,8 @@ func SQLValueBool(val any) string {
 	return fmt.Sprintf("%v", cast.ToBool(val))
 }
 
+// SQLValueString 转换为SQL字符串值，处理特殊字符与单引号
+// 适用于普通字符串类型，会将双引号等特殊字符进行转义
 func SQLValueString(val any) string {
 	if val == nil {
 		return NULL
@@ -195,6 +202,26 @@ func SQLValueString(val any) string {
 	// 处理 SQL 中的单引号
 	quoted = strings.ReplaceAll(quoted, "'", "''")
 	return fmt.Sprintf("'%s'", quoted)
+}
+
+// SQLValuePreserveSpecialChars 转换为SQL字符串值，保留特殊字符如双引号、换行符等
+// 仅转义单引号为两个单引号（SQL标准转义方式）
+func SQLValuePreserveSpecialChars(val any) string {
+	if val == nil {
+		return NULL
+	}
+
+	strVal, ok := val.(string)
+	if !ok {
+		return fmt.Sprintf("%v", val)
+	}
+
+	// 直接处理 SQL 特殊字符，保留双引号和其他字符
+	// 只转义单引号为两个单引号（SQL 标准转义方式）
+	escapedStr := strings.ReplaceAll(strVal, "'", "''")
+	
+	// 返回 SQL 字符串，保持原始的双引号、换行符等
+	return fmt.Sprintf("'%s'", escapedStr)
 }
 
 var (
@@ -264,6 +291,13 @@ var (
 		Name:     "string",
 		Valuer:   ValuerString,
 		SQLValue: SQLValueString,
+	}
+
+	// DTStringPreserveSpecial 用于需要保留双引号换行符等特殊字符的字符串类型
+	DTStringPreserveSpecial = &DataType{
+		Name:     "string",
+		Valuer:   ValuerString,
+		SQLValue: SQLValuePreserveSpecialChars,
 	}
 
 	DTDate = &DataType{

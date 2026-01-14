@@ -97,10 +97,10 @@ func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-
 		column := dbi.Column{
 			TableName:     cast.ToString(re["tableName"]),
 			ColumnName:    cast.ToString(re["columnName"]),
+			ColumnType:    cast.ToString(re["columnType"]),
 			DataType:      cast.ToString(re["dataType"]),
 			ColumnComment: cast.ToString(re["columnComment"]),
 			Nullable:      cast.ToString(re["nullable"]) == "YES",

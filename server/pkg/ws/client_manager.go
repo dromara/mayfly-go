@@ -2,7 +2,7 @@ package ws
 
 import (
 	"mayfly-go/pkg/logx"
-	"sync"
+	"mayfly-go/pkg/utils/collx"
 	"time"
 )
 
@@ -11,58 +11,44 @@ const heartbeatInterval = 25 * time.Second
 
 // UserClient 用户全部的连接
 type UserClient struct {
-	clients map[string]*Client // key->clientId, value->Client
-	mutex   sync.RWMutex
+	clients *collx.SM[string, *Client] // key->clientId, value->Client
 }
 
 func NewUserClient() *UserClient {
 	return &UserClient{
-		clients: make(map[string]*Client),
+		clients: collx.NewSM[string, *Client](),
 	}
 }
 
 // AllClients 获取全部的连接
 func (ucs *UserClient) AllClients() []*Client {
-	ucs.mutex.RLock()
-	defer ucs.mutex.RUnlock()
-	result := make([]*Client, 0, len(ucs.clients))
-	for _, client := range ucs.clients {
-		result = append(result, client)
-	}
-	return result
+	return ucs.clients.Values()
 }
 
 // GetByCid 获取指定客户端ID的客户端
 func (ucs *UserClient) GetByCid(clientId string) *Client {
-	ucs.mutex.RLock()
-	defer ucs.mutex.RUnlock()
-	return ucs.clients[clientId]
+	cli, _ :=  ucs.clients.Load(clientId)
+	return cli
 }
 
 // AddClient 添加客户端
 func (ucs *UserClient) AddClient(client *Client) {
-	ucs.mutex.Lock()
-	defer ucs.mutex.Unlock()
-	ucs.clients[client.ClientId] = client
+	ucs.clients.Store(client.ClientId, client)
 }
 
 // DeleteByCid 删除指定客户端ID的客户端
 func (ucs *UserClient) DeleteByCid(clientId string) {
-	ucs.mutex.Lock()
-	defer ucs.mutex.Unlock()
-	delete(ucs.clients, clientId)
+	ucs.clients.Delete(clientId)
 }
 
 // Count 返回客户端数量
 func (ucs *UserClient) Count() int {
-	ucs.mutex.RLock()
-	defer ucs.mutex.RUnlock()
-	return len(ucs.clients)
+	return ucs.clients.Len()
 }
 
 // 连接管理
 type ClientManager struct {
-	UserClientMap sync.Map // 全部的用户连接, key->userid, value->*UserClient
+	UserClientMap *collx.SM[UserId, *UserClient] // 全部的用户连接, key->userid, value->*UserClient
 
 	ConnectChan    chan *Client // 连接处理
 	DisConnectChan chan *Client // 断开连接处理
@@ -71,7 +57,7 @@ type ClientManager struct {
 
 func NewClientManager() (clientManager *ClientManager) {
 	return &ClientManager{
-		UserClientMap:  sync.Map{},
+		UserClientMap:  collx.NewSM[UserId, *UserClient](),
 		ConnectChan:    make(chan *Client, 10),
 		DisConnectChan: make(chan *Client, 10),
 		MsgChan:        make(chan *Msg, 100),
@@ -118,10 +104,8 @@ func (manager *ClientManager) CloseByUid(userId UserId) {
 // 获取所有的客户端
 func (manager *ClientManager) AllUserClient() map[UserId]*UserClient {
 	result := make(map[UserId]*UserClient)
-	manager.UserClientMap.Range(func(key, value any) bool {
-		userId := key.(UserId)
-		userClients := value.(*UserClient)
-		result[userId] = userClients
+	manager.UserClientMap.Range(func(userId UserId, userClient *UserClient) bool {
+		result[userId] = userClient
 		return true
 	})
 	return result
@@ -130,7 +114,7 @@ func (manager *ClientManager) AllUserClient() map[UserId]*UserClient {
 // 通过userId获取用户所有客户端信息
 func (manager *ClientManager) GetByUid(userId UserId) *UserClient {
 	if value, ok := manager.UserClientMap.Load(userId); ok {
-		return value.(*UserClient)
+		return value
 	}
 	return nil
 }
@@ -145,12 +129,7 @@ func (manager *ClientManager) GetByUidAndCid(uid UserId, clientId string) *Clien
 
 // 客户端数量
 func (manager *ClientManager) Count() int {
-	count := 0
-	manager.UserClientMap.Range(func(key, value any) bool {
-		count++
-		return true
-	})
-	return count
+	return manager.UserClientMap.Len()
 }
 
 // 发送json数据给指定用户
@@ -199,9 +178,7 @@ func (manager *ClientManager) HeartbeatTimer() {
 		for {
 			<-ticker.C
 			//发送心跳
-			manager.UserClientMap.Range(func(key, value any) bool {
-				userId := key.(UserId)
-				userClient := value.(*UserClient)
+			manager.UserClientMap.Range(func(userId UserId, userClient *UserClient) bool {
 				for _, cli := range userClient.AllClients() {
 					if cli == nil || cli.WsConn == nil {
 						continue
@@ -243,8 +220,7 @@ func (manager *ClientManager) doDisconnect(client *Client) {
 func (manager *ClientManager) addUserClient2Map(client *Client) {
 	// 先尝试加载现有的UserClients
 	if value, ok := manager.UserClientMap.Load(client.UserId); ok {
-		userClient := value.(*UserClient)
-		userClient.AddClient(client)
+		value.AddClient(client)
 	} else {
 		// 创建新的UserClients
 		userClient := NewUserClient()
@@ -255,10 +231,9 @@ func (manager *ClientManager) addUserClient2Map(client *Client) {
 
 func (manager *ClientManager) delUserClient4Map(client *Client) {
 	if value, ok := manager.UserClientMap.Load(client.UserId); ok {
-		userClient := value.(*UserClient)
-		userClient.DeleteByCid(client.ClientId)
+		value.DeleteByCid(client.ClientId)
 		// 如果用户所有客户端都关闭，则移除manager中的UserClientsMap值
-		if userClient.Count() == 0 {
+		if value.Count() == 0 {
 			manager.UserClientMap.Delete(client.UserId)
 		}
 	}

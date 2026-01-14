@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/msg/msgx"
 	"mayfly-go/pkg/i18n"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
 
@@ -27,7 +28,7 @@ func (e WsSender) Send(ctx context.Context, channel *msgx.Channel, msg *msgx.Msg
 		}
 	}
 
-	jsonMsg := msg.TmplExtra
+	jsonMsg := collx.CopyM(msg.TmplExtra)
 	jsonMsg["msg"] = content
 	jsonMsg["title"] = msg.Title
 	jsonMsg["params"] = msg.Params

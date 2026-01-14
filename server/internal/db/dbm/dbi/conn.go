@@ -49,7 +49,7 @@ func (d *DbConn) Ping() error {
 	stats := d.db.Stats()
 	logx.Debugf("[%s] db stats -> open: %d, idle: %d,  inUse: %d, maxOpen: %d", d.Info.Name, stats.OpenConnections, stats.Idle, stats.InUse, stats.MaxOpenConnections)
 	if stats.OpenConnections == 0 {
-		logx.Info("db stats: no open connections")
+		logx.Infof("[%s] db stats: no open connections", d.Info.Name)
 	}
 
 	return d.db.Ping()
@@ -77,6 +77,7 @@ func (qc *QueryColumn) getValuePtr() any {
 	return qc.valuer.NewValuePtr()
 }
 
+// value 获取列值
 func (qc *QueryColumn) value() any {
 	return qc.valuer.Value()
 }

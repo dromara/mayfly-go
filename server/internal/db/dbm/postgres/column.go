@@ -18,12 +18,13 @@ var (
 
 	Money = dbi.NewDbDataType("money", dbi.DTString).WithCT(dbi.CTVarchar)
 
-	Char    = dbi.NewDbDataType("char", dbi.DTString).WithCT(dbi.CTChar)
-	Nchar   = dbi.NewDbDataType("nchar", dbi.DTString).WithCT(dbi.CTVarchar)
-	Varchar = dbi.NewDbDataType("varchar", dbi.DTString).WithCT(dbi.CTVarchar)
-	Text    = dbi.NewDbDataType("text", dbi.DTString).WithCT(dbi.CTText).WithFixColumn(dbi.ClearCharMaxLength)
-	Json    = dbi.NewDbDataType("json", dbi.DTString).WithCT(dbi.CTJSON).WithFixColumn(dbi.ClearCharMaxLength)
-	Bytea   = dbi.NewDbDataType("bytea", dbi.DTString).WithCT(dbi.CTBinary)
+	Char    = dbi.NewDbDataType("char", dbi.DTStringPreserveSpecial).WithCT(dbi.CTChar)
+	Nchar   = dbi.NewDbDataType("nchar", dbi.DTStringPreserveSpecial).WithCT(dbi.CTVarchar)
+	Varchar = dbi.NewDbDataType("varchar", dbi.DTStringPreserveSpecial).WithCT(dbi.CTVarchar)
+	Text    = dbi.NewDbDataType("text", dbi.DTStringPreserveSpecial).WithCT(dbi.CTText).WithFixColumn(dbi.ClearCharMaxLength)
+	Json    = dbi.NewDbDataType("json", dbi.DTStringPreserveSpecial).WithCT(dbi.CTJSON).WithFixColumn(dbi.ClearCharMaxLength)
+	Jsonb   = dbi.NewDbDataType("jsonb", dbi.DTStringPreserveSpecial).WithCT(dbi.CTJSON).WithFixColumn(dbi.ClearCharMaxLength)
+	Bytea   = dbi.NewDbDataType("bytea", dbi.DTStringPreserveSpecial).WithCT(dbi.CTBinary)
 
 	Date      = dbi.NewDbDataType("date", dbi.DTDate).WithCT(dbi.CTDate).WithFixColumn(dbi.ClearCharMaxLength)
 	Time      = dbi.NewDbDataType("time", dbi.DTTime).WithCT(dbi.CTTime).WithFixColumn(dbi.ClearCharMaxLength)

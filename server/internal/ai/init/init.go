@@ -1,8 +1,8 @@
 package init
 
 import (
-	"mayfly-go/internal/ai/api"
 	"mayfly-go/initialize"
+	"mayfly-go/internal/ai/api"
 )
 
 func init() {

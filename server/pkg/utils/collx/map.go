@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"mayfly-go/pkg/utils/anyx"
+	"sync"
 
 	"github.com/spf13/cast"
 )
@@ -48,6 +49,90 @@ func (m M) GetFloat64(key string) float64 {
 
 func (m M) GetBool(key string) bool {
 	return cast.ToBool(m[key])
+}
+
+// Copy 复制一个新的map，在有线程并发读写时使用，避免并发读写导致数据不一致
+func CopyM(m M) M {
+	newMap := make(M)
+	for k, v := range m {
+		newMap[k] = v
+	}
+	return newMap
+}
+
+/******************* thread-safe map *******************/
+
+// SM 是一个线程安全的 map 实现，基于 sync.Map 并支持泛型
+type SM[K comparable, V any] struct {
+	m sync.Map
+}
+
+// NewSM 创建一个新的线程安全 map 实例
+func NewSM[K comparable, V any]() *SM[K, V] {
+	return &SM[K, V]{}
+}
+
+// Load 方法返回存储在 map 中键为 k 的值，如果不存在则返回零值和 false
+func (sm *SM[K, V]) Load(k K) (V, bool) {
+	v, ok := sm.m.Load(k)
+	if !ok {
+		var zero V
+		return zero, false
+	}
+	return v.(V), true
+}
+
+// Store 在 map 中存储键值对
+func (sm *SM[K, V]) Store(k K, v V) {
+	sm.m.Store(k, v)
+}
+
+// LoadOrStore 返回键 k 对应的值，如果不存在则存储指定的值
+func (sm *SM[K, V]) LoadOrStore(k K, v V) (actual V, loaded bool) {
+	actualVal, loaded := sm.m.LoadOrStore(k, v)
+	return actualVal.(V), loaded
+}
+
+// LoadAndDelete 从 map 中删除键值对并返回之前的值
+func (sm *SM[K, V]) LoadAndDelete(k K) (V, bool) {
+	v, ok := sm.m.LoadAndDelete(k)
+	if !ok {
+		var zero V
+		return zero, false
+	}
+	return v.(V), true
+}
+
+// Delete 从 map 中删除键值对
+func (sm *SM[K, V]) Delete(k K) {
+	sm.m.Delete(k)
+}
+
+// Range 遍历 map 中的所有键值对
+func (sm *SM[K, V]) Range(f func(k K, v V) bool) {
+	sm.m.Range(func(k, v any) bool {
+		return f(k.(K), v.(V))
+	})
+}
+
+// Len 返回 map 中键值对的数量
+func (sm *SM[K, V]) Len() int {
+	count := 0
+	sm.Range(func(_ K, _ V) bool {
+		count++
+		return true
+	})
+	return count
+}
+
+// Values 返回 map 中所有的值
+func (sm *SM[K, V]) Values() []V {
+	values := make([]V, 0)
+	sm.Range(func(_ K, v V) bool {
+		values = append(values, v)
+		return true
+	})
+	return values
 }
 
 /******************* M db driver *******************/

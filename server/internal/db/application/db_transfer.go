@@ -240,20 +240,16 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 					},
 				})
 				if err != nil {
+					app.Log(ctx, logId, fmt.Sprintf("db dump failed: %s", err.Error()))
 					pr.CloseWithError(err)
 					return
 				}
 			}()
 
-			if err != nil {
-				pw.CloseWithError(err)
-				app.EndTransfer(ctx, logId, taskId, "transfer table failed", err, nil)
-				return err
-			}
 			tx, _ := targetConn.Begin()
 			err = sqlparser.SQLSplit(pr, ';', func(stmt string) error {
 				if _, err := targetConn.TxExec(tx, stmt); err != nil {
-					app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("执行sql出错: %s", stmt), err, nil)
+					app.Log(ctx, logId, fmt.Sprintf("sql exec failed: %s", stmt), err, nil)
 					pw.CloseWithError(err)
 					return err
 				}

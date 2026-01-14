@@ -131,6 +131,9 @@ func ConvToTargetDbColumn(srcDbType DbType, targetDbType DbType, targetDialect D
 		return nil
 	}
 
+	// 需要转换至异构数据库时，需要将该字段清空，否则如mysql可以查出该值，其他数据库可能不行，会导致Column.GetColumnType错误。
+	column.ColumnType = ""
+
 	srcMap := commonTypeConverters[srcDbType]
 	if srcMap == nil {
 		return fmt.Errorf("src database type [%s] not suport transfer", srcDbType)

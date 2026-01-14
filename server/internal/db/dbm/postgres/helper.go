@@ -31,7 +31,7 @@ func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []
 	// 设置自增序列当前值
 	for _, column := range columns {
 		if column.AutoIncrement {
-			seq := fmt.Sprintf("SELECT setval('%s_%s_seq', (SELECT max(%s) FROM %s));\n", tableName, column.ColumnName, column.ColumnName, tableName)
+			seq := fmt.Sprintf("SELECT setval('%s_%s_seq', (SELECT max(%s) FROM \"%s\"));\n", tableName, column.ColumnName, column.ColumnName, tableName)
 			writer.Write([]byte(seq))
 		}
 	}
