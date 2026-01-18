@@ -375,6 +375,7 @@ const allowDrop = (draggingNode: any, dropNode: any, type: any) => {
             // 只有权限节点可移动至菜单节点下 或者移动菜单
             return (
                 (draggingNode.data.type == permissionTypeValue && dropNode.data.type == menuTypeValue) ||
+                (draggingNode.data.type == permissionTypeValue && dropNode.data.type == permissionTypeValue) ||
                 (draggingNode.data.type == menuTypeValue && dropNode.data.type == menuTypeValue)
             );
         }

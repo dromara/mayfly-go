@@ -36,10 +36,9 @@ type Db interface {
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
 
-	// 获取数据库连接实例
-	// @param id 数据库id
-	//
-	// @param dbName 数据库名
+	// GetDbConn 获取数据库连接实例
+	//    - dbId: 数据库id
+	//    - dbName: 数据库名
 	GetDbConn(ctx context.Context, dbId uint64, dbName string) (*dbi.DbConn, error)
 
 	// 根据数据库实例id获取连接，随机返回该instanceId下已连接的conn，若不存在则是使用该instanceId关联的db进行连接并返回。
@@ -228,7 +227,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	}
 
 	writer := writerx.NewStringWriter(reqParam.Writer)
-	defer writer.Close()
+
 	dbId := reqParam.DbId
 	dbName := reqParam.DbName
 	tables := reqParam.Tables

@@ -6,6 +6,7 @@ import (
 	"io"
 	"mayfly-go/internal/ai/config"
 	aimodel "mayfly-go/internal/ai/model"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -75,6 +76,7 @@ func (aiAgent *AiAgent) Chat(ctx context.Context, sysPrompt string, question str
 	agentOption := []agent.AgentOption{}
 
 	go func() {
+		defer gox.RecoverPanic()
 		defer close(ch)
 		defer close(errCh)
 		sr, err := aiAgent.Stream(ctx, []*schema.Message{

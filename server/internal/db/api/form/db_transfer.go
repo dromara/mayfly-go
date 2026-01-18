@@ -1,6 +1,10 @@
 package form
 
+import "mayfly-go/pkg/model"
+
 type DbTransferTaskForm struct {
+	model.ExtraData
+
 	Id uint64 `json:"id"`
 
 	TaskName         string `binding:"required" json:"taskName"` // 任务名称
@@ -28,14 +32,17 @@ type DbTransferTaskForm struct {
 	TargetInstName string `json:"targetInstName"` // 目标库实例名
 	TargetTagPath  string `json:"targetTagPath"`  // 目标库tagPath
 }
+
 type DbTransferTaskStatusForm struct {
 	Id     uint64 `binding:"required" json:"taskId" form:"taskId"`
 	Status int8   `json:"status" form:"status"`
 }
+
 type DbTransferFileForm struct {
 	Id       uint64 `json:"id"`
 	FileName string `json:"fileName" form:"fileName"`
 }
+
 type DbTransferFileRunForm struct {
 	Id           uint64 `json:"id"`                               // 文件ID
 	TargetDbId   uint64 `json:"targetDbId" form:"targetDbId"`     // 需要执行sql的数据库id

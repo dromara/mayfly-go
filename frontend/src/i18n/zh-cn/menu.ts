@@ -47,6 +47,7 @@ export default {
         machineSecurityCmdSvae: '机器-命令配置-保存',
         machineSecurityCmdDelete: '机器-命令配置-删除',
 
+        db: '数据库',
         dbms: 'DBMS',
         dbDataOp: 'DB-数据操作',
         dbDataOpBase: 'DB-数据操作-基本权限',
@@ -78,6 +79,8 @@ export default {
         dbTransferFileRun: '迁移文件-执行',
 
         redis: 'Redis',
+        redisSave: 'Redis-保存',
+        redisDel: 'Redis-删除',
         redisDataOp: 'Redis-数据操作',
         redisDataOpBase: 'Redis-数据操作-基本权限',
         redisDataOpSave: 'Redis-数据操作-数据保存',
@@ -86,6 +89,8 @@ export default {
         redisManageBase: 'Redis-管理-基本权限',
 
         mongo: 'Mongo',
+        mongoSave: 'Mongo-保存',
+        mongoDel: 'Mongo-删除',
         mongoDataOp: '数据操作',
         mongoDataOpBase: 'Mongo-数据操作-基本权限',
         mongoDataOpSave: 'Mongo-数据操作-数据保存',
@@ -93,7 +98,9 @@ export default {
         mongoManage: 'Mongo管理',
         mongoManageBase: 'Mongo-管理-基本权限',
 
-        containerManageBase: '容器-管理-基本权限',
+        container: '容器',
+        containerSave: '容器-保存',
+        containerDel: '容器-删除',
 
         flow: '工单流程',
         myTask: '我的任务',

@@ -11,6 +11,7 @@ import (
 	fileapp "mayfly-go/internal/file/application"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"strings"
@@ -151,6 +152,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 	filename, reader, err := d.fileApp.GetReader(context.TODO(), tFile.FileKey)
 	biz.ErrIsNil(err)
 	go func() {
+		defer gox.RecoverPanic()
 		biz.ErrIsNil(d.dbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
 			Reader:   reader,
 			Filename: filename,

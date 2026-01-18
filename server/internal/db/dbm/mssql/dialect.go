@@ -3,6 +3,7 @@ package mssql
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
+			defer gox.RecoverPanic()
 			// 查询所有的列
 			columns, err := msMetadata.GetColumns(copy.TableName)
 			if err != nil {

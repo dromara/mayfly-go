@@ -10,6 +10,7 @@ import (
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
@@ -196,6 +197,7 @@ func (m *msgTmplAppImpl) SendMsg(ctx context.Context, mts *dto.MsgTmplSend) erro
 		}
 
 		go func(ch entity.MsgChannel) {
+			defer gox.RecoverPanic()
 			if err := msgx.Send(ctx, &msgx.Channel{
 				Type:  ch.Type,
 				Name:  ch.Name,

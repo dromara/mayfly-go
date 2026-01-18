@@ -4,7 +4,7 @@ import "fmt"
 
 const (
 	AppName = "mayfly-go"
-	Version = "v1.10.6"
+	Version = "v1.10.7"
 )
 
 func GetAppInfo() string {

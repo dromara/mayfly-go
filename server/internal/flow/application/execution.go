@@ -7,6 +7,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/eventbus"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
@@ -184,6 +185,7 @@ func (e *executionAppImpl) executeNode(ctx *ExecutionCtx) error {
 	// 执行节点逻辑
 	if node.IsAsync() {
 		go func() {
+			defer gox.RecoverPanic()
 			if err := node.Execute(ctx); err != nil {
 				logx.Errorf("async execute node error: %v, procinst_id: %d, node_key: %s", err, ctx.Procinst.Id, flowNode.Key)
 			}

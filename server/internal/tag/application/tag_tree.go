@@ -92,9 +92,6 @@ func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.Ta
 
 			tag.CodePath = parentTag.CodePath + tag.Code + entity.CodePathSeparator
 		} else {
-			if accountId != consts.AdminId {
-				return errorx.NewBizI(ctx, imsg.ErrNoAdminCreateTag)
-			}
 			tag.CodePath = tag.Code + entity.CodePathSeparator
 		}
 		if p.CanAccess(accountId, tag.CodePath) != nil {

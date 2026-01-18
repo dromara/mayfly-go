@@ -12,8 +12,10 @@
             lazy
         >
             <template #tableHeader>
-                <el-button type="primary" icon="plus" @click="editMongo(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>{{ $t('common.delete') }}</el-button>
+                <el-button v-auth="'mongo:save'" type="primary" icon="plus" @click="editMongo(false)" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'mongo:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -25,7 +27,7 @@
 
                 <el-button @click="showUsers(data.id)" link type="success">cmd</el-button>
 
-                <el-button @click="editMongo(data)" link type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'mongo:save'" @click="editMongo(data)" link type="primary">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 

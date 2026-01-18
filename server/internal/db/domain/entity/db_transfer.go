@@ -6,6 +6,7 @@ import (
 
 type DbTransferTask struct {
 	model.Model
+	model.ExtraData
 
 	TaskName         string `json:"taskName" gorm:"size:255;not null;"`   // 任务名称
 	TaskKey          string `json:"taskKey" gorm:"size:100;not null;"`    // 定时任务唯一uuid key

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"mayfly-go/initialize"
 	"mayfly-go/internal/pkg/config"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/middleware"
@@ -58,8 +59,6 @@ func runWebServer(ctx context.Context) {
 		router.Use(middleware.Cors())
 	}
 
-	router.Use(gin.Recovery())
-
 	srv := http.Server{
 		Addr: config.Conf.Server.GetPort(),
 		// 注册路由
@@ -67,6 +66,7 @@ func runWebServer(ctx context.Context) {
 	}
 
 	go func() {
+		defer gox.RecoverPanic()
 		<-ctx.Done()
 		logx.Info("Shutdown HTTP Server ...")
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)

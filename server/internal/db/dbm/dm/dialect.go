@@ -3,6 +3,7 @@ package dm
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
@@ -39,6 +40,7 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
+			defer gox.RecoverPanic()
 			// 设置允许填充自增列之后，显示指定列名可以插入自增列\
 			identityInsert := fmt.Sprintf("set identity_insert \"%s\" on", newTableName)
 			// 获取列名

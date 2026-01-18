@@ -14,6 +14,7 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
@@ -255,14 +256,13 @@ func (m *machineAppImpl) GetSshTunnelMachine(ctx context.Context, machineId int)
 func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("start collecting and caching machine state information periodically...")
 	scheduler.AddFun("@every 2m", func() {
+		defer gox.RecoverPanic()
 		machineIds, _ := m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"))
 		for _, ma := range machineIds {
 			go func(mid uint64) {
-				defer func() {
-					if err := recover(); err != nil {
-						logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", mid), err.(error))
-					}
-				}()
+				defer gox.RecoverPanic(func(err error) {
+					logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", mid), err)
+				})
 				logx.Debugf("time to get machine [id=%d] status information start", mid)
 				ctx, cancelFunc := context.WithCancel(context.Background())
 				defer cancelFunc()

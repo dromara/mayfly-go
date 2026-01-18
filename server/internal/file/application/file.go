@@ -24,33 +24,42 @@ type File interface {
 
 	// Upload 上传文件
 	//
-	// @param fileKey 文件key，若存在则使用存在的文件key，否则生成新的文件key。
+	// 参数:
+	//   - fileKey: 文件key，若不为空则使用该文件key，否则生成新的文件key
+	//   - filename: 文件名，带文件后缀
+	//   - r: 文件内容读取流
 	//
-	// @param filename 文件名，带文件后缀
+	// 返回值:
+	//   - fileKey: 文件key
+	//   - error: 错误信息
 	//
-	// @return fileKey 文件key
+	// 注意：此方法会在defer中自动调用saveFunc，无论成功或失败都会正确处理文件保存或清理工作
 	Upload(ctx context.Context, fileKey string, filename string, r io.Reader) (string, error)
 
 	// NewWriter 创建文件writer
 	//
-	// @param canEmptyFileKey 文件key，若不为空则使用该文件key，否则生成新的文件key。
+	// 参数:
+	//   - canEmptyFileKey: 文件key，若不为空则使用该文件key，否则生成新的文件key
+	//   - filename: 文件名，带文件后缀
 	//
-	// @param filename 文件名，带文件后缀
-	//
-	// @return fileKey 文件key
-	//
-	// @return writer 文件writer
-	//
-	// @return saveFunc(*error) 保存文件信息的回调函数 (必须要defer中调用才会入库保存该文件信息)，若*error不为nil则表示业务逻辑处理失败，不需要保存文件信息并将创建的文件删除
-	NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer *writerx.CountingWriteCloser, saveFunc func(*error) error, err error)
+	// 返回值:
+	//   - fileKey: 文件key
+	//   - writer: 文件writer，实现了计数功能的io.Write
+	//   - closeFunc: 关闭回调。用于保存文件信息，关闭writer等操作
+	//               必须在defer中调用才会入库保存该文件信息
+	//               若传入的错误参数不为nil，则不会保存文件信息，并会删除已创建的文件
+	//   - err: 错误信息
+	NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer io.Writer, closeFunc func(*error) error, err error)
 
-	// GetReader 获取文件reader
+	// GetReader 获取文件读取器
 	//
-	// @return filename 文件名
+	// 参数:
+	//   - fileKey: 文件唯一标识key
 	//
-	// @return reader 文件reader
-	//
-	// @return err 错误
+	// 返回值:
+	//   - filename: 文件名（带后缀）
+	//   - reader: 文件读取流，调用方需负责关闭
+	//   - err: 错误信息
 	GetReader(ctx context.Context, fileKey string) (string, io.ReadCloser, error)
 
 	// Remove 删除文件
@@ -63,11 +72,11 @@ type fileAppImpl struct {
 
 func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename string, r io.Reader) (string, error) {
 	var err error
-	fileKey, writer, saveFileFunc, err := f.NewWriter(ctx, fileKey, filename)
+	fileKey, writer, closeFunc, err := f.NewWriter(ctx, fileKey, filename)
 	if err != nil {
 		return fileKey, err
 	}
-	defer saveFileFunc(&err)
+	defer closeFunc(&err)
 
 	if _, err = io.Copy(writer, r); err != nil {
 		return fileKey, err
@@ -75,7 +84,7 @@ func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename strin
 	return fileKey, nil
 }
 
-func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer *writerx.CountingWriteCloser, saveFunc func(*error) error, err error) {
+func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer io.Writer, closeFunc func(*error) error, err error) {
 	isNewFile := true
 	file := &entity.File{}
 
@@ -95,18 +104,20 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 		f.remove(ctx, file)
 	}
 
-	// 生产新的文件名
+	// 生成新的文件名
 	newFilename := canEmptyFileKey + filepath.Ext(filename)
-	filepath, w, err := f.newWriter(newFilename)
+	fp, w, err := f.newWriter(newFilename)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	file.Path = filepath
+	file.Path = fp
 
 	fileKey = canEmptyFileKey
-	writer = writerx.NewCountingWriteCloser(w)
+	countWriter := writerx.NewCountingWriteCloser(w)
 	// 创建回调函数
-	saveFunc = func(e *error) error {
+	closeFunc = func(e *error) error {
+		countWriter.Close()
+
 		if e != nil {
 			err := *e
 			if err != nil {
@@ -116,14 +127,14 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 				return err
 			}
 		}
+
 		// 获取已写入的字节数
-		file.Size = writer.BytesWritten()
-		writer.Close()
+		file.Size = countWriter.BytesWritten()
 		// 保存文件信息
 		return f.Save(ctx, file)
 	}
 
-	return fileKey, writer, saveFunc, nil
+	return fileKey, countWriter, closeFunc, nil
 }
 
 func (f *fileAppImpl) GetReader(ctx context.Context, fileKey string) (string, io.ReadCloser, error) {
@@ -163,6 +174,7 @@ func (f *fileAppImpl) newWriter(filename string) (string, io.WriteCloser, error)
 	if err != nil {
 		return "", nil, err
 	}
+
 	return filePath, out, nil
 }
 

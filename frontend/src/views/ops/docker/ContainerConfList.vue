@@ -12,8 +12,10 @@
             lazy
         >
             <template #tableHeader>
-                <el-button type="primary" icon="plus" @click="editContainerConf(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteConf" plain>{{ $t('common.delete') }}</el-button>
+                <el-button v-auth="'container:save'" type="primary" icon="plus" @click="editContainerConf(false)" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'container:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteConf" plain>
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -22,7 +24,7 @@
 
             <template #action="{ data }">
                 <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button type="primary" link @click="editContainerConf(data)">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'container:save'" type="primary" link @click="editContainerConf(data)">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 

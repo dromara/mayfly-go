@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/mysql"
+	"mayfly-go/pkg/gox"
 	"time"
 )
 
@@ -43,6 +44,7 @@ func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
+			defer gox.RecoverPanic()
 			_, _ = md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
 		}()
 	}

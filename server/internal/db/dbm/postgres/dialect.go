@@ -3,6 +3,7 @@ package postgres
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/gox"
 	"time"
 
 	"github.com/spf13/cast"
@@ -27,6 +28,7 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
+			defer gox.RecoverPanic()
 			_, _ = pd.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
 		}()
 	}

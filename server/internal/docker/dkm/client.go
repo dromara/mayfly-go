@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mayfly-go/internal/machine/mcm"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/pool"
 
@@ -150,6 +151,7 @@ func (c Client) ContainerAttach(containerID string, wsConn *websocket.Conn, rows
 
 	// 转发容器输出到前端
 	go func() {
+		defer gox.RecoverPanic()
 		buf := make([]byte, 1024)
 		for {
 			select {

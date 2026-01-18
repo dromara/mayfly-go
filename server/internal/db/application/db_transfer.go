@@ -1,6 +1,7 @@
 package application
 
 import (
+	"archive/zip"
 	"cmp"
 	"context"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
@@ -131,7 +133,6 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 	}
 
 	logId, _ := app.CreateLog(ctx, taskId)
-	start := time.Now()
 	// 修改状态与关联日志id
 	task.LogId = logId
 	task.RunningState = entity.DbTransferTaskRunStateRunning
@@ -143,6 +144,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 	app.MarkRunning(taskId)
 
 	go func() {
+		defer gox.RecoverPanic()
 		// 获取源库连接、目标库连接，判断连接可用性，否则记录日志：xx连接不可用
 		// 获取源库表信息
 		srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
@@ -171,9 +173,9 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 		// 迁移到文件或数据库
 		switch task.Mode {
 		case entity.DbTransferTaskModeFile:
-			app.transfer2File(ctx, taskId, logId, task, srcConn, start, tables)
+			app.transfer2File(ctx, logId, task, tables)
 		case entity.DbTransferTaskModeDb:
-			app.transfer2Db(ctx, taskId, logId, task, srcConn, start, tables)
+			app.transfer2Db(ctx, logId, task, tables)
 		default:
 			app.EndTransfer(ctx, logId, taskId, "error in transfer mode, only migrating to files or databases is currently supported", err, nil)
 			return
@@ -183,7 +185,9 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 	return logId, nil
 }
 
-func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, start time.Time, tables []dbi.Table) {
+func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, task *entity.DbTransferTask, tables []dbi.Table) {
+	startTime := time.Now()
+	taskId := task.Id
 	defer app.MarkStop(taskId)
 	defer app.logApp.Flush(logId, true)
 
@@ -203,13 +207,19 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 
 	for _, tables := range tableGroups {
 		errGroup.Go(func() error {
+			defer gox.RecoverPanic()
+			
 			if !app.IsRunning(taskId) {
 				return errorx.NewBiz("transfer stopped")
 			}
 
 			currentDumpTable := tables[0]
 			pr, pw := io.Pipe()
+			defer pr.Close()
+
 			go func() {
+				defer gox.RecoverPanic()
+				defer pw.Close()
 				err := app.dbApp.DumpDb(ctx, &dto.DumpDb{
 					LogId:        logId,
 					DbId:         uint64(task.SrcDbId),
@@ -271,10 +281,11 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, taskId uint64, lo
 		app.EndTransfer(ctx, logId, taskId, "transfer table failed", err, nil)
 		return
 	}
-	app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("execute transfer task [taskId = %d] complete, time: %v", taskId, time.Since(start)), nil, nil)
+	app.EndTransfer(ctx, logId, taskId, fmt.Sprintf("execute transfer task [taskId = %d] complete, time: %v", taskId, time.Since(startTime)), nil, nil)
 }
 
-func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, logId uint64, task *entity.DbTransferTask, srcConn *dbi.DbConn, start time.Time, tables []dbi.Table) {
+func (app *dbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, task *entity.DbTransferTask, tables []dbi.Table) {
+	taskId := task.Id
 	// 1、新增迁移文件数据
 	nowTime := time.Now()
 	tFile := &entity.DbTransferFile{
@@ -286,8 +297,9 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 	}
 	_ = app.transferFileApp.Save(ctx, tFile)
 
-	filename := fmt.Sprintf("dtf_%s.sql", timex.TimeNo())
-	fileKey, writer, saveFileFunc, err := app.fileApp.NewWriter(ctx, "", filename)
+	fileType := cmp.Or(task.GetExtraString("fileType"), "sql")
+	filename := fmt.Sprintf("dtf_%s.%s", timex.TimeNo(), fileType)
+	fileKey, writer, closeFunc, err := app.fileApp.NewWriter(ctx, "", filename)
 	if err != nil {
 		app.EndTransfer(ctx, logId, taskId, "create file error", err, nil)
 		return
@@ -301,10 +313,29 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 
 	go func() {
 		var err error
-		defer saveFileFunc(&err)
+		
+		defer closeFunc(&err)
 		defer app.MarkStop(taskId)
 		defer app.logApp.Flush(logId, true)
+		defer gox.RecoverPanic(func(e error) {
+			err = e
+			app.EndTransfer(ctx, logId, taskId, "transfer to file panic", e, nil)
+			tFile.Status = entity.DbTransferFileStatusFail
+			app.transferFileApp.UpdateById(ctx, tFile)
+		})
+
 		ctx = context.Background()
+
+		if fileType == "zip" {
+			zipWriter := zip.NewWriter(writer)
+			defer zipWriter.Close()
+			// 创建SQL文件在ZIP内的条目
+			writer, err = zipWriter.Create(strings.Replace(filename, "zip", "sql", 1))
+			if err != nil {
+				app.EndTransfer(ctx, logId, taskId, "create zip file error", err, nil)
+				return
+			}
+		}
 
 		err = app.dbApp.DumpDb(ctx, &dto.DumpDb{
 			LogId:        logId,
@@ -329,7 +360,7 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, taskId uint64, 
 
 		tFile.Status = entity.DbTransferFileStatusSuccess
 		tFile.FileKey = fileKey
-		_ = app.transferFileApp.UpdateById(ctx, tFile)
+		app.transferFileApp.UpdateById(ctx, tFile)
 	}()
 }
 
@@ -354,6 +385,7 @@ func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
 func (d *dbTransferAppImpl) TimerDeleteTransferFile() {
 	logx.Debug("start deleting transfer files periodically...")
 	scheduler.AddFun("@every 100m", func() {
+		defer gox.RecoverPanic()
 		dts, err := d.ListByCond(model.NewCond().Eq("mode", entity.DbTransferTaskModeFile).Ge("file_save_days", 1))
 		if err != nil {
 			logx.Errorf("the task to periodically get database transfer to file failed: %s", err.Error())

@@ -3,6 +3,7 @@ package sqlite
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/gox"
 	"strings"
 	"time"
 )
@@ -37,6 +38,7 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 使用异步线程插入数据
 	if copy.CopyData {
 		go func() {
+			defer gox.RecoverPanic()
 			// 执行插入语句
 			_, _ = sd.dc.Exec(fmt.Sprintf("INSERT INTO \"%s\" SELECT * FROM \"%s\"", newTableName, tableName))
 		}()

@@ -59,8 +59,8 @@
                 </el-form-item>
 
                 <el-form-item v-if="form.mode === 2">
-                    <el-row class="w-full!">
-                        <el-col :span="12">
+                    <el-row :gutter="10">
+                        <el-col :span="10">
                             <el-form-item prop="targetFileDbType" :label="$t('db.dbFileType')" :required="form.mode === 2">
                                 <el-select v-model="form.targetFileDbType" clearable filterable>
                                     <el-option
@@ -79,7 +79,13 @@
                             </el-form-item>
                         </el-col>
 
-                        <el-col :span="12">
+                        <el-col :span="6">
+                            <el-form-item :label="$t('db.fileType')">
+                                <el-select v-model="form.extra.fileType" :options="fileTypeOptions"> </el-select>
+                            </el-form-item>
+                        </el-col>
+
+                        <el-col :span="8">
                             <el-form-item :label="$t('db.fileSaveDays')">
                                 <el-input-number v-model="form.fileSaveDays" :min="-1" :max="1000">
                                     <template #suffix>
@@ -138,10 +144,8 @@
             </el-form>
 
             <template #footer>
-                <div>
-                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
-                </div>
+                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>
@@ -187,6 +191,11 @@ const rules = {
     cron: [Rules.requiredSelect('cron')],
 };
 
+const fileTypeOptions = [
+    { label: '.sql', value: 'sql' },
+    { label: '.zip', value: 'zip' },
+];
+
 const dbForm: any = ref(null);
 
 type FormData = {
@@ -215,6 +224,7 @@ type FormData = {
     deleteTable?: 1 | 2;
     checkedKeys: string;
     runningState: 1 | 2;
+    extra: { fileType: string };
 };
 
 const basicFormData = {
@@ -226,6 +236,7 @@ const basicFormData = {
     deleteTable: 1,
     checkedKeys: '',
     runningState: 1,
+    extra: { fileType: fileTypeOptions[0].value },
 } as FormData;
 
 const srcTableList = ref<{ tableName: string; tableComment: string }[]>([]);
@@ -264,6 +275,7 @@ watch(dialogVisible, async (newValue: boolean) => {
     if (!newValue) {
         return;
     }
+
     const propsData = props.data as any;
     if (!propsData?.id) {
         let d = {} as FormData;
@@ -275,8 +287,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         return;
     }
 
-    state.form = deepClone(props.data) as FormData;
-    let { srcDbId, targetDbId } = state.form;
+    const form = deepClone(props.data) as FormData;
+    let { srcDbId, targetDbId } = form;
 
     //  初始化src数据源
     if (srcDbId) {
@@ -301,11 +313,14 @@ watch(dialogVisible, async (newValue: boolean) => {
     }
 
     // 初始化勾选迁移表
-    srcTreeRef.value.setCheckedKeys(state.form.checkedKeys.split(','));
+    srcTreeRef.value.setCheckedKeys(form.checkedKeys.split(','));
 
     // 初始化默认值
-    state.form.cronAble = state.form.cronAble || 0;
-    state.form.mode = state.form.mode || 1;
+    form.cronAble = state.form.cronAble || 0;
+    form.mode = form.mode || 1;
+    form.extra = form.extra || { fileType: fileTypeOptions[0].value };
+
+    state.form = form;
 });
 
 watch(

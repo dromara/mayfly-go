@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"time"
@@ -140,6 +141,7 @@ func (manager *ClientManager) SendJsonMsg(userId UserId, clientId string, data a
 // 监听并发送给客户端信息
 func (manager *ClientManager) WriteMessage() {
 	go func() {
+		defer gox.RecoverPanic()
 		for {
 			msg := <-manager.MsgChan
 			uid := msg.ToUserId
@@ -173,6 +175,7 @@ func (manager *ClientManager) WriteMessage() {
 // 启动定时器进行心跳检测
 func (manager *ClientManager) HeartbeatTimer() {
 	go func() {
+		defer gox.RecoverPanic()
 		ticker := time.NewTicker(heartbeatInterval)
 		defer ticker.Stop()
 		for {

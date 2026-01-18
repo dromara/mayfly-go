@@ -1,10 +1,13 @@
 package vo
 
 import (
+	"mayfly-go/pkg/model"
 	"time"
 )
 
 type DbTransferTaskListVO struct {
+	model.ExtraData
+
 	Id         uint64     `json:"id"`
 	CreateTime *time.Time `json:"createTime"`
 	Creator    string     `json:"creator"`

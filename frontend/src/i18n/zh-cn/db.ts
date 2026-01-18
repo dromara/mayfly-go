@@ -165,6 +165,7 @@ export default {
         transfer2Db: '迁移到数据库',
         transfer2File: '迁移到文件',
         fileSaveDays: '文件保留天数',
+        fileType: '文件类型',
         transferStrategy: '迁移策略',
         day: '天',
         transferFull: '全量',

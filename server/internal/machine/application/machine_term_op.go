@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
@@ -61,11 +62,11 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		termOpRecord.MachineId = cli.Info.Id
 		termOpRecord.Username = cli.Info.Username
 
-		fileKey, wc, saveFileFunc, err := m.fileApp.NewWriter(ctx, "", fmt.Sprintf("mto_%d_%s.cast", termOpRecord.MachineId, timex.TimeNo()))
+		fileKey, wc, closeFunc, err := m.fileApp.NewWriter(ctx, "", fmt.Sprintf("mto_%d_%s.cast", termOpRecord.MachineId, timex.TimeNo()))
 		if err != nil {
 			return errorx.NewBizf("failed to create a terminal playback log file: %v", err)
 		}
-		defer saveFileFunc(&err)
+		defer closeFunc(&err)
 
 		termOpRecord.FileKey = fileKey
 		recorder = mcm.NewRecorder(wc)
@@ -117,6 +118,7 @@ func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, page
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 	logx.Debug("start deleting machine terminal playback records every hour...")
 	scheduler.AddFun("@every 60m", func() {
+		defer gox.RecoverPanic()
 		startDate := time.Now().AddDate(0, 0, -config.GetMachine().TermOpSaveDays)
 		cond := &entity.MachineTermOpQuery{
 			StartCreateTime: &startDate,

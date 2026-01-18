@@ -9,6 +9,7 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
@@ -149,6 +150,7 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	}
 
 	if err := scheduler.AddFunByKey(key, mcj.Cron, func() {
+		defer gox.RecoverPanic()
 		m.RunCronJob(key)
 	}); err != nil {
 		logx.ErrorTrace("add machine cron job failed", err)

@@ -22,7 +22,7 @@ type DumpDb struct {
 
 	LogId uint64
 
-	Writer       io.WriteCloser
+	Writer       io.Writer
 	TargetDbType dbi.DbType
 
 	Log      func(msg string)

@@ -5,17 +5,13 @@ import (
 )
 
 type StringWriter struct {
-	io.WriteCloser
+	io.Writer
 }
 
 func (sw *StringWriter) WriteString(s string) (n int, err error) {
-	return sw.WriteCloser.Write([]byte(s))
+	return sw.Writer.Write([]byte(s))
 }
 
-func (sw *StringWriter) Close() error {
-	return sw.WriteCloser.Close()
-}
-
-func NewStringWriter(writer io.WriteCloser) *StringWriter {
-	return &StringWriter{WriteCloser: writer}
+func NewStringWriter(writer io.Writer) *StringWriter {
+	return &StringWriter{Writer: writer}
 }

@@ -47,6 +47,7 @@ export default {
         machineSecurityCmdSvae: 'Cmd Config-Save',
         machineSecurityCmdDelete: 'Cmd Config-Delete',
 
+        db: 'Database',
         dbms: 'DBMS',
         dbDataOp: 'Data Operation',
         dbDataOpBase: 'DB-Base Permission',
@@ -78,6 +79,8 @@ export default {
         dbTransferFileRun: 'Transfer File-Run',
 
         redis: 'Redis',
+        redisSave: 'Save Redis',
+        redisDel: 'Delete Redis',
         redisDataOp: 'Redis - Data Operation',
         redisDataOpBase: 'Redis - Base Permission',
         redisDataOpSave: 'Redis - Save Data',
@@ -86,13 +89,18 @@ export default {
         redisManageBase: 'Redis - Base Permission',
 
         mongo: 'Mongo',
+        mongoSave: 'Save Mongo',
+        mongoDel: 'Delete Mongo',
         mongoDataOp: 'Mongo - Data Operation',
         mongoDataOpBase: 'Mongo - Base Permission',
         mongoDataOpSave: 'Mongo - Save Data',
         mongoDataOpDelete: 'Mongo - Delete Data',
         mongoManage: 'Mongo Manage',
         mongoManageBase: 'Mongo - Base Permission',
-        containerManageBase: 'Container Manage - Base Permission',
+
+        container: 'Container',
+        containerSave: 'Save Container',
+        containerDel: 'Delete Container',
 
         flow: 'Flow',
         myTask: 'My Task',

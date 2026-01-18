@@ -1,13 +1,17 @@
 package model
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"mayfly-go/pkg/utils/collx"
 )
 
+/*************** Map  ***************/
+
 type Map[K comparable, V any] map[K]V
 
+// Scan 实现 sql.Scanner 接口
 func (m *Map[K, V]) Scan(value any) error {
 	if v, ok := value.([]byte); ok && len(v) > 0 {
 		return json.Unmarshal(v, m)
@@ -15,12 +19,18 @@ func (m *Map[K, V]) Scan(value any) error {
 	return nil
 }
 
+// Value 实现 driver.Valuer 接口
 func (m Map[K, V]) Value() (driver.Value, error) {
 	if m == nil {
 		return nil, nil
 	}
 	return json.Marshal(m)
 }
+
+var _ driver.Valuer = &Map[string, any]{}
+var _ sql.Scanner = &Map[string, any]{}
+
+/*************** Slice  ***************/
 
 type Slice[T int | uint64 | string | Map[string, any]] []T
 
@@ -37,6 +47,8 @@ func (s Slice[T]) Value() (driver.Value, error) {
 	}
 	return json.Marshal(s)
 }
+
+/*************** ExtraData  ***************/
 
 // ExtraData 带有额外其他信息字段的结构体
 type ExtraData struct {

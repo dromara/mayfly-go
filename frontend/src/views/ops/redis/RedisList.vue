@@ -12,8 +12,10 @@
             lazy
         >
             <template #tableHeader>
-                <el-button type="primary" icon="plus" @click="editRedis(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>{{ $t('common.delete') }}</el-button>
+                <el-button v-auth="'redis:save'" type="primary" icon="plus" @click="editRedis(false)" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'redis:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>
+                    {{ $t('common.delete') }}
+                </el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -27,7 +29,7 @@
                 <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>{{ $t('redis.clusterInfo') }}</el-button>
 
                 <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button type="primary" link @click="editRedis(data)">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'redis:save'" type="primary" link @click="editRedis(data)">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 

@@ -169,6 +169,7 @@ export default {
         transfer2Db: 'Transfer to DB',
         transfer2File: 'Transfer to File',
         fileSaveDays: 'File retention days',
+        fileType: 'File Type',
         transferStrategy: 'Transfer Strategy',
         day: 'Day',
         transferFull: 'Full',

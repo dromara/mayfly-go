@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/docker/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
@@ -98,6 +99,7 @@ func (d *Container) GetContainersStats(rc *req.Ctx) {
 	allStats := make([]vo.ContainerStats, 0)
 	for _, c := range cs {
 		go func(item container.Summary) {
+			defer gox.RecoverPanic()
 			defer wg.Done()
 			if item.State != "running" {
 				return
@@ -223,6 +225,7 @@ func (d *Container) ContainerLogs(rc *req.Ctx) {
 	defer logs.Close()
 
 	go func() {
+		defer gox.RecoverPanic()
 		for {
 			select {
 			case <-ctx.Done():

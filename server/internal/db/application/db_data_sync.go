@@ -13,6 +13,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -126,7 +127,13 @@ func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 			CreateTime: &now,
 			Status:     entity.DataSyncTaskStateFail, // 默认失败
 		}
+		
 		defer app.endRunning(task, syncLog)
+		defer gox.RecoverPanic(func(err error) {
+			syncLog.ErrText = i18n.T(imsg.DataSyncFailMsg, "msg", err.Error())
+			logx.ErrorContext(ctx, syncLog.ErrText)
+			syncLog.Status = entity.DataSyncTaskStateFail
+		})
 
 		// 通过占位符格式化sql
 		updSql := ""
