@@ -43,8 +43,7 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	}
 	// 复制数据
 	if copy.CopyData {
-		go func() {
-			defer gox.RecoverPanic()
+		gox.Go(func() {
 			// 查询所有的列
 			columns, err := msMetadata.GetColumns(copy.TableName)
 			if err != nil {
@@ -73,7 +72,7 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			if err != nil {
 				logx.Warnf("复制表[%s]数据失败: %s", copy.TableName, err.Error())
 			}
-		}()
+		})
 	}
 
 	return err

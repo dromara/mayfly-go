@@ -98,8 +98,6 @@ export const useThemeConfig = defineStore('themeConfig', {
 
             /* 其它设置
             ------------------------------- */
-            // 默认 Tagsview 风格，可选 1、 tags-style-one 2、 tags-style-two 3、 tags-style-three
-            tagsStyle: 'tags-style-three',
             // 默认主页面切换动画，可选 1、 slide-right 2、 slide-left 3、 opacitys
             animation: 'slide-right',
             // 默认分栏高亮风格，可选 1、 圆角 columns-round 2、 卡片 columns-card

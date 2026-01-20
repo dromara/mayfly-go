@@ -76,9 +76,12 @@ func (aiAgent *AiAgent) Chat(ctx context.Context, sysPrompt string, question str
 	agentOption := []agent.AgentOption{}
 
 	go func() {
-		defer gox.RecoverPanic()
 		defer close(ch)
 		defer close(errCh)
+		defer gox.Recover(func(err error) {
+			errCh <- err
+		})
+
 		sr, err := aiAgent.Stream(ctx, []*schema.Message{
 			{
 				Role:    schema.System,

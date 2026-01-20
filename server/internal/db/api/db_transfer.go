@@ -151,13 +151,13 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 
 	filename, reader, err := d.fileApp.GetReader(context.TODO(), tFile.FileKey)
 	biz.ErrIsNil(err)
-	go func() {
-		defer gox.RecoverPanic()
-		biz.ErrIsNil(d.dbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
+
+	gox.GoCtx(rc.MetaCtx, func(ctx context.Context) {
+		biz.ErrIsNil(d.dbSqlExecApp.ExecReader(ctx, &dto.SqlReaderExec{
 			Reader:   reader,
 			Filename: filename,
 			DbConn:   targetDbConn,
 			ClientId: fm.ClientId,
 		}))
-	}()
+	})
 }

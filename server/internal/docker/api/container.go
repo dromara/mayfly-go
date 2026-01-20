@@ -98,10 +98,9 @@ func (d *Container) GetContainersStats(rc *req.Ctx) {
 	var mu sync.Mutex
 	allStats := make([]vo.ContainerStats, 0)
 	for _, c := range cs {
-		go func(item container.Summary) {
-			defer gox.RecoverPanic()
+		gox.Go(func() {
 			defer wg.Done()
-			if item.State != "running" {
+			if c.State != "running" {
 				return
 			}
 
@@ -127,7 +126,7 @@ func (d *Container) GetContainersStats(rc *req.Ctx) {
 			mu.Lock()
 			allStats = append(allStats, cs)
 			mu.Unlock()
-		}(c)
+		})
 	}
 
 	wg.Wait()
@@ -224,8 +223,7 @@ func (d *Container) ContainerLogs(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 	defer logs.Close()
 
-	go func() {
-		defer gox.RecoverPanic()
+	gox.Go(func() {
 		for {
 			select {
 			case <-ctx.Done():
@@ -239,7 +237,7 @@ func (d *Container) ContainerLogs(rc *req.Ctx) {
 				}
 			}
 		}
-	}()
+	})
 
 	buf := make([]byte, 1024)
 	for {

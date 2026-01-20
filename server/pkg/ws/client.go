@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"errors"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"time"
 
@@ -40,7 +41,7 @@ func (c *Client) WithReadHandlerFunc(readMsgHandlerFunc ReadMsgHandlerFunc) *Cli
 
 // 读取ws客户端消息
 func (c *Client) Read() {
-	go func() {
+	gox.Go(func() {
 		for {
 			if c.WsConn == nil {
 				return
@@ -59,7 +60,7 @@ func (c *Client) Read() {
 				c.ReadMsgHandler(data)
 			}
 		}
-	}()
+	})
 }
 
 // 向客户端写入消息

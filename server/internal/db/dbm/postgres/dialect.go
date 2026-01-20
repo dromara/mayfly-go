@@ -27,10 +27,9 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 	// 复制数据
 	if copy.CopyData {
-		go func() {
-			defer gox.RecoverPanic()
+		gox.Go(func() {
 			_, _ = pd.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
-		}()
+		})
 	}
 
 	// 查询旧表的自增字段名 重新设置新表的序列序列器

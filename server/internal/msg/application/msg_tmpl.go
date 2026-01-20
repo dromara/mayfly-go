@@ -195,9 +195,9 @@ func (m *msgTmplAppImpl) SendMsg(ctx context.Context, mts *dto.MsgTmplSend) erro
 			logx.Warnf("channel is disabled => %s", channel.Code)
 			continue
 		}
-
-		go func(ch entity.MsgChannel) {
-			defer gox.RecoverPanic()
+		
+		gox.Go(func() {
+			ch := *channel
 			if err := msgx.Send(ctx, &msgx.Channel{
 				Type:  ch.Type,
 				Name:  ch.Name,
@@ -206,7 +206,7 @@ func (m *msgTmplAppImpl) SendMsg(ctx context.Context, mts *dto.MsgTmplSend) erro
 			}, msg); err != nil {
 				logx.Errorf("send msg error => channel=%s, msg=%s, err -> %v", ch.Code, msg.Content, err)
 			}
-		}(*channel)
+		})
 	}
 
 	return nil

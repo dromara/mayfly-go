@@ -143,8 +143,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 	// 标记该任务开始执行
 	app.MarkRunning(taskId)
 
-	go func() {
-		defer gox.RecoverPanic()
+	gox.Go(func() {
 		// 获取源库连接、目标库连接，判断连接可用性，否则记录日志：xx连接不可用
 		// 获取源库表信息
 		srcConn, err := app.dbApp.GetDbConn(ctx, uint64(task.SrcDbId), task.SrcDbName)
@@ -180,7 +179,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 			app.EndTransfer(ctx, logId, taskId, "error in transfer mode, only migrating to files or databases is currently supported", err, nil)
 			return
 		}
-	}()
+	})
 
 	return logId, nil
 }
@@ -207,7 +206,7 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 
 	for _, tables := range tableGroups {
 		errGroup.Go(func() error {
-			defer gox.RecoverPanic()
+			defer gox.Recover()
 			
 			if !app.IsRunning(taskId) {
 				return errorx.NewBiz("transfer stopped")
@@ -217,8 +216,7 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 			pr, pw := io.Pipe()
 			defer pr.Close()
 
-			go func() {
-				defer gox.RecoverPanic()
+			gox.Go(func ()  {
 				defer pw.Close()
 				err := app.dbApp.DumpDb(ctx, &dto.DumpDb{
 					LogId:        logId,
@@ -254,7 +252,7 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 					pr.CloseWithError(err)
 					return
 				}
-			}()
+			})
 
 			tx, _ := targetConn.Begin()
 			err = sqlparser.SQLSplit(pr, ';', func(stmt string) error {
@@ -317,7 +315,7 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 		defer closeFunc(&err)
 		defer app.MarkStop(taskId)
 		defer app.logApp.Flush(logId, true)
-		defer gox.RecoverPanic(func(e error) {
+		defer gox.Recover(func(e error) {
 			err = e
 			app.EndTransfer(ctx, logId, taskId, "transfer to file panic", e, nil)
 			tFile.Status = entity.DbTransferFileStatusFail
@@ -385,7 +383,7 @@ func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
 func (d *dbTransferAppImpl) TimerDeleteTransferFile() {
 	logx.Debug("start deleting transfer files periodically...")
 	scheduler.AddFun("@every 100m", func() {
-		defer gox.RecoverPanic()
+		defer gox.Recover()
 		dts, err := d.ListByCond(model.NewCond().Eq("mode", entity.DbTransferTaskModeFile).Ge("file_save_days", 1))
 		if err != nil {
 			logx.Errorf("the task to periodically get database transfer to file failed: %s", err.Error())

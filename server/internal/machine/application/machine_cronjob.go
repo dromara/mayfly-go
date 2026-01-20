@@ -136,7 +136,9 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 	})), "id")
 
 	for _, machine := range machines {
-		go m.runCronJob0(machine.Id, cronJob)
+		gox.Go(func() {
+			m.runCronJob0(machine.Id, cronJob)
+		})
 	}
 }
 
@@ -150,7 +152,7 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	}
 
 	if err := scheduler.AddFunByKey(key, mcj.Cron, func() {
-		defer gox.RecoverPanic()
+		defer gox.Recover()
 		m.RunCronJob(key)
 	}); err != nil {
 		logx.ErrorTrace("add machine cron job failed", err)

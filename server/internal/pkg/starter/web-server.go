@@ -66,7 +66,7 @@ func runWebServer(ctx context.Context) {
 	}
 
 	go func() {
-		defer gox.RecoverPanic()
+		defer gox.Recover()
 		<-ctx.Done()
 		logx.Info("Shutdown HTTP Server ...")
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)

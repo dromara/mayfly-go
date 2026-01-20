@@ -39,7 +39,7 @@
             </div>
         </div>
 
-        <el-splitter style="height: calc(100vh - 215px)" layout="vertical" @resize-end="onResizeTableHeight">
+        <el-splitter style="height: calc(100vh - 220px)" layout="vertical" @resize-end="onResizeTableHeight">
             <el-splitter-panel :size="state.editorSize" max="80%">
                 <MonacoEditor ref="monacoEditorRef" class="mt-1" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
             </el-splitter-panel>
@@ -289,7 +289,7 @@ const onResizeTableHeight = (index: number, sizes: number[]) => {
         editorHeight = plitpaneHeight / 2;
     }
 
-    let tableDataHeight = plitpaneHeight - editorHeight - 43;
+    let tableDataHeight = plitpaneHeight - editorHeight - 47;
 
     state.editorSize = editorHeight;
     state.tableDataHeight = tableDataHeight + 'px';

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 
 	"github.com/spf13/cast"
@@ -95,8 +96,12 @@ func NewTerminalSession(param *CreateTerminalSessionParam) (*TerminalSession, er
 }
 
 func (r TerminalSession) Start() {
-	go r.readFromTerminal()
-	go r.writeToWebsocket()
+	gox.Go(func() {
+		r.readFromTerminal()
+	})
+	gox.Go(func() {
+		r.writeToWebsocket()
+	})
 	r.receiveWsMsg()
 }
 

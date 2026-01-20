@@ -1,6 +1,7 @@
 package guac
 
 import (
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"sync"
 	"time"
@@ -72,7 +73,9 @@ func NewTunnelMap() *TunnelMap {
 		tunnelMap:     make(map[string]*LastAccessedTunnel),
 		tunnelTimeout: TunnelTimeout,
 	}
-	go tunnelMap.tunnelTimeoutTask()
+	gox.Go(func() {
+		tunnelMap.tunnelTimeoutTask()
+	})
 	return tunnelMap
 }
 
@@ -116,7 +119,6 @@ func (m *TunnelMap) tunnelTimeoutTaskRun() {
 		}
 	}
 	m.Unlock()
-	return
 }
 
 // Get returns the Tunnel having the given UUID, wrapped within a LastAccessedTunnel.

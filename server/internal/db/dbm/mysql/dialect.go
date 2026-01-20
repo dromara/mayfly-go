@@ -43,10 +43,9 @@ func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 	// 复制数据
 	if copy.CopyData {
-		go func() {
-			defer gox.RecoverPanic()
+		gox.Go(func() {
 			_, _ = md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
-		}()
+		})
 	}
 	return err
 }

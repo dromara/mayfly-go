@@ -184,12 +184,11 @@ func (e *executionAppImpl) executeNode(ctx *ExecutionCtx) error {
 
 	// 执行节点逻辑
 	if node.IsAsync() {
-		go func() {
-			defer gox.RecoverPanic()
+		gox.Go(func() {
 			if err := node.Execute(ctx); err != nil {
 				logx.Errorf("async execute node error: %v, procinst_id: %d, node_key: %s", err, ctx.Procinst.Id, flowNode.Key)
 			}
-		}()
+		})
 		return nil
 	}
 

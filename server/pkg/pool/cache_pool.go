@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"math/rand"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
 	"sync"
@@ -44,7 +45,9 @@ func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePo
 		closeCh: make(chan struct{}),
 	}
 
-	go p.backgroundMaintenance()
+	gox.Go(func() {
+		p.backgroundMaintenance()
+	})
 	
 	return p
 }
@@ -253,14 +256,14 @@ func (p *CachePool[T]) cleanupIdle() {
 func (p *CachePool[T]) ping(conn T) bool {
 	done := make(chan struct{})
 	var result bool
-	go func() {
+	gox.Go(func ()  {
 		err := conn.Ping()
 		if err != nil {
 			logx.Errorf("conn pool - ping failed: %s", err.Error())
 		}
 		result = err == nil
 		close(done)
-	}()
+	})
 	select {
 	case <-done:
 		return result

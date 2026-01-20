@@ -97,6 +97,10 @@ func (manager *ClientManager) CloseClient(client *Client) {
 // 根据用户id关闭客户端连接
 func (manager *ClientManager) CloseByUid(userId UserId) {
 	userClient := manager.GetByUid(userId)
+	if userClient == nil {
+		return
+	}
+
 	for _, client := range userClient.AllClients() {
 		manager.CloseClient(client)
 	}
@@ -140,8 +144,7 @@ func (manager *ClientManager) SendJsonMsg(userId UserId, clientId string, data a
 
 // 监听并发送给客户端信息
 func (manager *ClientManager) WriteMessage() {
-	go func() {
-		defer gox.RecoverPanic()
+	gox.Go(func() {
 		for {
 			msg := <-manager.MsgChan
 			uid := msg.ToUserId
@@ -169,13 +172,12 @@ func (manager *ClientManager) WriteMessage() {
 				}
 			}
 		}
-	}()
+	})
 }
 
 // 启动定时器进行心跳检测
 func (manager *ClientManager) HeartbeatTimer() {
-	go func() {
-		defer gox.RecoverPanic()
+	gox.Go(func() {
 		ticker := time.NewTicker(heartbeatInterval)
 		defer ticker.Stop()
 		for {
@@ -196,7 +198,7 @@ func (manager *ClientManager) HeartbeatTimer() {
 				return true
 			})
 		}
-	}()
+	})
 }
 
 // 处理建立连接

@@ -39,8 +39,7 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 	// 复制数据
 	if copy.CopyData {
-		go func() {
-			defer gox.RecoverPanic()
+		gox.Go(func() {
 			// 设置允许填充自增列之后，显示指定列名可以插入自增列\
 			identityInsert := fmt.Sprintf("set identity_insert \"%s\" on", newTableName)
 			// 获取列名
@@ -52,8 +51,7 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			columnStr := strings.Join(columnArr, ",")
 			// 插入新数据并显示指定列
 			_, _ = dd.dc.Exec(fmt.Sprintf("%s insert into \"%s\" (%s) select %s from \"%s\"", identityInsert, newTableName, columnStr, columnStr, tableName))
-
-		}()
+		})
 	}
 	return err
 }

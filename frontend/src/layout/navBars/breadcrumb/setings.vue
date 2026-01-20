@@ -308,17 +308,7 @@
 
                 <!-- 其它设置 -->
                 <el-divider content-position="left">{{ $t('layout.config.otherSetting') }}</el-divider>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.tagsStyle') }}</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-select v-model="themeConfig.tagsStyle" placeholder="请选择" size="small" style="width: 90px">
-                            <el-option label="风格1" value="tags-style-one"></el-option>
-                            <el-option label="风格2" value="tags-style-two"></el-option>
-                            <el-option label="风格3" value="tags-style-three"></el-option>
-                        </el-select>
-                    </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.animation') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-select v-model="themeConfig.animation" size="small" style="width: 90px">
@@ -328,7 +318,7 @@
                         </el-select>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5 !mb-5.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5! mb-5.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.columnsAsideStyle') }}
                     </div>

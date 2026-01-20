@@ -49,7 +49,7 @@ func (d *DbConn) Ping() error {
 	stats := d.db.Stats()
 	logx.Debugf("[%s] db stats -> open: %d, idle: %d,  inUse: %d, maxOpen: %d", d.Info.Name, stats.OpenConnections, stats.Idle, stats.InUse, stats.MaxOpenConnections)
 	if stats.OpenConnections == 0 {
-		logx.Infof("[%s] db stats: no open connections", d.Info.Name)
+		logx.Infof("[%s]-[%s] db stats: no open connections", d.Info.Name, d.Info.Database)
 	}
 
 	return d.db.Ping()

@@ -256,13 +256,11 @@ func (m *machineAppImpl) GetSshTunnelMachine(ctx context.Context, machineId int)
 func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("start collecting and caching machine state information periodically...")
 	scheduler.AddFun("@every 2m", func() {
-		defer gox.RecoverPanic()
+		defer gox.Recover()
 		machineIds, _ := m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"))
 		for _, ma := range machineIds {
-			go func(mid uint64) {
-				defer gox.RecoverPanic(func(err error) {
-					logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", mid), err)
-				})
+			gox.Go(func() {
+				mid := ma.Id
 				logx.Debugf("time to get machine [id=%d] status information start", mid)
 				ctx, cancelFunc := context.WithCancel(context.Background())
 				defer cancelFunc()
@@ -273,7 +271,9 @@ func (m *machineAppImpl) TimerUpdateStats() {
 				}
 				cache.SaveMachineStats(mid, cli.GetAllStats())
 				logx.Debugf("time to get the machine [id=%d] status information end", mid)
-			}(ma.Id)
+			}, func(err error) {
+				logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", ma.Id), err)
+			})
 		}
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
@@ -73,7 +74,9 @@ func LogHandler(rc *Ctx) error {
 
 	// 如果需要保存日志，并且保存日志处理函数存在则执行保存日志函数
 	if li.save && saveLog != nil {
-		go saveLog(rc)
+		gox.Go(func() {
+			saveLog(rc)
+		})
 	}
 
 	logMsg := li.Description

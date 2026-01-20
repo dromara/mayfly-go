@@ -13,6 +13,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/netx"
@@ -57,7 +58,9 @@ func LastLoginCheck(ctx context.Context, account *sysentity.Account, accountLogi
 		res["refresh_token"] = refreshToken
 		// 不进行otp二次校验则直接返回accessToken
 		// 保存登录消息
-		go saveLogin(ctx, account, loginIp)
+		gox.Go(func() {
+			saveLogin(ctx, account, loginIp)
+		})
 	}
 
 	// 赋值otp状态

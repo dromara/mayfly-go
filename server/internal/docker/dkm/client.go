@@ -150,8 +150,7 @@ func (c Client) ContainerAttach(containerID string, wsConn *websocket.Conn, rows
 	wsConn.WriteMessage(websocket.TextMessage, []byte("\033[2J\033[3J\033[1;1H")) // 清屏
 
 	// 转发容器输出到前端
-	go func() {
-		defer gox.RecoverPanic()
+	gox.Go(func() {
 		buf := make([]byte, 1024)
 		for {
 			select {
@@ -171,7 +170,7 @@ func (c Client) ContainerAttach(containerID string, wsConn *websocket.Conn, rows
 				wsConn.WriteMessage(websocket.TextMessage, buf[:n])
 			}
 		}
-	}()
+	})
 
 	for {
 		select {

@@ -40,7 +40,6 @@ declare interface ThemeConfigState {
         isInvert: boolean;
         isWatermark: boolean;
         watermarkText: Array<string>;
-        tagsStyle: string;
         animation: string;
         columnsAsideStyle: string;
         layout: string;

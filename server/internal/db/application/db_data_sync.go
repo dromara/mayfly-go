@@ -129,7 +129,7 @@ func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 		}
 		
 		defer app.endRunning(task, syncLog)
-		defer gox.RecoverPanic(func(err error) {
+		defer gox.Recover(func(err error) {
 			syncLog.ErrText = i18n.T(imsg.DataSyncFailMsg, "msg", err.Error())
 			logx.ErrorContext(ctx, syncLog.ErrText)
 			syncLog.Status = entity.DataSyncTaskStateFail

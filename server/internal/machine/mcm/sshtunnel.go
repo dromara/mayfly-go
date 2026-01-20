@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/pool"
 	"mayfly-go/pkg/utils/netx"
@@ -107,7 +108,9 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 		remotePort: port,
 		listener:   listener,
 	}
-	go tunnel.Open(stm.SshClient)
+	gox.Go(func() {
+		tunnel.Open(stm.SshClient)
+	})
 	stm.tunnels[tunnel.id] = tunnel
 
 	return localHost, localPort, nil

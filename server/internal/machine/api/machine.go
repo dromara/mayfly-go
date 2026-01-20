@@ -16,6 +16,7 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -378,7 +379,9 @@ func (m *Machine) WsGuacamole(rc *req.Ctx) {
 	defer tunnel.ReleaseWriter()
 	defer tunnel.ReleaseReader()
 
-	go guac.WsToGuacd(wsConn, tunnel, writer)
+	gox.Go(func() {
+		guac.WsToGuacd(wsConn, tunnel, writer)
+	})
 	guac.GuacdToWs(wsConn, tunnel, reader)
 
 	//OnConnect
