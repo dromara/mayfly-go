@@ -71,7 +71,13 @@ func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyn
 		taskEntity.TaskKey = uuid.New().String()
 		err = app.Insert(ctx, taskEntity)
 	} else {
-		taskEntity.TaskKey = ""
+		if taskEntity.TaskKey == "" {
+			task, err := app.GetById(taskEntity.Id)
+			if err != nil {
+				return errorx.NewBiz("db sync task not found")
+			}
+			taskEntity.TaskKey = task.TaskKey
+		}
 		err = app.UpdateById(ctx, taskEntity)
 	}
 	if err != nil {

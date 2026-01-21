@@ -316,7 +316,7 @@ watch(dialogVisible, async (newValue: boolean) => {
     srcTreeRef.value.setCheckedKeys(form.checkedKeys.split(','));
 
     // 初始化默认值
-    form.cronAble = state.form.cronAble || 0;
+    form.cronAble = form.cronAble || -1;
     form.mode = form.mode || 1;
     form.extra = form.extra || { fileType: fileTypeOptions[0].value };
 

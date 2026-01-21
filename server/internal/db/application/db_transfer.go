@@ -77,11 +77,19 @@ func (app *dbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTra
 		taskEntity.TaskKey = uuid.New().String()
 		err = app.Insert(ctx, taskEntity)
 	} else {
+		if taskEntity.TaskKey == "" {
+			task, err := app.GetById(taskEntity.Id)
+			if err != nil {
+				return errorx.NewBiz("db transfer task not found")
+			}
+			taskEntity.TaskKey = task.TaskKey
+		}
 		err = app.UpdateById(ctx, taskEntity)
 	}
 	if err != nil {
 		return err
 	}
+	
 	app.addCronJob(ctx, taskEntity)
 	return nil
 }
@@ -411,12 +419,6 @@ func (app *dbTransferAppImpl) addCronJob(ctx context.Context, taskEntity *entity
 
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DbTransferTaskStatusEnable && taskEntity.CronAble == entity.DbTransferTaskCronAbleEnable {
-		if key == "" {
-			taskEntity.TaskKey = uuid.New().String()
-			key = taskEntity.TaskKey
-			_ = app.UpdateById(ctx, taskEntity)
-		}
-
 		taskId := taskEntity.Id
 		if err := scheduler.AddFunByKey(key, taskEntity.Cron, func() {
 			logx.Infof("start the transfer task: %d", taskId)

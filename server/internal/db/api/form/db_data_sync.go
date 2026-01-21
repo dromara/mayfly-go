@@ -4,7 +4,6 @@ type DataSyncTaskForm struct {
 	Id       uint64 `json:"id"`
 	TaskName string `binding:"required" json:"taskName"`
 	TaskCron string `binding:"required" json:"taskCron"`
-	TaskKey  string `json:"taskKey"`
 	Status   int    `binding:"required" json:"status"`
 
 	SrcDbId     int64  `binding:"required" json:"srcDbId"`
