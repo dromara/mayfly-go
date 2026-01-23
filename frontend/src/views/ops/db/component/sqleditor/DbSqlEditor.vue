@@ -486,6 +486,7 @@ const runSql = async (sql: string, remark = '', newTab = false) => {
         state.execResTabs[i].tableColumn = colAndData.columns.map((x: any) => {
             return {
                 columnName: x.name,
+                columnKey: x.key,
                 columnType: x.type,
                 show: true,
             };

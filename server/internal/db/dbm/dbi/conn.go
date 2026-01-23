@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -58,6 +59,7 @@ func (d *DbConn) Ping() error {
 // 执行数据库查询返回的列信息
 type QueryColumn struct {
 	Name string `json:"name"` // 列名
+	Key  string `json:"key"`  // 列唯一标识
 	Type string `json:"type"` // 数据类型
 
 	DbDataType *DbDataType `json:"-"`
@@ -67,6 +69,7 @@ type QueryColumn struct {
 func NewQueryColumn(colName string, columnType *DbDataType) *QueryColumn {
 	return &QueryColumn{
 		Name:       colName,
+		Key:        colName,
 		Type:       columnType.DataType.Name,
 		DbDataType: columnType,
 		valuer:     columnType.DataType.Valuer(),
@@ -245,7 +248,12 @@ func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn Wal
 		rowData := make(map[string]any, lenCols)
 		// 把values中的数据复制到row中
 		for i := range scans {
-			rowData[cols[i].Name] = cols[i].value()
+			colname := cols[i].Name
+			if _, e := rowData[colname]; e {
+				colname = colname + strconv.Itoa(i)
+				cols[i].Key = colname
+			}
+			rowData[colname] = cols[i].value()
 		}
 		if err = walkFn(rowData, cols); err != nil {
 			logx.ErrorfContext(ctx, "[%s] cursor traversal query result set error, exit traversal: %s", selectSql, err.Error())

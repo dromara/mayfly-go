@@ -509,6 +509,7 @@ const setTableData = (datas: any) => {
 const setTableColumns = (columns: any) => {
     state.columns = columns.map((x: any) => {
         const columnName = x.columnName;
+        const columnKey = x.columnKey;
         // 数据类型
         x.dataType = dbDialect.getDataType(x.columnType);
         x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
@@ -516,7 +517,7 @@ const setTableColumns = (columns: any) => {
         return {
             ...x,
             key: columnName,
-            dataKey: columnName,
+            dataKey: columnKey,
             width: DbInst.flexColumnWidth(columnName, state.datas),
             title: columnName,
             align: x.dataType == DataType.Number ? 'right' : 'left',
