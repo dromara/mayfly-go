@@ -32,7 +32,7 @@
                 <template #dropdown>
                     <el-dropdown-menu>
                         <template v-for="item in contextMenuItems" :key="item.clickId">
-                            <el-dropdown-item v-if="!item.isHide(props.data)" :command="item">
+                            <el-dropdown-item v-if="!item.isHide(props.data) && hasPerm(item.permission)" :command="item">
                                 <SvgIcon v-if="item.icon" :name="item.icon" class="mr-1" />{{ $t(item.txt) }}
                             </el-dropdown-item>
                         </template>
@@ -54,6 +54,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { ContextmenuItem } from '@/components/contextmenu';
 import { ResourceOpCtx, TagTreeNode } from '@/views/ops/component/tag';
 import { ResourceOpCtxKey } from '@/views/ops/resource/resource';
+import { hasPerm } from '@/components/auth/auth';
 
 const resourceOpCtx: ResourceOpCtx | undefined = inject(ResourceOpCtxKey, undefined);
 

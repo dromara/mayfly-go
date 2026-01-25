@@ -4,24 +4,17 @@ import (
 	"flag"
 	"fmt"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/starter"
 	"mayfly-go/pkg/utils/ymlx"
 	"os"
 	"path/filepath"
 	"strconv"
 )
 
-type ConfigItem interface {
-	// 验证配置
-	Valid()
-
-	// 如果不存在配置值，则设置默认值
-	Default()
-}
-
 // 配置文件映射对象
 var Conf *Config
 
-func Init() {
+func Init() (*Config, error) {
 	configFilePath := flag.String("e", "./config.yml", "配置文件路径，默认为可执行文件目录")
 	flag.Parse()
 	// 获取启动参数中，配置文件的绝对路径
@@ -35,10 +28,12 @@ func Init() {
 	// 尝试使用系统环境变量替换配置信息
 	yc.ReplaceOsEnv()
 
-	yc.IfBlankDefaultValue()
-	// 校验配置文件内容信息
-	yc.Valid()
+	if err := yc.ApplyDefaults(); err != nil {
+		return nil, err
+	}
+
 	Conf = yc
+	return yc, nil
 }
 
 // 启动配置参数
@@ -48,39 +43,23 @@ type CmdConfigParam struct {
 
 // yaml配置文件映射对象
 type Config struct {
-	Server Server `yaml:"server"`
-	Jwt    Jwt    `yaml:"jwt"`
-	Aes    Aes    `yaml:"aes"`
-	Mysql  Mysql  `yaml:"mysql"`
-	Sqlite Sqlite `yaml:"sqlite"`
-	Redis  Redis  `yaml:"redis"`
-	Log    Log    `yaml:"log"`
+	starter.Conf `yaml:",inline"`
+
+	Aes Aes `yaml:"aes"`
 }
 
-func (c *Config) IfBlankDefaultValue() {
-	c.Log.Default()
-	// 优先初始化log，因为后续的一些default方法中会需要用到。统一日志输出
-	logx.Init(logx.Config{
-		Level:     c.Log.Level,
-		Type:      c.Log.Type,
-		AddSource: c.Log.AddSource,
-		Filename:  c.Log.File.Name,
-		Filepath:  c.Log.File.Path,
-		MaxSize:   c.Log.File.MaxSize,
-		MaxAge:    c.Log.File.MaxAge,
-		Compress:  c.Log.File.Compress,
-	})
+var _ starter.ConfigItem = (*Config)(nil)
 
-	c.Server.Default()
-	c.Jwt.Default()
-	c.Mysql.Default()
-	c.Sqlite.Default()
-}
+func (c *Config) ApplyDefaults() error {
+	if err := c.Conf.ApplyDefaults(); err != nil {
+		return err
+	}
 
-// 配置文件内容校验
-func (c *Config) Valid() {
-	c.Jwt.Valid()
-	c.Aes.Valid()
+	if err := c.Aes.ApplyDefaults(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // 替换系统环境变量，如果环境变量中存在该值，则优先使用环境变量设定的值
@@ -96,27 +75,29 @@ func (c *Config) ReplaceOsEnv() {
 
 	dbHost := os.Getenv("MAYFLY_DB_HOST")
 	if dbHost != "" {
-		c.Mysql.Host = dbHost
+		c.DB.Address = dbHost
+		c.DB.Dialect = starter.DialectMySQL
 	}
 
 	dbName := os.Getenv("MAYFLY_DB_NAME")
 	if dbName != "" {
-		c.Mysql.Dbname = dbName
+		c.DB.Name = dbName
 	}
 
 	dbUser := os.Getenv("MAYFLY_DB_USER")
 	if dbUser != "" {
-		c.Mysql.Username = dbUser
+		c.DB.Username = dbUser
 	}
 
 	dbPwd := os.Getenv("MAYFLY_DB_PASS")
 	if dbPwd != "" {
-		c.Mysql.Password = dbPwd
+		c.DB.Password = dbPwd
 	}
 
 	sqlitePath := os.Getenv("MAYFLY_SQLITE_PATH")
 	if sqlitePath != "" {
-		c.Sqlite.Path = sqlitePath
+		c.DB.Address = sqlitePath
+		c.DB.Dialect = starter.DialectSQLite
 	}
 
 	aesKey := os.Getenv("MAYFLY_AES_KEY")

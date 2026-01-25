@@ -18,20 +18,19 @@ jwt:
   expire-time: 720
   # refreshToken过期时间单位分钟
   refresh-token-expire-time: 4320
-# 资源密码aes加密key
-aes:
-  key: 1111111111111111
-# 若存在mysql配置，优先使用mysql
-mysql:
-  host: mysql:3306
+# 数据库配置，dialect支持mysql、sqlite
+db:
+  dialect: mysql
+  address: mysql:3306
+  name: mayfly-go
   username: root
   password: 111049
-  db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
-sqlite:
-  path: ./mayfly-go.sqlite
-  max-idle-conns: 5
+# db:
+#   dialect: sqlite
+#   address: ./mayfly-go.db
+#   max-idle-conns: 5
 # 若同时部署多台机器，则需要配置redis信息用于缓存权限码、验证码、公私钥等
 # redis:
 #   host: localhost
@@ -55,3 +54,6 @@ log:
   #   max-age: 60
   #   # 是否使用 gzip 压缩方式压缩轮转后的日志文件
   #   compress: true
+# 资源密码aes加密key
+aes:
+  key: 1111111111111111

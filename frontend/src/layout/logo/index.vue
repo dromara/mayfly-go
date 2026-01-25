@@ -4,7 +4,7 @@
         <span class="logo-title">
             {{ `${themeConfig.globalTitle}` }}
             <sub
-                ><span style="font-size: 10px; color: goldenrod">{{ ` ${config.version}` }}</span></sub
+                ><span style="font-size: 10px; color: goldenrod">{{ ` ${themeConfig.version}` }}</span></sub
             >
         </span>
     </div>
@@ -17,7 +17,6 @@
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import config from '@/common/config';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 

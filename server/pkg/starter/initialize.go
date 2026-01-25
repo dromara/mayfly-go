@@ -1,7 +1,6 @@
-package initialize
+package starter
 
 import (
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ioc"
 )
 
@@ -27,7 +26,7 @@ func AddInitFunc(initFunc InitFunc) {
 }
 
 // 系统启动时，调用各个模块的初始化函数
-func InitOther() {
+func initOther() error {
 	// 调用各个模块ioc组件注册初始化，优先调用ioc初始化注册函数和注入函数（可能在后续的InitFunc中需要用到依赖实例）
 	for _, initIocFunc := range initIocFuncs {
 		initIocFunc()
@@ -35,11 +34,15 @@ func InitOther() {
 	initIocFuncs = nil
 
 	// 为所有注册的实例注入其依赖的其他组件实例
-	biz.ErrIsNil(ioc.InjectComponents())
+	if err := ioc.InjectComponents(); err != nil {
+		return err
+	}
 
 	// 调用各个模块的初始化函数
 	for _, initFunc := range initFuncs {
 		go initFunc()
 	}
 	initFuncs = nil
+
+	return nil
 }

@@ -48,6 +48,7 @@ declare interface ThemeConfigState {
         globalViceTitle: string;
         appSlogan: string;
         logoIcon: string;
+        version: string;
         globalI18n: string;
         globalComponentSize: string;
         terminalTheme: string;

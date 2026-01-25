@@ -24,7 +24,7 @@ func V1_9_3() []*gormigrate.Migration {
 		{
 			ID: "20250213-v1.9.3-addMachineExtra-updateMenuIcon",
 			Migrate: func(tx *gorm.DB) error {
-				tx.Migrator().AddColumn(&machineentity.Machine{}, "extra")
+				tx.AutoMigrate(&machineentity.Machine{})
 
 				// 更新菜单图标
 				resourceModel := &sysentity.Resource{}

@@ -152,7 +152,7 @@
                 <el-text
                     id="copyValue"
                     style="color: var(--el-color-info-light-3)"
-                    class="is-truncated !text-[12px] mt-1"
+                    class="is-truncated text-[12px]! mt-1"
                     @click="copyToClipboard(sql)"
                     :title="sql"
                     >{{ sql }}</el-text
@@ -392,6 +392,7 @@ const selectData = async () => {
             const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
             columns.forEach((x: any) => {
                 x.show = true;
+                x.key = x.columnName;
             });
             state.columns = columns;
         }
@@ -592,7 +593,7 @@ const onSelectByCondition = async () => {
  */
 const onTableSortChange = async (sort: any) => {
     const sortType = sort.order == 'desc' ? 'DESC' : 'ASC';
-    state.orderBy = `ORDER BY ${state.dbDialect.quoteIdentifier(sort.columnName)} ${sortType}`;
+    state.orderBy = `ORDER BY ${state.dbDialect.quoteIdentifier(sort.key)} ${sortType}`;
     await onRefresh();
 };
 

@@ -1,14 +1,14 @@
 package init
 
 import (
-	"mayfly-go/initialize"
 	"mayfly-go/internal/auth/api"
 	"mayfly-go/internal/auth/application"
 	"mayfly-go/internal/auth/infra/persistence"
+	"mayfly-go/pkg/starter"
 )
 
 func init() {
-	initialize.AddInitIocFunc(func() {
+	starter.AddInitIocFunc(func() {
 		persistence.InitIoc()
 		application.InitIoc()
 		api.InitIoc()

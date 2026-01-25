@@ -77,9 +77,7 @@
                                                 <!-- 排序箭头图标 -->
                                                 <SvgIcon
                                                     v-if="
-                                                        column.title == nowSortColumn?.columnName &&
-                                                        !showColumnActions[column.key] &&
-                                                        !columnActionVisible[column.key]
+                                                        column.key == nowSortColumn?.key && !showColumnActions[column.key] && !columnActionVisible[column.key]
                                                     "
                                                     :color="'var(--el-color-primary)'"
                                                     :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
@@ -135,7 +133,7 @@
                             <div v-else @dblclick="onEnterEditMode(rowData, column, rowIndex, columnIndex)">
                                 <div v-if="canEdit(rowIndex, columnIndex)">
                                     <ColumnFormItem
-                                        v-model="rowData[column.dataKey!]"
+                                        v-model="rowData[column.key!]"
                                         :data-type="column.dataType"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         :column-name="column.columnName"
@@ -143,11 +141,11 @@
                                     />
                                 </div>
 
-                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active ml-0.5 mr-0.5' : 'ml-0.5 mr-0.5'">
-                                    <span v-if="rowData[column.dataKey!] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
+                                <div v-else :class="isUpdated(rowIndex, column.key) ? 'update_field_active ml-0.5 mr-0.5' : 'ml-0.5 mr-0.5'">
+                                    <span v-if="rowData[column.key!] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
 
-                                    <span v-else :title="rowData[column.dataKey!]" class="el-text el-text--small is-truncated">
-                                        {{ rowData[column.dataKey!] }}
+                                    <span v-else :title="rowData[column.key!]" class="el-text el-text--small is-truncated">
+                                        {{ rowData[column.key!] }}
                                     </span>
                                 </div>
                             </div>
@@ -275,7 +273,7 @@ const columnActionVisible = ref({} as any);
 const cmDataCopyCell = new ContextmenuItem('copyValue', 'common.copy')
     .withIcon('CopyDocument')
     .withOnClick(async (data: any) => {
-        await copyToClipboard(data.rowData[data.column.dataKey]);
+        await copyToClipboard(data.rowData[data.column.key]);
     })
     .withHideFunc(() => {
         // 选中多条则隐藏该复制按钮
@@ -409,7 +407,6 @@ const dbConfig = useStorage('dbConfig', DbThemeConfig);
 const rowNoColumn = {
     title: 'No.',
     key: 'tableDataRowNo',
-    dataKey: 'tableDataRowNo',
     width: 45,
     fixed: true,
     align: 'center',
@@ -509,15 +506,12 @@ const setTableData = (datas: any) => {
 const setTableColumns = (columns: any) => {
     state.columns = columns.map((x: any) => {
         const columnName = x.columnName;
-        const columnKey = x.columnKey;
         // 数据类型
         x.dataType = dbDialect.getDataType(x.columnType);
         x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
         x.remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
         return {
             ...x,
-            key: columnName,
-            dataKey: columnKey,
             width: DbInst.flexColumnWidth(columnName, state.datas),
             title: columnName,
             align: x.dataType == DataType.Number ? 'right' : 'left',
@@ -566,21 +560,21 @@ const hideColumnAction = () => {
 const handleColumnCommand = (column: any, command: string) => {
     switch (command) {
         case 'sort-asc':
-            onTableSortChange({ columnName: column.dataKey, order: 'asc' });
+            onTableSortChange({ key: column.key, order: 'asc' });
             break;
         case 'sort-desc':
-            onTableSortChange({ columnName: column.dataKey, order: 'desc' });
+            onTableSortChange({ key: column.key, order: 'desc' });
             break;
         case 'fix':
             state.columns.forEach((col: any) => {
-                if (col.dataKey == column.dataKey) {
+                if (col.key == column.key) {
                     col.fixed = true;
                 }
             });
             break;
         case 'unfix':
             state.columns.forEach((col: any) => {
-                if (col.dataKey == column.dataKey) {
+                if (col.key == column.key) {
                     col.fixed = false;
                 }
             });
@@ -719,7 +713,7 @@ const onGenerateJson = async () => {
         let obj: any = {};
         for (let column of state.columns) {
             if (column.show) {
-                obj[column.title] = selectionData[column.dataKey];
+                obj[column.title] = selectionData[column.key];
             }
         }
         jsonObj.push(obj);
@@ -776,7 +770,7 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
     nowUpdateCell.value = {
         rowIndex: rowIndex,
         colIndex: columnIndex,
-        oldValue: rowData[column.dataKey],
+        oldValue: rowData[column.key],
         dataType: column.dataType,
     };
 };
@@ -786,7 +780,7 @@ const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
         return;
     }
     const oldValue = nowUpdateCell.value.oldValue;
-    const newValue = rowData[column.dataKey];
+    const newValue = rowData[column.key];
 
     // 未改变单元格值
     if (oldValue == newValue) {
@@ -801,7 +795,7 @@ const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
         cellUpdateMap.value.set(rowIndex, updatedRow);
     }
 
-    const columnName = column.dataKey;
+    const columnName = column.key;
     let cellData = updatedRow.columnsMap.get(columnName);
     if (cellData) {
         // 多次修改情况，可能又修改回原值，则移除该修改单元格

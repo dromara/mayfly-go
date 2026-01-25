@@ -1,7 +1,8 @@
-package initialize
+package starter
 
 import (
 	"fmt"
+	"io/fs"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 	"net/http"
@@ -9,18 +10,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RouterApi
-// 该接口的实现类注册到ioc中，则会自动将请求配置注册到路由中
-type RouterApi interface {
-	// ReqConfs 获取请求配置信息
-	ReqConfs() *req.Confs
+// StaticRouter 静态资源路由配置
+type StaticRouter struct {
+	Fs    fs.FS    // 静态资源文件系统
+	Paths []string // 静态资源访问路径，如 /assets/*file
 }
 
-type RouterConfig struct {
-	ContextPath string // 请求路径上下文
-}
-
-func InitRouter(router *gin.Engine, conf RouterConfig) *gin.Engine {
+func initRouter(router *gin.Engine, conf req.RouterConfig) *gin.Engine {
 	// 没有路由即 404返回
 	router.NoRoute(func(g *gin.Context) {
 		g.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": fmt.Sprintf("not found '%s:%s'", g.Request.Method, g.Request.URL.Path)})
@@ -30,7 +26,7 @@ func InitRouter(router *gin.Engine, conf RouterConfig) *gin.Engine {
 	api := router.Group(conf.ContextPath + "/api")
 
 	// 获取所有实现了RouterApi接口的实例，并注册对应路由
-	ras := ioc.GetBeansByType[RouterApi]()
+	ras := ioc.GetBeansByType[req.RouterApi]()
 	for _, ra := range ras {
 		confs := ra.ReqConfs()
 		if group := confs.Group; group != "" {

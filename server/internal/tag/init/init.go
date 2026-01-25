@@ -2,23 +2,23 @@ package init
 
 import (
 	"context"
-	"mayfly-go/initialize"
 	"mayfly-go/internal/pkg/event"
 	"mayfly-go/internal/tag/api"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/infra/persistence"
 	"mayfly-go/pkg/eventbus"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/starter"
 )
 
 func init() {
-	initialize.AddInitIocFunc(func() {
+	starter.AddInitIocFunc(func() {
 		persistence.InitIoc()
 		application.InitIoc()
 		api.InitIoc()
 	})
 
-	initialize.AddInitFunc(Init)
+	starter.AddInitFunc(Init)
 }
 
 func Init() {

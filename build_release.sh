@@ -57,7 +57,7 @@ function build() {
         execFileName="${execFileName}.exe"
     fi
     go mod tidy
-    CGO_ENABLE=0 GOOS=${os} GOARCH=${arch} go build -ldflags=-w -o ${execFileName} main.go
+    CGO_ENABLE=0 GOOS=${os} GOARCH=${arch} go build -trimpath -ldflags=-w -o ${execFileName} main.go
 
     if [ -d ${toFolder} ] ; then
         echo_green "The desired folder already exists. Clear the folder"

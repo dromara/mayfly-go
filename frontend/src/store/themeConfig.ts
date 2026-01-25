@@ -135,6 +135,7 @@ export const useThemeConfig = defineStore('themeConfig', {
             appSlogan: 'common.appSlogan',
             // 网站logo icon, base64编码内容
             logoIcon: logoIcon,
+            version: 'latest',
             // 默认初始语言，可选值"<zh-cn|en|zh-tw>"，默认 zh-cn
             globalI18n: 'zh-cn',
             // 默认全局组件大小，可选值"<|large|default|small>"，默认 ''
@@ -153,11 +154,12 @@ export const useThemeConfig = defineStore('themeConfig', {
             if (tc) {
                 this.themeConfig = tc;
                 document.documentElement.style.cssText = getLocal('themeConfigStyle');
-            } else {
-                getServerConf().then((res) => {
-                    this.themeConfig.globalI18n = res.i18n;
-                });
             }
+
+            getServerConf().then((res) => {
+                this.themeConfig.globalI18n = res.i18n;
+                this.themeConfig.version = res.version;
+            });
 
             // 根据后台系统配置初始化
             getSysStyleConfig().then((res) => {

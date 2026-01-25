@@ -85,12 +85,18 @@ const NodeTypeAuthCert = new NodeType(12)
         (await node.ctx?.addResourceComponent(MachineOpComp)).openTerminal(node.params);
     })
     .withContextMenuItems([
-        new ContextmenuItem('term', 'machine.openTerminal').withIcon('Monitor').withOnClick(async (node: TagTreeNode) => {
-            (await node.ctx?.addResourceComponent(MachineOpComp))?.openTerminal(node.params);
-        }),
-        new ContextmenuItem('term-ex', 'machine.newTabOpenTerminal').withIcon('Monitor').withOnClick(async (node: TagTreeNode) => {
-            (await node.ctx?.addResourceComponent(MachineOpComp))?.openTerminal(node.params, true);
-        }),
+        new ContextmenuItem('term', 'machine.openTerminal')
+            .withIcon('Monitor')
+            .withPermission('machine:terminal')
+            .withOnClick(async (node: TagTreeNode) => {
+                (await node.ctx?.addResourceComponent(MachineOpComp))?.openTerminal(node.params);
+            }),
+        new ContextmenuItem('term-ex', 'machine.newTabOpenTerminal')
+            .withIcon('Monitor')
+            .withPermission('machine:terminal')
+            .withOnClick(async (node: TagTreeNode) => {
+                (await node.ctx?.addResourceComponent(MachineOpComp))?.openTerminal(node.params, true);
+            }),
         new ContextmenuItem('files', 'machine.fileManage').withIcon('FolderOpened').withOnClick(async (node: any) => {
             (await node.ctx?.addResourceComponent(MachineOpComp)).showFileManage(node.params);
         }),

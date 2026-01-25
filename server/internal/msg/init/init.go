@@ -2,7 +2,6 @@ package init
 
 import (
 	"context"
-	"mayfly-go/initialize"
 	"mayfly-go/internal/msg/api"
 	"mayfly-go/internal/msg/application"
 	"mayfly-go/internal/msg/application/dto"
@@ -13,16 +12,17 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/starter"
 )
 
 func init() {
-	initialize.AddInitIocFunc(func() {
+	starter.AddInitIocFunc(func() {
 		persistence.InitIoc()
 		application.InitIoc()
 		api.InitIoc()
 	})
 
-	initialize.AddInitFunc(Init)
+	starter.AddInitFunc(Init)
 }
 
 func Init() {

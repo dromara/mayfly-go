@@ -63,5 +63,5 @@ func (c *Config) SaveConfig(rc *req.Ctx) {
 // GetServerConfig 获取当前系统启动配置
 func (c *Config) GetServerConfig(rc *req.Ctx) {
 	conf := config.Conf
-	rc.ResData = collx.Kvs("i18n", conf.Server.Lang)
+	rc.ResData = collx.Kvs("i18n", conf.Server.Lang, "version", config.Version)
 }

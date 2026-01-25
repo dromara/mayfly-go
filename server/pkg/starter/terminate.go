@@ -1,4 +1,4 @@
-package initialize
+package starter
 
 // 系统进程退出终止函数
 type TerminateFunc func()

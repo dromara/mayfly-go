@@ -1,12 +1,12 @@
 package init
 
 import (
-	"mayfly-go/initialize"
 	"mayfly-go/internal/common/api"
+	"mayfly-go/pkg/starter"
 )
 
 func init() {
-	initialize.AddInitIocFunc(func() {
+	starter.AddInitIocFunc(func() {
 		api.InitIoc()
 	})
 }
