@@ -6,13 +6,13 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(instanceAppImpl), ioc.WithComponentName("DbInstanceApp"))
-	ioc.Register(new(dbAppImpl), ioc.WithComponentName("DbApp"))
-	ioc.Register(new(dbSqlExecAppImpl), ioc.WithComponentName("DbSqlExecApp"))
-	ioc.Register(new(dbSqlAppImpl), ioc.WithComponentName("DbSqlApp"))
-	ioc.Register(new(dataSyncAppImpl), ioc.WithComponentName("DbDataSyncTaskApp"))
-	ioc.Register(new(dbTransferAppImpl), ioc.WithComponentName("DbTransferTaskApp"))
-	ioc.Register(new(dbTransferFileAppImpl), ioc.WithComponentName("DbTransferFileApp"))
+	ioc.Register(new(instanceAppImpl))
+	ioc.Register(new(dbAppImpl))
+	ioc.Register(new(dbSqlExecAppImpl))
+	ioc.Register(new(dbSqlAppImpl))
+	ioc.Register(new(dataSyncAppImpl))
+	ioc.Register(new(dbTransferAppImpl))
+	ioc.Register(new(dbTransferFileAppImpl))
 }
 
 func Init() {

@@ -70,5 +70,5 @@ export function getMachineTerminalSocketUrl(authCertName: any) {
 }
 
 export function getMachineRdpSocketUrl(authCertName: any) {
-    return `/machines/rdp/${authCertName}`;
+    return `/api/machines/rdp/${authCertName}`;
 }

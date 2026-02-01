@@ -88,7 +88,7 @@ func (m *ResourceAuthCert) HasChanged(rac *ResourceAuthCert) bool {
 		return true
 	}
 	return m.Username != rac.Username ||
-		(m.Ciphertext != "" && rac.Ciphertext != "" && m.Ciphertext != rac.Ciphertext) ||
+		(m.Ciphertext != rac.Ciphertext) ||
 		m.CiphertextType != rac.CiphertextType ||
 		m.Remark != rac.Remark ||
 		m.Type != rac.Type ||

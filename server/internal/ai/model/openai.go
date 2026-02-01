@@ -16,7 +16,7 @@ func (o *Openai) SupportModel() string {
 	return "openai"
 }
 
-func (o *Openai) GetChatModel(ctx context.Context, aiConfig *config.AIModelConfig) (model.ToolCallingChatModel, error) {
+func (o *Openai) NewChatModel(ctx context.Context, aiConfig *config.AIModelConfig) (model.ToolCallingChatModel, error) {
 	return openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		BaseURL:     aiConfig.BaseUrl,
 		Model:       aiConfig.Model,
@@ -24,5 +24,8 @@ func (o *Openai) GetChatModel(ctx context.Context, aiConfig *config.AIModelConfi
 		Timeout:     time.Duration(aiConfig.TimeOut) * time.Second,
 		MaxTokens:   &aiConfig.MaxTokens,
 		Temperature: &aiConfig.Temperature,
+		ResponseFormat: &openai.ChatCompletionResponseFormat{
+			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+		},
 	})
 }

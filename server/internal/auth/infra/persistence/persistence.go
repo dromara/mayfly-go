@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newAuthAccountRepo(), ioc.WithComponentName("Oauth2AccountRepo"))
+	ioc.Register(newAuthAccountRepo())
 }

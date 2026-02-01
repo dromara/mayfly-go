@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(oauth2AppImpl), ioc.WithComponentName("Oauth2App"))
+	ioc.Register(new(oauth2AppImpl))
 }

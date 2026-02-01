@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/es/domain/repository"
 	"mayfly-go/internal/es/esm/esi"
 	"mayfly-go/internal/es/imsg"
-	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
@@ -41,21 +40,6 @@ var _ Instance = &instanceAppImpl{}
 
 var poolGroup = pool.NewPoolGroup[*esi.EsConn]()
 
-func init() {
-	mcm.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
-		items := poolGroup.AllPool()
-		for _, v := range items {
-			conn, err := v.Get(context.Background(), pool.WithGetNoUpdateLastActive(), pool.WithGetNoNewConn())
-			if err != nil {
-				continue // 获取连接失败，跳过
-			}
-			if conn.Info.SshTunnelMachineId == machineId {
-				return true
-			}
-		}
-		return false
-	})
-}
 
 type instanceAppImpl struct {
 	base.AppImpl[*entity.EsInstance, repository.EsInstance]

@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(fileAppImpl), ioc.WithComponentName("FileApp"))
+	ioc.Register(new(fileAppImpl))
 }

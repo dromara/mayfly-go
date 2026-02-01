@@ -8,6 +8,8 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"net/url"
 	"strings"
+
+	_ "gitee.com/chunanyong/dm"
 )
 
 func init() {
@@ -34,11 +36,6 @@ func (dm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	}
 	if d.Params != "" {
 		dbParam += "&" + d.Params
-	}
-
-	err := d.IfUseSshTunnelChangeIpPort(ctx)
-	if err != nil {
-		return nil, err
 	}
 
 	dsn := fmt.Sprintf("dm://%s:%s@%s:%d%s", d.Username, url.PathEscape(d.Password), d.Host, d.Port, dbParam)

@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newMongoRepo(), ioc.WithComponentName("MongoRepo"))
+	ioc.Register(newMongoRepo())
 }

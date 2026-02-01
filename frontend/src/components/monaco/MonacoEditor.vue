@@ -225,10 +225,12 @@ const initMonacoEditorIns = () => {
     let options = Object.assign(defaultOptions, props.options as any);
     monacoEditorIns = monaco.editor.create(monacoTextareaRef.value, options);
 
-    // 监听内容改变,双向绑定
-    monacoEditorIns.onDidChangeModelContent(() => {
-        modelValue.value = monacoEditorIns.getModel()?.getValue();
-    });
+    if (!options.readOnly) {
+        // 监听内容改变,双向绑定
+        monacoEditorIns.onDidChangeModelContent(() => {
+            modelValue.value = monacoEditorIns.getModel()?.getValue();
+        });
+    }
 };
 
 const changeLanguage = (value: any) => {

@@ -5,12 +5,12 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(procdefAppImpl), ioc.WithComponentName("ProcdefApp"))
-	ioc.Register(new(procinstAppImpl), ioc.WithComponentName("ProcinstApp"))
-	ioc.Register(new(executionAppImpl), ioc.WithComponentName("ExecutionApp"))
+	ioc.Register(new(procdefAppImpl))
+	ioc.Register(new(procinstAppImpl))
+	ioc.Register(new(executionAppImpl))
 
-	ioc.Register(new(procinstTaskAppImpl), ioc.WithComponentName("ProcinstTaskApp"))
-	ioc.Register(new(hisProcinstOpAppImpl), ioc.WithComponentName("HisProcinstOpApp"))
+	ioc.Register(new(procinstTaskAppImpl))
+	ioc.Register(new(hisProcinstOpAppImpl))
 }
 
 func Init() {

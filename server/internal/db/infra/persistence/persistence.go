@@ -5,12 +5,12 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(NewInstanceRepo(), ioc.WithComponentName("DbInstanceRepo"))
-	ioc.Register(newDbRepo(), ioc.WithComponentName("DbRepo"))
-	ioc.Register(newDbSqlRepo(), ioc.WithComponentName("DbSqlRepo"))
-	ioc.Register(newDbSqlExecRepo(), ioc.WithComponentName("DbSqlExecRepo"))
-	ioc.Register(newDataSyncTaskRepo(), ioc.WithComponentName("DbDataSyncTaskRepo"))
-	ioc.Register(newDataSyncLogRepo(), ioc.WithComponentName("DbDataSyncLogRepo"))
-	ioc.Register(newDbTransferTaskRepo(), ioc.WithComponentName("DbTransferTaskRepo"))
-	ioc.Register(newDbTransferFileRepo(), ioc.WithComponentName("DbTransferFileRepo"))
+	ioc.Register(NewInstanceRepo())
+	ioc.Register(newDbRepo())
+	ioc.Register(newDbSqlRepo())
+	ioc.Register(newDbSqlExecRepo())
+	ioc.Register(newDataSyncTaskRepo())
+	ioc.Register(newDataSyncLogRepo())
+	ioc.Register(newDbTransferTaskRepo())
+	ioc.Register(newDbTransferFileRepo())
 }

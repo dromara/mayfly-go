@@ -161,6 +161,8 @@ export const useThemeConfig = defineStore('themeConfig', {
                 this.themeConfig.version = res.version;
             });
 
+            this.themeConfig.defaultListPageSize = calculatePageSizeByScreenHeight();
+
             // 根据后台系统配置初始化
             getSysStyleConfig().then((res) => {
                 if (res?.title) {
@@ -215,3 +217,34 @@ export const useThemeConfig = defineStore('themeConfig', {
         },
     },
 });
+
+// 计算每页显示数量的方法
+const calculatePageSizeByScreenHeight = (): number => {
+    const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    // 计算页面其他部分的高度（这是一个大概的估算）
+    // 包括顶部导航、面包屑、搜索区域、分页控件等
+    const headerHeight = 60; // 页面顶部导航高度
+    const subHeaderHeight = 50; // 子页面头部或其他内容高度
+    const searchFormHeight = 100; // 搜索表单高度，如果显示的话
+    const tableHeaderHeight = 44; // 表格头部高度
+    const paginationHeight = 40; // 分页控件高度
+    const paddingMarginHeight = 30; // 额外的内外边距
+
+    // 计算可用于表格内容的高度
+    const availableContentHeight =
+        windowHeight - headerHeight - subHeaderHeight - searchFormHeight - tableHeaderHeight - paginationHeight - paddingMarginHeight;
+
+    // 根据表格尺寸确定行高
+    const rowHeight = 40;
+
+    // 计算理论上的行数
+    const calculatedRows = Math.floor(availableContentHeight / rowHeight);
+
+    // 设置限制范围
+    const minPageSize = 10;
+    const maxPageSize = 30;
+
+    // 确保返回值在合理范围内，且至少有基本的行数
+    return Math.max(minPageSize, Math.min(maxPageSize, calculatedRows));
+};

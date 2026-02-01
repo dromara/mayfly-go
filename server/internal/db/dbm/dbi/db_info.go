@@ -43,9 +43,22 @@ type DbInfo struct {
 
 	CodePath           []string
 	SshTunnelMachineId int
-	useSshTunnel       bool // 是否使用系统自己实现的ssh隧道连接,而非库自带的
+	RemoteAddr         string `json:"-"` // ssh隧道远程地址，格式 ip:port
 
 	Meta Meta
+}
+
+var _ (mcm.SshTunnelAble) = (*DbInfo)(nil)
+
+func (di *DbInfo) GetSshTunnelMachineId() int64 {
+	return int64(di.SshTunnelMachineId)
+}
+
+func (di *DbInfo) GetRemoteAddr() string {
+	if di.RemoteAddr != "" {
+		return di.RemoteAddr
+	}
+	return fmt.Sprintf("%s:%d", di.Host, di.Port)
 }
 
 // 获取记录日志的描述
@@ -68,6 +81,9 @@ func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 		di.Database = database
 	}
 
+	if err := di.IfUseSshTunnelChangeIpPort(ctx); err != nil {
+		return nil, err
+	}
 	conn, err := meta.GetSqlDb(ctx, di)
 	if err != nil {
 		logx.Errorf("db connection failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
@@ -99,17 +115,17 @@ func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 func (di *DbInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
-		sshTunnelMachine, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
+		di.RemoteAddr = di.GetRemoteAddr()
+		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(ctx, int(di.SshTunnelMachineId))
 		if err != nil {
 			return err
 		}
-		exposedIp, exposedPort, err := sshTunnelMachine.OpenSshTunnel(fmt.Sprintf("db:%d", di.Id), di.Host, di.Port)
+		exposedIp, exposedPort, err := sshTunnelMachine.OpenSshTunnel(di)
 		if err != nil {
 			return err
 		}
 		di.Host = exposedIp
 		di.Port = exposedPort
-		di.useSshTunnel = true
 	}
 	return nil
 }

@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(NewInstanceRepo(), ioc.WithComponentName("EsInstanceRepo"))
+	ioc.Register(NewInstanceRepo())
 }

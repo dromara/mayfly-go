@@ -25,10 +25,6 @@ type Meta struct {
 }
 
 func (mm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
-	err := d.IfUseSshTunnelChangeIpPort(ctx)
-	if err != nil {
-		return nil, err
-	}
 	query := url.Values{}
 	// The application name (default is go-mssqldb)
 	query.Add("app name", "mayfly")

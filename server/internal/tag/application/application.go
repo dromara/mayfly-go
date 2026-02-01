@@ -5,11 +5,11 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(tagTreeAppImpl), ioc.WithComponentName("TagTreeApp"))
-	ioc.Register(new(teamAppImpl), ioc.WithComponentName("TeamApp"))
-	ioc.Register(new(resourceAuthCertAppImpl), ioc.WithComponentName("ResourceAuthCertApp"))
-	ioc.Register(new(resourceOpLogAppImpl), ioc.WithComponentName("ResourceOpLogApp"))
-	ioc.Register(new(tagTreeRelateAppImpl), ioc.WithComponentName("TagTreeRelateApp"))
+	ioc.Register(new(tagTreeAppImpl))
+	ioc.Register(new(teamAppImpl))
+	ioc.Register(new(resourceAuthCertAppImpl))
+	ioc.Register(new(resourceOpLogAppImpl))
+	ioc.Register(new(tagTreeRelateAppImpl))
 }
 
 func GetResourceOpLogApp() ResourceOpLog {

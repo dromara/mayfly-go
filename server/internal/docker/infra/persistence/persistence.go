@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newContainerRepo(), ioc.WithComponentName("ContainerRepo"))
+	ioc.Register(newContainerRepo())
 }

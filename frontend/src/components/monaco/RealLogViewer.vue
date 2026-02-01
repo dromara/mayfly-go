@@ -34,7 +34,7 @@ const websocketUrl = ref(props.wsUrl);
 
 const { data } = useWebSocket(websocketUrl);
 
-const editorRef: any = useTemplateRef('editorRef');
+const editorRef = useTemplateRef<InstanceType<typeof MonacoEditor>>('editorRef');
 
 const modelValue = defineModel<string>('modelValue', {
     type: String,
@@ -56,9 +56,9 @@ const reload = (wsUrl: string) => {
 };
 
 const revealLastLine = () => {
-    const editor = editorRef.value.getEditor();
-    const lineCount = editor?.getModel().getLineCount();
-    editor.revealLine(lineCount);
+    const editor = editorRef.value?.getEditor();
+    const lineCount = editor?.getModel()?.getLineCount();
+    editor?.revealLine(lineCount || 0);
 };
 
 defineExpose({

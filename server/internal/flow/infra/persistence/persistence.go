@@ -6,12 +6,12 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newProcdefRepo(), ioc.WithComponentName("ProcdefRepo"))
-	ioc.Register(newProcinstRepo(), ioc.WithComponentName("ProcinstRepo"))
-	ioc.Register(newExectionRepo(), ioc.WithComponentName("ExectionRepo"))
-	ioc.Register(newProcinstTaskRepo(), ioc.WithComponentName("ProcinstTaskRepo"))
-	ioc.Register(newProcinstTaskCandidateRepo(), ioc.WithComponentName("ProcinstTaskCandidateRepo"))
-	ioc.Register(newHisProcinstOpRepo(), ioc.WithComponentName("HisProcinstTaskRepo"))
+	ioc.Register(newProcdefRepo())
+	ioc.Register(newProcinstRepo())
+	ioc.Register(newExectionRepo())
+	ioc.Register(newProcinstTaskRepo())
+	ioc.Register(newProcinstTaskCandidateRepo())
+	ioc.Register(newHisProcinstOpRepo())
 }
 
 func GetProcinstTaskCandidateRepo() repository.ProcinstTaskCandidate {

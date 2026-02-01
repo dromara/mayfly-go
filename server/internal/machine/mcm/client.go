@@ -21,7 +21,11 @@ type Cli struct {
 /******************* pool.Conn impl *******************/
 
 func (c *Cli) Ping() error {
-	_, _, err := c.sshClient.SendRequest("ping", true, nil)
+	_, _, err := c.sshClient.SendRequest(
+		"keepalive@openssh.com",
+		true,
+		nil,
+	)
 	return err
 }
 
@@ -38,17 +42,7 @@ func (c *Cli) Close() error {
 		c.sftpClient = nil
 	}
 
-	var sshTunnelMachineId uint64
-	if m.SshTunnelMachine != nil {
-		sshTunnelMachineId = m.SshTunnelMachine.Id
-	}
-	if m.TempSshMachineId != 0 {
-		sshTunnelMachineId = m.TempSshMachineId
-	}
-	if sshTunnelMachineId != 0 {
-		logx.Debugf("close machine ssh tunnel -> machineId=%d, sshTunnelMachineId=%d", m.Id, sshTunnelMachineId)
-		CloseSshTunnelMachine(sshTunnelMachineId, m.GetTunnelId())
-	}
+	CloseSshTunnel(m)
 
 	return nil
 }
@@ -79,8 +73,7 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 	}
 	session, err := c.sshClient.NewSession()
 	if err != nil {
-		logx.Errorf("failed to retrieve the machine client session: %s", err.Error())
-		return nil, errorx.NewBiz("the acquisition session failed, please try again later...")
+		return nil, errorx.NewBizf("the acquisition session failed: %s, please try again later...", err.Error())
 	}
 	return session, nil
 }

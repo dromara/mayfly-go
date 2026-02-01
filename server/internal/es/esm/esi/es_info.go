@@ -35,11 +35,24 @@ type EsInfo struct {
 
 	CodePath           []string
 	SshTunnelMachineId int
-	useSshTunnel       bool // 是否使用系统自己实现的ssh隧道连接,而非库自带的
+	RemoteAddr         string `json:"-"` // ssh隧道远程地址，格式 ip:port
 
 	OriginUrl     string // 原始url
 	baseUrl       string // 发起http请求的基本url
 	authorization string // 发起http请求携带的认证信息
+}
+
+var _ (mcm.SshTunnelAble) = (*EsInfo)(nil)
+
+func (di *EsInfo) GetSshTunnelMachineId() int64 {
+	return int64(di.SshTunnelMachineId)
+}
+
+func (di *EsInfo) GetRemoteAddr() string {
+	if di.RemoteAddr != "" {
+		return di.RemoteAddr
+	}
+	return fmt.Sprintf("%s:%d", di.Host, di.Port)
 }
 
 // 获取记录日志的描述
@@ -132,17 +145,17 @@ func (di *EsInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
 
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
+		di.RemoteAddr = di.GetRemoteAddr()
 		stm, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
 		if err != nil {
 			return err
 		}
-		exposedIp, exposedPort, err := stm.OpenSshTunnel(fmt.Sprintf("es:%d", di.InstanceId), di.Host, di.Port)
+		exposedIp, exposedPort, err := stm.OpenSshTunnel(di)
 		if err != nil {
 			return err
 		}
 		di.Host = exposedIp
 		di.Port = exposedPort
-		di.useSshTunnel = true
 		di.baseUrl = fmt.Sprintf("%s://%s:%d", di.Protocol, exposedIp, exposedPort)
 	} else {
 		di.baseUrl = fmt.Sprintf("%s://%s:%d", di.Protocol, di.Host, di.Port)

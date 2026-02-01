@@ -5,7 +5,7 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(containerAppImpl), ioc.WithComponentName("ContainerApp"))
+	ioc.Register(new(containerAppImpl))
 }
 
 func GetContainerApp() Container {

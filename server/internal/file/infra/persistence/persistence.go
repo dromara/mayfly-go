@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newFileRepo(), ioc.WithComponentName("FileRepo"))
+	ioc.Register(newFileRepo())
 }

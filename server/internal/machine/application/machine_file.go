@@ -88,10 +88,6 @@ type machineFileAppImpl struct {
 
 var _ MachineFile = (*machineFileAppImpl)(nil)
 
-// 注入MachineFileRepo
-func (m *machineFileAppImpl) InjectMachineFileRepo(repo repository.MachineFile) {
-	m.Repo = repo
-}
 
 // 分页获取机器文件配置信息列表
 func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineFile], error) {

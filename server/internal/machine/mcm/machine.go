@@ -37,16 +37,26 @@ type MachineInfo struct {
 
 	SshTunnelMachine *MachineInfo `json:"-"` // ssh隧道机器
 	TempSshMachineId uint64       `json:"-"` // ssh隧道机器id，用于记录隧道机器id，连接出错后关闭隧道
+	RemoteAddr       string       `json:"-"` // ssh隧道远程地址，格式 ip:port
 	EnableRecorder   int8         `json:"-"` // 是否启用终端回放记录
 	CodePath         []string     `json:"codePath"`
 }
 
-func (mi *MachineInfo) UseSshTunnel() bool {
-	return mi.SshTunnelMachine != nil
+var _ (SshTunnelAble) = (*MachineInfo)(nil)
+
+func (mi *MachineInfo) GetSshTunnelMachineId() int64 {
+	return int64(mi.TempSshMachineId)
 }
 
-func (mi *MachineInfo) GetTunnelId() string {
-	return fmt.Sprintf("machine:%d", mi.Id)
+func (mi *MachineInfo) GetRemoteAddr() string {
+	if mi.RemoteAddr != "" {
+		return mi.RemoteAddr
+	}
+	return fmt.Sprintf("%s:%d", mi.Ip, mi.Port)
+}
+
+func (mi *MachineInfo) UseSshTunnel() bool {
+	return mi.SshTunnelMachine != nil
 }
 
 // 连接
@@ -63,7 +73,7 @@ func (mi *MachineInfo) Conn(ctx context.Context) (*Cli, error) {
 	sshClient, err := GetSshClient(mi, nil)
 	if err != nil {
 		if mi.UseSshTunnel() {
-			CloseSshTunnelMachine(mi.TempSshMachineId, mi.GetTunnelId())
+			CloseSshTunnel(mi)
 		}
 		return nil, err
 	}
@@ -77,6 +87,7 @@ func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(ctx context.Context, out bool)
 		return nil
 	}
 
+	mi.RemoteAddr = mi.GetRemoteAddr()
 	originId := mi.Id
 	if originId == 0 {
 		// 随机设置一个id，如果使用了隧道则用于临时保存隧道
@@ -90,7 +101,7 @@ func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(ctx context.Context, out bool)
 	if err != nil {
 		return err
 	}
-	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(mi.GetTunnelId(), mi.Ip, mi.Port)
+	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(mi)
 	if err != nil {
 		return err
 	}

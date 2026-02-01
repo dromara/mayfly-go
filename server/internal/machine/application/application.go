@@ -6,12 +6,12 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(machineAppImpl), ioc.WithComponentName("MachineApp"))
-	ioc.Register(new(machineFileAppImpl), ioc.WithComponentName("MachineFileApp"))
-	ioc.Register(new(machineScriptAppImpl), ioc.WithComponentName("MachineScriptApp"))
-	ioc.Register(new(machineCronJobAppImpl), ioc.WithComponentName("MachineCronJobApp"))
-	ioc.Register(new(machineTermOpAppImpl), ioc.WithComponentName("MachineTermOpApp"))
-	ioc.Register(new(machineCmdConfAppImpl), ioc.WithComponentName("MachineCmdConfApp"))
+	ioc.Register(new(machineAppImpl))
+	ioc.Register(new(machineFileAppImpl))
+	ioc.Register(new(machineScriptAppImpl))
+	ioc.Register(new(machineCronJobAppImpl))
+	ioc.Register(new(machineTermOpAppImpl))
+	ioc.Register(new(machineCmdConfAppImpl))
 }
 
 func Init() {

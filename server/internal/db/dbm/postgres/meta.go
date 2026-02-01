@@ -3,16 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/netx"
-	"net"
 	"strings"
-	"time"
 
-	pq "gitee.com/liuzongyang/libpq"
+	_ "gitee.com/liuzongyang/libpq"
 )
 
 func init() {
@@ -39,17 +35,6 @@ type Meta struct {
 }
 
 func (pm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
-	driverName := "postgres"
-	// SSH Conect
-	if d.SshTunnelMachineId > 0 {
-		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
-		driverName = fmt.Sprintf("postgres:ssh:%d", d.SshTunnelMachineId)
-		if !collx.ArrayContains(sql.Drivers(), driverName) {
-			sql.Register(driverName, &PqSqlDialer{sshTunnelMachineId: d.SshTunnelMachineId})
-		}
-		sql.Drivers()
-	}
-
 	db := d.Database
 	var dbParam string
 	existSchema := false
@@ -86,7 +71,7 @@ func (pm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 		dsn = fmt.Sprintf("%s %s", dsn, pm.Param)
 	}
 
-	return sql.Open(driverName, dsn)
+	return sql.Open("postgres", dsn)
 }
 
 func (pm *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
@@ -109,31 +94,4 @@ func (pm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 
 func (pm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
 	return &commonTypeConverter{}
-}
-
-// pgsql dialer
-type PqSqlDialer struct {
-	sshTunnelMachineId int
-}
-
-func (pd *PqSqlDialer) Open(name string) (driver.Conn, error) {
-	return pq.DialOpen(pd, name)
-}
-
-func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	// todo context.Background可能存在问题
-	sshTunnel, err := dbi.GetSshTunnel(context.Background(), pd.sshTunnelMachineId)
-	if err != nil {
-		return nil, err
-	}
-	if sshConn, err := sshTunnel.GetDialConn("tcp", address); err == nil {
-		// 将ssh conn包装，否则会返回错误: ssh: tcpChan: deadline not supported
-		return &netx.WrapSshConn{Conn: sshConn}, nil
-	} else {
-		return nil, err
-	}
-}
-
-func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return pd.Dial(network, address)
 }

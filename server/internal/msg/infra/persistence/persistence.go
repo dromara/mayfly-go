@@ -5,9 +5,9 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newMsgRepo(), ioc.WithComponentName("MsgRepo"))
-	ioc.Register(newMsgChannelRepo(), ioc.WithComponentName("MsgChannelRepo"))
-	ioc.Register(newMsgTmplRepo(), ioc.WithComponentName("MsgTmplRepo"))
-	ioc.Register(newMsgTmplChannelRepo(), ioc.WithComponentName("MsgTmplChannelRepo"))
-	ioc.Register(newMsgTmplBizRepo(), ioc.WithComponentName("MsgTmplBizRepo"))
+	ioc.Register(newMsgRepo())
+	ioc.Register(newMsgChannelRepo())
+	ioc.Register(newMsgTmplRepo())
+	ioc.Register(newMsgTmplChannelRepo())
+	ioc.Register(newMsgTmplBizRepo())
 }

@@ -6,10 +6,10 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(msgAppImpl), ioc.WithComponentName("MsgApp"))
-	ioc.Register(new(msgChannelAppImpl), ioc.WithComponentName("MsgChannelApp"))
-	ioc.Register(new(msgTmplAppImpl), ioc.WithComponentName("MsgTmplApp"))
-	ioc.Register(new(msgTmplBizAppImpl), ioc.WithComponentName("MsgTmplBizApp"))
+	ioc.Register(new(msgAppImpl))
+	ioc.Register(new(msgChannelAppImpl))
+	ioc.Register(new(msgTmplAppImpl))
+	ioc.Register(new(msgTmplBizAppImpl))
 }
 
 func GetMsgApp() Msg {

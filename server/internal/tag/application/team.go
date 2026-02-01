@@ -41,8 +41,8 @@ type Team interface {
 type teamAppImpl struct {
 	base.AppImpl[*entity.Team, repository.Team]
 
-	teamMemberRepo   repository.TeamMember `inject:"TeamMemberRepo"`
-	tagTreeRelateApp TagTreeRelate         `inject:"TagTreeRelateApp"`
+	teamMemberRepo   repository.TeamMember `inject:"T"`
+	tagTreeRelateApp TagTreeRelate         `inject:"T"`
 }
 
 var _ (Team) = (*teamAppImpl)(nil)

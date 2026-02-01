@@ -425,7 +425,7 @@ onBeforeRouteUpdate((to) => {
     align-items: center;
     border-radius: 6px;
     padding: 0 12px;
-    margin-right: 8px;
+    margin-right: 6px;
     position: relative;
     z-index: 0;
     cursor: pointer;

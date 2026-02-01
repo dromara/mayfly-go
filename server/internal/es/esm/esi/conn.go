@@ -20,10 +20,7 @@ type EsConn struct {
 /******************* pool.Conn impl *******************/
 
 func (d *EsConn) Close() error {
-	// 如果是使用了ssh隧道转发，则需要手动将其关闭
-	if d.Info.useSshTunnel {
-		mcm.CloseSshTunnelMachine(uint64(d.Info.SshTunnelMachineId), fmt.Sprintf("es:%d", d.Id))
-	}
+	mcm.CloseSshTunnel(d.Info)
 	return nil
 }
 

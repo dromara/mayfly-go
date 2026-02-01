@@ -332,6 +332,7 @@ const onRunSql = async (newTab = false) => {
  * 执行多条SQL并合并结果
  */
 const runMultipleSqls = async (sqls: string[], newTab: boolean) => {
+    state.execResTabs = [];
     // 分类SQL语句
     const nonQuerySqls: string[] = []; // 影响行数类SQL (UPDATE, INSERT, DELETE等)
     const querySqls: string[] = []; // 查询类SQL (SELECT等)

@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newRedisRepo(), ioc.WithComponentName("RedisRepo"))
+	ioc.Register(newRedisRepo())
 }

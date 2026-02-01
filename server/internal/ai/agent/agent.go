@@ -18,11 +18,7 @@ import (
 
 // GetAiAgent 获取AI Agent
 func GetAiAgent(ctx context.Context, aiConfig *config.AIModelConfig, tools ...tool.BaseTool) (*react.Agent, error) {
-	aiModel := aimodel.GetAIModelByConfig(aiConfig)
-	if aiModel == nil {
-		return nil, errors.New("no supported AI model found")
-	}
-	toolableChatModel, err := aiModel.GetChatModel(ctx, aiConfig)
+	toolableChatModel, err := aimodel.GetChatModel(ctx, aiConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +61,7 @@ func NewAiAgent(ctx context.Context, toolTypes ...ToolType) (*AiAgent, error) {
 }
 
 // Chat 聊天，返回消息流通道
-func (aiAgent *AiAgent) Chat(ctx context.Context, sysPrompt string, question string) (chan *schema.Message, chan error) {
+func (aiAgent *AiAgent) Chat(ctx context.Context, sysPrompt string, question string) (<-chan *schema.Message, <-chan error) {
 	ch := make(chan *schema.Message, 512)
 	errCh := make(chan error, 1)
 

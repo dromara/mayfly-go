@@ -5,10 +5,10 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newTagTreeRepo(), ioc.WithComponentName("TagTreeRepo"))
-	ioc.Register(newTeamRepo(), ioc.WithComponentName("TeamRepo"))
-	ioc.Register(newTeamMemberRepo(), ioc.WithComponentName("TeamMemberRepo"))
-	ioc.Register(newResourceAuthCertRepoImpl(), ioc.WithComponentName("ResourceAuthCertRepo"))
-	ioc.Register(newResourceOpLogRepo(), ioc.WithComponentName("ResourceOpLogRepo"))
-	ioc.Register(newTagTreeRelateRepo(), ioc.WithComponentName("TagTreeRelateRepo"))
+	ioc.Register(newTagTreeRepo())
+	ioc.Register(newTeamRepo())
+	ioc.Register(newTeamMemberRepo())
+	ioc.Register(newResourceAuthCertRepoImpl())
+	ioc.Register(newResourceOpLogRepo())
+	ioc.Register(newTagTreeRelateRepo())
 }

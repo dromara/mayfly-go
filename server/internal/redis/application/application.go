@@ -5,7 +5,7 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(redisAppImpl), ioc.WithComponentName("RedisApp"))
+	ioc.Register(new(redisAppImpl))
 }
 
 func Init() {

@@ -32,7 +32,7 @@ func NewCachePool[T Conn](factory func() (T, error), opts ...Option[T]) *CachePo
 		MaxConns:            1,
 		IdleTimeout:         60 * time.Minute,
 		WaitTimeout:         10 * time.Second,
-		HealthCheckInterval: 10 * time.Minute,
+		HealthCheckInterval: 3 * time.Minute,
 	}
 	for _, opt := range opts {
 		opt(&config)
@@ -121,23 +121,7 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 
 // Put 将连接放回缓存
 func (p *CachePool[T]) Put(conn T) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.closed {
-		return conn.Close()
-	}
-
-	p.cache[generateCacheKey()] = &cacheEntry[T]{
-		conn:       conn,
-		lastActive: time.Now(),
-	}
-
-	// 如果超出最大连接数，清理最久未使用的
-	if len(p.cache) > p.config.MaxConns {
-		p.removeOldest()
-	}
-
+	logx.Warn("cache pool no impl Put()")
 	return nil
 }
 
@@ -268,7 +252,7 @@ func (p *CachePool[T]) ping(conn T) bool {
 	case <-done:
 		return result
 	case <-time.After(5 * time.Second): // 设置超时
-		logx.Debug("ping timeout")
+		logx.Debugf("cache pool - ping timeout")
 		return false // 超时认为不可用
 	}
 }

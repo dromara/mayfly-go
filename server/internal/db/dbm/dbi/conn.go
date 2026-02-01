@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 )
@@ -27,15 +28,12 @@ type DbConn struct {
 // 关闭连接
 func (d *DbConn) Close() error {
 	if d.db != nil {
+		defer mcm.CloseSshTunnel(d.Info)
 		if err := d.db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %v", d.Id, err)
 			return err
 		}
 		logx.Debugf("dbm - conn close success, connId: %s", d.Id)
-		// TODO 关闭实例隧道会影响其他正在使用的连接，所以暂时不关闭
-		// if d.Info.useSshTunnel {
-		// 	mcm.CloseSshTunnelMachine(uint64(d.Info.SshTunnelMachineId), fmt.Sprintf("db:%d", d.Info.Id))
-		// }
 		d.db = nil
 	}
 
@@ -43,10 +41,6 @@ func (d *DbConn) Close() error {
 }
 
 func (d *DbConn) Ping() error {
-	if d.db == nil {
-		return fmt.Errorf("db is nil")
-	}
-
 	stats := d.db.Stats()
 	logx.Debugf("[%s] db stats -> open: %d, idle: %d,  inUse: %d, maxOpen: %d", d.Info.Name, stats.OpenConnections, stats.Idle, stats.InUse, stats.MaxOpenConnections)
 	if stats.OpenConnections == 0 {

@@ -25,11 +25,6 @@ type Meta struct {
 }
 
 func (om *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
-	err := d.IfUseSshTunnelChangeIpPort(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	// 参数参考 https://github.com/sijms/go-ora?tab=readme-ov-file#other-connection-options
 	urlOptions := make(map[string]string)
 

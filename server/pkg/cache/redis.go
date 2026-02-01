@@ -31,6 +31,9 @@ func (rc *RedisCache) Set(key string, value any, duration time.Duration) error {
 	if _, ok := value.(string); !ok {
 		return errors.New("redis cache set err -> value must be string")
 	}
+	if duration < 0 {
+		duration = 0
+	}
 	return rc.redisCli.Set(context.Background(), key, anyx.ToString(value), duration).Err()
 }
 

@@ -5,11 +5,11 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(newMachineRepo(), ioc.WithComponentName("MachineRepo"))
-	ioc.Register(newMachineFileRepo(), ioc.WithComponentName("MachineFileRepo"))
-	ioc.Register(newMachineScriptRepo(), ioc.WithComponentName("MachineScriptRepo"))
-	ioc.Register(newMachineCronJobRepo(), ioc.WithComponentName("MachineCronJobRepo"))
-	ioc.Register(newMachineCronJobExecRepo(), ioc.WithComponentName("MachineCronJobExecRepo"))
-	ioc.Register(newMachineTermOpRepoImpl(), ioc.WithComponentName("MachineTermOpRepo"))
-	ioc.Register(newMachineCmdConfRepo(), ioc.WithComponentName("MachineCmdConfRepo"))
+	ioc.Register(newMachineRepo())
+	ioc.Register(newMachineFileRepo())
+	ioc.Register(newMachineScriptRepo())
+	ioc.Register(newMachineCronJobRepo())
+	ioc.Register(newMachineCronJobExecRepo())
+	ioc.Register(newMachineTermOpRepoImpl())
+	ioc.Register(newMachineCmdConfRepo())
 }

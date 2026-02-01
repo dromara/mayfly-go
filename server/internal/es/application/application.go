@@ -6,7 +6,7 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(instanceAppImpl), ioc.WithComponentName("EsInstanceApp"))
+	ioc.Register(new(instanceAppImpl))
 }
 
 func Init() {

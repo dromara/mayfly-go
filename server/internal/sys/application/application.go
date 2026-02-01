@@ -5,11 +5,11 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(accountAppImpl), ioc.WithComponentName("AccountApp"))
-	ioc.Register(new(roleAppImpl), ioc.WithComponentName("RoleApp"))
-	ioc.Register(new(configAppImpl), ioc.WithComponentName("ConfigApp"))
-	ioc.Register(new(resourceAppImpl), ioc.WithComponentName("ResourceApp"))
-	ioc.Register(new(syslogAppImpl), ioc.WithComponentName("SyslogApp"))
+	ioc.Register(new(accountAppImpl))
+	ioc.Register(new(roleAppImpl))
+	ioc.Register(new(configAppImpl))
+	ioc.Register(new(resourceAppImpl))
+	ioc.Register(new(syslogAppImpl))
 }
 
 func GetAccountApp() Account {

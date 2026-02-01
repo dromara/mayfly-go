@@ -7,8 +7,6 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
-
-	_ "gitee.com/chunanyong/dm"
 )
 
 type DMDialect struct {

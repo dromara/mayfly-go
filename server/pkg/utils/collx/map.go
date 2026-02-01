@@ -108,6 +108,12 @@ func (sm *SM[K, V]) Delete(k K) {
 	sm.m.Delete(k)
 }
 
+// Clear 清空 map
+func (sm *SM[K, V]) Clear() {
+	sm.m.Clear()
+}
+
+
 // Range 遍历 map 中的所有键值对
 func (sm *SM[K, V]) Range(f func(k K, v V) bool) {
 	sm.m.Range(func(k, v any) bool {

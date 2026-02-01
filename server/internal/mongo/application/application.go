@@ -5,5 +5,5 @@ import (
 )
 
 func InitIoc() {
-	ioc.Register(new(mongoAppImpl), ioc.WithComponentName("MongoApp"))
+	ioc.Register(new(mongoAppImpl))
 }
