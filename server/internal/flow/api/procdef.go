@@ -48,7 +48,7 @@ func (p *Procdef) ReqConfs() *req.Confs {
 }
 
 func (p *Procdef) GetProcdefPage(rc *req.Ctx) {
-	cond, page := req.BindQueryAndPage[*entity.Procdef](rc)
+	cond, page := req.BindQueryAndPage[entity.Procdef](rc)
 
 	res, err := p.procdefApp.GetPageList(cond, page)
 	biz.ErrIsNil(err)
@@ -87,7 +87,7 @@ func (p *Procdef) GetProcdef(rc *req.Ctx) {
 }
 
 func (a *Procdef) Save(rc *req.Ctx) {
-	form, procdef := req.BindJsonAndCopyTo[*form.Procdef, *entity.Procdef](rc)
+	form, procdef := req.BindJsonAndCopyTo[form.Procdef, entity.Procdef](rc)
 	rc.ReqParam = form
 	biz.ErrIsNil(a.procdefApp.SaveProcdef(rc.MetaCtx, &dto.SaveProcdef{
 		Procdef:   procdef,
@@ -97,7 +97,7 @@ func (a *Procdef) Save(rc *req.Ctx) {
 }
 
 func (a *Procdef) SaveFlowDef(rc *req.Ctx) {
-	form := req.BindJson[*form.ProcdefFlow](rc)
+	form := req.BindJson[form.ProcdefFlow](rc)
 	rc.ReqParam = form
 
 	biz.ErrIsNil(a.procdefApp.SaveFlowDef(rc.MetaCtx, &dto.SaveFlowDef{

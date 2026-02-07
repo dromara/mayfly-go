@@ -27,16 +27,14 @@
                 </el-table-column>
 
                 <el-table-column :label="$t('flow.approvalRemark')" min-width="150">
-                    <template #default="scope">
-                        {{ scope.row.remark }}
-                    </template>
+                    <template #default="scope"> {{ scope.row.remark }} </template>
                 </el-table-column>
             </el-table>
         </el-tab-pane>
 
         <el-tab-pane :label="$t('common.basic')" :name="basicTabName">
             <el-form-item prop="auditRule" :label="$t('flow.aiAuditRule')">
-                <el-input v-model="form.auditRule" type="textarea" :rows="10" :placeholder="$t('flow.aiAuditRuleTip')" clearable />
+                <MonacoEditor class="w-full!" height="calc(100vh - 330px)" v-model="form.auditRule" language="markdown" />
             </el-form-item>
         </el-tab-pane>
     </el-tabs>
@@ -45,6 +43,7 @@
 import { notEmpty } from '@/common/assert';
 import { formatDate } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18nPleaseInput } from '@/hooks/useI18n';
 import { ProcinstTaskStatus } from '@/views/flow/enums';
 import { computed } from 'vue';

@@ -119,7 +119,7 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 }
 
 func (p *TagTree) SaveTagTree(rc *req.Ctx) {
-	tagForm, tagTree := req.BindJsonAndCopyTo[*form.TagTree, *entity.TagTree](rc)
+	tagForm, tagTree := req.BindJsonAndCopyTo[form.TagTree, entity.TagTree](rc)
 
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, code: %s", tagTree.Id, tagTree.Name, tagTree.Code)
 
@@ -131,7 +131,7 @@ func (p *TagTree) DelTagTree(rc *req.Ctx) {
 }
 
 func (p *TagTree) MovingTag(rc *req.Ctx) {
-	movingForm := req.BindJson[*form.MovingTag](rc)
+	movingForm := req.BindJson[form.MovingTag](rc)
 	rc.ReqParam = movingForm
 	biz.ErrIsNil(p.tagTreeApp.MovingTag(rc.MetaCtx, movingForm.FromPath, movingForm.ToPath))
 }

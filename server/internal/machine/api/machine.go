@@ -77,7 +77,7 @@ func (m *Machine) ReqConfs() *req.Confs {
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
-	condition := req.BindQuery[*entity.MachineQuery](rc)
+	condition := req.BindQuery[entity.MachineQuery](rc)
 
 	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMachine, tagentity.TagTypeAuthCert)),
@@ -144,7 +144,7 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 
 // 保存机器信息
 func (m *Machine) SaveMachine(rc *req.Ctx) {
-	machineForm, me := req.BindJsonAndCopyTo[*form.MachineForm, *entity.Machine](rc)
+	machineForm, me := req.BindJsonAndCopyTo[form.MachineForm, entity.Machine](rc)
 
 	rc.ReqParam = machineForm
 
@@ -156,7 +156,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
-	machineForm, me := req.BindJsonAndCopyTo[*form.MachineForm, *entity.Machine](rc)
+	machineForm, me := req.BindJsonAndCopyTo[form.MachineForm, entity.Machine](rc)
 	// 测试连接
 	biz.ErrIsNilAppendErr(m.machineApp.TestConn(rc.MetaCtx, me, machineForm.AuthCerts[0]), "connection error: %s")
 }

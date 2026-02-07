@@ -60,7 +60,7 @@ func (rs *Redis) ReqConfs() *req.Confs {
 }
 
 func (r *Redis) RedisList(rc *req.Ctx) {
-	queryCond := req.BindQuery[*entity.RedisQuery](rc)
+	queryCond := req.BindQuery[entity.RedisQuery](rc)
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := r.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -87,7 +87,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 }
 
 func (r *Redis) TestConn(rc *req.Ctx) {
-	form, redis := req.BindJsonAndCopyTo[*form.Redis, *entity.Redis](rc)
+	form, redis := req.BindJsonAndCopyTo[form.Redis, entity.Redis](rc)
 
 	authCert := &tagentity.ResourceAuthCert{
 		Username:       form.Username,
@@ -109,7 +109,7 @@ func (r *Redis) TestConn(rc *req.Ctx) {
 }
 
 func (r *Redis) Save(rc *req.Ctx) {
-	form, redis := req.BindJsonAndCopyTo[*form.Redis, *entity.Redis](rc)
+	form, redis := req.BindJsonAndCopyTo[form.Redis, entity.Redis](rc)
 
 	redisParam := &dto.SaveRedis{
 		Redis:        redis,

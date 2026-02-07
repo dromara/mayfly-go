@@ -400,7 +400,7 @@ const runNonQuerySqls = async (sqls: string[], newTab: boolean) => {
                 const result: any = (data.value as any)[0];
                 results.push({
                     sql: result.sql,
-                    rowsAffected: result.res?.[0]?.rowsAffected,
+                    rowsAffected: result.res?.[0].rowsAffected,
                     error: result.errorMsg || '-',
                 });
             } catch (error: any) {
@@ -413,9 +413,9 @@ const runNonQuerySqls = async (sqls: string[], newTab: boolean) => {
 
         // 设置表格列
         state.execResTabs[i].tableColumn = [
-            { columnName: 'sql', columnType: 'string', show: true },
-            { columnName: 'rowsAffected', columnType: 'number', show: true },
-            { columnName: 'error', columnType: 'string', show: true },
+            { columnName: 'SQL', key: 'sql', columnType: 'string', show: true },
+            { columnName: 'RowsAffected', key: 'rowsAffected', columnType: 'number', show: true },
+            { columnName: 'Error', key: 'error', columnType: 'string', show: true },
         ];
 
         state.execResTabs[i].data = results;

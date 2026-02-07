@@ -11,10 +11,10 @@ import (
 )
 
 // CopyTo 将fromValue转为T类型并返回
-func CopyTo[T any](fromValue any) T {
-	t := NewInstance[T]()
-	Copy(t, fromValue)
-	return t
+func CopyTo[T any](fromValue any) *T {
+	var t T
+	Copy(&t, fromValue)
+	return &t
 }
 
 // CopySliceTo 将fromValue转为[]T类型并返回

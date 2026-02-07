@@ -47,7 +47,7 @@ func (a *AccountLogin) ReqConfs() *req.Confs {
 
 // @router /auth/accounts/login [post]
 func (a *AccountLogin) Login(rc *req.Ctx) {
-	loginForm := req.BindJson[*form.LoginForm](rc)
+	loginForm := req.BindJson[form.LoginForm](rc)
 	ctx := rc.MetaCtx
 
 	accountLoginSecurity := config.GetAccountLoginSecurity()
@@ -96,7 +96,7 @@ type OtpVerifyInfo struct {
 
 // OTP双因素校验
 func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
-	otpVerify := req.BindJson[*form.OtpVerfiy](rc)
+	otpVerify := req.BindJson[form.OtpVerfiy](rc)
 	ctx := rc.MetaCtx
 
 	tokenKey := fmt.Sprintf("otp:token:%s", otpVerify.OtpToken)

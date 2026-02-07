@@ -50,7 +50,7 @@ func (r *Resource) GetById(rc *req.Ctx) {
 }
 
 func (r *Resource) SaveResource(rc *req.Ctx) {
-	form, entity := req.BindJsonAndCopyTo[*form.ResourceForm, *entity.Resource](rc)
+	form, entity := req.BindJsonAndCopyTo[form.ResourceForm, entity.Resource](rc)
 
 	rc.ReqParam = form
 

@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"mayfly-go/internal/ai/prompt"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
@@ -116,16 +115,5 @@ func (a *AiDB) GenerateSql(rc *req.Ctx) {
 func generateSqlPrompt(dbType, text string, tables []string) string {
 	// 使用prompt包中的GetPrompt函数获取提示词模板
 	// 如果没有找到模板，则使用默认模板
-	tableStr := strings.Join(tables, ", ")
-	promptTemplate := prompt.GetPrompt("SQL_GENERATE", dbType, tableStr)
-	if promptTemplate == "" {
-		promptTemplate = "你是一位专业的SQL开发工程师，请根据用户的自然语言描述，生成符合%s语法的SQL语句。\n"
-		if len(tables) > 0 {
-			promptTemplate += "相关表名：" + tableStr + "\n"
-		}
-		promptTemplate += "请确保生成的SQL语句语法正确，仅返回SQL语句，不要包含其他解释内容。"
-		promptTemplate = fmt.Sprintf(promptTemplate, dbType)
-	}
-
-	return promptTemplate
+	return ""
 }

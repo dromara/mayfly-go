@@ -35,13 +35,13 @@ type ResourceAuthCert interface {
 	GetResourceAuthCert(resourceType entity.TagType, resourceCode string) (*entity.ResourceAuthCert, error)
 
 	// FillAuthCertByAcs 根据授权凭证列表填充资源的授权凭证信息
-	// @param authCerts 授权凭证列表
-	// @param resources 实现了entity.IAuthCert接口的资源信息
+	//  - authCerts 授权凭证列表
+	//  - resources 实现了entity.IAuthCert接口的资源信息
 	FillAuthCertByAcs(authCerts []*entity.ResourceAuthCert, resources ...entity.IAuthCert)
 
 	// FillAuthCert 填充资源对应的授权凭证信息
-	// @param resourceType 资源类型
-	// @param resources 实现了entity.IAuthCert接口的资源信息
+	//  - resourceType 资源类型
+	//  - resources 实现了entity.IAuthCert接口的资源信息
 	FillAuthCert(resourceType int8, resources ...entity.IAuthCert)
 
 	// FillAuthCertByAcNames 根据授权凭证名称填充资源对应的凭证信息
@@ -151,11 +151,15 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 			unmodifyAc := name2AuthCert[unmodifyAcName]
 
 			oldAuthCert := oldName2AuthCert[unmodifyAcName]
-			if !unmodifyAc.HasChanged(oldAuthCert) {
-				logx.DebugfContext(ctx, "RelateAuthCert[%d-%s] - Authorization credential [%s] No field changes", resourceType, resourceCode, unmodifyAcName)
-				continue
+			// 密文和密码前端不回显，故如果没修改，需要重新赋值，避免被修改为空
+			if unmodifyAc.Ciphertext == "" {
+				unmodifyAc.Ciphertext = oldAuthCert.Ciphertext
 			}
-
+			passphrase := unmodifyAc.GetExtraString(entity.ExtraKeyPassphrase)
+			if passphrase == "" {
+				unmodifyAc.SetExtraValue(entity.ExtraKeyPassphrase, oldAuthCert.GetExtraString(entity.ExtraKeyPassphrase))
+			}
+			
 			// 如果修改了用户名，且该凭证关联至标签，则需要更新对应的标签名（资源授权凭证类型的标签名为username）
 			if oldAuthCert.Username != unmodifyAc.Username {
 				r.tagTreeApp.UpdateTagName(ctx, entity.TagTypeAuthCert, unmodifyAcName, unmodifyAc.Username)
@@ -374,10 +378,6 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 	oldRac, err := r.GetById(rac.Id)
 	if err != nil {
 		return errorx.NewBiz("ac not found")
-	}
-
-	if !oldRac.HasChanged(rac) {
-		return nil
 	}
 
 	if oldRac.Type == entity.AuthCertTypePublic {

@@ -35,7 +35,7 @@ func (cc *ContainerConf) ReqConfs() *req.Confs {
 }
 
 func (cc *ContainerConf) GetContainerPage(rc *req.Ctx) {
-	condition := req.BindQuery[*entity.ContainerQuery](rc)
+	condition := req.BindQuery[entity.ContainerQuery](rc)
 
 	tags := cc.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeContainer)),
@@ -68,7 +68,7 @@ func (cc *ContainerConf) GetContainerPage(rc *req.Ctx) {
 }
 
 func (c *ContainerConf) Save(rc *req.Ctx) {
-	machineForm, container := req.BindJsonAndCopyTo[*form.ContainerSave, *entity.Container](rc)
+	machineForm, container := req.BindJsonAndCopyTo[form.ContainerSave, entity.Container](rc)
 	rc.ReqParam = machineForm
 
 	biz.ErrIsNil(c.containerApp.SaveContainer(rc.MetaCtx, &dto.SaveContainer{

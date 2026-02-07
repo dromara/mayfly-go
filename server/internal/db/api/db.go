@@ -74,7 +74,7 @@ func (d *Db) ReqConfs() *req.Confs {
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *req.Ctx) {
-	queryCond := req.BindQuery[*entity.DbQuery](rc)
+	queryCond := req.BindQuery[entity.DbQuery](rc)
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -112,7 +112,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 }
 
 func (d *Db) Save(rc *req.Ctx) {
-	form, db := req.BindJsonAndCopyTo[*form.DbForm, *entity.Db](rc)
+	form, db := req.BindJsonAndCopyTo[form.DbForm, entity.Db](rc)
 	rc.ReqParam = form
 
 	biz.ErrIsNil(d.dbApp.SaveDb(rc.MetaCtx, db))
@@ -132,7 +132,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 /**  数据库操作相关、执行sql等   ***/
 
 func (d *Db) ExecSql(rc *req.Ctx) {
-	form := req.BindJson[*form.DbSqlExecForm](rc)
+	form := req.BindJson[form.DbSqlExecForm](rc)
 
 	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
 	defer cancel()
@@ -339,7 +339,7 @@ func (d *Db) GetSchemas(rc *req.Ctx) {
 }
 
 func (d *Db) CopyTable(rc *req.Ctx) {
-	form, copy := req.BindJsonAndCopyTo[*form.DbCopyTableForm, *dbi.DbCopyTable](rc)
+	form, copy := req.BindJsonAndCopyTo[form.DbCopyTableForm, dbi.DbCopyTable](rc)
 
 	conn, err := d.dbApp.GetDbConn(rc.MetaCtx, form.Id, form.Db)
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")

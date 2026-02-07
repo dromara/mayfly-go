@@ -50,21 +50,21 @@ func (d *DataSyncTask) ReqConfs() *req.Confs {
 }
 
 func (d *DataSyncTask) Tasks(rc *req.Ctx) {
-	queryCond := req.BindQuery[*entity.DataSyncTaskQuery](rc)
+	queryCond := req.BindQuery[entity.DataSyncTaskQuery](rc)
 	res, err := d.dataSyncTaskApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = model.PageResultConv[*entity.DataSyncTask, *vo.DataSyncTaskListVO](res)
 }
 
 func (d *DataSyncTask) Logs(rc *req.Ctx) {
-	queryCond := req.BindQuery[*entity.DataSyncLogQuery](rc)
+	queryCond := req.BindQuery[entity.DataSyncLogQuery](rc)
 	res, err := d.dataSyncTaskApp.GetTaskLogList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = model.PageResultConv[*entity.DataSyncLog, *vo.DataSyncLogListVO](res)
 }
 
 func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
-	form, task := req.BindJsonAndCopyTo[*form.DataSyncTaskForm, *entity.DataSyncTask](rc)
+	form, task := req.BindJsonAndCopyTo[form.DataSyncTaskForm, entity.DataSyncTask](rc)
 
 	// 解码base64 sql
 	sqlStr, err := utils.AesDecryptByLa(task.DataSql, rc.GetLoginAccount())
@@ -87,7 +87,7 @@ func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
 }
 
 func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
-	form := req.BindJson[*form.DataSyncTaskStatusForm](rc)
+	form := req.BindJson[form.DataSyncTaskStatusForm](rc)
 	rc.ReqParam = form
 
 	task, err := d.dataSyncTaskApp.GetById(form.Id)

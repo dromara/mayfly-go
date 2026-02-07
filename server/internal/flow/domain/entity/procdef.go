@@ -61,7 +61,7 @@ func (p *Procdef) GetFlowDef() *FlowDef {
 	if p.FlowDef == "" {
 		return nil
 	}
-	flow, err := jsonx.To[*FlowDef](p.FlowDef)
+	flow, err := jsonx.To[FlowDef](p.FlowDef)
 	if err != nil {
 		logx.ErrorTrace("parse flow def failed", err)
 		return flow

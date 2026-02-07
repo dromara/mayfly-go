@@ -20,5 +20,5 @@ func GetMachineStats(machineId uint64) (*mcm.Stats, error) {
 	if cacheStr == "" {
 		return nil, errors.New("不存在该值")
 	}
-	return jsonx.To[*mcm.Stats](cacheStr)
+	return jsonx.To[mcm.Stats](cacheStr)
 }

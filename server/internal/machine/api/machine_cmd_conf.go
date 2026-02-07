@@ -33,7 +33,7 @@ func (mcc *MachineCmdConf) ReqConfs() *req.Confs {
 }
 
 func (m *MachineCmdConf) MachineCmdConfs(rc *req.Ctx) {
-	cond := req.BindQuery[*entity.MachineCmdConf](rc)
+	cond := req.BindQuery[entity.MachineCmdConf](rc)
 
 	var vos []*vo.MachineCmdConfVO
 	err := m.machineCmdConfApp.ListByCondToAny(cond, &vos)
@@ -47,7 +47,7 @@ func (m *MachineCmdConf) MachineCmdConfs(rc *req.Ctx) {
 }
 
 func (m *MachineCmdConf) Save(rc *req.Ctx) {
-	cmdForm, mcj := req.BindJsonAndCopyTo[*form.MachineCmdConfForm, *entity.MachineCmdConf](rc)
+	cmdForm, mcj := req.BindJsonAndCopyTo[form.MachineCmdConfForm, entity.MachineCmdConf](rc)
 	rc.ReqParam = cmdForm
 
 	err := m.machineCmdConfApp.SaveCmdConf(rc.MetaCtx, &dto.SaveMachineCmdConf{

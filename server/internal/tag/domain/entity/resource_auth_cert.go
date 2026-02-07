@@ -82,19 +82,6 @@ func (m *ResourceAuthCert) CiphertextClear() {
 	m.SetExtraValue(ExtraKeyPassphrase, "")
 }
 
-// HasChanged 与指定授权凭证比较是否有变更
-func (m *ResourceAuthCert) HasChanged(rac *ResourceAuthCert) bool {
-	if rac == nil {
-		return true
-	}
-	return m.Username != rac.Username ||
-		(m.Ciphertext != rac.Ciphertext) ||
-		m.CiphertextType != rac.CiphertextType ||
-		m.Remark != rac.Remark ||
-		m.Type != rac.Type ||
-		m.GetExtraString(ExtraKeyPassphrase) != rac.GetExtraString(ExtraKeyPassphrase)
-}
-
 // 密文类型
 type AuthCertCiphertextType int8
 

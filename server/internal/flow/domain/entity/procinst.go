@@ -43,7 +43,7 @@ func (a *Procinst) SetEnd() {
 
 // GetProcdefFlow 获取流程定义信息
 func (p *Procinst) GetFlowDef() *FlowDef {
-	flow, err := jsonx.To[*FlowDef](p.FlowDef)
+	flow, err := jsonx.To[FlowDef](p.FlowDef)
 	if err != nil {
 		logx.ErrorTrace("parse procdef flow failed", err)
 		return flow

@@ -10,10 +10,9 @@ import (
 	"mayfly-go/internal/flow/infra/persistence"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"time"
-
-	"github.com/spf13/cast"
 )
 
 /******************* AI任务节点 *******************/
@@ -69,13 +68,16 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 	flowNode := ctx.GetFlowNode()
 	aitaskNode := ToAiTaskNode(flowNode)
 
-	aiagent, err := agent.NewAiAgent(ctx, agent.ToolTypeDb)
+	aiagent, err := agent.GetOpsExpertAgent(ctx, agent.ToolTypeDb)
 	if err != nil {
 		return err
 	}
 
 	auditRule := aitaskNode.AuditRule
-	sysPrompt := prompt.GetPrompt(prompt.FLOW_BIZ_AUDIT, auditRule)
+	sysPrompt, err := prompt.GetPrompt("flow_biz_audit.md", collx.Kvs("rule", auditRule))
+	if err != nil {
+		return err
+	}
 
 	procinst := ctx.Procinst
 	now := time.Now()
@@ -93,18 +95,18 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 
 	cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancelFunc()
-	res, err := aiagent.GetChatMsg(cancelCtx, sysPrompt, jsonx.ToStr(procinst.BizForm))
+	res, err := aiagent.Run(cancelCtx, sysPrompt, jsonx.ToStr(procinst.BizForm))
 	if err != nil {
 		suggestion = fmt.Sprintf("AI agent response failed: %v", err)
 		logx.Error(suggestion)
 	} else {
-		resJson, err := jsonx.ToMap(res)
+		resJson, err := agent.ParseLLMJSON2Map(res)
 		if err != nil {
 			suggestion = fmt.Sprintf("AI agent response parsing to JSON failed: %v, response: %s", err, res)
 			logx.Error(suggestion)
 		} else {
-			allowExecute = cast.ToBool(resJson["allowExecute"])
-			suggestion = cast.ToString(resJson["suggestion"])
+			allowExecute = resJson.GetBool("allowExecute")
+			suggestion = resJson.GetStr("suggestion")
 		}
 	}
 
@@ -152,7 +154,6 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 			// 跳转至开始节点，重新修改提交
 			ctx.Execution.State = entity.ExectionStateSuspended // 执行流挂起
 			return executionApp.MoveTo(ctx, ctx.GetFlowDef().GetNodeByType(FlowNodeTypeStart)[0])
-
 		}
 		return u.Leave(ctx)
 	})

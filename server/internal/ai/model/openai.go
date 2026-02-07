@@ -24,8 +24,5 @@ func (o *Openai) NewChatModel(ctx context.Context, aiConfig *config.AIModelConfi
 		Timeout:     time.Duration(aiConfig.TimeOut) * time.Second,
 		MaxTokens:   &aiConfig.MaxTokens,
 		Temperature: &aiConfig.Temperature,
-		ResponseFormat: &openai.ChatCompletionResponseFormat{
-			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
-		},
 	})
 }

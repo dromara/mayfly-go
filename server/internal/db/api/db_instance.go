@@ -55,7 +55,7 @@ func (d *Instance) ReqConfs() *req.Confs {
 // Instances 获取数据库实例信息
 // @router /api/instances [get]
 func (d *Instance) Instances(rc *req.Ctx) {
-	queryCond := req.BindQuery[*entity.InstanceQuery](rc)
+	queryCond := req.BindQuery[entity.InstanceQuery](rc)
 
 	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert)),
@@ -90,14 +90,14 @@ func (d *Instance) Instances(rc *req.Ctx) {
 }
 
 func (d *Instance) TestConn(rc *req.Ctx) {
-	form, instance := req.BindJsonAndCopyTo[*form.InstanceForm, *entity.DbInstance](rc)
+	form, instance := req.BindJsonAndCopyTo[form.InstanceForm, entity.DbInstance](rc)
 	biz.ErrIsNil(d.instanceApp.TestConn(rc.MetaCtx, instance, form.AuthCerts[0]))
 }
 
 // SaveInstance 保存数据库实例信息
 // @router /api/instances [post]
 func (d *Instance) SaveInstance(rc *req.Ctx) {
-	form, instance := req.BindJsonAndCopyTo[*form.InstanceForm, *entity.DbInstance](rc)
+	form, instance := req.BindJsonAndCopyTo[form.InstanceForm, entity.DbInstance](rc)
 
 	rc.ReqParam = form
 	id, err := d.instanceApp.SaveDbInstance(rc.MetaCtx, &dto.SaveDbInstance{
@@ -132,7 +132,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 
 // 获取数据库实例的所有数据库名
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
-	form, instance := req.BindJsonAndCopyTo[*form.InstanceDbNamesForm, *entity.DbInstance](rc)
+	form, instance := req.BindJsonAndCopyTo[form.InstanceDbNamesForm, entity.DbInstance](rc)
 	res, err := d.instanceApp.GetDatabases(rc.MetaCtx, instance, form.AuthCert)
 	biz.ErrIsNil(err)
 	rc.ResData = res
