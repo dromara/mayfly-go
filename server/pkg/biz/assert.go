@@ -10,7 +10,7 @@ import (
 )
 
 // 断言错误为ni
-// @param msgAndParams 消息与参数占位符，第一位为错误消息可包含%s等格式化标识。其余为Sprintf格式化值内容
+//  -  msgAndParams 消息与参数占位符，第一位为错误消息可包含%s等格式化标识。其余为Sprintf格式化值内容
 //
 //	ErrIsNil(err)
 //	ErrIsNil(err, "xxxx")
@@ -26,7 +26,7 @@ func ErrIsNil(err error, msgAndParams ...any) {
 }
 
 // 断言错误为ni
-// @param msgId i18n消息id
+//  -  msgId i18n消息id
 //
 //	ErrIsNil(err)
 //	ErrIsNil(err, "xxxx")

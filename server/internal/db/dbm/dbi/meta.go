@@ -21,7 +21,7 @@ type Meta interface {
 	GetDialect(*DbConn) Dialect
 
 	// GetMetadata 获取元数据信息接口
-	// @param *DbConn 数据库连接
+	//  -  *DbConn 数据库连接
 	GetMetadata(*DbConn) Metadata
 
 	// GetDbDataTypes 获取所有数据库对应的数据类型

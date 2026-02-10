@@ -13,7 +13,7 @@ import (
 type UserId uint64
 
 // 客户端读取消息处理函数
-// @param msg
+//  -  msg
 type ReadMsgHandlerFunc func([]byte)
 
 type Client struct {

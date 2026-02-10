@@ -17,7 +17,7 @@ func UndeleteScope(db *gorm.DB) *gorm.DB {
 // 根据id获取实体对象。model需为指针类型（需要将查询出来的值赋值给model）
 //
 // 若error不为nil则为不存在该记录
-// @param dbModel  数据库映射实体模型
+//  -  dbModel  数据库映射实体模型
 func GetById(dbModel model.ModelI, id uint64, cols ...string) error {
 	return NewQuery(dbModel, model.NewCond().Columns(cols...).Eq(model.IdColumn, id)).GenGdb().First(dbModel).Error
 }
@@ -25,7 +25,7 @@ func GetById(dbModel model.ModelI, id uint64, cols ...string) error {
 // 根据model获取单个实体对象
 //
 // 若 error不为nil，则为不存在该记录
-// @param cond  查询条件
+//  -  cond  查询条件
 func GetByCond(dbModel model.ModelI, cond *model.QueryCond) error {
 	return NewQuery(dbModel, cond).GenGdb().First(cond.GetDest()).Error
 }
@@ -88,7 +88,7 @@ func ExecSql(sql string, params ...any) error {
 }
 
 // 插入model
-// @param model  数据库映射实体模型
+//  -  model  数据库映射实体模型
 func Insert(model model.ModelI) error {
 	return InsertWithDb(global.Db, model)
 }
@@ -109,7 +109,7 @@ func BatchInsertWithDb[T model.ModelI](db *gorm.DB, models []T) error {
 }
 
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
-// @param model  数据库映射实体模型
+//  -  model  数据库映射实体模型
 func UpdateById(model model.ModelI, columns ...string) error {
 	return UpdateByIdWithDb(global.Db, model, columns...)
 }
@@ -132,7 +132,7 @@ func UpdateByCondWithDb(db *gorm.DB, dbModel model.ModelI, values any, cond *mod
 }
 
 // 根据id删除model
-// @param model  数据库映射实体模型
+//  -  model  数据库映射实体模型
 func DeleteById(model_ model.ModelI, id ...uint64) error {
 	return DeleteByIdWithDb(global.Db, model_, id...)
 }
@@ -144,16 +144,16 @@ func DeleteByIdWithDb(db *gorm.DB, model_ model.ModelI, id ...uint64) error {
 
 // 根据cond条件删除指定model表数据
 //
-// @param dbModel  数据库映射实体模型
-// @param cond  条件
+//  -  dbModel  数据库映射实体模型
+//  -  cond  条件
 func DeleteByCond(dbModel model.ModelI, cond *model.QueryCond) error {
 	return DeleteByCondWithDb(global.Db, dbModel, cond)
 }
 
 // 根据cond条件删除指定model表数据
 //
-// @param dbModel  数据库映射实体模型
-// @param cond 条件
+//  -  dbModel  数据库映射实体模型
+//  -  cond 条件
 func DeleteByCondWithDb(db *gorm.DB, dbModel model.ModelI, cond *model.QueryCond) error {
 	gdb := setGdbWhere(db.Model(dbModel), cond)
 	if !dbModel.LogicDelete() {

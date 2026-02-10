@@ -30,7 +30,7 @@ type Mongo interface {
 	Delete(ctx context.Context, id uint64) error
 
 	// 获取mongo连接实例
-	// @param id mongo id
+	//  -  id mongo id
 	GetMongoConn(ctx context.Context, id uint64) (*mgm.MongoConn, error)
 }
 

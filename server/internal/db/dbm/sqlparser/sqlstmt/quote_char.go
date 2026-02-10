@@ -10,7 +10,7 @@ type QuoteChar struct {
 /**
  * Wrap value with quote character.
  *
- * @param value value to be wrapped
+ *  -  value value to be wrapped
  * @return wrapped value
  */
 func (qc *QuoteChar) Wrap(value string) string {
@@ -20,7 +20,7 @@ func (qc *QuoteChar) Wrap(value string) string {
 /**
  * Unwrap value with quote character.
  *
- * @param value value to be unwrapped
+ *  -  value value to be unwrapped
  * @return unwrapped value
  */
 func (qc *QuoteChar) Unwrap(value string) string {
@@ -33,7 +33,7 @@ func (qc *QuoteChar) Unwrap(value string) string {
 /**
  * Is wrapped by quote character.
  *
- * @param value value to be judged
+ *  -  value value to be judged
  * @return is wrapped or not
  */
 func (qc *QuoteChar) IsWrapped(value string) bool {

@@ -96,8 +96,8 @@ func Translate2Str(data any, err error) string {
 
 // 获取自定义的错误提示消息
 //
-// @param validTag 校验标签，如required等
-// @param customMsg 自定义错误消息
+//  -  validTag 校验标签，如required等
+//  -  customMsg 自定义错误消息
 func getCustomErrMsg(validTag, customMsg string) string {
 	// 解析 msg:"required=用户名不能为空,min=用户名长度不能小于8位"
 	msgs := strings.Split(customMsg, ",")

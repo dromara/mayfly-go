@@ -33,13 +33,13 @@ func (r *Result) IsSuccess() bool {
 }
 
 // 返回成功状态的Result
-// @param data 成功附带的数据消息
+//  -  data 成功附带的数据消息
 func Success(data any) *Result {
 	return &Result{Code: SuccessCode, Msg: SuccessMsg, Data: data}
 }
 
 // 返回成功状态的Result
-// @param data 成功不附带数据
+//  -  data 成功不附带数据
 func SuccessNoData() *Result {
 	return &Result{Code: SuccessCode, Msg: SuccessMsg}
 }

@@ -29,8 +29,8 @@ func (p *Procdef) TableName() string {
 }
 
 // MatchCondition 是否匹配审批条件，匹配则需要启用该流程
-// @param bizType 业务类型
-// @param param 业务参数
+//  -  bizType 业务类型
+//  -  param 业务参数
 // Condition返回值为1，则表面该操作需要启用流程
 func (p *Procdef) MatchCondition(bizType string, param map[string]any) bool {
 	if p.Condition == nil || *p.Condition == "" {

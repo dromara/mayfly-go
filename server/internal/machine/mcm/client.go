@@ -79,7 +79,7 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 }
 
 // Run 执行shell
-// @param shell shell脚本命令
+//  -  shell shell脚本命令
 // @return 返回执行成功或错误的消息
 func (c *Cli) Run(shell string) (string, error) {
 	session, err := c.GetSession()

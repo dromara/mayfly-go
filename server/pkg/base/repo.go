@@ -34,12 +34,12 @@ type Repo[T model.ModelI] interface {
 	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error
 
 	// UpdateByCond 更新满足条件的数据
-	// @param values 需要模型结构体或map
-	// @param cond 条件
+	//  -  values 需要模型结构体或map
+	//  -  cond 条件
 	UpdateByCond(ctx context.Context, values any, cond any) error
 
 	// UpdateByCondWithDb 更新满足条件的数据
-	// @param values 需要模型结构体或map
+	//  -  values 需要模型结构体或map
 	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error
 
 	// Save 保存实体，实体IsCreate返回true则新增，否则更新
@@ -71,7 +71,7 @@ type Repo[T model.ModelI] interface {
 	GetByIds(ids []uint64, cols ...string) ([]T, error)
 
 	// GetByCond 根据实体条件查询实体信息（单个结果集）
-	// @param cond 支持普通结构体或*model.QueryCond。如果cond为model.QueryCond，则需要使用Dest方法绑定值的指针
+	//  -  cond 支持普通结构体或*model.QueryCond。如果cond为model.QueryCond，则需要使用Dest方法绑定值的指针
 	GetByCond(cond any) error
 
 	// SelectByCondToAny 根据条件查询数据映射至res

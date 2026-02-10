@@ -20,7 +20,7 @@ const (
 )
 
 // 使用系统默认的私钥解密
-// @param base64 字符串是否使用base64编码
+//  -  base64 字符串是否使用base64编码
 func DefaultRsaDecrypt(data string, useBase64 bool) (string, error) {
 	// 空字符串不解密
 	if data == "" {

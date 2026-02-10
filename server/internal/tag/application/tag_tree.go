@@ -49,8 +49,8 @@ type TagTree interface {
 	Delete(ctx context.Context, id uint64) error
 
 	// GetAccountTags 获取指定账号有权限操作的标签列表
-	// @param accountId 账号id
-	// @param query 查询条件
+	//  -  accountId 账号id
+	//  -  query 查询条件
 	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) dto.SimpleTagTrees
 
 	// 根据标签类型和标签code获取对应的标签路径列表

@@ -70,7 +70,7 @@
                     @clear="selectData"
                     size="small"
                     clearable
-                    class="!w-full"
+                    class="w-full"
                     highlight-first-item
                     value-key="columnName"
                     ref="condInputRef"
@@ -490,7 +490,7 @@ const handlerColumnSelect = (column: any) => {
     let value = column.columnName + ' = ';
     // 不是数字类型默认拼接上''
     if (!DbInst.isNumber(column.dataType)) {
-        value = `${value} ''`;
+        value = `${value}''`;
     }
 
     if (lastSpaceIndex != -1) {

@@ -16,8 +16,8 @@ func parse(t *template.Template, vars any) (string, error) {
 }
 
 // 模板字符串解析
-// @param str 模板字符串
-// @param vars 参数变量
+//  -  str 模板字符串
+//  -  vars 参数变量
 func TemplateParse(str string, vars any) (string, error) {
 	tmpl, err := template.New("tmpl").Parse(str)
 

@@ -11,7 +11,7 @@ type DbDialect string
 type SqlParser interface {
 
 	// sql解析
-	// @param stmt sql语句
+	//  -  stmt sql语句
 	Parse(stmt string) ([]sqlstmt.Stmt, error)
 }
 

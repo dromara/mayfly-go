@@ -36,7 +36,7 @@ type MachineCronJob interface {
 	InitCronJob()
 
 	// 执行cron job
-	// @param key cron job key
+	//  -  key cron job key
 	RunCronJob(key string)
 }
 

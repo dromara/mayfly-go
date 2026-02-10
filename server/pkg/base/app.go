@@ -22,15 +22,15 @@ type App[T model.ModelI] interface {
 	UpdateById(ctx context.Context, e T) error
 
 	// UpdateByCond 更新满足条件的数据
-	// @param values 需为模型结构体指针或map(更新零值等)
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - values 需为模型结构体指针或map(更新零值等)
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	UpdateByCond(ctx context.Context, values any, cond any) error
 
 	// DeleteById 根据实体主键删除实体
 	DeleteById(ctx context.Context, id ...uint64) error
 
 	// DeleteByCond 根据条件进行删除
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	DeleteByCond(ctx context.Context, cond any) error
 
 	// Save 保存实体，实体IsCreate返回true则新增，否则更新
@@ -43,23 +43,23 @@ type App[T model.ModelI] interface {
 	GetByIds(ids []uint64, cols ...string) ([]T, error)
 
 	// GetByCond 根据实体条件查询实体信息(获取单个实体)
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	GetByCond(cond any) error
 
 	// ListByCondToAny 根据条件查询数据映射至res
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	ListByCondToAny(cond any, res any) error
 
 	// ListByCond 根据条件查询
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	ListByCond(cond any, cols ...string) ([]T, error)
 
 	// PageByCond 根据指定条件分页查询
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	PageByCond(cond any, pageParam model.PageParam, cols ...string) (*model.PageResult[T], error)
 
 	// CountByCond 根据指定条件统计model表的数量
-	// @param cond 可为*model.QueryCond也可以为普通查询model
+	//  - cond 可为*model.QueryCond也可以为普通查询model
 	CountByCond(cond any) int64
 
 	//  CursorByCond 根据指定条件遍历model表数据
@@ -97,8 +97,8 @@ func (ai *AppImpl[T, R]) UpdateById(ctx context.Context, e T) error {
 }
 
 // UpdateByCond 更新满足条件的数据
-// @param values 需为模型结构体指针或map(更新零值等)
-// @param cond 可为*model.QueryCond也可以为普通查询model
+//  -  values 需为模型结构体指针或map(更新零值等)
+//  -  cond 可为*model.QueryCond也可以为普通查询model
 func (ai *AppImpl[T, R]) UpdateByCond(ctx context.Context, values any, cond any) error {
 	return ai.GetRepo().UpdateByCond(ctx, values, cond)
 }
