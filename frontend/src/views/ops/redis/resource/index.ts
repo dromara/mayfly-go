@@ -5,6 +5,7 @@ import { defineAsyncComponent } from 'vue';
 import { NodeType, TagTreeNode } from '../../component/tag';
 import { createResourceOpTab } from '../../resource/resourceOp';
 import { redisApi } from '../api';
+import type { Redis } from '../types';
 
 export const RedisIcon = {
     name: ResourceTypeEnum.Redis.extra.icon,
@@ -19,16 +20,16 @@ const NodeRedisDb = defineAsyncComponent(() => import('./NodeRedisDb.vue'));
 
 // tagpath 节点类型
 const NodeTypeRedisTag = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const res = await redisApi.redisList.request({ tagPath: parentNode.params.tagPath });
+    const res = await redisApi.redisList.request({ tagPath: parentNode.params.tagPath as string });
     if (!res.total) {
         return [];
     }
 
     const redisInfos = res.list;
     await sleep(100);
-    return redisInfos.map((x: any) => {
-        x.tagPath = parentNode.key;
-        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeRedis).withParams(x).withNodeComponent(NodeRedis);
+    return redisInfos.map((x: Redis & { tagPath?: string }) => {
+        x.tagPath = String(parentNode.key);
+        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeRedis).withParams(x as unknown as Record<string, unknown>).withNodeComponent(NodeRedis);
     });
 });
 
@@ -36,7 +37,7 @@ const NodeTypeRedisTag = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asy
 const NodeTypeRedis = new NodeType(2).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const redisInfo = parentNode.params;
 
-    let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
+    let dbs: TagTreeNode[] = (redisInfo.db as string).split(',').map((x: string) => {
         return TagTreeNode.new(parentNode, `${parentNode.key}.${x}`, `db${x}`, NodeTypeDb)
             .withIsLeaf(true)
             .withParams({
@@ -56,15 +57,16 @@ const NodeTypeRedis = new NodeType(2).withLoadNodesFunc(async (parentNode: TagTr
     }
 
     const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
-    for (let db in res.Keyspace) {
+    const keyspace = res.Keyspace as unknown as Record<string, string>;
+    for (let db in keyspace) {
         for (let d of dbs) {
             if (db == d.params.name) {
-                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
+                d.params.keys = keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
             }
         }
     }
     // 替换label
-    dbs.forEach((e: any) => {
+    dbs.forEach((e: import('@/views/ops/component/tag').TagTreeNode) => {
         e.label = `${e.params.name}`;
     });
     return dbs;

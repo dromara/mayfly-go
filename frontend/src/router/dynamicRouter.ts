@@ -31,7 +31,7 @@ export async function initBackendRoutes() {
         return false;
     }
 
-    useUserInfo().setUserInfo({});
+    useUserInfo().setUserInfo({} as any);
 
     try {
         // 获取路由和权限

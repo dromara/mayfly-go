@@ -11,7 +11,7 @@ import {
     IndexDefinition,
     RowDefinition,
 } from './index';
-import { language as mysqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
+import { language as mysqlLanguage } from 'monaco-editor/languages/definitions/mysql/mysql.js';
 
 export { MYSQL_TYPE_LIST, MysqlDialect };
 
@@ -202,7 +202,7 @@ class MysqlDialect implements DbDialect {
         return `\`${name}\``;
     };
 
-    genColumnBasicSql(cl: any): string {
+    genColumnBasicSql(cl: RowDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
         let length = cl.length;
@@ -214,33 +214,33 @@ class MysqlDialect implements DbDialect {
             cl.auto_increment ? 'AUTO_INCREMENT' : ''
         } ${defVal} ${onUpdate} comment '${QuoteEscape(cl.remark)}' `;
     }
-    getCreateTableSql(data: any): string {
+    getCreateTableSql(data: Record<string, unknown>): string {
         // 创建表结构
         let pks = [] as string[];
         let fields: string[] = [];
-        data.fields.res.forEach((item: any) => {
+        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
             if (item.pri) {
                 pks.push(item.name);
             }
         });
 
-        return `CREATE TABLE ${data.tableName}
+        return `CREATE TABLE ${data.tableName as string}
                   ( ${fields.join(',')}
                       ${pks ? `, PRIMARY KEY (${pks.join(',')})` : ''}
-                  ) COMMENT='${QuoteEscape(data.tableComment)}';`;
+                  ) COMMENT='${QuoteEscape(data.tableComment as string)}';`;
     }
 
-    getCreateIndexSql(data: any): string {
+    getCreateIndexSql(data: Record<string, unknown>): string {
         // 创建索引
-        let sql = `ALTER TABLE ${data.tableName}`;
-        data.indexs.res.forEach((a: any) => {
-            sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment)}',`;
+        let sql = `ALTER TABLE ${data.tableName as string}`;
+        (data.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
+            sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment ?? '')}',`;
         });
         return sql.substring(0, sql.length - 1) + ';';
     }
 
-    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+    getModifyColumnSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
         let arr = [] as string[];
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
@@ -264,14 +264,14 @@ class MysqlDialect implements DbDialect {
         }
 
         if (arr.length > 0) {
-            let sql = `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)}`;
+            let sql = `ALTER TABLE ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableName)}`;
             return sql + arr.join(',') + ';';
         }
 
         return '';
     }
 
-    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
         // 搜集修改和删除的索引，添加到drop index xx
         // 收集新增和修改的索引，添加到ADD xx
         // ALTER TABLE `test1`
@@ -281,7 +281,7 @@ class MysqlDialect implements DbDialect {
         // ADD INDEX `111`(`column_name4`) USING BTREE COMMENT 'zasf';
 
         let dropIndexNames: string[] = [];
-        let addIndexs: any[] = [];
+        let addIndexs: IndexDefinition[] = [];
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
@@ -317,7 +317,7 @@ class MysqlDialect implements DbDialect {
                 }
                 addIndexs.forEach((a) => {
                     sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(
-                        a.indexComment
+                        a.indexComment ?? ''
                     )}',`;
                 });
                 sql = sql.substring(0, sql.length - 1);
@@ -327,14 +327,14 @@ class MysqlDialect implements DbDialect {
         return '';
     }
 
-    getModifyTableInfoSql(tableData: any): string {
+    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
         let sql = '';
         if (tableData.tableComment !== tableData.oldTableComment) {
-            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} COMMENT '${QuoteEscape(tableData.tableComment)}';`;
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableData.oldTableName as string)} COMMENT '${QuoteEscape(tableData.tableComment as string)}';`;
         }
 
         if (tableData.tableName !== tableData.oldTableName) {
-            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} RENAME TO ${this.quoteIdentifier(tableData.tableName)};`;
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableData.oldTableName as string)} RENAME TO ${this.quoteIdentifier(tableData.tableName as string)};`;
         }
         return sql;
     }
@@ -358,16 +358,16 @@ class MysqlDialect implements DbDialect {
         return DataType.String;
     }
 
-    wrapValue(columnType: string, value: any): any {
+    wrapValue(columnType: string, value: unknown): string | number {
         if (value == null) {
             return 'NULL';
         }
         if (DbInst.isNumber(columnType)) {
-            return value;
+            return value as number;
         }
         // 转义所有的换行符
-        value = value.replace(/[\r\n]/g, '\\n');
-        return `'${value}'`;
+        const strVal = String(value).replace(/[\r\n]/g, '\\n');
+        return `'${strVal}'`;
     }
 
     getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: number): string {

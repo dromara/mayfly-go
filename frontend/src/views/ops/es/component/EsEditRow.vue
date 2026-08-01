@@ -45,7 +45,7 @@ const _id = ref('');
 
 interface Params {
     isAdd: boolean;
-    instId: string;
+    instId: number;
     doc: string;
     idxName: string;
     _id: string;
@@ -55,12 +55,16 @@ const emit = defineEmits(['success']);
 
 const getZeroValueByProperties = async () => {
     // 根据mapping字段赋值
-    let mp = await esApi.proxyReq('get', model.value.instId, `/${model.value.idxName}/_mappings`);
-    let properties = mp[model.value.idxName].mappings.properties;
-    let data = {} as any;
+    const mp = await esApi.proxyReq<Record<string, { mappings: { properties: Record<string, { type?: string }> } }>>(
+        'get',
+        model.value.instId,
+        `/${model.value.idxName}/_mappings`
+    );
+    const properties = mp[model.value.idxName].mappings.properties;
+    const data: Record<string, unknown> = {};
 
-    for (let key in properties) {
-        let item = properties[key];
+    for (const key in properties) {
+        const item = properties[key];
         switch (item.type) {
             case 'object':
             case 'nested':

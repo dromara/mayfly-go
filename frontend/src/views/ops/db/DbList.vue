@@ -157,10 +157,10 @@ import { joinClientParams } from '@/common/request';
 import { sleep } from '@/common/utils/loading';
 import { hasPerms } from '@/components/auth/auth';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import TagCodePath from '../component/TagCodePath.vue';
 import { dbApi } from './api';
@@ -169,6 +169,7 @@ import DbSqlExecLog from './DbSqlExecLog.vue';
 import { DbType } from './dialect';
 import { getDbDialect } from './dialect/index';
 import { DbGetDbNamesMode } from './enums';
+import type { Db, DbInstance } from './types';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -206,19 +207,19 @@ const perms = {
     restoreDb: 'db:restore',
 };
 
-const actionBtns: any = hasPerms(Object.values(perms));
+const actionBtns: Record<string, boolean> = hasPerms(Object.values(perms));
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     loadingDbNames: false,
-    currentDbNames: [],
+    currentDbNames: [] as string[],
     dbNameSearch: '',
-    instances: [] as any,
+    instances: [] as DbInstance[],
     /**
      * 选中的数据
      */
-    selectionData: [] as any,
+    selectionData: [] as Db[],
     /**
      * 查询条件
      */
@@ -231,7 +232,7 @@ const state = reactive({
     sqlExecLogDialog: {
         title: '',
         visible: false,
-        dbs: [] as any,
+        dbs: [] as string[],
         dbId: 0,
     },
     chooseTableName: '',
@@ -243,14 +244,14 @@ const state = reactive({
         dbId: 0,
         db: '',
         type: 3,
-        data: [] as any,
+        data: [] as { key: string; label: string }[],
         value: [],
-        contents: [] as any,
+        contents: [] as string[],
         extName: '',
     },
     dbEditDialog: {
         visible: false,
-        data: null as any,
+        data: null as Partial<Db> | null,
         title: '',
     },
     filterDb: {
@@ -263,11 +264,11 @@ const state = reactive({
 const { query, sqlExecLogDialog, dbEditDialog, exportDialog } = toRefs(state);
 
 const search = async () => {
-    state.query.instanceId = props.instance?.id;
-    pageTableRef.value.search();
+    state.query.instanceId = props.instance?.id || 0;
+    pageTableRef.value?.search();
 };
 
-const getDbNames = async (db: any) => {
+const getDbNames = async (db: Db) => {
     try {
         state.loadingDbNames = true;
         state.currentDbNames = await DbInst.getDbNames(db);
@@ -286,12 +287,12 @@ const filterDbs = computed(() => {
             dbName: x,
         };
     });
-    return dbNameObjs.filter((db: any) => {
+    return dbNameObjs.filter((db: { dbName: string }) => {
         return db.dbName.includes(state.dbNameSearch);
     });
 });
 
-const editDb = (data: any) => {
+const editDb = (data: Db | null) => {
     if (data) {
         state.dbEditDialog.data = { ...data };
     } else {
@@ -303,8 +304,8 @@ const editDb = (data: any) => {
     state.dbEditDialog.visible = true;
 };
 
-const confirmEditDb = async (db: any) => {
-    db.instanceId = props.instance?.id;
+const confirmEditDb = async (db: Db) => {
+    db.instanceId = props.instance?.id || 0;
     await dbApi.saveDb.request(db);
     Msg.saveSuccess();
     search();
@@ -318,7 +319,7 @@ const cancelEditDb = () => {
 
 const deleteDb = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
+        await useI18nDeleteConfirm(state.selectionData.map((x: Db) => x.name).join('、'));
         for (let db of state.selectionData) {
             await dbApi.deleteDb.request({ id: db.id });
         }
@@ -330,18 +331,18 @@ const deleteDb = async () => {
     }
 };
 
-const handleMoreActionCommand = (commond: any) => {
+const handleMoreActionCommand = (commond: { data: unknown; type: string }) => {
     const data = commond.data;
     const type = commond.type;
     switch (type) {
         case 'dumpDb': {
-            onDumpDbs(data);
+            onDumpDbs(data as Db);
             return;
         }
     }
 };
 
-const onShowSqlExec = async (row: any) => {
+const onShowSqlExec = async (row: Db) => {
     state.sqlExecLogDialog.title = `${row.name}`;
     state.sqlExecLogDialog.dbId = row.id;
     DbInst.getDbNames(row).then((res) => {
@@ -356,7 +357,7 @@ const onBeforeCloseSqlExecDialog = () => {
     state.sqlExecLogDialog.dbId = 0;
 };
 
-const onDumpDbs = async (row: any) => {
+const onDumpDbs = async (row: Db) => {
     const dbs = await DbInst.getDbNames(row);
     const data = [];
     for (let name of dbs) {

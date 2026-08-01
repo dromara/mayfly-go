@@ -75,6 +75,7 @@ import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { FormInstance } from 'element-plus';
 import { onMounted, ref, watch } from 'vue';
 import { milvusApi } from '../api';
+import type { IUser } from '../types';
 
 const props = defineProps<{
     milvusId: number;
@@ -83,7 +84,7 @@ const props = defineProps<{
 
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
-const list = ref<any[]>([]);
+const list = ref<IUser[]>([]);
 const createDialog = ref({
     visible: false,
 });
@@ -149,7 +150,7 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value.validate(async (valid) => {
+    await createFormRef.value?.validate(async (valid) => {
         if (!valid) return;
 
         createLoading.value = true;
@@ -164,7 +165,7 @@ const submitCreate = async () => {
     });
 };
 
-const handleChangePassword = (row: any) => {
+const handleChangePassword = (row: IUser) => {
     passwordForm.value = { oldPassword: '', newPassword: '' };
     passwordDialog.value.currentUser = row.name;
     passwordDialog.value.visible = true;
@@ -173,7 +174,7 @@ const handleChangePassword = (row: any) => {
 const submitPassword = async () => {
     if (!passwordFormRef.value) return;
 
-    await passwordFormRef.value.validate(async (valid) => {
+    await passwordFormRef.value?.validate(async (valid) => {
         if (!valid) return;
 
         passwordLoading.value = true;
@@ -181,20 +182,20 @@ const submitPassword = async () => {
             await milvusApi.updatePassword(props.milvusId, passwordDialog.value.currentUser, passwordForm.value);
             Msg.success('milvus.savedSuccess');
             passwordDialog.value.visible = false;
-        } catch (error: any) {
+        } catch (error: unknown) {
             passwordLoading.value = false;
         }
     });
 };
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: IUser) => {
     await useI18nConfirm('milvus.confirmDeleteUser', { name: row.name });
     await milvusApi.deleteUser(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();
 };
 
-const handleEditRoles = (row: any) => {
+const handleEditRoles = (row: IUser) => {
     roleDialog.value.currentUser = row.name;
     roleDialog.value.originalRoles = [...(row.roles || [])];
     roleDialog.value.selectedRoles = [...(row.roles || [])];

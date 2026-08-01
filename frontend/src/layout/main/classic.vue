@@ -24,6 +24,6 @@ const TagsView = defineAsyncComponent(() => import('@/layout/navBars/tagsView/ta
 const { themeConfig } = storeToRefs(useThemeConfig());
 
 // 提供 classic 布局的菜单数据
-const classicMenuData = ref<any>(null);
+const classicMenuData = ref<SendChildrenResult | null>(null);
 provide('classicMenuData', classicMenuData);
 </script>

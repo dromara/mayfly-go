@@ -34,4 +34,7 @@ const (
 	ErrBizHandlerFail
 
 	ErrAiTaskNodeAuditRuleNotEmpty
+
+	ErrProcinstNotBackStatus
+	ErrProcinstNotCreator
 )

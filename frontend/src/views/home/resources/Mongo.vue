@@ -26,7 +26,7 @@
 
 <script lang="ts" setup>
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { mongoApi } from '@/views/ops/mongo/api';
 import Base from './Base.vue';
 </script>

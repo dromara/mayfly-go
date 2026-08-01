@@ -61,9 +61,9 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, Ref, useTemplateRef } from 'vue';
 import { procinstTaskApi } from './api';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { FlowBizType, ProcinstStatus, ProcinstTaskStatus } from './enums';
 import { formatTime } from '@/common/utils/format';
@@ -156,14 +156,14 @@ const state = reactive({
 const { selectionData, query, todoQuery, procinstDetail } = toRefs(state);
 
 const todoSearch = async () => {
-    todoPageTableRef.value.search();
+    todoPageTableRef.value?.search();
 };
 
 const onTaskTabChange = (activeName: string) => {
     if (activeName === todoTabName) {
-        todoPageTableRef.value.search();
+        todoPageTableRef.value?.search();
     } else {
-        donePageTableRef.value.search();
+        donePageTableRef.value?.search();
     }
 };
 

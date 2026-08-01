@@ -183,6 +183,7 @@
 <script setup lang="ts">
 import { formatByteSize } from '@/common/utils/format';
 import { esApi } from '@/views/ops/es/api';
+import type { EsAnalyzeRes, EsAnalyzeToken, EsClusterStateRes, EsIdxField, EsNameValue, EsNodeStats, EsNodesStatsRes } from '@/views/ops/es/types';
 import dayjs from 'dayjs';
 import { defineAsyncComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -193,7 +194,7 @@ const EsIndexManage = defineAsyncComponent(() => import('./EsIndexManage.vue'));
 const { t } = useI18n();
 
 interface Props {
-    instId: any;
+    instId: number;
 }
 const props = defineProps<Props>();
 
@@ -208,10 +209,10 @@ const onViewIndexData = async (idxName: string) => {
 
 const state = reactive({
     tabName: 'idxManage',
-    instInfo: [] as any[],
-    clusterHealth: [] as any[],
-    nodesStats: { _nodes: {} as any, nodes: [] as any[] } as any,
-    idxFields: [] as any[],
+    instInfo: [] as EsNameValue[],
+    clusterHealth: [] as EsNameValue[],
+    nodesStats: { _nodes: { total: 0, successful: 0, failed: 0 }, nodes: [] as EsNodeStats[] },
+    idxFields: [] as EsIdxField[],
     nodesStatsLoading: false,
     instInfoLoading: false,
     clusterHealthLoading: false,
@@ -219,10 +220,10 @@ const state = reactive({
     analyze: {
         loading: false,
         idxName: '',
-        fields: [],
+        fields: [] as string[],
         field: '',
         text: '',
-        tokens: [],
+        tokens: [] as EsAnalyzeToken[],
     },
 });
 
@@ -266,12 +267,12 @@ const fetchInstInfo = async () => {
     state.instInfo = state.instInfo.sort((a, b) => a.name.localeCompare(b.name));
 };
 
-function flattenObject(obj: Record<string, any>, parentKey = '', result: Record<string, any> = {}): Record<string, any> {
+function flattenObject(obj: Record<string, unknown>, parentKey = '', result: Record<string, unknown> = {}): Record<string, unknown> {
     for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
             const newKey = parentKey ? `${parentKey}.${key}` : key;
             if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-                flattenObject(obj[key], newKey, result);
+                flattenObject(obj[key] as Record<string, unknown>, newKey, result);
             } else {
                 result[newKey] = obj[key];
             }
@@ -299,13 +300,11 @@ const fetchClusterHealth = async () => {
 
 const fetchNodesStats = async () => {
     state.nodesStatsLoading = true;
-    let res = await esApi.proxyReq('get', props.instId, '/_nodes/stats/os,jvm,indices,transport,fs');
+    const res = await esApi.proxyReq<EsNodesStatsRes>('get', props.instId, '/_nodes/stats/os,jvm,indices,transport,fs');
     state.nodesStats._nodes = res._nodes;
-    let nodes = [] as any[];
-    for (let k in res.nodes) {
-        let node = res.nodes[k];
-        node.key = k;
-        nodes.push(node);
+    const nodes: EsNodeStats[] = [];
+    for (const k in res.nodes) {
+        nodes.push({ ...res.nodes[k], key: k });
     }
     state.nodesStats.nodes = nodes.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -327,31 +326,31 @@ const fetchNodesStats = async () => {
 
 const fetchClusterState = async () => {
     state.clusterStateLoading = true;
-    const res = await esApi.proxyReq('get', props.instId, '/_cluster/state');
+    const res = await esApi.proxyReq<EsClusterStateRes>('get', props.instId, '/_cluster/state');
 
-    const idxFields = [];
+    const idxFields: EsIdxField[] = [];
 
-    for (let k in res.metadata.indices) {
+    for (const k in res.metadata.indices) {
         // 过滤系统索引
         if (k.indexOf('.') >= 0) {
             continue;
         }
-        let properties = res.metadata.indices[k]?.mappings?._doc?.properties || {};
-        let fields = [];
-        for (let k in properties) {
-            let f = properties[k];
+        const properties = res.metadata.indices[k]?.mappings?._doc?.properties || {};
+        const fields: string[] = [];
+        for (const fk in properties) {
+            const f = properties[fk];
             // long字段类型不支持分析
             if (f.type === 'long' || f.type === 'date') {
                 continue;
             }
 
             // 添加字段
-            fields.push(k);
+            fields.push(fk);
 
             // 如果有子字段，则添加子字段
             if (f.fields) {
-                for (let fk in f.fields) {
-                    fields.push(`${k}.${fk}`);
+                for (const sfk in f.fields) {
+                    fields.push(`${fk}.${sfk}`);
                 }
             }
         }
@@ -379,23 +378,23 @@ const getPercentColor = (percent: number) => {
 };
 
 const onSelectIdxField = () => {
-    state.analyze.fields = state.idxFields.find((item: any) => item.name === state.analyze.idxName)?.fields || [];
+    state.analyze.fields = state.idxFields.find((item) => item.name === state.analyze.idxName)?.fields || [];
     state.analyze.field = '';
 };
 
 const onAnalyze = async () => {
-    await analyzeFormRef.value.validate();
+    await analyzeFormRef.value?.validate();
     state.analyze.loading = true;
 
     setTimeout(() => {
         state.analyze.loading = false;
     }, 2000);
 
-    let res = await esApi.proxyReq('post', props.instId, `/${state.analyze.idxName}/_analyze`, {
+    const res = await esApi.proxyReq<EsAnalyzeRes>('post', props.instId, `/${state.analyze.idxName}/_analyze`, {
         field: state.analyze.field,
         text: state.analyze.text,
     });
-    state.analyze.tokens = res.tokens;
+    state.analyze.tokens = res.tokens || [];
     state.analyze.loading = false;
 };
 </script>

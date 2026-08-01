@@ -73,7 +73,7 @@ func (rc *Ctx) Handle(handler HandlerFunc) {
 // 若不需要报错，则使用contextx.GetLoginAccount方法
 func (rc *Ctx) GetLoginAccount() *model.LoginAccount {
 	la := contextx.GetLoginAccount(rc.MetaCtx)
-	biz.IsTrue(la != nil, "获取登录账号信息失败, 请确认该接口是否通过鉴权")
+	biz.IsTrue(la != nil, "failed to get login account info, please ensure this API is authenticated")
 	return la
 }
 

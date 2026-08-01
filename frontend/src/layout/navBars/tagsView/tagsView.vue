@@ -12,7 +12,7 @@
                     @click="onTagsClick(v, k)"
                     :ref="
                         (el) => {
-                            if (el) tagsRefs[k] = el;
+                            if (el) tagsRefs[k] = el as HTMLElement;
                         }
                     "
                 >
@@ -37,7 +37,8 @@
 
 <script lang="ts" setup name="layoutTagsView">
 import { reactive, onMounted, ref, nextTick, onBeforeUpdate, getCurrentInstance, watch } from 'vue';
-import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
+import type { ComponentPublicInstance } from 'vue';
+import { useRoute, useRouter, onBeforeRouteUpdate, type RouteLocationNormalized } from 'vue-router';
 import screenfull from 'screenfull';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -47,8 +48,8 @@ import { getTagViews, setTagViews, removeTagViews } from '@/common/utils/storage
 import { useTagsViews } from '@/store/tagsViews';
 import { useKeepALiveNames } from '@/store/keepAliveNames';
 
-const { proxy } = getCurrentInstance() as any;
-const tagsRefs = ref([]) as any;
+const { proxy } = getCurrentInstance() as { proxy: ComponentPublicInstance & { $refs: Record<string, any> } };
+const tagsRefs = ref<HTMLElement[]>([]);
 const scrollbarRef = ref();
 const contextmenuRef = ref();
 const tagsUlRef = ref();
@@ -62,36 +63,38 @@ const route = useRoute();
 const router = useRouter();
 
 const contextmenuItems = [
-    new ContextmenuItem(0, 'layout.tagsView.refresh').withIcon('RefreshRight').withOnClick((data: any) => {
+    new ContextmenuItem(0, 'layout.tagsView.refresh').withIcon('RefreshRight').withOnClick((data: unknown) => {
+        const d = data as TagsView;
         // path为fullPath
-        let { path } = data;
-        let currentTag = tagsViews.value.find((v: any) => v.path === path);
+        let { path } = d;
+        let currentTag = tagsViews.value.find((v: TagsView) => v.path === path);
         refreshCurrentTagsView(path);
         router.push({ path, query: currentTag?.query });
     }),
 
-    new ContextmenuItem(1, 'layout.tagsView.close').withIcon('Close').withOnClick((data: any) => closeCurrentTagsView(data.path)),
+    new ContextmenuItem(1, 'layout.tagsView.close').withIcon('Close').withOnClick((data: unknown) => closeCurrentTagsView((data as TagsView).path)),
 
-    new ContextmenuItem(2, 'layout.tagsView.closeOther').withIcon('CircleClose').withOnClick((data: any) => {
-        let { path } = data;
-        let currentTag = tagsViews.value.find((v: any) => v.path === path);
+    new ContextmenuItem(2, 'layout.tagsView.closeOther').withIcon('CircleClose').withOnClick((data: unknown) => {
+        const d = data as TagsView;
+        let { path } = d;
+        let currentTag = tagsViews.value.find((v: TagsView) => v.path === path);
         router.push({ path, query: currentTag?.query });
         closeOtherTagsView(path);
     }),
 
-    new ContextmenuItem(3, 'layout.tagsView.closeAll').withIcon('FolderDelete').withOnClick((data: any) => closeAllTagsView(data.path)),
+    new ContextmenuItem(3, 'layout.tagsView.closeAll').withIcon('FolderDelete').withOnClick((data: unknown) => closeAllTagsView((data as TagsView).path)),
 
-    new ContextmenuItem(4, 'layout.tagsView.fullscreen').withIcon('full-screen').withOnClick((data: any) => openCurrenFullscreen(data.path)),
+    new ContextmenuItem(4, 'layout.tagsView.fullscreen').withIcon('full-screen').withOnClick((data: unknown) => openCurrenFullscreen((data as TagsView).path)),
 ];
 
 const state = reactive({
     routePath: route.fullPath,
     // dropdown: { x: '', y: '' },
     tagsRefsIndex: 0,
-    sortable: '' as any,
+    sortable: null as Sortable | null,
     contextmenu: {
         items: contextmenuItems,
-        dropdown: { x: '', y: '' },
+        dropdown: { x: 0, y: 0 },
     },
 });
 
@@ -115,7 +118,7 @@ const initTagsView = () => {
     if (tagViews && themeConfig.value.isCacheTagsView) {
         tagsViews.value = tagViews;
     } else {
-        tagsViews.value?.map((v: any) => {
+        tagsViews.value?.map((v: TagsView) => {
             if (v.isAffix && !v.isHide) {
                 tagsViews.value.push({ ...v });
                 keepAliveNamesStores.setCacheKeepAlive(v);
@@ -131,7 +134,7 @@ const initTagsView = () => {
 
 // 1、添加 tagsView：未设置隐藏（isHide）也添加到在 tagsView 中
 // path为fullPath
-const addTagsView = (path: string, to: any = null, tagViewIndex: number = -1) => {
+const addTagsView = (path: string, to: RouteLocationNormalized | null = null, tagViewIndex: number = -1) => {
     nextTick(async () => {
         if (!to) {
             to = route;
@@ -143,14 +146,14 @@ const addTagsView = (path: string, to: any = null, tagViewIndex: number = -1) =>
             }
         }
 
-        const tagView = {
+        const tagView: TagsView = {
             path: path,
-            name: to.name,
-            query: to.query,
-            title: to.meta.title,
-            icon: to.meta.icon,
-            isAffix: to.meta.isAffix,
-            isKeepAlive: to.meta.isKeepAlive,
+            name: to.name as string,
+            query: to.query as TagsView['query'],
+            title: to.meta.title as string,
+            icon: to.meta.icon as string,
+            isAffix: to.meta.isAffix as boolean,
+            isKeepAlive: to.meta.isKeepAlive as boolean,
         };
 
         if (tagViewIndex != -1) {
@@ -173,13 +176,13 @@ const refreshCurrentTagsView = async (path: string) => {
 };
 
 const getTagsView = (path: string) => {
-    return tagsViews.value.find((v: any) => v.path === path);
+    return tagsViews.value.find((v: TagsView) => v.path === path);
 };
 
 // 3、关闭当前 tagsView：如果是设置了固定的（isAffix），不可以关闭
 // path为fullPath
 const closeCurrentTagsView = (path: string) => {
-    tagsViews.value.map((v: TagsView, k: number, arr: any) => {
+    tagsViews.value.map((v: TagsView, k: number, arr: TagsView[]) => {
         if (!v.isAffix) {
             if (v.path === path) {
                 keepAliveNamesStores.delCachedView(v);
@@ -226,10 +229,10 @@ const closeAllTagsView = (path: string) => {
     keepAliveNamesStores.delAllCachedViews();
     const oldTagViews = tagsViews.value;
     tagsViews.value = [];
-    oldTagViews.map((v: any) => {
+    oldTagViews.map((v: TagsView) => {
         if (v.isAffix && !v.isHide) {
             tagsViews.value.push({ ...v });
-            if (tagsViews.value.some((v: any) => v.path === path)) {
+            if (tagsViews.value.some((v: TagsView) => v.path === path)) {
                 router.push({ path, query: route.query });
             }
         }
@@ -241,12 +244,12 @@ const closeAllTagsView = (path: string) => {
 };
 // 6、开启当前页面全屏
 const openCurrenFullscreen = (path: string) => {
-    const item = tagsViews.value.find((v: any) => v.path === path);
+    const item = tagsViews.value.find((v: TagsView) => v.path === path);
     nextTick(() => {
         router.push({ path, query: item?.query });
         const element = document.querySelector('.layout-main');
-        const screenfulls: any = screenfull;
-        screenfulls.request(element);
+        const screenfulls = screenfull as typeof screenfull & { request: (el: Element) => Promise<void> };
+        if (element) screenfulls.request(element);
     });
 };
 
@@ -255,14 +258,14 @@ const isActive = (tagView: TagsView) => {
     return tagView.path === state.routePath;
 };
 // 右键点击时：传 x,y 坐标值到子组件中（props）
-const onContextmenu = (v: any, e: any) => {
+const onContextmenu = (v: TagsView, e: MouseEvent) => {
     const { clientX, clientY } = e;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    contextmenuRef.value.openContextmenu(v);
+    contextmenuRef.value?.openContextmenu(v);
 };
 // 当前的 tagsView 项点击时
-const onTagsClick = (v: any, k: number) => {
+const onTagsClick = (v: TagsView, k: number) => {
     state.routePath = decodeURI(v.path);
     state.tagsRefsIndex = k;
     try {
@@ -276,8 +279,8 @@ const updateScrollbar = () => {
     proxy.$refs.scrollbarRef.update();
 };
 // 鼠标滚轮滚动
-const onHandleScroll = (e: any) => {
-    proxy.$refs.scrollbarRef.$refs.wrapRef.scrollLeft += e.wheelDelta / 4;
+const onHandleScroll = (e: WheelEvent) => {
+    proxy.$refs.scrollbarRef.$refs.wrapRef.scrollLeft += (e as WheelEvent & { wheelDelta: number }).wheelDelta / 4;
 };
 // tagsView 横向滚动
 const tagsViewmoveToCurrentTag = () => {
@@ -290,9 +293,9 @@ const tagsViewmoveToCurrentTag = () => {
         // 当前 ul 下 li 元素总长度
         let liLength = tagsRefs.value.length;
         // 最前 li
-        let liFirst: any = tagsRefs.value[0];
+        let liFirst: HTMLElement | undefined = tagsRefs.value[0];
         // 最后 li
-        let liLast: any = tagsRefs.value[tagsRefs.value.length - 1];
+        let liLast: HTMLElement | undefined = tagsRefs.value[tagsRefs.value.length - 1];
         // 当前滚动条的值
         let scrollRefs = proxy.$refs.scrollbarRef.$refs.wrapRef;
         // 当前滚动条滚动宽度
@@ -302,13 +305,13 @@ const tagsViewmoveToCurrentTag = () => {
         // 当前滚动条偏移距离
         let scrollL = scrollRefs.scrollLeft;
         // 上一个 tags li dom
-        let liPrevTag: any = tagsRefs.value[state.tagsRefsIndex - 1];
+        let liPrevTag: HTMLElement | undefined = tagsRefs.value[state.tagsRefsIndex - 1];
         // 下一个 tags li dom
-        let liNextTag: any = tagsRefs.value[state.tagsRefsIndex + 1];
+        let liNextTag: HTMLElement | undefined = tagsRefs.value[state.tagsRefsIndex + 1];
         // 上一个 tags li dom 的偏移距离
-        let beforePrevL: any = '';
+        let beforePrevL: number | string = '';
         // 下一个 tags li dom 的偏移距离
-        let afterNextL: any = '';
+        let afterNextL: number | string = '';
         if (liDom === liFirst) {
             // 头部
             scrollRefs.scrollLeft = 0;
@@ -334,12 +337,12 @@ const tagsViewmoveToCurrentTag = () => {
 // 获取 tagsView 的下标：用于处理 tagsView 点击时的横向滚动
 const setTagsRefsIndex = (path: string) => {
     if (tagsViews.value.length > 0) {
-        state.tagsRefsIndex = tagsViews.value.findIndex((item: any) => item.path === path);
+        state.tagsRefsIndex = tagsViews.value.findIndex((item: TagsView) => item.path === path);
     }
 };
 // 设置 tagsView 可以进行拖拽
 const initSortable = () => {
-    const el: any = document.querySelector('.layout-navbars-tagsview-ul');
+    const el = document.querySelector('.layout-navbars-tagsview-ul') as HTMLElement | null;
     if (!el) return false;
     if (!themeConfig.value.isSortableTagsView) state.sortable && state.sortable.destroy();
     if (themeConfig.value.isSortableTagsView) {
@@ -347,9 +350,10 @@ const initSortable = () => {
             animation: 300,
             dataIdAttr: 'data-name',
             onEnd: () => {
-                const sortEndList: any = [];
-                state.sortable.toArray().map((val: any) => {
-                    tagsViews.value.map((v: any) => {
+                if (!state.sortable) return;
+                const sortEndList: TagsView[] = [];
+                state.sortable.toArray().map((val: string) => {
+                    tagsViews.value.map((v: TagsView) => {
                         if (v.name === val) sortEndList.push({ ...v });
                     });
                 });

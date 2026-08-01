@@ -231,10 +231,13 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 		}
 	}()
 
-	tx, _ := dbConn.Begin()
+	tx, err := dbConn.Begin()
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
 	// 使用方言切割器进行 SQL 切割
 	splitter := dbConn.GetDialect().GetSQLSplitter()
-	err := splitter.SplitSQL(execReader.Reader, func(sql string) error {
+	err = splitter.SplitSQL(execReader.Reader, func(sql string) error {
 		// 检查context是否已取消
 		if ctx.Err() != nil {
 			if needSendMsg {

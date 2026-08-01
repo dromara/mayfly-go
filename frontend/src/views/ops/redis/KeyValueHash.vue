@@ -63,7 +63,7 @@
 <script lang="ts" setup>
 import { notBlank } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, toRefs } from 'vue';
+import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
 
@@ -77,7 +77,7 @@ const props = defineProps({
     },
 });
 
-const formatViewerRef = ref(null) as any;
+const formatViewerRef = useTemplateRef<{ getContent: () => string }>('formatViewerRef');
 
 const state = reactive({
     key: '',
@@ -86,21 +86,21 @@ const state = reactive({
         count: 50,
     },
     filterValue: '',
-    hashValues: [] as any,
+    hashValues: [] as { field: string; value: string }[],
     total: 0,
     loadMoreDisable: false,
     editDialog: {
         visible: false,
         field: '',
         value: '',
-        dataRow: null as any,
+        dataRow: null as { field: string; value: string } | null,
     },
 });
 
 const { hashValues, total, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.key = props.keyInfo?.key;
+    state.key = props.keyInfo?.key || '';
     initData();
 });
 
@@ -118,11 +118,11 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
         state.scanParam.cursor = 0;
     }
 
-    props.redis.runCmd(['HLEN', state.key]).then((res) => (state.total = res));
+    props.redis.runCmd<number>(['HLEN', state.key]).then((res) => (state.total = res));
 
     // HSCAN key cursor [MATCH pattern] [COUNT count]
     // 返回值 [coursor, keys:[]]
-    let scanRes = await props.redis.runCmd(['HSCAN', state.key, state.scanParam.cursor, 'MATCH', getScanMatch(), 'COUNT', state.scanParam.count]);
+    let scanRes = await props.redis.runCmd<[number, string[]]>(['HSCAN', state.key, state.scanParam.cursor, 'MATCH', getScanMatch(), 'COUNT', state.scanParam.count]);
     state.scanParam.cursor = scanRes[0];
     state.loadMoreDisable = state.scanParam.cursor == 0;
     const keys = scanRes[1];
@@ -141,7 +141,7 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
     }
 };
 
-const hdel = async (field: any, index: any) => {
+const hdel = async (field: string, index: number) => {
     await props.redis.runCmd(['HDEL', state.key, field]);
 
     Msg.deleteSuccess();
@@ -149,7 +149,7 @@ const hdel = async (field: any, index: any) => {
     state.total--;
 };
 
-const showEditDialog = (row: any) => {
+const showEditDialog = (row: { field: string; value: string } | null) => {
     state.editDialog.dataRow = row;
     state.editDialog.field = row ? row.field : '';
     state.editDialog.value = row ? row.value : '';
@@ -161,15 +161,15 @@ const confirmEditData = async () => {
     notBlank(field, 'field not empty');
 
     // 获取hash value内容并新增
-    const value = formatViewerRef.value.getContent();
+    const value = formatViewerRef.value?.getContent();
 
-    const res = await props.redis.runCmd(['HSET', state.key, field, value]);
+    const res = await props.redis.runCmd<number>(['HSET', state.key, field, value ?? '']);
     Msg.saveSuccess();
     // 响应0则为被覆盖，则重新scan
     if (res == 0) {
         hscan(true, true);
     } else {
-        state.hashValues.unshift({ value, field });
+        state.hashValues.unshift({ value: value ?? '', field });
         state.total++;
     }
     state.editDialog.visible = false;

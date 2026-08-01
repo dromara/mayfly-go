@@ -182,7 +182,7 @@
                         <el-tooltip :content="$t('docker.memoryLimitTips')" placement="top">
                             <SvgIcon class="ml-2" name="question-filled" />
                         </el-tooltip>
-                        <el-text class="ml-2" size="small">{{ $t('docker.memoryCanUseTips', { memTotal: formatByteSize(dockerInfo.MemTotal) }) }}</el-text>
+                        <el-text class="ml-2" size="small">{{ $t('docker.memoryCanUseTips', { memTotal: formatByteSize(Number(dockerInfo.MemTotal)) }) }}</el-text>
                     </el-row>
                 </template>
 
@@ -274,6 +274,7 @@ import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { computed, reactive, toRefs, useTemplateRef, watch } from 'vue';
 import { dockerApi } from '../api';
+import type { DockerImageItem } from '../types';
 
 const rules = {
     name: [Rules.requiredInput('common.name')],
@@ -292,11 +293,11 @@ const defaultForm = {
     image: '',
     cmdStr: '',
     forcePull: false,
-    exposedPorts: [] as any,
+    exposedPorts: [] as { hostPort: number; containerPort: string; protocol: string }[],
     networkMode: 'default',
-    volumes: [] as any,
-    devices: [] as any,
-    capAdd: [] as any,
+    volumes: [] as { hostDir: string; mode: string; containerDir: string }[],
+    devices: [] as { driver: string; count: number; device: string }[],
+    capAdd: [] as string[],
     tty: false,
     openStdin: false,
     privileged: false,
@@ -310,10 +311,10 @@ const defaultForm = {
 };
 
 const state = reactive({
-    dockerInfo: {} as any,
-    images: [] as any,
+    dockerInfo: {} as Record<string, unknown>,
+    images: [] as DockerImageItem[],
     form: defaultForm,
-    submitForm: {} as any,
+    submitForm: {} as Record<string, unknown>,
     pwd: '',
 });
 
@@ -339,7 +340,7 @@ watch(dialogVisible, async (val) => {
 });
 
 const runtimeSelect = computed(() => {
-    return state.dockerInfo ? Object.keys(state.dockerInfo?.Runtimes) : [];
+    return state.dockerInfo ? Object.keys((state.dockerInfo?.Runtimes as Record<string, unknown>) ?? {}) : [];
 });
 
 const init = async () => {
@@ -353,10 +354,8 @@ const init = async () => {
 
 const handlePortsAdd = () => {
     let item = {
-        host: '',
-        hostIP: '',
         containerPort: '',
-        hostPort: '',
+        hostPort: 0,
         protocol: 'tcp',
     };
     state.form.exposedPorts.push(item);
@@ -381,7 +380,9 @@ const handleVolumesDelete = (index: number) => {
 
 const handleDevicesAdd = () => {
     let item = {
+        driver: '',
         count: 0,
+        device: '',
     };
     state.form.devices.push(item);
 };
@@ -397,7 +398,7 @@ const btnOk = async () => {
     state.submitForm.id = props.id;
 
     if (state.submitForm.exposedPorts) {
-        state.submitForm.exposedPorts = state.form.exposedPorts.map((item: any) => {
+        state.submitForm.exposedPorts = state.form.exposedPorts.map((item) => {
             return {
                 ...item,
                 hostPort: item.hostPort + '', // 转为字符串

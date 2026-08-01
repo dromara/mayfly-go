@@ -20,7 +20,7 @@
             <el-scrollbar ref="scrollbarRef" :max-height="180" @scroll="handleScroll">
                 <div v-loading="state.loading" class="min-w-0">
                     <div class="grid grid-cols-2 gap-2.5">
-                        <div v-for="resource in state.resources" :key="resource.id" @click="navigateToResource(resource)">
+                        <div v-for="resource in resources" :key="resource.id" @click="navigateToResource(resource)">
                             <slot name="item" :resource="resource"></slot>
                         </div>
                     </div>
@@ -29,7 +29,7 @@
                     <div v-if="state.hasMore" class="text-center py-3 text-xs text-gray-500">
                         <span class="italic">{{ $t('home.loadMore') }}</span>
                     </div>
-                    <div v-else-if="state.resources.length > 0" class="text-center py-3 text-xs text-gray-400">
+                    <div v-else-if="resources.length > 0" class="text-center py-3 text-xs text-gray-400">
                         <span class="italic">{{ $t('home.loadedAll') }}</span>
                     </div>
                 </div>
@@ -38,28 +38,35 @@
     </el-popover>
 </template>
 
-<script lang="ts" setup>
-import SvgIcon from '@/components/svgIcon/index.vue';
+<script lang="ts" setup generic="T extends { id: number; code?: string; name?: string }">
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { tagApi } from '@/views/ops/tag/api';
 import type { ElScrollbar } from 'element-plus';
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref, shallowRef } from 'vue';
 import { useRouter } from 'vue-router';
+
+/** 资源列表请求方法（方法声明，参数双变兼容各 Api 实例） */
+interface ApiMethod<R> {
+    request(param?: Record<string, unknown>): Promise<{ list: R[]; total: number }>;
+}
 
 const props = defineProps<{
     resourceLabel: string;
     resourceIcon: string;
     resourceColor: string;
-    apiMethod: any;
+    apiMethod: ApiMethod<T>;
 }>();
 
 const router = useRouter();
 
 const scrollbarRef = ref<InstanceType<typeof ElScrollbar>>();
 
+// 资源列表（shallowRef 避免泛型深层解包，列表始终整体替换）
+const resources = shallowRef<T[]>([]);
+
 // 内部状态
 const state = reactive({
-    resources: [] as any[],
     currentPage: 1,
     pageSize: 6,
     loading: false,
@@ -93,8 +100,8 @@ const initLoad = async () => {
     const items = res?.list || [];
 
     state.total = res.total;
-    state.resources = items.slice(0, state.pageSize);
-    state.hasMore = state.resources.length < state.total;
+    resources.value = items.slice(0, state.pageSize);
+    state.hasMore = resources.value.length < state.total;
     state.initialized = true;
 };
 
@@ -106,16 +113,16 @@ const loadMore = async () => {
     const res = await fetchData(nextPage);
 
     const newItems = res?.list || [];
-    state.resources = [...state.resources, ...newItems];
+    resources.value = [...resources.value, ...newItems];
     state.currentPage = nextPage;
-    state.hasMore = state.resources.length < res.total;
+    state.hasMore = resources.value.length < res.total;
 };
 
 // 处理滚动
 const handleScroll = () => {
     if (!scrollbarRef.value) return;
 
-    const wrapRef = scrollbarRef.value.wrapRef;
+    const wrapRef = scrollbarRef.value?.wrapRef;
     if (!wrapRef) return;
 
     // 滚动到底部时加载更多
@@ -125,7 +132,7 @@ const handleScroll = () => {
 };
 
 // 跳转到资源
-const navigateToResource = async (resource: any) => {
+const navigateToResource = async (resource: T) => {
     const tagResources = await tagApi.listByQuery.request({ codes: resource?.code });
     useAutoOpenResource().setCodePath(tagResources?.[0]?.codePath);
     router.push({ path: '/my-resource' });
@@ -133,7 +140,7 @@ const navigateToResource = async (resource: any) => {
 
 // 点击卡片
 const onCardClick = () => {
-    navigateToResource(state.resources?.[0]);
+    navigateToResource(resources.value[0]);
 };
 
 // 暴露方法给父组件

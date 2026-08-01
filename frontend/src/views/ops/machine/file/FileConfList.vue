@@ -53,7 +53,7 @@
         >
             <machine-file
                 :title="fileDialog.title"
-                :machine-id="machineId"
+                :machine-id="machineId ?? undefined"
                 :auth-cert-name="props.authCertName"
                 :file-id="fileDialog.fileId"
                 :path="fileDialog.path"
@@ -64,7 +64,7 @@
         <machine-file-content
             :title="fileContent.title"
             v-model:visible="fileContent.contentVisible"
-            :machine-id="machineId"
+            :machine-id="machineId ?? undefined"
             :auth-cert-name="props.authCertName"
             :file-id="fileContent.fileId"
             :path="fileContent.path"
@@ -73,26 +73,27 @@
 </template>
 
 <script lang="ts" setup>
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import {defineAsyncComponent, onMounted, reactive, toRefs, watch} from 'vue';
 import { machineApi } from '../api';
 import { FileTypeEnum } from '../enums';
+import type { MachineFileVO } from '../types';
 
 const MachineFile = defineAsyncComponent(() => import('./MachineFile.vue'));
 const MachineFileContent = defineAsyncComponent(() => import('./MachineFileContent.vue'));
 
 const props = defineProps({
     protocol: { type: Number, default: 1 },
-    machineId: { type: Number },
     authCertName: { type: String },
     title: { type: String },
     openFileManager: { type: Boolean, default: true }, // 是否打开文件管理器
 });
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
+const machineId = defineModel<number | null>('machineId');
 
-const emit = defineEmits(['cancel', 'update:machineId', 'select']);
+const emit = defineEmits(['cancel', 'select']);
 
 const addFile = machineApi.addConf;
 const delFile = machineApi.delConf;
@@ -112,7 +113,7 @@ const state = reactive({
         remark: '',
     },
     total: 0,
-    fileTable: [] as any,
+    fileTable: [] as MachineFileVO[],
     fileDialog: {
         visible: false,
         protocol: 1,
@@ -130,15 +131,15 @@ const state = reactive({
 
 const { loading, query, total, fileTable, fileDialog, fileContent } = toRefs(state);
 
-watch(props, async (newValue) => {
-    if (newValue.machineId && dialogVisible.value) {
+watch(machineId, async (newValue) => {
+    if (newValue && dialogVisible.value) {
         await getFiles();
     }
 });
 
 const getFiles = async () => {
     try {
-        state.query.id = props.machineId as any;
+        state.query.id = machineId.value || 0;
         if (!state.query.id){
             return
         }
@@ -160,22 +161,22 @@ const handlePageChange = (curPage: number) => {
 
 const add = () => {
     // 往数组头部添加元素
-    state.fileTable = [{}].concat(state.fileTable);
+    state.fileTable = [{} as MachineFileVO].concat(state.fileTable);
 };
 
-const addFiles = async (row: any) => {
-    row.machineId = props.machineId;
+const addFiles = async (row: MachineFileVO) => {
+    row.machineId = machineId.value ?? 0;
     await addFile.request(row);
     Msg.saveSuccess();
     getFiles();
 };
 
-const deleteRow = async (idx: any, row: any) => {
+const deleteRow = async (idx: number, row: MachineFileVO) => {
     if (row.id) {
         await useI18nDeleteConfirm(row.name);
         // 删除配置文件
         await delFile.request({
-            machineId: props.machineId,
+            machineId: machineId.value,
             id: row.id,
         });
         getFiles();
@@ -184,7 +185,7 @@ const deleteRow = async (idx: any, row: any) => {
     }
 };
 
-const getConf = async (row: any) => {
+const getConf = async (row: MachineFileVO) => {
     if (row.type != 1) {
         showFileContent(row.id, row.path);
         return;
@@ -222,7 +223,7 @@ const showFileContent = async (fileId: number, path: string) => {
  */
 const handleClose = () => {
     dialogVisible.value = false;
-    emit('update:machineId', null);
+    machineId.value = null;
     emit('cancel');
     state.fileTable = [];
 };

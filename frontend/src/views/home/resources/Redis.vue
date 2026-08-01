@@ -25,7 +25,7 @@
 
 <script lang="ts" setup>
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { redisApi } from '@/views/ops/redis/api';
 import Base from './Base.vue';
 </script>

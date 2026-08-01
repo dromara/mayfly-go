@@ -40,13 +40,14 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef, watch, type PropType } from 'vue';
 import { dbApi } from './api';
 import { DbSqlExecTypeEnum, DbSqlExecStatusEnum } from './enums';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn } from '@/components/pagetable';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { formatDate } from '@/common/utils/format';
+import type { DbSqlExec, ColumnMetadata } from './types';
 
 const props = defineProps({
     dbId: {
@@ -54,7 +55,7 @@ const props = defineProps({
         required: true,
     },
     dbs: {
-        type: [Array<String>],
+        type: Array as PropType<string[]>,
         required: true,
     },
 });
@@ -69,7 +70,7 @@ const searchItems = [
         .withOneProps('type', 'datetimerange')
         .withOneProps('format', 'YYYY-MM-DD HH:mm:ss')
         .withOneProps('value-format', 'YYYY-MM-DD HH:mm:ss')
-        .bindEvent('change', (value: any) => {
+        .bindEvent('change', (value: string | [string, string] | null) => {
             if (!value) {
                 state.query.startTime = '';
                 state.query.endTime = '';
@@ -94,7 +95,7 @@ const columns = ref([
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(90).fixedRight().alignCenter(),
 ]);
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     dbs: [],
@@ -137,11 +138,11 @@ watch(props, async () => {
 
 const searchSqlExecLog = async () => {
     if (state.query.dbId) {
-        pageTableRef.value.search();
+        pageTableRef.value?.search();
     }
 };
 
-const onShowRollbackSql = async (sqlExecLog: any) => {
+const onShowRollbackSql = async (sqlExecLog: DbSqlExec) => {
     const columns = await dbApi.columnMetadata.request({ id: sqlExecLog.dbId, db: sqlExecLog.db, tableName: sqlExecLog.table });
     const primaryKey = getPrimaryKey(columns);
     const oldValue = JSON.parse(sqlExecLog.oldValue);
@@ -165,7 +166,7 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
             rollbackSqls.push(`UPDATE ${schema}${sqlExecLog.table} SET ${setItems.join(', ')} WHERE ${primaryKey} = ${wrapValue(ov[primaryKey])};`);
         }
     } else if (sqlExecLog.type == DbSqlExecTypeEnum.Delete.value) {
-        const columnNames = columns.map((c: any) => c.columnName);
+        const columnNames = columns.map((c: ColumnMetadata) => c.columnName);
         for (let ov of oldValue) {
             const values = [];
             for (let column of columnNames) {
@@ -179,8 +180,8 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
     state.rollbackSqlDialog.visible = true;
 };
 
-const getPrimaryKey = (columns: any) => {
-    const col = columns.find((c: any) => c.isPrimaryKey);
+const getPrimaryKey = (columns: ColumnMetadata[]) => {
+    const col = columns.find((c: ColumnMetadata) => c.isPrimaryKey);
     if (col) {
         return col.columnName;
     }
@@ -190,7 +191,7 @@ const getPrimaryKey = (columns: any) => {
 /**
  * 包装值，如果值类型为number则直接返回，其他则需要使用''包装
  */
-const wrapValue = (val: any) => {
+const wrapValue = (val: unknown) => {
     if (typeof val == 'number') {
         return val;
     }

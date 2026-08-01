@@ -31,18 +31,19 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, Ref } from 'vue';
 import { cronJobApi } from '../api';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn } from '@/components/pagetable';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
 import { CronJobExecStatusEnum } from '../enums';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import MachineDetail from '../component/MachineDetail.vue';
+import type { MachineCronJob } from '../types';
 
 const props = defineProps({
     visible: {
         type: Boolean,
     },
     data: {
-        type: Object,
+        type: Object as () => MachineCronJob | null,
     },
     title: {
         type: String,
@@ -83,8 +84,8 @@ const { params } = toRefs(state);
 const dialogVisible = defineModel<boolean>('visible');
 
 const search = async () => {
-    state.params.cronJobId = props.data?.id;
-    pageTableRef.value.search();
+    state.params.cronJobId = props.data?.id || 0;
+    pageTableRef.value?.search();
 };
 
 const cancel = () => {

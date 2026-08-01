@@ -31,9 +31,9 @@ const { keepAliveNames, cachedViews } = storeToRefs(useKeepALiveNames());
 
 const state = reactive({
     refreshRouterViewKey: '',
-    keepAliveNameList: [] as any[],
+    keepAliveNameList: [] as string[],
     iframeRefreshKey: '', // iframe tagsview 右键菜单刷新时
-    iframes: [] as any[],
+    iframes: [] as RouteItem[],
 });
 
 const { currentRefreshPath } = storeToRefs(useTagsViews());
@@ -74,8 +74,8 @@ onMounted(() => {
     nextTick(() => {
         setTimeout(() => {
             if (themeConfig.value.isCacheTagsView) {
-                let tagsViewArr: any = getTagViews() || [];
-                cachedViews.value = tagsViewArr.filter((item: any) => item?.isKeepAlive).map((item: any) => item.name as string);
+                let tagsViewArr = (getTagViews() || []) as TagsView[];
+                cachedViews.value = tagsViewArr.filter((item: TagsView) => item?.isKeepAlive).map((item: TagsView) => item.name as string);
             }
         }, 0);
     });
@@ -98,7 +98,7 @@ const getIframesRoutes = async () => {
         if (v.meta.linkType === LinkTypeEnum.Iframes.value) {
             v.meta.isIframeOpen = false;
             v.meta.loading = true;
-            state.iframes.push({ ...v });
+            state.iframes.push({ ...v } as unknown as RouteItem);
         }
     });
 };

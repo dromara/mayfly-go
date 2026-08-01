@@ -88,14 +88,16 @@
 import { notEmpty } from '@/common/assert';
 import { LinkTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
-import iconSelector from '@/components/iconSelector/index.vue';
+import iconSelector from '@/components/icon-selector/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { resourceApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
+import type { ResourceMeta } from '../types';
 
 const { t } = useI18n();
 
@@ -116,11 +118,21 @@ const visible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const menuFormRef: any = useTemplateRef('menuFormRef');
+interface ResourceForm {
+    id?: number | null;
+    name?: string | null;
+    pid?: number | null;
+    code?: string | null;
+    type?: number | null;
+    meta: ResourceMeta;
+    [key: string]: unknown;
+}
+
+const menuFormRef = useTemplateRef<FormInstance>('menuFormRef');
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 
-const defaultMeta = {
+const defaultMeta: ResourceMeta = {
     routeName: '',
     icon: 'Menu',
     redirect: '',
@@ -148,7 +160,9 @@ const trueFalseOption = [
     },
 ];
 
-const state = reactive({
+const state = reactive<{
+    form: ResourceForm;
+}>({
     form: {
         id: null,
         name: null,
@@ -177,17 +191,14 @@ watch(visible, () => {
         return;
     }
     if (props.data) {
-        state.form = { ...(props.data as any) };
+        const data = props.data as ResourceForm;
+        state.form = { ...data, meta: data.meta ?? { ...defaultMeta } };
     } else {
-        state.form = {} as any;
-    }
-
-    if (!state.form.meta) {
-        state.form.meta = defaultMeta;
+        state.form = { meta: { ...defaultMeta } };
     }
 
     // 不存在或false，都为false
-    const meta: any = state.form.meta;
+    const meta = state.form.meta;
     state.form.meta.isKeepAlive = meta.isKeepAlive ? true : false;
     state.form.meta.isHide = meta.isHide ? true : false;
     state.form.meta.isAffix = meta.isAffix ? true : false;
@@ -200,13 +211,12 @@ const onChangeLinkType = (linkType: number) => {};
 const onConfirm = async () => {
     await useI18nFormValidate(menuFormRef);
 
-    const submitForm = { ...state.form };
-    if (submitForm.type == 1) {
+    let meta: Partial<ResourceMeta> | undefined;
+    if (state.form.type == 1) {
         // 如果是菜单，则解析meta，如果值为false或者''则去除该值
-        submitForm.meta = parseMenuMeta(submitForm.meta);
-    } else {
-        submitForm.meta = null as any;
+        meta = parseMenuMeta(state.form.meta);
     }
+    const submitForm = { ...state.form, meta };
 
     await saveResouceExec(submitForm);
 
@@ -215,8 +225,8 @@ const onConfirm = async () => {
     onCancel();
 };
 
-const parseMenuMeta = (meta: any) => {
-    let metaForm: any = {};
+const parseMenuMeta = (meta: ResourceMeta): Partial<ResourceMeta> => {
+    const metaForm: Partial<ResourceMeta> = {};
     // 如果是菜单，则校验meta
     notEmpty(meta.routeName, t('system.menu.routeNameNotEmpty'));
     metaForm.routeName = meta.routeName;
@@ -234,8 +244,6 @@ const parseMenuMeta = (meta: any) => {
     }
     if (meta.link) {
         metaForm.link = meta.link;
-    } else {
-        delete metaForm['link'];
     }
     if (meta.redirect) {
         metaForm.redirect = meta.redirect;

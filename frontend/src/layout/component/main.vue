@@ -31,7 +31,7 @@ watch(themeConfig.value, (val) => {
         if (!layoutScrollbarRef.value) {
             return;
         }
-        layoutScrollbarRef.value.update();
+        layoutScrollbarRef.value?.update();
     }
 });
 
@@ -44,9 +44,9 @@ watch(
                 return;
             }
             setTimeout(() => {
-                layoutScrollbarRef.value.update();
+                layoutScrollbarRef.value?.update();
             }, 500);
-            layoutScrollbarRef.value.setScrollTop(0);
+            layoutScrollbarRef.value?.setScrollTop(0);
         });
     }
 );

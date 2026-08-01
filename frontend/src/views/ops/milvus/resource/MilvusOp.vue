@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import { setCurrentAcName } from '@/views/ops/milvus/resource/authCert';
+import type { MilvusNodeParams } from '@/views/ops/milvus/resource';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { onActivated, onBeforeMount, onMounted, ref } from 'vue';
 import Collections from '../components/Collections.vue';
@@ -74,7 +75,7 @@ onBeforeMount(() => {
     }
 });
 
-const initMilvus = (params: any) => {
+const initMilvus = (params: MilvusNodeParams) => {
     // 设置当前选中的授权凭证名（同步全局 ac，确保 API 调用使用正确的凭证）
     const newAcName = params.selectAuthCert?.name || '';
     milvusStore.setAuthCertName(newAcName);

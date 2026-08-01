@@ -9,18 +9,18 @@ import { v1 as uuidv1 } from 'uuid';
  * @param param   参数占位符
  * @returns
  */
-export function templateResolve(template: string, param: any) {
+export function templateResolve(template: string, param: Record<string, unknown> | FormData) {
     return template.replace(/\{\w+\}/g, (word) => {
         const key = word.substring(1, word.length - 1);
-        let value;
+        let value: unknown;
         // 兼容FormData类型的参数
         if (param instanceof FormData) {
             value = param.get(key);
         } else {
             value = param[key];
         }
-        if (value != null || value != undefined) {
-            return value;
+        if (value != null) {
+            return String(value);
         }
         return '';
     });
@@ -74,7 +74,7 @@ export function letterAvatar(name: string, size = 60, color = '') {
     canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
-    context = canvas.getContext('2d') as any;
+    context = canvas.getContext('2d') as CanvasRenderingContext2D;
 
     context.fillStyle = color ? color : colours[colourIndex - 1];
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -98,7 +98,7 @@ export function getTextWidth(str: string) {
     html.innerText = str;
     html.className = 'getTextWidth';
     document?.querySelector('body')?.appendChild(html);
-    width = (document?.querySelector('.getTextWidth') as any).offsetWidth;
+    width = (document?.querySelector('.getTextWidth') as HTMLElement).offsetWidth;
     document?.querySelector('.getTextWidth')?.remove();
     return width;
 }
@@ -123,7 +123,7 @@ export async function pasteFromClipboard(): Promise<string> {
         try {
             const text = await navigator.clipboard.readText();
             return text;
-        } catch (e: any) {
+        } catch (e: unknown) {
             throw new Error(i18n.global.t('common.pasteFailed'));
         }
     }
@@ -143,7 +143,7 @@ export async function copyToClipboard(txt: string) {
         try {
             await navigator.clipboard.writeText(txt);
             Msg.success('common.copySuccess');
-        } catch (e: any) {
+        } catch (e: unknown) {
             Msg.error('common.copyFailed');
         }
         return;
@@ -169,17 +169,17 @@ export async function copyToClipboard(txt: string) {
         } else {
             Msg.error('common.copyFailed');
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         Msg.error('common.copyNotSupported');
     }
 }
 
-export function fuzzyMatchField(keyword: string, fields: any[], ...valueExtractFuncs: Function[]) {
+export function fuzzyMatchField<T>(keyword: string, fields: T[], ...valueExtractFuncs: ((field: T) => string | undefined)[]) {
     keyword = keyword?.toLowerCase();
     return fields.filter((field) => {
         for (let valueExtractFunc of valueExtractFuncs) {
-            const value = valueExtractFunc(field)?.toLowerCase();
-            if (isPrefixSubsequence(keyword, value)) {
+            const value = valueExtractFunc(field);
+            if (value && isPrefixSubsequence(keyword, value)) {
                 return true;
             }
         }

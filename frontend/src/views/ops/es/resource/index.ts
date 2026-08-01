@@ -2,6 +2,7 @@ import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import { sleep } from '@/common/utils/loading';
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { esApi } from '@/views/ops/es/api';
+import type { EsInstance } from '../types';
 import type { ResourceConfig } from '@/views/ops/resource/resource';
 import { createResourceOpTab } from '@/views/ops/resource/resourceOp';
 import { defineAsyncComponent } from 'vue';
@@ -19,15 +20,15 @@ const NodeEs = defineAsyncComponent(() => import('./NodeEs.vue'));
 // tagpath 节点类型
 const NodeTypeEsTag = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     // 加载es实例列表
-    const res = await esApi.instances.request({ tagPath: parentNode.params.tagPath });
+    const res = await esApi.instances.request({ tagPath: parentNode.params.tagPath as string });
     if (!res.total) {
         return [];
     }
     const insts = res.list;
     await sleep(100);
-    return insts?.map((x: any) => {
-        x.tagPath = parentNode.key;
-        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeInst).withNodeComponent(NodeEs).withIsLeaf(true).withParams(x);
+    return insts?.map((x: EsInstance & { tagPath?: string }) => {
+        x.tagPath = String(parentNode.key);
+        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeInst).withNodeComponent(NodeEs).withIsLeaf(true).withParams(x as unknown as Record<string, unknown>);
     });
 });
 
@@ -37,7 +38,7 @@ const NodeTypeInst = new NodeType(1).withNodeClickFunc(async (nodeData: TagTreeN
     const tabKey = `${inst.code}`;
     createResourceOpTab({
         key: tabKey,
-        name: inst.name,
+        name: inst.name as string,
         component: EsDashboard,
         componentProps: {
             instId: inst.id,

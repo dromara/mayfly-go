@@ -6,7 +6,7 @@ export const dbTransferApi = {
     saveDbTransferTask: Api.newPost('/dbTransfer/save'),
     deleteDbTransferTask: Api.newDelete('/dbTransfer/{taskId}/del'),
     updateDbTransferTaskStatus: Api.newPost('/dbTransfer/{taskId}/status'),
-    runDbTransferTask: Api.newPost('/dbTransfer/{taskId}/run'),
+    runDbTransferTask: Api.newPost<number>('/dbTransfer/{taskId}/run'),
     stopDbTransferTask: Api.newPost('/dbTransfer/{taskId}/stop'),
     dbTransferTaskLogs: Api.newGet('/dbTransfer/{taskId}/logs'),
     dbTransferFileList: Api.newGet('/dbTransfer/files/{taskId}'),

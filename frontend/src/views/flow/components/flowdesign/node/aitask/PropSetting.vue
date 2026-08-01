@@ -42,17 +42,19 @@
 <script lang="ts" setup>
 import { notEmpty } from '@/common/assert';
 import { formatDate } from '@/common/utils/format';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { useI18nPleaseInput } from '@/hooks/useI18n';
 import { ProcinstTaskStatus } from '@/views/flow/enums';
-import { computed } from 'vue';
+import type { NodeFormProps } from '@/views/flow/types';
+import { computed, type PropType } from 'vue';
+import type { FlowNode } from '@/views/flow/types';
 
 const props = defineProps({
     // 节点信息
     node: {
-        type: Object,
-        default: false,
+        type: Object as PropType<FlowNode>,
+        default: null,
     },
 });
 
@@ -60,7 +62,6 @@ const basicTabName = 'basic';
 const approvalRecordTabName = 'approvalRecord';
 
 const activeTabName = computed(() => {
-    console.log(props.node);
     // 如果存在审批记录 tasks 且长度大于0，则激活审批记录 tab
     if (props.node?.properties?.opLog) {
         return approvalRecordTabName;
@@ -68,7 +69,7 @@ const activeTabName = computed(() => {
     return basicTabName;
 });
 
-const form: any = defineModel<any>('modelValue', { required: true });
+const form = defineModel<NodeFormProps>('modelValue', { required: true });
 
 const confirm = () => {
     notEmpty(form.value.auditRule, useI18nPleaseInput('flow.aiAuditRule'));

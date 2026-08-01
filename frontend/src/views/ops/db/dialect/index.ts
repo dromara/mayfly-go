@@ -9,7 +9,6 @@ import { GaussDialect } from '@/views/ops/db/dialect/gauss_dialect';
 import { KingbaseEsDialect } from '@/views/ops/db/dialect/kingbaseES_dialect';
 import { VastbaseDialect } from '@/views/ops/db/dialect/vastbase_dialect';
 import { Oracle11Dialect } from '@/views/ops/db/dialect/oracle11_dialect';
-import { clickhouse } from 'sql-formatter';
 import { ClickHouseDialect } from './clickhouse_dialect';
 
 export interface sqlColumnType {
@@ -25,8 +24,10 @@ export interface RowDefinition {
     oldName?: string;
     type: string;
     value: string;
-    length: string;
-    numScale: string;
+    /** 长度 (模板 v-model.number 编辑后为 number, 初始/新增为 string) */
+    length: string | number;
+    /** 小数位数 (模板 v-model.number 编辑后为 number, 初始/新增为 string) */
+    numScale: string | number;
     notNull: boolean;
     pri: boolean;
     auto_increment: boolean;
@@ -73,7 +74,7 @@ export enum DataType {
 }
 
 /** 列数据类型角标 */
-export const ColumnTypeSubscript: any = {
+export const ColumnTypeSubscript: Record<string, string> = {
     /** 字符串 */
     string: 'ab',
     /** 数字 */
@@ -203,13 +204,13 @@ export interface DbDialect {
      * 生成创建表sql
      * @param tableData 建表数据
      */
-    getCreateTableSql(tableData: any): string;
+    getCreateTableSql(tableData: Record<string, unknown>): string;
 
     /**
      * 生成创建索引sql
      * @param tableData
      */
-    getCreateIndexSql(tableData: any): string;
+    getCreateIndexSql(tableData: Record<string, unknown>): string;
 
     /**
      * 生成编辑列sql
@@ -218,7 +219,7 @@ export interface DbDialect {
      * @param changeData 改变信息
      */
     getModifyColumnSql(
-        tableData: any,
+        tableData: Record<string, unknown>,
         tableName: string,
         changeData: {
             del: RowDefinition[];
@@ -233,16 +234,16 @@ export interface DbDialect {
      * @param tableName   表名
      * @param changeData  改变数据
      */
-    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
+    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string;
 
     /** 生成编辑表信息sql */
-    getModifyTableInfoSql(tableData: any): string;
+    getModifyTableInfoSql(tableData: Record<string, unknown>): string;
 
     /** 通过数据库字段类型，返回基本数据类型 */
     getDataType(columnType: string): DataType;
 
     /** 包装字符串数据， 如：oracle需要把date类型改为 to_date(str, 'yyyy-mm-dd hh24:mi:ss') mssql需要把中文字符串数据包装为 N'中文字符串' */
-    wrapValue(columnType: string, value: any): any;
+    wrapValue(columnType: string, value: any): string | number | boolean | null;
 
     /**
      * 生成插入数据预览sql
@@ -292,7 +293,6 @@ export const QuoteEscape = (str: string): string => {
 };
 
 (function () {
-    console.log('init register db dialect');
     registerDbDialect(DbType.mysql, mysqlDialect);
     registerDbDialect(DbType.mariadb, new MariadbDialect());
     registerDbDialect(DbType.postgresql, new PostgresqlDialect());

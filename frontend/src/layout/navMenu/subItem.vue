@@ -27,7 +27,7 @@ import { computed } from 'vue';
 
 // 定义 props
 interface Props {
-    chil?: any[];
+    chil?: RouteItem[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,6 +36,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 获取父级菜单数据
 const chils = computed(() => {
-    return props.chil as any;
+    return props.chil;
 });
 </script>

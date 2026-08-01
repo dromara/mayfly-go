@@ -64,6 +64,7 @@ import { FormInstance } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref, watch } from 'vue';
 import { milvusApi, timezones } from '../api';
+import type { IDatabase } from '../types';
 
 const props = defineProps<{
     milvusId: number;
@@ -125,13 +126,13 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value.validate(async (valid) => {
+    await createFormRef.value?.validate(async (valid) => {
         if (!valid) return;
 
         createLoading.value = true;
         try {
             // 构建 properties 对象
-            const properties: any = {};
+            const properties: Record<string, string> = {};
             if (configForm.value.timezone) {
                 properties.timezone = configForm.value.timezone;
             }
@@ -145,14 +146,14 @@ const submitCreate = async () => {
     });
 };
 
-const handleDrop = async (row: any) => {
+const handleDrop = async (row: IDatabase) => {
     await useI18nConfirm('milvus.confirmDeleteDatabase', { name: row.name });
     await milvusApi.dropDatabase(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();
 };
 
-const handleConfig = async (row: any) => {
+const handleConfig = async (row: IDatabase) => {
     configDialog.value.currentDb = row.name;
     // 获取当前数据库的配置
     const res = await milvusApi.describeDatabase(props.milvusId, row.name);
@@ -165,7 +166,7 @@ const submitConfig = async () => {
     configLoading.value = true;
     try {
         // 构建 properties 对象
-        const properties: any = {};
+        const properties: Record<string, string> = {};
         if (configForm.value.timezone) {
             properties.timezone = configForm.value.timezone;
         }
@@ -178,11 +179,9 @@ const submitConfig = async () => {
     }
 };
 
-const handleDetail = (row: any) => {
-    console.log(row);
-};
+const handleDetail = (_row: Record<string, unknown>) => {};
 
-const handleUse = async (row: any) => {
+const handleUse = async (row: IDatabase) => {
     milvusStore.setSelectedDb(row.name);
     emits('use', row.name);
     milvusApi.useDatabase(props.milvusId, row.name);

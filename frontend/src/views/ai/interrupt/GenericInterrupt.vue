@@ -25,7 +25,7 @@
                 <el-tag :type="getActionTag(resumeInfo.action)" size="small">
                     {{ getActionText(resumeInfo.action) }}
                 </el-tag>
-                <span v-if="resumeInfo.action === 'reject' && resumeInfo.payload?.reason" class="text-gray-700 dark:text-gray-300 truncate max-w-40" :title="resumeInfo.payload.reason">
+                <span v-if="resumeInfo.action === 'reject' && resumeInfo.payload?.reason" class="text-gray-700 dark:text-gray-300 truncate max-w-40" :title="String(resumeInfo.payload.reason)">
                     ({{ resumeInfo.payload.reason }})
                 </span>
             </div>
@@ -74,7 +74,7 @@ const pendingResumeInfo = computed(() => props.data.extra?.pendingResumeInfo);
 const interruptType = computed(() => props.data.extra?.type || '');
 
 // 根据 resumeInfo.action 计算当前动作
-const currentAction = computed(() => resumeInfo.value?.action || pendingResumeInfo.value?.action);
+const currentAction = computed(() => resumeInfo.value?.action || pendingResumeInfo.value?.action || '');
 
 // 判断是否已处理（有 resumeInfo 表示已处理）
 const isProcessed = computed(() => !!resumeInfo.value);
@@ -83,7 +83,7 @@ const hasPending = computed(() => !!pendingResumeInfo.value);
 /**
  * 处理用户操作
  */
-const handleAction = (action: string, payload?: any) => {
+const handleAction = (action: string, payload?: Record<string, unknown>) => {
     emit('action', {
         turnId: turnId.value || '',
         interruptId: interruptId.value || '',

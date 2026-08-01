@@ -60,7 +60,7 @@ import { i18n } from '@/i18n';
 import { registerCompletionItemProvider } from './completionItemProvider';
 import { MonacoEditorDialogProps } from './MonacoEditorBox';
 
-const editorRef: any = ref(null);
+const editorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
 
 const props = defineProps<MonacoEditorDialogProps>();
 

@@ -63,13 +63,14 @@
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { accountApi } from '../api';
 import { AccountStatusEnum } from '../enums';
+import type { Account, SysRole } from '../types';
 
 const AccountEdit = defineAsyncComponent(() => import('./AccountEdit.vue'));
 const RoleAllocation = defineAsyncComponent(() => import('./RoleAllocation.vue'));
@@ -99,7 +100,7 @@ const columns = [
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const state = reactive({
     /**
      * 选中的数据
@@ -129,13 +130,13 @@ const state = reactive({
     },
     roleDialog: {
         visible: false,
-        account: null as any,
+        account: null as Account | null,
         roles: [],
     },
     accountDialog: {
         title: '',
         visible: false,
-        data: null as any,
+        data: null as Account | null,
     },
 });
 
@@ -148,10 +149,10 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const onChangeStatus = async (row: any) => {
+const onChangeStatus = async (row: Account) => {
     let id = row.id;
     let status = row.status == AccountStatusEnum.Disable.value ? AccountStatusEnum.Enable.value : AccountStatusEnum.Disable.value;
     await accountApi.changeStatus.request({
@@ -162,7 +163,7 @@ const onChangeStatus = async (row: any) => {
     search();
 };
 
-const onResetOtpSecret = async (row: any) => {
+const onResetOtpSecret = async (row: Account) => {
     let id = row.id;
     await accountApi.resetOtpSecret.request({
         id,
@@ -171,7 +172,7 @@ const onResetOtpSecret = async (row: any) => {
     row.otpSecret = '-';
 };
 
-const onEditAccount = (data: any) => {
+const onEditAccount = (data: Account | false) => {
     if (!data) {
         state.accountDialog.title = useI18nCreateTitle('personal.accountInfo');
         state.accountDialog.data = null;
@@ -182,7 +183,7 @@ const onEditAccount = (data: any) => {
     state.accountDialog.visible = true;
 };
 
-const onShowRoleEdit = (data: any) => {
+const onShowRoleEdit = (data: Account) => {
     state.roleDialog.visible = true;
     state.roleDialog.account = data;
 };
@@ -198,8 +199,8 @@ const onValChange = () => {
 };
 
 const onDeleteAccount = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.username).join('、'));
-    await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+    await useI18nDeleteConfirm(state.selectionData.map((x: Account) => x.username).join('、'));
+    await accountApi.del.request({ id: state.selectionData.map((x: Account) => x.id).join(',') });
     Msg.deleteSuccess();
     search();
 };

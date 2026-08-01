@@ -13,7 +13,7 @@
 </template>
 
 <script lang="ts" setup>
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
 const props = defineProps({
     authCerts: {

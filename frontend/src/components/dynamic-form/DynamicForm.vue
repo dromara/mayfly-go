@@ -32,11 +32,11 @@ const formRef: any = ref();
 const modelValue: any = defineModel();
 
 const validate = async (func: any) => {
-    await formRef.value.validate(func);
+    await formRef.value?.validate(func);
 };
 
 const resetFields = () => {
-    formRef.value.resetFields();
+    formRef.value?.resetFields();
 };
 
 defineExpose({

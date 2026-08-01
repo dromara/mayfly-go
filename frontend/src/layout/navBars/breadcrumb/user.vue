@@ -200,7 +200,7 @@ const switchDark = () => {
 
 // // 菜单搜索点击
 const onSearchClick = () => {
-    searchRef.value.openSearch();
+    searchRef.value?.openSearch();
 };
 
 // 组件大小改变

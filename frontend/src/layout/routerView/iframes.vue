@@ -29,7 +29,7 @@
 </template>
 
 <script setup lang="ts" name="layoutIframeView">
-import { computed, watch, ref, nextTick } from 'vue';
+import { computed, watch, ref, nextTick, type PropType } from 'vue';
 import { useRoute } from 'vue-router';
 
 // 定义父组件传过来的值
@@ -46,7 +46,7 @@ const props = defineProps({
     },
     // iframe 列表
     list: {
-        type: Array,
+        type: Array as PropType<RouteItem[]>,
         default: () => [],
     },
 });
@@ -56,7 +56,7 @@ const route = useRoute();
 
 // 处理 list 列表，当打开时，才进行加载
 const setIframeList = computed(() => {
-    return props.list.filter((v: any) => v.meta?.isIframeOpen) as any[];
+    return props.list.filter((v: RouteItem) => v.meta?.isIframeOpen) as RouteItem[];
 });
 
 // 获取 iframe 当前路由 path
@@ -65,10 +65,10 @@ const getRoutePath = computed(() => {
 });
 
 // 关闭 iframe loading
-const closeIframeLoading = (val: string, item: any) => {
+const closeIframeLoading = (val: string, item: RouteItem) => {
     nextTick(() => {
         if (!iframeRef.value) return false;
-        iframeRef.value.forEach((v: HTMLElement) => {
+        iframeRef.value?.forEach((v: HTMLElement) => {
             if (v.dataset.url === val) {
                 v.onload = () => {
                     if (item.meta?.isIframeOpen && item.meta.loading) item.meta.loading = false;
@@ -82,7 +82,7 @@ const closeIframeLoading = (val: string, item: any) => {
 watch(
     () => route.fullPath,
     (val) => {
-        const item: any = props.list.find((v: any) => v.path === val);
+        const item = props.list.find((v: RouteItem) => v.path === val) as RouteItem | undefined;
         if (!item) return false;
         if (!item.meta.isIframeOpen) item.meta.isIframeOpen = true;
         closeIframeLoading(val, item);
@@ -96,7 +96,7 @@ watch(
 watch(
     () => props.refreshKey,
     () => {
-        const item: any = props.list.find((v: any) => v.path === route.path);
+        const item = props.list.find((v: RouteItem) => v.path === route.path) as RouteItem | undefined;
         if (!item) return false;
         if (item.meta.isIframeOpen) item.meta.isIframeOpen = false;
         setTimeout(() => {

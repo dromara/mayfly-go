@@ -53,8 +53,13 @@ interface MachineParamValue {
     tagPath: string;
 }
 
+interface ParamDef {
+    param: string;
+    cacheable?: boolean;
+}
+
 interface Props {
-    params: any[];
+    params: ParamDef[];
     readonly?: boolean;
     isConfirmed?: boolean;
     modelValue?: MachineParamValue;
@@ -90,8 +95,8 @@ const machineValue = defineModel<MachineParamValue>('modelValue', {
 });
 
 // 处理机器选择
-const onSelectMachine = (params: any) => {
-    console.log('[MachineParamInput] Machine selected:', params);
+const onSelectMachine = (_params: Record<string, unknown>) => {
+    // Machine selected
 };
 
 // 检查是否有效
@@ -118,7 +123,7 @@ const getValues = () => {
 
 // 获取需要缓存的参数名
 const getCacheableParams = () => {
-    return props.params.filter((p: any) => p.cacheable === true).map((p: any) => p.param);
+    return props.params.filter((p) => p.cacheable === true).map((p) => p.param);
 };
 
 defineExpose({

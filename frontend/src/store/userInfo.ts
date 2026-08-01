@@ -16,9 +16,8 @@ export const useUserInfo = defineStore('userInfo', {
     }),
     actions: {
         // 设置用户信息
-        async setUserInfo(data: any) {
+        async setUserInfo(data: UserInfo) {
             const ui = getUser();
-            console.log(ui);
             if (ui) {
                 this.userInfo = ui;
             } else {

@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 /**
  * 导出CSV文件
@@ -6,19 +6,20 @@ import * as XLSX from 'xlsx';
  * @param columns 列信息
  * @param datas 数据
  */
-export function exportCsv(filename: string, columns: string[], datas: []) {
+export function exportCsv(filename: string, columns: string[], datas: Record<string, unknown>[]) {
     // 二维数组
     const cvsData = [columns];
     for (let data of datas) {
         // 数据值组成的一维数组
-        let dataValueArr: any = [];
+        let dataValueArr: string[] = [];
         for (let column of columns) {
-            let val: any = data[column];
-            if (val == null || val == undefined) {
+            const rawVal: unknown = data[column];
+            let val: string;
+            if (rawVal == null) {
                 val = '';
-            } else if (val && typeof val == 'string') {
+            } else if (typeof rawVal == 'string') {
                 // 替换换行符
-                val = val.replace(/[\r\n]/g, '\\n');
+                val = rawVal.replace(/[\r\n]/g, '\\n');
 
                 // csv格式如果有逗号，整体用双引号括起来；如果里面还有双引号就替换成两个双引号，这样导出来的格式就不会有问题了
                 if (val.indexOf(',') != -1) {
@@ -29,8 +30,10 @@ export function exportCsv(filename: string, columns: string[], datas: []) {
                     // 再将逗号转义
                     val = `"${val}"`;
                 }
+            } else {
+                val = String(rawVal);
             }
-            dataValueArr.push(String(val));
+            dataValueArr.push(val);
         }
         cvsData.push(dataValueArr);
     }
@@ -83,31 +86,18 @@ function getStringWidth(str: string): number {
  * @param sheets 多个工作表数据，每个工作表包含名称、列信息和数据
  * 示例: [{name: 'Sheet1', columns: ['列1', '列2'], datas: [{col1: '值1', col2: '值2'}]}]
  */
-export function exportExcel(filename: string, sheets: { name: string; columns: string[]; datas: any[] }[]) {
+export async function exportExcel(filename: string, sheets: { name: string; columns: string[]; datas: Record<string, unknown>[] }[]) {
     // 创建工作簿
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
     // 处理每个工作表
     sheets.forEach((sheet) => {
-        // 准备表头
-        const headers: any = {};
-        sheet.columns.forEach((col) => {
-            headers[col] = col;
-        });
-
-        // 准备数据
-        const data = [headers, ...sheet.datas];
-
-        // 创建工作表
-        const ws = XLSX.utils.json_to_sheet(data, { skipHeader: true });
+        const worksheet = workbook.addWorksheet(sheet.name);
 
         // 设置列宽自适应
-        const colWidths: { wch: number }[] = [];
-        sheet.columns.forEach((col, index) => {
-            // 计算列宽：取表头和前几行数据的最大宽度
-            let maxWidth = getStringWidth(col); // 表头宽度
-            const checkCount = Math.min(sheet.datas.length, 10); // 只检查前10行数据
-
+        worksheet.columns = sheet.columns.map((col) => {
+            let maxWidth = getStringWidth(col);
+            const checkCount = Math.min(sheet.datas.length, 10);
             for (let i = 0; i < checkCount; i++) {
                 const cellData = sheet.datas[i][col];
                 const cellStr = cellData ? String(cellData) : '';
@@ -116,18 +106,24 @@ export function exportExcel(filename: string, sheets: { name: string; columns: s
                     maxWidth = cellWidth;
                 }
             }
-
-            // 设置最小宽度为8，最大宽度为80
-            colWidths.push({ wch: Math.min(Math.max(maxWidth + 2, 8), 80) });
+            return { header: col, key: col, width: Math.min(Math.max(maxWidth + 2, 8), 80) };
         });
 
-        // 应用列宽设置
-        ws['!cols'] = colWidths;
-
-        // 添加工作表到工作簿
-        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+        // 添加数据行
+        sheet.datas.forEach((row) => {
+            worksheet.addRow(row);
+        });
     });
 
     // 导出文件
-    XLSX.writeFile(wb, `${filename}.xlsx`);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const link = document.createElement('a');
+    link.setAttribute('href', URL.createObjectURL(blob));
+    link.setAttribute('download', `${filename}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }

@@ -33,7 +33,7 @@ export function initAllFun() {
         // 无 token 停止执行下一步
         return false;
     }
-    useUserInfo().setUserInfo({});
+    useUserInfo().setUserInfo({} as any);
     resetRoute(); // 删除/重置路由
     // router.addRoute(dynamicRoutes[0]);
     // // 过滤权限菜单
@@ -42,9 +42,11 @@ export function initAllFun() {
 
 // 删除/重置路由
 export function resetRoute() {
-    useRoutesList().routesList?.forEach((route: any) => {
+    useRoutesList().routesList?.forEach((route: { name?: string | symbol }) => {
         const { name } = route;
-        router.hasRoute(name) && router.removeRoute(name);
+        if (name) {
+            router.hasRoute(name) && router.removeRoute(name);
+        }
     });
 }
 
@@ -85,7 +87,7 @@ router.beforeEach(async (to, from) => {
         }
 
         resetRoute();
-        syssocket.destory();
+        syssocket.destroy();
         return true;
     }
 

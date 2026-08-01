@@ -33,12 +33,13 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { mqApi } from '@/views/ops/mq/api';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import type { Kafka } from '@/views/ops/mq/types';
+import { defineAsyncComponent, onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import { useRoute } from 'vue-router';
 import TagCodePath from '../../component/TagCodePath.vue';
 
@@ -52,7 +53,7 @@ const props = defineProps({
 });
 
 const route = useRoute();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('mq.kafka.keywordPlaceholder')];
 
@@ -80,14 +81,14 @@ const state = reactive({
     },
     kafkaEditDialog: {
         visible: false,
-        data: null as any,
+        data: null as Kafka | null,
         title: '',
     },
 });
 
 const { selectionData, query, kafkaEditDialog } = toRefs(state);
 
-const checkRouteTagPath = (query: any) => {
+const checkRouteTagPath = (query: Record<string, unknown>) => {
     if (route.query.tagPath) {
         query.tagPath = route.query.tagPath as string;
     }
@@ -96,8 +97,8 @@ const checkRouteTagPath = (query: any) => {
 
 const deleteKafka = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
-        await mqApi.kafkaDel.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: Kafka) => x.name).join('、'));
+        await mqApi.kafkaDel.request({ id: state.selectionData.map((x: Kafka) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {
@@ -109,10 +110,10 @@ const search = async (tagPath: string = '') => {
     if (tagPath) {
         state.query.tagPath = tagPath;
     }
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const editKafka = async (data: any) => {
+const editKafka = async (data: Kafka | false) => {
     if (!data) {
         state.kafkaEditDialog.data = null;
         state.kafkaEditDialog.title = useI18nCreateTitle('Kafka');

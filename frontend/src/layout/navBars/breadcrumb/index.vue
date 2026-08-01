@@ -23,8 +23,8 @@ const Horizontal = defineAsyncComponent(() => import('@/layout/navMenu/horizonta
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());
 const route = useRoute();
-const state: any = reactive({
-    menuList: [],
+const state = reactive({
+    menuList: [] as RouteItem[],
 });
 
 // 设置 logo 显示/隐藏
@@ -47,17 +47,17 @@ const setFilterRoutes = () => {
     }
 };
 // 设置了分割菜单时，删除底下 children
-const delClassicChildren = (arr: Array<object>) => {
-    arr.map((v: any) => {
+const delClassicChildren = (arr: RouteItem[]) => {
+    arr.map((v: RouteItem) => {
         if (v.children) delete v.children;
     });
     return arr;
 };
 // 路由过滤递归函数
-const filterRoutesFun = (arr: Array<object>) => {
+const filterRoutesFun = (arr: RouteItem[]) => {
     return arr
-        .filter((item: any) => !item.meta.isHide)
-        .map((item: any) => {
+        .filter((item: RouteItem) => !item.meta?.isHide)
+        .map((item: RouteItem) => {
             item = Object.assign({}, item);
             if (item.children) item.children = filterRoutesFun(item.children);
             return item;
@@ -66,7 +66,7 @@ const filterRoutesFun = (arr: Array<object>) => {
 // 传送当前子级数据到菜单中
 const setSendClassicChildren = (path: string) => {
     const currentPathSplit = path.split('/');
-    let currentData: any = {};
+    let currentData: Record<string, unknown> = {};
     filterRoutesFun(routesList.value).map((v, k) => {
         if (v.path === `/${currentPathSplit[1]}`) {
             v['k'] = k;

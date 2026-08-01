@@ -43,7 +43,7 @@
                         class="!w-full"
                         height="200px"
                         v-model="formData.tmpl"
-                        :language="EnumValue.getLabelByValue(TmplTypeEnum, formData.msgType)"
+                        :language="EnumValue.getLabelByValue(TmplTypeEnum, formData.msgType ?? '')"
                     ></MonacoEditor>
                 </FormItemTooltip>
             </el-form>
@@ -60,17 +60,29 @@
 import EnumValue from '@/common/Enum';
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect, type ComponentPublicInstance, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { channelApi, tmplApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum, TmplStatusEnum, TmplTypeEnum } from '../enums';
+import type { MsgTemplate } from '@/views/system/msg/types';
+
+/** 消息模板编辑表单类型 */
+interface TmplForm extends Omit<Partial<MsgTemplate>, 'id' | 'name' | 'msgType' | 'status'> {
+    id?: number | null;
+    name?: string | null;
+    msgType?: string | number;
+    status?: string | number;
+    channelIds?: number[];
+}
 
 const props = defineProps({
     form: {
-        type: [Boolean, Object],
+        type: Object as PropType<MsgTemplate | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -82,7 +94,7 @@ const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const formRef: any = useTemplateRef('formRef');
+const formRef = useTemplateRef<FormInstance>('formRef');
 
 const rules = {
     name: [Rules.requiredInput('msg.name')],
@@ -90,7 +102,7 @@ const rules = {
     tmpl: [Rules.requiredInput('msg.tmpl')],
 };
 
-const defaultForm = () => {
+const defaultForm = (): TmplForm => {
     return {
         id: null,
         name: null,
@@ -107,7 +119,7 @@ const defaultForm = () => {
 const state = reactive({
     edit: false,
     form: defaultForm(),
-    channels: [] as any,
+    channels: [] as import('@/views/system/msg/types').MsgChannel[],
 });
 
 const { form: formData } = toRefs(state);
@@ -121,11 +133,11 @@ watchEffect(() => {
         });
     }
 
-    const form: any = props.form;
+    const form = props.form as TmplForm | null;
     if (form) {
         state.form = { ...form };
         tmplApi.relateChannels.request({ id: form.id }).then((res) => {
-            state.form.channelIds = res.map((item: any) => item.id);
+            state.form.channelIds = res.map((item: import('@/views/system/msg/types').MsgChannel) => item.id);
         });
         state.edit = true;
     } else {
@@ -140,7 +152,7 @@ const btnOk = async () => {
     Msg.saveSuccess();
     emit('success', state.form);
     //重置表单域
-    formRef.value.resetFields();
+    formRef.value?.resetFields();
     cancel();
 };
 

@@ -2,7 +2,7 @@
     <div class="file-manage">
         <el-dialog
             :title="$t('machine.process') + `: ${title}`"
-            v-model="dialogVisible"
+            v-model="visible"
             :destroy-on-close="true"
             :show-close="true"
             :before-close="handleClose"
@@ -108,27 +108,28 @@
 import { Msg } from '@/hooks/useI18n';
 import { reactive, toRefs, watch } from 'vue';
 import { machineApi } from './api';
+import type { MachineProcess } from './types';
 
 const props = defineProps({
-    visible: { type: Boolean },
-    machineId: { type: Number },
     title: { type: String },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const emit = defineEmits(['cancel']);
+
+const visible = defineModel<boolean>('visible', { default: false });
+const machineId = defineModel<number | null>('machineId');
 
 const state = reactive({
-    dialogVisible: false,
     params: {
         name: '',
         sortType: '1',
         count: '10',
         id: 0,
     },
-    processList: [],
+    processList: [] as MachineProcess[],
 });
 
-const { dialogVisible, params, processList } = toRefs(state);
+const { params, processList } = toRefs(state);
 
 const getProcess = async () => {
     const res = await machineApi.process.request(state.params);
@@ -169,22 +170,27 @@ const getProcess = async () => {
             command,
         });
     }
-    state.processList = ps as any;
+    state.processList = ps as unknown as MachineProcess[];
 };
 
 watch(
-    props,
-    (newValue) => {
-        if (props.machineId) {
-            state.params.id = props.machineId;
+    machineId,
+    (val) => {
+        if (val) {
+            state.params.id = val;
             getProcess();
         }
-        state.dialogVisible = newValue.visible;
     },
     { immediate: true }
 );
 
-const confirmKillProcess = async (pid: any) => {
+watch(visible, (val) => {
+    if (!val) {
+        // sync close state if needed
+    }
+});
+
+const confirmKillProcess = async (pid: string | number) => {
     await machineApi.killProcess.request({
         pid,
         id: state.params.id,
@@ -202,8 +208,8 @@ const kb2Mb = (kb: string) => {
  * 关闭取消按钮触发的事件
  */
 const handleClose = () => {
-    emit('update:visible', false);
-    emit('update:machineId', null);
+    visible.value = false;
+    machineId.value = null;
     emit('cancel');
     state.params = {
         name: '',

@@ -76,10 +76,10 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqPa
 		existProcinst := &entity.Procinst{BizKey: bizKey}
 		if err := p.GetByCond(existProcinst); err == nil {
 			if existProcinst.Status != entity.ProcinstStatusBack {
-				return nil, errorx.NewBiz("该工单非退回状态，无法修改")
+				return nil, errorx.NewBizI(ctx, imsg.ErrProcinstNotBackStatus)
 			}
 			if existProcinst.CreatorId != contextx.GetLoginAccount(ctx).Id {
-				return nil, errorx.NewBiz("该工单非当前用户创建，无法修改")
+				return nil, errorx.NewBizI(ctx, imsg.ErrProcinstNotCreator)
 			}
 			procinst.Id = existProcinst.Id
 		}

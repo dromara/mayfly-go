@@ -12,7 +12,7 @@ import {
     RowDefinition,
     sqlColumnType,
 } from './index';
-import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
+import { language as sqlLanguage } from 'monaco-editor/languages/definitions/sql/sql.js';
 
 export { OracleDialect, ORACLE_TYPE_LIST };
 
@@ -179,7 +179,6 @@ class OracleDialect implements DbDialect {
         `;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
     getPageSql(pageNum: number, limit: number) {
         return ``;
     }
@@ -262,7 +261,7 @@ class OracleDialect implements DbDialect {
         return false;
     }
 
-    getDefaultValueSql(cl: any): string {
+    getDefaultValueSql(cl: RowDefinition): string {
         if (cl.value && cl.value.length > 0) {
             // 哪些字段默认值需要加引号
             let marks = false;
@@ -280,7 +279,7 @@ class OracleDialect implements DbDialect {
         return '';
     }
 
-    getTypeLengthSql(cl: any) {
+    getTypeLengthSql(cl: RowDefinition) {
         // 哪些字段可以指定长度  VARCHAR/VARCHAR2/CHAR/BIT/NUMBER/NUMERIC/TIME、TIMESTAMP(可以指定小数秒精度)
         if (cl.length && this.matchType(cl.type, ['CHAR', 'BIT', 'TIME', 'NUM', 'DEC'])) {
             // 哪些字段类型可以指定小数点
@@ -309,15 +308,14 @@ class OracleDialect implements DbDialect {
         return incr ? baseSql : ` ${baseSql} ${defVal} ${cl.notNull ? 'NOT NULL' : ''} `;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    getOtherCreateTableSql(data: any) {
+    getOtherCreateTableSql(_data: Record<string, unknown>) {
         return '';
     }
 
-    getCreateTableSql(data: any): string {
-        let schemaArr = data.db.split('/');
+    getCreateTableSql(data: Record<string, unknown>): string {
+        let schemaArr = (data.db as string).split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
-        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName)}`;
+        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName as string)}`;
 
         let createSql = '';
         let tableCommentSql = '';
@@ -326,7 +324,7 @@ class OracleDialect implements DbDialect {
 
         // 创建表结构
         let fields: string[] = [];
-        data.fields.res.forEach((item: any) => {
+        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item, true, data));
             // 列注释
             if (item.remark) {
@@ -346,7 +344,7 @@ class OracleDialect implements DbDialect {
         createSql = `CREATE TABLE ${dbTable} ( ${fields.join(',')} ${prisql ? ',' + prisql : ''} ) ;`;
         // 表注释
         if (data.tableComment) {
-            tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${QuoteEscape(data.tableComment)}'; `;
+            tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${QuoteEscape(data.tableComment as string)}'; `;
         }
 
         // 其余建表信息，如：自增字段在老版本的使用方式是创建自增序列
@@ -354,23 +352,23 @@ class OracleDialect implements DbDialect {
         return createSql + tableCommentSql + columCommentSql + other;
     }
 
-    getCreateIndexSql(tableData: any): string {
+    getCreateIndexSql(tableData: Record<string, unknown>): string {
         // CREATE UNIQUE INDEX idx_column_name ON your_table (column1, column2);
         // COMMENT ON INDEX idx_column_name IS 'Your index comment here';
 
-        let schemaArr = tableData.db.split('/');
+        let schemaArr = (tableData.db as string).split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
-        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.tableName)}`;
+        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.tableName as string)}`;
 
         let sql: string[] = [];
-        tableData.indexs.res.forEach((a: any) => {
+        (tableData.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
             sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} ON ${dbTable} ("${a.columnNames.join('","')})"`);
         });
         return sql.join(';');
     }
 
-    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let schemaArr = tableData.db.split('/');
+    getModifyColumnSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+        let schemaArr = (tableData.db as string).split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
         let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
 
@@ -425,13 +423,13 @@ class OracleDialect implements DbDialect {
 
         let dropPkSql = '';
         if (priArr.size > 0) {
-            let resPri = tableData.fields.res.find((a: RowDefinition) => a.pri);
+            let resPri = (tableData.fields as { res: RowDefinition[] }).res.find((a: RowDefinition) => a.pri);
             if (resPri) {
                 priArr.add(`"${resPri.name}"`);
             }
             // 如果有编辑主键字段，则删除主键，再添加主键
             // 解析表字段中是否含有主键，有的话就删除主键
-            if (tableData.fields.oldFields.find((a: RowDefinition) => a.pri)) {
+            if ((tableData.fields as { oldFields: RowDefinition[] }).oldFields.find((a: RowDefinition) => a.pri)) {
                 dropPkSql = `ALTER TABLE ${dbTable} DROP PRIMARY KEY;`;
             }
         }
@@ -445,10 +443,10 @@ class OracleDialect implements DbDialect {
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
-    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
         // 不能直接修改索引名或字段、需要先删后加
         let dropIndexNames: string[] = [];
-        let addIndexs: any[] = [];
+        let addIndexs: IndexDefinition[] = [];
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
@@ -487,18 +485,18 @@ class OracleDialect implements DbDialect {
         return '';
     }
 
-    getModifyTableInfoSql(tableData: any): string {
-        let schemaArr = tableData.db.split('/');
+    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
+        let schemaArr = (tableData.db as string).split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
 
         let sql = '';
         if (tableData.tableComment != tableData.oldTableComment) {
-            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
-            sql = `COMMENT ON TABLE ${dbTable} is '${QuoteEscape(tableData.tableComment)}';`;
+            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
+            sql = `COMMENT ON TABLE ${dbTable} is '${QuoteEscape(tableData.tableComment as string)}';`;
         }
         if (tableData.tableName != tableData.oldTableName) {
-            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
-            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName)}`;
+            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
+            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName as string)}`;
         }
         return sql;
     }
@@ -514,12 +512,12 @@ class OracleDialect implements DbDialect {
         return DataType.String;
     }
 
-    wrapValue(columnType: string, value: any): any {
+    wrapValue(columnType: string, value: unknown): string | number {
         if (value == null) {
             return 'NULL';
         }
         if (DbInst.isNumber(columnType)) {
-            return value;
+            return value as number;
         }
         if (value && this.getDataType(columnType) === DataType.DateTime) {
             return `to_timestamp('${value}', 'yyyy-mm-dd hh24:mi:ss')`;

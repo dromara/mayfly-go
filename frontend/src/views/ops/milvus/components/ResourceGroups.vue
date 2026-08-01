@@ -47,7 +47,7 @@ const props = defineProps<{
 
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
-const list = ref<any[]>([]);
+const list = ref<{ name: string }[]>([]);
 const createDialog = ref({
     visible: false,
 });
@@ -61,13 +61,13 @@ const createForm = ref({
 const createRules = {
     name: [Rules.requiredInput('milvus.resourceGroupName')],
 };
-const detailData = ref<any>({});
+const detailData = ref<Record<string, unknown>>({});
 
 const loadList = async () => {
     loading.value = true;
     try {
         const res = await milvusApi.listResourceGroups(props.milvusId);
-        list.value = (res || []).map((item: any) => ({ name: item }));
+        list.value = (res || []).map((item: string) => ({ name: item }));
     } finally {
         loading.value = false;
     }
@@ -81,7 +81,7 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value.validate(async (valid) => {
+    await createFormRef.value?.validate(async (valid) => {
         if (!valid) return;
 
         createLoading.value = true;
@@ -96,7 +96,7 @@ const submitCreate = async () => {
     });
 };
 
-const handleDescribe = async (row: any) => {
+const handleDescribe = async (row: { name: string }) => {
     const res = await milvusApi.describeResourceGroup(props.milvusId, row.name);
     MonacoEditorBox({
         content: JSON.stringify(res, null, 2),
@@ -113,7 +113,7 @@ const handleDescribe = async (row: any) => {
     });
 };
 
-const handleDrop = async (row: any) => {
+const handleDrop = async (row: { name: string }) => {
     await useI18nConfirm('milvus.confirmDeleteResourceGroup', { name: row.name });
     await milvusApi.dropResourceGroup(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');

@@ -348,11 +348,16 @@ const { t } = useI18n();
  *
  */
 
-const defaultSearch = {
-    sort: {} as any, // etlTime: { order: 'desc' }
+const defaultSearch: {
+    sort: Record<string, { order: string }>;
+    query: { bool: { must: Record<string, unknown>[]; should: Record<string, unknown>[]; must_not: Record<string, unknown>[]; minimum_should_match?: number } };
+    aggs: Record<string, unknown>;
+    track_total_hits?: boolean;
+} = {
+    sort: {},
     query: { bool: { must: [], should: [], must_not: [] } },
     aggs: {},
-} as any;
+};
 
 interface Props {
     instId: number;
@@ -372,7 +377,11 @@ watch(visible, async (v) => {
         if (fields.value?.length) {
             return;
         }
-        let mp = await esApi.proxyReq('get', props.instId, `/${props.idxName}/_mappings`);
+        let mp = await esApi.proxyReq<Record<string, { mappings: { properties: Record<string, { fields?: Record<string, unknown> }> } }>>(
+            'get',
+            props.instId,
+            `/${props.idxName}/_mappings`
+        );
         let properties = mp[props.idxName].mappings.properties;
         let data = ['_id'];
         for (let key in properties) {
@@ -400,7 +409,7 @@ type searchParam = {
     type: (typeof paramTypes)[number];
     field: string;
     matchType: (typeof matchTypes)[number];
-    value: any;
+    value: string;
     gtType: (typeof gtTypes)[number];
     gtValue: string;
     ltType: (typeof ltTypes)[number];
@@ -488,10 +497,10 @@ const onSearch = () => {
 
 const parseParams = () => {
     // 组装查询条件并emit search事件
-    let must = [] as any;
-    let should = [] as any;
-    let must_not = [] as any;
-    let sort = {} as any;
+    let must = [] as Record<string, unknown>[];
+    let should = [] as Record<string, unknown>[];
+    let must_not = [] as Record<string, unknown>[];
+    let sort = {} as Record<string, { order: string }>;
 
     for (let item of state.queryParams) {
         if (!item.enable || !item.field || (!item.value.trim() && !item.gtValue.trim() && !item.ltValue.trim())) {
@@ -502,16 +511,16 @@ const parseParams = () => {
             item.value = `*${item.value}*`;
         }
 
-        let value = item.value;
+        let value: string | string[] = item.value;
         if (item.matchType === 'terms') {
-            value = item.value.split(',').map((item: string) => item.trim());
+            value = item.value.split(',').map((item) => item.trim());
         }
 
         let match = {
             [item.matchType]: {
                 [item.field]: value,
             },
-        } as any;
+        } as Record<string, unknown>;
 
         // 处理range
         if (item.matchType == 'range') {
@@ -522,7 +531,7 @@ const parseParams = () => {
             if (!gtValue && !ltValue) {
                 continue;
             }
-            let range = {} as any;
+            let range = {} as Record<string, string>;
             if (gtValue) {
                 range[gtType] = gtValue;
             }

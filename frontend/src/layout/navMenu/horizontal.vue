@@ -34,7 +34,7 @@
 </template>
 
 <script lang="ts" setup name="navMenuHorizontal">
-import { reactive, computed, onMounted, inject } from 'vue';
+import { reactive, computed, onMounted, inject, type Ref } from 'vue';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
 import SubItem from '@/layout/navMenu/subItem.vue';
 import { useRoutesList } from '@/store/routesList';
@@ -44,17 +44,17 @@ import { useThemeConfig } from '@/store/themeConfig';
 const props = defineProps({
     // 菜单列表
     menuList: {
-        type: Array<any>,
+        type: Array as () => RouteItem[],
         default: () => [],
     },
 });
 
 const route = useRoute();
-const state: any = reactive({
-    defaultActive: null,
+const state = reactive({
+    defaultActive: null as string | null,
 });
 // 注入 classicMenuData
-const classicMenuData: any = inject('classicMenuData', null);
+const classicMenuData = inject<Ref<SendChildrenResult | null> | null>('classicMenuData', null);
 
 // 获取父级菜单数据
 const menuLists = computed(() => {
@@ -71,25 +71,26 @@ const setCurrentRouterHighlight = (path: string) => {
     }
 };
 // 路由过滤递归函数
-const filterRoutesFun = (arr: Array<object>) => {
+const filterRoutesFun = (arr: RouteItem[]) => {
     return arr
-        .filter((item: any) => !item.meta.isHide)
-        .map((item: any) => {
+        .filter((item: RouteItem) => !item.meta?.isHide)
+        .map((item: RouteItem) => {
             item = Object.assign({}, item);
             if (item.children) item.children = filterRoutesFun(item.children);
             return item;
         });
 };
 // 传送当前子级数据到菜单中
-const setSendClassicChildren = (path: string) => {
+const setSendClassicChildren = (path: string): SendChildrenResult => {
     const currentPathSplit = path.split('/');
-    let currentData: any = {};
+    const currentData: SendChildrenResult = { item: [], children: [] };
     filterRoutesFun(useRoutesList().routesList).map((v, k) => {
         if (v.path === `/${currentPathSplit[1]}`) {
             v['k'] = k;
-            currentData['item'] = [{ ...v }];
-            currentData['children'] = [{ ...v }];
-            if (v.children) currentData['children'] = v.children;
+            const vItem = { ...v } as RouteItem & { k: number };
+            currentData.item = [vItem];
+            currentData.children = [vItem];
+            if (v.children) currentData.children = v.children;
         }
     });
     return currentData;

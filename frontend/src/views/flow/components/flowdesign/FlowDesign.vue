@@ -13,7 +13,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, useTemplateRef, watch } from 'vue';
+import { onMounted, ref, useTemplateRef, watch, type PropType } from 'vue';
 import LogicFlow from '@logicflow/core';
 import '@logicflow/core/lib/style/index.css';
 import '@logicflow/extension/lib/style/index.css';
@@ -34,7 +34,7 @@ const props = defineProps({
     },
     // 流程数据
     data: {
-        type: [Object, String],
+        type: [Object, String] as PropType<Record<string, unknown> | string | null>,
     },
     // 居中显示
     center: {
@@ -55,9 +55,13 @@ const flowContainerRef = useTemplateRef('flowContainerRef');
 
 const emit = defineEmits(['save']);
 
-const propSettingEditor = ref({
+const propSettingEditor = ref<{
+    visible: boolean;
+    node: LogicFlow.NodeData | LogicFlow.EdgeData | null;
+    nodes: Array<LogicFlow.NodeData | LogicFlow.EdgeData>;
+}>({
     visible: false,
-    node: {},
+    node: null,
     nodes: [],
 });
 

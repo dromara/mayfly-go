@@ -5,7 +5,7 @@
             <el-col :xs="24" :sm="12" :md="8" :lg="6">
                 <el-card shadow="hover" class="metric-card">
                     <div class="metric-icon version">
-                        <el-icon><Info-Filled /></el-icon>
+                        <SvgIcon name="InfoFilled" :size="14" />
                     </div>
                     <div class="metric-content">
                         <div class="metric-label">{{ $t('milvus.versionInfo') }}</div>
@@ -18,7 +18,7 @@
             <el-col :xs="24" :sm="12" :md="8" :lg="6">
                 <el-card shadow="hover" class="metric-card" :class="{ 'is-healthy': healthStatus, 'is-unhealthy': healthStatus === false }">
                     <div class="metric-icon" :class="healthStatus ? 'healthy' : 'unhealthy'">
-                        <el-icon><First-Aid-Kit /></el-icon>
+                        <SvgIcon name="FirstAidKit" :size="14" />
                     </div>
                     <div class="metric-content">
                         <div class="metric-label">{{ $t('milvus.healthStatus') }}</div>
@@ -34,7 +34,7 @@
             <el-col :xs="24" :sm="12" :md="8" :lg="6">
                 <el-card shadow="hover" class="metric-card">
                     <div class="metric-icon database">
-                        <el-icon><Collection /></el-icon>
+                        <SvgIcon name="Collection" :size="14" />
                     </div>
                     <div class="metric-content">
                         <div class="metric-label">{{ $t('milvus.databaseCount') }}</div>
@@ -45,7 +45,7 @@
             <el-col :xs="24" :sm="12" :md="8" :lg="6">
                 <el-card shadow="hover" class="metric-card">
                     <div class="metric-icon collection">
-                        <el-icon><Document-Copy /></el-icon>
+                        <SvgIcon name="DocumentCopy" :size="14" />
                     </div>
                     <div class="metric-content">
                         <div class="metric-label">{{ $t('milvus.collectionCount') }}</div>
@@ -60,7 +60,7 @@
             <template #header>
                 <div class="card-header">
                     <span>
-                        <el-icon class="mr-1"><Warning /></el-icon>
+                        <SvgIcon name="Warning" :size="14" class="mr-1" />
                         {{ $t('milvus.healthDetail') }}
                     </span>
                     <el-tag v-if="healthStatus" type="success" size="small">{{ $t('milvus.allNormal') }}</el-tag>
@@ -87,7 +87,7 @@
             <template #header>
                 <div class="card-header">
                     <span>
-                        <el-icon class="mr-1"><Box /></el-icon>
+                        <SvgIcon name="Box" :size="14" class="mr-1" />
                         {{ $t('milvus.resourceGroup') }}
                     </span>
                     <el-tag size="small">{{ resourceGroups.length }} {{ $t('milvus.total') }}</el-tag>
@@ -128,7 +128,7 @@
                     </el-descriptions>
 
                     <!-- 节点详情 -->
-                    <div v-if="(rg.Nodes ?? rg.nodes)?.length > 0" class="rg-section">
+                    <div v-if="((rg.Nodes ?? rg.nodes)?.length ?? 0) > 0" class="rg-section">
                         <div class="rg-section-title">{{ $t('milvus.nodeDetails') }}</div>
                         <el-table :data="rg.Nodes ?? rg.nodes" size="small" border>
                             <el-table-column prop="NodeID" :label="$t('milvus.nodeId')" min-width="80" />
@@ -184,7 +184,7 @@
             <template #header>
                 <div class="card-header">
                     <span>
-                        <el-icon class="mr-1"><Setting /></el-icon>
+                        <SvgIcon name="Setting" :size="14" class="mr-1" />
                         {{ $t('milvus.systemConfig') }}
                     </span>
                 </div>
@@ -203,10 +203,11 @@
 
 <script setup lang="ts">
 import { Msg } from '@/hooks/useI18n';
-import { Box, Collection, DocumentCopy, FirstAidKit, InfoFilled, Setting, Warning } from '@element-plus/icons-vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
+import type { IDatabase, IResourceGroup, IMilvusHealthStatus, MilvusHealthDetail } from '../types';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 
 const { t } = useI18n();
@@ -223,11 +224,11 @@ const versionLoading = ref(false);
 const healthLoading = ref(false);
 const version = ref('');
 const healthStatus = ref<boolean | null>(null);
-const healthDetails = ref<any[]>([]);
-const databases = ref<any[]>([]);
-const resourceGroups = ref<any[]>([]);
+const healthDetails = ref<MilvusHealthDetail[]>([]);
+const databases = ref<IDatabase[]>([]);
+const resourceGroups = ref<IResourceGroup[]>([]);
 const activeResourceGroups = ref<string[]>([]);
-const systemConfig = ref<any[]>([]);
+const systemConfig = ref<Record<string, unknown>[]>([]);
 const stats = ref({
     databaseCount: 0,
     collectionCount: 0,
@@ -240,8 +241,8 @@ const loadVersion = async () => {
     try {
         const res = await milvusApi.getVersion(props.milvusId);
         version.value = res || t('milvus.unknown');
-    } catch (error: any) {
-        Msg.error(error.message || 'milvus.getVersionFailed');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message || 'milvus.getVersionFailed' : 'milvus.getVersionFailed');
     } finally {
         versionLoading.value = false;
     }
@@ -251,11 +252,11 @@ const checkHealth = async () => {
     healthLoading.value = true;
     try {
         const res = await milvusApi.checkHealth(props.milvusId);
-        let data;
+        let data: IMilvusHealthStatus;
         try {
             data = typeof res === 'string' ? JSON.parse(res) : res;
         } catch (e) {
-            data = { IsHealthy: false, Reasons: [{ name: 'Parse Error', message: res }] };
+            data = { IsHealthy: false, Reasons: [{ name: 'Parse Error', message: String(res) }] };
         }
 
         healthStatus.value = data.isHealthy ?? data.IsHealthy ?? false;
@@ -263,12 +264,12 @@ const checkHealth = async () => {
         // 处理健康详情
         const reasons = data.reasons || data.Reasons || [];
         if (Array.isArray(reasons)) {
-            healthDetails.value = reasons.map((reason: any) => {
+            healthDetails.value = reasons.map((reason) => {
                 if (typeof reason === 'string') {
                     return { name: reason, healthy: false };
                 }
                 return {
-                    name: reason.name || reason.Name || reason,
+                    name: reason.name || reason.Name || String(reason),
                     message: reason.message || reason.Message || '',
                     healthy: reason.healthy !== undefined ? reason.healthy : !reason.message,
                 };
@@ -276,10 +277,11 @@ const checkHealth = async () => {
         } else {
             healthDetails.value = [];
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : 'checkHealthFailed';
         healthStatus.value = false;
-        healthDetails.value = [{ name: 'Connection Error', message: error.message, healthy: false }];
-        Msg.error(error.message || 'milvus.checkHealthFailed');
+        healthDetails.value = [{ name: 'Connection Error', message: errMsg, healthy: false }];
+        Msg.error(errMsg || 'milvus.checkHealthFailed');
     } finally {
         healthLoading.value = false;
     }
@@ -290,7 +292,7 @@ const loadDatabases = async () => {
         const res = await milvusApi.listDatabases(props.milvusId);
         databases.value = res || [];
         stats.value.databaseCount = databases.value.length;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Failed to load databases:', error);
     }
 };
@@ -300,13 +302,13 @@ const loadResourceGroups = async () => {
         const res = await milvusApi.listResourceGroups(props.milvusId);
         if (res && Array.isArray(res)) {
             // 获取每个资源组的详细信息
-            const groups = [];
+            const groups: IResourceGroup[] = [];
             for (const name of res) {
                 try {
                     const detail = await milvusApi.describeResourceGroup(props.milvusId, name);
                     groups.push({
-                        name,
                         ...detail,
+                        name,
                     });
                 } catch (e) {
                     groups.push({ name });
@@ -314,7 +316,7 @@ const loadResourceGroups = async () => {
             }
             resourceGroups.value = groups;
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Failed to load resource groups:', error);
     }
 };
@@ -328,7 +330,7 @@ const loadCollections = async () => {
 
         // 遍历所有数据库统计 Collection 总数
         let totalCount = 0;
-        const dbNames = databases.value.map((db: any) => db.name || db.Name || 'default');
+        const dbNames = databases.value.map((db: Record<string, unknown>) => (db.name as string) || (db.Name as string) || 'default');
 
         // 添加默认数据库
         if (!dbNames.includes('default')) {
@@ -345,7 +347,7 @@ const loadCollections = async () => {
         }
 
         stats.value.collectionCount = totalCount;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Failed to load collections:', error);
     }
 };
@@ -365,7 +367,7 @@ const loadSystemConfig = async () => {
         configs.push({ name: 'Collection Count', value: String(stats.value.collectionCount) });
         configs.push({ name: 'Resource Groups', value: String(resourceGroups.value.length) });
         systemConfig.value = configs;
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Failed to load system config:', error);
     }
 };
@@ -380,27 +382,27 @@ const loadAll = async () => {
     }
 };
 
-const getCapacityPercentage = (row: any) => {
+const getCapacityPercentage = (row: IResourceGroup) => {
     // 适配 Go SDK 返回的大驼峰字段名
-    const capacity = row.Capacity ?? row.capacity ?? 0;
-    const numAvailableNode = row.NumAvailableNode ?? row.numAvailableNode ?? row.availableNodes ?? 0;
+    const capacity = Number(row.Capacity ?? row.capacity ?? 0);
+    const numAvailableNode = Number(row.NumAvailableNode ?? row.numAvailableNode ?? row.availableNodes ?? 0);
     if (!capacity) return 0;
     return Math.round(((capacity - numAvailableNode) / capacity) * 100);
 };
 
-const getCapacityColor = (row: any) => {
+const getCapacityColor = (row: IResourceGroup) => {
     const percentage = getCapacityPercentage(row);
     if (percentage < 50) return '#67C23A';
     if (percentage < 80) return '#E6A23C';
     return '#F56C6C';
 };
 
-const getLoadedReplicaCount = (rg: any) => {
+const getLoadedReplicaCount = (rg: IResourceGroup) => {
     const replicas = rg.NumLoadedReplica ?? rg.numLoadedReplica ?? {};
     return Object.keys(replicas).length;
 };
 
-const isBoolean = (value: any) => {
+const isBoolean = (value: unknown) => {
     return value === 'true' || value === 'true' || value === true || value === false;
 };
 

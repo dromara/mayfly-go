@@ -44,12 +44,24 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, useTemplateRef } from 'vue';
+import { toRefs, reactive, watch, useTemplateRef, type ComponentPublicInstance } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { useI18nFormValidate } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
+
+/** 系统配置编辑表单类型 */
+interface ConfigForm {
+    id?: number | null;
+    name?: string;
+    key?: string;
+    params?: string;
+    value?: string;
+    remark?: string;
+    permission?: string;
+}
 
 const rules = {
     name: [Rules.requiredInput('system.sysconf.confItem')],
@@ -70,12 +82,12 @@ const visible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const configFormRef: any = useTemplateRef('configFormRef');
+const configFormRef = useTemplateRef<FormInstance>('configFormRef');
 
 const state = reactive({
-    params: [] as any,
-    accounts: [] as any,
-    permissionAccount: [] as any,
+    params: [] as Record<string, unknown>[],
+    accounts: [] as import('@/views/system/types').Account[],
+    permissionAccount: [] as string[],
     form: {
         id: null,
         name: '',
@@ -84,7 +96,7 @@ const state = reactive({
         value: '',
         remark: '',
         permission: '',
-    },
+    } as ConfigForm,
 });
 
 const { params, form } = toRefs(state);
@@ -97,19 +109,20 @@ watch(visible, () => {
     }
 
     if (props.data) {
-        state.form = { ...(props.data as any) };
+        state.form = { ...(props.data as ConfigForm) };
         if (state.form.params) {
             state.params = JSON.parse(state.form.params);
         } else {
             state.params = [];
         }
     } else {
-        state.form = { permission: 'all' } as any;
+        state.form = { permission: 'all' } as ConfigForm;
         state.params = [];
     }
 
-    if (state.form.permission != 'all') {
-        const accounts = state.form.permission.split(',');
+    const permission = state.form.permission ?? '';
+    if (permission != 'all') {
+        const accounts = permission.split(',');
         state.permissionAccount = accounts.slice(0, accounts.length - 1);
     } else {
         state.permissionAccount = [];
@@ -123,7 +136,7 @@ const onCancel = () => {
     state.permissionAccount = [];
 };
 
-const getAccount = (username: any) => {
+const getAccount = (username: string) => {
     if (username) {
         accountApi.list.request({ username }).then((res) => {
             state.accounts = res.list;

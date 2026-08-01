@@ -11,7 +11,7 @@ import {
     IndexDefinition,
     RowDefinition,
 } from './index';
-import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
+import { language as sqlLanguage } from 'monaco-editor/languages/definitions/sql/sql.js';
 
 export { MSSQL_TYPE_LIST, MssqlDialect };
 
@@ -205,7 +205,7 @@ class MssqlDialect implements DbDialect {
         return `[${name}]`;
     };
 
-    genColumnBasicSql(cl: any): string {
+    genColumnBasicSql(cl: RowDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
         // mssql哪些字段允许有长度
@@ -215,14 +215,14 @@ class MssqlDialect implements DbDialect {
         }
         return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${cl.auto_increment ? 'IDENTITY(1,1)' : ''} ${defVal} ${cl.notNull ? 'NOT NULL' : 'NULL'} `;
     }
-    getCreateTableSql(data: any): string {
-        let schema = data.db.split('/')[1];
+    getCreateTableSql(data: Record<string, unknown>): string {
+        let schema = (data.db as string).split('/')[1];
 
         // 创建表结构
         let pks = [] as string[];
         let fields: string[] = [];
         let fieldComments: string[] = [];
-        data.fields.res.forEach((item: any) => {
+        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
             item.remark &&
                 fieldComments.push(
@@ -233,7 +233,7 @@ class MssqlDialect implements DbDialect {
             }
         });
 
-        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName)}`;
+        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName as string)}`;
 
         // 建表语句
         let createTable = `CREATE TABLE ${baseTable}
@@ -245,31 +245,31 @@ class MssqlDialect implements DbDialect {
 
         // 表注释
         if (data.tableComment) {
-            createTable += ` EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(data.tableComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}';`;
+            createTable += ` EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(data.tableComment as string)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName as string}';`;
         }
 
         return createTable + createIndexSql + fieldComments.join(';');
     }
 
-    getCreateIndexSql(data: any): string {
+    getCreateIndexSql(data: Record<string, unknown>): string {
         // CREATE UNIQUE NONCLUSTERED INDEX [aaa]
         // ON [dbo].[无标题] (
         //   [id],
         //   [name]
         // )
-        let schema = data.db.split('/')[1];
-        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName)}`;
+        let schema = (data.db as string).split('/')[1];
+        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName as string)}`;
 
         let indexComment = [] as string[];
 
         // 创建索引
         let sql: string[] = [];
-        data.indexs.res.forEach((a: any) => {
+        (data.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
             let columnNames = a.columnNames.map((b: string) => `${this.quoteIdentifier(b)}`);
             sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} on ${baseTable} (${columnNames.join(',')})`);
             if (a.indexComment) {
                 indexComment.push(
-                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'INDEX', N'${a.indexName}'`
+                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment ?? '')}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName as string}', N'INDEX', N'${a.indexName}'`
                 );
             }
         });
@@ -280,7 +280,7 @@ class MssqlDialect implements DbDialect {
         return arr.join(';');
     }
 
-    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+    getModifyColumnSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
         // sql执行顺序
         // 1. 删除字段
         // 2. 添加字段
@@ -289,7 +289,7 @@ class MssqlDialect implements DbDialect {
         // 5. 修改字段注释
         // 6. 添加字段注释
 
-        let schema = tableData.db.split('/')[1];
+        let schema = (tableData.db as string).split('/')[1];
         let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
 
         let delSql = '';
@@ -351,18 +351,18 @@ ELSE
         return arr.join(';');
     }
 
-    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
-        let schema = tableData.db.split('/')[1];
+    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
+        let schema = (tableData.db as string).split('/')[1];
         let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
 
         let dropArr = [] as string[];
         let addArr = [] as string[];
         let commentArr = [] as string[];
 
-        const pushDrop = (a: any) => {
+        const pushDrop = (a: IndexDefinition) => {
             dropArr.push(` DROP INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} `);
         };
-        const pushAdd = (a: any) => {
+        const pushAdd = (a: IndexDefinition) => {
             addArr.push(
                 ` CREATE ${a.unique ? 'UNIQUE' : ''} NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} (${a.columnNames.map((b: string) => this.quoteIdentifier(b)).join(',')}) `
             );
@@ -400,33 +400,33 @@ ELSE
         return arr.join(';');
     }
 
-    getModifyTableInfoSql(tableData: any): string {
-        let schemaArr = tableData.db.split('/');
+    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
+        let schemaArr = (tableData.db as string).split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
 
         let sql = '';
 
         if (tableData.oldTableName !== tableData.tableName) {
-            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
             // 查找是否存在注释，存在则修改，不存在则添加
-            sql += `EXEC sp_rename '${baseTable}', '${tableData.tableName}';`;
+            sql += `EXEC sp_rename '${baseTable}', '${tableData.tableName as string}';`;
         }
 
         if (tableData.oldTableComment !== tableData.tableComment) {
             // 转义注释中的单引号和换行符
-            let tableComment = tableData.tableComment.replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
+            let tableComment = (tableData.tableComment as string).replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
             sql += `IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
-'TABLE', N'${tableData.tableName}', NULL, NULL)) > 0)
+'TABLE', N'${tableData.tableName as string}', NULL, NULL)) > 0)
   EXEC sp_updateextendedproperty
 'MS_Description', N'${tableComment}',
 'SCHEMA', N'${schema}',
-'TABLE', N'${tableData.tableName}'
+'TABLE', N'${tableData.tableName as string}'
 ELSE
   EXEC sp_addextendedproperty
 'MS_Description', N'${tableComment}',
 'SCHEMA', N'${schema}',
-'TABLE', N'${tableData.tableName}'`;
+'TABLE', N'${tableData.tableName as string}'`;
         }
         return sql;
     }
@@ -450,12 +450,12 @@ ELSE
         return DataType.String;
     }
 
-    wrapValue(columnType: string, value: any): any {
+    wrapValue(columnType: string, value: unknown): string | number {
         if (value == null) {
             return 'NULL';
         }
         if (this.getDataType(columnType) == DataType.Number) {
-            return value;
+            return value as number;
         }
         if (this.getDataType(columnType) == DataType.String) {
             return `N'${value}'`;

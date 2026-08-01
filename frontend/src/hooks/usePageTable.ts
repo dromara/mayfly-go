@@ -1,6 +1,13 @@
 import Api from '@/common/Api';
 import { reactive, toRefs, toValue } from 'vue';
 
+/** 分页参数基础类型 */
+export interface PageParams {
+    pageNum?: number;
+    pageSize?: number;
+    [key: string]: unknown;
+}
+
 /**
  * @description table 页面操作方法封装
  * @param pageable 是否为分页获取
@@ -11,18 +18,18 @@ import { reactive, toRefs, toValue } from 'vue';
 export const usePageTable = (
     pageable: boolean = true,
     api?: Api,
-    params: any = {
+    params: PageParams = {
         // 当前页数
         pageNum: 1,
         // 每页显示条数
         pageSize: 10,
     },
-    beforeQueryFn?: (params: any) => any,
-    dataCallBack?: (data: any) => any
+    beforeQueryFn?: (params: PageParams) => PageParams,
+    dataCallBack?: (data: Record<string, unknown>) => Record<string, unknown>
 ) => {
     const state = reactive({
         // 表格数据
-        tableData: [{}],
+        tableData: [{}] as Record<string, unknown>[],
         // 总数量
         total: 0,
         // 查询参数,包含分页参数
@@ -43,7 +50,7 @@ export const usePageTable = (
                 sp = beforeQueryFn(sp);
             }
 
-            let res = await api.request(sp);
+            let res: any = await api.request(sp);
             res.list = res.list || [];
             dataCallBack && (res = await dataCallBack(res));
 

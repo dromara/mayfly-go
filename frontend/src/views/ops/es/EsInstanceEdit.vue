@@ -69,7 +69,7 @@
             </el-form>
 
             <template #footer>
-                <el-button @click="onTestConn(null)" type="success" v-if="form.authCerts?.length <= 0">{{ t('ac.testConn') }}</el-button>
+                <el-button @click="onTestConn(null)" type="success" v-if="(form.authCerts?.length ?? 0) <= 0">{{ t('ac.testConn') }}</el-button>
                 <el-button @click="onCancel()">{{ t('common.cancel') }}</el-button>
                 <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ t('common.confirm') }}</el-button>
             </template>
@@ -82,19 +82,32 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { esApi } from './api';
+import type { EsInstance } from './types';
+import type { MachineAuthCert } from '@/views/ops/machine/types';
+
+/** ES 实例编辑表单类型 */
+interface EsInstanceForm extends Omit<Partial<EsInstance>, 'id' | 'name' | 'sshTunnelMachineId'> {
+    id?: number | null;
+    name?: string | null;
+    protocol: string;
+    sshTunnelMachineId?: number | null;
+    tagCodePaths?: string[];
+}
 
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: [Boolean, Object],
+        type: Object as PropType<EsInstance | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -113,9 +126,9 @@ const rules = {
     host: [Rules.requiredInput('Host:Port')],
 };
 
-const dbFormRef: any = useTemplateRef('dbFormRef');
+const dbFormRef = useTemplateRef<FormInstance>('dbFormRef');
 
-const DefaultForm = {
+const DefaultForm: EsInstanceForm = {
     id: null,
     code: '',
     name: null,
@@ -124,7 +137,7 @@ const DefaultForm = {
     version: '',
     port: 9200,
     remark: '',
-    sshTunnelMachineId: null as any,
+    sshTunnelMachineId: null as number | null,
     authCerts: [],
     tagCodePaths: [],
 };
@@ -142,7 +155,7 @@ watchEffect(() => {
     if (!dialogVisible.value) {
         return;
     }
-    const dbInst: any = props.data;
+    const dbInst = props.data as EsInstance | false | undefined;
     if (dbInst) {
         state.form = { ...dbInst };
     } else {
@@ -152,7 +165,7 @@ watchEffect(() => {
 });
 
 const getReqForm = () => {
-    const reqForm: any = { ...state.form };
+    const reqForm: Record<string, unknown> = { ...state.form };
     reqForm.selectAuthCert = null;
     reqForm.tags = null;
     if (!state.form.sshTunnelMachineId) {
@@ -161,14 +174,14 @@ const getReqForm = () => {
     return reqForm;
 };
 
-const onTestConn = async (authCert: any) => {
+const onTestConn = async (authCert: MachineAuthCert | null) => {
     await useI18nFormValidate(dbFormRef);
     const submitForm = getReqForm();
     if (authCert) {
         submitForm.authCerts = [authCert];
     }
     await testConnExec(submitForm);
-    state.form.version = testConnRes.value.version?.number;
+    state.form.version = testConnRes.value?.version?.number;
     Msg.success('es.connSuccess');
 };
 
@@ -181,7 +194,7 @@ const onConfirm = async () => {
     await useI18nFormValidate(dbFormRef);
     await saveInstanceExec(getReqForm());
     Msg.saveSuccess();
-    state.form.id = saveInstanceRes as any;
+    state.form.id = saveInstanceRes.value;
     emit('val-change', state.form);
     onCancel();
 };

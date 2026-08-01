@@ -25,7 +25,7 @@
 
 <script lang="ts" setup>
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { esApi } from '@/views/ops/es/api';
 import Base from './Base.vue';
 </script>

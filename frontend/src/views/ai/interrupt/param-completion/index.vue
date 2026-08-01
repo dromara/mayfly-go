@@ -54,9 +54,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, markRaw, nextTick, ref, watch } from 'vue';
+import { computed, inject, markRaw, nextTick, ref, watch, type ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { InternalMessage, InterruptActionEvent } from '../types';
+import type { Component } from 'vue';
 
 // 引入参数输入组件
 import DbParamInput from './DbParamInput.vue';
@@ -75,7 +76,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    action: [data: { turnId: string; interruptId: string; interruptType: string; action: string; payload: any }];
+    action: [data: { turnId: string; interruptId: string; interruptType: string; action: string; payload?: Record<string, unknown> | null }];
 }>();
 
 // 注入父组件提供的中断操作处理器，绕过 Vue 动态组件事件传递问题
@@ -96,11 +97,11 @@ const missingParams = computed(() => {
 
 // 参数类型
 const paramType = computed(() => {
-    return interruptData.value?.paramType || '';
+    return String(interruptData.value?.paramType || '');
 });
 
 // 参数输入组件映射
-const paramInputComponents: Record<string, any> = {
+const paramInputComponents: Record<string, Component> = {
     db: markRaw(DbParamInput),
     machine: markRaw(MachineParamInput),
     // 后续可以添加更多类型
@@ -113,18 +114,25 @@ const paramInputComponent = computed(() => {
     return paramInputComponents[type] || markRaw(GenericParamInput);
 });
 
+/** 参数输入组件实例方法 */
+interface ParamInputInstance extends ComponentPublicInstance {
+    isValid?: () => boolean;
+    getValues?: () => Record<string, unknown>;
+    getCacheableParams?: () => string[];
+}
+
 // 参数输入组件引用
-const paramInputRef = ref<any>(null);
+const paramInputRef = ref<ParamInputInstance | null>(null);
 
 // 初始参数值（从 resumeInfo 或 pendingResumeInfo 恢复）
-const paramInputValues = ref<Record<string, any>>({});
+const paramInputValues = ref<Record<string, unknown>>({});
 
 // 监听 resumeInfo / pendingResumeInfo 变化，更新 paramInputValues
 watch(
     () => resumeInfo.value?.payload?.params || pendingResumeInfo.value?.payload?.params,
-    (newParams: any) => {
+    (newParams) => {
         if (newParams) {
-            paramInputValues.value = { ...newParams };
+            paramInputValues.value = { ...(newParams as Record<string, unknown>) };
         }
     },
     { immediate: true, deep: true }
@@ -150,8 +158,8 @@ watch(
 );
 
 // 参数变化回调
-const onParamChange = (values: any) => {
-    console.log('[ParamCompletion] Param changed:', values);
+const onParamChange = (_values: Record<string, unknown>) => {
+    // Param changed
 };
 
 // 处理确认操作
@@ -173,7 +181,7 @@ const handleConfirm = () => {
     }
 
     // 构建 payload
-    const payload: any = {
+    const payload: Record<string, unknown> = {
         ...inputValues,
     };
 
@@ -207,7 +215,7 @@ const handleCancel = () => {
         interruptId: interruptId.value || '',
         interruptType: interruptType.value || '',
         action: 'cancel',
-        payload: null,
+        payload: undefined as Record<string, unknown> | undefined,
     };
     if (handleInterruptAction) {
         handleInterruptAction(actionData);

@@ -47,7 +47,7 @@
                         :filter-method="filterDbNames"
                         allow-create
                         :placeholder="$t('db.selectDbPlacehoder')"
-                        @focus="getAllDatabase(form.authCertName)"
+                        @focus="getAllDatabase(form.authCertName ?? '')"
                         :loading="state.loadingDbNames"
                     >
                         <template #header>
@@ -73,26 +73,36 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, watch, ref, useTemplateRef, type PropType } from 'vue';
 import { dbApi } from './api';
-import type { CheckboxValueType } from 'element-plus';
+import type { CheckboxValueType, FormInstance } from 'element-plus';
 import { DbType } from '@/views/ops/db/dialect';
 
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { DbGetDbNamesMode } from './enums';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import { useI18nFormValidate } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
+import type { Db, DbInstance } from './types';
+import type { ResourceAuthCert } from '@/types/common';
+
+/** Db 编辑表单 (id/name/instanceId 允许 null 表示未选择) */
+type DbForm = Partial<Omit<Db, 'id' | 'name' | 'instanceId'>> & {
+    id?: number | null;
+    name?: string | null;
+    instanceId?: number | null;
+};
 
 const props = defineProps({
     instance: {
         type: [Boolean, Object, null],
     },
     db: {
-        type: [Boolean, Object],
+        type: Object as PropType<Partial<Db> | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -114,16 +124,15 @@ const rules = {
 const checkAllDbNames = ref(false);
 const indeterminateDbNames = ref(false);
 
-const dbForm: any = ref(null);
-// const tagSelectRef: any = ref(null);
+const dbForm = useTemplateRef<FormInstance>('dbForm');
 
 const state = reactive({
-    allDatabases: [] as any,
-    dbNamesSelected: [] as any,
-    dbNamesFiltered: [] as any,
+    allDatabases: [] as string[],
+    dbNamesSelected: [] as string[],
+    dbNamesFiltered: [] as string[],
     filterString: '',
-    selectInstalce: {} as any,
-    authCerts: [] as any,
+    selectInstalce: {} as Record<string, unknown>,
+    authCerts: [] as ResourceAuthCert[],
     form: {
         id: null,
         name: null,
@@ -131,10 +140,10 @@ const state = reactive({
         getDatabaseMode: DbGetDbNamesMode.Auto.value,
         database: '',
         remark: '',
-        instanceId: null as any,
+        instanceId: null as number | null,
         authCertName: '',
-    },
-    instances: [] as any,
+    } as DbForm,
+    instances: [] as DbInstance[],
     loadingDbNames: false,
 });
 
@@ -144,29 +153,29 @@ watch(dialogVisible, () => {
     if (!dialogVisible.value) {
         return;
     }
-    const db: any = props.db;
-    if (db.code) {
+    const db = props.db;
+    if (db?.code) {
         state.form = { ...db };
         if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
             // 将数据库名使用空格切割，获取所有数据库列表
-            state.dbNamesSelected = db.database.split(' ');
+            state.dbNamesSelected = db.database?.split(' ') ?? [];
         }
     } else {
-        state.form = { getDatabaseMode: DbGetDbNamesMode.Auto.value } as any;
+        state.form = { getDatabaseMode: DbGetDbNamesMode.Auto.value, id: null, name: null, code: '', database: '', remark: '', instanceId: null, authCertName: '' };
         state.dbNamesSelected = [];
     }
 });
 
-const onChangeGetDatabaseMode = (val: any) => {
+const onChangeGetDatabaseMode = (val: number) => {
     if (val == DbGetDbNamesMode.Auto.value) {
         state.dbNamesSelected = [];
     }
 };
 
 const getAuthCerts = async () => {
-    const inst: any = props.instance;
+    const inst = props.instance as Partial<DbInstance> | false | null;
     const res = await resourceAuthCertApi.listByQuery.request({
-        resourceCode: inst.code,
+        resourceCode: (inst && inst.code) || '',
         resourceType: TagResourceTypeEnum.DbInstance.value,
         pageSize: 100,
     });
@@ -176,15 +185,15 @@ const getAuthCerts = async () => {
 const getAllDatabase = async (authCertName: string) => {
     try {
         state.loadingDbNames = true;
-        const req = { ...(props.instance as any) };
-        req.authCert = state.authCerts?.find((x: any) => x.name == authCertName);
+        const req: Record<string, unknown> = { ...(props.instance as Record<string, unknown>) };
+        req.authCert = state.authCerts?.find((x: ResourceAuthCert) => x.name == authCertName);
         let dbs = await dbApi.getAllDatabase.request(req);
         state.allDatabases = dbs;
 
         // 如果是oracle，且没查出数据库列表，则取实例sid
-        let instance = state.instances.find((item: any) => item.id === state.form.instanceId);
+        let instance = state.instances.find((item) => item.id === state.form.instanceId) as (DbInstance & { sid?: string }) | undefined;
         if (instance && instance.type === DbType.oracle && dbs.length === 0) {
-            state.allDatabases = [instance.sid];
+            state.allDatabases = [instance.sid ?? ''];
         }
     } finally {
         state.loadingDbNames = false;

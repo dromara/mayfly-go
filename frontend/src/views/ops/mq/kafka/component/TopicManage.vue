@@ -216,37 +216,10 @@
 import { Rules } from '@/common/rule';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
-import { ConsumerGroup } from '@/views/ops/mq/kafka/component/ConsumerGroup.vue';
 import { computed, nextTick, reactive, ref, toRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mqApi } from '../../api';
-
-interface Partitions {
-    LeaderEpoch: number;
-    OfflineReplicas: null;
-    err: string;
-    isr: number[];
-    leader: number;
-    partition: number;
-    replicas: number[];
-}
-
-interface Topic {
-    name: string;
-    partitionCount: number;
-    replicationFactor: number;
-    status: string;
-    partitions: Partitions[];
-}
-
-interface TopicConfig {
-    Key: string;
-    Value: string;
-    ReadOnly: boolean;
-    Default: boolean;
-    Source: number;
-    Sensitive: boolean;
-}
+import type { KafkaConfigEntry, KafkaGroup, KafkaTopicPartition, KafkaTopicView } from '../../types';
 
 const { t } = useI18n();
 
@@ -256,11 +229,11 @@ const props = defineProps({
         required: true,
     },
     topics: {
-        type: Array as () => Topic[],
+        type: Array as () => KafkaTopicView[],
         default: () => [],
     },
     groups: {
-        type: Array as () => ConsumerGroup[],
+        type: Array as () => KafkaGroup[],
         default: () => [],
     },
     loading: {
@@ -296,13 +269,13 @@ const state = reactive({
     topicConfigDialog: {
         visible: false,
         topic: '',
-        topicConfigs: [] as TopicConfig[],
+        topicConfigs: [] as KafkaConfigEntry[],
     },
     topicPartitionsDialog: {
         visible: false,
         topic: '',
         group: '',
-        topicPartitions: [] as Partitions[],
+        topicPartitions: [] as KafkaTopicPartition[],
     },
     contextmenu: {
         dropdown: {
@@ -313,17 +286,17 @@ const state = reactive({
             new ContextmenuItem('produce', 'kafka.produceMessage')
                 .withIcon('upload')
                 .withPermission('kafka:topic:produce')
-                .withOnClick((data: any) => handleProduceMessage(data)),
+                .withOnClick((data: KafkaTopicView) => handleProduceMessage(data)),
             new ContextmenuItem('consume', 'kafka.consumeMessage')
                 .withIcon('download')
                 .withPermission('kafka:topic:consume')
-                .withOnClick((data: any) => handleConsumeMessage(data)),
-            new ContextmenuItem('partitions', 'kafka.viewPartitions').withIcon('data-line').withOnClick((data: any) => viewPartitions(data)),
-            new ContextmenuItem('config', 'kafka.viewConfig').withIcon('setting').withOnClick((data: any) => viewTopicConfig(data)),
+                .withOnClick((data: KafkaTopicView) => handleConsumeMessage(data)),
+            new ContextmenuItem('partitions', 'kafka.viewPartitions').withIcon('data-line').withOnClick((data: KafkaTopicView) => viewPartitions(data)),
+            new ContextmenuItem('config', 'kafka.viewConfig').withIcon('setting').withOnClick((data: KafkaTopicView) => viewTopicConfig(data)),
             new ContextmenuItem('delete', 'common.delete')
                 .withIcon('delete')
                 .withPermission('kafka:topic:delete')
-                .withOnClick((data: any) => handleDeleteTopic(data)),
+                .withOnClick((data: KafkaTopicView) => handleDeleteTopic(data)),
         ] as ContextmenuItem[],
     },
 });
@@ -344,7 +317,7 @@ const filteredTopicConfigs = computed(() => {
     if (!searchTopicConfig.value) {
         return state.topicConfigDialog.topicConfigs;
     }
-    return state.topicConfigDialog.topicConfigs.filter((config: TopicConfig) => config.Key.toLowerCase().includes(searchTopicConfig.value.toLowerCase()));
+    return state.topicConfigDialog.topicConfigs.filter((config) => config.Key.toLowerCase().includes(searchTopicConfig.value.toLowerCase()));
 });
 const createTopicFormRef = ref();
 const createPartitionsFormRef = ref();
@@ -362,7 +335,7 @@ const filteredTopics = computed(() => {
     if (!searchTopic.value) {
         return props.topics;
     }
-    return props.topics.filter((topic: Topic) => topic.name.toLowerCase().includes(searchTopic.value.toLowerCase()));
+    return props.topics.filter((topic) => topic.name.toLowerCase().includes(searchTopic.value.toLowerCase()));
 });
 
 const loadTopics = () => {
@@ -375,14 +348,14 @@ const loadGroups = () => {
 
 const loadTopicPartitions = (topicName: string) => {
     // 根据选中的 topic 名称查找对应的 topic 数据并更新分区信息
-    const selectedTopic = props.topics.find((t: Topic) => t.name === topicName);
+    const selectedTopic = props.topics.find((t) => t.name === topicName);
     if (selectedTopic) {
         state.topicPartitionsDialog.topicPartitions = selectedTopic.partitions;
     }
 };
 
 const loadOffsets = async () => {
-    console.log(state.topicPartitionsDialog);
+    // Load offsets for topic partitions
 };
 
 const showCreateTopicDialog = () => {
@@ -408,7 +381,7 @@ const showCreatePartitionsDialog = () => {
 
 const confirmCreateTopic = async () => {
     if (!createTopicFormRef.value) return;
-    await createTopicFormRef.value.validate();
+    await createTopicFormRef.value?.validate();
     state.createTopicDialog.loading = true;
     try {
         await mqApi.kafkaTopicCreate.request({
@@ -418,15 +391,15 @@ const confirmCreateTopic = async () => {
         Msg.saveSuccess();
         state.createTopicDialog.visible = false;
         emits('refresh');
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message : String(error));
     } finally {
         state.createTopicDialog.loading = false;
     }
 };
 const confirmCreatePartitions = async () => {
     if (!createPartitionsFormRef.value) return;
-    await createPartitionsFormRef.value.validate();
+    await createPartitionsFormRef.value?.validate();
     state.createPartitionsDialog.loading = true;
     try {
         await mqApi.kafkaTopicCreatePartitions.request({
@@ -441,14 +414,14 @@ const confirmCreatePartitions = async () => {
                 loadTopicPartitions(state.createPartitionsDialog.form.topic);
             }, 200);
         });
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message : String(error));
     } finally {
         state.createPartitionsDialog.loading = false;
     }
 };
 
-const viewTopicConfig = async (topic: Topic) => {
+const viewTopicConfig = async (topic: KafkaTopicView) => {
     try {
         const res = await mqApi.kafkaTopicInfo.request({
             id: props.kafkaId,
@@ -457,15 +430,15 @@ const viewTopicConfig = async (topic: Topic) => {
         state.topicConfigDialog.topic = topic.name;
 
         if (res && res[0].Configs) {
-            res[0].Configs.sort((a: any, b: any) => (a['Key'] > b['Key'] ? 1 : -1));
+            res[0].Configs.sort((a, b) => (a['Key'] > b['Key'] ? 1 : -1));
             state.topicConfigDialog.topicConfigs = res && res[0].Configs;
         } else {
             state.topicConfigDialog.topicConfigs = [];
         }
 
         state.topicConfigDialog.visible = true;
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message : String(error));
     } finally {
     }
 };
@@ -482,7 +455,7 @@ const cancelViewTopicPartitions = () => {
     state.topicPartitionsDialog.topic = '';
 };
 
-const handleDeleteTopic = async (topic: Topic) => {
+const handleDeleteTopic = async (topic: KafkaTopicView) => {
     await useI18nDeleteConfirm(`Topic: ${topic.name}`);
     try {
         await mqApi.kafkaTopicDelete.request({
@@ -491,12 +464,12 @@ const handleDeleteTopic = async (topic: Topic) => {
         });
         Msg.saveSuccess();
         emits('refresh');
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message : String(error));
     }
 };
 
-const viewPartitions = (topic: Topic) => {
+const viewPartitions = (topic: KafkaTopicView) => {
     state.topicPartitionsDialog.visible = true;
     state.topicPartitionsDialog.topicPartitions = topic.partitions;
     state.topicPartitionsDialog.topic = topic.name;
@@ -507,15 +480,15 @@ const openViewPartitions = () => {
     state.topicPartitionsDialog.visible = true;
 };
 
-const handleProduceMessage = (topic: Topic) => {
+const handleProduceMessage = (topic: KafkaTopicView) => {
     emits('produce', topic.name);
 };
 
-const handleConsumeMessage = (topic: Topic) => {
+const handleConsumeMessage = (topic: KafkaTopicView) => {
     emits('consume', topic.name);
 };
 
-const handleTopicCommand = (command: string, topic: Topic) => {
+const handleTopicCommand = (command: string, topic: KafkaTopicView) => {
     switch (command) {
         case 'produce':
             handleProduceMessage(topic);
@@ -535,13 +508,13 @@ const handleTopicCommand = (command: string, topic: Topic) => {
     }
 };
 
-const handleRowContextmenu = (row: any, column: any, event: any) => {
+const handleRowContextmenu = (row: unknown, _column: unknown, event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    contextmenuRef.value.openContextmenu(row);
+    contextmenuRef.value?.openContextmenu(row);
 };
 </script>
 

@@ -59,14 +59,17 @@
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { redisApi } from './api';
+import type { Redis, RedisSaveForm } from './types';
 
 const props = defineProps({
     redis: {
-        type: [Boolean, Object],
+        type: Object as PropType<Redis | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -85,7 +88,7 @@ const rules = {
     mode: [Rules.requiredSelect('mode')],
 };
 
-const redisFormRef: any = useTemplateRef('redisFormRef');
+const redisFormRef = useTemplateRef<FormInstance>('redisFormRef');
 
 const state = reactive({
     form: {
@@ -101,7 +104,7 @@ const state = reactive({
         db: '',
         remark: '',
         sshTunnelMachineId: -1,
-    },
+    } as RedisSaveForm,
     dbList: [0],
     pwd: '',
 });
@@ -116,12 +119,12 @@ watch(dialogVisible, () => {
         return;
     }
 
-    const redis: any = props.redis;
+    const redis = props.redis as RedisSaveForm | false | undefined;
     if (redis) {
-        state.form = { ...redis };
-        convertDb(state.form.db);
+        state.form = { ...redis } as RedisSaveForm;
+        convertDb(state.form.db || '0');
     } else {
-        state.form = { db: '0', tagCodePaths: [] } as any;
+        state.form = { db: '0', tagCodePaths: [] } as RedisSaveForm;
         state.dbList = [0];
     }
 });
@@ -139,7 +142,7 @@ const changeDb = () => {
 
 const getReqForm = () => {
     const reqForm = { ...state.form };
-    if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
+    if (reqForm.mode == 'sentinel' && (reqForm.host ?? '').split('=').length != 2) {
         Msg.error('redis.sentinelHostErr');
         return;
     }

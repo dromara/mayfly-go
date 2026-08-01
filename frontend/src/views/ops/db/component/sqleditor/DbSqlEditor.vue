@@ -1,44 +1,6 @@
 <template>
     <div class="h-full flex flex-col">
-        <div class="flex-shrink-0">
-            <div class="card p-1! flex items-center justify-between">
-                <div>
-                    <el-link @click="onRunSql()" underline="never" class="ml-3.5" icon="VideoPlay"> </el-link>
-                    <el-divider direction="vertical" border-style="dashed" />
-
-                    <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
-                        <el-link @click="onFormatSql()" type="primary" underline="never" icon="MagicStick"> </el-link>
-                    </el-tooltip>
-                    <el-divider direction="vertical" border-style="dashed" />
-
-                    <el-tooltip :show-after="1000" class="box-item" effect="dark" content="commit" placement="top">
-                        <el-link @click="onCommit()" type="success" underline="never" icon="CircleCheck"> </el-link>
-                    </el-tooltip>
-                    <el-divider direction="vertical" border-style="dashed" />
-
-                    <el-upload
-                        class="sql-file-exec"
-                        :before-upload="beforeUpload"
-                        :on-success="execSqlFileSuccess"
-                        :http-request="handleSqlFileUpload"
-                        :headers="{ Authorization: token }"
-                        :action="getUploadSqlFileUrl()"
-                        :show-file-list="false"
-                        name="file"
-                        multiple
-                        :limit="100"
-                    >
-                        <el-tooltip :show-after="1000" class="box-item" effect="dark" :content="$t('db.sqlScriptRun')" placement="top">
-                            <el-link v-auth="'db:sqlscript:run'" type="success" underline="never" icon="Document"></el-link>
-                        </el-tooltip>
-                    </el-upload>
-                </div>
-
-                <div>
-                    <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">{{ $t('db.saveSql') }}</el-button>
-                </div>
-            </div>
-        </div>
+        <SqlEditorToolbar :token="token" :upload-url="getUploadSqlFileUrl()" :upload-fn="handleSqlFileUpload" @run="onRunSql()" @format="onFormatSql()" @commit="onCommit()" @save="saveSql()" />
 
         <el-splitter ref="splitterRef" class="flex-1 min-h-0" layout="vertical" @resize-end="onResizeTableHeight">
             <el-splitter-panel :size="state.editorSize" max="80%">
@@ -46,84 +8,20 @@
             </el-splitter-panel>
 
             <el-splitter-panel>
-                <div class="sql-exec-res h-full!">
-                    <el-tabs
-                        class="h-full! w-full!"
-                        v-if="state.execResTabs.length > 0"
-                        @tab-remove="onRemoveTab"
-                        @tab-change="active"
-                        v-model="state.activeTab"
-                    >
-                        <el-tab-pane class="h-full!" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
-                            <template #label>
-                                <el-popover :show-after="1000" placement="top-start" :title="$t('db.execInfo')" trigger="hover" :width="300">
-                                    <template #reference>
-                                        <div>
-                                            <span>
-                                                <span v-if="dt.loading">
-                                                    <SvgIcon class="mb-0.5! is-loading" name="Loading" color="var(--el-color-primary)" />
-                                                </span>
-                                                <span v-else>
-                                                    <SvgIcon class="mb-0.5!" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
-                                                    <SvgIcon class="mb-0.5!" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
-                                                </span>
-                                            </span>
-
-                                            <span> {{ $t('db.result') }}-{{ dt.id }} </span>
-                                        </div>
-                                    </template>
-                                    <template #default>
-                                        <el-descriptions v-if="dt.sql" :column="1" size="small">
-                                            <el-descriptions-item>
-                                                <div style="width: 280px">
-                                                    <el-text size="small" truncated :title="dt.sql"> {{ dt.sql }} </el-text>
-                                                </div>
-                                            </el-descriptions-item>
-                                            <el-descriptions-item :label="`${$t('db.times')} :`"> {{ dt.execTime }}ms </el-descriptions-item>
-                                            <el-descriptions-item :label="`${$t('db.resultSet')} :`">
-                                                {{ dt.data?.length }}
-                                            </el-descriptions-item>
-                                        </el-descriptions>
-                                    </template>
-                                </el-popover>
-                            </template>
-
-                            <el-row>
-                                <span v-if="dt.hasUpdatedFields" class="mt-1">
-                                    <span>
-                                        <el-link type="success" underline="never" @click="submitUpdateFields(dt)"
-                                            ><span style="font-size: 12px">{{ $t('common.submit') }}</span></el-link
-                                        >
-                                    </span>
-                                    <span>
-                                        <el-divider direction="vertical" border-style="dashed" />
-                                        <el-link type="warning" underline="never" @click="cancelUpdateFields(dt)"
-                                            ><span style="font-size: 12px">{{ $t('common.cancel') }}</span></el-link
-                                        >
-                                    </span>
-                                </span>
-                            </el-row>
-                            <db-table-data
-                                v-if="!dt.errorMsg"
-                                :ref="(el: any) => (dt.dbTableRef = el)"
-                                :db-id="dbId"
-                                :db="dbName"
-                                :data="dt.data"
-                                :table="dt.table"
-                                :columns="dt.tableColumn"
-                                :column-more-actions="['fixed']"
-                                :loading="dt.loading"
-                                :abort-fn="dt.abortFn"
-                                :height="tableDataHeight"
-                                :empty-text="state.tableDataEmptyText"
-                                @change-updated-field="changeUpdatedField($event, dt)"
-                                @data-delete="onDeleteData($event, dt)"
-                            ></db-table-data>
-
-                            <el-result v-else icon="error" :title="$t('db.execFail')" :sub-title="dt.errorMsg"> </el-result>
-                        </el-tab-pane>
-                    </el-tabs>
-                </div>
+                <SqlExecResultTabs
+                    :exec-res-tabs="state.execResTabs"
+                    :active-tab="state.activeTab"
+                    :db-id="dbId"
+                    :db="dbName"
+                    :table-data-height="tableDataHeight"
+                    :table-data-empty-text="state.tableDataEmptyText"
+                    @tab-remove="onRemoveTab"
+                    @tab-change="active"
+                    @submit-update-fields="submitUpdateFields"
+                    @cancel-update-fields="cancelUpdateFields"
+                    @change-updated-field="changeUpdatedField"
+                    @data-delete="onDeleteData"
+                />
             </el-splitter-panel>
         </el-splitter>
     </div>
@@ -135,21 +33,22 @@ import config from '@/common/config';
 import { getToken } from '@/common/utils/storage';
 import { ElMessageBox } from 'element-plus';
 import { format as sqlFormatter } from 'sql-formatter';
-import { nextTick, onMounted, reactive, ref, toRefs, unref, useTemplateRef } from 'vue';
+import { nextTick, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 
-import { editor } from 'monaco-editor';
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import { editor, KeyCode, KeyMod, type IRange } from 'monaco-editor';
 
-import DbTableData from '@/views/ops/db/component/table/DbTableData.vue';
 import { dbApi, uploadSqlFile } from '../../api';
 import { DbInst } from '../../db';
 
 import { joinClientParams } from '@/common/request';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
 import { Msg } from '@/hooks/useI18n';
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
+
+import SqlEditorToolbar from './SqlEditorToolbar.vue';
+import SqlExecResultTabs from './SqlExecResultTabs.vue';
+import { useSqlExec, type ExecResTab, type ExecResTabState } from './composables/useSqlExec';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -170,57 +69,19 @@ const props = defineProps({
     },
 });
 
-class ExecResTab {
-    id: number;
-
-    /**
-     * 当前结果集对应的sql
-     */
-    sql: string;
-
-    /**
-     * 响应式loading
-     */
-    loading: any;
-
-    dbTableRef: any;
-
-    abortFn: Function;
-
-    tableColumn: any[] = [];
-
-    data: any[] = [];
-
-    execTime: number;
-
-    /**
-     * 当前单表操作sql关联的表信息
-     */
-    table: string;
-
-    /**
-     * 是否有更新字段
-     */
-    hasUpdatedFields: boolean;
-
-    errorMsg: string;
-
-    constructor(id: number) {
-        this.id = id;
-    }
-}
+/** sql-formatter 支持的方言语言类型 */
+type SqlFormatterLanguage = NonNullable<Parameters<typeof sqlFormatter>[1]>['language'];
 
 const token = getToken();
-const monacoEditorRef: any = ref(null);
+const monacoEditorRef = useTemplateRef<InstanceType<typeof MonacoEditor>>('monacoEditorRef');
 
 let monacoEditor: editor.IStandaloneCodeEditor;
 
 const state = reactive({
     editorSize: 50, // editor高度比例
-    token,
-    sql: '', // 当前编辑器的sql内容s
-    sqlName: '' as any, // sql模板名称
-    execResTabs: [] as ExecResTab[],
+    sql: '', // 当前编辑器的sql内容
+    sqlName: '', // sql模板名称
+    execResTabs: [] as ExecResTabState[],
     activeTab: 1,
     editorHeight: '500',
     tableDataHeight: '250px',
@@ -229,13 +90,16 @@ const state = reactive({
 
 const { tableDataHeight } = toRefs(state);
 
-const getNowDbInst = () => {
-    return DbInst.getInst(props.dbId);
-};
+const { getNowDbInst, pushNewTab, onRunSql, changeUpdatedField, onDeleteData, submitUpdateFields, cancelUpdateFields, onRemoveTab, activeTab: active } = useSqlExec({
+    dbId: props.dbId,
+    dbName: props.dbName,
+    state,
+    get monacoEditor() {
+        return monacoEditor ?? null;
+    },
+});
 
 onMounted(async () => {
-    console.log('in query mounted');
-
     // 第一个pane为sql editor
     onResizeTableHeight(0, [-1]);
     useEventListener(
@@ -244,9 +108,9 @@ onMounted(async () => {
     );
 
     // 默认新建一个结果集tab
-    state.execResTabs.push(new ExecResTab(1));
+    pushNewTab(1);
 
-    state.sqlName = props.sqlName;
+    state.sqlName = props.sqlName ?? '';
     if (props.sqlName) {
         const res = await dbApi.getSql.request({ id: props.dbId, type: 1, db: props.dbName, name: props.sqlName });
         state.sql = res.sql;
@@ -257,26 +121,7 @@ onMounted(async () => {
     await getNowDbInst().loadDbHints(props.dbName);
 });
 
-const onRemoveTab = (targetId: number) => {
-    let activeTab = state.activeTab;
-    const tabs = [...state.execResTabs];
-    for (let i = 0; i < tabs.length; i++) {
-        const tabId = tabs[i].id;
-        if (tabId !== targetId) {
-            continue;
-        }
-        const nextTab = tabs[i + 1] || tabs[i - 1];
-        if (nextTab) {
-            activeTab = nextTab.id;
-        } else {
-            activeTab = 0;
-        }
-        state.execResTabs.splice(i, 1);
-        state.activeTab = activeTab;
-    }
-};
-
-const splitterRef = useTemplateRef<HTMLElement>('splitterRef');
+const splitterRef = useTemplateRef<{ $el: HTMLElement }>('splitterRef');
 
 const onResizeTableHeight = (index: number, sizes: number[]) => {
     if (!sizes || sizes.length === 0) {
@@ -306,381 +151,6 @@ const getKey = () => {
     }
     return props.dbId + ':' + props.dbName;
 };
-
-/*
- * 执行sql
- */
-const onRunSql = async (newTab = false) => {
-    const sqls = getSql();
-    notBlank(sqls, t('db.noSelectRunSqlMsg'));
-
-    if (sqls.length == 1) {
-        const oneSql = sqls[0];
-        let execRemark;
-        if (!getNowDbInst().isQuerySql(oneSql)) {
-            const res: any = await ElMessageBox.prompt(t('db.enterExecRemarkTips'), 'Tip', {
-                confirmButtonText: t('common.confirm'),
-                cancelButtonText: t('common.cancel'),
-                inputErrorMessage: t('db.execRemarkPlaceholder'),
-            });
-            execRemark = res.value;
-        }
-        runSql(oneSql, execRemark, newTab);
-        return;
-    }
-
-    // 处理多条SQL - 合并相同类型的结果
-    await runMultipleSqls(sqls, newTab);
-};
-
-/**
- * 执行多条SQL并合并结果
- */
-const runMultipleSqls = async (sqls: string[], newTab: boolean) => {
-    state.execResTabs = [];
-    // 分类SQL语句
-    const nonQuerySqls: string[] = []; // 影响行数类SQL (UPDATE, INSERT, DELETE等)
-    const querySqls: string[] = []; // 查询类SQL (SELECT等)
-
-    const dbInst = getNowDbInst();
-    // 分类SQL
-    sqls.forEach((sql) => {
-        if (!dbInst.isQuerySql(sql)) {
-            nonQuerySqls.push(sql);
-        } else {
-            querySqls.push(sql);
-        }
-    });
-
-    // 先执行非查询类SQL（可以合并结果）
-    if (nonQuerySqls.length > 0) {
-        await runNonQuerySqls(nonQuerySqls, newTab);
-        newTab = true; // 后续查询需要新标签页
-    }
-
-    // 再执行查询类SQL（每条需要独立标签页）
-    for (let i = 0; i < querySqls.length; i++) {
-        const sql = querySqls[i];
-        await runSql(sql, '', newTab || i > 0);
-    }
-};
-
-/**
- * 执行非查询类SQL并合并结果
- */
-const runNonQuerySqls = async (sqls: string[], newTab: boolean) => {
-    let execRes: ExecResTab;
-    let i = 0;
-    let id;
-
-    // 获取或创建结果标签页
-    if (newTab || state.execResTabs.length == 0) {
-        id = state.execResTabs.length == 0 ? 1 : state.execResTabs[state.execResTabs.length - 1].id + 1;
-        execRes = new ExecResTab(id);
-        state.execResTabs.push(execRes);
-        i = state.execResTabs.length - 1;
-    } else {
-        i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
-        execRes = state.execResTabs[i];
-        if (unref(execRes.loading)) {
-            Msg.error('db.currentSqlTabIsRunning');
-            return;
-        }
-        id = execRes.id;
-    }
-
-    state.activeTab = id;
-    const startTime = new Date().getTime();
-
-    try {
-        execRes.errorMsg = '';
-        execRes.sql = sqls.join('\n\n---\n\n'); // 显示所有SQL
-
-        // 执行所有非查询SQL
-        const results: any[] = [];
-        for (const sql of sqls) {
-            try {
-                const { data, execute } = getNowDbInst().execSql(props.dbName, sql, '');
-                await execute();
-                const result: any = (data.value as any)[0];
-                results.push({
-                    sql: result.sql,
-                    rowsAffected: result.res?.[0].rowsAffected,
-                    error: result.errorMsg || '-',
-                });
-            } catch (error: any) {
-                results.push({
-                    sql: sql,
-                    error: error.message || error.msg,
-                });
-            }
-        }
-
-        // 设置表格列
-        state.execResTabs[i].tableColumn = [
-            { columnName: 'SQL', key: 'sql', columnType: 'string', show: true },
-            { columnName: 'RowsAffected', key: 'rowsAffected', columnType: 'number', show: true },
-            { columnName: 'Error', key: 'error', columnType: 'string', show: true },
-        ];
-
-        state.execResTabs[i].data = results;
-        cancelUpdateFields(execRes);
-    } catch (e: any) {
-        execRes.data = [];
-        execRes.tableColumn = [];
-        execRes.table = '';
-        state.execResTabs[i].errorMsg = e.message || e.msg || 'Execution failed';
-        return;
-    } finally {
-        execRes.execTime = new Date().getTime() - startTime;
-    }
-
-    execRes.table = '';
-};
-
-/**
- * 执行单条sql
- *
- * @param sql 单条sql
- * @param newTab 是否新建tab
- */
-const runSql = async (sql: string, remark = '', newTab = false) => {
-    let execRes: ExecResTab;
-    let i = 0;
-    let id;
-    // 新tab执行，或者tabs为0，则新建tab执行sql
-    if (newTab || state.execResTabs.length == 0) {
-        // 取最后一个tab的id + 1
-        id = state.execResTabs.length == 0 ? 1 : state.execResTabs[state.execResTabs.length - 1].id + 1;
-        execRes = new ExecResTab(id);
-        state.execResTabs.push(execRes);
-        i = state.execResTabs.length - 1;
-    } else {
-        // 不是新建tab执行，则在当前激活的tab上执行sql
-        i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
-        execRes = state.execResTabs[i];
-        if (unref(execRes.loading)) {
-            Msg.error('db.currentSqlTabIsRunning');
-            return;
-        }
-        id = execRes.id;
-    }
-
-    state.activeTab = id;
-    const startTime = new Date().getTime();
-    try {
-        execRes.errorMsg = '';
-        execRes.sql = '';
-
-        const { data, execute, isFetching, abort } = getNowDbInst().execSql(props.dbName, sql, remark);
-        execRes.loading = isFetching;
-        execRes.abortFn = abort;
-
-        await execute();
-        const colAndData: any = (data.value as any)[0];
-        if (colAndData.errorMsg) {
-            throw { msg: colAndData.errorMsg };
-        }
-
-        if (colAndData.res.length == 0) {
-            state.tableDataEmptyText = 'No Data';
-        }
-
-        // 要实时响应，故需要用索引改变数据才生效
-        state.execResTabs[i].data = colAndData.res;
-        // 兼容表格字段配置
-        state.execResTabs[i].tableColumn = colAndData.columns.map((x: any) => {
-            return {
-                columnName: x.name,
-                key: x.key,
-                columnType: x.type,
-                show: true,
-            };
-        });
-        cancelUpdateFields(execRes);
-    } catch (e: any) {
-        execRes.data = [];
-        execRes.tableColumn = [];
-        execRes.table = '';
-        // 要实时响应，故需要用索引改变数据才生效
-        state.execResTabs[i].errorMsg = e.msg;
-        return;
-    } finally {
-        execRes.sql = sql;
-        execRes.execTime = new Date().getTime() - startTime;
-    }
-
-    // 即只有以该字符串开头的sql才可修改表数据内容
-    if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
-        const tableName = sql.split(/from/i)[1];
-        if (tableName) {
-            const tn = tableName.trim().split(' ')[0].split('\n')[0];
-            // 去除表名前后的字符`或者"
-            execRes.table = tn.replace(/`/g, '').replace(/"/g, '');
-        } else {
-            execRes.table = '';
-        }
-    } else {
-        execRes.table = '';
-    }
-};
-
-/**
- * 获取sql，如果有鼠标选中，则返回选中内容，否则返回当前光标附近的sql
- */
-const getSql = (): string[] => {
-    // 编辑器还没初始化
-    if (!monacoEditor?.getModel()) {
-        return [];
-    }
-
-    let sql = '' as string | undefined;
-    // 选择选中的sql
-    let selection = monacoEditor.getSelection();
-    if (selection) {
-        sql = monacoEditor.getModel()?.getValueInRange(selection);
-        sql = sql?.replace(/(^\s*)/g, '');
-    }
-
-    // 如果有选中的内容且不为空，直接返回
-    if (sql && sql.trim()) {
-        return splitSqlStatements(sql).map((x) => x.text);
-    }
-
-    // 没有选中任何内容时，自动选择当前光标所在的SQL语句行
-    const currentPosition = monacoEditor.getPosition();
-    if (currentPosition) {
-        const model = monacoEditor.getModel();
-        if (model) {
-            const fullSql = model.getValue();
-            const sqlStatement = getCurrentStatement(fullSql, currentPosition, model);
-            if (sqlStatement) {
-                return [sqlStatement];
-            }
-        }
-    }
-
-    return [];
-};
-
-/**
- * 通用SQL解析器，用于提取SQL语句及其位置信息
- * @param sql 完整的SQL文本
- * @param delimiter SQL语句分隔符，默认为分号
- * @param withPosition 是否需要返回位置信息
- */
-function splitSqlStatements(sql: string, delimiter: string = ';') {
-    let state = 'normal';
-    let buffer = '';
-    let result = [];
-    let inString = null; // 用于记录当前字符串的引号类型（' 或 "）
-    let startPos = 0;
-
-    for (let i = 0; i < sql.length; i++) {
-        const char = sql[i];
-        const nextChar = sql[i + 1];
-
-        if (state === 'normal') {
-            if (char === '-' && nextChar === '-') {
-                state = 'singleLineComment';
-                // buffer += char + nextChar;
-                i++; // 跳过下一个字符
-            } else if (char === '/' && nextChar === '*') {
-                state = 'multiLineComment';
-                // buffer += char + nextChar;
-                i++; // 跳过下一个字符
-            } else if (char === "'" || char === '"') {
-                state = 'string';
-                inString = char;
-                buffer += char;
-            } else if (char === delimiter) {
-                if (buffer.trim()) {
-                    result.push({
-                        text: buffer.trim(),
-                        start: startPos,
-                        end: i,
-                    });
-                }
-                buffer = '';
-                startPos = i + 1;
-            } else {
-                buffer += char;
-            }
-        } else if (state === 'string') {
-            buffer += char;
-            if (char === '\\') {
-                // 处理转义字符
-                buffer += nextChar;
-                i++;
-            } else if (char === inString) {
-                state = 'normal';
-                inString = null;
-            }
-        } else if (state === 'singleLineComment') {
-            // buffer += char;
-            if (char === '\n') {
-                state = 'normal';
-            }
-        } else if (state === 'multiLineComment') {
-            // buffer += char;
-            if (char === '*' && nextChar === '/') {
-                buffer += nextChar;
-                state = 'normal';
-                i++; // 跳过下一个字符
-            }
-        }
-    }
-
-    // 处理最后一个语句（没有以分号结尾的情况）
-    if (buffer.trim()) {
-        result.push({
-            text: buffer.trim(),
-            start: startPos,
-            end: sql.length,
-        });
-    }
-
-    return result;
-}
-
-/**
- * 获取光标所在的SQL语句
- * @param fullSql 完整的SQL文本
- * @param position 光标位置
- * @param model Monaco编辑器模型
- */
-function getCurrentStatement(fullSql: string, position: monaco.Position, model: monaco.editor.ITextModel): string | null {
-    // 使用通用SQL解析器来分割SQL语句，并记录每个语句的位置
-    const statements: { text: string; start: number; end: number }[] = splitSqlStatements(fullSql);
-
-    // 根据光标位置找到对应的SQL语句
-    if (position) {
-        const offset = model.getOffsetAt(position);
-
-        // 遍历所有语句，找到光标所在的语句
-        for (let i = 0; i < statements.length; i++) {
-            const stmt = statements[i];
-            // 光标在语句范围内（包括末尾分号）
-            if (offset >= stmt.start && offset <= stmt.end) {
-                return stmt.text;
-            }
-            // 光标在语句分号后一个位置
-            if (offset === stmt.end + 1) {
-                return stmt.text;
-            }
-        }
-
-        // 如果光标处没有SQL，则执行光标前的最后一个SQL
-        for (let i = statements.length - 1; i >= 0; i--) {
-            const stmt = statements[i];
-            if (offset > stmt.end) {
-                return stmt.text;
-            }
-        }
-    }
-
-    return null;
-}
 
 const saveSql = async () => {
     const sql = monacoEditor.getModel()?.getValue();
@@ -717,7 +187,7 @@ const onFormatSql = () => {
         return;
     }
 
-    const formatDialect: any = getNowDbInst().getDialect().getInfo().formatSqlDialect;
+    const formatDialect = getNowDbInst().getDialect().getInfo().formatSqlDialect as SqlFormatterLanguage;
 
     let sql = monacoEditor.getModel()?.getValueInRange(selection);
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
@@ -739,7 +209,7 @@ const onCommit = () => {
 /**
  * 替换选中的内容
  */
-const replaceSelection = (str: string, selection: any) => {
+const replaceSelection = (str: string, selection: IRange) => {
     const model = monacoEditor.getModel();
     if (!model) {
         return;
@@ -772,12 +242,8 @@ const replaceSelection = (str: string, selection: any) => {
     });
 };
 
-const beforeUpload = (file: File) => {
-    Msg.success('db.scriptFileUploadRunning', { filename: file.name });
-};
-
 // 自定义SQL文件上传处理
-const handleSqlFileUpload = (options: any) => {
+const handleSqlFileUpload = (options: { file: File }) => {
     const { file } = options;
 
     const { uploadId, abort } = uploadSqlFile(
@@ -799,159 +265,85 @@ const handleSqlFileUpload = (options: any) => {
     return { abort };
 };
 
-// 执行sql成功
-const execSqlFileSuccess = (res: any) => {
-    if (res.code !== 200) {
-        Msg.error(res.msg);
-    }
-};
-
 // 获取sql文件上传执行url
 const getUploadSqlFileUrl = () => {
     return `${config.baseApiUrl}/dbs/${props.dbId}/exec-sql-file?db=${props.dbName}&${joinClientParams()}`;
 };
 
-const changeUpdatedField = (updatedFields: any, dt: ExecResTab) => {
-    // 如果存在要更新字段，则显示提交和取消按钮
-    dt.hasUpdatedFields = updatedFields && updatedFields.size > 0;
-};
-
-/**
- * 数据删除事件
- */
-const onDeleteData = async (deleteDatas: any, dt: ExecResTab) => {
-    const db = props.dbName;
-    const dbInst = getNowDbInst();
-    const primaryKey = await dbInst.loadTableColumn(db, dt.table);
-    const primaryKeyColumnName = primaryKey.columnName;
-    dt.data = dt.data.filter((d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1));
-};
-
-const submitUpdateFields = (dt: ExecResTab) => {
-    dt?.dbTableRef?.submitUpdateFields();
-};
-
-const cancelUpdateFields = (dt: ExecResTab) => {
-    dt?.dbTableRef?.cancelUpdateFields();
-};
-
 const initMonacoEditor = () => {
-    monacoEditor = monacoEditorRef.value.getEditor();
+    const editorInstance = monacoEditorRef.value?.getEditor();
+    if (!editorInstance) {
+        return;
+    }
+    monacoEditor = editorInstance;
 
     // 注册快捷键：ctrl + R 运行选中的sql
     monacoEditor.addAction({
-        // An unique identifier of the contributed action.
-        // id: 'run-sql-action' + state.ti.key,
         id: 'run-sql-action' + getKey(),
-        // A label of the action that will be presented to the user.
         label: t('db.runSql'),
-        // A precondition for this action.
         precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
         keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, 0),
-        ],
+        keybindings: [KeyMod.chord(KeyMod.CtrlCmd | KeyCode.KeyR, 0)],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 1.5,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
         run: async function () {
             try {
                 await onRunSql();
-            } catch (e: any) {
-                e.message && Msg.error(e.message);
+            } catch (e: unknown) {
+                e instanceof Error && e.message && Msg.error(e.message);
             }
         },
     });
 
-    // 注册快捷键：ctrl + R 运行选中的sql
+    // 注册快捷键：ctrl + shift + R 新tab运行选中的sql
     monacoEditor.addAction({
-        // An unique identifier of the contributed action.
-        // id: 'run-sql-action' + state.ti.key,
         id: 'run-sql-action-on-newtab' + getKey(),
-        // A label of the action that will be presented to the user.
         label: t('db.newTabRunSql'),
-        // A precondition for this action.
         precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
         keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyR, 0),
-        ],
+        keybindings: [KeyMod.chord(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyR, 0)],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 1.6,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
         run: async function () {
             try {
                 await onRunSql(true);
-            } catch (e: any) {
-                e.message && Msg.error(e.message);
+            } catch (e: unknown) {
+                e instanceof Error && e.message && Msg.error(e.message);
             }
         },
     });
 
     // 注册快捷键：ctrl + shift + f 格式化sql
     monacoEditor.addAction({
-        // An unique identifier of the contributed action.
         id: 'format-sql-action' + getKey(),
-        // A label of the action that will be presented to the user.
         label: t('db.formatSql'),
-        // A precondition for this action.
         precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
         keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, 0),
-        ],
+        keybindings: [KeyMod.chord(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyF, 0)],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 2,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
         run: async function () {
             try {
                 await onFormatSql();
-            } catch (e: any) {
-                e.message && Msg.error(e.message);
+            } catch (e: unknown) {
+                e instanceof Error && e.message && Msg.error(e.message);
             }
         },
     });
 
-    // 注册快捷键：ctrl + shift + f 格式化sql
+    // 注册快捷键：ctrl + s 保存sql
     monacoEditor.addAction({
-        // An unique identifier of the contributed action.
         id: 'save-sql-action' + getKey(),
-        // A label of the action that will be presented to the user.
         label: t('db.saveSql'),
-        // A precondition for this action.
         precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
         keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, 0),
-        ],
+        keybindings: [KeyMod.chord(KeyMod.CtrlCmd | KeyCode.KeyS, 0)],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 3,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
         run: async function () {
             await saveSql();
         },
     });
-};
-
-const active = () => {
-    const resTab = state.execResTabs[state.activeTab - 1];
-    if (!resTab || !resTab.dbTableRef) {
-        return;
-    }
-
-    resTab.dbTableRef?.active();
 };
 
 defineExpose({

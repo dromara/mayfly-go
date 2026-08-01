@@ -79,6 +79,7 @@ import { storeToRefs } from 'pinia';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
+import type { ICollection, IMilvusCollectionDetail } from '../types';
 import CollectionsCreate from './CollectionsCreate.vue';
 
 const { t } = useI18n();
@@ -91,17 +92,17 @@ const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 const { dbs, selectedDb } = storeToRefs(milvusStore);
 const emit = defineEmits(['changeTab']);
 
-const list = ref<any[]>([]);
+const list = ref<ICollection[]>([]);
 const createDrawerVisible = ref(false);
 const loading = ref(false);
 const drawerMode = ref<'create' | 'edit' | 'copy'>('create');
-const editData = ref<any>(null);
+const editData = ref<IMilvusCollectionDetail | null>(null);
 
 // 别名相关
 const aliasDialogVisible = ref(false);
 const newAlias = ref('');
 const aliasLoading = ref(false);
-const currentCollectionForAlias = ref<any>(null);
+const currentCollectionForAlias = ref<ICollection | null>(null);
 
 // 轮询定时器
 let pollingTimer: number | null = null;
@@ -111,11 +112,11 @@ const loadList = async () => {
     try {
         const res = await milvusApi.listCollections(props.milvusId);
         // 以name排序
-        res.sort((a: any, b: any) => {
+        res.sort((a, b) => {
             return a.name.localeCompare(b.name);
         });
         list.value = res || [];
-        milvusStore.setCollections(res.map((a: any) => a.name));
+        milvusStore.setCollections(res.map((a) => a.name));
 
         // 加载每个集合的别名
         await loadAllAliases();
@@ -144,11 +145,11 @@ const loadAllAliases = async () => {
 const startPolling = () => {
     stopPolling();
 
-    const loadingItems = list.value.filter((item) => item.LoadedPercentage > 0 && item.LoadedPercentage < 100);
+    const loadingItems = list.value.filter((item) => (item.LoadedPercentage ?? 0) > 0 && (item.LoadedPercentage ?? 0) < 100);
     if (loadingItems.length === 0) return;
 
     pollingTimer = window.setInterval(async () => {
-        const stillLoading = list.value.filter((item) => item.LoadedPercentage > 0 && item.LoadedPercentage < 100);
+        const stillLoading = list.value.filter((item) => (item.LoadedPercentage ?? 0) > 0 && (item.LoadedPercentage ?? 0) < 100);
         if (stillLoading.length === 0) {
             stopPolling();
             return;
@@ -172,7 +173,7 @@ const handleCreate = () => {
     createDrawerVisible.value = true;
 };
 
-const handleEdit = async (row: any) => {
+const handleEdit = async (row: ICollection) => {
     const data = await milvusApi.describeCollection(props.milvusId, row.name);
     drawerMode.value = 'edit';
     editData.value = data;
@@ -180,20 +181,19 @@ const handleEdit = async (row: any) => {
 };
 
 const handleDataOperation = (name: string) => {
-    console.log('[Collections] 切换到数据操作页面, collection:', name);
     milvusStore.setSelectedCollection(name);
     emit('changeTab', 'data');
 };
 
 // 为每个字段加载索引信息
-const handleCopy = async (row: any) => {
+const handleCopy = async (row: ICollection) => {
     const data = await milvusApi.describeCollection(props.milvusId, row.name);
     drawerMode.value = 'copy';
     editData.value = data;
     createDrawerVisible.value = true;
 };
 
-const handleDescribe = async (row: any) => {
+const handleDescribe = async (row: ICollection) => {
     const res = await milvusApi.describeCollection(props.milvusId, row.name);
     MonacoEditorBox({
         content: JSON.stringify(res, null, 2),
@@ -211,43 +211,42 @@ const handleDescribe = async (row: any) => {
 };
 
 // 点击加载状态 tag - 未加载时提示加载
-const handleLoadClick = async (row: any) => {
+const handleLoadClick = async (row: ICollection) => {
     await useI18nConfirm('milvus.confirmLoadCollection', { name: row.name });
     handleLoad(row);
 };
 
 // 点击加载状态 tag - 已加载时提示释放
-const handleReleaseClick = async (row: any) => {
+const handleReleaseClick = async (row: ICollection) => {
     await useI18nConfirm('milvus.confirmReleaseCollection', { name: row.name });
     handleRelease(row);
 };
 
-const handleLoad = (row: any) => {
-    console.log(row);
+const handleLoad = (row: ICollection) => {
     milvusApi
         .loadCollection(props.milvusId, row.name, { async: true })
         .then(() => {
             Msg.success('milvus.loadedSuccess');
             loadList();
         })
-        .catch((error: any) => {
-            Msg.error(error.message);
+        .catch((error: unknown) => {
+            Msg.error(error instanceof Error ? error.message : String(error));
         });
 };
 
-const handleRelease = (row: any) => {
+const handleRelease = (row: ICollection) => {
     milvusApi
         .releaseCollection(props.milvusId, row.name)
         .then(() => {
             Msg.success('milvus.releasedSuccess');
             loadList();
         })
-        .catch((error: any) => {
-            Msg.error(error.message);
+        .catch((error: unknown) => {
+            Msg.error(error instanceof Error ? error.message : String(error));
         });
 };
 
-const handleDrop = async (row: any) => {
+const handleDrop = async (row: ICollection) => {
     await useI18nConfirm('milvus.confirmDeleteCollection', { name: row.name });
 
     await milvusApi.dropCollection(props.milvusId, row.name);
@@ -256,7 +255,7 @@ const handleDrop = async (row: any) => {
 };
 
 // 别名操作
-const handleAddAlias = (row: any) => {
+const handleAddAlias = (row: ICollection) => {
     currentCollectionForAlias.value = row;
     newAlias.value = '';
     aliasDialogVisible.value = true;
@@ -271,26 +270,26 @@ const submitAddAlias = async () => {
         Msg.success('milvus.addedAliasSuccess');
         aliasDialogVisible.value = false;
         await loadList();
-    } catch (error: any) {
-        Msg.error(error.message);
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message : String(error));
     } finally {
         aliasLoading.value = false;
     }
 };
 
-const handleDeleteAlias = async (row: any, alias: string) => {
+const handleDeleteAlias = async (row: ICollection, alias: string) => {
     await useI18nConfirm('milvus.confirmDeleteAlias', { name: alias });
 
     try {
         await milvusApi.dropAlias(props.milvusId, alias);
         Msg.success('milvus.deletedAliasSuccess');
         await loadList();
-    } catch (error: any) {
-        Msg.error(error.message);
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message : String(error));
     }
 };
 
-const onChangeDb = (v: any) => {
+const onChangeDb = (v: string) => {
     milvusStore.selectedCollection = '';
     milvusStore.setSelectedDb(v);
     milvusApi.useDatabase(props.milvusId, v);

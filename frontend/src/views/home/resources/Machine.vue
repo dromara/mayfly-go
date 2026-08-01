@@ -56,9 +56,16 @@
 
 <script lang="ts" setup>
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { machineApi } from '@/views/ops/machine/api';
 import Base from './Base.vue';
+
+interface FsInfo {
+    mountPoint?: string;
+    used: number;
+    free: number;
+}
+
 const formatByteSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -68,13 +75,13 @@ const formatByteSize = (bytes: number): string => {
 };
 
 // 计算磁盘使用率
-const getDiskUsage = (fSInfos: any[]) => {
+const getDiskUsage = (fSInfos: FsInfo[]) => {
     if (!fSInfos || fSInfos.length === 0) return '0%';
 
     let totalUsed = 0;
     let totalFree = 0;
 
-    fSInfos.forEach((fs: any) => {
+    fSInfos.forEach((fs: FsInfo) => {
         totalUsed += fs.used || 0;
         totalFree += fs.free || 0;
     });
@@ -103,13 +110,13 @@ const getMemUsageClass = (memUsed: number, memTotal: number) => {
 };
 
 // 获取磁盘使用率颜色类
-const getDiskUsageClass = (fSInfos: any[]) => {
+const getDiskUsageClass = (fSInfos: FsInfo[]) => {
     if (!fSInfos || fSInfos.length === 0) return 'stat-success';
 
     let totalUsed = 0;
     let totalFree = 0;
 
-    fSInfos.forEach((fs: any) => {
+    fSInfos.forEach((fs: FsInfo) => {
         totalUsed += fs.used || 0;
         totalFree += fs.free || 0;
     });
@@ -124,11 +131,11 @@ const getDiskUsageClass = (fSInfos: any[]) => {
 };
 
 // 计算磁盘已用空间
-const getDiskUsed = (fSInfos: any[]) => {
+const getDiskUsed = (fSInfos: FsInfo[]) => {
     if (!fSInfos || fSInfos.length === 0) return '0 B';
 
     let totalUsed = 0;
-    fSInfos.forEach((fs: any) => {
+    fSInfos.forEach((fs: FsInfo) => {
         totalUsed += fs.used || 0;
     });
 
@@ -136,13 +143,13 @@ const getDiskUsed = (fSInfos: any[]) => {
 };
 
 // 计算磁盘总空间
-const getDiskTotal = (fSInfos: any[]) => {
+const getDiskTotal = (fSInfos: FsInfo[]) => {
     if (!fSInfos || fSInfos.length === 0) return '0 B';
 
     let totalUsed = 0;
     let totalFree = 0;
 
-    fSInfos.forEach((fs: any) => {
+    fSInfos.forEach((fs: FsInfo) => {
         totalUsed += fs.used || 0;
         totalFree += fs.free || 0;
     });

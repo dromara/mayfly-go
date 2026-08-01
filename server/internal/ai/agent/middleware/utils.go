@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mayfly-go/pkg/gox"
 
 	"github.com/cloudwego/eino/schema"
 )
@@ -17,7 +18,7 @@ func singleChunkReader(msg string) *schema.StreamReader[string] {
 
 func safeWrapReader(sr *schema.StreamReader[string]) *schema.StreamReader[string] {
 	r, w := schema.Pipe[string](64)
-	go func() {
+	gox.Go(func() {
 		defer w.Close()
 		for {
 			chunk, err := sr.Recv()
@@ -30,6 +31,6 @@ func safeWrapReader(sr *schema.StreamReader[string]) *schema.StreamReader[string
 			}
 			_ = w.Send(chunk, nil)
 		}
-	}()
+	})
 	return r
 }

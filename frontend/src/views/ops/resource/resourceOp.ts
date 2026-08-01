@@ -1,13 +1,21 @@
-import { nextTick, reactive, ref, type Component } from 'vue';
+import { nextTick, reactive, ref, type Component, type ComponentPublicInstance } from 'vue';
 
 export const ResourceOpCtxKey = 'ResourceOpCtx';
+
+/** 资源操作组件实例（包含可选生命周期回调） */
+export interface ResourceCompInstance extends ComponentPublicInstance {
+    onActivate?: () => void;
+    onRefresh?: () => void;
+    onClose?: () => void;
+    onResize?: () => void;
+}
 
 export interface ResourceOpCtx {
     /**
      * 获取树节点
      * @param nodeKey 节点key
      */
-    getTreeNode(nodeKey: string): any;
+    getTreeNode(nodeKey: string): Record<string, unknown>;
 
     setCurrentTreeKey(nodeKey: string): void;
 
@@ -24,7 +32,7 @@ export interface ResourceOpTab {
 
     component: Component; // 组件
     // 组件 props（可选）
-    componentProps?: Record<string, any>;
+    componentProps?: Record<string, unknown>;
     // 组件实例
     componentInstance?: any;
     // component key（包含时间戳，用于 keep-alive 缓存控制）
@@ -33,7 +41,7 @@ export interface ResourceOpTab {
     // 自定义 tab 标签组件（可选），如果提供则使用自定义组件渲染 tab 标签，否则使用默认的 icon + name 显示
     tabComponent?: Component;
     // tab 标签组件的 props（包含 icon、tabProps 等）
-    tabComponentProps?: Record<string, any>;
+    tabComponentProps?: { icon?: { name: string; color?: string }; [key: string]: unknown };
 }
 
 /**
@@ -43,7 +51,7 @@ export interface ResourceOpTab {
 export interface ResourceOpOverlay {
     key: string; // 组件唯一标识
     component: Component; // 组件
-    props?: Record<string, any>; // 组件 props
+    props?: Record<string, unknown>; // 组件 props
     visible: boolean; // 是否显示
 }
 
@@ -60,7 +68,7 @@ export const allResourceOpOverlays = reactive<Map<string, ResourceOpOverlay>>(ne
  * @param key tab key
  * @param instance 组件实例
  */
-export function registerComponentInstance(key: string, instance: any) {
+export function registerComponentInstance(key: string, instance: ComponentPublicInstance) {
     const tab = allResourceOpTabs.get(key);
     if (tab && !tab.componentInstance) {
         tab.componentInstance = instance;
@@ -72,7 +80,7 @@ export function registerComponentInstance(key: string, instance: any) {
  * @param key tab key
  * @returns 组件实例
  */
-export function getComponentInstance<T = any>(key: string): T | undefined {
+export function getComponentInstance<T = ResourceCompInstance>(key: string): T | undefined {
     const tab = allResourceOpTabs.get(key);
     return tab?.componentInstance as T;
 }
@@ -160,7 +168,7 @@ export function getActiveResourceOpTab() {
  * @param key tab key
  * @param tabComponentProps 自定义 tab 组件的 props
  */
-export function updateTabComponentProps(key: string, tabComponentProps: Record<string, any>) {
+export function updateTabComponentProps(key: string, tabComponentProps: Record<string, unknown>) {
     const tab = allResourceOpTabs.get(key);
     if (tab) {
         tab.tabComponentProps = { ...tab.tabComponentProps, ...tabComponentProps };
@@ -178,7 +186,7 @@ export function updateTabComponentProps(key: string, tabComponentProps: Record<s
  * @param component 组件（首次注册时必需）
  * @param props 组件 props
  */
-export function showResourceOpOverlay(key: string, component?: Component, props?: Record<string, any>) {
+export function showResourceOpOverlay(key: string, component?: Component, props?: Record<string, unknown>) {
     const existing = allResourceOpOverlays.get(key);
     if (existing) {
         // 已存在，更新 props 并显示

@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup name="layoutAside">
-import { reactive, computed, watch, getCurrentInstance, onBeforeMount, inject, defineAsyncComponent } from 'vue';
+import { reactive, computed, watch, getCurrentInstance, onBeforeMount, inject, defineAsyncComponent, type Ref } from 'vue';
 import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -26,7 +26,7 @@ import { useWindowSize } from '@vueuse/core';
 const Logo = defineAsyncComponent(() => import('@/layout/logo/index.vue'));
 const Vertical = defineAsyncComponent(() => import('@/layout/navMenu/vertical.vue'));
 
-const { proxy } = getCurrentInstance() as any;
+const { proxy } = getCurrentInstance() as { proxy: { $refs: Record<string, { update: () => void }> } };
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());
@@ -34,12 +34,12 @@ const { routesList } = storeToRefs(useRoutesList());
 const { width: clientWidth } = useWindowSize();
 
 const state = reactive({
-    menuList: [] as any[],
+    menuList: [] as RouteItem[],
 });
 
 // 注入 菜单数据
-const columnsMenuData: any = inject('columnsMenuData', null);
-const classicMenuData: any = inject('classicMenuData', null);
+const columnsMenuData = inject<Ref<SendChildrenResult | null> | null>('columnsMenuData', null);
+const classicMenuData = inject<Ref<SendChildrenResult | null> | null>('classicMenuData', null);
 
 // 设置菜单展开/收起时的宽度
 const setCollapseWidth = computed(() => {
@@ -77,10 +77,10 @@ const setFilterRoutes = () => {
 };
 
 // 路由过滤递归函数
-const filterRoutesFun = (arr: Array<object>) => {
+const filterRoutesFun = (arr: RouteItem[]) => {
     return arr
-        .filter((item: any) => !item.meta.isHide)
-        .map((item: any) => {
+        .filter((item: RouteItem) => !item.meta?.isHide)
+        .map((item: RouteItem) => {
             item = Object.assign({}, item);
             if (item.children) item.children = filterRoutesFun(item.children);
             return item;
@@ -125,7 +125,7 @@ onBeforeMount(() => {
     if (columnsMenuData) {
         watch(columnsMenuData, (newVal) => {
             if (newVal) {
-                state.menuList = newVal.children;
+                state.menuList = newVal.children ?? [];
             }
         });
     }
@@ -135,7 +135,7 @@ onBeforeMount(() => {
             let { layout, isClassicSplitMenu } = themeConfig.value;
             if (newVal && layout === 'classic' && isClassicSplitMenu) {
                 state.menuList = [];
-                state.menuList = newVal.children;
+                state.menuList = newVal.children ?? [];
             }
         });
     }

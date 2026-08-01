@@ -50,14 +50,16 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resourceApi, roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
+import type { SysRole } from '../types';
+import type { SysResource } from '../types';
 
 const RoleEdit = defineAsyncComponent(() => import('./RoleEdit.vue'));
 const ShowResource = defineAsyncComponent(() => import('./ShowResource.vue'));
@@ -89,33 +91,33 @@ const columns = ref([
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource, perms.saveAccountRole]);
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(300).fixedRight().noShowOverflowTooltip().alignCenter();
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const state = reactive({
     query: {
         pageNum: 1,
         pageSize: 0,
         name: null,
     },
-    selectionData: [],
+    selectionData: [] as SysRole[],
     resourceDialog: {
         visible: false,
-        role: {},
-        resources: [],
-        defaultCheckedKeys: [],
+        role: null as SysRole | null,
+        resources: [] as SysResource[],
+        defaultCheckedKeys: [] as number[],
     },
     roleEditDialog: {
         title: '',
         visible: false,
-        role: {},
+        role: false as SysRole | false,
     },
     showResourceDialog: {
         visible: false,
-        resources: [],
+        resources: [] as SysResource[],
         title: '',
     },
     accountAllocationDialog: {
         visible: false,
-        role: {},
+        role: null as SysRole | null,
     },
 });
 
@@ -128,7 +130,7 @@ onMounted(() => {
 });
 
 const search = () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
 const roleEditChange = () => {
@@ -136,7 +138,7 @@ const roleEditChange = () => {
     search();
 };
 
-const editRole = (data: any) => {
+const editRole = (data: SysRole | false) => {
     if (data) {
         state.roleEditDialog.title = useI18nEditTitle('common.role');
         state.roleEditDialog.role = data;
@@ -148,11 +150,11 @@ const editRole = (data: any) => {
     state.roleEditDialog.visible = true;
 };
 
-const deleteRole = async (data: any) => {
+const deleteRole = async (data: SysRole[]) => {
     try {
-        await useI18nDeleteConfirm(data.map((x: any) => x.name).join('、'));
+        await useI18nDeleteConfirm(data.map((x: SysRole) => x.name).join('、'));
         await roleApi.del.request({
-            id: data.map((x: any) => x.id).join(','),
+            id: data.map((x: SysRole) => x.id).join(','),
         });
         Msg.deleteSuccess();
         search();
@@ -161,7 +163,7 @@ const deleteRole = async (data: any) => {
     }
 };
 
-const showResources = async (row: any) => {
+const showResources = async (row: SysRole) => {
     state.showResourceDialog.resources = await roleApi.roleResources.request({
         id: row.id,
     });
@@ -169,7 +171,7 @@ const showResources = async (row: any) => {
     state.showResourceDialog.visible = true;
 };
 
-const editResource = async (row: any) => {
+const editResource = async (row: SysRole) => {
     let menus = await resourceApi.list.request(null);
     // 获取所有菜单列表
     state.resourceDialog.resources = menus;
@@ -178,7 +180,7 @@ const editResource = async (row: any) => {
         id: row.id,
     });
     let hasIds = roles ? roles : [];
-    let hasLeafIds: any = [];
+    let hasLeafIds: number[] = [];
     // 获取菜单的所有叶子节点
     let leafIds = getAllLeafIds(state.resourceDialog.resources);
     for (let id of leafIds) {
@@ -193,7 +195,7 @@ const editResource = async (row: any) => {
     state.resourceDialog.role = row;
 };
 
-const showAccountAllocation = (data: any) => {
+const showAccountAllocation = (data: SysRole) => {
     state.accountAllocationDialog.role = data;
     state.accountAllocationDialog.visible = true;
 };
@@ -202,16 +204,16 @@ const showAccountAllocation = (data: any) => {
  * 获取所有菜单树的叶子节点
  * @param {Object} trees  菜单树列表
  */
-const getAllLeafIds = (trees: any) => {
-    let leafIds: any = [];
+const getAllLeafIds = (trees: SysResource[]): number[] => {
+    let leafIds: number[] = [];
     for (let tree of trees) {
         setLeafIds(tree, leafIds);
     }
     return leafIds;
 };
 
-const setLeafIds = (tree: any, ids: any) => {
-    if (tree.children !== null) {
+const setLeafIds = (tree: SysResource, ids: number[]) => {
+    if (tree.children != null) {
         for (let t of tree.children) {
             setLeafIds(t, ids);
         }
@@ -226,7 +228,7 @@ const setLeafIds = (tree: any, ids: any) => {
 const cancelEditResources = () => {
     state.resourceDialog.visible = false;
     setTimeout(() => {
-        state.resourceDialog.role = {};
+        state.resourceDialog.role = null;
         state.resourceDialog.defaultCheckedKeys = [];
     }, 10);
 };

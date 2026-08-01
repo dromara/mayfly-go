@@ -40,14 +40,15 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import TagCodePath from '../../component/TagCodePath.vue';
 import { cronJobApi } from '../api';
 import { CronJobSaveExecResTypeEnum, CronJobStatusEnum } from '../enums';
+import type { MachineCronJob } from '../types';
 
 const CronJobEdit = defineAsyncComponent(() => import('./CronJobEdit.vue'));
 const CronJobExecList = defineAsyncComponent(() => import('./CronJobExecList.vue'));
@@ -72,7 +73,7 @@ const columns = ref([
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter(),
 ]);
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     params: {
@@ -85,11 +86,11 @@ const state = reactive({
     execDialog: {
         visible: false,
         total: 0,
-        data: [] as any,
+        data: null as MachineCronJob | null,
     },
     cronJobEdit: {
         visible: false,
-        data: null as any,
+        data: null as MachineCronJob | null,
         title: '',
     },
 });
@@ -98,7 +99,7 @@ const { selectionData, params, execDialog, cronJobEdit } = toRefs(state);
 
 onMounted(async () => {});
 
-const openFormDialog = async (data: any) => {
+const openFormDialog = async (data: MachineCronJob | false) => {
     let dialogTitle;
     if (data) {
         state.cronJobEdit.data = data;
@@ -112,15 +113,15 @@ const openFormDialog = async (data: any) => {
     state.cronJobEdit.visible = true;
 };
 
-const runCronJob = async (data: any) => {
+const runCronJob = async (data: MachineCronJob) => {
     await cronJobApi.run.request({ key: data.key });
     Msg.success('machine.runSuccess');
 };
 
 const deleteCronJob = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
-        await cronJobApi.delete.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: MachineCronJob) => x.name).join('、'));
+        await cronJobApi.delete.request({ id: state.selectionData.map((x: MachineCronJob) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {
@@ -131,13 +132,13 @@ const deleteCronJob = async () => {
 /**
  * 显示计划任务执行记录
  */
-const showExec = async (data: any) => {
+const showExec = async (data: MachineCronJob) => {
     state.execDialog.data = data;
     state.execDialog.visible = true;
 };
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 </script>
 

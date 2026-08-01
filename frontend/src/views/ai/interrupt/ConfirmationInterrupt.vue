@@ -52,7 +52,7 @@
  */
 
 import { EnumValue } from '@/common/Enum';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { InternalMessage, InterruptActionEvent } from './types';
@@ -92,7 +92,7 @@ const hasPending = computed(() => !!pendingResumeInfo.value);
 // 从 pendingResumeInfo 恢复已选择的选项
 watch(
     () => pendingResumeInfo.value?.payload,
-    (payload: any) => {
+    (payload) => {
         if (payload && typeof payload === 'string') {
             selectedOption.value = payload;
         }
@@ -110,13 +110,13 @@ const InterruptAction = {
  * @param action 操作类型
  * @param payload 额外数据（如选中的选项值）
  */
-const handleAction = (action: string, payload?: any) => {
+const handleAction = (action: string, payload?: unknown) => {
     emit('action', {
         turnId: turnId.value || '',
         interruptId: interruptId.value || '',
         interruptType: interruptType.value || '',
         action,
-        payload,
+        payload: payload as Record<string, unknown> | undefined,
     });
 };
 </script>

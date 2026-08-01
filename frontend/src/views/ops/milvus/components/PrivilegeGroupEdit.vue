@@ -1,7 +1,7 @@
 <template>
     <el-dialog
         :title="isEdit ? $t('milvus.editPrivilegeGroup') : $t('milvus.addPrivilegeGroup')"
-        v-model="dialogVisible"
+        v-model="visible"
         :close-on-click-modal="false"
         width="750px"
     >
@@ -29,7 +29,7 @@
         </div>
 
         <template #footer>
-            <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+            <el-button @click="visible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="handleSave" :loading="saving">{{ $t('common.confirm') }}</el-button>
         </template>
     </el-dialog>
@@ -43,17 +43,13 @@ import { milvusApi } from '../api';
 import type { IPrivilegeGroup } from '../types';
 
 const props = defineProps({
-    visible: { type: Boolean, default: false },
     milvusId: { type: Number, required: true },
     privilegeGroup: { type: Object as PropType<IPrivilegeGroup | null>, default: null },
 });
 
-const emit = defineEmits(['update:visible', 'saved']);
+const emit = defineEmits(['saved']);
 
-const dialogVisible = computed({
-    get: () => props.visible,
-    set: (val: boolean) => emit('update:visible', val),
-});
+const visible = defineModel<boolean>('visible', { default: false });
 
 const isEdit = computed(() => props.privilegeGroup !== null);
 
@@ -177,13 +173,13 @@ const handleSave = async () => {
         });
         Msg.success('milvus.privilegeGroupSaveSuccess');
         emit('saved');
-        dialogVisible.value = false;
+        visible.value = false;
     } finally {
         saving.value = false;
     }
 };
 
-watch(dialogVisible, (val) => {
+watch(visible, (val) => {
     if (val) {
         if (props.privilegeGroup) {
             // 编辑模式：回显数据

@@ -126,7 +126,7 @@ func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 
 	// 标记该任务运行中
 	app.MarkRunning(id)
-	go func() {
+	gox.Go(func() {
 		now := time.Now()
 		syncLog := &entity.DataSyncLog{
 			TaskId:     task.Id,
@@ -192,7 +192,7 @@ func (app *dataSyncAppImpl) Run(ctx context.Context, id uint64) error {
 		} else {
 			syncLog.Status = entity.DataSyncTaskStateSuccess
 		}
-	}()
+	})
 
 	return nil
 }

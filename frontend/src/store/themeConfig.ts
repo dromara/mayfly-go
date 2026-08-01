@@ -153,7 +153,7 @@ export const useThemeConfig = defineStore('themeConfig', {
 
             if (tc) {
                 this.themeConfig = tc;
-                document.documentElement.style.cssText = getLocal('themeConfigStyle');
+                document.documentElement.style.cssText = getLocal('themeConfigStyle') || '';
             }
 
             getServerConf().then((res) => {
@@ -176,12 +176,12 @@ export const useThemeConfig = defineStore('themeConfig', {
                 }
 
                 this.themeConfig.watermarkText = [];
-                this.themeConfig.isWatermark = res?.useWatermark;
+                this.themeConfig.isWatermark = res?.useWatermark ?? false;
                 if (!res?.useWatermark) {
                     return;
                 }
                 // 索引2为用户自定义水印信息
-                this.themeConfig.watermarkText[2] = res.watermarkContent;
+                this.themeConfig.watermarkText[2] = res.watermarkContent || '';
             });
         },
         // 设置水印用户信息

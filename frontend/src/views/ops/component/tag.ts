@@ -1,11 +1,11 @@
 import { ContextmenuItem } from '@/components/contextmenu';
-import { markRaw } from 'vue';
+import { markRaw, type Component } from 'vue';
 
 export class TagTreeNode {
     /**
      * 节点id
      */
-    key: any;
+    key: string | number;
 
     /**
      * 节点名称
@@ -35,26 +35,26 @@ export class TagTreeNode {
     /**
      * 额外需要传递的参数
      */
-    params: any;
+    params: Record<string, unknown>;
 
-    icon: any;
+    icon: { name: string; color?: string };
 
     // 节点组件
-    nodeComponent?: any;
+    nodeComponent?: Component;
 
     static TagPath = -1;
 
-    constructor(key: any, label: string, type?: NodeType) {
+    constructor(key: string | number, label: string, type?: NodeType) {
         this.key = key;
         this.label = label;
         this.type = type || new NodeType(TagTreeNode.TagPath);
     }
 
-    static new(parent: TagTreeNode, key: any, label: string, type?: NodeType) {
+    static new(parent: TagTreeNode, key: string | number, label: string, type?: NodeType) {
         return new TagTreeNode(key, label, type);
     }
 
-    withLabelRemark(labelRemark: any) {
+    withLabelRemark(labelRemark: string) {
         this.labelRemark = labelRemark;
         return this;
     }
@@ -69,17 +69,17 @@ export class TagTreeNode {
         return this;
     }
 
-    withParams(params: any) {
+    withParams(params: Record<string, unknown>) {
         this.params = params;
         return this;
     }
 
-    withIcon(icon: any) {
+    withIcon(icon: { name: string; color?: string }) {
         this.icon = icon;
         return this;
     }
 
-    withNodeComponent(component: any) {
+    withNodeComponent(component: Component) {
         this.nodeComponent = markRaw(component);
         return this;
     }
@@ -106,7 +106,7 @@ export class NodeType {
     /**
      * 节点类型值
      */
-    value: number;
+    value: number | string;
 
     contextMenuItems: ContextmenuItem[];
 
@@ -125,7 +125,7 @@ export class NodeType {
      */
     collapseRemoveChildren: boolean = false;
 
-    constructor(value: number) {
+    constructor(value: number | string) {
         this.value = value;
     }
 

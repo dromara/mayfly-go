@@ -3,7 +3,7 @@
         <template #prefix="{ data }">
             <el-popover @show="showDbInfo(data.params)" :show-after="500" placement="right-start" :title="$t('db.dbInstInfo')" trigger="hover" :width="250">
                 <template #reference>
-                    <SvgIcon :name="getDbDialect(data.params.type).getInfo().icon" :size="18" />
+                    <SvgIcon :name="getDbDialect(data.params.type as string).getInfo().icon" :size="18" />
                 </template>
                 <template #default>
                     <el-descriptions :column="1" size="small">
@@ -39,13 +39,13 @@ const serverInfoReqParam = ref({
     instanceId: 0,
 });
 
-const { execute: getDbServerInfo, isFetching: loadingServerInfo, data: dbServerInfo } = dbApi.getInstanceServerInfo.useApi<any>(serverInfoReqParam);
+const { execute: getDbServerInfo, isFetching: loadingServerInfo, data: dbServerInfo } = dbApi.getInstanceServerInfo.useApi(serverInfoReqParam);
 
-const showDbInfo = async (db: any) => {
+const showDbInfo = async (db: Record<string, unknown>) => {
     if (dbServerInfo.value) {
         dbServerInfo.value.version = '';
     }
-    serverInfoReqParam.value.instanceId = db.id;
+    serverInfoReqParam.value.instanceId = db.id as number;
     await getDbServerInfo();
 };
 </script>

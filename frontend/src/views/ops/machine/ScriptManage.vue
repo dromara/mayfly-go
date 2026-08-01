@@ -75,8 +75,8 @@
             <TerminalBody
                 ref="terminal"
                 :cmd="terminalDialog.cmd"
-                :socket-url="getMachineTerminalSocketUrl(props.authCertName)"
-                :machine-id="props.machineId"
+                :socket-url="getMachineTerminalSocketUrl(props.authCertName ?? '')"
+                :machine-id="machineId ?? undefined"
                 :auth-cert-name="props.authCertName"
                 :file-id="0"
                 :protocol="1"
@@ -96,29 +96,30 @@
 
 <script lang="ts" setup>
 import { DynamicFormDialog } from '@/components/dynamic-form';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem, OptionsApi } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem, OptionsApi } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, nextTick, onMounted, reactive, ref, Ref, toRefs, watch } from 'vue';
+import { defineAsyncComponent, nextTick, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { ScriptResultEnum, ScriptTypeEnum } from './enums';
+import type { MachineScriptVO } from './types';
 
 const ScriptEdit = defineAsyncComponent(() => import('./ScriptEdit.vue'));
 const TerminalBody = defineAsyncComponent(() => import('@/components/terminal/TerminalBody.vue'));
 
 const props = defineProps({
-    machineId: { type: Number },
     authCertName: { type: String },
     title: { type: String },
 });
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
+const machineId = defineModel<number | null>('machineId');
 
-const emit = defineEmits(['cancel', 'update:machineId']);
+const emit = defineEmits(['cancel']);
 
-const paramsForm: any = ref(null);
-const pageTableRef: Ref<any> = ref(null);
+const paramsForm = ref<InstanceType<typeof DynamicFormDialog> | null>(null);
+const pageTableRef = ref<InstanceType<typeof PageTable> | null>(null);
 
 const state = reactive({
     selectionData: [],
@@ -126,7 +127,7 @@ const state = reactive({
         SearchItem.select('type', 'common.type').withEnum(ScriptTypeEnum),
         SearchItem.select('category', 'machine.category').withOptionsApi(
             OptionsApi.new(machineApi.scriptCategorys, {}).withConvertFn((res) => {
-                return res.map((x: any) => {
+                return res.map((x: string) => {
                     return {
                         label: x,
                         value: x,
@@ -143,19 +144,19 @@ const state = reactive({
         TableColumn.new('action', 'common.operation').isSlot().setMinWidth(140).alignCenter(),
     ],
     query: {
-        machineId: 0 as any,
-        type: ScriptTypeEnum.Private.value,
+        machineId: null as number | null,
+        type: ScriptTypeEnum.Private.value as number,
         pageNum: 1,
         pageSize: 6,
     },
     editDialog: {
         visible: false,
-        data: null as any,
+        data: null as MachineScriptVO | null,
         title: '',
-        machineId: 9999999,
+        machineId: 9999999 as number | undefined,
     },
     scriptParamsDialog: {
-        script: null,
+        script: null as MachineScriptVO | null,
         visible: false,
         params: {},
         paramsFormItem: [],
@@ -176,18 +177,18 @@ const getScripts = async () => {
     pageTableRef.value?.search();
 };
 
-const checkScriptType = (query: any) => {
+const checkScriptType = (query: Record<string, unknown>) => {
     if (!query.type) {
-        query.machineId = props.machineId;
+        query.machineId = machineId.value;
         query.type = ScriptTypeEnum.Private.value;
     } else {
-        query.machineId = query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
+        query.machineId = query.type == ScriptTypeEnum.Private.value ? machineId.value : 9999999;
     }
 
     return query;
 };
 
-const runScript = async (script: any) => {
+const runScript = async (script: MachineScriptVO) => {
     // 如果存在参数，则弹窗输入参数后执行
     if (script.params) {
         state.scriptParamsDialog.paramsFormItem = JSON.parse(script.params);
@@ -203,17 +204,19 @@ const runScript = async (script: any) => {
 
 // 有参数的脚本执行函数
 const hasParamsRun = async () => {
-    await run(state.scriptParamsDialog.script);
+    if (state.scriptParamsDialog.script) {
+        await run(state.scriptParamsDialog.script);
+    }
     state.scriptParamsDialog.visible = false;
     state.scriptParamsDialog.script = null;
 };
 
-const run = async (script: any) => {
+const run = async (script: MachineScriptVO) => {
     const noResult = script.type == ScriptResultEnum.NoResult.value;
     // 如果脚本类型为有结果类型，则显示结果信息
     if (script.type == ScriptResultEnum.Result.value || noResult) {
         const res = await machineApi.runScript.request({
-            machineId: props.machineId,
+            machineId: machineId.value,
             acName: props.authCertName,
             scriptId: script.id,
             params: JSON.stringify(state.scriptParamsDialog.params),
@@ -229,11 +232,11 @@ const run = async (script: any) => {
     }
 
     if (script.type == ScriptResultEnum.RealTime.value) {
-        script = script.script;
+        let cmd = script.script ?? '';
         if (state.scriptParamsDialog.params) {
-            script = templateResolve(script, state.scriptParamsDialog.params);
+            cmd = templateResolve(cmd, state.scriptParamsDialog.params);
         }
-        state.terminalDialog.cmd = script;
+        state.terminalDialog.cmd = cmd;
         state.terminalDialog.visible = true;
         return;
     }
@@ -242,12 +245,12 @@ const run = async (script: any) => {
 /**
  * 解析 {{.param}} 形式模板字符串
  */
-function templateResolve(template: string, param: any) {
+function templateResolve(template: string, param: Record<string, unknown>) {
     return template.replace(/\{{.\w+\}}/g, (word) => {
         const key = word.substring(3, word.length - 2);
         const value = param[key];
         if (value != null || value != undefined) {
-            return value;
+            return String(value);
         }
         return '';
     });
@@ -257,8 +260,8 @@ const closeTerminal = () => {
     state.terminalDialog.visible = false;
 };
 
-const editScript = (data: any) => {
-    state.editDialog.machineId = props.machineId as any;
+const editScript = (data: MachineScriptVO | null) => {
+    state.editDialog.machineId = machineId.value ?? undefined;
     state.editDialog.data = data;
     if (data) {
         state.editDialog.title = useI18nEditTitle('machine.script');
@@ -272,11 +275,11 @@ const submitSuccess = () => {
     getScripts();
 };
 
-const deleteRow = async (rows: any) => {
-    await useI18nDeleteConfirm(rows.map((x: any) => x.name).join('、'));
+const deleteRow = async (rows: MachineScriptVO[]) => {
+    await useI18nDeleteConfirm(rows.map((x: MachineScriptVO) => x.name).join('、'));
     await machineApi.deleteScript.request({
-        machineId: props.machineId,
-        scriptId: rows.map((x: any) => x.id).join(','),
+        machineId: machineId.value,
+        scriptId: rows.map((x: MachineScriptVO) => x.id).join(','),
     });
     Msg.deleteSuccess();
     getScripts();
@@ -287,7 +290,7 @@ const deleteRow = async (rows: any) => {
  */
 const handleClose = () => {
     dialogVisible.value = false;
-    emit('update:machineId', null);
+    machineId.value = null;
     emit('cancel');
     state.query.type = ScriptTypeEnum.Private.value;
     state.scriptParamsDialog.paramsFormItem = [];

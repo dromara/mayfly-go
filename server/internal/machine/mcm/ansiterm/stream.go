@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	. "mayfly-go/internal/machine/mcm/ansiterm/consts"
+	"mayfly-go/pkg/gox"
 	"regexp"
 	"strconv"
 	"strings"
@@ -112,7 +113,7 @@ func (s *Stream) InitializeParser() {
 		CharChan: make(chan string, 2048),
 		IsPlain:  make(chan bool),
 	}
-	go s.parseFsm()
+	gox.Go(func() { s.parseFsm() })
 	s.TakingPlainText = true
 	s.parser.Running()
 }

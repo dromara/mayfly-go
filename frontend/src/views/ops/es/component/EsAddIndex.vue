@@ -110,7 +110,7 @@ const formData = ref({
 });
 
 interface Props {
-    instId: any;
+    instId: number;
     idxNames: string[];
 }
 const props = defineProps<Props>();
@@ -119,7 +119,7 @@ const formRef = ref();
 
 const visible = defineModel<boolean>('visible');
 
-watch(visible, async (x: any) => {
+watch(visible, async (x) => {
     if (x) {
         formData.value.idxName = '';
         formData.value.copyIdxName = '';
@@ -131,7 +131,7 @@ watch(visible, async (x: any) => {
 const emit = defineEmits(['success']);
 
 const confirm = async () => {
-    await formRef.value.validate();
+    await formRef.value?.validate();
     loading.value = true;
     if (!formData.value.idxName) {
         Msg.warning('es.requireIndexName');
@@ -148,7 +148,11 @@ const onSampleMappings = () => {
     formData.value.mappings = JSON.stringify(sampleMappings, null, 2);
 };
 const onCopyMappings = async () => {
-    let mp = await esApi.proxyReq('get', props.instId, `/${formData.value.copyIdxName}/_mappings`);
+    let mp = await esApi.proxyReq<Record<string, { mappings: { properties?: Record<string, unknown> } }>>(
+        'get',
+        props.instId,
+        `/${formData.value.copyIdxName}/_mappings`
+    );
     let properties = mp[formData.value.copyIdxName].mappings.properties;
     formData.value.mappings = JSON.stringify(
         {

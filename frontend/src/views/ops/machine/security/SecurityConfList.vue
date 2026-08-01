@@ -26,11 +26,8 @@ onMounted(async () => {
     state.activeName = CmdConfTab;
 });
 
-const handleTabChange = (tabName: any) => {
-    if (tabName == CmdConfTab) {
-        console.log('get cmd confs');
-    }
-    console.log(tabName);
+const handleTabChange = (_tabName: string) => {
+    // tab changed
 };
 </script>
 

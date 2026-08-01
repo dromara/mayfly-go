@@ -73,13 +73,15 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { machineApi } from './api';
 import { MachineProtocolEnum } from './enums';
+import type { MachineVO, MachineForm, MachineAuthCert, SimpleMachineVO } from './types';
 
 const { t } = useI18n();
 
@@ -88,7 +90,8 @@ const props = defineProps({
         type: Boolean,
     },
     machine: {
-        type: [Boolean, Object],
+        type: Object as PropType<MachineVO | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -107,9 +110,9 @@ const rules = {
     ip: [Rules.requiredInput('machine.ipAndPort')],
 };
 
-const machineFormRef: any = useTemplateRef('machineFormRef');
+const machineFormRef = useTemplateRef<FormInstance>('machineFormRef');
 
-const defaultForm = {
+const defaultForm: MachineForm = {
     id: null,
     code: '',
     tagPath: '',
@@ -120,13 +123,13 @@ const defaultForm = {
     authCerts: [],
     tagCodePaths: [],
     remark: '',
-    sshTunnelMachineId: null as any,
+    sshTunnelMachineId: null as number | null,
     enableRecorder: -1,
     extra: { ciphers: '', keyExchanges: '' },
 };
 
 const state = reactive({
-    sshTunnelMachineList: [] as any,
+    sshTunnelMachineList: [] as SimpleMachineVO[],
     form: defaultForm,
     pwd: '',
 });
@@ -140,19 +143,19 @@ watchEffect(() => {
     if (!dialogVisible.value) {
         return;
     }
-    const machine: any = props.machine;
+    const machine = props.machine as MachineVO | false | undefined;
     if (machine) {
-        state.form = { ...machine };
+        state.form = { ...machine } as MachineForm;
         // state.form.tagCodePaths = machine.tags.map((t: any) => t.codePath);
         state.form.authCerts = machine.authCerts || [];
-        state.form.extra = machine.extra || {};
+        state.form.extra = (machine.extra as Record<string, string>) || {};
     } else {
         state.form = { ...defaultForm };
         state.form.authCerts = [];
     }
 });
 
-const onTestConn = async (authCert: any) => {
+const onTestConn = async (authCert: MachineAuthCert) => {
     await useI18nFormValidate(machineFormRef);
 
     const submitForm = getReqForm();
@@ -177,14 +180,14 @@ const onConfirm = async () => {
 };
 
 const getReqForm = () => {
-    const reqForm: any = { ...state.form };
+    const reqForm = { ...state.form } as MachineForm & Record<string, unknown>;
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
     return reqForm;
 };
 
-const handleChangeProtocol = (val: any) => {
+const handleChangeProtocol = (val: number) => {
     if (val == MachineProtocolEnum.Ssh.value) {
         state.form.port = 22;
     } else if (val == MachineProtocolEnum.Rdp.value) {

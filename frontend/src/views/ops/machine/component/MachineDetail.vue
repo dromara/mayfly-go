@@ -39,6 +39,7 @@ import { formatDate } from '@/common/utils/format';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import { reactive } from 'vue';
 import { machineApi } from '../api';
+import type { MachineVO } from '../types';
 
 const props = defineProps({
     code: {
@@ -53,12 +54,12 @@ const props = defineProps({
 
 const state = reactive({
     loading: false,
-    machineDetail: {} as any,
+    machineDetail: {} as MachineVO,
 });
 
 const getMachineDetail = async () => {
     try {
-        state.machineDetail = {};
+        state.machineDetail = {} as MachineVO;
         state.loading = true;
         const res = await machineApi.list.request({
             code: props.code,
@@ -67,7 +68,7 @@ const getMachineDetail = async () => {
             return;
         }
 
-        state.machineDetail = res.list?.[0];
+        state.machineDetail = res.list?.[0] ?? ({} as MachineVO);
     } finally {
         state.loading = false;
     }

@@ -114,13 +114,14 @@
 <script lang="ts" setup>
 import { formatDate, formatTime } from '@/common/utils/format';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { Msg } from '@/hooks/useI18n';
 import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
 import { defineAsyncComponent, reactive, shallowReactive, toRefs, watch } from 'vue';
 import { procinstApi, procinstTaskApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus, ProcinstTaskStatus } from './enums';
+import type { Procinst, ProcinstTask, HisProcinstOp, FlowNode, FlowDef } from './types';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
 const RedisRunCmdBiz = defineAsyncComponent(() => import('./flowbiz/redis/RedisRunCmdBiz.vue'));
@@ -144,44 +145,44 @@ const visible = defineModel<boolean>('visible', { default: false });
 const emit = defineEmits(['cancel', 'val-change']);
 
 // 业务组件
-const bizComponents: any = shallowReactive({
+const bizComponents = shallowReactive<Record<string, unknown>>({
     db_sql_exec_flow: DbSqlExecBiz,
     redis_run_cmd_flow: RedisRunCmdBiz,
 });
 
 const state = reactive({
     activeTab: 'basic',
-    procinst: {} as any,
-    flowDef: null as any,
-    tasks: [] as any,
+    procinst: {} as Procinst,
+    flowDef: null as FlowDef | null,
+    tasks: [] as unknown[],
     form: {
-        status: ProcinstTaskStatus.Pass.value,
+        status: ProcinstTaskStatus.Pass.value as number,
         remark: '',
     },
     saveBtnLoading: false,
-    sortable: '' as any,
+    sortable: '' as string,
 });
 
 const { procinst, flowDef, form, saveBtnLoading } = toRefs(state);
 
 watch(
     () => props.procinstId,
-    async (newValue: any) => {
+    async (newValue: number | undefined) => {
         state.form.status = ProcinstTaskStatus.Pass.value;
         state.form.remark = '';
 
         if (!newValue) {
-            state.procinst = {};
+            state.procinst = {} as Procinst;
             state.flowDef = null;
             return;
         }
 
         state.procinst = await procinstApi.detail.request({ id: newValue });
 
-        const flowdef = JSON.parse(state.procinst.flowDef);
-        procinstApi.hisOp.request({ id: newValue }).then((res: any) => {
+        const flowdef = JSON.parse(state.procinst.flowDef) as FlowDef;
+        procinstApi.hisOp.request({ id: newValue }).then((res: HisProcinstOp[]) => {
             const nodeKey2Ops = res.reduce(
-                (acc: { [x: string]: any[] }, item: { nodeKey: any }) => {
+                (acc: Record<string, HisProcinstOp[]>, item: HisProcinstOp) => {
                     const key = item.nodeKey;
                     if (!acc[key]) {
                         acc[key] = [];
@@ -189,11 +190,11 @@ watch(
                     acc[key].push(item);
                     return acc;
                 },
-                {} as Record<string, typeof res>
+                {} as Record<string, HisProcinstOp[]>
             );
 
             const nodeKey2Tasks = state.procinst.procinstTasks?.reduce(
-                (acc: { [x: string]: any[] }, item: { nodeKey: any }) => {
+                (acc: Record<string, ProcinstTask[]>, item: ProcinstTask) => {
                     const key = item.nodeKey;
                     if (!acc[key]) {
                         acc[key] = [];
@@ -201,13 +202,15 @@ watch(
                     acc[key].push(item);
                     return acc;
                 },
-                {} as Record<string, typeof res>
+                {} as Record<string, ProcinstTask[]>
             );
 
-            flowdef.nodes.forEach((node: any) => {
+            flowdef.nodes.forEach((node: FlowNode) => {
                 const key = node.key;
                 if (nodeKey2Ops[key]) {
-                    // 将操作记录挂载到 node 下，例如命名为 historyList
+                    if (!node.extra) {
+                        node.extra = {};
+                    }
                     node.extra.opLog = nodeKey2Ops[key][0];
                     node.extra.tasks = nodeKey2Tasks?.[key];
                 }

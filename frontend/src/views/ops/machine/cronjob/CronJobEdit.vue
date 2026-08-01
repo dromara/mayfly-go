@@ -3,7 +3,7 @@
         <el-drawer
             :append-to-body="false"
             :title="title"
-            v-model="dialogVisible"
+            v-model="visible"
             :close-on-click-modal="false"
             :before-close="cancel"
             :show-close="true"
@@ -61,29 +61,32 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { onMounted, reactive, ref, toRefs, watch } from 'vue';
+import type { FormInstance } from 'element-plus';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cronJobApi, machineApi } from '../api';
 import { CronJobSaveExecResTypeEnum, CronJobStatusEnum } from '../enums';
+import type { MachineCronJob, MachineCronJobForm } from '../types';
+import type { SimpleMachineVO } from '../types';
+import type { ResourceTag } from '@/types/common';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
-        type: Object,
+        type: Object as () => MachineCronJob | null,
     },
     title: {
         type: String,
     },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
+const emit = defineEmits(['cancel', 'submitSuccess']);
 
-const formRef: any = ref(null);
+const visible = defineModel<boolean>('visible', { default: false });
+
+const formRef = ref<FormInstance | null>(null);
 
 const rules = {
     name: [Rules.requiredInput('common.name')],
@@ -94,7 +97,6 @@ const rules = {
 };
 
 const state = reactive({
-    dialogVisible: false,
     submitDisabled: false,
     chooseMachines: [],
     form: {
@@ -105,29 +107,28 @@ const state = reactive({
         script: '',
         status: 1,
         saveExecResType: -1,
-        codePaths: [],
-    },
-    machines: [] as any,
+        codePaths: [] as string[],
+    } as MachineCronJobForm,
+    machines: [] as SimpleMachineVO[],
     btnLoading: false,
 });
 
-const { dialogVisible, submitDisabled, form, btnLoading } = toRefs(state);
+const { submitDisabled, form, btnLoading } = toRefs(state);
 
 onMounted(async () => {
     const res = await machineApi.list.request({ pageNum: 1, pageSize: 100 });
     state.machines = res.list;
 });
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (!newValue.visible) {
+watch(visible, async (val) => {
+    if (!val) {
         return;
     }
-    if (newValue.data) {
-        state.form = { ...newValue.data };
-        state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
+    if (props.data) {
+        state.form = { ...props.data };
+        state.form.codePaths = props.data.tags?.map((tag: ResourceTag) => tag.codePath);
     } else {
-        state.form = { script: '', status: 1 } as any;
+        state.form = { script: '', status: 1 } as MachineCronJobForm;
         state.chooseMachines = [];
     }
 });
@@ -146,7 +147,7 @@ const btnOk = async () => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

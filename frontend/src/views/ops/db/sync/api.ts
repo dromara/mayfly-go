@@ -1,11 +1,12 @@
 import Api from '@/common/Api';
 import { encryptField } from '@/views/ops/db/api';
+import type { DataSyncTask } from '@/views/ops/db/types';
 
 export const dbSyncApi = {
     // 数据同步相关
     datasyncTasks: Api.newGet('/datasync/tasks'),
     saveDatasyncTask: Api.newPost('/datasync/tasks/save').withBeforeHandler(async (param: any) => await encryptField(param, 'dataSql')),
-    getDatasyncTask: Api.newGet('/datasync/tasks/{taskId}'),
+    getDatasyncTask: Api.newGet<DataSyncTask>('/datasync/tasks/{taskId}'),
     deleteDatasyncTask: Api.newDelete('/datasync/tasks/{taskId}/del'),
     updateDatasyncTaskStatus: Api.newPost('/datasync/tasks/{taskId}/status'),
     runDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/run'),

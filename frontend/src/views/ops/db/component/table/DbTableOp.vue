@@ -1,5 +1,5 @@
 <template>
-    <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="75%">
+    <el-drawer :append-to-body="false" :title="title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="75%">
         <template #header>
             <DrawerHeader :header="title" :back="cancel" />
         </template>
@@ -131,22 +131,21 @@
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg } from '@/hooks/useI18n';
 import { computed, nextTick, reactive, ref, Ref, toRefs, useTemplateRef, watch } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { DbInst } from '../../db';
 import { DbDialect, DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 import SqlExecBox from '../sqleditor/SqlExecBox';
+import type { TableOpData } from '../../types';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     title: {
         type: String,
     },
     data: {
-        type: Object,
+        type: Object as () => TableOpData | null,
     },
     dbId: {
         type: Number,
@@ -163,7 +162,9 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
+const emit = defineEmits(['cancel', 'val-change', 'submit-sql']);
+
+const visible = defineModel<boolean>('visible', { default: false });
 
 let dbDialect: Ref<DbDialect> = computed(() => getDbDialect(props.dbType!, props.version));
 
@@ -173,13 +174,22 @@ type ColName = {
     width?: number;
 };
 
+/** 表索引原始数据 (tableIndex API 返回的动态结构) */
+interface TableOpIndex {
+    indexName: string;
+    columnName?: string;
+    indexType: string;
+    isUnique?: boolean;
+    indexComment?: string;
+    [key: string]: unknown;
+}
+
 const tableHeight = 'calc(100vh - 320px)';
 
-const formRef: any = ref();
-const tableRef: any = useTemplateRef('tableRef');
+const formRef = ref<FormInstance | null>(null);
+const tableRef = useTemplateRef<{ $el: HTMLElement }>('tableRef');
 
 const state = reactive({
-    dialogVisible: false,
     btnloading: false,
     activeName: '1',
     tableData: {
@@ -278,11 +288,10 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, btnloading, activeName, tableData } = toRefs(state);
+const { btnloading, activeName, tableData } = toRefs(state);
 
-watch(props, async (newValue) => {
-    state.dialogVisible = newValue.visible;
-    dbDialect.value = getDbDialect(newValue.dbType!);
+watch(visible, async (val) => {
+    dbDialect.value = getDbDialect(props.dbType!);
 });
 
 // 切换到索引tab时，刷新索引字段下拉选项
@@ -298,7 +307,7 @@ watch(
 );
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     reset();
 };
 
@@ -318,7 +327,7 @@ const addRow = () => {
     // 滚动到最后一行
     nextTick(() => {
         if (tableRef.value) {
-            const lastRow = tableRef.value.$el.querySelector('.el-table__body-wrapper tbody tr:last-child');
+            const lastRow = tableRef.value?.$el.querySelector('.el-table__body-wrapper tbody tr:last-child');
             if (lastRow) {
                 lastRow.scrollIntoView({ behavior: 'smooth' });
             }
@@ -334,11 +343,11 @@ const addDefaultRows = () => {
     state.tableData.fields.res.push(...dbDialect.value.getDefaultRows());
 };
 
-const deleteRow = (index: any) => {
+const deleteRow = (index: number) => {
     state.tableData.fields.res.splice(index, 1);
 };
 
-const deleteIndex = (index: any) => {
+const deleteIndex = (index: number) => {
     state.tableData.indexs.res.splice(index, 1);
 };
 
@@ -350,8 +359,8 @@ const submit = async () => {
     }
     SqlExecBox({
         sql: sql,
-        dbId: props.dbId as any,
-        db: props.db as any,
+        dbId: props.dbId!,
+        db: props.db!,
         dbType: dbDialect.value.getInfo().formatSqlDialect,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
@@ -366,11 +375,15 @@ const submit = async () => {
  * @param nowArr 修改后的对象数组
  * @param key 标志对象唯一属性
  */
-const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { del: any[]; add: any[]; upd: any[]; changed: boolean } => {
+const filterChangedData = <T extends object>(
+    oldArr: T[],
+    nowArr: T[],
+    key: string
+): { del: T[]; add: T[]; upd: T[]; changed: boolean } => {
     let data = {
-        del: [] as object[], // 删除的数据
-        add: [] as object[], // 新增的数据
-        upd: [] as object[], // 修改的数据
+        del: [] as T[], // 删除的数据
+        add: [] as T[], // 新增的数据
+        upd: [] as T[], // 修改的数据
         changed: false,
     };
 
@@ -388,15 +401,16 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         return data;
     }
 
-    let oldMap: any = {},
-        newMap: any = {};
-    oldArr.forEach((a: any) => (oldMap[a[key]] = a));
+    let oldMap: Record<string, T> = {},
+        newMap: Record<string, T> = {};
+    oldArr.forEach((a) => (oldMap[(a as Record<string, unknown>)[key] as string] = a));
 
-    nowArr.forEach((a: any) => {
-        let k = a[key];
+    nowArr.forEach((a) => {
+        const rec = a as Record<string, unknown>;
+        let k = rec[key] as string;
         newMap[k] = a;
         // 取oldName，因为修改了name，但是oldName不会变
-        let oldName = a['oldName'];
+        let oldName = rec['oldName'] as string | undefined;
         oldName && (newMap[oldName] = a);
         if (!oldMap.hasOwnProperty(k) && (!oldName || (oldName && !oldMap.hasOwnProperty(oldName)))) {
             // 新增
@@ -405,18 +419,20 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         }
     });
 
-    oldArr.forEach((a: any) => {
-        let k = a[key];
+    oldArr.forEach((a) => {
+        const rec = a as Record<string, unknown>;
+        let k = rec[key] as string;
         let newData = newMap[k];
         if (!newData) {
             // 删除
             data.changed = true;
             data.del.push(a);
         } else {
+            const newRec = newData as Record<string, unknown>;
             // 判断每个字段是否相等，否则为修改
-            for (let f in a) {
-                let oldV = a[f];
-                let newV = newData[f];
+            for (let f in rec) {
+                let oldV = rec[f] as { toString(): string } | null | undefined;
+                let newV = newRec[f] as { toString(): string } | null | undefined;
                 if (oldV?.toString() !== newV?.toString()) {
                     data.changed = true;
                     data.upd.push(newData);
@@ -460,7 +476,7 @@ const genSql = () => {
 
 const reset = () => {
     state.activeName = '1';
-    formRef.value.resetFields();
+    formRef.value?.resetFields();
     state.tableData.tableName = '';
     state.tableData.tableComment = '';
     state.tableData.fields.res = [];
@@ -469,7 +485,7 @@ const reset = () => {
     state.tableData.indexs.oldIndexs = [];
 };
 
-const indexChanges = (row: any) => {
+const indexChanges = (row: IndexDefinition) => {
     let name = '';
     if (row.columnNames && row.columnNames.length > 0) {
         for (const column of row.columnNames) {
@@ -504,13 +520,18 @@ const disableEditIncr = () => {
 
 watch(
     () => props.data,
-    (newValue: any) => {
+    (newValue) => {
+        if (!newValue) {
+            return;
+        }
         const { row, indexs, columns } = newValue;
         // 回显表名表注释
-        state.tableData.tableName = row.tableName;
-        state.tableData.tableComment = row.tableComment;
-        state.tableData.oldTableName = row.tableName;
-        state.tableData.oldTableComment = row.tableComment;
+        const tableName = row.tableName as string;
+        const tableComment = row.tableComment as string;
+        state.tableData.tableName = tableName;
+        state.tableData.tableComment = tableComment;
+        state.tableData.oldTableName = tableName;
+        state.tableData.oldTableComment = tableComment;
         state.tableData.db = props.db!;
 
         state.tableData.fields.oldFields = [];
@@ -519,7 +540,7 @@ watch(
         state.tableData.indexs.res = [];
         // 索引列下拉选
         state.tableData.indexs.columns = [];
-        DbInst.initColumns(columns);
+        DbInst.initColumns(columns ?? []);
         // 回显列
         if (columns && Array.isArray(columns) && columns.length > 0) {
             columns.forEach((a) => {
@@ -529,22 +550,22 @@ watch(
                     // 解决高斯的默认值问题
                     defaultValue = defaultValue.replace("'::character varying", '');
                 }
-                let data = {
+                let data: RowDefinition = {
                     name: a.columnName,
                     oldName: a.columnName,
                     type: a.dataType,
                     value: defaultValue,
-                    length: a.showLength,
-                    numScale: a.showScale,
+                    length: a.showLength ?? '',
+                    numScale: a.showScale ?? '',
                     notNull: !a.nullable,
-                    pri: a.isPrimaryKey,
-                    auto_increment: a.autoIncrement /*a.extra?.indexOf('auto_increment') > -1*/,
-                    remark: a.columnComment,
+                    pri: a.isPrimaryKey ?? false,
+                    auto_increment: a.autoIncrement ?? false,
+                    remark: a.columnComment ?? '',
                 };
                 state.tableData.fields.res.push(data);
                 state.tableData.fields.oldFields.push(JSON.parse(JSON.stringify(data)));
                 // 索引字段下拉选项
-                state.tableData.indexs.columns.push({ name: a.columnName, remark: a.columnComment });
+                state.tableData.indexs.columns.push({ name: a.columnName, remark: a.columnComment ?? '' });
             });
         }
 
@@ -552,14 +573,15 @@ watch(
         if (indexs && Array.isArray(indexs) && indexs.length > 0) {
             // 索引过滤掉主键
             indexs
-                .filter((a) => a.indexName !== 'PRIMARY')
+                .filter((a) => (a as TableOpIndex).indexName !== 'PRIMARY')
                 .forEach((a) => {
-                    let data = {
-                        indexName: a.indexName,
-                        columnNames: a.columnName?.split(','),
-                        unique: a.isUnique || false,
-                        indexType: a.indexType,
-                        indexComment: a.indexComment,
+                    const idx = a as TableOpIndex;
+                    let data: IndexDefinition = {
+                        indexName: idx.indexName,
+                        columnNames: idx.columnName?.split(',') ?? [],
+                        unique: idx.isUnique || false,
+                        indexType: idx.indexType,
+                        indexComment: idx.indexComment,
                     };
                     state.tableData.indexs.res.push(data);
                     state.tableData.indexs.oldIndexs.push(JSON.parse(JSON.stringify(data)));

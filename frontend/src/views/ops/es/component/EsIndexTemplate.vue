@@ -98,7 +98,7 @@
 
 <script setup lang="ts">
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { esApi } from '@/views/ops/es/api';
 import { nextTick, reactive, ref, unref, watch } from 'vue';
@@ -109,7 +109,7 @@ const { t } = useI18n();
 const visible = defineModel<boolean>();
 
 interface Props {
-    instId: any;
+    instId: number;
     version: string;
 }
 const props = defineProps<Props>();
@@ -117,8 +117,8 @@ const props = defineProps<Props>();
 const formRef = ref();
 
 const state = reactive({
-    originTemplates: [] as any,
-    templates: [] as any,
+    originTemplates: [] as { name: string; priority: string | number; index_patterns: string; template: string; description: string }[],
+    templates: [] as { name: string; priority: string | number; index_patterns: string; template: string; description: string }[],
     showHideTemps: false,
     filterTableName: '',
     addVisible: false,
@@ -158,7 +158,7 @@ const getDefaultTemplate = () => {
     };
 };
 
-watch(visible, async (x: any) => {
+watch(visible, async (x) => {
     if (x) {
         // 初始化状态
         state.filterTableName = '';
@@ -193,10 +193,21 @@ const isVersionBefore7_8_0 = (version: string) => {
     return false; // 等于 7.8.0 时返回 false
 };
 
+/** _index_template 接口返回的模板项 */
+interface EsIndexTemplateItem {
+    name: string;
+    index_template: {
+        priority?: number;
+        index_patterns?: string[];
+        template?: Record<string, unknown>;
+        _meta?: { description?: string };
+    };
+}
+
 const fetchTemplates = async () => {
-    const data = await esApi.proxyReq('get', props.instId, `/${state.v.api}`);
-    state.originTemplates = data.index_templates
-        .map((a: any) => {
+    const data = await esApi.proxyReq<{ index_templates?: EsIndexTemplateItem[] }>('get', props.instId, `/${state.v.api}`);
+    state.originTemplates = (data.index_templates || [])
+        .map((a) => {
             return {
                 name: a.name,
                 priority: a.index_template.priority || 'NULL',
@@ -205,7 +216,7 @@ const fetchTemplates = async () => {
                 description: a.index_template._meta?.description || '',
             };
         })
-        .sort((a: any, b: any) => a.name.localeCompare(b.name));
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     onSwitchShowHide();
 };
@@ -214,14 +225,14 @@ const onSwitchShowHide = () => {
     if (state.showHideTemps) {
         state.templates = state.originTemplates;
     } else {
-        state.templates = state.originTemplates.filter((item: any) => item.name.indexOf('.') < 0);
+        state.templates = state.originTemplates.filter((item: { name: string }) => item.name.indexOf('.') < 0);
     }
 };
 const onFilterTemplates = () => {
     onSwitchShowHide();
 
     let regx = createPattern(state.filterTableName);
-    state.templates = state.templates.filter((item: any) => regx.test(item.name) || regx.test(item.description));
+    state.templates = state.templates.filter((item: { name: string; description: string }) => regx.test(item.name) || regx.test(item.description));
 };
 
 function createPattern(str: string): RegExp {
@@ -230,12 +241,12 @@ function createPattern(str: string): RegExp {
     return new RegExp(`.*${pattern}.*`);
 }
 
-const onViewTemplate = async (data: any) => {
+const onViewTemplate = async (data: { name: string; priority: string | number; index_patterns: string; template: string; description: string }) => {
     state.addVisible = true;
     state.formReadonly = true;
 
     state.form.name = data.name;
-    state.form.priority = data.priority;
+    state.form.priority = typeof data.priority === 'number' ? data.priority : Number(data.priority) || 0;
     state.form.index_patterns = JSON.parse(data.index_patterns);
     state.form.template = data.template;
     state.form.description = data.description;
@@ -253,7 +264,7 @@ const onAddTemplate = () => {
 };
 
 const doAddTemplate = async () => {
-    await formRef.value.validate();
+    await formRef.value?.validate();
     let data = {
         index_patterns: state.form.index_patterns,
         [state.v.priority]: state.form.priority,
@@ -271,7 +282,7 @@ const doAddTemplate = async () => {
     }, 500);
 };
 
-const onDelTemplate = async (name: any) => {
+const onDelTemplate = async (name: string) => {
     await useI18nDeleteConfirm(name);
     await useI18nConfirm('es.deleteTemplateConfirm', { name: name });
     await esApi.proxyReq('delete', props.instId, `/${state.v.api}/${name}`);

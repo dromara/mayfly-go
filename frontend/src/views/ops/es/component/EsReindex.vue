@@ -51,7 +51,7 @@ const visible = defineModel<boolean>('visible');
 const formRef = ref();
 
 interface Props {
-    instId: any;
+    instId: number;
     idxName: string;
     idxNames: string[];
 }
@@ -70,7 +70,7 @@ const confirm = async () => {
 };
 
 const doBasicReindex = async () => {
-    await formRef.value.validate();
+    await formRef.value?.validate();
     let wfc = '';
     if (!formData.value.sync) {
         wfc = '?wait_for_completion=false';

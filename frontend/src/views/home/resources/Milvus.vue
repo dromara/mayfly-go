@@ -27,7 +27,7 @@
 
 <script lang="ts" setup>
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { milvusApi } from '@/views/ops/milvus/api';
 import Base from './Base.vue';
 </script>

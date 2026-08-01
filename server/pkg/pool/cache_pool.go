@@ -7,13 +7,28 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // 缓存条目
 type cacheEntry[T Conn] struct {
-	conn       T         // 连接
-	lastActive time.Time // 最后活跃时间
+	conn       T            // 连接
+	lastActive time.Time    // 最后活跃时间
+	mu         sync.RWMutex // 保护 lastActive
+}
+
+func (e *cacheEntry[T]) getLastActive() time.Time {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.lastActive
+}
+
+func (e *cacheEntry[T]) setLastActive(t time.Time) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.lastActive = t
 }
 
 type CachePool[T Conn] struct {
@@ -21,7 +36,8 @@ type CachePool[T Conn] struct {
 	cache   collx.SM[string, *cacheEntry[T]] // 使用字符串键的缓存
 	config  PoolConfig[T]                    // 池配置
 	closeCh chan struct{}
-	closed  bool
+	closed  atomic.Bool
+	mu      sync.Mutex // 保护连接创建的临界区
 }
 
 var _ Pool[Conn] = (*CachePool[Conn])(nil)
@@ -74,7 +90,7 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 
 		if options.updateLastActive {
 			// 更新最后活跃时间
-			entry.lastActive = time.Now()
+			entry.setLastActive(time.Now())
 		}
 		return conn, nil
 	}
@@ -83,9 +99,11 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 		return zero, ErrNoAvailableConn
 	}
 
-	// 没有找到可用连接，升级为写锁进行创建
+	// 没有找到可用连接，加锁创建
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	if p.closed {
+	if p.closed.Load() {
 		return zero, ErrPoolClosed
 	}
 
@@ -93,8 +111,7 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 	if p.cache.Len() >= p.config.MaxConns {
 		for _, entry := range p.cache.Values() {
 			if options.updateLastActive {
-				// 更新最后活跃时间
-				entry.lastActive = time.Now()
+				entry.setLastActive(time.Now())
 			}
 			return entry.conn, nil
 		}
@@ -125,9 +142,9 @@ func (p *CachePool[T]) removeOldest() {
 	var oldestKey string
 	var oldestTime time.Time
 	p.cache.Range(func(key string, entry *cacheEntry[T]) bool {
-		if oldestKey == "" || entry.lastActive.Before(oldestTime) {
+		if oldestKey == "" || entry.getLastActive().Before(oldestTime) {
 			oldestKey = key
-			oldestTime = entry.lastActive
+			oldestTime = entry.getLastActive()
 		}
 		return true
 	})
@@ -140,11 +157,11 @@ func (p *CachePool[T]) removeOldest() {
 // Close 关闭连接池
 func (p *CachePool[T]) Close() {
 
-	if p.closed {
+	if p.closed.Load() {
 		return
 	}
 
-	p.closed = true
+	p.closed.Store(true)
 	close(p.closeCh)
 
 	p.cache.Range(func(key string, entry *cacheEntry[T]) bool {
@@ -163,7 +180,7 @@ func (p *CachePool[T]) Close() {
 // Resize 动态调整大小
 func (p *CachePool[T]) Resize(newSize int) {
 
-	if p.closed || newSize == p.config.MaxConns {
+	if p.closed.Load() || newSize == p.config.MaxConns {
 		return
 	}
 
@@ -206,7 +223,7 @@ func (p *CachePool[T]) cleanupIdle() {
 		// 检查是否设置了超时时间，且连接已超时
 		if p.config.IdleTimeout > 0 {
 			cutoff := time.Now().Add(-p.config.IdleTimeout)
-			if entry.lastActive.Before(cutoff) {
+			if entry.getLastActive().Before(cutoff) {
 				shouldClean = true
 			}
 		}

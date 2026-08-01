@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/klauspost/compress/snappy"
 	"github.com/klauspost/compress/zstd"
@@ -83,7 +84,11 @@ func TarDecompress(tarFile string, destDir string) error {
 			return fmt.Errorf("读取 tar header 失败: %w", err)
 		}
 		targetPath := filepath.Join(destDir, header.Name) // 构建目标路径
-		if header.Typeflag == tar.TypeDir {               // 如果是目录，创建目录
+		// 防止 Zip Slip 路径穿越攻击
+		if !strings.HasPrefix(filepath.Clean(targetPath)+string(os.PathSeparator), filepath.Clean(destDir)+string(os.PathSeparator)) {
+			return fmt.Errorf("tarDecompress: illegal file path: %s", header.Name)
+		}
+		if header.Typeflag == tar.TypeDir { // 如果是目录，创建目录
 			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
 				return fmt.Errorf("tarDecompress: 创建目录失败: %w", err)
 			}

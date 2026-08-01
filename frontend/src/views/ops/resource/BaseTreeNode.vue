@@ -51,7 +51,7 @@
 </template>
 
 <script lang="ts" setup>
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { computed, inject, ref } from 'vue';
 
 import { hasPerm } from '@/components/auth/auth';

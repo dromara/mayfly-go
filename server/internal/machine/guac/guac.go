@@ -20,14 +20,14 @@ import (
 
 // ReconnectableTunnel 支持自动重连的 Tunnel 包装器
 type ReconnectableTunnel struct {
-	tunnel     Tunnel
-	query      url.Values
-	parameters map[string]string
-	username   string
-	maxRetries int
-	retryCount atomic.Int32
-	lastError  error
-	closed     atomic.Bool
+	tunnel      Tunnel
+	query       url.Values
+	parameters  map[string]string
+	username    string
+	maxRetries  int
+	retryCount  atomic.Int32
+	lastError   error
+	closed      atomic.Bool
 	reconnectMu sync.Mutex // 防止并发重连
 }
 
@@ -207,7 +207,7 @@ func DoConnectWithoutRetry(query url.Values, parameters map[string]string, usern
 
 	machineConfig := config.GetMachine()
 	if machineConfig.GuacdHost == "" {
-		return nil, errorx.NewBiz("请前往'系统配置-机器配置'中配置guacd相关信息")
+		return nil, errorx.NewBiz("please configure guacd connection info in 'System Config - Machine Config'")
 	}
 	guacdAddr := fmt.Sprintf("%v:%v", machineConfig.GuacdHost, machineConfig.GuacdPort)
 	addr, err := net.ResolveTCPAddr("tcp", guacdAddr)

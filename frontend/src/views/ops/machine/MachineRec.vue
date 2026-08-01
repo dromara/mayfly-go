@@ -5,7 +5,7 @@
             :modal="false"
             draggable
             :title="title"
-            v-model="dialogVisible"
+            v-model="visible"
             :before-close="handleClose"
             :close-on-click-modal="false"
             :destroy-on-close="true"
@@ -54,23 +54,26 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, ref, reactive, nextTick, Ref } from 'vue';
+import { toRefs, watch, ref, reactive, nextTick } from 'vue';
 import { machineApi } from './api';
 import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn } from '@/components/pagetable';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
 import { formatDate } from '@/common/utils/format';
 import { getFileUrl } from '@/common/request';
 import FileInfo from '@/components/file/FileInfo.vue';
+import type { MachineTermOp } from './types';
 
 const props = defineProps({
-    visible: { type: Boolean },
     machineId: { type: Number },
     title: { type: String },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const emit = defineEmits(['cancel']);
+
+const visible = defineModel<boolean>('visible', { default: false });
+const machineId = defineModel<number | null>('machineId');
 
 const columns = [
     TableColumn.new('creator', 'machine.operator').setMinWidth(120),
@@ -80,10 +83,9 @@ const columns = [
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(120).fixedRight().alignCenter(),
 ];
 
-const playerRef = ref(null);
-const pageTableRef: Ref<any> = ref(null);
+const playerRef = ref<HTMLElement | null>(null);
+const pageTableRef = ref<InstanceType<typeof PageTable> | null>(null);
 const state = reactive({
-    dialogVisible: false,
     title: '',
     query: {
         pageNum: 1,
@@ -95,33 +97,31 @@ const state = reactive({
     execCmds: [],
 });
 
-const { dialogVisible, query, playerDialogVisible, execCmdsDialogVisible } = toRefs(state);
+const { query, playerDialogVisible, execCmdsDialogVisible } = toRefs(state);
 
 watch(
-    props,
-    async (newValue: any) => {
-        const visible = newValue.visible;
-        state.dialogVisible = visible;
-        if (visible) {
-            state.query.machineId = newValue.machineId;
-            state.title = newValue.title;
+    [visible, machineId],
+    async ([newVisible, newMachineId]) => {
+        if (newVisible) {
+            state.query.machineId = newMachineId || 0;
+            state.title = props.title || '';
         }
     },
     { immediate: true }
 );
 
 const getTermOps = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const showExecCmds = (data: any) => {
+const showExecCmds = (data: MachineTermOp) => {
     state.execCmds = JSON.parse(data.execCmds);
     state.execCmdsDialogVisible = true;
 };
 
-let player: any = null;
+let player: ReturnType<typeof AsciinemaPlayer.create> | null = null;
 
-const playRec = async (rec: any) => {
+const playRec = async (rec: MachineTermOp & { playRecLoding?: boolean }) => {
     try {
         if (player) {
             player.dispose();
@@ -153,8 +153,8 @@ const handleClosePlayer = () => {
  * 关闭取消按钮触发的事件
  */
 const handleClose = () => {
-    emit('update:visible', false);
-    emit('update:machineId', null);
+    visible.value = false;
+    machineId.value = null;
     emit('cancel');
 };
 </script>

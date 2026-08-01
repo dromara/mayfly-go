@@ -1,4 +1,4 @@
-import { DbDialect, DialectInfo, sqlColumnType, EditorCompletion, DataType, DbType, commonCustomKeywords } from '@/views/ops/db/dialect/index';
+import { DbDialect, DialectInfo, sqlColumnType, EditorCompletion, DataType, DbType, commonCustomKeywords, RowDefinition, IndexDefinition } from '@/views/ops/db/dialect/index';
 import { QuoteEscape } from '@/views/ops/db/dialect/index';
 
 export class ClickHouseDialect implements DbDialect {
@@ -34,7 +34,7 @@ export class ClickHouseDialect implements DbDialect {
         return `LIMIT ${limit} OFFSET ${(pageNum - 1) * limit}`;
     }
 
-    getDefaultRows(): any[] {
+    getDefaultRows(): RowDefinition[] {
         return [
             {
                 name: 'id',
@@ -50,7 +50,7 @@ export class ClickHouseDialect implements DbDialect {
         ];
     }
 
-    getDefaultIndex(): any {
+    getDefaultIndex(): IndexDefinition {
         return {
             indexName: '',
             columnNames: [],
@@ -65,11 +65,11 @@ export class ClickHouseDialect implements DbDialect {
         return `\`${name}\``;
     }
 
-    getCreateTableSql(tableData: any): string {
-        const { tableName, columns, comment } = tableData;
+    getCreateTableSql(tableData: Record<string, unknown>): string {
+        const { tableName, columns, comment } = tableData as { tableName: string; columns: RowDefinition[]; comment: string };
         let sql = `CREATE TABLE ${this.quoteIdentifier(tableName)} (\n`;
 
-        const columnDefs = columns.map((col: any) => {
+        const columnDefs = columns.map((col: RowDefinition) => {
             let colDef = `  ${this.quoteIdentifier(col.name)} ${col.type}`;
             if (col.notNull) {
                 colDef += ' NOT NULL';
@@ -93,26 +93,26 @@ export class ClickHouseDialect implements DbDialect {
         return sql;
     }
 
-    getCreateIndexSql(tableData: any): string {
+    getCreateIndexSql(_tableData: Record<string, unknown>): string {
         // ClickHouse indexes are typically defined in the table creation statement
         // This is a simplified implementation
         return '-- ClickHouse indexes are typically defined in the CREATE TABLE statement';
     }
 
-    getModifyColumnSql(tableData: any, tableName: string, changeData: any): string {
+    getModifyColumnSql(_tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
         const { del, add, upd } = changeData;
         let sql = '';
 
         // Handle deleted columns
         if (del && del.length > 0) {
-            const dropColumns = del.map((col: any) => `DROP COLUMN ${this.quoteIdentifier(col.name)}`).join(',\n');
+            const dropColumns = del.map((col: RowDefinition) => `DROP COLUMN ${this.quoteIdentifier(col.name)}`).join(',\n');
             sql += `ALTER TABLE ${this.quoteIdentifier(tableName)}\n${dropColumns};\n\n`;
         }
 
         // Handle added columns
         if (add && add.length > 0) {
             const addColumns = add
-                .map((col: any) => {
+                .map((col: RowDefinition) => {
                     let colDef = `ADD COLUMN ${this.quoteIdentifier(col.name)} ${col.type}`;
                     if (col.notNull) {
                         colDef += ' NOT NULL';
@@ -129,7 +129,7 @@ export class ClickHouseDialect implements DbDialect {
         // Handle updated columns
         if (upd && upd.length > 0) {
             const modifyColumns = upd
-                .map((col: any) => {
+                .map((col: RowDefinition) => {
                     let colDef = `MODIFY COLUMN ${this.quoteIdentifier(col.name)} ${col.type}`;
                     if (col.notNull) {
                         colDef += ' NOT NULL';
@@ -146,13 +146,13 @@ export class ClickHouseDialect implements DbDialect {
         return sql.trim();
     }
 
-    getModifyIndexSql(tableData: any, tableName: string, changeData: any): string {
+    getModifyIndexSql(_tableData: Record<string, unknown>, _tableName: string, _changeData: Record<string, unknown>): string {
         // ClickHouse index modification is typically done through table alterations
         return '-- ClickHouse index modifications are typically done through ALTER TABLE statements';
     }
 
-    getModifyTableInfoSql(tableData: any): string {
-        const { tableName, comment } = tableData;
+    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
+        const { tableName, comment } = tableData as { tableName: string; comment: string };
         if (comment) {
             return `ALTER TABLE ${this.quoteIdentifier(tableName)} MODIFY COMMENT '${QuoteEscape(comment)}'`;
         }
@@ -175,7 +175,7 @@ export class ClickHouseDialect implements DbDialect {
         }
     }
 
-    wrapValue(columnType: string, value: any): any {
+    wrapValue(columnType: string, value: unknown): string | number {
         const type = columnType.toLowerCase();
 
         // For string types, wrap in quotes
@@ -199,10 +199,10 @@ export class ClickHouseDialect implements DbDialect {
         if (value === null || value === undefined) {
             return 'NULL';
         }
-        return value;
+        return value as string | number;
     }
 
-    getBatchInsertPreviewSql(tableName: string, columns: string[], duplicateStrategy: any): string {
+    getBatchInsertPreviewSql(tableName: string, columns: string[], _duplicateStrategy: unknown): string {
         const quotedColumns = columns.map((col) => this.quoteIdentifier(col)).join(', ');
         const placeholders = columns.map(() => '?').join(', ');
         return `INSERT INTO ${this.quoteIdentifier(tableName)} (${quotedColumns}) VALUES (${placeholders})`;

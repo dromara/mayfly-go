@@ -56,7 +56,7 @@ import { getDbDialect } from '@/views/ops/db/dialect';
 import { tagApi } from '@/views/ops/tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { DbInst } from '@/views/ops/db/db';
 
 const props = defineProps({

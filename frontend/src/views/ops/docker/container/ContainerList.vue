@@ -173,14 +173,15 @@
 import EnumValue from '@/common/Enum';
 import { formatByteSize, formatDate } from '@/common/utils/format';
 import { fuzzyMatchField } from '@/common/utils/string';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { useDataState } from '@/hooks/useDataState';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { computed, defineAsyncComponent, onMounted, reactive, toRefs, watch } from 'vue';
 import { dockerApi, getDockerExecSocketUrl } from '../api';
 import { ContainerStateEnum } from '../enums';
+import type { ContainerListItem } from '../types';
 
 const ContainerLog = defineAsyncComponent(() => import('./ContainerLog.vue'));
 const ContainerCreate = defineAsyncComponent(() => import('./ContainerCreate.vue'));
@@ -199,7 +200,7 @@ const state = reactive({
         state: null,
     },
     loadingContainers: false,
-    containers: [],
+    containers: [] as ContainerListItem[],
     terminalDialog: {
         visible: false,
         title: '',
@@ -234,18 +235,18 @@ watch(
 );
 
 const filterTableDatas = computed(() => {
-    let tables: any = state.containers;
+    let tables: ContainerListItem[] = state.containers;
     const nameSearch = state.params.name;
     const stateSearch = state.params.state;
 
     if (stateSearch) {
-        tables = tables.filter((table: any) => {
+        tables = tables.filter((table) => {
             return table.state === stateSearch;
         });
     }
 
     if (nameSearch) {
-        tables = fuzzyMatchField(nameSearch, tables, (table: any) => table.name);
+        tables = fuzzyMatchField(nameSearch, tables, (table) => table.name);
     }
 
     return tables;
@@ -270,7 +271,7 @@ const setContainersStats = () => {
         return;
     }
 
-    state.containers.forEach((container: any) => {
+    state.containers.forEach((container) => {
         if (container.state === ContainerStateEnum.Running.value) {
             setLoadingState(container.containerId, true);
         }
@@ -279,15 +280,15 @@ const setContainersStats = () => {
     dockerApi.containersStats
         .request(state.params)
         .then((res) => {
-            state.containers.forEach((container: any) => {
-                const stats = res.find((stat: any) => stat.containerId === container.containerId);
+            state.containers.forEach((container) => {
+                const stats = res.find((stat) => stat.containerId === container.containerId);
                 if (stats) {
                     container.stats = stats;
                 }
             });
         })
         .finally(() => {
-            state.containers.forEach((container: any) => {
+            state.containers.forEach((container) => {
                 if (container.state === ContainerStateEnum.Running.value) {
                     setLoadingState(container.containerId, false);
                 }
@@ -295,27 +296,27 @@ const setContainersStats = () => {
         });
 };
 
-const containerRestart = async (param: any) => {
+const containerRestart = async (param: Pick<ContainerListItem, 'containerId' | 'name'>) => {
     await dockerApi.containerRestart.request({ id: props.id, containerId: param.containerId });
     Msg.operateSuccess();
     getContainers();
 };
 
-const containerStop = async (param: any) => {
+const containerStop = async (param: Pick<ContainerListItem, 'containerId' | 'name'>) => {
     await useI18nConfirm('docker.stopContainerConfirm', { name: param.name });
     await dockerApi.containerStop.request({ id: props.id, containerId: param.containerId });
     Msg.operateSuccess();
     getContainers();
 };
 
-const containerRemove = async (param: any) => {
+const containerRemove = async (param: Pick<ContainerListItem, 'containerId' | 'name'>) => {
     await useI18nConfirm('docker.removeContainerConfirm', { name: param.name });
     await dockerApi.containerRemove.request({ id: props.id, containerId: param.containerId });
     Msg.deleteSuccess();
     getContainers();
 };
 
-const openTerminal = (row: any) => {
+const openTerminal = (row: ContainerListItem) => {
     state.terminalDialog.containerId = row.containerId;
     state.terminalDialog.title = `Terminal - ${row.name}`;
     state.terminalDialog.visible = true;
@@ -325,13 +326,13 @@ const closeTerminal = () => {
     state.terminalDialog.visible = false;
 };
 
-const openLog = (row: any) => {
+const openLog = (row: ContainerListItem) => {
     state.logDialog.containerId = row.containerId;
     state.logDialog.title = `Log - ${row.name}`;
     state.logDialog.visible = true;
 };
 
-const handleCommand = async (commond: any) => {
+const handleCommand = async (commond: { type: string; row: ContainerListItem }) => {
     const row = commond.row;
     const type = commond.type;
     switch (type) {

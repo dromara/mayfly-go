@@ -77,20 +77,21 @@
 import { notEmpty } from '@/common/assert';
 import { Rules } from '@/common/rule';
 import { formatDate } from '@/common/utils/format';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { useI18nPleaseSelect } from '@/hooks/useI18n';
 import { ProcinstTaskStatus, UserTaskCandidateType } from '@/views/flow/enums';
 import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 import RoleSelectFormItem from '@/views/system/role/components/RoleSelectFormItem.vue';
-import { computed, onMounted, Ref, ref, watch } from 'vue';
+import { computed, onMounted, Ref, ref, watch, type PropType } from 'vue';
+import type { FlowNode } from '@/views/flow/types';
 
 const props = defineProps({
     // 节点信息
     node: {
-        type: Object,
-        default: false,
+        type: Object as PropType<FlowNode>,
+        default: null,
     },
 });
 

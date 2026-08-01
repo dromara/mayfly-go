@@ -42,7 +42,7 @@ const props = defineProps<{
 }>();
 
 const terminalRef = ref();
-const status = ref(TerminalStatusEnum.Disconnected.value);
+const status = ref<TerminalStatus>(TerminalStatusEnum.Disconnected.value);
 
 // 映射终端状态到 tab 标签状态
 const getTabStatus = (terminalStatus: number): string => {

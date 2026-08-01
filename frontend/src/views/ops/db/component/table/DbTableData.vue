@@ -196,20 +196,56 @@
 </template>
 
 <script lang="ts" setup>
-import { exportCsv, exportExcel, exportFile } from '@/common/utils/export';
-import { formatDate } from '@/common/utils/format';
 import { copyToClipboard } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { DbInst, DbThemeConfig } from '@/views/ops/db/db';
 import { useIntervalFn, useStorage } from '@vueuse/core';
-import { ElInput } from 'element-plus';
-import { Ref, computed, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '../../../../../hooks/useI18n';
 import { ColumnTypeSubscript, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
 import DbTableDataForm from './DbTableDataForm.vue';
+import { useTableSelection } from './composables/useTableSelection';
+import { useTableEdit } from './composables/useTableEdit';
+import { useTableExport } from './composables/useTableExport';
+
+import type { ColumnMetadata, TableColumnDef } from '../../types';
+
+interface TableColumn extends ColumnMetadata {
+    hidden?: boolean;
+    show?: boolean;
+    showComment?: boolean;
+    comment?: string;
+    key?: string;
+    order?: string;
+    /** 数据类型角标 */
+    dataTypeSubscript?: string;
+    /** 列备注 (类型 + 注释) */
+    remark?: string;
+}
+
+/**
+ * el-table-v2 渲染列：setTableColumns 动态生成的列 + 行号列，
+ * 在 TableColumn 基础上补充渲染所需字段（列元数据字段均为可选，行号列无 columnName 等）
+ */
+interface RenderTableColumn extends Partial<TableColumn> {
+    key: string;
+    title: string;
+    width?: number;
+    fixed?: boolean;
+    align?: string;
+    headerClass?: string;
+    class?: string;
+    sortable?: boolean;
+}
+
+interface ContextmenuRowData {
+    rowData: Record<string, unknown>;
+    column: { key: string };
+    rowIndex: number;
+}
 
 const { t } = useI18n();
 
@@ -232,7 +268,7 @@ const props = defineProps({
         type: Array,
     },
     columns: {
-        type: Array<any>,
+        type: Array<TableColumnDef>,
     },
     columnMoreActions: {
         type: Array,
@@ -273,18 +309,32 @@ const containerRef = useTemplateRef<HTMLElement>('containerRef');
 let resizeObserver: ResizeObserver | null = null;
 
 // 用于控制列操作按钮的显示
-const showColumnActions = ref({} as any);
-const columnActionVisible = ref({} as any);
+const showColumnActions = ref<Record<string, boolean>>({});
+const columnActionVisible = ref<Record<string, boolean>>({});
 
-/**  表数据 contextmenu items  **/
+// Composables
+const { selectionRowsMap, isSelection, selectionRow, rowEventHandlers, rowClass, clearSelection } = useTableSelection(() => state.datas);
+
+const { nowUpdateCell, cellUpdateMap, canEdit, isUpdated, onEnterEditMode, onExitEditMode: exitEdit, submitUpdateFields: doSubmitUpdate, cancelUpdateFields: doCancelUpdate, clearEditState } = useTableEdit({
+    dbId: () => state.dbId,
+    db: () => state.db,
+    table: () => state.table,
+});
+
+const { onExportCsv, onExportExcel, onExportSql, onGenerateJson, onGenerateInsertSql } = useTableExport({
+    dbId: () => state.dbId,
+    db: () => state.db,
+    table: () => state.table,
+    datas: () => state.datas,
+    columns: () => state.columns,
+});
 
 const cmDataCopyCell = new ContextmenuItem('copyValue', 'common.copy')
     .withIcon('CopyDocument')
-    .withOnClick(async (data: any) => {
-        await copyToClipboard(data.rowData[data.column.key]);
+    .withOnClick(async (data: ContextmenuRowData) => {
+        await copyToClipboard(data.rowData[data.column.key] as string);
     })
     .withHideFunc(() => {
-        // 选中多条则隐藏该复制按钮
         return selectionRowsMap.value.size > 1;
     });
 
@@ -296,18 +346,15 @@ const cmDataDel = new ContextmenuItem('deleteData', 'common.delete')
     });
 
 const cmFormView = new ContextmenuItem('formView', 'db.formView').withIcon('Document').withOnClick(() => onEditRowData());
-// .withHideFunc(() => {
-//     return state.table == '';
-// });
 
 const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
     .withIcon('tickets')
-    .withOnClick(() => onGenerateInsertSql())
+    .withOnClick(() => handleGenerateInsertSql())
     .withHideFunc(() => {
         return state.table == '';
     });
 
-const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withIcon('tickets').withOnClick(() => onGenerateJson());
+const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withIcon('tickets').withOnClick(() => handleGenerateJson());
 
 const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv')
     .withIcon('document')
@@ -327,52 +374,9 @@ const cmDataExportSql = new ContextmenuItem('exportSql', 'db.exportSql')
     })
     .withPermission('db:data:export');
 
-class NowUpdateCell {
-    rowIndex: number;
-    colIndex: number;
-    dataType: DataType;
-    oldValue: any;
-}
+let dbDialect: DbDialect = null!;
 
-class UpdatedRow {
-    /**
-     * 主键值
-     */
-    primaryValue: any;
-
-    /**
-     * 行数据
-     */
-    rowData: any;
-
-    /**
-     * 修改到的列信息, columnName -> tablecelldata
-     */
-    columnsMap = new Map<string, TableCellData>();
-}
-
-class TableCellData {
-    /**
-     * 旧值
-     */
-    oldValue: any;
-}
-
-let dbDialect: DbDialect = null as any;
-
-let nowSortColumn = ref(null) as any;
-
-// 当前正在更新的单元格
-let nowUpdateCell: Ref<NowUpdateCell> = ref(null) as any;
-
-// 选中的数据， key->rowIndex  value->primaryKeyValue
-const selectionRowsMap = ref(new Map<number, any>());
-
-// 最后一次点击的行索引，用于 shift 批量选择
-let lastSelectedRowIndex: number | null = null;
-
-// 更新单元格  key-> rowIndex  value -> 更新行
-const cellUpdateMap = ref(new Map<number, UpdatedRow>());
+let nowSortColumn = ref<{ key: string; order: string } | null>(null);
 
 // 数据加载时间计时器
 const { pause, resume } = useIntervalFn(() => {
@@ -384,8 +388,8 @@ const state = reactive({
     dbType: '',
     db: '', // 数据库名
     table: '', // 当前的表名
-    datas: [],
-    columns: [] as any,
+    datas: [] as Record<string, unknown>[],
+    columns: [] as RenderTableColumn[],
     loading: false,
     tableHeight: '600px',
     containerHeight: 600,
@@ -399,7 +403,7 @@ const state = reactive({
         items: [] as ContextmenuItem[],
     },
     tableDataFormDialog: {
-        data: {},
+        data: {} as Record<string, unknown>,
         title: '',
         visible: false,
     },
@@ -429,16 +433,16 @@ const rowNoColumn = {
 
 watch(
     () => props.data,
-    (newValue: any) => {
-        setTableData(newValue);
+    (newValue: unknown) => {
+        setTableData(newValue as Record<string, unknown>[]);
     }
 );
 
 watch(
     () => props.columns,
-    (newValue: any) => {
+    (newValue: TableColumnDef[] | undefined) => {
         // 赋值列字段值是否隐藏，state.columns多了一列索引列
-        if (newValue.length + 1 == state.columns.length) {
+        if (newValue && newValue.length + 1 == state.columns.length) {
             for (let i = 0; i < newValue.length; i++) {
                 state.columns[i + 1].hidden = !newValue[i].show;
             }
@@ -451,21 +455,21 @@ watch(
 
 watch(
     () => props.table,
-    (newValue: any) => {
+    (newValue: string) => {
         state.table = newValue;
     }
 );
 
 watch(
     () => props.height,
-    (newValue: any) => {
+    (newValue: string) => {
         state.tableHeight = newValue;
     }
 );
 
 watch(
     () => props.loading,
-    (newValue: any) => {
+    (newValue: boolean) => {
         state.loading = newValue;
         if (newValue) {
             startLoading();
@@ -486,13 +490,12 @@ const showColumnActionFixed = computed(() => {
 });
 
 onMounted(async () => {
-    console.log('in DbTable mounted');
     state.tableHeight = props.height;
     state.loading = props.loading;
 
     // 使用 ResizeObserver 自动测量容器尺寸，确保 el-table-v2 固定表头 + body滚动
     if (containerRef.value) {
-        const rect = containerRef.value.getBoundingClientRect();
+        const rect = containerRef.value?.getBoundingClientRect();
         state.containerHeight = rect.height || 600;
         state.containerWidth = rect.width || 800;
 
@@ -512,7 +515,7 @@ onMounted(async () => {
 
     state.db = props.db;
     state.table = props.table;
-    setTableData(props.data);
+    setTableData((props.data ?? []) as Record<string, unknown>[]);
 
     if (state.loading) {
         startLoading();
@@ -524,25 +527,24 @@ onBeforeUnmount(() => {
     resizeObserver?.disconnect();
 });
 
-const setTableData = (datas: any) => {
+const setTableData = (datas: Record<string, unknown>[]) => {
     tableRef.value?.scrollTo({ scrollLeft: 0, scrollTop: 0 });
-    selectionRowsMap.value.clear();
-    cellUpdateMap.value.clear();
-    lastSelectedRowIndex = null;
-    // formatDataValues(datas);
+    clearSelection();
+    clearEditState();
     state.datas = datas;
-    setTableColumns(props.columns);
+    setTableColumns(props.columns ?? []);
 };
 
-const setTableColumns = (columns: any) => {
-    state.columns = columns.map((x: any) => {
+const setTableColumns = (columns: TableColumnDef[]) => {
+    state.columns = columns.map((x: TableColumnDef) => {
         const columnName = x.columnName;
         // 数据类型
-        x.dataType = dbDialect.getDataType(x.columnType);
+        x.dataType = dbDialect.getDataType(x.columnType ?? '');
         x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
         x.remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
         return {
             ...x,
+            key: x.key ?? columnName,
             width: DbInst.flexColumnWidth(columnName, state.datas),
             title: columnName,
             align: x.dataType == DataType.Number ? 'right' : 'left',
@@ -574,7 +576,7 @@ const cancelLoading = async () => {
 /**
  * 显示列操作按钮
  */
-const showColumnAction = (column: any) => {
+const showColumnAction = (column: RenderTableColumn) => {
     showColumnActions.value[column.key] = true;
 };
 
@@ -588,7 +590,7 @@ const hideColumnAction = () => {
 /**
  * 处理列操作命令
  */
-const handleColumnCommand = (column: any, command: string) => {
+const handleColumnCommand = (column: RenderTableColumn, command: string) => {
     switch (command) {
         case 'sort-asc':
             onTableSortChange({ key: column.key, order: 'asc' });
@@ -597,14 +599,14 @@ const handleColumnCommand = (column: any, command: string) => {
             onTableSortChange({ key: column.key, order: 'desc' });
             break;
         case 'fix':
-            state.columns.forEach((col: any) => {
+            state.columns.forEach((col: RenderTableColumn) => {
                 if (col.key == column.key) {
                     col.fixed = true;
                 }
             });
             break;
         case 'unfix':
-            state.columns.forEach((col: any) => {
+            state.columns.forEach((col: RenderTableColumn) => {
                 if (col.key == column.key) {
                     col.fixed = false;
                 }
@@ -615,95 +617,12 @@ const handleColumnCommand = (column: any, command: string) => {
     columnActionVisible.value = {};
 };
 
-const onColumnActionVisibleChange = (column: any, visible: boolean) => {
+const onColumnActionVisibleChange = (column: RenderTableColumn, visible: boolean) => {
     columnActionVisible.value = {}; // 只显示一个列的更多icon
     columnActionVisible.value[column.key] = visible;
 };
 
-/**
- * 当前单元格是否允许编辑
- * @param rowIndex ri
- * @param colIndex ci
- */
-const canEdit = (rowIndex: number, colIndex: number) => {
-    return state.table && nowUpdateCell.value?.rowIndex == rowIndex && nowUpdateCell.value?.colIndex == colIndex;
-};
-
-/**
- * 判断当前单元格是否被更新了
- * @param rowIndex ri
- * @param columnName cn
- */
-const isUpdated = (rowIndex: number, columnName: string) => {
-    return cellUpdateMap.value.get(rowIndex)?.columnsMap.get(columnName);
-};
-
-/**
- * 判断当前行是否被选中
- * @param rowIndex
- */
-const isSelection = (rowIndex: number): boolean => {
-    return selectionRowsMap.value.get(rowIndex);
-};
-
-/**
- * 选中指定行
- * @param rowIndex
- * @param rowData
- * @param isMultiple 是否允许多选
- */
-const selectionRow = (rowIndex: number, rowData: any, isMultiple = false) => {
-    if (isMultiple) {
-        // 如果重复点击，则取消该选中数据
-        if (selectionRowsMap.value.get(rowIndex)) {
-            selectionRowsMap.value.delete(rowIndex);
-            return;
-        }
-    } else {
-        selectionRowsMap.value.clear();
-    }
-    selectionRowsMap.value.set(rowIndex, rowData);
-    lastSelectedRowIndex = rowIndex;
-};
-
-/**
- * Shift 批量选择：选中起始行到当前行之间的所有行
- */
-const selectionRowRange = (startIndex: number, endIndex: number) => {
-    const from = Math.min(startIndex, endIndex);
-    const to = Math.max(startIndex, endIndex);
-    for (let i = from; i <= to; i++) {
-        const rowData = state.datas[i];
-        if (rowData) {
-            selectionRowsMap.value.set(i, rowData);
-        }
-    }
-};
-
-/**
- * 行事件处理
- */
-const rowEventHandlers = {
-    onClick: (e: any) => {
-        const event = e.event;
-        const rowIndex = e.rowIndex;
-        const rowData = e.rowData;
-        // 按住ctrl/meta点击，则多选切换
-        if (event.ctrlKey || event.metaKey) {
-            selectionRow(rowIndex, rowData, true);
-            return;
-        }
-        // 按住shift点击，则批量选择起始行到当前行
-        if (event.shiftKey && lastSelectedRowIndex !== null) {
-            selectionRowsMap.value.clear();
-            selectionRowRange(lastSelectedRowIndex, rowIndex);
-            return;
-        }
-        selectionRow(rowIndex, rowData);
-    },
-};
-
-const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: any) => {
+const dataContextmenuClick = (event: MouseEvent, rowIndex: number, column: TableColumn, data: Record<string, unknown>) => {
     event.preventDefault(); // 阻止默认的右击菜单行为
 
     // 当前行未选中，则单行选中该行
@@ -714,13 +633,13 @@ const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: a
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
     state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGenInsertSql, cmDataGenJson, cmDataExportExcel, cmDataExportCsv, cmDataExportSql];
-    contextmenuRef.value.openContextmenu({ column, rowData: data });
+    contextmenuRef.value?.openContextmenu({ column, rowData: data });
 };
 
 /**
  * 表排序字段变更
  */
-const onTableSortChange = async (sort: any) => {
+const onTableSortChange = async (sort: { key: string; order: string }) => {
     nowSortColumn.value = sort;
     cancelUpdateFields();
     emits('sortChange', sort);
@@ -733,7 +652,7 @@ const onDeleteData = async () => {
     const deleteDatas = Array.from(selectionRowsMap.value.values());
     const db = state.db;
     const dbInst = getNowDbInst();
-    dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as any), null, () => {
+    dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as Record<string, unknown>[]), undefined, () => {
         emits('dataDelete', deleteDatas);
     });
 };
@@ -750,27 +669,16 @@ const onEditRowData = () => {
     state.tableDataFormDialog.visible = true;
 };
 
-const onGenerateInsertSql = async () => {
+const handleGenerateInsertSql = async () => {
     const selectionDatas = Array.from(selectionRowsMap.value.values());
-    state.genTxtDialog.txt = await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas);
+    state.genTxtDialog.txt = await onGenerateInsertSql(selectionDatas);
     state.genTxtDialog.title = 'SQL';
     state.genTxtDialog.visible = true;
 };
 
-const onGenerateJson = async () => {
+const handleGenerateJson = () => {
     const selectionDatas = Array.from(selectionRowsMap.value.values());
-    // 按列字段重新排序对象key
-    const jsonObj = [];
-    for (let selectionData of selectionDatas) {
-        let obj: any = {};
-        for (let column of state.columns) {
-            if (column.show) {
-                obj[column.title] = selectionData[column.key];
-            }
-        }
-        jsonObj.push(obj);
-    }
-    state.genTxtDialog.txt = JSON.stringify(jsonObj, null, 4);
+    state.genTxtDialog.txt = onGenerateJson(selectionDatas);
     state.genTxtDialog.title = 'JSON';
     state.genTxtDialog.visible = true;
 };
@@ -780,154 +688,33 @@ const copyGenTxt = async (txt: string) => {
     state.genTxtDialog.visible = false;
 };
 
-/**
- * 导出当前页数据
- */
-const onExportCsv = () => {
-    const dataList = state.datas as any;
-    let columnNames = [];
-    for (let column of state.columns) {
-        if (column.show) {
-            columnNames.push(column.columnName);
-        }
-    }
-    exportCsv(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}`, columnNames, dataList);
-};
-
-/**
- * 导出当前页数据
- */
-const onExportExcel = () => {
-    const dataList = state.datas as any;
-    let columnNames = [];
-    for (let column of state.columns) {
-        if (column.show) {
-            columnNames.push(column.columnName);
-        }
-    }
-    exportExcel(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}`, [{ name: 'Data', columns: columnNames, datas: dataList }]);
-};
-
-const onExportSql = async () => {
-    const selectionDatas = state.datas;
-    exportFile(`Data-${state.table}-${formatDate(new Date(), 'YYYYMMDDHHmm')}.sql`, await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas));
-};
-
-const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
-    // 不存在表，或者已经在编辑中，则不处理
-    if (!state.table || nowUpdateCell.value) {
-        return;
-    }
-
-    nowUpdateCell.value = {
-        rowIndex: rowIndex,
-        colIndex: columnIndex,
-        oldValue: rowData[column.key],
-        dataType: column.dataType,
-    };
-};
-
-const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
-    if (!nowUpdateCell.value) {
-        return;
-    }
-    const oldValue = nowUpdateCell.value.oldValue;
-    const newValue = rowData[column.key];
-
-    // 未改变单元格值
-    if (oldValue == newValue) {
-        nowUpdateCell.value = null as any;
-        return;
-    }
-
-    let updatedRow = cellUpdateMap.value.get(rowIndex);
-    if (!updatedRow) {
-        updatedRow = new UpdatedRow();
-        updatedRow.rowData = rowData;
-        cellUpdateMap.value.set(rowIndex, updatedRow);
-    }
-
-    const columnName = column.key;
-    let cellData = updatedRow.columnsMap.get(columnName);
-    if (cellData) {
-        // 多次修改情况，可能又修改回原值，则移除该修改单元格
-        if (cellData.oldValue == newValue) {
-            cellUpdateMap.value.delete(rowIndex);
-        }
-    } else {
-        cellData = new TableCellData();
-        cellData.oldValue = oldValue;
-        updatedRow.columnsMap.set(columnName, cellData);
-    }
-
-    nowUpdateCell.value = null as any;
+const onExitEditMode = (rowData: Record<string, unknown>, column: RenderTableColumn, rowIndex = 0) => {
+    exitEdit(rowData, column, rowIndex);
     changeUpdatedField();
 };
 
 const submitUpdateFields = async () => {
-    const dbInst = getNowDbInst();
-    if (cellUpdateMap.value.size == 0) {
-        return;
-    }
-
-    const db = state.db;
-    let res = '';
-
-    for (let updateRow of cellUpdateMap.value.values()) {
-        const rowData = { ...updateRow.rowData };
-        let updateColumnValue: any = {};
-
-        for (let k of updateRow.columnsMap.keys()) {
-            const v = updateRow.columnsMap.get(k);
-            if (!v) {
-                continue;
-            }
-            updateColumnValue[k] = rowData[k];
-            // 将更新的字段对应的原始数据还原（主要应对可能更新修改了主键等）
-            rowData[k] = v.oldValue;
-        }
-        res += await dbInst.genUpdateSql(db, state.table, updateColumnValue, rowData);
-    }
-
-    dbInst.promptExeSql(db, res, null, () => {
-        cellUpdateMap.value.clear();
-        changeUpdatedField();
-    });
+    await doSubmitUpdate(() => changeUpdatedField());
 };
 
 const cancelUpdateFields = () => {
-    const updateRows = cellUpdateMap.value.values();
-    // 恢复原值
-    for (let updateRow of updateRows) {
-        const rowData = updateRow.rowData;
-        updateRow.columnsMap.forEach((v: TableCellData, k: string) => {
-            rowData[k] = v.oldValue;
-        });
-    }
-    cellUpdateMap.value.clear();
-    changeUpdatedField();
+    doCancelUpdate(() => changeUpdatedField());
 };
 
 const changeUpdatedField = () => {
     emits('changeUpdatedField', cellUpdateMap.value);
 };
 
-const rowClass = (row: any) => {
-    if (isSelection(row.rowIndex)) {
-        return 'data-selection';
-    }
-    return '';
-};
-
 const scrollLeftValue = ref(0);
-const onTableScroll = (param: any) => {
+const onTableScroll = (param: { scrollLeft: number }) => {
     scrollLeftValue.value = param.scrollLeft;
 };
+
 /**
  * 激活表格，恢复滚动位置，否则会造成表头与数据单元格错位(暂不知为啥，先这样解决)
  */
 const active = () => {
-    setTimeout(() => tableRef.value.scrollToLeft(scrollLeftValue.value));
+    setTimeout(() => tableRef.value?.scrollToLeft(scrollLeftValue.value));
 };
 
 const getNowDbInst = () => {

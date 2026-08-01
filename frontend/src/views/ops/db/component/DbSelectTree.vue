@@ -34,6 +34,16 @@ const dbCode = ref('');
 
 const emits = defineEmits(['selectDb']);
 
+/** 数据库树节点参数 (NodeTypeDb 节点 withParams 构造的动态结构) */
+interface DbNodeParams {
+    db?: string;
+    name?: string;
+    id?: number;
+    tagPath?: string;
+    type?: string;
+    [key: string]: unknown;
+}
+
 const selectNode = computed({
     get: () => {
         return dbName.value;
@@ -53,7 +63,6 @@ watch(
         const dbRes = await dbApi.dbs.request({ id: dbId.value });
         const db = dbRes.list?.[0];
         if (!db) {
-            console.log('not found db: {}', id);
             return '';
         }
         dbCode.value = db.code;
@@ -65,7 +74,8 @@ watch(
 const transformNode = (node: TagTreeNode): TagTreeNode => {
     // 如果是数据库节点，根据数据库类型动态设置 isLeaf
     if (node.type.value === NodeTypeDb.value) {
-        const hasSchema = schemaDbTypes.includes(node.params?.type);
+        const params = node.params as DbNodeParams;
+        const hasSchema = schemaDbTypes.includes(params.type ?? '');
         // 没有 schema 的数据库（如 MySQL），标记为叶子节点
         if (!hasSchema) {
             node.isLeaf = true;
@@ -75,7 +85,7 @@ const transformNode = (node: TagTreeNode): TagTreeNode => {
 };
 
 const changeNode = (nodeData: TagTreeNode) => {
-    const params = nodeData.params;
+    const params = nodeData.params as DbNodeParams;
     dbName.value = params.db;
     instName.value = params.name;
     dbId.value = params.id;

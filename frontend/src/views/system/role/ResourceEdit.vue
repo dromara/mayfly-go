@@ -33,27 +33,29 @@
 </template>
 
 <script lang="ts" setup>
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg } from '@/hooks/useI18n';
-import { reactive, ref } from 'vue';
+import { reactive, ref, type PropType } from 'vue';
+import { ElTree } from 'element-plus';
 import { roleApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
 import { getMenuIcon } from '../resource';
+import type { SysResource, SysRole } from '../types';
 
 const props = defineProps({
     title: {
         type: String,
     },
     role: {
-        type: Object,
+        type: Object as () => SysRole | null,
     },
     // 默认勾选的节点
     defaultCheckedKeys: {
-        type: Array,
+        type: Array as PropType<number[]>,
     },
     // 所有资源树
     resources: {
-        type: Array,
+        type: Array as PropType<SysResource[]>,
     },
 });
 
@@ -67,16 +69,16 @@ const defaultProps = {
     label: 'name',
 };
 
-const menuTree: any = ref(null);
+const menuTree = ref<InstanceType<typeof ElTree> | null>(null);
 
 const state = reactive({
     submiting: false,
 });
 
 const onConfirm = async () => {
-    let menuIds = menuTree.value.getCheckedKeys();
-    let halfMenuIds = menuTree.value.getHalfCheckedKeys();
-    let resources = [].concat(menuIds, halfMenuIds).join(',');
+    const menuIds = menuTree.value?.getCheckedKeys() ?? [];
+    const halfMenuIds = menuTree.value?.getHalfCheckedKeys() ?? [];
+    const resources = [...menuIds, ...halfMenuIds].join(',');
     try {
         state.submiting = true;
         await roleApi.saveResources.request({

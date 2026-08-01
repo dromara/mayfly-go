@@ -120,12 +120,19 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, computed, watch } from 'vue';
+import { reactive, toRefs, computed, watch, useTemplateRef } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
+import type { ResourceAuthCert } from '@/types/common';
+
+/** 表单类型，extra 必填（初始化时保证存在） */
+interface AuthCertForm extends Omit<ResourceAuthCert, 'extra'> {
+    extra: Record<string, unknown>;
+}
 
 const props = defineProps({
     title: {
@@ -133,7 +140,7 @@ const props = defineProps({
         default: '',
     },
     authCert: {
-        type: Object,
+        type: Object as () => ResourceAuthCert | null,
     },
     disableCiphertextType: {
         type: Array,
@@ -148,7 +155,7 @@ const props = defineProps({
     },
 });
 
-const DefaultForm = {
+const DefaultForm: AuthCertForm = {
     id: null,
     name: '',
     username: '',
@@ -157,7 +164,7 @@ const DefaultForm = {
     resourceType: TagResourceTypeEnum.PublicAuthCert.value,
     resourceCode: '',
     ciphertext: '',
-    extra: {} as any,
+    extra: {} as Record<string, unknown>,
     remark: '',
 };
 
@@ -170,32 +177,32 @@ const emit = defineEmits(['confirm', 'cancel']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const acForm: any = ref(null);
+const acForm = useTemplateRef<FormInstance>('acForm');
 
 const state = reactive({
-    form: { ...DefaultForm },
+    form: { ...DefaultForm } as AuthCertForm,
     btnLoading: false,
-    publicAuthCerts: [] as any,
+    publicAuthCerts: [] as ResourceAuthCert[],
 });
 
 const showResourceEdit = computed(() => {
     return state.form.type != AuthCertTypeEnum.Public.value && !props.resourceEdit;
 });
 
-watch(dialogVisible, (val: any) => {
+watch(dialogVisible, (val: boolean) => {
     if (val) {
-        setForm(props.authCert);
+        setForm(props.authCert ?? undefined);
     } else {
         cancelEdit();
     }
 });
 
-const setForm = (val: any) => {
-    val = { ...val };
-    if (!val.extra) {
-        val.extra = {};
+const setForm = (val: ResourceAuthCert | undefined) => {
+    const formData = { ...val } as AuthCertForm;
+    if (!formData.extra) {
+        formData.extra = {};
     }
-    state.form = val;
+    state.form = formData;
     if (state.form.ciphertextType == AuthCertCiphertextTypeEnum.Public.value) {
         getPublicAuthCerts();
     }
@@ -203,14 +210,14 @@ const setForm = (val: any) => {
 
 const { form, btnLoading } = toRefs(state);
 
-const changeType = (val: any) => {
+const changeType = (val: number) => {
     // 如果选择了公共凭证，则需要保证密文类型不能为公共凭证
     if (val == AuthCertTypeEnum.Public.value && state.form.ciphertextType == AuthCertCiphertextTypeEnum.Public.value) {
         state.form.ciphertextType = AuthCertCiphertextTypeEnum.Password.value;
     }
 };
 
-const changeCiphertextType = (val: any) => {
+const changeCiphertextType = (val: number) => {
     if (val == AuthCertCiphertextTypeEnum.Public.value) {
         getPublicAuthCerts();
     }
@@ -233,7 +240,7 @@ const getPublicAuthCerts = async () => {
 const getCiphertext = async () => {
     const res = await resourceAuthCertApi.detail.request({ name: state.form.name });
     state.form.ciphertext = res.ciphertext;
-    state.form.extra.passphrase = res.extra?.passphrase;
+    state.form.extra.passphrase = res.extra?.passphrase ?? '';
 };
 
 const cancelEdit = () => {
@@ -247,7 +254,7 @@ const cancelEdit = () => {
 };
 
 const btnOk = async () => {
-    acForm.value.validate(async (valid: boolean) => {
+    acForm.value?.validate(async (valid: boolean) => {
         if (valid) {
             emit('confirm', { ...state.form });
         }

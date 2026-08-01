@@ -50,13 +50,14 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import type { DataSyncTask } from '../types';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
@@ -87,7 +88,7 @@ const columns = ref([
 const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log]);
 const actionWidth = ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0)) * 55 + 55;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     row: {},
@@ -107,13 +108,13 @@ const state = reactive({
     },
     editDialog: {
         visible: false,
-        data: null as any,
+        data: null as DataSyncTask | null,
         title: '',
     },
     logsDialog: {
         taskId: 0,
         visible: false,
-        data: null as any,
+        data: null as DataSyncTask | null,
         running: false,
     },
 });
@@ -127,10 +128,10 @@ onMounted(async () => {
 });
 
 const search = () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const edit = async (data: any) => {
+const edit = async (data: DataSyncTask | false) => {
     if (!data) {
         state.editDialog.data = null;
         state.editDialog.title = useI18nCreateTitle('db.dbSync');
@@ -141,27 +142,27 @@ const edit = async (data: any) => {
     state.editDialog.visible = true;
 };
 
-const run = async (id: any) => {
+const run = async (id: number) => {
     await useI18nConfirm('db.runConfirm');
     await dbSyncApi.runDatasyncTask.request({ taskId: id });
     Msg.operateSuccess();
     setTimeout(search, 1000);
 };
 
-const stop = async (id: any) => {
+const stop = async (id: number) => {
     await useI18nConfirm('db.stopConfirm');
     await dbSyncApi.stopDatasyncTask.request({ taskId: id });
     Msg.operateSuccess();
     search();
 };
 
-const log = async (data: any) => {
+const log = async (data: DataSyncTask) => {
     state.logsDialog.taskId = data.id;
     state.logsDialog.visible = true;
-    state.logsDialog.running = data.state === 1;
+    state.logsDialog.running = data.runningState === 1;
 };
 
-const updStatus = async (id: any, status: 1 | -1) => {
+const updStatus = async (id: number, status: 1 | -1) => {
     try {
         await dbSyncApi.updateDatasyncTaskStatus.request({ taskId: id, status });
         Msg.operateSuccess();
@@ -173,8 +174,8 @@ const updStatus = async (id: any, status: 1 | -1) => {
 
 const del = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.taskName).join('、'));
-        await dbSyncApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: DataSyncTask) => x.taskName).join('、'));
+        await dbSyncApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: DataSyncTask) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {

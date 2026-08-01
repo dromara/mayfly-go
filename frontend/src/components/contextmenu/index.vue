@@ -13,7 +13,7 @@
             <ul class="el-dropdown-menu">
                 <template v-for="(v, k) in state.dropdownList">
                     <li
-                        :id="v.clickId"
+                        :id="String(v.clickId)"
                         v-auth="v.permission"
                         class="el-dropdown-menu__item"
                         aria-disabled="false"
@@ -35,7 +35,7 @@
 <script setup lang="ts" name="layoutTagsViewContextmenu">
 import { computed, reactive, onMounted, onUnmounted, watch } from 'vue';
 import { ContextmenuItem } from './index';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { useWindowSize } from '@vueuse/core';
 
 // 定义父组件传过来的值

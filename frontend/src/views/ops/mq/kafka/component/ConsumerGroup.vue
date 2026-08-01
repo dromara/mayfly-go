@@ -75,21 +75,7 @@ import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mqApi } from '../../api';
-
-export interface ConsumerGroup {
-    Coordinator: number;
-    State: string;
-    ProtocolType: string;
-    Group: string;
-}
-
-interface GroupMember {
-    ClientHost: string;
-    ClientID: string;
-    InstanceID: string | null;
-    MemberID: string;
-    TPs: Record<string, number[]>;
-}
+import type { KafkaGroup, KafkaGroupMember } from '../../types';
 
 const { t } = useI18n();
 
@@ -99,7 +85,7 @@ const props = defineProps({
         required: true,
     },
     groups: {
-        type: Array as () => ConsumerGroup[],
+        type: Array as () => KafkaGroup[],
         default: () => [],
     },
     loading: {
@@ -113,21 +99,21 @@ const emits = defineEmits(['refresh']);
 const searchGroup = ref('');
 const membersDrawerVisible = ref(false);
 const membersLoading = ref(false);
-const selectedGroup = ref<ConsumerGroup | null>(null);
-const groupMembers = ref<GroupMember[]>([]);
+const selectedGroup = ref<KafkaGroup | null>(null);
+const groupMembers = ref<KafkaGroupMember[]>([]);
 
 const filteredGroups = computed(() => {
     if (!searchGroup.value) {
         return props.groups;
     }
-    return props.groups.filter((group: ConsumerGroup) => group.Group.toLowerCase().includes(searchGroup.value.toLowerCase()));
+    return props.groups.filter((group) => group.Group.toLowerCase().includes(searchGroup.value.toLowerCase()));
 });
 
 const loadGroups = () => {
     emits('refresh');
 };
 
-const handleDeleteGroup = async (group: ConsumerGroup) => {
+const handleDeleteGroup = async (group: KafkaGroup) => {
     await useI18nDeleteConfirm(`Group: ${group.Group}`);
     try {
         await mqApi.kafkaDeleteGroup.request({
@@ -136,11 +122,11 @@ const handleDeleteGroup = async (group: ConsumerGroup) => {
         });
         Msg.saveSuccess();
         emits('refresh');
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error((error instanceof Error ? error.message : String(error)) || 'common.requestFail');
     }
 };
-const handleGetGroupMembers = async (group: ConsumerGroup) => {
+const handleGetGroupMembers = async (group: KafkaGroup) => {
     selectedGroup.value = group;
     membersDrawerVisible.value = true;
     membersLoading.value = true;
@@ -149,9 +135,9 @@ const handleGetGroupMembers = async (group: ConsumerGroup) => {
             id: props.kafkaId,
             group: group.Group,
         });
-        groupMembers.value = (res as GroupMember[]) || [];
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+        groupMembers.value = res || [];
+    } catch (error: unknown) {
+        Msg.error((error instanceof Error ? error.message : String(error)) || 'common.requestFail');
     } finally {
         membersLoading.value = false;
     }

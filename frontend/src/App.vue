@@ -34,7 +34,7 @@ import { useI18n } from 'vue-i18n';
 import EnumValue from './common/Enum';
 import { I18nEnum } from './common/commonEnum';
 import { saveThemeConfig } from './common/utils/storage';
-import GlobalNotificationFab from '@/components/sysmsg/GlobalNotificationFab.vue';
+import GlobalNotificationFab from '@/components/system-message/GlobalNotificationFab.vue';
 
 const Setings = defineAsyncComponent(() => import('@/layout/navBars/breadcrumb/setings.vue'));
 

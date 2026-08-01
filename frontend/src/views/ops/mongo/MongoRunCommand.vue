@@ -53,25 +53,22 @@ import { Msg } from '@/hooks/useI18n';
 import { defineAsyncComponent, reactive, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mongoApi } from './api';
+import type { MongoDatabase } from './types';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     id: {
         type: [Number],
         required: true,
     },
 });
 
-//定义事件
-const emit = defineEmits(['update:visible']);
+const visible = defineModel<boolean>('visible', { default: false });
 
-const mongoCmds: any = {
+const mongoCmds: Record<string, Record<string, unknown>> = {
     usersInfo: {
         name: 'usersInfo',
         description: t('mongo.usersInfoDesc'),
@@ -143,7 +140,7 @@ const mongoCmds: any = {
 };
 
 const state = reactive({
-    dbs: [] as any,
+    dbs: [] as MongoDatabase[],
     selectDbDisabled: false,
     runCmdDialog: {
         visible: false,
@@ -156,17 +153,17 @@ const state = reactive({
 
 const { dbs, runCmdDialog } = toRefs(state);
 
-watch(props, async (newValue: any) => {
-    if (!newValue.visible) {
+watch(visible, async (val) => {
+    if (!val) {
         state.runCmdDialog.visible = false;
         return;
     }
-    state.runCmdDialog.visible = newValue.visible;
+    state.runCmdDialog.visible = val;
     state.dbs = (await mongoApi.databases.request({ id: props.id })).Databases;
 });
 
 const close = () => {
-    emit('update:visible', false);
+    visible.value = false;
     state.runCmdDialog.cmd = '';
     state.runCmdDialog.cmdRes = '';
     state.runCmdDialog.cmdName = '';
@@ -174,19 +171,19 @@ const close = () => {
     state.dbs = [];
 };
 
-const changeCmd = (val: any) => {
+const changeCmd = (val: string) => {
     const mongoCmd = mongoCmds[val];
     state.runCmdDialog.cmd = JSON.stringify(mongoCmd.cmd, null, 4);
-    state.runCmdDialog.db = state?.dbs[0]?.Name;
+    state.runCmdDialog.db = state?.dbs[0]?.Name ?? '';
     state.runCmdDialog.cmdRes = '';
 };
 
 const onRunCommand = async () => {
-    const orderCmds = [] as any;
+    const orderCmds: Record<string, unknown>[] = [];
     const cmdObj = JSON.parse(state.runCmdDialog.cmd);
 
     for (let item of Object.keys(cmdObj)) {
-        let obj: any = {};
+        let obj: Record<string, unknown> = {};
         obj[item] = cmdObj[item];
         orderCmds.push(obj);
     }

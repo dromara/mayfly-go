@@ -14,7 +14,7 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 
 const props = withDefaults(
     defineProps<{

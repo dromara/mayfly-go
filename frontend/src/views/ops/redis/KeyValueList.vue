@@ -49,7 +49,7 @@
 </template>
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, toRefs } from 'vue';
+import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
 
@@ -63,14 +63,14 @@ const props = defineProps({
     },
 });
 
-const formatViewerRef = ref(null) as any;
+const formatViewerRef = useTemplateRef<{ getContent: () => string }>('formatViewerRef');
 
 const state = reactive({
     key: '',
     pageNum: 1,
     pageSize: 50,
     total: 0,
-    values: [] as any,
+    values: [] as { value: string }[],
     loadMoreDisable: false,
     editDialog: {
         index: -1,
@@ -82,7 +82,7 @@ const state = reactive({
 const { total, values, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.key = props.keyInfo?.key;
+    state.key = props.keyInfo?.key || '';
     initData();
 });
 
@@ -95,11 +95,11 @@ const getListValue = async (resetTableData = false) => {
     const pageNum = state.pageNum;
     const pageSize = state.pageSize;
 
-    props.redis.runCmd(['LLEN', state.key]).then((res) => (state.total = res));
+    props.redis.runCmd<number>(['LLEN', state.key]).then((res) => (state.total = res));
 
     // LRANGE key start stop
-    const res = await props.redis.runCmd(['LRANGE', state.key, (pageNum - 1) * pageSize, pageNum * pageSize - 1]);
-    const datas = res.map((x: any) => {
+    const res = await props.redis.runCmd<string[]>(['LRANGE', state.key, (pageNum - 1) * pageSize, pageNum * pageSize - 1]);
+    const datas = res.map((x: string) => {
         return {
             value: x,
         };
@@ -113,7 +113,7 @@ const getListValue = async (resetTableData = false) => {
     state.loadMoreDisable = state.values.length === state.total;
 };
 
-const showEditDialog = (row: any, index = -1) => {
+const showEditDialog = (row: { value: string } | null, index = -1) => {
     state.editDialog.index = index;
     state.editDialog.content = row ? row.value : '';
     state.editDialog.visible = true;
@@ -122,15 +122,15 @@ const showEditDialog = (row: any, index = -1) => {
 const confirmEditData = async () => {
     const index = state.editDialog.index;
     // 获取list member内容并新增
-    const member = formatViewerRef.value.getContent();
+    const member = formatViewerRef.value?.getContent();
     try {
         // 索引=-1 说明是新增
         if (index == -1) {
             // RPUSH key element [element ...]
-            await props.redis.runCmd(['RPUSH', state.key, member]);
+            await props.redis.runCmd(['RPUSH', state.key, member ?? '']);
         } else {
             // LSET key index element
-            await props.redis.runCmd(['LSET', state.key, index, member]);
+            await props.redis.runCmd(['LSET', state.key, index, member ?? '']);
         }
 
         Msg.saveSuccess();
@@ -140,7 +140,7 @@ const confirmEditData = async () => {
     }
 };
 
-const lrem = async (row: any, index: any) => {
+const lrem = async (row: { value: string }, index: number) => {
     // LREM key count element
     await props.redis.runCmd(['LREM', state.key, 1, row.value]);
     Msg.deleteSuccess();

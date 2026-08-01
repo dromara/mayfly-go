@@ -43,7 +43,7 @@ const emit = defineEmits(['cancel', 'update:machineId']);
 
 const updateFileContent = machineApi.updateFileContent;
 
-const saveing: Ref<any> = ref(false);
+const saveing: Ref<boolean> = ref(false);
 
 const state = reactive({
     loadingContent: false,

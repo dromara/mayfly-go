@@ -63,7 +63,7 @@
                 <el-autocomplete
                     v-model="condition"
                     :fetch-suggestions="getColumnTips"
-                    @keyup.enter.native="onSelectByCondition"
+                    @keyup.enter="onSelectByCondition"
                     @select="handlerColumnSelect"
                     popper-class="my-autocomplete"
                     :placeholder="$t('db.autoCompleteColumnPlaceholder')"
@@ -106,7 +106,7 @@
                                 max-height="500"
                                 size="small"
                                 @row-click="
-                                    (...event: any) => {
+                                    (...event: unknown[]) => {
                                         onConditionRowClick(event);
                                     }
                                 "
@@ -119,7 +119,7 @@
                                             v-model="state.columnNameSearch"
                                             size="small"
                                             :placeholder="$t('db.columnFilterPlaceholder')"
-                                            @click.stop="(e: any) => e.preventDefault()"
+                                            @click.stop="(e: Event) => e.preventDefault()"
                                         />
                                     </template>
                                 </el-table-column>
@@ -143,7 +143,7 @@
             :page-size="pageSize"
             :page-num="pageNum"
             :show-column-tip="true"
-            @sort-change="(sort: any) => onTableSortChange(sort)"
+            @sort-change="(sort: { key: string; order: string }) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange"
             @change-updated-field="changeUpdatedField"
             @data-delete="onRefresh"
@@ -217,7 +217,7 @@
                 </el-col>
                 <el-col :span="19">
                     <el-input
-                        @keyup.enter.native="onConfirmCondition"
+                        @keyup.enter="onConfirmCondition"
                         ref="condDialogInputRef"
                         v-model="conditionDialog.value"
                         :placeholder="conditionDialog.placeholder"
@@ -249,10 +249,11 @@
 import { computed, onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
 
 import { copyToClipboard, fuzzyMatchField } from '@/common/utils/string';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg } from '@/hooks/useI18n';
 import { DbInst } from '@/views/ops/db/db';
 import { DbDialect } from '@/views/ops/db/dialect';
+import type { ColumnMetadata, TableColumnDef } from '@/views/ops/db/types';
 import { useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import DbTableData from './DbTableData.vue';
@@ -283,12 +284,12 @@ const condDialogInputRef: Ref = ref(null);
 const defaultPageSize = DbInst.DefaultLimit;
 
 const state = reactive({
-    datas: [],
+    datas: [] as Record<string, unknown>[],
     sql: '', // 当前数据tab执行的sql
     orderBy: '',
     condition: '', // 当前条件框的条件
     loading: false, // 是否在加载数据
-    columns: [] as any,
+    columns: [] as TableColumnDef[],
     pageNum: 1,
     pageSize: defaultPageSize,
     pageSizes: [
@@ -304,13 +305,13 @@ const state = reactive({
     total: 0,
     showTotal: false,
     counting: false,
-    selectionDatas: [] as any,
+    selectionDatas: [] as Record<string, unknown>[],
     condPopVisible: false,
     columnNameSearch: '',
     conditionDialog: {
         title: '',
         placeholder: '',
-        columnRow: null,
+        columnRow: null as TableColumnDef | null,
         dataTab: null,
         visible: false,
         condition: '=',
@@ -328,7 +329,7 @@ const state = reactive({
         searchKey: '',
         checkedAllColumn: true,
         isIndeterminate: false,
-        columnNames: [] as any,
+        columnNames: [] as string[],
     },
 });
 
@@ -340,13 +341,12 @@ const getNowDbInst = () => {
 };
 
 onMounted(async () => {
-    console.log('in table data mounted');
     await onRefresh();
 
     state.dbDialect = getNowDbInst().getDialect();
     useEventListener('click', handlerWindowClick);
 
-    state.checkedShowColumns.columnNames = state.columns.map((item: any) => item.columnName);
+    state.checkedShowColumns.columnNames = state.columns.map((item: TableColumnDef) => item.columnName);
 });
 
 const handlerWindowClick = () => {
@@ -378,8 +378,8 @@ const selectData = async () => {
     const table = props.tableName;
     try {
         if (state.columns.length == 0) {
-            const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
-            columns.forEach((x: any) => {
+            const columns = (await getNowDbInst().loadColumns(props.dbName, props.tableName)) as TableColumnDef[];
+            columns.forEach((x: TableColumnDef) => {
                 x.show = true;
                 x.key = x.columnName;
             });
@@ -388,15 +388,15 @@ const selectData = async () => {
 
         let sql = dbInst.getDefaultSelectSql(db, table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
-        const res: any = await dbInst.runSql(db, sql);
-        const colAndData: any = res[0];
-        state.datas = colAndData.res;
+        const res = await dbInst.runSql(db, sql);
+        const colAndData = res[0];
+        state.datas = colAndData.res ?? [];
     } finally {
         state.loading = false;
     }
 };
 
-const handleSizeChange = async (size: any) => {
+const handleSizeChange = async (size: number) => {
     state.pageNum = 1;
     state.pageSize = size;
     await selectData();
@@ -420,9 +420,9 @@ const handleCount = async () => {
         const db = props.dbName;
         const table = props.tableName;
         const dbInst = getNowDbInst();
-        let countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
-        countRes = countRes[0];
-        state.total = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
+        const countRes = (await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition)))[0];
+        const countRow = countRes.res?.[0];
+        state.total = parseInt(String(countRow?.count || countRow?.COUNT || 0));
         state.showTotal = true;
     } catch (e) {
         /* empty */
@@ -432,7 +432,7 @@ const handleCount = async () => {
 };
 
 const handleCheckAllColumnChange = (val: boolean) => {
-    state.checkedShowColumns.columnNames = val ? state.columns.map((x: any) => x.columnName) : [];
+    state.checkedShowColumns.columnNames = val ? state.columns.map((x: TableColumnDef) => x.columnName) : [];
     state.checkedShowColumns.isIndeterminate = false;
 };
 
@@ -454,15 +454,15 @@ let completeCond = '';
 // 是否存在列建议
 let existSuggestion = false;
 
-const getColumnTips = (queryString: string, callback: any) => {
+const getColumnTips = (queryString: string, callback: (res: TableColumnDef[]) => void) => {
     const columns = state.columns;
 
     var words = queryString.split(' '); // 使用空格分割字符串为数组
     let columnNameSearch = words[words.length - 1]; // 获取最后一个元素
 
-    let res = [];
+    let res: TableColumnDef[] = [];
     if (columnNameSearch) {
-        res = fuzzyMatchField(columnNameSearch, columns, (x: any) => x.columnName);
+        res = fuzzyMatchField(columnNameSearch, columns, (x: TableColumnDef) => x.columnName);
     }
 
     completeCond = condition.value;
@@ -471,7 +471,7 @@ const getColumnTips = (queryString: string, callback: any) => {
     existSuggestion = res.length > 0;
 };
 
-const handlerColumnSelect = (column: any) => {
+const handlerColumnSelect = (column: ColumnMetadata) => {
     // 获取最后一个空格的索引
     var lastSpaceIndex = completeCond.lastIndexOf(' ');
 
@@ -496,8 +496,8 @@ const handlerColumnSelect = (column: any) => {
 const chooseCondColumnName = () => {
     state.condPopVisible = !state.condPopVisible;
     if (state.condPopVisible) {
-        columnNameSearchInputRef.value.clear();
-        columnNameSearchInputRef.value.focus();
+        columnNameSearchInputRef.value?.clear();
+        columnNameSearchInputRef.value?.focus();
     }
 };
 
@@ -520,22 +520,22 @@ const filterColumns = (searchKey: string) => {
     return fuzzyMatchField(
         searchKey,
         columns,
-        (x: any) => x.columnName,
-        (x: any) => x.columnComment
+        (x: TableColumnDef) => x.columnName,
+        (x: TableColumnDef) => x.columnComment
     );
 };
 
 /**
  * 条件查询，点击列信息后显示输入对应的值
  */
-const onConditionRowClick = (event: any) => {
-    const row = event[0];
+const onConditionRowClick = (event: unknown[]) => {
+    const row = event[0] as TableColumnDef;
     state.conditionDialog.title = t('db.conditionInputDialogTitle', { columnName: row.columnName });
     state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
     setTimeout(() => {
-        condDialogInputRef.value.focus();
+        condDialogInputRef.value?.focus();
     }, 100);
 };
 
@@ -546,11 +546,11 @@ const onConfirmCondition = () => {
     if (condition) {
         condition += ` AND `;
     }
-    const row = conditionDialog.columnRow as any;
+    const row = conditionDialog.columnRow as TableColumnDef;
     condition += `${row.columnName} ${conditionDialog.condition} `;
-    state.condition = condition + state.dbDialect.wrapValue(row.dataType, conditionDialog.value!);
+    state.condition = condition + state.dbDialect.wrapValue(row.dataType ?? '', conditionDialog.value!);
     onCancelCondition();
-    condInputRef.value.focus();
+    condInputRef.value?.focus();
 };
 
 const onCancelCondition = () => {
@@ -580,7 +580,7 @@ const onSelectByCondition = async () => {
 /**
  * 表排序字段变更
  */
-const onTableSortChange = async (sort: any) => {
+const onTableSortChange = async (sort: { key: string; order: string }) => {
     const sortType = sort.order == 'desc' ? 'DESC' : 'ASC';
     state.orderBy = `ORDER BY ${state.dbDialect.quoteIdentifier(sort.key)} ${sortType}`;
     await onRefresh();
@@ -590,17 +590,17 @@ const onDataSelectionChange = (datas: []) => {
     state.selectionDatas = datas;
 };
 
-const changeUpdatedField = (updatedFields: any) => {
+const changeUpdatedField = (updatedFields: Map<string, unknown>) => {
     // 如果存在要更新字段，则显示提交和取消按钮
     state.hasUpdatedFileds = updatedFields && updatedFields.size > 0;
 };
 
 const submitUpdateFields = () => {
-    dbTableRef.value.submitUpdateFields();
+    dbTableRef.value?.submitUpdateFields();
 };
 
 const cancelUpdateFields = () => {
-    dbTableRef.value.cancelUpdateFields();
+    dbTableRef.value?.cancelUpdateFields();
 };
 
 const onShowAddDataDialog = async () => {
@@ -609,7 +609,7 @@ const onShowAddDataDialog = async () => {
 };
 
 defineExpose({
-    active: () => dbTableRef.value.active(),
+    active: () => dbTableRef.value?.active(),
 });
 </script>
 

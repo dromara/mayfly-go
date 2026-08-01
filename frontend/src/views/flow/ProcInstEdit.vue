@@ -45,12 +45,14 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import { Msg } from '@/hooks/useI18n';
 import { defineAsyncComponent, reactive, shallowReactive, toRefs, useTemplateRef, watch } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { procdefApi, procinstApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType } from './enums';
+import type { Procdef, ProcInstStartForm } from './types';
 import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
 
 const DbSqlExecFlowBizForm = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecFlowBizForm.vue'));
@@ -63,7 +65,7 @@ const props = defineProps({
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const modelValue = defineModel('modelValue', {
+const modelValue = defineModel<ProcInstStartForm>('modelValue', {
     default: () => ({
         bizType: FlowBizType.DbSqlExec.value,
         procdefId: 0,
@@ -77,11 +79,11 @@ const modelValue = defineModel('modelValue', {
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const formRef: any = useTemplateRef('formRef');
-const bizFormRef: any = useTemplateRef('bizFormRef');
+const formRef = useTemplateRef<FormInstance>('formRef');
+const bizFormRef = useTemplateRef<{ validateBizForm: () => Promise<void>; resetBizForm: () => void }>('bizFormRef');
 
 // 业务组件
-const bizComponents: any = shallowReactive({
+const bizComponents = shallowReactive<Record<string, unknown>>({
     db_sql_exec_flow: DbSqlExecFlowBizForm,
     redis_run_cmd_flow: RedisRunCmdFlowBizForm,
 });
@@ -92,9 +94,9 @@ const rules = {
 };
 
 const state = reactive({
-    tasks: [] as any,
-    flowProcdef: null as any,
-    sortable: '' as any,
+    tasks: [] as unknown[],
+    flowProcdef: null as Procdef | null,
+    sortable: '' as string,
 });
 
 const { flowProcdef } = toRefs(state);
@@ -111,7 +113,7 @@ watch(
     }
 );
 
-const changeResourceCode = async (resourceType: any, code: string) => {
+const changeResourceCode = async (resourceType: string, code: string) => {
     state.flowProcdef = await procdefApi.getByResource.request({ resourceType, resourceCode: code });
     if (!state.flowProcdef) {
         modelValue.value.procdefId = 0;
@@ -129,9 +131,9 @@ const changeBizType = () => {
 
 const btnOk = async () => {
     try {
-        await formRef.value.validate();
-        await bizFormRef.value.validateBizForm();
-    } catch (e: any) {
+        await formRef.value?.validate();
+        await bizFormRef.value?.validateBizForm();
+    } catch (e: unknown) {
         Msg.error('flow.procinstFormError');
         return false;
     }
@@ -147,11 +149,18 @@ const cancel = () => {
     visible.value = false;
     emit('cancel');
     state.flowProcdef = null;
-    formRef.value.resetFields();
-    bizFormRef.value.resetBizForm();
+    formRef.value?.resetFields();
+    bizFormRef.value?.resetBizForm();
 
     setTimeout(() => {
-        modelValue.value = {} as any;
+        modelValue.value = {
+            bizType: FlowBizType.DbSqlExec.value,
+            procdefId: 0,
+            status: null,
+            remark: '',
+            bizKey: '',
+            bizForm: {},
+        };
     }, 500);
 };
 </script>

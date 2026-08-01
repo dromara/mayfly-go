@@ -426,7 +426,7 @@ import themes from '@/components/terminal/themes.js';
 import { useWindowSize } from '@vueuse/core';
 
 const copyConfigBtnRef = ref();
-const { themeConfig } = storeToRefs(useThemeConfig()) as any;
+const { themeConfig } = storeToRefs(useThemeConfig());
 
 // 获取窗口大小
 const { width } = useWindowSize();
@@ -443,23 +443,23 @@ onMounted(() => {
             setTimeout(() => {
                 // 顶栏背景渐变
                 if (getLocal('navbarsBgStyle') && themeConfig.value.isTopBarColorGradual) {
-                    const breadcrumbIndexEl: any = document.querySelector('.layout-navbars-breadcrumb-index');
-                    breadcrumbIndexEl.style.cssText = getLocal('navbarsBgStyle');
+                    const breadcrumbIndexEl = document.querySelector('.layout-navbars-breadcrumb-index') as HTMLElement | null;
+                    if (breadcrumbIndexEl) breadcrumbIndexEl.style.cssText = getLocal<string>('navbarsBgStyle') ?? '';
                 }
                 // 菜单背景渐变
                 if (getLocal('asideBgStyle') && themeConfig.value.isMenuBarColorGradual) {
-                    const asideEl: any = document.querySelector('.layout-container .el-aside');
-                    asideEl.style.cssText = getLocal('asideBgStyle');
+                    const asideEl = document.querySelector('.layout-container .el-aside') as HTMLElement | null;
+                    if (asideEl) asideEl.style.cssText = getLocal<string>('asideBgStyle') ?? '';
                 }
                 // 分栏菜单背景渐变
                 if (getLocal('columnsBgStyle') && themeConfig.value.isColumnsMenuBarColorGradual) {
-                    const asideEl: any = document.querySelector('.layout-container .layout-columns-aside');
-                    asideEl.style.cssText = getLocal('columnsBgStyle');
+                    const asideEl = document.querySelector('.layout-container .layout-columns-aside') as HTMLElement | null;
+                    if (asideEl) asideEl.style.cssText = getLocal<string>('columnsBgStyle') ?? '';
                 }
                 // 灰色模式/色弱模式
                 if (getLocal('appFilterStyle')) {
-                    const appEl: any = document.querySelector('#app');
-                    appEl.style.cssText = getLocal('appFilterStyle');
+                    const appEl = document.querySelector('#app') as HTMLElement | null;
+                    if (appEl) appEl.style.cssText = getLocal<string>('appFilterStyle') ?? '';
                 }
                 // // 语言国际化
                 // if (getLocal('themeConfig')) proxy.$i18n.locale = getLocal('themeConfig').globalI18n;
@@ -468,20 +468,25 @@ onMounted(() => {
     });
 });
 
+// 主题颜色类配置键（均为字符串值）
+type ThemeColorKey = 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'terminalForeground' | 'terminalBackground' | 'terminalCursor';
+// 背景颜色类配置键（均为字符串值）
+type ThemeBgColorKey = 'menuBar' | 'menuBarColor' | 'topBar' | 'columnsMenuBar' | 'topBarColor' | 'columnsMenuBarColor';
+
 // 1、全局主题
-const onColorPickerChange = (color: string) => {
+const onColorPickerChange = (color: ThemeColorKey) => {
     setPropertyFun(`--color-${color}`, themeConfig.value[color]);
     setDispatchThemeConfig();
 };
 // 1、全局主题设置函数
-const setPropertyFun = (color: string, targetVal: any) => {
+const setPropertyFun = (color: string, targetVal: string) => {
     document.documentElement.style.setProperty(color, targetVal);
     for (let i = 1; i <= 9; i++) {
-        document.documentElement.style.setProperty(`${color}-light-${i}`, getLightColor(targetVal, i / 10) as any);
+        document.documentElement.style.setProperty(`${color}-light-${i}`, getLightColor(targetVal, i / 10));
     }
 };
 // 2、菜单 / 顶栏
-const onBgColorPickerChange = (bg: string) => {
+const onBgColorPickerChange = (bg: ThemeBgColorKey) => {
     document.documentElement.style.setProperty(`--bg-${bg}`, themeConfig.value[bg]);
     onTopBarGradualChange();
     onMenuBarGradualChange();
@@ -508,9 +513,9 @@ const setGraduaFun = (el: string, bool: boolean, color: string) => {
         if (bool) els.setAttribute('style', `background-image:linear-gradient(to bottom left , ${color}, ${getLightColor(color, 0.6)})`);
         else els.setAttribute('style', `background-image:${color}`);
 
-        const elNavbars: any = document.querySelector('.layout-navbars-breadcrumb-index');
-        const elAside: any = document.querySelector('.layout-container .el-aside');
-        const elColumns: any = document.querySelector('.layout-container .layout-columns-aside');
+        const elNavbars = document.querySelector('.layout-navbars-breadcrumb-index') as HTMLElement | null;
+        const elAside = document.querySelector('.layout-container .el-aside') as HTMLElement | null;
+        const elColumns = document.querySelector('.layout-container .layout-columns-aside') as HTMLElement | null;
         if (elNavbars) setLocal('navbarsBgStyle', elNavbars.style.cssText);
         if (elAside) setLocal('asideBgStyle', elAside.style.cssText);
         if (elColumns) setLocal('columnsBgStyle', elColumns.style.cssText);
@@ -548,7 +553,8 @@ const onAddFilterChange = (attr: string) => {
         if (themeConfig.value.isInvert) themeConfig.value.isGrayscale = false;
     }
     const cssAttr = attr === 'grayscale' ? `grayscale(${themeConfig.value.isGrayscale ? 1 : 0})` : `invert(${themeConfig.value.isInvert ? '80%' : '0%'})`;
-    const appEle: any = document.querySelector('#app');
+    const appEle = document.querySelector('#app') as HTMLElement | null;
+    if (!appEle) return;
     appEle.setAttribute('style', `filter: ${cssAttr}`);
 
     setLocal('appFilterStyle', appEle.style.cssText);

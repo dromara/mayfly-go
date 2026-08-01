@@ -63,7 +63,7 @@
 </template>
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, toRefs } from 'vue';
+import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
 
@@ -77,7 +77,7 @@ const props = defineProps({
     },
 });
 
-const formatViewerRef = ref(null) as any;
+const formatViewerRef = useTemplateRef<{ getContent: () => string }>('formatViewerRef');
 
 const state = reactive({
     key: '',
@@ -86,20 +86,20 @@ const state = reactive({
     pageNum: 1,
     pageSize: 50,
     total: 0,
-    values: [] as any,
+    values: [] as { value: string; score: number }[],
     loadMoreDisable: false,
     editDialog: {
         visible: false,
-        score: 0,
+        score: 0 as number | null,
         content: '',
-        dataRow: null as any,
+        dataRow: null as { value: string; score: number } | null,
     },
 });
 
 const { total, values, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.key = props.keyInfo?.key;
+    state.key = props.keyInfo?.key || '';
     initData();
 });
 
@@ -122,7 +122,7 @@ const zrevrange = async (resetTableData = false) => {
     const pageNum = state.pageNum;
     const pageSize = state.pageSize;
     // ZREVRANGE key start stop [WITHSCORES]
-    const res = await props.redis.runCmd(['ZREVRANGE', state.key, (pageNum - 1) * pageSize, pageNum * pageSize - 1, 'WITHSCORES']);
+    const res = await props.redis.runCmd<[string, number][]>(['ZREVRANGE', state.key, (pageNum - 1) * pageSize, pageNum * pageSize - 1, 'WITHSCORES']);
 
     const vs = [];
     for (let member of res) {
@@ -150,14 +150,14 @@ const zscanData = async (resetTableData = true, resetCursor = false) => {
     }
     // ZSCAN key cursor [MATCH pattern] [COUNT count]
     // 响应[coursor, vals[]]
-    const res = await props.redis.runCmd(['ZSCAN', state.key, state.scanCursor, 'MATCH', getScanMatch(), 'COUNT', state.pageSize]);
+    const res = await props.redis.runCmd<[number, (string | number)[]]>(['ZSCAN', state.key, state.scanCursor, 'MATCH', getScanMatch(), 'COUNT', state.pageSize]);
 
     const keys = res[1];
     const vs = [];
     const memCount = keys.length / 2;
     let nextMemndex = 0;
     for (let i = 0; i < memCount; i++) {
-        vs.push({ value: keys[nextMemndex++], score: keys[nextMemndex++] });
+        vs.push({ value: keys[nextMemndex++] as string, score: keys[nextMemndex++] as number });
     }
 
     if (resetTableData) {
@@ -172,12 +172,12 @@ const zscanData = async (resetTableData = true, resetCursor = false) => {
 
 const getTotal = () => {
     // ZCARD key
-    props.redis.runCmd(['ZCARD', state.key]).then((res) => {
+    props.redis.runCmd<number>(['ZCARD', state.key]).then((res) => {
         state.total = res;
     });
 };
 
-const showEditDialog = (row: any) => {
+const showEditDialog = (row: { value: string; score: number } | null) => {
     state.editDialog.dataRow = row;
     state.editDialog.content = row ? row.value : '';
     state.editDialog.score = row ? row.score : null;
@@ -189,28 +189,28 @@ const confirmEditData = async () => {
     const dataRow = state.editDialog.dataRow;
     if (dataRow) {
         // ZREM key member [member ...]
-        await props.redis.runCmd(['ZREM', state.key, state.editDialog.dataRow.value]);
+        await props.redis.runCmd(['ZREM', state.key, dataRow.value]);
     }
 
     const score = state.editDialog.score;
     // 获取zset member内容并新增
-    const member = formatViewerRef.value.getContent();
+    const member = formatViewerRef.value?.getContent();
     // ZADD key [NX | XX] [GT | LT] [CH] [INCR] score member [score member...]
-    await props.redis.runCmd(['ZADD', state.key, score, member]);
+    await props.redis.runCmd(['ZADD', state.key, score ?? 0, member ?? '']);
 
     Msg.saveSuccess();
     if (dataRow) {
-        state.editDialog.dataRow.value = member;
-        state.editDialog.dataRow.score = score;
+        dataRow.value = member ?? '';
+        dataRow.score = score ?? 0;
     } else {
-        state.values.unshift({ value: member, score });
+        state.values.unshift({ value: member ?? '', score: score ?? 0 });
         state.total++;
     }
     state.editDialog.visible = false;
     state.editDialog.dataRow = null;
 };
 
-const zrem = async (row: any, index: any) => {
+const zrem = async (row: { value: string }, index: number) => {
     await props.redis.runCmd(['ZREM', state.key, row.value]);
     Msg.deleteSuccess();
     state.values.splice(index, 1);

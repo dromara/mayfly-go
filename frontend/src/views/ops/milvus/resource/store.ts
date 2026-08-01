@@ -17,19 +17,19 @@ export const useMilvusStore = (id: string = 'milvusStore') =>
             authCertName: '',
         }),
         actions: {
-            setDbs(dbs: any[]) {
+            setDbs(dbs: MilvusDb[]) {
                 this.dbs = dbs;
             },
             async refreshDbs(milvusId: number) {
                 const res = await milvusApi.listDatabases(milvusId);
                 // res 通过dbid排序
-                res.sort((a: any, b: any) => {
-                    return a.create_time.localeCompare(b.create_time);
+                res.sort((a: import('@/views/ops/milvus/types').IDatabase, b: import('@/views/ops/milvus/types').IDatabase) => {
+                    return (a.create_time || '').localeCompare(b.create_time || '');
                 });
                 this.dbs = res;
                 if (res.length > 0) {
                     this.selectedDb = res[0].name;
-                    milvusApi.useDatabase(res[0].id, res[0].name);
+                    milvusApi.useDatabase(Number(res[0].id), res[0].name);
                 }
             },
             setSelectedDb(db: string) {
@@ -38,12 +38,12 @@ export const useMilvusStore = (id: string = 'milvusStore') =>
             setSelectedCollection(coll: string) {
                 this.selectedCollection = coll;
             },
-            setCollections(collections: string[]) {
+            setCollections(collections: any[]) {
                 collections.sort();
                 this.collections = collections;
                 // 默认选中第一个 collection
                 if (!this.selectedCollection && this.collections.length > 0) {
-                    this.setSelectedCollection(this.collections[0]);
+                    this.setSelectedCollection((this.collections[0] as any)?.name || this.collections[0]);
                 }
             },
             clear() {

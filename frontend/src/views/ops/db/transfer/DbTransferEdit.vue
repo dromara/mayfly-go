@@ -152,25 +152,28 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, reactive, ref, toRefs, watch } from 'vue';
+import { nextTick, reactive, ref, toRefs, watch, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
+import type { DbTransferTask, Db } from '@/views/ops/db/types';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: [Boolean, Object],
+        type: Object as PropType<DbTransferTask | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -195,7 +198,7 @@ const fileTypeOptions = [
     { label: '.sql', value: 'sql' },
 ];
 
-const dbForm: any = ref(null);
+const dbForm = ref<FormInstance | null>(null);
 
 type FormData = {
     id?: number;
@@ -246,7 +249,7 @@ const defaultKeys = ['tab-check', 'all', 'table-list'];
 const state = reactive({
     form: basicFormData,
     srcTableFields: [] as string[],
-    targetColumnList: [] as any[],
+    targetColumnList: [] as Record<string, unknown>[],
     filterSrcTableText: '',
     srcTableTree: [
         {
@@ -258,7 +261,7 @@ const state = reactive({
                     id: 'table-list',
                     label: t('db.custom'),
                     disabled: srcTableListDisabled,
-                    children: [] as any[],
+                    children: [] as { id: string; label: string; disabled?: boolean }[],
                 },
             ],
         },
@@ -274,25 +277,25 @@ watch(dialogVisible, async (newValue: boolean) => {
         return;
     }
 
-    const propsData = props.data as any;
+    const propsData = props.data;
     if (!propsData?.id) {
         let d = {} as FormData;
         Object.assign(d, basicFormData);
         state.form = d;
         await nextTick(() => {
-            srcTreeRef.value.setCheckedKeys([]);
+            srcTreeRef.value?.setCheckedKeys([]);
         });
         return;
     }
 
-    const form = deepClone(props.data) as FormData;
+    const form = deepClone(propsData) as unknown as FormData;
     let { srcDbId, targetDbId } = form;
 
     //  初始化src数据源
     if (srcDbId) {
         // 通过tagPath查询实例列表
         const dbInfoRes = await dbApi.dbs.request({ id: srcDbId });
-        const db = dbInfoRes.list[0];
+        const db = dbInfoRes.list[0] as Db & { databases?: string[] };
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
 
@@ -305,13 +308,13 @@ watch(dialogVisible, async (newValue: boolean) => {
     if (targetDbId) {
         // 通过tagPath查询实例列表
         const dbInfoRes = await dbApi.dbs.request({ id: targetDbId });
-        const db = dbInfoRes.list[0];
+        const db = dbInfoRes.list[0] as Db & { databases?: string[] };
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
     }
 
     // 初始化勾选迁移表
-    srcTreeRef.value.setCheckedKeys(form.checkedKeys.split(','));
+    srcTreeRef.value?.setCheckedKeys(form.checkedKeys.split(','));
 
     // 初始化默认值
     form.cronAble = form.cronAble || -1;
@@ -328,14 +331,23 @@ watch(
     }
 );
 
-const onSelectSrcDb = async (params: any) => {
+interface DbSelectParams {
+    id: number;
+    db: string;
+    dbs: string[];
+    type: string;
+    databases?: string[];
+    name?: string;
+}
+
+const onSelectSrcDb = async (params: DbSelectParams) => {
     //  初始化数据源
     params.databases = params.dbs; // 数据源里需要这个值
     await loadDbTables(params.id, params.db);
 };
 
-const onSelectTargetDb = async (params: any) => {
-    console.log(params);
+const onSelectTargetDb = async (_params: DbSelectParams) => {
+    // Target db selected
 };
 
 const loadDbTables = async (dbId: number, db: string) => {
@@ -358,7 +370,7 @@ const handleSrcTableCheckChange = (data: { id: string; name: string }, checked: 
     }
 };
 
-const filterSrcTableTreeNode = (value: string, data: any) => {
+const filterSrcTableTreeNode = (value: string, data: { label: string }) => {
     if (!value) return true;
     return data.label.includes(value);
 };
@@ -368,7 +380,8 @@ const handleLoadSrcTableTree = () => {
         return {
             id: item.tableName,
             label: item.tableName + (item.tableComment && '-' + item.tableComment),
-            disabled: srcTableListDisabled,
+            // 存入 reactive 后 Ref 会被自动解包为 boolean，保留响应式禁用状态
+            disabled: srcTableListDisabled as unknown as boolean,
         };
     });
 };
@@ -380,7 +393,7 @@ const getCheckedKeys = () => {
     if (checks.indexOf('all') >= 0) {
         return ['all'];
     }
-    return checks.filter((item: any) => !defaultKeys.includes(item));
+    return checks.filter((item: string) => !defaultKeys.includes(item));
 };
 
 const btnOk = async () => {

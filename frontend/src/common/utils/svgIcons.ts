@@ -1,6 +1,6 @@
 import { nextTick } from 'vue';
 import * as svg from '@element-plus/icons-vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { getLocalIcons } from '@/assets/icon/icon.js';
 
 /**
@@ -17,11 +17,11 @@ export function registElSvgIcon(app: any) {
 }
 
 // 初始化获取 css 样式，获取 element plus 自带图标
-const elementPlusIconfont = () => {
+const elementPlusIconfont = (): Promise<string[]> => {
     return new Promise((resolve, reject) => {
         nextTick(() => {
             const icons = svg as any;
-            const sheetsIconList = [];
+            const sheetsIconList: string[] = [];
             for (const i in icons) {
                 sheetsIconList.push(`${icons[i].name}`);
             }

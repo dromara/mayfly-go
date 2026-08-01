@@ -71,28 +71,28 @@
                                 <el-descriptions-item :label="$t('common.name')">{{ currentResource.name }}</el-descriptions-item>
                                 <el-descriptions-item :label="`code[${$t('system.menu.menu')} path]`">{{ currentResource.code }}</el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.icon')">
-                                    <SvgIcon :name="currentResource.meta.icon" />
+                                    <SvgIcon :name="currentMeta.icon" />
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.routerName')">
-                                    {{ currentResource.meta.routeName }}
+                                    {{ currentMeta.routeName }}
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.isCache')">
-                                    {{ currentResource.meta.isKeepAlive ? $t('system.menu.yes') : $t('system.menu.no') }}
+                                    {{ currentMeta.isKeepAlive ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.isHide')">
-                                    {{ currentResource.meta.isHide ? $t('system.menu.yes') : $t('system.menu.no') }}
+                                    {{ currentMeta.isHide ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.tagIsDelete')">
-                                    {{ currentResource.meta.isAffix ? $t('system.menu.yes') : $t('system.menu.no') }}
+                                    {{ currentMeta.isAffix ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
                                 <el-descriptions-item v-if="currentResource.type == menuTypeValue" :label="$t('system.menu.externalLink')">
-                                    {{ currentResource.meta.linkType ? $t('system.menu.yes') : $t('system.menu.no') }}
+                                    {{ currentMeta.linkType ? $t('system.menu.yes') : $t('system.menu.no') }}
                                 </el-descriptions-item>
                                 <el-descriptions-item
-                                    v-if="currentResource.type == menuTypeValue && currentResource.meta.linkType > 0"
+                                    v-if="currentResource.type == menuTypeValue && currentMeta.linkType > 0"
                                     :label="$t('system.menu.externalLink')"
                                 >
-                                    {{ currentResource.meta.link }}
+                                    {{ currentMeta.link }}
                                 </el-descriptions-item>
 
                                 <el-descriptions-item :label="$t('common.creator')">{{ currentResource.creator }}</el-descriptions-item>
@@ -141,12 +141,13 @@
 import { formatDate } from '@/common/utils/format';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs, watch } from 'vue';
+import { defineAsyncComponent, computed, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resourceApi } from '../api';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
+import type { ResourceMeta, SysResource, SysRole } from '../types';
 import { getMenuIcon } from './index';
 
 const ResourceEdit = defineAsyncComponent(() => import('./ResourceEdit.vue'));
@@ -178,29 +179,29 @@ const ResourceRoles = 'resourceRoles';
 const contextmenuAdd = new ContextmenuItem('add', 'system.menu.addSubResource')
     .withIcon('circle-plus')
     .withPermission(perms.addResource)
-    .withOnClick((data: any) => onAddResource(data));
+    .withOnClick((data: unknown) => onAddResource(data as SysResource));
 
 const contextmenuEdit = new ContextmenuItem('edit', 'common.edit')
     .withIcon('edit')
     .withPermission(perms.updateResource)
-    .withOnClick((data: any) => onEditResource(data));
+    .withOnClick((data: unknown) => onEditResource(data as SysResource));
 
 const contextmenuEnable = new ContextmenuItem('enable', 'system.menu.enable')
     .withIcon('circle-check')
     .withPermission(perms.updateResource)
-    .withHideFunc((data: any) => data.status === 1)
-    .withOnClick((data: any) => onChangeStatus(data, 1));
+    .withHideFunc((data: unknown) => (data as SysResource).status === 1)
+    .withOnClick((data: unknown) => onChangeStatus(data as SysResource, 1));
 
 const contextmenuDisable = new ContextmenuItem('disable', 'system.menu.disable')
     .withIcon('circle-close')
     .withPermission(perms.updateResource)
-    .withHideFunc((data: any) => data.status === -1)
-    .withOnClick((data: any) => onChangeStatus(data, -1));
+    .withHideFunc((data: unknown) => (data as SysResource).status === -1)
+    .withOnClick((data: unknown) => onChangeStatus(data as SysResource, -1));
 
 const contextmenuDel = new ContextmenuItem('delete', 'common.delete')
     .withIcon('delete')
     .withPermission(perms.delResource)
-    .withOnClick((data: any) => onDeleteMenu(data));
+    .withOnClick((data: unknown) => onDeleteMenu(data as SysResource));
 
 const state = reactive({
     contextmenu: {
@@ -219,16 +220,31 @@ const state = reactive({
         // 资源类型选择是否选
         typeDisabled: true,
     },
-    data: [],
+    data: [] as SysResource[],
     rolesLoading: false,
-    roles: [], // 资源关联的角色列表
+    roles: [] as SysRole[], // 资源关联的角色列表
     // 展开的节点
-    defaultExpandedKeys: [] as any[],
+    defaultExpandedKeys: [] as number[],
     activeTabName: ResourceDetail,
-    currentResource: null as any,
+    currentResource: null as SysResource | null,
 });
 
 const { currentResource, dialogForm, data, defaultExpandedKeys } = toRefs(state);
+
+const emptyMeta: ResourceMeta = {
+    routeName: '',
+    icon: '',
+    isKeepAlive: false,
+    isHide: false,
+    isAffix: false,
+    linkType: 0,
+};
+
+/** 当前选中资源的 meta（已解析为对象，未解析时返回空 meta） */
+const currentMeta = computed<ResourceMeta>(() => {
+    const meta = state.currentResource?.meta;
+    return typeof meta === 'object' && meta !== null ? meta : emptyMeta;
+});
 
 onMounted(() => {
     search();
@@ -238,7 +254,7 @@ watch(filterResource, (val) => {
     resourceTreeRef.value!.filter(val);
 });
 
-const filterNode = (value: string, data: any) => {
+const filterNode = (value: string, data: SysResource) => {
     return !value || isPrefixSubsequence(value, t(data.name));
 };
 
@@ -248,27 +264,27 @@ const search = async () => {
 };
 
 // 树节点右击事件
-const nodeContextmenu = (event: any, data: any) => {
+const nodeContextmenu = (event: MouseEvent, data: SysResource) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    contextmenuRef.value.openContextmenu(data);
+    contextmenuRef.value?.openContextmenu(data);
 };
 
-const onTreeNodeClick = async (data: any) => {
+const onTreeNodeClick = async (data: SysResource) => {
     state.activeTabName = ResourceDetail;
     // 关闭可能存在的右击菜单
-    contextmenuRef.value.closeContextmenu();
+    contextmenuRef.value?.closeContextmenu();
 
-    let info = await resourceApi.detail.request({ id: data.id });
-    state.currentResource = info;
-    if (info.meta && info.meta != '') {
-        state.currentResource.meta = JSON.parse(info.meta);
+    const info = await resourceApi.detail.request({ id: data.id });
+    if (typeof info.meta === 'string' && info.meta !== '') {
+        info.meta = JSON.parse(info.meta);
     }
+    state.currentResource = info;
 };
 
-const onTabClick = async (activeTab: any) => {
-    if (activeTab.paneName === ResourceRoles) {
+const onTabClick = async (activeTab: { paneName?: string | number }) => {
+    if (activeTab.paneName === ResourceRoles && state.currentResource) {
         try {
             state.rolesLoading = true;
             state.roles = await resourceApi.roles.request({ id: state.currentResource.id });
@@ -278,7 +294,7 @@ const onTabClick = async (activeTab: any) => {
     }
 };
 
-const onDeleteMenu = async (data: any) => {
+const onDeleteMenu = async (data: SysResource) => {
     await useI18nDeleteConfirm(data.name);
     await resourceApi.del.request({
         id: data.id,
@@ -288,7 +304,7 @@ const onDeleteMenu = async (data: any) => {
     search();
 };
 
-const onAddResource = (data: any) => {
+const onAddResource = (data: SysResource | false) => {
     let dialog = state.dialogForm;
     dialog.data = { pid: 0, type: 1 };
     dialog.typeDisabled = false;
@@ -313,11 +329,11 @@ const onAddResource = (data: any) => {
     dialog.visible = true;
 };
 
-const onEditResource = async (data: any) => {
+const onEditResource = async (data: SysResource) => {
     const res = await resourceApi.detail.request({
         id: data.id,
     });
-    if (res.meta) {
+    if (typeof res.meta === 'string' && res.meta !== '') {
         res.meta = JSON.parse(res.meta);
     }
 
@@ -332,7 +348,7 @@ const onValChange = () => {
     state.dialogForm.visible = false;
 };
 
-const onChangeStatus = async (data: any, status: any) => {
+const onChangeStatus = async (data: SysResource, status: number) => {
     await resourceApi.changeStatus.request({
         id: data.id,
         status: status,
@@ -342,15 +358,21 @@ const onChangeStatus = async (data: any, status: any) => {
 };
 
 // 节点被展开时触发的事件
-const handleNodeExpand = (data: any, node: any) => {
-    const id: any = node.data.id;
+const handleNodeExpand = (data: SysResource, node: { data: SysResource }) => {
+    const id = node.data.id;
     if (!state.defaultExpandedKeys.includes(id)) {
         state.defaultExpandedKeys.push(id);
     }
 };
 
+interface ResourceTreeNode {
+    data: SysResource;
+    childNodes: ResourceTreeNode[];
+    expanded: boolean;
+}
+
 // 关闭节点
-const handleNodeCollapse = (data: any, node: any) => {
+const handleNodeCollapse = (data: SysResource, node: ResourceTreeNode) => {
     removeDeafultExpandId(node.data.id);
 
     let childNodes = node.childNodes;
@@ -366,7 +388,7 @@ const handleNodeCollapse = (data: any, node: any) => {
     }
 };
 
-const allowDrop = (draggingNode: any, dropNode: any, type: any) => {
+const allowDrop = (draggingNode: ResourceTreeNode, dropNode: ResourceTreeNode, type: string) => {
     // 如果是插入至目标节点
     if (type === 'inner') {
         // 只有目标节点下没有子节点才允许移动
@@ -383,7 +405,7 @@ const allowDrop = (draggingNode: any, dropNode: any, type: any) => {
     return draggingNode.data.type === dropNode.data.type;
 };
 
-const handleDrop = async (draggingNode: any, dropNode: any, dropType: any) => {
+const handleDrop = async (draggingNode: ResourceTreeNode, dropNode: ResourceTreeNode, dropType: string) => {
     const draggingData = draggingNode.data;
     const dropData = dropNode.data;
     if (draggingData.pid !== dropData.pid) {
@@ -410,7 +432,7 @@ const handleDrop = async (draggingNode: any, dropNode: any, dropType: any) => {
     ]);
 };
 
-const removeDeafultExpandId = (id: any) => {
+const removeDeafultExpandId = (id: number) => {
     let index = state.defaultExpandedKeys.indexOf(id);
     if (index > -1) {
         state.defaultExpandedKeys.splice(index, 1);

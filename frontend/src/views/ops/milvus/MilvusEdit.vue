@@ -52,16 +52,29 @@ import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg } from '@/hooks/useI18n';
 import TagTreeSelect from '@/views/ops/component/TagTreeSelect.vue';
-import { computed, reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { computed, reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { milvusApi } from './api';
+import type { Milvus } from './types';
+import type { MachineAuthCert } from '@/views/ops/machine/types';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { AuthCertCiphertextTypeEnum } from '@/views/ops/tag/enums';
 import ResourceAuthCertTableEdit from '@/views/ops/component/ResourceAuthCertTableEdit.vue';
 
+/** Milvus 实例编辑表单类型 (允许 null 的字段重定义) */
+interface MilvusForm extends Omit<Partial<Milvus>, 'id' | 'name' | 'sshTunnelMachineId'> {
+    id?: number | null;
+    name?: string | null;
+    sshTunnelMachineId?: number | null;
+    tagCodePaths?: string[];
+    authCerts?: MachineAuthCert[];
+}
+
 const props = defineProps({
     milvus: {
-        type: [Boolean, Object],
+        type: Object as PropType<Milvus | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -78,7 +91,7 @@ const rules = {
     host: [Rules.requiredInput('milvus.host')],
 };
 
-const milvusFormRef: any = useTemplateRef('milvusFormRef');
+const milvusFormRef = useTemplateRef<FormInstance>('milvusFormRef');
 
 const state = reactive({
     form: {
@@ -87,16 +100,16 @@ const state = reactive({
         name: null,
         host: '',
         database: 'default',
-        sshTunnelMachineId: null as any,
+        sshTunnelMachineId: null as number | null,
         tagCodePaths: [],
-        authCerts: [] as any[],
-    },
+        authCerts: [] as MachineAuthCert[],
+    } as MilvusForm,
 });
 
 const { form } = toRefs(state);
 
 const submitForm = computed(() => {
-    const reqForm: any = { ...state.form };
+    const reqForm: Record<string, unknown> = { ...state.form };
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
@@ -111,15 +124,15 @@ watch(dialogVisible, () => {
         return;
     }
 
-    const milvusData: any = props.milvus;
+    const milvusData = props.milvus as Milvus | false | undefined;
     if (milvusData) {
-        state.form = { ...milvusData, authCerts: milvusData.authCerts || [] };
+        state.form = { ...milvusData, authCerts: milvusData.authCerts || [] } as MilvusForm;
     } else {
-        state.form = { database: 'default', sshTunnelMachineId: -1, authCerts: [] } as any;
+        state.form = { database: 'default', sshTunnelMachineId: -1, authCerts: [] } as MilvusForm;
     }
 });
 
-const testConn = async (authCert: any) => {
+const testConn = async (authCert: MachineAuthCert) => {
     await milvusFormRef.value?.validate();
     await testConnExec({
         ...submitForm.value,
@@ -132,7 +145,7 @@ const onConfirm = async () => {
     await milvusFormRef.value?.validate();
     await saveMilvusExec(submitForm.value);
     Msg.success(('milvus.savedSuccess'));
-    state.form.id = saveMilvusRes as any;
+    state.form.id = saveMilvusRes.value;
     emit('val-change', state.form);
     onCancel();
 };

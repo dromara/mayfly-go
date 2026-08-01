@@ -33,13 +33,16 @@
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { reactive, toRefs, useTemplateRef, watch, type ComponentPublicInstance, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { dockerApi } from './api';
+import type { Container } from './types';
 
 const props = defineProps({
     container: {
-        type: [Boolean, Object],
+        type: Object as PropType<Container | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -56,7 +59,7 @@ const rules = {
     addr: [Rules.requiredInput('addr')],
 };
 
-const formRef: any = useTemplateRef('formRef');
+const formRef = useTemplateRef<FormInstance>('formRef');
 
 const state = reactive({
     form: {
@@ -80,11 +83,11 @@ watch(dialogVisible, () => {
         return;
     }
 
-    const container: any = props.container;
+    const container = props.container as Record<string, unknown> | null;
     if (container) {
-        state.form = { ...container };
+        state.form = { ...container } as typeof state.form;
     } else {
-        state.form = {} as any;
+        state.form = { id: null, code: '', tagCodePaths: [], name: null, addr: '', remark: '' };
     }
 });
 

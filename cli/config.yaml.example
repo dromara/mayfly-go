@@ -1,0 +1,17 @@
+# Mayfly-Go CLI 配置文件示例
+# 复制为 ~/.mayfly-cli.yaml 并填入实际值
+
+# mayfly-go 服务端地址
+server: http://localhost:8888
+
+# 访问令牌（在 mayfly-go Web 界面生成）
+token: your-access-token-here
+
+# 默认数据库 ID（可选）
+# default_db: "1"
+
+# 默认机器 ID（可选）
+# default_ssh: "1"
+
+# 默认 Redis 实例 ID（可选）
+# default_redis: "1"

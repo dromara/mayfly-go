@@ -1,7 +1,7 @@
 <template>
     <BaseTreeNode v-bind="$attrs">
         <template #suffix="{ data }">
-            <span>{{ ` ${data.params.selectAuthCert.username}@${data.params.host}` }}</span>
+            <span>{{ ` ${(data.params.selectAuthCert as { username?: string } | undefined)?.username}@${data.params.host}` }}</span>
         </template>
     </BaseTreeNode>
 </template>

@@ -81,7 +81,7 @@ export function convertToBytes(sizeStr: string) {
  * @returns
  */
 export function formatTime(time: number, unit: string = 's') {
-    const units: any = {
+    const units: Record<string, number> = {
         y: 31536000,
         M: 2592000,
         d: 86400,
@@ -98,8 +98,8 @@ export function formatTime(time: number, unit: string = 's') {
     let result = '';
 
     const timeUnits = Object.entries(units).map(([unit, duration]) => {
-        const value = Math.floor(seconds / (duration as any));
-        seconds %= duration as any;
+        const value = Math.floor(seconds / duration);
+        seconds %= duration;
         return { value, unit };
     });
 
@@ -115,7 +115,7 @@ export function formatTime(time: number, unit: string = 's') {
 /**
  * formatAxis(new Date())   // 上午好
  */
-export function formatAxis(param: any) {
+export function formatAxis(param: string | number | Date) {
     let hour: number = new Date(param).getHours();
     if (hour < 6) return '凌晨好';
     else if (hour < 9) return '早上好';
@@ -153,7 +153,7 @@ export function formatAxis(param: any) {
  * // 输出: ''
  * ```
  */
-export function formatJson(val: any) {
+export function formatJson(val: unknown) {
     if (!val) {
         return '';
     }

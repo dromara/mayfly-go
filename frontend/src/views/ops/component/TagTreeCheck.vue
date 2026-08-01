@@ -15,11 +15,10 @@
                     check-strictly
                     :node-key="$props.nodeKey"
                     :props="{
-                        value: $props.nodeKey,
                         label: 'codePath',
                         children: 'children',
                         disabled: 'disabled',
-                    }"
+                    } as Record<string, string>"
                     @check="tagTreeNodeCheck"
                     :filter-node-method="filterNode"
                 >
@@ -43,11 +42,36 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, type PropType } from 'vue';
 import { tagApi } from '../tag/api';
+import type { TagTree } from '../tag/types';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
 import { isPrefixSubsequence } from '@/common/utils/string';
+
+interface TagTreeData {
+    codePath: string;
+    name: string;
+    type: number;
+    children?: TagTreeData[] | null;
+    disabled?: boolean;
+}
+
+interface TreeNode {
+    parent: TreeNode | null;
+    checked: boolean;
+    data: TagTreeData;
+    childNodes: TreeNode[];
+}
+
+/** el-tree 组件实例方法（仅包含本组件使用的） */
+interface TreeInstance {
+    getCheckedNodes: () => TagTreeData[];
+    getNode: (key: string) => TreeNode | undefined;
+    filter: (val: string) => void;
+    getCheckedKeys: (leafOnly?: boolean) => string[];
+    setChecked: (node: TreeNode, checked: boolean, deep: boolean) => void;
+}
 
 const props = defineProps({
     height: {
@@ -55,7 +79,7 @@ const props = defineProps({
         default: 'calc(100vh - 330px)',
     },
     tagType: {
-        type: [Number, Array<Number>, String, Array<String>],
+        type: [Number, String, Array] as PropType<number | string | (number | string)[]>,
         default: TagResourceTypeEnum.Tag.value,
     },
     nodeKey: {
@@ -64,15 +88,15 @@ const props = defineProps({
     },
 });
 
-const checkedTags = defineModel<Array<any>>('modelValue', {
+const checkedTags = defineModel<string[]>('modelValue', {
     default: () => [],
 });
 
-const tagTreeRef: any = ref(null);
+const tagTreeRef = ref<TreeInstance | null>(null);
 const filterTag = ref('');
 
 const state = reactive({
-    tags: [],
+    tags: [] as TagTree[],
 });
 
 onMounted(() => {
@@ -80,7 +104,7 @@ onMounted(() => {
 });
 
 const search = async () => {
-    let tagType: any = props.tagType;
+    let tagType: string | number | Array<number | string> = props.tagType;
     if (Array.isArray(props.tagType)) {
         tagType = props.tagType.join(',');
     }
@@ -88,26 +112,26 @@ const search = async () => {
     state.tags = await tagApi.getTagTrees.request({ type: tagType });
 
     setTimeout(() => {
-        const checkedNodes = tagTreeRef.value.getCheckedNodes();
-        console.log('check nodes: ', checkedNodes);
+        const checkedNodes = tagTreeRef.value?.getCheckedNodes() ?? [];
         // 禁用选中节点的所有父节点，不可选中
         for (let checkNodeData of checkedNodes) {
-            disableParentNodes(tagTreeRef.value.getNode(checkNodeData.codePath).parent);
+            disableParentNodes(tagTreeRef.value?.getNode(checkNodeData.codePath)?.parent ?? null);
         }
     }, 200);
 };
 
-const filterNode = (value: string, data: any) => {
-    return !value || isPrefixSubsequence(value, data.codePath) || isPrefixSubsequence(value, data.name);
+const filterNode = (value: unknown, data: unknown) => {
+    const d = data as TagTreeData;
+    return !value || isPrefixSubsequence(value as string, d.codePath) || isPrefixSubsequence(value as string, d.name);
 };
 
 const onFilterValChanged = (val: string) => {
     tagTreeRef.value!.filter(val);
 };
 
-const tagTreeNodeCheck = (data: any) => {
-    const node = tagTreeRef.value.getNode(data.codePath);
-    console.log('check node: ', node);
+const tagTreeNodeCheck = (data: TagTreeData) => {
+    const node = tagTreeRef.value?.getNode(data.codePath);
+    if (!node) return;
 
     if (node.checked) {
         // 如果选中了子节点，则需要将父节点全部取消选中，并禁用父节点
@@ -119,14 +143,14 @@ const tagTreeNodeCheck = (data: any) => {
     }
 
     // 更新绑定的值
-    checkedTags.value = tagTreeRef.value.getCheckedKeys(false);
+    checkedTags.value = tagTreeRef.value?.getCheckedKeys(false) ?? [];
 };
 
-const unCheckParentNodes = (node: any) => {
+const unCheckParentNodes = (node: TreeNode | null) => {
     if (!node) {
         return;
     }
-    tagTreeRef.value.setChecked(node, false, false);
+    tagTreeRef.value?.setChecked(node, false, false);
     unCheckParentNodes(node.parent);
 };
 
@@ -135,7 +159,7 @@ const unCheckParentNodes = (node: any) => {
  * @param node 节点
  * @param disable 是否禁用
  */
-const disableParentNodes = (node: any, disable = true) => {
+const disableParentNodes = (node: TreeNode | null, disable = true) => {
     if (!node) {
         return;
     }

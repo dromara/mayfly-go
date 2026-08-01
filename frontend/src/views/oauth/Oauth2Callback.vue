@@ -5,6 +5,7 @@
 <script lang="ts" setup>
 import openApi from '@/common/openApi';
 import { Msg } from '@/hooks/useI18n';
+import type { LoginResult } from '@/views/system/types';
 import { onMounted, toRaw } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -25,11 +26,14 @@ onMounted(async () => {
             }
         }
 
-        const res: any = await openApi.oauth2Callback(queryParam);
+        const res: LoginResult = await openApi.oauth2Callback({
+            code: String(queryParam.code ?? ''),
+            state: String(queryParam.state ?? ''),
+        });
         Msg.success('system.oauth.authSuccess');
         top?.opener.postMessage(toRaw(res), '*');
         window.close();
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error('oauth2 callback handle error: ', e);
         setTimeout(() => {
             window.close();

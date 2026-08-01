@@ -41,7 +41,10 @@ type InternalMessageType = SessionMessage & {
     actionId: string;
     extra?: {
         type?: 'interrupt' | 'resume' | string; // 内部消息类型
-        [key: string]: any;
+        interruptId?: string;
+        content?: { title?: string; description?: string; [key: string]: unknown };
+        resumeInfo?: { action: string; payload?: Record<string, unknown>; timestamp?: string };
+        [key: string]: unknown;
     };
 };
 
@@ -57,11 +60,12 @@ type MessageType = SessionMessage & {
         isDefaultExpand: boolean;
         thinkTitle: string;
         thinkContent: string;
-        extra?: any;
+        extra?: Record<string, unknown>;
     }>; // 思考链
 
     internals?: Array<InternalMessageType>; // 内部消息数组
     pendingResumes?: InterruptActionEvent[]; // 待批量提交的中断恢复信息
+    unprocessedInterruptCount?: number; // 未处理的中断数量
 };
 
 export function useAiChatMessages(
@@ -89,7 +93,7 @@ export function useAiChatMessages(
      * 所有中断操作均缓存到 pendingResumes，当所有中断都处理完毕后自动批量提交
      */
     const handleInterruptAction = async (action: InterruptActionEvent) => {
-        console.log('中断操作:', action);
+        // 处理中断操作
 
         // 先尝试通过 turnId 找到 AI/INTERNAL 消息（中断只属于 AI 消息容器）
         let message = state.messages.find((m: MessageType) => (m.role === ROLE.AI || m.role === ROLE.INTERNAL) && m.turnId && m.turnId === action.turnId);
@@ -306,7 +310,7 @@ export function useAiChatMessages(
             return;
         }
 
-        const resumeData = resumeMsg.extra?.content;
+        const resumeData = resumeMsg.extra?.content as any;
         const interruptId = resumeData?.interruptId;
 
         if (!interruptId) {
@@ -335,11 +339,6 @@ export function useAiChatMessages(
             timestamp: resumeMsg.time,
             payload: resumeData.payload,
         };
-
-        console.log('Merged resume to interrupt:', {
-            interruptId,
-            action: resumeData.action,
-        });
     };
 
     /**
@@ -701,7 +700,7 @@ export function useAiChatMessages(
                 pendingResumes: item.pendingResumes,
                 unprocessedInterruptCount,
             };
-        }) as any[];
+        }) as MessageType[];
     });
 
     /**
@@ -720,7 +719,7 @@ export function useAiChatMessages(
         state.messages.push({
             content: content,
             role: ROLE.USER,
-            time: new Date(),
+            time: new Date().toISOString(),
         });
 
         state.messages.push({

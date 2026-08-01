@@ -21,6 +21,7 @@ import { ResourceTypeEnum } from '@/common/commonEnum';
 import { TagTreeNode } from '@/views/ops/component/tag';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import { NodeTypeAuthCert } from '@/views/ops/machine/resource';
+import type { MachineNodeParams } from '@/views/ops/machine/resource';
 import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
 import { watch } from 'vue';
 
@@ -48,8 +49,7 @@ watch(
 );
 
 const changeNode = (node: TagTreeNode) => {
-    const params = node.params;
-    console.log(params);
+    const params = node.params as MachineNodeParams;
 
     const selectAuthCert = params.selectAuthCert;
     authCertName.value = selectAuthCert?.name || '';
@@ -59,16 +59,6 @@ const changeNode = (node: TagTreeNode) => {
     machinePort.value = params.port;
     username.value = selectAuthCert?.username || params.username;
     tagPath.value = params.tagPath || '';
-
-    console.log('[MachineSelectTree] Machine auth cert selected:', {
-        authCertName: authCertName.value,
-        machineId: machineId.value,
-        machineName: machineName.value,
-        machineIp: machineIp.value,
-        machinePort: machinePort.value,
-        username: username.value,
-        tagPath: tagPath.value,
-    });
 
     emits('selectMachine', params);
 };

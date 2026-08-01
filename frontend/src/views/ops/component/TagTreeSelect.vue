@@ -30,10 +30,11 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
 import { computed, onMounted, reactive, toRefs, watch } from 'vue';
 import { tagApi } from '../tag/api';
+import type { TagTree } from '../tag/types';
 
 const props = defineProps({
     tagType: {
-        type: Number,
+        type: [Number, String],
         default: TagResourceTypeEnum.Tag.value,
     },
     // 资源编号
@@ -43,10 +44,10 @@ const props = defineProps({
     },
 });
 
-const modelValue = defineModel<Array<any> | Object>('modelValue');
+const modelValue = defineModel<string[] | string>('modelValue');
 
 const state = reactive({
-    tags: [],
+    tags: [] as TagTree[],
 });
 
 const { tags } = toRefs(state);
@@ -71,8 +72,8 @@ const loadTagPaths = async () => {
     try {
         const res = await tagApi.listResourceTags.request({ resourceCode: props.code });
         // 去重
-        const uniquePaths = [...new Set(res.map((t: any) => t.codePath))];
-        modelValue.value = modelValue.value = uniquePaths || [];
+        const uniquePaths = [...new Set(res.map((t) => t.codePath))];
+        modelValue.value = uniquePaths || [];
     } catch (error) {
         console.error('Failed to load tag paths:', error);
         modelValue.value = [];

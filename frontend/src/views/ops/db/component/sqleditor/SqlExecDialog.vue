@@ -20,7 +20,7 @@ import { ElButton, ElDialog, ElInput, InputInstance } from 'element-plus';
 import { onMounted, reactive, ref, toRefs } from 'vue';
 // import base style
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import { format as sqlFormatter } from 'sql-formatter';
+import { format as sqlFormatter, type SqlLanguage } from 'sql-formatter';
 
 import { isTrue } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
@@ -94,7 +94,7 @@ const cancel = () => {
 };
 
 const open = () => {
-    state.sqlValue = sqlFormatter(props.sql, { language: (props.dbType || 'mysql') as any });
+    state.sqlValue = sqlFormatter(props.sql, { language: (props.dbType || 'mysql') as SqlLanguage });
     state.dialogVisible = true;
     setTimeout(() => {
         remarkInputRef.value?.focus();

@@ -92,9 +92,9 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, h, onMounted, reactive, ref } from 'vue';
-import { ElButton, ElDropdown, ElDropdownItem, ElDropdownMenu, ElIcon, ElTag } from 'element-plus';
+import { ElButton, ElDropdown, ElDropdownItem, ElDropdownMenu, ElTag } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import { ArrowDown, Close, CopyDocument, Delete, Plus, Refresh, Select, Switch } from '@element-plus/icons-vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { esApi } from '@/views/ops/es/api';
 import { copyToClipboard } from '@/common/utils/string';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
@@ -108,14 +108,23 @@ const EsIndexTemplate = defineAsyncComponent(() => import('./EsIndexTemplate.vue
 const { t } = useI18n();
 
 const props = defineProps<{
-    instId: any;
+    instId: number;
 }>();
 
 const loading = ref(false);
 const showSysIndex = ref(false);
-const indices = ref<any[]>([]);
+
+/** 索引行数据 (_cat/indices 返回) */
+interface EsIndexRow {
+    index: string;
+    health?: string;
+    status?: string;
+    [key: string]: unknown;
+}
+
+const indices = ref<EsIndexRow[]>([]);
 const aliasesMap = reactive<Record<string, string[]>>({});
-const sortState = ref({ index: 'ascending' });
+const sortState = ref<Record<string, string>>({ index: 'ascending' });
 
 // tableColumns for el-table-v2
 const tableColumns = computed(() => [
@@ -125,7 +134,7 @@ const tableColumns = computed(() => [
         title: t('es.indexName'),
         width: 220,
         sortable: true,
-        cellRenderer: ({ rowData }: any) => h('a', {
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h('a', {
             href: 'javascript:void(0)',
             style: { color: 'var(--el-color-primary)', textDecoration: 'none' },
             onClick: () => emit('viewData', rowData.index)
@@ -136,7 +145,7 @@ const tableColumns = computed(() => [
         key: 'aliases',
         title: t('es.aliases'),
         width: 200,
-        cellRenderer: ({ rowData }: any) => {
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => {
             const aliases = aliasesMap[rowData.index] || [];
             return h('div', { class: 'flex items-center gap-1 flex-wrap' },
                 [...aliases.map((alias: string) => h(ElTag, {
@@ -150,7 +159,7 @@ const tableColumns = computed(() => [
                     type: 'primary',
                     size: 'small',
                     onClick: () => onAddAlias(rowData)
-                }, () => h(ElIcon, () => h(Plus)))]
+                }, () => h(SvgIcon, { name: 'Plus', size: 14 }))]
             );
         }
     },
@@ -161,7 +170,7 @@ const tableColumns = computed(() => [
         width: 100,
         sortable: true,
         align: 'center',
-        cellRenderer: ({ rowData }: any) => h(ElTag, { size: 'small', type: getHealthTagType(rowData.health) }, () => rowData.health)
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h(ElTag, { size: 'small', type: getHealthTagType(rowData.health) }, () => rowData.health)
     },
     {
         dataKey: 'status',
@@ -170,7 +179,7 @@ const tableColumns = computed(() => [
         width: 100,
         sortable: true,
         align: 'center',
-        cellRenderer: ({ rowData }: any) => h(ElTag, { size: 'small', type: rowData.status === 'open' ? 'success' : 'danger' }, () => rowData.status)
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h(ElTag, { size: 'small', type: rowData.status === 'open' ? 'success' : 'danger' }, () => rowData.status)
     },
     { dataKey: 'pri', key: 'pri', title: 'pri', width: 70, align: 'center' },
     { dataKey: 'rep', key: 'rep', title: 'rep', width: 70, align: 'center' },
@@ -181,7 +190,7 @@ const tableColumns = computed(() => [
         width: 120,
         sortable: true,
         align: 'right',
-        cellRenderer: ({ rowData }: any) => rowData['docs.count'] ?? '-'
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => (rowData['docs.count'] as string | number) ?? '-'
     },
     { dataKey: 'store.size', key: 'store.size', title: t('es.size'), width: 120, sortable: true, align: 'right' },
     {
@@ -191,8 +200,8 @@ const tableColumns = computed(() => [
         width: 200,
         fixed: 'right',
         align: 'center',
-        cellRenderer: ({ rowData }: any) => {
-            const dropdownTrigger = h(ElButton, { link: true, type: 'primary', size: 'small' }, () => [t('common.more'), h(ElIcon, () => h(ArrowDown))]);
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => {
+            const dropdownTrigger = h(ElButton, { link: true, type: 'primary', size: 'small' }, () => [t('common.more'), h(SvgIcon, { name: 'ArrowDown', size: 14 })]);
             const dropdownMenu = [
                 h(ElDropdownItem, { key: 'copyName', command: 'copyName' }, () => t('es.contextmenu.index.copyName')),
                 h(ElDropdownItem, { key: 'refresh', command: 'refresh' }, () => t('es.contextmenu.index.refresh')),
@@ -231,7 +240,7 @@ const aliasDialog = reactive({
 });
 
 const reindexState = reactive({
-    instId: '' as any,
+    instId: 0 as number,
     idxName: '',
     visible: false,
     idxNames: [] as string[],
@@ -245,7 +254,7 @@ const mappingDrawer = reactive({
     saving: false,
 });
 
-const idxNames = computed(() => indices.value.map((idx: any) => idx.index).filter((n: string) => !n.startsWith('.')));
+const idxNames = computed(() => indices.value.map((idx) => idx.index).filter((n) => !n.startsWith('.')));
 
 const filteredIndices = computed(() => {
     const data = [...indices.value];
@@ -268,7 +277,7 @@ onMounted(() => {
 
 const fetchVersion = async () => {
     try {
-        const res = await esApi.proxyReq('get', props.instId, '/');
+        const res = await esApi.proxyReq<{ version?: { number?: string } }>('get', props.instId, '/');
         esVersion.value = res?.version?.number || '';
     } catch {
         // non-critical
@@ -278,9 +287,9 @@ const fetchVersion = async () => {
 const fetchIndices = async () => {
     loading.value = true;
     try {
-        const res = await esApi.proxyReq('get', props.instId, `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`);
+        const res = await esApi.proxyReq<EsIndexRow[]>('get', props.instId, `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`);
         const list = res || [];
-        indices.value = showSysIndex.value ? list : list.filter((idx: any) => !idx.index.startsWith('.'));
+        indices.value = showSysIndex.value ? list : list.filter((idx) => !idx.index.startsWith('.'));
         // Fetch aliases for all indices
         await fetchAliases();
     } finally {
@@ -290,7 +299,7 @@ const fetchIndices = async () => {
 
 const fetchAliases = async () => {
     try {
-        const res = await esApi.proxyReq('get', props.instId, '/_alias');
+        const res = await esApi.proxyReq<Record<string, { aliases?: Record<string, unknown> }>>('get', props.instId, '/_alias');
         // Clear and rebuild
         for (const key of Object.keys(aliasesMap)) {
             delete aliasesMap[key];
@@ -306,21 +315,21 @@ const fetchAliases = async () => {
     }
 };
 
-const onColumnSort = ({ key, order }: any) => {
-    sortState.value = { [key]: order } as any;
+const onColumnSort = ({ key, order }: { key: string; order: string }) => {
+    sortState.value = { [key]: order };
 };
 
 const onAddIndex = () => {
     addIndexVisible.value = true;
 };
 
-const getHealthTagType = (health: string) => {
+const getHealthTagType = (health?: string) => {
     return health == 'green' ? 'success' : health == 'yellow' ? 'warning' : 'danger';
 };
 
 // ---- Index operations ----
 
-const onRowCommand = async (cmd: string, row: any) => {
+const onRowCommand = async (cmd: string, row: EsIndexRow) => {
     switch (cmd) {
         case 'copyName':
             await copyToClipboard(row.index);
@@ -353,19 +362,19 @@ const onRowCommand = async (cmd: string, row: any) => {
     }
 };
 
-const onViewDetail = (row: any) => {
+const onViewDetail = (row: EsIndexRow) => {
     esIndexDetailRef.value?.open({ idxName: row.index, instId: props.instId });
 };
 
-const onReindex = async (row: any) => {
+const onReindex = async (row: EsIndexRow) => {
     reindexState.instId = props.instId;
     reindexState.idxName = row.index;
-    reindexState.idxNames = idxNames.value.filter((n: string) => n !== row.index);
+    reindexState.idxNames = idxNames.value.filter((n) => n !== row.index);
     reindexState.visible = true;
 };
 
-const onViewMapping = async (row: any) => {
-    const res = await esApi.proxyReq('get', props.instId, `/${row.index}/_mappings`);
+const onViewMapping = async (row: EsIndexRow) => {
+    const res = await esApi.proxyReq<Record<string, { mappings?: Record<string, unknown> }>>('get', props.instId, `/${row.index}/_mappings`);
     mappingDrawer.idxName = row.index;
     mappingDrawer.content = JSON.stringify(res[row.index]?.mappings || {}, null, 2);
     mappingDrawer.editable = false;
@@ -384,32 +393,32 @@ const onSaveMapping = async () => {
     }
 };
 
-const onCloseIndex = async (row: any) => {
+const onCloseIndex = async (row: EsIndexRow) => {
     await useI18nConfirm('es.closeIndexConfirm', { name: row.index });
     await esApi.proxyReq('post', props.instId, `/${row.index}/_close`);
     row.status = 'close';
     Msg.operateSuccess();
 };
 
-const onOpenIndex = async (row: any) => {
+const onOpenIndex = async (row: EsIndexRow) => {
     await useI18nConfirm('es.openIndexConfirm', { name: row.index });
     await esApi.proxyReq('post', props.instId, `/${row.index}/_open`);
     row.status = 'open';
     Msg.operateSuccess();
 };
 
-const onFlushIndex = async (row: any) => {
+const onFlushIndex = async (row: EsIndexRow) => {
     await esApi.proxyReq('post', props.instId, `/${row.index}/_flush`);
     Msg.operateSuccess();
 };
 
-const onClearCache = async (row: any) => {
+const onClearCache = async (row: EsIndexRow) => {
     await useI18nConfirm('es.clearCacheConfirm', { name: row.index });
     await esApi.proxyReq('post', props.instId, `/${row.index}/_cache/clear`);
     Msg.operateSuccess();
 };
 
-const onDeleteIndex = async (row: any) => {
+const onDeleteIndex = async (row: EsIndexRow) => {
     await useI18nDeleteConfirm(row.index);
     await esApi.proxyReq('delete', props.instId, row.index);
     Msg.deleteSuccess();
@@ -418,7 +427,7 @@ const onDeleteIndex = async (row: any) => {
 
 // ---- Alias operations ----
 
-const onAddAlias = (row: any) => {
+const onAddAlias = (row: EsIndexRow) => {
     aliasDialog.idxName = row.index;
     aliasDialog.name = '';
     aliasDialog.loading = false;

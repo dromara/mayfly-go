@@ -92,13 +92,14 @@ import { downloadFile } from '@/common/utils/file';
 import { formatByteSize, formatDate } from '@/common/utils/format';
 import { getToken } from '@/common/utils/storage';
 import { fuzzyMatchField } from '@/common/utils/string';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { Msg } from '@/hooks/useI18n';
 import { computed, onMounted, reactive, toRefs } from 'vue';
 import { dockerApi, getDockerExecSocketUrl } from '../api';
 import { ImageStateEnum } from '../enums';
+import type { DockerImageItem } from '../types';
 
 const props = defineProps({
     id: {
@@ -114,7 +115,7 @@ const state = reactive({
         state: null,
     },
     loadingImages: false,
-    images: [],
+    images: [] as DockerImageItem[],
     terminalDialog: {
         visible: false,
         title: '',
@@ -131,18 +132,18 @@ onMounted(() => {
 });
 
 const filterTableDatas = computed(() => {
-    let tables: any = state.images;
+    let tables: DockerImageItem[] = state.images;
     const nameSearch = state.params.name;
     const stateSearch = state.params.state;
 
     if (stateSearch != null) {
-        tables = tables.filter((table: any) => {
+        tables = tables.filter((table) => {
             return table.isUse === stateSearch;
         });
     }
 
     if (nameSearch) {
-        tables = fuzzyMatchField(nameSearch, tables, (table: any) => table.tags[0]);
+        tables = fuzzyMatchField(nameSearch, tables, (table) => table.tags[0]);
     }
 
     return tables;
@@ -161,11 +162,11 @@ const getImages = async () => {
     }
 };
 
-const exportImage = async (row: any) => {
+const exportImage = async (row: DockerImageItem) => {
     downloadFile(`${config.baseApiUrl}/docker/${props.id}/images/save?id=${props.id}&tag=${row.tags[0]}&${joinClientParams()}`);
 };
 
-const uploadImage = (content: any) => {
+const uploadImage = (content: { file: File }) => {
     const file = content.file;
     // 直接使用文件流作为 body，不包装为 FormData
     dockerApi.imageUpload.uploadRaw(
@@ -187,19 +188,19 @@ const uploadImage = (content: any) => {
     Msg.info('docker.imageUploading');
 };
 
-const uploadSuccess = (res: any) => {
-    if (res.code !== 200) {
-        Msg.error(res.msg);
+const uploadSuccess = (res: Record<string, unknown>) => {
+    if ((res as Record<string, unknown>).code !== 200) {
+        Msg.error((res as Record<string, unknown>).msg as string);
     }
 };
 
-const imageRemove = async (row: any) => {
+const imageRemove = async (row: DockerImageItem) => {
     await dockerApi.imageRemove.request({ id: props.id, imageId: row.id });
     getImages();
 };
 
-const openTerminal = (row: any) => {
-    state.terminalDialog.containerId = row.containerId;
+const openTerminal = (row: DockerImageItem) => {
+    state.terminalDialog.containerId = row.containerId ?? '';
     state.terminalDialog.title = `Terminal - ${row.name}`;
     state.terminalDialog.visible = true;
 };

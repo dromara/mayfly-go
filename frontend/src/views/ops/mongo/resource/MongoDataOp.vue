@@ -11,19 +11,19 @@
                     {{ nowColl.stats?.count }}
                 </el-descriptions-item>
                 <el-descriptions-item label="avgObjSize" label-align="right">
-                    {{ formatByteSize(nowColl.stats?.avgObjSize) }}
+                    {{ formatByteSize(Number(nowColl.stats?.avgObjSize)) }}
                 </el-descriptions-item>
                 <el-descriptions-item label="size" label-align="right">
-                    {{ formatByteSize(nowColl.stats?.size) }}
+                    {{ formatByteSize(Number(nowColl.stats?.size)) }}
                 </el-descriptions-item>
                 <el-descriptions-item label="totalSize" label-align="right">
-                    {{ formatByteSize(nowColl.stats?.totalSize) }}
+                    {{ formatByteSize(Number(nowColl.stats?.totalSize)) }}
                 </el-descriptions-item>
                 <el-descriptions-item label="storageSize" label-align="right">
-                    {{ formatByteSize(nowColl.stats?.storageSize) }}
+                    {{ formatByteSize(Number(nowColl.stats?.storageSize)) }}
                 </el-descriptions-item>
                 <el-descriptions-item label="freeStorageSize" label-align="right">
-                    {{ formatByteSize(nowColl.stats?.freeStorageSize) }}
+                    {{ formatByteSize(Number(nowColl.stats?.freeStorageSize)) }}
                 </el-descriptions-item>
             </el-descriptions>
         </el-row>
@@ -122,9 +122,24 @@ import { formatByteSize } from '@/common/utils/format';
 import { Msg } from '@/hooks/useI18n';
 import { mongoApi } from '@/views/ops/mongo/api';
 import { computed, defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
+import type { InputInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
+
+/** Mongo 数据Tab信息 */
+interface MongoDataTab {
+    key: string;
+    label: string;
+    name: string;
+    mongoId: number;
+    database: string;
+    collection: string;
+    datas: { value: string }[];
+    findParamStr: string;
+    findParam: { filter: string; sort: string; skip: number; limit: number };
+    stats?: Record<string, unknown>;
+}
 
 const { t } = useI18n();
 
@@ -139,14 +154,14 @@ const props = defineProps<{
 
 const emits = defineEmits(['init']);
 
-const findParamInputRef: any = ref(null);
+const findParamInputRef = ref<InputInstance[]>([]);
 
 const state = reactive({
-    defaultExpendKey: [] as any,
+    defaultExpendKey: [] as string[],
     tags: [],
-    mongoList: [] as any,
+    mongoList: [] as Record<string, unknown>[],
     activeName: '', // 当前操作的tab
-    dataTabs: {} as any, // 数据tabs
+    dataTabs: {} as Record<string, MongoDataTab>, // 数据tabs
     findDialog: {
         visible: false,
         findParam: {
@@ -168,7 +183,7 @@ const state = reactive({
     jsonEditorDialog: {
         visible: false,
         doc: '',
-        item: {} as any,
+        item: {} as Record<string, unknown>,
     },
 });
 
@@ -180,7 +195,7 @@ const nowColl = computed(() => {
 
 onMounted(() => {});
 
-const changeCollection = async (id: any, schema: string, collection: string) => {
+const changeCollection = async (id: number, schema: string, collection: string) => {
     const label = `${schema}.${collection}`;
     let dataTab = state.dataTabs[label];
     if (!dataTab) {
@@ -212,7 +227,7 @@ const showFindDialog = (key: string) => {
     const dataTabNames = Object.keys(state.dataTabs);
     for (let i = 0; i < dataTabNames.length; i++) {
         if (key == dataTabNames[i]) {
-            findParamInputRef.value[i].blur();
+            findParamInputRef.value[i]?.blur();
         }
     }
 
@@ -272,8 +287,8 @@ const findCommand = async (key: string) => {
 /**
  * 包装mongo查询回来的对象，即将其都转为json字符串并用value属性值描述，方便显示
  */
-const wrapDatas = (datas: any) => {
-    const wrapDatas = [] as any;
+const wrapDatas = (datas: Record<string, unknown>[]) => {
+    const wrapDatas = [] as { value: string }[];
     if (!datas) {
         return wrapDatas;
     }
@@ -297,7 +312,7 @@ const showEditDocDialog = () => {
     state.docEditDialog.visible = true;
 };
 
-const onEditDoc = async (item: any) => {
+const onEditDoc = async (item: { value: string } | null) => {
     // 新增文档
     if (!item) {
         state.docEditDialog.isAdd = true;
@@ -326,7 +341,7 @@ const onSaveDoc = async () => {
             collection: dataTab.collection,
             doc: docObj,
         });
-        isTrue(res.InsertedID, 'mongo.insertFail');
+        isTrue(!!res.InsertedID, 'mongo.insertFail');
         Msg.success('mongo.insertSuccess');
     } else {
         const docObj = parseDocJsonString(state.docEditDialog.doc);

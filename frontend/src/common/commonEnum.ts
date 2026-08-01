@@ -10,7 +10,7 @@ export const I18nEnum = {
 };
 
 export const LinkTypeEnum = {
-    Iframes: EnumValue.of(1, 'ifrmaes'),
+    Iframes: EnumValue.of(1, 'iframes'),
     Link: EnumValue.of(2, 'link'),
 };
 
@@ -29,8 +29,8 @@ export const ResourceTypeEnum = {
 
 // 标签关联的资源类型
 export const TagResourceTypeEnum = {
-    PublicAuthCert: EnumValue.of(-2, '公共凭证').setExtra({ icon: 'Ticket' }),
-    Tag: EnumValue.of(-1, '标签').setExtra({ icon: 'CollectionTag' }),
+    PublicAuthCert: EnumValue.of(-2, 'tag.ac.publicAc').setExtra({ icon: 'Ticket' }),
+    Tag: EnumValue.of(-1, 'tag.tag').setExtra({ icon: 'CollectionTag' }),
 
     Machine: ResourceTypeEnum.Machine,
     DbInstance: ResourceTypeEnum.Db,
@@ -44,7 +44,7 @@ export const TagResourceTypeEnum = {
 
     Milvus: ResourceTypeEnum.Milvus,
 
-    Db: EnumValue.of(22, '数据库').setExtra({ icon: 'icon db/db' }),
+    Db: EnumValue.of(22, 'tag.db').setExtra({ icon: 'icon db/db' }),
 };
 
 // 标签关联的资源类型路径

@@ -80,20 +80,21 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
-import { reactive, ref, toRefs } from 'vue';
+import { reactive, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { accountApi, roleApi } from '../api';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { getMenuIcon } from '../resource/index';
+import type { Account, SysResource } from '../types';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    account: Object,
+    account: Object as () => Account | null,
 });
 
 //定义事件
@@ -117,8 +118,8 @@ const unRelatedColumns = [
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(110).fixedRight().noShowOverflowTooltip().alignCenter(),
 ];
 
-const relatePageTableRef: any = ref(null);
-const unRelatePageTableRef: any = ref(null);
+const relatePageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('relatePageTableRef');
+const unRelatePageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('unRelatePageTableRef');
 
 // 已分配与未分配tab名
 const relatedTabName = 'related';
@@ -142,7 +143,7 @@ const state = reactive({
     showResourceDialog: {
         title: '',
         visible: false,
-        resources: [],
+        resources: [] as SysResource[],
         defaultProps: {
             children: 'children',
             label: 'name',
@@ -150,16 +151,16 @@ const state = reactive({
     },
 });
 
-let relatedRoleIds: Number[] = []; // 用户已关联的角色ids
+let relatedRoleIds: number[] = []; // 用户已关联的角色ids
 
 const { releateQuery, unRelatedQuery, showResourceDialog } = toRefs(state);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const searchAccountRoles = async () => {
-    state.releateQuery.id = props.account?.id;
+    state.releateQuery.id = props.account?.id || 0;
     await relatePageTableRef.value?.search();
-    relatedRoleIds = relatePageTableRef.value.getData()?.map((x: any) => x.roleId);
+    relatedRoleIds = (relatePageTableRef.value?.getData() ?? []).map((x) => Number(x.roleId));
 };
 
 const searchUnRelateRoles = () => {

@@ -68,17 +68,19 @@
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { DynamicFormEdit } from '@/components/dynamic-form';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, ref, toRefs, watch } from 'vue';
+import { reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { machineApi } from './api';
 import { ScriptResultEnum } from './enums';
+import type { MachineScriptForm, MachineScriptVO } from './types';
 
 const props = defineProps({
     data: {
-        type: Object,
+        type: Object as () => MachineScriptVO | null,
     },
     title: {
         type: String,
@@ -103,11 +105,11 @@ const rules = {
 };
 
 const { isCommon, machineId } = toRefs(props);
-const scriptForm: any = ref(null);
-const categorys = ref([]);
+const scriptForm = useTemplateRef<FormInstance>('scriptForm');
+const categorys = ref([] as string[]);
 
 const state = reactive({
-    params: [] as any,
+    params: [] as Record<string, unknown>[],
     form: {
         id: null,
         name: '',
@@ -117,32 +119,32 @@ const state = reactive({
         params: '',
         type: null,
         category: '',
-    },
+    } as MachineScriptForm,
     btnLoading: false,
 });
 
 const { params, form, btnLoading } = toRefs(state);
 
-watch(props, (newValue: any) => {
+watch(props, (newValue: Record<string, unknown>) => {
     if (!dialogVisible.value) {
         return;
     }
-    machineApi.scriptCategorys.request().then((res: any) => {
+    machineApi.scriptCategorys.request().then((res: string[]) => {
         categorys.value = res;
     });
     if (newValue.data) {
-        state.form = { ...newValue.data };
+        state.form = { ...(newValue.data as MachineScriptForm) };
         if (state.form.params) {
             state.params = JSON.parse(state.form.params);
         }
     } else {
-        state.form = {} as any;
+        state.form = {} as MachineScriptForm;
         state.form.script = '';
     }
 });
 
 const onConfirm = async () => {
-    state.form.machineId = isCommon.value ? 9999999 : (machineId?.value as any);
+    state.form.machineId = isCommon.value ? 9999999 : (machineId?.value as number);
     await useI18nFormValidate(scriptForm);
     if (state.params) {
         state.form.params = JSON.stringify(state.params);

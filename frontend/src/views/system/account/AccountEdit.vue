@@ -60,12 +60,15 @@
 import { Rules } from '@/common/rule';
 import { randomPassword } from '@/common/utils/string';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { accountApi } from '../api';
+import type { Account } from '../types';
 
 const props = defineProps({
     account: {
-        type: [Boolean, Object],
+        type: Object as PropType<Account | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -77,7 +80,7 @@ const emit = defineEmits(['cancel', 'val-change']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const accountFormRef: any = useTemplateRef('accountFormRef');
+const accountFormRef = useTemplateRef<FormInstance>('accountFormRef');
 
 const rules = {
     name: [Rules.requiredInput('system.account.name')],
@@ -85,7 +88,7 @@ const rules = {
     password: [Rules.requiredInput('common.password')],
 };
 
-const defaultForm = () => {
+const defaultForm = (): Record<string, any> => {
     return {
         id: null,
         name: null,
@@ -110,11 +113,11 @@ const { edit, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveAccountExec } = accountApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
+watch(props, (newValue) => {
     if (newValue.account) {
         state.form = { ...newValue.account };
         if (!state.form.extra) {
-            state.form.extra = {} as any;
+            state.form.extra = { qywxUserId: '', feishuUserId: '' };
         }
         state.edit = true;
     } else {
@@ -129,7 +132,7 @@ const onConfirm = async () => {
     Msg.saveSuccess();
     emit('val-change', state.form);
     //重置表单域
-    accountFormRef.value.resetFields();
+    accountFormRef.value?.resetFields();
 };
 
 const onCancel = () => {

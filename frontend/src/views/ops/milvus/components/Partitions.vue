@@ -45,6 +45,7 @@ import { FormInstance } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref, watch } from 'vue';
 import { milvusApi } from '../api';
+import type { IPartition } from '../types';
 
 const props = defineProps<{
     milvusId: number;
@@ -54,7 +55,7 @@ const props = defineProps<{
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 const { collections, selectedCollection } = storeToRefs(milvusStore);
 
-const list = ref<any[]>([]);
+const list = ref<IPartition[]>([]);
 const createDialog = ref({
     visible: false,
 });
@@ -88,7 +89,7 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value.validate(async (valid) => {
+    await createFormRef.value?.validate(async (valid) => {
         if (!valid) return;
 
         createLoading.value = true;
@@ -103,14 +104,14 @@ const submitCreate = async () => {
     });
 };
 
-const handleDrop = async (row: any) => {
+const handleDrop = async (row: IPartition) => {
     await useI18nConfirm('milvus.confirmDeletePartition', { name: row.name });
     await milvusApi.dropPartition(props.milvusId, milvusStore.selectedCollection, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();
 };
 
-const handleRelease = async (row: any) => {
+const handleRelease = async (row: IPartition) => {
     await milvusApi.releasePartition(props.milvusId, milvusStore.selectedCollection, row.name);
     Msg.success('milvus.releasedSuccess');
 };

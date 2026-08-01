@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/spf13/cast"
 )
 
 // JwtConf jwt配置
@@ -76,6 +77,17 @@ func ParseToken(tokenStr string) (uint64, string, error) {
 	if !token.Valid {
 		return 0, "", errors.New("token invalid")
 	}
-	i := token.Claims.(jwt.MapClaims)
-	return uint64(i["id"].(float64)), i["username"].(string), nil
+	i, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return 0, "", errors.New("invalid token claims")
+	}
+	id, err := cast.ToUint64E(i["id"])
+	if err != nil {
+		return 0, "", errors.New("invalid token id")
+	}
+	username, err := cast.ToStringE(i["username"])
+	if err != nil {
+		return 0, "", errors.New("invalid token username")
+	}
+	return id, username, nil
 }

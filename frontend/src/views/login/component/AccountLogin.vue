@@ -95,7 +95,7 @@
             width="350px"
             :destroy-on-close="true"
         >
-            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.native.prevent label-width="auto">
+            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.prevent label-width="auto">
                 <el-form-item v-if="otpDialog.otpUrl" :label="$t('login.qrCode')">
                     <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
                 </el-form-item>
@@ -144,8 +144,11 @@ import { initRouter } from '@/router/index';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useUserInfo } from '@/store/userInfo';
 import { personApi } from '@/views/personal/api';
+import type { LoginResult } from '@/views/system/types';
+import type { ChangePwdParam } from '@/common/openApi';
 import QrcodeVue from 'qrcode.vue';
 import { nextTick, onMounted, reactive, ref, toRefs } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 
 const rules = {
@@ -159,11 +162,11 @@ const storesThemeConfig = useThemeConfig();
 
 const route = useRoute();
 const router = useRouter();
-const loginFormRef: any = ref(null);
-const changePwdFormRef: any = ref(null);
-const otpFormRef: any = ref(null);
-const otpCodeInputRef: any = ref(null);
-const baseInfoFormRef: any = ref(null);
+const loginFormRef = ref<FormInstance | null>(null);
+const changePwdFormRef = ref<FormInstance | null>(null);
+const otpFormRef = ref<FormInstance | null>(null);
+const otpCodeInputRef = ref<{ focus: () => void } | null>(null);
+const baseInfoFormRef = ref<FormInstance | null>(null);
 
 const state = reactive({
     accountLoginSecurity: {
@@ -181,7 +184,7 @@ const state = reactive({
         cid: '',
         ldapLogin: false,
     },
-    loginRes: {} as any,
+    loginRes: {} as LoginResult,
     changePwdDialog: {
         visible: false,
         form: {
@@ -246,26 +249,24 @@ const getCaptcha = async () => {
     if (!state.accountLoginSecurity.useCaptcha) {
         return;
     }
-    let res: any = await openApi.captcha();
-    state.captchaImage = res.base64Captcha;
-    state.loginForm.cid = res.cid;
+    let res = await openApi.captcha();
+    state.captchaImage = res.captchaImage;
+    state.loginForm.cid = res.captchaId;
 };
 
 // 校验登录表单并登录
 const login = () => {
-    loginFormRef.value.validate((valid: boolean) => {
+    loginFormRef.value?.validate((valid: boolean) => {
         if (valid) {
             onSignIn();
-        } else {
-            return false;
         }
     });
 };
 
 const otpVerify = async () => {
     try {
-        await otpFormRef.value.validate();
-    } catch (e: any) {
+        await otpFormRef.value?.validate();
+    } catch (e: unknown) {
         return false;
     }
 
@@ -292,11 +293,11 @@ const onSignIn = async () => {
         } else {
             loginRes = await openApi.login(loginReq);
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         state.loading.signIn = false;
         state.loginForm.captcha = '';
         // 密码强度不足
-        if (e.code && e.code == 401) {
+        if ((e as Record<string, unknown>)?.code == 401) {
             state.changePwdDialog.form.username = state.loginForm.username;
             state.changePwdDialog.form.oldPassword = originPwd;
             state.changePwdDialog.form.newPassword = '';
@@ -313,8 +314,8 @@ const onSignIn = async () => {
 
 const updateUserInfo = async () => {
     try {
-        await baseInfoFormRef.value.validate();
-    } catch (e: any) {
+        await baseInfoFormRef.value?.validate();
+    } catch (e: unknown) {
         return false;
     }
 
@@ -331,7 +332,7 @@ const updateUserInfo = async () => {
     }
 };
 
-const loginResDeal = async (loginRes: any) => {
+const loginResDeal = async (loginRes: LoginResult) => {
     state.loginRes = loginRes;
     // 用户信息
     const userInfos = {
@@ -365,10 +366,10 @@ const loginResDeal = async (loginRes: any) => {
     }
 
     state.otpDialog.form.otpToken = token;
-    state.otpDialog.otpUrl = loginRes.otpUrl;
+    state.otpDialog.otpUrl = loginRes.otpUrl || '';
     state.otpDialog.visible = true;
     setTimeout(() => {
-        otpCodeInputRef.value.focus();
+        otpCodeInputRef.value?.focus();
     }, 400);
 };
 
@@ -413,15 +414,15 @@ const toIndex = async () => {
 
 const changePwd = async () => {
     try {
-        await changePwdFormRef.value.validate();
-    } catch (e: any) {
+        await changePwdFormRef.value?.validate();
+    } catch (e: unknown) {
         return false;
     }
 
     try {
         state.loading.changePwd = true;
         const form = state.changePwdDialog.form;
-        const changePwdReq: any = { ...form };
+        const changePwdReq: ChangePwdParam = { ...form };
         changePwdReq.oldPassword = await RsaEncrypt(form.oldPassword);
         changePwdReq.newPassword = await RsaEncrypt(form.newPassword);
         await openApi.changePwd(changePwdReq);

@@ -53,16 +53,27 @@
 import { Rules } from '@/common/rule';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { mqApi } from '@/views/ops/mq/api';
-import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import SshTunnelSelect from '../../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../../component/TagTreeSelect.vue';
+import type { Kafka } from '@/views/ops/mq/types';
+
+/** Kafka 编辑表单类型 */
+interface KafkaForm extends Omit<Partial<Kafka>, 'id' | 'name' | 'sshTunnelMachineId'> {
+    id?: number | null;
+    name?: string | null;
+    sshTunnelMachineId?: number | null;
+    tagCodePaths?: string[];
+}
 
 const { t } = useI18n();
 
 const props = defineProps({
     kafka: {
-        type: [Boolean, Object],
+        type: Object as PropType<Kafka | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -95,7 +106,7 @@ const rules = {
     uri: [Rules.requiredInput('kafka.connUrl')],
 };
 
-const kafkaFormRef: any = useTemplateRef('kafkaFormRef');
+const kafkaFormRef = useTemplateRef<FormInstance>('kafkaFormRef');
 
 const state = reactive({
     form: {
@@ -106,9 +117,9 @@ const state = reactive({
         username: '',
         saslMechanism: 'PLAIN',
         password: '',
-        sshTunnelMachineId: null as any,
+        sshTunnelMachineId: null as number | null,
         tagCodePaths: [],
-    },
+    } as KafkaForm,
 });
 
 const { form } = toRefs(state);
@@ -120,11 +131,11 @@ watchEffect(() => {
     if (!dialogVisible.value) {
         return;
     }
-    const kafka: any = props.kafka;
+    const kafka = props.kafka as import('@/views/ops/mq/types').Kafka | false | undefined;
     if (kafka) {
-        state.form = { ...kafka };
+        state.form = { ...kafka } as KafkaForm;
     } else {
-        state.form = { saslMechanism: 'PLAIN', tagCodePaths: [] } as any;
+        state.form = { saslMechanism: 'PLAIN', tagCodePaths: [] } as KafkaForm;
     }
 });
 

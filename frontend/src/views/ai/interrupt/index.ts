@@ -30,7 +30,6 @@ const DEFAULT_INTERRUPT_COMPONENT = GenericInterrupt;
  */
 export function registerInterruptComponent(type: string, component: Component) {
     interruptComponentMap.set(type.toLowerCase(), component);
-    console.log(`已注册中断组件类型: ${type}`);
 }
 
 /**

@@ -19,7 +19,7 @@
                 <el-input v-model="name" clearable></el-input>
             </el-form-item>
 
-            <component ref="formItemsRef" :is="getCustomNode(props.node.type)?.propSettingComp" v-model="form" :disabled="disabled" :nodes="nodes" :node="node">
+            <component v-if="props.node" ref="formItemsRef" :is="getCustomNode(props.node.type)?.propSettingComp" v-model="form" :disabled="disabled" :nodes="nodes" :node="node">
                 <template v-slot:[key]="data" v-for="(item, key) in $slots">
                     <slot :name="key" v-bind="data || {}"></slot>
                 </template>
@@ -34,7 +34,7 @@
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, useTemplateRef } from 'vue';
+import { watch, ref, useTemplateRef, type PropType } from 'vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { useI18nFormValidate, useI18nPleaseInput } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
@@ -54,11 +54,11 @@ const props = defineProps({
         default: false,
     },
     node: {
-        type: Object,
-        default: {},
+        type: Object as PropType<LogicFlow.NodeData | LogicFlow.EdgeData | null>,
+        default: null,
     },
     nodes: {
-        type: Array,
+        type: Array as PropType<Array<LogicFlow.NodeData | LogicFlow.EdgeData>>,
         default: () => [],
     },
     lf: {
@@ -68,7 +68,7 @@ const props = defineProps({
 });
 
 const propSettingFormRef = useTemplateRef('propSettingFormRef');
-const formItemsRef: any = useTemplateRef('formItemsRef');
+const formItemsRef = useTemplateRef<{ confirm?: () => void } | null>('formItemsRef');
 
 const visible = defineModel<boolean>('visible', { default: false });
 
@@ -76,7 +76,7 @@ const visible = defineModel<boolean>('visible', { default: false });
 const name = ref('');
 
 // 节点props表单信息
-const form = ref({});
+const form = ref<Record<string, unknown>>({});
 
 watch(
     () => props.node,
@@ -84,7 +84,7 @@ watch(
         if (!n) {
             return;
         }
-        name.value = n.text instanceof Object ? n.text.value : n.text;
+        name.value = n.text instanceof Object ? n.text.value : (n.text ?? '');
         form.value = { ...n.properties };
     }
 );
@@ -92,10 +92,13 @@ watch(
 const onConfirm = async () => {
     notEmpty(name.value, useI18nPleaseInput('common.name'));
     if (formItemsRef.value?.confirm) {
-        formItemsRef.value?.confirm();
+        formItemsRef.value.confirm();
     }
     await useI18nFormValidate(propSettingFormRef);
-    const nodeId = props.node.id;
+    const nodeId = props.node?.id;
+    if (!nodeId) {
+        return;
+    }
     // 更新流程节点上的文本内容
     props.lf.updateText(nodeId, name.value);
     props.lf.setProperties(nodeId, form.value);

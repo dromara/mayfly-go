@@ -29,7 +29,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, toRefs, watch, provide, PropType } from 'vue';
+import { onMounted, reactive, ref, toRefs, watch, provide, PropType, useTemplateRef } from 'vue';
 
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import BaseTreeNode from '@/views/ops/resource/BaseTreeNode.vue';
@@ -37,7 +37,7 @@ import { loadResourceTags, IsShowActionsKey, LeafNodeTypesKey } from './resource
 
 const props = defineProps({
     resourceType: {
-        type: [Number],
+        type: [Number, String],
         required: true,
     },
     load: {
@@ -74,12 +74,12 @@ const treeProps = {
 };
 
 const emit = defineEmits(['change']);
-const treeRef: any = ref(null);
+const treeRef = useTemplateRef<{ filter: (val: string) => void; getNode: (key: string | number) => { data: TagTreeNode } | undefined; blur: () => void }>('treeRef');
 
-const modelValue = defineModel<any>('modelValue');
+const modelValue = defineModel<string | number>('modelValue');
 
 const state = reactive({
-    height: 600 as any,
+    height: 600,
     filterText: '',
     opend: {},
 });
@@ -91,7 +91,7 @@ watch(filterText, (val) => {
     treeRef.value?.filter(val);
 });
 
-const filterNode = (value: string, data: any) => {
+const filterNode = (value: string, data: TagTreeNode) => {
     if (!value) return true;
     return data.label.includes(value);
 };
@@ -101,7 +101,7 @@ const filterNode = (value: string, data: any) => {
  * @param { Object } node
  * @param { Object } resolve
  */
-const loadNode = async (node: any, resolve: any) => {
+const loadNode = async (node: { level: number; data: TagTreeNode }, resolve: (data: TagTreeNode[]) => void) => {
     if (typeof resolve !== 'function') {
         return;
     }
@@ -115,13 +115,13 @@ const loadNode = async (node: any, resolve: any) => {
         } else {
             nodes = await node.data.loadChildren();
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
     }
 
     // 如果配置了叶子节点类型，检查并标记
     if (props.leafNodeTypes && props.leafNodeTypes.length > 0) {
-        nodes.forEach((n: any) => {
+        nodes.forEach((n: TagTreeNode) => {
             if (n.type && props.leafNodeTypes.some((type: NodeType) => type.value === n.type.value)) {
                 n.isLeaf = true;
             }
@@ -136,22 +136,22 @@ const loadNode = async (node: any, resolve: any) => {
     return resolve(nodes);
 };
 
-const getNode = (nodeKey: any) => {
-    let node = treeRef.value.getNode(nodeKey);
+const getNode = (nodeKey: string | number) => {
+    let node = treeRef.value?.getNode(nodeKey);
     if (!node) {
         throw new Error('未找到节点: ' + nodeKey);
     }
     return node;
 };
 
-const changeNode = (val: any) => {
+const changeNode = (val: string | number) => {
     // 触发改变事件，并传递节点数据
     emit('change', getNode(val)?.data);
     
     // 选择后关闭下拉框
     setTimeout(() => {
         if (treeRef.value) {
-            treeRef.value.blur();
+            treeRef.value?.blur();
         }
     }, 100);
 };

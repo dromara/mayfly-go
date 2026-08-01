@@ -39,17 +39,18 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import TagCodePath from '../ops/component/TagCodePath.vue';
 import ProcdefEdit from './ProcdefEdit.vue';
 import { procdefApi } from './api';
 import FlowDesignDrawer from './components/flowdesign/FlowDesignDrawer.vue';
 import { ProcdefStatus } from './enums';
+import type { Procdef } from './types';
 
 const { t } = useI18n();
 
@@ -70,10 +71,10 @@ const columns = [
 ];
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns: any = hasPerms([perms.save, perms.del]);
+const actionBtns = hasPerms([perms.save, perms.del]) as Record<string, boolean>;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<{ search: () => void }>('pageTableRef');
 const state = reactive({
     /**
      * 选中的数据
@@ -90,14 +91,14 @@ const state = reactive({
     flowDefEditor: {
         title: '',
         visible: false,
-        data: null as any,
+        data: null as Procdef | null,
     },
     flowDesignEditor: {
         title: '',
         disabled: false,
         visible: false,
         procdefId: 0,
-        data: null as any,
+        data: null as Record<string, unknown> | null,
     },
 });
 
@@ -110,10 +111,10 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const onEditFlowDef = (data: any) => {
+const onEditFlowDef = (data: Procdef | false) => {
     if (!data) {
         state.flowDefEditor.data = null;
         state.flowDefEditor.title = useI18nCreateTitle('flow.procdef');
@@ -131,8 +132,8 @@ const handleValChange = () => {
 
 const onDeleteProcdef = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join(', '));
-        await procdefApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: Procdef) => x.name).join(', '));
+        await procdefApi.del.request({ id: state.selectionData.map((x: Procdef) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {
@@ -140,14 +141,14 @@ const onDeleteProcdef = async () => {
     }
 };
 
-const onShowFlowDesign = async (data: any) => {
+const onShowFlowDesign = async (data: Procdef) => {
     state.flowDesignEditor.procdefId = data.id;
     state.flowDesignEditor.data = await procdefApi.flowDef.request({ id: data.id });
     state.flowDesignEditor.title = t('flow.procDesign');
     state.flowDesignEditor.visible = true;
 };
 
-const onSaveFlowDesign = async (data: any) => {
+const onSaveFlowDesign = async (data: unknown) => {
     await procdefApi.saveFlowDef.request({ id: state.flowDesignEditor.procdefId, flow: data });
     Msg.saveSuccess();
     state.flowDesignEditor.visible = false;

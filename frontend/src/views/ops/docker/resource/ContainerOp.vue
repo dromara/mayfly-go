@@ -40,7 +40,7 @@ onMounted(async () => {
     state.activeName = containerTab;
 });
 
-const handleTabChange = (tabName: any) => {};
+const handleTabChange = (tabName: string) => {};
 
 defineExpose({
     init: function (id: number) {

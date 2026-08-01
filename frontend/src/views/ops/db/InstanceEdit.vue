@@ -113,19 +113,34 @@ import { notBlankI18n } from '@/common/assert';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { computed, reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { dbApi } from './api';
 import { DbType, getDbDialect, getDbDialectMap } from './dialect';
+import type { DbInstance } from './types';
+import type { MachineAuthCert } from '@/views/ops/machine/types';
+
+/** 数据库实例编辑表单类型 (id/name/sshTunnelMachineId/extra/params 允许 null 表示未设置) */
+interface DbInstanceForm extends Omit<Partial<DbInstance>, 'id' | 'name' | 'sshTunnelMachineId' | 'extra' | 'params'> {
+    id?: number | null;
+    type: string;
+    name?: string | null;
+    sshTunnelMachineId?: number | null;
+    extra?: Record<string, unknown> | null;
+    params?: string | null;
+    tagCodePaths?: string[];
+}
 
 const props = defineProps({
     data: {
-        type: [Boolean, Object],
+        type: Object as PropType<DbInstance | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -144,9 +159,9 @@ const rules = {
     host: [Rules.requiredInput('Host:Port')],
 };
 
-const dbFormRef: any = useTemplateRef('dbFormRef');
+const dbFormRef = useTemplateRef<FormInstance>('dbFormRef');
 
-const DefaultForm = {
+const DefaultForm: DbInstanceForm = {
     id: null,
     type: DbType.mysql,
     code: '',
@@ -156,20 +171,20 @@ const DefaultForm = {
     extra: null, // 连接需要的额外参数（json字符串）
     params: null,
     remark: '',
-    sshTunnelMachineId: null as any,
+    sshTunnelMachineId: null as number | null,
     authCerts: [],
     tagCodePaths: [],
 };
 
 const state = reactive({
-    extra: {} as any, // 连接需要的额外参数（json）
+    extra: {} as Record<string, unknown>, // 连接需要的额外参数（json）
     form: DefaultForm,
 });
 
 const { form } = toRefs(state);
 
 const submitForm = computed(() => {
-    const reqForm: any = { ...state.form };
+    const reqForm: Record<string, unknown> = { ...state.form };
     reqForm.selectAuthCert = null;
     reqForm.tags = null;
     if (!state.form.sshTunnelMachineId) {
@@ -188,17 +203,17 @@ watchEffect(() => {
     if (!dialogVisible.value) {
         return;
     }
-    const dbInst: any = props.data;
+    const dbInst = props.data;
     if (dbInst) {
-        state.form = { ...dbInst };
-        state.extra = dbInst.extra || {};
+        state.form = { ...dbInst } as DbInstanceForm;
+        state.extra = (dbInst.extra || {}) as Record<string, unknown>;
     } else {
         state.form = { ...DefaultForm };
         state.form.authCerts = [];
     }
 });
 
-const testConn = async (authCert: any) => {
+const testConn = async (authCert: MachineAuthCert) => {
     await useI18nFormValidate(dbFormRef);
     await testConnExec({
         ...submitForm.value,
@@ -212,7 +227,7 @@ const btnOk = async () => {
     notBlankI18n(submitForm.value.authCerts, 'db.acName');
     await saveInstanceExec(submitForm.value);
     Msg.saveSuccess();
-    state.form.id = saveInstanceRes as any;
+    state.form.id = saveInstanceRes.value;
     emit('val-change', state.form);
     cancel();
 };
@@ -225,7 +240,7 @@ const cancel = () => {
 
 const changeDbType = (val: string) => {
     if (!state.form.id) {
-        state.form.port = getDbDialect(val).getInfo().defaultPort as any;
+        state.form.port = getDbDialect(val).getInfo().defaultPort as number;
     }
     state.extra = {};
 };

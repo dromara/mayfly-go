@@ -14,7 +14,7 @@ export const useKeepALiveNames = defineStore('keepALiveNames', {
         cachedViews: [],
     }),
     actions: {
-        async setCacheKeepAlive(data: Array<string>) {
+        async setCacheKeepAlive(data: any) {
             this.keepAliveNames = data;
         },
         async addCachedView(view: any) {

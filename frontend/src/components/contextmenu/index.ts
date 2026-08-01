@@ -1,7 +1,7 @@
 import Contextmenu from './index.vue';
 
 class ContextmenuItem {
-    clickId: any;
+    clickId: string | number;
 
     txt: string;
 
@@ -18,7 +18,7 @@ class ContextmenuItem {
 
     onClickFunc: (data: any) => void;
 
-    constructor(clickId: any, txt: string) {
+    constructor(clickId: string | number, txt: string) {
         this.clickId = clickId;
         this.txt = txt;
     }
@@ -48,7 +48,7 @@ class ContextmenuItem {
      * @param data 点击数据项
      * @returns
      */
-    isHide(data: any) {
+    isHide(data: unknown) {
         if (this.hideFunc) {
             return this.hideFunc(data);
         }

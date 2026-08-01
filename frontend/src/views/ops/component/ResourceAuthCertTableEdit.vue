@@ -48,15 +48,16 @@
 </template>
 
 <script lang="ts" setup>
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { Msg } from '@/hooks/useI18n';
 import { onMounted, reactive } from 'vue';
 import { resourceAuthCertApi } from '../tag/api';
 import { AuthCertCiphertextTypeEnum, AuthCertTypeEnum } from '../tag/enums';
 import ResourceAuthCertEdit from './ResourceAuthCertEdit.vue';
+import type { ResourceAuthCert } from '@/types/common';
 
 const props = defineProps({
-    resourceType: { type: Number },
+    resourceType: { type: [Number, String] },
     resourceCode: { type: String },
     disableCiphertextType: {
         type: Array,
@@ -64,13 +65,13 @@ const props = defineProps({
     testConnBtnLoading: { type: Boolean },
 });
 
-const authCerts = defineModel<any>('modelValue', { required: true, default: [] });
+const authCerts = defineModel<ResourceAuthCert[]>('modelValue', { required: true, default: [] });
 const emit = defineEmits(['testConn']);
 
 const state = reactive({
     dvisible: false,
-    params: [] as any,
-    form: {},
+    params: [] as Record<string, unknown>[],
+    form: {} as ResourceAuthCert,
     idx: -1,
 });
 
@@ -84,29 +85,29 @@ const getAuthCerts = async () => {
     }
     const res = await resourceAuthCertApi.listByQuery.request({
         resourceCode: props.resourceCode,
-        resourceType: props.resourceType,
+        resourceType: props.resourceType as number,
         pageNum: 1,
         pageSize: 100,
     });
     authCerts.value = res.list?.reverse() || [];
 };
 
-const testConn = async (row: any, idx: number) => {
+const testConn = async (row: ResourceAuthCert, idx: number) => {
     state.idx = idx;
     emit('testConn', row);
 };
 
-const edit = (form: any, idx = -1) => {
+const edit = (form: ResourceAuthCert | null, idx = -1) => {
     state.idx = idx;
     if (form) {
         state.form = form;
     } else {
-        state.form = { ciphertextType: AuthCertCiphertextTypeEnum.Password.value, type: AuthCertTypeEnum.Private.value, extra: {} };
+        state.form = { ciphertextType: AuthCertCiphertextTypeEnum.Password.value, type: AuthCertTypeEnum.Private.value, extra: {} } as ResourceAuthCert;
     }
     state.dvisible = true;
 };
 
-const deleteRow = (idx: any) => {
+const deleteRow = (idx: number) => {
     authCerts.value.splice(idx, 1);
 };
 
@@ -114,7 +115,7 @@ const cancelEdit = () => {
     state.dvisible = false;
 };
 
-const btnOk = async (authCert: any) => {
+const btnOk = async (authCert: ResourceAuthCert) => {
     const isEdit = authCert.id;
 
     if (isEdit || state.idx >= 0) {
@@ -123,7 +124,7 @@ const btnOk = async (authCert: any) => {
         return;
     }
 
-    if (authCerts.value?.filter((x: any) => x.username == authCert.username).length > 0) {
+    if (authCerts.value?.filter((x: ResourceAuthCert) => x.username == authCert.username).length > 0) {
         Msg.error('ac.usernameExist');
         return;
     }

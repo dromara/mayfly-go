@@ -160,7 +160,7 @@ const resetForm = () => {
 
 const sendMessage = async () => {
     if (!produceFormRef.value) return;
-    await produceFormRef.value.validate();
+    await produceFormRef.value?.validate();
 
     sending.value = true;
     try {
@@ -170,15 +170,15 @@ const sendMessage = async () => {
             key: state.form.key,
             value: state.form.value,
             partition: state.form.partition,
-            headers: state.form.headers.filter((h: any) => h.key || h.value),
+            headers: state.form.headers.filter((h: Header) => h.key || h.value),
             times: state.form.times,
             compression: state.form.compression,
         };
 
         await mqApi.kafkaTopicProduce.request(param);
         Msg.operateSuccess();
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message || 'common.requestFail' : 'common.requestFail');
     } finally {
         sending.value = false;
     }

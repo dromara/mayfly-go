@@ -2,9 +2,9 @@
     <div class="string-input-container !w-full" v-if="dataType == DataType.String || dataType == DataType.Number">
         <el-input
             :ref="
-                (el: any) => {
+                (el: unknown) => {
                     nextTick(() => {
-                        focus && el?.focus();
+                        focus && (el as InstanceType<typeof ElInput>)?.$el?.querySelector?.('input')?.focus() || (el as HTMLInputElement)?.focus?.();
                     });
                 }
             "
@@ -21,9 +21,9 @@
     <el-date-picker
         v-else-if="dataType == DataType.Date"
         :ref="
-            (el: any) => {
+            (el: unknown) => {
                 nextTick(() => {
-                    focus && el?.focus();
+                    focus && (el as HTMLInputElement)?.focus?.();
                 });
             }
         "
@@ -43,9 +43,9 @@
     <el-date-picker
         v-else-if="dataType == DataType.DateTime"
         :ref="
-            (el: any) => {
+            (el: unknown) => {
                 nextTick(() => {
-                    focus && el?.focus();
+                    focus && (el as HTMLInputElement)?.focus?.();
                 });
             }
         "
@@ -65,9 +65,9 @@
     <el-time-picker
         v-else-if="dataType == DataType.Time"
         :ref="
-            (el: any) => {
+            (el: unknown) => {
                 nextTick(() => {
-                    focus && el?.focus();
+                    focus && (el as HTMLInputElement)?.focus?.();
                 });
             }
         "
@@ -86,7 +86,7 @@
 
 <script lang="ts" setup>
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg } from '@/hooks/useI18n';
 import { ElInput } from 'element-plus';
 import { computed, nextTick, ref, Ref } from 'vue';
@@ -96,7 +96,6 @@ import { DataType } from '../../dialect/index';
 const { t } = useI18n();
 
 export interface ColumnFormItemProps {
-    modelValue: string | number; // 绑定的值
     dataType: DataType; // 数据类型
     focus?: boolean; // 是否获取焦点
     placeholder?: string;
@@ -110,9 +109,11 @@ const props = withDefaults(defineProps<ColumnFormItemProps>(), {
     disabled: false,
 });
 
-const emit = defineEmits(['update:modelValue', 'blur']);
+const emit = defineEmits(['blur']);
 
-const itemValue: Ref<any> = ref(props.modelValue);
+const modelValue = defineModel<unknown>();
+
+const itemValue: Ref<string | number> = ref((modelValue.value ?? '') as string | number);
 
 const showEditorIcon = computed(() => {
     return typeof itemValue.value === 'string' && itemValue.value.length > 50;
@@ -125,10 +126,10 @@ const openEditor = () => {
     // 编辑器语言，如：json、html、text
     let editorLang = getEditorLangByValue(itemValue.value);
     MonacoEditorBox({
-        content: itemValue.value,
+        content: String(itemValue.value),
         title: `${t('db.editField')} [${props.columnName}]`,
         language: editorLang,
-        confirmFn: (newVal: any) => {
+        confirmFn: (newVal: string) => {
             itemValue.value = newVal;
             closeEditorDialog();
         },
@@ -146,18 +147,18 @@ const handleBlur = () => {
     if (editorOpening.value) {
         return;
     }
-    if (props.dataType == DataType.Number && itemValue.value && !/^-?\d*\.?\d+$/.test(itemValue.value)) {
+    if (props.dataType == DataType.Number && itemValue.value && !/^-?\d*\.?\d+$/.test(String(itemValue.value))) {
         Msg.error('db.valueTypeNoMatch');
         return;
     }
-    emit('update:modelValue', itemValue.value);
+    modelValue.value = itemValue.value;
     emit('blur');
 };
 
-const getEditorLangByValue = (value: any) => {
+const getEditorLangByValue = (value: string | number) => {
     // 判断是否是json
     try {
-        if (typeof JSON.parse(value) === 'object') {
+        if (typeof JSON.parse(String(value)) === 'object') {
             return 'json';
         }
     } catch (e) {
@@ -166,7 +167,7 @@ const getEditorLangByValue = (value: any) => {
 
     // 判断是否是html
     try {
-        const doc = new DOMParser().parseFromString(value, 'text/html');
+        const doc = new DOMParser().parseFromString(String(value), 'text/html');
         if (Array.from(doc.body.childNodes).some((node) => node.nodeType === 1)) {
             return 'html';
         }

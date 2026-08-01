@@ -15,7 +15,7 @@
 
                 <ColumnFormItem
                     v-model="modelValue[`${column.columnName}`]"
-                    :data-type="dbInst.getDialect().getDataType(column.dataType)"
+                    :data-type="dbInst.getDialect().getDataType(column.dataType ?? '')"
                     :placeholder="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType"
                     :column-name="column.columnName"
                     :disabled="column.autoIncrement"
@@ -30,16 +30,18 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, useTemplateRef } from 'vue';
+import type { FormInstance } from 'element-plus';
 import ColumnFormItem from './ColumnFormItem.vue';
 import { DbInst } from '../../db';
 import { useI18nFormValidate } from '@/hooks/useI18n';
+import type { TableColumnDef } from '../../types';
 
 export interface ColumnFormItemProps {
     dbInst: DbInst;
     dbName: string;
     tableName: string;
-    columns: any[];
+    columns: TableColumnDef[];
     title?: string; // dialog title
 }
 
@@ -47,7 +49,7 @@ const props = withDefaults(defineProps<ColumnFormItemProps>(), {
     title: '',
 });
 
-const modelValue = defineModel<any>('modelValue');
+const modelValue = defineModel<Record<string, unknown>>('modelValue', { default: () => ({}) });
 
 const visible = defineModel<boolean>('visible', {
     default: false,
@@ -55,9 +57,9 @@ const visible = defineModel<boolean>('visible', {
 
 const emit = defineEmits(['submitSuccess']);
 
-const dataForm: any = ref(null);
+const dataForm = useTemplateRef<FormInstance>('dataForm');
 
-let oldValue = null as any;
+let oldValue = null as Record<string, unknown> | null;
 
 onMounted(() => {
     setOldValue();
@@ -91,19 +93,20 @@ const onConfirm = async () => {
 
     let sql = '';
     if (oldValue) {
-        const updateColumnValue: any = {};
-        Object.keys(oldValue).forEach((key) => {
+        const old = oldValue;
+        const updateColumnValue: Record<string, unknown> = {};
+        Object.keys(old).forEach((key) => {
             // 如果新旧值不相等，则为需要更新的字段
-            if (oldValue[key] !== modelValue.value[key]) {
+            if (old[key] !== modelValue.value[key]) {
                 updateColumnValue[key] = modelValue.value[key];
             }
         });
-        sql = await dbInst.genUpdateSql(db, tableName, updateColumnValue, oldValue);
+        sql = await dbInst.genUpdateSql(db, tableName, updateColumnValue, old);
     } else {
         sql = await dbInst.genInsertSql(db, tableName, [data], true);
     }
 
-    dbInst.promptExeSql(db, sql, null, () => {
+    dbInst.promptExeSql(db, sql, undefined, () => {
         onCloseDialog();
         emit('submitSuccess');
     });

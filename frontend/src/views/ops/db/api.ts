@@ -1,81 +1,79 @@
 import Api from '@/common/Api';
 import { AesEncrypt } from '@/common/crypto';
-import { createSqlExecNotification, registerSqlExecAborter } from '@/components/sysmsg/db/db-sql-exec-progress';
+import type { PageParam, PageResult } from '@/types/common';
+import { createSqlExecNotification, registerSqlExecAborter } from '@/components/system-message/db/db-sql-exec-progress';
+import type { Db, DbInstance, DbSql, DbSqlExec, DbTableInfo, DbBackup, DbBackupHistory, DbRestore, DbInstanceServerInfo, ColumnMetadata, DbInstanceListParam, DbListParam, SqlExecRes } from './types';
 
 export const dbApi = {
     // 获取权限列表
-    dbs: Api.newGet('/dbs'),
-    dbTags: Api.newGet('/dbs/tags'),
-    saveDb: Api.newPost('/dbs'),
-    deleteDb: Api.newDelete('/dbs/{id}'),
-    dumpDb: Api.newPost('/dbs/{id}/dump'),
-    tableInfos: Api.newGet('/dbs/{id}/t-infos'),
-    tableIndex: Api.newGet('/dbs/{id}/t-index'),
-    tableDdl: Api.newGet('/dbs/{id}/t-create-ddl'),
-    copyTable: Api.newPost('/dbs/{id}/copy-table'),
-    columnMetadata: Api.newGet('/dbs/{id}/c-metadata'),
-    pgSchemas: Api.newGet('/dbs/{id}/pg/schemas'),
+    dbs: Api.newGet<PageResult<Db>, DbListParam>('/dbs'),
+    dbTags: Api.newGet<Db[]>('/dbs/tags'),
+    saveDb: Api.newPost<void>('/dbs'),
+    deleteDb: Api.newDelete<void>('/dbs/{id}'),
+    dumpDb: Api.newPost<void>('/dbs/{id}/dump'),
+    tableInfos: Api.newGet<DbTableInfo[]>('/dbs/{id}/t-infos'),
+    tableIndex: Api.newGet<Record<string, unknown>[]>('/dbs/{id}/t-index'),
+    tableDdl: Api.newGet<string>('/dbs/{id}/t-create-ddl'),
+    copyTable: Api.newPost<void>('/dbs/{id}/copy-table'),
+    columnMetadata: Api.newGet<ColumnMetadata[]>('/dbs/{id}/c-metadata'),
+    pgSchemas: Api.newGet<string[]>('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
-    hintTables: Api.newGet('/dbs/{id}/hint-tables'),
-    sqlExec: Api.newPost('/dbs/{id}/exec-sql').withBeforeHandler(async (param: any) => await encryptField(param, 'sql')),
+    hintTables: Api.newGet<string[]>('/dbs/{id}/hint-tables'),
+    sqlExec: Api.newPost<SqlExecRes[]>('/dbs/{id}/exec-sql').withBeforeHandler(async (param: Record<string, unknown>) => await encryptField(param, 'sql')),
     // 保存sql
-    saveSql: Api.newPost('/dbs/{id}/sql'),
+    saveSql: Api.newPost<void>('/dbs/{id}/sql'),
     // 获取保存的sql
-    getSql: Api.newGet('/dbs/{id}/sql'),
+    getSql: Api.newGet<DbSql>('/dbs/{id}/sql'),
     // 获取保存的sql names
-    getSqlNames: Api.newGet('/dbs/{id}/sql-names'),
-    deleteDbSql: Api.newDelete('/dbs/{id}/sql'),
+    getSqlNames: Api.newGet<DbSql[]>('/dbs/{id}/sql-names'),
+    deleteDbSql: Api.newDelete<void>('/dbs/{id}/sql'),
     // 获取数据库sql执行记录
-    getSqlExecs: Api.newGet('/dbs/sql-execs'),
+    getSqlExecs: Api.newGet<PageResult<DbSqlExec>, PageParam>('/dbs/sql-execs'),
     // 获取数据库兼容版本
-    getCompatibleDbVersion: Api.newGet('/dbs/{id}/version'),
+    getCompatibleDbVersion: Api.newGet<string>('/dbs/{id}/version'),
 
-    instances: Api.newGet('/instances'),
-    getInstance: Api.newGet('/instances/{instanceId}'),
-    getAllDatabase: Api.newPost('/instances/databases'),
-    getDbNamesByAc: Api.newGet('/instances/databases/{authCertName}'),
-    getInstanceServerInfo: Api.newGet('/instances/{instanceId}/server-info'),
-    testConn: Api.newPost('/instances/test-conn'),
-    saveInstance: Api.newPost('/instances'),
-    deleteInstance: Api.newDelete('/instances/{id}'),
+    instances: Api.newGet<PageResult<DbInstance>, DbInstanceListParam>('/instances'),
+    getInstance: Api.newGet<DbInstance>('/instances/{instanceId}'),
+    getAllDatabase: Api.newPost<string[]>('/instances/databases'),
+    getDbNamesByAc: Api.newGet<string[]>('/instances/databases/{authCertName}'),
+    getInstanceServerInfo: Api.newGet<DbInstanceServerInfo>('/instances/{instanceId}/server-info'),
+    testConn: Api.newPost<void>('/instances/test-conn'),
+    saveInstance: Api.newPost<number>('/instances'),
+    deleteInstance: Api.newDelete<void>('/instances/{id}'),
 
     // 获取数据库备份列表
-    getDbBackups: Api.newGet('/dbs/{dbId}/backups'),
-    createDbBackup: Api.newPost('/dbs/{dbId}/backups'),
-    deleteDbBackup: Api.newDelete('/dbs/{dbId}/backups/{backupId}'),
-    getDbNamesWithoutBackup: Api.newGet('/dbs/{dbId}/db-names-without-backup'),
-    enableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/enable'),
-    disableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/disable'),
-    startDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/start'),
-    saveDbBackup: Api.newPut('/dbs/{dbId}/backups/{id}'),
-    getDbBackupHistories: Api.newGet('/dbs/{dbId}/backup-histories'),
-    restoreDbBackupHistory: Api.newPost('/dbs/{dbId}/backup-histories/{backupHistoryId}/restore'),
-    deleteDbBackupHistory: Api.newDelete('/dbs/{dbId}/backup-histories/{backupHistoryId}'),
+    getDbBackups: Api.newGet<DbBackup[]>('/dbs/{dbId}/backups'),
+    createDbBackup: Api.newPost<void>('/dbs/{dbId}/backups'),
+    deleteDbBackup: Api.newDelete<void>('/dbs/{dbId}/backups/{backupId}'),
+    getDbNamesWithoutBackup: Api.newGet<string[]>('/dbs/{dbId}/db-names-without-backup'),
+    enableDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{backupId}/enable'),
+    disableDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{backupId}/disable'),
+    startDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{backupId}/start'),
+    saveDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{id}'),
+    getDbBackupHistories: Api.newGet<DbBackupHistory[]>('/dbs/{dbId}/backup-histories'),
+    restoreDbBackupHistory: Api.newPost<void>('/dbs/{dbId}/backup-histories/{backupHistoryId}/restore'),
+    deleteDbBackupHistory: Api.newDelete<void>('/dbs/{dbId}/backup-histories/{backupHistoryId}'),
 
     // 获取数据库恢复列表
-    getDbRestores: Api.newGet('/dbs/{dbId}/restores'),
-    createDbRestore: Api.newPost('/dbs/{dbId}/restores'),
-    deleteDbRestore: Api.newDelete('/dbs/{dbId}/restores/{restoreId}'),
-    getDbNamesWithoutRestore: Api.newGet('/dbs/{dbId}/db-names-without-restore'),
-    enableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/enable'),
-    disableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/disable'),
-    saveDbRestore: Api.newPut('/dbs/{dbId}/restores/{id}'),
+    getDbRestores: Api.newGet<DbRestore[]>('/dbs/{dbId}/restores'),
+    createDbRestore: Api.newPost<void>('/dbs/{dbId}/restores'),
+    deleteDbRestore: Api.newDelete<void>('/dbs/{dbId}/restores/{restoreId}'),
+    getDbNamesWithoutRestore: Api.newGet<string[]>('/dbs/{dbId}/db-names-without-restore'),
+    enableDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{restoreId}/enable'),
+    disableDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{restoreId}/disable'),
+    saveDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{id}'),
 };
 
 export const dbSqlExecApi = {
     // 根据业务key获取sql执行信息
-    getSqlExecByBizKey: Api.newGet('/dbs/sql-execs'),
+    getSqlExecByBizKey: Api.newGet<PageResult<DbSqlExec>, PageParam>('/dbs/sql-execs'),
 };
-export const encryptField = async (param: any, field: string) => {
+export const encryptField = async (param: Record<string, unknown>, field: string) => {
     // sql编码处理
     if (!param['_encrypted'] && param[field]) {
-        // 判断是开发环境就打印sql
-        if (process.env.NODE_ENV === 'development') {
-            console.log(param[field]);
-        }
         // 使用aes加密sql
         param['_encrypted'] = 1;
-        param[field] = AesEncrypt(param[field]);
+        param[field] = AesEncrypt(param[field] as string);
         // console.log('解密结果', DesDecrypt(param[field]));
     }
     return param;

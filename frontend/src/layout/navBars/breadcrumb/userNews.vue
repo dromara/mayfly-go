@@ -66,6 +66,7 @@ import EnumValue from '@/common/Enum';
 import { formatDate } from '@/common/utils/format';
 import { MessageRenderer } from '@/components/message/message';
 import { personApi } from '@/views/personal/api';
+import type { Msg } from '@/types/common';
 import { useIntervalFn } from '@vueuse/core';
 import { onMounted, ref, watchEffect } from 'vue';
 
@@ -78,7 +79,7 @@ const msgQuery = ref({
 
 const loadMoreDisable = ref(true);
 const loadingMsgs = ref(true);
-const msgs = ref<Array<any>>([]);
+const msgs = ref<Msg[]>([]);
 const unreadCount = ref(0);
 
 onMounted(() => {
@@ -105,6 +106,9 @@ const loadMsgs = async (research: boolean = false) => {
     }
 
     const msgList = await getMsgs();
+    if (!msgList) {
+        return;
+    }
     msgs.value.push(...msgList.list);
     msgQuery.value.pageNum += 1;
 
@@ -122,7 +126,7 @@ const getMsgs = async () => {
     }
 };
 
-const onRead = async (msg: any = null) => {
+const onRead = async (msg: { id: number; status: number; [key: string]: unknown } | null = null) => {
     if (msg && (msg.status == 1 || !msg.status)) {
         return;
     }

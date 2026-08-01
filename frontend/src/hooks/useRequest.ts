@@ -24,7 +24,7 @@ const useCustomFetch = createFetch({
         immediate: false,
         timeout: 600000,
         // beforeFetch in pre-configured instance will only run when the newly spawned instance do not pass beforeFetch
-        async beforeFetch({ url, options }) {
+        async beforeFetch({ url, options }: { url: string; options: RequestInit }) {
             const token = getToken();
 
             const headers = new Headers(options.headers || {});
@@ -44,7 +44,7 @@ const useCustomFetch = createFetch({
 
             return { url, options };
         },
-        async afterFetch(ctx: any) {
+        async afterFetch(ctx: { response: Response; data: unknown }) {
             // 使用 json-bigint 解析响应数据，解决 int64/uint64 精度丢失问题
             const responseText = await ctx.response.text();
             try {
@@ -68,11 +68,11 @@ interface EsReq {
 
 export interface RequestOptions extends RequestInit, EsReq {}
 
-export function useApiFetch<T, P = any>(api: Api, params?: P, reqOptions?: RequestOptions) {
+export function useApiFetch<T, P = unknown>(api: Api, params?: P, reqOptions?: RequestOptions) {
     const currentParam = ref(params);
 
     const uaf: any = useCustomFetch<T>(api.url, {
-        async beforeFetch({ url, options }) {
+        async beforeFetch({ url, options }: { url: string; options: RequestInit }) {
             options.method = api.method;
             let paramsValue = unref(currentParam);
 
@@ -103,7 +103,7 @@ export function useApiFetch<T, P = any>(api: Api, params?: P, reqOptions?: Reque
                     if (options.headers instanceof Headers) {
                         options.headers.delete('Content-Type');
                     } else if (options.headers && typeof options.headers === 'object') {
-                        delete (options.headers as any)['Content-Type'];
+                        delete (options.headers as Record<string, string>)['Content-Type'];
                     }
                 } else {
                     options.body = JSON.stringify(paramsValue);
@@ -140,7 +140,7 @@ export function useApiFetch<T, P = any>(api: Api, params?: P, reqOptions?: Reque
                 if (finalOptions.headers instanceof Headers) {
                     finalOptions.headers.delete('Content-Type');
                 } else if (finalOptions.headers && typeof finalOptions.headers === 'object') {
-                    delete (finalOptions.headers as any)['Content-Type'];
+                    delete (finalOptions.headers as Record<string, string>)['Content-Type'];
                 }
             }
 
@@ -149,7 +149,7 @@ export function useApiFetch<T, P = any>(api: Api, params?: P, reqOptions?: Reque
                 options: finalOptions,
             };
         },
-        onFetchError: (ctx: { data: any }) => {
+        onFetchError: (ctx: { data: unknown }) => {
             if (reqOptions?.esProxyReq) {
                 // 使用 json-bigint 解析错误响应
                 try {
@@ -182,39 +182,38 @@ export function useApiFetch<T, P = any>(api: Api, params?: P, reqOptions?: Reque
 }
 
 let refreshingToken = false;
-let queue: any[] = [];
+let queue: (() => void)[] = [];
 
-async function execCustomFetch(uaf: UseFetchReturn<any>, reqOptions?: RequestOptions) {
+async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: RequestOptions) {
     try {
         await uaf.execute(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
         if (!reqOptions?.esProxyReq) {
             const rejectPromise = Promise.reject(e);
 
-            if (e?.name == 'AbortError') {
-                console.log('请求已取消');
+            if ((e as Error)?.name == 'AbortError') {
                 return rejectPromise;
             }
 
             const respStatus = uaf.response.value?.status;
             if (respStatus == 404) {
-                Msg.error('url not found');
+                Msg.error('common.urlNotFoundError');
                 return rejectPromise;
             }
             if (respStatus == 500) {
-                Msg.error('server error');
+                Msg.error('common.serverError');
                 return rejectPromise;
             }
 
             console.error(e);
-            Msg.error('network error');
+            Msg.error('common.networkError');
             return rejectPromise;
         }
     }
 
-    const result: Result & { error: any; status: number } = uaf.data.value as any;
+    const result = uaf.data.value as (Result & { error: unknown; status: number }) | undefined;
     if (!result) {
-        Msg.error('network request failed');
+        Msg.error('common.requestFailedError');
         return Promise.reject(result);
     }
     // es代理请求
@@ -244,17 +243,17 @@ async function execCustomFetch(uaf: UseFetchReturn<any>, reqOptions?: RequestOpt
 
         try {
             refreshingToken = true;
-            const res = await openApi.refreshToken({ refresh_token: getRefreshToken() });
+            const res = await openApi.refreshToken({ refresh_token: getRefreshToken() }) as { token: string; refresh_token: string };
             saveToken(res.token);
             saveRefreshToken(res.refresh_token);
             // 重新缓存后端用户权限code
             await openApi.getPermissions();
 
             // 执行accessToken失效的请求
-            queue.forEach((resolve: any) => {
+            queue.forEach((resolve: () => void) => {
                 resolve();
             });
-        } catch (e: any) {
+        } catch (e: unknown) {
             clearUser();
         } finally {
             refreshingToken = false;

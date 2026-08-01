@@ -70,7 +70,7 @@ import { onUnmounted, reactive, ref } from 'vue';
 import { TerminalStatus } from '@/components/terminal/common';
 import ClipboardDialog from '@/components/terminal-rdp/guac/ClipboardDialog.vue';
 import { TerminalExpose } from '@/components/terminal-rdp/index';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import { exitFullscreen, launchIntoFullscreen, unWatchFullscreenChange, watchFullscreenChange } from '@/components/terminal-rdp/guac/screen';
 import { useDebounceFn, useEventListener } from '@vueuse/core';
@@ -79,9 +79,74 @@ import { Msg } from '@/hooks/useI18n';
 import { joinClientParams } from '@/common/request';
 import { MachineProtocolEnum } from '@/views/ops/machine/enums';
 
-const viewportRef = ref({} as any);
-const displayRef = ref({} as any);
-const clipboardRef = ref({} as any);
+// Guacamole JS 库最小接口定义
+interface GuacClient {
+    connect: (queryString: string) => void;
+    disconnect: () => void;
+    sendKeyEvent: (pressed: number, keysym: number) => void;
+    sendSize: (width: number, height: number) => void;
+    sendMouseState: (state: GuacMouseState) => void;
+    getDisplay: () => GuacDisplay;
+    createArgumentValueStream: (mimetype: string, name: string) => GuacStream;
+    onclipboard?: (stream: GuacStream, mimetype: string) => void;
+    onstatechange?: (state: number) => void;
+    onerror?: (status: { message: string }) => void;
+    onsync?: () => void;
+    onargv?: (stream: GuacStream, mimetype: string, name: string) => void;
+    currentState: number;
+}
+interface GuacDisplay {
+    getElement: () => HTMLElement;
+    showCursor: (show: boolean) => void;
+    scale: (s: number) => void;
+    resize: (w: number, h: number) => void;
+    getWidth: () => number;
+    getHeight: () => number;
+    getScale: () => number;
+}
+interface GuacMouseState {
+    x: number;
+    y: number;
+    left: boolean;
+    middle: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+}
+interface GuacTunnel {
+    onerror: (status: { message: string }) => void;
+    onstatechange: (state: number) => void;
+}
+interface GuacStream {
+    onack: (status: { isError: () => boolean }) => void;
+}
+interface GuacStringReader {
+    ontext: (text: string) => void;
+    onend: () => void;
+}
+interface GuacKeyboard {
+    onkeydown: (keysym: number) => void;
+    onkeyup: (keysym: number) => void;
+}
+interface GuacMouse {
+    onmousedown: (state: GuacMouseState, showCursor?: boolean) => void;
+    onmouseup: (state: GuacMouseState, showCursor?: boolean) => void;
+    onmousemove: (state: GuacMouseState, showCursor?: boolean) => void;
+    onmouseout: () => void;
+}
+interface GuacTouchpad {
+    onmousedown: (state: GuacMouseState, showCursor?: boolean) => void;
+    onmouseup: (state: GuacMouseState, showCursor?: boolean) => void;
+    onmousemove: (state: GuacMouseState, showCursor?: boolean) => void;
+}
+interface GuacClipboard {
+    onClipboard: (data: string) => void;
+    setText: (text: string) => void;
+}
+
+const viewportRef = ref<HTMLElement | null>(null);
+const displayRef = ref<HTMLElement | null>(null);
+const clipboardRef = ref<InstanceType<typeof ClipboardDialog> | null>(null);
 
 const props = defineProps({
     machineId: {
@@ -105,15 +170,15 @@ const props = defineProps({
 const emit = defineEmits(['statusChange']);
 
 const state = reactive({
-    client: null as any,
-    display: null as any,
-    displayElm: {} as any,
-    clipboard: {} as any,
-    keyboard: {} as any,
-    mouse: null as any,
-    touchpad: null as any,
+    client: null as GuacClient | null,
+    display: null as GuacDisplay | null,
+    displayElm: {} as HTMLElement,
+    clipboard: {} as GuacClipboard,
+    keyboard: null as GuacKeyboard | null,
+    mouse: null as GuacMouse | null,
+    touchpad: null as GuacTouchpad | null,
     errorMessage: '',
-    arguments: {} as any,
+    arguments: {} as Record<string, unknown>,
     status: TerminalStatus.NoConnected,
     size: {
         height: 710,
@@ -143,19 +208,27 @@ const state = reactive({
 const installKeyboard = () => {
     state.keyboard = new Guacamole.Keyboard(state.displayElm);
     uninstallKeyboard();
-    state.keyboard.onkeydown = (keysym: any) => {
-        state.client.sendKeyEvent(1, keysym);
+    if (!state.keyboard) {
+        return;
+    }
+    state.keyboard.onkeydown = (keysym: number) => {
+        state.client?.sendKeyEvent(1, keysym);
     };
-    state.keyboard.onkeyup = (keysym: any) => {
-        state.client.sendKeyEvent(0, keysym);
+    state.keyboard.onkeyup = (keysym: number) => {
+        state.client?.sendKeyEvent(0, keysym);
     };
 };
 const uninstallKeyboard = () => {
-    state.keyboard!.onkeydown = state.keyboard!.onkeyup = () => {};
+    if (state.keyboard) {
+        state.keyboard.onkeydown = state.keyboard.onkeyup = () => {};
+    }
 };
 
 const installMouse = () => {
     state.mouse = new Guacamole.Mouse(state.displayElm);
+    if (!state.mouse) {
+        return;
+    }
     // Hide software cursor when mouse leaves display
     state.mouse.onmouseout = () => {
         if (!state.display) return;
@@ -166,31 +239,34 @@ const installMouse = () => {
 
 const installTouchpad = () => {
     state.touchpad = new Guacamole.Mouse.Touchpad(state.displayElm);
+    if (!state.touchpad) {
+        return;
+    }
 
     state.touchpad.onmousedown =
         state.touchpad.onmouseup =
         state.touchpad.onmousemove =
-            (st: any) => {
+            (st: GuacMouseState) => {
                 // 记录按下时，光标所在位置
-                console.log(st);
                 handleMouseState(st, true);
             };
 
     // 记录单指按压时候手在屏幕的位置
     state.displayElm.ontouchend = (event: TouchEvent) => {
-        console.log('end', event);
         state.displayElm.ontouchend = () => {};
     };
 };
 
 const setClipboard = (data: string) => {
-    clipboardRef.value.setValue(data);
+    clipboardRef.value?.setValue(data);
 };
 
 const installClipboard = () => {
-    state.enableClipboard = clipboard.install(state.client) as any;
+    state.enableClipboard = clipboard.install(state.client) as boolean;
     clipboard.installWatcher(props.clipboardList, setClipboard);
-    state.client.onclipboard = clipboard.onClipboard;
+    if (state.client) {
+        state.client.onclipboard = clipboard.onClipboard;
+    }
 };
 
 const installResize = () => {
@@ -199,11 +275,17 @@ const installResize = () => {
 };
 
 const installDisplay = () => {
+    if (!state.client) {
+        return;
+    }
     let { width, height, force } = state.size;
     state.display = state.client.getDisplay();
     const displayElm = displayRef.value;
+    if (!displayElm) {
+        return;
+    }
     displayElm.appendChild(state.display.getElement());
-    displayElm.addEventListener('contextmenu', (e: any) => {
+    displayElm.addEventListener('contextmenu', (e: Event) => {
         e.stopPropagation();
         if (e.preventDefault) {
             e.preventDefault();
@@ -211,7 +293,7 @@ const installDisplay = () => {
         e.returnValue = false;
     });
     state.client.connect('width=' + width + '&height=' + height + '&force=' + force + '&' + joinClientParams());
-    window.onunload = () => state.client.disconnect();
+    window.onunload = () => state.client?.disconnect();
 
     // allows focusing on the display div so that keyboard doesn't always go to session
     displayElm.onclick = () => {
@@ -228,23 +310,22 @@ const installDisplay = () => {
 };
 
 const installClient = () => {
-    let tunnel = new Guacamole.WebSocketTunnel(getMachineRdpSocketUrl(props.authCert)) as any;
+    let tunnel = new Guacamole.WebSocketTunnel(getMachineRdpSocketUrl(props.authCert)) as GuacTunnel;
     if (state.client) {
         state.display?.scale(0);
         uninstallKeyboard();
         state.client.disconnect();
     }
 
-    state.client = new Guacamole.Client(tunnel);
+    const client: GuacClient = new Guacamole.Client(tunnel);
+    state.client = client;
 
-    tunnel.onerror = (status: any) => {
-        // eslint-disable-next-line no-console
+    tunnel.onerror = (status: { message: string }) => {
         console.error(`Tunnel failed ${JSON.stringify(status)}`);
         // state.connectionState = states.TUNNEL_ERROR;
     };
 
-    tunnel.onstatechange = (st: any) => {
-        console.log('statechange', st);
+    tunnel.onstatechange = (st: number) => {
         state.status = st;
         switch (st) {
             case TunnelState.CONNECTING: // 'CONNECTING'
@@ -264,55 +345,50 @@ const installClient = () => {
         }
     };
 
-    state.client.onstatechange = (clientState: any) => {
-        console.log('clientState', clientState);
+    client.onstatechange = (clientState: number) => {
         switch (clientState) {
             case ClientState.IDLE:
-                console.log('连接空闲');
                 break;
             case ClientState.CONNECTING:
-                console.log('连接中...');
                 break;
             case ClientState.WAITING:
-                console.log('等待服务器响应...');
                 break;
             case ClientState.CONNECTED:
-                console.log('连接成功...');
                 break;
-            // eslint-disable-next-line no-fallthrough
             case ClientState.DISCONNECTING:
-                console.log('断开连接中...');
                 break;
             case ClientState.DISCONNECTED:
-                console.log('已断开连接...');
                 break;
         }
     };
 
-    state.client.onerror = (error: any) => {
-        state.client.disconnect();
+    client.onerror = (error: { message: string }) => {
+        client.disconnect();
         console.error(`Client error ${JSON.stringify(error)}`);
         state.errorMessage = error.message;
         // state.connectionState = states.CLIENT_ERROR;
     };
 
-    state.client.onsync = () => {};
+    client.onsync = () => {};
 
-    state.client.onargv = (stream: any, mimetype: any, name: any) => {
+    client.onargv = (stream: GuacStream, mimetype: string, name: string) => {
         if (mimetype !== 'text/plain') return;
 
         const reader = new Guacamole.StringReader(stream);
 
         // Assemble received data into a single string
         let value = '';
-        reader.ontext = (text: any) => {
+        reader.ontext = (text: string) => {
             value += text;
         };
 
         // Test mutability once stream is finished, storing the current value for the argument only if it is mutable
         reader.onend = () => {
+            if (!state.client) {
+                return;
+            }
             const stream = state.client.createArgumentValueStream('text/plain', name);
-            stream.onack = (status: any) => {
+            stream.onack = (status: { isError: () => boolean }) => {
                 if (status.isError()) {
                     // ignore reject
                     return;
@@ -331,6 +407,9 @@ const resize = () => {
     }
 
     let box = elm.parentElement;
+    if (!box) {
+        return;
+    }
 
     state.size.width = box.clientWidth;
     state.size.height = box.clientHeight;
@@ -339,23 +418,26 @@ const resize = () => {
     const height = parseInt(String(box.clientHeight));
 
     // VNC 协议只发送尺寸，不重连；RDP 协议在连接状态下发送尺寸，未连接时重连
-    if (state.display.getWidth() !== width || state.display.getHeight() !== height) {
+    if (state.display && (state.display.getWidth() !== width || state.display.getHeight() !== height)) {
         // VNC 协议（protocol=3）只发送尺寸变化，不触发重连
         if (props.protocol === MachineProtocolEnum.Vnc.value) {
             // VNC: 仅发送尺寸
-            state.client.sendSize(width, height);
+            state.client?.sendSize(width, height);
         } else {
             // RDP: 未连接时重连，已连接时发送尺寸
             if (state.status !== TerminalStatus.Connected) {
                 connect(width, height);
             } else {
-                state.client.sendSize(width, height);
+                state.client?.sendSize(width, height);
             }
         }
     }
 };
 
-const handleMouseState = (mouseState: any, showCursor = false) => {
+const handleMouseState = (mouseState: GuacMouseState, showCursor = false) => {
+    if (!state.client || !state.display) {
+        return;
+    }
     state.client.getDisplay().showCursor(showCursor);
 
     const scaledMouseState = Object.assign({}, mouseState, {
@@ -365,18 +447,18 @@ const handleMouseState = (mouseState: any, showCursor = false) => {
     state.client.sendMouseState(scaledMouseState);
 };
 
-const connect = (width: number, height: number, force = false) => {
+const connect = (width?: number, height?: number, force = false) => {
     if (!width && !height) {
         if (state.size && state.size.width && state.size.height) {
             width = state.size.width;
             height = state.size.height;
         } else {
             // 获取当前viewportRef宽高
-            width = viewportRef.value.clientWidth;
-            height = viewportRef.value.clientHeight;
+            width = viewportRef.value?.clientWidth;
+            height = viewportRef.value?.clientHeight;
         }
     }
-    state.size = { width, height, force };
+    state.size = { width: width ?? 0, height: height ?? 0, force };
 
     installClient();
     installDisplay();
@@ -434,7 +516,7 @@ const openFullScreen = function () {
 
     // 使用新的宽高重新连接
     setTimeout(() => {
-        connect(viewportRef.value.clientWidth, viewportRef.value.clientHeight, false);
+        connect(viewportRef.value?.clientWidth, viewportRef.value?.clientHeight, false);
     }, 500);
 
     watchFullscreenChange(watchFullscreen);
@@ -465,10 +547,10 @@ const openSendKeyboard = (keys: string[]) => {
         return;
     }
     for (let i = 0; i < keys.length; i++) {
-        state.client.sendKeyEvent(1, keys[i]);
+        state.client.sendKeyEvent(1, Number(keys[i]));
     }
     for (let j = 0; j < keys.length; j++) {
-        state.client.sendKeyEvent(0, keys[j]);
+        state.client.sendKeyEvent(0, Number(keys[j]));
     }
     Msg.success('components.terminal-rdp.sendCombinationKeySuccess');
 };

@@ -22,8 +22,8 @@ const state = computed(() => {
 });
 
 onMounted(() => {
-    let width = terminalWrapperRef.value.clientWidth;
-    let height = terminalWrapperRef.value.clientHeight;
+    let width = terminalWrapperRef.value?.clientWidth;
+    let height = terminalWrapperRef.value?.clientHeight;
     rdpRef.value?.init(width, height, false);
 });
 </script>

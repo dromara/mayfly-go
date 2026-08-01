@@ -9,7 +9,7 @@
 </template>
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import { computed, defineAsyncComponent, onMounted, reactive, ref, shallowReactive, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, useTemplateRef, watch, type Component } from 'vue';
 import KeyHeader from './KeyHeader.vue';
 import { RedisInst } from './redis';
 
@@ -19,15 +19,21 @@ const KeyValueSet = defineAsyncComponent(() => import('./KeyValueSet.vue'));
 const KeyValueList = defineAsyncComponent(() => import('./KeyValueList.vue'));
 const KeyValueZset = defineAsyncComponent(() => import('./KeyValueZset.vue'));
 
-const components: any = shallowReactive({
+interface RedisKeyInfo {
+    key: string;
+    type: string;
+    timed: number;
+}
+
+const components: Record<string, Component> = {
     KeyValueString,
     KeyValueHash,
     KeyValueSet,
     KeyValueList,
     KeyValueZset,
-});
+};
 
-const keyValueRef = ref(null) as any;
+const keyValueRef = useTemplateRef<{ initData: () => void }>('keyValueRef');
 
 const props = defineProps({
     redis: {
@@ -42,10 +48,10 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'changeKey', 'delKey']);
 
 const state = reactive({
-    keyInfo: {} as any,
+    keyInfo: {} as RedisKeyInfo,
 });
 
-const componentMap: any = {
+const componentMap: Record<string, string> = {
     string: 'KeyValueString',
     hash: 'KeyValueHash',
     zset: 'KeyValueZset',
@@ -74,7 +80,8 @@ const changeKey = () => {
     emit('changeKey');
 };
 
-const setKeyInfo = (val: any) => {
+const setKeyInfo = (val: Record<string, any> | undefined) => {
+    if (!val) return;
     state.keyInfo.timed = val.timed;
     state.keyInfo.key = val.key;
     state.keyInfo.type = val.type;

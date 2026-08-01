@@ -7,7 +7,7 @@
                 ref="searchInputRef"
                 :placeholder="$t('components.terminal.serachPlaceholder')"
                 v-model="search.value"
-                @keyup.enter.native="searchKeywords(true)"
+                @keyup.enter="searchKeywords('next')"
                 clearable
             >
             </el-input>
@@ -30,10 +30,10 @@
             </div>
             <!-- 按钮 -->
             <div class="search-buttons">
-                <el-button class="terminal-search-button search-button-prev" type="primary" size="small" @click="searchKeywords(false)">
+                <el-button class="terminal-search-button search-button-prev" type="primary" size="small" @click="searchKeywords('prev')">
                     {{ $t('components.terminal.previous') }}
                 </el-button>
-                <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="searchKeywords(true)">
+                <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="searchKeywords('next')">
                     {{ $t('components.terminal.next') }}
                 </el-button>
                 <el-button class="terminal-search-button search-button-next" type="primary" size="small" @click="closeSearch">
@@ -44,7 +44,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, toRefs, nextTick, reactive } from 'vue';
+import { ref, toRefs, nextTick, reactive, type PropType } from 'vue';
 import { SearchAddon, ISearchOptions } from '@xterm/addon-search';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '@/hooks/useI18n';
@@ -53,7 +53,7 @@ const { t } = useI18n();
 
 const props = defineProps({
     searchAddon: {
-        type: [SearchAddon],
+        type: Object as PropType<SearchAddon | null>,
         require: true,
     },
 });
@@ -73,15 +73,14 @@ const { search } = toRefs(state);
 
 const emit = defineEmits(['close']);
 
-const searchInputRef: any = ref(null);
+const searchInputRef = ref<HTMLInputElement | null>(null);
 
 function open() {
     const visible = state.search.visible;
     state.search.visible = !visible;
-    console.log(state.search.visible);
     if (!visible) {
         nextTick(() => {
-            searchInputRef.value.focus();
+            searchInputRef.value?.focus();
         });
     }
 }
@@ -93,7 +92,7 @@ function closeSearch() {
     emit('close');
 }
 
-function searchKeywords(direction: any) {
+function searchKeywords(direction: 'next' | 'prev') {
     if (!state.search.value) {
         return;
     }
@@ -104,7 +103,7 @@ function searchKeywords(direction: any) {
         incremental: state.search.incremental,
     };
     let res;
-    if (direction) {
+    if (direction === 'next') {
         res = props.searchAddon?.findNext(state.search.value, getSearchOptions(option));
     } else {
         res = props.searchAddon?.findPrevious(state.search.value, getSearchOptions(option));

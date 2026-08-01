@@ -1,0 +1,15 @@
+# 构建产物
+build/
+mayfly-cli
+
+# 配置文件（包含敏感信息）
+.mayfly-cli.yaml
+.mayfly-cli-test.yaml
+*.yaml.local
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store

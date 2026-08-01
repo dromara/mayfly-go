@@ -31,7 +31,7 @@ export function isTrue(condition: boolean, msgOrI18nKey: string) {
  * @param obj 对象1
  * @param msg 错误消息
  */
-export function notBlank(obj: any, msg: string) {
+export function notBlank(obj: unknown, msg: string) {
     if (obj == null || obj == undefined || !obj) {
         throw new AssertError(msg);
     }
@@ -46,7 +46,7 @@ export function notBlank(obj: any, msg: string) {
  * @param obj 对象
  * @param field 字段（支持i18n msgKey）
  */
-export function notBlankI18n(obj: any, field: string) {
+export function notBlankI18n(obj: unknown, field: string) {
     notBlank(obj, i18n.global.t('common.fieldNotEmpty', { field: i18n.global.t(field) }));
 }
 
@@ -57,7 +57,7 @@ export function notBlankI18n(obj: any, field: string) {
  * @param obj2 对象2
  * @param msg 错误消息
  */
-export function isEquals(obj1: any, obj2: any, msg: string) {
+export function isEquals(obj1: unknown, obj2: unknown, msg: string) {
     isTrue(obj1 === obj2, msg);
 }
 
@@ -67,7 +67,7 @@ export function isEquals(obj1: any, obj2: any, msg: string) {
  * @param obj 对象
  * @param msg 错误提示
  */
-export function notNull(obj: any, msg: string) {
+export function notNull(obj: unknown, msg: string) {
     if (obj == null || obj == undefined) {
         throw new AssertError(msg);
     }
@@ -79,7 +79,7 @@ export function notNull(obj: any, msg: string) {
  * @param str 字符串
  * @param msg 错误提示
  */
-export function notEmpty(str: string, msg: string) {
+export function notEmpty(str: unknown, msg: string) {
     if (str == null || str == undefined || str == '') {
         throw new AssertError(msg);
     }

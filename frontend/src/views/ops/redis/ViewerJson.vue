@@ -36,7 +36,7 @@ onMounted(() => {
 const setContent = (val: any) => {
     state.modelValue = val;
     setTimeout(() => {
-        monacoEditorRef.value.format();
+        monacoEditorRef.value?.format();
     }, 100);
 };
 

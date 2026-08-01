@@ -91,8 +91,8 @@
                                 </span>
                             </template>
 
-                            <div class="h-full" v-if="Number.isInteger(state.activeTabName) && Number.parseInt(state.activeTabName) === index">
-                                <component lazy :ref="(el: any) => setComponentRef(el, index)" :is="resource?.componentConf.component"></component>
+                            <div class="h-full" v-if="Number.isInteger(state.activeTabName) && Number.parseInt(String(state.activeTabName)) === index">
+                                <component lazy :ref="(el: unknown) => setComponentRef(el as ComponentPublicInstance, index)" :is="resource?.componentConf.component"></component>
                             </div>
                         </el-tab-pane>
                     </el-tabs>
@@ -127,30 +127,41 @@ import { formatDate } from '@/common/utils/format';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import { hasPerm } from '@/components/auth/auth';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle, useI18nFormValidate } from '@/hooks/useI18n';
 import { getResourceConfigs } from '@/views/ops/resource/resource';
-import { computed, nextTick, onMounted, reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, toRefs, useTemplateRef, watch, type ComponentPublicInstance } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import TagCodePath from '../component/TagCodePath.vue';
+import type { TagTree } from './types';
 import { tagApi } from './api';
 
-const compRefs = ref<Array<any>>([]);
-const setComponentRef = (el: any, index: number) => {
-    compRefs.value[index] = el;
+const compRefs = ref<ComponentPublicInstance[]>([]);
+const setComponentRef = (el: ComponentPublicInstance | null, index: number) => {
+    if (el) compRefs.value[index] = el;
 };
 
 const { t } = useI18n();
 
-interface Tree {
+interface TreeNodeData {
     id: number;
-    codePath: string;
+    type?: number;
+    codePath?: string;
     name: string;
-    children?: Tree[];
+    remark?: string;
+    children?: TreeNodeData[];
+    [key: string]: unknown;
 }
 
-const tagForm: any = ref(null);
-const tagTreeRef: any = useTemplateRef('tagTreeRef');
+interface TreeNode {
+    data: TreeNodeData;
+    childNodes: TreeNode[];
+    expanded: boolean;
+}
+
+const tagForm = useTemplateRef<FormInstance>('tagForm');
+const tagTreeRef = useTemplateRef<{ setCurrentKey: (key: number) => void; filter: (val: string) => void }>('tagTreeRef');
 const filterTag = ref('');
 const contextmenuRef = ref();
 
@@ -180,31 +191,33 @@ const resources = computed(() => {
 const contextmenuAdd = new ContextmenuItem('addTag', 'tag.createSubTag')
     .withIcon('circle-plus')
     .withPermission('tag:save')
-    .withHideFunc((data: any) => {
+    .withHideFunc((data: unknown) => {
+        const d = data as TreeNodeData;
         // 非标签类型不可添加子标签
-        return data.type != TagResourceTypeEnum.Tag.value || (data.children && data.children?.[0].type != TagResourceTypeEnum.Tag.value);
+        return d.type != TagResourceTypeEnum.Tag.value || (!!d.children && d.children?.[0].type != TagResourceTypeEnum.Tag.value);
     })
-    .withOnClick((data: any) => onShowSaveTagDialog(data));
+    .withOnClick((data: unknown) => onShowSaveTagDialog(data as TreeNodeData));
 
 const contextmenuEdit = new ContextmenuItem('edit', 'common.edit')
     .withIcon('edit')
     .withPermission('tag:save')
-    .withHideFunc((data: any) => {
-        return data.type != TagResourceTypeEnum.Tag.value;
+    .withHideFunc((data: unknown) => {
+        return (data as TreeNodeData).type != TagResourceTypeEnum.Tag.value;
     })
-    .withOnClick((data: any) => onShowEditTagDialog(data));
+    .withOnClick((data: unknown) => onShowEditTagDialog(data as TreeNodeData));
 
 const contextmenuDel = new ContextmenuItem('delete', 'common.delete')
     .withIcon('delete')
     .withPermission('tag:del')
-    .withHideFunc((data: any) => {
+    .withHideFunc((data: unknown) => {
+        const d = data as TreeNodeData;
         // 存在子标签，则不允许删除
-        return data.children || data.type != TagResourceTypeEnum.Tag.value;
+        return !!d.children || d.type != TagResourceTypeEnum.Tag.value;
     })
-    .withOnClick((data: any) => onDeleteTag(data));
+    .withOnClick((data: unknown) => onDeleteTag(data as TreeNodeData));
 
 const state = reactive({
-    data: [],
+    data: [] as TagTree[],
     saveTabDialog: {
         title: '',
         visible: false,
@@ -214,10 +227,10 @@ const state = reactive({
         title: '',
         visible: false,
         tagPath: '',
-        data: null as any,
+        data: null as TagTree | null,
     },
     // 展开的节点
-    defaultExpandedKeys: [] as any,
+    defaultExpandedKeys: [] as number[],
     contextmenu: {
         dropdown: {
             x: 0,
@@ -225,9 +238,9 @@ const state = reactive({
         },
         items: [contextmenuEdit, contextmenuAdd, contextmenuDel],
     },
-    activeTabName: TagDetail,
-    currentTag: null as any,
-    resourceCount: {} as any,
+    activeTabName: TagDetail as string | number,
+    currentTag: null as TagTree | null,
+    resourceCount: {} as Record<string, number>,
 });
 
 const { data, saveTabDialog, currentTag, resourceCount, defaultExpandedKeys } = toRefs(state);
@@ -243,19 +256,19 @@ const rules = {
 
 onMounted(() => {
     search();
-    tagTreeRef.value.setCurrentKey(allNode.id);
+    tagTreeRef.value?.setCurrentKey(allNode.id);
     onTreeNodeClick(allNode);
 });
 
 watch(filterTag, (val) => {
-    tagTreeRef.value!.filter(val);
+    tagTreeRef.value?.filter(val);
 });
 
 watch(
     () => state.currentTag,
-    (val: any) => {
+    (val: TagTree | null) => {
         if (val?.type == TagResourceTypeEnum.Tag.value) {
-            tagApi.countTagResource.request({ tagPath: val.codePath }).then((res: any) => {
+            tagApi.countTagResource.request({ tagPath: val.codePath }).then((res: Record<string, number>) => {
                 state.resourceCount = res;
             });
         }
@@ -269,17 +282,17 @@ const onTabChange = () => {
 };
 
 const setNowTabData = async () => {
-    if (Number.isInteger(state.activeTabName)) {
-        (await getResouceCompRef(Number.parseInt(state.activeTabName))).search(state.currentTag.codePath);
+    if (Number.isInteger(state.activeTabName) && state.currentTag) {
+        (await getResouceCompRef(Number.parseInt(String(state.activeTabName)))).search(state.currentTag.codePath);
     }
 };
 
-const getResouceCompRef = (index: number): Promise<any> => {
+const getResouceCompRef = (index: number): Promise<{ search: (tagPath: string) => void }> => {
     // 使用一个 Promise 来确保组件引用已经被设置
     return new Promise((resolve) => {
         const checkRef = () => {
             if (compRefs.value[index]) {
-                resolve(compRefs.value[index]);
+                resolve(compRefs.value[index] as unknown as { search: (tagPath: string) => void });
             } else {
                 // 如果引用还没有设置，稍后再检查
                 setTimeout(checkRef, 10);
@@ -292,13 +305,13 @@ const getResouceCompRef = (index: number): Promise<any> => {
     });
 };
 
-const filterNode = (value: string, data: Tree) => {
-    return !value || isPrefixSubsequence(value, data.codePath) || isPrefixSubsequence(value, data.name);
+const filterNode = (value: string, data: TreeNodeData) => {
+    return !value || isPrefixSubsequence(value, data.codePath || '') || isPrefixSubsequence(value, data.name);
 };
 
 const search = async () => {
     let res = await tagApi.getTagTrees.request({ flatten: '0' });
-    res.unshift(allNode);
+    res.unshift(allNode as unknown as TagTree);
     state.data = res;
 };
 
@@ -308,20 +321,20 @@ const getDetail = async (id: number) => {
 };
 
 // 树节点右击事件
-const onNodeContextmenu = (event: any, data: any) => {
+const onNodeContextmenu = (event: MouseEvent, data: TreeNodeData) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    contextmenuRef.value.openContextmenu(data);
+    contextmenuRef.value?.openContextmenu(data);
 };
 
-const onTreeNodeClick = async (data: any) => {
+const onTreeNodeClick = async (data: TreeNodeData) => {
     // 关闭可能存在的右击菜单
-    contextmenuRef.value.closeContextmenu();
+    contextmenuRef.value?.closeContextmenu();
 
     if (data.id == allNode.id) {
-        state.currentTag = data;
-        state.activeTabName = 0 as any;
+        state.currentTag = data as unknown as TagTree;
+        state.activeTabName = 0 as string | number;
         onTabChange();
         return;
     }
@@ -330,7 +343,7 @@ const onTreeNodeClick = async (data: any) => {
     state.activeTabName = TagDetail;
 };
 
-const onShowSaveTagDialog = (data: any) => {
+const onShowSaveTagDialog = (data: TreeNodeData | null) => {
     if (data) {
         state.saveTabDialog.form.pid = data.id;
         state.saveTabDialog.title = t('tag.createSubTagTitle', { codePath: data.codePath });
@@ -340,11 +353,11 @@ const onShowSaveTagDialog = (data: any) => {
     state.saveTabDialog.visible = true;
 };
 
-const onShowEditTagDialog = (data: any) => {
+const onShowEditTagDialog = (data: TreeNodeData) => {
     state.saveTabDialog.form.id = data.id;
     state.saveTabDialog.form.name = data.name;
-    state.saveTabDialog.form.remark = data.remark;
-    state.saveTabDialog.title = useI18nEditTitle(data.codePath);
+    state.saveTabDialog.form.remark = data.remark ?? '';
+    state.saveTabDialog.title = useI18nEditTitle(data.codePath ?? '');
     state.saveTabDialog.visible = true;
 };
 
@@ -360,11 +373,11 @@ const onSaveTag = async () => {
 
 const onCancelSaveTag = () => {
     state.saveTabDialog.visible = false;
-    state.saveTabDialog.form = {} as any;
-    tagForm.value.resetFields();
+    state.saveTabDialog.form = { id: 0, pid: 0, name: '', remark: '' };
+    tagForm.value?.resetFields();
 };
 
-const onDeleteTag = async (data: any) => {
+const onDeleteTag = async (data: TreeNodeData) => {
     await useI18nDeleteConfirm(data.codePath);
     await tagApi.delTagTree.request({ id: data.id });
     Msg.deleteSuccess();
@@ -372,15 +385,15 @@ const onDeleteTag = async (data: any) => {
 };
 
 // 节点被展开时触发的事件
-const onNodeExpand = (data: any, node: any) => {
-    const id: any = node.data.id;
+const onNodeExpand = (data: TreeNodeData, node: TreeNode) => {
+    const id = node.data.id;
     if (!state.defaultExpandedKeys.includes(id)) {
         state.defaultExpandedKeys.push(id);
     }
 };
 
 // 关闭节点
-const onNodeCollapse = (data: any, node: any) => {
+const onNodeCollapse = (data: TreeNodeData, node: TreeNode) => {
     removeDeafultExpandId(node.data.id);
 
     let childNodes = node.childNodes;
@@ -393,7 +406,7 @@ const onNodeCollapse = (data: any, node: any) => {
     }
 };
 
-const removeDeafultExpandId = (id: any) => {
+const removeDeafultExpandId = (id: number) => {
     let index = state.defaultExpandedKeys.indexOf(id);
     if (index > -1) {
         state.defaultExpandedKeys.splice(index, 1);

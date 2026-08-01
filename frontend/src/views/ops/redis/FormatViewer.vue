@@ -14,7 +14,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, reactive, computed, shallowReactive, watch, toRefs, onMounted } from 'vue';
+import { ref, reactive, computed, watch, toRefs, onMounted, type Component } from 'vue';
 import ViewerText from './ViewerText.vue';
 import ViewerJson from './ViewerJson.vue';
 import { formatByteSize } from '@/common/utils/format';
@@ -29,11 +29,11 @@ const props = defineProps({
     },
 });
 
-const components: any = shallowReactive({
+const components: Record<string, Component> = {
     ViewerText,
     ViewerJson,
-});
-const viewerRef: any = ref(null);
+};
+const viewerRef = ref<{ getContent: () => string } | null>(null);
 
 const state = reactive({
     content: '',
@@ -41,7 +41,7 @@ const state = reactive({
     selectedView: 'Text',
 });
 
-const viewers: any = {
+const viewers: Record<string, { value: string }> = {
     Text: {
         value: 'ViewerText',
     },
@@ -59,13 +59,13 @@ const viewerComponent = computed(() => {
 
 watch(
     () => props.content,
-    (val: any) => {
-        setContent(val);
+    (val?: string) => {
+        setContent(val ?? '');
     }
 );
 
 onMounted(() => {
-    setContent(props.content as any);
+    setContent(props.content ?? '');
 });
 
 const setContent = (content: string) => {
@@ -80,7 +80,7 @@ const setContent = (content: string) => {
 };
 
 const getContent = () => {
-    return viewerRef.value.getContent();
+    return viewerRef.value?.getContent();
 };
 
 defineExpose({ getContent });

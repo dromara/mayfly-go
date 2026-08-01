@@ -130,15 +130,15 @@
                                     >
                                     </el-button>
 
-                                    <el-button-group v-if="state.copyOrMvFile.paths.length > 0" size="small" class="!ml-1">
+                                    <el-button-group v-if="copyOrMvFile.paths.length > 0" size="small" class="!ml-1">
                                         <el-tooltip effect="customized" raw-content placement="top">
                                             <template #content>
-                                                <div v-for="path in state.copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
+                                                <div v-for="path in copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
                                             </template>
 
                                             <el-button @click="pasteFile" type="primary">
                                                 {{ isCpFile() ? $t('machine.copy') : $t('machine.move') }}
-                                                {{ $t('machine.paste') }}{{ state.copyOrMvFile.paths.length }}</el-button
+                                                {{ $t('machine.paste') }}{{ copyOrMvFile.paths.length }}</el-button
                                             >
                                         </el-tooltip>
 
@@ -165,7 +165,7 @@
                                     <div v-if="scope.row.nameEdit">
                                         <el-input
                                             @keyup.enter="fileRename(scope.row)"
-                                            :ref="(el: any) => el?.focus()"
+                                            :ref="focusRenameInput"
                                             @blur="filenameBlur(scope.row)"
                                             v-model="scope.row.name"
                                         />
@@ -311,18 +311,19 @@
 import { Msg } from '@/hooks/useI18n';
 import { ElInput } from 'element-plus';
 import { computed, defineAsyncComponent, getCurrentInstance, onMounted, reactive, ref, toRefs } from 'vue';
-import { machineApi, uploadFile, uploadFolder } from '../api';
+import { machineApi } from '../api';
 
 import { isTrue, notBlank } from '@/common/assert';
-import config from '@/common/config';
-import { joinClientParams } from '@/common/request';
 import { getMachineConfig } from '@/common/sysconfig';
-import { convertToBytes, formatByteSize } from '@/common/utils/format';
+import { formatByteSize } from '@/common/utils/format';
 import { getToken } from '@/common/utils/storage';
 import { fuzzyMatchField } from '@/common/utils/string';
-import { useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
+import type { ComponentPublicInstance } from 'vue';
 import { MachineProtocolEnum } from '../enums';
+import type { MachineFileInfo, MachineUserInfo, MachineGroupInfo } from '../types';
+import { getFileIcon } from './utils/fileIcon';
+import { useFileOperations } from './composables/useFileOperations';
 
 const MachineFileContent = defineAsyncComponent(() => import('./MachineFileContent.vue'));
 
@@ -339,12 +340,12 @@ const props = defineProps({
 });
 
 const token = getToken();
-const folderUploadRef: any = ref();
+const folderUploadRef = ref<HTMLInputElement | null>(null);
 
 const folderType = 'd';
 
-const userMap = ref(new Map<number, any>());
-const groupMap = ref(new Map<number, any>());
+const userMap = ref(new Map<number, MachineUserInfo>());
+const groupMap = ref(new Map<number, MachineGroupInfo>());
 
 // 路径分隔符
 const pathSep = '/';
@@ -354,13 +355,8 @@ const state = reactive({
     nowPath: '', // 当前路径
     loading: true,
     fileNameFilter: '',
-    files: [] as any,
-    selectionFiles: [] as any,
-    copyOrMvFile: {
-        paths: [] as any,
-        type: 'cp',
-        fromPath: '',
-    },
+    files: [] as MachineFileInfo[],
+    selectionFiles: [] as MachineFileInfo[],
     renameFile: {
         oldname: '',
     },
@@ -375,7 +371,7 @@ const state = reactive({
         visible: false,
         name: '',
         type: folderType,
-        data: null as any,
+        data: null as Record<string, unknown> | null,
     },
     machineConfig: { uploadMaxFileSize: '1GB' },
 });
@@ -383,6 +379,35 @@ const state = reactive({
 const { basePath, nowPath, loading, fileNameFilter, fileContent, createFileDialog } = toRefs(state);
 
 const emits = defineEmits(['init']);
+
+// File operations composable
+const {
+    copyOrMvFile,
+    isCpFile,
+    copyFile,
+    mvFile,
+    pasteFile,
+    cancelCopy,
+    fileRename: doFileRename,
+    deleteFile,
+    createFile: doCreateFile,
+    downloadFile,
+    getDirSize,
+    showFileStat,
+    checkUploadFileSize,
+    handleFileUpload,
+    handleFolderUpload: doFolderUpload,
+    dontOperate,
+} = useFileOperations({
+    machineId: () => props.machineId,
+    authCertName: () => props.authCertName,
+    fileId: () => props.fileId,
+    protocol: () => props.protocol,
+    nowPath: () => state.nowPath,
+    setLoading: (l) => (state.loading = l),
+    refresh: () => refresh(),
+    uploadMaxFileSize: () => state.machineConfig.uploadMaxFileSize,
+});
 
 // Init as MachineOp component
 onMounted(async () => {
@@ -392,13 +417,13 @@ onMounted(async () => {
     const machineId = props.machineId;
 
     if (props.protocol == MachineProtocolEnum.Ssh.value) {
-        machineApi.users.request({ id: machineId }).then((res: any) => {
+        machineApi.users.request({ id: machineId }).then((res: MachineUserInfo[]) => {
             for (let user of res) {
                 userMap.value.set(user.uid, user);
             }
         });
 
-        machineApi.groups.request({ id: machineId }).then((res: any) => {
+        machineApi.groups.request({ id: machineId }).then((res: MachineGroupInfo[]) => {
             for (let group of res) {
                 groupMap.value.set(group.gid, group);
             }
@@ -409,7 +434,12 @@ onMounted(async () => {
     state.machineConfig = await getMachineConfig();
 });
 
-const filterFiles = computed(() => fuzzyMatchField(state.fileNameFilter, state.files, (file: any) => file.name));
+const filterFiles = computed(() => fuzzyMatchField(state.fileNameFilter, state.files, (file: MachineFileInfo) => file.name));
+
+/** 重命名输入框渲染后自动聚焦 */
+const focusRenameInput = (el: Element | ComponentPublicInstance | null) => {
+    (el as InstanceType<typeof ElInput> | null)?.focus();
+};
 
 const filePathNav = computed(() => {
     let basePath = state.basePath;
@@ -445,60 +475,11 @@ const filePathNav = computed(() => {
     return pathNavs;
 });
 
-const handleSelectionChange = (val: any) => {
+const handleSelectionChange = (val: MachineFileInfo[]) => {
     state.selectionFiles = val;
 };
 
-const isCpFile = () => {
-    return state.copyOrMvFile.type == 'cp';
-};
-
-const copyFile = (files: any[]) => {
-    setCopyOrMvFile(files);
-};
-
-const mvFile = (files: any[]) => {
-    setCopyOrMvFile(files, 'mv');
-};
-
-const setCopyOrMvFile = (files: any[], type = 'cp') => {
-    for (let file of files) {
-        const path = file.path;
-        if (!state.copyOrMvFile.paths.includes(path)) {
-            state.copyOrMvFile.paths.push(path);
-        }
-    }
-    state.copyOrMvFile.type = type;
-    state.copyOrMvFile.fromPath = state.nowPath;
-};
-
-const pasteFile = async () => {
-    const cmFile = state.copyOrMvFile;
-    isTrue(state.nowPath != cmFile.fromPath, 'machine.sameDirNoPaste');
-    const api = isCpFile() ? machineApi.cpFile : machineApi.mvFile;
-    try {
-        state.loading = true;
-        await api.request({
-            machineId: props.machineId,
-            fileId: props.fileId,
-            authCertName: props.authCertName,
-            paths: cmFile.paths,
-            toPath: state.nowPath,
-            protocol: props.protocol,
-        });
-        Msg.success('machine.pasteSuccess');
-        state.copyOrMvFile.paths = [];
-        refresh();
-    } finally {
-        state.loading = false;
-    }
-};
-
-const cancelCopy = () => {
-    state.copyOrMvFile.paths = [];
-};
-
-const cellDbclick = (row: any, column: any) => {
+const cellDbclick = (row: MachineFileInfo, column: { property: string }) => {
     // 双击名称列可修改名称
     if (column.property == 'name') {
         state.renameFile.oldname = row.name;
@@ -506,7 +487,7 @@ const cellDbclick = (row: any, column: any) => {
     }
 };
 
-const filenameBlur = (row: any) => {
+const filenameBlur = (row: MachineFileInfo) => {
     const oldname = state.renameFile.oldname;
     // 如果存在旧名称，则说明未回车修改文件名，则还原旧文件名
     if (oldname) {
@@ -516,23 +497,13 @@ const filenameBlur = (row: any) => {
     row.nameEdit = false;
 };
 
-const fileRename = async (row: any) => {
+const fileRename = async (row: MachineFileInfo) => {
     if (row.name == state.renameFile.oldname) {
         row.nameEdit = false;
         return;
     }
-    notBlank(row.name, t('machine.newFileNameNotEmpty'));
     try {
-        await machineApi.renameFile.request({
-            machineId: parseInt(props.machineId + ''),
-            authCertName: props.authCertName,
-            fileId: parseInt(props.fileId + ''),
-            path: state.nowPath + pathSep + state.renameFile.oldname,
-            newname: state.nowPath + pathSep + row.name,
-            protocol: props.protocol,
-        });
-        Msg.success('machine.renameSuccess');
-        await refresh();
+        await doFileRename(row, state.renameFile.oldname);
     } catch (e) {
         row.name = state.renameFile.oldname;
     }
@@ -545,7 +516,7 @@ const showFileContent = async (path: string) => {
     state.fileContent.contentVisible = true;
 };
 
-const getFile = async (row: any) => {
+const getFile = async (row: MachineFileInfo) => {
     if (row.type == folderType) {
         await setFiles(row.path);
     } else {
@@ -582,84 +553,10 @@ const lsFile = async (path: string) => {
         const type = file.type;
         if (type == folderType) {
             file.isFolder = true;
-            file.iocn = 'folder';
+            file.icon = 'folder';
         } else {
             file.isFolder = false;
-            const fileExtension = file.name.split('.').pop().toLowerCase();
-
-            switch (fileExtension) {
-                case 'doc':
-                case 'docx':
-                    file.icon = 'icon file/word';
-                    break;
-                case 'xls':
-                case 'xlsx':
-                    file.icon = 'icon file/excel';
-                    break;
-                case 'ppt':
-                case 'pptx':
-                    file.icon = 'icon file/ppt';
-                    break;
-                case 'pdf':
-                    file.icon = 'icon file/pdf';
-                    break;
-                case 'xml':
-                    file.icon = 'icon file/xml';
-                    break;
-                case 'html':
-                    file.icon = 'icon file/html';
-                    break;
-                case 'yaml':
-                case 'yml':
-                    file.icon = 'icon file/yaml';
-                    break;
-                case 'css':
-                    file.icon = 'icon file/css';
-                    break;
-                case 'js':
-                case 'ts':
-                    file.icon = 'icon file/js';
-                    break;
-                case 'mp4':
-                case 'rmvb':
-                    file.icon = 'icon file/video';
-                    break;
-                case 'mp3':
-                    file.icon = 'icon file/audio';
-                    break;
-                case 'bmp':
-                case 'jpg':
-                case 'jpeg':
-                case 'png':
-                case 'tif':
-                case 'gif':
-                case 'pcx':
-                case 'tga':
-                case 'exif':
-                case 'svg':
-                case 'psd':
-                case 'ai':
-                case 'webp':
-                    file.icon = 'icon file/image';
-                    break;
-                case 'md':
-                    file.icon = 'icon file/md';
-                    break;
-                case 'txt':
-                    file.icon = 'icon file/txt';
-                    break;
-                case 'zip':
-                case 'rar':
-                case '7z':
-                case 'gz':
-                case 'tar':
-                case 'tgz':
-                    file.icon = 'icon file/zip';
-                    break;
-                default:
-                    file.icon = 'icon file/file';
-                    break;
-            }
+            file.icon = getFileIcon(file.name);
         }
     }
     return res;
@@ -673,41 +570,6 @@ const refresh = async () => {
     setFiles(state.nowPath);
 };
 
-const getDirSize = async (data: any) => {
-    try {
-        data.loadingDirSize = true;
-        const res = await machineApi.dirSize.request({
-            machineId: props.machineId,
-            fileId: props.fileId,
-            path: data.path,
-            protocol: props.protocol,
-            authCertName: props.authCertName,
-        });
-        data.dirSize = res;
-    } finally {
-        data.loadingDirSize = false;
-    }
-};
-
-const showFileStat = async (data: any) => {
-    try {
-        if (data.stat) {
-            return;
-        }
-        data.loadingStat = true;
-        const res = await machineApi.fileStat.request({
-            machineId: props.machineId,
-            fileId: props.fileId,
-            path: data.path,
-            protocol: props.protocol,
-            authCertName: props.authCertName,
-        });
-        data.stat = res;
-    } finally {
-        data.loadingStat = false;
-    }
-};
-
 const showCreateFileDialog = () => {
     state.createFileDialog.data = {};
     state.createFileDialog.visible = true;
@@ -716,18 +578,8 @@ const showCreateFileDialog = () => {
 const createFile = async () => {
     const name = state.createFileDialog.name;
     const type = state.createFileDialog.type;
-    const path = state.nowPath + pathSep + name;
-    await machineApi.createFile.request({
-        machineId: props.machineId,
-        authCertName: props.authCertName,
-        id: props.fileId,
-        protocol: props.protocol,
-        path,
-        type,
-    });
-
+    await doCreateFile(name, type);
     closeCreateFileDialog();
-    refresh();
 };
 
 const closeCreateFileDialog = () => {
@@ -743,146 +595,31 @@ function getParentPath(filePath: string) {
     return segments.join(pathSep);
 }
 
-const deleteFile = async (files: any) => {
-    try {
-        let confirmMsg = files.map((x: any) => `[${x.path}]`).join('\n');
-        if (confirmMsg.length > 400) {
-            confirmMsg = confirmMsg.substring(0, 400) + '...';
-        }
-        await useI18nDeleteConfirm(confirmMsg);
-        state.loading = true;
-        await machineApi.rmFile.request({
-            fileId: props.fileId,
-            paths: files.map((x: any) => x.path),
-            machineId: props.machineId,
-            authCertName: props.authCertName,
-            protocol: props.protocol,
-        });
-        Msg.deleteSuccess();
-        refresh();
-    } catch (e) {
-        //
-    } finally {
-        state.loading = false;
-    }
-};
-
-const downloadFile = (data: any) => {
-    const a = document.createElement('a');
-    a.setAttribute(
-        'href',
-        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&authCertName=${props.authCertName}&fileId=${props.fileId}&protocol=${props.protocol}&${joinClientParams()}`
-    );
-    a.setAttribute('target', '_blank');
-    a.click();
-};
-
 function addFinderToList() {
-    folderUploadRef.value.click();
+    folderUploadRef.value?.click();
 }
 
-function handleFolderUpload(e: any) {
-    const files = e.target.files;
+function handleFolderUpload(e: Event) {
+    const files = (e.target as HTMLInputElement).files;
     if (!files || files.length === 0) {
         return;
     }
-
-    // 计算总文件大小
-    let totalFileSize = 0;
-    for (let file of files) {
-        totalFileSize += file.size;
-    }
-
-    // 检查文件大小
-    if (!checkUploadFileSize(totalFileSize)) {
-        return;
-    }
-
-    uploadFolder(
-        files,
-        {
-            machineId: props.machineId as number,
-            authCertName: props.authCertName as string,
-            protocol: props.protocol as number,
-            fileId: props.fileId as number,
-            path: state.nowPath,
-        },
-        {
-            onSuccess: () => {
-                Msg.success('machine.uploadSuccess');
-                setTimeout(() => {
-                    refresh();
-                }, 1000);
-            },
-            onError: (error) => {
-                Msg.error(error.message);
-            },
-        }
-    );
-
+    doFolderUpload(files);
     // 清空已选择的文件夹
-    const folderEle: any = document.getElementById('folderUploadInput');
+    const folderEle: HTMLInputElement | null = document.getElementById('folderUploadInput') as HTMLInputElement | null;
     if (folderEle) {
         folderEle.value = '';
     }
 }
 
-const handleFileUpload = (content: any) => {
-    const file = content.file;
-    const path = state.nowPath;
-
-    // 检查文件大小
-    if (!checkUploadFileSize(file.size)) {
-        return;
-    }
-
-    uploadFile(
-        file,
-        {
-            machineId: props.machineId as number,
-            authCertName: props.authCertName as string,
-            protocol: props.protocol as number,
-            fileId: props.fileId as number,
-            path: path,
-            filename: file.name,
-        },
-        {
-            onSuccess: () => {
-                Msg.success('machine.uploadSuccess');
-                setTimeout(() => {
-                    refresh();
-                }, 1000);
-            },
-            onError: (error: Error) => {
-                Msg.error(error.message);
-            },
-        }
-    );
-};
-
-const uploadSuccess = (res: any) => {
+const uploadSuccess = (res: Record<string, unknown>) => {
     if (res.code !== 200) {
-        Msg.error(res.msg);
+        Msg.error(res.msg as string);
     }
 };
 
 const beforeUpload = (file: File) => {
     return checkUploadFileSize(file.size);
-};
-
-const checkUploadFileSize = (fileSize: number) => {
-    const bytes = convertToBytes(state.machineConfig.uploadMaxFileSize);
-    if (fileSize > bytes) {
-        Msg.error('machine.fileExceedsSysConf', { uploadMaxFileSize: state.machineConfig.uploadMaxFileSize });
-        return false;
-    }
-    return true;
-};
-
-const dontOperate = (data: any) => {
-    const path = data.path;
-    const ls = ['/', '//', '/usr', '/usr/', '/usr/bin', '/opt', '/run', '/etc', '/proc', '/var', '/mnt', '/boot', '/dev', '/home', '/media', '/root'];
-    return ls.indexOf(path) != -1;
 };
 
 defineExpose({ showFileContent, onRefresh: refresh });

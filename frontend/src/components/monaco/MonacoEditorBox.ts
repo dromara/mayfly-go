@@ -9,11 +9,11 @@ export type MonacoEditorDialogProps = {
     language: string;
     height?: string;
     width?: string;
-    options?: any; // 可选项,如字体大小等
+    options?: monaco.editor.IStandaloneEditorConstructionOptions; // 可选项,如字体大小等
     canChangeLang?: boolean; // 是否可以切换语言
     showConfirmButton?: boolean;
-    confirmFn?: Function; // 点击确认的回调函数,入参editor value
-    closeFn?: Function; // 点击取消 或 关闭弹窗的回调函数
+    confirmFn?: (value: string) => void; // 点击确认的回调函数,入参editor value
+    closeFn?: () => void; // 点击取消 或 关闭弹窗的回调函数
     completionItemProvider?: monaco.languages.CompletionItemProvider; // 自定义补全项
     useDrawer?: boolean; // 是否使用drawer而不是dialog,默认false
     drawerSize?: string | number; // drawer尺寸,默认'50%'
@@ -21,7 +21,7 @@ export type MonacoEditorDialogProps = {
 
 const MonacoEditorBox = (props: MonacoEditorDialogProps): void => {
     const boxId = props.useDrawer ? 'monaco-editor-drawer-id' : 'monaco-editor-dialog-id';
-    let boxInstance: VNode;
+    let boxInstance: VNode | null;
 
     const container = document.getElementById(boxId);
     if (!container) {
@@ -54,11 +54,10 @@ const MonacoEditorBox = (props: MonacoEditorDialogProps): void => {
                 // 卸载组件
                 if (boxInstance) {
                     render(null, container);
-                    boxInstance = null as any;
+                    boxInstance = null;
                 }
                 // 移除 container DOM 元素
                 document.body.removeChild(container);
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                 props.closeFn && props.closeFn();
             },
             onConfirm: () => {
@@ -78,7 +77,6 @@ const MonacoEditorBox = (props: MonacoEditorDialogProps): void => {
                     // 压缩json字符串
                     value = JSON.stringify(val);
                 }
-                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                 props.confirmFn && props.confirmFn(value);
             },
         });

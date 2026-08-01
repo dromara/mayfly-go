@@ -1,7 +1,7 @@
 <template>
     <BaseTreeNode v-bind="$attrs">
         <template #suffix="{ data }">
-            <span>{{ formatByteSize(data.params.size) }}</span>
+            <span>{{ formatByteSize(Number(data.params.size)) }}</span>
         </template>
     </BaseTreeNode>
 </template>

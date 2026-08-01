@@ -1,5 +1,5 @@
 <template>
-    <div class="db-table flex flex-col gap-1">
+    <div class="db-table h-full flex flex-col gap-1">
         <el-row class="mb-1">
             <el-popover v-model:visible="state.dumpInfo.visible" trigger="click" :width="470" placement="right">
                 <template #reference>
@@ -49,13 +49,13 @@
                 label="Rows"
                 min-width="70"
                 sortable
-                :sort-method="(a: any, b: any) => parseInt(a.tableRows) - parseInt(b.tableRows)"
+                :sort-method="(a: DbTableInfo, b: DbTableInfo) => parseInt(String(a.tableRows)) - parseInt(String(b.tableRows))"
             ></el-table-column>
             <el-table-column
                 property="dataLength"
                 :label="$t('db.dataSize')"
                 sortable
-                :sort-method="(a: any, b: any) => parseInt(a.dataLength) - parseInt(b.dataLength)"
+                :sort-method="(a: DbTableInfo, b: DbTableInfo) => parseInt(String(a.dataLength)) - parseInt(String(b.dataLength))"
             >
                 <template #default="scope">
                     {{ formatByteSize(scope.row.dataLength) }}
@@ -65,7 +65,7 @@
                 property="indexLength"
                 :label="$t('db.indexSize')"
                 sortable
-                :sort-method="(a: any, b: any) => parseInt(a.indexLength) - parseInt(b.indexLength)"
+                :sort-method="(a: DbTableInfo, b: DbTableInfo) => parseInt(String(a.indexLength)) - parseInt(String(b.indexLength))"
             >
                 <template #default="scope">
                     {{ formatByteSize(scope.row.indexLength) }}
@@ -136,8 +136,9 @@ import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
 import { compatibleMysql, editDbTypes, getDbDialect } from '../../dialect/index';
 import { DbInst } from '../../db';
+import type { DbTableInfo, ColumnMetadata, DbTableIndex, TableOpData } from '../../types';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import { format as sqlFormatter } from 'sql-formatter';
+import { format as sqlFormatter, type SqlLanguage } from 'sql-formatter';
 import { fuzzyMatchField } from '@/common/utils/string';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 
@@ -165,7 +166,7 @@ const props = defineProps({
 const state = reactive({
     row: {},
     loading: false,
-    tables: [],
+    tables: [] as DbTableInfo[],
     tableNameSearch: '',
     tableCommentSearch: '',
     dumpInfo: {
@@ -173,16 +174,16 @@ const state = reactive({
         id: 0,
         db: '',
         type: 3,
-        tables: [],
+        tables: [] as DbTableInfo[],
     },
     chooseTableName: '',
     columnDialog: {
         visible: false,
-        columns: [],
+        columns: [] as ColumnMetadata[],
     },
     indexDialog: {
         visible: false,
-        indexs: [],
+        indexs: [] as Record<string, unknown>[],
     },
     ddlDialog: {
         visible: false,
@@ -199,7 +200,7 @@ const state = reactive({
             row: {},
             indexs: [],
             columns: [],
-        },
+        } as TableOpData,
     },
     filterDb: {
         param: '',
@@ -227,9 +228,9 @@ const filterTableInfos = computed(() => {
     }
 
     if (tableNameSearch) {
-        return fuzzyMatchField(tableNameSearch, tables, (table: any) => table.tableName);
+        return fuzzyMatchField(tableNameSearch, tables, (table: DbTableInfo) => table.tableName);
     }
-    return fuzzyMatchField(tableCommentSearch, tables, (table: any) => table.tableComment);
+    return fuzzyMatchField(tableCommentSearch, tables, (table: DbTableInfo) => table.tableComment);
 });
 
 const getTables = async () => {
@@ -247,7 +248,7 @@ const getTables = async () => {
 /**
  * 选择导出数据库表
  */
-const handleDumpTableSelectionChange = (vals: any) => {
+const handleDumpTableSelectionChange = (vals: DbTableInfo[]) => {
     state.dumpInfo.tables = vals;
 };
 
@@ -256,7 +257,7 @@ const handleDumpTableSelectionChange = (vals: any) => {
  */
 const dump = (db: string) => {
     isTrue(state.dumpInfo.tables.length > 0, 'db.selectExportTable');
-    const tableNames = state.dumpInfo.tables.map((x: any) => x.tableName);
+    const tableNames = state.dumpInfo.tables.map((x: DbTableInfo) => x.tableName);
     const a = document.createElement('a');
     a.setAttribute(
         'href',
@@ -266,7 +267,7 @@ const dump = (db: string) => {
     state.dumpInfo.visible = false;
 };
 
-const showColumns = async (row: any) => {
+const showColumns = async (row: DbTableInfo) => {
     state.chooseTableName = row.tableName;
     const columns = await dbApi.columnMetadata.request({
         id: props.dbId,
@@ -279,7 +280,7 @@ const showColumns = async (row: any) => {
     state.columnDialog.visible = true;
 };
 
-const showTableIndex = async (row: any) => {
+const showTableIndex = async (row: DbTableInfo) => {
     state.chooseTableName = row.tableName;
     state.indexDialog.indexs = await dbApi.tableIndex.request({
         id: props.dbId,
@@ -290,7 +291,7 @@ const showTableIndex = async (row: any) => {
     state.indexDialog.visible = true;
 };
 
-const showCreateDdl = async (row: any) => {
+const showCreateDdl = async (row: DbTableInfo) => {
     state.chooseTableName = row.tableName;
     const res = await dbApi.tableDdl.request({
         id: props.dbId,
@@ -298,21 +299,21 @@ const showCreateDdl = async (row: any) => {
         tableName: row.tableName,
     });
 
-    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(props.dbType).getInfo().formatSqlDialect as any });
+    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(props.dbType).getInfo().formatSqlDialect as SqlLanguage });
     state.ddlDialog.visible = true;
 };
 
 /**
  * 删除表
  */
-const dropTable = async (row: any) => {
+const dropTable = async (row: DbTableInfo) => {
     try {
         const tableName = row.tableName;
         await useI18nDeleteConfirm(tableName);
         SqlExecBox({
             sql: `DROP TABLE ${tableName}`,
-            dbId: props.dbId as any,
-            db: props.db as any,
+            dbId: props.dbId as number,
+            db: props.db as string,
             runSuccessCallback: async () => {
                 await getTables();
             },
@@ -323,7 +324,7 @@ const dropTable = async (row: any) => {
 };
 
 // 打开编辑表
-const openEditTable = async (row: any) => {
+const openEditTable = async (row: DbTableInfo | { tableName: string } | false) => {
     state.tableCreateDialog.visible = true;
     state.tableCreateDialog.activeName = '1';
 
@@ -332,7 +333,7 @@ const openEditTable = async (row: any) => {
         state.tableCreateDialog.title = useI18nCreateTitle('db.table');
     }
 
-    if (row.tableName) {
+    if (row && row.tableName) {
         state.tableCreateDialog.title = useI18nEditTitle('db.table');
         let indexs = await dbApi.tableIndex.request({
             id: props.dbId,
@@ -344,7 +345,7 @@ const openEditTable = async (row: any) => {
             db: props.db,
             tableName: row.tableName,
         });
-        state.tableCreateDialog.data = { edit: true, row, indexs, columns };
+        state.tableCreateDialog.data = { edit: true, row: { ...row }, indexs, columns };
     }
 };
 

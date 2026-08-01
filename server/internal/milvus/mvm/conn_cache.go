@@ -2,6 +2,7 @@ package mvm
 
 import (
 	"context"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/pool"
 )
@@ -42,13 +43,13 @@ func GetMilvusConn(ctx context.Context, milvusId uint64, db string, ac string, g
 
 // 关闭连接，并移除缓存连接
 func CloseConn(id uint64, database string, ac string) {
-	go func() {
+	gox.Go(func() {
 		err := poolGroup.Close(getConnId(id, database, ac))
 		if err != nil {
-			logx.Errorf("关闭milvus连接失败：%v", err)
+			logx.Errorf("close milvus connection failed: %v", err)
 			return
 		}
-	}()
+	})
 }
 
 func CloseAll(id uint64) {

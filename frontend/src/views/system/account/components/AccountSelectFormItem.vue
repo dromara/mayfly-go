@@ -18,6 +18,7 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue';
 import { accountApi } from '../../api';
+import type { Account } from '../../types';
 
 const props = defineProps({
     // 是否获取焦点
@@ -40,11 +41,11 @@ onMounted(() => {
     }
 });
 
-const accountId = defineModel('modelValue');
+const accountId = defineModel<number | number[] | null>('modelValue');
 
-const accounts: any = ref([]);
+const accounts = ref<Account[]>([]);
 
-const getAccount = (username: any) => {
+const getAccount = (username: string) => {
     if (username) {
         accountApi.querySimple.request({ username }).then((res) => {
             accounts.value = res.list;

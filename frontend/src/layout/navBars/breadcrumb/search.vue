@@ -24,19 +24,19 @@
 </template>
 
 <script lang="ts" setup name="layoutBreadcrumbSearch">
-import { reactive, ref, nextTick } from 'vue';
+import { reactive, nextTick, useTemplateRef } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutesList } from '@/store/routesList';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
-const layoutMenuAutocompleteRef: any = ref(null);
+const layoutMenuAutocompleteRef = useTemplateRef<{ focus: () => void }>('layoutMenuAutocompleteRef');
 const router = useRouter();
-const state: any = reactive({
+const state = reactive({
     isShowSearch: false,
     menuQuery: '',
-    tagsViewList: [],
+    tagsViewList: [] as RouteItem[],
 });
 // 搜索弹窗打开
 const openSearch = () => {
@@ -45,7 +45,7 @@ const openSearch = () => {
     initTageView();
     nextTick(() => {
         setTimeout(() => {
-            layoutMenuAutocompleteRef.value.focus();
+            layoutMenuAutocompleteRef.value?.focus();
         });
     });
 };
@@ -55,13 +55,13 @@ const closeSearch = () => {
 };
 
 // 菜单搜索数据过滤
-const menuSearch = (queryString: any, cb: any) => {
+const menuSearch = (queryString: string, cb: (results: RouteItem[]) => void) => {
     let results = queryString ? state.tagsViewList.filter(createFilter(t(queryString))) : state.tagsViewList;
     cb(results);
 };
 // 菜单搜索过滤
-const createFilter = (queryString: any) => {
-    return (restaurant: any) => {
+const createFilter = (queryString: string) => {
+    return (restaurant: RouteItem) => {
         return (
             t(restaurant.path).toLowerCase().indexOf(queryString.toLowerCase()) > -1 ||
             t(restaurant.meta.title).toLowerCase().indexOf(queryString.toLowerCase()) > -1
@@ -71,19 +71,19 @@ const createFilter = (queryString: any) => {
 // 初始化菜单数据
 const initTageView = () => {
     if (state.tagsViewList.length > 0) return false;
-    getRoutes(useRoutesList().routesList).map((v: any) => {
+    getRoutes(useRoutesList().routesList).map((v: RouteItem) => {
         if (!v.meta.isHide) {
             state.tagsViewList.push({ ...v });
         }
     });
 };
 // 获取所有根节点的route，即可访问的route
-const getRoutes = (routes: any) => {
-    const menu: any = [];
+const getRoutes = (routes: RouteItem[]): RouteItem[] => {
+    const menu: RouteItem[] = [];
     for (let i = 0; i < routes.length; i++) {
         const item = { ...routes[i] };
         if (item.children) {
-            getRoutes(item.children).forEach((r: any) => {
+            getRoutes(item.children).forEach((r: RouteItem) => {
                 menu.push(r);
             });
             continue;
@@ -94,7 +94,7 @@ const getRoutes = (routes: any) => {
 };
 
 // 当前菜单选中时
-const onHandleSelect = (item: any) => {
+const onHandleSelect = (item: RouteItem) => {
     let { path, redirect } = item;
     if (item.meta.link && item.meta.linkType == 2) window.open(item.meta.link);
     else if (redirect) router.push(redirect);

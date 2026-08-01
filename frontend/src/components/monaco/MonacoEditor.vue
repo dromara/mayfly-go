@@ -11,33 +11,33 @@
 import { watch, toRefs, reactive, onMounted, onBeforeUnmount, useTemplateRef, Ref } from 'vue';
 import * as monaco from 'monaco-editor';
 // 相关语言
-import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/html/html.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/css/css.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/python/python.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/java/java.contribution.js';
-import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution.js';
-import 'monaco-editor/esm/vs/language/json/monaco.contribution';
+import 'monaco-editor/languages/definitions/shell/register.js';
+import 'monaco-editor/languages/definitions/yaml/register.js';
+import 'monaco-editor/languages/definitions/dockerfile/register.js';
+import 'monaco-editor/languages/definitions/javascript/register.js';
+import 'monaco-editor/languages/definitions/html/register.js';
+import 'monaco-editor/languages/definitions/css/register.js';
+import 'monaco-editor/languages/definitions/python/register.js';
+import 'monaco-editor/languages/definitions/markdown/register.js';
+import 'monaco-editor/languages/definitions/java/register.js';
+import 'monaco-editor/languages/definitions/sql/register.js';
+import 'monaco-editor/language/json/monaco.contribution';
 // 右键菜单
-import 'monaco-editor/esm/vs/editor/contrib/contextmenu/browser/contextmenu.js';
-import 'monaco-editor/esm/vs/editor/contrib/caretOperations/browser/caretOperations.js';
-import 'monaco-editor/esm/vs/editor/contrib/clipboard//browser/clipboard.js';
-import 'monaco-editor/esm/vs/editor/contrib/find/browser/findController.js';
-import 'monaco-editor/esm/vs/editor/contrib/format//browser/formatActions.js';
+import 'monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js';
+import 'monaco-editor/editor/contrib/caretOperations/browser/caretOperations.js';
+import 'monaco-editor/editor/contrib/clipboard//browser/clipboard.js';
+import 'monaco-editor/editor/contrib/find/browser/findController.js';
+import 'monaco-editor/editor/contrib/format//browser/formatActions.js';
 // 提示
-import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestController.js';
-import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestInlineCompletions.js';
+import 'monaco-editor/editor/contrib/suggest/browser/suggestController.js';
+import 'monaco-editor/editor/contrib/suggest/browser/suggestInlineCompletions.js';
 import { editor, languages } from 'monaco-editor';
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
-import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
+import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
+import JsonWorker from 'monaco-editor/language/json/json.worker?worker';
+import HtmlWorker from 'monaco-editor/language/html/html.worker?worker';
 import SolarizedLight from './themes/Solarized-light.json';
 import SolarizedDark from './themes/Solarized-dark.json';
-import { language as shellLan } from 'monaco-editor/esm/vs/basic-languages/shell/shell.js';
+import { language as shellLan } from 'monaco-editor/languages/definitions/shell/shell.js';
 
 import { ElOption, ElSelect } from 'element-plus';
 
@@ -69,7 +69,7 @@ const props = defineProps({
     },
 });
 
-const modelValue = defineModel<any>('modelValue', { required: true });
+const modelValue = defineModel<string>('modelValue', { required: true });
 
 const languageArr = [
     {
@@ -156,13 +156,13 @@ const defaultOptions = {
     fixedOverflowWidgets: true, // 使弹出层不被容器限制
 } as editor.IStandaloneEditorConstructionOptions;
 
-const monacoTextareaRef: Ref<any> = useTemplateRef('monacoTextareaRef');
+const monacoTextareaRef = useTemplateRef<HTMLElement>('monacoTextareaRef');
 
-let monacoEditorIns: editor.IStandaloneCodeEditor = null as any;
-let completionItemProvider: any = null;
+let monacoEditorIns: editor.IStandaloneCodeEditor = null!;
+let completionItemProvider: monaco.IDisposable | null = null;
 
 self.MonacoEnvironment = {
-    getWorker(_: any, label: string) {
+    getWorker(_: string, label: string) {
         if (label === 'json') {
             return new JsonWorker();
         }
@@ -191,12 +191,11 @@ onBeforeUnmount(() => {
         monacoEditorIns.dispose();
     }
     if (completionItemProvider) {
-        console.log('unmount=> dispose completion item provider');
         completionItemProvider.dispose();
     }
 });
 
-watch(modelValue, (newValue: any) => {
+watch(modelValue, (newValue: string) => {
     if (!monacoEditorIns.hasTextFocus()) {
         state.languageMode = props.language;
         if (newValue == null) {
@@ -208,7 +207,7 @@ watch(modelValue, (newValue: any) => {
 
 watch(
     () => props.language,
-    (newValue: any) => {
+    (newValue: string) => {
         changeLanguage(newValue);
     }
 );
@@ -217,32 +216,32 @@ watch(
 watch(
     () => themeConfig.value.editorTheme,
     (val) => {
-        console.log('monaco editor theme change: ', val);
         monaco?.editor?.setTheme(val);
     }
 );
 
 const initMonacoEditorIns = () => {
-    console.log('初始化monaco编辑器');
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
-    monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
-    monaco.editor.defineTheme('SolarizedDark', SolarizedDark);
+    monaco.editor.defineTheme('SolarizedLight', SolarizedLight as editor.IStandaloneThemeData);
+    monaco.editor.defineTheme('SolarizedDark', SolarizedDark as editor.IStandaloneThemeData);
     defaultOptions.language = state.languageMode;
     defaultOptions.theme = themeConfig.value.editorTheme;
-    let options = Object.assign(defaultOptions, props.options as any);
+    let options = Object.assign(defaultOptions, props.options as editor.IStandaloneEditorConstructionOptions);
+    if (!monacoTextareaRef.value) {
+        return;
+    }
     monacoEditorIns = monaco.editor.create(monacoTextareaRef.value, options);
 
     if (!options.readOnly) {
         // 监听内容改变,双向绑定
         monacoEditorIns.onDidChangeModelContent(() => {
-            modelValue.value = monacoEditorIns.getModel()?.getValue();
+            modelValue.value = monacoEditorIns.getModel()?.getValue() ?? '';
         });
     }
 };
 
-const changeLanguage = (value: any) => {
-    console.log('change lan');
+const changeLanguage = (value: string) => {
     // 获取当前的文档模型
     let oldModel = monacoEditorIns.getModel();
     if (!oldModel) {
@@ -260,7 +259,7 @@ const changeLanguage = (value: any) => {
     registerCompletionItemProvider();
 };
 
-const setEditorValue = (value: any) => {
+const setEditorValue = (value: string) => {
     if (value) {
         monacoEditorIns.getModel()?.setValue(value);
     }
@@ -271,7 +270,6 @@ const setEditorValue = (value: any) => {
  */
 const registerCompletionItemProvider = () => {
     if (completionItemProvider) {
-        console.log('exist competion item provider, dispose now');
         completionItemProvider.dispose();
     }
     if (state.languageMode == 'shell') {
@@ -282,23 +280,23 @@ const registerCompletionItemProvider = () => {
 const registeShell = () => {
     completionItemProvider = monaco.languages.registerCompletionItemProvider('shell', {
         provideCompletionItems: async () => {
-            let suggestions: languages.CompletionItem[] = [];
-            shellLan.keywords.forEach((item: any) => {
+            let suggestions: { label: string; kind: languages.CompletionItemKind; insertText: string }[] = [];
+            shellLan.keywords.forEach((item: string) => {
                 suggestions.push({
                     label: item,
                     kind: monaco.languages.CompletionItemKind.Keyword,
                     insertText: item,
-                } as any);
+                });
             });
-            shellLan.builtins.forEach((item: any) => {
+            shellLan.builtins.forEach((item: string) => {
                 suggestions.push({
                     label: item,
                     kind: monaco.languages.CompletionItemKind.Property,
                     insertText: item,
-                } as any);
+                });
             });
             return {
-                suggestions: suggestions,
+                suggestions: suggestions as languages.CompletionItem[],
             };
         },
     });

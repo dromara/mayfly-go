@@ -6,11 +6,21 @@ const MachineConfigKey = 'MachineConfig';
 const SysStyleConfigKey = 'SysStyleConfig';
 
 /**
+ * 账号登录安全配置 (对应后端 config.AccountLoginSecurity)
+ */
+export interface AccountLoginSecurity {
+    useCaptcha: boolean;
+    useOtp: boolean;
+    loginFailCount: number;
+    loginFailMin: number;
+}
+
+/**
  * 获取账号登录安全配置
  *
  * @returns
  */
-export async function getAccountLoginSecurity(): Promise<any> {
+export async function getAccountLoginSecurity(): Promise<AccountLoginSecurity | null> {
     const value = await getConfigValue(AccountLoginSecurityKey);
     if (!value) {
         return null;
@@ -26,7 +36,7 @@ export async function getAccountLoginSecurity(): Promise<any> {
  *
  * @returns
  */
-export async function getSysStyleConfig(): Promise<any> {
+export async function getSysStyleConfig(): Promise<{ title?: string; viceTitle?: string; logoIcon?: string; useWatermark?: boolean; watermarkContent?: string }> {
     const value = await getConfigValue(SysStyleConfigKey);
     const defaultValue = {
         useWatermark: true,
@@ -46,9 +56,17 @@ export async function getSysStyleConfig(): Promise<any> {
  *
  * @returns
  */
-export async function getLdapEnabled(): Promise<any> {
-    const value = await openApi.getLdapEnabled();
-    return convertBool(value, false);
+export async function getLdapEnabled(): Promise<boolean> {
+    const res = await openApi.getLdapEnabled();
+    return res.enabled;
+}
+
+/**
+ * 机器配置 (对应后端机器系统配置)
+ */
+export interface MachineConfig {
+    uploadMaxFileSize: string;
+    [key: string]: unknown;
 }
 
 /**
@@ -56,7 +74,7 @@ export async function getLdapEnabled(): Promise<any> {
  *
  * @returns
  */
-export async function getMachineConfig(): Promise<any> {
+export async function getMachineConfig(): Promise<MachineConfig> {
     const value = await getConfigValue(MachineConfigKey);
     const defaultValue = {
         // 默认1gb
@@ -78,8 +96,8 @@ export async function getMachineConfig(): Promise<any> {
  *
  * @returns 配置信息
  */
-export async function getServerConf(): Promise<any> {
-    return openApi.getServerConf();
+export async function getServerConf(): Promise<{ i18n: string; version: string }> {
+    return openApi.getServerConf() as Promise<{ i18n: string; version: string }>;
 }
 
 /**

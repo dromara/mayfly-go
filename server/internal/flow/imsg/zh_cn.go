@@ -26,4 +26,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrBizHandlerFail:     "业务处理失败",
 
 	ErrAiTaskNodeAuditRuleNotEmpty: "Ai任务节点 [{{.name}}] 的审核规则不能为空",
+
+	ErrProcinstNotBackStatus: "该工单非退回状态，无法修改",
+	ErrProcinstNotCreator:    "该工单非当前用户创建，无法修改",
 }

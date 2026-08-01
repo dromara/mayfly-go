@@ -19,29 +19,23 @@
 import { toRefs, reactive, onMounted } from 'vue';
 import { machineApi } from '../machine/api';
 import { MachineProtocolEnum } from '../machine/enums';
+import type { MachineVO } from '../machine/types';
 
-const props = defineProps({
-    modelValue: {
-        type: Number,
-    },
-});
-
-//定义事件
-const emit = defineEmits(['update:modelValue']);
+const modelValue = defineModel<number | null>();
 
 const state = reactive({
     // 单选则为id，多选为id数组
-    sshTunnelMachineId: null as any,
-    sshTunnelMachineList: [] as any,
+    sshTunnelMachineId: null as number | null,
+    sshTunnelMachineList: [] as MachineVO[],
 });
 
 const { sshTunnelMachineId, sshTunnelMachineList } = toRefs(state);
 
 onMounted(async () => {
-    if (!props.modelValue || props.modelValue <= 0) {
+    if (!modelValue.value || modelValue.value <= 0) {
         state.sshTunnelMachineId = null;
     } else {
-        state.sshTunnelMachineId = props.modelValue;
+        state.sshTunnelMachineId = modelValue.value;
     }
     await getSshTunnelMachines();
 });
@@ -59,7 +53,7 @@ const clear = () => {
 };
 
 const change = () => {
-    emit('update:modelValue', state.sshTunnelMachineId);
+    modelValue.value = state.sshTunnelMachineId;
 };
 </script>
 <style lang="scss"></style>

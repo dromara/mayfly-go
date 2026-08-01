@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gox"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/netx"
@@ -114,8 +115,11 @@ func saveLogin(ctx context.Context, account *sysentity.Account, ip string) {
 	updateAccount := &sysentity.Account{LastLoginTime: &now}
 	updateAccount.Id = account.Id
 	updateAccount.LastLoginIp = ip
-	// 偷懒为了方便直接获取accountApp
-	biz.ErrIsNil(sysapp.GetAccountApp().Update(context.TODO(), updateAccount))
+	// 通过ioc获取accountApp
+	accountApp := sysapp.GetAccountApp()
+	if err := accountApp.Update(ctx, updateAccount); err != nil {
+		logx.Errorf("failed to update account last login info: %v", err)
+	}
 
 	global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, &msgdto.MsgTmplSendEvent{
 		TmplChannel: msgdto.MsgTmplLogin,

@@ -1,7 +1,7 @@
 <template>
-    <div class="rdpDialog" ref="dialogRef">
+    <div class="rdpDialog">
         <el-dialog
-            v-model="dialogVisible"
+            v-model="visible"
             :before-close="handleClose"
             :close-on-click-modal="false"
             :destroy-on-close="true"
@@ -40,7 +40,7 @@
                 </div>
             </template>
 
-            <machine-rdp ref="rdpRef" :machine-id="machineId" :auth-cert="authCert" @status-change="handleStatusChange" />
+            <machine-rdp ref="rdpRef" :machine-id="machineId ?? 0" :auth-cert="authCert" @status-change="handleStatusChange" />
         </el-dialog>
     </div>
 </template>
@@ -49,17 +49,11 @@
 import { reactive, ref, toRefs, watch } from 'vue';
 import MachineRdp from '@/components/terminal-rdp/MachineRdp.vue';
 import { TerminalStatus } from '@/components/terminal/common';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 
-const rdpRef = ref({} as any);
-const dialogRef = ref({} as any);
+const rdpRef = ref<InstanceType<typeof MachineRdp> | null>(null);
 
 const props = defineProps({
-    visible: { type: Boolean },
-    machineId: {
-        type: Number,
-        required: true,
-    },
     authCert: {
         type: String,
         required: true,
@@ -67,23 +61,25 @@ const props = defineProps({
     title: { type: String },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const emit = defineEmits(['cancel']);
+
+const visible = defineModel<boolean>('visible', { default: false });
+const machineId = defineModel<number | null>('machineId');
 
 const state = reactive({
-    dialogVisible: false,
     title: '',
     status: TerminalStatus.NoConnected,
 });
 
-const { dialogVisible } = toRefs(state);
-
-watch(props, async (newValue: any) => {
-    const visible = newValue.visible;
-    state.dialogVisible = visible;
-    if (visible) {
-        state.title = newValue.title;
-    }
-});
+watch(
+    [visible, () => props.title],
+    ([newVisible, newTitle]) => {
+        if (newVisible) {
+            state.title = newTitle || '';
+        }
+    },
+    { immediate: true }
+);
 
 const connect = (force = false) => {
     rdpRef.value?.disconnect();
@@ -101,8 +97,8 @@ const handleStatusChange = (status: TerminalStatus) => {
  * 关闭取消按钮触发的事件
  */
 const handleClose = () => {
-    emit('update:visible', false);
-    emit('update:machineId', null);
+    visible.value = false;
+    machineId.value = null;
     emit('cancel');
     rdpRef.value?.disconnect();
 };

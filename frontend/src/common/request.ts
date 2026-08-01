@@ -12,7 +12,7 @@ export default {
     getApiUrl,
 };
 
-export interface Result {
+export interface Result<T = unknown> {
     /**
      * 响应码
      */
@@ -24,7 +24,7 @@ export interface Result {
     /**
      * 数据
      */
-    data?: any;
+    data?: T;
 }
 
 export enum ResultEnum {
@@ -49,10 +49,10 @@ export const baseUrl: string = config.baseApiUrl;
  * @param {Object} uri    uri
  * @param {Object} params 参数
  */
-async function request(method: string, url: string, params: any = null, options: any = {}): Promise<any> {
-    const { execute, data } = useApiFetch(Api.create(url, method), params, options);
+async function request<T = unknown>(method: string, url: string, params: Record<string, unknown> | object | null = null, options: Record<string, unknown> = {}): Promise<T> {
+    const { execute, data } = useApiFetch(Api.create<T>(url, method) as any, params, options);
     await execute();
-    return data.value;
+    return data.value as T;
 }
 
 /**
@@ -62,20 +62,20 @@ async function request(method: string, url: string, params: any = null, options:
  * @param {Object} url   uri
  * @param {Object} params 参数
  */
-function get(url: string, params: any = null, options: any = {}): Promise<any> {
-    return request('get', url, params, options);
+function get<T = unknown>(url: string, params: Record<string, unknown> | object | null = null, options: Record<string, unknown> = {}): Promise<T> {
+    return request<T>('get', url, params, options);
 }
 
-function post(url: string, params: any = null, options: any = {}): Promise<any> {
-    return request('post', url, params, options);
+function post<T = unknown>(url: string, params: Record<string, unknown> | object | null = null, options: Record<string, unknown> = {}): Promise<T> {
+    return request<T>('post', url, params, options);
 }
 
-function put(url: string, params: any = null, options: any = {}): Promise<any> {
-    return request('put', url, params, options);
+function put<T = unknown>(url: string, params: Record<string, unknown> | object | null = null, options: Record<string, unknown> = {}): Promise<T> {
+    return request<T>('put', url, params, options);
 }
 
-function del(url: string, params: any = null, options: any = {}): Promise<any> {
-    return request('delete', url, params, options);
+function del<T = unknown>(url: string, params: Record<string, unknown> | object | null = null, options: Record<string, unknown> = {}): Promise<T> {
+    return request<T>('delete', url, params, options);
 }
 
 function getApiUrl(url: string) {

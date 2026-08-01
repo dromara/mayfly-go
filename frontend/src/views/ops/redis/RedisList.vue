@@ -108,7 +108,7 @@
         </el-dialog>
 
         <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
-            <el-descriptions :title="$t('common.detail')" :column="3" border>
+            <el-descriptions v-if="detailDialog.data" :title="$t('common.detail')" :column="3" border>
                 <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailDialog.data.name }}</el-descriptions-item>
 
@@ -141,16 +141,30 @@
 
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useRoute } from 'vue-router';
 import TagCodePath from '../component/TagCodePath.vue';
 import Info from './Info.vue';
 import RedisEdit from './RedisEdit.vue';
 import { redisApi } from './api';
+import type { Redis } from './types';
+
+/** Redis 集群节点行 (对应后端 cluster-info 返回的节点信息) */
+interface RedisClusterNodeRow {
+    nodeId: string;
+    ip: string;
+    flags: string;
+    masterSlaveRelation: string;
+    pingSent: string;
+    pongRecv: string;
+    configEpoch: string;
+    linkState: string;
+    slot: string;
+}
 
 const props = defineProps({
     lazy: {
@@ -160,7 +174,7 @@ const props = defineProps({
 });
 
 const route = useRoute();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder')];
 
@@ -182,13 +196,13 @@ const state = reactive({
     },
     detailDialog: {
         visible: false,
-        data: null as any,
+        data: null as Redis | null,
     },
     clusterInfoDialog: {
         visible: false,
         redisId: 0,
         info: '',
-        nodes: [],
+        nodes: [] as RedisClusterNodeRow[],
     },
     infoDialog: {
         title: '',
@@ -199,11 +213,11 @@ const state = reactive({
             Clients: {},
             CPU: {},
             Memory: {},
-        },
+        } as Record<string, unknown>,
     },
     redisEditDialog: {
         visible: false,
-        data: null as any,
+        data: null as Redis | null,
         title: '',
     },
 });
@@ -216,22 +230,22 @@ onMounted(() => {
     }
 });
 
-const checkRouteTagPath = (query: any) => {
+const checkRouteTagPath = (query: Record<string, unknown>) => {
     if (route.query.tagPath) {
         query.tagPath = route.query.tagPath as string;
     }
     return query;
 };
 
-const showDetail = (detail: any) => {
+const showDetail = (detail: Redis) => {
     state.detailDialog.data = detail;
     state.detailDialog.visible = true;
 };
 
 const deleteRedis = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
-        await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: Redis) => x.name).join('、'));
+        await redisApi.delRedis.request({ id: state.selectionData.map((x: Redis) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {
@@ -239,8 +253,8 @@ const deleteRedis = async () => {
     }
 };
 
-const showInfoDialog = async (redis: any) => {
-    var host = redis.host;
+const showInfoDialog = async (redis: { id: number; ip?: string; host?: string; name?: string }) => {
+    let host = redis.host ?? '';
     if (redis.ip) {
         host = redis.ip.split('@')[0];
     }
@@ -250,10 +264,10 @@ const showInfoDialog = async (redis: any) => {
     state.infoDialog.visible = true;
 };
 
-const onShowClusterInfo = async (redis: any) => {
+const onShowClusterInfo = async (redis: Redis) => {
     const ci = await redisApi.clusterInfo.request({ id: redis.id });
-    state.clusterInfoDialog.info = ci.clusterInfo;
-    state.clusterInfoDialog.nodes = ci.clusterNodes;
+    state.clusterInfoDialog.info = ci.clusterInfo as string;
+    state.clusterInfoDialog.nodes = ci.clusterNodes as RedisClusterNodeRow[];
     state.clusterInfoDialog.redisId = redis.id;
     state.clusterInfoDialog.visible = true;
 };
@@ -262,10 +276,10 @@ const search = async (tagPath: string = '') => {
     if (tagPath) {
         state.query.tagPath = tagPath;
     }
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const editRedis = async (data: any) => {
+const editRedis = async (data: Redis | false) => {
     if (!data) {
         state.redisEditDialog.data = null;
         state.redisEditDialog.title = useI18nCreateTitle('Redis');

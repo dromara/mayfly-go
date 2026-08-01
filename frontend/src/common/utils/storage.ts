@@ -8,7 +8,7 @@ const ClientIdKey = 'm-clientId';
 
 // 获取请求token
 export function getToken(): string {
-    return getLocal(TokenKey);
+    return getLocal(TokenKey) ?? '';
 }
 
 // 保存用户访问token
@@ -17,7 +17,7 @@ export function saveToken(token: string) {
 }
 
 export function getRefreshToken(): string {
-    return getLocal(RefreshTokenKey);
+    return getLocal(RefreshTokenKey) ?? '';
 }
 
 export function saveRefreshToken(refreshToken: string) {
@@ -30,11 +30,11 @@ export function getUser() {
 }
 
 // 保存用户信息
-export function saveUser(userinfo: any) {
+export function saveUser(userinfo: Record<string, unknown>) {
     setLocal(UserKey, userinfo);
 }
 
-export function saveThemeConfig(themeConfig: any) {
+export function saveThemeConfig(themeConfig: Record<string, unknown>) {
     setLocal('themeConfig', themeConfig);
 }
 
@@ -65,8 +65,8 @@ export function removeTagViews() {
 
 // 获取客户端UUID
 export function getClientId(): string {
-    let uuid = getSession(ClientIdKey);
-    if (uuid == null) {
+    let uuid = getSession<string>(ClientIdKey) ?? '';
+    if (!uuid) {
         uuid = randomUuid();
         setSession(ClientIdKey, uuid);
     }
@@ -75,20 +75,19 @@ export function getClientId(): string {
 
 // 1. localStorage
 // 设置永久缓存
-export function setLocal(key: string, val: any) {
-    if (typeof val == 'object') {
-        val = JSON.stringify(val);
-    }
-    window.localStorage.setItem(key, val);
+export function setLocal(key: string, val: unknown) {
+    const strVal = typeof val == 'object' ? JSON.stringify(val) : String(val ?? '');
+    window.localStorage.setItem(key, strVal);
 }
 
 // 获取永久缓存
-export function getLocal(key: string) {
-    let val: any = window.localStorage.getItem(key);
+export function getLocal<T = any>(key: string): T | null {
+    const val = window.localStorage.getItem(key);
+    if (val == null) return null;
     try {
         return JSON.parse(val);
     } catch (e) {
-        return val;
+        return val as T;
     }
 }
 
@@ -104,20 +103,19 @@ export function clearLocal() {
 
 // 2. sessionStorage
 // 设置临时缓存
-export function setSession(key: string, val: any) {
-    if (typeof val == 'object') {
-        val = JSON.stringify(val);
-    }
-    window.sessionStorage.setItem(key, val);
+export function setSession(key: string, val: unknown) {
+    const strVal = typeof val == 'object' ? JSON.stringify(val) : String(val ?? '');
+    window.sessionStorage.setItem(key, strVal);
 }
 
 // 获取临时缓存
-export function getSession(key: string) {
-    let val: any = window.sessionStorage.getItem(key);
+export function getSession<T = any>(key: string): T | null {
+    const val = window.sessionStorage.getItem(key);
+    if (val == null) return null;
     try {
         return JSON.parse(val);
     } catch (e) {
-        return val;
+        return val as T;
     }
 }
 

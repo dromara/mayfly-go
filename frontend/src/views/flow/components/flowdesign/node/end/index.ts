@@ -2,6 +2,7 @@ import { CircleNode, CircleNodeModel } from '@logicflow/core';
 import PropSetting from './PropSetting.vue';
 import { NodeTypeEnum } from '../enums';
 import { HisProcinstOpState } from '@/views/flow/enums';
+import type { NodeOpLog } from '@/views/flow/types';
 
 class endModel extends CircleNodeModel {
     initNodeData(data: any) {
@@ -13,7 +14,7 @@ class endModel extends CircleNodeModel {
         const style = super.getNodeStyle();
         const properties = this.properties;
 
-        const opLog: any = properties.opLog;
+        const opLog = properties.opLog as NodeOpLog | undefined;
         if (!opLog) {
             return style;
         }

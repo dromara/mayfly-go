@@ -14,8 +14,8 @@
 
 <script lang="ts" setup>
 import { reactive, Ref, ref, toRefs, watch } from 'vue';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn } from '@/components/pagetable';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncLogStatusEnum } from '@/views/ops/db/sync/enums';
 
@@ -78,7 +78,7 @@ const logTableRef: Ref<any> = ref(null);
 
 const search = () => {
     try {
-        logTableRef.value.search();
+        logTableRef.value?.search();
     } catch (e) {
         /* empty */
     }

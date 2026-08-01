@@ -8,7 +8,7 @@
                     @click="onColumnsAsideMenuClick(v, k)"
                     :ref="
                         (el) => {
-                            if (el) columnsAsideOffsetTopRefs[k] = el;
+                            if (el) columnsAsideOffsetTopRefs[k] = el as HTMLElement;
                         }
                     "
                     :class="[
@@ -47,25 +47,25 @@
 </template>
 
 <script lang="ts" setup name="layoutColumnsAside">
-import { reactive, ref, computed, onMounted, nextTick, watch, inject } from 'vue';
+import { reactive, ref, computed, onMounted, nextTick, watch, inject, type Ref } from 'vue';
 import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
 import pinia from '@/store/index';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
 
-const columnsAsideOffsetTopRefs: any = ref([]);
+const columnsAsideOffsetTopRefs = ref<HTMLElement[]>([]);
 const columnsAsideActiveRef = ref();
 const route = useRoute();
 const router = useRouter();
 const state = reactive({
-    columnsAsideList: [] as any[],
+    columnsAsideList: [] as RouteItem[],
     liIndex: 0,
     difference: 0,
-    routeSplit: [] as any[],
+    routeSplit: [] as RouteItem[],
 });
 
 // 注入 columnsMenuData
-const columnsMenuData: any = inject('columnsMenuData');
+const columnsMenuData = inject<Ref<SendChildrenResult | null> | undefined>('columnsMenuData');
 
 // 设置高亮样式
 const setColumnsAsideStyle = computed(() => {
@@ -75,11 +75,13 @@ const setColumnsAsideStyle = computed(() => {
 // 设置菜单高亮位置移动
 const setColumnsAsideMove = (k: number) => {
     state.liIndex = k;
-    columnsAsideActiveRef.value.style.top = `${columnsAsideOffsetTopRefs.value[k].offsetTop + state.difference}px`;
+    if (columnsAsideActiveRef.value) {
+        columnsAsideActiveRef.value.style.top = `${columnsAsideOffsetTopRefs.value[k].offsetTop + state.difference}px`;
+    }
 };
 
 // 菜单高亮点击事件
-const onColumnsAsideMenuClick = (v: any, k: number) => {
+const onColumnsAsideMenuClick = (v: RouteItem, k: number) => {
     setColumnsAsideMove(k);
     if (v.children && v.children.length > 0) {
         router.push(v.children[0].path);
@@ -101,7 +103,7 @@ const onColumnsAsideDown = (k: number) => {
 // 设置/过滤路由（非静态路由/是否显示在菜单中）
 const setFilterRoutes = () => {
     state.columnsAsideList = filterRoutesFun(useRoutesList().routesList);
-    const resData: any = setSendChildren(route.path);
+    const resData = setSendChildren(route.path);
     onColumnsAsideDown(resData.item[0].k);
 
     nextTick(() => {
@@ -113,16 +115,17 @@ const setFilterRoutes = () => {
     });
 };
 // 传送当前子级数据到菜单中
-const setSendChildren = (path: string) => {
-    let currentData: any = {};
+const setSendChildren = (path: string): SendChildrenResult => {
+    let currentData = {} as SendChildrenResult;
     const result = findRootRoute(state.columnsAsideList, path);
 
     if (result) {
-        const k = state.columnsAsideList.findIndex((v: any) => v === result);
+        const k = state.columnsAsideList.findIndex((v: RouteItem) => v === result);
         if (k !== -1) {
             result['k'] = k;
-            currentData['item'] = [{ ...result }];
-            currentData['children'] = [{ ...result }];
+            const resultItem = { ...result } as RouteItem & { k: number };
+            currentData['item'] = [resultItem];
+            currentData['children'] = [resultItem];
             if (result.children) currentData['children'] = result.children;
         }
     }
@@ -131,10 +134,10 @@ const setSendChildren = (path: string) => {
 };
 
 // 路由过滤递归函数
-const filterRoutesFun = (arr: Array<object>) => {
+const filterRoutesFun = (arr: RouteItem[]) => {
     return arr
-        .filter((item: any) => !item.meta.isHide)
-        .map((item: any) => {
+        .filter((item: RouteItem) => !item.meta?.isHide)
+        .map((item: RouteItem) => {
             item = Object.assign({}, item);
             if (item.children) {
                 item.children = filterRoutesFun(item.children);
@@ -149,13 +152,13 @@ const setColumnsMenuHighlight = (path: string) => {
     if (rootRoute) {
         // 延迟拿值，防止取不到
         setTimeout(() => {
-            onColumnsAsideDown(rootRoute.k);
+            onColumnsAsideDown(rootRoute.k as number);
         }, 0);
     }
 };
 
 // 递归查找路由并返回根节点
-const findRootRoute = (routes: any[], currentPath: string): any => {
+const findRootRoute = (routes: RouteItem[], currentPath: string): RouteItem | null => {
     for (const route of routes) {
         // 直接匹配
         if (route.path === currentPath) {

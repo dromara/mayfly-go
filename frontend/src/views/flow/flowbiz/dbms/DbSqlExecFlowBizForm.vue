@@ -66,12 +66,12 @@ const changeResourceCode = async (db: any) => {
 };
 
 const validateBizForm = async () => {
-    return formRef.value.validate();
+    return formRef.value?.validate();
 };
 
 const resetBizForm = () => {
     //重置表单域
-    formRef.value.resetFields();
+    formRef.value?.resetFields();
     bizForm.value.dbId = 0;
     bizForm.value.dbName = '';
 };

@@ -11,6 +11,7 @@ import { createResourceOpTab } from '../../resource/resourceOp';
 import { dbApi } from '../api';
 import { DbInst } from '../db';
 import { getDbDialect, schemaDbTypes } from '../dialect/index';
+import type { DbInstance, Db, DbTableInfo, DbSql, DbNamesParam } from '../types';
 
 const DbInstList = defineAsyncComponent(() => import('../InstanceList.vue'));
 const DbDataOp = defineAsyncComponent(() => import('./DbDataOp.vue'));
@@ -39,7 +40,7 @@ const SqlIcon = {
     color: '#f56c6c',
 };
 
-const getDbOpTab = async (params: any) => {
+const getDbOpTab = async (params: Record<string, unknown>) => {
     const tabKey = `${params.instCode}.${params.dbCode}.${params.db}`;
     return await createResourceOpTab({
         key: tabKey,
@@ -57,12 +58,12 @@ const getDbOpTab = async (params: any) => {
             db: params.db,
         },
         tabComponentProps: {
-            icon: { name: getDbDialect(params.type)?.getInfo().icon },
+            icon: { name: getDbDialect(params.type as string)?.getInfo().icon },
         },
     });
 };
 
-const getDbOpTabCompInst = async (params: any) => {
+const getDbOpTabCompInst = async (params: Record<string, unknown>) => {
     return (await getDbOpTab(params)).componentInstance;
 };
 
@@ -74,7 +75,7 @@ const ContextmenuItemRefresh = new ContextmenuItem('refresh', 'common.refresh')
 export const NodeTypeDbInst = new NodeType(TagResourceTypeEnum.DbInstance.value).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const tagPath = parentNode.params.tagPath;
 
-    const dbInstancesRes = await dbApi.instances.request({ tagPath, pageSize: 100 });
+    const dbInstancesRes = await dbApi.instances.request({ tagPath: tagPath as string, pageSize: 100 });
     const dbInstances = dbInstancesRes.list;
     if (!dbInstances) {
         return [];
@@ -82,10 +83,9 @@ export const NodeTypeDbInst = new NodeType(TagResourceTypeEnum.DbInstance.value)
 
     // 防止过快加载会出现一闪而过，对眼睛不好
     await sleep(100);
-    return dbInstances?.map((x: any) => {
-        x.tagPath = tagPath;
-        x.instCode = x.code;
-        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeDbConf).withParams(x).withNodeComponent(NodeDbInst);
+    return dbInstances?.map((x: DbInstance) => {
+        const xExt = { ...x, tagPath, instCode: x.code };
+        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeDbConf).withParams(xExt).withNodeComponent(NodeDbInst);
     });
 });
 
@@ -95,9 +95,9 @@ export const NodeTypeDbConf = new NodeType(TagResourceTypeEnum.Db.value)
         const params = parentNode.params;
 
         const tagPath = params.tagPath;
-        const authCerts = {} as any;
-        for (let authCert of params.authCerts) {
-            authCerts[authCert.name] = authCert;
+        const authCerts = {} as Record<string, Record<string, unknown>>;
+        for (let authCert of (params.authCerts as Record<string, unknown>[])) {
+            authCerts[authCert.name as string] = authCert;
         }
 
         const dbInfoRes = await dbApi.dbs.request({
@@ -108,12 +108,9 @@ export const NodeTypeDbConf = new NodeType(TagResourceTypeEnum.Db.value)
             return [];
         }
 
-        return dbInfos?.map((x: any) => {
-            x.tagPath = tagPath;
-            x.username = authCerts[x.authCertName]?.username;
-            x.instCode = params.instCode;
-            x.dbCode = x.code;
-            return TagTreeNode.new(parentNode, `${parentNode.key}.${x.code}`, x.name, NodeTypeDbs).withParams(x).withIcon(DbIcon).withNodeComponent(NodeDb);
+        return dbInfos?.map((x: Db) => {
+            const xExt: Record<string, unknown> = { ...x, tagPath, username: (authCerts[x.authCertName || ''] as Record<string, unknown>)?.username, instCode: params.instCode, dbCode: x.code };
+            return TagTreeNode.new(parentNode, `${parentNode.key}.${x.code}`, x.name, NodeTypeDbs).withParams(xExt).withIcon(DbIcon).withNodeComponent(NodeDb);
         });
     })
     .withContextMenuItems([ContextmenuItemRefresh]);
@@ -121,10 +118,10 @@ export const NodeTypeDbConf = new NodeType(TagResourceTypeEnum.Db.value)
 // 数据库列表名类型
 export const NodeTypeDbs = new NodeType(222).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
-    const dbs = (await DbInst.getDbNames(params))?.sort();
+    const dbs = (await DbInst.getDbNames(params as DbNamesParam))?.sort();
     // 查询数据库版本信息
     const version = await dbApi.getCompatibleDbVersion.request({ id: params.id, db: dbs[0] });
-    return dbs.map((x: any) => {
+    return dbs.map((x: string) => {
         return TagTreeNode.new(parentNode, `${parentNode.key}.${x}`, x, NodeTypeDb)
             .withParams({
                 tagPath: params.tagPath,
@@ -148,10 +145,10 @@ export const NodeTypeDb = new NodeType(223).withContextMenuItems([ContextmenuIte
     const params = parentNode.params;
     params.parentKey = parentNode.key;
     // pg类数据库会多一层schema
-    if (schemaDbTypes.includes(params.type)) {
+    if (schemaDbTypes.includes(params.type as string)) {
         const { id, db } = params;
         const schemaNames = await dbApi.pgSchemas.request({ id, db });
-        return schemaNames.map((sn: any) => {
+        return schemaNames.map((sn: string) => {
             // 将db变更为  db/schema;
             const nParams = { ...params };
             nParams.schema = sn;
@@ -213,7 +210,7 @@ const NodeTypeTableMenu = new NodeType(4)
         // // 获取当前库的所有表信息
         const tables = await compRef.loadTables(params);
         let dbTableSize = 0;
-        const tablesNode = tables.map((x: any) => {
+        const tablesNode = tables.map((x: DbTableInfo) => {
             const tableSize = x.dataLength + x.indexLength;
             dbTableSize += tableSize;
             const key = `${parentNode.key}.${x.tableName}`;
@@ -241,7 +238,7 @@ const NodeTypeSqlMenu = new NodeType(225).withLoadNodesFunc(async (parentNode: T
     const params = parentNode.params;
     // 加载用户保存的sql脚本
     const sqls = await dbApi.getSqlNames.request({ id: params.id, db: params.db });
-    return sqls.map((x: any) => {
+    return sqls.map((x: DbSql) => {
         return TagTreeNode.new(parentNode, `${parentNode.key}.${x.name}`, x.name, NodeTypeSql)
             .withIsLeaf(true)
             .withParams({ ...params, sqlName: x.name })

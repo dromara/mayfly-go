@@ -213,7 +213,7 @@
 import { Rules } from '@/common/rule';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
@@ -223,14 +223,17 @@ import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { compatibleDuplicateStrategy, DbType, getDbDialect } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncDuplicateStrategyEnum } from '@/views/ops/db/sync/enums';
-import { computed, reactive, ref, toRefs, watch } from 'vue';
+import { computed, reactive, ref, toRefs, watch, type Ref, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { FormInstance } from 'element-plus';
+import type { ColumnMetadata, DataSyncTask, Db, DbTableInfo } from '@/views/ops/db/types';
 
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: [Boolean, Object],
+        type: Object as PropType<DataSyncTask | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -247,7 +250,7 @@ const rules = {
     taskCron: [Rules.requiredInput('cron')],
 };
 
-const dbForm: any = ref(null);
+const dbForm = ref<FormInstance | null>(null);
 
 const basicTab = 'basic';
 const fieldTab = 'field';
@@ -295,10 +298,10 @@ const state = reactive({
     form: basicFormData,
     srcTableFields: [] as string[],
     targetTableList: [] as { tableName: string; tableComment: string }[],
-    targetColumnList: [] as any[],
+    targetColumnList: [] as ColumnMetadata[],
     srcDbInst: {} as DbInst,
     targetDbInst: {} as DbInst,
-    previewRes: {} as any,
+    previewRes: {} as Record<string, unknown>,
     previewDataSql: '',
     previewInsertSql: '',
     previewFieldArr: [] as string[],
@@ -319,7 +322,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         return;
     }
     state.tabActiveName = 'basic';
-    const propsData = props.data as any;
+    const propsData = props.data;
     if (!propsData?.id) {
         let d = { taskCron: '' } as FormData;
         Object.assign(d, basicFormData);
@@ -328,7 +331,8 @@ watch(dialogVisible, async (newValue: boolean) => {
     }
 
     let data = await dbSyncApi.getDatasyncTask.request({ taskId: propsData?.id });
-    state.form = data;
+    // 原始任务实体(fieldMap 为 JSON 字符串)转换为表单结构(fieldMap 随后解析为数组)
+    state.form = data as unknown as FormData;
     if (!state.form.duplicateStrategy) {
         state.form.duplicateStrategy = -1;
     }
@@ -343,7 +347,7 @@ watch(dialogVisible, async (newValue: boolean) => {
     if (srcDbId) {
         // 通过tagPath查询实例列表
         const dbInfoRes = await dbApi.dbs.request({ id: srcDbId });
-        const db = dbInfoRes.list[0];
+        const db = dbInfoRes.list[0] as Db & { databases?: string[] };
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = await DbInst.getOrNewInst(db);
@@ -355,7 +359,7 @@ watch(dialogVisible, async (newValue: boolean) => {
     if (targetDbId) {
         // 通过tagPath查询实例列表
         const dbInfoRes = await dbApi.dbs.request({ id: targetDbId });
-        const db = dbInfoRes.list[0];
+        const db = dbInfoRes.list[0] as Db & { databases?: string[] };
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.targetDbInst = await DbInst.getOrNewInst(db);
@@ -400,7 +404,7 @@ watch(tabActiveName, async (newValue: string) => {
                 return;
             }
 
-            let fieldArr = state.form.fieldMap?.map((a: any) => targetDbDialect.quoteIdentifier(a.target)) || [];
+            let fieldArr = state.form.fieldMap?.map((a: { src: string; target: string }) => targetDbDialect.quoteIdentifier(a.target)) || [];
             state.previewFieldArr = fieldArr;
             refreshPreviewInsertSql();
             break;
@@ -414,15 +418,23 @@ const refreshPreviewInsertSql = () => {
     state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(state.form.targetTableName!, state.previewFieldArr, state.form.duplicateStrategy!);
 };
 
-const onSelectSrcDb = async (params: any) => {
+interface DbSelectParams {
+    id: number;
+    db: string;
+    dbs: string[];
+    type: string;
+    databases?: string[];
+    name?: string;
+}
+
+const onSelectSrcDb = async (params: DbSelectParams) => {
     //  初始化数据源
     params.databases = params.dbs; // 数据源里需要这个值
-    console.log(params.dbs);
     state.srcDbInst = await DbInst.getOrNewInst(params);
     registerDbCompletionItemProvider(params.id, params.db, params.dbs, params.type);
 };
 
-const onSelectTargetDb = async (params: any) => {
+const onSelectTargetDb = async (params: DbSelectParams) => {
     state.targetDbInst = await DbInst.getOrNewInst(params);
     await loadDbTables(params.id, params.db);
 };
@@ -432,8 +444,8 @@ const loadDbTables = async (dbId: number, db: string) => {
     let data = await dbApi.tableInfos.request({ id: dbId, db });
     state.targetTableList = data;
     if (data && data.length > 0) {
-        let names = data.map((a: any) => a.tableName);
-        if (!names.includes(state.form.targetTableName)) {
+        let names = data.map((a: DbTableInfo) => a.tableName);
+        if (!names.includes(state.form.targetTableName ?? '')) {
             state.form.targetTableName = data[0].tableName;
         }
     }
@@ -486,16 +498,17 @@ const handleGetSrcFields = async () => {
 
     let data = res[0];
 
-    let filedMap: any = {};
+    let filedMap: Record<string, string> = {};
     if (state.form.fieldMap && state.form.fieldMap.length > 0) {
-        state.form.fieldMap.forEach((a: any) => {
+        state.form.fieldMap.forEach((a: { src: string; target: string }) => {
             filedMap[a.src] = a.target;
         });
     }
 
-    state.srcTableFields = data.columns.map((a: any) => a.name);
+    const srcColumns = data.columns ?? [];
+    state.srcTableFields = srcColumns.map((a) => a.name);
 
-    state.form.fieldMap = data.columns.map((a: any) => ({ src: a.name, target: filedMap[a.name] || '' }));
+    state.form.fieldMap = srcColumns.map((a) => ({ src: a.name, target: filedMap[a.name] || '' }));
 
     state.previewRes = data;
 };
@@ -516,7 +529,7 @@ const handleGetTargetFields = async () => {
                 // 优先设置字段名和src一样的值
                 if (names.includes(a.src?.toLowerCase())) {
                     // 从columns中取出
-                    let res = columns.find((col: any) => col.columnName?.toLowerCase() === a.src?.toLowerCase());
+                    let res = columns.find((col) => col.columnName?.toLowerCase() === a.src?.toLowerCase());
                     if (res) {
                         a.target = res.columnName;
                     }
@@ -528,7 +541,7 @@ const handleGetTargetFields = async () => {
 
 const btnOk = async () => {
     await useI18nFormValidate(dbForm);
-    const reqForm: any = { ...state.form };
+    const reqForm: Record<string, unknown> = { ...state.form };
     reqForm.fieldMap = JSON.stringify(state.form.fieldMap);
     await saveExec(reqForm);
     Msg.saveSuccess();

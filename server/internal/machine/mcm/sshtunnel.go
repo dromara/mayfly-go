@@ -266,16 +266,16 @@ func (t *Tunnel) Start(sshClient *ssh.Client) {
 			done := make(chan struct{}, 2)
 
 			// 本地 -> 远程
-			go func() {
+			gox.Go(func() {
 				io.Copy(remote, localConn)
 				done <- struct{}{}
-			}()
+			})
 
 			// 远程 -> 本地
-			go func() {
+			gox.Go(func() {
 				io.Copy(localConn, remote)
 				done <- struct{}{}
-			}()
+			})
 
 			// 等待任意一端结束
 			<-done

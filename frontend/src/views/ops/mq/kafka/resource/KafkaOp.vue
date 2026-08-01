@@ -33,22 +33,13 @@
 import { Msg } from '@/hooks/useI18n';
 import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { mqApi } from '../../api';
+import type { KafkaGroup, KafkaTopicView } from '../../types';
 
 const NodeManage = defineAsyncComponent(() => import('../component/NodeManage.vue'));
 const TopicManage = defineAsyncComponent(() => import('../component/TopicManage.vue'));
 const ProduceMessage = defineAsyncComponent(() => import('../component/ProduceMessage.vue'));
 const ConsumeMessage = defineAsyncComponent(() => import('../component/ConsumeMessage.vue'));
 const ConsumerGroup = defineAsyncComponent(() => import('../component/ConsumerGroup.vue'));
-
-interface Topic {
-    name: string;
-    partitionCount: number;
-    replicationFactor: number;
-    status: string;
-    isInternal: boolean;
-    partitions: Partitions[];
-}
-interface Partitions {}
 
 const props = defineProps<{
     kafkaId?: number;
@@ -59,16 +50,16 @@ const activeTab = ref('node');
 const kafkaId = ref<number>(props.kafkaId || 0);
 const selectedTopic = ref<string>('');
 const loading = ref(false);
-const topics = ref<any[]>([]);
-const groups = ref<any[]>([]);
+const topics = ref<KafkaTopicView[]>([]);
+const groups = ref<KafkaGroup[]>([]);
 
 // 计算属性：提取 topic 名称列表
-const topicNames = computed(() => topics.value.map((item: any) => item.name));
+const topicNames = computed(() => topics.value.map((item) => item.name));
 
 const emits = defineEmits(['init']);
 
-const initKafka = (params: any) => {
-    kafkaId.value = params.id;
+const initKafka = (params: Record<string, unknown>) => {
+    kafkaId.value = Number(params.id);
     selectedTopic.value = '';
     loadData();
 };
@@ -83,7 +74,7 @@ const loadData = async () => {
         ]);
         // 转换 topics 数据格式
         topics.value = (topicsRes || []).map(
-            (topic: any) =>
+            (topic) =>
                 ({
                     name: topic.topic,
                     partitionCount: topic.partition_count || 0,
@@ -91,17 +82,17 @@ const loadData = async () => {
                     partitions: topic.partitions || [],
                     isInternal: topic.IsInternal,
                     status: topic.Err === '' ? 'HEALTHY' : `ERROR：${topic.Err}`,
-                }) as Topic
+                }) as KafkaTopicView
         );
         groups.value = groupsRes || [];
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error((error instanceof Error ? error.message : String(error)) || 'common.requestFail');
     } finally {
         loading.value = false;
     }
 };
 
-const handleTabClick = (tab: any) => {
+const handleTabClick = (tab: { props: { name: string } }) => {
     // 切换 tab 时清空选中的 topic
     if (tab.props.name !== 'produce' && tab.props.name !== 'consume') {
         selectedTopic.value = '';

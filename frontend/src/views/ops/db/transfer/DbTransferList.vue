@@ -84,16 +84,17 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferRunningStateEnum } from '@/views/ops/db/transfer/enums';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { DbTransferTask } from '../types';
 
 const DbTransferEdit = defineAsyncComponent(() => import('./DbTransferEdit.vue'));
 const DbTransferFile = defineAsyncComponent(() => import('./DbTransferFile.vue'));
@@ -126,7 +127,7 @@ const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, per
 const actionWidth =
     ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.files] ? 1 : 0)) * 55;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     row: {},
@@ -146,21 +147,21 @@ const state = reactive({
     },
     editDialog: {
         visible: false,
-        data: null as any,
+        data: null as DbTransferTask | null,
         title: '',
     },
     logsDialog: {
         logId: 0,
         title: '',
         visible: false,
-        data: null as any,
+        data: null as { logId: number; state: number } | null,
         running: false,
     },
     filesDialog: {
         taskId: 0,
         title: '',
         visible: false,
-        data: null as any,
+        data: null as DbTransferTask | null,
     },
 });
 
@@ -173,10 +174,10 @@ onMounted(async () => {
 });
 
 const search = () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const edit = async (data: any) => {
+const edit = async (data: DbTransferTask | false) => {
     if (!data) {
         state.editDialog.data = null;
         state.editDialog.title = t('db.createDbTransferDialogTitle');
@@ -187,21 +188,21 @@ const edit = async (data: any) => {
     state.editDialog.visible = true;
 };
 
-const stop = async (id: any) => {
+const stop = async (id: number) => {
     await useI18nConfirm('db.stopConfirm');
     await dbTransferApi.stopDbTransferTask.request({ taskId: id });
     Msg.operateSuccess();
     search();
 };
 
-const onOpenLog = (data: any) => {
+const onOpenLog = (data: { logId: number; state: number }) => {
     state.logsDialog.logId = data.logId;
     state.logsDialog.visible = true;
     state.logsDialog.title = t('db.log');
     state.logsDialog.running = data.state === DbTransferRunningStateEnum.Running.value;
 };
 
-const onReRun = async (data: any) => {
+const onReRun = async (data: DbTransferTask) => {
     await useI18nConfirm('db.runConfirm');
     try {
         let res = await dbTransferApi.runDbTransferTask.request({ taskId: data.id });
@@ -217,13 +218,13 @@ const onReRun = async (data: any) => {
     }, 2000);
 };
 
-const openFiles = async (data: any) => {
+const openFiles = async (data: DbTransferTask) => {
     state.filesDialog.visible = true;
     state.filesDialog.title = t('db.transferFileManage');
     state.filesDialog.taskId = data.id;
     state.filesDialog.data = data;
 };
-const updStatus = async (id: any, status: 1 | -1) => {
+const updStatus = async (id: number, status: 1 | -1) => {
     try {
         await dbTransferApi.updateDbTransferTaskStatus.request({ taskId: id, status });
         Msg.operateSuccess();
@@ -235,8 +236,8 @@ const updStatus = async (id: any, status: 1 | -1) => {
 
 const del = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.taskName).join('、'));
-        await dbTransferApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferTask) => x.taskName).join('、'));
+        await dbTransferApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: DbTransferTask) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {

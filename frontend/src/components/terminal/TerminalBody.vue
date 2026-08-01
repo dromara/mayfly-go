@@ -13,7 +13,7 @@
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { ITheme, Terminal } from '@xterm/xterm';
+import { FontWeight, ITheme, Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 
 import config from '@/common/config';
@@ -71,9 +71,9 @@ const props = defineProps({
 
 const emit = defineEmits(['statusChange']);
 
-const terminalRef: any = ref(null);
-const terminalSearchRef: any = ref(null);
-const contextmenuRef: any = ref(null);
+const terminalRef = ref<HTMLElement | null>(null);
+const terminalSearchRef = ref<InstanceType<typeof TerminalSearch> | null>(null);
+const contextmenuRef = ref<InstanceType<typeof Contextmenu> | null>(null);
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 
@@ -90,9 +90,9 @@ let silentBuffer = '';
 const state = reactive({
     // 插件
     addon: {
-        fit: null as any,
-        search: null as any,
-        weblinks: null as any,
+        fit: null as FitAddon | null,
+        search: null as SearchAddon | null,
+        weblinks: null as WebLinksAddon | null,
     },
     status: -11,
     // 右键菜单
@@ -136,7 +136,6 @@ onBeforeUnmount(() => {
 const init = () => {
     state.status = TerminalStatus.NoConnected;
     if (term) {
-        console.log('重新连接...');
         close();
     }
     nextTick(() => {
@@ -147,7 +146,7 @@ const init = () => {
 const initTerm = async () => {
     term = new Terminal({
         fontSize: themeConfig.value.terminalFontSize || 15,
-        fontWeight: themeConfig.value.terminalFontWeight || 'normal',
+        fontWeight: (themeConfig.value.terminalFontWeight || 'normal') as FontWeight,
         fontFamily: 'JetBrainsMono, monaco, Consolas, Lucida Console, monospace',
         cursorBlink: true,
         disableStdin: false,
@@ -155,7 +154,9 @@ const initTerm = async () => {
         theme: getTerminalTheme(),
     });
 
-    term.open(terminalRef.value);
+    if (terminalRef.value) {
+        term.open(terminalRef.value);
+    }
 
     // 注册自适应组件
     const fitAddon = new FitAddon();
@@ -174,7 +175,7 @@ const initTerm = async () => {
         // 注册搜索键 ctrl + f
         if (event.key === 'f' && (event.ctrlKey || event.metaKey) && event.type === 'keydown') {
             event.preventDefault();
-            terminalSearchRef.value.open();
+            terminalSearchRef.value?.open();
         }
 
         return true;
@@ -190,7 +191,6 @@ const initSocket = async () => {
     } catch (e) {
         term.writeln(`\r\n\x1b[31m${t('components.terminal.connErrMsg')}`);
         state.status = TerminalStatus.Error;
-        console.log('连接错误', e);
         return;
     }
 
@@ -208,7 +208,6 @@ const initSocket = async () => {
     }
 
     socket.onclose = (e: CloseEvent) => {
-        console.log('terminal socket close...', e.reason);
         state.status = TerminalStatus.Disconnected;
     };
 
@@ -224,7 +223,6 @@ const initSocket = async () => {
 
             if (pathMatch && pathMatch[1]) {
                 const path = pathMatch[1];
-                console.log('[Silent Mode] Extracted path:', path);
                 silentResolve(path);
                 silentMode = false;
                 silentResolve = null;
@@ -234,7 +232,6 @@ const initSocket = async () => {
 
             // 如果缓冲区太大，超时处理
             if (silentBuffer.length > 500) {
-                console.warn('[Silent Mode] Buffer too large, using default path');
                 silentResolve('~');
                 silentMode = false;
                 silentResolve = null;
@@ -251,7 +248,6 @@ const initSocket = async () => {
 
 const startHeartbeat = () => {
     stopHeartbeat();
-    console.log('terminal start heartbeat');
     heartbeatTimer = setInterval(() => {
         sendPing();
     }, 10000);
@@ -259,7 +255,6 @@ const startHeartbeat = () => {
 
 const stopHeartbeat = () => {
     if (heartbeatTimer) {
-        console.log('terminal stop heartbeat');
         clearInterval(heartbeatTimer);
         heartbeatTimer = null;
     }
@@ -286,10 +281,12 @@ const loadAddon = () => {
     });
 
     // enable drag files or directories to upload
-    terminalRef.value.addEventListener('dragover', (event: Event) => event.preventDefault());
-    terminalRef.value.addEventListener('drop', (event: any) => {
+    terminalRef.value?.addEventListener('dragover', (event: Event) => event.preventDefault());
+    terminalRef.value?.addEventListener('drop', (event: DragEvent) => {
         event.preventDefault();
-        handleFileDrop(event.dataTransfer.items);
+        if (event.dataTransfer) {
+            handleFileDrop(event.dataTransfer.items);
+        }
     });
 
     // 添加右键菜单支持文件下载和上传
@@ -297,11 +294,11 @@ const loadAddon = () => {
 };
 
 // 写入内容至终端
-const write2Term = (data: any) => {
+const write2Term = (data: string | Uint8Array) => {
     term.write(data);
 };
 
-const writeln2Term = (data: any) => {
+const writeln2Term = (data: string | Uint8Array) => {
     term.writeln(data);
 };
 
@@ -309,7 +306,7 @@ const getTerminalTheme = () => {
     const terminalTheme = themeConfig.value.terminalTheme;
     // 如果不是自定义主题，则返回内置主题
     if (terminalTheme != 'custom') {
-        return (themes as any)[terminalTheme];
+        return (themes as Record<string, ITheme>)[terminalTheme];
     }
 
     // 自定义主题
@@ -323,7 +320,7 @@ const getTerminalTheme = () => {
 
 // 自适应终端
 const fitTerminal = () => {
-    state.addon.fit.fit();
+    state.addon.fit?.fit();
 };
 
 const focus = () => {
@@ -342,7 +339,7 @@ enum MsgType {
     Ping = 3,
 }
 
-const send2Socket = (data: any) => {
+const send2Socket = (data: string | ArrayBuffer) => {
     state.status == TerminalStatus.Connected && socket?.send(data);
 };
 
@@ -354,7 +351,7 @@ const sendPing = () => {
     send2Socket(`${MsgType.Ping}|ping`);
 };
 
-const sendData = (key: any) => {
+const sendData = (key: string) => {
     send2Socket(`${MsgType.Data}|${key}`);
 };
 
@@ -366,7 +363,7 @@ const closeSocket = () => {
 
 // 设置右键菜单
 const setupContextMenu = () => {
-    terminalRef.value.addEventListener('contextmenu', async (event: MouseEvent) => {
+    terminalRef.value?.addEventListener('contextmenu', async (event: MouseEvent) => {
         event.preventDefault();
 
         showContextMenu(event, term.getSelection());
@@ -466,8 +463,9 @@ const downloadSelectedFile = async (filePath: string) => {
                 authCertName: props.authCertName,
                 path: fullPath,
             });
-        } catch (error: any) {
-            Msg.error('components.terminal.downloadFailed', { error: error.message });
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : String(error);
+            Msg.error('components.terminal.downloadFailed', { error: msg });
             return;
         }
 
@@ -477,8 +475,9 @@ const downloadSelectedFile = async (filePath: string) => {
         );
 
         Msg.success('components.terminal.startDownload', { file: fullPath });
-    } catch (error: any) {
-        Msg.error('components.terminal.downloadFailed', { error: error.message });
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        Msg.error('components.terminal.downloadFailed', { error: msg });
     }
 };
 
@@ -505,8 +504,9 @@ const triggerFolderUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.multiple = true;
-    (input as any).webkitdirectory = true;
-    (input as any).directory = true;
+    const htmlInput = input as HTMLInputElement & { webkitdirectory: boolean; directory: boolean };
+    htmlInput.webkitdirectory = true;
+    htmlInput.directory = true;
     input.style.display = 'none';
 
     input.addEventListener('change', () => {
@@ -547,8 +547,9 @@ const uploadFilesToCurrentPath = async (files: FileList) => {
                 },
             }
         );
-    } catch (error: any) {
-        Msg.error('components.terminal.uploadFailed', { error: error.message });
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        Msg.error('components.terminal.uploadFailed', { error: msg });
     }
 };
 
@@ -576,8 +577,9 @@ const uploadFolderToCurrentPath = async (files: FileList) => {
                 },
             }
         );
-    } catch (error: any) {
-        Msg.error('components.terminal.uploadFailed', { error: error.message });
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        Msg.error('components.terminal.uploadFailed', { error: msg });
     }
 };
 
@@ -586,7 +588,6 @@ const getCurrentPathOrDefault = async (): Promise<string> => {
     try {
         return await getCurrentPath();
     } catch (e) {
-        console.warn('获取当前路径失败，使用默认路径 ~:', e);
         return '~';
     }
 };
@@ -613,7 +614,6 @@ const getCurrentPath = (): Promise<string> => {
                 silentMode = false;
                 silentResolve = null;
                 silentBuffer = '';
-                console.warn('[Silent Mode] Timeout getting current path');
                 resolve('~'); // 超时返回默认路径
             }
         }, 2000); // 2秒超时
@@ -639,17 +639,16 @@ const handleFileDrop = async (items: DataTransferItemList) => {
     }
 
     if (files.length > 0) {
-        await uploadFilesToCurrentPath(files as any);
+        await uploadFilesToCurrentPath(files as unknown as FileList);
     }
 };
 
 const close = () => {
-    console.log('in terminal body close');
     closeSocket();
     if (term) {
-        state.addon.search.dispose();
-        state.addon.fit.dispose();
-        state.addon.weblinks.dispose();
+        state.addon.search?.dispose();
+        state.addon.fit?.dispose();
+        state.addon.weblinks?.dispose();
         term.dispose();
     }
 };

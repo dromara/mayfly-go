@@ -11,7 +11,7 @@
                             <el-input
                                 @clear="clear"
                                 v-model="scanParam.match"
-                                @keyup.enter.native="searchKey()"
+                                @keyup.enter="searchKey()"
                                 :placeholder="$t('redis.keyMatchTips')"
                                 clearable
                                 size="small"
@@ -158,11 +158,34 @@ import { keysToList, keysToTree, sortByTreeNodes } from '../utils';
 
 const KeyDetail = defineAsyncComponent(() => import('../KeyDetail.vue'));
 
+/** key 详情 tab */
+interface RedisDataTab {
+    key: string;
+    label: string;
+    keyInfo: { key: string; type: string; timed: number };
+}
+
+/** key 树节点 */
+interface KeyTreeNode {
+    name?: string;
+    key?: string;
+    type?: number;
+    children?: KeyTreeNode[];
+    keyCount?: number;
+    [key: string]: unknown;
+}
+
+/** el-tree 实例（仅声明用到的成员） */
+interface KeyTreeRef {
+    root: { childNodes: { isLeaf: boolean; label: string }[] };
+    setCurrentKey: (key: string) => void;
+}
+
 const { t } = useI18n();
 
 const props = defineProps<{
     tabKey?: string;
-    redisInfo: any;
+    redisInfo: Record<string, unknown>;
 }>();
 
 const emits = defineEmits(['init']);
@@ -173,19 +196,19 @@ const keyFormRules = {
 
 const cmCopyKey = new ContextmenuItem('copyValue', 'Copy')
     .withIcon('CopyDocument')
-    .withHideFunc((data: any) => !data.isLeaf)
-    .withOnClick(async (data: any) => await copyToClipboard(data.key));
+    .withHideFunc((data: unknown) => !(data as Record<string, unknown>).isLeaf)
+    .withOnClick(async (data: unknown) => await copyToClipboard((data as Record<string, unknown>).key as string));
 
 const cmNewTabOpen = new ContextmenuItem('newTabOpenKey', 'redis.newTabOpen')
     .withIcon('plus')
-    .withHideFunc((data: any) => !data.isLeaf)
-    .withOnClick((data: any) => showKeyDetail(data.key, true));
+    .withHideFunc((data: unknown) => !(data as Record<string, unknown>).isLeaf)
+    .withOnClick((data: unknown) => showKeyDetail((data as Record<string, unknown>).key as string, true));
 
 const cmDelKey = new ContextmenuItem('delKey', 'common.delete')
     .withIcon('delete')
     .withPermission('redis:data:del')
-    .withHideFunc((data: any) => !data.isLeaf)
-    .withOnClick((data: any) => delKey(data.key));
+    .withHideFunc((data: unknown) => !(data as Record<string, unknown>).isLeaf)
+    .withOnClick((data: unknown) => delKey((data as Record<string, unknown>).key as string));
 
 const treeProps = {
     label: 'name',
@@ -196,32 +219,32 @@ const treeProps = {
 const defaultCount = 250;
 
 const contextmenuRef = ref();
-const keyTreeRef: any = ref(null);
+const keyTreeRef = useTemplateRef<KeyTreeRef>('keyTreeRef');
 const keyFormRef = useTemplateRef('keyForm');
 
 const redisInst: Ref<RedisInst> = ref(new RedisInst());
 
 const state = reactive({
-    defaultExpendKey: [] as any,
+    defaultExpendKey: [] as string[],
     tags: [],
-    redisList: [] as any,
+    redisList: [] as Record<string, unknown>[],
     dbList: [],
     keyTreeHeight: '100px',
     loadingKeyTree: false,
-    keys: [] as any,
+    keys: [] as string[],
     keySeparator: ':',
-    keyTreeData: [] as any,
-    keyTreeExpanded: new Set(),
+    keyTreeData: [] as KeyTreeNode[],
+    keyTreeExpanded: new Set<string>(),
     activeName: '',
-    dataTabs: {} as any,
-    rightClickNode: {} as any,
+    dataTabs: {} as Record<string, RedisDataTab>,
+    rightClickNode: {} as Record<string, unknown>,
     scanParam: {
-        id: null as any,
+        id: null as number | null,
         mode: '',
-        db: null as any,
+        db: null as number | null,
         match: null,
         count: defaultCount,
-        cursor: {},
+        cursor: {} as Record<string, number>,
     },
     newKeyDialog: {
         visible: false,
@@ -290,7 +313,7 @@ const scan = async (appendKey = false) => {
     }
 };
 
-const setKeyList = (keys: any) => {
+const setKeyList = (keys: string[]) => {
     state.keyTreeData = state.keySeparator ? keysToTree(keys, state.keySeparator, state.keyTreeExpanded) : keysToList(keys);
     nextTick(() => {
         // key长度小于指定数量，则展开所有节点
@@ -298,38 +321,38 @@ const setKeyList = (keys: any) => {
             expandAllKeyNode(state.keyTreeData);
         }
 
-        sortByTreeNodes(keyTreeRef.value.root.childNodes);
+        sortByTreeNodes(keyTreeRef.value?.root.childNodes ?? []);
     });
 };
 
 // 展开所有节点
-const expandAllKeyNode = (nodes: any) => {
+const expandAllKeyNode = (nodes: KeyTreeNode[]) => {
     for (let node of nodes) {
         if (!node.children) {
             continue;
         }
-        state.keyTreeExpanded.add(node.key);
+        state.keyTreeExpanded.add(node.key as string);
         for (let i = 0; i < node.children.length; i++) {
             expandAllKeyNode(node.children);
         }
     }
 };
 
-const handleKeyTreeNodeClick = async (data: any) => {
+const handleKeyTreeNodeClick = async (data: Record<string, unknown>) => {
     // 关闭可能存在的右击菜单
-    contextmenuRef.value.closeContextmenu();
+    contextmenuRef.value?.closeContextmenu();
     // 目录则不做处理
     if (data.type == 1) {
         return;
     }
 
-    showKeyDetail(data.key);
+    showKeyDetail(data.key as string);
 };
 
-const showKeyDetail = async (key: any, newTab = false) => {
-    let keyInfo;
+const showKeyDetail = async (key: string | Record<string, unknown>, newTab = false) => {
+    let keyInfo: { key: string; type: string; timed: number };
     if (typeof key == 'object') {
-        keyInfo = key;
+        keyInfo = key as { key: string; type: string; timed: number };
     } else {
         if (state.dataTabs[key]) {
             state.activeName = key;
@@ -376,25 +399,25 @@ const removeDataTab = (targetName: string) => {
     delete state.dataTabs[targetName];
 };
 
-const keyTreeNodeExpand = (data: any, node: any) => {
-    state.keyTreeExpanded.add(data.key);
+const keyTreeNodeExpand = (data: Record<string, unknown>, node: Record<string, unknown>) => {
+    state.keyTreeExpanded.add(data.key as string);
     // async sort nodes
     if (!node.customSorted) {
         node.customSorted = true;
-        sortByTreeNodes(node.childNodes);
+        sortByTreeNodes(node.childNodes as { isLeaf: boolean; label: string }[]);
     }
 };
 
-const keyTreeNodeCollapse = (data: any) => {
-    state.keyTreeExpanded.delete(data.key);
+const keyTreeNodeCollapse = (data: Record<string, unknown>) => {
+    state.keyTreeExpanded.delete(data.key as string);
 };
 
-const rightClickNode = (event: any, data: any, node: any) => {
+const rightClickNode = (event: MouseEvent, data: Record<string, unknown>, node: Record<string, unknown>) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    contextmenuRef.value.openContextmenu(node);
-    keyTreeRef.value.setCurrentKey(node.key);
+    contextmenuRef.value?.openContextmenu(node);
+    keyTreeRef.value?.setCurrentKey(node.key as string);
 };
 
 const searchKey = async () => {
@@ -478,18 +501,18 @@ const delKey = async (key: string) => {
     removeDataTab(key);
 };
 
-const onDbClick = async (dbInfo: any) => {
+const onDbClick = async (dbInfo: Record<string, unknown>) => {
     if (state.scanParam.db == dbInfo.db) {
         return;
     }
     resetScanParam();
 
-    state.scanParam.id = dbInfo.id;
-    state.scanParam.mode = dbInfo.mode;
-    state.scanParam.db = dbInfo.db;
+    state.scanParam.id = dbInfo.id as number;
+    state.scanParam.mode = dbInfo.mode as string;
+    state.scanParam.db = dbInfo.db as number;
 
-    redisInst.value.id = dbInfo.id;
-    redisInst.value.db = Number.parseInt(dbInfo.db);
+    redisInst.value.id = dbInfo.id as number;
+    redisInst.value.db = Number.parseInt(String(dbInfo.db));
 
     scan();
 };

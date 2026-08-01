@@ -26,4 +26,7 @@ var En = map[i18n.MsgId]string{
 	ErrBizHandlerFail:     "Business process failure",
 
 	ErrAiTaskNodeAuditRuleNotEmpty: "The audit rule of the AI task node [{{.name}}] cannot be empty",
+
+	ErrProcinstNotBackStatus: "The work order is not in returned status, cannot modify",
+	ErrProcinstNotCreator:    "The work order was not created by the current user, cannot modify",
 }

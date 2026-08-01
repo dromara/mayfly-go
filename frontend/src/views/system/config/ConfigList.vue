@@ -55,13 +55,15 @@
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
 import { DynamicForm } from '@/components/dynamic-form';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { configApi } from '../api';
+import type { SysConfig } from '../types';
+import type { PageResult } from '@/types/common';
 
 const ConfigEdit = defineAsyncComponent(() => import('./ConfigEdit.vue'));
 
@@ -84,8 +86,8 @@ const columns = ref([
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
 const actionBtns = hasPerms([perms.saveConfig]);
 
-const pageTableRef: Ref<any> = ref(null);
-const paramsFormRef: any = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const paramsFormRef = ref<{ validate: (cb: (valid: boolean) => void) => void } | null>(null);
 
 const state = reactive({
     query: {
@@ -96,14 +98,14 @@ const state = reactive({
     selectionData: [],
     paramsDialog: {
         visible: false,
-        config: null as any,
-        params: {},
-        paramsFormItem: [] as any,
+        config: {} as SysConfig,
+        params: {} as Record<string, unknown> | string,
+        paramsFormItem: [] as Record<string, unknown>[],
     },
     configEdit: {
         title: 'common.edit',
         visible: false,
-        config: {},
+        config: false as SysConfig | false,
     },
 });
 
@@ -116,10 +118,10 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const handleData = (res: any) => {
+const handleData = (res: PageResult<SysConfig & { i18nName?: string; i18nRemark?: string }>) => {
     const dataList = res.list;
     // 内容国际化
     for (let x of dataList) {
@@ -129,7 +131,7 @@ const handleData = (res: any) => {
     return res;
 };
 
-const showSetConfigDialog = (row: any) => {
+const showSetConfigDialog = (row: SysConfig) => {
     state.paramsDialog.config = row;
     // 存在配置项则弹窗提示输入对应的配置项
     if (row.params) {
@@ -150,28 +152,29 @@ const showSetConfigDialog = (row: any) => {
 const onCloseSetConfigDialog = () => {
     state.paramsDialog.visible = false;
     setTimeout(() => {
-        state.paramsDialog.config = {};
+        state.paramsDialog.config = {} as SysConfig;
         state.paramsDialog.params = {};
         state.paramsDialog.paramsFormItem = [];
     }, 300);
 };
 
 const setConfig = async () => {
-    let paramsValue: any = state.paramsDialog.params;
+    let paramsValue: Record<string, unknown> | string | null = state.paramsDialog.params;
     if (state.paramsDialog.paramsFormItem.length > 0) {
-        await paramsFormRef.value.validate((valid: boolean) => {
+        await paramsFormRef.value?.validate((valid: boolean) => {
             if (!valid) {
-                paramsValue = null as any;
-                return false;
+                paramsValue = null;
+                return;
             }
             if (state.paramsDialog.paramsFormItem.length > 0) {
+                const paramsObj = state.paramsDialog.params as Record<string, unknown>;
                 // 如果配置项删除，则需要将value中对应的字段移除
-                for (let paramKey in paramsValue) {
+                for (let paramKey in paramsObj) {
                     if (!hasParam(paramKey, state.paramsDialog.paramsFormItem)) {
-                        delete paramsValue[paramKey];
+                        delete paramsObj[paramKey];
                     }
                 }
-                paramsValue = JSON.stringify(paramsValue);
+                paramsValue = JSON.stringify(paramsObj);
             }
         });
     }
@@ -190,7 +193,7 @@ const setConfig = async () => {
     search();
 };
 
-const hasParam = (paramKey: string, paramItems: any) => {
+const hasParam = (paramKey: string, paramItems: Record<string, unknown>[]) => {
     for (let paramItem of paramItems) {
         if (paramItem.model == paramKey) {
             return true;
@@ -204,7 +207,7 @@ const onConfigEditChange = () => {
     search();
 };
 
-const onEditConfig = (data: any) => {
+const onEditConfig = (data: SysConfig | false) => {
     if (data) {
         state.configEdit.title = 'common.edit';
         state.configEdit.config = data;

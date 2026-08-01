@@ -18,7 +18,7 @@ export interface UploadOptions {
  * T 请求返回的数据类型
  * P 请求参数类型
  */
-class Api<T = any, P = any> {
+class Api<T = unknown, P = unknown> {
     /**
      * 请求url
      */
@@ -33,7 +33,7 @@ class Api<T = any, P = any> {
      * 请求前处理函数
      * param1: param请求参数
      */
-    beforeHandler: Function;
+    beforeHandler?: (param: P) => Promise<P> | P;
 
     constructor(url: string, method: string) {
         this.url = url;
@@ -45,7 +45,7 @@ class Api<T = any, P = any> {
      * @param func 请求前处理器
      * @returns this
      */
-    withBeforeHandler(func: Function) {
+    withBeforeHandler(func: (param: P) => Promise<P> | P) {
         this.beforeHandler = func;
         return this;
     }
@@ -72,7 +72,7 @@ class Api<T = any, P = any> {
      * @param {Object} param 请求该api的参数
      * @param options options
      */
-    async request(param?: P, options: any = {}): Promise<T> {
+    async request(param?: P, options: RequestOptions = {}): Promise<T> {
         const { execute, data } = this.useApi(param, options);
         const res = await execute();
         return (data.value as T) || (res as T);
@@ -211,7 +211,7 @@ class Api<T = any, P = any> {
      * @param url url
      * @param method 请求方法(get,post,put,delete...)
      */
-    static create<T = any, P = any>(url: string, method: string): Api<T> {
+    static create<T = unknown, P = unknown>(url: string, method: string): Api<T, P> {
         return new Api<T, P>(url, method);
     }
 
@@ -219,7 +219,7 @@ class Api<T = any, P = any> {
      * 创建get api
      * @param url url
      */
-    static newGet<T = any, P = any>(url: string): Api<T, P> {
+    static newGet<T = unknown, P = unknown>(url: string): Api<T, P> {
         return Api.create<T, P>(url, 'get');
     }
 
@@ -227,7 +227,7 @@ class Api<T = any, P = any> {
      * new post api
      * @param url url
      */
-    static newPost<T = any, P = any>(url: string): Api<T, P> {
+    static newPost<T = unknown, P = unknown>(url: string): Api<T, P> {
         return Api.create<T, P>(url, 'post');
     }
 
@@ -235,7 +235,7 @@ class Api<T = any, P = any> {
      * new put api
      * @param url url
      */
-    static newPut<T = any, P = any>(url: string): Api<T, P> {
+    static newPut<T = unknown, P = unknown>(url: string): Api<T, P> {
         return Api.create<T, P>(url, 'put');
     }
 
@@ -243,7 +243,7 @@ class Api<T = any, P = any> {
      * new delete api
      * @param url url
      */
-    static newDelete<T = any, P = any>(url: string): Api<T, P> {
+    static newDelete<T = unknown, P = unknown>(url: string): Api<T, P> {
         return Api.create<T, P>(url, 'delete');
     }
 
@@ -251,14 +251,14 @@ class Api<T = any, P = any> {
      * 创建文件上传 api
      * @param url url
      */
-    static newUpload<T = any, P = any>(url: string): Api<T, P> {
+    static newUpload<T = unknown, P = unknown>(url: string): Api<T, P> {
         return Api.create<T, P>(url, 'upload');
     }
 }
 
 export default Api;
 
-export class PageRes {
-    list: any[] = [];
+export class PageRes<T = unknown> {
+    list: T[] = [];
     total: number = 0;
 }

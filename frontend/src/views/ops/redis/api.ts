@@ -1,27 +1,30 @@
 import Api from '@/common/Api';
+import type { PageResult } from '@/types/common';
+import type { Redis, RedisKeyInfo, RedisScanRes, RedisListParam } from './types';
 
 export const redisApi = {
-    redisList: Api.newGet('/redis'),
-    redisTags: Api.newGet('/redis/tags'),
-    getRedisPwd: Api.newGet('/redis/{id}/pwd'),
-    redisInfo: Api.newGet('/redis/{id}/info'),
-    clusterInfo: Api.newGet('/redis/{id}/cluster-info'),
-    testConn: Api.newPost('/redis/test-conn'),
-    saveRedis: Api.newPost('/redis'),
-    delRedis: Api.newDelete('/redis/{id}'),
+    redisList: Api.newGet<PageResult<Redis>, RedisListParam>('/redis'),
+    redisTags: Api.newGet<Redis[]>('/redis/tags'),
+    getRedisPwd: Api.newGet<Record<string, string>>('/redis/{id}/pwd'),
+    redisInfo: Api.newGet<Record<string, unknown>>('/redis/{id}/info'),
+    clusterInfo: Api.newGet<Record<string, unknown>>('/redis/{id}/cluster-info'),
+    testConn: Api.newPost<void>('/redis/test-conn'),
+    saveRedis: Api.newPost<void>('/redis'),
+    delRedis: Api.newDelete<void>('/redis/{id}'),
 
-    keyInfo: Api.newGet('/redis/{id}/{db}/key-info'),
-    keyTtl: Api.newGet('/redis/{id}/{db}/key-ttl'),
-    keyMemuse: Api.newGet('/redis/{id}/{db}/key-memuse'),
+    keyInfo: Api.newGet<RedisKeyInfo>('/redis/{id}/{db}/key-info'),
+    keyTtl: Api.newGet<number>('/redis/{id}/{db}/key-ttl'),
+    keyMemuse: Api.newGet<number>('/redis/{id}/{db}/key-memuse'),
 
     // 获取key列表
-    scan: Api.newPost('/redis/{id}/{db}/scan'),
+    scan: Api.newPost<RedisScanRes>('/redis/{id}/{db}/scan'),
 
-    runCmd: Api.newPost('/redis/{id}/{db}/run-cmd'),
+    // 执行命令，返回命令原始结果（随命令变化，由调用方泛型指定）
+    runCmd: Api.newPost<unknown>('/redis/{id}/{db}/run-cmd'),
 };
 
 export function splitargs(line: string) {
-    var ret = [] as any;
+    var ret: string[] = [];
     if (!line || typeof line.length !== 'number') {
         return ret;
     }

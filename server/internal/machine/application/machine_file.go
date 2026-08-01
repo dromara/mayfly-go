@@ -25,6 +25,21 @@ import (
 	"github.com/pkg/sftp"
 )
 
+// shellQuote 将参数用单引号包裹并转义内部单引号，防止命令注入
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
+// validateRdpPath 校验 RDP 文件路径，防止路径穿越
+func validateRdpFilePath(basePath, userPath string) (string, error) {
+	cleanPath := filepath.Clean(userPath)
+	// 禁止路径穿越
+	if strings.Contains(cleanPath, "..") {
+		return "", errorx.NewBiz("invalid path: path traversal is not allowed")
+	}
+	return filepath.Join(basePath, cleanPath), nil
+}
+
 type MachineFile interface {
 	base.App[*entity.MachineFile]
 
@@ -165,7 +180,7 @@ func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *dto.Machin
 		return "", err
 	}
 
-	res, err := mcli.Run(fmt.Sprintf("du -sh %s", path))
+	res, err := mcli.Run(fmt.Sprintf("du -sh %s", shellQuote(path)))
 	if err != nil {
 		// 若存在目录为空，则可能会返回如下内容。最后一行即为真正目录内容所占磁盘空间大小
 		//du: cannot access ‘/proc/19087/fd/3’: No such file or directory\n
@@ -198,7 +213,7 @@ func (m *machineFileAppImpl) FileStat(ctx context.Context, opParam *dto.MachineF
 		return "", err
 	}
 
-	return mcli.Run(fmt.Sprintf("stat -L %s", path))
+	return mcli.Run(fmt.Sprintf("stat -L %s", shellQuote(path)))
 }
 
 func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, error) {
@@ -209,7 +224,9 @@ func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *dto.MachineFile
 
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
-		os.MkdirAll(path, os.ModePerm)
+		if err := os.MkdirAll(path, os.ModePerm); err != nil {
+			return nil, fmt.Errorf("create directory failed: %w", err)
+		}
 		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 	}
 
@@ -266,8 +283,10 @@ func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *dto.
 			return nil, err
 		}
 		defer file.Close()
-		file.Write(content)
-		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, err
+		if _, err := file.Write(content); err != nil {
+			return nil, fmt.Errorf("write file failed: %w", err)
+		}
+		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 	}
 
 	mi, sftpCli, err := m.GetMachineSftpCli(ctx, opParam)
@@ -344,7 +363,9 @@ func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *dto.Machin
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		for _, pt := range path {
 			pt = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), pt)
-			os.RemoveAll(pt)
+			if err := os.RemoveAll(pt); err != nil {
+				return nil, fmt.Errorf("remove file failed: %w", err)
+			}
 		}
 		return nil, nil
 	}
@@ -357,7 +378,11 @@ func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *dto.Machin
 	minfo := mcli.Info
 
 	// 优先使用命令删除（速度快），sftp需要递归遍历删除子文件等
-	res, err := mcli.Run(fmt.Sprintf("rm -rf %s", strings.Join(path, " ")))
+	quotedPaths := make([]string, len(path))
+	for i, p := range path {
+		quotedPaths[i] = shellQuote(p)
+	}
+	res, err := mcli.Run(fmt.Sprintf("rm -rf %s", strings.Join(quotedPaths, " ")))
 	if err == nil {
 		return minfo, nil
 	}
@@ -392,10 +417,16 @@ func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *dto.MachineFileO
 			// 创建目标文件
 			destFile, err := os.Create(targetPath)
 			if err != nil {
+				srcFile.Close()
 				logx.Errorf("error creating destination file: %v", err)
 				return nil, err
 			}
-			io.Copy(destFile, srcFile)
+			_, err = io.Copy(destFile, srcFile)
+			srcFile.Close()
+			destFile.Close()
+			if err != nil {
+				return nil, fmt.Errorf("copy file failed: %w", err)
+			}
 		}
 		return nil, nil
 	}
@@ -406,7 +437,11 @@ func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *dto.MachineFileO
 	}
 
 	mi := mcli.Info
-	res, err := mcli.Run(fmt.Sprintf("cp -r %s %s", strings.Join(path, " "), toPath))
+	quotedPaths := make([]string, len(path))
+	for i, p := range path {
+		quotedPaths[i] = shellQuote(p)
+	}
+	res, err := mcli.Run(fmt.Sprintf("cp -r %s %s", strings.Join(quotedPaths, " "), shellQuote(toPath)))
 	if err != nil {
 		return mi, errors.New(res)
 	}
@@ -424,7 +459,9 @@ func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *dto.MachineFileOp,
 
 			srcPath := m.GetRdpFilePath(contextx.GetLoginAccount(ctx), pt)
 			targetPath := m.GetRdpFilePath(contextx.GetLoginAccount(ctx), toPath+filename)
-			os.Rename(srcPath, targetPath)
+			if err := os.Rename(srcPath, targetPath); err != nil {
+				return nil, fmt.Errorf("rename file failed: %w", err)
+			}
 		}
 		return nil, nil
 	}
@@ -435,7 +472,11 @@ func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *dto.MachineFileOp,
 	}
 
 	mi := mcli.Info
-	res, err := mcli.Run(fmt.Sprintf("mv %s %s", strings.Join(path, " "), toPath))
+	quotedPaths := make([]string, len(path))
+	for i, p := range path {
+		quotedPaths[i] = shellQuote(p)
+	}
+	res, err := mcli.Run(fmt.Sprintf("mv %s %s", strings.Join(quotedPaths, " "), shellQuote(toPath)))
 	if err != nil {
 		return mi, errorx.NewBiz(res)
 	}
@@ -478,5 +519,11 @@ func (m *machineFileAppImpl) GetMachineSftpCli(ctx context.Context, opParam *dto
 }
 
 func (m *machineFileAppImpl) GetRdpFilePath(ua *model.LoginAccount, path string) string {
-	return fmt.Sprintf("%s/%s%s", config.GetMachine().GuacdFilePath, ua.Username, path)
+	basePath := fmt.Sprintf("%s/%s", config.GetMachine().GuacdFilePath, ua.Username)
+	result, err := validateRdpFilePath(basePath, path)
+	if err != nil {
+		// 路径穿越时返回安全的默认路径（用户目录）
+		return basePath
+	}
+	return result
 }

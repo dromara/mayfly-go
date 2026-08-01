@@ -36,9 +36,9 @@
             <!-- 待提交状态 -->
             <div v-if="hasPending && !isProcessed" class="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
                 <span>{{ t('ai.interrupt.approval.selected') }}</span>
-                <enum-tag :enums="InterruptAction" :value="pendingResumeInfo.action" />
-                <span v-if="pendingResumeInfo.action === 'reject' && pendingResumeInfo.payload?.reason" class="truncate max-w-40" :title="pendingResumeInfo.payload.reason">
-                    ({{ pendingResumeInfo.payload.reason }})
+                <enum-tag :enums="InterruptAction" :value="pendingResumeInfo?.action" />
+                <span v-if="pendingResumeInfo?.action === 'reject' && pendingResumeInfo?.payload?.reason" class="truncate max-w-40" :title="String(pendingResumeInfo?.payload?.reason)">
+                    ({{ pendingResumeInfo?.payload?.reason }})
                 </span>
             </div>
 
@@ -46,7 +46,7 @@
             <div v-if="resumeInfo" class="flex items-center gap-2 text-xs">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('ai.interrupt.approval.operationType') }}:</span>
                 <enum-tag :enums="InterruptAction" :value="resumeInfo.action" />
-                <span v-if="resumeInfo.action === 'reject' && resumeInfo.payload?.reason" class="text-gray-700 dark:text-gray-300 truncate max-w-40" :title="resumeInfo.payload.reason">
+                <span v-if="resumeInfo.action === 'reject' && resumeInfo.payload?.reason" class="text-gray-700 dark:text-gray-300 truncate max-w-40" :title="String(resumeInfo.payload.reason)">
                     ({{ resumeInfo.payload.reason }})
                 </span>
             </div>
@@ -68,7 +68,7 @@
 
 import EnumValue from '@/common/Enum';
 import { formatJson } from '@/common/utils/format';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { ElMessageBox } from 'element-plus';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -142,7 +142,7 @@ const handleReject = async () => {
  * @param action 操作类型
  * @param payload 额外数据
  */
-const handleAction = (action: string, payload?: any) => {
+const handleAction = (action: string, payload?: Record<string, unknown>) => {
     emit('action', {
         turnId: turnId.value || '',
         interruptId: interruptId.value || '',

@@ -58,18 +58,10 @@
                             <div v-for="field in collectionFields" :key="field" class="field-item" @click="toggleField(field)">
                                 <el-checkbox :model-value="selectedFields.includes(field)">
                                     <span class="field-label">
-                                        <el-icon v-if="isPrimaryKey(field)" class="field-icon primary">
-                                            <Key />
-                                        </el-icon>
-                                        <el-icon v-else-if="isVectorField(field)" class="field-icon vector">
-                                            <DataAnalysis />
-                                        </el-icon>
-                                        <el-icon v-else-if="isDynamicField(field)" class="field-icon dynamic">
-                                            <InfoFilled />
-                                        </el-icon>
-                                        <el-icon v-else class="field-icon normal">
-                                            <Grid />
-                                        </el-icon>
+                                        <SvgIcon v-if="isPrimaryKey(field)" name="Key" :size="14" class="field-icon primary" />
+                                        <SvgIcon v-else-if="isVectorField(field)" name="DataAnalysis" :size="14" class="field-icon vector" />
+                                        <SvgIcon v-else-if="isDynamicField(field)" name="InfoFilled" :size="14" class="field-icon dynamic" />
+                                        <SvgIcon v-else name="Grid" :size="14" class="field-icon normal" />
                                         {{ field }}
                                     </span>
                                 </el-checkbox>
@@ -118,18 +110,10 @@
             <el-table-column v-for="field in displayFields" :key="field" :label="field" :min-width="getMinWidth(field)">
                 <template #header>
                     <span class="field-label">
-                        <el-icon v-if="isPrimaryKey(field)" title="Primary Key">
-                            <Key />
-                        </el-icon>
-                        <el-icon v-else-if="isVectorField(field)" title="Vector Field">
-                            <DataAnalysis />
-                        </el-icon>
-                        <el-icon v-else-if="isDynamicField(field)" title="Dynamic Fields">
-                            <InfoFilled />
-                        </el-icon>
-                        <el-icon v-else>
-                            <Grid />
-                        </el-icon>
+                        <SvgIcon v-if="isPrimaryKey(field)" name="Key" :size="14" title="Primary Key" />
+                        <SvgIcon v-else-if="isVectorField(field)" name="DataAnalysis" :size="14" title="Vector Field" />
+                        <SvgIcon v-else-if="isDynamicField(field)" name="InfoFilled" :size="14" title="Dynamic Fields" />
+                        <SvgIcon v-else name="Grid" :size="14" />
                         {{ getDisplayLabel(field) }}
                     </span>
                 </template>
@@ -144,9 +128,7 @@
                             {{ formatCellValue(row[field], field) }}
                         </div>
                         <div class="cell-actions">
-                            <el-icon class="copy-icon" @click.stop="copyToClipboard(row[field], field)">
-                                <DocumentCopy />
-                            </el-icon>
+                            <SvgIcon name="DocumentCopy" :size="14" class="copy-icon" @click.stop="copyToClipboard(row[field], field)" />
                         </div>
                     </div>
                 </template>
@@ -253,11 +235,10 @@
 </template>
 
 <script setup lang="ts">
-/* eslint-disable no-undef */
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
 import { Msg } from '@/hooks/useI18n';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
-import { DataAnalysis, DocumentCopy, Grid, InfoFilled, Key } from '@element-plus/icons-vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { useClipboard, useResizeObserver } from '@vueuse/core';
 import { ElMessageBox } from 'element-plus';
 import { storeToRefs } from 'pinia';
@@ -272,12 +253,12 @@ let resizeObserver: ReturnType<typeof useResizeObserver> | undefined;
 
 const calcTableHeight = () => {
     if (!tableContainerRef.value) return;
-    const table = tableContainerRef.value.querySelector('.el-table');
+    const table = tableContainerRef.value?.querySelector('.el-table');
     if (!table) return;
-    const containerRect = tableContainerRef.value.getBoundingClientRect();
+    const containerRect = tableContainerRef.value?.getBoundingClientRect();
     const tableRect = table.getBoundingClientRect();
     const offset = tableRect.top - containerRect.top;
-    const paginationEl = tableContainerRef.value.querySelector('.pagination-container') as HTMLElement;
+    const paginationEl = tableContainerRef.value?.querySelector('.pagination-container') as HTMLElement;
     const paginationH = paginationEl ? paginationEl.offsetHeight + 15 : 0;
     const newHeight = containerRect.height - offset - paginationH;
     if (newHeight > 100) tableHeight.value = newHeight;
@@ -324,8 +305,8 @@ const partitions = ref<string[]>([]);
 const primaryKey = ref<string>('');
 
 // 数据
-const queryResults = ref<any[]>([]);
-const selectedRows = ref<any[]>([]);
+const queryResults = ref<Record<string, unknown>[]>([]);
+const selectedRows = ref<Record<string, unknown>[]>([]);
 
 // 显示字段(动态计算，按照 collectionFields 的原始顺序)
 const displayFields = computed(() => {
@@ -345,7 +326,7 @@ const loadCollectionDetail = async (collectionName: string) => {
         const fields: string[] = [];
         let dynamicFieldCount = 0;
 
-        res.Schema.Fields.forEach((field: any) => {
+        res.Schema.Fields.forEach((field) => {
             if (field.IsDynamic) {
                 dynamicFieldCount++;
                 if (dynamicFieldCount === 1) {
@@ -368,7 +349,7 @@ const loadCollectionDetail = async (collectionName: string) => {
 
     // 加载分区信息
     if (pts) {
-        partitions.value = pts.map((a: any) => a.name);
+        partitions.value = pts.map((a) => a.name);
     }
 };
 
@@ -408,7 +389,7 @@ const handleQuery = async (page?: number) => {
     const targetPage = page !== undefined ? page : currentPage.value;
 
     try {
-        const params: any = {
+        const params: Record<string, unknown> = {
             consistency_level: consistencyLevel.value,
             partitionNames: selectedPartition.value ? [selectedPartition.value] : [],
             page: targetPage,
@@ -438,7 +419,7 @@ const handleQuery = async (page?: number) => {
             totalRecords.value = 0;
             Msg.info('milvus.noData');
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         queryResults.value = [];
         totalRecords.value = 0;
     } finally {
@@ -497,12 +478,12 @@ const handleReset = () => {
 };
 
 // 选择变化
-const handleSelectionChange = (selection: any[]) => {
+const handleSelectionChange = (selection: Record<string, unknown>[]) => {
     selectedRows.value = selection;
 };
 
 // 复制单个数据
-const copyToClipboard = async (value: any, field: string) => {
+const copyToClipboard = async (value: unknown, field: string) => {
     await copy(JSON.stringify(value));
     Msg.success('common.copySuccess');
 };
@@ -521,7 +502,7 @@ const handleDeleteSelected = async () => {
         type: 'warning',
     });
 
-    const ids = selectedRows.value.map((row) => row[primaryKey.value]).filter(Boolean);
+    const ids = selectedRows.value.map((row) => row[primaryKey.value]).filter((id): id is string => id != null && id !== undefined);
     if (ids.length === 0) {
         Msg.warning('milvus.noPrimaryKey');
         return;
@@ -536,7 +517,7 @@ const handleDeleteSelected = async () => {
 };
 
 // 格式化单元格值
-const formatCellValue = (value: any, field: string): string => {
+const formatCellValue = (value: unknown, field: string): string => {
     if (value === null || value === undefined) {
         return '';
     }
@@ -602,12 +583,12 @@ const getDisplayLabel = (field: string) => {
 };
 
 // 判断是否为 URL
-const isUrl = (value: any) => {
+const isUrl = (value: unknown): value is string => {
     return typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
 };
 
 // 单元格点击事件
-const handleCellClick = (value: any, field: string) => {
+const handleCellClick = (value: unknown, field: string) => {
     if (isUrl(value)) {
         window.open(value, '_blank');
     }
@@ -617,7 +598,7 @@ const handleCellClick = (value: any, field: string) => {
 const importDialogVisible = ref(false);
 const sampleSize = ref<number>(10);
 const selectedPartitionForImport = ref('');
-const generatedSampleData = ref<any[]>([]);
+const generatedSampleData = ref<Record<string, unknown>[]>([]);
 const downloadingCSV = ref(false);
 const downloadingJSON = ref(false);
 
@@ -654,8 +635,8 @@ const generateSampleData = async () => {
         generatedSampleData.value = response.data;
 
         Msg.success(`已生成 ${sampleSize.value} 条样本数据`);
-    } catch (error: any) {
-        Msg.error(error.message || '生成样本数据失败');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message || '生成样本数据失败' : '生成样本数据失败');
     } finally {
         loading.value = false;
     }
@@ -682,7 +663,7 @@ const handleDownloadCSV = async () => {
         const headers = Object.keys(data[0] || {});
         const csvRows = [
             headers.join(','),
-            ...data.map((row: any) =>
+            ...data.map((row: Record<string, unknown>) =>
                 headers
                     .map((header) => {
                         const value = row[header];
@@ -703,8 +684,8 @@ const handleDownloadCSV = async () => {
         URL.revokeObjectURL(link.href);
 
         Msg.success(`CSV 文件下载成功`);
-    } catch (error: any) {
-        Msg.error(error.message || '下载 CSV 失败');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message || '下载 CSV 失败' : '下载 CSV 失败');
     } finally {
         downloadingCSV.value = false;
     }
@@ -737,8 +718,8 @@ const handleDownloadJSON = async () => {
         URL.revokeObjectURL(link.href);
 
         Msg.success(`JSON 文件下载成功`);
-    } catch (error: any) {
-        Msg.error(error.message || '下载 JSON 失败');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message || '下载 JSON 失败' : '下载 JSON 失败');
     } finally {
         downloadingJSON.value = false;
     }
@@ -811,8 +792,8 @@ const executeImport = async () => {
 
         // 刷新数据
         await handleQuery();
-    } catch (error: any) {
-        Msg.error(error.message || '导入失败');
+    } catch (error: unknown) {
+        Msg.error(error instanceof Error ? error.message || '导入失败' : '导入失败');
     } finally {
         loading.value = false;
     }
@@ -890,8 +871,7 @@ const handleEditData = () => {
         canChangeLang: false,
         options: { wordWrap: 'on', tabSize: 2, readOnly: true }, // 自动换行
         useDrawer: true,
-        confirmFn: async (value: any[]) => {
-            console.log(value);
+        confirmFn: async (_value: string) => {
             Msg.info('common.developing');
         },
     });
@@ -913,11 +893,10 @@ watch(
 );
 
 onMounted(async () => {
-    console.log('[DataOperation] 组件挂载, 当前 selectedCollection:', milvusStore.selectedCollection);
     // 加载 collections 列表
     if (props.milvusId > 0) {
         const res = await milvusApi.listCollections(props.milvusId);
-        milvusStore.setCollections(res.map((a: any) => a.name));
+        milvusStore.setCollections(res.map((a) => a.name));
     }
 });
 
@@ -925,10 +904,8 @@ onMounted(async () => {
 watch(
     () => milvusStore.selectedCollection,
     async (newVal, oldVal) => {
-        console.log('[DataOperation] selectedCollection watch 触发:', { oldVal, newVal });
         if (!newVal || newVal !== oldVal) {
             // 清空选择时重置所有状态
-            console.log('[DataOperation] 清空 collection 选择');
             collectionFields.value = [];
             partitions.value = [];
             primaryKey.value = '';

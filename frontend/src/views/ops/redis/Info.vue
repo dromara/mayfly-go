@@ -2,7 +2,7 @@
     <div>
         <el-dialog
             :title="title"
-            v-model="dialogVisible"
+            v-model="visible"
             :show-close="true"
             width="1000px"
             @close="close()"
@@ -88,9 +88,6 @@ import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     title: {
         type: String,
     },
@@ -100,26 +97,20 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'close']);
+const emit = defineEmits(['close']);
+
+const visible = defineModel<boolean>('visible', { default: false });
 
 const state = reactive({
-    dialogVisible: false,
-    memInfo: {} as any,
-    Keyspace: [] as any[],
-    memOption: {},
+    memInfo: {} as Record<string, unknown>,
+    Keyspace: [] as Record<string, unknown>[],
+    memOption: {} as ECOption,
 });
 
-const { dialogVisible, Keyspace } = toRefs(state);
-
-watch(
-    () => props.visible,
-    (val) => {
-        state.dialogVisible = val;
-    }
-);
+const { Keyspace } = toRefs(state);
 watch(
     () => props.info,
-    (info: any) => {
+    (info: Record<string, Record<string, unknown>>) => {
         state.memInfo = info['Memory'];
         if (state.memInfo) {
             initCharts();
@@ -127,8 +118,8 @@ watch(
         if (info['Keyspace']) {
             let arr = [];
             for (let k in info['Keyspace']) {
-                let data: any = { db: k };
-                let d = info['Keyspace'][k].split(',');
+                let data: Record<string, unknown> = { db: k };
+                let d = (info['Keyspace'][k] as string).split(',');
                 for (let f of d) {
                     let v = f.split('=');
                     data[v[0]] = v[1];
@@ -147,12 +138,13 @@ const initCharts = () => {
 };
 
 const initMemStats = () => {
-    let maxMem = state.memInfo.maxmemory === '0' ? state.memInfo.total_system_memory : state.memInfo.maxmemory;
+    const usedMemory = Number(state.memInfo.used_memory);
+    let maxMem = state.memInfo.maxmemory === '0' ? Number(state.memInfo.total_system_memory) : Number(state.memInfo.maxmemory);
     const data = [
-        { name: t('redis.availableMemory'), value: maxMem - state.memInfo.used_memory },
+        { name: t('redis.availableMemory'), value: maxMem - usedMemory },
         {
             name: t('redis.usedMemory'),
-            value: state.memInfo.used_memory,
+            value: usedMemory,
         },
     ];
     const option: ECOption = {
@@ -162,7 +154,7 @@ const initMemStats = () => {
         },
         tooltip: {
             trigger: 'item',
-            valueFormatter: (val: any) => formatByteSize(val),
+            valueFormatter: (val) => formatByteSize(Number(val)),
         },
         legend: {
             top: '15%',
@@ -199,7 +191,7 @@ const initMemStats = () => {
 };
 
 const close = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('close');
 };
 </script>

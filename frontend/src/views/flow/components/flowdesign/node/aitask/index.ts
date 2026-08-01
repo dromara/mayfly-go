@@ -2,6 +2,7 @@ import { RectNode, RectNodeModel, h } from '@logicflow/core';
 import PropSetting from './PropSetting.vue';
 import { NodeTypeEnum } from '../enums';
 import { HisProcinstOpState, ProcinstTaskStatus } from '@/views/flow/enums';
+import type { NodeOpLog } from '@/views/flow/types';
 
 class AiTaskNodeModel extends RectNodeModel {
     initNodeData(data: any) {
@@ -15,7 +16,7 @@ class AiTaskNodeModel extends RectNodeModel {
         const style = super.getNodeStyle();
         const properties = this.properties;
 
-        const opLog: any = properties.opLog;
+        const opLog = properties.opLog as NodeOpLog | undefined;
         if (!opLog) {
             return style;
         }
@@ -43,7 +44,6 @@ class AiTaskNodeView extends RectNode {
     getShape() {
         // 获取XxxNodeModel中定义的形状属性
         const { model } = this.props;
-        console.log(model.properties);
         const { x, y, width, height, radius } = model;
         // 获取XxxNodeModel中定义的样式属性
         const style = model.getNodeStyle();

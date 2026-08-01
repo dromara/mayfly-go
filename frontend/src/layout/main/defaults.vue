@@ -18,7 +18,7 @@ const Aside = defineAsyncComponent(() => import('@/layout/component/aside.vue'))
 const Header = defineAsyncComponent(() => import('@/layout/component/header.vue'));
 const Main = defineAsyncComponent(() => import('@/layout/component/main.vue'));
 
-const { proxy } = getCurrentInstance() as any;
+const { proxy } = getCurrentInstance() as { proxy: { $refs: Record<string, { wrapRef: { scrollTop: number } }> } };
 const route = useRoute();
 const isFixedHeader = computed(() => {
     return useThemeConfig().themeConfig.isFixedHeader;

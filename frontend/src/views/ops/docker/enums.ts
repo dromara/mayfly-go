@@ -6,6 +6,6 @@ export const ContainerStateEnum = {
 };
 
 export const ImageStateEnum = {
-    Used: EnumValue.of(true, '已使用').tagTypeSuccess(),
-    UnUsed: EnumValue.of(false, '未使用').tagTypeInfo(),
+    Used: EnumValue.of(1, '已使用').tagTypeSuccess(),
+    UnUsed: EnumValue.of(0, '未使用').tagTypeInfo(),
 };

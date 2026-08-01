@@ -34,8 +34,8 @@ const state = reactive({
 
 const { dialogVisible } = toRefs(state);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watch(props, async (newValue: { visible?: boolean }) => {
+    state.dialogVisible = newValue.visible ?? false;
 });
 
 const onclose = () => {

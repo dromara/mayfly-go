@@ -47,17 +47,17 @@ export async function useI18nConfirm(i18nKey: string = '', value = {}) {
 
 /**
  * 表单校验
- * @param formRef 表单ref
- * @param callback 校验通过回调
+ * @param formRef 表单ref（支持 useTemplateRef / ref 获取的 el-form 实例）
  * @returns
  */
-export async function useI18nFormValidate(formRef: any) {
+export async function useI18nFormValidate(formRef: { value: { validate: (...args: any[]) => any } | null | undefined }) {
     const t = i18n.global.t;
 
     try {
+        if (!formRef.value) return false;
         await formRef.value.validate();
         return true;
-    } catch (e: any) {
+    } catch (e: unknown) {
         ElMessage.error(t('common.formValidationError'));
         throw e;
     }
@@ -87,7 +87,7 @@ export const Msg = {
      * @param msg 消息内容（支持 i18n key）
      * @param params 国际化参数
      */
-    success(msg: string, params?: any) {
+    success(msg: string, params?: Record<string, unknown>) {
         ElMessage.success(i18n.global.t(msg, params));
     },
 
@@ -96,7 +96,7 @@ export const Msg = {
      * @param msg 消息内容（支持 i18n key）
      * @param params 国际化参数
      */
-    error(msg: string, params?: any) {
+    error(msg: string, params?: Record<string, unknown>) {
         ElMessage.error(i18n.global.t(msg, params));
     },
 
@@ -105,7 +105,7 @@ export const Msg = {
      * @param msg 消息内容（支持 i18n key）
      * @param params 国际化参数
      */
-    warning(msg: string, params?: any) {
+    warning(msg: string, params?: Record<string, unknown>) {
         ElMessage.warning(i18n.global.t(msg, params));
     },
 
@@ -114,7 +114,7 @@ export const Msg = {
      * @param msg 消息内容（支持 i18n key）
      * @param params 国际化参数
      */
-    info(msg: string, params?: any) {
+    info(msg: string, params?: Record<string, unknown>) {
         ElMessage.info(i18n.global.t(msg, params));
     },
 

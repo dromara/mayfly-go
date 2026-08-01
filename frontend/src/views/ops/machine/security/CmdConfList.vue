@@ -20,7 +20,7 @@
             <el-table-column :label="$t('common.operation')" min-width="120px">
                 <template #header>
                     <el-text tag="b">{{ $t('common.operation') }}</el-text>
-                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="onOpenFormDialog(false)">
+                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="onOpenFormDialog(null)">
                     </el-button>
                 </template>
                 <template #default="scope">
@@ -103,10 +103,13 @@ import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
-import { nextTick, onMounted, reactive, ref, toRefs } from 'vue';
+import { nextTick, onMounted, reactive, toRefs, useTemplateRef } from 'vue';
+import type { FormInstance, InputInstance } from 'element-plus';
 import TagCodePath from '../../component/TagCodePath.vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cmdConfApi } from '../api';
+import type { MachineCmdConfVO } from '../types';
+import type { ResourceTag } from '@/types/common';
 
 const rules = {
     tags: [Rules.requiredInput('machine.relateMachine')],
@@ -114,20 +117,20 @@ const rules = {
     name: [Rules.requiredInput('common.name')],
 };
 
-const tagSelectRef: any = ref(null);
-const formRef: any = ref(null);
-const cmdInputRef: any = ref(null);
+const tagSelectRef = useTemplateRef<FormInstance>('tagSelectRef');
+const formRef = useTemplateRef<FormInstance>('formRef');
+const cmdInputRef = useTemplateRef<InputInstance>('cmdInputRef');
 
 const DefaultForm = {
     id: 0,
     name: '',
-    codePaths: [],
-    cmds: [] as any,
+    codePaths: [] as string[],
+    cmds: [] as string[],
     remark: '',
 };
 
 const state = reactive({
-    cmdConfs: [],
+    cmdConfs: [] as MachineCmdConfVO[],
     dialogVisible: false,
     form: DefaultForm,
     submiting: false,
@@ -152,7 +155,7 @@ const onCmdClose = (tag: string) => {
 const onShowCmdInput = () => {
     state.inputCmdVisible = true;
     nextTick(() => {
-        cmdInputRef.value!.input!.focus();
+        cmdInputRef.value?.focus();
     });
 };
 
@@ -164,18 +167,18 @@ const onCmdInputConfirm = () => {
     state.cmdInputValue = '';
 };
 
-const onOpenFormDialog = (data: any) => {
+const onOpenFormDialog = (data: MachineCmdConfVO | null) => {
     if (!data) {
         state.form = { ...DefaultForm };
     } else {
-        state.form = deepClone(data);
-        state.form.codePaths = data.tags?.map((tag: any) => tag.codePath);
+        state.form = { ...DefaultForm, ...deepClone(data) };
+        state.form.codePaths = data.tags?.map((tag: ResourceTag) => tag.codePath) || [];
         state.form.cmds = data.cmds || [];
     }
     state.dialogVisible = true;
 };
 
-const onDeleteCmdConf = async (data: any) => {
+const onDeleteCmdConf = async (data: MachineCmdConfVO) => {
     await useI18nDeleteConfirm(data.name);
     await cmdConfApi.delete.request({ id: data.id });
     Msg.deleteSuccess();
@@ -187,7 +190,7 @@ const onCancelEdit = () => {
     // 取消表单的校验
     setTimeout(() => {
         state.form = { ...DefaultForm };
-        formRef.value.resetFields();
+        formRef.value?.resetFields();
     }, 200);
 };
 

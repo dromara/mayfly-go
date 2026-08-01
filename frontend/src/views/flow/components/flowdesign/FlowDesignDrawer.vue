@@ -21,6 +21,7 @@
 <script lang="ts" setup>
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import FlowDesign from './FlowDesign.vue';
+import { type PropType } from 'vue';
 
 const props = defineProps({
     disabled: {
@@ -28,7 +29,7 @@ const props = defineProps({
         default: false,
     },
     data: {
-        type: [Object],
+        type: [Object] as PropType<Record<string, unknown> | null>,
     },
     title: {
         type: String,

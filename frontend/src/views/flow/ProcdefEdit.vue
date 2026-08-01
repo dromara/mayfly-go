@@ -54,21 +54,24 @@
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, ref, toRefs, watch } from 'vue';
+import { reactive, ref, toRefs, watch, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import MsgTmplSelect from '../msg/components/MsgTmplSelect.vue';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
 import { procdefApi } from './api';
 import { ProcdefStatus } from './enums';
+import type { Procdef } from './types';
 
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: [Boolean, Object],
+        type: Object as PropType<Procdef | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -80,15 +83,23 @@ const visible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const formRef: any = ref(null);
+const formRef = ref<FormInstance | null>(null);
+
+interface ProcdefForm extends Partial<Procdef> {
+    msgTmplId?: number | null;
+    codePaths?: string[];
+}
 
 const rules = {
     name: [Rules.requiredInput('common.name')],
     defKey: [Rules.requiredInput('key')],
 };
 
-const state = reactive({
-    tasks: [] as any,
+const state = reactive<{
+    tasks: unknown[];
+    form: ProcdefForm;
+}>({
+    tasks: [],
     form: {
         id: null,
         name: null,
@@ -98,19 +109,20 @@ const state = reactive({
         remark: null,
         msgTmplId: null,
         codePaths: [],
-    },
+    } as unknown as ProcdefForm,
 });
 
 const { form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(form);
 
-watch(props, async (newValue: any) => {
+watch(props, async (newValue: Record<string, unknown>) => {
     if (newValue.data) {
-        state.form = await procdefApi.detail.request({ id: newValue.data.id });
-        state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
+        const data = newValue.data as Record<string, unknown>;
+        state.form = await procdefApi.detail.request({ id: (data as { id: number }).id });
+        state.form.codePaths = (data.tags as Array<{ codePath: string }>)?.map((tag) => tag.codePath);
     } else {
-        state.form = { status: ProcdefStatus.Enable.value } as any;
+        state.form = { status: ProcdefStatus.Enable.value } as Procdef;
         state.form.condition = t('flow.conditionDefault');
         state.tasks = [];
     }
@@ -122,8 +134,8 @@ const onSave = async () => {
     Msg.saveSuccess();
     emit('val-change', state.form);
     //重置表单域
-    formRef.value.resetFields();
-    state.form = {} as any;
+    formRef.value?.resetFields();
+    state.form = {} as Procdef;
 };
 
 const onCancel = () => {

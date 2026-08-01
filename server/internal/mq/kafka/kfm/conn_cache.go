@@ -3,6 +3,7 @@ package kfm
 import (
 	"context"
 	"fmt"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/pool"
 	"sync"
@@ -74,9 +75,9 @@ func GetOrCreateConsumerGroupClient(ctx context.Context, kafkaId uint64, group s
 	consumerGroupClients[cacheKey] = cl
 
 	// 设置定时清理
-	go scheduleConsumerGroupCleanup(cacheKey, cl)
+	gox.Go(func() { scheduleConsumerGroupCleanup(cacheKey, cl) })
 
-	logx.Debugf("创建消费者组客户端：%s", cacheKey)
+	logx.Debugf("create consumer group client: %s", cacheKey)
 	return cl, nil
 }
 
@@ -91,7 +92,7 @@ func scheduleConsumerGroupCleanup(cacheKey string, cl *kgo.Client) {
 	if cachedCl, exists := consumerGroupClients[cacheKey]; exists && cachedCl == cl {
 		cl.Close()
 		delete(consumerGroupClients, cacheKey)
-		logx.Debugf("清理空闲消费者组客户端：%s", cacheKey)
+		logx.Debugf("cleanup idle consumer group client: %s", cacheKey)
 	}
 }
 

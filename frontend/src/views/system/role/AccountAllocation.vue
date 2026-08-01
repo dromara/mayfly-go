@@ -32,7 +32,7 @@
                 <template #footer>
                     <div class="dialog-footer">
                         <el-button @click="onCancelAddAccount()">{{ $t('common.cancel') }}</el-button>
-                        <el-button @click="onRelateAccount(1, addAccountDialog.accountId)" type="primary">{{ $t('common.confirm') }}</el-button>
+                        <el-button @click="onRelateAccount(1, addAccountDialog.accountId ?? 0)" type="primary">{{ $t('common.confirm') }}</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -42,17 +42,18 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import AccountSelectFormItem from '../account/components/AccountSelectFormItem.vue';
 import { accountApi, roleApi } from '../api';
 import { AccountStatusEnum } from '../enums';
+import type { Account, SysRole } from '../types';
 
 const props = defineProps({
-    role: Object,
+    role: Object as () => SysRole | null,
 });
 
 const perms = {
@@ -72,7 +73,7 @@ const columns = [
 const actionBtns = hasPerms([perms.saveAccountRole]);
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(80).noShowOverflowTooltip().alignCenter();
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     /**
@@ -87,8 +88,8 @@ const state = reactive({
     },
     addAccountDialog: {
         visible: false,
-        accounts: [] as any,
-        accountId: null as any,
+        accounts: [] as Account[],
+        accountId: null as number | null,
     },
 });
 
@@ -103,14 +104,14 @@ onMounted(() => {
 });
 
 const searchRoleAccount = () => {
-    state.query.id = props.role?.id;
-    pageTableRef.value.search();
+    state.query.id = props.role?.id || 0;
+    pageTableRef.value?.search();
 };
 
 const onRelateAccount = async (relateType: number, accountId: number) => {
     await accountApi.saveRole.request({
         id: accountId,
-        roleId: props.role?.id,
+        roleId: props.role?.id || 0,
         relateType,
     });
     Msg.operateSuccess();

@@ -11,10 +11,10 @@
 <script lang="ts" setup>
 import { toRefs, reactive } from 'vue';
 import { logApi, accountApi } from '../api';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn } from '@/components/pagetable';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
 import { LogTypeEnum } from '../enums';
-import { OptionsApi, SearchItem } from '@/components/pagetable/SearchForm';
+import { OptionsApi, SearchItem } from '@/components/page-table/SearchForm';
 import AccountInfo from '../account/components/AccountInfo.vue';
 
 const searchItems = [

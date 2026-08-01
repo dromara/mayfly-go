@@ -1,15 +1,17 @@
 import Api from '@/common/Api';
+import type { PageResult } from '@/types/common';
+import type { MsgChannel, MsgTemplate } from '@/views/system/msg/types';
 
 export const channelApi = {
-    list: Api.newGet('/msg/channels'),
-    save: Api.newPost('/msg/channels'),
-    del: Api.newDelete('/msg/channels'),
+    list: Api.newGet<PageResult<MsgChannel>>('/msg/channels'),
+    save: Api.newPost<void>('/msg/channels'),
+    del: Api.newDelete<void>('/msg/channels'),
 };
 
 export const tmplApi = {
-    list: Api.newGet('/msg/tmpls'),
-    relateChannels: Api.newGet('/msg/tmpls/{id}/channels'),
-    save: Api.newPost('/msg/tmpls'),
-    del: Api.newDelete('/msg/tmpls'),
-    sendMsg: Api.newPost('/msg/tmpls/{code}/send'),
+    list: Api.newGet<PageResult<MsgTemplate>>('/msg/tmpls'),
+    relateChannels: Api.newGet<MsgChannel[]>('/msg/tmpls/{id}/channels'),
+    save: Api.newPost<void>('/msg/tmpls'),
+    del: Api.newDelete<void>('/msg/tmpls'),
+    sendMsg: Api.newPost<void>('/msg/tmpls/{code}/send'),
 };

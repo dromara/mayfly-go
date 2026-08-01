@@ -34,13 +34,24 @@
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { tagApi } from '@/views/ops/tag/api';
-import { computed, onMounted, ref, watch } from 'vue';
+import type { TagTree } from '@/views/ops/tag/types';
+import { computed, onMounted, ref, watch, type PropType } from 'vue';
 import TagPathItem from './TagPathItem.vue';
+
+interface TagPathInfo {
+    type: number | string;
+    code: string;
+    codePath: string;
+    name: string;
+    isEnd?: boolean;
+}
+
+type TagInfoMap = Record<string, TagTree>;
 
 const props = defineProps({
     // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]
     path: {
-        type: [String, Array<string>, Array<Object>],
+        type: [String, Array] as PropType<string | string[] | Record<string, unknown>[]>,
     },
     // code，可直接设置该值展示路径信息
     code: {
@@ -59,9 +70,9 @@ const props = defineProps({
 });
 
 const codePath = ref(props.path);
-const codePaths: any = ref([]);
-let allTagInfos: any = {};
-const popoverTagInfos = ref<any>({});
+const codePaths = ref<TagPathInfo[][]>([]);
+let allTagInfos: TagInfoMap = {};
+const popoverTagInfos = ref<TagInfoMap>({});
 const isPopoverVisible = ref(false);
 
 const iconSize = computed(() => {
@@ -86,7 +97,7 @@ const paths = computed(() => {
     if (Array.isArray(codePath.value)) {
         const ps = [];
         // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]
-        for (let p of codePath.value as any) {
+        for (let p of codePath.value as (string | { codePath: string })[]) {
             if (typeof p === 'string') {
                 ps.push(p);
             } else {
@@ -136,7 +147,7 @@ const setCodePaths = async () => {
             clear();
             return;
         }
-        codePath.value = tagInfos;
+        codePath.value = tagInfos as unknown as Record<string, unknown>[];
     }
 
     if (!paths.value) {
@@ -144,8 +155,8 @@ const setCodePaths = async () => {
         return;
     }
 
-    allTagInfos = await getAllCodePaths(paths.value as any);
-    codePaths.value = paths.value.map((p: any) => parseTagPath(p));
+    allTagInfos = (await getAllCodePaths(paths.value as string[])) || {};
+    codePaths.value = paths.value.filter((p): p is string => typeof p === 'string' && p !== undefined).map((p: string) => parseTagPath(p));
 };
 
 // popover模式下，悬浮时加载tag信息
@@ -157,7 +168,7 @@ const loadPopoverTagInfo = async () => {
     if (props.code) {
         const tagInfos = await tagApi.listByQuery.request({ codes: props.code });
         if (tagInfos.length > 0) {
-            codePath.value = tagInfos;
+            codePath.value = tagInfos as unknown as Record<string, unknown>[];
         }
     }
 
@@ -165,8 +176,8 @@ const loadPopoverTagInfo = async () => {
         return;
     }
 
-    popoverTagInfos.value = await getAllCodePaths(paths.value as any);
-    codePaths.value = paths.value.map((p: any) => parseTagPathWithInfo(p, popoverTagInfos.value));
+    popoverTagInfos.value = (await getAllCodePaths(paths.value as string[])) || {};
+    codePaths.value = paths.value.filter((p): p is string => typeof p === 'string' && p !== undefined).map((p: string) => parseTagPathWithInfo(p, popoverTagInfos.value));
 };
 
 const clear = () => {
@@ -178,18 +189,18 @@ const parseTagPath = (tagPath: string = '') => {
     return parseTagPathWithInfo(tagPath, allTagInfos);
 };
 
-const parseTagPathWithInfo = (tagPath: string = '', tagInfos: any) => {
+const parseTagPathWithInfo = (tagPath: string = '', tagInfos: TagInfoMap) => {
     if (!tagPath) {
         return [];
     }
-    const res = [] as any;
+    const res: TagPathInfo[] = [];
     let codePath = '';
     const codes = tagPath.split('/');
     for (let code of codes) {
         codePath += code + '/';
         const typeAndCode = code.split('|');
 
-        let tagInfo;
+        let tagInfo: TagPathInfo;
         if (typeAndCode.length == 1) {
             const tagCode = typeAndCode[0];
             if (!tagCode) {
@@ -260,7 +271,7 @@ async function getAllCodePaths(codePaths: string[]) {
         allCodePaths.push(...getAllCodePath(codePath));
     }
 
-    const codepath2CodeInfo: any = {};
+    const codepath2CodeInfo: TagInfoMap = {};
     // 去重
     const uniqueCodePaths = [...new Set(allCodePaths)];
     if (uniqueCodePaths.length == 0) {

@@ -34,7 +34,7 @@
         </page-table>
 
         <el-dialog v-model="infoDialog.visible" :title="$t('common.detail')">
-            <el-descriptions :column="3" border>
+            <el-descriptions v-if="infoDialog.data" :column="3" border>
                 <el-descriptions-item :span="2" :label="$t('common.name')">{{ infoDialog.data.name }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="ID">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="2" label="Host">{{ infoDialog.data.host }}</el-descriptions-item>
@@ -66,14 +66,16 @@
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import { esApi } from './api';
+import type { EsInstance } from './types';
+import type { PageResult } from '@/types/common';
 
 const InstanceEdit = defineAsyncComponent(() => import('./EsInstanceEdit.vue'));
 
@@ -93,16 +95,16 @@ const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlacehold
 
 const columns = ref([
     TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
-    TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
+    TableColumn.new('host', 'host:port').setFormatFunc((data: EsInstance) => `${data.host}:${data.port}`),
     TableColumn.new('authCerts[0].username', 'es.acName').isSlot('authCert').setAddWidth(10),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns: any = hasPerms(Object.values(perms));
+const actionBtns: Record<string, boolean> = hasPerms(Object.values(perms));
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const state = reactive({
     row: {},
@@ -123,11 +125,11 @@ const state = reactive({
     },
     infoDialog: {
         visible: false,
-        data: null as any,
+        data: null as EsInstance | null,
     },
     instanceEditDialog: {
         visible: false,
-        data: null as any,
+        data: null as EsInstance | null,
         title: '',
     },
 });
@@ -147,10 +149,10 @@ const search = (tagPath: string = '') => {
     if (tagPath) {
         state.query.tagPath = tagPath;
     }
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const handleData = (res: any) => {
+const handleData = (res: PageResult<EsInstance>) => {
     const dataList = res.list;
     // 赋值授权凭证
     for (let x of dataList) {
@@ -161,12 +163,12 @@ const handleData = (res: any) => {
     return res;
 };
 
-const showInfo = (info: any) => {
+const showInfo = (info: EsInstance) => {
     state.infoDialog.data = info;
     state.infoDialog.visible = true;
 };
 
-const editInstance = async (data: any) => {
+const editInstance = async (data: EsInstance | false) => {
     if (!data) {
         state.instanceEditDialog.data = null;
         state.instanceEditDialog.title = useI18nCreateTitle('es.instance');
@@ -179,8 +181,8 @@ const editInstance = async (data: any) => {
 
 const deleteInstance = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
-        await esApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: EsInstance) => x.name).join('、'));
+        await esApi.deleteInstance.request({ id: state.selectionData.map((x: EsInstance) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {

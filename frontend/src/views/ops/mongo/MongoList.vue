@@ -46,14 +46,15 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import { useRoute } from 'vue-router';
 import TagCodePath from '../component/TagCodePath.vue';
 import { mongoApi } from './api';
+import type { Mongo } from './types';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
@@ -67,7 +68,7 @@ const props = defineProps({
 });
 
 const route = useRoute();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('mongo.keywordPlaceholder')];
 
@@ -93,7 +94,7 @@ const state = reactive({
     },
     mongoEditDialog: {
         visible: false,
-        data: null as any,
+        data: null as Mongo | null,
         title: '',
     },
     dbsVisible: false,
@@ -108,7 +109,7 @@ onMounted(() => {
     }
 });
 
-const checkRouteTagPath = (query: any) => {
+const checkRouteTagPath = (query: Record<string, unknown>) => {
     if (route.query.tagPath) {
         query.tagPath = route.query.tagPath as string;
     }
@@ -127,8 +128,8 @@ const showUsers = async (id: number) => {
 
 const deleteMongo = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
-        await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: Mongo) => x.name).join('、'));
+        await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: Mongo) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {
@@ -140,10 +141,10 @@ const search = async (tagPath: string = '') => {
     if (tagPath) {
         state.query.tagPath = tagPath;
     }
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const editMongo = async (data: any) => {
+const editMongo = async (data: Mongo | false) => {
     if (!data) {
         state.mongoEditDialog.data = null;
         state.mongoEditDialog.title = useI18nCreateTitle('mongo.mongo');

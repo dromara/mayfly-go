@@ -13,7 +13,7 @@
                         {{ data.params.size }}
                     </el-descriptions-item>
                     <el-descriptions-item :label="$t('es.docs')">
-                        {{ data.params.idx['docs.count'] }}
+                        {{ (data.params.idx as Record<string, unknown>)['docs.count'] }}
                     </el-descriptions-item>
                 </el-descriptions>
             </el-popover>

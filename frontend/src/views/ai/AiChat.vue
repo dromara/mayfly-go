@@ -8,7 +8,7 @@
                 </template>
 
                 <template #header="{ item }">
-                    <ThoughtChain :thinking-items="item.thinks" dot-size="small" class="min-w-150 max-w-300" :max-width="BUBBLE_MAX_WIDTH" row-key="id">
+                    <ThoughtChain :thinking-items="item.thinks as never[]" dot-size="small" class="min-w-150 max-w-300" :max-width="BUBBLE_MAX_WIDTH" row-key="id">
                     </ThoughtChain>
 
                     <!-- 中断组件：横向 flex 排列，宽度缩小 -->
@@ -32,10 +32,10 @@
                             class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800"
                         >
                             <div class="text-sm font-medium text-blue-700 dark:text-blue-300">
-                                {{ internal.content?.title || internal.extra?.content?.title }}
+                                {{ internal.extra?.content?.title }}
                             </div>
                             <div class="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                {{ internal.content?.description || internal.extra?.content?.description }}
+                                {{ internal.extra?.content?.description }}
                             </div>
                         </div>
 
@@ -55,7 +55,7 @@
 
                     <!-- 中断处理进度提示：当有未处理的中断时显示进度 -->
                     <div
-                        v-if="item.unprocessedInterruptCount > 0"
+                        v-if="(item.unprocessedInterruptCount ?? 0) > 0"
                         class="mt-2 mb-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800"
                     >
                         <div class="flex items-center justify-between">

@@ -45,7 +45,7 @@ const selectedFileConf = ref<{ fileId: number; path: string; name: string } | nu
 );
 
 // 处理文件配置选择
-const handleSelect = (fileConf: any) => {
+const handleSelect = (fileConf: { fileId: number; path: string; name: string }) => {
     selectedFileConf.value = {
         fileId: fileConf.fileId,
         path: fileConf.path,

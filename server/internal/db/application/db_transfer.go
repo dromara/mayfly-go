@@ -261,7 +261,12 @@ func (app *dbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 				}
 			})
 
-			tx, _ := targetConn.Begin()
+			tx, err := targetConn.Begin()
+			if err != nil {
+				app.Log(ctx, logId, fmt.Sprintf("begin transaction failed: %s", err.Error()))
+				pr.CloseWithError(err)
+				return err
+			}
 			// 使用目标库的方言切割器进行 SQL 切割
 			splitter := targetConn.GetDialect().GetSQLSplitter()
 			err = splitter.SplitSQL(pr, func(stmt string) error {
@@ -318,7 +323,7 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 	app.Log(ctx, logId, fmt.Sprintf("start transfer table data to files: %s", filename))
 	app.Log(ctx, logId, fmt.Sprintf("dialect type of target db file: %s", task.TargetFileDbType))
 
-	go func() {
+	gox.Go(func() {
 		var err error
 
 		defer closeFunc(&err)
@@ -368,7 +373,7 @@ func (app *dbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 		tFile.Status = entity.DbTransferFileStatusSuccess
 		tFile.FileKey = fileKey
 		app.transferFileApp.UpdateById(ctx, tFile)
-	}()
+	})
 }
 
 func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {

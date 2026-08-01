@@ -49,30 +49,41 @@
 import EnumValue from '@/common/Enum';
 import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enumselect/EnumSelect.vue';
+import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, reactive, shallowReactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { computed, reactive, toRefs, useTemplateRef, watchEffect, type ComponentPublicInstance, type Component, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import { channelApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum } from '../enums';
 import ChannelDing from './ChannelDing.vue';
 import ChannelEmail from './ChannelEmail.vue';
+import type { MsgChannel } from '@/views/system/msg/types';
+
+/** 消息通道编辑表单类型 */
+interface ChannelForm extends Omit<Partial<MsgChannel>, 'id' | 'name' | 'type' | 'status'> {
+    id?: number | null;
+    name?: string | null;
+    type?: string | null;
+    status?: string | number;
+}
 
 const props = defineProps({
     form: {
-        type: [Boolean, Object],
+        type: Object as PropType<MsgChannel | null>,
+        default: null,
     },
     title: {
         type: String,
     },
 });
 
-const channels: any = shallowReactive({
+const channels: Record<string, Component> = {
     ChannelEmail,
     ChannelDing,
-});
+};
 
 const channelTypeComp = computed(() => {
-    return channels[EnumValue.getEnumByValue(ChannelTypeEnum, state.form.type)?.extra?.component];
+    return channels[EnumValue.getEnumByValue(ChannelTypeEnum, state.form.type ?? '')?.extra?.component];
 });
 
 //定义事件
@@ -80,7 +91,7 @@ const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const formRef: any = useTemplateRef('formRef');
+const formRef = useTemplateRef<FormInstance>('formRef');
 
 const rules = {
     name: [Rules.requiredInput('msg.name')],
@@ -88,7 +99,7 @@ const rules = {
     url: [Rules.requiredInput('URL')],
 };
 
-const defaultForm = () => {
+const defaultForm = (): ChannelForm => {
     return {
         id: null,
         name: null,
@@ -110,7 +121,7 @@ const { form: formData } = toRefs(state);
 const { isFetching: saveBtnLoading, execute: saveFormExec } = channelApi.save.useApi(formData);
 
 watchEffect(() => {
-    const form: any = props.form;
+    const form = props.form as ChannelForm | null;
     if (form) {
         state.form = { ...form };
         state.edit = true;
@@ -126,7 +137,7 @@ const btnOk = async () => {
     Msg.saveSuccess();
     emit('success', state.form);
     //重置表单域
-    formRef.value.resetFields();
+    formRef.value?.resetFields();
     cancel();
 };
 

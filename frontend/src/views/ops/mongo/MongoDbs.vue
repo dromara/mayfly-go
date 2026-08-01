@@ -44,26 +44,26 @@
                     </el-descriptions-item>
 
                     <el-descriptions-item label="avgObjSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.avgObjSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.avgObjSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="dataSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.dataSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.dataSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="totalSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.totalSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.totalSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="storageSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.storageSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.storageSize)) }}
                     </el-descriptions-item>
 
                     <el-descriptions-item label="fsTotalSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.fsTotalSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.fsTotalSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="fsUsedSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.fsUsedSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.fsUsedSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="indexSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.indexSize) }}
+                        {{ formatByteSize(Number(databaseDialog.statsDialog.data.indexSize)) }}
                     </el-descriptions-item>
                 </el-descriptions>
             </el-dialog>
@@ -97,23 +97,23 @@
                         {{ collectionsDialog.statsDialog.data.count }}
                     </el-descriptions-item>
                     <el-descriptions-item label="avgObjSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.avgObjSize) }}
+                        {{ formatByteSize(Number(collectionsDialog.statsDialog.data.avgObjSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="nindexes" label-align="right" align="center">
                         {{ collectionsDialog.statsDialog.data.nindexes }}
                     </el-descriptions-item>
 
                     <el-descriptions-item label="size" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.size) }}
+                        {{ formatByteSize(Number(collectionsDialog.statsDialog.data.size)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="totalSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.totalSize) }}
+                        {{ formatByteSize(Number(collectionsDialog.statsDialog.data.totalSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="storageSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.storageSize) }}
+                        {{ formatByteSize(Number(collectionsDialog.statsDialog.data.storageSize)) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="freeStorageSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.freeStorageSize) }}
+                        {{ formatByteSize(Number(collectionsDialog.statsDialog.data.freeStorageSize)) }}
                     </el-descriptions-item>
                 </el-descriptions>
             </el-dialog>
@@ -158,40 +158,37 @@ import { Msg } from '@/hooks/useI18n';
 import { reactive, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mongoApi } from './api';
+import type { MongoDatabase } from './types';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     id: {
         type: [Number],
         required: true,
     },
 });
 
-//定义事件
-const emit = defineEmits(['update:visible']);
+const visible = defineModel<boolean>('visible', { default: false });
 
 const state = reactive({
     databaseDialog: {
         visible: false,
-        data: [],
+        data: [] as MongoDatabase[],
         statsDialog: {
             visible: false,
-            data: {} as any,
+            data: {} as Record<string, unknown>,
             title: '',
         },
     },
     collectionsDialog: {
         database: '',
         visible: false,
-        data: [],
+        data: [] as Record<string, unknown>[],
         title: '',
         statsDialog: {
             visible: false,
-            data: {} as any,
+            data: {} as Record<string, unknown>,
             title: '',
         },
     },
@@ -212,8 +209,8 @@ const state = reactive({
 
 const { databaseDialog, collectionsDialog, createCollectionDialog, createDbDialog } = toRefs(state);
 
-watch(props, async (newValue: any) => {
-    if (!newValue.visible) {
+watch(visible, async (val) => {
+    if (!val) {
         state.databaseDialog.visible = false;
         return;
     }
@@ -222,7 +219,7 @@ watch(props, async (newValue: any) => {
 });
 
 const close = () => {
-    emit('update:visible', false);
+    visible.value = false;
 };
 
 const showDatabases = async () => {
@@ -254,7 +251,7 @@ const showCollections = async (database: string) => {
 
 const setCollections = async (database: string) => {
     const res = await mongoApi.collections.request({ id: props.id, database });
-    const collections = [] as any;
+    const collections: { name: string }[] = [];
     for (let r of res) {
         collections.push({ name: r });
     }
@@ -312,7 +309,7 @@ const onCreateCollection = async () => {
     });
     Msg.saveSuccess();
     state.createCollectionDialog.visible = false;
-    state.createCollectionDialog.form = {} as any;
+    state.createCollectionDialog.form = { name: '' };
     setCollections(state.collectionsDialog.database);
 };
 
@@ -333,7 +330,7 @@ const onCreateDb = async () => {
     });
     Msg.saveSuccess();
     state.createDbDialog.visible = false;
-    state.createDbDialog.form = {} as any;
+    state.createDbDialog.form = { dbName: '', collectionName: '' };
     showDatabases();
 };
 

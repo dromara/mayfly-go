@@ -82,22 +82,44 @@ import { Rules } from '@/common/rule';
 import { getClientId } from '@/common/utils/storage';
 import { hasPerms } from '@/components/auth/auth';
 import FileInfo from '@/components/file/FileInfo.vue';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferFileStatusEnum } from '@/views/ops/db/transfer/enums';
-import { onMounted, reactive, Ref, ref, useTemplateRef, watch } from 'vue';
+import { onMounted, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { DbTransferTask } from '../types';
+
+interface DbTransferFile {
+    id: number;
+    fileKey: string;
+    fileDbType: string;
+    status: number;
+    logId: number;
+    state: number;
+    createTime: string;
+}
+
+interface RunForm {
+    id: number;
+    dbType: string;
+    clientId: string;
+    targetDbId: number;
+    targetDbName: string;
+    targetTagPath: string;
+    targetInstName: string;
+    targetDbType: string;
+}
 
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: [Object],
+        type: Object as PropType<DbTransferTask | null>,
     },
     title: {
         type: String,
@@ -106,7 +128,7 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const pageTableRef: Ref<any> = useTemplateRef('pageTableRef');
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const columns = ref([
     TableColumn.new('fileKey', 'db.file').setMinWidth(280).isSlot(),
@@ -133,7 +155,7 @@ onMounted(async () => {
     }
 });
 
-const runFormRef: any = ref(null);
+const runFormRef = useTemplateRef<{ validate: (cb: (valid: boolean) => void) => void }>('runFormRef');
 
 const state = reactive({
     query: {
@@ -146,13 +168,13 @@ const state = reactive({
         logId: 0,
         title: '数据库迁移日志',
         visible: false,
-        data: null as any,
+        data: null as DbTransferFile | null,
         running: false,
     },
     runDialog: {
         title: t('db.transferFileRunDialogTitle'),
         visible: false,
-        data: null as any,
+        data: null as DbTransferFile | null,
         formRules: {
             targetDbId: [Rules.requiredSelect('db.targetDb')],
         },
@@ -169,7 +191,7 @@ const state = reactive({
         loading: false,
         onCancel: function () {
             state.runDialog.visible = false;
-            state.runDialog.runForm = {} as any;
+            state.runDialog.runForm = {} as RunForm;
         },
         onConfirm: async function () {
             await useI18nFormValidate(runFormRef);
@@ -183,13 +205,13 @@ const state = reactive({
             state.runDialog.onCancel();
             await search();
         },
-        onSelectRunTargetDb: function (param: any) {
+        onSelectRunTargetDb: function (param: { type: string }) {
             if (param.type !== state.runDialog.runForm.dbType) {
                 Msg.warning('db.targetDbTypeSelectError', { dbType: state.runDialog.runForm.dbType });
             }
         },
     },
-    selectionData: [], // 选中的数据
+    selectionData: [] as DbTransferFile[], // 选中的数据
     tableData: [],
 });
 
@@ -197,13 +219,13 @@ const search = async () => {
     pageTableRef.value?.search();
     // const { total, list } = await dbTransferApi.dbTransferFileList.request(state.query);
     // state.tableData = list;
-    // pageTableRef.value.total = total;
+    // pageTableRef.value?.total = total;
 };
 
 const onDel = async function () {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.fileKey).join('、'));
-        await dbTransferApi.dbTransferFileDel.request({ fileId: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferFile) => x.fileKey).join('、'));
+        await dbTransferApi.dbTransferFileDel.request({ fileId: state.selectionData.map((x: DbTransferFile) => x.id).join(',') });
         Msg.deleteSuccess();
         await search();
     } catch (err) {
@@ -211,7 +233,7 @@ const onDel = async function () {
     }
 };
 
-const onOpenLog = function (data: any) {
+const onOpenLog = function (data: { logId: number; state: number }) {
     state.logsDialog.logId = data.logId;
     state.logsDialog.visible = true;
     state.logsDialog.title = t('db.log');
@@ -219,8 +241,8 @@ const onOpenLog = function (data: any) {
 };
 
 // 运行sql，弹出选择需要运行的库，默认运行当前数据库，需要保证数据库类型与sql文件一致
-const onOpenRun = function (data: any) {
-    state.runDialog.runForm = { id: data.id, dbType: data.fileDbType } as any;
+const onOpenRun = function (data: DbTransferFile) {
+    state.runDialog.runForm = { id: data.id, dbType: data.fileDbType } as RunForm;
     state.runDialog.visible = true;
 };
 
@@ -228,7 +250,7 @@ watch(dialogVisible, async (newValue: boolean) => {
     if (!newValue) {
         return;
     }
-    state.query.taskId = props.data?.id;
+    state.query.taskId = props.data?.id || 0;
     state.query.pageNum = 1;
     state.query.pageSize = 10;
 

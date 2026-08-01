@@ -53,16 +53,17 @@
 
 <script lang="ts" setup>
 import { formatTime } from '@/common/utils/format';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nDetailTitle } from '@/hooks/useI18n';
 import { useUserInfo } from '@/store/userInfo';
-import { defineAsyncComponent, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { procinstApi } from './api';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus } from './enums';
+import type { Procinst, FlowBizForm } from './types';
 
 const { t } = useI18n();
 
@@ -84,8 +85,8 @@ const columns = [
     TableColumn.new('bizStatus', 'flow.bizStatus').typeTag(ProcinstBizStatus),
     TableColumn.new('createTime', 'flow.startingTime').isTime(),
     TableColumn.new('endTime', 'flow.endTime').isTime(),
-    TableColumn.new('duration', 'flow.duration').setFormatFunc((data: any, prop: string) => {
-        const duration = data[prop];
+    TableColumn.new('duration', 'flow.duration').setFormatFunc((data: Procinst) => {
+        const duration = data.duration;
         if (!duration) {
             return '';
         }
@@ -94,7 +95,7 @@ const columns = [
     TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter(),
 ];
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<{ search: () => void }>('pageTableRef');
 const state = reactive({
     /**
      * 选中的数据
@@ -125,32 +126,31 @@ const state = reactive({
 const { selectionData, query, procinstDetail, procinstEdit } = toRefs(state);
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const procinstCancel = async (data: any) => {
+const procinstCancel = async (data: Procinst) => {
     await procinstApi.cancel.request({ id: data.id });
     Msg.operateSuccess();
     search();
 };
 
-const showProcinst = (data: any) => {
+const showProcinst = (data: Procinst) => {
     state.procinstDetail.procinstId = data.id;
     state.procinstDetail.title = useI18nDetailTitle('flow.proc');
     state.procinstDetail.visible = true;
 };
 
-const startProcInst = (procinst: any = null) => {
+const startProcInst = (procinst: Procinst | null = null) => {
     state.procinstEdit.title = t('flow.startProcess');
     if (procinst) {
-        const data = { ...procinst };
-        data.bizForm = JSON.parse(procinst.bizForm || {});
-        state.procinstEdit.procinst = data;
+        const data = { ...procinst, bizForm: JSON.parse(procinst.bizForm || '{}') as FlowBizForm };
+        state.procinstEdit.procinst = data as unknown as Procinst;
     } else {
         state.procinstEdit.procinst = {
             bizType: FlowBizType.DbSqlExec.value,
             bizForm: {},
-        };
+        } as unknown as Procinst;
     }
 
     state.procinstEdit.visible = true;

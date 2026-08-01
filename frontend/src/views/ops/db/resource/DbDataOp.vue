@@ -118,8 +118,8 @@
                         v-if="dt.type === TabType.TableData"
                         :db-id="dt.dbId"
                         :db-name="dt.db"
-                        :table-name="dt.params.table"
-                        :ref="(el: any) => (dt.componentRef = el)"
+                        :table-name="dt.params.table ?? ''"
+                        :ref="(el) => setTabComponentRef(dt, el)"
                     ></db-table-data-op>
 
                     <db-sql-editor
@@ -128,14 +128,14 @@
                         :db-name="dt.db"
                         :sql-name="dt.params.sqlName"
                         @save-sql-success="reloadSqls"
-                        :ref="(el: any) => (dt.componentRef = el)"
+                        :ref="(el) => setTabComponentRef(dt, el)"
                     >
                     </db-sql-editor>
 
                     <db-tables-op
                         v-if="dt.type == TabType.TablesOp"
                         :db-id="dt.params.id"
-                        :db="dt.params.db"
+                        :db="dt.params.db ?? ''"
                         :db-type="dt.params.type"
                         :height="state.tablesOpHeight"
                     />
@@ -167,18 +167,49 @@
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
 import { ResourceOpCtx, ResourceOpCtxKey } from '@/views/ops/resource/resourceOp';
 import { useEventListener, useStorage } from '@vueuse/core';
 import { ElCheckbox, ElMessageBox } from 'element-plus';
-import { format as sqlFormatter } from 'sql-formatter';
+import { format as sqlFormatter, type SqlLanguage } from 'sql-formatter';
 import { defineAsyncComponent, h, inject, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dbApi } from '../api';
-import { DbInst, DbThemeConfig, registerDbCompletionItemProvider, TabInfo, TabType } from '../db';
+import { DbInst, DbThemeConfig, registerDbCompletionItemProvider, TabInfo, TabType, type TabComponentRef } from '../db';
+import type { DbInstInfo, TableOpData } from '../types';
 import { getDbDialect } from '../dialect/index';
+
+/** 数据库树节点数据 (包含树节点额外属性) */
+interface DbTreeNodeData extends DbInstInfo {
+    nodeKey?: string;
+    dbs?: string[];
+    db?: string;
+}
+
+/** 表树节点回调携带的 params (见 resource/index.ts 中 withParams 构造) */
+interface DbTableNodeParams {
+    id: number;
+    db: string;
+    type: string;
+    version?: string;
+    tableName?: string;
+    tableComment?: string;
+    parentKey?: string;
+    key?: string;
+    schema?: string;
+    [key: string]: unknown;
+}
+
+/** 树节点回调数据 (包含 params 和标签等) */
+interface TreeNodeCallbackData {
+    params: DbTableNodeParams;
+    label?: string;
+    parentKey?: string;
+    key?: string;
+    version?: string;
+}
 
 const DbTableOp = defineAsyncComponent(() => import('../component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('../component/sqleditor/DbSqlEditor.vue'));
@@ -190,21 +221,21 @@ const { t } = useI18n();
 const resourceOpCtx: ResourceOpCtx | undefined = inject(ResourceOpCtxKey);
 
 const props = defineProps<{
-    dbInfo: any;
+    dbInfo: DbTreeNodeData;
     db: string;
 }>();
 
 const emits = defineEmits(['init']);
 
-const tabContextmenuRef: any = useTemplateRef('tabContextmenuRef');
+const tabContextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('tabContextmenuRef');
 
 const tabContextmenuItems = [
-    new ContextmenuItem(1, 'db.close').withIcon('Close').withOnClick((data: any) => {
-        onRemoveTab(data.key);
+    new ContextmenuItem(1, 'db.close').withIcon('Close').withOnClick((data: unknown) => {
+        onRemoveTab((data as { key: string }).key);
     }),
 
-    new ContextmenuItem(2, 'db.closeOther').withIcon('CircleClose').withOnClick((data: any) => {
-        const tabName = data.key;
+    new ContextmenuItem(2, 'db.closeOther').withIcon('CircleClose').withOnClick((data: unknown) => {
+        const tabName = (data as { key: string }).key;
         const tabNames = [...state.tabs.keys()];
         for (let tab of tabNames) {
             if (tab !== tabName) {
@@ -216,7 +247,7 @@ const tabContextmenuItems = [
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
-    defaultExpendKey: [] as any,
+    defaultExpendKey: [] as string[],
     /**
      * 当前操作的数据库实例
      */
@@ -242,7 +273,7 @@ const state = reactive({
         version: '',
         db: '',
         dbType: '',
-        data: {},
+        data: null as TableOpData | null,
         parentKey: '',
     },
     chooseTableName: '',
@@ -253,6 +284,11 @@ const state = reactive({
 });
 
 const { nowDbInst, tableCreateDialog } = toRefs(state);
+
+/** 设置 tab 的组件 ref（模板 ref 回调，el 为子组件实例或 null） */
+const setTabComponentRef = (dt: TabInfo, el: unknown) => {
+    dt.componentRef = el as TabComponentRef | null;
+};
 
 const dbConfig = useStorage('dbConfig', DbThemeConfig);
 
@@ -284,14 +320,14 @@ const setHeight = () => {
 };
 
 // 选择数据库,改变当前正在操作的数据库信息
-const changeDb = (db: any, dbName: string) => {
+const changeDb = (db: DbTreeNodeData, dbName: string) => {
     state.nowDbInst = DbInst.getOrNewInst(db);
-    state.nowDbInst.databases = db.databases;
+    state.nowDbInst.databases = db.databases ?? [];
     state.db = dbName;
 };
 
 // 加载选中的表数据，即新增表数据操作tab
-const loadTableData = async (db: any, dbName: string, tableName: string) => {
+const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: string) => {
     if (tableName == '') {
         return;
     }
@@ -307,7 +343,7 @@ const loadTableData = async (db: any, dbName: string, tableName: string) => {
     tab = new TabInfo();
     tab.label = tableName;
     tab.key = key;
-    tab.treeNodeKey = db.nodeKey;
+    tab.treeNodeKey = db.nodeKey ?? '';
     tab.dbId = db.id;
     tab.db = dbName;
     tab.type = TabType.TableData;
@@ -319,7 +355,7 @@ const loadTableData = async (db: any, dbName: string, tableName: string) => {
 };
 
 // 新建查询tab
-const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
+const addQueryTab = async (db: DbTreeNodeData, dbName: string, sqlName: string = '') => {
     if (!dbName || !db.id) {
         Msg.warning('db.noDbInstMsg');
         return;
@@ -351,7 +387,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
     tab = new TabInfo();
     tab.key = key;
     tab.label = label;
-    tab.treeNodeKey = db.nodeKey;
+    tab.treeNodeKey = db.nodeKey ?? '';
     tab.dbId = dbId;
     tab.db = dbName;
     tab.type = TabType.Query;
@@ -369,8 +405,8 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
  * 添加数据操作tab
  * @param inst
  */
-const addTablesOpTab = async (db: any) => {
-    const dbName = db.db;
+const addTablesOpTab = async (db: DbTreeNodeData) => {
+    const dbName = db.db ?? '';
     if (!db || !db.id) {
         Msg.warning('db.noDbInstMsg');
         return;
@@ -388,7 +424,7 @@ const addTablesOpTab = async (db: any) => {
     tab = new TabInfo();
     tab.key = key;
     tab.label = `${t('db.tableOp')}-${dbName}`;
-    tab.treeNodeKey = db.nodeKey;
+    tab.treeNodeKey = db.nodeKey ?? '';
     tab.dbId = dbId;
     tab.db = dbName;
     tab.type = TabType.TablesOp;
@@ -396,7 +432,7 @@ const addTablesOpTab = async (db: any) => {
         ...getNowDbInfo(),
         id: db.id,
         db: dbName,
-        type: db.type,
+        type: db.type ?? '',
     };
     state.tabs.set(key, tab);
 };
@@ -445,7 +481,7 @@ const onTabChange = () => {
     }
 
     // 激活当前tab（需要调用DbTableData组件的active，否则表头与数据会出现错位，暂不知为啥，先这样处理）
-    nowTab?.componentRef?.active();
+    nowTab?.componentRef?.active?.();
 
     if (dbConfig.value.locationTreeNode) {
         locationNowTreeNode(nowTab);
@@ -453,28 +489,28 @@ const onTabChange = () => {
 };
 
 // 右键点击时：传 x,y 坐标值到子组件中（props）
-const onTabContextmenu = (v: any, e: any) => {
+const onTabContextmenu = (v: unknown, e: MouseEvent) => {
     const { clientX, clientY } = e;
     state.tabContextmenu.dropdown.x = clientX;
     state.tabContextmenu.dropdown.y = clientY;
-    tabContextmenuRef.value.openContextmenu(v);
+    tabContextmenuRef.value?.openContextmenu(v);
 };
 
 /**
  * 定位至当前树节点
  */
-const locationNowTreeNode = (nowTab: any = null) => {
+const locationNowTreeNode = (nowTab: TabInfo | null = null) => {
     if (!nowTab) {
-        nowTab = state.tabs.get(state.activeName);
+        nowTab = state.tabs.get(state.activeName) ?? null;
     }
-    setTimeout(() => resourceOpCtx?.setCurrentTreeKey(nowTab?.treeNodeKey), 500);
+    setTimeout(() => resourceOpCtx?.setCurrentTreeKey(nowTab?.treeNodeKey ?? ''), 500);
 };
 
 const reloadSqls = (dbId: number, db: string) => {
     resourceOpCtx?.reloadTreeNode(getSqlMenuNodeKey(dbId, db));
 };
 
-const deleteSql = async (dbId: any, db: string, sqlName: string) => {
+const deleteSql = async (dbId: number, db: string, sqlName: string) => {
     try {
         await useI18nDeleteConfirm(sqlName);
         await dbApi.deleteDbSql.request({ id: dbId, db: db, name: sqlName });
@@ -494,7 +530,7 @@ const reloadNode = (nodeKey: string) => {
     resourceOpCtx?.reloadTreeNode(nodeKey);
 };
 
-const onEditTable = async (data: any) => {
+const onEditTable = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, tableComment, type, parentKey, key, version } = data.params;
     // data.label就是表名
     if (tableName) {
@@ -503,22 +539,22 @@ const onEditTable = async (data: any) => {
         let columns = await dbApi.columnMetadata.request({ id, db, tableName });
         let row = { tableName, tableComment };
         state.tableCreateDialog.data = { edit: true, row, indexs, columns };
-        state.tableCreateDialog.parentKey = parentKey;
+        state.tableCreateDialog.parentKey = parentKey ?? '';
     } else {
         state.tableCreateDialog.title = useI18nCreateTitle('db.table');
         state.tableCreateDialog.data = { edit: false, row: {} };
-        state.tableCreateDialog.parentKey = key;
+        state.tableCreateDialog.parentKey = key ?? '';
     }
 
     state.tableCreateDialog.activeName = '1';
     state.tableCreateDialog.dbId = id;
-    state.tableCreateDialog.version = version;
+    state.tableCreateDialog.version = version ?? '';
     state.tableCreateDialog.db = db;
     state.tableCreateDialog.dbType = type;
     state.tableCreateDialog.visible = true;
 };
 
-const onDeleteTable = async (data: any) => {
+const onDeleteTable = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, parentKey, schema } = data.params;
     await useI18nDeleteConfirm(tableName);
 
@@ -526,7 +562,7 @@ const onDeleteTable = async (data: any) => {
     let dialect = getDbDialect(state.nowDbInst.type);
     let schemaStr = schema ? `${dialect.quoteIdentifier(schema)}.` : '';
 
-    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName)}` }).then((res) => {
+    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName ?? '')}` }).then((res) => {
         let success = true;
         for (let re of res) {
             if (re.errorMsg) {
@@ -543,19 +579,19 @@ const onDeleteTable = async (data: any) => {
     });
 };
 
-const onGenDdl = async (data: any) => {
+const onGenDdl = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, type } = data.params;
-    state.chooseTableName = tableName;
+    state.chooseTableName = tableName ?? '';
     let res = await dbApi.tableDdl.request({ id, db, tableName });
-    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(type).getInfo().formatSqlDialect as any });
+    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(type).getInfo().formatSqlDialect as SqlLanguage });
     state.ddlDialog.visible = true;
 };
 
-const onRenameTable = async (data: any) => {
+const onRenameTable = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, parentKey } = data.params;
     let tableData = { db, oldTableName: tableName, tableName };
 
-    let value = ref(tableName);
+    let value = ref(tableName ?? '');
     // 弹出确认框
     const promptValue = await ElMessageBox.prompt('', t('db.renamePrompt', { db, tableName }), {
         inputValue: value.value,
@@ -572,8 +608,8 @@ const onRenameTable = async (data: any) => {
 
     SqlExecBox({
         sql: sql,
-        dbId: id as any,
-        db: db as any,
+        dbId: id as number,
+        db: db as string,
         dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
         runSuccessCallback: () => {
             setTimeout(() => {
@@ -583,7 +619,7 @@ const onRenameTable = async (data: any) => {
     });
 };
 
-const onCopyTable = async (data: any) => {
+const onCopyTable = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, parentKey } = data.params;
 
     let checked = ref(false);
@@ -638,14 +674,14 @@ const getNowDbInfo = () => {
     };
 };
 
-const loadTables = async (dbInfo: any) => {
+const loadTables = async (dbInfo: DbInstInfo & { db?: string }) => {
     if (!dbInfo || !dbInfo.id) {
         Msg.warning('db.noDbInstMsg');
         return;
     }
     let { id, db } = dbInfo;
     // 获取当前库的所有表信息
-    let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
+    let tables = await DbInst.getInst(id).loadTables(db ?? '', state.reloadStatus);
     state.reloadStatus = !dbConfig.value.cacheTable;
     return tables;
 };

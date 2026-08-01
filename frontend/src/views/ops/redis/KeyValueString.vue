@@ -11,7 +11,7 @@
 <script lang="ts" setup>
 import { notEmptyI18n } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, toRefs, watch } from 'vue';
+import { onMounted, reactive, toRefs, useTemplateRef, watch } from 'vue';
 import { redisApi } from './api';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
@@ -26,7 +26,7 @@ const props = defineProps({
     },
 });
 
-const formatViewerRef = ref(null) as any;
+const formatViewerRef = useTemplateRef<{ getContent: () => string }>('formatViewerRef');
 
 const state = reactive({
     key: '',
@@ -51,8 +51,8 @@ watch(props, (newVal) => {
     setProps(newVal);
 });
 
-const setProps = (val: any) => {
-    state.key = val.keyInfo?.key;
+const setProps = (val: { keyInfo?: { key?: string } }) => {
+    state.key = val.keyInfo?.key ?? '';
     initData();
 };
 
@@ -62,12 +62,12 @@ const initData = () => {
 
 const getStringValue = async () => {
     if (state.key) {
-        state.string.value = await props.redis.runCmd(['GET', state.key]);
+        state.string.value = (await props.redis.runCmd<string | null>(['GET', state.key])) ?? '';
     }
 };
 
 const saveValue = async () => {
-    state.string.value = formatViewerRef.value.getContent();
+    state.string.value = formatViewerRef.value?.getContent() ?? '';
     notEmptyI18n(state.string.value, 'value');
 
     const ttl = await redisApi.keyTtl.request({

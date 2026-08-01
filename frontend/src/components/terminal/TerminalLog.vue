@@ -23,9 +23,10 @@ import { computed, ref, watch } from 'vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TerminalBody from './TerminalBody.vue';
 import { logApi } from '../../views/system/api';
+import type { SysLog } from '@/views/system/types';
 import { LogTypeEnum } from '@/views/system/enums';
 import { useIntervalFn } from '@vueuse/core';
-import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumTag from '@/components/enum-tag/EnumTag.vue';
 
 const props = defineProps({
     title: {
@@ -37,9 +38,9 @@ const props = defineProps({
 const visible = defineModel<boolean>('visible', { default: false });
 const logId = defineModel<number>('logId', { default: 0 });
 
-const terminalRef: any = ref(null);
+const terminalRef = ref<InstanceType<typeof TerminalBody> | null>(null);
 const nowLine = ref(0);
-const log = ref({}) as any;
+const log = ref<SysLog | null>(null);
 
 const extra = computed(() => {
     if (log.value?.extra) {
@@ -86,7 +87,7 @@ const writeLog = async () => {
     resume();
 };
 
-const writeLog2Term = (log: any) => {
+const writeLog2Term = (log: SysLog) => {
     if (!log) {
         return;
     }

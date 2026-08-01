@@ -98,7 +98,7 @@ func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
 func (m *machineCronJobAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
-			logx.ErrorTrace("the machine cronjob failed to initialize: %v", err.(error))
+			logx.ErrorTrace("the machine cronjob failed to initialize: %v", err)
 		}
 	}()
 
@@ -131,9 +131,13 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
 	var machineTags []tagentity.TagTree
 	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Types: []tagentity.TagType{tagentity.TagTypeMachine}}, &machineTags)
-	machines, _ := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
+	machines, err := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
 		return tag.Code
 	})), "id")
+	if err != nil {
+		logx.Errorf("failed to list machines for cronjob: %v", err)
+		return
+	}
 
 	for _, machine := range machines {
 		gox.Go(func() {

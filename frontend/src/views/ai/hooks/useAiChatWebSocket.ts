@@ -6,9 +6,9 @@ import { onBeforeUnmount, ref, type Ref } from 'vue';
  * AI Chat WebSocket 连接管理 Hook
  * 负责 WebSocket 连接、重连、消息收发等
  */
-export function useAiChatWebSocket(onMessage: (data: any) => void, currentSessionId: Ref<string>, isNewSession: Ref<boolean>) {
+export function useAiChatWebSocket(onMessage: (data: Record<string, unknown>) => void, currentSessionId: Ref<string>, isNewSession: Ref<boolean>) {
     const socket = ref<WebSocket | null>(null);
-    const reconnectTimer = ref<any>(null);
+    const reconnectTimer = ref<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttempts = ref(0);
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY = 3000;
@@ -18,7 +18,6 @@ export function useAiChatWebSocket(onMessage: (data: any) => void, currentSessio
      */
     const initSocket = async () => {
         try {
-            console.log('init chat ws...');
             const ws = await createWebSocket(`/ai/chat`);
             socket.value = ws;
 
@@ -31,7 +30,6 @@ export function useAiChatWebSocket(onMessage: (data: any) => void, currentSessio
                     if (isNewSession.value) {
                         currentSessionId.value = data.sessionId;
                     } else {
-                        console.log(`忽略不属于当前会话的消息: ${data.sessionId} !== ${currentSessionId.value}`);
                         return;
                     }
                 }
@@ -40,20 +38,18 @@ export function useAiChatWebSocket(onMessage: (data: any) => void, currentSessio
             };
 
             ws.onclose = (event) => {
-                console.log('chat ws 连接关闭:', event.code, event.reason);
                 if (!event.wasClean) {
                     attemptReconnect();
                 }
             };
 
-            ws.onerror = (error) => {
-                console.error('chat ws 错误:', error);
+            ws.onerror = () => {
+                // WebSocket 错误由浏览器自动触发 onclose，重连逻辑已在 onclose 中处理
             };
 
             // 连接成功，重置重连计数
             reconnectAttempts.value = 0;
         } catch (e) {
-            console.log('连接错误', e);
             // 直接显示错误提示，不传递到消息处理器
             Msg.error('ai.chat.connectionFailed');
             attemptReconnect();
@@ -71,7 +67,6 @@ export function useAiChatWebSocket(onMessage: (data: any) => void, currentSessio
         }
 
         reconnectAttempts.value++;
-        console.log(`尝试第 ${reconnectAttempts.value} 次重连...`);
 
         if (reconnectTimer.value) {
             clearTimeout(reconnectTimer.value);

@@ -5,6 +5,7 @@ import { createResourceOpTab } from '@/views/ops/resource/resourceOp';
 import { defineAsyncComponent } from 'vue';
 import { NodeType, TagTreeNode } from '../../component/tag';
 import { mongoApi } from '../api';
+import type { Mongo } from '../types';
 
 const Icon = {
     name: ResourceTypeEnum.Mongo.extra.icon,
@@ -33,7 +34,7 @@ const getMongoOpTabCompInst = async (inst: any) => {
 
 // tagpath 节点类型
 const NodeTypeMongoTag = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const res = await mongoApi.mongoList.request({ tagPath: parentNode.params.tagPath });
+    const res = await mongoApi.mongoList.request({ tagPath: parentNode.params.tagPath } as any);
     if (!res.total) {
         return [];
     }
@@ -41,8 +42,8 @@ const NodeTypeMongoTag = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asy
     const mongoInfos = res.list;
     await sleep(100);
     return mongoInfos?.map((x: any) => {
-        x.tagPath = parentNode.key;
-        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeMongo).withParams(x).withNodeComponent(NodeMongo);
+        x.tagPath = String(parentNode.key);
+        return TagTreeNode.new(parentNode, `${x.code}`, x.name, NodeTypeMongo).withParams(x as unknown as Record<string, unknown>).withNodeComponent(NodeMongo);
     });
 });
 
@@ -54,8 +55,8 @@ const NodeTypeMongo = new NodeType(1)
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const inst = parentNode.params;
         // 点击mongo -> 加载mongo数据库列表
-        const res = await mongoApi.databases.request({ id: inst.id });
-        return res.Databases.map((x: any) => {
+        const res = (await mongoApi.databases.request({ id: inst.id })) as any;
+        return res.Databases.map((x: { Name: string; SizeOnDisk: number }) => {
             const database = x.Name;
             return TagTreeNode.new(parentNode, `${parentNode.key}.${database}`, database, NodeTypeDbs)
                 .withParams({
@@ -78,8 +79,8 @@ const NodeTypeDbs = new NodeType(2).withLoadNodesFunc(async (parentNode: TagTree
 const NodeTypeCollMenu = new NodeType(3).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const { id, database, instName } = parentNode.params;
     // 点击数据库集合节点 -> 加载集合列表
-    const colls = await mongoApi.collections.request({ id, database });
-    return colls.map((x: any) => {
+    const colls = (await mongoApi.collections.request({ id, database })) as any;
+    return colls.map((x: string) => {
         return TagTreeNode.new(parentNode, `${parentNode.key}.${x}`, x, NodeTypeColl)
             .withIsLeaf(true)
             .withParams({

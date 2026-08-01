@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -128,7 +129,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 	la := &sysentity.Account{Username: otpInfo.Username}
 	la.Id = accountId
-	go saveLogin(ctx, la, getIpAndRegion(rc))
+	gox.Go(func() { saveLogin(ctx, la, getIpAndRegion(rc)) })
 
 	cache.Del(tokenKey)
 	rc.ResData = collx.Kvs("token", accessToken, "refresh_token", otpInfo.RefreshToken)

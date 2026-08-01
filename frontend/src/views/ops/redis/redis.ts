@@ -15,9 +15,9 @@ export class RedisInst {
     /**
      * 执行命令
      * @param cmd 命令列表如：['SET', 'key', 'value']
-     * @returns 执行结果
+     * @returns 执行结果（随命令变化，由调用方泛型指定）
      */
-    async runCmd(cmd: any[]) {
+    async runCmd<T = unknown>(cmd: (string | number)[]): Promise<T> {
         // // 工单流程定义存在，并且为写入命令时，弹窗输入工单相关信息并提交
         // if (this.flowProcdef && writeCmd[cmd[0].toUpperCase()]) {
         //     showCmdExecBox({
@@ -30,11 +30,11 @@ export class RedisInst {
         //     throw new Error('提交工单执行');
         // }
 
-        return await redisApi.runCmd.request({
+        return (await redisApi.runCmd.request({
             id: this.id,
             db: this.db,
             cmd,
-        });
+        })) as T;
     }
 }
 

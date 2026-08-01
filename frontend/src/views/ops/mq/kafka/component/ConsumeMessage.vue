@@ -128,9 +128,9 @@ import { ref, reactive, toRefs, onMounted, defineAsyncComponent, watch } from 'v
 import { mqApi } from '../../api';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
-import { ConsumerGroup } from '@/views/ops/mq/kafka/component/ConsumerGroup.vue';
+import type { KafkaGroup } from '../../types';
 import { randomUuid } from '@/common/utils/string';
 import { Msg } from '@/hooks/useI18n';
 
@@ -150,7 +150,7 @@ const props = defineProps({
         default: () => [],
     },
     groups: {
-        type: Array as () => ConsumerGroup[],
+        type: Array as () => KafkaGroup[],
         default: () => [],
     },
 });
@@ -171,7 +171,7 @@ const state = reactive({
         earliest: true,
         startTime: '',
     },
-    messages: [] as any[],
+    messages: [] as (import('@/views/ops/mq/types').KafkaMessage & { displayValue?: string })[],
 });
 
 const { form, messages } = toRefs(state);
@@ -219,18 +219,18 @@ const consumeMessage = async () => {
         };
 
         const res = await mqApi.kafkaTopicConsume.request(param);
-        state.messages = (res || []).map((msg: any, index: number) => ({
+        state.messages = (res || []).map((msg: import('@/views/ops/mq/types').KafkaMessage, index: number) => ({
             ...msg,
             displayValue: typeof msg.value === 'object' ? JSON.stringify(msg.value, null, 2) : String(msg.value),
         }));
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error((error instanceof Error ? error.message : String(error)) || 'common.requestFail');
     } finally {
         consuming.value = false;
     }
 };
 
-const viewMessageDetail = (row: any) => {
+const viewMessageDetail = (row: import('@/views/ops/mq/types').KafkaMessage) => {
     const value = typeof row.value === 'object' ? JSON.stringify(row.value, null, 2) : String(row.value);
     const editorLang = getEditorLangByValue(value);
 
@@ -243,7 +243,7 @@ const viewMessageDetail = (row: any) => {
     });
 };
 
-const getEditorLangByValue = (value: any) => {
+const getEditorLangByValue = (value: string) => {
     try {
         if (typeof JSON.parse(value) === 'object') {
             return 'json';

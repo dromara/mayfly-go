@@ -23,9 +23,7 @@
                     <div class="font-medium text-sm">{{ dbValue.instanceName }} - {{ dbValue.dbName }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ t('ai.interrupt.paramCompletion.dbType') }}: {{ dbValue.dbType }}</div>
                 </div>
-                <el-icon v-if="isConfirmed" class="text-success">
-                    <Check />
-                </el-icon>
+                <SvgIcon v-if="isConfirmed" name="check" class="text-success" :size="20" />
             </div>
         </div>
     </div>
@@ -33,7 +31,7 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { Check } from '@element-plus/icons-vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
 
@@ -45,8 +43,13 @@ interface DbParamValue {
     tagPath: string;
 }
 
+interface ParamDef {
+    param: string;
+    cacheable?: boolean;
+}
+
 interface Props {
-    params: any[];
+    params: ParamDef[];
     readonly?: boolean;
     isConfirmed?: boolean;
     modelValue?: DbParamValue;
@@ -78,8 +81,8 @@ const dbValue = defineModel<DbParamValue>('modelValue', {
 });
 
 // 处理数据库选择
-const onSelectDb = (params: any) => {
-    console.log('[DbParamInput] Database selected:', params);
+const onSelectDb = (_params: Record<string, unknown>) => {
+    // Database selected, handled by DbSelectTree
 };
 
 // 检查是否有效
@@ -98,7 +101,7 @@ const getValues = () => {
 
 // 获取需要缓存的参数名
 const getCacheableParams = () => {
-    return props.params.filter((p: any) => p.cacheable === true).map((p: any) => p.param);
+    return props.params.filter((p) => p.cacheable === true).map((p) => p.param);
 };
 
 defineExpose({

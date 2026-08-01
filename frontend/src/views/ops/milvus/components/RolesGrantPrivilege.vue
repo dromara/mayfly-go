@@ -230,7 +230,7 @@
                             <el-checkbox
                                 :model-value="isGroupAllSelected(group)"
                                 :indeterminate="isGroupIndeterminate(group)"
-                                @change="(val: any) => handleGroupChange(group, val)"
+                                @change="(val: boolean | string | number) => handleGroupChange(group, val)"
                             >
                                 <strong>{{ group.label }}</strong>
                             </el-checkbox>
@@ -261,6 +261,39 @@
 import { Msg } from '@/hooks/useI18n';
 import { computed, ref, watch } from 'vue';
 import { milvusApi } from '../api';
+import type { IDatabase, ICollection } from '../types';
+
+/** Milvus 权限组 (API 返回) */
+interface MilvusPrivilegeGroup {
+    GroupName: string;
+    Privileges?: string[];
+}
+
+/** Milvus 权限项 (角色权限详情) */
+interface MilvusPrivilegeItem {
+    DbName?: string;
+    ObjectName?: string;
+    Privilege?: string;
+}
+
+/** 权限 scope 映射 (dbName -> collections -> collName -> privName -> 是否授权) */
+interface PrivilegeScopeMap {
+    collections: Record<string, Record<string, boolean>>;
+}
+
+/** 角色权限数据 */
+interface RolePrivilegeData {
+    privileges: MilvusPrivilegeItem[];
+}
+
+/** 权限分组UI模型 */
+interface PrivilegeGroupUI {
+    name: string;
+    label: string;
+    privileges: string[];
+}
+
+type GrantType = 'privilegeGroup' | 'privilege';
 
 const props = defineProps<{
     milvusId: number;
@@ -302,7 +335,7 @@ const privilegeDialog = ref({
     visible: false,
     roleName: '',
     currentDb: '',
-    currentRoleData: null as any,
+    currentRoleData: null as RolePrivilegeData | null,
 });
 const privilegeLoading = ref(false);
 const privilegeForm = ref({
@@ -359,7 +392,7 @@ const getAuthorizedCountByType = (type: 'cluster' | 'database' | 'collection' | 
         // 自定义权限组：排除固定权限组
         const allGroups = privilegeGroups.value || [];
         groupNames = allGroups
-            .map((g: any) => g.GroupName)
+            .map((g: MilvusPrivilegeGroup) => g.GroupName)
             .filter(
                 (name: string) =>
                     !PRIVILEGE_GROUP_CATEGORIES.CLUSTER.groupNames.includes(name) &&
@@ -426,11 +459,11 @@ const filteredPrivilegeGroups = computed(() => {
     const allGroups = privilegeGroups.value || [];
 
     if (privilegeGroupTypeTab.value === 'cluster') {
-        return allGroups.filter((g: any) => PRIVILEGE_GROUP_CATEGORIES.CLUSTER.groupNames.includes(g.GroupName));
+        return allGroups.filter((g: MilvusPrivilegeGroup) => PRIVILEGE_GROUP_CATEGORIES.CLUSTER.groupNames.includes(g.GroupName));
     } else if (privilegeGroupTypeTab.value === 'database') {
-        return allGroups.filter((g: any) => PRIVILEGE_GROUP_CATEGORIES.DATABASE.groupNames.includes(g.GroupName));
+        return allGroups.filter((g: MilvusPrivilegeGroup) => PRIVILEGE_GROUP_CATEGORIES.DATABASE.groupNames.includes(g.GroupName));
     } else if (privilegeGroupTypeTab.value === 'collection') {
-        return allGroups.filter((g: any) => PRIVILEGE_GROUP_CATEGORIES.COLLECTION.groupNames.includes(g.GroupName));
+        return allGroups.filter((g: MilvusPrivilegeGroup) => PRIVILEGE_GROUP_CATEGORIES.COLLECTION.groupNames.includes(g.GroupName));
     } else {
         // 自定义权限组：排除上述所有固定权限组
         const fixedGroupNames = [
@@ -438,7 +471,7 @@ const filteredPrivilegeGroups = computed(() => {
             ...PRIVILEGE_GROUP_CATEGORIES.DATABASE.groupNames,
             ...PRIVILEGE_GROUP_CATEGORIES.COLLECTION.groupNames,
         ];
-        return allGroups.filter((g: any) => !fixedGroupNames.includes(g.GroupName));
+        return allGroups.filter((g: MilvusPrivilegeGroup) => !fixedGroupNames.includes(g.GroupName));
     }
 });
 
@@ -447,10 +480,10 @@ const dbFilterText = ref('');
 const collFilterText = ref('');
 
 // 权限组
-const privilegeGroups = ref<any[]>([]);
+const privilegeGroups = ref<MilvusPrivilegeGroup[]>([]);
 
-const databases = ref<any[]>([]);
-const collections = ref<any[]>([]);
+const databases = ref<IDatabase[]>([]);
+const collections = ref<ICollection[]>([]);
 
 // 过滤后的数据库列表
 const filteredDatabases = computed(() => {
@@ -467,7 +500,7 @@ const filteredCollections = computed(() => {
 // 检查角色是否拥有 * 通配符权限
 const hasWildcardPrivilege = (type: 'database' | 'collection') => {
     const privs = privilegeDialog.value.currentRoleData?.privileges || [];
-    return privs.some((p: any) => {
+    return privs.some((p: MilvusPrivilegeItem) => {
         if (type === 'database') {
             return p.DbName === '*';
         } else if (type === 'collection') {
@@ -625,7 +658,7 @@ const getAuthorizedScopes = () => {
 const saveCurrentScopeState = () => {
     const scopeKey = getCurrentScopeKey();
     dbCollectionPrivileges.value.set(scopeKey, {
-        grantType: privilegeForm.value.grantType as any,
+        grantType: privilegeForm.value.grantType as GrantType,
         selectedPrivilegeGroups: [...privilegeForm.value.selectedPrivilegeGroups],
         selectedPrivileges: [...privilegeForm.value.selectedPrivileges],
     });
@@ -718,7 +751,7 @@ watch(privilegeGroupTypeTab, (newTab, oldTab) => {
 
     const oldKey = `${oldTab}:${privilegeForm.value.grantType}:${privilegeForm.value.selectedDatabase}:${privilegeForm.value.selectedCollection}`;
     dbCollectionPrivileges.value.set(oldKey, {
-        grantType: privilegeForm.value.grantType as any,
+        grantType: privilegeForm.value.grantType as GrantType,
         selectedPrivilegeGroups: [...privilegeForm.value.selectedPrivilegeGroups],
         selectedPrivileges: [...privilegeForm.value.selectedPrivileges],
     });
@@ -746,7 +779,7 @@ watch(
             const oldTabType = oldType === 'privilege' ? 'privilege' : privilegeGroupTypeTab.value;
             const oldKey = `${oldTabType}:${oldType}:${privilegeForm.value.selectedDatabase}:${privilegeForm.value.selectedCollection}`;
             dbCollectionPrivileges.value.set(oldKey, {
-                grantType: oldType as any,
+                grantType: oldType as GrantType,
                 selectedPrivilegeGroups: [...privilegeForm.value.selectedPrivilegeGroups],
                 selectedPrivileges: [...privilegeForm.value.selectedPrivileges],
             });
@@ -760,14 +793,14 @@ watch(
     }
 );
 
-const initAllScopePrivileges = (privs: any[]) => {
-    const scopeMap = new Map<string, any[]>();
-    const privilegeGroupNames = privilegeGroups.value.map((pg: any) => pg.GroupName);
+const initAllScopePrivileges = (privs: MilvusPrivilegeItem[]) => {
+    const scopeMap = new Map<string, MilvusPrivilegeItem[]>();
+    const privilegeGroupNames = privilegeGroups.value.map((pg) => pg.GroupName);
 
-    privs.forEach((p: any) => {
+    privs.forEach((p) => {
         const dbName = p.DbName || '*';
         const objName = p.ObjectName || '*';
-        const privilegeName = p.Privilege;
+        const privilegeName = p.Privilege || '';
 
         const isGroup = privilegeGroupNames.includes(privilegeName);
 
@@ -799,12 +832,12 @@ const initAllScopePrivileges = (privs: any[]) => {
     });
 
     scopeMap.forEach((scopePrivs, key) => {
-        const allPrivs = scopePrivs.map((p: any) => p.Privilege).filter((p: string) => p !== '*');
+        const allPrivs = scopePrivs.map((p) => p.Privilege || '').filter((p) => p !== '*');
 
         const selectedGroups: string[] = [];
         const selectedIndividualPrivs: string[] = [];
 
-        allPrivs.forEach((priv: string) => {
+        allPrivs.forEach((priv) => {
             if (privilegeGroupNames.includes(priv)) {
                 selectedGroups.push(priv);
             } else {
@@ -840,19 +873,19 @@ const loadCurrentScopePrivileges = () => {
     const privs = privilegeDialog.value.currentRoleData?.privileges || [];
     const currentGrantType = privilegeForm.value.grantType;
 
-    const matchedPrivs = privs.filter((p: any) => {
+    const matchedPrivs = privs.filter((p: MilvusPrivilegeItem) => {
         const matchDb = (p.DbName || '*') === dbName;
         const matchColl = (p.ObjectName || '*') === collName;
         return matchDb && matchColl;
     });
 
-    const allPrivs = matchedPrivs.map((p: any) => p.Privilege).filter((p: string) => p !== '*');
+    const allPrivs = matchedPrivs.map((p) => p.Privilege || '').filter((p) => p !== '*');
 
     const privilegeGroupNames = privilegeGroups.value.map((pg) => pg.GroupName);
     const selectedGroups: string[] = [];
     const selectedIndividualPrivs: string[] = [];
 
-    allPrivs.forEach((priv: string) => {
+    allPrivs.forEach((priv) => {
         if (privilegeGroupNames.includes(priv)) {
             selectedGroups.push(priv);
         } else {
@@ -877,7 +910,7 @@ const loadCurrentScopePrivileges = () => {
 const authorizedDatabases = computed(() => {
     const privs = privilegeDialog.value.currentRoleData?.privileges || [];
     const dbSet = new Set<string>();
-    privs.forEach((p: any) => {
+    privs.forEach((p: MilvusPrivilegeItem) => {
         if (p.DbName) {
             dbSet.add(p.DbName);
         }
@@ -888,7 +921,7 @@ const authorizedDatabases = computed(() => {
 const authorizedCollections = computed(() => {
     const privs = privilegeDialog.value.currentRoleData?.privileges || [];
     const collSet = new Set<string>();
-    privs.forEach((p: any) => {
+    privs.forEach((p: MilvusPrivilegeItem) => {
         if (p.ObjectName) {
             collSet.add(p.ObjectName);
         }
@@ -900,7 +933,7 @@ const getPrivilegeAuthScope = (privilegeName: string) => {
     const privs = privilegeDialog.value.currentRoleData?.privileges || [];
     const scopes: string[] = [];
 
-    privs.forEach((p: any) => {
+    privs.forEach((p: MilvusPrivilegeItem) => {
         if (p.Privilege === privilegeName) {
             const scope = [];
             if (p.DbName) scope.push(`db:${p.DbName}`);
@@ -912,7 +945,7 @@ const getPrivilegeAuthScope = (privilegeName: string) => {
     return scopes;
 };
 
-const getGroupAuthCount = (group: any) => {
+const getGroupAuthCount = (group: PrivilegeGroupUI) => {
     let count = 0;
 
     // 优先检查当前 scope 的缓存
@@ -1012,20 +1045,20 @@ const currentPrivilegeGroupPrivileges = computed(() => {
 });
 
 // 判断分组是否全选
-const isGroupAllSelected = (group: any) => {
+const isGroupAllSelected = (group: PrivilegeGroupUI) => {
     if (group.privileges.length === 0) return false;
     return group.privileges.every((priv: string) => privilegeForm.value.selectedPrivileges.includes(priv));
 };
 
 // 判断分组是否半选
-const isGroupIndeterminate = (group: any) => {
+const isGroupIndeterminate = (group: PrivilegeGroupUI) => {
     if (group.privileges.length === 0) return false;
     const selectedCount = group.privileges.filter((priv: string) => privilegeForm.value.selectedPrivileges.includes(priv)).length;
     return selectedCount > 0 && selectedCount < group.privileges.length;
 };
 
 // 分组全选/取消全选
-const handleGroupChange = (group: any, val: any) => {
+const handleGroupChange = (group: PrivilegeGroupUI, val: boolean | string | number) => {
     if (val) {
         // 全选：添加该组所有权限
         group.privileges.forEach((priv: string) => {
@@ -1052,7 +1085,7 @@ const loadPrivilegeGroups = async () => {
     try {
         const res = await milvusApi.getPrivilegeGroups(props.milvusId);
         privilegeGroups.value = res || [];
-    } catch (error: any) {
+    } catch (error: unknown) {
         privilegeGroups.value = [];
     }
 };
@@ -1062,13 +1095,13 @@ const loadDatabases = async () => {
     try {
         const res = await milvusApi.listDatabases(props.milvusId);
         databases.value = res || [];
-    } catch (error: any) {
+    } catch (error: unknown) {
         databases.value = [];
     }
 };
 
 // 打开授权弹窗
-const handleGrantPrivilege = async (row: any) => {
+const handleGrantPrivilege = async (row: { roleName: string }) => {
     privilegeDialog.value.roleName = row.roleName;
     privilegeDialog.value.visible = true;
     privilegeLoading.value = true;
@@ -1120,7 +1153,7 @@ const submitPrivilege = async () => {
     const roleName = privilegeDialog.value.roleName;
 
     // 构建本次提交的所有 scope 的权限变更
-    const allPrivileges: any = {};
+    const allPrivileges: Record<string, PrivilegeScopeMap> = {};
 
     // 遍历所有已缓存的 scope 和当前表单，收集所有需要提交的权限
     const allScopes = new Set<string>();
@@ -1175,7 +1208,7 @@ const submitPrivilege = async () => {
     const existingPrivilegeMap = new Map<string, boolean>();
 
     // 构建现有权限的映射
-    currentPrivs.forEach((p: any) => {
+    currentPrivs.forEach((p: MilvusPrivilegeItem) => {
         const dbName = p.DbName || '*';
         const collName = p.ObjectName || '*';
         const privName = p.Privilege;
@@ -1184,7 +1217,7 @@ const submitPrivilege = async () => {
     });
 
     // 构建最终提交数据
-    const finalPrivileges: any = {};
+    const finalPrivileges: Record<string, PrivilegeScopeMap> = {};
 
     // 处理新授权的权限（值为 true）
     Object.keys(allPrivileges).forEach((dbName) => {

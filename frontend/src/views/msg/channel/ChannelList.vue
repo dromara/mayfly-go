@@ -27,14 +27,15 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { channelApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum } from '../enums';
 import ChannelEdit from './ChannelEdit.vue';
+import type { MsgChannel } from '@/views/system/msg/types';
 
 const perms = {
     saveChannel: 'msg:channel:save',
@@ -57,12 +58,12 @@ const columns = [
 const actionBtns = hasPerms([perms.saveChannel, perms.delChannel]);
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const state = reactive({
     /**
      * 选中的数据
      */
-    selectionData: [],
+    selectionData: [] as MsgChannel[],
     /**
      * 查询条件
      */
@@ -76,7 +77,7 @@ const state = reactive({
     editDialog: {
         title: '',
         visible: false,
-        data: null as any,
+        data: null as MsgChannel | null,
     },
 });
 
@@ -89,10 +90,10 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const editChannel = (data: any) => {
+const editChannel = (data: MsgChannel | false) => {
     if (!data) {
         state.editDialog.title = useI18nCreateTitle('msg.msgChannel');
         state.editDialog.data = null;
@@ -104,8 +105,8 @@ const editChannel = (data: any) => {
 };
 
 const deleteChannel = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.code).join('、'));
-    await channelApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+    await useI18nDeleteConfirm(state.selectionData.map((x) => x.code).join('、'));
+    await channelApi.del.request({ id: state.selectionData.map((x) => x.id).join(',') });
     Msg.deleteSuccess();
     search();
 };

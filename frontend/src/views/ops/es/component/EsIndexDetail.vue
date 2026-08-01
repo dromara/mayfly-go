@@ -133,22 +133,22 @@ watch(activeName, async (val) => {
 });
 
 const refreshMappings = async () => {
-    let res = await esApi.proxyReq('get', state.instId, `/${state.idxName}/_mappings`);
+    let res = await esApi.proxyReq<Record<string, { mappings: Record<string, unknown> }>>('get', state.instId, `/${state.idxName}/_mappings`);
     state.mappings = JSON.stringify(res[state.idxName].mappings, null, 2);
 };
 
 const refreshStats = async () => {
-    let stats = await esApi.proxyReq('get', state.instId, `/${state.idxName}/_stats`);
+    let stats = await esApi.proxyReq<{ indices: Record<string, unknown> }>('get', state.instId, `/${state.idxName}/_stats`);
     state.stats = JSON.stringify(stats.indices[state.idxName], null, 2);
 };
 
 const refreshAlias = async () => {
-    let aliases = await esApi.proxyReq('get', state.instId, `/${state.idxName}/_alias`);
+    let aliases = await esApi.proxyReq<Record<string, { aliases: Record<string, unknown> }>>('get', state.instId, `/${state.idxName}/_alias`);
     state.aliases = Object.keys(aliases[state.idxName].aliases);
 };
 
 const refreshSettings = async () => {
-    let res = await esApi.proxyReq('get', state.instId, `/${state.idxName}/_settings`);
+    let res = await esApi.proxyReq<Record<string, { settings: Record<string, unknown> }>>('get', state.instId, `/${state.idxName}/_settings`);
     let st = res[state.idxName].settings;
 
     state.settings = JSON.stringify(st, null, 2);
@@ -185,7 +185,7 @@ const onClose = () => {
     state = reactive(defaultData);
 };
 
-const open = (data: any) => {
+const open = (data: { instId: number; idxName: string }) => {
     visible.value = true;
     activeName.value = 'settings';
     state = reactive(defaultData);

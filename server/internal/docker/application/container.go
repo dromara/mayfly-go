@@ -92,7 +92,7 @@ func (c *containerAppImpl) SaveContainer(ctx context.Context, saveContainer *dto
 		}
 
 		if oldContainer.Name != container.Name {
-			if err := c.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldContainer.Code, container.Name); err != nil {
+			if err := c.tagApp.UpdateTagName(ctx, tagentity.TagTypeContainer, oldContainer.Code, container.Name); err != nil {
 				return err
 			}
 		}

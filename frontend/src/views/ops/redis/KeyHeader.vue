@@ -70,19 +70,19 @@ const state = reactive({
         key: '',
         type: '',
         timed: -1,
-    } as any,
+    } as { key: string; type: string; timed: number },
     ki: {
         key: '',
         type: '',
         timed: -1,
-    } as any,
+    } as { key: string; type: string; timed: number },
     oldKey: '',
     memuse: 0,
 });
 
 onMounted(() => {
-    state.keyInfo = props.keyInfo;
-    state.oldKey = props.keyInfo?.key;
+    state.keyInfo = (props.keyInfo ?? state.keyInfo) as { key: string; type: string; timed: number };
+    state.oldKey = props.keyInfo?.key || '';
 });
 
 const refreshKey = async () => {
@@ -144,7 +144,7 @@ const persistKey = async () => {
 
 const { ki } = toRefs(state);
 
-const setKeyInfo = (val: any) => {
+const setKeyInfo = (val: Record<string, any>) => {
     state.ki.timed = val.timed;
     state.ki.key = val.key;
     state.oldKey = val.key;
@@ -153,13 +153,15 @@ const setKeyInfo = (val: any) => {
 
 watch(
     () => props.keyInfo,
-    (val: any) => {
-        setKeyInfo(val);
+    (val) => {
+        if (val) {
+            setKeyInfo(val);
+        }
     },
     { deep: true }
 );
 
-const ttlConveter = (ttl: any) => {
+const ttlConveter = (ttl: number) => {
     if (ttl == -1 || ttl == 0) {
         return t('redis.permanent');
     }

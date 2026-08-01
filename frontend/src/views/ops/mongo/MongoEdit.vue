@@ -44,14 +44,27 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watchEffect } from 'vue';
+import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
+import type { FormInstance } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { mongoApi } from './api';
+import type { Mongo } from './types';
+
+/** Mongo 编辑表单类型（允许 null 的字段重定义） */
+interface MongoForm extends Omit<Partial<Mongo>, 'id' | 'name' | 'uri' | 'sshTunnelMachineId'> {
+    id?: number | null;
+    name?: string | null;
+    uri?: string | null;
+    sshTunnelMachineId?: number | null;
+    tagCodePaths?: string[];
+    db?: number;
+}
 
 const props = defineProps({
     mongo: {
-        type: [Boolean, Object],
+        type: Object as PropType<Mongo | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -69,7 +82,7 @@ const rules = {
     uri: [Rules.requiredInput('mongo.connUrl')],
 };
 
-const mongoFormRef: any = useTemplateRef('mongoFormRef');
+const mongoFormRef = useTemplateRef<FormInstance>('mongoFormRef');
 
 const state = reactive({
     tabActiveName: 'basic',
@@ -78,9 +91,9 @@ const state = reactive({
         code: '',
         name: null,
         uri: null,
-        sshTunnelMachineId: null as any,
+        sshTunnelMachineId: null as number | null,
         tagCodePaths: [],
-    },
+    } as MongoForm,
 });
 
 const { tabActiveName, form } = toRefs(state);
@@ -93,11 +106,11 @@ watchEffect(() => {
         return;
     }
     state.tabActiveName = 'basic';
-    const mongo: any = props.mongo;
+    const mongo = props.mongo as MongoForm | false | null;
     if (mongo) {
         state.form = { ...mongo };
     } else {
-        state.form = { db: 0, tagCodePaths: [] } as any;
+        state.form = { db: 0, tagCodePaths: [] } as MongoForm;
     }
 });
 

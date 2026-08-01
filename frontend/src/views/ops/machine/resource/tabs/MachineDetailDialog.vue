@@ -33,6 +33,7 @@ import { formatDate } from '@/common/utils/format';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import { ref, watch } from 'vue';
 import { machineApi } from '../../api';
+import type { MachineVO } from '../../types';
 
 const props = defineProps({
     code: {
@@ -43,11 +44,11 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 const loading = ref(false);
-const machineDetail = ref<any>({});
+const machineDetail = ref<MachineVO>({} as MachineVO);
 
 const getMachineDetail = async () => {
     try {
-        machineDetail.value = {};
+        machineDetail.value = {} as MachineVO;
         loading.value = true;
         const res = await machineApi.list.request({
             code: props.code,
@@ -56,7 +57,7 @@ const getMachineDetail = async () => {
             return;
         }
 
-        machineDetail.value = res.list?.[0];
+        machineDetail.value = res.list?.[0] ?? ({} as MachineVO);
     } finally {
         loading.value = false;
     }

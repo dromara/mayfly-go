@@ -23,6 +23,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/ws"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cast"
 )
+
+// safeShellArgRegexp 匹配安全的 shell 参数（仅允许字母、数字、横杠、下划线、点、斜杠、冒号、等号、星号、问号）
+var safeShellArgRegexp = regexp.MustCompile(`^[a-zA-Z0-9_\-./:+*@?=]+$`)
 
 type Machine struct {
 	machineApp          application.Machine       `inject:"T"`
@@ -70,6 +74,9 @@ func (m *Machine) ReqConfs() *req.Confs {
 		// 终端操作
 		req.NewGet("terminal/:ac", m.WsSSH).NoRes(),
 		req.NewGet("rdp/:ac", m.WsGuacamole).NoRes(),
+
+		// 非交互式命令执行（适合 agent/CLI 使用）
+		req.NewPost(":machineId/:ac/run-cmd", m.RunCmd).Log(req.NewLogSaveI(imsg.LogMachineTerminalOp)),
 	}
 
 	return req.NewConfs("machines", reqs[:]...)
@@ -184,6 +191,11 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 	pname := rc.Query("name")
 	if pname != "" {
+		// 校验进程名安全性，防止命令注入
+		if !safeShellArgRegexp.MatchString(pname) {
+			biz.IsTrue(false, "invalid process name")
+			return
+		}
 		cmd += fmt.Sprintf("| grep %s ", pname)
 	}
 
@@ -204,13 +216,16 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 func (m *Machine) KillProcess(rc *req.Ctx) {
 	pid := rc.Query("pid")
 	biz.NotEmpty(pid, "pid cannot be empty")
+	// 校验 pid 为纯数字，防止命令注入
+	pidNum, pidErr := strconv.Atoi(pid)
+	biz.IsTrue(pidErr == nil && pidNum > 0, "invalid pid")
 
 	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
 
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
-	res, err := cli.Run("sudo kill -9 " + pid)
+	res, err := cli.Run(fmt.Sprintf("sudo kill -9 %d", pidNum))
 	biz.ErrIsNil(err, "kill fail: %s", res)
 }
 
@@ -392,4 +407,34 @@ func GetMachineAc(rc *req.Ctx) string {
 	ac := rc.PathParam("ac")
 	biz.IsTrue(ac != "", "authCertName error")
 	return ac
+}
+
+// RunCmd 非交互式命令执行（适合 agent/CLI 使用）
+func (m *Machine) RunCmd(rc *req.Ctx) {
+	type RunCmdForm struct {
+		Cmd string `json:"cmd" binding:"required"`
+	}
+	form := req.BindJson[RunCmdForm](rc)
+
+	ac := GetMachineAc(rc)
+	cli, err := m.machineApp.GetCliByAc(rc.MetaCtx, ac)
+	biz.ErrIsNilAppendErr(err, "connection error: %s")
+
+	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
+
+	rc.ReqParam = collx.Kvs("machine", cli.Info, "cmd", form.Cmd)
+
+	res, err := cli.Run(form.Cmd)
+	if res == "" && err != nil {
+		biz.ErrIsNilAppendErr(err, "execute failed: %s")
+	}
+
+	// 返回结果包含输出和可能的错误信息
+	result := map[string]interface{}{
+		"output": res,
+	}
+	if err != nil {
+		result["error"] = err.Error()
+	}
+	rc.ResData = result
 }

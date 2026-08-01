@@ -1,33 +1,7 @@
 import Api from '@/common/Api';
+import type { Session, SessionMessage, ToolCall } from './types';
 
-export interface Session {
-    sessionKey: string;
-    title: string;
-    createTime: string;
-    updateTime: string;
-}
-
-export interface ToolCall {
-    id: string;
-    function: {
-        name: string;
-        arguments: string;
-    };
-}
-
-export interface SessionMessage {
-    turnId?: string;
-    sessionId?: string; // 会话ID，用于过滤不属于当前会话的消息
-    role: string;
-    content: string;
-    type?: string;
-    time?: any;
-    reasoningContent?: string;
-    toolCalls?: ToolCall[];
-    toolCallId?: string;
-    actionId?: string;
-    extra?: any;
-}
+export type { Session, SessionMessage, ToolCall } from './types';
 
 export const aiApi = {
     // 获取权限列表
@@ -37,10 +11,10 @@ export const aiApi = {
     listMessages: Api.newGet<SessionMessage[]>('/ai/chat/messages'),
 };
 
-export function getMachineTerminalSocketUrl(authCertName: any) {
+export function getMachineTerminalSocketUrl(authCertName: string) {
     return `/machines/terminal/${authCertName}`;
 }
 
-export function getMachineRdpSocketUrl(authCertName: any) {
+export function getMachineRdpSocketUrl(authCertName: string) {
     return `/api/machines/rdp/${authCertName}`;
 }

@@ -106,6 +106,8 @@ import { computed, onMounted, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import TagCodePath from '../ops/component/TagCodePath.vue';
 import { resourceOpLogApi } from '../ops/tag/api';
+import type { ResourceOpLog } from '../ops/tag/types';
+import type { SysRole } from '../system/types';
 import { personApi } from '../personal/api';
 import { resourceComponents } from './resources';
 
@@ -114,18 +116,18 @@ const { userInfo } = storeToRefs(useUserInfo());
 
 const state = reactive({
     accountInfo: {
-        roles: [],
+        roles: [] as SysRole[],
     },
     msgs: [],
     defaultLogSize: 20,
-    recentOpLogs: [] as any[],
+    recentOpLogs: [] as ResourceOpLog[],
 });
 
 const roleInfo = computed(() => {
     if (state.accountInfo.roles.length == 0) {
         return '';
     }
-    return state.accountInfo.roles.map((val: any) => val.roleName).join('、');
+    return state.accountInfo.roles.map((val: SysRole) => val.name).join('、');
 });
 
 // 当前时间提示语
@@ -143,7 +145,7 @@ const getAccountInfo = async () => {
     state.accountInfo = await personApi.accountInfo.request();
 };
 
-const beforeAvatarUpload = (rawFile: any) => {
+const beforeAvatarUpload = (rawFile: File) => {
     if (rawFile.size >= 512 * 1024) {
         Msg.error('头像不能超过512KB!');
         return false;
@@ -151,8 +153,10 @@ const beforeAvatarUpload = (rawFile: any) => {
     return true;
 };
 
-const handleAvatarSuccess = (response: any, uploadFile: any) => {
-    userInfo.value.photo = URL.createObjectURL(uploadFile.raw);
+const handleAvatarSuccess = (_response: unknown, uploadFile: import('element-plus').UploadFile) => {
+    if (uploadFile.raw) {
+        userInfo.value.photo = URL.createObjectURL(uploadFile.raw);
+    }
 
     const newUser = { ...userInfo.value };
     newUser.photo = getFileUrl(`avatar_${userInfo.value.username}`);
@@ -174,7 +178,7 @@ const initData = async () => {
 };
 
 // 快捷跳转
-const toPage = (item: any, codePath = '') => {
+const toPage = (item: string, codePath = '') => {
     let path;
     useAutoOpenResource().setCodePath(codePath);
     switch (item) {

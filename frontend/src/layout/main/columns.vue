@@ -22,7 +22,7 @@ const Main = defineAsyncComponent(() => import('@/layout/component/main.vue'));
 const ColumnsAside = defineAsyncComponent(() => import('@/layout/component/columnsAside.vue'));
 
 // 提供响应式数据给子组件
-const columnsMenuData = ref<any>(null);
+const columnsMenuData = ref<SendChildrenResult | null>(null);
 provide('columnsMenuData', columnsMenuData);
 
 const isFixedHeader = computed(() => {

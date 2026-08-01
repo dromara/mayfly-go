@@ -11,7 +11,7 @@ import {
     sqlColumnType,
 } from './index';
 import { DbInst } from '@/views/ops/db/db';
-import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
+import { language as sqlLanguage } from 'monaco-editor/languages/definitions/sql/sql.js';
 
 export { SqliteDialect };
 
@@ -252,7 +252,7 @@ class SqliteDialect implements DbDialect {
         return `\"${name}\"`;
     };
 
-    genColumnBasicSql(cl: any): string {
+    genColumnBasicSql(cl: RowDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
         let length = cl.length ? `(${cl.length})` : '';
@@ -263,31 +263,31 @@ class SqliteDialect implements DbDialect {
         return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${nullAble} ${defVal} `;
     }
 
-    getCreateTableSql(data: any): string {
+    getCreateTableSql(data: Record<string, unknown>): string {
         // 创建表结构
         let fields: string[] = [];
-        data.fields.res.forEach((item: any) => {
+        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
         });
 
-        return `CREATE TABLE ${this.quoteIdentifier(data.db)}.${this.quoteIdentifier(data.tableName)}
+        return `CREATE TABLE ${this.quoteIdentifier(data.db as string)}.${this.quoteIdentifier(data.tableName as string)}
                 (
                     ${fields.join(',')}
                 )`;
     }
 
-    getCreateIndexSql(data: any): string {
+    getCreateIndexSql(data: Record<string, unknown>): string {
         // 创建索引
         let sql = [] as string[];
-        data.indexs.res.forEach((a: any) => {
+        (data.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
             sql.push(
                 `CREATE
                 ${a.unique ? 'UNIQUE' : ''} INDEX
-                ${this.quoteIdentifier(data.db)}
+                ${this.quoteIdentifier(data.db as string)}
                 .
                 ${this.quoteIdentifier(a.indexName)}
                 ON
-                "${data.tableName}"
+                "${data.tableName as string}"
                 (
                 ${a.columnNames.join(',')}
                 )`
@@ -297,7 +297,7 @@ class SqliteDialect implements DbDialect {
     }
 
     getModifyColumnSql(
-        tableData: any,
+        tableData: Record<string, unknown>,
         tableName: string,
         changeData: {
             del: RowDefinition[];
@@ -309,13 +309,13 @@ class SqliteDialect implements DbDialect {
 
         // 1.删除旧表索引  DROP INDEX "main"."aa";
         let sql = [] as string[];
-        tableData.indexs.res.forEach((a: any) => {
-            a.indexName && sql.push(`DROP INDEX ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(a.indexName)}`);
+        (tableData.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
+            a.indexName && sql.push(`DROP INDEX ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(a.indexName)}`);
         });
 
         // 2.重命名表，备份旧表  ALTER TABLE "main"."t_sys_resource" RENAME TO "_t_sys_resource_old_20240118162712"; new Date().getTime()
         let oldTableName = `_${tableName}_old_${new Date().getTime()}`;
-        sql.push(`ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)} RENAME TO ${this.quoteIdentifier(oldTableName)}`);
+        sql.push(`ALTER TABLE ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableName)} RENAME TO ${this.quoteIdentifier(oldTableName)}`);
 
         // 3.创建新表
         sql.push(this.getCreateTableSql(tableData));
@@ -329,30 +329,30 @@ class SqliteDialect implements DbDialect {
 
         let queryFields = [] as string[];
         let insertFields = [] as string[];
-        tableData.fields.res.forEach((a: any) => {
+        (tableData.fields as { res: RowDefinition[] }).res.forEach((a: RowDefinition) => {
             // 新增、删除的字段不需要查询旧表，不需要插入新表
             if (addFields.includes(a.name) || delFields.includes(a.name)) {
                 return;
             }
             // 修改的字段需要查询和插入，判断是否修改了字段名，如果修改了字段名，需要查询旧表原名，插入新表新名
             // 其余未删除、未修改的字段，需要查询旧表，插入新表
-            queryFields.push(this.quoteIdentifier(a.name === a.oldName ? a.name : a.oldName));
+            queryFields.push(this.quoteIdentifier(a.name === a.oldName ? a.name : (a.oldName ?? a.name)));
             insertFields.push(this.quoteIdentifier(a.name));
         });
         // 生成sql
         sql.push(
-            `INSERT INTO ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)} (${insertFields.join(',')})
+            `INSERT INTO ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableName)} (${insertFields.join(',')})
              SELECT ${queryFields.join(',')}
-             FROM ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(oldTableName)}`
+             FROM ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(oldTableName)}`
         );
 
         // 5.创建索引
-        tableData.indexs.res.forEach((a: any) => {
+        (tableData.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
             a.indexName &&
                 sql.push(
                     `CREATE
                 ${a.unique ? 'UNIQUE' : ''} INDEX
-                ${this.quoteIdentifier(tableData.db)}
+                ${this.quoteIdentifier(tableData.db as string)}
                 .
                 ${this.quoteIdentifier(a.indexName)}
                 ON
@@ -366,7 +366,7 @@ class SqliteDialect implements DbDialect {
         return sql.join(';') + ';';
     }
 
-    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
         // sqlite创建索引需要先删除再创建
         // CREATE INDEX "main"."aa1" ON "t_sys_resource" ( "ui_path" );
 
@@ -378,7 +378,7 @@ class SqliteDialect implements DbDialect {
             });
         }
 
-        let indexData = [] as any[];
+        let indexData = [] as IndexDefinition[];
         if (changeData.add.length > 0) {
             indexData = indexData.concat(changeData.add);
         }
@@ -401,15 +401,15 @@ class SqliteDialect implements DbDialect {
         return sql.join(';');
     }
 
-    getModifyTableInfoSql(tableData: any): string {
-        let schemaArr = tableData.db.split('/');
+    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
+        let schemaArr = (tableData.db as string).split('/');
         let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
 
         // sqlite没有表注释
         let sql = '';
         if (tableData.tableName != tableData.oldTableName) {
-            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
-            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName)}`;
+            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
+            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName as string)}`;
         }
         return sql;
     }
@@ -433,12 +433,12 @@ class SqliteDialect implements DbDialect {
         return DataType.String;
     }
 
-    wrapValue(columnType: string, value: any): any {
+    wrapValue(columnType: string, value: unknown): string | number {
         if (value == null) {
             return 'NULL';
         }
         if (DbInst.isNumber(columnType)) {
-            return value;
+            return value as number;
         }
         return `'${value}'`;
     }

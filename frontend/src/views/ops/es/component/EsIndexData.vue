@@ -29,79 +29,25 @@
             </el-descriptions-item>
         </el-descriptions>
 
-        <el-row class="es-op-header shrink-0">
-            <el-col :span="20">
-                <el-space>
-                    <el-link @click="onRefreshData" icon="refresh" underline="never" :title="t('common.refresh')"/>
-                    <el-link @click="onBasicSearch" icon="Search" underline="never" :title="t('es.opSearch')"/>
-                    <el-link v-auth="perms.saveData" @click="onAddDoc" icon="plus" underline="never" :title="t('common.create')" />
-                    <el-link v-auth="perms.delData" :disabled="state.selectKeys.length === 0" @click="onDeleteDocs" icon="Minus" underline="never" :title="t('common.delete')"/>
-                    <el-link v-auth="perms.saveData" :disabled="state.selectKeys.length !== 1" @click="onEditSelectDoc" icon="EditPen" underline="never" :title="t('common.edit')"/>
-                    <el-link :disabled="state.search.from === 0" @click="onFirstPage" icon="DArrowLeft" underline="never" :title="t('es.page.home')" />
-                    <el-link :disabled="state.search.from === 0" @click="onPrevPage" icon="ArrowLeft" underline="never" :title="t('es.page.prev')"/>
-                    <el-dropdown placement="bottom" size="small" :teleported="false" :title="t('es.page.changeSize')">
-                        <el-link underline="never" :style="{ fontSize: '12px' }">
-                            {{ state.currentFrom + 1 }} - {{ Math.min(state.currentFrom + state.search.size, state.total) }}</el-link
-                        >
-                        <template #dropdown>
-                            <el-dropdown-menu>
-                                <el-dropdown-item @click="onChangePageSize(25)">25</el-dropdown-item>
-                                <el-dropdown-item @click="onChangePageSize(50)">50</el-dropdown-item>
-                                <el-dropdown-item @click="onChangePageSize(100)">100</el-dropdown-item>
-                                <el-dropdown-item @click="onChangePageSize(200)">200</el-dropdown-item>
-                                <el-dropdown-item @click="onChangePageSize(1000)">1000</el-dropdown-item>
-                            </el-dropdown-menu>
-                        </template>
-                    </el-dropdown>
-                    /
-                    <el-link
-                        underline="never"
-                        @click="onSwitchTrackTotal"
-                        :type="state.search.track_total_hits === true ? 'success' : 'info'"
-                        :style="{ fontSize: '12px' }"
-                        :title="t('es.page.total')"
-                    >
-                        {{ state.searchRes.hits?.total?.value || 0 }}</el-link
-                    >
-                    <el-link
-                        :disabled="state.search.from + state.search.size >= (state.total || 0)"
-                        @click="onNextPage"
-                        icon="ArrowRight"
-                        underline="never"
-                        :title="t('es.page.next')"
-                    />
-
-                    <el-dropdown placement="bottom" size="small" :max-height="300" :hide-on-click="false" trigger="click" :teleported="false" :title="t('es.opViewColumns')">
-                        <el-link icon="Operation" underline="never" />
-                        <template #dropdown>
-                            <el-dropdown-menu class="dropdown-menu">
-                                <el-dropdown-item>
-                                    <el-space>
-                                        <el-checkbox @change="onCheckAllColumns" v-model="state.checkAllColumns" />
-                                        <el-input
-                                            v-model="state.columnsFilterText"
-                                            @input="onFilterColumns"
-                                            :placeholder="t('es.filterColumn')"
-                                            clearable
-                                            size="small"
-                                        />
-                                    </el-space>
-                                </el-dropdown-item>
-                                <template v-for="column in state.columns" :key="column.key">
-                                    <el-dropdown-item v-if="column._filterd" :command="column.key">
-                                        <el-checkbox v-model="column._show" @change="onCheckColumnFilter(column)">
-                                            {{ column.title }}
-                                        </el-checkbox>
-                                    </el-dropdown-item>
-                                </template>
-                            </el-dropdown-menu>
-                        </template>
-                    </el-dropdown>
-
-                    <el-link @click="onOpenExportDialog" icon="Download" underline="never" :title="t('es.export.title')" />
-                </el-space>
-            </el-col>
-        </el-row>
+        <EsIndexDataToolbar
+            :state="state"
+            :select-keys-len="state.selectKeys.length"
+            :perms="perms"
+            @refresh-data="onRefreshData"
+            @basic-search="onBasicSearch"
+            @add-doc="onAddDoc"
+            @delete-docs="onDeleteDocs"
+            @edit-select-doc="onEditSelectDoc"
+            @first-page="onFirstPage"
+            @prev-page="onPrevPage"
+            @next-page="onNextPage"
+            @change-page-size="onChangePageSize"
+            @switch-track-total="onSwitchTrackTotal"
+            @check-all-columns="onCheckAllColumns"
+            @filter-columns="onFilterColumns"
+            @check-column-filter="onCheckColumnFilter"
+            @open-export-dialog="onOpenExportDialog"
+        />
 
         <div class="es-table-data flex-1 min-h-0">
             <el-auto-resizer>
@@ -116,7 +62,7 @@
                         fixed
                         :header-height="22"
                         class="es-table"
-                        :row-class="({ rowIndex }) => state.datas[rowIndex]?._selected ? 'es-row-selected' : ''"
+                        :row-class="({ rowIndex }: { rowIndex: number }) => (state.datas[rowIndex]?._selected ? 'es-row-selected' : '')"
                         :row-event-handlers="rowEventHandlers"
                     >
                         <template #header="{ columns }">
@@ -177,7 +123,7 @@
 
         <es-search :instId="instId" :idxName="currentIdxName" :fields="state.fields" v-model:visible="state.searchDialogVisible" @search="onEsSearch" />
 
-        <Contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
+        <Contextmenu :dropdown="contextmenu.dropdown" :items="contextmenu.items" ref="contextmenuRef" />
 
         <EsEditRow v-model="docEditDialog" v-model:visible="docEditDialog.visible" @success="onEditRowSuccess" />
 
@@ -251,434 +197,86 @@
 </template>
 
 <script lang="tsx" setup>
-import Api from '@/common/Api';
-import { exportCsv, exportExcel, exportFile } from '@/common/utils/export';
 import { copyToClipboard } from '@/common/utils/string';
-import { getClientId, getToken } from '@/common/utils/storage';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import SvgIcon from '@/components/svgIcon/index.vue';
-import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
-import { esApi } from '@/views/ops/es/api';
-import { useIntervalFn } from '@vueuse/core';
-import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue';
+import SvgIcon from '@/components/svg-icon/index.vue';
+import { useI18nDeleteConfirm } from '@/hooks/useI18n';
+import type { EsColumn, EsDoc } from '@/views/ops/es/types';
+import { defineAsyncComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useEsDocCrud } from './composables/useEsDocCrud';
+import { useEsSearch } from './composables/useEsSearch';
+import EsIndexDataToolbar from './EsIndexDataToolbar.vue';
 
 const EsSearch = defineAsyncComponent(() => import('./EsSearch.vue'));
+const EsEditRow = defineAsyncComponent(() => import('../component/EsEditRow.vue'));
 
 const props = defineProps<{
-    instId: any;
+    instId: number;
 }>();
 
-const { t } = useI18n();
+const i18n = useI18n();
+const { t } = i18n;
 
 const perms = {
     saveData: 'es:data:save',
     delData: 'es:data:del',
 };
 
-const tooltipTime = 300;
+// ---- Composables ----
 
-const getDefaultSearch = () => ({ sort: {}, query: { bool: { must: [], should: [], must_not: [] } }, aggs: {}, from: 0, size: 25 });
+const {
+    state,
+    currentIdxName,
+    currentIdxInfo,
+    indices,
+    onIndexChange,
+    fetchIndexData,
+    onChangePageSize,
+    onFirstPage,
+    onNextPage,
+    onPrevPage,
+    onSwitchTrackTotal,
+    refreshIndex,
+    onRefreshData,
+    onRefreshStats,
+    onBasicSearch,
+    onEsSearch,
+    onCheckColumnFilter,
+    onCheckAllColumns,
+    onFilterColumns,
+    onSelectAll,
+    onSelectRow,
+    rowEventHandlers,
+    selectIndex,
+} = useEsSearch({ instId: props.instId, i18n });
 
-// Doc edit dialog state
-const EsEditRow = defineAsyncComponent(() => import('../component/EsEditRow.vue'));
-
-const docEditDialog = reactive({
-    isAdd: true,
-    instId: '' as any,
-    doc: '',
-    idxName: '',
-    _id: '',
-    visible: false,
+const { docEditDialog, exportDialog, hasCustomQuery, onAddDoc, onEditDoc, onEditSelectDoc, onEditRowSuccess, onDeleteDocs, doDeleteDoc, onOpenExportDialog, onExportFieldsToggle, onExportFieldsChange, onConfirmExport } = useEsDocCrud({
+    instId: props.instId,
+    get currentIdxName() {
+        return currentIdxName.value;
+    },
+    state,
+    refreshIndex,
+    fetchIndexData,
 });
 
-// Export dialog state
-const exportDialog = reactive({
-    visible: false,
-    scope: 'selected' as 'selected' | 'query' | 'all',
-    type: 'csv' as 'csv' | 'excel' | 'json',
-    fields: [] as string[],
-    allFields: true,
-    loading: false,
-    queryTotal: -1, // -1 means not queried yet
-    queryTotalLoading: false,
-    progress: null as null | { total: number; processed: number; phase: string; done: boolean; error?: string },
-    progressTimer: null as ReturnType<typeof setInterval> | null,
-});
-
-const state = reactive({
-    columns: [] as any[],
-    fields: [] as string[],
-    datas: [] as any[],
-    total: 0,
-    searchRes: {} as any,
-    rowHeight: 30,
-    selectAll: false,
-    selectKeys: [] as any[],
-    lastSelectedIndex: -1,
-    columnsFilterText: '',
-    checkAllColumns: true,
-    loading: true,
-    abortSearch: () => {},
-    execTime: 0,
-    currentFrom: 25,
-    search: getDefaultSearch(),
-    searchDialogVisible: false,
-    contextmenu: { items: [] as any[], dropdown: { x: 0, y: 0 } },
-});
-
-// Internal index state for self-contained index switching
-const currentIdxName = ref('');
-const currentIdxInfo = ref<any>(null);
-const indices = ref<any[]>([]);
+const contextmenu = reactive({ items: [] as ContextmenuItem[], dropdown: { x: 0, y: 0 } });
 
 const contextmenuRef = ref();
 const tableRef = ref();
 
-const emits = defineEmits(['init']);
-
-onMounted(async () => {
-    await fetchIndices();
-    setTimeout(fetchIndexData, 300);
-});
-
-const fetchIndices = async () => {
-    const res = await esApi.proxyReq('get', props.instId, `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`);
-    indices.value = (res || []).filter((idx: any) => !idx.index.startsWith('.')).sort((a: any, b: any) => a.index.localeCompare(b.index));
-    // Auto-select first index if no idxName provided
-    if (!currentIdxName.value && indices.value.length > 0) {
-        currentIdxName.value = indices.value[0].index;
-        currentIdxInfo.value = indices.value[0];
-    } else if (currentIdxName.value) {
-        currentIdxInfo.value = indices.value.find((idx: any) => idx.index === currentIdxName.value) || currentIdxInfo.value;
-    }
-};
-
-const onIndexChange = (name: string) => {
-    currentIdxInfo.value = indices.value.find((idx: any) => idx.index === name) || null;
-    state.search = getDefaultSearch();
-    fetchIndexData();
-};
-
-// ---- Data fetching ----
-
-const fetchIndexData = async () => {
-    if (!currentIdxName.value) return;
-    state.execTime = 0;
-    const { pause, resume } = useIntervalFn(() => {
-        state.execTime += 0.1;
-    }, 100);
-    resume();
-    state.loading = true;
-
-    state.selectAll = false;
-    state.selectKeys = [];
-    state.lastSelectedIndex = -1;
-
-    let api = Api.newPost(`/es/instance/proxy/${props.instId}/${currentIdxName.value}/_search`);
-
-    const { execute: execSearch, data: searchRes, abort: abortSearch } = api.useApi(state.search, { esProxyReq: true });
-    state.abortSearch = () => {
-        abortSearch();
-        state.loading = false;
-        pause();
-    };
-    await execSearch();
-    state.searchRes = searchRes;
-    let error = searchRes.value.error || (searchRes.value.failures && searchRes.value.failures.length > 0 && searchRes.value.failures[0]);
-    if (error) {
-        state.loading = false;
-        pause();
-        return await esApi.alertError(error, t('es.execError'));
-    }
-
-    let fieldMap = {} as any;
-    fieldMap['_id'] = { width: 50 };
-
-    state.datas = state.searchRes.hits.hits.map((a: any) => {
-        let src = JSON.parse(JSON.stringify(a._source));
-        src._id = a._id;
-        let source = a._source;
-        source._id = a._id;
-        source._score = a._score;
-        fieldMap['_score'] = { width: 40 };
-        for (let k in source) {
-            if (typeof source[k] != 'string' && typeof source[k] != 'number' && source[k] !== null && typeof source[k] != 'boolean') {
-                source[k] = JSON.stringify(source[k]);
-            }
-            let column = fieldMap[k] || { width: 50 };
-            try {
-                let valLength = source[k] ? Math.max(source[k].length, k.length) : k.length;
-                column.width = Math.max(Math.max(Math.min(220, (valLength || 10) * 10), 50), column.width);
-            } catch (e) {
-                console.log(e);
-                column.width = 50;
-            }
-            fieldMap[k] = column;
-        }
-        source.src = JSON.stringify(src, null, 2);
-        source._selected = false;
-        return source;
-    });
-
-    state.total = state.searchRes.hits?.total.value || 0;
-
-    if (state.datas.length > 0) {
-        let keys = Object.keys(fieldMap).sort();
-        state.fields = keys.filter((k) => k != '_score');
-        state.columns = keys.map((k) => ({ title: k, width: fieldMap[k].width, key: k, dataKey: k, class: 'es-table-column', _filterd: true, _show: true }));
-        state.columns.unshift({
-            title: '#',
-            width: 50,
-            key: '_table_index',
-            class: 'es-table-column',
-            align: 'center',
-            _filterd: false,
-        });
-        state.columns.unshift({
-            title: 'checkbox',
-            width: 30,
-            key: '_selected',
-            class: 'es-table-column',
-            align: 'center',
-            _filterd: false,
-        });
-    }
-    pause();
-    state.loading = false;
-    state.currentFrom = state.search.from;
-};
-
-// ---- Pagination ----
-
-const onChangePageSize = async (size: number) => {
-    state.search.size = size;
-    state.search.from = 0;
-    await fetchIndexData();
-};
-
-const onFirstPage = async () => {
-    state.search.from = 0;
-    await fetchIndexData();
-};
-
-const onNextPage = async () => {
-    state.search.from = state.search.from + state.search.size;
-    await fetchIndexData();
-};
-
-const onPrevPage = async () => {
-    state.search.from = Math.max(0, state.search.from - state.search.size);
-    await fetchIndexData();
-};
-
-const onSwitchTrackTotal = async () => {
-    if (!state.search.track_total_hits && state.total === 10000) {
-        state.search.track_total_hits = true;
-    } else {
-        delete state.search.track_total_hits;
-    }
-    if (state.total >= 10000) {
-        await fetchIndexData();
-    }
-};
-
-// ---- Refresh ----
-
-const refreshIndex = async () => {
-    await esApi.proxyReq('post', props.instId, `/${currentIdxName.value}/_refresh`);
-};
-
-const onRefreshData = async () => {
-    await fetchIndexData();
-};
-
-const onRefreshStats = async () => {
-    const name = currentIdxName.value;
-    let stats = await esApi.proxyReq('get', props.instId, `/${name}/_stats`);
-    if (currentIdxInfo.value) {
-        currentIdxInfo.value['docs.count'] = stats.indices[name]?.primaries?.docs?.count;
-        if (stats.indices[name]?.health) currentIdxInfo.value.health = stats.indices[name].health;
-        if (stats.indices[name]?.status) currentIdxInfo.value.status = stats.indices[name].status;
-    }
-};
-
-// ---- Doc CRUD ----
-
-const onAddDoc = () => {
-    docEditDialog.isAdd = true;
-    docEditDialog.instId = props.instId;
-    docEditDialog.idxName = currentIdxName.value;
-    docEditDialog._id = '';
-    docEditDialog.doc = '';
-    docEditDialog.visible = true;
-};
-
-const onEditDoc = (src: any) => {
-    docEditDialog.isAdd = false;
-    docEditDialog.instId = props.instId;
-    docEditDialog.idxName = currentIdxName.value;
-    const obj = JSON.parse(src);
-    docEditDialog._id = obj._id;
-    delete obj._id;
-    docEditDialog.doc = JSON.stringify(obj, null, 2);
-    docEditDialog.visible = true;
-};
-
-const onEditSelectDoc = () => {
-    if (state.selectKeys.length > 1 || state.selectKeys.length == 0) {
-        Msg.warning('common.pleaseSelectOne');
-        return;
-    }
-    onEditDoc(state.selectKeys[0].src);
-};
-
-const onEditRowSuccess = async () => {
-    docEditDialog.visible = false;
-    await refreshIndex();
-    await fetchIndexData();
-};
-
-const onDeleteDocs = async () => {
-    let ids = state.selectKeys.map((d: any) => d._id);
-    await useI18nDeleteConfirm(ids.join(', '));
-    await doDeleteDoc(ids);
-};
-
-const doDeleteDoc = async (ids: any[]) => {
-    await esApi.proxyReq('post', props.instId, `/${currentIdxName.value}/_delete_by_query`, {
-        query: { terms: { _id: ids } },
-    });
-    Msg.deleteSuccess();
-    await refreshIndex();
-    setTimeout(async () => {
-        await fetchIndexData();
-    }, 500);
-};
-
-// ---- Search ----
-
-const onBasicSearch = () => {
-    if (!currentIdxName.value) {
-        Msg.warning('es.selectIndexFirst');
-        return;
-    }
-    state.searchDialogVisible = true;
-};
-
-const onEsSearch = async (data: any) => {
-    data.from = 0;
-    data.size = state.search.size;
-    state.search = data;
-    await fetchIndexData();
-    state.searchDialogVisible = false;
-};
-
-// ---- Column filter ----
-
-const onCheckColumnFilter = (column: any) => {
-    column.hidden = !column._show;
-};
-
-const onCheckAllColumns = () => {
-    state.columns.forEach((c: any) => {
-        if (c.key != '_table_index' && c.key != '_selected') {
-            c._show = state.checkAllColumns;
-            c.hidden = !c._show;
-        }
-    });
-};
-
-const onFilterColumns = () => {
-    if (!state.columnsFilterText) {
-        state.columns.forEach((c: any) => {
-            if (c.key != '_table_index' && c.key != '_selected') {
-                c._filterd = true;
-            }
-        });
-    } else {
-        state.columns.forEach((c: any) => {
-            if (c.key != '_table_index' && c.key != '_selected') {
-                c._filterd = c.key.toLowerCase().indexOf(state.columnsFilterText.toLowerCase()) > -1;
-            }
-        });
-    }
-};
-
-// ---- Row selection ----
-
-const updateSelectAll = () => {
-    state.selectAll = state.datas.length > 0 && state.datas.every((d: any) => d._selected);
-};
-
-const onSelectAll = () => {
-    state.lastSelectedIndex = -1;
-    state.datas.forEach((d: any) => (d._selected = state.selectAll));
-    if (!state.selectAll) {
-        state.selectKeys = [];
-    } else {
-        state.selectKeys = state.datas;
-    }
-};
-
-const onSelectRow = (item: any) => {
-    if (item._selected) {
-        state.selectKeys.push(item);
-    } else {
-        state.selectKeys = state.selectKeys.filter((d: any) => d._id != item._id);
-    }
-    state.lastSelectedIndex = state.datas.findIndex((d: any) => d._id === item._id);
-    updateSelectAll();
-};
-
-const onRowClickHandler = ({ rowData, rowIndex, event }: { rowData: any; rowIndex: number; event: Event }) => {
-    const mouseEvent = event as MouseEvent;
-    // Ignore clicks on the checkbox column (checkbox has its own handler)
-    const target = mouseEvent.target as HTMLElement;
-    if (target.closest('.el-checkbox') || target.closest('.el-checkbox__input')) return;
-
-    if (mouseEvent.shiftKey && state.lastSelectedIndex >= 0) {
-        // Shift + click: range select
-        const start = Math.min(state.lastSelectedIndex, rowIndex);
-        const end = Math.max(state.lastSelectedIndex, rowIndex);
-        for (let i = start; i <= end; i++) {
-            if (!state.datas[i]._selected) {
-                state.datas[i]._selected = true;
-                state.selectKeys.push(state.datas[i]);
-            }
-        }
-    } else if (mouseEvent.ctrlKey || mouseEvent.metaKey) {
-        // Ctrl/Cmd + click: toggle single row
-        state.datas[rowIndex]._selected = !state.datas[rowIndex]._selected;
-        if (state.datas[rowIndex]._selected) {
-            state.selectKeys.push(state.datas[rowIndex]);
-        } else {
-            state.selectKeys = state.selectKeys.filter((d: any) => d._id !== rowData._id);
-        }
-        state.lastSelectedIndex = rowIndex;
-    } else {
-        // Normal click: clear all, select this row only
-        state.datas.forEach((d: any) => (d._selected = false));
-        state.selectKeys = [];
-        state.datas[rowIndex]._selected = true;
-        state.selectKeys = [state.datas[rowIndex]];
-        state.lastSelectedIndex = rowIndex;
-    }
-    updateSelectAll();
-};
-
-const rowEventHandlers = {
-    onClick: onRowClickHandler,
-};
-
 // ---- Context menu ----
 
-const copyCell = new ContextmenuItem('copyCell', 'common.copyCell').withIcon('CopyDocument').withOnClick(async (data: any) => {
-    await copyToClipboard(data.rowData[data.column.dataKey]);
+const copyCell = new ContextmenuItem('copyCell', 'common.copyCell').withIcon('CopyDocument').withOnClick(async (data: Record<string, unknown>) => {
+    const rowData = data.rowData as EsDoc;
+    const column = data.column as EsColumn;
+    await copyToClipboard(String(rowData[column.dataKey || ''] ?? ''));
 });
 
-const copyLineJson = new ContextmenuItem('copyLineJson', 'es.contextmenu.index.copyLineJson').withIcon('CopyDocument').withOnClick(async (data: any) => {
-    await copyToClipboard(data.rowData.src);
+const copyLineJson = new ContextmenuItem('copyLineJson', 'es.contextmenu.index.copyLineJson').withIcon('CopyDocument').withOnClick(async (data: Record<string, unknown>) => {
+    const rowData = data.rowData as EsDoc;
+    await copyToClipboard(String(rowData.src ?? ''));
 });
 
 const copySelectLineJson = new ContextmenuItem('copySelectLineJson', 'es.contextmenu.index.copySelectLineJson')
@@ -687,17 +285,21 @@ const copySelectLineJson = new ContextmenuItem('copySelectLineJson', 'es.context
     .withOnClick(async () => {
         await copyToClipboard(
             JSON.stringify(
-                state.selectKeys.map((a: any) => JSON.parse(a.src)),
+                state.selectKeys.map((a: EsDoc) => JSON.parse(String(a.src))),
                 null,
                 2
             )
         );
     });
 
-const editLineJson = new ContextmenuItem('editLineJson', 'common.edit').withIcon('EditPen').withOnClick(async (data: any) => onEditDoc(data.rowData.src));
+const editLineJson = new ContextmenuItem('editLineJson', 'common.edit').withIcon('EditPen').withOnClick(async (data: Record<string, unknown>) => {
+    const rowData = data.rowData as EsDoc;
+    return onEditDoc(String(rowData.src ?? ''));
+});
 
-const deleteLine = new ContextmenuItem('deleteLine', 'common.delete').withIcon('Delete').withOnClick(async (data: any) => {
-    let ids = [data.rowData._id];
+const deleteLine = new ContextmenuItem('deleteLine', 'common.delete').withIcon('Delete').withOnClick(async (data: Record<string, unknown>) => {
+    const rowData = data.rowData as EsDoc;
+    let ids = [rowData._id];
     await useI18nDeleteConfirm(ids.join(', '));
     await doDeleteDoc(ids);
 });
@@ -706,239 +308,24 @@ const deleteSelectLine = new ContextmenuItem('deleteLine', 'es.contextmenu.index
     .withIcon('Delete')
     .withHideFunc(() => state.selectKeys.length == 0)
     .withOnClick(async () => {
-        let ids = state.selectKeys.map((a: any) => a._id);
+        let ids = state.selectKeys.map((a: EsDoc) => a._id);
         await useI18nDeleteConfirm(ids.join(', '));
         await doDeleteDoc(ids);
     });
 
-const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: any) => {
+const dataContextmenuClick = (event: MouseEvent, rowIndex: number, column: EsColumn, data: EsDoc) => {
     event.preventDefault();
     const { clientX, clientY } = event;
-    state.contextmenu.dropdown.x = clientX;
-    state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [copyCell, copyLineJson, copySelectLineJson, editLineJson, deleteLine, deleteSelectLine];
-    contextmenuRef.value.openContextmenu({ column, rowData: data });
-};
-
-// ---- Export ----
-
-const hasCustomQuery = computed(() => {
-    const query = state.search.query;
-    if (!query) return false;
-    const bool = query.bool;
-    if (!bool) return Object.keys(query).length > 0;
-    return (bool.must?.length > 0) || (bool.should?.length > 0) || (bool.must_not?.length > 0) || ((bool as any).filter?.length > 0);
-});
-
-const onOpenExportDialog = () => {
-    exportDialog.scope = state.selectKeys.length > 0 ? 'selected' : (hasCustomQuery.value ? 'query' : 'all');
-    exportDialog.type = 'csv';
-    exportDialog.fields = [...state.fields];
-    exportDialog.allFields = true;
-    exportDialog.loading = false;
-    exportDialog.queryTotal = -1;
-    exportDialog.queryTotalLoading = false;
-    exportDialog.visible = true;
-    if (exportDialog.scope === 'all' || exportDialog.scope === 'query') {
-        fetchQueryTotal();
-    }
-};
-
-const onExportFieldsToggle = () => {
-    exportDialog.fields = exportDialog.allFields ? [...state.fields] : [];
-};
-
-const onExportFieldsChange = () => {
-    exportDialog.allFields = exportDialog.fields.length === state.fields.length;
-};
-
-let queryTotalAbort: (() => void) | null = null;
-const fetchQueryTotal = async () => {
-    if (!currentIdxName.value) return;
-    exportDialog.queryTotalLoading = true;
-    exportDialog.queryTotal = -1;
-    const api = Api.newPost(`/es/instance/proxy/${props.instId}/${currentIdxName.value}/_count`);
-    const body = state.search.query ? { query: state.search.query } : {};
-    const { execute, data, abort } = api.useApi(body, { esProxyReq: true });
-    queryTotalAbort = abort;
-    await execute();
-    if (data.value && typeof data.value.count === 'number') {
-        exportDialog.queryTotal = data.value.count;
-    }
-    exportDialog.queryTotalLoading = false;
-};
-
-watch(
-    () => exportDialog.scope,
-    (scope) => {
-        if (scope === 'all' || scope === 'query') {
-            fetchQueryTotal();
-        } else {
-            if (queryTotalAbort) {
-                queryTotalAbort();
-                queryTotalAbort = null;
-            }
-            exportDialog.queryTotal = -1;
-            exportDialog.queryTotalLoading = false;
-        }
-    }
-);
-
-const onConfirmExport = async () => {
-    exportDialog.loading = true;
-    exportDialog.progress = null;
-    try {
-        if (exportDialog.scope === 'selected' && state.selectKeys.length <= 10000) {
-            await exportSelectedData();
-        } else {
-            await exportAllData();
-        }
-        exportDialog.visible = false;
-    } catch (e: any) {
-        Msg.error(e?.message || 'es.export.title');
-    } finally {
-        exportDialog.loading = false;
-        stopProgressPolling();
-    }
-};
-
-const getExportData = (rows: any[]) => {
-    const columns = exportDialog.fields;
-    return { rows, columns };
-};
-
-const exportSelectedData = async () => {
-    const selectedRows = state.selectKeys.length > 0 ? state.selectKeys : state.datas;
-    if (!selectedRows || selectedRows.length === 0) {
-        Msg.warning('es.export.noData');
-        return;
-    }
-
-    const { rows, columns } = getExportData(selectedRows);
-    const filename = `${currentIdxName.value}-${Date.now()}`;
-
-    switch (exportDialog.type) {
-        case 'csv':
-            exportCsv(filename, columns, rows as any);
-            break;
-        case 'excel':
-            exportExcel(filename, [{ name: currentIdxName.value, columns, datas: rows }]);
-            break;
-        case 'json':
-            exportFile(`${filename}.json`, JSON.stringify(rows.map((r: any) => {
-                const obj: any = {};
-                columns.forEach((col: string) => {
-                    obj[col] = r[col];
-                });
-                return obj;
-            }), null, 2));
-            break;
-    }
-};
-
-const exportAllData = async () => {
-    // Build download URL for backend export
-    const exportUrl = esApi.exportData.getUrl().replace('{instanceId}', props.instId);
-
-    // Generate UUID for progress tracking
-    const exportId = crypto.randomUUID();
-
-    // If "selected" scope with large dataset, pass selected IDs as ES terms query
-    // If "query" scope, pass the current search query
-    let searchQuery = null as any;
-    if (exportDialog.scope === 'selected' && state.selectKeys.length > 0) {
-        searchQuery = {
-            query: { terms: { _id: state.selectKeys.map((d: any) => d._id) } },
-        };
-    } else if (exportDialog.scope === 'query') {
-        searchQuery = state.search;
-    }
-
-    // Build fields: nil means all, otherwise pass selected fields
-    const fields = exportDialog.allFields ? null : exportDialog.fields;
-
-    const body = {
-        idxName: currentIdxName.value,
-        searchQuery,
-        exportType: exportDialog.type,
-        fields,
-        exportId,
-    };
-
-    // Start progress polling
-    startProgressPolling(exportId);
-
-    const response = await fetch(exportUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': getToken() || '',
-            'ClientId': getClientId() || '',
-        },
-        body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Export failed: HTTP ${response.status}`);
-    }
-
-    const blob = await response.blob();
-    const disposition = response.headers.get('Content-Disposition');
-    let downloadFilename = `${currentIdxName.value}.zip`;
-    if (disposition) {
-        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (match && match[1]) {
-            downloadFilename = match[1].replace(/['"]/g, '');
-        }
-    }
-
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = downloadFilename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-};
-
-const startProgressPolling = (exportId: string) => {
-    stopProgressPolling();
-    exportDialog.progress = { total: 0, processed: 0, phase: 'querying', done: false };
-    exportDialog.progressTimer = setInterval(async () => {
-        try {
-            const res = await esApi.exportProgress.request({ exportId });
-            if (res) {
-                exportDialog.progress = res;
-                if (res.done) {
-                    stopProgressPolling();
-                }
-            }
-        } catch {
-            stopProgressPolling();
-        }
-    }, 1000);
-};
-
-const stopProgressPolling = () => {
-    if (exportDialog.progressTimer) {
-        clearInterval(exportDialog.progressTimer);
-        exportDialog.progressTimer = null;
-    }
+    contextmenu.dropdown.x = clientX;
+    contextmenu.dropdown.y = clientY;
+    contextmenu.items = [copyCell, copyLineJson, copySelectLineJson, editLineJson, deleteLine, deleteSelectLine];
+    contextmenuRef.value?.openContextmenu({ column, rowData: data });
 };
 
 // ---- Helpers ----
 
-const getHealthTagType = (health: string) => {
+const getHealthTagType = (health?: string) => {
     return health == 'green' ? 'success' : health == 'yellow' ? 'warning' : 'danger';
-};
-
-const selectIndex = async (name: string) => {
-    if (indices.value.length === 0) {
-        await fetchIndices();
-    }
-    currentIdxName.value = name;
-    onIndexChange(name);
 };
 
 defineExpose({

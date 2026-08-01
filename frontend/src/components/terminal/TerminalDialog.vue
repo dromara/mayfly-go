@@ -112,8 +112,31 @@
 <script lang="ts" setup>
 import { reactive, toRefs } from 'vue';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
-import { TerminalStatus } from './common';
+import SvgIcon from '@/components/svg-icon/index.vue';
+import { TerminalStatus, type TerminalMeta } from './common';
+
+type TerminalBodyExpose = InstanceType<typeof TerminalBody>;
+
+interface TerminalInfo {
+    terminalId: number | string;
+    headerTitle?: string;
+    minTitle?: string;
+    minDesc?: string;
+    socketUrl: string;
+    meta?: TerminalMeta;
+    fullscreen?: boolean;
+    visible?: boolean;
+    cmd?: string;
+    status?: TerminalStatus;
+    [key: string]: unknown;
+}
+
+interface MinTerminalInfo {
+    terminalId: number | string;
+    title: string;
+    desc: string;
+    styleClass: string;
+}
 
 const props = defineProps({
     visibleMinimize: {
@@ -124,32 +147,32 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'minimize']);
 
-const openTerminalRefs: any = {};
+const openTerminalRefs: Record<string | number, TerminalBodyExpose | null> = {};
 
 /**
 terminal对象信息:
 
 visible: false,
-machineId: null as any,
-terminalId: null as any,
-machine: {} as any,
+machineId: null,
+terminalId: null,
+machine: {},
 fullscreen: false,
  */
 
 const state = reactive({
-    terminals: {} as any, // key -> terminalId  value -> terminal
-    minimizeTerminals: {} as any, // key -> terminalId  value -> 简易terminal
+    terminals: {} as Record<string | number, TerminalInfo>, // key -> terminalId  value -> terminal
+    minimizeTerminals: {} as Record<string | number, MinTerminalInfo>, // key -> terminalId  value -> 简易terminal
 });
 
 const { terminals, minimizeTerminals } = toRefs(state);
 
-const setTerminalRef = (el: any, terminalId: any) => {
+const setTerminalRef = (el: unknown, terminalId: number | string) => {
     if (terminalId) {
-        openTerminalRefs[terminalId] = el;
+        openTerminalRefs[terminalId] = el as TerminalBodyExpose | null;
     }
 };
 
-function open(terminalInfo: any, cmd: string = '') {
+function open(terminalInfo: TerminalInfo, cmd: string = '') {
     let terminalId = terminalInfo.terminalId;
     if (!terminalId) {
         terminalId = Date.now();
@@ -163,7 +186,7 @@ function open(terminalInfo: any, cmd: string = '') {
     };
 }
 
-const terminalStatusChange = (terminalId: string, status: TerminalStatus) => {
+const terminalStatusChange = (terminalId: number | string, status: TerminalStatus) => {
     const terminal = state.terminals[terminalId];
     if (terminal) {
         terminal.status = status;
@@ -176,9 +199,9 @@ const terminalStatusChange = (terminalId: string, status: TerminalStatus) => {
     minTerminal.styleClass = getTerminalStatysStyleClass(terminalId, status);
 };
 
-const getTerminalStatysStyleClass = (terminalId: any, status: any = null) => {
+const getTerminalStatysStyleClass = (terminalId: number | string, status: TerminalStatus | null = null) => {
     if (status == null) {
-        status = openTerminalRefs[terminalId].getStatus();
+        status = openTerminalRefs[terminalId]!.getStatus();
     }
     if (status == TerminalStatus.Connected) {
         return 'terminal-status-success';
@@ -191,12 +214,11 @@ const getTerminalStatysStyleClass = (terminalId: any, status: any = null) => {
     return 'terminal-status-error';
 };
 
-const reConnect = (terminalId: any) => {
-    openTerminalRefs[terminalId].init();
+const reConnect = (terminalId: number | string) => {
+    openTerminalRefs[terminalId]!.init();
 };
 
-function close(terminalId: any) {
-    console.log('in terminal dialog close');
+function close(terminalId: number | string) {
     delete state.terminals[terminalId];
 
     // 关闭终端，并删除终端ref
@@ -207,9 +229,7 @@ function close(terminalId: any) {
     emit('close', terminalId);
 }
 
-function minimize(terminalId: number) {
-    console.log('in terminal dialog minimize: ', terminalId);
-
+function minimize(terminalId: number | string) {
     const terminal = state.terminals[terminalId];
     if (!terminal) {
         console.warn('不存在该终端信息: ', terminalId);
@@ -217,10 +237,10 @@ function minimize(terminalId: number) {
     }
     terminal.visible = false;
 
-    const minTerminalInfo = {
+    const minTerminalInfo: MinTerminalInfo = {
         terminalId: terminal.terminalId,
-        title: terminal.minTitle, // 截取terminalId最后两位区分多个terminal
-        desc: terminal.minDesc,
+        title: terminal.minTitle || '', // 截取terminalId最后两位区分多个terminal
+        desc: terminal.minDesc || '',
         styleClass: getTerminalStatysStyleClass(terminalId),
     };
     state.minimizeTerminals[terminalId] = minTerminalInfo;
@@ -228,11 +248,9 @@ function minimize(terminalId: number) {
     emit('minimize', minTerminalInfo);
 }
 
-function maximize(terminalId: any) {
-    console.log('in terminal dialog maximize: ', terminalId);
+function maximize(terminalId: number | string) {
     const minTerminal = state.minimizeTerminals[terminalId];
     if (!minTerminal) {
-        console.log('no min terminal...');
         return;
     }
     delete state.minimizeTerminals[terminalId];
@@ -243,14 +261,14 @@ function maximize(terminalId: any) {
     const terminalRef = openTerminalRefs[terminalId];
     // fit
     setTimeout(() => {
-        terminalRef.fitTerminal();
-        terminalRef.focus();
+        terminalRef?.fitTerminal();
+        terminalRef?.focus();
     }, 250);
 }
 
-const handlerFullScreen = (terminal: any) => {
+const handlerFullScreen = (terminal: TerminalInfo) => {
     terminal.fullscreen = !terminal.fullscreen;
-    const terminalRef = openTerminalRefs[terminal.terminalId];
+    const terminalRef = openTerminalRefs[terminal.terminalId as string];
     // fit
     setTimeout(() => {
         terminalRef?.fitTerminal();
@@ -258,7 +276,7 @@ const handlerFullScreen = (terminal: any) => {
     }, 250);
 };
 
-const closeMinimizeTerminal = (terminalId: any) => {
+const closeMinimizeTerminal = (terminalId: number | string) => {
     delete state.minimizeTerminals[terminalId];
     close(terminalId);
 };

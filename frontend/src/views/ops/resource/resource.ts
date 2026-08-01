@@ -4,18 +4,28 @@ import { i18n } from '@/i18n';
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import type { ResourceOpCtx } from '@/views/ops/resource/resourceOp';
 import { tagApi } from '@/views/ops/tag/api';
+import type { Component } from 'vue';
+
+interface TagTreeData {
+    type: number;
+    code: string;
+    codePath: string;
+    name: string;
+    children?: TagTreeData[];
+    [key: string]: unknown;
+}
 
 // 资源配置
 export interface ResourceConfig {
     order?: number;
-    resourceType: number; // 资源类型
+    resourceType: number | string; // 资源类型
     rootNodeType: NodeType; // 资源根节点类型
 
     // 资源管理组件配置
     manager?: {
         componentConf: {
             name: string; // 名称
-            component?: any; // 组件
+            component?: Component; // 组件
             icon?: {
                 name: string;
                 color?: string;
@@ -33,15 +43,15 @@ export const IsShowActionsKey = Symbol('isShowActions');
 export const LeafNodeTypesKey = Symbol('leafNodeTypes');
 
 // 加载目录下所有资源操作组件信息
-const allResources: Record<string, any> = import.meta.glob('../**/resource/index.ts', { eager: true });
+const allResources: Record<string, { default: ResourceConfig }> = import.meta.glob('../**/resource/index.ts', { eager: true });
 
-const resources = new Map<number, ResourceConfig>();
+const resources = new Map<number | string, ResourceConfig>();
 
-export function registerResource(type: number, rc: ResourceConfig) {
+export function registerResource(type: number | string, rc: ResourceConfig) {
     resources.set(type, rc);
 }
 
-export function getResourceNodeType(type: number): NodeType | undefined {
+export function getResourceNodeType(type: number | string): NodeType | undefined {
     init();
     return resources.get(type)?.rootNodeType;
 }
@@ -56,7 +66,7 @@ export function getResourceConfigs(): ResourceConfig[] {
     return sortByOrder(Array.from(resources.values()));
 }
 
-export function getResourceConfig(type: number): ResourceConfig | undefined {
+export function getResourceConfig(type: number | string): ResourceConfig | undefined {
     init();
     return resources.get(type);
 }
@@ -72,7 +82,7 @@ function init() {
     }
 }
 
-function sortByOrder(items: any[]) {
+function sortByOrder(items: ResourceConfig[]) {
     return items.sort((a, b) => {
         if (a.order !== undefined && b.order !== undefined) {
             return a.order - b.order; // 按order字段排序
@@ -89,13 +99,13 @@ function sortByOrder(items: any[]) {
 /**
  * 加载相关资源树节点
  */
-export const loadResourceTags = async (resourceType: number[], ctx: ResourceOpCtx | null = null) => {
+export const loadResourceTags = async (resourceType: (number | string)[], ctx: ResourceOpCtx | null = null) => {
     const tags = await tagApi.getTagTrees.request({
         type: resourceType.join(','),
     });
 
-    const result: any[] = [];
-    const flatten = (node: any, namePath: string[]) => {
+    const result: TagTreeData[] = [];
+    const flatten = (node: TagTreeData, namePath: string[]) => {
         const currentNamePath = [...namePath, node.name];
 
         if (node.type !== TagResourceTypeEnum.Tag.value) {
@@ -113,7 +123,7 @@ export const loadResourceTags = async (resourceType: number[], ctx: ResourceOpCt
         if (hasNonMinus1Child) {
             const newNode = {
                 ...node,
-                children: [] as any[],
+                children: [] as TagTreeData[],
             };
             newNode.name = currentNamePath.join('/');
 
@@ -121,7 +131,7 @@ export const loadResourceTags = async (resourceType: number[], ctx: ResourceOpCt
                 if (child.type !== TagResourceTypeEnum.Tag.value) {
                     const childCopy = {
                         ...child,
-                        children: [] as any[],
+                        children: [] as TagTreeData[],
                     };
                     childCopy.name = [...currentNamePath, child.name].join('/');
 
@@ -149,7 +159,7 @@ export const loadResourceTags = async (resourceType: number[], ctx: ResourceOpCt
     };
 
     for (const tree of tags) {
-        flatten(tree, []);
+        flatten(tree as unknown as TagTreeData, []);
     }
 
     const tagNodes = [];
@@ -160,8 +170,8 @@ export const loadResourceTags = async (resourceType: number[], ctx: ResourceOpCt
     return tagNodes;
 };
 
-const processTagNode = (ctx: ResourceOpCtx | null, tag: any): TagTreeNode => {
-    const tagNode = new TagTreeNode(tag.codePath, tag.name, tag.type);
+const processTagNode = (ctx: ResourceOpCtx | null, tag: TagTreeData): TagTreeNode => {
+    const tagNode = new TagTreeNode(tag.codePath, tag.name, tag.type as unknown as NodeType);
 
     if (!tag.children || !Array.isArray(tag.children) || tag.children.length == 0) {
         return tagNode;
@@ -171,7 +181,7 @@ const processTagNode = (ctx: ResourceOpCtx | null, tag: any): TagTreeNode => {
     if (tag.children[0].type == TagResourceTypeEnum.Tag.value) {
         tagNode.loadChildren = async () => {
             const childNodes = [];
-            for (let child of tag.children) {
+            for (let child of tag.children!) {
                 const childNode = processTagNode(ctx, child);
                 childNodes.push(childNode);
             }
@@ -181,13 +191,13 @@ const processTagNode = (ctx: ResourceOpCtx | null, tag: any): TagTreeNode => {
     }
 
     // 创建中间节点， 按类型分组
-    const type2Tags = new Map<number, any>();
-    tag.children.forEach((child: any) => {
+    const type2Tags = new Map<number, TagTreeData[]>();
+    tag.children.forEach((child: TagTreeData) => {
         if (!type2Tags.has(child.type)) {
             type2Tags.set(child.type, [child]);
             return;
         }
-        type2Tags.get(child.type).push(child);
+        type2Tags.get(child.type)!.push(child);
     });
 
     tagNode.loadChildren = async () => {
@@ -202,7 +212,7 @@ const processTagNode = (ctx: ResourceOpCtx | null, tag: any): TagTreeNode => {
                     color: typeEnum?.extra.iconColor,
                 })
                 .withIsLeaf(false)
-                .withParams({ resourceCodes: children.map((c: any) => c.code), tagPath: tag.codePath });
+                .withParams({ resourceCodes: children.map((c: TagTreeData) => c.code), tagPath: tag.codePath });
 
             childNodes.push(intermediateNode);
         }

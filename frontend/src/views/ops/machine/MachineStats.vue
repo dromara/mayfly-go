@@ -1,5 +1,5 @@
 <template>
-    <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
+    <el-dialog :title="title" v-model="visible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
         <el-row :gutter="20">
             <el-col :lg="12" :md="12">
                 <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border>
@@ -78,46 +78,39 @@ import { machineApi } from './api';
 import ECharts from '@/components/echarts/ECharts.vue';
 import { ECOption } from '@/components/echarts/config';
 import { useI18n } from 'vue-i18n';
+import type { MachineStats, MachineNetIntfInfo } from './types';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
-    machineId: {
-        type: Number,
-    },
     title: {
         type: String,
     },
 });
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
+const emit = defineEmits(['cancel']);
+
+const visible = defineModel<boolean>('visible', { default: false });
+const machineId = defineModel<number | null>('machineId');
 
 const state = reactive({
-    dialogVisible: false,
-    stats: {} as any,
-    netInter: [] as any,
-    memOption: {},
-    cpuOption: {},
+    stats: {} as MachineStats,
+    netInter: [] as (MachineNetIntfInfo & { name: string })[],
+    memOption: {} as ECOption,
+    cpuOption: {} as ECOption,
 });
 
-const { dialogVisible, stats, netInter } = toRefs(state);
+const { stats, netInter } = toRefs(state);
 
 const setStats = async () => {
-    state.stats = await machineApi.stats.request({ id: props.machineId });
+    state.stats = await machineApi.stats.request({ id: machineId.value });
 };
 
 watch(
-    props,
-    async (newValue: any) => {
-        const visible = newValue.visible;
-        if (visible) {
+    visible,
+    async (val) => {
+        if (val) {
             await setStats();
-        }
-        state.dialogVisible = visible;
-        if (visible) {
             initCharts();
         }
     },
@@ -146,7 +139,7 @@ const initMemStats = () => {
         },
         tooltip: {
             trigger: 'item',
-            valueFormatter: (val: any) => formatByteSize(val),
+            valueFormatter: (val) => formatByteSize(Number(val)),
         },
         legend: {
             top: '15%',
@@ -207,7 +200,7 @@ const initCpuStats = () => {
         },
         tooltip: {
             trigger: 'item',
-            valueFormatter: (value: any) => value + '%',
+            valueFormatter: (value) => `${value}%`,
         },
         legend: {
             top: '15%',
@@ -257,15 +250,15 @@ const parseNetInter = () => {
     const keys = Object.keys(netInter);
     const values = Object.values(netInter);
     for (let i = 0; i < values.length; i++) {
-        let value: any = values[i];
+        let value: MachineNetIntfInfo & { name?: string } = values[i];
         // 将网卡名称赋值新属性值name
         value.name = keys[i];
-        state.netInter.push(value);
+        state.netInter.push(value as MachineNetIntfInfo & { name: string });
     }
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

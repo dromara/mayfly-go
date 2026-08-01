@@ -51,7 +51,7 @@ const props = defineProps<{
 
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
-const list = ref<any[]>([]);
+const list = ref<{ roleName: string; privileges: unknown[] }[]>([]);
 const createDialog = ref({
     visible: false,
 });
@@ -86,7 +86,7 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value.validate(async (valid) => {
+    await createFormRef.value?.validate(async (valid) => {
         if (!valid) return;
 
         createLoading.value = true;
@@ -101,11 +101,11 @@ const submitCreate = async () => {
     });
 };
 
-const handleGrantPrivilege = async (row: any) => {
+const handleGrantPrivilege = async (row: { roleName: string }) => {
     grantPrivilegeRef.value?.handleGrantPrivilege(row);
 };
 
-const handleDrop = async (row: any) => {
+const handleDrop = async (row: { roleName: string }) => {
     await useI18nConfirm('milvus.confirmDeleteRole', { name: row.roleName });
     await milvusApi.dropRole(props.milvusId, row.roleName);
     Msg.success('milvus.deletedSuccess');

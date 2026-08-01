@@ -55,6 +55,7 @@ import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { Msg } from '@/hooks/useI18n';
 import { onMounted, reactive, toRefs } from 'vue';
+import type { SysRole } from '../system/types';
 import { personApi } from './api';
 
 defineOptions({
@@ -63,7 +64,7 @@ defineOptions({
 
 const state = reactive({
     accountInfo: {
-        roles: [],
+        roles: [] as SysRole[],
     },
     recommendList: [],
     accountForm: {
@@ -103,7 +104,7 @@ const bindOAuth2 = () => {
         `height=${height},width=${width},top=${iTop},left=${iLeft},location=no`
     );
     if (oauthWindow) {
-        const handler = (e: any) => {
+        const handler = (e: MessageEvent) => {
             if (e.data.action === 'oauthBind') {
                 window.removeEventListener('message', handler);
                 // 处理登录token

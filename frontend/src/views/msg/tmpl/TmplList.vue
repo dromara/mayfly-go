@@ -59,15 +59,16 @@
 <script lang="ts" setup>
 import EnumValue from '@/common/Enum';
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { tmplApi } from '../api';
 import { ChannelTypeEnum, TmplStatusEnum, TmplTypeEnum } from '../enums';
 import TmplEdit from './TmplEdit.vue';
+import type { MsgChannel, MsgTemplate } from '@/views/system/msg/types';
 
 const perms = {
     saveTmpl: 'msg:tmpl:save',
@@ -92,7 +93,7 @@ const columns = [
 const actionBtns = hasPerms([perms.saveTmpl, perms.delTmpl]);
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const state = reactive({
     /**
      * 选中的数据
@@ -109,14 +110,14 @@ const state = reactive({
         pageSize: 0,
     },
     relateChannelsVisible: false,
-    relateChannels: [] as any,
+    relateChannels: [] as MsgChannel[],
     editDialog: {
         title: '',
         visible: false,
-        data: null as any,
+        data: null as MsgTemplate | null,
     },
     sendMsgDialog: {
-        tmpl: null,
+        tmpl: null as MsgTemplate | null,
         title: '',
         visible: false,
         params: '',
@@ -133,7 +134,7 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
 const getRelateChannels = async (id: number) => {
@@ -141,7 +142,7 @@ const getRelateChannels = async (id: number) => {
     state.relateChannels = await tmplApi.relateChannels.request({ id });
 };
 
-const editTmpl = (data: any) => {
+const editTmpl = (data: MsgTemplate | false) => {
     if (!data) {
         state.editDialog.title = useI18nCreateTitle('msg.msgTmpl');
         state.editDialog.data = null;
@@ -153,13 +154,13 @@ const editTmpl = (data: any) => {
 };
 
 const deleteTmpl = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.code).join('、'));
-    await tmplApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+    await useI18nDeleteConfirm(state.selectionData.map((x: MsgTemplate) => x.code).join('、'));
+    await tmplApi.del.request({ id: state.selectionData.map((x: MsgTemplate) => x.id).join(',') });
     Msg.deleteSuccess();
     search();
 };
 
-const showSendMsgDialog = (tmpl: any) => {
+const showSendMsgDialog = (tmpl: MsgTemplate) => {
     state.sendMsgDialog.tmpl = tmpl;
     state.sendMsgDialog.params = '';
     state.sendMsgDialog.receiverIds = [];
@@ -167,7 +168,7 @@ const showSendMsgDialog = (tmpl: any) => {
 };
 
 const sendMsg = async () => {
-    const tmpl: any = state.sendMsgDialog.tmpl;
+    const tmpl = state.sendMsgDialog.tmpl as MsgTemplate;
     await tmplApi.sendMsg.request({
         code: tmpl.code,
         params: state.sendMsgDialog.params,

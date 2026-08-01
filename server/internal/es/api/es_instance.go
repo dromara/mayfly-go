@@ -17,6 +17,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -471,7 +472,7 @@ func doExportData(rc *req.Ctx, conn *esi.EsConn, exportForm *form.EsExportForm) 
 	// Stream zip directly to HTTP response via pipe (no intermediate zip file on disk)
 	pr, pw := io.Pipe()
 	pipeErr := make(chan error, 1)
-	go func() {
+	gox.Go(func() {
 		defer pw.Close()
 		zw := zip.NewWriter(pw)
 		for _, outFile := range outputFiles {
@@ -496,7 +497,7 @@ func doExportData(rc *req.Ctx, conn *esi.EsConn, exportForm *form.EsExportForm) 
 			f.Close()
 		}
 		pipeErr <- zw.Close()
-	}()
+	})
 
 	rc.Download(pr, idxName+".zip")
 	if err := <-pipeErr; err != nil {

@@ -9,7 +9,7 @@
         <el-table :data="brokers" stripe style="width: 100%" v-loading="loading">
             <el-table-column prop="id" :label="$t('mq.kafka.nodeId')" min-width="100" />
             <el-table-column prop="addr" :label="$t('mq.kafka.addr')" min-width="100" />
-            <el-table-column prop="rack" :label="$t('mq.kafka.rack')" min-width="150" />
+            <el-table-column prop="rac" :label="$t('mq.kafka.rack')" min-width="150" />
             <el-table-column :label="$t('common.operation')" width="120" fixed="right" align="center">
                 <template #default="{ row }">
                     <el-button @click="viewBrokerConfig(row)" type="primary" size="small" icon="setting" link>
@@ -54,19 +54,7 @@
 import { Msg } from '@/hooks/useI18n';
 import {computed, nextTick, onMounted, reactive, ref, toRefs} from 'vue';
 import { mqApi } from '../../api';
-
-interface Broker {
-    id: number;
-    addr: string;
-    rack: string;
-}
-
-interface BrokerConfig {
-    Key: string;
-    Value: string;
-    Source: number;
-    Sensitive: boolean;
-}
+import type { KafkaBroker, KafkaConfigEntry } from '../../types';
 
 const props = defineProps({
     kafkaId: {
@@ -76,13 +64,13 @@ const props = defineProps({
 });
 
 const loading = ref(false);
-const selectedBroker = ref<Broker | null>(null);
+const selectedBroker = ref<KafkaBroker | null>(null);
 const openDrawer = ref(false);
 const searchConfig = ref('');
 
 const state = reactive({
-    brokers: [] as Broker[],
-    brokerConfigs: [] as BrokerConfig[],
+    brokers: [] as KafkaBroker[],
+    brokerConfigs: [] as KafkaConfigEntry[],
 });
 
 const cancel = () => {
@@ -97,7 +85,7 @@ const filteredBrokerConfigs = computed(() => {
     if (!searchConfig.value) {
         return state.brokerConfigs;
     }
-    return state.brokerConfigs.filter((config: BrokerConfig) => config.Key.toLowerCase().includes(searchConfig.value.toLowerCase()));
+    return state.brokerConfigs.filter((config) => config.Key.toLowerCase().includes(searchConfig.value.toLowerCase()));
 });
 
 onMounted(() => setTimeout(()=>nextTick(refreshBrokers), 500) );
@@ -107,14 +95,14 @@ const refreshBrokers = async () => {
     try {
         const res = await mqApi.kafkaTopicBrokers.request({ id: props.kafkaId });
         state.brokers = res || [];
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error((error instanceof Error ? error.message : String(error)) || 'common.requestFail');
     } finally {
         loading.value = false;
     }
 };
 
-const viewBrokerConfig = async (broker: Broker) => {
+const viewBrokerConfig = async (broker: KafkaBroker) => {
     selectedBroker.value = broker;
     openDrawer.value = true;
     loading.value = true;
@@ -125,20 +113,19 @@ const viewBrokerConfig = async (broker: Broker) => {
         });
         try {
             if (res && res[broker.id] && res[broker.id].Configs) {
-                res[broker.id].Configs.sort((a: any, b: any) => (a['Key'] > b['Key'] ? 1 : -1));
-                state.brokerConfigs = res && res[broker.id].Configs;
-            }  else if(res &&res.length > 0){
-                state.brokerConfigs = res.filter((a: any)=>a.Name==1)[0]['Configs']
-            }  else {
+                res[broker.id].Configs.sort((a, b) => (a.Key > b.Key ? 1 : -1));
+                state.brokerConfigs = res[broker.id].Configs;
+            } else if (res && res.length > 0) {
+                state.brokerConfigs = res.filter((a) => a.Name === '1')[0]?.Configs ?? [];
+            } else {
                 state.brokerConfigs = [];
             }
-        }catch (e){
+        } catch (e) {
             Msg.error('解析kafka配置信息失败,请查看控制台日志');
-            console.error('解析kafka配置信息失败', e, res)
+            console.error('解析kafka配置信息失败', e, res);
         }
-        
-    } catch (error: any) {
-        Msg.error(error.message || 'common.requestFail');
+    } catch (error: unknown) {
+        Msg.error((error instanceof Error ? error.message : String(error)) || 'common.requestFail');
     } finally {
         loading.value = false;
     }

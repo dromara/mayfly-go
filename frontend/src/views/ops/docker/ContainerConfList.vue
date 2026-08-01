@@ -30,7 +30,7 @@
         </page-table>
 
         <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
-            <el-descriptions :title="$t('common.detail')" :column="3" border>
+            <el-descriptions v-if="detailDialog.data" :title="$t('common.detail')" :column="3" border>
                 <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailDialog.data.name }}</el-descriptions-item>
 
@@ -59,14 +59,15 @@
 
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useRoute } from 'vue-router';
 import { dockerApi } from './api';
+import type { Container } from './types';
 
 const ContainerConfEdit = defineAsyncComponent(() => import('./CotainerConfEdit.vue'));
 
@@ -78,7 +79,7 @@ const props = defineProps({
 });
 
 const route = useRoute();
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder')];
 
@@ -99,11 +100,11 @@ const state = reactive({
     },
     detailDialog: {
         visible: false,
-        data: null as any,
+        data: null as Container | null,
     },
     containerConfEditDialog: {
         visible: false,
-        data: null as any,
+        data: null as Container | null,
         title: '',
     },
 });
@@ -116,22 +117,22 @@ onMounted(() => {
     }
 });
 
-const checkRouteTagPath = (query: any) => {
+const checkRouteTagPath = (query: Record<string, unknown>) => {
     if (route.query.tagPath) {
         query.tagPath = route.query.tagPath as string;
     }
     return query;
 };
 
-const showDetail = (detail: any) => {
+const showDetail = (detail: Container) => {
     state.detailDialog.data = detail;
     state.detailDialog.visible = true;
 };
 
 const deleteConf = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: any) => x.name).join('、'));
-        await dockerApi.delConf.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: Container) => x.name).join('、'));
+        await dockerApi.delConf.request({ id: state.selectionData.map((x: Container) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {
@@ -143,10 +144,10 @@ const search = async (tagPath: string = '') => {
     if (tagPath) {
         state.query.tagPath = tagPath;
     }
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const editContainerConf = async (data: any) => {
+const editContainerConf = async (data: Container | false) => {
     if (!data) {
         state.containerConfEditDialog.data = null;
         state.containerConfEditDialog.title = useI18nCreateTitle('docker.containerConf');

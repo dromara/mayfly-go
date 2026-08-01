@@ -31,7 +31,7 @@
             v-model:visible="editor.visible"
             :auth-cert="editor.authcert"
             @confirm="onConfirmSave"
-            @cancel="editor.authcert = {}"
+            @cancel="editor.authcert = {} as ResourceAuthCert"
             :disable-type="state.disableAuthCertType"
             :disable-ciphertext-type="state.disableAuthCertCiphertextType"
             :resource-edit="false"
@@ -42,16 +42,17 @@
 <script lang="ts" setup>
 import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
 import { resourceAuthCertApi } from './api';
 import { AuthCertCiphertextTypeEnum, AuthCertTypeEnum } from './enums';
+import type { ResourceAuthCert } from '@/types/common';
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const state = reactive({
     query: {
         pageNum: 1,
@@ -80,17 +81,17 @@ const state = reactive({
     ],
     paramsDialog: {
         visible: false,
-        config: null as any,
-        params: {},
-        paramsFormItem: [] as any,
+        config: null as ResourceAuthCert | null,
+        params: {} as Record<string, unknown>,
+        paramsFormItem: [] as Record<string, unknown>[],
     },
     editor: {
         title: '',
         visible: false,
-        authcert: {},
+        authcert: {} as ResourceAuthCert,
     },
-    disableAuthCertType: [] as any,
-    disableAuthCertCiphertextType: [] as any,
+    disableAuthCertType: [] as number[],
+    disableAuthCertCiphertextType: [] as number[],
 });
 
 const { query, editor } = toRefs(state);
@@ -98,10 +99,10 @@ const { query, editor } = toRefs(state);
 onMounted(() => {});
 
 const search = async () => {
-    pageTableRef.value.search();
+    pageTableRef.value?.search();
 };
 
-const onEdit = (data: any) => {
+const onEdit = (data: ResourceAuthCert | false) => {
     state.disableAuthCertType = [];
     state.disableAuthCertCiphertextType = [];
     if (data) {
@@ -121,20 +122,20 @@ const onEdit = (data: any) => {
             type: AuthCertTypeEnum.Public.value,
             ciphertextType: AuthCertCiphertextTypeEnum.Password.value,
             extra: {},
-        };
+        } as ResourceAuthCert;
     }
 
     state.editor.visible = true;
 };
 
-const onConfirmSave = async (authCert: any) => {
+const onConfirmSave = async (authCert: ResourceAuthCert) => {
     await resourceAuthCertApi.save.request(authCert);
     Msg.saveSuccess();
     state.editor.visible = false;
     search();
 };
 
-const onDeleteAc = async (data: any) => {
+const onDeleteAc = async (data: ResourceAuthCert) => {
     try {
         await useI18nDeleteConfirm(data.name);
         await resourceAuthCertApi.delete.request({ id: data.id });

@@ -58,7 +58,7 @@
 </template>
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, toRefs } from 'vue';
+import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
 
@@ -72,7 +72,7 @@ const props = defineProps({
     },
 });
 
-const formatViewerRef = ref(null) as any;
+const formatViewerRef = useTemplateRef<{ getContent: () => string }>('formatViewerRef');
 
 const state = reactive({
     key: '',
@@ -83,20 +83,20 @@ const state = reactive({
         cursor: 0,
     },
     total: 0,
-    setDatas: [] as any,
+    setDatas: [] as { value: string }[],
     loadMoreDisable: false,
     value: [{ value: '' }],
     editDialog: {
         visible: false,
         content: '',
-        dataRow: null as any,
+        dataRow: null as { value: string } | null,
     },
 });
 
 const { total, setDatas, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.key = props.keyInfo?.key;
+    state.key = props.keyInfo?.key || '';
     initData();
 });
 
@@ -116,11 +116,11 @@ const sscanData = async (resetDatas = true, resetCursor = false) => {
     }
     // SSCAN key cursor [MATCH pattern] [COUNT count]
     // 响应[cursor, vals[]]
-    const res = await props.redis.runCmd(['SSCAN', state.key, state.scanParam.cursor, 'MATCH', getScanMatch(), 'COUNT', state.scanParam.count]);
+    const res = await props.redis.runCmd<[number, string[]]>(['SSCAN', state.key, state.scanParam.cursor, 'MATCH', getScanMatch(), 'COUNT', state.scanParam.count]);
     if (resetDatas) {
         state.setDatas = [];
     }
-    res[1].forEach((x: any) => {
+    res[1].forEach((x: string) => {
         state.setDatas.push({
             value: x,
         });
@@ -131,12 +131,12 @@ const sscanData = async (resetDatas = true, resetCursor = false) => {
 
 const getTotal = () => {
     // SCARD key
-    props.redis.runCmd(['SCARD', state.key]).then((res) => {
+    props.redis.runCmd<number>(['SCARD', state.key]).then((res) => {
         state.total = res;
     });
 };
 
-const showEditDialog = (row: any) => {
+const showEditDialog = (row: { value: string } | null) => {
     state.editDialog.dataRow = row;
     state.editDialog.content = row ? row.value : '';
     state.editDialog.visible = true;
@@ -146,26 +146,26 @@ const confirmEditData = async () => {
     // 存在数据行，则说明为修改，则要先删除旧数据后新增
     const dataRow = state.editDialog.dataRow;
     if (dataRow) {
-        await props.redis.runCmd(['SREM', state.key, state.editDialog.dataRow.value]);
+        await props.redis.runCmd(['SREM', state.key, dataRow.value]);
     }
 
     // 获取set member内容并新增
-    const member = formatViewerRef.value.getContent();
+    const member = formatViewerRef.value?.getContent();
     // SADD key member [member ...]
-    await props.redis.runCmd(['SADD', state.key, member]);
+    await props.redis.runCmd(['SADD', state.key, member ?? '']);
 
     Msg.saveSuccess();
     if (dataRow) {
-        state.editDialog.dataRow.value = member;
+        dataRow.value = member ?? '';
     } else {
-        state.setDatas.unshift({ value: member });
+        state.setDatas.unshift({ value: member ?? '' });
         state.total++;
     }
     state.editDialog.visible = false;
     state.editDialog.dataRow = null;
 };
 
-const srem = async (row: any, index: any) => {
+const srem = async (row: { value: string }, index: number) => {
     // SREM key member [member ...]
     await props.redis.runCmd(['SREM', state.key, row.value]);
     Msg.deleteSuccess();

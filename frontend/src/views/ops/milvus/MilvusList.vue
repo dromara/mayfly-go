@@ -37,19 +37,20 @@
 </template>
 
 <script setup lang="ts">
-import { TableColumn } from '@/components/pagetable';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem } from '@/components/pagetable/SearchForm';
+import { TableColumn } from '@/components/page-table';
+import PageTable from '@/components/page-table/PageTable.vue';
+import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, ref, Ref } from 'vue';
+import { defineAsyncComponent, ref, useTemplateRef } from 'vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import { milvusApi, perms } from './api';
-import type { IMilvus } from './types';
+import type { Milvus } from './types';
+import type { PageResult } from '@/types/common';
 
 const MilvusEdit = defineAsyncComponent(() => import('./MilvusEdit.vue'));
 
-const pageTableRef: Ref<any> = ref(null);
+const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
 const query = ref({
     pageNum: 1,
@@ -73,10 +74,10 @@ const columns = ref([
 const milvusEditDialog = ref({
     title: '',
     visible: false,
-    data: null as any,
+    data: null as Milvus | null,
 });
 
-const editMilvus = (data?: IMilvus) => {
+const editMilvus = (data?: Milvus) => {
     milvusEditDialog.value = {
         title: data ? useI18nEditTitle('Milvus') : useI18nCreateTitle('Milvus'),
         visible: true,
@@ -84,7 +85,7 @@ const editMilvus = (data?: IMilvus) => {
     };
 };
 
-const handleData = (res: any) => {
+const handleData = (res: PageResult<Milvus>) => {
     const dataList = res.list;
     // 赋值授权凭证
     for (let x of dataList) {
@@ -99,7 +100,7 @@ const deleteMilvus = async () => {
         Msg.warning('请选择要删除的数据');
         return;
     }
-    const ids = records.map((r: any) => r.id).join(',');
+    const ids = records.map((r: Milvus) => r.id).join(',');
 
     await useI18nDeleteConfirm('Milvus: ' + ids);
     milvusApi.delete.request({ ids }).then(() => {
