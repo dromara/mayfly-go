@@ -68,7 +68,7 @@ export class TableColumn {
      * 指定格式化函数对原始值进行格式化，如时间格式化等
      * param1: data, param2: prop
      */
-    formatFunc?: (data: Record<string, unknown>, prop: string) => unknown;
+    formatFunc?: (data: any, prop: string) => unknown;
 
     /**
      * 是否显示该列,1显示 0不显示
@@ -162,7 +162,7 @@ export class TableColumn {
      * @param func 格式化回调函数(参数为 -> data: 该行对应的数据，prop: 该列对应的prop属性值)
      * @returns
      */
-    setFormatFunc(func: (data: Record<string, unknown>, prop: string) => unknown): TableColumn {
+    setFormatFunc(func: (data: any, prop: string) => unknown): TableColumn {
         this.formatFunc = func;
         return this;
     }

@@ -5,7 +5,7 @@
             <el-row class="mb-2 ml-4">
                 <el-breadcrumb separator-icon="ArrowRight">
                     <el-breadcrumb-item v-for="path in filePathNav" :key="path">
-                        <el-link @click="setFiles(path.path)" class="!cursor-pointer !font-bold">{{ path.name }}</el-link>
+                        <el-link @click="setFiles(path.path)" class="cursor-pointer! font-bold!">{{ path.name }}</el-link>
                     </el-breadcrumb-item>
                 </el-breadcrumb>
             </el-row>
@@ -29,14 +29,14 @@
                             <div class="machine-file-table-header">
                                 <div>
                                     <el-button :disabled="nowPath == basePath" type="primary" circle size="small" icon="Back" @click="back()"> </el-button>
-                                    <el-button class="!ml-1" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
+                                    <el-button class="ml-1!" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
 
                                     <!-- 文件&文件夹上传 -->
                                     <el-dropdown class="machine-file-upload-exec" trigger="click" size="small">
                                         <span>
                                             <el-button
                                                 v-auth="'machine:file:upload'"
-                                                class="!ml-1"
+                                                class="ml-1!"
                                                 type="primary"
                                                 circle
                                                 size="small"
@@ -83,7 +83,7 @@
                                         :disabled="state.selectionFiles.length == 0"
                                         v-auth="'machine:file:rm'"
                                         @click="copyFile(state.selectionFiles)"
-                                        class="!ml-1"
+                                        class="ml-1!"
                                         type="primary"
                                         circle
                                         size="small"
@@ -96,7 +96,7 @@
                                         :disabled="state.selectionFiles.length == 0"
                                         v-auth="'machine:file:rm'"
                                         @click="mvFile(state.selectionFiles)"
-                                        class="!ml-1"
+                                        class="ml-1!"
                                         type="primary"
                                         circle
                                         size="small"
@@ -108,7 +108,7 @@
                                     <el-button
                                         v-auth="'machine:file:write'"
                                         @click="showCreateFileDialog()"
-                                        class="!ml-1"
+                                        class="ml-1!"
                                         type="primary"
                                         circle
                                         size="small"
@@ -121,7 +121,7 @@
                                         :disabled="state.selectionFiles.length == 0"
                                         v-auth="'machine:file:rm'"
                                         @click="deleteFile(state.selectionFiles)"
-                                        class="!ml-1"
+                                        class="ml-1!"
                                         type="danger"
                                         circle
                                         size="small"
@@ -130,7 +130,7 @@
                                     >
                                     </el-button>
 
-                                    <el-button-group v-if="copyOrMvFile.paths.length > 0" size="small" class="!ml-1">
+                                    <el-button-group v-if="copyOrMvFile.paths.length > 0" size="small" class="ml-1!">
                                         <el-tooltip effect="customized" raw-content placement="top">
                                             <template #content>
                                                 <div v-for="path in copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
@@ -161,7 +161,7 @@
                                     <SvgIcon :size="15" :name="scope.row.icon" />
                                 </span>
 
-                                <span class="!ml-1 inline-block w-[90%]">
+                                <span class="ml-1! inline-block w-[90%]">
                                     <div v-if="scope.row.nameEdit">
                                         <el-input
                                             @keyup.enter="fileRename(scope.row)"

@@ -151,6 +151,7 @@ export default {
         concurrentFiles: '{count} 个并发',
         fileList: '文件列表',
         waiting: '等待中',
+        uploadCancelled: '已取消',
 
         // 上传通知
         uploadNotifications: {

@@ -19,14 +19,14 @@
                 >
                     <div class="mx-auto my-auto" v-if="!v.meta.link || (v.meta.link && v.meta.linkType == 1)">
                         <i :class="v.meta.icon"></i>
-                        <div class="pt-[1px] !text-[12px]">
+                        <div class="pt-[1px] text-[12px]!">
                             {{ $t(v.meta.title) && $t(v.meta.title).length >= 4 ? $t(v.meta.title).substring(0, 4) : $t(v.meta.title) }}
                         </div>
                     </div>
                     <div class="mx-auto my-auto" v-else>
                         <a :href="v.meta.link" target="_blank" class="no-underline color-[var(--bg-columnsMenuBarColor)]">
                             <i :class="v.meta.icon"></i>
-                            <div class="pt-[1px] !text-[12px]">
+                            <div class="pt-[1px] text-[12px]!">
                                 {{ $t(v.meta.title) && $t(v.meta.title).length >= 4 ? $t(v.meta.title).substring(0, 4) : $t(v.meta.title) }}
                             </div>
                         </a>

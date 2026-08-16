@@ -39,7 +39,7 @@
         <el-form-item>
             <div class="flex items-center w-full">
                 <el-radio v-model="radioValue" :label="7" class="mr-1"> {{ $t('components.crontab.appoint') }} </el-radio>
-                <el-select @click="radioValue = 7" class="!w-full" clearable v-model="checkboxList" multiple>
+                <el-select @click="radioValue = 7" class="w-full!" clearable v-model="checkboxList" multiple>
                     <el-option v-for="item in 31" :key="item" :value="`${item}`">{{ item }}</el-option>
                 </el-select>
             </div>
@@ -60,7 +60,7 @@ const state = reactive({
     cycle02: 2,
     average01: 1,
     average02: 1,
-    checkboxList: [] as any,
+    checkboxList: [] as string[],
 });
 
 const { radioValue, workday, cycle01, cycle02, average01, average02, checkboxList } = toRefs(state);
@@ -195,18 +195,18 @@ const parse = () => {
         state.radioValue = 2;
     } else if (value.indexOf('-') > -1) {
         state.radioValue = 3;
-        let indexArr = value.split('-') as any;
-        isNaN(indexArr[0]) ? (state.cycle01 = 0) : (state.cycle01 = indexArr[0]);
-        state.cycle02 = indexArr[1];
+        let indexArr = value.split('-');
+        isNaN(Number(indexArr[0])) ? (state.cycle01 = 0) : (state.cycle01 = Number(indexArr[0]));
+        state.cycle02 = Number(indexArr[1]);
     } else if (value.indexOf('/') > -1) {
         state.radioValue = 4;
-        let indexArr = value.split('/') as any;
-        isNaN(indexArr[0]) ? (state.average01 = 0) : (state.average01 = indexArr[0]);
-        state.average02 = indexArr[1];
+        let indexArr = value.split('/');
+        isNaN(Number(indexArr[0])) ? (state.average01 = 0) : (state.average01 = Number(indexArr[0]));
+        state.average02 = Number(indexArr[1]);
     } else if (value.indexOf('W') > -1) {
         state.radioValue = 5;
-        let indexArr = value.split('W') as any;
-        isNaN(indexArr[0]) ? (state.workday = 0) : (state.workday = indexArr[0]);
+        let indexArr = value.split('W');
+        isNaN(Number(indexArr[0])) ? (state.workday = 0) : (state.workday = Number(indexArr[0]));
     } else if (value === 'L') {
         state.radioValue = 6;
     } else {

@@ -6,7 +6,7 @@
                     <el-col :span="12">
                         <el-form-item :label="$t('mongo.template')">
                             <el-select
-                                class="!w-full"
+                                class="w-full!"
                                 @change="changeCmd"
                                 filterable
                                 v-model="runCmdDialog.cmdName"

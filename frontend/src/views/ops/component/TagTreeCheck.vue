@@ -1,5 +1,5 @@
 <template>
-    <div class="!w-full tag-tree-check">
+    <div class="w-full! tag-tree-check">
         <el-input v-model="filterTag" @input="onFilterValChanged" clearable :placeholder="$t('tag.keywordFilterPlaceholder')" size="small" />
         <div class="mt-0.5" style="border: 1px solid var(--el-border-color)">
             <el-scrollbar :style="{ height: props.height }">

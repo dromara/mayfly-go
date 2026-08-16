@@ -29,3 +29,4 @@ minimumReleaseAgeExclude:
   - vue-router@5.2.0
   - '@logicflow/core@2.2.5'
   - '@logicflow/extension@2.3.1'
+  - element-plus@2.14.4

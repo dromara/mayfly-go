@@ -39,7 +39,7 @@
 
                             <el-popover placement="bottom" :width="200" trigger="hover">
                                 <template #reference>
-                                    <SvgIcon name="QuestionFilled" :size="20" class="pointer-icon !mr-2" />
+                                    <SvgIcon name="QuestionFilled" :size="20" class="pointer-icon mr-2!" />
                                 </template>
                                 <div>ctrl | command + f ({{ $t('components.terminal.search') }})</div>
                                 <div class="mt-1">{{ $t('components.terminal.reConnTips') }}</div>
@@ -138,12 +138,12 @@ interface MinTerminalInfo {
     styleClass: string;
 }
 
-const props = defineProps({
-    visibleMinimize: {
-        type: Boolean,
-        default: false,
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        visibleMinimize?: boolean;
+    }>(),
+    { visibleMinimize: false }
+);
 
 const emit = defineEmits(['close', 'minimize']);
 
@@ -196,10 +196,10 @@ const terminalStatusChange = (terminalId: number | string, status: TerminalStatu
     if (!minTerminal) {
         return;
     }
-    minTerminal.styleClass = getTerminalStatysStyleClass(terminalId, status);
+    minTerminal.styleClass = getTerminalStatusStyleClass(terminalId, status);
 };
 
-const getTerminalStatysStyleClass = (terminalId: number | string, status: TerminalStatus | null = null) => {
+const getTerminalStatusStyleClass = (terminalId: number | string, status: TerminalStatus | null = null) => {
     if (status == null) {
         status = openTerminalRefs[terminalId]!.getStatus();
     }
@@ -232,7 +232,7 @@ function close(terminalId: number | string) {
 function minimize(terminalId: number | string) {
     const terminal = state.terminals[terminalId];
     if (!terminal) {
-        console.warn('不存在该终端信息: ', terminalId);
+        console.warn('Terminal not found: ', terminalId);
         return;
     }
     terminal.visible = false;
@@ -241,7 +241,7 @@ function minimize(terminalId: number | string) {
         terminalId: terminal.terminalId,
         title: terminal.minTitle || '', // 截取terminalId最后两位区分多个terminal
         desc: terminal.minDesc || '',
-        styleClass: getTerminalStatysStyleClass(terminalId),
+        styleClass: getTerminalStatusStyleClass(terminalId),
     };
     state.minimizeTerminals[terminalId] = minTerminalInfo;
 

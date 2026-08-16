@@ -14,7 +14,7 @@
                     </div>
                 </div>
                 <template v-if="themeConfig.terminalTheme == 'custom'">
-                    <div class="layout-breadcrumb-seting-bar-flex !mt-2">
+                    <div class="layout-breadcrumb-seting-bar-flex mt-2!">
                         <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.fontColor') }}</div>
                         <div class="layout-breadcrumb-seting-bar-flex-value">
                             <el-color-picker v-model="themeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')">
@@ -37,14 +37,14 @@
                     </div>
                 </template>
 
-                <div class="layout-breadcrumb-seting-bar-flex !mt-2">
+                <div class="layout-breadcrumb-seting-bar-flex mt-2!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.fontSize') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-input-number v-model="themeConfig.terminalFontSize" controls-position="right" :min="12" :max="24" size="small" style="width: 90px">
                         </el-input-number>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-2">
+                <div class="layout-breadcrumb-seting-bar-flex mt-2!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.fontWeight') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-select v-model="themeConfig.terminalFontWeight" size="small" style="width: 90px">
@@ -69,7 +69,7 @@
 
                 <!-- 全局设置 -->
                 <el-divider content-position="left">{{ $t('layout.config.globalSetting') }}</el-divider>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.pagesize') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-input-number
@@ -177,7 +177,7 @@
                         </el-color-picker>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-2">
+                <div class="layout-breadcrumb-seting-bar-flex mt-2!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">顶栏背景渐变</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isTopBarColorGradual"
@@ -203,7 +203,7 @@
                         <el-switch v-model="themeConfig.isCollapse" @change="onThemeConfigChange"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isUniqueOpened') }}
                     </div>
@@ -211,7 +211,7 @@
                         <el-switch v-model="themeConfig.isUniqueOpened"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isFixedHeader') }}
                     </div>
@@ -219,7 +219,7 @@
                         <el-switch v-model="themeConfig.isFixedHeader" @change="onIsFixedHeaderChange"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5" :style="{ opacity: themeConfig.layout !== 'classic' ? 0.5 : 1 }">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!" :style="{ opacity: themeConfig.layout !== 'classic' ? 0.5 : 1 }">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isClassicSplitMenu') }}
                     </div>
@@ -231,13 +231,13 @@
 
                 <!-- 界面显示 -->
                 <el-divider content-position="left">{{ $t('layout.config.interfaceDisplay') }}</el-divider>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isShowLogo') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isShowLogo" @change="onIsShowLogoChange"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5" :style="{ opacity: themeConfig.layout === 'transverse' ? 0.5 : 1 }">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!" :style="{ opacity: themeConfig.layout === 'transverse' ? 0.5 : 1 }">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isBreadcrumb') }}
                     </div>
@@ -249,7 +249,7 @@
                         ></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isBreadcrumbIcon') }}
                     </div>
@@ -257,13 +257,13 @@
                         <el-switch v-model="themeConfig.isBreadcrumbIcon"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isTagsview') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isTagsview"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isTagsviewIcon') }}
                     </div>
@@ -271,7 +271,7 @@
                         <el-switch v-model="themeConfig.isTagsviewIcon"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isCacheTagsView') }}
                     </div>
@@ -279,7 +279,7 @@
                         <el-switch v-model="themeConfig.isCacheTagsView"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">
                         {{ $t('layout.config.isSortableTagsView') }}
                     </div>
@@ -287,19 +287,19 @@
                         <el-switch v-model="themeConfig.isSortableTagsView"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isFooter') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isFooter"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isGrayscale') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isGrayscale" @change="onAddFilterChange('grayscale')"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex !mt-3.5">
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
                     <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.isInvert') }}</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-switch v-model="themeConfig.isInvert" @change="onAddFilterChange('invert')"></el-switch>
@@ -422,7 +422,7 @@ import { useThemeConfig } from '@/store/themeConfig';
 import { storeToRefs } from 'pinia';
 import { nextTick, onMounted, ref, watch } from 'vue';
 
-import themes from '@/components/terminal/themes.js';
+import themes from '@/components/terminal/themes';
 import { useWindowSize } from '@vueuse/core';
 
 const copyConfigBtnRef = ref();

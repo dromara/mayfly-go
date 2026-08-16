@@ -22,18 +22,18 @@
 
                     <!-- 右侧 -->
                     <div class="title-right-fixed">
-                        <el-popconfirm @confirm="connect(true)" title="确认重新连接?">
+                        <el-popconfirm @confirm="connect(true)" :title="$t('components.terminal-rdp.reconnectConfirm')">
                             <template #reference>
                                 <div class="mr-2 cursor-pointer">
-                                    <el-tag v-if="state.status == TerminalStatus.Connected" type="success" effect="light" round> 已连接 </el-tag>
-                                    <el-tag v-else type="danger" effect="light" round> 未连接，点击重连 </el-tag>
+                                    <el-tag v-if="state.status == TerminalStatus.Connected" type="success" effect="light" round> {{ $t('components.terminal-rdp.connected') }} </el-tag>
+                                    <el-tag v-else type="danger" effect="light" round> {{ $t('components.terminal-rdp.notConnectedReconnect') }} </el-tag>
                                 </div>
                             </template>
                         </el-popconfirm>
 
-                        <el-popconfirm @confirm="handleClose" title="确认关闭?">
+                        <el-popconfirm @confirm="handleClose" :title="$t('components.terminal-rdp.closeConfirm')">
                             <template #reference>
-                                <SvgIcon name="Close" class="pointer-icon" title="关闭" :size="20" />
+                                <SvgIcon name="Close" class="pointer-icon" :title="$t('components.terminal-rdp.close')" :size="20" />
                             </template>
                         </el-popconfirm>
                     </div>
@@ -53,13 +53,10 @@ import SvgIcon from '@/components/svg-icon/index.vue';
 
 const rdpRef = ref<InstanceType<typeof MachineRdp> | null>(null);
 
-const props = defineProps({
-    authCert: {
-        type: String,
-        required: true,
-    },
-    title: { type: String },
-});
+const props = defineProps<{
+    authCert: string;
+    title?: string;
+}>();
 
 const emit = defineEmits(['cancel']);
 

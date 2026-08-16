@@ -76,9 +76,9 @@ const placeholder = computed(() => {
     const label = t(search.label);
     if (['datetimerange', 'daterange', 'monthrange'].includes(search?.props?.type as string) || search?.props?.isRange) {
         return {
-            rangeSeparator: search?.props?.rangeSeparator ?? '至',
-            startPlaceholder: search?.props?.startPlaceholder ?? '开始时间',
-            endPlaceholder: search?.props?.endPlaceholder ?? '结束时间',
+            rangeSeparator: search?.props?.rangeSeparator ?? t('common.rangeSeparator'),
+            startPlaceholder: search?.props?.startPlaceholder ?? t('common.startTime'),
+            endPlaceholder: search?.props?.endPlaceholder ?? t('common.endTime'),
         };
     }
 

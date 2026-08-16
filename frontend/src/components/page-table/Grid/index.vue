@@ -103,23 +103,18 @@ const findIndex = () => {
             ((suffix as VNode).props![breakPoint.value]?.offset ?? (suffix as VNode).props?.offset ?? 0);
     }
 
-    try {
-        let find = false;
-        fields.reduce((prev = 0, current, index) => {
-            prev +=
-                ((current as VNode)!.props![breakPoint.value]?.span ?? (current as VNode)!.props?.span ?? 1) +
-                ((current as VNode)!.props![breakPoint.value]?.offset ?? (current as VNode)!.props?.offset ?? 0);
-            if (Number(prev) > props.collapsedRows * gridCols.value - suffixCols) {
-                hiddenIndex.value = index;
-                find = true;
-                throw 'find it';
-            }
-            return prev;
-        }, 0);
-        if (!find) hiddenIndex.value = -1;
-    } catch (e) {
-        // console.warn(e);
+    let find = false;
+    let prev = 0;
+    for (let index = 0; index < fields.length; index++) {
+        const current = fields[index] as VNode;
+        prev += (current!.props![breakPoint.value]?.span ?? current!.props?.span ?? 1) + (current!.props![breakPoint.value]?.offset ?? current!.props?.offset ?? 0);
+        if (Number(prev) > props.collapsedRows * gridCols.value - suffixCols) {
+            hiddenIndex.value = index;
+            find = true;
+            break;
+        }
     }
+    if (!find) hiddenIndex.value = -1;
 };
 
 // 断点变化时执行 findIndex

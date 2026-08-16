@@ -16,7 +16,7 @@ export function registerCompletionItemProvider(language: string, completionItemP
     completionItemProviders.set(language, languages.registerCompletionItemProvider(language, completionItemProvider));
 }
 
-export function dispposeCompletionItemProvider(language: string) {
+export function disposeCompletionItemProvider(language: string) {
     const exist = completionItemProviders.get(language);
     if (exist) {
         exist.dispose();

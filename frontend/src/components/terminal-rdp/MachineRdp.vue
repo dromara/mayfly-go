@@ -3,12 +3,12 @@
         <div ref="viewportRef" class="viewport" :style="{ width: state.size.width + 'px', height: state.size.height + 'px' }">
             <div ref="displayRef" class="display" tabindex="0" />
             <div class="btn-box">
-                <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr-2" title="剪贴板" />
-                <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr-2" title="文件管理" />
-                <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr-2" title="全屏" />
+                <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal-rdp.clipboard')" />
+                <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal-rdp.fileManager')" />
+                <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal.fullScreenTitle')" />
 
                 <el-dropdown>
-                    <SvgIcon name="Monitor" :size="20" class="pointer-icon mr-2" title="发送快捷键" style="color: #fff" />
+                    <SvgIcon name="Monitor" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal-rdp.sendShortcut')" style="color: #fff" />
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65535'])"> Ctrl + Alt + Delete </el-dropdown-item>
@@ -21,7 +21,7 @@
                     </template>
                 </el-dropdown>
 
-                <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr-2" title="重新连接" />
+                <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal.reConnTips')" />
             </div>
             <clipboard-dialog ref="clipboardRef" v-model:visible="state.clipboardDialog.visible" @close="closePaste" @submit="onsubmitClipboard" />
 
@@ -42,23 +42,6 @@
                 />
             </el-dialog>
         </div>
-
-        <el-dialog
-            v-if="!state.fullscreen"
-            destroy-on-close
-            :title="state.filesystemDialog.title"
-            v-model="state.filesystemDialog.visible"
-            :close-on-click-modal="false"
-            width="70%"
-        >
-            <machine-file
-                :machine-id="state.filesystemDialog.machineId"
-                :auth-cert-name="state.filesystemDialog.authCertName"
-                :protocol="state.filesystemDialog.protocol"
-                :file-id="state.filesystemDialog.fileId"
-                :path="state.filesystemDialog.path"
-            />
-        </el-dialog>
     </div>
 </template>
 
@@ -76,6 +59,7 @@ import { exitFullscreen, launchIntoFullscreen, unWatchFullscreenChange, watchFul
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { ClientState, TunnelState } from '@/components/terminal-rdp/guac/states';
 import { Msg } from '@/hooks/useI18n';
+import { useI18n } from 'vue-i18n';
 import { joinClientParams } from '@/common/request';
 import { MachineProtocolEnum } from '@/views/ops/machine/enums';
 
@@ -144,28 +128,21 @@ interface GuacClipboard {
     setText: (text: string) => void;
 }
 
+const { t } = useI18n();
+
 const viewportRef = ref<HTMLElement | null>(null);
 const displayRef = ref<HTMLElement | null>(null);
 const clipboardRef = ref<InstanceType<typeof ClipboardDialog> | null>(null);
 
-const props = defineProps({
-    machineId: {
-        type: Number,
-        required: true,
-    },
-    authCert: {
-        type: String,
-        required: true,
-    },
-    protocol: {
-        type: Number,
-        default: 2, // 2=RDP, 3=VNC
-    },
-    clipboardList: {
-        type: Array,
-        default: () => [],
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        machineId: number;
+        authCert: string;
+        protocol?: number;
+        clipboardList?: unknown[];
+    }>(),
+    { protocol: 2, clipboardList: () => [] }
+);
 
 const emit = defineEmits(['statusChange']);
 
@@ -500,7 +477,7 @@ const openFilesystem = async () => {
     state.filesystemDialog.authCertName = props.authCert;
     state.filesystemDialog.fileId = props.machineId;
     state.filesystemDialog.path = '/';
-    state.filesystemDialog.title = `远程桌面文件管理`;
+    state.filesystemDialog.title = t('machine.remoteFileDesktopManage');
     state.filesystemDialog.visible = true;
 };
 
@@ -573,7 +550,7 @@ onUnmounted(() => {
 defineExpose(exposes);
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .viewport {
     position: relative;
     width: 1024px;

@@ -150,6 +150,7 @@ export default {
         concurrentFiles: '{count} concurrent',
         fileList: 'File List',
         waiting: 'Waiting',
+        uploadCancelled: 'Cancelled',
 
         // Upload notifications
         uploadNotifications: {

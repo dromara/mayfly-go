@@ -1,6 +1,6 @@
 <template>
     <div class="component-container">
-        <div class="card !p-2">
+        <div class="card p-2!">
             <el-row justify="space-between">
                 <el-col :span="16">
                     <el-row :gutter="5">

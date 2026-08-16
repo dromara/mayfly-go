@@ -19,7 +19,7 @@ export const dbApi = {
     pgSchemas: Api.newGet<string[]>('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
     hintTables: Api.newGet<string[]>('/dbs/{id}/hint-tables'),
-    sqlExec: Api.newPost<SqlExecRes[]>('/dbs/{id}/exec-sql').withBeforeHandler(async (param: Record<string, unknown>) => await encryptField(param, 'sql')),
+    sqlExec: Api.newPost<SqlExecRes[], Record<string, unknown>>('/dbs/{id}/exec-sql').withBeforeHandler(async (param) => await encryptField(param, 'sql')),
     // 保存sql
     saveSql: Api.newPost<void>('/dbs/{id}/sql'),
     // 获取保存的sql

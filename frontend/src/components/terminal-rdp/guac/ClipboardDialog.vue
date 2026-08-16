@@ -2,7 +2,7 @@
     <div class="clipboard-dialog">
         <el-dialog
             v-model="dialogVisible"
-            title="请输入需要粘贴的文本"
+            :title="$t('components.terminal-rdp.clipboardTitle')"
             :before-close="onclose"
             :close-on-click-modal="false"
             :close-on-press-escape="false"
@@ -21,9 +21,9 @@
 import { reactive, toRefs, watch } from 'vue';
 import { Msg } from '@/hooks/useI18n';
 
-const props = defineProps({
-    visible: { type: Boolean },
-});
+const props = defineProps<{
+    visible?: boolean;
+}>();
 
 const emits = defineEmits(['submit', 'close', 'update:visible']);
 
@@ -34,9 +34,12 @@ const state = reactive({
 
 const { dialogVisible } = toRefs(state);
 
-watch(props, async (newValue: { visible?: boolean }) => {
-    state.dialogVisible = newValue.visible ?? false;
-});
+watch(
+    () => props.visible,
+    (val) => {
+        state.dialogVisible = val ?? false;
+    }
+);
 
 const onclose = () => {
     emits('update:visible', false);
@@ -60,7 +63,7 @@ const setValue = (val: string) => {
 defineExpose({ setValue });
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .clipboard-dialog {
 }
 </style>

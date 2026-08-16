@@ -1,6 +1,6 @@
 <template>
     <div class="component-container">
-        <div class="card !p-2">
+        <div class="card p-2!">
             <el-row :gutter="5">
             <el-col :span="4">
                 <el-input :placeholder="$t('docker.imageName')" v-model="params.name" plain clearable></el-input>

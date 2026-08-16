@@ -28,7 +28,7 @@
         <el-form-item>
             <div class="flex items-center w-full">
                 <el-radio v-model="radioValue" :label="5" class="mr-1"> {{ $t('components.crontab.appoint') }} </el-radio>
-                <el-select @click="radioValue = 5" class="!w-full" clearable v-model="checkboxList" multiple>
+                <el-select @click="radioValue = 5" class="w-full!" clearable v-model="checkboxList" multiple>
                     <el-option v-for="item in 9" :key="item" :value="`${item - 1 + fullYear}`" :label="item - 1 + fullYear" />
                 </el-select>
             </div>
@@ -49,7 +49,7 @@ const state = reactive({
     cycle02: 0,
     average01: 0,
     average02: 1,
-    checkboxList: [] as any,
+    checkboxList: [] as string[],
 });
 
 const { radioValue, cycle01, cycle02, average01, average02, checkboxList, fullYear } = toRefs(state);

@@ -7,8 +7,8 @@
         :destroy-on-close="true"
         :close-on-click-modal="false"
         size="80%"
-        body-class="!p-2"
-        header-class="!mb-2"
+        body-class="p-2!"
+        header-class="mb-2!"
     >
         <template #header>
             <DrawerHeader :header="title" :back="cancel" />

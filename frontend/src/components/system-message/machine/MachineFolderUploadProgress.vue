@@ -93,15 +93,34 @@ import { ref, computed } from 'vue';
 
 const cancelLoading = ref(false);
 
-const props = defineProps({
-    progress: {
-        type: Object,
-        required: true,
-    },
-    onCancel: {
-        type: Function,
-        default: undefined,
-    },
+interface FileProgress {
+    path: string;
+    status: '' | 'uploading' | 'complete' | 'error';
+    currentSize: number;
+    totalSize: number;
+    progress: number;
+    speed?: string;
+}
+
+interface FolderProgress {
+    authCertName: string;
+    path: string;
+    folderName: string;
+    uploadedFiles: number;
+    totalFiles: number;
+    uploadedSize: number;
+    totalSize: number;
+    status: '' | 'uploading' | 'complete' | 'error';
+    files?: Map<string, FileProgress>;
+}
+
+interface Props {
+    progress: FolderProgress;
+    onCancel?: () => void;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    onCancel: undefined,
 });
 
 // 将 Map 转换为数组以便遍历

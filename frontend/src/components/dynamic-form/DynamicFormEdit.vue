@@ -1,10 +1,10 @@
 <template>
-    <div class="dynamic-form-edit !w-full">
-        <el-table :data="formItems" stripe class="!w-full">
-            <el-table-column prop="name" label="model" min-width="100px">
+    <div class="dynamic-form-edit w-full!">
+        <el-table :data="formItems" stripe class="w-full!">
+            <el-table-column prop="name" :label="$t('components.df.modelField')" min-width="100px">
                 <template #header>
                     <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="addItem()"> </el-button>
-                    <span class="ml-2">model field</span>
+                    <span class="ml-2">{{ $t('components.df.modelField') }}</span>
                 </template>
                 <template #default="scope">
                     <el-input v-model="scope.row['model']" :placeholder="$t('components.df.fieldModelPlaceholder')" clearable> </el-input>
@@ -35,7 +35,7 @@
                 </template>
             </el-table-column>
 
-            <el-table-column :label="$t('common.operation')" wdith="20px">
+            <el-table-column :label="$t('common.operation')" width="80px">
                 <template #default="scope">
                     <el-button type="danger" @click="deleteItem(scope.$index)" icon="delete" plain></el-button>
                 </template>
@@ -45,14 +45,21 @@
 </template>
 
 <script lang="ts" setup>
-const formItems: any = defineModel('modelValue');
+interface FormItemConfig {
+    model?: string;
+    name?: string;
+    placeholder?: string;
+    options?: string;
+    required?: boolean;
+}
+
+const formItems = defineModel<FormItemConfig[]>('modelValue', { default: () => [] });
 
 const addItem = () => {
     formItems.value.push({});
 };
 
-const deleteItem = (index: any) => {
+const deleteItem = (index: number) => {
     formItems.value.splice(index, 1);
 };
 </script>
-<style lang="scss"></style>

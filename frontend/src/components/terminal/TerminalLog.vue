@@ -28,12 +28,12 @@ import { LogTypeEnum } from '@/views/system/enums';
 import { useIntervalFn } from '@vueuse/core';
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
 
-const props = defineProps({
-    title: {
-        type: String,
-        default: 'Log',
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        title?: string;
+    }>(),
+    { title: 'Log' }
+);
 
 const visible = defineModel<boolean>('visible', { default: false });
 const logId = defineModel<number>('logId', { default: 0 });
@@ -44,7 +44,11 @@ const log = ref<SysLog | null>(null);
 
 const extra = computed(() => {
     if (log.value?.extra) {
-        return JSON.parse(log.value.extra);
+        try {
+            return JSON.parse(log.value.extra);
+        } catch {
+            return null;
+        }
     }
     return null;
 });

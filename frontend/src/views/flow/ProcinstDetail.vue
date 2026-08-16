@@ -5,8 +5,8 @@
         v-model="visible"
         :before-close="cancel"
         size="50%"
-        body-class="!p-2"
-        header-class="!mb-2"
+        body-class="p-2!"
+        header-class="mb-2!"
         :destroy-on-close="true"
         :close-on-click-modal="!props.instTaskId"
     >

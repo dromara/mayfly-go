@@ -31,43 +31,29 @@ import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n';
 import TerminalSearch from './TerminalSearch.vue';
 import { TerminalStatus } from './common';
-import themes from './themes.js';
+import themes from './themes';
 
 const { t } = useI18n();
 
-const props = defineProps({
-    // mounted时，是否执行init方法
-    mountInit: {
-        type: Boolean,
-        default: true,
-    },
-    /**
-     * 初始化执行命令
-     */
-    cmd: { type: String },
-    /**
-     * 连接url
-     */
-    socketUrl: {
-        type: String,
-    },
-    /**
-     * 机器ID（用于文件传输）
-     */
-    machineId: { type: Number, default: 0 },
-    /**
-     * 授权凭证名（用于文件传输）
-     */
-    authCertName: { type: String, default: '' },
-    /**
-     * 文件ID（用于文件传输）
-     */
-    fileId: { type: Number, default: 0 },
-    /**
-     * 协议类型（用于文件传输）
-     */
-    protocol: { type: Number, default: 1 },
-});
+const props = withDefaults(
+    defineProps<{
+        /** mounted时，是否执行init方法 */
+        mountInit?: boolean;
+        /** 初始化执行命令 */
+        cmd?: string;
+        /** 连接url */
+        socketUrl?: string;
+        /** 机器ID（用于文件传输） */
+        machineId?: number;
+        /** 授权凭证名（用于文件传输） */
+        authCertName?: string;
+        /** 文件ID（用于文件传输） */
+        fileId?: number;
+        /** 协议类型（用于文件传输） */
+        protocol?: number;
+    }>(),
+    { mountInit: true, machineId: 0, authCertName: '', fileId: 0, protocol: 1 }
+);
 
 const emit = defineEmits(['statusChange']);
 

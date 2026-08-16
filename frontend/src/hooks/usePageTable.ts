@@ -1,5 +1,5 @@
 import Api from '@/common/Api';
-import { reactive, toRefs, toValue } from 'vue';
+import { reactive, toRefs, toValue, type MaybeRef } from 'vue';
 
 /** 分页参数基础类型 */
 export interface PageParams {
@@ -18,7 +18,7 @@ export interface PageParams {
 export const usePageTable = (
     pageable: boolean = true,
     api?: Api,
-    params: PageParams = {
+    params: MaybeRef<PageParams> = {
         // 当前页数
         pageNum: 1,
         // 每页显示条数

@@ -6,7 +6,7 @@
             role="tooltip"
             data-popper-placement="bottom"
             :style="`top: ${state.dropdown.y + 5}px;left: ${state.dropdown.x}px;`"
-            :key="Math.random()"
+            :key="state.menuKey"
             v-show="state.isShow && !allHide"
             @contextmenu="headerContextmenuClick"
         >
@@ -39,21 +39,18 @@ import SvgIcon from '@/components/svg-icon/index.vue';
 import { useWindowSize } from '@vueuse/core';
 
 // 定义父组件传过来的值
-const props = defineProps({
-    dropdown: {
-        type: Object,
-        default: () => {
-            return {
-                x: 0,
-                y: 0,
-            };
-        },
-    },
-    items: {
-        type: Array<ContextmenuItem>,
-        default: () => [],
-    },
-});
+interface DropdownPosition {
+    x: number;
+    y: number;
+}
+
+const props = withDefaults(
+    defineProps<{
+        dropdown?: DropdownPosition;
+        items?: ContextmenuItem[];
+    }>(),
+    { dropdown: () => ({ x: 0, y: 0 }), items: () => [] }
+);
 
 // 定义子组件向父组件传值/事件
 const emit = defineEmits(['currentContextmenuClick']);
@@ -64,8 +61,9 @@ const { width: vw, height: vh } = useWindowSize();
 const state = reactive({
     isShow: false,
     dropdownList: [] as ContextmenuItem[],
-    item: {} as any,
+    item: {} as unknown,
     arrowLeft: 10,
+    menuKey: 0,
     dropdown: {
         x: 0,
         y: 0,
@@ -76,20 +74,20 @@ const state = reactive({
 let contextmenuWidth = 117;
 let contextmenuHeight = 117;
 // 下拉菜单元素
-let ele = null as any;
+let ele: HTMLElement | null = null;
 
-const onEnter = (el: any) => {
-    if (ele || el.offsetHeight == 0) {
+const onEnter = (el: Element) => {
+    if (ele || (el as HTMLElement).offsetHeight == 0) {
         return;
     }
 
-    ele = el;
-    contextmenuHeight = el.offsetHeight;
-    contextmenuWidth = el.offsetWidth;
+    ele = el as HTMLElement;
+    contextmenuHeight = (el as HTMLElement).offsetHeight;
+    contextmenuWidth = (el as HTMLElement).offsetWidth;
     setDropdowns(props.dropdown);
 };
 
-const setDropdowns = (dropdown: any) => {
+const setDropdowns = (dropdown: DropdownPosition) => {
     let { x, y } = dropdown;
 
     state.arrowLeft = 10;
@@ -126,15 +124,18 @@ const onCurrentContextmenuClick = (ci: ContextmenuItem) => {
     emit('currentContextmenuClick', { id: ci.clickId, item: state.item });
 };
 
-const headerContextmenuClick = (event: any) => {
+const headerContextmenuClick = (event: MouseEvent) => {
     event.preventDefault(); // 阻止默认的右击菜单行为
 };
 
 // 打开右键菜单：判断是否固定，固定则不显示关闭按钮
-const openContextmenu = (item: any) => {
+const openContextmenu = (item: unknown) => {
     state.item = item;
     closeContextmenu();
+    state.menuKey++;
     setTimeout(() => {
+        // 先设置位置再显示，避免首次渲染时从左上角 (0,0) 滑下的动画
+        state.dropdown = { ...props.dropdown };
         state.isShow = true;
     }, 10);
 };
@@ -168,7 +169,7 @@ watch(
 
 watch(
     () => props.items,
-    (x: any) => {
+    (x: ContextmenuItem[]) => {
         state.dropdownList = x;
     },
     {
@@ -191,9 +192,6 @@ defineExpose({
 
     .el-dropdown-menu__item {
         padding: 5px 12px;
-    }
-
-    .el-dropdown-menu__item {
         font-size: 12px !important;
         white-space: nowrap;
 
@@ -203,4 +201,3 @@ defineExpose({
     }
 }
 </style>
-.

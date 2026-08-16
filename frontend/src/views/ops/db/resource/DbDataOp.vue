@@ -165,7 +165,7 @@
 
 <script lang="ts" setup>
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
+import { disposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
@@ -303,7 +303,7 @@ onMounted(() => {
 const dataExecRef = useTemplateRef<HTMLElement>('dataExecRef');
 
 onBeforeUnmount(() => {
-    dispposeCompletionItemProvider('sql');
+    disposeCompletionItemProvider('sql');
 });
 
 /**

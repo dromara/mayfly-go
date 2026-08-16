@@ -1,5 +1,5 @@
 <template>
-    <el-container class="layout-container layout-backtop !flex-col">
+    <el-container class="layout-container layout-backtop flex-col!">
         <Header />
         <Main />
     </el-container>

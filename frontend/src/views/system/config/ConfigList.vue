@@ -27,8 +27,8 @@
             <dynamic-form
                 ref="paramsFormRef"
                 v-if="paramsDialog.paramsFormItem.length > 0"
-                :form-items="paramsDialog.paramsFormItem"
-                v-model="paramsDialog.params"
+                :form-items="(paramsDialog.paramsFormItem as any)"
+                v-model="(paramsDialog.params as any)"
             />
 
             <el-form v-else ref="paramsFormRef" label-width="auto">

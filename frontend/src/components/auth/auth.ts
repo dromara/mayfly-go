@@ -9,7 +9,7 @@ export function hasPerm(code: string): boolean {
     if (!code) {
         return true;
     }
-    return useUserInfo().userInfo.permissions.some((v: any) => v === code);
+    return useUserInfo().userInfo.permissions.some((v: string) => v === code);
 }
 
 /**
@@ -17,9 +17,9 @@ export function hasPerm(code: string): boolean {
  * @returns {"xxx:save": true}  key->permission code
  * @param permCodes
  */
-export function hasPerms(permCodes: any[]): Record<string, boolean> {
-    const res = {} as { [key: string]: boolean };
-    for (let permCode of permCodes) {
+export function hasPerms(permCodes: string[]): Record<string, boolean> {
+    const res: Record<string, boolean> = {};
+    for (const permCode of permCodes) {
         if (hasPerm(permCode)) {
             res[permCode] = true;
         }

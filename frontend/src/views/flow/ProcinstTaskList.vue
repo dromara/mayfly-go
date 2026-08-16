@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full card !p-2">
+    <div class="h-full card p-2!">
         <el-tabs v-model="activeTabName" @tab-change="onTaskTabChange" class="h-full">
             <el-tab-pane :label="$t('flow.todoTask')" :name="todoTabName" class="h-full">
                 <div class="h-full">

@@ -1,5 +1,5 @@
 <template>
-    <div id="echarts" ref="chartRef" :style="echartsStyle" />
+    <div ref="chartRef" :style="echartsStyle" />
 </template>
 
 <script setup lang="ts" name="ECharts">
@@ -15,15 +15,14 @@ interface Props {
     option: ECOption;
     renderer?: 'canvas' | 'svg';
     resize?: boolean;
-    theme?: Object | string;
+    theme?: Record<string, unknown> | string;
     width?: number | string;
     height?: number | string;
-    onClick?: (event: ECElementEvent) => any;
+    onClick?: (event: ECElementEvent) => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     renderer: 'canvas',
-    theme: light as any,
     resize: true,
 });
 
@@ -40,9 +39,13 @@ const draw = () => {
     }
 };
 
-watch(props, () => {
-    draw();
-});
+watch(
+    () => props.option,
+    () => {
+        draw();
+    },
+    { deep: true }
+);
 
 const handleClick = (event: ECElementEvent) => props.onClick && props.onClick(event);
 
@@ -52,7 +55,7 @@ const init = () => {
 
     if (!chartInstance.value) {
         chartInstance.value = markRaw(
-            echarts.init(chartRef.value, props.theme, {
+            echarts.init(chartRef.value, props.theme ?? light, {
                 renderer: props.renderer,
             })
         );

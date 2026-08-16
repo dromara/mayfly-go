@@ -18,18 +18,19 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import DynamicForm from './DynamicForm.vue';
+import type { FormItem } from './DynamicForm.vue';
 
 const emit = defineEmits(['close', 'confirm']);
 
-const props = defineProps({
-    title: { type: String },
-    width: { type: [String, Number], default: '500px' },
-    formItems: { type: Array },
-});
+const props = defineProps<{
+    title?: string;
+    width?: string | number;
+    formItems: FormItem[];
+}>();
 
-const df: any = ref();
+const df = ref<InstanceType<typeof DynamicForm>>();
 
-const formData: any = defineModel('modelValue');
+const formData = defineModel<Record<string, unknown>>('modelValue');
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const close = () => {
@@ -37,16 +38,16 @@ const close = () => {
     // 取消动态表单的校验
     setTimeout(() => {
         formData.value = {};
-        df.value.resetFields();
+        df.value?.resetFields();
     }, 200);
 };
 
-const confirm = () => {
-    df.value.validate((valid: any) => {
-        if (!valid) {
-            return false;
-        }
+const confirm = async () => {
+    try {
+        await df.value?.validate();
         emit('confirm', formData.value);
-    });
+    } catch {
+        // 校验未通过
+    }
 };
 </script>

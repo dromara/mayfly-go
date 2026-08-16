@@ -20,49 +20,34 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, Ref, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import openApi from '@/common/openApi';
 import { getFileUrl } from '@/common/request';
 import { formatByteSize } from '@/common/utils/format';
 
-const props = defineProps({
-    fileKey: {
-        type: String,
-        required: true,
-    },
-    files: {
-        type: [Array],
-    },
-    canDownload: {
-        type: Boolean,
-        default: true,
-    },
-    showFileSize: {
-        type: Boolean,
-        default: false,
-    },
-});
+interface FileDetail {
+    fileKey?: string;
+    filename?: string;
+    size?: number;
+}
 
-const loading: Ref<boolean> = ref(false);
-
-onMounted(async () => {
-    setFileInfo();
-});
-
-watch(
-    () => props.fileKey,
-    async (val) => {
-        if (val) {
-            setFileInfo();
-        }
-    }
+const props = withDefaults(
+    defineProps<{
+        fileKey: string;
+        files?: FileDetail[];
+        canDownload?: boolean;
+        showFileSize?: boolean;
+    }>(),
+    { canDownload: true, showFileSize: false }
 );
+
+const loading = ref(false);
 
 const fileSize = computed(() => {
     return fileDetail.value?.size ? formatByteSize(fileDetail.value.size) : '';
 });
 
-const fileDetail: any = ref({});
+const fileDetail = ref<FileDetail | null>(null);
 
 const setFileInfo = async () => {
     try {
@@ -71,19 +56,28 @@ const setFileInfo = async () => {
         }
         loading.value = true;
         if (props.files && props.files.length > 0) {
-            const file: any = props.files.find((file: any) => {
-                return file.fileKey === props.fileKey;
-            });
-            fileDetail.value = file;
+            const file = props.files.find((f) => f.fileKey === props.fileKey);
+            fileDetail.value = file ?? null;
             return;
         }
 
         const files = await openApi.getFileDetail([props.fileKey]);
-        fileDetail.value = files?.[0];
+        fileDetail.value = files?.[0] ?? null;
     } finally {
         loading.value = false;
     }
 };
+
+// 监听 fileKey 变化，立即执行一次
+watch(
+    () => props.fileKey,
+    (val) => {
+        if (val) {
+            setFileInfo();
+        }
+    },
+    { immediate: true }
+);
 </script>
 
 <style lang="scss" scoped>

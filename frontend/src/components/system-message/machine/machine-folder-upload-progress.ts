@@ -1,5 +1,6 @@
 import syssocket from '@/common/syssocket';
 import { nextTick, reactive } from 'vue';
+import { i18n } from '@/i18n';
 import { activeNotifications, completeNotification, createOrUpdateNotification } from '../global-notification-manager';
 import MachineFolderUploadProgress from './MachineFolderUploadProgress.vue';
 import { formatByteSize } from '@/common/utils/format';
@@ -131,7 +132,7 @@ export function createUploadFolderNotification(uploadId: string, data: FolderUpl
                     const progress = aborter.progress;
                     nextTick(() => {
                         progress.status = 'error';
-                        progress.folderName = '已取消: ' + (progress.folderName || '');
+                        progress.folderName = i18n.global.t('machine.uploadCancelled') + ': ' + (progress.folderName || '');
                     });
 
                     setTimeout(() => {

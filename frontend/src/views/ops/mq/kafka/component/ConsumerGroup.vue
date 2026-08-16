@@ -1,5 +1,5 @@
 <template>
-    <div class="kafka-consumer-group h-full card !p-1 flex flex-col gap-2">
+    <div class="kafka-consumer-group h-full card p-1! flex flex-col gap-2">
         <div class="toolbar flex items-center justify-between mb-2">
             <div class="flex items-center">
                 <el-input v-model="searchGroup" :placeholder="$t('mq.kafka.searchGroup')" clearable size="small" class="w-60" @clear="loadGroups" />

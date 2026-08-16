@@ -24,10 +24,10 @@ const slots = useSlots();
 
 defineOptions({ name: 'DrawerHeader' });
 
-const props = defineProps({
-    header: String,
-    back: Function,
-    resource: String,
-    hideResource: Boolean,
-});
+const props = defineProps<{
+    header?: string;
+    back?: () => void;
+    resource?: string;
+    hideResource?: boolean;
+}>();
 </script>

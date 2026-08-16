@@ -9,7 +9,7 @@
             :show-close="true"
             :destroy-on-close="true"
             size="1000px"
-            header-class="!mb-1"
+            header-class="mb-1!"
         >
             <template #header>
                 <DrawerHeader :header="title" :back="onCancel" />
@@ -34,7 +34,7 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item class="!w-full">
+                <el-form-item class="w-full!">
                     <template #label>
                         <el-tooltip placement="top">
                             <template #content>

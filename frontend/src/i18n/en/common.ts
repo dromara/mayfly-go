@@ -59,6 +59,7 @@ export default {
         fail: 'Fail',
         complete: 'Complete',
         error: 'Error',
+        invalidJson: 'Invalid JSON format',
         requestFail: 'Request Fail',
         previousStep: 'Previous Step',
         nextStep: 'Next Step',
@@ -75,6 +76,9 @@ export default {
         pleaseInput: 'Please enter {label}',
         pleaseSelect: 'Please select {label}',
         pleaseSelectOne: 'Please select Only One Data',
+        rangeSeparator: 'to',
+        startTime: 'Start time',
+        endTime: 'End time',
         formValidationError: 'Please check the form',
         networkError: 'Network error',
         serverError: 'Server error',
@@ -267,6 +271,7 @@ export default {
             optionalValues: 'Optional values',
             optionalValuesPlaceholder: 'Optional values, use, split',
             required: 'Required',
+            modelField: 'Model Field',
         },
         terminal: {
             connError: 'Connection error',
@@ -319,6 +324,17 @@ export default {
                 totalSize: 'Total Size',
                 speed: 'Speed',
             },
+        },
+        'terminal-rdp': {
+            clipboard: 'Clipboard',
+            fileManager: 'File Manager',
+            sendShortcut: 'Send Shortcut',
+            clipboardTitle: 'Enter the text to paste',
+            reconnectConfirm: 'Confirm reconnection?',
+            connected: 'Connected',
+            notConnectedReconnect: 'Not connected, click to reconnect',
+            closeConfirm: 'Confirm close?',
+            close: 'Close',
         },
         crontab: {
             crontabInputPlaceholder: 'Click the left button to configure',
@@ -373,10 +389,13 @@ export default {
 
             last5runTimes: 'Last 5 running times',
             calculationing: 'In the calculation result',
+            noResult: 'No results meeting the conditions!',
+            onlyResult: 'Only {count} results above in the last 100 years!',
         },
         iconSelector: {
             title: 'please select the icon',
             placeholder: 'please enter content search icon or select icon',
+            empty: 'No related icons',
         },
         
         // System message notifications

@@ -47,7 +47,7 @@
                     <el-input v-model="editDialog.field" placeholder="field" />
                 </el-form-item>
                 <el-form-item>
-                    <format-viewer class="!w-full" ref="formatViewerRef" :content="editDialog.value"></format-viewer>
+                    <format-viewer class="w-full!" ref="formatViewerRef" :content="editDialog.value"></format-viewer>
                 </el-form-item>
             </el-form>
 

@@ -34,7 +34,7 @@
         <el-form-item>
             <div class="flex items-center w-full">
                 <el-radio v-model="radioValue" :label="6" class="mr-1"> {{ $t('components.crontab.appoint') }} </el-radio>
-                <el-select @click="radioValue = 6" class="!w-full" clearable v-model="checkboxList" multiple>
+                <el-select @click="radioValue = 6" class="w-full!" clearable v-model="checkboxList" multiple>
                     <el-option v-for="(item, index) of weekList" :label="item" :key="index" :value="`${index + 1}`">{{ $t(item) }}</el-option>
                 </el-select>
             </div>
@@ -55,7 +55,7 @@ const state = reactive({
     cycle02: 2,
     average01: 1,
     average02: 1,
-    checkboxList: [] as any,
+    checkboxList: [] as string[],
     weekList: [
         'components.crontab.monday',
         'components.crontab.tuesday',
@@ -190,18 +190,18 @@ const parse = () => {
     } else if (value == '?') {
         state.radioValue = 2;
     } else if (value.indexOf('-') > -1) {
-        let indexArr = value.split('-') as any;
-        isNaN(indexArr[0]) ? (state.cycle01 = 0) : (state.cycle01 = indexArr[0]);
-        state.cycle02 = indexArr[1];
+        let indexArr = value.split('-');
+        isNaN(Number(indexArr[0])) ? (state.cycle01 = 0) : (state.cycle01 = Number(indexArr[0]));
+        state.cycle02 = Number(indexArr[1]);
         state.radioValue = 3;
     } else if (value.indexOf('#') > -1) {
-        let indexArr = value.split('#') as any;
-        isNaN(indexArr[0]) ? (state.average01 = 1) : (state.average01 = indexArr[0]);
-        state.average02 = indexArr[1];
+        let indexArr = value.split('#');
+        isNaN(Number(indexArr[0])) ? (state.average01 = 1) : (state.average01 = Number(indexArr[0]));
+        state.average02 = Number(indexArr[1]);
         state.radioValue = 4;
     } else if (value.indexOf('L') > -1) {
-        let indexArr = value.split('L') as any;
-        isNaN(indexArr[0]) ? (state.weekday = 1) : (state.weekday = indexArr[0]);
+        let indexArr = value.split('L');
+        isNaN(Number(indexArr[0])) ? (state.weekday = 1) : (state.weekday = Number(indexArr[0]));
         state.radioValue = 5;
     } else {
         state.checkboxList = value.split(',');

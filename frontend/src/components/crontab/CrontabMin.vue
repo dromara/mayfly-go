@@ -24,7 +24,7 @@
         <el-form-item>
             <div class="flex items-center w-full">
                 <el-radio v-model="radioValue" :label="4" class="mr-1"> {{ $t('components.crontab.appoint') }} </el-radio>
-                <el-select @click="radioValue = 4" class="!w-full" clearable v-model="checkboxList" multiple>
+                <el-select @click="radioValue = 4" class="w-full!" clearable v-model="checkboxList" multiple>
                     <el-option v-for="item in 60" :key="item" :value="`${item - 1}`">{{ item - 1 }}</el-option>
                 </el-select>
             </div>
@@ -44,7 +44,7 @@ const state = reactive({
     cycle02: 1,
     average01: 0,
     average02: 1,
-    checkboxList: [] as any,
+    checkboxList: [] as string[],
 });
 
 const { radioValue, cycle01, cycle02, average01, average02, checkboxList } = toRefs(state);
@@ -137,14 +137,14 @@ const parse = () => {
         state.radioValue = 1;
     } else if (ins.indexOf('-') > -1) {
         state.radioValue = 2;
-        let indexArr = ins.split('-') as any;
-        isNaN(indexArr[0]) ? (state.cycle01 = 0) : (state.cycle01 = indexArr[0]);
-        state.cycle02 = indexArr[1];
+        let indexArr = ins.split('-');
+        isNaN(Number(indexArr[0])) ? (state.cycle01 = 0) : (state.cycle01 = Number(indexArr[0]));
+        state.cycle02 = Number(indexArr[1]);
     } else if (ins.indexOf('/') > -1) {
         state.radioValue = 3;
-        let indexArr = ins.split('/') as any;
-        isNaN(indexArr[0]) ? (state.average01 = 0) : (state.average01 = indexArr[0]);
-        state.average02 = indexArr[1];
+        let indexArr = ins.split('/');
+        isNaN(Number(indexArr[0])) ? (state.average01 = 0) : (state.average01 = Number(indexArr[0]));
+        state.average02 = Number(indexArr[1]);
     } else {
         state.radioValue = 4;
         state.checkboxList = ins.split(',');

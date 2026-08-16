@@ -1,5 +1,5 @@
 <template>
-    <div class="kafka-consume-message h-full card !p-1 flex flex-col">
+    <div class="kafka-consume-message h-full card p-1! flex flex-col">
         <el-form ref="consumeFormRef" :model="form" label-width="auto" size="small" class="flex-shrink-0">
             <el-row :gutter="10">
                 <el-col :span="10">

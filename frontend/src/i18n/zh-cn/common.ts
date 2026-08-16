@@ -59,6 +59,7 @@ export default {
         fail: '失败',
         complete: '已完成',
         error: '错误',
+        invalidJson: 'JSON 格式不正确',
         requestFail: '请求失败',
         previousStep: '上一步',
         nextStep: '下一步',
@@ -74,6 +75,9 @@ export default {
         pleaseInput: '请输入{label}',
         pleaseSelect: '请选择{label}',
         pleaseSelectOne: '请选择一条数据',
+        rangeSeparator: '至',
+        startTime: '开始时间',
+        endTime: '结束时间',
         formValidationError: '信息填写有误，请检查',
         networkError: '网络请求失败',
         serverError: '服务器错误',
@@ -276,6 +280,7 @@ export default {
             optionalValues: '可选值',
             optionalValuesPlaceholder: '可选值 ,分割',
             required: '必填',
+            modelField: 'model字段',
         },
         terminal: {
             connError: '连接出错',
@@ -328,6 +333,17 @@ export default {
                 totalSize: '总大小',
                 speed: '速度',
             },
+        },
+        'terminal-rdp': {
+            clipboard: '剪贴板',
+            fileManager: '文件管理',
+            sendShortcut: '发送快捷键',
+            clipboardTitle: '请输入需要粘贴的文本',
+            reconnectConfirm: '确认重新连接？',
+            connected: '已连接',
+            notConnectedReconnect: '未连接，点击重连',
+            closeConfirm: '确认关闭？',
+            close: '关闭',
         },
         crontab: {
             crontabInputPlaceholder: '可点击左边按钮配置',
@@ -382,10 +398,13 @@ export default {
 
             last5runTimes: '最近5次运行时间',
             calculationing: '计算结果中',
+            noResult: '没有达到条件的结果！',
+            onlyResult: '最近100年内只有上面{count}条结果！',
         },
         iconSelector: {
             title: '请选择图标',
             placeholder: '请输入内容搜索图标或者选择图标',
+            empty: '无相关图标',
         },
         
         // 系统消息通知

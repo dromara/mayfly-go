@@ -119,11 +119,11 @@ const confirm = async () => {
         try {
             val = JSON.parse(value);
             if (typeof val !== 'object') {
-                Msg.error('Invalid json');
+                Msg.error('common.invalidJson');
                 return;
             }
         } catch (e) {
-            Msg.error('Invalid json');
+            Msg.error('common.invalidJson');
             return;
         }
 

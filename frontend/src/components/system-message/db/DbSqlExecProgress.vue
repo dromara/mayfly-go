@@ -59,7 +59,7 @@ const state = reactive({
     elapsedTime: '00:00:00',
 });
 
-let timer: number | undefined = undefined;
+let timer: ReturnType<typeof setInterval> | undefined = undefined;
 const startTime = Date.now();
 
 onMounted(async () => {

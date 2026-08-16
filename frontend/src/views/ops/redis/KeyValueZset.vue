@@ -48,7 +48,7 @@
                     <el-input type="number" v-model.number="editDialog.score" placeholder="score" />
                 </el-form-item>
                 <el-form-item>
-                    <format-viewer class="!w-full" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
+                    <format-viewer class="w-full!" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
                 </el-form-item>
             </el-form>
 

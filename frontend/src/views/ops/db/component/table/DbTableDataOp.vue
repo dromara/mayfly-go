@@ -51,11 +51,11 @@
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.submitUpdate')" placement="top">
-                        <el-link @click="submitUpdateFields()" type="success" underline="never" class="!text-[12px]">{{ $t('common.submit') }}</el-link>
+                        <el-link @click="submitUpdateFields()" type="success" underline="never" class="text-[12px]!">{{ $t('common.submit') }}</el-link>
                     </el-tooltip>
                     <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" :content="$t('db.cancelUpdate')" placement="top">
-                        <el-link @click="cancelUpdateFields" type="warning" underline="never" class="!text-[12px]">{{ $t('common.cancel') }}</el-link>
+                        <el-link @click="cancelUpdateFields" type="warning" underline="never" class="text-[12px]!">{{ $t('common.cancel') }}</el-link>
                     </el-tooltip>
                 </div>
             </el-col>

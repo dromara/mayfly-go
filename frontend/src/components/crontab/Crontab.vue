@@ -36,7 +36,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th v-for="item of tabTitles" width="40" :key="item">{{ item }}</th>
+                            <th v-for="(item, index) of tabTitles" width="40" :key="index">{{ item }}</th>
                             <th>{{ $t('components.crontab.crontabCompleteExpression') }}</th>
                         </tr>
                     </thead>
@@ -82,7 +82,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, toRefs, onMounted, reactive, ref, nextTick, watch } from 'vue';
+import { computed, toRefs, onMounted, reactive, ref, nextTick, watch, type Ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import CrontabSecond from './CrontabSecond.vue';
 import CrontabMin from './CrontabMin.vue';
 import CrontabHour from './CrontabHour.vue';
@@ -92,29 +93,30 @@ import CrontabWeek from './CrontabWeek.vue';
 import CrontabYear from './CrontabYear.vue';
 import CrontabResult from './CrontabResult.vue';
 
-const secondRef: any = ref(null);
-const minRef: any = ref(null);
-const hourRef: any = ref(null);
-const dayRef: any = ref(null);
-const mouthRef: any = ref(null);
-const weekRef: any = ref(null);
-const yearRef: any = ref(null);
+const { t } = useI18n();
 
-const props = defineProps({
-    expression: {
-        type: String,
-        required: true,
-    },
-    hideComponent: {
-        type: Array,
-    },
-});
+/** 各 cron 字段子组件对外暴露的接口 */
+interface CrontabFieldExpose {
+    parse: () => void;
+}
+
+const secondRef = ref<CrontabFieldExpose | null>(null);
+const minRef = ref<CrontabFieldExpose | null>(null);
+const hourRef = ref<CrontabFieldExpose | null>(null);
+const dayRef = ref<CrontabFieldExpose | null>(null);
+const mouthRef = ref<CrontabFieldExpose | null>(null);
+const weekRef = ref<CrontabFieldExpose | null>(null);
+const yearRef = ref<CrontabFieldExpose | null>(null);
+
+const props = defineProps<{
+    expression: string;
+    hideComponent?: string[];
+}>();
 
 //定义事件
 const emit = defineEmits(['hide', 'fill']);
 
 const state = reactive({
-    tabTitles: ['秒', '分钟', '小时', '日', '月', '周', '年'],
     tabActive: 0,
     activeName: 'second',
     myindex: 0,
@@ -129,7 +131,18 @@ const state = reactive({
     },
 });
 
-const { tabTitles, crontabValueObj } = toRefs(state);
+const { crontabValueObj } = toRefs(state);
+
+// 表头标题（国际化）
+const tabTitles = computed(() => [
+    t('components.crontab.second'),
+    t('components.crontab.minute'),
+    t('components.crontab.hour'),
+    t('components.crontab.day'),
+    t('components.crontab.month'),
+    t('components.crontab.week'),
+    t('components.crontab.year'),
+]);
 
 onMounted(() => {
     resolveExp();
@@ -180,7 +193,7 @@ const changeTab = (name: string) => {
     });
 };
 
-const getRefByName = (name: string) => {
+const getRefByName = (name: string): Ref<CrontabFieldExpose | null> => {
     switch (name) {
         case 'second':
             return secondRef;
@@ -195,6 +208,7 @@ const getRefByName = (name: string) => {
         case 'week':
             return weekRef;
         case 'year':
+        default:
             return yearRef;
     }
 };
@@ -291,7 +305,7 @@ const crontabValueString = computed(() => {
 }
 
 .crontab {
-    ::v-deep(.el-form-item) {
+    :deep(.el-form-item) {
         margin-bottom: 10px !important;
     }
 }

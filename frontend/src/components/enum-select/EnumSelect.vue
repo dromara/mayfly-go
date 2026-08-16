@@ -1,17 +1,18 @@
 <template>
     <el-select v-bind="$attrs" v-model="modelValue">
-        <el-option v-for="item in props.enums" :key="item.value" :label="$t(item.label)" :value="item.value"> </el-option>
+        <el-option v-for="item in enumValues" :key="item.value" :label="$t(item.label)" :value="item.value"> </el-option>
     </el-select>
 </template>
 
 <script lang="ts" setup>
-const props = defineProps({
-    enums: {
-        type: Object || Array, // 需要为EnumValue类型
-        required: true,
-    },
-});
+import { computed } from 'vue';
+import type { EnumValue } from '@/common/Enum';
 
-const modelValue: any = defineModel('modelValue');
+const props = defineProps<{
+    enums: Record<string, EnumValue>;
+}>();
+
+const modelValue = defineModel<string | number | null>();
+
+const enumValues = computed(() => Object.values(props.enums));
 </script>
-<style scoped lang="scss"></style>

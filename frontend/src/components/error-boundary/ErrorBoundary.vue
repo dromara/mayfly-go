@@ -1,5 +1,8 @@
 <script lang="ts" setup>
 import { ref, onErrorCaptured } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const props = defineProps<{ fallbackTitle?: string }>();
 const error = ref<Error | null>(null);
@@ -17,9 +20,9 @@ const retry = () => {
 <template>
     <slot v-if="!error" />
     <div v-else class="error-boundary">
-        <el-result icon="error" :title="fallbackTitle || 'Error'" :sub-title="error.message">
+        <el-result icon="error" :title="fallbackTitle || t('common.error')" :sub-title="error.message">
             <template #extra>
-                <el-button type="primary" @click="retry">Retry</el-button>
+                <el-button type="primary" @click="retry">{{ t('common.retry') }}</el-button>
             </template>
         </el-result>
     </div>

@@ -2,7 +2,7 @@
     <div class="h-full" :class="{ 'resource-op-fullscreen': isFullscreen }">
         <el-splitter @resize="onResizeOpPanel">
             <el-splitter-panel size="24%" max="40%">
-                <el-card class="h-full flex" body-class="!p-0 flex flex-col w-full">
+                <el-card class="h-full flex" body-class="p-0! flex flex-col w-full">
                     <div class="tag-tree-header flex justify-between items-center">
                         <el-input v-model="filterText" :placeholder="$t('tag.tagFilterPlaceholder')" clearable size="small" class="tag-tree-search w-full">
                             <template #prefix>
@@ -46,7 +46,7 @@
             </el-splitter-panel>
 
             <el-splitter-panel>
-                <el-card class="h-full" body-class="h-full !p-0 flex flex-col flex-1">
+                <el-card class="h-full" body-class="h-full p-0! flex flex-col flex-1">
                     <!-- 标签栏：当存在带 tabKey 的组件时显示 -->
                     <div
                         v-if="resourceTabs.length > 0"

@@ -34,7 +34,7 @@
 
         <el-tab-pane :label="$t('common.basic')" :name="basicTabName">
             <el-form-item prop="auditRule" :label="$t('flow.aiAuditRule')">
-                <MonacoEditor class="w-full!" height="calc(100vh - 330px)" v-model="form.auditRule" language="markdown" />
+                <MonacoEditor class="w-full!" height="calc(100vh - 330px)" v-model="(form.auditRule as string)" language="markdown" />
             </el-form-item>
         </el-tab-pane>
     </el-tabs>

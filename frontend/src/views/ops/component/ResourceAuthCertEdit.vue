@@ -72,7 +72,7 @@
                     </el-form-item>
 
                     <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="ciphertext" :label="$t('ac.privateKey')">
-                        <div class="!w-full" style="position: relative">
+                        <div class="w-full!" style="position: relative">
                             <SvgIcon
                                 v-if="form.id"
                                 v-auth="'authcert:showciphertext'"

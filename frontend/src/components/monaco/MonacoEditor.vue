@@ -46,30 +46,18 @@ import { useThemeConfig } from '@/store/themeConfig';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 
-const props = defineProps({
-    language: {
-        type: String,
-        default: null,
-    },
-    height: {
-        type: String,
-        default: '500px',
-    },
-    width: {
-        type: String,
-        default: 'auto',
-    },
-    canChangeMode: {
-        type: Boolean,
-        default: false,
-    },
-    options: {
-        type: Object,
-        default: () => {},
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        language?: string | null;
+        height?: string;
+        width?: string;
+        canChangeMode?: boolean;
+        options?: object;
+    }>(),
+    { language: null, height: '500px', width: 'auto', canChangeMode: false, options: () => ({}) }
+);
 
-const modelValue = defineModel<string>('modelValue', { required: true });
+const modelValue = defineModel<string | null | undefined>('modelValue', { required: true });
 
 const languageArr = [
     {
@@ -180,9 +168,9 @@ const state = reactive({
 const { languageMode } = toRefs(state);
 
 onMounted(() => {
-    state.languageMode = props.language;
+    state.languageMode = props.language ?? 'shell';
     initMonacoEditorIns();
-    setEditorValue(modelValue.value);
+    setEditorValue(modelValue.value ?? '');
     registerCompletionItemProvider();
 });
 
@@ -195,20 +183,17 @@ onBeforeUnmount(() => {
     }
 });
 
-watch(modelValue, (newValue: string) => {
+watch(modelValue, (newValue: string | null | undefined) => {
     if (!monacoEditorIns.hasTextFocus()) {
-        state.languageMode = props.language;
-        if (newValue == null) {
-            newValue = '';
-        }
-        monacoEditorIns?.setValue(newValue);
+        state.languageMode = props.language ?? 'shell';
+        monacoEditorIns?.setValue(newValue ?? '');
     }
 });
 
 watch(
     () => props.language,
-    (newValue: string) => {
-        changeLanguage(newValue);
+    (newValue: string | null) => {
+        changeLanguage(newValue ?? 'shell');
     }
 );
 
@@ -227,7 +212,7 @@ const initMonacoEditorIns = () => {
     monaco.editor.defineTheme('SolarizedDark', SolarizedDark as editor.IStandaloneThemeData);
     defaultOptions.language = state.languageMode;
     defaultOptions.theme = themeConfig.value.editorTheme;
-    let options = Object.assign(defaultOptions, props.options as editor.IStandaloneEditorConstructionOptions);
+    let options = { ...defaultOptions, ...(props.options as editor.IStandaloneEditorConstructionOptions) };
     if (!monacoTextareaRef.value) {
         return;
     }
@@ -273,11 +258,11 @@ const registerCompletionItemProvider = () => {
         completionItemProvider.dispose();
     }
     if (state.languageMode == 'shell') {
-        registeShell();
+        registerShell();
     }
 };
 
-const registeShell = () => {
+const registerShell = () => {
     completionItemProvider = monaco.languages.registerCompletionItemProvider('shell', {
         provideCompletionItems: async () => {
             let suggestions: { label: string; kind: languages.CompletionItemKind; insertText: string }[] = [];
@@ -318,9 +303,9 @@ const getEditor = () => {
 defineExpose({ getEditor, format, focus });
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .monaco-editor-custom {
-    .code-mode-select {
+    :deep(.code-mode-select) {
         position: absolute;
         z-index: 2;
         right: 10px;

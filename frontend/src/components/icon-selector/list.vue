@@ -8,30 +8,24 @@
                     </div>
                 </el-col>
             </el-row>
-            <el-empty :image-size="100" v-if="list.length <= 0" :description="empty"></el-empty>
+            <el-empty :image-size="100" v-if="list.length <= 0" :description="$t(empty)"></el-empty>
         </el-scrollbar>
     </div>
 </template>
 
 <script setup lang="ts" name="iconSelectorList">
 // 定义父组件传过来的值
-const props = defineProps({
-    // 图标列表数据
-    list: {
-        type: Array,
-        default: () => [],
-    },
-    // 自定义空状态描述文字
-    empty: {
-        type: String,
-        default: () => '无相关图标',
-    },
-    // 高亮当前选中图标
-    prefix: {
-        type: String,
-        default: () => '',
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        /** 图标列表数据 */
+        list?: string[];
+        /** 自定义空状态描述文字 */
+        empty?: string;
+        /** 高亮当前选中图标 */
+        prefix?: string;
+    }>(),
+    { list: () => [], empty: 'components.iconSelector.empty', prefix: '' }
+);
 
 // 定义子组件向父组件传值/事件
 const emit = defineEmits(['get-icon']);

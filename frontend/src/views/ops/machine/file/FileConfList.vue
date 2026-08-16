@@ -49,7 +49,7 @@
             v-model="fileDialog.visible"
             :close-on-click-modal="false"
             size="70%"
-            header-class="!mb-0"
+            header-class="mb-0!"
         >
             <machine-file
                 :title="fileDialog.title"

@@ -43,7 +43,7 @@
         >
             <el-form>
                 <el-form-item>
-                    <format-viewer class="!w-full" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
+                    <format-viewer class="w-full!" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
                 </el-form-item>
             </el-form>
 

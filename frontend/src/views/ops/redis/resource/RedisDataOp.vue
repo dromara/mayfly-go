@@ -2,7 +2,7 @@
     <div class="redis-data-op h-full">
         <el-splitter>
             <el-splitter-panel size="35%" max="50%">
-                <div class="key-list-vtree h-full card !p-1 flex flex-col">
+                <div class="key-list-vtree h-full card p-1! flex flex-col">
                     <el-row :gutter="5">
                         <el-col :span="2">
                             <el-input v-model="state.keySeparator" :placeholder="$t('redis.delimiter')" size="small" />
@@ -51,7 +51,7 @@
                                 icon="plus"
                                 size="small"
                                 plain
-                                class="!ml-0.5"
+                                class="ml-0.5!"
                             >
                                 {{ $t('redis.addKey') }}
                             </el-button>
@@ -64,7 +64,7 @@
                                 v-auth="'redis:data:del'"
                                 size="small"
                                 icon="delete"
-                                class="!ml-0.5"
+                                class="ml-0.5!"
                             >
                                 flush
                             </el-button>
@@ -109,7 +109,7 @@
             </el-splitter-panel>
 
             <el-splitter-panel>
-                <div class="h-full card !p-1 key-deatil">
+                <div class="h-full card p-1! key-deatil">
                     <el-tabs class="h-full" @tab-remove="removeDataTab" v-model="state.activeName">
                         <el-tab-pane class="h-full" closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                             <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />

@@ -1,11 +1,19 @@
 import { ElLink, ElText } from 'element-plus';
-import { defineAsyncComponent, defineComponent, h } from 'vue';
+import { defineAsyncComponent, defineComponent, h, type Component, type VNodeChild } from 'vue';
+
+/** 简易 HTML 清洗：移除 script/事件属性，防止 XSS */
+const sanitizeHtml = (html: string): string => {
+    return html
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        .replace(/javascript\s*:/gi, '');
+};
 
 type Size = 'large' | 'default' | 'small';
 
 interface ComponentConfig {
-    component: any;
-    getDefaultProps?: (size: Size) => Record<string, any>;
+    component: Component;
+    getDefaultProps?: (size: Size) => Record<string, unknown>;
 }
 
 const linkConf = {
@@ -69,11 +77,11 @@ export const MessageRenderer = defineComponent({
                 return [h('span', '')];
             }
 
-            // 创建一个包装容器来处理HTML内容
+            // 创建一个包装容器来处理HTML内容（已清洗）
             const container = document.createElement('div');
-            container.innerHTML = content;
+            container.innerHTML = sanitizeHtml(content);
 
-            const parseNode = (node: Node): any => {
+            const parseNode = (node: Node): VNodeChild => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     return node.textContent;
                 }
@@ -81,7 +89,7 @@ export const MessageRenderer = defineComponent({
                 if (node.nodeType === Node.ELEMENT_NODE) {
                     const element = node as HTMLElement;
                     const tagName = element.tagName.toLowerCase();
-                    let attrs: Record<string, any> = {};
+                    let attrs: Record<string, unknown> = {};
 
                     // 提取属性
                     for (let i = 0; i < element.attributes.length; i++) {
@@ -121,7 +129,7 @@ export const MessageRenderer = defineComponent({
                 const elements = parseContent(props.content || '');
                 return h('div', { class: rootClass }, elements);
             } catch (e) {
-                console.error('消息渲染失败:', e);
+                console.error('Message render failed:', e);
                 return h('div', { class: rootClass }, props.content || '');
             }
         };

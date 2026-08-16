@@ -1,28 +1,19 @@
 <template>
-    <div v-if="getUserAuthBtnList">
+    <div v-if="hasAuth">
         <slot />
     </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { computed } from 'vue';
 import { useUserInfo } from '@/store/userInfo';
-export default {
-    name: 'auth',
-    props: {
-        value: {
-            type: String,
-            default: () => '',
-        },
-    },
-    setup(props) {
-        // 获取 vuex 中的用户权限
-        const getUserAuthBtnList = computed(() => {
-            return useUserInfo().userInfo.authBtnList.some((v: any) => v === props.value);
-        });
-        return {
-            getUserAuthBtnList,
-        };
-    },
-};
+
+const props = defineProps<{
+    value: string;
+}>();
+
+// 获取 Pinia 中的用户权限
+const hasAuth = computed(() => {
+    return useUserInfo().userInfo.authBtnList.some((v: string) => v === props.value);
+});
 </script>

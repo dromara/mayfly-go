@@ -22,7 +22,7 @@
                         <!-- 简易单个搜索项 -->
                         <div v-if="nowSearchItem" class="flex">
                             <el-dropdown v-if="props.searchItems?.length > 1">
-                                <SvgIcon :size="16" name="CaretBottom" class="!mr-1 !mt-1.5 simple-search-form-btn" />
+                                <SvgIcon :size="16" name="CaretBottom" class="mr-1! mt-1.5! simple-search-form-btn" />
                                 <template #dropdown>
                                     <el-dropdown-menu>
                                         <el-dropdown-item v-for="searchItem in searchItems" :key="searchItem.prop" @click="changeSimpleFormItem(searchItem)">
@@ -115,13 +115,13 @@
 
                             <!-- 枚举类型使用tab展示 -->
                             <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag :size="props.size" :enums="item.typeParam" :value="item.getValueByData(scope.row)"></enum-tag>
+                                <enum-tag :size="props.size" :enums="(item.typeParam as any)" :value="(item.getValueByData(scope.row) as any)"></enum-tag>
                             </template>
 
                             <template #default="scope" v-else>
                                 <!-- 配置了美化文本按钮以及文本内容大于指定长度，则显示美化按钮 -->
                                 <el-popover
-                                    v-if="item.isBeautify && item.getValueByData(scope.row)?.length > 35"
+                                    v-if="item.isBeautify && String(item.getValueByData(scope.row) ?? '').length > 35"
                                     effect="light"
                                     trigger="click"
                                     placement="top"

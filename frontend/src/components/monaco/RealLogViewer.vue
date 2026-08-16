@@ -19,16 +19,13 @@ import { ref, useTemplateRef, watch } from 'vue';
 import { useWebSocket } from '@vueuse/core';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
-const props = defineProps({
-    height: {
-        type: String,
-        default: '100%',
-    },
-    wsUrl: {
-        type: String,
-        default: '',
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        height?: string;
+        wsUrl?: string;
+    }>(),
+    { height: '100%', wsUrl: '' }
+);
 
 const websocketUrl = ref(props.wsUrl);
 

@@ -1,5 +1,5 @@
 <template>
-    <div class="kafka-produce-message h-full card !p-1">
+    <div class="kafka-produce-message h-full card p-1!">
         <el-form ref="produceFormRef" :model="form" label-width="auto" size="small">
             <el-row :gutter="10">
                 <el-col :span="8">

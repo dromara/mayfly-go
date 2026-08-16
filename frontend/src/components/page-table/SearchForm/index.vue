@@ -35,7 +35,7 @@
 </template>
 <script setup lang="ts" name="SearchForm">
 import { computed, ref } from 'vue';
-import { BreakPoint, Responsive } from '@/components/page-table/Grid/interface/index';
+import { BreakPoint } from '@/components/page-table/Grid/interface/index';
 import SearchFormItem from './components/SearchFormItem.vue';
 import Grid from '@/components/page-table/Grid/index.vue';
 import GridItem from '@/components/page-table/Grid/components/GridItem.vue';
@@ -45,17 +45,16 @@ import { SearchItem } from './index';
 interface ProTableProps {
     items: SearchItem[]; // 搜索配置项
     searchCol: number | Record<BreakPoint, number>;
-    search: (params: Record<string, unknown>) => void; // 搜索方法
-    reset: (params: Record<string, unknown>) => void; // 重置方法
+    search: () => void; // 搜索方法
+    reset: () => void; // 重置方法
 }
 
 // 默认值
 const props = withDefaults(defineProps<ProTableProps>(), {
     items: () => [],
-    modelValue: () => ({}),
 });
 
-const searchParam: Record<string, unknown> = defineModel('modelValue') as unknown as Record<string, unknown>;
+const searchParam = defineModel<Record<string, unknown>>('modelValue', { default: () => ({}) });
 
 // 获取响应式设置
 const getResponsive = (item: SearchItem) => {
@@ -81,8 +80,7 @@ const breakPoint = computed<BreakPoint>(() => gridRef.value?.breakPoint);
 const showCollapse = computed(() => {
     let show = false;
     props.items.reduce((prev: number, current: SearchItem) => {
-        const bpConfig = current as unknown as Record<BreakPoint, Responsive | undefined>;
-        prev += (bpConfig[breakPoint.value]?.span ?? current?.span ?? 1) + (bpConfig[breakPoint.value]?.offset ?? current?.offset ?? 0);
+        prev += (current?.span ?? 1) + (current?.offset ?? 0);
         if (typeof props.searchCol !== 'number') {
             if (prev >= props.searchCol[breakPoint.value]) show = true;
         } else {
@@ -95,7 +93,7 @@ const showCollapse = computed(() => {
 
 const handleItemKeyupEnter = (item: SearchItem) => {
     if (item.type == 'input') {
-        props.search(searchParam);
+        props.search();
     }
 };
 </script>

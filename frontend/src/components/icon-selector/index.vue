@@ -1,5 +1,5 @@
 <template>
-    <div class="icon-selector !w-full !h-full">
+    <div class="icon-selector w-full! h-full!">
         <el-input
             v-model="state.fontIconSearch"
             :placeholder="state.fontIconPlaceholder"
@@ -12,7 +12,7 @@
             @blur="onIconBlur"
         >
             <template #prepend>
-                <SvgIcon :name="state.fontIconPrefix === '' ? prepend : state.fontIconPrefix" class="!text-[14px]" />
+                <SvgIcon :name="state.fontIconPrefix === '' ? prepend : state.fontIconPrefix" class="text-[14px]!" />
             </template>
         </el-input>
         <el-popover
@@ -42,49 +42,39 @@
 </template>
 
 <script setup lang="ts" name="iconSelector">
-import { defineAsyncComponent, ref, reactive, onMounted, nextTick, computed, watch } from 'vue';
+import { defineAsyncComponent, ref, reactive, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import type { TabsPaneContext } from 'element-plus';
 import initIconfont from '@/common/utils/svgIcons';
 import '@/theme/iconSelector.scss';
 
 // 定义父组件传过来的值
-const props = defineProps({
-    // 输入框前置内容
-    prepend: {
-        type: String,
-        default: () => 'Pointer',
-    },
-    // 输入框占位文本
-    placeholder: {
-        type: String,
-        default: () => 'components.iconSelector.placeholder',
-    },
-    // 输入框占位文本
-    size: {
-        type: String,
-        default: () => 'default',
-    },
-    // 弹窗标题
-    title: {
-        type: String,
-        default: () => 'components.iconSelector.title',
-    },
-    // 禁用
-    disabled: {
-        type: Boolean,
-        default: () => false,
-    },
-    // 是否可清空
-    clearable: {
-        type: Boolean,
-        default: () => true,
-    },
-    // 自定义空状态描述文字
-    emptyDescription: {
-        type: String,
-        default: () => '无相关图标',
-    },
-});
+const props = withDefaults(
+    defineProps<{
+        /** 输入框前置内容 */
+        prepend?: string;
+        /** 输入框占位文本 */
+        placeholder?: string;
+        /** 尺寸 */
+        size?: string;
+        /** 弹窗标题 */
+        title?: string;
+        /** 禁用 */
+        disabled?: boolean;
+        /** 是否可清空 */
+        clearable?: boolean;
+        /** 自定义空状态描述文字 */
+        emptyDescription?: string;
+    }>(),
+    {
+        prepend: 'Pointer',
+        placeholder: 'components.iconSelector.placeholder',
+        size: 'default',
+        title: 'components.iconSelector.title',
+        disabled: false,
+        clearable: true,
+        emptyDescription: 'components.iconSelector.empty',
+    }
+);
 
 const modelValue = defineModel<string>();
 
@@ -143,14 +133,14 @@ const fontIconTabNameList = () => {
 
 // 处理 icon 双向绑定数值回显
 const initModeValueEcho = () => {
-    if (modelValue.value === '') return ((<string | undefined>state.fontIconPlaceholder) = props.placeholder);
-    (<string | undefined>state.fontIconPlaceholder) = modelValue.value;
-    (<string | undefined>state.fontIconPrefix) = modelValue.value;
+    if (!modelValue.value || modelValue.value === '') return (state.fontIconPlaceholder = props.placeholder);
+    state.fontIconPlaceholder = modelValue.value;
+    state.fontIconPrefix = modelValue.value;
 };
 // 处理 icon 类型，用于回显时，tab 高亮与初始化数据
 const initFontIconName = () => {
     let name = 'ele';
-    if (modelValue.value!.indexOf('icon ') > -1) {
+    if ((modelValue.value?.indexOf('icon ') ?? -1) > -1) {
         name = 'other';
     }
     // 初始化 tab 高亮回显
@@ -202,15 +192,17 @@ const getInputWidth = () => {
 };
 // 监听页面宽度改变
 const initResize = () => {
-    window.addEventListener('resize', () => {
-        getInputWidth();
-    });
+    window.addEventListener('resize', getInputWidth);
 };
 // 页面加载时
 onMounted(() => {
     initFontIconData(initFontIconName());
     initResize();
     getInputWidth();
+});
+// 页面卸载时移除监听
+onUnmounted(() => {
+    window.removeEventListener('resize', getInputWidth);
 });
 // 监听双向绑定 modelValue 的变化
 watch(

@@ -1,4 +1,37 @@
-export default {
+export interface TerminalTheme {
+    foreground: string;
+    background: string;
+    cursor: string;
+    selectionBackground: string;
+
+    black: string;
+    brightBlack: string;
+
+    red: string;
+    brightRed: string;
+
+    green: string;
+    brightGreen: string;
+
+    yellow: string;
+    brightYellow: string;
+
+    blue: string;
+    brightBlue: string;
+
+    magenta: string;
+    brightMagenta: string;
+
+    cyan: string;
+    brightCyan: string;
+
+    white: string;
+    brightWhite: string;
+}
+
+export type TerminalThemeName = 'dark' | 'light' | 'solarizedLight';
+
+const themes: Record<TerminalThemeName, TerminalTheme> = {
     dark: {
         foreground: '#c7c7c7',
         background: '#000000',
@@ -90,3 +123,5 @@ export default {
         brightWhite: '#fdf6e3',
     },
 };
+
+export default themes;

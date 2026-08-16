@@ -253,9 +253,7 @@ const {
 
 const { docEditDialog, exportDialog, hasCustomQuery, onAddDoc, onEditDoc, onEditSelectDoc, onEditRowSuccess, onDeleteDocs, doDeleteDoc, onOpenExportDialog, onExportFieldsToggle, onExportFieldsChange, onConfirmExport } = useEsDocCrud({
     instId: props.instId,
-    get currentIdxName() {
-        return currentIdxName.value;
-    },
+    currentIdxName: () => currentIdxName.value,
     state,
     refreshIndex,
     fetchIndexData,

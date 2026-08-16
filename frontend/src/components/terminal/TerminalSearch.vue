@@ -44,19 +44,16 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, toRefs, nextTick, reactive, type PropType } from 'vue';
+import { ref, toRefs, nextTick, reactive } from 'vue';
 import { SearchAddon, ISearchOptions } from '@xterm/addon-search';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '@/hooks/useI18n';
 
 const { t } = useI18n();
 
-const props = defineProps({
-    searchAddon: {
-        type: Object as PropType<SearchAddon | null>,
-        require: true,
-    },
-});
+const props = defineProps<{
+    searchAddon: SearchAddon | null;
+}>();
 
 const state = reactive({
     search: {

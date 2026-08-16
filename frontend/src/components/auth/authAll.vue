@@ -1,29 +1,20 @@
 <template>
-    <div v-if="getUserAuthBtnList">
+    <div v-if="hasAuthAll">
         <slot />
     </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { computed } from 'vue';
 import { useUserInfo } from '@/store/userInfo';
-import { judementSameArr } from '/@/utils/arrayOperation.ts';
-export default {
-    name: 'authAll',
-    props: {
-        value: {
-            type: Array,
-            default: () => [],
-        },
-    },
-    setup(props) {
-        // 获取 vuex 中的用户权限
-        const getUserAuthBtnList = computed(() => {
-            return judementSameArr(props.value, useUserInfo().userInfo.authBtnList);
-        });
-        return {
-            getUserAuthBtnList,
-        };
-    },
-};
+import { judementSameArr } from '@/common/utils/arrayOperation';
+
+const props = defineProps<{
+    value: string[];
+}>();
+
+// 获取 Pinia 中的用户权限
+const hasAuthAll = computed(() => {
+    return judementSameArr(props.value, useUserInfo().userInfo.authBtnList);
+});
 </script>
