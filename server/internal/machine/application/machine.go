@@ -69,6 +69,8 @@ type machineAppImpl struct {
 	machineFileApp   MachineFile   `inject:"T"`
 }
 
+var _ Machine = (*machineAppImpl)(nil)
+
 var _ (Machine) = (*machineAppImpl)(nil)
 
 // 分页获取机器信息列表

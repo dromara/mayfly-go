@@ -22,11 +22,10 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/timex"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -73,7 +72,7 @@ func (app *dbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery,
 func (app *dbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTransferTask) error {
 	var err error
 	if taskEntity.Id == 0 { // 新建时生成key
-		taskEntity.TaskKey = uuid.New().String()
+		taskEntity.TaskKey = stringx.RandUUID()
 		err = app.Insert(ctx, taskEntity)
 	} else {
 		if taskEntity.TaskKey == "" {

@@ -50,6 +50,8 @@ type machineCronJobAppImpl struct {
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
+var _ MachineCronJob = (*machineCronJobAppImpl)(nil)
+
 var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)
 
 // 分页获取机器脚本任务列表

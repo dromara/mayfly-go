@@ -31,6 +31,8 @@ type msgTmplBizAppImpl struct {
 	msgTmplApp MsgTmpl `inject:"T"`
 }
 
+var _ MsgTmplBiz = (*msgTmplBizAppImpl)(nil)
+
 var _ (MsgTmplBiz) = (*msgTmplBizAppImpl)(nil)
 
 func (m *msgTmplBizAppImpl) SaveBizTmpl(ctx context.Context, bizTmpl *dto.MsgTmplBizSave) error {

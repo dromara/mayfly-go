@@ -1,6 +1,6 @@
 <template>
     <div class="generic-param-input">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+        <div class="generic-param-input__hint">
             {{ t('ai.interrupt.paramCompletion.enterParamsHint') }}
         </div>
 
@@ -8,7 +8,7 @@
             <el-form-item v-for="param in params" :key="param.param" :label="param.name || param.param">
                 <el-input
                     v-model="paramValues[param.param]"
-                    :placeholder="`请输入${param.name || param.param}`"
+                    :placeholder="t('ai.interrupt.paramCompletion.enterParamPlaceholder', { name: param.name || param.param })"
                     :disabled="readonly"
                     @input="onInput(param.param, $event)"
                 />
@@ -71,6 +71,12 @@ defineExpose({
 
 <style scoped>
 .generic-param-input {
-    padding: 0.5rem;
+    padding: 8px;
+}
+
+.generic-param-input__hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    margin-bottom: 8px;
 }
 </style>

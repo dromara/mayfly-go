@@ -4,69 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mayfly-go/internal/ai/memory"
+	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/contextx"
-	"mayfly-go/pkg/eventbus"
 	"mayfly-go/pkg/logx"
+	"strings"
 	"sync"
 
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/schema"
 )
-
-// GetDefaultContextManager 获取默认的上下文管理器实例
-func GetDefaultContextManager() (*ContextManager, error) {
-	var sessionStore session.Store
-	var err error
-
-	if session.DefaultSessionStore != nil {
-		sessionStore = session.DefaultSessionStore
-	} else {
-		sessionStore, err = session.NewStoreJSONL("./sessions")
-		if err != nil {
-			return nil, fmt.Errorf("create session store: %w", err)
-		}
-		session.DefaultSessionStore = sessionStore
-	}
-
-	chatModel, err := GetChatModel(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("get chat model: %w", err)
-	}
-
-	// 创建会话管理器并配置摘要功能
-	sessionManager := session.NewManager(sessionStore)
-	summaryConfig := session.DefaultSummaryConfig()
-
-	// 如果提供了 ChatModel，注入到摘要器
-	if chatModel != nil && summaryConfig.Summarizer != nil {
-		if llmSummarizer, ok := summaryConfig.Summarizer.(*session.LLMSummarizer); ok {
-			llmSummarizer.WithChatModel(chatModel)
-			logx.Info("ChatModel injected into LLM Summarizer")
-		}
-	}
-	sessionManager.WithSummaryConfig(summaryConfig)
-
-	config := &ContextManagerConfig{
-		SessionManager: sessionManager,
-		ChatModel:      chatModel,
-	}
-
-	ctxManager, err := NewContextManager(config)
-	if err != nil {
-		return nil, err
-	}
-
-	logx.Info("Default ContextManager created, please inject ChatModel using WithChatModel() if LLM features are needed")
-	return ctxManager, nil
-}
 
 // ContextManagerConfig ContextManager 配置
 type ContextManagerConfig struct {
 	SessionManager *session.Manager           // 会话管理器（必需）
-	MemoryManager  *memory.Manager            // 记忆管理器（可选）
 	ChatModel      model.ToolCallingChatModel // ChatModel 实例
+	ContextWindow  int                        // 模型上下文窗口（token，0 表示未配置）
+	// Registry 贡献者注册中心（可选，nil 时历史降级直读会话管理器）
+	Registry *contributor.Registry
 }
 
 // DefaultContextManagerConfig 返回默认配置
@@ -76,8 +32,9 @@ func DefaultContextManagerConfig() *ContextManagerConfig {
 
 type ContextManager struct {
 	sessionManager *session.Manager           // 会话管理器
-	memoryManager  *memory.Manager            // 统一记忆管理器（包含短期和长期）
 	chatModel      model.ToolCallingChatModel // ChatModel 实例，用于 LLM 调用
+	contextWindow  int                        // 模型上下文窗口（token），供贡献者按窗口调整注入策略
+	registry       *contributor.Registry      // 贡献者注册中心（nil 时历史降级直读会话管理器）
 	mu             sync.RWMutex               // 读写锁，保护并发访问
 }
 
@@ -95,33 +52,11 @@ func NewContextManager(config *ContextManagerConfig) (*ContextManager, error) {
 	// ChatModel 必须由外部注入（可选）
 	chatModel := config.ChatModel
 
-	// 自动初始化 MemoryManager（如果提供了 Store）
-	memoryManager := config.MemoryManager
-
 	cm := &ContextManager{
 		sessionManager: config.SessionManager,
-		memoryManager:  memoryManager,
 		chatModel:      chatModel,
-	}
-
-	// 如果配置了 MemoryManager 和 ChatModel，自动配置 LLM Extractor
-	if memoryManager != nil && chatModel != nil {
-		extractor := memory.NewLLMExtractor()
-		extractor.WithConfig(&memory.LLMExtractorConfig{
-			Enabled:       true,
-			MinConfidence: 0.7,
-			ChatModel:     chatModel,
-		})
-		memoryManager.WithExtractor(extractor)
-		logx.Info("LLM memory extractor auto-configured")
-	} else if memoryManager != nil && chatModel == nil {
-		logx.Warn("ChatModel not provided, memory extraction will be disabled")
-	}
-
-	// 注册记忆提取事件订阅：通过事件总线解耦 session 摘要和 memory 提取
-	// 避免 session 包直接依赖 memory 包，后续可灵活替换或移除记忆模块
-	if memoryManager != nil {
-		registerMemoryExtraction(cm)
+		contextWindow:  config.ContextWindow,
+		registry:       config.Registry,
 	}
 
 	return cm, nil
@@ -141,40 +76,106 @@ func (c *ContextManager) GetSessionKey(ctx context.Context) string {
 }
 
 // BuildMessages 从上下文中构建消息列表，供Agent执行使用
-// 在获取上下文时，会自动检查并应用摘要和短期记忆（如果存在）
-func (c *ContextManager) BuildMessages(ctx context.Context) ([]adk.Message, error) {
+//
+// 对齐 tokhub start 路径的组装顺序：
+//  1. 历史：经 HistoryContributor 注册表收集消息段（多贡献者拼接 + 统一
+//     NormalizeHistory 配对修复）；未装配历史扩展时降级直读会话管理器
+//  2. preamble：经 ContextContributor 注册表收集片段，预算裁剪后拼装
+//     （每轮重建不进历史）
+//  3. mid-turn 紧急压缩：preamble 与合并后 history 均就绪后，含 preamble
+//     占用口径按注册逆序竞争执行（后注册的插件压缩策略覆盖内置）
+func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...adk.Message) ([]adk.Message, error) {
 	sessionKey := c.GetSessionKey(ctx)
 	if sessionKey == "" {
 		return nil, errors.New("session key is empty")
 	}
+	userId := c.getLoginUserId(ctx)
 
-	// 获取历史消息
-	history, err := c.sessionManager.GetHistory(ctx, sessionKey)
-	if err != nil {
-		return nil, err
+	// 1. 历史：经 HistoryContributor 注册表收集（短期记忆进历史的唯一通道；
+	// registry 为 nil 时降级直读会话管理器）
+	var history []adk.Message
+	if c.registry.HasHistoryContributors() {
+		history = c.registry.CollectHistory(ctx, &contributor.HistoryBuildContext{
+			SessionKey: sessionKey,
+		})
+	} else {
+		// 降级：未装配历史扩展时直读会话管理器（同样执行统一配对修复，
+		// 保证与主路径行为一致，避免双路径漂移）
+		var err error
+		history, err = c.sessionManager.GetHistory(ctx, sessionKey)
+		if err != nil {
+			return nil, err
+		}
+		history = contributor.NormalizeHistory(history)
 	}
 
-	// 构建系统消息列表
-	var systemMessages []adk.Message
+	// 2. preamble：经 ContextContributor 注册表收集动态上下文片段并拼装
+	in := &contributor.TurnInput{
+		UserId:   userId,
+		UserText: extractUserText(inputMsgs),
+	}
+	preamble := contributor.BuildPreamble(c.registry.CollectContext(ctx, in))
+	preambleTokens := contributor.EstimateTokens(preamble)
+	historyTokens := session.EstimateHistoryTokens(history)
 
-	// 注入记忆
-	if c.memoryManager != nil {
-		la := contextx.GetLoginAccount(ctx)
-		if la != nil {
-			memoryMsg := c.memoryManager.BuildMemoryMessage(ctx, fmt.Sprintf("%d", la.Id))
-			if memoryMsg != nil {
-				systemMessages = append(systemMessages, memoryMsg)
-			}
+	// 3. mid-turn 紧急压缩（含 preamble 占用口径；逆序单赢家，后注册覆盖内置）
+	if c.contextWindow > 0 && preamble != "" {
+		compacted, info := c.registry.TryMidTurnCompaction(ctx, history, &contributor.MidTurnCompactionParams{
+			SessionKey:     sessionKey,
+			ContextWindow:  c.contextWindow,
+			PreambleTokens: preambleTokens,
+			HistoryTokens:  historyTokens,
+		})
+		if info != nil {
+			history = compacted
+			historyTokens = info.CompressedTokens
+			logx.InfofContext(ctx, "[ext] mid-turn compaction applied: %d -> %d tokens",
+				info.OriginalTokens, info.CompressedTokens)
 		}
 	}
 
-	// 将系统消息插入到历史消息前面
-	if len(systemMessages) > 0 {
-		history = append(systemMessages, history...)
-		logx.InfofContext(ctx, "injected %d system messages into context", len(systemMessages))
+	// 4. preamble 后置注入：经 PreambleFooterContributor 注册表收集
+	//（窗口余量提醒等，测量与呈现分离，与压缩决策同口径）
+	footers := c.registry.CollectPreambleFooters(ctx, &contributor.PreambleFooterContext{
+		Budget: &contributor.PreambleBudgetStatus{
+			ContextWindow:        c.contextWindow,
+			PreambleTokens:       preambleTokens,
+			HistoryTokens:        historyTokens,
+			ReservedOutputTokens: c.contextWindow / 5,
+		},
+	})
+	for _, footer := range footers {
+		preamble += "\n\n" + footer
+	}
+
+	if preamble != "" {
+		history = append([]adk.Message{schema.SystemMessage(preamble)}, history...)
+		logx.DebugfContext(ctx, "injected preamble (%d chars) into context", len(preamble))
 	}
 
 	return history, nil
+}
+
+// getLoginUserId 获取当前登录用户 ID（未登录返回空）
+func (c *ContextManager) getLoginUserId(ctx context.Context) string {
+	if la := contextx.GetLoginAccount(ctx); la != nil {
+		return fmt.Sprintf("%d", la.Id)
+	}
+	return ""
+}
+
+// extractUserText 提取输入消息中的用户文本（用于 $skill-code 显式提及等）
+func extractUserText(inputMsgs []adk.Message) string {
+	var sb strings.Builder
+	for _, m := range inputMsgs {
+		if m.Role == schema.User && m.Content != "" {
+			if sb.Len() > 0 {
+				sb.WriteString("\n")
+			}
+			sb.WriteString(m.Content)
+		}
+	}
+	return sb.String()
 }
 
 // AppendMsgs 追加消息到会话，并在达到阈值时触发自动摘要
@@ -193,24 +194,6 @@ func (c *ContextManager) AppendMsgs(ctx context.Context, msgs ...adk.Message) er
 		return err
 	}
 
-	// 异步提取并保存记忆
-	// if c.memoryManager != nil {
-	// 	gox.Go(func() {
-	// 		la := contextx.GetLoginAccount(ctx)
-	// 		if la == nil {
-	// 			logx.WarnfContext(ctx, "no login account found in context, skipping memory extraction")
-	// 			return
-	// 		}
-
-	// 		if err := c.memoryManager.ExtractAndSave(ctx, &memory.ExtractMemoryReq{
-	// 			UserId: fmt.Sprintf("%d", la.Id),
-	// 			Msgs:   msgs,
-	// 		}); err != nil {
-	// 			logx.ErrorfContext(ctx, "auto extract memories error: %v", err)
-	// 		}
-	// 	})
-	// }
-
 	return nil
 }
 
@@ -226,34 +209,4 @@ func (c *ContextManager) GetSessionMeta(ctx context.Context) (*session.SessionMe
 		return nil, errors.New("session key is empty")
 	}
 	return c.sessionManager.GetMeta(ctx, sessionKey)
-}
-
-// registerMemoryExtraction 注册会话摘要完成事件订阅器
-// 当 session.Manager 完成自动摘要后，通过事件总线异步触发长期记忆提取
-// 使用固定 subId 避免重复注册，后注册的实例会覆盖前者
-func registerMemoryExtraction(cm *ContextManager) {
-	session.EventBus.SubscribeAsync(session.EventTopicSummarized, "AgentMemoryExtractor", func(ctx context.Context, event *eventbus.Event[any]) error {
-		evt, ok := event.Val.(*session.SummarizedEvent)
-		if !ok {
-			return nil
-		}
-		if cm.memoryManager == nil || evt.UserId == "" {
-			return nil
-		}
-
-		// 获取当前会话历史消息用于记忆提取
-		history, err := cm.sessionManager.GetHistory(ctx, evt.SessionKey)
-		if err != nil {
-			logx.WarnfContext(ctx, "get history for memory extraction failed: %v", err)
-			return nil // 不阻塞事件总线
-		}
-
-		if err := cm.memoryManager.ExtractAndSave(ctx, &memory.ExtractMemoryReq{
-			UserId: evt.UserId,
-			Msgs:   history,
-		}); err != nil {
-			logx.ErrorfContext(ctx, "auto extract memories error: %v", err)
-		}
-		return nil
-	}, false)
 }

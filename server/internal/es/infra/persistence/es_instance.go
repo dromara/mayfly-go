@@ -11,6 +11,8 @@ type instanceRepoImpl struct {
 	base.RepoImpl[*entity.EsInstance]
 }
 
+var _ repository.EsInstance = (*instanceRepoImpl)(nil)
+
 func NewInstanceRepo() repository.EsInstance {
 	return &instanceRepoImpl{}
 }

@@ -55,118 +55,19 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useDraggableFab } from '@/hooks/useDraggableFab';
 import { activeNotifications, globalNotificationState } from './global-notification-manager';
 
 const { t } = useI18n();
 
 const isPanelVisible = ref(false);
 
-// 拖拽相关
-const STORAGE_KEY = 'global-notification-fab-position';
-const position = ref({ bottom: 20, right: 20 }); // 默认位置（对应 bottom-5 right-5）
-const isDragging = ref(false);
-const dragStart = ref({ x: 0, y: 0, initialBottom: 0, initialRight: 0 });
-const hasMoved = ref(false); // 标记是否发生了移动
-
-const startDrag = (event: MouseEvent) => {
-    // 只在左键拖拽时生效
-    if (event.button !== 0) return;
-    
-    isDragging.value = true;
-    hasMoved.value = false;
-    dragStart.value = {
-        x: event.clientX,
-        y: event.clientY,
-        initialBottom: position.value.bottom,
-        initialRight: position.value.right,
-    };
-    
-    document.addEventListener('mousemove', onDrag);
-    document.addEventListener('mouseup', stopDrag);
-    
-    // 防止拖拽时选中文本
-    document.body.style.userSelect = 'none';
-};
-
-const onDrag = (event: MouseEvent) => {
-    if (!isDragging.value) return;
-    
-    const deltaY = event.clientY - dragStart.value.y;
-    const deltaX = event.clientX - dragStart.value.x;
-    
-    // 如果移动距离超过 3px，认为是拖拽而不是点击
-    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
-        hasMoved.value = true;
-    }
-    
-    // 更新位置（注意：鼠标向下移动时 bottom 应该减小）
-    position.value.bottom = dragStart.value.initialBottom - deltaY;
-    position.value.right = dragStart.value.initialRight - deltaX;
-    
-    // 获取窗口尺寸用于边界限制
-    const windowHeight = window.innerHeight;
-    const windowWidth = window.innerWidth;
-    
-    // 确保不会移出屏幕（留出至少 50px 保证按钮可见）
-    if (position.value.bottom < 0) position.value.bottom = 0;
-    if (position.value.right < 0) position.value.right = 0;
-    if (position.value.bottom > windowHeight - 50) position.value.bottom = windowHeight - 50;
-    if (position.value.right > windowWidth - 50) position.value.right = windowWidth - 50;
-    
-    // 如果发生了移动，阻止默认行为
-    if (hasMoved.value) {
-        event.preventDefault();
-    }
-};
-
-const stopDrag = () => {
-    isDragging.value = false;
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('mouseup', stopDrag);
-    
-    // 恢复文本选择
-    document.body.style.userSelect = '';
-    
-    // 保存位置到 localStorage
-    savePosition();
-};
-
-// 组件卸载时清理事件监听
-onUnmounted(() => {
-    document.removeEventListener('mousemove', onDrag);
-    document.removeEventListener('mouseup', stopDrag);
-});
-
-// 保存位置到 localStorage
-const savePosition = () => {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(position.value));
-    } catch (error) {
-        console.warn('Failed to save notification fab position:', error);
-    }
-};
-
-// 从 localStorage 加载位置
-const loadPosition = () => {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            // 验证数据有效性
-            if (typeof parsed.bottom === 'number' && typeof parsed.right === 'number') {
-                position.value = parsed;
-            }
-        }
-    } catch (error) {
-        console.warn('Failed to load notification fab position:', error);
-    }
-};
-
-// 组件挂载时加载保存的位置
-onMounted(() => {
-    loadPosition();
+// 拖拽与位置持久化收敛到通用 composable（与 AI 助手悬浮球共享同一实现）
+const { position, isDragging, hasMoved, startDrag } = useDraggableFab({
+    storageKey: 'global-notification-fab-position',
+    defaultPosition: { bottom: 20, right: 20 },
 });
 
 // 所有任务列表

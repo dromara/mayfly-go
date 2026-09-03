@@ -32,6 +32,8 @@ type machineScriptAppImpl struct {
 	machineApp Machine `inject:"T"`
 }
 
+var _ MachineScript = (*machineScriptAppImpl)(nil)
+
 const Common_Script_Machine_Id = 9999999
 
 // 分页获取机器脚本信息列表

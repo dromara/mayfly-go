@@ -219,7 +219,7 @@ func SQLValuePreserveSpecialChars(val any) string {
 	// 直接处理 SQL 特殊字符，保留双引号和其他字符
 	// 只转义单引号为两个单引号（SQL 标准转义方式）
 	escapedStr := strings.ReplaceAll(strVal, "'", "''")
-	
+
 	// 返回 SQL 字符串，保持原始的双引号、换行符等
 	return fmt.Sprintf("'%s'", escapedStr)
 }

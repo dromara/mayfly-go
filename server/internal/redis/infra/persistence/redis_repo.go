@@ -11,6 +11,8 @@ type redisRepoImpl struct {
 	base.RepoImpl[*entity.Redis]
 }
 
+var _ repository.Redis = (*redisRepoImpl)(nil)
+
 func newRedisRepo() repository.Redis {
 	return &redisRepoImpl{}
 }

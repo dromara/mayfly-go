@@ -115,20 +115,10 @@ type InterruptResume struct {
 	Payload       collx.M       `json:"payload"`                          // 操作参数
 }
 
-// ToTarget 将 InterruptResume 转换为具体的恢复参数结构体（如 ApprovalResume 或 ParamCompletionResume）
+// ToTarget 将 InterruptResume 转换为具体的恢复参数结构体
+// （通过中断扩展注册表分发，新增中断类型无需修改此处，见 interrupt_registry.go）
 func (i *InterruptResume) ToTarget() any {
-	switch i.InterruptType {
-	case InterruptTypeApproval:
-		return &ApprovalResume{
-			InterruptResume: i,
-		}
-	case InterruptTypeParamCompletion:
-		return &ParamCompletionResume{
-			InterruptResume: i,
-		}
-	default:
-		return i
-	}
+	return ConvertInterruptResume(i)
 }
 
 func AppendResumeInfo(ctx context.Context, interruptId string, resumeInfo any) *session.Message {
@@ -138,12 +128,15 @@ func AppendResumeInfo(ctx context.Context, interruptId string, resumeInfo any) *
 
 	msgs, err := session.DefaultSessionStore.GetMessage(ctx, msgQuery)
 	if err != nil || len(msgs) == 0 {
-		logx.InfofContext(ctx, "not found interrupt message")
+		logx.InfofContext(ctx, "not found interrupt message: %v", err)
 		return nil
 	}
 	msg := msgs[0]
 
 	msg.Extra.Set("resumeInfo", resumeInfo)
-	session.DefaultSessionStore.UpdateMessage(ctx, msg)
+	if err := session.DefaultSessionStore.UpdateMessage(ctx, msg); err != nil {
+		logx.ErrorfContext(ctx, "update interrupt message resumeInfo failed: %v", err)
+		return nil
+	}
 	return msg
 }

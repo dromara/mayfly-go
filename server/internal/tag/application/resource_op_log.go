@@ -24,6 +24,8 @@ type resourceOpLogAppImpl struct {
 	tagTreeApp TagTree `inject:"T"`
 }
 
+var _ ResourceOpLog = (*resourceOpLogAppImpl)(nil)
+
 var _ (ResourceOpLog) = (*resourceOpLogAppImpl)(nil)
 
 func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath string) error {

@@ -28,6 +28,10 @@ func GetDbApp() Db {
 	return ioc.Get[Db]()
 }
 
+func GetDbInstanceApp() Instance {
+	return ioc.Get[Instance]()
+}
+
 func GetDbSqlExecApp() DbSqlExec {
 	return ioc.Get[DbSqlExec]()
 }

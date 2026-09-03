@@ -11,6 +11,8 @@ type milvusRepoImpl struct {
 	base.RepoImpl[*entity.Milvus]
 }
 
+var _ repository.Milvus = (*milvusRepoImpl)(nil)
+
 func newMilvusRepo() repository.Milvus {
 	return &milvusRepoImpl{}
 }

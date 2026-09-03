@@ -48,11 +48,11 @@ type LLMExtractor struct {
 
 // MemoryExtractionResult LLM提取结果结构
 type MemoryExtractionResult struct {
-	Type       string  `json:"type"`        // 记忆类型: preference/fact/skill/experience
-	Content    string  `json:"content"`     // 记忆内容（自然语言描述）
-	Tags       []string `json:"tags"`       // 标签
-	Confidence float64 `json:"confidence"`  // 置信度（仅用于过滤，不存储）
-	Reason     string  `json:"reason,omitempty"` // 提取原因
+	Type       string   `json:"type"`             // 记忆类型: preference/fact/skill/experience
+	Content    string   `json:"content"`          // 记忆内容（自然语言描述）
+	Tags       []string `json:"tags"`             // 标签
+	Confidence float64  `json:"confidence"`       // 置信度（仅用于过滤，不存储）
+	Reason     string   `json:"reason,omitempty"` // 提取原因
 }
 
 // NewLLMExtractor 创建LLM提取器
@@ -69,6 +69,8 @@ func (e *LLMExtractor) WithConfig(config *LLMExtractorConfig) *LLMExtractor {
 	}
 	return e
 }
+
+var _ Extractor = (*LLMExtractor)(nil)
 
 // ExtractFromMessages 使用LLM从消息中提取记忆
 func (e *LLMExtractor) ExtractFromMessages(ctx context.Context, userID string, messages []adk.Message) ([]*MemoryItem, error) {

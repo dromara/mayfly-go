@@ -11,6 +11,8 @@ type dbTransferTaskRepoImpl struct {
 	base.RepoImpl[*entity.DbTransferTask]
 }
 
+var _ repository.DbTransferTask = (*dbTransferTaskRepoImpl)(nil)
+
 func newDbTransferTaskRepo() repository.DbTransferTask {
 	return &dbTransferTaskRepoImpl{}
 }

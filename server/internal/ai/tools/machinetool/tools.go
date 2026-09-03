@@ -1,15 +1,19 @@
 package machinetool
 
 import (
-	"mayfly-go/internal/ai/tools"
-	"mayfly-go/pkg/logx"
+	"errors"
+
+	"github.com/cloudwego/eino/components/tool"
 )
 
-func Init() {
-	if commandExecTool, err := GetCommandExec(); err != nil {
-		logx.Errorf("agent tool - 获取MachineCommandExec工具失败: %v", err)
-	} else {
-		tools.DefaultRegistry.Register(commandExecTool)
-		tools.RegisterTool(tools.ToolTypeMachine, commandExecTool)
+// Tools 创建机器工具（聚合创建错误，由装配方统一处理）
+//
+// 不再注册进全局注册中心：工具经 agent/ext/machinetool 的 ToolContributor
+// 通道贡献给 Agent（业务插件注册同名工具即可覆盖，后注册胜出）。
+func Tools() ([]tool.BaseTool, error) {
+	commandExecTool, err := GetCommandExec()
+	if err != nil {
+		return nil, errors.Join(errors.New("agent tool - get MachineCommandExec failed"), err)
 	}
+	return []tool.BaseTool{commandExecTool}, nil
 }

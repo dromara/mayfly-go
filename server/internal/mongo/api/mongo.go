@@ -67,7 +67,7 @@ func (ma *Mongo) ReqConfs() *req.Confs {
 }
 
 func (m *Mongo) Mongos(rc *req.Ctx) {
-	queryCond := req.BindQuery[entity.MongoQuery](rc)
+	queryCond := rc.BindQuery[entity.MongoQuery]()
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -88,12 +88,12 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 }
 
 func (m *Mongo) TestConn(rc *req.Ctx) {
-	_, mongo := req.BindJsonAndCopyTo[form.Mongo, entity.Mongo](rc)
+	_, mongo := rc.BindJsonAndCopyTo[form.Mongo, entity.Mongo]()
 	biz.ErrIsNilAppendErr(m.mongoApp.TestConn(mongo), "connection error: %s")
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
-	form, mongo := req.BindJsonAndCopyTo[form.Mongo, entity.Mongo](rc)
+	form, mongo := rc.BindJsonAndCopyTo[form.Mongo, entity.Mongo]()
 
 	// 密码脱敏记录日志
 	form.Uri = func(str string) string {
@@ -139,7 +139,7 @@ func (m *Mongo) Collections(rc *req.Ctx) {
 }
 
 func (m *Mongo) RunCommand(rc *req.Ctx) {
-	commandForm := req.BindJson[form.MongoRunCommand](rc)
+	commandForm := rc.BindJson[form.MongoRunCommand]()
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -169,7 +169,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) FindCommand(rc *req.Ctx) {
-	commandForm := req.BindJson[form.MongoFindCommand](rc)
+	commandForm := rc.BindJson[form.MongoFindCommand]()
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -204,7 +204,7 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
-	commandForm := req.BindJson[form.MongoUpdateByIdCommand](rc)
+	commandForm := rc.BindJson[form.MongoUpdateByIdCommand]()
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -228,7 +228,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
-	commandForm := req.BindJson[form.MongoUpdateByIdCommand](rc)
+	commandForm := rc.BindJson[form.MongoUpdateByIdCommand]()
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)
@@ -251,7 +251,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
-	commandForm := req.BindJson[form.MongoInsertCommand](rc)
+	commandForm := rc.BindJson[form.MongoInsertCommand]()
 
 	conn, err := m.mongoApp.GetMongoConn(rc.MetaCtx, m.GetMongoId(rc))
 	biz.ErrIsNil(err)

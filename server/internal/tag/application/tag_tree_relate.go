@@ -38,6 +38,8 @@ type tagTreeRelateAppImpl struct {
 	tagTreeApp TagTree `inject:"T"`
 }
 
+var _ TagTreeRelate = (*tagTreeRelateAppImpl)(nil)
+
 var _ (TagTreeRelate) = (*tagTreeRelateAppImpl)(nil)
 
 func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error {

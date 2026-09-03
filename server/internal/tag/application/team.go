@@ -45,6 +45,8 @@ type teamAppImpl struct {
 	tagTreeRelateApp TagTreeRelate         `inject:"T"`
 }
 
+var _ Team = (*teamAppImpl)(nil)
+
 var _ (Team) = (*teamAppImpl)(nil)
 
 func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, orderBy ...string) (*model.PageResult[*entity.Team], error) {

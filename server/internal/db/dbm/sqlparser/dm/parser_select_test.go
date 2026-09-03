@@ -273,4 +273,3 @@ func TestDmDDL(t *testing.T) {
 		})
 	}
 }
-

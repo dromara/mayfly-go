@@ -11,6 +11,8 @@ type dataSyncTaskRepoImpl struct {
 	base.RepoImpl[*entity.DataSyncTask]
 }
 
+var _ repository.DataSyncTask = (*dataSyncTaskRepoImpl)(nil)
+
 func newDataSyncTaskRepo() repository.DataSyncTask {
 	return &dataSyncTaskRepoImpl{}
 }
@@ -26,6 +28,8 @@ func (d *dataSyncTaskRepoImpl) GetTaskList(condition *entity.DataSyncTaskQuery, 
 type dataSyncLogRepoImpl struct {
 	base.RepoImpl[*entity.DataSyncLog]
 }
+
+var _ repository.DataSyncLog = (*dataSyncLogRepoImpl)(nil)
 
 func newDataSyncLogRepo() repository.DataSyncLog {
 	return &dataSyncLogRepoImpl{}

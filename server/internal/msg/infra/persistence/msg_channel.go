@@ -11,6 +11,8 @@ type msgChannelRepoImpl struct {
 	base.RepoImpl[*entity.MsgChannel]
 }
 
+var _ repository.MsgChannel = (*msgChannelRepoImpl)(nil)
+
 func newMsgChannelRepo() repository.MsgChannel {
 	return &msgChannelRepoImpl{}
 }

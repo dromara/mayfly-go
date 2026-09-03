@@ -11,6 +11,8 @@ type teamRepoImpl struct {
 	base.RepoImpl[*entity.Team]
 }
 
+var _ repository.Team = (*teamRepoImpl)(nil)
+
 func newTeamRepo() repository.Team {
 	return &teamRepoImpl{}
 }

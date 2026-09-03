@@ -72,6 +72,8 @@ type dbSqlExecAppImpl struct {
 	flowProcdefApp flowapp.Procdef `inject:"T"`
 }
 
+var _ DbSqlExec = (*dbSqlExecAppImpl)(nil)
+
 func createSqlExecRecord(ctx context.Context, execSqlReq *dto.DbSqlExecReq, sql string) *entity.DbSqlExec {
 	dbSqlExecRecord := new(entity.DbSqlExec)
 	dbSqlExecRecord.DbId = execSqlReq.DbId

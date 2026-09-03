@@ -28,5 +28,14 @@ mayfly-go.log
 
 mayfly-go-linux-amd64/
 
+# local build binaries
+server/mayfly-go
+server/mayfly-server
+cli/cli
+build/
+
+# local tool artifacts
+.impeccable/
+
 .DS_Store
 __debug_*

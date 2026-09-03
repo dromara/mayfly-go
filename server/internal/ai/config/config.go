@@ -4,20 +4,57 @@ import (
 	"cmp"
 	sysapp "mayfly-go/internal/sys/application"
 	"strings"
+
+	"github.com/spf13/cast"
 )
 
 const (
 	ConfigKeyModel string = "AiModelConfig"
+
+	// ConfigKeyAgent Agent 运行时配置（扩展裁剪 / 存储路径等）
+	ConfigKeyAgent string = "AiAgentConfig"
+
+	// DefaultMaxTokens 默认不限制输出 token（0 = 请求不带 max_tokens，由服务端
+	// 使用模型默认输出上限，对齐 tokhub）。thinking 模型的 reasoning 计入
+	// max_tokens 预算，传小会导致回复被 finish_reason=length 截断；
+	// 仅需控制成本时才显式配置 maxTokens
+	DefaultMaxTokens = 0
+
+	// DefaultContextWindow 默认模型上下文窗口（token）
+	DefaultContextWindow = 128000
+
+	// 默认存储目录（本地 JSONL 存储）
+	DefaultSessionDir = "./sessions"
+	DefaultMemoryDir  = "./memories"
 )
 
 type ModelConfig struct {
-	Name        string  `json:"name"`  // 模型名称，主要用于展示
-	Model       string  `json:"model"` // 模型标识，使用 协议/模型名 格式，如 openai/gpt-5.2
-	BaseUrl     string  `json:"baseUrl"`
-	ApiKey      string  `json:"apiKey"`  // api key
-	TimeOut     int     `json:"timeOut"` // 请求超时时间，单位秒
-	Temperature float32 `json:"temperature"`
-	MaxTokens   int     `json:"maxTokens"`
+	Name          string  `json:"name"`  // 模型名称，主要用于展示
+	Model         string  `json:"model"` // 模型标识，使用 协议/模型名 格式，如 openai/gpt-5.2
+	BaseUrl       string  `json:"baseUrl"`
+	ApiKey        string  `json:"apiKey"`  // api key
+	TimeOut       int     `json:"timeOut"` // 请求超时时间，单位秒
+	Temperature   float32 `json:"temperature"`
+	MaxTokens     int     `json:"maxTokens"`
+	ContextWindow int     `json:"contextWindow"` // 模型上下文窗口大小（token），用于压缩决策与 token 预算
+	// EnableThinking 思考模式开关（仅 qwen3 系列等支持该参数的模型生效）：
+	// nil = 未配置（qwen3 系列默认开启，对齐模型服务端默认行为）；
+	// 思考模式下 qwen3 工具调用存在不稳定性——模型可能输出「正在执行 XX」
+	// 的正文却不发 tool_calls，需关闭思考以提升工具调用稳定性
+	EnableThinking *bool `json:"enableThinking"`
+	// Retry 模型调用重试配置（eino v0.9 Model Retry 能力）；
+	// nil = 不启用重试（默认，保持行为不变）。网络抖动 / 429 / 5xx 等
+	// 瞬时失败自动重试，主动取消/超时不重试；退避为内置指数退避 + 抖动
+	Retry *ModelRetryConfig `json:"retry"`
+}
+
+// ModelRetryConfig 模型调用重试配置
+//
+// 系统配置 AiModelConfig 中："retry": { "maxRetries": 2 }
+//
+// maxRetries 为最大重试次数（首次调用之外最多重试 N 次，0 视为不启用）
+type ModelRetryConfig struct {
+	MaxRetries int `json:"maxRetries"`
 }
 
 func (c *ModelConfig) GetModelSpec() ModelSpec {
@@ -58,6 +95,72 @@ func GetModel() *ModelConfig {
 	conf.ApiKey = jm.GetStr("apiKey")
 	conf.TimeOut = cmp.Or(jm.GetInt("timeOut"), 60)
 	conf.Temperature = cmp.Or(jm.GetFloat32("temperature"), 0.7)
-	conf.MaxTokens = cmp.Or(jm.GetInt("maxTokens"), 2048)
+	conf.MaxTokens = cmp.Or(jm.GetInt("maxTokens"), DefaultMaxTokens)
+	conf.ContextWindow = cmp.Or(jm.GetInt("contextWindow"), DefaultContextWindow)
+	if raw, exists := jm["enableThinking"]; exists {
+		// 系统配置动态表单保存的值为字符串（"true"/"false"），空串视为未配置
+		if s, isStr := raw.(string); !isStr || s != "" {
+			b := cast.ToBool(raw)
+			conf.EnableThinking = &b
+		}
+	} else if strings.Contains(strings.ToLower(conf.Model), "qwen") {
+		// qwen3 系列默认开启思考（对齐模型服务端流式默认行为）
+		t := true
+		conf.EnableThinking = &t
+	}
+	if raw, exists := jm["retry"]; exists {
+		if m, ok := raw.(map[string]any); ok {
+			if retries := cast.ToInt(m["maxRetries"]); retries > 0 {
+				conf.Retry = &ModelRetryConfig{MaxRetries: retries}
+			}
+		}
+	}
+	return conf
+}
+
+// AgentConfig Agent 运行时配置
+//
+// 装配期生效：禁用清单在贡献者注册中心 Build 后经 WithFilter 裁剪（含
+// 装配期激活型扩展：被裁剪的扩展不激活），存储目录决定本地 JSONL 存储
+// 位置；修改后需重启服务。
+//
+// 多实例部署（企业级）：会话/记忆存储与扩展状态存储须为共享后端 ——
+// 配置 Redis 后扩展状态自动切换为分布式缓存后端；会话/记忆的本地 JSONL
+// 存储可通过 session.DefaultSessionStore 等注入点替换为共享实现。
+type AgentConfig struct {
+	// DisabledExtensions 禁用的贡献者 Id 列表（如 ["db_tools", "memory"]），
+	// 可用 Id 见启动日志 contributors 清单（含 interrupt_approval /
+	// interrupt_param_completion / memory_extraction 等装配期激活型扩展）
+	DisabledExtensions []string `json:"disabledExtensions"`
+	// SessionDir 会话历史存储目录（本地 JSONL 降级存储；application 层已装配
+	// DB 后端（conversation + turn_item 表），本目录仅用于 DB 未装配时的单实例/单测场景）
+	SessionDir string `json:"sessionDir"`
+	// MemoryDir 长期记忆存储目录（本地 JSONL 降级存储；application 层已装配
+	// DB 后端（t_ai_memory 表），本目录仅用于 DB 未装配时的单实例/单测场景）
+	MemoryDir string `json:"memoryDir"`
+}
+
+// DisabledExtensionSet 禁用清单集合（WithFilter 参数形态）
+func (c *AgentConfig) DisabledExtensionSet() map[string]struct{} {
+	if len(c.DisabledExtensions) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(c.DisabledExtensions))
+	for _, id := range c.DisabledExtensions {
+		set[id] = struct{}{}
+	}
+	return set
+}
+
+func GetAgentConfig() *AgentConfig {
+	c := sysapp.GetConfigApp().GetConfig(ConfigKeyAgent)
+	jm := c.GetJsonM()
+
+	conf := new(AgentConfig)
+	if err := jm.Unmarshal("disabledExtensions", &conf.DisabledExtensions); err != nil {
+		conf.DisabledExtensions = jm.GetStrSlice("disabledExtensions")
+	}
+	conf.SessionDir = cmp.Or(jm.GetStr("sessionDir"), DefaultSessionDir)
+	conf.MemoryDir = cmp.Or(jm.GetStr("memoryDir"), DefaultMemoryDir)
 	return conf
 }

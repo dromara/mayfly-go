@@ -39,7 +39,7 @@ func CountByCond(dbModel model.ModelI, cond *model.QueryCond) int64 {
 
 // PageQuery 根据查询条件分页查询数据，若需要伪删除过滤，则自行过滤-调用q.Undeleted()
 // 若未指定查询列，则查询列以toModels字段为准
-func PageQuery[T any](q *Query, pageParam model.PageParam, toModels []T) (*model.PageResult[T], error) {
+func (q *Query) PageQuery[T any](pageParam model.PageParam, toModels []T) (*model.PageResult[T], error) {
 	gdb := q.GenGdb()
 	var count int64
 	err := gdb.Count(&count).Error
@@ -70,7 +70,7 @@ func PageQuery[T any](q *Query, pageParam model.PageParam, toModels []T) (*model
 
 // PageByCond 根据指定查询条件分页查询数据
 func PageByCond[T any](dbModel model.ModelI, cond *model.QueryCond, pageParam model.PageParam, toModels []T) (*model.PageResult[T], error) {
-	return PageQuery(NewQuery(dbModel, cond), pageParam, toModels)
+	return NewQuery(dbModel, cond).PageQuery(pageParam, toModels)
 }
 
 // SelectByCond 根据条件查询结果集

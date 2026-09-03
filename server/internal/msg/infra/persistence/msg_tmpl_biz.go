@@ -10,6 +10,8 @@ type msgTmplBizRepoImpl struct {
 	base.RepoImpl[*entity.MsgTmplBiz]
 }
 
+var _ repository.MsgTmplBiz = (*msgTmplBizRepoImpl)(nil)
+
 func newMsgTmplBizRepo() repository.MsgTmplBiz {
 	return &msgTmplBizRepoImpl{}
 }

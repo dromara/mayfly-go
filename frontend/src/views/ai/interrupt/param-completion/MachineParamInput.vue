@@ -1,6 +1,6 @@
 <template>
     <div class="machine-param-input">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+        <div class="machine-param-input__hint">
             {{ t('ai.interrupt.paramCompletion.selectMachineHint') }}
         </div>
 
@@ -20,16 +20,16 @@
         <!-- 已选中的机器详细信息 -->
         <div
             v-if="machineValue.authCertName || machineValue.machineId"
-            class="mt-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded border border-primary-200 dark:border-primary-800"
+            class="machine-param-input__detail"
         >
-            <div class="flex items-center gap-2">
+            <div class="machine-param-input__detail-row">
                 <SvgIcon name="Monitor" :size="20" />
-                <div class="flex-1">
-                    <div class="font-medium text-sm">{{ machineValue.machineName || '已选择机器' }}</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <div class="machine-param-input__detail-info">
+                    <div class="machine-param-input__detail-name">{{ machineValue.machineName || t('ai.interrupt.paramCompletion.machineSelected') }}</div>
+                    <div class="machine-param-input__detail-meta">
                         {{ t('ai.interrupt.paramCompletion.machineIp') }}: {{ machineValue.machineIp || '-' }}:{{ machineValue.machinePort || '-' }}
                     </div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                    <div class="machine-param-input__detail-meta">
                         {{ t('ai.interrupt.paramCompletion.authCert') }}: {{ machineValue.authCertName }} ({{ machineValue.username || '-' }})
                     </div>
                 </div>
@@ -135,6 +135,41 @@ defineExpose({
 
 <style scoped>
 .machine-param-input {
-    padding: 0.5rem;
+    padding: 8px;
+}
+
+.machine-param-input__hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    margin-bottom: 8px;
+}
+
+.machine-param-input__detail {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--el-color-primary-light-9);
+    border-radius: 6px;
+    border: 1px solid var(--el-color-primary-light-7);
+}
+
+.machine-param-input__detail-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.machine-param-input__detail-info {
+    flex: 1;
+}
+
+.machine-param-input__detail-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.machine-param-input__detail-meta {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    margin-top: 2px;
 }
 </style>

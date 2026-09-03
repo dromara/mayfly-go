@@ -11,6 +11,8 @@ type machineFileRepoImpl struct {
 	base.RepoImpl[*entity.MachineFile]
 }
 
+var _ repository.MachineFile = (*machineFileRepoImpl)(nil)
+
 func newMachineFileRepo() repository.MachineFile {
 	return &machineFileRepoImpl{}
 }

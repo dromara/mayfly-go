@@ -39,6 +39,8 @@ type executionAppImpl struct {
 	hisProcinstOpApp HisProcinstOp `inject:"T"`
 }
 
+var _ Execution = (*executionAppImpl)(nil)
+
 var _ (Execution) = (*executionAppImpl)(nil)
 
 func (e *executionAppImpl) Init() {

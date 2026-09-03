@@ -47,6 +47,8 @@ type procdefAppImpl struct {
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
+var _ Procdef = (*procdefAppImpl)(nil)
+
 var _ (Procdef) = (*procdefAppImpl)(nil)
 
 func (p *procdefAppImpl) GetPageList(condition *entity.Procdef, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.ProcdefPagePO], error) {

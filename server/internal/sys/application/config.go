@@ -31,6 +31,8 @@ type configAppImpl struct {
 	base.AppImpl[*entity.Config, repository.Config]
 }
 
+var _ Config = (*configAppImpl)(nil)
+
 func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Config], error) {
 	return a.GetRepo().GetPageList(condition, pageParam)
 }

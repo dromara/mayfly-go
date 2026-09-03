@@ -15,12 +15,24 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+// summaryMessageFormat 历史前置的压缩摘要消息格式
+const summaryMessageFormat = "[之前的对话摘要]\n%s\n\n[以下是新的对话内容]"
+
+// summaryMessage 构造摘要 System 消息（GetHistory 前置与增量摘要输入共用同一格式）
+func summaryMessage(summary string) *schema.Message {
+	return &schema.Message{
+		Role:    schema.System,
+		Content: fmt.Sprintf(summaryMessageFormat, summary),
+	}
+}
+
 // Manager 会话管理器
 // 负责会话缓存管理和生命周期管理，底层存储委托给 Store 实现
 type Manager struct {
 	store         Store          // 底层存储
 	summaryConfig *SummaryConfig // 摘要配置（可选）
 	summarizing   sync.Map       // sessionKey -> struct{}，防止同一会话并发摘要
+	contextWindow int            // 模型上下文窗口（token），0 表示未配置（跳过窗口检查）
 }
 
 // NewManager 创建会话管理器
@@ -78,11 +90,7 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 	} else if meta != nil && meta.Count <= meta.Skip {
 		// 所有消息都已被摘要，无需从 Store 读取原始消息
 		if meta.Summary != "" {
-			summaryMsg := &schema.Message{
-				Role:    schema.System,
-				Content: fmt.Sprintf("[之前的对话摘要]\n%s\n\n[以下是新的对话内容]", meta.Summary),
-			}
-			return []adk.Message{summaryMsg}, nil
+			return []adk.Message{summaryMessage(meta.Summary)}, nil
 		}
 		return []adk.Message{}, nil
 	} else {
@@ -107,12 +115,14 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 
 	// 如果存在摘要，将其作为系统消息前置
 	if meta != nil && meta.Summary != "" {
-		summaryMsg := &schema.Message{
-			Role:    schema.System,
-			Content: fmt.Sprintf("[之前的对话摘要]\n%s\n\n[以下是新的对话内容]", meta.Summary),
-		}
-		messages = append([]adk.Message{summaryMsg}, messages...)
+		messages = append([]adk.Message{summaryMessage(meta.Summary)}, messages...)
 		logx.DebugfContext(ctx, "prepended summary message, total %d messages", len(messages))
+	}
+
+	// 窗口检查：估算 token 超过可用预算时触发后台摘要 / 紧急裁剪（未配置窗口时跳过）
+	// 历史贡献者通道会传 WithSkipWindowCheck 跳过（宿主后续做含 preamble 口径的完整压缩）
+	if !options.skipWindowCheck {
+		messages = m.enforceContextWindow(ctx, key, messages)
 	}
 
 	return messages, nil
@@ -327,11 +337,7 @@ func (m *Manager) summarizeSession(ctx context.Context, sessionKey string, meta 
 
 	// 如果存在旧摘要，作为 System 消息前置
 	if meta.Summary != "" {
-		summaryMsg := &schema.Message{
-			Role:    schema.System,
-			Content: fmt.Sprintf("[之前的对话摘要]\n%s\n\n[以下是新的对话内容]", meta.Summary),
-		}
-		fullContext = append(fullContext, summaryMsg)
+		fullContext = append(fullContext, summaryMessage(meta.Summary))
 		logx.DebugfContext(ctx, "prepended old summary to context")
 	}
 
@@ -411,14 +417,17 @@ func (m *Manager) summarizeSession(ctx context.Context, sessionKey string, meta 
 	logx.InfofContext(ctx, "summarize completed, summary length: %d, skipped messages: %d, kept messages: %d",
 		len(summaryText), newSkipCount, keepCount)
 
-	// 发布会话摘要完成事件，供外部模块（如长期记忆提取）订阅处理
+	// 发布会话摘要完成事件，供外部模块（如长期记忆提取、压缩事件项落库）订阅处理
 	// 使用事件总线解耦，session 包不感知下游消费者
 	EventBus.Publish(ctx, EventTopicSummarized, &SummarizedEvent{
-		UserId:     meta.UserId,
-		SessionKey: sessionKey,
-		Summary:    summaryText,
-		Skip:       newSkipCount,
-		Count:      meta.Count,
+		UserId:                 meta.UserId,
+		SessionKey:             sessionKey,
+		Summary:                summaryText,
+		Skip:                   newSkipCount,
+		Count:                  meta.Count,
+		OriginalTokens:         EstimateHistoryTokens(messagesToSummarize),
+		CompressedTokens:       estimateTokens(summaryText),
+		CompressedMessageCount: len(rawMessages) - keepCount,
 	})
 
 	return nil

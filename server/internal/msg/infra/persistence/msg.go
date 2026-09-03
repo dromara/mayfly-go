@@ -11,6 +11,8 @@ type msgRepoImpl struct {
 	base.RepoImpl[*entity.Msg]
 }
 
+var _ repository.Msg = (*msgRepoImpl)(nil)
+
 func newMsgRepo() repository.Msg {
 	return &msgRepoImpl{}
 }

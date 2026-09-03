@@ -7,6 +7,10 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+// RoleInternal 内部系统消息角色（中断、恢复等内部消息）
+// 定义在 session 包以避免 application 层反向依赖 agent 包
+const RoleInternal = schema.RoleType("internal")
+
 // Message 会话消息，扩展自 adk.Message
 type Message struct {
 	// Id 消息ID
@@ -69,10 +73,16 @@ func FromAdkMessage(msg *schema.Message) *Message {
 }
 
 // ToAdkMessages 将 Message 切片转换为 schema.Message 切片
+// 注意：internal 为内部运行时消息（中断/恢复等），非 LLM 协议合法角色，
+// 网关会拒绝（role must be one of system/assistant/user/tool/function），
+// 不参与 LLM 上下文，在此统一过滤（中断恢复走 GetMessage 单独查询，不受影响）
 func ToAdkMessages(msgs []*Message) []adk.Message {
-	result := make([]adk.Message, len(msgs))
-	for i, m := range msgs {
-		result[i] = m.ToAdkMessage()
+	result := make([]adk.Message, 0, len(msgs))
+	for _, m := range msgs {
+		if m.Role == RoleInternal {
+			continue
+		}
+		result = append(result, m.ToAdkMessage())
 	}
 	return result
 }

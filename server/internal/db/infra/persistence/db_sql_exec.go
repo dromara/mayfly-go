@@ -11,6 +11,8 @@ type dbSqlExecRepoImpl struct {
 	base.RepoImpl[*entity.DbSqlExec]
 }
 
+var _ repository.DbSqlExec = (*dbSqlExecRepoImpl)(nil)
+
 func newDbSqlExecRepo() repository.DbSqlExec {
 	return &dbSqlExecRepoImpl{}
 }

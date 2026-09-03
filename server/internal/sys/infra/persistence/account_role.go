@@ -12,6 +12,8 @@ type accountRoleRepoImpl struct {
 	base.RepoImpl[*entity.AccountRole]
 }
 
+var _ repository.AccountRole = (*accountRoleRepoImpl)(nil)
+
 func newAccountRoleRepo() repository.AccountRole {
 	return &accountRoleRepoImpl{}
 }
@@ -28,5 +30,5 @@ func (m *accountRoleRepoImpl) GetPageList(condition *entity.RoleAccountQuery, or
 			OrderByDesc("t.id"))
 
 	var res []*entity.AccountRolePO
-	return gormx.PageQuery(qd, condition.PageParam, res)
+	return qd.PageQuery(condition.PageParam, res)
 }

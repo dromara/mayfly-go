@@ -43,6 +43,8 @@ type machineTermOpAppImpl struct {
 	fileApp           fileapp.File   `inject:"T"`
 }
 
+var _ MachineTermOp = (*machineTermOpAppImpl)(nil)
+
 func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {
 	var recorder *mcm.Recorder
 	var termOpRecord *entity.MachineTermOp

@@ -28,6 +28,8 @@ type msgAppImpl struct {
 	msgRepo repository.Msg `inject:"T"`
 }
 
+var _ Msg = (*msgAppImpl)(nil)
+
 func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.Msg], error) {
 	return a.msgRepo.GetPageList(condition, pageParam)
 }

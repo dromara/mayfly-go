@@ -4,6 +4,7 @@ export default {
         create: 'Create',
         edit: 'Edit',
         delete: 'Delete',
+        rename: 'Rename',
         detail: 'Details',
         apply: 'Apply',
         add: 'Add',
@@ -97,6 +98,10 @@ export default {
         MultiPlaceholder: 'Multiple are separated by commas',
         appSlogan: 'Simple, efficient and secure',
         preview: 'Preview',
+        processing: 'Processing',
+        sending: 'Sending',
+        scrollToBottom: 'Scroll to bottom',
+        waitingInput: 'Waiting for input',
     },
     layout: {
         user: {

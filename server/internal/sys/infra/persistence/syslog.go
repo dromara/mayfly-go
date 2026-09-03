@@ -11,6 +11,8 @@ type syslogRepoImpl struct {
 	base.RepoImpl[*entity.SysLog]
 }
 
+var _ repository.Syslog = (*syslogRepoImpl)(nil)
+
 func newSyslogRepo() repository.Syslog {
 	return &syslogRepoImpl{}
 }

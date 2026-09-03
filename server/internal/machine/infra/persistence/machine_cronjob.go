@@ -11,6 +11,8 @@ type machineCronJobRepoImpl struct {
 	base.RepoImpl[*entity.MachineCronJob]
 }
 
+var _ repository.MachineCronJob = (*machineCronJobRepoImpl)(nil)
+
 func newMachineCronJobRepo() repository.MachineCronJob {
 	return &machineCronJobRepoImpl{}
 }

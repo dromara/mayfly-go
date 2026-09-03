@@ -10,6 +10,8 @@ type fileRepoImpl struct {
 	base.RepoImpl[*entity.File]
 }
 
+var _ repository.File = (*fileRepoImpl)(nil)
+
 func newFileRepo() repository.File {
 	return &fileRepoImpl{}
 }

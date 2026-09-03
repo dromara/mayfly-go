@@ -104,7 +104,7 @@ func TestLLMExtractor_InvalidJSON(t *testing.T) {
 
 	for i, response := range invalidResponses {
 		memories, err := extractor.parseExtractionResult(response, userID)
-		
+
 		// 空数组是合法的，应该返回空列表而不是错误
 		if response == "[]" {
 			if err != nil {
@@ -165,7 +165,7 @@ func TestLLMExtractor_ConfidenceFiltering(t *testing.T) {
 	// 注意：当前 filterByConfidence 不再实际过滤，因为 MemoryItem 不存储 Confidence
 	// 过滤逻辑应在提取阶段完成
 	filteredMemories := extractor.filterByConfidence(memories)
-	
+
 	// 当前实现返回所有记忆（不过滤）
 	if len(filteredMemories) != 3 {
 		t.Logf("Note: filterByConfidence currently returns all memories (confidence not stored in MemoryItem)")
@@ -221,9 +221,9 @@ func TestLLMExtractor_EmptyMessages(t *testing.T) {
 
 // contains 辅助函数
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && 
-		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
-		findSubstring(s, substr)))
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) &&
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+			findSubstring(s, substr)))
 }
 
 func findSubstring(s, substr string) bool {

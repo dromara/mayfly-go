@@ -165,6 +165,31 @@ func (c *Container) GetComponentsByType(fieldType reflect.Type) []*Component {
 	return components
 }
 
+// GetBean 根据组件实例类型获取组件实例（Go 1.27 泛型方法）
+// 若组件不存在，则与包级Get行为一致直接panic
+func (c *Container) GetBean[T any]() T {
+	comp, _ := c.GetByType(reflect.TypeOf((*T)(nil)).Elem())
+	return comp.(T)
+}
+
+// GetBeanByName 根据组件名获取对应类型的组件实例，若组件不存在则直接panic
+func (c *Container) GetBeanByName[T any](name string) T {
+	comp, _ := c.Get(name)
+	return comp.(T)
+}
+
+// GetBeans 根据组件实例类型获取所有对应类型的组件实例
+func (c *Container) GetBeans[T any]() []T {
+	return collx.ArrayMap(c.GetBeansByType(reflect.TypeOf((*T)(nil)).Elem()), func(val any) T {
+		return val.(T)
+	})
+}
+
+// RegisterByType 根据组件实例类型注册组件，会自动创建实例
+func (c *Container) RegisterByType[T any](opts ...ComponentOption) {
+	c.Register(structx.NewInstance[T](), opts...)
+}
+
 // injectWithField 根据实例字段的inject:"xxx"标签进行依赖注入
 func (c *Container) injectWithField(context context.Context, objValue reflect.Value) error {
 	objValue = structx.Indirect(objValue)

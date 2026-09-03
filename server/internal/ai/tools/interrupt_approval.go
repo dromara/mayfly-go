@@ -8,6 +8,8 @@ import (
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/i18n"
+	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -70,7 +72,10 @@ func InterruptApproval(ctx context.Context, toolDesc string, arguments any, reas
 
 func ResumeApproval(ctx context.Context, toolDesc string) (bool, error) {
 	// 首先检查是否已审批过
-	messages, _ := session.DefaultSessionStore.GetMessage(ctx, &session.MessageQuery{MessageType: string(InterruptTypeApproval), ToolCallId: compose.GetToolCallID(ctx)})
+	messages, err := session.DefaultSessionStore.GetMessage(ctx, &session.MessageQuery{MessageType: string(InterruptTypeApproval), ToolCallId: compose.GetToolCallID(ctx)})
+	if err != nil {
+		logx.DebugfContext(ctx, "query approval messages: %v", err)
+	}
 	if len(messages) > 0 {
 		for _, msg := range messages {
 			var resumeInfo ApprovalResume
@@ -113,3 +118,23 @@ func handleApprovalResult(ctx context.Context, toolDesc string, data *ApprovalRe
 
 	return fmt.Errorf("[OPERATION_CANCELLED] The tool '%s' execution was cancelled due to invalid action: %s", toolDesc, data.Action)
 }
+
+// approvalExtension 审批中断的扩展实现（经中断扩展贡献者统一装配，见 agent/ext/interrupt）
+type approvalExtension struct{}
+
+var _ InterruptExtension = (*approvalExtension)(nil)
+
+func (e *approvalExtension) ConvertResume(resume *InterruptResume) any {
+	return &ApprovalResume{InterruptResume: resume}
+}
+
+func (e *approvalExtension) PrepareResumeCtx(ctx context.Context, resume *InterruptResume) context.Context {
+	return ctx // 审批类型无需额外预处理
+}
+
+func (e *approvalExtension) ExtraEventMetadata(info InterruptMetadata) collx.M {
+	return nil // 审批类型无特有 metadata
+}
+
+// NewApprovalExtension 创建审批中断扩展（经中断扩展贡献者在装配期装载）
+func NewApprovalExtension() InterruptExtension { return &approvalExtension{} }

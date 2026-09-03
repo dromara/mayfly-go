@@ -37,6 +37,8 @@ type containerAppImpl struct {
 	tagApp tagapp.TagTree `inject:"T"`
 }
 
+var _ Container = (*containerAppImpl)(nil)
+
 var _ (Container) = (*containerAppImpl)(nil)
 
 func (c *containerAppImpl) GetContainerPage(condition *entity.ContainerQuery, orderBy ...string) (*model.PageResult[*entity.Container], error) {

@@ -11,6 +11,8 @@ type mongoRepoImpl struct {
 	base.RepoImpl[*entity.Mongo]
 }
 
+var _ repository.Mongo = (*mongoRepoImpl)(nil)
+
 func newMongoRepo() repository.Mongo {
 	return &mongoRepoImpl{}
 }

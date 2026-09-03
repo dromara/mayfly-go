@@ -11,6 +11,8 @@ type machineScriptRepoImpl struct {
 	base.RepoImpl[*entity.MachineScript]
 }
 
+var _ repository.MachineScript = (*machineScriptRepoImpl)(nil)
+
 func newMachineScriptRepo() repository.MachineScript {
 	return &machineScriptRepoImpl{}
 }

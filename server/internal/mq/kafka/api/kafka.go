@@ -66,7 +66,7 @@ func (k *Kafka) ReqConfs() *req.Confs {
 }
 
 func (k *Kafka) Kafkas(rc *req.Ctx) {
-	queryCond := req.BindQuery[entity.KafkaQuery](rc)
+	queryCond := rc.BindQuery[entity.KafkaQuery]()
 
 	// 不存在可访问标签id，即没有可操作数据
 	tags := k.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -87,12 +87,12 @@ func (k *Kafka) Kafkas(rc *req.Ctx) {
 }
 
 func (k *Kafka) TestConn(rc *req.Ctx) {
-	_, kafka := req.BindJsonAndCopyTo[form.Kafka, entity.Kafka](rc)
+	_, kafka := rc.BindJsonAndCopyTo[form.Kafka, entity.Kafka]()
 	biz.ErrIsNilAppendErr(k.kafkaApp.TestConn(kafka), "connection error: %s")
 }
 
 func (k *Kafka) Save(rc *req.Ctx) {
-	f, kafka := req.BindJsonAndCopyTo[form.Kafka, entity.Kafka](rc)
+	f, kafka := rc.BindJsonAndCopyTo[form.Kafka, entity.Kafka]()
 
 	// 密码脱敏记录日志
 	f.Password = func(str *string) *string {
@@ -130,7 +130,7 @@ func (k *Kafka) GetTopics(rc *req.Ctx) {
 func (k *Kafka) CreateTopic(rc *req.Ctx) {
 	id := k.GetKafkaId(rc)
 
-	param := req.BindJson[kfm.CreateTopicParam](rc)
+	param := rc.BindJson[kfm.CreateTopicParam]()
 	conn, err := k.kafkaApp.GetKafkaConn(rc, id)
 	if err != nil {
 		rc.Error = err
@@ -162,7 +162,7 @@ func (k *Kafka) GetTopicConfig(rc *req.Ctx) {
 }
 func (k *Kafka) CreatePartitions(rc *req.Ctx) {
 	id := k.GetKafkaId(rc)
-	param := req.BindJson[kfm.CreatePartitionsParam](rc)
+	param := rc.BindJson[kfm.CreatePartitionsParam]()
 
 	conn, err := k.kafkaApp.GetKafkaConn(rc, id)
 	if err != nil {
@@ -176,7 +176,7 @@ func (k *Kafka) Produce(rc *req.Ctx) {
 	id := k.GetKafkaId(rc)
 	topic := rc.PathParam("topic")
 
-	param := req.BindJson[kfm.ProduceMessageParam](rc)
+	param := rc.BindJson[kfm.ProduceMessageParam]()
 	param.Topic = topic
 
 	conn, err := k.kafkaApp.GetKafkaConn(rc, id)
@@ -198,7 +198,7 @@ func (k *Kafka) Consume(rc *req.Ctx) {
 		return
 	}
 
-	param := req.BindJson[kfm.ConsumeMessageParam](rc)
+	param := rc.BindJson[kfm.ConsumeMessageParam]()
 	param.Topic = topic
 
 	rc.ResData, rc.Error = conn.ConsumeMessage(rc.MetaCtx, param)

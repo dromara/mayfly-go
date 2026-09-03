@@ -54,6 +54,8 @@ type resourceAuthCertAppImpl struct {
 	tagTreeApp TagTree `inject:"T"`
 }
 
+var _ ResourceAuthCert = (*resourceAuthCertAppImpl)(nil)
+
 func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dto.RelateAuthCert) error {
 	resourceCode := params.ResourceCode
 	resourceType := int8(params.ResourceType)
@@ -159,7 +161,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 			if passphrase == "" {
 				unmodifyAc.SetExtraValue(entity.ExtraKeyPassphrase, oldAuthCert.GetExtraString(entity.ExtraKeyPassphrase))
 			}
-			
+
 			// 如果修改了用户名，且该凭证关联至标签，则需要更新对应的标签名（资源授权凭证类型的标签名为username）
 			if oldAuthCert.Username != unmodifyAc.Username {
 				r.tagTreeApp.UpdateTagName(ctx, entity.TagTypeAuthCert, unmodifyAcName, unmodifyAc.Username)

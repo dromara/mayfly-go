@@ -11,6 +11,8 @@ type machineTermOpRepoImpl struct {
 	base.RepoImpl[*entity.MachineTermOp]
 }
 
+var _ repository.MachineTermOp = (*machineTermOpRepoImpl)(nil)
+
 func newMachineTermOpRepoImpl() repository.MachineTermOp {
 	return &machineTermOpRepoImpl{}
 }

@@ -11,6 +11,8 @@ type AccountRepoImpl struct {
 	base.RepoImpl[*entity.Account]
 }
 
+var _ repository.Account = (*AccountRepoImpl)(nil)
+
 func newAccountRepo() repository.Account {
 	return &AccountRepoImpl{}
 }

@@ -52,6 +52,8 @@ type instanceAppImpl struct {
 	dbApp               Db                      `inject:"T"`
 }
 
+var _ Instance = (*instanceAppImpl)(nil)
+
 var _ (Instance) = (*instanceAppImpl)(nil)
 
 // GetPageList 分页获取数据库实例

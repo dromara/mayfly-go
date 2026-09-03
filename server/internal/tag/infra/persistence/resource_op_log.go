@@ -10,6 +10,8 @@ type resourceOpLogRepoImpl struct {
 	base.RepoImpl[*entity.ResourceOpLog]
 }
 
+var _ repository.ResourceOpLog = (*resourceOpLogRepoImpl)(nil)
+
 func newResourceOpLogRepo() repository.ResourceOpLog {
 	return &resourceOpLogRepoImpl{}
 }

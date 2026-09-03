@@ -25,6 +25,8 @@ type msgChannelAppImpl struct {
 	msgTempApp MsgTmpl `inject:"T"`
 }
 
+var _ MsgChannel = (*msgChannelAppImpl)(nil)
+
 var _ (MsgChannel) = (*msgChannelAppImpl)(nil)
 
 func (m *msgChannelAppImpl) GetPageList(condition *entity.MsgChannel, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgChannel], error) {

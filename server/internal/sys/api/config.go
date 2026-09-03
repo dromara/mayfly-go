@@ -55,7 +55,7 @@ func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
 }
 
 func (c *Config) SaveConfig(rc *req.Ctx) {
-	form, config := req.BindJsonAndCopyTo[form.ConfigForm, entity.Config](rc)
+	form, config := rc.BindJsonAndCopyTo[form.ConfigForm, entity.Config]()
 	rc.ReqParam = form
 	biz.ErrIsNil(c.configApp.Save(rc.MetaCtx, config))
 }

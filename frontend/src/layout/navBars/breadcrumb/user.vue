@@ -1,10 +1,5 @@
 <template>
     <div class="layout-navbars-breadcrumb-user" :style="{ flex: layoutUserFlexNum }">
-        <!-- <div class="layout-navbars-breadcrumb-user-icon" @click="onShowAiChatDialog">
-            <SvgIcon name="icon ai/assistant" :title="$t('layout.user.menuSearch')" />
-            <AiChatDialog v-model:visible="state.aiChatDialogVisible" />
-        </div> -->
-
         <div class="layout-navbars-breadcrumb-user-icon">
             <el-switch
                 @change="switchDark()"
@@ -90,8 +85,6 @@ import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-// const AiChatDialog = defineAsyncComponent(() => import('@/views/ai/AiChatDialog.vue'));
-
 const router = useRouter();
 const searchRef = ref();
 const userNewsRef = useTemplateRef('userNewsRef');
@@ -100,7 +93,6 @@ const state = reactive({
     isScreenfull: false,
     disabledSize: '',
     unreadMsgCount: 0,
-    aiChatDialogVisible: false,
 });
 const { userInfo } = storeToRefs(useUserInfo());
 const themeConfigStore = useThemeConfig();
@@ -229,10 +221,6 @@ const initComponentSize = () => {
             state.disabledSize = 'large';
             break;
     }
-};
-
-const onShowAiChatDialog = () => {
-    state.aiChatDialogVisible = true;
 };
 
 // 语言切换

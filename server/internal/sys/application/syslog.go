@@ -61,6 +61,8 @@ type syslogAppImpl struct {
 	syslogRepo repository.Syslog `inject:"T"`
 }
 
+var _ Syslog = (*syslogAppImpl)(nil)
+
 func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, orderBy ...string) (*model.PageResult[*entity.SysLog], error) {
 	return m.syslogRepo.GetPageList(condition, orderBy...)
 }

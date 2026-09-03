@@ -40,6 +40,8 @@ type procinstTaskAppImpl struct {
 	procinstTaskCandidateRepo repository.ProcinstTaskCandidate `inject:"T"`
 }
 
+var _ ProcinstTask = (*procinstTaskAppImpl)(nil)
+
 var _ (ProcinstTask) = (*procinstTaskAppImpl)(nil)
 
 func (p *procinstTaskAppImpl) Init() {

@@ -12,6 +12,8 @@ type teamMemberRepoImpl struct {
 	base.RepoImpl[*entity.TeamMember]
 }
 
+var _ repository.TeamMember = (*teamMemberRepoImpl)(nil)
+
 func newTeamMemberRepo() repository.TeamMember {
 	return &teamMemberRepoImpl{}
 }
@@ -32,7 +34,7 @@ func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam
 			OrderByDesc("t.id"))
 
 	var res []*entity.TeamMemberPO
-	return gormx.PageQuery(qd, pageParam, res)
+	return qd.PageQuery(pageParam, res)
 }
 
 func (p *teamMemberRepoImpl) IsExist(teamId, accountId uint64) bool {

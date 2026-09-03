@@ -1,6 +1,6 @@
 <template>
     <div class="db-param-input">
-        <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+        <div class="db-param-input__hint">
             {{ t('ai.interrupt.paramCompletion.selectDbHint') }}
         </div>
 
@@ -16,12 +16,12 @@
         />
 
         <!-- 已选中的数据库详细信息 -->
-        <div v-if="dbValue.dbId" class="mt-3 p-3 bg-primary-50 dark:bg-primary-900/20 rounded border border-primary-200 dark:border-primary-800">
-            <div class="flex items-center gap-2">
+        <div v-if="dbValue.dbId" class="db-param-input__detail">
+            <div class="db-param-input__detail-row">
                 <SvgIcon :name="getDbDialect(dbValue.dbType)?.getInfo().icon || 'DataLine'" :size="20" />
-                <div class="flex-1">
-                    <div class="font-medium text-sm">{{ dbValue.instanceName }} - {{ dbValue.dbName }}</div>
-                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ t('ai.interrupt.paramCompletion.dbType') }}: {{ dbValue.dbType }}</div>
+                <div class="db-param-input__detail-info">
+                    <div class="db-param-input__detail-name">{{ dbValue.instanceName }} - {{ dbValue.dbName }}</div>
+                    <div class="db-param-input__detail-meta">{{ t('ai.interrupt.paramCompletion.dbType') }}: {{ dbValue.dbType }}</div>
                 </div>
                 <SvgIcon v-if="isConfirmed" name="check" class="text-success" :size="20" />
             </div>
@@ -113,6 +113,41 @@ defineExpose({
 
 <style scoped>
 .db-param-input {
-    padding: 0.5rem;
+    padding: 4px;
+}
+
+.db-param-input__hint {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    margin-bottom: 8px;
+}
+
+.db-param-input__detail {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--el-color-primary-light-9);
+    border-radius: 6px;
+    border: 1px solid var(--el-color-primary-light-7);
+}
+
+.db-param-input__detail-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.db-param-input__detail-info {
+    flex: 1;
+}
+
+.db-param-input__detail-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.db-param-input__detail-meta {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+    margin-top: 2px;
 }
 </style>

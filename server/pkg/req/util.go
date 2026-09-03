@@ -10,7 +10,7 @@ import (
 )
 
 // BindJson 绑定并校验请求结构体参数
-func BindJson[T any](rc *Ctx) *T {
+func (rc *Ctx) BindJson[T any]() *T {
 	var data T
 	if err := rc.BindJSON(&data); err != nil {
 		panic(ConvBindValidationError(data, err))
@@ -20,15 +20,16 @@ func BindJson[T any](rc *Ctx) *T {
 }
 
 // BindJsonAndCopyTo 绑定请求体中的json至form结构体，并拷贝至指定结构体
-func BindJsonAndCopyTo[F, T any](rc *Ctx) (*F, *T) {
-	f := BindJson[F](rc)
+func (rc *Ctx) BindJsonAndCopyTo[F, T any]() (*F, *T) {
+	f := rc.BindJson[F]()
 	return f, structx.CopyTo[T](f)
 }
 
 // BindQuery 绑定查询字符串到指定结构体
-func BindQuery[T any](rc *Ctx) *T {
+func (rc *Ctx) BindQuery[T any]() *T {
 	var data T
-	if err := rc.BindQuery(&data); err != nil {
+	// Ctx.BindQuery为泛型方法，此处需显式调用wrapperF的非泛型BindQuery
+	if err := rc.wrapperF.BindQuery(&data); err != nil {
 		panic(ConvBindValidationError(data, err))
 	} else {
 		return &data
@@ -36,9 +37,9 @@ func BindQuery[T any](rc *Ctx) *T {
 }
 
 // BindQueryAndPage 绑定查询字符串到指定结构体，并将分页信息也返回
-func BindQueryAndPage[T any](rc *Ctx) (*T, model.PageParam) {
+func (rc *Ctx) BindQueryAndPage[T any]() (*T, model.PageParam) {
 	var data T
-	if err := rc.BindQuery(&data); err != nil {
+	if err := rc.wrapperF.BindQuery(&data); err != nil {
 		panic(ConvBindValidationError(data, err))
 	} else {
 		return &data, rc.GetPageParam()

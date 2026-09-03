@@ -47,9 +47,8 @@ func GetChatModel(ctx context.Context, modelConfig *config.ModelConfig) (model.T
 		return chatModel, nil
 	}
 
-	// 删除已存在的缓存
-	chatModels.Clear()
-
+	// 按 modelConfig 生成的 key 缓存，不同配置共存，同一配置复用实例
+	// （无容量限制：模型配置数量有限，无需淘汰）
 	chatModel, err := modelProtocol.NewChatModel(ctx, modelConfig)
 	if err != nil {
 		return nil, err

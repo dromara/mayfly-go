@@ -10,6 +10,8 @@ type machineCmdConfRepoImpl struct {
 	base.RepoImpl[*entity.MachineCmdConf]
 }
 
+var _ repository.MachineCmdConf = (*machineCmdConfRepoImpl)(nil)
+
 func newMachineCmdConfRepo() repository.MachineCmdConf {
 	return &machineCmdConfRepoImpl{}
 }

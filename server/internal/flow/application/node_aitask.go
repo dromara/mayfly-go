@@ -104,9 +104,9 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 		suggestion = fmt.Sprintf("AI agent response failed: %v", err)
 		logx.Error(suggestion)
 	} else {
-		resJson, err := utils.ParseLLMJSON2Map(res)
+		resJson, err := utils.ParseLLMJSON2Map(res.Output)
 		if err != nil {
-			suggestion = fmt.Sprintf("AI agent response parsing to JSON failed: %v, response: %s", err, res)
+			suggestion = fmt.Sprintf("AI agent response parsing to JSON failed: %v, response: %s", err, res.Output)
 			logx.Error(suggestion)
 		} else {
 			allowExecute = resJson.GetBool("allowExecute")

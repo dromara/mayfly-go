@@ -71,7 +71,7 @@ func (d *Instance) ReqConfs() *req.Confs {
 }
 
 func (d *Instance) Instances(rc *req.Ctx) {
-	queryCond := req.BindQuery[entity.InstanceQuery](rc)
+	queryCond := rc.BindQuery[entity.InstanceQuery]()
 
 	// 只查询实例，兼容没有录入密码的实例
 	instTags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -107,7 +107,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 }
 
 func (d *Instance) TestConn(rc *req.Ctx) {
-	fm, instance := req.BindJsonAndCopyTo[form.InstanceForm, entity.EsInstance](rc)
+	fm, instance := rc.BindJsonAndCopyTo[form.InstanceForm, entity.EsInstance]()
 
 	var ac *tagentity.ResourceAuthCert
 	if len(fm.AuthCerts) > 0 {
@@ -119,7 +119,7 @@ func (d *Instance) TestConn(rc *req.Ctx) {
 	rc.ResData = res
 }
 func (d *Instance) SaveInstance(rc *req.Ctx) {
-	fm, instance := req.BindJsonAndCopyTo[form.InstanceForm, entity.EsInstance](rc)
+	fm, instance := rc.BindJsonAndCopyTo[form.InstanceForm, entity.EsInstance]()
 
 	rc.ReqParam = fm
 	id, err := d.inst.SaveInst(rc.MetaCtx, &dto.SaveEsInstance{
@@ -215,7 +215,7 @@ func deleteProgress(id string) {
 // ExportData 导出索引数据（scroll 全量数据 -> 文件 -> zip -> 下载）
 func (d *Instance) ExportData(rc *req.Ctx) {
 	instanceId := getInstanceId(rc)
-	exportForm := req.BindJson[form.EsExportForm](rc)
+	exportForm := rc.BindJson[form.EsExportForm]()
 
 	rc.ReqParam = exportForm
 

@@ -2,7 +2,7 @@ package agent
 
 import (
 	"context"
-	"mayfly-go/internal/ai/tools"
+	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/pkg/utils/stringx"
 
 	"github.com/cloudwego/eino/adk"
@@ -29,9 +29,15 @@ func WithDescription(description string) option {
 	}
 }
 
-func WithTools(tools *tools.Registry) option {
+// WithRegistry 指定贡献者注册中心（多 Agent 场景唯一扩展入口）
+//
+// 不同 Agent 可持有不同注册中心，实现工具集/扩展差异化（建议经
+// contributor.NewBuilder 独立装配 + WithFilter 裁剪）；未指定时使用
+// 默认装配的注册中心。注意：Agent 的工具/中间件/上下文均源自注册中心，
+// 不存在绕过插件机制的装配旁路。
+func WithRegistry(registry *contributor.Registry) option {
 	return func(agent *Agent) {
-		agent.tools = tools
+		agent.registry = registry
 	}
 }
 
@@ -56,9 +62,12 @@ func WithMaxStep(maxStep int) option {
 type runOptions struct {
 	adkRunOptions []adk.AgentRunOption
 	sessionKey    string
-	userId        string
 	turnId        string // 一次完整回复id
-	resumeParams  []any  // 恢复参数（ApprovalResume 或 ParamCompletionResume）
+	resumeParams  []any  // 恢复参数（由各中断类型通过扩展注册表转换）
+
+	// interrupted 本轮是否以中断挂起结束（事件流中检测到 Interrupted 动作时置位，
+	// 用于轮次结束原因细分为 TurnEndInterrupted）
+	interrupted bool
 
 	// onChunk 流式内容块回调函数
 	// 当 Agent 产生增量输出（如 LLM 生成的每一个 Token 或片段）时触发。
@@ -96,7 +105,7 @@ func newRunOptions(ctx context.Context, opts ...RunOption) *runOptions {
 	}
 
 	if options.turnId == "" {
-		options.turnId = stringx.RandUUID()
+		options.turnId = stringx.SortableUUID()
 	}
 
 	return options
@@ -115,12 +124,6 @@ func WithRunAdkOptions(options ...adk.AgentRunOption) RunOption {
 func WithRunSessionKey(sessionKey string) RunOption {
 	return func(opts *runOptions) {
 		opts.sessionKey = sessionKey
-	}
-}
-
-func WithRunUserId(userId string) RunOption {
-	return func(opts *runOptions) {
-		opts.userId = userId
 	}
 }
 

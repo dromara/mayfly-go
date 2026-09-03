@@ -58,5 +58,13 @@ func NewToolError(err error, strategy RecoverStrategy) *ToolError {
 
 // GetToolErrorMsg 获取工具错误信息
 func GetToolErrorMsg(err error) string {
-	return fmt.Sprintf("[tool error] %v", err)
+	return fmt.Sprintf("%s%v", ToolErrorPrefix, err)
+}
+
+// ToolErrorPrefix 工具错误消息前缀（SafeToolMiddleware 将 RecoverRetry 错误转为字符串结果时使用）
+const ToolErrorPrefix = "[tool error] "
+
+// IsToolErrorMsg 判断内容是否为工具错误消息
+func IsToolErrorMsg(content string) bool {
+	return len(content) >= len(ToolErrorPrefix) && content[:len(ToolErrorPrefix)] == ToolErrorPrefix
 }

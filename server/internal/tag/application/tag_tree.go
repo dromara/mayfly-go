@@ -70,6 +70,8 @@ type tagTreeAppImpl struct {
 	tagTreeRelateApp TagTreeRelate `inject:"T"`
 }
 
+var _ TagTree = (*tagTreeAppImpl)(nil)
+
 var _ (TagTree) = (*tagTreeAppImpl)(nil)
 
 func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.TagTree) error {

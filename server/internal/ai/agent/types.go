@@ -2,12 +2,6 @@ package agent
 
 import (
 	"mayfly-go/pkg/utils/collx"
-
-	"github.com/cloudwego/eino/schema"
-)
-
-const (
-	RoleInternal = schema.RoleType("internal") // 内部系统
 )
 
 type InternalMessageType string

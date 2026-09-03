@@ -1,48 +1,35 @@
 <template>
-    <div class="confirmation-interrupt border border-gray-200 dark:border-gray-700 rounded flex flex-col">
+    <Card class="confirmation-interrupt">
         <!-- 紧凑头部 -->
-        <div class="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
-            <div class="flex items-center gap-2">
-                <el-tag type="primary" size="small">{{ t('ai.interrupt.confirmation.title') }}</el-tag>
-                <span class="text-sm font-medium">{{ interruptData?.title }}</span>
+        <div class="confirmation-interrupt__header">
+            <div class="confirmation-interrupt__header-left">
+                <Badge variant="secondary" class="confirmation-interrupt__type">{{ t('ai.interrupt.confirmation.title') }}</Badge>
+                <span class="confirmation-interrupt__desc">{{ interrupt?.description }}</span>
             </div>
-            <enum-tag v-if="isProcessed" :enums="InterruptAction" :value="currentAction" />
-            <el-tag v-else-if="hasPending" type="info" size="small">待提交</el-tag>
-            <el-tag v-else type="warning" size="small">{{ t('ai.interrupt.confirmation.pendingConfirmation') }}</el-tag>
+            <Badge v-if="!readonly" variant="secondary" class="confirmation-interrupt__pending">{{ t('ai.interrupt.confirmation.pendingConfirmation') }}</Badge>
+            <Badge v-else variant="outline">{{ t('ai.interrupt.confirmation.resolved') }}</Badge>
         </div>
 
-        <div class="px-3 py-2 space-y-2 flex-1">
-            <!-- 描述信息 -->
-            <div v-if="interruptData?.description" class="text-xs text-gray-500 dark:text-gray-400">
-                {{ interruptData.description }}
-            </div>
-
+        <div class="confirmation-interrupt__body">
             <!-- 确认选项 -->
-            <div v-if="interruptData?.options" class="bg-blue-50 dark:bg-blue-900/20 rounded p-2 border border-blue-200 dark:border-blue-800">
-                <div class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">{{ t('ai.interrupt.confirmation.pleaseSelect') }}</div>
-                <el-radio-group v-model="selectedOption" :disabled="readonly || isProcessed || hasPending">
-                    <el-radio v-for="option in interruptData.options" :key="option.value" :value="option.value" class="block mb-1 text-xs">
+            <div v-if="options.length > 0" class="confirmation-interrupt__options">
+                <div class="confirmation-interrupt__options-label">{{ t('ai.interrupt.confirmation.pleaseSelect') }}</div>
+                <el-radio-group v-model="selectedOption" :disabled="readonly">
+                    <el-radio v-for="option in options" :key="option.value" :value="option.value" class="confirmation-interrupt__radio">
                         {{ option.label }}
                     </el-radio>
                 </el-radio-group>
             </div>
-
-            <!-- 操作结果记录 -->
-            <div v-if="resumeInfo" class="flex items-center gap-2 text-xs">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('ai.interrupt.confirmation.operationType') }}:</span>
-                <enum-tag :enums="InterruptAction" :value="resumeInfo.action" />
-                <span v-if="resumeInfo.payload" class="text-gray-500 dark:text-gray-400 ml-1">{{ resumeInfo.payload }}</span>
-            </div>
         </div>
 
         <!-- 操作按钮 -->
-        <div v-if="!readonly && !isProcessed && !hasPending" class="flex justify-end gap-2 px-3 py-2 border-t border-gray-100 dark:border-gray-800">
-            <el-button size="small" type="primary" @click="handleAction('confirm', selectedOption)" :disabled="!selectedOption">
+        <div v-if="!readonly" class="confirmation-interrupt__footer">
+            <Button size="xs" :disabled="!selectedOption && options.length > 0" @click="handleAction('confirm')">
                 {{ t('ai.interrupt.confirmation.confirm') }}
-            </el-button>
-            <el-button size="small" @click="handleAction('cancel')">{{ t('ai.interrupt.confirmation.cancel') }}</el-button>
+            </Button>
+            <Button size="xs" variant="outline" @click="handleAction('cancel')">{{ t('ai.interrupt.confirmation.cancel') }}</Button>
         </div>
-    </div>
+    </Card>
 </template>
 
 <script setup lang="ts">
@@ -50,79 +37,103 @@
  * 确认类型中断组件
  * 用于需要用户从多个选项中选择的场景
  */
-
-import { EnumValue } from '@/common/Enum';
-import EnumTag from '@/components/enum-tag/EnumTag.vue';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { InternalMessage, InterruptActionEvent } from './types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import type { InterruptComponentProps } from './types';
 
-const { t } = useI18n();
-
-interface Props {
-    data: InternalMessage;
-    readonly?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,
 });
 
-const emit = defineEmits<{
-    action: [action: InterruptActionEvent];
-}>();
-
+const { t } = useI18n();
 const selectedOption = ref<string>();
 
-// 从 data 对象中提取常用字段
-const interruptData = computed(() => props.data.extra?.content);
-const interruptId = computed(() => props.data.actionId || props.data.extra?.actionId || '');
-const turnId = computed(() => props.data.turnId || props.data.extra?.turnId || '');
-const resumeInfo = computed(() => props.data.extra?.resumeInfo);
-const pendingResumeInfo = computed(() => props.data.extra?.pendingResumeInfo);
-const interruptType = computed(() => props.data.extra?.type || '');
+/** 从 metadata 中提取选项列表 */
+const options = computed(() => {
+    const opts = props.interrupt?.metadata?.options as Array<{ value: string; label: string }> | undefined;
+    return opts || [];
+});
 
-// 根据 resumeInfo.action 计算当前状态
-const currentAction = computed(() => resumeInfo.value?.action || pendingResumeInfo.value?.action);
-
-// 判断是否已处理（有 resumeInfo 表示已处理）
-const isProcessed = computed(() => !!resumeInfo.value);
-const hasPending = computed(() => !!pendingResumeInfo.value);
-
-// 从 pendingResumeInfo 恢复已选择的选项
-watch(
-    () => pendingResumeInfo.value?.payload,
-    (payload) => {
-        if (payload && typeof payload === 'string') {
-            selectedOption.value = payload;
-        }
-    },
-    { immediate: true }
-);
-
-const InterruptAction = {
-    Confirm: EnumValue.of('confirm', 'ai.interrupt.action.confirm').tagTypeSuccess(),
-    Cancel: EnumValue.of('cancel', 'ai.interrupt.action.cancel').tagTypeDanger(),
-};
-
-/**
- * 处理用户操作
- * @param action 操作类型
- * @param payload 额外数据（如选中的选项值）
- */
-const handleAction = (action: string, payload?: unknown) => {
-    emit('action', {
-        turnId: turnId.value || '',
-        interruptId: interruptId.value || '',
-        interruptType: interruptType.value || '',
+const handleAction = (action: string) => {
+    props.onAction({
+        turnId: props.turnId,
+        interruptId: props.interrupt?.actionId || '',
+        interruptType: props.interrupt?.type || '',
         action,
-        payload: payload as Record<string, unknown> | undefined,
+        payload: selectedOption.value ? { selected: selectedOption.value } : undefined,
+        toolCallId: props.interrupt?.toolCallId,
     });
 };
 </script>
 
 <style scoped>
 .confirmation-interrupt {
-    @apply transition-all duration-300;
+    gap: 0;
+    padding: 0;
+    box-shadow: none;
+}
+
+.confirmation-interrupt__type {
+    color: var(--el-color-primary);
+}
+
+.confirmation-interrupt__pending {
+    color: var(--el-color-warning);
+}
+
+.confirmation-interrupt__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--el-border-color-extra-light);
+    background: var(--el-fill-color-light);
+}
+
+.confirmation-interrupt__header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confirmation-interrupt__desc {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.confirmation-interrupt__body {
+    padding: 8px 12px;
+    flex: 1;
+}
+
+.confirmation-interrupt__options {
+    background: var(--el-color-primary-light-9);
+    border-radius: 6px;
+    padding: 8px;
+    border: 1px solid var(--el-color-primary-light-7);
+}
+
+.confirmation-interrupt__options-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--el-color-primary);
+    margin-bottom: 4px;
+}
+
+.confirmation-interrupt__radio {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.confirmation-interrupt__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--el-border-color-extra-light);
 }
 </style>

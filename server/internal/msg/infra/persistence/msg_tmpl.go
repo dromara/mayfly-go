@@ -11,6 +11,8 @@ type msgTmplRepoImpl struct {
 	base.RepoImpl[*entity.MsgTmpl]
 }
 
+var _ repository.MsgTmpl = (*msgTmplRepoImpl)(nil)
+
 func newMsgTmplRepo() repository.MsgTmpl {
 	return &msgTmplRepoImpl{}
 }
@@ -26,6 +28,8 @@ func (m *msgTmplRepoImpl) GetPageList(condition *entity.MsgTmpl, pageParam model
 type msgTmplChannelRepoImpl struct {
 	base.RepoImpl[*entity.MsgTmplChannel]
 }
+
+var _ repository.MsgTmplChannel = (*msgTmplChannelRepoImpl)(nil)
 
 func newMsgTmplChannelRepo() repository.MsgTmplChannel {
 	return &msgTmplChannelRepoImpl{}

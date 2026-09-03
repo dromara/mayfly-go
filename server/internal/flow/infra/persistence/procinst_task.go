@@ -32,5 +32,5 @@ func (p *procinstTaskImpl) GetPageList(condition *entity.ProcinstTaskQuery, orde
 			OrderByDesc("t.id"))
 
 	tasks := []*entity.ProcinstTaskPO{}
-	return gormx.PageQuery(qd, condition.PageParam, tasks)
+	return qd.PageQuery(condition.PageParam, tasks)
 }

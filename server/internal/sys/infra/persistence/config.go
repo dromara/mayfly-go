@@ -11,6 +11,8 @@ type configRepoImpl struct {
 	base.RepoImpl[*entity.Config]
 }
 
+var _ repository.Config = (*configRepoImpl)(nil)
+
 func newConfigRepo() repository.Config {
 	return &configRepoImpl{}
 }

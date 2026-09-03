@@ -39,6 +39,8 @@ type resourceAppImpl struct {
 	roleApp          Role                    `inject:"T"`
 }
 
+var _ Resource = (*resourceAppImpl)(nil)
+
 var _ (Resource) = (*resourceAppImpl)(nil)
 
 func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {

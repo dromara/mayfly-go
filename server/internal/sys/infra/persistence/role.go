@@ -11,6 +11,8 @@ type roleRepoImpl struct {
 	base.RepoImpl[*entity.Role]
 }
 
+var _ repository.Role = (*roleRepoImpl)(nil)
+
 func newRoleRepo() repository.Role {
 	return &roleRepoImpl{}
 }

@@ -6,7 +6,7 @@
 /** 文件实体 (对应 entity.File) */
 export interface FileRecord {
     id: number;
-    fikeKey: string;
+    fileKey: string;
     filename: string;
     path: string;
     size: number;

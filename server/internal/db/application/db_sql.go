@@ -13,3 +13,5 @@ type DbSql interface {
 type dbSqlAppImpl struct {
 	base.AppImpl[*entity.DbSql, repository.DbSql]
 }
+
+var _ DbSql = (*dbSqlAppImpl)(nil)

@@ -10,6 +10,8 @@ type resourceAuthCertRepoImpl struct {
 	base.RepoImpl[*entity.ResourceAuthCert]
 }
 
+var _ repository.ResourceAuthCert = (*resourceAuthCertRepoImpl)(nil)
+
 func newResourceAuthCertRepoImpl() repository.ResourceAuthCert {
 	return &resourceAuthCertRepoImpl{}
 }

@@ -48,6 +48,8 @@ type msgTmplAppImpl struct {
 	accountApp    sysapp.Account `inject:"T"`
 }
 
+var _ MsgTmpl = (*msgTmplAppImpl)(nil)
+
 var _ (MsgTmpl) = (*msgTmplAppImpl)(nil)
 
 func (m *msgTmplAppImpl) GetPageList(condition *entity.MsgTmpl, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MsgTmpl], error) {
@@ -195,7 +197,7 @@ func (m *msgTmplAppImpl) SendMsg(ctx context.Context, mts *dto.MsgTmplSend) erro
 			logx.Warnf("channel is disabled => %s", channel.Code)
 			continue
 		}
-		
+
 		gox.Go(func() {
 			ch := *channel
 			if err := msgx.Send(ctx, &msgx.Channel{

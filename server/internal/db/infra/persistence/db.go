@@ -12,6 +12,8 @@ type dbRepoImpl struct {
 	base.RepoImpl[*entity.Db]
 }
 
+var _ repository.Db = (*dbRepoImpl)(nil)
+
 func newDbRepo() repository.Db {
 	return &dbRepoImpl{}
 }

@@ -58,6 +58,8 @@ type dbAppImpl struct {
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
+var _ Db = (*dbAppImpl)(nil)
+
 var _ (Db) = (*dbAppImpl)(nil)
 
 // 分页获取数据库信息列表

@@ -3,97 +3,142 @@ package agent
 import (
 	"context"
 	"errors"
-	"io"
-	"mayfly-go/internal/ai/agent/middleware"
+	"fmt"
+	"mayfly-go/internal/ai/agent/contributor"
+	aiconfig "mayfly-go/internal/ai/config"
+	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/jsonx"
 	"slices"
+	"sync"
 
 	"github.com/cloudwego/eino/adk"
-	"github.com/cloudwego/eino/adk/prebuilt/deep"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 )
 
-// GetDefaultAgent 获取默认agent
+// 默认 Agent 单例：避免每个 WS 连接/流程任务都重建 agent 与工具链
+var (
+	defaultAgent   *Agent
+	defaultAgentMu sync.Mutex
+)
+
+// GetDefaultAgent 获取默认 agent（进程级单例，并发安全，首次调用时懒初始化；
+// 初始化失败不缓存，下次调用会重试）
+//
+// 注意：opts 仅在首次初始化时生效，后续调用复用单例 —— 进程内仅存在一个默认
+// Agent。多 Agent 差异化（不同注册中心/工具集）请经 NewAgent + WithRegistry
+// 显式构造独立实例，不要依赖 GetDefaultAgent 的 opts 传递。
 func GetDefaultAgent(ctx context.Context, opts ...option) (*Agent, error) {
-	return NewAgent(ctx, opts...)
+	defaultAgentMu.Lock()
+	defer defaultAgentMu.Unlock()
+
+	if defaultAgent != nil {
+		return defaultAgent, nil
+	}
+
+	ag, err := NewAgent(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defaultAgent = ag
+	return defaultAgent, nil
+}
+
+// ResetDefaultAgent 重置默认 Agent 单例（下次 GetDefaultAgent 时懒重建）
+//
+// 供插件管理变更（MCP 服务器增删改/启停）后刷新工具清单，运行期即时生效：
+// 正在执行中的轮次持有旧实例引用不受影响，新对话使用重建后的 Agent
+// （重建时 mcpext 连接缓存按配置指纹复用未变更服务器的长连接，无重连开销）
+func ResetDefaultAgent() {
+	defaultAgentMu.Lock()
+	defer defaultAgentMu.Unlock()
+	defaultAgent = nil
 }
 
 const (
 	DefaultAgentId = "main"
 )
 
+// NewAgent 创建 Agent
+//
+// 内部经统一宿主装配点（AssembleDefault）获取默认 Registry 与
+// ContextManager 后再聚合工具/中间件，保证扩展以真实依赖装配。
 func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
-	return newAgent(ctx, func(ctx context.Context, a *Agent) (adk.Agent, error) {
-		return adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
-			Name:          a.name,
-			Description:   a.description,
-			Model:         a.chatModel,
-			MaxIterations: a.maxStep,
-			ToolsConfig: adk.ToolsConfig{
-				ToolsNodeConfig: compose.ToolsNodeConfig{
-					Tools: a.tools.GetAll(),
-				},
-			},
-			Handlers: a.middlewares,
-		})
-	}, opts...)
-}
-
-func NewDeepAgent(ctx context.Context, opts ...option) (*Agent, error) {
-	return newAgent(ctx, func(ctx context.Context, cfg *Agent) (adk.Agent, error) {
-		return deep.New(ctx, &deep.Config{
-			Name:        cfg.name,
-			Description: cfg.description,
-			ChatModel:   cfg.chatModel,
-			ToolsConfig: adk.ToolsConfig{
-				ToolsNodeConfig: compose.ToolsNodeConfig{
-					Tools: cfg.tools.GetAll(),
-				},
-			},
-			MaxIteration: cfg.maxStep,
-			Handlers:     cfg.middlewares,
-		})
-	}, opts...)
-}
-
-func newAgent(ctx context.Context, factory agentFactory, opts ...option) (*Agent, error) {
 	agent := &Agent{
 		id:          DefaultAgentId,
 		name:        "OpsExpert",
 		description: "an agent for general task",
 		maxStep:     20,
-		tools:       tools.DefaultRegistry,
-		middlewares: []adk.ChatModelAgentMiddleware{
-			&middleware.SafeToolMiddleware{},
-		},
 	}
 
 	for _, opt := range opts {
 		opt(agent)
 	}
 
-	if agent.chatModel == nil {
-		chatModel, err := GetChatModel(ctx)
-		if err != nil {
-			return nil, err
-		}
-		agent.chatModel = chatModel
+	// 统一宿主装配：先装配默认运行时（注册中心/上下文管理器），再聚合工具，
+	// 确保扩展以真实依赖装配（修复此前 InitDefault(nil,nil) 时序缺陷）
+	rt, err := AssembleDefault(ctx)
+	if err != nil {
+		return nil, err
 	}
-
+	if agent.registry == nil {
+		agent.registry = rt.Registry
+	}
 	if agent.contextManager == nil {
-		if ctxManager, err := GetDefaultContextManager(); err != nil {
-			return nil, err
+		agent.contextManager = rt.ContextManager
+	}
+
+	// 工具列表统一经贡献者注册中心聚合（内置 + 宿主扩展，后注册者覆盖先注册者），
+	// 不存在绕过插件机制的装配旁路；AgentId 已注入贡献上下文，条件工具组可按 Agent 过滤
+	agent.tools = agent.registry.BuildTools(ctx, &contributor.ToolContributionContext{
+		AgentId: agent.id,
+	})
+
+	// 中间件经注册中心聚合（内置 safety 中间件 + 插件），选项指定者追加在后
+	agent.middlewares = append(agent.registry.CollectMiddlewares(ctx), agent.middlewares...)
+
+	// 静态系统提示词：渲染 system_prompt.md 注入 adk Instruction（每轮由 adk 前置为 system 消息）
+	if agent.instruction == "" {
+		agent.instruction = SystemInstruction()
+	}
+
+	if agent.chatModel == nil {
+		if rt.ChatModel != nil {
+			// 复用宿主装配期单次获取的 ChatModel（避免重复 IOC 查询）
+			agent.chatModel = rt.ChatModel
 		} else {
-			agent.contextManager = ctxManager
+			chatModel, err := GetChatModel(ctx)
+			if err != nil {
+				return nil, err
+			}
+			agent.chatModel = chatModel
 		}
 	}
 
-	adkAgent, err := factory(ctx, agent)
+	adkAgent, err := adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
+		Name:          agent.name,
+		Description:   agent.description,
+		Instruction:   agent.instruction,
+		Model:         agent.chatModel,
+		MaxIterations: agent.maxStep,
+		ToolsConfig: adk.ToolsConfig{
+			ToolsNodeConfig: compose.ToolsNodeConfig{
+				Tools: agent.tools,
+			},
+		},
+		Handlers: agent.middlewares,
+		// 模型调用重试（eino v0.9 Model Retry）：系统配置 retry.maxRetries 启用，
+		// 未配置为 nil 保持零重试行为；瞬时失败（网络/429/5xx）自动重试，
+		// 主动取消/超时不重试（保持停止即中止语义）
+		ModelRetryConfig: buildModelRetryConfig(aiconfig.GetModel().Retry),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +146,16 @@ func newAgent(ctx context.Context, factory agentFactory, opts ...option) (*Agent
 	return agent, nil
 }
 
-// agentFactory 定义创建 adk.Agent 的回调函数签名
-type agentFactory func(ctx context.Context, cfg *Agent) (adk.Agent, error)
+// RunResult 一次 agent 运行的结果
+//
+// Usage 为本轮各次模型调用的 token 用量累计（多步工具循环每步各带一份 usage），
+// 模型未上报 usage 时为 nil。供 api 层下发 TurnCompleted 事件与会话统计累计。
+type RunResult struct {
+	// Output 最终输出文本（最后一条消息内容）
+	Output string
+	// Usage 本轮 token 用量累计（无 usage 上报时为 nil）
+	Usage *schema.TokenUsage
+}
 
 type Agent struct {
 	agent     adk.Agent
@@ -111,15 +164,17 @@ type Agent struct {
 	id          string
 	name        string // agent名称
 	description string // agent描述
+	instruction string // 系统提示词（静态部分，注入 adk Instruction）
 	maxStep     int    // agent最大执行步数，防止死循环
 
-	tools          *tools.Registry                // 可调用的工具注册中心
-	middlewares    []adk.ChatModelAgentMiddleware // 中间件
+	tools          []tool.BaseTool                // 可调用的工具列表（经 Registry 聚合）
+	middlewares    []adk.ChatModelAgentMiddleware // 中间件（经 Registry 聚合 + 选项追加）
+	registry       *contributor.Registry          // 贡献者注册中心（生命周期/用量回调/中间件聚合来源）
 	contextManager *ContextManager                // 上下文管理器
 }
 
-// Run 运行agent
-func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunOption) (string, error) {
+// Run 运行agent（轮次管道：装配输入 → 执行 → 事件处理 → 收尾兜底）
+func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunOption) (*RunResult, error) {
 	ctx = contextx.WithTraceId(ctx)
 
 	runOptions := newRunOptions(ctx, runOpts...)
@@ -127,98 +182,60 @@ func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunO
 		ctx = session.WithSessionKey(ctx, runOptions.sessionKey)
 		ctx = session.WithTurn(ctx, runOptions.turnId)
 	}
-	if len(messages) > 0 {
-		for _, inputMsg := range messages {
-			SetTurnId(inputMsg, runOptions.turnId)
-		}
+
+	turnUserId := ""
+	if la := contextx.GetLoginAccount(ctx); la != nil {
+		turnUserId = fmt.Sprintf("%d", la.Id)
 	}
 
-	checkPointStore := GetDefaultCheckPointStore()
+	// 轮次生命周期钩子：轮次开始（fail-open，不阻断对话）
+	a.registry.NotifyTurnStart(ctx, &contributor.TurnStartInput{
+		SessionKey: runOptions.sessionKey,
+		TurnId:     runOptions.turnId,
+		UserId:     turnUserId,
+	})
+	for _, inputMsg := range messages {
+		SetTurnId(inputMsg, runOptions.turnId)
+	}
+
+	checkPointStore, err := GetDefaultCheckPointStore()
+	if err != nil {
+		return nil, err
+	}
 	runner := adk.NewRunner(ctx, adk.RunnerConfig{
 		EnableStreaming: true,
 		Agent:           a.agent,
 		CheckPointStore: checkPointStore,
 	})
 
-	adkRunOptions := runOptions.adkRunOptions
-	adkRunOptions = append(adkRunOptions,
+	adkRunOptions := append(runOptions.adkRunOptions,
 		adk.WithCallbacks(logCallback),
 		adk.WithCheckPointID(runOptions.turnId))
 
-	var outputMessages []adk.Message
 	var events *adk.AsyncIterator[*adk.AgentEvent]
-	var err error
+	var outputMessages []adk.Message
 
-	// 保证消息持久化：无论正常返回、错误返回还是 panic，都会尝试保存
-	// 避免崩溃或提前 return 导致整轮消息丢失
+	// 轮次收尾兜底：无论正常返回、错误返回还是 panic，都保证错误消息下发、
+	// 消息持久化与生命周期/用量回调执行
 	defer func() {
-		// 如果有未处理的错误，包装为 AI 回复消息推送给前端并保存
-		if err != nil {
-			// 工具错误已经在前面单独处理过了，这里只处理其他类型的错误
-			errMsg := &schema.Message{
-				Role:    schema.Assistant,
-				Content: err.Error(),
-			}
-			SetTurnId(errMsg, runOptions.turnId)
-			// 推送错误消息给前端
-			runOptions.CallOnChunk(ctx, errMsg)
-			// 加入 outputMessages 以便保存到历史记录
-			outputMessages = append(outputMessages, errMsg)
-		}
-
-		saveMsgs := slices.Concat(messages, outputMessages)
-		if len(saveMsgs) > 0 {
-			if err := a.contextManager.AppendMsgs(ctx, saveMsgs...); err != nil {
-				logx.ErrorfContext(ctx, "agent append message error: %v", err)
-			}
-		}
+		a.finalizeTurn(ctx, runOptions, turnUserId, messages, &outputMessages, err)
 	}()
 
 	if runOptions.resumeParams != nil {
-		resumePrams := runOptions.resumeParams
-		targets := map[string]any{}
-
-		var resumeMsgs []adk.Message
-		for _, v := range resumePrams {
-			data, ok := v.(*tools.InterruptResume)
-			if !ok {
-				continue
-			}
-			interruptId := data.InterruptId
-
-			// key -> interruptId  value -> InterruptResume
-			targets[interruptId] = data.ToTarget()
-
-			// 中断恢复消息
-			internalResumeMessage := &schema.Message{
-				Role: RoleInternal,
-			}
-			extra := NewInternalMessageExtra(InternalMessageTypeResume, data)
-			internalResumeMessage.Extra = extra
-			SetTurnId(internalResumeMessage, runOptions.turnId)
-			SetActionId(internalResumeMessage, interruptId)
-			resumeMsgs = append(resumeMsgs, internalResumeMessage)
+		resumeMsgs, resumeEvents, resumeErr := a.resumeRun(ctx, runner, checkPointStore, runOptions, adkRunOptions)
+		if resumeErr != nil {
+			return nil, resumeErr
 		}
-
-		events, err = runner.ResumeWithParams(ctx, runOptions.turnId, &adk.ResumeParams{
-			Targets: targets,
-		}, adkRunOptions...)
-		if err != nil {
-			return "", err
-		}
-
-		// 事件处理
+		events = resumeEvents
+		// 中断恢复消息下发
 		for _, resumeMsg := range resumeMsgs {
 			runOptions.CallOnEvent(ctx, nil, resumeMsg)
 		}
-		checkPointStore.Delete(ctx, runOptions.turnId)
 	} else {
-		contextMessages, err := a.contextManager.BuildMessages(ctx)
+		events, err = a.startRun(ctx, runner, messages, adkRunOptions)
 		if err != nil {
-			logx.ErrorContext(ctx, err.Error())
-			contextMessages = []adk.Message{}
+			return nil, err
 		}
-		events = runner.Run(ctx, slices.Concat(contextMessages, messages), adkRunOptions...)
 	}
 
 	eventOutputMessages, err := a.handleEvents(ctx, events, runOptions)
@@ -245,150 +262,169 @@ func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunO
 	}
 
 	if len(outputMessages) > 0 {
-		return outputMessages[len(outputMessages)-1].Content, err
+		return &RunResult{
+			Output: outputMessages[len(outputMessages)-1].Content,
+			Usage:  accumulateUsage(outputMessages),
+		}, err
 	}
 
-	return "finished without output message", err
+	return &RunResult{Output: "finished without output message", Usage: accumulateUsage(outputMessages)}, err
 }
 
-// handleEvents 处理事件
-func (a *Agent) handleEvents(ctx context.Context, events *adk.AsyncIterator[*adk.AgentEvent], runOptions *runOptions) ([]adk.Message, error) {
-	var outputMessages []adk.Message
-	var err error
+// startRun 启动新轮次：经上下文管理器组装历史 + preamble 后交给 runner
+//
+// fail-open：历史组装失败降级为空历史（仅本轮输入参与对话），不阻断对话。
+func (a *Agent) startRun(ctx context.Context, runner *adk.Runner, messages []adk.Message, adkRunOptions []adk.AgentRunOption) (*adk.AsyncIterator[*adk.AgentEvent], error) {
+	contextMessages, buildErr := a.contextManager.BuildMessages(ctx, messages...)
+	if buildErr != nil {
+		logx.ErrorContext(ctx, buildErr.Error())
+		contextMessages = []adk.Message{}
+	}
+	return runner.Run(ctx, slices.Concat(contextMessages, messages), adkRunOptions...), nil
+}
 
-	for {
-		event, ok := events.Next()
-		if !ok {
-			break
-		}
-
-		err = event.Err
-		if err != nil {
-			break
-		}
-
-		var msg adk.Message
-
-		sr := getMessageStream(event)
-		if sr != nil {
-			// 使用匿名函数或直接在处理完后关闭
-			func() {
-				defer sr.Close()
-				var chunkMessages []adk.Message
-				for {
-					chunk, err := sr.Recv()
-					if errors.Is(err, io.EOF) {
-						break
-					}
-					if err != nil {
-						logx.WarnfContext(ctx, "stream recv error: %v", err)
-						break
-					}
-					chunkMessages = append(chunkMessages, chunk)
-					if err := runOptions.CallOnChunk(ctx, chunk); err != nil {
-						logx.WarnfContext(ctx, "onStreaming callback error: %v", err)
-						break
-					}
-				}
-				if len(chunkMessages) > 0 {
-					// 拼接chunk为完整的消息
-					if message, err := schema.ConcatMessages(chunkMessages); err != nil {
-						logx.WarnfContext(ctx, "concat streamed messages error: %v", err)
-					} else {
-						msg = message
-					}
-				}
-			}()
-		} else {
-			msg = getMessage(event)
-		}
-
-		if event.Action != nil && event.Action.Interrupted != nil {
-			interruptInfo := event.Action.Interrupted
-			if interruptMessages, err := a.handleInterrupt(interruptInfo); err != nil {
-				logx.ErrorfContext(ctx, "interrupt error: %v", err)
-				continue
-			} else {
-				outputMessages = append(outputMessages, interruptMessages...)
-				for _, msg := range interruptMessages {
-					SetTurnId(msg, runOptions.turnId)
-					if err := runOptions.CallOnEvent(ctx, event, msg); err != nil {
-						logx.WarnfContext(ctx, "onEvent callback error: %v", err)
-						break
-					}
-				}
-			}
-		}
-
-		if msg == nil {
-			continue
-		}
-		SetTurnId(msg, runOptions.turnId)
-
-		outputMessages = append(outputMessages, msg)
-		if err := runOptions.CallOnEvent(ctx, event, msg); err != nil {
-			logx.WarnfContext(ctx, "onEvent callback error: %v", err)
-			return outputMessages, err
-		}
-
-		LogEventAndMsg(ctx, event, msg)
+// resumeRun 恢复中断挂起的轮次：预检 checkpoint → 转换恢复参数 → ResumeWithParams
+//
+// 返回待下发的中断恢复内部消息；成功后删除已消费的 checkpoint。
+func (a *Agent) resumeRun(ctx context.Context, runner *adk.Runner, checkPointStore CheckPointStore, runOptions *runOptions, adkRunOptions []adk.AgentRunOption) ([]adk.Message, *adk.AsyncIterator[*adk.AgentEvent], error) {
+	// 预检查 checkpoint 是否存在：中断挂起超过 TTL 或服务重启后 checkpoint 会失效，
+	// 提前返回友好提示，避免用户操作后收到晦涩的 "checkpoint not exist" 错误
+	if _, ok, getErr := checkPointStore.Get(ctx, runOptions.turnId); getErr != nil || !ok {
+		logx.WarnfContext(ctx, "[Agent.Run] resume checkpoint not found, turnId=%s, err=%v", runOptions.turnId, getErr)
+		return nil, nil, errors.New(i18n.T(imsg.InterruptExpired))
 	}
 
-	return outputMessages, err
-}
-
-// handleIntererrupt 处理中断
-func (a *Agent) handleInterrupt(interruptInfo *adk.InterruptInfo) ([]adk.Message, error) {
-	outputMessages := []adk.Message{}
-	for _, ic := range interruptInfo.InterruptContexts {
-		if !ic.IsRootCause {
-			continue
-		}
-
-		info, ok := ic.Info.(tools.InterruptMetadata)
+	targets := map[string]any{}
+	var resumeMsgs []adk.Message
+	for _, v := range runOptions.resumeParams {
+		data, ok := v.(*tools.InterruptResume)
 		if !ok {
 			continue
 		}
+		interruptId := data.InterruptId
+		logx.InfofContext(ctx, "[Agent.Run] resume: interruptId=%s, type=%s, action=%s, payload=%v",
+			interruptId, data.InterruptType, data.Action, jsonx.ToStr(data.Payload))
 
-		interruptType := info.GetType()
-		toolCallId := info.GetToolCallId()
+		// key -> interruptId  value -> 具体类型的恢复参数
+		targets[interruptId] = data.ToTarget()
 
-		extra := NewInternalMessageExtra(string(interruptType), info)
-		internalMsg := &schema.Message{
-			Role:       RoleInternal,
-			Content:    info.GetDescription(),
-			ToolName:   info.GetToolInfo().Name,
-			ToolCallID: toolCallId,
-			Extra:      extra,
+		// 类型特有的预处理（如参数补全类型：按 toolCallId 缓存 + 注入 Go context），
+		// 通过中断扩展注册表分发，新增中断类型无需修改此处
+		ctx = tools.PrepareInterruptResumeCtx(ctx, data)
+
+		// 中断恢复消息
+		internalResumeMessage := &schema.Message{
+			Role: session.RoleInternal,
 		}
-		SetActionId(internalMsg, ic.ID)
-		SetToolStatus(internalMsg, tools.ToolStatusInterrupted)
-		outputMessages = append(outputMessages, internalMsg)
+		extra := NewInternalMessageExtra(InternalMessageTypeResume, data)
+		internalResumeMessage.Extra = extra
+		SetTurnId(internalResumeMessage, runOptions.turnId)
+		SetActionId(internalResumeMessage, interruptId)
+		resumeMsgs = append(resumeMsgs, internalResumeMessage)
 	}
 
-	return outputMessages, nil
+	events, err := runner.ResumeWithParams(ctx, runOptions.turnId, &adk.ResumeParams{
+		Targets: targets,
+	}, adkRunOptions...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	checkPointStore.Delete(ctx, runOptions.turnId)
+	return resumeMsgs, events, nil
 }
 
-func getMessageStream(event *adk.AgentEvent) adk.MessageStream {
-	eo := event.Output
-	if eo == nil {
-		return nil
+// finalizeTurn 轮次收尾（defer 执行）：错误兜底消息 → 消息持久化 → 结束原因细分 → 生命周期/用量回调
+func (a *Agent) finalizeTurn(ctx context.Context, runOptions *runOptions, turnUserId string, inputMessages []adk.Message, outputMessages *[]adk.Message, runErr error) {
+	// 显式 stop 触发的 ctx 取消属预期行为（TurnEndAborted），
+	// 不作为错误包装为回复消息推送/持久化，避免污染会话历史
+	if runErr != nil && errors.Is(runErr, context.Canceled) {
+		runErr = nil
 	}
-	mo := eo.MessageOutput
-	if mo == nil {
-		return nil
+
+	// 如果有未处理的错误，包装为 AI 回复消息推送给前端并保存
+	// （工具错误已经在 Run 主流程单独处理，这里只处理其他类型的错误）
+	if runErr != nil {
+		errMsg := &schema.Message{
+			Role:    schema.Assistant,
+			Content: runErr.Error(),
+		}
+		SetTurnId(errMsg, runOptions.turnId)
+		// 推送错误消息给前端
+		if err := runOptions.CallOnChunk(ctx, errMsg); err != nil {
+			logx.WarnfContext(ctx, "agent push error message failed: %v", err)
+		}
+		// 加入 outputMessages 以便保存到历史记录
+		*outputMessages = append(*outputMessages, errMsg)
 	}
-	return mo.MessageStream
+
+	// 结束原因细分：主动中止（ctx 取消）→ 异常终止 → 中断挂起 → 正常完成
+	// （需在切换到无取消 ctx 前判定，主动中止依赖 ctx.Err()）
+	cause := turnEndCause(ctx, runOptions, runErr)
+
+	// 收尾持久化与钩子切换到无取消 ctx：显式 stop 后 turn ctx 已取消，
+	// 仍需保证消息落盘与生命周期/用量回调执行
+	ctx = context.WithoutCancel(ctx)
+
+	// 保证消息持久化：无论正常返回、错误返回还是 panic，都会尝试保存
+	// 避免崩溃或提前 return 导致整轮消息丢失
+	saveMsgs := slices.Concat(inputMessages, *outputMessages)
+	if len(saveMsgs) > 0 {
+		if err := a.contextManager.AppendMsgs(ctx, saveMsgs...); err != nil {
+			logx.ErrorfContext(ctx, "agent append message error: %v", err)
+		}
+	}
+
+	// 轮次生命周期钩子：轮次结束（按因施策）
+	a.registry.NotifyTurnEnd(ctx, &contributor.TurnEndInput{
+		SessionKey: runOptions.sessionKey,
+		TurnId:     runOptions.turnId,
+		UserId:     turnUserId,
+		Cause:      cause,
+	})
+
+	// token 用量回调（唯一出口，计量/计费/统计类扩展经此接入，fail-open）
+	a.registry.NotifyTokenUsage(ctx, &contributor.TokenUsageInput{
+		SessionKey: runOptions.sessionKey,
+		TurnId:     runOptions.turnId,
+		UserId:     turnUserId,
+		Usage:      accumulateUsage(*outputMessages),
+		Cause:      cause,
+	})
 }
 
-func getMessage(event *adk.AgentEvent) *schema.Message {
-	eo := event.Output
-	if eo == nil {
-		return nil
+// turnEndCause 判定轮次结束原因
+func turnEndCause(ctx context.Context, runOptions *runOptions, runErr error) contributor.TurnEndCause {
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return contributor.TurnEndAborted
 	}
-	mo := eo.MessageOutput
-	if mo == nil {
-		return nil
+	if runErr != nil {
+		return contributor.TurnEndError
 	}
-	return mo.Message
+	if runOptions.interrupted {
+		return contributor.TurnEndInterrupted
+	}
+	return contributor.TurnEndCompleted
+}
+
+// accumulateUsage 累计各次模型调用的 token 用量（多步工具循环每步各带一份 usage）
+func accumulateUsage(msgs []adk.Message) *schema.TokenUsage {
+	var usage *schema.TokenUsage
+	for _, msg := range msgs {
+		if msg.ResponseMeta == nil || msg.ResponseMeta.Usage == nil {
+			continue
+		}
+		u := msg.ResponseMeta.Usage
+		if usage == nil {
+			usage = &schema.TokenUsage{}
+		}
+		usage.PromptTokens += u.PromptTokens
+		usage.CompletionTokens += u.CompletionTokens
+		usage.TotalTokens += u.TotalTokens
+	}
+	if usage != nil && usage.TotalTokens == 0 {
+		// 部分模型不回 total，按 prompt + completion 兼底
+		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+	return usage
 }

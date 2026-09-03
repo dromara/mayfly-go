@@ -10,6 +10,8 @@ type roleResourceRepoImpl struct {
 	base.RepoImpl[*entity.RoleResource]
 }
 
+var _ repository.RoleResource = (*roleResourceRepoImpl)(nil)
+
 func newRoleResourceRepo() repository.RoleResource {
 	return &roleResourceRepoImpl{}
 }

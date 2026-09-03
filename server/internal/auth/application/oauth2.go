@@ -19,6 +19,8 @@ type oauth2AppImpl struct {
 	oauth2AccountRepo repository.Oauth2Account `inject:"T"`
 }
 
+var _ Oauth2 = (*oauth2AppImpl)(nil)
+
 func (a *oauth2AppImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error {
 	return a.oauth2AccountRepo.GetByCond(model.NewModelCond(condition).Columns(cols...))
 }

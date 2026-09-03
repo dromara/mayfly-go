@@ -2,8 +2,8 @@ package guac
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"io"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 // The Guacamole protocol instruction Opcode reserved for arbitrary
@@ -57,7 +57,7 @@ type SimpleTunnel struct {
 	 * corresponding UUID such that tunnel read/write requests can be
 	 * directed to the proper tunnel.
 	 */
-	uuid       uuid.UUID
+	uuid       string
 	readerLock CountedLock
 	writerLock CountedLock
 }
@@ -66,7 +66,7 @@ type SimpleTunnel struct {
 func NewSimpleTunnel(stream *Stream) *SimpleTunnel {
 	return &SimpleTunnel{
 		stream: stream,
-		uuid:   uuid.New(),
+		uuid:   stringx.RandUUID(),
 	}
 }
 
@@ -114,5 +114,5 @@ func (t *SimpleTunnel) Close() (err error) {
 
 // GetUUID returns the tunnel's UUID
 func (t *SimpleTunnel) GetUUID() string {
-	return t.uuid.String()
+	return t.uuid
 }

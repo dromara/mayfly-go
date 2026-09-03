@@ -130,7 +130,7 @@ func (c *Collection) ListDatabases(rc *req.Ctx) {
 
 func (c *Collection) CreateDatabase(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreateDatabaseForm](rc)
+	param := rc.BindJson[form.CreateDatabaseForm]()
 	err := client.CreateDatabase(param)
 	biz.ErrIsNil(err)
 }
@@ -153,7 +153,7 @@ func (c *Collection) DescribeDatabase(rc *req.Ctx) {
 
 func (c *Collection) Properties(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreateDatabaseForm](rc)
+	param := rc.BindJson[form.CreateDatabaseForm]()
 	err := client.AlterDatabase(param)
 	biz.ErrIsNil(err)
 }
@@ -169,7 +169,7 @@ func (c *Collection) ListCollections(rc *req.Ctx) {
 
 func (c *Collection) CreateCollection(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreateCollectionForm](rc)
+	param := rc.BindJson[form.CreateCollectionForm]()
 	err := client.CreateCollection(param.ToSchema(), cmp.Or(param.ShardsNum, 1))
 	biz.ErrIsNil(err)
 }
@@ -177,7 +177,7 @@ func (c *Collection) CreateCollection(rc *req.Ctx) {
 func (c *Collection) AlterCollection(rc *req.Ctx) {
 	client := c.getClient(rc)
 	collection := rc.PathParam("collection")
-	param := req.BindJson[form.AlterCollectionForm](rc)
+	param := rc.BindJson[form.AlterCollectionForm]()
 	err := client.AlterCollection(collection, param)
 	biz.ErrIsNil(err)
 }
@@ -251,7 +251,7 @@ func (c *Collection) ListAliases(rc *req.Ctx) {
 func (c *Collection) CreateAlias(rc *req.Ctx) {
 	client := c.getClient(rc)
 	collection := rc.PathParam("collection")
-	param := req.BindJson[form.CreateAliasForm](rc)
+	param := rc.BindJson[form.CreateAliasForm]()
 	err := client.CreateAlias(collection, param.Alias)
 	biz.ErrIsNil(err)
 }
@@ -269,7 +269,7 @@ func (c *Collection) DropAlias(rc *req.Ctx) {
 func (c *Collection) AddCollectionField(rc *req.Ctx) {
 	client := c.getClient(rc)
 	collection := rc.PathParam("collection")
-	param := req.BindJson[form.AddCollectionFieldRequest](rc)
+	param := rc.BindJson[form.AddCollectionFieldRequest]()
 
 	// 将表单字段转换为 entity.Field
 	fieldEntity := param.Field
@@ -306,7 +306,7 @@ func (c *Collection) DropCollectionField(rc *req.Ctx) {
 func (c *Collection) AlterCollectionFieldProperty(rc *req.Ctx) {
 	client := c.getClient(rc)
 	collection := rc.PathParam("collection")
-	param := req.BindJson[form.AlterCollectionFieldForm](rc)
+	param := rc.BindJson[form.AlterCollectionFieldForm]()
 	err := client.AlterCollectionProperty(collection, param)
 	biz.ErrIsNil(err)
 }
@@ -322,19 +322,19 @@ func (c *Collection) ListPartitions(rc *req.Ctx) {
 func (c *Collection) LoadPartitions(rc *req.Ctx) {
 	client := c.getClient(rc)
 	collection := rc.PathParam("collection")
-	param := req.BindJson[form.LoadPartitionForm](rc)
+	param := rc.BindJson[form.LoadPartitionForm]()
 	rc.Error = client.LoadPartitions(collection, param.PartitionNames)
 }
 func (c *Collection) ReleasePartitions(rc *req.Ctx) {
 	client := c.getClient(rc)
 	collection := rc.PathParam("collection")
-	param := req.BindJson[form.ReleasePartitionForm](rc)
+	param := rc.BindJson[form.ReleasePartitionForm]()
 	rc.Error = client.ReleasePartitions(collection, param.PartitionNames)
 }
 
 func (c *Collection) CreatePartition(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreatePartitionForm](rc)
+	param := rc.BindJson[form.CreatePartitionForm]()
 	collection := rc.PathParam("collection")
 	err := client.CreatePartition(collection, param.Name)
 	biz.ErrIsNil(err)
@@ -361,7 +361,7 @@ func (c *Collection) HasPartition(rc *req.Ctx) {
 
 func (c *Collection) CreateIndex(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreateIndexForm](rc)
+	param := rc.BindJson[form.CreateIndexForm]()
 	collection := rc.PathParam("collection")
 	field := rc.PathParam("field")
 	// TODO: 实现索引创建
@@ -392,7 +392,7 @@ func (c *Collection) DropIndex(rc *req.Ctx) {
 
 func (c *Collection) Insert(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.InsertForm](rc)
+	param := rc.BindJson[form.InsertForm]()
 	collection := rc.PathParam("collection")
 
 	// data 格式: {"data": [{"field1": value1, "field2": value2, ...}, ...]}
@@ -420,7 +420,7 @@ func (c *Collection) Insert(rc *req.Ctx) {
 
 func (c *Collection) Delete(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.DeleteForm](rc)
+	param := rc.BindJson[form.DeleteForm]()
 	collection := rc.PathParam("collection")
 
 	var err error
@@ -430,7 +430,7 @@ func (c *Collection) Delete(rc *req.Ctx) {
 
 func (c *Collection) Query(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.QueryForm](rc)
+	param := rc.BindJson[form.QueryForm]()
 	collection := rc.PathParam("collection")
 	results, err := client.Query(collection, param)
 	biz.ErrIsNil(err)
@@ -439,7 +439,7 @@ func (c *Collection) Query(rc *req.Ctx) {
 
 func (c *Collection) Search(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.SearchForm](rc)
+	param := rc.BindJson[form.SearchForm]()
 	collection := rc.PathParam("collection")
 
 	var err error
@@ -450,7 +450,7 @@ func (c *Collection) Search(rc *req.Ctx) {
 // GenerateMockData 生成样本数据
 func (c *Collection) GenerateMockData(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.GenerateMockDataForm](rc)
+	param := rc.BindJson[form.GenerateMockDataForm]()
 	collection := rc.PathParam("collection")
 
 	// 获取 Collection 的 Schema 信息
@@ -468,7 +468,7 @@ func (c *Collection) GenerateMockData(rc *req.Ctx) {
 // InsertSampleData 插入样本数据（后端直接 mock 数据并入库）
 func (c *Collection) InsertSampleData(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.GenerateMockDataForm](rc)
+	param := rc.BindJson[form.GenerateMockDataForm]()
 	collection := rc.PathParam("collection")
 
 	// 获取 Collection 的 Schema 信息
@@ -1045,7 +1045,7 @@ func (c *Collection) ListUsers(rc *req.Ctx) {
 
 func (c *Collection) CreateUser(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreateUserForm](rc)
+	param := rc.BindJson[form.CreateUserForm]()
 	err := client.CreateUser(param.Username, param.Password)
 	biz.ErrIsNil(err)
 }
@@ -1059,14 +1059,14 @@ func (c *Collection) DeleteUser(rc *req.Ctx) {
 
 func (c *Collection) UpdatePassword(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.UpdatePasswordForm](rc)
+	param := rc.BindJson[form.UpdatePasswordForm]()
 	username := rc.PathParam("username")
 	err := client.UpdatePassword(username, param.OldPassword, param.NewPassword)
 	biz.ErrIsNil(err)
 }
 func (c *Collection) GrantRoleToUser(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.RoleToUserForm](rc)
+	param := rc.BindJson[form.RoleToUserForm]()
 	username := rc.PathParam("username")
 	err := client.GrantRoleToUser(username, param.RoleName)
 	biz.ErrIsNil(err)
@@ -1074,7 +1074,7 @@ func (c *Collection) GrantRoleToUser(rc *req.Ctx) {
 
 func (c *Collection) RevokeRoleFromUser(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.RoleToUserForm](rc)
+	param := rc.BindJson[form.RoleToUserForm]()
 	username := rc.PathParam("username")
 	err := client.RevokeRoleFromUser(username, param.RoleName)
 	biz.ErrIsNil(err)
@@ -1091,7 +1091,7 @@ func (c *Collection) ListRoles(rc *req.Ctx) {
 
 func (c *Collection) UpdateRole(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.UpdateRoleForm](rc)
+	param := rc.BindJson[form.UpdateRoleForm]()
 	err := client.UpdateRole(param)
 	biz.ErrIsNil(err)
 }
@@ -1118,7 +1118,7 @@ func (c *Collection) PrivilegeGroup(rc *req.Ctx) {
 
 func (c *Collection) SavePrivilegeGroup(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.SavePrivilegeGroupForm](rc)
+	param := rc.BindJson[form.SavePrivilegeGroupForm]()
 	biz.IsTrue(!isBuiltinPrivilegeGroup(param.GroupName), "builtin privilege group is read-only")
 
 	// 检查权限组是否已存在
@@ -1160,7 +1160,7 @@ func (c *Collection) ListResourceGroups(rc *req.Ctx) {
 
 func (c *Collection) CreateResourceGroup(rc *req.Ctx) {
 	client := c.getClient(rc)
-	param := req.BindJson[form.CreateResourceGroupForm](rc)
+	param := rc.BindJson[form.CreateResourceGroupForm]()
 	err := client.CreateResourceGroup(param.Name)
 	biz.ErrIsNil(err)
 }

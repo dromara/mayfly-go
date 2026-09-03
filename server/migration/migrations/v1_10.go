@@ -368,8 +368,8 @@ func V1_10_4() []*gormigrate.Migration {
 					aiConfig := &sysentity.Config{
 						Key:        "AiModelConfig",
 						Name:       "system.sysconf.aiModelConf",
-						Value:      "{}", // 默认空JSON值
-						Params:     `[{"model":"model","name":"system.sysconf.aiModel","placeholder":"system.sysconf.aiModelPlaceholder"},{"model":"baseUrl","name":"system.sysconf.aiBaseUrl","placeholder":"system.sysconf.aiBaseUrlPlaceholder"},{"model":"apiKey","name":"ApiKey","placeholder":"api key"}]`,
+						Value:      `{"enableThinking":"true"}`, // 默认开启思考模式
+						Params:     `[{"model":"model","name":"system.sysconf.aiModel","placeholder":"system.sysconf.aiModelPlaceholder"},{"model":"baseUrl","name":"system.sysconf.aiBaseUrl","placeholder":"system.sysconf.aiBaseUrlPlaceholder"},{"model":"apiKey","name":"ApiKey","placeholder":"api key"},{"model":"maxTokens","name":"system.sysconf.aiMaxTokens","placeholder":"system.sysconf.aiMaxTokensPlaceholder","required":false},{"model":"enableThinking","name":"system.sysconf.aiEnableThinking","options":"true,false","required":false}]`,
 						Permission: "all",
 					}
 					aiConfig.CreateTime = &now

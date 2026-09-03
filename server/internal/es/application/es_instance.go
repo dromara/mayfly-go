@@ -47,6 +47,8 @@ type instanceAppImpl struct {
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
+var _ Instance = (*instanceAppImpl)(nil)
+
 // GetPageList 分页获取数据库实例
 func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.EsInstance], error) {
 	return app.GetRepo().GetInstanceList(condition, orderBy...)

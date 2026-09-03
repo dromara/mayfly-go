@@ -19,7 +19,6 @@ func WidthOfRune(r rune) int {
 	return 1
 }
 
-
 func DecodeUTF8WithReplacement(data []byte) (string, error) {
 	var output bytes.Buffer
 	for len(data) > 0 {

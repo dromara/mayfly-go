@@ -28,4 +28,5 @@ const (
 	ImsgNumMqKafka = 120000
 	ImsgNumMilvus  = 130000
 	ImsgNumAi      = 140000
+	ImsgNumFile    = 150000
 )

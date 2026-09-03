@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/stringx"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -206,7 +206,7 @@ func (kc *KafkaConn) DeleteTopic(topic string) error {
 func (kc *KafkaConn) ConsumeMessage(ctx context.Context, param *ConsumeMessageParam) ([]*ConsumeMessageResult, error) {
 	param.Number = cmp.Or(param.Number, 10)
 	param.PullTimeout = cmp.Or(param.PullTimeout, 10)
-	param.Group = cmp.Or(param.Group, "__mayfly-server__"+uuid.New().String())
+	param.Group = cmp.Or(param.Group, "__mayfly-server__"+stringx.RandUUID())
 	st := time.Now()
 
 	// 构建消费配置

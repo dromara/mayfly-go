@@ -11,6 +11,8 @@ type tagTreeRepoImpl struct {
 	base.RepoImpl[*entity.TagTree]
 }
 
+var _ repository.TagTree = (*tagTreeRepoImpl)(nil)
+
 func newTagTreeRepo() repository.TagTree {
 	return &tagTreeRepoImpl{}
 }

@@ -11,6 +11,8 @@ type containerRepoImpl struct {
 	base.RepoImpl[*entity.Container]
 }
 
+var _ repository.Container = (*containerRepoImpl)(nil)
+
 func newContainerRepo() repository.Container {
 	return &containerRepoImpl{}
 }

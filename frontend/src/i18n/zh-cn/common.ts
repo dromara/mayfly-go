@@ -4,6 +4,7 @@ export default {
         create: '创建',
         edit: '编辑',
         delete: '删除',
+        rename: '重命名',
         detail: '详情',
         apply: '应用',
         add: '添加',
@@ -96,6 +97,10 @@ export default {
         MultiPlaceholder: '多个用逗号隔开',
         appSlogan: '简洁 · 高效 · 安全',
         preview: '预览',
+        processing: '处理中',
+        sending: '发送中',
+        scrollToBottom: '滚动到底部',
+        waitingInput: '等待输入',
     },
     layout: {
         user: {

@@ -170,7 +170,7 @@ func TestJSONLStore_Delete(t *testing.T) {
 	// 验证剩余数量
 	remaining, _ := store.GetByUser(ctx, userID, nil)
 	t.Logf("After delete: %d items remaining", len(remaining))
-	
+
 	if len(remaining) != 1 {
 		t.Errorf("expected 1 item after delete, got %d", len(remaining))
 		return // 避免后续访问空数组导致 panic

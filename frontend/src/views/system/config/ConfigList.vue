@@ -161,22 +161,21 @@ const onCloseSetConfigDialog = () => {
 const setConfig = async () => {
     let paramsValue: Record<string, unknown> | string | null = state.paramsDialog.params;
     if (state.paramsDialog.paramsFormItem.length > 0) {
-        await paramsFormRef.value?.validate((valid: boolean) => {
-            if (!valid) {
-                paramsValue = null;
-                return;
+        // DynamicForm暴露的validate为Promise风格（不接收回调参数），校验失败时reject
+        try {
+            await paramsFormRef.value?.validate();
+        } catch (e) {
+            // 校验失败，不保存
+            return;
+        }
+        const paramsObj = state.paramsDialog.params as Record<string, unknown>;
+        // 如果配置项删除，则需要将value中对应的字段移除
+        for (let paramKey in paramsObj) {
+            if (!hasParam(paramKey, state.paramsDialog.paramsFormItem)) {
+                delete paramsObj[paramKey];
             }
-            if (state.paramsDialog.paramsFormItem.length > 0) {
-                const paramsObj = state.paramsDialog.params as Record<string, unknown>;
-                // 如果配置项删除，则需要将value中对应的字段移除
-                for (let paramKey in paramsObj) {
-                    if (!hasParam(paramKey, state.paramsDialog.paramsFormItem)) {
-                        delete paramsObj[paramKey];
-                    }
-                }
-                paramsValue = JSON.stringify(paramsObj);
-            }
-        });
+        }
+        paramsValue = JSON.stringify(paramsObj);
     }
     // 说明校验失败
     if (paramsValue == null) {

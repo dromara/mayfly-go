@@ -121,7 +121,7 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 }
 
 func (p *TagTree) SaveTagTree(rc *req.Ctx) {
-	tagForm, tagTree := req.BindJsonAndCopyTo[form.TagTree, entity.TagTree](rc)
+	tagForm, tagTree := rc.BindJsonAndCopyTo[form.TagTree, entity.TagTree]()
 
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, code: %s", tagTree.Id, tagTree.Name, tagTree.Code)
 

@@ -21,6 +21,9 @@
         
         <!-- 全局系统通知悬浮按钮 -->
         <GlobalNotificationFab />
+
+        <!-- 全局 AI 助手悬浮球（仅系统已配置 AI 模型时渲染） -->
+        <AiAssistantFab />
     </el-config-provider>
 </template>
 
@@ -37,6 +40,7 @@ import { saveThemeConfig } from './common/utils/storage';
 import GlobalNotificationFab from '@/components/system-message/GlobalNotificationFab.vue';
 
 const Setings = defineAsyncComponent(() => import('@/layout/navBars/breadcrumb/setings.vue'));
+const AiAssistantFab = defineAsyncComponent(() => import('@/views/ai/AiAssistantFab.vue'));
 
 const route = useRoute();
 

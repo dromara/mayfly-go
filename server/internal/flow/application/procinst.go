@@ -38,6 +38,8 @@ type procinstAppImpl struct {
 	procdefApp Procdef `inject:"T"`
 }
 
+var _ Procinst = (*procinstAppImpl)(nil)
+
 var _ (Procinst) = (*procinstAppImpl)(nil)
 
 func (p *procinstAppImpl) GetPageList(condition *entity.ProcinstQuery, orderBy ...string) (*model.PageResult[*entity.Procinst], error) {

@@ -11,6 +11,8 @@ type dbTransferFileRepoImpl struct {
 	base.RepoImpl[*entity.DbTransferFile]
 }
 
+var _ repository.DbTransferFile = (*dbTransferFileRepoImpl)(nil)
+
 func newDbTransferFileRepo() repository.DbTransferFile {
 	return &dbTransferFileRepoImpl{}
 }

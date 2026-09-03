@@ -10,6 +10,8 @@ type resourceRepoImpl struct {
 	base.RepoImpl[*entity.Resource]
 }
 
+var _ repository.Resource = (*resourceRepoImpl)(nil)
+
 func newResourceRepo() repository.Resource {
 	return &resourceRepoImpl{}
 }

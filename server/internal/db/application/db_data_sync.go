@@ -19,11 +19,11 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
 
@@ -68,7 +68,7 @@ func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyn
 	var err error
 	if taskEntity.Id == 0 {
 		// 新建时生成key
-		taskEntity.TaskKey = uuid.New().String()
+		taskEntity.TaskKey = stringx.RandUUID()
 		err = app.Insert(ctx, taskEntity)
 	} else {
 		if taskEntity.TaskKey == "" {

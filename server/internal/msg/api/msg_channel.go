@@ -36,7 +36,7 @@ func (m *MsgChannel) GetMsgChannels(rc *req.Ctx) {
 }
 
 func (m *MsgChannel) SaveMsgChannels(rc *req.Ctx) {
-	form, channel := req.BindJsonAndCopyTo[form.MsgChannel, entity.MsgChannel](rc)
+	form, channel := rc.BindJsonAndCopyTo[form.MsgChannel, entity.MsgChannel]()
 	rc.ReqParam = form
 	err := m.msgChannelApp.SaveChannel(rc.MetaCtx, channel)
 	biz.ErrIsNil(err)

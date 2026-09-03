@@ -19,6 +19,8 @@ type hisProcinstOpAppImpl struct {
 	base.AppImpl[*entity.HisProcinstOp, repository.HisProcinstOp]
 }
 
+var _ HisProcinstOp = (*hisProcinstOpAppImpl)(nil)
+
 var _ (HisProcinstOp) = (*hisProcinstOpAppImpl)(nil)
 
 func (h *hisProcinstOpAppImpl) RecordStart(ctx *ExecutionCtx) error {

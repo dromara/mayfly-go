@@ -17,7 +17,7 @@ import (
 type CommandExecParam struct {
 	AuthCertName string `json:"authCertName" jsonschema_description:"授权凭证名称"`
 	Command      string `json:"command" jsonschema_description:"要执行的命令"`
-	Remark       string `json:"remark" jsonschema_description:"命令作用说明，简要描述该命令的用途或目的"`
+	Remark       string `json:"remark" jsonschema_description:"命令作用说明，简要描述该命令的用途或目的（供用户审批与事后审计理解）" jsonschema:"required"`
 }
 
 // CommandExecOutput 命令执行输出
@@ -39,11 +39,12 @@ func GetCommandExec() (tool.InvokableTool, error) {
 		func(ctx context.Context, param *CommandExecParam) (*CommandExecOutput, error) {
 			toolDesc := i18n.TC(ctx, imsg.MachineCommandExecToolDesc)
 
+			tools.TryApplyResumedParams(ctx, param)
 			// 检查必要参数，触发参数完善
 			if param.AuthCertName == "" {
 				if err := tools.InterruptOrResumeParamCompletion(ctx, toolDesc, param, i18n.TC(ctx, imsg.MachineInfoIncomplete), "machine", []tools.CompletionParamInfo{
 					{Param: "authCertName", Name: "授权凭证名称"},
-				}); err != nil {
+				}, queryMachineOptions(ctx)); err != nil {
 					return nil, err
 				}
 			}
@@ -51,6 +52,11 @@ func GetCommandExec() (tool.InvokableTool, error) {
 			// 检查命令是否为空
 			if param.Command == "" {
 				return nil, tools.NewToolError(fmt.Errorf("%s", i18n.TC(ctx, imsg.MissingRequiredParams)), tools.RecoverRetry)
+			}
+
+			// 执行目的必填：供用户审批与事后审计理解（缺失时要求模型重试补充）
+			if param.Remark == "" {
+				return nil, tools.NewToolError(fmt.Errorf("remark parameter is required: describe the purpose of this command"), tools.RecoverRetry)
 			}
 
 			// 白名单命令检测：不在白名单中的命令需要审批

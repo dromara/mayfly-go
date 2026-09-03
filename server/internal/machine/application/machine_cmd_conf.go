@@ -34,6 +34,8 @@ type machineCmdConfAppImpl struct {
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
+var _ MachineCmdConf = (*machineCmdConfAppImpl)(nil)
+
 var _ (MachineCmdConf) = (*machineCmdConfAppImpl)(nil)
 
 func (m *machineCmdConfAppImpl) SaveCmdConf(ctx context.Context, cmdConfParam *dto.SaveMachineCmdConf) error {

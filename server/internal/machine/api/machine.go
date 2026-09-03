@@ -83,7 +83,7 @@ func (m *Machine) ReqConfs() *req.Confs {
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
-	condition := req.BindQuery[entity.MachineQuery](rc)
+	condition := rc.BindQuery[entity.MachineQuery]()
 
 	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMachine, tagentity.TagTypeAuthCert)),
@@ -145,7 +145,7 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 
 // 保存机器信息
 func (m *Machine) SaveMachine(rc *req.Ctx) {
-	machineForm, me := req.BindJsonAndCopyTo[form.MachineForm, entity.Machine](rc)
+	machineForm, me := rc.BindJsonAndCopyTo[form.MachineForm, entity.Machine]()
 
 	rc.ReqParam = machineForm
 
@@ -157,7 +157,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
-	machineForm, me := req.BindJsonAndCopyTo[form.MachineForm, entity.Machine](rc)
+	machineForm, me := rc.BindJsonAndCopyTo[form.MachineForm, entity.Machine]()
 	// 测试连接
 	biz.ErrIsNilAppendErr(m.machineApp.TestConn(rc.MetaCtx, me, machineForm.AuthCerts[0]), "connection error: %s")
 }
@@ -414,7 +414,7 @@ func (m *Machine) RunCmd(rc *req.Ctx) {
 	type RunCmdForm struct {
 		Cmd string `json:"cmd" binding:"required"`
 	}
-	form := req.BindJson[RunCmdForm](rc)
+	form := rc.BindJson[RunCmdForm]()
 
 	ac := GetMachineAc(rc)
 	cli, err := m.machineApp.GetCliByAc(rc.MetaCtx, ac)

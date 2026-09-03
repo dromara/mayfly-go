@@ -45,7 +45,7 @@ func (m *Milvus) ReqConfs() *req.Confs {
 
 // Milvuses 获取 Milvus 列表
 func (m *Milvus) Milvuses(rc *req.Ctx) {
-	queryCond := req.BindQuery[entity.MilvusQuery](rc)
+	queryCond := rc.BindQuery[entity.MilvusQuery]()
 
 	// 不存在可访问标签 id，即没有可操作数据
 	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
@@ -76,7 +76,7 @@ func (m *Milvus) Milvuses(rc *req.Ctx) {
 
 // TestConn 测试连接
 func (m *Milvus) TestConn(rc *req.Ctx) {
-	f := req.BindJson[form.Milvus](rc)
+	f := rc.BindJson[form.Milvus]()
 	instance := &entity.Milvus{
 		Host:               f.Host,
 		SshTunnelMachineId: f.SshTunnelMachineId,
@@ -86,7 +86,7 @@ func (m *Milvus) TestConn(rc *req.Ctx) {
 
 // Save 保存
 func (m *Milvus) Save(rc *req.Ctx) {
-	f := req.BindJson[form.Milvus](rc)
+	f := rc.BindJson[form.Milvus]()
 	instance := &entity.Milvus{
 		Code:               f.Code,
 		Name:               f.Name,
