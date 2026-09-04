@@ -27,6 +27,7 @@
  * - 将数据传递给 ChatPanel（纯 UI 层）
  */
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useChatStore } from '../stores/chatStore';
 import { useChatStream } from '../stream/useChatStream';
 import { useChatCallbacks } from '../stream/useChatCallbacks';
@@ -34,7 +35,7 @@ import { useChatMessages } from '../hooks/useChatMessages';
 import { useChatResume } from '../stream/useChatResume';
 import type { Conversation, ResumeEntry } from '../protocol/types';
 import type { ChatInputSubmitData, SkillItem } from '../input/types';
-import { buildMessageContent } from '../input/attachments';
+import { buildImageSegments, buildMessageContent } from '../input/attachments';
 import { aiApi } from '../api';
 import type { InterruptActionEvent } from '../interrupt/types';
 import ChatPanel from './ChatPanel.vue';
@@ -49,6 +50,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useChatStore();
+const { t } = useI18n();
 
 const convId = computed(() => props.conversation.id);
 
@@ -184,15 +186,34 @@ watch(
 
 const onSend = async (data: ChatInputSubmitData) => {
     await ensureSocket();
+    // 附件已在 ChatInput 提交时上传（入队/直接发送共享同一前置链路，
+    // 队列项均已带 fileKey），此处不再处理上传
+    const attachments = data.attachments;
     // 回显：结构化 segments 透传（芯片渲染为 InlineChip，对齐 tokhub ContentSegment 贯穿），
-    // 纯文本 content 作回退/编辑用；发送给 LLM 的完整注入文本由后端 buildChatContent 生成
-    addUserMessage(data.text, data.attachments, data.segments);
+    // 纯文本 content 作回退/编辑用；发送给 LLM 的完整注入文本由后端 buildChatContent 生成；
+    // 图片段合并后乐观回显与 WS 持久化用同一份 segments（图片卡片仅从 image 段构建，
+    // 乐观消息缺段则实时不渲染、刷新后才出现——同一组装出处避免双路径不一致）
+    const segments = [
+        ...(data.segments ?? []),
+        ...buildImageSegments(attachments, t('ai.attach.imagePlaceholder')),
+    ];
+    addUserMessage(data.text, attachments, segments);
     sendMessage({
         conversationId: props.conversation.id,
         type: 'text',
-        // 后端零改动：文本类附件内联进 content，图片以说明占位（展示由消息附件渲染承担）
-        content: buildMessageContent(data.text, data.attachments),
-        segments: data.segments,
+        // 文本类附件内联进 content；图片以 image 段贯穿（fileKey 由后端解析为
+        // 多模态输入，展示侧经 segments 回显渲染），不再以文本占位重复描述
+        content: buildMessageContent(data.text, attachments),
+        segments,
+        // 附件元数据（fileKey 轻量引用）随消息持久化（历史回显卡片/预览，
+        // 对齐后端 form.ChatAttachment）；剥离 dataUrl/text/rawFile 本地态字段
+        attachments: attachments?.map(({ name, kind, mime, size, fileKey }) => ({
+            name,
+            kind,
+            ...(mime !== undefined ? { mime } : {}),
+            ...(size !== undefined ? { size } : {}),
+            ...(fileKey !== undefined ? { fileKey } : {}),
+        })),
     });
     senderLoading.value = true;
     autoRenameFromFirstMessage(data.text);

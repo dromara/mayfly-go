@@ -5,7 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cloudwego/eino/adk"
+	"mayfly-go/internal/ai/session"
+
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 )
@@ -15,13 +16,13 @@ import (
 // fakeHistory 历史贡献者 fake（可选携带压缩能力见 fakeCompactor）
 type fakeHistory struct {
 	id   string
-	msgs []adk.Message
+	msgs []*session.Message
 	err  error
 }
 
 func (f *fakeHistory) Id() string { return f.id }
 
-func (f *fakeHistory) ContributeMessages(ctx context.Context, bc *HistoryBuildContext) ([]adk.Message, error) {
+func (f *fakeHistory) ContributeMessages(ctx context.Context, bc *HistoryBuildContext) ([]*session.Message, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -32,11 +33,11 @@ func (f *fakeHistory) ContributeMessages(ctx context.Context, bc *HistoryBuildCo
 type fakeCompactor struct {
 	fakeHistory
 	calls     int
-	compacted []adk.Message
+	compacted []*session.Message
 	info      *MidTurnCompactionInfo
 }
 
-func (f *fakeCompactor) TryMidTurnCompaction(ctx context.Context, history []adk.Message, params *MidTurnCompactionParams) ([]adk.Message, *MidTurnCompactionInfo) {
+func (f *fakeCompactor) TryMidTurnCompaction(ctx context.Context, history []*session.Message, params *MidTurnCompactionParams) ([]*session.Message, *MidTurnCompactionInfo) {
 	f.calls++
 	if f.info == nil {
 		return history, nil
@@ -72,15 +73,15 @@ func (f *fakeFooter) ContributePreambleFooter(ctx context.Context, fc *PreambleF
 // 且配对修复对合并后的全量列表统一执行（跨贡献者的缺失结果在末尾合成）
 func TestRegistry_CollectHistory_ConcatsAndNormalizes(t *testing.T) {
 	b := NewBuilder()
-	b.RegisterHistory(&fakeHistory{id: "h1", msgs: []adk.Message{
-		&schema.Message{Role: schema.User, Content: "hi"},
+	b.RegisterHistory(&fakeHistory{id: "h1", msgs: []*session.Message{
+		&session.Message{Role: schema.User, Content: "hi"},
 		// assistant 声明了 tool call 但没有结果（跨贡献者配对缺失）
-		&schema.Message{Role: schema.Assistant, ToolCalls: []schema.ToolCall{{
+		&session.Message{Role: schema.Assistant, ToolCalls: []schema.ToolCall{{
 			ID: "call-1", Function: schema.FunctionCall{Name: "shell_exec", Arguments: "{}"},
 		}}},
 	}})
-	b.RegisterHistory(&fakeHistory{id: "h2", msgs: []adk.Message{
-		&schema.Message{Role: schema.User, Content: "next"},
+	b.RegisterHistory(&fakeHistory{id: "h2", msgs: []*session.Message{
+		&session.Message{Role: schema.User, Content: "next"},
 	}})
 	r := b.Build()
 
@@ -92,8 +93,8 @@ func TestRegistry_CollectHistory_ConcatsAndNormalizes(t *testing.T) {
 		t.Errorf("unexpected concat order: %v", history)
 	}
 	last := history[3]
-	if last.Role != schema.Tool || last.ToolCallID != "call-1" {
-		t.Errorf("synthesized tool result should be appended at tail, got role=%s toolCallId=%s", last.Role, last.ToolCallID)
+	if last.Role != schema.Tool || last.ToolCallId != "call-1" {
+		t.Errorf("synthesized tool result should be appended at tail, got role=%s toolCallId=%s", last.Role, last.ToolCallId)
 	}
 }
 
@@ -101,8 +102,8 @@ func TestRegistry_CollectHistory_ConcatsAndNormalizes(t *testing.T) {
 func TestRegistry_CollectHistory_FailOpen(t *testing.T) {
 	b := NewBuilder()
 	b.RegisterHistory(&fakeHistory{id: "bad", err: errors.New("boom")})
-	b.RegisterHistory(&fakeHistory{id: "good", msgs: []adk.Message{
-		&schema.Message{Role: schema.User, Content: "ok"},
+	b.RegisterHistory(&fakeHistory{id: "good", msgs: []*session.Message{
+		&session.Message{Role: schema.User, Content: "ok"},
 	}})
 	history := b.Build().CollectHistory(context.Background(), &HistoryBuildContext{})
 	if len(history) != 1 || history[0].Content != "ok" {
@@ -114,12 +115,12 @@ func TestRegistry_CollectHistory_FailOpen(t *testing.T) {
 func TestRegistry_TryMidTurnCompaction_ReverseOrderWinner(t *testing.T) {
 	builtin := &fakeCompactor{
 		fakeHistory: fakeHistory{id: "builtin"},
-		compacted:   []adk.Message{&schema.Message{Role: schema.User, Content: "builtin-result"}},
+		compacted:   []*session.Message{&session.Message{Role: schema.User, Content: "builtin-result"}},
 		info:        &MidTurnCompactionInfo{OriginalTokens: 100, CompressedTokens: 50},
 	}
 	plugin := &fakeCompactor{
 		fakeHistory: fakeHistory{id: "plugin"},
-		compacted:   []adk.Message{&schema.Message{Role: schema.User, Content: "plugin-result"}},
+		compacted:   []*session.Message{&session.Message{Role: schema.User, Content: "plugin-result"}},
 		info:        &MidTurnCompactionInfo{OriginalTokens: 100, CompressedTokens: 40},
 	}
 	b := NewBuilder()
@@ -217,7 +218,7 @@ func TestRegistry_TryMidTurnCompaction_Decline(t *testing.T) {
 	b.RegisterHistory(&fakeHistory{id: "plain"})                        // 无压缩能力，不参与竞争
 	b.RegisterHistory(decliner)
 
-	orig := []adk.Message{&schema.Message{Role: schema.User, Content: "x"}}
+	orig := []*session.Message{&session.Message{Role: schema.User, Content: "x"}}
 	compacted, info := b.Build().TryMidTurnCompaction(context.Background(), orig, &MidTurnCompactionParams{})
 	if info != nil || len(compacted) != 1 || compacted[0].Content != "x" {
 		t.Errorf("history should be returned as-is when declined, info=%v", info)
@@ -241,8 +242,8 @@ func TestRegistry_CollectPreambleFooters(t *testing.T) {
 func TestRegistry_WithFilter(t *testing.T) {
 	b := NewBuilder()
 	b.RegisterContext(&fakeContext{id: "ctx-a", frags: []PromptFragment{{Source: "a", Content: "A"}}})
-	b.RegisterHistory(&fakeHistory{id: "hist-a", msgs: []adk.Message{
-		&schema.Message{Role: schema.User, Content: "u"},
+	b.RegisterHistory(&fakeHistory{id: "hist-a", msgs: []*session.Message{
+		&session.Message{Role: schema.User, Content: "u"},
 	}})
 	r := b.Build()
 

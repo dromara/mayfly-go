@@ -27,9 +27,9 @@
                 <span v-if="durationText" class="tool-call-part__duration">{{ durationText }}</span>
             </template>
 
-            <!-- 展开详情：执行目的 + 参数 + 输出 -->
+            <!-- 展开详情：备注 + 参数 + 输出 -->
             <div v-if="remarkText" class="tool-call-part__section">
-                <div class="tool-call-part__label">{{ t('ai.chat.execPurpose') }}</div>
+                <div class="tool-call-part__label">{{ t('ai.chat.remark') }}</div>
                 <div class="tool-call-part__remark">{{ remarkText }}</div>
             </div>
             <div v-if="arguments" class="tool-call-part__section">
@@ -95,7 +95,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-/** 解析执行目的（MachineCommandExec/ExecSql 的 remark 入参，帮助用户理解执行意图；
+/** 解析备注（MachineCommandExec/ExecSql 的 remark 入参，帮助用户理解执行意图；
  *  流式期间 arguments 可能残缺，解析失败静默降级） */
 const remarkText = computed(() => {
     if (!props.arguments) return '';

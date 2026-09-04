@@ -8,5 +8,5 @@ func InitIoc() {
 	ioc.RegisterByType[*memoryRepoImpl]()
 	ioc.RegisterByType[*skillRepoImpl]()
 	ioc.RegisterByType[*skillResourceRepoImpl]()
-	ioc.RegisterByType[*mcpServerRepoImpl]()
+	ioc.RegisterByType[*pluginInstanceRepoImpl]()
 }

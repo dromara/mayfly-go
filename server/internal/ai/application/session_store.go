@@ -10,6 +10,7 @@ import (
 	"mayfly-go/internal/ai/domain/repository"
 	"mayfly-go/internal/ai/protocol"
 	"mayfly-go/internal/ai/session"
+	fileapp "mayfly-go/internal/file/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -36,6 +37,9 @@ const sessionKeyPrefix = "conv:"
 type sessionStoreImpl struct {
 	conversationRepo repository.Conversation `inject:"T"`
 	turnItemRepo     repository.TurnItem     `inject:"T"`
+	// fileApp 文件服务：用户消息 image 段的 fileKey 引用（附件已落 local/S3）
+	// 在重建 LLM 消息时解析为 base64 data URL
+	fileApp fileapp.File `inject:"T"`
 }
 
 var _ session.Store = (*sessionStoreImpl)(nil)
@@ -74,7 +78,7 @@ func (s *sessionStoreImpl) GetHistory(ctx context.Context, sessionKey string, li
 	}
 	msgs := make([]*session.Message, 0, len(items))
 	for _, item := range items {
-		msgs = append(msgs, itemToMessages(item)...)
+		msgs = append(msgs, s.itemToMessages(ctx, item)...)
 	}
 	// 单个 item 可能产生多条消息（tool_call item → 助手调用 + 工具结果），裁剪为最后 limit 条
 	if len(msgs) > limit {
@@ -117,7 +121,7 @@ func (s *sessionStoreImpl) GetMessage(ctx context.Context, query *session.Messag
 
 	msgs := make([]*session.Message, 0, len(items))
 	for _, item := range items {
-		for _, msg := range itemToMessages(item) {
+		for _, msg := range s.itemToMessages(ctx, item) {
 			if !matchMessageQuery(msg, query.MessageType) {
 				continue
 			}
@@ -294,8 +298,9 @@ func matchMessageQuery(msg *session.Message, messageType string) bool {
 	}
 }
 
-// itemToMessages 将 TurnItem 转换为 LLM 消息（一条 item 可能对应多条消息，reasoning 不参与上下文）
-func itemToMessages(item *entity.TurnItem) []*session.Message {
+// itemToMessages 将 TurnItem 转换为 LLM 消息（一条 item 可能对应多条消息，reasoning 不参与上下文）。
+// image 段的 fileKey 引用经文件服务解析为 base64 data URL（旧数据 data URL 直接透传）
+func (s *sessionStoreImpl) itemToMessages(ctx context.Context, item *entity.TurnItem) []*session.Message {
 	ti, err := protocol.FromPayload(item.ItemType, item.ItemId, item.Payload)
 	if err != nil || ti == nil {
 		logx.Warnf("[itemToMessages] unmarshal turn item payload failed, itemId=%d, err=%v", item.Id, err)
@@ -310,11 +315,12 @@ func itemToMessages(item *entity.TurnItem) []*session.Message {
 			sb.WriteString(seg.Text)
 		}
 		return []*session.Message{{
-			Id:      int64(item.Id),
-			TurnId:  item.TurnId,
-			Role:    schema.RoleType(ti.Role),
-			MsgType: ti.Role,
-			Content: sb.String(),
+			Id:        int64(item.Id),
+			TurnId:    item.TurnId,
+			Role:      schema.RoleType(ti.Role),
+			MsgType:   ti.Role,
+			Content:   sb.String(),
+			ImageUrls: ResolveImageUrls(ctx, s.fileApp, protocol.ImageUrlsOf(ti.Content)),
 		}}
 
 	case protocol.TurnItemTypeToolCall:

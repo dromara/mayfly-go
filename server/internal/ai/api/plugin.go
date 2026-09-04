@@ -2,31 +2,38 @@ package api
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"strconv"
 
 	"mayfly-go/internal/ai/api/form"
 	"mayfly-go/internal/ai/application"
-	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 )
 
 // maxSkillZipBytes zip 上传大小上限（与 application.maxZipBytes 一致，用于上传预检）
 const maxSkillZipBytes = 10 << 20
 
-// AiPlugin 插件管理 API（技能 + MCP 服务器）
+// AiPlugin 插件管理 API（统一插件实例 + 技能）
 type AiPlugin struct {
-	skillPlugin application.SkillPlugin `inject:"T"`
-	mcpPlugin   application.McpPlugin   `inject:"T"`
+	skillPlugin    application.SkillPlugin       `inject:"T"`
+	pluginInstance application.PluginInstanceApp `inject:"T"`
 }
 
 // ReqConfs 获取插件管理相关的请求配置
 func (a *AiPlugin) ReqConfs() *req.Confs {
 	reqs := [...]*req.Conf{
+		// 插件类型注册表（前端类型选择器数据源）
+		req.NewGet("/plugin/types", a.ListPluginTypes),
+		// 插件实例管理（统一插件视图，t_ai_plugin_instance 单表分页）
+		req.NewGet("/plugin/instances", a.ListInstances),
+		req.NewPost("/plugin/instances", a.CreateInstance),
+		req.NewGet("/plugin/instances/:id", a.GetInstance),
+		req.NewPut("/plugin/instances/:id", a.UpdateInstance),
+		req.NewDelete("/plugin/instances/:id", a.DeleteInstance),
+		req.NewPost("/plugin/instances/:id/discover", a.DiscoverInstanceTools),
+		req.NewPost("/plugin/instances/:id/enabled", a.ToggleInstanceEnabled),
 		// 技能管理
 		req.NewGet("/plugin/skills", a.ListSkills),
 		req.NewPost("/plugin/skills", a.CreateSkill),
@@ -41,13 +48,6 @@ func (a *AiPlugin) ReqConfs() *req.Confs {
 		req.NewGet("/plugin/skills/:id/export", a.ExportSkillZip),
 		req.NewPost("/plugin/skills/:id/publish", a.PublishSkill),
 		req.NewPost("/plugin/skills/:id/unpublish", a.UnpublishSkill),
-		// MCP 服务器管理
-		req.NewGet("/plugin/mcp/servers", a.ListMcpServers),
-		req.NewPost("/plugin/mcp/servers", a.CreateMcpServer),
-		req.NewGet("/plugin/mcp/servers/:id", a.GetMcpServer),
-		req.NewPut("/plugin/mcp/servers/:id", a.UpdateMcpServer),
-		req.NewDelete("/plugin/mcp/servers/:id", a.DeleteMcpServer),
-		req.NewPost("/plugin/mcp/servers/:id/discover", a.DiscoverMcpTools),
 	}
 	return req.NewConfs("/ai", reqs[:]...)
 }
@@ -154,60 +154,63 @@ func (a *AiPlugin) ExportSkillZip(rc *req.Ctx) {
 	rc.Download(bytes.NewReader(data), filename)
 }
 
-// ============== MCP 服务器管理 ==============
+// ============== 插件类型 / 实例 ==============
 
-func (a *AiPlugin) ListMcpServers(rc *req.Ctx) {
-	servers, err := a.mcpPlugin.ListServers(rc.MetaCtx)
-	biz.ErrIsNil(err)
-	rc.ResData = servers
+// ListPluginTypes 已注册插件类型列表（类型选择器数据源）
+func (a *AiPlugin) ListPluginTypes(rc *req.Ctx) {
+	rc.ResData = application.ListPluginTypes()
 }
 
-func (a *AiPlugin) GetMcpServer(rc *req.Ctx) {
-	server, err := a.mcpPlugin.GetById(pathParamId(rc))
+// ListInstances 插件实例分页列表（keyword 匹配 name/code/description，type 过滤）
+func (a *AiPlugin) ListInstances(rc *req.Ctx) {
+	res, err := a.pluginInstance.ListInstances(rc.MetaCtx, rc.Query("keyword"), rc.Query("type"), rc.GetPageParam())
 	biz.ErrIsNil(err)
-	rc.ResData = server
+	rc.ResData = res
 }
 
-func (a *AiPlugin) CreateMcpServer(rc *req.Ctx) {
-	formBody := rc.BindJson[form.McpServerSaveRequest]()
-	validateMcpServerForm(formBody)
-	biz.ErrIsNil(a.mcpPlugin.Insert(rc.MetaCtx, &entity.McpServer{
+func (a *AiPlugin) GetInstance(rc *req.Ctx) {
+	instance, err := a.pluginInstance.GetInstanceDetail(pathParamId(rc))
+	biz.ErrIsNil(err)
+	rc.ResData = instance
+}
+
+func (a *AiPlugin) CreateInstance(rc *req.Ctx) {
+	formBody := rc.BindJson[form.PluginInstanceSaveRequest]()
+	instance, err := a.pluginInstance.CreateInstance(rc.MetaCtx, toInstanceSaveReq(formBody))
+	biz.ErrIsNil(err)
+	rc.ResData = instance
+}
+
+func (a *AiPlugin) UpdateInstance(rc *req.Ctx) {
+	formBody := rc.BindJson[form.PluginInstanceSaveRequest]()
+	biz.ErrIsNil(a.pluginInstance.UpdateInstance(rc.MetaCtx, pathParamId(rc), toInstanceSaveReq(formBody)))
+}
+
+func (a *AiPlugin) DeleteInstance(rc *req.Ctx) {
+	biz.ErrIsNil(a.pluginInstance.DeleteInstance(rc.MetaCtx, pathParamId(rc)))
+}
+
+// DiscoverInstanceTools 连接测试 + 工具发现（实时连接，不落库；健康状态回写）
+func (a *AiPlugin) DiscoverInstanceTools(rc *req.Ctx) {
+	tools, err := a.pluginInstance.DiscoverTools(rc.MetaCtx, pathParamId(rc))
+	biz.ErrIsNil(err)
+	rc.ResData = tools
+}
+
+func (a *AiPlugin) ToggleInstanceEnabled(rc *req.Ctx) {
+	formBody := rc.BindJson[form.PluginInstanceToggleRequest]()
+	biz.ErrIsNil(a.pluginInstance.ToggleEnabled(rc.MetaCtx, pathParamId(rc), formBody.Enabled))
+}
+
+// toInstanceSaveReq 表单转应用层请求（config 对象转 JSON 字符串）
+func toInstanceSaveReq(formBody *form.PluginInstanceSaveRequest) *application.InstanceSaveReq {
+	return &application.InstanceSaveReq{
+		PluginType:  formBody.PluginType,
 		Code:        formBody.Code,
 		Name:        formBody.Name,
 		Description: formBody.Description,
-		Url:         formBody.Url,
-		Headers:     formBody.Headers,
-		TimeoutSec:  defaultMcpTimeout(formBody.TimeoutSec),
-		Enabled:     defaultMcpEnabled(formBody.Enabled),
-	}))
-}
-
-func (a *AiPlugin) UpdateMcpServer(rc *req.Ctx) {
-	formBody := rc.BindJson[form.McpServerSaveRequest]()
-	validateMcpServerForm(formBody)
-	server, err := a.mcpPlugin.GetById(pathParamId(rc))
-	biz.ErrIsNil(err)
-	// map 更新使零值可写（GORM 结构体更新默认跳过零值）：enabled=0 为显式停用，
-	// 不能经 defaultMcpEnabled 强转；code 为业务标识不在更新列
-	biz.ErrIsNil(a.mcpPlugin.UpdateByCond(rc.MetaCtx, map[string]any{
-		"name":        formBody.Name,
-		"description": formBody.Description,
-		"url":         formBody.Url,
-		"headers":     formBody.Headers,
-		"timeout_sec": defaultMcpTimeout(formBody.TimeoutSec),
-		"enabled":     formBody.Enabled,
-	}, model.NewCond().Eq("id", server.Id)))
-}
-
-func (a *AiPlugin) DeleteMcpServer(rc *req.Ctx) {
-	biz.ErrIsNil(a.mcpPlugin.DeleteById(rc.MetaCtx, pathParamId(rc)))
-}
-
-// DiscoverMcpTools 连接测试 + 工具发现（实时连接，不落库）
-func (a *AiPlugin) DiscoverMcpTools(rc *req.Ctx) {
-	tools, err := a.mcpPlugin.DiscoverTools(rc.MetaCtx, pathParamId(rc))
-	biz.ErrIsNil(err)
-	rc.ResData = tools
+		Config:      string(formBody.Config),
+	}
 }
 
 // ============== 工具函数 ==============
@@ -217,30 +220,4 @@ func pathParamId(rc *req.Ctx) uint64 {
 	id, err := strconv.ParseUint(rc.PathParam("id"), 10, 64)
 	biz.ErrIsNilAppendErr(err, "invalid id param: %s")
 	return id
-}
-
-// validateMcpServerForm MCP 服务器表单校验（headers 须为合法 JSON 对象）
-func validateMcpServerForm(formBody *form.McpServerSaveRequest) {
-	if formBody.Headers != "" {
-		parsed := map[string]string{}
-		if err := json.Unmarshal([]byte(formBody.Headers), &parsed); err != nil {
-			biz.ErrIsNil(errorx.NewBiz("headers must be a valid JSON object"))
-		}
-	}
-}
-
-// defaultMcpTimeout 超时默认值（<=0 时 30s）
-func defaultMcpTimeout(timeoutSec int) int {
-	if timeoutSec <= 0 {
-		return 30
-	}
-	return timeoutSec
-}
-
-// defaultMcpEnabled 创建场景的启用默认值（未传时默认启用；更新场景不适用，0 为显式停用）
-func defaultMcpEnabled(enabled int) int {
-	if enabled == 0 {
-		return 1
-	}
-	return enabled
 }

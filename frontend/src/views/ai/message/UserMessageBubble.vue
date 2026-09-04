@@ -34,22 +34,38 @@
     </div>
 
     <!-- 展示模式 -->
-    <Bubble v-else variant="muted" align="end" class="max-w-full">
-        <!-- 14px + 1.6 行高显式对齐 AssistantMessageBubble（根字号被 app.scss 设为 14px，
-             BubbleContent 默认 text-sm = 0.875rem 会缩成 12.25px，导致两侧字号不一致） -->
+    <Bubble v-else variant="muted" align="end" class="max-w-full gap-1.5">
+        <!-- 附件卡片区在正文上方：与输入区一致（待发送附件在编辑器上方），
+             阅读顺序为「所指对象 → 对它的提问」；
+             图片段转缩略图卡片 + 文本/文件附件（元数据随用户 TurnItem payload
+             持久化，历史回显一致）；点击卡片开全屏查看器/展开预览 -->
+        <AttachmentGroup v-if="cardAttachments.length" class="flex-wrap">
+            <AttachmentItem
+                v-for="(att, i) in cardAttachments"
+                :key="i"
+                :attachment="att"
+                :expanded="att.kind === 'text' && att.name === expandedTextName"
+                expandable-text
+                @toggle="toggleTextPreview"
+            />
+        </AttachmentGroup>
+
+        <!-- 文本附件原地展开预览：全宽等宽内容块（渐进披露，再点卡片收起）；
+             内容本地内联（旧数据/发送前）或经文件服务 fileKey 拉取 -->
+        <div v-if="expandedAttachment" class="user-message__text-preview">
+            <pre>{{ expandedTextContent }}</pre>
+        </div>
+
         <!-- 结构化 segments：芯片段渲染 InlineChip（对齐 tokhub InlineContentRenderer）；
-             后端 buildUserSegments 保证用户消息恒有 segments（无芯片时为单条 input_text 段） -->
-        <BubbleContent class="text-[14px] leading-[1.6]">
+             后端 buildUserSegments 保证用户消息恒有 segments（无芯片时为单条 input_text 段）；
+             纯图片消息无文本段，不渲染空内容区 -->
+        <BubbleContent v-if="hasBubbleText" class="text-[14px] leading-[1.6]">
             <template v-for="(seg, i) in segments" :key="i">
                 <InlineChip v-if="seg.type === 'resource' || seg.type === 'skill'" :segment="seg" />
-                <template v-else>{{ seg.text }}</template>
+                <!-- 图片段不在此渲染：转为缩略图卡片进上方卡片区（与附件卡片同形态） -->
+                <template v-else-if="seg.type !== 'image'">{{ seg.text }}</template>
             </template>
         </BubbleContent>
-
-        <!-- 附件列表（元数据来自消息 extra.attachments，Phase 6 附件链路填充） -->
-        <AttachmentGroup v-if="attachments?.length" class="flex-wrap">
-            <AttachmentItem v-for="(att, i) in attachments" :key="i" :attachment="att" />
-        </AttachmentGroup>
     </Bubble>
 </template>
 
@@ -60,9 +76,10 @@
  * 编辑模式：原地 textarea 自动撑高，Enter 发送 / Esc 取消 / 失焦取消
  */
 import { ArrowUpIcon } from '@lucide/vue';
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
+import { getFileUrl } from '@/common/request';
 import type { ContentSegment, MessageAttachment } from '../protocol/types';
 import InlineChip from './InlineChip.vue';
 import AttachmentItem from './AttachmentItem.vue';
@@ -84,6 +101,79 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+// ==================== 附件卡片 ====================
+
+/** 是否有非图片的内容段（纯图片消息不渲染空 BubbleContent） */
+const hasBubbleText = computed(() => (props.segments ?? []).some((seg) => seg.type !== 'image'));
+
+/**
+ * 卡片列表：图片段转为缩略图卡片（与文本/文件附件同形态，点击开全屏查看器；
+ * 图片以 image 段为唯一事实源，fileKey 经 /sys/files/{fileKey} 访问，
+ * 无持久化 attachments 的消息也一致），后接文本/文件附件
+ */
+const cardAttachments = computed<MessageAttachment[]>(() => {
+    // 本地图片预览源（乐观消息 attachments 携带 dataUrl）：按 name 匹配即时回显，
+    // 避免刚上传完还等 /sys/files/{fileKey} 网络响应；历史消息无 dataUrl 自然回落
+    const localPreviews = new Map<string, string>();
+    for (const a of props.attachments ?? []) {
+        if (a.kind === 'image' && a.dataUrl && a.name) localPreviews.set(a.name, a.dataUrl);
+    }
+    const imageCards: MessageAttachment[] = [];
+    for (const seg of props.segments ?? []) {
+        if (seg.type !== 'image') continue;
+        const fileKey = typeof seg.extra?.fileKey === 'string' ? seg.extra.fileKey : '';
+        if (!fileKey) continue;
+        const name = typeof seg.extra?.name === 'string' && seg.extra.name ? seg.extra.name : t('ai.attach.imagePlaceholder');
+        const dataUrl = localPreviews.get(name);
+        imageCards.push({ name, kind: 'image', fileKey, ...(dataUrl ? { dataUrl } : {}) });
+    }
+    const others = (props.attachments ?? []).filter((a) => a.kind !== 'image');
+    return [...imageCards, ...others];
+});
+
+/** 文本附件原地展开（按名称受控，再点同一卡片收起；纯前端态不持久化） */
+const expandedTextName = ref<string | null>(null);
+const toggleTextPreview = (name: string) => {
+    expandedTextName.value = expandedTextName.value === name ? null : name;
+};
+const expandedAttachment = computed(() =>
+    cardAttachments.value.find((a) => a.kind === 'text' && a.name === expandedTextName.value),
+);
+
+/**
+ * 展开预览内容：统一经文件服务 /sys/files/{fileKey} 拉取
+ * （发送前已完成上传，乐观消息与历史回显同一路径；按 fileKey 缓存，
+ * 拉取失败提示且不缓存）
+ */
+const expandedTextContent = ref('');
+const textContentCache = new Map<string, string>();
+watch(
+    expandedAttachment,
+    async (att) => {
+        const key = att?.fileKey ?? '';
+        if (!key) {
+            expandedTextContent.value = '';
+            return;
+        }
+        const cached = textContentCache.get(key);
+        if (cached != null) {
+            expandedTextContent.value = cached;
+            return;
+        }
+        try {
+            const res = await fetch(getFileUrl(key));
+            if (!res.ok) throw new Error(`fetch preview failed: ${res.status}`);
+            const text = await res.text();
+            textContentCache.set(key, text);
+            // 竞态保护：仅当仍是当前展开项时写入
+            if (expandedAttachment.value?.fileKey === key) expandedTextContent.value = text;
+        } catch {
+            if (expandedAttachment.value?.fileKey === key) expandedTextContent.value = t('ai.attach.previewFailed');
+        }
+    },
+    { immediate: true },
+);
 
 // ==================== 原地编辑 ====================
 
@@ -176,6 +266,41 @@ const onEditBlur = (e: FocusEvent) => {
 .user-message-edit__textarea:focus {
     border-color: var(--el-color-primary);
     box-shadow: 0 0 0 3px var(--el-color-primary-light-8);
+}
+
+/* 文本附件展开预览：全宽等宽内容块，高度上限滚动（长文件不撑爆消息流） */
+.user-message__text-preview pre {
+    width: 100%;
+    max-height: 320px;
+    margin: 0;
+    overflow: auto;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--el-fill-color-light);
+    font-family: var(--el-font-family-mono, ui-monospace, monospace);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--el-text-color-primary);
+    animation: user-message-preview-in 0.15s ease-out;
+}
+
+@keyframes user-message-preview-in {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .user-message__text-preview pre {
+        animation: none;
+    }
 }
 
 .user-message-edit__actions {

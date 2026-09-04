@@ -150,7 +150,9 @@ export default {
         authcertShowciphertext: '授权凭证密文查看',
 
         aiAssistant: 'AI助手',
+        aiChat: 'AI对话',
         aiIntegration: '集成',
         aiPluginManagement: '插件管理',
+        aiSettings: 'AI 设置',
     },
 };

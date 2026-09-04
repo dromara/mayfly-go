@@ -5,15 +5,14 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/go-gormigrate/gormigrate/v2"
+	"gorm.io/gorm"
 	aientity "mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/skill"
 	fileentity "mayfly-go/internal/file/domain/entity"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/cache"
-
-	"github.com/go-gormigrate/gormigrate/v2"
-	"gorm.io/gorm"
 )
 
 func V1_12() []*gormigrate.Migration {
@@ -223,8 +222,8 @@ func V1_12() []*gormigrate.Migration {
 			},
 		},
 		{
-			// AI 集成插件体系：技能（t_ai_skill + t_ai_skill_resource）与
-			// MCP 服务器（t_ai_mcp_server）三表；内置 embed 技能手册落库
+			// AI 集成插件体系：技能两表（t_ai_skill + t_ai_skill_resource）；
+			// 内置 embed 技能手册落库
 			// （source=builtin，按 code 查重，重复执行安全）；AI 菜单下插入
 			// 「集成」目录 + 「插件管理」页面
 			ID: "v1.12.0-ai-plugin-integration",
@@ -232,7 +231,6 @@ func V1_12() []*gormigrate.Migration {
 				if err := tx.AutoMigrate(
 					&aientity.Skill{},
 					&aientity.SkillResource{},
-					&aientity.McpServer{},
 				); err != nil {
 					return err
 				}
@@ -300,6 +298,75 @@ func V1_12() []*gormigrate.Migration {
 					}
 				}
 				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+		{
+			// 全局 AI 助手悬浮球权限码（ai:chat）：前端悬浮球经 v-auth 指令控制显隐，
+			// 挂在 AI 助手菜单下作为按钮型资源；按 id 查重，重复执行安全
+			ID: "v1.12.0-ai-chat-permission",
+			Migrate: func(tx *gorm.DB) error {
+				var count int64
+				if err := tx.Table("t_sys_resource").Where("id = ? AND is_deleted = 0", 1775967920).Count(&count).Error; err != nil {
+					return err
+				}
+				if count > 0 {
+					return nil
+				}
+				if err := tx.Exec("INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (?, ?, ?, 2, 1, 'menu.aiChat', 'ai:chat', ?, 'null', 1, 'admin', 1, 'admin', NOW(), NOW(), 0, NULL)",
+					1775967920, 1775967903, "lUgXhO96/VPfzI5pQ/Qk7wRm3x/", 1775967920).Error; err != nil {
+					return err
+				}
+				// 角色权限同步授予（与 v1.12.0-ai-menu-permission 同模式）
+				return tx.Exec("INSERT INTO t_sys_role_resource (role_id, resource_id, creator_id, creator, create_time, is_deleted, delete_time) VALUES (1, ?, 1, 'admin', NOW(), 0, NULL)", 1775967920).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+		{
+			// 插件实例统一视图（对齐 tokhub t_plugin_instance，剪裁租户/definition 维度）：
+			// 技能与 MCP 均注册为一行实例，列表分页/启停/Agent 装配只读本表；
+			// 技能实例 config 引用 t_ai_skill（Managed），MCP 实例 config 内联连接配置。
+			// 存量数据回填按 code 查重（WHERE NOT EXISTS），重复执行安全。
+			ID: "v1.12.0-ai-plugin-instance",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&aientity.PluginInstance{}); err != nil {
+					return err
+				}
+				// 技能 → 技能插件实例（skillCode 引用，enabled=1 启用）
+				return tx.Exec(
+					"INSERT INTO t_ai_plugin_instance (code, plugin_type, name, description, config, enabled, status, creator_id, creator, modifier_id, modifier, create_time, update_time) " +
+						"SELECT s.code, 'skill', s.name, s.description, CONCAT('{\"skillCode\":\"', s.code, '\"}'), 1, 0, 1, 'admin', 1, 'admin', NOW(), NOW() " +
+						"FROM t_ai_skill s WHERE NOT EXISTS (SELECT 1 FROM t_ai_plugin_instance i WHERE i.code = s.code)").Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+		{
+			// AI 设置页面菜单（专用配置表单）：failover（嵌套 fallbacks 数组）与
+			// toolSearchThreshold（Agent 运行时）无法用系统配置通用扁平动态表单
+			// 表达，需专用页面编辑 AiModelConfig / AiAgentConfig 两个配置项。
+			// 按 id 查重后插入，重复执行安全
+			ID: "v1.12.0-ai-settings-menu",
+			Migrate: func(tx *gorm.DB) error {
+				var count int64
+				if err := tx.Table("t_sys_resource").Where("id = ? AND is_deleted = 0", 1775967921).Count(&count).Error; err != nil {
+					return err
+				}
+				if count > 0 {
+					return nil
+				}
+				// 挂 AI 目录（1775967861）下，与助手/集成平级
+				if err := tx.Exec("INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (?, ?, ?, 1, 1, ?, ?, ?, ?, 1, 'admin', 1, 'admin', NOW(), NOW(), 0, NULL)",
+					1775967921, 1775967861, "lUgXhO96/Ks3wQ7mN/", "menu.aiSettings", "settings", 1775967921, `{"icon":"icon ai/ai","isKeepAlive":true,"routeName":"AiSettings"}`).Error; err != nil {
+					return err
+				}
+				// 角色权限同步授予（与 v1.12.0-ai-menu-permission 同模式）
+				return tx.Exec("INSERT INTO t_sys_role_resource (role_id, resource_id, creator_id, creator, create_time, is_deleted, delete_time) VALUES (1, ?, 1, 'admin', NOW(), 0, NULL)", 1775967921).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
 				return nil

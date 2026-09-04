@@ -33,4 +33,7 @@ const (
 	MachineInfoIncomplete
 	CommandExecApprovalReason
 	InterruptExpired
+	// Resource tool
+	ResourceListToolDesc
+	ResourceListToolInfo
 )

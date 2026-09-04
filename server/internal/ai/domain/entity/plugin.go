@@ -1,5 +1,6 @@
 // Package entity AI 插件域实体（对齐 tokhub plugin 体系，剪裁多租户维度）：
-// 技能（Skill）+ MCP 服务器（McpServer），经「集成 → 插件管理」统一治理。
+// 技能（Skill）+ 插件实例（PluginInstance，统一视图见 plugin_instance.go），
+// 经「集成 → 插件管理」统一治理。
 package entity
 
 import (
@@ -74,30 +75,4 @@ type SkillResource struct {
 
 func (r *SkillResource) TableName() string {
 	return "t_ai_skill_resource"
-}
-
-// McpServer MCP 服务器（对齐 tokhub MCP 插件实例，剪裁为仅 HTTP 传输）
-//
-// 用 ModelNLD（物理删除）：code 唯一索引，删除为不可恢复语义。
-type McpServer struct {
-	model.ModelNLD
-
-	// Code 业务唯一标识
-	Code string `gorm:"column:code;size:64;not null;uniqueIndex:uk_ai_mcp_server_code;comment:唯一标识" json:"code"`
-	// Name 展示名称
-	Name string `gorm:"column:name;size:128;not null;comment:名称" json:"name"`
-	// Description 描述
-	Description string `gorm:"column:description;size:512;comment:描述" json:"description"`
-	// Url MCP 服务器地址（Streamable HTTP / SSE）
-	Url string `gorm:"column:url;size:512;not null;comment:服务器地址" json:"url"`
-	// Headers 请求头 JSON，如 {"Authorization":"Bearer xx"}
-	Headers string `gorm:"column:headers;size:2000;comment:请求头JSON" json:"headers"`
-	// TimeoutSec 请求超时秒数（默认 30）
-	TimeoutSec int `gorm:"column:timeout_sec;not null;default:30;comment:超时秒数" json:"timeoutSec"`
-	// Enabled 是否启用：1=启用（装配期注入 Agent）
-	Enabled int `gorm:"column:enabled;not null;default:1;comment:是否启用" json:"enabled"`
-}
-
-func (m *McpServer) TableName() string {
-	return "t_ai_mcp_server"
 }

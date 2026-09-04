@@ -52,6 +52,10 @@ func NewRegistry() *Registry {
 }
 
 // SetProvider 设置技能数据源（DB 驱动，application.Init 注入）
+//
+// 时序契约：须在技能目录首次被消费前调用（装配期 skill_injection /
+// ChatSkills 接口 / extractExplicitSkillCodes 均会读取）；
+// ListProviderSkills 读取失败时退回上次成功缓存，provider 短暂缺失不致中断
 func (r *Registry) SetProvider(provider func() ([]*Skill, error)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

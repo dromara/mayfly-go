@@ -23,7 +23,7 @@ type DefaultRuntime struct {
 	// Registry 默认贡献者注册中心（内置扩展 + 宿主扩展 + 配置裁剪后）
 	Registry *contributor.Registry
 	// ChatModel 默认聊天模型（装配期单次获取，Agent/摘要器等复用，避免重复 IOC 查询）
-	ChatModel model.ToolCallingChatModel
+	ChatModel model.AgenticModel
 }
 
 var (

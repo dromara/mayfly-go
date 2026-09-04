@@ -101,6 +101,7 @@
  * 功能：
  * - TipTap 编辑器（Document + Paragraph + Text + HardBreak + ChipNode）
  * - Enter 发送，Shift+Enter 换行
+ * - 粘贴文件（截图/复制的图片、文本文件）自动转为附件，与选择文件同一链路
  * - `/` 触发技能选择菜单、`@` 触发资源树面板（注册表驱动，见 triggers/registry.ts）
  * - 芯片节点（原子内联节点，整体选中/删除）
  * - 发送时提取 segments（文本 + 芯片）
@@ -126,8 +127,8 @@ import AttachmentItem from '../message/AttachmentItem.vue';
 import {
     ATTACHMENT_ACCEPT,
     MAX_ATTACHMENT_SIZE,
-    needsUpload,
     readChatAttachment,
+    uploadChatAttachments,
 } from './attachments';
 import { ChipNode } from './chipNode';
 import { extractSegmentsFromNode } from './chipRegistry';
@@ -176,7 +177,7 @@ const props = withDefaults(
 const emit = defineEmits<{
     (e: 'submit', data: ChatInputSubmitData): void;
     (e: 'cancel'): void;
-    (e: 'queue', text: string): void;
+    (e: 'queue', data: ChatInputSubmitData): void;
 }>();
 
 const { t } = useI18n();
@@ -288,6 +289,15 @@ onMounted(() => {
                 }
                 return false;
             },
+            // 粘贴携带文件的剪贴板（截图/复制的图片或文本文件）转为附件，
+            // 复用选择文件同一处理链路；纯文本粘贴放行走默认插入
+            handlePaste: (_view, event) => {
+                const files = filesFromClipboard(event.clipboardData);
+                if (files.length === 0) return false;
+                event.preventDefault();
+                addAttachmentFiles(files);
+                return true;
+            },
         },
         onUpdate: ({ editor: e }) => {
             // 同步文本到响应式 ref（驱动 canSend 更新）
@@ -327,18 +337,31 @@ const pickFiles = () => {
     fileInputRef.value?.click();
 };
 
-const onFilesPicked = async (e: Event) => {
+const onFilesPicked = (e: Event) => {
     const input = e.target as HTMLInputElement;
     const files = Array.from(input.files || []);
     input.value = '';
+    addAttachmentFiles(files);
+};
 
+/** 从剪贴板提取文件（files 为空时回退遍历 items，兼容部分浏览器截图粘贴） */
+const filesFromClipboard = (dt: DataTransfer | null): File[] => {
+    if (dt?.files?.length) return Array.from(dt.files);
+    const out: File[] = [];
+    for (const item of dt?.items ?? []) {
+        if (item.kind === 'file') {
+            const f = item.getAsFile();
+            if (f) out.push(f);
+        }
+    }
+    return out;
+};
+
+/** 批量添加附件（文件选择与粘贴共用）：校验大小 → 读取为消息附件（内容发送时上传统一文件服务） */
+const addAttachmentFiles = async (files: File[]) => {
     for (const file of files) {
         if (file.size > MAX_ATTACHMENT_SIZE) {
             Msg.warning(t('ai.attach.tooLarge', { name: file.name }));
-            continue;
-        }
-        if (needsUpload(file)) {
-            Msg.warning(t('ai.attach.unsupported', { name: file.name }));
             continue;
         }
         try {
@@ -362,7 +385,7 @@ const onWrapperClick = (e: MouseEvent) => {
 
 // ========== 发送逻辑 ==========
 
-const onSubmit = () => {
+const onSubmit = async () => {
     if (!canSend.value || !editor.value) return;
     dismissHint();
 
@@ -370,20 +393,32 @@ const onSubmit = () => {
     const text = e.getText().trim();
     const segments = extractSegmentsFromNode(e.state.doc);
 
+    // 附件在入队/发送前统一上传（内容落 t_sys_file，消息体只随 fileKey 轻量引用）；
+    // 失败中止且保留输入态（编辑器内容与附件可重试），入队与直接发送共享同一前置链路
+    let attachments = pendingAttachments.value;
+    if (attachments.length > 0) {
+        try {
+            attachments = await uploadChatAttachments(attachments);
+            pendingAttachments.value = attachments;
+        } catch {
+            Msg.error(t('ai.attach.uploadFailed'));
+            return;
+        }
+    }
+    const data: ChatInputSubmitData = {
+        text,
+        segments,
+        attachments: attachments.length > 0 ? attachments : undefined,
+    };
+
     // shouldQueue 时（回复中/待中断）加入队列而非直接发送（对齐 tokhub：参考 Claude Code）
     if (props.shouldQueue) {
-        if (text) {
-            emit('queue', text);
-            clear();
-        }
+        emit('queue', data);
+        clear();
         return;
     }
 
-    emit('submit', {
-        text,
-        segments,
-        attachments: pendingAttachments.value.length > 0 ? [...pendingAttachments.value] : undefined,
-    });
+    emit('submit', data);
     clear();
 };
 
@@ -401,11 +436,12 @@ const focus = () => {
     editor.value?.commands.focus('end');
 };
 
-/** 回填内容（队列编辑/外部填充，对齐 tokhub pendingValue 机制） */
-const setValue = (content: string) => {
+/** 回填内容（队列编辑/外部填充，对齐 tokhub pendingValue 机制）；attachments 为队列消息携带的已上传附件 */
+const setValue = (content: string, attachments?: MessageAttachment[]) => {
     if (!editor.value) return;
     editor.value.commands.setContent(content);
     editorText.value = content;
+    if (attachments?.length) pendingAttachments.value = [...attachments];
     nextTick(() => focus());
 };
 

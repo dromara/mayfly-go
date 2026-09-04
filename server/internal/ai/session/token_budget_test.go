@@ -7,16 +7,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
-func userMsg(content string) adk.Message {
-	return &schema.Message{Role: schema.User, Content: content}
+func userMsg(content string) *Message {
+	return &Message{Role: schema.User, Content: content}
 }
 
-func assistantToolCall(id, name string) adk.Message {
-	return &schema.Message{
+func assistantToolCall(id, name string) *Message {
+	return &Message{
 		Role: schema.Assistant,
 		ToolCalls: []schema.ToolCall{{
 			ID: id, Function: schema.FunctionCall{Name: name, Arguments: "{}"},
@@ -24,18 +23,18 @@ func assistantToolCall(id, name string) adk.Message {
 	}
 }
 
-func toolResult(id, content string) adk.Message {
-	return &schema.Message{Role: schema.Tool, Content: content, ToolCallID: id}
+func toolResult(id, content string) *Message {
+	return &Message{Role: schema.Tool, Content: content, ToolCallId: id}
 }
 
-func summaryHeader(summary string) adk.Message {
-	return &schema.Message{Role: schema.System, Content: summary}
+func summaryHeader(summary string) *Message {
+	return &Message{Role: schema.System, Content: summary}
 }
 
 // TestCompactMidTurn_NoWindow 未配置窗口（contextWindow=0）时不做任何处理
 func TestCompactMidTurn_NoWindow(t *testing.T) {
 	m := &Manager{}
-	msgs := []adk.Message{userMsg("a"), userMsg("b")}
+	msgs := []*Message{userMsg("a"), userMsg("b")}
 	got, compacted := m.CompactMidTurn(context.Background(), "k", msgs, 0)
 	if compacted || len(got) != 2 {
 		t.Errorf("no window should keep messages as-is, compacted=%v", compacted)
@@ -45,7 +44,7 @@ func TestCompactMidTurn_NoWindow(t *testing.T) {
 // TestCompactMidTurn_WithinBudget 预算内不裁剪
 func TestCompactMidTurn_WithinBudget(t *testing.T) {
 	m := &Manager{contextWindow: 100000}
-	msgs := []adk.Message{userMsg("short history")}
+	msgs := []*Message{userMsg("short history")}
 	got, compacted := m.CompactMidTurn(context.Background(), "k", msgs, 100)
 	if compacted || len(got) != 1 {
 		t.Errorf("within budget should not compact, compacted=%v", compacted)
@@ -56,7 +55,7 @@ func TestCompactMidTurn_WithinBudget(t *testing.T) {
 // 头部摘要 system 消息始终保留，且保留区不以孤立 tool 结果开头
 func TestCompactMidTurn_HardTrim(t *testing.T) {
 	m := &Manager{contextWindow: 200} // usable = 200 - 40 = 160，明显小于历史估算
-	msgs := []adk.Message{
+	msgs := []*Message{
 		summaryHeader("[之前的对话摘要]\n..."),
 		userMsg(longText(200)),
 		assistantToolCall("call-1", "shell_exec"),
@@ -86,7 +85,7 @@ func TestCompactMidTurn_HardTrim(t *testing.T) {
 
 // TestTrimToBudget_KeepsHeaderSystem 裁剪从尾部保留，头部连续 system 全保留
 func TestTrimToBudget_KeepsHeaderSystem(t *testing.T) {
-	msgs := []adk.Message{
+	msgs := []*Message{
 		summaryHeader("s1"),
 		summaryHeader("s2"),
 		userMsg(longText(100)),
@@ -108,8 +107,8 @@ func TestTrimToBudget_KeepsHeaderSystem(t *testing.T) {
 
 // TestEstimateHistoryTokens_ToolCallArguments 工具调用参数计入估算
 func TestEstimateHistoryTokens_ToolCallArguments(t *testing.T) {
-	plain := []adk.Message{userMsg("x")}
-	withTool := []adk.Message{assistantToolCall("call-1", "shell_exec")}
+	plain := []*Message{userMsg("x")}
+	withTool := []*Message{assistantToolCall("call-1", "shell_exec")}
 	// assistantToolCall 无 Content，其估算全部来自 ToolCalls 名称与参数开销
 	if EstimateHistoryTokens(withTool) <= EstimateHistoryTokens(plain) {
 		t.Errorf("tool call arguments should add token overhead: tool=%d plain=%d",
@@ -124,10 +123,10 @@ type fakeSummarizer struct {
 	calls atomic.Int32
 	mu    sync.Mutex
 	// lastMsgs 由后台摘要协程写入、主协程读取，经 mu 同步
-	lastMsgs []adk.Message
+	lastMsgs []*Message
 }
 
-func (f *fakeSummarizer) GenerateSummary(ctx context.Context, messages []adk.Message) (string, error) {
+func (f *fakeSummarizer) GenerateSummary(ctx context.Context, messages []*Message) (string, error) {
 	f.calls.Add(1)
 	f.mu.Lock()
 	f.lastMsgs = messages
@@ -136,7 +135,7 @@ func (f *fakeSummarizer) GenerateSummary(ctx context.Context, messages []adk.Mes
 }
 
 // snapshotLastMsgs 线程安全读取最近一次摘要输入
-func (f *fakeSummarizer) snapshotLastMsgs() []adk.Message {
+func (f *fakeSummarizer) snapshotLastMsgs() []*Message {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.lastMsgs
@@ -160,7 +159,7 @@ func TestCompactMidTurn_SoftThreshold_TriggersSummary(t *testing.T) {
 	key := "conv:soft"
 	// est = 64+9+64+64+9+5 = 215 > usable(160)，触发软阈值 + 硬裁剪；
 	// 硬裁剪保留尾部 3 条（est 78 ≤ budget 100），且起点修正非孤立 tool 结果
-	msgs := []adk.Message{
+	msgs := []*Message{
 		userMsg(longText(120)),
 		assistantToolCall("call-1", "shell_exec"),
 		toolResult("call-1", longText(120)),

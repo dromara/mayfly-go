@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/ai/pkg/utils"
+	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
@@ -16,17 +16,17 @@ import (
 // Extractor 记忆提取器接口
 type Extractor interface {
 	// ExtractFromMessages 从消息历史中提取记忆
-	ExtractFromMessages(ctx context.Context, userID string, messages []adk.Message) ([]*MemoryItem, error)
+	ExtractFromMessages(ctx context.Context, userID string, messages []*session.Message) ([]*MemoryItem, error)
 }
 
 // LLMExtractorConfig LLM提取器配置
 type LLMExtractorConfig struct {
-	Enabled         bool                       // 是否启用
-	Temperature     float64                    // 温度参数 (0-1)
-	MaxTokens       int                        // 最大token数
-	MinConfidence   float64                    // 最小置信度阈值
-	MaxItemsPerCall int                        // 单次提取最大记忆数量
-	ChatModel       model.ToolCallingChatModel // ChatModel 实例
+	Enabled         bool               // 是否启用
+	Temperature     float64            // 温度参数 (0-1)
+	MaxTokens       int                // 最大token数
+	MinConfidence   float64            // 最小置信度阈值
+	MaxItemsPerCall int                // 单次提取最大记忆数量
+	ChatModel       model.AgenticModel // ChatModel 实例
 }
 
 // DefaultLLMExtractorConfig 返回默认配置
@@ -73,7 +73,7 @@ func (e *LLMExtractor) WithConfig(config *LLMExtractorConfig) *LLMExtractor {
 var _ Extractor = (*LLMExtractor)(nil)
 
 // ExtractFromMessages 使用LLM从消息中提取记忆
-func (e *LLMExtractor) ExtractFromMessages(ctx context.Context, userID string, messages []adk.Message) ([]*MemoryItem, error) {
+func (e *LLMExtractor) ExtractFromMessages(ctx context.Context, userID string, messages []*session.Message) ([]*MemoryItem, error) {
 	if !e.config.Enabled || len(messages) == 0 {
 		return []*MemoryItem{}, nil
 	}
@@ -114,19 +114,16 @@ func (e *LLMExtractor) ExtractFromMessages(ctx context.Context, userID string, m
 func (e *LLMExtractor) extractWithLLM(ctx context.Context, prompt string, userID string) (memories []*MemoryItem, err error) {
 	defer gox.Recover()
 
-	// 调用 LLM 生成提取结果
-	response, err := e.config.ChatModel.Generate(ctx, []*schema.Message{
-		{
-			Role:    schema.System,
-			Content: prompt,
-		},
+	// 调用 LLM 生成提取结果（提取为非交互场景，直接用 Generate 非流式获取完整结果）
+	response, err := e.config.ChatModel.Generate(ctx, []*schema.AgenticMessage{
+		schema.SystemAgenticMessage(prompt),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("LLM generate: %w", err)
 	}
 
 	// 解析LLM返回结果
-	memories, err = e.parseExtractionResult(response.Content, userID)
+	memories, err = e.parseExtractionResult(session.ExtractText(response), userID)
 	if err != nil {
 		return nil, fmt.Errorf("parse LLM response: %w", err)
 	}
@@ -137,7 +134,7 @@ func (e *LLMExtractor) extractWithLLM(ctx context.Context, prompt string, userID
 }
 
 // buildExtractionPrompt 构建提取提示词
-func (e *LLMExtractor) buildExtractionPrompt(messages []adk.Message) string {
+func (e *LLMExtractor) buildExtractionPrompt(messages []*session.Message) string {
 	var sb strings.Builder
 
 	sb.WriteString("你是一个专业的用户信息提取助手。请从以下对话中提取用户的重要信息。\n\n")

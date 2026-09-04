@@ -3,13 +3,14 @@ package contributor
 import (
 	"testing"
 
-	"github.com/cloudwego/eino/adk"
+	"mayfly-go/internal/ai/session"
+
 	"github.com/cloudwego/eino/schema"
 )
 
 // assistantWithCall 构造带单个 tool_call 的 assistant 消息
-func assistantWithCall(id, name string) *schema.Message {
-	return &schema.Message{
+func assistantWithCall(id, name string) *session.Message {
+	return &session.Message{
 		Role: schema.Assistant,
 		ToolCalls: []schema.ToolCall{
 			{ID: id, Function: schema.FunctionCall{Name: name, Arguments: "{}"}},
@@ -18,17 +19,17 @@ func assistantWithCall(id, name string) *schema.Message {
 }
 
 // toolResult 构造 tool 结果消息
-func toolResult(id, content string) *schema.Message {
-	return &schema.Message{Role: schema.Tool, Content: content, ToolCallID: id}
+func toolResult(id, content string) *session.Message {
+	return &session.Message{Role: schema.Tool, Content: content, ToolCallId: id}
 }
 
-func userMsg(content string) *schema.Message {
-	return &schema.Message{Role: schema.User, Content: content}
+func userMsg(content string) *session.Message {
+	return &session.Message{Role: schema.User, Content: content}
 }
 
 // TestEnsureCallOutputsPresent_SynthesizesMissingResult 缺失结果被合成为 aborted 占位符
 func TestEnsureCallOutputsPresent_SynthesizesMissingResult(t *testing.T) {
-	msgs := []adk.Message{
+	msgs := []*session.Message{
 		userMsg("hello"),
 		assistantWithCall("call-1", "shell_exec"),
 	}
@@ -37,14 +38,14 @@ func TestEnsureCallOutputsPresent_SynthesizesMissingResult(t *testing.T) {
 		t.Fatalf("expected 3 messages, got %d", len(result))
 	}
 	last := result[2]
-	if last.Role != schema.Tool || last.ToolCallID != "call-1" {
-		t.Fatalf("expected synthesized tool result for call-1, got role=%s toolCallID=%s", last.Role, last.ToolCallID)
+	if last.Role != schema.Tool || last.ToolCallId != "call-1" {
+		t.Fatalf("expected synthesized tool result for call-1, got role=%s toolCallID=%s", last.Role, last.ToolCallId)
 	}
 }
 
 // TestNormalizeHistory_SkipsExistingResult 已有结果不合成
 func TestNormalizeHistory_SkipsExistingResult(t *testing.T) {
-	msgs := []adk.Message{
+	msgs := []*session.Message{
 		userMsg("hello"),
 		assistantWithCall("call-1", "shell_exec"),
 		toolResult("call-1", "output"),
@@ -57,7 +58,7 @@ func TestNormalizeHistory_SkipsExistingResult(t *testing.T) {
 
 // TestNormalizeHistory_RemovesOrphans 孤儿 tool 结果被移除
 func TestNormalizeHistory_RemovesOrphans(t *testing.T) {
-	msgs := []adk.Message{
+	msgs := []*session.Message{
 		userMsg("hello"),
 		assistantWithCall("call-1", "shell_exec"),
 		toolResult("call-1", "output"),
@@ -68,7 +69,7 @@ func TestNormalizeHistory_RemovesOrphans(t *testing.T) {
 		t.Fatalf("expected 3 messages, got %d", len(result))
 	}
 	for _, m := range result {
-		if m.ToolCallID == "orphan-id" {
+		if m.ToolCallId == "orphan-id" {
 			t.Fatal("orphan tool result should be removed")
 		}
 	}
@@ -76,7 +77,7 @@ func TestNormalizeHistory_RemovesOrphans(t *testing.T) {
 
 // TestNormalizeHistory_Combined 组合通道：孤儿移除 + 缺失合成同时生效
 func TestNormalizeHistory_Combined(t *testing.T) {
-	msgs := []adk.Message{
+	msgs := []*session.Message{
 		userMsg("hello"),
 		assistantWithCall("call-1", "shell_exec"),
 		assistantWithCall("call-2", "file_read"),
@@ -88,10 +89,10 @@ func TestNormalizeHistory_Combined(t *testing.T) {
 	hasOrphan := false
 	hasSynthesized := false
 	for _, m := range result {
-		if m.ToolCallID == "orphan" {
+		if m.ToolCallId == "orphan" {
 			hasOrphan = true
 		}
-		if m.ToolCallID == "call-2" {
+		if m.ToolCallId == "call-2" {
 			hasSynthesized = true
 		}
 	}
@@ -105,7 +106,7 @@ func TestNormalizeHistory_Combined(t *testing.T) {
 
 // TestNormalizeHistory_Idempotent 幂等：重复 normalize 不再变化
 func TestNormalizeHistory_Idempotent(t *testing.T) {
-	msgs := []adk.Message{
+	msgs := []*session.Message{
 		userMsg("hello"),
 		assistantWithCall("call-1", "shell_exec"),
 		toolResult("orphan", "stale"),

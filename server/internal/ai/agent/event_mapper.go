@@ -10,7 +10,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -55,7 +54,7 @@ func (m *EventMapper) TrackResumedToolCall(toolCallId, itemId string) {
 
 // MapChunk 将流式 chunk 映射为 EventMsg
 // 返回一个或多个事件（首次 chunk 会产生 item_started + item_updated）
-func (m *EventMapper) MapChunk(turnId string, chunk adk.Message) []*protocol.EventMsg {
+func (m *EventMapper) MapChunk(turnId string, chunk *session.Message) []*protocol.EventMsg {
 	var events []*protocol.EventMsg
 
 	// 处理推理内容（reasoning）
@@ -97,7 +96,7 @@ func (m *EventMapper) MapChunk(turnId string, chunk adk.Message) []*protocol.Eve
 
 // CompleteStreaming 完成当前 streaming item，发送 item_completed 事件
 // 在 streaming 结束后调用
-func (m *EventMapper) CompleteStreaming(turnId string, msg adk.Message) []*protocol.EventMsg {
+func (m *EventMapper) CompleteStreaming(turnId string, msg *session.Message) []*protocol.EventMsg {
 	return m.completeActiveItems(turnId)
 }
 
@@ -130,7 +129,7 @@ func (m *EventMapper) completeActiveItems(turnId string) []*protocol.EventMsg {
 }
 
 // MapToolCallEvent 将工具调用事件映射为 EventMsg
-func (m *EventMapper) MapToolCallEvent(turnId string, msg adk.Message) []*protocol.EventMsg {
+func (m *EventMapper) MapToolCallEvent(turnId string, msg *session.Message) []*protocol.EventMsg {
 	var events []*protocol.EventMsg
 
 	// 工具调用意味着本轮模型响应结束：先定格进行中的 reasoning/message item（对齐 tokhub
@@ -152,17 +151,17 @@ func (m *EventMapper) MapToolCallEvent(turnId string, msg adk.Message) []*protoc
 }
 
 // MapToolResultEvent 将工具结果事件映射为 EventMsg
-func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg adk.Message) []*protocol.EventMsg {
+func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg *session.Message) []*protocol.EventMsg {
 	var events []*protocol.EventMsg
 
 	// 恢复路径：工具从 checkpoint 恢复执行，复用挂起时已落库的原 item_id，
 	// 不重发 item_started（对齐 tokhub：ItemCompleted 复用原 item_id，仅发终态）
-	itemId, isResumed := m.resumedToolCallItemIds[msg.ToolCallID]
-	delete(m.resumedToolCallItemIds, msg.ToolCallID)
+	itemId, isResumed := m.resumedToolCallItemIds[msg.ToolCallId]
+	delete(m.resumedToolCallItemIds, msg.ToolCallId)
 	isNewItem := false
 	if !isResumed {
 		// 使用 item_started 时记录的 itemId，确保前后端 ID 一致
-		itemId = m.toolCallItemIds[msg.ToolCallID]
+		itemId = m.toolCallItemIds[msg.ToolCallId]
 		if itemId == "" {
 			// resume 流程中，工具从 checkpoint 恢复执行，MapToolCallEvent 未被调用
 			// 需要同时发送 item_started 和 item_completed
@@ -171,17 +170,17 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 		}
 	}
 	// 取回并清理映射；resume 流程无 item_started 缓存，从 session 恢复参数
-	args := m.toolCallArgs[msg.ToolCallID]
-	delete(m.toolCallItemIds, msg.ToolCallID)
-	delete(m.toolCallArgs, msg.ToolCallID)
+	args := m.toolCallArgs[msg.ToolCallId]
+	delete(m.toolCallItemIds, msg.ToolCallId)
+	delete(m.toolCallArgs, msg.ToolCallId)
 	if args == "" {
-		args = m.loadToolCallArgs(ctx, msg.ToolCallID)
+		args = m.loadToolCallArgs(ctx, msg.ToolCallId)
 	}
 
 	item := &protocol.TurnItem{
 		Type:       protocol.TurnItemTypeToolCall,
 		Id:         itemId,
-		ToolCallId: msg.ToolCallID,
+		ToolCallId: msg.ToolCallId,
 		ToolName:   msg.ToolName,
 		Status:     protocol.TurnItemStatusSuccess,
 		// 终态必须携带完整参数：api 层按 ItemId 去重保留最后一条，
@@ -219,11 +218,11 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 		startedItem := &protocol.TurnItem{
 			Type:       protocol.TurnItemTypeToolCall,
 			Id:         itemId,
-			ToolCallId: msg.ToolCallID,
+			ToolCallId: msg.ToolCallId,
 			ToolName:   msg.ToolName,
 			// resume 流程中工具从 checkpoint 恢复执行，参数从 session 的 tool_call 消息恢复
 			// （参数补全场景该消息已在 resume 时更新为用户补全后的参数）
-			Arguments: m.loadToolCallArgs(ctx, msg.ToolCallID),
+			Arguments: m.loadToolCallArgs(ctx, msg.ToolCallId),
 			Status:    protocol.TurnItemStatusPending,
 		}
 		events = append(events, protocol.NewItemStartedEvent(turnId, startedItem))
@@ -234,7 +233,7 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 }
 
 // MapInterruptEvent 将中断信息映射为 EventMsg
-func (m *EventMapper) MapInterruptEvent(turnId string, msg adk.Message) []*protocol.EventMsg {
+func (m *EventMapper) MapInterruptEvent(turnId string, msg *session.Message) []*protocol.EventMsg {
 	extra := collx.M(msg.Extra)
 	if extra == nil {
 		return nil
@@ -248,7 +247,7 @@ func (m *EventMapper) MapInterruptEvent(turnId string, msg adk.Message) []*proto
 		Type:        interruptType,
 		Description: msg.Content,
 		ToolName:    msg.ToolName,
-		ToolCallId:  msg.ToolCallID,
+		ToolCallId:  msg.ToolCallId,
 	}
 
 	// 尝试获取完整的中断元数据

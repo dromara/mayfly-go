@@ -19,11 +19,9 @@ import (
 	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/logx"
-
-	"github.com/cloudwego/eino/adk"
 )
 
-// SessionHistoryExtension 会话历史扩展（短期记忆 → adk.Message 历史）
+// SessionHistoryExtension 会话历史扩展（短期记忆 → 统一内存消息历史）
 type SessionHistoryExtension struct {
 	// sessionManager 会话管理器（历史加载 + 摘要 + 窗口压缩的域服务）
 	sessionManager *session.Manager
@@ -40,7 +38,7 @@ var _ contributor.MidTurnCompactor = (*SessionHistoryExtension)(nil)
 
 func (e *SessionHistoryExtension) Id() string { return "session_history" }
 
-func (e *SessionHistoryExtension) ContributeMessages(ctx context.Context, bc *contributor.HistoryBuildContext) ([]adk.Message, error) {
+func (e *SessionHistoryExtension) ContributeMessages(ctx context.Context, bc *contributor.HistoryBuildContext) ([]*session.Message, error) {
 	if e.sessionManager == nil || bc.SessionKey == "" {
 		return nil, nil
 	}
@@ -59,7 +57,7 @@ func (e *SessionHistoryExtension) ContributeMessages(ctx context.Context, bc *co
 //
 // 总量 = preamble + history + 输出预留（与预算追踪同一字符口径），
 // 超阈值时就地压缩合并后的历史；未触发时返回原切片与 nil。
-func (e *SessionHistoryExtension) TryMidTurnCompaction(ctx context.Context, history []adk.Message, params *contributor.MidTurnCompactionParams) ([]adk.Message, *contributor.MidTurnCompactionInfo) {
+func (e *SessionHistoryExtension) TryMidTurnCompaction(ctx context.Context, history []*session.Message, params *contributor.MidTurnCompactionParams) ([]*session.Message, *contributor.MidTurnCompactionInfo) {
 	if e.sessionManager == nil || params == nil || params.ContextWindow <= 0 {
 		return history, nil
 	}

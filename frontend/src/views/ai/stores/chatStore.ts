@@ -12,7 +12,8 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed, reactive } from 'vue';
-import type { ChatMessage, Conversation, InterruptEvent, TurnItem, ItemDelta, TurnGroupVO, MessagePart, NoticePart, ToolCallPart } from '../protocol/types';
+import type { ChatInputSubmitData } from '../input/types';
+import type { ChatMessage, Conversation, InterruptEvent, TurnItem, ItemDelta, TurnGroupVO, MessagePart, NoticePart, ToolCallPart, MessageAttachment } from '../protocol/types';
 import { forEachInterruptHandler } from '../registries/interruptRegistry';
 import { ToolCallStatus } from '../registries/statuses';
 
@@ -59,10 +60,10 @@ export interface ScrollAnchor {
     offset: number;
 }
 
-/** 队列中的消息 */
+/** 队列中的消息：完整提交数据（附件已上传 fileKey），出队时原样交回发送链路 */
 export interface QueuedMessage {
     id: string;
-    content: string;
+    data: ChatInputSubmitData;
     timestamp: number;
 }
 
@@ -229,15 +230,19 @@ export const useChatStore = defineStore('ai-chat', () => {
     /**
      * 用户 TurnItem → ChatMessage
      * 流式 onItemStarted 与历史加载共用的组装单一出处（避免双路径改一漏一）；
-     * 结构化 segments 透传使芯片引用回显可恢复样式
+     * 结构化 segments 透传使芯片引用回显可恢复样式；
+     * 附件从 TurnItem.attachments 重建（fileKey 引用透传，展示端经
+     * /sys/files/{fileKey} 访问）
      */
     function userItemToMessage(item: TurnItem, turnId?: string, createTime?: string): ChatMessage {
         const segments = item.content ?? [];
+        const attachments = item.attachments?.filter((att) => !!att?.name) as MessageAttachment[] | undefined;
         return {
             id: item.id,
             role: 'user',
             content: extractTextFromSegments(segments),
             segments,
+            ...(attachments?.length ? { attachments } : {}),
             ...(turnId ? { turnId } : {}),
             time: formatItemTime(createTime),
         };
@@ -613,11 +618,11 @@ export const useChatStore = defineStore('ai-chat', () => {
 
     // ===== 消息队列 =====
 
-    function enqueueMessage(convId: number, content: string) {
+    function enqueueMessage(convId: number, data: ChatInputSubmitData) {
         const slice = getOrCreateSlice(convId);
         slice.queuedMessages.push({
             id: `queued_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            content,
+            data,
             timestamp: Date.now(),
         });
     }
@@ -648,13 +653,6 @@ export const useChatStore = defineStore('ai-chat', () => {
         if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) return;
         const [moved] = list.splice(fromIndex, 1);
         list.splice(toIndex, 0, moved);
-    }
-
-    /** 更新队列指定消息内容（编辑后写回） */
-    function updateQueuedMessage(convId: number, messageId: string, content: string) {
-        const slice = convs.get(convId);
-        const item = slice?.queuedMessages.find((m) => m.id === messageId);
-        if (item) item.content = content;
     }
 
     /** 记录会话滚动锚点（视口顶部可见消息 + 偏移，对齐 tokhub scrollAnchorStore） */
@@ -746,7 +744,6 @@ export const useChatStore = defineStore('ai-chat', () => {
         hasQueuedMessages,
         removeQueuedMessage,
         reorderQueuedMessage,
-        updateQueuedMessage,
         // 滚动锚点持久化
         setScrollAnchor,
         getScrollAnchor,

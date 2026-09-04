@@ -25,12 +25,12 @@ import (
 type MemoryExtractionExtension struct {
 	memoryManager  *memory.Manager
 	sessionManager *session.Manager
-	chatModel      model.ToolCallingChatModel
+	chatModel      model.AgenticModel
 }
 
 // NewExtractionExtension 创建记忆提取扩展（memoryManager 为 nil 时返回 nil，
 // 未启用记忆能力，宿主跳过注册）
-func NewExtractionExtension(memoryManager *memory.Manager, sessionManager *session.Manager, chatModel model.ToolCallingChatModel) *MemoryExtractionExtension {
+func NewExtractionExtension(memoryManager *memory.Manager, sessionManager *session.Manager, chatModel model.AgenticModel) *MemoryExtractionExtension {
 	if memoryManager == nil {
 		return nil
 	}

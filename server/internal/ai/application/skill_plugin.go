@@ -77,7 +77,8 @@ type SkillPlugin interface {
 type skillPluginAppImpl struct {
 	base.AppImpl[*entity.Skill, repository.Skill]
 
-	resourceRepo repository.SkillResource `inject:"T"`
+	resourceRepo repository.SkillResource  `inject:"T"`
+	instanceRepo repository.PluginInstance `inject:"T"`
 }
 
 var _ SkillPlugin = (*skillPluginAppImpl)(nil)
@@ -134,6 +135,10 @@ func (a *skillPluginAppImpl) CreateSkill(ctx context.Context, req *SkillSaveReq)
 	if err := a.writeInstructions(ctx, skillRow, req.Instructions); err != nil {
 		return nil, err
 	}
+	// 同步注册插件实例（t_ai_plugin_instance 为统一插件视图唯一事实源）
+	if err := upsertSkillInstance(ctx, a.instanceRepo, skillRow); err != nil {
+		return nil, err
+	}
 	return skillRow, nil
 }
 
@@ -147,14 +152,31 @@ func (a *skillPluginAppImpl) UpdateSkill(ctx context.Context, id uint64, req *Sk
 	if err := a.GetRepo().UpdateById(ctx, updateRow, "description", "allowed_tools"); err != nil {
 		return err
 	}
-	return a.writeInstructions(ctx, skillRow, req.Instructions)
+	if err := a.writeInstructions(ctx, skillRow, req.Instructions); err != nil {
+		return err
+	}
+	// description 变更同步到引用实例（技能为实例的事实源）
+	skillRow.Description = req.Description
+	return upsertSkillInstance(ctx, a.instanceRepo, skillRow)
 }
 
 func (a *skillPluginAppImpl) DeleteSkill(ctx context.Context, id uint64) error {
+	skillRow, err := a.GetById(id)
+	if err != nil {
+		return err
+	}
 	if err := a.DeleteById(ctx, id); err != nil {
 		return err
 	}
-	return a.resourceRepo.DeleteBySkillId(ctx, id)
+	if err := a.resourceRepo.DeleteBySkillId(ctx, id); err != nil {
+		return err
+	}
+	// 联动删除引用实例并重置默认 Agent（技能从注入清单下线）
+	if err := deleteSkillInstance(ctx, a.instanceRepo, skillRow.Code); err != nil {
+		return err
+	}
+	invalidateDefaultAgent()
+	return nil
 }
 
 func (a *skillPluginAppImpl) Publish(ctx context.Context, id uint64) error {
@@ -322,6 +344,10 @@ func (a *skillPluginAppImpl) ImportZip(ctx context.Context, data []byte) (*entit
 			return nil, err
 		}
 	}
+	// 同步注册/更新插件实例（zip 导入自动建实例，对齐 tokhub usePluginManagement）
+	if err := upsertSkillInstance(ctx, a.instanceRepo, skillRow); err != nil {
+		return nil, err
+	}
 	return skillRow, nil
 }
 
@@ -355,14 +381,28 @@ func (a *skillPluginAppImpl) ExportZip(ctx context.Context, id uint64) (string, 
 // ============== 运行时注入 ==============
 
 // ListPublishedSkills 已发布技能转运行时结构（skill.Registry DB provider 数据源）：
-// SKILL.md 解析出 body 作为 L3 全文，目录层仅用 code/name/description
+// SKILL.md 解析出 body 作为 L3 全文，目录层仅用 code/name/description。
+// 仅返回「enabled 实例引用 ∩ status=published」的技能（instance.enabled 为运行时总开关）
 func (a *skillPluginAppImpl) ListPublishedSkills(ctx context.Context) ([]*skill.Skill, error) {
+	instances, err := a.instanceRepo.SelectEnabledByType(ctx, entity.PluginTypeSkill)
+	if err != nil {
+		return nil, err
+	}
+	enabledCodes := make(map[string]bool, len(instances))
+	for _, inst := range instances {
+		// config 解析失败得到空 skillCode，不会命中任何技能（fail-safe 跳过）
+		enabledCodes[mustSkillConfig(inst.Config).SkillCode] = true
+	}
+
 	skills, err := a.ListByCond(model.NewCond().Eq("status", entity.SkillStatusPublished).OrderByAsc("code"))
 	if err != nil {
 		return nil, err
 	}
 	result := make([]*skill.Skill, 0, len(skills))
 	for _, s := range skills {
+		if !enabledCodes[s.Code] {
+			continue // 无启用实例引用的技能不注入
+		}
 		res, err := a.resourceRepo.SelectBySkillIdAndPath(ctx, s.Id, entity.SkillMdPath)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {

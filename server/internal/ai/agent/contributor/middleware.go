@@ -4,7 +4,14 @@ import (
 	"context"
 
 	"github.com/cloudwego/eino/adk"
+	"github.com/cloudwego/eino/schema"
 )
+
+// AgentMiddleware Agent 中间件契约（AgenticMessage 路径，eino v0.9 Typed API）
+//
+// 收敛泛型实例化别名：中间件贡献者/聚合方/宿主统一引用本别名，
+// 消息类型切换只需修改此处。
+type AgentMiddleware = adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]
 
 // ToolMiddlewareContributor 工具执行中间件贡献者（对齐 tokhub ToolMiddlewareContributor）
 //
@@ -15,5 +22,5 @@ import (
 type ToolMiddlewareContributor interface {
 	Contributor
 	// Middlewares 返回贡献的中间件列表
-	Middlewares(ctx context.Context) ([]adk.ChatModelAgentMiddleware, error)
+	Middlewares(ctx context.Context) ([]AgentMiddleware, error)
 }

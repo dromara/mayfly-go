@@ -13,13 +13,13 @@ import (
 type fakeMiddlewareContributor struct {
 	id   string
 	err  error
-	mws  []adk.ChatModelAgentMiddleware
+	mws  []AgentMiddleware
 	noop bool
 }
 
 func (f *fakeMiddlewareContributor) Id() string { return f.id }
 
-func (f *fakeMiddlewareContributor) Middlewares(ctx context.Context) ([]adk.ChatModelAgentMiddleware, error) {
+func (f *fakeMiddlewareContributor) Middlewares(ctx context.Context) ([]AgentMiddleware, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -28,7 +28,7 @@ func (f *fakeMiddlewareContributor) Middlewares(ctx context.Context) ([]adk.Chat
 
 type fakeMiddleware struct {
 	// 内嵌接口以获得完整方法集（测试中仅计数，不会真实调用）
-	adk.ChatModelAgentMiddleware
+	AgentMiddleware
 	tag string
 }
 
@@ -55,9 +55,9 @@ func (f *fakeUsageContributor) OnTokenUsage(ctx context.Context, in *TokenUsageI
 // TestCollectMiddlewares 按注册顺序聚合；单个贡献者失败 fail-open 跳过
 func TestCollectMiddlewares(t *testing.T) {
 	b := NewBuilder()
-	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-a", mws: []adk.ChatModelAgentMiddleware{&fakeMiddleware{tag: "a"}}})
+	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-a", mws: []AgentMiddleware{&fakeMiddleware{tag: "a"}}})
 	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-broken", err: errors.New("boom")})
-	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-c", mws: []adk.ChatModelAgentMiddleware{&fakeMiddleware{tag: "c"}}})
+	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-c", mws: []AgentMiddleware{&fakeMiddleware{tag: "c"}}})
 
 	mws := b.Build().CollectMiddlewares(context.Background())
 	if len(mws) != 2 {
@@ -101,7 +101,7 @@ func TestNotifyTokenUsage_NilRegistry(t *testing.T) {
 // TestWithFilter_NewChannels 新增通道同样支持按 Id 裁剪
 func TestWithFilter_NewChannels(t *testing.T) {
 	b := NewBuilder()
-	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-a", mws: []adk.ChatModelAgentMiddleware{&fakeMiddleware{tag: "a"}}})
+	b.RegisterMiddleware(&fakeMiddlewareContributor{id: "mw-a", mws: []AgentMiddleware{&fakeMiddleware{tag: "a"}}})
 	b.RegisterTokenUsage(&fakeUsageContributor{id: "usage-a"})
 
 	r := b.Build().WithFilter(map[string]struct{}{"usage-a": {}})

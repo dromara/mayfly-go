@@ -25,8 +25,10 @@
                 <GripVerticalIcon class="pending-queue__grip" />
                 <!-- 序号徽章 -->
                 <span class="pending-queue__index">{{ index + 1 }}</span>
-                <!-- 消息预览 -->
-                <span class="pending-queue__content">{{ item.content }}</span>
+                <!-- 消息预览（纯附件无文本时回退为附件名列表） -->
+                <span class="pending-queue__content">{{
+                    item.data.text || item.data.attachments?.map((a) => a.name).join(', ')
+                }}</span>
                 <!-- 操作按钮 -->
                 <button
                     type="button"

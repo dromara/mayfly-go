@@ -6,7 +6,6 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -36,7 +35,7 @@ func (m *Manager) WithContextWindow(window int) *Manager {
 // enforceContextWindow 窗口检查与紧急裁剪（读取时基础预算，无 preamble 口径）
 //
 // 返回处理后的消息列表；未配置窗口时原样返回。
-func (m *Manager) enforceContextWindow(ctx context.Context, key string, messages []adk.Message) []adk.Message {
+func (m *Manager) enforceContextWindow(ctx context.Context, key string, messages []*Message) []*Message {
 	compacted, _ := m.CompactMidTurn(ctx, key, messages, 0)
 	return compacted
 }
@@ -50,7 +49,7 @@ func (m *Manager) enforceContextWindow(ctx context.Context, key string, messages
 //     避免 context_length_exceeded）
 //
 // 返回压缩后的消息列表与是否发生压缩。
-func (m *Manager) CompactMidTurn(ctx context.Context, key string, messages []adk.Message, preambleTokens int) ([]adk.Message, bool) {
+func (m *Manager) CompactMidTurn(ctx context.Context, key string, messages []*Message, preambleTokens int) ([]*Message, bool) {
 	if m.contextWindow <= 0 || len(messages) == 0 {
 		return messages, false
 	}
@@ -90,7 +89,7 @@ func (m *Manager) CompactMidTurn(ctx context.Context, key string, messages []adk
 //
 //   - 头部摘要类 system 消息（若有）始终保留
 //   - 保留区起点向后修正，避免保留区以孤立的 tool 结果消息开头
-func trimToBudget(messages []adk.Message, budget int) []adk.Message {
+func trimToBudget(messages []*Message, budget int) []*Message {
 	if len(messages) == 0 {
 		return messages
 	}
@@ -135,7 +134,7 @@ func trimToBudget(messages []adk.Message, budget int) []adk.Message {
 //
 // 每条消息在内容估算之上叠加固定开销（role/工具协议字段），
 // assistant 的 ToolCalls 参数按名称与 JSON 参数长度估算。
-func EstimateHistoryTokens(messages []adk.Message) int {
+func EstimateHistoryTokens(messages []*Message) int {
 	const perMessageOverhead = 4
 	total := 0
 	for _, msg := range messages {

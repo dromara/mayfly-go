@@ -9,9 +9,9 @@ import (
 	dbtoolext "mayfly-go/internal/ai/agent/ext/dbtool"
 	machinetoolext "mayfly-go/internal/ai/agent/ext/machinetool"
 	mcpext "mayfly-go/internal/ai/agent/ext/mcp/mcpext"
+	resourcetoolext "mayfly-go/internal/ai/agent/ext/resourcetool"
 	"mayfly-go/internal/ai/api"
 	"mayfly-go/internal/ai/application"
-	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/infra/persistence"
 	"mayfly-go/internal/ai/skill"
 	"mayfly-go/pkg/logx"
@@ -43,28 +43,19 @@ func init() {
 	ext.RegisterHostInstaller(func(b *contributor.Builder) {
 		dbtoolext.Install(b)
 		machinetoolext.Install(b)
+		resourcetoolext.Install(b)
 		mcpext.Install(b)
 	})
 
-	// MCP 服务器 loader 接线：mcp_tools 装配期读取启用的 MCP 服务器（仅 enabled=1，
-	// 停用即从工具清单下线）。
+	// MCP 服务器 loader 接线：mcp_tools 装配期读取启用中的 MCP 插件实例（仅 enabled=1，
+	// 停用即从工具清单下线；连接配置内联在实例 config 中）。
 	// （迁移阶段应用层未初始化时 fail-open 返回空，不阻断启动）
-	mcpext.SetServerLoader(func(ctx context.Context) ([]*entity.McpServer, error) {
-		mcpPlugin := application.GetMcpPlugin()
-		if mcpPlugin == nil {
+	mcpext.SetServerLoader(func(ctx context.Context) ([]*mcpext.ServerConfig, error) {
+		instanceApp := application.GetPluginInstanceApp()
+		if instanceApp == nil {
 			return nil, nil
 		}
-		servers, err := mcpPlugin.ListServers(ctx)
-		if err != nil {
-			return nil, err
-		}
-		enabled := make([]*entity.McpServer, 0, len(servers))
-		for _, server := range servers {
-			if server.Enabled == 1 {
-				enabled = append(enabled, server)
-			}
-		}
-		return enabled, nil
+		return instanceApp.ResolveEnabledMcpServers(ctx)
 	})
 
 	// 技能 Registry DB provider 接线：技能目录/正文全部读 DB（含迁移内置的默认技能），

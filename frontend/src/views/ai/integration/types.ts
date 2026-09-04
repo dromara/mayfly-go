@@ -1,9 +1,16 @@
 /**
- * 插件管理（技能 + MCP 服务器）类型定义
+ * 插件管理（统一插件实例 + 技能）类型定义
  */
 
-/** 插件类型 */
+/** 插件类型（后端 PluginTypeHandler 注册表） */
 export type PluginType = 'skill' | 'mcp';
+
+/** 实例健康状态（discover 时回写） */
+export enum InstanceStatus {
+    Unknown = 0,
+    Healthy = 1,
+    Error = 2,
+}
 
 /** 技能实体（t_ai_skill） */
 export interface Skill {
@@ -26,16 +33,11 @@ export interface SkillResource {
     size: number;
 }
 
-/** MCP 服务器实体（t_ai_mcp_server，仅 HTTP 传输） */
-export interface McpServer {
-    id: string;
-    code: string;
-    name: string;
-    description: string;
+/** MCP 实例内联配置（t_ai_plugin_instance.config，pluginType=mcp） */
+export interface McpInstanceConfig {
     url: string;
     headers: string; // JSON 字符串
     timeoutSec: number;
-    enabled: number; // 1=启用
 }
 
 /** MCP 发现到的工具元信息 */

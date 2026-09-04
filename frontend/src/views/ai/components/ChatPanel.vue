@@ -70,6 +70,7 @@ import ChatInput from '../input/ChatInput.vue';
 import MessageList from '../message/MessageList.vue';
 import PendingSendQueue from './PendingSendQueue.vue';
 import { useChatStore } from '../stores/chatStore';
+import type { QueuedMessage } from '../stores/chatStore';
 import { MessageScrollerProvider } from '@/components/ui/message-scroller';
 
 const { t } = useI18n();
@@ -116,9 +117,9 @@ const onSubmit = (data: ChatInputSubmitData) => {
     requestAnimationFrame(() => messageListRef.value?.scrollToEnd());
 };
 
-/** 入队（shouldQueue 时 ChatInput 提交转队列） */
-const onQueue = (text: string) => {
-    store.enqueueMessage(props.convId, text);
+/** 入队（shouldQueue 时 ChatInput 提交转队列，完整提交数据随项保存） */
+const onQueue = (data: ChatInputSubmitData) => {
+    store.enqueueMessage(props.convId, data);
 };
 
 /** 队列空闲出队：shouldQueue 解除且队列非空时发送队首（对齐 tokhub dequeue 时机） */
@@ -128,7 +129,7 @@ watch(
         if (busy || queue.length === 0) return;
         const first = store.dequeueMessage(props.convId);
         if (first) {
-            emit('send', { text: first.content, segments: [] });
+            emit('send', first.data);
             requestAnimationFrame(() => messageListRef.value?.scrollToEnd());
         }
     },
@@ -137,10 +138,10 @@ watch(
 
 // ==================== 队列项编辑/删除 ====================
 
-/** 编辑队列消息：移出队列并回填输入框（对齐 tokhub handleEditQueued） */
-const onEditQueued = (message: { id: string; content: string }) => {
+/** 编辑队列消息：移出队列并回填输入框（含已上传附件，对齐 tokhub handleEditQueued） */
+const onEditQueued = (message: QueuedMessage) => {
     store.removeQueuedMessage(props.convId, message.id);
-    chatInputRef.value?.setValue(message.content);
+    chatInputRef.value?.setValue(message.data.text, message.data.attachments);
 };
 
 // ==================== 空态建议芯片 ====================
@@ -158,15 +159,16 @@ const onEditMessage = (messageId: string) => {
     editingMessageId.value = messageId;
 };
 
-/** 编辑后发送：作为新一轮消息（忙时入队，对齐 tokhub handleEditSend） */
+/** 编辑后发送：作为新一轮消息（忙时入队，对齐 tokhub handleEditSend；纯文本重发无附件） */
 const onEditSend = (content: string) => {
     const trimmed = content.trim();
     if (!trimmed) return;
     editingMessageId.value = null;
+    const data: ChatInputSubmitData = { text: trimmed, segments: [] };
     if (shouldQueue.value) {
-        store.enqueueMessage(props.convId, trimmed);
+        store.enqueueMessage(props.convId, data);
     } else {
-        emit('send', { text: trimmed, segments: [] });
+        emit('send', data);
         requestAnimationFrame(() => messageListRef.value?.scrollToEnd());
     }
 };

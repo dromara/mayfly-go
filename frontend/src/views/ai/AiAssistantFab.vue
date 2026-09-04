@@ -1,7 +1,8 @@
 <template>
     <template v-if="fabVisible">
-        <!-- 悬浮球：默认位于系统通知球上方错位摆放，可拖拽 + 位置记忆 -->
+        <!-- 悬浮球：默认位于系统通知球上方错位摆放，可拖拽 + 位置记忆；需 ai:chat 权限码 -->
         <div
+            v-auth="'ai:chat'"
             class="ai-fab fixed z-[2000]"
             :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }"
         >
@@ -67,7 +68,8 @@
 /**
  * AiAssistantFab - 全局 AI 助手入口（悬浮球 + 右侧抽屉）
  *
- * - 可见性：系统已配置 AI 模型（useAiEnabled）且非登录页才渲染
+ * - 可见性：系统已配置 AI 模型（useAiEnabled）且非登录页才渲染；
+ *   另需 ai:chat 权限码（v-auth 指令，无权限时移除悬浮球 DOM）
  * - 拖拽/位置记忆复用 useDraggableFab（与 GlobalNotificationFab 同源实现）
  * - 抽屉内容复用 AiAssistantBody（与 /ai 页面单一实现，chatStore 共享会话状态）；
  *   抽屉不销毁内容（el-drawer 默认懒渲染后保留），关闭不中断进行中的流式会话

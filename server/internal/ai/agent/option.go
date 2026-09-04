@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"mayfly-go/internal/ai/agent/contributor"
+	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/utils/stringx"
 
 	"github.com/cloudwego/eino/adk"
@@ -35,13 +36,17 @@ func WithDescription(description string) option {
 // contributor.NewBuilder 独立装配 + WithFilter 裁剪）；未指定时使用
 // 默认装配的注册中心。注意：Agent 的工具/中间件/上下文均源自注册中心，
 // 不存在绕过插件机制的装配旁路。
+//
+// 时序契约：registry 与 contextManager 均显式指定时，NewAgent 跳过默认
+// 运行时装配 —— 装配期激活（Registry.Activate）与中断扩展注册表冻结
+// （tools.FreezeInterruptExtensions）由装配方自行完成。
 func WithRegistry(registry *contributor.Registry) option {
 	return func(agent *Agent) {
 		agent.registry = registry
 	}
 }
 
-func WithMiddlewares(middlewares ...adk.ChatModelAgentMiddleware) option {
+func WithMiddlewares(middlewares ...contributor.AgentMiddleware) option {
 	return func(agent *Agent) {
 		agent.middlewares = middlewares
 	}
@@ -72,17 +77,17 @@ type runOptions struct {
 	// onChunk 流式内容块回调函数
 	// 当 Agent 产生增量输出（如 LLM 生成的每一个 Token 或片段）时触发。
 	// 适用于实现前端"打字机"效果，实时展示 AI 的思考或回复内容。
-	// 参数 adk.Message 包含当前增量的 Content, ReasoningContent 或 ToolCalls 等信息。
-	onChunk func(context.Context, adk.Message) error // 流式输出回调函数
+	// 参数 *session.Message 包含当前增量的 Content, ReasoningContent 或 ToolCalls 等信息。
+	onChunk func(context.Context, *session.Message) error // 流式输出回调函数
 
 	// onEvent 完整事件回调函数
 	// 当 Agent 运行过程中产生完整的事件节点（如工具调用开始/结束、LLM 完整响应生成完毕等）时触发。
-	// 参数 *adk.AgentEvent 事件信息；adk.Message 为该事件对应的完整消息对象。
-	onEvent func(context.Context, *adk.AgentEvent, adk.Message) error
+	// 参数 *agentEvent 事件信息；*session.Message 为该事件对应的完整消息对象。
+	onEvent func(context.Context, *agentEvent, *session.Message) error
 }
 
 // CallOnChunk 增量消息回调
-func (ro *runOptions) CallOnChunk(ctx context.Context, chunk adk.Message) error {
+func (ro *runOptions) CallOnChunk(ctx context.Context, chunk *session.Message) error {
 	if ro.onChunk != nil {
 		return ro.onChunk(ctx, chunk)
 	}
@@ -90,7 +95,7 @@ func (ro *runOptions) CallOnChunk(ctx context.Context, chunk adk.Message) error 
 }
 
 // CallOnEvent 事件回调
-func (ro *runOptions) CallOnEvent(ctx context.Context, event *adk.AgentEvent, msg adk.Message) error {
+func (ro *runOptions) CallOnEvent(ctx context.Context, event *agentEvent, msg *session.Message) error {
 	if ro.onEvent != nil {
 		return ro.onEvent(ctx, event, msg)
 	}
@@ -146,7 +151,7 @@ func WithResumeParams(resumeParams ...any) RunOption {
 // 1. 前端实现“打字机”效果，实时逐字显示 AI 回复。
 // 2. 实时展示 AI 的思考过程（ReasoningContent）。
 // 注意：由于触发频率极高，回调函数内部应避免执行耗时操作，以免阻塞 Agent 运行。
-func WithOnChunk(onChunk func(context.Context, adk.Message) error) RunOption {
+func WithOnChunk(onChunk func(context.Context, *session.Message) error) RunOption {
 	return func(opts *runOptions) {
 		opts.onChunk = onChunk
 	}
@@ -161,7 +166,7 @@ func WithOnChunk(onChunk func(context.Context, adk.Message) error) RunOption {
 // 参数说明：
 //   - event: 事件信息
 //   - msg: 该事件产生的完整消息对象（而非增量片段）。
-func WithOnEvent(onEvent func(context.Context, *adk.AgentEvent, adk.Message) error) RunOption {
+func WithOnEvent(onEvent func(context.Context, *agentEvent, *session.Message) error) RunOption {
 	return func(opts *runOptions) {
 		opts.onEvent = onEvent
 	}

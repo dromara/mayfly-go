@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -25,7 +24,7 @@ func TestLLMSummarizer_Basic(t *testing.T) {
 	}
 
 	// 测试空数组
-	summary, err = summarizer.GenerateSummary(context.Background(), []adk.Message{})
+	summary, err = summarizer.GenerateSummary(context.Background(), []*Message{})
 	if err != nil {
 		t.Errorf("GenerateSummary with empty messages failed: %v", err)
 	}
@@ -38,20 +37,20 @@ func TestLLMSummarizer_Basic(t *testing.T) {
 func TestLLMSummarizer_MultiTurn(t *testing.T) {
 	summarizer := NewLLMSummarizer()
 
-	messages := []adk.Message{
-		&schema.Message{
+	messages := []*Message{
+		&Message{
 			Role:    schema.User,
 			Content: "你好，我想查询一下订单状态",
 		},
-		&schema.Message{
+		&Message{
 			Role:    schema.Assistant,
 			Content: "好的，请提供订单号",
 		},
-		&schema.Message{
+		&Message{
 			Role:    schema.User,
 			Content: "订单号是 123456789",
 		},
-		&schema.Message{
+		&Message{
 			Role:    schema.Assistant,
 			Content: "您的订单已发货，预计明天到达",
 		},
@@ -71,9 +70,9 @@ func TestLLMSummarizer_MultiTurn(t *testing.T) {
 // TestLLMSummarizer_WithMaxMessages 测试最大消息数限制
 func TestLLMSummarizer_WithMaxMessages(t *testing.T) {
 	// 创建大量消息
-	var messages []adk.Message
+	var messages []*Message
 	for i := 0; i < 100; i++ {
-		messages = append(messages, &schema.Message{
+		messages = append(messages, &Message{
 			Role:    schema.User,
 			Content: fmt.Sprintf("Message %d", i),
 		})
@@ -93,12 +92,12 @@ func TestLLMSummarizer_WithMaxMessages(t *testing.T) {
 func TestLLMSummarizer_ToolCalls(t *testing.T) {
 	summarizer := NewLLMSummarizer()
 
-	messages := []adk.Message{
-		&schema.Message{
+	messages := []*Message{
+		&Message{
 			Role:    schema.User,
 			Content: "帮我查询天气",
 		},
-		&schema.Message{
+		&Message{
 			Role: schema.Assistant,
 			ToolCalls: []schema.ToolCall{
 				{
@@ -108,12 +107,12 @@ func TestLLMSummarizer_ToolCalls(t *testing.T) {
 				},
 			},
 		},
-		&schema.Message{
+		&Message{
 			Role:     schema.Tool,
 			ToolName: "get_weather",
 			Content:  "晴天，25度",
 		},
-		&schema.Message{
+		&Message{
 			Role:    schema.Assistant,
 			Content: "今天天气晴朗，温度25度",
 		},
@@ -173,10 +172,10 @@ func TestManager_CheckAndSummarize(t *testing.T) {
 	sessionKey := "test:user1"
 
 	// 添加消息
-	msgs := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "消息1"},
-		&schema.Message{Role: schema.Assistant, Content: "回复1"},
-		&schema.Message{Role: schema.User, Content: "消息2"},
+	msgs := []*Message{
+		&Message{Role: schema.User, Content: "消息1"},
+		&Message{Role: schema.Assistant, Content: "回复1"},
+		&Message{Role: schema.User, Content: "消息2"},
 	}
 
 	for _, msg := range msgs {
@@ -232,13 +231,13 @@ func TestSessionManager_AutoSummarize(t *testing.T) {
 	sessionKey := "test:auto_summarize"
 
 	// 追加消息以达到阈值（MessageThreshold=3, KeepRecentCount=2, minTriggerCount=5）
-	msgs := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "消息1"},
-		&schema.Message{Role: schema.Assistant, Content: "回复1"},
-		&schema.Message{Role: schema.User, Content: "消息2"},
-		&schema.Message{Role: schema.Assistant, Content: "回复2"},
-		&schema.Message{Role: schema.User, Content: "消息3"},
-		&schema.Message{Role: schema.Assistant, Content: "回复3"},
+	msgs := []*Message{
+		&Message{Role: schema.User, Content: "消息1"},
+		&Message{Role: schema.Assistant, Content: "回复1"},
+		&Message{Role: schema.User, Content: "消息2"},
+		&Message{Role: schema.Assistant, Content: "回复2"},
+		&Message{Role: schema.User, Content: "消息3"},
+		&Message{Role: schema.Assistant, Content: "回复3"},
 	}
 
 	for _, msg := range msgs {
@@ -317,8 +316,8 @@ func TestManager_GetHistory_WithLimit(t *testing.T) {
 
 	// 追加 10 条消息
 	for i := 1; i <= 10; i++ {
-		msgs := []adk.Message{
-			&schema.Message{Role: schema.User, Content: fmt.Sprintf("消息%d", i)},
+		msgs := []*Message{
+			&Message{Role: schema.User, Content: fmt.Sprintf("消息%d", i)},
 		}
 		if err := manager.AppendMsgs(ctx, sessionKey, msgs...); err != nil {
 			t.Fatalf("append message %d failed: %v", i, err)

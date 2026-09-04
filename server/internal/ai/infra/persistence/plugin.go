@@ -63,26 +63,26 @@ func (r *skillResourceRepoImpl) DeleteBySkillId(ctx context.Context, skillId uin
 	return r.DeleteByCond(ctx, &entity.SkillResource{SkillId: skillId})
 }
 
-type mcpServerRepoImpl struct {
-	base.RepoImpl[*entity.McpServer]
+type pluginInstanceRepoImpl struct {
+	base.RepoImpl[*entity.PluginInstance]
 }
 
-var _ repository.McpServer = (*mcpServerRepoImpl)(nil)
+var _ repository.PluginInstance = (*pluginInstanceRepoImpl)(nil)
 
-func newMcpServerRepo() repository.McpServer {
-	return &mcpServerRepoImpl{}
+func newPluginInstanceRepo() repository.PluginInstance {
+	return &pluginInstanceRepoImpl{}
 }
 
-func (m *mcpServerRepoImpl) SelectByCode(ctx context.Context, code string) (*entity.McpServer, error) {
+func (p *pluginInstanceRepoImpl) SelectByCode(ctx context.Context, code string) (*entity.PluginInstance, error) {
 	// 同 SelectBySkillIdAndPath：条件与落点同一结构体
-	server := &entity.McpServer{Code: code}
-	if err := m.GetByCond(server); err != nil {
+	inst := &entity.PluginInstance{Code: code}
+	if err := p.GetByCond(inst); err != nil {
 		return nil, err
 	}
-	return server, nil
+	return inst, nil
 }
 
-func (m *mcpServerRepoImpl) SelectEnabled(ctx context.Context) ([]*entity.McpServer, error) {
-	cond := model.NewCond().Eq("enabled", 1).OrderByAsc("id")
-	return m.SelectByCond(cond)
+func (p *pluginInstanceRepoImpl) SelectEnabledByType(ctx context.Context, pluginType string) ([]*entity.PluginInstance, error) {
+	cond := model.NewCond().Eq("plugin_type", pluginType).Eq("enabled", 1).OrderByAsc("id")
+	return p.SelectByCond(cond)
 }

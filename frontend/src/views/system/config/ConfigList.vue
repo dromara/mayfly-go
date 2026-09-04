@@ -87,7 +87,7 @@ const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixe
 const actionBtns = hasPerms([perms.saveConfig]);
 
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
-const paramsFormRef = ref<{ validate: (cb: (valid: boolean) => void) => void } | null>(null);
+const paramsFormRef = ref<{ validate: (cb?: (valid: boolean) => void) => void } | null>(null);
 
 const state = reactive({
     query: {

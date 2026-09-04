@@ -2,12 +2,12 @@ package contributor
 
 import (
 	"context"
+	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/logx"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/tool"
 )
 
@@ -167,11 +167,11 @@ func (r *Registry) HasHistoryContributors() bool {
 // 合并语义：按注册顺序拼接各贡献者消息段，配对修复对**合并后的全量列表**
 // 统一执行一次（这正是 dispatch 层职责，贡献者不应各自为政）。
 // fail-open：单个贡献者失败记日志跳过，不阻断主流程。
-func (r *Registry) CollectHistory(ctx context.Context, bc *HistoryBuildContext) []adk.Message {
+func (r *Registry) CollectHistory(ctx context.Context, bc *HistoryBuildContext) []*session.Message {
 	if r == nil {
 		return nil
 	}
-	var history []adk.Message
+	var history []*session.Message
 	for _, c := range view[HistoryContributor](r, ChannelHistory) {
 		msgs, err := c.ContributeMessages(ctx, bc)
 		if err != nil {
@@ -189,7 +189,7 @@ func (r *Registry) CollectHistory(ctx context.Context, bc *HistoryBuildContext) 
 // token 口径由宿主估算后经 params 传入；贡献者只负责判断阈值与执行压缩。
 // 逆序遍历使后注册的插件压缩策略可覆盖内置策略（覆盖协议）。
 // 仅实现了 MidTurnCompactor 可选能力的贡献者参与竞争。
-func (r *Registry) TryMidTurnCompaction(ctx context.Context, history []adk.Message, params *MidTurnCompactionParams) ([]adk.Message, *MidTurnCompactionInfo) {
+func (r *Registry) TryMidTurnCompaction(ctx context.Context, history []*session.Message, params *MidTurnCompactionParams) ([]*session.Message, *MidTurnCompactionInfo) {
 	if r == nil {
 		return history, nil
 	}
@@ -305,11 +305,11 @@ func (r *Registry) NotifyTurnEnd(ctx context.Context, in *TurnEndInput) {
 // ── ToolMiddlewareContributor dispatch（工具执行中间件统一通道） ────────
 
 // CollectMiddlewares 聚合全部中间件贡献者的中间件（按注册顺序，fail-open）
-func (r *Registry) CollectMiddlewares(ctx context.Context) []adk.ChatModelAgentMiddleware {
+func (r *Registry) CollectMiddlewares(ctx context.Context) []AgentMiddleware {
 	if r == nil {
 		return nil
 	}
-	var middlewares []adk.ChatModelAgentMiddleware
+	var middlewares []AgentMiddleware
 	for _, c := range view[ToolMiddlewareContributor](r, ChannelMiddleware) {
 		mws, err := c.Middlewares(ctx)
 		if err != nil {

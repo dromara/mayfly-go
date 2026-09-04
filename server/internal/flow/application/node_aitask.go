@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/ai/agent"
 	"mayfly-go/internal/ai/pkg/utils"
 	"mayfly-go/internal/ai/prompt"
+	"mayfly-go/internal/ai/session"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/imsg"
 	"mayfly-go/internal/flow/infra/persistence"
@@ -99,7 +100,10 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 	cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancelFunc()
 
-	res, err := aiagent.Run(cancelCtx, collx.AsArray(schema.SystemMessage(sysPrompt), schema.UserMessage(jsonx.ToStr(procinst.BizForm))))
+	res, err := aiagent.Run(cancelCtx, collx.AsArray(
+		&session.Message{Role: schema.System, Content: sysPrompt},
+		&session.Message{Role: schema.User, Content: jsonx.ToStr(procinst.BizForm)},
+	))
 	if err != nil {
 		suggestion = fmt.Sprintf("AI agent response failed: %v", err)
 		logx.Error(suggestion)

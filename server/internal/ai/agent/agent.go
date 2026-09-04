@@ -82,17 +82,25 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 		opt(agent)
 	}
 
-	// 统一宿主装配：先装配默认运行时（注册中心/上下文管理器），再聚合工具，
-	// 确保扩展以真实依赖装配（修复此前 InitDefault(nil,nil) 时序缺陷）
-	rt, err := AssembleDefault(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if agent.registry == nil {
-		agent.registry = rt.Registry
-	}
-	if agent.contextManager == nil {
-		agent.contextManager = rt.ContextManager
+	// 统一宿主装配：注册中心/上下文管理器未显式指定时装配默认运行时，
+	// 确保扩展以真实依赖装配（修复此前 InitDefault(nil,nil) 时序缺陷）；
+	// 全量显式指定时跳过装配，避免无谓的装配开销与激活副作用
+	// （中断扩展装载、记忆提取装配等由自定义注册中心的装配方自行负责）
+	if agent.registry == nil || agent.contextManager == nil {
+		rt, err := AssembleDefault(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if agent.registry == nil {
+			agent.registry = rt.Registry
+		}
+		if agent.contextManager == nil {
+			agent.contextManager = rt.ContextManager
+		}
+		if agent.chatModel == nil && rt.ChatModel != nil {
+			// 复用宿主装配期单次获取的 ChatModel（避免重复 IOC 查询）
+			agent.chatModel = rt.ChatModel
+		}
 	}
 
 	// 工具列表统一经贡献者注册中心聚合（内置 + 宿主扩展，后注册者覆盖先注册者），
@@ -104,25 +112,32 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 	// 中间件经注册中心聚合（内置 safety 中间件 + 插件），选项指定者追加在后
 	agent.middlewares = append(agent.registry.CollectMiddlewares(ctx), agent.middlewares...)
 
+	// 工具搜索（eino v0.9 tool search middleware）：工具总量超过阈值时，
+	// MCP 工具转为 deferred —— 模型经 tool_search 元工具按需发现加载，
+	// 避免大工具清单挤占上下文（未配置阈值时全量直注，行为不变）。
+	// 接线契约：ToolsConfig 须换用静态工具清单，DynamicTools 由中间件在
+	// BeforeAgent 阶段追加为可执行工具（避免 runCtx.Tools 重名重复注册）
+	tsMw, staticTools := buildToolSearchMiddleware(ctx, agent.tools, aiconfig.GetAgentConfig().ToolSearchThreshold)
+	if tsMw != nil {
+		agent.middlewares = append(agent.middlewares, tsMw)
+		agent.tools = staticTools
+	}
+
 	// 静态系统提示词：渲染 system_prompt.md 注入 adk Instruction（每轮由 adk 前置为 system 消息）
 	if agent.instruction == "" {
 		agent.instruction = SystemInstruction()
 	}
 
 	if agent.chatModel == nil {
-		if rt.ChatModel != nil {
-			// 复用宿主装配期单次获取的 ChatModel（避免重复 IOC 查询）
-			agent.chatModel = rt.ChatModel
-		} else {
-			chatModel, err := GetChatModel(ctx)
-			if err != nil {
-				return nil, err
-			}
-			agent.chatModel = chatModel
+		chatModel, err := GetChatModel(ctx)
+		if err != nil {
+			return nil, err
 		}
+		agent.chatModel = chatModel
 	}
 
-	adkAgent, err := adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
+	modelConf := aiconfig.GetModel()
+	adkAgent, err := adk.NewTypedChatModelAgent[*schema.AgenticMessage](ctx, &adk.TypedChatModelAgentConfig[*schema.AgenticMessage]{
 		Name:          agent.name,
 		Description:   agent.description,
 		Instruction:   agent.instruction,
@@ -134,10 +149,13 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 			},
 		},
 		Handlers: agent.middlewares,
-		// 模型调用重试（eino v0.9 Model Retry）：系统配置 retry.maxRetries 启用，
-		// 未配置为 nil 保持零重试行为；瞬时失败（网络/429/5xx）自动重试，
-		// 主动取消/超时不重试（保持停止即中止语义）
-		ModelRetryConfig: buildModelRetryConfig(aiconfig.GetModel().Retry),
+		// 模型调用重试与故障转移（eino v0.9 Model Retry / Model Failover 能力）：
+		// 系统配置 retry.maxRetries 启用重试、failover.fallbacks 启用转移，
+		// 均未配置时保持零重试零转移行为；瞬时失败（网络/429/5xx）先重试、
+		// 重试耗尽后按序转移到备用模型；主动取消/超时不重试不转移
+		// （保持停止即中止语义）
+		ModelRetryConfig:    buildModelRetryConfig(modelConf.Retry),
+		ModelFailoverConfig: buildModelFailoverConfig(modelConf.Failover),
 	})
 	if err != nil {
 		return nil, err
@@ -158,8 +176,8 @@ type RunResult struct {
 }
 
 type Agent struct {
-	agent     adk.Agent
-	chatModel model.ToolCallingChatModel // agent使用的chat model
+	agent     agenticAgent
+	chatModel model.AgenticModel // agent使用的chat model
 
 	id          string
 	name        string // agent名称
@@ -167,14 +185,17 @@ type Agent struct {
 	instruction string // 系统提示词（静态部分，注入 adk Instruction）
 	maxStep     int    // agent最大执行步数，防止死循环
 
-	tools          []tool.BaseTool                // 可调用的工具列表（经 Registry 聚合）
-	middlewares    []adk.ChatModelAgentMiddleware // 中间件（经 Registry 聚合 + 选项追加）
-	registry       *contributor.Registry          // 贡献者注册中心（生命周期/用量回调/中间件聚合来源）
-	contextManager *ContextManager                // 上下文管理器
+	tools          []tool.BaseTool               // 可调用的工具列表（经 Registry 聚合）
+	middlewares    []contributor.AgentMiddleware // 中间件（经 Registry 聚合 + 选项追加）
+	registry       *contributor.Registry         // 贡献者注册中心（生命周期/用量回调/中间件聚合来源）
+	contextManager *ContextManager               // 上下文管理器
 }
 
-// Run 运行agent（轮次管道：装配输入 → 执行 → 事件处理 → 收尾兜底）
-func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunOption) (*RunResult, error) {
+// Run 运行agent（轮次管道：装配输入 → 执行 → 事件处理 → 收尾兑底）
+//
+// 消息以 session.Message（全链路统一内存结构）流转，仅在 runner 执行边界
+// 经 ToAgenticMessages 转换为 eino AgenticMessage。
+func (a *Agent) Run(ctx context.Context, messages []*session.Message, runOpts ...RunOption) (*RunResult, error) {
 	ctx = contextx.WithTraceId(ctx)
 
 	runOptions := newRunOptions(ctx, runOpts...)
@@ -202,7 +223,7 @@ func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunO
 	if err != nil {
 		return nil, err
 	}
-	runner := adk.NewRunner(ctx, adk.RunnerConfig{
+	runner := adk.NewTypedRunner[*schema.AgenticMessage](adk.TypedRunnerConfig[*schema.AgenticMessage]{
 		EnableStreaming: true,
 		Agent:           a.agent,
 		CheckPointStore: checkPointStore,
@@ -212,8 +233,8 @@ func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunO
 		adk.WithCallbacks(logCallback),
 		adk.WithCheckPointID(runOptions.turnId))
 
-	var events *adk.AsyncIterator[*adk.AgentEvent]
-	var outputMessages []adk.Message
+	var events *adk.AsyncIterator[*agentEvent]
+	var outputMessages []*session.Message
 
 	// 轮次收尾兜底：无论正常返回、错误返回还是 panic，都保证错误消息下发、
 	// 消息持久化与生命周期/用量回调执行
@@ -245,11 +266,11 @@ func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunO
 	if err != nil {
 		if toolErr, ok := errors.AsType[*tools.ToolError](err); ok {
 			// 工具调用失败，并且没有重试，则记录对应错误消息
-			toolErrMsg := &schema.Message{
+			toolErrMsg := &session.Message{
 				Role:       schema.Tool,
 				Content:    tools.GetToolErrorMsg(err),
 				ToolName:   toolErr.ToolName,
-				ToolCallID: toolErr.ToolCallId,
+				ToolCallId: toolErr.ToolCallId,
 			}
 			SetTurnId(toolErrMsg, runOptions.turnId)
 			SetToolStatus(toolErrMsg, tools.ToolStatusError)
@@ -274,19 +295,20 @@ func (a *Agent) Run(ctx context.Context, messages []adk.Message, runOpts ...RunO
 // startRun 启动新轮次：经上下文管理器组装历史 + preamble 后交给 runner
 //
 // fail-open：历史组装失败降级为空历史（仅本轮输入参与对话），不阻断对话。
-func (a *Agent) startRun(ctx context.Context, runner *adk.Runner, messages []adk.Message, adkRunOptions []adk.AgentRunOption) (*adk.AsyncIterator[*adk.AgentEvent], error) {
+func (a *Agent) startRun(ctx context.Context, runner *agenticRunner, messages []*session.Message, adkRunOptions []adk.AgentRunOption) (*adk.AsyncIterator[*agentEvent], error) {
 	contextMessages, buildErr := a.contextManager.BuildMessages(ctx, messages...)
 	if buildErr != nil {
 		logx.ErrorContext(ctx, buildErr.Error())
-		contextMessages = []adk.Message{}
+		contextMessages = []*session.Message{}
 	}
-	return runner.Run(ctx, slices.Concat(contextMessages, messages), adkRunOptions...), nil
+	// runner 执行边界：统一内存结构 → eino AgenticMessage（开闭边界）
+	return runner.Run(ctx, session.ToAgenticMessages(slices.Concat(contextMessages, messages)), adkRunOptions...), nil
 }
 
 // resumeRun 恢复中断挂起的轮次：预检 checkpoint → 转换恢复参数 → ResumeWithParams
 //
 // 返回待下发的中断恢复内部消息；成功后删除已消费的 checkpoint。
-func (a *Agent) resumeRun(ctx context.Context, runner *adk.Runner, checkPointStore CheckPointStore, runOptions *runOptions, adkRunOptions []adk.AgentRunOption) ([]adk.Message, *adk.AsyncIterator[*adk.AgentEvent], error) {
+func (a *Agent) resumeRun(ctx context.Context, runner *agenticRunner, checkPointStore CheckPointStore, runOptions *runOptions, adkRunOptions []adk.AgentRunOption) ([]*session.Message, *adk.AsyncIterator[*agentEvent], error) {
 	// 预检查 checkpoint 是否存在：中断挂起超过 TTL 或服务重启后 checkpoint 会失效，
 	// 提前返回友好提示，避免用户操作后收到晦涩的 "checkpoint not exist" 错误
 	if _, ok, getErr := checkPointStore.Get(ctx, runOptions.turnId); getErr != nil || !ok {
@@ -295,7 +317,7 @@ func (a *Agent) resumeRun(ctx context.Context, runner *adk.Runner, checkPointSto
 	}
 
 	targets := map[string]any{}
-	var resumeMsgs []adk.Message
+	var resumeMsgs []*session.Message
 	for _, v := range runOptions.resumeParams {
 		data, ok := v.(*tools.InterruptResume)
 		if !ok {
@@ -313,11 +335,10 @@ func (a *Agent) resumeRun(ctx context.Context, runner *adk.Runner, checkPointSto
 		ctx = tools.PrepareInterruptResumeCtx(ctx, data)
 
 		// 中断恢复消息
-		internalResumeMessage := &schema.Message{
+		internalResumeMessage := &session.Message{
 			Role: session.RoleInternal,
 		}
-		extra := NewInternalMessageExtra(InternalMessageTypeResume, data)
-		internalResumeMessage.Extra = extra
+		internalResumeMessage.Extra = NewInternalMessageExtra(InternalMessageTypeResume, data)
 		SetTurnId(internalResumeMessage, runOptions.turnId)
 		SetActionId(internalResumeMessage, interruptId)
 		resumeMsgs = append(resumeMsgs, internalResumeMessage)
@@ -335,7 +356,7 @@ func (a *Agent) resumeRun(ctx context.Context, runner *adk.Runner, checkPointSto
 }
 
 // finalizeTurn 轮次收尾（defer 执行）：错误兜底消息 → 消息持久化 → 结束原因细分 → 生命周期/用量回调
-func (a *Agent) finalizeTurn(ctx context.Context, runOptions *runOptions, turnUserId string, inputMessages []adk.Message, outputMessages *[]adk.Message, runErr error) {
+func (a *Agent) finalizeTurn(ctx context.Context, runOptions *runOptions, turnUserId string, inputMessages []*session.Message, outputMessages *[]*session.Message, runErr error) {
 	// 显式 stop 触发的 ctx 取消属预期行为（TurnEndAborted），
 	// 不作为错误包装为回复消息推送/持久化，避免污染会话历史
 	if runErr != nil && errors.Is(runErr, context.Canceled) {
@@ -345,7 +366,7 @@ func (a *Agent) finalizeTurn(ctx context.Context, runOptions *runOptions, turnUs
 	// 如果有未处理的错误，包装为 AI 回复消息推送给前端并保存
 	// （工具错误已经在 Run 主流程单独处理，这里只处理其他类型的错误）
 	if runErr != nil {
-		errMsg := &schema.Message{
+		errMsg := &session.Message{
 			Role:    schema.Assistant,
 			Content: runErr.Error(),
 		}
@@ -408,7 +429,7 @@ func turnEndCause(ctx context.Context, runOptions *runOptions, runErr error) con
 }
 
 // accumulateUsage 累计各次模型调用的 token 用量（多步工具循环每步各带一份 usage）
-func accumulateUsage(msgs []adk.Message) *schema.TokenUsage {
+func accumulateUsage(msgs []*session.Message) *schema.TokenUsage {
 	var usage *schema.TokenUsage
 	for _, msg := range msgs {
 		if msg.ResponseMeta == nil || msg.ResponseMeta.Usage == nil {

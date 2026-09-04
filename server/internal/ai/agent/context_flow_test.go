@@ -9,7 +9,6 @@ import (
 	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/internal/ai/session"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -17,23 +16,23 @@ import (
 
 type flowHistory struct {
 	id   string
-	msgs []adk.Message
+	msgs []*session.Message
 }
 
 func (f *flowHistory) Id() string { return f.id }
 
-func (f *flowHistory) ContributeMessages(ctx context.Context, bc *contributor.HistoryBuildContext) ([]adk.Message, error) {
+func (f *flowHistory) ContributeMessages(ctx context.Context, bc *contributor.HistoryBuildContext) ([]*session.Message, error) {
 	return f.msgs, nil
 }
 
 type flowCompactor struct {
 	flowHistory
 	calls     int
-	compacted []adk.Message
+	compacted []*session.Message
 	info      *contributor.MidTurnCompactionInfo
 }
 
-func (f *flowCompactor) TryMidTurnCompaction(ctx context.Context, history []adk.Message, params *contributor.MidTurnCompactionParams) ([]adk.Message, *contributor.MidTurnCompactionInfo) {
+func (f *flowCompactor) TryMidTurnCompaction(ctx context.Context, history []*session.Message, params *contributor.MidTurnCompactionParams) ([]*session.Message, *contributor.MidTurnCompactionInfo) {
 	f.calls++
 	if f.info == nil {
 		return history, nil
@@ -101,9 +100,9 @@ func TestBuildMessages_AssemblyOrder(t *testing.T) {
 	sessionManager := newFlowManager(t)
 
 	b := contributor.NewBuilder()
-	b.RegisterHistory(&flowHistory{id: "hist", msgs: []adk.Message{
-		&schema.Message{Role: schema.User, Content: "hist-user"},
-		&schema.Message{Role: schema.Assistant, Content: "hist-assistant"},
+	b.RegisterHistory(&flowHistory{id: "hist", msgs: []*session.Message{
+		&session.Message{Role: schema.User, Content: "hist-user"},
+		&session.Message{Role: schema.Assistant, Content: "hist-assistant"},
 	}})
 	b.RegisterContext(&flowContext{id: "ctx", frags: []contributor.PromptFragment{
 		{Source: "env", Content: "ENV-FRAGMENT"},
@@ -112,7 +111,7 @@ func TestBuildMessages_AssemblyOrder(t *testing.T) {
 	ctxManager := newCtxManagerWithRegistry(t, sessionManager, b, 0)
 
 	ctx := session.WithSessionKey(context.Background(), "conv:1")
-	messages, err := ctxManager.BuildMessages(ctx, &schema.Message{Role: schema.User, Content: "new question"})
+	messages, err := ctxManager.BuildMessages(ctx, &session.Message{Role: schema.User, Content: "new question"})
 	if err != nil {
 		t.Fatalf("build messages: %v", err)
 	}
@@ -142,7 +141,7 @@ func TestBuildMessages_MidTurnCompaction_Applied(t *testing.T) {
 
 	compactor := &flowCompactor{
 		flowHistory: flowHistory{id: "hist+compactor"},
-		compacted:   []adk.Message{&schema.Message{Role: schema.User, Content: "compacted"}},
+		compacted:   []*session.Message{&session.Message{Role: schema.User, Content: "compacted"}},
 		info:        &contributor.MidTurnCompactionInfo{OriginalTokens: 900, CompressedTokens: 100},
 	}
 	b := contributor.NewBuilder()
@@ -183,9 +182,9 @@ func TestBuildMessages_MidTurnCompaction_Declined(t *testing.T) {
 	ctxManager := newCtxManagerWithRegistry(t, sessionManager, b, 128000)
 
 	ctx := session.WithSessionKey(context.Background(), "conv:3")
-	compactor.msgs = []adk.Message{
-		&schema.Message{Role: schema.User, Content: "keep-1"},
-		&schema.Message{Role: schema.Assistant, Content: "keep-2"},
+	compactor.msgs = []*session.Message{
+		&session.Message{Role: schema.User, Content: "keep-1"},
+		&session.Message{Role: schema.Assistant, Content: "keep-2"},
 	}
 	messages, err := ctxManager.BuildMessages(ctx)
 	if err != nil {
@@ -212,8 +211,8 @@ func TestBuildMessages_FallbackWithoutHistoryContributor(t *testing.T) {
 
 	ctx := session.WithSessionKey(context.Background(), "conv:4")
 	if err := ctxManager.AppendMsgs(ctx,
-		&schema.Message{Role: schema.User, Content: "u1"},
-		&schema.Message{Role: schema.Assistant, Content: "a1"},
+		&session.Message{Role: schema.User, Content: "u1"},
+		&session.Message{Role: schema.Assistant, Content: "a1"},
 	); err != nil {
 		t.Fatalf("append msgs: %v", err)
 	}

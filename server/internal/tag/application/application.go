@@ -15,3 +15,7 @@ func InitIoc() {
 func GetResourceOpLogApp() ResourceOpLog {
 	return ioc.Get[ResourceOpLog]()
 }
+
+func GetTagTreeApp() TagTree {
+	return ioc.Get[TagTree]()
+}

@@ -32,12 +32,12 @@ func (e *MemoryExtension) ContributeTurnContext(ctx context.Context, in *contrib
 	if e.memoryManager == nil || in.UserId == "" {
 		return nil, nil
 	}
-	memoryMsg := e.memoryManager.BuildMemoryMessage(ctx, in.UserId)
-	if memoryMsg == nil {
+	memoryText := e.memoryManager.BuildMemoryMessage(ctx, in.UserId)
+	if memoryText == "" {
 		return nil, nil
 	}
 	return []contributor.PromptFragment{
-		{Source: "memory", Content: memoryMsg.Content},
+		{Source: "memory", Content: memoryText},
 	}, nil
 }
 

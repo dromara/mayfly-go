@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/internal/ai/session"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -31,8 +30,8 @@ func newTestManager(t *testing.T, window int) *session.Manager {
 	return m
 }
 
-func msg(role schema.RoleType, content string) adk.Message {
-	return &schema.Message{Role: role, Content: content}
+func msg(role schema.RoleType, content string) *session.Message {
+	return &session.Message{Role: role, Content: content}
 }
 
 // TestSessionHistoryExtension_ContributeMessages 历史扩展真实加载会话历史，
@@ -66,7 +65,7 @@ func TestSessionHistoryExtension_ContributeMessages(t *testing.T) {
 // 窗口充足不压缩；含 preamble 口径超限时就地压缩并返回压缩统计
 func TestSessionHistoryExtension_MidTurnCompaction(t *testing.T) {
 	ctx := context.Background()
-	history := []adk.Message{msg(schema.User, "hello")}
+	history := []*session.Message{msg(schema.User, "hello")}
 
 	// 未配置窗口：不压缩
 	_, info := NewExtension(newTestManager(t, 0)).TryMidTurnCompaction(ctx, history,
@@ -84,7 +83,7 @@ func TestSessionHistoryExtension_MidTurnCompaction(t *testing.T) {
 
 	// 窗口极小：3 条消息（各 est≈79，尾部可分裁剪，总 est≈237 > usable 160）
 	long := string(make([]rune, 150))
-	bigHistory := []adk.Message{msg(schema.User, long), msg(schema.User, long), msg(schema.User, long)}
+	bigHistory := []*session.Message{msg(schema.User, long), msg(schema.User, long), msg(schema.User, long)}
 	compacted, info := NewExtension(newTestManager(t, 200)).TryMidTurnCompaction(ctx, bigHistory,
 		&contributor.MidTurnCompactionParams{ContextWindow: 200, PreambleTokens: 0})
 	if info == nil {

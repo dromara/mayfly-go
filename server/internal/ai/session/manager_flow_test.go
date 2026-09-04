@@ -34,8 +34,8 @@ func TestManager_AppendMsgs_TokenCountPriority(t *testing.T) {
 
 	// assistant 带 usage（CompletionTokens=100）+ user 无 usage（"12345678" 8 rune → est 4）
 	err := m.AppendMsgs(ctx, key,
-		&schema.Message{Role: schema.User, Content: "12345678"},
-		&schema.Message{Role: schema.Assistant, Content: "reply", ResponseMeta: &schema.ResponseMeta{
+		&Message{Role: schema.User, Content: "12345678"},
+		&Message{Role: schema.Assistant, Content: "reply", ResponseMeta: &schema.ResponseMeta{
 			Usage: &schema.TokenUsage{PromptTokens: 500, CompletionTokens: 100, TotalTokens: 600},
 		}})
 	if err != nil {
@@ -61,7 +61,7 @@ func TestManager_GetHistory_PrependsSummary(t *testing.T) {
 	key := "conv:2"
 
 	for i := 0; i < 3; i++ {
-		if err := m.AppendMsgs(ctx, key, &schema.Message{Role: schema.User, Content: "msg"}); err != nil {
+		if err := m.AppendMsgs(ctx, key, &Message{Role: schema.User, Content: "msg"}); err != nil {
 			t.Fatalf("append: %v", err)
 		}
 	}
@@ -90,7 +90,7 @@ func TestManager_GetHistory_AllSummarized(t *testing.T) {
 	ctx := context.Background()
 	key := "conv:3"
 
-	if err := m.AppendMsgs(ctx, key, &schema.Message{Role: schema.User, Content: "msg"}); err != nil {
+	if err := m.AppendMsgs(ctx, key, &Message{Role: schema.User, Content: "msg"}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	meta, _ := m.GetMeta(ctx, key)
@@ -117,7 +117,7 @@ func TestManager_GetHistory_SkipOptimization(t *testing.T) {
 	key := "conv:4"
 
 	for i := 0; i < 5; i++ {
-		if err := m.AppendMsgs(ctx, key, &schema.Message{Role: schema.User, Content: string(rune('a' + i))}); err != nil {
+		if err := m.AppendMsgs(ctx, key, &Message{Role: schema.User, Content: string(rune('a' + i))}); err != nil {
 			t.Fatalf("append: %v", err)
 		}
 	}

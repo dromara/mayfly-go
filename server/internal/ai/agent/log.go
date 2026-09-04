@@ -3,15 +3,15 @@ package agent
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
-func LogEventAndMsg(ctx context.Context, event *adk.AgentEvent, msg adk.Message) {
+func LogEventAndMsg(ctx context.Context, event *agentEvent, msg *session.Message) {
 	agentTag := fmt.Sprintf("Agent - [%s|%s]", event.AgentName, event.RunPath)
 
 	// 定义统一的消息内容

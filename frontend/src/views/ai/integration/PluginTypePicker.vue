@@ -6,8 +6,8 @@
                     <component :is="item.icon" />
                 </el-icon>
                 <div class="type-info">
-                    <div class="type-name">{{ $t(item.nameKey) }}</div>
-                    <div class="type-desc">{{ $t(item.descKey) }}</div>
+                    <div class="type-name">{{ item.name }}</div>
+                    <div class="type-desc">{{ item.desc }}</div>
                 </div>
                 <el-icon class="type-arrow"><ArrowRight /></el-icon>
             </div>
@@ -16,9 +16,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
-import { ArrowRight, FolderOpened, Connection } from '@element-plus/icons-vue';
+import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { ArrowRight, Connection, FolderOpened, Menu } from '@element-plus/icons-vue';
+import { pluginApi, type PluginTypeInfo } from './api';
 import type { PluginType } from './types';
+
+const { t } = useI18n();
 
 const props = defineProps<{ modelValue: boolean }>();
 const emit = defineEmits<{
@@ -31,10 +35,40 @@ const visible = computed({
     set: (v: boolean) => emit('update:modelValue', v),
 });
 
-const types = [
-    { type: 'skill' as const, icon: FolderOpened, color: 'var(--el-color-primary)', nameKey: 'ai.integration.skillPlugin', descKey: 'ai.integration.skillPluginDesc' },
-    { type: 'mcp' as const, icon: Connection, color: 'var(--el-color-success)', nameKey: 'ai.integration.mcpPlugin', descKey: 'ai.integration.mcpPluginDesc' },
-];
+// 类型展示映射（前端仅维护图标/文案映射，类型清单由后端类型注册表下发，
+// 新增插件类型零改本组件核心逻辑）
+const typeMeta: Record<string, { icon: any; color: string; nameKey?: string; descKey?: string }> = {
+    skill: { icon: FolderOpened, color: 'var(--el-color-primary)', nameKey: 'ai.integration.skillPlugin', descKey: 'ai.integration.skillPluginDesc' },
+    mcp: { icon: Connection, color: 'var(--el-color-success)', nameKey: 'ai.integration.mcpPlugin', descKey: 'ai.integration.mcpPluginDesc' },
+};
+
+interface PickerType {
+    type: PluginType;
+    icon: any;
+    color: string;
+    name: string;
+    desc: string;
+}
+
+const types = ref<PickerType[]>([]);
+
+onMounted(async () => {
+    try {
+        const list: PluginTypeInfo[] = (await pluginApi.listTypes.request()) || [];
+        types.value = list.map((it) => {
+            const meta = typeMeta[it.code] || { icon: Menu, color: 'var(--el-color-info)' };
+            return {
+                type: it.code,
+                icon: meta.icon,
+                color: meta.color,
+                name: meta.nameKey ? t(meta.nameKey) : it.code,
+                desc: meta.descKey ? t(meta.descKey) : '',
+            };
+        });
+    } catch {
+        // 拉取失败（请求层已 toast），选择器为空
+    }
+});
 
 // 选中类型后暂存，待 dialog 完全关闭（@closed，overlay 销毁完毕）再派发，
 // 避免同步「关 dialog → 开 drawer」时 overlay 管理器冲突导致抽屉打不开

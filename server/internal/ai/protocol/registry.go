@@ -19,7 +19,7 @@ func init() {
 
 var (
 	protocolMap collx.SM[string, Protocol]
-	chatModels  collx.SM[string, model.ToolCallingChatModel]
+	chatModels  collx.SM[string, model.AgenticModel]
 )
 
 // Register 注册协议
@@ -34,7 +34,7 @@ func Get(name string) Protocol {
 }
 
 // GetChatModel 获取Chat模型
-func GetChatModel(ctx context.Context, modelConfig *config.ModelConfig) (model.ToolCallingChatModel, error) {
+func GetChatModel(ctx context.Context, modelConfig *config.ModelConfig) (model.AgenticModel, error) {
 	modelSpec := modelConfig.GetModelSpec()
 	modelProtocol := Get(modelSpec.Protocol)
 	if modelProtocol == nil {

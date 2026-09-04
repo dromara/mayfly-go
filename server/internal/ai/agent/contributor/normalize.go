@@ -1,9 +1,9 @@
 package contributor
 
 import (
+	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/logx"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -24,7 +24,7 @@ const syntheticAbortedOutput = "[aborted] Tool execution was interrupted or canc
 // 按顺序执行：补全缺失的 tool 结果 → 移除孤儿 tool 结果。
 // 纯函数，无副作用，可安全重试（幂等）。
 // 由 Registry.CollectHistory 对合并后的全量列表统一执行一次。
-func NormalizeHistory(messages []adk.Message) []adk.Message {
+func NormalizeHistory(messages []*session.Message) []*session.Message {
 	messages = ensureCallOutputsPresent(messages)
 	return removeOrphanOutputs(messages)
 }
@@ -36,12 +36,12 @@ func NormalizeHistory(messages []adk.Message) []adk.Message {
 //
 // 合成策略：缺失的 result 追加到消息列表末尾（normalize 主要在
 // 历史重建场景使用，此时历史已固定，追加是最安全的关联方式）。
-func ensureCallOutputsPresent(messages []adk.Message) []adk.Message {
+func ensureCallOutputsPresent(messages []*session.Message) []*session.Message {
 	// 第一遍：收集全部已有 tool 结果 id（与顺序无关）
 	existingResults := make(map[string]struct{})
 	for _, msg := range messages {
-		if msg.Role == schema.Tool && msg.ToolCallID != "" {
-			existingResults[msg.ToolCallID] = struct{}{}
+		if msg.Role == schema.Tool && msg.ToolCallId != "" {
+			existingResults[msg.ToolCallId] = struct{}{}
 		}
 	}
 
@@ -65,11 +65,11 @@ func ensureCallOutputsPresent(messages []adk.Message) []adk.Message {
 	logx.Warnf("[normalize] synthesizing %d aborted tool_result(s) for missing outputs", len(missingCalls))
 	for _, call := range missingCalls {
 		logx.Warnf("[normalize] tool_call '%s' (%s) has no matching result, synthesizing aborted output", call.ID, call.Function.Name)
-		messages = append(messages, &schema.Message{
+		messages = append(messages, &session.Message{
 			Role:       schema.Tool,
 			Content:    syntheticAbortedOutput,
-			ToolCallID: call.ID,
-			Name:       call.Function.Name,
+			ToolCallId: call.ID,
+			ToolName:   call.Function.Name,
 		})
 	}
 	return messages
@@ -79,7 +79,7 @@ func ensureCallOutputsPresent(messages []adk.Message) []adk.Message {
 //
 // 场景：压缩/截断移除了 assistant 消息但保留了对应的 tool 结果、
 // 存储数据不一致、中断恢复时状态与外部历史不匹配。
-func removeOrphanOutputs(messages []adk.Message) []adk.Message {
+func removeOrphanOutputs(messages []*session.Message) []*session.Message {
 	callIds := make(map[string]struct{})
 	for _, msg := range messages {
 		if msg.Role == schema.Assistant {
@@ -91,8 +91,8 @@ func removeOrphanOutputs(messages []adk.Message) []adk.Message {
 
 	orphanCount := 0
 	for _, msg := range messages {
-		if msg.Role == schema.Tool && msg.ToolCallID != "" {
-			if _, ok := callIds[msg.ToolCallID]; !ok {
+		if msg.Role == schema.Tool && msg.ToolCallId != "" {
+			if _, ok := callIds[msg.ToolCallId]; !ok {
 				orphanCount++
 			}
 		}
@@ -102,10 +102,10 @@ func removeOrphanOutputs(messages []adk.Message) []adk.Message {
 	}
 
 	logx.Warnf("[normalize] removing %d orphan tool_result(s) (no matching tool_call)", orphanCount)
-	result := make([]adk.Message, 0, len(messages)-orphanCount)
+	result := make([]*session.Message, 0, len(messages)-orphanCount)
 	for _, msg := range messages {
-		if msg.Role == schema.Tool && msg.ToolCallID != "" {
-			if _, ok := callIds[msg.ToolCallID]; !ok {
+		if msg.Role == schema.Tool && msg.ToolCallId != "" {
+			if _, ok := callIds[msg.ToolCallId]; !ok {
 				continue
 			}
 		}

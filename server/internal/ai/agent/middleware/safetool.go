@@ -12,7 +12,7 @@ import (
 )
 
 type SafeToolMiddleware struct {
-	*adk.BaseChatModelAgentMiddleware
+	*adk.TypedBaseChatModelAgentMiddleware[*schema.AgenticMessage]
 }
 
 func (m *SafeToolMiddleware) WrapInvokableToolCall(

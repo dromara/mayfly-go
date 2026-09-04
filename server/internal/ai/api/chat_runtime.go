@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"mayfly-go/internal/ai/api/vo"
-	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/protocol"
 )
 
@@ -110,9 +109,6 @@ type runningTurn struct {
 	bus    *turnEventBus
 	ctx    context.Context    // turn ctx（Start 时由 WithCancel(baseCtx) 派生，runTurn 使用）
 	cancel context.CancelFunc // 显式 stop 的取消入口（唯一真正中断 agent 的途径）
-
-	itemsMu sync.Mutex
-	items   []*entity.TurnItem // 主循环预收集的 TurnItem（如用户消息），供 runTurn 收尾合并持久化
 }
 
 // Subscribe 订阅该 turn 事件流（attached 事件将在回放后、实时事件前写入）
@@ -137,22 +133,6 @@ func (rt *runningTurn) Stop() {
 // Publish 发布事件到该 turn 的事件总线
 func (rt *runningTurn) Publish(evt *protocol.EventMsg) {
 	rt.bus.Publish(evt)
-}
-
-// CollectItems 主循环预收集的 TurnItem（如用户消息）
-func (rt *runningTurn) CollectItems(items ...*entity.TurnItem) {
-	rt.itemsMu.Lock()
-	defer rt.itemsMu.Unlock()
-	rt.items = append(rt.items, items...)
-}
-
-// SnapshotItems 取出预收集的 TurnItem（runTurn 收尾合并持久化时调用）
-func (rt *runningTurn) SnapshotItems() []*entity.TurnItem {
-	rt.itemsMu.Lock()
-	defer rt.itemsMu.Unlock()
-	items := rt.items
-	rt.items = nil
-	return items
 }
 
 // turnSubscription 单个 WS 连接对某 turn 的事件订阅（泵消费）

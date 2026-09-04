@@ -26,4 +26,8 @@ var En = map[i18n.MsgId]string{
 	MachineInfoIncomplete:      "Missing machine information, please complete the parameters",
 	CommandExecApprovalReason:  "Executing commands may involve high-risk operations, please approve",
 	InterruptExpired:           "The interrupt has expired or the service was restarted, please send a new message to start the task",
+
+	// Resource tool
+	ResourceListToolDesc: "ListResources【Resource List Query】",
+	ResourceListToolInfo: "[Resource] Resource List Query Tool - Query all resources (machines, databases, etc.) the current user has permission to operate, with locating info (id/code/ip/database names). Applicable scenarios:\n1. When the user asks what machines/databases exist, or before checking all machine status / overall inspection, call this tool first to get the resource list;\n2. When the user has not specified a target resource, call this tool first to get the resource list, then pick the target based on the user's description or ask the user to choose;\n3. When locating params for a resource tool are unknown (e.g. machine authCertName, database dbId), query them via this tool first. The returned id/code can be used directly as tool call arguments.",
 }

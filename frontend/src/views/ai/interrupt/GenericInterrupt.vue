@@ -13,7 +13,7 @@
         <!-- 操作按钮 -->
         <div v-if="!readonly" class="generic-interrupt__footer">
             <Button size="xs" variant="outline" @click="handleAction('approve')">{{ t('ai.interrupt.generic.confirm') }}</Button>
-            <Button size="xs" variant="destructive" @click="handleReject">{{ t('ai.interrupt.generic.reject') }}</Button>
+            <RejectReasonPopover :label="t('ai.interrupt.generic.reject')" @confirm="(reason: string) => handleAction('reject', { reason })" />
         </div>
     </Card>
 </template>
@@ -23,12 +23,12 @@
  * 通用中断组件
  * 用于未注册特定类型的中断场景，作为降级方案
  */
-import { ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { InterruptComponentProps } from './types';
+import RejectReasonPopover from './RejectReasonPopover.vue';
 
 const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,
@@ -45,28 +45,6 @@ const handleAction = (action: string, payload?: Record<string, unknown>) => {
         payload,
         toolCallId: props.interrupt?.toolCallId,
     });
-};
-
-const handleReject = async () => {
-    try {
-        const { value: reason } = await ElMessageBox.prompt(
-            t('ai.interrupt.generic.rejectReasonPlaceholder'),
-            t('ai.interrupt.generic.rejectTitle'),
-            {
-                confirmButtonText: t('common.confirm'),
-                cancelButtonText: t('common.cancel'),
-                inputType: 'textarea',
-                inputPlaceholder: t('ai.interrupt.generic.rejectReasonPlaceholder'),
-                inputValidator: (value: string) => {
-                    if (!value || !value.trim()) return t('ai.interrupt.generic.rejectReasonRequired');
-                    return true;
-                },
-            },
-        );
-        handleAction('reject', { reason: reason?.trim() });
-    } catch {
-        // 用户取消
-    }
 };
 </script>
 

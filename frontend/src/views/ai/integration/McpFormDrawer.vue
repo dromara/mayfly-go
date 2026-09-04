@@ -23,7 +23,7 @@
                 <el-input-number v-model="form.timeoutSec" :min="1" :max="600" controls-position="right" />
                 <span class="unit-label">s</span>
             </el-form-item>
-            <el-form-item :label="$t('ai.integration.mcpEnabled')">
+            <el-form-item v-if="isEdit" :label="$t('ai.integration.mcpEnabled')">
                 <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
             </el-form-item>
 
@@ -57,15 +57,14 @@ import type { FormInstance, FormRules } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '@/hooks/useI18n';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import { pluginApi } from './api';
-import type { McpServer } from './types';
+import { pluginApi, type PluginInstance } from './api';
 
 const { t } = useI18n();
 
 const props = defineProps<{
     modelValue: boolean;
-    /** 编辑态传入服务器实体，新建态为 null */
-    server: McpServer | null;
+    /** 编辑态传入插件实例（连接配置内联在 config），新建态为 null */
+    server: PluginInstance | null;
     /** 打开时自动执行连接测试并回显工具（列表页「查看工具」入口） */
     autoDiscover?: boolean;
 }>();
@@ -98,6 +97,9 @@ const form = reactive({
     enabled: 1,
 });
 
+// 编辑态原始启停值（保存后若变化需经启停接口同步）
+const origEnabled = ref(1);
+
 const rules: FormRules = {
     name: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpName') }), trigger: 'blur' }],
     code: [
@@ -127,13 +129,16 @@ watch(
         discoveredTools.value = [];
         formRef.value?.clearValidate();
         if (props.server) {
+            // 连接配置内联在实例 config（McpInstanceConfig：url/headers/timeoutSec）
+            const cfg = (props.server.config || {}) as Partial<{ url: string; headers: string; timeoutSec: number }>;
+            origEnabled.value = props.server.enabled;
             Object.assign(form, {
                 code: props.server.code,
                 name: props.server.name,
                 description: props.server.description,
-                url: props.server.url,
-                headers: prettyJson(props.server.headers || ''),
-                timeoutSec: props.server.timeoutSec,
+                url: cfg.url || '',
+                headers: prettyJson(cfg.headers || ''),
+                timeoutSec: cfg.timeoutSec || 30,
                 enabled: props.server.enabled,
             });
             if (props.autoDiscover) {
@@ -149,7 +154,7 @@ const handleTest = async () => {
     testing.value = true;
     tested.value = false;
     try {
-        discoveredTools.value = await pluginApi.discoverMcpTools.request({ id: props.server!.id });
+        discoveredTools.value = await pluginApi.discoverInstance.request({ id: props.server!.id });
         tested.value = true;
     } catch {
         // 测试失败（请求层已 toast），tested 保持 false
@@ -172,11 +177,23 @@ const handleSave = async () => {
     }
     saving.value = true;
     try {
-        const body = { ...form };
+        // 连接配置内联进 instance.config，提交统一实例接口
+        const body = {
+            pluginType: 'mcp' as const,
+            code: form.code,
+            name: form.name,
+            description: form.description,
+            config: { url: form.url, headers: form.headers, timeoutSec: form.timeoutSec },
+        };
         if (isEdit.value && props.server) {
-            await pluginApi.updateMcpServer.request({ ...body, id: props.server.id });
+            await pluginApi.updateInstance.request({ ...body, id: props.server.id });
+            // 启停独立于实例元数据，保存后若变化经启停接口同步
+            if (form.enabled !== origEnabled.value) {
+                await pluginApi.toggleInstance.request({ id: props.server.id, enabled: form.enabled });
+            }
         } else {
-            await pluginApi.createMcpServer.request(body);
+            // 新建实例默认启用（enabled 开关仅编辑态展示）
+            await pluginApi.createInstance.request(body);
         }
         Msg.success('common.saveSuccess');
         visible.value = false;

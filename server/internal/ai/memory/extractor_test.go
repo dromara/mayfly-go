@@ -4,7 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/cloudwego/eino/adk"
+	"mayfly-go/internal/ai/session"
+
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -12,10 +13,10 @@ import (
 func TestLLMExtractor_PromptBuilding(t *testing.T) {
 	extractor := NewLLMExtractor()
 
-	messages := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "我喜欢用 vim 编辑配置文件"},
-		&schema.Message{Role: schema.Assistant, Content: "好的，vim 是一个强大的编辑器"},
-		&schema.Message{Role: schema.User, Content: "服务器IP是 192.168.1.100"},
+	messages := []*session.Message{
+		&session.Message{Role: schema.User, Content: "我喜欢用 vim 编辑配置文件"},
+		&session.Message{Role: schema.Assistant, Content: "好的，vim 是一个强大的编辑器"},
+		&session.Message{Role: schema.User, Content: "服务器IP是 192.168.1.100"},
 	}
 
 	prompt := extractor.buildExtractionPrompt(messages)
@@ -184,8 +185,8 @@ func TestLLMExtractor_Disabled(t *testing.T) {
 	ctx := context.Background()
 	userID := "test_user_disabled"
 
-	messages := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "test message"},
+	messages := []*session.Message{
+		&session.Message{Role: schema.User, Content: "test message"},
 	}
 
 	memories, err := extractor.ExtractFromMessages(ctx, userID, messages)
@@ -207,7 +208,7 @@ func TestLLMExtractor_EmptyMessages(t *testing.T) {
 	ctx := context.Background()
 	userID := "test_user_empty"
 
-	memories, err := extractor.ExtractFromMessages(ctx, userID, []adk.Message{})
+	memories, err := extractor.ExtractFromMessages(ctx, userID, []*session.Message{})
 	if err != nil {
 		t.Fatalf("extract failed: %v", err)
 	}

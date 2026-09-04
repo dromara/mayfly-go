@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"mayfly-go/internal/ai/agent/contributor"
-	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/infra/mcpclient"
 	"mayfly-go/pkg/logx"
 
@@ -24,11 +23,34 @@ import (
 	"github.com/eino-contrib/jsonschema"
 )
 
+// ToolNamePrefix MCP 工具名前缀（贡献给 LLM 的工具名约定：mcp_{code}_{name}，
+// tool search 按该前缀识别可延迟加载的 MCP 工具）
+const ToolNamePrefix = "mcp_"
+
+// ServerConfig MCP 连接配置（由 t_ai_plugin_instance.config 内联配置解析产出）
+type ServerConfig struct {
+	// Id 实例 ID（连接缓存键）
+	Id uint64
+	// Code 实例唯一标识（工具名前缀）
+	Code string
+	// Url MCP 服务器地址（Streamable HTTP / SSE）
+	Url string
+	// Headers 请求头 JSON
+	Headers string
+	// TimeoutSec 请求超时秒数
+	TimeoutSec int
+}
+
 // serverLoader MCP 服务器加载器（application.Init 注入，避免 ext → application 依赖）
-var serverLoader func(ctx context.Context) ([]*entity.McpServer, error)
+var serverLoader func(ctx context.Context) ([]*ServerConfig, error)
 
 // SetServerLoader 注入 MCP 服务器加载器
-func SetServerLoader(loader func(ctx context.Context) ([]*entity.McpServer, error)) {
+//
+// 时序契约（与 RegisterHostInstaller 一致）：须在宿主装配完成前调用
+// （首次 AssembleDefault / GetDefaultAgent 之前）—— Tools 贡献在装配期
+// 读取 loader，装配后才注入的 loader 需重置默认 Agent（ResetDefaultAgent）
+// 方可生效
+func SetServerLoader(loader func(ctx context.Context) ([]*ServerConfig, error)) {
 	serverLoader = loader
 }
 
@@ -76,7 +98,7 @@ type connManager struct {
 var connMgr = &connManager{conns: make(map[uint64]*serverConn)}
 
 // toolsOf 同步缓存与当前启用配置并返回全部可用工具（fail-open：单个连接失败跳过）
-func (m *connManager) toolsOf(ctx context.Context, servers []*entity.McpServer) []tool.BaseTool {
+func (m *connManager) toolsOf(ctx context.Context, servers []*ServerConfig) []tool.BaseTool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -117,7 +139,7 @@ func (m *connManager) toolsOf(ctx context.Context, servers []*entity.McpServer) 
 }
 
 // connectServerTools 连接单个 MCP 服务器并包装其工具
-func connectServerTools(ctx context.Context, server *entity.McpServer, fingerprint string) (*serverConn, error) {
+func connectServerTools(ctx context.Context, server *ServerConfig, fingerprint string) (*serverConn, error) {
 	timeout := time.Duration(server.TimeoutSec) * time.Second
 	cli, err := mcpclient.Connect(ctx, server.Url, parseHeaders(server.Headers), timeout)
 	if err != nil {
@@ -165,7 +187,7 @@ func newMcpInvokableTool(cli *mcpclient.Client, serverCode string, info mcpclien
 		cli:        cli,
 		serverCode: serverCode,
 		info:       info,
-		name:       "mcp_" + serverCode + "_" + info.Name,
+		name:       ToolNamePrefix + serverCode + "_" + info.Name,
 	}, nil
 }
 

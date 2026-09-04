@@ -1,6 +1,7 @@
 package application
 
 import (
+	"mayfly-go/internal/ai/application/resource"
 	"mayfly-go/internal/ai/memory"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/ioc"
@@ -34,18 +35,25 @@ func Init() {
 	skillPluginApp = new(skillPluginAppImpl)
 	ioc.Register(skillPluginApp)
 
-	// 注册 MCP 插件 App（ai/init 经 GetMcpPlugin 取用，注入 MCP 服务器 loader）
-	mcpPluginApp = new(mcpPluginAppImpl)
-	ioc.Register(mcpPluginApp)
+	// 注册插件实例 App（ai/init 经 GetPluginInstanceApp 取用，注入 MCP 服务器 loader）
+	pluginInstanceApp = new(pluginInstanceAppImpl)
+	ioc.Register(pluginInstanceApp)
+
+	// 装配插件类型注册表（skill/mcp 内置类型；新增类型 = 实现 PluginTypeHandler + 此处注册一行）
+	RegisterPluginType(skillInstanceType{})
+	RegisterPluginType(mcpInstanceType{})
+
+	// 装配统一资源查询服务（内置 machine/db provider，资源清单工具与参数补全选项共用）
+	resource.Init()
 }
 
 var (
-	skillPluginApp SkillPlugin
-	mcpPluginApp   McpPlugin
+	skillPluginApp    SkillPlugin
+	pluginInstanceApp PluginInstanceApp
 )
 
 // GetSkillPlugin 技能插件管理服务
 func GetSkillPlugin() SkillPlugin { return skillPluginApp }
 
-// GetMcpPlugin MCP 服务器插件管理服务
-func GetMcpPlugin() McpPlugin { return mcpPluginApp }
+// GetPluginInstanceApp 插件实例统一管理服务
+func GetPluginInstanceApp() PluginInstanceApp { return pluginInstanceApp }

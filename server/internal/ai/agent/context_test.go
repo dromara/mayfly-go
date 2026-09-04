@@ -7,7 +7,6 @@ import (
 
 	"mayfly-go/internal/ai/session"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -40,10 +39,10 @@ func TestContextManager_Basic(t *testing.T) {
 	ctx := session.WithSessionKey(context.Background(), sessionKey)
 
 	// 测试追加消息
-	testMessages := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "你好"},
-		&schema.Message{Role: schema.Assistant, Content: "你好！有什么可以帮助你的？"},
-		&schema.Message{Role: schema.User, Content: "如何查看 Linux 系统负载？"},
+	testMessages := []*session.Message{
+		&session.Message{Role: schema.User, Content: "你好"},
+		&session.Message{Role: schema.Assistant, Content: "你好！有什么可以帮助你的？"},
+		&session.Message{Role: schema.User, Content: "如何查看 Linux 系统负载？"},
 	}
 
 	for _, msg := range testMessages {
@@ -89,8 +88,8 @@ func TestContextManager_GetSessionMeta(t *testing.T) {
 	ctx := session.WithSessionKey(context.Background(), sessionKey)
 
 	// 添加一些消息
-	msgs := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "测试消息"},
+	msgs := []*session.Message{
+		&session.Message{Role: schema.User, Content: "测试消息"},
 	}
 
 	for _, msg := range msgs {
@@ -140,9 +139,9 @@ func TestContextManager_ClearHistory(t *testing.T) {
 	ctx := session.WithSessionKey(context.Background(), sessionKey)
 
 	// 添加一些消息
-	msgs := []adk.Message{
-		&schema.Message{Role: schema.User, Content: "消息1"},
-		&schema.Message{Role: schema.User, Content: "消息2"},
+	msgs := []*session.Message{
+		&session.Message{Role: schema.User, Content: "消息1"},
+		&session.Message{Role: schema.User, Content: "消息2"},
 	}
 
 	for _, msg := range msgs {

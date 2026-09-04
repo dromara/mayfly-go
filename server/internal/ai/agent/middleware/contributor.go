@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"mayfly-go/internal/ai/agent/contributor"
-
-	"github.com/cloudwego/eino/adk"
 )
 
 // SafeToolContributor 安全工具中间件贡献者（ToolMiddlewareContributor 通道）
@@ -24,8 +22,8 @@ var _ contributor.ToolMiddlewareContributor = (*SafeToolContributor)(nil)
 
 func (c *SafeToolContributor) Id() string { return "safety_middleware" }
 
-func (c *SafeToolContributor) Middlewares(ctx context.Context) ([]adk.ChatModelAgentMiddleware, error) {
-	return []adk.ChatModelAgentMiddleware{&SafeToolMiddleware{}}, nil
+func (c *SafeToolContributor) Middlewares(ctx context.Context) ([]contributor.AgentMiddleware, error) {
+	return []contributor.AgentMiddleware{&SafeToolMiddleware{}}, nil
 }
 
 // Install 注册中间件贡献者到 Builder

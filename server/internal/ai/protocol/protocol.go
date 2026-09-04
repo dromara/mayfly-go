@@ -20,6 +20,7 @@ type Protocol interface {
 	// Name 返回协议标识，如 openai、azure 等
 	Name() string
 
-	// NewChatModel 创建chat模型
-	NewChatModel(ctx context.Context, modelConfig *config.ModelConfig) (model.ToolCallingChatModel, error)
+	// NewChatModel 创建 chat 模型（AgenticMessage 路径，eino v0.9 Typed API：
+	// 返回以 *schema.AgenticMessage 实例化的模型，供 TypedChatModelAgent 消费）
+	NewChatModel(ctx context.Context, modelConfig *config.ModelConfig) (model.AgenticModel, error)
 }

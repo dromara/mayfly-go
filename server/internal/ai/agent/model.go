@@ -9,6 +9,6 @@ import (
 )
 
 // GetChatModel 获取Chat模型
-func GetChatModel(ctx context.Context) (model.ToolCallingChatModel, error) {
+func GetChatModel(ctx context.Context) (model.AgenticModel, error) {
 	return protocol.GetChatModel(ctx, config.GetModel())
 }

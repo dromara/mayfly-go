@@ -46,6 +46,10 @@ type ModelConfig struct {
 	// nil = 不启用重试（默认，保持行为不变）。网络抖动 / 429 / 5xx 等
 	// 瞬时失败自动重试，主动取消/超时不重试；退避为内置指数退避 + 抖动
 	Retry *ModelRetryConfig `json:"retry"`
+	// Failover 模型故障转移配置（eino v0.9 Model Failover 能力）；
+	// nil = 不启用转移（默认，保持行为不变）。主模型经 Retry 重试耗尽后
+	// 按序转移到 fallbacks 备用模型；主动取消/超时不转移
+	Failover *ModelFailoverConfig `json:"failover"`
 }
 
 // ModelRetryConfig 模型调用重试配置
@@ -55,6 +59,70 @@ type ModelConfig struct {
 // maxRetries 为最大重试次数（首次调用之外最多重试 N 次，0 视为不启用）
 type ModelRetryConfig struct {
 	MaxRetries int `json:"maxRetries"`
+}
+
+// ModelFailoverConfig 模型故障转移配置（eino v0.9 Model Failover 能力）
+//
+// 系统配置 AiModelConfig 中：
+//
+//	"failover": {
+//	  "maxFailovers": 1,
+//	  "fallbacks": [ { "model": "openai/gpt-4o-mini", "baseUrl": "...", "apiKey": "..." } ]
+//	}
+//
+// fallbacks 按顺序作为第 1..N 次转移目标（复用 ModelConfig 结构，model 字段
+// 须为 protocol/model 格式）；maxFailovers 限制转移次数（0 = 全部 fallbacks
+// 可用）。备用模型实例同样经 protocol 缓存复用。组合语义：主模型先经 Retry
+// 重试，重试耗尽后才触发转移
+type ModelFailoverConfig struct {
+	// MaxFailovers 最大转移次数（0 = 默认全部 fallbacks 可用）
+	MaxFailovers int `json:"maxFailovers"`
+	// Fallbacks 备用模型清单（按序转移）
+	Fallbacks []*ModelConfig `json:"fallbacks"`
+}
+
+// parseModelFailoverConfig 解析 failover 配置段（容错：结构非法的条目跳过，
+// 全部非法时返回 nil 不阻断装配）
+func parseModelFailoverConfig(raw any) *ModelFailoverConfig {
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	fc := &ModelFailoverConfig{MaxFailovers: cast.ToInt(m["maxFailovers"])}
+	fallbacks, ok := m["fallbacks"].([]any)
+	if !ok || len(fallbacks) == 0 {
+		return nil
+	}
+	for _, rf := range fallbacks {
+		fm, ok := rf.(map[string]any)
+		if !ok {
+			continue
+		}
+		if fb := parseFallbackModelConfig(fm); fb != nil {
+			fc.Fallbacks = append(fc.Fallbacks, fb)
+		}
+	}
+	if len(fc.Fallbacks) == 0 {
+		return nil
+	}
+	return fc
+}
+
+// parseFallbackModelConfig 解析单个备用模型配置（model 字段必填，缺失视为非法条目）
+func parseFallbackModelConfig(m map[string]any) *ModelConfig {
+	conf := &ModelConfig{
+		Name:    cast.ToString(m["name"]),
+		Model:   cast.ToString(m["model"]),
+		BaseUrl: cast.ToString(m["baseUrl"]),
+		ApiKey:  cast.ToString(m["apiKey"]),
+	}
+	if conf.Model == "" {
+		return nil
+	}
+	conf.TimeOut = cmp.Or(cast.ToInt(m["timeOut"]), 60)
+	conf.Temperature = cmp.Or(cast.ToFloat32(m["temperature"]), 0.7)
+	conf.MaxTokens = cmp.Or(cast.ToInt(m["maxTokens"]), DefaultMaxTokens)
+	return conf
 }
 
 func (c *ModelConfig) GetModelSpec() ModelSpec {
@@ -115,6 +183,9 @@ func GetModel() *ModelConfig {
 			}
 		}
 	}
+	if raw, exists := jm["failover"]; exists {
+		conf.Failover = parseModelFailoverConfig(raw)
+	}
 	return conf
 }
 
@@ -138,6 +209,12 @@ type AgentConfig struct {
 	// MemoryDir 长期记忆存储目录（本地 JSONL 降级存储；application 层已装配
 	// DB 后端（t_ai_memory 表），本目录仅用于 DB 未装配时的单实例/单测场景）
 	MemoryDir string `json:"memoryDir"`
+	// ToolSearchThreshold 工具搜索阈值（eino v0.9 tool search middleware）：
+	// 工具总量超过该值时，MCP 工具（mcp_ 前缀）转为 deferred —— 模型经
+	// tool_search 元工具按需发现加载，避免大工具清单挤占上下文与 KV-cache。
+	// 0 = 禁用（默认，全部工具直注，行为不变）。
+	// 装配期生效：经 ResetDefaultAgent 重建 Agent 或重启服务后生效
+	ToolSearchThreshold int `json:"toolSearchThreshold"`
 }
 
 // DisabledExtensionSet 禁用清单集合（WithFilter 参数形态）
@@ -162,5 +239,6 @@ func GetAgentConfig() *AgentConfig {
 	}
 	conf.SessionDir = cmp.Or(jm.GetStr("sessionDir"), DefaultSessionDir)
 	conf.MemoryDir = cmp.Or(jm.GetStr("memoryDir"), DefaultMemoryDir)
+	conf.ToolSearchThreshold = jm.GetInt("toolSearchThreshold")
 	return conf
 }

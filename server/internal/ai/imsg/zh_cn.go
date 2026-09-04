@@ -26,4 +26,8 @@ var Zh_CN = map[i18n.MsgId]string{
 	MachineInfoIncomplete:      "缺少机器信息，请完善参数",
 	CommandExecApprovalReason:  "执行命令可能涉及高危操作，请审批",
 	InterruptExpired:           "该中断已失效或服务已重启，请重新发送消息发起任务",
+
+	// Resource tool
+	ResourceListToolDesc: "ListResources【资源清单查询】",
+	ResourceListToolInfo: "【资源】资源清单查询工具 - 查询当前用户有权限操作的全部资源（机器、数据库等）及定位信息（id/code/ip/库名等）。适用场景：\n1. 用户询问有哪些机器/数据库等资源，或要求检查所有机器状态、整体巡检前，先用本工具获取资源清单；\n2. 用户未明确指定目标资源时，先用本工具获取资源列表，再结合用户描述选定目标或让用户选择；\n3. 需要资源定位参数（如机器的 authCertName、数据库的 dbId）却未知时，先用本工具查询。返回的资源 id/code 可直接用于后续工具调用参数。",
 }

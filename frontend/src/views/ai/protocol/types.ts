@@ -5,7 +5,7 @@
 
 // ==================== ContentSegment ====================
 
-export type ContentSegmentType = 'input_text' | 'output_text' | 'skill' | 'resource';
+export type ContentSegmentType = 'input_text' | 'output_text' | 'skill' | 'resource' | 'image';
 
 export interface ContentSegment {
     type: ContentSegmentType;
@@ -31,6 +31,8 @@ export interface TurnItem {
     // message 变体
     role?: string;
     content?: ContentSegment[];
+    /** 用户消息附件元数据（fileKey 轻量引用随 payload 持久化，历史回显卡片/预览；内容已落文件服务） */
+    attachments?: MessageAttachment[];
 
     // reasoning 变体
     text?: string;
@@ -198,7 +200,10 @@ export type MessagePart =
 
 // ==================== ChatMessage（前端展示用） ====================
 
-/** 附件元数据（对齐 tokhub extra.attachments，Phase 6 附件链路填充） */
+/**
+ * 附件元数据（内容经统一文件服务落 local/S3，随 TurnItem payload 持久化的
+ * 仅是 fileKey 轻量引用，对齐后端 protocol.AttachmentMeta）
+ */
 export interface MessageAttachment {
     /** 文件名 */
     name: string;
@@ -208,10 +213,14 @@ export interface MessageAttachment {
     mime?: string;
     /** 字节大小 */
     size?: number;
-    /** 图片 dataURL（kind=image） */
+    /** 文件服务 key（内容已落 t_sys_file，经 /sys/files/{fileKey} 访问；发送前上传获得） */
+    fileKey?: string;
+    /** 图片 dataURL（仅发送前本地预览态：上传前输入框预览与乐观回显，不随消息发送） */
     dataUrl?: string;
-    /** 内联文本内容（kind=text） */
+    /** 内联文本内容（仅发送前本地态：构建 LLM content 用，不随消息发送，历史预览经 fileKey 拉取） */
     text?: string;
+    /** 原始 File（仅发送前内存持有，上传后即无意义，不参与序列化/持久化） */
+    rawFile?: File;
 }
 
 export interface ChatMessage {

@@ -7,17 +7,19 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
 
 // 自动摘要和压缩的默认阈值配置
 const (
-	// DefaultMessageThreshold 消息数量阈值，超过此数量触发自动摘要
-	DefaultMessageThreshold = 10
+	// DefaultMessageThreshold 消息数量阈值，超过此数量触发自动摘要。
+	// 仅承担摘要节奏职责（控制单次摘要输入规模），窗口压力判断以 token 口径为准
+	// （含工具调用的重对话每轮可产生多条消息，条数阈值不宜过小）
+	DefaultMessageThreshold = 30
 	// DefaultTokenThreshold Token 数量阈值，超过此数量触发自动压缩
 	DefaultTokenThreshold = 100000
 	// DefaultSummaryKeepCount 摘要后保留的最近消息数量
@@ -27,7 +29,7 @@ const (
 // Summarizer 摘要器接口
 type Summarizer interface {
 	// GenerateSummary 生成会话摘要
-	GenerateSummary(ctx context.Context, messages []adk.Message) (string, error)
+	GenerateSummary(ctx context.Context, messages []*Message) (string, error)
 }
 
 // SummaryConfig 摘要配置
@@ -52,8 +54,8 @@ func DefaultSummaryConfig() *SummaryConfig {
 
 // LLMSummarizer 基于 LLM 的摘要器
 type LLMSummarizer struct {
-	maxMessages int                        // 用于摘要的最大消息数，避免超出上下文限制
-	chatModel   model.ToolCallingChatModel // ChatModel 实例（可选，不设置则自动获取）
+	maxMessages int                // 用于摘要的最大消息数，避免超出上下文限制
+	chatModel   model.AgenticModel // ChatModel 实例（可选，不设置则自动获取）
 }
 
 // NewLLMSummarizer 创建基于 LLM 的摘要器
@@ -70,13 +72,13 @@ func (s *LLMSummarizer) WithMaxMessages(maxMessages int) *LLMSummarizer {
 }
 
 // WithChatModel 设置 ChatModel 实例
-func (s *LLMSummarizer) WithChatModel(chatModel model.ToolCallingChatModel) *LLMSummarizer {
+func (s *LLMSummarizer) WithChatModel(chatModel model.AgenticModel) *LLMSummarizer {
 	s.chatModel = chatModel
 	return s
 }
 
 // GenerateSummary 使用 LLM 生成智能摘要
-func (s *LLMSummarizer) GenerateSummary(ctx context.Context, messages []adk.Message) (string, error) {
+func (s *LLMSummarizer) GenerateSummary(ctx context.Context, messages []*Message) (string, error) {
 	if len(messages) == 0 {
 		return "", nil
 	}
@@ -99,7 +101,7 @@ func (s *LLMSummarizer) GenerateSummary(ctx context.Context, messages []adk.Mess
 }
 
 // generateLLMSummary 尝试使用 LLM 生成摘要（可能 panic）
-func (s *LLMSummarizer) generateLLMSummary(ctx context.Context, messages []adk.Message) (summary string, err error) {
+func (s *LLMSummarizer) generateLLMSummary(ctx context.Context, messages []*Message) (summary string, err error) {
 	defer gox.Recover()
 
 	// ChatModel 必须由外部注入
@@ -116,30 +118,21 @@ func (s *LLMSummarizer) generateLLMSummary(ctx context.Context, messages []adk.M
 	// 构建摘要提示
 	prompt := s.buildSummaryPrompt(messagesForSummary)
 
-	// 调用 LLM 生成摘要（System 设定角色，User 提供待处理内容）
-	response, err := s.chatModel.Stream(ctx, []*schema.Message{
-		{
-			Role:    schema.System,
-			Content: "你是对话摘要专家，负责将对话历史压缩为结构化的摘要。保留关键信息，去除冗余细节。",
-		},
-		{
-			Role:    schema.User,
-			Content: prompt,
-		},
+	// 调用 LLM 生成摘要（System 设定角色，User 提供待处理内容；摘要为非交互场景，
+	// 直接用 Generate 非流式获取完整结果）
+	response, err := s.chatModel.Generate(ctx, []*schema.AgenticMessage{
+		schema.SystemAgenticMessage("你是对话摘要专家，负责将对话历史压缩为结构化的摘要。保留关键信息，去除冗余细节。"),
+		schema.UserAgenticMessage(prompt),
 	})
 	if err != nil {
 		return "", fmt.Errorf("LLM generate: %w", err)
 	}
 
-	if content, err := schema.ConcatMessageStream(response); err != nil {
-		return "", fmt.Errorf("concat LLM summary stream: %w", err)
-	} else {
-		return content.Content, nil
-	}
+	return ExtractText(response), nil
 }
 
 // buildSummaryPrompt 构建摘要提示
-func (s *LLMSummarizer) buildSummaryPrompt(messages []adk.Message) string {
+func (s *LLMSummarizer) buildSummaryPrompt(messages []*Message) string {
 	var conversationText strings.Builder
 
 	// 格式化对话内容，保留完整的上下文
@@ -175,14 +168,11 @@ func (s *LLMSummarizer) buildSummaryPrompt(messages []adk.Message) string {
 		case schema.Tool:
 			conversationText.WriteString("\n--- 工具结果 ---\n")
 			conversationText.WriteString(fmt.Sprintf("工具名称: %s\n", msg.ToolName))
-			conversationText.WriteString(fmt.Sprintf("调用ID: %s\n", msg.ToolCallID))
+			conversationText.WriteString(fmt.Sprintf("调用ID: %s\n", msg.ToolCallId))
 
 			// 工具返回内容（限制长度但保持关键信息）
-			content := msg.Content
-			maxContentLen := 5000 // 增加限制，保留更多细节
-			if len(content) > maxContentLen {
-				content = content[:maxContentLen] + "\n...[内容过长已截断]"
-			}
+			// rune 安全截断（prefixLen=length 走前缀截断分支；len 按字节计会把中文截出半个字符）
+			content := stringx.Truncate(msg.Content, 5000, 5000, "\n...[内容过长已截断]")
 			conversationText.WriteString(fmt.Sprintf("返回结果:\n%s\n", content))
 
 		case schema.System:
@@ -210,7 +200,7 @@ func (s *LLMSummarizer) buildSummaryPrompt(messages []adk.Message) string {
 }
 
 // generateSimpleSummary 生成简单的规则-based 摘要（降级方案）
-func (s *LLMSummarizer) generateSimpleSummary(messages []adk.Message) string {
+func (s *LLMSummarizer) generateSimpleSummary(messages []*Message) string {
 	var summaryParts []string
 	userQuestions := 0
 	toolCalls := 0
@@ -219,11 +209,8 @@ func (s *LLMSummarizer) generateSimpleSummary(messages []adk.Message) string {
 		switch msg.Role {
 		case schema.User:
 			userQuestions++
-			// 提取用户问题的前 100 个字符作为关键点
-			content := msg.Content
-			if len(content) > 100 {
-				content = content[:100] + "..."
-			}
+			// 提取用户问题的前 100 个字符作为关键点（rune 安全截断）
+			content := stringx.Truncate(msg.Content, 100, 100, "...")
 			summaryParts = append(summaryParts, fmt.Sprintf("用户提问: %s", content))
 
 		case schema.Assistant:

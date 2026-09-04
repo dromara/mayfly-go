@@ -11,6 +11,7 @@ import (
 	"mayfly-go/internal/ai/skill"
 	dbapp "mayfly-go/internal/db/application"
 	meentity "mayfly-go/internal/db/domain/entity"
+	fileapp "mayfly-go/internal/file/application"
 	machineapp "mayfly-go/internal/machine/application"
 	mcentity "mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -26,6 +27,7 @@ type Ai struct {
 	turnItemApp     application.TurnItem     `inject:"T"`
 	machineApp      machineapp.Machine       `inject:"T"`
 	dbApp           dbapp.Db                 `inject:"T"`
+	fileApp         fileapp.File             `inject:"T"`
 }
 
 // ReqConfs 获取 AI 相关的请求配置
@@ -233,56 +235,29 @@ func buildUserSegments(content string, segments []form.ChatSegment) []protocol.C
 	return result
 }
 
+// buildUserAttachments 将前端发送的附件元数据转为协议 AttachmentMeta（随用户
+// TurnItem payload 持久化，历史回显卡片与点击预览；内容已落文件服务，此处只存
+// fileKey 引用；展示职责，不参与 LLM 输入）
+func buildUserAttachments(attachments []form.ChatAttachment) []protocol.AttachmentMeta {
+	if len(attachments) == 0 {
+		return nil
+	}
+	result := make([]protocol.AttachmentMeta, 0, len(attachments))
+	for _, att := range attachments {
+		result = append(result, protocol.AttachmentMeta{
+			Name:    att.Name,
+			Kind:    att.Kind,
+			Mime:    att.Mime,
+			Size:    att.Size,
+			FileKey: att.FileKey,
+		})
+	}
+	return result
+}
+
 func formatTime(t *time.Time) string {
 	if t == nil {
 		return ""
 	}
 	return t.Format("2006-01-02 15:04:05")
-}
-
-// toEntityTurnItem 将 protocol.TurnItem 转换为 entity.TurnItem
-// （payload 剥离 type/id，由 item_type / item_id 列承载，对齐 tokhub payload_json）
-func toEntityTurnItem(convId uint64, turnId string, item *protocol.TurnItem, status string) *entity.TurnItem {
-	et := &entity.TurnItem{
-		ConversationId: convId,
-		TurnId:         turnId,
-		ItemId:         item.Id,
-		ItemType:       item.Type,
-		Payload:        item.PayloadJSON(),
-		Status:         status,
-		ToolCallId:     item.ToolCallId,
-	}
-	return et
-}
-
-// toolCallItemStatus 从 TurnItem 提取工具调用的实际状态（取值统一用 entity.ItemStatus*）
-func toolCallItemStatus(item *protocol.TurnItem) string {
-	switch item.Status {
-	case protocol.TurnItemStatusFailed:
-		return entity.ItemStatusFailed
-	case protocol.TurnItemStatusInterrupted:
-		return entity.ItemStatusInterrupted
-	case protocol.TurnItemStatusSuccess:
-		return entity.ItemStatusSuccess
-	case protocol.TurnItemStatusCancelled:
-		// 恢复路径用户拒绝的真实终态（对齐 tokhub 拒绝 → Cancelled）
-		return entity.ItemStatusCancelled
-	default:
-		return entity.ItemStatusActive
-	}
-}
-
-// deduplicateTurnItems 按 ItemId 去重，保留每个 ItemId 的最后一条记录
-func deduplicateTurnItems(items []*entity.TurnItem) []*entity.TurnItem {
-	seen := make(map[string]int) // ItemId -> index in result
-	result := make([]*entity.TurnItem, 0, len(items))
-	for _, item := range items {
-		if idx, ok := seen[item.ItemId]; ok {
-			result[idx] = item // 替换为更新的版本
-		} else {
-			seen[item.ItemId] = len(result)
-			result = append(result, item)
-		}
-	}
-	return result
 }

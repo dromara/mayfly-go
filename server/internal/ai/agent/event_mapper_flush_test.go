@@ -18,7 +18,7 @@ func TestMapToolCallEventFlushesActiveItems(t *testing.T) {
 	const turnId = "turn-1"
 
 	// 轮1：推理 + 正文
-	for _, evt := range m.MapChunk(turnId, &schema.Message{Role: schema.Assistant, ReasoningContent: "思考中", Content: "第一段正文"}) {
+	for _, evt := range m.MapChunk(turnId, &session.Message{Role: schema.Assistant, ReasoningContent: "思考中", Content: "第一段正文"}) {
 		_ = evt
 	}
 	firstMsgId := m.currentMessageId
@@ -28,7 +28,7 @@ func TestMapToolCallEventFlushesActiveItems(t *testing.T) {
 	}
 
 	// 轮1 结束：工具调用触发 flush
-	events := m.MapToolCallEvent(turnId, &schema.Message{
+	events := m.MapToolCallEvent(turnId, &session.Message{
 		Role: schema.Assistant,
 		ToolCalls: []schema.ToolCall{{
 			ID:   "call-1",
@@ -76,7 +76,7 @@ func TestMapToolCallEventFlushesActiveItems(t *testing.T) {
 	}
 
 	// 轮2：正文应新开 item（新 item_id）
-	for _, evt := range m.MapChunk(turnId, &schema.Message{Role: schema.Assistant, Content: "第二段正文"}) {
+	for _, evt := range m.MapChunk(turnId, &session.Message{Role: schema.Assistant, Content: "第二段正文"}) {
 		_ = evt
 	}
 	if m.currentMessageId == "" {
@@ -104,7 +104,7 @@ func TestCompleteStreamingWithoutToolCalls(t *testing.T) {
 	m := NewEventMapper()
 	const turnId = "turn-1"
 
-	for _, evt := range m.MapChunk(turnId, &schema.Message{Role: schema.Assistant, Content: "最终回复"}) {
+	for _, evt := range m.MapChunk(turnId, &session.Message{Role: schema.Assistant, Content: "最终回复"}) {
 		_ = evt
 	}
 	events := m.CompleteStreaming(turnId, nil)
@@ -131,8 +131,8 @@ func TestMapToolResultEventResumesTrackedToolCall(t *testing.T) {
 	const resumedItemId = "item-pending-1"
 
 	m.TrackResumedToolCall("call-1", resumedItemId)
-	events := m.MapToolResultEvent(context.Background(), turnId, &schema.Message{
-		Role: schema.Tool, ToolCallID: "call-1", ToolName: "DbQueryData", Content: "查询成功",
+	events := m.MapToolResultEvent(context.Background(), turnId, &session.Message{
+		Role: schema.Tool, ToolCallId: "call-1", ToolName: "DbQueryData", Content: "查询成功",
 	})
 	if len(events) != 1 || events[0].Type != protocol.EventTypeItemCompleted {
 		t.Fatalf("恢复路径应仅发 1 个 item_completed，实际 %d 个事件", len(events))
@@ -147,8 +147,8 @@ func TestMapToolResultEventResumesTrackedToolCall(t *testing.T) {
 
 	// 用户拒绝：状态 cancelled（对齐 tokhub 拒绝 → Cancelled）
 	m.TrackResumedToolCall("call-2", "item-pending-2")
-	events = m.MapToolResultEvent(context.Background(), turnId, &schema.Message{
-		Role: schema.Tool, ToolCallID: "call-2", ToolName: "DbQueryData",
+	events = m.MapToolResultEvent(context.Background(), turnId, &session.Message{
+		Role: schema.Tool, ToolCallId: "call-2", ToolName: "DbQueryData",
 		Content: "[OPERATION_REJECTED] The tool 'DbQueryData' was explicitly rejected by the user.",
 	})
 	if len(events) != 1 || events[0].Item == nil {

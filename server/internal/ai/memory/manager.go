@@ -6,9 +6,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"strings"
 	"sync"
-
-	"github.com/cloudwego/eino/adk"
-	"github.com/cloudwego/eino/schema"
 )
 
 // Manager 统一的记忆管理器
@@ -202,11 +199,11 @@ func CreateMemory(userID string, memType string, content string, tags []string) 
 	}
 }
 
-// BuildMemoryMessage 构建记忆系统消息
-// 该方法封装了记忆检索和格式化的完整流程
-func (m *Manager) BuildMemoryMessage(ctx context.Context, userID string) adk.Message {
+// BuildMemoryMessage 构建记忆注入片段文本
+// 该方法封装了记忆检索和格式化的完整流程；无可用记忆时返回空串
+func (m *Manager) BuildMemoryMessage(ctx context.Context, userID string) string {
 	if m == nil || userID == "" {
-		return nil
+		return ""
 	}
 
 	m.mu.RLock()
@@ -214,33 +211,28 @@ func (m *Manager) BuildMemoryMessage(ctx context.Context, userID string) adk.Mes
 	m.mu.RUnlock()
 
 	if !enabled {
-		return nil
+		return ""
 	}
 
 	// 检索相关记忆（使用语义搜索）
 	memories, err := m.Search(ctx, userID, "", 10) // 默认返回最近10条
 	if err != nil {
 		logx.WarnfContext(ctx, "retrieve memories error: %v", err)
-		return nil
+		return ""
 	}
 
 	if len(memories) == 0 {
-		return nil
+		return ""
 	}
 
 	// 格式化记忆为文本
 	memoryText := m.formatMemories(memories)
 	if memoryText == "" {
-		return nil
-	}
-
-	msg := &schema.Message{
-		Role:    schema.System,
-		Content: fmt.Sprintf("[用户记忆]\n%s\n\n[请根据以上记忆信息提供更个性化的服务]", memoryText),
+		return ""
 	}
 
 	logx.InfofContext(ctx, "injected %d memories into context", len(memories))
-	return msg
+	return fmt.Sprintf("[用户记忆]\n%s\n\n[请根据以上记忆信息提供更个性化的服务]", memoryText)
 }
 
 // formatMemories 格式化记忆列表为文本

@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 )
 
@@ -19,8 +18,8 @@ import (
 const summaryMessageFormat = "[之前的对话摘要]\n%s\n\n[以下是新的对话内容]"
 
 // summaryMessage 构造摘要 System 消息（GetHistory 前置与增量摘要输入共用同一格式）
-func summaryMessage(summary string) *schema.Message {
-	return &schema.Message{
+func summaryMessage(summary string) *Message {
+	return &Message{
 		Role:    schema.System,
 		Content: fmt.Sprintf(summaryMessageFormat, summary),
 	}
@@ -54,8 +53,9 @@ func (m *Manager) WithSummaryConfig(config *SummaryConfig) *Manager {
 }
 
 // GetHistory 获取会话历史消息（Manager 层处理 Skip 优化和摘要组装）
-// 注意：返回 schema.Message 切片，因为上层（如 adk）需要 schema.Message 格式
-func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption) ([]adk.Message, error) {
+// 返回 []*session.Message（全链路统一内存消息结构；转 eino AgenticMessage
+// 的边界转换由 session.ToAgenticMessages 承担）
+func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption) ([]*Message, error) {
 	// 应用选项配置
 	options := defaultGetOptions()
 	for _, opt := range opts {
@@ -71,7 +71,7 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 		if err != nil {
 			return nil, err
 		}
-		return ToAdkMessages(sessionMsgs), nil
+		return sessionMsgs, nil
 	}
 
 	// 计算 Store 层实际需要读取的消息数量
@@ -90,9 +90,9 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 	} else if meta != nil && meta.Count <= meta.Skip {
 		// 所有消息都已被摘要，无需从 Store 读取原始消息
 		if meta.Summary != "" {
-			return []adk.Message{summaryMessage(meta.Summary)}, nil
+			return []*Message{summaryMessage(meta.Summary)}, nil
 		}
-		return []adk.Message{}, nil
+		return []*Message{}, nil
 	} else {
 		storeLimit = options.messageLimit
 	}
@@ -110,12 +110,12 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 			options.messageLimit, len(sessionMsgs)+options.messageLimit)
 	}
 
-	// 转换为 schema.Message
-	messages := ToAdkMessages(sessionMsgs)
+	// 统一内存消息形态（全链路 []*session.Message，转 AgenticMessage 由 session.ToAgenticMessages 承担）
+	messages := sessionMsgs
 
 	// 如果存在摘要，将其作为系统消息前置
 	if meta != nil && meta.Summary != "" {
-		messages = append([]adk.Message{summaryMessage(meta.Summary)}, messages...)
+		messages = append([]*Message{summaryMessage(meta.Summary)}, messages...)
 		logx.DebugfContext(ctx, "prepended summary message, total %d messages", len(messages))
 	}
 
@@ -129,16 +129,13 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 }
 
 // AppendMsgs 追加消息到会话
-func (m *Manager) AppendMsgs(ctx context.Context, key string, msgs ...adk.Message) error {
+func (m *Manager) AppendMsgs(ctx context.Context, key string, msgs ...*Message) error {
 	if key == "" || len(msgs) == 0 {
 		return nil
 	}
 
-	// 转换为 Message
-	sessionMsgs := FromAdkMessages(msgs)
-
 	// 追加消息到底层存储（Store 只负责存储，不更新元数据）
-	if err := m.store.AppendMsgs(ctx, key, sessionMsgs...); err != nil {
+	if err := m.store.AppendMsgs(ctx, key, msgs...); err != nil {
 		return err
 	}
 
@@ -157,7 +154,7 @@ func (m *Manager) AppendMsgs(ctx context.Context, key string, msgs ...adk.Messag
 	}
 
 	// 计算新增消息的Token数量（使用 CompletionTokens + 内容长度估算，避免 TotalTokens 的累积重复计算）
-	totalTokens := collx.ArrayReduce(msgs, 0, func(totalToken int, msg adk.Message) int {
+	totalTokens := collx.ArrayReduce(msgs, 0, func(totalToken int, msg *Message) int {
 		responseMeta := msg.ResponseMeta
 		if responseMeta != nil && responseMeta.Usage != nil {
 			// 使用 CompletionTokens（仅 assistant 生成部分），更准确地反映单条消息的实际 token 数
@@ -333,7 +330,7 @@ func (m *Manager) summarizeSession(ctx context.Context, sessionKey string, meta 
 	}
 
 	// 组装完整的摘要输入：旧摘要（如有）+ 未摘要的原始消息
-	var fullContext []adk.Message
+	var fullContext []*Message
 
 	// 如果存在旧摘要，作为 System 消息前置
 	if meta.Summary != "" {
@@ -341,15 +338,15 @@ func (m *Manager) summarizeSession(ctx context.Context, sessionKey string, meta 
 		logx.DebugfContext(ctx, "prepended old summary to context")
 	}
 
-	// 追加所有未摘要的原始消息（转换为 schema.Message）
-	fullContext = append(fullContext, ToAdkMessages(rawMessages)...)
+	// 追加所有未摘要的原始消息
+	fullContext = append(fullContext, rawMessages...)
 
 	logx.DebugfContext(ctx, "full context for summarization: %d messages (1 system + %d raw)",
 		len(fullContext), len(rawMessages))
 
 	// 裁剪需要摘要的消息：保留最后 keepCount 条，摘要前面的部分
 	// 注意：触发条件已保证 len(fullContext) > keepCount
-	var messagesToSummarize []adk.Message
+	var messagesToSummarize []*Message
 	if len(fullContext) > keepCount {
 		// 只取前面的部分进行摘要（包含旧摘要 System 消息）
 		messagesToSummarize = fullContext[:len(fullContext)-keepCount]
@@ -446,7 +443,7 @@ func estimateTokens(content string) int {
 }
 
 // messageTokens 获取单条消息的 token 数，优先使用 CompletionTokens，否则估算
-func messageTokens(msg adk.Message) int {
+func messageTokens(msg *Message) int {
 	if msg.ResponseMeta != nil && msg.ResponseMeta.Usage != nil {
 		return msg.ResponseMeta.Usage.CompletionTokens
 	}

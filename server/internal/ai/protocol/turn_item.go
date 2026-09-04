@@ -12,6 +12,19 @@ const (
 	TurnItemTypeCompaction = "context_compaction"
 )
 
+// AttachmentMeta 用户消息附件元数据（message 变体扩展字段，随 payload 持久化）
+// 仅承担展示职责：历史回显卡片与点击预览，不参与 LLM 输入。
+// 附件内容经统一文件服务落 local/S3（t_sys_file），此处只持 fileKey 引用，
+// 展示端以 /sys/files/{fileKey} 访问
+// 对齐前端 protocol/types.ts 的 MessageAttachment
+type AttachmentMeta struct {
+	Name    string `json:"name"`
+	Kind    string `json:"kind"` // image | text | file
+	Mime    string `json:"mime,omitempty"`
+	Size    int64  `json:"size,omitempty"`
+	FileKey string `json:"fileKey,omitempty"` // 文件服务 key（内容已落 t_sys_file）
+}
+
 // TurnItem 状态常量
 const (
 	TurnItemStatusPending     = "pending"
@@ -29,8 +42,9 @@ type TurnItem struct {
 	Id   string `json:"id,omitempty"`
 
 	// message 变体
-	Role    string           `json:"role,omitempty"`
-	Content []ContentSegment `json:"content,omitempty"`
+	Role        string           `json:"role,omitempty"`
+	Content     []ContentSegment `json:"content,omitempty"`
+	Attachments []AttachmentMeta `json:"attachments,omitempty"` // 用户消息附件元数据（历史回显卡片/预览）
 
 	// reasoning 变体
 	Text string `json:"text,omitempty"`

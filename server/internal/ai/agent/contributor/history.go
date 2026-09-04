@@ -3,7 +3,7 @@ package contributor
 import (
 	"context"
 
-	"github.com/cloudwego/eino/adk"
+	"mayfly-go/internal/ai/session"
 )
 
 // HistoryBuildContext 历史贡献上下文（对齐 tokhub HistoryBuildContext）
@@ -40,7 +40,7 @@ type HistoryContributor interface {
 	// 返回空切片表示本扩展本轮不贡献任何消息。
 	// 实现者不需要自行调用 NormalizeHistory——配对修复由 Registry
 	// 对合并后的全量列表统一执行。
-	ContributeMessages(ctx context.Context, bc *HistoryBuildContext) ([]adk.Message, error)
+	ContributeMessages(ctx context.Context, bc *HistoryBuildContext) ([]*session.Message, error)
 }
 
 // MidTurnCompactionParams mid-turn 紧急压缩参数（token 口径由宿主估算后传入）
@@ -78,5 +78,5 @@ type MidTurnCompactor interface {
 	// TryMidTurnCompaction 尝试就地压缩历史
 	//
 	// 未触发阈值时返回原切片与 nil；触发时返回压缩后的消息列表与压缩信息。
-	TryMidTurnCompaction(ctx context.Context, history []adk.Message, params *MidTurnCompactionParams) ([]adk.Message, *MidTurnCompactionInfo)
+	TryMidTurnCompaction(ctx context.Context, history []*session.Message, params *MidTurnCompactionParams) ([]*session.Message, *MidTurnCompactionInfo)
 }

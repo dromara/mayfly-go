@@ -74,6 +74,9 @@ export default {
         copyCell: 'Copy Cell',
 
         search: 'Search',
+        empty: 'No data yet',
+        loadingMore: 'Loading...',
+        noMore: 'All loaded',
         pleaseInput: 'Please enter {label}',
         pleaseSelect: 'Please select {label}',
         pleaseSelectOne: 'Please select Only One Data',

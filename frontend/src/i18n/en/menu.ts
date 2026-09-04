@@ -150,7 +150,9 @@ export default {
         authcertShowciphertext: 'Show Ciphertext',
 
         aiAssistant: 'AI Assistant',
+        aiChat: 'AI Chat',
         aiIntegration: 'Integration',
         aiPluginManagement: 'Plugin Management',
+        aiSettings: 'AI Settings',
     },
 };

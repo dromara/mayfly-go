@@ -31,7 +31,7 @@
         <!-- 操作按钮 -->
         <div v-if="!readonly" class="approval-interrupt__footer">
             <Button size="xs" variant="outline" @click="handleAction('approve')">{{ t('ai.interrupt.approval.approve') }}</Button>
-            <Button size="xs" variant="destructive" @click="handleReject">{{ t('ai.interrupt.approval.reject') }}</Button>
+            <RejectReasonPopover :label="t('ai.interrupt.approval.reject')" @confirm="(reason: string) => handleAction('reject', { reason })" />
         </div>
     </Card>
 </template>
@@ -42,12 +42,12 @@
  * 用于需要用户确认的高危操作场景
  */
 import { formatJson } from '@/common/utils/format';
-import { ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { InterruptComponentProps } from './types';
+import RejectReasonPopover from './RejectReasonPopover.vue';
 
 const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,
@@ -64,28 +64,6 @@ const handleAction = (action: string, payload?: Record<string, unknown>) => {
         payload,
         toolCallId: props.interrupt?.toolCallId,
     });
-};
-
-const handleReject = async () => {
-    try {
-        const { value: reason } = await ElMessageBox.prompt(
-            t('ai.interrupt.approval.rejectReasonPlaceholder'),
-            t('ai.interrupt.approval.rejectTitle'),
-            {
-                confirmButtonText: t('common.confirm'),
-                cancelButtonText: t('common.cancel'),
-                inputType: 'textarea',
-                inputPlaceholder: t('ai.interrupt.approval.rejectReasonPlaceholder'),
-                inputValidator: (value: string) => {
-                    if (!value || !value.trim()) return t('ai.interrupt.approval.rejectReasonRequired');
-                    return true;
-                },
-            },
-        );
-        handleAction('reject', { reason: reason?.trim() });
-    } catch {
-        // 用户取消
-    }
 };
 </script>
 

@@ -11,16 +11,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 )
 
 // ContextManagerConfig ContextManager 配置
 type ContextManagerConfig struct {
-	SessionManager *session.Manager           // 会话管理器（必需）
-	ChatModel      model.ToolCallingChatModel // ChatModel 实例
-	ContextWindow  int                        // 模型上下文窗口（token，0 表示未配置）
+	SessionManager *session.Manager   // 会话管理器（必需）
+	ChatModel      model.AgenticModel // ChatModel 实例
+	ContextWindow  int                // 模型上下文窗口（token，0 表示未配置）
 	// Registry 贡献者注册中心（可选，nil 时历史降级直读会话管理器）
 	Registry *contributor.Registry
 }
@@ -31,11 +30,11 @@ func DefaultContextManagerConfig() *ContextManagerConfig {
 }
 
 type ContextManager struct {
-	sessionManager *session.Manager           // 会话管理器
-	chatModel      model.ToolCallingChatModel // ChatModel 实例，用于 LLM 调用
-	contextWindow  int                        // 模型上下文窗口（token），供贡献者按窗口调整注入策略
-	registry       *contributor.Registry      // 贡献者注册中心（nil 时历史降级直读会话管理器）
-	mu             sync.RWMutex               // 读写锁，保护并发访问
+	sessionManager *session.Manager      // 会话管理器
+	chatModel      model.AgenticModel    // ChatModel 实例，用于 LLM 调用
+	contextWindow  int                   // 模型上下文窗口（token），供贡献者按窗口调整注入策略
+	registry       *contributor.Registry // 贡献者注册中心（nil 时历史降级直读会话管理器）
+	mu             sync.RWMutex          // 读写锁，保护并发访问
 }
 
 // NewContextManager 创建并初始化 ContextManager 实例
@@ -63,7 +62,7 @@ func NewContextManager(config *ContextManagerConfig) (*ContextManager, error) {
 }
 
 // WithChatModel 手动覆盖 ChatModel 实例（可选）
-func (c *ContextManager) WithChatModel(chatModel model.ToolCallingChatModel) *ContextManager {
+func (c *ContextManager) WithChatModel(chatModel model.AgenticModel) *ContextManager {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.chatModel = chatModel
@@ -84,7 +83,7 @@ func (c *ContextManager) GetSessionKey(ctx context.Context) string {
 //     （每轮重建不进历史）
 //  3. mid-turn 紧急压缩：preamble 与合并后 history 均就绪后，含 preamble
 //     占用口径按注册逆序竞争执行（后注册的插件压缩策略覆盖内置）
-func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...adk.Message) ([]adk.Message, error) {
+func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...*session.Message) ([]*session.Message, error) {
 	sessionKey := c.GetSessionKey(ctx)
 	if sessionKey == "" {
 		return nil, errors.New("session key is empty")
@@ -93,7 +92,7 @@ func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...adk.Mes
 
 	// 1. 历史：经 HistoryContributor 注册表收集（短期记忆进历史的唯一通道；
 	// registry 为 nil 时降级直读会话管理器）
-	var history []adk.Message
+	var history []*session.Message
 	if c.registry.HasHistoryContributors() {
 		history = c.registry.CollectHistory(ctx, &contributor.HistoryBuildContext{
 			SessionKey: sessionKey,
@@ -149,7 +148,7 @@ func (c *ContextManager) BuildMessages(ctx context.Context, inputMsgs ...adk.Mes
 	}
 
 	if preamble != "" {
-		history = append([]adk.Message{schema.SystemMessage(preamble)}, history...)
+		history = append([]*session.Message{{Role: schema.System, Content: preamble}}, history...)
 		logx.DebugfContext(ctx, "injected preamble (%d chars) into context", len(preamble))
 	}
 
@@ -165,7 +164,7 @@ func (c *ContextManager) getLoginUserId(ctx context.Context) string {
 }
 
 // extractUserText 提取输入消息中的用户文本（用于 $skill-code 显式提及等）
-func extractUserText(inputMsgs []adk.Message) string {
+func extractUserText(inputMsgs []*session.Message) string {
 	var sb strings.Builder
 	for _, m := range inputMsgs {
 		if m.Role == schema.User && m.Content != "" {
@@ -179,7 +178,7 @@ func extractUserText(inputMsgs []adk.Message) string {
 }
 
 // AppendMsgs 追加消息到会话，并在达到阈值时触发自动摘要
-func (c *ContextManager) AppendMsgs(ctx context.Context, msgs ...adk.Message) error {
+func (c *ContextManager) AppendMsgs(ctx context.Context, msgs ...*session.Message) error {
 	if len(msgs) == 0 {
 		return nil
 	}

@@ -34,7 +34,7 @@ type Deps struct {
 	// SessionManager 会话管理器（historyext 注入依赖；为 nil 时历史扩展跳过注册）
 	SessionManager *session.Manager
 	// ChatModel 聊天模型（memoryext 长期记忆提取依赖；为 nil 时提取能力降级不可用）
-	ChatModel model.ToolCallingChatModel
+	ChatModel model.AgenticModel
 }
 
 // InstallAll 按内置优先顺序注册全部内置扩展到 Builder

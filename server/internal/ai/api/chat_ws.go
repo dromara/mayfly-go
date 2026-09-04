@@ -10,6 +10,7 @@ import (
 
 	"mayfly-go/internal/ai/agent"
 	"mayfly-go/internal/ai/api/form"
+	"mayfly-go/internal/ai/application"
 	"mayfly-go/internal/ai/application/dto"
 	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/protocol"
@@ -26,7 +27,6 @@ import (
 	"mayfly-go/pkg/validatorx"
 	"mayfly-go/pkg/ws"
 
-	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/schema"
 	"github.com/gorilla/websocket"
 )
@@ -186,7 +186,11 @@ func (a *Ai) Chat(rc *req.Ctx) {
 			continue
 		}
 
-		var userMessage []adk.Message
+		// 轮次记录器：事件映射下发 + TurnItem 收集与收尾持久化统一由其承担
+		// （api 层仅保留 WS 传输职责）
+		recorder := application.NewTurnRecorder(a.turnItemApp, convId, turnId, turn.Publish)
+
+		var userMessage []*session.Message
 		if resumeParams == nil {
 			// 资源/技能芯片引用渲染为文本标记随消息下发，使模型明确目标资源，
 			// 避免工具调用因资源参数缺失而中断等待用户手动补充；
@@ -195,16 +199,25 @@ func (a *Ai) Chat(rc *req.Ctx) {
 			// 历史回显可恢复芯片样式，对齐 tokhub ContentSegment 贯穿设计）；
 			// 发给 LLM 的完整定位标识由 RenderSegments 注入，两者职责分离
 			userSegments := buildUserSegments(chatReq.Content, chatReq.Segments)
-			userMessage = collx.AsArray(schema.UserMessage(protocol.RenderSegments(userSegments)))
+			// image 段引用提取到 ImageUrls（fileKey 经文件服务解析为 base64 data URL，
+			// 旧数据 data URL 直接透传；转 AgenticMessage 时生成 UserInputImage block），
+			// 文本侧由 RenderSegments 保留占位说明
+			userMessage = collx.AsArray(&session.Message{
+				Role:      schema.User,
+				Content:   protocol.RenderSegments(userSegments),
+				ImageUrls: application.ResolveImageUrls(baseCtx, a.fileApp, protocol.ImageUrlsOf(userSegments)),
+			})
 			userItem := protocol.NewMessageTurnItem(stringx.SortableUUID(), string(schema.User), userSegments)
-			turn.CollectItems(toEntityTurnItem(convId, turnId, userItem, entity.ItemStatusSuccess))
+			// 附件元数据随 payload 持久化（fileKey 引用，历史回显卡片/预览；展示职责，不参与 LLM 输入）
+			userItem.Attachments = buildUserAttachments(chatReq.Attachments)
+			recorder.CollectProtocolItem(turnId, userItem, entity.ItemStatusSuccess)
 		}
 
 		// turn_started 进入事件总线（发起连接经回放接收，其它订阅者实时接收）
 		turn.Publish(protocol.NewTurnStartedEvent(turnId, convId))
 
 		// 独立 goroutine 执行：连接断开/页面刷新不影响 turn 运行
-		go a.runTurn(turn, ag, chatReq, convId, turnId, resumeParams, userMessage)
+		go a.runTurn(turn, ag, convId, turnId, resumeParams, userMessage, recorder)
 
 		// 本连接订阅该 turn（回放含 turn_started，实时事件无缝续上）
 		cancelSub()
@@ -225,90 +238,24 @@ func (a *Ai) attachRunningTurn(w *wsWriter, convId uint64) *turnSubscription {
 	return sub
 }
 
-// runTurn 执行一次 agent turn（独立 goroutine）：事件全部发布到 turn 事件总线，不直接触碰 WS 连接
-func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, chatReq *form.ChatRequest, convId uint64, turnId string, resumeParams []any, userMessage []adk.Message) {
+// runTurn 执行一次 agent turn（独立 goroutine）：事件经 TurnRecorder 映射后发布到
+// turn 事件总线（不直接触碰 WS 连接），TurnItem 收集与收尾持久化同样由其承担
+func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, convId uint64, turnId string, resumeParams []any, userMessage []*session.Message, recorder *application.TurnRecorder) {
 	turnCtx := turn.ctx
 	publish := turn.Publish
 
-	eventMapper := agent.NewEventMapper()
-
 	// 恢复路径预加载（对齐 tokhub）：将该 turn 挂起的 interrupted tool_call item
 	// 注册到 EventMapper（工具完成时复用原 item_id），并建立 itemId → 恢复决策映射
-	resumeByItemId := map[string]*protocol.InterruptResume{}
 	if len(resumeParams) > 0 {
-		a.trackResumedToolCalls(turnCtx, convId, turnId, resumeParams, eventMapper, resumeByItemId)
-	}
-
-	// 收集本轮所有 TurnItem 用于持久化（回调均由 Agent.Run 同步调用，无并发）
-	turnItems := make([]*entity.TurnItem, 0)
-	collect := func(items ...*entity.TurnItem) {
-		turnItems = append(turnItems, items...)
+		recorder.TrackResumedToolCalls(turnCtx, resumeParams)
 	}
 
 	agentRunOptions := []agent.RunOption{
 		agent.WithRunSessionKey(fmt.Sprintf("conv:%d", convId)),
 		agent.WithTurnId(turnId),
-		agent.WithOnChunk(func(ctx context.Context, m adk.Message) error {
-			if len(m.ToolCalls) > 0 || m.Role == schema.Tool {
-				return nil
-			}
-			// 发布不会失败：WS 断开不影响 agent 流式输出（刷新页面后 attach 回放续上）
-			for _, evt := range eventMapper.MapChunk(turnId, m) {
-				publish(evt)
-			}
-			return nil
-		}),
-		agent.WithOnEvent(func(ctx context.Context, ae *adk.AgentEvent, m adk.Message) error {
-			currentTurnId := agent.GetTurnId(m)
-			if currentTurnId == "" {
-				currentTurnId = turnId
-			}
-			if len(m.ToolCalls) > 0 {
-				for _, evt := range eventMapper.MapToolCallEvent(currentTurnId, m) {
-					publish(evt)
-					// 收集 TurnItem（MapToolCallEvent 会先发 reasoning/message 的 item_completed，
-					// 终态事件落 success，进行中的 tool_call 落 active）
-					if evt.Item != nil {
-						status := entity.ItemStatusActive
-						if evt.Type == protocol.EventTypeItemCompleted {
-							status = entity.ItemStatusSuccess
-						}
-						collect(toEntityTurnItem(convId, evt.TurnId, evt.Item, status))
-					}
-				}
-				return nil
-			}
-			if m.Role == schema.Tool {
-				for _, evt := range eventMapper.MapToolResultEvent(ctx, currentTurnId, m) {
-					publish(evt)
-					// 收集 TurnItem（使用事件中的实际状态，而非硬编码 success）
-					if evt.Item != nil {
-						collect(toEntityTurnItem(convId, evt.TurnId, evt.Item, toolCallItemStatus(evt.Item)))
-					}
-				}
-				return nil
-			}
-			if m.Role == session.RoleInternal {
-				extra := collx.M(m.Extra)
-				if extra != nil && tools.IsInterruptContent(extra["content"]) {
-					// 通过中断元数据泛化判断（IsInterruptContent），新增中断类型无需修改此处
-					interruptEvents := eventMapper.MapInterruptEvent(currentTurnId, m)
-					for _, evt := range interruptEvents {
-						publish(evt)
-					}
-					// 对齐 tokhub：中断信息统一存到被中断工具调用的 tool_call item
-					// extra 列（{"interrupt": InterruptInfo}），不产生独立 internal item
-					if len(interruptEvents) > 0 && interruptEvents[0].Interrupt != nil {
-						if !markInterruptedToolCall(turnItems, interruptEvents[0].Interrupt, convId) {
-							logx.Warnf("interrupted tool_call item not found, toolCallId=%s",
-								interruptEvents[0].Interrupt.ToolCallId)
-						}
-					}
-				}
-				return nil
-			}
-			return nil
-		}),
+		// 消息映射与 TurnItem 收集统一由 TurnRecorder 承担（api 层仅保留传输职责）
+		agent.WithOnChunk(recorder.OnChunk),
+		agent.WithOnEvent(recorder.OnEvent),
 	}
 
 	if resumeParams != nil {
@@ -318,39 +265,11 @@ func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, chatReq *form.ChatReque
 	runRes, err := ag.Run(turnCtx, userMessage, agentRunOptions...)
 
 	// 完成流式输出，收集最终的 TurnItem
-	finalEvents := eventMapper.CompleteStreaming(turnId, nil)
-	for _, evt := range finalEvents {
-		if evt.Item != nil {
-			collect(toEntityTurnItem(convId, evt.TurnId, evt.Item, entity.ItemStatusSuccess))
-		}
-		publish(evt)
-	}
+	recorder.FinishStreaming()
 
-	// 收尾持久化使用无取消 ctx：turn ctx 可能已被显式 stop 取消，仍需保证落库
+	// 收尾持久化与统计累计使用无取消 ctx：turn ctx 可能已被显式 stop 取消，仍需保证落库
 	saveCtx := context.WithoutCancel(turnCtx)
-
-	// 去重：同一 ItemId 可能有多条记录（streaming 中间态 + 完成态），保留最后一条
-	turnItems = append(turnItems, turn.SnapshotItems()...)
-	if len(turnItems) > 0 {
-		deduped := deduplicateTurnItems(turnItems)
-		// 恢复路径分流：复用原 item_id 的工具调用走按行更新（BatchInsert 会产生重复行），
-		// 其余新 item 批量插入
-		inserts := make([]*entity.TurnItem, 0, len(deduped))
-		for _, item := range deduped {
-			if resume, ok := resumeByItemId[item.ItemId]; ok {
-				if updErr := a.turnItemApp.UpdateResumedToolCallItem(saveCtx, convId, item, resume); updErr != nil {
-					logx.Errorf("update resumed tool_call item error: %v", updErr)
-				}
-				continue
-			}
-			inserts = append(inserts, item)
-		}
-		if len(inserts) > 0 {
-			if saveErr := a.turnItemApp.BatchSaveTurnItems(saveCtx, inserts); saveErr != nil {
-				logx.Errorf("save turn items error: %v", saveErr)
-			}
-		}
-	}
+	recorder.Flush(saveCtx)
 
 	// turn 级 token 用量：下发 TurnCompleted 事件 + 累加到会话统计字段
 	var turnUsage *protocol.TurnUsage
@@ -382,63 +301,6 @@ func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, chatReq *form.ChatReque
 	// turn 收尾：终结事件总线（触发订阅泵 drain 剩余事件并写 end）并移出注册表
 	turn.bus.Finish()
 	chatRt.Remove(convId, turnId)
-}
-
-// markInterruptedToolCall 将中断信息落到被中断工具调用的 tool_call item 上
-// （对齐 tokhub：extra["interrupt"] 存 InterruptInfo，item 状态置 interrupted）。
-// 中断必然由工具审批/参数补全触发，本轮已收集的 tool_call item 中必能命中；
-// 返回是否命中（未命中仅告警，中断信息随事件流下发、不落库）
-func markInterruptedToolCall(items []*entity.TurnItem, evt *protocol.InterruptEvent, convId uint64) bool {
-	if evt == nil || evt.ToolCallId == "" {
-		return false
-	}
-	// 倒序取最后收集的同 toolCallId item（与落库去重“保留最后一条”口径一致）
-	for i := len(items) - 1; i >= 0; i-- {
-		item := items[i]
-		if item.ItemType == entity.ItemTypeToolCall && item.ToolCallId == evt.ToolCallId {
-			item.Status = protocol.TurnItemStatusInterrupted
-			if item.Extra == nil {
-				item.Extra = collx.M{}
-			}
-			item.Extra["interrupt"] = protocol.NewInterruptInfo(evt, convId)
-			return true
-		}
-	}
-	return false
-}
-
-// trackResumedToolCalls 恢复路径预加载：从持久化层加载该 turn 挂起的 interrupted
-// tool_call item，注册 toolCallId → 原 itemId 到 EventMapper（工具完成时复用原
-// item_id、更新同一行，对齐 tokhub execute.rs 的第一阶段挂起行加载）；同时按
-// request_id 匹配恢复决策，建立 itemId → 决策映射供落库时 merge 到 interrupt.resume
-func (a *Ai) trackResumedToolCalls(ctx context.Context, convId uint64, turnId string, resumeParams []any, eventMapper *agent.EventMapper, resumeByItemId map[string]*protocol.InterruptResume) {
-	items, err := a.turnItemApp.SelectByTurnId(ctx, convId, turnId)
-	if err != nil {
-		logx.Errorf("load interrupted items for resume error: %v", err)
-		return
-	}
-
-	// 恢复决策按 interruptId（即 extra.interrupt.request_id）索引
-	resumeByRequestId := make(map[string]*tools.InterruptResume)
-	for _, p := range resumeParams {
-		if r, ok := p.(*tools.InterruptResume); ok {
-			resumeByRequestId[r.InterruptId] = r
-		}
-	}
-
-	for _, item := range items {
-		if item.ItemType != entity.ItemTypeToolCall || item.Status != protocol.TurnItemStatusInterrupted {
-			continue
-		}
-		info, err := jsonx.ToByStr[protocol.InterruptInfo](jsonx.ToStr(item.Extra["interrupt"]))
-		if err != nil || info == nil || info.Kind == "" {
-			continue
-		}
-		eventMapper.TrackResumedToolCall(item.ToolCallId, item.ItemId)
-		if r, ok := resumeByRequestId[info.RequestId]; ok {
-			resumeByItemId[item.ItemId] = protocol.NewResumeFromResumeInfo(r)
-		}
-	}
 }
 
 // pumpTurnSubscription 订阅泵：将 turn 事件转发到 WS 连接

@@ -29,12 +29,12 @@ type SkillResource interface {
 	DeleteBySkillId(ctx context.Context, skillId uint64) error
 }
 
-// McpServer MCP 服务器仓库
-type McpServer interface {
-	base.Repo[*entity.McpServer]
+// PluginInstance 插件实例仓库（统一插件视图唯一事实源）
+type PluginInstance interface {
+	base.Repo[*entity.PluginInstance]
 
-	// SelectByCode 按 code 查询 MCP 服务器（未删除）
-	SelectByCode(ctx context.Context, code string) (*entity.McpServer, error)
-	// SelectEnabled 查询启用中的 MCP 服务器（id 排序）
-	SelectEnabled(ctx context.Context) ([]*entity.McpServer, error)
+	// SelectByCode 按 code 查询实例（未删除）
+	SelectByCode(ctx context.Context, code string) (*entity.PluginInstance, error)
+	// SelectEnabledByType 查询某类型下启用中的实例（id 排序）
+	SelectEnabledByType(ctx context.Context, pluginType string) ([]*entity.PluginInstance, error)
 }

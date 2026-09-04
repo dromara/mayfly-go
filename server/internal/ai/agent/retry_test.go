@@ -8,6 +8,7 @@ import (
 	aiconfig "mayfly-go/internal/ai/config"
 
 	"github.com/cloudwego/eino/adk"
+	"github.com/cloudwego/eino/schema"
 )
 
 // TestBuildModelRetryConfig_Disabled 未配置 / 非正数次数时不启用重试
@@ -31,20 +32,20 @@ func TestBuildModelRetryConfig_Decisions(t *testing.T) {
 	}
 
 	// 成功输出：接受，不重试
-	if d := cfg.ShouldRetry(context.Background(), &adk.RetryContext{}); d != nil {
+	if d := cfg.ShouldRetry(context.Background(), &adk.TypedRetryContext[*schema.AgenticMessage]{}); d != nil {
 		t.Errorf("success output should be accepted (nil decision), got %v", d)
 	}
 
 	// 主动取消 / 超时：保持中止语义，不重试
 	for _, err := range []error{context.Canceled, context.DeadlineExceeded} {
-		if d := cfg.ShouldRetry(context.Background(), &adk.RetryContext{Err: err}); d != nil {
+		if d := cfg.ShouldRetry(context.Background(), &adk.TypedRetryContext[*schema.AgenticMessage]{Err: err}); d != nil {
 			t.Errorf("err %v should not retry, got %v", err, d)
 		}
 	}
 
 	// 其余失败（网络抖动 / 429 / 5xx 等）：重试
 	for _, err := range []error{errors.New("connection reset"), errors.New("rate limit 429")} {
-		d := cfg.ShouldRetry(context.Background(), &adk.RetryContext{Err: err})
+		d := cfg.ShouldRetry(context.Background(), &adk.TypedRetryContext[*schema.AgenticMessage]{Err: err})
 		if d == nil || !d.Retry {
 			t.Errorf("err %v should retry, got %v", err, d)
 		}
