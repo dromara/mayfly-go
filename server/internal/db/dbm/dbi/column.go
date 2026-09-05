@@ -225,6 +225,35 @@ func SQLValuePreserveSpecialChars(val any) string {
 	return SQLValueString(val)
 }
 
+// IsHexString 判断字符串是否为合法的十六进制编码字符串（非空、偶数长度且均为hex字符）。
+// 迁移链路中二进制数据经ValuerBytes回读即为hex编码字符串
+func IsHexString(s string) bool {
+	if len(s) == 0 || len(s)%2 != 0 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
+// SQLValueBytes 二进制值转SQL字面量。
+// 迁移链路中二进制数据经ValuerBytes回读为hex编码字符串，输出标准十六进制字面量X'...'
+// 以保真还原二进制（MySQL/SQLite/Oracle/达梦均支持），
+// 否则会将hex文本作为普通字符串写入blob导致数据失真；
+// 非hex值（调用方直接构造的字符串）退化为字符串字面量转义处理
+func SQLValueBytes(val any) string {
+	if val == nil {
+		return NULL
+	}
+	if strVal, ok := val.(string); ok && IsHexString(strVal) {
+		return fmt.Sprintf("X'%s'", strVal)
+	}
+	return SQLValueString(val)
+}
+
 var (
 	DTBit = &DataType{
 		Name:     "bit",
@@ -322,7 +351,7 @@ var (
 	DTBytes = &DataType{
 		Name:     "bytes",
 		Valuer:   ValuerBytes,
-		SQLValue: SQLValueDefault,
+		SQLValue: SQLValueBytes,
 	}
 )
 

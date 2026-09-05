@@ -8,6 +8,7 @@
             :tabs="tabs"
             :data="editData"
             size="45%"
+            :confirm-api="btnOk"
             @opened="onOpened"
             @cancel="emit('cancel')"
         >
@@ -111,7 +112,7 @@
                     >
 
                     <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </auto-form-drawer>
@@ -121,7 +122,7 @@
 <script lang="ts" setup>
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import { AutoFormDrawer, type AutoFormData, type AutoFormTab } from '@/components/auto-form';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
+import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
@@ -149,7 +150,7 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
 const basicTab = 'basic';
 const fieldTab = 'field';
@@ -273,7 +274,7 @@ const baseFieldCompleted = computed(() => {
     return form.srcDbId && form.srcDbName && form.targetDbId && form.targetDbName && form.targetTableName;
 });
 
-const { isFetching: saveBtnLoading, execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi();
+const { execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi();
 
 const onOpened = async (form: AutoFormData) => {
     internalForm.value = form;
@@ -493,16 +494,12 @@ const handleGetTargetFields = async () => {
     }
 };
 
+// confirmApi 提交动作：组装 fieldMap 后走统一提交；成功提示与关闭抽屉由组件内置逻辑处理
 const btnOk = async () => {
-    // 校验失败内部已 toast（catch 吞掉 reject）
-    const valid = await useI18nFormValidate(drawerRef).catch(() => false);
-    if (valid === false) return;
     const reqForm: Record<string, unknown> = { ...internalForm.value };
     reqForm.fieldMap = JSON.stringify(internalForm.value.fieldMap);
     await saveExec(reqForm);
-    Msg.saveSuccess();
     emit('val-change', internalForm.value);
-    cancel();
 };
 
 const cancel = () => {

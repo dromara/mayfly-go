@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -101,7 +101,7 @@ const submitForm = computed(() => {
 });
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = milvusApi.testConn.useApi(submitForm);
-const { isFetching: saveBtnLoading, execute: saveMilvusExec, data: saveMilvusRes } = milvusApi.save.useApi(submitForm);
+const { execute: saveMilvusExec, data: saveMilvusRes } = milvusApi.save.useApi(submitForm);
 
 const testConn = async (authCert: MachineAuthCert) => {
     await drawerRef.value?.validate();
@@ -112,14 +112,11 @@ const testConn = async (authCert: MachineAuthCert) => {
     Msg.success(('milvus.connSuccess'));
 };
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作（无参，从内部表单读取提交数据）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
     await saveMilvusExec(submitForm.value);
-    Msg.success(('milvus.savedSuccess'));
     internalForm.value.id = saveMilvusRes.value;
     emit('val-change', internalForm.value);
-    dialogVisible.value = false;
-    emit('cancel');
 };
 </script>
 

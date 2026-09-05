@@ -30,7 +30,7 @@
             </el-table-column>
         </el-table>
 
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="$t('machine.cmdConfig')" :items="items" :data="editForm" size="40%" @confirm="onSubmitForm">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="$t('machine.cmdConfig')" :items="items" :data="editForm" size="40%" :confirm-api="onSubmitForm" @submitted="getCmdConfs">
             <!-- 过滤命令（动态标签输入） -->
             <template #cmds="{ form }">
                 <el-row>
@@ -68,9 +68,9 @@
                 />
             </template>
 
-            <template #footer="{ form }">
-                <el-button :loading="submiting" @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-                <el-button v-auth="'cmdconf:save'" type="primary" :loading="submiting" @click="onSubmitForm(form)">{{ $t('common.confirm') }}</el-button>
+            <template #footer>
+                <el-button :loading="drawerRef?.submitting" @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+                <el-button v-auth="'cmdconf:save'" type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.confirm') }}</el-button>
             </template>
         </auto-form-drawer>
     </div>
@@ -81,7 +81,7 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
-import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { nextTick, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import type { InputInstance } from 'element-plus';
 import TagCodePath from '../../component/TagCodePath.vue';
@@ -98,7 +98,7 @@ const items: AutoFormItem[] = [
     { prop: 'codePaths', label: 'machine.relateMachine', type: 'custom' },
 ];
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 const cmdInputRef = useTemplateRef<InputInstance>('cmdInputRef');
 
 const DefaultForm = {
@@ -112,12 +112,11 @@ const DefaultForm = {
 const state = reactive({
     cmdConfs: [] as MachineCmdConfVO[],
     dialogVisible: false,
-    submiting: false,
     inputCmdVisible: false,
     cmdInputValue: '',
 });
 
-const { cmdConfs, dialogVisible, submiting } = toRefs(state);
+const { cmdConfs, dialogVisible } = toRefs(state);
 
 /** 传给 AutoFormDrawer 的回填数据（onOpenFormDialog 时设置；深拷贝由组件内部完成） */
 const editForm = ref<AutoFormData | null>(null);
@@ -172,19 +171,9 @@ const onDeleteCmdConf = async (data: MachineCmdConfVO) => {
     getCmdConfs();
 };
 
-const onSubmitForm = async (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as MachineCmdConfVO;
-    try {
-        await useI18nFormValidate(drawerRef);
-        state.submiting = true;
-        await cmdConfApi.save.request(form);
-        Msg.saveSuccess();
-
-        state.dialogVisible = false;
-        getCmdConfs();
-    } finally {
-        state.submiting = false;
-    }
+// confirmApi 提交动作；成功提示与关闭抽屉由组件内置逻辑处理，submitted 后刷新列表
+const onSubmitForm = async (form: AutoFormData) => {
+    await cmdConfApi.save.request(form);
 };
 </script>
 <style></style>

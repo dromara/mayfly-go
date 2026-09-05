@@ -3,6 +3,7 @@ package sqlite
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
@@ -51,6 +52,12 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 func (sd *SqliteDialect) GetDumpHelper() dbi.DumpHelper {
 	return new(DumpHelper)
+}
+
+// GetSQLSplitter 标准SQL切割器：sqlite字符串中反斜杠为普通字符，
+// 若按mysql语义会把 '\' 误判为转义引号导致后续语句被吞入字符串而错切
+func (sd *SqliteDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewStdSQLSplitter()
 }
 
 func (sd *SqliteDialect) GetSQLGenerator() dbi.SQLGenerator {

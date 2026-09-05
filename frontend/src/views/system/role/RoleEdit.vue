@@ -4,9 +4,9 @@
         :title="title"
         :items="formItems"
         :data="data"
-        :confirm-loading="saveBtnLoading"
+        :confirm-api="onConfirm"
         width="600px"
-        @confirm="onConfirm"
+        @submitted="emit('cancel')"
         @cancel="emit('cancel')"
     />
 </template>
@@ -47,14 +47,13 @@ const formItems: AutoFormItem[] = [
 
 const form = ref<AutoFormData>({});
 
-const { isFetching: saveBtnLoading, execute: saveRoleExec } = roleApi.save.useApi(form);
+const { execute: saveRoleExec } = roleApi.save.useApi(form);
 
+// confirmApi 提交动作（将表单写入请求源 form 后提交）；成功提示与关闭弹窗由组件内置逻辑处理
 const onConfirm = async (formData: AutoFormData) => {
     form.value = formData;
     await saveRoleExec();
     emit('val-change', formData);
-    visible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

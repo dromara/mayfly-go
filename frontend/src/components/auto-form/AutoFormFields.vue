@@ -2,7 +2,7 @@
     <template v-for="(seg, si) in segments" :key="`seg-${si}`">
         <!-- 分组容器（对齐 tokhub GroupContainer）：标题 + 描述 + 带边框内层，跨全宽；组内字段全部隐藏时不渲染空壳 -->
         <el-col v-if="seg.group && hasVisibleItem(seg)" :span="24">
-            <div class="mb-1 text-sm font-medium">{{ seg.group.label ? $t(seg.group.label) : '' }}</div>
+            <div v-if="seg.group.label" class="mb-1 text-sm font-medium">{{ $t(seg.group.label) }}</div>
             <div v-if="seg.group.groupDescription" class="mb-2 text-xs text-gray-400 leading-5">{{ $t(seg.group.groupDescription) }}</div>
             <div class="mb-2 rounded-lg border p-3" style="border-color: var(--el-border-color-lighter)">
                 <el-row :gutter="16">
@@ -29,6 +29,7 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
 import AutoFormFieldCol from './AutoFormFieldCol.vue';
+import { isItemVisible } from './shared';
 import type { AutoFormData, AutoFormItem } from './types';
 
 const props = defineProps<{
@@ -44,9 +45,9 @@ const props = defineProps<{
 /** 每个字段默认占据的栅格跨度 */
 const defaultSpan = computed(() => Math.floor(24 / (props.cols ?? 1)));
 
-/** 分组内是否存在可见字段（动态 when 隐藏全部字段时整组不渲染，避免残留空壳容器） */
+/** 分组内是否存在可见字段（动态 when 隐藏全部字段时整组不渲染，避免残留空壳容器；与 AutoFormFieldCol 显隐判定共用） */
 const hasVisibleItem = (seg: { group: AutoFormItem | null; items: AutoFormItem[] }): boolean =>
-    !seg.group || seg.items.some((item) => !item.hidden && (!item.when || item.when(props.form)));
+    !seg.group || seg.items.some((item) => isItemVisible(item, props.form));
 
 /** 按 group 类型分段：group 项包裹其后续字段，直到下一个 group（对齐 tokhub renderGroupedFields） */
 const segments = computed(() => {

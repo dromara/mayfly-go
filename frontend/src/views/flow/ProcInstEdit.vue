@@ -7,6 +7,8 @@
             :items="items"
             :data="modelValue"
             size="50%"
+            :confirm-api="btnOk"
+            @submitted="onSubmitted"
             @opened="onOpened"
             @cancel="onCancel"
         >
@@ -33,7 +35,7 @@
 
             <template #footer>
                 <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!internalForm?.procdefId">{{ $t('common.confirm') }}</el-button>
+                <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()" :disabled="!internalForm?.procdefId">{{ $t('common.confirm') }}</el-button>
             </template>
         </auto-form-drawer>
     </div>
@@ -73,7 +75,7 @@ const modelValue = defineModel<ProcInstStartForm>('modelValue', {
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 const bizFormRef = useTemplateRef<{ validateBizForm: () => Promise<void>; resetBizForm: () => void }>('bizFormRef');
 
 // 业务组件
@@ -103,7 +105,7 @@ const onOpened = (form: AutoFormData) => {
 
 const submitForm = computed(() => internalForm.value as ProcInstStartForm);
 
-const { isFetching: saveBtnLoading, execute: procinstStart } = procinstApi.start.useApi(submitForm);
+const { execute: procinstStart } = procinstApi.start.useApi(submitForm);
 
 watch(
     () => internalForm.value?.procdefId,
@@ -135,21 +137,21 @@ const changeBizType = (form: AutoFormData) => {
     form.bizForm = {};
 };
 
+// confirmApi 提交动作：业务表单自含校验（失败抛错中止，组件保持抽屉打开）→ 发起流程；成功提示与关闭抽屉由组件内置逻辑处理
 const btnOk = async () => {
     try {
-        await drawerRef.value?.validate();
         await bizFormRef.value?.validateBizForm();
     } catch (e: unknown) {
         Msg.error('flow.procinstFormError');
-        return false;
+        throw new Error('biz form invalid');
     }
 
     await procinstStart();
-    Msg.success('flow.procinstStartSuccess');
+};
+
+// 提交成功后通知父组件并重置抽屉状态（抽屉随即由组件关闭）
+const onSubmitted = () => {
     emit('val-change', submitForm.value);
-    //关闭抽屉并重置表单域
-    visible.value = false;
-    emit('cancel');
     resetState();
 };
 

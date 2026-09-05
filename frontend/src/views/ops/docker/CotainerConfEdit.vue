@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @cancel="emit('cancel')">
+        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @submitted="emit('cancel')" @cancel="emit('cancel')">
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -12,7 +12,6 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
-import { Msg } from '@/hooks/useI18n';
 import { computed, type PropType } from 'vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { dockerApi } from './api';
@@ -49,15 +48,12 @@ const editData = computed<AutoFormData>(() => {
     return { id: null, code: '', tagCodePaths: [], name: null, addr: '', remark: '' } as AutoFormData;
 });
 
-const { isFetching: saveBtnLoading, execute: saveConfExec } = dockerApi.saveConf.useApi();
+const { execute: saveConfExec } = dockerApi.saveConf.useApi();
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作；成功提示、关闭抽屉由组件内置逻辑处理，submitted 时通知父组件
 const onConfirm = async (form: AutoFormData) => {
     await saveConfExec(form);
-    Msg.saveSuccess();
     emit('val-change', form);
-    dialogVisible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

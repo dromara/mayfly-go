@@ -3,6 +3,7 @@ package mssql
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
@@ -120,6 +121,11 @@ func (md *MssqlDialect) Quoter() dbi.Quoter {
 
 func (md *MssqlDialect) GetDumpHelper() dbi.DumpHelper {
 	return new(DumpHelper)
+}
+
+// GetSQLSplitter 标准SQL切割器：mssql字符串中反斜杠为普通字符
+func (md *MssqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewStdSQLSplitter()
 }
 
 func (md *MssqlDialect) GetSQLGenerator() dbi.SQLGenerator {

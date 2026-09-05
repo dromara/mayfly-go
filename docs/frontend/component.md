@@ -318,7 +318,31 @@ const tabs: AutoFormTab[] = [
 
 JSON Schema 内置 `tabs` 字段（`JsonTab[]`：`{ name, label, icon?, fields }`）时自动渲染为 Tab 布局，经 `compileJsonTabs()` 编译。
 
-**其它字段能力**：`prefix` / `suffix`（input/number 前后缀）、`validate`（自定义校验函数，仅函数式 AutoFormItem：`(value, form) => boolean | string`，JSON 下发不可用）。
+**其它字段能力**：`prefix` / `suffix`（input/number 前后缀）、`validate`（自定义校验函数，仅函数式 AutoFormItem：`(value, form) => boolean | string | Promise<boolean | string>`，JSON 下发不可用；返回 Promise 支持异步校验，如远程重名/连通性检查，reject 视为不通过）。
+
+**企业级提交与校验契约**：
+
+- `confirm-api`（推荐，Dialog/Drawer 均支持）：传入统一提交 API 后走内置默认提交逻辑——`校验 → 调 API → 成功提示（Msg.saveSuccess）→ 触发 @submitted(form) → 关闭弹层`；失败时保留弹层供修改重提。简单保存场景不再需要手写 confirm 处理器，只需 `@submitted="refreshList"`。
+- `@confirm(form)`：保留的完整自定义提交事件（未传 confirmApi 时生效）。组件会捕获处理器的返回 Promise：请求期间确认按钮 loading 且忽略重复点击，请求结束（成功关弹层/失败保留）自动恢复。处理器声明为 async 即可获得请求期防重。
+- `#footer` 自定义确认按钮场景：改为调用宿主暴露的 `drawerRef.submit()` 触发同一套 confirmApi 流程（校验 → confirmApi → 提示 → submitted → 关闭），按钮 loading 绑定 `drawerRef.submitting`（覆盖校验期与请求期）。全站保存类表单禁止再自写「校验 → API → Msg → 关弹层」样板。
+- 确认按钮内置两层防重：①组件内部 `confirming` 守卫（从点击含校验到提交 Promise settle 全程）；②外部 `confirm-loading`（兼容旧用法的补充驱动）。
+- 提交动作函数（confirmApi / @confirm 处理器）职责边界：只做「前置业务校验（失败抛错中止）+ 参数组装 + 调 API + 成功后事件通知」；成功提示与关闭弹层一律由组件内置逻辑负责，不得重复书写。
+- `AutoFormInstance.validateField(props?)`：单字段校验（三宿主均暴露），向导式分步场景可配合 `v-model:active-tab` 只校验当前步字段。
+- 表单壳 `el-form` 原生属性（如 `scroll-to-error` 校验失败滚动到首个错误项）经 `$attrs` 直接透传。
+
+## 分层架构与 UI 框架无关性
+
+auto-form 采用「core 逻辑层 + UI 适配层」分层，保证换 UI 框架（如 shadcn-vue）时调用点零改动：
+
+| 层 | 文件 | 职责与约束 |
+|---|---|---|
+| **core（框架无关）** | `types.ts`（契约 + CONTROL_REGISTRY）、`shared.ts`（字段解析/回填/校验编排）、`json/`（Schema 编译与条件求值） | 纯 `.ts`，禁止 import 任何 UI 框架与控件；规则用框架无关的 `AutoFormItemRule`（async-validator 结构化子集）表达。由 `__tests__/architecture.test.ts` 架构守护测试强制 |
+| **适配层** | `AutoFormControl.vue`（控件渲染）、`AutoForm.vue`（表单壳/校验桥接）、`AutoFormFieldCol.vue`（栅格） | 当前为 element-plus 实现；换框架时仅重写本层模板与控件分支，`items` / `schema` / `AutoFormItemRule` / `AutoFormInstance` 契约不变 |
+| **host（弹层宿主）** | `AutoFormDialog.vue`、`AutoFormDrawer.vue`、`AutoFormSchemaEdit.vue`（Schema 编辑工具）；提交/回填/防重/expose 对称逻辑统一收敛在 `@/hooks/useAutoFormHost.ts` | 弹层组合层，依赖适配层；换框架时随适配层一并替换。Dialog/Drawer 仅保留模板与形态差异（宽高/方向/头部结构），宿主能力新增只改 useAutoFormHost 一处，避免两宿主契约漂移 |
+
+换框架迁移路径：①重写适配层 `.vue` 组件（把 `el-*` 换为新框架控件，`AutoFormItemRule` 转换为新框架规则格式）；②core 层与全站调用点（`items` 声明、`Rules.*`、`AutoFormInstance` ref、事件契约）零改动。注意 `item.props` 是「底层控件原生属性透传」逃生口，其中 UI 专有属性（如 switch 的 `active-value`）需随框架调整。
+
+扩展点（开闭原则）：新增控件类型 = `AutoFormControl` 渲染分支 + `CONTROL_REGISTRY` 登记能力位（`selectLike` / `jsonCompilable`），其余（placeholder 语义、JSON 编译白名单、excludeValues 语义）自动派生；复杂控件一律 `type: 'custom'` 具名插槽逃生口，不经注册表。
 
 ## 表单统一规范（el-form → auto-form）
 

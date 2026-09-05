@@ -46,7 +46,7 @@ const numOf = (value: unknown): number | null => {
     return null;
 };
 
-/** 求值简单条件 */
+/** 求值简单条件（field 仅支持平铺字段名：JSON Schema 场景字段为顶层 prop，不解析点分嵌套路径） */
 const evalSimpleCondition = (cond: JsonSimpleCondition, form: Record<string, unknown>): boolean => {
     const value = form[cond.field];
     switch (cond.op) {

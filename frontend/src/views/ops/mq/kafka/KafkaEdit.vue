@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" @confirm="onConfirm" @cancel="emit('cancel')">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @submitted="emit('cancel')" @cancel="emit('cancel')">
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -15,7 +15,7 @@
                 <div class="dialog-footer">
                     <el-button @click="onTestConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
                     <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
+                    <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </auto-form-drawer>
@@ -80,7 +80,7 @@ const items: AutoFormItem[] = [
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
 ];
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
 const editData = computed<AutoFormData>(() => {
@@ -95,7 +95,7 @@ const editData = computed<AutoFormData>(() => {
 const internalForm = ref<AutoFormData>({});
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = mqApi.KafkaTestConn.useApi();
-const { isFetching: saveBtnLoading, execute: saveKafkaExec } = mqApi.kafkaSave.useApi();
+const { execute: saveKafkaExec } = mqApi.kafkaSave.useApi();
 
 const getReqForm = () => {
     const reqForm = { ...internalForm.value } as KafkaForm;
@@ -113,15 +113,10 @@ const onTestConn = async () => {
     Msg.success('ac.connSuccess');
 };
 
+// confirmApi 提交动作（组装内部表单为请求参数）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
-    // 校验失败内部已 toast（catch 吞掉 reject）
-    const valid = await useI18nFormValidate(drawerRef).catch(() => false);
-    if (valid === false) return;
     await saveKafkaExec(getReqForm());
-    Msg.saveSuccess();
     emit('val-change', internalForm.value);
-    dialogVisible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

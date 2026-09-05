@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @cancel="emit('cancel')" @opened="onOpened">
+        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="saveFormExec" @submitted="(form) => emit('success', form)" @cancel="emit('cancel')" @opened="onOpened">
             <!-- 消息渠道多选（选项需展示类型/编码/名称组合信息，自定义插槽） -->
             <template #channelIds="{ form: f }">
                 <el-select v-model="f.channelIds" multiple clearable filterable class="w-full!">
@@ -25,8 +25,7 @@
 import EnumValue from '@/common/Enum';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, ref, useTemplateRef, watch, type PropType } from 'vue';
+import { computed, ref, watch, type PropType } from 'vue';
 import { channelApi, tmplApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum, TmplStatusEnum, TmplTypeEnum } from '../enums';
 import type { MsgChannel, MsgTemplate } from '@/views/system/msg/types';
@@ -54,8 +53,6 @@ const props = defineProps({
 const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
-
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
 /** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；channelIds/tmpl 为自定义插槽） */
 const items: AutoFormItem[] = [
@@ -112,12 +109,6 @@ const onOpened = (rawForm: AutoFormData) => {
     }
 };
 
-const btnOk = async (rawForm: AutoFormData) => {
-    await useI18nFormValidate(drawerRef);
-    await saveFormExec(rawForm);
-    Msg.saveSuccess();
-    emit('success', rawForm);
-    visible.value = false;
-};
+// 统一提交：confirmApi 由 AutoFormDrawer 内置逻辑驱动（校验 → 保存 → 成功提示 → submitted → 关闭抽屉，全程 loading 防重复提交）
 </script>
 <style lang="scss"></style>

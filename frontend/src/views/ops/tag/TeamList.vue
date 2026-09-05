@@ -35,7 +35,8 @@
             :items="items"
             :data="addTeamDialog.form"
             size="40%"
-            @confirm="onSaveTeam"
+            :confirm-api="onSaveTeam"
+            @submitted="onTeamSaved"
             @cancel="onCancelSaveTeam"
         >
             <!-- 分配标签（TagTreeCheck 自定义控件走插槽） -->
@@ -226,13 +227,16 @@ const onShowSaveTeamDialog = async (data: Team | null) => {
     state.addTeamDialog.visible = true;
 };
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作：组装有效期后走统一提交；成功提示与关闭抽屉由组件内置逻辑处理
 const onSaveTeam = async (rawForm: AutoFormData) => {
     const form = rawForm as TeamForm;
     form.validityStartDate = formatDate(form.validityDate?.[0]);
     form.validityEndDate = formatDate(form.validityDate?.[1]);
     await tagApi.saveTeam.request(form);
-    Msg.saveSuccess();
+};
+
+// 保存成功后刷新列表并关闭抽屉
+const onTeamSaved = () => {
     search();
     onCancelSaveTeam();
 };

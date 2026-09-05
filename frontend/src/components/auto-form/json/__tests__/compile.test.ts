@@ -43,7 +43,7 @@ describe('compileJsonField', () => {
             rules: { required: true, minLength: 2, maxLength: 10, pattern: '^[a-z]+$', message: 'common.patternRuleMsg', min: 1, max: 5 },
         })!;
         expect(item.required).toBe(true);
-        const rules = item.rules as import('element-plus').FormItemRule[];
+        const rules = item.rules as import('../../types').AutoFormItemRule[];
         expect(rules).toHaveLength(3);
         // 长度规则
         expect(rules[0]).toMatchObject({ min: 2, max: 10 });
@@ -58,13 +58,13 @@ describe('compileJsonField', () => {
             prop: 'code',
             rules: { minLength: 2, maxLength: 10, message: 'common.patternRuleMsg' },
         })!;
-        const rules = item.rules as import('element-plus').FormItemRule[];
+        const rules = item.rules as import('../../types').AutoFormItemRule[];
         expect(typeof rules[0].message).toBe('function');
         // mock i18n 下 t 返回 key 本身：显式 message 优先于默认 key
         expect((rules[0].message as () => string)()).toBe('common.patternRuleMsg');
         // 未配置 message 时回退默认 key
         const fallback = compileJsonField({ prop: 'x', rules: { pattern: '^a' } })!;
-        const fallbackRules = fallback.rules as import('element-plus').FormItemRule[];
+        const fallbackRules = fallback.rules as import('../../types').AutoFormItemRule[];
         expect((fallbackRules[0].message as () => string)()).toBe('common.patternRuleMsg');
     });
 

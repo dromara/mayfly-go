@@ -48,13 +48,16 @@ func (c *commonTypeConverter) Decimal(col *dbi.Column) *dbi.DbDataType {
 }
 
 func (c *commonTypeConverter) UnsignedInt8(col *dbi.Column) *dbi.DbDataType {
-	return Int8
+	// uint64最大值(18446744073709551615)超过pg int8上限(9223372036854775807)，转numeric避免溢出截断
+	return Numeric
 }
 func (c *commonTypeConverter) UnsignedInt4(col *dbi.Column) *dbi.DbDataType {
-	return Int4
+	// uint32最大值(4294967295)超过pg int4上限(2147483647)，需升位为int8
+	return Int8
 }
 func (c *commonTypeConverter) UnsignedInt2(col *dbi.Column) *dbi.DbDataType {
-	return Int2
+	// uint16最大值(65535)超过pg int2上限(32767)，需升位为int4
+	return Int4
 }
 func (c *commonTypeConverter) UnsignedInt1(col *dbi.Column) *dbi.DbDataType {
 	return Int2

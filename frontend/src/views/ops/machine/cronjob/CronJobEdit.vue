@@ -1,6 +1,6 @@
 <template>
     <div class="mock-data-dialog">
-        <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="items" :data="editData" size="50%" :confirm-loading="submitDisabled" @confirm="btnOk" @cancel="emit('cancel')">
+        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="50%" :confirm-api="cronJobApi.save.request" @submitted="emit('submitSuccess')" @cancel="emit('cancel')">
             <!-- cron 表达式（自定义控件插槽） -->
             <template #cron="{ form: f }">
                 <CrontabInput v-model="f.cron" />
@@ -17,8 +17,7 @@
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, reactive, toRefs, useTemplateRef } from 'vue';
+import { computed } from 'vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cronJobApi } from '../api';
 import { CronJobSaveExecResTypeEnum, CronJobStatusEnum } from '../enums';
@@ -38,8 +37,6 @@ const emit = defineEmits(['cancel', 'submitSuccess']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
-
 /** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；cron/codePaths 为自定义控件插槽） */
 const items: AutoFormItem[] = [
     { prop: 'name', label: 'common.name', required: true },
@@ -50,10 +47,6 @@ const items: AutoFormItem[] = [
     { prop: 'script', label: 'machine.script', type: 'monaco', required: true, props: { language: 'shell', height: '200px' } },
     { prop: 'codePaths', label: 'machine.relateMachine', slot: 'codePaths' },
 ];
-
-const state = reactive({ submitDisabled: false });
-
-const { submitDisabled } = toRefs(state);
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
 const editData = computed<AutoFormData | null>(() => {
@@ -66,17 +59,6 @@ const editData = computed<AutoFormData | null>(() => {
     return { script: '', status: 1 } as unknown as AutoFormData;
 });
 
-const btnOk = async (rawForm: AutoFormData) => {
-    try {
-        await useI18nFormValidate(drawerRef);
-        state.submitDisabled = true;
-        await cronJobApi.save.request(rawForm);
-        Msg.saveSuccess();
-        emit('submitSuccess');
-        visible.value = false;
-    } finally {
-        state.submitDisabled = false;
-    }
-};
+// 统一提交：confirmApi 由 AutoFormDrawer 内置逻辑驱动（校验 → 保存 → 成功提示 → submitted → 关闭抽屉，全程 loading 防重复提交）
 </script>
 <style lang="scss"></style>

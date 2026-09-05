@@ -48,6 +48,14 @@ export const isItemRequired = (item: AutoFormItem, form: AutoFormData): boolean 
 };
 
 /**
+ * 字段可见性判定（hidden 不渲染但保留字段值；when 返回 false 时隐藏且不参与校验）
+ *
+ * AutoFormFieldCol 渲染与 AutoFormFields 分组空壳判定（组内全部隐藏时整组不渲染）共用，
+ * 避免两处显隐逻辑漂移。
+ */
+export const isItemVisible = (item: AutoFormItem, form: AutoFormData): boolean => !item.hidden && (!item.when || item.when(form));
+
+/**
  * 编辑数据回填拷贝：深拷贝避免嵌套对象与源数据共享引用
  *
  * 嵌套路径 prop（如 'meta.icon'）经 setNestedValue 原地写入，浅拷贝会把

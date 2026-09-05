@@ -55,7 +55,7 @@ func (mm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 
 func (mm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 	return collx.AsArray(
-		UnsignedBigint, UnsignedInt, UnsignedMediumint, UnsignedSmallint, Bigint, Tinyint, Smallint, Int, Bit, Float, Double, Decimal,
+		UnsignedBigint, UnsignedInt, UnsignedMediumint, UnsignedSmallint, UnsignedTinyint, Bigint, Tinyint, Smallint, Int, Bit, Float, Double, Decimal,
 		Varchar, Char, Text, Longtext, Mediumtext,
 		Datetime, Date, Time, Timestamp,
 		Enum, JSON, Set,

@@ -1,14 +1,13 @@
 <template>
     <div>
         <auto-form-drawer
-            ref="drawerRef"
             v-model:visible="visible"
             :title="title"
             :items="items"
             :data="editData"
             size="40%"
-            :confirm-loading="saveBtnLoading"
-            @confirm="onConfirm"
+            :confirm-api="onConfirm"
+            @submitted="emit('cancel')"
             @opened="onOpened"
             @cancel="emit('cancel')"
         >
@@ -113,15 +112,12 @@ const onOpened = async (form: AutoFormData) => {
 
 const submitForm = computed(() => internalForm.value as ProcdefForm);
 
-const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(submitForm);
+const { execute: saveFlowDefExec } = procdefApi.save.useApi(submitForm);
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作（无参，从内部表单读取提交数据）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
     await saveFlowDefExec();
-    Msg.saveSuccess();
     emit('val-change', submitForm.value);
-    visible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

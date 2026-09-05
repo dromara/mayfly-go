@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @cancel="emit('cancel')">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @cancel="emit('cancel')">
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -117,7 +117,7 @@ const editData = computed<AutoFormData | null>(() => {
 });
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi();
-const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi();
+const { execute: saveMachineExec } = machineApi.saveMachine.useApi();
 
 const getReqForm = (form: MachineForm) => {
     const reqForm = { ...form } as MachineForm & Record<string, unknown>;
@@ -136,18 +136,17 @@ const onTestConn = async (rawForm: AutoFormData, authCert: MachineAuthCert) => {
     Msg.success('machine.connSuccess');
 };
 
+// confirmApi 提交动作：前置校验失败抛错中止（组件保持抽屉打开可修正）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async (rawForm: AutoFormData) => {
     const form = rawForm as MachineForm;
     if ((form.authCerts || []).length == 0) {
         Msg.error('machine.noAcErrMsg');
-        return;
+        throw new Error('authCerts required');
     }
 
     const submitForm = getReqForm(form);
     await saveMachineExec(submitForm);
-    Msg.saveSuccess();
     emit('val-change', submitForm);
-    dialogVisible.value = false;
 };
 </script>
 <style lang="scss"></style>

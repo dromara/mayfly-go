@@ -10,7 +10,8 @@ import (
 
 var (
 	// 提取pg默认值， 如：'id'::varchar  提取id  ；  '-1'::integer  提取-1
-	defaultValueRegexp = regexp.MustCompile(`'([^']*)'`)
+	// 默认值本身可能含单引号（如 'it''s'::varchar），需支持双写引号
+	defaultValueRegexp = regexp.MustCompile(`'((?:[^']|'')*)'`)
 )
 
 func FixColumnDefault(column *dbi.Column) {
@@ -18,13 +19,20 @@ func FixColumnDefault(column *dbi.Column) {
 	if column.ColumnDefault != "" && strings.Contains(column.ColumnDefault, "::") && !strings.HasPrefix(column.ColumnDefault, "nextval") {
 		match := defaultValueRegexp.FindStringSubmatch(column.ColumnDefault)
 		if len(match) > 1 {
-			column.ColumnDefault = match[1]
+			// 双写引号还原为单引号
+			column.ColumnDefault = strings.ReplaceAll(match[1], "''", "'")
 		}
 	}
 }
 
 type DumpHelper struct {
 	dbi.DefaultDumpHelper
+}
+
+// pg导入方（transfer2Db/ExecReader）已在自身事务内逐条执行，脚本内的BEGIN/COMMIT语句
+// 会提交/破坏外层事务（报 unexpected transaction status idle），故不输出，与sqlite/mssql保持一致
+func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+	return nil
 }
 
 func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
@@ -38,6 +46,5 @@ func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []
 		}
 	}
 
-	_, err := writer.Write([]byte("COMMIT;\n"))
-	return err
+	return nil
 }

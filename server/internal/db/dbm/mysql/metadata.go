@@ -100,11 +100,19 @@ func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
+		dataType := cast.ToString(re["dataType"])
+		// information_schema的data_type不带unsigned后缀（如"int"），unsigned信息仅在column_type中；
+		// 迁移链路靠dataType匹配注册类型，此处需归一化为"unsigned xxx"，
+		// 否则无符号列跨库迁移时会退化为有符号类型，存在大值溢出/截断风险
+		if strings.HasSuffix(strings.ToLower(cast.ToString(re["columnType"])), " unsigned") {
+			dataType = "unsigned " + dataType
+		}
+
 		column := dbi.Column{
 			TableName:     cast.ToString(re["tableName"]),
 			ColumnName:    cast.ToString(re["columnName"]),
 			ColumnType:    cast.ToString(re["columnType"]),
-			DataType:      cast.ToString(re["dataType"]),
+			DataType:      dataType,
 			ColumnComment: cast.ToString(re["columnComment"]),
 			Nullable:      cast.ToString(re["nullable"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,

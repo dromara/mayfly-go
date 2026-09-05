@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="1000px" @confirm="onConfirm" @cancel="emit('cancel')">
+        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="1000px" :confirm-api="onConfirm" @submitted="emit('submitSuccess')" @cancel="emit('cancel')">
             <!-- 脚本入参表单定义（v1 JSON Schema 表格编辑器） -->
             <template #params>
                 <auto-form-schema-edit v-model="params" />
@@ -19,8 +19,7 @@
 <script lang="ts" setup>
 import { AutoFormDrawer, AutoFormSchemaEdit, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { isJsonFormSchema, type AutoFormJsonSchema } from '@/components/auto-form/json';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, ref, toRefs, useTemplateRef, watch } from 'vue';
+import { computed, ref, toRefs, watch } from 'vue';
 import { machineApi } from './api';
 import { ScriptResultEnum } from './enums';
 import type { MachineScriptForm, MachineScriptVO } from './types';
@@ -45,7 +44,6 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 const emit = defineEmits(['cancel', 'submitSuccess']);
 
 const { isCommon, machineId } = toRefs(props);
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 const categorys = ref([] as string[]);
 
 /** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；params 走插槽承载 AutoFormSchemaEdit） */
@@ -109,17 +107,14 @@ watch(dialogVisible, (v) => {
     }
 });
 
+// confirmApi 提交动作：组装 machineId/params 后走统一提交；成功提示、关闭抽屉由组件内置逻辑处理
 const onConfirm = async (rawForm: AutoFormData) => {
     const form = rawForm as MachineScriptForm;
     form.machineId = isCommon.value ? 9999999 : (machineId?.value as number);
-    await useI18nFormValidate(drawerRef);
     if (params.value) {
         form.params = JSON.stringify(params.value);
     }
     await machineApi.saveScript.request(form);
-    Msg.saveSuccess();
-    emit('submitSuccess');
-    dialogVisible.value = false;
 };
 </script>
 <style lang="scss"></style>

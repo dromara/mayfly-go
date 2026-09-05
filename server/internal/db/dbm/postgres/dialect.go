@@ -93,3 +93,9 @@ func (md *PgsqlDialect) GetSQLGenerator() dbi.SQLGenerator {
 func (pd *PgsqlDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(pgsql.PgsqlParser)
 }
+
+// GetSQLSplitter pg专属切割器：dollar-quoted字符串（$$/$tag$，函数体DO块内分号）、
+// E'...'转义字符串（反斜杠转义）、嵌套块注释，标准切割器会在这三类语法上错切
+func (pd *PgsqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewPgsqlSplitter()
+}

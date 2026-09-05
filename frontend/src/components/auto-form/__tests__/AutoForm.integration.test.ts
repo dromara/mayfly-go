@@ -226,6 +226,48 @@ describe('AutoForm 显隐与校验联动', () => {
         expect(cb).toHaveBeenCalledWith();
     });
 
+    it('异步 validate（Promise）：resolve true 通过，resolve string/reject 产生错误（远程重名场景）', async () => {
+        const wrapper = mountForm({
+            items: [
+                { prop: 'name', label: 'fields.name', type: 'input', validate: async (v) => (v === 'dup' ? 'common.duplicate' : true) },
+                { prop: 'conn', label: 'fields.host', type: 'input', validate: (v) => (v === 'fail' ? Promise.reject(new Error('net')) : true) },
+            ] as AutoFormItem[],
+        });
+        await flushPromises();
+        const rules = wrapper.findComponent({ name: 'ElForm' }).props('rules') as Record<string, Array<{ validator: (r: unknown, v: unknown, cb: (e?: Error) => void) => void }>>;
+        const nameValidator = rules.name[0].validator;
+        const connValidator = rules.conn[0].validator;
+        expect(nameValidator).toBeTypeOf('function');
+        const cb = vi.fn();
+        // resolve true → 通过（异步回调，flushPromises 后断言）
+        nameValidator({}, 'ok', cb);
+        await flushPromises();
+        expect(cb).toHaveBeenCalledWith();
+        // resolve string → i18n 错误文案
+        nameValidator({}, 'dup', cb);
+        await flushPromises();
+        expect(cb).toHaveBeenLastCalledWith(expect.any(Error));
+        // reject → 回退字段默认文案（label 翻译），不产生 unhandled rejection
+        connValidator({}, 'fail', cb);
+        await flushPromises();
+        expect(cb).toHaveBeenLastCalledWith(expect.any(Error));
+    });
+
+    it('validateField 单字段校验契约：AutoForm 与 Dialog/Drawer expose 均暴露且可调用', async () => {
+        const wrapper = mountForm({ items: [{ prop: 'name', label: 'fields.name', type: 'input', required: true }] as AutoFormItem[] });
+        await flushPromises();
+        expect(typeof (wrapper.vm as any).validateField).toBe('function');
+        // happy-dom 下 fields 收集受限，仅验证可调用（reject 也视为已触达底层实现）
+        await (wrapper.vm as any).validateField('name').catch?.(() => {});
+
+        const dialog = mountDialog({ visible: false, items: [{ prop: 'name', type: 'input' }] as AutoFormItem[] });
+        await flushPromises();
+        expect(typeof (dialog.vm as any).validateField).toBe('function');
+        const drawer = mount(AutoFormDrawer, { props: { visible: false, items: [{ prop: 'name', type: 'input' }] as AutoFormItem[] }, global: { plugins: [ElementPlus, i18n] } });
+        await flushPromises();
+        expect(typeof (drawer.vm as any).validateField).toBe('function');
+    });
+
     it('全局 readonly 下所有控件禁用', async () => {
         const wrapper = mountForm({
             readonly: true,
@@ -389,6 +431,7 @@ describe('AutoFormDialog 回填与确认流程', () => {
     });
 
     it('data 为 null 时按 defaultValue 回填，multiple 字段缺省为数组', async () => {
+        const onConfirm = vi.fn();
         const wrapper = mountDialog({
             visible: false,
             data: null,
@@ -396,18 +439,131 @@ describe('AutoFormDialog 回填与确认流程', () => {
                 { prop: 'name', type: 'input', defaultValue: 'default-name' },
                 { prop: 'ids', type: 'select', multiple: true },
             ] as AutoFormItem[],
+            onConfirm,
         });
         await flushPromises();
         await wrapper.setProps({ visible: true });
         await flushPromises();
         expect((wrapper.vm as any).validate).toBeDefined();
-        // 回填结果经 confirm 事件验证
+        // 回填结果经 confirm 提交链路验证（组件调用父组件 onConfirm 处理器）
         await (wrapper.vm as any).validate();
         const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm');
         await confirmBtn!.trigger('click');
         await flushPromises();
-        const emitted = wrapper.emitted('confirm') as unknown[][] | undefined;
-        expect(emitted?.[0]?.[0]).toMatchObject({ name: 'default-name', ids: [] });
+        expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ name: 'default-name', ids: [] }));
+    });
+
+    it('confirm 校验期防重：pending 期间重复点击确认只触发一次提交', async () => {
+        const onConfirm = vi.fn();
+        const wrapper = mountDialog({ visible: false, data: null, items: [{ prop: 'name', type: 'input', defaultValue: 'x' }] as AutoFormItem[], onConfirm });
+        await flushPromises();
+        await wrapper.setProps({ visible: true });
+        await flushPromises();
+        const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        // 连续同步触发两次：第一次进入校验 pending（confirming=true），第二次被守卫忽略
+        const p1 = confirmBtn.trigger('click');
+        const p2 = confirmBtn.trigger('click');
+        await Promise.all([p1, p2]);
+        await flushPromises();
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('confirm 请求期防重：父组件处理器返回 Promise 期间按钮 loading 且重复点击只调一次，settle 后恢复', async () => {
+        let resolveSave!: () => void;
+        const onConfirm = vi.fn(() => new Promise<void>((resolve) => (resolveSave = resolve)));
+        const wrapper = mountDialog({ visible: false, data: null, items: [{ prop: 'name', type: 'input', defaultValue: 'x' }] as AutoFormItem[], onConfirm });
+        await flushPromises();
+        await wrapper.setProps({ visible: true });
+        await flushPromises();
+        const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+        // 校验通过后调用父组件处理器并透传表单，请求 pending 期间按钮 loading
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+        expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ name: 'x' }));
+        expect(confirmBtn.classes()).toContain('is-loading');
+        // 保存请求 pending 期间重复点击被守卫
+        await confirmBtn.trigger('click');
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+        // 请求 settle 后按钮恢复（成功关弹窗 / 失败保留弹窗重提均适用）
+        resolveSave();
+        await flushPromises();
+        expect(confirmBtn.classes()).not.toContain('is-loading');
+    });
+
+    it('confirm 保存失败（处理器 Promise reject）后按钮恢复可重试，无 unhandled rejection', async () => {
+        const onConfirm = vi.fn(() => Promise.reject(new Error('save failed')));
+        const wrapper = mountDialog({ visible: false, data: null, items: [{ prop: 'name', type: 'input', defaultValue: 'x' }] as AutoFormItem[], onConfirm });
+        await flushPromises();
+        await wrapper.setProps({ visible: true });
+        await flushPromises();
+        const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+        // 失败后 loading 解除，弹窗保留供修改重提
+        expect(confirmBtn.classes()).not.toContain('is-loading');
+        expect(wrapper.props('visible')).toBe(true);
+        // 失败后可再次提交（重新查询按钮，避免 loading 切换重渲染导致 DOM 引用过期）
+        const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await retryBtn.trigger('click');
+        await flushPromises();
+        expect(onConfirm).toHaveBeenCalledTimes(2);
+    });
+
+    it('confirmApi 统一提交：成功 → 调 API/成功提示/submitted/关闭弹窗，confirm 事件不触发', async () => {
+        const confirmApi = vi.fn().mockResolvedValue(undefined);
+        const wrapper = mountDialog({ visible: false, data: null, items: [{ prop: 'name', type: 'input', defaultValue: 'x' }] as AutoFormItem[], confirmApi });
+        await flushPromises();
+        await wrapper.setProps({ visible: true });
+        await flushPromises();
+        const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+        expect(confirmApi).toHaveBeenCalledTimes(1);
+        expect(confirmApi).toHaveBeenCalledWith(expect.objectContaining({ name: 'x' }));
+        // 默认提交逻辑：成功提示后通知父组件刷新并关闭弹窗（v-model 语义为 update:visible），confirm 事件不再触发
+        expect(wrapper.emitted('confirm')).toBeUndefined();
+        expect(wrapper.emitted('submitted')).toHaveLength(1);
+        expect(wrapper.emitted('submitted')?.[0]?.[0]).toMatchObject({ name: 'x' });
+        expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]);
+    });
+
+    it('confirmApi 提交失败：弹窗保留供修改重提，按钮恢复，submitted 不触发', async () => {
+        const confirmApi = vi.fn().mockRejectedValue(new Error('save failed'));
+        const wrapper = mountDialog({ visible: false, data: null, items: [{ prop: 'name', type: 'input', defaultValue: 'x' }] as AutoFormItem[], confirmApi });
+        await flushPromises();
+        await wrapper.setProps({ visible: true });
+        await flushPromises();
+        const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+        expect(confirmApi).toHaveBeenCalledTimes(1);
+        expect(wrapper.props('visible')).toBe(true);
+        expect(confirmBtn.classes()).not.toContain('is-loading');
+        expect(wrapper.emitted('submitted')).toBeUndefined();
+        // 失败后可再次提交（重新查询按钮，避免重渲染导致 DOM 引用过期）
+        const retryBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await retryBtn.trigger('click');
+        await flushPromises();
+        expect(confirmApi).toHaveBeenCalledTimes(2);
+    });
+
+    it('confirmApi 抽屉统一提交：成功后触发 submitted 并关闭抽屉', async () => {
+        const confirmApi = vi.fn().mockResolvedValue(undefined);
+        const wrapper = mount(AutoFormDrawer, {
+            props: { visible: false, data: null, items: [{ prop: 'name', type: 'input', defaultValue: 'x' }] as AutoFormItem[], confirmApi },
+            global: { plugins: [ElementPlus, i18n] },
+        });
+        await flushPromises();
+        await wrapper.setProps({ visible: true });
+        await flushPromises();
+        const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm')!;
+        await confirmBtn.trigger('click');
+        await flushPromises();
+        expect(confirmApi).toHaveBeenCalledTimes(1);
+        expect(wrapper.emitted('submitted')).toHaveLength(1);
+        expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]);
     });
 
     it('打开期间外部 data 引用变化不重置表单（保留用户已填内容）', async () => {
@@ -436,14 +592,15 @@ describe('AutoFormDialog 回填与确认流程', () => {
             fields: [],
             tabs: [{ name: 't1', label: 'fields.name', fields: [{ prop: 'p', type: 'input', defaultValue: 'from-tab' }] }],
         };
-        const wrapper = mountDialog({ visible: false, data: null, schema });
+        const onConfirm = vi.fn();
+        const wrapper = mountDialog({ visible: false, data: null, schema, onConfirm });
         await flushPromises();
         await wrapper.setProps({ visible: true });
         await flushPromises();
         const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm');
         await confirmBtn!.trigger('click');
         await flushPromises();
-        expect((wrapper.emitted('confirm') as unknown[][])[0]?.[0]).toMatchObject({ p: 'from-tab' });
+        expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ p: 'from-tab' }));
     });
 
     it('默认禁止点击遮罩关闭（防误关丢失表单）', () => {

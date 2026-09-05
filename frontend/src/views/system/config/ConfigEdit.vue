@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="items" :data="editData" size="1000px" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @cancel="emit('cancel')">
+        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="1000px" :confirm-api="onConfirm" @cancel="emit('cancel')">
             <!-- 权限账号（远程搜索，走插槽保留 remote 能力） -->
             <template #permissionAccount>
                 <el-select
@@ -82,7 +82,7 @@ const editData = computed<AutoFormData | null>(() => {
     return { id: null, name: '', key: '', params: '', value: '', remark: '', permission: 'all' } as unknown as AutoFormData;
 });
 
-const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi();
+const { execute: saveConfigExec } = configApi.save.useApi();
 
 // 抽屉打开时解析入参 schema 与权限账号
 watch(visible, () => {
@@ -119,9 +119,9 @@ const getAccount = (username: string) => {
     }
 };
 
+// confirmApi 提交动作：组装 params/permission 后走统一提交；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async (rawForm: AutoFormData) => {
     const form = rawForm as ConfigForm;
-    await useI18nFormValidate(drawerRef);
     if (params.value) {
         form.params = JSON.stringify(params.value);
     }
@@ -133,7 +133,6 @@ const onConfirm = async (rawForm: AutoFormData) => {
 
     await saveConfigExec(form);
     emit('val-change', form);
-    visible.value = false;
 };
 </script>
 <style lang="scss"></style>

@@ -1,6 +1,6 @@
 <template>
     <div class="db-transfer-edit">
-        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="45%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="45%" :confirm-api="btnOk" @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
             <template #cron="{ form }">
                 <CrontabInput v-model="form.cron" />
             </template>
@@ -258,7 +258,7 @@ const editData = computed<AutoFormData | null>(() => {
 /** 抽屉打开后暂存的内部表单引用（源表勾选写 checkedKeys、提交时读取） */
 const internalForm = ref<AutoFormData>({});
 
-const { isFetching: saveBtnLoading, execute: saveExec } = dbTransferApi.saveDbTransferTask.useApi();
+const { execute: saveExec } = dbTransferApi.saveDbTransferTask.useApi();
 
 const onOpened = async (form: AutoFormData) => {
     internalForm.value = form;
@@ -371,7 +371,7 @@ const getCheckedKeys = () => {
     return checks.filter((item: string) => !defaultKeys.includes(item));
 };
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作：组装勾选表并前置校验（失败抛错中止，组件保持抽屉打开）；成功提示与关闭抽屉由组件内置逻辑处理
 const btnOk = async (rawForm: AutoFormData) => {
     const reqForm = { ...(rawForm as unknown as FormData) };
 
@@ -382,18 +382,11 @@ const btnOk = async (rawForm: AutoFormData) => {
 
     if (!reqForm.checkedKeys) {
         Msg.error('db.noTransferTableMsg');
-        return false;
+        throw new Error('no transfer tables checked');
     }
 
     await saveExec(reqForm);
-    Msg.saveSuccess();
     emit('val-change', rawForm);
-    cancel();
-};
-
-const cancel = () => {
-    dialogVisible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

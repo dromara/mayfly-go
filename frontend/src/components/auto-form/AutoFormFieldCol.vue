@@ -32,7 +32,7 @@
 import { computed, useSlots } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AutoFormControl from './AutoFormControl.vue';
-import { isItemRequired } from './shared';
+import { isItemRequired, isItemVisible } from './shared';
 import type { AutoFormData, AutoFormItem } from './types';
 
 const props = defineProps<{
@@ -61,8 +61,8 @@ const tooltipContent = computed(() => {
 /** 动态 required（星号显示；校验规则由 AutoForm formRules 生成，判定逻辑与 AutoForm 共用） */
 const isRequired = computed(() => isItemRequired(props.item, props.form));
 
-/** 条件显隐（hidden 字段不渲染但保留在表单数据中） */
-const visible = computed(() => !props.item.hidden && (!props.item.when || props.item.when(props.form)));
+/** 条件显隐（hidden 字段不渲染但保留在表单数据中；判定逻辑与 AutoFormFields 分组空壳过滤共用） */
+const visible = computed(() => isItemVisible(props.item, props.form));
 
 /** 实际栅格跨度：窄列（span < 24，多字段并排）标记 is-narrow-col，
  *  脱离 label-width=auto 的全局 label 右对齐（其偏移按全表单最宽 label 计算，

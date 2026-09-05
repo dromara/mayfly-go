@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @cancel="emit('cancel')">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="btnOk" @cancel="emit('cancel')">
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -161,7 +161,7 @@ const editData = computed<AutoFormData | null>(() => {
     return { ...dbInst, extra: (dbInst.extra || {}) as Record<string, unknown> } as unknown as AutoFormData;
 });
 
-const { isFetching: saveBtnLoading, execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi();
+const { execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi();
 const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi();
 
 const buildSubmitForm = (form: DbInstanceForm): Record<string, unknown> => {
@@ -187,14 +187,13 @@ const testConn = async (rawForm: AutoFormData, authCert: MachineAuthCert) => {
     Msg.success('db.connSuccess');
 };
 
+// confirmApi 提交动作：notBlankI18n 校验失败抛错中止（组件保持抽屉打开）；成功提示与关闭抽屉由组件内置逻辑处理
 const btnOk = async (form: AutoFormData) => {
     const dbForm = form as unknown as DbInstanceForm;
     notBlankI18n(dbForm.authCerts, 'db.acName');
     await saveInstanceExec(buildSubmitForm(dbForm));
-    Msg.saveSuccess();
     dbForm.id = saveInstanceRes.value;
     emit('val-change', dbForm);
-    dialogVisible.value = false;
 };
 </script>
 <style lang="scss"></style>

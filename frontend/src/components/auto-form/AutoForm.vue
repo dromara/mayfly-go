@@ -109,11 +109,19 @@ const formRules = computed(() => {
             const label = item.label ?? '';
             itemRules.push({
                 validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+                    // 同步与异步校验统一收敛：true 通过；false/字符串/reject 均不通过（Promise reject 用字段默认文案，避免 unhandled rejection）
+                    const settle = (res: boolean | string) => {
+                        if (res === true) {
+                            callback();
+                        } else {
+                            callback(new Error(res === false ? t(label) : t(res)));
+                        }
+                    };
                     const res = validateFn(value, model.value);
-                    if (res === true) {
-                        callback();
+                    if (res instanceof Promise) {
+                        res.then(settle, () => settle(false));
                     } else {
-                        callback(new Error(res === false ? t(label) : t(res)));
+                        settle(res);
                     }
                 },
             });
@@ -132,6 +140,11 @@ const validate = async () => {
     return await formRef.value?.validate();
 };
 
+/** 单字段校验（缺省全部字段）：向导式分步场景只校验当前步字段 */
+const validateField = async (fields?: string | string[]) => {
+    return await formRef.value?.validateField(fields);
+};
+
 const resetFields = () => {
     formRef.value?.resetFields();
 };
@@ -140,9 +153,10 @@ const clearValidate = () => {
     formRef.value?.clearValidate();
 };
 
-/** 暴露内部表单方法（AutoFormInstance 契约编译期校验，外部编程式校验/重置/清校验） */
+/** 暴露内部表单方法（AutoFormInstance 契约编译期校验，外部编程式校验/单字段校验/重置/清校验） */
 const exposed: AutoFormInstance = {
     validate,
+    validateField,
     resetFields,
     clearValidate,
 };

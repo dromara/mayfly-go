@@ -1,5 +1,5 @@
 <template>
-    <auto-form-drawer ref="drawerRef" v-model="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" :items="formItems" :data="editData" size="560px" append-to-body @confirm="handleSave" @opened="onOpened">
+    <auto-form-drawer ref="drawerRef" v-model="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" :items="formItems" :data="editData" size="560px" append-to-body :confirm-api="handleSave" @submitted="emit('saved')" @opened="onOpened">
         <template #headers="{ form }">
             <div class="headers-editor">
                 <MonacoEditor v-model="form.headers" language="json" height="140px" />
@@ -26,9 +26,9 @@
             </div>
         </template>
 
-        <template #footer="{ form }">
+        <template #footer>
             <el-button @click="visible = false">{{ $t('common.cancel') }}</el-button>
-            <el-button type="primary" :loading="saving" @click="handleSave(form)">{{ $t('common.save') }}</el-button>
+            <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.save') }}</el-button>
         </template>
     </auto-form-drawer>
 </template>
@@ -60,8 +60,7 @@ const visible = defineModel<boolean>({ default: false });
 
 const isEdit = computed(() => !!props.server);
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; clearValidate?: () => void }>('drawerRef');
-const saving = ref(false);
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; clearValidate?: () => void; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 const testing = ref(false);
 const tested = ref(false);
 const discoveredTools = ref<{ name: string; description: string }[]>([]);
@@ -163,7 +162,7 @@ const handleTest = async () => {
     }
 };
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作：headers 前置校验（失败抛错中止，组件保持抽屉打开）+ 组装后提交；成功提示与关闭抽屉由组件内置逻辑处理
 const handleSave = async (rawForm: AutoFormData) => {
     const form = rawForm as {
         code: string;
@@ -180,36 +179,26 @@ const handleSave = async (rawForm: AutoFormData) => {
             JSON.parse(form.headers);
         } catch {
             Msg.error('ai.integration.mcpHeadersInvalid');
-            return;
+            throw new Error('invalid mcp headers');
         }
     }
-    saving.value = true;
-    try {
-        // 连接配置内联进 instance.config，提交统一实例接口
-        const body = {
-            pluginType: 'mcp' as const,
-            code: form.code,
-            name: form.name,
-            description: form.description,
-            config: { url: form.url, headers: form.headers, timeoutSec: form.timeoutSec },
-        };
-        if (isEdit.value && props.server) {
-            await pluginApi.updateInstance.request({ ...body, id: props.server.id });
-            // 启停独立于实例元数据，保存后若变化经启停接口同步
-            if (form.enabled !== origEnabled.value) {
-                await pluginApi.toggleInstance.request({ id: props.server.id, enabled: form.enabled });
-            }
-        } else {
-            // 新建实例默认启用（enabled 开关仅编辑态展示）
-            await pluginApi.createInstance.request(body);
+    // 连接配置内联进 instance.config，提交统一实例接口
+    const body = {
+        pluginType: 'mcp' as const,
+        code: form.code,
+        name: form.name,
+        description: form.description,
+        config: { url: form.url, headers: form.headers, timeoutSec: form.timeoutSec },
+    };
+    if (isEdit.value && props.server) {
+        await pluginApi.updateInstance.request({ ...body, id: props.server.id });
+        // 启停独立于实例元数据，保存后若变化经启停接口同步
+        if (form.enabled !== origEnabled.value) {
+            await pluginApi.toggleInstance.request({ id: props.server.id, enabled: form.enabled });
         }
-        Msg.success('common.saveSuccess');
-        visible.value = false;
-        emit('saved');
-    } catch {
-        // 保存失败（请求层已 toast），抽屉保持打开以便修改重试
-    } finally {
-        saving.value = false;
+    } else {
+        // 新建实例默认启用（enabled 开关仅编辑态展示）
+        await pluginApi.createInstance.request(body);
     }
 };
 </script>

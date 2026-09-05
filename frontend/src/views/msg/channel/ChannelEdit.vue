@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @cancel="emit('cancel')">
+        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="saveFormExec" @submitted="(form) => emit('success', form)" @cancel="emit('cancel')">
             <!-- 渠道类型扩展配置（动态组件） -->
             <template #extra="{ form: f }">
                 <component v-if="channelTypeComp(f.type)" :is="channelTypeComp(f.type)" v-model:extra="f.extra" />
@@ -12,8 +12,7 @@
 <script lang="ts" setup>
 import EnumValue from '@/common/Enum';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, useTemplateRef, type Component, type PropType } from 'vue';
+import { computed, type Component, type PropType } from 'vue';
 import { channelApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum } from '../enums';
 import ChannelDing from './ChannelDing.vue';
@@ -47,8 +46,6 @@ const channels: Record<string, Component> = {
 const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
-
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
 /** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；extra 走插槽承载渠道类型扩展配置） */
 const items: AutoFormItem[] = [
@@ -95,12 +92,6 @@ const channelTypeComp = (type?: string | null): Component | undefined => {
     return channels[EnumValue.getEnumByValue(ChannelTypeEnum, type ?? '')?.extra?.component];
 };
 
-const btnOk = async (rawForm: AutoFormData) => {
-    await useI18nFormValidate(drawerRef);
-    await saveFormExec(rawForm);
-    Msg.saveSuccess();
-    emit('success', rawForm);
-    visible.value = false;
-};
+// 统一提交：confirmApi 由 AutoFormDrawer 内置逻辑驱动（校验 → 保存 → 成功提示 → submitted → 关闭抽屉，全程 loading 防重复提交）
 </script>
 <style lang="scss"></style>

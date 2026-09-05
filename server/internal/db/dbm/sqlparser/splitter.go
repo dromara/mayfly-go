@@ -20,21 +20,37 @@ type SQLSplitter interface {
 }
 
 // DefaultSplitter 默认 SQL 切割器
-// 适用于大多数标准 SQL 场景
+// 默认采用mysql语义（反斜杠为转义符），标准SQL方言请使用 NewStdSQLSplitter
 type DefaultSplitter struct {
 	delimiter rune
+	opts      utils.SplitOpts
 }
 
-// NewDefaultSplitter 创建默认切割器
+// NewDefaultSplitter 创建默认切割器（mysql语义：反斜杠为字符串内转义符）
 func NewDefaultSplitter(delimiter ...rune) *DefaultSplitter {
 	delim := rune(';')
 	if len(delimiter) > 0 {
 		delim = delimiter[0]
 	}
-	return &DefaultSplitter{delimiter: delim}
+	return &DefaultSplitter{delimiter: delim, opts: utils.SplitOpts{BackslashEscape: true}}
+}
+
+// NewStdSQLSplitter 创建标准SQL方言切割器（sqlite/postgres/mssql/oracle等）
+// 反斜杠为普通字符，形如 '\' 的完整字符串不会导致后续语句被误切
+func NewStdSQLSplitter(delimiter ...rune) *DefaultSplitter {
+	delim := rune(';')
+	if len(delimiter) > 0 {
+		delim = delimiter[0]
+	}
+	return &DefaultSplitter{delimiter: delim, opts: utils.SplitOpts{BackslashEscape: false}}
+}
+
+// NewMysqlSplitter 创建mysql切割器：反斜杠转义 + # 行注释
+func NewMysqlSplitter() *DefaultSplitter {
+	return &DefaultSplitter{delimiter: ';', opts: utils.SplitOpts{BackslashEscape: true, HashComment: true}}
 }
 
 // SplitSQL 实现 SQLSplitter 接口
 func (s *DefaultSplitter) SplitSQL(r io.Reader, callback utils.StmtCallback) error {
-	return utils.SplitStmts(r, s.delimiter, callback)
+	return utils.SplitStmtsWithOpts(r, s.delimiter, s.opts, callback)
 }

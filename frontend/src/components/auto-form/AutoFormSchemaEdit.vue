@@ -72,20 +72,19 @@ const fieldTypes: { value: AutoFormItemType; label: string }[] = [
 /** 表单定义（v1 JSON Schema），表格直接编辑 fields 数组 */
 const fields = defineModel<AutoFormJsonSchema>('modelValue', { default: () => ({ version: 1, fields: [] as JsonField[] }) });
 
-/** 兼容调用方传入缺 fields 的 schema 对象（如仅 { version: 1 }），保证表格可编辑 */
-const fieldList = computed(() => {
+/** 字段列表（纯读取：缺 fields 的 schema 对象兑底空数组，写入统一走 addItem/deleteItem） */
+const fieldList = computed(() => fields.value.fields ?? []);
+
+const addItem = () => {
+    // 兼容调用方传入缺 fields 的 schema 对象（如仅 { version: 1 }），先补齐再追加
     if (!fields.value.fields) {
         fields.value.fields = [];
     }
-    return fields.value.fields;
-});
-
-const addItem = () => {
-    fieldList.value.push({ prop: '', type: 'input' });
+    fields.value.fields.push({ prop: '', type: 'input' });
 };
 
 const deleteItem = (index: number) => {
-    fieldList.value.splice(index, 1);
+    fields.value.fields?.splice(index, 1);
 };
 
 // ── 嵌套属性的便捷读写（required 位于 rules 内、options 为选项数组） ──

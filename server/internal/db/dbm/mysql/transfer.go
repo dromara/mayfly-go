@@ -85,6 +85,11 @@ func (c *commonTypeConverter) Timestamp(col *dbi.Column) *dbi.DbDataType {
 }
 
 func (c *commonTypeConverter) Binary(col *dbi.Column) *dbi.DbDataType {
+	// 源列无长度信息时（如pg bytea无character_maximum_length），mysql "binary"
+	// 默认binary(1)会直接截断数据（Data too long），降级为blob
+	if col.CharMaxLength <= 0 {
+		return Blob
+	}
 	return Binary
 }
 func (c *commonTypeConverter) Varbinary(col *dbi.Column) *dbi.DbDataType {

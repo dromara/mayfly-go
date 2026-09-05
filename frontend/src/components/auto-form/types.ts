@@ -2,10 +2,26 @@
  * AutoForm 类型定义
  *
  * AutoFormItem 同时描述字段渲染与校验规则，是表单的唯一数据源。
- * 通过配置化方式声明表单，避免各处重复维护相似的 el-form 模板。
+ * 通过配置化方式声明表单，避免各处重复维护相似的表单模板。
+ *
+ * 本文件与 shared.ts / json/ 构成框架无关的 core 层（由 __tests__/architecture.test.ts 守护）：
+ * 禁止 import 任何 UI 框架（element-plus 等），UI 能力由适配层组件消费与翻译。
  */
-import type { FormItemRule } from 'element-plus';
 import type { EnumValue } from '@/common/Enum';
+
+/**
+ * 校验规则（async-validator 结构化子集，框架无关契约）。
+ * 当前由 element-plus 适配层直接消费；替换 UI 框架时仅需适配层做规则格式转换，
+ * 全站 items.rules 调用点无需变动（Rules.* 等对象字面量天然兼容）。
+ */
+export interface AutoFormItemRule {
+    required?: boolean;
+    message?: string | (() => string);
+    trigger?: string | string[];
+    validator?: (rule: any, value: any, callback: (error?: string | Error) => void) => void;
+    /** 透传底层校验引擎的原生规则字段（min/max/pattern 等），保证适配层可用完整能力 */
+    [key: string]: unknown;
+}
 
 // ── 字段类型 ────────────────────────────────────────────────────
 
@@ -67,11 +83,12 @@ export interface AutoFormItem {
     /** 是否必填（自动生成 requiredInput / requiredSelect 校验规则；支持根据表单值动态计算） */
     required?: boolean | ((form: AutoFormData) => boolean);
 
-    /** 额外的 element-plus 校验规则（与 required 生成的规则合并） */
-    rules?: FormItemRule | FormItemRule[];
+    /** 额外的校验规则（与 required 生成的规则合并，经适配层翻译为 UI 框架规则格式） */
+    rules?: AutoFormItemRule | AutoFormItemRule[];
 
-    /** 自定义校验函数（rules 无法满足的复杂逻辑）：返回 true 通过，false/string（错误提示 i18n key）不通过 */
-    validate?: (value: unknown, form: AutoFormData) => boolean | string;
+    /** 自定义校验函数（rules 无法满足的复杂逻辑）：返回 true 通过，false/string（错误提示 i18n key）不通过；
+     *  也可返回 Promise 做异步校验（如远程重名/连通性检查），resolve 同步语义，reject 视为不通过（字段默认文案） */
+    validate?: (value: unknown, form: AutoFormData) => boolean | string | Promise<boolean | string>;
 
     /** 字段默认值（buildDefaultForm 构建新表单时使用） */
     defaultValue?: unknown;
@@ -190,10 +207,16 @@ export const isSelectLikeItem = (item: AutoFormItem): boolean => {
 export interface AutoFormInstance {
     /** 触发全量校验（校验失败时 reject） */
     validate: (...args: unknown[]) => Promise<unknown>;
+    /** 触发指定字段校验（缺省全部字段），向导式分步场景只校验当前步字段；底层实现不支持时为 undefined */
+    validateField?: (props?: string | string[]) => Promise<unknown>;
     /** 重置字段到初始值并清除校验状态 */
     resetFields: () => void;
     /** 清除校验状态 */
     clearValidate: () => void;
+    /** 触发统一提交流程（校验 → confirmApi/onConfirm → 成功提示 → submitted → 关闭），仅 Dialog/Drawer 宿主暴露，供 #footer 自定义确认按钮使用 */
+    submit?: () => Promise<void>;
+    /** 是否处于提交流程中（含校验期与提交请求期），仅 Dialog/Drawer 宿主暴露，供 #footer 自定义确认按钮 loading */
+    submitting?: boolean;
 }
 
 /**

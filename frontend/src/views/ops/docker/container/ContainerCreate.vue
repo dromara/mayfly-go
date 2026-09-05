@@ -1,5 +1,5 @@
 <template>
-    <auto-form-drawer v-model:visible="dialogVisible" :items="items" :data="editData" size="40%" :confirm-loading="createLoading" scroll-to-error @confirm="btnOk" @opened="onOpened" @cancel="emit('cancel')">
+    <auto-form-drawer v-model:visible="dialogVisible" :items="items" :data="editData" size="40%" :confirm-api="btnOk" scroll-to-error @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
         <!-- 镜像（镜像列表 allow-create） -->
         <template #image="{ form }">
             <el-select v-model="form.image" filterable allow-create>
@@ -177,7 +177,6 @@ import { formatByteSize } from '@/common/utils/format';
 import { deepClone } from '@/common/utils/object';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import SvgIcon from '@/components/svg-icon/index.vue';
-import { Msg } from '@/hooks/useI18n';
 import { computed, reactive, ref, watch, type PropType } from 'vue';
 import { dockerApi } from '../api';
 import type { DockerImageItem } from '../types';
@@ -281,7 +280,7 @@ const onOpened = (form: AutoFormData) => {
     internalForm.value = form;
 };
 
-const { isFetching: createLoading, execute: createExec } = dockerApi.containerCreate.useApi(submitForm);
+const { execute: createExec } = dockerApi.containerCreate.useApi(submitForm);
 
 watch(dialogVisible, async (val) => {
     if (val) {
@@ -340,7 +339,7 @@ const handleDevicesDelete = (index: number) => {
     internalForm.value.devices.splice(index, 1);
 };
 
-// @confirm 触发前 AutoFormDrawer 已完成表单校验
+// confirmApi 提交动作：组装提交参数（端口/环境变量/标签/命令）后创建容器；成功提示与关闭抽屉由组件内置逻辑处理
 const btnOk = async (rawForm: AutoFormData) => {
     const form = rawForm as typeof defaultForm;
     submitForm.value = { ...form };
@@ -370,10 +369,7 @@ const btnOk = async (rawForm: AutoFormData) => {
         submitForm.value.cmd = cmds;
     }
     await createExec();
-    Msg.operateSuccess();
     emit('success', submitForm);
-    dialogVisible.value = false;
-    emit('cancel');
 };
 
 const splitStringIgnoringQuotes = (input: string) => {

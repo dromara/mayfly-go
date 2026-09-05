@@ -21,9 +21,10 @@ func TestPostgresConverter_IntMappings(t *testing.T) {
 	assert.Equal(t, Int8, c.Int8(col))
 	// pg无无符号类型，退化为有符号
 	assert.Equal(t, Int2, c.UnsignedInt1(col))
-	assert.Equal(t, Int2, c.UnsignedInt2(col))
-	assert.Equal(t, Int4, c.UnsignedInt4(col))
-	assert.Equal(t, Int8, c.UnsignedInt8(col))
+	// 无符号需升位避免溢出：uint16>int2上限、uint32>int4上限、uint64>int8上限
+	assert.Equal(t, Int4, c.UnsignedInt2(col))
+	assert.Equal(t, Int8, c.UnsignedInt4(col))
+	assert.Equal(t, Numeric, c.UnsignedInt8(col))
 	// 整数族清空长度精度（WithFixColumn(ClearNumScale)副作用）
 	assert.Equal(t, 0, col.NumPrecision)
 	assert.Equal(t, 0, col.CharMaxLength)

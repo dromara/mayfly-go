@@ -55,6 +55,11 @@ func (md *MysqlDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(mysql.MysqlParser)
 }
 
+// GetSQLSplitter mysql切割器：反斜杠转义 + # 行注释
+func (md *MysqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewMysqlSplitter()
+}
+
 func (md *MysqlDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{Dialect: md}
 }

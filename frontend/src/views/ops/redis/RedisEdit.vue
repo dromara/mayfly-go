@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" @confirm="onConfirm" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
             <!-- 关联标签（自定义插槽） -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -20,7 +20,7 @@
                 <div class="dialog-footer">
                     <el-button @click="onTestConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
                     <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
+                    <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
         </auto-form-drawer>
@@ -54,7 +54,7 @@ const emit = defineEmits(['val-change', 'cancel']);
 /** 可选 DB 列表 */
 const DB_OPTIONS = Array.from({ length: 16 }, (_, i) => i);
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
 /** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；sentinel 专属字段按 mode 条件显隐） */
 const items = computed<AutoFormItem[]>(() => [
@@ -94,7 +94,7 @@ const onOpened = (form: AutoFormData) => {
 };
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi();
-const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi();
+const { execute: saveRedisExec } = redisApi.saveRedis.useApi();
 
 const convertDb = (db: string) => {
     dbList.value = db.split(',').map((x) => Number.parseInt(x));
@@ -126,15 +126,15 @@ const onTestConn = async () => {
     Msg.success('ac.connSuccess');
 };
 
+// confirmApi 提交动作（组装内部表单为请求参数）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
-    // 校验失败内部已 toast（catch 吞掉 reject）
-    const valid = await useI18nFormValidate(drawerRef).catch(() => false);
-    if (valid === false) return;
-    await saveRedisExec(getReqForm());
-    Msg.saveSuccess();
+    const reqForm = getReqForm();
+    if (!reqForm) {
+        // sentinel 主从形态校验失败（getReqForm 内已 toast），保持抽屉打开
+        return;
+    }
+    await saveRedisExec(reqForm);
     emit('val-change', internalForm.value);
-    dialogVisible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

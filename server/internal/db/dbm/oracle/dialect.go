@@ -278,6 +278,11 @@ func (od *OracleDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(oracle.OracleParser)
 }
 
+// GetSQLSplitter 标准SQL切割器：oracle字符串中反斜杠为普通字符
+func (od *OracleDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewStdSQLSplitter()
+}
+
 func (od *OracleDialect) genColumnBasicSql(column dbi.Column) string {
 	colName := od.Quoter().Quote(column.ColumnName)
 

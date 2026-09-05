@@ -20,8 +20,10 @@ var (
 	Float64 = dbi.NewDbDataType("Float64", dbi.DTNumeric).WithCT(dbi.CTNumeric)
 
 	// String types
-	String      = dbi.NewDbDataType("String", dbi.DTString).WithCT(dbi.CTVarchar)
-	FixedString = dbi.NewDbDataType("FixedString", dbi.DTString).WithCT(dbi.CTChar)
+	// ClickHouse字符串字面量与mysql同为反斜杠转义语义（' \\ \n \r \t \0 \b等），
+	// 若反斜杠原样写入，含\\、\n等内容的字符串/JSON会被静默解释为转义字符导致数据损坏
+	String      = dbi.NewDbDataType("String", DTStringCh).WithCT(dbi.CTVarchar)
+	FixedString = dbi.NewDbDataType("FixedString", DTStringCh).WithCT(dbi.CTChar)
 
 	// Date and time types
 	DateTime   = dbi.NewDbDataType("DateTime", dbi.DTDateTime).WithCT(dbi.CTDateTime)
@@ -30,9 +32,9 @@ var (
 	Date32     = dbi.NewDbDataType("Date32", dbi.DTDate).WithCT(dbi.CTDate)
 
 	// Other types
-	UUID = dbi.NewDbDataType("UUID", dbi.DTString).WithCT(dbi.CTVarchar)
-	IPv4 = dbi.NewDbDataType("IPv4", dbi.DTString).WithCT(dbi.CTVarchar)
-	IPv6 = dbi.NewDbDataType("IPv6", dbi.DTString).WithCT(dbi.CTVarchar)
+	UUID = dbi.NewDbDataType("UUID", DTStringCh).WithCT(dbi.CTVarchar)
+	IPv4 = dbi.NewDbDataType("IPv4", DTStringCh).WithCT(dbi.CTVarchar)
+	IPv6 = dbi.NewDbDataType("IPv6", DTStringCh).WithCT(dbi.CTVarchar)
 	Bool = dbi.NewDbDataType("Bool", dbi.DTBool).WithCT(dbi.CTBool)
 
 	// Decimal types
@@ -43,21 +45,25 @@ var (
 	Decimal256 = dbi.NewDbDataType("Decimal256", dbi.DTDecimal).WithCT(dbi.CTDecimal)
 
 	// Enum types
-	Enum8  = dbi.NewDbDataType("Enum8", dbi.DTString).WithCT(dbi.CTEnum)
-	Enum16 = dbi.NewDbDataType("Enum16", dbi.DTString).WithCT(dbi.CTEnum)
+	Enum8  = dbi.NewDbDataType("Enum8", DTStringCh).WithCT(dbi.CTEnum)
+	Enum16 = dbi.NewDbDataType("Enum16", DTStringCh).WithCT(dbi.CTEnum)
 
-	// Complex types
-	Array                   = dbi.NewDbDataType("Array", dbi.DTString).WithCT(dbi.CTVarchar)
-	Tuple                   = dbi.NewDbDataType("Tuple", dbi.DTString).WithCT(dbi.CTVarchar)
-	Map                     = dbi.NewDbDataType("Map", dbi.DTString).WithCT(dbi.CTVarchar)
-	Nested                  = dbi.NewDbDataType("Nested", dbi.DTString).WithCT(dbi.CTVarchar)
-	AggregateFunction       = dbi.NewDbDataType("AggregateFunction", dbi.DTString).WithCT(dbi.CTVarchar)
-	SimpleAggregateFunction = dbi.NewDbDataType("SimpleAggregateFunction", dbi.DTString).WithCT(dbi.CTVarchar)
+	// Complex types（Array/Tuple/Map等以字符串字面量输出，同样遵循CH转义语义）
+	Array                   = dbi.NewDbDataType("Array", DTStringCh).WithCT(dbi.CTVarchar)
+	Tuple                   = dbi.NewDbDataType("Tuple", DTStringCh).WithCT(dbi.CTVarchar)
+	Map                     = dbi.NewDbDataType("Map", DTStringCh).WithCT(dbi.CTVarchar)
+	Nested                  = dbi.NewDbDataType("Nested", DTStringCh).WithCT(dbi.CTVarchar)
+	AggregateFunction       = dbi.NewDbDataType("AggregateFunction", DTStringCh).WithCT(dbi.CTVarchar)
+	SimpleAggregateFunction = dbi.NewDbDataType("SimpleAggregateFunction", DTStringCh).WithCT(dbi.CTVarchar)
 
 	// Special types
-	LowCardinality = dbi.NewDbDataType("LowCardinality", dbi.DTString).WithCT(dbi.CTVarchar)
-	Nullable       = dbi.NewDbDataType("Nullable", dbi.DTString).WithCT(dbi.CTVarchar)
+	LowCardinality = dbi.NewDbDataType("LowCardinality", DTStringCh).WithCT(dbi.CTVarchar)
+	Nullable       = dbi.NewDbDataType("Nullable", DTStringCh).WithCT(dbi.CTVarchar)
 )
+
+// DTStringCh ClickHouse专用字符串类型：CH字符串字面量与mysql同为反斜杠转义语义，
+// 复用mysql转义规则（'双写、反斜杠双写），否则含\\、\n等内容的字符串/JSON会静默损坏
+var DTStringCh = dbi.DTString.Copy().WithSQLValue(dbi.SQLValueStringEscapeBackslash)
 
 // Get all ClickHouse data types as a map for easy lookup
 func GetAllClickHouseDataTypes() map[string]*dbi.DbDataType {

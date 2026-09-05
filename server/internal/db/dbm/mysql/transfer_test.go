@@ -82,8 +82,12 @@ func TestMysqlConverter_RemainingMappings(t *testing.T) {
 	assert.Equal(t, Double, c.Numeric(newCol()))
 	assert.Equal(t, Time, c.Time(newCol()))
 	assert.Equal(t, Timestamp, c.Timestamp(newCol()))
-	assert.Equal(t, Binary, c.Binary(newCol()))
 	assert.Equal(t, Varbinary, c.Varbinary(newCol()))
+	// binary无长度信息时降级为blob（mysql "binary"默认binary(1)会截断数据）
+	assert.Equal(t, Blob, c.Binary(newCol()))
+	lenCol := newCol()
+	lenCol.CharMaxLength = 16
+	assert.Equal(t, Binary, c.Binary(lenCol))
 	assert.Equal(t, Mediumblob, c.Mediumblob(newCol()))
 	assert.Equal(t, Longtext, c.Longtext(newCol()))
 

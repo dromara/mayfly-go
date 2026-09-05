@@ -5,12 +5,11 @@
  * 复用 AutoForm / AutoFormControl 的渲染与校验体系：
  * - when / disabled 条件 → 函数（基于 evalCondition 安全求值）
  * - optionsSource → 异步 options 函数（走统一 request 封装，仅允许站内相对路径）
- * - rules → element-plus FormItemRule
+ * - rules → AutoFormItemRule（async-validator 结构化子集，框架无关）
  */
-import type { FormItemRule } from 'element-plus';
 import { i18n } from '@/i18n';
 import request from '@/common/request';
-import type { AutoFormData, AutoFormItem, AutoFormSelectOption, AutoFormTab, ControlDescriptor } from '../types';
+import type { AutoFormItemRule, AutoFormData, AutoFormItem, AutoFormSelectOption, AutoFormTab, ControlDescriptor } from '../types';
 import { CONTROL_REGISTRY } from '../types';
 import { evalCondition } from './condition';
 import type { AutoFormJsonSchema, JsonCondition, JsonField, JsonOptionsSource, JsonRules } from './schema';
@@ -22,13 +21,13 @@ const compileCondition = (cond: JsonCondition | undefined) => (cond ? (form: Aut
  * 返回求值函数延迟翻译（async-validator 支持函数 message），语言切换后校验时取最新文案，避免编译期冻结 */
 const ruleMessage = (message: string | undefined, defaultKey: string) => (): string => i18n.global.t(message ?? defaultKey);
 
-/** 校验规则编译：required 提升为 item.required（由 AutoForm 生成 i18n 必填规则），其余编译为 FormItemRule */
-const compileRules = (field: JsonField): { required?: boolean; rules?: FormItemRule[] } => {
+/** 校验规则编译：required 提升为 item.required（由 AutoForm 生成 i18n 必填规则），其余编译为 AutoFormItemRule */
+const compileRules = (field: JsonField): { required?: boolean; rules?: AutoFormItemRule[] } => {
     const jsonRules: JsonRules | undefined = field.rules;
     if (!jsonRules) {
         return {};
     }
-    const rules: FormItemRule[] = [];
+    const rules: AutoFormItemRule[] = [];
     const message = jsonRules.message;
     if (jsonRules.minLength != null || jsonRules.maxLength != null) {
         rules.push({

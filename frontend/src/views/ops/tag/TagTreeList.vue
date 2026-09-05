@@ -107,7 +107,8 @@
             :data="saveTabDialog.form"
             :items="tagFormItems"
             width="500px"
-            @confirm="onSaveTag"
+            :confirm-api="onSaveTag"
+            @submitted="onTagSaved"
             @cancel="onCancelSaveTag"
         />
 
@@ -357,9 +358,13 @@ const onShowEditTagDialog = (data: TreeNodeData) => {
     state.saveTabDialog.visible = true;
 };
 
+// confirmApi 提交动作；成功提示与关闭弹窗由组件内置逻辑处理
 const onSaveTag = async (form: { id?: number; pid?: number; name?: string; remark?: string }) => {
     await tagApi.saveTagTree.request(form);
-    Msg.saveSuccess();
+};
+
+// 保存成功后刷新列表并重置选中态
+const onTagSaved = () => {
     search();
     onCancelSaveTag();
     state.currentTag = null;

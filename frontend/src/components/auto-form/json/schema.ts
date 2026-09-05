@@ -76,7 +76,7 @@ export interface JsonOptionsSource {
 
 // ── 校验规则 ────────────────────────────────────────────────────
 
-/** 校验规则（JSON 可序列化子集，编译为 element-plus FormItemRule） */
+/** 校验规则（JSON 可序列化子集，编译为 AutoFormItemRule） */
 export interface JsonRules {
     /** 是否必填 */
     required?: boolean;

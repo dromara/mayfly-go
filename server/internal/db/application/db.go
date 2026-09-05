@@ -343,17 +343,14 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 			dataCount := 0
 			rows := make([][]any, 0)
-			_, err = dbConn.WalkTableRows(ctx, srcQuoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
-				rowValues := make([]any, len(columns))
-				for i, col := range columns {
-					rowValues[i] = row[col.ColumnName]
-				}
-				rows = append(rows, rowValues)
-				dataCount++
-				if dataCount%100 != 0 {
+			// 行数与字节数双预算：固定100行分批在单行大值（如大blob/text）场景下会
+			// 生成超大单条INSERT（100行×1MB=100MB），导致内存峰值暴涨，且导入时超
+			// mysql max_allowed_packet等单包上限直接失败；累计字节超预算时提前flush
+			pendingBytes := 0
+			flushRows := func() error {
+				if len(rows) == 0 {
 					return nil
 				}
-
 				beforeInsert := targetDumpHelper.BeforeInsertSql(quoteSchema, tableName)
 				if beforeInsert != "" {
 					writer.WriteString(beforeInsert)
@@ -362,8 +359,35 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
 					return err
 				}
-				progress(tableName, dbi.StmtTypeInsert, dataCount, false)
 				rows = make([][]any, 0)
+				pendingBytes = 0
+				return nil
+			}
+			_, err = dbConn.WalkTableRows(ctx, srcQuoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+				rowValues := make([]any, len(columns))
+				rowBytes := 0
+				for i, col := range columns {
+					rowValues[i] = row[col.ColumnName]
+					switch v := rowValues[i].(type) {
+					case string:
+						rowBytes += len(v)
+					case []byte:
+						rowBytes += len(v)
+					default:
+						rowBytes += 16
+					}
+				}
+				rows = append(rows, rowValues)
+				dataCount++
+				pendingBytes += rowBytes
+				if dataCount%dbi.DumpInsertBatchRows != 0 && pendingBytes < dbi.DumpInsertBatchBytes {
+					return nil
+				}
+
+				if err := flushRows(); err != nil {
+					return err
+				}
+				progress(tableName, dbi.StmtTypeInsert, dataCount, false)
 				return nil
 			})
 
@@ -371,15 +395,8 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 				return err
 			}
 
-			if len(rows) > 0 {
-				beforeInsert := targetDumpHelper.BeforeInsertSql(quoteSchema, tableName)
-				if beforeInsert != "" {
-					writer.WriteString(beforeInsert)
-				}
-				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone, nil)
-				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
-					return err
-				}
+			if err := flushRows(); err != nil {
+				return err
 			}
 
 			if err := targetDumpHelper.AfterInsert(writer, tableName, columns); err != nil {

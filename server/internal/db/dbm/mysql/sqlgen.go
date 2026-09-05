@@ -108,6 +108,19 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 		nullAble = " NOT NULL"
 	}
 	columnType := column.GetColumnType()
+	// 注册类型名为"unsigned xxx"（与元数据data_type归一化对齐），但mysql DDL语法为"xxx unsigned"，
+	// 需转为后缀形式，否则异构迁移生成DDL会报语法错误
+	if strings.HasPrefix(columnType, "unsigned ") {
+		columnType = strings.TrimPrefix(columnType, "unsigned ") + " unsigned"
+	}
+	// mysql的varchar/char/varbinary必须声明长度，无长度DDL直接语法错误；
+	// 跨方言迁移时源列可能无长度信息（如sqlite numeric动态类型转varchar），补默认长度
+	if !strings.Contains(columnType, "(") {
+		lower := strings.ToLower(columnType)
+		if strings.HasPrefix(lower, "varchar") || strings.HasPrefix(lower, "char") || strings.HasPrefix(lower, "varbinary") {
+			columnType = fmt.Sprintf("%s(255)", columnType)
+		}
+	}
 	if nullAble == "" && strings.Contains(columnType, "timestamp") {
 		nullAble = " NULL"
 	}

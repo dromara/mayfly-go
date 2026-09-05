@@ -106,7 +106,14 @@ export class DbInst {
         return tables;
     }
 
-    async loadTableSuggestions(dbDialect: DbDialect, dbName: string, range: IRange, reload?: boolean) {
+    /**
+     * 表名联想，返回建议列表
+     * @param dbName 数据库名
+     * @param range 补全替换范围
+     * @param reload 是否重新请求接口获取数据
+     * @returns 建议列表，insertText 为裸表名，由补全模块统一按方言包裹引用符
+     */
+    async loadTableSuggestions(dbName: string, range: IRange, reload?: boolean) {
         const tables = await this.loadTables(dbName, reload);
         // 表名联想
         let suggestions: languages.CompletionItem[] = [];
@@ -119,7 +126,7 @@ export class DbInst {
                 },
                 kind: languages.CompletionItemKind.File,
                 detail: tableComment,
-                insertText: dbDialect.quoteIdentifier(tableName),
+                insertText: tableName,
                 range,
                 sortText: 300 + index + '',
             });
@@ -128,7 +135,14 @@ export class DbInst {
     }
 
     /** 加载列信息提示 */
-    async loadTableColumnSuggestions(dbDialect: DbDialect, db: string, tableName: string, range: IRange) {
+    /**
+     * 表字段联想，返回建议列表
+     * @param db 数据库名
+     * @param tableName 表名
+     * @param range 补全替换范围
+     * @returns 建议列表，insertText 为裸字段名，由补全模块统一按方言包裹引用符
+     */
+    async loadTableColumnSuggestions(db: string, tableName: string, range: IRange) {
         let dbHits = await this.loadDbHints(db);
         let columns = dbHits[tableName];
         let suggestions: languages.CompletionItem[] = [];
@@ -143,7 +157,7 @@ export class DbInst {
                 },
                 kind: languages.CompletionItemKind.Property,
                 detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: dbDialect.quoteIdentifier(fieldName), // create_time
+                insertText: fieldName, // create_time
                 range,
                 sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
             });
