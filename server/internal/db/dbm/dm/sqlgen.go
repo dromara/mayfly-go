@@ -9,8 +9,7 @@ import (
 )
 
 type SQLGenerator struct {
-	Dialect  dbi.Dialect
-	Metadata dbi.Metadata
+	Dialect dbi.Dialect
 }
 
 func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
@@ -83,64 +82,21 @@ func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []strin
 	return sqls
 }
 
-func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int) []string {
+func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	quoter := sg.Dialect.Quoter()
 	quote := quoter.Quote
 
-	if duplicateStrategy == dbi.DuplicateStrategyNone {
-		var res []string
-		var hasIdentity = false
-		identityInsertOn := ""
-		identityInsertOff := ""
-		// 有自增列的才加上这个语句
-		if collx.AnyMatch(columns, func(column dbi.Column) bool { return column.AutoIncrement }) {
-			identityInsertOn = fmt.Sprintf("set identity_insert %s on;", quote(tableName))
-			hasIdentity = true
-			res = append(res, identityInsertOn)
-		}
-
-		// 达梦数据库只能一条条的执行insert语句，所以这里需要将values拆分成多条insert语句
-		sqls := collx.ArrayMap(values, func(value []any) string {
-			columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(sg.Dialect, DbTypeDM, columns, [][]any{value})
-			return fmt.Sprintf("insert into %s %s values %s", quote(tableName), columnStr, valuesStrs[0])
-		})
-
-		res = append(res, sqls...)
-
-		if hasIdentity {
-			res = append(res, identityInsertOff)
-		}
-		return res
+	if duplicateStrategy != dbi.DuplicateStrategyUpdate || targetTableMeta == nil || len(targetTableMeta.UniqueColumns) == 0 {
+		// 直接插入（无法生成 merge 语句时也退化为直接插入，避免静默丢失数据由数据库主键约束报错提示）
+		return sg.genSimpleInserts(tableName, columns, values)
 	}
 
-	// 查询主键字段
 	uniqueCols := make([]string, 0)
 	caseSqls := make([]string, 0)
-	metadata := sg.Metadata
-	tableCols, _ := metadata.GetColumns(tableName)
-	identityCols := make([]string, 0)
-	for _, col := range tableCols {
-		if col.IsPrimaryKey {
-			uniqueCols = append(uniqueCols, col.ColumnName)
-			caseSqls = append(caseSqls, fmt.Sprintf("( T1.%s = T2.%s )", quote(col.ColumnName), quote(col.ColumnName)))
-		}
-		if col.AutoIncrement {
-			// 自增字段不放入insert内，即使是设置了identity_insert on也不起作用
-			identityCols = append(identityCols, quote(col.ColumnName))
-		}
-	}
-	// 查询唯一索引涉及到的字段，并组装到match条件内
-	indexs, _ := metadata.GetTableIndex(tableName)
-	for _, index := range indexs {
-		if index.IsUnique {
-			cols := strings.Split(index.ColumnName, ",")
-			tmp := make([]string, 0)
-			for _, col := range cols {
-				uniqueCols = append(uniqueCols, col)
-				tmp = append(tmp, fmt.Sprintf(" T1.%s = T2.%s ", quote(col), quote(col)))
-			}
-			caseSqls = append(caseSqls, fmt.Sprintf("( %s )", strings.Join(tmp, " AND ")))
-		}
+	identityCols := targetTableMeta.IdentityColumns
+	for _, col := range targetTableMeta.UniqueColumns {
+		uniqueCols = append(uniqueCols, col)
+		caseSqls = append(caseSqls, fmt.Sprintf("( T1.%s = T2.%s )", quote(col), quote(col)))
 	}
 
 	// 重复数据处理策略
@@ -160,6 +116,10 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 		}
 
 	}
+	if len(upds) == 0 {
+		// 所有列均为唯一键列，无法生成update子句，退化为直接插入
+		return sg.genSimpleInserts(tableName, columns, values)
+	}
 	t2s := make([]string, 0)
 	for i := 0; i < len(values); i++ {
 		t2s = append(t2s, fmt.Sprintf("SELECT %s FROM dual", strings.Join(phs, ",")))
@@ -171,6 +131,37 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(upds, ",")
 
 	return collx.AsArray(sqlTemp)
+}
+
+// genSimpleInserts 生成直接插入语句，达梦只能一条条执行insert，所以将values拆分为多条insert语句
+func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column, values [][]any) []string {
+	quoter := sg.Dialect.Quoter()
+	quote := quoter.Quote
+
+	var res []string
+	var hasIdentity = false
+	identityInsertOn := ""
+	identityInsertOff := ""
+	// 有自增列的才加上这个语句
+	if collx.AnyMatch(columns, func(column dbi.Column) bool { return column.AutoIncrement }) {
+		identityInsertOn = fmt.Sprintf("set identity_insert %s on;", quote(tableName))
+		identityInsertOff = fmt.Sprintf("set identity_insert %s off;", quote(tableName))
+		hasIdentity = true
+		res = append(res, identityInsertOn)
+	}
+
+	// 达梦数据库只能一条条的执行insert语句，所以这里需要将values拆分成多条insert语句
+	sqls := collx.ArrayMap(values, func(value []any) string {
+		columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(sg.Dialect, DbTypeDM, columns, [][]any{value})
+		return fmt.Sprintf("insert into %s %s values %s", quote(tableName), columnStr, valuesStrs[0])
+	})
+
+	res = append(res, sqls...)
+
+	if hasIdentity {
+		res = append(res, identityInsertOff)
+	}
+	return res
 }
 
 func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
@@ -208,7 +199,8 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 			}
 		}
 		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+			// 默认值可能含单引号（如 it's），需双写转义，避免 DDL 语法错误或注入
+			defVal = fmt.Sprintf(" DEFAULT '%s'", dbi.QuoteEscape(column.ColumnDefault))
 		} else {
 			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
 		}

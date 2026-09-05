@@ -13,44 +13,14 @@
                 <DrawerHeader :header="title" :back="onCancel" />
             </template>
 
-            <el-form :model="form" ref="dbFormRef" :rules="rules" label-width="auto">
-                <el-divider content-position="left">{{ t('common.basic') }}</el-divider>
-
-                <el-form-item prop="tagCodePaths" :label="t('tag.relateTag')">
+            <auto-form ref="dbFormRef" v-model="form" :items="items" label-width="auto">
+                <!-- 关联标签 -->
+                <template #tagCodePaths>
                     <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                </el-form-item>
+                </template>
 
-                <el-form-item prop="name" :label="t('common.name')" required>
-                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                </el-form-item>
-
-                <el-form-item prop="version" :label="t('common.version')">
-                    <el-input v-model.trim="form.version" auto-complete="off" disabled></el-input>
-                </el-form-item>
-                <!-- 增加协议下拉框 http和https，默认http-->
-                <el-form-item prop="protocol" :label="t('es.protocol')">
-                    <el-select v-model="form.protocol" placeholder="http">
-                        <el-option label="http" value="http"></el-option>
-                        <el-option label="https" value="https"></el-option>
-                    </el-select>
-                </el-form-item>
-
-                <el-form-item prop="host" label="Host" required>
-                    <el-col :span="18">
-                        <el-input v-model.trim="form.host" auto-complete="off"></el-input>
-                    </el-col>
-                    <el-col style="text-align: center" :span="1">:</el-col>
-                    <el-col :span="5">
-                        <el-input type="number" v-model.number="form.port" :placeholder="t('es.port')"></el-input>
-                    </el-col>
-                </el-form-item>
-
-                <el-form-item prop="remark" :label="t('common.remark')">
-                    <el-input v-model="form.remark" auto-complete="off" type="textarea"></el-input>
-                </el-form-item>
-
-                <el-divider content-position="left">{{ t('common.account') }}</el-divider>
-                <div>
+                <!-- 认证信息表格编辑 -->
+                <template #authCerts>
                     <ResourceAuthCertTableEdit
                         v-model="form.authCerts"
                         :resource-code="form.code"
@@ -59,19 +29,18 @@
                         @test-conn="onTestConn"
                         :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
                     />
-                </div>
+                </template>
 
-                <el-divider content-position="left">{{ t('common.other') }}</el-divider>
-
-                <el-form-item prop="sshTunnelMachineId" :label="t('machine.sshTunnel')">
+                <!-- SSH 隧道 -->
+                <template #sshTunnelMachineId>
                     <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
 
             <template #footer>
-                <el-button @click="onTestConn(null)" type="success" v-if="(form.authCerts?.length ?? 0) <= 0">{{ t('ac.testConn') }}</el-button>
-                <el-button @click="onCancel()">{{ t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ t('common.confirm') }}</el-button>
+                <el-button @click="onTestConn(null)" type="success" v-if="(form.authCerts?.length ?? 0) <= 0">{{ $t('ac.testConn') }}</el-button>
+                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
             </template>
         </el-drawer>
     </div>
@@ -79,12 +48,10 @@
 
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { Rules } from '@/common/rule';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
-import { useI18n } from 'vue-i18n';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -102,7 +69,6 @@ interface EsInstanceForm extends Omit<Partial<EsInstance>, 'id' | 'name' | 'sshT
     tagCodePaths?: string[];
 }
 
-const { t } = useI18n();
 
 const props = defineProps({
     data: {
@@ -119,14 +85,23 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const rules = {
-    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
-    name: [Rules.requiredInput('common.name')],
-    type: [Rules.requiredSelect('common.type')],
-    host: [Rules.requiredInput('Host:Port')],
-};
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/authCerts/sshTunnel 走插槽） */
+const items: AutoFormItem[] = [
+    { type: 'group', label: 'common.basic' },
+    { prop: 'tagCodePaths', label: 'tag.relateTag' },
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'version', label: 'common.version', disabled: true },
+    { prop: 'protocol', label: 'es.protocol', type: 'select', options: [{ value: 'http', label: 'http' }, { value: 'https', label: 'https' }], placeholder: 'http' },
+    { prop: 'host', label: 'Host', required: true, span: 18 },
+    { prop: 'port', label: 'Port', type: 'number', span: 6, placeholder: 'es.port' },
+    { prop: 'remark', label: 'common.remark', type: 'textarea' },
+    { type: 'group', label: 'common.account' },
+    { prop: 'authCerts', label: 'db.acName', type: 'custom' },
+    { type: 'group', label: 'common.other' },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
+];
 
-const dbFormRef = useTemplateRef<FormInstance>('dbFormRef');
+const dbFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('dbFormRef');
 
 const DefaultForm: EsInstanceForm = {
     id: null,

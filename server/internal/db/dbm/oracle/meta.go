@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 
@@ -85,8 +86,12 @@ func (om *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 	// 查询数据库版本信息，以做兼容性处理
 	if conn.Info.Version == "" && !conn.Info.DefaultVersion {
 		if conn.GetDb() != nil {
-			_, res, _ := conn.Query("select VERSION from v$instance")
-			if len(res) > 0 {
+			_, res, err := conn.Query("select VERSION from v$instance")
+			if err != nil {
+				// 查询版本失败（可能无v$instance权限），保持默认版本并记录日志，不阻断元数据获取
+				logx.Errorf("failed to query oracle version, use default version: %s", err.Error())
+				conn.Info.DefaultVersion = true
+			} else if len(res) > 0 {
 				version := cast.ToString(res[0]["VERSION"])
 				// 11开头为11g版本
 				if strings.HasPrefix(version, "11") {
@@ -95,6 +100,8 @@ func (om *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 				} else {
 					conn.Info.DefaultVersion = true
 				}
+			} else {
+				conn.Info.DefaultVersion = true
 			}
 		}
 	}

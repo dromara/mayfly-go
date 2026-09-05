@@ -276,17 +276,7 @@
             top="5vh"
             width="400px"
         >
-            <div>
-                <el-form-item prop="name" :label="$t('common.name')">
-                    <el-input v-model.trim="createFileDialog.name" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="type" :label="$t('common.type')">
-                    <el-radio-group v-model="createFileDialog.type">
-                        <el-radio value="d" label="d">{{ $t('machine.folder') }}</el-radio>
-                        <el-radio value="-" label="-">{{ $t('machine.file') }}</el-radio>
-                    </el-radio-group>
-                </el-form-item>
-            </div>
+            <auto-form v-model="createFileDialog" :items="createFileItems" label-width="auto" />
 
             <template #footer>
                 <div>
@@ -309,6 +299,7 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
+import type { AutoFormItem } from '@/components/auto-form';
 import { ElInput } from 'element-plus';
 import { computed, defineAsyncComponent, getCurrentInstance, onMounted, reactive, ref, toRefs } from 'vue';
 import { machineApi } from '../api';
@@ -574,6 +565,12 @@ const showCreateFileDialog = () => {
     state.createFileDialog.data = {};
     state.createFileDialog.visible = true;
 };
+
+/** 新建文件/文件夹表单声明 */
+const createFileItems: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', required: true, props: { autocomplete: 'off' } },
+    { prop: 'type', label: 'common.type', type: 'radio', options: [{ label: 'machine.folder', value: 'd' }, { label: 'machine.file', value: '-' }] },
+];
 
 const createFile = async () => {
     const name = state.createFileDialog.name;

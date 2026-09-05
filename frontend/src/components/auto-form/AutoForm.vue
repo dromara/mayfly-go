@@ -1,83 +1,122 @@
 <template>
-    <el-form ref="formRef" :model="model" :rules="formRules" label-width="auto" v-bind="$attrs">
-        <el-row :gutter="16">
-            <template v-for="(item, index) in props.items" :key="item.prop ?? `item-${index}`">
-                <el-col v-if="isVisible(item)" :span="item.span ?? defaultSpan">
-                    <!-- 分隔标题 -->
-                    <el-divider v-if="item.type == 'divider'" content-position="left">
-                        {{ item.label ? $t(item.label) : '' }}
-                    </el-divider>
+    <el-form ref="formRef" :model="model" :rules="formRules" :label-position="labelPosition ?? 'right'" :label-width="labelWidth ?? 'auto'" v-bind="$attrs">
+        <!-- Tab 分组布局（非懒渲染：未激活 Tab 的字段同样挂载，validate 全量生效） -->
+        <el-tabs v-if="activeTabs.length" v-model="activeTab">
+            <el-tab-pane v-for="tab in activeTabs" :key="tab.name" :name="tab.name" :disabled="isTabDisabled(tab)">
+                <template #label>
+                    <span class="flex items-center">
+                        <SvgIcon v-if="tab.icon" :name="tab.icon" class="mr-1" />
+                        {{ $t(tab.label) }}
+                    </span>
+                </template>
+                <AutoFormFields :items="tab.items" :form="model" :cols="props.cols" :readonly="props.readonly ?? false">
+                    <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
+                        <slot :name="name" v-bind="slotProps ?? {}" />
+                    </template>
+                </AutoFormFields>
+            </el-tab-pane>
+        </el-tabs>
 
-                    <el-form-item v-else :prop="item.prop" :label="item.label ? $t(item.label) : ''">
-                        <!-- 标签旁 tooltip 提示 -->
-                        <template v-if="item.tooltip" #label>
-                            <div class="flex items-center">
-                                {{ item.label ? $t(item.label) : '' }}
-                                <el-tooltip :content="$t(item.tooltip)" placement="top">
-                                    <SvgIcon name="QuestionFilled" class="ml-1" />
-                                </el-tooltip>
-                            </div>
-                        </template>
-
-                        <!-- 自定义插槽（type='custom' 或父组件提供了同名插槽） -->
-                        <slot v-if="slotNameOf(item)" :name="slotNameOf(item)!" :form="model" :item="item" />
-                        <AutoFormControl v-else-if="item.prop" v-model="model[item.prop]" :item="item" :form="model" />
-                    </el-form-item>
-                </el-col>
+        <!-- 平铺布局（支持 group 分组容器） -->
+        <AutoFormFields v-else :items="allItems" :form="model" :cols="props.cols" :readonly="props.readonly ?? false">
+            <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
+                <slot :name="name" v-bind="slotProps ?? {}" />
             </template>
-        </el-row>
+        </AutoFormFields>
     </el-form>
 </template>
 
 <script lang="ts" setup>
-import { computed, useSlots, useTemplateRef } from 'vue';
+import { computed, ref, watchEffect, useTemplateRef } from 'vue';
 import type { FormInstance, FormItemRule } from 'element-plus';
+import { useI18n } from 'vue-i18n';
 import { Rules } from '@/common/rule';
-import AutoFormControl from './AutoFormControl.vue';
-import { isSelectLikeItem, type AutoFormData, type AutoFormItem } from './types';
+import SvgIcon from '@/components/svg-icon/index.vue';
+import AutoFormFields from './AutoFormFields.vue';
+import { compileJsonTabs, type AutoFormJsonSchema, type JsonField } from './json';
+import { isItemRequired, resolveFormItems } from './shared';
+import { isSelectLikeItem, type AutoFormData, type AutoFormItem, type AutoFormInstance, type AutoFormTab } from './types';
 
 const props = defineProps<{
-    /** 字段配置（唯一数据源：渲染 + 校验） */
-    items: AutoFormItem[];
-    /** 栅格列数（默认 1，字段可用 span 单独覆盖） */
-    cols?: number;
+        /** 字段配置（渲染 + 校验数据源），与 schema 二选一 */
+        items?: AutoFormItem[];
+        /** v1 JSON Schema 表单定义（经编译层转为 items），与 items 二选一，优先 schema */
+        schema?: AutoFormJsonSchema | JsonField[];
+        /** Tab 页签布局（每个 Tab 为一组字段，共享表单数据与校验），与 schema 内置 tabs 等效 */
+        tabs?: AutoFormTab[];
+        /** 栅格列数（默认 1，字段可用 span 单独覆盖） */
+        cols?: number;
+        /** 全局只读模式（所有字段禁用，字段级 readonly 同样生效） */
+        readonly?: boolean;
+        /** label 位置（right 右侧水平对齐 / top 输入项上方；缺省 right，抽屉场景由 AutoFormDrawer 默认传 top） */
+        labelPosition?: 'left' | 'right' | 'top';
+        /** label 宽度（默认 auto：mirror 测量全表单最宽 label 后统一右对齐；嵌套弹窗等场景测量漂移导致个别 label 溢出压线时，可传固定宽度如 '80px'） */
+        labelWidth?: string;
 }>();
+
+const { t } = useI18n();
 
 /** 表单数据（v-model 双向绑定） */
 const model = defineModel<AutoFormData>({ default: () => ({}) });
 
-const slots = useSlots();
-
 const formRef = useTemplateRef<FormInstance>('formRef');
 
-/** 每个字段默认占据的栅格跨度 */
-const defaultSpan = computed(() => Math.floor(24 / (props.cols ?? 1)));
-
-/** 条件显隐 */
-const isVisible = (item: AutoFormItem) => !item.when || item.when(model.value);
-
-/** custom 类型或父组件提供了 prop 同名插槽时，返回插槽名 */
-const slotNameOf = (item: AutoFormItem): string | null => {
-    const name = item.slot ?? item.prop;
-    if (!name) {
-        return null;
+/** 生效的 Tab 布局：props.tabs 优先，其次 schema 内置 tabs（编译为 AutoFormTab[]） */
+const activeTabs = computed<AutoFormTab[]>(() => {
+    if (props.tabs?.length) {
+        return props.tabs;
     }
-    if (item.type == 'custom' || slots[name]) {
-        return name;
+    const schema = props.schema;
+    if (schema && !Array.isArray(schema) && schema.tabs?.length) {
+        return compileJsonTabs(schema);
     }
-    return null;
-};
+    return [];
+});
 
-/** 根据字段配置生成 element-plus 校验规则（required + 自定义 rules 合并） */
+/** 当前激活 Tab（支持 v-model:active-tab 外部控制，如向导式上一步/下一步；缺省自动激活第一个 Tab） */
+const activeTab = defineModel<string>('activeTab', { default: '' });
+
+// 未指定激活 Tab 时自动激活第一个，保证外部向导逻辑读到的始终是有效 Tab 名
+watchEffect(() => {
+    if (!activeTab.value && activeTabs.value.length) {
+        activeTab.value = activeTabs.value[0].name;
+    }
+});
+
+/** Tab 禁用（静态布尔或根据表单值动态计算） */
+const isTabDisabled = (tab: AutoFormTab): boolean =>
+    typeof tab.disabled === 'function' ? tab.disabled(model.value) : !!tab.disabled;
+
+/** 生效的字段配置：schema 优先编译，否则使用 items（与 Dialog/Drawer 共用同一解析逻辑） */
+const allItems = resolveFormItems(props);
+
+/** 根据字段配置生成 element-plus 校验规则（required + validate 函数 + 自定义 rules 合并） */
 const formRules = computed(() => {
     const rules: Record<string, FormItemRule[]> = {};
-    for (const item of props.items) {
+    // Tab 布局时（props.tabs 或 schema.tabs）校验字段为全部 Tab 字段的合集，否则用平铺 items
+    const ruleItems = activeTabs.value.length ? activeTabs.value.flatMap((tab) => tab.items) : allItems.value;
+    for (const item of ruleItems) {
         if (!item.prop) {
             continue;
         }
         const itemRules: FormItemRule[] = [];
-        if (item.required) {
+        // 动态 required：根据表单值实时计算（如条件必填字段，与 FieldCol 星号显示共用同一判定）
+        if (isItemRequired(item, model.value)) {
             itemRules.push(isSelectLikeItem(item) ? Rules.requiredSelect(item.label) : Rules.requiredInput(item.label));
+        }
+        if (item.validate) {
+            const validateFn = item.validate;
+            const label = item.label ?? '';
+            itemRules.push({
+                validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+                    const res = validateFn(value, model.value);
+                    if (res === true) {
+                        callback();
+                    } else {
+                        callback(new Error(res === false ? t(label) : t(res)));
+                    }
+                },
+            });
         }
         if (item.rules) {
             itemRules.push(...(Array.isArray(item.rules) ? item.rules : [item.rules]));
@@ -101,10 +140,12 @@ const clearValidate = () => {
     formRef.value?.clearValidate();
 };
 
-defineExpose({
+/** 暴露内部表单方法（AutoFormInstance 契约编译期校验，外部编程式校验/重置/清校验） */
+const exposed: AutoFormInstance = {
     validate,
     resetFields,
     clearValidate,
-});
+};
+defineExpose(exposed);
 </script>
 <style lang="scss" scoped></style>

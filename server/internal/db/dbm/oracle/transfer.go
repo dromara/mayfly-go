@@ -8,6 +8,11 @@ type commonTypeConverter struct {
 }
 
 func (c *commonTypeConverter) Varchar(col *dbi.Column) *dbi.DbDataType {
+	// VARCHAR2(n)上限4000字节（extended默认关闭），超长转CLOB承载，避免非法DDL
+	if col.CharMaxLength > 4000 {
+		col.CharMaxLength = 0
+		return CLOB
+	}
 	return VARCHAR2
 }
 
@@ -15,13 +20,20 @@ func (c *commonTypeConverter) Char(col *dbi.Column) *dbi.DbDataType {
 	return CHAR
 }
 func (c *commonTypeConverter) Text(col *dbi.Column) *dbi.DbDataType {
-	return NVARCHAR2
+	// NVARCHAR2无长度时默认长度为1，长文本必插入失败，改用无长度约束的CLOB
+	return lobType(col)
 }
 func (c *commonTypeConverter) Mediumtext(col *dbi.Column) *dbi.DbDataType {
-	return NVARCHAR2
+	return lobType(col)
 }
 func (c *commonTypeConverter) Longtext(col *dbi.Column) *dbi.DbDataType {
-	return NVARCHAR2
+	return lobType(col)
+}
+
+// lobType 大文本统一归一化：CLOB无长度概念，需清空源长度避免生成CLOB(n)非法DDL
+func lobType(col *dbi.Column) *dbi.DbDataType {
+	col.CharMaxLength = 0
+	return CLOB
 }
 
 func (c *commonTypeConverter) Bit(col *dbi.Column) *dbi.DbDataType {

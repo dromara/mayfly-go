@@ -1,12 +1,15 @@
 package clickhouse
 
 import (
-	"errors"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/gox"
+	"mayfly-go/pkg/logx"
 	"strings"
+	"time"
 )
 
 type ClickHouseDialect struct {
@@ -19,10 +22,6 @@ func (cd *ClickHouseDialect) Quoter() dbi.Quoter {
 		Suffix:     '`',
 		IsReserved: dbi.AlwaysReserve,
 	}
-}
-
-func (cd *ClickHouseDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, errors.New("not support db program")
 }
 
 func (cd *ClickHouseDialect) GetDumpHelper() dbi.DumpHelper {
@@ -38,9 +37,26 @@ func (cd *ClickHouseDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 }
 
 func (cd *ClickHouseDialect) CopyTable(copy *dbi.DbCopyTable) error {
-	// ClickHouse doesn't support traditional table copying
-	// This would need to be implemented with CREATE TABLE ... AS SELECT
-	return errors.New("not implemented")
+	quote := cd.Quoter().Quote
+	tableName := copy.TableName
+
+	// 生成新表名，为老表名+_copy_时间戳
+	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
+
+	// clickhouse不支持create table like，使用create table as复制表结构与引擎（不复制数据）
+	if _, err := cd.dc.Exec(fmt.Sprintf("create table %s as %s", quote(newTableName), quote(tableName))); err != nil {
+		return err
+	}
+
+	// 复制数据（异步执行，执行失败仅记录日志）
+	if copy.CopyData {
+		gox.Go(func() {
+			if _, err := cd.dc.Exec(fmt.Sprintf("insert into %s select * from %s", quote(newTableName), quote(tableName))); err != nil {
+				logx.Errorf("clickhouse copy table [%s] data failed: %s", tableName, err.Error())
+			}
+		})
+	}
+	return nil
 }
 
 func (cd *ClickHouseDialect) GetSQLGenerator() dbi.SQLGenerator {
@@ -55,25 +71,39 @@ type ClickHouseSQLGenerator struct {
 func (csg *ClickHouseSQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
 	var sqls []string
 
+	quote := csg.dialect.Quoter().Quote
+
 	if dropBeforeCreate {
-		sqls = append(sqls, fmt.Sprintf("DROP TABLE IF EXISTS %s", csg.dialect.Quoter().Quote(table.TableName)))
+		sqls = append(sqls, fmt.Sprintf("DROP TABLE IF EXISTS %s", quote(table.TableName)))
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("CREATE TABLE %s (\n", csg.dialect.Quoter().Quote(table.TableName)))
+	sb.WriteString(fmt.Sprintf("CREATE TABLE %s (\n", quote(table.TableName)))
 
+	// 主键列作为MergeTree排序键（MergeTree的ORDER BY列不可为Nullable）
+	pkColumns := make([]string, 0)
 	for i, col := range columns {
 		if i > 0 {
 			sb.WriteString(",\n")
 		}
-		sb.WriteString(fmt.Sprintf("  %s %s", csg.dialect.Quoter().Quote(col.ColumnName), col.DataType))
+		sb.WriteString(fmt.Sprintf("  %s %s", quote(col.ColumnName), csg.columnType(col)))
 
 		if col.ColumnComment != "" {
 			sb.WriteString(fmt.Sprintf(" COMMENT '%s'", strings.ReplaceAll(col.ColumnComment, "'", "''")))
 		}
+
+		if col.IsPrimaryKey {
+			pkColumns = append(pkColumns, quote(col.ColumnName))
+		}
 	}
 
-	sb.WriteString("\n) ENGINE = MergeTree() ORDER BY tuple()")
+	sb.WriteString("\n) ENGINE = MergeTree()")
+	// 有主键则按主键排序（MergeTree主键即排序键，同主键数据可依引擎去重），否则退化为tuple()
+	if len(pkColumns) > 0 {
+		sb.WriteString(fmt.Sprintf(" ORDER BY (%s)", strings.Join(pkColumns, ", ")))
+	} else {
+		sb.WriteString(" ORDER BY tuple()")
+	}
 
 	if table.TableComment != "" {
 		sb.WriteString(fmt.Sprintf(" COMMENT '%s'", strings.ReplaceAll(table.TableComment, "'", "''")))
@@ -83,13 +113,30 @@ func (csg *ClickHouseSQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Co
 	return sqls
 }
 
+// columnType 输出clickhouse完整的列类型
+//   - Decimal参数化：clickhouse的Decimal必须显式携带(P,S)，精度保留自源列；NumScale为0时GetColumnType仅输出(P)，需补齐S
+//   - Nullable包装：源列允许NULL时必须包装Nullable，否则插入NULL会报错（MergeTree排序键列除外）；
+//     同库dump时源类型可能自带Nullable前缀，不重复包装
+func (csg *ClickHouseSQLGenerator) columnType(col dbi.Column) string {
+	colType := col.GetColumnType()
+
+	if strings.HasPrefix(colType, "Decimal(") && !strings.Contains(colType, ",") {
+		colType = strings.TrimSuffix(colType, ")") + ", 0)"
+	}
+
+	if col.Nullable && !col.IsPrimaryKey && !strings.HasPrefix(colType, "Nullable(") {
+		colType = fmt.Sprintf("Nullable(%s)", colType)
+	}
+	return colType
+}
+
 func (csg *ClickHouseSQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
-	// ClickHouse indexes are typically defined in the CREATE TABLE statement
-	// This is a simplified implementation
+	// MergeTree引擎不支持传统二级索引，源库索引在迁移时统一忽略；
+	// 数据去重依赖建表时的主键排序键（见GenTableDDL）
 	return []string{}
 }
 
-func (csg *ClickHouseSQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int) []string {
+func (csg *ClickHouseSQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	if len(values) == 0 {
 		return []string{}
 	}
@@ -111,73 +158,64 @@ func (csg *ClickHouseSQLGenerator) GenInsert(tableName string, columns []dbi.Col
 	for _, row := range values {
 		var rowValues []string
 		for i, value := range row {
+			if i >= len(columnTypes) {
+				break
+			}
 			rowValues = append(rowValues, columnTypes[i].DataType.SQLValue(value))
 		}
 		valueRows = append(valueRows, fmt.Sprintf("(%s)", strings.Join(rowValues, ", ")))
 	}
 
-	// 处理Clickhouse的重复策略
-	switch duplicateStrategy {
-	case dbi.DuplicateStrategyNone:
-		// 对于DuplicateStrategyNone，直接插入数据，不处理重复
-		sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
-			quote(tableName),
-			strings.Join(columnNames, ", "),
-			strings.Join(valueRows, ", "))
+	insertSql := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
+		quote(tableName),
+		strings.Join(columnNames, ", "),
+		strings.Join(valueRows, ", "))
 
-		return []string{sql}
-	case dbi.DuplicateStrategyIgnore:
-		// 对于DuplicateStrategyIgnore，使用INSERT IGNORE语法
-		sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
-			quote(tableName),
-			strings.Join(columnNames, ", "),
-			strings.Join(valueRows, ", "))
+	// ClickHouse 不支持 INSERT IGNORE 与 ON CONFLICT 语法：
+	// - None/Ignore 策略或未提供唯一列元信息时，退化为直接插入（去重依赖建表时指定的 MergeTree 引擎）
+	// - Update 策略且提供了唯一列时，先删除目标表中与本次插入数据冲突的旧数据，再插入
+	if duplicateStrategy != dbi.DuplicateStrategyUpdate || targetTableMeta == nil || len(targetTableMeta.UniqueColumns) == 0 {
+		return []string{insertSql}
+	}
 
-		return []string{sql}
-	case dbi.DuplicateStrategyUpdate:
-		// 对于DuplicateStrategyIgnore和DuplicateStrategyUpdate，先删除重复数据，再插入新数据
-		keyColumn := columnNames[0]
+	// 找出唯一列在插入列中的下标
+	uniqueIdx := make(map[int]bool)
+	for i, column := range columns {
+		if i < len(columnTypes) && collx.ArrayContains(targetTableMeta.UniqueColumns, column.ColumnName) {
+			uniqueIdx[i] = true
+		}
+	}
+	if len(uniqueIdx) == 0 {
+		return []string{insertSql}
+	}
 
-		// 构建删除重复数据的SQL
-		var deleteSqls []string
-		var keyValues []string
+	var keyColumnNames []string
+	for i := range columns {
+		if uniqueIdx[i] {
+			keyColumnNames = append(keyColumnNames, columnNames[i])
+		}
+	}
 
-		// 提取主键值
-		for _, row := range values {
-			if len(row) > 0 {
-				// 获取主键列的值
-				keyValue := columnTypes[0].DataType.SQLValue(row[0])
-				keyValues = append(keyValues, keyValue)
+	// 构建唯一列的值元组，用于删除目标表中的重复数据
+	var keyTuples []string
+	for _, row := range values {
+		var keyVals []string
+		for i, value := range row {
+			if i < len(columnTypes) && uniqueIdx[i] {
+				keyVals = append(keyVals, columnTypes[i].DataType.SQLValue(value))
 			}
 		}
-
-		// 如果有主键值，构建删除语句
-		if len(keyValues) > 0 {
-			// 将主键值用逗号连接
-			keyValueList := strings.Join(keyValues, ", ")
-			deleteSql := fmt.Sprintf("ALTER TABLE %s DELETE WHERE %s IN (%s)",
-				quote(tableName),
-				keyColumn,
-				keyValueList)
-			deleteSqls = append(deleteSqls, deleteSql)
+		if len(keyVals) == len(keyColumnNames) {
+			keyTuples = append(keyTuples, fmt.Sprintf("(%s)", strings.Join(keyVals, ", ")))
 		}
-
-		// 构建插入数据的SQL
-		sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
-			quote(tableName),
-			strings.Join(columnNames, ", "),
-			strings.Join(valueRows, ", "))
-
-		// 返回删除和插入的SQL
-		result := append(deleteSqls, sql)
-		return result
-	default:
-		// 默认情况下，直接插入数据
-		sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s",
-			quote(tableName),
-			strings.Join(columnNames, ", "),
-			strings.Join(valueRows, ", "))
-
-		return []string{sql}
 	}
+	if len(keyTuples) == 0 {
+		return []string{insertSql}
+	}
+
+	deleteSql := fmt.Sprintf("ALTER TABLE %s DELETE WHERE (%s) IN (%s)",
+		quote(tableName),
+		strings.Join(keyColumnNames, ", "),
+		strings.Join(keyTuples, ", "))
+	return []string{deleteSql, insertSql}
 }

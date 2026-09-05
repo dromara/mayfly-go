@@ -1,55 +1,46 @@
 <template>
     <div>
         <el-dialog width="750px" title="runCommand" v-model="runCmdDialog.visible" :before-close="close" :destroy-on-close="true">
-            <el-form label-width="auto">
-                <el-row class="mb-2">
-                    <el-col :span="12">
-                        <el-form-item :label="$t('mongo.template')">
-                            <el-select
-                                class="w-full!"
-                                @change="changeCmd"
-                                filterable
-                                v-model="runCmdDialog.cmdName"
-                                :placeholder="$t('mongo.cmdTemplatePlaceholder')"
-                            >
-                                <el-option v-for="item in mongoCmds" :key="item.name" :label="`${item.name} | ${item.description}`" :value="item.name" />
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item :label="$t('mongo.db')">
-                            <el-select v-model="runCmdDialog.db" filterable>
-                                <el-option v-for="item in dbs" :key="item.Name" :label="item.Name" :value="item.Name" />
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="4">
-                        <el-form-item class="ml-2">
-                            <el-button @click="onRunCommand" type="primary">Run</el-button>
-                            <el-tooltip effect="dark" placement="top">
-                                <template #content> {{ $t('mongo.moreCmdTips') }}-> https://www.mongodb.com/docs/manual/reference/command/ </template>
-                                <span class="ml-2">
-                                    <el-icon><InfoFilled /></el-icon>
-                                </span>
-                            </el-tooltip>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-
-                <el-form-item label="cmd">
+            <auto-form v-model="runCmdDialog" :items="runCmdItems" label-width="auto">
+                <template #cmdName>
+                    <el-select
+                        class="w-full!"
+                        @change="changeCmd"
+                        filterable
+                        v-model="runCmdDialog.cmdName"
+                        :placeholder="$t('mongo.cmdTemplatePlaceholder')"
+                    >
+                        <el-option v-for="item in mongoCmds" :key="item.name" :label="`${item.name} | ${item.description}`" :value="item.name" />
+                    </el-select>
+                </template>
+                <template #db>
+                    <el-select v-model="runCmdDialog.db" filterable>
+                        <el-option v-for="item in dbs" :key="item.Name" :label="item.Name" :value="item.Name" />
+                    </el-select>
+                </template>
+                <template #runBtn>
+                    <el-button @click="onRunCommand" type="primary">Run</el-button>
+                    <el-tooltip effect="dark" placement="top">
+                        <template #content> {{ $t('mongo.moreCmdTips') }}-> https://www.mongodb.com/docs/manual/reference/command/ </template>
+                        <span class="ml-2">
+                            <el-icon><InfoFilled /></el-icon>
+                        </span>
+                    </el-tooltip>
+                </template>
+                <template #cmd>
                     <monaco-editor style="width: 100%" height="235px" v-model="runCmdDialog.cmd" language="json" />
-                </el-form-item>
-
-                <el-form-item label="res">
+                </template>
+                <template #res>
                     <monaco-editor style="width: 100%" height="235px" v-model="runCmdDialog.cmdRes" language="json" />
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
+import type { AutoFormItem } from '@/components/auto-form';
 import { defineAsyncComponent, reactive, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mongoApi } from './api';
@@ -152,6 +143,15 @@ const state = reactive({
 });
 
 const { dbs, runCmdDialog } = toRefs(state);
+
+/** runCommand 表单声明（模板/库选择、Run 按钮、cmd/res 编辑器为 custom 插槽） */
+const runCmdItems: AutoFormItem[] = [
+    { prop: 'cmdName', label: 'mongo.template', type: 'custom', span: 12 },
+    { prop: 'db', label: 'mongo.db', type: 'custom', span: 8 },
+    { prop: 'runBtn', type: 'custom', span: 4 },
+    { prop: 'cmd', label: 'cmd', type: 'custom' },
+    { prop: 'res', label: 'res', type: 'custom' },
+];
 
 watch(visible, async (val) => {
     if (!val) {

@@ -54,6 +54,9 @@ func (p *Parser) parseStatement() sqlstmt.Stmt {
 		return p.parseWith()
 	case tok.IsKeyword("TRUNCATE"):
 		return p.parseGenericDdl()
+	case tok.IsKeyword("COMMENT", "GRANT", "REVOKE"):
+		// PostgreSQL 的 COMMENT ON、GRANT、REVOKE 等均为非查询语句，统一按 DDL 执行
+		return p.parseGenericDdl()
 	default:
 		return p.parseGenericStmt()
 	}
@@ -345,7 +348,12 @@ func (p *Parser) parseFromClause() []sqlstmt.TableRef {
 		if p.IsJoinStart() || p.Current().IsKeyword("JOIN") {
 			break
 		}
+		// 防御：解析无进展时退出，避免异常输入导致死循环
+		before := p.Pos
 		ref := p.parseTableRef()
+		if p.Pos == before {
+			break
+		}
 		if ref.Name != "" {
 			tables = append(tables, ref)
 		}

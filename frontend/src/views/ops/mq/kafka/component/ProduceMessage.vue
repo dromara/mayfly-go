@@ -1,40 +1,15 @@
 <template>
     <div class="kafka-produce-message h-full card p-1!">
-        <el-form ref="produceFormRef" :model="form" label-width="auto" size="small">
-            <el-row :gutter="10">
-                <el-col :span="8">
-                    <el-form-item :label="$t('mq.kafka.selectTopic')" required>
-                        <template #label>
-                            <el-space>
-                                <span>{{ $t('mq.kafka.selectTopic') }}</span>
-                                <el-button icon="refresh" link />
-                            </el-space>
-                        </template>
-
-                        <el-select v-model="form.topic" filterable :placeholder="$t('mq.kafka.selectTopicPlaceholder')">
-                            <el-option v-for="topic in topics" :key="topic" :label="topic" :value="topic" />
-                        </el-select>
-                    </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                    <el-form-item :label="$t('mq.kafka.messageKey')">
-                        <el-input v-model="form.key" :placeholder="$t('mq.kafka.messageKeyPlaceholder')" />
-                    </el-form-item>
-                </el-col>
-                <el-col :span="6">
-                    <el-form-item :label="$t('mq.kafka.partition')">
-                        <el-tooltip :content="$t('mq.kafka.partitionPlaceholder')">
-                            <el-input-number v-model="form.partition" :min="0" :max="100" />
-                        </el-tooltip>
-                    </el-form-item>
-                </el-col>
-            </el-row>
-
-            <el-form-item :label="$t('mq.kafka.messageBody')" required>
+        <auto-form ref="produceFormRef" v-model="form" :items="produceItems" label-width="auto" size="small">
+            <template #topic>
+                <el-select v-model="form.topic" filterable :placeholder="$t('mq.kafka.selectTopicPlaceholder')">
+                    <el-option v-for="topic in topics" :key="topic" :label="topic" :value="topic" />
+                </el-select>
+            </template>
+            <template #value>
                 <monaco-editor v-model="form.value" language="json" height="200px" :can-change-mode="true" />
-            </el-form-item>
-
-            <el-form-item :label="$t('mq.kafka.messageHeaders')">
+            </template>
+            <template #headers>
                 <div class="w-full">
                     <el-button @click="addHeader" type="primary" size="small" icon="plus">
                         {{ $t('mq.kafka.addHeader') }}
@@ -47,39 +22,21 @@
                         </div>
                     </div>
                 </div>
-            </el-form-item>
+            </template>
+        </auto-form>
 
-            <el-row :gutter="10">
-                <el-col :span="6">
-                    <el-form-item :label="$t('mq.kafka.sendTimes')">
-                        <el-input-number v-model="form.times" :min="1" :max="100" />
-                    </el-form-item>
-                </el-col>
-                <el-col :span="6">
-                    <el-form-item :label="$t('mq.kafka.compression')">
-                        <el-select v-model="form.compression" :placeholder="$t('mq.kafka.compressionPlaceholder')" :teleported="false">
-                            <el-option label="none" value="" />
-                            <el-option label="gzip" value="gzip" />
-                            <el-option label="lz4" value="lz4" />
-                            <el-option label="zstd" value="zstd" />
-                            <el-option label="snappy" value="snappy" />
-                        </el-select>
-                    </el-form-item>
-                </el-col>
-            </el-row>
-
-            <el-form-item>
-                <el-button @click="resetForm" icon="refresh">{{ $t('common.reset') }}</el-button>
-                <el-button @click="sendMessage" type="primary" icon="upload" :loading="sending">
-                    {{ $t('mq.kafka.sendMessage') }}
-                </el-button>
-            </el-form-item>
-        </el-form>
+        <div class="mt-2 flex gap-2">
+            <el-button @click="resetForm" icon="refresh">{{ $t('common.reset') }}</el-button>
+            <el-button @click="sendMessage" type="primary" icon="upload" :loading="sending">
+                {{ $t('mq.kafka.sendMessage') }}
+            </el-button>
+        </div>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
+import type { AutoFormItem } from '@/components/auto-form';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { mqApi } from '../../api';
 
@@ -121,6 +78,17 @@ const state = reactive({
 });
 
 const { form } = toRefs(state);
+
+/** 发送消息表单声明（topic/messageBody/headers 为 custom 插槽） */
+const produceItems: AutoFormItem[] = [
+    { prop: 'topic', label: 'mq.kafka.selectTopic', type: 'custom', required: true, span: 8 },
+    { prop: 'key', label: 'mq.kafka.messageKey', placeholder: 'mq.kafka.messageKeyPlaceholder', span: 8 },
+    { prop: 'partition', label: 'mq.kafka.partition', type: 'number', min: 0, max: 100, tooltip: 'mq.kafka.partitionPlaceholder', span: 8 },
+    { prop: 'value', label: 'mq.kafka.messageBody', type: 'custom', required: true },
+    { prop: 'headers', label: 'mq.kafka.messageHeaders', type: 'custom' },
+    { prop: 'times', label: 'mq.kafka.sendTimes', type: 'number', min: 1, max: 100, span: 6 },
+    { prop: 'compression', label: 'mq.kafka.compression', type: 'select', span: 6, placeholder: 'mq.kafka.compressionPlaceholder', props: { teleported: false }, options: [{ label: 'none', value: '' }, { label: 'gzip', value: 'gzip' }, { label: 'lz4', value: 'lz4' }, { label: 'zstd', value: 'zstd' }, { label: 'snappy', value: 'snappy' }] },
+];
 
 onMounted(() => {
     if (props.defaultTopic) {

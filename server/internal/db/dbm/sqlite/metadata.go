@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -34,6 +35,9 @@ func (sd *SqliteMetadata) GetDbServer() (*dbi.DbServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(res) == 0 {
+		return nil, errorx.NewBiz("failed to get database version: empty result")
+	}
 	ds := &dbi.DbServer{
 		Version: cast.ToString(res[0]["version"]),
 	}
@@ -57,7 +61,7 @@ func (sd *SqliteMetadata) GetDbNames() ([]string, error) {
 func (sd *SqliteMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := sd.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	var res []map[string]any

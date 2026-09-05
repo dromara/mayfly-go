@@ -1,89 +1,42 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
-            <template #header>
-                <DrawerHeader :header="title" :back="onCancel" />
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @cancel="emit('cancel')">
+            <!-- 关联标签 -->
+            <template #tagCodePaths="{ form }">
+                <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
             </template>
 
-            <el-form :model="form" ref="machineFormRef" :rules="rules" label-width="auto">
-                <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
-                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')">
-                    <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                </el-form-item>
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="protocol" :label="$t('machine.protocol')" required>
-                    <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
-                        <el-radio v-for="item in MachineProtocolEnum" :key="item.value" :label="item.label" :value="item.value"></el-radio>
-                    </el-radio-group>
-                </el-form-item>
-                <el-form-item prop="ip" label="ip" required>
-                    <el-col :span="18">
-                        <el-input v-model.trim="form.ip" auto-complete="off"> </el-input>
-                    </el-col>
-                    <el-col style="text-align: center" :span="1">:</el-col>
-                    <el-col :span="5">
-                        <el-input type="number" v-model.number="form.port" :placeholder="$t('machine.port')"></el-input>
-                    </el-col>
-                </el-form-item>
-
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input type="textarea" v-model="form.remark"></el-input>
-                </el-form-item>
-
-                <el-divider content-position="left">{{ $t('common.account') }}</el-divider>
-                <div>
-                    <ResourceAuthCertTableEdit
-                        v-model="form.authCerts"
-                        :resource-code="form.code"
-                        :resource-type="TagResourceTypeEnum.Machine.value"
-                        :test-conn-btn-loading="testConnBtnLoading"
-                        @test-conn="onTestConn"
-                    />
-                </div>
-
-                <el-divider content-position="left">{{ $t('common.other') }}</el-divider>
-                <el-form-item prop="enableRecorder" :label="$t('machine.terminalPlayback')">
-                    <el-checkbox v-model="form.enableRecorder" :true-value="1" :false-value="-1"></el-checkbox>
-                </el-form-item>
-
-                <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
-                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                </el-form-item>
-
-                <el-form-item prop="ciphers" :label="$t('machine.ciphers')">
-                    <el-input v-model="form.extra.ciphers" :placeholder="$t('machine.multiValuePlaceholder')"></el-input>
-                </el-form-item>
-                <el-form-item prop="keyExchanges" :label="$t('machine.keyExchanges')">
-                    <el-input v-model="form.extra.keyExchanges" :placeholder="$t('machine.multiValuePlaceholder')"></el-input>
-                </el-form-item>
-            </el-form>
-
-            <template #footer>
-                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
+            <!-- 认证信息表格编辑 -->
+            <template #authCerts="{ form }">
+                <ResourceAuthCertTableEdit
+                    v-model="form.authCerts"
+                    :resource-code="form.code"
+                    :resource-type="TagResourceTypeEnum.Machine.value"
+                    :test-conn-btn-loading="testConnBtnLoading"
+                    @test-conn="onTestConn(form, $event)"
+                />
             </template>
-        </el-drawer>
+
+            <!-- SSH 隧道 -->
+            <template #sshTunnelMachineId="{ form }">
+                <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+            </template>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
-import { useI18n } from 'vue-i18n';
+import { computed, useTemplateRef, type PropType } from 'vue';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { machineApi } from './api';
 import { MachineProtocolEnum } from './enums';
-import type { MachineVO, MachineForm, MachineAuthCert, SimpleMachineVO } from './types';
-
-const { t } = useI18n();
+import type { MachineVO, MachineForm, MachineAuthCert } from './types';
 
 const props = defineProps({
     visible: {
@@ -103,14 +56,36 @@ const emit = defineEmits(['cancel', 'val-change']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const rules = {
-    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
-    name: [Rules.requiredInput('common.name')],
-    protocol: [Rules.requiredSelect('machine.protocol')],
-    ip: [Rules.requiredInput('machine.ipAndPort')],
-};
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
-const machineFormRef = useTemplateRef<FormInstance>('machineFormRef');
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 三段分组，tagCodePaths/authCerts/sshTunnel 走插槽） */
+const items: AutoFormItem[] = [
+    { type: 'group', label: 'common.basic' },
+    { prop: 'tagCodePaths', label: 'tag.relateTag' },
+    { prop: 'name', label: 'common.name', required: true },
+    {
+        prop: 'protocol',
+        label: 'machine.protocol',
+        type: 'radio',
+        enums: MachineProtocolEnum,
+        required: true,
+        // 切换协议时联动默认端口
+        onChange: (val: unknown, form: AutoFormData) => {
+            const v = val as number;
+            (form as MachineForm).port = v == MachineProtocolEnum.Ssh.value ? 22 : v == MachineProtocolEnum.Rdp.value ? 3389 : 5901;
+        },
+    },
+    { prop: 'ip', label: 'ip', required: true, rules: [Rules.requiredInput('machine.ipAndPort')], span: 17 },
+    { prop: 'port', label: 'machine.port', type: 'number', span: 7 },
+    { prop: 'remark', label: 'common.remark', type: 'textarea' },
+    { type: 'group', label: 'common.account' },
+    { prop: 'authCerts', type: 'custom' },
+    { type: 'group', label: 'common.other' },
+    { prop: 'enableRecorder', label: 'machine.terminalPlayback', type: 'switch', props: { activeValue: 1, inactiveValue: -1 } },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
+    { prop: 'extra.ciphers', label: 'machine.ciphers', placeholder: 'machine.multiValuePlaceholder' },
+    { prop: 'extra.keyExchanges', label: 'machine.keyExchanges', placeholder: 'machine.multiValuePlaceholder' },
+];
 
 const defaultForm: MachineForm = {
     id: null,
@@ -128,78 +103,51 @@ const defaultForm: MachineForm = {
     extra: { ciphers: '', keyExchanges: '' },
 };
 
-const state = reactive({
-    sshTunnelMachineList: [] as SimpleMachineVO[],
-    form: defaultForm,
-    pwd: '',
+/** 传给 AutoFormDrawer 的回填数据：新增时应用 defaultForm；编辑时兜底 authCerts/extra 为空（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData | null>(() => {
+    const machine = props.machine;
+    if (!machine) {
+        return { ...defaultForm, authCerts: [], tagCodePaths: [] } as unknown as AutoFormData;
+    }
+    return {
+        ...machine,
+        authCerts: machine.authCerts || [],
+        extra: (machine.extra as Record<string, string>) || {},
+    } as unknown as AutoFormData;
 });
-
-const { form } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi();
 const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi();
 
-watchEffect(() => {
-    if (!dialogVisible.value) {
-        return;
-    }
-    const machine = props.machine as MachineVO | false | undefined;
-    if (machine) {
-        state.form = { ...machine } as MachineForm;
-        // state.form.tagCodePaths = machine.tags.map((t: any) => t.codePath);
-        state.form.authCerts = machine.authCerts || [];
-        state.form.extra = (machine.extra as Record<string, string>) || {};
-    } else {
-        state.form = { ...defaultForm };
-        state.form.authCerts = [];
-    }
-});
-
-const onTestConn = async (authCert: MachineAuthCert) => {
-    await useI18nFormValidate(machineFormRef);
-
-    const submitForm = getReqForm();
-    submitForm.authCerts = [authCert];
-    await testConnExec(submitForm);
-    Msg.success('machine.connSuccess');
-};
-
-const onConfirm = async () => {
-    await useI18nFormValidate(machineFormRef);
-
-    if (state.form.authCerts.length == 0) {
-        Msg.error('machine.noAcErrMsg');
-        return false;
-    }
-
-    const submitForm = getReqForm();
-    await saveMachineExec(submitForm);
-    Msg.saveSuccess();
-    emit('val-change', submitForm);
-    onCancel();
-};
-
-const getReqForm = () => {
-    const reqForm = { ...state.form } as MachineForm & Record<string, unknown>;
-    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
+const getReqForm = (form: MachineForm) => {
+    const reqForm = { ...form } as MachineForm & Record<string, unknown>;
+    if (!form.sshTunnelMachineId || form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
     return reqForm;
 };
 
-const handleChangeProtocol = (val: number) => {
-    if (val == MachineProtocolEnum.Ssh.value) {
-        state.form.port = 22;
-    } else if (val == MachineProtocolEnum.Rdp.value) {
-        state.form.port = 3389;
-    } else {
-        state.form.port = 5901;
-    }
+const onTestConn = async (rawForm: AutoFormData, authCert: MachineAuthCert) => {
+    await useI18nFormValidate(drawerRef);
+
+    const submitForm = getReqForm(rawForm as MachineForm);
+    submitForm.authCerts = [authCert];
+    await testConnExec(submitForm);
+    Msg.success('machine.connSuccess');
 };
 
-const onCancel = () => {
+const onConfirm = async (rawForm: AutoFormData) => {
+    const form = rawForm as MachineForm;
+    if ((form.authCerts || []).length == 0) {
+        Msg.error('machine.noAcErrMsg');
+        return;
+    }
+
+    const submitForm = getReqForm(form);
+    await saveMachineExec(submitForm);
+    Msg.saveSuccess();
+    emit('val-change', submitForm);
     dialogVisible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

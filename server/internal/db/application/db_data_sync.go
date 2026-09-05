@@ -242,11 +242,14 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		return targetColumnName2Column[val["target"]]
 	})
 
+	// 构建目标表元信息（任务级只查询一次），用于生成 upsert/merge 类插入语句
+	targetTableMeta := buildTargetTableMeta(targetConn, task.TargetTableName, targetTableColumns)
+
 	_, err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		total++
 		result = append(result, row)
 		if total%batchSize == 0 {
-			if err := app.srcData2TargetDb(result, fieldMap, updFieldName, task, targetConn, targetInsertColumns); err != nil {
+			if err := app.srcData2TargetDb(result, fieldMap, updFieldName, task, targetConn, targetInsertColumns, targetTableMeta); err != nil {
 				return err
 			}
 
@@ -273,7 +276,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 	// 处理剩余的数据
 	if len(result) > 0 {
-		if err := app.srcData2TargetDb(result, fieldMap, updFieldName, task, targetConn, targetInsertColumns); err != nil {
+		if err := app.srcData2TargetDb(result, fieldMap, updFieldName, task, targetConn, targetInsertColumns, targetTableMeta); err != nil {
 			return err
 		}
 	}
@@ -287,7 +290,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 	return nil
 }
 
-func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldName string, task *entity.DataSyncTask, targetDbConn *dbi.DbConn, targetInsertColumns []dbi.Column) (err error) {
+func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldName string, task *entity.DataSyncTask, targetDbConn *dbi.DbConn, targetInsertColumns []dbi.Column, targetTableMeta *dbi.TargetTableMeta) (err error) {
 	// 遍历res，组装数据
 	var targetData = make([]map[string]any, 0)
 	for _, srcData := range srcRes {
@@ -313,7 +316,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	targetDialect := targetDbConn.GetDialect()
 
 	// 生成目标数据库批量插入sql，并执行
-	sqls := targetDialect.GetSQLGenerator().GenInsert(task.TargetTableName, targetInsertColumns, targetValues, cmp.Or(task.DuplicateStrategy, dbi.DuplicateStrategyNone))
+	sqls := targetDialect.GetSQLGenerator().GenInsert(task.TargetTableName, targetInsertColumns, targetValues, cmp.Or(task.DuplicateStrategy, dbi.DuplicateStrategyNone), targetTableMeta)
 
 	// 开启本批次执行事务
 	targetDbTx, err := targetDbConn.Begin()
@@ -355,6 +358,45 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	setUpdateFieldVal(cmp.Or(task.UpdFieldSrc, updFieldName))
 
 	return nil
+}
+
+// buildTargetTableMeta 构建目标表元信息，用于生成 upsert/merge 类插入语句（保证后续生成SQL过程中不再查询数据库）
+// 冲突检测列优先取表主键；无主键且仅存在一个唯一索引时取该索引列；否则 UniqueColumns 为空，GenInsert 会退化为直接插入
+func buildTargetTableMeta(targetConn *dbi.DbConn, tableName string, columns []dbi.Column) *dbi.TargetTableMeta {
+	meta := &dbi.TargetTableMeta{}
+	var uniqueCols []string
+	var identityCols []string
+	for _, column := range columns {
+		if column.IsPrimaryKey {
+			uniqueCols = append(uniqueCols, column.ColumnName)
+		}
+		if column.AutoIncrement {
+			identityCols = append(identityCols, column.ColumnName)
+		}
+	}
+	if len(uniqueCols) == 0 {
+		// 无主键时尝试取唯一索引，且仅当只存在一个唯一索引时才可作为冲突检测列（多个唯一索引无法确定冲突语义）
+		indexs, err := targetConn.GetMetadata().GetTableIndex(tableName)
+		if err == nil {
+			var uniqueIndexes []dbi.Index
+			for _, index := range indexs {
+				if index.IsUnique {
+					uniqueIndexes = append(uniqueIndexes, index)
+				}
+			}
+			if len(uniqueIndexes) == 1 {
+				for _, col := range strings.Split(uniqueIndexes[0].ColumnName, ",") {
+					trimmed := strings.TrimSpace(col)
+					if trimmed != "" {
+						uniqueCols = append(uniqueCols, trimmed)
+					}
+				}
+			}
+		}
+	}
+	meta.UniqueColumns = uniqueCols
+	meta.IdentityColumns = identityCols
+	return meta
 }
 
 func (app *dataSyncAppImpl) StopTask(ctx context.Context, taskId uint64) error {

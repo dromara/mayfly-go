@@ -65,28 +65,16 @@
     >
         <el-auto-resizer>
             <template #default="{ height, width }">
-                <el-form :model="form" ref="formRef" label-position="right" label-width="80">
-                    <el-form-item :label="t('es.temp.name')" required prop="name">
-                        <el-input v-model.trim="form.name" :disabled="state.formReadonly" />
-                    </el-form-item>
-                    <el-form-item :label="t('es.temp.priority')" required prop="priority">
-                        <el-input-number v-model="form.priority" :disabled="state.formReadonly" />
-                    </el-form-item>
-                    <el-form-item :label="t('es.temp.index_patterns')" prop="index_patterns">
-                        <el-select allow-create filterable multiple clearable v-model="form.index_patterns" :disabled="state.formReadonly"></el-select>
-                    </el-form-item>
-                    <el-form-item :label="t('es.temp.description')" required prop="description">
-                        <el-input v-model.trim="form.description" :disabled="state.formReadonly" />
-                    </el-form-item>
-                    <el-form-item :label="t('es.temp.content')" required prop="template">
+                <auto-form ref="formRef" v-model="state.form" :items="items" label-position="right" label-width="80">
+                    <template #template>
                         <monaco-editor
-                            v-model="form.template"
+                            v-model="state.form.template"
                             language="json"
                             :height="height - 200 + 'px'"
                             :options="{ tabSize: 2, readOnly: state.formReadonly }"
                         />
-                    </el-form-item>
-                </el-form>
+                    </template>
+                </auto-form>
             </template>
         </el-auto-resizer>
         <template #footer>
@@ -99,9 +87,10 @@
 <script setup lang="ts">
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { esApi } from '@/views/ops/es/api';
-import { nextTick, reactive, ref, unref, watch } from 'vue';
+import { nextTick, reactive, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -114,7 +103,23 @@ interface Props {
 }
 const props = defineProps<Props>();
 
-const formRef = ref();
+const formRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('formRef');
+
+/** 表单声明（AutoFormItem[]；模板 JSON 内容走 monaco 插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'es.temp.name', required: true, disabled: () => state.formReadonly },
+    { prop: 'priority', label: 'es.temp.priority', type: 'number', required: true, disabled: () => state.formReadonly },
+    {
+        prop: 'index_patterns',
+        label: 'es.temp.index_patterns',
+        type: 'select',
+        multiple: true,
+        props: { allowCreate: true },
+        disabled: () => state.formReadonly,
+    },
+    { prop: 'description', label: 'es.temp.description', required: true, disabled: () => state.formReadonly },
+    { prop: 'template', label: 'es.temp.content', type: 'custom', required: true, disabled: () => state.formReadonly },
+];
 
 const state = reactive({
     originTemplates: [] as { name: string; priority: string | number; index_patterns: string; template: string; description: string }[],
@@ -140,8 +145,6 @@ const state = reactive({
         priority: 'priority',
     },
 });
-
-const { form } = unref(state);
 
 const getDefaultTemplate = () => {
     return {

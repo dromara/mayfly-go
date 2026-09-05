@@ -1,66 +1,37 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
-            <template #header>
-                <DrawerHeader :header="title" :back="onCancel" />
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" @confirm="onConfirm" @opened="onOpened" @cancel="emit('cancel')">
+            <!-- 关联标签（自定义插槽） -->
+            <template #tagCodePaths="{ form }">
+                <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
             </template>
-
-            <el-form :model="form" ref="redisFormRef" :rules="rules" label-width="auto">
-                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')" required>
-                    <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                </el-form-item>
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="mode" label="mode" required>
-                    <el-select v-model="form.mode">
-                        <el-option label="standalone" value="standalone"> </el-option>
-                        <el-option label="cluster" value="cluster"> </el-option>
-                        <el-option label="sentinel" value="sentinel"> </el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item prop="host" label="host" required>
-                    <el-input v-model.trim="form.host" :placeholder="$t('redis.hostTips')" auto-complete="off" type="textarea"></el-input>
-                </el-form-item>
-                <el-form-item prop="username" :label="$t('common.username')">
-                    <el-input v-model.trim="form.username"></el-input>
-                </el-form-item>
-                <el-form-item prop="password" :label="$t('common.password')">
-                    <el-input type="password" show-password v-model.trim="form.password" autocomplete="new-password"> </el-input>
-                </el-form-item>
-                <el-form-item v-if="form.mode == 'sentinel'" prop="redisNodePassword" :label="$t('redis.nodePassword')">
-                    <el-input type="password" show-password v-model.trim="form.redisNodePassword" autocomplete="new-password"> </el-input>
-                </el-form-item>
-                <el-form-item prop="db" label="DB" required>
-                    <el-select @change="changeDb" :disabled="form.mode == 'cluster'" v-model="dbList" multiple allow-create filterable style="width: 100%">
-                        <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
-                    </el-select>
-                </el-form-item>
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
-                </el-form-item>
-                <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
-                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                </el-form-item>
-            </el-form>
+            <!-- DB 多选（支持手输库号，逗号拼接回 form.db；cluster 模式禁用） -->
+            <template #db="{ form }">
+                <el-select :model-value="dbList" :disabled="form.mode == 'cluster'" multiple allow-create filterable class="w-full!" @update:model-value="onDbListChange">
+                    <el-option v-for="db in DB_OPTIONS" :key="db" :label="db" :value="db" />
+                </el-select>
+            </template>
+            <!-- SSH 隧道机器（自定义插槽） -->
+            <template #sshTunnelMachineId="{ form }">
+                <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+            </template>
 
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="onTestConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
-                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
                     <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, ref, useTemplateRef, type PropType } from 'vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { redisApi } from './api';
@@ -80,93 +51,88 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const emit = defineEmits(['val-change', 'cancel']);
 
-const rules = {
-    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
-    name: [Rules.requiredInput('common.name')],
-    host: [Rules.requiredInput('ip:port')],
-    db: [Rules.requiredSelect('DB')],
-    mode: [Rules.requiredSelect('mode')],
-};
+/** 可选 DB 列表 */
+const DB_OPTIONS = Array.from({ length: 16 }, (_, i) => i);
 
-const redisFormRef = useTemplateRef<FormInstance>('redisFormRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
 
-const state = reactive({
-    form: {
-        id: null,
-        code: '',
-        tagCodePaths: [],
-        name: null,
-        mode: 'standalone',
-        host: '',
-        username: null,
-        password: null,
-        redisNodePassword: null,
-        db: '',
-        remark: '',
-        sshTunnelMachineId: -1,
-    } as RedisSaveForm,
-    dbList: [0],
-    pwd: '',
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；sentinel 专属字段按 mode 条件显隐） */
+const items = computed<AutoFormItem[]>(() => [
+    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true, slot: 'tagCodePaths' },
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'mode', label: 'mode', type: 'select', required: true, options: [{ value: 'standalone', label: 'standalone' }, { value: 'cluster', label: 'cluster' }, { value: 'sentinel', label: 'sentinel' }] },
+    { prop: 'host', label: 'host', type: 'textarea', rows: 2, required: true, placeholder: 'redis.hostTips' },
+    { prop: 'username', label: 'common.username' },
+    { prop: 'password', label: 'common.password', type: 'password', props: { autocomplete: 'new-password' } },
+    { prop: 'redisNodePassword', label: 'redis.nodePassword', type: 'password', when: (f) => f.mode == 'sentinel', props: { autocomplete: 'new-password' } },
+    { prop: 'db', label: 'DB', required: true, slot: 'db' },
+    { prop: 'remark', label: 'common.remark', type: 'textarea' },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel', slot: 'sshTunnelMachineId' },
+]);
+
+/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData>(() => {
+    const redis = props.redis as RedisSaveForm | false | undefined;
+    if (redis) {
+        return { ...redis } as AutoFormData;
+    }
+    return { db: '0', tagCodePaths: [] } as AutoFormData;
 });
 
-const { form, dbList } = toRefs(state);
+const dbList = ref<number[]>([0]);
+
+/** 抽屉打开后暂存的内部表单引用（DB 互转与提交均基于它） */
+const internalForm = ref<AutoFormData>({});
+
+const onOpened = (form: AutoFormData) => {
+    internalForm.value = form;
+    if (props.redis) {
+        convertDb((form.db as string) || '0');
+    } else {
+        dbList.value = [0];
+    }
+};
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi();
 const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi();
 
-watch(dialogVisible, () => {
-    if (!dialogVisible.value) {
-        return;
-    }
-
-    const redis = props.redis as RedisSaveForm | false | undefined;
-    if (redis) {
-        state.form = { ...redis } as RedisSaveForm;
-        convertDb(state.form.db || '0');
-    } else {
-        state.form = { db: '0', tagCodePaths: [] } as RedisSaveForm;
-        state.dbList = [0];
-    }
-});
-
 const convertDb = (db: string) => {
-    state.dbList = db.split(',').map((x) => Number.parseInt(x));
+    dbList.value = db.split(',').map((x) => Number.parseInt(x));
 };
 
 /**
  * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加库号
  */
-const changeDb = () => {
-    state.form.db = state.dbList.length == 0 ? '' : state.dbList.join(',');
+const onDbListChange = (list: number[]) => {
+    dbList.value = list;
+    internalForm.value.db = list.length == 0 ? '' : list.join(',');
 };
 
 const getReqForm = () => {
-    const reqForm = { ...state.form };
+    const reqForm = { ...internalForm.value } as RedisSaveForm;
     if (reqForm.mode == 'sentinel' && (reqForm.host ?? '').split('=').length != 2) {
         Msg.error('redis.sentinelHostErr');
         return;
     }
-    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
+    if (!reqForm.sshTunnelMachineId || reqForm.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
     return reqForm;
 };
 
 const onTestConn = async () => {
-    await useI18nFormValidate(redisFormRef);
+    await useI18nFormValidate(drawerRef);
     await testConnExec(getReqForm());
     Msg.success('ac.connSuccess');
 };
 
 const onConfirm = async () => {
-    await useI18nFormValidate(redisFormRef);
+    // 校验失败内部已 toast（catch 吞掉 reject）
+    const valid = await useI18nFormValidate(drawerRef).catch(() => false);
+    if (valid === false) return;
     await saveRedisExec(getReqForm());
     Msg.saveSuccess();
-    emit('val-change', state.form);
-    onCancel();
-};
-
-const onCancel = () => {
+    emit('val-change', internalForm.value);
     dialogVisible.value = false;
     emit('cancel');
 };

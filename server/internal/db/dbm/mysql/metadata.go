@@ -31,6 +31,9 @@ func (md *MysqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(res) == 0 {
+		return nil, errorx.NewBiz("failed to get database version: empty result")
+	}
 	ds := &dbi.DbServer{
 		Version: cast.ToString(res[0]["version"]),
 	}
@@ -53,7 +56,7 @@ func (md *MysqlMetadata) GetDbNames() ([]string, error) {
 func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := md.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	var res []map[string]any
@@ -87,7 +90,7 @@ func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := md.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))

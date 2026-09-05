@@ -53,11 +53,14 @@
         <TerminalLog v-model:log-id="state.logsDialog.logId" v-model:visible="state.logsDialog.visible" :title="state.logsDialog.title" />
 
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
-            <el-form :model="state.runDialog.runForm" ref="runFormRef" label-width="auto" :rules="state.runDialog.formRules">
-                <el-form-item :label="$t('db.dbFileType')" prop="dbType">
-                    <SvgIcon :name="getDbDialect(state.runDialog.runForm.dbType).getInfo().icon" :size="18" /> {{ state.runDialog.runForm.dbType }}
-                </el-form-item>
-                <el-form-item :label="$t('db.targetDb')" prop="targetDbId" required>
+            <auto-form v-model="state.runDialog.runForm" :items="runFormItems" label-width="auto">
+                <template #dbType>
+                    <span>
+                        <SvgIcon :name="getDbDialect(state.runDialog.runForm.dbType).getInfo().icon" :size="18" />
+                        {{ state.runDialog.runForm.dbType }}
+                    </span>
+                </template>
+                <template #targetDbId>
                     <db-select-tree
                         v-model:db-id="state.runDialog.runForm.targetDbId"
                         v-model:inst-name="state.runDialog.runForm.targetInstName"
@@ -66,8 +69,8 @@
                         v-model:db-type="state.runDialog.runForm.targetDbType"
                         @select-db="state.runDialog.onSelectRunTargetDb"
                     />
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
 
             <template #footer>
                 <el-button @click="state.runDialog.onCancel()">{{ $t('common.cancel') }}</el-button>
@@ -80,6 +83,7 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { getClientId } from '@/common/utils/storage';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { hasPerms } from '@/components/auth/auth';
 import FileInfo from '@/components/file/FileInfo.vue';
 import { TableColumn } from '@/components/page-table';
@@ -155,7 +159,13 @@ onMounted(async () => {
     }
 });
 
-const runFormRef = useTemplateRef<{ validate: (cb: (valid: boolean) => void) => void }>('runFormRef');
+const runFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('runFormRef');
+
+/** 运行弹窗表单声明（dbType 仅展示文件库类型，targetDbId 走 custom 插槽选择目标库） */
+const runFormItems: AutoFormItem[] = [
+    { prop: 'dbType', label: 'db.dbFileType', type: 'custom' },
+    { prop: 'targetDbId', label: 'db.targetDb', type: 'custom', rules: [Rules.requiredSelect('db.targetDb')] },
+];
 
 const state = reactive({
     query: {
@@ -175,9 +185,6 @@ const state = reactive({
         title: t('db.transferFileRunDialogTitle'),
         visible: false,
         data: null as DbTransferFile | null,
-        formRules: {
-            targetDbId: [Rules.requiredSelect('db.targetDb')],
-        },
         runForm: {
             id: 0,
             dbType: '',

@@ -619,7 +619,9 @@ func isOtherQuery(sql string) bool {
 func isDDL(sql string) bool {
 	sqlPrefix := getSqlPrefix(sql)
 	return strings.Contains(sqlPrefix, "create") || strings.Contains(sqlPrefix, "alter") ||
-		strings.Contains(sqlPrefix, "drop") || strings.Contains(sqlPrefix, "truncate") || strings.Contains(sqlPrefix, "rename")
+		strings.Contains(sqlPrefix, "drop") || strings.Contains(sqlPrefix, "truncate") || strings.Contains(sqlPrefix, "rename") ||
+		// 各方言的 COMMENT ON 注释语句及 GRANT/REVOKE 授权语句均为非查询类 DDL/DCL
+		strings.Contains(sqlPrefix, "comment") || strings.Contains(sqlPrefix, "grant") || strings.Contains(sqlPrefix, "revoke")
 }
 
 func getSqlPrefix(sql string) string {

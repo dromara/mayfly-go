@@ -1,56 +1,35 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="visible" :show-close="false" :before-close="onCancel" size="1000px" :destroy-on-close="true">
-            <template #header>
-                <DrawerHeader :header="title" :back="onCancel" />
+        <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="items" :data="editData" size="1000px" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @cancel="emit('cancel')">
+            <!-- 权限账号（远程搜索，走插槽保留 remote 能力） -->
+            <template #permissionAccount>
+                <el-select
+                    remote
+                    :remote-method="getAccount"
+                    v-model="permissionAccount"
+                    filterable
+                    multiple
+                    :placeholder="$t('system.sysconf.permissionPlaceholder')"
+                    class="w-full"
+                >
+                    <el-option v-for="item in accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.username"> </el-option>
+                </el-select>
             </template>
 
-            <el-form ref="configFormRef" :model="form" :rules="rules" label-width="auto">
-                <el-form-item prop="name" :label="$t('system.sysconf.confItem')" required>
-                    <el-input v-model="form.name"></el-input>
-                </el-form-item>
-                <el-form-item prop="key" :label="$t('system.sysconf.confKey')" required>
-                    <el-input :disabled="form.id != null" v-model="form.key"></el-input>
-                </el-form-item>
-                <el-form-item prop="permission" :label="$t('system.sysconf.permission')">
-                    <el-select
-                        remote
-                        :remote-method="getAccount"
-                        v-model="state.permissionAccount"
-                        filterable
-                        multiple
-                        :placeholder="$t('system.sysconf.permissionPlaceholder')"
-                    >
-                        <el-option v-for="item in state.accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.username"> </el-option>
-                    </el-select>
-                </el-form-item>
-
-                <el-form-item :label="$t('system.sysconf.confItem')" class="w-full!">
-                    <dynamic-form-edit v-model="params" />
-                </el-form-item>
-
-                <el-form-item :label="$t('common.remark')">
-                    <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
-                </div>
+            <!-- 配置项表单定义（v1 JSON Schema 表格编辑器） -->
+            <template #params>
+                <auto-form-schema-edit v-model="params" />
             </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, useTemplateRef, type ComponentPublicInstance } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, reactive, ref, useTemplateRef, watch } from 'vue';
 import { configApi, accountApi } from '../api';
-import { DynamicFormEdit } from '@/components/dynamic-form';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { AutoFormDrawer, AutoFormSchemaEdit, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { isJsonFormSchema, type AutoFormJsonSchema } from '@/components/auto-form/json';
 import { useI18nFormValidate } from '@/hooks/useI18n';
-import { Rules } from '@/common/rule';
 
 /** 系统配置编辑表单类型 */
 interface ConfigForm {
@@ -62,11 +41,6 @@ interface ConfigForm {
     remark?: string;
     permission?: string;
 }
-
-const rules = {
-    name: [Rules.requiredInput('system.sysconf.confItem')],
-    key: [Rules.requiredInput('system.sysconf.confKey')],
-};
 
 const props = defineProps({
     data: {
@@ -82,82 +56,84 @@ const visible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const configFormRef = useTemplateRef<FormInstance>('configFormRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
-const state = reactive({
-    params: [] as Record<string, unknown>[],
-    accounts: [] as import('@/views/system/types').Account[],
-    permissionAccount: [] as string[],
-    form: {
-        id: null,
-        name: '',
-        key: '',
-        params: '',
-        value: '',
-        remark: '',
-        permission: '',
-    } as ConfigForm,
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；permissionAccount/params 走插槽承载复杂控件） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'system.sysconf.confItem', required: true },
+    { prop: 'key', label: 'system.sysconf.confKey', required: true, disabled: (f) => f.id != null },
+    { prop: 'permissionAccount', label: 'system.sysconf.permission', type: 'custom' },
+    { prop: 'params', label: 'system.sysconf.confItem', type: 'custom' },
+    { prop: 'remark', label: 'common.remark', type: 'textarea', rows: 2 },
+];
+
+/** 配置项表单定义（v1 JSON Schema，与表单字段并行维护，提交时序列化进 form.params） */
+const params = ref({ version: 1, fields: [] } as AutoFormJsonSchema);
+
+const accounts = ref<import('@/views/system/types').Account[]>([]);
+/** 权限账号（与 form.permission 字符串互转的编辑态） */
+const permissionAccount = ref<string[]>([]);
+
+/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData | null>(() => {
+    if (props.data) {
+        return { ...(props.data as ConfigForm) } as unknown as AutoFormData;
+    }
+    return { id: null, name: '', key: '', params: '', value: '', remark: '', permission: 'all' } as unknown as AutoFormData;
 });
 
-const { params, form } = toRefs(state);
+const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi();
 
-const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi(form);
-
+// 抽屉打开时解析入参 schema 与权限账号
 watch(visible, () => {
     if (!visible.value) {
         return;
     }
-
-    if (props.data) {
-        state.form = { ...(props.data as ConfigForm) };
-        if (state.form.params) {
-            state.params = JSON.parse(state.form.params);
-        } else {
-            state.params = [];
+    const data = props.data as ConfigForm | boolean | null;
+    const form = (data && typeof data === 'object' ? data : {}) as ConfigForm;
+    if (form.params) {
+        try {
+            const parsed = JSON.parse(form.params);
+            params.value = isJsonFormSchema(parsed) ? parsed : { version: 1, fields: [] };
+        } catch {
+            params.value = { version: 1, fields: [] };
         }
     } else {
-        state.form = { permission: 'all' } as ConfigForm;
-        state.params = [];
+        params.value = { version: 1, fields: [] };
     }
 
-    const permission = state.form.permission ?? '';
+    const permission = form.permission ?? '';
     if (permission != 'all') {
-        const accounts = permission.split(',');
-        state.permissionAccount = accounts.slice(0, accounts.length - 1);
+        const accountArr = permission.split(',');
+        permissionAccount.value = accountArr.slice(0, accountArr.length - 1);
     } else {
-        state.permissionAccount = [];
+        permissionAccount.value = [];
     }
 });
-
-const onCancel = () => {
-    visible.value = false;
-    // 若父组件有取消事件，则调用
-    emit('cancel');
-    state.permissionAccount = [];
-};
 
 const getAccount = (username: string) => {
     if (username) {
         accountApi.list.request({ username }).then((res) => {
-            state.accounts = res.list;
+            accounts.value = res.list;
         });
     }
 };
 
-const onConfirm = async () => {
-    await useI18nFormValidate(configFormRef);
-    if (state.params) {
-        state.form.params = JSON.stringify(state.params);
+const onConfirm = async (rawForm: AutoFormData) => {
+    const form = rawForm as ConfigForm;
+    await useI18nFormValidate(drawerRef);
+    if (params.value) {
+        form.params = JSON.stringify(params.value);
     }
-    if (state.permissionAccount.length > 0) {
-        state.form.permission = state.permissionAccount.join(',') + ',';
+    if (permissionAccount.value.length > 0) {
+        form.permission = permissionAccount.value.join(',') + ',';
     } else {
-        state.form.permission = 'all';
+        form.permission = 'all';
     }
 
-    await saveConfigExec();
-    emit('val-change', state.form);
-    onCancel();
+    await saveConfigExec(form);
+    emit('val-change', form);
+    visible.value = false;
 };
 </script>
 <style lang="scss"></style>

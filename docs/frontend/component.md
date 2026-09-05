@@ -155,6 +155,226 @@ frontend/src/assets/icon/
 - 🚫 不要在 SVG 中硬编码颜色值
 - 🚫 文件名不要使用大写或下划线
 
+## JSON 表单 DSL（v1 Schema）
+
+纯 JSON 可序列化的表单定义，供后端下发（系统配置 `t_sys_config.params`、机器脚本入参 `t_machine_script.params`）或代码内以纯数据方式声明表单。定义在 `frontend/src/components/auto-form/json/`，由 `compileJsonForm()` 编译为 `AutoFormItem[]` 后经 AutoForm 系列组件渲染。
+
+表单 Schema 编辑器为 `AutoFormSchemaEdit`（表格化编辑字段列表，用于系统配置/脚本入参定义页面）。
+
+### 设计要点
+
+- **编译层模式**：JSON Schema 是 AutoFormItem 函数型配置的可序列化子集。函数型配置（`when` / `disabled(fn)` / `options(fn)` / `onChange`）由结构化声明（`JsonCondition` / `JsonOptionsSource`）编译生成，**不使用 eval**。
+- **显式版本号**：`version: 1` 用于格式自识别（裸 JSON 无类型标签）、后端迁移幂等守卫（见 `v1_12.go` 的 `convertLegacyFormParams`）与未来演进升级。前端经 `isJsonFormSchema()` 守卫入口，仅接受 v1。
+- **严格可序列化**：Schema 不允许出现函数；需要行为时用条件/数据源声明表达。
+
+### Schema 结构
+
+```json
+{
+  "version": 1,
+  "cols": 1,
+  "fields": [
+    {
+      "prop": "host",
+      "label": "machine.host",
+      "type": "input",
+      "placeholder": "machine.hostPlaceholder",
+      "tooltip": "...",
+      "defaultValue": "",
+      "rules": { "required": true, "maxLength": 64 },
+      "span": 12,
+      "when": { "field": "mode", "op": "eq", "value": "custom" },
+      "disabled": false,
+      "props": {}
+    }
+  ]
+}
+```
+
+字段说明（`JsonField`）：
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `prop` | string | 字段名（必填） |
+| `label` / `placeholder` / `tooltip` / `description` | string | 文本类属性，支持 i18n key 或原文（`description` 显示在控件下方） |
+| `type` | string | 控件类型，默认 `input`；白名单：`input` / `password` / `number` / `textarea` / `select` / `switch` / `date` / `datetime` / `time` / `monaco` / `divider` / `group`；白名单外类型（如 `custom` / `enum`，无法纯 JSON 表达）编译时跳过并 console.warn |
+| `groupDescription` | string | 分组描述（i18n key 或原文，`type='group'` 时显示在分组标题下方） |
+| `rules` | JsonRules | 校验规则，见下表 |
+| `defaultValue` | any | 字段默认值 |
+| `disabled` | boolean \| JsonCondition | 布尔或条件表达式（条件满足时禁用） |
+| `readonly` | boolean \| JsonCondition | 只读（语义等同禁用；AutoForm 另支持表单级 `readonly` prop 一键全局只读） |
+| `hidden` | boolean | 隐藏字段：不渲染控件但保留在表单数据中（如透传 tenant_id） |
+| `when` | JsonCondition | 条件显隐，不满足时隐藏字段（隐藏时不参与校验，字段值保留） |
+| `span` | number | el-col 栅格跨度，缺省时由 `cols` 均分 24 |
+| `options` | Option[] | select 静态选项（`{ value, label }`），与 `optionsSource` 二选一，优先 `options` |
+| `optionsSource` | JsonOptionsSource | select 声明式选项数据源，见下文 |
+| `multiple` | boolean | select 多选 |
+| `rows` | number | textarea 行数（默认 3） |
+| `prefix` / `suffix` | string | input / number 输入框前后缀文本（i18n key 或原文） |
+| `min` / `max` | number | number 控件范围 |
+| `props` | object | 透传底层控件的额外属性（如 switch 的 `active-value`） |
+
+`JsonRules`：`required`（必填）、`minLength` / `maxLength`（字符串长度）、`pattern`（正则字符串，编译时 `new RegExp`）、`min` / `max`（数值范围）、`message`（校验提示，i18n key 或原文）。
+
+### 条件表达式（JsonCondition）
+
+简单条件 `{ field, op, value }`，或组合条件 `{ all: [...] }`（与）、`{ any: [...] }`（或）、`{ not: {...} }`（非），可任意嵌套：
+
+| 操作符 | 含义 |
+| --- | --- |
+| `eq` / `ne` | 等于 / 不等于（宽松比较：`'1'` 与 `1` 相等，`null` 与 `undefined` 相等） |
+| `in` / `notIn` | 值在 / 不在指定数组内 |
+| `empty` / `notEmpty` | 值为空（undefined / null / 空串 / 空数组）/ 非空 |
+| `gt` / `gte` / `lt` / `lte` | 数值比较，无法转为数字时恒为 false |
+
+```json
+{
+  "when": {
+    "all": [
+      { "field": "type", "op": "eq", "value": "db" },
+      { "any": [
+          { "field": "engine", "op": "eq", "value": "mysql" },
+          { "field": "engine", "op": "eq", "value": "postgres" }
+      ] }
+    ]
+  }
+}
+```
+
+### 声明式选项数据源（JsonOptionsSource）
+
+select 字段可通过 `optionsSource` 从后端接口异步加载选项，编译为 options 函数：
+
+```json
+{
+  "prop": "tagId",
+  "type": "select",
+  "optionsSource": {
+    "url": "/api/v1/tag/list",
+    "method": "get",
+    "params": { "type": 1 },
+    "dataField": "list",
+    "valueField": "id",
+    "labelField": "name",
+    "deps": ["tagType"]
+  }
+}
+```
+
+- `url`（必填）：**仅允许站内相对路径**（如 `/api/...`），走统一 request 封装自动附带认证信息，防止被配置成开放代理
+- `method`：默认 `get`，可选 `post`
+- `params`：附加请求参数
+- `dataField`：从响应中提取选项数组的字段名，不传则响应本身需为数组
+- `valueField` / `labelField`：每项取 value / label 的字段名（默认 `value` / `label`）
+- `deps`：依赖的字段名列表，这些表单字段值变化时重新加载选项，且依赖值会合并进请求参数
+
+### 使用示例
+
+```vue
+<script setup lang="ts">
+import { AutoFormDialog, type AutoFormJsonSchema } from '@/components/auto-form';
+
+const schema: AutoFormJsonSchema = {
+    version: 1,
+    fields: [
+        { prop: 'name', label: 'common.name', rules: { required: true } },
+        { prop: 'type', label: 'common.type', type: 'select', options: [{ value: 1, label: 'A' }] },
+        { prop: 'ext', label: 'common.remark', when: { field: 'type', op: 'eq', value: 1 } },
+    ],
+};
+</script>
+
+<template>
+    <AutoFormDialog v-model="visible" :schema="schema" v-model:form-data="form" title="demo" @confirm="onConfirm" />
+</template>
+```
+
+> 说明：AutoForm 系列组件（AutoForm / AutoFormDialog / AutoFormDrawer）均支持 `schema` prop 直接接收 v1 Schema（与 `items` 二选一，优先 schema），内部经编译层渲染；存量旧格式 params 由后端幂等迁移（`v1.12.0-form-params-json-schema-v1`）统一升级为 v1，前端不再兼容旧数组格式。历史上的 dynamic-form 组件已移除，表单能力统一收敛到 auto-form 系列。
+
+### 布局能力（group 分组 / tabs 页签）
+
+对齐 tokhub AutoForm 的企业级布局能力，函数式与 JSON DSL 双层支持：
+
+**group 分组容器**（`type: 'group'`）：非字段项，渲染标题 + 可选 `groupDescription` + 带边框容器包裹后续字段，直到下一个 group。字段全部隐藏（`when`/`hidden`）时空分组不渲染：
+
+```ts
+const items: AutoFormItem[] = [
+    { type: 'group', label: 'common.basic' },
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'host', label: 'Host', required: true },
+    { type: 'group', label: 'common.other' },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
+];
+```
+
+**tabs 页签**（对齐 tokhub TabConfig）：AutoForm / AutoFormDialog / AutoFormDrawer 均支持 `tabs` prop（`AutoFormTab[]`：`{ name, label, icon?, items }`）。所有 Tab 共享同一表单数据与校验（el-tab-pane 非懒渲染，未激活 Tab 字段同样挂载，`validate()` 全量生效）：
+
+```ts
+const tabs: AutoFormTab[] = [
+    { name: 'basic', label: 'common.basic', items: [{ prop: 'name', label: 'common.name', required: true }] },
+    { name: 'other', label: 'common.other', items: [{ prop: 'remark', label: 'common.remark', type: 'textarea' }] },
+];
+```
+
+JSON Schema 内置 `tabs` 字段（`JsonTab[]`：`{ name, label, icon?, fields }`）时自动渲染为 Tab 布局，经 `compileJsonTabs()` 编译。
+
+**其它字段能力**：`prefix` / `suffix`（input/number 前后缀）、`validate`（自定义校验函数，仅函数式 AutoFormItem：`(value, form) => boolean | string`，JSON 下发不可用）。
+
+## 表单统一规范（el-form → auto-form）
+
+全站表单已统一收敛到 auto-form 系列，新建/修改表单**必须使用** AutoForm / AutoFormDialog / AutoFormDrawer 声明式实现，禁止手写 `el-form + el-form-item` 逐字段模板。
+
+### 基本模式
+
+```vue
+<template>
+    <auto-form ref="formRef" v-model="form" :items="items" label-width="auto">
+        <template #customField>
+            <!-- 复杂控件（monaco / 远程选择 / 表格编辑器 / el-tabs 块）放 custom 插槽 -->
+        </template>
+    </auto-form>
+</template>
+<script lang="ts" setup>
+import { type AutoFormInstance } from '@/components/auto-form';
+
+// ref 契约类型统一从 auto-form 导入，禁止各调用点手写结构体类型
+const formRef = useTemplateRef<AutoFormInstance>('formRef');
+
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', required: true, rules: [Rules.requiredInput('common.name')] },
+    { prop: 'type', label: 'common.type', type: 'select', options: [...] },
+    { prop: 'customField', type: 'custom' },
+];
+
+// 校验统一 Promise 风格
+await formRef.value?.validate();
+formRef.value?.resetFields?.();
+</script>
+```
+
+### 关键约定
+
+- **label / placeholder / description / tooltip 传 i18n key**，由 auto-form 统一 `$t`；`description` 渲染在控件下方（替代手写 field-tip div）
+- **props 透传文本不走 $t**：经 `props` 透传给底层控件的文本（如 el-switch 的 `active-text`、第三方控件 placeholder）不会被翻译，必须用 `t('key')` 计算值（此时 items 用 computed）
+- **保守校验语义**：原表单无校验的字段转换时不加校验（仅星号展示时保持“不参与 validate”行为）；回调风格 `validate(cb)` 统一改 Promise 风格
+- **primitive 代理**：独立 ref 绑定 auto-form 时用 `computed({ get, set })` 包装，或改用 reactive 对象
+- **条件显隐**用 `when: (form) => boolean`（隐藏字段不参与校验）；`enums` 可直接传枚举对象
+- **options label 统一经 $t**：select / enum / radio 的选项 label 支持 i18n key 或原文（missing key 时原文透传）
+- **弹层宿主防误关**：AutoFormDialog / AutoFormDrawer 默认 `close-on-click-modal=false`（防误点遮罩丢失已填数据），可用 `close-on-click-modal` prop 显式开启；两者均 expose `validate / resetFields / clearValidate`，回填 `data` 为深拷贝（嵌套对象编辑不污染外部行数据）；支持 `v-model:active-tab` 在弹层内向导式切换 Tab；回填仅在打开瞬间执行，打开期间外部 data 引用变化不重置表单
+- **新增控件类型**：在 `AutoFormControl` 增加渲染分支后，同步在 `types.ts` 的 `CONTROL_REGISTRY` 登记能力位（`selectLike` 必填提示语、`jsonCompilable` 是否允许 JSON Schema 下发），选择类提示与 JSON 编译白名单即自动生效，无需散点修改多处判断
+- **schema 与 tabs 互斥语义**：`schema.tabs` 存在时以 tabs 为准（顶层 fields 被忽略），默认值回填同样取 tabs 合集；`group` 分组内字段全部被 when 隐藏时整组不渲染（不残留空壳容器）
+
+### 保留原生 el-form 的边界（开闭原则）
+
+以下场景**允许保留/使用原生 el-form**，不视为违规：
+
+1. **动态列/动态字段驱动的表单**：字段名无法静态映射到 items 或插槽（如 `DbTableDataForm` 动态列、`GenericParamInput` 动态参数）
+2. **依赖父 el-form 上下文的动态组件面板**：子组件契约依赖 el-form 注入（如流程节点 `PropSettingDrawer` 系列）
+3. **复杂交互面板**：深层状态绑定 + 分组下拉/表格勾选等重度交互（如 `RolesGrantPrivilege`、`FieldConfigPanel`、`EsSearch` 内联条件行、`EsDashboard` 只读展示、`AiSettings` 响应式断点栅格配置面板）
+4. **无 model/rules 的布局壳**：仅用 el-form 做垂直间距、内部是单个自绘控件或无逻辑占位页（如 `MobileLogin`、`DbTablesOp` 散用 form-item）
+5. **强样式图标式登录表单**：无 label、prefix-icon 风格与 auto-form 的 label+控件语义不匹配（如 `AccountLogin` 主表单）
+6. **auto-form 自身 / crontab 等基础组件内部**
+
 ## 边界
 
 - ✅ **Always**: 使用 Composition API + `<script setup>`

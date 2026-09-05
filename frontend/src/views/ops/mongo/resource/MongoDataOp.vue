@@ -77,20 +77,11 @@
         </el-row>
 
         <el-dialog width="600px" title="find params" v-model="findDialog.visible">
-            <el-form label-width="auto">
-                <el-form-item label="filter">
+            <auto-form v-model="findDialog.findParam" :items="findParamItems" label-width="auto">
+                <template #filter>
                     <monaco-editor style="width: 100%" height="150px" ref="monacoEditorRef" v-model="findDialog.findParam.filter" language="json" />
-                </el-form-item>
-                <el-form-item label="sort">
-                    <el-input v-model="findDialog.findParam.sort" type="textarea" :rows="3" clearable auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item label="limit">
-                    <el-input v-model.number="findDialog.findParam.limit" type="number" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item label="skip">
-                    <el-input v-model.number="findDialog.findParam.skip" type="number" auto-complete="off"></el-input>
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
             <template #footer>
                 <div>
                     <el-button @click="findDialog.visible = false">{{ $t('common.cancel') }}</el-button>
@@ -118,6 +109,7 @@
 
 <script lang="ts" setup>
 import { isTrue, notBlank } from '@/common/assert';
+import type { AutoFormItem } from '@/components/auto-form';
 import { formatByteSize } from '@/common/utils/format';
 import { Msg } from '@/hooks/useI18n';
 import { mongoApi } from '@/views/ops/mongo/api';
@@ -188,6 +180,14 @@ const state = reactive({
 });
 
 const { findDialog, docEditDialog } = toRefs(state);
+
+/** find params 表单声明（filter 编辑器为 custom 插槽） */
+const findParamItems: AutoFormItem[] = [
+    { prop: 'filter', label: 'filter', type: 'custom' },
+    { prop: 'sort', label: 'sort', type: 'textarea', props: { rows: 3, clearable: true, autoComplete: 'off' } },
+    { prop: 'limit', label: 'limit', type: 'number' },
+    { prop: 'skip', label: 'skip', type: 'number' },
+];
 
 const nowColl = computed(() => {
     return getNowDataTab();

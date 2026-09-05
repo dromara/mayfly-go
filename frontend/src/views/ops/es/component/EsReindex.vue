@@ -11,22 +11,7 @@
     >
         <el-tabs v-model="tabActiveName">
             <el-tab-pane name="basic" label="basic">
-                <el-form :model="formData" ref="formRef">
-                    <el-form-item :label="t('es.ReindexTargetIdx')" required prop="targetIdxName">
-                        <el-select clearable filterable v-model="formData.targetIdxName" :style="{ width: '100%' }">
-                            <el-option v-for="idx in idxNames" :key="idx" :value="idx" :label="idx" />
-                        </el-select>
-                    </el-form-item>
-                    <el-form-item :label="t('es.ReindexIsSync')">
-                        <el-space>
-                            <el-switch v-model="formData.sync" />
-                            <el-text type="info" size="small">{{ t('es.ReindexSyncDescription') }}</el-text>
-                        </el-space>
-                    </el-form-item>
-                    <el-form-item>
-                        <el-text type="info" size="small">{{ t('es.ReindexDescription') }}</el-text>
-                    </el-form-item>
-                </el-form>
+                <auto-form ref="formRef" v-model="formData" :items="items" />
             </el-tab-pane>
             <el-tab-pane name="otherInst" :label="t('es.ReindexToOtherInst')"> developing... </el-tab-pane>
             <el-tab-pane name="task" :label="t('es.ReindexSyncTask')"> developing... </el-tab-pane>
@@ -41,14 +26,15 @@
 
 <script setup lang="ts">
 import { Msg } from '@/hooks/useI18n';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { esApi } from '@/views/ops/es/api';
-import { ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 const visible = defineModel<boolean>('visible');
 
-const formRef = ref();
+const formRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('formRef');
 
 interface Props {
     instId: number;
@@ -62,6 +48,18 @@ const formData = ref({
     targetIdxName: '',
     sync: false,
 });
+
+/** 表单声明（AutoFormItem[]；同步说明文案由 tooltip + description 承载） */
+const items = computed<AutoFormItem[]>(() => [
+    {
+        prop: 'targetIdxName',
+        label: 'es.ReindexTargetIdx',
+        type: 'select',
+        required: true,
+        options: props.idxNames.map((idx) => ({ label: idx, value: idx })),
+    },
+    { prop: 'sync', label: 'es.ReindexIsSync', type: 'switch', tooltip: 'es.ReindexSyncDescription', description: 'es.ReindexDescription' },
+]);
 
 const confirm = async () => {
     if (tabActiveName.value === 'basic') {

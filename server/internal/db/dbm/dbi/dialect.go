@@ -1,7 +1,6 @@
 package dbi
 
 import (
-	"errors"
 	"io"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
@@ -23,14 +22,19 @@ type DbCopyTable struct {
 	CopyData  bool   `json:"copyData"` // 是否复制数据
 }
 
+// TargetTableMeta 目标表元信息，用于生成 upsert/merge 类插入语句。
+// 由调用方（持有真实目标库连接）预先查询好传入，保证 SQLGenerator 为纯函数：
+// 生成 SQL 的过程中不做任何数据库查询，避免在伪连接（仅生成SQL）场景下 panic
+type TargetTableMeta struct {
+	UniqueColumns   []string // 主键与唯一索引涉及到的列名（不含引号）
+	IdentityColumns []string // 自增列名（生成merge语句时需排除）
+}
+
 // BaseDialect 基础dialect，在DefaultDialect 都有默认的实现方法
 type BaseDialect interface {
 
 	// Quoter sql关键字引用处理，如 table -> `table`、table -> "table"
 	Quoter() Quoter
-
-	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-	GetDbProgram() (DbProgram, error)
 
 	// GetDumpHeler
 	GetDumpHelper() DumpHelper
@@ -64,14 +68,12 @@ func (dx *DefaultDialect) Quoter() Quoter {
 	return DefaultQuoter
 }
 
-func (dd *DefaultDialect) GetDbProgram() (DbProgram, error) {
-	return nil, errors.New("not support db program")
-}
-
 func (dd *DefaultDialect) GetDumpHelper() DumpHelper {
 	return new(DefaultDumpHelper)
 }
 
+// GetSQLParser 获取默认sql解析器
+// 注意：mssql、sqlite 等未自定义解析器的方言沿用 pgsql 解析器，其语法与标准 SQL 最接近
 func (pd *DefaultDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(pgsql.PgsqlParser)
 }
@@ -83,26 +85,28 @@ func (pd *DefaultDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 
 // DumpHelper 导出辅助方法
 type DumpHelper interface {
-	BeforeInsert(writer io.Writer, tableName string)
+	BeforeInsert(writer io.Writer, tableName string) error
 
 	BeforeInsertSql(quoteSchema string, quoteTableName string) string
 
-	AfterInsert(writer io.Writer, tableName string, columns []Column)
+	AfterInsert(writer io.Writer, tableName string, columns []Column) error
 }
 
 type DefaultDumpHelper struct {
 }
 
-func (dd *DefaultDumpHelper) BeforeInsert(writer io.Writer, tableName string) {
-	writer.Write([]byte("BEGIN;\n"))
+func (dd *DefaultDumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+	_, err := writer.Write([]byte("BEGIN;\n"))
+	return err
 }
 
 func (dd *DefaultDumpHelper) BeforeInsertSql(quoteSchema string, quoteTableName string) string {
 	return ""
 }
 
-func (dd *DefaultDumpHelper) AfterInsert(writer io.Writer, tableName string, columns []Column) {
-	writer.Write([]byte("COMMIT;\n"))
+func (dd *DefaultDumpHelper) AfterInsert(writer io.Writer, tableName string, columns []Column) error {
+	_, err := writer.Write([]byte("COMMIT;\n"))
+	return err
 }
 
 type SQLGenerator interface {
@@ -112,6 +116,9 @@ type SQLGenerator interface {
 	// GenIndexDDL 生成索引语句
 	GenIndexDDL(table Table, indexs []Index) []string
 
-	// GenInsert 生成插入语句
-	GenInsert(tableName string, columns []Column, values [][]any, duplicateStrategy int) []string
+	// GenInsert 生成插入语句，返回可直接执行的sql列表
+	//  - duplicateStrategy: 重复数据处理策略
+	//  - targetTableMeta: 目标表元信息，仅在生成 upsert/merge 语句（DuplicateStrategyUpdate/Ignore 且方言需要）时使用；可为nil，
+	//    为nil时若无法生成冲突处理语句则退化为直接插入。生成过程中不会查询数据库
+	GenInsert(tableName string, columns []Column, values [][]any, duplicateStrategy int, targetTableMeta *TargetTableMeta) []string
 }

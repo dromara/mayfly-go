@@ -5,9 +5,10 @@
  */
 import { Rules } from '@/common/rule';
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
+import type { AutoFormData } from '@/components/auto-form';
 import { Msg } from '@/hooks/useI18n';
 import type { FormInstance } from 'element-plus';
-import { computed, inject, provide, ref, watch, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, provide, ref, type InjectionKey, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../../api';
 import { DataTypeMap, fieldTypeGroups, IndexConfigByDataType, VectorTypes } from '../collection/constants';
@@ -644,54 +645,57 @@ export function useCollectionForm(options: UseCollectionFormOptions) {
         }
     };
 
-    // 监听 visible 变化，初始化表单
-    watch(visible, (newVal) => {
-        if (newVal) {
-            resetForm();
-            const editData = getEditData();
+    /**
+     * 抽屉打开后初始化表单（target 为 AutoFormDrawer 内部表单引用，直接接管为唯一数据源，
+     * 由 CollectionsCreate 的 @opened 回调触发，替代原先的 watch(visible) 初始化）
+     */
+    const initForm = (target: AutoFormData) => {
+        resetForm();
+        // 接管 AutoFormDrawer 内部表单为唯一数据源（强类型断言，后续 Object.assign 会回填完整结构）
+        form.value = target as unknown as typeof form.value;
+        const editData = getEditData();
 
-            if (getMode() === 'edit' && editData) {
-                // 编辑模式：填充现有数据
-                const schema: NonNullable<ApiCollection['Schema']> = editData.Schema || editData.schema || {};
-                // 记录原始名称
-                originalName.value = editData.Name || editData.name || '';
-                form.value = {
-                    name: editData.Name || editData.name || '',
-                    description: schema.Description || editData.description || '',
-                    shardsNum: editData.ShardNum || 1,
-                    consistency_level: ['Bounded', 'Strong', 'Session', 'Eventually'][editData.ConsistencyLevel ?? 0] || 'Bounded',
-                    fields: (schema.Fields || []).map((f) => ({
-                        ...transformApiFieldToForm(f),
-                        readonly: true, // 编辑模式下现有字段只读
-                    })),
-                };
-                // 处理动态字段
-                if (schema.EnableDynamicField) {
-                    dynamicFieldEnabled.value = true;
-                }
-            } else if (getMode() === 'copy' && editData) {
-                // 复制模式：填充数据，表名加 _copy 后缀
-                const schema: NonNullable<ApiCollection['Schema']> = editData.Schema || editData.schema || {};
-                const srcName = editData.Name || editData.name || '';
-                const copyName = srcName ? `${srcName}_copy` : '';
-                form.value = {
-                    name: copyName,
-                    description: schema.Description || editData.description || '',
-                    shardsNum: editData.ShardNum || 1,
-                    consistency_level: ['Bounded', 'Strong', 'Session', 'Eventually'][editData.ConsistencyLevel ?? 0] || 'Bounded',
-                    fields: (schema.Fields || []).map((f) => transformApiFieldToForm(f)),
-                };
-                // 处理动态字段
-                if (schema.EnableDynamicField) {
-                    dynamicFieldEnabled.value = true;
-                }
-            } else {
-                // 新增模式：默认添加一个主键字段和一个向量字段
-                handleAddField(DataTypeMap.Int64);
-                handleAddField(DataTypeMap.FloatVector, 'vector');
+        if (getMode() === 'edit' && editData) {
+            // 编辑模式：填充现有数据
+            const schema: NonNullable<ApiCollection['Schema']> = editData.Schema || editData.schema || {};
+            // 记录原始名称
+            originalName.value = editData.Name || editData.name || '';
+            Object.assign(target, {
+                name: editData.Name || editData.name || '',
+                description: schema.Description || editData.description || '',
+                shardsNum: editData.ShardNum || 1,
+                consistency_level: ['Bounded', 'Strong', 'Session', 'Eventually'][editData.ConsistencyLevel ?? 0] || 'Bounded',
+                fields: (schema.Fields || []).map((f) => ({
+                    ...transformApiFieldToForm(f),
+                    readonly: true, // 编辑模式下现有字段只读
+                })),
+            });
+            // 处理动态字段
+            if (schema.EnableDynamicField) {
+                dynamicFieldEnabled.value = true;
             }
+        } else if (getMode() === 'copy' && editData) {
+            // 复制模式：填充数据，表名加 _copy 后缀
+            const schema: NonNullable<ApiCollection['Schema']> = editData.Schema || editData.schema || {};
+            const srcName = editData.Name || editData.name || '';
+            const copyName = srcName ? `${srcName}_copy` : '';
+            Object.assign(target, {
+                name: copyName,
+                description: schema.Description || editData.description || '',
+                shardsNum: editData.ShardNum || 1,
+                consistency_level: ['Bounded', 'Strong', 'Session', 'Eventually'][editData.ConsistencyLevel ?? 0] || 'Bounded',
+                fields: (schema.Fields || []).map((f) => transformApiFieldToForm(f)),
+            });
+            // 处理动态字段
+            if (schema.EnableDynamicField) {
+                dynamicFieldEnabled.value = true;
+            }
+        } else {
+            // 新增模式：默认添加一个主键字段和一个向量字段
+            handleAddField(DataTypeMap.Int64);
+            handleAddField(DataTypeMap.FloatVector, 'vector');
         }
-    });
+    };
 
     return {
         // state
@@ -740,6 +744,7 @@ export function useCollectionForm(options: UseCollectionFormOptions) {
         handleCopyField,
         handleSelectFieldType,
         // form lifecycle
+        initForm,
         handleClose,
         handleSubmit,
         handlePreview,

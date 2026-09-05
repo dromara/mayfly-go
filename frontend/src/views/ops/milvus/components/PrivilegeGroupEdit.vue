@@ -6,11 +6,7 @@
         width="750px"
     >
         <!-- 权限组名称 -->
-        <el-form label-width="auto" :model="form">
-            <el-form-item :label="$t('milvus.privilegeGroupName')" required>
-                <el-input v-model="form.groupName" :disabled="isEdit" :placeholder="$t('milvus.privilegeGroupName')" />
-            </el-form-item>
-        </el-form>
+        <auto-form v-model="form" :items="formItems" label-width="auto" />
 
         <!-- 权限选择区域 -->
         <div class="privilege-select-area">
@@ -37,6 +33,7 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
+import type { AutoFormItem } from '@/components/auto-form';
 import type { PropType } from 'vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { milvusApi } from '../api';
@@ -52,6 +49,11 @@ const emit = defineEmits(['saved']);
 const visible = defineModel<boolean>('visible', { default: false });
 
 const isEdit = computed(() => props.privilegeGroup !== null);
+
+/** 权限组表单声明（编辑模式禁用 groupName） */
+const formItems: AutoFormItem[] = [
+    { prop: 'groupName', label: 'milvus.privilegeGroupName', required: true, disabled: () => isEdit.value, placeholder: 'milvus.privilegeGroupName' },
+];
 
 const form = reactive({
     groupName: '',

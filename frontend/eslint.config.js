@@ -68,6 +68,9 @@ export default [
             '@typescript-eslint/no-wrapper-object-types': 'off',
 
             // Vue rules
+            // shallowOnly：仅拦截「prop 本身被重新赋值」（破坏单向数据流），
+            // 放行受控深层写入（如 auto-form 对共享引用 form 的字段级 v-model 绑定，设计如此）
+            'vue/no-mutating-props': ['error', { shallowOnly: true }],
             'vue/html-indent': 'off',
             'vue/script-indent': 'off',
             'vue/custom-event-name-casing': 'off',

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/mysql"
 	"mayfly-go/pkg/gox"
+	"mayfly-go/pkg/logx"
 	"time"
 )
 
@@ -23,31 +24,27 @@ type MysqlDialect struct {
 	dc *dbi.DbConn
 }
 
-// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (md *MysqlDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, nil
-	// return NewDbProgramMysql(md.dc), nil
-}
-
 func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
+	quote := md.Quoter().Quote
 	tableName := copy.TableName
 
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
 
 	// 复制表结构创建表
-	_, err := md.dc.Exec(fmt.Sprintf("create table %s like %s", newTableName, tableName))
-	if err != nil {
+	if _, err := md.dc.Exec(fmt.Sprintf("create table %s like %s", quote(newTableName), quote(tableName))); err != nil {
 		return err
 	}
 
-	// 复制数据
+	// 复制数据（异步执行，执行失败仅记录日志）
 	if copy.CopyData {
 		gox.Go(func() {
-			_, _ = md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
+			if _, err := md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", quote(newTableName), quote(tableName))); err != nil {
+				logx.Errorf("mysql copy table [%s] data failed: %s", tableName, err.Error())
+			}
 		})
 	}
-	return err
+	return nil
 }
 
 func (md *MysqlDialect) Quoter() dbi.Quoter {

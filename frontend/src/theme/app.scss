@@ -298,6 +298,49 @@ body,
     }
 }
 
+/* 表单内嵌弹窗/抽屉中的表单项间距修复：
+ * 在一个 el-form 的 DOM 内部原地打开的 el-dialog / el-drawer（如编辑抽屉的 custom 插槽内嵌的编辑弹窗），
+ * 其内部表单项会被 element-plus 的嵌套规则 .el-form-item .el-form-item { margin-bottom: 0 } 命中而全部贴合；
+ * 该规则本意是同一表单内的嵌套分组，弹层是独立表单，此处恢复默认间距（inline 横排表单除外，保持原生归零） */
+.el-form {
+    .el-dialog .el-form:not(.el-form--inline) .el-form-item,
+    .el-drawer .el-form:not(.el-form--inline) .el-form-item {
+        margin-bottom: var(--el-form-item-margin-bottom);
+    }
+
+    /* 同类泄漏的 label 修复：外层 label-top 表单（如 AutoFormDrawer）内原地打开的弹层中，
+     * 内层表单 label 会被 element-plus 后代选择器 .el-form-item--label-top .el-form-item__label 误伤：
+     * padding-right:0 → label 文字贴死输入框；height:auto/line-height:22px → 与控件不居中。
+     * 此处恢复 right 布局 label 默认渲染，并让 label 垂直居中于控件行 */
+    .el-form-item--label-top {
+        .el-dialog .el-form:not(.el-form--inline) .el-form-item:not(.el-form-item--label-top) .el-form-item__label,
+        .el-drawer .el-form:not(.el-form--inline) .el-form-item:not(.el-form-item--label-top) .el-form-item__label {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
+            min-height: 32px;
+            margin-bottom: 0;
+            padding-right: 12px;
+            line-height: normal;
+            text-align: right;
+            width: auto;
+        }
+    }
+
+    /* 窄列（多字段并排，span < 24，由 AutoFormFieldCol 标记 is-narrow-col）
+     * 不参与 label-width=auto 的全局 label 右对齐：该偏移按全表单最宽 label 计算，
+     * 窄列可用宽小于「偏移 + label」时 content 被挤为 0（控件不可见且触发横向滚动） */
+    .el-form-item.is-narrow-col .el-form-item__label-wrap {
+        margin-left: 0 !important;
+    }
+
+    /* 栅格列允许收缩到内容以下（min-width:auto 时 min-content 会撑破窄容器产生横向滚动） */
+    .el-row .el-col {
+        min-width: 0;
+    }
+}
+
 .el-table-z-index-inherit .el-table .el-table__cell {
     z-index: inherit !important;
 }

@@ -32,11 +32,7 @@
             :close-on-click-modal="false"
             body-class="p-1"
         >
-            <el-form>
-                <el-form-item>
-                    <format-viewer class="w-full!" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
-                </el-form-item>
-            </el-form>
+            <format-viewer class="w-full!" ref="formatViewerRef" :content="editDialog.content"></format-viewer>
 
             <template #footer>
                 <div class="dialog-footer">

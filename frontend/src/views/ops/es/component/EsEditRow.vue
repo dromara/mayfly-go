@@ -10,12 +10,11 @@
     >
         <el-auto-resizer>
             <template #default="{ height, width }">
-                <el-form>
-                    <el-form-item label="_id">
-                        <el-input v-model.trim="_id" :disabled="model._id != ''" :placeholder="t('es.specifyIdAdd')" />
-                    </el-form-item>
-                    <monaco-editor v-model="model.doc" language="json" :height="height - 40 + 'px'" :options="{ wordWrap: 'on', tabSize: 2 }" />
-                </el-form>
+                <auto-form v-model="editForm" :items="editItems" label-width="auto">
+                    <template #doc>
+                        <monaco-editor v-model="model.doc" language="json" :height="height - 40 + 'px'" :options="{ wordWrap: 'on', tabSize: 2 }" />
+                    </template>
+                </auto-form>
             </template>
         </el-auto-resizer>
         <template #footer>
@@ -28,7 +27,8 @@
 <script setup lang="ts">
 import { Msg } from '@/hooks/useI18n';
 import { esApi } from '@/views/ops/es/api';
-import { defineAsyncComponent, ref, watch } from 'vue';
+import type { AutoFormItem } from '@/components/auto-form';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
@@ -42,6 +42,16 @@ const perms = {
 const visible = defineModel<boolean>('visible');
 const loading = ref(false);
 const _id = ref('');
+
+/** 文档编辑表单声明（_id 独立 ref 经 computed 代理；doc 编辑器为 custom 插槽） */
+const editForm = computed({
+    get: () => ({ _id: _id.value }),
+    set: (v: { _id: string }) => (_id.value = v._id),
+});
+const editItems = computed<AutoFormItem[]>(() => [
+    { prop: '_id', label: '_id', props: { autocomplete: 'off' }, placeholder: 'es.specifyIdAdd', disabled: () => model.value._id != '' },
+    { prop: 'doc', type: 'custom' },
+]);
 
 interface Params {
     isAdd: boolean;

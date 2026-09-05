@@ -9,12 +9,9 @@
             :destroy-on-close="true"
             width="38%"
         >
-            <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                </el-form-item>
-
-                <el-form-item prop="authCertName" :label="$t('db.acName')" required>
+            <auto-form ref="dbForm" v-model="form" :items="items" label-width="auto">
+                <!-- 认证名选择（选项含用户名/加密类型/备注富渲染） -->
+                <template #authCertName>
                     <el-select v-model="form.authCertName" filterable>
                         <el-option v-for="item in state.authCerts" :key="item.id" :label="`${item.name}`" :value="item.name">
                             {{ item.name }}
@@ -29,13 +26,10 @@
                             {{ item.remark }}
                         </el-option>
                     </el-select>
-                </el-form-item>
+                </template>
 
-                <el-form-item prop="getDatabaseMode" :label="$t('db.getDbMode')" required>
-                    <EnumSelect :enums="DbGetDbNamesMode" v-model="form.getDatabaseMode" @change="onChangeGetDatabaseMode" />
-                </el-form-item>
-
-                <el-form-item prop="database" label="DB">
+                <!-- 指定 DB 多选（全选/自定义过滤/允许创建） -->
+                <template #database>
                     <el-select
                         :disabled="form.getDatabaseMode == DbGetDbNamesMode.Auto.value || !form.authCertName"
                         v-model="dbNamesSelected"
@@ -57,12 +51,8 @@
                         </template>
                         <el-option v-for="db in state.dbNamesFiltered" :key="db" :label="db" :value="db" />
                     </el-select>
-                </el-form-item>
-
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
 
             <template #footer>
                 <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
@@ -75,7 +65,7 @@
 <script lang="ts" setup>
 import { toRefs, reactive, watch, ref, useTemplateRef, type PropType } from 'vue';
 import { dbApi } from './api';
-import type { CheckboxValueType, FormInstance } from 'element-plus';
+import type { CheckboxValueType } from 'element-plus';
 import { DbType } from '@/views/ops/db/dialect';
 
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
@@ -83,9 +73,8 @@ import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { DbGetDbNamesMode } from './enums';
-import EnumSelect from '@/components/enum-select/EnumSelect.vue';
 import { useI18nFormValidate } from '@/hooks/useI18n';
-import { Rules } from '@/common/rule';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import type { Db, DbInstance } from './types';
 import type { ResourceAuthCert } from '@/types/common';
 
@@ -114,17 +103,10 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change', 'confirm']);
 
-const rules = {
-    instanceId: [Rules.requiredSelect('db.dbInst')],
-    name: [Rules.requiredInput('common.name')],
-    authCertName: [Rules.requiredSelect('db.acName')],
-    getDatabaseMode: [Rules.requiredSelect('db.getDbMode')],
-};
-
 const checkAllDbNames = ref(false);
 const indeterminateDbNames = ref(false);
 
-const dbForm = useTemplateRef<FormInstance>('dbForm');
+const dbForm = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('dbForm');
 
 const state = reactive({
     allDatabases: [] as string[],
@@ -171,6 +153,15 @@ const onChangeGetDatabaseMode = (val: number) => {
         state.dbNamesSelected = [];
     }
 };
+
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；authCertName/database 选项渲染复杂走插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'authCertName', label: 'db.acName', required: true },
+    { prop: 'getDatabaseMode', label: 'db.getDbMode', type: 'enum', enums: DbGetDbNamesMode, required: true, onChange: (val: unknown) => onChangeGetDatabaseMode(val as number) },
+    { prop: 'database', label: 'DB' },
+    { prop: 'remark', label: 'common.remark', type: 'textarea' },
+];
 
 const getAuthCerts = async () => {
     const inst = props.instance as Partial<DbInstance> | false | null;

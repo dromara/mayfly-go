@@ -1,61 +1,43 @@
 <template>
-    <el-drawer v-model="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" size="560px" append-to-body :close-on-click-modal="false">
-        <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" label-position="left">
-            <el-form-item :label="$t('ai.integration.mcpName')" prop="name">
-                <el-input v-model="form.name" :placeholder="$t('ai.integration.mcpNamePlaceholder')" />
-            </el-form-item>
-            <el-form-item :label="$t('ai.integration.mcpCode')" prop="code">
-                <el-input v-model="form.code" :disabled="isEdit" :placeholder="$t('ai.integration.mcpCodePlaceholder')" />
-            </el-form-item>
-            <el-form-item :label="$t('ai.integration.mcpDescription')">
-                <el-input v-model="form.description" type="textarea" :rows="2" :placeholder="$t('ai.integration.mcpDescriptionPlaceholder')" />
-            </el-form-item>
-            <el-form-item :label="$t('ai.integration.mcpUrl')" prop="url">
-                <el-input v-model="form.url" placeholder="https://example.com/mcp" />
-            </el-form-item>
-            <el-form-item :label="$t('ai.integration.mcpHeaders')">
-                <div class="headers-editor">
-                    <MonacoEditor v-model="form.headers" language="json" height="140px" />
-                    <div class="field-tip">{{ $t('ai.integration.mcpHeadersPlaceholder') }}</div>
-                </div>
-            </el-form-item>
-            <el-form-item :label="$t('ai.integration.mcpTimeout')">
-                <el-input-number v-model="form.timeoutSec" :min="1" :max="600" controls-position="right" />
-                <span class="unit-label">s</span>
-            </el-form-item>
-            <el-form-item v-if="isEdit" :label="$t('ai.integration.mcpEnabled')">
-                <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-            </el-form-item>
-
-            <!-- 测试连接（编辑态可用） -->
-            <template v-if="isEdit">
-                <el-divider content-position="left">{{ $t('ai.integration.mcpConnectionTest') }}</el-divider>
-                <div class="test-block">
-                    <el-button type="primary" plain :loading="testing" @click="handleTest">{{ $t('ai.integration.mcpTestConnect') }}</el-button>
-                    <span v-if="tested" class="tool-count">{{ $t('ai.integration.mcpToolCount', { count: discoveredTools.length }) }}</span>
-                    <div v-if="discoveredTools.length" class="tool-list">
-                        <div v-for="tool in discoveredTools" :key="tool.name" class="tool-item">
-                            <span class="tool-name">{{ tool.name }}</span>
-                            <span class="tool-desc">{{ tool.description }}</span>
-                        </div>
-                    </div>
-                    <div v-else-if="tested && !testing" class="tool-empty">{{ $t('ai.integration.mcpNoTools') }}</div>
-                </div>
-            </template>
-        </el-form>
-
-        <template #footer>
-            <el-button @click="visible = false">{{ $t('common.cancel') }}</el-button>
-            <el-button type="primary" :loading="saving" @click="handleSave">{{ $t('common.save') }}</el-button>
+    <auto-form-drawer ref="drawerRef" v-model="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" :items="formItems" :data="editData" size="560px" append-to-body @confirm="handleSave" @opened="onOpened">
+        <template #headers="{ form }">
+            <div class="headers-editor">
+                <MonacoEditor v-model="form.headers" language="json" height="140px" />
+                <div class="field-tip">{{ $t('ai.integration.mcpHeadersPlaceholder') }}</div>
+            </div>
         </template>
-    </el-drawer>
+        <template #timeoutSec="{ form }">
+            <el-input-number v-model="form.timeoutSec" :min="1" :max="600" controls-position="right" />
+            <span class="unit-label">s</span>
+        </template>
+        <!-- 测试连接（编辑态可用） -->
+        <template #testArea>
+            <el-divider content-position="left">{{ $t('ai.integration.mcpConnectionTest') }}</el-divider>
+            <div class="test-block">
+                <el-button type="primary" plain :loading="testing" @click="handleTest">{{ $t('ai.integration.mcpTestConnect') }}</el-button>
+                <span v-if="tested" class="tool-count">{{ $t('ai.integration.mcpToolCount', { count: discoveredTools.length }) }}</span>
+                <div v-if="discoveredTools.length" class="tool-list">
+                    <div v-for="tool in discoveredTools" :key="tool.name" class="tool-item">
+                        <span class="tool-name">{{ tool.name }}</span>
+                        <span class="tool-desc">{{ tool.description }}</span>
+                    </div>
+                </div>
+                <div v-else-if="tested && !testing" class="tool-empty">{{ $t('ai.integration.mcpNoTools') }}</div>
+            </div>
+        </template>
+
+        <template #footer="{ form }">
+            <el-button @click="visible = false">{{ $t('common.cancel') }}</el-button>
+            <el-button type="primary" :loading="saving" @click="handleSave(form)">{{ $t('common.save') }}</el-button>
+        </template>
+    </auto-form-drawer>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, reactive, ref, watch } from 'vue';
-import type { FormInstance, FormRules } from 'element-plus';
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '@/hooks/useI18n';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { pluginApi, type PluginInstance } from './api';
 
@@ -74,43 +56,55 @@ const emit = defineEmits<{
     (e: 'saved'): void;
 }>();
 
-const visible = computed({
-    get: () => props.modelValue,
-    set: (v: boolean) => emit('update:modelValue', v),
-});
+const visible = defineModel<boolean>({ default: false });
 
 const isEdit = computed(() => !!props.server);
 
-const formRef = ref<FormInstance>();
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; clearValidate?: () => void }>('drawerRef');
 const saving = ref(false);
 const testing = ref(false);
 const tested = ref(false);
 const discoveredTools = ref<{ name: string; description: string }[]>([]);
 
-const form = reactive({
-    code: '',
-    name: '',
-    description: '',
-    url: '',
-    headers: '',
-    timeoutSec: 30,
-    enabled: 1,
-});
-
 // 编辑态原始启停值（保存后若变化需经启停接口同步）
 const origEnabled = ref(1);
 
-const rules: FormRules = {
-    name: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpName') }), trigger: 'blur' }],
-    code: [
-        { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpCode') }), trigger: 'blur' },
-        { pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/, message: () => t('ai.integration.mcpCodePattern'), trigger: 'blur' },
-    ],
-    url: [
-        { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpUrl') }), trigger: 'blur' },
-        { pattern: /^https?:\/\//, message: () => t('ai.integration.mcpUrlPattern'), trigger: 'blur' },
-    ],
-};
+/** 表单声明（enabled/测试连接区仅编辑态展示，headers/timeoutSec 为 custom 插槽） */
+const formItems = computed<AutoFormItem[]>(() => [
+    {
+        prop: 'name',
+        label: 'ai.integration.mcpName',
+        required: true,
+        placeholder: 'ai.integration.mcpNamePlaceholder',
+        rules: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpName') }), trigger: 'blur' }],
+    },
+    {
+        prop: 'code',
+        label: 'ai.integration.mcpCode',
+        required: true,
+        placeholder: 'ai.integration.mcpCodePlaceholder',
+        disabled: () => isEdit.value,
+        rules: [
+            { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpCode') }), trigger: 'blur' },
+            { pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/, message: () => t('ai.integration.mcpCodePattern'), trigger: 'blur' },
+        ],
+    },
+    { prop: 'description', label: 'ai.integration.mcpDescription', type: 'textarea', props: { rows: 2 }, placeholder: 'ai.integration.mcpDescriptionPlaceholder' },
+    {
+        prop: 'url',
+        label: 'ai.integration.mcpUrl',
+        required: true,
+        placeholder: 'https://example.com/mcp',
+        rules: [
+            { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpUrl') }), trigger: 'blur' },
+            { pattern: /^https?:\/\//, message: () => t('ai.integration.mcpUrlPattern'), trigger: 'blur' },
+        ],
+    },
+    { prop: 'headers', label: 'ai.integration.mcpHeaders', type: 'custom' },
+    { prop: 'timeoutSec', label: 'ai.integration.mcpTimeout', type: 'custom' },
+    { prop: 'enabled', label: 'ai.integration.mcpEnabled', type: 'switch', when: () => isEdit.value, props: { 'active-value': 1, 'inactive-value': 0 } },
+    { prop: 'testArea', type: 'custom', when: () => isEdit.value },
+]);
 
 // 紧凑 JSON 格式化为缩进形式（非法 JSON 原样返回，交给保存校验提示）
 const prettyJson = (s: string) => {
@@ -121,34 +115,40 @@ const prettyJson = (s: string) => {
     }
 };
 
-watch(
-    () => props.modelValue,
-    (open) => {
-        if (!open) return;
-        tested.value = false;
-        discoveredTools.value = [];
-        formRef.value?.clearValidate();
-        if (props.server) {
-            // 连接配置内联在实例 config（McpInstanceConfig：url/headers/timeoutSec）
-            const cfg = (props.server.config || {}) as Partial<{ url: string; headers: string; timeoutSec: number }>;
-            origEnabled.value = props.server.enabled;
-            Object.assign(form, {
-                code: props.server.code,
-                name: props.server.name,
-                description: props.server.description,
-                url: cfg.url || '',
-                headers: prettyJson(cfg.headers || ''),
-                timeoutSec: cfg.timeoutSec || 30,
-                enabled: props.server.enabled,
-            });
-            if (props.autoDiscover) {
-                nextTick(() => handleTest());
-            }
-        } else {
-            Object.assign(form, { code: '', name: '', description: '', url: '', headers: '', timeoutSec: 30, enabled: 1 });
+/** 传给 AutoFormDrawer 的回填数据：连接配置内联在实例 config（McpInstanceConfig：url/headers/timeoutSec） */
+const editData = computed<AutoFormData | null>(() => {
+    if (props.server) {
+        const cfg = (props.server.config || {}) as Partial<{ url: string; headers: string; timeoutSec: number }>;
+        return {
+            code: props.server.code,
+            name: props.server.name,
+            description: props.server.description,
+            url: cfg.url || '',
+            headers: prettyJson(cfg.headers || ''),
+            timeoutSec: cfg.timeoutSec || 30,
+            enabled: props.server.enabled,
+        } as unknown as AutoFormData;
+    }
+    return { code: '', name: '', description: '', url: '', headers: '', timeoutSec: 30, enabled: 1 } as unknown as AutoFormData;
+});
+
+// 打开时重置测试状态，编辑态记录原始启停值；列表页「查看工具」入口自动执行连接测试
+watch(visible, (open) => {
+    if (!open) return;
+    tested.value = false;
+    discoveredTools.value = [];
+    if (props.server) {
+        origEnabled.value = props.server.enabled;
+        if (props.autoDiscover) {
+            nextTick(() => handleTest());
         }
     }
-);
+});
+
+/** 抽屉打开且回填完成后清残留校验状态（参数为 AutoFormDrawer 内部表单引用，占位避免未使用告警） */
+const onOpened = (_form: AutoFormData) => {
+    drawerRef.value?.clearValidate?.();
+};
 
 const handleTest = async () => {
     testing.value = true;
@@ -163,11 +163,19 @@ const handleTest = async () => {
     }
 };
 
-const handleSave = async () => {
-    const valid = await formRef.value?.validate().then(() => true).catch(() => false);
-    if (!valid) return;
+// @confirm 触发前 AutoFormDrawer 已完成表单校验
+const handleSave = async (rawForm: AutoFormData) => {
+    const form = rawForm as {
+        code: string;
+        name: string;
+        description: string;
+        url: string;
+        headers: string;
+        timeoutSec: number;
+        enabled: number;
+    };
     // headers 需为合法 JSON 对象（后端同样校验）
-    if (form.headers.trim()) {
+    if (form.headers?.trim()) {
         try {
             JSON.parse(form.headers);
         } catch {

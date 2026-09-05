@@ -53,18 +53,7 @@
 
                 <div v-if="props.instTaskId">
                     <el-divider content-position="left">{{ $t('flow.approveForm') }}</el-divider>
-                    <el-form :model="form" label-width="auto">
-                        <el-form-item prop="status" :label="$t('flow.approveResult')" required>
-                            <el-select v-model="form.status">
-                                <el-option :label="$t(ProcinstTaskStatus.Pass.label)" :value="ProcinstTaskStatus.Pass.value"> </el-option>
-                                <el-option :label="$t(ProcinstTaskStatus.Back.label)" :value="ProcinstTaskStatus.Back.value"> </el-option>
-                                <el-option :label="$t(ProcinstTaskStatus.Reject.label)" :value="ProcinstTaskStatus.Reject.value"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item prop="remark" :label="$t('common.remark')">
-                            <el-input v-model.trim="form.remark" :placeholder="$t('common.remark')" type="textarea" clearable></el-input>
-                        </el-form-item>
-                    </el-form>
+                    <auto-form v-model="form" :items="approveItems" label-position="top" />
                 </div>
 
                 <div v-if="flowDef" class="h-75">
@@ -121,6 +110,7 @@ import { defineAsyncComponent, reactive, shallowReactive, toRefs, watch } from '
 import { procinstApi, procinstTaskApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus, ProcinstTaskStatus } from './enums';
+import type { AutoFormItem } from '@/components/auto-form';
 import type { Procinst, ProcinstTask, HisProcinstOp, FlowNode, FlowDef } from './types';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
@@ -164,6 +154,12 @@ const state = reactive({
 });
 
 const { procinst, flowDef, form, saveBtnLoading } = toRefs(state);
+
+/** 审批表单声明 */
+const approveItems: AutoFormItem[] = [
+    { prop: 'status', label: 'flow.approveResult', type: 'select', required: true, enums: ProcinstTaskStatus },
+    { prop: 'remark', label: 'common.remark', type: 'textarea', props: { clearable: true }, placeholder: 'common.remark' },
+];
 
 watch(
     () => props.procinstId,

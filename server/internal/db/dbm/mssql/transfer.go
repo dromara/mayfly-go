@@ -8,6 +8,11 @@ type commonTypeConverter struct {
 }
 
 func (c *commonTypeConverter) Varchar(col *dbi.Column) *dbi.DbDataType {
+	// varchar(n)上限8000字节，超长转varchar(max)避免非法DDL
+	if col.CharMaxLength > 8000 {
+		col.CharMaxLength = 0
+		return VarcharMax
+	}
 	return Varchar
 }
 
@@ -15,12 +20,17 @@ func (c *commonTypeConverter) Char(col *dbi.Column) *dbi.DbDataType {
 	return Char
 }
 func (c *commonTypeConverter) Text(col *dbi.Column) *dbi.DbDataType {
+	// text类型无长度语法，清空长度避免生成text(n)非法DDL
+	col.CharMaxLength = 0
 	return Text
 }
 func (c *commonTypeConverter) Mediumtext(col *dbi.Column) *dbi.DbDataType {
+	// 与Text对齐：text无长度语法，清空源长度避免生成text(n)非法DDL
+	col.CharMaxLength = 0
 	return Text
 }
 func (c *commonTypeConverter) Longtext(col *dbi.Column) *dbi.DbDataType {
+	col.CharMaxLength = 0
 	return Text
 }
 
@@ -74,19 +84,29 @@ func (c *commonTypeConverter) Timestamp(col *dbi.Column) *dbi.DbDataType {
 }
 
 func (c *commonTypeConverter) Binary(col *dbi.Column) *dbi.DbDataType {
-	return Binary
+	return bytesType(col)
 }
 func (c *commonTypeConverter) Varbinary(col *dbi.Column) *dbi.DbDataType {
-	return Varbinary
+	return bytesType(col)
 }
 func (c *commonTypeConverter) Mediumblob(col *dbi.Column) *dbi.DbDataType {
-	return Binary
+	return bytesType(col)
 }
 func (c *commonTypeConverter) Blob(col *dbi.Column) *dbi.DbDataType {
-	return Binary
+	return bytesType(col)
 }
 func (c *commonTypeConverter) Longblob(col *dbi.Column) *dbi.DbDataType {
-	return Binary
+	return bytesType(col)
+}
+
+// bytesType 二进制类型统一归一化：varbinary(n)上限8000且binary为定长填充（会pad 0x00），
+// 源无长度或超长时用varbinary(max)承载，避免binary(1)默认长度或非法DDL
+func bytesType(col *dbi.Column) *dbi.DbDataType {
+	if col.CharMaxLength <= 0 || col.CharMaxLength > 8000 {
+		col.CharMaxLength = 0
+		return VarbinaryMax
+	}
+	return Varbinary
 }
 
 func (c *commonTypeConverter) Enum(col *dbi.Column) *dbi.DbDataType {

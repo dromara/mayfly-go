@@ -32,6 +32,9 @@ func (md *MssqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(res) == 0 {
+		return nil, errorx.NewBiz("failed to get database version: empty result")
+	}
 	ds := &dbi.DbServer{
 		Version: cast.ToString(res[0]["version"]),
 	}
@@ -57,7 +60,7 @@ func (md *MssqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := md.dc.GetDialect()
 	schema := md.dc.Info.CurrentSchema()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	var res []map[string]any
@@ -91,7 +94,7 @@ func (md *MssqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := md.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_COLUMN_MA_KEY), tableName), md.dc.Info.CurrentSchema())

@@ -3,7 +3,6 @@ package postgres
 import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 )
@@ -91,7 +90,7 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 		}
 
 		// 如果索引名存在，先删除索引
-		drops = append(drops, fmt.Sprintf("DROP INDEX IF EXISTS %s%s", currentSchema, index.IndexName))
+		drops = append(drops, fmt.Sprintf("DROP INDEX IF EXISTS %s%s", currentSchema, quote(index.IndexName)))
 
 		// 取出列名，添加引号
 		cols := strings.Split(index.ColumnName, ",")
@@ -103,7 +102,7 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 		creates = append(creates, fmt.Sprintf("CREATE%s INDEX %s ON %s%s(%s)", unique, quote(index.IndexName), currentSchema, quote(table.TableName), strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
 			comment := dbi.QuoteEscape(index.IndexComment)
-			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s%s IS '%s'", currentSchema, index.IndexName, comment))
+			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s%s IS '%s'", currentSchema, quote(index.IndexName), comment))
 		}
 	}
 
@@ -122,85 +121,86 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 	return sqlArr
 }
 
-func (psg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int) []string {
+func (psg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	insertSql := dbi.GenCommonInsert(psg.dialect, psg.dc.Info.Type, tableName, columns, values)
 
 	// 根据冲突策略生成后缀
 	suffix := ""
 	if psg.dc.Info.Type == DbTypeGauss {
 		// 高斯db使用ON DUPLICATE KEY UPDATE 语法参考 https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
-		suffix = psg.gaussOnDuplicateStrategySql(duplicateStrategy, tableName, columns)
+		suffix = psg.gaussOnDuplicateStrategySql(duplicateStrategy, targetTableMeta, columns)
 	} else {
 		// pgsql 默认使用 on conflict 语法参考 http://www.postgres.cn/docs/12/sql-insert.html
 		// vastbase语法参考 https://docs.vastdata.com.cn/zh/docs/VastbaseE100Ver3.0.0/doc/SQL%E8%AF%AD%E6%B3%95/INSERT.html
 		// kingbase语法参考 https://help.kingbase.com.cn/v8/development/sql-plsql/sql/SQL_Statements_9.html#insert
-		suffix = psg.pgsqlOnDuplicateStrategySql(duplicateStrategy, tableName, columns)
+		suffix = psg.pgsqlOnDuplicateStrategySql(duplicateStrategy, targetTableMeta, columns)
 	}
 
 	return collx.AsArray[string](insertSql + suffix)
 }
 
-// pgsql默认唯一键冲突策略
-func (psg *SQLGenerator) pgsqlOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []dbi.Column) string {
-	suffix := ""
+// pgsql默认唯一键冲突策略，生成过程中不查询数据库（唯一列由调用方预查传入）
+func (psg *SQLGenerator) pgsqlOnDuplicateStrategySql(duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta, columns []dbi.Column) string {
+	// on conflict do nothing 无需指定冲突列，可匹配任意唯一约束
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
-		suffix = " \n on conflict do nothing"
-	} else if duplicateStrategy == dbi.DuplicateStrategyUpdate {
-		// 生成 on conflict () do update set column1 = excluded.column1, column2 = excluded.column2, ...
-		var updateColumns []string
-		for _, col := range columns {
-			updateColumns = append(updateColumns, fmt.Sprintf("%s = excluded.%s", col.ColumnName, col.ColumnName))
-		}
-		// 查询唯一键名,拼接冲突sql
-		_, keyRes, _ := psg.dc.Query("SELECT constraint_name FROM information_schema.table_constraints WHERE constraint_schema = $1 AND table_name = $2 AND constraint_type in ('PRIMARY KEY', 'UNIQUE') ", psg.dc.Info.CurrentSchema(), tableName)
-		if len(keyRes) > 0 {
-			for _, re := range keyRes {
-				key := anyx.ToString(re["constraint_name"])
-				if key != "" {
-					suffix += fmt.Sprintf(" \n on conflict on constraint %s do update set %s \n", key, strings.Join(updateColumns, ", "))
-				}
-			}
-		}
+		return " \n on conflict do nothing"
 	}
-	return suffix
+	if duplicateStrategy != dbi.DuplicateStrategyUpdate || targetTableMeta == nil || len(targetTableMeta.UniqueColumns) == 0 {
+		return ""
+	}
+
+	// 生成 on conflict (uk_cols) do update set column1 = excluded.column1, ...
+	// 注意：一条insert只能有一个on conflict子句，冲突列必须精确匹配某一个唯一约束的列集合，
+	// 否则执行时报错，由调用方保证 UniqueColumns 为单一唯一约束（一般为表主键）的列集合
+	uniqueSet := make(map[string]bool)
+	for _, col := range targetTableMeta.UniqueColumns {
+		uniqueSet[strings.ToLower(col)] = true
+	}
+	trim := psg.dialect.Quoter().Trim
+	var updateColumns []string
+	for _, col := range columns {
+		// 不更新冲突键列自身，避免无意义更新
+		if uniqueSet[strings.ToLower(trim(col.ColumnName))] {
+			continue
+		}
+		updateColumns = append(updateColumns, fmt.Sprintf("%s = excluded.%s", col.ColumnName, col.ColumnName))
+	}
+	if len(updateColumns) == 0 {
+		// 所有列均为冲突键列，无法生成update子句，退化为忽略冲突
+		return " \n on conflict do nothing"
+	}
+	quote := psg.dialect.Quoter().Quote
+	quotedUniqueCols := make([]string, 0, len(targetTableMeta.UniqueColumns))
+	for _, col := range targetTableMeta.UniqueColumns {
+		quotedUniqueCols = append(quotedUniqueCols, quote(col))
+	}
+	return fmt.Sprintf(" \n on conflict (%s) do update set %s \n", strings.Join(quotedUniqueCols, ", "), strings.Join(updateColumns, ", "))
 }
 
 // 高斯db唯一键冲突策略,使用ON DUPLICATE KEY UPDATE 参考：https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
-func (psg *SQLGenerator) gaussOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []dbi.Column) string {
-	suffix := ""
-	metadata := psg.dc.GetMetadata()
+func (psg *SQLGenerator) gaussOnDuplicateStrategySql(duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta, columns []dbi.Column) string {
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
-		suffix = " \n ON DUPLICATE KEY UPDATE NOTHING"
-	} else if duplicateStrategy == dbi.DuplicateStrategyUpdate {
-
-		// 查出表里的唯一键涉及的字段
-		var uniqueColumns []string
-		indexs, err := metadata.GetTableIndex(tableName)
-		if err == nil {
-			for _, index := range indexs {
-				if index.IsUnique {
-					cols := strings.Split(index.ColumnName, ",")
-					for _, col := range cols {
-						if !collx.ArrayContains(uniqueColumns, strings.ToLower(col)) {
-							uniqueColumns = append(uniqueColumns, strings.ToLower(col))
-						}
-					}
-				}
-			}
-		}
-
-		suffix = " \n ON DUPLICATE KEY UPDATE "
-		for i, col := range columns {
-			// ON DUPLICATE KEY UPDATE语句不支持更新唯一键字段，所以得去掉
-			if !collx.ArrayContains(uniqueColumns, psg.dialect.Quoter().Trim(strings.ToLower(col.ColumnName))) {
-				suffix += fmt.Sprintf("%s = excluded.%s", col.ColumnName, col.ColumnName)
-				if i < len(columns)-1 {
-					suffix += ", "
-				}
-			}
-		}
+		return " \n ON DUPLICATE KEY UPDATE NOTHING"
 	}
-	return suffix
+	if duplicateStrategy != dbi.DuplicateStrategyUpdate || targetTableMeta == nil || len(targetTableMeta.UniqueColumns) == 0 {
+		return ""
+	}
+
+	suffix := " \n ON DUPLICATE KEY UPDATE "
+	trim := psg.dialect.Quoter().Trim
+	var sets []string
+	for _, col := range columns {
+		// ON DUPLICATE KEY UPDATE语句不支持更新唯一键字段，所以得去掉
+		if collx.ArrayContains(targetTableMeta.UniqueColumns, strings.ToLower(trim(col.ColumnName))) {
+			continue
+		}
+		sets = append(sets, fmt.Sprintf("%s = excluded.%s", col.ColumnName, col.ColumnName))
+	}
+	if len(sets) == 0 {
+		// 所有列均为唯一键列，无法生成update子句，退化为忽略冲突
+		return ""
+	}
+	return suffix + strings.Join(sets, ", ")
 }
 
 func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
@@ -252,7 +252,8 @@ func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 		}
 
 		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+			// 默认值可能含单引号（如 it's），需双写转义，避免 DDL 语法错误或注入
+			defVal = fmt.Sprintf(" DEFAULT '%s'", dbi.QuoteEscape(column.ColumnDefault))
 		} else {
 			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
 		}

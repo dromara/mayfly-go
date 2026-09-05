@@ -100,20 +100,16 @@
             </el-splitter-panel>
         </el-splitter>
 
-        <el-dialog width="500px" :title="saveTabDialog.title" :before-close="onCancelSaveTag" v-model="saveTabDialog.visible">
-            <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model="saveTabDialog.form.name" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item :label="$t('common.remark')">
-                    <el-input v-model="saveTabDialog.form.remark" auto-complete="off"></el-input>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="onCancelSaveTag()">{{ $t('common.cancel') }}</el-button>
-                <el-button @click="onSaveTag" type="primary">{{ $t('common.confirm') }}</el-button>
-            </template>
-        </el-dialog>
+        <!-- 标签保存表单（AutoFormDialog：items 声明 + 内置校验与确认按钮） -->
+        <auto-form-dialog
+            v-model="saveTabDialog.visible"
+            :title="saveTabDialog.title"
+            :data="saveTabDialog.form"
+            :items="tagFormItems"
+            width="500px"
+            @confirm="onSaveTag"
+            @cancel="onCancelSaveTag"
+        />
 
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
@@ -122,16 +118,15 @@
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
-import { Rules } from '@/common/rule';
 import { formatDate } from '@/common/utils/format';
 import { isPrefixSubsequence } from '@/common/utils/string';
 import { hasPerm } from '@/components/auth/auth';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle, useI18nFormValidate } from '@/hooks/useI18n';
+import { AutoFormDialog, type AutoFormItem } from '@/components/auto-form';
+import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { getResourceConfigs } from '@/views/ops/resource/resource';
 import { computed, nextTick, onMounted, reactive, ref, toRefs, useTemplateRef, watch, type ComponentPublicInstance } from 'vue';
-import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import TagCodePath from '../component/TagCodePath.vue';
 import type { TagTree } from './types';
@@ -160,10 +155,15 @@ interface TreeNode {
     expanded: boolean;
 }
 
-const tagForm = useTemplateRef<FormInstance>('tagForm');
 const tagTreeRef = useTemplateRef<{ setCurrentKey: (key: number) => void; filter: (val: string) => void }>('tagTreeRef');
 const filterTag = ref('');
 const contextmenuRef = ref();
+
+/** 标签保存表单声明（AutoFormDialog 渲染 + 校验唯一数据源） */
+const tagFormItems: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'remark', label: 'common.remark' },
+];
 
 const TagDetail = 'tagDetail';
 
@@ -248,10 +248,6 @@ const { data, saveTabDialog, currentTag, resourceCount, defaultExpandedKeys } = 
 const props = {
     label: 'name',
     children: 'children',
-};
-
-const rules = {
-    name: [Rules.requiredInput('common.name')],
 };
 
 onMounted(() => {
@@ -361,9 +357,7 @@ const onShowEditTagDialog = (data: TreeNodeData) => {
     state.saveTabDialog.visible = true;
 };
 
-const onSaveTag = async () => {
-    await useI18nFormValidate(tagForm);
-    const form = state.saveTabDialog.form;
+const onSaveTag = async (form: { id?: number; pid?: number; name?: string; remark?: string }) => {
     await tagApi.saveTagTree.request(form);
     Msg.saveSuccess();
     search();
@@ -374,7 +368,6 @@ const onSaveTag = async () => {
 const onCancelSaveTag = () => {
     state.saveTabDialog.visible = false;
     state.saveTabDialog.form = { id: 0, pid: 0, name: '', remark: '' };
-    tagForm.value?.resetFields();
 };
 
 const onDeleteTag = async (data: TreeNodeData) => {

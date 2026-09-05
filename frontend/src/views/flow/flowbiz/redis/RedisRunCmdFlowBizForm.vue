@@ -1,6 +1,6 @@
 <template>
-    <el-form :model="bizForm" ref="formRef" :rules="rules" label-width="auto">
-        <el-form-item prop="id" label="DB" required>
+    <auto-form ref="formRef" v-model="bizForm" :items="bizItems" label-width="auto">
+        <template #id>
             <ResourceSelect
                 v-bind="$attrs"
                 v-model="selectRedis"
@@ -12,22 +12,18 @@
                     <TagCodePath v-if="bizForm.redisCode" :code="bizForm.redisCode" />
                 </template>
             </ResourceSelect>
-        </el-form-item>
-
-        <el-form-item prop="cmd" label="CMD" required>
-            <el-input type="textarea" v-model="bizForm.cmd" :placeholder="$t('flow.cmdPlaceholder')" :rows="5" />
-        </el-form-item>
-    </el-form>
+        </template>
+    </auto-form>
 </template>
 
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import type { AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
 import { TagTreeNode } from '@/views/ops/component/tag';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
 import { computed, ref } from 'vue';
-import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import type { FlowBizForm } from '@/views/flow/types';
 
@@ -53,20 +49,15 @@ interface RedisNodeParams {
     [key: string]: unknown;
 }
 
-const rules = {
-    id: [
-        {
-            required: true,
-            message: t('flow.selectRedisPlaceholder'),
-            trigger: ['change', 'blur'],
-        },
-    ],
-    cmd: [Rules.requiredInput('flow.runCmd')],
-};
+/** Redis 命令执行业务表单声明（资源选择为 custom 插槽；id 校验保留原 message） */
+const bizItems: AutoFormItem[] = [
+    { prop: 'id', label: 'DB', type: 'custom', rules: [{ required: true, message: t('flow.selectRedisPlaceholder'), trigger: ['change', 'blur'] }] },
+    { prop: 'cmd', label: 'CMD', type: 'textarea', required: true, rules: Rules.requiredInput('flow.runCmd'), props: { rows: 5 }, placeholder: 'flow.cmdPlaceholder' },
+];
 
 const emit = defineEmits(['changeResourceCode']);
 
-const formRef = ref<FormInstance | null>(null);
+const formRef = ref<{ validate: (...args: unknown[]) => unknown; resetFields?: () => void } | null>(null);
 
 const bizForm = defineModel<RedisRunCmdForm>('bizForm', {
     default: {
@@ -108,7 +99,7 @@ const validateBizForm = async () => {
 
 const resetBizForm = () => {
     //重置表单域
-    formRef.value?.resetFields();
+    formRef.value?.resetFields?.();
     bizForm.value.id = 0;
     bizForm.value.db = 0;
     bizForm.value.cmd = '';

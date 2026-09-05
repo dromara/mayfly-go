@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
+	"sync"
 )
 
 // Metadata 元数据接口（表、列、等元信息）
@@ -88,11 +89,16 @@ type Index struct {
 var metasql embed.FS
 
 // sql缓存 key: sql备注的key 如：MYSQL_TABLE_MA  value: sql内容
-var sqlCache = make(map[string]string, 20)
+var (
+	sqlCacheMu sync.RWMutex          // 保护 sqlCache 的并发读写
+	sqlCache   = make(map[string]string, 20)
+)
 
 // 获取本地文件的sql内容，并进行解析，获取对应key的sql内容
 func GetLocalSql(file, key string) string {
+	sqlCacheMu.RLock()
 	sql := sqlCache[key]
+	sqlCacheMu.RUnlock()
 	if sql != "" {
 		return sql
 	}
@@ -108,16 +114,29 @@ func GetLocalSql(file, key string) string {
 	var resSql string
 	for _, sql := range sqls {
 		sql = stringx.TrimSpaceAndBr(sql)
+		if sql == "" {
+			continue
+		}
 		// 获取sql第一行的sql备注信息如：--MYSQL_TABLE_MA 表信息元数据
 		info := strings.SplitN(sql, "\n", 2)
+		if len(info) < 2 {
+			// 内容只有一行（无实际sql），跳过，避免越界
+			continue
+		}
+		// 获取sql key；如：MYSQL_TABLE_MA，格式不合法则跳过
+		keyParts := strings.Split(strings.Split(info[0], " ")[0], "--")
+		if len(keyParts) < 2 {
+			continue
+		}
+		sqlKey := keyParts[1]
 		// 原始sql，即去除第一行的key与备注信息
 		rowSql := info[1]
-		// 获取sql key；如：MYSQL_TABLE_MA
-		sqlKey := strings.Split(strings.Split(info[0], " ")[0], "--")[1]
 		if key == sqlKey {
 			resSql = rowSql
 		}
+		sqlCacheMu.Lock()
 		sqlCache[sqlKey] = rowSql
+		sqlCacheMu.Unlock()
 	}
 	return resSql
 }

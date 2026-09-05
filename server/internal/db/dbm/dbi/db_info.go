@@ -71,6 +71,14 @@ func (di *DbInfo) GetLogDesc() string {
 	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", di.Id, di.CodePath, di.Name, di.Host, di.Port, di.Database)
 }
 
+// 连接池参数（也可按需调整为实例配置）
+const (
+	connMaxLifetime = 5 * time.Hour  // 连接最大存活时间
+	connMaxIdleTime = 3 * time.Hour  // 闲置连接最大存活时间
+	maxOpenConns    = 10             // 最大打开连接数
+	maxIdleConns    = 1              // 最大闲置连接数
+)
+
 // 连接数据库
 func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 	if meta == nil {
@@ -103,12 +111,12 @@ func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 
 	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di}
 
-	conn.SetConnMaxLifetime(5 * time.Hour)
-	conn.SetConnMaxIdleTime(3 * time.Hour)
+	conn.SetConnMaxLifetime(connMaxLifetime)
+	conn.SetConnMaxIdleTime(connMaxIdleTime)
 	// 设置最大连接数
-	conn.SetMaxOpenConns(10)
+	conn.SetMaxOpenConns(maxOpenConns)
 	// 设置闲置连接
-	conn.SetMaxIdleConns(1)
+	conn.SetMaxIdleConns(maxIdleConns)
 
 	dbc.db = conn
 	logx.Infof("db connection: %s:%d/%s", di.Host, di.Port, database)
@@ -120,8 +128,12 @@ func (di *DbInfo) Conn(ctx context.Context, meta Meta) (*DbConn, error) {
 func (di *DbInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
-		di.RemoteAddr = di.GetRemoteAddr()
-		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(ctx, int(di.SshTunnelMachineId))
+		// 防止同一DbInfo重复建立隧道：仅在首次记录原始远程地址，
+		// 否则二次调用时 GetRemoteAddr 会将已映射的本地地址当作原始地址记录，导致隧道重建后连错目标
+		if di.RemoteAddr == "" {
+			di.RemoteAddr = fmt.Sprintf("%s:%d", di.Host, di.Port)
+		}
+		sshTunnelMachine, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
 		if err != nil {
 			return err
 		}

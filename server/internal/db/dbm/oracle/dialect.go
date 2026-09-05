@@ -43,7 +43,10 @@ func (od *OracleDialect) batchInsertSimple(tableName string, columns []string, v
 	ignore := ""
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		// 查出唯一索引涉及的字段
-		indexs, _ := metadata.GetTableIndex(tableName)
+		indexs, err := metadata.GetTableIndex(tableName)
+		if err != nil {
+			return 0, err
+		}
 		if indexs != nil {
 			arr := make([]string, 0)
 			for _, index := range indexs {
@@ -74,6 +77,7 @@ func (od *OracleDialect) batchInsertSimple(tableName string, columns []string, v
 		res, err := od.dc.TxExec(tx, sqlTemp, value...)
 		if err != nil {
 			logx.Errorf("执行sql失败：%s, sql: [ %s ]", err.Error(), sqlTemp)
+			return 0, err
 		}
 		effRows += int(res)
 	}
@@ -87,7 +91,10 @@ func (od *OracleDialect) batchInsertMergeSql(tableName string, columns []string,
 	metadata := od.dc.GetMetadata()
 	quote := od.Quoter().Quote
 	// 查询唯一索引涉及到的字段，并组装到match条件内
-	indexs, _ := metadata.GetTableIndex(tableName)
+	indexs, err := metadata.GetTableIndex(tableName)
+	if err != nil {
+		return 0, err
+	}
 	if indexs != nil {
 		for _, index := range indexs {
 			if index.IsUnique {
@@ -149,13 +156,14 @@ func (od *OracleDialect) batchInsertMergeSql(tableName string, columns []string,
 }
 
 func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
+	quote := od.Quoter().Quote
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := strings.ToUpper(copy.TableName + "_copy_" + time.Now().Format("20060102150405"))
 	condition := ""
 	if !copy.CopyData {
 		condition = " where 1 = 2"
 	}
-	_, err := od.dc.Exec(fmt.Sprintf("create table \"%s\" as select * from \"%s\" %s", newTableName, copy.TableName, condition))
+	_, err := od.dc.Exec(fmt.Sprintf("create table %s as select * from %s%s", quote(newTableName), quote(copy.TableName), condition))
 	return err
 }
 
@@ -262,8 +270,7 @@ func (od *OracleDialect) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableNa
 
 func (od *OracleDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{
-		Dialect:  od,
-		Metadata: od.dc.GetMetadata(),
+		Dialect: od,
 	}
 }
 

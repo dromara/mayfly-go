@@ -1,34 +1,17 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :before-close="onCancel" :close-on-click-modal="false" width="38%" :destroy-on-close="true">
-            <el-form :model="form" ref="mongoFormRef" :rules="rules" label-width="auto">
-                <el-tabs v-model="tabActiveName">
-                    <el-tab-pane :label="$t('common.basic')" name="basic">
-                        <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')" required>
-                            <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                        </el-form-item>
+            <auto-form ref="mongoFormRef" v-model="form" :tabs="tabs" label-width="auto">
+                <!-- 关联标签 -->
+                <template #tagCodePaths>
+                    <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
+                </template>
 
-                        <el-form-item prop="name" :label="$t('common.name')" required>
-                            <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                        </el-form-item>
-                        <el-form-item prop="uri" label="uri" required>
-                            <el-input
-                                type="textarea"
-                                :rows="2"
-                                v-model.trim="form.uri"
-                                placeholder="mongodb://username:password@host1:port1"
-                                auto-complete="off"
-                            ></el-input>
-                        </el-form-item>
-                    </el-tab-pane>
-
-                    <el-tab-pane :label="$t('common.other')" name="other">
-                        <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
-                            <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                        </el-form-item>
-                    </el-tab-pane>
-                </el-tabs>
-            </el-form>
+                <!-- SSH 隧道 -->
+                <template #sshTunnelMachineId>
+                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+                </template>
+            </auto-form>
 
             <template #footer>
                 <div class="dialog-footer">
@@ -42,10 +25,9 @@
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { AutoForm, type AutoFormItem, type AutoFormTab } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { mongoApi } from './api';
@@ -76,16 +58,27 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const rules = {
-    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
-    name: [Rules.requiredInput('common.name')],
-    uri: [Rules.requiredInput('mongo.connUrl')],
-};
+/** 表单声明（AutoFormTab[]，Tab 布局共享表单数据与校验；tagCodePaths/sshTunnel 走插槽） */
+const tabs: AutoFormTab[] = [
+    {
+        name: 'basic',
+        label: 'common.basic',
+        items: [
+            { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+            { prop: 'name', label: 'common.name', required: true },
+            { prop: 'uri', label: 'uri', type: 'textarea', rows: 2, required: true, placeholder: 'mongodb://username:password@host1:port1' },
+        ],
+    },
+    {
+        name: 'other',
+        label: 'common.other',
+        items: [{ prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' }],
+    },
+];
 
-const mongoFormRef = useTemplateRef<FormInstance>('mongoFormRef');
+const mongoFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('mongoFormRef');
 
 const state = reactive({
-    tabActiveName: 'basic',
     form: {
         id: null,
         code: '',
@@ -96,7 +89,7 @@ const state = reactive({
     } as MongoForm,
 });
 
-const { tabActiveName, form } = toRefs(state);
+const { form } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi();
 const { isFetching: saveBtnLoading, execute: saveMongoExec } = mongoApi.saveMongo.useApi();
@@ -105,7 +98,6 @@ watchEffect(() => {
     if (!dialogVisible.value) {
         return;
     }
-    state.tabActiveName = 'basic';
     const mongo = props.mongo as MongoForm | false | null;
     if (mongo) {
         state.form = { ...mongo };

@@ -389,7 +389,13 @@ export class DbInst {
             sqlPrefix.startsWith('delete') ||
             sqlPrefix.startsWith('alter') ||
             sqlPrefix.startsWith('drop') ||
-            sqlPrefix.startsWith('create');
+            sqlPrefix.startsWith('create') ||
+            sqlPrefix.startsWith('truncate') ||
+            sqlPrefix.startsWith('rename') ||
+            // 各方言的注释语句（comment on）及授权语句均为非查询类，由后端按方言 DDL 执行
+            sqlPrefix.startsWith('comment') ||
+            sqlPrefix.startsWith('grant') ||
+            sqlPrefix.startsWith('revoke');
         return !nonQuery;
     }
 

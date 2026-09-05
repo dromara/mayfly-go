@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"mayfly-go/pkg/utils/collx"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -183,8 +182,10 @@ func SQLValueBool(val any) string {
 	return fmt.Sprintf("%v", cast.ToBool(val))
 }
 
-// SQLValueString 转换为SQL字符串值，处理特殊字符与单引号
-// 适用于普通字符串类型，会将双引号等特殊字符进行转义
+// SQLValueString 转换为SQL字符串值（标准SQL转义规则）
+// 仅将单引号转义为两个单引号（SQL标准转义方式），其余字符原样保留：
+// 反斜杠、双引号、换行符等在标准SQL字符串字面量中均为普通字符，
+// 若对其做反斜杠转义（如 strconv.Quote），在 PostgreSQL/Oracle/达梦等数据库中会造成数据污染。
 func SQLValueString(val any) string {
 	if val == nil {
 		return NULL
@@ -195,18 +196,14 @@ func SQLValueString(val any) string {
 		return fmt.Sprintf("%v", val)
 	}
 
-	// 使用 strconv.Quote 来处理所有特殊字符
-	quoted := strconv.Quote(strVal)
-	// 去掉 strconv.Quote 添加的外层引号，因为会在最后添加 SQL 的单引号
-	quoted = quoted[1 : len(quoted)-1]
-	// 处理 SQL 中的单引号
-	quoted = strings.ReplaceAll(quoted, "'", "''")
-	return fmt.Sprintf("'%s'", quoted)
+	return fmt.Sprintf("'%s'", QuoteEscape(strVal))
 }
 
-// SQLValuePreserveSpecialChars 转换为SQL字符串值，保留特殊字符如双引号、换行符等
-// 仅转义单引号为两个单引号（SQL标准转义方式）
-func SQLValuePreserveSpecialChars(val any) string {
+// SQLValueStringEscapeBackslash 转换为SQL字符串值（MySQL转义规则）
+// MySQL 默认模式下反斜杠是转义字符（如 \\b 会被解释为退格符），
+// 因此除单引号外还需将反斜杠转义为双反斜杠，否则含反斜杠的数据会静默损坏。
+// 注意：仅适用于 MySQL/MariaDB 等默认启用反斜杠转义的数据库
+func SQLValueStringEscapeBackslash(val any) string {
 	if val == nil {
 		return NULL
 	}
@@ -216,12 +213,16 @@ func SQLValuePreserveSpecialChars(val any) string {
 		return fmt.Sprintf("%v", val)
 	}
 
-	// 直接处理 SQL 特殊字符，保留双引号和其他字符
-	// 只转义单引号为两个单引号（SQL 标准转义方式）
-	escapedStr := strings.ReplaceAll(strVal, "'", "''")
-
-	// 返回 SQL 字符串，保持原始的双引号、换行符等
+	// 先转义反斜杠，再转义单引号
+	escapedStr := strings.ReplaceAll(strVal, "\\", "\\\\")
+	escapedStr = QuoteEscape(escapedStr)
 	return fmt.Sprintf("'%s'", escapedStr)
+}
+
+// SQLValuePreserveSpecialChars 转换为SQL字符串值，保留特殊字符如双引号、换行符等
+// 仅转义单引号为两个单引号（SQL标准转义方式）
+func SQLValuePreserveSpecialChars(val any) string {
+	return SQLValueString(val)
 }
 
 var (
@@ -442,7 +443,7 @@ type uint64Valuer struct {
 
 func (s *uint64Valuer) Value() any {
 	valBytes := *s.ValuePtr
-	if valBytes == nil {
+	if len(valBytes) == 0 {
 		return nil
 	}
 	val := string(valBytes)
@@ -518,7 +519,7 @@ type bitValuer struct {
 
 func (s *bitValuer) Value() any {
 	valBytes := *s.ValuePtr
-	if valBytes == nil {
+	if len(valBytes) == 0 {
 		return nil
 	}
 	return valBytes[0]

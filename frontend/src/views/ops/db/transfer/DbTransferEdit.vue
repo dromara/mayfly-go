@@ -1,133 +1,64 @@
 <template>
     <div class="db-transfer-edit">
-        <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="45%">
-            <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="45%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @opened="onOpened" @cancel="emit('cancel')">
+            <template #cron="{ form }">
+                <CrontabInput v-model="form.cron" />
             </template>
 
-            <el-form :model="form" ref="dbForm" :rules="rules" label-position="top" label-width="auto">
-                <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
+            <!-- 源库选择 -->
+            <template #srcDbId="{ form }">
+                <db-select-tree
+                    v-model:db-id="form.srcDbId"
+                    v-model:inst-name="form.srcInstName"
+                    v-model:db-name="form.srcDbName"
+                    v-model:tag-path="form.srcTagPath"
+                    v-model:db-type="form.srcDbType"
+                    @select-db="onSelectSrcDb"
+                />
+            </template>
 
-                <el-form-item prop="taskName" :label="$t('db.taskName')" required>
-                    <el-input v-model.trim="form.taskName" auto-complete="off" />
-                </el-form-item>
+            <!-- 文件库类型（自定义 option 图标渲染） -->
+            <template #targetFileDbType="{ form }">
+                <el-select v-model="form.targetFileDbType" clearable filterable>
+                    <el-option
+                        v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
+                        :key="key"
+                        :value="dbTypeAndDialect[0]"
+                        :label="dbTypeAndDialect[1].getInfo().name"
+                    >
+                        <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
+                        {{ dbTypeAndDialect[1].getInfo().name }}
+                    </el-option>
+                    <template #prefix>
+                        <SvgIcon v-if="form.targetFileDbType" :name="getDbDialect(form.targetFileDbType).getInfo().icon" :size="20" />
+                    </template>
+                </el-select>
+            </template>
 
-                <el-row class="w-full!">
-                    <el-col :span="12">
-                        <el-form-item prop="status" :label="$t('common.status')" label-position="left">
-                            <el-switch
-                                v-model="form.status"
-                                inline-prompt
-                                :active-text="$t('common.enable')"
-                                :inactive-text="$t('common.disable')"
-                                :active-value="1"
-                                :inactive-value="-1"
-                            />
-                        </el-form-item>
-                    </el-col>
+            <template #fileSaveDays="{ form }">
+                <el-input-number v-model="form.fileSaveDays" :min="-1" :max="1000">
+                    <template #suffix>
+                        <span>{{ $t('db.day') }}</span>
+                    </template>
+                </el-input-number>
+            </template>
 
-                    <el-col :span="12">
-                        <el-form-item prop="cronAble" :label="$t('db.cronAble')" required label-position="left">
-                            <el-radio-group v-model="form.cronAble">
-                                <el-radio :label="$t('common.yes')" :value="1" />
-                                <el-radio :label="$t('common.no')" :value="-1" />
-                            </el-radio-group>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
+            <!-- 目标库选择 -->
+            <template #targetDbId="{ form }">
+                <db-select-tree
+                    v-model:db-id="form.targetDbId"
+                    v-model:inst-name="form.targetInstName"
+                    v-model:db-name="form.targetDbName"
+                    v-model:tag-path="form.targetTagPath"
+                    v-model:db-type="form.targetDbType"
+                    @select-db="onSelectTargetDb"
+                />
+            </template>
 
-                <el-form-item prop="cron" label="cron" :required="form.cronAble == 1">
-                    <CrontabInput v-model="form.cron" />
-                </el-form-item>
-
-                <el-form-item prop="srcDbId" :label="$t('db.srcDb')" class="w-full!" required>
-                    <db-select-tree
-                        v-model:db-id="form.srcDbId"
-                        v-model:inst-name="form.srcInstName"
-                        v-model:db-name="form.srcDbName"
-                        v-model:tag-path="form.srcTagPath"
-                        v-model:db-type="form.srcDbType"
-                        @select-db="onSelectSrcDb"
-                    />
-                </el-form-item>
-
-                <el-form-item prop="mode" :label="$t('db.transferMode')" required>
-                    <el-radio-group v-model="form.mode">
-                        <el-radio :label="$t('db.transfer2Db')" :value="1" />
-                        <el-radio :label="$t('db.transfer2File')" :value="2" />
-                    </el-radio-group>
-                </el-form-item>
-
-                <el-form-item v-if="form.mode === 2">
-                    <el-row :gutter="10" class="w-full">
-                        <el-col :span="10">
-                            <el-form-item prop="targetFileDbType" :label="$t('db.dbFileType')" :required="form.mode === 2">
-                                <el-select v-model="form.targetFileDbType" clearable filterable>
-                                    <el-option
-                                        v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
-                                        :key="key"
-                                        :value="dbTypeAndDialect[0]"
-                                        :label="dbTypeAndDialect[1].getInfo().name"
-                                    >
-                                        <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
-                                        {{ dbTypeAndDialect[1].getInfo().name }}
-                                    </el-option>
-                                    <template #prefix>
-                                        <SvgIcon :name="getDbDialect(form.targetFileDbType!).getInfo().icon" :size="20" />
-                                    </template>
-                                </el-select>
-                            </el-form-item>
-                        </el-col>
-
-                        <el-col :span="6">
-                            <el-form-item :label="$t('db.fileType')">
-                                <el-select v-model="form.extra.fileType" :options="fileTypeOptions"> </el-select>
-                            </el-form-item>
-                        </el-col>
-
-                        <el-col :span="8">
-                            <el-form-item :label="$t('db.fileSaveDays')">
-                                <el-input-number v-model="form.fileSaveDays" :min="-1" :max="1000">
-                                    <template #suffix>
-                                        <span>{{ $t('db.day') }}</span>
-                                    </template>
-                                </el-input-number>
-                            </el-form-item>
-                        </el-col>
-                    </el-row>
-                </el-form-item>
-
-                <el-form-item prop="strategy" :label="$t('db.transferStrategy')" required>
-                    <el-radio-group v-model="form.strategy">
-                        <el-radio :label="$t('db.transferFull')" :value="1" />
-                        <el-radio :label="$t('db.transferIncrement')" :value="2" disabled />
-                    </el-radio-group>
-                </el-form-item>
-
-                <el-form-item v-if="form.mode == 1" prop="targetDbId" :label="$t('db.targetDb')" class="w-full!" :required="form.mode === 1">
-                    <db-select-tree
-                        v-model:db-id="form.targetDbId"
-                        v-model:inst-name="form.targetInstName"
-                        v-model:db-name="form.targetDbName"
-                        v-model:tag-path="form.targetTagPath"
-                        v-model:db-type="form.targetDbType"
-                        @select-db="onSelectTargetDb"
-                    />
-                </el-form-item>
-
-                <el-form-item prop="nameCase" :label="$t('db.nameCase')" required>
-                    <el-radio-group v-model="form.nameCase">
-                        <el-radio :label="$t('db.none')" :value="1" />
-                        <el-radio :label="$t('db.upper')" :value="2" />
-                        <el-radio :label="$t('db.lower')" :value="3" />
-                    </el-radio-group>
-                </el-form-item>
-
-                <el-divider content-position="left">{{ $t('db.dbObj') }}</el-divider>
-                <el-form-item>
+            <!-- 迁移表选择（过滤输入 + 树勾选） -->
+            <template #checkedKeys>
+                <div class="w-full">
                     <el-input v-model="state.filterSrcTableText" placeholder="filter table" size="small" />
-                </el-form-item>
-                <el-form-item class="w-full!">
                     <el-tree
                         ref="srcTreeRef"
                         class="w-full! overflow-y-auto"
@@ -140,27 +71,21 @@
                         @check-change="handleSrcTableCheckChange"
                         :filter-node-method="filterSrcTableTreeNode"
                     />
-                </el-form-item>
-            </el-form>
-
-            <template #footer>
-                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                </div>
             </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { nextTick, reactive, ref, toRefs, watch, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, nextTick, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
+import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
@@ -185,20 +110,73 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const rules = {
-    taskName: [Rules.requiredInput('db.taskName')],
-    srcDbId: [Rules.requiredSelect('db.srcDb')],
-    targetDbId: [Rules.requiredSelect('db.targetDb')],
-    targetFileDbType: [Rules.requiredSelect('db.dbFileType')],
-    cron: [Rules.requiredSelect('cron')],
-};
-
 const fileTypeOptions = [
     { label: '.zip', value: 'zip' },
     { label: '.sql', value: 'sql' },
 ];
 
-const dbForm = ref<FormInstance | null>(null);
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；复杂控件走 custom 插槽承载） */
+const items: AutoFormItem[] = [
+    { prop: 'taskName', label: 'db.taskName', required: true },
+    {
+        prop: 'status',
+        label: 'common.status',
+        type: 'switch',
+        span: 12,
+        props: { inlinePrompt: true, activeText: t('common.enable'), inactiveText: t('common.disable'), activeValue: 1, inactiveValue: -1 },
+    },
+    {
+        prop: 'cronAble',
+        label: 'db.cronAble',
+        type: 'radio',
+        span: 12,
+        required: true,
+        options: [
+            { label: 'common.yes', value: 1 },
+            { label: 'common.no', value: -1 },
+        ],
+    },
+    { prop: 'cron', label: 'cron', type: 'custom', required: (f) => f.cronAble == 1 },
+    { prop: 'srcDbId', label: 'db.srcDb', type: 'custom', rules: [Rules.requiredSelect('db.srcDb')] },
+    {
+        prop: 'mode',
+        label: 'db.transferMode',
+        type: 'radio',
+        required: true,
+        options: [
+            { label: 'db.transfer2Db', value: 1 },
+            { label: 'db.transfer2File', value: 2 },
+        ],
+    },
+    { prop: 'targetFileDbType', label: 'db.dbFileType', type: 'custom', span: 10, when: (f) => f.mode === 2, rules: [Rules.requiredSelect('db.dbFileType')] },
+    { prop: 'extra.fileType', label: 'db.fileType', type: 'select', span: 6, when: (f) => f.mode === 2, options: fileTypeOptions },
+    { prop: 'fileSaveDays', label: 'db.fileSaveDays', type: 'custom', span: 8, when: (f) => f.mode === 2 },
+    {
+        prop: 'strategy',
+        label: 'db.transferStrategy',
+        type: 'radio',
+        required: true,
+        options: [
+            { label: 'db.transferFull', value: 1 },
+            // 增量迁移暂未实现，选项禁用
+            { label: 'db.transferIncrement', value: 2, disabled: true },
+        ],
+    },
+    { prop: 'targetDbId', label: 'db.targetDb', type: 'custom', when: (f) => f.mode === 1, rules: [Rules.requiredSelect('db.targetDb')] },
+    {
+        prop: 'nameCase',
+        label: 'db.nameCase',
+        type: 'radio',
+        required: true,
+        options: [
+            { label: 'db.none', value: 1 },
+            { label: 'db.upper', value: 2 },
+            { label: 'db.lower', value: 3 },
+        ],
+    },
+    { prop: 'dbObjDivider', label: 'db.dbObj', type: 'divider' },
+    { prop: 'checkedKeys', type: 'custom' },
+];
 
 type FormData = {
     id?: number;
@@ -247,9 +225,6 @@ const srcTableListDisabled = ref(false);
 const defaultKeys = ['tab-check', 'all', 'table-list'];
 
 const state = reactive({
-    form: basicFormData,
-    srcTableFields: [] as string[],
-    targetColumnList: [] as Record<string, unknown>[],
     filterSrcTableText: '',
     srcTableTree: [
         {
@@ -268,28 +243,35 @@ const state = reactive({
     ],
 });
 
-const { form } = toRefs(state);
+/** 传给 AutoFormDrawer 的回填数据（新建态用默认值，编辑态深拷贝行数据并补齐缺省项） */
+const editData = computed<AutoFormData | null>(() => {
+    if (props.data?.id) {
+        const form = deepClone(props.data) as unknown as FormData;
+        form.cronAble = form.cronAble || -1;
+        form.mode = form.mode || 1;
+        form.extra = form.extra || { fileType: fileTypeOptions[0].value };
+        return form as unknown as AutoFormData;
+    }
+    return { ...basicFormData } as unknown as AutoFormData;
+});
+
+/** 抽屉打开后暂存的内部表单引用（源表勾选写 checkedKeys、提交时读取） */
+const internalForm = ref<AutoFormData>({});
 
 const { isFetching: saveBtnLoading, execute: saveExec } = dbTransferApi.saveDbTransferTask.useApi();
 
-watch(dialogVisible, async (newValue: boolean) => {
-    if (!newValue) {
-        return;
-    }
-
+const onOpened = async (form: AutoFormData) => {
+    internalForm.value = form;
     const propsData = props.data;
     if (!propsData?.id) {
-        let d = {} as FormData;
-        Object.assign(d, basicFormData);
-        state.form = d;
         await nextTick(() => {
             srcTreeRef.value?.setCheckedKeys([]);
         });
         return;
     }
 
-    const form = deepClone(propsData) as unknown as FormData;
-    let { srcDbId, targetDbId } = form;
+    const formData = form as unknown as FormData;
+    const { srcDbId, targetDbId } = formData;
 
     //  初始化src数据源
     if (srcDbId) {
@@ -299,8 +281,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
 
-        if (srcDbId && state.form.srcDbName) {
-            await loadDbTables(srcDbId, state.form.srcDbName);
+        if (srcDbId && formData.srcDbName) {
+            await loadDbTables(srcDbId, formData.srcDbName);
         }
     }
 
@@ -314,15 +296,8 @@ watch(dialogVisible, async (newValue: boolean) => {
     }
 
     // 初始化勾选迁移表
-    srcTreeRef.value?.setCheckedKeys(form.checkedKeys.split(','));
-
-    // 初始化默认值
-    form.cronAble = form.cronAble || -1;
-    form.mode = form.mode || 1;
-    form.extra = form.extra || { fileType: fileTypeOptions[0].value };
-
-    state.form = form;
-});
+    srcTreeRef.value?.setCheckedKeys(formData.checkedKeys.split(','));
+};
 
 watch(
     () => state.filterSrcTableText,
@@ -360,9 +335,9 @@ const handleSrcTableCheckChange = (data: { id: string; name: string }, checked: 
     if (data.id === 'all') {
         srcTableListDisabled.value = checked;
         if (checked) {
-            state.form.checkedKeys = 'all';
+            internalForm.value.checkedKeys = 'all';
         } else {
-            state.form.checkedKeys = '';
+            internalForm.value.checkedKeys = '';
         }
     }
     if (data.id && (data.id + '').startsWith('list-item')) {
@@ -396,9 +371,9 @@ const getCheckedKeys = () => {
     return checks.filter((item: string) => !defaultKeys.includes(item));
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(dbForm);
-    const reqForm = { ...state.form };
+// @confirm 触发前 AutoFormDrawer 已完成表单校验
+const btnOk = async (rawForm: AutoFormData) => {
+    const reqForm = { ...(rawForm as unknown as FormData) };
 
     let checkedKeys = getCheckedKeys();
     if (checkedKeys.length > 0) {
@@ -412,7 +387,7 @@ const btnOk = async () => {
 
     await saveExec(reqForm);
     Msg.saveSuccess();
-    emit('val-change', state.form);
+    emit('val-change', rawForm);
     cancel();
 };
 

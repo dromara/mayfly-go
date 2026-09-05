@@ -30,6 +30,9 @@ func (pd *PgsqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(res) == 0 {
+		return nil, errorx.NewBiz("failed to get database version: empty result")
+	}
 	ds := &dbi.DbServer{
 		Version: cast.ToString(res[0]["server_version"]),
 	}
@@ -53,7 +56,7 @@ func (pd *PgsqlMetadata) GetDbNames() ([]string, error) {
 func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := pd.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	var res []map[string]any
@@ -87,7 +90,7 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := pd.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))

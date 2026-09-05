@@ -336,7 +336,10 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 			log(fmt.Sprintf("generate table [%s] DML...", tableName))
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Data: %s \n-- ----------------------------\n", tableName))
 
-			targetDumpHelper.BeforeInsert(writer, tableName)
+			// 导出场景无需处理冲突，直接生成插入语句
+			if err := targetDumpHelper.BeforeInsert(writer, tableName); err != nil {
+				return err
+			}
 
 			dataCount := 0
 			rows := make([][]any, 0)
@@ -355,7 +358,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 				if beforeInsert != "" {
 					writer.WriteString(beforeInsert)
 				}
-				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
+				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone, nil)
 				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
 					return err
 				}
@@ -373,13 +376,15 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 				if beforeInsert != "" {
 					writer.WriteString(beforeInsert)
 				}
-				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone)
+				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone, nil)
 				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
 					return err
 				}
 			}
 
-			targetDumpHelper.AfterInsert(writer, tableName, columns)
+			if err := targetDumpHelper.AfterInsert(writer, tableName, columns); err != nil {
+				return err
+			}
 			progress(tableName, dbi.StmtTypeInsert, dataCount, true)
 		}
 

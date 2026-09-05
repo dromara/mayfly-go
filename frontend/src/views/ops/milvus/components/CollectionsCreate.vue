@@ -1,47 +1,15 @@
 <template>
     <div class="create-collection-drawer">
-        <el-drawer
+        <auto-form-drawer
+            ref="setFormRef"
+            v-model:visible="visible"
             :title="ctx.drawerTitle.value"
-            v-model="visible"
-            :before-close="ctx.handleClose"
-            :destroy-on-close="false"
-            :close-on-click-modal="false"
-            :append-to-body="false"
+            :items="collectionItems"
             size="80%"
+            @opened="ctx.initForm"
+            @cancel="ctx.handleClose"
         >
-            <el-form :ref="setFormRef" :model="ctx.form.value" :rules="ctx.rules" label-width="auto">
-                <!-- 基本信息 -->
-                <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
-                <el-row :gutter="20">
-                    <el-col :span="10">
-                        <el-form-item :label="$t('common.name')" prop="name">
-                            <el-input v-model="ctx.form.value.name" :placeholder="$t('milvus.collectionNamePlaceholder')"></el-input>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="6">
-                        <el-form-item :label="$t('milvus.shardsNum')" prop="shardsNum">
-                            <el-input-number v-model="ctx.form.value.shardsNum" :min="1" :max="64" style="width: 100%" />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item :label="$t('milvus.consistencyLevel')" prop="consistency_level">
-                            <el-select v-model="ctx.form.value.consistency_level">
-                                <el-option label="Bounded" value="Bounded" />
-                                <el-option label="Strong" value="Strong" />
-                                <el-option label="Session" value="Session" />
-                                <el-option label="Eventually" value="Eventually" />
-                                <!--                      <el-option label="Customized" value="Customized" />-->
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-                <el-form-item :label="$t('milvus.description')" prop="description">
-                    <el-input v-model="ctx.form.value.description" type="textarea" :rows="2" :placeholder="$t('milvus.descriptionPlaceholder')"></el-input>
-                </el-form-item>
-
-                <!-- Schema 配置 -->
-                <el-divider content-position="left">Schema</el-divider>
-
+            <template #schema>
                 <div class="schema-container">
                     <!-- 左侧：字段列表 -->
                     <SchemaFieldEditor />
@@ -49,7 +17,7 @@
                     <!-- 右侧：字段属性配置 -->
                     <FieldConfigPanel />
                 </div>
-            </el-form>
+            </template>
 
             <template #footer>
                 <div class="drawer-footer">
@@ -58,13 +26,14 @@
                     <el-button type="primary" @click="ctx.handlePreview" :loading="ctx.loading.value">{{ 'Json' + $t('common.preview') }}</el-button>
                 </div>
             </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script setup lang="ts">
 import FieldConfigPanel from './collection/FieldConfigPanel.vue';
 import SchemaFieldEditor from './collection/SchemaFieldEditor.vue';
+import { AutoFormDrawer, type AutoFormItem } from '@/components/auto-form';
 import type { ApiCollection } from './collection/types';
 import { provideCollectionForm, useCollectionForm } from './composables/useCollectionForm';
 import type { FormInstance } from 'element-plus';
@@ -93,22 +62,24 @@ const ctx = useCollectionForm({
 
 provideCollectionForm(ctx);
 
-// el-form ref 绑定到 composable 的 formRef
+// AutoFormDrawer 实例绑定到 composable 的 formRef（其暴露的 validate 与 FormInstance 方法兼容）
 const setFormRef = (el: unknown) => {
     ctx.formRef.value = el as FormInstance | undefined;
 };
+
+/** 建 collection 表单声明（Schema 字段编辑区为 custom 插槽） */
+const collectionItems: AutoFormItem[] = [
+    { prop: 'basicDivider', label: 'common.basic', type: 'divider' },
+    { prop: 'name', label: 'common.name', required: true, span: 10, placeholder: 'milvus.collectionNamePlaceholder' },
+    { prop: 'shardsNum', label: 'milvus.shardsNum', type: 'number', min: 1, max: 64, span: 6 },
+    { prop: 'consistency_level', label: 'milvus.consistencyLevel', type: 'select', span: 8, options: [{ label: 'Bounded', value: 'Bounded' }, { label: 'Strong', value: 'Strong' }, { label: 'Session', value: 'Session' }, { label: 'Eventually', value: 'Eventually' }] },
+    { prop: 'description', label: 'milvus.description', type: 'textarea', props: { rows: 2 }, placeholder: 'milvus.descriptionPlaceholder' },
+    { prop: 'schemaDivider', label: 'Schema', type: 'divider' },
+    { prop: 'schema', type: 'custom' },
+];
 </script>
 
 <style lang="scss" scoped>
-:deep(.create-collection-drawer) {
-    .el-drawer__header {
-        margin-bottom: 20px;
-    }
-    .el-drawer__body {
-        padding-top: 0;
-    }
-}
-
 .schema-container {
     display: flex;
     gap: 10px;

@@ -22,21 +22,7 @@
     </div>
 
     <el-dialog v-model="createDialog.visible" :title="$t('milvus.createDatabase')" width="500px">
-        <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="auto">
-            <el-form-item :label="$t('milvus.databaseName')" prop="name">
-                <el-input v-model="createForm.name" :placeholder="$t('milvus.databaseNamePlaceholder')"></el-input>
-            </el-form-item>
-            <el-form-item :label="$t('milvus.timezone')" prop="timezone">
-                <el-select
-                    v-model="createForm.timezone"
-                    :placeholder="$t('milvus.timezonePlaceholder')"
-                    style="width: 100%"
-                    filterable
-                    clearable
-                    :options="timezones"
-                />
-            </el-form-item>
-        </el-form>
+        <auto-form ref="createFormRef" v-model="createForm" :items="createItems" label-width="auto" />
         <template #footer>
             <el-button @click="createDialog.visible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="submitCreate" :loading="createLoading">{{ $t('common.confirm') }}</el-button>
@@ -44,11 +30,7 @@
     </el-dialog>
 
     <el-dialog v-model="configDialog.visible" :title="$t('milvus.databaseProperties')" width="500px">
-        <el-form ref="configFormRef" :model="configForm" label-width="auto" :rules="configRules">
-            <el-form-item :label="$t('milvus.timezone')" prop="timezone">
-                <el-select v-model="configForm.timezone" :placeholder="$t('milvus.timezonePlaceholder')" style="width: 100%" filterable :options="timezones" />
-            </el-form-item>
-        </el-form>
+        <auto-form ref="configFormRef" v-model="configForm" :items="configItems" label-width="auto" />
         <template #footer>
             <el-button @click="configDialog.visible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="submitConfig" :loading="configLoading">{{ $t('common.confirm') }}</el-button>
@@ -57,12 +39,11 @@
 </template>
 
 <script setup lang="ts">
-import { Rules } from '@/common/rule';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
-import { FormInstance } from 'element-plus';
 import { storeToRefs } from 'pinia';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { milvusApi, timezones } from '../api';
 import type { IDatabase } from '../types';
 
@@ -79,7 +60,7 @@ const emits = defineEmits(['use']);
 const createDialog = ref({
     visible: false,
 });
-const createFormRef = ref<FormInstance>();
+const createFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('createFormRef');
 const loading = ref(false);
 const createLoading = ref(false);
 const createForm = ref({
@@ -87,24 +68,26 @@ const createForm = ref({
     timezone: '',
 });
 
-const createRules = {
-    name: [Rules.requiredInput('milvus.databaseName')],
-    timezone: [Rules.requiredInput('milvus.timezone')],
-};
-
-const configRules = {
-    timezone: [Rules.requiredInput('milvus.timezone')],
-};
+/** 建库表单声明 */
+const createItems: AutoFormItem[] = [
+    { prop: 'name', label: 'milvus.databaseName', required: true, placeholder: 'milvus.databaseNamePlaceholder' },
+    { prop: 'timezone', label: 'milvus.timezone', type: 'select', required: true, options: timezones, props: { filterable: true, clearable: true }, placeholder: 'milvus.timezonePlaceholder' },
+];
 
 const configDialog = ref({
     visible: false,
     currentDb: '',
 });
-const configFormRef = ref<FormInstance>();
+const configFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('configFormRef');
 const configLoading = ref(false);
 const configForm = ref({
     timezone: '',
 });
+
+/** 库属性表单声明 */
+const configItems: AutoFormItem[] = [
+    { prop: 'timezone', label: 'milvus.timezone', type: 'select', required: true, options: timezones, props: { filterable: true }, placeholder: 'milvus.timezonePlaceholder' },
+];
 
 const loadList = async () => {
     loading.value = true;
@@ -126,24 +109,22 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value?.validate(async (valid) => {
-        if (!valid) return;
+    await createFormRef.value?.validate();
 
-        createLoading.value = true;
-        try {
-            // 构建 properties 对象
-            const properties: Record<string, string> = {};
-            if (configForm.value.timezone) {
-                properties.timezone = configForm.value.timezone;
-            }
-            await milvusApi.createDatabase(props.milvusId, { ...createForm.value, properties });
-            Msg.success('milvus.createdSuccess');
-            createDialog.value.visible = false;
-            await loadList();
-        } finally {
-            createLoading.value = false;
+    createLoading.value = true;
+    try {
+        // 构建 properties 对象
+        const properties: Record<string, string> = {};
+        if (configForm.value.timezone) {
+            properties.timezone = configForm.value.timezone;
         }
-    });
+        await milvusApi.createDatabase(props.milvusId, { ...createForm.value, properties });
+        Msg.success('milvus.createdSuccess');
+        createDialog.value.visible = false;
+        await loadList();
+    } finally {
+        createLoading.value = false;
+    }
 };
 
 const handleDrop = async (row: IDatabase) => {

@@ -1,114 +1,48 @@
 <template>
     <div class="auth-cert-edit">
         <el-dialog :title="props.title" v-model="dialogVisible" :show-close="false" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
-            <el-form ref="acForm" :model="state.form" label-width="auto" :rules="rules">
-                <el-form-item prop="type" :label="$t('ac.credentialType')" required>
-                    <el-select @change="changeType" v-model="form.type">
-                        <el-option
-                            v-for="item in AuthCertTypeEnum"
-                            :key="item.value"
-                            :label="$t(item.label)"
-                            :value="item.value"
-                            v-show="!props.disableType?.includes(item.value)"
-                        >
+            <auto-form ref="acFormRef" v-model="form" :items="items">
+                <!-- 密文输入（密码 / 私钥两种形态，含查看密文入口） -->
+                <template #ciphertext>
+                    <el-input
+                        v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.Password.value"
+                        type="password"
+                        show-password
+                        clearable
+                        v-model.trim="form.ciphertext"
+                        autocomplete="new-password"
+                    >
+                        <template #suffix>
+                            <SvgIcon v-if="form.id" v-auth="'authcert:showciphertext'" @click="getCiphertext" name="search" />
+                        </template>
+                    </el-input>
+                    <div v-else class="w-full!" style="position: relative">
+                        <SvgIcon
+                            v-if="form.id"
+                            v-auth="'authcert:showciphertext'"
+                            @click="getCiphertext"
+                            name="search"
+                            style="position: absolute; top: 5px; right: 5px; cursor: pointer; z-index: 1"
+                        />
+                        <el-input type="textarea" :rows="5" v-model="form.ciphertext" :placeholder="$t('ac.privateKeyPlaceholder')"> </el-input>
+                    </div>
+                </template>
+
+                <!-- 公共凭证选择（自定义 option 内容） -->
+                <template #publicAuthCert>
+                    <el-select default-first-option filterable v-model="form.ciphertext" @change="changePublicAuthCert" class="w-full">
+                        <el-option v-for="item in state.publicAuthCerts" :key="item.name" :label="item.name" :value="item.name">
+                            {{ item.name }}
+                            <el-divider direction="vertical" border-style="dashed" />
+                            {{ item.username }}
+                            <el-divider direction="vertical" border-style="dashed" />
+                            <EnumTag :value="item.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
+                            <el-divider direction="vertical" border-style="dashed" />
+                            {{ item.remark }}
                         </el-option>
                     </el-select>
-                </el-form-item>
-
-                <el-form-item prop="ciphertextType" :label="$t('ac.ciphertextType')" required>
-                    <el-select v-model="form.ciphertextType" @change="changeCiphertextType">
-                        <el-option
-                            v-for="item in AuthCertCiphertextTypeEnum"
-                            :key="item.value"
-                            :label="$t(item.label)"
-                            :value="item.value"
-                            v-show="!props.disableCiphertextType?.includes(item.value)"
-                            :disabled="item.value == AuthCertCiphertextTypeEnum.Public.value && form.type == AuthCertTypeEnum.Public.value"
-                        >
-                        </el-option>
-                    </el-select>
-                </el-form-item>
-
-                <template v-if="showResourceEdit">
-                    <el-form-item prop="type" :label="$t('ac.resourceType')" required>
-                        <el-select :disabled="form.id" v-model="form.resourceType">
-                            <el-option
-                                :key="TagResourceTypeEnum.Machine.value"
-                                :label="$t(TagResourceTypeEnum.Machine.label)"
-                                :value="TagResourceTypeEnum.Machine.value"
-                            />
-                            <el-option
-                                :key="TagResourceTypeEnum.DbInstance.value"
-                                :label="$t(TagResourceTypeEnum.DbInstance.label)"
-                                :value="TagResourceTypeEnum.DbInstance.value"
-                            />
-                            <el-option
-                                :key="TagResourceTypeEnum.Redis.value"
-                                :label="$t(TagResourceTypeEnum.Redis.label)"
-                                :value="TagResourceTypeEnum.Redis.value"
-                            />
-                        </el-select>
-                    </el-form-item>
-                    <el-form-item prop="resourceCode" :label="$t('ac.resourceCode')" required>
-                        <el-input :disabled="form.id" v-model="form.resourceCode"></el-input>
-                    </el-form-item>
                 </template>
-
-                <el-form-item v-if="form.type == AuthCertTypeEnum.Public.value" prop="name" :label="$t('common.name')" required>
-                    <el-input :disabled="form.id" v-model="form.name" :placeholder="$t('ac.namePlaceholder')"></el-input>
-                </el-form-item>
-
-                <template v-if="form.ciphertextType != AuthCertCiphertextTypeEnum.Public.value">
-                    <el-form-item prop="username" :label="$t('common.username')">
-                        <el-input v-model="form.username"></el-input>
-                    </el-form-item>
-
-                    <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.Password.value" prop="ciphertext" :label="$t('common.password')">
-                        <el-input type="password" show-password clearable v-model.trim="form.ciphertext" autocomplete="new-password">
-                            <template #suffix>
-                                <SvgIcon v-if="form.id" v-auth="'authcert:showciphertext'" @click="getCiphertext" name="search" />
-                            </template>
-                        </el-input>
-                    </el-form-item>
-
-                    <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="ciphertext" :label="$t('ac.privateKey')">
-                        <div class="w-full!" style="position: relative">
-                            <SvgIcon
-                                v-if="form.id"
-                                v-auth="'authcert:showciphertext'"
-                                @click="getCiphertext"
-                                name="search"
-                                style="position: absolute; top: 5px; right: 5px; cursor: pointer; z-index: 1"
-                            />
-                            <el-input type="textarea" :rows="5" v-model="form.ciphertext" :placeholder="$t('ac.privateKeyPlaceholder')"> </el-input>
-                        </div>
-                    </el-form-item>
-
-                    <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="passphrase" :label="$t('ac.privateKeyPwd')">
-                        <el-input type="password" show-password v-model="form.extra.passphrase"> </el-input>
-                    </el-form-item>
-                </template>
-
-                <template v-else>
-                    <el-form-item :label="$t('ac.publicAc')">
-                        <el-select default-first-option filterable v-model="form.ciphertext" @change="changePublicAuthCert">
-                            <el-option v-for="item in state.publicAuthCerts" :key="item.name" :label="item.name" :value="item.name">
-                                {{ item.name }}
-                                <el-divider direction="vertical" border-style="dashed" />
-                                {{ item.username }}
-                                <el-divider direction="vertical" border-style="dashed" />
-                                <EnumTag :value="item.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
-                                <el-divider direction="vertical" border-style="dashed" />
-                                {{ item.remark }}
-                            </el-option>
-                        </el-select>
-                    </el-form-item>
-                </template>
-
-                <el-form-item :label="$t('common.remark')">
-                    <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
-                </el-form-item>
-            </el-form>
+            </auto-form>
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancelEdit">{{ $t('common.cancel') }}</el-button>
@@ -121,12 +55,13 @@
 
 <script lang="ts" setup>
 import { reactive, toRefs, computed, watch, useTemplateRef } from 'vue';
-import type { FormInstance } from 'element-plus';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
+import { useI18nFormValidate } from '@/hooks/useI18n';
 import type { ResourceAuthCert } from '@/types/common';
 
 /** 表单类型，extra 必填（初始化时保证存在） */
@@ -168,16 +103,11 @@ const DefaultForm: AuthCertForm = {
     remark: '',
 };
 
-const rules = {
-    name: [Rules.requiredInput('common.name'), Rules.resourceCode],
-    resourceCode: [Rules.requiredInput('ac.resourceCode')],
-};
-
 const emit = defineEmits(['confirm', 'cancel']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const acForm = useTemplateRef<FormInstance>('acForm');
+const acFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; resetFields: () => void }>('acFormRef');
 
 const state = reactive({
     form: { ...DefaultForm } as AuthCertForm,
@@ -223,6 +153,58 @@ const changeCiphertextType = (val: number) => {
     }
 };
 
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；下拉直接声明枚举，ciphertext/publicAuthCert 走插槽承载复杂控件） */
+const items: AutoFormItem[] = [
+    {
+        prop: 'type',
+        label: 'ac.credentialType',
+        type: 'enum',
+        enums: AuthCertTypeEnum,
+        required: true,
+        // 按 disableType 剔除不可选凭证类型
+        excludeValues: props.disableType,
+        onChange: (val: unknown) => changeType(val as number),
+    },
+    {
+        prop: 'ciphertextType',
+        label: 'ac.ciphertextType',
+        type: 'enum',
+        enums: AuthCertCiphertextTypeEnum,
+        required: true,
+        // 按 disableCiphertextType 剔除；公共凭证选项在凭证类型为公共时禁用（选项级联动禁用）
+        excludeValues: props.disableCiphertextType,
+        optionDisabled: (val, f) => val == AuthCertCiphertextTypeEnum.Public.value && f.type == AuthCertTypeEnum.Public.value,
+        onChange: (val: unknown) => changeCiphertextType(val as number),
+    },
+    {
+        prop: 'resourceType',
+        label: 'ac.resourceType',
+        type: 'enum',
+        // 仅允许资源型枚举子集
+        enums: [TagResourceTypeEnum.Machine, TagResourceTypeEnum.DbInstance, TagResourceTypeEnum.Redis],
+        required: true,
+        disabled: (f) => !!f.id,
+        when: () => showResourceEdit.value,
+    },
+    { prop: 'resourceCode', label: 'ac.resourceCode', required: true, disabled: (f) => !!f.id, when: () => showResourceEdit.value },
+    {
+        prop: 'name',
+        label: 'common.name',
+        required: true,
+        rules: Rules.resourceCode,
+        disabled: (f) => !!f.id,
+        placeholder: 'ac.namePlaceholder',
+        // 仅公共凭证需要命名
+        when: (f) => f.type == AuthCertTypeEnum.Public.value,
+    },
+    { prop: 'username', label: 'common.username', when: (f) => f.ciphertextType != AuthCertCiphertextTypeEnum.Public.value },
+    { prop: 'ciphertext', label: 'common.password', type: 'custom', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.Password.value },
+    { prop: 'ciphertext', label: 'ac.privateKey', type: 'custom', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value },
+    { prop: 'extra.passphrase', label: 'ac.privateKeyPwd', type: 'password', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value },
+    { prop: 'ciphertext', label: 'ac.publicAc', type: 'custom', slot: 'publicAuthCert', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.Public.value },
+    { prop: 'remark', label: 'common.remark', type: 'textarea', rows: 2 },
+];
+
 const changePublicAuthCert = (val: string) => {
     // 使用公共授权凭证名称赋值username
     state.form.username = val;
@@ -248,17 +230,14 @@ const cancelEdit = () => {
 
     setTimeout(() => {
         state.form = { ...DefaultForm };
-        acForm.value?.resetFields();
+        acFormRef.value?.resetFields();
         emit('cancel');
     }, 300);
 };
 
 const btnOk = async () => {
-    acForm.value?.validate(async (valid: boolean) => {
-        if (valid) {
-            emit('confirm', { ...state.form });
-        }
-    });
+    await useI18nFormValidate(acFormRef);
+    emit('confirm', { ...state.form });
 };
 </script>
 <style lang="scss"></style>

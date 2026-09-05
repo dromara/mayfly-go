@@ -129,6 +129,10 @@ func (q Quoter) JoinWrite(b *strings.Builder, a []string, sep string) error {
 }
 
 func (q Quoter) quoteWordTo(buf *strings.Builder, word string) error {
+	// 空字符串直接写入，避免 word[0] 越界 panic
+	if word == "" {
+		return nil
+	}
 	if (word[0] == q.Prefix && word[len(word)-1] == q.Suffix) ||
 		q.IsEmpty() || !q.IsReserved(word) || word == "*" {
 		if _, err := buf.WriteString(word); err != nil {

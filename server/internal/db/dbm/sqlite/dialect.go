@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/gox"
+	"mayfly-go/pkg/logx"
 	"strings"
 	"time"
 )
@@ -35,11 +36,13 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		return err
 	}
 
-	// 使用异步线程插入数据
+	// 使用异步线程插入数据（执行失败仅记录日志）
 	if copy.CopyData {
 		gox.Go(func() {
 			// 执行插入语句
-			_, _ = sd.dc.Exec(fmt.Sprintf("INSERT INTO \"%s\" SELECT * FROM \"%s\"", newTableName, tableName))
+			if _, err := sd.dc.Exec(fmt.Sprintf("INSERT INTO \"%s\" SELECT * FROM \"%s\"", newTableName, tableName)); err != nil {
+				logx.Errorf("sqlite copy table [%s] data failed: %s", tableName, err.Error())
+			}
 		})
 	}
 

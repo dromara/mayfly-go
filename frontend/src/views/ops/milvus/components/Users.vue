@@ -18,21 +18,7 @@
     </div>
 
     <el-dialog v-model="createDialog.visible" :title="$t('milvus.createUser')" width="500px">
-        <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="auto">
-            <el-form-item :label="$t('common.username')" prop="username">
-                <el-input v-model="createForm.username" :placeholder="$t('common.username')"></el-input>
-            </el-form-item>
-            <el-form-item :label="$t('common.password')" prop="password">
-                <el-input
-                    type="password"
-                    :minlength="6"
-                    :maxlength="72"
-                    show-password
-                    v-model="createForm.password"
-                    :placeholder="$t('common.password')"
-                ></el-input>
-            </el-form-item>
-        </el-form>
+        <auto-form ref="createFormRef" v-model="createForm" :items="createItems" label-width="auto" />
         <template #footer>
             <el-button @click="createDialog.visible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="submitCreate" :loading="createLoading">{{ $t('common.confirm') }}</el-button>
@@ -40,14 +26,7 @@
     </el-dialog>
 
     <el-dialog v-model="passwordDialog.visible" :title="$t('milvus.changePassword')" width="500px">
-        <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="auto">
-            <el-form-item :label="$t('login.oldPassword')" prop="oldPassword">
-                <el-input type="password" show-password v-model="passwordForm.oldPassword"></el-input>
-            </el-form-item>
-            <el-form-item :label="$t('login.newPassword')" prop="newPassword">
-                <el-input type="password" show-password v-model="passwordForm.newPassword"></el-input>
-            </el-form-item>
-        </el-form>
+        <auto-form ref="passwordFormRef" v-model="passwordForm" :items="passwordItems" label-width="auto" />
         <template #footer>
             <el-button @click="passwordDialog.visible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="submitPassword" :loading="passwordLoading">{{ $t('common.confirm') }}</el-button>
@@ -69,11 +48,10 @@
 </template>
 
 <script setup lang="ts">
-import { Rules } from '@/common/rule';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
-import { FormInstance } from 'element-plus';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { milvusApi } from '../api';
 import type { IUser } from '../types';
 
@@ -88,7 +66,7 @@ const list = ref<IUser[]>([]);
 const createDialog = ref({
     visible: false,
 });
-const createFormRef = ref<FormInstance>();
+const createFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('createFormRef');
 const loading = ref(false);
 const createLoading = ref(false);
 const createForm = ref({
@@ -96,26 +74,28 @@ const createForm = ref({
     password: '',
 });
 
-const createRules = {
-    username: [Rules.requiredInput('common.username')],
-    password: [Rules.requiredInput('common.password')],
-};
+/** 建用户表单声明 */
+const createItems: AutoFormItem[] = [
+    { prop: 'username', label: 'common.username', required: true, placeholder: 'common.username' },
+    { prop: 'password', label: 'common.password', type: 'password', required: true, placeholder: 'common.password', props: { 'show-password': true, minlength: 6, maxlength: 72 } },
+];
 
 const passwordDialog = ref({
     visible: false,
     currentUser: '',
 });
-const passwordFormRef = ref<FormInstance>();
+const passwordFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('passwordFormRef');
 const passwordLoading = ref(false);
 const passwordForm = ref({
     oldPassword: '',
     newPassword: '',
 });
 
-const passwordRules = {
-    oldPassword: [Rules.requiredInput('login.oldPassword')],
-    newPassword: [Rules.requiredInput('login.newPassword')],
-};
+/** 修改密码表单声明 */
+const passwordItems: AutoFormItem[] = [
+    { prop: 'oldPassword', label: 'login.oldPassword', type: 'password', required: true, props: { 'show-password': true } },
+    { prop: 'newPassword', label: 'login.newPassword', type: 'password', required: true, props: { 'show-password': true } },
+];
 
 const roleDialog = ref({
     visible: false,
@@ -150,19 +130,17 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value?.validate(async (valid) => {
-        if (!valid) return;
+    await createFormRef.value?.validate();
 
-        createLoading.value = true;
-        try {
-            await milvusApi.createUser(props.milvusId, createForm.value);
-            Msg.success('milvus.createdSuccess');
-            createDialog.value.visible = false;
-            await loadList();
-        } finally {
-            createLoading.value = false;
-        }
-    });
+    createLoading.value = true;
+    try {
+        await milvusApi.createUser(props.milvusId, createForm.value);
+        Msg.success('milvus.createdSuccess');
+        createDialog.value.visible = false;
+        await loadList();
+    } finally {
+        createLoading.value = false;
+    }
 };
 
 const handleChangePassword = (row: IUser) => {
@@ -174,18 +152,16 @@ const handleChangePassword = (row: IUser) => {
 const submitPassword = async () => {
     if (!passwordFormRef.value) return;
 
-    await passwordFormRef.value?.validate(async (valid) => {
-        if (!valid) return;
+    await passwordFormRef.value?.validate();
 
-        passwordLoading.value = true;
-        try {
-            await milvusApi.updatePassword(props.milvusId, passwordDialog.value.currentUser, passwordForm.value);
-            Msg.success('milvus.savedSuccess');
-            passwordDialog.value.visible = false;
-        } catch (error: unknown) {
-            passwordLoading.value = false;
-        }
-    });
+    passwordLoading.value = true;
+    try {
+        await milvusApi.updatePassword(props.milvusId, passwordDialog.value.currentUser, passwordForm.value);
+        Msg.success('milvus.savedSuccess');
+        passwordDialog.value.visible = false;
+    } catch (error: unknown) {
+        passwordLoading.value = false;
+    }
 };
 
 const handleDelete = async (row: IUser) => {

@@ -58,11 +58,7 @@
     <CollectionsCreate v-model:visible="createDrawerVisible" :milvus-id="milvusId" :mode="drawerMode" :edit-data="editData" @success="loadList" />
 
     <el-dialog v-model="aliasDialogVisible" :title="$t('milvus.addAlias')" width="400px">
-        <el-form @submit.prevent="submitAddAlias">
-            <el-form-item :label="$t('milvus.aliasName')">
-                <el-input v-model="newAlias" :placeholder="$t('milvus.aliasPlaceholder')" />
-            </el-form-item>
-        </el-form>
+        <auto-form v-model="aliasForm" :items="aliasItems" label-width="auto" />
         <template #footer>
             <el-button @click="aliasDialogVisible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="submitAddAlias" :loading="aliasLoading">{{ $t('common.confirm') }}</el-button>
@@ -72,11 +68,12 @@
 
 <script setup lang="ts">
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { ElSpace } from 'element-plus';
 import { storeToRefs } from 'pinia';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
 import type { ICollection, IMilvusCollectionDetail } from '../types';
@@ -100,7 +97,9 @@ const editData = ref<IMilvusCollectionDetail | null>(null);
 
 // 别名相关
 const aliasDialogVisible = ref(false);
-const newAlias = ref('');
+const aliasForm = reactive({ name: '' });
+/** 添加别名表单声明 */
+const aliasItems: AutoFormItem[] = [{ prop: 'name', label: 'milvus.aliasName', required: true, placeholder: 'milvus.aliasPlaceholder' }];
 const aliasLoading = ref(false);
 const currentCollectionForAlias = ref<ICollection | null>(null);
 
@@ -257,16 +256,16 @@ const handleDrop = async (row: ICollection) => {
 // 别名操作
 const handleAddAlias = (row: ICollection) => {
     currentCollectionForAlias.value = row;
-    newAlias.value = '';
+    aliasForm.name = '';
     aliasDialogVisible.value = true;
 };
 
 const submitAddAlias = async () => {
-    if (!newAlias.value || !currentCollectionForAlias.value) return;
+    if (!aliasForm.name || !currentCollectionForAlias.value) return;
 
     aliasLoading.value = true;
     try {
-        await milvusApi.createAlias(props.milvusId, currentCollectionForAlias.value.name, newAlias.value);
+        await milvusApi.createAlias(props.milvusId, currentCollectionForAlias.value.name, aliasForm.name);
         Msg.success('milvus.addedAliasSuccess');
         aliasDialogVisible.value = false;
         await loadList();

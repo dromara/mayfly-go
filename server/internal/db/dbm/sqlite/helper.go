@@ -9,7 +9,10 @@ type DumpHelper struct {
 	dbi.DefaultDumpHelper
 }
 
-func (db *DumpHelper) BeforeInsert(writer io.Writer, tableName string) {
+func (db *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+	return nil
 }
-func (db *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) {
+
+func (db *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
+	return nil
 }

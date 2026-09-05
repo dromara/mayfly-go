@@ -120,20 +120,7 @@
         </el-splitter>
 
         <el-dialog :title="$t('redis.addKey')" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
-            <el-form ref="keyForm" label-width="auto" :rules="keyFormRules" :model="newKeyDialog.keyInfo">
-                <el-form-item prop="key" label="Key" required>
-                    <el-input v-model.trim="newKeyDialog.keyInfo.key"></el-input>
-                </el-form-item>
-                <el-form-item prop="type" :label="$t('common.type')">
-                    <el-select v-model="newKeyDialog.keyInfo.type" default-first-option>
-                        <el-option key="string" label="string" value="string"></el-option>
-                        <el-option key="hash" label="hash" value="hash"></el-option>
-                        <el-option key="set" label="set" value="set"></el-option>
-                        <el-option key="zset" label="zset" value="zset"></el-option>
-                        <el-option key="list" label="list" value="list"></el-option>
-                    </el-select>
-                </el-form-item>
-            </el-form>
+            <auto-form ref="keyForm" v-model="newKeyDialog.keyInfo" :items="newKeyItems" label-width="auto" />
 
             <template #footer>
                 <el-button @click="cancelNewKey()">{{ $t('common.cancel') }}</el-button>
@@ -145,7 +132,7 @@
 
 <script lang="ts" setup>
 import { isTrue, notNull } from '@/common/assert';
-import { Rules } from '@/common/rule';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { copyToClipboard } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
@@ -190,9 +177,11 @@ const props = defineProps<{
 
 const emits = defineEmits(['init']);
 
-const keyFormRules = {
-    key: [Rules.requiredInput('Key')],
-};
+/** 新增 Key 表单声明 */
+const newKeyItems: AutoFormItem[] = [
+    { prop: 'key', label: 'Key', required: true },
+    { prop: 'type', label: 'common.type', type: 'select', options: [{ label: 'string', value: 'string' }, { label: 'hash', value: 'hash' }, { label: 'set', value: 'set' }, { label: 'zset', value: 'zset' }, { label: 'list', value: 'list' }], props: { 'default-first-option': true } },
+];
 
 const cmCopyKey = new ContextmenuItem('copyValue', 'Copy')
     .withIcon('CopyDocument')

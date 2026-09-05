@@ -53,6 +53,9 @@ func (p *Parser) parseStatement() sqlstmt.Stmt {
 		return p.parseWith()
 	case tok.IsKeyword("TRUNCATE"):
 		return p.parseGenericDdl()
+	case tok.IsKeyword("COMMENT", "GRANT", "REVOKE", "RENAME", "ANALYZE"):
+		// Oracle 的 COMMENT ON、GRANT、REVOKE 等均为非查询语句，统一按 DDL 执行
+		return p.parseGenericDdl()
 	default:
 		return p.parseGenericStmt()
 	}
@@ -89,9 +92,25 @@ func (p *Parser) parseSelect() sqlstmt.Stmt {
 		selectStmt.OrderBy = p.parseOrderBy()
 	}
 
+	// Oracle 12c+ 的 OFFSET n [ROW|ROWS] 分页偏移（可单独使用或与 FETCH FIRST/NEXT 连用）
+	offsetText := ""
+	if p.Current().IsKeyword("OFFSET") {
+		offsetStart := p.Pos
+		p.Consume()
+		if p.Current().Type == tokenizer.TokenNumber {
+			p.Consume()
+		}
+		if p.Current().IsKeyword("ROW", "ROWS") {
+			p.Consume()
+		}
+		offsetText = p.TextFrom(offsetStart)
+		// 单独使用 OFFSET 时先生成 LIMIT，若后续有 FETCH 子句则由 parseFetchFirst 合并覆盖
+		selectStmt.Limit = &sqlstmt.Limit{Text: strings.TrimSpace(offsetText)}
+	}
+
 	// Oracle 特有的 FETCH FIRST（12c+）
 	if p.Current().IsKeyword("FETCH") {
-		p.parseFetchFirst(selectStmt)
+		p.parseFetchFirst(selectStmt, offsetText)
 	}
 
 	// FOR UPDATE
@@ -269,7 +288,8 @@ func (p *Parser) parseUnions(selectStmt *sqlstmt.SelectStmt) *sqlstmt.SelectStmt
 }
 
 // parseFetchFirst 解析 Oracle 12c+ 的 FETCH FIRST n ROWS ONLY
-func (p *Parser) parseFetchFirst(stmt *sqlstmt.SelectStmt) {
+// offsetText 为前置的 OFFSET 子句文本（可为空），非空时会合并到 LIMIT 文本中
+func (p *Parser) parseFetchFirst(stmt *sqlstmt.SelectStmt, offsetText string) {
 	if !p.Current().IsKeyword("FETCH") {
 		return
 	}
@@ -302,9 +322,13 @@ func (p *Parser) parseFetchFirst(stmt *sqlstmt.SelectStmt) {
 		}
 	}
 
-	// 创建伪 LIMIT
+	// 创建伪 LIMIT（若存在前置 OFFSET 子句，则合并文本）
+	text := p.TextFrom(start)
+	if offsetText != "" {
+		text = strings.TrimSpace(offsetText + " " + text)
+	}
 	stmt.Limit = &sqlstmt.Limit{
-		Text: p.TextFrom(start),
+		Text: text,
 	}
 }
 
@@ -348,7 +372,12 @@ func (p *Parser) parseFromClause() []sqlstmt.TableRef {
 		if p.IsJoinStart() || p.Current().IsKeyword("JOIN") {
 			break
 		}
+		// 防御：解析无进展时退出，避免异常输入导致死循环
+		before := p.Pos
 		ref := p.parseTableRef()
+		if p.Pos == before {
+			break
+		}
 		if ref.Name != "" {
 			tables = append(tables, ref)
 		}

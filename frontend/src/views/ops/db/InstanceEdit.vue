@@ -1,122 +1,57 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
-            <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @cancel="emit('cancel')">
+            <!-- 关联标签 -->
+            <template #tagCodePaths="{ form }">
+                <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
             </template>
 
-            <el-form :model="form" ref="dbFormRef" :rules="rules" label-width="auto">
-                <el-divider content-position="left">{{ $t('common.basic') }}</el-divider>
+            <!-- 数据库类型（选项含图标 + prefix 图标） -->
+            <template #type="{ form }">
+                <el-select v-model="form.type">
+                    <el-option
+                        v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
+                        :key="key"
+                        :value="dbTypeAndDialect[0]"
+                        :label="dbTypeAndDialect[1].getInfo().name"
+                    >
+                        <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
+                        {{ dbTypeAndDialect[1].getInfo().name }}
+                    </el-option>
 
-                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')">
-                    <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                </el-form-item>
-
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                </el-form-item>
-
-                <el-form-item prop="type" :label="$t('common.type')" required>
-                    <el-select @change="changeDbType" v-model="form.type">
-                        <el-option
-                            v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
-                            :key="key"
-                            :value="dbTypeAndDialect[0]"
-                            :label="dbTypeAndDialect[1].getInfo().name"
-                        >
-                            <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
-                            {{ dbTypeAndDialect[1].getInfo().name }}
-                        </el-option>
-
-                        <template #prefix>
-                            <SvgIcon :name="getDbDialect(form.type).getInfo().icon" :size="20" />
-                        </template>
-                    </el-select>
-                </el-form-item>
-
-                <el-form-item v-if="form.type !== DbType.sqlite" label="Host" required>
-                    <el-col :span="18">
-                        <el-form-item prop="host" required>
-                            <el-input v-model.trim="form.host" auto-complete="off"></el-input>
-                        </el-form-item>
-                    </el-col>
-
-                    <el-col class="text-center" :span="1">:</el-col>
-
-                    <el-col :span="5">
-                        <el-input type="number" v-model.number="form.port" :placeholder="$t('db.port')"></el-input>
-                    </el-col>
-                </el-form-item>
-
-                <el-form-item v-if="form.type === DbType.sqlite" prop="host" label="Path">
-                    <el-input v-model.trim="form.host" :placeholder="$t('db.sqlitePathPlaceholder')"></el-input>
-                </el-form-item>
-
-                <el-form-item v-if="form.type === DbType.oracle" label="SID|Service">
-                    <el-col :span="5">
-                        <el-select
-                            @change="
-                                () => {
-                                    state.extra.serviceName = '';
-                                    state.extra.sid = '';
-                                }
-                            "
-                            v-model="state.extra.stype"
-                        >
-                            <el-option label="Service" :value="1" />
-                            <el-option label="SID" :value="2" />
-                        </el-select>
-                    </el-col>
-                    <el-col class="text-center" :span="1">:</el-col>
-                    <el-col :span="18">
-                        <el-input v-if="state.extra.stype == 1" v-model="state.extra.serviceName" placeholder="Service Name"> </el-input>
-                        <el-input v-else v-model="state.extra.sid" placeholder="SID"> </el-input>
-                    </el-col>
-                </el-form-item>
-
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model="form.remark" auto-complete="off" type="textarea"></el-input>
-                </el-form-item>
-
-                <el-divider content-position="left">{{ $t('common.account') }}</el-divider>
-                <div>
-                    <ResourceAuthCertTableEdit
-                        v-model="form.authCerts"
-                        :resource-code="form.code"
-                        :resource-type="TagResourceTypeEnum.DbInstance.value"
-                        :test-conn-btn-loading="testConnBtnLoading"
-                        @test-conn="testConn"
-                        :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
-                    />
-                </div>
-
-                <el-divider content-position="left">{{ $t('common.other') }}</el-divider>
-                <el-form-item prop="params" :label="$t('db.connParam')">
-                    <el-input v-model.trim="form.params" :placeholder="$t('db.connParamPlaceholder')"> </el-input>
-                </el-form-item>
-
-                <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
-                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                </el-form-item>
-            </el-form>
-
-            <template #footer>
-                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                    <template #prefix>
+                        <SvgIcon :name="getDbDialect(form.type).getInfo().icon" :size="20" />
+                    </template>
+                </el-select>
             </template>
-        </el-drawer>
+
+            <!-- 认证信息表格编辑 -->
+            <template #authCerts="{ form }">
+                <ResourceAuthCertTableEdit
+                    v-model="form.authCerts"
+                    :resource-code="form.code"
+                    :resource-type="TagResourceTypeEnum.DbInstance.value"
+                    :test-conn-btn-loading="testConnBtnLoading"
+                    @test-conn="testConn(form, $event)"
+                    :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
+                />
+            </template>
+
+            <!-- SSH 隧道 -->
+            <template #sshTunnelMachineId="{ form }">
+                <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+            </template>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { notBlankI18n } from '@/common/assert';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, type PropType, useTemplateRef } from 'vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -152,14 +87,55 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const rules = {
-    tagCodePaths: [Rules.requiredSelect('tag.relateTag')],
-    name: [Rules.requiredInput('common.name')],
-    type: [Rules.requiredSelect('common.type')],
-    host: [Rules.requiredInput('Host:Port')],
-};
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/type/authCerts/sshTunnel 走插槽，oracle 额外参数用嵌套路径 prop） */
+const items: AutoFormItem[] = [
+    { type: 'group', label: 'common.basic' },
+    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+    { prop: 'name', label: 'common.name', required: true },
+    {
+        prop: 'type',
+        label: 'common.type',
+        required: true,
+        // 切换数据库类型：新增时重置默认端口，并清空类型相关的额外参数
+        onChange: (val: unknown, form: AutoFormData) => {
+            const dbForm = form as DbInstanceForm;
+            if (!dbForm.id) {
+                dbForm.port = getDbDialect(val as string).getInfo().defaultPort as number;
+            }
+            dbForm.extra = {};
+        },
+    },
+    { prop: 'host', label: 'Host', required: true, when: (form) => (form as DbInstanceForm).type !== DbType.sqlite, span: 17 },
+    { prop: 'port', label: 'Port', type: 'number', when: (form) => (form as DbInstanceForm).type !== DbType.sqlite, span: 7 },
+    { prop: 'host', label: 'Path', required: true, placeholder: 'db.sqlitePathPlaceholder', when: (form) => (form as DbInstanceForm).type === DbType.sqlite },
+    {
+        prop: 'extra.stype',
+        label: 'SID|Service',
+        type: 'select',
+        options: [
+            { value: 1, label: 'Service' },
+            { value: 2, label: 'SID' },
+        ],
+        when: (form) => (form as DbInstanceForm).type === DbType.oracle,
+        onChange: (_val: unknown, form: AutoFormData) => {
+            const extra = (form as DbInstanceForm).extra;
+            if (extra) {
+                extra.serviceName = '';
+                extra.sid = '';
+            }
+        },
+    },
+    { prop: 'extra.serviceName', label: 'Service Name', placeholder: 'Service Name', when: (form) => (form as DbInstanceForm).type === DbType.oracle && (form as DbInstanceForm).extra?.stype == 1 },
+    { prop: 'extra.sid', label: 'SID', placeholder: 'SID', when: (form) => (form as DbInstanceForm).type === DbType.oracle && (form as DbInstanceForm).extra?.stype == 2 },
+    { prop: 'remark', label: 'common.remark', type: 'textarea' },
+    { type: 'group', label: 'common.account' },
+    { prop: 'authCerts', label: 'db.acName', type: 'custom' },
+    { type: 'group', label: 'common.other' },
+    { prop: 'params', label: 'db.connParam', placeholder: 'db.connParamPlaceholder' },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
+];
 
-const dbFormRef = useTemplateRef<FormInstance>('dbFormRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
 const DefaultForm: DbInstanceForm = {
     id: null,
@@ -168,7 +144,7 @@ const DefaultForm: DbInstanceForm = {
     name: null,
     host: '',
     port: getDbDialect(DbType.mysql).getInfo().defaultPort,
-    extra: null, // 连接需要的额外参数（json字符串）
+    extra: {} as Record<string, unknown>, // 连接需要的额外参数（json）
     params: null,
     remark: '',
     sshTunnelMachineId: null as number | null,
@@ -176,73 +152,49 @@ const DefaultForm: DbInstanceForm = {
     tagCodePaths: [],
 };
 
-const state = reactive({
-    extra: {} as Record<string, unknown>, // 连接需要的额外参数（json）
-    form: DefaultForm,
-});
-
-const { form } = toRefs(state);
-
-const submitForm = computed(() => {
-    const reqForm: Record<string, unknown> = { ...state.form };
-    reqForm.selectAuthCert = null;
-    reqForm.tags = null;
-    if (!state.form.sshTunnelMachineId) {
-        reqForm.sshTunnelMachineId = -1;
+/** 传给 AutoFormDrawer 的回填数据：新增时应用 DefaultForm；编辑时兜底 extra 为空对象（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData | null>(() => {
+    const dbInst = props.data;
+    if (!dbInst) {
+        return { ...DefaultForm, authCerts: [], tagCodePaths: [] } as unknown as AutoFormData;
     }
-    if (Object.keys(state.extra).length > 0) {
-        reqForm.extra = state.extra;
-    }
-    return reqForm;
+    return { ...dbInst, extra: (dbInst.extra || {}) as Record<string, unknown> } as unknown as AutoFormData;
 });
 
 const { isFetching: saveBtnLoading, execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi();
 const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi();
 
-watchEffect(() => {
-    if (!dialogVisible.value) {
-        return;
+const buildSubmitForm = (form: DbInstanceForm): Record<string, unknown> => {
+    const reqForm: Record<string, unknown> = { ...form };
+    reqForm.selectAuthCert = null;
+    reqForm.tags = null;
+    if (!form.sshTunnelMachineId) {
+        reqForm.sshTunnelMachineId = -1;
     }
-    const dbInst = props.data;
-    if (dbInst) {
-        state.form = { ...dbInst } as DbInstanceForm;
-        state.extra = (dbInst.extra || {}) as Record<string, unknown>;
-    } else {
-        state.form = { ...DefaultForm };
-        state.form.authCerts = [];
+    if (form.extra && Object.keys(form.extra).length > 0) {
+        reqForm.extra = form.extra;
     }
-});
+    return reqForm;
+};
 
-const testConn = async (authCert: MachineAuthCert) => {
-    await useI18nFormValidate(dbFormRef);
+const testConn = async (rawForm: AutoFormData, authCert: MachineAuthCert) => {
+    const form = rawForm as unknown as DbInstanceForm;
+    await useI18nFormValidate(drawerRef);
     await testConnExec({
-        ...submitForm.value,
+        ...buildSubmitForm(form),
         authCerts: [authCert],
     });
     Msg.success('db.connSuccess');
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(dbFormRef);
-    notBlankI18n(submitForm.value.authCerts, 'db.acName');
-    await saveInstanceExec(submitForm.value);
+const btnOk = async (form: AutoFormData) => {
+    const dbForm = form as unknown as DbInstanceForm;
+    notBlankI18n(dbForm.authCerts, 'db.acName');
+    await saveInstanceExec(buildSubmitForm(dbForm));
     Msg.saveSuccess();
-    state.form.id = saveInstanceRes.value;
-    emit('val-change', state.form);
-    cancel();
-};
-
-const cancel = () => {
+    dbForm.id = saveInstanceRes.value;
+    emit('val-change', dbForm);
     dialogVisible.value = false;
-    emit('cancel');
-    state.extra = {};
-};
-
-const changeDbType = (val: string) => {
-    if (!state.form.id) {
-        state.form.port = getDbDialect(val).getInfo().defaultPort as number;
-    }
-    state.extra = {};
 };
 </script>
 <style lang="scss"></style>

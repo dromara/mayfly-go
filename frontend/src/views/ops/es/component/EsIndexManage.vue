@@ -77,11 +77,7 @@
 
         <!-- 添加别名对话框 -->
         <el-dialog v-model="aliasDialog.visible" :title="t('es.addAlias')" width="400" :append-to-body="false">
-            <el-form @submit.prevent="onSubmitAddAlias">
-                <el-form-item :label="t('es.aliases')">
-                    <el-input v-model="aliasDialog.name" autocomplete="off" />
-                </el-form-item>
-            </el-form>
+            <auto-form v-model="aliasDialog" :items="aliasItems" label-width="auto" @submit.prevent="onSubmitAddAlias" />
             <template #footer>
                 <el-button @click="aliasDialog.visible = false">{{ t('common.cancel') }}</el-button>
                 <el-button type="primary" @click="onSubmitAddAlias" :loading="aliasDialog.loading">{{ t('common.confirm') }}</el-button>
@@ -92,6 +88,7 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, h, onMounted, reactive, ref } from 'vue';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { ElButton, ElDropdown, ElDropdownItem, ElDropdownMenu, ElTag } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import SvgIcon from '@/components/svg-icon/index.vue';
@@ -231,6 +228,8 @@ const esVersion = ref('');
 const emit = defineEmits(['viewData']);
 
 const esIndexDetailRef = ref();
+
+const aliasItems: AutoFormItem[] = [{ prop: 'name', label: 'es.aliases', props: { autocomplete: 'off' } }];
 
 const aliasDialog = reactive({
     visible: false,

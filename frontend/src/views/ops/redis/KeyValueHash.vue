@@ -42,14 +42,11 @@
             :close-on-click-modal="false"
             body-class="p-1"
         >
-            <el-form>
-                <el-form-item>
-                    <el-input v-model="editDialog.field" placeholder="field" />
-                </el-form-item>
-                <el-form-item>
+            <auto-form v-model="editDialog" :items="editItems" label-width="auto">
+                <template #valueViewer>
                     <format-viewer class="w-full!" ref="formatViewerRef" :content="editDialog.value"></format-viewer>
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
 
             <template #footer>
                 <div>
@@ -63,6 +60,7 @@
 <script lang="ts" setup>
 import { notBlank } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
 import FormatViewer from './FormatViewer.vue';
 import { RedisInst } from './redis';
@@ -98,6 +96,12 @@ const state = reactive({
 });
 
 const { hashValues, total, loadMoreDisable, editDialog } = toRefs(state);
+
+/** hash field 编辑表单声明（value 编辑器为 custom 插槽） */
+const editItems: AutoFormItem[] = [
+    { prop: 'field', label: 'field', required: true },
+    { prop: 'valueViewer', type: 'custom' },
+];
 
 onMounted(() => {
     state.key = props.keyInfo?.key || '';

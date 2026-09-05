@@ -2,6 +2,7 @@ package dbi
 
 import (
 	"fmt"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"strings"
 )
@@ -20,9 +21,12 @@ const (
 func GenTableDDL(dialect Dialect, md Metadata, tableName string, dropBeforeCreate bool) (string, error) {
 	// 1.获取表信息
 	tbs, err := md.GetTables(tableName)
-	if len(tbs) == 0 {
+	if err != nil {
 		logx.Errorf("get table error: %s", tableName)
 		return "", err
+	}
+	if len(tbs) == 0 {
+		return "", errorx.NewBizf("table [%s] not found", tableName)
 	}
 	table := tbs[0]
 

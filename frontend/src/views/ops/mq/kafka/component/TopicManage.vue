@@ -72,17 +72,7 @@
 
         <!-- 创建 Topic 对话框 -->
         <el-dialog :title="$t('mq.kafka.createTopic')" v-model="createTopicDialog.visible" width="600px" :close-on-click-modal="false">
-            <el-form ref="createTopicFormRef" :model="createTopicDialog.form" :rules="createTopicFormRules" label-width="auto">
-                <el-form-item :label="$t('mq.kafka.topicName')" prop="topic">
-                    <el-input v-model="createTopicDialog.form.topic" :placeholder="$t('mq.kafka.topicNamePlaceholder')" />
-                </el-form-item>
-                <el-form-item :label="$t('mq.kafka.partitions')" prop="numPartitions">
-                    <el-input-number v-model="createTopicDialog.form.numPartitions" :min="1" :max="100" />
-                </el-form-item>
-                <el-form-item :label="$t('mq.kafka.replicationFactor')" prop="replicationFactor">
-                    <el-input-number v-model="createTopicDialog.form.replicationFactor" :min="1" :max="10" />
-                </el-form-item>
-            </el-form>
+            <auto-form ref="createTopicFormRef" v-model="createTopicDialog.form" :items="createTopicItems" label-width="auto" />
             <template #footer>
                 <el-button @click="createTopicDialog.visible = false">{{ $t('common.cancel') }}</el-button>
                 <el-button type="primary" @click="confirmCreateTopic" :loading="createTopicDialog.loading">
@@ -93,11 +83,7 @@
 
         <!-- 创建 partitions 对话框 -->
         <el-dialog :title="$t('mq.kafka.createPartitions')" v-model="createPartitionsDialog.visible" width="600px" :close-on-click-modal="false">
-            <el-form ref="createPartitionsFormRef" :model="createPartitionsDialog.form" :rules="createPartitionsFormRules" label-width="auto">
-                <el-form-item :label="$t('mq.kafka.partitions')" prop="numPartitions">
-                    <el-input-number v-model="createPartitionsDialog.form.numPartitions" :min="1" :max="100" />
-                </el-form-item>
-            </el-form>
+            <auto-form ref="createPartitionsFormRef" v-model="createPartitionsDialog.form" :items="createPartitionsItems" label-width="auto" />
             <template #footer>
                 <el-button @click="createPartitionsDialog.visible = false">{{ $t('common.cancel') }}</el-button>
                 <el-button type="primary" @click="confirmCreatePartitions" :loading="createPartitionsDialog.loading">
@@ -213,10 +199,10 @@
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
-import { computed, nextTick, reactive, ref, toRefs } from 'vue';
+import { computed, nextTick, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mqApi } from '../../api';
 import type { KafkaConfigEntry, KafkaGroup, KafkaTopicPartition, KafkaTopicView } from '../../types';
@@ -319,17 +305,16 @@ const filteredTopicConfigs = computed(() => {
     }
     return state.topicConfigDialog.topicConfigs.filter((config) => config.Key.toLowerCase().includes(searchTopicConfig.value.toLowerCase()));
 });
-const createTopicFormRef = ref();
-const createPartitionsFormRef = ref();
+const createTopicFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('createTopicFormRef');
+const createPartitionsFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('createPartitionsFormRef');
 
-const createTopicFormRules = {
-    name: [Rules.requiredInput('kafka.topicName')],
-    partitions: [Rules.requiredInput('kafka.partitions')],
-    replicationFactor: [Rules.requiredInput('kafka.replicationFactor')],
-};
-const createPartitionsFormRules = {
-    partitions: [Rules.requiredInput('kafka.partitions')],
-};
+/** 创建 Topic 表单声明（原 rules 键名与字段不匹配，此处同步修正为真实校验） */
+const createTopicItems: AutoFormItem[] = [
+    { prop: 'topic', label: 'mq.kafka.topicName', required: true, placeholder: 'mq.kafka.topicNamePlaceholder' },
+    { prop: 'numPartitions', label: 'mq.kafka.partitions', type: 'number', min: 1, max: 100, required: true },
+    { prop: 'replicationFactor', label: 'mq.kafka.replicationFactor', type: 'number', min: 1, max: 10, required: true },
+];
+const createPartitionsItems: AutoFormItem[] = [{ prop: 'numPartitions', label: 'mq.kafka.partitions', type: 'number', min: 1, max: 100, required: true }];
 
 const filteredTopics = computed(() => {
     if (!searchTopic.value) {

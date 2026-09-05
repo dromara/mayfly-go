@@ -1,54 +1,48 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="props.title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="50%">
-            <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
-            </template>
-
-            <el-form :model="modelValue" ref="formRef" :rules="rules" label-width="auto">
-                <el-form-item prop="bizType" :label="$t('flow.bizType')">
-                    <EnumSelect v-model="modelValue.bizType" :enums="FlowBizType" @change="changeBizType" />
-                </el-form-item>
-
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model.trim="modelValue.remark" type="textarea" auto-complete="off" clearable></el-input>
-                </el-form-item>
-
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="visible"
+            :title="props.title"
+            :items="items"
+            :data="modelValue"
+            size="50%"
+            @opened="onOpened"
+            @cancel="onCancel"
+        >
+            <!-- 业务表单区（动态组件承载，自含校验）+ 审批节点展示 -->
+            <template #body-extra="{ form }">
                 <el-divider content-position="left">{{ $t('flow.bizInfo') }}</el-divider>
                 <component
                     ref="bizFormRef"
-                    v-if="modelValue.bizType"
-                    :is="bizComponents[modelValue.bizType]"
-                    v-model:bizForm="modelValue.bizForm"
+                    v-if="form.bizType"
+                    :is="bizComponents[form.bizType]"
+                    v-model:bizForm="form.bizForm"
                     @changeResourceCode="changeResourceCode"
                 >
                 </component>
-            </el-form>
 
-            <span v-if="flowProcdef || !modelValue.procdefId">
-                <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
+                <span v-if="flowProcdef || !form.procdefId">
+                    <el-divider content-position="left">{{ $t('flow.approvalNode') }}</el-divider>
 
-                <FlowDesign height="300px" v-if="flowProcdef" :data="flowProcdef.flowDef" disabled center />
+                    <FlowDesign height="300px" v-if="flowProcdef" :data="flowProcdef.flowDef" disabled center />
 
-                <el-result v-if="!modelValue.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')">
-                </el-result>
-            </span>
+                    <el-result v-if="!form.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')"> </el-result>
+                </span>
+            </template>
 
             <template #footer>
-                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!modelValue.procdefId">{{ $t('common.confirm') }}</el-button>
+                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk" :disabled="!internalForm?.procdefId">{{ $t('common.confirm') }}</el-button>
             </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enum-select/EnumSelect.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg } from '@/hooks/useI18n';
-import { defineAsyncComponent, reactive, shallowReactive, toRefs, useTemplateRef, watch } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, defineAsyncComponent, reactive, ref, shallowReactive, toRefs, useTemplateRef, watch } from 'vue';
 import { procdefApi, procinstApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType } from './enums';
@@ -79,7 +73,7 @@ const modelValue = defineModel<ProcInstStartForm>('modelValue', {
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const formRef = useTemplateRef<FormInstance>('formRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 const bizFormRef = useTemplateRef<{ validateBizForm: () => Promise<void>; resetBizForm: () => void }>('bizFormRef');
 
 // 业务组件
@@ -88,50 +82,62 @@ const bizComponents = shallowReactive<Record<string, unknown>>({
     redis_run_cmd_flow: RedisRunCmdFlowBizForm,
 });
 
-const rules = {
-    bizType: [Rules.requiredSelect('flow.bizType')],
-    remark: [Rules.requiredInput('common.remark')],
-};
+/** 表单声明（AutoFormItem[]；业务表单由 bizComponents 动态组件承载，自含校验） */
+const items: AutoFormItem[] = [
+    { prop: 'bizType', label: 'flow.bizType', type: 'enum', enums: FlowBizType, required: true, onChange: (_value, form) => changeBizType(form) },
+    { prop: 'remark', label: 'common.remark', type: 'textarea', required: true },
+];
 
 const state = reactive({
-    tasks: [] as unknown[],
     flowProcdef: null as Procdef | null,
-    sortable: '' as string,
 });
 
 const { flowProcdef } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: procinstStart } = procinstApi.start.useApi(modelValue);
+/** 抽屉打开后暂存的内部表单引用（业务表单绑定、提交组装均基于它） */
+const internalForm = ref<AutoFormData>();
+
+const onOpened = (form: AutoFormData) => {
+    internalForm.value = form;
+};
+
+const submitForm = computed(() => internalForm.value as ProcInstStartForm);
+
+const { isFetching: saveBtnLoading, execute: procinstStart } = procinstApi.start.useApi(submitForm);
 
 watch(
-    () => modelValue.value.procdefId,
+    () => internalForm.value?.procdefId,
     async () => {
-        if (!modelValue.value.procdefId || state.flowProcdef) {
+        const procdefId = internalForm.value?.procdefId;
+        if (!procdefId || state.flowProcdef) {
             return;
         }
-        state.flowProcdef = await procdefApi.detail.request({ id: modelValue.value.procdefId });
+        state.flowProcdef = await procdefApi.detail.request({ id: procdefId });
     }
 );
 
 const changeResourceCode = async (resourceType: string, code: string) => {
     state.flowProcdef = await procdefApi.getByResource.request({ resourceType, resourceCode: code });
+    if (!internalForm.value) {
+        return;
+    }
     if (!state.flowProcdef) {
-        modelValue.value.procdefId = 0;
+        internalForm.value.procdefId = 0;
     } else {
-        modelValue.value.procdefId = state.flowProcdef.id;
+        internalForm.value.procdefId = state.flowProcdef.id;
     }
 };
 
-const changeBizType = () => {
+const changeBizType = (form: AutoFormData) => {
     //重置流程定义ID
-    modelValue.value.procdefId = 0;
+    form.procdefId = 0;
     state.flowProcdef = null;
-    modelValue.value.bizForm = {};
+    form.bizForm = {};
 };
 
 const btnOk = async () => {
     try {
-        await formRef.value?.validate();
+        await drawerRef.value?.validate();
         await bizFormRef.value?.validateBizForm();
     } catch (e: unknown) {
         Msg.error('flow.procinstFormError');
@@ -140,28 +146,29 @@ const btnOk = async () => {
 
     await procinstStart();
     Msg.success('flow.procinstStartSuccess');
-    emit('val-change', modelValue.value);
-    //重置表单域
-    cancel();
-};
-
-const cancel = () => {
+    emit('val-change', submitForm.value);
+    //关闭抽屉并重置表单域
     visible.value = false;
     emit('cancel');
-    state.flowProcdef = null;
-    formRef.value?.resetFields();
-    bizFormRef.value?.resetBizForm();
+    resetState();
+};
 
-    setTimeout(() => {
-        modelValue.value = {
-            bizType: FlowBizType.DbSqlExec.value,
-            procdefId: 0,
-            status: null,
-            remark: '',
-            bizKey: '',
-            bizForm: {},
-        };
-    }, 500);
+/** 重置抽屉状态（打开时 AutoFormDrawer 克隆回填 :data，无需延迟重置） */
+const resetState = () => {
+    state.flowProcdef = null;
+    modelValue.value = {
+        bizType: FlowBizType.DbSqlExec.value,
+        procdefId: 0,
+        status: null,
+        remark: '',
+        bizKey: '',
+        bizForm: {},
+    };
+};
+
+// @cancel 时抽屉已由 AutoFormDrawer 关闭，仅需重置状态
+const onCancel = () => {
+    resetState();
 };
 </script>
 <style lang="scss"></style>

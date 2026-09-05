@@ -1,6 +1,6 @@
 <template>
-    <el-form :model="bizForm" ref="formRef" :rules="rules" label-width="auto">
-        <el-form-item prop="dbId" :label="$t('tag.db')" required>
+    <auto-form ref="formRef" v-model="bizForm" :items="bizItems" label-width="auto">
+        <template #dbId>
             <db-select-tree
                 :placeholder="$t('flow.selectDbPlaceholder')"
                 v-model:db-id="bizForm.dbId"
@@ -10,14 +10,13 @@
                 v-model:tag-path="bizForm.tagPath"
                 @select-db="changeResourceCode"
             />
-        </el-form-item>
-
-        <el-form-item prop="sql" label="SQL" required>
+        </template>
+        <template #sql>
             <div class="w-full!">
                 <monaco-editor height="300px" language="sql" v-model="bizForm.sql" />
             </div>
-        </el-form-item>
-    </el-form>
+        </template>
+    </auto-form>
 </template>
 
 <script lang="ts" setup>
@@ -26,16 +25,18 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import type { AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
 
-const rules = {
-    dbId: [Rules.requiredSelect('db.db')],
-    sql: [Rules.requiredInput('flow.runSql')],
-};
+/** DB SQL 执行业务表单声明（库选择与 SQL 编辑器为 custom 插槽） */
+const bizItems: AutoFormItem[] = [
+    { prop: 'dbId', label: 'tag.db', type: 'custom', required: true, rules: Rules.requiredSelect('db.db') },
+    { prop: 'sql', label: 'SQL', type: 'custom', required: true, rules: Rules.requiredInput('flow.runSql') },
+];
 
 const emit = defineEmits(['changeResourceCode']);
 
-const formRef: any = ref(null);
+const formRef = ref<{ validate: (...args: unknown[]) => unknown; resetFields?: () => void } | null>(null);
 
 const bizForm = defineModel<any>('bizForm', {
     default: {
@@ -71,7 +72,7 @@ const validateBizForm = async () => {
 
 const resetBizForm = () => {
     //重置表单域
-    formRef.value?.resetFields();
+    formRef.value?.resetFields?.();
     bizForm.value.dbId = 0;
     bizForm.value.dbName = '';
 };

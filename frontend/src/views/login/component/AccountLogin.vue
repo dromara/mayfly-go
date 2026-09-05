@@ -62,25 +62,10 @@
         </el-form>
 
         <el-dialog :title="$t('login.changePassword')" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="350px" :destroy-on-close="true">
-            <el-form :model="changePwdDialog.form" :rules="changePwdDialog.rules" ref="changePwdFormRef" label-width="auto">
-                <el-form-item prop="username" :label="$t('common.username')" required>
-                    <el-input v-model.trim="changePwdDialog.form.username" disabled></el-input>
-                </el-form-item>
-                <el-form-item prop="oldPassword" :label="$t('login.oldPassword')" required>
-                    <el-input v-model.trim="changePwdDialog.form.oldPassword" autocomplete="new-password" type="password"></el-input>
-                </el-form-item>
-                <el-form-item prop="newPassword" :label="$t('login.newPassword')" required>
-                    <el-input
-                        v-model.trim="changePwdDialog.form.newPassword"
-                        :placeholder="$t('login.passwordRuleTip')"
-                        type="password"
-                        autocomplete="new-password"
-                    ></el-input>
-                </el-form-item>
-            </el-form>
+            <auto-form ref="changePwdFormRef" v-model="changePwdDialog.form" :items="changePwdItems" label-width="auto" />
 
             <template #footer>
-                <<el-button @click="cancelChangePwd">{{ $t('common.cancel') }}</el-button>
+                <el-button @click="cancelChangePwd">{{ $t('common.cancel') }}</el-button>
                 <el-button @click="changePwd" type="primary" :loading="loading.changePwd">
                     {{ $t('common.confirm') }}
                 </el-button>
@@ -95,12 +80,11 @@
             width="350px"
             :destroy-on-close="true"
         >
-            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.prevent label-width="auto">
-                <el-form-item v-if="otpDialog.otpUrl" :label="$t('login.qrCode')">
+            <auto-form ref="otpFormRef" v-model="otpDialog.form" :items="otpItems" label-width="auto" @submit.prevent>
+                <template #qr>
                     <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
-                </el-form-item>
-
-                <el-form-item prop="code" label="OTP" required>
+                </template>
+                <template #code>
                     <el-input-otp
                         ref="otpCodeInputRef"
                         v-model.trim="otpDialog.form.code"
@@ -108,19 +92,12 @@
                         @finish="otpVerify"
                         :placeholder="$t('login.enterOtpCodeTip')"
                     ></el-input-otp>
-                </el-form-item>
-            </el-form>
+                </template>
+            </auto-form>
         </el-dialog>
 
         <el-dialog :title="$t('login.updateBasicInfo')" v-model="baseInfoDialog.visible" :close-on-click-modal="false" width="350px" :destroy-on-close="true">
-            <el-form :model="baseInfoDialog.form" :rules="baseInfoDialog.rules" ref="baseInfoFormRef" label-width="auto">
-                <el-form-item prop="username" :label="$t('common.username')" required>
-                    <el-input v-model.trim="baseInfoDialog.form.username"></el-input>
-                </el-form-item>
-                <el-form-item prop="name" :label="$t('login.name')" required>
-                    <el-input v-model.trim="baseInfoDialog.form.name"></el-input>
-                </el-form-item>
-            </el-form>
+            <auto-form ref="baseInfoFormRef" v-model="baseInfoDialog.form" :items="baseInfoItems" label-width="auto" />
 
             <template #footer>
                 <el-button @click="updateUserInfo()" type="primary" :loading="loading.updateUserConfirm">
@@ -136,6 +113,7 @@ import { RsaEncrypt } from '@/common/crypto';
 import openApi from '@/common/openApi';
 import { getFileUrl } from '@/common/request';
 import { Rules } from '@/common/rule';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { getAccountLoginSecurity, getLdapEnabled } from '@/common/sysconfig';
 import { getRefreshToken, getToken, saveRefreshToken, saveToken, saveUser } from '@/common/utils/storage';
 import { letterAvatar } from '@/common/utils/string';
@@ -147,7 +125,7 @@ import { personApi } from '@/views/personal/api';
 import type { LoginResult } from '@/views/system/types';
 import type { ChangePwdParam } from '@/common/openApi';
 import QrcodeVue from 'qrcode.vue';
-import { nextTick, onMounted, reactive, ref, toRefs } from 'vue';
+import { nextTick, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import type { FormInstance } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -163,10 +141,10 @@ const storesThemeConfig = useThemeConfig();
 const route = useRoute();
 const router = useRouter();
 const loginFormRef = ref<FormInstance | null>(null);
-const changePwdFormRef = ref<FormInstance | null>(null);
-const otpFormRef = ref<FormInstance | null>(null);
+const changePwdFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('changePwdFormRef');
+const otpFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('otpFormRef');
 const otpCodeInputRef = ref<{ focus: () => void } | null>(null);
-const baseInfoFormRef = ref<FormInstance | null>(null);
+const baseInfoFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('baseInfoFormRef');
 
 const state = reactive({
     accountLoginSecurity: {
@@ -192,9 +170,6 @@ const state = reactive({
             oldPassword: '',
             newPassword: '',
         },
-        rules: {
-            newPassword: [Rules.requiredInput('login.newPassword'), Rules.accountPassword],
-        },
     },
     otpDialog: {
         visible: false,
@@ -203,19 +178,12 @@ const state = reactive({
             code: '',
             otpToken: '',
         },
-        rules: {
-            code: [Rules.requiredInput('OTP')],
-        },
     },
     baseInfoDialog: {
         visible: false,
         form: {
             username: '',
             name: '',
-        },
-        rules: {
-            username: [Rules.requiredInput('common.username'), Rules.accountUsername],
-            name: [Rules.requiredInput('common.name')],
         },
     },
     loading: {
@@ -228,6 +196,33 @@ const state = reactive({
 });
 
 const { accountLoginSecurity, showLoginFailTips, captchaImage, loginForm, changePwdDialog, otpDialog, baseInfoDialog, loading, ldapEnabled } = toRefs(state);
+
+/** 修改密码弹窗表单声明（username/oldPassword 仅显示必填星号，与原行为一致） */
+const changePwdItems: AutoFormItem[] = [
+    { prop: 'username', label: 'common.username', required: true, disabled: true },
+    { prop: 'oldPassword', label: 'login.oldPassword', required: true, type: 'password', props: { autocomplete: 'new-password' } },
+    {
+        prop: 'newPassword',
+        label: 'login.newPassword',
+        required: true,
+        type: 'password',
+        placeholder: 'login.passwordRuleTip',
+        props: { autocomplete: 'new-password' },
+        rules: [Rules.requiredInput('login.newPassword'), Rules.accountPassword],
+    },
+];
+
+/** OTP 校验弹窗表单声明（二维码/OTP 输入为 custom 插槽，二维码仅 otpUrl 存在时展示） */
+const otpItems: AutoFormItem[] = [
+    { prop: 'qr', type: 'custom', when: () => !!otpDialog.value.otpUrl },
+    { prop: 'code', label: 'OTP', required: true, type: 'custom', rules: [Rules.requiredInput('OTP')] },
+];
+
+/** 基础信息完善弹窗表单声明 */
+const baseInfoItems: AutoFormItem[] = [
+    { prop: 'username', label: 'common.username', required: true, rules: [Rules.requiredInput('common.username'), Rules.accountUsername] },
+    { prop: 'name', label: 'login.name', required: true, rules: [Rules.requiredInput('common.name')] },
+];
 
 onMounted(async () => {
     nextTick(async () => {

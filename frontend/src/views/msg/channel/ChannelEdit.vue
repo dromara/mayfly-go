@@ -1,58 +1,19 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
-            <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+        <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="btnOk" @cancel="emit('cancel')">
+            <!-- 渠道类型扩展配置（动态组件） -->
+            <template #extra="{ form: f }">
+                <component v-if="channelTypeComp(f.type)" :is="channelTypeComp(f.type)" v-model:extra="f.extra" />
             </template>
-
-            <el-form :model="formData" ref="formRef" :rules="rules" label-position="top" label-width="auto">
-                <el-form-item prop="name" :label="$t('msg.name')">
-                    <el-input v-model.trim="formData.name" auto-complete="off" clearable></el-input>
-                </el-form-item>
-
-                <el-form-item prop="status" :label="$t('common.status')">
-                    <EnumSelect :enums="ChannelStatusEnum" v-model="formData.status" />
-                </el-form-item>
-
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model.trim="formData.remark" auto-complete="off" type="textarea" clearable></el-input>
-                </el-form-item>
-
-                <el-form-item prop="type" :label="$t('common.type')">
-                    <EnumSelect
-                        :enums="ChannelTypeEnum"
-                        v-model="formData.type"
-                        @change="
-                            () => {
-                                formData.extra = {};
-                            }
-                        "
-                    />
-                </el-form-item>
-
-                <el-form-item prop="url" label="URL">
-                    <el-input v-model.trim="formData.url" auto-complete="off" clearable></el-input>
-                </el-form-item>
-
-                <component v-if="channelTypeComp" :is="channelTypeComp" v-model:extra="formData.extra" />
-            </el-form>
-
-            <template #footer>
-                <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
-            </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
 import EnumValue from '@/common/Enum';
-import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enum-select/EnumSelect.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, reactive, toRefs, useTemplateRef, watchEffect, type ComponentPublicInstance, type Component, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, useTemplateRef, type Component, type PropType } from 'vue';
 import { channelApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum } from '../enums';
 import ChannelDing from './ChannelDing.vue';
@@ -82,22 +43,32 @@ const channels: Record<string, Component> = {
     ChannelDing,
 };
 
-const channelTypeComp = computed(() => {
-    return channels[EnumValue.getEnumByValue(ChannelTypeEnum, state.form.type ?? '')?.extra?.component];
-});
-
 //定义事件
 const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const formRef = useTemplateRef<FormInstance>('formRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
-const rules = {
-    name: [Rules.requiredInput('msg.name')],
-    type: [Rules.requiredSelect('common.type')],
-    url: [Rules.requiredInput('URL')],
-};
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；extra 走插槽承载渠道类型扩展配置） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'msg.name', required: true },
+    { prop: 'status', label: 'common.status', type: 'enum', enums: ChannelStatusEnum },
+    { prop: 'remark', label: 'common.remark', type: 'textarea' },
+    {
+        prop: 'type',
+        label: 'common.type',
+        type: 'enum',
+        enums: ChannelTypeEnum,
+        required: true,
+        // 切换渠道类型时重置扩展配置
+        onChange: (_val: unknown, form: AutoFormData) => {
+            (form as ChannelForm).extra = {};
+        },
+    },
+    { prop: 'url', label: 'URL', required: true },
+    { prop: 'extra', type: 'custom' },
+];
 
 const defaultForm = (): ChannelForm => {
     return {
@@ -111,39 +82,25 @@ const defaultForm = (): ChannelForm => {
     };
 };
 
-const state = reactive({
-    edit: false,
-    form: defaultForm(),
-});
-
-const { form: formData } = toRefs(state);
-
-const { isFetching: saveBtnLoading, execute: saveFormExec } = channelApi.save.useApi(formData);
-
-watchEffect(() => {
+/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData | null>(() => {
     const form = props.form as ChannelForm | null;
-    if (form) {
-        state.form = { ...form };
-        state.edit = true;
-    } else {
-        state.edit = false;
-        state.form = defaultForm();
-    }
+    return (form ? { ...form } : defaultForm()) as unknown as AutoFormData;
 });
 
-const btnOk = async () => {
-    await useI18nFormValidate(formRef);
-    await saveFormExec();
-    Msg.saveSuccess();
-    emit('success', state.form);
-    //重置表单域
-    formRef.value?.resetFields();
-    cancel();
+const { isFetching: saveBtnLoading, execute: saveFormExec } = channelApi.save.useApi();
+
+/** 渠道类型对应的扩展配置组件 */
+const channelTypeComp = (type?: string | null): Component | undefined => {
+    return channels[EnumValue.getEnumByValue(ChannelTypeEnum, type ?? '')?.extra?.component];
 };
 
-const cancel = () => {
+const btnOk = async (rawForm: AutoFormData) => {
+    await useI18nFormValidate(drawerRef);
+    await saveFormExec(rawForm);
+    Msg.saveSuccess();
+    emit('success', rawForm);
     visible.value = false;
-    emit('cancel');
 };
 </script>
 <style lang="scss"></style>

@@ -10,9 +10,11 @@ import (
 	aientity "mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/skill"
 	fileentity "mayfly-go/internal/file/domain/entity"
+	machineentity "mayfly-go/internal/machine/domain/entity"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/logx"
 )
 
 func V1_12() []*gormigrate.Migration {
@@ -372,5 +374,149 @@ func V1_12() []*gormigrate.Migration {
 				return nil
 			},
 		},
+		{
+			// 动态表单 params 定义升级为 v1 JSON Schema（对齐前端 auto-form json DSL）：
+			// 旧格式为裸数组（元素含 model 字段），v1 为 {version:1, fields:[...]}；
+			// 空值/非 JSON/已是对象（v1）时跳过；逐行转换，单行失败仅记录日志不阻塞启动。
+			// 更新 t_sys_config 后主动失效对应配置缓存，避免 redis 缓存环境下读到旧值。
+			ID: "v1.12.0-form-params-json-schema-v1",
+			Migrate: func(tx *gorm.DB) error {
+				return migrateFormParamsToJsonSchema(tx)
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
 	}
+}
+
+// ── 动态表单 params 升级 v1 JSON Schema ─────────────────────────────
+
+// legacyFormParam 旧版动态表单字段定义（params 为裸数组，元素含 model 字段）
+type legacyFormParam struct {
+	Model       string `json:"model"`
+	Name        string `json:"name"`
+	Placeholder string `json:"placeholder"`
+	Options     string `json:"options"`
+	Required    bool   `json:"required"`
+}
+
+// jsonFormOption v1 Schema 静态选项
+type jsonFormOption struct {
+	Value any    `json:"value"`
+	Label string `json:"label"`
+}
+
+// jsonFormRules v1 Schema 校验规则（仅迁移需要生成 required）
+type jsonFormRules struct {
+	Required bool `json:"required,omitempty"`
+}
+
+// jsonFormField v1 Schema 字段定义（与前端 auto-form/json/schema.ts 的 JsonField 对齐）
+type jsonFormField struct {
+	Prop        string           `json:"prop"`
+	Label       string           `json:"label,omitempty"`
+	Type        string           `json:"type,omitempty"`
+	Placeholder string           `json:"placeholder,omitempty"`
+	Rules       *jsonFormRules   `json:"rules,omitempty"`
+	Options     []jsonFormOption `json:"options,omitempty"`
+}
+
+// jsonFormSchema v1 表单 Schema（version 字段用于幂等判断）
+type jsonFormSchema struct {
+	Version int             `json:"version"`
+	Fields  []jsonFormField `json:"fields"`
+}
+
+// convertLegacyFormParams 将旧版动态表单字段定义 JSON 转换为 v1 Schema JSON。
+// 入参为空、非 JSON、JSON 对象（已是 v1）时返回 "" 表示无需转换。
+func convertLegacyFormParams(params string) (string, error) {
+	trimmed := strings.TrimSpace(params)
+	if trimmed == "" {
+		return "", nil
+	}
+	// JSON 对象（含 version 的 v1 Schema）跳过，保证幂等
+	var probe map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(trimmed), &probe); err == nil {
+		return "", nil
+	}
+	// 非 JSON 数组（旧格式之外的异常数据）不处理
+	var legacy []legacyFormParam
+	if err := json.Unmarshal([]byte(trimmed), &legacy); err != nil {
+		return "", nil
+	}
+	schema := jsonFormSchema{Version: 1, Fields: make([]jsonFormField, 0, len(legacy))}
+	for _, p := range legacy {
+		field := jsonFormField{
+			Prop:        p.Model,
+			Label:       p.Name,
+			Placeholder: p.Placeholder,
+		}
+		if p.Required {
+			field.Rules = &jsonFormRules{Required: true}
+		}
+		if p.Options != "" {
+			for _, option := range strings.Split(p.Options, ",") {
+				option = strings.TrimSpace(option)
+				if option == "" {
+					continue
+				}
+				field.Options = append(field.Options, jsonFormOption{Value: option, Label: option})
+			}
+		}
+		schema.Fields = append(schema.Fields, field)
+	}
+	converted, err := json.Marshal(schema)
+	if err != nil {
+		return "", err
+	}
+	return string(converted), nil
+}
+
+// migrateFormParamsToJsonSchema 存量动态表单定义升级：t_sys_config.params 与 machine_scripts.params
+func migrateFormParamsToJsonSchema(tx *gorm.DB) error {
+	// v1 JSON Schema 转换后长度膨胀约 20%，存量长配置（如 LdapLogin）转换后会超出旧列长，
+	// 先按实体定义扩列（t_sys_config.params/value varchar(1500)→4000，machine_scripts.params 500→1500）
+	if err := tx.AutoMigrate(&sysentity.Config{}, &machineentity.MachineScript{}); err != nil {
+		return err
+	}
+	// t_sys_config：逐行转换，更新后失效对应配置缓存
+	var configs []sysentity.Config
+	if err := tx.Find(&configs).Error; err != nil {
+		return err
+	}
+	for _, config := range configs {
+		converted, err := convertLegacyFormParams(config.Params)
+		if err != nil {
+			logx.Errorf("convert config form params to json schema failed, key: %s, err: %v", config.Key, err)
+			continue
+		}
+		if converted == "" {
+			continue
+		}
+		if err := tx.Model(&sysentity.Config{}).Where("id = ?", config.Id).Update("params", converted).Error; err != nil {
+			return err
+		}
+		cache.Del(sysapp.SysConfigKeyPrefix + config.Key)
+	}
+
+	// t_machine_script：脚本入参定义，无缓存依赖
+	var scripts []machineentity.MachineScript
+	if err := tx.Find(&scripts).Error; err != nil {
+		return err
+	}
+	for _, script := range scripts {
+		converted, err := convertLegacyFormParams(script.Params)
+		if err != nil {
+			logx.Errorf("convert script form params to json schema failed, id: %d, err: %v", script.Id, err)
+			continue
+		}
+		if converted == "" {
+			continue
+		}
+		if err := tx.Model(&machineentity.MachineScript{}).Where("id = ?", script.Id).Update("params", converted).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }

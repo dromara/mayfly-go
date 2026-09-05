@@ -48,11 +48,13 @@ type DumpHelper struct {
 }
 
 // mssql 在insert语句前后不能识别begin和commit语句
-func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) {
+func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+	return nil
 }
 
 // mssql 在insert语句前后不能识别begin和commit语句
-func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) {
+func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
+	return nil
 }
 
 func (dh *DumpHelper) BeforeInsertSql(quoteSchema string, tableName string) string {

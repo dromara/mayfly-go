@@ -58,6 +58,11 @@ var Keywords = map[string]bool{
 	"IF": true, "FOR": true, "PRIMARY": true, "KEY": true, "FOREIGN": true,
 	"REFERENCES": true, "UNIQUE": true, "DEFAULT": true, "AUTO_INCREMENT": true,
 	"COMMENT": true, "ENGINE": true, "CHARSET": true, "COLLATE": true,
+	"GRANT": true, "REVOKE": true, "RENAME": true, "ANALYZE": true, "TRUNCATE": true,
 	"RETURNING": true, "ONLY": true, "SIMILAR": true, "ESCAPE": true,
 	"INTERVAL": true, "CAST": true,
+	// ON CONFLICT 语法相关关键字（pgsql/dm等方言）
+	"CONFLICT": true, "DO": true, "NOTHING": true, "CONSTRAINT": true,
+	// FETCH FIRST/NEXT n ROWS ONLY 分页语法相关关键字（oracle/达梦等方言）
+	"FETCH": true, "FIRST": true, "NEXT": true, "ROW": true, "ROWS": true, "TIES": true,
 }

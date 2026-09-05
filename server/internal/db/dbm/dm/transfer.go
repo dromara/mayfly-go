@@ -8,6 +8,11 @@ type commonTypeConverter struct {
 }
 
 func (c *commonTypeConverter) Varchar(col *dbi.Column) *dbi.DbDataType {
+	// dm VARCHAR上限32767，超长转TEXT承载，避免非法DDL
+	if col.CharMaxLength > 32767 {
+		col.CharMaxLength = 0
+		return TEXT
+	}
 	return VARCHAR
 }
 
@@ -15,12 +20,16 @@ func (c *commonTypeConverter) Char(col *dbi.Column) *dbi.DbDataType {
 	return CHAR
 }
 func (c *commonTypeConverter) Text(col *dbi.Column) *dbi.DbDataType {
+	// text无长度语法，清空源长度避免生成text(n)非法DDL
+	col.CharMaxLength = 0
 	return TEXT
 }
 func (c *commonTypeConverter) Mediumtext(col *dbi.Column) *dbi.DbDataType {
+	col.CharMaxLength = 0
 	return TEXT
 }
 func (c *commonTypeConverter) Longtext(col *dbi.Column) *dbi.DbDataType {
+	col.CharMaxLength = 0
 	return LONGVARCHAR
 }
 

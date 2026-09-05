@@ -132,10 +132,16 @@ func (pg *PoolGroup[T]) Close(key string) error {
 }
 
 func (pg *PoolGroup[T]) CloseAll() {
-	pg.poolGroup.Range(func(k string, v Pool[T]) bool {
-		pg.asyncClose(v, k)
+	// 先收集所有 key，再逐个走 Close(key)，确保与 Close 行为一致：
+	// 不仅关闭池，还要从注册表中摘除，避免关闭后 GetOrCreate 命中已关闭的死池
+	keys := make([]string, 0)
+	pg.poolGroup.Range(func(k string, _ Pool[T]) bool {
+		keys = append(keys, k)
 		return true
 	})
+	for _, k := range keys {
+		_ = pg.Close(k)
+	}
 }
 
 // 添加一个用于监控连接池关闭状态的方法

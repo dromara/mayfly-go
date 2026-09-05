@@ -2,13 +2,17 @@ package dbi
 
 import (
 	"fmt"
+	"sync"
 )
 
 type CommonDbDataType int
 
 // common column type enum
+// 注意：CTUnknown 必须为零值，未调用 WithCT 指定公共类型的列类型默认即为 CTUnknown，
+// 迁移同步时会显式报错，而不是被静默当作 varchar 处理导致数据截断/损坏
 const (
-	CTVarchar CommonDbDataType = iota
+	CTUnknown CommonDbDataType = iota
+	CTVarchar
 	CTChar
 	CTText
 	CTMediumtext
@@ -79,7 +83,8 @@ type CommonTypeConverter interface {
 }
 
 var (
-	commonTypeConverters = make(map[DbType]map[CommonDbDataType]func(*Column) *DbDataType) // 公共列转换器
+	commonTypeConvertersMu sync.RWMutex                                        // 保护 commonTypeConverters 的并发读写（GetMeta 首次初始化时写入）
+	commonTypeConverters   = make(map[DbType]map[CommonDbDataType]func(*Column) *DbDataType) // 公共列转换器
 )
 
 // registerCommonTypeConverter 注册公共列转换器
@@ -121,7 +126,16 @@ func registerCommonTypeConverter(dbType DbType, ctc CommonTypeConverter) {
 	cts[CTEnum] = ctc.Enum
 	cts[CTJSON] = ctc.JSON
 
+	commonTypeConvertersMu.Lock()
+	defer commonTypeConvertersMu.Unlock()
 	commonTypeConverters[dbType] = cts
+}
+
+// getCommonTypeConverters 获取指定数据库的公共类型转换器map（并发安全）
+func getCommonTypeConverters(dbType DbType) map[CommonDbDataType]func(*Column) *DbDataType {
+	commonTypeConvertersMu.RLock()
+	defer commonTypeConvertersMu.RUnlock()
+	return commonTypeConverters[dbType]
 }
 
 // ConvToTargetDbColumn 转换至异构数据库对应的列信息
@@ -131,25 +145,39 @@ func ConvToTargetDbColumn(srcDbType DbType, targetDbType DbType, targetDialect D
 		return nil
 	}
 
+	if targetDialect == nil {
+		return fmt.Errorf("target database dialect [%s] is nil", targetDbType)
+	}
+
 	// 需要转换至异构数据库时，需要将该字段清空，否则如mysql可以查出该值，其他数据库可能不行，会导致Column.GetColumnType错误。
 	column.ColumnType = ""
 
-	srcMap := commonTypeConverters[srcDbType]
+	srcMap := getCommonTypeConverters(srcDbType)
 	if srcMap == nil {
-		return fmt.Errorf("src database type [%s] not suport transfer", srcDbType)
+		return fmt.Errorf("src database type [%s] not support transfer", srcDbType)
 	}
 
-	targetMap := commonTypeConverters[targetDbType]
+	targetMap := getCommonTypeConverters(targetDbType)
 	if targetMap == nil {
-		return fmt.Errorf("target database type [%s] not suport transfer", targetDbType)
+		return fmt.Errorf("target database type [%s] not support transfer", targetDbType)
 	}
 
 	srcDataType := GetDbDataType(srcDbType, column.DataType)
 
+	// 未声明公共类型的数据类型无法确认目标类型，显式报错，避免被静默当作varchar导致数据截断
+	if srcDataType.CommonType == CTUnknown {
+		return fmt.Errorf("src database type [%s] data type [%s] not support transfer to [%s]: unknown common type", srcDbType, srcDataType.Name, targetDbType)
+	}
+
+	convertFunc, ok := targetMap[srcDataType.CommonType]
+	if !ok || convertFunc == nil {
+		return fmt.Errorf("target database type [%s] not support transfer, src data type [%s] common type [%d]", targetDbType, srcDataType.Name, srcDataType.CommonType)
+	}
+
 	// 获取目标数据库的数据类型，并进行可能存在的列信息修复，如长度、精度等
-	targetDbDataType := targetMap[srcDataType.CommonType](column)
+	targetDbDataType := convertFunc(column)
 	if targetDbDataType == nil {
-		return fmt.Errorf("target database type [%s] not suport transfer, src data type [%d]", targetDbType, srcDataType.CommonType)
+		return fmt.Errorf("target database type [%s] not support transfer, src data type [%s] common type [%d]", targetDbType, srcDataType.Name, srcDataType.CommonType)
 	}
 
 	// 替换为目标数据库的数据类型

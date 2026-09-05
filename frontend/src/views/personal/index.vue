@@ -5,27 +5,10 @@
             <el-col :span="24">
                 <el-card shadow="hover" class="mt-3.5! personal-edit" :header="$t('personal.updateInfo')">
                     <div class="personal-edit-title">{{ $t('personal.basicInfo') }}</div>
-                    <el-form :model="accountForm" label-width="auto" class="mt-8 mb-8">
-                        <el-row :gutter="35">
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb-4!">
-                                <el-form-item :label="$t('common.password')">
-                                    <el-input
-                                        type="password"
-                                        show-password
-                                        v-model="accountForm.password"
-                                        :placeholder="$t('personal.inputNewPasswordPlaceholder')"
-                                        clearable
-                                    ></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <!--  -->
-                            <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
-                                <el-form-item>
-                                    <el-button @click="updateAccount" type="primary" icon="position">{{ $t('personal.updatePersonalInfo') }}</el-button>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-                    </el-form>
+                    <auto-form v-model="accountForm" :items="items" label-width="auto" :cols="3" class="mt-8 mb-8" />
+                    <div class="mb-4">
+                        <el-button @click="updateAccount" type="primary" icon="position">{{ $t('personal.updatePersonalInfo') }}</el-button>
+                    </div>
 
                     <span v-show="authStatus.enable">
                         <div class="personal-edit-title mb-2">{{ $t('personal.accountInfo') }}</div>
@@ -53,6 +36,7 @@
 <script lang="ts" setup>
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Msg } from '@/hooks/useI18n';
 import { onMounted, reactive, toRefs } from 'vue';
 import type { SysRole } from '../system/types';
@@ -61,6 +45,14 @@ import { personApi } from './api';
 defineOptions({
     name: 'Personal',
 });
+
+/** 密码修改表单声明（AutoFormItem[]） */
+const items: AutoFormItem[] = [{
+    prop: 'password',
+    label: 'common.password',
+    type: 'password',
+    placeholder: 'personal.inputNewPasswordPlaceholder',
+}];
 
 const state = reactive({
     accountInfo: {

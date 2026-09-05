@@ -27,14 +27,17 @@ type DumpHelper struct {
 	dbi.DefaultDumpHelper
 }
 
-func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) {
+func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
 	// 设置自增序列当前值
 	for _, column := range columns {
 		if column.AutoIncrement {
-			seq := fmt.Sprintf("SELECT setval('%s_%s_seq', (SELECT max(%s) FROM \"%s\"));\n", tableName, column.ColumnName, column.ColumnName, tableName)
-			writer.Write([]byte(seq))
+			seq := fmt.Sprintf("SELECT setval('%s_%s_seq', (SELECT max(%s) FROM \"%s\"));\n", dbi.QuoteEscape(tableName), dbi.QuoteEscape(column.ColumnName), column.ColumnName, tableName)
+			if _, err := writer.Write([]byte(seq)); err != nil {
+				return err
+			}
 		}
 	}
 
-	writer.Write([]byte("COMMIT;\n"))
+	_, err := writer.Write([]byte("COMMIT;\n"))
+	return err
 }

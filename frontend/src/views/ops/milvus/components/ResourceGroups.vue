@@ -17,11 +17,7 @@
     </div>
 
     <el-dialog v-model="createDialog.visible" :title="$t('milvus.createResourceGroup')" width="500px">
-        <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="auto">
-            <el-form-item :label="$t('milvus.resourceGroupName')" prop="name">
-                <el-input v-model="createForm.name" :placeholder="$t('milvus.resourceGroupNamePlaceholder')"></el-input>
-            </el-form-item>
-        </el-form>
+        <auto-form ref="createFormRef" v-model="createForm" :items="createItems" label-width="auto" />
         <template #footer>
             <el-button @click="createDialog.visible = false">{{ $t('common.cancel') }}</el-button>
             <el-button type="primary" @click="submitCreate" :loading="createLoading">{{ $t('common.confirm') }}</el-button>
@@ -30,12 +26,11 @@
 </template>
 
 <script setup lang="ts">
-import { Rules } from '@/common/rule';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
-import { FormInstance } from 'element-plus';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
 
@@ -51,16 +46,15 @@ const list = ref<{ name: string }[]>([]);
 const createDialog = ref({
     visible: false,
 });
-const createFormRef = ref<FormInstance>();
+const createFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('createFormRef');
 const loading = ref(false);
 const createLoading = ref(false);
 const createForm = ref({
     name: '',
 });
 
-const createRules = {
-    name: [Rules.requiredInput('milvus.resourceGroupName')],
-};
+/** 建资源组表单声明 */
+const createItems: AutoFormItem[] = [{ prop: 'name', label: 'milvus.resourceGroupName', required: true, placeholder: 'milvus.resourceGroupNamePlaceholder' }];
 const detailData = ref<Record<string, unknown>>({});
 
 const loadList = async () => {
@@ -81,19 +75,17 @@ const handleCreate = () => {
 const submitCreate = async () => {
     if (!createFormRef.value) return;
 
-    await createFormRef.value?.validate(async (valid) => {
-        if (!valid) return;
+    await createFormRef.value?.validate();
 
-        createLoading.value = true;
-        try {
-            await milvusApi.createResourceGroup(props.milvusId, createForm.value);
-            Msg.success('milvus.createdSuccess');
-            createDialog.value.visible = false;
-            loadList();
-        } finally {
-            createLoading.value = false;
-        }
-    });
+    createLoading.value = true;
+    try {
+        await milvusApi.createResourceGroup(props.milvusId, createForm.value);
+        Msg.success('milvus.createdSuccess');
+        createDialog.value.visible = false;
+        loadList();
+    } finally {
+        createLoading.value = false;
+    }
 };
 
 const handleDescribe = async (row: { name: string }) => {

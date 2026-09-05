@@ -39,6 +39,10 @@ func (od *OracleMetadata) GetDbServer() (*dbi.DbServer, error) {
 		return nil, err
 	}
 
+	if len(res) == 0 {
+		return nil, errorx.NewBiz("failed to get database version: empty result")
+	}
+
 	return &dbi.DbServer{
 		Version: cast.ToString(res[0]["VERSION"]),
 	}, nil
@@ -61,7 +65,7 @@ func (od *OracleMetadata) GetDbNames() ([]string, error) {
 func (od *OracleMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := od.dc.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	var res []map[string]any
@@ -95,7 +99,7 @@ func (od *OracleMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 func (od *OracleMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := od.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	// 如果表数量超过了1000，需要分批查询

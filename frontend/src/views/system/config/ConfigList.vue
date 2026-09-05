@@ -24,18 +24,15 @@
         </page-table>
 
         <el-dialog @close="onCloseSetConfigDialog" :title="$t('system.sysconf.confItemSetting')" v-model="paramsDialog.visible" width="700px">
-            <dynamic-form
+            <auto-form
                 ref="paramsFormRef"
-                v-if="paramsDialog.paramsFormItem.length > 0"
-                :form-items="(paramsDialog.paramsFormItem as any)"
+                v-if="paramsDialog.schema"
+                :schema="paramsDialog.schema"
                 v-model="(paramsDialog.params as any)"
             />
 
-            <el-form v-else ref="paramsFormRef" label-width="auto">
-                <el-form-item :label="$t('system.sysconf.confValue')" required>
-                    <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off" clearable></el-input>
-                </el-form-item>
-            </el-form>
+            <!-- 无 schema 时降级为单值输入（params 为原始值，经 computed 代理为对象表单） -->
+            <auto-form v-else ref="paramsFormRef" v-model="fallbackForm" :items="fallbackItems" label-width="auto" />
 
             <template #footer>
                 <el-button @click="onCloseSetConfigDialog()">{{ $t('common.cancel') }}</el-button>
@@ -54,12 +51,13 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { DynamicForm } from '@/components/dynamic-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
+import { isJsonFormSchema, type AutoFormJsonSchema } from '@/components/auto-form/json';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { configApi } from '../api';
 import type { SysConfig } from '../types';
@@ -87,7 +85,7 @@ const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixe
 const actionBtns = hasPerms([perms.saveConfig]);
 
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
-const paramsFormRef = ref<{ validate: (cb?: (valid: boolean) => void) => void } | null>(null);
+const paramsFormRef = ref<{ validate: () => Promise<unknown> } | null>(null);
 
 const state = reactive({
     query: {
@@ -100,7 +98,8 @@ const state = reactive({
         visible: false,
         config: {} as SysConfig,
         params: {} as Record<string, unknown> | string,
-        paramsFormItem: [] as Record<string, unknown>[],
+        /** 配置项表单定义（v1 JSON Schema，无定义时为 null） */
+        schema: null as AutoFormJsonSchema | null,
     },
     configEdit: {
         title: 'common.edit',
@@ -110,6 +109,17 @@ const state = reactive({
 });
 
 const { query, paramsDialog } = toRefs(state);
+
+/** 降级表单代理：params 为原始值，包装为 { value } 对象供 auto-form 使用 */
+const fallbackForm = computed({
+    get: () => ({ value: paramsDialog.value.params as unknown as string }),
+    set: (v) => (state.paramsDialog.params = v.value),
+});
+
+/** 降级表单声明（placeholder 动态取配置项备注，经 props 透传覆盖） */
+const fallbackItems = computed<AutoFormItem[]>(() => [
+    { prop: 'value', label: 'system.sysconf.confValue', required: true, props: { placeholder: state.paramsDialog.config.remark } },
+]);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -133,17 +143,21 @@ const handleData = (res: PageResult<SysConfig & { i18nName?: string; i18nRemark?
 
 const showSetConfigDialog = (row: SysConfig) => {
     state.paramsDialog.config = row;
-    // 存在配置项则弹窗提示输入对应的配置项
+    // 存在配置项表单定义则弹窗提示输入对应的配置项
     if (row.params) {
-        state.paramsDialog.paramsFormItem = JSON.parse(row.params);
-        if (state.paramsDialog.paramsFormItem && state.paramsDialog.paramsFormItem.length > 0) {
-            if (row.value) {
-                state.paramsDialog.params = JSON.parse(row.value);
-            }
-        } else {
-            state.paramsDialog.params = row.value;
+        try {
+            const parsed = JSON.parse(row.params);
+            state.paramsDialog.schema = isJsonFormSchema(parsed) ? parsed : null;
+        } catch {
+            state.paramsDialog.schema = null;
         }
     } else {
+        state.paramsDialog.schema = null;
+    }
+    if (state.paramsDialog.schema?.fields?.length && row.value) {
+        state.paramsDialog.params = JSON.parse(row.value);
+    } else if (!state.paramsDialog.schema?.fields?.length) {
+        state.paramsDialog.schema = null;
         state.paramsDialog.params = row.value;
     }
     state.paramsDialog.visible = true;
@@ -154,14 +168,14 @@ const onCloseSetConfigDialog = () => {
     setTimeout(() => {
         state.paramsDialog.config = {} as SysConfig;
         state.paramsDialog.params = {};
-        state.paramsDialog.paramsFormItem = [];
+        state.paramsDialog.schema = null;
     }, 300);
 };
 
 const setConfig = async () => {
     let paramsValue: Record<string, unknown> | string | null = state.paramsDialog.params;
-    if (state.paramsDialog.paramsFormItem.length > 0) {
-        // DynamicForm暴露的validate为Promise风格（不接收回调参数），校验失败时reject
+    if (state.paramsDialog.schema) {
+        // AutoForm暴露的validate为Promise风格（不接收回调参数），校验失败时reject
         try {
             await paramsFormRef.value?.validate();
         } catch (e) {
@@ -171,7 +185,7 @@ const setConfig = async () => {
         const paramsObj = state.paramsDialog.params as Record<string, unknown>;
         // 如果配置项删除，则需要将value中对应的字段移除
         for (let paramKey in paramsObj) {
-            if (!hasParam(paramKey, state.paramsDialog.paramsFormItem)) {
+            if (!hasParam(paramKey, state.paramsDialog.schema.fields)) {
                 delete paramsObj[paramKey];
             }
         }
@@ -192,9 +206,9 @@ const setConfig = async () => {
     search();
 };
 
-const hasParam = (paramKey: string, paramItems: Record<string, unknown>[]) => {
-    for (let paramItem of paramItems) {
-        if (paramItem.model == paramKey) {
+const hasParam = (paramKey: string, fields: { prop: string }[]) => {
+    for (let field of fields) {
+        if (field.prop == paramKey) {
             return true;
         }
     }

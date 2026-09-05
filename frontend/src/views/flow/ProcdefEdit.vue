@@ -1,64 +1,36 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="visible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
-            <template #header>
-                <DrawerHeader :header="title" :back="onCancel" />
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="visible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-loading="saveBtnLoading"
+            @confirm="onConfirm"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
+            <!-- 消息模板选择 -->
+            <template #msgTmplId="{ form }">
+                <MsgTmplSelect v-model="form.msgTmplId" clearable />
             </template>
 
-            <el-form :model="form" ref="formRef" :rules="rules" label-width="auto">
-                <el-form-item prop="name" :label="$t('common.name')">
-                    <el-input v-model.trim="form.name" auto-complete="off" clearable></el-input>
-                </el-form-item>
-                <el-form-item prop="defKey" label="Key">
-                    <el-input :disabled="form.id" v-model.trim="form.defKey" auto-complete="off" clearable></el-input>
-                </el-form-item>
-                <el-form-item prop="status" :label="$t('common.status')">
-                    <EnumSelect :enums="ProcdefStatus" v-model="form.status" />
-                </el-form-item>
-
-                <FormItemTooltip prop="condition" :label="$t('flow.triggeringCondition')" :tooltip="$t('flow.triggeringConditionTips')">
-                    <el-input
-                        v-model="form.condition"
-                        :rows="10"
-                        type="textarea"
-                        :placeholder="$t('flow.conditionPlaceholder')"
-                        auto-complete="off"
-                        clearable
-                    ></el-input>
-                </FormItemTooltip>
-
-                <el-form-item prop="remark" :label="$t('common.remark')">
-                    <el-input v-model.trim="form.remark" auto-complete="off" clearable></el-input>
-                </el-form-item>
-
-                <el-form-item prop="msgTmplId" :label="$t('flow.notify')">
-                    <MsgTmplSelect v-model="form.msgTmplId" clearable />
-                </el-form-item>
-
-                <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('tag.relateTag')">
-                    <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
-                </el-form-item>
-            </el-form>
-
-            <template #footer>
-                <div>
-                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onSave">{{ $t('common.confirm') }}</el-button>
-                </div>
+            <!-- 关联标签 -->
+            <template #codePaths="{ form }">
+                <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
             </template>
-        </el-drawer>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { TagResourceTypeEnum, TagResourceTypePath } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enum-select/EnumSelect.vue';
-import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, ref, toRefs, watch, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { Msg } from '@/hooks/useI18n';
+import { computed, ref, useTemplateRef, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MsgTmplSelect from '../msg/components/MsgTmplSelect.vue';
 import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
@@ -83,62 +55,71 @@ const visible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-const formRef = ref<FormInstance | null>(null);
-
 interface ProcdefForm extends Partial<Procdef> {
     msgTmplId?: number | null;
     codePaths?: string[];
 }
 
-const rules = {
-    name: [Rules.requiredInput('common.name')],
-    defKey: [Rules.requiredInput('key')],
-};
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；消息模板/关联标签走 custom 插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', rules: [Rules.requiredInput('common.name')] },
+    { prop: 'defKey', label: 'Key', disabled: (f) => !!f.id, rules: [Rules.requiredInput('key')] },
+    { prop: 'status', label: 'common.status', type: 'enum', enums: ProcdefStatus },
+    {
+        prop: 'condition',
+        label: 'flow.triggeringCondition',
+        type: 'textarea',
+        rows: 10,
+        tooltip: 'flow.triggeringConditionTips',
+        placeholder: 'flow.conditionPlaceholder',
+    },
+    { prop: 'remark', label: 'common.remark' },
+    { prop: 'msgTmplId', label: 'flow.notify', type: 'custom' },
+    { prop: 'codePaths', label: 'tag.relateTag', type: 'custom' },
+];
 
-const state = reactive<{
-    tasks: unknown[];
-    form: ProcdefForm;
-}>({
-    tasks: [],
-    form: {
-        id: null,
-        name: null,
-        defKey: null,
-        status: null,
-        condition: '',
-        remark: null,
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
+
+/** 传给 AutoFormDrawer 的回填数据（编辑态完整详情由 onOpened 异步补充回填） */
+const editData = computed<AutoFormData>(() => {
+    if (props.data) {
+        const tags = (props.data as { tags?: Array<{ codePath: string }> }).tags;
+        return {
+            ...props.data,
+            msgTmplId: null,
+            codePaths: tags?.map((tag) => tag.codePath) || [],
+        } as AutoFormData;
+    }
+    return {
+        status: ProcdefStatus.Enable.value,
+        condition: t('flow.conditionDefault'),
         msgTmplId: null,
         codePaths: [],
-    } as unknown as ProcdefForm,
+    } as AutoFormData;
 });
 
-const { form } = toRefs(state);
+/** 抽屉打开后暂存的内部表单引用（提交组装基于它） */
+const internalForm = ref<AutoFormData>({});
 
-const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(form);
-
-watch(props, async (newValue: Record<string, unknown>) => {
-    if (newValue.data) {
-        const data = newValue.data as Record<string, unknown>;
-        state.form = await procdefApi.detail.request({ id: (data as { id: number }).id });
-        state.form.codePaths = (data.tags as Array<{ codePath: string }>)?.map((tag) => tag.codePath);
-    } else {
-        state.form = { status: ProcdefStatus.Enable.value } as Procdef;
-        state.form.condition = t('flow.conditionDefault');
-        state.tasks = [];
+const onOpened = async (form: AutoFormData) => {
+    internalForm.value = form;
+    // 编辑态异步补充回填详情（触发条件等列表行数据未携带的字段）
+    if (props.data?.id) {
+        const detail = await procdefApi.detail.request({ id: props.data.id });
+        const tags = (props.data as { tags?: Array<{ codePath: string }> }).tags;
+        Object.assign(form, detail, { codePaths: tags?.map((tag) => tag.codePath) });
     }
-});
-
-const onSave = async () => {
-    await useI18nFormValidate(formRef);
-    await saveFlowDefExec();
-    Msg.saveSuccess();
-    emit('val-change', state.form);
-    //重置表单域
-    formRef.value?.resetFields();
-    state.form = {} as Procdef;
 };
 
-const onCancel = () => {
+const submitForm = computed(() => internalForm.value as ProcdefForm);
+
+const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save.useApi(submitForm);
+
+// @confirm 触发前 AutoFormDrawer 已完成表单校验
+const onConfirm = async () => {
+    await saveFlowDefExec();
+    Msg.saveSuccess();
+    emit('val-change', submitForm.value);
     visible.value = false;
     emit('cancel');
 };

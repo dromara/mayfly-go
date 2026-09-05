@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/dm"
 	"mayfly-go/pkg/gox"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
@@ -31,29 +32,40 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	ddl = strings.ReplaceAll(ddl, fmt.Sprintf("\"%s\"", strings.ToUpper(tableName)), fmt.Sprintf("\"%s\"", strings.ToUpper(newTableName)))
 	// 去除空格换行
 	ddl = stringx.TrimSpaceAndBr(ddl)
-	// sqls, err := sqlparser.SplitStatementToPieces(ddl, sqlparser.WithDialect(dd.dc.GetMetaData().GetSqlParserDialect()))
 	sqls := strings.Split(ddl, ";")
 	for _, sql := range sqls {
-		_, _ = dd.dc.Exec(sql)
+		// 过滤掉拆分后的空语句
+		if strings.TrimSpace(sql) == "" {
+			continue
+		}
+		if _, err := dd.dc.Exec(sql); err != nil {
+			return err
+		}
 	}
 
-	// 复制数据
+	// 复制数据（异步执行，执行失败仅记录日志）
 	if copy.CopyData {
 		gox.Go(func() {
-			// 设置允许填充自增列之后，显示指定列名可以插入自增列\
+			// 设置允许填充自增列之后，显示指定列名可以插入自增列
 			identityInsert := fmt.Sprintf("set identity_insert \"%s\" on", newTableName)
 			// 获取列名
-			columns, _ := metadata.GetColumns(tableName)
+			columns, err := metadata.GetColumns(tableName)
+			if err != nil {
+				logx.Errorf("dm copy table [%s] failed to get columns: %s", tableName, err.Error())
+				return
+			}
 			columnArr := make([]string, 0)
 			for _, column := range columns {
 				columnArr = append(columnArr, fmt.Sprintf("\"%s\"", column.ColumnName))
 			}
 			columnStr := strings.Join(columnArr, ",")
 			// 插入新数据并显示指定列
-			_, _ = dd.dc.Exec(fmt.Sprintf("%s insert into \"%s\" (%s) select %s from \"%s\"", identityInsert, newTableName, columnStr, columnStr, tableName))
+			if _, err := dd.dc.Exec(fmt.Sprintf("%s insert into \"%s\" (%s) select %s from \"%s\"", identityInsert, newTableName, columnStr, columnStr, tableName)); err != nil {
+				logx.Errorf("dm copy table [%s] data failed: %s", tableName, err.Error())
+			}
 		})
 	}
-	return err
+	return nil
 }
 
 func (dd *DMDialect) GetDumpHelper() dbi.DumpHelper {
@@ -62,8 +74,7 @@ func (dd *DMDialect) GetDumpHelper() dbi.DumpHelper {
 
 func (sd *DMDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{
-		Dialect:  sd,
-		Metadata: sd.dc.GetMetadata(),
+		Dialect: sd,
 	}
 }
 

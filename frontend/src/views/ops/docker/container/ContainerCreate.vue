@@ -1,285 +1,186 @@
 <template>
-    <el-drawer v-model="dialogVisible" :append-to-body="false" :destroy-on-close="true" :close-on-click-modal="false" :before-close="cancel" size="40%">
-        <template #header>
-            <DrawerHeader :header="$t('docker.createContainer')" :back="cancel">
-                <template #extra>
-                    <div class="mr20"></div>
-                </template>
-            </DrawerHeader>
+    <auto-form-drawer v-model:visible="dialogVisible" :items="items" :data="editData" size="40%" :confirm-loading="createLoading" scroll-to-error @confirm="btnOk" @opened="onOpened" @cancel="emit('cancel')">
+        <!-- 镜像（镜像列表 allow-create） -->
+        <template #image="{ form }">
+            <el-select v-model="form.image" filterable allow-create>
+                <el-option v-for="item in state.images" :key="item.id" :label="item.tags[0]" :value="item.tags[0]"></el-option>
+            </el-select>
         </template>
 
-        <el-form :model="form" ref="formRef" label-position="top" :rules="rules" scroll-to-error>
-            <el-form-item prop="name" :label="$t('common.name')" clearable>
-                <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-            </el-form-item>
+        <!-- 端口映射 -->
+        <template #exposedPorts="{ form }">
+            <el-card class="w-full">
+                <el-table v-if="form.exposedPorts.length !== 0" :data="form.exposedPorts">
+                    <el-table-column :label="$t('docker.server')" min-width="100">
+                        <template #default="{ row }">
+                            <el-input-number v-model="row.hostPort" :min="10000" :max="20000" />
+                        </template>
+                    </el-table-column>
 
-            <el-form-item prop="image" :label="$t('docker.image')">
-                <template #label>
-                    {{ $t('docker.image') }}
-                    <el-tooltip :content="$t('docker.imageTips')" placement="top">
-                        <SvgIcon class="mb-1" name="question-filled" />
-                    </el-tooltip>
-                </template>
+                    <el-table-column :label="$t('docker.container')" min-width="100">
+                        <template #default="{ row }">
+                            <el-input v-model="row.containerPort" />
+                        </template>
+                    </el-table-column>
 
-                <el-select v-model="form.image" filterable allow-create>
-                    <el-option v-for="item in state.images" :key="item.id" :label="item.tags[0]" :value="item.tags[0]"></el-option>
-                </el-select>
-            </el-form-item>
+                    <el-table-column :label="$t('docker.protocol')" min-width="50">
+                        <template #default="{ row }">
+                            <el-select v-model="row.protocol" style="width: 100%" :placeholder="$t('container.serverExample')">
+                                <el-option label="tcp" value="tcp" />
+                                <el-option label="udp" value="udp" />
+                            </el-select>
+                        </template>
+                    </el-table-column>
 
-            <el-form-item>
-                <el-checkbox v-model="form.forcePull">{{ $t('docker.forcePull') }}</el-checkbox>
-                <el-tooltip :content="$t('docker.forcePullTips')" placement="top">
-                    <SvgIcon class="ml-2" name="question-filled" />
-                </el-tooltip>
-            </el-form-item>
+                    <el-table-column min-width="35">
+                        <template #default="scope">
+                            <el-button link type="primary" @click="handlePortsDelete(scope.$index)">
+                                {{ $t('common.delete') }}
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
 
-            <el-form-item prop="cmdStr" :label="$t('Command')">
-                <el-input v-model="form.cmdStr" />
-            </el-form-item>
+                <el-button class="ml-1 mt-1" size="small" @click="handlePortsAdd()">
+                    {{ $t('common.add') }}
+                </el-button>
+            </el-card>
+        </template>
 
-            <el-form-item :label="$t('docker.port')">
-                <el-card class="w-full">
-                    <el-table v-if="form.exposedPorts.length !== 0" :data="form.exposedPorts">
-                        <el-table-column :label="$t('docker.server')" min-width="100">
-                            <template #default="{ row }">
-                                <el-input-number v-model="row.hostPort" :min="10000" :max="20000" />
-                                <!-- <el-input v-model="row.hostPort" :placeholder="$t('docker.hostPortPlaceholder')" /> -->
-                            </template>
-                        </el-table-column>
+        <!-- 挂载卷 -->
+        <template #volumes="{ form }">
+            <el-card class="mb-1 w-full">
+                <el-table v-if="form.volumes.length !== 0" :data="form.volumes">
+                    <el-table-column :label="$t('docker.hostDir')" min-width="120">
+                        <template #default="{ row }">
+                            <el-input v-model="row.hostDir" />
+                        </template>
+                    </el-table-column>
 
-                        <el-table-column :label="$t('docker.container')" min-width="100">
-                            <template #default="{ row }">
-                                <el-input v-model="row.containerPort" />
-                            </template>
-                        </el-table-column>
+                    <el-table-column :label="$t('docker.permission')" :width="100">
+                        <template #default="{ row }">
+                            <el-select v-model="row.mode">
+                                <el-option value="rw" :label="$t('docker.rw')" />
+                                <el-option value="ro" :label="$t('docker.ro')" />
+                            </el-select>
+                        </template>
+                    </el-table-column>
 
-                        <el-table-column :label="$t('docker.protocol')" min-width="50">
-                            <template #default="{ row }">
-                                <el-select v-model="row.protocol" style="width: 100%" :placeholder="$t('container.serverExample')">
-                                    <el-option label="tcp" value="tcp" />
-                                    <el-option label="udp" value="udp" />
-                                </el-select>
-                            </template>
-                        </el-table-column>
+                    <el-table-column :label="$t('docker.containerDir')" min-width="120">
+                        <template #default="{ row }">
+                            <el-input v-model="row.containerDir" />
+                        </template>
+                    </el-table-column>
 
-                        <el-table-column min-width="35">
-                            <template #default="scope">
-                                <el-button link type="primary" @click="handlePortsDelete(scope.$index)">
-                                    {{ $t('common.delete') }}
-                                </el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
+                    <el-table-column min-width="40">
+                        <template #default="scope">
+                            <el-button link type="primary" @click="handleVolumesDelete(scope.$index)">
+                                {{ $t('common.delete') }}
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
 
-                    <el-button class="ml-1 mt-1" size="small" @click="handlePortsAdd()">
-                        {{ $t('common.add') }}
-                    </el-button>
-                </el-card>
-            </el-form-item>
+                <el-button @click="handleVolumesAdd()" size="small">
+                    {{ $t('common.add') }}
+                </el-button>
+            </el-card>
+        </template>
 
-            <el-form-item prop="mount" :label="$t('docker.mount')">
-                <el-card class="mb-1 w-full">
-                    <el-table v-if="form.volumes.length !== 0" :data="form.volumes">
-                        <el-table-column :label="$t('docker.hostDir')" min-width="120">
-                            <template #default="{ row }">
-                                <el-input v-model="row.hostDir" />
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column :label="$t('docker.permission')" :width="100">
-                            <template #default="{ row }">
-                                <el-select v-model="row.mode">
-                                    <el-option value="rw" :label="$t('docker.rw')" />
-                                    <el-option value="ro" :label="$t('docker.ro')" />
-                                </el-select>
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column :label="$t('docker.containerDir')" min-width="120">
-                            <template #default="{ row }">
-                                <el-input v-model="row.containerDir" />
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column min-width="40">
-                            <template #default="scope">
-                                <el-button link type="primary" @click="handleVolumesDelete(scope.$index)">
-                                    {{ $t('common.delete') }}
-                                </el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-
-                    <el-button @click="handleVolumesAdd()" size="small">
-                        {{ $t('common.add') }}
-                    </el-button>
-                </el-card>
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.networkMode')">
-                <el-select v-model="form.networkMode" filterable allow-create>
-                    <el-option label="default" value="default"></el-option>
-                    <el-option label="host" value="host"></el-option>
-                    <el-option label="bridge" value="bridge"></el-option>
-                    <el-option label="none" value="none"></el-option>
-                </el-select>
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.otherOption')">
+        <!-- 其他选项 -->
+        <template #otherOptions="{ form }">
+            <div>
                 <el-checkbox v-model="form.tty">{{ $t('docker.tty') }}</el-checkbox>
-                <el-checkbox v-model="form.openStdin">
-                    {{ $t('docker.openStdin') }}
-                </el-checkbox>
-
-                <el-checkbox v-model="form.privileged">
-                    {{ $t('docker.privileged') }}
-                </el-checkbox>
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.restartPolicy')" prop="restartPolicy">
-                <el-radio-group v-model="form.restartPolicy">
-                    <el-radio value="no">{{ $t('docker.noRestart') }}</el-radio>
-                    <el-radio value="always">{{ $t('docker.alwaysRestart') }}</el-radio>
-                    <el-radio value="on-failure">{{ $t('docker.onFailure') }}</el-radio>
-                    <el-radio value="unless-stopped">{{ $t('docker.unlessStopped') }}</el-radio>
-                </el-radio-group>
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.cpuShare')" prop="cpuShares">
-                <template #label>
-                    <el-row>
-                        {{ $t('docker.cpuShare') }}
-                        <el-tooltip :content="$t('docker.cpuShareTips')" placement="top">
-                            <SvgIcon class="ml-2" name="question-filled" />
-                        </el-tooltip>
-                    </el-row>
-                </template>
-                <el-input v-model.number="form.cpuShares" />
-            </el-form-item>
-
-            <el-form-item prop="nanoCPUs">
-                <template #label>
-                    <el-row>
-                        {{ $t('docker.cpuQuota') }}
-                        <el-tooltip :content="$t('docker.cpuLimitTips')" placement="top">
-                            <SvgIcon class="ml-2" name="question-filled" />
-                        </el-tooltip>
-                        <el-text class="ml-2" size="small">{{ $t('docker.cpuCanUseTips', { cpuTotal: dockerInfo.NCPU }) }}</el-text>
-                    </el-row>
-                </template>
-
-                <el-input v-model.number="form.nanoCpus">
-                    <template #append>
-                        <div style="width: 35px">{{ $t('docker.core') }}</div>
-                    </template>
-                </el-input>
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.memoryLimit')" prop="memory">
-                <template #label>
-                    <el-row>
-                        {{ $t('docker.memoryLimit') }}
-                        <el-tooltip :content="$t('docker.memoryLimitTips')" placement="top">
-                            <SvgIcon class="ml-2" name="question-filled" />
-                        </el-tooltip>
-                        <el-text class="ml-2" size="small">{{ $t('docker.memoryCanUseTips', { memTotal: formatByteSize(Number(dockerInfo.MemTotal)) }) }}</el-text>
-                    </el-row>
-                </template>
-
-                <el-input v-model.number="form.memory">
-                    <template #append><div style="width: 35px">GB</div></template>
-                </el-input>
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.shmSize')" prop="memory">
-                <el-input v-model.number="form.shmSize">
-                    <template #append><div style="width: 35px">GB</div></template>
-                </el-input>
-            </el-form-item>
-
-            <el-form-item prop="device" :label="$t('docker.device')">
-                <el-card class="mb-1 w-full">
-                    <el-table v-if="form.devices.length !== 0" :data="form.devices">
-                        <el-table-column :label="$t('docker.driver')" min-width="100">
-                            <template #header>
-                                {{ $t('docker.driver') }}
-                                <el-tooltip :content="$t('docker.driverTips')" placement="top">
-                                    <SvgIcon class="ml-2 mb-2" name="question-filled" />
-                                </el-tooltip>
-                            </template>
-                            <template #default="{ row }">
-                                <el-select v-model="row.driver" filterable allow-create>
-                                    <el-option v-for="item in runtimeSelect" :key="item" :label="item" :value="item"></el-option>
-                                </el-select>
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column :label="$t('docker.count')" :width="100">
-                            <template #default="{ row }">
-                                <el-input v-model.number="row.count" />
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column :label="$t('docker.capabilitie')" min-width="100">
-                            <template #default="{ row }">
-                                <el-input-tag v-model="row.capabilities" :placeholder="$t('docker.capabilitiePlaceholder')" />
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column :label="$t('docker.deviceId')" min-width="100">
-                            <template #default="{ row }">
-                                <el-input-tag v-model="row.deviceIds" />
-                            </template>
-                        </el-table-column>
-
-                        <el-table-column min-width="40">
-                            <template #default="scope">
-                                <el-button class="mt-1" link type="primary" @click="handleDevicesDelete(scope.$index)">
-                                    {{ $t('common.delete') }}
-                                </el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-
-                    <el-button @click="handleDevicesAdd()" size="small">
-                        {{ $t('common.add') }}
-                    </el-button>
-                </el-card>
-            </el-form-item>
-
-            <el-form-item :label="$t('capAdd')" prop="capAdd">
-                <el-input-tag v-model="form.capAdd" />
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.tag')" prop="labelsStr">
-                <el-input type="textarea" :placeholder="$t('docker.tagTips')" :rows="3" v-model="form.labelsStr" />
-            </el-form-item>
-
-            <el-form-item :label="$t('docker.envParam')" prop="envStr">
-                <el-input type="textarea" :placeholder="$t('docker.envParamTips')" :rows="3" v-model="form.envsStr" />
-            </el-form-item>
-        </el-form>
-
-        <template #footer>
-            <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-            <el-button type="primary" :loading="createLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                <el-checkbox v-model="form.openStdin">{{ $t('docker.openStdin') }}</el-checkbox>
+                <el-checkbox v-model="form.privileged">{{ $t('docker.privileged') }}</el-checkbox>
+            </div>
         </template>
-    </el-drawer>
+
+        <!-- CPU 配额 -->
+        <template #nanoCpus="{ form }">
+            <el-input v-model.number="form.nanoCpus">
+                <template #append>
+                    <div style="width: 35px">{{ $t('docker.core') }}</div>
+                </template>
+            </el-input>
+        </template>
+
+        <!-- 内存限制 -->
+        <template #memory="{ form }">
+            <el-input v-model.number="form.memory">
+                <template #append><div style="width: 35px">GB</div></template>
+            </el-input>
+        </template>
+
+        <!-- 共享内存 -->
+        <template #shmSize="{ form }">
+            <el-input v-model.number="form.shmSize">
+                <template #append><div style="width: 35px">GB</div></template>
+            </el-input>
+        </template>
+
+        <!-- 设备 -->
+        <template #devices="{ form }">
+            <el-card class="mb-1 w-full">
+                <el-table v-if="form.devices.length !== 0" :data="form.devices">
+                    <el-table-column :label="$t('docker.driver')" min-width="100">
+                        <template #header>
+                            {{ $t('docker.driver') }}
+                            <el-tooltip :content="$t('docker.driverTips')" placement="top">
+                                <SvgIcon class="ml-2 mb-2" name="question-filled" />
+                            </el-tooltip>
+                        </template>
+                        <template #default="{ row }">
+                            <el-select v-model="row.driver" filterable allow-create>
+                                <el-option v-for="item in runtimeSelect" :key="item" :label="item" :value="item"></el-option>
+                            </el-select>
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column :label="$t('docker.count')" :width="100">
+                        <template #default="{ row }">
+                            <el-input v-model.number="row.count" />
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column :label="$t('docker.capabilitie')" min-width="100">
+                        <template #default="{ row }">
+                            <el-input-tag v-model="row.capabilities" :placeholder="$t('docker.capabilitiePlaceholder')" />
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column :label="$t('docker.deviceId')" min-width="100">
+                        <template #default="{ row }">
+                            <el-input-tag v-model="row.deviceIds" />
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column min-width="40">
+                        <template #default="scope">
+                            <el-button class="mt-1" link type="primary" @click="handleDevicesDelete(scope.$index)">
+                                {{ $t('common.delete') }}
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <el-button @click="handleDevicesAdd()" size="small">
+                    {{ $t('common.add') }}
+                </el-button>
+            </el-card>
+        </template>
+    </auto-form-drawer>
 </template>
 <script setup lang="ts">
 import { Rules } from '@/common/rule';
 import { formatByteSize } from '@/common/utils/format';
 import { deepClone } from '@/common/utils/object';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import SvgIcon from '@/components/svg-icon/index.vue';
+import { Msg } from '@/hooks/useI18n';
+import { computed, reactive, ref, watch, type PropType } from 'vue';
 import { dockerApi } from '../api';
 import type { DockerImageItem } from '../types';
-
-const rules = {
-    name: [Rules.requiredInput('common.name')],
-    image: [Rules.requiredSelect('docker.image')],
-};
 
 const props = defineProps({
     id: {
@@ -313,25 +214,74 @@ const defaultForm = {
 const state = reactive({
     dockerInfo: {} as Record<string, unknown>,
     images: [] as DockerImageItem[],
-    form: defaultForm,
-    submitForm: {} as Record<string, unknown>,
-    pwd: '',
 });
 
-const { dockerInfo, form, submitForm } = toRefs(state);
+const submitForm = ref({} as Record<string, unknown>);
 
 //定义事件
 const emit = defineEmits(['cancel', 'success']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const formRef = useTemplateRef('formRef');
+/** 表单声明（computed：labelParams 需随 dockerInfo 动态计算；复杂表格编辑器走 custom 插槽） */
+const items = computed<AutoFormItem[]>(() => [
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'image', label: 'docker.image', type: 'custom', tooltip: 'docker.imageTips', rules: [Rules.requiredSelect('docker.image')] },
+    { prop: 'forcePull', label: 'docker.forcePull', type: 'switch', tooltip: 'docker.forcePullTips' },
+    { prop: 'cmdStr', label: 'Command' },
+    { prop: 'exposedPorts', label: 'docker.port', type: 'custom' },
+    { prop: 'volumes', label: 'docker.mount', type: 'custom' },
+    {
+        prop: 'networkMode',
+        label: 'docker.networkMode',
+        type: 'select',
+        props: { filterable: true, allowCreate: true },
+        options: [
+            { label: 'default', value: 'default' },
+            { label: 'host', value: 'host' },
+            { label: 'bridge', value: 'bridge' },
+            { label: 'none', value: 'none' },
+        ],
+    },
+    { prop: 'otherOptions', label: 'docker.otherOption', type: 'custom' },
+    {
+        prop: 'restartPolicy',
+        label: 'docker.restartPolicy',
+        type: 'radio',
+        options: [
+            { label: 'docker.noRestart', value: 'no' },
+            { label: 'docker.alwaysRestart', value: 'always' },
+            { label: 'docker.onFailure', value: 'on-failure' },
+            { label: 'docker.unlessStopped', value: 'unless-stopped' },
+        ],
+    },
+    { prop: 'cpuShares', label: 'docker.cpuShare', type: 'number', tooltip: 'docker.cpuShareTips' },
+    { prop: 'nanoCpus', label: 'docker.cpuQuota', type: 'custom', tooltip: 'docker.cpuLimitTips', labelParams: { cpuTotal: state.dockerInfo.NCPU } },
+    {
+        prop: 'memory',
+        label: 'docker.memoryLimit',
+        type: 'custom',
+        tooltip: 'docker.memoryLimitTips',
+        labelParams: { memTotal: formatByteSize(Number(state.dockerInfo.MemTotal)) },
+    },
+    { prop: 'shmSize', label: 'docker.shmSize', type: 'custom' },
+    { prop: 'devices', label: 'docker.device', type: 'custom' },
+    { prop: 'capAdd', label: 'capAdd', type: 'tags' },
+    { prop: 'labelsStr', label: 'docker.tag', type: 'textarea', rows: 3, placeholder: 'docker.tagTips' },
+    { prop: 'envsStr', label: 'docker.envParam', type: 'textarea', rows: 3, placeholder: 'docker.envParamTips' },
+]);
+
+/** 传给 AutoFormDrawer 的回填数据（新建态默认值，深拷贝由组件内部完成） */
+const editData = deepClone(defaultForm) as unknown as AutoFormData;
+
+/** 抽屉打开后暂存的内部表单引用（端口/挂载卷/设备表格编辑与提交组装基于它） */
+const internalForm = ref<AutoFormData>({});
+
+const onOpened = (form: AutoFormData) => {
+    internalForm.value = form;
+};
 
 const { isFetching: createLoading, execute: createExec } = dockerApi.containerCreate.useApi(submitForm);
-
-// onMounted(async () => {
-//     init();
-// });
 
 watch(dialogVisible, async (val) => {
     if (val) {
@@ -344,8 +294,7 @@ const runtimeSelect = computed(() => {
 });
 
 const init = async () => {
-    state.form = deepClone(defaultForm);
-    state.submitForm = {};
+    submitForm.value = {};
     dockerApi.info.request({ id: props.id }).then((res) => {
         state.dockerInfo = res;
     });
@@ -358,11 +307,11 @@ const handlePortsAdd = () => {
         hostPort: 0,
         protocol: 'tcp',
     };
-    state.form.exposedPorts.push(item);
+    internalForm.value.exposedPorts.push(item);
 };
 
 const handlePortsDelete = (index: number) => {
-    state.form.exposedPorts.splice(index, 1);
+    internalForm.value.exposedPorts.splice(index, 1);
 };
 
 const handleVolumesAdd = () => {
@@ -371,11 +320,11 @@ const handleVolumesAdd = () => {
         containerDir: '',
         mode: 'rw',
     };
-    state.form.volumes.push(item);
+    internalForm.value.volumes.push(item);
 };
 
 const handleVolumesDelete = (index: number) => {
-    state.form.volumes.splice(index, 1);
+    internalForm.value.volumes.splice(index, 1);
 };
 
 const handleDevicesAdd = () => {
@@ -384,21 +333,21 @@ const handleDevicesAdd = () => {
         count: 0,
         device: '',
     };
-    state.form.devices.push(item);
+    internalForm.value.devices.push(item);
 };
 
 const handleDevicesDelete = (index: number) => {
-    state.form.devices.splice(index, 1);
+    internalForm.value.devices.splice(index, 1);
 };
 
-const btnOk = async () => {
-    await useI18nFormValidate(formRef);
+// @confirm 触发前 AutoFormDrawer 已完成表单校验
+const btnOk = async (rawForm: AutoFormData) => {
+    const form = rawForm as typeof defaultForm;
+    submitForm.value = { ...form };
+    submitForm.value.id = props.id;
 
-    state.submitForm = { ...state.form };
-    state.submitForm.id = props.id;
-
-    if (state.submitForm.exposedPorts) {
-        state.submitForm.exposedPorts = state.form.exposedPorts.map((item) => {
+    if (submitForm.value.exposedPorts) {
+        submitForm.value.exposedPorts = form.exposedPorts.map((item) => {
             return {
                 ...item,
                 hostPort: item.hostPort + '', // 转为字符串
@@ -406,27 +355,23 @@ const btnOk = async () => {
         });
     }
 
-    if (state.form.envsStr) {
-        state.submitForm.envs = state.form.envsStr.split('\n');
+    if (form.envsStr) {
+        submitForm.value.envs = form.envsStr.split('\n');
     }
-    if (state.form.labelsStr) {
-        state.submitForm.labels = state.form.labelsStr.split('\n');
+    if (form.labelsStr) {
+        submitForm.value.labels = form.labelsStr.split('\n');
     }
-    if (state.form.cmdStr) {
-        let itemCmd = splitStringIgnoringQuotes(state.form.cmdStr);
+    if (form.cmdStr) {
+        let itemCmd = splitStringIgnoringQuotes(form.cmdStr);
         const cmds = [];
         for (const item of itemCmd) {
             cmds.push(item.replace(/(?<!\\)"/g, '').replaceAll('\\"', '"'));
         }
-        state.submitForm.cmd = cmds;
+        submitForm.value.cmd = cmds;
     }
     await createExec();
     Msg.operateSuccess();
     emit('success', submitForm);
-    cancel();
-};
-
-const cancel = () => {
     dialogVisible.value = false;
     emit('cancel');
 };

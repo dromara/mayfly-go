@@ -56,6 +56,9 @@ func (p *Parser) parseStatement() sqlstmt.Stmt {
 		return p.parseShow()
 	case tok.IsKeyword("TRUNCATE"):
 		return p.parseGenericDdl()
+	case tok.IsKeyword("GRANT", "REVOKE", "RENAME", "ANALYZE"):
+		// MySQL 的 GRANT、REVOKE 等均为非查询语句，统一按 DDL 执行
+		return p.parseGenericDdl()
 	default:
 		return p.parseGenericStmt()
 	}
@@ -241,6 +244,8 @@ func (p *Parser) parseSelectItems() []sqlstmt.SelectItem {
 			colStart := p.Pos
 			p.skipSelectElement()
 			colText := base.TrimTrailingComma(p.TextFromExclusive(colStart))
+			// 去除标识符引用符，如 mysql 的 `id` -> id
+			colText = p.Unquote(colText)
 			colName, alias := p.ExtractColumnAndAlias(colText)
 			kind := sqlstmt.SelectItemColumn
 			if strings.Contains(colText, "(") {

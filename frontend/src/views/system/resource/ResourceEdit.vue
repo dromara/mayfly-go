@@ -1,80 +1,11 @@
 <template>
     <div>
         <el-dialog :title="title" :destroy-on-close="true" v-model="visible" width="800px">
-            <el-form :model="form" :inline="true" ref="menuFormRef" :rules="rules" label-width="auto">
-                <el-row :gutter="35">
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
-                        <el-form-item class="w-full!" prop="type" :label="$t('common.type')" required>
-                            <enum-select :enums="ResourceTypeEnum" v-model="form.type" :disabled="typeDisabled" />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
-                        <el-form-item class="w-full!" prop="name" :label="$t('common.name')" required>
-                            <el-input v-model.trim="form.name" auto-complete="off"></el-input>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
-                        <FormItemTooltip class="w-full!" label="path|code" prop="code" :tooltip="$t('system.menu.menuCodeTips')">
-                            <el-input v-model.trim="form.code" :placeholder="$t('system.menu.menuCodePlaceholder')" auto-complete="off"></el-input>
-                        </FormItemTooltip>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w-full!" :label="$t('system.menu.icon')">
-                            <icon-selector v-model="form.meta.icon" />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <FormItemTooltip
-                            class="w-full!"
-                            :label="$t('system.menu.routerName')"
-                            prop="meta.routeName"
-                            :tooltip="$t('system.menu.routerNameTips')"
-                        >
-                            <el-input v-model.trim="form.meta.routeName"></el-input>
-                        </FormItemTooltip>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <FormItemTooltip class="w-full!" :label="$t('system.menu.isCache')" prop="meta.isKeepAlive" :tooltip="$t('system.menu.isCacheTips')">
-                            <el-select v-model="form.meta.isKeepAlive" class="w-full!">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                            </el-select>
-                        </FormItemTooltip>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <FormItemTooltip class="w-full!" :label="$t('system.menu.isHide')" prop="meta.isHide" :tooltip="$t('system.menu.isHideTips')">
-                            <el-select v-model="form.meta.isHide" class="w-full!">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                            </el-select>
-                        </FormItemTooltip>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w-full!" prop="meta.isAffix" :label="$t('system.menu.tagIsDelete')">
-                            <el-select v-model="form.meta.isAffix" class="w-full!">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue">
-                        <FormItemTooltip
-                            class="w-full!"
-                            :label="$t('system.menu.externalLink')"
-                            prop="meta.linkType"
-                            :tooltip="$t('system.menu.externalLinkTips')"
-                        >
-                            <el-select class="w-full!" @change="onChangeLinkType" v-model="form.meta.linkType">
-                                <el-option :key="0" :label="$t('system.menu.no')" :value="0"> </el-option>
-                                <el-option :key="1" :label="$t('system.menu.inline')" :value="LinkTypeEnum.Iframes.value"> </el-option>
-                                <el-option :key="2" :label="$t('system.menu.externalLink')" :value="LinkTypeEnum.Link.value"> </el-option>
-                            </el-select>
-                        </FormItemTooltip>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-if="form.type === menuTypeValue && form.meta.linkType > 0">
-                        <el-form-item prop="meta.link" :label="$t('system.menu.linkAddress')" class="w-full!">
-                            <el-input v-model.trim="form.meta.link" :placeholder="$t('system.menu.linkPlaceholder')"></el-input>
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-            </el-form>
+            <auto-form ref="menuFormRef" v-model="form" :items="items" :cols="2" label-width="auto">
+                <template #iconSelector>
+                    <icon-selector v-model="form.meta.icon" />
+                </template>
+            </auto-form>
 
             <template #footer>
                 <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
@@ -88,12 +19,10 @@
 import { notEmpty } from '@/common/assert';
 import { LinkTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
-import EnumSelect from '@/components/enum-select/EnumSelect.vue';
-import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import iconSelector from '@/components/icon-selector/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { reactive, toRefs, useTemplateRef, watch } from 'vue';
-import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import { resourceApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
@@ -128,7 +57,7 @@ interface ResourceForm {
     [key: string]: unknown;
 }
 
-const menuFormRef = useTemplateRef<FormInstance>('menuFormRef');
+const menuFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; resetFields: () => void }>('menuFormRef');
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 
@@ -144,11 +73,6 @@ const defaultMeta: ResourceMeta = {
     link: '',
 };
 
-const rules = {
-    name: [Rules.requiredInput('common.name')],
-    code: [Rules.requiredInput('code')],
-};
-
 const trueFalseOption = [
     {
         label: t('system.menu.yes'),
@@ -157,6 +81,62 @@ const trueFalseOption = [
     {
         label: t('system.menu.no'),
         value: false,
+    },
+];
+
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；菜单类型才有 meta 相关字段） */
+const items: AutoFormItem[] = [
+    { prop: 'type', label: 'common.type', type: 'enum', enums: ResourceTypeEnum, required: true, disabled: () => props.typeDisabled },
+    { prop: 'name', label: 'common.name', required: true },
+    {
+        prop: 'code',
+        label: 'path|code',
+        tooltip: 'system.menu.menuCodeTips',
+        placeholder: 'system.menu.menuCodePlaceholder',
+        rules: [Rules.requiredInput('code')],
+    },
+    { prop: 'meta.icon', label: 'system.menu.icon', type: 'custom', slot: 'iconSelector', when: (f) => f.type === menuTypeValue },
+    { prop: 'meta.routeName', label: 'system.menu.routerName', tooltip: 'system.menu.routerNameTips', when: (f) => f.type === menuTypeValue },
+    {
+        prop: 'meta.isKeepAlive',
+        label: 'system.menu.isCache',
+        type: 'select',
+        tooltip: 'system.menu.isCacheTips',
+        options: trueFalseOption,
+        when: (f) => f.type === menuTypeValue,
+    },
+    {
+        prop: 'meta.isHide',
+        label: 'system.menu.isHide',
+        type: 'select',
+        tooltip: 'system.menu.isHideTips',
+        options: trueFalseOption,
+        when: (f) => f.type === menuTypeValue,
+    },
+    {
+        prop: 'meta.isAffix',
+        label: 'system.menu.tagIsDelete',
+        type: 'select',
+        options: trueFalseOption,
+        when: (f) => f.type === menuTypeValue,
+    },
+    {
+        prop: 'meta.linkType',
+        label: 'system.menu.externalLink',
+        type: 'select',
+        tooltip: 'system.menu.externalLinkTips',
+        options: [
+            { label: 'system.menu.no', value: 0 },
+            { label: 'system.menu.inline', value: LinkTypeEnum.Iframes.value },
+            { label: 'system.menu.externalLink', value: LinkTypeEnum.Link.value },
+        ],
+        when: (f) => f.type === menuTypeValue,
+    },
+    {
+        prop: 'meta.link',
+        label: 'system.menu.linkAddress',
+        placeholder: 'system.menu.linkPlaceholder',
+        when: (f) => f.type === menuTypeValue && f.meta.linkType > 0,
     },
 ];
 
@@ -204,9 +184,6 @@ watch(visible, () => {
     state.form.meta.isAffix = meta.isAffix ? true : false;
     state.form.meta.linkType = meta.linkType;
 });
-
-// 改变外链类型
-const onChangeLinkType = (linkType: number) => {};
 
 const onConfirm = async () => {
     await useI18nFormValidate(menuFormRef);

@@ -1,30 +1,13 @@
 <template>
-    <el-drawer :append-to-body="false" :title="title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="75%">
-        <template #header>
-            <DrawerHeader :header="title" :back="cancel" />
-        </template>
-
-        <el-form label-position="left" ref="formRef" :model="tableData" label-width="auto">
-            <el-row :gutter="20">
-                <el-col :span="12">
-                    <el-form-item prop="tableName" :label="$t('db.tableName')">
-                        <el-input v-model="tableData.tableName" size="small"></el-input>
-                    </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                    <el-form-item prop="tableComment" :label="$t('db.comment')">
-                        <el-input v-model="tableData.tableComment" size="small"></el-input>
-                    </el-form-item>
-                </el-col>
-            </el-row>
-
+    <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="title" :items="tableItems" :data="editData" size="75%" @opened="onOpened" @cancel="reset">
+        <template #fieldsTabs>
             <el-tabs v-model="activeName">
                 <el-tab-pane :label="$t('db.column')" name="1">
-                    <el-table ref="tableRef" :data="tableData.fields.res" :height="tableHeight">
+                    <el-table ref="tableRef" :data="form.fields.res" :height="tableHeight">
                         <el-table-column
                             :prop="item.prop"
                             :label="$t(item.label)"
-                            v-for="item in tableData.fields.colNames"
+                            v-for="item in state.fieldColNames"
                             :key="item.prop"
                             :width="item.width"
                         >
@@ -78,8 +61,8 @@
                     </el-row>
                 </el-tab-pane>
                 <el-tab-pane :label="$t('db.index')" name="2">
-                    <el-table :data="tableData.indexs.res" :height="tableHeight">
-                        <el-table-column :prop="item.prop" :label="$t(item.label)" v-for="item in tableData.indexs.colNames" :key="item.prop">
+                    <el-table :data="form.indexs.res" :height="tableHeight">
+                        <el-table-column :prop="item.prop" :label="$t(item.label)" v-for="item in state.indexColNames" :key="item.prop">
                             <template #default="scope">
                                 <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
 
@@ -93,7 +76,7 @@
                                     size="small"
                                     @change="indexChanges(scope.row)"
                                 >
-                                    <el-option v-for="cl in tableData.indexs.columns" :key="cl.name" :label="cl.name" :value="cl.name">
+                                    <el-option v-for="cl in form.indexs.columns" :key="cl.name" :label="cl.name" :value="cl.name">
                                         {{ cl.name + ' - ' + (cl.remark || '') }}
                                     </el-option>
                                 </el-select>
@@ -119,23 +102,23 @@
                     </el-row>
                 </el-tab-pane>
             </el-tabs>
-        </el-form>
+        </template>
+
         <template #footer>
             <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-            <el-button :loading="btnloading" @click="submit()" type="primary">{{ $t('common.save') }}</el-button>
+            <el-button :loading="state.btnloading" @click="submit()" type="primary">{{ $t('common.save') }}</el-button>
         </template>
-    </el-drawer>
+    </auto-form-drawer>
 </template>
 
 <script lang="ts" setup>
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg } from '@/hooks/useI18n';
-import { computed, nextTick, reactive, ref, Ref, toRefs, useTemplateRef, watch } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, nextTick, reactive, ref, Ref, toRef, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DbInst } from '../../db';
 import { DbDialect, DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 import SqlExecBox from '../sqleditor/SqlExecBox';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import type { TableOpData } from '../../types';
 
 const { t } = useI18n();
@@ -186,133 +169,204 @@ interface TableOpIndex {
 
 const tableHeight = 'calc(100vh - 320px)';
 
-const formRef = ref<FormInstance | null>(null);
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
 const tableRef = useTemplateRef<{ $el: HTMLElement }>('tableRef');
 
 const state = reactive({
     btnloading: false,
     activeName: '1',
-    tableData: {
-        fields: {
-            colNames: [
-                {
-                    prop: 'name',
-                    label: 'db.columnName',
-                    width: 200,
-                },
-                {
-                    prop: 'type',
-                    label: 'common.type',
-                    width: 120,
-                },
-                {
-                    prop: 'length',
-                    label: 'db.length',
-                    width: 120,
-                },
-                {
-                    prop: 'numScale',
-                    label: 'db.numScale',
-                    width: 120,
-                },
-                {
-                    prop: 'value',
-                    label: 'db.defaultValue',
-                    width: 120,
-                },
+    fieldColNames: [
+        {
+            prop: 'name',
+            label: 'db.columnName',
+            width: 200,
+        },
+        {
+            prop: 'type',
+            label: 'common.type',
+            width: 120,
+        },
+        {
+            prop: 'length',
+            label: 'db.length',
+            width: 120,
+        },
+        {
+            prop: 'numScale',
+            label: 'db.numScale',
+            width: 120,
+        },
+        {
+            prop: 'value',
+            label: 'db.defaultValue',
+            width: 120,
+        },
 
-                {
-                    prop: 'notNull',
-                    label: 'db.notNull',
-                    width: 60,
-                },
-                {
-                    prop: 'pri',
-                    label: 'db.primaryKey',
-                    width: 60,
-                },
-                {
-                    prop: 'auto_increment',
-                    label: 'db.autoIncrement',
-                    width: 60,
-                },
-                {
-                    prop: 'remark',
-                    label: 'db.comment',
-                },
-                {
-                    prop: 'action',
-                    label: 'common.operation',
-                    width: 70,
-                },
-            ] as ColName[],
-            res: [] as RowDefinition[],
-            oldFields: [] as RowDefinition[],
+        {
+            prop: 'notNull',
+            label: 'db.notNull',
+            width: 60,
         },
-        indexs: {
-            colNames: [
-                {
-                    prop: 'indexName',
-                    label: 'common.name',
-                },
-                {
-                    prop: 'columnNames',
-                    label: 'db.columnName',
-                },
-                {
-                    prop: 'unique',
-                    label: 'db.unique',
-                },
-                {
-                    prop: 'indexType',
-                    label: 'common.type',
-                },
-                {
-                    prop: 'indexComment',
-                    label: 'db.comment',
-                },
-                {
-                    prop: 'action',
-                    label: 'common.operation',
-                },
-            ],
-            columns: [{ name: '', remark: '' }],
-            res: [] as IndexDefinition[],
-            oldIndexs: [] as IndexDefinition[],
+        {
+            prop: 'pri',
+            label: 'db.primaryKey',
+            width: 60,
         },
-        tableName: '',
-        tableComment: '',
-        oldTableName: '',
-        oldTableComment: '',
-        db: '',
-    },
+        {
+            prop: 'auto_increment',
+            label: 'db.autoIncrement',
+            width: 60,
+        },
+        {
+            prop: 'remark',
+            label: 'db.comment',
+        },
+        {
+            prop: 'action',
+            label: 'common.operation',
+            width: 70,
+        },
+    ] as ColName[],
+    indexColNames: [
+        {
+            prop: 'indexName',
+            label: 'common.name',
+        },
+        {
+            prop: 'columnNames',
+            label: 'db.columnName',
+        },
+        {
+            prop: 'unique',
+            label: 'db.unique',
+        },
+        {
+            prop: 'indexType',
+            label: 'common.type',
+        },
+        {
+            prop: 'indexComment',
+            label: 'db.comment',
+        },
+        {
+            prop: 'action',
+            label: 'common.operation',
+        },
+    ] as ColName[],
 });
 
-const { btnloading, activeName, tableData } = toRefs(state);
+const activeName = toRef(state, 'activeName');
+
+/** 表编辑表单声明（列/索引编辑 tabs 为 custom 插槽） */
+const tableItems: AutoFormItem[] = [
+    { prop: 'tableName', label: 'db.tableName', span: 12, props: { size: 'small' } },
+    { prop: 'tableComment', label: 'db.comment', span: 12, props: { size: 'small' } },
+    { prop: 'fieldsTabs', type: 'custom' },
+];
+
+/** 传给 AutoFormDrawer 的回填数据：由 props.data 的行列元数据转换为表结构编辑形态（colNames 等纯渲染结构不进入表单） */
+const editData = computed<AutoFormData | null>(() => {
+    const data = props.data;
+    if (!data) {
+        return null;
+    }
+    const { row, indexs, columns } = data;
+    // 回显表名表注释
+    const tableName = row.tableName as string;
+    const tableComment = row.tableComment as string;
+
+    const fieldsRes: RowDefinition[] = [];
+    const fieldsOld: RowDefinition[] = [];
+    const indexColumns: { name: string; remark: string }[] = [];
+    const indexsRes: IndexDefinition[] = [];
+    const indexsOld: IndexDefinition[] = [];
+
+    // 回显列
+    if (columns && Array.isArray(columns) && columns.length > 0) {
+        columns.forEach((a) => {
+            let defaultValue = '';
+            if (a.columnDefault) {
+                defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
+                // 解决高斯的默认值问题
+                defaultValue = defaultValue.replace("'::character varying", '');
+            }
+            let field: RowDefinition = {
+                name: a.columnName,
+                oldName: a.columnName,
+                type: a.dataType,
+                value: defaultValue,
+                length: a.showLength ?? '',
+                numScale: a.showScale ?? '',
+                notNull: !a.nullable,
+                pri: a.isPrimaryKey ?? false,
+                auto_increment: a.autoIncrement ?? false,
+                remark: a.columnComment ?? '',
+            };
+            fieldsRes.push(field);
+            fieldsOld.push(JSON.parse(JSON.stringify(field)));
+            // 索引字段下拉选项
+            indexColumns.push({ name: a.columnName, remark: a.columnComment ?? '' });
+        });
+    }
+
+    // 回显索引
+    if (indexs && Array.isArray(indexs) && indexs.length > 0) {
+        // 索引过滤掉主键
+        indexs
+            .filter((a) => (a as TableOpIndex).indexName !== 'PRIMARY')
+            .forEach((a) => {
+                const idx = a as TableOpIndex;
+                let index: IndexDefinition = {
+                    indexName: idx.indexName,
+                    columnNames: idx.columnName?.split(',') ?? [],
+                    unique: idx.isUnique || false,
+                    indexType: idx.indexType,
+                    indexComment: idx.indexComment,
+                };
+                indexsRes.push(index);
+                indexsOld.push(JSON.parse(JSON.stringify(index)));
+            });
+    }
+
+    return {
+        tableName,
+        tableComment,
+        oldTableName: tableName,
+        oldTableComment: tableComment,
+        db: props.db,
+        fields: { res: fieldsRes, oldFields: fieldsOld },
+        indexs: { res: indexsRes, oldIndexs: indexsOld, columns: indexColumns },
+    } as unknown as AutoFormData;
+});
+
+/** 抽屉打开后暂存的内部表单引用（列/索引表格数据与 genSql 均基于它） */
+const form = ref<AutoFormData>({ fields: { res: [], oldFields: [] }, indexs: { res: [], oldIndexs: [], columns: [] } });
+
+const onOpened = (formData: AutoFormData) => {
+    form.value = formData;
+    DbInst.initColumns(props.data?.columns ?? []);
+    activeName.value = '1';
+};
 
 watch(visible, async (val) => {
     dbDialect.value = getDbDialect(props.dbType!);
 });
 
 // 切换到索引tab时，刷新索引字段下拉选项
-watch(
-    () => state.activeName,
-    (newValue) => {
-        if (newValue === '2') {
-            state.tableData.indexs.columns = state.tableData.fields.res.map((a) => {
-                return { name: a.name, remark: a.remark };
-            });
-        }
+watch(activeName, (newValue) => {
+    if (newValue === '2') {
+        form.value.indexs.columns = form.value.fields.res.map((a: RowDefinition) => {
+            return { name: a.name, remark: a.remark };
+        });
     }
-);
+});
 
 const cancel = () => {
     visible.value = false;
-    reset();
 };
 
 const addRow = () => {
-    state.tableData.fields.res.push({
+    form.value.fields.res.push({
         name: '',
         type: '',
         value: '',
@@ -336,19 +390,19 @@ const addRow = () => {
 };
 
 const addIndex = () => {
-    state.tableData.indexs.res.push(dbDialect.value.getDefaultIndex());
+    form.value.indexs.res.push(dbDialect.value.getDefaultIndex());
 };
 
 const addDefaultRows = () => {
-    state.tableData.fields.res.push(...dbDialect.value.getDefaultRows());
+    form.value.fields.res.push(...dbDialect.value.getDefaultRows());
 };
 
 const deleteRow = (index: number) => {
-    state.tableData.fields.res.splice(index, 1);
+    form.value.fields.res.splice(index, 1);
 };
 
 const deleteIndex = (index: number) => {
-    state.tableData.indexs.res.splice(index, 1);
+    form.value.indexs.res.splice(index, 1);
 };
 
 const submit = async () => {
@@ -363,7 +417,7 @@ const submit = async () => {
         db: props.db!,
         dbType: dbDialect.value.getInfo().formatSqlDialect,
         runSuccessCallback: () => {
-            emit('submit-sql', { tableName: state.tableData.tableName });
+            emit('submit-sql', { tableName: form.value.tableName });
             // cancel();
         },
     });
@@ -445,7 +499,14 @@ const filterChangedData = <T extends object>(
 };
 
 const genSql = () => {
-    let data = state.tableData;
+    let data = form.value as unknown as {
+        tableName: string;
+        tableComment: string;
+        oldTableName: string;
+        oldTableComment: string;
+        fields: { res: RowDefinition[]; oldFields: RowDefinition[] };
+        indexs: { res: IndexDefinition[]; oldIndexs: IndexDefinition[] };
+    };
     // 创建表
     if (!props.data?.edit) {
         let createTable = dbDialect.value.getCreateTableSql(data);
@@ -456,10 +517,10 @@ const genSql = () => {
         return createTable + ';' + createIndex;
     } else {
         // 修改列
-        let changeColData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
+        let changeColData = filterChangedData(data.fields.oldFields, data.fields.res, 'name');
         let colSql = changeColData.changed ? dbDialect.value.getModifyColumnSql(data, data.tableName, changeColData) : '';
         // 修改索引
-        let changeIdxData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
+        let changeIdxData = filterChangedData(data.indexs.oldIndexs, data.indexs.res, 'indexName');
         let idxSql = changeIdxData.changed ? dbDialect.value.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
         // 修改表名,表注释
         let tableInfoSql =
@@ -475,14 +536,7 @@ const genSql = () => {
 };
 
 const reset = () => {
-    state.activeName = '1';
-    formRef.value?.resetFields();
-    state.tableData.tableName = '';
-    state.tableData.tableComment = '';
-    state.tableData.fields.res = [];
-    state.tableData.fields.oldFields = [];
-    state.tableData.indexs.res = [];
-    state.tableData.indexs.oldIndexs = [];
+    activeName.value = '1';
 };
 
 const indexChanges = (row: IndexDefinition) => {
@@ -499,8 +553,8 @@ const indexChanges = (row: IndexDefinition) => {
     let suffix = row.unique ? 'udx' : 'idx';
     let commentSuffix = row.unique ? t('db.uniqueIndex') : t('db.normalIndex');
     // 以表名为前缀
-    row.indexName = `${tableData.value.tableName}_${name}_${suffix}`.replaceAll(' ', '');
-    row.indexComment = `${tableData.value.tableName} ${t('db.table')} (${name.replaceAll('_', ',')})${commentSuffix}`;
+    row.indexName = `${form.value.tableName}_${name}_${suffix}`.replaceAll(' ', '');
+    row.indexComment = `${form.value.tableName} ${t('db.table')} (${name.replaceAll('_', ',')})${commentSuffix}`;
 };
 
 const disableEditIncr = () => {
@@ -517,76 +571,4 @@ const disableEditIncr = () => {
 
     return false;
 };
-
-watch(
-    () => props.data,
-    (newValue) => {
-        if (!newValue) {
-            return;
-        }
-        const { row, indexs, columns } = newValue;
-        // 回显表名表注释
-        const tableName = row.tableName as string;
-        const tableComment = row.tableComment as string;
-        state.tableData.tableName = tableName;
-        state.tableData.tableComment = tableComment;
-        state.tableData.oldTableName = tableName;
-        state.tableData.oldTableComment = tableComment;
-        state.tableData.db = props.db!;
-
-        state.tableData.fields.oldFields = [];
-        state.tableData.fields.res = [];
-        state.tableData.indexs.oldIndexs = [];
-        state.tableData.indexs.res = [];
-        // 索引列下拉选
-        state.tableData.indexs.columns = [];
-        DbInst.initColumns(columns ?? []);
-        // 回显列
-        if (columns && Array.isArray(columns) && columns.length > 0) {
-            columns.forEach((a) => {
-                let defaultValue = '';
-                if (a.columnDefault) {
-                    defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
-                    // 解决高斯的默认值问题
-                    defaultValue = defaultValue.replace("'::character varying", '');
-                }
-                let data: RowDefinition = {
-                    name: a.columnName,
-                    oldName: a.columnName,
-                    type: a.dataType,
-                    value: defaultValue,
-                    length: a.showLength ?? '',
-                    numScale: a.showScale ?? '',
-                    notNull: !a.nullable,
-                    pri: a.isPrimaryKey ?? false,
-                    auto_increment: a.autoIncrement ?? false,
-                    remark: a.columnComment ?? '',
-                };
-                state.tableData.fields.res.push(data);
-                state.tableData.fields.oldFields.push(JSON.parse(JSON.stringify(data)));
-                // 索引字段下拉选项
-                state.tableData.indexs.columns.push({ name: a.columnName, remark: a.columnComment ?? '' });
-            });
-        }
-
-        // 回显索引
-        if (indexs && Array.isArray(indexs) && indexs.length > 0) {
-            // 索引过滤掉主键
-            indexs
-                .filter((a) => (a as TableOpIndex).indexName !== 'PRIMARY')
-                .forEach((a) => {
-                    const idx = a as TableOpIndex;
-                    let data: IndexDefinition = {
-                        indexName: idx.indexName,
-                        columnNames: idx.columnName?.split(',') ?? [],
-                        unique: idx.isUnique || false,
-                        indexType: idx.indexType,
-                        indexComment: idx.indexComment,
-                    };
-                    state.tableData.indexs.res.push(data);
-                    state.tableData.indexs.oldIndexs.push(JSON.parse(JSON.stringify(data)));
-                });
-        }
-    }
-);
 </script>

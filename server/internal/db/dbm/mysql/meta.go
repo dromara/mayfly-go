@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/collx"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 )
 
 func init() {
@@ -26,8 +27,17 @@ type Meta struct {
 
 func (mm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	d.Network = "tcp"
-	// 设置dataSourceName  -> 更多参数参考：https://github.com/go-sql-driver/mysql#dsn-data-source-name
-	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true&timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
+	// 使用go-sql-driver的标准DSN构建，自动对用户名、密码等特殊字符进行转义，避免注入或连接串错误
+	cfg := mysql.NewConfig()
+	cfg.User = d.Username
+	cfg.Passwd = d.Password
+	cfg.Net = d.Network
+	cfg.Addr = fmt.Sprintf("%s:%d", d.Host, d.Port)
+	cfg.DBName = d.Database
+	cfg.Params = map[string]string{"parseTime": "true"}
+	cfg.Timeout = 8 * time.Second
+	// FormatDSN会自动转义用户名密码等特殊字符，自定义参数以&拼接在其后
+	dsn := cfg.FormatDSN()
 	if d.Params != "" {
 		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 	}
@@ -45,7 +55,7 @@ func (mm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 
 func (mm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 	return collx.AsArray(
-		UnsignedBigint, Bigint, Tinyint, Smallint, Int, Bit, Float, Double, Decimal,
+		UnsignedBigint, UnsignedInt, UnsignedMediumint, UnsignedSmallint, Bigint, Tinyint, Smallint, Int, Bit, Float, Double, Decimal,
 		Varchar, Char, Text, Longtext, Mediumtext,
 		Datetime, Date, Time, Timestamp,
 		Enum, JSON, Set,

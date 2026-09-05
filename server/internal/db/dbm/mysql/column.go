@@ -9,6 +9,10 @@ const (
 )
 
 var (
+	// DTStringMysql mysql专用字符串类型：mysql默认模式下反斜杠是转义字符，
+	// 若仅转义单引号而不双写反斜杠，含\b、\n、\'等内容的字符串会被静默解释为转义字符导致数据损坏
+	DTStringMysql = dbi.DTString.Copy().WithSQLValue(dbi.SQLValueStringEscapeBackslash)
+
 	Bit       = dbi.NewDbDataType("bit", dbi.DTBit).WithCT(dbi.CTBit)
 	Tinyint   = dbi.NewDbDataType("tinyint", dbi.DTInt8).WithCT(dbi.CTInt1).WithFixColumn(dbi.ClearNumScale)
 	Smallint  = dbi.NewDbDataType("smallint", dbi.DTInt16).WithCT(dbi.CTInt2).WithFixColumn(dbi.ClearNumScale)
@@ -25,20 +29,20 @@ var (
 	Double  = dbi.NewDbDataType("double", dbi.DTNumeric).WithCT(dbi.CTNumeric).WithFixColumn(dbi.ClearNumPrecision)
 	Float   = dbi.NewDbDataType("float", dbi.DTNumeric).WithCT(dbi.CTNumeric)
 
-	Varchar    = dbi.NewDbDataType("varchar", dbi.DTString).WithCT(dbi.CTVarchar)
-	Char       = dbi.NewDbDataType("char", dbi.DTString).WithCT(dbi.CTChar)
-	Text       = dbi.NewDbDataType("text", dbi.DTString).WithCT(dbi.CTText).WithFixColumn(dbi.ClearCharMaxLength)
-	Mediumtext = dbi.NewDbDataType("mediumtext", dbi.DTString).WithCT(dbi.CTMediumtext).WithFixColumn(dbi.ClearCharMaxLength)
-	Longtext   = dbi.NewDbDataType("longtext", dbi.DTString).WithCT(dbi.CTLongtext).WithFixColumn(dbi.ClearCharMaxLength)
-	JSON       = dbi.NewDbDataType("json", dbi.DTString).WithCT(dbi.CTJSON).WithFixColumn(dbi.ClearCharMaxLength)
+	Varchar    = dbi.NewDbDataType("varchar", DTStringMysql).WithCT(dbi.CTVarchar)
+	Char       = dbi.NewDbDataType("char", DTStringMysql).WithCT(dbi.CTChar)
+	Text       = dbi.NewDbDataType("text", DTStringMysql).WithCT(dbi.CTText).WithFixColumn(dbi.ClearCharMaxLength)
+	Mediumtext = dbi.NewDbDataType("mediumtext", DTStringMysql).WithCT(dbi.CTMediumtext).WithFixColumn(dbi.ClearCharMaxLength)
+	Longtext   = dbi.NewDbDataType("longtext", DTStringMysql).WithCT(dbi.CTLongtext).WithFixColumn(dbi.ClearCharMaxLength)
+	JSON       = dbi.NewDbDataType("json", DTStringMysql).WithCT(dbi.CTJSON).WithFixColumn(dbi.ClearCharMaxLength)
 
 	Datetime  = dbi.NewDbDataType("datetime", dbi.DTDateTime).WithCT(dbi.CTDateTime)
 	Date      = dbi.NewDbDataType("date", dbi.DTDate).WithCT(dbi.CTDate)
 	Time      = dbi.NewDbDataType("time", dbi.DTTime).WithCT(dbi.CTTime)
 	Timestamp = dbi.NewDbDataType("timestamp", dbi.DTDateTime).WithCT(dbi.CTTimestamp)
 
-	Enum = dbi.NewDbDataType("enum", dbi.DTString).WithCT(dbi.CTEnum)
-	Set  = dbi.NewDbDataType("set", dbi.DTString).WithCT(dbi.CTVarchar)
+	Enum = dbi.NewDbDataType("enum", DTStringMysql).WithCT(dbi.CTEnum)
+	Set  = dbi.NewDbDataType("set", DTStringMysql).WithCT(dbi.CTVarchar)
 
 	Blob       = dbi.NewDbDataType("blob", dbi.DTBytes).WithCT(dbi.CTBlob).WithFixColumn(dbi.ClearNumScale)
 	Mediumblob = dbi.NewDbDataType("mediumblob", dbi.DTBytes).WithCT(dbi.CTMediumblob).WithFixColumn(dbi.ClearNumScale)

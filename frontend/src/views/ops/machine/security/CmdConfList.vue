@@ -30,70 +30,49 @@
             </el-table-column>
         </el-table>
 
-        <el-drawer
-            :append-to-body="false"
-            :title="$t('machine.cmdConfig')"
-            v-model="dialogVisible"
-            :show-close="false"
-            size="40%"
-            :destroy-on-close="true"
-            :close-on-click-modal="false"
-        >
-            <template #header>
-                <DrawerHeader :header="$t('machine.cmdConfig')" :back="onCancelEdit" />
-            </template>
-
-            <el-form ref="formRef" :model="state.form" :rules="rules" label-width="auto">
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model="form.name"></el-input>
-                </el-form-item>
-
-                <el-form-item prop="cmds" :label="$t('machine.filterCmds')">
-                    <el-row>
-                        <el-tag
-                            class="ml-0.5 mt-0.5"
-                            v-for="tag in form.cmds"
-                            :key="tag"
-                            closable
-                            :disable-transitions="false"
-                            @close="onCmdClose(tag)"
-                            type="danger"
-                        >
-                            {{ tag }}
-                        </el-tag>
-                        <el-input
-                            v-if="state.inputCmdVisible"
-                            ref="cmdInputRef"
-                            v-model="state.cmdInputValue"
-                            class="mt-0.5"
-                            size="small"
-                            @keyup.enter="onCmdInputConfirm"
-                            @blur="onCmdInputConfirm"
-                            :placeholder="$t('machine.cmdPlaceholder')"
-                        />
-                        <el-button v-else class="ml-0.5 mt-0.5" size="small" @click="onShowCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
-                    </el-row>
-                </el-form-item>
-
-                <el-form-item :label="$t('common.remark')">
-                    <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
-                </el-form-item>
-
-                <el-form-item ref="tagSelectRef" prop="codePaths" :label="$t('machine.relateMachine')">
-                    <tag-tree-check
-                        height="calc(100vh - 430px)"
-                        :tag-type="`${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`"
-                        v-model="form.codePaths"
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="$t('machine.cmdConfig')" :items="items" :data="editForm" size="40%" @confirm="onSubmitForm">
+            <!-- 过滤命令（动态标签输入） -->
+            <template #cmds="{ form }">
+                <el-row>
+                    <el-tag
+                        class="ml-0.5 mt-0.5"
+                        v-for="tag in form.cmds"
+                        :key="tag"
+                        closable
+                        :disable-transitions="false"
+                        @close="onCmdClose(form, tag)"
+                        type="danger"
+                    >
+                        {{ tag }}
+                    </el-tag>
+                    <el-input
+                        v-if="state.inputCmdVisible"
+                        ref="cmdInputRef"
+                        v-model="state.cmdInputValue"
+                        class="mt-0.5"
+                        size="small"
+                        @keyup.enter="onCmdInputConfirm(form)"
+                        @blur="onCmdInputConfirm(form)"
+                        :placeholder="$t('machine.cmdPlaceholder')"
                     />
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <div class="dialog-footer">
-                    <el-button :loading="submiting" @click="onCancelEdit">{{ $t('common.cancel') }}</el-button>
-                    <el-button v-auth="'cmdconf:save'" type="primary" :loading="submiting" @click="onSubmitForm">{{ $t('common.confirm') }}</el-button>
-                </div>
+                    <el-button v-else class="ml-0.5 mt-0.5" size="small" @click="onShowCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
+                </el-row>
             </template>
-        </el-drawer>
+
+            <!-- 关联机器 -->
+            <template #codePaths="{ form }">
+                <tag-tree-check
+                    height="calc(100vh - 430px)"
+                    :tag-type="`${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`"
+                    v-model="form.codePaths"
+                />
+            </template>
+
+            <template #footer="{ form }">
+                <el-button :loading="submiting" @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+                <el-button v-auth="'cmdconf:save'" type="primary" :loading="submiting" @click="onSubmitForm(form)">{{ $t('common.confirm') }}</el-button>
+            </template>
+        </auto-form-drawer>
     </div>
 </template>
 
@@ -101,24 +80,25 @@
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
-import { nextTick, onMounted, reactive, toRefs, useTemplateRef } from 'vue';
-import type { FormInstance, InputInstance } from 'element-plus';
+import { nextTick, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import type { InputInstance } from 'element-plus';
 import TagCodePath from '../../component/TagCodePath.vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cmdConfApi } from '../api';
 import type { MachineCmdConfVO } from '../types';
 import type { ResourceTag } from '@/types/common';
 
-const rules = {
-    tags: [Rules.requiredInput('machine.relateMachine')],
-    cmds: [Rules.requiredInput('machine.cmd')],
-    name: [Rules.requiredInput('common.name')],
-};
+/** 表单声明（AutoFormItem[]；命令标签输入与关联机器走 custom 插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'cmds', label: 'machine.filterCmds', type: 'custom', rules: [Rules.requiredInput('machine.cmd')] },
+    { prop: 'remark', label: 'common.remark', type: 'textarea', rows: 2 },
+    { prop: 'codePaths', label: 'machine.relateMachine', type: 'custom' },
+];
 
-const tagSelectRef = useTemplateRef<FormInstance>('tagSelectRef');
-const formRef = useTemplateRef<FormInstance>('formRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 const cmdInputRef = useTemplateRef<InputInstance>('cmdInputRef');
 
 const DefaultForm = {
@@ -132,13 +112,15 @@ const DefaultForm = {
 const state = reactive({
     cmdConfs: [] as MachineCmdConfVO[],
     dialogVisible: false,
-    form: DefaultForm,
     submiting: false,
     inputCmdVisible: false,
     cmdInputValue: '',
 });
 
-const { cmdConfs, dialogVisible, form, submiting } = toRefs(state);
+const { cmdConfs, dialogVisible, submiting } = toRefs(state);
+
+/** 传给 AutoFormDrawer 的回填数据（onOpenFormDialog 时设置；深拷贝由组件内部完成） */
+const editForm = ref<AutoFormData | null>(null);
 
 onMounted(async () => {
     getCmdConfs();
@@ -148,8 +130,9 @@ const getCmdConfs = async () => {
     state.cmdConfs = await cmdConfApi.list.request();
 };
 
-const onCmdClose = (tag: string) => {
-    state.form.cmds.splice(state.form.cmds.indexOf(tag), 1);
+const onCmdClose = (rawForm: AutoFormData, tag: string) => {
+    const form = rawForm as unknown as MachineCmdConfVO;
+    form.cmds?.splice(form.cmds.indexOf(tag), 1);
 };
 
 const onShowCmdInput = () => {
@@ -159,9 +142,10 @@ const onShowCmdInput = () => {
     });
 };
 
-const onCmdInputConfirm = () => {
+const onCmdInputConfirm = (rawForm: AutoFormData) => {
+    const form = rawForm as unknown as MachineCmdConfVO;
     if (state.cmdInputValue) {
-        state.form.cmds.push(state.cmdInputValue);
+        form.cmds?.push(state.cmdInputValue);
     }
     state.inputCmdVisible = false;
     state.cmdInputValue = '';
@@ -169,11 +153,14 @@ const onCmdInputConfirm = () => {
 
 const onOpenFormDialog = (data: MachineCmdConfVO | null) => {
     if (!data) {
-        state.form = { ...DefaultForm };
+        editForm.value = { ...DefaultForm } as unknown as AutoFormData;
     } else {
-        state.form = { ...DefaultForm, ...deepClone(data) };
-        state.form.codePaths = data.tags?.map((tag: ResourceTag) => tag.codePath) || [];
-        state.form.cmds = data.cmds || [];
+        editForm.value = {
+            ...DefaultForm,
+            ...deepClone(data),
+            codePaths: data.tags?.map((tag: ResourceTag) => tag.codePath) || [],
+            cmds: data.cmds || [],
+        } as unknown as AutoFormData;
     }
     state.dialogVisible = true;
 };
@@ -185,23 +172,15 @@ const onDeleteCmdConf = async (data: MachineCmdConfVO) => {
     getCmdConfs();
 };
 
-const onCancelEdit = () => {
-    state.dialogVisible = false;
-    // 取消表单的校验
-    setTimeout(() => {
-        state.form = { ...DefaultForm };
-        formRef.value?.resetFields();
-    }, 200);
-};
-
-const onSubmitForm = async () => {
+const onSubmitForm = async (rawForm: AutoFormData) => {
+    const form = rawForm as unknown as MachineCmdConfVO;
     try {
-        await useI18nFormValidate(formRef);
+        await useI18nFormValidate(drawerRef);
         state.submiting = true;
-        await cmdConfApi.save.request(state.form);
+        await cmdConfApi.save.request(form);
         Msg.saveSuccess();
 
-        onCancelEdit();
+        state.dialogVisible = false;
         getCmdConfs();
     } finally {
         state.submiting = false;

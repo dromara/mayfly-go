@@ -43,16 +43,14 @@
             </page-table>
         </el-dialog>
 
-        <dynamic-form-dialog
+        <auto-form-dialog
             :title="$t('machine.scriptParam')"
             width="400px"
             v-model:visible="scriptParamsDialog.visible"
-            ref="paramsForm"
-            :form-items="scriptParamsDialog.paramsFormItem"
-            v-model="scriptParamsDialog.params"
+            :schema="scriptParamsDialog.schema ?? undefined"
+            :data="scriptParamsDialog.params || null"
             @confirm="hasParamsRun"
-        >
-        </dynamic-form-dialog>
+        />
 
         <el-dialog :title="$t('machine.execResult')" v-model="resultDialog.visible" width="50%">
             <div style="white-space: pre-line; padding: 10px; color: #000000">
@@ -95,7 +93,8 @@
 </template>
 
 <script lang="ts" setup>
-import { DynamicFormDialog } from '@/components/dynamic-form';
+import { AutoFormDialog } from '@/components/auto-form';
+import { isJsonFormSchema, type AutoFormJsonSchema } from '@/components/auto-form/json';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem, OptionsApi } from '@/components/page-table/SearchForm';
@@ -118,7 +117,6 @@ const machineId = defineModel<number | null>('machineId');
 
 const emit = defineEmits(['cancel']);
 
-const paramsForm = ref<InstanceType<typeof DynamicFormDialog> | null>(null);
 const pageTableRef = ref<InstanceType<typeof PageTable> | null>(null);
 
 const state = reactive({
@@ -158,8 +156,9 @@ const state = reactive({
     scriptParamsDialog: {
         script: null as MachineScriptVO | null,
         visible: false,
-        params: {},
-        paramsFormItem: [],
+        params: {} as Record<string, unknown>,
+        /** 脚本入参表单定义（v1 JSON Schema） */
+        schema: null as AutoFormJsonSchema | null,
     },
     resultDialog: {
         visible: false,
@@ -189,10 +188,15 @@ const checkScriptType = (query: Record<string, unknown>) => {
 };
 
 const runScript = async (script: MachineScriptVO) => {
-    // 如果存在参数，则弹窗输入参数后执行
+    // 如果存在参数定义，则弹窗输入参数后执行
     if (script.params) {
-        state.scriptParamsDialog.paramsFormItem = JSON.parse(script.params);
-        if (state.scriptParamsDialog.paramsFormItem && state.scriptParamsDialog.paramsFormItem.length > 0) {
+        try {
+            const parsed = JSON.parse(script.params);
+            state.scriptParamsDialog.schema = isJsonFormSchema(parsed) && parsed.fields.length > 0 ? parsed : null;
+        } catch {
+            state.scriptParamsDialog.schema = null;
+        }
+        if (state.scriptParamsDialog.schema) {
             state.scriptParamsDialog.visible = true;
             state.scriptParamsDialog.script = script;
             return;
@@ -202,8 +206,9 @@ const runScript = async (script: MachineScriptVO) => {
     run(script);
 };
 
-// 有参数的脚本执行函数
-const hasParamsRun = async () => {
+// 有参数的脚本执行函数（form 为 AutoFormDialog confirm 事件回传的表单数据）
+const hasParamsRun = async (form: Record<string, unknown>) => {
+    state.scriptParamsDialog.params = form;
     if (state.scriptParamsDialog.script) {
         await run(state.scriptParamsDialog.script);
     }
@@ -293,7 +298,7 @@ const handleClose = () => {
     machineId.value = null;
     emit('cancel');
     state.query.type = ScriptTypeEnum.Private.value;
-    state.scriptParamsDialog.paramsFormItem = [];
+    state.scriptParamsDialog.schema = null;
 };
 
 onMounted(() => {

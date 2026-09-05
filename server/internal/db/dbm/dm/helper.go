@@ -10,8 +10,8 @@ type DumpHelper struct {
 	dbi.DefaultDumpHelper
 }
 
-func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) {
-
+func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+	return nil
 }
 
 func (dh *DumpHelper) BeforeInsertSql(quoteSchema string, tableName string) string {

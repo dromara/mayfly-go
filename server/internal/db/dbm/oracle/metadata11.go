@@ -21,7 +21,7 @@ type OracleMetadata11 struct {
 func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	dialect := od.dc.GetDialect()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dialect.Quoter().Trim(val))
+		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
 	// 如果表数量超过了1000，需要分批查询

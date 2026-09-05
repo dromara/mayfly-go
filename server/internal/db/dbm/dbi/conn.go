@@ -194,11 +194,6 @@ func (d *DbConn) GetDbDataType(dataType string) *DbDataType {
 	return GetDbDataType(d.Info.Type, dataType)
 }
 
-// Stats 返回数据库连接状态
-func (d *DbConn) Stats(ctx context.Context, execSql string, args ...any) sql.DBStats {
-	return d.db.Stats()
-}
-
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
 func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)

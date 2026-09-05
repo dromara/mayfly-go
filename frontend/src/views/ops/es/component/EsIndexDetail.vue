@@ -50,11 +50,7 @@
     </el-drawer>
 
     <el-dialog v-model="dialogFormVisible" :title="t('es.addAlias')" width="400">
-        <el-form :model="state.aliasesForm">
-            <el-form-item :label="t('es.aliases')">
-                <el-input v-model="state.aliasesForm.name" autocomplete="off" />
-            </el-form-item>
-        </el-form>
+        <auto-form v-model="state.aliasesForm" :items="aliasItems" label-width="auto" />
         <template #footer>
             <el-button size="small" @click="dialogFormVisible = false">{{ t('common.cancel') }}</el-button>
             <el-button size="small" @click="onSubmitAddAlias" :loading="aliasLoading" type="primary">{{ t('common.confirm') }}</el-button>
@@ -64,12 +60,15 @@
 
 <script setup lang="ts">
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import type { AutoFormItem } from '@/components/auto-form';
 import { esApi } from '@/views/ops/es/api';
 import { defineAsyncComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
 const { t } = useI18n();
+
+const aliasItems: AutoFormItem[] = [{ prop: 'name', label: 'es.aliases', props: { autocomplete: 'off' } }];
 
 const visible = ref(false);
 const aliasLoading = ref(false);

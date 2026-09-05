@@ -72,116 +72,161 @@ func (cm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
 }
 
 // Common type converter for ClickHouse
+//
+// 用于异构数据库迁移至clickhouse的类型转换。
+// clickhouse的类型均不携带长度参数（如String、Int32），需清空源长度信息避免生成非法DDL
 type commonTypeConverter struct{}
 
+// clearLength 清空列的长度与精度。clickhouse类型均不携带长度/精度参数，
+// 保留源长度会生成非法DDL；Decimal除外（必须携带精度，见Decimal方法）
+func clearLength(col *dbi.Column) {
+	col.CharMaxLength = 0
+	col.NumPrecision = 0
+	col.NumScale = 0
+}
+
 func (c *commonTypeConverter) Varchar(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return String
 }
 
 func (c *commonTypeConverter) Char(column *dbi.Column) *dbi.DbDataType {
-	return FixedString
-}
-
-func (c *commonTypeConverter) Text(column *dbi.Column) *dbi.DbDataType {
+	// clickhouse不使用FixedString承载：其必须显式指定长度且以\0定长填充，会改变数据语义
+	clearLength(column)
 	return String
 }
 
+func (c *commonTypeConverter) Text(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) Mediumtext(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) Longtext(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) Bit(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return UInt8
+}
+
+func (c *commonTypeConverter) Bool(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return Bool
+}
+
 func (c *commonTypeConverter) Int1(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return Int8
 }
 
 func (c *commonTypeConverter) Int2(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return Int16
 }
 
 func (c *commonTypeConverter) Int4(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return Int32
 }
 
 func (c *commonTypeConverter) Int8(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return Int64
 }
 
+// Numeric 浮点不保留精度，统一Float64
+func (c *commonTypeConverter) Numeric(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return Float64
+}
+
+// Decimal 必须保留精度：clickhouse的Decimal(P,S)依赖精度参数化，
+// 由GenTableDDL输出时补齐S缺失的格式
 func (c *commonTypeConverter) Decimal(column *dbi.Column) *dbi.DbDataType {
 	return Decimal
 }
 
 func (c *commonTypeConverter) UnsignedInt8(column *dbi.Column) *dbi.DbDataType {
-	return UInt8
+	clearLength(column)
+	// 无符号bigint（最大2^64-1）必须映射UInt64，映射UInt8会导致大于255的值插入失败
+	return UInt64
 }
 
 func (c *commonTypeConverter) UnsignedInt4(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return UInt32
 }
 
 func (c *commonTypeConverter) UnsignedInt2(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return UInt16
 }
 
 func (c *commonTypeConverter) UnsignedInt1(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return UInt8
 }
 
 func (c *commonTypeConverter) Date(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return Date
 }
 
 func (c *commonTypeConverter) Time(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return DateTime
 }
 
 func (c *commonTypeConverter) Datetime(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return DateTime
 }
 
 func (c *commonTypeConverter) Timestamp(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return DateTime
 }
 
+// 二进制以String承载（clickhouse String可存储任意字节序列）
 func (c *commonTypeConverter) Binary(column *dbi.Column) *dbi.DbDataType {
-	return String
-}
-
-func (c *commonTypeConverter) Mediumtext(column *dbi.Column) *dbi.DbDataType {
-	return String
-}
-
-func (c *commonTypeConverter) Longtext(column *dbi.Column) *dbi.DbDataType {
-	return String
-}
-
-func (c *commonTypeConverter) Bit(column *dbi.Column) *dbi.DbDataType {
-	return UInt8
-}
-
-func (c *commonTypeConverter) Bool(column *dbi.Column) *dbi.DbDataType {
-	return Bool
-}
-
-func (c *commonTypeConverter) Numeric(column *dbi.Column) *dbi.DbDataType {
-	return Float64
-}
-
-func (c *commonTypeConverter) Enum(column *dbi.Column) *dbi.DbDataType {
-	return Enum8
-}
-
-func (c *commonTypeConverter) JSON(column *dbi.Column) *dbi.DbDataType {
-	return String
-}
-
-func (c *commonTypeConverter) Blob(column *dbi.Column) *dbi.DbDataType {
-	return String
-}
-
-func (c *commonTypeConverter) Mediumblob(column *dbi.Column) *dbi.DbDataType {
-	return String
-}
-
-func (c *commonTypeConverter) Longblob(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return String
 }
 
 func (c *commonTypeConverter) Varbinary(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) Mediumblob(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) Blob(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) Longblob(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+// Enum Enum8必须显式声明枚举值集合（如Enum8('a'=1)），源枚举定义迁移后不可知，退化为String
+func (c *commonTypeConverter) Enum(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
+	return String
+}
+
+func (c *commonTypeConverter) JSON(column *dbi.Column) *dbi.DbDataType {
+	clearLength(column)
 	return String
 }

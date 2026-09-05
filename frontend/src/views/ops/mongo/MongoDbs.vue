@@ -120,14 +120,7 @@
         </el-dialog>
 
         <el-dialog width="400px" :title="$t('mongo.createDbAndColl')" v-model="createDbDialog.visible" :destroy-on-close="true">
-            <el-form :model="createDbDialog.form" label-width="auto">
-                <el-form-item prop="dbName" :label="$t('mongo.dbName')" required>
-                    <el-input v-model="createDbDialog.form.dbName" clearable></el-input>
-                </el-form-item>
-                <el-form-item prop="collectionName" :label="$t('mongo.collName')" required>
-                    <el-input v-model="createDbDialog.form.collectionName" clearable></el-input>
-                </el-form-item>
-            </el-form>
+            <auto-form v-model="createDbDialog.form" :items="createDbItems" label-width="auto" />
             <template #footer>
                 <div>
                     <el-button @click="createDbDialog.visible = false">{{ $t('common.cancel') }}</el-button>
@@ -137,11 +130,7 @@
         </el-dialog>
 
         <el-dialog width="400px" :title="$t('mongo.createColl')" v-model="createCollectionDialog.visible" :destroy-on-close="true">
-            <el-form :model="createCollectionDialog.form" label-width="auto">
-                <el-form-item prop="name" :label="$t('mongo.collName')" required>
-                    <el-input v-model="createCollectionDialog.form.name" clearable></el-input>
-                </el-form-item>
-            </el-form>
+            <auto-form v-model="createCollectionDialog.form" :items="createCollItems" label-width="auto" />
             <template #footer>
                 <div>
                     <el-button @click="createCollectionDialog.visible = false">{{ $t('common.cancel') }}</el-button>
@@ -154,6 +143,7 @@
 
 <script lang="ts" setup>
 import { formatByteSize } from '@/common/utils/format';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Msg } from '@/hooks/useI18n';
 import { reactive, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -161,6 +151,15 @@ import { mongoApi } from './api';
 import type { MongoDatabase } from './types';
 
 const { t } = useI18n();
+
+/** 建 Db/Collection 表单声明 */
+const createDbItems: AutoFormItem[] = [
+    { prop: 'dbName', label: 'mongo.dbName', required: true },
+    { prop: 'collectionName', label: 'mongo.collName', required: true },
+];
+
+/** 建 Collection 表单声明 */
+const createCollItems: AutoFormItem[] = [{ prop: 'name', label: 'mongo.collName', required: true }];
 
 const props = defineProps({
     id: {

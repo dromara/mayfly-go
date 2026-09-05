@@ -29,52 +29,20 @@
             </template>
         </page-table>
 
-        <el-drawer
-            :append-to-body="false"
+        <auto-form-drawer
+            v-model:visible="addTeamDialog.visible"
             :title="addTeamDialog.title"
-            v-model="addTeamDialog.visible"
-            :before-close="onCancelSaveTeam"
-            :destroy-on-close="true"
-            :close-on-click-modal="false"
+            :items="items"
+            :data="addTeamDialog.form"
             size="40%"
+            @confirm="onSaveTeam"
+            @cancel="onCancelSaveTeam"
         >
-            <template #header>
-                <DrawerHeader :header="addTeamDialog.title" :back="onCancelSaveTeam" />
+            <!-- 分配标签（TagTreeCheck 自定义控件走插槽） -->
+            <template #codePaths="{ form }">
+                <TagTreeCheck height="calc(100vh - 390px)" v-model="form.codePaths" :tag-type="0" />
             </template>
-
-            <el-form ref="teamForm" :model="addTeamDialog.form" :rules="teamFormRules" label-width="auto">
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input :disabled="(addTeamDialog.form.id ?? 0) > 0" v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
-                </el-form-item>
-
-                <el-form-item prop="validityDate" :label="$t('team.validity')" required>
-                    <el-date-picker
-                        v-model="addTeamDialog.form.validityDate"
-                        type="datetimerange"
-                        :start-placeholder="$t('team.effectiveStartTime')"
-                        :end-placeholder="$t('team.effectiveEndTime')"
-                        format="YYYY-MM-DD HH:mm:ss"
-                        value-format="YYYY-MM-DD HH:mm:ss"
-                        date-format="YYYY-MM-DD"
-                        time-format="HH:mm:ss"
-                    />
-                </el-form-item>
-
-                <el-form-item :label="$t('common.remark')">
-                    <el-input v-model="addTeamDialog.form.remark" auto-complete="off"></el-input>
-                </el-form-item>
-
-                <el-form-item prop="tag" :label="$t('common.tag')">
-                    <TagTreeCheck height="calc(100vh - 390px)" v-model="state.addTeamDialog.form.codePaths" :tag-type="0" />
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="onCancelSaveTeam()">{{ $t('common.cancel') }}</el-button>
-                    <el-button @click="onSaveTeam" type="primary">{{ $t('common.confirm') }}</el-button>
-                </div>
-            </template>
-        </el-drawer>
+        </auto-form-drawer>
 
         <el-dialog @open="setMemebers" width="50%" :title="showMemDialog.title" v-model="showMemDialog.visible">
             <page-table
@@ -109,16 +77,14 @@
 
 <script lang="ts" setup>
 import { notBlank } from '@/common/assert';
-import { Rules } from '@/common/rule';
 import { formatDate } from '@/common/utils/format';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle, useI18nFormValidate } from '@/hooks/useI18n';
+import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
-import type { FormInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import TagCodePath from '../component/TagCodePath.vue';
 import TagTreeCheck from '../component/TagTreeCheck.vue';
@@ -140,14 +106,31 @@ interface TeamMemberForm {
 
 const { t } = useI18n();
 
-const teamForm = useTemplateRef<FormInstance>('teamForm');
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const showMemPageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('showMemPageTableRef');
 
-const teamFormRules = {
-    name: [Rules.requiredInput('common.name')],
-    validityDate: [Rules.requiredSelect('team.validity')],
-};
+/** 团队编辑表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；codePaths 走插槽承载 TagTreeCheck） */
+const items: AutoFormItem[] = [
+    { prop: 'name', label: 'common.name', required: true, disabled: (f) => (f.id ?? 0) > 0 },
+    {
+        prop: 'validityDate',
+        label: 'team.validity',
+        type: 'date',
+        required: true,
+        // datetimerange 等范围选择器属性经 props 透传覆盖默认 date 类型
+        props: {
+            type: 'datetimerange',
+            startPlaceholder: t('team.effectiveStartTime'),
+            endPlaceholder: t('team.effectiveEndTime'),
+            format: 'YYYY-MM-DD HH:mm:ss',
+            valueFormat: 'YYYY-MM-DD HH:mm:ss',
+            dateFormat: 'YYYY-MM-DD',
+            timeFormat: 'HH:mm:ss',
+        },
+    },
+    { prop: 'remark', label: 'common.remark' },
+    { prop: 'codePaths', label: 'common.tag', type: 'custom' },
+];
 
 const searchItems = [SearchItem.input('name', 'common.name')];
 const columns = [
@@ -216,24 +199,36 @@ const search = async () => {
 const onShowSaveTeamDialog = async (data: Team | null) => {
     if (data) {
         state.addTeamDialog.title = useI18nEditTitle('team.team');
-        state.addTeamDialog.form.id = data.id;
-        state.addTeamDialog.form.name = data.name;
-        state.addTeamDialog.form.validityDate = [data.validityStartDate || '', data.validityEndDate || ''];
-        state.addTeamDialog.form.remark = data.remark;
-        state.addTeamDialog.form.codePaths = data.tags?.map((tag) => tag.codePath) || [];
+        state.addTeamDialog.form = {
+            id: data.id,
+            name: data.name,
+            validityDate: [data.validityStartDate || '', data.validityEndDate || ''],
+            validityStartDate: '',
+            validityEndDate: '',
+            remark: data.remark,
+            codePaths: data.tags?.map((tag) => tag.codePath) || [],
+        };
     } else {
         state.addTeamDialog.title = useI18nCreateTitle('team.team');
         let end = new Date();
         end.setFullYear(end.getFullYear() + 10);
-        state.addTeamDialog.form.validityDate = [formatDate(new Date()), formatDate(end)];
+        state.addTeamDialog.form = {
+            id: 0,
+            name: '',
+            validityDate: [formatDate(new Date()), formatDate(end)],
+            validityStartDate: '',
+            validityEndDate: '',
+            remark: '',
+            codePaths: [],
+        };
     }
 
     state.addTeamDialog.visible = true;
 };
 
-const onSaveTeam = async () => {
-    await useI18nFormValidate(teamForm);
-    const form = state.addTeamDialog.form;
+// @confirm 触发前 AutoFormDrawer 已完成表单校验
+const onSaveTeam = async (rawForm: AutoFormData) => {
+    const form = rawForm as TeamForm;
     form.validityStartDate = formatDate(form.validityDate?.[0]);
     form.validityEndDate = formatDate(form.validityDate?.[1]);
     await tagApi.saveTeam.request(form);
@@ -244,10 +239,6 @@ const onSaveTeam = async () => {
 
 const onCancelSaveTeam = () => {
     state.addTeamDialog.visible = false;
-    setTimeout(() => {
-        teamForm.value?.resetFields();
-        state.addTeamDialog.form = {} as TeamForm;
-    }, 500);
 };
 
 const onDeleteTeam = async () => {

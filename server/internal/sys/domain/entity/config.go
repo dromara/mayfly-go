@@ -17,8 +17,8 @@ type Config struct {
 	model.Model
 	Name       string `json:"name" gorm:"size:60;not null;"` // 配置名
 	Key        string `json:"key" gorm:"size:60;not null;"`  // 配置key
-	Params     string `json:"params" gorm:"size:1500"`
-	Value      string `json:"value" gorm:"size:1500"`
+	Params     string `json:"params" gorm:"size:4000"`
+	Value      string `json:"value" gorm:"size:4000"`
 	Remark     string `json:"remark" gorm:"size:255"`
 	Permission string `json:"permission" gorm:"size:255;comment:操作权限"` // 可操作该配置的权限
 }

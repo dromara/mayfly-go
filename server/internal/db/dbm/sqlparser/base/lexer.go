@@ -149,17 +149,19 @@ func (l *Lexer) SkipOrderByExpr() {
 // IsExprEnd 判断表达式是否结束
 func (l *Lexer) IsExprEnd() bool {
 	tok := l.Current()
+	// 注意：需包含 FETCH（oracle/达梦的 FETCH FIRST n ROWS ONLY 分页子句不能被当作表达式的一部分吞掉）
 	return tok.IsKeyword("FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET",
-		"UNION", "INTO", "SET", "VALUES", "ON", "USING", "FOR", "RETURNING",
+		"UNION", "INTO", "SET", "VALUES", "ON", "USING", "FOR", "RETURNING", "FETCH",
 		"LEFT", "RIGHT", "INNER", "OUTER", "CROSS", "NATURAL", "FULL", "JOIN") ||
 		tok.Value == ";" || tok.Value == ")"
 }
 
 // IsFromClauseEnd 判断 FROM 子句是否结束
+// 注意：需包含 FETCH（oracle/达梦的 FETCH FIRST n ROWS ONLY 分页子句紧跟表引用之后，属于 FROM 子句的结束边界）
 func (l *Lexer) IsFromClauseEnd() bool {
 	tok := l.Current()
 	return tok.IsKeyword("WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET",
-		"UNION", "INTO", "FOR", "RETURNING") || tok.Value == ";" || tok.Value == ")"
+		"UNION", "INTO", "FOR", "RETURNING", "FETCH") || tok.Value == ";" || tok.Value == ")"
 }
 
 // IsSelectClauseEnd 判断是否到达 SELECT 子句末尾
@@ -176,6 +178,7 @@ func (l *Lexer) IsJoinStart() bool {
 }
 
 // TextFrom 返回从 start 到当前位置的原始 SQL 文本
+// 注意：start为0（语句起始）时会包含首个 token 之前的前导注释与空白，保证语句原文完整
 func (l *Lexer) TextFrom(start int) string {
 	if start >= l.Length {
 		return ""
@@ -192,10 +195,14 @@ func (l *Lexer) TextFrom(start int) string {
 	if endTok.Type == tokenizer.TokenEOF && end > 0 {
 		endTok = l.Tokens[end-1]
 	}
-	if endTok.End <= startTok.Pos {
+	startPos := startTok.Pos
+	if start == 0 {
+		startPos = 0
+	}
+	if endTok.End <= startPos {
 		return ""
 	}
-	return l.SQL[startTok.Pos:endTok.End]
+	return l.SQL[startPos:endTok.End]
 }
 
 // TextFromExclusive 返回从 start 到当前位置之前（不包含当前 token）的原始 SQL 文本

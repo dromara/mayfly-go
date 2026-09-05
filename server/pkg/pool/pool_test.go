@@ -176,10 +176,12 @@ func TestChanPool_HealthCheck(t *testing.T) {
 
 func TestCachePool_Basic(t *testing.T) {
 	var idGen int
+	// 缓存池语义：缓存满时复用现有连接（CachePool.Put 为空实现，不走归还流程），
+	// 故 MaxConns 必须为 1 才能验证“第二次 Get 复用同一连接”
 	pool := NewCachePool(func() (*mockConn, error) {
 		idGen++
 		return newMockConn(idGen), nil
-	}, WithMaxConns[*mockConn](2), WithIdleTimeout[*mockConn](time.Second))
+	}, WithMaxConns[*mockConn](1), WithIdleTimeout[*mockConn](time.Second))
 
 	ctx := context.Background()
 	conn1, _ := pool.Get(ctx)

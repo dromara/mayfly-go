@@ -13,28 +13,21 @@
     >
         <el-auto-resizer>
             <template #default="{ height, width }">
-                <el-form :model="formData" ref="formRef">
-                    <el-form-item :label="t('es.indexName')" required prop="idxName">
-                        <el-input v-model.trim="formData.idxName" maxlength="200" show-word-limit />
-                    </el-form-item>
-                    <el-space>
-                        <el-form-item>
-                            <el-select v-model="formData.copyIdxName" style="width: 200px;" filterable>
+                <auto-form ref="formRef" v-model="formData" :items="items">
+                    <template #copyIdxName>
+                        <el-space>
+                            <el-select v-model="formData.copyIdxName" style="width: 200px" filterable>
                                 <el-option v-for="idx in idxNames" :key="idx" :value="idx" :label="idx" />
                             </el-select>
-                        </el-form-item>
-                        <el-form-item>
                             <el-button @click="onCopyMappings" link type="primary">{{ t('es.copyMappings') }}</el-button>
-                        </el-form-item>
-
-                        <el-form-item>
                             <el-button @click="onSampleMappings" link type="warning">{{ t('es.sampleMappings') }}</el-button>
-                        </el-form-item>
-                    </el-space>
-                    <el-form-item required prop="mappings" label="mappings" label-position="top">
+                        </el-space>
+                    </template>
+
+                    <template #mappings>
                         <monaco-editor v-model="formData.mappings" language="json" :height="height - 130 + 'px'" width="100%" :options="{ tabSize: 2 }" />
-                    </el-form-item>
-                </el-form>
+                    </template>
+                </auto-form>
             </template>
         </el-auto-resizer>
         <template #footer>
@@ -46,9 +39,10 @@
 
 <script setup lang="ts">
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Msg } from '@/hooks/useI18n';
 import { esApi } from '@/views/ops/es/api';
-import { ref, watch } from 'vue';
+import { ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -109,13 +103,19 @@ const formData = ref({
     mappings: '',
 });
 
-interface Props {
-    instId: number;
-    idxNames: string[];
-}
-const props = defineProps<Props>();
+const props = defineProps({
+    instId: { type: Number, required: true },
+    idxNames: { type: Array as PropType<string[]>, default: () => [] },
+});
 const loading = ref(false);
-const formRef = ref();
+const formRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('formRef');
+
+/** 表单声明（AutoFormItem[]；复制索引操作行与 mappings 编辑器走 custom 插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'idxName', label: 'es.indexName', required: true, props: { maxlength: 200, showWordLimit: true } },
+    { prop: 'copyIdxName', type: 'custom' },
+    { prop: 'mappings', label: 'mappings', type: 'custom', required: true },
+];
 
 const visible = defineModel<boolean>('visible');
 

@@ -1,158 +1,78 @@
 <template>
     <div class="sync-task-edit">
-        <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="45%">
-            <template #header>
-                <DrawerHeader :header="title" :back="cancel" />
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="title"
+            v-model:active-tab="tabActiveName"
+            :tabs="tabs"
+            :data="editData"
+            size="45%"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
+            <!-- cron 表达式编辑器 -->
+            <template #taskCron="{ form }">
+                <CrontabInput v-model="form.taskCron" />
             </template>
 
-            <el-form :model="form" ref="dbForm" :rules="rules" label-position="top" label-width="auto">
-                <el-tabs v-model="tabActiveName">
-                    <el-tab-pane :label="$t('common.basic')" :name="basicTab">
-                        <el-row :gutter="10">
-                            <el-col :span="12">
-                                <el-form-item prop="taskName" :label="$t('db.taskName')" required>
-                                    <el-input v-model.trim="form.taskName" auto-complete="off" />
-                                </el-form-item>
-                            </el-col>
+            <!-- 源库选择 -->
+            <template #srcDbId="{ form }">
+                <db-select-tree
+                    v-model:db-id="form.srcDbId"
+                    v-model:inst-name="form.srcInstName"
+                    v-model:db-name="form.srcDbName"
+                    v-model:tag-path="form.srcTagPath"
+                    v-model:db-type="form.srcDbType"
+                    @select-db="onSelectSrcDb"
+                />
+            </template>
 
-                            <el-col :span="8">
-                                <el-form-item prop="taskCron" label="cron" required>
-                                    <CrontabInput v-model="form.taskCron" />
-                                </el-form-item>
-                            </el-col>
+            <!-- 目标库选择 -->
+            <template #targetDbId="{ form }">
+                <db-select-tree
+                    v-model:db-id="form.targetDbId"
+                    v-model:inst-name="form.targetInstName"
+                    v-model:db-name="form.targetDbName"
+                    v-model:tag-path="form.targetTagPath"
+                    v-model:db-type="form.targetDbType"
+                    @select-db="onSelectTargetDb"
+                />
+            </template>
 
-                            <el-col :span="4">
-                                <el-form-item prop="status" :label="$t('common.status')" label-width="60" required>
-                                    <el-switch
-                                        v-model="form.status"
-                                        inline-prompt
-                                        :active-text="$t('common.enable')"
-                                        :inactive-text="$t('common.disable')"
-                                        :active-value="1"
-                                        :inactive-value="-1"
-                                    />
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
+            <!-- 字段映射表格编辑 -->
+            <template #fieldMap="{ form }">
+                <el-table :data="form.fieldMap" :max-height="state.fieldMapTableHeight">
+                    <el-table-column prop="src" :label="$t('db.srcField')" :width="200"></el-table-column>
+                    <el-table-column prop="target" :label="$t('db.targetField')">
+                        <template #default="scope">
+                            <el-select v-model="scope.row.target" allow-create filterable>
+                                <el-option
+                                    v-for="item in state.targetColumnList"
+                                    :key="item.columnName"
+                                    :label="`${item.columnType}${item.columnComment && ' - ' + item.columnComment}`"
+                                    :value="item.columnName"
+                                >
+                                    <div class="flex justify-between">
+                                        {{ item.columnName }}
+                                        <el-text size="small">
+                                            {{ item.columnType }}{{ item.columnComment && ' - ' + item.columnComment }}
+                                        </el-text>
+                                    </div>
+                                </el-option>
+                            </el-select>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </template>
 
-                        <el-form-item prop="srcDbId" :label="$t('db.srcDb')" required>
-                            <db-select-tree
-                                v-model:db-id="form.srcDbId"
-                                v-model:inst-name="form.srcInstName"
-                                v-model:db-name="form.srcDbName"
-                                v-model:tag-path="form.srcTagPath"
-                                v-model:db-type="form.srcDbType"
-                                @select-db="onSelectSrcDb"
-                            />
-                        </el-form-item>
-
-                        <el-form-item prop="targetDbId" :label="$t('db.targetDb')" required>
-                            <db-select-tree
-                                v-model:db-id="form.targetDbId"
-                                v-model:inst-name="form.targetInstName"
-                                v-model:db-name="form.targetDbName"
-                                v-model:tag-path="form.targetTagPath"
-                                v-model:db-type="form.targetDbType"
-                                @select-db="onSelectTargetDb"
-                            />
-                        </el-form-item>
-
-                        <el-form-item prop="dataSql" :label="$t('db.srcDataSql')" required>
-                            <monaco-editor height="200px" class="task-sql" language="sql" v-model="form.dataSql" />
-                        </el-form-item>
-
-                        <el-row :gutter="10">
-                            <el-col :span="12">
-                                <el-form-item prop="targetTableName" :label="$t('db.targetDbTable')" required>
-                                    <el-select v-model="form.targetTableName" filterable>
-                                        <el-option
-                                            v-for="item in state.targetTableList"
-                                            :key="item.tableName"
-                                            :label="item.tableName + (item.tableComment && '-' + item.tableComment)"
-                                            :value="item.tableName"
-                                        />
-                                    </el-select>
-                                </el-form-item>
-                            </el-col>
-
-                            <el-col :span="12">
-                                <el-form-item prop="pageSize" :label="$t('db.pageSize')" required>
-                                    <el-input type="number" v-model.number="form.pageSize" :placeholder="$t('db.pageSizePlaceholder')" auto-complete="off" />
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-
-                        <el-row :gutter="10">
-                            <el-col :span="12">
-                                <FormItemTooltip :label="$t('db.updateField')" prop="updField" :tooltip="$t('db.updateFieldTips')">
-                                    <el-input v-model.trim="form.updField" :placeholder="$t('db.updateFiledPlaceholder')" auto-complete="off" />
-                                </FormItemTooltip>
-                            </el-col>
-
-                            <el-col :span="12">
-                                <FormItemTooltip :label="$t('db.updateFieldValue')" prop="updFieldVal" :tooltip="$t('db.updateFieldValueTips')">
-                                    <el-input v-model.trim="form.updFieldVal" :placeholder="$t('db.updateFieldValuePlaceholder')" auto-complete="off" />
-                                </FormItemTooltip>
-                            </el-col>
-                        </el-row>
-
-                        <el-row :gutter="10">
-                            <el-col :span="12">
-                                <FormItemTooltip :label="$t('db.fieldValueSrc')" prop="updFieldSrc" :tooltip="$t('db.fieldValueSrcTips')">
-                                    <el-input v-model.trim="form.updFieldSrc" :placeholder="$t('db.fieldValueSrcPlaceholder')" auto-complete="off" />
-                                </FormItemTooltip>
-                            </el-col>
-                        </el-row>
-                    </el-tab-pane>
-
-                    <el-tab-pane :label="$t('db.fieldMap')" :name="fieldTab" :disabled="!baseFieldCompleted">
-                        <el-form-item prop="fieldMap" :label="$t('db.fieldMap')" required>
-                            <el-table :data="form.fieldMap" :max-height="fieldMapTableHeight">
-                                <el-table-column prop="src" :label="$t('db.srcField')" :width="200"></el-table-column>
-                                <el-table-column prop="target" :label="$t('db.targetField')">
-                                    <template #default="scope">
-                                        <el-select v-model="scope.row.target" allow-create filterable>
-                                            <template #label="{ label, value }">
-                                                <div class="flex justify-between">
-                                                    <el-text tag="b">{{ value }}</el-text>
-                                                    <el-text size="small">{{ label }}</el-text>
-                                                </div>
-                                            </template>
-
-                                            <el-option
-                                                v-for="item in state.targetColumnList"
-                                                :key="item.columnName"
-                                                :label="`${item.columnType}${item.columnComment && ' - ' + item.columnComment}`"
-                                                :value="item.columnName"
-                                            >
-                                                <div class="flex justify-between">
-                                                    {{ item.columnName }}
-
-                                                    <el-text size="small">
-                                                        {{ item.columnType }}{{ item.columnComment && ' - ' + item.columnComment }}
-                                                    </el-text>
-                                                </div>
-                                            </el-option>
-                                        </el-select>
-                                    </template>
-                                </el-table-column>
-                            </el-table>
-                        </el-form-item>
-                    </el-tab-pane>
-
-                    <el-tab-pane :label="$t('db.sqlPreview')" :name="sqlPreviewTab" :disabled="!baseFieldCompleted">
-                        <el-form-item prop="isReplace" v-if="compatibleDuplicateStrategy(form.targetDbType!)" :label="$t('db.keyDuplicateStrategy')">
-                            <EnumSelect :enums="DbDataSyncDuplicateStrategyEnum" v-model="form.duplicateStrategy" @change="handleDuplicateStrategy" />
-                        </el-form-item>
-                        <el-form-item prop="fieldMap" :label="$t('db.selectSql')">
-                            <el-input type="textarea" v-model="state.previewDataSql" readonly :rows="10" />
-                        </el-form-item>
-                        <el-form-item prop="fieldMap" :label="$t('db.insertSql')">
-                            <el-input type="textarea" v-model="state.previewInsertSql" readonly :rows="10" />
-                        </el-form-item>
-                    </el-tab-pane>
-                </el-tabs>
-            </el-form>
+            <!-- SQL 预览（只读，绑定预览状态而非表单） -->
+            <template #previewDataSql>
+                <el-input type="textarea" :model-value="state.previewDataSql" readonly :rows="10" />
+            </template>
+            <template #previewInsertSql>
+                <el-input type="textarea" :model-value="state.previewInsertSql" readonly :rows="10" />
+            </template>
 
             <template #footer>
                 <div>
@@ -194,28 +114,13 @@
                     <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
-        </el-drawer>
-
-        <!-- <el-dialog
-            :title="title"
-            v-model="dialogVisible"
-            :before-close="cancel"
-            :close-on-click-modal="false"
-            :close-on-press-escape="false"
-            :destroy-on-close="true"
-            width="850px"
-        >
-        </el-dialog> -->
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import EnumSelect from '@/components/enum-select/EnumSelect.vue';
-import FormItemTooltip from '@/components/form/FormItemTooltip.vue';
-import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormTab } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
@@ -223,9 +128,8 @@ import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { compatibleDuplicateStrategy, DbType, getDbDialect } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncDuplicateStrategyEnum } from '@/views/ops/db/sync/enums';
-import { computed, reactive, ref, toRefs, watch, type Ref, type PropType } from 'vue';
+import { computed, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { FormInstance } from 'element-plus';
 import type { ColumnMetadata, DataSyncTask, Db, DbTableInfo } from '@/views/ops/db/types';
 
 const { t } = useI18n();
@@ -245,16 +149,66 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const rules = {
-    taskName: [Rules.requiredInput('db.taskName')],
-    taskCron: [Rules.requiredInput('cron')],
-};
-
-const dbForm = ref<FormInstance | null>(null);
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
 
 const basicTab = 'basic';
 const fieldTab = 'field';
 const sqlPreviewTab = 'sqlPreview';
+
+/** 目标表下拉选项（从已加载的表列表生成） */
+const targetTableOptions = () =>
+    Promise.resolve(state.targetTableList.map((item) => ({ value: item.tableName, label: item.tableName + (item.tableComment && '-' + item.tableComment) })));
+
+/** 表单声明（AutoFormTab[] 向导式三步：基础信息 / 字段映射 / SQL 预览；复杂控件走插槽） */
+const tabs: AutoFormTab[] = [
+    {
+        name: basicTab,
+        label: 'common.basic',
+        items: [
+            { prop: 'taskName', label: 'db.taskName', required: true, span: 12 },
+            { prop: 'taskCron', label: 'cron', type: 'custom', required: true, span: 8 },
+            {
+                prop: 'status',
+                label: 'common.status',
+                type: 'switch',
+                required: true,
+                span: 4,
+                props: { inlinePrompt: true, activeText: t('common.enable'), inactiveText: t('common.disable'), activeValue: 1, inactiveValue: -1 },
+            },
+            { prop: 'srcDbId', label: 'db.srcDb', type: 'custom', required: true },
+            { prop: 'targetDbId', label: 'db.targetDb', type: 'custom', required: true },
+            { prop: 'dataSql', label: 'db.srcDataSql', type: 'monaco', required: true, props: { language: 'sql', height: '200px' } },
+            { prop: 'targetTableName', label: 'db.targetDbTable', type: 'select', required: true, span: 12, options: targetTableOptions },
+            { prop: 'pageSize', label: 'db.pageSize', type: 'number', required: true, span: 12, placeholder: 'db.pageSizePlaceholder' },
+            { prop: 'updField', label: 'db.updateField', tooltip: 'db.updateFieldTips', placeholder: 'db.updateFiledPlaceholder', span: 12 },
+            { prop: 'updFieldVal', label: 'db.updateFieldValue', tooltip: 'db.updateFieldValueTips', placeholder: 'db.updateFieldValuePlaceholder', span: 12 },
+            { prop: 'updFieldSrc', label: 'db.fieldValueSrc', tooltip: 'db.fieldValueSrcTips', placeholder: 'db.fieldValueSrcPlaceholder', span: 12 },
+        ],
+    },
+    {
+        name: fieldTab,
+        label: 'db.fieldMap',
+        disabled: () => !baseFieldCompleted.value,
+        items: [{ prop: 'fieldMap', label: 'db.fieldMap', type: 'custom', required: true }],
+    },
+    {
+        name: sqlPreviewTab,
+        label: 'db.sqlPreview',
+        disabled: () => !baseFieldCompleted.value,
+        items: [
+            {
+                prop: 'duplicateStrategy',
+                label: 'db.keyDuplicateStrategy',
+                type: 'enum',
+                enums: DbDataSyncDuplicateStrategyEnum,
+                when: (f) => compatibleDuplicateStrategy(f.targetDbType!),
+                onChange: () => handleDuplicateStrategy(),
+            },
+            { prop: 'previewDataSql', label: 'db.selectSql', type: 'custom' },
+            { prop: 'previewInsertSql', label: 'db.insertSql', type: 'custom' },
+        ],
+    },
+];
 
 type FormData = {
     id?: number;
@@ -293,10 +247,10 @@ const basicFormData = {
     duplicateStrategy: -1,
 } as FormData;
 
+/** 传给 AutoFormDrawer 的回填数据：新建态用默认值；编辑态任务实体经 @opened 异步加载后填充 */
+const editData = { ...basicFormData, taskCron: '' } as unknown as AutoFormData;
+
 const state = reactive({
-    tabActiveName: 'basic',
-    form: basicFormData,
-    srcTableFields: [] as string[],
     targetTableList: [] as { tableName: string; tableComment: string }[],
     targetColumnList: [] as ColumnMetadata[],
     srcDbInst: {} as DbInst,
@@ -308,40 +262,40 @@ const state = reactive({
     fieldMapTableHeight: window.innerHeight - 50,
 });
 
-const { tabActiveName, form, fieldMapTableHeight } = toRefs(state);
+const tabActiveName = ref('basic');
 
-const { isFetching: saveBtnLoading, execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi();
+/** 抽屉打开后暂存的内部表单引用（向导切换、SQL 预览与提交均基于它） */
+const internalForm = ref<AutoFormData>({});
 
 // 基础字段信息是否填写完整
 const baseFieldCompleted = computed(() => {
-    return state.form.srcDbId && state.form.srcDbName && state.form.targetDbId && state.form.targetDbName && state.form.targetTableName;
+    const form = internalForm.value;
+    return form.srcDbId && form.srcDbName && form.targetDbId && form.targetDbName && form.targetTableName;
 });
 
-watch(dialogVisible, async (newValue: boolean) => {
-    if (!newValue) {
-        return;
-    }
-    state.tabActiveName = 'basic';
+const { isFetching: saveBtnLoading, execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi();
+
+const onOpened = async (form: AutoFormData) => {
+    internalForm.value = form;
+    tabActiveName.value = 'basic';
     const propsData = props.data;
     if (!propsData?.id) {
-        let d = { taskCron: '' } as FormData;
-        Object.assign(d, basicFormData);
-        state.form = d;
         return;
     }
 
     let data = await dbSyncApi.getDatasyncTask.request({ taskId: propsData?.id });
     // 原始任务实体(fieldMap 为 JSON 字符串)转换为表单结构(fieldMap 随后解析为数组)
-    state.form = data as unknown as FormData;
-    if (!state.form.duplicateStrategy) {
-        state.form.duplicateStrategy = -1;
+    const formData = data as unknown as FormData;
+    if (!formData.duplicateStrategy) {
+        formData.duplicateStrategy = -1;
     }
     try {
-        state.form.fieldMap = JSON.parse(data.fieldMap);
+        formData.fieldMap = JSON.parse(data.fieldMap);
     } catch (e) {
-        state.form.fieldMap = [];
+        formData.fieldMap = [];
     }
-    let { srcDbId, srcDbName, targetDbId } = state.form;
+    Object.assign(form, formData);
+    let { srcDbId, srcDbName, targetDbId } = formData;
 
     //  初始化src数据源
     if (srcDbId) {
@@ -351,8 +305,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = await DbInst.getOrNewInst(db);
-        state.form.srcDbType = state.srcDbInst.type;
-        state.form.srcInstName = db.name;
+        form.srcDbType = state.srcDbInst.type;
+        form.srcInstName = db.name;
     }
 
     //  初始化target数据源
@@ -363,19 +317,19 @@ watch(dialogVisible, async (newValue: boolean) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.targetDbInst = await DbInst.getOrNewInst(db);
-        state.form.targetDbType = state.targetDbInst.type;
-        state.form.targetInstName = db.name;
+        form.targetDbType = state.targetDbInst.type;
+        form.targetInstName = db.name;
     }
 
-    if (targetDbId && state.form.targetDbName) {
-        await loadDbTables(targetDbId, state.form.targetDbName);
+    if (targetDbId && formData.targetDbName) {
+        await loadDbTables(targetDbId, formData.targetDbName);
     }
 
     // 注册sql代码提示
     if (srcDbId && srcDbName) {
         registerDbCompletionItemProvider(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
     }
-});
+};
 
 watch(tabActiveName, async (newValue: string) => {
     switch (newValue) {
@@ -385,26 +339,26 @@ watch(tabActiveName, async (newValue: string) => {
             break;
         case sqlPreviewTab:
             let targetDbDialect = getDbDialect(state.targetDbInst.type);
-            let updField = state.form.updField!;
+            let updField = internalForm.value.updField!;
 
             // 判断sql是否以where .*结尾
-            let hasCondition = /where/i.test(state.form.dataSql!);
-            state.previewDataSql = `${state.form.dataSql?.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${state.form.updFieldVal || ''}'`;
+            let hasCondition = /where/i.test(internalForm.value.dataSql!);
+            state.previewDataSql = `${internalForm.value.dataSql?.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${internalForm.value.updFieldVal || ''}'`;
 
             // 检查字段映射中是否存在重复的目标字段
             let fields = new Set();
-            state.form.fieldMap?.map((a) => {
+            internalForm.value.fieldMap?.map((a: { src: string; target: string }) => {
                 if (a.target) {
                     fields.add(a.target);
                 }
             });
-            if (fields.size < (state.form.fieldMap?.length || 0)) {
+            if (fields.size < (internalForm.value.fieldMap?.length || 0)) {
                 Msg.warning('db.fieldMapError');
                 state.previewInsertSql = '';
                 return;
             }
 
-            let fieldArr = state.form.fieldMap?.map((a: { src: string; target: string }) => targetDbDialect.quoteIdentifier(a.target)) || [];
+            let fieldArr = internalForm.value.fieldMap?.map((a: { src: string; target: string }) => targetDbDialect.quoteIdentifier(a.target)) || [];
             state.previewFieldArr = fieldArr;
             refreshPreviewInsertSql();
             break;
@@ -415,7 +369,7 @@ watch(tabActiveName, async (newValue: string) => {
 
 const refreshPreviewInsertSql = () => {
     let targetDbDialect = getDbDialect(state.targetDbInst.type);
-    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(state.form.targetTableName!, state.previewFieldArr, state.form.duplicateStrategy!);
+    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(internalForm.value.targetTableName!, state.previewFieldArr, internalForm.value.duplicateStrategy!);
 };
 
 interface DbSelectParams {
@@ -445,27 +399,28 @@ const loadDbTables = async (dbId: number, db: string) => {
     state.targetTableList = data;
     if (data && data.length > 0) {
         let names = data.map((a: DbTableInfo) => a.tableName);
-        if (!names.includes(state.form.targetTableName ?? '')) {
-            state.form.targetTableName = data[0].tableName;
+        if (!names.includes(internalForm.value.targetTableName ?? '')) {
+            internalForm.value.targetTableName = data[0].tableName;
         }
     }
 };
 
 const handleGetSrcFields = async () => {
     // 执行sql，获取字段信息
-    if (!state.form.dataSql || !state.form.dataSql.trim()) {
+    const dataSql = internalForm.value.dataSql as string | undefined;
+    if (!dataSql || !dataSql.trim()) {
         Msg.warning('db.noDataSqlMsg');
         return;
     }
 
     // 判断sql是否是查询语句
-    if (!/^select/i.test(state.form.dataSql.trim()!)) {
+    if (!/^select/i.test(dataSql.trim()!)) {
         Msg.warning('db.notSelectSql');
         return;
     }
 
     // 判断是否有多条sql
-    if (/;/i.test(state.form.dataSql!)) {
+    if (/;/i.test(dataSql!)) {
         Msg.warning('db.notOneSql');
         return;
     }
@@ -473,21 +428,21 @@ const handleGetSrcFields = async () => {
     // 执行sql
     let sql: string;
 
-    if (state.form.srcDbType === DbType.mssql) {
+    if (internalForm.value.srcDbType === DbType.mssql) {
         // mssql的分页语法不一样
         let top1 = `select top 1`;
-        sql = `${top1} * from (${state.form.dataSql}) a`;
-    } else if (state.form.srcDbType === DbType.oracle) {
+        sql = `${top1} * from (${dataSql}) a`;
+    } else if (internalForm.value.srcDbType === DbType.oracle) {
         // oracle的分页关键字不一样
-        let hasCondition = /where/i.test(state.form.dataSql!);
-        sql = `${state.form.dataSql} ${hasCondition ? 'and' : 'where'} rownum <= 1`;
+        let hasCondition = /where/i.test(dataSql!);
+        sql = `${dataSql} ${hasCondition ? 'and' : 'where'} rownum <= 1`;
     } else {
-        sql = `${state.form.dataSql} limit 1`;
+        sql = `${dataSql} limit 1`;
     }
 
     const res = await dbApi.sqlExec.request({
-        id: state.form.srcDbId,
-        db: state.form.srcDbName,
+        id: internalForm.value.srcDbId,
+        db: internalForm.value.srcDbName,
         sql,
     });
 
@@ -499,30 +454,29 @@ const handleGetSrcFields = async () => {
     let data = res[0];
 
     let filedMap: Record<string, string> = {};
-    if (state.form.fieldMap && state.form.fieldMap.length > 0) {
-        state.form.fieldMap.forEach((a: { src: string; target: string }) => {
+    if (internalForm.value.fieldMap && internalForm.value.fieldMap.length > 0) {
+        internalForm.value.fieldMap.forEach((a: { src: string; target: string }) => {
             filedMap[a.src] = a.target;
         });
     }
 
     const srcColumns = data.columns ?? [];
-    state.srcTableFields = srcColumns.map((a) => a.name);
 
-    state.form.fieldMap = srcColumns.map((a) => ({ src: a.name, target: filedMap[a.name] || '' }));
+    internalForm.value.fieldMap = srcColumns.map((a) => ({ src: a.name, target: filedMap[a.name] || '' }));
 
     state.previewRes = data;
 };
 
 const handleGetTargetFields = async () => {
     // 查询目标表下的字段信息
-    if (state.form.targetDbName && state.form.targetTableName) {
-        let columns = await state.targetDbInst.loadColumns(state.form.targetDbName, state.form.targetTableName);
+    if (internalForm.value.targetDbName && internalForm.value.targetTableName) {
+        let columns = await state.targetDbInst.loadColumns(internalForm.value.targetDbName, internalForm.value.targetTableName);
         if (columns && Array.isArray(columns)) {
             state.targetColumnList = columns;
             // 过滤目标字段，不存在的字段值设置为空
             let names = columns.map((a) => a.columnName?.toLowerCase());
 
-            state.form.fieldMap?.forEach((a) => {
+            internalForm.value.fieldMap?.forEach((a: { src: string; target: string }) => {
                 if (a.target && !names.includes(a.target)) {
                     a.target = '';
                 }
@@ -540,19 +494,20 @@ const handleGetTargetFields = async () => {
 };
 
 const btnOk = async () => {
-    await useI18nFormValidate(dbForm);
-    const reqForm: Record<string, unknown> = { ...state.form };
-    reqForm.fieldMap = JSON.stringify(state.form.fieldMap);
+    // 校验失败内部已 toast（catch 吞掉 reject）
+    const valid = await useI18nFormValidate(drawerRef).catch(() => false);
+    if (valid === false) return;
+    const reqForm: Record<string, unknown> = { ...internalForm.value };
+    reqForm.fieldMap = JSON.stringify(internalForm.value.fieldMap);
     await saveExec(reqForm);
     Msg.saveSuccess();
-    emit('val-change', state.form);
+    emit('val-change', internalForm.value);
     cancel();
 };
 
 const cancel = () => {
     dialogVisible.value = false;
     emit('cancel');
-    state.form = basicFormData;
 };
 
 const handleDuplicateStrategy = () => {

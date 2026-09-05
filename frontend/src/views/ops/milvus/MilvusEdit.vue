@@ -1,59 +1,36 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" :title="title" v-model="dialogVisible" :before-close="onCancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
-            <template #header>
-                <DrawerHeader :header="title" :back="onCancel" />
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-loading="saveBtnLoading" @confirm="onConfirm" @opened="onOpened" @cancel="emit('cancel')">
+            <!-- 关联标签 -->
+            <template #tagCodePaths="{ form }">
+                <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
             </template>
 
-            <el-form :model="form" ref="milvusFormRef" :rules="rules" label-width="auto">
-                <el-form-item prop="tagCodePaths" :label="$t('tag.relateTag')" required>
-                    <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                </el-form-item>
-                <el-form-item prop="name" :label="$t('common.name')" required>
-                    <el-input v-model.trim="form.name" :placeholder="$t('common.pleaseInput')" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="host" :label="$t('milvus.host')" required>
-                    <el-input v-model.trim="form.host" :placeholder="$t('milvus.connAddress')" auto-complete="off" type="textarea"></el-input>
-                </el-form-item>
-
-                <el-divider content-position="left">{{ $t('common.account') }}</el-divider>
-                <div>
-                    <ResourceAuthCertTableEdit
-                        v-model="form.authCerts"
-                        :resource-code="form.code"
-                        :resource-type="TagResourceTypeEnum.Milvus.value"
-                        :test-conn-btn-loading="testConnBtnLoading"
-                        @test-conn="testConn"
-                        :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
-                    />
-                </div>
-                <el-divider content-position="left" />
-
-                <el-form-item prop="database" :label="$t('milvus.database')">
-                    <el-input v-model.trim="form.database" :placeholder="$t('milvus.dbNamePlaceholder')"></el-input>
-                </el-form-item>
-                <el-form-item prop="sshTunnelMachineId" :label="$t('machine.sshTunnel')">
-                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                </el-form-item>
-            </el-form>
-
-            <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
-                </div>
+            <!-- 认证信息表格编辑 -->
+            <template #authCerts="{ form }">
+                <ResourceAuthCertTableEdit
+                    v-model="form.authCerts"
+                    :resource-code="form.code"
+                    :resource-type="TagResourceTypeEnum.Milvus.value"
+                    :test-conn-btn-loading="testConnBtnLoading"
+                    @test-conn="testConn"
+                    :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
+                />
             </template>
-        </el-drawer>
+
+            <!-- SSH 隧道 -->
+            <template #sshTunnelMachineId="{ form }">
+                <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+            </template>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
-import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { Msg } from '@/hooks/useI18n';
 import TagTreeSelect from '@/views/ops/component/TagTreeSelect.vue';
-import { computed, reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, ref, useTemplateRef, type PropType } from 'vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { milvusApi } from './api';
 import type { Milvus } from './types';
@@ -85,32 +62,39 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const emit = defineEmits(['val-change', 'cancel']);
 
-const rules = {
-    code: [Rules.requiredInput('milvus.code')],
-    name: [Rules.requiredInput('common.name')],
-    host: [Rules.requiredInput('milvus.host')],
-};
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/authCerts/sshTunnel 走插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+    { prop: 'name', label: 'common.name', required: true, placeholder: 'common.pleaseInput' },
+    { prop: 'host', label: 'milvus.host', type: 'textarea', required: true, placeholder: 'milvus.connAddress' },
+    { type: 'group', label: 'common.account' },
+    { prop: 'authCerts', label: 'db.acName', type: 'custom' },
+    { prop: 'database', label: 'milvus.database', placeholder: 'milvus.dbNamePlaceholder' },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
+];
 
-const milvusFormRef = useTemplateRef<FormInstance>('milvusFormRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
 
-const state = reactive({
-    form: {
-        id: null,
-        code: '',
-        name: null,
-        host: '',
-        database: 'default',
-        sshTunnelMachineId: null as number | null,
-        tagCodePaths: [],
-        authCerts: [] as MachineAuthCert[],
-    } as MilvusForm,
+/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData>(() => {
+    const milvusData = props.milvus as Milvus | false | undefined;
+    if (milvusData) {
+        return { ...milvusData, authCerts: milvusData.authCerts || [] } as AutoFormData;
+    }
+    return { database: 'default', sshTunnelMachineId: -1, authCerts: [] } as AutoFormData;
 });
 
-const { form } = toRefs(state);
+/** 抽屉打开后暂存的内部表单引用（提交组装与保存后回写 id 基于它） */
+const internalForm = ref<AutoFormData>({});
+
+const onOpened = (form: AutoFormData) => {
+    internalForm.value = form;
+};
 
 const submitForm = computed(() => {
-    const reqForm: Record<string, unknown> = { ...state.form };
-    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
+    const reqForm: Record<string, unknown> = { ...internalForm.value };
+    const sshTunnelMachineId = internalForm.value.sshTunnelMachineId as number | null | undefined;
+    if (!sshTunnelMachineId || sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
     return reqForm;
@@ -119,21 +103,8 @@ const submitForm = computed(() => {
 const { isFetching: testConnBtnLoading, execute: testConnExec } = milvusApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMilvusExec, data: saveMilvusRes } = milvusApi.save.useApi(submitForm);
 
-watch(dialogVisible, () => {
-    if (!dialogVisible.value) {
-        return;
-    }
-
-    const milvusData = props.milvus as Milvus | false | undefined;
-    if (milvusData) {
-        state.form = { ...milvusData, authCerts: milvusData.authCerts || [] } as MilvusForm;
-    } else {
-        state.form = { database: 'default', sshTunnelMachineId: -1, authCerts: [] } as MilvusForm;
-    }
-});
-
 const testConn = async (authCert: MachineAuthCert) => {
-    await milvusFormRef.value?.validate();
+    await drawerRef.value?.validate();
     await testConnExec({
         ...submitForm.value,
         authCerts: [authCert],
@@ -141,16 +112,12 @@ const testConn = async (authCert: MachineAuthCert) => {
     Msg.success(('milvus.connSuccess'));
 };
 
+// @confirm 触发前 AutoFormDrawer 已完成表单校验
 const onConfirm = async () => {
-    await milvusFormRef.value?.validate();
     await saveMilvusExec(submitForm.value);
     Msg.success(('milvus.savedSuccess'));
-    state.form.id = saveMilvusRes.value;
-    emit('val-change', state.form);
-    onCancel();
-};
-
-const onCancel = () => {
+    internalForm.value.id = saveMilvusRes.value;
+    emit('val-change', internalForm.value);
     dialogVisible.value = false;
     emit('cancel');
 };

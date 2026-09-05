@@ -82,7 +82,8 @@ func TestClickHouseCommonTypeConverter(t *testing.T) {
 	assert.Equal(t, String, result, "Varchar should convert to String")
 
 	result = converter.Char(column)
-	assert.Equal(t, FixedString, result, "Char should convert to FixedString")
+	// clickhouse不使用FixedString承载：必须显式指定长度且\0定长填充会改变数据语义
+	assert.Equal(t, String, result, "Char should convert to String")
 
 	result = converter.Date(column)
 	assert.Equal(t, Date, result, "Date should convert to Date")

@@ -61,7 +61,7 @@ func (ssg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 	return sqls
 }
 
-func (ssg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int) []string {
+func (ssg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	if duplicateStrategy == dbi.DuplicateStrategyNone {
 		return collx.AsArray(dbi.GenCommonInsert(ssg.dialect, DbTypeSqlite, tableName, columns, values))
 	}
@@ -113,7 +113,8 @@ func (ssg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 			}
 		}
 		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+			// 默认值可能含单引号（如 it's），需双写转义，避免 DDL 语法错误或注入
+			defVal = fmt.Sprintf(" DEFAULT '%s'", dbi.QuoteEscape(column.ColumnDefault))
 		} else {
 			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
 		}

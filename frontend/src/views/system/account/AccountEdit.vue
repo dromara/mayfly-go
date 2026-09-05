@@ -1,52 +1,16 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="visible" :before-close="onCancel" :show-close="false" width="600px" :destroy-on-close="true">
-            <el-form :model="form" ref="accountFormRef" :rules="rules" label-width="auto">
-                <el-form-item prop="name" :label="$t('system.account.name')">
-                    <el-input v-model.trim="form.name" auto-complete="off" clearable></el-input>
-                </el-form-item>
-
-                <el-form-item prop="username" :label="$t('common.username')">
-                    <el-input
-                        :disabled="edit"
-                        v-model.trim="form.username"
-                        :placeholder="$t('system.account.usernamePlacholder')"
-                        auto-complete="off"
-                        clearable
-                    ></el-input>
-                </el-form-item>
-
-                <el-form-item prop="mobile" :label="$t('common.mobile')">
-                    <el-input v-model.trim="form.mobile" clearable></el-input>
-                </el-form-item>
-
-                <el-form-item prop="email" :label="$t('common.email')">
-                    <el-input v-model.trim="form.email" auto-complete="off" clearable></el-input>
-                </el-form-item>
-
-                <el-form-item :required="!edit" prop="password" :label="$t('common.password')">
-                    <el-input type="password" v-model.trim="form.password" autocomplete="new-password" show-password>
+            <AutoForm ref="accountFormRef" v-model="form" :items="items" label-width="auto">
+                <!-- 密码字段：带一键随机生成按钮（自定义插槽） -->
+                <template #password="{ form: f }">
+                    <el-input type="password" :model-value="f.password" autocomplete="new-password" show-password @update:model-value="(v: string) => (f.password = v)">
                         <template #append>
-                            <el-button
-                                @click="
-                                    {
-                                        form.password = randomPassword(10);
-                                    }
-                                "
-                            >
-                                {{ $t('system.account.random') }}
-                            </el-button>
+                            <el-button @click="f.password = randomPassword(10)">{{ $t('system.account.random') }}</el-button>
                         </template>
                     </el-input>
-                </el-form-item>
-
-                <el-form-item :label="$t('system.account.qywxUserId')">
-                    <el-input v-model.trim="form.extra.qywxUserId" clearable></el-input>
-                </el-form-item>
-                <el-form-item :label="$t('system.account.feishuUserId')">
-                    <el-input v-model.trim="form.extra.feishuUserId" clearable></el-input>
-                </el-form-item>
-            </el-form>
+                </template>
+            </AutoForm>
 
             <template #footer>
                 <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
@@ -59,9 +23,9 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { randomPassword } from '@/common/utils/string';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
-import type { FormInstance } from 'element-plus';
+import { computed, reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
 import { accountApi } from '../api';
 import type { Account } from '../types';
 
@@ -80,13 +44,18 @@ const emit = defineEmits(['cancel', 'val-change']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const accountFormRef = useTemplateRef<FormInstance>('accountFormRef');
+const accountFormRef = useTemplateRef('accountFormRef');
 
-const rules = {
-    name: [Rules.requiredInput('system.account.name')],
-    username: [Rules.requiredInput('common.username'), Rules.accountUsername],
-    password: [Rules.requiredInput('common.password')],
-};
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；extra.* 为嵌套路径字段） */
+const items = computed<AutoFormItem[]>(() => [
+    { prop: 'name', label: 'system.account.name', required: true },
+    { prop: 'username', label: 'common.username', placeholder: 'system.account.usernamePlacholder', disabled: edit.value, required: true, rules: [Rules.accountUsername] },
+    { prop: 'mobile', label: 'common.mobile' },
+    { prop: 'email', label: 'common.email' },
+    { prop: 'password', label: 'common.password', required: true, slot: 'password' },
+    { prop: 'extra.qywxUserId', label: 'system.account.qywxUserId' },
+    { prop: 'extra.feishuUserId', label: 'system.account.feishuUserId' },
+]);
 
 const defaultForm = (): Record<string, any> => {
     return {
