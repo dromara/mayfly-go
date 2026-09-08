@@ -13,6 +13,8 @@ import (
 	"mayfly-go/pkg/errorx"
 )
 
+var _ dbi.Dialect = (*PgsqlDialect)(nil)
+
 type PgsqlDialect struct {
 	dbi.DefaultDialect
 
@@ -20,7 +22,7 @@ type PgsqlDialect struct {
 }
 
 func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
-	quote := pd.Quoter().Quote
+	quote := pd.Quoter().QuoteIdent
 	tableName := copy.TableName
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
@@ -70,8 +72,10 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			if _, err := pd.dc.Exec(fmt.Sprintf("CREATE SEQUENCE %s START %d INCREMENT 1", quote(newSeqName), maxVal)); err != nil {
 				return err
 			}
-			// 将新表的自增主键序列与主键列相关联（nextval的参数是字符串字面量，需转义单引号而非标识符引用）
-			if _, err := pd.dc.Exec(fmt.Sprintf("alter table %s alter column %s set default nextval('%s')", quote(newTableName), quote(colName), dbi.QuoteEscape(newSeqName))); err != nil {
+			// 将新表的自增主键序列与主键列相关联：nextval参数是字符串字面量，其内容会被pg当作对象名再解析一次，
+			// 故必须先按标识符引用（否则含特殊字符/大写的序列名会报 invalid name syntax 或被downcase后找不到），
+			// 再按字符串字面量语义转义单引号
+			if _, err := pd.dc.Exec(fmt.Sprintf("alter table %s alter column %s set default nextval('%s')", quote(newTableName), quote(colName), dbi.QuoteEscape(quote(newSeqName)))); err != nil {
 				return err
 			}
 		}

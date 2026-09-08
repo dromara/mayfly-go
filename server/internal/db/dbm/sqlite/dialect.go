@@ -4,16 +4,25 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
 	"time"
 )
 
+var _ dbi.Dialect = (*SqliteDialect)(nil)
+
 type SqliteDialect struct {
 	dbi.DefaultDialect
 
 	dc *dbi.DbConn
+}
+
+// GetSQLParser 语法与标准SQL最接近，沿用pgsql解析器。
+// 由本方言显式选择解析器（dbi通用层不依赖任何具体方言），复用决策收敛在方言自身
+func (sd *SqliteDialect) GetSQLParser() sqlparser.SqlParser {
+	return new(pgsql.PgsqlParser)
 }
 
 func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {

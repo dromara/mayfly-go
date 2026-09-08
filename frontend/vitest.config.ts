@@ -4,6 +4,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
     plugins: [vue()],
+    css: {
+        // 与 vite.config 保持一致：内联空配置，禁用自动加载遗留的 CJS postcss.config.js（type:module 下无法加载）
+        postcss: {},
+    },
     test: {
         environment: 'happy-dom',
         globals: true,

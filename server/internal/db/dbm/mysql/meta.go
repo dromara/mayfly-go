@@ -22,6 +22,8 @@ const (
 	DbTypeMariadb dbi.DbType = "mariadb"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 }
 
@@ -59,7 +61,7 @@ func (mm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 		Varchar, Char, Text, Longtext, Mediumtext,
 		Datetime, Date, Time, Timestamp,
 		Enum, JSON, Set,
-		Binary, Blob, Longblob, Mediumblob, Varbinary,
+		Binary, Blob, Longblob, Mediumblob, Tinyblob, Varbinary,
 	)
 }
 

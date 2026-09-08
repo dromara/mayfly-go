@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	metasMu sync.RWMutex        // 保护 metas 与 metaInit 的并发访问
+	metasMu sync.RWMutex // 保护 metas 与 metaInit 的并发访问
 	metas   = make(map[DbType]Meta)
 	// metaInited 记录对应数据库类型的列类型与类型转换器是否已完成注册，
 	// 注册由 GetMeta 首次调用时完成且仅执行一次（写入受 metasMu 保护）
@@ -62,6 +62,19 @@ func GetMeta(dt DbType) Meta {
 		metaInited[dt] = true
 	}
 	return meta
+}
+
+// GetRegisteredDbTypes 返回当前已注册的所有数据库类型快照（含各方言的别名键，如mariadb/gauss）。
+// 供完备性测试等场景枚举校验，返回副本，调用方修改不影响注册表
+func GetRegisteredDbTypes() []DbType {
+	metasMu.RLock()
+	defer metasMu.RUnlock()
+
+	dts := make([]DbType, 0, len(metas))
+	for dt := range metas {
+		dts = append(dts, dt)
+	}
+	return dts
 }
 
 // GetDialect 获取数据库方言，如果dialect方法内需要用到dbConn的，则不支持该方法

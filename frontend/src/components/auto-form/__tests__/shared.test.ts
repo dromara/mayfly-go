@@ -2,11 +2,11 @@
  * AutoForm 共享逻辑单元测试
  *
  * 覆盖 resolveFormItems（字段配置解析优先级）、isItemRequired（动态必填判定）、
- * cloneFormData（编辑数据深拷贝防御）三个收敛点。
+ * cloneFormData（编辑数据深拷贝防御）、buildDefaultForm（新增态缺省值）四个收敛点。
  */
 import { describe, expect, it, vi } from 'vitest';
 import { cloneFormData, isItemRequired, resolveFormItems } from '../shared';
-import type { AutoFormItem } from '../types';
+import { buildDefaultForm, type AutoFormItem } from '../types';
 
 // mock i18n：resolveFormItems 间接依赖 json 编译层，避免单测环境初始化真实 i18n（依赖 localStorage）
 vi.mock('@/i18n', () => ({
@@ -81,5 +81,27 @@ describe('cloneFormData', () => {
         const cloned = cloneFormData(source);
         expect(cloned.name).toBe('n');
         expect(cloned.handler).toBe(handler);
+    });
+});
+
+describe('buildDefaultForm', () => {
+    it('仅对有 defaultValue 的字段赋值，multiple 缺省为空数组', () => {
+        const form = buildDefaultForm([
+            { prop: 'name', defaultValue: 'x' },
+            { prop: 'empty' },
+            { prop: 'tags', type: 'select', multiple: true },
+        ] as AutoFormItem[]);
+        expect(form).toEqual({ name: 'x', tags: [] });
+    });
+
+    // el-switch 挂载时 model-value 必须是 active/inactive 值之一，新增态缺省值为关闭态而非 undefined
+    it('switch 无 defaultValue 时取关闭态值（兼容驼峰与 kebab props）', () => {
+        const form = buildDefaultForm([
+            { prop: 'boolSwitch', type: 'switch' },
+            { prop: 'numStatus', type: 'switch', props: { activeValue: 1, inactiveValue: 0 } },
+            { prop: 'kebabStatus', type: 'switch', props: { 'active-value': 1, 'inactive-value': -1 } },
+            { prop: 'withDefault', type: 'switch', defaultValue: 1, props: { activeValue: 1, inactiveValue: 0 } },
+        ] as AutoFormItem[]);
+        expect(form).toEqual({ boolSwitch: false, numStatus: 0, kebabStatus: -1, withDefault: 1 });
     });
 });

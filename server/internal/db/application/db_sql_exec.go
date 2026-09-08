@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/mask"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	"mayfly-go/internal/db/domain/entity"
+	masksvc "mayfly-go/internal/db/domain/mask"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/imsg"
 	flowapp "mayfly-go/internal/flow/application"
@@ -68,6 +70,7 @@ var _ (DbSqlExec) = (*dbSqlExecAppImpl)(nil)
 type dbSqlExecAppImpl struct {
 	dbApp         Db                   `inject:"T"`
 	dbSqlExecRepo repository.DbSqlExec `inject:"T"`
+	maskApp       mask.MaskApp         `inject:"T"`
 
 	flowProcdefApp flowapp.Procdef `inject:"T"`
 }
@@ -172,7 +175,8 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 			}
 			execRes.ErrorMsg = err.Error()
 		} else {
-			d.saveSqlExecLog(ctx, dbSqlExecRecord, dbSqlExecRecord.Res)
+			// 保存执行结果集（dbSqlExecRecord.Res尚未赋值，需传入本次执行结果）
+			d.saveSqlExecLog(ctx, dbSqlExecRecord, execRes.Res)
 		}
 		allExecRes = append(allExecRes, execRes)
 	}
@@ -272,7 +276,11 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 		}
 		return err
 	}
-	_ = tx.Commit()
+	if err := tx.Commit(); err != nil {
+		_ = tx.Rollback()
+		logx.Errorf("commit sql file exec failed: %s", err.Error())
+		return err
+	}
 
 	if needSendMsg {
 		msgEvent.Params["cost"] = fmt.Sprintf("%dms", time.Since(startTime).Milliseconds())
@@ -342,7 +350,9 @@ func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, orderBy
 func (d *dbSqlExecAppImpl) saveSqlExecLog(ctx context.Context, dbSqlExecRecord *entity.DbSqlExec, res any) {
 	if dbSqlExecRecord.Type != entity.DbSqlExecTypeQuery {
 		dbSqlExecRecord.Res = jsonx.ToStr(res)
-		d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord)
+		if err := d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord); err != nil {
+			logx.Errorf("save sql exec record failed: %s", err.Error())
+		}
 		return
 	}
 
@@ -350,13 +360,14 @@ func (d *dbSqlExecAppImpl) saveSqlExecLog(ctx context.Context, dbSqlExecRecord *
 		dbSqlExecRecord.Table = "-"
 		dbSqlExecRecord.OldValue = "-"
 		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
-		d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord)
+		if err := d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord); err != nil {
+			logx.Errorf("save sql exec query record failed: %s", err.Error())
+		}
 	}
 }
 
 func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
 	maxCount := config.GetDbms().MaxResultSet
-	selectSql := sqlExecParam.Sql
 	sqlExecParam.SqlExecRecord.Type = entity.DbSqlExecTypeQuery
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
@@ -365,11 +376,10 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 		}
 	}
 
-	return d.doQuery(ctx, sqlExecParam.DbConn, selectSql, maxCount)
+	return d.doQuery(ctx, sqlExecParam, maxCount)
 }
 
 func (d *dbSqlExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
-	selectSql := sqlExecParam.Sql
 	sqlExecParam.SqlExecRecord.Type = entity.DbSqlExecTypeQuery
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
@@ -378,7 +388,7 @@ func (d *dbSqlExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExe
 		}
 	}
 
-	return d.doQuery(ctx, sqlExecParam.DbConn, selectSql, 0)
+	return d.doQuery(ctx, sqlExecParam, 0)
 }
 
 func (d *dbSqlExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
@@ -519,10 +529,13 @@ func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 	}
 
 	whereStr := deletestmt.Where.Text
-	// 查询删除数据
+	// 查询删除数据（仅用于记录旧值审计，失败不影响删除执行）
 	selectSql := fmt.Sprintf("SELECT * FROM %s where %s LIMIT 200", tableName+" "+tableAlias, whereStr)
-	_, res, _ := dbConn.QueryContext(ctx, selectSql)
-	execRecord.OldValue = jsonx.ToStr(res)
+	if _, res, err := dbConn.QueryContext(ctx, selectSql); err != nil {
+		logx.ErrorfContext(ctx, "delete SQL - failed to query old values for audit: %s", err.Error())
+	} else {
+		execRecord.OldValue = jsonx.ToStr(res)
+	}
 
 	return d.doExec(ctx, dbConn, sqlExecParam.Sql)
 }
@@ -553,14 +566,35 @@ func (d *dbSqlExecAppImpl) doInsert(ctx context.Context, sqlExecParam *sqlExecPa
 	return d.doExec(ctx, sqlExecParam.DbConn, sqlExecParam.Sql)
 }
 
-func (d *dbSqlExecAppImpl) doQuery(ctx context.Context, dbConn *dbi.DbConn, sql string, maxRows int) (*dto.DbSqlExecRes, error) {
+func (d *dbSqlExecAppImpl) doQuery(ctx context.Context, sqlExecParam *sqlExecParam, maxRows int) (*dto.DbSqlExecRes, error) {
+	dbConn := sqlExecParam.DbConn
+	sql := sqlExecParam.Sql
+
+	// 查询结果脱敏开关（服务端强制执行，fail-close模式下构建失败阻断查询）
+	maskEnabled := d.maskApp != nil && config.GetDbms().MaskEnabled
+
 	res := make([]map[string]any, 0, 16)
 	nowRows := 0
+	var rowMasker *masksvc.RowMasker
 	cols, err := dbConn.WalkQueryRows(ctx, sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		nowRows++
 		// 超过指定的最大查询记录数，则停止查询
 		if maxRows != 0 && nowRows > maxRows {
 			return dbi.NewStopWalkQueryError(fmt.Sprintf("exceed the maximum number of query records %d", maxRows))
+		}
+		// 行级脱敏，脱敏器在首次行回调时构建（此时才拿到结果列信息）
+		if maskEnabled {
+			if rowMasker == nil {
+				var maskErr error
+				rowMasker, maskErr = d.maskApp.BuildStmtRowMasker(ctx, dbConn, sqlExecParam.Stmt, columns)
+				if maskErr != nil {
+					// fail-close：脱敏计划不可用时阻断本次查询，避免敏感数据明文透出
+					return maskErr
+				}
+			}
+			if rowMasker != nil {
+				rowMasker.MaskRow(row)
+			}
 		}
 		res = append(res, row)
 		return nil

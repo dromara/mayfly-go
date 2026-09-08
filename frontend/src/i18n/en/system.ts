@@ -116,6 +116,12 @@ export default {
             maxResultSetPlaceholder: 'Maximum number of result sets allowed for sql queries. Note: 0= no limit',
             sqlExecLimt: 'sql execution time limit',
             sqlExecLimtPlaceholder: 'After that time (in seconds), the execution is aborted',
+            maskEnabled: 'Query Result Masking',
+            maskEnabledPlaceholder: 'When enabled, query results are masked by mask rules and column tags. Disabled by default',
+            maskFailClosed: 'Block Query on Mask Failure',
+            maskFailClosedPlaceholder: 'Whether to block the query when mask plan build fails: if disabled, degrade to no masking (recommended for security-sensitive deployments)',
+            maskExemptRoleIds: 'Mask Exempt Roles',
+            maskExemptRoleIdsPlaceholder: 'Accounts with these roles are not masked. Separate multiple role ids with commas, leave empty for no exemption',
 
             machineConf: 'Machine Config',
             machineConfRemark: 'Machine related configuration, such as the number of days terminal operation records are kept',

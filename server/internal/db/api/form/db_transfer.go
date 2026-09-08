@@ -19,6 +19,7 @@ type DbTransferTaskForm struct {
 	DeleteTable int    `binding:"required" json:"deleteTable"` // 创建表前是否删除表 1是  2否
 	NameCase    int    `binding:"required" json:"nameCase"`    // 表名、字段大小写转换  1无  2大写  3小写
 	Strategy    int    `binding:"required" json:"strategy"`    // 迁移策略  1全量  2增量
+	Concurrency int    `json:"concurrency"`                    // 迁移并行度，0=默认4，范围1~16
 
 	SrcDbId     int    `binding:"required" json:"srcDbId"`     // 源库id
 	SrcDbName   string `binding:"required" json:"srcDbName"`   // 源库名

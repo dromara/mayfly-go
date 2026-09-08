@@ -10,6 +10,9 @@ import { KingbaseEsDialect } from '@/views/ops/db/dialect/kingbaseES_dialect';
 import { VastbaseDialect } from '@/views/ops/db/dialect/vastbase_dialect';
 import { Oracle11Dialect } from '@/views/ops/db/dialect/oracle11_dialect';
 import { ClickHouseDialect } from './clickhouse_dialect';
+import { DbType } from './dbType';
+
+export { DbType } from './dbType';
 
 export interface sqlColumnType {
     udtName: string;
@@ -119,20 +122,6 @@ export interface DialectInfo {
      */
     editorCompletions: EditorCompletion;
 }
-
-export const DbType = {
-    mysql: 'mysql',
-    mariadb: 'mariadb',
-    postgresql: 'postgres',
-    gauss: 'gauss',
-    dm: 'dm', // 达梦
-    oracle: 'oracle',
-    sqlite: 'sqlite',
-    mssql: 'mssql', // ms sqlserver
-    kingbaseEs: 'kingbaseEs', // 人大金仓 pgsql模式 https://help.kingbase.com.cn/v8/index.html
-    vastbase: 'vastbase', // https://docs.vastdata.com.cn/zh/docs/VastbaseG100Ver2.2.5/doc/%E5%BC%80%E5%8F%91%E8%80%85%E6%8C%87%E5%8D%97/SQL%E5%8F%82%E8%80%83/SQL%E5%8F%82%E8%80%83.html
-    clickhouse: 'clickhouse',
-};
 
 // mysql兼容的数据库
 export const noSchemaTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];

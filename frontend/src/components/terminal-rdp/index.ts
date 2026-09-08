@@ -1,3 +1,5 @@
+import { TerminalStatus } from '@/components/terminal/common';
+
 export interface TerminalExpose {
     /** 连接 */
     connect(width?: number, height?: number, force?: boolean): void;
@@ -20,4 +22,7 @@ export interface TerminalExpose {
 
     /** 设置远程剪贴板 */
     setRemoteClipboard?: (val: string) => void;
+
+    /** 获取当前连接状态（多窗格容器聚合状态时使用） */
+    getStatus?: () => TerminalStatus;
 }

@@ -172,6 +172,16 @@ func initRole(tx *gorm.DB) error {
 	return tx.Create(role).Error
 }
 
+// dbmsConfParams DbmsConfig 配置项定义（v1 JSON schema）：查询配置 + 脱敏配置（maskEnabled/maskFailClosed/maskExemptRoleIds）
+const dbmsConfParams = `{"version":1,"cols":2,"fields":[
+	{"prop":"querySqlSave","label":"system.sysconf.recordQuerySql","type":"select","options":[{"label":"true","value":"true"},{"label":"false","value":"false"}]},
+	{"prop":"sqlExecTl","label":"system.sysconf.sqlExecLimt"},
+	{"prop":"maxResultSet","label":"system.sysconf.maxResultSet"},
+	{"prop":"maskEnabled","label":"system.sysconf.maskEnabled","type":"select","options":[{"label":"true","value":"true"},{"label":"false","value":"false"}],"tooltip":"system.sysconf.maskEnabledPlaceholder"},
+	{"prop":"maskFailClosed","label":"system.sysconf.maskFailClosed","type":"select","options":[{"label":"true","value":"true"},{"label":"false","value":"false"}],"tooltip":"system.sysconf.maskFailClosedPlaceholder"},
+	{"prop":"maskExemptRoleIds","label":"system.sysconf.maskExemptRoleIds","tooltip":"system.sysconf.maskExemptRoleIdsPlaceholder"}
+]}`
+
 func initSysConfig(tx *gorm.DB) error {
 	configs := []*sysentity.Config{
 		{
@@ -215,10 +225,11 @@ func initSysConfig(tx *gorm.DB) error {
 			Permission: "all",
 		},
 		{
-			Name:       "system.sysconf.dbmsConf",
-			Key:        "DbmsConfig",
-			Params:     `[{"model":"querySqlSave","name":"system.sysconf.recordQuerySql","placeholder":"system.sysconf.recordQuerySqlPlaceholder","options":"true,false"},{"model":"maxResultSet","name":"system.sysconf.maxResultSet","placeholder":"system.sysconf.maxResultSetPlaceholder","options":""},{"model":"sqlExecTl","name":"system.sysconf.sqlExecLimt","placeholder":"system.sysconf.sqlExecLimtPlaceholder"}]`,
-			Value:      `{"querySqlSave":"false","maxResultSet":"0","sqlExecTl":"60"}`,
+			Name: "system.sysconf.dbmsConf",
+			Key:  "DbmsConfig",
+			// v1 JSON schema：含查询配置与脱敏配置（maskEnabled 默认关闭，需在系统配置中开启后脱敏才生效）
+			Params:     dbmsConfParams,
+			Value:      `{"querySqlSave":"false","maxResultSet":"0","sqlExecTl":"60","maskEnabled":"false","maskFailClosed":"false","maskExemptRoleIds":""}`,
 			Remark:     "system.sysconf.dbmsConfRemark",
 			Permission: "admin,",
 		},

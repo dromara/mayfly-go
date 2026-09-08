@@ -19,6 +19,8 @@ const (
 	DbTypeClickHouse dbi.DbType = "clickhouse"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 }
 
@@ -148,8 +150,12 @@ func (c *commonTypeConverter) Numeric(column *dbi.Column) *dbi.DbDataType {
 }
 
 // Decimal 必须保留精度：clickhouse的Decimal(P,S)依赖精度参数化，
-// 由GenTableDDL输出时补齐S缺失的格式
+// 由GenTableDDL输出时补齐S缺失的格式；不声明精度时CH等价Decimal(10,0)，
+// 无界精确数值源列（pg的numeric、sqlite声明的numeric）必须补齐宽度，否则小数被静默截断，
+// (38,19)为Decimal128可表示且整数部分仍能容纳int64的选择；精度超出CH上限(76)时收敛避免非法DDL
 func (c *commonTypeConverter) Decimal(column *dbi.Column) *dbi.DbDataType {
+	dbi.FillUnboundedDecimal(column, 38, 19)
+	dbi.ClampDecimalPrecision(column, 76, 76)
 	return Decimal
 }
 

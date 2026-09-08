@@ -73,7 +73,7 @@
                     </div>
                 </template>
                 <div :style="{ height: `calc(100vh - ${openTerminal.fullscreen ? '49px' : '200px'})` }">
-                    <TerminalBody
+                    <TerminalPanes
                         @status-change="terminalStatusChange(openTerminal.terminalId, $event)"
                         :ref="(el) => setTerminalRef(el, openTerminal.terminalId)"
                         :cmd="openTerminal.cmd"
@@ -111,11 +111,11 @@
 
 <script lang="ts" setup>
 import { reactive, toRefs } from 'vue';
-import TerminalBody from '@/components/terminal/TerminalBody.vue';
+import TerminalPanes from '@/components/terminal/TerminalPanes.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { TerminalStatus, type TerminalMeta } from './common';
 
-type TerminalBodyExpose = InstanceType<typeof TerminalBody>;
+type TerminalBodyExpose = InstanceType<typeof TerminalPanes>;
 
 interface TerminalInfo {
     terminalId: number | string;
@@ -167,8 +167,14 @@ const state = reactive({
 const { terminals, minimizeTerminals } = toRefs(state);
 
 const setTerminalRef = (el: unknown, terminalId: number | string) => {
-    if (terminalId) {
-        openTerminalRefs[terminalId] = el as TerminalBodyExpose | null;
+    if (!terminalId) {
+        return;
+    }
+    // 卸载时 ref 回调携带 null，同步删除避免残留无效引用
+    if (el) {
+        openTerminalRefs[terminalId] = el as TerminalBodyExpose;
+    } else {
+        delete openTerminalRefs[terminalId];
     }
 };
 

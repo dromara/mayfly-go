@@ -55,6 +55,7 @@ type CommonTypeConverter interface {
 	Longtext(*Column) *DbDataType
 
 	Bit(*Column) *DbDataType
+	Bool(*Column) *DbDataType
 	Int1(*Column) *DbDataType
 	Int2(*Column) *DbDataType
 	Int4(*Column) *DbDataType
@@ -83,7 +84,7 @@ type CommonTypeConverter interface {
 }
 
 var (
-	commonTypeConvertersMu sync.RWMutex                                        // 保护 commonTypeConverters 的并发读写（GetMeta 首次初始化时写入）
+	commonTypeConvertersMu sync.RWMutex                                                      // 保护 commonTypeConverters 的并发读写（GetMeta 首次初始化时写入）
 	commonTypeConverters   = make(map[DbType]map[CommonDbDataType]func(*Column) *DbDataType) // 公共列转换器
 )
 
@@ -101,6 +102,7 @@ func registerCommonTypeConverter(dbType DbType, ctc CommonTypeConverter) {
 	cts[CTLongtext] = ctc.Longtext
 
 	cts[CTBit] = ctc.Bit
+	cts[CTBool] = ctc.Bool
 	cts[CTInt1] = ctc.Int1
 	cts[CTInt2] = ctc.Int2
 	cts[CTInt4] = ctc.Int4
@@ -174,6 +176,27 @@ func ConvToTargetDbColumn(srcDbType DbType, targetDbType DbType, targetDialect D
 		return fmt.Errorf("target database type [%s] not support transfer, src data type [%s] common type [%d]", targetDbType, srcDataType.Name, srcDataType.CommonType)
 	}
 
+	// 整型/布尔/位/日期类公共类型在任何方言都不接受精度与小数位参数，而部分源库元数据会为它们回报
+	// 无意义的numeric_precision（SQL Server的int回报10、pg的int4回报32），残留精度被目标方言的
+	// GetColumnType拼成int4(32)、date(10)这类非法DDL会使结构迁移直接失败，故统一清空。
+	// 日期时间类（CTDateTime/CTTimestamp/CTTime）不清：其小数秒精度就存在NumPrecision，由各目标转换归一
+	switch srcDataType.CommonType {
+	case CTInt1, CTInt2, CTInt4, CTInt8,
+		CTUnsignedInt1, CTUnsignedInt2, CTUnsignedInt4, CTUnsignedInt8,
+		CTBool, CTBit, CTDate:
+		column.NumPrecision = 0
+		column.NumScale = 0
+	case CTTime, CTDateTime, CTTimestamp:
+		// 时间类的fsp只存于NumPrecision，NumScale在任何方言都无语义；不清会拼出datetime(3,2)非法DDL，
+		// 而清空不能复用整型分支——那会一并抹掉fsp导致小数秒静默丢失
+		column.NumScale = 0
+	case CTNumeric, CTDecimal:
+		// 数值类型的DDL参数只能是(精度,小数位)，而部分源库会同时回报“字符长度”（SQL Server的
+		// max_length对numeric(18,2)是9字节），GetColumnType优先取字符长度会拼成decimal(9)——
+		// 等价decimal(9,0)，迁入目标库后所有小数被静默舍入为整数（无报错），故必须清除
+		column.CharMaxLength = 0
+	}
+
 	// 获取目标数据库的数据类型，并进行可能存在的列信息修复，如长度、精度等
 	targetDbDataType := convertFunc(column)
 	if targetDbDataType == nil {
@@ -182,5 +205,21 @@ func ConvToTargetDbColumn(srcDbType DbType, targetDbType DbType, targetDialect D
 
 	// 替换为目标数据库的数据类型
 	column.DataType = targetDbDataType.Name
+	// 目标为字符串/文本类类型时，必须清除源列残留的数值精度与小数位：未注册的类型（如sqlite声明的
+	// decimal(10,2)）会回退为varchar，残留精度被Column.GetColumnType拼成 varchar(10,2) 这类非法DDL，
+	// 使整表结构迁移直接失败
+	if targetDbDataType.isStringCommonType() {
+		column.NumPrecision = 0
+		column.NumScale = 0
+	}
 	return nil
+}
+
+// isStringCommonType 目标公共类型是否属于字符串/文本类（不接受数值精度与小数位）
+func (ct *DbDataType) isStringCommonType() bool {
+	switch ct.CommonType {
+	case CTVarchar, CTChar, CTText, CTMediumtext, CTLongtext, CTEnum, CTJSON:
+		return true
+	}
+	return false
 }

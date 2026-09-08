@@ -2,6 +2,7 @@ package entity
 
 import (
 	"mayfly-go/pkg/model"
+	"time"
 )
 
 type DbTransferTask struct {
@@ -23,6 +24,7 @@ type DbTransferTask struct {
 	DeleteTable int8   `json:"deleteTable"`                   // 创建表前是否删除表
 	NameCase    int8   `json:"nameCase"`                      // 表名、字段大小写转换  1无  2大写  3小写
 	Strategy    int8   `json:"strategy"`                      // 迁移策略  1全量  2增量
+	Concurrency int    `json:"concurrency" gorm:"default:4;"` // 迁移并行度（数据导入工作池大小），0=默认4，范围1~16
 
 	SrcDbId     int64  `json:"srcDbId" gorm:"not null;"`            // 源库id
 	SrcDbName   string `json:"srcDbName" gorm:"size:255;not null;"` // 源库名
@@ -39,6 +41,22 @@ type DbTransferTask struct {
 
 func (d *DbTransferTask) TableName() string {
 	return "t_db_transfer_task"
+}
+
+// DbTransferCheckpoint 迁移任务断点续传检查点（每个任务至多一条记录）。
+// 独立成表而非存任务Extra：Extra为varchar(2000)，全库迁移时表名清单易超出容量。
+type DbTransferCheckpoint struct {
+	model.IdModel
+
+	TaskId        uint64     `json:"taskId" gorm:"uniqueIndex;not null;comment:迁移任务id"`   // 迁移任务id
+	PlannedTables string     `json:"plannedTables" gorm:"type:text;comment:计划迁移表名JSON数组"` // 计划迁移表名JSON数组（启动时快照，保证续传确定性）
+	DoneTables    string     `json:"doneTables" gorm:"type:text;comment:已完成表名JSON数组"`     // 已完成表名JSON数组
+	CreateTime    *time.Time `json:"createTime" gorm:"comment:创建时间"`                      // 创建时间
+	UpdateTime    *time.Time `json:"updateTime" gorm:"comment:更新时间"`                      // 更新时间
+}
+
+func (d *DbTransferCheckpoint) TableName() string {
+	return "t_db_transfer_checkpoint"
 }
 
 const (

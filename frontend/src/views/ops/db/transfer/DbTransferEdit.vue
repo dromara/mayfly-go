@@ -164,6 +164,16 @@ const items: AutoFormItem[] = [
     },
     { prop: 'targetDbId', label: 'db.targetDb', type: 'custom', when: (f) => f.mode === 1, rules: [Rules.requiredSelect('db.targetDb')] },
     {
+        prop: 'concurrency',
+        label: 'db.concurrency',
+        type: 'number',
+        span: 12,
+        when: (f) => f.mode === 1,
+        min: 1,
+        max: 16,
+        props: { placeholder: t('db.concurrencyTips'), step: 1, stepStrictly: true },
+    },
+    {
         prop: 'nameCase',
         label: 'db.nameCase',
         type: 'radio',
@@ -200,6 +210,8 @@ type FormData = {
     targetTagPath?: string;
     targetDbType?: string;
     strategy: 1 | 2;
+    /** 迁移并发度（1~16），0/空表示用后端默认值4 */
+    concurrency?: number;
     nameCase: 1 | 2 | 3;
     deleteTable?: 1 | 2;
     checkedKeys: string;
@@ -214,6 +226,7 @@ const basicFormData = {
     strategy: 1,
     nameCase: 1,
     deleteTable: 1,
+    concurrency: 4,
     checkedKeys: '',
     runningState: 1,
     extra: { fileType: fileTypeOptions[0].value },
@@ -249,6 +262,7 @@ const editData = computed<AutoFormData | null>(() => {
         const form = deepClone(props.data) as unknown as FormData;
         form.cronAble = form.cronAble || -1;
         form.mode = form.mode || 1;
+        form.concurrency = form.concurrency || 4;
         form.extra = form.extra || { fileType: fileTypeOptions[0].value };
         return form as unknown as AutoFormData;
     }

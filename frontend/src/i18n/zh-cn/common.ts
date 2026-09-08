@@ -345,6 +345,16 @@ export default {
             manualPaste: '手动粘贴',
             pasteManualHint: '当前环境无法自动读取剪贴板内容，请手动粘贴内容到下方输入框：',
             pasteHere: '请在此处粘贴内容...',
+
+            // 拆分终端相关
+            split: '拆分终端',
+            splitLeft: '向左拆分终端',
+            splitRight: '向右拆分终端',
+            splitUp: '向上拆分终端',
+            splitDown: '向下拆分终端',
+            closePane: '关闭此窗格',
+            paneMoveTip: '拖动标题栏可移动窗格',
+            paneTitle: '终端 {id}',
             
             // 机器文件上传进度通知
             machineFileUpload: {

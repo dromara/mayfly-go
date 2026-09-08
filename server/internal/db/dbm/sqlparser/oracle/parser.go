@@ -15,11 +15,16 @@ type Parser struct {
 
 // NewParser 创建 Oracle 解析器
 func NewParser(sql string) *Parser {
-	return &Parser{
-		Lexer: base.NewLexer(sql, tokenizer.DialectConfig{
-			DoubleQuoteAsIdentifier: true,
-		}),
+	p := &Parser{Lexer: base.NewLexer(sql, tokenizer.DialectConfig{
+		DoubleQuoteAsIdentifier: true,
+	})}
+	// 注入子查询解析回调：条件表达式中的(SELECT...)可建SelectStmt树
+	p.SelectParser = func() (*sqlstmt.SelectStmt, bool) {
+		st := p.parseSelect()
+		sel, ok := st.(*sqlstmt.SelectStmt)
+		return sel, ok
 	}
+	return p
 }
 
 // Parse 解析单条 SQL 语句
@@ -44,13 +49,13 @@ func (p *Parser) parseStatement() sqlstmt.Stmt {
 	case tok.IsKeyword("DELETE"):
 		return p.parseDelete()
 	case tok.IsKeyword("CREATE"):
-		return p.parseCreate()
+		return p.ParseCreateStmt()
 	case tok.IsKeyword("DROP"):
-		return p.parseDrop()
+		return p.ParseDropStmt()
 	case tok.IsKeyword("ALTER"):
-		return p.parseAlter()
+		return p.ParseAlterStmt()
 	case tok.IsKeyword("WITH"):
-		return p.parseWith()
+		return p.ParseWithStmt()
 	case tok.IsKeyword("TRUNCATE"):
 		return p.parseGenericDdl()
 	case tok.IsKeyword("COMMENT", "GRANT", "REVOKE", "RENAME", "ANALYZE"):
@@ -167,11 +172,19 @@ func (p *Parser) parseSelectBody() *sqlstmt.SelectStmt {
 			continue
 		}
 		itemStart := p.Pos
-		p.SkipExpr()
+		p.SkipSelectItem()
+		if p.Pos == itemStart {
+			// SkipExpr无进展：当前token为子句边界关键字（畸形SQL），退出防死循环
+			break
+		}
 		text := base.TrimTrailingComma(p.TextFromExclusive(itemStart))
 		col, alias := p.ExtractColumnAndAlias(text)
+		// 项类型与表限定符统一由base分类（跨方言Kind语义一致）
+		kind, tableAlias := p.ClassifySelectItem(text, alias)
 		items = append(items, sqlstmt.SelectItem{
+			Kind:       kind,
 			Text:       text,
+			TableAlias: tableAlias,
 			ColumnName: col,
 			Alias:      alias,
 		})
@@ -189,19 +202,19 @@ func (p *Parser) parseSelectBody() *sqlstmt.SelectStmt {
 		selectStmt.From = p.parseFromClause()
 	}
 
-	// JOIN
+	// JOIN（起始token解析不出合法JOIN时break，防止Pos重置导致死循环）
 	for p.IsJoinStart() || p.Current().IsKeyword("JOIN") {
-		if join := p.parseJoinClause(); join != nil {
-			selectStmt.Joins = append(selectStmt.Joins, *join)
+		join := p.parseJoinClause()
+		if join == nil {
+			break
 		}
+		selectStmt.Joins = append(selectStmt.Joins, *join)
 	}
 
 	// WHERE（Oracle 可能包含 ROWNUM 条件）
 	if p.Current().IsKeyword("WHERE") {
 		p.Consume()
-		whereStart := p.Pos
-		p.SkipExpr()
-		selectStmt.Where = &sqlstmt.Expr{Text: p.TextFromExclusive(whereStart)}
+		selectStmt.Where = p.ParseCondExpr(false)
 	}
 
 	// GROUP BY
@@ -210,13 +223,18 @@ func (p *Parser) parseSelectBody() *sqlstmt.SelectStmt {
 		if p.Current().IsKeyword("BY") {
 			p.Consume()
 		}
-		p.SkipGroupByExpr()
+		// 表达式不建模，回填原始文本标记其存在，供调用方判定语句形态
+		if text := p.CaptureSkip(p.SkipGroupByExpr); text != "" {
+			selectStmt.GroupBy = append(selectStmt.GroupBy, text)
+		}
 	}
 
 	// HAVING
 	if p.Current().IsKeyword("HAVING") {
 		p.Consume()
-		p.SkipExpr()
+		if having := p.ParseCondExpr(false); having.Text != "" {
+			selectStmt.Having = having
+		}
 	}
 
 	// CONNECT BY（Oracle 层次查询）
@@ -251,7 +269,8 @@ func (p *Parser) parseSelectBody() *sqlstmt.SelectStmt {
 }
 
 func (p *Parser) parseUnions(selectStmt *sqlstmt.SelectStmt) *sqlstmt.SelectStmt {
-	for p.Current().IsKeyword("UNION") {
+	for p.Current().IsKeyword("UNION", "INTERSECT", "EXCEPT", "MINUS") {
+		op := strings.ToUpper(p.Current().Value)
 		p.Consume()
 		all := false
 		if p.Current().IsKeyword("ALL") {
@@ -279,6 +298,7 @@ func (p *Parser) parseUnions(selectStmt *sqlstmt.SelectStmt) *sqlstmt.SelectStmt
 				nextSelect.OrderBy = nil
 			}
 			selectStmt.Unions = append(selectStmt.Unions, sqlstmt.UnionClause{
+				Op:     op,
 				Select: nextSelect,
 				All:    all,
 			})
@@ -487,9 +507,7 @@ func (p *Parser) parseJoinClause() *sqlstmt.JoinClause {
 	var onExpr *sqlstmt.Expr
 	if p.Current().IsKeyword("ON") {
 		p.Consume()
-		onStart := p.Pos
-		p.SkipExpr()
-		onExpr = &sqlstmt.Expr{Text: p.TextFromExclusive(onStart)}
+		onExpr = p.ParseCondExpr(true)
 	} else if p.Current().IsKeyword("USING") {
 		p.Consume()
 		if p.Current().Value == "(" {
@@ -501,7 +519,7 @@ func (p *Parser) parseJoinClause() *sqlstmt.JoinClause {
 		Kind:  joinType,
 		Table: tableRef,
 		On:    onExpr,
-		Text:  p.TextFrom(start),
+		Text:  p.TextFromExclusive(start),
 	}
 }
 
@@ -603,9 +621,7 @@ func (p *Parser) parseUpdate() sqlstmt.Stmt {
 	var where *sqlstmt.Expr
 	if p.Current().IsKeyword("WHERE") {
 		p.Consume()
-		whereStart := p.Pos
-		p.SkipExpr()
-		where = &sqlstmt.Expr{Text: p.TextFromExclusive(whereStart)}
+		where = p.ParseCondExpr(false)
 	}
 
 	// RETURNING（Oracle 支持）
@@ -642,9 +658,7 @@ func (p *Parser) parseDelete() sqlstmt.Stmt {
 	var where *sqlstmt.Expr
 	if p.Current().IsKeyword("WHERE") {
 		p.Consume()
-		whereStart := p.Pos
-		p.SkipExpr()
-		where = &sqlstmt.Expr{Text: p.TextFromExclusive(whereStart)}
+		where = p.ParseCondExpr(false)
 	}
 
 	// RETURNING（Oracle 支持）
@@ -664,33 +678,6 @@ func (p *Parser) parseDelete() sqlstmt.Stmt {
 
 // ---------- DDL 解析 ----------
 
-func (p *Parser) parseCreate() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.DdlStmt{
-		Base:    sqlstmt.Base{Text: p.TextFrom(start)},
-		DdlKind: "CREATE",
-	}
-}
-
-func (p *Parser) parseDrop() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.DdlStmt{
-		Base:    sqlstmt.Base{Text: p.TextFrom(start)},
-		DdlKind: "DROP",
-	}
-}
-
-func (p *Parser) parseAlter() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.DdlStmt{
-		Base:    sqlstmt.Base{Text: p.TextFrom(start)},
-		DdlKind: "ALTER",
-	}
-}
-
 func (p *Parser) parseGenericDdl() sqlstmt.Stmt {
 	start := p.Pos
 	p.SkipToNextStatement()
@@ -701,14 +688,6 @@ func (p *Parser) parseGenericDdl() sqlstmt.Stmt {
 }
 
 // ---------- WITH 解析 ----------
-
-func (p *Parser) parseWith() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.WithStmt{
-		Base: sqlstmt.Base{Text: p.TextFrom(start)},
-	}
-}
 
 // ---------- 通用语句解析 ----------
 

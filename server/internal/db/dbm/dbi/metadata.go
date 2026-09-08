@@ -1,7 +1,6 @@
 package dbi
 
 import (
-	"embed"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -85,31 +84,38 @@ type Index struct {
 
 // ------------------------- 元数据sql操作 -------------------------
 //
-//go:embed metasql/*
-var metasql embed.FS
+// 各方言元数据SQL模板由方言包自持（//go:embed 与方言实现同居一处，新增方言时包内自包含），
+// dbi仅提供通用的解析与缓存能力（SqlTemplates）
 
-// sql缓存 key: sql备注的key 如：MYSQL_TABLE_MA  value: sql内容
-var (
-	sqlCacheMu sync.RWMutex          // 保护 sqlCache 的并发读写
-	sqlCache   = make(map[string]string, 20)
-)
+// SqlTemplates 方言元数据SQL模板：解析「--KEY 备注说明」分段格式的sql文件内容，
+// 按备注key取用并缓存。格式：段落以分隔线切分，每段首行为 --KEY 备注信息
+// （如 --MYSQL_TABLE_INFO 表详细信息），正文为实际sql
+//
+// 用法（方言包内）：
+//
+//	//go:embed meta.sql
+//	var metaSqlFile string
+//	var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+type SqlTemplates struct {
+	content string
+	mu      sync.RWMutex // 保护 cache 的并发读写
+	cache   map[string]string
+}
 
-// 获取本地文件的sql内容，并进行解析，获取对应key的sql内容
-func GetLocalSql(file, key string) string {
-	sqlCacheMu.RLock()
-	sql := sqlCache[key]
-	sqlCacheMu.RUnlock()
+func NewSqlTemplates(content string) *SqlTemplates {
+	return &SqlTemplates{content: content, cache: make(map[string]string, 20)}
+}
+
+// Get 获取key对应的sql内容，首次访问时解析全量段落并缓存
+func (t *SqlTemplates) Get(key string) string {
+	t.mu.RLock()
+	sql := t.cache[key]
+	t.mu.RUnlock()
 	if sql != "" {
 		return sql
 	}
 
-	bytes, err := metasql.ReadFile(file)
-	if err != nil {
-		logx.Error("failed to read sql metadata file: %s, err: %v", file, err)
-		return ""
-	}
-	allSql := string(bytes)
-
+	allSql := t.content
 	sqls := strings.Split(allSql, "---------------------------------------")
 	var resSql string
 	for _, sql := range sqls {
@@ -134,9 +140,12 @@ func GetLocalSql(file, key string) string {
 		if key == sqlKey {
 			resSql = rowSql
 		}
-		sqlCacheMu.Lock()
-		sqlCache[sqlKey] = rowSql
-		sqlCacheMu.Unlock()
+		t.mu.Lock()
+		t.cache[sqlKey] = rowSql
+		t.mu.Unlock()
+	}
+	if resSql == "" {
+		logx.Error("sql metadata key not found: %s", key)
 	}
 	return resSql
 }

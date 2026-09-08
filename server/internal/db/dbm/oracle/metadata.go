@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	_ "embed"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
@@ -11,14 +12,21 @@ import (
 	"github.com/spf13/cast"
 )
 
+//go:embed meta.sql
+var metaSqlFile string
+
+// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
+var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+
 // ---------------------------------- DM元数据 -----------------------------------
 const (
-	ORACLE_META_FILE      = "metasql/oracle_meta.sql"
 	ORACLE_DB_SCHEMAS     = "ORACLE_DB_SCHEMAS"
 	ORACLE_TABLE_INFO_KEY = "ORACLE_TABLE_INFO"
 	ORACLE_INDEX_INFO_KEY = "ORACLE_INDEX_INFO"
 	ORACLE_COLUMN_MA_KEY  = "ORACLE_COLUMN_MA"
 )
+
+var _ dbi.Metadata = (*OracleMetadata)(nil)
 
 type OracleMetadata struct {
 	dbi.DefaultMetadata
@@ -71,7 +79,7 @@ func (od *OracleMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSql.Get(ORACLE_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +128,7 @@ func (od *OracleMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 		return columns, nil
 	}
 
-	_, res, err := od.dc.Query(fmt.Sprintf(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_COLUMN_MA_KEY), tableName))
+	_, res, err := od.dc.Query(fmt.Sprintf(metaSql.Get(ORACLE_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +150,9 @@ func (od *OracleMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 		}
 
 		od.dc.GetDbDataType(column.DataType).FixColumn(&column)
+		// Oracle的DATA_DEFAULT对字面量默认值恒带引号（'abc'），不带引号的函数/运算形态（to_char(...)、sysdate+1）
+		// 即表达式默认值，标记后不写入目标DDL，避免被当成字符串默认值静默污染
+		dbi.MarkExprDefault(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -166,7 +177,7 @@ func (od *OracleMetadata) GetPrimaryKey(tablename string) (string, error) {
 
 // 获取表索引信息
 func (od *OracleMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := od.dc.Query(fmt.Sprintf(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_INDEX_INFO_KEY), tableName))
+	_, res, err := od.dc.Query(fmt.Sprintf(metaSql.Get(ORACLE_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +220,7 @@ func (od *OracleMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (
 
 // 获取DM当前连接的库可访问的schemaNames
 func (od *OracleMetadata) GetSchemas() ([]string, error) {
-	sql := dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_DB_SCHEMAS)
+	sql := metaSql.Get(ORACLE_DB_SCHEMAS)
 	_, res, err := od.dc.Query(sql)
 	if err != nil {
 		return nil, err

@@ -3,7 +3,7 @@ package api
 import (
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/application/sync"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/pkg/utils"
@@ -17,7 +17,7 @@ import (
 )
 
 type DataSyncTask struct {
-	dataSyncTaskApp application.DataSyncTask `inject:"T"`
+	dataSyncTaskApp sync.DataSyncTask `inject:"T"`
 }
 
 func (d *DataSyncTask) ReqConfs() *req.Confs {

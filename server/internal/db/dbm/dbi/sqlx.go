@@ -620,8 +620,10 @@ QueueLoop:
 		fld, ok := flds.Paths[fi.Path]
 		if !ok || fld.Embedded {
 			flds.Paths[fi.Path] = fi
+			// 上游sqlx以字段名建立Names映射（TraversalsByName按名字查找），
+			// 若以Path（含父级前缀）为键，嵌套struct的字段名将无法命中
 			if fi.Name != "" && !fi.Embedded {
-				flds.Names[fi.Path] = fi
+				flds.Names[fi.Name] = fi
 			}
 		}
 	}

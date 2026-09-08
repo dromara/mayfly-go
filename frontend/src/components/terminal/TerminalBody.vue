@@ -51,6 +51,8 @@ const props = withDefaults(
         fileId?: number;
         /** 协议类型（用于文件传输） */
         protocol?: number;
+        /** 追加到右键菜单的自定义菜单项（供容器层注入拆分等能力，本组件不感知具体业务，开闭原则扩展点） */
+        extraMenuItems?: ContextmenuItem[];
     }>(),
     { mountInit: true, machineId: 0, authCertName: '', fileId: 0, protocol: 1 }
 );
@@ -67,6 +69,8 @@ const { themeConfig } = storeToRefs(useThemeConfig());
 let term: Terminal;
 let socket: WebSocket;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+// 资源释放守卫：close 可能被调用多次（容器显式关闭 + 组件卸载），避免重复 dispose
+let disposed = false;
 
 // 静默模式标志：用于发送不显示的命令（如 pwd）
 let silentMode = false;
@@ -130,6 +134,7 @@ const init = () => {
 };
 
 const initTerm = async () => {
+    disposed = false;
     term = new Terminal({
         fontSize: themeConfig.value.terminalFontSize || 15,
         fontWeight: (themeConfig.value.terminalFontWeight || 'normal') as FontWeight,
@@ -419,6 +424,11 @@ const showContextMenu = (event: MouseEvent, selectedText: string) => {
             .withPermission('machine:file:upload'),
     ];
 
+    // 追加容器层注入的自定义菜单项（如多窗格拆分/关闭），本组件不感知具体业务
+    if (props.extraMenuItems?.length) {
+        state.contextmenu.items.push(...props.extraMenuItems);
+    }
+
     // 打开右键菜单
     contextmenuRef.value?.openContextmenu({});
 };
@@ -630,6 +640,10 @@ const handleFileDrop = async (items: DataTransferItemList) => {
 };
 
 const close = () => {
+    if (disposed) {
+        return;
+    }
+    disposed = true;
     closeSocket();
     if (term) {
         state.addon.search?.dispose();

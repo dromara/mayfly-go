@@ -116,6 +116,12 @@ export default {
             maxResultSetPlaceholder: '允许sql查询的最大结果集数。注: 0=不限制',
             sqlExecLimt: 'sql执行时间限制',
             sqlExecLimtPlaceholder: '超过该时间（单位：秒），执行将被取消',
+            maskEnabled: '查询结果脱敏',
+            maskEnabledPlaceholder: '开启后按脱敏规则与列标签对查询结果脱敏，默认关闭',
+            maskFailClosed: '脱敏故障阻断查询',
+            maskFailClosedPlaceholder: '脱敏计划构建失败时是否阻断查询：关闭则降级为不脱敏（安全敏感部署建议开启）',
+            maskExemptRoleIds: '脱敏豁免角色',
+            maskExemptRoleIdsPlaceholder: '命中角色的账号查询结果不脱敏，多个角色id用英文逗号分隔，留空不豁免',
 
             machineConf: '机器相关配置',
             machineConfRemark: '机器相关配置，如终端操作记录保存天数等',

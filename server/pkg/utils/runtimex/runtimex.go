@@ -9,8 +9,8 @@ import (
 
 // StackStr 获取指定堆栈描述信息
 //
-//  -  skip: 跳过堆栈个数
-//  -  nFrames: 需要描述的堆栈个数
+//   - skip: 跳过堆栈个数
+//   - nFrames: 需要描述的堆栈个数
 func StackStr(skip, nFrames int) string {
 	pcs := make([]uintptr, nFrames+1)
 	n := runtime.Callers(skip+1, pcs)

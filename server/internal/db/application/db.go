@@ -1,10 +1,9 @@
 package application
 
 import (
-	"cmp"
 	"context"
-	"fmt"
 	"mayfly-go/internal/db/application/dto"
+	transfer "mayfly-go/internal/db/application/transfer"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -14,15 +13,11 @@ import (
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/utils/writerx"
-	"sort"
 	"strings"
-	"time"
 )
 
 type Db interface {
@@ -220,211 +215,9 @@ func (d *dbAppImpl) GetDbConnByInstanceId(ctx context.Context, instanceId uint64
 }
 
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
-	log := dto.DefaultDumpLog
-	if reqParam.Log != nil {
-		log = reqParam.Log
-	}
-	progress := dto.DefaultDumpProgress
-	if reqParam.Progress != nil {
-		progress = reqParam.Progress
-	}
-
-	writer := writerx.NewStringWriter(reqParam.Writer)
-
-	dbId := reqParam.DbId
-	dbName := reqParam.DbName
-	tables := reqParam.Tables
-
-	dbConn, err := d.GetDbConn(ctx, dbId, dbName)
+	dbConn, err := d.GetDbConn(ctx, reqParam.DbId, reqParam.DbName)
 	if err != nil {
 		return err
 	}
-
-	writer.WriteString("\n-- ----------------------------")
-	writer.WriteString("\n-- Dump Platform: mayfly-go")
-	writer.WriteString(fmt.Sprintf("\n-- Dump Time: %s ", time.Now().Format("2006-01-02 15:04:05")))
-	writer.WriteString(fmt.Sprintf("\n-- Dump DB: %s ", dbName))
-	writer.WriteString(fmt.Sprintf("\n-- DB Dialect: %s ", cmp.Or(reqParam.TargetDbType, dbConn.Info.Type)))
-	writer.WriteString("\n-- ----------------------------\n\n")
-
-	// 获取目标元数据，仅生成sql，用于生成建表语句和插入数据，不能用于查询
-	targetDialect := dbConn.GetDialect()
-	if reqParam.TargetDbType != "" && dbConn.Info.Type != reqParam.TargetDbType {
-		targetDialect = dbi.GetDialect(reqParam.TargetDbType)
-	}
-
-	srcMeta := dbConn.GetMetadata()
-	srcDialect := dbConn.GetDialect()
-	if len(tables) == 0 {
-		log("gets the table information that can be export...")
-		ti, err := srcMeta.GetTables()
-		if err != nil {
-			log(fmt.Sprintf("failed to get table info %s", err.Error()))
-		}
-		biz.ErrIsNil(err)
-		tables = make([]string, len(ti))
-		for i, table := range ti {
-			tables[i] = table.TableName
-		}
-		log(fmt.Sprintf("Get %d tables", len(tables)))
-	}
-	if len(tables) == 0 {
-		log("no table to export. end export")
-		return errorx.NewBiz("there is no table to export")
-	}
-
-	log("querying column information...")
-	// 查询列信息，后面生成建表ddl和insert都需要列信息
-	columns, err := srcMeta.GetColumns(tables...)
-	if err != nil {
-		log(fmt.Sprintf("failed to query column information: %s", err.Error()))
-	}
-	biz.ErrIsNil(err)
-
-	// 以表名分组，存放每个表的列信息
-	columnMap := make(map[string][]dbi.Column)
-	for _, column := range columns {
-		if err := dbi.ConvToTargetDbColumn(dbConn.Info.Type, cmp.Or(reqParam.TargetDbType, dbConn.Info.Type), targetDialect, &column); err != nil {
-			return err
-		}
-		columnMap[column.TableName] = append(columnMap[column.TableName], column)
-	}
-
-	// 按表名排序
-	sort.Strings(tables)
-	quoteSchema := srcDialect.Quoter().Quote(dbConn.Info.CurrentSchema())
-	targetDumpHelper := targetDialect.GetDumpHelper()
-	targetSqlGenerator := targetDialect.GetSQLGenerator()
-	// targetDialectQuote := targetDialect.Quoter().Quote
-
-	srcDialectQuote := srcDialect.Quoter().Quote
-	// 遍历获取每个表的信息
-	for _, tableName := range tables {
-		log(fmt.Sprintf("get table [%s] information...", tableName))
-		// targetQuoteTableName := targetDialectQuote(tableName)
-		srcQuoteTableName := srcDialectQuote(tableName)
-
-		// 查询表信息，主要是为了查询表注释
-		tbs, err := srcMeta.GetTables(tableName)
-		if err != nil {
-			log(fmt.Sprintf("failed to get table [%s] information: %s", tableName, err.Error()))
-			return err
-		}
-		if len(tbs) <= 0 {
-			log(fmt.Sprintf("failed to get table [%s] information: No table information was retrieved", tableName))
-			return errorx.NewBizf("Failed to get table information: %s", tableName)
-		}
-
-		tableInfo := tbs[0]
-		columns := columnMap[tableName]
-
-		// 生成表结构信息
-		if reqParam.DumpDDL {
-			log(fmt.Sprintf("generate table [%s] DDL...", tableName))
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Table structure: %s \n-- ----------------------------\n", tableName))
-			tbDdlArr := targetSqlGenerator.GenTableDDL(tableInfo, columns, true)
-			for _, ddl := range tbDdlArr {
-				if _, err := writer.WriteString(ddl + ";\n"); err != nil {
-					return err
-				}
-			}
-			progress(tableName, dbi.StmtTypeDDL, len(tbDdlArr), true)
-		}
-
-		// 生成insert sql，数据在索引前，加速insert
-		if reqParam.DumpData {
-			log(fmt.Sprintf("generate table [%s] DML...", tableName))
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Data: %s \n-- ----------------------------\n", tableName))
-
-			// 导出场景无需处理冲突，直接生成插入语句
-			if err := targetDumpHelper.BeforeInsert(writer, tableName); err != nil {
-				return err
-			}
-
-			dataCount := 0
-			rows := make([][]any, 0)
-			// 行数与字节数双预算：固定100行分批在单行大值（如大blob/text）场景下会
-			// 生成超大单条INSERT（100行×1MB=100MB），导致内存峰值暴涨，且导入时超
-			// mysql max_allowed_packet等单包上限直接失败；累计字节超预算时提前flush
-			pendingBytes := 0
-			flushRows := func() error {
-				if len(rows) == 0 {
-					return nil
-				}
-				beforeInsert := targetDumpHelper.BeforeInsertSql(quoteSchema, tableName)
-				if beforeInsert != "" {
-					writer.WriteString(beforeInsert)
-				}
-				insertSql := targetSqlGenerator.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone, nil)
-				if _, err := writer.WriteString(strings.Join(insertSql, ";\n") + ";\n"); err != nil {
-					return err
-				}
-				rows = make([][]any, 0)
-				pendingBytes = 0
-				return nil
-			}
-			_, err = dbConn.WalkTableRows(ctx, srcQuoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
-				rowValues := make([]any, len(columns))
-				rowBytes := 0
-				for i, col := range columns {
-					rowValues[i] = row[col.ColumnName]
-					switch v := rowValues[i].(type) {
-					case string:
-						rowBytes += len(v)
-					case []byte:
-						rowBytes += len(v)
-					default:
-						rowBytes += 16
-					}
-				}
-				rows = append(rows, rowValues)
-				dataCount++
-				pendingBytes += rowBytes
-				if dataCount%dbi.DumpInsertBatchRows != 0 && pendingBytes < dbi.DumpInsertBatchBytes {
-					return nil
-				}
-
-				if err := flushRows(); err != nil {
-					return err
-				}
-				progress(tableName, dbi.StmtTypeInsert, dataCount, false)
-				return nil
-			})
-
-			if err != nil {
-				return err
-			}
-
-			if err := flushRows(); err != nil {
-				return err
-			}
-
-			if err := targetDumpHelper.AfterInsert(writer, tableName, columns); err != nil {
-				return err
-			}
-			progress(tableName, dbi.StmtTypeInsert, dataCount, true)
-		}
-
-		log(fmt.Sprintf("get table [%s] index information...", tableName))
-		indexs, err := srcMeta.GetTableIndex(tableName)
-		if err != nil {
-			log(fmt.Sprintf("failed to get table [%s] index information: %s", tableName, err.Error()))
-			return err
-		}
-
-		if len(indexs) > 0 {
-			// 最后添加索引
-			log(fmt.Sprintf("generate table [%s] index...", tableName))
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- Table Index: %s \n-- ----------------------------\n", tableName))
-			sqlArr := targetSqlGenerator.GenIndexDDL(tableInfo, indexs)
-			for _, sqlStr := range sqlArr {
-				if _, err := writer.WriteString(sqlStr + ";\n"); err != nil {
-					return err
-				}
-			}
-			progress(tableName, dbi.StmtTypeDDL, len(sqlArr), true)
-		}
-	}
-
-	return nil
+	return transfer.DumpDbScript(ctx, dbConn, reqParam)
 }

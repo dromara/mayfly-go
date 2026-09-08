@@ -40,9 +40,10 @@
 
             <template #status="{ data }">
                 <span v-if="actionBtns[perms.status]">
+                    <!-- status 可能存在历史非法值（如 0），归一化后展示，避免 [ElSwitch] model-value 警告 -->
                     <el-switch
-                        v-model="data.status"
-                        @click="updStatus(data.id, data.status)"
+                        :model-value="data.status === 1 ? 1 : -1"
+                        @change="(val: any) => updStatus(data.id, val)"
                         inline-prompt
                         :active-text="$t('common.enable')"
                         :inactive-text="$t('common.disable')"
@@ -71,6 +72,9 @@
                 >
                     {{ $t('db.run') }}
                 </el-button>
+                <el-button v-if="actionBtns[perms.run] && data.mode === 1 && data.runningState !== DbTransferRunningStateEnum.Running.value" type="info" link @click="onVerify(data)">
+                    {{ $t('db.verify') }}
+                </el-button>
                 <el-button v-if="actionBtns[perms.files] && data.mode === 2" type="success" link @click="openFiles(data)">{{ $t('db.file') }}</el-button>
             </template>
         </page-table>
@@ -78,7 +82,8 @@
         <db-transfer-edit @val-change="search" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
         <db-transfer-file :title="filesDialog.title" v-model:visible="filesDialog.visible" v-model:data="filesDialog.data" />
 
-        <TerminalLog v-model:log-id="logsDialog.logId" v-model:visible="logsDialog.visible" :title="logsDialog.title" />
+        <!-- 日志执行结束（迁移完成/失败/停止）后刷新列表运行状态 -->
+        <TerminalLog v-model:log-id="logsDialog.logId" v-model:visible="logsDialog.visible" :title="logsDialog.title" @finished="search" />
     </div>
 </template>
 
@@ -216,6 +221,18 @@ const onReRun = async (data: DbTransferTask) => {
     setTimeout(() => {
         search();
     }, 2000);
+};
+
+const onVerify = async (data: DbTransferTask) => {
+    await useI18nConfirm('db.verifyConfirm');
+    try {
+        const res = await dbTransferApi.verifyDbTransferTask.request({ taskId: data.id });
+        Msg.operateSuccess();
+        // 校验为异步任务，拿到日志id后弹出日志弹窗查看校验报告
+        onOpenLog({ logId: res, state: DbTransferRunningStateEnum.Running.value });
+    } catch (e) {
+        //
+    }
 };
 
 const openFiles = async (data: DbTransferTask) => {

@@ -8,7 +8,7 @@ type stubDialect struct {
 }
 
 func (d *stubDialect) CopyTable(copy *DbCopyTable) error { return nil }
-func (d *stubDialect) GetSQLGenerator() SQLGenerator      { return nil }
+func (d *stubDialect) GetSQLGenerator() SQLGenerator     { return nil }
 func (d *stubDialect) GetSQLParser() sqlparser.SqlParser { return d.DefaultDialect.GetSQLParser() }
 
 var _ Dialect = (*stubDialect)(nil)

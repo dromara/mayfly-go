@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	_ "embed"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
@@ -11,13 +12,20 @@ import (
 	"github.com/spf13/cast"
 )
 
+//go:embed meta.sql
+var metaSqlFile string
+
+// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
+var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+
 const (
-	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
 	PGSQL_DB_SCHEMAS     = "PGSQL_DB_SCHEMAS"
 	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
 	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
 	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
 )
+
+var _ dbi.Metadata = (*PgsqlMetadata)(nil)
 
 type PgsqlMetadata struct {
 	dbi.DefaultMetadata
@@ -62,7 +70,7 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSql.Get(PGSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +101,7 @@ func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := pd.dc.Query(fmt.Sprintf(metaSql.Get(PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +126,61 @@ func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		FixColumnDefault(&column)
 		columns = append(columns, column)
 	}
+
+	// 补记information_schema无法呈现的两类列语义（生成列/标识列），详见函数注释
+	pd.markGeneratedColumns(tableName, columns)
 	return columns, nil
+}
+
+// markGeneratedColumns 从系统目录补列信息_schema完全看不出来：
+//   - 生成列（attgenerated为's'存储/'v'虚拟）：column_default为空，但向生成列显式插入值会直接报错（3402），
+//     会使同构pg->pg整表数据迁移/同步失败，必须识别后从INSERT剔除；派生表达式取自其默认值定义（pg_attrdef）
+//   - 标识列（attidentity为'a'/'d'，pg 10+的GENERATED ALWAYS AS IDENTITY）：column_default也为空，
+//     仅靠nextval无法识别，不标记则自增列静默退化为普通整型列（目标库后续插入不再自动取值）
+//
+// attgenerated/attidentity 自 pg 12/pg 10 引入，GaussDB/Vastbase/Kingbase 等基于 pg 9.x 的兼容库可能无这些列，
+// 若并入主列元数据查询会使整个列信息查询直接报错（影响远大于收益），故单独查询并在失败时静默跳过
+func (pd *PgsqlMetadata) markGeneratedColumns(tableNamesLiteral string, columns []dbi.Column) {
+	sql := fmt.Sprintf(`SELECT c.relname AS "tableName", a.attname AS "columnName", a.attgenerated::text AS "kind", `+
+		`a.attidentity::text AS "identity", pg_get_expr(d.adbin, d.adrelid) AS "expr" FROM pg_attribute a `+
+		`JOIN pg_class c ON c.oid = a.attrelid `+
+		`LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum `+
+		`WHERE c.relname IN (%s) AND a.attnum > 0 AND (a.attgenerated <> '' OR a.attidentity <> '')`, tableNamesLiteral)
+	_, res, err := pd.dc.Query(sql)
+	if err != nil || len(res) == 0 {
+		return
+	}
+	columnIdx := make(map[string]int, len(columns))
+	for i, col := range columns {
+		columnIdx[col.TableName+"."+col.ColumnName] = i
+	}
+	// 标识列属于序列类默认值（主键上可安全保留自增语义），其元数据不呈现取值表达式，需单独标记不记录表达式
+	srcDbType := cast.ToString(pd.dc.Info.Type)
+	for _, re := range res {
+		idx, ok := columnIdx[cast.ToString(re["tableName"])+"."+cast.ToString(re["columnName"])]
+		if !ok {
+			continue
+		}
+		column := &columns[idx]
+		if identity := cast.ToString(re["identity"]); identity == "a" || identity == "d" {
+			// 仅主键列标记自增：非主键的自增列迁入MySQL会因「自增列必须是键」直接建表失败，
+			// 不标记仅丢失自动取值语义（存量数据仍按源值完整插入）
+			if column.IsPrimaryKey {
+				column.AutoIncrement = true
+			}
+			continue
+		}
+		// 无表达式可取时不记录（不重建也不剔除），否则目标列退化为普通列又不赋值会造成静默NULL
+		expr := strings.TrimSpace(cast.ToString(re["expr"]))
+		if expr == "" {
+			continue
+		}
+		// 仅物化存储（'s'）的列才记录：VIRTUAL 生成列自 pg 18 才存在，目标库不支持时建表即失败
+		if cast.ToString(re["kind"]) != "s" {
+			continue
+		}
+		dbi.MarkGeneratedColumn(column, srcDbType, expr, dbi.GenerationStored)
+	}
 }
 
 func (pd *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
@@ -140,7 +202,10 @@ func (pd *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 
 // 获取表索引信息
 func (pd *PgsqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
+	dialect := pd.dc.GetDialect()
+	// 表名需转义单引号后拼入模板（模板为字符串字面量拼接，与GetColumns保持一致）
+	escTableName := dbi.QuoteEscape(dialect.Quoter().Trim(tableName))
+	_, res, err := pd.dc.Query(fmt.Sprintf(metaSql.Get(PGSQL_INDEX_INFO_KEY), escTableName))
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +250,7 @@ func (pd *PgsqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (s
 
 // 获取pgsql当前连接的库可访问的schemaNames
 func (pd *PgsqlMetadata) GetSchemas() ([]string, error) {
-	sql := dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
+	sql := metaSql.Get(PGSQL_DB_SCHEMAS)
 	_, res, err := pd.dc.Query(sql)
 	if err != nil {
 		return nil, err

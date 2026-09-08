@@ -28,6 +28,9 @@ func RunMigrations(db *gorm.DB) error {
 		migrations.V1_10,
 		migrations.V1_11,
 		migrations.V1_12,
+		migrations.V1_13,
+		migrations.V1_14,
+		migrations.V1_15,
 	)
 
 	if err == nil {

@@ -1,5 +1,7 @@
 import type { languages } from 'monaco-editor';
-import { DbType, type DbDialect } from '../../dialect';
+import type { DbDialect } from '../../dialect';
+// DbType 为纯常量，从独立文件导入，避免依赖 dialect/index 的模块循环（TDZ）
+import { DbType } from '../../dialect/dbType';
 
 /**
  * 标识符引用符对，如 mysql 的 ` 与 mssql 的 [ ]

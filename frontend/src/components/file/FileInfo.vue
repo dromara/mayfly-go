@@ -2,15 +2,9 @@
     <el-button v-if="loading" :loading="loading" name="loading" link type="primary" />
 
     <template v-else>
-        <el-tooltip :content="fileSize" placement="left">
-            <el-link
-                v-if="props.canDownload"
-                target="_blank"
-                rel="noopener noreferrer"
-                icon="Download"
-                type="primary"
-                :href="getFileUrl(props.fileKey)"
-            ></el-link>
+        <!-- v-if 必须放在 el-tooltip 上：插槽内无有效子节点会触发 [ElOnlyChild] 警告 -->
+        <el-tooltip v-if="props.canDownload && fileSize" :content="fileSize" placement="left">
+            <el-link target="_blank" rel="noopener noreferrer" icon="Download" type="primary" :href="getFileUrl(props.fileKey)"></el-link>
         </el-tooltip>
 
         {{ fileDetail?.filename }}

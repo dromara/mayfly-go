@@ -17,6 +17,8 @@ const (
 	DbTypeSqlite dbi.DbType = "sqlite"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 }
 
@@ -49,6 +51,12 @@ func (sm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 		Text,
 		Blob,
 		DateTime, Date, Time,
+		// SQLite弱类型下常见的外库风格类型名别名（否则整型/数值/日期列会被静默转为varchar）
+		Int, Int2, Int4, Int8, Tinyint, Smallint, Mediumint, Bigint, UnsignedBigint,
+		Char, NChar, Varchar, NVarchar, Clob,
+		Float, Float4, Float8, Double, DoublePrecision,
+		Numeric, Decimal, Dec, Fixed,
+		Timestamp,
 	)
 }
 

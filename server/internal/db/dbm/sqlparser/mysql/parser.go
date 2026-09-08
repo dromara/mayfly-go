@@ -15,12 +15,17 @@ type Parser struct {
 
 // NewParser 创建 MySQL 解析器
 func NewParser(sql string) *Parser {
-	return &Parser{
-		Lexer: base.NewLexer(sql, tokenizer.DialectConfig{
-			BacktickAsIdentifier: true,
-			HashLineComment:      true,
-		}),
+	p := &Parser{Lexer: base.NewLexer(sql, tokenizer.DialectConfig{
+		BacktickAsIdentifier: true,
+		HashLineComment:      true,
+	})}
+	// 注入子查询解析回调：条件表达式中的(SELECT...)可建SelectStmt树
+	p.SelectParser = func() (*sqlstmt.SelectStmt, bool) {
+		st := p.parseSelect()
+		sel, ok := st.(*sqlstmt.SelectStmt)
+		return sel, ok
 	}
+	return p
 }
 
 // Parse 解析单条 SQL 语句
@@ -38,20 +43,22 @@ func (p *Parser) parseStatement() sqlstmt.Stmt {
 	switch {
 	case tok.IsKeyword("SELECT") || tok.Value == "(":
 		return p.parseSelect()
-	case tok.IsKeyword("INSERT"):
+	case tok.IsKeyword("INSERT", "REPLACE"):
+		// REPLACE INTO 是mysql的upsert写语句，与INSERT同构解析，
+		// 避免被判为OtherStmt导致执行链路走查询而非写入分支
 		return p.parseInsert()
 	case tok.IsKeyword("UPDATE"):
 		return p.parseUpdate()
 	case tok.IsKeyword("DELETE"):
 		return p.parseDelete()
 	case tok.IsKeyword("CREATE"):
-		return p.parseCreate()
+		return p.ParseCreateStmt()
 	case tok.IsKeyword("DROP"):
-		return p.parseDrop()
+		return p.ParseDropStmt()
 	case tok.IsKeyword("ALTER"):
-		return p.parseAlter()
+		return p.ParseAlterStmt()
 	case tok.IsKeyword("WITH"):
-		return p.parseWith()
+		return p.ParseWithStmt()
 	case tok.IsKeyword("SHOW"):
 		return p.parseShow()
 	case tok.IsKeyword("TRUNCATE"):
@@ -90,7 +97,8 @@ func (p *Parser) parseSelect() sqlstmt.Stmt {
 	}
 
 	// UNION
-	for p.Current().IsKeyword("UNION") {
+	for p.Current().IsKeyword("UNION", "INTERSECT", "EXCEPT", "MINUS") {
+		op := strings.ToUpper(p.Current().Value)
 		p.Consume()
 		isAll := false
 		if p.Current().IsKeyword("ALL") {
@@ -123,6 +131,7 @@ func (p *Parser) parseSelect() sqlstmt.Stmt {
 			unionSelect.Text = p.TextFrom(unionStart)
 		}
 		selectStmt.Unions = append(selectStmt.Unions, sqlstmt.UnionClause{
+			Op:     op,
 			Select: unionSelect,
 			All:    isAll,
 			Text:   p.TextFrom(unionStart),
@@ -179,9 +188,8 @@ func (p *Parser) parseSelectBody() *sqlstmt.SelectStmt {
 
 	if p.Current().IsKeyword("WHERE") {
 		p.Consume()
-		whereStart := p.Pos
-		p.SkipExpr()
-		stmt.Where = &sqlstmt.Expr{Text: p.TextFromExclusive(whereStart)}
+		stmt.Where = p.ParseCondExpr(false)
+
 	}
 
 	if p.Current().IsKeyword("GROUP") {
@@ -189,12 +197,17 @@ func (p *Parser) parseSelectBody() *sqlstmt.SelectStmt {
 		if p.Current().IsKeyword("BY") {
 			p.Consume()
 		}
-		p.SkipGroupByExpr()
+		// 表达式不建模，回填原始文本标记其存在，供调用方判定语句形态
+		if text := p.CaptureSkip(p.SkipGroupByExpr); text != "" {
+			stmt.GroupBy = append(stmt.GroupBy, text)
+		}
 	}
 
 	if p.Current().IsKeyword("HAVING") {
 		p.Consume()
-		p.SkipExpr()
+		if having := p.ParseCondExpr(false); having.Text != "" {
+			stmt.Having = having
+		}
 	}
 
 	if p.Current().IsKeyword("ORDER") {
@@ -242,38 +255,25 @@ func (p *Parser) parseSelectItems() []sqlstmt.SelectItem {
 			})
 		} else {
 			colStart := p.Pos
-			p.skipSelectElement()
+			p.SkipSelectItem()
 			colText := base.TrimTrailingComma(p.TextFromExclusive(colStart))
-			// 去除标识符引用符，如 mysql 的 `id` -> id
-			colText = p.Unquote(colText)
+			// 别名提取与项分类使用raw文本（引用符由base内部按段处理；
+			// 整体Unquote会把`u`.`phone`破坏为u`.`phone，污染限定符分段）
 			colName, alias := p.ExtractColumnAndAlias(colText)
-			kind := sqlstmt.SelectItemColumn
-			if strings.Contains(colText, "(") {
-				kind = sqlstmt.SelectItemExpr
-			}
+			// 项类型与表限定符统一由base分类（跨方言Kind语义一致）
+			kind, tableAlias := p.ClassifySelectItem(colText, alias)
+			// 去除标识符引用符，如 mysql 的 `id` -> id（仅影响Text展示文本）
+			colText = p.Unquote(colText)
 			items = append(items, sqlstmt.SelectItem{
 				Kind:       kind,
 				Text:       colText,
+				TableAlias: tableAlias,
 				Alias:      alias,
 				ColumnName: colName,
 			})
 		}
 	}
 	return items
-}
-
-func (p *Parser) skipSelectElement() {
-	for !p.Current().IsEOF() {
-		tok := p.Current()
-		if tok.Value == "," || p.IsSelectClauseEnd() {
-			break
-		}
-		if tok.Value == "(" {
-			p.SkipParentheses()
-			continue
-		}
-		p.Consume()
-	}
 }
 
 // ---------- FROM / TableRef 解析 ----------
@@ -288,10 +288,12 @@ func (p *Parser) parseFromClause(stmt *sqlstmt.SelectStmt) {
 			continue
 		}
 		if p.Current().IsKeyword("JOIN") || p.IsJoinStart() {
+			// 起始token解析不出合法JOIN时break，防止Pos重置导致死循环
 			join := p.parseJoinClause()
-			if join != nil {
-				stmt.Joins = append(stmt.Joins, *join)
+			if join == nil {
+				break
 			}
+			stmt.Joins = append(stmt.Joins, *join)
 			continue
 		}
 		tableRef := p.parseTableRef()
@@ -396,9 +398,7 @@ func (p *Parser) parseJoinClause() *sqlstmt.JoinClause {
 	var onExpr *sqlstmt.Expr
 	if p.Current().IsKeyword("ON") {
 		p.Consume()
-		onStart := p.Pos
-		p.SkipExpr()
-		onExpr = &sqlstmt.Expr{Text: p.TextFromExclusive(onStart)}
+		onExpr = p.ParseCondExpr(true)
 	} else if p.Current().IsKeyword("USING") {
 		p.Consume()
 		if p.Current().Value == "(" {
@@ -410,7 +410,7 @@ func (p *Parser) parseJoinClause() *sqlstmt.JoinClause {
 		Kind:  joinType,
 		Table: tableRef,
 		On:    onExpr,
-		Text:  p.TextFrom(start),
+		Text:  p.TextFromExclusive(start),
 	}
 }
 
@@ -558,7 +558,10 @@ func (p *Parser) parseUpdate() sqlstmt.Stmt {
 			continue
 		}
 		if p.Current().IsKeyword("JOIN") || p.IsJoinStart() {
-			p.parseJoinClause()
+			// 起始token解析不出合法JOIN时break，防止Pos重置导致死循环
+			if p.parseJoinClause() == nil {
+				break
+			}
 			continue
 		}
 		tableRef := p.parseTableRef()
@@ -593,9 +596,7 @@ func (p *Parser) parseUpdate() sqlstmt.Stmt {
 	var where *sqlstmt.Expr
 	if p.Current().IsKeyword("WHERE") {
 		p.Consume()
-		whereStart := p.Pos
-		p.SkipExpr()
-		where = &sqlstmt.Expr{Text: p.TextFromExclusive(whereStart)}
+		where = p.ParseCondExpr(false)
 	}
 
 	// MySQL UPDATE 支持 ORDER BY, LIMIT
@@ -679,9 +680,7 @@ func (p *Parser) parseDelete() sqlstmt.Stmt {
 	var where *sqlstmt.Expr
 	if p.Current().IsKeyword("WHERE") {
 		p.Consume()
-		whereStart := p.Pos
-		p.SkipExpr()
-		where = &sqlstmt.Expr{Text: p.TextFromExclusive(whereStart)}
+		where = p.ParseCondExpr(false)
 	}
 
 	// MySQL DELETE 支持 ORDER BY, LIMIT
@@ -705,33 +704,6 @@ func (p *Parser) parseDelete() sqlstmt.Stmt {
 
 // ---------- DDL 解析 ----------
 
-func (p *Parser) parseCreate() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.DdlStmt{
-		Base:    sqlstmt.Base{Text: p.TextFrom(start)},
-		DdlKind: "CREATE",
-	}
-}
-
-func (p *Parser) parseDrop() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.DdlStmt{
-		Base:    sqlstmt.Base{Text: p.TextFrom(start)},
-		DdlKind: "DROP",
-	}
-}
-
-func (p *Parser) parseAlter() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.DdlStmt{
-		Base:    sqlstmt.Base{Text: p.TextFrom(start)},
-		DdlKind: "ALTER",
-	}
-}
-
 func (p *Parser) parseGenericDdl() sqlstmt.Stmt {
 	start := p.Pos
 	p.SkipToNextStatement()
@@ -752,14 +724,6 @@ func (p *Parser) parseShow() sqlstmt.Stmt {
 }
 
 // ---------- WITH 解析 ----------
-
-func (p *Parser) parseWith() sqlstmt.Stmt {
-	start := p.Pos
-	p.SkipToNextStatement()
-	return &sqlstmt.WithStmt{
-		Base: sqlstmt.Base{Text: p.TextFrom(start)},
-	}
-}
 
 // ---------- 通用语句解析 ----------
 

@@ -10,11 +10,12 @@ import (
 )
 
 // 断言错误为ni
-//  -  msgAndParams 消息与参数占位符，第一位为错误消息可包含%s等格式化标识。其余为Sprintf格式化值内容
 //
-//	ErrIsNil(err)
-//	ErrIsNil(err, "xxxx")
-//	ErrIsNil(err, "xxxx: %s", "yyyy")
+//   - msgAndParams 消息与参数占位符，第一位为错误消息可包含%s等格式化标识。其余为Sprintf格式化值内容
+//
+//     ErrIsNil(err)
+//     ErrIsNil(err, "xxxx")
+//     ErrIsNil(err, "xxxx: %s", "yyyy")
 func ErrIsNil(err error, msgAndParams ...any) {
 	if err != nil {
 		if len(msgAndParams) == 0 {
@@ -26,11 +27,12 @@ func ErrIsNil(err error, msgAndParams ...any) {
 }
 
 // 断言错误为ni
-//  -  msgId i18n消息id
 //
-//	ErrIsNil(err)
-//	ErrIsNil(err, "xxxx")
-//	ErrIsNil(err, "xxxx: %s", "yyyy")
+//   - msgId i18n消息id
+//
+//     ErrIsNil(err)
+//     ErrIsNil(err, "xxxx")
+//     ErrIsNil(err, "xxxx: %s", "yyyy")
 func ErrIsNilI(ctx context.Context, err error, msgId i18n.MsgId, attrs ...any) {
 	if err != nil {
 		if len(attrs) == 0 {

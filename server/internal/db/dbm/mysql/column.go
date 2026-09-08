@@ -63,7 +63,10 @@ var (
 	Enum = dbi.NewDbDataType("enum", DTStringMysql).WithCT(dbi.CTEnum)
 	Set  = dbi.NewDbDataType("set", DTStringMysql).WithCT(dbi.CTVarchar)
 
-	Blob       = dbi.NewDbDataType("blob", DTBytesMysql).WithCT(dbi.CTBlob).WithFixColumn(dbi.ClearNumScale)
+	Blob = dbi.NewDbDataType("blob", DTBytesMysql).WithCT(dbi.CTBlob).WithFixColumn(dbi.ClearNumScale)
+	// Tinyblob 必须显式注册：未注册时落入Default（string通道），dump链路中二进制值会以
+	// 文本字面量而非X'...'十六进制字面量输出，字节被静默翻倍失真（大数据量IT实测抓出）
+	Tinyblob   = dbi.NewDbDataType("tinyblob", DTBytesMysql).WithCT(dbi.CTBlob).WithFixColumn(dbi.ClearNumScale)
 	Mediumblob = dbi.NewDbDataType("mediumblob", DTBytesMysql).WithCT(dbi.CTMediumblob).WithFixColumn(dbi.ClearNumScale)
 	Longblob   = dbi.NewDbDataType("longblob", DTBytesMysql).WithCT(dbi.CTLongblob).WithFixColumn(dbi.ClearNumScale)
 	Binary     = dbi.NewDbDataType("binary", DTBytesMysql).WithCT(dbi.CTBinary)

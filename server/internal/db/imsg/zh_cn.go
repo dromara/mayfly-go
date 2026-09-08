@@ -30,6 +30,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogDtsStop:         "dts-终止数据迁移任务",
 	LogDtsDeleteFile:   "dts-删除迁移文件",
 	LogDtsRunSqlFile:   "dts-执行sql文件",
+	LogDtsVerify:       "dts-数据校验",
 
 	// data sync
 	LogDataSyncSave:         "datasync-保存数据同步任务",
@@ -38,4 +39,11 @@ var Zh_CN = map[i18n.MsgId]string{
 	DataSyncSuccessMsg:      "执行成功，本次同步{{.count}}条",
 	DataSyncFailMsg:         "执行失败: {{.msg}}",
 	DataSyncingMsg:          "执行中，已同步{{.count}}条",
+
+	// db mask
+	LogDbMaskRuleSave:        "mask-保存脱敏规则",
+	LogDbMaskRuleDelete:      "mask-删除脱敏规则",
+	LogDbMaskTagSave:         "mask-保存脱敏列标签",
+	LogDbMaskTagDelete:       "mask-删除脱敏列标签",
+	ErrMaskTagNeedAlgoOrRule: "绑定规则的列标签需指定脱敏算法或关联规则",
 }

@@ -30,6 +30,7 @@ var En = map[i18n.MsgId]string{
 	LogDtsStop:         "dts - Stop data transfer task",
 	LogDtsDeleteFile:   "dts - Delete transfer file",
 	LogDtsRunSqlFile:   "dts - Run SQL File",
+	LogDtsVerify:       "dts - Verify data",
 
 	// data sync
 	LogDataSyncSave:         "datasync - Save data sync task",
@@ -38,4 +39,11 @@ var En = map[i18n.MsgId]string{
 	DataSyncSuccessMsg:      "the synchronous task was executed successfully. New data: {{.count}}",
 	DataSyncFailMsg:         "execution failure: {{.msg}}",
 	DataSyncingMsg:          "during the execution of this task, {{.count}} has been synchronized",
+
+	// db mask
+	LogDbMaskRuleSave:        "mask - Save masking rule",
+	LogDbMaskRuleDelete:      "mask - Delete masking rule",
+	LogDbMaskTagSave:         "mask - Save masking column tag",
+	LogDbMaskTagDelete:       "mask - Delete masking column tag",
+	ErrMaskTagNeedAlgoOrRule: "A bind-action column tag requires an algorithm or a related rule",
 }

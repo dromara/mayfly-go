@@ -73,10 +73,10 @@ func (di *DbInfo) GetLogDesc() string {
 
 // 连接池参数（也可按需调整为实例配置）
 const (
-	connMaxLifetime = 5 * time.Hour  // 连接最大存活时间
-	connMaxIdleTime = 3 * time.Hour  // 闲置连接最大存活时间
-	maxOpenConns    = 10             // 最大打开连接数
-	maxIdleConns    = 1              // 最大闲置连接数
+	connMaxLifetime = 5 * time.Hour // 连接最大存活时间
+	connMaxIdleTime = 3 * time.Hour // 闲置连接最大存活时间
+	maxOpenConns    = 10            // 最大打开连接数
+	maxIdleConns    = 1             // 最大闲置连接数
 )
 
 // 连接数据库

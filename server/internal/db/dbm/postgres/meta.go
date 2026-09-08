@@ -30,6 +30,8 @@ const (
 	DbTypeVastbase   dbi.DbType = "vastbase"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 	Param string
 }
@@ -42,12 +44,13 @@ func (pm *Meta) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	ss := strings.Split(db, "/")
 	if len(ss) > 1 {
 		existSchema = true
-		dbParam = fmt.Sprintf("dbname=%s search_path=%s", ss[0], ss[len(ss)-1])
+		dbParam = fmt.Sprintf("dbname=%s search_path=%s", escapeLibpqParam(ss[0]), escapeLibpqParam(ss[len(ss)-1]))
 	} else {
-		dbParam = "dbname=" + db
+		dbParam = "dbname=" + escapeLibpqParam(db)
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable connect_timeout=8", d.Host, d.Port, d.Username, d.Password, dbParam)
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable connect_timeout=8",
+		escapeLibpqParam(d.Host), d.Port, escapeLibpqParam(d.Username), escapeLibpqParam(d.Password), dbParam)
 	// 存在额外指定参数，则拼接该连接参数
 	if d.Params != "" {
 		// 存在指定的db，则需要将dbInstance配置中的parmas排除掉dbname和search_path
@@ -85,13 +88,26 @@ func (pm *Meta) GetMetadata(conn *dbi.DbConn) dbi.Metadata {
 func (pm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 	return collx.AsArray(
 		Bool, Int2, Int4, Int8, Numeric, Decimal, Smallserial, Serial, Bigserial, Largeserial,
+		Float4, Float8,
 		Money,
-		Char, Nchar, Varchar, Text, Json, Jsonb,
-		Date, Time, Timestamp,
+		Char, Nchar, Bpchar, Varchar, Text, Json, Jsonb,
+		Date, Time, Timetz, Timestamp, Timestamptz,
 		Bytea,
+		Bit, Varbit, BitVarying,
 	)
 }
 
 func (pm *Meta) GetCommonTypeConverter() dbi.CommonTypeConverter {
 	return &commonTypeConverter{}
+}
+
+// escapeLibpqParam libpq的keyword/value格式中，值含空白字符时必须用单引号包裹，
+// 值中的单引号与反斜杠需反斜杠转义；否则密码含空格/特殊字符时会导致DSN解析错误或连接参数被截断
+func escapeLibpqParam(val string) string {
+	if !strings.ContainsAny(val, " \t\n'\\") {
+		return val
+	}
+	val = strings.ReplaceAll(val, "\\", "\\\\")
+	val = strings.ReplaceAll(val, "'", "\\'")
+	return "'" + val + "'"
 }

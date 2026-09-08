@@ -18,6 +18,8 @@ var (
 	}
 )
 
+var _ dbi.Dialect = (*MysqlDialect)(nil)
+
 type MysqlDialect struct {
 	dbi.DefaultDialect
 
@@ -25,7 +27,7 @@ type MysqlDialect struct {
 }
 
 func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
-	quote := md.Quoter().Quote
+	quote := md.Quoter().QuoteIdent
 	tableName := copy.TableName
 
 	// 生成新表名,为老表明+_copy_时间戳

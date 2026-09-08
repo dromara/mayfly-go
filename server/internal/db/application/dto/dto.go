@@ -20,6 +20,10 @@ type DumpDb struct {
 	DumpDDL  bool // 是否dump ddl
 	DumpData bool // 是否dump data
 
+	// TableFilter 表级数据过滤条件（表名→where条件），仅DumpData时生效；
+	// nil/缺省=不过滤（零值兼容现有调用方）。用于大表主键分片并行迁移
+	TableFilter map[string]string
+
 	LogId uint64
 
 	Writer       io.Writer

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/collx"
-	"regexp"
 	"strings"
 )
+
+var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
 
 type SQLGenerator struct {
 	Dialect dbi.Dialect
@@ -14,7 +15,7 @@ type SQLGenerator struct {
 
 func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
 	quoter := sg.Dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 	tbName := quote(table.TableName)
 	sqlArr := make([]string, 0)
 
@@ -62,7 +63,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 }
 
 func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
-	quote := sg.Dialect.Quoter().Quote
+	quote := sg.Dialect.Quoter().QuoteIdent
 	sqls := make([]string, 0)
 	for _, index := range indexs {
 		unique := ""
@@ -84,7 +85,7 @@ func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []strin
 
 func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	quoter := sg.Dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 
 	if duplicateStrategy != dbi.DuplicateStrategyUpdate || targetTableMeta == nil || len(targetTableMeta.UniqueColumns) == 0 {
 		// 直接插入（无法生成 merge 语句时也退化为直接插入，避免静默丢失数据由数据库主键约束报错提示）
@@ -100,31 +101,40 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 	}
 
 	// 重复数据处理策略
-	phs := make([]string, 0)
-	insertVals := make([]string, 0)
 	upds := make([]string, 0)
 	insertCols := make([]string, 0)
+	insertVals := make([]string, 0)
 	for _, column := range columns {
 		columnName := column.ColumnName
-		phs = append(phs, fmt.Sprintf("? %s", columnName))
+		quoteName := quote(columnName)
+		// 标识列既不可插入也不可更新（DM与Oracle同源语义，更新标识列直接报错），直接跳过
+		if collx.ArrayContains(identityCols, quoter.Trim(columnName)) {
+			continue
+		}
 		if !collx.ArrayContains(uniqueCols, quoter.Trim(columnName)) {
-			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", columnName, columnName))
+			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", quoteName, quoteName))
 		}
-		if !collx.ArrayContains(identityCols, columnName) {
-			insertCols = append(insertCols, columnName)
-			insertVals = append(insertVals, fmt.Sprintf("T2.%s", columnName))
-		}
+		insertCols = append(insertCols, quoteName)
+		insertVals = append(insertVals, fmt.Sprintf("T2.%s", quoteName))
 
 	}
 	if len(upds) == 0 {
 		// 所有列均为唯一键列，无法生成update子句，退化为直接插入
 		return sg.genSimpleInserts(tableName, columns, values)
 	}
-	t2s := make([]string, 0)
-	for i := 0; i < len(values); i++ {
-		t2s = append(t2s, fmt.Sprintf("SELECT %s FROM dual", strings.Join(phs, ",")))
+
+	// GenInsert返回的SQL由调用方Exec无参数绑定执行，无法使用?占位符；
+	// 需将行值以字面量形式内联到USING子查询中（参照mssql的merge实现）
+	valueSql := make([]string, 0, len(values))
+	for _, value := range values {
+		valArr := make([]string, 0, len(columns))
+		for j, column := range columns {
+			val := dbi.GetDbDataType(DbTypeDM, column.DataType).DataType.SQLValue(value[j])
+			valArr = append(valArr, fmt.Sprintf("%s %s", val, quote(column.ColumnName)))
+		}
+		valueSql = append(valueSql, fmt.Sprintf("SELECT %s FROM dual", strings.Join(valArr, ", ")))
 	}
-	t2 := strings.Join(t2s, " UNION ALL ")
+	t2 := strings.Join(valueSql, " UNION ALL ")
 
 	sqlTemp := "MERGE INTO " + quote(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSqls, " OR ")
 	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ")"
@@ -136,7 +146,7 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 // genSimpleInserts 生成直接插入语句，达梦只能一条条执行insert，所以将values拆分为多条insert语句
 func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column, values [][]any) []string {
 	quoter := sg.Dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 
 	var res []string
 	var hasIdentity = false
@@ -165,9 +175,6 @@ func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column,
 }
 
 func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
-	colName := quoter.Quote(column.ColumnName)
-	dataType := column.DataType
-
 	incr := ""
 	if column.AutoIncrement {
 		incr = " IDENTITY"
@@ -178,33 +185,11 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 		nullAble = " NOT NULL"
 	}
 
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if regexp.MustCompile(`'.*'`).MatchString(column.ColumnDefault) {
-			// 字符串默认值
-			mark = false
-		} else if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(dataType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
-			// 空
-			if column.ColumnDefault == "NULL" {
-				mark = false
-			}
-		}
-		if mark {
-			// 默认值可能含单引号（如 it's），需双写转义，避免 DDL 语法错误或注入
-			defVal = fmt.Sprintf(" DEFAULT '%s'", dbi.QuoteEscape(column.ColumnDefault))
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
-	}
+	colName := quoter.QuoteIdent(column.ColumnName)
+	// 达梦的 data_default 保留书写的引号与双写转义（字面量形态），旧实现“含左括号即丢弃”
+	// 会使 '(0)'、'unknown (pending)' 这类默认值静默丢失；源库为MySQL 8.0时默认值是不带引号的
+	// 原始值，故必须用宽松版按字面量重新引用，不能因形态陌生而丢弃
+	defVal := dbi.GenColumnDefaultSqlOf(&column, column.DataType, dbi.QuoteEscape)
 
 	columnSql := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
 	return columnSql

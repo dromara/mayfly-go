@@ -1,6 +1,7 @@
 package dm
 
 import (
+	_ "embed"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
@@ -13,8 +14,13 @@ import (
 	"github.com/spf13/cast"
 )
 
+//go:embed meta.sql
+var metaSqlFile string
+
+// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
+var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+
 const (
-	DM_META_FILE            = "metasql/dm_meta.sql"
 	DM_DB_SCHEMAS           = "DM_DB_SCHEMAS"
 	DM_TABLE_INFO_KEY       = "DM_TABLE_INFO"
 	DM_TABLE_INFO_NAME_ONLY = "DM_TABLE_INFO_NAME_ONLY" // 当查询表详情失败时，可能是因为没有系统表查询权限，所以尝试只查表名
@@ -22,6 +28,8 @@ const (
 	DM_COLUMN_MA_KEY        = "DM_COLUMN_MA"
 	DM_COLUMN_MA_EX_KEY     = "DM_COLUMN_MA_EX"
 )
+
+var _ dbi.Metadata = (*DMMetadata)(nil)
 
 type DMMetadata struct {
 	dbi.DefaultMetadata
@@ -66,7 +74,7 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSql.Get(DM_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +82,7 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	_, res, err = dd.dc.Query(sql)
 	if err != nil {
 		// 尝试只查表名
-		sql, err = stringx.TemplateParse(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_NAME_ONLY), collx.M{"tableNames": names})
+		sql, err = stringx.TemplateParse(metaSql.Get(DM_TABLE_INFO_NAME_ONLY), collx.M{"tableNames": names})
 		_, res, err = dd.dc.Query(sql)
 		if err != nil {
 			return nil, err
@@ -102,9 +110,9 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
+	_, res, err := dd.dc.Query(fmt.Sprintf(metaSql.Get(DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
-		_, res, err = dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_EX_KEY), tableName))
+		_, res, err = dd.dc.Query(fmt.Sprintf(metaSql.Get(DM_COLUMN_MA_EX_KEY), tableName))
 		if err != nil {
 			return nil, err
 		}
@@ -126,6 +134,8 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 		dd.dc.GetDbDataType(column.DataType).FixColumn(&column)
+		// 达梦与Oracle一致：字面量默认值带引号，不带引号的函数/运算形态即不可跨库还原的表达式默认值
+		dbi.MarkExprDefault(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -150,7 +160,7 @@ func (dd *DMMetadata) GetPrimaryKey(tablename string) (string, error) {
 
 // 获取表索引信息
 func (dd *DMMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
+	_, res, err := dd.dc.Query(fmt.Sprintf(metaSql.Get(DM_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		logx.Error("查询达梦索引信息失败", err)
 		return nil, nil
@@ -194,7 +204,7 @@ func (dd *DMMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (stri
 
 // 获取DM当前连接的库可访问的schemaNames
 func (dd *DMMetadata) GetSchemas() ([]string, error) {
-	sql := dbi.GetLocalSql(DM_META_FILE, DM_DB_SCHEMAS)
+	sql := metaSql.Get(DM_DB_SCHEMAS)
 	_, res, err := dd.dc.Query(sql)
 	if err != nil {
 		return nil, err

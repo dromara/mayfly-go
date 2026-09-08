@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/domain/mask"
 	"mayfly-go/pkg/i18n"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -71,10 +72,23 @@ func GetQueryData() (tool.InvokableTool, error) {
 
 				result := SingleQueryResult{SQL: sql}
 				rows := make([]map[string]any, 0)
+				var rowMasker *mask.RowMasker
 				columns, err := conn.WalkQueryRows(ctx, sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 					rows = append(rows, row)
 					if len(rows) > 1000 {
 						return dbi.NewStopWalkQueryError("The maximum number of query rows is exceeded: 1000")
+					}
+					// AI查询结果同样执行服务端脱敏（首次行回调时构建脱敏器，未启用时为nil）
+					if rowMasker == nil {
+						var maskErr error
+						rowMasker, maskErr = application.GetMaskApp().BuildQueryRowMasker(ctx, conn, sql, columns)
+						if maskErr != nil {
+							// fail-close：脱敏计划不可用时阻断本次查询，避免敏感数据明文透出
+							return maskErr
+						}
+					}
+					if rowMasker != nil {
+						rowMasker.MaskRow(row)
 					}
 					return nil
 				})

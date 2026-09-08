@@ -3,7 +3,6 @@ package dbi
 import (
 	"io"
 	"mayfly-go/internal/db/dbm/sqlparser"
-	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
 )
 
 const (
@@ -72,10 +71,12 @@ func (dd *DefaultDialect) GetDumpHelper() DumpHelper {
 	return new(DefaultDumpHelper)
 }
 
-// GetSQLParser 获取默认sql解析器
-// 注意：mssql、sqlite 等未自定义解析器的方言沿用 pgsql 解析器，其语法与标准 SQL 最接近
+// GetSQLParser 获取默认sql解析器。
+// dbi为通用层，不得依赖任何具体方言解析器（依赖倒置）：各方言必须显式覆写本方法
+// 选择自身解析器（语法相近的方言可复用其它方言解析器，如mssql/sqlite沿用pgsql）；
+// 未覆写时返回nil，调用处fail-fast暴露，避免新方言静默用错解析器
 func (pd *DefaultDialect) GetSQLParser() sqlparser.SqlParser {
-	return new(pgsql.PgsqlParser)
+	return nil
 }
 
 func (pd *DefaultDialect) GetSQLSplitter() sqlparser.SQLSplitter {
@@ -87,7 +88,10 @@ func (pd *DefaultDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 type DumpHelper interface {
 	BeforeInsert(writer io.Writer, tableName string) error
 
-	BeforeInsertSql(quoteSchema string, quoteTableName string) string
+	// BeforeInsertSql 生成每批insert语句前的前置语句（如mssql/dm的set identity_insert on）
+	// - tableName为裸表名，由各方言helper自行quote（避免调用方使用源方言引用符）
+	// - columns用于判断表是否含自增列（对无自增列的表set identity_insert会报错）
+	BeforeInsertSql(tableName string, columns []Column) string
 
 	AfterInsert(writer io.Writer, tableName string, columns []Column) error
 }
@@ -100,7 +104,7 @@ func (dd *DefaultDumpHelper) BeforeInsert(writer io.Writer, tableName string) er
 	return err
 }
 
-func (dd *DefaultDumpHelper) BeforeInsertSql(quoteSchema string, quoteTableName string) string {
+func (dd *DefaultDumpHelper) BeforeInsertSql(tableName string, columns []Column) string {
 	return ""
 }
 

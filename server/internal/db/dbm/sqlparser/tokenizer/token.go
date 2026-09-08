@@ -49,7 +49,7 @@ var Keywords = map[string]bool{
 	"ALTER": true, "TABLE": true, "DATABASE": true, "INDEX": true, "VIEW": true,
 	"JOIN": true, "LEFT": true, "RIGHT": true, "INNER": true, "OUTER": true,
 	"NATURAL": true, "CROSS": true, "FULL": true, "ON": true, "AS": true,
-	"UNION": true, "ALL": true, "DISTINCT": true, "LIMIT": true, "OFFSET": true,
+	"UNION": true, "INTERSECT": true, "EXCEPT": true, "MINUS": true, "ALL": true, "DISTINCT": true, "LIMIT": true, "OFFSET": true,
 	"ORDER": true, "BY": true, "GROUP": true, "HAVING": true, "WITH": true,
 	"SHOW": true, "VALUES": true, "AND": true, "OR": true, "NOT": true,
 	"NULL": true, "TRUE": true, "FALSE": true, "DESC": true, "ASC": true,
@@ -59,6 +59,7 @@ var Keywords = map[string]bool{
 	"REFERENCES": true, "UNIQUE": true, "DEFAULT": true, "AUTO_INCREMENT": true,
 	"COMMENT": true, "ENGINE": true, "CHARSET": true, "COLLATE": true,
 	"GRANT": true, "REVOKE": true, "RENAME": true, "ANALYZE": true, "TRUNCATE": true,
+	"REPLACE":   true,
 	"RETURNING": true, "ONLY": true, "SIMILAR": true, "ESCAPE": true,
 	"INTERVAL": true, "CAST": true,
 	// ON CONFLICT 语法相关关键字（pgsql/dm等方言）

@@ -127,10 +127,12 @@ func TestDmGenInsert_Merge(t *testing.T) {
 	sqls := gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyUpdate, meta)
 	assert.Len(t, sqls, 1)
 
-	expected := "MERGE INTO \"t1\" T1 USING (SELECT ? id,? name FROM dual) T2 ON ( T1.\"id\" = T2.\"id\" )" +
-		"WHEN NOT MATCHED THEN INSERT (id,name) VALUES (T2.id,T2.name)" +
-		"WHEN MATCHED THEN UPDATE SET T1.name = T2.name"
+	expected := "MERGE INTO \"t1\" T1 USING (SELECT 1 \"id\", 'a' \"name\" FROM dual) T2 ON ( T1.\"id\" = T2.\"id\" )" +
+		"WHEN NOT MATCHED THEN INSERT (\"id\",\"name\") VALUES (T2.\"id\",T2.\"name\")" +
+		"WHEN MATCHED THEN UPDATE SET T1.\"name\" = T2.\"name\""
 	assert.Equal(t, expected, sqls[0])
+	// GenInsert返回的SQL由调用方无参数绑定Exec执行，禁止?占位符
+	assert.NotContains(t, sqls[0], "?")
 }
 
 func TestDmGenInsert_MergeAllUniqueColumnsDegenerate(t *testing.T) {
@@ -158,8 +160,8 @@ func TestDmGenInsert_MergeExcludeIdentityColumns(t *testing.T) {
 	meta := &dbi.TargetTableMeta{UniqueColumns: []string{"id"}, IdentityColumns: []string{"id"}}
 	sqls := gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyUpdate, meta)
 	assert.Len(t, sqls, 1)
-	assert.Contains(t, sqls[0], "INSERT (name) VALUES (T2.name)")
-	assert.Contains(t, sqls[0], "WHEN MATCHED THEN UPDATE SET T1.name = T2.name")
+	assert.Contains(t, sqls[0], "INSERT (\"name\") VALUES (T2.\"name\")")
+	assert.Contains(t, sqls[0], "WHEN MATCHED THEN UPDATE SET T1.\"name\" = T2.\"name\"")
 }
 
 func TestDmGenInsert_MergeMultiUniqueColumns(t *testing.T) {

@@ -33,8 +33,8 @@ func TestPostgresGenTableDDL(t *testing.T) {
 	assert.Contains(t, sqls[1], "CREATE TABLE \"t_user\" (\n")
 	assert.Contains(t, sqls[1], " \"id\" int8 NOT NULL")
 	assert.Contains(t, sqls[1], " \"name\" varchar(50)")
-	// 函数默认值（now()）因跨库函数不兼容被忽略，不生成DEFAULT子句
-	assert.NotContains(t, sqls[1], "DEFAULT")
+	// 日期时间列的 now() 与 CURRENT_TIMESTAMP 等价，归一为标准关键字输出，避免默认值静默丢失
+	assert.Contains(t, sqls[1], "DEFAULT CURRENT_TIMESTAMP")
 	assert.Contains(t, sqls[1], "PRIMARY KEY (\"id\")")
 	assert.Equal(t, "COMMENT ON TABLE \"t_user\" IS '用户表'", sqls[2])
 	assert.Equal(t, "COMMENT ON COLUMN \"t_user\".\"id\" IS '主键'", sqls[3])
@@ -74,6 +74,23 @@ func TestPostgresGenTableDDL_DefaultQuoteEscape(t *testing.T) {
 	assert.Contains(t, sqls[0], " DEFAULT 'it''s'")
 	// 数字默认值不走引号包裹，原样输出
 	assert.Contains(t, sqls[0], " DEFAULT 0")
+}
+
+// 日期时间类型默认值：无括号函数形式统一写为CURRENT_TIMESTAMP（不带引号），
+// 字面量保持带引号（原实现无条件改写会生成非法的 DEFAULT 'CURRENT_TIMESTAMP'）
+func TestPostgresGenTableDDL_DateDefault(t *testing.T) {
+	gen := newTestSQLGenerator(DbTypePostgres)
+	columns := []dbi.Column{
+		{ColumnName: "created_at", DataType: "timestamp", Nullable: false, ColumnDefault: "CURRENT_TIMESTAMP"},
+		{ColumnName: "updated_at", DataType: "timestamp", Nullable: false, ColumnDefault: "now"},
+		// 字面量默认值必须保留引号形式
+		{ColumnName: "start_date", DataType: "date", Nullable: false, ColumnDefault: "2020-01-01"},
+	}
+	sqls := gen.GenTableDDL(dbi.Table{TableName: "t1"}, columns, false)
+
+	assert.Contains(t, sqls[0], " \"created_at\" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP")
+	assert.Contains(t, sqls[0], " \"updated_at\" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP")
+	assert.Contains(t, sqls[0], " \"start_date\" date NOT NULL DEFAULT '2020-01-01'")
 }
 
 func TestPostgresGenIndexDDL(t *testing.T) {
@@ -137,7 +154,7 @@ func TestPostgresGenInsert_OnConflictUpdate(t *testing.T) {
 	assert.Len(t, sqls, 1)
 	// 单个on conflict子句，且不更新冲突键列自身
 	expected := "INSERT INTO \"t1\" (\"id\", \"name\") VALUES \n(1, 'a')" +
-		" \n on conflict (\"id\") do update set name = excluded.name \n"
+		" \n on conflict (\"id\") do update set \"name\" = excluded.\"name\" \n"
 	assert.Equal(t, expected, sqls[0])
 }
 
@@ -171,7 +188,7 @@ func TestPostgresGenInsert_Gauss(t *testing.T) {
 	meta := &dbi.TargetTableMeta{UniqueColumns: []string{"id"}}
 	sqls = gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyUpdate, meta)
 	assert.Len(t, sqls, 1)
-	assert.Contains(t, sqls[0], " \n ON DUPLICATE KEY UPDATE name = excluded.name")
+	assert.Contains(t, sqls[0], " \n ON DUPLICATE KEY UPDATE \"name\" = excluded.\"name\"")
 
 	// 高斯db的update策略但无元信息：无后缀
 	sqls = gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyUpdate, nil)

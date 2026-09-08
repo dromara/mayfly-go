@@ -21,6 +21,8 @@ const (
 	DbTypeMssql dbi.DbType = "mssql"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 }
 

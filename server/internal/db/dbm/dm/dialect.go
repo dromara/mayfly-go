@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+var _ dbi.Dialect = (*DMDialect)(nil)
+
 type DMDialect struct {
 	dbi.DefaultDialect
 

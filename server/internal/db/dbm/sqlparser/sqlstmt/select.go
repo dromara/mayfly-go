@@ -44,9 +44,10 @@ type JoinClause struct {
 	Text  string
 }
 
-// UnionClause UNION 子句
+// UnionClause 集合操作子句（UNION/INTERSECT/EXCEPT/MINUS）
 type UnionClause struct {
 	Select *SelectStmt
+	Op     string // 集合操作符：UNION/INTERSECT/EXCEPT/MINUS
 	All    bool
 	Text   string
 }

@@ -22,6 +22,8 @@ const (
 	DbTypeOracle      dbi.DbType    = "oracle"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 }
 

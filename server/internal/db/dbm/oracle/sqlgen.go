@@ -7,13 +7,15 @@ import (
 	"strings"
 )
 
+var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
+
 type SQLGenerator struct {
 	Dialect dbi.Dialect
 }
 
 func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
 	quoter := sg.Dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 	quoteTableName := quote(table.TableName)
 	sqlArr := make([]string, 0)
 
@@ -40,7 +42,7 @@ end`
 		if column.IsPrimaryKey {
 			pks = append(pks, quote(column.ColumnName))
 		}
-		quote := quoter.Quote
+		quote := quoter.QuoteIdent
 		fields = append(fields, sg.genColumnBasicSql(quoter, column))
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
@@ -80,7 +82,7 @@ end`
 func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
 	sqls := make([]string, 0)
 	comments := make([]string, 0)
-	quote := sg.Dialect.Quoter().Quote
+	quote := sg.Dialect.Quoter().QuoteIdent
 	for _, index := range indexs {
 		unique := ""
 		if index.IsUnique {
@@ -115,7 +117,7 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 	}
 
 	quoter := sg.Dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 
 	uniqueCols := make([]string, 0)
 	caseSqls := make([]string, 0)
@@ -126,30 +128,39 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 	}
 
 	// 重复数据处理策略
-	phs := make([]string, 0)
-	insertVals := make([]string, 0)
 	upds := make([]string, 0)
 	insertCols := make([]string, 0)
+	insertVals := make([]string, 0)
 	for _, column := range columns {
 		columnName := column.ColumnName
-		phs = append(phs, fmt.Sprintf("? %s", columnName))
+		quoteName := quote(columnName)
+		// 标识列（GENERATED ALWAYS AS IDENTITY）既不可插入也不可更新（ORA-32792），直接跳过
+		if collx.ArrayContains(identityCols, quoter.Trim(columnName)) {
+			continue
+		}
 		if !collx.ArrayContains(uniqueCols, quoter.Trim(columnName)) {
-			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", columnName, columnName))
+			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", quoteName, quoteName))
 		}
-		if !collx.ArrayContains(identityCols, columnName) {
-			insertCols = append(insertCols, columnName)
-			insertVals = append(insertVals, fmt.Sprintf("T2.%s", columnName))
-		}
+		insertCols = append(insertCols, quoteName)
+		insertVals = append(insertVals, fmt.Sprintf("T2.%s", quoteName))
 	}
 	if len(upds) == 0 {
 		// 所有列均为唯一键列，无法生成update子句，退化为直接插入
 		return sg.genSimpleInserts(tableName, columns, values)
 	}
-	t2s := make([]string, 0)
-	for i := 0; i < len(values); i++ {
-		t2s = append(t2s, fmt.Sprintf("SELECT %s FROM dual", strings.Join(phs, ",")))
+
+	// GenInsert返回的SQL由调用方Exec无参数绑定执行，无法使用?占位符；
+	// 需将行值以字面量形式内联到USING子查询中（参照mssql的merge实现）
+	valueSql := make([]string, 0, len(values))
+	for _, value := range values {
+		valArr := make([]string, 0, len(columns))
+		for j, column := range columns {
+			val := dbi.GetDbDataType(DbTypeOracle, column.DataType).DataType.SQLValue(value[j])
+			valArr = append(valArr, fmt.Sprintf("%s %s", val, quote(column.ColumnName)))
+		}
+		valueSql = append(valueSql, fmt.Sprintf("SELECT %s FROM dual", strings.Join(valArr, ", ")))
 	}
-	t2 := strings.Join(t2s, " UNION ALL ")
+	t2 := strings.Join(valueSql, " UNION ALL ")
 
 	sqlTemp := "MERGE INTO " + quote(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSqls, " OR ")
 	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ")"
@@ -160,7 +171,7 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 
 // genSimpleInserts 生成直接插入语句，oracle/达梦类数据库只能一条条执行insert，所以将values拆分为多条insert语句
 func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column, values [][]any) []string {
-	quote := sg.Dialect.Quoter().Quote
+	quote := sg.Dialect.Quoter().QuoteIdent
 	identityInsert := ""
 	// 有自增列的才加上这个语句
 	if collx.AnyMatch(columns, func(column dbi.Column) bool { return column.AutoIncrement }) {
@@ -176,7 +187,7 @@ func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column,
 }
 
 func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
-	colName := quoter.Quote(column.ColumnName)
+	colName := quoter.QuoteIdent(column.ColumnName)
 
 	if column.AutoIncrement {
 		// 如果是自增，不需要设置默认值和空值，自增列数据类型必须是number
@@ -188,10 +199,10 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 		nullAble = " NOT NULL"
 	}
 
-	defVal := ""
-	if column.ColumnDefault != "" {
-		defVal = fmt.Sprintf(" DEFAULT %v", column.ColumnDefault)
-	}
+	// Oracle的 data_default 保留书写的引号与双写转义（字面量形态），旧实现未作任何判定直接裸拼：
+	// 既会把 to_char(sysdate,...) 等函数表达式原样带到不支持它的目标库，也不会对默认值内容
+	// 做任何引用/转义校验，统一由dbi按字面量语义处理（函数与无法判定的括号表达式跳过）
+	defVal := dbi.GenColumnDefaultSqlOf(&column, column.DataType, dbi.QuoteEscape)
 
 	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), defVal, nullAble)
 	return columnSql

@@ -282,6 +282,7 @@ export function useSqlExec(options: UseSqlExecOptions) {
                     columnName: x.name,
                     key: x.key,
                     columnType: x.type,
+                    masked: x.masked,
                     show: true,
                 };
             });

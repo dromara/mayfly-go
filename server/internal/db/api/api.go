@@ -10,4 +10,5 @@ func InitIoc() {
 	ioc.Register(new(DbSql))
 	ioc.Register(new(DataSyncTask))
 	ioc.Register(new(DbTransferTask))
+	ioc.Register(new(DbMask))
 }

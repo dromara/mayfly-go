@@ -11,7 +11,7 @@ func newCol() *dbi.Column {
 	return &dbi.Column{DataType: "varchar"}
 }
 
-// sqlite类型系统宽松（TEXT/INTEGER/REAL/BLOB），映射全部安全无截断风险
+// sqlite类型系统宽松（TEXT/INTEGER/REAL/BLOB），映射不产生长度/精度截断
 func TestSqliteConverter_Mappings(t *testing.T) {
 	c := &commonTypeConverter{}
 	col := newCol()
@@ -33,9 +33,10 @@ func TestSqliteConverter_Mappings(t *testing.T) {
 	assert.Equal(t, Blob, c.Binary(col))
 	assert.Equal(t, Blob, c.Longblob(col))
 
-	// 浮点
-	assert.Equal(t, Real, c.Numeric(col))
-	assert.Equal(t, Real, c.Decimal(col))
+	// 定点数必须落NUMERIC亲和的numeric/decimal声明（降级为real会丢十进制精确性，
+	// 并使后续往强类型库迁移时列类型从decimal退化为double）；浮点仍为Real
+	assert.Equal(t, Numeric, c.Numeric(col))
+	assert.Equal(t, Decimal, c.Decimal(col))
 
 	// 时间
 	assert.Equal(t, DateTime, c.Datetime(col))

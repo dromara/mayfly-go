@@ -77,6 +77,7 @@ export default {
         dbTransferFileDelete: 'Transfer File-Delete',
         dbTransferFileDownload: 'Transfer File-Download',
         dbTransferFileRun: 'Transfer File-Run',
+        dbMaskRule: 'Data Masking',
 
         redis: 'Redis',
         redisSave: 'Save Redis',

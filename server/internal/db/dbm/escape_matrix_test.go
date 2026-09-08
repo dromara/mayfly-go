@@ -76,14 +76,19 @@ func TestDialectStringEscapeMatrix(t *testing.T) {
 	assertStdStyle(t, "dm.VARCHAR", dm.VARCHAR, complexVal)
 }
 
-// TestDialectNulCharMatrix NUL字节（\0）在字符串中的转义输出：
-// mysql/clickhouse与标准SQL方言均原样输出（SQL文本中嵌入NUL字节由驱动与目标库决定可否存储：
-// mysql/sqlite可存，pg text与oracle等硬性禁止——属数据库固有限制而非转义缺陷）
+// TestDialectNulCharMatrix NUL字节（\0）在字符串中的处理（按方言转义语义分层）：
+//   - mysql系（反斜杠转义语义）：\0转义可无损承载NUL，输出 \0 转义序列；
+//   - 标准SQL系（pg/sqlite/oracle等）：无NUL转义语法，必须快速失败。
+//
+// 原实现认为"NUL无需转义，原样嵌入由驱动与目标库决定可否存储"，已被大数据量IT实测推翻：
+// dump产物是SQL脚本文本流，sqlite tokenizer按C字符串语义遇0x00截断，会静默产生
+// 损坏语句并连带损毁后续语句（实测报unrecognized token）；pg的text物理禁止NUL。
+// 仅mysql语义可经\0转义无损回环（见dbi.assertNoNulByte与QuoteEscapeBackslash）
 func TestDialectNulCharMatrix(t *testing.T) {
-	// NUL无需转义，原样嵌入字符串字面量
-	assert.Equal(t, "'nul\x00end'", mysql.Varchar.DataType.SQLValue(nulVal))
-	assert.Equal(t, "'nul\x00end'", postgres.Varchar.DataType.SQLValue(nulVal))
-	assert.Equal(t, "'nul\x00end'", sqlite.Text.DataType.SQLValue(nulVal))
+	assert.Equal(t, `'nul\0end'`, mysql.Varchar.DataType.SQLValue(nulVal))
+	assert.Equal(t, `'nul\0end'`, clickhouse.String.DataType.SQLValue(nulVal))
+	assert.Panics(t, func() { postgres.Varchar.DataType.SQLValue(nulVal) }, "标准SQL语义含NUL应快速失败")
+	assert.Panics(t, func() { sqlite.Text.DataType.SQLValue(nulVal) }, "标准SQL语义含NUL应快速失败")
 }
 
 // TestMysqlToJsonValueRoundtrip mysql JSON值的导出转义正确性：

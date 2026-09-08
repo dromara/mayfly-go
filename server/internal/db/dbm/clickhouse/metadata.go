@@ -1,13 +1,19 @@
 package clickhouse
 
 import (
+	_ "embed"
+	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"strings"
 )
 
-const (
-	CLICKHOUSE_META_FILE = "metasql/clickhouse_meta.sql"
-)
+//go:embed meta.sql
+var metaSqlFile string
+
+// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
+var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+
+var _ dbi.Metadata = (*ClickHouseMetadata)(nil)
 
 type ClickHouseMetadata struct {
 	dc *dbi.DbConn
@@ -63,9 +69,18 @@ func (cm *ClickHouseMetadata) GetDbNames() ([]string, error) {
 }
 
 func (cm *ClickHouseMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
-	// For simplicity, we'll just get all tables
-	query := "SELECT name, engine, comment FROM system.tables WHERE database = ? ORDER BY name"
+	query := "SELECT name, engine, comment FROM system.tables WHERE database = ?"
 	args := []any{cm.dc.Info.GetDatabase()}
+	// 指定表名时需过滤，否则导出指定表时会误导出全库所有表
+	if len(tableNames) > 0 {
+		placeholders := make([]string, len(tableNames))
+		for i, name := range tableNames {
+			placeholders[i] = "?"
+			args = append(args, name)
+		}
+		query += fmt.Sprintf(" AND name IN (%s)", strings.Join(placeholders, ","))
+	}
+	query += " ORDER BY name"
 
 	_, res, err := cm.dc.Query(query, args...)
 	if err != nil {
@@ -74,21 +89,12 @@ func (cm *ClickHouseMetadata) GetTables(tableNames ...string) ([]dbi.Table, erro
 
 	tables := make([]dbi.Table, 0)
 	for _, row := range res {
-		table := dbi.Table{
-			TableName: func() string {
-				if name, ok := row["name"].(string); ok {
-					return name
-				}
-				return ""
-			}(),
-			TableComment: func() string {
-				if comment, ok := row["comment"].(string); ok {
-					return comment
-				}
-				return ""
-			}(),
-		}
-		tables = append(tables, table)
+		name, _ := row["name"].(string)
+		comment, _ := row["comment"].(string)
+		tables = append(tables, dbi.Table{
+			TableName:    name,
+			TableComment: comment,
+		})
 	}
 
 	return tables, nil
@@ -99,9 +105,20 @@ func (cm *ClickHouseMetadata) GetColumns(tableNames ...string) ([]dbi.Column, er
 		return []dbi.Column{}, nil
 	}
 
-	// For simplicity, we'll get columns for the first table
-	tableName := tableNames[0]
+	// 逐表查询列信息（多表导出时每张表都需要列信息，只查首表会导致其余表无法生成DDL/插入语句）
+	columns := make([]dbi.Column, 0)
+	for _, tableName := range tableNames {
+		cols, err := cm.getTableColumns(tableName)
+		if err != nil {
+			return nil, err
+		}
+		columns = append(columns, cols...)
+	}
 
+	return columns, nil
+}
+
+func (cm *ClickHouseMetadata) getTableColumns(tableName string) ([]dbi.Column, error) {
 	_, res, err := cm.dc.Query(`SELECT 
 		name,
 		type,
@@ -119,10 +136,12 @@ func (cm *ClickHouseMetadata) GetColumns(tableNames ...string) ([]dbi.Column, er
 
 	columns := make([]dbi.Column, 0)
 	for _, row := range res {
+		name, _ := row["name"].(string)
+		typ, _ := row["type"].(string)
 		column := dbi.Column{
 			TableName:  tableName,
-			ColumnName: row["name"].(string),
-			DataType:   row["type"].(string),
+			ColumnName: name,
+			DataType:   typ,
 			ColumnComment: func() string {
 				if comment, ok := row["column_comment"].(string); ok {
 					return comment
@@ -209,8 +228,9 @@ func (cm *ClickHouseMetadata) GetTableIndex(tableName string) ([]dbi.Index, erro
 
 	indexes := make([]dbi.Index, 0)
 	for _, row := range res {
+		name, _ := row["name"].(string)
 		index := dbi.Index{
-			IndexName: row["name"].(string),
+			IndexName: name,
 			IndexType: func() string {
 				if typ, ok := row["type"].(string); ok {
 					return typ

@@ -1,12 +1,12 @@
 <template>
     <div class="terminal-wrapper">
-        <TerminalBody :socket-url="getMachineTerminalSocketUrl((route.query.ac ?? '') as string)" />
+        <TerminalPanes :socket-url="getMachineTerminalSocketUrl((route.query.ac ?? '') as string)" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { useRoute } from 'vue-router';
-import TerminalBody from '@/components/terminal/TerminalBody.vue';
+import TerminalPanes from '@/components/terminal/TerminalPanes.vue';
 import { getMachineTerminalSocketUrl } from './api';
 
 const route = useRoute();

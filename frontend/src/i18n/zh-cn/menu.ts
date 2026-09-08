@@ -77,6 +77,7 @@ export default {
         dbTransferFileDelete: '迁移文件-删除',
         dbTransferFileDownload: '迁移文件-下载',
         dbTransferFileRun: '迁移文件-执行',
+        dbMaskRule: '数据脱敏',
 
         redis: 'Redis',
         redisSave: 'Redis-保存',

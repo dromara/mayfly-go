@@ -540,6 +540,7 @@ const exposes = {
     fitTerminal: resize,
     focus,
     blur,
+    getStatus: () => state.status,
     setRemoteClipboard: onsubmitClipboard,
 } as TerminalExpose;
 

@@ -66,6 +66,40 @@ func TestMssqlGenTableDDL_DefaultQuoteEscape(t *testing.T) {
 	assert.Contains(t, sqls[0], " DEFAULT 'it''s'")
 }
 
+// SQL Server的 object_definition 返回带最外层括号的定义原文（('abc')、(3)），
+// 旧实现按“含括号则为不支持的函数”整体丢弃，导致结构迁移时所有默认值静默丢失
+func TestMssqlGenTableDDL_ColumnDefault(t *testing.T) {
+	kases := []struct {
+		name     string
+		dataType string
+		defVal   string
+		expected string
+	}{
+		{"字符串字面量剥括号", "varchar", "('abc')", ` DEFAULT 'abc'`},
+		{"含单引号的字面量", "varchar", "('it''s')", ` DEFAULT 'it''s'`},
+		{"数字默认值不加引号", "int", "(3)", " DEFAULT 3"},
+		{"异构源原始值", "varchar", "abc", ` DEFAULT 'abc'`},
+		// SQL Server的(object_definition)对getdate()这类当前日期时间表达式带外层括号呈现，
+		// 旧实现直接当不支持的函数丢弃，使「创建时间默认取当前」语义静默丢失，现按分量归一为标准关键字
+		{"getdate()归一为标准关键字", "datetime", "(getdate())", " DEFAULT CURRENT_TIMESTAMP"},
+		{"无法确定语义的函数定义仍省略", "datetime", "(convert(date,getdate()))", ""},
+		{"多列表达式剪碎后省略", "int", "(1)+(2)", ""},
+	}
+
+	for _, k := range kases {
+		t.Run(k.name, func(t *testing.T) {
+			gen := newTestSQLGenerator()
+			columns := []dbi.Column{{ColumnName: "c1", DataType: k.dataType, CharMaxLength: 10, Nullable: true, ColumnDefault: k.defVal}}
+			sqls := gen.GenTableDDL(dbi.Table{TableName: "t1"}, columns, false)
+			if k.expected == "" {
+				assert.NotContains(t, sqls[0], "DEFAULT")
+				return
+			}
+			assert.Contains(t, sqls[0], k.expected)
+		})
+	}
+}
+
 func TestMssqlGenIndexDDL(t *testing.T) {
 	gen := newTestSQLGenerator()
 	table := dbi.Table{TableName: "t1"}
@@ -129,14 +163,14 @@ func TestMssqlGenInsert_Merge(t *testing.T) {
 
 	sql := sqls[0]
 	// INSERT子句必须带VALUES关键字
-	assert.Contains(t, sql, "WHEN NOT MATCHED THEN INSERT ([id],[name]) VALUES (T2.id,T2.name)")
+	assert.Contains(t, sql, "WHEN NOT MATCHED THEN INSERT ([id],[name]) VALUES (T2.[id],T2.[name])")
 	// 多行值：每行的select只包含本行的值，且以UNION ALL连接
-	assert.Contains(t, sql, "USING (select 1 id, 'a' name UNION ALL select 2 id, 'b' name) T2")
+	assert.Contains(t, sql, "USING (select 1 [id], 'a' [name] UNION ALL select 2 [id], 'b' [name]) T2")
 	assert.Contains(t, sql, "MERGE INTO [t1] T1")
 	assert.Contains(t, sql, "ON  T1.[id] = T2.[id] ")
 	// 非自增列均生成update子句（含主键列自身，按columns顺序）
-	assert.Contains(t, sql, "WHEN MATCHED THEN UPDATE SET T1.id = T2.id,T1.name = T2.name")
-	assert.True(t, strings.HasSuffix(sql, "WHEN MATCHED THEN UPDATE SET T1.id = T2.id,T1.name = T2.name"))
+	assert.Contains(t, sql, "WHEN MATCHED THEN UPDATE SET T1.[id] = T2.[id],T1.[name] = T2.[name]")
+	assert.True(t, strings.HasSuffix(sql, "WHEN MATCHED THEN UPDATE SET T1.[id] = T2.[id],T1.[name] = T2.[name];"))
 }
 
 func TestMssqlGenInsert_MergeWithoutPKDegenerate(t *testing.T) {
@@ -166,7 +200,7 @@ func TestMssqlGenInsert_MergeWithIdentity(t *testing.T) {
 	// 含自增列：merge前加SET IDENTITY_INSERT ... ON
 	sqls := gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyUpdate, nil)
 	assert.Len(t, sqls, 1)
-	assert.True(t, strings.HasPrefix(sqls[0], "SET IDENTITY_INSERT [t1] ON MERGE INTO"))
+	assert.True(t, strings.HasPrefix(sqls[0], "SET IDENTITY_INSERT [t1] ON\nMERGE INTO"))
 }
 
 func TestMssqlGenInsert_BatchSizeLimit(t *testing.T) {

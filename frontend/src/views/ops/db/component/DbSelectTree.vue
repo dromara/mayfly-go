@@ -9,7 +9,7 @@
     >
         <template #iconPrefix>
             <SvgIcon v-if="dbType && getDbDialect(dbType)" :name="getDbDialect(dbType).getInfo().icon" :size="16" />
-            <TagCodePath :code="dbCode" />
+            <TagCodePath :code="displayCode" />
         </template>
     </ResourceSelect>
 </template>
@@ -29,8 +29,14 @@ const instName = defineModel<string>('instName');
 const dbName = defineModel<string>('dbName');
 const tagPath = defineModel<string>('tagPath');
 const dbType = defineModel<string>('dbType');
+// 可选：选中库节点后由 db 记录回填的实例id（如脱敏列标签按实例维度存储）
+const instanceId = defineModel<number | undefined>('instanceId');
+// 可选：外部传入的资源code，用于编辑态无 dbId 时回显标签路径
+const outerCode = defineModel<string>('code');
 
 const dbCode = ref('');
+// 展示code优先取外部传入值（编辑回显场景），否则按 dbId 查询获取
+const displayCode = computed(() => outerCode.value || dbCode.value);
 
 const emits = defineEmits(['selectDb']);
 
@@ -66,6 +72,7 @@ watch(
             return '';
         }
         dbCode.value = db.code;
+        instanceId.value = db.instanceId;
     },
     { immediate: true }
 );

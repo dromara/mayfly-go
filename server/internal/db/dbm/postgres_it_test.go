@@ -87,7 +87,16 @@ func TestITPgGenTableDDLRoundtrip(t *testing.T) {
 	assert.Equal(t, "varchar", name.DataType)
 	assert.Equal(t, 128, name.CharMaxLength)
 	assert.False(t, name.Nullable)
-	assert.Equal(t, "it's", name.ColumnDefault, "默认值转义正确落地（无多余引号）")
+	// pg的column_default保留字面量书写形态（剥去::cast但保留引号与双写转义），
+	// 与无默认值（空串）可区分，且内容含括号/引号的默认值不会被误判为表达式而丢失
+	assert.Equal(t, "'it''s'", name.ColumnDefault, "元数据以字面量形态呈现默认值")
+	// 语义验证：插入时省略name（其余非空列显式给值），库内必须真正落入转义后的原始默认值
+	mustExec(t, conn, "INSERT INTO "+quote(table)+"(id, amount) VALUES (1, 0)")
+	_, insRows, err := conn.Query("SELECT name FROM " + quote(table))
+	require.NoError(t, err)
+	require.Len(t, insRows, 1)
+	assert.Equal(t, "it's", fmt.Sprint(insRows[0]["name"]), "默认值实际生效且未被转义失真")
+	mustExec(t, conn, "DELETE FROM "+quote(table))
 
 	amount := byName["amount"]
 	assert.Equal(t, 10, amount.NumPrecision)
@@ -110,6 +119,12 @@ func TestITPgGenTableDDLRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, readCols2, 8)
 	assert.True(t, byName2AutoIncrement(readCols2))
+	// 二次建表后默认值必须仍在（不会因元数据形态被误判为表达式而静默丢失）
+	for _, col := range readCols2 {
+		if col.ColumnName == "name" {
+			assert.Equal(t, "'it''s'", col.ColumnDefault, "元数据→DDL→元数据往返默认值不丢失")
+		}
+	}
 }
 
 func byName2AutoIncrement(cols []dbi.Column) bool {

@@ -58,10 +58,7 @@ export const useAutoFormHost = (options: {
 
     // 弹层打开时回填编辑数据或应用字段默认值（深拷贝，避免嵌套对象编辑中突变污染外部行数据）。
     // 仅在打开瞬间回填：打开期间外部 data 引用变化（如列表刷新）不重置表单，避免丢失用户已填内容
-    watch(visible, (v) => {
-        if (!v) {
-            return;
-        }
+    const backfill = () => {
         if (props.data && typeof props.data === 'object') {
             state.form = cloneFormData(props.data);
         } else {
@@ -69,7 +66,21 @@ export const useAutoFormHost = (options: {
         }
         // 回填完成后抛出内部表单引用（Dialog/Drawer 契约一致）
         options.onOpened?.(state.form);
-    });
+    };
+
+    // immediate：宿主以 visible=true 直接挂载时（异步组件在点击那刻才加载完成、HMR 重建已打开的弹层）
+    // visible 无 false→true 跃迁，不加 immediate 则永不回填，表单为空对象，
+    // switch 等控件会拿到 undefined（element-plus 报 model-value must be active-value or inactive-value）
+    watch(
+        visible,
+        (v) => {
+            if (!v) {
+                return;
+            }
+            backfill();
+        },
+        { immediate: true }
+    );
 
     const onCancel = () => {
         visible.value = false;

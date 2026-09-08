@@ -17,7 +17,8 @@ func (t TableRef) FullName() string {
 
 // Expr 表示表达式（WHERE、ON、HAVING 等）
 type Expr struct {
-	Text string // 原始表达式文本
+	Text string   // 原始表达式文本
+	Root ExprNode // 结构化AST（Pratt解析成功时非nil）；nil表示降级为纯文本
 }
 
 // Limit LIMIT/OFFSET

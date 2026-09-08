@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/transfer"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
@@ -20,12 +21,12 @@ import (
 )
 
 type DbTransferTask struct {
-	dbTransferTaskApp application.DbTransferTask `inject:"T"`
-	dbTransferFileApp application.DbTransferFile `inject:"T"`
-	dbApp             application.Db             `inject:"T"`
-	tagApp            tagapp.TagTree             `inject:"T"`
-	dbSqlExecApp      application.DbSqlExec      `inject:"T"`
-	fileApp           fileapp.File               `inject:"T"`
+	dbTransferTaskApp transfer.DbTransferTask `inject:"T"`
+	dbTransferFileApp transfer.DbTransferFile `inject:"T"`
+	dbApp             application.Db          `inject:"T"`
+	tagApp            tagapp.TagTree          `inject:"T"`
+	dbSqlExecApp      application.DbSqlExec   `inject:"T"`
+	fileApp           fileapp.File            `inject:"T"`
 }
 
 func (d *DbTransferTask) ReqConfs() *req.Confs {
@@ -47,6 +48,9 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 
 		// 停止正在执行中的任务
 		req.NewPost(":taskId/stop", d.Stop).Log(req.NewLogSaveI(imsg.LogDtsStop)).RequiredPermissionCode("db:transfer:run"),
+
+		// 数据校验：校验任务源库与目标库数据一致性，异步执行并返回日志id
+		req.NewPost(":taskId/verify", d.Verify).Log(req.NewLogI(imsg.LogDtsVerify)).RequiredPermissionCode("db:transfer:run"),
 
 		// 导出文件管理-列表
 		req.NewGet("/files/:taskId", d.Files),
@@ -116,6 +120,16 @@ func (d *DbTransferTask) Stop(rc *req.Ctx) {
 	biz.ErrIsNil(d.dbTransferTaskApp.Stop(rc.MetaCtx, uint64(rc.PathParamInt("taskId"))))
 }
 
+// Verify 数据校验：异步执行，返回日志id（日志Resp中可查询校验报告）
+func (d *DbTransferTask) Verify(rc *req.Ctx) {
+	taskId := uint64(rc.PathParamInt("taskId"))
+	rc.ReqParam = taskId
+
+	logId, err := d.dbTransferTaskApp.Verify(rc.MetaCtx, taskId)
+	biz.ErrIsNil(err)
+	rc.ResData = logId
+}
+
 func (d *DbTransferTask) Files(rc *req.Ctx) {
 	queryCond := rc.BindQuery[entity.DbTransferFileQuery]()
 
@@ -127,13 +141,22 @@ func (d *DbTransferTask) Files(rc *req.Ctx) {
 func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 	fileId := rc.PathParam("fileId")
 	rc.ReqParam = fileId // 记录操作日志
-	ids := strings.Split(fileId, ",")
 
-	uIds := make([]uint64, len(ids))
+	biz.ErrIsNil(d.dbTransferFileApp.Delete(rc.MetaCtx, parseFileIds(fileId)...))
+}
+
+// parseFileIds 解析逗号分隔的文件id串，过滤空串与非法值。
+// 不能make(len(ids))预填零值，否则前面多出len(ids)个0会导致误删id为0的记录
+func parseFileIds(fileId string) []uint64 {
+	ids := strings.Split(fileId, ",")
+	uIds := make([]uint64, 0, len(ids))
 	for _, v := range ids {
-		uIds = append(uIds, cast.ToUint64(v))
+		// cast对string不做TrimSpace，" 5"会解析失败转0，需显式清理
+		if id := cast.ToUint64(strings.TrimSpace(v)); id > 0 {
+			uIds = append(uIds, id)
+		}
 	}
-	biz.ErrIsNil(d.dbTransferFileApp.Delete(rc.MetaCtx, uIds...))
+	return uIds
 }
 
 func (d *DbTransferTask) FileRun(rc *req.Ctx) {

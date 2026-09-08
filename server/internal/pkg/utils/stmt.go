@@ -20,6 +20,11 @@ type SplitOpts struct {
 
 	// HashComment 是否将 # 视为行注释起始符（mysql专属语法）
 	HashComment bool
+
+	// BacktickQuote 是否将反引号视为标识符引用符（mysql/clickhouse语义，如 `my;tbl`）。
+	// 未开启时反引号内的分号会被误判为语句结束符，导致含特殊字符的表名/列名被错切；
+	// 标准SQL（postgres/sqlite/oracle等）无反引号语法，必须保持false
+	BacktickQuote bool
 }
 
 // SplitStmts 语句切割（用于以指定delimiter结尾为一条语句，并且去除// -- /**/等注释）主要由阿里通义灵码提供
@@ -106,6 +111,12 @@ func SplitStmtsWithOpts(r io.Reader, delimiter rune, opts SplitOpts, callback St
 				inSingleLineComment = true
 				buffer.Next(size)
 			case r == '\'' || r == '"':
+				inString = true
+				stringDelimiter = r
+				currentStatement.WriteRune(r)
+				buffer.Next(size)
+			case opts.BacktickQuote && r == '`':
+				// mysql反引号标识符：内部字符（含分号）不得参与语句切割，`` 为转义的反引号
 				inString = true
 				stringDelimiter = r
 				currentStatement.WriteRune(r)

@@ -347,32 +347,30 @@ const cmDataDel = new ContextmenuItem('deleteData', 'common.delete')
 
 const cmFormView = new ContextmenuItem('formView', 'db.formView').withIcon('Document').withOnClick(() => onEditRowData());
 
-const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
-    .withIcon('tickets')
+// 生成类子项：INSERT SQL / JSON（声明了子项但全部不可见时，父项会被自动隐藏）
+const cmDataGenSql = new ContextmenuItem('genInsertSql', 'db.genSql')
     .withOnClick(() => handleGenerateInsertSql())
     .withHideFunc(() => {
         return state.table == '';
     });
 
-const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withIcon('tickets').withOnClick(() => handleGenerateJson());
+const cmDataGenJson = new ContextmenuItem('genJson', 'db.genJson').withOnClick(() => handleGenerateJson());
 
-const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv')
-    .withIcon('document')
-    .withOnClick(() => onExportCsv())
-    .withPermission('db:data:export');
+const cmDataGen = new ContextmenuItem('gen', 'db.gen').withIcon('tickets').withChildren([cmDataGenSql, cmDataGenJson]);
 
-const cmDataExportExcel = new ContextmenuItem('exportExcel', 'db.exportExcel')
-    .withIcon('document')
-    .withOnClick(() => onExportExcel())
-    .withPermission('db:data:export');
+// 导出类子项（导出权限挂在各子项上）
+const cmDataExportExcel = new ContextmenuItem('exportExcel', 'db.exportExcel').withOnClick(() => onExportExcel()).withPermission('db:data:export');
+
+const cmDataExportCsv = new ContextmenuItem('exportCsv', 'db.exportCsv').withOnClick(() => onExportCsv()).withPermission('db:data:export');
 
 const cmDataExportSql = new ContextmenuItem('exportSql', 'db.exportSql')
-    .withIcon('document')
     .withOnClick(() => onExportSql())
     .withHideFunc(() => {
         return state.table == '';
     })
     .withPermission('db:data:export');
+
+const cmDataExport = new ContextmenuItem('export', 'db.export').withIcon('Download').withChildren([cmDataExportExcel, cmDataExportCsv, cmDataExportSql]);
 
 let dbDialect: DbDialect = null!;
 
@@ -542,11 +540,13 @@ const setTableColumns = (columns: TableColumnDef[]) => {
         x.dataType = dbDialect.getDataType(x.columnType ?? '');
         x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
         x.remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
+        // 脱敏列在表头追加标识
+        const title = x.masked ? `${columnName} [${t('db.maskedTag')}]` : columnName;
         return {
             ...x,
             key: x.key ?? columnName,
-            width: DbInst.flexColumnWidth(columnName, state.datas),
-            title: columnName,
+            width: DbInst.flexColumnWidth(title, state.datas),
+            title,
             align: x.dataType == DataType.Number ? 'right' : 'left',
             headerClass: 'table-column',
             class: 'table-column',
@@ -632,7 +632,7 @@ const dataContextmenuClick = (event: MouseEvent, rowIndex: number, column: Table
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGenInsertSql, cmDataGenJson, cmDataExportExcel, cmDataExportCsv, cmDataExportSql];
+    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGen, cmDataExport];
     contextmenuRef.value?.openContextmenu({ column, rowData: data });
 };
 

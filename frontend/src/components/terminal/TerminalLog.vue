@@ -35,6 +35,8 @@ const props = withDefaults(
     { title: 'Log' }
 );
 
+const emit = defineEmits<{ finished: [] }>();
+
 const visible = defineModel<boolean>('visible', { default: false });
 const logId = defineModel<number>('logId', { default: 0 });
 
@@ -83,9 +85,10 @@ const writeLog = async () => {
     }
     writeLog2Term(log);
 
-    // 如果不是还在执行中的日志，则暂停轮询
+    // 如果不是还在执行中的日志，则暂停轮询，并通知外部任务已结束
     if (log.type != LogTypeEnum.Running.value) {
         pause();
+        emit('finished');
         return;
     }
     resume();

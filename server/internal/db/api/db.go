@@ -259,7 +259,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	now := time.Now()
 	filename := fmt.Sprintf("%s-%s.%s.sql%s", dbConn.Info.Name, dbName, now.Format("20060102150405"), extName)
 	rc.Header("Content-Type", "application/octet-stream")
-	rc.Header("Content-Disposition", "attachment; filename="+filename)
+	rc.Header("Content-Disposition", contentDisposition(filename))
 	if extName != ".gz" {
 		rc.Header("Content-Encoding", "gzip")
 	}
@@ -394,6 +394,52 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 		logx.Errorf("copy table error: %s", err.Error())
 	}
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")
+}
+
+// contentDisposition 构造安全的Content-Disposition响应头。
+// 文件名由实例名与库名拼接而成，两者均可能被用户改动或直接通过查询参数传入，未消毒直接拼接存在三类问题：
+//   - 含双引号、分号、反斜杠会截断甚至伪造filename参数（如 name";x=y 使解析结果只剩前半段）；
+//   - 含控制字符（含CR/LF）时Go会判定整个头值非法并静默丢弃该响应头，浏览器只能退回默认文件名；
+//   - 中文等非ASCII字符既未加引号也未做RFC 5987编码，各浏览器按不同字符集解码，下载名乱码。
+//
+// 因此同时输出ASCII回退名（危险与不可打印字符统一替换为下划线）与RFC 5987的filename*（UTF-8百分号编码），
+// 现代浏览器优先取filename*，旧客户端退回ASCII名。
+func contentDisposition(filename string) string {
+	return fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, asciiFallbackFilename(filename), rfc5987Encode(filename))
+}
+
+// asciiFallbackFilename 生成仅含可见ASCII字符的回退文件名
+func asciiFallbackFilename(filename string) string {
+	var sb strings.Builder
+	for _, rn := range filename {
+		// 0x20以下控制字符（含CR/LF/TAB/NUL）、空格、DEL以及双引号、分号、反斜杠、路径分隔符一律替换
+		if rn <= 0x20 || rn == 0x7f || rn > 0x7f || strings.IndexByte(`";\/`, byte(rn)) >= 0 {
+			sb.WriteByte('_')
+			continue
+		}
+		sb.WriteRune(rn)
+	}
+	// 全部字符都被替换时兜底，避免得到一个纯下划线或空的文件名
+	if strings.Trim(sb.String(), "_") == "" {
+		return "dump.sql"
+	}
+	return sb.String()
+}
+
+// rfc5987Encode 按RFC 8187对ext-value做百分号编码：仅保留attr-char，其余字节按UTF-8逐字节编码。
+// 注意'与%本身也需编码，否则文件名中的%s会被对端解析成非法的扩展值
+func rfc5987Encode(val string) string {
+	var sb strings.Builder
+	for i := 0; i < len(val); i++ {
+		b := val[i]
+		isAlphaNum := (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+		if isAlphaNum || strings.IndexByte("!#$&*+-.^_`|~", b) >= 0 {
+			sb.WriteByte(b)
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("%%%02X", b))
+	}
+	return sb.String()
 }
 
 func getDbId(rc *req.Ctx) uint64 {

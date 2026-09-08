@@ -88,6 +88,7 @@ export interface DbSqlExec extends BaseModel {
 
 /** 数据库实例列表查询参数 */
 export interface DbInstanceListParam extends PageParam {
+    id?: number;
     tagPath?: string;
 }
 
@@ -95,6 +96,7 @@ export interface DbInstanceListParam extends PageParam {
 export interface DbListParam extends PageParam {
     id?: number;
     tagPath?: string;
+    instanceId?: number;
 }
 
 /** 数据同步任务实体 (对应 entity.DataSyncTask) */
@@ -150,6 +152,8 @@ export interface DbTransferTask extends BaseModel {
     deleteTable: number;
     nameCase: number;
     strategy: number;
+    /** 并发度（迁移到数据库时的分片并行度，0表示用后端默认值4） */
+    concurrency: number;
     srcDbId: number;
     srcDbName: string;
     srcTagPath: string;
@@ -204,6 +208,8 @@ export interface TableColumnDef {
     columnType?: string;
     key?: string;
     show?: boolean;
+    /** 是否为脱敏列 (后端 doQuery 脱敏后下发) */
+    masked?: boolean;
     nullable?: boolean;
     isPrimaryKey?: boolean;
     autoIncrement?: boolean;
@@ -249,6 +255,8 @@ export interface SqlExecResColumn {
     name: string;
     key?: string;
     type?: string;
+    /** 是否为脱敏列 (服务端 doQuery 脱敏后下发) */
+    masked?: boolean;
     [key: string]: unknown;
 }
 
@@ -309,3 +317,56 @@ export interface DbInstanceServerInfo {
     connections: number;
     [key: string]: unknown;
 }
+
+/** 脱敏规则 (对应 entity.DbMaskRule) */
+export interface DbMaskRule extends BaseModel {
+    id: number;
+    name: string;
+    /** 匹配类型: 1正则 2精确 3前缀 */
+    matchType: number;
+    pattern: string;
+    algorithm: string;
+    /** 算法参数json */
+    params?: string;
+    /** 状态: 1启用 0停用 */
+    status: number;
+    weight?: number;
+    remark?: string;
+}
+
+/** 脱敏列标签 (对应 entity.DbMaskColumn) */
+export interface DbMaskColumn extends BaseModel {
+    id: number;
+    instanceId: number;
+    dbName?: string;
+    tableName?: string;
+    columnName?: string;
+    /** 动作: 1绑定规则 2豁免 */
+    action: number;
+    ruleId?: number;
+    /** 直接指定的算法，优先于规则 */
+    algorithm?: string;
+    params?: string;
+    remark?: string;
+}
+
+/** 脱敏规则查询条件 */
+export interface DbMaskRuleQuery extends PageParam {
+    name?: string;
+    keyword?: string;
+    status?: number;
+}
+
+/** 脱敏规则保存表单 */
+export type DbMaskRuleSaveForm = Partial<Omit<DbMaskRule, keyof BaseModel>>;
+
+/** 脱敏列标签查询条件 */
+export interface DbMaskColumnQuery extends PageParam {
+    instanceId?: number;
+    dbName?: string;
+    tableName?: string;
+    columnName?: string;
+}
+
+/** 脱敏列标签保存表单 */
+export type DbMaskColumnSaveForm = Partial<Omit<DbMaskColumn, keyof BaseModel>>;

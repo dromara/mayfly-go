@@ -27,8 +27,10 @@ var (
 
 	BLOB = dbi.NewDbDataType("BLOB", dbi.DTBytes).WithCT(dbi.CTBlob)
 
-	DECIMAL  = dbi.NewDbDataType("DECIMAL", dbi.DTDecimal).WithCT(dbi.CTDecimal)
-	NUMBER   = dbi.NewDbDataType("NUMBER", dbi.DTNumeric).WithCT(dbi.CTNumeric)
+	DECIMAL = dbi.NewDbDataType("DECIMAL", dbi.DTDecimal).WithCT(dbi.CTDecimal)
+	// Oracle的NUMBER是任意精度精确数值（非二进制浮点），必须归CTDecimal：若归CTNumeric，
+	// 目标为MySQL时会被映射为double而静默丢失精度（NUMBER(20,4)的20位有效数字转double只剩~15位）
+	NUMBER   = dbi.NewDbDataType("NUMBER", dbi.DTNumeric).WithCT(dbi.CTDecimal)
 	INTEGER  = dbi.NewDbDataType("INTEGER", dbi.DTInt32).WithCT(dbi.CTInt4)
 	INT      = dbi.NewDbDataType("INT", dbi.DTInt32).WithCT(dbi.CTInt4)
 	BIGINT   = dbi.NewDbDataType("BIGINT", dbi.DTInt64).WithCT(dbi.CTInt8)

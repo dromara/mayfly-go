@@ -5,12 +5,14 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
-	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
 )
+
+var _ dbi.Dialect = (*ClickHouseDialect)(nil)
 
 type ClickHouseDialect struct {
 	dc *dbi.DbConn
@@ -37,7 +39,7 @@ func (cd *ClickHouseDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 }
 
 func (cd *ClickHouseDialect) CopyTable(copy *dbi.DbCopyTable) error {
-	quote := cd.Quoter().Quote
+	quote := cd.Quoter().QuoteIdent
 	tableName := copy.TableName
 
 	// 生成新表名，为老表名+_copy_时间戳
@@ -64,6 +66,8 @@ func (cd *ClickHouseDialect) GetSQLGenerator() dbi.SQLGenerator {
 }
 
 // ClickHouseSQLGenerator implements the SQLGenerator interface for ClickHouse
+var _ dbi.SQLGenerator = (*ClickHouseSQLGenerator)(nil)
+
 type ClickHouseSQLGenerator struct {
 	dialect *ClickHouseDialect
 }
@@ -71,7 +75,7 @@ type ClickHouseSQLGenerator struct {
 func (csg *ClickHouseSQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
 	var sqls []string
 
-	quote := csg.dialect.Quoter().Quote
+	quote := csg.dialect.Quoter().QuoteIdent
 
 	if dropBeforeCreate {
 		sqls = append(sqls, fmt.Sprintf("DROP TABLE IF EXISTS %s", quote(table.TableName)))
@@ -141,7 +145,7 @@ func (csg *ClickHouseSQLGenerator) GenInsert(tableName string, columns []dbi.Col
 		return []string{}
 	}
 
-	quote := csg.dialect.Quoter().Quote
+	quote := csg.dialect.Quoter().QuoteIdent
 
 	// Build column list
 	var columnNames []string

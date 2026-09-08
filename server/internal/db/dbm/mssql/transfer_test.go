@@ -93,11 +93,29 @@ func TestMssqlConverter_RepresentativeMappings(t *testing.T) {
 	col := newCol()
 
 	assert.Equal(t, Date, c.Date(col))
-	assert.Equal(t, Datetime, c.Datetime(col))
-	assert.Equal(t, Datetime, c.Timestamp(col))
+	// datetime2而非datetime：datetime标度固定3.33ms且无精度语法，无法表达异构源的微秒小数秒
+	assert.Equal(t, Datetime2, c.Datetime(col))
+	assert.Equal(t, Datetime2, c.Timestamp(col))
 	assert.Equal(t, Varchar, c.Enum(col))
 	assert.Equal(t, Text, c.JSON(col))
 	assert.Equal(t, Decimal, c.Decimal(col))
+	// 无精度约束的源列必须补齐(38,19)：mssql的decimal不声明精度即decimal(18,0)，会静默截断小数
+	unbounded := newCol()
+	assert.Equal(t, Decimal, c.Decimal(unbounded))
+	assert.Equal(t, 38, unbounded.NumPrecision)
+	assert.Equal(t, 19, unbounded.NumScale)
+
+	// datetime2保留并收敛源列小数秒精度（mssql上限7），且时间类型不得残留标度
+	timeCol := newCol()
+	timeCol.NumPrecision, timeCol.NumScale = 3, 2
+	assert.Equal(t, Datetime2, c.Datetime(timeCol))
+	assert.Equal(t, 3, timeCol.NumPrecision)
+	assert.Equal(t, 0, timeCol.NumScale, "时间类型的标度无意义，必须清零避免拼出datetime2(3,2)")
+	assert.Equal(t, Datetime2, c.Timestamp(&dbi.Column{NumPrecision: 9}))
+	dateCol := newCol()
+	dateCol.NumPrecision = 3
+	c.Date(dateCol)
+	assert.Equal(t, 0, dateCol.NumPrecision, "date不接受精度参数，必须清空")
 }
 
 // 覆盖剩余简单映射（目标方言为mssql时的完整映射矩阵）
@@ -105,7 +123,8 @@ func TestMssqlConverter_RemainingMappings(t *testing.T) {
 	c := &commonTypeConverter{}
 
 	assert.Equal(t, Char, c.Char(newCol()))
-	assert.Equal(t, Numeric, c.Numeric(newCol()))
+	// CTNumeric（浮点/无约束数值）落float而非numeric：numeric不带精度等价numeric(18,0)会截断小数
+	assert.Equal(t, Float, c.Numeric(newCol()))
 	assert.Equal(t, Time, c.Time(newCol()))
 
 	// mediumtext/longtext同样归一化为text并清空长度（text无长度语法）

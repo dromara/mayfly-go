@@ -104,3 +104,58 @@ func TestTrim(t *testing.T) {
 		assert.EqualValues(t, dst, Quoter{'[', ']', AlwaysReserve}.Trim(src))
 	}
 }
+
+// TestTrim_PartialQuotePreserved 仅首或仅尾存在引用符时属于标识符本身，不得被剔除：
+// 否则按名查询会匹配到另一张表（错表取列）或查不到
+func TestTrim_PartialQuotePreserved(t *testing.T) {
+	mysqlQuoter := Quoter{'`', '`', AlwaysReserve}
+	for _, s := range []string{"a`", "`a", "a b", ""} {
+		assert.Equal(t, s, mysqlQuoter.Trim(s))
+	}
+}
+
+// TestQuoteIdent 元数据标识符引用：不切分（真实表名可含空格/点/分号），内部引用符双写
+func TestQuoteIdent(t *testing.T) {
+	mysqlQuoter := Quoter{'`', '`', AlwaysReserve}
+	std := DefaultQuoter
+
+	kases := []struct {
+		name   string
+		quoter Quoter
+		value  string
+		expect string
+	}{
+		{"mysql普通名", mysqlQuoter, "tbl", "`tbl`"},
+		{"mysql含空格", mysqlQuoter, "my tbl", "`my tbl`"},
+		{"mysql含点", mysqlQuoter, "a.b", "`a.b`"},
+		{"mysql含分号与注释符", mysqlQuoter, "a;b--c", "`a;b--c`"},
+		{"mysql含反引号需双写", mysqlQuoter, "a`b", "`a``b`"},
+		{"mysql已完整引用那么原样", mysqlQuoter, "`a b`", "`a b`"},
+		{"std含空格", std, "my tbl", `"my tbl"`},
+		{"std含双引号需双写", std, `a"b`, `"a""b"`},
+		{"mssql含右括号需双写", Quoter{'[', ']', AlwaysReserve}, "a]b", "[a]]b]"},
+		{"空值", std, "", ""},
+		{"未配置引用符", Quoter{0, 0, AlwaysReserve}, "a b", "a b"},
+	}
+
+	for _, k := range kases {
+		t.Run(k.name, func(t *testing.T) {
+			assert.Equal(t, k.expect, k.quoter.QuoteIdent(k.value))
+		})
+	}
+}
+
+// TestQuoteIdent_NotSplitLikeQuote 对比Quote：含空格的真实表名被Quote切分后逐段引用会生成非法SQL，
+// QuoteIdent那么不切分（两者适用场景不同，此处锁定差异）
+func TestQuoteIdent_NotSplitLikeQuote(t *testing.T) {
+	mysqlQuoter := Quoter{'`', '`', AlwaysReserve}
+	assert.Equal(t, "`my` `表`", mysqlQuoter.Quote("my 表"))
+	assert.Equal(t, "`my 表`", mysqlQuoter.QuoteIdent("my 表"))
+}
+
+// TestQuoteWordTo_EscapeInnerQuote Quote对片段中的词也必须双写词内引用符，避免提前闭合
+func TestQuoteWordTo_EscapeInnerQuote(t *testing.T) {
+	mysqlQuoter := Quoter{'`', '`', AlwaysReserve}
+	assert.Equal(t, "`a``b`", mysqlQuoter.Quote("a`b"))
+	assert.Equal(t, `"a""b"`, DefaultQuoter.Quote(`a"b`))
+}

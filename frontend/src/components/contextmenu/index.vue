@@ -1,42 +1,29 @@
 <template>
-    <transition @enter="onEnter" name="el-zoom-in-center">
-        <div
-            :aria-hidden="state.isShow ? 'false' : 'true'"
-            class="el-dropdown__popper el-popper is-light is-pure custom-contextmenu"
-            role="tooltip"
-            data-popper-placement="bottom"
-            :style="`top: ${state.dropdown.y + 5}px;left: ${state.dropdown.x}px;`"
-            :key="state.menuKey"
-            v-show="state.isShow && !allHide"
-            @contextmenu="headerContextmenuClick"
-        >
-            <ul class="el-dropdown-menu">
-                <template v-for="(v, k) in state.dropdownList">
-                    <li
-                        :id="String(v.clickId)"
-                        v-auth="v.permission"
-                        class="el-dropdown-menu__item"
-                        aria-disabled="false"
-                        tabindex="-1"
-                        :key="k"
-                        v-if="!v.affix && !v.isHide(state.item)"
-                        @click="onCurrentContextmenuClick(v)"
-                    >
-                        <SvgIcon :name="v.icon" />
-                        <span>{{ $t(v.txt) }}</span>
-                    </li>
-                </template>
-            </ul>
-            <div v-if="state.arrowLeft > 0" class="el-popper__arrow" :style="{ left: `${state.arrowLeft}px` }"></div>
-        </div>
-    </transition>
+    <ContextMenu :modal="false">
+        <!--
+            虚拟触发：1px 固定定位的隐形 Trigger，openContextmenu(item) 时把内部派发点
+            移到目标坐标并派发 contextmenu 事件交给官方组件打开；reka-ui 取事件的
+            clientX/Y 作为锚点，定位/边界碰撞/子菜单/键盘导航全部由它处理
+        -->
+        <ContextMenuTrigger class="contextmenu-virtual-trigger">
+            <span ref="dispatchRef" />
+        </ContextMenuTrigger>
+        <!--
+            focus-outside.prevent：el-dialog 等容器的焦点管理会把焦点抢回弹窗，触发 reka 的
+            focusOutside dismiss 导致菜单打开即关闭；外部点击由 pointerDownOutside 负责关闭，
+            Escape 由 escapeKeyDown 负责，均不受此拦截影响
+        -->
+        <ContextMenuContent v-if="visibleItems.length" class="w-auto min-w-36 z-[2190]" @focus-outside.prevent>
+            <ContextmenuItemNode :items="visibleItems" :payload="state.item" @select="onSelect" />
+        </ContextMenuContent>
+    </ContextMenu>
 </template>
 
 <script setup lang="ts" name="layoutTagsViewContextmenu">
-import { computed, reactive, onMounted, onUnmounted, watch } from 'vue';
-import { ContextmenuItem } from './index';
-import SvgIcon from '@/components/svg-icon/index.vue';
-import { useWindowSize } from '@vueuse/core';
+import { computed, nextTick, reactive, ref } from 'vue';
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { ContextmenuItem, filterVisibleItems } from './item';
+import ContextmenuItemNode from './ContextmenuItemNode.vue';
 
 // 定义父组件传过来的值
 interface DropdownPosition {
@@ -55,127 +42,44 @@ const props = withDefaults(
 // 定义子组件向父组件传值/事件
 const emit = defineEmits(['currentContextmenuClick']);
 
-const { width: vw, height: vh } = useWindowSize();
-
-// 定义变量内容
 const state = reactive({
-    isShow: false,
-    dropdownList: [] as ContextmenuItem[],
+    // openContextmenu(item) 传入的业务数据，作为 isHide/onClickFunc 的入参
     item: {} as unknown,
-    arrowLeft: 10,
-    menuKey: 0,
-    dropdown: {
-        x: 0,
-        y: 0,
-    },
 });
 
-// 下拉菜单宽高
-let contextmenuWidth = 117;
-let contextmenuHeight = 117;
-// 下拉菜单元素
-let ele: HTMLElement | null = null;
+const pos = reactive({ x: 0, y: 0 });
+const dispatchRef = ref<HTMLElement>();
 
-const onEnter = (el: Element) => {
-    if (ele || (el as HTMLElement).offsetHeight == 0) {
+// 过滤后的可见菜单项（含子菜单递归过滤）
+const visibleItems = computed(() => filterVisibleItems(props.items, state.item));
+
+/**
+ * 打开右键菜单：等调用方刚重建的 items 同步到 props 后再校验/派发；
+ * 派发点位于 Trigger 内部，事件带着目标坐标冒泡到 reka-ui 的监听元素打开菜单
+ */
+const openContextmenu = async (item: unknown) => {
+    state.item = item;
+    // 等父组件渲染后再读坐标与 items：props 随父组件渲染才更新，同步读会拿到上一次的坐标（首次为初始 0,0）
+    await nextTick();
+    pos.x = props.dropdown.x;
+    pos.y = props.dropdown.y;
+    if (!visibleItems.value.length || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
         return;
     }
-
-    ele = el as HTMLElement;
-    contextmenuHeight = (el as HTMLElement).offsetHeight;
-    contextmenuWidth = (el as HTMLElement).offsetWidth;
-    setDropdowns(props.dropdown);
+    dispatchRef.value?.dispatchEvent(
+        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window, clientX: pos.x, clientY: pos.y })
+    );
 };
 
-const setDropdowns = (dropdown: DropdownPosition) => {
-    let { x, y } = dropdown;
-
-    state.arrowLeft = 10;
-
-    //  `Dropdown 下拉菜单` 的宽度
-    if (x + contextmenuWidth > vw.value) {
-        state.arrowLeft = contextmenuWidth - (vw.value - x);
-        x = vw.value - contextmenuWidth - 5;
-    }
-    if (y + contextmenuHeight > vh.value) {
-        y = vh.value - contextmenuHeight - 5;
-        state.arrowLeft = 0;
-    }
-
-    state.dropdown.x = x;
-    state.dropdown.y = y;
-};
-
-const allHide = computed(() => {
-    for (let item of state.dropdownList) {
-        if (!item.isHide(state.item)) {
-            return false;
-        }
-    }
-    return true;
-});
-
-// 当前项菜单点击
-const onCurrentContextmenuClick = (ci: ContextmenuItem) => {
-    // 存在点击事件，则触发该事件函数
-    if (ci.onClickFunc) {
-        ci.onClickFunc(state.item);
-    }
-    emit('currentContextmenuClick', { id: ci.clickId, item: state.item });
-};
-
-const headerContextmenuClick = (event: MouseEvent) => {
-    event.preventDefault(); // 阻止默认的右击菜单行为
-};
-
-// 打开右键菜单：判断是否固定，固定则不显示关闭按钮
-const openContextmenu = (item: unknown) => {
-    state.item = item;
-    closeContextmenu();
-    state.menuKey++;
-    setTimeout(() => {
-        // 先设置位置再显示，避免首次渲染时从左上角 (0,0) 滑下的动画
-        state.dropdown = { ...props.dropdown };
-        state.isShow = true;
-    }, 10);
-};
-
-// 关闭右键菜单
+// 关闭右键菜单：派发 Escape 键交给 reka-ui 的关闭逻辑
 const closeContextmenu = () => {
-    state.isShow = false;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 };
 
-// 监听页面监听进行右键菜单的关闭
-onMounted(() => {
-    document.body.addEventListener('click', closeContextmenu);
-    state.dropdownList = props.items;
-});
-
-// 页面卸载时，移除右键菜单监听事件
-onUnmounted(() => {
-    document.body.removeEventListener('click', closeContextmenu);
-});
-
-watch(
-    () => props.dropdown,
-    () => {
-        // 元素置为空，重新在onEnter赋值元素，否则会造成堆栈溢出
-        ele = null;
-    },
-    {
-        deep: true,
-    }
-);
-
-watch(
-    () => props.items,
-    (x: ContextmenuItem[]) => {
-        state.dropdownList = x;
-    },
-    {
-        deep: true,
-    }
-);
+// 菜单项选中：透传历史事件，保持对外 API 兼容
+const onSelect = (item: ContextmenuItem) => {
+    emit('currentContextmenuClick', { id: item.clickId, item: state.item });
+};
 
 // 暴露变量
 defineExpose({
@@ -184,20 +88,8 @@ defineExpose({
 });
 </script>
 
-<style scoped lang="scss">
-.custom-contextmenu {
-    transform-origin: center top;
-    z-index: 2190;
-    position: fixed;
-
-    .el-dropdown-menu__item {
-        padding: 5px 12px;
-        font-size: 12px !important;
-        white-space: nowrap;
-
-        i {
-            font-size: 12px !important;
-        }
-    }
+<style scoped>
+.contextmenu-virtual-trigger {
+    display: none;
 }
 </style>

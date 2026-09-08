@@ -42,7 +42,7 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 		return columns, nil
 	}
 
-	_, res, err := od.dc.Query(fmt.Sprintf(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE11_COLUMN_MA_KEY), tableName))
+	_, res, err := od.dc.Query(fmt.Sprintf(metaSql.Get(ORACLE11_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +64,8 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 		}
 
 		od.dc.GetDbDataType(column.DataType).FixColumn(&column)
+		// Oracle的DATA_DEFAULT对字面量默认值恒带引号，不带引号的函数/运算形态即表达式默认值
+		dbi.MarkExprDefault(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -71,7 +73,7 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 
 func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
 	dialect := od.dc.GetDialect()
-	colName := dialect.Quoter().Quote(column.ColumnName)
+	colName := dialect.Quoter().QuoteIdent(column.ColumnName)
 
 	if column.AutoIncrement {
 		// 11g以前的版本 如果是自增，自增列数据类型必须是number，不需要设置默认值和空值，建表后设置自增序列
@@ -83,10 +85,7 @@ func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
 		nullAble = " NOT NULL"
 	}
 
-	defVal := ""
-	if column.ColumnDefault != "" {
-		defVal = fmt.Sprintf(" DEFAULT %v", column.ColumnDefault)
-	}
+	defVal := dbi.GenColumnDefaultSqlOf(&column, column.DataType, dbi.QuoteEscape)
 
 	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), defVal, nullAble)
 	return columnSql

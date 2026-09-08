@@ -1,6 +1,7 @@
 package mssql
 
 import (
+	_ "embed"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
@@ -12,14 +13,21 @@ import (
 	"github.com/spf13/cast"
 )
 
+//go:embed meta.sql
+var metaSqlFile string
+
+// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
+var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+
 const (
-	MSSQL_META_FILE      = "metasql/mssql_meta.sql"
 	MSSQL_DBS_KEY        = "MSSQL_DBS"
 	MSSQL_DB_SCHEMAS_KEY = "MSSQL_DB_SCHEMAS"
 	MSSQL_TABLE_INFO_KEY = "MSSQL_TABLE_INFO"
 	MSSQL_INDEX_INFO_KEY = "MSSQL_INDEX_INFO"
 	MSSQL_COLUMN_MA_KEY  = "MSSQL_COLUMN_MA"
 )
+
+var _ dbi.Metadata = (*MssqlMetadata)(nil)
 
 type MssqlMetadata struct {
 	dbi.DefaultMetadata
@@ -42,7 +50,7 @@ func (md *MssqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 }
 
 func (md *MssqlMetadata) GetDbNames() ([]string, error) {
-	_, res, err := md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_DBS_KEY))
+	_, res, err := md.dc.Query(metaSql.Get(MSSQL_DBS_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +74,7 @@ func (md *MssqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSql.Get(MSSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -97,19 +105,35 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_COLUMN_MA_KEY), tableName), md.dc.Info.CurrentSchema())
+	_, res, err := md.dc.Query(fmt.Sprintf(metaSql.Get(MSSQL_COLUMN_MA_KEY), tableName), md.dc.Info.CurrentSchema())
 	if err != nil {
 		return nil, err
 	}
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
+		dataType := anyx.ToString(re["DATA_TYPE"])
+		charMaxLength := cast.ToInt(re["CHAR_MAX_LENGTH"])
+		// SQL Server的max_length是字节数：nchar/nvarchar每字符占2字节，DDL要写的是字符数，
+		// 不换算会使迁入异构库时varchar/char长度翻倍（目标库字节上限不同还会建表失败）
+		if dataType == "nchar" || dataType == "nvarchar" {
+			charMaxLength /= 2
+		}
+		// -1代表max形态（varchar(max)/nvarchar(max)/varbinary(max)，最大2GB），直接拼会生成varchar(-1)非法DDL；
+		// text/ntext/xml等固定为16（LOB指针大小）或0，由其FixColumn清空
+		if charMaxLength < 0 {
+			switch dataType {
+			case "varchar", "nvarchar", "varbinary":
+				dataType += "(max)"
+			}
+			charMaxLength = 0
+		}
 
 		column := dbi.Column{
 			TableName:     anyx.ToString(re["TABLE_NAME"]),
 			ColumnName:    anyx.ToString(re["COLUMN_NAME"]),
-			DataType:      anyx.ToString(re["DATA_TYPE"]),
-			CharMaxLength: cast.ToInt(re["CHAR_MAX_LENGTH"]),
+			DataType:      dataType,
+			CharMaxLength: charMaxLength,
 			ColumnComment: anyx.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      anyx.ToString(re["NULLABLE"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
@@ -117,9 +141,24 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			ColumnDefault: cast.ToString(re["COLUMN_DEFAULT"]),
 			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
+			IsGenerated:   cast.ToInt(re["IS_GENERATED"]) == 1,
 		}
 
 		md.dc.GetDbDataType(column.DataType).FixColumn(&column)
+		// SQL Server的字面量默认值在object_definition里恒带引号（('abc')、(N'abc')），
+		// 剥括号后仍非字面量的（(getdate())、(suser_sname())）即表达式默认值，标记以免写成字符串
+		dbi.MarkExprDefault(&column)
+		// 计算列必须连定义原文一起标记：无定义则无法在目标库重建，按普通列建表并插入源值（保留数据）；
+		// 有定义且目标同为SQL Server时才重建为计算列并从INSERT剔除，两者判定必须一致否则静默变NULL
+		if column.IsGenerated {
+			if def := strings.TrimSpace(cast.ToString(re["COMPUTED_DEF"])); def != "" {
+				kind := dbi.GenerationVirtual
+				if cast.ToInt(re["IS_PERSISTED"]) == 1 {
+					kind = dbi.GenerationStored
+				}
+				dbi.MarkGeneratedColumn(&column, string(DbTypeMssql), def, kind)
+			}
+		}
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -146,7 +185,7 @@ func (md *MssqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 
 // 需要收集唯一键涉及的字段，所以需要查询出带主键的索引
 func (md *MssqlMetadata) getTableIndexWithPK(tableName string) ([]dbi.Index, error) {
-	_, res, err := md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_INDEX_INFO_KEY), md.dc.Info.CurrentSchema(), tableName)
+	_, res, err := md.dc.Query(metaSql.Get(MSSQL_INDEX_INFO_KEY), md.dc.Info.CurrentSchema(), tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +217,8 @@ func (md *MssqlMetadata) getTableIndexWithPK(tableName string) ([]dbi.Index, err
 			result = append(result, v)
 		}
 	}
-	return indexs, nil
+	// 返回分组合并后的结果，原实现误返回未分组的indexs导致组合索引被拆为多行
+	return result, nil
 }
 
 // 获取表索引信息
@@ -201,7 +241,7 @@ func (md *MssqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (s
 }
 
 func (md *MssqlMetadata) GetSchemas() ([]string, error) {
-	_, res, err := md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_DB_SCHEMAS_KEY))
+	_, res, err := md.dc.Query(metaSql.Get(MSSQL_DB_SCHEMAS_KEY))
 	if err != nil {
 		return nil, err
 	}

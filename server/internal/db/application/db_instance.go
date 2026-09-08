@@ -159,9 +159,12 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		return errorx.NewBiz("db instnace not found")
 	}
 
-	dbs, _ := app.dbApp.ListByCond(&entity.Db{
+	dbs, err := app.dbApp.ListByCond(&entity.Db{
 		InstanceId: instanceId,
 	})
+	if err != nil {
+		return errorx.NewBizf("failed to list dbs of instance: %s", err.Error())
+	}
 
 	return app.Tx(ctx, func(ctx context.Context) error {
 		return app.DeleteById(ctx, instanceId)
@@ -188,9 +191,16 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 }
 
 func (app *instanceAppImpl) GetDatabases(ctx context.Context, ed *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error) {
+	if authCert == nil {
+		return nil, errorx.NewBiz("auth cert cannot be empty")
+	}
 	if authCert.Id != 0 {
 		// 密文可能被清除，故需要重新获取
-		authCert, _ = app.resourceAuthCertApp.GetAuthCert(authCert.Name)
+		newAuthCert, err := app.resourceAuthCertApp.GetAuthCert(authCert.Name)
+		if err != nil {
+			return nil, err
+		}
+		authCert = newAuthCert
 	} else {
 		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
 			publicAuthCert, err := app.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)

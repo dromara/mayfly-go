@@ -97,8 +97,8 @@ func (ai *AppImpl[T, R]) UpdateById(ctx context.Context, e T) error {
 }
 
 // UpdateByCond 更新满足条件的数据
-//  -  values 需为模型结构体指针或map(更新零值等)
-//  -  cond 可为*model.QueryCond也可以为普通查询model
+//   - values 需为模型结构体指针或map(更新零值等)
+//   - cond 可为*model.QueryCond也可以为普通查询model
 func (ai *AppImpl[T, R]) UpdateByCond(ctx context.Context, values any, cond any) error {
 	return ai.GetRepo().UpdateByCond(ctx, values, cond)
 }

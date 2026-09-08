@@ -12,5 +12,8 @@ func InitIoc() {
 	ioc.Register(newDataSyncTaskRepo())
 	ioc.Register(newDataSyncLogRepo())
 	ioc.Register(newDbTransferTaskRepo())
+	ioc.Register(newDbTransferCheckpointRepo())
 	ioc.Register(newDbTransferFileRepo())
+	ioc.Register(newMaskRuleRepo())
+	ioc.Register(newMaskColumnRepo())
 }

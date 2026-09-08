@@ -19,6 +19,8 @@ const (
 	DbTypeDM dbi.DbType = "dm"
 )
 
+var _ dbi.Meta = (*Meta)(nil)
+
 type Meta struct {
 }
 

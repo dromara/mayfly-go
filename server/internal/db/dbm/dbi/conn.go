@@ -56,6 +56,8 @@ type QueryColumn struct {
 	Key  string `json:"key"`  // 列唯一标识
 	Type string `json:"type"` // 数据类型
 
+	Masked bool `json:"masked,omitempty"` // 该列是否已被脱敏
+
 	DbDataType *DbDataType `json:"-"`
 	valuer     Valuer      `json:"-"`
 }
@@ -125,7 +127,9 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	if qcs, err := d.walkQueryRows(ctx, querySql, walkFn, args...); err != nil {
 		// 如果是手动停止 则默认返回当前已遍历查询的数据即可
-		if _, ok := err.(*StopWalkQueryError); ok {
+		// walkFn返回的StopWalkQueryError可能被包装，需用errors.As而非类型断言
+		var stopErr *StopWalkQueryError
+		if errors.As(err, &stopErr) {
 			return qcs, nil
 		}
 		return qcs, wrapSqlError(err)
@@ -249,6 +253,13 @@ func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn Wal
 			cancelFunc()
 			return cols, err
 		}
+	}
+
+	// rows.Next()返回false除正常遍历完毕外，还可能是游标中途IO/网络错误（断连、超时等），
+	// 若不检查rows.Err()会静默按正常结束处理——dump导出场景将产出截断的备份文件且无任何报错，
+	// 属不可逆的数据丢失，必须显式失败
+	if err := rows.Err(); err != nil {
+		return cols, wrapSqlError(err)
 	}
 
 	return cols, nil

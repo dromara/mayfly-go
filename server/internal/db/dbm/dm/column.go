@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	CHAR          = dbi.NewDbDataType("VARCHAR", dbi.DTString).WithCT(dbi.CTVarchar)
+	// CHAR不能误写为"VARCHAR"：注册表按类型名索引，同名会被静默覆盖导致CHAR类型丢失
+	CHAR          = dbi.NewDbDataType("CHAR", dbi.DTString).WithCT(dbi.CTVarchar)
 	VARCHAR       = dbi.NewDbDataType("VARCHAR", dbi.DTString).WithCT(dbi.CTVarchar)
 	TEXT          = dbi.NewDbDataType("TEXT", dbi.DTString).WithCT(dbi.CTText)
 	LONG          = dbi.NewDbDataType("LONG", dbi.DTString).WithCT(dbi.CTText)
@@ -23,9 +24,12 @@ var (
 
 	BLOB = dbi.NewDbDataType("BLOB", dbi.DTBytes).WithCT(dbi.CTBlob)
 
-	NUMERIC  = dbi.NewDbDataType("NUMERIC", dbi.DTNumeric).WithCT(dbi.CTNumeric)
-	DECIMAL  = dbi.NewDbDataType("DECIMAL", dbi.DTDecimal).WithCT(dbi.CTDecimal)
-	NUMBER   = dbi.NewDbDataType("NUMBER", dbi.DTNumeric).WithCT(dbi.CTNumeric)
+	// 达梦的NUMERIC/DECIMAL/NUMBER均为精确数值（彼此同义），一律归CTDecimal
+	NUMERIC = dbi.NewDbDataType("NUMERIC", dbi.DTNumeric).WithCT(dbi.CTDecimal)
+	DECIMAL = dbi.NewDbDataType("DECIMAL", dbi.DTDecimal).WithCT(dbi.CTDecimal)
+	// 达梦的NUMBER（Oracle兼容）是任意精度精确数值，必须归CTDecimal：若归CTNumeric，
+	// 目标为MySQL时会被映射为double而静默丢失精度
+	NUMBER   = dbi.NewDbDataType("NUMBER", dbi.DTNumeric).WithCT(dbi.CTDecimal)
 	INTEGER  = dbi.NewDbDataType("INTEGER", dbi.DTInt32).WithCT(dbi.CTInt4)
 	INT      = dbi.NewDbDataType("INT", dbi.DTInt32).WithCT(dbi.CTInt4)
 	BIGINT   = dbi.NewDbDataType("BIGINT", dbi.DTInt64).WithCT(dbi.CTInt8)

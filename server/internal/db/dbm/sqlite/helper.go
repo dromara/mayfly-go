@@ -5,6 +5,8 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 )
 
+var _ dbi.DumpHelper = (*DumpHelper)(nil)
+
 type DumpHelper struct {
 	dbi.DefaultDumpHelper
 }

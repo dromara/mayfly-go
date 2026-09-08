@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
+
 type SQLGenerator struct {
 	dc *dbi.DbConn
 }
@@ -22,7 +24,7 @@ func (sg *SQLGenerator) quoteTableName(quote func(string) string, tableName stri
 func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
 	tbName := table.TableName
 	quoter := sg.dc.GetDialect().Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 	quoteTable := sg.quoteTableName(quote, tbName)
 
 	sqlArr := make([]string, 0)
@@ -80,7 +82,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 }
 
 func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
-	quote := sg.dc.GetDialect().Quoter().Quote
+	quote := sg.dc.GetDialect().Quoter().QuoteIdent
 	tbName := table.TableName
 	sqls := make([]string, 0)
 	comments := make([]string, 0)
@@ -135,22 +137,16 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 	if len(args) > 2000 {
 
 		rows := 2000 / singleSize // 每批次最大数据条数
-		mp := make(map[any][][]any)
-
-		// 把values拆成多份，每份不能超过rows条
-		length := len(values)
-		for i := 0; i < length; i += rows {
-			if i+rows <= length {
-				mp[i] = values[i : i+rows]
-			} else {
-				mp[i] = values[i:length]
-			}
-		}
-
 		var strs []string
-		for _, v := range mp {
-			res := sg.batchInsertSimple(tableName, columns, v, duplicateStrategy, targetTableMeta)
-			strs = append(strs, res...)
+		// 按原始顺序切片分批，保证批次顺序与行序确定性；
+		// map分批会因迭代随机导致插入行序不确定
+		for i := 0; i < len(values); i += rows {
+			end := i + rows
+			if end > len(values) {
+				end = len(values)
+			}
+			batchRes := sg.batchInsertSimple(tableName, columns, values[i:end], duplicateStrategy, targetTableMeta)
+			strs = append(strs, batchRes...)
 		}
 		return strs
 	}
@@ -169,12 +165,12 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 		if len(uniqueColumns) > 0 {
 			// 设置忽略重复键
 			// ALTER TABLE dbo.TEST ADD CONSTRAINT uniqueRows UNIQUE (ColA, ColB, ColC, ColD) WITH (IGNORE_DUP_KEY = ON)
-			ignoreDupSql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT uniqueRows UNIQUE (%s) WITH (IGNORE_DUP_KEY = {sign})", sg.quoteTableName(sg.dc.GetDialect().Quoter().Quote, tableName), strings.Join(uniqueColumns, ","))
+			ignoreDupSql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT uniqueRows UNIQUE (%s) WITH (IGNORE_DUP_KEY = {sign})", sg.quoteTableName(sg.dc.GetDialect().Quoter().QuoteIdent, tableName), strings.Join(uniqueColumns, ","))
 			res = append(res, strings.ReplaceAll(ignoreDupSql, "{sign}", "ON"))
 		}
 	}
 
-	quote := sg.dc.GetDialect().Quoter().Quote
+	quote := sg.dc.GetDialect().Quoter().QuoteIdent
 	baseTable := sg.quoteTableName(quote, tableName)
 
 	// 设置允许填充自增列之后，显示指定列名可以插入自增列
@@ -198,7 +194,7 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 
 func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int) []string {
 	var res []string
-	quote := sg.dc.GetDialect().Quoter().Quote
+	quote := sg.dc.GetDialect().Quoter().QuoteIdent
 
 	// 收集MERGE 语句的 ON 子句条件
 	caseArr := make([]string, 0)
@@ -232,11 +228,21 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 	for _, column := range columns {
 		columnName := column.ColumnName
 		quoteName := quote(columnName)
+		// 计算列/生成列既不可插入也不可更新（SQL Server报“不能向计算列插入值”），
+		// 其值由表达式派生，写入INSERT/UPDATE子句会使整条merge失败
+		if dbi.PreservableGeneratedColumn(column, DbTypeMssql) || column.IsGenerated {
+			continue
+		}
 		if !collx.ArrayContains(identityCols, sg.dc.GetDialect().Quoter().Trim(columnName)) {
-			updSqls = append(updSqls, fmt.Sprintf("T1.%s = T2.%s", columnName, columnName))
+			// update子句中的列名需引用，避免保留字/特殊字符列名导致语法错误
+			updSqls = append(updSqls, fmt.Sprintf("T1.%s = T2.%s", quoteName, quoteName))
 		}
 		insertCols = append(insertCols, quoteName)
-		insertVals = append(insertVals, fmt.Sprintf("T2.%s", columnName))
+		insertVals = append(insertVals, fmt.Sprintf("T2.%s", quoteName))
+	}
+	if len(insertCols) == 0 || len(updSqls) == 0 {
+		// 除计算列/自增列/主键列外无可写入列，无法生成merge语句，退化为简单插入
+		return sg.batchInsertSimple(tableName, columns, values, duplicateStrategy, nil)
 	}
 
 	// 把values二维数组转为一维数组
@@ -246,7 +252,8 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 		valArr := make([]string, 0, len(columns))
 		for j, column := range columns {
 			val := dbi.GetDbDataType(DbTypeMssql, column.DataType).DataType.SQLValue(value[j])
-			valArr = append(valArr, fmt.Sprintf("%s %s", val, column.ColumnName))
+			// select别名列名需引用，与T2.列名引用保持一致
+			valArr = append(valArr, fmt.Sprintf("%s %s", val, quote(column.ColumnName)))
 		}
 		valueSql = append(valueSql, fmt.Sprintf("select %s", strings.Join(valArr, ", ")))
 	}
@@ -265,15 +272,34 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 		identityInsertOn = fmt.Sprintf("SET IDENTITY_INSERT %s ON", quoteTable)
 
 	}
-	// 执行merge sql,必须要以分号结尾
-	res = append(res, fmt.Sprintf("%s %s", identityInsertOn, sqlTemp))
+	// MERGE语句必须以分号结尾，否则报Msg 10713（A MERGE statement must be terminated by a semi-colon）
+	mergeSql := sqlTemp + ";"
+	if identityInsertOn != "" {
+		mergeSql = identityInsertOn + "\n" + mergeSql
+	}
+	res = append(res, mergeSql)
 
 	return res
 }
 
 func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
-	colName := quoter.Quote(column.ColumnName)
+	colName := quoter.QuoteIdent(column.ColumnName)
 	dataType := column.DataType
+
+	// 计算列（仅源与目标同为SQL Server时才能重建，定义原文属于T-SQL）：形态为「col AS (expr) [PERSISTED]」，
+	// 不接受类型/NULL/DEFAULT/IDENTITY声明（声明即语法错误）；
+	// 不重建则目标列退化为普通列，与INSERT阶段的剔除叠加会使计算列值静默变NULL
+	if dbi.PreservableGeneratedColumn(column, DbTypeMssql) {
+		expr := strings.TrimSpace(dbi.GeneratedColumnExpr(column))
+		if !strings.HasPrefix(expr, "(") {
+			expr = "(" + expr + ")"
+		}
+		persisted := ""
+		if dbi.GeneratedColumnStored(column) {
+			persisted = " PERSISTED"
+		}
+		return fmt.Sprintf(" %s AS %s%s", colName, expr, persisted)
+	}
 
 	incr := ""
 	if column.AutoIncrement {
@@ -285,27 +311,10 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 		nullAble = " NOT NULL"
 	}
 
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, dataType) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
-		}
-
-		if mark {
-			// 默认值可能含单引号（如 it's），需双写转义，避免 DDL 语法错误或注入
-			defVal = fmt.Sprintf(" DEFAULT '%s'", dbi.QuoteEscape(column.ColumnDefault))
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
-	}
+	// SQL Server的 object_definition 返回带最外层括号的定义原文（如 ('abc')、(N'abc')、(3)、(getdate())），
+	// 旧实现直接按含括号判定为函数而丢弃，导致所有默认值在结构迁移时静默丢失；
+	// 统一由dbi做括号平衡剔除与分类（内层字面量还原、表达式跳过），源库为MySQL 8.0的裸值也能存活
+	defVal := dbi.GenColumnDefaultSqlOf(&column, dataType, dbi.QuoteEscape)
 
 	columnSql := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
 	return columnSql

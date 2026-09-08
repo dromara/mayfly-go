@@ -40,6 +40,7 @@ const (
 	LogDtsStop
 	LogDtsDeleteFile
 	LogDtsRunSqlFile
+	LogDtsVerify
 
 	// data sync
 	LogDataSyncSave
@@ -48,4 +49,11 @@ const (
 	DataSyncSuccessMsg
 	DataSyncFailMsg
 	DataSyncingMsg
+
+	// db mask
+	LogDbMaskRuleSave
+	LogDbMaskRuleDelete
+	LogDbMaskTagSave
+	LogDbMaskTagDelete
+	ErrMaskTagNeedAlgoOrRule
 )

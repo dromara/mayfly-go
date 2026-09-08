@@ -2,32 +2,28 @@
     <div class="machine-terminal-tab h-full flex flex-col">
         <!-- Terminal body -->
         <div class="terminal-body flex-1 min-h-0">
-            <TerminalBody
-                v-if="protocol == MachineProtocolEnum.Ssh.value"
+            <!-- SSH 用默认窗格内容；RDP 等非 SSH 协议通过作用域插槽接入多窗格容器 -->
+            <TerminalPanes
+                ref="terminalRef"
                 :mount-init="false"
                 @status-change="onStatusChange"
-                ref="terminalRef"
                 :socket-url="socketUrl"
                 :machine-id="machineId"
                 :auth-cert-name="authCertName"
                 :file-id="0"
                 :protocol="protocol"
-            />
-            <MachineRdp
-                v-if="protocol != MachineProtocolEnum.Ssh.value"
-                :machine-id="machineId"
-                :auth-cert="authCertName"
-                :protocol="protocol"
-                ref="terminalRef"
-                @status-change="onStatusChange"
-            />
+            >
+                <template v-if="protocol != MachineProtocolEnum.Ssh.value" #pane="{ register, setStatus }">
+                    <MachineRdp :ref="register" :machine-id="machineId" :auth-cert="authCertName" :protocol="protocol" class="h-full w-full" @status-change="(status: TerminalStatus) => setStatus(status)" />
+                </template>
+            </TerminalPanes>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
 import MachineRdp from '@/components/terminal-rdp/MachineRdp.vue';
-import TerminalBody from '@/components/terminal/TerminalBody.vue';
+import TerminalPanes from '@/components/terminal/TerminalPanes.vue';
 import { TerminalStatus, TerminalStatusEnum } from '@/components/terminal/common';
 import { getMachineTerminalSocketUrl } from '@/views/ops/machine/api';
 import { MachineProtocolEnum } from '@/views/ops/machine/enums';

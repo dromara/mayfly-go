@@ -336,6 +336,16 @@ export default {
             manualPaste: 'Manual Paste',
             pasteManualHint: 'Unable to read clipboard content automatically. Please paste your content into the input box below:',
             pasteHere: 'Paste your content here...',
+
+            // Split terminal
+            split: 'Split Terminal',
+            splitLeft: 'Split Terminal Left',
+            splitRight: 'Split Terminal Right',
+            splitUp: 'Split Terminal Up',
+            splitDown: 'Split Terminal Down',
+            closePane: 'Close This Pane',
+            paneMoveTip: 'Drag the title bar to move the pane',
+            paneTitle: 'Terminal {id}',
             
             // Machine file upload progress notification
             machineFileUpload: {

@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
+
 type SQLGenerator struct {
 	dialect dbi.Dialect
 
@@ -15,7 +17,7 @@ type SQLGenerator struct {
 
 func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropBeforeCreate bool) []string {
 	quoter := msg.dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 	quoteTableName := quote(table.TableName)
 
 	sqlArr := make([]string, 0)
@@ -72,7 +74,7 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 
 func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
 	quoter := msg.dialect.Quoter()
-	quote := quoter.Quote
+	quote := quoter.QuoteIdent
 
 	creates := make([]string, 0)
 	drops := make([]string, 0)
@@ -156,6 +158,7 @@ func (psg *SQLGenerator) pgsqlOnDuplicateStrategySql(duplicateStrategy int, targ
 	for _, col := range targetTableMeta.UniqueColumns {
 		uniqueSet[strings.ToLower(col)] = true
 	}
+	quote := psg.dialect.Quoter().QuoteIdent
 	trim := psg.dialect.Quoter().Trim
 	var updateColumns []string
 	for _, col := range columns {
@@ -163,13 +166,18 @@ func (psg *SQLGenerator) pgsqlOnDuplicateStrategySql(duplicateStrategy int, targ
 		if uniqueSet[strings.ToLower(trim(col.ColumnName))] {
 			continue
 		}
-		updateColumns = append(updateColumns, fmt.Sprintf("%s = excluded.%s", col.ColumnName, col.ColumnName))
+		// 生成列不可更新（pg报428C9），且其值本就由表达式派生，写入SET会使整条upsert失败
+		if dbi.PreservableGeneratedColumn(col, DbTypePostgres) || col.IsGenerated {
+			continue
+		}
+		// set子句列名需引用，避免保留字/特殊字符列名导致语法错误
+		quotedName := quote(col.ColumnName)
+		updateColumns = append(updateColumns, fmt.Sprintf("%s = excluded.%s", quotedName, quotedName))
 	}
 	if len(updateColumns) == 0 {
 		// 所有列均为冲突键列，无法生成update子句，退化为忽略冲突
 		return " \n on conflict do nothing"
 	}
-	quote := psg.dialect.Quoter().Quote
 	quotedUniqueCols := make([]string, 0, len(targetTableMeta.UniqueColumns))
 	for _, col := range targetTableMeta.UniqueColumns {
 		quotedUniqueCols = append(quotedUniqueCols, quote(col))
@@ -188,13 +196,20 @@ func (psg *SQLGenerator) gaussOnDuplicateStrategySql(duplicateStrategy int, targ
 
 	suffix := " \n ON DUPLICATE KEY UPDATE "
 	trim := psg.dialect.Quoter().Trim
+	quote := psg.dialect.Quoter().QuoteIdent
 	var sets []string
 	for _, col := range columns {
 		// ON DUPLICATE KEY UPDATE语句不支持更新唯一键字段，所以得去掉
 		if collx.ArrayContains(targetTableMeta.UniqueColumns, strings.ToLower(trim(col.ColumnName))) {
 			continue
 		}
-		sets = append(sets, fmt.Sprintf("%s = excluded.%s", col.ColumnName, col.ColumnName))
+		// 生成列不可更新（同pg的428C9语义），写入SET会使整条语句失败
+		if dbi.PreservableGeneratedColumn(col, DbTypeGauss) || col.IsGenerated {
+			continue
+		}
+		// set子句列名需引用，避免保留字/特殊字符列名导致语法错误
+		quotedName := quote(col.ColumnName)
+		sets = append(sets, fmt.Sprintf("%s = excluded.%s", quotedName, quotedName))
 	}
 	if len(sets) == 0 {
 		// 所有列均为唯一键列，无法生成update子句，退化为忽略冲突
@@ -204,7 +219,7 @@ func (psg *SQLGenerator) gaussOnDuplicateStrategySql(duplicateStrategy int, targ
 }
 
 func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
-	colName := quoter.Quote(column.ColumnName)
+	colName := quoter.QuoteIdent(column.ColumnName)
 	dataType := string(column.DataType)
 
 	// 如果数据类型是数字，则去掉长度
@@ -233,31 +248,24 @@ func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 		nullAble = " NOT NULL"
 	}
 
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		mark := false
-		// 哪些字段类型默认值需要加引号
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, dataType) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
-				collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
+	// 生成列（仅源与目标同为pg时才能重建，表达式文本属于源方言SQL）：形态为
+	// 「col type GENERATED ALWAYS AS (expr) STORED [NOT NULL]」且不接受DEFAULT子句；
+	// 不重建则目标列退化为普通列，与INSERT阶段的剔除叠加会使生成列值静默变NULL
+	if dbi.PreservableGeneratedColumn(column, DbTypePostgres) {
+		expr := dbi.GeneratedColumnExpr(column)
+		if !strings.HasPrefix(expr, "(") {
+			expr = "(" + expr + ")"
 		}
-		// 如果数据类型是日期时间，则写死默认值函数
-		if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) {
-			column.ColumnDefault = "CURRENT_TIMESTAMP"
-		}
-
-		if mark {
-			// 默认值可能含单引号（如 it's），需双写转义，避免 DDL 语法错误或注入
-			defVal = fmt.Sprintf(" DEFAULT '%s'", dbi.QuoteEscape(column.ColumnDefault))
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
+		return fmt.Sprintf(" %s %s GENERATED ALWAYS AS %s STORED%s", colName, column.GetColumnType(), expr, nullAble)
 	}
+
+	// 默认值统一由dbi判定：FixColumnDefault已保留字面量书写形态，此处按字面量重新转义引用；
+	// 旧实现仅对char/text/date/time/lob这几类加引号，jsonb/uuid/citext等类型的字面量默认值会被
+	// 裸拼进DDL直接产生语法错误；且无条件把含now/current_timestamp的默认值改写为CURRENT_TIMESTAMP，
+	// 使 DEFAULT '2020-01-01 00:00:00' 这类字面量被改写为错误默认值
+	// 源库为MySQL 8.0时默认值不带引号，必须能按字面量重新引用，不能因形态陌生而丢弃；
+	// pg的now()/now等等价于CURRENT_TIMESTAMP，由dbi按目标列类型统一归一为无参标准关键字
+	defVal := dbi.GenColumnDefaultSqlOf(&column, dataType, dbi.QuoteEscape)
 
 	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), nullAble, defVal)
 	return columnSql

@@ -267,6 +267,11 @@ export const setNestedValue = (obj: AutoFormData, path: string, value: unknown):
 export const isNestedPath = (prop: string | undefined): boolean => !!prop?.includes('.');
 
 /**
+ * 取开关字段的关闭态值（兼容 props 驼峰与 kebab 两种写法），未声明则为布尔 false
+ */
+const switchInactiveValue = (item: AutoFormItem): unknown => item.props?.inactiveValue ?? item.props?.['inactive-value'] ?? false;
+
+/**
  * 根据字段配置构建默认表单数据（应用各字段 defaultValue）
  *
  * 用于新增场景初始化表单，编辑场景直接使用回填数据。
@@ -282,6 +287,10 @@ export const buildDefaultForm = (items: AutoFormItem[]): AutoFormData => {
         } else if (item.multiple) {
             // 多选控件缺省值为数组，避免 undefined 传入 el-select multiple 产生异常
             setNestedValue(form, item.prop, []);
+        } else if (item.type === 'switch') {
+            // 开关缺省值为关闭态：el-switch 挂载时 model-value 必须是 active/inactive 值之一，
+            // undefined 会报 model-value must be active-value or inactive-value 并被强制置为 inactiveValue
+            setNestedValue(form, item.prop, switchInactiveValue(item));
         }
     }
     return form;

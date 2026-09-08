@@ -50,7 +50,8 @@
             </page-table>
         </el-dialog>
 
-        <TerminalLog v-model:log-id="state.logsDialog.logId" v-model:visible="state.logsDialog.visible" :title="state.logsDialog.title" />
+        <!-- 日志执行结束后刷新文件列表状态 -->
+        <TerminalLog v-model:log-id="state.logsDialog.logId" v-model:visible="state.logsDialog.visible" :title="state.logsDialog.title" @finished="search" />
 
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
             <auto-form v-model="state.runDialog.runForm" :items="runFormItems" label-width="auto">

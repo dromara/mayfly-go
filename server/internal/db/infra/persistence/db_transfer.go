@@ -26,3 +26,22 @@ func (d *dbTransferTaskRepoImpl) GetTaskList(condition *entity.DbTransferTaskQue
 	//Eq("status", condition.Status)
 	return d.PageByCond(qd, condition.PageParam)
 }
+
+type dbTransferCheckpointRepoImpl struct {
+	base.RepoImpl[*entity.DbTransferCheckpoint]
+}
+
+var _ repository.DbTransferCheckpoint = (*dbTransferCheckpointRepoImpl)(nil)
+
+func newDbTransferCheckpointRepo() repository.DbTransferCheckpoint {
+	return &dbTransferCheckpointRepoImpl{}
+}
+
+// GetByTaskId 获取指定任务的检查点，不存在返回nil
+func (d *dbTransferCheckpointRepoImpl) GetByTaskId(taskId uint64) (*entity.DbTransferCheckpoint, error) {
+	list, err := d.SelectByCond(model.NewCond().Eq("task_id", taskId))
+	if err != nil || len(list) == 0 {
+		return nil, err
+	}
+	return list[0], nil
+}

@@ -2,7 +2,7 @@ import Api from '@/common/Api';
 import { AesEncrypt } from '@/common/crypto';
 import type { PageParam, PageResult } from '@/types/common';
 import { createSqlExecNotification, registerSqlExecAborter } from '@/components/system-message/db/db-sql-exec-progress';
-import type { Db, DbInstance, DbSql, DbSqlExec, DbTableInfo, DbBackup, DbBackupHistory, DbRestore, DbInstanceServerInfo, ColumnMetadata, DbInstanceListParam, DbListParam, SqlExecRes } from './types';
+import type { Db, DbInstance, DbSql, DbSqlExec, DbTableInfo, DbBackup, DbBackupHistory, DbRestore, DbInstanceServerInfo, ColumnMetadata, DbInstanceListParam, DbListParam, SqlExecRes, DbMaskRule, DbMaskColumn, DbMaskRuleQuery, DbMaskColumnQuery, DbMaskRuleSaveForm, DbMaskColumnSaveForm } from './types';
 
 export const dbApi = {
     // 获取权限列表
@@ -67,6 +67,26 @@ export const dbApi = {
 export const dbSqlExecApi = {
     // 根据业务key获取sql执行信息
     getSqlExecByBizKey: Api.newGet<PageResult<DbSqlExec>, PageParam>('/dbs/sql-execs'),
+};
+
+export const dbMaskApi = {
+    // 分页获取脱敏规则
+    maskRules: Api.newGet<PageResult<DbMaskRule>, DbMaskRuleQuery>('/dbs/mask-rules'),
+    // 保存脱敏规则
+    saveMaskRule: Api.newPost<void, DbMaskRuleSaveForm>('/dbs/mask-rules'),
+    // 修改脱敏规则
+    updateMaskRule: Api.newPut<void, DbMaskRuleSaveForm>('/dbs/mask-rules'),
+    // 删除脱敏规则
+    deleteMaskRule: Api.newDelete<void, { id: number }>('/dbs/mask-rules/{id}'),
+
+    // 分页获取脱敏列标签
+    maskColumns: Api.newGet<PageResult<DbMaskColumn>, DbMaskColumnQuery>('/dbs/mask-columns'),
+    // 保存脱敏列标签
+    saveMaskColumn: Api.newPost<void, DbMaskColumnSaveForm>('/dbs/mask-columns'),
+    // 修改脱敏列标签
+    updateMaskColumn: Api.newPut<void, DbMaskColumnSaveForm>('/dbs/mask-columns'),
+    // 删除脱敏列标签
+    deleteMaskColumn: Api.newDelete<void, { id: number }>('/dbs/mask-columns/{id}'),
 };
 export const encryptField = async (param: Record<string, unknown>, field: string) => {
     // sql编码处理
