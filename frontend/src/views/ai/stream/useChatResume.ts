@@ -1,6 +1,5 @@
 /**
  * useChatResume - 中断恢复编排
- * 对齐 tokhub stream/useChatResume.ts
  *
  * 职责：
  * - 决策池：recordDecision 收集用户操作，经 eventWriter 双写状态
@@ -69,7 +68,7 @@ export function useChatResume(convId: MaybeRef<number>, options: UseChatResumeOp
         // 双写：决策状态同步到 pendingInterrupts / parts
         eventWriter.writeInterruptDecision(cid, decision);
 
-        // 该 turn 的中断全部已决策 → 批量恢复（对齐 tokhub 按 turn 分组完整性检查）
+        // 该 turn 的中断全部已决策 → 批量恢复（按 turn 分组完整性检查）
         const turnInterrupts = (slice?.pendingInterrupts ?? []).filter((i) => i.turnId === turnId);
         const allDecided = turnInterrupts.length > 0 && turnInterrupts.every((i) => isInterruptDecided(i.status));
         if (allDecided) {

@@ -13,7 +13,7 @@
 <script setup lang="ts">
 /**
  * CompactionPart - 上下文压缩提示节点
- * 对齐 tokhub 的 ContextCompaction item 渲染：时间线上的轻量分隔提示行，
+ * ContextCompaction item 渲染：时间线上的轻量分隔提示行，
  * 展示"上下文已压缩"及压缩前后 token 统计
  */
 import { computed } from 'vue';

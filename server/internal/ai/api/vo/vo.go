@@ -34,7 +34,7 @@ type TurnItemVO struct {
 	Item       *protocol.TurnItem `json:"item,omitempty"`
 	Status     string             `json:"status"`
 	ToolCallId string             `json:"toolCallId,omitempty"`
-	// Extra 扩展列（对齐 tokhub）：tool_call item 携带中断信息
+	// Extra 扩展列：tool_call item 携带中断信息
 	// {"interrupt": {...}}，前端据此恢复恢复类型徽章（resume.type）
 	Extra      map[string]any `json:"extra,omitempty"`
 	CreateTime *time.Time     `json:"createTime"`

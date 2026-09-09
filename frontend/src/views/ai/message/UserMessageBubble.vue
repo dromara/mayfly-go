@@ -1,5 +1,5 @@
 <template>
-    <!-- 编辑模式：原地 textarea（对齐 tokhub UserMessageBubble 编辑态） -->
+    <!-- 编辑模式：原地 textarea（UserMessageBubble 编辑态） -->
     <div v-if="isEditing" ref="editContainer" class="user-message-edit" @blur="onEditBlur">
         <textarea
             ref="editTextarea"
@@ -56,7 +56,7 @@
             <pre>{{ expandedTextContent }}</pre>
         </div>
 
-        <!-- 结构化 segments：芯片段渲染 InlineChip（对齐 tokhub InlineContentRenderer）；
+        <!-- 结构化 segments：芯片段渲染 InlineChip（InlineContentRenderer）；
              后端 buildUserSegments 保证用户消息恒有 segments（无芯片时为单条 input_text 段）；
              纯图片消息无文本段，不渲染空内容区 -->
         <BubbleContent v-if="hasBubbleText" class="text-[14px] leading-[1.6]">
@@ -72,7 +72,7 @@
 <script setup lang="ts">
 /**
  * UserMessageBubble - 用户消息气泡
- * 对齐 tokhub UserMessageBubble：Bubble(muted) + 纯文本 + 附件列表
+ * UserMessageBubble：Bubble(muted) + 纯文本 + 附件列表
  * 编辑模式：原地 textarea 自动撑高，Enter 发送 / Esc 取消 / 失焦取消
  */
 import { ArrowUpIcon } from '@lucide/vue';

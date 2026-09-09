@@ -1,6 +1,5 @@
 /**
  * eventWriter - 流式事件单一写入口
- * 对齐 tokhub stream/eventWriter.ts
  *
  * 职责：
  * - 中断生命周期（到达 / 决策 / 回滚 / 清除）的收敛双写：
@@ -28,7 +27,6 @@ export interface ResumeDecision {
 
 /**
  * 中断到达：登记 pendingInterrupts + parts 双写 interrupted 状态
- * （对齐 tokhub eventWriter.interrupted）
  */
 export function writeInterrupted(convId: number, interrupt: InterruptEvent, turnId: string) {
     const store = useChatStore();
@@ -43,14 +41,13 @@ export function writeInterrupted(convId: number, interrupt: InterruptEvent, turn
 
 /**
  * 中断决策：pendingInterrupts 状态翻转 + parts 双写
- * （对齐 tokhub applyInterruptDecisionToStore）
  *
  * 注意：决策后中断条目保留在 pendingInterrupts 中（status 已翻转），
  * 供恢复失败时回滚；批量恢复成功后由 clearDecidedInterrupts 统一移除。
  */
 export function writeInterruptDecision(convId: number, decision: ResumeDecision) {
     const store = useChatStore();
-    // 决策解释委托给类型 handler（对齐 tokhub interpretDecisionWithFallback），
+    // 决策解释委托给类型 handler（interpretDecisionWithFallback），
     // 类型特定 action 语义由 handler.interpretDecision 解释，无 handler 时回退通用映射
     const resumeStatus = interpretDecisionWithFallback(
         decision.action,
@@ -65,7 +62,7 @@ export function writeInterruptDecision(convId: number, decision: ResumeDecision)
         pending.status = resumeStatus;
     }
 
-    // 2. parts：载体 tool_call 双写状态流转 + 决策类型（对齐 tokhub createApplyDecisionToEvent）：
+    // 2. parts：载体 tool_call 双写状态流转 + 决策类型（createApplyDecisionToEvent）：
     //    - status：已决议且恢复执行（approved/params_completed 等）→ Pending（继续执行）；
     //      其余决议（rejected/cancelled 等）→ Cancelled（事件终止）
     //    - resumeType：决议徽章数据源（与历史路径 extra.interrupt.resume.type 同值域），
@@ -83,7 +80,7 @@ export function writeInterruptDecision(convId: number, decision: ResumeDecision)
 
 /**
  * 恢复失败回滚：pendingInterrupts / parts 双写还原，
- * 中断回到 Pending 等待重试（对齐 tokhub revertInterruptToPending）
+ * 中断回到 Pending 等待重试（revertInterruptToPending）
  */
 export function revertInterruptToPending(convId: number, decision: ResumeDecision) {
     const store = useChatStore();

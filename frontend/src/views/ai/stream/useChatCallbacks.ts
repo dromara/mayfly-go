@@ -1,6 +1,6 @@
 /**
  * useChatCallbacks - 流式事件回调分发到 Store
- * 对齐 tokhub 的 buildCallbacks 模式
+ * buildCallbacks 模式
  */
 import { unref, type MaybeRef } from 'vue';
 import { useI18n } from 'vue-i18n';

@@ -19,7 +19,7 @@
 <script setup lang="ts" name="ChatContainer">
 /**
  * ChatContainer - 编排层
- * 对齐 tokhub 的 ChatContainer 编排模式
+ * ChatContainer 编排模式
  *
  * 职责：
  * - 管理 WebSocket 连接生命周期
@@ -91,7 +91,7 @@ const callbacks = useChatCallbacks(convId);
 const { initSocket, sendMessage, sendStop, sendAttach } = useChatStream();
 const { loadMessages, loadMoreMessages, addUserMessage, reloadMessages } = useChatMessages(convId);
 
-// 中断恢复编排：决策池 + 批量恢复 + 失败回滚（对齐 tokhub useChatResume）
+// 中断恢复编排：决策池 + 批量恢复 + 失败回滚（useChatResume）
 const sendResume = async (entries: ResumeEntry[]): Promise<boolean> => {
     // 确保 WebSocket 已连接（刷新页面后中断恢复时需要）
     await ensureSocket();
@@ -189,7 +189,7 @@ const onSend = async (data: ChatInputSubmitData) => {
     // 附件已在 ChatInput 提交时上传（入队/直接发送共享同一前置链路，
     // 队列项均已带 fileKey），此处不再处理上传
     const attachments = data.attachments;
-    // 回显：结构化 segments 透传（芯片渲染为 InlineChip，对齐 tokhub ContentSegment 贯穿），
+    // 回显：结构化 segments 透传（芯片渲染为 InlineChip，ContentSegment 贯穿），
     // 纯文本 content 作回退/编辑用；发送给 LLM 的完整注入文本由后端 buildChatContent 生成；
     // 图片段合并后乐观回显与 WS 持久化用同一份 segments（图片卡片仅从 image 段构建，
     // 乐观消息缺段则实时不渲染、刷新后才出现——同一组装出处避免双路径不一致）

@@ -24,7 +24,7 @@ func (o *Openai) NewChatModel(ctx context.Context, modelConfig *config.ModelConf
 		Timeout:     time.Duration(modelConfig.TimeOut) * time.Second,
 		Temperature: &modelConfig.Temperature,
 	}
-	// maxTokens <= 0 时不传该参数，由服务端使用模型默认输出上限（对齐 tokhub：
+	// maxTokens <= 0 时不传该参数，由服务端使用模型默认输出上限（
 	// agent 请求默认不带 max_tokens）——thinking 模型的 reasoning 计入该预算，
 	// 传小了会导致回复被 finish_reason=length 截断（tool_call 尚未生成即中断）
 	if modelConfig.MaxTokens > 0 {

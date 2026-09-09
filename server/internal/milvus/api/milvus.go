@@ -20,7 +20,7 @@ import (
 // Milvus Milvus API
 type Milvus struct {
 	milvusApp           application.Milvus      `inject:"T"`
-	tagTreeApp          tagapp.TagTree          `inject:"T"`
+	tagTreeApp          tagapp.TagTreeReader    `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 

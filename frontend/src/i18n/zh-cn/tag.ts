@@ -13,6 +13,7 @@ export default {
         es: 'ES',
         redis: 'Redis',
         container: '容器',
+        mongo: 'MongoDB',
         tag: '标签',
         code: '编号',
         createSubTag: '创建子标签',

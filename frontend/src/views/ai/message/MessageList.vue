@@ -1,13 +1,13 @@
 <template>
     <div class="message-list-wrapper">
         <!-- ScrollerProvider 由 ChatPanel 提供（包裹 MessageList + ChatInput，
-             ChatPanel 在发送后调用这里暴露的 scrollToEnd，对齐 tokhub onScrollReady 链路） -->
+             ChatPanel 在发送后调用这里暴露的 scrollToEnd，onScrollReady 链路） -->
         <MessageScroller class="flex-1">
             <MessageScrollerViewport class="min-h-0 w-full max-w-4xl mx-auto" @scroll="onViewportScroll">
-                <!-- 滚动容器与消息列同宽（max-w-4xl，tokhub 同基准 56rem）：
+                <!-- 滚动容器与消息列同宽（max-w-4xl，同基准 56rem）：
                      滚动条贴消息列右缘，大屏下两侧自然留白 -->
                 <MessageScrollerContent class="w-full gap-2 px-6 py-4">
-                    <!-- 顶部加载更多指示器（对齐 tokhub：data-scroll-ignore 避免引擎
+                    <!-- 顶部加载更多指示器（data-scroll-ignore 避免引擎
                          把它当作 prepend 消息项） -->
                     <div
                         v-if="loadingMore"
@@ -17,7 +17,7 @@
                         <Spinner class="size-4 text-muted-foreground" />
                     </div>
 
-                    <!-- 空状态（对齐 tokhub：仅非加载时渲染，避免污染引擎 children 计数）。
+                    <!-- 空状态（仅非加载时渲染，避免污染引擎 children 计数）。
                          建议芯片承担教学职责：点击回填输入框，不直接发送 -->
                     <div v-if="messages.length === 0 && !loading" class="message-list__empty">
                         <Empty class="py-10">
@@ -41,7 +41,7 @@
                         </div>
                     </div>
 
-                    <!-- 消息列表（不设 scroll-anchor：对齐 tokhub，发送后由引擎
+                    <!-- 消息列表（不设 scroll-anchor：发送后由引擎
                          following-bottom 自动贴底；带 anchor 会被引擎锚定到视口顶部） -->
                     <MessageScrollerItem
                         v-for="msg in messages"
@@ -67,14 +67,14 @@
                         />
                     </MessageScrollerItem>
 
-                    <!-- 等待回复指示（对齐 tokhub loading item：作为带 messageId 的 Item 渲染） -->
+                    <!-- 等待回复指示（loading item：作为带 messageId 的 Item 渲染） -->
                     <MessageScrollerItem v-if="pendingReply" message-id="__loading" class="flex justify-center py-2">
                         <Spinner class="size-5 text-muted-foreground" />
                     </MessageScrollerItem>
                 </MessageScrollerContent>
             </MessageScrollerViewport>
 
-            <!-- 滚动到底部按钮（对齐 tokhub：rounded-full 圆钮 + 显式图标） -->
+            <!-- 滚动到底部按钮（rounded-full 圆钮 + 显式图标） -->
             <MessageScrollerButton direction="end" class="rounded-full">
                 <ArrowDownIcon />
                 <span class="sr-only">{{ t('ai.chat.scrollToEnd') }}</span>
@@ -86,14 +86,14 @@
 <script setup lang="ts">
 /**
  * MessageList - 消息列表组件（shadcn MessageScroller 驱动）
- * 对齐 tokhub 的 MessageList：MessageScrollerProvider 内渲染，自研滚动逻辑全部移除
+ * MessageList：MessageScrollerProvider 内渲染，自研滚动逻辑全部移除
  *
  * - 自动跟随 / 轮次锚定 / 上翻不拉回：由 MessageScroller 引擎处理（autoScroll + last-anchor）
  * - 历史分页（懒加载）：scrollTop < 20 触发 + 加载完成后 300ms 续检
- *   （对齐 tokhub useInfiniteScrollTrigger），位置恢复由 Viewport 的
+ *   （useInfiniteScrollTrigger），位置恢复由 Viewport 的
  *   preserveScrollOnPrepend 保证，不跳动
  * - 滚动到底部按钮：MessageScrollerButton（方向 end，自动显隐）
- * - scrollToEnd 经 defineExpose 暴露给 ChatPanel，发送后贴底（对齐 tokhub ChatInput scrollToEnd）
+ * - scrollToEnd 经 defineExpose 暴露给 ChatPanel，发送后贴底（ChatInput scrollToEnd）
  */
 import { ArrowDownIcon, MessageCircleMoreIcon } from '@lucide/vue';
 import { computed, onBeforeUnmount, watch } from 'vue';
@@ -126,11 +126,11 @@ const props = defineProps<{
     /** 正在加载更早的历史消息（顶部 Spinner + 触发守卫） */
     loadingMore?: boolean;
     pendingInterrupts?: InterruptEvent[];
-    /** 原地编辑中的消息 ID（仅用户消息，对齐 tokhub editingMessageId） */
+    /** 原地编辑中的消息 ID（仅用户消息，editingMessageId） */
     editingMessageId?: string | null;
     /** 会话 ID：作为滚动锚点恢复的触发 key（变化时恢复阅读位置） */
     conversationId?: number | null;
-    /** 恢复目标：离开时视口顶部可见消息 ID + 视口内偏移（对齐 tokhub ScrollAnchor） */
+    /** 恢复目标：离开时视口顶部可见消息 ID + 视口内偏移（ScrollAnchor） */
     scrollAnchor?: { id: string; offset: number } | null;
 }>();
 
@@ -150,7 +150,7 @@ const { scrollToEnd, scrollToMessage } = useMessageScroller();
 /** 空态建议（i18n key 列表，点击回填输入框） */
 const suggestionKeys = ['ai.chat.suggestions.logCheck', 'ai.chat.suggestions.slowSql', 'ai.chat.suggestions.script'];
 
-/** 暴露给 ChatPanel：发送后贴底（对齐 tokhub MessageList onScrollReady） */
+/** 暴露给 ChatPanel：发送后贴底（MessageList onScrollReady） */
 defineExpose({
     scrollToEnd: (options?: { behavior?: ScrollBehavior }) => scrollToEnd(options),
 });
@@ -161,7 +161,7 @@ const pendingReply = computed(() => {
     return props.messages[props.messages.length - 1].role === 'user';
 });
 
-/** 顶部翻页 + 锚点保存（对齐 tokhub useInfiniteScrollTrigger + ScrollPersistenceArea）。
+/** 顶部翻页 + 锚点保存（useInfiniteScrollTrigger + ScrollPersistenceArea）。
  *  翻页防重复：store.isLoadingMoreMessages 守卫 + loadingMore prop */
 let viewportEl: HTMLElement | null = null;
 let anchorSaveRafId = 0;
@@ -171,7 +171,7 @@ const onViewportScroll = (e: Event) => {
     if (el.scrollTop < 20 && props.hasMore && !props.loading && !props.loadingMore) {
         emit('load-more');
     }
-    // 锚点保存（对齐 tokhub ScrollPersistenceArea：RAF 节流，恢复期抑制）
+    // 锚点保存（ScrollPersistenceArea：RAF 节流，恢复期抑制）
     if (restoring || props.conversationId == null) return;
     // 捕获当时会话：切会话后 pending RAF 不得把旧视口位置错存到新会话
     const convIdAtScroll = props.conversationId;
@@ -185,7 +185,7 @@ const onViewportScroll = (e: Event) => {
 
 onBeforeUnmount(() => cancelAnimationFrame(anchorSaveRafId));
 
-/** 加载完成后续检（对齐 tokhub）：preserveScrollOnPrepend 保持 scrollTop
+/** 加载完成后续检：preserveScrollOnPrepend 保持 scrollTop
  *  不变导致 onScroll 不再触发，故延迟 300ms 检查是否仍在顶部，是则继续加载下一批。
  *  以 isLoadingMore 状态驱动（而非 scroll 事件），保证分批节奏 */
 let continueCheckTimer: ReturnType<typeof setTimeout> | null = null;
@@ -208,7 +208,7 @@ watch(
     },
 );
 
-/** 视口顶部第一条可见消息 + 视口内偏移（对齐 tokhub findTopVisibleAnchor）。
+/** 视口顶部第一条可见消息 + 视口内偏移（findTopVisibleAnchor）。
  *  不用 scrollTop：消息项动态高度下数值不稳定，锚定到消息 ID + 偏移 */
 function findTopVisibleAnchor(viewport: HTMLElement): { id: string; offset: number } | null {
     const content = viewport.querySelector<HTMLElement>('[data-slot="message-scroller-content"]');
@@ -229,7 +229,7 @@ function findTopVisibleAnchor(viewport: HTMLElement): { id: string; offset: numb
     return null;
 }
 
-// ==================== 滚动锚点恢复（对齐 tokhub ScrollRestoreAnchor） ====================
+// ==================== 滚动锚点恢复（ScrollRestoreAnchor） ====================
 
 /** 恢复期间抑制锚点保存：defaultScroll 按底的 scroll 不得覆盖恢复目标 */
 let restoring = false;
@@ -244,7 +244,7 @@ watch(
     { immediate: true },
 );
 
-/** 消息可能异步到达（分页/重载），元素未注册时按帧重试（对齐 tokhub MAX_RETRY_FRAMES） */
+/** 消息可能异步到达（分页/重载），元素未注册时按帧重试（MAX_RETRY_FRAMES） */
 const MAX_RETRY_FRAMES = 90;
 
 function tryRestore(frame = 0) {

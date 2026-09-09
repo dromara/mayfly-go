@@ -9,6 +9,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 )
@@ -40,22 +41,34 @@ type tagTreeRelateAppImpl struct {
 
 var _ TagTreeRelate = (*tagTreeRelateAppImpl)(nil)
 
-var _ (TagTreeRelate) = (*tagTreeRelateAppImpl)(nil)
-
 func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error {
 	if hasConflictPath(tagCodePaths) {
 		return errorx.NewBizI(ctx, imsg.ErrConflictingCodePath)
 	}
 
+	if len(tagCodePaths) > 0 {
+		// 校验当前操作者是否拥有待关联的标签路径，防止越权关联他人标签路径下的资源
+		if la := contextx.GetLoginAccount(ctx); la != nil && la.Id != consts.AdminId {
+			if err := tr.tagTreeApp.CanAccess(la.Id, tagCodePaths...); err != nil {
+				return err
+			}
+		}
+	}
+
 	var tags []*entity.TagTree
 	if len(tagCodePaths) > 0 {
-		tr.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: tagCodePaths}, &tags)
+		if err := tr.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: tagCodePaths}, &tags); err != nil {
+			return err
+		}
 		if len(tags) != len(tagCodePaths) {
 			return errorx.NewBiz("There is an error tag path")
 		}
 	}
 
-	oldRelates, _ := tr.ListByCond(&entity.TagTreeRelate{RelateType: relateType, RelateId: relateId})
+	oldRelates, err := tr.ListByCond(&entity.TagTreeRelate{RelateType: relateType, RelateId: relateId})
+	if err != nil {
+		return err
+	}
 	oldTagIds := collx.ArrayMap[*entity.TagTreeRelate, uint64](oldRelates, func(val *entity.TagTreeRelate) uint64 {
 		return val.TagId
 	})
@@ -120,12 +133,20 @@ func (tr *tagTreeRelateAppImpl) FillTagInfo(relateType entity.TagRelateType, rel
 		return rt.GetRelateId()
 	})
 
-	relateTags, _ := tr.ListByCond(model.NewCond().Eq("relate_type", relateType).In("relate_id", collx.MapKeys(relateIds2Relate)))
+	relateTags, err := tr.ListByCond(model.NewCond().Eq("relate_type", relateType).In("relate_id", collx.MapKeys(relateIds2Relate)))
+	if err != nil {
+		logx.Errorf("FillTagInfo[%d] - query relate tags error: %v", relateType, err)
+		return
+	}
 
 	tagIds := collx.ArrayMap(relateTags, func(rt *entity.TagTreeRelate) uint64 {
 		return rt.TagId
 	})
-	tags, _ := tr.tagTreeApp.GetByIds(tagIds)
+	tags, err := tr.tagTreeApp.GetByIds(tagIds)
+	if err != nil {
+		logx.Errorf("FillTagInfo[%d] - query tags error: %v", relateType, err)
+		return
+	}
 
 	tagId2Tag := collx.ArrayToMap(tags, func(t *entity.TagTree) uint64 {
 		return t.Id

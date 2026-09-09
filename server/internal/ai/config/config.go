@@ -15,7 +15,7 @@ const (
 	ConfigKeyAgent string = "AiAgentConfig"
 
 	// DefaultMaxTokens 默认不限制输出 token（0 = 请求不带 max_tokens，由服务端
-	// 使用模型默认输出上限，对齐 tokhub）。thinking 模型的 reasoning 计入
+	// 使用模型默认输出上限）。thinking 模型的 reasoning 计入
 	// max_tokens 预算，传小会导致回复被 finish_reason=length 截断；
 	// 仅需控制成本时才显式配置 maxTokens
 	DefaultMaxTokens = 0

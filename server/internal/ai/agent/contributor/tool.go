@@ -18,7 +18,6 @@ type ToolContributionContext struct {
 //
 // 在构建工具列表时被调用，返回贡献的工具执行器。
 // 所有工具（无条件内置工具、条件工具组）统一走此通道聚合，
-// 对齐 tokhub ToolContributor::tools。
 //
 // ## 同名工具的覆盖协议
 //

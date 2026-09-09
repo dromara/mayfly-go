@@ -33,7 +33,7 @@ var (
 
 // AssembleDefault 装配 AI 模块默认运行时（进程级一次性，并发安全）
 //
-// 统一宿主装配点（对齐 tokhub 宿主经 DI 组装）：
+// 统一宿主装配点（宿主经 DI 组装）：
 //
 //	存储 → 会话/记忆管理器 → 贡献者注册中心（内置 InstallAll + 宿主扩展
 //	追加 + 配置 WithFilter 裁剪）→ ContextManager

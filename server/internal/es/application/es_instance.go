@@ -43,7 +43,7 @@ var poolGroup = pool.NewPoolGroup[*esi.EsConn]()
 type instanceAppImpl struct {
 	base.AppImpl[*entity.EsInstance, repository.EsInstance]
 
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
@@ -55,6 +55,15 @@ func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy
 }
 
 func (app *instanceAppImpl) DoConn(ctx context.Context, instanceId uint64, fn func(*esi.EsConn) error) error {
+	// 连接层统一进行数据权限校验，避免各操作接口(如proxy/导出等)遗漏鉴权
+	instance, err := app.GetById(instanceId)
+	if err != nil {
+		return errorx.NewBiz("es instance not found")
+	}
+	if err := app.tagApp.CanAccessByCode(ctx, consts.ResourceTypeEsInstance, instance.Code); err != nil {
+		return err
+	}
+
 	p, err := poolGroup.GetCachePool(fmt.Sprintf("es-%d", instanceId), func() (*esi.EsConn, error) {
 		return app.createConn(context.Background(), instanceId)
 	})
@@ -187,6 +196,11 @@ func (app *instanceAppImpl) SaveInst(ctx context.Context, instance *dto.SaveEsIn
 		if err != nil {
 			return 0, errorx.NewBiz("db instance not found")
 		}
+	}
+
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := app.tagApp.CanAccessByCode(ctx, resourceType, oldInstance.Code); err != nil {
+		return 0, err
 	}
 
 	return oldInstance.Id, app.Tx(ctx, func(ctx context.Context) error {

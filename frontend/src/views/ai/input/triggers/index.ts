@@ -1,5 +1,5 @@
 /**
- * 触发器子系统统一出口（对齐 tokhub triggers/index.ts）
+ * 触发器子系统统一出口
  *
  * 新增触发类型步骤：
  * 1. 新建 <name>Trigger.ts，实现 TriggerDef 并 registerTrigger 注册

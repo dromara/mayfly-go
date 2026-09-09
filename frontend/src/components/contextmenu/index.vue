@@ -1,5 +1,5 @@
 <template>
-    <ContextMenu :modal="false">
+    <ContextMenu :modal="false" @update:open="menuOpen = $event">
         <!--
             虚拟触发：1px 固定定位的隐形 Trigger，openContextmenu(item) 时把内部派发点
             移到目标坐标并派发 contextmenu 事件交给官方组件打开；reka-ui 取事件的
@@ -49,6 +49,8 @@ const state = reactive({
 
 const pos = reactive({ x: 0, y: 0 });
 const dispatchRef = ref<HTMLElement>();
+// 菜单是否展开（由 reka-ui 的 update:open 同步）：closeContextmenu 仅在展开时才派发 Escape
+const menuOpen = ref(false);
 
 // 过滤后的可见菜单项（含子菜单递归过滤）
 const visibleItems = computed(() => filterVisibleItems(props.items, state.item));
@@ -71,8 +73,13 @@ const openContextmenu = async (item: unknown) => {
     );
 };
 
-// 关闭右键菜单：派发 Escape 键交给 reka-ui 的关闭逻辑
+// 关闭右键菜单：派发 Escape 键交给 reka-ui 的关闭逻辑。
+// 仅在菜单确实展开时派发——该 Escape 冒泡到 document 会被 el-dialog/el-drawer 的
+// 全局 Esc 处理器捕获并连带关闭宿主弹层（如 AI 助手抽屉内嵌资源树点击节点即误关抽屉）
 const closeContextmenu = () => {
+    if (!menuOpen.value) {
+        return;
+    }
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 };
 

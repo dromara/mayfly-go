@@ -46,7 +46,7 @@ type machineCronJobAppImpl struct {
 	machineCronJobExecRepo repository.MachineCronJobExec `inject:"T"`
 	machineApp             Machine                       `inject:"T"`
 
-	tagTreeApp       tagapp.TagTree       `inject:"T"`
+	tagTreeApp       tagapp.TagTreeReader `inject:"T"`
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 
@@ -132,7 +132,10 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 
 	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
 	var machineTags []tagentity.TagTree
-	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Types: []tagentity.TagType{tagentity.TagTypeMachine}}, &machineTags)
+	if err := m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Types: []tagentity.TagType{tagentity.TagTypeMachine}}, &machineTags); err != nil {
+		logx.Errorf("failed to list machine tags for cronjob: %v", err)
+		return
+	}
 	machines, err := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
 		return tag.Code
 	})), "id")

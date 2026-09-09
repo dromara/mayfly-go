@@ -1,4 +1,4 @@
-// Package skill 技能手册注册表（渐进式披露架构，对齐 tokhub plugin_skill）
+// Package skill 技能手册注册表（渐进式披露架构，plugin_skill）
 //
 // L1 索引层（系统提示词 preamble）：code + name + 描述（预算控制，由 agent 包
 // skillCatalogContributor 渲染注入）；L3 内容层（skill_read 工具）：完整手册内容。
@@ -33,7 +33,7 @@ type Skill struct {
 
 // Registry 技能注册表（进程级单例，纯 DB 驱动）
 //
-// SetProvider 注入 DB 数据源后，List/Get 实时读取 DB（对齐 tokhub 逐请求
+// SetProvider 注入 DB 数据源后，List/Get 实时读取 DB（逐请求
 // 读取语义），读取失败时退回上次成功读取的缓存。
 type Registry struct {
 	mu sync.RWMutex
@@ -150,7 +150,7 @@ func ParseFrontmatter(content string) (name, description, body string) {
 
 // BuildSkillMd 由元数据与正文构建 SKILL.md 内容（frontmatter + 正文）
 //
-// 对齐 tokhub build_skill_md：导出与内置技能落库时重建 frontmatter，
+// build_skill_md：导出与内置技能落库时重建 frontmatter，
 // 保证 zip 导入导出 roundtrip 后文件结构一致。
 func BuildSkillMd(name, description, allowedTools, body string) string {
 	var builder strings.Builder

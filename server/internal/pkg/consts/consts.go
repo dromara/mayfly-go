@@ -12,6 +12,7 @@ const (
 	ResourceTypeContainer  int8 = 7
 	ResourceTypeMqKafka    int8 = 8
 	ResourceTypeMilvus     int8 = 9
+	ResourceTypeDbName     int8 = 22 // 数据库名资源
 
 	// imsg起始编号
 	ImsgNumSys     = 10000

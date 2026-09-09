@@ -8,13 +8,12 @@ import (
 	"mayfly-go/pkg/logx"
 )
 
-// 默认提醒阈值比例（剩余低于窗口 10% 时提醒，对齐 tokhub
-// PreambleBudgetStatus::DEFAULT_REMINDER_THRESHOLD_RATIO）
+// 默认提醒阈值比例（剩余低于窗口 10% 时提醒）
 const defaultReminderThresholdRatio = 0.1
 
 // ContextBudgetFooterExtension 上下文窗口余量提醒扩展（PreambleFooter 通道）
 //
-// 对齐 tokhub CoreContextExtension 的内置提醒：preamble 与 history 均就绪后，
+// CoreContextExtension 的内置提醒：preamble 与 history 均就绪后，
 // 剩余 token 低于窗口 10% 时在 preamble 尾部注入预算提醒，促使模型收敛输出。
 type ContextBudgetFooterExtension struct{}
 

@@ -220,7 +220,7 @@ export interface AutoFormInstance {
 }
 
 /**
- * Tab 页签配置（对齐 tokhub TabConfig）
+ * Tab 页签配置（TabConfig）
  *
  * 用于 AutoForm / AutoFormDialog / AutoFormDrawer 的 tabs prop，将字段按页签分组渲染。
  * 所有 Tab 共享同一表单数据与校验（非懒渲染，未激活 Tab 的字段同样参与校验）。

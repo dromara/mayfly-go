@@ -26,7 +26,7 @@ type SummarizedEvent struct {
 	Skip       int    // 跳过的消息数
 	Count      int    // 消息总数
 
-	// 压缩统计（对齐 tokhub ContextCompaction，供订阅方落库压缩事件项）
+	// 压缩统计（ContextCompaction，供订阅方落库压缩事件项）
 	OriginalTokens         int // 压缩前被摘要内容的估算 token 数
 	CompressedTokens       int // 压缩后摘要文本的估算 token 数
 	CompressedMessageCount int // 被压缩的消息条数

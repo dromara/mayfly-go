@@ -7,7 +7,7 @@
 
         <!-- 主体 -->
         <MessageContent class="flex-1">
-            <!-- 内容分发（对齐 tokhub MessageBubble → UserMessageBubble / AssistantMessageBubble） -->
+            <!-- 内容分发（MessageBubble → UserMessageBubble / AssistantMessageBubble） -->
             <UserMessageBubble
                 v-if="role === 'user'"
                 :content="content"
@@ -29,7 +29,7 @@
 
             <!-- 底部操作栏 -->
             <MessageFooter class="px-0">
-                <!-- 流式中：显示耗时（对齐 tokhub ActiveMessageFooter） -->
+                <!-- 流式中：显示耗时（ActiveMessageFooter） -->
                 <template v-if="streaming">
                     <Spinner class="size-3" />
                     <span>{{ t('common.processing') }} {{ elapsed }}s</span>
@@ -45,7 +45,7 @@
                         <CheckIcon v-if="copied" class="size-3.5 text-success" />
                         <CopyIcon v-else class="size-3.5" />
                     </Button>
-                    <!-- 编辑用户消息（对齐 tokhub MessageTimestamp Pencil，hover 渐现） -->
+                    <!-- 编辑用户消息（MessageTimestamp Pencil，hover 渐现） -->
                     <Button
                         v-if="role === 'user'"
                         variant="ghost"
@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 /**
- * MessageBubble - 消息气泡编排组件（对齐 tokhub MessageBubble.tsx）
+ * MessageBubble - 消息气泡编排组件
  *
  * 职责：Message 布局 + 头像 + 内容分发（User/Assistant）+ Footer（时间戳/复制/流式耗时）
  * 内容渲染下沉到 UserMessageBubble / AssistantMessageBubble

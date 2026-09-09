@@ -66,7 +66,7 @@ func V1_12() []*gormigrate.Migration {
 			},
 		},
 		{
-			// 对齐 tokhub TurnItemRow 模型：payload 为唯一事实源，仅 tool_call_id 建查询列；
+			// TurnItemRow 模型：payload 为唯一事实源，仅 tool_call_id 建查询列；
 			// 移除 action_id 列（中断定位信息自含于 payload 的 internal.extra.interruptEvent），
 			// extra 由 string JSON 文本改为嵌套 ExtraData（gorm 序列化 JSON 对象）
 			ID: "v1.12.0-ai-turn-item-drop-action-id",
@@ -329,7 +329,7 @@ func V1_12() []*gormigrate.Migration {
 			},
 		},
 		{
-			// 插件实例统一视图（对齐 tokhub t_plugin_instance，剪裁租户/definition 维度）：
+			// 插件实例统一视图（t_plugin_instance，剪裁租户/definition 维度）：
 			// 技能与 MCP 均注册为一行实例，列表分页/启停/Agent 装配只读本表；
 			// 技能实例 config 引用 t_ai_skill（Managed），MCP 实例 config 内联连接配置。
 			// 存量数据回填按 code 查重（WHERE NOT EXISTS），重复执行安全。

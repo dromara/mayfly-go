@@ -20,7 +20,7 @@ import (
 type MachineScript struct {
 	machineScriptApp application.MachineScript `inject:"T"`
 	machineApp       application.Machine       `inject:"T"`
-	tagApp           tagapp.TagTree            `inject:"T"`
+	tagApp           tagapp.TagTreeChecker     `inject:"T"`
 }
 
 func (ms *MachineScript) ReqConfs() *req.Confs {

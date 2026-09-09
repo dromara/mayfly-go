@@ -36,7 +36,6 @@
 <script setup lang="ts">
 /**
  * ProcessGroup - 连续过程项渐进披露组件
- * 对齐 tokhub 的 ProcessGroup.tsx
  *
  * 三级展示：
  * 1. 活跃中/待审批：内联渲染
@@ -74,7 +73,7 @@ const { t } = useI18n();
 /** 是否活跃中 */
 const isActive = computed(() => props.status === 'active');
 
-/** 是否待审批（对齐 tokhub：检查是否有 pendingInterrupt 匹配当前组内的 tool_call；已决策的不算） */
+/** 是否待审批（检查是否有 pendingInterrupt 匹配当前组内的 tool_call；已决策的不算） */
 const isPendingApproval = computed(() => {
     if (!props.pendingInterrupts?.length) return false;
     const tcParts = toolCallParts.value;

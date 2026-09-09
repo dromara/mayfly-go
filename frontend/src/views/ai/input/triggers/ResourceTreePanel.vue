@@ -8,25 +8,16 @@
             @mousedown.prevent
         >
             <div class="resource-tree-panel__header">{{ t('ai.chat.resourceTreeTitle') }}</div>
-            <el-tree
-                ref="treeRef"
+            <TreeContainer
                 class="resource-tree-panel__tree"
-                lazy
-                :load="loadNode"
-                :props="treeProps"
-                :filter-node-method="filterNode"
-                :empty-text="t('ai.chat.resourceTreeEmpty')"
-                :expand-on-click-node="false"
-                :indent="12"
+                :load-root="loadRoot"
+                :filter-text="queryText"
+                :show-actions="false"
+                :interactive="false"
+                :transform-node="decorateNode"
+                event-scope="ai"
                 @node-click="onNodeClick"
-            >
-                <template #default="{ data }">
-                    <span class="resource-tree-panel__node" :class="{ 'is-selectable': isSelectable(data), 'is-disabled': data.disabled }">
-                        <SvgIcon v-if="data.icon" :size="13" :name="data.icon.name" :color="data.icon.color" />
-                        <span class="resource-tree-panel__label" :title="data.label">{{ data.label }}</span>
-                    </span>
-                </template>
-            </el-tree>
+            />
             <div class="resource-tree-panel__tip">{{ t('ai.chat.resourceTreeTip') }}</div>
         </div>
     </Transition>
@@ -36,7 +27,7 @@
 /**
  * ResourceTreePanel - `@` 触发的资源引用树面板
  *
- * 复用团队编辑的资源树数据链路（loadResourceTags + TagTreeNode 懒加载），
+ * 复用 ops 资源树的贡献者数据链路（TreeContainer + Contributor），
  * 与 ops 资源管理树同源，引用层级对齐团队资源分配的授权粒度：
  * - 机器：tag 分组 → 机器节点 → 授权凭证叶子（选到凭证才算完整引用，
  *   使 MachineCommandExec 的 authCertName 参数不再缺失触发中断补全）
@@ -44,12 +35,16 @@
  *   （选到库使 db 工具的 dbName 参数直接可取；库记录绑定的授权账号
  *   username/authCertName 一并透传进引用元数据）
  */
-import { nextTick, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import SvgIcon from '@/components/svg-icon/index.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { TagTreeNode } from '@/views/ops/component/tag';
 import { loadResourceTags } from '@/views/ops/resource/resource';
+import TreeContainer from '@/views/ops/resource/tree/TreeContainer.vue';
+import { isNodeSelectable } from '@/views/ops/resource/tree';
+import type { TreeNode, TreeNodeData } from '@/views/ops/resource/tree/types';
+// db 资源树物理库节点 kind：引用面板将库节点叶子化（不展开表/schema）
+import { DbKind } from '@/views/ops/db/resource';
+import { MachineAuthCertKind } from '@/views/ops/machine/resource';
 
 /** 树叶子选中后上抛的引用数据（extra 随芯片下发后端） */
 export interface ResourceTreeSelectPayload {
@@ -73,68 +68,32 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const panelRef = ref<HTMLElement | null>(null);
-const treeRef = ref<{ filter: (val: string) => void } | null>(null);
 
 /** 供父组件用 floating-ui 定位（floating 参照元素必须是面板自身 DOM） */
 defineExpose({ panelRef });
 
-const treeProps = {
-    label: 'label',
-    children: 'zones',
-    isLeaf: 'isLeaf',
-    disabled: 'disabled',
-};
+// 机器与数据库两类资源树（叶子分别为授权凭证 / 物理 database）
+const loadRoot = () => loadResourceTags([TagResourceTypeEnum.Machine.value, TagResourceTypeEnum.DbInstance.value]);
 
-// ops 数据库资源树的物理库节点类型值（ops/db/resource/index.ts 中硬编码，
-// 未进 TagResourceTypeEnum；引用面板将物理库叶子化——不展开表/schema，
-// 引用粒度到库即满足 db 工具 dbId+dbName 定位）
-const NODE_TYPE_DB = 223;
-
-const loadNode = async (node: { level: number; data: TagTreeNode }, resolve: (data: TagTreeNode[]) => void) => {
-    try {
-        let nodes: TagTreeNode[];
-        if (node.level === 0) {
-            // 机器与数据库两类资源树（叶子分别为授权凭证 / 物理 database）
-            nodes = (await loadResourceTags([TagResourceTypeEnum.Machine.value, TagResourceTypeEnum.DbInstance.value])) as TagTreeNode[];
-        } else {
-            nodes = (await node.data.loadChildren()) as TagTreeNode[];
-        }
-        const parentParams = (node.data.params as Record<string, any> | undefined) || {};
-        nodes.forEach((n) => {
-            if (n.type?.value === NODE_TYPE_DB) {
-                // 物理 database 叶子化：引用选到库（不展开表/schema）
-                n.withIsLeaf(true);
-                // 库记录层（父节点）绑定的授权账号透传进引用元数据
-                const p = (n.params as Record<string, any>) || {};
-                p.username = p.username || parentParams.username || '';
-                p.authCertName = p.authCertName || parentParams.authCertName || '';
-            }
-        });
-        resolve(nodes);
-    } catch (e) {
-        console.error('[ai] load resource tree failed:', e);
-        resolve([]);
+/** 物理 database 节点叶子化：引用选到库，不展开表/schema */
+const decorateNode = (node: TreeNodeData): TreeNodeData => {
+    if (node.kind === DbKind) {
+        return { ...node, hasChildren: false };
     }
+    return node;
 };
 
 /**
- * 可选叶子：机器授权凭证 / 物理 database。
- * 注意：ops 树中凭证节点的 NodeType 硬编码 12（不等于 TagResourceTypeEnum.AuthCert 的 5），
- * 因此按 params 语义判定而非类型枚举：凭证叶子必携带 selectAuthCert；
- * 物理 database 叶子（223）携带 id+db（已在 loadNode 中叶子化）
+ * 可选叶子：由贡献者 selectable 声明单源判定（机器凭证/物理 database 均声明为选择目标），
+ * 面板不再硬编码 kind 清单
  */
-const isSelectable = (data: TagTreeNode): boolean => {
-    if (data.disabled) return false;
-    const m = data.params as Record<string, any> | undefined;
-    if (!data.isLeaf || !m) return false;
-    return !!m.selectAuthCert || (m.id != null && m.code != null);
-};
+const onNodeClick = (node: TreeNode) => {
+    if (!isNodeSelectable(node)) {
+        return;
+    }
+    const m = node.params as Record<string, any>;
 
-const onNodeClick = (data: TagTreeNode) => {
-    const m = data.params as Record<string, any> | undefined;
-    if (!isSelectable(data) || !m) return;
-
-    if (m.selectAuthCert) {
+    if (node.kind === MachineAuthCertKind) {
         // 机器凭证叶子：params = {...machineVO, selectAuthCert}
         const cert = m.selectAuthCert || {};
         const username = cert.username || cert.name || '';
@@ -174,18 +133,8 @@ const onNodeClick = (data: TagTreeNode) => {
     emit('close');
 };
 
-// 查询文本过滤树节点（懒加载树只过滤已加载节点）
-const filterNode = (value: string, data: TagTreeNode): boolean => {
-    if (!value) return true;
-    return data.label.includes(value);
-};
-
-watch(
-    () => props.query,
-    (val) => {
-        nextTick(() => treeRef.value?.filter(val || ''));
-    },
-);
+// 查询文本过滤树节点（容器内部防抖；懒加载树只过滤已加载节点）
+const queryText = computed(() => props.query || '');
 </script>
 
 <style lang="scss" scoped>
@@ -214,40 +163,9 @@ watch(
 
     &__tree {
         flex: 1;
-        overflow: auto;
-        padding: 4px 6px;
-
-        :deep(.el-tree-node__content) {
-            height: 28px;
-            border-radius: 6px;
-        }
-    }
-
-    &__node {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-        font-size: 13px;
-
-        &.is-selectable {
-            cursor: pointer;
-
-            &:hover {
-                color: var(--el-color-primary);
-            }
-        }
-
-        &.is-disabled {
-            opacity: 0.45;
-            cursor: not-allowed;
-        }
-    }
-
-    &__label {
+        min-height: 0;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        padding: 4px 6px;
     }
 
     &__tip {

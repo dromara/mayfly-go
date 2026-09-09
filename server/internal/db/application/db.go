@@ -49,7 +49,7 @@ type dbAppImpl struct {
 	dbSqlRepo           repository.DbSql        `inject:"T"`
 	dbInstanceApp       Instance                `inject:"T"`
 	dbSqlExecApp        DbSqlExec               `inject:"T"`
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
@@ -103,6 +103,11 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 	old, err := d.GetById(dbId)
 	if err != nil {
 		return errorx.NewBiz("db not found")
+	}
+
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := d.tagApp.CanAccessByCode(ctx, int8(tagentity.TagTypeDb), old.Code); err != nil {
+		return err
 	}
 
 	oldDbs := strings.Split(old.Database, " ")
@@ -167,12 +172,17 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 }
 
 func (d *dbAppImpl) GetDbConn(ctx context.Context, dbId uint64, dbName string) (*dbi.DbConn, error) {
-	return dbm.GetDbConn(ctx, dbId, dbName, func() (*dbi.DbInfo, error) {
-		db, err := d.GetById(dbId)
-		if err != nil {
-			return nil, errorx.NewBiz("db not found")
-		}
+	// 连接层统一进行数据权限校验，避免各操作接口遗漏鉴权
+	// 注意：校验须在连接缓存(dbm.GetCachePool)之外执行，否则缓存命中时会绕过鉴权
+	db, err := d.GetById(dbId)
+	if err != nil {
+		return nil, errorx.NewBiz("db not found")
+	}
+	if err := d.tagApp.CanAccessByCode(ctx, int8(tagentity.TagTypeDb), db.Code); err != nil {
+		return nil, err
+	}
 
+	return dbm.GetDbConn(ctx, dbId, dbName, func() (*dbi.DbInfo, error) {
 		instance, err := d.dbInstanceApp.GetById(db.InstanceId)
 		if err != nil {
 			return nil, errorx.NewBiz("db instance not found")
@@ -196,11 +206,6 @@ func (d *dbAppImpl) GetDbConn(ctx context.Context, dbId uint64, dbName string) (
 }
 
 func (d *dbAppImpl) GetDbConnByInstanceId(ctx context.Context, instanceId uint64) (*dbi.DbConn, error) {
-	conn := dbm.GetDbConnByInstanceId(ctx, instanceId)
-	if conn != nil {
-		return conn, nil
-	}
-
 	dbs, err := d.ListByCond(&entity.Db{InstanceId: instanceId}, "id", "database")
 	if err != nil {
 		return nil, errorx.NewBiz("failed to get database list")

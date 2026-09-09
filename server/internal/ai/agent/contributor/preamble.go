@@ -25,7 +25,7 @@ func fragmentWithDefaults(c ContextContributor, frags []PromptFragment) []Prompt
 	return frags
 }
 
-// BuildPreamble 拼装片段为 preamble 文本（对齐 tokhub preamble.rs 的预算感知裁剪）
+// BuildPreamble 拼装片段为 preamble 文本（preamble.rs 的预算感知裁剪）
 //
 //   - 片段按 Priority 降序排列后以分隔符连接
 //   - 总预算超过 preambleTokenBudget 时，自低优先级起丢弃非 Retained 片段

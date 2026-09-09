@@ -38,7 +38,7 @@ var safeShellArgRegexp = regexp.MustCompile(`^[a-zA-Z0-9_\-./:+*@?=]+$`)
 type Machine struct {
 	machineApp          application.Machine       `inject:"T"`
 	machineTermOpApp    application.MachineTermOp `inject:"T"`
-	tagTreeApp          tagapp.TagTree            `inject:"T"`
+	tagTreeApp          tagapp.TagTreeService     `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert   `inject:"T"`
 }
 

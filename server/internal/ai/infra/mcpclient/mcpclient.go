@@ -1,4 +1,4 @@
-// Package mcpclient MCP HTTP 客户端封装（对齐 tokhub agent-mcp，剪裁为仅
+// Package mcpclient MCP HTTP 客户端封装（agent-mcp，剪裁为仅
 // Streamable HTTP 传输）：供 application 层（工具发现/连接测试）与
 // agent/ext/mcp（运行期工具调用）共用，统一连接握手与结果转换。
 package mcpclient

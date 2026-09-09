@@ -1,6 +1,4 @@
-import { nextTick, reactive, ref, type Component, type ComponentPublicInstance } from 'vue';
-
-export const ResourceOpCtxKey = 'ResourceOpCtx';
+import { reactive, ref, type Component, type ComponentPublicInstance } from 'vue';
 
 /** 资源操作组件实例（包含可选生命周期回调） */
 export interface ResourceCompInstance extends ComponentPublicInstance {
@@ -8,18 +6,8 @@ export interface ResourceCompInstance extends ComponentPublicInstance {
     onRefresh?: () => void;
     onClose?: () => void;
     onResize?: () => void;
-}
-
-export interface ResourceOpCtx {
-    /**
-     * 获取树节点
-     * @param nodeKey 节点key
-     */
-    getTreeNode(nodeKey: string): Record<string, unknown>;
-
-    setCurrentTreeKey(nodeKey: string): void;
-
-    reloadTreeNode(nodeKey: string): void;
+    // 各资源 tab 组件会暴露各自业务方法（如 loadTables、onEditTable），统一放行兼容现有调用
+    [key: string]: any;
 }
 
 /**
@@ -34,9 +22,12 @@ export interface ResourceOpTab {
     // 组件 props（可选）
     componentProps?: Record<string, unknown>;
     // 组件实例
-    componentInstance?: any;
+    componentInstance?: ResourceCompInstance;
     // component key（包含时间戳，用于 keep-alive 缓存控制）
     componentKey?: string;
+
+    // tab 对应的树节点 key（显式登记，激活 tab 时定位左侧资源树用）
+    nodeKey?: string | number;
 
     // 自定义 tab 标签组件（可选），如果提供则使用自定义组件渲染 tab 标签，否则使用默认的 icon + name 显示
     tabComponent?: Component;
@@ -63,16 +54,25 @@ export const activeResourceOpTabKey = ref<string>('');
 // 非 tab 组件注册表
 export const allResourceOpOverlays = reactive<Map<string, ResourceOpOverlay>>(new Map());
 
+// 等待 tab 组件实例就绪的回调注册表（由 ResourceOp 挂载组件后调用 registerComponentInstance 唤醒）
+const instanceWaiters = new Map<string, Set<() => void>>();
+
+// 实例等待超时兜底（异步组件加载失败等异常场景，避免 Promise 永远 pending）
+const INSTANCE_WAIT_TIMEOUT = 5000;
+
 /**
- * 注册组件实例到 tab
+ * 注册组件实例到 tab，并唤醒等待该实例的调用方
  * @param key tab key
  * @param instance 组件实例
  */
 export function registerComponentInstance(key: string, instance: ComponentPublicInstance) {
     const tab = allResourceOpTabs.get(key);
-    if (tab && !tab.componentInstance) {
-        tab.componentInstance = instance;
+    if (!tab || tab.componentInstance) {
+        return;
     }
+    tab.componentInstance = instance;
+    instanceWaiters.get(key)?.forEach((waiter) => waiter());
+    instanceWaiters.delete(key);
 }
 
 /**
@@ -92,8 +92,11 @@ export function getComponentInstance<T = ResourceCompInstance>(key: string): T |
 export function createResourceOpTab(tab: ResourceOpTab): Promise<ResourceOpTab> {
     const resourceOpTab = getResourceOpTab(tab.key);
     if (resourceOpTab) {
-        // 已存在，直接激活
+        // 已存在，直接激活；nodeKey 用于激活时定位树节点，每次交互更新到最新
         activeResourceOpTabKey.value = tab.key;
+        if (tab.nodeKey) {
+            resourceOpTab.nodeKey = tab.nodeKey;
+        }
         tab = resourceOpTab;
     } else {
         // 创建新 tab，直接生成 componentKey
@@ -102,26 +105,27 @@ export function createResourceOpTab(tab: ResourceOpTab): Promise<ResourceOpTab> 
         activeResourceOpTabKey.value = tab.key;
     }
 
-    // 已有实例直接返回，避免无谓轮询
+    // 已有实例直接返回，避免无谓等待
     if (tab.componentInstance) {
         return Promise.resolve(tab);
     }
 
-    // 等待组件实例就绪后返回 tab 配置
+    // 事件驱动等待实例注册（替代轮询），超时兜底返回避免 Promise 永远 pending
     return new Promise((resolve) => {
-        let attempts = 0;
-        const maxAttempts = 100; // 最多重试100次，防止无限轮询
-        const checkInstance = () => {
-            if (tab.componentInstance) {
-                resolve(tab);
-            } else if (++attempts < maxAttempts) {
-                setTimeout(checkInstance, 50);
-            } else {
-                // 超时仍返回 tab，避免 Promise 永远 pending
-                resolve(tab);
+        let finished = false;
+        const waiters = instanceWaiters.get(tab.key) ?? new Set<() => void>();
+        const finish = () => {
+            if (finished) {
+                return;
             }
+            finished = true;
+            clearTimeout(timer);
+            waiters.delete(finish);
+            resolve(tab);
         };
-        nextTick().then(() => checkInstance());
+        waiters.add(finish);
+        instanceWaiters.set(tab.key, waiters);
+        const timer = setTimeout(finish, INSTANCE_WAIT_TIMEOUT);
     });
 }
 
@@ -136,6 +140,7 @@ export function removeResourceOpTab(key: string) {
         tab.componentInstance = undefined;
     }
     allResourceOpTabs.delete(key);
+    instanceWaiters.delete(key);
 }
 
 /**
@@ -209,12 +214,11 @@ export function showResourceOpOverlay(key: string, component?: Component, props?
 }
 
 /**
- * 隐藏非 tab 组件
+ * 移除非 tab 组件（Overlay）
+ * - 关闭即从注册表清除，避免常驻内存（下次 show 时会重新注册）
+ *
  * @param key 组件 key
  */
-export function hideResourceOpOverlay(key: string) {
-    const overlay = allResourceOpOverlays.get(key);
-    if (overlay) {
-        overlay.visible = false;
-    }
+export function removeResourceOpOverlay(key: string) {
+    allResourceOpOverlays.delete(key);
 }

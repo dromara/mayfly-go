@@ -1,6 +1,6 @@
 <template>
     <div class="infinite-card-list">
-        <!-- 搜索工具栏：字段配置化 + 右侧 actions 插槽（对齐 tokhub SearchToolbar） -->
+        <!-- 搜索工具栏：字段配置化 + 右侧 actions 插槽（SearchToolbar） -->
         <div v-if="searchFields?.length || $slots.actions" class="icl-toolbar">
             <div class="icl-toolbar__fields">
                 <template v-for="field in searchFields" :key="field.key">
@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 /**
- * InfiniteCardList - 通用无限滚动卡片列表（对齐 tokhub InfiniteCardList）
+ * InfiniteCardList - 通用无限滚动卡片列表
  *
  * 数据状态经 useInfiniteScroll 的 bindCardList 一次性展开传入；
  * 支持配置化搜索栏（input/select）+ actions 插槽 + 滚动哨兵自动加载 + 骨架屏 + 空状态。

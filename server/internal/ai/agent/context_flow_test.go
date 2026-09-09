@@ -94,7 +94,7 @@ func newFlowManager(t *testing.T) *session.Manager {
 
 // ── BuildMessages 组装顺序 ──────────────────────────────────────
 
-// TestBuildMessages_AssemblyOrder 全流程组装顺序对齐 tokhub start 路径：
+// TestBuildMessages_AssemblyOrder 全流程组装顺序对齐 start 路径：
 // 历史（贡献者通道）→ preamble 片段 → mid-turn 压缩 → footer 注入 → system 前置
 func TestBuildMessages_AssemblyOrder(t *testing.T) {
 	sessionManager := newFlowManager(t)

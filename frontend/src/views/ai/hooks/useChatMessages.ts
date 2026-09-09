@@ -1,6 +1,6 @@
 /**
  * useChatMessages - 历史消息加载 + 分页
- * 对齐 tokhub 的 useChatMessages 模式
+ * useChatMessages 模式
  */
 import { ref, unref, type MaybeRef } from 'vue';
 import { aiApi } from '../api';

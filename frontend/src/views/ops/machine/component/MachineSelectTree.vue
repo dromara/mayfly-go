@@ -1,11 +1,5 @@
 <template>
-    <ResourceSelect
-        v-bind="$attrs"
-        v-model="selectNode"
-        @change="changeNode"
-        :resource-type="ResourceTypeEnum.Machine.value"
-        :leaf-node-types="[NodeTypeAuthCert]"
-    >
+    <ResourceSelect v-bind="$attrs" v-model="selectNode" @change="changeNode" :resource-type="ResourceTypeEnum.Machine.value">
         <template #iconPrefix>
             <SvgIcon name="Monitor" :size="16" />
             <TagCodePath v-if="authCertName" :code="authCertName" />
@@ -18,10 +12,9 @@
 
 <script setup lang="ts">
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import { TagTreeNode } from '@/views/ops/component/tag';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
-import { NodeTypeAuthCert } from '@/views/ops/machine/resource';
 import type { MachineNodeParams } from '@/views/ops/machine/resource';
+import type { TreeNodeData } from '@/views/ops/resource/tree/types';
 import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
 import { watch } from 'vue';
 
@@ -48,7 +41,8 @@ watch(
     { immediate: true }
 );
 
-const changeNode = (node: TagTreeNode) => {
+const changeNode = (node: TreeNodeData) => {
+    // 有凭证粒度才进入此回调（标签/机器节点的点击守卫已收口到 ResourceSelect：贡献者 selectable 单源判定）
     const params = node.params as MachineNodeParams;
 
     const selectAuthCert = params.selectAuthCert;

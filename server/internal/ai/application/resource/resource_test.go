@@ -90,7 +90,7 @@ func TestApp_KeywordFilter(t *testing.T) {
 		newRes(TypeMachine, "2", "db-server", "db", "10.0.0.2:22"),
 	}})
 	app.RegisterProvider(&fakeProvider{typ: TypeDb, list: []*Resource{
-		newRes(TypeDb, "3", "tokhub", "tokhub", "tokhub"),
+		newRes(TypeDb, "3", "sampledb", "sampledb", "sampledb"),
 	}})
 
 	cases := []struct {
@@ -100,7 +100,7 @@ func TestApp_KeywordFilter(t *testing.T) {
 		{"web", []string{"1"}},
 		{"WEB", []string{"1"}},
 		{"10.0.0.2", []string{"2"}}, // description（ip:port）命中
-		{"tokhub", []string{"3"}},   // 名称与编码同时命中不去重（同一条资源）
+		{"sampledb", []string{"3"}}, // 名称与编码同时命中不去重（同一条资源）
 		{"不存在的关键词", []string{}},
 		{"  ", []string{"1", "2", "3"}}, // 空白关键词视为不过滤
 	}

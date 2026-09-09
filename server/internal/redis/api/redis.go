@@ -24,8 +24,8 @@ import (
 )
 
 type Redis struct {
-	redisApp application.Redis `inject:"T"`
-	tagApp   tagapp.TagTree    `inject:"T"`
+	redisApp application.Redis     `inject:"T"`
+	tagApp   tagapp.TagTreeService `inject:"T"`
 }
 
 func (rs *Redis) ReqConfs() *req.Confs {

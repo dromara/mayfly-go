@@ -1,6 +1,5 @@
 /**
  * 状态枚举注册表
- * 对齐 tokhub events/statuses.ts
  *
  * 收敛散落在各处的状态字符串字面量，提供统一的：
  * - ToolCallStatus：工具调用执行状态
@@ -30,7 +29,7 @@ export type ToolCallStatusValue = (typeof ToolCallStatus)[keyof typeof ToolCallS
 
 // ==================== 中断恢复决策状态 ====================
 
-/** 中断恢复决策状态（对齐 tokhub InterruptResumeStatus：tag snake_case） */
+/** 中断恢复决策状态（InterruptResumeStatus：tag snake_case） */
 export const InterruptResumeStatus = {
     /** 待用户决策 */
     Pending: 'pending',
@@ -42,11 +41,11 @@ export const InterruptResumeStatus = {
     Cancelled: 'cancelled',
     /** 已解决（参数补全等非二元决策） */
     Resolved: 'resolved',
-    /** 已完善（参数补全提交，对齐 tokhub params_completed） */
+    /** 已完善（参数补全提交，params_completed） */
     ParamsCompleted: 'params_completed',
-    /** 已回答（人工输入提交，对齐 tokhub answered） */
+    /** 已回答（人工输入提交，answered） */
     Answered: 'answered',
-    /** 已跳过（对齐 tokhub skipped） */
+    /** 已跳过（skipped） */
     Skipped: 'skipped',
 } as const;
 
@@ -59,7 +58,7 @@ export function isInterruptDecided(status?: string): boolean {
 }
 
 /**
- * 「已决议且恢复执行」状态集合（单一权威来源，对齐 tokhub INTERRUPT_EXECUTION_RESUMED_STATUSES）
+ * 「已决议且恢复执行」状态集合（单一权威来源，INTERRUPT_EXECUTION_RESUMED_STATUSES）
  *
  * 集合内状态表示决策已作出且执行继续：载体 tool_call 翻转为执行中（Pending）；
  * 集合外决议（rejected / cancelled 等）表示事件终止（Cancelled）。
@@ -93,7 +92,7 @@ export const TurnStatus = {
 /**
  * 用户操作 action 到恢复状态的映射
  *
- * 注意：这是无 handler 时的兜底解释（对齐 tokhub interpretDecisionWithFallback）。
+ * 注意：这是无 handler 时的兜底解释（interpretDecisionWithFallback）。
  * 决策解释的权威出处是各中断类型 handler 的 interpretDecision（见 interrupt/handlers/），
  * eventWriter 委托 handler 解释，仅无 handler 时回退到此表
  */
@@ -108,7 +107,7 @@ const ACTION_TO_RESUME_STATUS: Record<string, string> = {
     complete: InterruptResumeStatus.ParamsCompleted,
     // 确认类动作（选项确认）：语义等同批准
     confirm: InterruptResumeStatus.Approved,
-    // 恢复决策类型直传（后端 resume.type / tokhub snake_case）
+    // 恢复决策类型直传（后端 resume.type snake_case）
     params_completed: InterruptResumeStatus.ParamsCompleted,
     answered: InterruptResumeStatus.Answered,
     skipped: InterruptResumeStatus.Skipped,
@@ -122,7 +121,7 @@ export function interpretActionStatus(action: string): string {
 // ==================== resume.type → UI status 归一化（单一权威来源） ====================
 
 /**
- * 后端 InterruptResume.type → 前端 UI status 映射（对齐 tokhub RESUME_TYPE_TO_STATUS）
+ * 后端 InterruptResume.type → 前端 UI status 映射（RESUME_TYPE_TO_STATUS）
  *
  * 后端持久化 `{ type: "approved" | "rejected" | "params_completed" ... }`，
  * 前端统一经 normalizeResumeStatus 归一后驱动 UI 状态机。

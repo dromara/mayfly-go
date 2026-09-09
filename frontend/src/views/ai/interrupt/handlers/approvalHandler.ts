@@ -1,5 +1,5 @@
 /**
- * 审批中断处理器（对齐 tokhub handlers/approval/approvalHandler.ts）
+ * 审批中断处理器
  *
  * 决策动作：approve / reject（reject 携带 reason），
  * 默认决策解释（工厂提供）已覆盖：approve → approved / reject → rejected。

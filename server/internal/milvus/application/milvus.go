@@ -38,7 +38,7 @@ type Milvus interface {
 // MilvusApp Milvus 应用服务
 type milvusAppImpl struct {
 	base.AppImpl[*entity.Milvus, repository.Milvus]
-	tagTreeApp          tagapp.TagTree          `inject:"T"`
+	tagTreeApp          tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 
@@ -117,6 +117,11 @@ func (a *milvusAppImpl) SaveMilvus(ctx context.Context, m *entity.Milvus, authCe
 		old, _ = a.GetById(m.Id)
 	}
 
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := a.tagTreeApp.CanAccessByCode(ctx, resourceType, old.Code); err != nil {
+		return err
+	}
+
 	// 先关闭连接
 	mvm.CloseAll(m.Id)
 	m.Code = ""
@@ -173,6 +178,15 @@ func (a *milvusAppImpl) GetMilvusConn(rc *req.Ctx) (*mvm.MilvusConn, error) {
 	biz.IsTrue(id > 0, "milvusId error")
 
 	db := rc.Query("db")
+	// 连接层统一进行数据权限校验，避免各操作接口遗漏鉴权
+	milvusEntity, err := a.GetById(uint64(id))
+	if err != nil {
+		return nil, err
+	}
+	if err := a.tagTreeApp.CanAccessByCode(rc.MetaCtx, consts.ResourceTypeMilvus, milvusEntity.Code); err != nil {
+		return nil, err
+	}
+
 	if db == "" {
 		m, err := a.GetById(uint64(id))
 		if err != nil {

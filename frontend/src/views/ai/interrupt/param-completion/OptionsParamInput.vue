@@ -5,7 +5,7 @@
             {{ description }}
         </div>
 
-        <!-- 可选项列表（对齐 tokhub Questionnaire choices） -->
+        <!-- 可选项列表（Questionnaire choices） -->
         <div v-if="options.length > 0" class="options-param-input__choices">
             <div
                 v-for="(opt, idx) in options"
@@ -18,7 +18,7 @@
             </div>
         </div>
 
-        <!-- 自由输入（对齐 tokhub Questionnaire input） -->
+        <!-- 自由输入（Questionnaire input） -->
         <div class="options-param-input__input-row">
             <input
                 v-model="freeText"

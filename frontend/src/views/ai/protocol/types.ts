@@ -1,6 +1,6 @@
 /**
  * AI Chat 协议类型定义
- * 对齐后端 protocol/ 包和 tokhub 的 TurnItem 统一协议
+ * 对齐后端 protocol/ 包的 TurnItem 统一协议
  */
 
 // ==================== ContentSegment ====================
@@ -10,7 +10,7 @@ export type ContentSegmentType = 'input_text' | 'output_text' | 'skill' | 'resou
 export interface ContentSegment {
     type: ContentSegmentType;
     text: string;
-    /** 芯片段元数据（对齐 tokhub typed segment 贯穿持久化：resource 含 resourceType/id/code/ip/port/authCertName/username） */
+    /** 芯片段元数据（typed segment 贯穿持久化：resource 含 resourceType/id/code/ip/port/authCertName/username） */
     extra?: Record<string, unknown>;
 }
 
@@ -21,7 +21,7 @@ export type TurnItemTypeType = 'message' | 'reasoning' | 'tool_call' | 'context_
 export type TurnItemStatus = 'pending' | 'success' | 'failed' | 'cancelled' | 'interrupted';
 
 /**
- * TurnItem 统一协议（扁平变体，对齐后端 protocol.TurnItem / tokhub item.rs 的 tagged enum：
+ * TurnItem 统一协议（扁平变体，对齐后端 protocol.TurnItem 的 tagged enum：
  * 变体字段直接位于顶层、snake_case 命名，实时流与历史回放共享同一协议形状）
  */
 export interface TurnItem {
@@ -140,13 +140,13 @@ export interface TurnItemVO {
     item?: TurnItem;
     status: string;
     toolCallId?: string;
-    /** 扩展列（对齐 tokhub）：tool_call item 携带中断信息 {"interrupt": InterruptInfo}
+    /** 扩展列：tool_call item 携带中断信息 {"interrupt": InterruptInfo}
      *  （kind/request_id/message/conversation_id/agent_id/metadata/resume 内嵌恢复决策） */
     extra?: Record<string, unknown>;
     createTime: string;
 }
 
-// ==================== MessagePart（有序片段，对齐 tokhub） ====================
+// ==================== MessagePart（有序片段） ====================
 
 /** 推理过程 part */
 export interface ReasoningPart {
@@ -168,12 +168,12 @@ export interface ToolCallPart {
     output?: string;
     durationMs?: number;
     active?: boolean;
-    /** 恢复决策类型（对齐 tokhub extra.interrupt.resume.type：approved/rejected/params_completed...，
+    /** 恢复决策类型（extra.interrupt.resume.type：approved/rejected/params_completed...，
      *  历史从 item extra 还原，实时从已决策中断继承），驱动决议徽章 */
     resumeType?: string;
 }
 
-/** 上下文压缩提示 part（对齐 tokhub ContextCompaction 时间线节点） */
+/** 上下文压缩提示 part（ContextCompaction 时间线节点） */
 export interface CompactionPart {
     type: 'context_compaction';
     id: string;
@@ -190,7 +190,7 @@ export interface NoticePart {
     text: string;
 }
 
-/** 消息有序片段（对齐 tokhub MessagePart） */
+/** 消息有序片段（MessagePart） */
 export type MessagePart =
     | { type: 'text'; id: string; text: string }
     | ReasoningPart

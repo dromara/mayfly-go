@@ -17,7 +17,7 @@ func newTagTreeRepo() repository.TagTree {
 	return &tagTreeRepoImpl{}
 }
 
-func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string) {
+func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string) error {
 	cond := model.NewCond().Like("name", condition.Name).
 		Eq("id", condition.Id).
 		In("code", condition.Codes).
@@ -41,5 +41,5 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		cond.And(codePathLikesAnd, cocePathLikesParams...)
 	}
 
-	p.SelectByCondToAny(cond, toEntity)
+	return p.SelectByCondToAny(cond, toEntity)
 }

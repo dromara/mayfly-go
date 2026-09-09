@@ -2,7 +2,7 @@
     <div class="component-container card p-2!">
         <input ref="zipInputRef" type="file" accept=".zip" class="zip-input" @change="handleImportFile" />
 
-        <!-- 统一插件列表：滚动分页 + 搜索（对齐 tokhub InfiniteCardList + useInfiniteScroll） -->
+        <!-- 统一插件列表：滚动分页 + 搜索（InfiniteCardList + useInfiniteScroll） -->
         <InfiniteCardList
             v-bind="bindCardList"
             :search-fields="searchFields"
@@ -69,7 +69,7 @@ const { reload, bindCardList } = useInfiniteScroll<PluginInstance, { keyword: st
     pageSize: 12,
 });
 
-// ── 类型元数据（对齐 tokhub：前端仅维护展示映射，类型清单由后端注册表下发） ──
+// ── 类型元数据（前端仅维护展示映射，类型清单由后端注册表下发） ──
 const typeMeta: Record<string, { labelKey?: string; fallback: string }> = {
     skill: { labelKey: 'ai.integration.skillPlugin', fallback: 'skill' },
     mcp: { labelKey: 'ai.integration.mcpPlugin', fallback: 'mcp' },

@@ -11,37 +11,7 @@
                         </el-input>
                     </div>
 
-                    <el-scrollbar>
-                        <el-tree
-                            class="min-w-full inline-block"
-                            ref="treeRef"
-                            :highlight-current="true"
-                            :indent="10"
-                            :load="loadNode"
-                            :props="treeProps"
-                            lazy
-                            node-key="key"
-                            :expand-on-click-node="false"
-                            :filter-node-method="filterNode"
-                            @node-click="treeNodeClick"
-                            @node-expand="treeNodeClick"
-                            @node-collapse="onNodeCollapse"
-                            @node-contextmenu="onNodeContextmenu"
-                            :default-expanded-keys="state.defaultExpandedKeys"
-                        >
-                            <template #default="{ node, data }">
-                                <div class="select-none" v-if="data.type == TagResourceTypeEnum.Tag.value">
-                                    <span v-for="(value, i) in data.label.split('/')" :key="i">
-                                        <el-text class="mr-[1.5px]! ml-[1.5px]!" v-if="i != 0" tag="b" type="primary" size="large">/</el-text>
-                                        <el-text>{{ value }}</el-text>
-                                    </span>
-                                </div>
-
-                                <component v-else-if="data.nodeComponent" :is="data.nodeComponent" :node="node" :data="data" />
-                                <BaseTreeNode v-else :node="node" :data="data" />
-                            </template>
-                        </el-tree>
-                    </el-scrollbar>
+                    <TreeContainer ref="treeContainerRef" :load-root="loadRoot" :filter-text="filterText" @node-click="onTreeNodeClick" />
                 </el-card>
             </el-splitter-panel>
 
@@ -117,42 +87,47 @@
                         </div>
                     </div>
                     <div class="resource-tab-content">
-                        <keep-alive :max="20">
+                        <!--
+                            所有打开的 tab 常驻挂载，v-show 切换：关闭 tab 即卸载实例（终端连接释放、内存回收）。
+                            不能用 keep-alive + 动态 :is：KeepAlive 缓存仅随 include/exclude、max LRU、自身卸载淘汰，
+                            已关闭的 tab 会永久残留缓存（连接不释放、内存无界增长）；而 max 又会静默淘汰活跃终端
+                        -->
+                        <template v-for="tab in resourceTabs" :key="tab.key">
                             <component
-                                ref="activeCompRef"
-                                :is="activeResourceTab?.component"
-                                :key="activeResourceTab?.componentKey"
-                                v-bind="activeResourceTab?.componentProps"
+                                v-show="tab.key === activeResourceOpTabKey"
+                                :ref="(el: any) => el && registerComponentInstance(tab.key, el)"
+                                :is="tab.component"
+                                v-bind="tab.componentProps"
                             />
-                        </keep-alive>
+                        </template>
                     </div>
                 </el-card>
             </el-splitter-panel>
         </el-splitter>
 
-        <Contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" />
         <Contextmenu :dropdown="tabDropdown" :items="tabContextmenuItems" ref="tabContextmenuRef" />
 
-        <!-- 渲染注册的非 tab 组件（Overlay） -->
+        <!-- 渲染注册的非 tab 组件（Overlay）：关闭即从注册表移除，避免常驻内存 -->
         <template v-for="overlay in overlayList" :key="overlay.key">
-            <component v-if="overlay.visible" :is="overlay.component" v-bind="overlay.props" @update:visible="(val: boolean) => (overlay.visible = val)" />
+            <component
+                v-if="overlay.visible"
+                :is="overlay.component"
+                v-bind="overlay.props"
+                @update:visible="(val: boolean) => (val ? (overlay.visible = true) : removeResourceOpOverlay(overlay.key))"
+            />
         </template>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, onUnmounted, provide, reactive, ref, toRefs, useTemplateRef, watch, type ComponentPublicInstance } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
-import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { isPrefixSubsequence } from '@/common/utils/string';
+import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svg-icon/index.vue';
-import { useAutoOpenResource } from '@/store/autoOpenResource';
-import { ResourceOpCtx } from '@/views/ops/resource/resourceOp';
 import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
-import BaseTreeNode from './BaseTreeNode.vue';
-import { TagTreeNode } from '@/views/ops/component/tag';
+import TreeContainer from './tree/TreeContainer.vue';
+import type { TreeNode } from './tree/types';
 import { getResourceTypes, loadResourceTags } from './resource';
 import {
     activateResourceOpTab,
@@ -162,51 +137,23 @@ import {
     getComponentInstance,
     getResourceOpTab,
     registerComponentInstance,
+    removeResourceOpOverlay,
     removeResourceOpTab,
-    ResourceOpCtxKey,
     ResourceOpTab,
 } from './resourceOp';
-
-const props = defineProps({
-    load: {
-        type: Function,
-        required: false,
-    },
-    loadContextmenuItems: {
-        type: Function,
-        required: false,
-    },
-});
-
-const treeProps = {
-    label: 'name',
-    children: 'zones',
-    isLeaf: 'isLeaf',
-};
 
 const autoOpenResourceStore = useAutoOpenResource();
 const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
 
-const { t } = useI18n();
-
-const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
-
-const treeRef = useTemplateRef<{
-    filter: (val: string) => void;
-    remove: (data: unknown) => void;
-    getNode: (key: string) => { loaded: boolean; expand: () => void } | undefined;
-    setCurrentKey: (key: string) => void;
-}>('treeRef');
-const contextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('contextmenuRef');
+const treeContainerRef = useTemplateRef<{
+    locate: (key: string) => Promise<void>;
+    refresh: (key?: string) => void;
+    getNode: (key: string) => TreeNode | undefined;
+}>('treeContainerRef');
 const tabContextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('tabContextmenuRef');
 
 // 存储当前组件对应的最后操作的节点key，用户切换资源操作组件时，定位到相应的树节点
 const resourceComponentsNodeKey = ref<Record<string, string>>({});
-
-// 当前激活的 tab（从 allResourceOpTabs 获取）
-const activeResourceTab = computed(() => {
-    return getResourceOpTab(activeResourceOpTabKey.value);
-});
 
 const resourceTabs = computed(() => {
     return Array.from(allResourceOpTabs.values());
@@ -217,7 +164,7 @@ const overlayList = computed(() => {
 });
 
 // Tab 右键菜单
-const tabDropdown = reactive({ x: 0, y: 0 });
+const tabDropdown = ref({ x: 0, y: 0 });
 const tabContextmenuItems = ref<ContextmenuItem[]>([]);
 
 const cmTabCloseAll = new ContextmenuItem('closeAll', 'layout.tagsView.closeAll').withIcon('Close').withOnClick(() => closeAllTabs());
@@ -253,56 +200,19 @@ onMounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener('keydown', onFullscreenKeydown);
-    if (filterTimer) clearTimeout(filterTimer);
+    // ResourceOp 卸载后内部 tab 组件实例已销毁，清除引用避免后续拿到失效实例
+    allResourceOpTabs.forEach((tab) => (tab.componentInstance = undefined));
 });
 
-const activeCompRef = useTemplateRef<ComponentPublicInstance>('activeCompRef');
+// 过滤文本经容器内部 300ms 防抖后生效
+const filterText = ref('');
 
-// 注册当前活跃组件实例到对应 tab
-const registerActiveComp = (tabKey: string) => {
-    const el = activeCompRef.value;
-    if (!tabKey || !el) return false;
+// 根节点加载：标签骨架（含类型分组节点预构），资源子树由各贡献者懒加载
+const loadRoot = () => loadResourceTags(getResourceTypes());
 
-    registerComponentInstance(tabKey, el);
-    return true;
-};
+// ---------------------------------- autoOpen 定位 ----------------------------------
 
-// 监听 tab 切换，主动获取当前活跃组件实例并注册
-// 解决 keep-alive 场景下 :ref 回调不可靠的问题（缓存组件激活时 ref 回调不重新触发）
-watch(activeResourceOpTabKey, (tabKey: string) => {
-    if (!tabKey) return;
-    let attempts = 0;
-    const maxAttempts = 50; // 最多重试50次，防止无限轮询
-    // 异步组件可能需要多轮 nextTick 才能拿到实例
-    const tryRegister = () => {
-        nextTick(() => {
-            if (registerActiveComp(tabKey) || ++attempts >= maxAttempts) return;
-            setTimeout(tryRegister, 50);
-        });
-    };
-    tryRegister();
-});
-
-const state = reactive({
-    defaultExpandedKeys: [] as string[],
-    filterText: '',
-    contextmenuItems: [] as ContextmenuItem[],
-    dropdown: {
-        x: 0,
-        y: 0,
-    },
-});
-
-const { filterText } = toRefs(state);
-
-let filterTimer: ReturnType<typeof setTimeout> | null = null;
-watch(filterText, (val: string) => {
-    if (filterTimer) clearTimeout(filterTimer);
-    filterTimer = setTimeout(() => {
-        treeRef.value?.filter(val);
-    }, 300);
-});
-
+// autoOpen 待定位的节点 key：目标节点可能尚未水合，容器在每次水合完成后自动重试
 watch(
     () => autoOpenResource.value.codePath,
     (autoOpenCodePath: string) => {
@@ -310,161 +220,49 @@ watch(
             return;
         }
 
-        const expandedKeys: string[] = [];
+        // 解析 codePath 的最后一段作为定位目标（中间层级由容器按需展开）
+        const parts = autoOpenCodePath.split('/');
+        let lastKey = '';
         let currentTagPath = '';
-        const parts = autoOpenCodePath.split('/'); // 切分字符串并保留数字和对应的值部分
-        let addResouceType = false;
-        for (let part of parts) {
+        let lastResourceKey = '';
+        for (const part of parts) {
             if (!part) {
                 continue;
             }
-            let [key, value] = part.split('|'); // 分割数字和值部分
-            // 如果不存在第二个参数，则说明为标签类型
+            const [key, value] = part.split('|');
             if (!value) {
-                const tagPath = key + '/';
-                currentTagPath = currentTagPath + tagPath;
-                expandedKeys.push(currentTagPath);
+                currentTagPath = currentTagPath + key + '/';
+                lastKey = currentTagPath;
                 continue;
             }
-            if (!addResouceType) {
-                expandedKeys.push(currentTagPath + '-' + key);
-                expandedKeys.push(value);
-                addResouceType = true;
-            } else {
-                expandedKeys.push(value);
+            // 资源段：'-' 前为资源类型，值为资源根节点 code
+            if (!lastResourceKey) {
+                lastKey = `${currentTagPath}-${key}`;
             }
+            lastResourceKey = value;
         }
-
-        state.defaultExpandedKeys = expandedKeys;
         autoOpenResourceStore.setCodePath('');
-        setTimeout(() => {
-            setCurrentKey(expandedKeys[expandedKeys.length - 1]);
-        }, 500);
+        if (lastKey || lastResourceKey) {
+            treeContainerRef.value?.locate(lastResourceKey && lastResourceKey !== lastKey ? lastResourceKey : lastKey);
+        }
     },
     { immediate: true }
 );
 
-const filterNode = (value: string, data: Record<string, unknown>) => {
-    return !value || isPrefixSubsequence(value, data.label as string);
-};
+// ---------------------------------- 节点点击 → tab 联动 ----------------------------------
 
-/**
- * 加载树节点
- * @param { Object } node
- * @param { Object } resolve
- */
-const loadNode = async (node: Record<string, unknown>, resolve: (data: unknown[]) => void, reject: () => void) => {
-    if (typeof resolve !== 'function') {
-        return;
-    }
-    let nodes;
-    try {
-        if (node.level == 0) {
-            nodes = await loadResourceTags(getResourceTypes(), ctx);
-        } else if (props.load) {
-            nodes = await props.load(node);
-        } else {
-            nodes = await (node.data as TagTreeNode).loadChildren();
+const onTreeNodeClick = (node: TreeNode) => {
+    // 节点点击激活了 tab（新建或切换）时，同步记录 tab -> 树节点映射，用于切回时定位
+    const prevActiveKey = activeResourceOpTabKey.value;
+    nextTick(() => {
+        const nowActiveKey = activeResourceOpTabKey.value;
+        if (nowActiveKey && nowActiveKey !== prevActiveKey) {
+            resourceComponentsNodeKey.value[nowActiveKey] = node.key;
         }
-    } catch (e: unknown) {
-        console.error(e);
-        // 调用 reject 以保持节点状态，并允许远程加载继续。
-        return reject();
-    }
-    return resolve(nodes);
+    });
 };
 
-let lastNodeClickTime = 0;
-
-const treeNodeClick = async (data: Record<string, unknown>, node: Record<string, unknown>) => {
-    // 关闭可能存在的右击菜单
-    contextmenuRef.value?.closeContextmenu();
-
-    const currentClickNodeTime = Date.now();
-    // 双击节点
-    if (currentClickNodeTime - lastNodeClickTime < 300) {
-        await treeNodeDblclick(data, node);
-    } else {
-        lastNodeClickTime = currentClickNodeTime;
-        const dataType = data.type as Record<string, unknown> | undefined;
-        if (!data.disabled && !dataType?.nodeDblclickFunc && dataType?.nodeClickFunc) {
-            emit('nodeClick', data);
-            await (dataType.nodeClickFunc as Function)(data);
-        }
-    }
-
-    setTimeout(() => {
-        const activateKey = activeResourceOpTabKey.value;
-        const nodeDataKey = data.key as string;
-        if (activateKey && (nodeDataKey?.startsWith(activateKey) || nodeDataKey == activateKey || activateKey?.startsWith(nodeDataKey))) {
-            resourceComponentsNodeKey.value[activeResourceOpTabKey.value] = data.key as string;
-        }
-    }, 50);
-};
-
-// 树节点双击事件
-const treeNodeDblclick = async (data: Record<string, unknown>, node: Record<string, unknown>) => {
-    if (node.expanded) {
-        (node.collapse as Function)();
-    } else {
-        (node.expand as Function)();
-    }
-
-    const dataType = data.type as Record<string, unknown> | undefined;
-    if (!data.disabled && dataType?.nodeDblclickFunc) {
-        await (dataType.nodeDblclickFunc as Function)(data);
-    }
-};
-
-// 递归查找子树中标记了 collapseRemoveChildren 的节点，删除其子节点
-const removeCollapseChildrenNodes = (node: Record<string, unknown>) => {
-    const nodeData = node.data as Record<string, unknown> | undefined;
-    const nodeType = nodeData?.type as Record<string, unknown> | undefined;
-    if (nodeType?.collapseRemoveChildren) {
-        // 找到标记节点，删除其所有子节点，不再往下递归
-        const childNodes = [...(node.childNodes as Record<string, unknown>[])];
-        childNodes.forEach((child: Record<string, unknown>) => {
-            treeRef.value?.remove((child.data as Record<string, unknown>) || child);
-        });
-        node.loaded = false;
-        node.loading = false;
-        node.isLeaf = false;
-        node.expanded = false;
-        return;
-    }
-    // 当前节点无标记，继续往子节点查找
-    for (const child of [...(node.childNodes as Record<string, unknown>[])]) {
-        removeCollapseChildrenNodes(child);
-    }
-};
-
-// 树节点折叠事件 - 删除子树中标记了 collapseRemoveChildren 的节点的子节点，释放内存
-const onNodeCollapse = (data: unknown, node: Record<string, unknown>) => {
-    removeCollapseChildrenNodes(node);
-};
-
-// 树节点右击事件
-const onNodeContextmenu = (event: MouseEvent, data: Record<string, unknown>) => {
-    if (data.disabled) {
-        return;
-    }
-
-    // 加载当前节点是否需要显示右击菜单
-    let items = (data.type as Record<string, unknown>).contextMenuItems as ContextmenuItem[] | undefined;
-    if (!items || items.length == 0) {
-        if (props.loadContextmenuItems) {
-            items = props.loadContextmenuItems(data) as ContextmenuItem[];
-        }
-    }
-    if (!items) {
-        return;
-    }
-    state.contextmenuItems = items;
-    const { clientX, clientY } = event;
-    state.dropdown.x = clientX;
-    state.dropdown.y = clientY;
-    contextmenuRef.value?.openContextmenu(data);
-};
+// ---------------------------------- Tab 管理 ----------------------------------
 
 // 激活指定标签页
 const activateTab = (tabKey: string) => {
@@ -472,9 +270,10 @@ const activateTab = (tabKey: string) => {
     if (!tabKey) {
         return;
     }
-    // 定位到左侧资源树对应节点
-    if (resourceComponentsNodeKey.value[tabKey]) {
-        setCurrentKey(resourceComponentsNodeKey.value[tabKey]);
+    // 定位到左侧资源树对应节点（优先 tab 创建/交互时显式登记的 nodeKey）
+    const nodeKey = getResourceOpTab(tabKey)?.nodeKey ?? resourceComponentsNodeKey.value[tabKey];
+    if (nodeKey) {
+        treeContainerRef.value?.locate(nodeKey as string);
     }
     nextTick(() => {
         // 调用该tab的激活回调
@@ -482,29 +281,23 @@ const activateTab = (tabKey: string) => {
     });
 };
 
-// 刷新标签页（通过改变 key 强制重新渲染）
+// 刷新标签页（调用该 tab 注册的刷新回调）
 const refreshTab = (tabKey: string) => {
-    // 调用该 tab 注册的刷新回调
     getComponentInstance(tabKey)?.onRefresh?.();
 };
 
 // Tab 右键菜单处理
 const onTabContextmenu = (event: MouseEvent, tab: ResourceOpTab) => {
-    // 关闭可能存在的树节点右键菜单
-    contextmenuRef.value?.closeContextmenu();
-    tabDropdown.x = event.clientX;
-    tabDropdown.y = event.clientY;
+    tabDropdown.value = { x: event.clientX, y: event.clientY };
     tabContextmenuRef.value?.openContextmenu({ tabKey: tab.key });
 };
 
 // 关闭标签页
-const closeTab = (tabKey: string, isChangeTab: boolean = true) => {
-    // 清除组件实例和缓存
-    removeResourceOpTab(tabKey);
-    // 清理节点映射关系
-    delete resourceComponentsNodeKey.value[tabKey];
-    // 调用该 tab 的关闭回调
+const closeTab = (tabKey: string) => {
+    // 先触发该 tab 的关闭回调，再清理实例与映射（清理后实例不可再获取）
     getComponentInstance(tabKey)?.onClose?.();
+    removeResourceOpTab(tabKey);
+    delete resourceComponentsNodeKey.value[tabKey];
 
     // 如果关闭的是当前活动标签，切换到相邻标签
     if (activeResourceOpTabKey.value === tabKey) {
@@ -522,7 +315,7 @@ const closeTab = (tabKey: string, isChangeTab: boolean = true) => {
 const closeAllTabs = () => {
     const allKeys: string[] = Array.from(allResourceOpTabs.keys());
     allKeys.forEach((key) => {
-        closeTab(key, false);
+        closeTab(key);
     });
     allResourceOpTabs.clear();
     resourceComponentsNodeKey.value = {};
@@ -536,7 +329,7 @@ const closeLeftTabs = (targetTabKey: string) => {
     if (targetIndex <= 0) return;
     const keysToClose = allKeys.slice(0, targetIndex);
     keysToClose.forEach((key: string) => {
-        closeTab(key, false);
+        closeTab(key);
     });
     // 如果当前激活的标签被关闭，切换到目标标签
     if (keysToClose.includes(activeResourceOpTabKey.value)) {
@@ -549,7 +342,7 @@ const closeOtherTabs = (targetTabKey: string) => {
     const allKeys: string[] = Array.from(allResourceOpTabs.keys());
     const keysToClose = allKeys.filter((key) => key !== targetTabKey);
     keysToClose.forEach((key: string) => {
-        closeTab(key, false);
+        closeTab(key);
     });
     activateTab(targetTabKey);
 };
@@ -561,36 +354,12 @@ const closeRightTabs = (targetTabKey: string) => {
     if (targetIndex === -1 || targetIndex === allKeys.length - 1) return;
     const keysToClose = allKeys.slice(targetIndex + 1);
     keysToClose.forEach((key: string) => {
-        closeTab(key, false);
+        closeTab(key);
     });
     // 如果当前激活的标签被关闭，切换到目标标签
     if (keysToClose.includes(activeResourceOpTabKey.value)) {
         activateTab(targetTabKey);
     }
-};
-
-const reloadNode = (nodeKey: string) => {
-    let node = getNode(nodeKey);
-    node.loaded = false;
-    node.expand();
-};
-
-const getNode = (nodeKey: string) => {
-    let node = treeRef.value?.getNode(nodeKey);
-    if (!node) {
-        throw new Error('未找到节点: ' + nodeKey);
-    }
-    return node;
-};
-
-const setCurrentKey = (nodeKey: string) => {
-    treeRef.value?.setCurrentKey(nodeKey);
-    // 延迟查询 DOM，确保节点已展开渲染，再用 rAF 滚动避免强制同步布局
-    setTimeout(() => {
-        requestAnimationFrame(() => {
-            document.getElementById(nodeKey)?.scrollIntoView({ block: 'center' });
-        });
-    }, 100);
 };
 
 let resizeRAF = 0;
@@ -605,14 +374,6 @@ const onResizeOpPanel = () => {
         }
     });
 };
-
-const ctx: ResourceOpCtx = {
-    setCurrentTreeKey: setCurrentKey,
-    getTreeNode: getNode,
-    reloadTreeNode: reloadNode,
-};
-
-provide(ResourceOpCtxKey, ctx);
 </script>
 
 <style lang="scss" scoped>

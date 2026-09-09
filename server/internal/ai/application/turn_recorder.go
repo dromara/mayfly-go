@@ -24,7 +24,7 @@ import (
 //   - 消息映射：经 agent.EventMapper 将 session.Message 映射为 protocol.EventMsg
 //     （流式 chunk / 工具调用事件 / 工具结果 / 中断事件统一分发）
 //   - item 收集：单一 Collect 入口（并发安全），中断信息统一落到被中断
-//     tool_call item 的 extra 列（不产生独立 internal item，对齐 tokhub）
+//     tool_call item 的 extra 列（不产生独立 internal item）
 //   - 恢复预加载：加载挂起 item 注册 item_id 复用映射，恢复决策按 request_id 索引
 //   - 收尾持久化：按 ItemId 去重，恢复路径复用行走按行更新，新 item 批量插入
 //
@@ -109,7 +109,7 @@ func (r *TurnRecorder) OnEvent(ctx context.Context, ae *agent.AgentEvent, m *ses
 			for _, evt := range interruptEvents {
 				r.publish(evt)
 			}
-			// 对齐 tokhub：中断信息统一存到被中断工具调用的 tool_call item
+			// 中断信息统一存到被中断工具调用的 tool_call item
 			// extra 列（{"interrupt": InterruptInfo}），不产生独立 internal item
 			if len(interruptEvents) > 0 && interruptEvents[0].Interrupt != nil {
 				if !r.MarkInterrupted(interruptEvents[0].Interrupt) {
@@ -135,7 +135,7 @@ func (r *TurnRecorder) FinishStreaming() {
 
 // TrackResumedToolCalls 恢复路径预加载：从持久化层加载该 turn 挂起的 interrupted
 // tool_call item，注册 toolCallId → 原 itemId 到 EventMapper（工具完成时复用原
-// item_id、更新同一行，对齐 tokhub execute.rs 的第一阶段挂起行加载）；同时按
+// item_id、更新同一行，execute.rs 的第一阶段挂起行加载）；同时按
 // request_id 匹配恢复决策，建立 itemId → 决策映射供收尾持久化时 merge 到
 // interrupt.resume
 func (r *TurnRecorder) TrackResumedToolCalls(ctx context.Context, resumeParams []any) {
@@ -182,7 +182,7 @@ func (r *TurnRecorder) CollectProtocolItem(turnId string, item *protocol.TurnIte
 }
 
 // MarkInterrupted 将中断信息落到被中断工具调用的 tool_call item 上
-// （对齐 tokhub：extra["interrupt"] 存 InterruptInfo，item 状态置 interrupted）。
+// （extra["interrupt"] 存 InterruptInfo，item 状态置 interrupted）。
 // 中断必然由工具审批/参数补全触发，本轮已收集的 tool_call item 中必能命中；
 // 返回是否命中（未命中仅告警，中断信息随事件流下发、不落库）
 func (r *TurnRecorder) MarkInterrupted(evt *protocol.InterruptEvent) bool {
@@ -245,7 +245,7 @@ func (r *TurnRecorder) publish(evt *protocol.EventMsg) {
 }
 
 // toEntityTurnItem 将 protocol.TurnItem 转换为 entity.TurnItem
-// （payload 剥离 type/id，由 item_type / item_id 列承载，对齐 tokhub payload_json）
+// （payload 剥离 type/id，由 item_type / item_id 列承载，payload_json）
 func toEntityTurnItem(convId uint64, turnId string, item *protocol.TurnItem, status string) *entity.TurnItem {
 	return &entity.TurnItem{
 		ConversationId: convId,
@@ -268,7 +268,7 @@ func toolCallItemStatus(item *protocol.TurnItem) string {
 	case protocol.TurnItemStatusSuccess:
 		return entity.ItemStatusSuccess
 	case protocol.TurnItemStatusCancelled:
-		// 恢复路径用户拒绝的真实终态（对齐 tokhub 拒绝 → Cancelled）
+		// 恢复路径用户拒绝的真实终态（拒绝 → Cancelled）
 		return entity.ItemStatusCancelled
 	default:
 		return entity.ItemStatusActive

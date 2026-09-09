@@ -4,7 +4,7 @@
         v-model="selectNode"
         @change="changeNode"
         :resource-type="ResourceTypeEnum.Db.value"
-        :leaf-node-types="[NodeTypePostgresSchema]"
+        :leaf-kinds="[DbSchemaKind]"
         :transform-node="transformNode"
     >
         <template #iconPrefix>
@@ -16,9 +16,9 @@
 
 <script setup lang="ts">
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import { TagTreeNode } from '@/views/ops/component/tag';
 import { getDbDialect, schemaDbTypes } from '@/views/ops/db/dialect';
-import { NodeTypeDb, NodeTypePostgresSchema } from '@/views/ops/db/resource';
+import { DbKind, DbSchemaKind } from '@/views/ops/db/resource';
+import type { TreeNodeData } from '@/views/ops/resource/tree/types';
 import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
 import { computed, ref, watch } from 'vue';
 import TagCodePath from '../../component/TagCodePath.vue';
@@ -40,7 +40,7 @@ const displayCode = computed(() => outerCode.value || dbCode.value);
 
 const emits = defineEmits(['selectDb']);
 
-/** 数据库树节点参数 (NodeTypeDb 节点 withParams 构造的动态结构) */
+/** 数据库树节点参数 (db 资源模块 kind 节点 params 动态结构) */
 interface DbNodeParams {
     db?: string;
     name?: string;
@@ -78,20 +78,21 @@ watch(
 );
 
 // 节点转换函数：动态判断数据库节点是否为叶子节点
-const transformNode = (node: TagTreeNode): TagTreeNode => {
+const transformNode = (node: TreeNodeData): TreeNodeData => {
     // 如果是数据库节点，根据数据库类型动态设置 isLeaf
-    if (node.type.value === NodeTypeDb.value) {
+    if (node.kind === DbKind) {
         const params = node.params as DbNodeParams;
         const hasSchema = schemaDbTypes.includes(params.type ?? '');
         // 没有 schema 的数据库（如 MySQL），标记为叶子节点
         if (!hasSchema) {
-            node.isLeaf = true;
+            (node as TreeNodeData & { isLeaf?: boolean }).isLeaf = true;
         }
     }
     return node;
 };
 
-const changeNode = (nodeData: TagTreeNode) => {
+const changeNode = (nodeData: TreeNodeData) => {
+    // 有 db/schema 粒度才进入此回调（el-tree-select 任意节点点击的 change 守卫已收口到 ResourceSelect）
     const params = nodeData.params as DbNodeParams;
     dbName.value = params.db;
     instName.value = params.name;

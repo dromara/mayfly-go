@@ -51,7 +51,7 @@
 <script setup lang="ts">
 /**
  * AssistantMessageBubble - 助手消息气泡
- * 对齐 tokhub AssistantMessageBubble：parts 驱动分段 + 流式占位
+ * AssistantMessageBubble：parts 驱动分段 + 流式占位
  */
 import { CircleAlertIcon, CircleStopIcon } from '@lucide/vue';
 import { computed } from 'vue';
@@ -73,7 +73,7 @@ defineEmits<{
     (e: 'interrupt-action', action: InterruptActionEvent): void;
 }>();
 
-// ==================== Parts 分组逻辑（对齐 tokhub useMessageSegments） ====================
+// ==================== Parts 分组逻辑（useMessageSegments） ====================
 
 type RenderSegment =
     | { type: 'text'; text: string }

@@ -4,7 +4,7 @@ package protocol
 const (
 	ContentSegmentInputText  = "input_text"
 	ContentSegmentOutputText = "output_text"
-	// 芯片引用段（对齐 tokhub typed ContentSegment：skill/mention 结构化贯穿
+	// 芯片引用段（typed ContentSegment：skill/mention 结构化贯穿
 	// 发送/持久化/回显，前端按 type 渲染芯片样式而非纯文本）
 	ContentSegmentSkill    = "skill"
 	ContentSegmentResource = "resource"

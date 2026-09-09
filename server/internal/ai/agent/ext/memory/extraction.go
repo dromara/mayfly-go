@@ -14,7 +14,7 @@ import (
 
 // MemoryExtractionExtension 长期记忆提取扩展（装配期激活型，ChannelService）
 //
-// 对齐 tokhub-ext-memory 的收尾提取：
+// 收尾提取：
 //   - 注入 LLM Extractor：摘要完成后由事件异步触发长期记忆提取
 //   - 订阅会话摘要完成事件：session.Manager 完成自动摘要后经事件总线
 //     通知本扩展，异步提取并保存长期记忆（使用固定 subId 避免重复注册）

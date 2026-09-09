@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 /**
- * PluginCard - 统一插件实例卡片（skill / mcp 混合渲染，对齐 tokhub PluginCard）
+ * PluginCard - 统一插件实例卡片（skill / mcp 混合渲染，PluginCard）
  * 纯展示组件：操作语义经 emit 上抛，编排逻辑收敛在 PluginManagement 页面
  */
 import { Connection, FolderOpened } from '@element-plus/icons-vue';

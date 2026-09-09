@@ -32,7 +32,7 @@ const (
 // skillCodeRegexp 技能 code 规则（暴露给 LLM 与 $code 提及，字符集受限）
 var skillCodeRegexp = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 
-// SkillPlugin 技能插件管理服务（对齐 tokhub SkillService，剪裁多租户）
+// SkillPlugin 技能插件管理服务（SkillService，剪裁多租户）
 type SkillPlugin interface {
 	base.App[*entity.Skill]
 
@@ -105,7 +105,7 @@ func (a *skillPluginAppImpl) GetInstructions(ctx context.Context, id uint64) (st
 	res, err := a.resourceRepo.SelectBySkillIdAndPath(ctx, id, entity.SkillMdPath)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil // 无 SKILL.md 视为空正文（对齐 tokhub read_instructions 降级）
+			return "", nil // 无 SKILL.md 视为空正文（read_instructions 降级）
 		}
 		return "", err // 非“不存在”类错误（连接/权限等）必须上抛，避免误导前端覆盖真文
 	}
@@ -210,7 +210,7 @@ func (a *skillPluginAppImpl) ListResources(ctx context.Context, skillId uint64) 
 	if err != nil {
 		return nil, err
 	}
-	// 排除 SKILL.md 主文件（正文走 instructions 接口，对齐 tokhub list_resources）
+	// 排除 SKILL.md 主文件（正文走 instructions 接口，list_resources）
 	result := make([]*entity.SkillResource, 0, len(resources))
 	for _, r := range resources {
 		if r.Path == entity.SkillMdPath {
@@ -338,13 +338,13 @@ func (a *skillPluginAppImpl) ImportZip(ctx context.Context, data []byte) (*entit
 			continue
 		}
 		if err := validateResourcePath(res.path); err != nil {
-			continue // 跳过非法路径（对齐 tokhub insert_resources）
+			continue // 跳过非法路径（insert_resources）
 		}
 		if err := a.upsertResourceRow(ctx, skillRow.Id, res.path, res.content); err != nil {
 			return nil, err
 		}
 	}
-	// 同步注册/更新插件实例（zip 导入自动建实例，对齐 tokhub usePluginManagement）
+	// 同步注册/更新插件实例（zip 导入自动建实例，usePluginManagement）
 	if err := upsertSkillInstance(ctx, a.instanceRepo, skillRow); err != nil {
 		return nil, err
 	}
@@ -535,7 +535,7 @@ func normalizeSkillCode(code string) (string, error) {
 // defaultSemver 新建技能默认版本号
 func defaultSemver() string { return "1.0.0" }
 
-// bumpSemver SemVer patch 递增（对齐 tokhub semver::bump_version("patch")）
+// bumpSemver SemVer patch 递增（semver::bump_version("patch")）
 func bumpSemver(version string) (string, error) {
 	var major, minor, patch int
 	if _, err := fmt.Sscanf(version, "%d.%d.%d", &major, &minor, &patch); err != nil {

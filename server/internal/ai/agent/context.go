@@ -76,7 +76,7 @@ func (c *ContextManager) GetSessionKey(ctx context.Context) string {
 
 // BuildMessages 从上下文中构建消息列表，供Agent执行使用
 //
-// 对齐 tokhub start 路径的组装顺序：
+// start 路径的组装顺序：
 //  1. 历史：经 HistoryContributor 注册表收集消息段（多贡献者拼接 + 统一
 //     NormalizeHistory 配对修复）；未装配历史扩展时降级直读会话管理器
 //  2. preamble：经 ContextContributor 注册表收集片段，预算裁剪后拼装

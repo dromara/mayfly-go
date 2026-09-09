@@ -26,7 +26,7 @@ const (
 )
 
 // EventMsg 结构化事件协议
-// 对齐 tokhub 的 EventMsg，用于 WebSocket 推送
+// EventMsg，用于 WebSocket 推送
 type EventMsg struct {
 	Type   string `json:"type"` // item_started | item_updated | item_completed | turn_started | turn_completed | interrupted | error | end | heartbeat
 	TurnId string `json:"turnId,omitempty"`

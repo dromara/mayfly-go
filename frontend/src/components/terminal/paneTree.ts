@@ -26,6 +26,16 @@ export interface PaneSplit {
 
 export type PaneNode = PaneLeaf | PaneSplit;
 
+/**
+ * 节点 id 生成器
+ * - pane：窗格（叶子）id，作为对外展示的终端编号，需连续递增
+ * - split：分裂节点 id，仅树内部占位（分隔条 key/定位），用独立序列避免占用窗格编号导致跳号
+ */
+export interface PaneIdGenerator {
+    pane: () => number;
+    split: () => number;
+}
+
 /** 窗格矩形（百分比，相对于容器） */
 export interface PaneRect {
     left: number;
@@ -47,21 +57,21 @@ export function countLeaves(node: PaneNode): number {
 
 /**
  * 将目标叶子节点替换为 split 节点，新终端位于指定方向
- * @param genPaneId 窗格/分裂节点 id 生成器
+ * @param genIds 节点 id 生成器（叶子与分裂节点分开取号）
  */
-export function splitLeaf(node: PaneNode, id: number, direction: SplitDirection, genPaneId: () => number): PaneNode {
+export function splitLeaf(node: PaneNode, id: number, direction: SplitDirection, genIds: PaneIdGenerator): PaneNode {
     if (node.type === 'leaf') {
         if (node.id !== id) {
             return node;
         }
-        const newLeaf: PaneLeaf = { id: genPaneId(), type: 'leaf' };
+        const newLeaf: PaneLeaf = { id: genIds.pane(), type: 'leaf' };
         if (direction === 'left' || direction === 'up') {
-            return { id: genPaneId(), type: 'split', dir: direction === 'left' ? 'row' : 'column', ratio: 0.5, first: newLeaf, second: node };
+            return { id: genIds.split(), type: 'split', dir: direction === 'left' ? 'row' : 'column', ratio: 0.5, first: newLeaf, second: node };
         }
-        return { id: genPaneId(), type: 'split', dir: direction === 'right' ? 'row' : 'column', ratio: 0.5, first: node, second: newLeaf };
+        return { id: genIds.split(), type: 'split', dir: direction === 'right' ? 'row' : 'column', ratio: 0.5, first: node, second: newLeaf };
     }
-    node.first = splitLeaf(node.first, id, direction, genPaneId);
-    node.second = splitLeaf(node.second, id, direction, genPaneId);
+    node.first = splitLeaf(node.first, id, direction, genIds);
+    node.second = splitLeaf(node.second, id, direction, genIds);
     return node;
 }
 
@@ -88,18 +98,18 @@ export function removeLeaf(node: PaneNode, id: number): PaneNode | null {
 /**
  * 将叶子插入到目标叶子节点的指定方向（用于窗格移动）
  */
-export function insertLeaf(node: PaneNode, targetId: number, leaf: PaneLeaf, position: SplitDirection, genPaneId: () => number): PaneNode {
+export function insertLeaf(node: PaneNode, targetId: number, leaf: PaneLeaf, position: SplitDirection, genIds: PaneIdGenerator): PaneNode {
     if (node.type === 'leaf') {
         if (node.id !== targetId) {
             return node;
         }
         if (position === 'left' || position === 'up') {
-            return { id: genPaneId(), type: 'split', dir: position === 'left' ? 'row' : 'column', ratio: 0.5, first: leaf, second: node };
+            return { id: genIds.split(), type: 'split', dir: position === 'left' ? 'row' : 'column', ratio: 0.5, first: leaf, second: node };
         }
-        return { id: genPaneId(), type: 'split', dir: position === 'right' ? 'row' : 'column', ratio: 0.5, first: node, second: leaf };
+        return { id: genIds.split(), type: 'split', dir: position === 'right' ? 'row' : 'column', ratio: 0.5, first: node, second: leaf };
     }
-    node.first = insertLeaf(node.first, targetId, leaf, position, genPaneId);
-    node.second = insertLeaf(node.second, targetId, leaf, position, genPaneId);
+    node.first = insertLeaf(node.first, targetId, leaf, position, genIds);
+    node.second = insertLeaf(node.second, targetId, leaf, position, genIds);
     return node;
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/eino/components/tool/utils"
 )
 
-// skill_read 工具（渐进式披露 L3 内容层，对齐 tokhub skill_read）：
+// skill_read 工具（渐进式披露 L3 内容层，skill_read）：
 // agent 根据目录按需读取手册全文，避免把所有手册内容常驻提示词。
 
 // maxSkillContentChars 手册全文返回上限（超出截断，防止撑爆上下文）

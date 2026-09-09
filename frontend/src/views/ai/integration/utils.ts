@@ -1,9 +1,9 @@
 /**
- * 插件管理前端工具函数（对齐 tokhub ResourcePanel buildTree / languageFromPath / file-type-icon）
+ * 插件管理前端工具函数（ResourcePanel buildTree / languageFromPath / file-type-icon）
  */
 import type { SkillResource, LocalResource, TreeNode } from './types';
 
-/** 扁平路径列表转目录+文件树（目录节点按 path 聚合），对齐 tokhub buildTree */
+/** 扁平路径列表转目录+文件树（目录节点按 path 聚合），buildTree */
 export function buildTree(items: (SkillResource | LocalResource)[]): TreeNode[] {
     const root: TreeNode[] = [];
     const dirMap = new Map<string, TreeNode>();
@@ -35,7 +35,7 @@ export function buildTree(items: (SkillResource | LocalResource)[]): TreeNode[] 
     return root;
 }
 
-/** 扩展名 → Monaco language 映射（对齐 tokhub EXT_LANGUAGE_MAP，仅保留 mayfly-go Monaco 已注册语言） */
+/** 扩展名 → Monaco language 映射（EXT_LANGUAGE_MAP，仅保留 mayfly-go Monaco 已注册语言） */
 const EXT_LANGUAGE_MAP: Record<string, string> = {
     md: 'markdown',
     markdown: 'markdown',

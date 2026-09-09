@@ -6,7 +6,7 @@
             <span class="reasoning-part__label">{{ t('ai.chat.thinkingActive') }}</span>
         </div>
 
-        <!-- 有内容：CollapsibleSection 折叠（对齐 tokhub CollapsibleSection header） -->
+        <!-- 有内容：CollapsibleSection 折叠（CollapsibleSection header） -->
         <CollapsibleSection v-else :title="titleText">
             <template #icon>
                 <BrainIcon
@@ -22,7 +22,7 @@
 <script setup lang="ts">
 /**
  * ReasoningPart - 思考过程展示组件
- * 对齐 tokhub ReasoningPart：CollapsibleSection 折叠展示，标题为内容摘要
+ * ReasoningPart：CollapsibleSection 折叠展示，标题为内容摘要
  */
 import { BrainIcon } from '@lucide/vue';
 import { computed } from 'vue';
@@ -70,7 +70,7 @@ const titleText = computed(() => {
     flex-shrink: 0;
 }
 
-/* 脉冲呼吸动画（对齐 tokhub animate-pulse） */
+/* 脉冲呼吸动画（animate-pulse） */
 .reasoning-part__icon--pulse {
     animation: reasoning-pulse 1.5s ease-in-out infinite;
 }
@@ -84,7 +84,7 @@ const titleText = computed(() => {
     }
 }
 
-/* 底色由 CollapsibleSection 内容面板提供；过程性内容降一档字号（12px，对齐 tokhub 11px/13px 正文的层级比例）。
+/* 底色由 CollapsibleSection 内容面板提供；过程性内容降一档字号（12px，11px/13px 正文的层级比例）。
    长思考面板内独立滚动（外层 CollapsibleSection 不再裁剪，滚动职责在内容面板自身） */
 .reasoning-part__content {
     font-size: 12px;

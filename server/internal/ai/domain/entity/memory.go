@@ -4,7 +4,7 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-// Memory 长期记忆实体（对齐 tokhub t_memory，按本系统记忆域词汇裁剪）
+// Memory 长期记忆实体（t_memory，按本系统记忆域词汇裁剪）
 //
 // 记忆由系统（LLM 提取器 / 记忆工具）按用户维度读写：
 //   - user_id 为隔离维度，跨会话、跨实例共享

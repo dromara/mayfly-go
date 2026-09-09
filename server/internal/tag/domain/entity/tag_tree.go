@@ -40,17 +40,8 @@ const (
 	TagTypeMqKafka    TagType = TagType(consts.ResourceTypeMqKafka)
 	TagTypeMilvus     TagType = TagType(consts.ResourceTypeMilvus)
 
-	TagTypeDb TagType = 22 // 数据库名
+	TagTypeDb TagType = TagType(consts.ResourceTypeDbName) // 数据库名
 )
-
-// 标签接口资源，如果要实现资源结构体填充标签信息，则资源结构体需要实现该接口
-type ITagResource interface {
-	// 获取资源code
-	GetCode() string
-
-	// 赋值标签基本信息
-	SetTagInfo(rt ResourceTag)
-}
 
 // 资源关联的标签信息
 type ResourceTag struct {
@@ -177,10 +168,16 @@ func (cp CodePath) GetAllPath() []string {
 
 // CanAccess 判断该标签路径是否允许访问操作指定标签路径，即是否为指定标签路径的父级路径。cp通常为用户拥有的标签路径
 //
-//	// cp = tag1/tag2/  codePath = tag1/tag2/test/  -> true
-//	// cp = tag1/tag2/  codePath = tag1/ -> false
+//	cp = tag1/tag2/  codePath = tag1/tag2/test/  -> true
+//	cp = tag1/tag2/  codePath = tag1/ -> false
 func (cp CodePath) CanAccess(codePath string) bool {
 	return strings.HasPrefix(codePath, string(cp))
+}
+
+// AppendResource 在路径末尾追加资源段（type|code/），资源段协议的统一构建入口，
+// 避免各方以 Sprintf 手拼协议格式导致分隔符变更时多处遗漏
+func (cp CodePath) AppendResource(tagType TagType, code string) CodePath {
+	return CodePath(string(cp) + fmt.Sprintf("%d%s%s%s", tagType, CodePathResourceSeparator, code, CodePathSeparator))
 }
 
 // PathSection 标签路径段

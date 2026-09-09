@@ -7,18 +7,18 @@ import (
 	"mayfly-go/pkg/utils/jsonx"
 )
 
-// 中断持久化契约（对齐 tokhub tokhub-agent-protocol/turn/interrupt.rs）
+// 中断持久化契约
 //
-// tokhub 将中断持久化结构（InterruptInfo / InterruptResume）与 SSE 事件层
+// 中断持久化结构（InterruptInfo / InterruptResume）与 SSE 事件层
 //（Interrupt）分层：本文件对应持久化层——tool_call item extra["interrupt"]
 // 的强类型结构，写入侧（挂起时构建落库）与读取侧（resume 回写决策、前端
 // 历史还原）共用同一形状；WS 事件层仍由 InterruptEvent 承载。
 
-// InterruptInfo tool_call item extra["interrupt"] 的强类型结构（对齐 tokhub InterruptInfo）。
+// InterruptInfo tool_call item extra["interrupt"] 的强类型结构。
 // 写入侧（挂起时 NewInterruptInfo 构建后序列化落库）与读取侧（resume 写决策、
 // 前端历史还原）共用同一形状，消除手写 JSON key 的拼写风险
 type InterruptInfo struct {
-	// 中断类型短名（approval / param_completion，对齐 tokhub 内部标签 kind；
+	// 中断类型短名（approval / param_completion，内部标签 kind；
 	// Go 无 serde flatten 带数据枚举，类型携带的数据统一放 Metadata）
 	Kind string `json:"kind"`
 	// 中断请求唯一 ID
@@ -27,18 +27,18 @@ type InterruptInfo struct {
 	Message string `json:"message"`
 	// 会话 ID（前端构建恢复请求用）
 	ConversationId uint64 `json:"conversation_id"`
-	// Agent ID（mayfly-go 当前为单 Agent 进程，保留字段对齐 tokhub）
+	// Agent ID（mayfly-go 当前为单 Agent 进程，保留字段）
 	AgentId int64 `json:"agent_id"`
-	// 中断类型携带的数据（对齐 tokhub #[serde(flatten)] kind 变体数据：
+	// 中断类型携带的数据（#[serde(flatten)] kind 变体数据：
 	// payload/title/missingFields/options 等，前端历史还原中断卡用）
 	Metadata map[string]any `json:"metadata,omitempty"`
-	// 工具自声明的记忆策略（对齐 tokhub RememberPolicy，mayfly-go 暂未启用决策缓存）
+	// 工具自声明的记忆策略（RememberPolicy，mayfly-go 暂未启用决策缓存）
 	Remember *RememberPolicy `json:"remember,omitempty"`
 	// 恢复决策（挂起时为 nil，resume 后经 UpdateMessage 回写）
 	Resume *InterruptResume `json:"resume,omitempty"`
 }
 
-// RememberPolicy 工具自声明的记忆策略（对齐 tokhub RememberPolicy）
+// RememberPolicy 工具自声明的记忆策略
 type RememberPolicy struct {
 	// 自定义指纹材料（引擎叠加 tool_name 作命名空间，工具间不互相命中）
 	Fingerprint string `json:"fingerprint,omitempty"`
@@ -46,8 +46,8 @@ type RememberPolicy struct {
 	MaxScope string `json:"max_scope,omitempty"`
 }
 
-// InterruptResume 中断恢复决策（extra["interrupt"]["resume"]，对齐 tokhub
-// InterruptResume：tag "type" snake_case，approved/rejected/answered/skipped/
+// InterruptResume 中断恢复决策（extra["interrupt"]["resume"]，
+// tag "type" snake_case，approved/rejected/answered/skipped/
 // params_completed；各决策的差异字段以可选字段承载）
 type InterruptResume struct {
 	// 决策类型：approved | rejected | answered | skipped | params_completed
@@ -70,7 +70,7 @@ func InterruptMsgType(kind string) string {
 	return "interrupt_" + kind
 }
 
-// ResumeTypeOfAction 恢复动作转 resume 决策类型（approve → approved，对齐 tokhub snake_case）
+// ResumeTypeOfAction 恢复动作转 resume 决策类型（approve → approved，snake_case）
 func ResumeTypeOfAction(action string) string {
 	switch action {
 	case "approve":
@@ -99,7 +99,7 @@ func ResumeActionOfType(resumeType string) string {
 }
 
 // NewInterruptInfo 从 WS 事件层的 InterruptEvent 构建挂起持久化结构
-// （对齐 tokhub InterruptInfo::from_reason，resume 挂起时为空）
+// （InterruptInfo::from_reason，resume 挂起时为空）
 func NewInterruptInfo(evt *InterruptEvent, conversationId uint64) *InterruptInfo {
 	if evt == nil {
 		return nil
@@ -114,7 +114,7 @@ func NewInterruptInfo(evt *InterruptEvent, conversationId uint64) *InterruptInfo
 }
 
 // NewResumeFromResumeInfo 将恢复链路回写的 resumeInfo（tools.InterruptResume 形状）
-// 转为持久化 resume 决策（对齐 tokhub：决策内嵌 interrupt 对象，merge_patch 语义）
+// 转为持久化 resume 决策（决策内嵌 interrupt 对象，merge_patch 语义）
 func NewResumeFromResumeInfo(resumeInfo any) *InterruptResume {
 	mp, err := jsonx.ToByStr[map[string]any](jsonx.ToStr(resumeInfo))
 	if err != nil || mp == nil {

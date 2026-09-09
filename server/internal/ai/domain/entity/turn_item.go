@@ -32,7 +32,7 @@ const (
 )
 
 // TurnItem AI Turn 内原子产出单元（替代 SessionMessage）
-// 对齐 tokhub TurnItemRow：payload 为唯一事实源，仅 tool_call_id 建查询列；
+// TurnItemRow：payload 为唯一事实源，仅 tool_call_id 建查询列；
 // 中断信息存于 tool_call item 的 extra 列（{"interrupt": InterruptEvent}，
 // resumeInfo 经 UpdateMessage 回写同列），actionId 自含于中断信息中
 // ExtraData 提供 extra JSON 附加字段（业务扩展，随 item 生命周期透传）

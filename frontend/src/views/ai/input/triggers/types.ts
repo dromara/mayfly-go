@@ -1,5 +1,5 @@
 /**
- * 触发器子系统类型定义（对齐 tokhub triggers/types.ts）
+ * 触发器子系统类型定义
  *
  * 可扩展的触发器框架：/ 技能、@ 资源，后续 # 文档引用等新触发类型
  * 只需实现 TriggerDef 并 registerTrigger 注册，编辑器侧检测/菜单/选中
@@ -34,7 +34,7 @@ export interface EditorLike {
     chain(): EditorCommands;
 }
 
-/** 触发器菜单中的一个选项（对齐 tokhub TriggerItem） */
+/** 触发器菜单中的一个选项（TriggerItem） */
 export interface TriggerMenuItem {
     id: string;
     label: string;
@@ -47,7 +47,7 @@ export interface TriggerMenuItem {
     data?: Record<string, unknown>;
 }
 
-/** 触发器上下文（传递给 buildItems，对齐 tokhub TriggerContext） */
+/** 触发器上下文（传递给 buildItems，TriggerContext） */
 export interface TriggerContext {
     /** 当前查询词（触发字符之后、光标之前的文本） */
     query: string;
@@ -55,13 +55,13 @@ export interface TriggerContext {
     skills: SkillItem[];
 }
 
-/** 触发器选中结果：插入到编辑器的芯片（对齐 tokhub TriggerSelection） */
+/** 触发器选中结果：插入到编辑器的芯片（TriggerSelection） */
 export interface TriggerSelection {
     chip: ChipNodeAttrs;
 }
 
 /**
- * 触发器定义（对齐 tokhub TriggerConfig）
+ * 触发器定义（TriggerConfig）
  *
  * 两种呈现模式二选一：
  * - 列表模式：buildItems + onSelect，由通用 TriggerMenu 呈现；

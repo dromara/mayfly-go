@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// PreambleBudgetStatus 轮次 token 预算测量（对齐 tokhub PreambleBudgetStatus）
+// PreambleBudgetStatus 轮次 token 预算测量
 //
 // 宿主用与压缩决策同一口径的字符估算统一测量后传入，
 // 贡献者据此决定是否注入提醒（自行决定阈值比例与文案）。
@@ -49,8 +49,7 @@ type PreambleFooterContext struct {
 // 返回非空文本时调度方将其追加到 preamble 尾部；返回空串表示本轮无注入。
 // 典型用途：上下文窗口余量提醒（如剩余低于阈值时提醒用户开启新会话）。
 // fail-open：单个贡献者失败记日志跳过，不阻断主流程。
-// 调用点：preamble 片段与合并后 history 均就绪后统一调度一次（对齐
-// tokhub start 路径 turn_task 的 collect_preamble_footers 调度点）。
+// 调用点：preamble 片段与合并后 history 均就绪后统一调度一次。
 type PreambleFooterContributor interface {
 	Contributor
 	// ContributePreambleFooter 返回追加到 preamble 尾部的文本（空串表示无注入）

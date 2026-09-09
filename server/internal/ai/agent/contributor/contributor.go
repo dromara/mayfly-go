@@ -1,4 +1,4 @@
-// Package contributor 定义 Agent 能力扩展的贡献者契约（对齐 tokhub-ext-api）
+// Package contributor 定义 Agent 能力扩展的贡献者契约
 //
 // Agent 的能力不再由单一模块硬编码拼装，而是由一组 Contributor 通过
 // 各自的贡献通道注入，经 Registry 统一聚合与调度：
@@ -12,10 +12,10 @@
 //   - TokenUsageContributor    token 用量回调通道（计量/计费/统计唯一出口）
 //   - Activatable              装配期激活（无运行期调度，如中断类型扩展装载、记忆提取装配）
 //
-// tokhub 侧尚有 Sandbox/SuggestQuestions/ToolPlanner/HandoffSignal 等通道，
+// 另有 Sandbox/SuggestQuestions/ToolPlanner/HandoffSignal 等潜在通道，
 // mayfly-go 暂无对应运行时概念，待能力落地时按需补充，扩展方式与上述通道一致。
 //
-// ## Registry 设计原则（对齐 tokhub ExtensionRegistry）
+// ## Registry 设计原则（ExtensionRegistry）
 //
 //   - 通过 Builder 显式注册，Build 后只读，并发共享
 //   - 注册顺序即覆盖优先级（后注册胜出）：内置注册在前、业务扩展注册在后，
@@ -33,7 +33,7 @@ package contributor
 // Contributor 全部贡献通道的基础接口
 //
 // 每个贡献者带一个稳定 Id：重复注册时覆盖旧实例，供 Registry
-// 覆盖诊断与 WithFilter 按标识裁剪（对齐 tokhub ContributorId）。
+// 覆盖诊断与 WithFilter 按标识裁剪（ContributorId）。
 type Contributor interface {
 	// Id 贡献者稳定标识
 	Id() string

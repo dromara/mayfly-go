@@ -1,5 +1,5 @@
 /**
- * 附件读取、上传与分流（对齐 tokhub packages/chat/src/attachments.ts）
+ * 附件读取、上传与分流
  *
  * 按类型分流（内容均经统一文件服务落 local/S3，消息体只随 fileKey 轻量引用）：
  * - 图片 → 本地压缩预览 dataURL，发送时上传压缩产物（与 LLM 输入一致）

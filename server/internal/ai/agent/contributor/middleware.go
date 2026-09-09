@@ -13,7 +13,7 @@ import (
 // 消息类型切换只需修改此处。
 type AgentMiddleware = adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]
 
-// ToolMiddlewareContributor 工具执行中间件贡献者（对齐 tokhub ToolMiddlewareContributor）
+// ToolMiddlewareContributor 工具执行中间件贡献者
 //
 // 返回的中间件由宿主聚合后注入 adk Handlers，参与工具调用链包装
 // （错误转换、中断传播、审计等）。业务插件注册本通道贡献者即可追加

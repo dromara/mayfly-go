@@ -1,6 +1,6 @@
 <template>
     <div class="chat-input" :class="{ 'chat-input--loading': loading, 'chat-input--disabled': disabled }">
-        <!-- 输入容器（Composer 卡片：限宽 max-w-3xl 居中，对齐 tokhub ChatInput L401；
+        <!-- 输入容器（Composer 卡片：限宽 max-w-3xl 居中，ChatInput L401；
              点击空白聚焦编辑器，排除按钮/附件区）；引用芯片直接内联在编辑器内展示 -->
         <div
             class="chat-input__wrapper mx-auto max-w-3xl rounded-2xl border border-border bg-background transition-colors focus-within:ring-2 focus-within:ring-ring/50"
@@ -96,7 +96,7 @@
 <script setup lang="ts">
 /**
  * ChatInput - 基于 TipTap 的富文本输入组件
- * 对齐 tokhub 的 ChatInput.tsx + ChipEditor.tsx；触发器子系统见 triggers/（对齐 tokhub triggers/）
+ * ChatInput.tsx + ChipEditor.tsx；触发器子系统见 triggers/
  *
  * 功能：
  * - TipTap 编辑器（Document + Paragraph + Text + HardBreak + ChipNode）
@@ -161,7 +161,7 @@ const props = withDefaults(
         autoFocus?: boolean;
         /** 可用的技能/触发项列表 */
         skills?: SkillItem[];
-        /** Agent 未完全空闲（回复中/待中断）时应入队而非直接发送（对齐 tokhub shouldQueue） */
+        /** Agent 未完全空闲（回复中/待中断）时应入队而非直接发送（shouldQueue） */
         shouldQueue?: boolean;
     }>(),
     {
@@ -239,7 +239,7 @@ const canSend = computed(() => {
     return editorText.value.trim().length > 0 || activeChips.value.length > 0 || pendingAttachments.value.length > 0;
 });
 
-/** 占位符：入队态提示新消息将加入队列（对齐 tokhub queuePlaceholder） */
+/** 占位符：入队态提示新消息将加入队列（queuePlaceholder） */
 const currentPlaceholder = computed(() => {
     if (props.shouldQueue) return t('ai.chat.queueMessage');
     return props.placeholder || t('ai.chat.inputPlaceholder');
@@ -323,7 +323,7 @@ watch(
 
 // ========== 触发器菜单逻辑 ==========
 // 触发器注册表、触发词检测、浮层定位、键盘导航与选中插入
-// 全部聚合在 triggers/ 子系统（对齐 tokhub triggers/ 目录），
+// 全部聚合在 triggers/ 子系统（triggers/ 目录），
 // 新增触发类型只需 registerTrigger 注册，无需改动本组件分支
 
 /** 资源树叶子选中：删除触发词后插入携带完整定位标识的资源芯片 */
@@ -411,7 +411,7 @@ const onSubmit = async () => {
         attachments: attachments.length > 0 ? attachments : undefined,
     };
 
-    // shouldQueue 时（回复中/待中断）加入队列而非直接发送（对齐 tokhub：参考 Claude Code）
+    // shouldQueue 时（回复中/待中断）加入队列而非直接发送（参考 Claude Code）
     if (props.shouldQueue) {
         emit('queue', data);
         clear();
@@ -436,7 +436,7 @@ const focus = () => {
     editor.value?.commands.focus('end');
 };
 
-/** 回填内容（队列编辑/外部填充，对齐 tokhub pendingValue 机制）；attachments 为队列消息携带的已上传附件 */
+/** 回填内容（队列编辑/外部填充，pendingValue 机制）；attachments 为队列消息携带的已上传附件 */
 const setValue = (content: string, attachments?: MessageAttachment[]) => {
     if (!editor.value) return;
     editor.value.commands.setContent(content);

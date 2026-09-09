@@ -4,7 +4,7 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-// 插件实例类型常量（对齐 tokhub plugin_type，代码级类型注册表维护，见 application/plugin_type.go）
+// 插件实例类型常量（plugin_type，代码级类型注册表维护，见 application/plugin_type.go）
 const (
 	// PluginTypeSkill 技能插件（config 引用 t_ai_skill，Managed 模式）
 	PluginTypeSkill = "skill"
@@ -12,7 +12,7 @@ const (
 	PluginTypeMcp = "mcp"
 )
 
-// 插件实例健康状态常量（对齐 tokhub PluginStatus）
+// 插件实例健康状态常量（PluginStatus）
 const (
 	// PluginStatusUnknown 未知（未做过连接验证）
 	PluginStatusUnknown = 0
@@ -22,7 +22,7 @@ const (
 	PluginStatusError = 2
 )
 
-// PluginInstance 插件实例（对齐 tokhub t_plugin_instance，剪裁租户与 definition 关联维度）
+// PluginInstance 插件实例（t_plugin_instance，剪裁租户与 definition 关联维度）
 //
 // 统一插件视图的唯一事实源：技能/MCP/未来插件类型均注册为一行实例，
 // 列表分页、启停开关、Agent 装配均只读本表（单表查询，无跨表聚合）。

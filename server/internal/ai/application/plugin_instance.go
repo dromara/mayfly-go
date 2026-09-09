@@ -57,7 +57,7 @@ type InstanceSaveReq struct {
 	Config string `json:"config"`
 }
 
-// PluginInstanceApp 插件实例统一管理服务（对齐 tokhub plugin instance service）
+// PluginInstanceApp 插件实例统一管理服务（plugin instance service）
 //
 // t_ai_plugin_instance 为统一插件视图唯一事实源：skill 实例 config 引用 t_ai_skill，
 // mcp 实例 config 内联连接配置；列表/分页只查本表，技能展示字段由应用层按需填充。
@@ -394,7 +394,7 @@ func (a *pluginInstanceAppImpl) ResolveEnabledMcpServers(ctx context.Context) ([
 		cfg := mustMcpConfig(inst.Config)
 		if strings.TrimSpace(cfg.Url) == "" {
 			// config 解析失败/缺 url：fail-open 跳过该实例并告警，不阻断 Agent 装配
-			//（对齐 tokhub parse_capabilities 容错模式）
+			//（parse_capabilities 容错模式）
 			logx.Warnf("[plugin_instance] skip mcp instance %s: invalid or empty url config", inst.Code)
 			continue
 		}

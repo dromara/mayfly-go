@@ -105,9 +105,12 @@ export default {
         appSlogan: 'Simple, efficient and secure',
         preview: 'Preview',
         processing: 'Processing',
+        retry: 'Retry',
+        treeTruncated: 'Too many resources to display; refine the tag grouping',
         sending: 'Sending',
         scrollToBottom: 'Scroll to bottom',
         waitingInput: 'Waiting for input',
+        unknown: 'Unknown',
     },
     layout: {
         user: {

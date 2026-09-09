@@ -38,7 +38,7 @@ import (
 
 type Instance struct {
 	inst                application.Instance    `inject:"T"`
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeReader    `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
 

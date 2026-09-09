@@ -57,7 +57,7 @@ var _ Redis = (*redisAppImpl)(nil)
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeService   `inject:"T"`
 	procdefApp          flowapp.Procdef         `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
@@ -140,6 +140,11 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 		oldRedis, _ = r.GetById(re.Id)
 	}
 
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := r.tagApp.CanAccessByCode(ctx, consts.ResourceTypeRedis, oldRedis.Code); err != nil {
+		return err
+	}
+
 	re.Code = ""
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
@@ -196,12 +201,16 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 
 // 获取数据库连接实例
 func (r *redisAppImpl) GetRedisConn(ctx context.Context, id uint64, db int) (*rdm.RedisConn, error) {
+	// 连接层统一进行数据权限校验，避免各操作接口遗漏鉴权
+	re, err := r.GetById(id)
+	if err != nil {
+		return nil, errorx.NewBiz("redis not found")
+	}
+	if err := r.tagApp.CanAccessByCode(ctx, consts.ResourceTypeRedis, re.Code); err != nil {
+		return nil, err
+	}
+
 	return rdm.GetRedisConn(ctx, id, db, func() (*rdm.RedisInfo, error) {
-		// 缓存不存在，则回调获取redis信息
-		re, err := r.GetById(id)
-		if err != nil {
-			return nil, errorx.NewBiz("redis not found")
-		}
 		authCert, err := r.resourceAuthCertApp.GetResourceAuthCert(tagentity.TagTypeRedis, re.Code)
 		if err != nil {
 			return nil, err

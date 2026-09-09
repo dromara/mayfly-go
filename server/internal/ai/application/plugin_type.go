@@ -8,7 +8,7 @@ import (
 	"mayfly-go/pkg/errorx"
 )
 
-// PluginTypeHandler 插件类型处理器（对齐 tokhub CapabilityHandler，代码级类型注册表）
+// PluginTypeHandler 插件类型处理器（CapabilityHandler，代码级类型注册表）
 //
 // 不建 t_plugin_definition 表：mayfly-go 无多租户/市场场景，插件类型固定由代码
 // 注册声明；新增插件类型 = 实现本接口 + Init 中注册一行，核心流程零改动（开闭原则）。
@@ -58,13 +58,13 @@ func ListPluginTypes() []PluginTypeInfo {
 
 // ============== 类型化 config 结构（各类型 schema 的 Go 契约） ==============
 
-// SkillInstanceConfig 技能插件 config（引用 t_ai_skill，Managed 模式对齐 tokhub SkillSource::Managed）
+// SkillInstanceConfig 技能插件 config（引用 t_ai_skill，Managed 模式对应 SkillSource::Managed）
 type SkillInstanceConfig struct {
 	// SkillCode 引用的技能 code（t_ai_skill.code）
 	SkillCode string `json:"skillCode"`
 }
 
-// McpInstanceConfig MCP 插件 config（连接配置内联，对齐 tokhub config_template + auth_ref 简化版）
+// McpInstanceConfig MCP 插件 config（连接配置内联，config_template + auth_ref 简化版）
 type McpInstanceConfig struct {
 	// Url MCP 服务器地址（Streamable HTTP / SSE）
 	Url string `json:"url"`

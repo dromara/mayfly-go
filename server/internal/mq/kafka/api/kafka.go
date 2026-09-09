@@ -19,8 +19,8 @@ import (
 )
 
 type Kafka struct {
-	kafkaApp   application.Kafka `inject:"T"`
-	tagTreeApp tagapp.TagTree    `inject:"T"`
+	kafkaApp   application.Kafka    `inject:"T"`
+	tagTreeApp tagapp.TagTreeReader `inject:"T"`
 }
 
 func (k *Kafka) ReqConfs() *req.Confs {

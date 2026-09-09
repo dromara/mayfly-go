@@ -47,7 +47,7 @@ type Instance interface {
 type instanceAppImpl struct {
 	base.AppImpl[*entity.DbInstance, repository.Instance]
 
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 	dbApp               Db                      `inject:"T"`
 }
@@ -130,6 +130,11 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		if err != nil {
 			return 0, errorx.NewBiz("db instance not found")
 		}
+	}
+
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := app.tagApp.CanAccessByCode(ctx, resourceType, oldInstance.Code); err != nil {
+		return 0, err
 	}
 
 	return oldInstance.Id, app.Tx(ctx, func(ctx context.Context) error {

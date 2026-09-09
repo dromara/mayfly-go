@@ -20,7 +20,7 @@
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import type { AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
-import { TagTreeNode } from '@/views/ops/component/tag';
+import type { TreeNodeData } from '@/views/ops/resource/tree/types';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
 import { computed, ref } from 'vue';
@@ -78,7 +78,8 @@ const selectRedis = computed({
     },
 });
 
-const changeRedis = (nodeData: TagTreeNode) => {
+const changeRedis = (nodeData: TreeNodeData) => {
+    // 有 redis-db 粒度才进入此回调（标签/实例节点的点击守卫已收口到 ResourceSelect：贡献者 selectable 单源判定）
     const params = nodeData.params as RedisNodeParams;
     bizForm.value.tagPath = params.tagPath;
     bizForm.value.redisName = params.redisName;

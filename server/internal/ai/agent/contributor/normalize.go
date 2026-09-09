@@ -7,7 +7,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// 协议完整性校验（Normalize 通道，对齐 tokhub-engine-api normalize.rs）
+// 协议完整性校验（Normalize 通道，normalize.rs）
 //
 // 在历史发送给模型前执行完整性修复，防止 API 400 错误：
 //   - EnsureCallOutputsPresent：为缺失 output 的 tool_call 合成 "[aborted]" 占位符

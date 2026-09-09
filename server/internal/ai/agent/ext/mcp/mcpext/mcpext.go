@@ -1,4 +1,4 @@
-// Package mcpext MCP 工具扩展（对齐 tokhub PluginToolsExtension）
+// Package mcpext MCP 工具扩展（PluginToolsExtension）
 //
 // 实现 ToolContributor 通道：遍历启用的 MCP 服务器（仅 HTTP 传输），
 // 逐个连接发现工具并包装为 eino InvokableTool 贡献给 Agent。

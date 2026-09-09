@@ -1,8 +1,8 @@
 <template>
-    <!-- 固定宽度 w-72（对齐 tokhub AgentChat 侧栏），避免与 chat 区 flex 平分 -->
+    <!-- 固定宽度 w-72（AgentChat 侧栏），避免与 chat 区 flex 平分 -->
     <Card class="conv-sidebar w-72 shrink-0 min-h-0">
         <CardContent class="p-3 relative flex flex-col h-full min-w-0 gap-3">
-            <!-- 标题栏 + 新建按钮（对齐 tokhub AgentSidebar） -->
+            <!-- 标题栏 + 新建按钮（AgentSidebar） -->
             <div class="shrink-0 flex items-center justify-between">
                 <h3 class="text-sm font-semibold flex items-center gap-1.5 text-foreground/80">
                     <MessageSquareIcon class="size-3.5" />
@@ -58,7 +58,7 @@
                         class="size-3.5 shrink-0"
                         :class="item.key === active ? 'text-primary' : 'text-muted-foreground'"
                     />
-                    <!-- 双击行内重命名（对齐 tokhub：Enter/blur 提交，Esc 取消） -->
+                    <!-- 双击行内重命名（Enter/blur 提交，Esc 取消） -->
                     <input
                         v-if="editingKey === item.key"
                         :ref="setEditInputRef"
@@ -111,7 +111,7 @@
 <script setup lang="ts">
 /**
  * ConversationSidebar - 会话列表侧边栏
- * 对齐 tokhub AgentSidebar：Card 壳 + 标题栏新建 + 行内 tailwind token（选中 bg-primary/10、
+ * AgentSidebar：Card 壳 + 标题栏新建 + 行内 tailwind token（选中 bg-primary/10、
  * hover bg-accent）+ 双击行内重命名 + hover 删除按钮 + el-popconfirm 删除确认
  */
 import { ArrowUpIcon, MessageSquareIcon, PlusIcon, Trash2Icon } from '@lucide/vue';

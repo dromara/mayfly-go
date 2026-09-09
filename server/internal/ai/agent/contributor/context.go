@@ -29,7 +29,7 @@ type RetainedContributor interface {
 	Retained() bool
 }
 
-// TurnInput 轮次输入上下文（对齐 tokhub TurnInputEnvironment + user_input）
+// TurnInput 轮次输入上下文（TurnInputEnvironment + user_input）
 //
 // 仅携带 ContextContributor 实际消费的轮次运行时信息；
 // 新增字段须以真实消费方为前提（避免契约膨胀）。
@@ -44,8 +44,6 @@ type TurnInput struct {
 //
 // 在每轮对话构建 prompt 时被调用，返回需要注入的片段列表。
 // 实现应无状态或自行保证并发安全（每轮构建都会调用）。
-//
-// 对齐 tokhub ContextContributor::contribute_turn_context。
 type ContextContributor interface {
 	Contributor
 	// ContributeTurnContext 贡献轮次级上下文片段，返回空切片表示本轮不注入

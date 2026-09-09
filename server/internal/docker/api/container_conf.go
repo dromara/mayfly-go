@@ -20,7 +20,7 @@ import (
 
 type ContainerConf struct {
 	containerApp application.Container `inject:"T"`
-	tagTreeApp   tagapp.TagTree        `inject:"T"`
+	tagTreeApp   tagapp.TagTreeReader  `inject:"T"`
 }
 
 func (cc *ContainerConf) ReqConfs() *req.Confs {

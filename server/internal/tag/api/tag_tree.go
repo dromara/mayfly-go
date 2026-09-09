@@ -61,7 +61,8 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 		return
 	}
 
-	allTags := p.complteTags(accountTags)
+	allTags, err := p.complteTags(accountTags)
+	biz.ErrIsNil(err)
 	tagTrees := make(vo.TagTreeVOS, 0)
 	for _, tag := range allTags {
 		tagTrees = append(tagTrees, tag)
@@ -71,7 +72,7 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 }
 
 // complteTags 补全标签信息，使其能构造为树结构
-func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) []*dto.SimpleTagTree {
+func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) ([]*dto.SimpleTagTree, error) {
 	codePath2Tag := collx.ArrayToMap(resourceTags, func(tag *dto.SimpleTagTree) string {
 		return tag.CodePath
 	})
@@ -91,13 +92,15 @@ func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) []*dto.SimpleTa
 	}
 	// 未存在需要补全的标签信息，则返回
 	if len(notExistCodePaths) == 0 {
-		return resourceTags
+		return resourceTags, nil
 	}
 
 	var tags []*dto.SimpleTagTree
-	p.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: notExistCodePaths}, &tags)
+	if err := p.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: notExistCodePaths}, &tags); err != nil {
+		return nil, err
+	}
 	// 完善需要补充的标签信息
-	return append(resourceTags, tags...)
+	return append(resourceTags, tags...), nil
 }
 
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
@@ -116,7 +119,7 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 	}
 
 	var tagTrees []entity.TagTree
-	p.tagTreeApp.ListByQuery(cond, &tagTrees)
+	biz.ErrIsNil(p.tagTreeApp.ListByQuery(cond, &tagTrees))
 	rc.ResData = tagTrees
 }
 
@@ -158,56 +161,26 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 	tagPath := rc.Query("tagPath")
 	accountId := rc.GetLoginAccount().Id
 
-	machineCodes := entity.GetCodesByCodePaths(entity.TagTypeMachine, p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		TypePaths:     collx.AsArray(entity.NewTypePaths(entity.TagTypeMachine, entity.TagTypeAuthCert)),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodePaths()...)
-
-	dbCodes := entity.GetCodesByCodePaths(entity.TagTypeDbInstance, p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		TypePaths:     collx.AsArray(entity.NewTypePaths(entity.TagTypeDbInstance, entity.TagTypeAuthCert)),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodePaths()...)
-
-	esCodes := entity.GetCodesByCodePaths(entity.TagTypeEsInstance, p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeEsInstance),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodePaths()...)
-
-	redisCodes := p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeRedis),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodes()
-
-	mongoCodes := p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeMongo),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodes()
-
-	containerCodes := p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeContainer),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodes()
-
-	kafkaCodes := p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeMqKafka),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodes()
-
-	milvusCodes := p.tagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{
-		Types:         collx.AsArray(entity.TagTypeMilvus),
-		CodePathLikes: collx.AsArray(tagPath),
-	}).GetCodes()
-
-	rc.ResData = collx.M{
-		"machine":   len(machineCodes),
-		"db":        len(dbCodes),
-		"es":        len(esCodes),
-		"redis":     len(redisCodes),
-		"mongo":     len(mongoCodes),
-		"container": len(containerCodes),
-		"kafka":     len(kafkaCodes),
-		"milvus":    len(milvusCodes),
+	// 资源类型计数配置：key为返回字段名，Types为资源类型路径(机器/数据库实例需关联授权凭证，故路径含两段)
+	countResourceTypes := []struct {
+		Key   string
+		Types []entity.TagType
+	}{
+		{"machine", []entity.TagType{entity.TagTypeMachine, entity.TagTypeAuthCert}},
+		{"db", []entity.TagType{entity.TagTypeDbInstance, entity.TagTypeAuthCert}},
+		{"es", []entity.TagType{entity.TagTypeEsInstance}},
+		{"redis", []entity.TagType{entity.TagTypeRedis}},
+		{"mongo", []entity.TagType{entity.TagTypeMongo}},
+		{"container", []entity.TagType{entity.TagTypeContainer}},
+		{"kafka", []entity.TagType{entity.TagTypeMqKafka}},
+		{"milvus", []entity.TagType{entity.TagTypeMilvus}},
 	}
+
+	counts := make(collx.M, len(countResourceTypes))
+	for _, crt := range countResourceTypes {
+		counts[crt.Key] = len(p.tagTreeApp.GetAccountResourceCodes(accountId, tagPath, crt.Types...))
+	}
+	rc.ResData = counts
 }
 
 // 获取关联的标签id

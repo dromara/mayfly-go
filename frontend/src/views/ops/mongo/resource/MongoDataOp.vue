@@ -113,6 +113,7 @@ import type { AutoFormItem } from '@/components/auto-form';
 import { formatByteSize } from '@/common/utils/format';
 import { Msg } from '@/hooks/useI18n';
 import { mongoApi } from '@/views/ops/mongo/api';
+import type { MongoOpTabApi } from './index';
 import { computed, defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
 import type { InputInstance } from 'element-plus';
 import { useI18n } from 'vue-i18n';
@@ -415,7 +416,7 @@ defineExpose({
     onRefresh: () => {
         findCommand(state.activeName);
     },
-});
+} satisfies MongoOpTabApi);
 </script>
 
 <style lang="scss">

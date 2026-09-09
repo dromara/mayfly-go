@@ -11,7 +11,7 @@ import (
 
 // ==================== Turn 运行时（事件生产者与 WS 连接解耦） ====================
 //
-// 对齐 tokhub 的 turn registry + replay 模式：
+// turn registry + replay 模式：
 //   - agent Run 在独立 goroutine 中执行，事件 publish 到 turn 级事件总线（全量缓冲）
 //   - WS 连接只是订阅者，写失败/断连不再影响 agent 运行（刷新页面 turn 继续跑）
 //   - 重连后 attach 该 turn：先回放缓冲快照，再持续订阅实时事件，流式输出无缝续上

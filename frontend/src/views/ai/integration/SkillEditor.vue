@@ -50,7 +50,7 @@
                             {{ $t('ai.integration.addResource') }}
                         </el-button>
                     </div>
-                    <!-- 内联新增路径输入（对齐 tokhub：Enter 确认 / Esc 取消，无按钮） -->
+                    <!-- 内联新增路径输入（Enter 确认 / Esc 取消，无按钮） -->
                     <div v-if="newFileOpen" class="new-file-row">
                         <el-input
                             ref="newFileInputRef"
@@ -215,7 +215,7 @@ const onOpened = async (form: AutoFormData) => {
     }
 };
 
-// ── 资源状态（编辑态 DB / 新建态本地暂存，对齐 tokhub） ──────
+// ── 资源状态（编辑态 DB / 新建态本地暂存） ──────
 const resources = ref<SkillResource[]>([]);
 const localResources = ref<LocalResource[]>([]);
 const resourcesLoaded = ref(false);

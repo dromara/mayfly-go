@@ -36,7 +36,7 @@ var chatRt = newChatRuntime()
 
 // Chat WebSocket 聊天，使用 EventMsg 结构化事件协议。
 //
-// turn 运行与 WS 连接解耦（对齐 tokhub turn registry + replay）：
+// turn 运行与 WS 连接解耦（turn registry + replay）：
 //   - agent Run 在独立 goroutine 执行，事件经 turnEventBus 广播（全量缓冲），
 //     连接断开/页面刷新不影响 turn 运行
 //   - stop 消息显式取消 turn ctx（传播到 LLM 请求与工具执行），是唯一真正中断途径
@@ -196,7 +196,7 @@ func (a *Ai) Chat(rc *req.Ctx) {
 			// 避免工具调用因资源参数缺失而中断等待用户手动补充；
 			// 渲染经 protocol 注册式分发（新增芯片/资源类型零修改本层）。
 			// 保存用户消息为 TurnItem：content 用结构化 segments（芯片引用保留元数据，
-			// 历史回显可恢复芯片样式，对齐 tokhub ContentSegment 贯穿设计）；
+			// 历史回显可恢复芯片样式，ContentSegment 贯穿设计）；
 			// 发给 LLM 的完整定位标识由 RenderSegments 注入，两者职责分离
 			userSegments := buildUserSegments(chatReq.Content, chatReq.Segments)
 			// image 段引用提取到 ImageUrls（fileKey 经文件服务解析为 base64 data URL，
@@ -244,7 +244,7 @@ func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, convId uint64, turnId s
 	turnCtx := turn.ctx
 	publish := turn.Publish
 
-	// 恢复路径预加载（对齐 tokhub）：将该 turn 挂起的 interrupted tool_call item
+	// 恢复路径预加载：将该 turn 挂起的 interrupted tool_call item
 	// 注册到 EventMapper（工具完成时复用原 item_id），并建立 itemId → 恢复决策映射
 	if len(resumeParams) > 0 {
 		recorder.TrackResumedToolCalls(turnCtx, resumeParams)

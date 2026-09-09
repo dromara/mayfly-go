@@ -1,7 +1,6 @@
 // Package historyext 会话历史扩展
 //
 // 实现 HistoryContributor 通道，作为短期记忆进入对话历史的**唯一通道**
-// （对齐 tokhub-ext-memory 的 MemoryHistoryExtension）：
 //   - 按 SessionKey 加载短期历史（压缩摘要 + 覆盖点之后的近期消息）
 //   - 压缩摘要以 [之前的对话摘要] 前缀消息注入历史顶部（session.Manager 组装）
 //   - mid-turn 紧急压缩（含 preamble 占用口径，实现 MidTurnCompactor 可选能力）

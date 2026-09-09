@@ -1,5 +1,5 @@
 /**
- * 资源触发器（对齐 tokhub triggers/groupMemberTrigger 的面板特化模式）
+ * 资源触发器（triggers/groupMemberTrigger 的面板特化模式）
  *
  * @ 触发资源选择（面板模式：ResourceTreePanel 替代通用列表菜单，
  * 因资源按机器/数据库分层且需懒加载），叶子选中后插入 resource 芯片。

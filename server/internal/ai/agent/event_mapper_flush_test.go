@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// 验证 agent 多轮输出的正文按轮次分段为独立 message item（对齐 tokhub OutputItemDone → flush_active）：
+// 验证 agent 多轮输出的正文按轮次分段为独立 message item（OutputItemDone → flush_active）：
 // [正文1] [工具] [正文2] 应产生两个不同 item_id 的 message item，且正文1/2 的
 // item_completed 先于工具调用的 item_started 发出
 func TestMapToolCallEventFlushesActiveItems(t *testing.T) {
@@ -120,7 +120,7 @@ func TestCompleteStreamingWithoutToolCalls(t *testing.T) {
 	}
 }
 
-// 验证恢复路径 item 状态流转（对齐 tokhub）：注册挂起行后 MapToolResultEvent 复用原
+// 验证恢复路径 item 状态流转：注册挂起行后 MapToolResultEvent 复用原
 // item_id 且仅发 item_completed（不重发 item_started），状态为真实执行结果；
 // 用户拒绝的结果不视为 failed，状态为 cancelled
 func TestMapToolResultEventResumesTrackedToolCall(t *testing.T) {
@@ -145,7 +145,7 @@ func TestMapToolResultEventResumesTrackedToolCall(t *testing.T) {
 		t.Fatalf("恢复后应为真实执行结果 success，实际 %q", item.Status)
 	}
 
-	// 用户拒绝：状态 cancelled（对齐 tokhub 拒绝 → Cancelled）
+	// 用户拒绝：状态 cancelled（拒绝 → Cancelled）
 	m.TrackResumedToolCall("call-2", "item-pending-2")
 	events = m.MapToolResultEvent(context.Background(), turnId, &session.Message{
 		Role: schema.Tool, ToolCallId: "call-2", ToolName: "DbQueryData",

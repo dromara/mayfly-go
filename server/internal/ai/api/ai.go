@@ -217,7 +217,7 @@ func (a *Ai) ChatItemsByTurn(rc *req.Ctx) {
 
 // ============== 工具函数 ==============
 
-// buildUserSegments 将前端发送的富文本段转为协议结构化内容段（对齐 tokhub：
+// buildUserSegments 将前端发送的富文本段转为协议结构化内容段（
 // 芯片引用以 typed segment 贯穿发送/持久化/回显，前端按 type 渲染芯片样式）；
 // 无段时回落为单条纯文本段
 func buildUserSegments(content string, segments []form.ChatSegment) []protocol.ContentSegment {

@@ -19,7 +19,7 @@ const maxDatabasesPerAsset = 50
 
 // queryDbOptions 查询当前用户有权限操作的数据库资产并展开为可选项
 // （数据源为统一资源查询服务，经「数据库实例+授权凭证+数据库」标签做账号级权限过滤；
-// 对齐 tokhub ask_user options 模式）
+// ask_user options 模式）
 func queryDbOptions(ctx context.Context) []tools.CompletionOption {
 	return tools.SafeOptionsFn(ctx, "queryDbOptions", func() []tools.CompletionOption {
 		return listDbOptions(ctx)

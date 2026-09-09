@@ -36,7 +36,7 @@ func init() {
 		}
 	})
 
-	// 业务工具扩展经宿主级安装器注册（对齐 tokhub HostExtensionInstaller）：
+	// 业务工具扩展经宿主级安装器注册（HostExtensionInstaller）：
 	// dbtool/machinetool/mcp_tools 依赖业务应用层（db/machine/插件管理），为避免
 	// agent → 业务层循环依赖，由本包（main 的直接依赖）注册，在内置扩展之后追加装配，
 	// 后注册的插件仍可覆盖其工具实现（后注册胜出）。

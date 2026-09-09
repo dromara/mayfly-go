@@ -104,9 +104,12 @@ export default {
         appSlogan: '简洁 · 高效 · 安全',
         preview: '预览',
         processing: '处理中',
+        retry: '重试',
+        treeTruncated: '资源数量过多未全部展示，请细化标签分组',
         sending: '发送中',
         scrollToBottom: '滚动到底部',
         waitingInput: '等待输入',
+        unknown: '未知',
     },
     layout: {
         user: {

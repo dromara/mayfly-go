@@ -34,7 +34,7 @@ const (
 	TurnItemStatusInterrupted = "interrupted"
 )
 
-// TurnItem 统一协议（扁平变体，对齐 tokhub item.rs 的 serde tagged enum：
+// TurnItem 统一协议（扁平变体，item.rs 的 serde tagged enum：
 // 变体字段直接位于顶层、snake_case 命名，实时流（WS item_* 事件）与历史接口
 // （t_ai_turn_item 快照回放）共享同一协议形状）
 type TurnItem struct {
@@ -64,7 +64,7 @@ type TurnItem struct {
 }
 
 // PayloadJSON 序列化为存储 payload（剥离 type/id——分别由 item_type / item_id 列承载，
-// 对齐 tokhub TurnItem::payload_json；与 FromPayload 互逆，收敛存储形状的序列化/组装逻辑）
+// TurnItem::payload_json；与 FromPayload 互逆，收敛存储形状的序列化/组装逻辑）
 func (t *TurnItem) PayloadJSON() string {
 	clone := *t
 	clone.Type = ""
@@ -72,8 +72,7 @@ func (t *TurnItem) PayloadJSON() string {
 	return jsonx.ToStr(&clone)
 }
 
-// FromPayload 从存储行组装 TurnItem（payload 已剥离 type/id，由 item_type / item_id 列回填，
-// 对齐 tokhub TurnItemRow::to_turn_item）
+// FromPayload 从存储行组装 TurnItem（payload 已剥离 type/id，由 item_type / item_id 列回填）
 func FromPayload(itemType, itemId, payload string) (*TurnItem, error) {
 	ti, err := jsonx.ToByStr[TurnItem](payload)
 	if err != nil {

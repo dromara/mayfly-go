@@ -7,7 +7,7 @@
             <div class="pending-queue__rule" />
         </div>
 
-        <!-- 队列列表（原生 HTML5 DnD 拖拽排序，对齐 tokhub PendingSendQueue） -->
+        <!-- 队列列表（原生 HTML5 DnD 拖拽排序，PendingSendQueue） -->
         <TransitionGroup name="pending-queue-item" tag="div" class="pending-queue__list">
             <div
                 v-for="(item, index) in queue"
@@ -54,7 +54,6 @@
 <script setup lang="ts">
 /**
  * PendingSendQueue - 消息待发送队列展示组件
- * 对齐 tokhub PendingSendQueue.tsx：
  * - 序号徽章 + 单行预览，明确发送顺序
  * - 原生 HTML5 DnD 拖拽排序（零外部依赖）
  * - 编辑（回填输入框）/ 删除
@@ -241,7 +240,7 @@ const onDrop = (toIndex: number) => {
     height: 12px;
 }
 
-/* 入场/退场动画（对齐 tokhub motion 入场/退场） */
+/* 入场/退场动画（motion 入场/退场） */
 .pending-queue-item-enter-active {
     transition: opacity 0.15s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
 }

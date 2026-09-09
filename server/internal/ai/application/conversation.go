@@ -154,7 +154,7 @@ func (c *conversationAppImpl) IncrTokenUsage(ctx context.Context, convId uint64,
 }
 
 // toTurnItemDTO 将 entity.TurnItem 转换为 dto.TurnItemDTO
-// （payload 剥离了 type/id，由 item_type / item_id 列回填，对齐 tokhub TurnItemRow::to_turn_item）
+// （payload 剥离了 type/id，由 item_type / item_id 列回填，TurnItemRow::to_turn_item）
 func toTurnItemDTO(item *entity.TurnItem) *dto.TurnItemDTO {
 	dto := &dto.TurnItemDTO{
 		Id:             item.Id,

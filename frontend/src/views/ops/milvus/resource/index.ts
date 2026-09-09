@@ -1,11 +1,9 @@
 import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
-import type { PageParam } from '@/types/common';
-import { sleep } from '@/common/utils/loading';
 import { milvusApi, perms } from '@/views/ops/milvus/api';
-import type { ResourceConfig } from '@/views/ops/resource/resource';
+import { defineResourceConfig } from '@/views/ops/resource/resourceRegistry';
+import { registerCommand, registerContributor, registerMenu, type TreeCommandCtx, type TreeNode, type TreeNodeData } from '@/views/ops/resource/tree';
 import { createResourceOpTab } from '@/views/ops/resource/resourceOp';
 import { defineAsyncComponent } from 'vue';
-import { NodeType, TagTreeNode } from '../../component/tag';
 import type { Milvus } from '../types';
 import type { MachineAuthCert } from '@/views/ops/machine/types';
 
@@ -24,16 +22,25 @@ export const MilvusIcon = {
     color: ResourceTypeEnum.Milvus.extra.iconColor,
 };
 
+const AuthCertIcon = { name: 'Ticket', color: '#409eff' };
+
 const MilvusList = defineAsyncComponent(() => import('../MilvusList.vue'));
 const MilvusOp = defineAsyncComponent(() => import('./MilvusOp.vue'));
 
 const NodeMilvus = defineAsyncComponent(() => import('./NodeMilvus.vue'));
 const NodeMilvusAc = defineAsyncComponent(() => import('./NodeMilvusAc.vue'));
 
-const getMilvusOpTab = async (milvus: MilvusNodeParams, acName: string) => {
+/**
+ * milvus 资源树节点 kind 常量
+ */
+export const MilvusKind = 'milvus';
+export const MilvusAcKind = 'milvus-ac';
+
+const getMilvusOpTab = async (milvus: MilvusNodeParams, acName: string, nodeKey?: string | number) => {
     const tabKey = `milvus.${milvus.id}.${acName}`;
     return await createResourceOpTab({
         key: tabKey,
+        nodeKey,
         name: milvus.acUsername ? `${milvus.name} (${milvus.acUsername})` : milvus.name,
         component: MilvusOp,
         componentProps: {
@@ -45,56 +52,83 @@ const getMilvusOpTab = async (milvus: MilvusNodeParams, acName: string) => {
     });
 };
 
-const getMilvusOpTabCompInst = async (milvus: MilvusNodeParams, acName: string) => {
-    return (await getMilvusOpTab(milvus, acName)).componentInstance;
+/**
+ * MilvusOp tab 组件对外方法契约（与 MilvusOp.vue 的 defineExpose 通过 satisfies 双向校验）
+ */
+export interface MilvusOpTabApi {
+    initMilvus: (milvus: any) => void;
+    onActivate: () => void;
+}
+
+const getMilvusOpTabCompInst = async (milvus: MilvusNodeParams, acName: string, nodeKey?: string | number): Promise<MilvusOpTabApi | undefined> => {
+    return (await getMilvusOpTab(milvus, acName, nodeKey)).componentInstance as MilvusOpTabApi | undefined;
 };
 
-// milvus 授权凭证节点类型：点击后打开独立标签页
-const NodeTypeMilvusAc = new NodeType(Number(TagResourceTypeEnum.Milvus.value) * 10 + 1).withNodeClickFunc(async (node: TagTreeNode) => {
-    const milvus = node.params as unknown as MilvusNodeParams;
-    const acName = milvus.selectAuthCert?.name || '';
-    // 仅在首次创建时初始化（已存在的标签页只是激活，不重置状态）
-    const compRef = await getMilvusOpTabCompInst(milvus, acName);
-    compRef?.initMilvus?.(milvus);
+// 授权凭证节点单击：打开独立标签页
+registerCommand({
+    id: 'milvus.ac.open',
+    txt: '',
+    handler: async (ctx: TreeCommandCtx) => {
+        const milvus = (ctx.node.params ?? {}) as unknown as MilvusNodeParams;
+        const acName = milvus.selectAuthCert?.name || '';
+        // 仅在首次创建时初始化（已存在的标签页只是激活，不重置状态）
+        const compRef = await getMilvusOpTabCompInst(milvus, acName, ctx.node.key);
+        compRef?.initMilvus?.(milvus);
+    },
 });
 
-const NodeTypeMilvus = new NodeType(TagResourceTypeEnum.Milvus.value).withLoadNodesFunc(async (node: TagTreeNode) => {
-    const milvus = node.params as unknown as MilvusNodeParams;
-    const authCerts = milvus.authCerts || [];
-    return authCerts.map((x: MachineAuthCert) =>
-        TagTreeNode.new(node, `milvus.${milvus.id}.${x.name}`, x.username, NodeTypeMilvusAc)
-            .withNodeComponent(NodeMilvusAc)
-            .withParams({ ...milvus, selectAuthCert: x })
-            .withIsLeaf(true)
-            .withIcon({ name: 'Ticket', color: '#409eff' })
-    );
+registerMenu({ command: 'milvus.ac.open', kinds: [MilvusAcKind], trigger: 'click' });
+
+// milvus 实例节点：loadRoots 列出标签下实例，loadChildren 展开实例列出授权凭证
+registerContributor({
+    kind: MilvusKind,
+    resourceType: TagResourceTypeEnum.Milvus.value,
+    hasChildren: true,
+    renderer: NodeMilvus,
+    loadRoots: async (groupNode) => {
+        const res = await milvusApi.list.request({ tagPath: groupNode.params?.tagPath as string });
+        if (!res.total) {
+            return [];
+        }
+        return (res.list ?? []).map((x: Milvus) => ({
+            key: `milvus.${x.id}`,
+            kind: MilvusKind,
+            label: x.name,
+            params: x as unknown as Record<string, unknown>,
+        }));
+    },
+    loadChildren: async (node) => {
+        const milvus = node.params as unknown as MilvusNodeParams;
+        const authCerts = milvus.authCerts || [];
+        return authCerts.map(
+            (x: MachineAuthCert): TreeNodeData => ({
+                key: `milvus.${milvus.id}.${x.name}`,
+                kind: MilvusAcKind,
+                label: x.username,
+                icon: AuthCertIcon,
+                params: { ...milvus, selectAuthCert: x },
+            })
+        );
+    },
 });
 
-// tagpath 节点类型
-const NodeTypeMilvusTag = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const tagPath = parentNode.params.tagPath;
-    const res = await milvusApi.list.request({ tagPath: tagPath as string });
-    if (!res.total) {
-        return [];
-    }
-    const milvusInfos = res.list;
-    await sleep(100);
-    return milvusInfos.map((x: Milvus) => {
-        return TagTreeNode.new(parentNode, `milvus.${x.id}`, x.name, NodeTypeMilvus).withParams(x as unknown as Record<string, unknown>).withNodeComponent(NodeMilvus);
-    });
+// 授权凭证节点（叶子，单击打开实例操作 tab）：选择场景的终级粒度
+registerContributor({
+    kind: MilvusAcKind,
+    selectable: true,
+    renderer: NodeMilvusAc,
 });
 
-export default {
+export default defineResourceConfig({
     order: 7,
     resourceType: TagResourceTypeEnum.Milvus.value,
-    rootNodeType: NodeTypeMilvusTag,
     manager: {
         componentConf: {
             component: MilvusList,
             icon: MilvusIcon,
-            name: 'milvus',
+            name: 'tag.milvus',
         },
         countKey: 'milvus',
         permCode: perms.base,
     },
-} as ResourceConfig;
+});

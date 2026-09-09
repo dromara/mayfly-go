@@ -63,7 +63,7 @@ type registryEntry struct {
 	c       Contributor
 }
 
-// Registry 贡献者注册中心（对齐 tokhub ExtensionRegistry）
+// Registry 贡献者注册中心（ExtensionRegistry）
 //
 // 通过 Builder 显式注册，Build 后只读、并发共享。
 // 注册顺序即覆盖优先级（后注册胜出）：内置注册在前、业务扩展注册在后。

@@ -1,6 +1,5 @@
 /**
  * chipNode - TipTap 自定义内联原子节点
- * 对齐 tokhub 的 chipNode.ts
  *
  * 特性：
  * - inline: true — 内联在文本流中

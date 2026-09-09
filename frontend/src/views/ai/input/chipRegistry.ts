@@ -1,6 +1,5 @@
 /**
  * chipRegistry - 芯片类型注册表
- * 对齐 tokhub 的 chipRegistry.tsx
  *
  * 职责：芯片的视觉呈现（图标/配色）与数据提取（extractSegment）
  * 新增芯片类型只需调用 registerChipType()，零修改编辑器/消息渲染代码

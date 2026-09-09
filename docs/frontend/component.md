@@ -293,7 +293,7 @@ const schema: AutoFormJsonSchema = {
 
 ### 布局能力（group 分组 / tabs 页签）
 
-对齐 tokhub AutoForm 的企业级布局能力，函数式与 JSON DSL 双层支持：
+AutoForm 的企业级布局能力，函数式与 JSON DSL 双层支持：
 
 **group 分组容器**（`type: 'group'`）：非字段项，渲染标题 + 可选 `groupDescription` + 带边框容器包裹后续字段，直到下一个 group。字段全部隐藏（`when`/`hidden`）时空分组不渲染：
 
@@ -307,7 +307,7 @@ const items: AutoFormItem[] = [
 ];
 ```
 
-**tabs 页签**（对齐 tokhub TabConfig）：AutoForm / AutoFormDialog / AutoFormDrawer 均支持 `tabs` prop（`AutoFormTab[]`：`{ name, label, icon?, items }`）。所有 Tab 共享同一表单数据与校验（el-tab-pane 非懒渲染，未激活 Tab 字段同样挂载，`validate()` 全量生效）：
+**tabs 页签**（TabConfig）：AutoForm / AutoFormDialog / AutoFormDrawer 均支持 `tabs` prop（`AutoFormTab[]`：`{ name, label, icon?, items }`）。所有 Tab 共享同一表单数据与校验（el-tab-pane 非懒渲染，未激活 Tab 字段同样挂载，`validate` 全量生效）：
 
 ```ts
 const tabs: AutoFormTab[] = [

@@ -1,12 +1,12 @@
-// Package ext 内置扩展装配入口（对齐 tokhub 各扩展 crate 的 install(builder) 模式）
+// Package ext 内置扩展装配入口（各扩展子包的 install(builder) 模式）
 //
 // 每个扩展位于 agent/ext/<name> 子包，实现 contributor 契约包定义的
-// 贡献通道接口，并暴露 Install(builder) 注册自身；本包按 tokhub 的
+// 贡献通道接口，并暴露 Install(builder) 注册自身；本包按
 // 装配顺序（内置在前、业务插件在后，后注册者覆盖先注册者）聚合全部
 // 内置扩展，供宿主（agent 包）构建默认注册中心。
 //
-// 业务扩展接入：调用 RegisterHostInstaller 注册安装器（对齐 tokhub
-// HostExtensionInstaller），在内置扩展之后追加装配，可覆盖内置工具/贡献者
+// 业务扩展接入：调用 RegisterHostInstaller 注册安装器，
+// 在内置扩展之后追加装配，可覆盖内置工具/贡献者
 // 而无需修改宿主代码（开闭原则）。
 package ext
 
@@ -44,7 +44,7 @@ type Deps struct {
 //
 // 业务工具扩展（db_tools / machine_tools）因依赖业务应用层（db/machine），
 // 为避免引入 agent → 业务层循环依赖，不在本包静态安装，而是由 ai/init
-// 经 RegisterHostInstaller 注册（对齐 tokhub 宿主端私有 Contributor 注入）。
+// 经 RegisterHostInstaller 注册（宿主端私有 Contributor 注入）。
 func InstallAll(b *contributor.Builder, deps Deps) {
 	// 中间件通道：安全工具拦截（safety_middleware）
 	middleware.Install(b)
@@ -64,7 +64,7 @@ func InstallAll(b *contributor.Builder, deps Deps) {
 	interruptext.Install(b)
 }
 
-// hostInstallers 宿主级扩展安装器（对齐 tokhub HostExtensionInstaller）
+// hostInstallers 宿主级扩展安装器（HostExtensionInstaller）
 //
 // 业务扩展在内置扩展之后、Build 之前追加装配：注册顺序即覆盖优先级，
 // 后注册的插件可直接覆盖内置工具实现，无需修改宿主代码。

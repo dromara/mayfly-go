@@ -12,7 +12,7 @@
 <script setup lang="ts">
 /**
  * InlineChip - 消息气泡内的芯片回显标签
- * 对齐 tokhub InlineChip：图标 + 名称，图标与配色查 chipRegistry（与编辑器 chipNode 同源），
+ * InlineChip：图标 + 名称，图标与配色查 chipRegistry（与编辑器 chipNode 同源），
  * 图标复用 ChatInput 全局 .chat-chip__icon mask 样式（zap/server/database）
  */
 import { computed } from 'vue';

@@ -1,4 +1,4 @@
-// Package skillext 技能手册目录扩展（渐进式披露，对齐 tokhub skill_injection.rs）
+// Package skillext 技能手册目录扩展（渐进式披露，skill_injection.rs）
 //
 // 实现 ContextContributor 通道：L1 目录（本轮 preamble，预算控制）+
 // L3 内容（agent 按需调用 skill_read 工具获取全文）。

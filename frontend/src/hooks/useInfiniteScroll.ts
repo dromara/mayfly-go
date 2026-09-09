@@ -1,5 +1,5 @@
 /**
- * useInfiniteScroll - 无限滚动分页 Hook（对齐 tokhub hooks/useInfiniteScroll.ts）
+ * useInfiniteScroll - 无限滚动分页 Hook
  *
  * 基于 usePageTable 的分页理念，但采用累加模式（追加而非替换），
  * 配合 IntersectionObserver（InfiniteCardList 内哨兵）实现滚动到底部自动加载更多。
@@ -103,7 +103,7 @@ export function useInfiniteScroll<TItem, TSearch extends Record<string, any>>(
 
     /**
      * 直接展开传给 InfiniteCardList 的 props，
-     * 消除页面侧重复的逐个 props 绑定（对齐 tokhub bindCardList）
+     * 消除页面侧重复的逐个 props 绑定（bindCardList）
      */
     const bindCardList = computed(() => ({
         items: items.value,

@@ -103,6 +103,7 @@ import {
     rectStyle,
     removeLeaf,
     splitLeaf,
+    type PaneIdGenerator,
 } from './paneTree';
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -188,11 +189,13 @@ const emit = defineEmits(['statusChange']);
 
 const { t } = useI18n();
 
+// 节点 id 双序列：叶子 id 正数连续递增（即展示的终端编号），split 节点用负数序列（仅内部占位，不展示）
 let paneSeq = 0;
-const genPaneId = () => ++paneSeq;
+let splitSeq = 0;
+const genIds: PaneIdGenerator = { pane: () => ++paneSeq, split: () => --splitSeq };
 
 // 布局树根节点，初始为单个窗格
-const root = ref<PaneNode>({ id: genPaneId(), type: 'leaf' });
+const root = ref<PaneNode>({ id: genIds.pane(), type: 'leaf' });
 
 // 布局计算：窗格矩形 + 分隔条位置
 const layout = computed(() => layoutTree(root.value));
@@ -242,7 +245,7 @@ const split = (paneId: number, direction: SplitDirection) => {
     if (paneCount.value >= props.maxPanes) {
         return;
     }
-    root.value = splitLeaf(root.value, paneId, direction, genPaneId);
+    root.value = splitLeaf(root.value, paneId, direction, genIds);
     nextTickFitAll();
 };
 
@@ -273,7 +276,7 @@ const movePane = (srcId: number, targetId: number, position: SplitDirection) => 
     if (!rest) {
         return;
     }
-    root.value = insertLeaf(rest, targetId, { id: srcId, type: 'leaf' }, position, genPaneId);
+    root.value = insertLeaf(rest, targetId, { id: srcId, type: 'leaf' }, position, genIds);
     nextTickFitAll();
 };
 

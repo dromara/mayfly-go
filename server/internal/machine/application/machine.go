@@ -62,7 +62,7 @@ type Machine interface {
 type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 
 	machineScriptApp MachineScript `inject:"T"`
@@ -134,6 +134,11 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	// 如果调整了SshTunnelMachineId Ip port等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMachine.Code == "" {
 		oldMachine, _ = m.GetById(me.Id)
+	}
+
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := m.tagApp.CanAccessByCode(ctx, int8(tagentity.TagTypeMachine), oldMachine.Code); err != nil {
+		return err
 	}
 
 	// 关闭连接

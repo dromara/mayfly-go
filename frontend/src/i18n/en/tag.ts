@@ -13,6 +13,7 @@ export default {
         es: 'ES',
         redis: 'Redis',
         container: 'Container',
+        mongo: 'MongoDB',
         tag: 'Tag',
         code: 'Code',
         createSubTag: 'Creating child tags',

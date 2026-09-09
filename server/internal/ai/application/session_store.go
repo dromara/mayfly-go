@@ -31,7 +31,7 @@ const sessionKeyPrefix = "conv:"
 //   - 读：GetHistory/GetMessage 将 TurnItem payload 转换为 session.Message
 //   - 写：AppendMsgs 无需落库（消息已由 api 层以 TurnItem 形式持久化），
 //     消息计数与 token 统计由 Manager 通过 SaveMeta 更新到 conversation 元数据
-//   - 中断信息对齐 tokhub 存于 tool_call item 的 extra 列（{"interrupt": ...}），
+//   - 中断信息存于 tool_call item 的 extra 列（{"interrupt": ...}），
 //     读取时从 extra 派生 internal 消息，恢复流程所需的运行时信息（resumeInfo、
 //     补全后的工具参数）通过 UpdateMessage 回写到 item extra/payload
 type sessionStoreImpl struct {
@@ -138,7 +138,7 @@ func (s *sessionStoreImpl) GetMessage(ctx context.Context, query *session.Messag
 }
 
 // UpdateMessage 更新单条消息，将变更回写到对应的 TurnItem：
-//   - internal 消息（中断）：resumeInfo 回写到 tool_call item extra 列（对齐 tokhub）
+//   - internal 消息（中断）：resumeInfo 回写到 tool_call item extra 列
 //   - tool_call 消息：回填参数补全后的最终工具调用参数到 payload
 func (s *sessionStoreImpl) UpdateMessage(ctx context.Context, msg *session.Message) error {
 	if msg.Id == 0 {
@@ -149,7 +149,7 @@ func (s *sessionStoreImpl) UpdateMessage(ctx context.Context, msg *session.Messa
 		return err
 	}
 
-	// 中断消息的 resumeInfo 回写：决策内嵌 interrupt 对象（对齐 tokhub merge_patch）
+	// 中断消息的 resumeInfo 回写：决策内嵌 interrupt 对象（merge_patch）
 	if msg.Role == session.RoleInternal {
 		resumeInfo, ok := msg.Extra["resumeInfo"]
 		if !ok {
@@ -263,7 +263,7 @@ func (s *sessionStoreImpl) DeleteMeta(ctx context.Context, sessionKey string) er
 }
 
 // itemTypeOfMessageType 将 LLM 消息类型映射为 TurnItem 类型（"" 表示不过滤）。
-// 中断类消息存于 tool_call item extra 列（对齐 tokhub），同样映射到 tool_call
+// 中断类消息存于 tool_call item extra 列，同样映射到 tool_call
 func itemTypeOfMessageType(messageType string) string {
 	switch messageType {
 	case "":
@@ -355,12 +355,12 @@ func (s *sessionStoreImpl) itemToMessages(ctx context.Context, item *entity.Turn
 				ToolName:   ti.ToolName,
 			},
 		}
-		// 对齐 tokhub：中断信息存于 tool_call item extra 列（{"interrupt": InterruptInfo}），
+		// 中断信息存于 tool_call item extra 列（{"interrupt": InterruptInfo}），
 		// 派生 internal 消息供中断恢复流程读取（与 internal item 消息同构）
 		if info := interruptInfoOf(item); info != nil {
 			msgType := protocol.InterruptMsgType(info.Kind)
 			extra := collx.M{"type": msgType}
-			// 恢复决策内嵌 interrupt 对象（对齐 tokhub），反合成为恢复链路消费的 resumeInfo
+			// 恢复决策内嵌 interrupt 对象，反合成为恢复链路消费的 resumeInfo
 			if info.Resume != nil {
 				extra["resumeInfo"] = info.Resume.ToResumeInfo(info.Kind, info.RequestId, item.TurnId)
 			}
@@ -384,7 +384,7 @@ func (s *sessionStoreImpl) itemToMessages(ctx context.Context, item *entity.Turn
 }
 
 // interruptInfoOf 从 tool_call item 的 extra 列提取中断信息
-// （对齐 tokhub：extra["interrupt"] 为 InterruptInfo 强类型结构，内存态为结构体，
+// （extra["interrupt"] 为 InterruptInfo 强类型结构，内存态为结构体，
 // 经 extra 列 JSON 落库后为 map，两种形态均需兼容）
 func interruptInfoOf(item *entity.TurnItem) *protocol.InterruptInfo {
 	if item.Extra == nil {

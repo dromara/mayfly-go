@@ -11,13 +11,13 @@
             <span class="collapsible-section__title">{{ title }}</span>
             <span v-if="summary" class="collapsible-section__summary">{{ summary }}</span>
             <slot name="extra" />
-            <!-- chevron 在行尾（对齐 tokhub：icon → title → meta → chevron） -->
+            <!-- chevron 在行尾（icon → title → meta → chevron） -->
             <ChevronRightIcon
                 class="collapsible-section__arrow"
                 :class="{ 'is-expanded': open }"
             />
         </button>
-        <!-- 展开内容：grid 高度动画 + 内层 opacity 淡入（对齐 tokhub CollapsibleSection） -->
+        <!-- 展开内容：grid 高度动画 + 内层 opacity 淡入（CollapsibleSection） -->
         <div class="collapsible-section__collapse" :class="{ 'is-expanded': open }">
             <div class="collapsible-section__clip">
                 <div class="collapsible-section__fade">
@@ -33,7 +33,7 @@
 <script setup lang="ts">
 /**
  * CollapsibleSection - 通用折叠区块
- * 对齐 tokhub CollapsibleSection：标题行（箭头 + 标题 + 摘要）+ 可展开内容
+ * CollapsibleSection：标题行（箭头 + 标题 + 摘要）+ 可展开内容
  *
  * 动画：grid-template-rows 0fr→1fr 高度过渡 + 内容 opacity 淡入，
  *       chevron 默认隐藏、hover 或展开时显现（渐进披露）。
@@ -121,7 +121,7 @@ const toggle = () => {
 }
 
 .collapsible-section__title {
-    /* 不伸缩占满：meta 紧跟标题内联（对齐 tokhub）；仅行内溢出时收缩截断 */
+    /* 不伸缩占满：meta 紧跟标题内联；仅行内溢出时收缩截断 */
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -134,7 +134,7 @@ const toggle = () => {
     color: var(--el-text-color-placeholder);
 }
 
-/* grid 高度动画：0fr→1fr，内容层独立淡入（对齐 tokhub） */
+/* grid 高度动画：0fr→1fr，内容层独立淡入 */
 .collapsible-section__collapse {
     display: grid;
     grid-template-rows: 0fr;

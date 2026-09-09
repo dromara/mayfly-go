@@ -1,5 +1,5 @@
 /**
- * 技能触发器（对齐 tokhub triggers/skillTrigger）
+ * 技能触发器
  *
  * / 触发技能选择菜单（列表模式），选中后插入 skill 芯片。
  *

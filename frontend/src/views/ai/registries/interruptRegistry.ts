@@ -1,6 +1,6 @@
 /**
  * 中断处理器注册表
- * 对齐 tokhub interrupts/registry.ts 的注册表模式
+ * interrupts/registry.ts 的注册表模式
  *
  * 设计原则（开闭原则）：
  * - 新增中断类型只需 registerInterruptHandler()，框架零修改
@@ -47,7 +47,7 @@ export interface InterruptDecision {
     payload?: Record<string, unknown>;
 }
 
-/** 决策解释结果（对齐 tokhub interpretDecision 返回形状） */
+/** 决策解释结果（interpretDecision 返回形状） */
 export interface DecisionInterpretation {
     /** 标准化恢复状态（取值见 registries/statuses.ts InterruptResumeStatus） */
     status: string;
@@ -58,7 +58,7 @@ export interface DecisionInterpretation {
 // ==================== 处理器接口 ====================
 
 /**
- * 中断处理器接口（对齐 tokhub interrupts/types.ts InterruptHandler）
+ * 中断处理器接口
  * 每种中断类型实现此接口并注册到 registry，
  * 公共代码（eventWriter / ToolCallPart / chatStore）只经注册表调用，不引用具体类型
  */
@@ -69,7 +69,7 @@ export interface InterruptHandler {
     /**
      * 从历史 TurnItem 恢复 pending 中断
      * 用于页面加载后恢复未完成的中断；非本类型返回 null。
-     * 中断信息存于 tool_call item 的 extra 列（对齐 tokhub），由 itemExtra 传入
+     * 中断信息存于 tool_call item 的 extra 列，由 itemExtra 传入
      */
     buildFromHistoryItem(item: TurnItem, itemExtra?: Record<string, unknown>): InterruptState | null;
 
@@ -79,20 +79,20 @@ export interface InterruptHandler {
     isPending(state: InterruptState): boolean;
 
     /**
-     * 解释用户决策，返回标准化恢复状态（对齐 tokhub interpretDecision）
+     * 解释用户决策，返回标准化恢复状态（interpretDecision）
      * 将类型特定的 action/payload（如审批 reject + reason）转换为通用状态，
      * 公共代码（eventWriter）不解析 action 语义，委托给此方法
      */
     interpretDecision(action: string, payload?: Record<string, unknown>): DecisionInterpretation;
 
     /**
-     * 待决策徽章文案覆盖（可选，对齐 tokhub getPendingLabel）
+     * 待决策徽章文案覆盖（可选，getPendingLabel）
      * 不同类型 pending 文案不同（"待审批"/"待提交"...），返回 null 使用通用文案
      */
     getPendingLabel?: (t: (key: string) => string) => string | null;
 
     /**
-     * 决议徽章配置覆盖（可选，对齐 tokhub getResumeBadge）
+     * 决议徽章配置覆盖（可选，getResumeBadge）
      * 自定义类型可定义自己的决议徽章（文案 i18n key + 样式类），
      * 返回 null 回退 ToolCallPart 的通用配置
      */

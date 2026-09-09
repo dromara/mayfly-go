@@ -23,7 +23,7 @@ type Instance struct {
 	instanceApp         application.Instance    `inject:"T"`
 	dbApp               application.Db          `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
-	tagApp              tagapp.TagTree          `inject:"T"`
+	tagApp              tagapp.TagTreeReader    `inject:"T"`
 }
 
 func (d *Instance) ReqConfs() *req.Confs {

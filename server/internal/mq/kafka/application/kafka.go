@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/mq/kafka/domain/repository"
 	"mayfly-go/internal/mq/kafka/imsg"
 	"mayfly-go/internal/mq/kafka/kfm"
+	"mayfly-go/internal/pkg/consts"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -36,7 +37,7 @@ type Kafka interface {
 type kafkaAppImpl struct {
 	base.AppImpl[*entity.Kafka, repository.Kafka]
 
-	tagTreeApp tagapp.TagTree `inject:"T"`
+	tagTreeApp tagapp.TagTreeService `inject:"T"`
 }
 
 var _ Kafka = (*kafkaAppImpl)(nil)
@@ -113,6 +114,11 @@ func (d *kafkaAppImpl) SaveKafka(ctx context.Context, m *entity.Kafka, tagCodePa
 		oldKafka, _ = d.GetById(m.Id)
 	}
 
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := d.tagTreeApp.CanAccessByCode(ctx, consts.ResourceTypeMqKafka, oldKafka.Code); err != nil {
+		return err
+	}
+
 	// 先关闭连接
 	kfm.CloseConn(m.Id)
 	m.Code = ""
@@ -136,11 +142,16 @@ func (d *kafkaAppImpl) SaveKafka(ctx context.Context, m *entity.Kafka, tagCodePa
 }
 
 func (d *kafkaAppImpl) GetKafkaConn(ctx context.Context, id uint64) (*kfm.KafkaConn, error) {
+	// 连接层统一进行数据权限校验，避免各操作接口遗漏鉴权
+	me, err := d.GetById(id)
+	if err != nil {
+		return nil, errorx.NewBiz("kafka not found")
+	}
+	if err := d.tagTreeApp.CanAccessByCode(ctx, consts.ResourceTypeMqKafka, me.Code); err != nil {
+		return nil, err
+	}
+
 	return kfm.GetKafkaConn(ctx, id, func() (*kfm.KafkaInfo, error) {
-		me, err := d.GetById(id)
-		if err != nil {
-			return nil, errorx.NewBiz("kafka not found")
-		}
 		return me.ToKafkaInfo(), nil
 	})
 }

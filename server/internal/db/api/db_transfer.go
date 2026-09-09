@@ -24,7 +24,7 @@ type DbTransferTask struct {
 	dbTransferTaskApp transfer.DbTransferTask `inject:"T"`
 	dbTransferFileApp transfer.DbTransferFile `inject:"T"`
 	dbApp             application.Db          `inject:"T"`
-	tagApp            tagapp.TagTree          `inject:"T"`
+	tagApp            tagapp.TagTreeChecker   `inject:"T"`
 	dbSqlExecApp      application.DbSqlExec   `inject:"T"`
 	fileApp           fileapp.File            `inject:"T"`
 }

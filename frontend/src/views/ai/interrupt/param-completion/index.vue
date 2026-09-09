@@ -17,7 +17,7 @@
                 <span class="param-completion-interrupt__tool-value">{{ interrupt.toolName }}</span>
             </div>
 
-            <!-- 通用选项选择（对齐 tokhub ask_user options 模式） -->
+            <!-- 通用选项选择（ask_user options 模式） -->
             <OptionsParamInput
                 v-if="hasOptions"
                 ref="paramInputRef"

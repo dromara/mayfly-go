@@ -37,7 +37,7 @@ type Db struct {
 	instanceApp  application.Instance  `inject:"T"`
 	dbApp        application.Db        `inject:"T"`
 	dbSqlExecApp application.DbSqlExec `inject:"T"`
-	tagApp       tagapp.TagTree        `inject:"T"`
+	tagApp       tagapp.TagTreeService `inject:"T"`
 }
 
 func (d *Db) ReqConfs() *req.Confs {

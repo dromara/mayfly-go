@@ -170,7 +170,7 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
-import { ResourceOpCtx, ResourceOpCtxKey } from '@/views/ops/resource/resourceOp';
+import { treeEvents } from '@/views/ops/resource/tree';
 import { useEventListener, useStorage } from '@vueuse/core';
 import { ElCheckbox, ElMessageBox } from 'element-plus';
 import { format as sqlFormatter, type SqlLanguage } from 'sql-formatter';
@@ -179,6 +179,7 @@ import { useI18n } from 'vue-i18n';
 import { dbApi } from '../api';
 import { DbInst, DbThemeConfig, registerDbCompletionItemProvider, TabInfo, TabType, type TabComponentRef } from '../db';
 import type { DbInstInfo, TableOpData } from '../types';
+import type { DbOpTabApi } from './index';
 import { getDbDialect } from '../dialect/index';
 
 /** 数据库树节点数据 (包含树节点额外属性) */
@@ -217,8 +218,6 @@ const DbTableDataOp = defineAsyncComponent(() => import('../component/table/DbTa
 const DbTablesOp = defineAsyncComponent(() => import('../component/table/DbTablesOp.vue'));
 
 const { t } = useI18n();
-
-const resourceOpCtx: ResourceOpCtx | undefined = inject(ResourceOpCtxKey);
 
 const props = defineProps<{
     dbInfo: DbTreeNodeData;
@@ -503,11 +502,15 @@ const locationNowTreeNode = (nowTab: TabInfo | null = null) => {
     if (!nowTab) {
         nowTab = state.tabs.get(state.activeName) ?? null;
     }
-    setTimeout(() => resourceOpCtx?.setCurrentTreeKey(nowTab?.treeNodeKey ?? ''), 500);
+    // 定位事件：容器负责展开祖先并滚动选中（目标未水合时由容器水合后重试）
+    const key = nowTab?.treeNodeKey ?? '';
+    if (key) {
+        treeEvents.emit('node:locate', { key });
+    }
 };
 
 const reloadSqls = (dbId: number, db: string) => {
-    resourceOpCtx?.reloadTreeNode(getSqlMenuNodeKey(dbId, db));
+    treeEvents.emit('node:invalidate', { key: getSqlMenuNodeKey(dbId, db) });
 };
 
 const deleteSql = async (dbId: number, db: string, sqlName: string) => {
@@ -527,7 +530,7 @@ const getSqlMenuNodeKey = (dbId: number, db: string) => {
 
 const reloadNode = (nodeKey: string) => {
     state.reloadStatus = true;
-    resourceOpCtx?.reloadTreeNode(nodeKey);
+    treeEvents.emit('node:invalidate', { key: nodeKey });
 };
 
 const onEditTable = async (data: TreeNodeCallbackData) => {
@@ -706,7 +709,7 @@ defineExpose({
     reloadSqls,
     deleteSql,
     reloadNode,
-});
+} satisfies DbOpTabApi);
 </script>
 
 <style lang="scss" scoped>

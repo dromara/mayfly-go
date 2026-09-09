@@ -30,7 +30,7 @@ type EventMapper struct {
 	// 否则落库覆盖后历史重建的 tool_calls 无 arguments，后续 LLM 请求将被网关拒绝
 	toolCallArgs map[string]string
 	// toolCallId -> 挂起时已落库的 itemId：恢复路径工具完成时复用原 item_id，
-	// 对齐 tokhub（ItemCompleted 复用原 item_id，更新同一行至真实终态）
+	// ItemCompleted 复用原 item_id、更新同一行至真实终态
 	resumedToolCallItemIds map[string]string
 }
 
@@ -63,7 +63,7 @@ func (m *EventMapper) MapChunk(turnId string, chunk *session.Message) []*protoco
 		if m.currentReasoningId == "" {
 			// 首次收到推理内容，发送 item_started。
 			// item_id 用 SortableUUID（UUIDv7，时间有序）在触发时刻生成：
-			// item 持久化顺序与触发顺序解耦，历史查询按 item_id 排序即还原真实时序（对齐 tokhub new_item_id）
+			// item 持久化顺序与触发顺序解耦，历史查询按 item_id 排序即还原真实时序（new_item_id）
 			m.currentReasoningId = stringx.SortableUUID()
 			item := protocol.NewReasoningTurnItem(m.currentReasoningId, "")
 			events = append(events, protocol.NewItemStartedEvent(turnId, item))
@@ -132,8 +132,8 @@ func (m *EventMapper) completeActiveItems(turnId string) []*protocol.EventMsg {
 func (m *EventMapper) MapToolCallEvent(turnId string, msg *session.Message) []*protocol.EventMsg {
 	var events []*protocol.EventMsg
 
-	// 工具调用意味着本轮模型响应结束：先定格进行中的 reasoning/message item（对齐 tokhub
-	// OutputItemDone → flush_active），下一轮响应的正文将新开 item（新 item_id），
+	// 工具调用意味着本轮模型响应结束：先定格进行中的 reasoning/message item
+	// （OutputItemDone → flush_active），下一轮响应的正文将新开 item（新 item_id），
 	// 避免 agent 多轮输出的正文被合并成一条长文本、时序也被压到最后
 	events = append(events, m.completeActiveItems(turnId)...)
 
@@ -155,7 +155,7 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 	var events []*protocol.EventMsg
 
 	// 恢复路径：工具从 checkpoint 恢复执行，复用挂起时已落库的原 item_id，
-	// 不重发 item_started（对齐 tokhub：ItemCompleted 复用原 item_id，仅发终态）
+	// 不重发 item_started（ItemCompleted 复用原 item_id，仅发终态）
 	itemId, isResumed := m.resumedToolCallItemIds[msg.ToolCallId]
 	delete(m.resumedToolCallItemIds, msg.ToolCallId)
 	isNewItem := false
@@ -205,8 +205,8 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 	if item.Status == protocol.TurnItemStatusSuccess && tools.IsToolErrorMsg(msg.Content) {
 		item.Status = protocol.TurnItemStatusFailed
 	}
-	// 用户拒绝的工具调用不视为执行失败：对齐 tokhub（拒绝 → Cancelled，
-	// 徽章由 extra.interrupt.resume 表达，状态圆点用取消色）。
+	// 用户拒绝的工具调用不视为执行失败：拒绝 → Cancelled，
+	// 徽章由 extra.interrupt.resume 表达，状态圆点用取消色。
 	// 审批拒绝时 eino 将错误转为工具结果，无论错误标记是否透传，
 	// 只要内容为拒绝文案即归类为取消
 	if item.Status != protocol.TurnItemStatusInterrupted && strings.HasPrefix(msg.Content, "[OPERATION_REJECTED]") {

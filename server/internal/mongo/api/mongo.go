@@ -25,8 +25,8 @@ import (
 )
 
 type Mongo struct {
-	mongoApp   application.Mongo `inject:"T"`
-	tagTreeApp tagapp.TagTree    `inject:"T"`
+	mongoApp   application.Mongo    `inject:"T"`
+	tagTreeApp tagapp.TagTreeReader `inject:"T"`
 }
 
 func (ma *Mongo) ReqConfs() *req.Confs {
@@ -69,16 +69,13 @@ func (ma *Mongo) ReqConfs() *req.Confs {
 func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond := rc.BindQuery[entity.MongoQuery]()
 
-	// 不存在可访问标签id，即没有可操作数据
-	tags := m.tagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
-		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeMongo)),
-		CodePathLikes: []string{queryCond.TagPath},
-	})
-	if len(tags) == 0 {
+	// 不存在可访问标签，即没有可操作数据
+	codes := m.tagTreeApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, queryCond.TagPath, tagentity.TagTypeMongo)
+	if len(codes) == 0 {
 		rc.ResData = model.NewEmptyPageResult[any]()
 		return
 	}
-	queryCond.Codes = tags.GetCodes()
+	queryCond.Codes = codes
 
 	res, err := m.mongoApp.GetPageList(queryCond)
 	biz.ErrIsNil(err)
@@ -111,7 +108,7 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		m.mongoApp.Delete(rc.MetaCtx, cast.ToUint64(v))
+		biz.ErrIsNil(m.mongoApp.Delete(rc.MetaCtx, cast.ToUint64(v)))
 	}
 }
 

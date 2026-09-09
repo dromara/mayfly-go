@@ -8,7 +8,7 @@ import (
 )
 
 type Dashbord struct {
-	tagTreeApp tagapp.TagTree `inject:"T"`
+	tagTreeApp tagapp.TagTreeReader `inject:"T"`
 }
 
 func (d *Dashbord) ReqConfs() *req.Confs {

@@ -101,7 +101,7 @@ func removeCachedResumeData(toolCallId string) {
 	delete(resumeDataCache.byTool, toolCallId)
 }
 
-// CompletionOption 可选项（对齐 tokhub ask_user options 模式）
+// CompletionOption 可选项（ask_user options 模式）
 type CompletionOption struct {
 	Label string `json:"label"` // 显示标签
 	Value string `json:"value"` // 值（JSON 字符串，前端解析为 payload）

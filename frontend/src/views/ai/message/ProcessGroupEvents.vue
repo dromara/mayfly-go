@@ -1,5 +1,5 @@
 <template>
-    <!-- 按事件顺序逐项分发（对齐 tokhub renderEventList） -->
+    <!-- 按事件顺序逐项分发（renderEventList） -->
     <div class="process-group-events">
         <template v-for="part in events" :key="part.id">
             <ReasoningPart

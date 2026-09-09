@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
@@ -25,8 +24,49 @@ import (
 type TagTree interface {
 	base.App[*entity.TagTree]
 
-	ListByQuery(condition *entity.TagTreeQuery, toEntity any)
+	TagTreeReader
+	TagTreeChecker
+	TagTreeManager
 
+	// ListTagByAccountId 根据账号id获取其可访问标签信息（tag 域内部使用）
+	ListTagByAccountId(accountId uint64) []string
+}
+
+// TagTreeReader 标签树读侧接口：查询账号可访问标签、资源标签路径等
+// 外部模块仅按需注入此接口，避免依赖整个聚合接口（ISP）
+type TagTreeReader interface {
+	// GetAccountTags 获取指定账号有权限操作的标签列表
+	//  -  accountId 账号id
+	//  -  query 查询条件
+	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) dto.SimpleTagTrees
+
+	// ListByQuery 根据条件查询标签
+	ListByQuery(condition *entity.TagTreeQuery, toEntity any) error
+
+	// 根据标签类型和标签code获取对应的标签路径列表
+	ListTagPathByTypeAndCode(resourceType int8, resourceCode string) []string
+
+	// ListResourceTagByCode 根据资源code获取资源关联的标签
+	ListResourceTagByCode(resourceCode string) []*entity.ResourceTag
+
+	// GetAccountResourceCodes 获取账号可操作的指定类型资源code集合
+	//   - tagPath 标签路径过滤条件，可为空
+	//   - types 资源类型路径，如 [TagTypeMachine, TagTypeAuthCert]，返回首个类型的资源code
+	GetAccountResourceCodes(accountId uint64, tagPath string, types ...entity.TagType) []string
+}
+
+// TagTreeChecker 标签权限校验接口：资源模块鉴权的最小依赖面
+type TagTreeChecker interface {
+	// CanAccess 账号是否有权限访问该标签关联的资源信息
+	CanAccess(accountId uint64, tagPath ...string) error
+
+	// CanAccessByCode 根据资源类型与资源编号校验当前登录账号是否有权操作该资源
+	// 未获取到登录账号(系统内部任务调用)或管理员账号时不校验
+	CanAccessByCode(ctx context.Context, resourceType int8, resourceCode string) error
+}
+
+// TagTreeManager 标签管理接口：标签及资源标签的保存/更新/删除/关联
+type TagTreeManager interface {
 	SaveTag(ctx context.Context, pid uint64, tt *entity.TagTree) error
 
 	// SaveResourceTag 保存资源类型标签
@@ -45,23 +85,14 @@ type TagTree interface {
 	DeleteTagByParam(ctx context.Context, param *dto.DelResourceTag) error
 
 	Delete(ctx context.Context, id uint64) error
+}
 
-	// GetAccountTags 获取指定账号有权限操作的标签列表
-	//  -  accountId 账号id
-	//  -  query 查询条件
-	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) dto.SimpleTagTrees
-
-	// 根据标签类型和标签code获取对应的标签路径列表
-	ListTagPathByTypeAndCode(resourceType int8, resourceCode string) []string
-
-	// ListResourceTagByCode 根据资源code获取资源关联的标签
-	ListResourceTagByCode(resourceCode string) []*entity.ResourceTag
-
-	// ListTagByAccountId 根据账号id获取其可访问标签信息
-	ListTagByAccountId(accountId uint64) []string
-
-	// CanAccess 账号是否有权限访问该标签关联的资源信息
-	CanAccess(accountId uint64, tagPath ...string) error
+// TagTreeService 资源应用层常用组合接口：读 + 权限校验 + 资源标签管理，
+// 仍窄于聚合接口（不含 base.App 的通用 CRUD 能力）
+type TagTreeService interface {
+	TagTreeReader
+	TagTreeChecker
+	TagTreeManager
 }
 
 type tagTreeAppImpl struct {
@@ -71,8 +102,6 @@ type tagTreeAppImpl struct {
 }
 
 var _ TagTree = (*tagTreeAppImpl)(nil)
-
-var _ (TagTree) = (*tagTreeAppImpl)(nil)
 
 func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.TagTree) error {
 	// 新建资源树节点信息
@@ -128,8 +157,16 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 		})
 	}
 
+	// 校验当前操作者是否拥有待关联的标签路径，防止越权将资源挂载至他人标签路径下
+	if err := p.checkTagPathOwner(ctx, parentTagCodePaths...); err != nil {
+		return err
+	}
+
 	// 获取所有关联的父标签
-	parentTags, _ := p.ListByCond(model.NewCond().In("code_path", parentTagCodePaths))
+	parentTags, err := p.ListByCond(model.NewCond().In("code_path", parentTagCodePaths))
+	if err != nil {
+		return err
+	}
 	if len(parentTags) == 0 || len(parentTags) != len(parentTagCodePaths) {
 		// 存在错误的关联标签
 		return errorx.NewBiz("save resource tag failed: There is an incorrect relate tag")
@@ -137,19 +174,23 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 
 	newTags := p.toTags(parentTags, param.ResourceTag)
 
-	oldParentTagTree, _ := p.ListByCond(&entity.TagTree{Type: tagType, Code: code})
+	oldParentTagTree, err := p.ListByCond(&entity.TagTree{Type: tagType, Code: code})
+	if err != nil {
+		return err
+	}
 
 	// 该资源对应的旧资源标签信息
 	var oldChildrenTags []*entity.TagTree
 	if len(oldParentTagTree) > 0 {
 		// 获取所有旧的子标签
-		p.ListByQuery(&entity.TagTreeQuery{
+		if err := p.ListByQuery(&entity.TagTreeQuery{
 			CodePathLikes: collx.ArrayMap(oldParentTagTree, func(val *entity.TagTree) string {
 				return val.CodePath
 			}),
-		}, &oldChildrenTags)
+		}, &oldChildrenTags); err != nil {
+			return err
+		}
 	}
-
 	// 旧的codePath -> tag
 	oldCodePath2Tag := collx.ArrayToMap(oldChildrenTags, func(val *entity.TagTree) string { return val.CodePath })
 	// 新的codePath -> tag
@@ -158,32 +199,57 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveRes
 	var addCodePaths, delCodePaths []string
 	addCodePaths, delCodePaths, _ = collx.ArrayCompare(collx.MapKeys(newCodePath2Tag), collx.MapKeys(oldCodePath2Tag))
 
-	if len(addCodePaths) > 0 {
-		logx.DebugfContext(ctx, "SaveResourceTag - add tag[%v]", addCodePaths)
-		addTags := make([]*entity.TagTree, 0)
-		for _, addCodePath := range addCodePaths {
-			addTags = append(addTags, newCodePath2Tag[addCodePath])
-		}
-		if err := p.BatchInsert(ctx, addTags); err != nil {
-			return err
-		}
+	if len(addCodePaths) == 0 && len(delCodePaths) == 0 {
+		return nil
 	}
 
-	if len(delCodePaths) > 0 {
-		logx.DebugfContext(ctx, "SaveResourceTag - delete tag[%v]", delCodePaths)
-
-		var delTagIds []uint64
-		for _, delCodePath := range delCodePaths {
-			delTag := oldCodePath2Tag[delCodePath]
-			if delTag != nil && delTag.Id != 0 {
-				delTagIds = append(delTagIds, delTag.Id)
+	// 增删在同一事务中执行，避免部分成功导致资源标签重复挂载等脏数据
+	return p.Tx(ctx, func(ctx context.Context) error {
+		if len(addCodePaths) > 0 {
+			logx.DebugfContext(ctx, "SaveResourceTag - add tag[%v]", addCodePaths)
+			addTags := make([]*entity.TagTree, 0)
+			for _, addCodePath := range addCodePaths {
+				addTags = append(addTags, newCodePath2Tag[addCodePath])
+			}
+			if err := p.BatchInsert(ctx, addTags); err != nil {
+				return err
 			}
 		}
 
-		return p.deleteByIds(ctx, delTagIds)
-	}
+		if len(delCodePaths) > 0 {
+			logx.DebugfContext(ctx, "SaveResourceTag - delete tag[%v]", delCodePaths)
 
-	return nil
+			var delTagIds []uint64
+			for _, delCodePath := range delCodePaths {
+				delTag := oldCodePath2Tag[delCodePath]
+				if delTag != nil && delTag.Id != 0 {
+					delTagIds = append(delTagIds, delTag.Id)
+				}
+			}
+			if len(delTagIds) > 0 {
+				if err := p.DeleteById(ctx, delTagIds...); err != nil {
+					return err
+				}
+				// 删除与标签有关联信息的记录(如团队关联的标签等)
+				if err := p.tagTreeRelateApp.DeleteByCond(ctx, model.NewCond().In("tag_id", delTagIds)); err != nil {
+					return err
+				}
+			}
+		}
+
+		// 资源标签已变更，失效涉及资源的标签路径短缓存
+		for _, addCodePath := range addCodePaths {
+			if t := newCodePath2Tag[addCodePath]; t != nil {
+				cache.DelResourceTagPaths(int8(t.Type), t.Code)
+			}
+		}
+		for _, delCodePath := range delCodePaths {
+			if t := oldCodePath2Tag[delCodePath]; t != nil {
+				cache.DelResourceTagPaths(int8(t.Type), t.Code)
+			}
+		}
+		return nil
+	})
 }
 
 func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *dto.RelateTagsByCodeAndType) error {
@@ -191,7 +257,10 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *dto
 	parentTagType := param.ParentTagType
 
 	// 获取满足指定编号与类型的所有标签信息
-	parentTags, _ := p.ListByCond(&entity.TagTree{Type: parentTagType, Code: parentTagCode})
+	parentTags, err := p.ListByCond(&entity.TagTree{Type: parentTagType, Code: parentTagCode})
+	if err != nil {
+		return err
+	}
 	// 标签codePaths（相当于需要关联的标签数组的父tag）
 	parentTagCodePaths := collx.ArrayMap(parentTags, func(tag *entity.TagTree) string {
 		return tag.CodePath
@@ -220,7 +289,10 @@ func (p *tagTreeAppImpl) UpdateTagName(ctx context.Context, tagType entity.TagTy
 
 func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.TagType, tagCode string, parentTagType entity.TagType, newParentCode string) error {
 	// 获取资源编号对应的资源标签信息
-	resourceTags, _ := p.ListByCond(&entity.TagTree{Type: tagType, Code: tagCode})
+	resourceTags, err := p.ListByCond(&entity.TagTree{Type: tagType, Code: tagCode})
+	if err != nil {
+		return err
+	}
 	if len(resourceTags) == 0 {
 		logx.WarnfContext(ctx, "ChangeParentTag - [%d-%s] tag not found", tagType, tagCode)
 		return nil
@@ -232,35 +304,54 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 
 	// 获取该资源编号对应的所有子资源标签信息
 	var resourceChildrenTags []*entity.TagTree
-	p.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
+	if err := p.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
 		return tag.CodePath
-	})}, &resourceChildrenTags)
+	})}, &resourceChildrenTags); err != nil {
+		return err
+	}
 
-	// 更新父标签的codepath
-	for _, tag := range resourceChildrenTags {
-		pathSections := entity.CodePath(tag.CodePath).GetPathSections()
-		for i, ps := range pathSections {
-			if ps.Type == tagType && ps.Code == tagCode {
-				// 将父标签编号修改为对应的新编号与类型
-				pathSections[i-1].Code = newParentCode
-				pathSections[i-1].Type = parentTagType
+	// 统一在事务中变更路径，避免部分更新成功导致路径不一致
+	return p.Tx(ctx, func(ctx context.Context) error {
+		for _, tag := range resourceChildrenTags {
+			pathSections := entity.CodePath(tag.CodePath).GetPathSections()
+			for i, ps := range pathSections {
+				if ps.Type == tagType && ps.Code == tagCode {
+					// 防御：资源段前必须存在父标签段，防止越界 panic
+					if i == 0 {
+						return errorx.NewBizf("tag[%s] has no parent tag to change", tag.CodePath)
+					}
+					// 将父标签编号修改为对应的新编号与类型
+					pathSections[i-1].Code = newParentCode
+					pathSections[i-1].Type = parentTagType
+				}
 			}
-		}
 
-		tag.CodePath = pathSections.ToCodePath()
-		if err := p.UpdateById(ctx, tag); err != nil {
+			tag.CodePath = pathSections.ToCodePath()
+			if err := p.UpdateById(ctx, tag); err != nil {
+				return err
+			}
+			// 路径已变更，失效该资源的标签路径短缓存
+			cache.DelResourceTagPaths(int8(tag.Type), tag.Code)
+		}
+		return nil
+	})
+}
+
+func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelResourceTag) error {
+	// 资源标签删除时校验操作者是否有权操作该资源，防止越权删除他人资源的标签关联信息
+	if param.ResourceType != 0 && param.ResourceCode != "" {
+		if err := p.CanAccessByCode(ctx, int8(param.ResourceType), param.ResourceCode); err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelResourceTag) error {
 	// 获取资源编号对应的资源标签信息
 	cond := &entity.TagTree{Type: param.ResourceType, Code: param.ResourceCode}
 	cond.Id = param.Id
-	resourceTags, _ := p.ListByCond(cond)
+	resourceTags, err := p.ListByCond(cond)
+	if err != nil {
+		return err
+	}
 
 	if len(resourceTags) == 0 {
 		logx.DebugfContext(ctx, "TagTreeApp.DeleteTagByParam[%d-%s] - There are no deletable tags", param.ResourceType, param.ResourceCode)
@@ -269,12 +360,18 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelRes
 
 	delTagType := param.ChildType
 	var childrenTagIds []uint64
+	// codePath -> 子标签列表（用于失效路径缓存）
+	childrenTagsCache := make(map[string][]*entity.TagTree, 0)
 	for _, resourceTag := range resourceTags {
 		// 获取所有关联的子标签
-		childrenTag, _ := p.ListByCond(model.NewCond().RLike("code_path", resourceTag.CodePath).Eq("type", delTagType))
+		childrenTag, err := p.ListByCond(model.NewCond().RLike("code_path", resourceTag.CodePath).Eq("type", delTagType))
+		if err != nil {
+			return err
+		}
 		if len(childrenTag) == 0 {
 			continue
 		}
+		childrenTagsCache[resourceTag.CodePath] = childrenTag
 
 		childrenTagIds = append(childrenTagIds, collx.ArrayMap(childrenTag, func(item *entity.TagTree) uint64 {
 			return item.Id
@@ -285,11 +382,24 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelRes
 		return nil
 	}
 	// 删除code_path下的所有子标签
-	return p.deleteByIds(ctx, collx.ArrayDeduplicate(childrenTagIds))
+	if err := p.deleteByIds(ctx, collx.ArrayDeduplicate(childrenTagIds)); err != nil {
+		return err
+	}
+
+	// 失效被删除资源标签的路径短缓存（含子标签自身的类型与编码）
+	for _, resourceTag := range resourceTags {
+		cache.DelResourceTagPaths(int8(resourceTag.Type), resourceTag.Code)
+	}
+	for _, resourceTag := range resourceTags {
+		for _, child := range childrenTagsCache[resourceTag.CodePath] {
+			cache.DelResourceTagPaths(int8(child.Type), child.Code)
+		}
+	}
+	return nil
 }
 
-func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity any) {
-	p.GetRepo().SelectByCondition(condition, toEntity)
+func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity any) error {
+	return p.GetRepo().SelectByCondition(condition, toEntity)
 }
 
 func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQuery) dto.SimpleTagTrees {
@@ -303,7 +413,12 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 
 	if accountId == consts.AdminId {
 		// admin账号，获取所有root tag进行查找过滤
-		tagTypeTags, _ := p.ListByCond(&entity.TagTree{Type: entity.TagTypeTag}, "code_path")
+		tagTypeTags, err := p.ListByCond(&entity.TagTree{Type: entity.TagTypeTag}, "code_path")
+		if err != nil {
+			// 查询失败时按无可操作数据返回(fail-closed)，避免越权数据被展示
+			logx.Errorf("GetAccountTags - query admin root tags error: %v", err)
+			return tagResources
+		}
 		accountTagPaths = collx.ArrayFilter(collx.ArrayMap(tagTypeTags, func(item *entity.TagTree) string {
 			return item.CodePath
 		}), func(path string) bool {
@@ -329,69 +444,11 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 	needFilterAccountTagPaths := make(map[string][]string, 0)
 	typePaths := query.TypePaths
 	if len(typePaths) > 0 {
-		codePathLikes = []string{}
-
-		for _, typePath := range typePaths {
-			childOrderTypes := typePath.ToTagTypes()
-			// 如果不是获取所有子节点，则需要追加Type进行过滤
-			if !query.GetAllChildren {
-				tagResourceQuery.Types = append(tagResourceQuery.Types, childOrderTypes[len(childOrderTypes)-1])
-			}
-
-			// 资源类型模糊匹配，若childTypes = [machineType, authcertType]  => machineType|%/authcertType|%/
-			// 标签加上路径即可过滤出需要的标签，-> tag1/tag2/machineType|%/authcertType|%/
-			childOrderTypesMatch := strings.Join(collx.ArrayMap(childOrderTypes, func(tt entity.TagType) string {
-				return cast.ToString(int8(tt)) + entity.CodePathResourceSeparator + "%"
-			}), entity.CodePathSeparator) + entity.CodePathSeparator
-
-			// 根据用户拥有的标签路径，赋值要过滤匹配的标签类型路径
-			for _, accountTag := range accountTagPaths {
-				accountTagCodePath := entity.CodePath(accountTag)
-				// 标签路径，不包含资源段，如tag1/tag2/1|xxx => tag1/tag2/
-				tagPath := accountTagCodePath.GetTag()
-				// 纯纯的标签类型(不包含资源段)，则直接在该标签路径上补上对应的子资源类型匹配表达式
-				if tagPath == accountTagCodePath {
-					// 查询标签类型为标签时，特殊处理
-					if len(childOrderTypes) == 1 && childOrderTypes[0] == entity.TagTypeTag {
-						codePathLikes = append(codePathLikes, accountTag)
-						continue
-					}
-
-					// 纯标签可能还有其他子标签的纯标签，故需要多加一个匹配，如tagPath = tag1/，而系统还有 tag1/tag2/  tag1/tag2/tag3等，故需要多一个tag模糊匹配，即tag1/%/xxx
-					codePathLikes = append(codePathLikes, accountTag+childOrderTypesMatch, accountTag+"%"+entity.CodePathSeparator+childOrderTypesMatch)
-					continue
-				}
-
-				// 将用户有权限操作的标签如  tag1/tag2/type|code 替换为tag1/tag2/type|%，并与需要查询的资源类型进行匹配
-				accountTagCodePathSections := accountTagCodePath.GetPathSections()
-				for _, section := range accountTagCodePathSections {
-					if section.Type == entity.TagTypeTag {
-						continue
-					}
-					section.Code = "%"
-				}
-
-				// tag1/tag2/type1|%/type2|%
-				codePathLike := string(tagPath) + childOrderTypesMatch
-				accountMatchPath := accountTagCodePathSections.ToCodePath()
-				// 用户有权限操作该标签则直接添加即可
-				if entity.CodePath(accountMatchPath).CanAccess(codePathLike) {
-					codePathLikes = append(codePathLikes, accountTag)
-					continue
-				}
-
-				// 如用户分配了: "default/type1|code1/type2|code2/type3|code3/",即accountMathPath=default/type1|%/type2|%/type3/%/, 需要查询的codePathLike为: default/type1|%/type2|%/，即用户分配的标签路径是查询的子节点。
-				// 则codePathLike 使用default/type1|code1/type2|code2/去查
-				if strings.HasPrefix(accountMatchPath, codePathLike) {
-					actualMatchCodePath := accountTagCodePathSections[len(entity.CodePath(codePathLike).GetPathSections())-1].Path
-					needFilterAccountTagPaths[actualMatchCodePath] = append(needFilterAccountTagPaths[actualMatchCodePath], accountTag)
-					codePathLikes = append(codePathLikes, actualMatchCodePath)
-				}
-			}
+		var appendTypes []entity.TagType
+		codePathLikes, needFilterAccountTagPaths, appendTypes = buildTypePathFilter(accountTagPaths, typePaths, query.GetAllChildren)
+		if !query.GetAllChildren {
+			tagResourceQuery.Types = append(tagResourceQuery.Types, appendTypes...)
 		}
-
-		// 去重处理
-		codePathLikes = collx.ArrayDeduplicate(codePathLikes)
 	}
 
 	// 账号权限经过处理为空，则说明没有用户可以操作的标签，直接返回即可
@@ -401,7 +458,11 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 
 	tagResourceQuery.Codes = query.Codes
 	tagResourceQuery.CodePathLikes = codePathLikes
-	p.ListByQuery(tagResourceQuery, &tagResources)
+	if err := p.ListByQuery(tagResourceQuery, &tagResources); err != nil {
+		// 查询失败时按无可操作数据返回(fail-closed)，避免越权数据被展示
+		logx.Errorf("GetAccountTags - query resource tags error: %v", err)
+		return nil
+	}
 
 	// 获取所有子节点，并且存在需要过滤的路径，则进行过滤处理
 	if query.GetAllChildren && len(needFilterAccountTagPaths) > 0 {
@@ -421,16 +482,33 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 }
 
 func (p *tagTreeAppImpl) ListTagPathByTypeAndCode(resourceType int8, resourceCode string) []string {
-	trs, _ := p.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode})
-	return collx.ArrayMap(trs, func(tr *entity.TagTree) string {
+	// 该方法在每次资源操作鉴权（CanAccessByCode）时都会调用，加短 TTL 缓存减少 DB 往返，
+	// 资源标签变更时已主动失效
+	if paths, err := cache.GetResourceTagPaths(resourceType, resourceCode); err == nil {
+		return paths
+	}
+	trs, err := p.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode})
+	if err != nil {
+		// 查询失败时返回空(fail-closed)，避免将无标签路径的资源判定为可访问
+		logx.Errorf("ListTagPathByTypeAndCode[%d-%s] error: %v", resourceType, resourceCode, err)
+		return nil
+	}
+	paths := collx.ArrayMap(trs, func(tr *entity.TagTree) string {
 		return tr.CodePath
 	})
+	if err := cache.SaveResourceTagPaths(resourceType, resourceCode, paths); err != nil {
+		logx.Errorf("ListTagPathByTypeAndCode[%d-%s] save cache error: %v", resourceType, resourceCode, err)
+	}
+	return paths
 }
 
 func (p *tagTreeAppImpl) ListResourceTagByCode(resourceCode string) []*entity.ResourceTag {
 	// 获取资源code关联的标签列表信息
 	var tagResources []*entity.TagTree
-	p.ListByQuery(&entity.TagTreeQuery{Codes: collx.AsArray(resourceCode)}, &tagResources)
+	if err := p.ListByQuery(&entity.TagTreeQuery{Codes: collx.AsArray(resourceCode)}, &tagResources); err != nil {
+		logx.Errorf("ListResourceTagByCode[%s] error: %v", resourceCode, err)
+		return nil
+	}
 	return collx.ArrayMap(tagResources, func(tt *entity.TagTree) *entity.ResourceTag {
 		return &entity.ResourceTag{TagId: tt.Id, CodePath: string(entity.CodePath(tt.CodePath).GetTag())}
 	})
@@ -464,12 +542,15 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
 }
 
 func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
-	accountId := contextx.GetLoginAccount(ctx).Id
+	la := contextx.GetLoginAccount(ctx)
+	if la == nil {
+		return errorx.NewBiz("login account not found")
+	}
 	tag, err := p.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("tag not found")
 	}
-	if err := p.CanAccess(accountId, tag.CodePath); err != nil {
+	if err := p.CanAccess(la.Id, tag.CodePath); err != nil {
 		return errorx.NewBizI(ctx, imsg.ErrNoPermissionDeleteTag)
 	}
 
@@ -496,8 +577,9 @@ func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *dto.Resourc
 		}
 
 		tag := &entity.TagTree{
-			Code:     tagCode,
-			CodePath: fmt.Sprintf("%s%d%s%s%s", parentTag.CodePath, tagType, entity.CodePathResourceSeparator, tagCode, entity.CodePathSeparator), // tag1/tag2/1|resourceCode1/11|resourceCode2/
+			Code: tagCode,
+			// 统一走领域方法构建资源段，避免协议格式散落
+			CodePath: string(entity.CodePath(parentTag.CodePath).AppendResource(tagType, tagCode)),
 			Type:     tagType,
 			Name:     tagName,
 		}
@@ -555,21 +637,130 @@ func filterCodePaths(accountTagPaths []string, tagPaths []string) []string {
 }
 
 // hasConflictPath 判断标签路径中是否存在冲突路径，如不能同时存在tag1/tag2/tag3  tag1/  tag1/tag2等，因为拥有父级标签则拥有所有子标签资源等信息
+// 与路径顺序无关，任意两条路径存在祖先/后代(或重复)关系均判定为冲突
 func hasConflictPath(codePaths []string) bool {
 	if len(codePaths) == 0 {
 		return false
 	}
-	seen := make(map[string]bool)
-	for _, str := range codePaths {
-		parts := strings.Split(str, entity.CodePathSeparator)
-		var prefix string
-		for _, part := range parts {
-			prefix += part + entity.CodePathSeparator
-			if seen[prefix] {
+	for i, str := range codePaths {
+		for j, other := range codePaths {
+			if i == j {
+				continue
+			}
+			if strings.HasPrefix(other, str) {
 				return true
 			}
 		}
-		seen[str] = true
 	}
 	return false
+}
+
+// buildTypePathFilter 根据账号拥有的标签路径与待查询的资源类型路径，构建资源标签的codePath模糊查询条件
+// 返回值：
+//   - codePathLikes: 资源标签codePath模糊匹配条件
+//   - needFilter:    GetAllChildren模式下需对查询结果进行二次过滤的映射(实际匹配codePath -> 账号拥有的标签路径)
+//   - appendTypes:   需要追加至查询条件中的资源类型(即各类型路径的最后一段类型)，GetAllChildren时为空
+func buildTypePathFilter(accountTagPaths []string, typePaths []entity.TypePath, getAllChildren bool) ([]string, map[string][]string, []entity.TagType) {
+	codePathLikes := make([]string, 0)
+	needFilter := make(map[string][]string, 0)
+	var appendTypes []entity.TagType
+
+	for _, typePath := range typePaths {
+		childOrderTypes := typePath.ToTagTypes()
+		// 如果不是获取所有子节点，则需要追加Type进行过滤
+		if !getAllChildren {
+			appendTypes = append(appendTypes, childOrderTypes[len(childOrderTypes)-1])
+		}
+
+		// 资源类型模糊匹配，若childTypes = [machineType, authcertType]  => machineType|%/authcertType|%/
+		// 标签加上路径即可过滤出需要的标签，-> tag1/tag2/machineType|%/authcertType|%/
+		childOrderTypesMatch := strings.Join(collx.ArrayMap(childOrderTypes, func(tt entity.TagType) string {
+			return cast.ToString(int8(tt)) + entity.CodePathResourceSeparator + "%"
+		}), entity.CodePathSeparator) + entity.CodePathSeparator
+
+		// 根据用户拥有的标签路径，赋值要过滤匹配的标签类型路径
+		for _, accountTag := range accountTagPaths {
+			accountTagCodePath := entity.CodePath(accountTag)
+			// 标签路径，不包含资源段，如tag1/tag2/1|xxx => tag1/tag2/
+			tagPath := accountTagCodePath.GetTag()
+			// 纯纯的标签类型(不包含资源段)，则直接在该标签路径上补上对应的子资源类型匹配表达式
+			if tagPath == accountTagCodePath {
+				// 查询标签类型为标签时，特殊处理
+				if len(childOrderTypes) == 1 && childOrderTypes[0] == entity.TagTypeTag {
+					codePathLikes = append(codePathLikes, accountTag)
+					continue
+				}
+
+				// 纯标签可能还有其他子标签的纯标签，故需要多加一个匹配，如tagPath = tag1/，而系统还有 tag1/tag2/  tag1/tag2/tag3等，故需要多一个tag模糊匹配，即tag1/%/xxx
+				codePathLikes = append(codePathLikes, accountTag+childOrderTypesMatch, accountTag+"%"+entity.CodePathSeparator+childOrderTypesMatch)
+				continue
+			}
+
+			// 将用户有权限操作的标签如  tag1/tag2/type|code 替换为tag1/tag2/type|%，并与需要查询的资源类型进行匹配
+			accountTagCodePathSections := accountTagCodePath.GetPathSections()
+			for _, section := range accountTagCodePathSections {
+				if section.Type == entity.TagTypeTag {
+					continue
+				}
+				section.Code = "%"
+			}
+
+			// tag1/tag2/type1|%/type2|%/
+			codePathLike := string(tagPath) + childOrderTypesMatch
+			accountMatchPath := accountTagCodePathSections.ToCodePath()
+			// 用户有权限操作该标签则直接添加即可
+			if entity.CodePath(accountMatchPath).CanAccess(codePathLike) {
+				codePathLikes = append(codePathLikes, accountTag)
+				continue
+			}
+
+			// 如用户分配了: "default/type1|code1/type2|code2/type3|code3/",即accountMathPath=default/type1|%/type2|%/type3/%/, 需要查询的codePathLike为: default/type1|%/type2|%/，即用户分配的标签路径是查询的子节点。
+			// 则codePathLike 使用default/type1|code1/type2|code2/去查
+			if strings.HasPrefix(accountMatchPath, codePathLike) {
+				actualMatchCodePath := accountTagCodePathSections[len(entity.CodePath(codePathLike).GetPathSections())-1].Path
+				needFilter[actualMatchCodePath] = append(needFilter[actualMatchCodePath], accountTag)
+				codePathLikes = append(codePathLikes, actualMatchCodePath)
+			}
+		}
+	}
+
+	// 去重处理
+	return collx.ArrayDeduplicate(codePathLikes), needFilter, appendTypes
+}
+
+// CanAccessByCode 根据资源类型与资源编号校验当前登录账号是否有权操作该资源
+// 未获取到登录账号(系统内部任务调用)或管理员账号时不校验
+func (p *tagTreeAppImpl) CanAccessByCode(ctx context.Context, resourceType int8, resourceCode string) error {
+	la := contextx.GetLoginAccount(ctx)
+	if la == nil || la.Id == consts.AdminId {
+		return nil
+	}
+	return p.CanAccess(la.Id, p.ListTagPathByTypeAndCode(resourceType, resourceCode)...)
+}
+
+// checkTagPathOwner 校验当前登录账号是否拥有指定标签路径的操作权限
+// 未获取到登录账号(系统内部任务调用)或管理员账号时不校验
+func (p *tagTreeAppImpl) checkTagPathOwner(ctx context.Context, tagCodePaths ...string) error {
+	la := contextx.GetLoginAccount(ctx)
+	if la == nil || la.Id == consts.AdminId {
+		return nil
+	}
+	return p.CanAccess(la.Id, tagCodePaths...)
+}
+
+// GetAccountResourceCodes 获取账号可操作的指定类型资源code集合
+//   - tagPath 标签路径过滤条件，可为空
+//   - types 资源类型路径，如 [TagTypeMachine, TagTypeAuthCert]，返回首个类型的资源code
+func (p *tagTreeAppImpl) GetAccountResourceCodes(accountId uint64, tagPath string, types ...entity.TagType) []string {
+	if len(types) == 0 {
+		return nil
+	}
+	tags := p.GetAccountTags(accountId, &entity.TagTreeQuery{
+		TypePaths:     collx.AsArray(entity.NewTypePaths(types...)),
+		CodePathLikes: collx.AsArray(tagPath),
+	})
+	if len(tags) == 0 {
+		return nil
+	}
+	return entity.GetCodesByCodePaths(types[0], tags.GetCodePaths()...)
 }

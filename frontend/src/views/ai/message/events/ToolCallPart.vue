@@ -11,7 +11,7 @@
                 />
             </template>
             <template #extra>
-                <!-- 终态状态圆点（对齐 tokhub StatusDot：执行中/中断由图标脉冲表达） -->
+                <!-- 终态状态圆点（StatusDot：执行中/中断由图标脉冲表达） -->
                 <span v-if="statusDotClass" class="tool-call-part__dot" :class="statusDotClass" />
                 <!-- 待决策中断：warning 徽章；已决策中断：决议色小徽章（对齐 ResumeStatusBadge） -->
                 <span v-if="pendingInterrupt" class="tool-call-part__badge bg-warning/10 text-warning border-warning/20">
@@ -46,7 +46,7 @@
             </div>
         </CollapsibleSection>
 
-        <!-- 内联中断组件：始终可见（对齐 tokhub ToolCallEntry 内联中断，组件自带 Card 外壳） -->
+        <!-- 内联中断组件：始终可见（ToolCallEntry 内联中断，组件自带 Card 外壳） -->
         <div v-if="pendingInterrupt" class="tool-call-part__interrupt">
             <component
                 :is="getInterruptComponent(pendingInterrupt.type)"
@@ -62,7 +62,7 @@
 <script setup lang="ts">
 /**
  * ToolCallPart - 工具调用展示组件
- * 对齐 tokhub ToolCallEntry：固定 Wrench 图标 + 执行中脉冲 + 终态语义色圆点 +
+ * ToolCallEntry：固定 Wrench 图标 + 执行中脉冲 + 终态语义色圆点 +
  * 决议/耗时 meta，CollapsibleSection 折叠详情；状态视觉不走大徽章
  */
 import { WrenchIcon } from '@lucide/vue';
@@ -84,7 +84,7 @@ const props = defineProps<{
     durationMs?: number;
     toolCallId?: string;
     turnId?: string;
-    /** 恢复决策类型（对齐 tokhub extra.interrupt.resume.type，历史回放的权威数据源） */
+    /** 恢复决策类型（extra.interrupt.resume.type，历史回放的权威数据源） */
     resumeType?: string;
     pendingInterrupts?: InterruptEvent[];
 }>();
@@ -107,7 +107,7 @@ const remarkText = computed(() => {
     }
 });
 
-/** 匹配当前工具调用的待处理中断（对齐 tokhub ToolCallEntry.interrupt）
+/** 匹配当前工具调用的待处理中断（ToolCallEntry.interrupt）
  *  已决策的中断不再渲染待审批表单（决策状态已双写到 part） */
 const pendingInterrupt = computed(() => {
     if (!props.pendingInterrupts?.length || !props.toolCallId) return undefined;
@@ -120,13 +120,13 @@ const handleInterruptAction: InterruptActionHandler = (action) => {
     emit('interrupt-action', action);
 };
 
-/** 待决策徽章文案：委托类型 handler 覆盖（对齐 tokhub getPendingLabel），回退通用文案 */
+/** 待决策徽章文案：委托类型 handler 覆盖（getPendingLabel），回退通用文案 */
 const pendingBadgeLabel = computed(() => {
     const handler = pendingInterrupt.value ? getInterruptHandler(pendingInterrupt.value.type) : undefined;
     return handler?.getPendingLabel?.(t) ?? t('common.waitingInput');
 });
 
-// ==================== 状态 meta（对齐 tokhub STATUS_DOT_COLORS / ResumeStatusBadge） ====================
+// ==================== 状态 meta（STATUS_DOT_COLORS / ResumeStatusBadge） ====================
 
 /** 执行中：pending/running 均视为执行中（图标脉冲表达，不显示圆点） */
 const isRunning = computed(
@@ -141,7 +141,7 @@ const DOT_CLASSES: Record<string, string> = {
 };
 const statusDotClass = computed(() => DOT_CLASSES[props.status]);
 
-/** 通用决议徽章配置（对齐 tokhub RESUME_STATUS_CONFIG，i18n key + 语义色淡底） */
+/** 通用决议徽章配置（RESUME_STATUS_CONFIG，i18n key + 语义色淡底） */
 const RESUME_STATUS_CONFIG: Record<string, { class: string; labelKey: string }> = {
     [InterruptResumeStatus.Approved]: {
         class: 'bg-success/10 text-success border-success/20',
@@ -169,7 +169,7 @@ const RESUME_STATUS_CONFIG: Record<string, { class: string; labelKey: string }> 
     },
 };
 
-/** 解析决议徽章（对齐 tokhub：handler 覆盖 → 通用配置 → 未知状态归入 cancelled 灰色） */
+/** 解析决议徽章（handler 覆盖 → 通用配置 → 未知状态归入 cancelled 灰色） */
 function resumeBadgeOf(status: string, interruptType?: string) {
     const handler = interruptType ? getInterruptHandler(interruptType) : undefined;
     const override = handler?.getResumeBadge?.(status, t);
@@ -196,7 +196,7 @@ const decidedBadge = computed(() => {
     return resumeBadgeOf(decided.status ?? '', decided.type);
 });
 
-/** 耗时展示：<1s 显示 ms，否则 s（对齐 tokhub durationMs 格式） */
+/** 耗时展示：<1s 显示 ms，否则 s（durationMs 格式） */
 const durationText = computed(() => {
     if (!props.durationMs) return '';
     return props.durationMs < 1000 ? `${props.durationMs}ms` : `${(props.durationMs / 1000).toFixed(1)}s`;
@@ -247,7 +247,7 @@ const durationText = computed(() => {
     animation: tool-call-pulse 1.6s ease-in-out infinite;
 }
 
-/* 执行中标题提亮一档（对齐 tokhub isRunning 分层） */
+/* 执行中标题提亮一档（isRunning 分层） */
 .tool-call-part--running :deep(.collapsible-section__title) {
     color: var(--el-text-color-regular);
 }
@@ -306,7 +306,7 @@ const durationText = computed(() => {
     word-break: break-all;
 }
 
-/* 参数/结果面板：圆角描边淡底 + 面板内独立滚动（基础参考 tokhub max-h-24，
+/* 参数/结果面板：圆角描边淡底 + 面板内独立滚动（max-h-24，
    放宽到 160px 并作为唯一滚动层：外层不再裁剪，确保长内容可完整滚动查看） */
 .tool-call-part__panel {
     border: 1px solid color-mix(in srgb, var(--el-border-color) 40%, transparent);

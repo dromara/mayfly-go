@@ -14,7 +14,7 @@ import (
 
 // compactionRecorder 压缩事件项记录器
 // 订阅 session 摘要完成事件，将每次上下文压缩以 context_compaction 类型的
-// TurnItem 落库到当前 turn 时间线（对齐 tokhub 的 ContextCompaction item），
+// TurnItem 落库到当前 turn 时间线（ContextCompaction item），
 // 前端据此渲染"上下文已压缩"节点；payload 不参与 LLM 上下文重建
 type compactionRecorder struct {
 	turnItemRepo repository.TurnItem `inject:"T"`

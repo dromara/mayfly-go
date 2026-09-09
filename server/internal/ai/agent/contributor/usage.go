@@ -17,7 +17,7 @@ type TokenUsageInput struct {
 	Cause TurnEndCause
 }
 
-// TokenUsageContributor token 用量回调贡献者（唯一出口，对齐 tokhub TokenUsageContributor）
+// TokenUsageContributor token 用量回调贡献者（唯一出口，TokenUsageContributor）
 //
 // Agent 在轮次结束时（含异常终止/中断挂起）回调一次；计量、计费、统计类
 // 扩展经此通道接入，宿主无需感知具体扩展。

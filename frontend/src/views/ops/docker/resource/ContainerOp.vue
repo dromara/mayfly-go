@@ -12,6 +12,7 @@
     </div>
 </template>
 <script lang="ts" setup>
+import type { ContainerOpTabApi } from './index';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
 
 const ContainerList = defineAsyncComponent(() => import('../container/ContainerList.vue'));
@@ -46,7 +47,7 @@ defineExpose({
     init: function (id: number) {
         containerConfId.value = id;
     },
-});
+} satisfies ContainerOpTabApi);
 </script>
 
 <style lang="scss" scoped>

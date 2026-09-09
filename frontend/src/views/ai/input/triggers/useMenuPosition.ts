@@ -1,5 +1,5 @@
 /**
- * 触发器浮层定位 composable（对齐 tokhub TriggerMenu 的 floating-ui 定位）
+ * 触发器浮层定位 composable（TriggerMenu 的 floating-ui 定位）
  *
  * 以编辑器光标坐标构造 virtual element，floating-ui 计算浮层位置；
  * autoUpdate 监听浮层尺寸变化重算（资源树懒加载展开后底边仍贴光标上方向上生长）。

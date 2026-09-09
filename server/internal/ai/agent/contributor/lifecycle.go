@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-// TurnEndCause 轮次结束原因（对齐 tokhub TurnEndInput::cause，按因施策）
+// TurnEndCause 轮次结束原因（TurnEndInput::cause，按因施策）
 type TurnEndCause string
 
 const (
@@ -42,7 +42,6 @@ type TurnEndInput struct {
 //     异常终止 / 主动中止 / 中断挂起，按因施策
 //
 // 实现应无状态或自行保证并发安全（每轮生命周期都会调用）。
-// 对齐 tokhub TurnLifecycleContributor。
 type TurnLifecycleContributor interface {
 	Contributor
 	// OnTurnStart 轮次开始时调用

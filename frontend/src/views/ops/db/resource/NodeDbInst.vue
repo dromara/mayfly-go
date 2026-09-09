@@ -1,39 +1,44 @@
 <template>
-    <BaseTreeNode v-bind="$attrs">
-        <template #prefix="{ data }">
-            <el-popover @show="showDbInfo(data.params)" :show-after="500" placement="right-start" :title="$t('db.dbInstInfo')" trigger="hover" :width="250">
+    <TreeNodeRow :data="data" :show-actions="showActions">
+        <template #prefix="{ data: d }">
+            <el-popover @show="showDbInfo(d.params)" :show-after="500" placement="right-start" :title="$t('db.dbInstInfo')" trigger="hover" :width="250">
                 <template #reference>
-                    <SvgIcon :name="getDbDialect(data.params.type as string).getInfo().icon" :size="18" />
+                    <SvgIcon :name="getDbDialect(d.params?.type as string)?.getInfo().icon" :size="18" />
                 </template>
                 <template #default>
                     <el-descriptions :column="1" size="small">
                         <el-descriptions-item :label="$t('common.name')">
-                            {{ data.params.name }}
+                            {{ d.params?.name }}
                         </el-descriptions-item>
                         <el-descriptions-item label="Host">
-                            {{ `${data.params.host}:${data.params.port}` }}
+                            {{ `${d.params?.host}:${d.params?.port}` }}
                         </el-descriptions-item>
                         <el-descriptions-item label="version">
                             <span v-loading="loadingServerInfo"> {{ `${dbServerInfo?.version}` }}</span>
                         </el-descriptions-item>
-                        <!-- <el-descriptions-item :label="$t('db.acName')">
-                            {{ data.params.authCertName }}
-                        </el-descriptions-item> -->
                         <el-descriptions-item :label="$t('common.remark')">
-                            {{ data.params.remark }}
+                            {{ d.params?.remark }}
                         </el-descriptions-item>
                     </el-descriptions>
                 </template>
             </el-popover>
         </template>
-    </BaseTreeNode>
+    </TreeNodeRow>
 </template>
 
 <script lang="ts" setup>
 import { ref } from 'vue';
+
+import SvgIcon from '@/components/svg-icon/index.vue';
+import TreeNodeRow from '@/views/ops/resource/tree/TreeNodeRow.vue';
+import type { TreeNode } from '@/views/ops/resource/tree/types';
 import { dbApi } from '../api';
 import { getDbDialect } from '../dialect/index';
-import BaseTreeNode from '@/views/ops/resource/BaseTreeNode.vue';
+
+defineProps<{
+    data: TreeNode;
+    showActions?: boolean;
+}>();
 
 const serverInfoReqParam = ref({
     instanceId: 0,

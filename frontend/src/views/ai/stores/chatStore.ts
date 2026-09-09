@@ -1,6 +1,6 @@
 /**
  * Chat Store - 按 conversationId 隔离状态（parts 驱动）
- * 对齐 tokhub 的 Zustand chatStore + MessagePart 模型
+ * Zustand chatStore + MessagePart 模型
  *
  * 核心设计：
  * - 按 convId 隔离的 ConvSlice：messages, pendingInterrupts, streaming 状态
@@ -50,7 +50,7 @@ export interface ConvSlice {
     currentAssistantMsgId: string | null;
     /** 消息队列：Agent 未完全空闲时新消息入队 */
     queuedMessages: QueuedMessage[];
-    /** 滚动锚点：离开时视口顶部可见消息 ID + 视口内偏移（对齐 tokhub scrollAnchorStore） */
+    /** 滚动锚点：离开时视口顶部可见消息 ID + 视口内偏移（scrollAnchorStore） */
     scrollAnchor: ScrollAnchor | null;
 }
 
@@ -190,11 +190,11 @@ export const useChatStore = defineStore('ai-chat', () => {
             }
             for (const itemVO of latestGroup.items) {
                 const item = itemVO.item;
-                // 中断信息存于 tool_call item 的 extra 列（对齐 tokhub，不产生独立 internal item）
+                // 中断信息存于 tool_call item 的 extra 列（不产生独立 internal item）
                 if (!item || item.type !== 'tool_call') continue;
                 const itemExtra = itemVO.extra;
                 const interruptInfo = itemExtra?.interrupt as Record<string, unknown> | undefined;
-                // kind 为中断类型短名（approval / param_completion，对齐 tokhub）
+                // kind 为中断类型短名（approval / param_completion）
                 const kind = interruptInfo ? String(interruptInfo.kind || '') : '';
                 if (!kind) continue;
                 // 尝试用各处理器恢复中断
@@ -505,7 +505,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         return hadStreaming;
     }
 
-    /** turn 结束时清除流式状态（对齐 tokhub cleanupStream） */
+    /** turn 结束时清除流式状态（cleanupStream） */
     function finalizeTurn(convId: number, turnId: string) {
         const slice = getOrCreateSlice(convId);
         // 清除 assistant 消息的 streaming 标志
@@ -561,7 +561,7 @@ export const useChatStore = defineStore('ai-chat', () => {
                 };
             case 'tool_call': {
                 if (!item.tool_call_id) return null;
-                // 恢复决策类型：历史路径从 item extra.interrupt.resume 还原（对齐 tokhub，
+                // 恢复决策类型：历史路径从 item extra.interrupt.resume 还原（
                 // 决策内嵌于 interrupt 对象）；实时路径无 extra，由已决策中断继承
                 const interruptInfo = extra?.interrupt as Record<string, unknown> | undefined;
                 const resume = interruptInfo?.resume as Record<string, unknown> | undefined;
@@ -638,14 +638,14 @@ export const useChatStore = defineStore('ai-chat', () => {
         return (slice?.queuedMessages.length ?? 0) > 0;
     }
 
-    /** 从队列移除指定消息（对齐 tokhub removeQueuedMessage） */
+    /** 从队列移除指定消息（removeQueuedMessage） */
     function removeQueuedMessage(convId: number, messageId: string) {
         const slice = convs.get(convId);
         if (!slice) return;
         slice.queuedMessages = slice.queuedMessages.filter((m) => m.id !== messageId);
     }
 
-    /** 队列拖拽重排序（对齐 tokhub reorderQueuedMessage） */
+    /** 队列拖拽重排序（reorderQueuedMessage） */
     function reorderQueuedMessage(convId: number, fromIndex: number, toIndex: number) {
         const slice = convs.get(convId);
         if (!slice) return;
@@ -655,7 +655,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         list.splice(toIndex, 0, moved);
     }
 
-    /** 记录会话滚动锚点（视口顶部可见消息 + 偏移，对齐 tokhub scrollAnchorStore） */
+    /** 记录会话滚动锚点（视口顶部可见消息 + 偏移，scrollAnchorStore） */
     function setScrollAnchor(convId: number, anchor: ScrollAnchor) {
         getOrCreateSlice(convId).scrollAnchor = anchor;
     }

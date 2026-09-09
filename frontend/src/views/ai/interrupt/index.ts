@@ -1,6 +1,6 @@
 /**
  * 中断模块统一导出
- * 对齐 tokhub interrupts/index.ts：单一注册表，按中断类型查找处理器
+ * interrupts/index.ts：单一注册表，按中断类型查找处理器
  * （业务逻辑 + UI 操作组件同源，经 handler.component 渲染）。
  *
  * 目录约定：

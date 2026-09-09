@@ -9,7 +9,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// Token 预算机制（对齐 tokhub token_budget.rs / compactor.rs 的窗口感知策略）：
+// Token 预算机制（token_budget.rs / compactor.rs 的窗口感知策略）：
 //
 //   - 预留 20% 输出空间后计算历史可用预算（reservedOutputRatio）
 //   - 历史估算 token 超过可用预算 80% 时，后台触发一次增量摘要（LlmComp 前置检查）
@@ -18,11 +18,11 @@ import (
 //
 // token 估算采用字符口径（与 Manager.estimateTokens 同源），仅用于压缩决策。
 const (
-	// reservedOutputRatio 输出预留占上下文窗口的比例（1/5，对齐 tokhub 输出预留 20%）
+	// reservedOutputRatio 输出预留占上下文窗口的比例（1/5，输出预留 20%）
 	reservedOutputRatio = 5
 	// softBudgetRatio 软阈值：超过可用预算的 (softBudgetRatio-1)/softBudgetRatio（即 80%）时后台触发摘要
 	softBudgetRatio = 4
-	// midTurnHistoryRatio 紧急裁剪后历史目标占窗口比例（1/2，对齐 tokhub MID_TURN_HISTORY_RATIO）
+	// midTurnHistoryRatio 紧急裁剪后历史目标占窗口比例
 	midTurnHistoryRatio = 2
 )
 
@@ -40,7 +40,7 @@ func (m *Manager) enforceContextWindow(ctx context.Context, key string, messages
 	return compacted
 }
 
-// CompactMidTurn mid-turn 紧急压缩（对齐 tokhub try_mid_turn_compaction 通道的内置实现）
+// CompactMidTurn mid-turn 紧急压缩（try_mid_turn_compaction 通道的内置实现）
 //
 // 由历史贡献者在 preamble 与合并后 history 均就绪后调用（含 preamble 占用口径）：
 //   - 估算总量（preamble + history + 输出预留）超过阈值时触发
@@ -85,7 +85,7 @@ func (m *Manager) CompactMidTurn(ctx context.Context, key string, messages []*Me
 	return messages, false
 }
 
-// trimToBudget 从尾部保留预算内的消息（对齐 tokhub Compactor::compact_mid_turn）
+// trimToBudget 从尾部保留预算内的消息
 //
 //   - 头部摘要类 system 消息（若有）始终保留
 //   - 保留区起点向后修正，避免保留区以孤立的 tool 结果消息开头

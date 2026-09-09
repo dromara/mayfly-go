@@ -131,3 +131,23 @@
         opacity: 1;
     }
 }
+
+/* 统一缓动 token（PRODUCT.md：指数 ease-out、150–300ms、无弹跳）
+------------------------------- */
+:root {
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 系统级减弱动态效果：所有动画/过渡瞬时完成（可访问性兜底，全局覆盖）
+------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -6,7 +6,7 @@ import (
 	"mayfly-go/internal/ai/session"
 )
 
-// HistoryBuildContext 历史贡献上下文（对齐 tokhub HistoryBuildContext）
+// HistoryBuildContext 历史贡献上下文
 //
 // 仅携带 HistoryContributor 实际消费的信息；新增字段须以真实消费方为前提。
 type HistoryBuildContext struct {
@@ -24,8 +24,7 @@ type HistoryBuildContext struct {
 // ## 合并语义（Registry dispatch 负责）
 //
 // 多个贡献者按注册顺序各自返回消息段，Registry 拼接后**统一做一次
-// NormalizeHistory**（配对修复必须对最终全量列表执行，对齐 tokhub
-// build_histories dispatch）。典型贡献内容：
+// NormalizeHistory**（配对修复必须对最终全量列表执行）。典型贡献内容：
 //   - 会话历史扩展：压缩摘要（[之前的对话摘要] 前缀）+ 未摘要的近期消息
 //   - 未来扩展：跨会话召回段、钉选消息段等
 //

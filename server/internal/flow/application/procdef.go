@@ -43,7 +43,7 @@ type procdefAppImpl struct {
 	procinstApp Procinst `inject:"T"`
 
 	msgTmplBizApp    msgapp.MsgTmplBiz    `inject:"T"`
-	tagTreeApp       tagapp.TagTree       `inject:"T"`
+	tagTreeApp       tagapp.TagTreeReader `inject:"T"`
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
 }
 

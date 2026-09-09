@@ -19,7 +19,7 @@ type TurnItem interface {
 	SelectByTurnId(ctx context.Context, conversationId uint64, turnId string) ([]*entity.TurnItem, error)
 
 	// UpdateResumedToolCallItem 恢复路径将挂起的 tool_call item 更新至真实终态
-	// （对齐 tokhub update_item_status：按原 item 定位同一行，status/payload 回写为
+	// （update_item_status：按原 item 定位同一行，status/payload 回写为
 	// 真实执行结果，extra 仅 merge interrupt.resume，保留挂起时的 kind/request_id 等）
 	UpdateResumedToolCallItem(ctx context.Context, conversationId uint64, item *entity.TurnItem, resume *protocol.InterruptResume) error
 }
@@ -54,7 +54,7 @@ func (t *turnItemAppImpl) UpdateResumedToolCallItem(ctx context.Context, convers
 	row.Status = item.Status
 	row.Payload = item.Payload
 
-	// extra merge_patch 语义（对齐 tokhub）：仅回填 interrupt.resume，
+	// extra merge_patch 语义：仅回填 interrupt.resume，
 	// 保留挂起时写入的 kind/request_id/metadata 等字段
 	if resume != nil {
 		info := interruptInfoOf(row)

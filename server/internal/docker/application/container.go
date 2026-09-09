@@ -34,12 +34,10 @@ type Container interface {
 type containerAppImpl struct {
 	base.AppImpl[*entity.Container, repository.Container]
 
-	tagApp tagapp.TagTree `inject:"T"`
+	tagApp tagapp.TagTreeService `inject:"T"`
 }
 
 var _ Container = (*containerAppImpl)(nil)
-
-var _ (Container) = (*containerAppImpl)(nil)
 
 func (c *containerAppImpl) GetContainerPage(condition *entity.ContainerQuery, orderBy ...string) (*model.PageResult[*entity.Container], error) {
 	return c.Repo.GetContainerPage(condition, orderBy...)
@@ -85,6 +83,11 @@ func (c *containerAppImpl) SaveContainer(ctx context.Context, saveContainer *dto
 	}
 	if oldContainer.Code == "" {
 		oldContainer, _ = c.GetById(container.Id)
+	}
+
+	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
+	if err := c.tagApp.CanAccessByCode(ctx, int8(resourceType), oldContainer.Code); err != nil {
+		return err
 	}
 
 	dkm.CloseCli(oldContainer.Id)
@@ -133,11 +136,16 @@ func (c *containerAppImpl) DeleteContainer(ctx context.Context, id uint64) error
 }
 
 func (c *containerAppImpl) GetContainerCli(ctx context.Context, id uint64) (*dkm.Client, error) {
+	// 连接层统一进行数据权限校验，避免各操作接口遗漏鉴权
+	containerConf, err := c.GetById(id)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.tagApp.CanAccessByCode(ctx, int8(tagentity.TagTypeContainer), containerConf.Code); err != nil {
+		return nil, err
+	}
+
 	return dkm.GetCli(id, func(u uint64) (*dkm.ContainerServer, error) {
-		containerConf, err := c.GetById(u)
-		if err != nil {
-			return nil, err
-		}
 		return &dkm.ContainerServer{
 			Id:   id,
 			Addr: containerConf.Addr,

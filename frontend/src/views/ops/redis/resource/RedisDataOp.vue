@@ -140,6 +140,7 @@ import { ElMessageBox } from 'element-plus';
 import { defineAsyncComponent, nextTick, onMounted, reactive, ref, Ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { redisApi } from '../api';
+import type { RedisOpTabApi } from './index';
 import { RedisInst } from '../redis';
 import { keysToList, keysToTree, sortByTreeNodes } from '../utils';
 
@@ -517,7 +518,7 @@ const onRefresh = () => {
 defineExpose({
     onDbClick,
     onRefresh,
-});
+} satisfies RedisOpTabApi);
 </script>
 
 <style lang="scss" scoped>
