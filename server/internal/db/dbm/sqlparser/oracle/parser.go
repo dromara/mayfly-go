@@ -15,9 +15,7 @@ type Parser struct {
 
 // NewParser 创建 Oracle 解析器
 func NewParser(sql string) *Parser {
-	p := &Parser{Lexer: base.NewLexer(sql, tokenizer.DialectConfig{
-		DoubleQuoteAsIdentifier: true,
-	})}
+	p := &Parser{Lexer: base.NewLexer(sql, tokenizer.OracleConfig)}
 	// 注入子查询解析回调：条件表达式中的(SELECT...)可建SelectStmt树
 	p.SelectParser = func() (*sqlstmt.SelectStmt, bool) {
 		st := p.parseSelect()

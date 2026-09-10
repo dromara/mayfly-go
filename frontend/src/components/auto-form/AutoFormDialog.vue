@@ -1,5 +1,5 @@
 <template>
-    <el-dialog :title="props.title" v-model="visible" :show-close="false" :before-close="onCancel" :width="props.width" :destroy-on-close="true" :close-on-click-modal="props.closeOnClickModal">
+    <ADialog :title="props.title" v-model="visible" :show-close="false" :before-close="onCancel" :width="props.width" :destroy-on-close="true" :close-on-click-modal="props.closeOnClickModal">
         <AutoForm ref="autoFormRef" v-model="state.form" :items="items" :tabs="props.tabs" :cols="props.cols" :label-position="labelPosition" v-model:active-tab="activeTab" v-bind="$attrs">
             <!-- 透传父组件插槽给 AutoForm（自定义字段渲染） -->
             <template v-for="(_, key) in slots" #[key]="scope">
@@ -12,15 +12,16 @@
 
         <template #footer>
             <div class="dialog-footer">
-                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="confirming || props.confirmLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
+                <AButton @click="onCancel()">{{ $t('common.cancel') }}</AButton>
+                <AButton type="primary" :loading="confirming || props.confirmLoading" @click="onConfirm">{{ $t('common.confirm') }}</AButton>
             </div>
         </template>
-    </el-dialog>
+    </ADialog>
 </template>
 
 <script lang="ts" setup>
 import { useSlots, useTemplateRef } from 'vue';
+import { ADialog, AButton } from './ui/adapter';
 import AutoForm from './AutoForm.vue';
 import { useAutoFormHost } from '@/hooks/useAutoFormHost';
 import type { AutoFormJsonSchema, JsonField } from './json';

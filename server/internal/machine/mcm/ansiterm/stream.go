@@ -202,7 +202,6 @@ func (s *Stream) parseFsm() {
 					s.Listener.defineCharset(code, char)
 				} else {
 					s.HandleEscape(char)
-					s.HandleEscape(char)
 				}
 				continue
 			}
@@ -269,12 +268,13 @@ func (s *Stream) parseFsm() {
 					param += char
 				}
 			}
-			param = param[:1]
-			if strings.Contains("01", code) {
-				s.Listener.setIconName(param)
-			}
-			if strings.Contains("02", code) {
-				s.Listener.setTitle(param)
+			if len(param) > 0 {
+				if strings.Contains("01", code) {
+					s.Listener.setIconName(param)
+				}
+				if strings.Contains("02", code) {
+					s.Listener.setTitle(param)
+				}
 			}
 		} else if strings.Contains(NulOrDel, char) {
 			s.Listener.Draw(char)

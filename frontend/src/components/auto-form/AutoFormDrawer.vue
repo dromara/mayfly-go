@@ -1,5 +1,5 @@
 <template>
-    <el-drawer v-model="visible" :size="props.size" :direction="props.direction" :destroy-on-close="true" :before-close="onCancel" :append-to-body="props.appendToBody" :close-on-click-modal="props.closeOnClickModal">
+    <ADrawer v-model="visible" :size="props.size" :direction="props.direction" :destroy-on-close="true" :before-close="onCancel" :append-to-body="props.appendToBody" :close-on-click-modal="props.closeOnClickModal">
         <template #header>
             <!-- 统一头部：返回箭头 + 标题（对齐 DrawerHeader 全站样式）；header-extra 插槽渲染头部右侧操作区 -->
             <DrawerHeader :header="props.title" :back="onCancel">
@@ -23,15 +23,16 @@
         </template>
         <template v-else #footer>
             <div class="drawer-footer">
-                <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="confirming || props.confirmLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
+                <AButton @click="onCancel()">{{ $t('common.cancel') }}</AButton>
+                <AButton type="primary" :loading="confirming || props.confirmLoading" @click="onConfirm">{{ $t('common.confirm') }}</AButton>
             </div>
         </template>
-    </el-drawer>
+    </ADrawer>
 </template>
 
 <script lang="ts" setup>
 import { useSlots, useTemplateRef } from 'vue';
+import { ADrawer, AButton } from './ui/adapter';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import AutoForm from './AutoForm.vue';
 import { useAutoFormHost } from '@/hooks/useAutoFormHost';

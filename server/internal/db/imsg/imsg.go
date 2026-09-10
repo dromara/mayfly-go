@@ -31,6 +31,7 @@ const (
 	ErrExistRunFailSql
 	ErrNeedSubmitWorkTicket
 	ErrSqlExecCancelled
+	ErrSqlSplitUnterminated
 
 	// db transfer
 	LogDtsSave

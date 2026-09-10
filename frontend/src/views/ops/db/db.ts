@@ -2,6 +2,7 @@ import { languages, type IRange } from 'monaco-editor';
 import { dbApi } from './api';
 import type { DbTableInfo, ColumnMetadata, DbInstInfo, DbNamesParam } from './types';
 import SqlExecBox from './component/sqleditor/SqlExecBox';
+import { buildColumnSuggestion, buildTableSuggestion } from './services/completion/format';
 
 import { Msg } from '@/hooks/useI18n';
 import { type RemovableRef, useLocalStorage } from '@vueuse/core';
@@ -115,21 +116,10 @@ export class DbInst {
      */
     async loadTableSuggestions(dbName: string, range: IRange, reload?: boolean) {
         const tables = await this.loadTables(dbName, reload);
-        // 表名联想
+        // 表名联想：label 为表名，右侧灰显注释
         let suggestions: languages.CompletionItem[] = [];
         tables?.forEach((tableMeta: DbTableInfo, index: number) => {
-            const { tableName, tableComment } = tableMeta;
-            suggestions.push({
-                label: {
-                    label: tableName + ' - ' + tableComment,
-                    description: 'table',
-                },
-                kind: languages.CompletionItemKind.File,
-                detail: tableComment,
-                insertText: tableName,
-                range,
-                sortText: 300 + index + '',
-            });
+            suggestions.push(buildTableSuggestion(tableMeta, index, range));
         });
         return { suggestions };
     }
@@ -148,19 +138,7 @@ export class DbInst {
         let suggestions: languages.CompletionItem[] = [];
         columns?.forEach((a: string, index: number) => {
             // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
-            const nameAndComment = a.split('  ');
-            const fieldName = nameAndComment[0];
-            suggestions.push({
-                label: {
-                    label: a,
-                    description: 'column',
-                },
-                kind: languages.CompletionItemKind.Property,
-                detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: fieldName, // create_time
-                range,
-                sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
-            });
+            suggestions.push(buildColumnSuggestion(a, index, range));
         });
 
         return { suggestions };

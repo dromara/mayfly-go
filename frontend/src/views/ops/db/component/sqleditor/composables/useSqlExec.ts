@@ -7,7 +7,7 @@ import { useI18n } from 'vue-i18n';
 
 import { DbInst } from '../../../db';
 import type { SqlExecRes, SqlExecResColumn, TableColumnDef } from '../../../types';
-import { getCurrentStatement, splitSqlStatements } from '../utils/sqlParser';
+import { getCurrentStatement, getSqlSplitOptions, splitSqlStatements } from '../utils/sqlParser';
 
 /** DbTableData 组件通过 defineExpose 暴露的方法 */
 export interface DbTableDataRef {
@@ -324,6 +324,9 @@ export function useSqlExec(options: UseSqlExecOptions) {
             return [];
         }
 
+        // 按方言切割语义，感知反引号/#注释/dollar-quote/字符串转义中的分号（切割错误会导致执行错误SQL）
+        const splitOpts = getSqlSplitOptions(getNowDbInst().type);
+
         let sql = '' as string | undefined;
         // 选择选中的sql
         let selection = monacoEditor.getSelection();
@@ -334,7 +337,7 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
         // 如果有选中的内容且不为空，直接返回
         if (sql && sql.trim()) {
-            return splitSqlStatements(sql).map((x) => x.text);
+            return splitSqlStatements(sql, ';', splitOpts).map((x) => x.text);
         }
 
         // 没有选中任何内容时，自动选择当前光标所在的SQL语句行
@@ -343,7 +346,7 @@ export function useSqlExec(options: UseSqlExecOptions) {
             const model = monacoEditor.getModel();
             if (model) {
                 const fullSql = model.getValue();
-                const sqlStatement = getCurrentStatement(fullSql, currentPosition, model);
+                const sqlStatement = getCurrentStatement(fullSql, currentPosition, model, splitOpts);
                 if (sqlStatement) {
                     return [sqlStatement];
                 }

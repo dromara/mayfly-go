@@ -315,5 +315,19 @@ defineExpose({ getEditor, format, focus });
 
     border: 1px solid var(--el-border-color-light, #ebeef5);
     width: 100%;
+
+    /*
+     * 修复 find 挂件按钮 tooltip 持续闪烁（根因修复）：
+     * monaco 的 ContextView.doLayout 先在 left:0 处测量 hover 尺寸，之后才设置 style.left；
+     * .context-view 为绝对定位，其收缩适配宽度受容器剩余宽度限制，靠左测量时文本为单行，
+     * 定位到编辑器右缘（如关闭按钮）后剩余宽度不足导致文本折行、高度变大，
+     * 而 monaco 对纯文本 hover 不会重新布局，仍按单行高度做 ABOVE 定位，
+     * 使 tooltip 盖住触发按钮，引发合成 mouseout/mouseover 循环闪烁。
+     * 固定为 max-content 宽度后测量值与最终渲染一致，定位恢复正确。
+     */
+    :deep(.context-view:has(.monaco-hover)) {
+        /* doLayout 会写内联 style.width='initial'，必须用 !important 覆盖 */
+        width: max-content !important;
+    }
 }
 </style>

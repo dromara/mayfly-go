@@ -53,6 +53,20 @@ func (ssg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 	return sqlArr
 }
 
+// sqliteImplicitIndexPrefix 约束（如UNIQUE）自动生成的隐式索引名前缀
+const sqliteImplicitIndexPrefix = "sqlite_autoindex_"
+
+// ddlIndexName 返回用于重建的索引名。
+//
+// sqlite_ 前缀为内核保留，以 sqlite_autoindex_* 原名执行CREATE INDEX会报
+// “object name reserved for internal use”，且该索引不可被DROP，故迁移产物中以idx_别名重建
+func ddlIndexName(indexName string) string {
+	if rest := strings.TrimPrefix(indexName, sqliteImplicitIndexPrefix); rest != indexName && rest != "" {
+		return "idx_" + rest
+	}
+	return indexName
+}
+
 func (ssg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
 	quoter := ssg.dialect.Quoter()
 	quote := quoter.QuoteIdent
@@ -63,17 +77,18 @@ func (ssg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 		if index.IsUnique {
 			unique = "unique"
 		}
+		name := ddlIndexName(index.IndexName)
 		// 取出列名，添加引号
 		cols := strings.Split(index.ColumnName, ",")
 		colNames := make([]string, len(cols))
-		for i, name := range cols {
-			colNames[i] = quote(name)
+		for i, col := range cols {
+			colNames[i] = quote(col)
 		}
 		// 创建前尝试删除（索引名必须走quote，硬编码引号会让含双引号的名称提前闭合）
-		sqls = append(sqls, fmt.Sprintf("DROP INDEX IF EXISTS %s", quote(index.IndexName)))
+		sqls = append(sqls, fmt.Sprintf("DROP INDEX IF EXISTS %s", quote(name)))
 
 		sqlTmp := "CREATE %s INDEX %s ON %s (%s) "
-		sqls = append(sqls, fmt.Sprintf(sqlTmp, unique, quote(index.IndexName), quote(table.TableName), strings.Join(colNames, ",")))
+		sqls = append(sqls, fmt.Sprintf(sqlTmp, unique, quote(name), quote(table.TableName), strings.Join(colNames, ",")))
 	}
 
 	return sqls

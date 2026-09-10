@@ -7,31 +7,49 @@ var _ dbi.CommonTypeConverter = (*commonTypeConverter)(nil)
 type commonTypeConverter struct {
 }
 
-func (c *commonTypeConverter) Varchar(col *dbi.Column) *dbi.DbDataType {
-	// varchar(n)上限8000字节，超长转varchar(max)避免非法DDL
-	if col.CharMaxLength > 8000 {
+// varcharType 字符类异构目标列统一落Unicode类型：SQL Server的varchar/char/text按库排序规则的代码页
+// 存储与解析（本机IT实例为SQL_Latin1_General_CP1_CI_AS），utf8mb4源库的中文/emoji迁入会被静默替换为'?'
+// 且LEN不变、无任何报错；nvarchar以UTF-16存储，才是MySQL utf8/utf8mb4的等价类型
+func varcharType(col *dbi.Column) *dbi.DbDataType {
+	// nvarchar(n)的n是字符数（上限4000），与源列长度语义一致；超长或无长度信息用nvarchar(max)
+	// （CharMaxLength<=0对应pg/sqlite的不限长varchar，而SQL Server的nvarchar不带长度即等价
+	// nvarchar(1)，会静默截断所有超长值且无任何报错，与bytesType的处理保持一致）
+	if col.CharMaxLength <= 0 || col.CharMaxLength > 4000 {
 		col.CharMaxLength = 0
-		return VarcharMax
+		return NvarcharMax
 	}
-	return Varchar
+	return Nvarchar
+}
+
+func (c *commonTypeConverter) Varchar(col *dbi.Column) *dbi.DbDataType {
+	return varcharType(col)
 }
 
 func (c *commonTypeConverter) Char(col *dbi.Column) *dbi.DbDataType {
-	return Char
+	// 定长列保持定长语义，但同样必须Unicode化；长度未知时不能落nchar（等价nchar(1)），改用nvarchar(max)承载
+	if col.CharMaxLength <= 0 || col.CharMaxLength > 4000 {
+		col.CharMaxLength = 0
+		return NvarcharMax
+	}
+	return Nchar
 }
-func (c *commonTypeConverter) Text(col *dbi.Column) *dbi.DbDataType {
-	// text类型无长度语法，清空长度避免生成text(n)非法DDL
+
+// textType 大文本归nvarchar(max)：mssql的text/ntext已被废弃（微软声明后续版本移除），
+// 且text受代码页限制不保真非ASCII；nvarchar(max)与其同为大对象字符类型且语义更完整
+func textType(col *dbi.Column) *dbi.DbDataType {
+	// text类型无长度语法，清空源长度避免生成非法DDL
 	col.CharMaxLength = 0
-	return Text
+	return NvarcharMax
+}
+
+func (c *commonTypeConverter) Text(col *dbi.Column) *dbi.DbDataType {
+	return textType(col)
 }
 func (c *commonTypeConverter) Mediumtext(col *dbi.Column) *dbi.DbDataType {
-	// 与Text对齐：text无长度语法，清空源长度避免生成text(n)非法DDL
-	col.CharMaxLength = 0
-	return Text
+	return textType(col)
 }
 func (c *commonTypeConverter) Longtext(col *dbi.Column) *dbi.DbDataType {
-	col.CharMaxLength = 0
-	return Text
+	return textType(col)
 }
 
 func (c *commonTypeConverter) Bit(col *dbi.Column) *dbi.DbDataType {
@@ -131,8 +149,9 @@ func bytesType(col *dbi.Column) *dbi.DbDataType {
 }
 
 func (c *commonTypeConverter) Enum(col *dbi.Column) *dbi.DbDataType {
-	return Varchar
+	return varcharType(col)
 }
 func (c *commonTypeConverter) JSON(col *dbi.Column) *dbi.DbDataType {
-	return Text
+	// JSON文本可含任意Unicode，且mssql无原生JSON类型，用nvarchar(max)承载
+	return textType(col)
 }

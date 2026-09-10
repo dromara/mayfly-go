@@ -73,13 +73,14 @@ const defaultMeta: ResourceMeta = {
     link: '',
 };
 
+// 选项 label 传 i18n key：AutoForm 内部对 option.label 做 $t()，此处预先 t() 会被二次翻译（控制台报缺 key，且切换语言后文案不随之更新）
 const trueFalseOption = [
     {
-        label: t('system.menu.yes'),
+        label: 'system.menu.yes',
         value: true,
     },
     {
-        label: t('system.menu.no'),
+        label: 'system.menu.no',
         value: false,
     },
 ];

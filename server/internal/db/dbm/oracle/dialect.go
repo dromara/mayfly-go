@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/oracle"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"strings"
 	"time"
 )
@@ -39,7 +40,7 @@ func (od *OracleDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(oracle.OracleParser)
 }
 
-// GetSQLSplitter 标准SQL切割器：oracle字符串中反斜杠为普通字符
+// GetSQLSplitter oracle切割器：q'[..]' 替代引用字面量 + PL-SQL 过程块感知（反斜杠为普通字符）
 func (od *OracleDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	return sqlparser.NewStdSQLSplitter()
+	return sqlparser.NewSplitter(tokenizer.OracleConfig)
 }

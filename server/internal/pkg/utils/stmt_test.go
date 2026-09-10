@@ -68,6 +68,9 @@ func TestSplitStmts_Comments(t *testing.T) {
 		splitAll(t, "select /* line1\nline2 ; */ 1;\nselect 2;", ';'))
 	// 纯注释脚本不产生任何语句
 	assert.Empty(t, splitAll(t, "-- only comment; here\n/* block; comment */", ';'))
+	// 注释紧贴 token 时不得粘连（移除后补空白）：否则语义被改写为 aFROM t
+	assert.Equal(t, []string{"SELECT a FROM t"}, splitAll(t, "SELECT a-- c\nFROM t;", ';'))
+	assert.Equal(t, []string{"SELECT a FROM t"}, splitAll(t, "SELECT a/* c */FROM t;", ';'))
 	// 注释与语句混合的多行脚本
 	script := "-- header comment\ncreate table t(id int); -- trailing\n-- another\ninsert into t values(1);\n"
 	assert.Equal(t, []string{"create table t(id int)", "insert into t values(1)"}, splitAll(t, script, ';'))

@@ -1,6 +1,7 @@
 import { languages } from 'monaco-editor';
 import type { DbTableInfo } from '../../../types';
 import type { SqlCompletionContext, SuggestionContributor } from '../types';
+import { buildTableSuggestion } from '../format';
 
 /**
  * 当前库表名联想贡献者
@@ -8,21 +9,14 @@ import type { SqlCompletionContext, SuggestionContributor } from '../types';
 export const tableContributor: SuggestionContributor = {
     name: 'table',
     async contribute(ctx: SqlCompletionContext) {
+        // 字段/表达式位置（SELECT/WHERE/ON/SET 等）不产出表名建议，避免噪音
+        if (ctx.clause === 'column') {
+            return undefined;
+        }
         const tables = await ctx.dbInst.loadTables(ctx.db);
-        const suggestions: languages.CompletionItem[] = (tables ?? []).map((tableMeta: DbTableInfo, index: number) => {
-            const { tableName, tableComment } = tableMeta;
-            return {
-                label: {
-                    label: tableName + ' - ' + tableComment,
-                    description: 'table',
-                },
-                kind: languages.CompletionItemKind.File,
-                detail: tableComment,
-                insertText: ctx.quoteIdentifier(tableName),
-                range: ctx.range,
-                sortText: 300 + index + '', // 表名排在字段之后，排序需为字符串类型
-            };
-        });
+        const suggestions: languages.CompletionItem[] = (tables ?? []).map((tableMeta: DbTableInfo, index: number) =>
+            buildTableSuggestion(tableMeta, index, ctx.range, ctx.quoteIdentifier)
+        );
         return { suggestions };
     },
 };

@@ -75,8 +75,15 @@ func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []
 		if column.AutoIncrement {
 			// 表名/列名作为标识符必须引用（并双写内部引用符），直接拼进 "%s" 会使含特殊字符的表名语法错误；
 			// 序列名处于字符串字面量内，但其内容会被pg再当对象名解析一次，故先按标识符引用再按字符串转义
-			seqName := dbi.DefaultQuoter.QuoteIdent(fmt.Sprintf("%s_%s_seq", tableName, column.ColumnName))
-			seq := fmt.Sprintf("SELECT setval('%s', (SELECT max(%s) FROM %s));\n", dbi.QuoteEscape(seqName), dbi.DefaultQuoter.QuoteIdent(column.ColumnName), dbi.DefaultQuoter.QuoteIdent(tableName))
+			seqIdent := dbi.DefaultQuoter.QuoteIdent(fmt.Sprintf("%s_%s_seq", tableName, column.ColumnName))
+			// 校正只增不减：setval立即生效且不随事务回滚，故序列终值等于**最后一次执行**的校正写入值。
+			// 大表按主键分片并行迁移时每段尾部都带一句校正，其max子查询只能读到本分片+他人已提交的数据，
+			// 直接写入读到的值会让“后完成但id更小”的分片把序列下调（实测300行/8分片并发下终值228而全表最大300），
+			// 迁移后首条业务插入即撞主键；与序列当前值取GREATEST后，终值恒不低于全表最大id
+			maxExpr := fmt.Sprintf("(SELECT max(%s) FROM %s)", dbi.DefaultQuoter.QuoteIdent(column.ColumnName), dbi.DefaultQuoter.QuoteIdent(tableName))
+			// 空表时max为NULL，而GREATEST会忽略NULL取到序列当前值并把is_called置true（首条插入平白跳号），故用WHERE整体跳过
+			seq := fmt.Sprintf("SELECT setval('%s', GREATEST(%s, (SELECT last_value FROM %s)), true) WHERE %s IS NOT NULL;\n",
+				dbi.QuoteEscape(seqIdent), maxExpr, seqIdent, maxExpr)
 			if _, err := writer.Write([]byte(seq)); err != nil {
 				return err
 			}

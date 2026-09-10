@@ -90,6 +90,27 @@ func TestSqliteGenIndexDDL(t *testing.T) {
 	assert.Equal(t, "CREATE unique INDEX \"idx_name\" ON \"t1\" (\"name\") ", sqls[1])
 }
 
+// TestSqliteGenIndexDDLImplicitAutoindex 约束生成的隐式索引（sqlite_autoindex_*）必须换名重建：
+// sqlite_ 为内核保留前缀，原名CREATE报reserved for internal use，使sqlite备份恢复直接失败
+func TestSqliteGenIndexDDLImplicitAutoindex(t *testing.T) {
+	gen := newTestSQLGenerator()
+
+	sqls := gen.GenIndexDDL(dbi.Table{TableName: "t1"}, []dbi.Index{
+		{IndexName: "sqlite_autoindex_t1_2", ColumnName: "code", IsUnique: true},
+		{IndexName: "sqlite_autoindex_t1_3", ColumnName: "a,b"},
+	})
+	require.Len(t, sqls, 4)
+	assert.Equal(t, "DROP INDEX IF EXISTS \"idx_t1_2\"", sqls[0])
+	assert.Equal(t, "CREATE unique INDEX \"idx_t1_2\" ON \"t1\" (\"code\") ", sqls[1])
+	assert.Equal(t, "DROP INDEX IF EXISTS \"idx_t1_3\"", sqls[2])
+	assert.Equal(t, "CREATE  INDEX \"idx_t1_3\" ON \"t1\" (\"a\",\"b\") ", sqls[3])
+
+	// 非隐式名不得被误改（含只相似的前缀名）
+	assert.Equal(t, "idx_t1_1", ddlIndexName("idx_t1_1"))
+	assert.Equal(t, "not_sqlite_autoindex_x", ddlIndexName("not_sqlite_autoindex_x"))
+	assert.Equal(t, "sqlite_autoindex_", ddlIndexName("sqlite_autoindex_"), "剪掉前缀后为空则保留原名")
+}
+
 func TestSqliteGenInsert_None(t *testing.T) {
 	gen := newTestSQLGenerator()
 

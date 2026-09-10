@@ -6,10 +6,10 @@
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
             </template>
 
-            <!-- 数据库类型（选项含图标 + prefix 图标） -->
+            <!-- 数据库类型（选项含图标 + prefix 图标；自定义插槽绕过了 auto-form 的 onChange 代理，需手动 @change 触发端口联动） -->
             <template #type="{ form }">
-                <el-select v-model="form.type">
-                    <el-option
+                <ASelect v-model="form.type" @change="(v: string) => onTypeChange(v, form)">
+                    <AOption
                         v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
                         :key="key"
                         :value="dbTypeAndDialect[0]"
@@ -17,12 +17,12 @@
                     >
                         <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
                         {{ dbTypeAndDialect[1].getInfo().name }}
-                    </el-option>
+                    </AOption>
 
                     <template #prefix>
                         <SvgIcon :name="getDbDialect(form.type).getInfo().icon" :size="20" />
                     </template>
-                </el-select>
+                </ASelect>
             </template>
 
             <!-- 认证信息表格编辑 -->
@@ -52,6 +52,7 @@ import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { computed, type PropType, useTemplateRef } from 'vue';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { ASelect, AOption } from '@/components/auto-form/ui/adapter';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -87,6 +88,15 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
+/** 切换数据库类型联动：新增时重置默认端口，并清空类型相关的额外参数（自定义插槽需手动调用，auto-form 的 onChange 代理对 custom slot 不生效） */
+const onTypeChange = (val: string, form: AutoFormData) => {
+    const dbForm = form as DbInstanceForm;
+    if (!dbForm.id) {
+        dbForm.port = getDbDialect(val).getInfo().defaultPort as number;
+    }
+    dbForm.extra = {};
+};
+
 /** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/type/authCerts/sshTunnel 走插槽，oracle 额外参数用嵌套路径 prop） */
 const items: AutoFormItem[] = [
     { type: 'group', label: 'common.basic' },
@@ -96,14 +106,7 @@ const items: AutoFormItem[] = [
         prop: 'type',
         label: 'common.type',
         required: true,
-        // 切换数据库类型：新增时重置默认端口，并清空类型相关的额外参数
-        onChange: (val: unknown, form: AutoFormData) => {
-            const dbForm = form as DbInstanceForm;
-            if (!dbForm.id) {
-                dbForm.port = getDbDialect(val as string).getInfo().defaultPort as number;
-            }
-            dbForm.extra = {};
-        },
+        // 注意：type 使用自定义插槽渲染，onChange 代理不生效；端口联动逻辑在 onTypeChange 中由模板 @change 手动触发
     },
     { prop: 'host', label: 'Host', required: true, when: (form) => (form as DbInstanceForm).type !== DbType.sqlite, span: 17 },
     { prop: 'port', label: 'Port', type: 'number', when: (form) => (form as DbInstanceForm).type !== DbType.sqlite, span: 7 },

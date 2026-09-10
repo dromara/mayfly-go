@@ -93,7 +93,7 @@ export const encryptField = async (param: Record<string, unknown>, field: string
     if (!param['_encrypted'] && param[field]) {
         // 使用aes加密sql
         param['_encrypted'] = 1;
-        param[field] = AesEncrypt(param[field] as string);
+        param[field] = await AesEncrypt(param[field] as string);
         // console.log('解密结果', DesDecrypt(param[field]));
     }
     return param;

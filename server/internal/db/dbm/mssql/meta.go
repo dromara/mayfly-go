@@ -85,6 +85,13 @@ func (sm *Meta) GetDbDataTypes() []*dbi.DbDataType {
 		Time,
 		Char,
 		Varchar,
+		// 带(max)的类型仅由异构转换产出，但必须一并注册：
+		// INSERT的值转SQL按列类型名查此注册表（见sqlgen.GetDbDataType），未命中会回退到
+		// 默认字符串类型，使varbinary(max)的二进制值被输出为'00ff'字面量（SQL Server按ASCII逐字节
+		// 转为0x303066 66而非0x00ff），大文本/大对象迁移静默损坏
+		VarcharMax,
+		NvarcharMax,
+		VarbinaryMax,
 		Text,
 		Nchar,
 		Nvarchar,

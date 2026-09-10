@@ -1,0 +1,186 @@
+{
+  "_comment": [
+    "SQL 切割跨语言契约（前后端唯一事实来源）。",
+    "服务端由 internal/db/dbm/split_parity_test.go 读取（驱动生产方言装配的切割器），",
+    "前端由 sqleditor/utils/__tests__/sqlParser.test.ts 读取（splitSqlStatements + 偏移校验）。",
+    "同一语义在 Go 与 TS 各有一份状态机实现，任何一侧调整切割规则都必须让本文件的可预期结果随之改变，",
+    "否则另一侧会静默失败——用例的可预期结果按**真实数据库词法**书写，而非任一实现的当前输出。",
+    "仅收录良构脚本：未闭合引号/注释在服务端返回 UnterminatedError，而前端按编辑器语义兜底，属有意差异，不在此约束。"
+  ],
+  "cases": [
+    {
+      "name": "mysql-反引号标识符内的分号不切割",
+      "dbType": "mysql",
+      "sql": "SELECT 1 FROM `a;b`; SELECT 2;",
+      "expected": ["SELECT 1 FROM `a;b`", "SELECT 2"]
+    },
+    {
+      "name": "mysql-反斜杠是转义符（值内含两个连续反斜杠才闭合）",
+      "dbType": "mysql",
+      "sql": "INSERT INTO t VALUES ('a\\\\'); INSERT INTO t VALUES (2);",
+      "expected": ["INSERT INTO t VALUES ('a\\\\')", "INSERT INTO t VALUES (2)"]
+    },
+    {
+      "name": "mysql-双引号是字符串字面量而非标识符",
+      "dbType": "mysql",
+      "sql": "INSERT INTO t VALUES (\"a;b\"); SELECT 2;",
+      "expected": ["INSERT INTO t VALUES (\"a;b\")", "SELECT 2"]
+    },
+    {
+      "name": "mysql-井号行注释内的分号不切割且原文随后续语句保留",
+      "dbType": "mysql",
+      "sql": "SELECT 1; # c;oment\nSELECT 2;",
+      "expected": ["SELECT 1", "# c;oment\nSELECT 2"]
+    },
+    {
+      "name": "mysql-双横线需后随空白否则是减法运算",
+      "dbType": "mysql",
+      "sql": "SELECT 1--2 FROM t; SELECT 3;",
+      "expected": ["SELECT 1--2 FROM t", "SELECT 3"]
+    },
+    {
+      "name": "mysql-可执行注释内容会被服务端执行故单独成句",
+      "dbType": "mysql",
+      "sql": "/*!40101 SET NAMES utf8 */;\nSELECT 1;",
+      "expected": ["/*!40101 SET NAMES utf8 */", "SELECT 1"]
+    },
+    {
+      "name": "mysql-存储过程体内的分号不切割",
+      "dbType": "mysql",
+      "sql": "CREATE PROCEDURE p() BEGIN INSERT INTO t VALUES (1); INSERT INTO t VALUES (2); END;\nSELECT 3;",
+      "expected": ["CREATE PROCEDURE p() BEGIN INSERT INTO t VALUES (1); INSERT INTO t VALUES (2); END", "SELECT 3"]
+    },
+    {
+      "name": "mysql-dump分段注释头归属其后语句且不与其粘连成独立句",
+      "dbType": "mysql",
+      "sql": "-- Table structure: t\nDROP TABLE IF EXISTS `t`;\nCREATE TABLE t (id INT);",
+      "expected": ["-- Table structure: t\nDROP TABLE IF EXISTS `t`", "CREATE TABLE t (id INT)"]
+    },
+    {
+      "name": "pg-值以单反斜杠结尾时字符串已闭合（standard_conforming_strings）",
+      "dbType": "postgres",
+      "sql": "INSERT INTO t (a) VALUES ('a\\'); INSERT INTO t (a) VALUES (2);",
+      "expected": ["INSERT INTO t (a) VALUES ('a\\')", "INSERT INTO t (a) VALUES (2)"]
+    },
+    {
+      "name": "pg-双引号是标识符引用符",
+      "dbType": "postgres",
+      "sql": "SELECT \"a;b\" FROM t; SELECT 2;",
+      "expected": ["SELECT \"a;b\" FROM t", "SELECT 2"]
+    },
+    {
+      "name": "pg-dollar-quote函数体含分号与换行",
+      "dbType": "postgres",
+      "sql": "DO $$ BEGIN INSERT INTO t VALUES (1); END $$;\nSELECT 2;",
+      "expected": ["DO $$ BEGIN INSERT INTO t VALUES (1); END $$", "SELECT 2"]
+    },
+    {
+      "name": "pg-位置参数不得误判为dollar-quote开标签",
+      "dbType": "postgres",
+      "sql": "SELECT $1 FROM t WHERE a = $2; SELECT 3;",
+      "expected": ["SELECT $1 FROM t WHERE a = $2", "SELECT 3"]
+    },
+    {
+      "name": "pg-E串内反斜杠才是转义符",
+      "dbType": "postgres",
+      "sql": "INSERT INTO t VALUES (E'a\\'b;c'); SELECT 2;",
+      "expected": ["INSERT INTO t VALUES (E'a\\'b;c')", "SELECT 2"]
+    },
+    {
+      "name": "pg-块注释可嵌套需两层闭合",
+      "dbType": "postgres",
+      "sql": "SELECT /* a /* b */ c */ 1; SELECT 2;",
+      "expected": ["SELECT /* a /* b */ c */ 1", "SELECT 2"]
+    },
+    {
+      "name": "pg-单引号双写是字面量内的引号",
+      "dbType": "postgres",
+      "sql": "INSERT INTO t VALUES ('it''s;ok'); SELECT 2;",
+      "expected": ["INSERT INTO t VALUES ('it''s;ok')", "SELECT 2"]
+    },
+    {
+      "name": "pg-井号是运算符不是注释",
+      "dbType": "postgres",
+      "sql": "SELECT # 1 FROM t; SELECT 2;",
+      "expected": ["SELECT # 1 FROM t", "SELECT 2"]
+    },
+    {
+      "name": "sqlite-反引号与方括号均可用但反斜杠为普通字符",
+      "dbType": "sqlite",
+      "sql": "SELECT 1 FROM `a;b`; SELECT 2 FROM [c;d]; INSERT INTO t VALUES ('e\\');",
+      "expected": ["SELECT 1 FROM `a;b`", "SELECT 2 FROM [c;d]", "INSERT INTO t VALUES ('e\\')"]
+    },
+    {
+      "name": "mssql-方括号标识符内含分号且]]为转义右括号",
+      "dbType": "mssql",
+      "sql": "SELECT 1 FROM [a]]b;c]; SELECT 2;",
+      "expected": ["SELECT 1 FROM [a]]b;c]", "SELECT 2"]
+    },
+    {
+      "name": "mssql-井号是临时表前缀不是注释",
+      "dbType": "mssql",
+      "sql": "SELECT * FROM #tmp; SELECT 2;",
+      "expected": ["SELECT * FROM #tmp", "SELECT 2"]
+    },
+    {
+      "name": "mssql-BEGIN END块内分号不切割而IF自身不闭合",
+      "dbType": "mssql",
+      "sql": "IF 1 = 1 BEGIN INSERT INTO t VALUES (1); INSERT INTO t VALUES (2); END; SELECT 3;",
+      "expected": ["IF 1 = 1 BEGIN INSERT INTO t VALUES (1); INSERT INTO t VALUES (2); END", "SELECT 3"]
+    },
+    {
+      "name": "oracle-q-quote字面量内的单引号与分号均为内容",
+      "dbType": "oracle",
+      "sql": "INSERT INTO t VALUES (q'[it's;ok]'); SELECT 2 FROM dual;",
+      "expected": ["INSERT INTO t VALUES (q'[it's;ok]')", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "oracle-优化器hint保留原文且不被当作可丢弃注释",
+      "dbType": "oracle",
+      "sql": "SELECT /*+ FULL(t) */ 1 FROM dual; SELECT 2 FROM dual;",
+      "expected": ["SELECT /*+ FULL(t) */ 1 FROM dual", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "oracle-PLSQL匿名块整体成句",
+      "dbType": "oracle",
+      "sql": "BEGIN INSERT INTO t VALUES (1); COMMIT; END;\nSELECT 2 FROM dual;",
+      "expected": ["BEGIN INSERT INTO t VALUES (1); COMMIT; END", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "dm-达梦沿用Oracle系q-quote语义",
+      "dbType": "dm",
+      "sql": "INSERT INTO t VALUES (q'{a;b}'); SELECT 2;",
+      "expected": ["INSERT INTO t VALUES (q'{a;b}')", "SELECT 2"]
+    },
+    {
+      "name": "clickhouse-反斜杠转义且井号为行注释",
+      "dbType": "clickhouse",
+      "sql": "INSERT INTO t VALUES ('a\\\\'); SELECT 2; # c;omment\nSELECT 3;",
+      "expected": ["INSERT INTO t VALUES ('a\\\\')", "SELECT 2", "# c;omment\nSELECT 3"]
+    },
+    {
+      "name": "mariadb-别名必须沿用mysql切割语义",
+      "dbType": "mariadb",
+      "sql": "INSERT INTO t VALUES ('a\\\\'); INSERT INTO t VALUES (2);",
+      "expected": ["INSERT INTO t VALUES ('a\\\\')", "INSERT INTO t VALUES (2)"]
+    },
+    {
+      "name": "gauss-别名必须沿用postgres切割语义",
+      "dbType": "gauss",
+      "sql": "INSERT INTO t (a) VALUES ('a\\'); INSERT INTO t (a) VALUES (2);",
+      "expected": ["INSERT INTO t (a) VALUES ('a\\')", "INSERT INTO t (a) VALUES (2)"]
+    },
+    {
+      "name": "kingbaseEs-别名必须沿用postgres切割语义",
+      "dbType": "kingbaseEs",
+      "sql": "DO $$ BEGIN INSERT INTO t VALUES (1); END $$;\nSELECT 2;",
+      "expected": ["DO $$ BEGIN INSERT INTO t VALUES (1); END $$", "SELECT 2"]
+    },
+    {
+      "name": "vastbase-别名必须沿用postgres切割语义",
+      "dbType": "vastbase",
+      "sql": "SELECT /* a /* b */ c */ 1; SELECT 2;",
+      "expected": ["SELECT /* a /* b */ c */ 1", "SELECT 2"]
+    }
+  ]
+}

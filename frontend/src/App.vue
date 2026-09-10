@@ -27,7 +27,7 @@
     </el-config-provider>
 </template>
 
-<script setup lang="ts" name="app">
+<script setup vapor lang="ts" name="app">
 import { onMounted, nextTick, watch, computed, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';

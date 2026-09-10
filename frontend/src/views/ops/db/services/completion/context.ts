@@ -1,8 +1,9 @@
 import type { editor, Position, IRange } from 'monaco-editor';
 import { DbInst } from '../../db';
 import { getDbDialect } from '../../dialect';
+import { getSqlSplitOptions } from '../../component/sqleditor/utils/sqlParser';
 import { createCompletionQuoter, findWrappingQuote, getDialectQuotePairs } from './quoter';
-import { extractStatementAt, parseCursorTokens } from './sqlContext';
+import { extractStatementAt, parseCursorTokens, resolveCursorClause } from './sqlContext';
 import type { SqlCompletionContext } from './types';
 
 /**
@@ -44,8 +45,11 @@ export async function buildCompletionContext(model: editor.ITextModel, position:
     });
     const { lastToken, secondToken, isDotTrigger, dotAlias } = parseCursorTokens(lineTextBeforeCursor);
 
-    // 光标所在完整 SQL 语句
-    const statement = extractStatementAt(model.getValue(), model.getOffsetAt(position));
+    // 光标所在完整 SQL 语句（按方言切割语义，感知字符串/注释/反引号/dollar-quote 中的分号）
+    const stmtAt = extractStatementAt(model.getValue(), model.getOffsetAt(position), getSqlSplitOptions(dbType));
+
+    // 光标所处子句类型（表名期望位置 vs 字段/表达式位置），供各贡献者做上下文感知过滤
+    const clause = resolveCursorClause(stmtAt?.text ?? '', stmtAt?.cursorOffset ?? 0, lineTextBeforeCursor.trimEnd().endsWith('('));
 
     // 方言引用符与光标单词包裹状态
     const quotePairs = getDialectQuotePairs(dbType);
@@ -57,15 +61,18 @@ export async function buildCompletionContext(model: editor.ITextModel, position:
         word,
         range,
         lineContent,
-        statement,
+        statement: stmtAt?.text ?? '',
+        statementCursorOffset: stmtAt?.cursorOffset ?? 0,
         lastToken,
         secondToken,
         isDotTrigger,
         dotAlias,
+        clause,
         dbInst,
         db,
         dbs,
         dialect,
+        dbType,
         quotePairs,
         isWordQuoted: !!wrappingQuote,
         quoteIdentifier: createCompletionQuoter(dialect, quotePairs, !!wrappingQuote),

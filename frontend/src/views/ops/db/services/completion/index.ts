@@ -1,5 +1,6 @@
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import type { editor, languages, Position } from 'monaco-editor';
+import { getSqlSplitOptions } from '../../component/sqleditor/utils/sqlParser';
 import { buildCompletionContext } from './context';
 import { createDefaultContributors } from './contributors';
 import { resolveCursorZone } from './sqlContext';
@@ -25,10 +26,11 @@ export * from './sqlContext';
  */
 export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: string[] = [], dbType: string) {
     registerCompletionItemProvider('sql', {
-        triggerCharacters: ['.', ' '],
+        // '.' 别名/库名限定；空格为通用触发；'(' 用于 INSERT INTO t ( 列清单等场景
+        triggerCharacters: ['.', ' ', '('],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
             // 字符串字面量与注释内不提供代码提示（含行中尾注释，比仅判断行首更精确）
-            if (resolveCursorZone(model.getValue(), model.getOffsetAt(position)) !== 'code') {
+            if (resolveCursorZone(model.getValue(), model.getOffsetAt(position), getSqlSplitOptions(dbType)) !== 'code') {
                 return { suggestions: [] };
             }
 

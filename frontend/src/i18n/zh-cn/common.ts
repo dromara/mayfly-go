@@ -301,9 +301,13 @@ export default {
             typeNumber: '数字',
             typeTextarea: '文本域',
             typeSelect: '下拉选择',
+            typeRadio: '单选组',
             typeSwitch: '开关',
             typeDate: '日期',
             typeDatetime: '日期时间',
+            typeTime: '时间',
+            typeTags: '标签',
+            typeMonaco: '代码编辑器',
         },
         terminal: {
             connError: '连接出错',

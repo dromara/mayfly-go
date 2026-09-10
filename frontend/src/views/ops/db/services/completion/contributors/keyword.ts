@@ -11,12 +11,13 @@ export const keywordContributor: SuggestionContributor = {
         const { keywords, operators, functions, variables } = ctx.dialect.getInfo().editorCompletions;
         const suggestions: languages.CompletionItem[] = [];
 
-        // 空值兜底：方言漏配任一类建议时降级为空列表，不阻断整个补全
+        // 空值兜底：方言漏配任一类建议时降级为空列表，不阻断整个补全。
+        // label 用裸名（图标已表达类型，右侧不放 keyword/operator 等类型词）
         const push = (completions: EditorCompletionItem[] | undefined, kind: languages.CompletionItemKind) => {
             (completions ?? []).forEach((item: EditorCompletionItem) => {
-                const { label, insertText, description } = item;
+                const { label, insertText } = item;
                 suggestions.push({
-                    label: { label, description },
+                    label,
                     kind,
                     insertText: insertText || label,
                     range: ctx.range,

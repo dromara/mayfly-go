@@ -4,7 +4,8 @@
 
         <el-splitter ref="splitterRef" class="flex-1 min-h-0" layout="vertical" @resize-end="onResizeTableHeight">
             <el-splitter-panel :size="state.editorSize" max="80%">
-                <MonacoEditor ref="monacoEditorRef" class="mt-1" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
+                <!-- 高度扣除 mt-1(4px) + 组件边框(2px)，使内容恰好填满面板，避免溢出滚动条 -->
+                <MonacoEditor ref="monacoEditorRef" class="mt-1" v-model="state.sql" language="sql" height="calc(100% - 6px)" :id="'MonacoTextarea-' + getKey()" />
             </el-splitter-panel>
 
             <el-splitter-panel>
@@ -379,5 +380,15 @@ defineExpose({
         margin: 0px;
         padding: 0 6px !important;
     }
+}
+
+/*
+ * monaco hover（如 find 挂件按钮 tooltip）会向上弹出 splitter 面板顶边，
+ * 而 .el-splitter-panel 默认 overflow:auto 会把溢出部分裁剪掉（视觉上像被工具栏按钮遮挡）。
+ * hover 显示期间解除裁剪，使 tooltip 能像 VSCode 一样悬浮到上层；
+ * :has() 仅显示期间精确匹配，且编辑器高度已恰好填满面板（无滚动条），切换不会引起布局抖动。
+ */
+.el-splitter-panel:has(.monaco-hover) {
+    overflow: visible;
 }
 </style>

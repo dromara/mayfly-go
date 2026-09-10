@@ -1,7 +1,6 @@
 package ansiterm
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -11,18 +10,13 @@ type ByteStream struct {
 }
 
 func (b *ByteStream) Feed(data []byte) {
-	var err error
 	var dataStr string
 	if b.UseUTF8 {
-		dataStr, err = b.utf8Decoder(data)
-		if err != nil {
-			fmt.Println(err)
-		}
+		dataStr, _ = b.utf8Decoder(data)
 	} else {
 		dataStr = BytesToString(data)
 	}
 	b.Stream.Feed(dataStr)
-
 }
 
 func (b *ByteStream) selectOtherCharset(code string) {

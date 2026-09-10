@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -233,7 +234,9 @@ func (s *Screen) Display() []string {
 			}
 			char := line[x].Data
 			if len(char) > 0 {
-				isWideChar = WidthOfRune(rune(char[0])) == 2
+				// 获取第一个 rune 而非第一个字节，正确处理 UTF-8 多字节字符
+				r, _ := utf8.DecodeRuneInString(char)
+				isWideChar = WidthOfRune(r) == 2
 			}
 			lineStr += char
 		}
@@ -538,15 +541,17 @@ func (s *Screen) InsertLines(count int) {
 		for i := range Range1(s.cursor.Y, s.lines) {
 			s.dirty[i] = struct{}{}
 		}
-		for i := s.cursor.Y - 1; i > bottom; i-- {
-			if i+count <= bottom {
-				if s.buffer.HasKey(i) {
+		// 从底部向上移位，避免覆盖
+		for i := bottom; i >= s.cursor.Y; i-- {
+			if s.buffer.HasKey(i) {
+				if i+count <= bottom {
 					s.buffer.Set(i+count, s.buffer.GetValue(i))
-					//s.buffer[i+count] = s.buffer[i]
 				}
 			}
+		}
+		// 清除插入的空行
+		for i := s.cursor.Y; i < s.cursor.Y+count && i <= bottom; i++ {
 			s.buffer.Delete(i)
-			//delete(s.buffer, i)
 		}
 		s.CarriageReturn()
 	}
@@ -627,11 +632,9 @@ func (s *Screen) CursorToLine(line int) {
 	s.cursor.Y = line - 1
 
 	if _, ok := s.mode[DECOM]; ok {
-		if s.margins == nil {
-			fmt.Println("error: margin is none")
-			return
+		if s.margins != nil {
+			s.cursor.Y += s.margins.Top
 		}
-		s.cursor.Y += s.margins.Top
 	}
 	s.EnsureVBounds(false)
 }
@@ -642,6 +645,10 @@ func (s *Screen) CursorPosition(line, column int) {
 	if column == 0 {
 		column = 1
 	}
+	// ANSI 坐标为 1-based，转为 0-based
+	line--
+	column--
+
 	if s.margins != nil {
 		if _, ok := s.mode[DECOM]; ok {
 			line += s.margins.Top
@@ -808,6 +815,7 @@ func (s *Screen) SelectGraphicRendition(attrs ...int) {
 			}
 		}
 	}
+	s.cursor.Attrs.Update(replace)
 }
 func (s *Screen) ReportDeviceStatus(mode int, kw map[string]bool) {
 	if mode == 0 {
@@ -850,11 +858,19 @@ func (s *Screen) Resize(lines, columns int) {
 	if lines == s.lines && columns == s.columns {
 		return
 	}
+	if lines > 0 {
+		s.lines = lines
+	}
+	if columns > 0 {
+		s.columns = columns
+	}
 	s.dirty = make(map[int]struct{})
-	for i := 0; i < lines; i++ {
+	for i := 0; i < s.lines; i++ {
 		s.dirty[i] = struct{}{}
 	}
-	// 其他调整大小的逻辑
+	// 确保光标在新边界内
+	s.EnsureHBounds()
+	s.EnsureVBounds(false)
 }
 
 // WriteProcessInput default is a noop

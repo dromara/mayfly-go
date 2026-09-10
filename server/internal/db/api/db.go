@@ -1,11 +1,8 @@
 package api
 
 import (
-	"archive/zip"
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
@@ -183,8 +180,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	body := rc.GetRequest().Body
 	defer body.Close()
 
-	// 支持 .zip 文件：如果是 zip 格式则解压后读取第一个文件内容
-	reader, err := d.getSqlReader(body, filename)
+	// 支持 .zip / .gz 压缩包（见 newSqlFileReader）
+	reader, err := newSqlFileReader(filename, body)
 	biz.ErrIsNilAppendErr(err, "failed to read sql file: %s")
 
 	biz.ErrIsNil(d.dbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
@@ -194,41 +191,6 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		ClientId: clientId,
 		UploadId: uploadId,
 	}))
-}
-
-// getSqlReader 如果文件名是 .zip 结尾，则解压并返回第一个文件内容；否则直接返回原 reader
-func (d *Db) getSqlReader(body io.Reader, filename string) (io.Reader, error) {
-	if !strings.HasSuffix(strings.ToLower(filename), ".zip") {
-		return body, nil
-	}
-
-	// 限制10MB避免解压过大文件
-	data, err := io.ReadAll(io.LimitReader(body, 10*1024*1024))
-	if err != nil {
-		return nil, fmt.Errorf("read zip file error: %w", err)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return nil, fmt.Errorf("invalid zip file: %w", err)
-	}
-
-	for _, f := range zr.File {
-		if !f.FileInfo().IsDir() {
-			rc, err := f.Open()
-			if err != nil {
-				return nil, fmt.Errorf("open zip entry error: %w", err)
-			}
-			content, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				return nil, fmt.Errorf("read zip entry error: %w", err)
-			}
-			return bytes.NewReader(content), nil
-		}
-	}
-
-	return nil, fmt.Errorf("zip file is empty")
 }
 
 // 数据库dump

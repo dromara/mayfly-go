@@ -1,4 +1,7 @@
-import { createApp, vaporInteropPlugin } from 'vue';
+// monaco editor 语言包：必须先于任何 monaco 模块加载（部分本地化常量在模块加载期求值）
+import '@/common/utils/monacoNls';
+
+import { createVaporApp, vaporInteropPlugin } from 'vue';
 import App from '@/App.vue';
 
 import router from './router';
@@ -18,7 +21,8 @@ import '@/assets/icon/icon.js';
 import { getThemeConfig } from './common/utils/storage';
 import { initSysMsgs } from './common/syssocket';
 
-const app = createApp(App);
+const app = createVaporApp(App);
+
 
 registElSvgIcon(app);
 directive(app);

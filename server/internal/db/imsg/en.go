@@ -9,10 +9,11 @@ var En = map[i18n.MsgId]string{
 	ErrDbInstExist: "The database instance already exists",
 
 	// db
-	LogDbSave:   "DB - Save DB",
-	LogDbDelete: "DB - Delete DB",
-	LogDbRunSql: "DB - Run SQL",
-	LogDbDump:   "DB - Export DB",
+	LogDbSave:       "DB - Save DB",
+	LogDbDelete:     "DB - Delete DB",
+	LogDbRunSql:     "DB - Run SQL",
+	LogDbRunSqlFile: "DB - Run SQL File",
+	LogDbDump:       "DB - Export DB",
 
 	SqlScripRunProgress: "sql execution progress",
 	ErrDbNameExist:      "The database name already exists in this instance",
@@ -21,6 +22,7 @@ var En = map[i18n.MsgId]string{
 	ErrExistRunFailSql:      "There is an execution error in sql",
 	ErrNeedSubmitWorkTicket: "This operation needs to submit a work ticket for approval",
 	ErrSqlExecCancelled:     "SQL execution cancelled",
+	ErrSqlSplitUnterminated: "unterminated {{.kind}} region at line {{.line}}, the statement boundary cannot be determined",
 
 	// db transfer
 	LogDtsSave:         "dts - Save data transfer task",

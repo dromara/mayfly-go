@@ -134,9 +134,17 @@ func init() {
 		IBMPC_MAP[rune(i)] = c
 	}
 
-	VAX42Chars = make([]rune, 0)
+	VAX42_MAP = make(map[rune]rune)
 	for i, c := range VAX42Chars {
-		VAX42Chars[rune(i)] = c
+		VAX42_MAP[rune(i)] = c
+	}
+
+	// 在 map 初始化完成后重建 CHARMAPS，避免持有 nil 引用
+	CHARMAPS = map[string]map[rune]rune{
+		"B": LAT1_MAP,
+		"0": VT100_MAP,
+		"U": IBMPC_MAP,
+		"V": VAX42_MAP,
 	}
 }
 

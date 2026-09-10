@@ -80,7 +80,6 @@ import { useUserInfo } from '@/store/userInfo';
 import { useDark, usePreferredDark } from '@vueuse/core';
 import { ElMessageBox } from 'element-plus';
 import { storeToRefs } from 'pinia';
-import screenfull from 'screenfull';
 import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -126,11 +125,15 @@ const onShowMsgs = () => {
 
 // 全屏点击时
 const onScreenfullClick = () => {
-    if (!screenfull.isEnabled) {
+    if (!document.fullscreenEnabled) {
         Msg.warning('暂不不支持全屏');
         return false;
     }
-    screenfull.toggle();
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+    } else {
+        document.documentElement.requestFullscreen();
+    }
     state.isScreenfull = !state.isScreenfull;
 };
 // 布局配置 icon 点击时

@@ -3,7 +3,8 @@ package dbm
 // 各方言字符串转义矩阵单元测试（无环境依赖）：
 // 验证各方言字符串/JSON类型的SQLValue转义接线正确——
 //   - mysql/clickhouse为反斜杠转义语义（'双写 + \双写，其余原样）
-//   - 标准SQL方言（pg/sqlite/mssql/oracle/dm）为'双写语义（反斜杠是普通字符，绝不能转义，否则数据损坏）
+//   - 标准SQL方言（pg/sqlite/mssql/oracle/dm）为'双写语义（反斜杠是普通字符，绝不能转义，否则数据损坏），
+//     其中mssql额外要求N'...'Unicode字面量前缀
 // 复杂字符谱系：单引号 双引号 反斜杠 回车CR 换行LF CRLF tab NUL 中文 emoji 多行JSON
 
 import (
@@ -47,9 +48,11 @@ func assertMysqlStyle(t *testing.T, name string, dt *dbi.DbDataType, val string)
 	assert.Contains(t, dt.DataType.SQLValue(val), `\\`, "%s 应双写反斜杠", name)
 }
 
-func assertStdStyle(t *testing.T, name string, dt *dbi.DbDataType, val string) {
+// assertStdStyle 标准SQL式转义：仅'双写，反斜杠与控制字符原样。
+// litPrefix为字面量前缀：mssql为N（Unicode字面量），其余方言为空
+func assertStdStyle(t *testing.T, name, litPrefix string, dt *dbi.DbDataType, val string) {
 	t.Helper()
-	want := "'" + stdEscape(val) + "'"
+	want := litPrefix + "'" + stdEscape(val) + "'"
 	assert.Equal(t, want, dt.DataType.SQLValue(val), "%s 标准式转义输出不符", name)
 	// 关键反例：反斜杠必须原样（若双写会在目标库被解释为转义导致数据损坏）
 	assert.NotContains(t, dt.DataType.SQLValue(val), `\\`, "%s 反斜杠应原样不得双写", name)
@@ -67,13 +70,17 @@ func TestDialectStringEscapeMatrix(t *testing.T) {
 	assertMysqlStyle(t, "clickhouse.FixedString", clickhouse.FixedString, complexVal)
 
 	// 标准SQL系：仅单引号双写
-	assertStdStyle(t, "postgres.Varchar", postgres.Varchar, complexVal)
-	assertStdStyle(t, "postgres.Text", postgres.Text, complexVal)
-	assertStdStyle(t, "postgres.Jsonb", postgres.Jsonb, complexVal)
-	assertStdStyle(t, "sqlite.Text", sqlite.Text, complexVal)
-	assertStdStyle(t, "mssql.Varchar", mssql.Varchar, complexVal)
-	assertStdStyle(t, "oracle.VARCHAR2", oracle.VARCHAR2, complexVal)
-	assertStdStyle(t, "dm.VARCHAR", dm.VARCHAR, complexVal)
+	assertStdStyle(t, "postgres.Varchar", "", postgres.Varchar, complexVal)
+	assertStdStyle(t, "postgres.Text", "", postgres.Text, complexVal)
+	assertStdStyle(t, "postgres.Jsonb", "", postgres.Jsonb, complexVal)
+	assertStdStyle(t, "sqlite.Text", "", sqlite.Text, complexVal)
+	// mssql必须输出N'...'Unicode字面量：SQL Server对裸'...'按数据库排序规则的代码页解释，
+	// 中文/emoji会静默变'?'（LEN不变、无任何报错）——本机真实实例实测，详见mssqlSQLValueString
+	assertStdStyle(t, "mssql.Varchar", "N", mssql.Varchar, complexVal)
+	assertStdStyle(t, "mssql.Nvarchar", "N", mssql.Nvarchar, complexVal)
+	assertStdStyle(t, "mssql.NvarcharMax", "N", mssql.NvarcharMax, complexVal)
+	assertStdStyle(t, "oracle.VARCHAR2", "", oracle.VARCHAR2, complexVal)
+	assertStdStyle(t, "dm.VARCHAR", "", dm.VARCHAR, complexVal)
 }
 
 // TestDialectNulCharMatrix NUL字节（\0）在字符串中的处理（按方言转义语义分层）：

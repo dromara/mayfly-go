@@ -307,7 +307,7 @@ func (app *DbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 				break
 			}
 		}
-		wheres := app.planTableShards(ctx, logId, srcConn, tableName, tableRows)
+		wheres := app.PlanTableShards(ctx, logId, srcConn, tableName, tableRows)
 		if len(wheres) == 0 {
 			wheres = []string{""}
 		}
@@ -448,7 +448,7 @@ func (app *DbTransferAppImpl) dumpAndImport(ctx context.Context, logId uint64, t
 		pr.CloseWithError(panicErr)
 	})
 
-	if err := app.importDumpStream(ctx, logId, targetConn, pr); err != nil {
+	if err := app.ImportDumpStream(ctx, logId, targetConn, pr); err != nil {
 		// 通知dump侧中止并等待其退出，避免goroutine与管道泄漏
 		pr.CloseWithError(err)
 		<-dumpDone

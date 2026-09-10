@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/mysql"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"time"
@@ -57,9 +58,9 @@ func (md *MysqlDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(mysql.MysqlParser)
 }
 
-// GetSQLSplitter mysql切割器：反斜杠转义 + # 行注释
+// GetSQLSplitter mysql切割器：反斜杠转义 + # 行注释 + 反引号标识符 + 存储程序块感知
 func (md *MysqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	return sqlparser.NewMysqlSplitter()
+	return sqlparser.NewSplitter(tokenizer.MysqlConfig)
 }
 
 func (md *MysqlDialect) GetSQLGenerator() dbi.SQLGenerator {

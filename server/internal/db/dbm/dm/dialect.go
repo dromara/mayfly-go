@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/dm"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
@@ -82,4 +83,10 @@ func (sd *DMDialect) GetSQLGenerator() dbi.SQLGenerator {
 
 func (sd *DMDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(dm.DmParser)
+}
+
+// GetSQLSplitter 达梦切割器：兼容 Oracle 的 q'[..]' 与 PL-SQL 过程块，双引号为标识符引用符，
+// 反斜杠为普通字符（旧版沿用 mysql 语义的默认切割器，会错判 \' 与 "tbl"）
+func (sd *DMDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewSplitter(tokenizer.DmConfig)
 }

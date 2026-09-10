@@ -112,22 +112,8 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		dataType := anyx.ToString(re["DATA_TYPE"])
-		charMaxLength := cast.ToInt(re["CHAR_MAX_LENGTH"])
-		// SQL Server的max_length是字节数：nchar/nvarchar每字符占2字节，DDL要写的是字符数，
-		// 不换算会使迁入异构库时varchar/char长度翻倍（目标库字节上限不同还会建表失败）
-		if dataType == "nchar" || dataType == "nvarchar" {
-			charMaxLength /= 2
-		}
-		// -1代表max形态（varchar(max)/nvarchar(max)/varbinary(max)，最大2GB），直接拼会生成varchar(-1)非法DDL；
-		// text/ntext/xml等固定为16（LOB指针大小）或0，由其FixColumn清空
-		if charMaxLength < 0 {
-			switch dataType {
-			case "varchar", "nvarchar", "varbinary":
-				dataType += "(max)"
-			}
-			charMaxLength = 0
-		}
+		// (max)形态还原与nchar/nvarchar字节→字符换算统一由normalizeMssqlColumnType处理（顺序敏感，见其注释）
+		dataType, charMaxLength := normalizeMssqlColumnType(anyx.ToString(re["DATA_TYPE"]), cast.ToInt(re["CHAR_MAX_LENGTH"]))
 
 		column := dbi.Column{
 			TableName:     anyx.ToString(re["TABLE_NAME"]),

@@ -39,7 +39,6 @@
 import { reactive, onMounted, ref, nextTick, onBeforeUpdate, getCurrentInstance, watch } from 'vue';
 import type { ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter, onBeforeRouteUpdate, type RouteLocationNormalized } from 'vue-router';
-import screenfull from 'screenfull';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import Sortable from 'sortablejs';
@@ -248,8 +247,7 @@ const openCurrenFullscreen = (path: string) => {
     nextTick(() => {
         router.push({ path, query: item?.query });
         const element = document.querySelector('.layout-main');
-        const screenfulls = screenfull as typeof screenfull & { request: (el: Element) => Promise<void> };
-        if (element) screenfulls.request(element);
+        if (element) element.requestFullscreen();
     });
 };
 

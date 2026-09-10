@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"mayfly-go/internal/machine/mcm/ansiterm"
 	"mayfly-go/pkg/errorx"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -78,6 +80,7 @@ type Parser struct {
 
 	vimState     bool
 	commandState bool
+	mu           sync.Mutex
 }
 
 func NewParser(width, height int) *Parser {
@@ -116,38 +119,64 @@ var (
 		{0x1b, 0x5b, 0x4b, 0x0d, 0x0a},
 		{0x1b, 0x5b, 0x34, 0x6c},
 	}
+
+	// promptEndRe 匹配 shell 提示符并捕获后续命令内容。
+	// (?m) 多行模式使 ^ 匹配每行开头，支持从多行输出中定位最后一行的提示符。
+	// 提示符以 #、$ 或 > 结尾，兼容 user@host:path#、host#、$、> 等常见格式。
+	// ANSI 终端模拟器已处理转义序列，Display() 输出为纯文本，无需额外清理。
+	promptEndRe = regexp.MustCompile(`(?m:^[\w@.:-]*[^$#>\n]*[$#>][\s]*([\w\W]*))`)
 )
 
 func (p *Parser) AppendInputData(data []byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if len(p.InputData) == 0 {
 		// 如 "root@cloud-s0ervh-hh87:~# " 获取前一段用户名等提示内容
-		p.Ps1 = p.GetOutput()
+		p.Ps1 = p.getOutputLocked()
 	}
 	p.InputData = append(p.InputData, data...)
 }
 
 func (p *Parser) AppendOutData(data []byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	// 非编辑等状态，则追加输出内容
-	if !p.State(data) {
+	if !p.stateLocked(data) {
 		p.OutputData = append(p.OutputData, data...)
 	}
 }
 
-// GetCmd 获取执行的命令
+// GetCmd 获取执行的命令。
+// 通过 ANSI 终端模拟器渲染输出（已为纯文本），取最后一行，再用正则匹配提示符提取命令。
+// 使用正则而非 strings.TrimPrefix，解决动态 PS1（含时间戳等）匹配失败的问题。
 func (p *Parser) GetCmd() string {
-	// "root@cloud-s0ervh-hh87:~# ls"
-	s := p.GetOutput()
-	// Ps1 = "root@cloud-s0ervh-hh87:~# "
-	return strings.TrimPrefix(s, p.Ps1)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	s := p.getOutputLocked()
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	return extractCmdAfterPrompt(s)
 }
 
 func (p *Parser) Reset() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.Output.Listener.Reset()
 	p.OutputData = nil
 	p.InputData = nil
 }
 
 func (p *Parser) GetOutput() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.getOutputLocked()
+}
+
+// getOutputLocked 获取 ANSI 终端渲染后的最后一行非空内容（调用方须持有 p.mu）
+func (p *Parser) getOutputLocked() string {
 	p.Output.Feed(p.OutputData)
 
 	res := parseOutput(p.Output.Listener.Display())
@@ -167,6 +196,13 @@ func parseOutput(data []string) (output []string) {
 }
 
 func (p *Parser) State(b []byte) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.stateLocked(b)
+}
+
+// stateLocked 检测 vim 等全屏编辑器的进入/退出状态（调用方须持有 p.mu）
+func (p *Parser) stateLocked(b []byte) bool {
 	if !p.vimState && IsEditEnterMode(b) {
 		if !isNewScreen(b) {
 			p.vimState = true
@@ -175,7 +211,9 @@ func (p *Parser) State(b []byte) bool {
 	}
 	if p.vimState && IsEditExitMode(b) {
 		// 重置终端输入输出
-		p.Reset()
+		p.Output.Listener.Reset()
+		p.OutputData = nil
+		p.InputData = nil
 		p.vimState = false
 		p.commandState = true
 	}
@@ -201,6 +239,18 @@ func matchMark(p []byte, marks [][]byte) bool {
 		}
 	}
 	return false
+}
+
+// extractCmdAfterPrompt 从包含 shell 提示符的文本中提取实际命令。
+// 使用正则匹配提示符（以 #/$/> 结尾），返回提示符之后的内容。
+// 如果未匹配到提示符，则返回原始文本（降级处理）。
+func extractCmdAfterPrompt(s string) string {
+	matches := promptEndRe.FindStringSubmatch(s)
+	if matches == nil {
+		// 未匹配到标准提示符，返回原始文本
+		return s
+	}
+	return strings.TrimSpace(matches[1])
 }
 
 // GetErrorContent 包装返回终端错误消息

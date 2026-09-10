@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 )
 
 // complexStrSamples 复杂字符串样本：引号/反斜杠/换行/回车/制表/JSON/分号/注释样式/
@@ -113,13 +114,13 @@ func TestComplexValueInsertNotMissplit(t *testing.T) {
 	for _, s := range complexStrSamples {
 		// 目标为标准SQL方言（postgres/sqlite）：值用标准转义，语句用标准切割器
 		stdScript := "INSERT INTO t (a) VALUES (" + SQLValueString(s) + ");"
-		stdStmts := splitStmts(t, sqlparser.NewStdSQLSplitter(), stdScript)
+		stdStmts := splitStmts(t, sqlparser.NewSplitter(tokenizer.StdConfig), stdScript)
 		require.Len(t, stdStmts, 1, "标准SQL语句被错切, 原值=%q", s)
 		assert.Equal(t, stdScript[:len(stdScript)-1], stdStmts[0], "切割改写了语句内容")
 
 		// 目标为mysql：值用反斜杠转义，语句用mysql切割器
 		myScript := "INSERT INTO `t` (a) VALUES (" + SQLValueStringEscapeBackslash(s) + ");"
-		myStmts := splitStmts(t, sqlparser.NewMysqlSplitter(), myScript)
+		myStmts := splitStmts(t, sqlparser.NewSplitter(tokenizer.MysqlConfig), myScript)
 		require.Len(t, myStmts, 1, "mysql语句被错切, 原值=%q", s)
 		assert.Equal(t, myScript[:len(myScript)-1], myStmts[0], "切割改写了语句内容")
 	}
@@ -134,7 +135,7 @@ func TestComplexValuesMultiStmtSplit(t *testing.T) {
 		stmtsWant = append(stmtsWant, one)
 		sb.WriteString(one + ";\n")
 	}
-	got := splitStmts(t, sqlparser.NewStdSQLSplitter(), sb.String())
+	got := splitStmts(t, sqlparser.NewSplitter(tokenizer.StdConfig), sb.String())
 	assert.Equal(t, stmtsWant, got)
 }
 

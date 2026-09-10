@@ -8,12 +8,18 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 )
 
-// ---------------- isTxnControlStmt ----------------
+// ---------------- 导入侧语句过滤 ----------------
 
-func TestIsTxnControlStmt(t *testing.T) {
-	// 应过滤：各类事务控制语句及变体（含分号/大小写/空白差异）
+func TestShouldSkipImportStmt(t *testing.T) {
+	splitter := sqlparser.NewSplitter(tokenizer.MysqlConfig)
+	skip := func(stmt string) bool { return shouldSkipImportStmt(splitter, stmt) }
+
+	// 应过滤：各类事务控制语句及变体（含分号/大小写/空白/注释前缀差异）
 	trueCases := []string{
 		"BEGIN", "begin", "BEGIN;", "  begin ; ", "BEGIN WORK",
 		"COMMIT", "commit;", "COMMIT WORK",
@@ -21,26 +27,34 @@ func TestIsTxnControlStmt(t *testing.T) {
 		"ROLLBACK", "rollback;",
 		"BEGIN TRANSACTION",
 		"set autocommit=1", "SET AUTOCOMMIT = 0;", "SET @@session.autocommit=1",
+		// dump 产物形态：分段注释头与 BEGIN 同属一条语句（切割保留注释原文）
+		"-- ----------------------------\n-- Data: t_user \n-- ----------------------------\nBEGIN",
+		"/* head */ COMMIT;",
+		"-- c\n-- c2\nSTART TRANSACTION",
+		// 可执行注释内容会被服务端执行（同样隐式提交当前事务），必须过滤
+		"/*!40101 SET autocommit=0 */",
+		"", "   \n ",
 	}
 	for _, c := range trueCases {
-		assert.True(t, isTxnControlStmt(c), "应过滤事务控制语句: %q", c)
+		assert.True(t, skip(c), "应过滤事务控制语句: %q", c)
 	}
 
 	// 不过滤：业务语句与自增列前置语句
 	falseCases := []string{
-		"", "   ",
 		"INSERT INTO t VALUES (1)",
-		"insert into `t` (`a`) values ('BEGIN')", // 字符串字面量含BEGIN不受影响
+		"insert into `t` (`a`) values ('BEGIN')",         // 字符串字面量含BEGIN不受影响
+		"INSERT INTO t VALUES ('-- not comment\nBEGIN')", // 字面量内的注释形态不得参与判定
 		"SELECT 1",
 		"DROP TABLE IF EXISTS `t`",
 		"CREATE TABLE `t` (id int)",
-		"set identity_insert [t] on",     // mssql自增列前置语句
-		"SET IDENTITY_INSERT [t] OFF;",   // 同上
-		"set identity_insert \"t\" off;", // dm
-		"BEGINNING",                      // 前缀相似的非事务语句（虽非合法SQL，但不得误判）
+		"set identity_insert [t] on",               // mssql自增列前置语句
+		"SET IDENTITY_INSERT [t] OFF;",             // 同上
+		"set identity_insert \"t\" off;",           // dm
+		"BEGINNING",                                // 前缀相似的非事务语句（虽非合法SQL，但不得误判）
+		"/*!40000 ALTER TABLE `t` DISABLE KEYS */", // 可执行注释解壳后为业务语句
 	}
 	for _, c := range falseCases {
-		assert.False(t, isTxnControlStmt(c), "不应过滤语句: %q", c)
+		assert.False(t, skip(c), "不应过滤语句: %q", c)
 	}
 }
 

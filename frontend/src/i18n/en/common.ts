@@ -292,9 +292,13 @@ export default {
             typeNumber: 'Number',
             typeTextarea: 'Textarea',
             typeSelect: 'Select',
+            typeRadio: 'Radio',
             typeSwitch: 'Switch',
             typeDate: 'Date',
             typeDatetime: 'Datetime',
+            typeTime: 'Time',
+            typeTags: 'Tags',
+            typeMonaco: 'Code Editor',
         },
         terminal: {
             connError: 'Connection error',

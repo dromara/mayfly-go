@@ -55,7 +55,34 @@ export interface AutoFormSelectOption {
 
 // ── 字段配置 ────────────────────────────────────────────────────
 
-export interface AutoFormItem {
+/**
+ * 选项配置切片（select / enum / radio 家族共用）
+ *
+ * 将选项来源、多选、剔除、选项级禁用等"选项类字段"专属概念
+ * 从 AutoFormItem 公共属性中分离为独立接口，职责边界清晰：
+ * - 新增选项相关配置项时仅改本接口，不污染公共字段属性
+ * - JSON Schema 编译层 / 家族组件可直接消费此切片
+ */
+export interface AutoFormOptionConfig {
+    /** 选项：静态数组或异步加载函数（函数入参为当前表单值，值变化时自动重新加载） */
+    options?: AutoFormSelectOption[] | ((form: AutoFormData) => Promise<AutoFormSelectOption[]>);
+    /** 枚举对象或枚举子集数组（type='enum' 时使用，数组仅渲染传入的枚举项） */
+    enums?: Record<string, EnumValue> | EnumValue[];
+    /** 是否多选（select / enum 类型） */
+    multiple?: boolean;
+    /** 从选项中剔除的值（如按场景隐藏某类凭证类型） */
+    excludeValues?: unknown[];
+    /** 选项级禁用（返回 true 时该选项不可选，用于选项联动约束） */
+    optionDisabled?: (value: unknown, form: AutoFormData) => boolean;
+}
+
+/**
+ * 字段配置（公共属性）
+ *
+ * 描述所有字段类型共享的通用属性：标识、标签、校验、显隐、布局等。
+ * 类型专属属性（如选项配置、文本域行数、数字范围等）通过交叉类型组合。
+ */
+interface AutoFormItemBase {
     /** 字段名（divider 类型可省略） */
     prop?: string;
 
@@ -108,43 +135,22 @@ export interface AutoFormItem {
     /** 栅格跨度（el-col span，缺省时由 AutoForm cols 均分 24） */
     span?: number;
 
-    // ── select 专用 ──
-    /** 选项：静态数组或异步加载函数（函数入参为当前表单值，值变化时自动重新加载） */
-    options?: AutoFormSelectOption[] | ((form: AutoFormData) => Promise<AutoFormSelectOption[]>);
+    // ── 控件专属配置 ──
 
-    /** 是否多选（select / enum 类型） */
-    multiple?: boolean;
-
-    // ── radio 专用 ──
-    // 选项使用 options 静态数组（无异步需求）或 enums 枚举对象，select/enum/radio 均支持 excludeValues / optionDisabled
-
-    // ── enum 专用 ──
-    /** 枚举对象或枚举子集数组（type='enum' 时使用，数组仅渲染传入的枚举项） */
-    enums?: Record<string, EnumValue> | EnumValue[];
-
-    // ── select / enum 通用 ──
-    /** 从选项中剔除的值（如按场景隐藏某类凭证类型） */
-    excludeValues?: unknown[];
-
-    /** 选项级禁用（返回 true 时该选项不可选，用于选项联动约束） */
-    optionDisabled?: (value: unknown, form: AutoFormData) => boolean;
-
-    // ── textarea 专用 ──
-    /** 文本域行数（默认 3） */
+    /** 文本域行数（默认 3，type='textarea' 时生效） */
     rows?: number;
 
-    // ── number 专用 ──
+    /** 数字最小值（type='number' 时生效） */
     min?: number;
+    /** 数字最大值（type='number' 时生效） */
     max?: number;
 
-    // ── input / number 前后缀 ──
-    /** 输入框前缀文本（如 '¥'、'http://'，input / number 类型生效） */
+    /** 输入框前缀文本（如 '¥'、'http://'，type='input'/'number' 时生效） */
     prefix?: string;
-    /** 输入框后缀文本（如 'ms'、'次/天'，input / number 类型生效） */
+    /** 输入框后缀文本（如 'ms'、'次/天'，type='input'/'number' 时生效） */
     suffix?: string;
 
-    // ── custom 专用 ──
-    /** 自定义插槽名（缺省使用 prop 作为插槽名） */
+    /** 自定义插槽名（缺省使用 prop 作为插槽名，type='custom' 时生效） */
     slot?: string;
 
     /** 透传给底层控件的额外属性（如 monaco 的 language/height、switch 的 active-value 等） */
@@ -154,46 +160,69 @@ export interface AutoFormItem {
     onChange?: (value: unknown, form: AutoFormData) => void;
 }
 
+/**
+ * 表单字段配置（完整描述）
+ *
+ * 公共属性（AutoFormItemBase）与选项配置切片（AutoFormOptionConfig）的交叉类型。
+ * 调用方以扁平对象声明，无需区分 base 与 option 层：
+ *
+ * @example
+ * { prop: 'type', type: 'select', label: '凭证类型', options: [...], excludeValues: ['ssh'] }
+ */
+export type AutoFormItem = AutoFormItemBase & AutoFormOptionConfig;
+
 // ── 控件类型注册表（新增控件类型的“类型知识”单一出处） ──────
 
 /**
  * 控件类型能力描述
  *
- * 新增 AutoFormItemType 联合成员时：在 AutoFormControl 增加渲染分支后，
- * 同步在本表登记能力位，isSelectLikeItem / JSON 编译白名单即自动生效，
- * 无需再散点修改多处判断（渲染分支因各控件 props 绑定异构，保留显式 v-if 以保类型安全）。
+ * 新增 AutoFormItemType 联合成员时：在 fields/ 下新增（或扩展）家族组件后，
+ * 同步在本表登记能力位并在 AutoFormControl.FIELD_MAP 注册组件映射，
+ * isSelectPromptItem / JSON 编译白名单即自动生效，无需再散点修改多处判断。
  */
 export interface ControlDescriptor {
-    /** 选择类控件：必填提示语生成“请选择{label}”（否则为“请输入{label}”） */
-    selectLike: boolean;
+    /** 提示语风格：true 生成"请选择{label}"（下拉/日期等选择式控件），false 生成"请输入{label}"（输入式控件） */
+    selectPrompt: boolean;
     /** 允许 JSON Schema 下发（无需插槽 / enums 函数对象即可纯 JSON 表达；radio 需 enums，暂不开放） */
     jsonCompilable: boolean;
 }
 
 export const CONTROL_REGISTRY: Record<AutoFormItemType, ControlDescriptor> = {
-    input: { selectLike: false, jsonCompilable: true },
-    password: { selectLike: false, jsonCompilable: true },
-    number: { selectLike: false, jsonCompilable: true },
-    textarea: { selectLike: false, jsonCompilable: true },
-    select: { selectLike: true, jsonCompilable: true },
-    enum: { selectLike: true, jsonCompilable: false },
-    radio: { selectLike: true, jsonCompilable: false },
-    switch: { selectLike: false, jsonCompilable: true },
-    date: { selectLike: true, jsonCompilable: true },
-    datetime: { selectLike: true, jsonCompilable: true },
-    time: { selectLike: true, jsonCompilable: true },
-    monaco: { selectLike: false, jsonCompilable: true },
-    tags: { selectLike: false, jsonCompilable: true },
-    divider: { selectLike: false, jsonCompilable: true },
-    group: { selectLike: false, jsonCompilable: true },
-    custom: { selectLike: false, jsonCompilable: false },
+    input: { selectPrompt: false, jsonCompilable: true },
+    password: { selectPrompt: false, jsonCompilable: true },
+    number: { selectPrompt: false, jsonCompilable: true },
+    textarea: { selectPrompt: false, jsonCompilable: true },
+    select: { selectPrompt: true, jsonCompilable: true },
+    enum: { selectPrompt: true, jsonCompilable: false },
+    radio: { selectPrompt: true, jsonCompilable: false },
+    switch: { selectPrompt: false, jsonCompilable: true },
+    date: { selectPrompt: true, jsonCompilable: true },
+    datetime: { selectPrompt: true, jsonCompilable: true },
+    time: { selectPrompt: true, jsonCompilable: true },
+    monaco: { selectPrompt: false, jsonCompilable: true },
+    tags: { selectPrompt: false, jsonCompilable: true },
+    divider: { selectPrompt: false, jsonCompilable: true },
+    group: { selectPrompt: false, jsonCompilable: true },
+    custom: { selectPrompt: false, jsonCompilable: false },
 };
 
-// ── 工具函数 ────────────────────────────────────────────────────
+// ── 工具函数与类型守卫 ────────────────────────────────────────────
 
-/** 判断字段是否为“选择类”控件（用于生成 请选择{label} 提示语） */
-export const isSelectLikeItem = (item: AutoFormItem): boolean => {
-    return CONTROL_REGISTRY[item.type ?? 'input'].selectLike;
+/** 判断字段提示语风格是否为"请选择{label}"（下拉/日期等选择式控件返回 true，输入式控件返回 false） */
+export const isSelectPromptItem = (item: AutoFormItem): boolean => {
+    return CONTROL_REGISTRY[item.type ?? 'input'].selectPrompt;
+};
+
+/** 判断字段是否为选项类控件（select / enum / radio，携带 options 或 enums 配置） */
+export const isOptionType = (item: AutoFormItem): boolean => {
+    const t = item.type ?? 'input';
+    return t === 'select' || t === 'enum' || t === 'radio';
+};
+
+/** 判断字段是否为布局/结构类型（divider / group / custom，不绑定表单值） */
+export const isStructuralType = (item: AutoFormItem): boolean => {
+    const t = item.type ?? 'input';
+    return t === 'divider' || t === 'group' || t === 'custom';
 };
 
 // ── 对外契约与 Tab 分组布局 ────────────────────────────────────

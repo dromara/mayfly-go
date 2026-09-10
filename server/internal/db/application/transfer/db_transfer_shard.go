@@ -31,11 +31,11 @@ func normalizeConcurrency(c int) int {
 	}
 }
 
-// planTableShards 规划表的主键范围分片，返回每片的数据过滤条件（空字符串=整表无过滤）。
+// PlanTableShards 规划表的主键范围分片，返回每片的数据过滤条件（空字符串=整表无过滤）。
 //
 // 仅当表存在**真实单列整型主键**时分片（见dbi.DetectIntPrimaryKey）；否则返回nil，
 // 调用方应整表单任务迁移。规划失败（元数据查询异常等）降级为整表迁移，不阻断迁移流程。
-func (app *DbTransferAppImpl) planTableShards(ctx context.Context, logId uint64, srcConn *dbi.DbConn, tableName string, tableRows int) []string {
+func (app *DbTransferAppImpl) PlanTableShards(ctx context.Context, logId uint64, srcConn *dbi.DbConn, tableName string, tableRows int) []string {
 	columns, err := srcConn.GetMetadata().GetColumns(tableName)
 	if err != nil {
 		app.Log(ctx, logId, fmt.Sprintf("plan shards: get columns of table [%s] failed: %s, fallback to whole-table transfer", tableName, err.Error()))

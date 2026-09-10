@@ -172,10 +172,26 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, targetDbConn.Info.CodePath...), "%s")
 
-	filename, reader, err := d.fileApp.GetReader(context.TODO(), tFile.FileKey)
+	filename, fileReader, err := d.fileApp.GetReader(context.TODO(), tFile.FileKey)
 	biz.ErrIsNil(err)
 
-	gox.GoCtx(rc.MetaCtx, func(ctx context.Context) {
+	// 备份文件可能是 zip/gz 压缩包，与「SQL文件执行」入口保持同样的解包能力；
+	// 解压/非法包在此同步报错，避免异步任务静默失败后只留下一条失败记录
+	reader, readerErr := newSqlFileReader(filename, fileReader)
+	if readerErr != nil {
+		_ = fileReader.Close()
+	}
+	biz.ErrIsNilAppendErr(readerErr, "failed to read sql file: %s")
+
+	// 异步导入必须脱离请求上下文的取消信号：net/http 在 handler 返回时即取消 request ctx，
+	// 直接透传 rc.MetaCtx 会使导入任务在第一条语句处就被判定「已取消」并回滚，功能整体失效。
+	// WithoutCancel 只切断取消传播，仍保留 ctx 值（traceId、登录账号、语言），日志与提示文案不受影响
+	gox.GoCtx(context.WithoutCancel(rc.MetaCtx), func(ctx context.Context) {
+		// 源文件流必须等异步任务读完才能关闭（在 handler 返回时关闭会使导入读到已关闭的流）；
+		// zip 已整体缓冲、gz 包装器依赖该源流，故只需关闭源流
+		defer func() {
+			_ = fileReader.Close()
+		}()
 		biz.ErrIsNil(d.dbSqlExecApp.ExecReader(ctx, &dto.SqlReaderExec{
 			Reader:   reader,
 			Filename: filename,

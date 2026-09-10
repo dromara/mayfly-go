@@ -2,22 +2,7 @@ package tokenizer
 
 import (
 	"strings"
-	"unicode"
 )
-
-// DialectConfig 定义不同 SQL 方言的配置
-type DialectConfig struct {
-	// 反引号作为标识符引号（MySQL）
-	BacktickAsIdentifier bool
-	// 双引号作为标识符引号（PostgreSQL）
-	DoubleQuoteAsIdentifier bool
-	// 支持 # 行注释（MySQL）
-	HashLineComment bool
-	// 支持 $tag$ 风格字符串/标识符（PostgreSQL）
-	DollarQuote bool
-	// 额外关键字集合（合并到标准关键字中）
-	ExtraKeywords map[string]bool
-}
 
 // Tokenizer 将 SQL 字符串拆分为 Token 序列
 type Tokenizer struct {
@@ -55,53 +40,21 @@ func (t *Tokenizer) tokenize() {
 			continue
 		}
 
-		// 行注释 --
-		if ch == '-' && t.pos+1 < t.length && t.sql[t.pos+1] == '-' {
+		// 行注释（-- 与 #）：双横线是否要求后随空白由方言能力表决定（mysql 中 1--2 是减法而非注释）
+		if t.config.IsLineCommentStart(t.sql, t.pos) {
 			t.skipLineComment()
 			continue
 		}
 
-		// MySQL # 行注释
-		if t.config.HashLineComment && ch == '#' {
-			t.skipLineComment()
-			continue
-		}
-
-		// 块注释 /* */
-		if ch == '/' && t.pos+1 < t.length && t.sql[t.pos+1] == '*' {
+		// 块注释 /* */：PG 系支持嵌套
+		if t.config.IsBlockCommentStart(t.sql, t.pos) {
 			t.skipBlockComment()
 			continue
 		}
 
-		// 字符串字面量 '...'
-		if ch == '\'' {
-			t.readString('\'')
+		// 字符串字面量与引用标识符（'..' ".." `..` [..] $tag$.. q'[..]'）
+		if t.readQuotedRegion(ch) {
 			continue
-		}
-
-		// 双引号字符串 "..."（如果不作为标识符引号）
-		if ch == '"' && !t.config.DoubleQuoteAsIdentifier {
-			t.readString('"')
-			continue
-		}
-
-		// 双引号标识符 "..."（PostgreSQL）
-		if ch == '"' && t.config.DoubleQuoteAsIdentifier {
-			t.readQuotedIdentifier('"')
-			continue
-		}
-
-		// 反引号标识符 `...`（MySQL）
-		if ch == '`' && t.config.BacktickAsIdentifier {
-			t.readQuotedIdentifier('`')
-			continue
-		}
-
-		// PostgreSQL $tag$ ... $tag$
-		if t.config.DollarQuote && ch == '$' {
-			if t.readDollarQuote() {
-				continue
-			}
 		}
 
 		// 数字
@@ -140,124 +93,77 @@ func (t *Tokenizer) tokenize() {
 
 // skipLineComment 跳过一个行注释（到行尾或 EOF）
 func (t *Tokenizer) skipLineComment() {
-	for t.pos < t.length && t.sql[t.pos] != '\n' {
-		t.pos++
-	}
+	t.pos = t.config.SkipLineComment(t.sql, t.pos)
 }
 
-// skipBlockComment 跳过一个块注释 /* */
+// skipBlockComment 跳过一个块注释（未闭合时消费至结尾，保持词法不中断）
 func (t *Tokenizer) skipBlockComment() {
-	t.pos += 2 // 跳过 /*
-	for t.pos < t.length {
-		if t.sql[t.pos] == '*' && t.pos+1 < t.length && t.sql[t.pos+1] == '/' {
-			t.pos += 2
-			return
-		}
-		t.pos++
-	}
+	end, _ := t.config.SkipBlockComment(t.sql, t.pos)
+	t.pos = end
 }
 
-// readString 读取一个单引号或双引号字符串字面量
-func (t *Tokenizer) readString(quote byte) {
-	start := t.pos
-	t.pos++ // 跳过起始引号
-	for t.pos < t.length {
-		ch := t.sql[t.pos]
-		if ch == quote {
-			// 检查是否是转义（两个连续引号）
-			if t.pos+1 < t.length && t.sql[t.pos+1] == quote {
-				t.pos += 2
-				continue
-			}
-			t.pos++ // 跳过结束引号
-			break
+// readQuotedRegion 尝试读取一个字符串字面量或引用标识符区域。
+// 开闭符、双写转义、反斜杠转义、E'...' 前缀、$tag$、Oracle q'[..]' 等语义全部取自 DialectConfig，
+// 与语句切割器共用同一套规则，避免两处实现漂移（如旧版无条件把 \ 当转义符，PG 的 'a\' 会吞掉后续 token）
+func (t *Tokenizer) readQuotedRegion(ch byte) bool {
+	switch ch {
+	case '\'', '"':
+		// 双引号是字符串还是标识符（mysql 系 / 标准 SQL 系）由 SkipQuoted 返回的区域类型区分
+	case '`':
+		if !t.config.BacktickAsIdentifier {
+			return false
 		}
-		// MySQL 风格转义 \'
-		if ch == '\\' && t.pos+1 < t.length {
-			t.pos += 2
-			continue
+	case '[':
+		if !t.config.BracketQuote {
+			return false
 		}
-		t.pos++
-	}
-	t.Tokens = append(t.Tokens, Token{
-		Type:  TokenString,
-		Value: t.sql[start:t.pos],
-		Pos:   start,
-		End:   t.pos,
-	})
-}
-
-// readQuotedIdentifier 读取一个带引号的标识符（反引号或双引号）
-func (t *Tokenizer) readQuotedIdentifier(quote byte) {
-	start := t.pos
-	t.pos++ // 跳过起始引号
-	for t.pos < t.length {
-		ch := t.sql[t.pos]
-		if ch == quote {
-			// 检查转义引号（如 "a""b" 或 ``a``b``）
-			if t.pos+1 < t.length && t.sql[t.pos+1] == quote {
-				t.pos += 2
-				continue
-			}
-			t.pos++ // 跳过结束引号
-			break
+	case 'q', 'Q':
+		end, _, _, ok := t.config.SkipAltQuote(t.sql, t.pos)
+		if !ok {
+			return false // 非 q'[..]' 形态（如表名 q、列名 seq），交回普通词法处理
 		}
-		t.pos++
-	}
-	t.Tokens = append(t.Tokens, Token{
-		Type:  TokenIdentifier,
-		Value: t.sql[start:t.pos],
-		Pos:   start,
-		End:   t.pos,
-	})
-}
-
-// readDollarQuote 读取 PostgreSQL $tag$ ... $tag$ 风格的引号内容
-func (t *Tokenizer) readDollarQuote() bool {
-	start := t.pos
-	// 读取 $tag$
-	tagEnd := t.readDollarTag()
-	if tagEnd < 0 {
+		t.emit(TokenString, end)
+		return true
+	case '$':
+		return t.readDollarQuote()
+	default:
 		return false
 	}
-	tag := t.sql[start : tagEnd+1] // 包含 $tag$
-	// 查找结束标记（从 tag 之后开始）
-	searchPos := tagEnd + 1
-	for searchPos < t.length {
-		if strings.HasPrefix(t.sql[searchPos:], tag) {
-			searchPos += len(tag)
-			t.Tokens = append(t.Tokens, Token{
-				Type:  TokenString,
-				Value: t.sql[start:searchPos],
-				Pos:   start,
-				End:   searchPos,
-			})
-			t.pos = searchPos
-			return true
-		}
-		searchPos++
+	end, kind, _ := t.config.SkipQuoted(t.sql, t.pos)
+	tokType := TokenString
+	if kind == RegionIdentifier {
+		tokType = TokenIdentifier
 	}
-	// 未找到结束标记，回退
-	return false
+	t.emit(tokType, end)
+	return true
 }
 
-// readDollarTag 读取 PostgreSQL $tag$ 中的 tag，返回结束 $ 的位置
-func (t *Tokenizer) readDollarTag() int {
-	if t.sql[t.pos] != '$' {
-		return -1
+// emit 追加 [t.pos, end) 对应的 token 并推进位置
+func (t *Tokenizer) emit(tokType TokenType, end int) {
+	t.Tokens = append(t.Tokens, Token{
+		Type:  tokType,
+		Value: t.sql[t.pos:end],
+		Pos:   t.pos,
+		End:   end,
+	})
+	t.pos = end
+}
+
+// readDollarQuote 读取 PostgreSQL $tag$ ... $tag$ 风格的引号内容；未命中或无结束标记时回退为普通字符
+func (t *Tokenizer) readDollarQuote() bool {
+	if !t.config.DollarQuote {
+		return false
 	}
-	pos := t.pos + 1
-	for pos < t.length {
-		ch := t.sql[pos]
-		if ch == '$' {
-			return pos
-		}
-		if !unicode.IsLetter(rune(ch)) && !unicode.IsDigit(rune(ch)) && ch != '_' {
-			return -1
-		}
-		pos++
+	tag, _ := ReadDollarTag(t.sql, t.pos)
+	if tag == "" {
+		return false
 	}
-	return -1
+	idx := strings.Index(t.sql[t.pos+len(tag):], tag)
+	if idx < 0 {
+		return false
+	}
+	t.emit(TokenString, t.pos+len(tag)+idx+len(tag))
+	return true
 }
 
 // readNumber 读取一个数字（整数或浮点数）

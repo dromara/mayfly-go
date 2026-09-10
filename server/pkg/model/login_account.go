@@ -7,7 +7,7 @@ type LoginAccount struct {
 }
 
 func (la *LoginAccount) GetAesKey() string {
-	return la.Token[:24]
+	return la.Token[:16]
 }
 
 // 系统账号

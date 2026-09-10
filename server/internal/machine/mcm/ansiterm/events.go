@@ -1,7 +1,6 @@
 package ansiterm
 
 import (
-	"fmt"
 	. "mayfly-go/internal/machine/mcm/ansiterm/consts"
 )
 
@@ -182,6 +181,6 @@ func (s *Stream) HandleCSI(char string, params []int, kw map[string]any) {
 	case DECSTBM:
 		s.Listener.SetMargins(param[0], param[1])
 	default:
-		fmt.Println("Unsupport type:", char)
+		// 未实现的 CSI 序列，静默忽略
 	}
 }

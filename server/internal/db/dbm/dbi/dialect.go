@@ -3,6 +3,7 @@ package dbi
 import (
 	"io"
 	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 )
 
 const (
@@ -80,8 +81,8 @@ func (pd *DefaultDialect) GetSQLParser() sqlparser.SqlParser {
 }
 
 func (pd *DefaultDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	// 默认使用切割器
-	return sqlparser.NewDefaultSplitter()
+	// 未注册方言的回落语义：标准SQL（反斜杠为普通字符，双引号为标识符引用符）
+	return sqlparser.NewSplitter(tokenizer.StdConfig)
 }
 
 // DumpHelper 导出辅助方法

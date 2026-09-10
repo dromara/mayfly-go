@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/db/application/mask"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	"mayfly-go/internal/db/domain/entity"
 	masksvc "mayfly-go/internal/db/domain/mask"
@@ -106,7 +107,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("SQL 切割失败: %v", err)
+		return nil, sqlparser.SplitError(ctx, err)
 	}
 
 	// 获取解析器
@@ -130,18 +131,19 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 
 		// 优先使用 Stmt 类型判断，解析失败时使用字符串匹配兜底
 		if parseErr != nil || stmt == nil {
-			// 解析失败，使用字符串匹配兜底
-			if isSelect(sql) {
+			// 解析失败，按语句首关键字兜底分类（切割保留注释原文，故不能按字符前缀匹配）
+			kind := sqlKind(splitter, sql)
+			if isSelect(kind) {
 				execRes, err = d.doSelect(ctx, sqlExec)
-			} else if isUpdate(sql) {
+			} else if isUpdate(kind) {
 				execRes, err = d.doUpdate(ctx, sqlExec)
-			} else if isDelete(sql) {
+			} else if isDelete(kind) {
 				execRes, err = d.doDelete(ctx, sqlExec)
-			} else if isInsert(sql) {
+			} else if isInsert(kind) {
 				execRes, err = d.doInsert(ctx, sqlExec)
-			} else if isOtherQuery(sql) {
+			} else if isOtherQuery(kind) {
 				execRes, err = d.doOtherRead(ctx, sqlExec)
-			} else if isDDL(sql) {
+			} else if isDDL(kind) {
 				execRes, err = d.doExecDDL(ctx, sqlExec)
 			} else {
 				execRes, err = d.doExec(ctx, dbConn, sql)
@@ -243,6 +245,9 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 	}
 	// 使用方言切割器进行 SQL 切割
 	splitter := dbConn.GetDialect().GetSQLSplitter()
+	// 文件内的 BEGIN/COMMIT/ROLLBACK 等事务控制语句按脚本原样执行（与 mysql CLI、psql 一致的脚本自治语义）。
+	// 真实提交点由各数据库自身决定（mysql 执行 BEGIN 会隐式提交在途写入，pg 仅告警，sqlite 直接报错），
+	// 无法从语句文本可靠推断（DDL 同样会隐式提交），故这里不做猜测与改写，失败一律原样返回底层数据库错误
 	err = splitter.SplitSQL(execReader.Reader, func(sql string) error {
 		// 检查context是否已取消
 		if ctx.Err() != nil {
@@ -268,6 +273,7 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 		return nil
 	})
 	if err != nil {
+		err = sqlparser.SplitError(ctx, err)
 		_ = tx.Rollback()
 		if needSendMsg {
 			msgEvent.TmplChannel = msgdto.MsgTmplSqlScriptRunFail
@@ -629,36 +635,39 @@ func (d *dbSqlExecAppImpl) doExec(ctx context.Context, dbConn *dbi.DbConn, sql s
 	}, err
 }
 
-func isSelect(sql string) bool {
-	return strings.Contains(getSqlPrefix(sql), "select")
+func isSelect(kind string) bool {
+	return strings.Contains(kind, "select")
 }
 
-func isUpdate(sql string) bool {
-	return strings.Contains(getSqlPrefix(sql), "update")
+func isUpdate(kind string) bool {
+	return strings.Contains(kind, "update")
 }
 
-func isDelete(sql string) bool {
-	return strings.Contains(getSqlPrefix(sql), "delete")
+func isDelete(kind string) bool {
+	return strings.Contains(kind, "delete")
 }
 
-func isInsert(sql string) bool {
-	return strings.Contains(getSqlPrefix(sql), "insert")
+func isInsert(kind string) bool {
+	return strings.Contains(kind, "insert")
 }
 
-func isOtherQuery(sql string) bool {
-	sqlPrefix := getSqlPrefix(sql)
-	return strings.Contains(sqlPrefix, "explain") || strings.Contains(sqlPrefix, "show") || strings.Contains(sqlPrefix, "with")
+func isOtherQuery(kind string) bool {
+	return strings.Contains(kind, "explain") || strings.Contains(kind, "show") || strings.Contains(kind, "with")
 }
 
-func isDDL(sql string) bool {
-	sqlPrefix := getSqlPrefix(sql)
-	return strings.Contains(sqlPrefix, "create") || strings.Contains(sqlPrefix, "alter") ||
-		strings.Contains(sqlPrefix, "drop") || strings.Contains(sqlPrefix, "truncate") || strings.Contains(sqlPrefix, "rename") ||
+func isDDL(kind string) bool {
+	return strings.Contains(kind, "create") || strings.Contains(kind, "alter") ||
+		strings.Contains(kind, "drop") || strings.Contains(kind, "truncate") || strings.Contains(kind, "rename") ||
 		// 各方言的 COMMENT ON 注释语句及 GRANT/REVOKE 授权语句均为非查询类 DDL/DCL
-		strings.Contains(sqlPrefix, "comment") || strings.Contains(sqlPrefix, "grant") || strings.Contains(sqlPrefix, "revoke")
+		strings.Contains(kind, "comment") || strings.Contains(kind, "grant") || strings.Contains(kind, "revoke")
 }
 
-func getSqlPrefix(sql string) string {
+// sqlKind 返回用于语句类型兜底判定的关键字：取方言语义下的首个整词关键字（已跳过前导空白与注释）；
+// 取不到时（如以 '(' 开头的括号查询）回落到文本前缀，保持原有的包含匹配语义
+func sqlKind(splitter sqlparser.SQLSplitter, sql string) string {
+	if kind := splitter.LeadingKeyword(sql); kind != "" {
+		return kind
+	}
 	if len(sql) < 10 {
 		return strings.ToLower(sql)
 	}

@@ -165,7 +165,7 @@ func (app *DbTransferAppImpl) buildVerifyReport(ctx context.Context, logId uint6
 
 	results := make([]TableVerifyResult, 0, len(tableNames))
 	for _, tableName := range tableNames {
-		res := app.verifyTable(ctx, srcConn, targetConn, tableName)
+		res := app.VerifyTable(ctx, srcConn, targetConn, tableName)
 		results = append(results, res)
 		if res.Err != "" {
 			app.Log(ctx, logId, fmt.Sprintf("verify table [%s] error: %s", tableName, res.Err))
@@ -188,9 +188,9 @@ func (app *DbTransferAppImpl) buildVerifyReport(ctx context.Context, logId uint6
 	return report
 }
 
-// verifyTable 校验单表：两侧count(*)比对 + 全量/多窗口抽样内容比对。
+// VerifyTable 校验单表：两侧count(*)比对 + 全量/多窗口抽样内容比对。
 // 抽样失败（无单列主键/查询异常）不视为校验失败，记录至SampleErr，count比对照常。
-func (app *DbTransferAppImpl) verifyTable(ctx context.Context, srcConn, targetConn *dbi.DbConn, tableName string) TableVerifyResult {
+func (app *DbTransferAppImpl) VerifyTable(ctx context.Context, srcConn, targetConn *dbi.DbConn, tableName string) TableVerifyResult {
 	res := TableVerifyResult{TableName: tableName}
 
 	// count比对

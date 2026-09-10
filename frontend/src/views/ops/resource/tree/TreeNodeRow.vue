@@ -2,8 +2,8 @@
     <div
         class="tree-row w-full flex items-center cursor-pointer select-none h-7 pr-1.5"
         :title="data.labelRemark"
-        @mouseenter="hovered = true"
-        @mouseleave="hovered = false"
+        @mouseenter="onRowEnter"
+        @mouseleave="onRowLeave"
     >
         <!-- 前缀插槽（如实例信息 popover），缺省用节点图标 -->
         <slot name="prefix" :data="data">
@@ -23,11 +23,11 @@
         </span>
 
         <!-- 悬浮操作按钮（与右键菜单同源：resolveNodeMenu）；出现时替代右侧信息区（对齐旧 BaseTreeNode 行为）；禁用节点不展示；
-             菜单展开期间保持渲染（hovered || dropdownVisible）：面板 teleport 到 body，鼠标移向面板会离开行，
-             若仅依赖 hovered 会连带锚点一起卸载导致弹层即开即消（无法点击菜单项）；
+             菜单展开期间保持渲染（parked || dropdownVisible）：面板 teleport 到 body，鼠标移向面板会离开行，
+             若仅依赖驻留态会连带锚点一起卸载导致弹层即开即消（无法点击菜单项）；
              与信息区互换走交叉淡入淡出，消除 v-if 切换的布局跳变 -->
         <Transition name="tree-row-swap" mode="out-in">
-            <span v-if="!data.disabled && showActions && (hovered || dropdownVisible) && visibleMenuItems.length" class="ml-auto flex items-center shrink-0 pr-1">
+            <span v-if="!data.disabled && showActions && (parked || dropdownVisible) && visibleMenuItems.length" class="tree-row-actions ml-auto flex items-center shrink-0 pr-1">
                 <el-dropdown size="small" trigger="click" @command="onMenuCommand" @visible-change="(v: boolean) => (dropdownVisible = v)">
                     <el-button text bg size="small" circle type="primary" @click.stop>
                         <SvgIcon name="MoreFilled" />
@@ -55,7 +55,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, ref } from 'vue';
+import { computed, inject, onBeforeUnmount, ref } from 'vue';
 
 import SvgIcon from '@/components/svg-icon/index.vue';
 
@@ -74,7 +74,35 @@ const props = withDefaults(
 
 const tree = inject(TreeApiKey)!;
 
-const hovered = ref(false);
+/**
+ * 操作按钮驻留显示：鼠标在行上停留 HOVER_PARK_MS 后才出现。
+ * 滑动扫过行时不闪现 icon（替代即时的 hovered 布尔），驻留即视为有操作意图；
+ * 菜单展开期间不受驻留态影响（锚点保持渲染，防 teleport 弹层连带关闭）
+ */
+const HOVER_PARK_MS = 300;
+const parked = ref(false);
+let parkTimer: ReturnType<typeof setTimeout> | null = null;
+
+const onRowEnter = () => {
+    if (parkTimer) {
+        clearTimeout(parkTimer);
+    }
+    parkTimer = setTimeout(() => (parked.value = true), HOVER_PARK_MS);
+};
+
+const onRowLeave = () => {
+    if (parkTimer) {
+        clearTimeout(parkTimer);
+        parkTimer = null;
+    }
+    parked.value = false;
+};
+
+onBeforeUnmount(() => {
+    if (parkTimer) {
+        clearTimeout(parkTimer);
+    }
+});
 
 /** 贡献者声明的行内 label 渲染器（kind 专属渲染知识归贡献者，行组件零 kind 知识） */
 const labelRenderer = computed(() => getContributor(props.data.kind)?.labelRenderer);

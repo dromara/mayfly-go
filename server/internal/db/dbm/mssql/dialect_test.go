@@ -120,15 +120,15 @@ func TestMssqlGenInsert_Simple(t *testing.T) {
 	}
 	values := [][]any{{1, "a"}, {2, "it's"}}
 
-	// None策略：字面值插入（值转义由各类型的SQLValue处理）
+	// None策略：字面值插入（字符串类值必须为N'...'Unicode字面量，见mssqlSQLValueString）
 	sqls := gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyNone, nil)
 	assert.Len(t, sqls, 1)
-	assert.Equal(t, " insert into [t1] ([id], [name]) VALUES \n(1, 'a'),\n(2, 'it''s')", sqls[0])
+	assert.Equal(t, " insert into [t1] ([id], [name]) VALUES \n(1, N'a'),\n(2, N'it''s')", sqls[0])
 
 	// Ignore策略但无唯一键元信息：只生成insert，不生成IGNORE_DUP_KEY约束
 	sqls = gen.GenInsert("t1", columns, values, dbi.DuplicateStrategyIgnore, nil)
 	assert.Len(t, sqls, 1)
-	assert.Equal(t, sqls[0], " insert into [t1] ([id], [name]) VALUES \n(1, 'a'),\n(2, 'it''s')")
+	assert.Equal(t, " insert into [t1] ([id], [name]) VALUES \n(1, N'a'),\n(2, N'it''s')", sqls[0])
 }
 
 func TestMssqlGenInsert_IgnoreWithMeta(t *testing.T) {
@@ -165,7 +165,7 @@ func TestMssqlGenInsert_Merge(t *testing.T) {
 	// INSERT子句必须带VALUES关键字
 	assert.Contains(t, sql, "WHEN NOT MATCHED THEN INSERT ([id],[name]) VALUES (T2.[id],T2.[name])")
 	// 多行值：每行的select只包含本行的值，且以UNION ALL连接
-	assert.Contains(t, sql, "USING (select 1 [id], 'a' [name] UNION ALL select 2 [id], 'b' [name]) T2")
+	assert.Contains(t, sql, "USING (select 1 [id], N'a' [name] UNION ALL select 2 [id], N'b' [name]) T2")
 	assert.Contains(t, sql, "MERGE INTO [t1] T1")
 	assert.Contains(t, sql, "ON  T1.[id] = T2.[id] ")
 	// 非自增列均生成update子句（含主键列自身，按columns顺序）

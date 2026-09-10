@@ -30,7 +30,8 @@ vi.mock('@/views/ops/db/api', () => ({
 vi.mock('@/i18n', () => ({ i18n: { global: { t: (key: string) => key } } }));
 vi.mock('@/common/request', () => ({ default: { request: vi.fn().mockResolvedValue([]) } }));
 
-const common = { status: '状态', enable: '启用', disable: '禁用', remark: '备注', cancel: '取消', confirm: '确定' };
+// 占位文案由 AutoForm 内部 t() 渲染，测试用的 common 必须与真实命名空间同形，否则“无缺 key 告警”断言不成立
+const common = { status: '状态', enable: '启用', disable: '禁用', remark: '备注', cancel: '取消', confirm: '确定', pleaseInput: '请输入{label}', pleaseSelect: '请选择{label}' };
 const i18n = createI18n({
     legacy: false,
     globalInjection: true,
@@ -55,6 +56,13 @@ const ruleRow = {
 const switchWarns = (spy: ReturnType<typeof vi.spyOn>) =>
     spy.mock.calls.map((c) => c.join(' ')).filter((s) => s.includes('active-value or inactive-value'));
 
+/**
+ * i18n 缺 key 告警：AutoForm 会对 item.label / option.label 再做一次 $t()，
+ * 声明处预先 t() 会把已译文当 key 传入（运行期只告警不报错，切换语言后文案还会固定在挂载时的语种）
+ */
+const i18nMissWarns = (spy: ReturnType<typeof vi.spyOn>) =>
+    spy.mock.calls.map((c) => c.join(' ')).filter((s) => s.includes('locale messages'));
+
 /** 挂载编辑抽屉（openAtMount=false 时模拟真实点击：先关闭挂载再置 visible） */
 const openEdit = async (data: Record<string, unknown> | null, openAtMount: boolean) => {
     const warnSpy = vi.spyOn(console, 'warn');
@@ -72,7 +80,14 @@ const openEdit = async (data: Record<string, unknown> | null, openAtMount: boole
     await new Promise((resolve) => setTimeout(resolve, 50));
     const switches = document.body.querySelectorAll('.el-switch').length;
     const nameInput = document.body.querySelector('.el-drawer input[type="text"]') as HTMLInputElement | null;
-    return { switches, nameValue: nameInput?.value, warns: switchWarns(warnSpy) };
+    return { switches, nameValue: nameInput?.value, warns: switchWarns(warnSpy), i18nWarns: i18nMissWarns(warnSpy), algoOptions: algoOptionTexts() };
+};
+
+/** 算法下拉的实际渲染文本（已选项以 input[value] 呈现，未展开时取可见的 el-select 触发器） */
+const algoOptionTexts = (): string[] => {
+    return Array.from(document.body.querySelectorAll('.el-select__selected-item, .el-select__placeholder'))
+        .map((el) => (el.textContent ?? '').trim())
+        .filter(Boolean);
 };
 
 describe('MaskRuleEdit 脱敏规则编辑', () => {
@@ -88,6 +103,17 @@ describe('MaskRuleEdit 脱敏规则编辑', () => {
         expect(switches).toBe(1);
         expect(nameValue).toBe('手机号');
         expect(warns).toEqual([]);
+    });
+
+    it('中英双语挂载均无 i18n 缺 key 告警，且算法下拉展示译文而非原始 key', async () => {
+        for (const locale of ['zh-cn', 'en'] as const) {
+            i18n.global.locale.value = locale;
+            const { algoOptions, i18nWarns } = await openEdit(ruleRow, false);
+            expect(i18nWarns, `[${locale}] 存在未被解析的 i18n key`).toEqual([]);
+            expect(algoOptions.join('|'), `[${locale}] 算法下拉未展示译文`).toContain(locale === 'zh-cn' ? '部分遮盖' : 'Partial');
+            expect(algoOptions.join('|')).not.toContain('db.maskAlgo');
+        }
+        i18n.global.locale.value = 'zh-cn';
     });
 
     it('宿主以 visible=true 直接挂载（异步组件/HMR）同样不报警告', async () => {

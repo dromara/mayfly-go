@@ -1,6 +1,7 @@
 import type { editor, languages, Position, IRange } from 'monaco-editor';
 import type { DbDialect } from '../../dialect';
 import type { QuotePair } from './quoter';
+import type { CursorClause } from './sqlContext';
 import type { DbInst } from '../../db';
 
 /**
@@ -19,6 +20,8 @@ export interface SqlCompletionContext {
     lineContent: string;
     /** 光标所在完整 SQL 语句 */
     statement: string;
+    /** 光标相对语句起点的偏移（用于 JOIN 多表场景就近取表） */
+    statementCursorOffset: number;
     /** 光标前行文本的最后/次后令牌（小写） */
     lastToken: string;
     secondToken: string;
@@ -26,6 +29,8 @@ export interface SqlCompletionContext {
     isDotTrigger: boolean;
     /** `.` 触发时解析出的别名/库名 */
     dotAlias: string;
+    /** 光标所处子句类型（table：表名期望位置；column：字段/表达式位置；free：全量兜底） */
+    clause: CursorClause;
     /** 数据库实例 */
     dbInst: DbInst;
     /** 当前库名 */
@@ -34,6 +39,8 @@ export interface SqlCompletionContext {
     dbs: string[];
     /** 数据库方言 */
     dialect: DbDialect;
+    /** 数据库类型（mysql/postgres/...，用于切割与光标区域判定的方言选项） */
+    dbType: string;
     /** 方言接受的标识符引用符 */
     quotePairs: QuotePair[];
     /** 光标单词是否已被引用符包裹 */

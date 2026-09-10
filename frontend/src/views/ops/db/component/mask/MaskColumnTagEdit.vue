@@ -64,9 +64,6 @@ import { computed, reactive, ref, type PropType } from 'vue';
 import { dbApi, dbMaskApi } from '../../api';
 import DbSelectTree from '../DbSelectTree.vue';
 import type { DbMaskColumn, DbMaskRule } from '../../types';
-import { useI18n } from 'vue-i18n';
-
-const { t } = useI18n();
 
 const props = defineProps({
     data: {
@@ -97,15 +94,16 @@ const columnOptions = ref<string[]>([]);
 const tableLoading = ref(false);
 const columnLoading = ref(false);
 
+// 算法选项 label 传 i18n key：AutoForm 内部对 option.label 做 $t()，此处预先 t() 会被二次翻译（控制台报缺 key，且切换语言后文案不随之更新）
 const algorithmOptions = [
-    { label: t('db.maskAlgoFull'), value: 'full' },
-    { label: t('db.maskAlgoPartial'), value: 'partial' },
-    { label: t('db.maskAlgoHash'), value: 'hash' },
-    { label: t('db.maskAlgoRegexReplace'), value: 'regexReplace' },
-    { label: t('db.maskAlgoPhone'), value: 'phone' },
-    { label: t('db.maskAlgoEmail'), value: 'email' },
-    { label: t('db.maskAlgoIdcard'), value: 'idcard' },
-    { label: t('db.maskAlgoBankCard'), value: 'bankCard' },
+    { label: 'db.maskAlgoFull', value: 'full' },
+    { label: 'db.maskAlgoPartial', value: 'partial' },
+    { label: 'db.maskAlgoHash', value: 'hash' },
+    { label: 'db.maskAlgoRegexReplace', value: 'regexReplace' },
+    { label: 'db.maskAlgoPhone', value: 'phone' },
+    { label: 'db.maskAlgoEmail', value: 'email' },
+    { label: 'db.maskAlgoIdcard', value: 'idcard' },
+    { label: 'db.maskAlgoBankCard', value: 'bankCard' },
 ];
 
 /** 表单声明（AutoFormItem[]），绑定规则/算法仅在动作=绑定时展示；库名由资源树选择带出，不再单独表单项 */

@@ -36,19 +36,37 @@ func TestMssqlConverter_IntMappings(t *testing.T) {
 	assert.Equal(t, Bigint, c.UnsignedInt8(col))
 }
 
-// varchar超长边界：varchar(n)上限8000字节，超长必须转varchar(max)
+// 字符列边界：异构目标统一落nvarchar（Unicode）；超长（>4000字符）或长度未知（<=0）转nvarchar(max)
 func TestMssqlConverter_VarcharMaxLengthBoundary(t *testing.T) {
 	c := &commonTypeConverter{}
 
+	// 4000字符为nvarchar(n)上限，边界内保真保留长度
 	col := newCol()
-	col.CharMaxLength = 8000
-	assert.Equal(t, Varchar, c.Varchar(col))
-	assert.Equal(t, 8000, col.CharMaxLength)
+	col.CharMaxLength = 4000
+	assert.Equal(t, Nvarchar, c.Varchar(col))
+	assert.Equal(t, 4000, col.CharMaxLength)
 
+	// 4001起只能落nvarchar(max)：不得截断为nvarchar(4000)（那会静默丢掉第4001个字符往后的内容）
 	col2 := newCol()
-	col2.CharMaxLength = 8001
-	assert.Equal(t, VarcharMax, c.Varchar(col2))
+	col2.CharMaxLength = 4001
+	assert.Equal(t, NvarcharMax, c.Varchar(col2))
 	assert.Equal(t, 0, col2.CharMaxLength)
+
+	// 源列长度远超nvarchar(n)上限（如mysql varchar(8000)/varchar(65535)）时同样只能落nvarchar(max)
+	col3 := newCol()
+	col3.CharMaxLength = 8000
+	assert.Equal(t, NvarcharMax, c.Varchar(col3))
+	col4 := newCol()
+	col4.CharMaxLength = 65535
+	assert.Equal(t, NvarcharMax, c.Varchar(col4))
+
+	// 长度未知（pg/sqlite的不限长varchar）必须落nvarchar(max)：SQL Server的nvarchar不写长度
+	// 即等价nvarchar(1)，会静默截断所有超长值且无任何报错（与bytesType对CharMaxLength<=0的处理一致）
+	col5 := newCol()
+	assert.Equal(t, NvarcharMax, c.Varchar(col5))
+	col6 := newCol()
+	col6.CharMaxLength = -1 // SQL Server对max列回报-1，防御性同样归为不限长
+	assert.Equal(t, NvarcharMax, c.Varchar(col6))
 }
 
 // 二进制类型归一化：无长度或超长转varbinary(max)，避免binary(1)默认长度或binary(n)>8000非法DDL
@@ -78,13 +96,13 @@ func TestMssqlConverter_BytesTypeBoundary(t *testing.T) {
 	assert.Equal(t, VarbinaryMax, c.Varbinary(col5))
 }
 
-// text族清空长度（text类型无长度语法）
+// 大文本族清空长度并落nvarchar(max)（源text长度无意义，且varchar/text受库代码页限制不保真非ASCII）
 func TestMssqlConverter_TextClearLength(t *testing.T) {
 	c := &commonTypeConverter{}
 
 	col := newCol()
 	col.CharMaxLength = 500
-	assert.Equal(t, Text, c.Text(col))
+	assert.Equal(t, NvarcharMax, c.Text(col))
 	assert.Equal(t, 0, col.CharMaxLength)
 }
 
@@ -96,8 +114,11 @@ func TestMssqlConverter_RepresentativeMappings(t *testing.T) {
 	// datetime2而非datetime：datetime标度固定3.33ms且无精度语法，无法表达异构源的微秒小数秒
 	assert.Equal(t, Datetime2, c.Datetime(col))
 	assert.Equal(t, Datetime2, c.Timestamp(col))
-	assert.Equal(t, Varchar, c.Enum(col))
-	assert.Equal(t, Text, c.JSON(col))
+	// enum元数据回报的列长为各枚举值最大字节数（>0），按有界字符列处理
+	enumCol := newCol()
+	enumCol.CharMaxLength = 20
+	assert.Equal(t, Nvarchar, c.Enum(enumCol))
+	assert.Equal(t, NvarcharMax, c.JSON(col))
 	assert.Equal(t, Decimal, c.Decimal(col))
 	// 无精度约束的源列必须补齐(38,19)：mssql的decimal不声明精度即decimal(18,0)，会静默截断小数
 	unbounded := newCol()
@@ -122,20 +143,24 @@ func TestMssqlConverter_RepresentativeMappings(t *testing.T) {
 func TestMssqlConverter_RemainingMappings(t *testing.T) {
 	c := &commonTypeConverter{}
 
-	assert.Equal(t, Char, c.Char(newCol()))
+	// 定长列保持定长语义（带长度时）；长度未知时不得落nchar（等价nchar(1)，会静默截断）
+	charCol := newCol()
+	charCol.CharMaxLength = 2
+	assert.Equal(t, Nchar, c.Char(charCol))
+	assert.Equal(t, NvarcharMax, c.Char(newCol()))
 	// CTNumeric（浮点/无约束数值）落float而非numeric：numeric不带精度等价numeric(18,0)会截断小数
 	assert.Equal(t, Float, c.Numeric(newCol()))
 	assert.Equal(t, Time, c.Time(newCol()))
 
-	// mediumtext/longtext同样归一化为text并清空长度（text无长度语法）
+	// mediumtext/longtext同样落nvarchar(max)并清空长度
 	col := newCol()
 	col.CharMaxLength = 500
-	assert.Equal(t, Text, c.Mediumtext(col))
+	assert.Equal(t, NvarcharMax, c.Mediumtext(col))
 	assert.Equal(t, 0, col.CharMaxLength)
 
 	col2 := newCol()
 	col2.CharMaxLength = 500
-	assert.Equal(t, Text, c.Longtext(col2))
+	assert.Equal(t, NvarcharMax, c.Longtext(col2))
 	assert.Equal(t, 0, col2.CharMaxLength)
 }
 
@@ -151,17 +176,25 @@ func TestMssqlConvToTargetDbColumn_FromMysql(t *testing.T) {
 	assert.Equal(t, "varbinary(max)", blobCol.DataType)
 	assert.Equal(t, "varbinary(max)", blobCol.GetColumnType())
 
-	// varchar(8001) → varchar(max)，历史上曾生成非法DDL varchar(8001)
+	// varchar(8001) → nvarchar(max)（nvarchar(n)上限4000字符）
 	longVarchar := &dbi.Column{DataType: "varchar", CharMaxLength: 8001}
 	err = dbi.ConvToTargetDbColumn(mysql.DbTypeMysql, DbTypeMssql, dialect, longVarchar)
 	assert.NoError(t, err)
-	assert.Equal(t, "varchar(max)", longVarchar.DataType)
-	assert.Equal(t, "varchar(max)", longVarchar.GetColumnType())
+	assert.Equal(t, "nvarchar(max)", longVarchar.DataType)
+	assert.Equal(t, "nvarchar(max)", longVarchar.GetColumnType())
 
-	// varchar(50) → varchar(50) 正常保留长度
+	// varchar(50) → nvarchar(50) 保留字符长度
 	normalVarchar := &dbi.Column{DataType: "varchar", CharMaxLength: 50}
 	err = dbi.ConvToTargetDbColumn(mysql.DbTypeMysql, DbTypeMssql, dialect, normalVarchar)
 	assert.NoError(t, err)
-	assert.Equal(t, "varchar", normalVarchar.DataType)
-	assert.Equal(t, "varchar(50)", normalVarchar.GetColumnType())
+	assert.Equal(t, "nvarchar", normalVarchar.DataType)
+	assert.Equal(t, "nvarchar(50)", normalVarchar.GetColumnType())
+
+	// 值转SQL接线：异构目标列类型名必须能在该方言类型注册表中命中，
+	// 否则GenInsert按名取类型会回退默认字符串类型（跨方言守卫见 dbm.TestConverterOutputTypesRegistered）
+	for _, cc := range []*dbi.Column{blobCol, longVarchar, normalVarchar} {
+		resolved := dbi.GetDbDataType(DbTypeMssql, cc.DataType)
+		assert.NotSame(t, dbi.DefaultDbDataType, resolved, "类型[%s]未注册，值转SQL将静默回退默认字符串类型", cc.DataType)
+		assert.Equal(t, cc.DataType, resolved.Name, "类型[%s]命中了错误的注册类型", cc.DataType)
+	}
 }

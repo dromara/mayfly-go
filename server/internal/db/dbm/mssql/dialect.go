@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"strings"
@@ -132,9 +133,9 @@ func (md *MssqlDialect) GetDumpHelper() dbi.DumpHelper {
 	return new(DumpHelper)
 }
 
-// GetSQLSplitter 标准SQL切割器：mssql字符串中反斜杠为普通字符
+// GetSQLSplitter T-SQL切割器：[标识符]（]] 为转义右括号）、# 为临时表前缀而非注释符、BEGIN..END 块感知
 func (md *MssqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	return sqlparser.NewStdSQLSplitter()
+	return sqlparser.NewSplitter(tokenizer.MssqlConfig)
 }
 
 func (md *MssqlDialect) GetSQLGenerator() dbi.SQLGenerator {

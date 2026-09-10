@@ -2,7 +2,7 @@ package transfer
 
 // 本文件为数据库dump导出核心逻辑：将源库表结构/数据导出为目标方言SQL脚本。
 // 供主包DbAppImpl的DumpDb功能与本包迁移/校验链路（集成测试直驱真实dump）共用，
-// 与导入侧importDumpStream构成完整迁移引擎
+// 与导入侧 ImportDumpStream 构成完整迁移引擎
 
 import (
 	"cmp"
@@ -238,26 +238,32 @@ func DumpDbScript(ctx context.Context, dbConn *dbi.DbConn, reqParam *dto.DumpDb)
 			progress(tableName, dbi.StmtTypeInsert, dataCount, true)
 		}
 
-		log(fmt.Sprintf("get table [%s] index information...", tableName))
-		indexs, err := srcMeta.GetTableIndex(tableName)
-		if err != nil {
-			log(fmt.Sprintf("failed to get table [%s] index information: %s", tableName, err.Error()))
-			return err
-		}
-
-		if len(indexs) > 0 {
-			// 最后添加索引
-			log(fmt.Sprintf("generate table [%s] index...", tableName))
-			if err := writeDump(fmt.Sprintf("\n-- ----------------------------\n-- Table Index: %s \n-- ----------------------------\n", dbi.SanitizeCommentText(tableName))); err != nil {
+		// 索引属于表结构，与建表DDL同为DumpDDL语义，必须受其门控：
+		// 「仅数据」产物若携带索引DDL，恢复到已存在该索引的表会因重名直接失败
+		// （mysql: Error 1061 Duplicate key name），使数据备份恢复与两阶段迁移的数据阶段不可用；
+		// 且mysql的CREATE/ALTER ... ADD INDEX会隐式提交当前事务，破坏导入侧的批级提交与失败回滚语义
+		if reqParam.DumpDDL {
+			log(fmt.Sprintf("get table [%s] index information...", tableName))
+			indexs, err := srcMeta.GetTableIndex(tableName)
+			if err != nil {
+				log(fmt.Sprintf("failed to get table [%s] index information: %s", tableName, err.Error()))
 				return err
 			}
-			sqlArr := targetSqlGenerator.GenIndexDDL(tableInfo, indexs)
-			for _, sqlStr := range sqlArr {
-				if _, err := writer.WriteString(sqlStr + ";\n"); err != nil {
+
+			if len(indexs) > 0 {
+				// 最后添加索引
+				log(fmt.Sprintf("generate table [%s] index...", tableName))
+				if err := writeDump(fmt.Sprintf("\n-- ----------------------------\n-- Table Index: %s \n-- ----------------------------\n", dbi.SanitizeCommentText(tableName))); err != nil {
 					return err
 				}
+				sqlArr := targetSqlGenerator.GenIndexDDL(tableInfo, indexs)
+				for _, sqlStr := range sqlArr {
+					if _, err := writer.WriteString(sqlStr + ";\n"); err != nil {
+						return err
+					}
+				}
+				progress(tableName, dbi.StmtTypeDDL, len(sqlArr), true)
 			}
-			progress(tableName, dbi.StmtTypeDDL, len(sqlArr), true)
 		}
 	}
 

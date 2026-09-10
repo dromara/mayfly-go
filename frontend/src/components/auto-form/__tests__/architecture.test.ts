@@ -6,20 +6,24 @@ import { join } from 'node:path';
  * 架构守护：auto-form 分层边界（UI 框架无关性契约）
  *
  * 分层规则：
- * - core 层 = 目录下全部纯 .ts 文件（types 契约 / shared 数据与校验编排 / json 编译与条件求值）：
+ * - core 层 = 纯 .ts 文件（types 契约 / shared 数据与校验编排 / json 编译与条件求值）：
  *   禁止 import 任何 UI 框架（element-plus 等）。替换 UI 框架（如 shadcn-vue）时 core 层零改动迁移，
  *   调用点的 items/schema/rules 契约全部保持不变。
- * - 适配层 = 全部 .vue 组件（控件渲染 AutoFormControl、表单壳 AutoForm、栅格 AutoFormFieldCol、
- *   弹层宿主 AutoFormDialog/AutoFormDrawer、Schema 编辑工具）：当前为 element-plus 实现，
- *   换框架时仅需重写该层模板与控件分支，对外 props/事件/AutoFormInstance 契约不变。
+ *   注意：fields/useFieldControl.ts 虽在 fields/ 下，仍属 core 层（纯 .ts，仅依赖 types.ts）。
+ * - 适配层 = ui/adapter.ts（element-plus 唯一入口，组件与类型再导出）+ 全部 .vue 组件：
+ *   换框架时仅需替换 ui/adapter.ts 实现并重写 .vue 模板中的组件标签，
+ *   对外 props/事件/AutoFormInstance 契约不变。
  */
 const CORE_DIR = join(import.meta.dirname, '..');
+
+/** core 层扫描排除的目录：__tests__（测试）/ ui（适配层，允许 import element-plus） */
+const EXCLUDED_DIRS = new Set(['__tests__', 'ui']);
 
 const listCoreTsFiles = (dir: string): string[] =>
     readdirSync(dir).flatMap((name) => {
         const full = join(dir, name);
         if (statSync(full).isDirectory()) {
-            return name === '__tests__' ? [] : listCoreTsFiles(full);
+            return EXCLUDED_DIRS.has(name) ? [] : listCoreTsFiles(full);
         }
         return name.endsWith('.ts') ? [full] : [];
     });

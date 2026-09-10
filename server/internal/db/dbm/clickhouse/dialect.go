@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
@@ -34,8 +35,9 @@ func (cd *ClickHouseDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(pgsql.PgsqlParser)
 }
 
+// GetSQLSplitter clickhouse 切割器：# 与 -- 均为行注释（-- 不要求后随空白），反引号为标识符引用符
 func (cd *ClickHouseDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	return sqlparser.NewDefaultSplitter(';')
+	return sqlparser.NewSplitter(tokenizer.ClickhouseConfig)
 }
 
 func (cd *ClickHouseDialect) CopyTable(copy *dbi.DbCopyTable) error {

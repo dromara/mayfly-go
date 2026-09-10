@@ -16,6 +16,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -627,4 +628,76 @@ func TestMaskITPgComplex2(t *testing.T) {
 	assert.Equal(t, "138****1234", rows[0]["PHONE"], "外层星号展开的PHONE应经通配血缘归属t_mask_user")
 	assert.Equal(t, "北京市朝阳区", rows[0]["ADDRESS"], "ADDRESS不应脱敏")
 	assertColMasked(t, cols, map[string]bool{"PHONE": true, "USER_NAME": true, "ID": false, "ADDRESS": false})
+}
+
+// maskKeywordPlan 仅对列名comment建立全局脱敏规则（full算法）
+// comment在MySQL/PostgreSQL均为非保留关键字，可直接作裸列名，但会被通用词法器识别为keyword
+func maskKeywordPlan(t *testing.T) *masksvc.Plan {
+	t.Helper()
+	alg, err := masksvc.Get(masksvc.AlgoFull)
+	require.NoError(t, err)
+	plan, err := masksvc.NewPlan([]*masksvc.Rule{
+		{Name: "备注", MatchType: masksvc.MatchTypeExact, Pattern: "comment", Algorithm: alg},
+	}, nil)
+	require.NoError(t, err)
+	return plan
+}
+
+// assertKeywordColMasked 在目标库建立含comment列的表，并断言表达式内的脱敏列不返回明文
+func assertKeywordColMasked(t *testing.T, conn *dbi.DbConn, ddl []string, exprSQLs []string) {
+	t.Helper()
+	for _, s := range ddl {
+		maskItExec(t, conn, s)
+	}
+	defer maskItExec(t, conn, "DROP TABLE IF EXISTS t_kw_mask")
+	plan := maskKeywordPlan(t)
+
+	// 对照组：普通列引用（不经表达式血缘路径）必须脱敏，否则下方断言失去意义
+	rows, cols := runMaskQuery(t, conn, plan, "SELECT comment FROM t_kw_mask")
+	require.Len(t, rows, 1)
+	assert.Equal(t, "****", rows[0]["comment"], "裸关键字列名未命中脱敏规则，本用例环境不对")
+	assertColMasked(t, cols, map[string]bool{"comment": true})
+
+	// 表达式内引用：裸名与带引用符同名必须一致脱敏（词法器无法判断其是否为列名时不得默认丢弃）
+	for _, sql := range exprSQLs {
+		rows, cols = runMaskQuery(t, conn, plan, sql)
+		require.Len(t, rows, 1, "查询无结果: %s", sql)
+		require.Len(t, cols, 1)
+		key := cols[0].Key
+		// 断言不返回明文而非等于固定星串：full算法按原长保位，表达式拼接后的长度不应当成为断言负担
+		assert.NotContains(t, fmt.Sprintf("%v", rows[0][key]), "敏感备注", "表达式内的关键字形态脱敏列返回明文: %s", sql)
+		assertColMasked(t, cols, map[string]bool{key: true})
+	}
+}
+
+// TestMaskITMysqlKeywordColumn MySQL：表达式内的关键字形态列名（comment）不得脱离血缘导致脱敏失效
+func TestMaskITMysqlKeywordColumn(t *testing.T) {
+	conn := maskMysqlConn(t)
+	defer conn.Close()
+	assertKeywordColMasked(t, conn, []string{
+		"DROP TABLE IF EXISTS t_kw_mask",
+		"CREATE TABLE t_kw_mask (id int PRIMARY KEY, comment varchar(64), phone varchar(20))",
+		"INSERT INTO t_kw_mask (id, comment, phone) VALUES (1, '敏感备注', '13800001234')",
+	}, []string{
+		"SELECT CONCAT(comment, 'x') AS c1 FROM t_kw_mask",       // 裸名token匹配（无限定符）
+		"SELECT CONCAT(`comment`, 'x') AS c2 FROM t_kw_mask",     // 带引用符（本来就正常，作不变量对照）
+		"SELECT CONCAT(t.comment, 'x') AS c3 FROM t_kw_mask t",   // 限定名对（裸）
+		"SELECT CONCAT(t.`comment`, 'x') AS c4 FROM t_kw_mask t", // 限定名对（带引用符）
+	})
+}
+
+// TestMaskITPgKeywordColumn PostgreSQL：同形验证（双引号引用符），防止只有MySQL修好
+func TestMaskITPgKeywordColumn(t *testing.T) {
+	conn := maskPgConn(t)
+	defer conn.Close()
+	assertKeywordColMasked(t, conn, []string{
+		"DROP TABLE IF EXISTS t_kw_mask",
+		"CREATE TABLE t_kw_mask (id int PRIMARY KEY, comment varchar(64), phone varchar(20))",
+		"INSERT INTO t_kw_mask (id, comment, phone) VALUES (1, '敏感备注', '13800001234')",
+	}, []string{
+		"SELECT CONCAT(comment, 'x') AS c1 FROM t_kw_mask",
+		`SELECT CONCAT("comment", 'x') AS c2 FROM t_kw_mask`,
+		"SELECT CONCAT(t.comment, 'x') AS c3 FROM t_kw_mask t",
+		`SELECT CONCAT(t."comment", 'x') AS c4 FROM t_kw_mask t`,
+	})
 }

@@ -38,5 +38,5 @@ const (
 	SGR     = "m"
 	DSR     = "n"
 	DECSTBM = "r"
-	HPA     = "'"
+	HPA     = "`"
 )

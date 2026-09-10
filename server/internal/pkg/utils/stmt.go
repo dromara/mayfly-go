@@ -27,10 +27,27 @@ type SplitOpts struct {
 	BacktickQuote bool
 }
 
-// SplitStmts 语句切割（用于以指定delimiter结尾为一条语句，并且去除// -- /**/等注释）主要由阿里通义灵码提供
+// SplitStmts 语句切割（用于以指定delimiter结尾为一条语句，并去除 -- /**/ 等注释）主要由阿里通义灵码提供
 // 默认采用mysql语义（反斜杠为转义符），标准SQL方言请使用 SplitStmtsWithOpts 指定 BackslashEscape=false
+//
+// 注意：本切割器面向命令类输入（如 redis 批量命令），注释会被移除；
+// SQL 语句切割请使用 dbm/sqlparser 下方言感知的切割器（保留注释原文且支持块感知）
 func SplitStmts(r io.Reader, delimiter rune, callback StmtCallback) error {
 	return SplitStmtsWithOpts(r, delimiter, SplitOpts{BackslashEscape: true}, callback)
+}
+
+// appendCommentSeparator 注释内容被移除后补一个空白分隔符：
+// 否则注释与其紧邻的 token 会粘连（如 "SELECT a-- c\nFROM t" 错切成 "SELECT aFROM t"），
+// 使语句语义被改写；已有空白时无需重复补齐，保持原有文本间距不变
+func appendCommentSeparator(sb *bytes.Buffer) {
+	if sb.Len() == 0 {
+		return
+	}
+	switch sb.Bytes()[sb.Len()-1] {
+	case ' ', '\t', '\n', '\r':
+	default:
+		sb.WriteByte(' ')
+	}
 }
 
 // SplitStmtsWithOpts 语句切割，支持按方言语义定制转义与注释行为
@@ -74,12 +91,14 @@ func SplitStmtsWithOpts(r io.Reader, delimiter rune, opts SplitOpts, callback St
 				if r == '*' && buffer.Len() >= 2 && buffer.Bytes()[1] == '/' {
 					inMultiLineComment = false
 					buffer.Next(2) // 跳过 '*/'
+					appendCommentSeparator(&currentStatement)
 				} else {
 					buffer.Next(size)
 				}
 			case inSingleLineComment:
 				if r == '\n' {
 					inSingleLineComment = false
+					appendCommentSeparator(&currentStatement)
 				}
 				buffer.Next(size)
 			case inString:

@@ -1,6 +1,5 @@
 import { Msg } from '@/hooks/useI18n';
 import { i18n } from '@/i18n';
-import { v1 as uuidv1 } from 'uuid';
 
 /**
  * 模板字符串解析，如：template = 'hahaha{name}_{id}' ,param = {name: 'hh', id: 1}
@@ -108,7 +107,7 @@ export function getTextWidth(str: string) {
  * @returns uuid
  */
 export function randomUuid() {
-    return uuidv1();
+    return crypto.randomUUID();
 }
 
 /**

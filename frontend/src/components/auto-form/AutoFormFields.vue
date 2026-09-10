@@ -1,33 +1,34 @@
 <template>
     <template v-for="(seg, si) in segments" :key="`seg-${si}`">
         <!-- 分组容器（GroupContainer）：标题 + 描述 + 带边框内层，跨全宽；组内字段全部隐藏时不渲染空壳 -->
-        <el-col v-if="seg.group && hasVisibleItem(seg)" :span="24">
+        <ACol v-if="seg.group && hasVisibleItem(seg)" :span="24">
             <div v-if="seg.group.label" class="mb-1 text-sm font-medium">{{ $t(seg.group.label) }}</div>
             <div v-if="seg.group.groupDescription" class="mb-2 text-xs text-gray-400 leading-5">{{ $t(seg.group.groupDescription) }}</div>
             <div class="mb-2 rounded-lg border p-3" style="border-color: var(--el-border-color-lighter)">
-                <el-row :gutter="16">
+                <ARow :gutter="16">
                     <AutoFormFieldCol v-for="item in seg.items" :key="item.prop ?? item.label ?? ''" :item="item" :form="form" :default-span="defaultSpan" :readonly="readonly">
                         <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
                             <slot :name="name" v-bind="slotProps ?? {}" />
                         </template>
                     </AutoFormFieldCol>
-                </el-row>
+                </ARow>
             </div>
-        </el-col>
+        </ACol>
 
-        <!-- 无分组字段平铺（el-row 包裹以支持 span 并排布局） -->
-        <el-row v-else :gutter="16">
+        <!-- 无分组字段平铺（ARow 包裹以支持 span 并排布局） -->
+        <ARow v-else :gutter="16">
             <AutoFormFieldCol v-for="item in seg.items" :key="item.prop ?? item.label ?? ''" :item="item" :form="form" :default-span="defaultSpan" :readonly="readonly">
                 <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
                     <slot :name="name" v-bind="slotProps ?? {}" />
                 </template>
             </AutoFormFieldCol>
-        </el-row>
+        </ARow>
     </template>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue';
+import { ACol, ARow } from './ui/adapter';
 import AutoFormFieldCol from './AutoFormFieldCol.vue';
 import { isItemVisible } from './shared';
 import type { AutoFormData, AutoFormItem } from './types';

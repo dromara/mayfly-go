@@ -73,7 +73,6 @@ const props = defineProps({
 const emit = defineEmits(['cancel']);
 
 const visible = defineModel<boolean>('visible', { default: false });
-const machineId = defineModel<number | null>('machineId');
 
 const columns = [
     TableColumn.new('creator', 'machine.operator').setMinWidth(120),
@@ -100,7 +99,7 @@ const state = reactive({
 const { query, playerDialogVisible, execCmdsDialogVisible } = toRefs(state);
 
 watch(
-    [visible, machineId],
+    [visible, () => props.machineId],
     async ([newVisible, newMachineId]) => {
         if (newVisible) {
             state.query.machineId = newMachineId || 0;
@@ -154,7 +153,6 @@ const handleClosePlayer = () => {
  */
 const handleClose = () => {
     visible.value = false;
-    machineId.value = null;
     emit('cancel');
 };
 </script>

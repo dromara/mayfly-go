@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"time"
@@ -98,8 +99,8 @@ func (pd *PgsqlDialect) GetSQLParser() sqlparser.SqlParser {
 	return new(pgsql.PgsqlParser)
 }
 
-// GetSQLSplitter pg专属切割器：dollar-quoted字符串（$$/$tag$，函数体DO块内分号）、
-// E'...'转义字符串（反斜杠转义）、嵌套块注释，标准切割器会在这三类语法上错切
+// GetSQLSplitter pg切割器：dollar-quoted字符串（$$/$tag$，函数体DO块内分号）、
+// E'...'转义字符串、嵌套块注释（能力位与词法器共用同一份注册表）
 func (pd *PgsqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	return sqlparser.NewPgsqlSplitter()
+	return sqlparser.NewSplitter(tokenizer.PgConfig)
 }

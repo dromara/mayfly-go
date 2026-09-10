@@ -1,8 +1,8 @@
 <template>
-    <el-form ref="formRef" :model="model" :rules="formRules" :label-position="labelPosition ?? 'right'" :label-width="labelWidth ?? 'auto'" v-bind="$attrs">
+    <AForm ref="formRef" :model="model" :rules="formRules" :label-position="labelPosition ?? 'right'" :label-width="labelWidth ?? 'auto'" v-bind="$attrs">
         <!-- Tab 分组布局（非懒渲染：未激活 Tab 的字段同样挂载，validate 全量生效） -->
-        <el-tabs v-if="activeTabs.length" v-model="activeTab">
-            <el-tab-pane v-for="tab in activeTabs" :key="tab.name" :name="tab.name" :disabled="isTabDisabled(tab)">
+        <ATabs v-if="activeTabs.length" v-model="activeTab">
+            <ATabPane v-for="tab in activeTabs" :key="tab.name" :name="tab.name" :disabled="isTabDisabled(tab)">
                 <template #label>
                     <span class="flex items-center">
                         <SvgIcon v-if="tab.icon" :name="tab.icon" class="mr-1" />
@@ -14,8 +14,8 @@
                         <slot :name="name" v-bind="slotProps ?? {}" />
                     </template>
                 </AutoFormFields>
-            </el-tab-pane>
-        </el-tabs>
+            </ATabPane>
+        </ATabs>
 
         <!-- 平铺布局（支持 group 分组容器） -->
         <AutoFormFields v-else :items="allItems" :form="model" :cols="props.cols" :readonly="props.readonly ?? false">
@@ -23,19 +23,19 @@
                 <slot :name="name" v-bind="slotProps ?? {}" />
             </template>
         </AutoFormFields>
-    </el-form>
+    </AForm>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref, watchEffect, useTemplateRef } from 'vue';
-import type { FormInstance, FormItemRule } from 'element-plus';
 import { useI18n } from 'vue-i18n';
+import { AForm, ATabs, ATabPane, type FormInstance, type FormItemRule } from './ui/adapter';
 import { Rules } from '@/common/rule';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import AutoFormFields from './AutoFormFields.vue';
 import { compileJsonTabs, type AutoFormJsonSchema, type JsonField } from './json';
 import { isItemRequired, resolveFormItems } from './shared';
-import { isSelectLikeItem, type AutoFormData, type AutoFormItem, type AutoFormInstance, type AutoFormTab } from './types';
+import { isSelectPromptItem, type AutoFormData, type AutoFormItem, type AutoFormInstance, type AutoFormTab } from './types';
 
 const props = defineProps<{
         /** 字段配置（渲染 + 校验数据源），与 schema 二选一 */
@@ -102,7 +102,7 @@ const formRules = computed(() => {
         const itemRules: FormItemRule[] = [];
         // 动态 required：根据表单值实时计算（如条件必填字段，与 FieldCol 星号显示共用同一判定）
         if (isItemRequired(item, model.value)) {
-            itemRules.push(isSelectLikeItem(item) ? Rules.requiredSelect(item.label) : Rules.requiredInput(item.label));
+            itemRules.push(isSelectPromptItem(item) ? Rules.requiredSelect(item.label) : Rules.requiredInput(item.label));
         }
         if (item.validate) {
             const validateFn = item.validate;

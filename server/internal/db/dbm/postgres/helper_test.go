@@ -1,9 +1,11 @@
 package postgres
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
 )
@@ -89,4 +91,61 @@ func TestFixColumnDefault_GeneratedSql(t *testing.T) {
 			assert.Equal(t, tt.want, dbi.GenColumnDefaultSqlOf(col, tt.dataType, dbi.QuoteEscape))
 		})
 	}
+}
+
+// itAfterInsert 调用生产校正语句生成器并返回产物文本
+func itAfterInsert(t *testing.T, table string, columns []dbi.Column) string {
+	t.Helper()
+	var buf bytes.Buffer
+	require.NoError(t, (&DumpHelper{}).AfterInsert(&buf, table, columns))
+	return buf.String()
+}
+
+// TestAfterInsertSequenceCorrection 自增序列校正语句的形态守卫。
+//
+// 并发下调竞态在IT侧只能概率性暴露（实测20轮约半数命中），本用例钉死语句形态，
+// 使「去掉GREATEST」「去掉NULL守卫」这类回归在单测阶段即变红。三项语义要求（详见AfterInsert注释）：
+//   - 只增不减：写入值必须与本段读到的max及序列当前值取GREATEST，否则大表分片并行迁移时
+//     后完成但id更小的分片会把序列下调，迁移后首条业务插入即撞主键；
+//   - 空表零副作用：max为NULL时必须靠WHERE整条跳过，不能让GREATEST忽略NULL后把is_called置true（首条插入平白跳号）；
+//   - 不携带事务包装：导入方自管事务，脚本内BEGIN/COMMIT会破坏外层事务
+func TestAfterInsertSequenceCorrection(t *testing.T) {
+	t.Run("无自增列不输出任何语句", func(t *testing.T) {
+		assert.Empty(t, itAfterInsert(t, "t_plain", []dbi.Column{{ColumnName: "id"}, {ColumnName: "v"}}))
+	})
+
+	t.Run("校正语句形态", func(t *testing.T) {
+		out := itAfterInsert(t, "t_order", []dbi.Column{{ColumnName: "id", AutoIncrement: true}, {ColumnName: "v"}})
+		t.Log(out)
+		assert.Equal(t,
+			"SELECT setval('\"t_order_id_seq\"', GREATEST((SELECT max(\"id\") FROM \"t_order\"), "+
+				"(SELECT last_value FROM \"t_order_id_seq\")), true) "+
+				"WHERE (SELECT max(\"id\") FROM \"t_order\") IS NOT NULL;\n", out)
+		assert.NotContains(t, out, "BEGIN", "不得输出事务包装语句")
+		assert.NotContains(t, out, "COMMIT", "不得输出事务包装语句")
+	})
+
+	t.Run("多个自增列各自一条校正", func(t *testing.T) {
+		out := itAfterInsert(t, "t_multi", []dbi.Column{
+			{ColumnName: "id", AutoIncrement: true},
+			{ColumnName: "ver", AutoIncrement: true},
+			{ColumnName: "v"},
+		})
+		assert.Equal(t, 2, bytes.Count([]byte(out), []byte("SELECT setval(")), "每个自增列各输出一条:\n"+out)
+		assert.Contains(t, out, `setval('"t_multi_id_seq"'`)
+		assert.Contains(t, out, `setval('"t_multi_ver_seq"'`)
+	})
+
+	// 序列名同时出现在字符串字面量（需转义）与FROM标识符位（需引用）两处，两者转义方式不同
+	t.Run("含引号表名的双位引用", func(t *testing.T) {
+		out := itAfterInsert(t, "it's_tbl", []dbi.Column{{ColumnName: "id", AutoIncrement: true}})
+		assert.Contains(t, out, `setval('"it''s_tbl_id_seq"'`, "序列名在字符串字面量内必须按字面量转义:\n"+out)
+		assert.Contains(t, out, `(SELECT last_value FROM "it's_tbl_id_seq")`, "序列名在FROM位必须按标识符引用:\n"+out)
+	})
+
+	// 列名作为主键参与max子查询，含特殊字符时必须引用，否则切割与执行均语法错误
+	t.Run("含空格列名必须引用", func(t *testing.T) {
+		out := itAfterInsert(t, "t_sp", []dbi.Column{{ColumnName: "my id", AutoIncrement: true}})
+		assert.Contains(t, out, `(SELECT max("my id") FROM "t_sp")`, out)
+	})
 }

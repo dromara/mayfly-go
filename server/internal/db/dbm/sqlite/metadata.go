@@ -183,23 +183,10 @@ func (sd *SqliteMetadata) GetPrimaryKey(tableName string) (string, error) {
 	return "", errors.New("不存在主键")
 }
 
-// 解析索引创建语句以获取字段信息
-func extractIndexFields(indexSQL string) string {
-	// 使用正则表达式提取字段信息
-	re := regexp.MustCompile(`\((.*?)\)`)
-	match := re.FindStringSubmatch(indexSQL)
-	if len(match) > 1 {
-		fields := strings.Split(match[1], ",")
-		for i, field := range fields {
-			// 去除空格
-			fields[i] = strings.TrimSpace(field)
-		}
-		return strings.Join(fields, ",")
-	}
-	return ""
-}
-
 // 获取表索引信息
+//
+// 列名与唯一性均来自pragma（见SQLITE_INDEX_INFO模板）：约束生成的隐式索引在sqlite_master中
+// 无sql文本，旧口径按sql正则提取会得到空列名，并使dump生成 DROP/CREATE 空列索引的非法语句
 func (sd *SqliteMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	// 模板以字符串字面量匹配表名，必须转义单引号，否则含单引号的表名会破坏SQL
 	_, res, err := sd.dc.Query(fmt.Sprintf(metaSql.Get(SQLITE_INDEX_INFO_KEY), dbi.QuoteEscape(tableName)))
@@ -209,20 +196,16 @@ func (sd *SqliteMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexSql := cast.ToString(re["indexSql"])
-		isUnique := strings.Contains(indexSql, "CREATE UNIQUE INDEX")
-
 		indexs = append(indexs, dbi.Index{
 			IndexName:    cast.ToString(re["indexName"]),
-			ColumnName:   extractIndexFields(indexSql),
+			ColumnName:   cast.ToString(re["columnName"]),
 			IndexType:    cast.ToString(re["indexType"]),
 			IndexComment: cast.ToString(re["indexComment"]),
-			IsUnique:     isUnique,
+			IsUnique:     cast.ToBool(re["isUnique"]),
 			SeqInIndex:   1,
 			IsPrimaryKey: false,
 		})
 	}
-	// 把查询结果以索引名分组，索引字段以逗号连接
 	return indexs, nil
 }
 
