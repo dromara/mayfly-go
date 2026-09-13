@@ -73,18 +73,13 @@ function base64ToArrayBuffer(base64: string): Uint8Array {
     return bytes;
 }
 
-/** PEM 格式公钥转 CryptoKey（SPKI 格式） */
-async function pemToCryptoKey(pem: string): Promise<CryptoKey> {
-    // 移除 PEM 头尾标记，提取 base64 内容
-    const base64 = pem
-        .replace(/-----BEGIN PUBLIC KEY-----/g, '')
-        .replace(/-----END PUBLIC KEY-----/g, '')
-        .replace(/\s/g, '');
-    const der = base64ToArrayBuffer(base64);
-    return crypto.subtle.importKey('spki', der as BufferSource, { name: 'RSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['encrypt']);
-}
-
 let cachedCryptoKey: CryptoKey | null = null;
+
+/** 重置 RSA 加密缓存，使下次加密重新获取公钥 */
+export function resetRsaCryptoKey() {
+    cachedCryptoKey = null;
+    sessionStorage.removeItem('RsaPublicKey');
+}
 
 export async function getRsaPublicKey() {
     let publicKey = sessionStorage.getItem('RsaPublicKey');
@@ -96,9 +91,19 @@ export async function getRsaPublicKey() {
     return publicKey;
 }
 
+/** PEM 格式公钥转 CryptoKey（SPKI 格式，RSA-OAEP + SHA-256） */
+async function pemToCryptoKey(pem: string): Promise<CryptoKey> {
+    const base64 = pem
+        .replace(/-----BEGIN PUBLIC KEY-----/g, '')
+        .replace(/-----END PUBLIC KEY-----/g, '')
+        .replace(/\s/g, '');
+    const der = base64ToArrayBuffer(base64);
+    return crypto.subtle.importKey('spki', der as BufferSource, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
+}
+
 /**
  * 公钥加密指定值
- * 与后端 cryptox.RsaEncrypt 协议一致：RSA-PKCS1-v1_5
+ * 与后端 cryptox.RsaDecrypt 协议一致：RSA-OAEP + SHA-256
  *
  * @param value value
  * @returns 加密后的 Base64 值
@@ -108,7 +113,6 @@ export async function RsaEncrypt(value: string): Promise<string> {
         return '';
     }
 
-    // 获取或缓存 CryptoKey
     if (!cachedCryptoKey) {
         const publicKey = (await getRsaPublicKey()) as string;
         notBlank(publicKey, '获取公钥失败');
@@ -116,6 +120,6 @@ export async function RsaEncrypt(value: string): Promise<string> {
     }
 
     const encoder = new TextEncoder();
-    const encrypted = await crypto.subtle.encrypt({ name: 'RSA-PKCS1-v1_5' }, cachedCryptoKey, encoder.encode(value));
+    const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, cachedCryptoKey, encoder.encode(value));
     return arrayBufferToBase64(encrypted);
 }

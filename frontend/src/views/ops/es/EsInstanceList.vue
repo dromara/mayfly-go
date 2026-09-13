@@ -7,13 +7,13 @@
             :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
-            v-model:selection-data="state.selectionData"
+            v-model:selection-data="selectionData"
             :columns="columns"
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete" plain>
+                <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance()" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance" type="danger" icon="delete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -70,7 +70,8 @@ import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { useRouteTagPath } from '@/hooks/useResourceForm';
+import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import { esApi } from './api';
@@ -105,36 +106,26 @@ const columns = ref([
 const actionBtns: Record<string, boolean> = hasPerms(Object.values(perms));
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const checkRouteTagPath = useRouteTagPath();
 
-const state = reactive({
-    row: {},
-    dbId: 0,
-    db: '',
-    /**
-     * 选中的数据
-     */
-    selectionData: [],
-    /**
-     * 查询条件
-     */
-    query: {
-        name: null,
-        tagPath: '',
-        pageNum: 1,
-        pageSize: 0,
-    },
-    infoDialog: {
-        visible: false,
-        data: null as EsInstance | null,
-    },
-    instanceEditDialog: {
-        visible: false,
-        data: null as EsInstance | null,
-        title: '',
-    },
+const selectionData = ref<EsInstance[]>([]);
+const query = ref({
+    name: null,
+    tagPath: '',
+    pageNum: 1,
+    pageSize: 0,
 });
 
-const { selectionData, query, infoDialog, instanceEditDialog } = toRefs(state);
+const infoDialog = ref({
+    visible: false,
+    data: null as EsInstance | null,
+});
+
+const instanceEditDialog = ref({
+    visible: false,
+    data: null as EsInstance | null,
+    title: '',
+});
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -145,16 +136,8 @@ onMounted(async () => {
     }
 });
 
-const search = (tagPath: string = '') => {
-    if (tagPath) {
-        state.query.tagPath = tagPath;
-    }
-    pageTableRef.value?.search();
-};
-
 const handleData = (res: PageResult<EsInstance>) => {
     const dataList = res.list;
-    // 赋值授权凭证
     for (let x of dataList) {
         if (x.authCerts && x.authCerts.length > 0) {
             x.selectAuthCert = x.authCerts[0];
@@ -164,30 +147,33 @@ const handleData = (res: PageResult<EsInstance>) => {
 };
 
 const showInfo = (info: EsInstance) => {
-    state.infoDialog.data = info;
-    state.infoDialog.visible = true;
+    infoDialog.value.data = info;
+    infoDialog.value.visible = true;
 };
 
-const editInstance = async (data: EsInstance | false) => {
-    if (!data) {
-        state.instanceEditDialog.data = null;
-        state.instanceEditDialog.title = useI18nCreateTitle('es.instance');
-    } else {
-        state.instanceEditDialog.data = data;
-        state.instanceEditDialog.title = useI18nEditTitle('es.instance');
-    }
-    state.instanceEditDialog.visible = true;
+const editInstance = (data: EsInstance | false = false) => {
+    instanceEditDialog.value.data = data || null;
+    instanceEditDialog.value.title = data ? useI18nEditTitle('es.instance') : useI18nCreateTitle('es.instance');
+    instanceEditDialog.value.visible = true;
 };
 
 const deleteInstance = async () => {
+    const records = selectionData.value || [];
+    if (records.length === 0) return;
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: EsInstance) => x.name).join('、'));
-        await esApi.deleteInstance.request({ id: state.selectionData.map((x: EsInstance) => x.id).join(',') });
-        Msg.deleteSuccess();
-        search();
-    } catch (err) {
-        //
+        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
+    } catch {
+        return; // 用户取消
     }
+    await esApi.deleteInstance.request({ id: records.map((x) => x.id).join(',') });
+    Msg.deleteSuccess();
+    search();
+};
+
+const search = (tagPath?: string) => {
+    // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
+    query.value.tagPath = tagPath ?? '';
+    pageTableRef.value?.search();
 };
 
 defineExpose({ search });

@@ -1,19 +1,22 @@
-import {
-    commonCustomKeywords,
-    DataType,
+import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
+import type {
     DbDialect,
+    DialectCapabilities,
     DialectInfo,
-    DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
     RowDefinition,
     sqlColumnType,
-} from './index';
-import { DbInst } from '@/views/ops/db/db';
-import { language as sqlLanguage } from 'monaco-editor/languages/definitions/sql/sql.js';
-
-export { SqliteDialect };
+    SqlSnippetTemplate,
+} from './types';
+import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
+import { appendLimitSql, getDefaultDataType, wrapValueDefault } from './shared/utils';
+import { defineCapabilities, sqliteQuotePairs, sqliteSplitOptions } from './shared/capabilities';
+import { limitCommaPageSnippet } from './shared/snippets';
+import { DbType } from './dbType';
+import { registerDbDialect } from './registry';
+import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
 // 参考官方文档：https://www.sqlite.org/datatype3.html
 const SQLITE_TYPE_LIST: sqlColumnType[] = [
@@ -116,16 +119,47 @@ const functions: EditorCompletionItem[] = [
 ];
 
 let sqliteDialectInfo: DialectInfo;
+let sqliteCompletions: EditorCompletion;
 
 class SqliteDialect implements DbDialect {
+    getCapabilities(): DialectCapabilities {
+        return defineCapabilities({
+            supportsSchema: false,
+            supportsTableComment: false,
+            supportsColumnComment: false,
+            defaultIndexType: 'BTREE',
+            // 嵌入式库：以文件路径而非 host/port 连接
+            connectionMode: 'file_path',
+            quotePairs: sqliteQuotePairs,
+            sqlSplitOptions: sqliteSplitOptions,
+        });
+    }
+
     getInfo(): DialectInfo {
         if (sqliteDialectInfo) {
             return sqliteDialectInfo;
         }
 
+        sqliteDialectInfo = {
+            name: 'Sqlite3',
+            icon: 'icon db/sqlite',
+            defaultPort: 0,
+            formatSqlDialect: 'sql',
+            columnTypes: SQLITE_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
+        };
+        return sqliteDialectInfo;
+    }
+
+    /** 编辑器联想词由 monaco 语言定义派生，按需加载并缓存（详见 types.ts 的 DialectInfo 注释） */
+    async getEditorCompletions(): Promise<EditorCompletion> {
+        if (sqliteCompletions) {
+            return sqliteCompletions;
+        }
+
+        const { language: sqlLanguage } = await import('monaco-editor/languages/definitions/sql/sql.js');
         let { keywords, operators, builtinVariables } = sqlLanguage;
 
-        let editorCompletions: EditorCompletion = {
+        sqliteCompletions = {
             keywords: keywords
                 .filter((a: string) => addCustomKeywords.indexOf(a) === -1)
                 .map((a: string): EditorCompletionItem => ({ label: a, description: 'keyword' }))
@@ -135,16 +169,7 @@ class SqliteDialect implements DbDialect {
             functions,
             variables: builtinVariables.map((a: string): EditorCompletionItem => ({ label: a, description: 'var' })),
         };
-
-        sqliteDialectInfo = {
-            name: 'Sqlite3',
-            icon: 'icon db/sqlite',
-            defaultPort: 0,
-            formatSqlDialect: 'sql',
-            columnTypes: SQLITE_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
-            editorCompletions,
-        };
-        return sqliteDialectInfo;
+        return sqliteCompletions;
     }
 
     getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
@@ -156,86 +181,16 @@ class SqliteDialect implements DbDialect {
         return ` LIMIT ${(pageNum - 1) * limit}, ${limit}`;
     }
 
+    getPreviewSql(sql: string, limit = 1): string {
+        return appendLimitSql(sql, limit);
+    }
+
+    getPageSnippet(): SqlSnippetTemplate {
+        return limitCommaPageSnippet;
+    }
+
     getDefaultRows(): RowDefinition[] {
-        return [
-            {
-                name: 'id',
-                type: 'integer',
-                length: '',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: true,
-                auto_increment: true,
-                remark: '主键ID',
-            },
-            {
-                name: 'creator_id',
-                type: 'bigint',
-                length: '20',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建人id',
-            },
-            {
-                name: 'creator',
-                type: 'varchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建人姓名',
-            },
-            {
-                name: 'create_time',
-                type: 'datetime',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建时间',
-            },
-            {
-                name: 'updator_id',
-                type: 'bigint',
-                length: '20',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改人id',
-            },
-            {
-                name: 'updator',
-                type: 'varchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改姓名',
-            },
-            {
-                name: 'update_time',
-                type: 'datetime',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改时间',
-            },
-        ];
+        return createDefaultRows(defaultRowsConfigs.sqlite);
     }
 
     getDefaultIndex(): IndexDefinition {
@@ -243,7 +198,8 @@ class SqliteDialect implements DbDialect {
             indexName: '',
             columnNames: [],
             unique: false,
-            indexType: 'BTREE',
+            // 索引类型取自能力声明，避免与 defaultIndexType 各写一份而漂移
+            indexType: this.getCapabilities().defaultIndexType,
             indexComment: '',
         };
     }
@@ -255,121 +211,98 @@ class SqliteDialect implements DbDialect {
     genColumnBasicSql(cl: RowDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
-        let length = cl.length ? `(${cl.length})` : '';
+        let length = '';
+        if (cl.length) {
+            length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
+        }
         let nullAble = cl.notNull ? 'NOT NULL' : 'NULL';
         if (cl.pri) {
-            return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} PRIMARY KEY ${cl.auto_increment ? 'AUTOINCREMENT' : ''} ${nullAble} `;
+            const parts = [this.quoteIdentifier(cl.name), cl.type + length, 'PRIMARY KEY', cl.auto_increment ? 'AUTOINCREMENT' : '', nullAble];
+            return parts.filter(Boolean).join(' ');
         }
-        return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${nullAble} ${defVal} `;
+        const parts = [this.quoteIdentifier(cl.name), cl.type + length, nullAble, defVal];
+        return parts.filter(Boolean).join(' ');
     }
 
-    getCreateTableSql(data: Record<string, unknown>): string {
+    getCreateTableSql(data: TableEditContext): string {
         // 创建表结构
         let fields: string[] = [];
-        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
         });
 
-        return `CREATE TABLE ${this.quoteIdentifier(data.db as string)}.${this.quoteIdentifier(data.tableName as string)}
-                (
-                    ${fields.join(',')}
-                )`;
+        return `CREATE TABLE ${this.quoteIdentifier(data.tableName)} (\n  ${fields.join(',\n  ')}\n);`;
     }
 
-    getCreateIndexSql(data: Record<string, unknown>): string {
+    getCreateIndexSql(data: TableEditContext): string {
         // 创建索引
         let sql = [] as string[];
-        (data.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
-            sql.push(
-                `CREATE
-                ${a.unique ? 'UNIQUE' : ''} INDEX
-                ${this.quoteIdentifier(data.db as string)}
-                .
-                ${this.quoteIdentifier(a.indexName)}
-                ON
-                "${data.tableName as string}"
-                (
-                ${a.columnNames.join(',')}
-                )`
-            );
+        data.indexs.res.forEach((a: IndexDefinition) => {
+            const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
+            sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${this.quoteIdentifier(data.tableName)} (${cols})`);
         });
         return sql.join(';');
     }
 
+    getDropTableSql(db: string, table: string): string {
+        // sqlite 为单文件嵌入式库，无 schema 层级
+        return `DROP TABLE ${this.quoteIdentifier(table)}`;
+    }
+
     getModifyColumnSql(
-        tableData: Record<string, unknown>,
+        tableData: TableEditContext,
         tableName: string,
-        changeData: {
-            del: RowDefinition[];
-            add: RowDefinition[];
-            upd: RowDefinition[];
-        }
+        changeData: ChangeDiff<RowDefinition>
     ): string {
         // sqlite修改表结构需要先删除再创建
-
-        // 1.删除旧表索引  DROP INDEX "main"."aa";
         let sql = [] as string[];
-        (tableData.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
-            a.indexName && sql.push(`DROP INDEX ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(a.indexName)}`);
+
+        // 1.删除旧表索引
+        tableData.indexs.res.forEach((a: IndexDefinition) => {
+            a.indexName && sql.push(`DROP INDEX ${this.quoteIdentifier(a.indexName)}`);
         });
 
-        // 2.重命名表，备份旧表  ALTER TABLE "main"."t_sys_resource" RENAME TO "_t_sys_resource_old_20240118162712"; new Date().getTime()
+        // 2.重命名表，备份旧表
         let oldTableName = `_${tableName}_old_${new Date().getTime()}`;
-        sql.push(`ALTER TABLE ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableName)} RENAME TO ${this.quoteIdentifier(oldTableName)}`);
+        sql.push(`ALTER TABLE ${this.quoteIdentifier(tableName)} RENAME TO ${this.quoteIdentifier(oldTableName)}`);
 
         // 3.创建新表
         sql.push(this.getCreateTableSql(tableData));
 
-        // 4.复制数据 INSERT INTO "库名"."新表名" (${insertFields}) SELECT ${queryFields} FROM "库名"."旧表名";
-        // 查询的字段数据类型和数量应与插入的字段一致
-        // 判断哪些字段需要查询旧表，哪些字段需要插入新表
-        // 解析changeData，统计需要查询旧表的字段，统计需要插入新表的字段
+        // 4.复制数据
         let delFields = changeData.del.map((a) => a.name);
         let addFields = changeData.add.map((a) => a.name);
 
         let queryFields = [] as string[];
         let insertFields = [] as string[];
-        (tableData.fields as { res: RowDefinition[] }).res.forEach((a: RowDefinition) => {
-            // 新增、删除的字段不需要查询旧表，不需要插入新表
+        tableData.fields.res.forEach((a: RowDefinition) => {
             if (addFields.includes(a.name) || delFields.includes(a.name)) {
                 return;
             }
-            // 修改的字段需要查询和插入，判断是否修改了字段名，如果修改了字段名，需要查询旧表原名，插入新表新名
-            // 其余未删除、未修改的字段，需要查询旧表，插入新表
             queryFields.push(this.quoteIdentifier(a.name === a.oldName ? a.name : (a.oldName ?? a.name)));
             insertFields.push(this.quoteIdentifier(a.name));
         });
-        // 生成sql
-        sql.push(
-            `INSERT INTO ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(tableName)} (${insertFields.join(',')})
-             SELECT ${queryFields.join(',')}
-             FROM ${this.quoteIdentifier(tableData.db as string)}.${this.quoteIdentifier(oldTableName)}`
-        );
+        if (insertFields.length > 0 && queryFields.length > 0) {
+            sql.push(
+                `INSERT INTO ${this.quoteIdentifier(tableName)} (${insertFields.join(',')}) SELECT ${queryFields.join(',')} FROM ${this.quoteIdentifier(oldTableName)}`
+            );
+        }
 
         // 5.创建索引
-        (tableData.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
-            a.indexName &&
-                sql.push(
-                    `CREATE
-                ${a.unique ? 'UNIQUE' : ''} INDEX
-                ${this.quoteIdentifier(tableData.db as string)}
-                .
-                ${this.quoteIdentifier(a.indexName)}
-                ON
-                "${tableName}"
-                (
-                ${a.columnNames.join(',')}
-                )`
-                );
+        tableData.indexs.res.forEach((a: IndexDefinition) => {
+            if (a.indexName) {
+                const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
+                sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${this.quoteIdentifier(tableName)} (${cols})`);
+            }
         });
+
+        // 6.删除旧表
+        sql.push(`DROP TABLE ${this.quoteIdentifier(oldTableName)}`);
 
         return sql.join(';') + ';';
     }
 
-    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
-        // sqlite创建索引需要先删除再创建
-        // CREATE INDEX "main"."aa1" ON "t_sys_resource" ( "ui_path" );
-
+    getModifyIndexSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<IndexDefinition>): string {
         let sql = [] as string[];
 
         if (changeData.del.length > 0) {
@@ -388,59 +321,28 @@ class SqliteDialect implements DbDialect {
 
         if (indexData.length > 0) {
             indexData.forEach((a) => {
-                sql.push(`CREATE
-                ${a.unique ? 'UNIQUE' : ''} INDEX
-                ${this.quoteIdentifier(a.indexName)}
-                ON
-                ${tableName}
-                (
-                ${a.columnNames.join(',')}
-                )`);
+                const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
+                sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${this.quoteIdentifier(tableName)} (${cols})`);
             });
         }
         return sql.join(';');
     }
 
-    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
-        let schemaArr = (tableData.db as string).split('/');
-        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
-
+    getModifyTableInfoSql(tableData: TableInfoEditContext): string {
         // sqlite没有表注释
         let sql = '';
         if (tableData.tableName != tableData.oldTableName) {
-            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
-            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName as string)}`;
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.oldTableName)} RENAME TO ${this.quoteIdentifier(tableData.tableName)};`;
         }
         return sql;
     }
 
     getDataType(columnType: string): DataType {
-        if (DbInst.isNumber(columnType)) {
-            return DataType.Number;
-        }
-        // 日期时间类型
-        if (/datetime|timestamp/gi.test(columnType)) {
-            return DataType.DateTime;
-        }
-        // 日期类型
-        if (/date/gi.test(columnType)) {
-            return DataType.Date;
-        }
-        // 时间类型
-        if (/time/gi.test(columnType)) {
-            return DataType.Time;
-        }
-        return DataType.String;
+        return getDefaultDataType(columnType) as DataType;
     }
 
     wrapValue(columnType: string, value: unknown): string | number {
-        if (value == null) {
-            return 'NULL';
-        }
-        if (DbInst.isNumber(columnType)) {
-            return value as number;
-        }
-        return `'${value}'`;
+        return wrapValueDefault(columnType, value) as string | number;
     }
 
     getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
@@ -454,3 +356,5 @@ class SqliteDialect implements DbDialect {
         return `${prefix} ${this.quoteIdentifier(tableName)}(${fieldArr.join(',')}) values (${placeholder});`;
     }
 }
+
+registerDbDialect(DbType.sqlite, new SqliteDialect());

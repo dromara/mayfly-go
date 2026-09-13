@@ -1,6 +1,6 @@
 <template>
     <div class="h-full w-full flex">
-        <div ref="terminalRef" class="h-full w-full" :style="{ background: getTerminalTheme().background }" />
+        <div ref="terminalRef" class="h-full w-full terminal-container" :style="terminalContainerStyle" />
 
         <TerminalSearch ref="terminalSearchRef" :search-addon="state.addon.search" @close="focus" />
 
@@ -27,7 +27,7 @@ import { machineApi, uploadFile, uploadFolder } from '@/views/ops/machine/api';
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { ElMessageBox } from 'element-plus';
 import { storeToRefs } from 'pinia';
-import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import TerminalSearch from './TerminalSearch.vue';
 import { TerminalStatus } from './common';
@@ -64,6 +64,19 @@ const terminalSearchRef = ref<InstanceType<typeof TerminalSearch> | null>(null);
 const contextmenuRef = ref<InstanceType<typeof Contextmenu> | null>(null);
 
 const { themeConfig } = storeToRefs(useThemeConfig());
+
+// 终端容器样式：玻璃模式下走 content 材质档(薄白底直透壁纸, 默认零磨砂;
+// 磨砂程度由设置滑杆驱动 --glass-fx-content, 见 themeConfig._applyGlassVariables)
+const terminalContainerStyle = computed(() => {
+    if (themeConfig.value.isGlassMode) {
+        return {
+            background: 'var(--glass-bg-content)',
+            backdropFilter: 'var(--glass-fx-content)',
+            WebkitBackdropFilter: 'var(--glass-fx-content)',
+        };
+    }
+    return { background: getTerminalTheme().background };
+});
 
 // 终端实例
 let term: Terminal;
@@ -112,6 +125,16 @@ watch(
 // 监听 themeConfig terminalTheme配置的变化
 watch(
     () => themeConfig.value.terminalTheme,
+    () => {
+        if (term) {
+            term.options.theme = getTerminalTheme();
+        }
+    }
+);
+
+// 监听玻璃模式切换，动态更新终端主题
+watch(
+    () => themeConfig.value.isGlassMode,
     () => {
         if (term) {
             term.options.theme = getTerminalTheme();
@@ -293,20 +316,27 @@ const writeln2Term = (data: string | Uint8Array) => {
     term.writeln(data);
 };
 
-const getTerminalTheme = () => {
+const getTerminalTheme = (): ITheme => {
     const terminalTheme = themeConfig.value.terminalTheme;
+    let theme: ITheme;
     // 如果不是自定义主题，则返回内置主题
     if (terminalTheme != 'custom') {
-        return (themes as Record<string, ITheme>)[terminalTheme];
+        theme = { ...(themes as Record<string, ITheme>)[terminalTheme] };
+    } else {
+        // 自定义主题
+        theme = {
+            foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
+            background: themeConfig.value.terminalBackground || '#002833', //背景色
+            cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
+        } as ITheme;
     }
 
-    // 自定义主题
-    return {
-        foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
-        background: themeConfig.value.terminalBackground || '#002833', //背景色
-        cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
-        // cursorAccent: "red",  // 光标停止颜色
-    } as ITheme;
+    // 玻璃模式：背景透明，让容器 CSS 的半透明+模糊效果透出
+    if (themeConfig.value.isGlassMode) {
+        theme.background = 'rgba(0, 0, 0, 0)';
+    }
+
+    return theme;
 };
 
 // 自适应终端

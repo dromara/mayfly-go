@@ -15,14 +15,22 @@ import { getCurrentInstance, reactive, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import { Msg, useI18nFormValidate } from './useI18n';
 import { cloneFormData, resolveFormItems, type AutoFormItemsProps } from '@/components/auto-form/shared';
-import { buildDefaultForm, type AutoFormData, type AutoFormInstance } from '@/components/auto-form/types';
+import { buildDefaultForm, getNestedValue, setNestedValue, switchActiveValue, switchInactiveValue, type AutoFormData, type AutoFormInstance } from '@/components/auto-form/types';
 
-/** 宿主公共 props 子集（items/schema/tabs + data/confirmApi；title/width 等形态 props 由各宿主自行声明） */
+/** 宿主公共 props（Dialog / Drawer 完全一致的宿主级配置；defineProps 直接 extends 本接口，新增宿主级 prop 只改此处） */
 export interface AutoFormHostProps extends AutoFormItemsProps {
     /** 编辑数据（对象回填表单；false/null 表示新增，按字段 defaultValue 回填） */
     data?: AutoFormData | boolean | null;
     /** 统一提交 API（可选）：传入后确认走内置默认提交逻辑，confirm 事件不再触发 */
     confirmApi?: (form: AutoFormData) => Promise<unknown>;
+    /** 确认按钮 loading（由父组件的保存请求状态驱动） */
+    confirmLoading?: boolean;
+    /** 点击遮罩是否关闭（默认 false：防止误点遮罩丢失已填表单数据） */
+    closeOnClickModal?: boolean;
+    /** 栅格列数 */
+    cols?: number;
+    /** label 位置（right 右侧水平对齐 / top 输入项上方；各宿主默认值不同，由宿主 withDefaults 指定） */
+    labelPosition?: 'left' | 'right' | 'top';
 }
 
 /** 宿主回调（由宿主转发为同名 emit，composable 不直接依赖 defineEmits） */
@@ -61,6 +69,20 @@ export const useAutoFormHost = (options: {
     const backfill = () => {
         if (props.data && typeof props.data === 'object') {
             state.form = cloneFormData(props.data);
+            // 编辑回填后归一 switch 字段值：
+            // 1. 字段缺失（undefined）：补充 inactiveValue 默认值
+            // 2. 值不在 {activeValue, inactiveValue} 范围内（如 Go int8 零值 0）：强制归为 inactiveValue
+            //    否则 el-switch 挂载时报 model-value must be active-value or inactive-value
+            for (const item of items.value) {
+                if (item.type === 'switch' && item.prop) {
+                    const val = getNestedValue(state.form, item.prop);
+                    const inactive = switchInactiveValue(item);
+                    const active = switchActiveValue(item);
+                    if (val === undefined || (val !== active && val !== inactive)) {
+                        setNestedValue(state.form, item.prop, inactive);
+                    }
+                }
+            }
         } else {
             state.form = buildDefaultForm(items.value);
         }
@@ -95,6 +117,16 @@ export const useAutoFormHost = (options: {
     // 事件回调阶段 instance 恒存在，setup 期引用安全
     const instance = getCurrentInstance();
 
+    /**
+     * 读取 @confirm 事件处理器列表以捕获其返回 Promise（请求期防重）。
+     * Vue 无公开 API 获取事件处理器返回值，vnode props 是唯一可行机制；
+     * 集中于此单点封装，框架/Vue 升级时仅需调整本函数。
+     */
+    const resolveConfirmListeners = (): ((form: AutoFormData) => unknown)[] => {
+        const handler = instance?.vnode.props?.onConfirm;
+        return (Array.isArray(handler) ? handler : [handler]).filter(Boolean) as ((form: AutoFormData) => unknown)[];
+    };
+
     const onConfirm = async () => {
         if (confirming.value) {
             return;
@@ -123,8 +155,7 @@ export const useAutoFormHost = (options: {
             // 直接调用父组件处理器（@confirm 编译为 onConfirm prop，等价 emit 且可捕获返回值）：
             // 返回 Promise（保存请求）时保持 loading 至其 settle，覆盖请求期防重复提交；
             // 同步处理器（无返回值）立即恢复，行为与纯校验期防重一致。老调用点无需任何改动
-            const handler = instance?.vnode.props?.onConfirm;
-            const listeners = (Array.isArray(handler) ? handler : [handler]).filter(Boolean) as ((form: AutoFormData) => unknown)[];
+            const listeners = resolveConfirmListeners();
             await Promise.all(listeners.map((fn) => fn(state.form))).catch(() => {}); // 保存失败由调用方 toast，弹层保留供修改重提
         } finally {
             confirming.value = false;

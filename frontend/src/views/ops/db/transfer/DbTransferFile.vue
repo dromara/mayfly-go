@@ -91,13 +91,13 @@ import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
-import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
+import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferFileStatusEnum } from '@/views/ops/db/transfer/enums';
 import { onMounted, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { DbTransferTask } from '../types';
+import type { DbTransferTask, DbNodeParams } from '../types';
 
 interface DbTransferFile {
     id: number;
@@ -177,7 +177,7 @@ const state = reactive({
     },
     logsDialog: {
         logId: 0,
-        title: '数据库迁移日志',
+        title: t('db.log'),
         visible: false,
         data: null as DbTransferFile | null,
         running: false,
@@ -213,8 +213,8 @@ const state = reactive({
             state.runDialog.onCancel();
             await search();
         },
-        onSelectRunTargetDb: function (param: { type: string }) {
-            if (param.type !== state.runDialog.runForm.dbType) {
+        onSelectRunTargetDb: function (params: DbNodeParams) {
+            if ((params.type ?? '') !== state.runDialog.runForm.dbType) {
                 Msg.warning('db.targetDbTypeSelectError', { dbType: state.runDialog.runForm.dbType });
             }
         },

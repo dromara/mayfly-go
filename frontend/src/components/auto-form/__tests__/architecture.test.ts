@@ -28,6 +28,16 @@ const listCoreTsFiles = (dir: string): string[] =>
         return name.endsWith('.ts') ? [full] : [];
     });
 
+/** 适配层 .vue 组件清单（ui/ 适配入口除外，它是 element-plus 唯一合法入口） */
+const listAdapterVueFiles = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) {
+            return EXCLUDED_DIRS.has(name) ? [] : listAdapterVueFiles(full);
+        }
+        return name.endsWith('.vue') ? [full] : [];
+    });
+
 describe('auto-form 架构守护（core 层 UI 框架无关）', () => {
     it('全部纯 .ts（core 层）禁止 import 任何 UI 框架', () => {
         const violations = listCoreTsFiles(CORE_DIR)
@@ -41,6 +51,14 @@ describe('auto-form 架构守护（core 层 UI 框架无关）', () => {
         const violations = listCoreTsFiles(CORE_DIR)
             .map((file) => ({ file, source: readFileSync(file, 'utf-8') }))
             .filter(({ source }) => /<el-[a-z-]+/.test(source))
+            .map(({ file }) => file);
+        expect(violations).toEqual([]);
+    });
+
+    it('适配层 .vue 禁止直接 import element-plus（UI 耦合必须收敛到 ui/adapter 单一入口）', () => {
+        const violations = listAdapterVueFiles(CORE_DIR)
+            .map((file) => ({ file, source: readFileSync(file, 'utf-8') }))
+            .filter(({ source }) => /from\s+['"]element-plus['"]/.test(source))
             .map(({ file }) => file);
         expect(violations).toEqual([]);
     });

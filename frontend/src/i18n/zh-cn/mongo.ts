@@ -40,5 +40,6 @@ export default {
         modifyFail: '修改失败',
         deleteFail: '删除失败',
         docParse2jsonFail: '文档内容解析为json对象失败',
+        cmdJsonParseFail: '命令内容解析为json对象失败，请检查JSON格式',
     },
 };

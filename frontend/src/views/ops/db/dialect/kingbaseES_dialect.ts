@@ -1,9 +1,17 @@
-import { DialectInfo } from './index';
-import { PostgresqlDialect } from '@/views/ops/db/dialect/postgres_dialect';
+import { DbType } from './dbType';
+import { registerDbDialect } from './registry';
+import type { DialectInfo } from './types';
+import { PostgresqlDialect } from './postgres_dialect';
 
 let kbpgDialectInfo: DialectInfo;
 
-export class KingbaseEsDialect extends PostgresqlDialect {
+/**
+ * 人大金仓 KingbaseES（PG 模式）方言：语法与能力完全继承 PostgresqlDialect，
+ * 差异仅在元信息（名称/图标）。
+ *
+ * @see https://help.kingbase.com.cn/v8/index.html
+ */
+class KingbaseEsDialect extends PostgresqlDialect {
     getInfo(): DialectInfo {
         if (kbpgDialectInfo) {
             return kbpgDialectInfo;
@@ -16,3 +24,5 @@ export class KingbaseEsDialect extends PostgresqlDialect {
         return kbpgDialectInfo;
     }
 }
+
+registerDbDialect(DbType.kingbaseEs, new KingbaseEsDialect());

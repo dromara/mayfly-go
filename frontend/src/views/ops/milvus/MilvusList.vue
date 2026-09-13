@@ -3,6 +3,7 @@
         <page-table
             ref="pageTableRef"
             :page-api="milvusApi.list"
+            :before-query-fn="checkRouteTagPath"
             :data-handler-fn="handleData"
             :searchItems="searchItems"
             v-model:query-form="query"
@@ -12,8 +13,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="perms.inst_save" type="primary" icon="plus" @click="editMilvus()" plain>{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.inst_del" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMilvus" plain>
+                <el-button v-auth="perms.inst_save" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.inst_del" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="onDelete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -28,11 +29,11 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-auth="perms.inst_save" @click="editMilvus(data)" link type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="perms.inst_save" @click="editEntity(data)" link type="primary">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
-        <milvus-edit @val-change="search()" :title="milvusEditDialog.title" v-model:visible="milvusEditDialog.visible" v-model:milvus="milvusEditDialog.data" />
+        <milvus-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
     </div>
 </template>
 
@@ -40,7 +41,8 @@
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, ref, useTemplateRef } from 'vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import TagCodePath from '../component/TagCodePath.vue';
@@ -51,13 +53,15 @@ import type { PageResult } from '@/types/common';
 const MilvusEdit = defineAsyncComponent(() => import('./MilvusEdit.vue'));
 
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const checkRouteTagPath = useRouteTagPath();
+const { editDialog, editEntity } = useEditDialog<Milvus>('Milvus');
 
 const query = ref({
     pageNum: 1,
     pageSize: 0,
 });
 
-const selectionData = ref([]);
+const selectionData = ref<Milvus[]>([]);
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder')];
 
@@ -71,20 +75,6 @@ const columns = ref([
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(100).fixedRight().alignCenter(),
 ]);
 
-const milvusEditDialog = ref({
-    title: '',
-    visible: false,
-    data: null as Milvus | null,
-});
-
-const editMilvus = (data?: Milvus) => {
-    milvusEditDialog.value = {
-        title: data ? useI18nEditTitle('Milvus') : useI18nCreateTitle('Milvus'),
-        visible: true,
-        data: data || null,
-    };
-};
-
 const handleData = (res: PageResult<Milvus>) => {
     const dataList = res.list;
     // 赋值授权凭证
@@ -94,19 +84,21 @@ const handleData = (res: PageResult<Milvus>) => {
     return res;
 };
 
-const deleteMilvus = async () => {
+const onDelete = async () => {
     const records = selectionData.value || [];
     if (records.length === 0) {
-        Msg.warning('请选择要删除的数据');
+        Msg.warning('milvus.pleaseSelectDelete');
         return;
     }
-    const ids = records.map((r: Milvus) => r.id).join(',');
-
-    await useI18nDeleteConfirm('Milvus: ' + ids);
-    milvusApi.delete.request({ ids }).then(() => {
-        Msg.deleteSuccess();
-        search();
-    });
+    const names = records.map((r) => r.name).join('、');
+    try {
+        await useI18nDeleteConfirm(names);
+    } catch {
+        return; // 用户取消
+    }
+    await milvusApi.delete.request({ ids: records.map((r) => r.id).join(',') });
+    Msg.deleteSuccess();
+    search();
 };
 
 const search = () => {

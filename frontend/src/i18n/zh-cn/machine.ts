@@ -42,6 +42,7 @@ export default {
         cmd: '命令',
         execCmdRecord: '执行命令记录', //Executive command record
         execTime: '执行时间', // execution time
+        noCmdRecord: '该会话无执行命令记录',
         operator: '操作人',
         beginTime: '开始时间',
         endTime: '结束时间',

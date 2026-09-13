@@ -1,0 +1,96 @@
+/* Glass Wallpaper Presets (壁纸预设层)
+------------------------------- */
+// 参照 tokhub：内置渐变景观壁纸作为玻璃 blur 的采样素材，比"奶白磨砂"更通透鲜活。
+// - 内置壁纸渐变定义在 :root 变量，设置抽屉缩略图与 .app-backdrop 共用同一变量
+// - 通过 <html data-wallpaper="..."> 属性切换；'none'(默认动态光斑) 与 'custom'(上传图片) 不在此列
+// - 自定义图片仍走 .app-backdrop__image（--backdrop-image），由 store 内联注入
+// 说明：本文件在 backdrop.scss 之后加载，`html[data-wallpaper=x] .app-backdrop` 与
+// `html.dark .app-backdrop` 特异度相同(0,2,1)，靠源码顺序覆盖明/暗默认底色。
+
+:root {
+    // 光斑(默认动态)缩略图预览：复刻 backdrop.scss 的亮色光斑底色
+    --wallpaper-spots:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 45%),
+        radial-gradient(ellipse 70% 55% at 12% 18%, rgba(64, 158, 255, 0.55), transparent 62%),
+        radial-gradient(ellipse 55% 70% at 88% 78%, rgba(255, 145, 200, 0.5), transparent 64%),
+        radial-gradient(ellipse 60% 45% at 62% 2%, rgba(120, 215, 255, 0.5), transparent 60%),
+        radial-gradient(ellipse 45% 55% at 80% 42%, rgba(185, 160, 255, 0.42), transparent 58%),
+        radial-gradient(ellipse 50% 40% at 26% 88%, rgba(150, 250, 210, 0.42), transparent 60%),
+        #e9f1fb;
+
+    // 极光 aurora
+    --wallpaper-aurora:
+        radial-gradient(ellipse 75% 55% at 22% 12%, oklch(0.78 0.15 175 / 0.85), transparent 62%),
+        radial-gradient(ellipse 60% 65% at 80% 22%, oklch(0.62 0.19 300 / 0.7), transparent 64%),
+        radial-gradient(ellipse 70% 55% at 62% 88%, oklch(0.68 0.14 230 / 0.8), transparent 60%),
+        radial-gradient(ellipse 45% 40% at 8% 78%, oklch(0.8 0.14 150 / 0.55), transparent 58%),
+        linear-gradient(160deg, oklch(0.42 0.09 265), oklch(0.55 0.1 210));
+
+    // 暮霞 dusk
+    --wallpaper-dusk:
+        radial-gradient(ellipse 70% 55% at 18% 20%, oklch(0.82 0.13 60 / 0.9), transparent 60%),
+        radial-gradient(ellipse 60% 60% at 85% 30%, oklch(0.7 0.17 25 / 0.75), transparent 62%),
+        radial-gradient(ellipse 75% 50% at 55% 92%, oklch(0.58 0.15 345 / 0.8), transparent 62%),
+        linear-gradient(165deg, oklch(0.7 0.11 45), oklch(0.5 0.12 320));
+
+    // 深海 reef
+    --wallpaper-reef:
+        radial-gradient(ellipse 70% 60% at 78% 15%, oklch(0.84 0.12 200 / 0.9), transparent 60%),
+        radial-gradient(ellipse 55% 65% at 12% 40%, oklch(0.62 0.14 245 / 0.8), transparent 62%),
+        radial-gradient(ellipse 65% 45% at 45% 90%, oklch(0.74 0.13 180 / 0.7), transparent 58%),
+        linear-gradient(150deg, oklch(0.58 0.11 235), oklch(0.72 0.1 200));
+
+    // 花境 bloom
+    --wallpaper-bloom:
+        radial-gradient(ellipse 65% 55% at 20% 18%, oklch(0.86 0.09 350 / 0.9), transparent 60%),
+        radial-gradient(ellipse 60% 60% at 82% 28%, oklch(0.78 0.1 310 / 0.8), transparent 62%),
+        radial-gradient(ellipse 70% 50% at 60% 90%, oklch(0.88 0.08 60 / 0.75), transparent 60%),
+        linear-gradient(155deg, oklch(0.84 0.06 330), oklch(0.72 0.09 290));
+
+    // 星云 nebula
+    --wallpaper-nebula:
+        radial-gradient(ellipse 60% 50% at 75% 20%, oklch(0.55 0.22 320 / 0.8), transparent 60%),
+        radial-gradient(ellipse 65% 60% at 15% 35%, oklch(0.47 0.16 280 / 0.85), transparent 62%),
+        radial-gradient(ellipse 55% 45% at 55% 88%, oklch(0.6 0.18 350 / 0.6), transparent 58%),
+        linear-gradient(170deg, oklch(0.36 0.08 290), oklch(0.46 0.12 330));
+}
+
+// 预设生效：以壁纸渐变替换 .app-backdrop 默认光斑底色（明暗通用，靠源码顺序覆盖暗色默认）
+html[data-wallpaper='aurora'] .app-backdrop { background: var(--wallpaper-aurora); }
+html[data-wallpaper='dusk'] .app-backdrop { background: var(--wallpaper-dusk); }
+html[data-wallpaper='reef'] .app-backdrop { background: var(--wallpaper-reef); }
+html[data-wallpaper='bloom'] .app-backdrop { background: var(--wallpaper-bloom); }
+html[data-wallpaper='nebula'] .app-backdrop { background: var(--wallpaper-nebula); }
+
+// 选内置预设时隐藏自定义图层，避免与壁纸渐变叠加
+html[data-wallpaper]:not([data-wallpaper='custom']) .app-backdrop__image {
+    display: none;
+}
+
+// 壁纸轻纱(零磨砂全局档): 亮=6% 几乎撤纱 —— 用户定调壁纸保持清晰鲜艳(对齐资源树页参照图);
+// 暗=52% 深灰纱保留(暗玻璃上浅色文本依赖压暗壁纸)。仅作用于壁纸模式(预设/custom)
+html[data-wallpaper] {
+    --wallpaper-scrim: oklch(1 0 0 / 0.06);
+}
+html.dark[data-wallpaper] {
+    --wallpaper-scrim: oklch(0.13 0.01 270 / 0.52);
+}
+// overlay 层常驻渲染(layout/index.vue), 盖在预设背景与自定义图之上
+html[data-wallpaper] .app-backdrop__overlay {
+    background: var(--wallpaper-scrim);
+}
+
+// —— 加载遮罩(.loading-next)镜像：遮罩自绘背景须跟随当前壁纸模式，与最终态一致(含轻纱) ——
+html[data-wallpaper='aurora'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-aurora) !important; }
+html[data-wallpaper='dusk'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-dusk) !important; }
+html[data-wallpaper='reef'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-reef) !important; }
+html[data-wallpaper='bloom'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-bloom) !important; }
+html[data-wallpaper='nebula'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-nebula) !important; }
+html[data-wallpaper]:not([data-wallpaper='custom']) body.glass-mode .loading-next::before {
+    display: none;
+}
+
+// 留白区(卡片间隙/铬层之外)必须保持壁纸原图的清晰与鲜艳 —— 这是"液态玻璃"的折射素材,
+// 也是 tokhub 观感里最"活"的部分。可读性完全由各面板自身的白底 alpha 承担(card 0.55 / 浮层 0.8+),
+// 因此这里【不再加任何全屏遮罩】: 曾经的全屏白纱会把间隙一并洗白, 整屏失去分区对比 → uniform milk。
+// (历史: 此处曾有 preset 0.1~0.14 / custom 0.12~0.34 的 .app-backdrop__overlay 白纱, 已移除)

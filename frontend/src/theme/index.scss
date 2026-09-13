@@ -2,6 +2,7 @@
 @use './base.scss';
 @use './element.scss';
 @use './media/media.scss';
+@use './glass/index.scss';     // 玻璃态模块（必须在 dark 之前，确保 html.dark 覆盖生效）
 @use './waves.scss';
 @use './dark.scss';
 @use './iconSelector.scss';

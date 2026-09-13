@@ -13,6 +13,7 @@ export interface TagTree extends BaseModel {
     code: string;
     codePath: string;
     name: string;
+    namePath: string;
     remark: string;
 }
 

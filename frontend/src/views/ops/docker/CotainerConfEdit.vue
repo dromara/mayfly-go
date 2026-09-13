@@ -18,7 +18,7 @@ import { dockerApi } from './api';
 import type { Container } from './types';
 
 const props = defineProps({
-    container: {
+    data: {
         type: Object as PropType<Container | null>,
         default: null,
     },
@@ -41,7 +41,7 @@ const items: AutoFormItem[] = [
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
 const editData = computed<AutoFormData>(() => {
-    const container = props.container as Record<string, unknown> | null;
+    const container = props.data as Record<string, unknown> | null;
     if (container) {
         return { ...container } as AutoFormData;
     }

@@ -45,7 +45,8 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'changeKey', 'delKey']);
+// 转发 KeyHeader 的操作事件给父级（列表页）；visible 由父级的 tab 状态控制，本组件不 emit update:visible
+const emit = defineEmits<{ changeKey: []; delKey: [key: string] }>();
 
 const state = reactive({
     keyInfo: {} as RedisKeyInfo,

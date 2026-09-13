@@ -1,5 +1,5 @@
 <template>
-    <ACol v-if="visible" :span="effectiveSpan">
+    <ACol v-if="visible" :span="toGridSpan(effectiveSpan)">
         <!-- 分隔标题（非字段） -->
         <ADivider v-if="item.type == 'divider'" content-position="left">
             {{ item.label ? $t(item.label, item.labelParams ?? {}) : '' }}
@@ -19,8 +19,12 @@
                 </div>
             </template>
 
-            <!-- 自定义插槽（type='custom' 或父组件提供了同名插槽） -->
-            <slot v-if="slotName" :name="slotName" :form="form" :item="item" />
+            <!-- 自定义插槽（type='custom' 或父组件提供了同名插槽）；
+                 外层 w-full 保证插槽内容作为 el-form-item__content(flex) 的子项占满整行，
+                 避免 flex item 收缩到内容宽度导致表格/选择器等无法撑满 -->
+            <div v-if="slotName" class="w-full">
+                <slot :name="slotName" :form="form" :item="item" />
+            </div>
             <AutoFormControl v-else-if="item.prop" v-model="form[item.prop]" :item="item" :form="form" :readonly="readonly" />
             <!-- 辅助说明（控件下方） -->
             <div v-if="item.description" class="w-full text-xs text-gray-400 leading-5">{{ $t(item.description) }}</div>
@@ -31,7 +35,7 @@
 <script lang="ts" setup>
 import { computed, useSlots } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ACol, ADivider, AFormItem, ATooltip } from './ui/adapter';
+import { ACol, ADivider, AFormItem, ATooltip, toGridSpan } from './ui/adapter';
 import AutoFormControl from './AutoFormControl.vue';
 import { isItemRequired, isItemVisible } from './shared';
 import type { AutoFormData, AutoFormItem } from './types';

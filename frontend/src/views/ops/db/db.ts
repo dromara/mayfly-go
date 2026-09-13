@@ -1,19 +1,24 @@
-import { languages, type IRange } from 'monaco-editor';
 import { dbApi } from './api';
-import type { DbTableInfo, ColumnMetadata, DbInstInfo, DbNamesParam } from './types';
-import SqlExecBox from './component/sqleditor/SqlExecBox';
-import { buildColumnSuggestion, buildTableSuggestion } from './services/completion/format';
+import type { ColumnMetadata, DbInstInfo, DbNamesParam } from './types';
+import SqlExecBox from './sql-editor/SqlExecBox';
 
 import { Msg } from '@/hooks/useI18n';
-import { type RemovableRef, useLocalStorage } from '@vueuse/core';
-import { DbDialect, getDbDialect } from './dialect';
-import { DbGetDbNamesMode } from './enums';
-import { flexColumnWidth, initColumns } from './utils/columnWidth';
+import { DbDialect, getDbDialect, matchNumericType } from './dialect';
+import { flexColumnWidth, initColumns } from './core/columnWidth';
 
-const hintsStorage: RemovableRef<Map<string, Record<string, string[]>>> = useLocalStorage('db-table-hints', new Map());
-const tableStorage: RemovableRef<Map<string, DbTableInfo[]>> = useLocalStorage('db-tables', new Map());
-
-const dbInstCache: Map<number, DbInst> = new Map();
+// core 模块
+import { Db } from './core/db';
+import {
+    getOrNewDbInst,
+    getCachedDbInst,
+    cacheDbInst,
+    clearAllDbInstCache,
+    getCachedTables,
+    setCachedTables,
+    getCachedHints,
+    setCachedHints,
+    getDbNames,
+} from './core/dbCache';
 
 export class DbInst {
     /**
@@ -90,7 +95,7 @@ export class DbInst {
     async loadTables(dbName: string, reload?: boolean) {
         const db = this.getDb(dbName);
         let key = this.dbTablesKey(dbName);
-        let tables = tableStorage.value.get(key);
+        let tables = getCachedTables(key);
         // 优先从 table 缓存中获取
         if (!reload && tables) {
             db.tables = tables;
@@ -99,49 +104,12 @@ export class DbInst {
         // 重置列信息缓存与表提示信息
         db.columnsMap?.clear();
         tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
-        tableStorage.value.set(key, tables);
+        setCachedTables(key, tables);
         db.tables = tables;
 
         // 异步加载表提示信息
         this.loadDbHints(dbName, true).then(() => {});
         return tables;
-    }
-
-    /**
-     * 表名联想，返回建议列表
-     * @param dbName 数据库名
-     * @param range 补全替换范围
-     * @param reload 是否重新请求接口获取数据
-     * @returns 建议列表，insertText 为裸表名，由补全模块统一按方言包裹引用符
-     */
-    async loadTableSuggestions(dbName: string, range: IRange, reload?: boolean) {
-        const tables = await this.loadTables(dbName, reload);
-        // 表名联想：label 为表名，右侧灰显注释
-        let suggestions: languages.CompletionItem[] = [];
-        tables?.forEach((tableMeta: DbTableInfo, index: number) => {
-            suggestions.push(buildTableSuggestion(tableMeta, index, range));
-        });
-        return { suggestions };
-    }
-
-    /** 加载列信息提示 */
-    /**
-     * 表字段联想，返回建议列表
-     * @param db 数据库名
-     * @param tableName 表名
-     * @param range 补全替换范围
-     * @returns 建议列表，insertText 为裸字段名，由补全模块统一按方言包裹引用符
-     */
-    async loadTableColumnSuggestions(db: string, tableName: string, range: IRange) {
-        let dbHits = await this.loadDbHints(db);
-        let columns = dbHits[tableName];
-        let suggestions: languages.CompletionItem[] = [];
-        columns?.forEach((a: string, index: number) => {
-            // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
-            suggestions.push(buildColumnSuggestion(a, index, range));
-        });
-
-        return { suggestions };
     }
 
     /**
@@ -169,7 +137,7 @@ export class DbInst {
     }
 
     /**
-     * 获取指定表的指定信息
+     * 获取指定表的指定列信息
      * @param table 表名
      */
     async loadTableColumn(dbName: string, table: string, columnName?: string) {
@@ -192,14 +160,14 @@ export class DbInst {
     async loadDbHints(dbName: string, reload?: boolean): Promise<Record<string, string[]>> {
         const db = this.getDb(dbName);
         let key = this.dbTableHintsKey(dbName);
-        let hints = hintsStorage.value.get(key);
+        let hints = getCachedHints(key);
         if (!reload && hints) {
             db.tableHints = hints;
             return hints;
         }
         hints = (await dbApi.hintTables.request({ id: this.id, db: db.name })) as unknown as Record<string, string[]>;
         db.tableHints = hints;
-        hintsStorage.value.set(key, hints);
+        setCachedHints(key, hints);
         return hints;
     }
 
@@ -261,7 +229,6 @@ export class DbInst {
      * @param dbName 数据库名
      * @param table 表名
      * @param datas 要生成的数据
-     * @param dbDialect db方言
      * @param skipNull 是否跳过空字段
      */
     async genInsertSql(dbName: string, table: string, datas: Record<string, unknown>[], skipNull = false) {
@@ -352,7 +319,7 @@ export class DbInst {
             sql,
             dbId: this.id,
             db,
-            dbType: this.getDialect().getInfo().formatSqlDialect,
+            formatDialect: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
         });
@@ -396,35 +363,19 @@ export class DbInst {
      * @param inst 数据库实例，后端返回的列表接口中的信息
      * @returns DbInst
      */
-    static getOrNewInst(inst: DbInstInfo) {
-        if (!inst) {
-            throw new Error('inst不能为空');
-        }
-        let dbInst = dbInstCache.get(inst.id);
-        if (dbInst) {
-            // 可能同一个库关联多个标签，展示需要
-            if (inst.tagPath) {
-                dbInst.tagPath = inst.tagPath;
-            }
-
+    static getOrNewInst(inst: DbInstInfo): DbInst {
+        // 返回类型由工厂推断为 DbInst，缓存层按 CachedDbInst 契约存放，无需在调用点断言
+        return getOrNewDbInst(inst, (instInfo) => {
+            const dbInst = new DbInst();
+            dbInst.tagPath = instInfo.tagPath || '';
+            dbInst.id = instInfo.id;
+            dbInst.host = instInfo.host || '';
+            dbInst.name = instInfo.name || '';
+            dbInst.type = instInfo.type || '';
+            dbInst.databases = instInfo.databases || [];
+            cacheDbInst(dbInst.id, dbInst);
             return dbInst;
-        }
-        dbInst = new DbInst();
-        dbInst.tagPath = inst.tagPath || '';
-        dbInst.id = inst.id;
-        dbInst.host = inst.host || '';
-        dbInst.name = inst.name || '';
-        dbInst.type = inst.type || '';
-        dbInst.databases = inst.databases || [];
-
-        if (dbInst.databases?.[0]) {
-            dbApi.getCompatibleDbVersion.request({ id: inst.id, db: dbInst.databases?.[0] }).then((version) => {
-                dbInst.version = version;
-            });
-        }
-
-        dbInstCache.set(dbInst.id, dbInst);
-        return dbInst;
+        });
     }
 
     /**
@@ -436,7 +387,7 @@ export class DbInst {
         if (!dbId) {
             throw new Error('dbId不能为空');
         }
-        let dbInst = dbInstCache.get(dbId);
+        const dbInst = getCachedDbInst<DbInst>(dbId);
         if (dbInst) {
             return dbInst;
         }
@@ -452,30 +403,33 @@ export class DbInst {
         if (!dbId) {
             throw new Error('dbId不能为空');
         }
-        let dbInst = dbInstCache.get(dbId);
+        const dbInst = getCachedDbInst<DbInst>(dbId);
         if (dbInst) {
-            return Promise.resolve(dbInst);
+            return dbInst;
         }
 
         const dbInfoRes = await dbApi.dbs.request({ id: dbId });
         const db = dbInfoRes.list[0];
-        return Promise.resolve(DbInst.getOrNewInst(db));
+        return DbInst.getOrNewInst(db);
     }
 
     /**
      * 清空所有实例缓存信息
      */
     static clearAll() {
-        dbInstCache.clear();
+        clearAllDbInstCache();
     }
 
     /**
      * 判断字段类型是否为数字类型
+     *
+     * 实现已下沉至 dialect/shared/utils 的 matchNumericType，此处仅委托以兼容既有调用方；
+     * 方言层直接使用 matchNumericType，避免 dialect → db 的反向依赖（模块循环 + TDZ）。
      * @param columnType 字段类型
-     * @returns
+     * @returns 匹配结果，非数字类型时为 null
      */
     static isNumber(columnType: string) {
-        return columnType && columnType.match(/(int|uint|double|float|number|numeric|decimal|byte|bit)/gi);
+        return matchNumericType(columnType);
     }
 
     /**
@@ -496,53 +450,9 @@ export class DbInst {
      * @returns 库名列表
      */
     static async getDbNames(db: DbNamesParam) {
-        if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
-            return (db.database as string).split(' ');
-        }
-
-        return await dbApi.getDbNamesByAc.request({ authCertName: db.authCertName });
+        return getDbNames(db);
     }
 }
-
-/**
- * 数据库实例信息
- */
-class Db {
-    name: string; // 库名
-    tables: DbTableInfo[]; // 数据库实例表信息
-    columnsMap: Map<string, ColumnMetadata[]> = new Map(); // table -> columns
-    tableHints: Record<string, string[]> | null = null; // 提示词
-
-    /**
-     * 获取指定表列信息（前提需要dbInst.loadColumns）
-     * @param table 表名
-     */
-    getColumns(table: string) {
-        return this.columnsMap.get(table);
-    }
-
-    /**
-     * 获取指定表中的指定列名信息，若列名为空则默认返回主键
-     * @param table 表名
-     * @param columnName 列名
-     */
-    getColumn(table: string, columnName: string = '') {
-        const cols = this.getColumns(table);
-        if (!cols) {
-            return undefined;
-        }
-        if (!columnName) {
-            const col = cols.find((c: ColumnMetadata) => c.isPrimaryKey);
-            return col || cols[0];
-        }
-        return cols.find((c: ColumnMetadata) => c.columnName == columnName);
-    }
-}
-
-// Re-exports for backward compatibility
-export { TabType, TabInfo } from './models/TabInfo';
-export type { TabParams, TabComponentRef } from './models/TabInfo';
-export { registerDbCompletionItemProvider } from './services/completionService';
 
 /**
  * 数据库主题配置

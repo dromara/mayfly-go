@@ -8,6 +8,14 @@ import { defineStore } from 'pinia';
 const logoIcon =
     'data:image/svg+xml;charset=utf-8;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDEuMS8vRU4iICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPgo8c3ZnIHQ9IjE2MjE4NTkwMDk2MDUiIGNsYXNzPSJpY29uIiB2aWV3Qm94PSIwIDAgMTAyNCAxMDI0IiB2ZXJzaW9uPSIxLjEiIAogICAgIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcC1pZD0iOTcwOSIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIAogICAgIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj4KICAgICA8ZGVmcz48c3R5bGUgdHlwZT0idGV4dC9jc3MiPjwvc3R5bGU+PC9kZWZzPgogICAgIDxwYXRoIGQ9Ik04MjAuMjAzOTIyIDgxMi4xNzI1NDlINjg0LjY3NDUxdi00NS4xNzY0NzFoMTEyLjQzOTIxNVYyNzkuMDkwMTk2SDYzMy40NzQ1MWwtODUuMzMzMzM0IDI3Ny4wODIzNTNjLTMuMDExNzY1IDEwLjAzOTIxNi0xMi4wNDcwNTkgMTYuMDYyNzQ1LTIyLjA4NjI3NCAxNi4wNjI3NDUtMTAuMDM5MjE2IDAtMTkuMDc0NTEtNy4wMjc0NTEtMjEuMDgyMzUzLTE3LjA2NjY2N2wtNzEuMjc4NDMxLTI4MC4wOTQxMTdoLTE4MC43MDU4ODNWNzYyLjk4MDM5MmgxMjAuNDcwNTg5djQ1LjE3NjQ3MUgyMjkuODk4MDM5Yy0xMi4wNDcwNTkgMC0yMi4wODYyNzUtMTAuMDM5MjE2LTIyLjA4NjI3NC0yMi4wODYyNzVWMjUyLjk4ODIzNWMwLTEyLjA0NzA1OSAxMC4wMzkyMTYtMjIuMDg2Mjc1IDIyLjA4NjI3NC0yMi4wODYyNzRINDUxLjc2NDcwNmMxMC4wMzkyMTYgMCAxOS4wNzQ1MSA3LjAyNzQ1MSAyMi4wODYyNzQgMTcuMDY2NjY2bDU1LjIxNTY4NyAyMTguODU0OTAyTDU5NS4zMjU0OSAyNTAuOTgwMzkyYzMuMDExNzY1LTkuMDM1Mjk0IDEyLjA0NzA1OS0xNi4wNjI3NDUgMjEuMDgyMzUzLTE2LjA2Mjc0NWgyMDIuNzkyMTU3YzEyLjA0NzA1OSAwIDIyLjA4NjI3NSAxMC4wMzkyMTYgMjIuMDg2Mjc1IDIyLjA4NjI3NXY1MzMuMDgyMzUzYzEuMDAzOTIyIDEyLjA0NzA1OS05LjAzNTI5NCAyMi4wODYyNzUtMjEuMDgyMzUzIDIyLjA4NjI3NHogbTAgMCIgZmlsbD0iI2UyNTgxMyIgcC1pZD0iOTcxMCIgc3Ryb2tlLXdpZHRoPSIzMCIgc3Ryb2tlPSIjZTI1ODEzIj48L3BhdGg+CiAgICAgPHBhdGggZD0iTTczMS44NTg4MjQgNDI1LjY2Mjc0NWM0LjAxNTY4Ni0xMi4wNDcwNTktMi4wMDc4NDMtMjUuMDk4MDM5LTE0LjA1NDkwMi0yOS4xMTM3MjUtMTIuMDQ3MDU5LTQuMDE1Njg2LTI1LjA5ODAzOSAyLjAwNzg0My0yOS4xMTM3MjYgMTQuMDU0OTAyTDU2My4yIDc2Ni45OTYwNzhoLTczLjI4NjI3NUwzNzEuNDUwOTggNDEwLjYwMzkyMmMtNC4wMTU2ODYtMTIuMDQ3MDU5LTE3LjA2NjY2Ny0xOC4wNzA1ODgtMjguMTA5ODA0LTE0LjA1NDkwMi0xMi4wNDcwNTkgNC4wMTU2ODYtMTguMDcwNTg4IDE3LjA2NjY2Ny0xNC4wNTQ5MDEgMjguMTA5ODA0bDEyMy40ODIzNTIgMzcxLjQ1MDk4YzMuMDExNzY1IDkuMDM1Mjk0IDEyLjA0NzA1OSAxNS4wNTg4MjQgMjEuMDgyMzUzIDE1LjA1ODgyM2g3Mi4yODIzNTNsLTUzLjIwNzg0MyAxNjAuNjI3NDUxIDQ2LjE4MDM5MiAyLjAwNzg0NCAxOTIuNzUyOTQyLTU0OC4xNDExNzd6IiBmaWxsPSIjMmMyYzJjIiBwLWlkPSI5NzExIiBzdHJva2Utd2lkdGg9IjMwIiBzdHJva2U9IiMyYzJjMmMiPjwvcGF0aD4KPC9zdmc+';
 
+// Chrome 对内联自定义属性值有 ~2Mi 字符的静默丢弃上限(实测 setProperty 超限不报错、变量直接消失)。
+// 历史缓存的大图/兜底直读路径超限时显式不写壁纸变量, 行为可预期(重新上传会走预算压缩链路恢复)
+const BACKDROP_DOM_LIMIT = 2_000_000;
+function applyBackdropImageVar(url: string) {
+    const value = url && url.length <= BACKDROP_DOM_LIMIT ? `url("${url}")` : 'none';
+    document.documentElement.style.setProperty('--backdrop-image', value);
+}
+
 export const useThemeConfig = defineStore('themeConfig', {
     state: (): ThemeConfigState => ({
         themeConfig: {
@@ -96,6 +104,21 @@ export const useThemeConfig = defineStore('themeConfig', {
             // 水印文案数组，0->用户信息  1->当前时间 2->额外信息
             watermarkText: ['', '', ''],
 
+            /* 液态玻璃态
+            ------------------------------- */
+            // 是否开启液态玻璃态模式
+            isGlassMode: false,
+            // 玻璃壁纸：none(默认动态光斑) | aurora | dusk | reef | bloom | nebula | custom(上传图)
+            glassWallpaper: 'none',
+            // 磨砂程度(blur px, 0-40): 0=纹理完全清晰(默认), 驱动 chrome/panel/content 三档 blur
+            glassFrost: 0,
+            // 背景图 URL 或 base64（glassWallpaper='custom' 时生效）
+            bgImage: '',
+            // 背景图模糊程度 (0-20px)
+            bgImageBlur: 0,
+            // 背景图不透明度 (0-100)
+            bgImageOpacity: 100,
+
             /* 其它设置
             ------------------------------- */
             // 默认主页面切换动画，可选 1、 slide-right 2、 slide-left 3、 opacitys
@@ -152,8 +175,28 @@ export const useThemeConfig = defineStore('themeConfig', {
             const tc = getThemeConfig();
 
             if (tc) {
-                this.themeConfig = tc;
+                // 与默认值合并而非整体替换：缓存是历史快照，新增的配置项在旧缓存里缺席，
+                // 直接赋值会让这些字段变成 undefined（曾导致 ElSwitch 的 model-value 校验告警）
+                // isDrawer 强制为 false：缓存中可能残留上次会话的 drawer 开启状态，导致 mount 时短暂打开再关闭触发告警
+                this.themeConfig = { ...this.themeConfig, ...tc, isDrawer: false };
                 document.documentElement.style.cssText = getLocal('themeConfigStyle') || '';
+
+                // 恢复液态玻璃态模式
+                if (this.themeConfig.isGlassMode) {
+                    document.body.classList.add('glass-mode');
+                    this._applyGlassVariables();
+                }
+
+                // 恢复背景图（玻璃态壁纸图层钉死清晰全不透明, 见 backdrop.scss; 不再恢复 blur/opacity 滑杆值）
+                if (this.themeConfig.bgImage) {
+                    applyBackdropImageVar(this.themeConfig.bgImage);
+                }
+
+                // 恢复玻璃壁纸（旧缓存无该字段时视为 none，向后兼容）
+                const wallpaper = this.themeConfig.glassWallpaper || 'none';
+                if (wallpaper !== 'none') {
+                    document.documentElement.setAttribute('data-wallpaper', wallpaper);
+                }
             }
 
             getServerConf().then((res) => {
@@ -214,6 +257,146 @@ export const useThemeConfig = defineStore('themeConfig', {
                     this.themeConfig.terminalTheme = 'light';
                 }
             }
+            // 玻璃模式：切换明暗后重新计算玻璃变量（亮/暗基底色不同）
+            if (this.themeConfig.isGlassMode) {
+                this._applyGlassVariables();
+            }
+        },
+        // 切换液态玻璃态模式
+        toggleGlassMode(enabled: boolean) {
+            this.themeConfig.isGlassMode = enabled;
+            if (enabled) {
+                document.body.classList.add('glass-mode');
+                this._applyGlassVariables();
+            } else {
+                document.body.classList.remove('glass-mode');
+                this._removeGlassVariables();
+            }
+        },
+        // 玻璃模式：覆盖 CSS 变量为半透明值（解决 scoped 样式优先级问题）
+        // 亮/暗模式使用不同基底色：暗模式必须用深色半透明面板，否则白面板会盖住暗背景并与浅色文字冲突
+        _applyGlassVariables() {
+            const el = document.documentElement;
+            const set = (k: string, v: string) => el.style.setProperty(k, v);
+
+            // 磨砂程度滑杆(glassFrost, 0-40px): 驱动 .app-backdrop__frost 全局纱层 ——
+            // 整屏统一糊壁纸(资源树等"裸铺"页同样生效), 面板在纱之上、文字永远锐利;
+            // 不覆盖 chrome/panel/content 档 fx(那会造成纱+面板双重叠糊)。0 档移除变量回零成本
+            const frost = Number(this.themeConfig.glassFrost) || 0;
+            if (frost > 0) {
+                set('--glass-frost-fx', `blur(${frost}px) saturate(1.5)`);
+                // 白纱随 blur 提浓(糊而不灰: blur 抹掉细节后需底色维持明度); 暗态用深纱
+                const veil = Math.min(0.18 + frost * 0.008, 0.5);
+                set('--glass-frost-veil', this.themeConfig.isDark ? `rgba(30, 32, 48, ${veil.toFixed(2)})` : `rgba(255, 255, 255, ${veil.toFixed(2)})`);
+            } else {
+                ['--glass-frost-fx', '--glass-frost-veil'].forEach((v) => el.style.removeProperty(v));
+            }
+
+            if (this.themeConfig.isDark) {
+                // 暗色玻璃：深灰蓝半透明面板 + 浅色高光（Element 暗模式文字为浅色，配深面板才可读）
+                // 清透实验档同步降底(0.6→0.46), 浮层 0.72; 回退参考亮色块注释
+                set('--bg-main-color', 'rgba(30, 32, 48, 0.46)');
+                set('--bg-color', 'rgba(30, 32, 48, 0.46)');
+                set('--bg-menuBar', 'rgba(30, 32, 48, 0.46)');
+                set('--bg-topBar', 'rgba(30, 32, 48, 0.46)');
+                set('--el-bg-color', 'rgba(30, 32, 48, 0.46)');
+                set('--el-bg-color-page', 'transparent');
+                set('--el-bg-color-overlay', 'rgba(40, 44, 60, 0.72)');
+                set('--el-fill-color-blank', 'rgba(255, 255, 255, 0.05)');
+                set('--el-fill-color-light', 'rgba(255, 255, 255, 0.09)');
+                set('--el-fill-color', 'rgba(255, 255, 255, 0.11)');
+                set('--el-fill-color-lighter', 'rgba(255, 255, 255, 0.06)');
+                set('--el-fill-color-extra-light', 'rgba(255, 255, 255, 0.03)');
+                set('--el-table-bg-color', 'transparent');
+                set('--el-table-tr-bg-color', 'rgba(30, 32, 48, 0.25)');
+                set('--el-table-header-bg-color', 'rgba(30, 32, 48, 0.18)');
+                set('--el-table-row-hover-bg-color', 'rgba(255, 255, 255, 0.06)');
+                return;
+            }
+
+            // 亮色玻璃：清透实验档(与 tokens.scss --glass-alpha-* 单一对齐)
+            // 面板白底大幅下调(0.48→0.26)、铬层 0.3→0.22 —— 让清晰壁纸细节主导画面(资源树观感)，
+            // 浮层仍保 0.72 可读底;文字墨色随之更重要(壁纸直透后对比依赖墨色加深)。
+            // 回重磨砂档: 恢复 menuBar/topBar 0.3 / bg 0.48 / overlay 0.76 / tr 0.08 / header 0.24 / hover 0.2
+            set('--bg-main-color', 'transparent');
+            set('--bg-color', 'transparent');
+            set('--bg-menuBar', 'rgba(255, 255, 255, 0.22)');
+            set('--bg-topBar', 'rgba(255, 255, 255, 0.22)');
+            set('--el-bg-color', 'rgba(255, 255, 255, 0.26)');
+            set('--el-bg-color-page', 'transparent');
+            set('--el-bg-color-overlay', 'rgba(255, 255, 255, 0.72)');
+            set('--el-fill-color-blank', 'rgba(255, 255, 255, 0.22)');
+            set('--el-fill-color-light', 'rgba(255, 255, 255, 0.14)');
+            set('--el-fill-color', 'rgba(255, 255, 255, 0.1)');
+            set('--el-fill-color-lighter', 'rgba(255, 255, 255, 0.07)');
+            set('--el-fill-color-extra-light', 'rgba(255, 255, 255, 0.04)');
+            set('--el-table-bg-color', 'transparent');
+            set('--el-table-tr-bg-color', 'rgba(255, 255, 255, 0.04)');
+            set('--el-table-header-bg-color', 'rgba(255, 255, 255, 0.14)');
+            set('--el-table-row-hover-bg-color', 'rgba(255, 255, 255, 0.12)');
+            // 文本墨色: EP 默认 secondary #909399 / placeholder #a8abb2 在浅色玻璃上仅 ~2.8:1,
+            // 达不到 4.5:1 → 观感"发灰不清晰"。玻璃态统一加深到 slate 档。
+            set('--el-text-color-secondary', '#64748b');
+            set('--el-text-color-placeholder', '#6b7280');
+        },
+        // 移除玻璃模式变量（恢复原值）
+        _removeGlassVariables() {
+            const el = document.documentElement;
+            const vars = [
+                '--bg-main-color', '--bg-color', '--bg-menuBar', '--bg-topBar',
+                '--el-bg-color', '--el-bg-color-page', '--el-bg-color-overlay',
+                '--el-fill-color-blank', '--el-fill-color-light', '--el-fill-color',
+                '--el-fill-color-lighter', '--el-fill-color-extra-light',
+                '--el-table-bg-color', '--el-table-tr-bg-color',
+                '--el-table-header-bg-color', '--el-table-row-hover-bg-color',
+                '--el-text-color-secondary', '--el-text-color-placeholder',
+                '--glass-frost-fx', '--glass-frost-veil',
+            ];
+            vars.forEach(v => el.style.removeProperty(v));
+            // 恢复缓存中的原始样式
+            const savedStyle = getLocal('themeConfigStyle');
+            if (savedStyle) {
+                // 重新解析原始变量
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(`<html style="${savedStyle}"></html>`, 'text/html');
+                const origStyle = doc.documentElement.getAttribute('style') || '';
+                origStyle.split(';').forEach(pair => {
+                    const [key] = pair.split(':').map(s => s.trim());
+                    if (key && vars.includes(key)) {
+                        el.style.removeProperty(key);
+                    }
+                });
+            }
+        },
+        // 设置玻璃壁纸：切换 <html data-wallpaper> 属性（'none' 移除属性，回退默认动态光斑）
+        // 内置预设的渐变由 wallpaper.scss 依据该属性选择器应用；'custom' 走 --backdrop-image 图层
+        setGlassWallpaper(id: string) {
+            this.themeConfig.glassWallpaper = id;
+            const root = document.documentElement;
+            if (id === 'none') {
+                root.removeAttribute('data-wallpaper');
+            } else {
+                root.setAttribute('data-wallpaper', id);
+            }
+        },
+        // 设置磨砂程度(0-40 blur px, 0=纹理清晰默认档): 立即重算 fx 档位变量
+        setGlassFrost(level: number) {
+            this.themeConfig.glassFrost = level;
+            this._applyGlassVariables();
+        },
+        // 设置背景图
+        setBgImage(url: string) {
+            // 先写 DOM 变量再更新状态: 当前页效果立即可见, 不受后续任何链路异常影响
+            applyBackdropImageVar(url);
+            this.themeConfig.bgImage = url;
+        },
+        // 设置背景图模糊
+        setBgImageBlur(blur: number) {
+            this.themeConfig.bgImageBlur = blur;
+        },
+        // 设置背景图不透明度（玻璃态下壁纸图层钉死, 该值仅保留兼容, 不参与渲染）
+        setBgImageOpacity(opacity: number) {
+            this.themeConfig.bgImageOpacity = opacity;
         },
     },
 });

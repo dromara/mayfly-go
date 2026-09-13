@@ -213,12 +213,12 @@ const props = withDefaults(defineProps<PageTableProps>(), {
 
 const selectionData = defineModel<Record<string, unknown>[]>('selectionData', { default: () => [] });
 
-// 查询表单参数 ==> 非必传（默认为{pageNum:1, pageSize: 10}）
-const queryForm: Ref<Record<string, unknown>> = defineModel('queryForm', {
-    default: {
+// 查询表单参数 ==> 非必传（默认为{pageNum:1, pageSize: 0}）
+const queryForm = defineModel<Record<string, unknown>>('queryForm', {
+    default: () => ({
         pageNum: 1,
         pageSize: 0,
-    },
+    }),
 });
 
 // table 实例

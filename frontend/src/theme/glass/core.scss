@@ -1,0 +1,40 @@
+/* Glass Core Engine (核心引擎层)
+------------------------------- */
+
+@mixin glass-base($blur: var(--glass-blur)) {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur($blur) saturate(var(--glass-saturate)) !important;
+    -webkit-backdrop-filter: blur($blur) saturate(var(--glass-saturate)) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+}
+
+@mixin glass-panel($blur: var(--glass-blur)) {
+    @include glass-base($blur);
+    position: relative;
+    border-radius: 8px;
+}
+
+@mixin glass-card {
+    @include glass-panel;
+    border-radius: 10px;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: var(--glass-highlight);
+        pointer-events: none;
+    }
+}
+
+@mixin glass-heavy {
+    @include glass-base(var(--glass-blur-heavy));
+    background: var(--glass-bg-heavy) !important;
+}
+
+@mixin glass-light {
+    @include glass-base(var(--glass-blur-light));
+    background: var(--glass-bg-accent) !important;
+}

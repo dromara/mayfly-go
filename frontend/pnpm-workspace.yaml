@@ -4,7 +4,7 @@ allowBuilds:
   esbuild: true
   vue-demi: true
 minimumReleaseAgeExclude:
-  - vite@8.1.2 || 8.1.4 || 8.2.0
+  - vite@8.1.2 || 8.1.4 || 8.2.0 || 8.3.0
   - '@typescript/typescript-aix-ppc64@7.0.2'
   - '@typescript/typescript-darwin-arm64@7.0.2'
   - '@typescript/typescript-darwin-x64@7.0.2'

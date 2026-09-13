@@ -18,7 +18,7 @@
 
             <!-- 关联标签 -->
             <template #codePaths="{ form }">
-                <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
+                <tag-tree-check height-mode="fixed" height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypePath.Db, TagResourceTypeEnum.Redis.value]" />
             </template>
         </auto-form-drawer>
     </div>

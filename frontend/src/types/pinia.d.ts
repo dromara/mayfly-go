@@ -40,6 +40,12 @@ declare interface ThemeConfigState {
         isInvert: boolean;
         isWatermark: boolean;
         watermarkText: Array<string>;
+        isGlassMode: boolean;
+        glassWallpaper: string;
+        glassFrost: number;
+        bgImage: string;
+        bgImageBlur: number;
+        bgImageOpacity: number;
         animation: string;
         columnsAsideStyle: string;
         layout: string;

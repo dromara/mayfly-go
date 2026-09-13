@@ -155,7 +155,11 @@ const showSetConfigDialog = (row: SysConfig) => {
         state.paramsDialog.schema = null;
     }
     if (state.paramsDialog.schema?.fields?.length && row.value) {
-        state.paramsDialog.params = JSON.parse(row.value);
+        try {
+            state.paramsDialog.params = JSON.parse(row.value);
+        } catch {
+            state.paramsDialog.params = row.value;
+        }
     } else if (!state.paramsDialog.schema?.fields?.length) {
         state.paramsDialog.schema = null;
         state.paramsDialog.params = row.value;
@@ -216,7 +220,6 @@ const hasParam = (paramKey: string, fields: { prop: string }[]) => {
 };
 
 const onConfigEditChange = () => {
-    Msg.saveSuccess();
     search();
 };
 

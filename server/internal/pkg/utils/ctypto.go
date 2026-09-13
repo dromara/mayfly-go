@@ -94,7 +94,7 @@ func GetRsaPrivateKey() (string, error) {
 //
 // 依次返回 privateKey, publicKey, error
 func GenerateAndSaveRSAKey() (string, string, error) {
-	privateKey, publicKey, err := cryptox.GenerateRSAKey(1024)
+	privateKey, publicKey, err := cryptox.GenerateRSAKey(2048)
 	if err != nil {
 		return "", "", err
 	}

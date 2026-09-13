@@ -97,8 +97,8 @@ const props = defineProps({
     account: Object as () => Account | null,
 });
 
-//定义事件
-const emit = defineEmits(['cancel', 'val-change']);
+//父级只用 cancel 关闭弹窗并刷新（val-change 从不触发，故不声明）
+const emit = defineEmits<{ cancel: [] }>();
 
 const relatedColumns = [
     TableColumn.new('roleName', 'system.role.roleName'),

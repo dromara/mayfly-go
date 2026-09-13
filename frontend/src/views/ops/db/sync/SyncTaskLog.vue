@@ -84,7 +84,10 @@ const search = () => {
     }
 };
 
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits<{
+    /** 关闭日志抽屉（visible 由 defineModel 声明，其 update:visible 无需登记） */
+    cancel: [];
+}>();
 //定义事件
 const cancel = () => {
     dialogVisible.value = false;

@@ -211,6 +211,27 @@ export default {
             // IsWartermark: '开启水印',
             // WartermarkText: '水印文案',
 
+            // 液态玻璃态
+            glassMode: '液态玻璃态',
+            bgSetting: '背景设置',
+            bgImage: '背景图',
+            bgImageUpload: '上传背景图',
+            bgImageReplace: '更换背景图',
+            bgImagePlaceholder: '输入图片 URL',
+            bgImageBlur: '背景模糊',
+            bgImageOpacity: '背景不透明度',
+            bgImageClear: '清除背景',
+            wallpaper: '玻璃壁纸',
+            wallpaperSpots: '光斑',
+            wallpaperAurora: '极光',
+            wallpaperDusk: '暮霞',
+            wallpaperReef: '深海',
+            wallpaperBloom: '花境',
+            wallpaperNebula: '星云',
+            wallpaperCustom: '自定义',
+            glassFrost: '磨砂程度',
+            glassFrostClear: '清晰',
+
             // 其他设置
             otherSetting: '其它设置',
             tagsStyle: 'Tagsview 风格',

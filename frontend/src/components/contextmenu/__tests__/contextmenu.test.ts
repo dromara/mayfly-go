@@ -6,6 +6,7 @@ vi.mock('@/components/svg-icon/index.vue', () => ({ default: { name: 'SvgIcon', 
 
 import Contextmenu from '../index.vue';
 import { ContextmenuItem } from '../item';
+import { MENU_CLOSE_ANIMATION_MS } from '../constants';
 
 const buildItems = (onSelect: (id: string) => void): ContextmenuItem[] => [
     new ContextmenuItem('copy', 'txt.copy').withOnClick(() => onSelect('copy')),
@@ -60,7 +61,9 @@ describe('Contextmenu 组件', () => {
         expect(leaf).toBeTruthy();
 
         leaf.click();
-        await flush();
+        // onClickFunc 被刻意延迟到关闭动画结束后派发（见 ContextmenuItemNode），
+        // 故此处须等待覆盖该延迟，而非只等一轮宏任务
+        await new Promise((r) => setTimeout(r, MENU_CLOSE_ANIMATION_MS + 20));
         expect(onSelect).toHaveBeenCalledTimes(1);
         expect(onSelect).toHaveBeenCalledWith('copy');
         (wrapper.vm as any).closeContextmenu();

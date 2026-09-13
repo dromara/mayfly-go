@@ -1,6 +1,6 @@
 <template>
     <div class="layout-breadcrumb-seting">
-        <el-drawer :title="$t('layout.config.configTitle')" v-model="themeConfig.isDrawer" direction="rtl" destroy-on-close size="240px" @close="onDrawerClose">
+        <el-drawer :title="$t('layout.config.configTitle')" v-model="themeConfig.isDrawer" direction="rtl" destroy-on-close size="320px" @close="onDrawerClose">
             <el-scrollbar class="layout-breadcrumb-seting-bar">
                 <!-- ssh终端主题 -->
                 <el-divider content-position="left">{{ $t('layout.config.terminalTheme') }}</el-divider>
@@ -306,6 +306,67 @@
                     </div>
                 </div>
 
+                <!-- 液态玻璃态 -->
+                <el-divider content-position="left">{{ $t('layout.config.glassMode') }}</el-divider>
+                <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">{{ $t('layout.config.glassMode') }}</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-switch v-model="themeConfig.isGlassMode" @change="onGlassModeChange"></el-switch>
+                    </div>
+                </div>
+
+                <!-- 玻璃壁纸（内置渐变预设 + 自定义上传，效果仅在液态玻璃态可见） -->
+                <el-divider content-position="left">{{ $t('layout.config.wallpaper') }}</el-divider>
+                <div class="wallpaper-grid">
+                    <div v-for="wp in wallpapers" :key="wp.id" class="wallpaper-cell" @click="onWallpaperSelect(wp.id)">
+                        <div
+                            class="wallpaper-thumb"
+                            :class="{ 'is-active': themeConfig.glassWallpaper === wp.id }"
+                            :style="{ background: `var(${wp.cssVar})` }"
+                            :title="$t(wp.nameKey)"
+                        >
+                            <span v-if="themeConfig.glassWallpaper === wp.id" class="wallpaper-thumb__check">✓</span>
+                        </div>
+                        <span class="wallpaper-name" :class="{ 'is-active': themeConfig.glassWallpaper === wp.id }">{{ $t(wp.nameKey) }}</span>
+                    </div>
+                    <div class="wallpaper-cell" @click="onCustomWallpaperClick">
+                        <div
+                            class="wallpaper-thumb is-custom"
+                            :class="{ 'is-active': themeConfig.glassWallpaper === 'custom' }"
+                            :style="themeConfig.bgImage ? { backgroundImage: `url(${themeConfig.bgImage})` } : undefined"
+                            :title="$t('layout.config.wallpaperCustom')"
+                        >
+                            <span v-if="!themeConfig.bgImage" class="wallpaper-thumb__plus">+</span>
+                            <span v-if="themeConfig.glassWallpaper === 'custom'" class="wallpaper-thumb__check">✓</span>
+                        </div>
+                        <span class="wallpaper-name" :class="{ 'is-active': themeConfig.glassWallpaper === 'custom' }">{{ $t('layout.config.wallpaperCustom') }}</span>
+                    </div>
+                </div>
+                <!-- 隐藏上传器：由「自定义」瓦片 / 更换按钮程序化触发 -->
+                <el-upload ref="bgUploadRef" class="wallpaper-upload-hidden" :auto-upload="false" :show-file-list="false" accept="image/*" :on-change="onBgImageUpload">
+                    <span></span>
+                </el-upload>
+                <template v-if="themeConfig.glassWallpaper === 'custom' && themeConfig.bgImage">
+                    <!-- 液态玻璃态下壁纸图层钉死"清晰+全不透明"(见 backdrop.scss), 模糊/不透明度滑杆已移除:
+                         其缓存值曾把源图糊化/半透明化, 造成整屏底雾且下游任何材质调整都看不出效果 -->
+                    <div class="wallpaper-custom-actions mt-3.5! mb-5.5!">
+                        <el-button size="small" @click="triggerUpload">{{ $t('layout.config.bgImageReplace') }}</el-button>
+                        <el-button size="small" text type="danger" @click="onBgImageClear">{{ $t('layout.config.bgImageClear') }}</el-button>
+                    </div>
+                </template>
+                <div v-else class="mb-3.5!"></div>
+
+                <!-- 磨砂程度：0=壁纸纹理完全清晰(默认零磨砂档)，调大则整屏壁纸纱层统一糊化(文字仍锐利) -->
+                <div class="mb-5.5!">
+                    <div class="mb-1! flex items-center justify-between">
+                        <span class="text-13px">{{ $t('layout.config.glassFrost') }}</span>
+                        <span class="text-12px opacity-50">
+                            {{ themeConfig.glassFrost === 0 ? $t('layout.config.glassFrostClear') : `${themeConfig.glassFrost}px` }}
+                        </span>
+                    </div>
+                    <el-slider v-model="themeConfig.glassFrost" :min="0" :max="40" :step="2" :show-tooltip="false" @change="onFrostChange" />
+                </div>
+
                 <!-- 其它设置 -->
                 <el-divider content-position="left">{{ $t('layout.config.otherSetting') }}</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex mt-3.5!">
@@ -426,7 +487,9 @@ import themes from '@/components/terminal/themes';
 import { useWindowSize } from '@vueuse/core';
 
 const copyConfigBtnRef = ref();
+const bgUploadRef = ref();
 const { themeConfig } = storeToRefs(useThemeConfig());
+const themeConfigStore = useThemeConfig();
 
 // 获取窗口大小
 const { width } = useWindowSize();
@@ -438,33 +501,6 @@ watch(width, () => {
 onMounted(() => {
     nextTick(() => {
         checkClientWidth();
-        window.addEventListener('load', () => {
-            // 刷新页面时，设置了值，直接取缓存中的值进行初始化
-            setTimeout(() => {
-                // 顶栏背景渐变
-                if (getLocal('navbarsBgStyle') && themeConfig.value.isTopBarColorGradual) {
-                    const breadcrumbIndexEl = document.querySelector('.layout-navbars-breadcrumb-index') as HTMLElement | null;
-                    if (breadcrumbIndexEl) breadcrumbIndexEl.style.cssText = getLocal<string>('navbarsBgStyle') ?? '';
-                }
-                // 菜单背景渐变
-                if (getLocal('asideBgStyle') && themeConfig.value.isMenuBarColorGradual) {
-                    const asideEl = document.querySelector('.layout-container .el-aside') as HTMLElement | null;
-                    if (asideEl) asideEl.style.cssText = getLocal<string>('asideBgStyle') ?? '';
-                }
-                // 分栏菜单背景渐变
-                if (getLocal('columnsBgStyle') && themeConfig.value.isColumnsMenuBarColorGradual) {
-                    const asideEl = document.querySelector('.layout-container .layout-columns-aside') as HTMLElement | null;
-                    if (asideEl) asideEl.style.cssText = getLocal<string>('columnsBgStyle') ?? '';
-                }
-                // 灰色模式/色弱模式
-                if (getLocal('appFilterStyle')) {
-                    const appEl = document.querySelector('#app') as HTMLElement | null;
-                    if (appEl) appEl.style.cssText = getLocal<string>('appFilterStyle') ?? '';
-                }
-                // // 语言国际化
-                // if (getLocal('themeConfig')) proxy.$i18n.locale = getLocal('themeConfig').globalI18n;
-            }, 100);
-        });
     });
 });
 
@@ -560,6 +596,127 @@ const onAddFilterChange = (attr: string) => {
     setLocal('appFilterStyle', appEle.style.cssText);
 };
 
+// 液态玻璃态模式切换
+const onGlassModeChange = () => {
+    themeConfigStore.toggleGlassMode(themeConfig.value.isGlassMode);
+    setDispatchThemeConfig();
+};
+
+// 内置玻璃壁纸预设（渐变定义见 theme/glass/wallpaper.scss，缩略图直接复用同名 CSS 变量）
+const wallpapers = [
+    { id: 'none', nameKey: 'layout.config.wallpaperSpots', cssVar: '--wallpaper-spots' },
+    { id: 'aurora', nameKey: 'layout.config.wallpaperAurora', cssVar: '--wallpaper-aurora' },
+    { id: 'dusk', nameKey: 'layout.config.wallpaperDusk', cssVar: '--wallpaper-dusk' },
+    { id: 'reef', nameKey: 'layout.config.wallpaperReef', cssVar: '--wallpaper-reef' },
+    { id: 'bloom', nameKey: 'layout.config.wallpaperBloom', cssVar: '--wallpaper-bloom' },
+    { id: 'nebula', nameKey: 'layout.config.wallpaperNebula', cssVar: '--wallpaper-nebula' },
+];
+
+// 选择内置壁纸
+const onWallpaperSelect = (id: string) => {
+    themeConfigStore.setGlassWallpaper(id);
+    setDispatchThemeConfig();
+};
+
+// 磨砂程度滑杆: 0=纹理清晰(默认零磨砂), store 内联覆盖 --glass-fx-chrome/panel/content 档位
+const onFrostChange = (v: number | number[]) => {
+    themeConfigStore.setGlassFrost(Array.isArray(v) ? v[0] : v);
+    setDispatchThemeConfig();
+};
+// 触发隐藏的上传器
+const triggerUpload = () => {
+    const input = (bgUploadRef.value?.$el as HTMLElement | undefined)?.querySelector('input[type="file"]') as HTMLInputElement | null;
+    input?.click();
+};
+// 点击「自定义」瓦片：已有图片则直接应用，否则打开文件选择
+const onCustomWallpaperClick = () => {
+    if (themeConfig.value.bgImage) {
+        themeConfigStore.setGlassWallpaper('custom');
+        setDispatchThemeConfig();
+    } else {
+        triggerUpload();
+    }
+};
+
+// 壁纸 base64 字符预算：实测 Chrome 对内联自定义属性值有 ~2Mi(2,097,152)字符的静默丢弃
+// 上限(setProperty 超限不报错、变量直接消失 —— 正是"替换壁纸完全没反应"的根因)，
+// 同时留足 localStorage 配额余量(单键 5MB 总量)。1.4M 字符 ≈ 1MB 二进制，壁纸素材绰绰有余
+const WALLPAPER_BUDGET = 1_400_000;
+
+// 按给定尺寸/质量编码一次(优先 webp, 不支持则 jpeg)
+const encodeWallpaper = (img: HTMLImageElement, maxEdge: number, quality: number): string => {
+    const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const webp = canvas.toDataURL('image/webp', quality);
+    return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', quality);
+};
+
+// 壁纸压缩(字节预算制)：高熵素材(噪点/细节密集照片)在固定 2560+q0.82 下仍可产出 2M+ 字符
+// 触顶被丢弃, 必须逐级降分辨率+质量直到落进预算。玻璃壁纸经 blur 采样, 1280px 底档无明显画质损失
+const compressWallpaper = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            for (const [edge, q] of [[2560, 0.82], [1920, 0.72], [1440, 0.62], [1280, 0.5]] as const) {
+                const dataUrl = encodeWallpaper(img, edge, q);
+                if (dataUrl && dataUrl.length <= WALLPAPER_BUDGET) {
+                    resolve(dataUrl);
+                    return;
+                }
+            }
+            // 终极兜底：最低档直接用(再小的编码产出也远超照片壁纸需求)
+            const fallback = encodeWallpaper(img, 1080, 0.45);
+            fallback ? resolve(fallback) : reject(new Error('wallpaper encode failed'));
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('image decode failed'));
+        };
+        img.src = objectUrl;
+    });
+
+const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+
+// 背景图上传：统一走字节预算编码链路；gif/svg 在预算内直存(保留动画/矢量)，超预算同样重编码
+const onBgImageUpload = async (uploadFile: any) => {
+    const file = uploadFile.raw;
+    if (!file) return;
+    let dataUrl = '';
+    try {
+        const raw = await readFileAsDataUrl(file);
+        const keepNative = (file.type === 'image/gif' || file.type === 'image/svg+xml') && raw.length <= WALLPAPER_BUDGET;
+        dataUrl = keepNative ? raw : await compressWallpaper(file);
+    } catch {
+        // 兜底：canvas 链路异常(gif 解码失败/画布不可用等)时回退原文件直读，能否生效取决于体积
+        try {
+            dataUrl = await readFileAsDataUrl(file);
+        } catch {
+            return;
+        }
+    }
+    themeConfigStore.setBgImage(dataUrl);
+    themeConfigStore.setGlassWallpaper('custom');
+    setDispatchThemeConfig();
+};
+const onBgImageClear = () => {
+    themeConfigStore.setBgImage('');
+    themeConfigStore.setGlassWallpaper('none');
+    setDispatchThemeConfig();
+};
+
 // 5、布局切换
 const onSetLayout = (layout: string) => {
     setLocal('oldLayout', layout);
@@ -622,7 +779,10 @@ const setDispatchThemeConfig = () => {
 
 // 存储布局配置全局主题样式（html根标签）
 const setLocalThemeConfigStyle = () => {
-    setLocal('themeConfigStyle', document.documentElement.style.cssText);
+    // 剔除 --backdrop-image：壁纸 base64 与 themeConfig.bgImage 存的是同一份数据，
+    // 双份直塞会把该键撑爆配额导致整个写入失败；init 会从 bgImage 重新注入 DOM 变量
+    const cssText = document.documentElement.style.cssText.replace(/--backdrop-image:\s*(?:url\("[^"]*"\)|none)\s*;?/g, '');
+    setLocal('themeConfigStyle', cssText);
 };
 // 一键复制配置
 const onCopyConfigClick = () => {
@@ -671,9 +831,11 @@ const checkClientWidth = () => {
 
 .layout-breadcrumb-seting-bar {
     height: calc(100vh - 50px);
-    padding: 0 15px;
 
     ::v-deep(.el-scrollbar__view) {
+        // padding 必须挂在 view 上(而非 bar 根): overflow-x 裁剪发生在 view 的 padding box 边缘,
+        // 挂根上时裁剪线贴着内容左缘, 滑杆按钮(左探 10px)/激活缩略图高亮环会被裁掉一半
+        padding: 0 15px;
         overflow-x: hidden !important;
     }
 
@@ -827,6 +989,88 @@ const checkClientWidth = () => {
         .copy-config-last-btn {
             margin: 10px 0 0;
         }
+    }
+
+    .wallpaper-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .wallpaper-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+    }
+
+    .wallpaper-thumb {
+        position: relative;
+        width: 100%;
+        height: 44px;
+        border-radius: 8px;
+        background-size: cover;
+        background-position: center;
+        border: 1px solid var(--el-border-color);
+        transition:
+            box-shadow 0.2s ease,
+            transform 0.2s ease;
+
+        &.is-custom {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--el-text-color-secondary);
+            background-color: var(--el-fill-color-lighter);
+            border-style: dashed;
+        }
+
+        &.is-active {
+            box-shadow: 0 0 0 2px var(--el-color-primary);
+            transform: scale(1.04);
+        }
+
+        &__check {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            line-height: 16px;
+            color: #fff;
+            text-align: center;
+            background: var(--el-color-primary);
+            border-radius: 50%;
+        }
+
+        &__plus {
+            font-size: 18px;
+            line-height: 1;
+        }
+    }
+
+    .wallpaper-name {
+        font-size: 11px;
+        line-height: 1;
+        color: var(--el-text-color-secondary);
+
+        &.is-active {
+            font-weight: 500;
+            color: var(--el-color-primary);
+        }
+    }
+
+    .wallpaper-upload-hidden {
+        display: none;
+    }
+
+    .wallpaper-custom-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
     }
 }
 </style>

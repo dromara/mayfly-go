@@ -132,7 +132,7 @@ interface AutoFormItemBase {
     /** 条件显隐：返回 false 时隐藏该字段（隐藏时不参与校验） */
     when?: (form: AutoFormData) => boolean;
 
-    /** 栅格跨度（el-col span，缺省时由 AutoForm cols 均分 24） */
+    /** 栅格跨度（以 24 栅格为抽象单位，由适配层 ui/adapter 的 toGridSpan 映射到具体 UI 框架栅格；缺省时由 AutoForm cols 均分） */
     span?: number;
 
     // ── 控件专属配置 ──
@@ -213,18 +213,6 @@ export const isSelectPromptItem = (item: AutoFormItem): boolean => {
     return CONTROL_REGISTRY[item.type ?? 'input'].selectPrompt;
 };
 
-/** 判断字段是否为选项类控件（select / enum / radio，携带 options 或 enums 配置） */
-export const isOptionType = (item: AutoFormItem): boolean => {
-    const t = item.type ?? 'input';
-    return t === 'select' || t === 'enum' || t === 'radio';
-};
-
-/** 判断字段是否为布局/结构类型（divider / group / custom，不绑定表单值） */
-export const isStructuralType = (item: AutoFormItem): boolean => {
-    const t = item.type ?? 'input';
-    return t === 'divider' || t === 'group' || t === 'custom';
-};
-
 // ── 对外契约与 Tab 分组布局 ────────────────────────────────────
 
 /**
@@ -298,7 +286,12 @@ export const isNestedPath = (prop: string | undefined): boolean => !!prop?.inclu
 /**
  * 取开关字段的关闭态值（兼容 props 驼峰与 kebab 两种写法），未声明则为布尔 false
  */
-const switchInactiveValue = (item: AutoFormItem): unknown => item.props?.inactiveValue ?? item.props?.['inactive-value'] ?? false;
+export const switchInactiveValue = (item: AutoFormItem): unknown => item.props?.inactiveValue ?? item.props?.['inactive-value'] ?? false;
+
+/**
+ * 取开关字段的开启态值（兼容 props 驼峰与 kebab 两种写法），未声明则为布尔 true
+ */
+export const switchActiveValue = (item: AutoFormItem): unknown => item.props?.activeValue ?? item.props?.['active-value'] ?? true;
 
 /**
  * 根据字段配置构建默认表单数据（应用各字段 defaultValue）

@@ -60,13 +60,13 @@ const emit = defineEmits(['changeResourceCode']);
 const formRef = ref<{ validate: (...args: unknown[]) => unknown; resetFields?: () => void } | null>(null);
 
 const bizForm = defineModel<RedisRunCmdForm>('bizForm', {
-    default: {
+    default: () => ({
         id: 0,
         db: 0,
         cmd: '',
         tagPath: '',
         redisName: '',
-    },
+    }),
 });
 
 const selectRedis = computed({

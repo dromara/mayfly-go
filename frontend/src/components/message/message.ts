@@ -54,7 +54,7 @@ const components = {
     },
 
     'db-info': {
-        component: defineAsyncComponent(() => import('@/views/ops/db/component/DbDetail.vue')),
+        component: defineAsyncComponent(() => import('@/views/ops/db/widgets/DbDetail.vue')),
         getDefaultProps: (size: Size) => {
             return {
                 size,

@@ -7,7 +7,7 @@
             </template>
             <!-- 关联机器标签（自定义控件插槽） -->
             <template #codePaths="{ form: f }">
-                <TagTreeCheck height="200px" :tag-type="`${TagResourceTypeEnum.Machine.value}`" v-model="f.codePaths" />
+                <TagTreeCheck height-mode="fixed" height="200px" :tag-type="`${TagResourceTypeEnum.Machine.value}`" v-model="f.codePaths" />
             </template>
         </auto-form-drawer>
     </div>

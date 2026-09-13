@@ -167,24 +167,35 @@ const { form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.save.useApi();
 
+/** 将后端返回的 meta 归一为对象（可能是 ''、JSON 字符串、或已解析对象） */
+const normalizeMeta = (raw: unknown): ResourceMeta => {
+    if (raw && typeof raw === 'object') return { ...defaultMeta, ...(raw as Partial<ResourceMeta>) };
+    if (typeof raw === 'string' && raw !== '') {
+        try { return { ...defaultMeta, ...JSON.parse(raw) }; } catch { /* ignore */ }
+    }
+    return { ...defaultMeta };
+};
+
+// immediate：ResourceEdit 为异步组件，首次打开时 visible 无 false→true 跃迁（直接以 true 挂载），
+// 不加 immediate 则回填逻辑永不执行，对话框展示空白表单
 watch(visible, () => {
     if (!visible.value) {
         return;
     }
-    if (props.data) {
+    if (props.data && typeof props.data === 'object') {
         const data = props.data as ResourceForm;
-        state.form = { ...data, meta: data.meta ?? { ...defaultMeta } };
+        state.form = { ...data, meta: normalizeMeta(data.meta) };
     } else {
         state.form = { meta: { ...defaultMeta } };
     }
 
     // 不存在或false，都为false
     const meta = state.form.meta;
-    state.form.meta.isKeepAlive = meta.isKeepAlive ? true : false;
-    state.form.meta.isHide = meta.isHide ? true : false;
-    state.form.meta.isAffix = meta.isAffix ? true : false;
-    state.form.meta.linkType = meta.linkType;
-});
+    meta.isKeepAlive = !!meta.isKeepAlive;
+    meta.isHide = !!meta.isHide;
+    meta.isAffix = !!meta.isAffix;
+    state.form.meta = meta;
+}, { immediate: true });
 
 const onConfirm = async () => {
     await useI18nFormValidate(menuFormRef);

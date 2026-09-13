@@ -56,8 +56,6 @@ const groups = ref<KafkaGroup[]>([]);
 // 计算属性：提取 topic 名称列表
 const topicNames = computed(() => topics.value.map((item) => item.name));
 
-const emits = defineEmits(['init']);
-
 const initKafka = (params: Record<string, unknown>) => {
     kafkaId.value = Number(params.id);
     selectedTopic.value = '';

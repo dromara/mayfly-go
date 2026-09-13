@@ -1,0 +1,18 @@
+/* Glass Motion System (过渡动画层)
+------------------------------- */
+
+.glass-mode {
+    .layout-aside,
+    .layout-navbars-breadcrumb-index,
+    .el-dialog,
+    .el-drawer {
+        transition: background 0.25s var(--ease-out-quart), backdrop-filter 0.25s var(--ease-out-quart), border-color 0.25s var(--ease-out-quart);
+    }
+
+    // 禁用动画模式
+    &.layout-aside-transition-false,
+    .layout-aside-transition-false .layout-aside,
+    .layout-aside-transition-false .layout-navbars-breadcrumb-index {
+        transition-duration: 0.01ms !important;
+    }
+}

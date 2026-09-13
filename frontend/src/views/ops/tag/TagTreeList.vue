@@ -102,7 +102,7 @@
 
         <!-- 标签保存表单（AutoFormDialog：items 声明 + 内置校验与确认按钮） -->
         <auto-form-dialog
-            v-model="saveTabDialog.visible"
+            v-model:visible="saveTabDialog.visible"
             :title="saveTabDialog.title"
             :data="saveTabDialog.form"
             :items="tagFormItems"
@@ -144,6 +144,7 @@ interface TreeNodeData {
     id: number;
     type?: number;
     codePath?: string;
+    namePath?: string;
     name: string;
     remark?: string;
     children?: TreeNodeData[];
@@ -343,7 +344,7 @@ const onTreeNodeClick = async (data: TreeNodeData) => {
 const onShowSaveTagDialog = (data: TreeNodeData | null) => {
     if (data) {
         state.saveTabDialog.form.pid = data.id;
-        state.saveTabDialog.title = t('tag.createSubTagTitle', { codePath: data.codePath });
+        state.saveTabDialog.title = t('tag.createSubTagTitle', { namePath: data.namePath });
     } else {
         state.saveTabDialog.title = useI18nCreateTitle('tag.rootTag');
     }
@@ -351,10 +352,12 @@ const onShowSaveTagDialog = (data: TreeNodeData | null) => {
 };
 
 const onShowEditTagDialog = (data: TreeNodeData) => {
+    // 先重置表单，避免残留上次编辑/新增的字段（如 pid）
+    state.saveTabDialog.form = { id: 0, pid: 0, name: '', remark: '' };
     state.saveTabDialog.form.id = data.id;
     state.saveTabDialog.form.name = data.name;
     state.saveTabDialog.form.remark = data.remark ?? '';
-    state.saveTabDialog.title = useI18nEditTitle(data.codePath ?? '');
+    state.saveTabDialog.title = useI18nEditTitle(data.namePath ?? '');
     state.saveTabDialog.visible = true;
 };
 
@@ -363,11 +366,20 @@ const onSaveTag = async (form: { id?: number; pid?: number; name?: string; remar
     await tagApi.saveTagTree.request(form);
 };
 
-// 保存成功后刷新列表并重置选中态
-const onTagSaved = () => {
-    search();
+// 保存成功后刷新列表；恢复选中态与资源标签页，确保右侧面板数据不丢失
+const onTagSaved = async () => {
+    const savedId = state.saveTabDialog.form.id;
+    const savedTabName = state.activeTabName;
     onCancelSaveTag();
-    state.currentTag = null;
+    await search();
+    if (savedId) {
+        // 编辑：恢复标签详情与之前激活的资源标签页
+        state.currentTag = await getDetail(savedId);
+        state.activeTabName = savedTabName;
+    } else {
+        // 新增：保持父标签选中（currentTag 不变），切换到之前激活的资源标签页
+        state.activeTabName = savedTabName;
+    }
 };
 
 const onCancelSaveTag = () => {
@@ -376,10 +388,14 @@ const onCancelSaveTag = () => {
 };
 
 const onDeleteTag = async (data: TreeNodeData) => {
-    await useI18nDeleteConfirm(data.codePath);
+    await useI18nDeleteConfirm(data.namePath);
     await tagApi.delTagTree.request({ id: data.id });
     Msg.deleteSuccess();
-    search();
+    await search();
+    // 删除的是当前选中标签时，清空右侧面板
+    if (state.currentTag?.id === data.id) {
+        state.currentTag = null;
+    }
 };
 
 // 节点被展开时触发的事件

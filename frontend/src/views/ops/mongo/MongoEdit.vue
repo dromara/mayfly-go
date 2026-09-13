@@ -1,39 +1,48 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="onCancel" :close-on-click-modal="false" width="38%" :destroy-on-close="true">
-            <auto-form ref="mongoFormRef" v-model="form" :tabs="tabs" label-width="auto">
-                <!-- 关联标签 -->
-                <template #tagCodePaths>
-                    <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
-                </template>
-
-                <!-- SSH 隧道 -->
-                <template #sshTunnelMachineId>
-                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                </template>
-            </auto-form>
-
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-api="onConfirm"
+            @submitted="emit('cancel')"
+            @cancel="emit('cancel')"
+        >
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="onTestConn" :loading="testConnBtnLoading" type="success">{{ $t('ac.testConn') }}</el-button>
-                    <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="onConfirm">{{ $t('common.confirm') }}</el-button>
+                    <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.confirm') }}</el-button>
                 </div>
             </template>
-        </el-dialog>
+
+            <!-- 关联标签 -->
+            <template #tagCodePaths="{ form }">
+                <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
+            </template>
+
+            <!-- SSH 隧道 -->
+            <template #sshTunnelMachineId="{ form }">
+                <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+            </template>
+        </auto-form-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watchEffect, type PropType } from 'vue';
-import { AutoForm, type AutoFormItem, type AutoFormTab } from '@/components/auto-form';
+import { useSshTunnelTransform } from '@/hooks/useResourceForm';
+import { computed, ref, useTemplateRef, type PropType } from 'vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { mongoApi } from './api';
 import type { Mongo } from './types';
 
-/** Mongo 编辑表单类型（允许 null 的字段重定义） */
+/** Mongo 编辑表单类型 (允许 null 的字段重定义) */
 interface MongoForm extends Omit<Partial<Mongo>, 'id' | 'name' | 'uri' | 'sshTunnelMachineId'> {
     id?: number | null;
     name?: string | null;
@@ -44,7 +53,7 @@ interface MongoForm extends Omit<Partial<Mongo>, 'id' | 'name' | 'uri' | 'sshTun
 }
 
 const props = defineProps({
-    mongo: {
+    data: {
         type: Object as PropType<Mongo | null>,
         default: null,
     },
@@ -55,82 +64,52 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-//定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
-/** 表单声明（AutoFormTab[]，Tab 布局共享表单数据与校验；tagCodePaths/sshTunnel 走插槽） */
-const tabs: AutoFormTab[] = [
-    {
-        name: 'basic',
-        label: 'common.basic',
-        items: [
-            { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
-            { prop: 'name', label: 'common.name', required: true },
-            { prop: 'uri', label: 'uri', type: 'textarea', rows: 2, required: true, placeholder: 'mongodb://username:password@host1:port1' },
-        ],
-    },
-    {
-        name: 'other',
-        label: 'common.other',
-        items: [{ prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' }],
-    },
+/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；tagCodePaths/sshTunnel 走插槽） */
+const items: AutoFormItem[] = [
+    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+    { prop: 'name', label: 'common.name', required: true },
+    { prop: 'uri', label: 'uri', type: 'textarea', rows: 2, required: true, placeholder: 'mongodb://username:password@host1:port1' },
+    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
 ];
 
-const mongoFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('mongoFormRef');
+const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
-const state = reactive({
-    form: {
-        id: null,
-        code: '',
-        name: null,
-        uri: null,
-        sshTunnelMachineId: null as number | null,
-        tagCodePaths: [],
-    } as MongoForm,
-});
-
-const { form } = toRefs(state);
-
-const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi();
-const { isFetching: saveBtnLoading, execute: saveMongoExec } = mongoApi.saveMongo.useApi();
-
-watchEffect(() => {
-    if (!dialogVisible.value) {
-        return;
-    }
-    const mongo = props.mongo as MongoForm | false | null;
+/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
+const editData = computed<AutoFormData>(() => {
+    const mongo = props.data as MongoForm | false | undefined;
     if (mongo) {
-        state.form = { ...mongo };
-    } else {
-        state.form = { db: 0, tagCodePaths: [] } as MongoForm;
+        return { ...mongo } as AutoFormData;
     }
+    return { db: 0, tagCodePaths: [] } as AutoFormData;
 });
 
-const getReqForm = () => {
-    const reqForm = { ...state.form };
-    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-        reqForm.sshTunnelMachineId = -1;
-    }
-    return reqForm;
+/** 抽屉打开后暂存的内部表单引用（提交组装基于它） */
+const internalForm = ref<AutoFormData>({});
+
+const onOpened = (form: AutoFormData) => {
+    internalForm.value = form;
 };
 
+const submitForm = useSshTunnelTransform(
+    computed(() => internalForm.value)
+);
+
+const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi();
+const { execute: saveMongoExec } = mongoApi.saveMongo.useApi();
+
 const onTestConn = async () => {
-    await useI18nFormValidate(mongoFormRef);
-    await testConnExec(getReqForm());
+    const valid = await useI18nFormValidate(drawerRef).catch(() => false);
+    if (valid === false) return;
+    await testConnExec(submitForm.value);
     Msg.success('ac.connSuccess');
 };
 
+// confirmApi 提交动作（组装内部表单为请求参数）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
-    await useI18nFormValidate(mongoFormRef);
-    await saveMongoExec(getReqForm());
-    Msg.saveSuccess();
-    emit('val-change', state.form);
-    onCancel();
-};
-
-const onCancel = () => {
-    dialogVisible.value = false;
-    emit('cancel');
+    await saveMongoExec(submitForm.value);
+    emit('val-change', internalForm.value);
 };
 </script>
 <style lang="scss"></style>

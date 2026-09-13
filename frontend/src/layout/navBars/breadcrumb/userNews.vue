@@ -70,7 +70,8 @@ import type { Msg } from '@/types/common';
 import { useIntervalFn } from '@vueuse/core';
 import { onMounted, ref, watchEffect } from 'vue';
 
-const emit = defineEmits(['update:count']);
+/** 未读数变化（含首次加载与定时刷新），父级用它渲染铃铛角标 */
+const emit = defineEmits<{ 'update:count': [count: number] }>();
 
 const msgQuery = ref({
     pageNum: 1,

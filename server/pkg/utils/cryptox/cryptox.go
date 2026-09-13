@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -74,7 +75,7 @@ func GenerateRSAKey(bits int) (string, string, error) {
 	return privateKeyStr, publicKeyStr, nil
 }
 
-// rsa加密
+// rsa加密 (RSA-OAEP + SHA-256)
 func RsaEncrypt(publicKeyStr string, data []byte) ([]byte, error) {
 	block, _ := pem.Decode([]byte(publicKeyStr))
 	if block == nil {
@@ -85,10 +86,10 @@ func RsaEncrypt(publicKeyStr string, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return rsa.EncryptPKCS1v15(rand.Reader, pub.(*rsa.PublicKey), data)
+	return rsa.EncryptOAEP(sha256.New(), rand.Reader, pub.(*rsa.PublicKey), data, nil)
 }
 
-// rsa解密
+// rsa解密 (RSA-OAEP + SHA-256)
 func RsaDecrypt(privateKeyStr string, data []byte) ([]byte, error) {
 	block, _ := pem.Decode([]byte(privateKeyStr))
 	if block == nil {
@@ -99,7 +100,7 @@ func RsaDecrypt(privateKeyStr string, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return rsa.DecryptPKCS1v15(rand.Reader, priv, data)
+	return rsa.DecryptOAEP(sha256.New(), rand.Reader, priv, data, nil)
 }
 
 // AesEncrypt 加密

@@ -109,7 +109,7 @@
 </template>
 
 <script lang="ts" setup>
-import { RsaEncrypt } from '@/common/crypto';
+import { RsaEncrypt, resetRsaCryptoKey } from '@/common/crypto';
 import openApi from '@/common/openApi';
 import { getFileUrl } from '@/common/request';
 import { Rules } from '@/common/rule';
@@ -238,6 +238,7 @@ onMounted(async () => {
     });
     // 移除公钥, 方便后续重新获取
     sessionStorage.removeItem('RsaPublicKey');
+    resetRsaCryptoKey();
 });
 
 const getCaptcha = async () => {
@@ -291,16 +292,19 @@ const onSignIn = async () => {
     } catch (e: unknown) {
         state.loading.signIn = false;
         state.loginForm.captcha = '';
+        const errObj = e as Record<string, unknown>;
         // 密码强度不足
-        if ((e as Record<string, unknown>)?.code == 401) {
+        if (errObj?.code == 401) {
             state.changePwdDialog.form.username = state.loginForm.username;
             state.changePwdDialog.form.oldPassword = originPwd;
             state.changePwdDialog.form.newPassword = '';
             state.changePwdDialog.visible = true;
-        } else {
+        } else if (errObj?.code !== undefined) {
+            // 后端返回了业务错误码（如密码错误、账号锁定等），才显示登录失败提示
             getCaptcha();
             state.showLoginFailTips = true;
         }
+        // 其他错误（如加密失败、网络异常）由 request 层统一提示，不显示登录失败 tips
         return;
     }
     state.showLoginFailTips = false;

@@ -43,7 +43,7 @@ import TreeContainer from '@/views/ops/resource/tree/TreeContainer.vue';
 import { isNodeSelectable } from '@/views/ops/resource/tree';
 import type { TreeNode, TreeNodeData } from '@/views/ops/resource/tree/types';
 // db 资源树物理库节点 kind：引用面板将库节点叶子化（不展开表/schema）
-import { DbKind } from '@/views/ops/db/resource';
+import { DbKind } from '@/views/ops/db/resource/helpers';
 import { MachineAuthCertKind } from '@/views/ops/machine/resource';
 
 /** 树叶子选中后上抛的引用数据（extra 随芯片下发后端） */

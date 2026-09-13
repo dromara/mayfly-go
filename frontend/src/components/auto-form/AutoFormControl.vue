@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, type Component } from 'vue';
+import { computed, defineAsyncComponent, type Component } from 'vue';
 import type { AutoFormData, AutoFormItem, AutoFormItemType } from './types';
 import InputField from './fields/input/index.vue';
 import NumberField from './fields/number/index.vue';
@@ -12,8 +12,13 @@ import SelectField from './fields/select/index.vue';
 import RadioField from './fields/radio/index.vue';
 import SwitchField from './fields/switch/index.vue';
 import DateField from './fields/date/index.vue';
-import MonacoField from './fields/monaco/index.vue';
 import TagsField from './fields/tags/index.vue';
+
+/**
+ * monaco 字段背后是编辑器主体（约 3.9M），静态引入会让所有使用 auto-form 的页面（登录页、实例列表等）
+ * 都下载编辑器，故按需异步加载：仅当表单真的出现 type 为 monaco 的字段时才请求。
+ */
+const MonacoField = defineAsyncComponent(() => import('./fields/monaco/index.vue'));
 
 defineOptions({
     inheritAttrs: false,

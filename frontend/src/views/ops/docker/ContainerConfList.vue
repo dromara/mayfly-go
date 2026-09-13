@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="'container:save'" type="primary" icon="plus" @click="editContainerConf(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button v-auth="'container:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteConf" plain>
+                <el-button v-auth="'container:save'" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'container:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="onDelete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -25,7 +25,7 @@
 
             <template #action="{ data }">
                 <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button v-auth="'container:save'" type="primary" link @click="editContainerConf(data)">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'container:save'" type="primary" link @click="editEntity(data)">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
@@ -48,12 +48,7 @@
             </el-descriptions>
         </el-dialog>
 
-        <ContainerConfEdit
-            @val-change="search()"
-            :title="containerConfEditDialog.title"
-            v-model:visible="containerConfEditDialog.visible"
-            v-model:container="containerConfEditDialog.data"
-        ></ContainerConfEdit>
+        <ContainerConfEdit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
     </div>
 </template>
 
@@ -62,10 +57,10 @@ import { formatDate } from '@/common/utils/format';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
-import { useRoute } from 'vue-router';
+import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
 import { dockerApi } from './api';
 import type { Container } from './types';
 
@@ -73,13 +68,26 @@ const ContainerConfEdit = defineAsyncComponent(() => import('./CotainerConfEdit.
 
 const props = defineProps({
     lazy: {
-        type: [Boolean],
+        type: Boolean,
         default: false,
     },
 });
 
-const route = useRoute();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const checkRouteTagPath = useRouteTagPath();
+const { editDialog, editEntity } = useEditDialog<Container>('docker.containerConf');
+
+const query = ref({
+    tagPath: '',
+    pageNum: 1,
+    pageSize: 0,
+});
+
+const selectionData = ref<Container[]>([]);
+const detailDialog = ref({
+    visible: false,
+    data: null as Container | null,
+});
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder')];
 
@@ -91,74 +99,35 @@ const columns = ref([
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 
-const state = reactive({
-    selectionData: [],
-    query: {
-        tagPath: '',
-        pageNum: 1,
-        pageSize: 0,
-    },
-    detailDialog: {
-        visible: false,
-        data: null as Container | null,
-    },
-    containerConfEditDialog: {
-        visible: false,
-        data: null as Container | null,
-        title: '',
-    },
-});
-
-const { selectionData, query, detailDialog, containerConfEditDialog } = toRefs(state);
-
 onMounted(() => {
     if (!props.lazy) {
         search();
     }
 });
 
-const checkRouteTagPath = (query: Record<string, unknown>) => {
-    if (route.query.tagPath) {
-        query.tagPath = route.query.tagPath as string;
-    }
-    return query;
-};
-
 const showDetail = (detail: Container) => {
-    state.detailDialog.data = detail;
-    state.detailDialog.visible = true;
+    detailDialog.value.data = detail;
+    detailDialog.value.visible = true;
 };
 
-const deleteConf = async () => {
+const onDelete = async () => {
+    const records = selectionData.value || [];
+    if (records.length === 0) return;
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: Container) => x.name).join('、'));
-        await dockerApi.delConf.request({ id: state.selectionData.map((x: Container) => x.id).join(',') });
-        Msg.deleteSuccess();
-        search();
-    } catch (err) {
-        //
+        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
+    } catch {
+        return; // 用户取消
     }
+    await dockerApi.delConf.request({ id: records.map((x) => x.id).join(',') });
+    Msg.deleteSuccess();
+    search();
 };
 
-const search = async (tagPath: string = '') => {
-    if (tagPath) {
-        state.query.tagPath = tagPath;
-    }
+const search = (tagPath?: string) => {
+    // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
+    query.value.tagPath = tagPath ?? '';
     pageTableRef.value?.search();
-};
-
-const editContainerConf = async (data: Container | false) => {
-    if (!data) {
-        state.containerConfEditDialog.data = null;
-        state.containerConfEditDialog.title = useI18nCreateTitle('docker.containerConf');
-    } else {
-        state.containerConfEditDialog.data = data;
-        state.containerConfEditDialog.title = useI18nEditTitle('docker.containerConf');
-    }
-    state.containerConfEditDialog.visible = true;
 };
 
 defineExpose({ search });
 </script>
-
-<style></style>

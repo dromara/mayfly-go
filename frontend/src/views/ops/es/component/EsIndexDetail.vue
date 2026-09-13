@@ -104,6 +104,9 @@ const onOk = async () => {
          * blocks.read / blocks.write    控制是否允许读/写操作
          * max_result_window             控制最大返回结果数量，默认为10000
          */
+        if (!state.settings) {
+            return;
+        }
         let settings = JSON.parse(state.settings).index;
         // 只允许传可设置的字段
         for (let key in settings) {

@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -56,7 +57,7 @@ func EncryptPassword(password, publicKeyPEM string) (string, error) {
 		return "", fmt.Errorf("%s", i18n.T(i18n.MsgClientNotRSAKey))
 	}
 
-	encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, pubKey, []byte(password))
+	encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, []byte(password), nil)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", i18n.T(i18n.MsgClientEncryptFailed), err)
 	}

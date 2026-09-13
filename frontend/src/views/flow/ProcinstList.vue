@@ -47,7 +47,7 @@
             @cancel="procinstDetail.procinstId = 0"
         />
 
-        <ProcinstEdit v-model="procinstEdit.procinst" v-model:visible="procinstEdit.visible" :title="procinstEdit.title" @val-change="search" />
+        <ProcinstEdit v-model="procinstEdit.procinst" v-model:visible="procinstEdit.visible" :title="procinstEdit.title" @val-change="search()" />
     </div>
 </template>
 

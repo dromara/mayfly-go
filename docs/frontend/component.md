@@ -47,6 +47,34 @@ const emit = defineEmits<{
 </script>
 ```
 
+### 事件必须用类型式声明
+
+🚫 **禁止数组式** `defineEmits(['changeUpdatedField'])`：它只声明事件名，**payload 不进类型检查**，
+`emits('changeUpdatedField')` 漏传实参编译期与运行时都不报错，表现就是功能静默消失
+（真实事故：表数据页改完单元格，工具条的「提交/取消」按钮不见了）。
+
+优先成员式（每个事件一行，便于写文档注释）：
+
+```ts
+const emits = defineEmits<{
+    /** 待提交变更集合变化，父级据此显隐工具条的「提交/取消」 */
+    changeUpdatedField: [hasUpdatedFields: boolean];
+}>();
+```
+
+调用签名式 `defineEmits<{ (e: 'update:visible', value: boolean): void }>()` 等效，存量代码不强制改写。
+
+补充约束（`src/__tests__/componentContracts.test.ts` 机器校验，覆盖 `src` 下全部 SFC；
+`components/ui/` 是 shadcn-vue 生成件，其 emit 由 `useVModel` 代发，不属本判据）：
+
+- 声明了就必须 emit（否则删掉，别留给下一个模块复制粘贴）；
+- emit 了就必须声明（未声明的事件会落进 `$attrs` 透传到根元素）；
+- `defineModel`（具名与匿名）自动产生的 `update:*` 无需声明；
+- `views/ops/db`、`components/monaco` 已收口，出现任何数组式声明直接判红；其余目录按文件数棘轮，只准减不准增。
+
+> 注意：`main.ts` 里 `app.config.warnHandler = () => null` 静音了所有 Vue 开发告警，
+> 上面的失真在控制台看不到，只能靠编译期类型与该守卫用例。
+
 ## 双向绑定规范
 
 ### 使用 defineModel (Vue 3.4+)
@@ -60,6 +88,11 @@ const emit = defineEmits<{
 // 单个 v-model
 const modelValue = defineModel<string>('modelValue', {
     default: '',
+});
+
+// 对象 / 数组类型的默认值必须是工厂函数，字面量只创建一次，会被多个实例共享
+const form = defineModel<FormData>('modelValue', {
+    default: () => ({}),
 });
 
 // 命名 v-model
@@ -96,7 +129,8 @@ watch(
 #### 规范要点
 
 - ✅ **Always**: 使用 `defineModel` 替代 `computed` + `emit('update:xxx')`
-- ✅ **Always**: 为 `defineModel` 提供合适的 `default` 值
+- ✅ **Always**: 为 `defineModel` 提供合适的 `default` 值；对象 / 数组类型必须写成工厂函数（`default: () => ({})`），
+  否则该默认值只创建一次、被所有实例共享，且 Vue 3.6 的类型检查会直接报错
 - 🚫 **Never**: 使用旧的 `computed` getter/setter 模式实现双向绑定
 
 ## 图标使用规范
@@ -398,6 +432,17 @@ formRef.value?.resetFields?.();
 4. **无 model/rules 的布局壳**：仅用 el-form 做垂直间距、内部是单个自绘控件或无逻辑占位页（如 `MobileLogin`、`DbTablesOp` 散用 form-item）
 5. **强样式图标式登录表单**：无 label、prefix-icon 风格与 auto-form 的 label+控件语义不匹配（如 `AccountLogin` 主表单）
 6. **auto-form 自身 / crontab 等基础组件内部**
+
+## 重依赖组件的异步边界（monaco 编辑器）
+
+编辑器主体在生产约 967KB(gzip) / 3.9M，被静态引入谁的包，谁的首屏就得等它。项目的处理原则是「边界打在扇出点，异步子树内部可静态」：
+
+- **组件内使用**：`const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'))`。不要再抽公共封装——十几个调用点各写一行、可 grep、可各自配置加载态；auto-form 同理，边界在 `AutoFormControl`，其 `fields/monaco/index.vue` 内部是静态引入。
+- **命令式弹窗**：`MonacoEditorBox(options)`。弹窗外壳同步渲染（点击即出现），编辑器在弹窗内部异步；把外壳改成动态导入只会把「点击 → 弹窗」变成无反馈空白，那几 KB 省不掉。
+- **monaco 运行时**：值导入一律经 `@/components/monaco/setup`（装配入口，业务文件禁止 `import * as monaco from 'monaco-editor'`，已由 eslint 约束）。只要类型就写 `import type`（编译期擦除，不产生运行时边）；类型契约放 `components/monaco/types.ts`，别挂回组件文件。
+- **就绪时机**：编辑器异步挂载，父组件在 `onMounted` / `nextTick` 里拿到的 ref 恒为 null。凡「就绪后立刻 focus / format / 注册快捷键」必须挂 `@ready` 事件，用定时器猜时机会被静默跳过（不报错、只是功能没了）。实例类型用 `MonacoEditorExpose`。
+- **首屏不排队**：`main.ts` 在首屏渲染完成后用 `requestIdleCallback` 预取同一 chunk，点开即秒出，因此无需遮罩、骨架屏、失败重试等加载态。
+- **守卫**：`views/ops/db/__tests__/monacoBoundary.test.ts` 对首屏入口、资源模块入口、命令式弹窗入口做「静态导入闭包不含 monaco」的断言，退化会被测试直接抓出，不靠人记。
 
 ## 边界
 

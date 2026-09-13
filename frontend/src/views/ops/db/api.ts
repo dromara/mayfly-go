@@ -16,7 +16,9 @@ export const dbApi = {
     tableDdl: Api.newGet<string>('/dbs/{id}/t-create-ddl'),
     copyTable: Api.newPost<void>('/dbs/{id}/copy-table'),
     columnMetadata: Api.newGet<ColumnMetadata[]>('/dbs/{id}/c-metadata'),
-    pgSchemas: Api.newGet<string[]>('/dbs/{id}/pg/schemas'),
+    // 获取库的 schema 列表：后端 GetSchemas 是各方言通用实现（pg/oracle/mssql/dm/clickhouse... 均有），
+    // 是否调用由方言能力 supportsSchema 决定，并非 postgres 专属；方法名保持方言中立，路径中的 pg 为历史遗留。
+    dbSchemas: Api.newGet<string[]>('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
     hintTables: Api.newGet<string[]>('/dbs/{id}/hint-tables'),
     sqlExec: Api.newPost<SqlExecRes[], Record<string, unknown>>('/dbs/{id}/exec-sql').withBeforeHandler(async (param) => await encryptField(param, 'sql')),
@@ -62,11 +64,6 @@ export const dbApi = {
     enableDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{restoreId}/enable'),
     disableDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{restoreId}/disable'),
     saveDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{id}'),
-};
-
-export const dbSqlExecApi = {
-    // 根据业务key获取sql执行信息
-    getSqlExecByBizKey: Api.newGet<PageResult<DbSqlExec>, PageParam>('/dbs/sql-execs'),
 };
 
 export const dbMaskApi = {

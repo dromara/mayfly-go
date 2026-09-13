@@ -9,29 +9,10 @@
 
 <script lang="ts" setup>
 import { watch, toRefs, reactive, onMounted, onBeforeUnmount, useTemplateRef, Ref } from 'vue';
-import * as monaco from 'monaco-editor';
-// 相关语言
-import 'monaco-editor/languages/definitions/shell/register.js';
-import 'monaco-editor/languages/definitions/yaml/register.js';
-import 'monaco-editor/languages/definitions/dockerfile/register.js';
-import 'monaco-editor/languages/definitions/javascript/register.js';
-import 'monaco-editor/languages/definitions/html/register.js';
-import 'monaco-editor/languages/definitions/css/register.js';
-import 'monaco-editor/languages/definitions/python/register.js';
-import 'monaco-editor/languages/definitions/markdown/register.js';
-import 'monaco-editor/languages/definitions/java/register.js';
-import 'monaco-editor/languages/definitions/sql/register.js';
-import 'monaco-editor/language/json/monaco.contribution';
-// 右键菜单
-import 'monaco-editor/editor/contrib/contextmenu/browser/contextmenu.js';
-import 'monaco-editor/editor/contrib/caretOperations/browser/caretOperations.js';
-import 'monaco-editor/editor/contrib/clipboard//browser/clipboard.js';
-import 'monaco-editor/editor/contrib/find/browser/findController.js';
-import 'monaco-editor/editor/contrib/format//browser/formatActions.js';
-// 提示
-import 'monaco-editor/editor/contrib/suggest/browser/suggestController.js';
-import 'monaco-editor/editor/contrib/suggest/browser/suggestInlineCompletions.js';
-import { editor, languages } from 'monaco-editor';
+// 编辑器功能与语言的注册统一由装配入口负责，勿在此重复按需注册（详见 setup.ts）
+import * as monaco from './setup';
+import type { editor, languages } from 'monaco-editor';
+import type { MonacoEditorExpose } from './types';
 import EditorWorker from 'monaco-editor/editor/editor.worker.js?worker';
 import JsonWorker from 'monaco-editor/language/json/json.worker?worker';
 import HtmlWorker from 'monaco-editor/language/html/html.worker?worker';
@@ -58,6 +39,14 @@ const props = withDefaults(
 );
 
 const modelValue = defineModel<string | null | undefined>('modelValue', { required: true });
+
+/**
+ * ready：编辑器实例创建完成的时刻
+ *
+ * 编辑器被使用方以 defineAsyncComponent 按需加载时，使用方在挂载瞬间拿不到实例（ref 为 null），
+ * 「就绪后立刻 format/focus/注册快捷键」这类逻辑必须挂在本事件上，否则会被静默跳过。
+ */
+const emit = defineEmits<{ ready: [] }>();
 
 const languageArr = [
     {
@@ -172,6 +161,8 @@ onMounted(() => {
     initMonacoEditorIns();
     setEditorValue(modelValue.value ?? '');
     registerCompletionItemProvider();
+    // 实例已创建完毕：按需加载场景下使用方要等这一刻才能 format/focus/注册快捷键，故不能只靠 onMounted/nextTick
+    emit('ready');
 });
 
 onBeforeUnmount(() => {
@@ -205,6 +196,7 @@ watch(
     }
 );
 
+/** 创建编辑器实例；容器 div 无条件渲染，onMounted 时必然已就位 */
 const initMonacoEditorIns = () => {
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
@@ -213,10 +205,7 @@ const initMonacoEditorIns = () => {
     defaultOptions.language = state.languageMode;
     defaultOptions.theme = themeConfig.value.editorTheme;
     let options = { ...defaultOptions, ...(props.options as editor.IStandaloneEditorConstructionOptions) };
-    if (!monacoTextareaRef.value) {
-        return;
-    }
-    monacoEditorIns = monaco.editor.create(monacoTextareaRef.value, options);
+    monacoEditorIns = monaco.editor.create(monacoTextareaRef.value!, options);
 
     if (!options.readOnly) {
         // 监听内容改变,双向绑定
@@ -300,7 +289,8 @@ const getEditor = () => {
     return monacoEditorIns;
 };
 
-defineExpose({ getEditor, format, focus });
+// 用 MonacoEditorExpose 约束：使用方拿到的是异步组件，实例类型只能靠这份契约对齐（见 types.ts）
+defineExpose<MonacoEditorExpose>({ getEditor, format, focus });
 </script>
 
 <style lang="scss" scoped>

@@ -1,6 +1,16 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @cancel="emit('cancel')">
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-api="onConfirm"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -30,7 +40,8 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { computed, useTemplateRef, type PropType } from 'vue';
+import { useSshTunnelTransform } from '@/hooks/useResourceForm';
+import { computed, ref, useTemplateRef, type PropType } from 'vue';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -39,10 +50,7 @@ import { MachineProtocolEnum } from './enums';
 import type { MachineVO, MachineForm, MachineAuthCert } from './types';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
-    machine: {
+    data: {
         type: Object as PropType<MachineVO | null>,
         default: null,
     },
@@ -51,10 +59,10 @@ const props = defineProps({
     },
 });
 
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
-
-const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
@@ -103,9 +111,9 @@ const defaultForm: MachineForm = {
     extra: { ciphers: '', keyExchanges: '' },
 };
 
-/** 传给 AutoFormDrawer 的回填数据：新增时应用 defaultForm；编辑时兜底 authCerts/extra 为空（深拷贝由组件内部完成） */
+/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
 const editData = computed<AutoFormData | null>(() => {
-    const machine = props.machine;
+    const machine = props.data;
     if (!machine) {
         return { ...defaultForm, authCerts: [], tagCodePaths: [] } as unknown as AutoFormData;
     }
@@ -116,23 +124,26 @@ const editData = computed<AutoFormData | null>(() => {
     } as unknown as AutoFormData;
 });
 
+/** 抽屉打开后暂存的内部表单引用（提交组装基于它） */
+const internalForm = ref<AutoFormData>({});
+
+const onOpened = (form: AutoFormData) => {
+    internalForm.value = form;
+};
+
+const submitForm = useSshTunnelTransform(
+    computed(() => internalForm.value)
+);
+
 const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi();
 const { execute: saveMachineExec } = machineApi.saveMachine.useApi();
 
-const getReqForm = (form: MachineForm) => {
-    const reqForm = { ...form } as MachineForm & Record<string, unknown>;
-    if (!form.sshTunnelMachineId || form.sshTunnelMachineId <= 0) {
-        reqForm.sshTunnelMachineId = -1;
-    }
-    return reqForm;
-};
-
 const onTestConn = async (rawForm: AutoFormData, authCert: MachineAuthCert) => {
     await useI18nFormValidate(drawerRef);
-
-    const submitForm = getReqForm(rawForm as MachineForm);
-    submitForm.authCerts = [authCert];
-    await testConnExec(submitForm);
+    await testConnExec({
+        ...submitForm.value,
+        authCerts: [authCert],
+    });
     Msg.success('machine.connSuccess');
 };
 
@@ -143,10 +154,8 @@ const onConfirm = async (rawForm: AutoFormData) => {
         Msg.error('machine.noAcErrMsg');
         throw new Error('authCerts required');
     }
-
-    const submitForm = getReqForm(form);
-    await saveMachineExec(submitForm);
-    emit('val-change', submitForm);
+    await saveMachineExec(submitForm.value);
+    emit('val-change', submitForm.value);
 };
 </script>
 <style lang="scss"></style>

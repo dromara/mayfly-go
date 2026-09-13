@@ -72,8 +72,8 @@ const modelValue = defineModel<ProcInstStartForm>('modelValue', {
     }),
 });
 
-//定义事件
-const emit = defineEmits(['cancel', 'val-change']);
+// 提交成功后回传表单，父级据此刷新列表；关闭抽屉走 v-model:visible，没有独立的 cancel 事件
+const emit = defineEmits<{ 'val-change': [form: ProcInstStartForm] }>();
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 const bizFormRef = useTemplateRef<{ validateBizForm: () => Promise<void>; resetBizForm: () => void }>('bizFormRef');

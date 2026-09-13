@@ -1,0 +1,22 @@
+/* Glass Fallback Strategy (降级策略层)
+------------------------------- */
+
+@supports not (backdrop-filter: blur(1px)) {
+    .glass-mode {
+        .layout-aside,
+        .layout-navbars-breadcrumb-index,
+        .layout-navbars-tagsview,
+        .el-dropdown-menu,
+        .el-select-dropdown,
+        .el-input__wrapper,
+        .el-card,
+        .card {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            background: var(--el-bg-color) !important;
+        }
+
+        // .el-dialog / .el-drawer 不在此列: 其玻璃底已改挂 ::before(规避 monaco fixed 弹层
+        // 包含块劫持), ::before 的 tint(0.78/0.82) 在不支持 blur 时本身就是近实色底, 无需降级改写
+    }
+}

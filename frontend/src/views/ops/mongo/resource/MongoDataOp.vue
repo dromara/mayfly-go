@@ -145,8 +145,6 @@ const props = defineProps<{
     tabKey?: string;
 }>();
 
-const emits = defineEmits(['init']);
-
 const findParamInputRef = ref<InputInstance[]>([]);
 
 const state = reactive({
@@ -334,6 +332,7 @@ const onSaveDoc = async () => {
             docObj = JSON.parse(state.docEditDialog.doc);
         } catch (e) {
             Msg.error('mongo.docErrMsg');
+            return;
         }
         const dataTab = getNowDataTab();
         const res = await mongoApi.insertCommand.request({

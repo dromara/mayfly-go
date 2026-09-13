@@ -253,6 +253,7 @@ registerContributor({
     resourceType: ResourceTypeEnum.Machine.value,
     hasChildren: true,
     icon: MachineIcon,
+    locateCode: (node) => (node.params as MachineNodeParams).code,
     loadRoots: async (groupNode) => {
         const res = await machineApi.list.request({ tagPath: groupNode.params?.tagPath as string });
         return (res?.list ?? [])
@@ -287,6 +288,8 @@ registerContributor({
     kind: MachineAuthCertKind,
     selectable: true,
     renderer: NodeMachineAc,
+    // 凭证节点 params 展开了父机器参数，定位 code 必须取凭证自身 name（后端凭证 Code=rac.Name），不能取 params.code
+    locateCode: (node) => (node.params as MachineNodeParams).selectAuthCert?.name,
 });
 
 export default defineResourceConfig({

@@ -23,8 +23,6 @@ const props = defineProps<{
     tabKey?: string;
 }>();
 
-const emits = defineEmits(['init']);
-
 const containerTab = 'containerTab';
 const imageTab = 'imageTab';
 

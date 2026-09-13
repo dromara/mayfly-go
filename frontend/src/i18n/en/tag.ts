@@ -17,7 +17,7 @@ export default {
         tag: 'Tag',
         code: 'Code',
         createSubTag: 'Creating child tags',
-        createSubTagTitle: 'Creates a child tag for {codePath}',
+        createSubTagTitle: 'Creates a child tag for {namePath}',
         rootTag: 'Root Tag',
         selectTagPlaceholder: 'Select the associated tag',
         machineOp: 'Machine Operation',

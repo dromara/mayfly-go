@@ -99,3 +99,49 @@
     @apply bg-background text-foreground;
     }
 }
+
+/* Glass Design Utilities (玻璃态工具类)
+------------------------------- */
+@layer components {
+    .glass {
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+    }
+
+    .glass-heavy {
+        background: var(--glass-bg-heavy);
+        backdrop-filter: blur(var(--glass-blur-heavy)) saturate(var(--glass-saturate));
+        -webkit-backdrop-filter: blur(var(--glass-blur-heavy)) saturate(var(--glass-saturate));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+    }
+
+    .glass-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        border-radius: 10px;
+        position: relative;
+    }
+
+    .glass-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: var(--glass-highlight);
+        pointer-events: none;
+    }
+
+    .glass-light {
+        background: var(--glass-bg-accent);
+        backdrop-filter: blur(var(--glass-blur-light)) saturate(var(--glass-saturate));
+        -webkit-backdrop-filter: blur(var(--glass-blur-light)) saturate(var(--glass-saturate));
+        border: 1px solid var(--glass-border);
+    }
+}

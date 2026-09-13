@@ -1,0 +1,43 @@
+/* Glass Layout Integration (布局适配层)
+------------------------------- */
+// 背景色通过 CSS 变量覆盖（见 themeConfig.ts _applyGlassVariables）
+// 此处处理：容器透明化、backdrop-filter、特殊布局
+
+@use 'core' as *;
+
+body.glass-mode {
+    /* 全局容器透明化 - 让背景渐变透出
+    ------------------------------- */
+    #app,
+    .layout-container,
+    .layout-main,
+    .layout-view-bg-white,
+    .layout-padding-view,
+    .layout-padding {
+        background: transparent !important;
+    }
+
+    /* Logo
+    ------------------------------- */
+    .layout-logo {
+        background: transparent !important;
+        border-bottom: none !important;
+    }
+
+    /* 滚动条容器
+    ------------------------------- */
+    .el-scrollbar__wrap {
+        overflow-x: auto;
+        overflow-y: auto;
+    }
+
+    .el-scrollbar__bar.is-horizontal,
+    .el-scrollbar__bar.is-vertical {
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .el-scrollbar__thumb {
+        background: rgba(0, 0, 0, 0.15) !important;
+        border-radius: 4px;
+    }
+}

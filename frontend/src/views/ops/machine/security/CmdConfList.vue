@@ -62,6 +62,7 @@
             <!-- 关联机器 -->
             <template #codePaths="{ form }">
                 <tag-tree-check
+                    height-mode="fixed"
                     height="calc(100vh - 430px)"
                     :tag-type="`${TagResourceTypeEnum.Machine.value}/${TagResourceTypeEnum.AuthCert.value}`"
                     v-model="form.codePaths"

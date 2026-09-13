@@ -1,0 +1,791 @@
+/* Glass Component Overrides (组件覆盖层)
+------------------------------- */
+// 背景色通过 CSS 变量覆盖（见 themeConfig.ts _applyGlassVariables）
+// 此处处理：backdrop-filter 模糊、边框、阴影、特殊元素
+
+@use 'core' as *;
+
+body.glass-mode {
+    /* TagsView 玻璃效果
+       同顶栏: backdrop-filter 移入 ::before, 避免页签 hover / 关闭按钮重绘触发模糊层重采样而闪动
+    ------------------------------- */
+    .layout-navbars-tagsview {
+        position: relative;
+        isolation: isolate;
+        background: transparent !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: var(--glass-bg-chrome);
+            backdrop-filter: var(--glass-fx-chrome);
+            -webkit-backdrop-filter: var(--glass-fx-chrome);
+        }
+    }
+
+    .layout-navbars-tagsview-ul-li {
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    }
+
+    // 激活页签: 与强调按钮同源的实色品牌渐变 + 白字(旧版主色 32% 半透在亮壁纸上糊成脏蓝块, 白字不可读)
+    .layout-navbars-tagsview-ul .is-active {
+        background: var(--glass-btn-primary-grad) !important;
+        background-image: var(--glass-btn-primary-sheen), var(--glass-btn-primary-grad);
+        color: oklch(1 0 0 / 0.98) !important;
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3), 0 1px 6px color-mix(in oklab, var(--el-color-primary, #409eff) 30%, transparent);
+    }
+
+    /* 顶栏玻璃效果（transverse 布局顶部菜单栏）
+       关键: backdrop-filter 挂 ::before 伪元素, 而非容器本体。容器自带 backdrop-filter 即成为 backdrop root,
+       其内部 hover / 右上角图标的 scale 动画每帧强制模糊层重采样 → 顶栏连同下方玻璃内容不停闪动(Chrome 已知行为)。
+       伪元素不是这些子节点的祖先, 子节点重绘不再触发 backdrop 重采样, 闪动消除。
+    ------------------------------- */
+    .layout-navbars-breadcrumb-index {
+        position: relative;
+        isolation: isolate;
+        background: transparent !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: var(--glass-bg-chrome);
+            backdrop-filter: var(--glass-fx-chrome);
+            -webkit-backdrop-filter: var(--glass-fx-chrome);
+        }
+    }
+
+    // 顶栏内水平菜单透明（否则菜单项实色白背景会挡住玻璃效果）
+    .layout-navbars-breadcrumb-index .el-menu,
+    .el-menu.el-menu--horizontal {
+        background-color: transparent !important;
+        border-bottom: none !important;
+    }
+
+    .layout-navbars-breadcrumb-index .el-menu-item,
+    .layout-navbars-breadcrumb-index .el-sub-menu__title {
+        background-color: transparent !important;
+    }
+
+    .layout-navbars-breadcrumb-index .el-menu-item.is-active {
+        background-color: rgba(255, 255, 255, 0.4) !important;
+        border-radius: 6px;
+    }
+
+    /* 侧边栏玻璃效果
+    ------------------------------- */
+    .layout-aside {
+        backdrop-filter: var(--glass-fx-chrome) !important;
+        -webkit-backdrop-filter: var(--glass-fx-chrome) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .layout-columns-warp > aside {
+        backdrop-filter: var(--glass-fx-chrome) !important;
+        -webkit-backdrop-filter: var(--glass-fx-chrome) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+
+    /* 弹层（下拉 / 选择器 / Popover / 气泡）- 强制半透明背景 + 模糊
+       注意：必须显式 background，否则实色白背景会让 backdrop-filter 完全失效（看着就是纯白）
+    ------------------------------- */
+    .el-dropdown-menu,
+    .el-select-dropdown,
+    .el-autocomplete-suggestion,
+    .el-popover,
+    .el-popper:not(.is-dark) {
+        background: var(--glass-bg-elevated) !important;
+        background-image: var(--glass-sheen) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+
+    // 排除 .is-dark 后，effect="dark" 的 tooltip（如 el-slider 数值气泡）保持原生深色含箭头，
+    // 不再被刷成白底却留着深色箭头(白盒黑菱形)。浅色弹层的箭头则与玻璃底对齐：
+    .el-popper:not(.is-dark) .el-popper__arrow::before {
+        background: var(--glass-bg-elevated) !important;
+    }
+
+    // 弹层内嵌表格 / 复选框透明，避免子元素实色白叠加吃光根层玻璃
+    // （如「选择列」popover 内部是 el-table，其默认 0.85 白会与根层叠加≈0.97 → 变实白）
+    // 注：菜单项(.el-dropdown-menu__item / .el-select-dropdown__item)不在此列——它们的 hover 高亮见下方统一规则
+    .el-popover .el-checkbox,
+    .el-popover .el-table,
+    .el-popover .el-table tr,
+    .el-popover .el-table th,
+    .el-popover .el-table td,
+    .el-popover .el-table__inner-wrapper,
+    .el-popover .el-table__inner-wrapper::before {
+        background: transparent !important;
+    }
+
+    // popover 内表格行 hover 轻高亮，保留可点击反馈
+    .el-popover .el-table tbody tr:hover > td {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.2) !important;
+    }
+
+    /* Dialog 弹窗 - 大型浮层玻璃(对齐 tokhub modal 档: bg 0.78 + elevated 模糊)
+       同 Drawer: blur 挂 ::before, 规避 monaco fixedOverflowWidgets 弹层被包含块劫持错位 */
+    .el-dialog {
+        position: relative;
+        isolation: isolate;
+        background: transparent !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient), 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: inherit;
+            background: var(--glass-bg-modal);
+            background-image: var(--glass-sheen);
+            backdrop-filter: var(--glass-fx-elevated);
+            -webkit-backdrop-filter: var(--glass-fx-elevated);
+        }
+    }
+
+    /* MessageBox（ElMessageBox.prompt / confirm 等，独立于 el-dialog 的类名） */
+    .el-message-box {
+        background: var(--glass-bg-modal) !important;
+        background-image: var(--glass-sheen) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        border-radius: 12px !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient), 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+    }
+
+    /* 顶栏溢出/弹出子菜单容器（append to body，脱离顶栏祖先）玻璃化，
+       消除 Element 暗模式默认实色灰底(#2c2c2c)脏块 */
+    .el-menu--popup {
+        background: var(--glass-bg-elevated) !important;
+        background-image: var(--glass-sheen) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-radius: 8px !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+    .el-menu--popup .el-menu-item,
+    .el-menu--popup .el-sub-menu__title {
+        background-color: transparent !important;
+    }
+    /* 菜单项悬浮/键盘高亮（统一）：Element Plus 的 dropdown / select / cascader / 弹出子菜单
+       在白玻璃面板上默认 hover 走 --el-fill-color-light(白 .22)，白盖白完全看不出。
+       统一换成主色派生浅衬 + 顶部 1px 玻璃高光（对齐 tokhub --glass-accent-bg 手法）。 */
+    .el-dropdown-menu__item:not(.is-disabled):hover,
+    .el-select-dropdown__item.is-hovering,
+    .el-select-dropdown__item:hover,
+    .el-cascader-node:not(.is-disabled):hover,
+    .el-autocomplete-suggestion__list li:hover,
+    .el-menu--popup .el-menu-item:hover,
+    .el-menu--popup .el-sub-menu__title:hover {
+        background: var(--glass-accent-bg) !important;
+        box-shadow: var(--glass-accent-edge) !important;
+        color: var(--el-color-primary) !important;
+    }
+
+    /* 右键菜单(reka-ui context-menu)：菜单项高亮走 focus:bg-accent，
+       在菜单内容根把 --accent 局部换成主色浅衬，与上方 EP 菜单高亮同源，保持全站一致。
+       (子菜单 SubContent 是独立 portal，单独覆盖；SubTrigger 在父 content 内，随其继承生效) */
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'] {
+        --accent: var(--glass-accent-bg);
+    }
+
+    // Drawer 抽屉 - 大型浮层玻璃(对齐 tokhub modal 档, 0.78 兼顾设置抽屉内容可读)
+    // blur 挂 ::before 而非抽屉本体: 抽屉会承载 monaco 编辑器(fixedOverflowWidgets)，
+    // 祖先级 backdrop-filter 会劫持 fixed 弹层的包含块导致补全层错位。
+    // ⚠ 禁止改写 position: EP 抽屉本体是 position:fixed + rtl/ltr 偏移定位，
+    // 加 position:relative 会使右锚定失效(抽屉跑到左侧)；fixed 本身已是定位元素，::before 直接可用
+    .el-drawer {
+        isolation: isolate;
+        background: transparent !important;
+        box-shadow: var(--glass-edge) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: var(--glass-bg-drawer);
+            background-image: var(--glass-sheen);
+            backdrop-filter: var(--glass-fx-elevated);
+            -webkit-backdrop-filter: var(--glass-fx-elevated);
+        }
+    }
+
+    // 遮罩层: 加磨砂让背后内容退到"玻璃后面", 浮层与页面分出景深
+    .el-overlay {
+        background: rgba(0, 0, 0, 0.18) !important;
+        backdrop-filter: blur(12px) saturate(1.3) !important;
+        -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+    }
+
+    /* 表格固定列 - 柔和磨砂带(同 el-table-v2 方案): 薄白纱+blur 糊住滚动内容, 与壁纸同调不死白
+    ------------------------------- */
+    .el-table-fixed-column--left,
+    .el-table-fixed-column--right,
+    [class*="fixed-column--left"],
+    [class*="fixed-column--right"] {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
+        backdrop-filter: blur(24px) saturate(1.5);
+        -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    }
+
+    // 固定列表头
+    .el-table-fixed-column--left.el-table__cell,
+    .el-table-fixed-column--right.el-table__cell {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
+    }
+
+    // 旧版 Element Plus 固定列
+    .el-table__fixed,
+    .el-table__fixed-right {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
+    }
+
+    // el-table-v2(虚拟表格, DB 结果页): 固定列是独立浮层面板(__left/__right), 默认底色 var(--el-bg-color)
+    // 在玻璃态是薄纱档 → 横向滚动到其下的数据列直接透叠出来(No. 列与内容重叠)。
+    // 遮挡不靠实白(整条死白带与清透壁纸格格不入), 靠 薄白纱 + backdrop blur:
+    // 面板把下方滚动内容糊成与壁纸同调的柔和色带(树节点选中行同款质感), 文字不可辨=有效遮挡
+    .el-table-v2__left,
+    .el-table-v2__right {
+        background-color: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
+        backdrop-filter: blur(24px) saturate(1.5);
+        -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    }
+
+    /* 卡片 - 磨砂玻璃(panel 档): 镜面光泽 + 高光环 + 环境投影, 底色沿用 --el-bg-color 半透明档
+       blur 挂 ::before 而非卡片本体: 卡片自带 backdrop-filter 会成为 backdrop root,
+       导致内部 sticky 表格单元格的 backdrop-filter 采样不到卡片外的背景(全失效)。
+       伪元素不是单元格祖先, 无此限制(对齐 tokhub surfaces 手法) */
+    .el-card {
+        position: relative;
+        isolation: isolate;
+        background-image: var(--glass-sheen) !important;
+        border: 1px solid rgba(255, 255, 255, 0.6) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: inherit;
+            backdrop-filter: var(--glass-fx-panel);
+            -webkit-backdrop-filter: var(--glass-fx-panel);
+        }
+    }
+
+    /* 输入框 / 文本域 / 选择器（表单控件统一视觉语言）
+       Element Plus 的边框与 hover/focus 反馈均由 inset box-shadow 环实现，填充色取自 --el-fill-color-blank，
+       两者都已随明暗模式自适应（见 themeConfig.ts _applyGlassVariables）。
+       因此玻璃模式下表单控件【无需任何覆盖】：不碰 box-shadow（否则抹掉边框与焦点反馈），
+       不改 background（否则与选择器不一致）。
+       历史坑：曾用 `border: rgba(255,255,255,.3) + box-shadow:none` 覆盖，导致白底弹窗上边框不可见且失去焦点态。
+    ------------------------------- */
+
+    /* 主内容区透明（让背景渐变透出）
+    ------------------------------- */
+    .layout-main {
+        background: transparent !important;
+    }
+
+    .el-container,
+    .el-header,
+    .el-aside,
+    .el-main,
+    .el-footer {
+        background: transparent !important;
+    }
+
+    .el-scrollbar__view {
+        background: transparent !important;
+    }
+
+    /* SSH 终端
+       终端 = 全屏高密度文本面, 按业界共识(Fluent 内容区禁用 Acrylic / Apple 正文用
+       可读性实底)必须给"安静近实底": 此前整链透明导致文字直接压在壁纸光斑上,
+       逐字颤动、大面积高饱和透视 = 视觉疲劳主因。每个 pane 自带 content 档(0.88)
+       + panel 模糊, 壁纸只剩极淡氛围渗透, 层级感由边缘高光环维持 */
+    .terminal-wrapper,
+    .terminal-panes,
+    .machine-terminal-tab {
+        background: transparent !important;
+    }
+
+    .terminal-container {
+        background: var(--glass-bg-content) !important;
+        backdrop-filter: var(--glass-fx-panel);
+        -webkit-backdrop-filter: var(--glass-fx-panel);
+        box-shadow: var(--glass-edge) !important;
+    }
+
+    // xterm.js 内部元素透明化: 让位给容器的 content 玻璃底(勿给 xterm 层加 blur, 会拖滚动性能)
+    .terminal-container .xterm,
+    .terminal-container .xterm-viewport,
+    .terminal-container .xterm-screen {
+        background: transparent !important;
+    }
+
+    .terminal-container .xterm-viewport {
+        background-color: transparent !important;
+    }
+
+    .pane-header {
+        // 零磨砂: 去 blur, 壁纸直透(分隔靠发丝线与薄底)
+    }
+
+    /* Monaco 编辑器 - 玻璃化（对齐 tokhub 实测方案，同为 monaco 0.56）
+       monaco 的 editor.css 里 .monaco-editor 与 .monaco-editor-background 均消费 --vscode-editor-background，
+       但主题服务运行时生成的 monaco-colors 样式表会给画布各层刷上不透明实色，仅靠改写 CSS 变量对部分层不可靠。
+       正解：【直接对画布三层 background-color: transparent !important】压过 monaco-colors，露出容器自身的玻璃底；
+       变量改写只保留给选区 / 当前行等着色层。代码文字色仍由 monaco theme 提供，可读性不受影响。
+    ------------------------------- */
+
+    // 1) 画布三层直接透明化：根 / 背景层 / 行号槽(margin)
+    .monaco-editor,
+    .monaco-editor .monaco-editor-background,
+    .monaco-editor .margin {
+        background-color: transparent !important;
+    }
+
+    // 2) EditContext 隐藏输入层（monaco 0.56+，z-index:-10）含真实文本与浏览器原生光标：
+    //    背景透明后会透出原生 caret / 焦点描边，破坏玻璃纯净度。视觉隐身（不影响输入 / IME / 无障碍）
+    .monaco-editor .native-edit-context {
+        outline: none !important;
+        color: transparent !important;
+        caret-color: transparent !important;
+        &::selection {
+            background-color: transparent;
+            color: transparent;
+        }
+    }
+
+    // 3) 着色层走变量：当前行高亮 / 选区保留半透明主色，保证可读与交互反馈
+    .monaco-editor,
+    .monaco-diff-editor,
+    .monaco-component {
+        --vscode-editor-background: transparent !important;
+        --vscode-editorGutter-background: transparent !important;
+        --vscode-editor-lineHighlightBorder: transparent !important;
+        --vscode-editor-lineHighlightBackground: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.14) !important;
+        --vscode-editor-selectionBackground: rgba(var(--el-color-primary-rgb, 64, 158, 255), 0.28) !important;
+        --vscode-editor-inactiveSelectionBackground: rgba(var(--el-color-primary-rgb, 64, 158, 255), 0.16) !important;
+    }
+
+    // 4) 编辑器容器：自带磨砂玻璃底，与宿主无关（抽屉 / 弹窗 / 整页 SQL 编辑器都成立）。
+    //    ⚠ 关键约束: backdrop-filter 禁止挂在容器自身 —— MonacoEditor 配了
+    //    fixedOverflowWidgets: true(补全/hover 弹层为 position: fixed 且按视口坐标定位)，
+    //    而 backdrop-filter 会把容器变成 fixed 后代的包含块, 弹层将被平移约一个容器距离。
+    //    正解(与 card/navbar 同模式): 玻璃底+blur 挂 ::before, 容器本体不产生包含块。
+    //    零磨砂全局档: 代码区不加 blur —— 壁纸清晰细节直透, 白底 0.32 仅作文字衬底;
+    //    高光环 + 环境投影保材质一致
+    .monaco-editor-custom {
+        position: relative;
+        isolation: isolate;
+        background: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.55) !important; // tokhub --glass-monaco-border 实测值
+        border-radius: 8px;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: inherit;
+            background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.32);
+        }
+    }
+
+    // 编辑器抽屉：降到半透明（玻璃底在 .el-drawer 的 ::before 上，故这里覆盖 ::before）
+    .monaco-editor-drawer.el-drawer::before {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.5);
+    }
+
+    /* AI 助手玻璃化（AiAssistantFab 抽屉 + AiAssistant 全屏页面共用 AiAssistantBody）
+       关键：drawer 外壳必须透明，由内部各面板独立承担玻璃；
+       否则外壳白 + 卡片白双层叠加会退化回实白（这正是会话列表不玻璃的原因）
+    ------------------------------- */
+    // 注意：ai-assistant-drawer 类直接挂在 .el-drawer 元素上，须用同类选择器（无空格）
+    .ai-assistant-drawer.el-drawer {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: none !important;
+
+        // 抽屉玻璃底已改挂 .el-drawer::before，这里须一并禁用，
+        // 否则外壳纱 + 内部卡片双层叠加会重新退化回实白
+        &::before {
+            display: none;
+        }
+    }
+
+    .ai-fab-drawer,
+    .ai-assistant-body,
+    .chat-container,
+    .chat-panel,
+    .chat-panel__content {
+        background: transparent !important;
+    }
+
+    // 抽屉标题栏玻璃(零磨砂档: 去 blur, 薄底+发丝线)
+    .ai-fab-drawer__header {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.3) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.35) !important;
+    }
+
+    // 会话侧栏卡片玻璃（独立面板，透出背景渐变）
+    .conv-sidebar {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.45) !important;
+    }
+
+    // 聊天区玻璃（独立面板）
+    .ai-assistant-body__chat {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.26) !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border-radius: 12px;
+    }
+
+    /* 全组件覆盖补齐（审计产物）：以下表面此前未接入材质档位
+    ------------------------------- */
+    // Message / Notification：EP 浮层但无 .el-popper 类名，此前漏覆盖 → 无 blur 的半实面板
+    .el-message,
+    .el-notification {
+        background: var(--glass-bg-elevated) !important;
+        background-image: var(--glass-sheen) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+
+    // Backtop：悬浮小件，走 elevated 档
+    .el-backtop {
+        background: var(--glass-bg-elevated) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+
+    // Loading 遮罩：模糊让被遮内容退到"玻璃后"，形成景深（业界通行做法）
+    .el-loading-mask {
+        backdrop-filter: blur(10px) saturate(1.2) !important;
+        -webkit-backdrop-filter: blur(10px) saturate(1.2) !important;
+    }
+
+    // 全局加载遮罩(NextLoading)：必须"自绘"壁纸而非 backdrop-filter 面纱 ——
+    // .app-backdrop 是 Vue 挂载层, 遮罩先于它存在, 面纱前半程无影可糊(白底显实色),
+    // 挂载完成后突然透彩, 正是"先没有液态再有液态"两段跳的根因。
+    // 正解: 遮罩直接用与 .app-backdrop 同源的变量自绘背景(光斑底色/自定义图),
+    // 加载页与最终背景像素级一致, 全程无跳变; 预设壁纸渐变镜像见 wallpaper.scss。
+    .loading-next {
+        background: var(--app-backdrop-spots) !important;
+
+        // 自定义上传图: --backdrop-image 由 store init 早期注入 :root, 遮罩创建时已可用;
+        // 与 .app-backdrop__image 同款滤镜, 另叠壁纸轻纱(仅壁纸模式有值, 光斑态回退透明)
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(var(--wallpaper-scrim, transparent), var(--wallpaper-scrim, transparent)),
+                var(--backdrop-image, none) center / cover no-repeat;
+            filter: saturate(1.3) contrast(1.08);
+        }
+    }
+
+    // 粘性表头：blur 采样滚动中的行（对齐 tokhub table.css），避免半透表头与行文字透叠
+    .el-table th.el-table__cell {
+        backdrop-filter: blur(12px) saturate(1.6);
+        -webkit-backdrop-filter: blur(12px) saturate(1.6);
+    }
+
+    // 分页组件: EP 默认实色白方块 → 清透薄底; 激活页码用与强调按钮/激活页签同源的实色品牌渐变
+    .el-pagination {
+        .el-pager li:not(.is-disabled),
+        button:not(:disabled) {
+            background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.28) !important;
+            border-radius: 6px;
+        }
+        .el-pager li.is-active {
+            background-image: var(--glass-btn-primary-sheen), var(--glass-btn-primary-grad) !important;
+            color: oklch(1 0 0 / 0.98) !important;
+            box-shadow: var(--glass-btn-primary-shadow);
+        }
+    }
+
+    // Alert：EP 实色浅块 → 语义半透明着色玻璃（保留四态可辨识性，border 走玻璃发丝线）
+    .el-alert {
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    .el-alert--success { background: color-mix(in srgb, var(--el-color-success) 16%, transparent) !important; }
+    .el-alert--warning { background: color-mix(in srgb, var(--el-color-warning) 16%, transparent) !important; }
+    .el-alert--error { background: color-mix(in srgb, var(--el-color-danger) 16%, transparent) !important; }
+    .el-alert--info { background: color-mix(in srgb, var(--el-color-info) 16%, transparent) !important; }
+
+    // border-card 选项卡：EP 实白底 → panel 档玻璃；blur 挂 ::before 规避内部 sticky 表格的 backdrop root 问题
+    .el-tabs--border-card {
+        position: relative;
+        isolation: isolate;
+        background: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: inherit;
+            background: var(--glass-bg-panel);
+            backdrop-filter: var(--glass-fx-panel);
+            -webkit-backdrop-filter: var(--glass-fx-panel);
+        }
+
+        > .el-tabs__header {
+            background: transparent !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+        }
+        > .el-tabs__header .el-tabs__item.is-active {
+            background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.35) !important;
+        }
+    }
+
+    // 分割线：EP 灰实线 → 玻璃发丝线（暗态降 alpha，避免暗底上亮线刺眼）
+    .el-divider {
+        border-color: rgba(255, 255, 255, 0.35) !important;
+        background-color: rgba(255, 255, 255, 0.35) !important;
+
+        html.dark & {
+            border-color: rgba(255, 255, 255, 0.12) !important;
+            background-color: rgba(255, 255, 255, 0.12) !important;
+        }
+
+        .el-divider__text {
+            background-color: rgba(255, 255, 255, 0.15) !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 4px;
+            padding: 2px 8px;
+
+            html.dark & {
+                background-color: rgba(0, 0, 0, 0.25) !important;
+            }
+        }
+    }
+
+    /* shadcn-vue(reka) 浮层表面：背景半透已由 tailwind.css 变量映射保证(--popover→--el-bg-color-overlay)，
+       此处补 blur/高光环/发丝边，与 EP 浮层同档；tooltip 保留 shadcn 实色深芯片(与 EP dark tooltip 同语义)。
+       ⚠ blur 必须挂 ::before 而非元素自身: reka 的 SubContent 无独立 Portal, 是父 Content 的
+       DOM 子元素 + position:fixed —— 父层 backdrop-filter 会劫持其包含块, 二级菜单坐标飞出屏幕 */
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='context-menu-content'],
+    [data-slot='context-menu-sub-content'] {
+        isolation: isolate;
+        background: transparent !important; // 洗掉 bg-popover 变量底, 色底由 ::before 承担
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+
+        &::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            border-radius: inherit;
+            background: var(--glass-bg-elevated);
+            backdrop-filter: var(--glass-fx-elevated);
+            -webkit-backdrop-filter: var(--glass-fx-elevated);
+        }
+    }
+
+    [data-slot='alert-dialog-content'] {
+        background: var(--glass-bg-modal) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+
+    // shadcn card：常嵌套于玻璃面板内(AI 聊天等)，不再叠 blur 层(防双重采样发闷)，仅补高光环/发丝边统一材质边界
+    [data-slot='card'] {
+        border-color: rgba(255, 255, 255, 0.5) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+
+    /* 滚动条样式
+    ------------------------------- */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.1) !important;
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.15) !important;
+        border-radius: 4px;
+        &:hover {
+            background: rgba(0, 0, 0, 0.25) !important;
+        }
+    }
+
+    /* 小控件玻璃材质（按钮 / 输入框 / 开关 / 菜单选中）
+       对齐 tokhub buttons.css 结论: 小面积控件不挂 backdrop-filter(数量多开销大、视觉几乎无感),
+       用「半透明底色 + 顶部镜面光泽 + inset 高光/暗影(+主色辉光)」模拟玻璃。
+       配方令牌见 tokens.scss 的 --glass-btn / --glass-input / --glass-switch 系列(明暗各一档)
+    ------------------------------- */
+
+    // 强调按钮(含圆形 + 按钮): 实色品牌渐变(上下压暗+顶部镜面光泽) + 主色辉光。
+    // 承载文字的控件必须实底: 半透明底会被亮壁纸冲淡、白字对比崩塌(上一轮"暗/脏"观感根因)
+    .el-button--primary:not(.is-link, .is-text) {
+        background-color: transparent !important;
+        background-image: var(--glass-btn-primary-sheen), var(--glass-btn-primary-grad);
+        border-color: transparent !important;
+        box-shadow: var(--glass-btn-primary-shadow) !important;
+
+        &:hover,
+        &:focus {
+            background-image: var(--glass-btn-primary-sheen), var(--glass-btn-primary-hover-grad);
+            border-color: transparent !important;
+        }
+
+        &.is-disabled {
+            background-image: var(--glass-btn-primary-grad);
+            box-shadow: none;
+            opacity: 0.5;
+        }
+    }
+
+    // 白玻璃按钮(默认/取消/圆形工具钮): 半透白 + 光泽 + 深色描边(白面板上白边不可见)
+    .el-button--default:not(.is-link, .is-text) {
+        background-color: var(--glass-btn-white-bg) !important;
+        background-image: var(--glass-btn-white-grad);
+        border-color: var(--glass-btn-white-border) !important;
+        box-shadow: var(--glass-btn-white-shadow) !important;
+
+        &:hover,
+        &:focus {
+            background-color: var(--glass-btn-white-hover-bg) !important;
+        }
+    }
+
+    // danger plain(删除类): 近白红着色玻璃 + 深红文字(浅粉底浅红字对比不足, 文字压深一档)
+    .el-button--danger.is-plain {
+        background-color: var(--glass-btn-danger-plain-bg) !important;
+        background-image: var(--glass-btn-white-grad);
+        color: var(--glass-btn-danger-plain-text) !important;
+        border-color: color-mix(in oklab, var(--el-color-danger, #f56c6c) 35%, transparent) !important;
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3) !important;
+
+        &:hover,
+        &:focus {
+            background-color: var(--glass-btn-danger-plain-hover-bg) !important;
+            color: var(--glass-btn-danger-plain-text) !important;
+        }
+    }
+
+    // 其余实心变体: 同主色思路, 各自品牌色压暗渐变保证白字对比(EP 原色白字仅 ~2.2:1)
+    .el-button--success:not(.is-plain, .is-link, .is-text),
+    .el-button--warning:not(.is-plain, .is-link, .is-text),
+    .el-button--info:not(.is-plain, .is-link, .is-text) {
+        border-color: transparent !important;
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), inset 0 -1px 0 oklch(0 0 0 / 0.18) !important;
+    }
+
+    .el-button--success:not(.is-plain, .is-link, .is-text) {
+        background-image: var(--glass-btn-primary-sheen),
+            linear-gradient(180deg, color-mix(in srgb, var(--el-color-success, #67c23a) 80%, black), color-mix(in srgb, var(--el-color-success, #67c23a) 56%, black));
+    }
+
+    .el-button--warning:not(.is-plain, .is-link, .is-text) {
+        background-image: var(--glass-btn-primary-sheen),
+            linear-gradient(180deg, color-mix(in srgb, var(--el-color-warning, #e6a23c) 82%, black), color-mix(in srgb, var(--el-color-warning, #e6a23c) 58%, black));
+    }
+
+    .el-button--info:not(.is-plain, .is-link, .is-text) {
+        background-image: var(--glass-btn-primary-sheen),
+            linear-gradient(180deg, color-mix(in srgb, var(--el-color-info, #909399) 84%, black), color-mix(in srgb, var(--el-color-info, #909399) 62%, black));
+    }
+
+    // 按压反馈: 内阴影模拟"按进玻璃"(对齐 tokhub active 配方)
+    .el-button:active:not(.is-disabled, .is-link, .is-text) {
+        box-shadow: var(--glass-btn-active-shadow) !important;
+    }
+
+    // 输入框/下拉/文本域: 白玻璃 0.25 + inset 描边/光泽, hover/focus 提亮
+    .el-input__wrapper,
+    .el-select__wrapper,
+    .el-textarea__inner {
+        background-color: var(--glass-input-bg) !important;
+        box-shadow: var(--glass-input-shadow) !important;
+    }
+
+    .el-input__wrapper:hover,
+    .el-select__wrapper:hover,
+    .el-textarea__inner:hover {
+        background-color: var(--glass-input-hover-bg) !important;
+    }
+
+    .el-input__wrapper.is-focus,
+    .el-select__wrapper.is-focused,
+    .el-textarea__inner:focus {
+        background-color: var(--glass-input-hover-bg) !important;
+        box-shadow: inset 0 0 0 1px var(--el-color-primary), inset 0 1px 2px oklch(0 0 0 / 0.05) !important;
+    }
+
+    // 开关: 未选中=深色半透轨道(内压影); 选中=on-color 压暗实底(轨道内的"启用"白字需要实底对比)
+    // + 顶高光 + 同色辉光; 滑块白玻璃 + 投影。on-color 在 color-mix 里按最终值解析, 支持 success(绿)等自定义色
+    .el-switch .el-switch__core {
+        background-color: var(--glass-switch-off-bg) !important;
+        border-color: transparent !important;
+        box-shadow: var(--glass-switch-off-shadow);
+    }
+
+    .el-switch.is-checked .el-switch__core {
+        background-color: var(--glass-switch-on-bg) !important;
+        border-color: transparent !important;
+        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), 0 0 10px color-mix(in oklab, var(--el-switch-on-color, var(--el-color-primary)) 35%, transparent) !important;
+    }
+
+    .el-switch__action {
+        background-color: oklch(1 0 0 / 0.95) !important;
+        box-shadow: 0 1px 3px oklch(0 0 0 / 0.25);
+    }
+
+    // 轨道内文字(如"启用")钉纯白: EP 暗色把 inner 文字降到 #dadada, 在压暗轨道上仅 2.74:1
+    .el-switch.is-checked .el-switch__inner {
+        color: oklch(1 0 0 / 0.98) !important;
+    }
+
+    // 菜单选中药丸(侧栏+顶栏): 主色浅衬白玻璃 + 深主色文字(纯白玻璃会被彩色壁纸染脏,
+    // 主色衬底既保住"当前项"语义又稳住文字对比)
+    .el-menu-item.is-active,
+    .el-sub-menu__title.is-active {
+        background-color: var(--glass-menu-active-bg) !important;
+        background-image: var(--glass-btn-white-grad);
+        color: var(--glass-menu-active-text) !important;
+        box-shadow: var(--glass-btn-white-shadow);
+    }
+}

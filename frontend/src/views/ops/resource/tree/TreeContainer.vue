@@ -27,7 +27,7 @@ import { findTriggerCommand, resolveNodeMenu } from './commands';
 import { TreeApiKey } from './context';
 import { DEFAULT_TREE_SCOPE, treeEvents } from './events';
 import { getContributor } from './registry';
-import { ERROR_KIND, LOADING_KIND, type TreeNode, type TreeNodeData, type TreeApi, type TreeEngineExpose } from './types';
+import { ERROR_KIND, LOADING_KIND, type LocateOutcome, type LocateResolver, type TreeNode, type TreeNodeData, type TreeApi, type TreeEngineExpose } from './types';
 import TreeEngineV2 from './TreeEngineV2.vue';
 import { useLazyTree } from './useLazyTree';
 
@@ -54,6 +54,11 @@ const props = withDefaults(
         filterText?: string;
         /** 事件作用域：匹配 treeEvents 事件的 target 才响应（多容器并存隔离） */
         eventScope?: string;
+        /**
+         * 定位标识解析器（由资产域注入，如 codePath → 节点 key）：
+         * 容器只负责展开/高亮，不认识任何具体定位协议，新增协议或资产类型均无需改动容器
+         */
+        resolveLocate?: LocateResolver;
     }>(),
     { height: 0, showActions: true, interactive: true, filterText: '', eventScope: DEFAULT_TREE_SCOPE }
 );
@@ -75,27 +80,68 @@ const expandedKeysArray = computed(() => Array.from(expandedKeys.value));
 
 // 根加载
 onMounted(() => {
-    init().catch((e) => console.error('[tree] loadRoot failed:', e));
+    init()
+        .then(() => {
+            rootLoaded = true;
+            // 根加载完成后重试定位：ResourceOp 可能已在 onMounted 中发起 identity 定位，此时层级才就绪
+            tryLocate();
+        })
+        .catch((e) => console.error('[tree] loadRoot failed:', e));
 });
 
 // ---------------------------------- TreeApi（provide 给命令/渲染器） ----------------------------------
 
-/** 待定位节点：目标节点可能尚未水合出来，每次水合完成后重试 */
-const pendingLocateKey = ref('');
+/**
+ * 待定位目标，两种语义：
+ * - key：真实树节点 key（tab 激活/节点回定位），容器直接定位；
+ * - identity：外部资源标识（如资产域 codePath），交由注入的 resolveLocate 解析为节点 key。
+ * 目标层级尚未水合时挂起，根加载完成与水合后自动重试
+ */
+let pendingLocate: { mode: 'key' | 'identity'; value: string } | null = null;
+
+/** 定位进行中标志：解析会展开层级触发 hydrate → onAfterHydrate → tryLocate，需防重入 */
+let locating = false;
+
+/** 根节点是否已加载完成：据此区分「层级未就绪可重试」与「目标确实不存在」，避免永久挂起 */
+let rootLoaded = false;
+
+/** 解析待定位目标为节点 key（容器不认识具体标识协议，identity 模式委托注入的解析器） */
+async function resolvePendingLocate(pending: { mode: 'key' | 'identity'; value: string }): Promise<LocateOutcome> {
+    if (pending.mode === 'key') {
+        if (getNode(pending.value)) {
+            return { status: 'resolved', key: pending.value };
+        }
+        return rootLoaded ? { status: 'missing' } : { status: 'pending' };
+    }
+    return (await props.resolveLocate?.(pending.value, { getNode, expandNode, rootLoaded })) ?? { status: 'missing' };
+}
 
 async function tryLocate() {
-    const key = pendingLocateKey.value;
-    if (!key) {
+    if (locating) {
         return;
     }
-    if (!getNode(key)) {
+    const pending = pendingLocate;
+    if (!pending) {
         return;
     }
-    pendingLocateKey.value = '';
-    await ensureVisible(key);
-    await nextTick();
-    engineRef.value?.setCurrentKey(key);
-    engineRef.value?.scrollToNode(key, 'center');
+    locating = true;
+    try {
+        const outcome = await resolvePendingLocate(pending);
+        if (outcome.status === 'pending') {
+            return;
+        }
+        // resolved 执行定位；missing 放弃并清除挂起（防止此后水合时误高亮）
+        pendingLocate = null;
+        if (outcome.status === 'missing') {
+            return;
+        }
+        await ensureVisible(outcome.key);
+        await nextTick();
+        engineRef.value?.setCurrentKey(outcome.key);
+        engineRef.value?.scrollToNode(outcome.key, 'center');
+    } finally {
+        locating = false;
+    }
 }
 
 onAfterHydrate(() => {
@@ -104,13 +150,22 @@ onAfterHydrate(() => {
 
 const treeApi: TreeApi = {
     locate: async (key: string) => {
-        pendingLocateKey.value = key;
+        pendingLocate = { mode: 'key', value: key };
         await tryLocate();
     },
     refresh: (key?: string) => {
         refresh(key).catch((e) => console.error('[tree] refresh failed:', key, e));
     },
     getNode,
+};
+
+/** 按外部资源标识定位（快捷跳转/最近操作）：交由注入的 resolveLocate 解析为节点 key 后展开高亮 */
+const locateIdentity = async (identity: string) => {
+    if (!identity) {
+        return;
+    }
+    pendingLocate = { mode: 'identity', value: identity };
+    await tryLocate();
 };
 
 provide(TreeApiKey, treeApi);
@@ -236,6 +291,7 @@ const onNodeContextmenu = (event: MouseEvent, node: TreeNode) => {
 
 defineExpose({
     locate: treeApi.locate,
+    locateIdentity,
     refresh: treeApi.refresh,
     getNode,
 });

@@ -1,7 +1,7 @@
 <template>
     <div class="auth-cert-manage">
-        <el-table :data="authCerts" :max-height="180" stripe size="small">
-            <el-table-column min-wdith="120px">
+        <el-table :data="authCerts" :max-height="180" stripe size="small" style="width: 100%">
+            <el-table-column min-width="90px">
                 <template #header>
                     <el-button v-auth="'authcert:save'" class="ml0" type="primary" circle size="small" icon="Plus" @click="edit(null)"> </el-button>
                 </template>
@@ -22,18 +22,18 @@
                 </template>
             </el-table-column>
 
-            <el-table-column prop="username" :label="$t('common.username')" min-width="120px" show-overflow-tooltip> </el-table-column>
-            <el-table-column prop="ciphertextType" :label="$t('ac.ciphertextType')" width="100px">
+            <el-table-column prop="username" :label="$t('common.username')" min-width="100px" show-overflow-tooltip> </el-table-column>
+            <el-table-column prop="ciphertextType" :label="$t('ac.ciphertextType')" min-width="80px">
                 <template #default="scope">
                     <EnumTag :value="scope.row.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
                 </template>
             </el-table-column>
-            <el-table-column prop="type" :label="$t('ac.credentialType')" width="100px">
+            <el-table-column prop="type" :label="$t('ac.credentialType')" min-width="80px">
                 <template #default="scope">
                     <EnumTag :value="scope.row.type" :enums="AuthCertTypeEnum" />
                 </template>
             </el-table-column>
-            <el-table-column prop="remark" :label="$t('common.remark')" show-overflow-tooltip width="120px"> </el-table-column>
+            <el-table-column prop="remark" :label="$t('common.remark')" show-overflow-tooltip min-width="80px"> </el-table-column>
         </el-table>
 
         <ResourceAuthCertEdit
@@ -65,7 +65,7 @@ const props = defineProps({
     testConnBtnLoading: { type: Boolean },
 });
 
-const authCerts = defineModel<ResourceAuthCert[]>('modelValue', { required: true, default: [] });
+const authCerts = defineModel<ResourceAuthCert[]>('modelValue', { required: true, default: () => [] });
 const emit = defineEmits(['testConn']);
 
 const state = reactive({

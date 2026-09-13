@@ -20,10 +20,11 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch } from 'vue';
-import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import { registerDbCompletionItemProvider } from '@/views/ops/db/db';
+// completion 桶只能经惰性作用域触达（见 db/completion/lazy.ts 的边界约束）
+import { createSqlCompletionScope } from '@/views/ops/db/completion/lazy';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import type { AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
@@ -39,26 +40,39 @@ const emit = defineEmits(['changeResourceCode']);
 const formRef = ref<{ validate: (...args: unknown[]) => unknown; resetFields?: () => void } | null>(null);
 
 const bizForm = defineModel<any>('bizForm', {
-    default: {
+    // 对象默认值必须是工厂函数：字面量只创建一次，会被多个实例共享
+    default: () => ({
         dbId: 0,
         instName: '',
         dbName: '',
         dbType: '',
         tagPath: '',
         sql: '',
-    },
+    }),
 });
+
+// 本表单的 SQL 联想使用方作用域（多使用方共存时按计数释放，见 db/completion/lazy.ts）
+const sqlCompletion = createSqlCompletionScope();
+
+// 选库后注册联想上下文；编辑器的补全注册表按语言全局唯一，故释放必须与申请成对
+onBeforeUnmount(() => {
+    sqlCompletion.release();
+});
+
+const registerCompletion = () => {
+    sqlCompletion.register(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType);
+};
 
 onMounted(() => {
     if (bizForm.value.dbId) {
-        registerDbCompletionItemProvider(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType);
+        registerCompletion();
     }
 });
 
 watch(
     () => bizForm.value.dbId,
     () => {
-        registerDbCompletionItemProvider(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType);
+        registerCompletion();
     }
 );
 

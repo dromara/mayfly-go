@@ -40,5 +40,6 @@ export default {
         modifyFail: 'fail to modify',
         deleteFail: 'fail to delete',
         docParse2jsonFail: 'Parsing the document content into a json object failed',
+        cmdJsonParseFail: 'Failed to parse command as JSON, please check the JSON format',
     },
 };

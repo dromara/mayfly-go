@@ -8,15 +8,15 @@
         :close-on-press-escape="false"
         size="50%"
     >
-        <el-auto-resizer>
-            <template #default="{ height, width }">
-                <auto-form v-model="editForm" :items="editItems" label-width="auto">
-                    <template #doc>
-                        <monaco-editor v-model="model.doc" language="json" :height="height - 40 + 'px'" :options="{ wordWrap: 'on', tabSize: 2 }" />
-                    </template>
-                </auto-form>
-            </template>
-        </el-auto-resizer>
+        <div class="es-edit-body">
+            <div class="es-edit-id">
+                <span class="es-edit-label">_id</span>
+                <el-input v-model="model._id" :disabled="model._id !== ''" autocomplete="off" :placeholder="t('es.specifyIdAdd')" />
+            </div>
+            <div class="es-edit-editor">
+                <monaco-editor v-model="model.doc" language="json" height="100%" :options="{ wordWrap: 'on', tabSize: 2 }" />
+            </div>
+        </div>
         <template #footer>
             <el-button size="small" @click="visible = false">{{ t('common.cancel') }}</el-button>
             <el-button size="small" v-auth="perms.saveData" @click="onSaveDoc" :loading="loading" type="primary">{{ t('common.confirm') }}</el-button>
@@ -27,8 +27,7 @@
 <script setup lang="ts">
 import { Msg } from '@/hooks/useI18n';
 import { esApi } from '@/views/ops/es/api';
-import type { AutoFormItem } from '@/components/auto-form';
-import { computed, defineAsyncComponent, ref, watch } from 'vue';
+import { defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
@@ -41,17 +40,6 @@ const perms = {
 
 const visible = defineModel<boolean>('visible');
 const loading = ref(false);
-const _id = ref('');
-
-/** 文档编辑表单声明（_id 独立 ref 经 computed 代理；doc 编辑器为 custom 插槽） */
-const editForm = computed({
-    get: () => ({ _id: _id.value }),
-    set: (v: { _id: string }) => (_id.value = v._id),
-});
-const editItems = computed<AutoFormItem[]>(() => [
-    { prop: '_id', label: '_id', props: { autocomplete: 'off' }, placeholder: 'es.specifyIdAdd', disabled: () => model.value._id != '' },
-    { prop: 'doc', type: 'custom' },
-]);
 
 interface Params {
     isAdd: boolean;
@@ -106,12 +94,8 @@ watch(visible, async (newValue) => {
     if (!newValue) {
         model.value._id = '';
         model.value.doc = '';
-        _id.value = '';
         loading.value = false;
     } else {
-        if (model.value._id) {
-            _id.value = model.value._id;
-        }
         if (!model.value.doc) {
             model.value.doc = JSON.stringify(await getZeroValueByProperties(), null, 2);
         }
@@ -139,7 +123,7 @@ const onSaveDoc = async () => {
         loading.value = false;
     }, 2000);
 
-    await esApi.proxyReq('post', model.value.instId, `/${model.value.idxName}/_doc/${_id.value}`, data);
+    await esApi.proxyReq('post', model.value.instId, `/${model.value.idxName}/_doc/${model.value._id}`, data);
     Msg.saveSuccess();
 
     setTimeout(() => {
@@ -149,4 +133,32 @@ const onSaveDoc = async () => {
 };
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.es-edit-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+.es-edit-id {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.es-edit-label {
+    width: 40px;
+    text-align: right;
+    font-size: 14px;
+    color: var(--el-text-color-regular);
+    flex-shrink: 0;
+}
+
+.es-edit-editor {
+    flex: 1;
+    min-height: 0;
+}
+</style>

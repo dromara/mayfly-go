@@ -60,6 +60,7 @@ registerContributor({
     resourceType: ResourceTypeEnum.Container.value,
     selectable: true,
     icon: Icon,
+    locateCode: (node) => node.params.code as string,
     loadRoots: async (groupNode: TreeNode) => {
         // 加载标签树下的容器列表
         const res = await dockerApi.page.request({ tagPath: groupNode.params?.tagPath as string });

@@ -87,10 +87,10 @@ import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
-import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
+import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
-import type { DbTransferTask, Db } from '@/views/ops/db/types';
+import type { DbTransferTask, Db, DbNodeParams } from '@/views/ops/db/types';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -106,7 +106,12 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits<{
+    /** 取消编辑，父级关闭弹窗 */
+    cancel: [];
+    /** 保存成功，回传表单，父级据此刷新任务列表 */
+    'val-change': [form: AutoFormData];
+}>();
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
@@ -320,22 +325,13 @@ watch(
     }
 );
 
-interface DbSelectParams {
-    id: number;
-    db: string;
-    dbs: string[];
-    type: string;
-    databases?: string[];
-    name?: string;
-}
-
-const onSelectSrcDb = async (params: DbSelectParams) => {
+const onSelectSrcDb = async (params: DbNodeParams) => {
     //  初始化数据源
     params.databases = params.dbs; // 数据源里需要这个值
     await loadDbTables(params.id, params.db);
 };
 
-const onSelectTargetDb = async (_params: DbSelectParams) => {
+const onSelectTargetDb = async (_params: DbNodeParams) => {
     // Target db selected
 };
 

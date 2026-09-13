@@ -1,0 +1,169 @@
+/* Glass Design Tokens (玻璃态设计令牌)
+------------------------------- */
+// 全局玻璃态：所有区域半透明 + 模糊，背景色彩透过
+
+:root {
+    // 玻璃面板基底色 RGB —— 亮色=白，暗色=深灰蓝；components 用 rgba(var(--glass-tint-rgb), alpha) 统一切换
+    --glass-tint-rgb: 255, 255, 255;
+
+    // 面板透明度 — 中度提透：去掉奶白磨砂感，让壁纸色彩更透出来（表格/长文本底色另在 store 保持可读）
+    --glass-bg-alpha: 0.58;
+    --glass-bg-heavy-alpha: 0.66;
+    --glass-bg-accent-alpha: 0.2;
+
+    // 模糊
+    --glass-blur: 0px;
+    --glass-blur-heavy: 10px;
+    --glass-blur-light: 0px;
+    // saturate 提色: 让被模糊的背景重新"发亮"(去灰), 是"玻璃感 vs 磨砂感"的分水岭
+    --glass-saturate: 190%;
+
+    // 分档材质 fx 令牌(chrome/panel/elevated 三档, 明暗共用)
+    // 「零磨砂」默认档(对齐资源树页实渲染): chrome/panel/content 恒为 none —— 壁纸清晰细节直透所有面板,
+    // 玻璃感仅靠 薄白底+发丝描边+顶部光泽+边缘高光 表达; 仅 elevated 浮层保留 blur 与内容分层。
+    // 磨砂程度由 设置-壁纸 滑杆驱动, 但它不碰本组档位(避免纱+面板双重叠糊) ——
+    // 滑杆写 --glass-frost-fx/veil 到 .app-backdrop__frost 全局纱层(见 backdrop.scss/themeConfig.ts)。
+    // none 同时消除 backdrop root, 规避 fixed 后代定位劫持
+    // chrome = 顶栏/页签/侧栏; panel = 卡片/输入区; content = SSH终端/日志大面积文本; elevated = 弹层/对话框
+    --glass-fx-chrome: none;
+    --glass-fx-panel: none;
+    --glass-fx-content: none;
+    --glass-fx-elevated: blur(18px) saturate(1.6);
+
+    // 菜单项悬浮/选中高亮: 从主色派生的浅衬 + 顶部 1px 玻璃高光(白面板上白盖白不可见, 故用主色)
+    --glass-accent-bg: color-mix(in srgb, var(--el-color-primary, #409eff) 20%, transparent);
+    --glass-accent-edge: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+    // 语义材质档位令牌(业界标准架构: 组件只引用档位, 禁止逐选择器硬编码 alpha)
+    // chrome=铬层(顶栏/页签/侧栏) / panel=内容面板 / elevated=浮层 / modal=对话框 / drawer=抽屉
+    // content=全屏高密度文本面(终端/日志) —— 业界共识(Fluent: 内容区禁用 Acrylic;
+    // Apple: 正文用可读性优化实底): 大面积磨砂透视壁纸会导致文字颤动与视觉疲劳
+    // 清透全局档: 用户定调所有表面(含终端/日志 content 档)统一资源树式清透 —— 薄底+壁纸直透
+    --glass-alpha-chrome: 0.22;
+    --glass-alpha-panel: 0.26;
+    --glass-alpha-elevated: 0.72;
+    --glass-alpha-modal: 0.74;
+    --glass-alpha-drawer: 0.74;
+    --glass-alpha-content: 0.55;
+    --glass-bg-chrome: rgba(var(--glass-tint-rgb, 255, 255, 255), var(--glass-alpha-chrome));
+    --glass-bg-panel: rgba(var(--glass-tint-rgb, 255, 255, 255), var(--glass-alpha-panel));
+    --glass-bg-elevated: rgba(var(--glass-tint-rgb, 255, 255, 255), var(--glass-alpha-elevated));
+    --glass-bg-modal: rgba(var(--glass-tint-rgb, 255, 255, 255), var(--glass-alpha-modal));
+    --glass-bg-drawer: rgba(var(--glass-tint-rgb, 255, 255, 255), var(--glass-alpha-drawer));
+    --glass-bg-content: rgba(var(--glass-tint-rgb, 255, 255, 255), var(--glass-alpha-content));
+
+    // 材质配方(镜面光泽 / 高光环 / 环境投影) —— 明暗各一档, 组件只引用不硬编码
+    // 对角镜面光泽: 左上亮→中段透→右下微亮, 模拟光线穿过玻璃(白纱过强会糊成奶白, 已收敛)
+    --glass-sheen: linear-gradient(120deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.06) 45%, transparent 60%, rgba(255, 255, 255, 0.12));
+    // 完整高光环: 顶部 1.5px 强高光 + 1px 内描边(内描边是"面板边界清晰"的关键, 奶底上 0.18 不可见, 提到 0.3)
+    --glass-edge: inset 0 1.5px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    // 环境投影: 近距接触影(贴地感/边界清晰) + 远距主色氛围光(让面板"坐"在彩色背景上而非飘着)
+    --glass-ambient: 0 2px 10px rgba(15, 40, 70, 0.1), 0 16px 44px -8px color-mix(in srgb, var(--el-color-primary, #409eff) 16%, transparent);
+
+    // 边框
+    --glass-border-alpha: 0.15;
+    --glass-border-width: 1px;
+
+    // 光影
+    --glass-shadow-opacity: 0.08;
+    --glass-shadow-spread: 20px;
+    --glass-highlight-alpha: 0.3;
+
+    // 背景图层
+    --backdrop-image: none;
+    --backdrop-blur: 0px;
+    --backdrop-opacity: 1;
+    --backdrop-overlay: none;
+
+    // 派生
+    --glass-bg: rgba(255, 255, 255, var(--glass-bg-alpha));
+    --glass-bg-heavy: rgba(255, 255, 255, var(--glass-bg-heavy-alpha));
+    --glass-bg-accent: rgba(255, 255, 255, var(--glass-bg-accent-alpha));
+    --glass-border: rgba(255, 255, 255, var(--glass-border-alpha));
+    --glass-shadow: 0 2px var(--glass-shadow-spread) rgba(0, 0, 0, var(--glass-shadow-opacity));
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha));
+
+    // 小控件材质(对齐 tokhub buttons.css/controls.css 实测配方):
+    // 按钮/开关/输入框等小面积控件【不挂 backdrop-filter】—— 数量多、面积小, 合成开销大且视觉几乎无感。
+    // 关键修正: 承载文字的强调控件不能用半透明底(亮壁纸会把主色冲淡、白字对比跌到 ~2:1, 观感"暗/脏/像禁用"),
+    // 半透明只属于表面与白玻璃按钮; 强调按钮走"实色品牌渐变(上下压暗+顶部镜面光泽)"= 现代立体 accent,
+    // 白字对比从 EP 默认 3.06:1 提到 ~4.5:1
+    --glass-btn-primary-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 84%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 58%, #062c5c));
+    --glass-btn-primary-hover-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 92%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 68%, #062c5c));
+    --glass-btn-primary-sheen: linear-gradient(to bottom, oklch(1 0 0 / 0.26), oklch(1 0 0 / 0) 46%);
+    --glass-btn-primary-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), inset 0 -1px 0 oklch(0 0 0 / 0.18), 0 2px 12px color-mix(in oklab, var(--el-color-primary, #409eff) 40%, transparent);
+    --glass-btn-white-bg: oklch(1 0 0 / 0.6);
+    --glass-btn-white-hover-bg: oklch(1 0 0 / 0.72);
+    --glass-btn-white-border: oklch(0 0 0 / 0.12);
+    --glass-btn-white-grad: linear-gradient(to bottom, oklch(1 0 0 / 0.35), oklch(1 0 0 / 0) 60%);
+    --glass-btn-white-shadow: inset 0 1px 0 oklch(1 0 0 / 0.6), inset 0 0 0 1px oklch(1 0 0 / 0.15), 0 1px 6px oklch(0 0 0 / 0.06);
+    --glass-btn-danger-plain-bg: color-mix(in oklab, var(--el-color-danger, #f56c6c) 14%, oklch(1 0 0 / 0.72));
+    --glass-btn-danger-plain-hover-bg: color-mix(in oklab, var(--el-color-danger, #f56c6c) 22%, oklch(1 0 0 / 0.8));
+    --glass-btn-danger-plain-text: color-mix(in srgb, var(--el-color-danger, #f56c6c) 76%, #4a0d0d);
+    --glass-btn-active-shadow: inset 0 2px 6px oklch(0 0 0 / 0.14);
+    --glass-menu-active-bg: color-mix(in srgb, var(--el-color-primary, #409eff) 14%, rgba(255, 255, 255, 0.68));
+    --glass-menu-active-text: color-mix(in srgb, var(--el-color-primary, #409eff) 40%, #062c5c);
+    --glass-switch-on-bg: color-mix(in srgb, var(--el-switch-on-color, var(--el-color-primary)) 80%, black);
+    --glass-input-bg: oklch(1 0 0 / 0.25);
+    --glass-input-hover-bg: oklch(1 0 0 / 0.5);
+    --glass-input-shadow: inset 0 0 0 1px oklch(0 0 0 / 0.08), inset 0 1px 2px oklch(0 0 0 / 0.05), inset 0 -1px 0 oklch(1 0 0 / 0.3);
+    --glass-switch-off-bg: oklch(0 0 0 / 0.12);
+    --glass-switch-off-shadow: inset 0 1px 2px oklch(0 0 0 / 0.12);
+}
+
+html.dark {
+    --glass-tint-rgb: 30, 32, 48;
+    --glass-bg-alpha: 0.55;
+    --glass-bg-heavy-alpha: 0.66;
+    --glass-bg-accent-alpha: 0.15;
+    --glass-border-alpha: 0.1;
+    --glass-shadow-opacity: 0.15;
+    --glass-highlight-alpha: 0.1;
+
+    // 材质配方暗态翻转: 光泽收敛(白玻璃在暗底上会糊成灰), 高光弱, 投影加重
+    --glass-saturate: 200%;
+    // 暗态档位 alpha: 清透全局档(深底降得保守——浅色文字依赖深底可读, content 终端档适度提透)
+    --glass-alpha-chrome: 0.46;
+    --glass-alpha-panel: 0.46;
+    --glass-alpha-elevated: 0.72;
+    --glass-alpha-modal: 0.78;
+    --glass-alpha-drawer: 0.76;
+    --glass-alpha-content: 0.68;
+    // 暗态菜单高亮: 主色衬底更浓(暗面板需更强着色才可见), 顶高光收敛
+    --glass-accent-bg: color-mix(in srgb, var(--el-color-primary, #409eff) 34%, transparent);
+    --glass-accent-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    --glass-sheen: linear-gradient(120deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 45%, transparent 60%, rgba(255, 255, 255, 0.04));
+    --glass-edge: inset 0 1.5px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --glass-ambient: 0 4px 24px rgba(0, 0, 0, 0.3), 0 12px 48px rgba(0, 0, 0, 0.25);
+
+    --glass-bg: rgba(30, 30, 40, var(--glass-bg-alpha));
+    --glass-bg-heavy: rgba(30, 30, 40, var(--glass-bg-heavy-alpha));
+    --glass-bg-accent: rgba(30, 30, 40, var(--glass-bg-accent-alpha));
+    --glass-border: rgba(255, 255, 255, var(--glass-border-alpha));
+    --glass-shadow: 0 2px var(--glass-shadow-spread) rgba(0, 0, 0, var(--glass-shadow-opacity));
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha));
+
+    // 小控件材质暗态: 白玻璃底翻成弱白半透明, 光泽/高光收敛, 内压影加深;
+    // 强调渐变暗态提亮一档(暗底上品牌色需更亮才不发闷), 菜单选中改主色衬底+浅色字
+    --glass-btn-primary-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 92%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 66%, #062c5c));
+    --glass-btn-primary-hover-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 100%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 76%, #062c5c));
+    --glass-btn-primary-sheen: linear-gradient(to bottom, oklch(1 0 0 / 0.18), oklch(1 0 0 / 0) 46%);
+    --glass-btn-primary-shadow: inset 0 1px 0 oklch(1 0 0 / 0.22), inset 0 -1px 0 oklch(0 0 0 / 0.25), 0 2px 12px color-mix(in oklab, var(--el-color-primary, #409eff) 30%, transparent);
+    --glass-btn-white-bg: oklch(1 0 0 / 0.12);
+    --glass-btn-white-hover-bg: oklch(1 0 0 / 0.16);
+    --glass-btn-white-border: oklch(1 0 0 / 0.2);
+    --glass-btn-white-grad: linear-gradient(to bottom, oklch(1 0 0 / 0.1), oklch(1 0 0 / 0) 60%);
+    --glass-btn-white-shadow: inset 0 1px 0 oklch(1 0 0 / 0.12), inset 0 0 0 1px oklch(1 0 0 / 0.04);
+    --glass-btn-danger-plain-bg: color-mix(in oklab, var(--el-color-danger, #f56c6c) 26%, oklch(0 0 0 / 0.3));
+    --glass-btn-danger-plain-hover-bg: color-mix(in oklab, var(--el-color-danger, #f56c6c) 34%, oklch(0 0 0 / 0.36));
+    --glass-btn-danger-plain-text: color-mix(in srgb, var(--el-color-danger, #f56c6c) 62%, white);
+    --glass-btn-active-shadow: inset 0 2px 6px oklch(0 0 0 / 0.45);
+    --glass-menu-active-bg: color-mix(in srgb, var(--el-color-primary, #409eff) 26%, rgba(30, 32, 48, 0.6));
+    --glass-menu-active-text: color-mix(in srgb, var(--el-color-primary, #409eff) 45%, white);
+    --glass-switch-on-bg: color-mix(in srgb, var(--el-switch-on-color, var(--el-color-primary)) 84%, black);
+    --glass-input-bg: oklch(1 0 0 / 0.06);
+    --glass-input-hover-bg: oklch(1 0 0 / 0.1);
+    --glass-input-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.12), inset 0 1px 2px oklch(0 0 0 / 0.25), inset 0 -1px 0 oklch(1 0 0 / 0.06);
+    --glass-switch-off-bg: oklch(1 0 0 / 0.14);
+    --glass-switch-off-shadow: inset 0 1px 2px oklch(0 0 0 / 0.3);
+}

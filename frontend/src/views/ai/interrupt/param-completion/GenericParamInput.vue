@@ -43,7 +43,7 @@ const { t } = useI18n();
 
 // 使用 defineModel 实现双向绑定
 const paramValues = defineModel<Record<string, any>>('modelValue', {
-    default: {},
+    default: () => ({}),
 });
 
 // 输入事件

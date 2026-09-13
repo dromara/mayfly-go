@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import SvgIcon from '@/components/svg-icon/index.vue';
-import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
+import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
 
 interface DbParamValue {

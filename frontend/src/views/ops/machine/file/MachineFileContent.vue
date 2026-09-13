@@ -39,8 +39,6 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const emit = defineEmits(['cancel', 'update:machineId']);
-
 const updateFileContent = machineApi.updateFileContent;
 
 const saveing: Ref<boolean> = ref(false);

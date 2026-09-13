@@ -1,11 +1,9 @@
 /**
  * 弹层宿主回填契约测试（useAutoFormHost 单一出处，Dialog / Drawer 行为必须一致）
  *
- * 覆盖历史缺陷：回填只监听 visible 的 false→true 跃迁，宿主以 visible=true 直接挂载时
- * （异步组件在点击那刻才加载完成、HMR 重建已打开弹层）永不回填，state.form 保持空对象，
- * 控件拿到 undefined —— element-plus 表现为 "[ElSwitch] model-value must be active-value or inactive-value"。
- *
- * probe 用例（status 缺失）用于证明本文件确实能观测到该警告，避免假阴性。
+ * 覆盖历史缺陷：
+ * 1) 回填只监听 visible 的 false→true 跃迁，宿主以 visible=true 直接挂载时永不回填
+ * 2) 编辑回填时后端数据可能不含 switch 字段，backfill 自动补充 inactiveValue 避免 ElSwitch 告警
  */
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
@@ -43,7 +41,7 @@ const items: AutoFormItem[] = [
     },
 ];
 
-const switchWarns = (spy: ReturnType<typeof vi.spyOn>) =>
+const switchWarns = (spy: { mock: { calls: unknown[][] } }) =>
     spy.mock.calls.map((c) => c.join(' ')).filter((s) => s.includes('active-value or inactive-value'));
 
 /** 以 visible=true 直接挂载宿主（缺陷路径），返回弹层内 el-switch 数量与 model-value 警告 */
@@ -78,10 +76,10 @@ describe.each([
         expect(warns).toEqual([]);
     });
 
-    // 探针：若不告警说明本文件没真正观测到 el-switch，上面用例属假阴性
-    it('探针：status 缺失时必然产生 model-value 警告', async () => {
+    // 回归：status 缺失时 backfill 自动补充 inactiveValue，不再产生 model-value 警告
+    it('status 缺失时 backfill 自动补充 inactiveValue，不产生 model-value 警告', async () => {
         const { switches, warns } = await mountHostOpen(host, { name: 'r1' });
         expect(switches).toBe(1);
-        expect(warns.length).toBeGreaterThan(0);
+        expect(warns).toEqual([]);
     });
 });

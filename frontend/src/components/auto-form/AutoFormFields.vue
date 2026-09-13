@@ -1,35 +1,31 @@
 <template>
     <template v-for="(seg, si) in segments" :key="`seg-${si}`">
         <!-- 分组容器（GroupContainer）：标题 + 描述 + 带边框内层，跨全宽；组内字段全部隐藏时不渲染空壳 -->
-        <ACol v-if="seg.group && hasVisibleItem(seg)" :span="24">
+        <ACol v-if="seg.group && hasVisibleItem(seg)" :span="toGridSpan(GRID_UNITS)">
             <div v-if="seg.group.label" class="mb-1 text-sm font-medium">{{ $t(seg.group.label) }}</div>
             <div v-if="seg.group.groupDescription" class="mb-2 text-xs text-gray-400 leading-5">{{ $t(seg.group.groupDescription) }}</div>
             <div class="mb-2 rounded-lg border p-3" style="border-color: var(--el-border-color-lighter)">
-                <ARow :gutter="16">
-                    <AutoFormFieldCol v-for="item in seg.items" :key="item.prop ?? item.label ?? ''" :item="item" :form="form" :default-span="defaultSpan" :readonly="readonly">
-                        <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
-                            <slot :name="name" v-bind="slotProps ?? {}" />
-                        </template>
-                    </AutoFormFieldCol>
-                </ARow>
+                <AutoFormFieldList :items="seg.items" :form="form" :default-span="defaultSpan" :readonly="readonly">
+                    <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
+                        <slot :name="name" v-bind="slotProps ?? {}" />
+                    </template>
+                </AutoFormFieldList>
             </div>
         </ACol>
 
-        <!-- 无分组字段平铺（ARow 包裹以支持 span 并排布局） -->
-        <ARow v-else :gutter="16">
-            <AutoFormFieldCol v-for="item in seg.items" :key="item.prop ?? item.label ?? ''" :item="item" :form="form" :default-span="defaultSpan" :readonly="readonly">
-                <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
-                    <slot :name="name" v-bind="slotProps ?? {}" />
-                </template>
-            </AutoFormFieldCol>
-        </ARow>
+        <!-- 无分组字段平铺 -->
+        <AutoFormFieldList v-else :items="seg.items" :form="form" :default-span="defaultSpan" :readonly="readonly">
+            <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">
+                <slot :name="name" v-bind="slotProps ?? {}" />
+            </template>
+        </AutoFormFieldList>
     </template>
 </template>
 
 <script lang="ts" setup>
 import { computed } from 'vue';
-import { ACol, ARow } from './ui/adapter';
-import AutoFormFieldCol from './AutoFormFieldCol.vue';
+import { ACol, GRID_UNITS, toGridSpan } from './ui/adapter';
+import AutoFormFieldList from './AutoFormFieldList.vue';
 import { isItemVisible } from './shared';
 import type { AutoFormData, AutoFormItem } from './types';
 
@@ -43,8 +39,8 @@ const props = defineProps<{
     readonly?: boolean;
 }>();
 
-/** 每个字段默认占据的栅格跨度 */
-const defaultSpan = computed(() => Math.floor(24 / (props.cols ?? 1)));
+/** 每个字段默认占据的栅格跨度（以抽象 GRID_UNITS 均分，经适配层映射到框架栅格） */
+const defaultSpan = computed(() => Math.floor(GRID_UNITS / (props.cols ?? 1)));
 
 /** 分组内是否存在可见字段（动态 when 隐藏全部字段时整组不渲染，避免残留空壳容器；与 AutoFormFieldCol 显隐判定共用） */
 const hasVisibleItem = (seg: { group: AutoFormItem | null; items: AutoFormItem[] }): boolean =>

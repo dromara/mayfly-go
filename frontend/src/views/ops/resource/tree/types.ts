@@ -53,6 +53,29 @@ export interface TreeApi {
     getNode(key: string): TreeNode | undefined;
 }
 
+/**
+ * 定位解析结果（三态显式化，避免「重试 / 放弃」靠控制流隐式表达）：
+ * - resolved：命中节点 key；
+ * - pending：依赖的层级尚未水合，可在水合完成后重试；
+ * - missing：目标不存在 / 无权限访问，应放弃并清除挂起态
+ */
+export type LocateOutcome = { status: 'resolved'; key: string } | { status: 'pending' } | { status: 'missing' };
+
+/** 定位解析器可用的树能力（由容器注入，解析器无需持有树实例） */
+export interface LocateAccess {
+    getNode(key: string): TreeNode | undefined;
+    expandNode(key: string): Promise<void>;
+    /** 根是否已加载完成：为 true 时仍缺失层级即可判定 missing，避免永久挂起重试 */
+    rootLoaded: boolean;
+}
+
+/**
+ * 「后端资源标识 → 树节点 key」解析器契约。
+ * 由资产域实现、经 prop 注入容器：容器只负责展开/高亮，不认识任何具体协议（codePath 等），
+ * 新增定位协议或新增资产类型均无需改动容器（开闭原则）
+ */
+export type LocateResolver = (identity: string, access: LocateAccess) => Promise<LocateOutcome>;
+
 export interface TreeCommandCtx {
     node: TreeNode;
     tree: TreeApi;

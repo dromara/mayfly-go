@@ -1,0 +1,15 @@
+/* Glass Module Entry (模块聚合入口)
+------------------------------- */
+// 加载顺序有严格要求：tokens → core → materials → backdrop → wallpaper → components → layout → motion → fallback
+// fallback 必须最后，用于覆盖不支持的选择器；wallpaper 紧随 backdrop，靠源码顺序覆盖明/暗默认底色
+
+@use './tokens.scss';
+@use './utils.scss' as *;
+@use './core.scss' as *;
+@use './materials.scss';
+@use './backdrop.scss';
+@use './wallpaper.scss';
+@use './components.scss';
+@use './layout.scss';
+@use './motion.scss';
+@use './fallback.scss';

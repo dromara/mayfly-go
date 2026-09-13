@@ -81,14 +81,14 @@
 
         <div id="data-exec" ref="dataExecRef" class="mt-1 flex-1 min-h-0 overflow-visible">
             <el-tabs
-                v-if="state.tabs.size > 0"
+                v-if="hasOpenTabs"
                 type="card"
                 @tab-remove="onRemoveTab"
                 @tab-change="onTabChange"
-                v-model="state.activeName"
+                v-model="activeTabKey"
                 class="db-data-tabs w-full"
             >
-                <el-tab-pane class="h-full!" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                <el-tab-pane class="h-full!" closable v-for="dt in tabList" :label="dt.label" :name="dt.key" :key="dt.key">
                     <template #label>
                         <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                             <template #reference>
@@ -165,57 +165,32 @@
 
 <script lang="ts" setup>
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import { disposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
+import SqlExecBox from '@/views/ops/db/sql-editor/SqlExecBox';
+import { formatSql } from '@/views/ops/db/sql-editor/utils/formatSql';
 import { treeEvents } from '@/views/ops/resource/tree';
 import { useEventListener, useStorage } from '@vueuse/core';
 import { ElCheckbox, ElMessageBox } from 'element-plus';
-import { format as sqlFormatter, type SqlLanguage } from 'sql-formatter';
-import { defineAsyncComponent, h, inject, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { defineAsyncComponent, h, onActivated, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dbApi } from '../api';
-import { DbInst, DbThemeConfig, registerDbCompletionItemProvider, TabInfo, TabType, type TabComponentRef } from '../db';
-import type { DbInstInfo, TableOpData } from '../types';
-import type { DbOpTabApi } from './index';
+import { DbInst, DbThemeConfig } from '../db';
+// SQL 联想经惰性作用域注册：静态引入 completion 会把整份编辑器（约 3.9M）拖进标签页容器的首屏
+import { createSqlCompletionScope } from '../completion/lazy';
+import { TabInfo, TabType, type TabComponentRef } from './TabInfo';
+import type { DbInstInfo, DbTreeNodeData, TableOpData, TreeNodeCallbackData } from '../types';
+import type { IndexDefinition, RowDefinition, TableInfoEditContext } from '../dialect/index';
+import type { DbOpTabApi } from './helpers';
+import { useDbTabs } from './composables/useDbTabs';
 import { getDbDialect } from '../dialect/index';
 
-/** 数据库树节点数据 (包含树节点额外属性) */
-interface DbTreeNodeData extends DbInstInfo {
-    nodeKey?: string;
-    dbs?: string[];
-    db?: string;
-}
-
-/** 表树节点回调携带的 params (见 resource/index.ts 中 withParams 构造) */
-interface DbTableNodeParams {
-    id: number;
-    db: string;
-    type: string;
-    version?: string;
-    tableName?: string;
-    tableComment?: string;
-    parentKey?: string;
-    key?: string;
-    schema?: string;
-    [key: string]: unknown;
-}
-
-/** 树节点回调数据 (包含 params 和标签等) */
-interface TreeNodeCallbackData {
-    params: DbTableNodeParams;
-    label?: string;
-    parentKey?: string;
-    key?: string;
-    version?: string;
-}
-
-const DbTableOp = defineAsyncComponent(() => import('../component/table/DbTableOp.vue'));
-const DbSqlEditor = defineAsyncComponent(() => import('../component/sqleditor/DbSqlEditor.vue'));
-const DbTableDataOp = defineAsyncComponent(() => import('../component/table/DbTableDataOp.vue'));
-const DbTablesOp = defineAsyncComponent(() => import('../component/table/DbTablesOp.vue'));
+const DbTableOp = defineAsyncComponent(() => import('../table-editor/DbTableOp.vue'));
+const DbSqlEditor = defineAsyncComponent(() => import('../sql-editor/DbSqlEditor.vue'));
+const DbTableDataOp = defineAsyncComponent(() => import('../data-grid/DbTableDataOp.vue'));
+const DbTablesOp = defineAsyncComponent(() => import('../table-editor/DbTablesOp.vue'));
+// DDL 查看是低频动作，编辑器主体随弹窗首次打开才加载
+const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
 const { t } = useI18n();
 
@@ -224,9 +199,10 @@ const props = defineProps<{
     db: string;
 }>();
 
-const emits = defineEmits(['init']);
-
 const tabContextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('tabContextmenuRef');
+
+/** 标签页状态：增删切换的纯状态逻辑在 useDbTabs，本组件只负责切换后的副作用 */
+const { tabs, activeTabKey, tabList, hasOpenTabs, activeTab, activateTab, addTab, closeTab, clearTabs } = useDbTabs();
 
 const tabContextmenuItems = [
     new ContextmenuItem(1, 'db.close').withIcon('Close').withOnClick((data: unknown) => {
@@ -235,8 +211,7 @@ const tabContextmenuItems = [
 
     new ContextmenuItem(2, 'db.closeOther').withIcon('CircleClose').withOnClick((data: unknown) => {
         const tabName = (data as { key: string }).key;
-        const tabNames = [...state.tabs.keys()];
-        for (let tab of tabNames) {
+        for (let tab of [...tabs.keys()]) {
             if (tab !== tabName) {
                 onRemoveTab(tab);
             }
@@ -244,7 +219,6 @@ const tabContextmenuItems = [
     }),
 ];
 
-const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
     defaultExpendKey: [] as string[],
     /**
@@ -252,9 +226,7 @@ const state = reactive({
      */
     nowDbInst: {} as DbInst,
     db: '', // 当前操作的数据库
-    activeName: '',
     reloadStatus: false,
-    tabs,
     tabContextmenu: {
         dropdown: { x: 0, y: 0 },
         items: tabContextmenuItems,
@@ -291,6 +263,20 @@ const setTabComponentRef = (dt: TabInfo, el: unknown) => {
 
 const dbConfig = useStorage('dbConfig', DbThemeConfig);
 
+/**
+ * 本组件的 SQL 联想使用方作用域。
+ *
+ * 注册放在容器而非编辑器组件里，是因为补全上下文需要「当前激活 tab」的库信息：
+ * el-tabs 不销毁非活跃面板，多个查询编辑器实例共存，而 monaco 的补全注册表按语言全局唯一，
+ * 故必须在切 tab 时把 provider 指回当前 tab（见 onTabChange）。
+ */
+const sqlCompletion = createSqlCompletionScope();
+
+// 申领与释放成对：本页是 keep-alive 路由页，回到前台时 provider 可能已被其他页面（同步任务表单等）
+// 申领走，需重新指回当前 tab；卸载时交还给上一个存活的使用方
+onActivated(() => sqlCompletion.refresh());
+onBeforeUnmount(() => sqlCompletion.release());
+
 onMounted(() => {
     changeDb(props.dbInfo, props.db);
     state.reloadStatus = !dbConfig.value.cacheTable;
@@ -300,10 +286,6 @@ onMounted(() => {
 });
 
 const dataExecRef = useTemplateRef<HTMLElement>('dataExecRef');
-
-onBeforeUnmount(() => {
-    disposeCompletionItemProvider('sql');
-});
 
 /**
  * 设置editor高度和数据表高度（基于容器位置计算，兼容全屏模式）
@@ -333,13 +315,11 @@ const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: stri
     changeDb(db, dbName);
 
     const key = `tableData:${db.id}.${dbName}.${tableName}`;
-    let tab = state.tabs.get(key);
-    state.activeName = key;
-    // 如果存在该表tab，则直接返回
-    if (tab) {
+    // 如果存在该表tab，则只激活不重复创建
+    if (activateTab(key)) {
         return;
     }
-    tab = new TabInfo();
+    const tab = new TabInfo();
     tab.label = tableName;
     tab.key = key;
     tab.treeNodeKey = db.nodeKey ?? '';
@@ -350,7 +330,7 @@ const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: stri
         ...getNowDbInfo(),
         table: tableName,
     };
-    state.tabs.set(key, tab);
+    addTab(tab);
 };
 
 // 新建查询tab
@@ -370,7 +350,7 @@ const addQueryTab = async (db: DbTreeNodeData, dbName: string, sqlName: string =
         key = `query:${dbId}.${dbName}.${sqlName}`;
     } else {
         let count = 1;
-        state.tabs.forEach((v) => {
+        tabs.forEach((v) => {
             if (v.type == TabType.Query && !v.params.sqlName) {
                 count++;
             }
@@ -378,12 +358,10 @@ const addQueryTab = async (db: DbTreeNodeData, dbName: string, sqlName: string =
         label = `${t('db.nQuery')}-${count}`;
         key = `query:${count}.${dbId}.${dbName}`;
     }
-    state.activeName = key;
-    let tab = state.tabs.get(key);
-    if (tab) {
+    if (activateTab(key)) {
         return;
     }
-    tab = new TabInfo();
+    const tab = new TabInfo();
     tab.key = key;
     tab.label = label;
     tab.treeNodeKey = db.nodeKey ?? '';
@@ -395,9 +373,9 @@ const addQueryTab = async (db: DbTreeNodeData, dbName: string, sqlName: string =
         sqlName: sqlName,
         dbs: db.dbs,
     };
-    state.tabs.set(key, tab);
+    addTab(tab);
     // 注册当前sql编辑框提示词
-    registerDbCompletionItemProvider(tab.dbId, tab.db, tab.params.dbs, nowDbInst.value.type);
+    sqlCompletion.register(tab.dbId, tab.db, tab.params.dbs, nowDbInst.value.type);
 };
 
 /**
@@ -413,14 +391,11 @@ const addTablesOpTab = async (db: DbTreeNodeData) => {
     changeDb(db, dbName);
 
     const dbId = db.id;
-    let key = `tablesOp:${dbId}.${dbName}`;
-    state.activeName = key;
-
-    let tab = state.tabs.get(key);
-    if (tab) {
+    const key = `tablesOp:${dbId}.${dbName}`;
+    if (activateTab(key)) {
         return;
     }
-    tab = new TabInfo();
+    const tab = new TabInfo();
     tab.key = key;
     tab.label = `${t('db.tableOp')}-${dbName}`;
     tab.treeNodeKey = db.nodeKey ?? '';
@@ -433,54 +408,34 @@ const addTablesOpTab = async (db: DbTreeNodeData) => {
         db: dbName,
         type: db.type ?? '',
     };
-    state.tabs.set(key, tab);
+    addTab(tab);
 };
 
 const onRemoveTab = (targetName: string) => {
-    let activeName = state.activeName;
-    const tabNames = [...state.tabs.keys()];
-    for (let i = 0; i < tabNames.length; i++) {
-        const tabName = tabNames[i];
-        if (tabName !== targetName) {
-            continue;
-        }
-
-        state.tabs.delete(targetName);
-        if (activeName != targetName) {
-            break;
-        }
-
-        // 如果删除的tab是当前激活的tab，则切换到前一个或后一个tab
-        const nextTab = tabNames[i + 1] || tabNames[i - 1];
-        if (nextTab) {
-            activeName = nextTab;
-        } else {
-            activeName = '';
-        }
-        state.activeName = activeName;
+    // 只有关闭的是当前激活tab时才会切换激活项，此时才需要补做切换副作用
+    if (closeTab(targetName)) {
         onTabChange();
-        break;
     }
 };
 
 const onTabChange = () => {
-    if (!state.activeName) {
+    const nowTab = activeTab.value;
+    if (!nowTab) {
         state.nowDbInst = {} as DbInst;
         state.db = '';
         return;
     }
 
-    const nowTab = state.tabs.get(state.activeName);
-    state.nowDbInst = DbInst.getInst(nowTab?.dbId);
-    state.db = nowTab?.db as string;
+    state.nowDbInst = nowTab.getNowDbInst();
+    state.db = nowTab.db;
 
-    if (nowTab?.type == TabType.Query) {
+    if (nowTab.type == TabType.Query) {
         // 注册sql提示
-        registerDbCompletionItemProvider(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
+        sqlCompletion.register(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
     }
 
     // 激活当前tab（需要调用DbTableData组件的active，否则表头与数据会出现错位，暂不知为啥，先这样处理）
-    nowTab?.componentRef?.active?.();
+    nowTab.componentRef?.active?.();
 
     if (dbConfig.value.locationTreeNode) {
         locationNowTreeNode(nowTab);
@@ -500,7 +455,7 @@ const onTabContextmenu = (v: unknown, e: MouseEvent) => {
  */
 const locationNowTreeNode = (nowTab: TabInfo | null = null) => {
     if (!nowTab) {
-        nowTab = state.tabs.get(state.activeName) ?? null;
+        nowTab = activeTab.value ?? null;
     }
     // 定位事件：容器负责展开祖先并滚动选中（目标未水合时由容器水合后重试）
     const key = nowTab?.treeNodeKey ?? '';
@@ -535,13 +490,80 @@ const reloadNode = (nodeKey: string) => {
 
 const onEditTable = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, tableComment, type, parentKey, key, version } = data.params;
-    // data.label就是表名
     if (tableName) {
         state.tableCreateDialog.title = useI18nEditTitle('db.table');
-        let indexs = await dbApi.tableIndex.request({ id, db, tableName });
-        let columns = await dbApi.columnMetadata.request({ id, db, tableName });
-        let row = { tableName, tableComment };
-        state.tableCreateDialog.data = { edit: true, row, indexs, columns };
+        let [indexs, columns] = await Promise.all([
+            dbApi.tableIndex.request({ id, db, tableName }),
+            dbApi.columnMetadata.request({ id, db, tableName }),
+        ]);
+
+        // 预处理：在抽屉打开前完成数据转换，避免 watch(visible) 阻塞打开动画
+        const fieldsRes: RowDefinition[] = [];
+        const fieldsOld: RowDefinition[] = [];
+        const indexColumns: { name: string; remark: string }[] = [];
+        const indexsRes: IndexDefinition[] = [];
+        const indexsOld: IndexDefinition[] = [];
+
+        if (columns && Array.isArray(columns) && columns.length > 0) {
+            columns.forEach((a) => {
+                let defaultValue = '';
+                if (a.columnDefault) {
+                    defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
+                    defaultValue = defaultValue.replace("'::character varying", '');
+                }
+                let field: RowDefinition = {
+                    name: a.columnName,
+                    oldName: a.columnName,
+                    type: a.dataType,
+                    value: defaultValue,
+                    length: a.showLength ?? '',
+                    numScale: a.showScale ?? '',
+                    notNull: !a.nullable,
+                    pri: a.isPrimaryKey ?? false,
+                    auto_increment: a.autoIncrement ?? false,
+                    remark: a.columnComment ?? '',
+                };
+                fieldsRes.push(field);
+                fieldsOld.push(structuredClone(field));
+                indexColumns.push({ name: a.columnName, remark: a.columnComment ?? '' });
+            });
+        }
+
+        if (indexs && Array.isArray(indexs) && indexs.length > 0) {
+            indexs
+                .filter((a) => (a as any).indexName !== 'PRIMARY')
+                .forEach((a) => {
+                    const idx = a as any;
+                    let index: IndexDefinition = {
+                        indexName: idx.indexName,
+                        columnNames: idx.columnName?.split(',') ?? [],
+                        unique: idx.isUnique || false,
+                        indexType: idx.indexType,
+                        indexComment: idx.indexComment,
+                    };
+                    indexsRes.push(index);
+                    indexsOld.push(structuredClone(index));
+                });
+        }
+
+        DbInst.initColumns(columns ?? []);
+
+        const row = { tableName, tableComment };
+        state.tableCreateDialog.data = {
+            edit: true,
+            row,
+            indexs,
+            columns,
+            formData: {
+                tableName,
+                tableComment: tableComment ?? '',
+                oldTableName: tableName,
+                oldTableComment: tableComment ?? '',
+                db,
+                fields: { res: fieldsRes, oldFields: fieldsOld },
+                indexs: { res: indexsRes, oldIndexs: indexsOld, columns: indexColumns },
+            },
+        };
         state.tableCreateDialog.parentKey = parentKey ?? '';
     } else {
         state.tableCreateDialog.title = useI18nCreateTitle('db.table');
@@ -558,14 +580,13 @@ const onEditTable = async (data: TreeNodeCallbackData) => {
 };
 
 const onDeleteTable = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, parentKey, schema } = data.params;
+    let { db, id, tableName, parentKey, type } = data.params;
     await useI18nDeleteConfirm(tableName);
 
-    // 执行sql
-    let dialect = getDbDialect(state.nowDbInst.type);
-    let schemaStr = schema ? `${dialect.quoteIdentifier(schema)}.` : '';
+    // 删表 DDL 由方言生成：是否带 schema 限定属方言知识，容器不再自行拼接
+    const sql = getDbDialect(type).getDropTableSql(db, tableName ?? '');
 
-    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName ?? '')}` }).then((res) => {
+    dbApi.sqlExec.request({ id, db, sql }).then((res) => {
         let success = true;
         for (let re of res) {
             if (re.errorMsg) {
@@ -586,13 +607,20 @@ const onGenDdl = async (data: TreeNodeCallbackData) => {
     let { db, id, tableName, type } = data.params;
     state.chooseTableName = tableName ?? '';
     let res = await dbApi.tableDdl.request({ id, db, tableName });
-    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(type).getInfo().formatSqlDialect as SqlLanguage });
+    state.ddlDialog.ddl = await formatSql(res, getDbDialect(type).getInfo().formatSqlDialect);
     state.ddlDialog.visible = true;
 };
 
 const onRenameTable = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, parentKey } = data.params;
-    let tableData = { db, oldTableName: tableName, tableName };
+    let { db, id, tableName, tableComment, parentKey } = data.params;
+    // 此处只改名不改结构，故新旧注释保持一致，方言的「注释变更」分支自然不会触发
+    let tableData: TableInfoEditContext = {
+        db,
+        oldTableName: tableName ?? '',
+        tableName: tableName ?? '',
+        oldTableComment: tableComment ?? '',
+        tableComment: tableComment ?? '',
+    };
 
     let value = ref(tableName ?? '');
     // 弹出确认框
@@ -613,7 +641,7 @@ const onRenameTable = async (data: TreeNodeCallbackData) => {
         sql: sql,
         dbId: id as number,
         db: db as string,
-        dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
+        formatDialect: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
         runSuccessCallback: () => {
             setTimeout(() => {
                 parentKey && reloadNode(parentKey);
@@ -690,7 +718,7 @@ const loadTables = async (dbInfo: DbInstInfo & { db?: string }) => {
 };
 
 const onRefresh = () => {
-    state.tabs.clear();
+    clearTabs();
 };
 
 defineExpose({

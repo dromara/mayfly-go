@@ -207,6 +207,8 @@ const onViewIndexData = async (idxName: string) => {
     esIndexDataRef.value?.selectIndex(idxName);
 };
 
+defineExpose({ onViewIndexData });
+
 const state = reactive({
     tabName: 'idxManage',
     instInfo: [] as EsNameValue[],

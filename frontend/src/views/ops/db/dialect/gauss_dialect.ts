@@ -1,8 +1,16 @@
-import { PostgresqlDialect } from '@/views/ops/db/dialect/postgres_dialect';
-import { DialectInfo, DuplicateStrategy } from '@/views/ops/db/dialect/index';
+import { DbType } from './dbType';
+import { registerDbDialect } from './registry';
+import { DuplicateStrategy } from './types';
+import type { DialectInfo } from './types';
+import { PostgresqlDialect } from './postgres_dialect';
 
 let gsDialectInfo: DialectInfo;
-export class GaussDialect extends PostgresqlDialect {
+
+/**
+ * GaussDB 方言：兼容 PostgreSQL 语法，能力声明与 DDL 生成均继承 PostgresqlDialect。
+ * 差异仅在元信息（名称/图标）与批量插入的冲突处理语法。
+ */
+class GaussDialect extends PostgresqlDialect {
     getInfo(): DialectInfo {
         if (gsDialectInfo) {
             return gsDialectInfo;
@@ -28,3 +36,5 @@ export class GaussDialect extends PostgresqlDialect {
         return `INSERT INTO ${tableName} (${fieldArr.join(',')}) VALUES (${placeholder}) ${suffix};`;
     }
 }
+
+registerDbDialect(DbType.gauss, new GaussDialect());

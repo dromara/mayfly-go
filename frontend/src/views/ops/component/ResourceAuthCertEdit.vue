@@ -1,6 +1,6 @@
 <template>
     <div class="auth-cert-edit">
-        <el-dialog :title="props.title" v-model="dialogVisible" :show-close="false" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-dialog :title="props.title" v-model="dialogVisible" :show-close="false" width="600px" :destroy-on-close="true" :close-on-click-modal="false" append-to-body>
             <auto-form ref="acFormRef" v-model="form" :items="items">
                 <!-- 密文输入（密码 / 私钥两种形态，含查看密文入口） -->
                 <template #ciphertext>

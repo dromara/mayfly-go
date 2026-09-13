@@ -77,7 +77,12 @@ export function getClientId(): string {
 // 设置永久缓存
 export function setLocal(key: string, val: unknown) {
     const strVal = typeof val == 'object' ? JSON.stringify(val) : String(val ?? '');
-    window.localStorage.setItem(key, strVal);
+    try {
+        window.localStorage.setItem(key, strVal);
+    } catch (e) {
+        // 配额超限(如大体积壁纸 base64)时仅告警, 不中断 UI 生效链路; 表现为该键维持旧值
+        console.warn(`setLocal failed for key: ${key}`, e);
+    }
 }
 
 // 获取永久缓存

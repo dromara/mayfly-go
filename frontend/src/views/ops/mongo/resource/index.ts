@@ -80,6 +80,7 @@ registerContributor({
     resourceType: TagResourceTypeEnum.Mongo.value,
     hasChildren: true,
     renderer: NodeMongo,
+    locateCode: (node) => node.params.code as string,
     loadRoots: async (groupNode) => {
         const res = await mongoApi.mongoList.request({ tagPath: groupNode.params?.tagPath } as any);
         if (!res.total) {

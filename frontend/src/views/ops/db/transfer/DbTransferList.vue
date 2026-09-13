@@ -79,7 +79,7 @@
             </template>
         </page-table>
 
-        <db-transfer-edit @val-change="search" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
+        <db-transfer-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
         <db-transfer-file :title="filesDialog.title" v-model:visible="filesDialog.visible" v-model:data="filesDialog.data" />
 
         <!-- 日志执行结束（迁移完成/失败/停止）后刷新列表运行状态 -->

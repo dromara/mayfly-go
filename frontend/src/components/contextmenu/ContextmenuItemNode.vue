@@ -1,7 +1,6 @@
 <template>
     <template v-for="item in items" :key="String(item.clickId)">
         <template v-if="!item.affix && !item.isHide(payload)">
-            <!-- 子菜单（递归渲染，支持任意层级） -->
             <!-- 子菜单（递归渲染，支持任意层级）；权限指令放在有真实元素根的 SubTrigger 上（Sub 根节点是 fragment，指令不生效） -->
             <ContextMenuSub v-if="hasVisibleChildren(item)">
                 <ContextMenuSubTrigger v-auth="item.permission">
@@ -26,6 +25,7 @@
 import { ContextMenuItem, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from '@/components/ui/context-menu';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { ContextmenuItem } from './item';
+import { MENU_CLOSE_ANIMATION_MS } from './constants';
 
 const props = defineProps<{
     /** 同级菜单项列表 */
@@ -42,8 +42,12 @@ const hasVisibleChildren = (item: ContextmenuItem): boolean => (item.children ??
 const visibleChildren = (item: ContextmenuItem): ContextmenuItem[] => (item.children ?? []).filter((child) => !child.affix && !child.isHide(props.payload));
 
 const onSelect = (item: ContextmenuItem) => {
-    item.onClickFunc?.(props.payload);
     emit('select', item);
+    // 先让 reka-ui 完成关闭（其 handleSelect 内部 await nextTick() 后才 onClose），再执行 handler，
+    // 避免二者争抢主线程：handler 常涉及 tab 创建、异步组件挂载等重操作，在关闭动画期间执行
+    // 会阻塞主线程导致动画冻结（表现为菜单卡顿不消失）
+    const payload = props.payload;
+    setTimeout(() => item.onClickFunc?.(payload), MENU_CLOSE_ANIMATION_MS);
 };
 
 /** 子节点冒泡的选中事件：onClickFunc 已由子节点执行，这里只继续向上透传（否则每层递归都会重复执行一次） */

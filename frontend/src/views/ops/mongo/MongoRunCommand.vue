@@ -180,7 +180,13 @@ const changeCmd = (val: string) => {
 
 const onRunCommand = async () => {
     const orderCmds: Record<string, unknown>[] = [];
-    const cmdObj = JSON.parse(state.runCmdDialog.cmd);
+    let cmdObj: Record<string, unknown>;
+    try {
+        cmdObj = JSON.parse(state.runCmdDialog.cmd);
+    } catch {
+        Msg.error('mongo.cmdJsonParseFail');
+        return;
+    }
 
     for (let item of Object.keys(cmdObj)) {
         let obj: Record<string, unknown> = {};

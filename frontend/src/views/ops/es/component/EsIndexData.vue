@@ -50,77 +50,72 @@
         />
 
         <div class="es-table-data flex-1 min-h-0">
-            <el-auto-resizer>
-                <template #default="{ height, width }">
-                    <el-table-v2
-                        ref="tableRef"
-                        :row-height="state.rowHeight"
-                        :columns="state.columns"
-                        :data="state.datas"
-                        :width="width"
-                        :height="height"
-                        fixed
-                        :header-height="22"
-                        class="es-table"
-                        :row-class="({ rowIndex }: { rowIndex: number }) => (state.datas[rowIndex]?._selected ? 'es-row-selected' : '')"
-                        :row-event-handlers="rowEventHandlers"
+            <VirtualTable
+                :data="state.datas"
+                :columns="(state.columns as any)"
+                :loading="state.loading"
+                :row-height="state.rowHeight"
+            >
+                <!-- ES 特有的列头渲染 -->
+                <template #header="{ columns: headerColumns }">
+                    <div
+                        v-for="(column, i) in headerColumns"
+                        :key="i"
+                        :style="{
+                            width: `${column.width}px`,
+                            textAlign: 'center',
+                            borderRight: 'var(--el-table-border)',
+                        }"
                     >
-                        <template #header="{ columns }">
-                            <div
-                                v-for="(column, i) in columns"
-                                :key="i"
-                                :style="{
-                                    width: `${column.width}px`,
-                                    textAlign: 'center',
-                                    borderRight: 'var(--el-table-border)',
-                                }"
-                            >
-                                <el-checkbox
-                                    :style="{ height: '100%' }"
-                                    v-if="column.key === '_selected'"
-                                    v-model="state.selectAll"
-                                    @change="onSelectAll"
-                                    :indeterminate="state.selectKeys.length > 0 && !state.selectAll"
-                                />
-                                <b v-else> {{ column.title }} </b>
-                            </div>
-                        </template>
-
-                        <template #cell="{ rowData, column, rowIndex, columnIndex }">
-                            <div v-if="column.key === '_table_index'" class="table-data-cell">
-                                <span class="el-text el-text--small is-truncated">
-                                    {{ rowIndex + 1 + state.currentFrom }}
-                                </span>
-                            </div>
-                            <div v-if="column.key === '_selected'" class="table-data-cell">
-                                <span class="el-text el-text--small is-truncated">
-                                    <el-checkbox v-model="rowData._selected" @change="onSelectRow(rowData)" />
-                                </span>
-                            </div>
-                            <div v-else @contextmenu="dataContextmenuClick($event, rowIndex, column, rowData)" class="table-data-cell">
-                                <span v-if="rowData[column.dataKey] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
-                                <span v-else :title="rowData[column.dataKey]" class="el-text el-text--small is-truncated">
-                                    {{ rowData[column.dataKey] }}
-                                </span>
-                            </div>
-                        </template>
-
-                        <template v-if="state.loading" #overlay>
-                            <div class="el-loading-mask flex flex-col items-center justify-center">
-                                <div>
-                                    <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
-                                    <el-text class="ml-1" tag="b">{{ t('db.execTime') }} - {{ state.execTime?.toFixed(1) || 0 }}s</el-text>
-                                </div>
-                                <div v-if="state.loading && state.abortSearch" class="mt-2!">
-                                    <el-button @click="state.abortSearch" type="info" size="small" plain>{{ t('common.cancel') }}</el-button>
-                                </div>
-                            </div>
-                        </template>
-                    </el-table-v2>
+                        <el-checkbox
+                            :style="{ height: '100%' }"
+                            v-if="column.key === '_selected'"
+                            v-model="state.selectAll"
+                            @change="onSelectAll"
+                            :indeterminate="state.selectKeys.length > 0 && !state.selectAll"
+                        />
+                        <b v-else> {{ column.title }} </b>
+                    </div>
                 </template>
-            </el-auto-resizer>
-        </div>
 
+                <!-- ES 特有的单元格渲染 -->
+                <template #cell="{ rowData, column, rowIndex }">
+                    <!-- 空数据占位行：显示 empty 提示 -->
+                    <div v-if="rowData.__vt_empty_spacer__ && column.key === '_table_index'" style="grid-column: 1 / -1; width: 100%">
+                        <el-empty :description="t('common.empty')" :image-size="40" />
+                    </div>
+                    <div v-else-if="column.key === '_table_index'" class="table-data-cell">
+                        <span class="el-text el-text--small is-truncated">
+                            {{ rowIndex + 1 + state.currentFrom }}
+                        </span>
+                    </div>
+                    <div v-else-if="column.key === '_selected'" class="table-data-cell">
+                        <span class="el-text el-text--small is-truncated">
+                            <el-checkbox v-model="rowData._selected" @change="onSelectRow(rowData as EsDoc)" />
+                        </span>
+                    </div>
+                    <div v-else @contextmenu="dataContextmenuClick($event, rowIndex, column as EsColumn, rowData as EsDoc)" class="table-data-cell">
+                        <span v-if="rowData[(column as EsColumn).dataKey || column.key] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
+                        <span v-else :title="String(rowData[(column as EsColumn).dataKey || column.key])" class="el-text el-text--small is-truncated">
+                            {{ rowData[(column as EsColumn).dataKey || column.key] }}
+                        </span>
+                    </div>
+                </template>
+
+                <!-- 加载覆盖层 -->
+                <template #overlay>
+                    <div class="el-loading-mask flex flex-col items-center justify-center">
+                        <div>
+                            <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
+                            <el-text v-if="state.execTime" class="ml-1" tag="b">{{ t('db.execTime') }} - {{ state.execTime.toFixed(1) }}s</el-text>
+                        </div>
+                        <div v-if="state.abortSearch" class="mt-2!">
+                            <el-button @click="state.abortSearch()" type="info" size="small" plain>{{ t('common.cancel') }}</el-button>
+                        </div>
+                    </div>
+                </template>
+            </VirtualTable>
+        </div>
         <es-search :instId="instId" :idxName="currentIdxName" :fields="state.fields" v-model:visible="state.searchDialogVisible" @search="onEsSearch" />
 
         <Contextmenu :dropdown="contextmenu.dropdown" :items="contextmenu.items" ref="contextmenuRef" />
@@ -199,6 +194,7 @@
 <script lang="tsx" setup>
 import { copyToClipboard } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
+import { VirtualTable } from '@/components/virtual-table';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { useI18nDeleteConfirm } from '@/hooks/useI18n';
 import type { EsColumn, EsDoc } from '@/views/ops/es/types';
@@ -262,7 +258,6 @@ const { docEditDialog, exportDialog, hasCustomQuery, onAddDoc, onEditDoc, onEdit
 const contextmenu = reactive({ items: [] as ContextmenuItem[], dropdown: { x: 0, y: 0 } });
 
 const contextmenuRef = ref();
-const tableRef = ref();
 
 // ---- Context menu ----
 
@@ -347,6 +342,7 @@ defineExpose({
 
 .es-table-data {
     overflow: hidden;
+    height: 100%;
 
     .es-table {
         border-left: var(--el-table-border);

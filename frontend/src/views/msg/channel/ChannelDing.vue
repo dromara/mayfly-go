@@ -7,6 +7,6 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 
-const extra = defineModel<any>('extra', { default: {} });
+const extra = defineModel<any>('extra', { default: () => ({}) });
 </script>
 <style lang="scss"></style>

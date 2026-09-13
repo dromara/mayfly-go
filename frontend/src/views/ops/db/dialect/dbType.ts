@@ -1,11 +1,11 @@
 /**
  * 数据库类型常量（纯常量，零依赖）。
  *
- * 独立成文件的原因：dialect/index.ts 会加载全部方言实现并形成模块循环
- * （dialect → db → completion → dialect），任何模块若在模块体执行期直接
- * 引用 dialect/index 的运行时值（如 quoter.ts 的方言引用符表），会因
- * TDZ 报 `Cannot access 'DbType' before initialization`。
- * 需要在模块顶层使用 DbType 的模块，应从本文件导入而非 dialect/index。
+ * 独立成文件的原因：本常量被全部方言文件在模块体执行期（自注册）引用，
+ * 必须与 registry.ts、types.ts 同属方言层的「零依赖内核」，才能支撑
+ * index.ts 用 import.meta.glob 加载全部方言而不形成模块循环。
+ * 历史上它与聚合出口同文件，曾导致
+ * `Cannot access 'DbType' before initialization` 的 TDZ 运行时报错。
  */
 export const DbType = {
     mysql: 'mysql',

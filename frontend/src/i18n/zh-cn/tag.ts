@@ -17,7 +17,7 @@ export default {
         tag: '标签',
         code: '编号',
         createSubTag: '创建子标签',
-        createSubTagTitle: '创建【{codePath}】的子标签',
+        createSubTagTitle: '创建【{namePath}】的子标签',
         rootTag: '根标签',
         selectTagPlaceholder: '请选择关联标签',
         machineOp: '机器操作',

@@ -8,13 +8,13 @@
             :search-items="searchItems"
             v-model:query-form="params"
             :show-selection="true"
-            v-model:selection-data="state.selectionData"
+            v-model:selection-data="selectionData"
             :columns="columns"
             :lazy="true"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>{{ $t('common.create') }} </el-button>
-                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete" plain>
+                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }} </el-button>
+                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="onDelete" type="danger" icon="delete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -76,14 +76,14 @@
             <template #status="{ data }">
                 <el-switch
                     v-auth:disabled="'machine:update'"
-                    v-model="data.status"
+                    :model-value="data.status === 1 ? 1 : -1"
                     :active-value="1"
                     :inactive-value="-1"
                     inline-prompt
                     :active-text="$t('common.enable')"
                     :inactive-text="$t('common.disable')"
                     style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
-                    @change="changeStatus(data)"
+                    @change="(val: 1 | -1) => changeStatus(data, val)"
                 ></el-switch>
             </template>
 
@@ -209,10 +209,10 @@
         </terminal-dialog>
 
         <machine-edit
-            :title="$t(machineEditDialog.title)"
-            v-model:visible="machineEditDialog.visible"
-            v-model:machine="machineEditDialog.data"
-            @valChange="submitSuccess"
+            :title="editDialog.title"
+            v-model:visible="editDialog.visible"
+            v-model:data="editDialog.data"
+            @val-change="search()"
         ></machine-edit>
 
         <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
@@ -268,9 +268,10 @@ import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, toRefs, useTemplateRef } from 'vue';
+import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
+import { defineAsyncComponent, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import TagCodePath from '../component/TagCodePath.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { MachineProtocolEnum } from './enums';
@@ -300,9 +301,10 @@ const props = defineProps({
 });
 
 const router = useRouter();
-const route = useRoute();
 const terminalDialogRef = useTemplateRef<InstanceType<typeof TerminalDialog>>('terminalDialogRef');
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const checkRouteTagPath = useRouteTagPath();
+const { editDialog, editEntity } = useEditDialog<MachineVO>('machine');
 
 const perms = {
     addMachine: 'machine:add',
@@ -328,116 +330,97 @@ const columns = [
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
 const actionBtns: Record<string, boolean> = hasPerms([perms.updateMachine]);
 
-const state = reactive({
-    params: {
-        pageNum: 1,
-        pageSize: 0,
-        ip: null,
-        name: null,
-        tagPath: '',
-    },
-    infoDialog: {
-        visible: false,
-        data: null as MachineVO | null,
-    },
-    // 当前选中数据
-    selectionData: [],
-    serviceDialog: {
-        visible: false,
-        machineId: 0,
-        authCertName: '',
-        title: '',
-    },
-    processDialog: {
-        visible: false,
-        machineId: 0,
-    },
-    fileDialog: {
-        visible: false,
-        machineId: 0,
-        authCertName: '',
-        title: '',
-    },
-    filesystemDialog: {
-        visible: false,
-        machineId: 0,
-        protocol: 1,
-        title: '',
-        fileId: 0,
-        authCertName: '',
-        path: '',
-    },
-    machineStatsDialog: {
-        visible: false,
-        stats: null,
-        title: '',
-        machineId: 0,
-    },
-    machineEditDialog: {
-        visible: false,
-        data: null as MachineVO | null,
-        title: '',
-    },
-    machineRecDialog: {
-        visible: false,
-        machineId: 0,
-        title: '',
-    },
-    machineRdpDialog: {
-        visible: false,
-        machineId: 0,
-        title: '',
-        authCert: '',
-    },
+const params = ref({
+    pageNum: 1,
+    pageSize: 0,
+    ip: null,
+    name: null,
+    tagPath: '',
 });
 
-const {
-    params,
-    infoDialog,
-    selectionData,
-    serviceDialog,
-    processDialog,
-    fileDialog,
-    machineStatsDialog,
-    machineEditDialog,
-    machineRecDialog,
-    machineRdpDialog,
-    filesystemDialog,
-} = toRefs(state);
+const selectionData = ref<MachineVO[]>([]);
 
-onMounted(async () => {
-    if (!props.lazy) {
-        search();
-    }
+// --- 详情弹窗 ---
+const infoDialog = ref({
+    visible: false,
+    data: null as MachineVO | null,
 });
 
-const checkRouteTagPath = (query: Record<string, unknown>) => {
-    if (route.query.tagPath) {
-        query.tagPath = route.query.tagPath as string;
-    }
-    return query;
-};
+// --- 其他弹窗 ---
+const serviceDialog = ref({
+    visible: false,
+    machineId: 0,
+    authCertName: '',
+    title: '',
+});
 
+const processDialog = ref({
+    visible: false,
+    machineId: 0,
+});
+
+const fileDialog = ref({
+    visible: false,
+    machineId: 0,
+    authCertName: '',
+    title: '',
+});
+
+const filesystemDialog = ref({
+    visible: false,
+    machineId: 0,
+    protocol: 1,
+    title: '',
+    fileId: 0,
+    authCertName: '',
+    path: '',
+});
+
+const machineStatsDialog = ref({
+    visible: false,
+    stats: null,
+    title: '',
+    machineId: 0,
+});
+
+const machineRecDialog = ref({
+    visible: false,
+    machineId: 0,
+    title: '',
+});
+
+const machineRdpDialog = ref({
+    visible: false,
+    machineId: 0,
+    title: '',
+    authCert: '',
+});
+
+// --- 数据操作 ---
 const handleData = (res: PageResult<MachineVO>) => {
     const dataList = res.list;
-    // 赋值授权凭证
     for (let x of dataList) {
         x.selectAuthCert = x.authCerts[0];
+        // el-switch 要求 model-value 必须为 active-value 或 inactive-value，
+        // 后端返回 null/undefined/其他值时强制归一为 inactive(-1)
+        if (x.status !== 1 && x.status !== -1) {
+            x.status = -1;
+        }
     }
     return res;
 };
 
 interface DropdownCommand { type: string; data: MachineVO; }
-const handleCommand = (commond: DropdownCommand) => {
-    const data = commond.data;
-    const type = commond.type;
+const handleCommand = (command: DropdownCommand) => {
+    const data = command.data;
+    const type = command.type;
     switch (type) {
         case 'detail': {
             showInfo(data);
             return;
         }
         case 'edit': {
-            openFormDialog(data);
+            editEntity(data);
             return;
         }
         case 'process': {
@@ -461,14 +444,10 @@ const handleCommand = (commond: DropdownCommand) => {
 
 const showTerminal = (row: MachineVO, event: PointerEvent) => {
     const ac = row.selectAuthCert?.name || '';
-    // 按住ctrl点击，则新建标签页打开, metaKey对应mac command键
     if (event.ctrlKey || event.metaKey) {
         const { href } = router.resolve({
             path: `/machine/terminal`,
-            query: {
-                ac,
-                name: row.name,
-            },
+            query: { ac, name: row.name },
         });
         window.open(href, '_blank');
         return;
@@ -478,7 +457,7 @@ const showTerminal = (row: MachineVO, event: PointerEvent) => {
     terminalDialogRef.value?.open({
         terminalId,
         socketUrl: getMachineTerminalSocketUrl(ac),
-        minTitle: `${row.name} [${(terminalId + '').slice(-2)}]`, // 截取terminalId最后两位区分多个terminal
+        minTitle: `${row.name} [${(terminalId + '').slice(-2)}]`,
         minDesc: `${row.selectAuthCert?.username || ''}@${row.ip}:${row.port} (${row.name})`,
         meta: row as unknown as TerminalMeta,
     });
@@ -487,132 +466,106 @@ const showTerminal = (row: MachineVO, event: PointerEvent) => {
 /** 将终端插槽透传的 meta 还原为 MachineVO */
 const terminalMeta = (terminalInfo: { meta?: unknown }): MachineVO => terminalInfo.meta as MachineVO;
 
-const openFormDialog = async (machine: MachineVO | false) => {
-    let dialogTitle;
-    if (machine) {
-        state.machineEditDialog.data = machine;
-        dialogTitle = 'machine.editMachine';
-    } else {
-        state.machineEditDialog.data = null;
-        dialogTitle = 'machine.createMachine';
-    }
-
-    state.machineEditDialog.title = dialogTitle;
-    state.machineEditDialog.visible = true;
-};
-
-const deleteMachine = async () => {
+const onDelete = async () => {
+    const records = selectionData.value || [];
+    if (records.length === 0) return;
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: MachineVO) => x.name).join('、'));
-        await machineApi.del.request({ id: state.selectionData.map((x: MachineVO) => x.id).join(',') });
-        Msg.deleteSuccess();
-        search();
-    } catch (err) {
-        //
+        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
+    } catch {
+        return; // 用户取消
     }
+    await machineApi.del.request({ id: records.map((x) => x.id).join(',') });
+    Msg.deleteSuccess();
+    search();
 };
 
 const serviceManager = (row: MachineVO) => {
     const authCert = row.selectAuthCert;
-    state.serviceDialog.machineId = row.id;
-    state.serviceDialog.authCertName = authCert?.name || '';
-    state.serviceDialog.visible = true;
-    state.serviceDialog.title = `${row.name} => ${authCert?.username || ''}@${row.ip}`;
+    serviceDialog.value.machineId = row.id;
+    serviceDialog.value.authCertName = authCert?.name || '';
+    serviceDialog.value.visible = true;
+    serviceDialog.value.title = `${row.name} => ${authCert?.username || ''}@${row.ip}`;
 };
 
-/**
- * 调整机器状态
- */
-const changeStatus = async (row: MachineVO) => {
-    if (!row.id) {
-        return;
+const changeStatus = async (row: MachineVO, status: 1 | -1) => {
+    if (!row.id) return;
+    // 乐观更新本地状态，保证 el-switch 显示与用户操作同步（el-switch 使用 :model-value 单向绑定，需要显式回写）
+    const prev = row.status;
+    row.status = status;
+    try {
+        await machineApi.changeStatus.request({ id: row.id, status });
+    } catch (err) {
+        // 失败回滚，避免 UI 与后端不一致
+        row.status = prev;
+        throw err;
     }
-    await machineApi.changeStatus.request({ id: row.id, status: row.status });
 };
 
-/**
- * 显示机器状态统计信息
- */
 const showMachineStats = async (machine: MachineVO) => {
-    state.machineStatsDialog.machineId = machine.id;
-    state.machineStatsDialog.title = `${t('machine.machineState')}: ${machine.name} => ${machine.ip}`;
-    state.machineStatsDialog.visible = true;
+    machineStatsDialog.value.machineId = machine.id;
+    machineStatsDialog.value.title = `${t('machine.machineState')}: ${machine.name} => ${machine.ip}`;
+    machineStatsDialog.value.visible = true;
 };
 
-const search = async (tagPath: string = '') => {
-    if (tagPath) {
-        state.params.tagPath = tagPath;
-    }
+const search = (tagPath?: string) => {
+    // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
+    params.value.tagPath = tagPath ?? '';
     pageTableRef.value?.search();
-};
-
-const submitSuccess = () => {
-    search();
 };
 
 const showFileManage = (data: MachineVO) => {
     if (data.protocol === MachineProtocolEnum.Ssh.value) {
-        // ssh
-        state.fileDialog.visible = true;
-        state.fileDialog.machineId = data.id;
-        state.fileDialog.authCertName = data.selectAuthCert?.name || '';
-        state.fileDialog.title = `${data.name} => ${data.selectAuthCert?.username || ''}@${data.ip}`;
+        fileDialog.value.visible = true;
+        fileDialog.value.machineId = data.id;
+        fileDialog.value.authCertName = data.selectAuthCert?.name || '';
+        fileDialog.value.title = `${data.name} => ${data.selectAuthCert?.username || ''}@${data.ip}`;
     } else if (data.protocol === MachineProtocolEnum.Rdp.value) {
-        // rdp
-        state.filesystemDialog.protocol = 2;
-        state.filesystemDialog.machineId = data.id;
-        state.filesystemDialog.fileId = data.id;
-        state.filesystemDialog.authCertName = data.selectAuthCert?.name || '';
-        state.filesystemDialog.path = '/';
-        state.filesystemDialog.title = `${data.name} => ${data.selectAuthCert?.username || ''}@${t('machine.remoteFileDesktopManage')}`;
-        state.filesystemDialog.visible = true;
+        filesystemDialog.value.protocol = 2;
+        filesystemDialog.value.machineId = data.id;
+        filesystemDialog.value.fileId = data.id;
+        filesystemDialog.value.authCertName = data.selectAuthCert?.name || '';
+        filesystemDialog.value.path = '/';
+        filesystemDialog.value.title = `${data.name} => ${data.selectAuthCert?.username || ''}@${t('machine.remoteFileDesktopManage')}`;
+        filesystemDialog.value.visible = true;
     }
 };
 
 const getStatsFontClass = (availavle: number, total: number) => {
     const p = availavle / total;
-    if (p < 0.1) {
-        return 'color-danger';
-    }
-    if (p < 0.2) {
-        return 'color-warning';
-    }
-
+    if (p < 0.1) return 'color-danger';
+    if (p < 0.2) return 'color-warning';
     return 'color-success';
 };
 
 const showInfo = (info: MachineVO) => {
-    state.infoDialog.data = info;
-    state.infoDialog.visible = true;
+    infoDialog.value.data = info;
+    infoDialog.value.visible = true;
 };
 
 const showProcess = (row: MachineVO) => {
-    state.processDialog.machineId = row.id;
-    state.processDialog.visible = true;
+    processDialog.value.machineId = row.id;
+    processDialog.value.visible = true;
 };
 
 const showRec = (row: MachineVO) => {
-    state.machineRecDialog.title = `${row.name}[${row.ip}]-${t('machine.terminalPlayback')}`;
-    state.machineRecDialog.machineId = row.id;
-    state.machineRecDialog.visible = true;
+    machineRecDialog.value.title = `${row.name}[${row.ip}]-${t('machine.terminalPlayback')}`;
+    machineRecDialog.value.machineId = row.id;
+    machineRecDialog.value.visible = true;
 };
 
 const showRDP = (row: MachineVO, blank = false) => {
     if (blank) {
         const { href } = router.resolve({
             path: `/machine/terminal-rdp`,
-            query: {
-                ac: row.selectAuthCert?.name || '',
-                name: row.name,
-            },
+            query: { ac: row.selectAuthCert?.name || '', name: row.name },
         });
         window.open(href, '_blank');
         return;
     }
-    state.machineRdpDialog.title = `${row.name}[${row.ip}]-${t('machine.remoteDesktop')}`;
-    state.machineRdpDialog.machineId = row.id;
-    state.machineRdpDialog.authCert = row.selectAuthCert?.name || '';
-    state.machineRdpDialog.visible = true;
+    machineRdpDialog.value.title = `${row.name}[${row.ip}]-${t('machine.remoteDesktop')}`;
+    machineRdpDialog.value.machineId = row.id;
+    machineRdpDialog.value.authCert = row.selectAuthCert?.name || '';
+    machineRdpDialog.value.visible = true;
 };
 
 defineExpose({ search });

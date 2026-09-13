@@ -136,4 +136,24 @@ export default [
             'preserve-caught-error': 'off',
         },
     },
+    {
+        // monaco 运行时只能从装配入口引入：值导入 'monaco-editor' 命中的是包入口（注册 81 种语言 + 全部功能 + LSP），
+        // 会让每个用到编辑器的页面都下载整包；纯类型导入不产生运行时依赖，故放行。
+        // 子路径（'monaco-editor/editor/...'、'.../nls/...' 等）不受限，装配入口与 worker 需要。
+        files: ['src/**/*.{js,ts,tsx,vue}'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: [
+                        {
+                            name: 'monaco-editor',
+                            message: "monaco 运行时请从 '@/components/monaco/setup' 导入（该文件是编辑器装配入口），纯类型可用 import type",
+                            allowTypeImports: true,
+                        },
+                    ],
+                },
+            ],
+        },
+    },
 ];

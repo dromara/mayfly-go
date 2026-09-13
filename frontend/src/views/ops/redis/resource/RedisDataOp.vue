@@ -176,8 +176,6 @@ const props = defineProps<{
     redisInfo: Record<string, unknown>;
 }>();
 
-const emits = defineEmits(['init']);
-
 /** 新增 Key 表单声明 */
 const newKeyItems: AutoFormItem[] = [
     { prop: 'key', label: 'Key', required: true },

@@ -48,3 +48,14 @@ export {
 // ── 类型适配（UI 框架类型再导出，切换框架时仅本文件变动） ──
 
 export type { FormInstance, FormItemRule } from 'element-plus';
+
+// ── 栅格适配（公共契约 span 以 24 栅格为抽象单位，此处映射到具体框架栅格） ──
+
+/** 公共契约的栅格总单位数（抽象 24 栅格，与具体框架解耦） */
+export const GRID_UNITS = 24;
+
+/**
+ * 将公共契约的 24 栅格跨度映射为当前 UI 框架的栅格跨度。
+ * element-plus 本身即 24 栅格，故为恒等映射；切换非 24 栅格框架（如 12 栅格）时仅需修改本函数。
+ */
+export const toGridSpan = (span: number): number => span;

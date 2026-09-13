@@ -1,0 +1,124 @@
+/* Glass Backdrop System (背景图层系统)
+------------------------------- */
+
+// 玻璃模式的整页背景由 .app-backdrop 承载（渐变兜底 + 可选自定义背景图）。
+// 关键：body 不能再铺不透明背景。app.scss 给 html 设了 background-color，导致 body 背景不会传播到画布，
+// 于是 body(常规流, 层叠步骤3) 会绘制在 z-index:-1 的 .app-backdrop(负层级, 步骤2) 之上，
+// 把自定义背景图整个遮住 —— 正是"设置了背景图却没生效"的根因。
+body.glass-mode,
+html.dark body.glass-mode {
+    background: transparent !important;
+}
+
+// 全局透明：让背景渐变透到每一层
+body.glass-mode #app {
+    background: transparent !important;
+}
+
+body.glass-mode .layout-container {
+    background: transparent !important;
+}
+
+body.glass-mode .layout-main {
+    background: transparent !important;
+}
+
+// 光斑底色堆栈变量化: .app-backdrop 与首屏加载遮罩(.loading-next)共用同一源,
+// 保证加载页与挂载完成后的背景像素级一致(消除"先实色后玻璃"的两段跳)
+// 配方对齐 tokhub backdrop.css 实测值(其"舒服"的第一杠杆):
+// - 底色近白(foreground 3% + white): 亮场景压得住、文字稳
+// - 左上 55% 白扫光: 确立光源方向, 整屏提亮
+// - 光斑亮度全部取浅色区间(oklch L 0.72~0.83), 浓度 26%~52% 递减:
+//   淡色光斑给 blur 提供氛围而非"高饱和色块炸眼"
+:root {
+    --app-backdrop-spots:
+        linear-gradient(135deg, oklch(1 0 0 / 0.55), transparent 45%),
+        radial-gradient(ellipse 70% 55% at 12% 18%, color-mix(in srgb, var(--el-color-primary, #409eff) 52%, transparent), transparent 68%),
+        radial-gradient(ellipse 55% 70% at 88% 78%, oklch(0.8 0.11 20 / 0.46), transparent 66%),
+        radial-gradient(ellipse 60% 45% at 62% 2%, oklch(0.83 0.1 200 / 0.38), transparent 62%),
+        radial-gradient(ellipse 45% 55% at 80% 42%, oklch(0.78 0.11 300 / 0.32), transparent 58%),
+        radial-gradient(ellipse 50% 40% at 26% 88%, oklch(0.82 0.11 160 / 0.26), transparent 60%),
+        color-mix(in srgb, var(--el-text-color-primary, #303133) 3%, white);
+}
+
+html.dark {
+    // 暗色对齐 tokhub: 光斑压回氛围光(L 0.38~0.42, 浓度 20%~44%), 底色近黑
+    --app-backdrop-spots:
+        linear-gradient(135deg, oklch(1 0 0 / 0.08), transparent 45%),
+        radial-gradient(ellipse 70% 55% at 12% 18%, color-mix(in srgb, var(--el-color-primary, #409eff) 44%, transparent), transparent 68%),
+        radial-gradient(ellipse 55% 70% at 88% 78%, oklch(0.4 0.1 20 / 0.38), transparent 66%),
+        radial-gradient(ellipse 60% 45% at 62% 2%, oklch(0.42 0.1 200 / 0.32), transparent 62%),
+        radial-gradient(ellipse 45% 55% at 80% 42%, oklch(0.38 0.1 300 / 0.24), transparent 58%),
+        radial-gradient(ellipse 50% 40% at 26% 88%, oklch(0.4 0.1 160 / 0.2), transparent 60%),
+        color-mix(in srgb, var(--el-text-color-primary, #e5eaf3) 5%, black);
+}
+
+.app-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+    // 玻璃底色: 高饱和光斑直接透出, 避免"雾蒙蒙"。
+    // 关键: 顶部白色扫光过强会把整片背景洗白(旧版 0.55 白纱正是雾感主因), 大幅削弱;
+    // 光斑浓度/饱和提升, 让玻璃面板透出真实色彩而非奶白。
+    background: var(--app-backdrop-spots);
+
+    // 注：原 feTurbulence 噪点颗粒(::after)会形成"磨砂/哑光"质感，与"液态玻璃"通透诉求相悖，已移除。
+
+    &__image {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-image: var(--backdrop-image);
+        // 钉死: 不再消费 --backdrop-blur / --backdrop-opacity(旧背景图功能的两个滑杆, 值缓存于 localStorage)。
+        // 一旦 blur>0 或 opacity<100, 源图会"先被糊、再与浅色底半透明混合", 整屏蒙上底雾 ——
+        // 下游面板/遮罩怎么调都无效("改半天没效果"的根因)。液态玻璃契约要求壁纸清晰全不透明
+        // (tokhub 亦无此二控件); 鲜艳度改由 saturate/contrast 补偿粉彩系素材。
+        opacity: 1;
+        filter: saturate(1.3) contrast(1.08);
+        transform: scale(1.05);
+    }
+
+    &__overlay {
+        position: absolute;
+        inset: 0;
+        background: var(--backdrop-overlay);
+    }
+
+    // 全局磨砂纱层(设置滑杆驱动): blur 糊下方壁纸堆叠(image/overlay 兄弟层), 白纱随档位联动提浓;
+    // 0 档两变量被 store 移除 → fx 回退 none 完全零成本。纱在所有面板之下, 文字永远锐利
+    &__frost {
+        position: absolute;
+        inset: 0;
+        background: var(--glass-frost-veil, transparent);
+        backdrop-filter: var(--glass-frost-fx, none);
+        -webkit-backdrop-filter: var(--glass-frost-fx, none);
+    }
+
+    // 细颗粒噪点(对齐 tokhub, 静态 dataURL 零合成开销): 消除大面积渐变的色带(banding),
+    // 3.5% 不透明度只增材质感、不产生"磨砂哑光" —— 与面板 blur 是两回事
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        opacity: 0.035;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+}
+
+html.dark .app-backdrop::after {
+    opacity: 0.05;
+}
+
+// 暗色光斑底色已上移至 html.dark 的 --app-backdrop-spots 变量（单一来源，加载遮罩共用）
+
+.glass-mode .app-backdrop {
+    display: block;
+}
+
+.app-backdrop {
+    display: none;
+}

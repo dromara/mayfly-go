@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="'redis:save'" type="primary" icon="plus" @click="editRedis(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button v-auth="'redis:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>
+                <el-button v-auth="'redis:save'" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'redis:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="onDelete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -30,17 +30,17 @@
                 <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>{{ $t('redis.clusterInfo') }}</el-button>
 
                 <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button v-auth="'redis:save'" type="primary" link @click="editRedis(data)">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'redis:save'" type="primary" link @click="editEntity(data)">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
 
-        <el-dialog width="1000px" :title="$t('redis.clusterInfo')" v-model="clusterInfoDialog.visible">
-            <el-input type="textarea" :autosize="{ minRows: 12, maxRows: 12 }" v-model="clusterInfoDialog.info"> </el-input>
+        <el-dialog width="1000px" :title="$t('redis.clusterInfo')" v-model="clusterInfoVisible">
+            <el-input type="textarea" :autosize="{ minRows: 12, maxRows: 12 }" v-model="clusterInfo"> </el-input>
 
             <el-divider content-position="left">{{ $t('redis.node') }}</el-divider>
-            <el-table :data="clusterInfoDialog.nodes" stripe size="small" border>
+            <el-table :data="clusterNodes" stripe size="small" border>
                 <el-table-column prop="nodeId" label="nodeId" min-width="300">
                     <template #header>
                         nodeId
@@ -62,7 +62,7 @@
                     </template>
                     <template #default="scope">
                         <el-tag
-                            @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })"
+                            @click="showInfoDialog({ id: clusterRedisId, ip: scope.row.ip })"
                             effect="plain"
                             type="success"
                             size="small"
@@ -107,35 +107,30 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
-            <el-descriptions v-if="detailDialog.data" :title="$t('common.detail')" :column="3" border>
-                <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
-                <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailDialog.data.name }}</el-descriptions-item>
+        <el-dialog v-if="detailVisible" v-model="detailVisible">
+            <el-descriptions v-if="detailData" :title="$t('common.detail')" :column="3" border>
+                <el-descriptions-item :span="1.5" label="id">{{ detailData.id }}</el-descriptions-item>
+                <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailData.name }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" :label="$t('tag.relateTag')"><TagCodePath :code="detailDialog.data.code" /></el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('tag.relateTag')"><TagCodePath :code="detailData.code" /></el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="Host">{{ detailDialog.data.host }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="Host">{{ detailData.host }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="DB">{{ detailDialog.data.db }}</el-descriptions-item>
-                <el-descriptions-item :span="3" :label="$t('common.remark')">{{ detailDialog.data.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="DB">{{ detailData.db }}</el-descriptions-item>
+                <el-descriptions-item :span="3" :label="$t('common.remark')">{{ detailData.remark }}</el-descriptions-item>
                 <el-descriptions-item :span="3" :label="$t('machine.sshTunnel')">
-                    {{ detailDialog.data.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
+                    {{ detailData.sshTunnelMachineId > 0 ? $t('common.yes') : $t('common.no') }}
                 </el-descriptions-item>
 
-                <el-descriptions-item :span="2" :label="$t('common.createTime')">{{ formatDate(detailDialog.data.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" :label="$t('common.creator')">{{ detailDialog.data.creator }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.createTime')">{{ formatDate(detailData.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.creator')">{{ detailData.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" :label="$t('common.updateTime')">{{ formatDate(detailDialog.data.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" :label="$t('common.modifier')">{{ detailDialog.data.modifier }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.updateTime')">{{ formatDate(detailData.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.modifier')">{{ detailData.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
-        <redis-edit
-            @val-change="search()"
-            :title="redisEditDialog.title"
-            v-model:visible="redisEditDialog.visible"
-            v-model:redis="redisEditDialog.data"
-        ></redis-edit>
+        <redis-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
     </div>
 </template>
 
@@ -144,9 +139,9 @@ import { formatDate } from '@/common/utils/format';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
-import { useRoute } from 'vue-router';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
+import { ref, useTemplateRef } from 'vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import Info from './Info.vue';
 import RedisEdit from './RedisEdit.vue';
@@ -173,8 +168,9 @@ const props = defineProps({
     },
 });
 
-const route = useRoute();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const checkRouteTagPath = useRouteTagPath();
+const { editDialog, editEntity } = useEditDialog<Redis>('Redis');
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder')];
 
@@ -187,71 +183,41 @@ const columns = ref([
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 
-const state = reactive({
-    selectionData: [],
-    query: {
-        tagPath: '',
-        pageNum: 1,
-        pageSize: 0,
-    },
-    detailDialog: {
-        visible: false,
-        data: null as Redis | null,
-    },
-    clusterInfoDialog: {
-        visible: false,
-        redisId: 0,
-        info: '',
-        nodes: [] as RedisClusterNodeRow[],
-    },
-    infoDialog: {
-        title: '',
-        visible: false,
-        info: {
-            Server: {},
-            Keyspace: {},
-            Clients: {},
-            CPU: {},
-            Memory: {},
-        } as Record<string, unknown>,
-    },
-    redisEditDialog: {
-        visible: false,
-        data: null as Redis | null,
-        title: '',
-    },
+const query = ref({
+    tagPath: '',
+    pageNum: 1,
+    pageSize: 0,
 });
 
-const { selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
+const selectionData = ref<Redis[]>([]);
 
-onMounted(() => {
-    if (!props.lazy) {
-        search();
-    }
-});
-
-const checkRouteTagPath = (query: Record<string, unknown>) => {
-    if (route.query.tagPath) {
-        query.tagPath = route.query.tagPath as string;
-    }
-    return query;
-};
+// --- 详情弹窗 ---
+const detailVisible = ref(false);
+const detailData = ref<Redis | null>(null);
 
 const showDetail = (detail: Redis) => {
-    state.detailDialog.data = detail;
-    state.detailDialog.visible = true;
+    detailData.value = detail;
+    detailVisible.value = true;
 };
 
-const deleteRedis = async () => {
-    try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: Redis) => x.name).join('、'));
-        await redisApi.delRedis.request({ id: state.selectionData.map((x: Redis) => x.id).join(',') });
-        Msg.deleteSuccess();
-        search();
-    } catch (err) {
-        //
-    }
-};
+// --- 信息弹窗 ---
+const infoDialog = ref({
+    title: '',
+    visible: false,
+    info: {
+        Server: {},
+        Keyspace: {},
+        Clients: {},
+        CPU: {},
+        Memory: {},
+    } as Record<string, unknown>,
+});
+
+// --- 集群信息弹窗 ---
+const clusterInfoVisible = ref(false);
+const clusterInfo = ref('');
+const clusterNodes = ref<RedisClusterNodeRow[]>([]);
+const clusterRedisId = ref(0);
 
 const showInfoDialog = async (redis: { id: number; ip?: string; host?: string; name?: string }) => {
     let host = redis.host ?? '';
@@ -259,35 +225,37 @@ const showInfoDialog = async (redis: { id: number; ip?: string; host?: string; n
         host = redis.ip.split('@')[0];
     }
     const res = await redisApi.redisInfo.request({ id: redis.id, host });
-    state.infoDialog.info = res;
-    state.infoDialog.title = `[${redis.name || host}] redis`;
-    state.infoDialog.visible = true;
+    infoDialog.value.info = res;
+    infoDialog.value.title = `[${redis.name || host}] redis`;
+    infoDialog.value.visible = true;
 };
 
 const onShowClusterInfo = async (redis: Redis) => {
     const ci = await redisApi.clusterInfo.request({ id: redis.id });
-    state.clusterInfoDialog.info = ci.clusterInfo as string;
-    state.clusterInfoDialog.nodes = ci.clusterNodes as RedisClusterNodeRow[];
-    state.clusterInfoDialog.redisId = redis.id;
-    state.clusterInfoDialog.visible = true;
+    clusterInfo.value = ci.clusterInfo as string;
+    clusterNodes.value = ci.clusterNodes as RedisClusterNodeRow[];
+    clusterRedisId.value = redis.id;
+    clusterInfoVisible.value = true;
 };
 
-const search = async (tagPath: string = '') => {
-    if (tagPath) {
-        state.query.tagPath = tagPath;
+// --- 删除 ---
+const onDelete = async () => {
+    const records = selectionData.value || [];
+    if (records.length === 0) return;
+    try {
+        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
+    } catch {
+        return; // 用户取消
     }
+    await redisApi.delRedis.request({ id: records.map((x) => x.id).join(',') });
+    Msg.deleteSuccess();
+    search();
+};
+
+const search = (tagPath?: string) => {
+    // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
+    query.value.tagPath = tagPath ?? '';
     pageTableRef.value?.search();
-};
-
-const editRedis = async (data: Redis | false) => {
-    if (!data) {
-        state.redisEditDialog.data = null;
-        state.redisEditDialog.title = useI18nCreateTitle('Redis');
-    } else {
-        state.redisEditDialog.data = data;
-        state.redisEditDialog.title = useI18nEditTitle('Redis');
-    }
-    state.redisEditDialog.visible = true;
 };
 
 defineExpose({ search });

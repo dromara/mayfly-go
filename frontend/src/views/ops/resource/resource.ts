@@ -6,6 +6,7 @@ import type { TreeNode, TreeNodeData } from './tree/types';
 import { tagApi } from '@/views/ops/tag/api';
 import type { Component } from 'vue';
 import { getResourceTypes, registerResource } from './resourceRegistry';
+import { resGroupKey } from './resourceKeys';
 import TagLabel from './TagLabel.vue';
 
 interface TagTreeData {
@@ -142,7 +143,7 @@ const groupByResourceType = (codePath: string, resourceChildren: TagTreeData[]):
     for (const [type, children] of type2Children) {
         const typeEnum = EnumValue.getEnumByValue(TagResourceTypeEnum, type);
         groupNodes.push({
-            key: `${codePath}-${type}`,
+            key: resGroupKey(codePath, type),
             kind: RES_GROUP_KIND,
             label: typeEnum?.label || 'common.unknown',
             icon: typeEnum?.extra.icon ? { name: typeEnum.extra.icon, color: typeEnum.extra.iconColor } : undefined,

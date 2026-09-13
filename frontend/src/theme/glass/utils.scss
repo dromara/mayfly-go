@@ -1,0 +1,12 @@
+/* Glass Utilities (玻璃态内部工具函数)
+------------------------------- */
+
+// 生成玻璃态背景色（根据亮/暗模式自动选择 base 色）
+@function glass-rgba($alpha) {
+    @return rgba(255, 255, 255, $alpha);
+}
+
+// 生成暗色模式玻璃态背景色
+@function glass-dark-rgba($alpha) {
+    @return rgba(30, 30, 30, $alpha);
+}

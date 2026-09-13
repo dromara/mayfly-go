@@ -1,7 +1,7 @@
 <template>
     <auto-form-drawer
         ref="drawerRef"
-        v-model="visible"
+        v-model:visible="visible"
         :title="drawerTitle"
         size="900px"
         append-to-body

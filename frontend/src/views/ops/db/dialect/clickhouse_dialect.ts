@@ -1,16 +1,40 @@
-import { DbDialect, DialectInfo, sqlColumnType, EditorCompletion, DataType, DbType, commonCustomKeywords, RowDefinition, IndexDefinition } from '@/views/ops/db/dialect/index';
-import { QuoteEscape } from '@/views/ops/db/dialect/index';
+import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
+import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, IndexDefinition, RowDefinition, sqlColumnType, SqlSnippetTemplate } from './types';
+import { appendLimitSql, QuoteEscape } from './shared/utils';
+import { backtickQuotePairs, clickhouseSplitOptions, defineCapabilities } from './shared/capabilities';
+import { limitCommaPageSnippet } from './shared/snippets';
+import { DbType } from './dbType';
+import { registerDbDialect } from './registry';
+import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
-export class ClickHouseDialect implements DbDialect {
+let chDialectInfo: DialectInfo;
+let chCompletions: EditorCompletion;
+
+class ClickHouseDialect implements DbDialect {
+    getCapabilities(): DialectCapabilities {
+        return defineCapabilities({
+            supportsSchema: false,
+            supportsAutoIncrement: false,
+            defaultIndexType: 'INDEX',
+            // ClickHouse 的 INSERT 无 ON CONFLICT / INSERT IGNORE 语义
+            supportsDuplicateStrategy: false,
+            quotePairs: backtickQuotePairs,
+            sqlSplitOptions: clickhouseSplitOptions,
+        });
+    }
+
     getInfo(): DialectInfo {
-        return {
+        if (chDialectInfo) {
+            return chDialectInfo;
+        }
+        chDialectInfo = {
             name: 'ClickHouse',
             icon: 'icon db/clickhouse',
             defaultPort: 9000,
             formatSqlDialect: 'sql',
             columnTypes: this.getColumnTypes(),
-            editorCompletions: this.getEditorCompletions(),
         };
+        return chDialectInfo;
     }
 
     getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number): string {
@@ -34,6 +58,14 @@ export class ClickHouseDialect implements DbDialect {
         return `LIMIT ${limit} OFFSET ${(pageNum - 1) * limit}`;
     }
 
+    getPreviewSql(sql: string, limit = 1): string {
+        return appendLimitSql(sql, limit);
+    }
+
+    getPageSnippet(): SqlSnippetTemplate {
+        return limitCommaPageSnippet;
+    }
+
     getDefaultRows(): RowDefinition[] {
         return [
             {
@@ -55,7 +87,8 @@ export class ClickHouseDialect implements DbDialect {
             indexName: '',
             columnNames: [],
             unique: false,
-            indexType: 'INDEX',
+            // 索引类型取自能力声明，避免与 defaultIndexType 各写一份而漂移
+            indexType: this.getCapabilities().defaultIndexType,
             indexComment: '',
         };
     }
@@ -65,41 +98,55 @@ export class ClickHouseDialect implements DbDialect {
         return `\`${name}\``;
     }
 
-    getCreateTableSql(tableData: Record<string, unknown>): string {
-        const { tableName, columns, comment } = tableData as { tableName: string; columns: RowDefinition[]; comment: string };
-        let sql = `CREATE TABLE ${this.quoteIdentifier(tableName)} (\n`;
-
-        const columnDefs = columns.map((col: RowDefinition) => {
-            let colDef = `  ${this.quoteIdentifier(col.name)} ${col.type}`;
-            if (col.notNull) {
-                colDef += ' NOT NULL';
+    genColumnBasicSql(cl: RowDefinition): string {
+        // ClickHouse 部分类型需要参数：FixedString(N)、Decimal(P,S)、DateTime64(N)
+        let typeWithParams = cl.type;
+        if (cl.length) {
+            if (cl.numScale) {
+                typeWithParams = `${cl.type}(${cl.length},${cl.numScale})`;
+            } else {
+                typeWithParams = `${cl.type}(${cl.length})`;
             }
-            if (col.auto_increment) {
-                colDef += ' AUTO_INCREMENT';
-            }
-            if (col.remark) {
-                colDef += ` COMMENT '${QuoteEscape(col.remark)}'`;
-            }
-            return colDef;
-        });
+        }
+        let colDef = `${this.quoteIdentifier(cl.name)} ${typeWithParams}`;
+        if (cl.notNull) {
+            colDef += ' NOT NULL';
+        }
+        if (cl.remark) {
+            colDef += ` COMMENT '${QuoteEscape(cl.remark)}'`;
+        }
+        return colDef;
+    }
 
-        sql += columnDefs.join(',\n');
-        sql += '\n) ENGINE = MergeTree() ORDER BY tuple()';
+    getCreateTableSql(data: TableEditContext): string {
+        const columnDefs = data.fields.res.map((col: RowDefinition) => `  ${this.genColumnBasicSql(col)}`);
 
-        if (comment) {
-            sql += ` COMMENT '${QuoteEscape(comment)}'`;
+        // ClickHouse 需要指定 ORDER BY 子句
+        const pkCols = data.fields.res.filter((c: RowDefinition) => c.pri);
+        const orderClause = pkCols.length > 0 ? pkCols.map((c: RowDefinition) => this.quoteIdentifier(c.name)).join(', ') : 'tuple()';
+
+        let sql = `CREATE TABLE ${this.quoteIdentifier(data.tableName)} (\n${columnDefs.join(',\n')}\n) ENGINE = MergeTree() ORDER BY (${orderClause})`;
+
+        if (data.tableComment) {
+            sql += ` COMMENT '${QuoteEscape(data.tableComment)}'`;
         }
 
         return sql;
     }
 
-    getCreateIndexSql(_tableData: Record<string, unknown>): string {
+    getCreateIndexSql(data: TableEditContext): string {
         // ClickHouse indexes are typically defined in the table creation statement
         // This is a simplified implementation
+        if (data.indexs.res.length === 0) return '';
         return '-- ClickHouse indexes are typically defined in the CREATE TABLE statement';
     }
 
-    getModifyColumnSql(_tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+    getDropTableSql(db: string, table: string): string {
+        // ClickHouse 无 schema 层级，与本方言其余 DDL 一致只引用表名
+        return `DROP TABLE ${this.quoteIdentifier(table)}`;
+    }
+
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
         const { del, add, upd } = changeData;
         let sql = '';
 
@@ -113,13 +160,7 @@ export class ClickHouseDialect implements DbDialect {
         if (add && add.length > 0) {
             const addColumns = add
                 .map((col: RowDefinition) => {
-                    let colDef = `ADD COLUMN ${this.quoteIdentifier(col.name)} ${col.type}`;
-                    if (col.notNull) {
-                        colDef += ' NOT NULL';
-                    }
-                    if (col.remark) {
-                        colDef += ` COMMENT '${QuoteEscape(col.remark)}'`;
-                    }
+                    let colDef = `ADD COLUMN ${this.genColumnBasicSql(col)}`;
                     return colDef;
                 })
                 .join(',\n');
@@ -130,13 +171,7 @@ export class ClickHouseDialect implements DbDialect {
         if (upd && upd.length > 0) {
             const modifyColumns = upd
                 .map((col: RowDefinition) => {
-                    let colDef = `MODIFY COLUMN ${this.quoteIdentifier(col.name)} ${col.type}`;
-                    if (col.notNull) {
-                        colDef += ' NOT NULL';
-                    }
-                    if (col.remark) {
-                        colDef += ` COMMENT '${QuoteEscape(col.remark)}'`;
-                    }
+                    let colDef = `MODIFY COLUMN ${this.genColumnBasicSql(col)}`;
                     return colDef;
                 })
                 .join(',\n');
@@ -146,15 +181,14 @@ export class ClickHouseDialect implements DbDialect {
         return sql.trim();
     }
 
-    getModifyIndexSql(_tableData: Record<string, unknown>, _tableName: string, _changeData: Record<string, unknown>): string {
+    getModifyIndexSql(_tableData: TableEditContext, _tableName: string, _changeData: ChangeDiff<IndexDefinition>): string {
         // ClickHouse index modification is typically done through table alterations
         return '-- ClickHouse index modifications are typically done through ALTER TABLE statements';
     }
 
-    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
-        const { tableName, comment } = tableData as { tableName: string; comment: string };
-        if (comment) {
-            return `ALTER TABLE ${this.quoteIdentifier(tableName)} MODIFY COMMENT '${QuoteEscape(comment)}'`;
+    getModifyTableInfoSql(data: TableInfoEditContext): string {
+        if (data.tableComment && data.tableComment !== data.oldTableComment) {
+            return `ALTER TABLE ${this.quoteIdentifier(data.tableName)} MODIFY COMMENT '${QuoteEscape(data.tableComment)}'`;
         }
         return '';
     }
@@ -202,7 +236,7 @@ export class ClickHouseDialect implements DbDialect {
         return value as string | number;
     }
 
-    getBatchInsertPreviewSql(tableName: string, columns: string[], _duplicateStrategy: unknown): string {
+    getBatchInsertPreviewSql(tableName: string, columns: string[], _duplicateStrategy: DuplicateStrategy): string {
         const quotedColumns = columns.map((col) => this.quoteIdentifier(col)).join(', ');
         const placeholders = columns.map(() => '?').join(', ');
         return `INSERT INTO ${this.quoteIdentifier(tableName)} (${quotedColumns}) VALUES (${placeholders})`;
@@ -241,8 +275,12 @@ export class ClickHouseDialect implements DbDialect {
         ];
     }
 
-    private getEditorCompletions(): EditorCompletion {
-        return {
+    /** 联想词为静态字面量，缓存一份避免每次补全重新构建 */
+    async getEditorCompletions(): Promise<EditorCompletion> {
+        if (chCompletions) {
+            return chCompletions;
+        }
+        chCompletions = {
             keywords: [
                 { label: 'SELECT', description: '查询数据' },
                 { label: 'INSERT', description: '插入数据' },
@@ -355,5 +393,8 @@ export class ClickHouseDialect implements DbDialect {
                 { label: '@@hostname', description: '主机名' },
             ],
         };
+        return chCompletions;
     }
 }
+
+registerDbDialect(DbType.clickhouse, new ClickHouseDialect());

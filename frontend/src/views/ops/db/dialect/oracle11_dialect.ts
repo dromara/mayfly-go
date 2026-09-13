@@ -1,10 +1,13 @@
 /** oracle 11g 及以前的版本的一些语法兼容  */
-import {OracleDialect} from '@/views/ops/db/dialect/oracle_dialect';
-import {DialectInfo, RowDefinition} from '@/views/ops/db/dialect/index';
+import { DbType } from './dbType';
+import { registerDbDialectVersion } from './registry';
+import type { DialectInfo, RowDefinition } from './types';
+import type { TableEditContext } from './types';
+import { OracleDialect } from './oracle_dialect';
 
 let oracle11DialectInfo: DialectInfo;
 
-export class Oracle11Dialect extends OracleDialect {
+class Oracle11Dialect extends OracleDialect {
 
     getInfo(): DialectInfo {
         if (oracle11DialectInfo) {
@@ -31,15 +34,25 @@ export class Oracle11Dialect extends OracleDialect {
     }
 
     getDefaultValueSql(cl: RowDefinition, create?: boolean, data?: any): string {
-        if (cl.value) {
-            return ` DEFAULT ${cl.value}`;
+        if (cl.value && cl.value.length > 0) {
+            // 字符串/时间类型默认值需要加引号（与父类 Oracle 保持一致）
+            let marks = false;
+            if (this.matchType(cl.type, ['CHAR', 'TIME', 'DATE', 'LONG', 'CLOB', 'BLOB', 'BFILE'])) {
+                let val = cl.value.toUpperCase().replace(' ', '');
+                if (this.matchType(cl.type, ['DATE', 'TIMESTAMP']) && ['CURRENT_DATE', 'CURRENT_TIMESTAMP'].includes(val)) {
+                    marks = false;
+                } else {
+                    marks = true;
+                }
+            }
+            return ` DEFAULT ${marks ? "'" : ''}${cl.value}${marks ? "'" : ''}`;
         } else if (cl.auto_increment) {
             return ` DEFAULT ${data.tableName}_${cl.name}_SEQ.NEXTVAL`;
         }
         return '';
     }
 
-    getOtherCreateTableSql(data: any): string {
+    getOtherCreateTableSql(data: TableEditContext): string {
         // 通过字段自增信息创建自增序列
 
         let result = '';
@@ -53,3 +66,6 @@ export class Oracle11Dialect extends OracleDialect {
         return result;
     }
 }
+
+// 版本特化方言：仅当实例版本为 11 时命中，其余 Oracle 版本走基础方言
+registerDbDialectVersion(DbType.oracle + '11', new Oracle11Dialect());

@@ -39,6 +39,13 @@ export interface TreeContributor {
     selectable?: boolean | ((node: TreeNode) => boolean);
     /** 折叠时释放子节点（大子树内存回收） */
     releaseOnCollapse?: boolean;
+    /**
+     * 标签资源 code 提取器（定位用）：返回该节点自身对应的后端标签资源 code（即 codePath 资源段 `type|code` 的 code）。
+     * 声明后该 kind 即可被 codePath 定位逐层解析命中——新增资产只需在自己的贡献者声明一行，无需改动任何定位逻辑（开闭原则）。
+     * ⚠️ 必须返回「本节点自身」的资源 code：凭证类节点常把父资源参数一并展开进 params，
+     * 直接取 params.code 会拿到父资源 code（如凭证取到机器 code）而导致定位错命中
+     */
+    locateCode?: (node: TreeNode) => string | undefined;
 }
 
 const contributors = new Map<NodeKind, TreeContributor>();
@@ -70,6 +77,18 @@ export function resolveHasChildren(contributor: TreeContributor, node: TreeNode)
         return contributor.hasChildren(node);
     }
     return !!contributor.hasChildren;
+}
+
+/**
+ * 按「贡献者声明的 locateCode」在父节点已加载的子节点中解析目标资源节点。
+ * 通用能力：只依赖 locateCode 契约，不认识任何具体资源的 key 规则；
+ * 未声明 locateCode 的 kind（占位行、表/索引等非标签资源）天然不参与匹配
+ */
+export function findChildByLocateCode(parent: TreeNode | undefined, code: string): TreeNode | undefined {
+    if (!parent?.children) {
+        return undefined;
+    }
+    return parent.children.find((child) => contributors.get(child.kind)?.locateCode?.(child) === code);
 }
 
 /**

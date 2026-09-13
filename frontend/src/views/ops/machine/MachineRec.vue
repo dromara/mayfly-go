@@ -1,5 +1,6 @@
 <template>
     <div id="terminalRecDialog">
+        <!-- 终端操作记录列表 -->
         <el-dialog
             modal-penetrable
             :modal="false"
@@ -26,22 +27,25 @@
             </page-table>
         </el-dialog>
 
-        <el-dialog
-            modal-penetrable
-            :modal="false"
-            draggable
-            :title="title"
-            v-model="playerDialogVisible"
-            :before-close="handleClosePlayer"
-            :close-on-click-modal="false"
-            :destroy-on-close="true"
-            width="70%"
-        >
-            <div class="max-h-[60vh]" ref="playerRef" id="rc-player"></div>
-        </el-dialog>
+        <!-- 全屏终端回放 -->
+        <Teleport to="body">
+            <Transition name="rec-fade">
+                <div v-if="playerVisible" class="rec-player-fullscreen">
+                    <div class="rec-player__header">
+                        <span class="rec-player__title">{{ title }}</span>
+                        <el-button text @click="closePlayer">
+                            <el-icon :size="18"><Close /></el-icon>
+                        </el-button>
+                    </div>
+                    <div class="rec-player__body" ref="playerRef"></div>
+                </div>
+            </Transition>
+        </Teleport>
 
+        <!-- 执行命令记录弹窗 -->
         <el-dialog :title="$t('machine.execCmdRecord')" v-model="execCmdsDialogVisible" :destroy-on-close="true" width="500">
-            <el-table :data="state.execCmds" max-height="480" stripe size="small">
+            <el-empty v-if="state.execCmds.length === 0" :description="$t('machine.noCmdRecord')" />
+            <el-table v-else :data="state.execCmds" max-height="480" stripe size="small">
                 <el-table-column prop="cmd" :label="$t('machine.cmd')" show-overflow-tooltip min-width="150px"> </el-table-column>
                 <el-table-column prop="time" :label="$t('machine.execTime')" min-width="80" show-overflow-tooltip>
                     <template #default="scope">
@@ -55,6 +59,7 @@
 
 <script lang="ts" setup>
 import { toRefs, watch, ref, reactive, nextTick } from 'vue';
+import { Close } from '@element-plus/icons-vue';
 import { machineApi } from './api';
 import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
@@ -91,12 +96,12 @@ const state = reactive({
         pageSize: 10,
         machineId: 0,
     },
-    playerDialogVisible: false,
+    playerVisible: false,
     execCmdsDialogVisible: false,
     execCmds: [],
 });
 
-const { query, playerDialogVisible, execCmdsDialogVisible } = toRefs(state);
+const { query, playerVisible, execCmdsDialogVisible } = toRefs(state);
 
 watch(
     [visible, () => props.machineId],
@@ -114,7 +119,7 @@ const getTermOps = async () => {
 };
 
 const showExecCmds = (data: MachineTermOp) => {
-    state.execCmds = JSON.parse(data.execCmds);
+    state.execCmds = data.execCmds ? JSON.parse(data.execCmds) : [];
     state.execCmdsDialogVisible = true;
 };
 
@@ -122,30 +127,45 @@ let player: ReturnType<typeof AsciinemaPlayer.create> | null = null;
 
 const playRec = async (rec: MachineTermOp & { playRecLoding?: boolean }) => {
     try {
+        // 销毁旧播放器
         if (player) {
             player.dispose();
+            player = null;
         }
 
         rec.playRecLoding = true;
-        state.playerDialogVisible = true;
-        nextTick(() => {
+        // 关闭列表 dialog，打开全屏播放器
+        visible.value = false;
+        state.playerVisible = true;
+
+        // 等待 Teleport + Transition 完成 DOM 插入
+        await nextTick();
+        await nextTick();
+
+        if (playerRef.value) {
             player = AsciinemaPlayer.create(getFileUrl(rec.fileKey), playerRef.value, {
                 autoPlay: true,
                 speed: 1.0,
                 idleTimeLimit: 2,
-                // fit: false,
-                // terminalFontSize: 'small',
-                // cols: 144,
-                // rows: 32,
+                // fit:"both" 同时适配宽高，确保终端内容完整显示不截断
+                fit: 'both',
+                terminalFontSize: 14,
             });
-        });
+        }
     } finally {
         rec.playRecLoding = false;
     }
 };
 
-const handleClosePlayer = () => {
-    state.playerDialogVisible = false;
+const closePlayer = () => {
+    // 销毁播放器
+    if (player) {
+        player.dispose();
+        player = null;
+    }
+    state.playerVisible = false;
+    // 重新打开列表 dialog
+    visible.value = true;
 };
 
 /**
@@ -159,13 +179,53 @@ const handleClose = () => {
 <style lang="scss">
 #terminalRecDialog {
     overflow: hidden;
+}
 
-    #rc-player {
-        overflow: hidden;
-    }
+/* 全屏终端回放容器 */
+.rec-player-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #1e1e1e;
+    display: flex;
+    flex-direction: column;
+}
 
-    .el-overlay .el-overlay-dialog .el-dialog .el-dialog__body {
-        padding: 0px !important;
+.rec-player__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #2d2d2d;
+    color: #e0e0e0;
+    flex-shrink: 0;
+    border-bottom: 1px solid #3d3d3d;
+}
+
+.rec-player__title {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.rec-player__body {
+    flex: 1;
+    overflow: hidden;
+    padding: 0;
+
+    /* asciinema-player 占满容器 */
+    > div {
+        height: 100%;
     }
+}
+
+/* 淡入淡出过渡 */
+.rec-fade-enter-active,
+.rec-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.rec-fade-enter-from,
+.rec-fade-leave-to {
+    opacity: 0;
 }
 </style>

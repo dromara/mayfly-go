@@ -85,6 +85,8 @@ registerContributor({
     resourceType: TagResourceTypeEnum.Milvus.value,
     hasChildren: true,
     renderer: NodeMilvus,
+    // 节点 key 用 `milvus.${id}`，定位 code 取 params.code（= 实例 code）而非 key
+    locateCode: (node) => (node.params as MilvusNodeParams).code,
     loadRoots: async (groupNode) => {
         const res = await milvusApi.list.request({ tagPath: groupNode.params?.tagPath as string });
         if (!res.total) {
@@ -117,6 +119,8 @@ registerContributor({
     kind: MilvusAcKind,
     selectable: true,
     renderer: NodeMilvusAc,
+    // 凭证节点 params 展开了父实例参数，定位 code 取凭证自身 name（后端凭证 Code=rac.Name）
+    locateCode: (node) => (node.params as MilvusNodeParams).selectAuthCert?.name,
 });
 
 export default defineResourceConfig({

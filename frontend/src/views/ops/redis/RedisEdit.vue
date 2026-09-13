@@ -1,6 +1,17 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-api="onConfirm"
+            @submitted="emit('cancel')"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
             <!-- 关联标签（自定义插槽） -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -28,17 +39,17 @@
 </template>
 
 <script lang="ts" setup>
-import { Rules } from '@/common/rule';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
+import { useSshTunnelTransform } from '@/hooks/useResourceForm';
 import { computed, ref, useTemplateRef, type PropType } from 'vue';
+import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { redisApi } from './api';
 import type { Redis, RedisSaveForm } from './types';
 
 const props = defineProps({
-    redis: {
+    data: {
         type: Object as PropType<Redis | null>,
         default: null,
     },
@@ -72,7 +83,7 @@ const items = computed<AutoFormItem[]>(() => [
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
 const editData = computed<AutoFormData>(() => {
-    const redis = props.redis as RedisSaveForm | false | undefined;
+    const redis = props.data as RedisSaveForm | false | undefined;
     if (redis) {
         return { ...redis } as AutoFormData;
     }
@@ -86,12 +97,16 @@ const internalForm = ref<AutoFormData>({});
 
 const onOpened = (form: AutoFormData) => {
     internalForm.value = form;
-    if (props.redis) {
+    if (props.data) {
         convertDb((form.db as string) || '0');
     } else {
         dbList.value = [0];
     }
 };
+
+const submitForm = useSshTunnelTransform(
+    computed(() => internalForm.value)
+);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi();
 const { execute: saveRedisExec } = redisApi.saveRedis.useApi();
@@ -108,29 +123,29 @@ const onDbListChange = (list: number[]) => {
     internalForm.value.db = list.length == 0 ? '' : list.join(',');
 };
 
-const getReqForm = () => {
-    const reqForm = { ...internalForm.value } as RedisSaveForm;
+/** 组装请求表单（含 sentinel 主从形态校验） */
+const buildReqForm = (): RedisSaveForm | undefined => {
+    const reqForm = { ...submitForm.value } as RedisSaveForm;
     if (reqForm.mode == 'sentinel' && (reqForm.host ?? '').split('=').length != 2) {
         Msg.error('redis.sentinelHostErr');
         return;
-    }
-    if (!reqForm.sshTunnelMachineId || reqForm.sshTunnelMachineId <= 0) {
-        reqForm.sshTunnelMachineId = -1;
     }
     return reqForm;
 };
 
 const onTestConn = async () => {
     await useI18nFormValidate(drawerRef);
-    await testConnExec(getReqForm());
+    const reqForm = buildReqForm();
+    if (!reqForm) return;
+    await testConnExec(reqForm);
     Msg.success('ac.connSuccess');
 };
 
 // confirmApi 提交动作（组装内部表单为请求参数）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
-    const reqForm = getReqForm();
+    const reqForm = buildReqForm();
     if (!reqForm) {
-        // sentinel 主从形态校验失败（getReqForm 内已 toast），保持抽屉打开
+        // sentinel 主从形态校验失败（buildReqForm 内已 toast），保持抽屉打开
         return;
     }
     await saveRedisExec(reqForm);

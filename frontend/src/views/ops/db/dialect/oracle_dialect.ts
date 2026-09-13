@@ -1,20 +1,22 @@
-import { DbInst } from '../db';
-import {
-    commonCustomKeywords,
-    DataType,
+import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
+import type {
     DbDialect,
+    DialectCapabilities,
     DialectInfo,
-    DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
-    QuoteEscape,
     RowDefinition,
     sqlColumnType,
-} from './index';
-import { language as sqlLanguage } from 'monaco-editor/languages/definitions/sql/sql.js';
-
-export { OracleDialect, ORACLE_TYPE_LIST };
+    SqlSnippetTemplate,
+} from './types';
+import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
+import { buildSchemaTable, extractSchema, matchType as _matchType, matchNumericType, QuoteEscape, wrapValueOracle } from './shared/utils';
+import { defineCapabilities, plsqlSplitOptions } from './shared/capabilities';
+import { rownumPageSnippet } from './shared/snippets';
+import { DbType } from './dbType';
+import { registerDbDialect } from './registry';
+import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
 // 参考官方文档：https://docs.oracle.com/cd/B19306_01/server.102/b14200/sql_elements001.htm
 const ORACLE_TYPE_LIST: sqlColumnType[] = [
@@ -125,18 +127,45 @@ const addCustomKeywords: EditorCompletionItem[] = [
 ];
 
 let oracleDialectInfo: DialectInfo;
-class OracleDialect implements DbDialect {
+let oracleCompletions: EditorCompletion;
+export class OracleDialect implements DbDialect {
+    getCapabilities(): DialectCapabilities {
+        return defineCapabilities({
+            defaultIndexType: 'NORMAL',
+            // 以 SID / Service Name 连接，库名列表为空时回落到实例 SID
+            connectDescriptor: 'sid_service',
+            sqlSplitOptions: plsqlSplitOptions,
+        });
+    }
+
     getInfo(): DialectInfo {
         if (oracleDialectInfo) {
             return oracleDialectInfo;
         }
 
+        oracleDialectInfo = {
+            name: 'Oracle',
+            icon: 'icon db/oracle',
+            defaultPort: 1521,
+            formatSqlDialect: 'plsql',
+            columnTypes: ORACLE_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
+        };
+        return oracleDialectInfo;
+    }
+
+    /** 编辑器联想词由 monaco 语言定义派生，按需加载并缓存（详见 types.ts 的 DialectInfo 注释） */
+    async getEditorCompletions(): Promise<EditorCompletion> {
+        if (oracleCompletions) {
+            return oracleCompletions;
+        }
+
+        const { language: sqlLanguage } = await import('monaco-editor/languages/definitions/sql/sql.js');
         let { keywords, operators, builtinVariables } = sqlLanguage;
         let functionNames = replaceFunctions.map((a) => a.label);
         let excludeKeywords = new Set(functionNames.concat(operators));
         excludeKeywords.add('SELECT');
 
-        let editorCompletions: EditorCompletion = {
+        oracleCompletions = {
             keywords: keywords
                 .filter((a: string) => !excludeKeywords.has(a)) // 移除已存在的operator、function
                 .map((a: string): EditorCompletionItem => ({ label: a, description: 'keyword' }))
@@ -154,16 +183,7 @@ class OracleDialect implements DbDialect {
             functions: replaceFunctions,
             variables: builtinVariables.map((a: string): EditorCompletionItem => ({ label: a, description: 'var' })),
         };
-
-        oracleDialectInfo = {
-            name: 'Oracle',
-            icon: 'icon db/oracle',
-            defaultPort: 1521,
-            formatSqlDialect: 'plsql',
-            columnTypes: ORACLE_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
-            editorCompletions,
-        };
-        return oracleDialectInfo;
+        return oracleCompletions;
     }
 
     getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
@@ -183,56 +203,18 @@ class OracleDialect implements DbDialect {
         return ``;
     }
 
+    getPreviewSql(sql: string, limit = 1): string {
+        // Oracle 11g 及以前无 OFFSET/FETCH，以 ROWNUM 伪列限行
+        const hasCondition = /where/i.test(sql);
+        return `${sql} ${hasCondition ? 'AND' : 'WHERE'} ROWNUM <= ${limit}`;
+    }
+
+    getPageSnippet(): SqlSnippetTemplate {
+        return rownumPageSnippet;
+    }
+
     getDefaultRows(): RowDefinition[] {
-        return [
-            { name: 'ID', type: 'NUMBER', length: '', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
-            { name: 'CREATOR_ID', type: 'NUMBER', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
-            {
-                name: 'CREATOR',
-                type: 'VARCHAR2',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建人姓名',
-            },
-            {
-                name: 'CREATE_TIME',
-                type: 'DATE',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建时间',
-            },
-            { name: 'UPDATOR_ID', type: 'NUMBER', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-            {
-                name: 'UPDATOR',
-                type: 'VARCHAR2',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改人姓名',
-            },
-            {
-                name: 'UPDATE_TIME',
-                type: 'DATE',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改时间',
-            },
-        ];
+        return createDefaultRows(defaultRowsConfigs.oracle);
     }
 
     getDefaultIndex(): IndexDefinition {
@@ -240,7 +222,8 @@ class OracleDialect implements DbDialect {
             indexName: '',
             columnNames: [],
             unique: false,
-            indexType: 'NORMAL',
+            // 索引类型取自能力声明，避免与 defaultIndexType 各写一份而漂移
+            indexType: this.getCapabilities().defaultIndexType,
             indexComment: '',
         };
     }
@@ -250,15 +233,7 @@ class OracleDialect implements DbDialect {
     };
 
     matchType(text: string, arr: string[]): boolean {
-        if (!text || !arr || arr.length === 0) {
-            return false;
-        }
-        for (let i = 0; i < arr.length; i++) {
-            if (text.indexOf(arr[i]) > -1) {
-                return true;
-            }
-        }
-        return false;
+        return _matchType(text, arr);
     }
 
     getDefaultValueSql(cl: RowDefinition): string {
@@ -308,14 +283,12 @@ class OracleDialect implements DbDialect {
         return incr ? baseSql : ` ${baseSql} ${defVal} ${cl.notNull ? 'NOT NULL' : ''} `;
     }
 
-    getOtherCreateTableSql(_data: Record<string, unknown>) {
+    getOtherCreateTableSql(_data: TableEditContext) {
         return '';
     }
 
-    getCreateTableSql(data: Record<string, unknown>): string {
-        let schemaArr = (data.db as string).split('/');
-        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
-        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName as string)}`;
+    getCreateTableSql(data: TableEditContext): string {
+        let dbTable = buildSchemaTable(this.quoteIdentifier, data.db, data.tableName);
 
         let createSql = '';
         let tableCommentSql = '';
@@ -324,11 +297,11 @@ class OracleDialect implements DbDialect {
 
         // 创建表结构
         let fields: string[] = [];
-        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item, true, data));
             // 列注释
             if (item.remark) {
-                columCommentSql += ` COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} is '${QuoteEscape(item.remark)}'; `;
+                columCommentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} IS '${QuoteEscape(item.remark)}';`;
             }
             // 主键
             if (item.pri) {
@@ -338,13 +311,14 @@ class OracleDialect implements DbDialect {
         // 主键语句
         let prisql = '';
         if (pris.length > 0) {
-            prisql = ` PRIMARY KEY (${pris.join(',')})`;
+            prisql = `PRIMARY KEY (${pris.join(',')})`;
         }
         // 建表
-        createSql = `CREATE TABLE ${dbTable} ( ${fields.join(',')} ${prisql ? ',' + prisql : ''} ) ;`;
+        const fieldStr = fields.join(',');
+        createSql = `CREATE TABLE ${dbTable} (${fieldStr}${prisql ? ', ' + prisql : ''});`;
         // 表注释
         if (data.tableComment) {
-            tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${QuoteEscape(data.tableComment as string)}'; `;
+            tableCommentSql = `COMMENT ON TABLE ${dbTable} IS '${QuoteEscape(data.tableComment)}';`;
         }
 
         // 其余建表信息，如：自增字段在老版本的使用方式是创建自增序列
@@ -352,31 +326,29 @@ class OracleDialect implements DbDialect {
         return createSql + tableCommentSql + columCommentSql + other;
     }
 
-    getCreateIndexSql(tableData: Record<string, unknown>): string {
-        // CREATE UNIQUE INDEX idx_column_name ON your_table (column1, column2);
-        // COMMENT ON INDEX idx_column_name IS 'Your index comment here';
-
-        let schemaArr = (tableData.db as string).split('/');
-        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
-        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.tableName as string)}`;
+    getCreateIndexSql(tableData: TableEditContext): string {
+        let dbTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableData.tableName);
 
         let sql: string[] = [];
-        (tableData.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
-            sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} ON ${dbTable} ("${a.columnNames.join('","')})"`);
+        tableData.indexs.res.forEach((a: IndexDefinition) => {
+            const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
+            sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${dbTable} (${cols})`);
         });
         return sql.join(';');
     }
 
-    getModifyColumnSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let schemaArr = (tableData.db as string).split('/');
-        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
-        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
+    getDropTableSql(db: string, table: string): string {
+        // 必须带 schema（Oracle 中即 owner）限定，否则会解析到当前登录用户的同名对象
+        return `DROP TABLE ${buildSchemaTable(this.quoteIdentifier, db, table)}`;
+    }
 
-        let baseSql = `ALTER TABLE ${dbTable} `;
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+        let dbTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableName);
+
+        let baseSql = `ALTER TABLE ${dbTable}`;
 
         let modifyArr: string[] = [];
         let dropArr: string[] = [];
-        // 重命名的sql要一条条执行
         let renameArr: string[] = [];
         let commentArr: string[] = [];
 
@@ -391,60 +363,57 @@ class OracleDialect implements DbDialect {
                 }
                 // 修改了字段名
                 if (a.oldName !== a.name) {
-                    renameArr.push(baseSql + ` RENAME COLUMN ${this.quoteIdentifier(a.oldName!)} TO ${this.quoteIdentifier(a.name)} ;`);
+                    renameArr.push(`${baseSql} RENAME COLUMN ${this.quoteIdentifier(a.oldName!)} TO ${this.quoteIdentifier(a.name)}`);
                     if (a.remark) {
                         commentArr.push(commentSql);
                     }
                 }
-                modifyArr.push(` MODIFY (${this.genColumnBasicSql(a, false, tableData)})`);
+                modifyArr.push(`${baseSql} MODIFY (${this.genColumnBasicSql(a, false, tableData)})`);
                 if (a.pri) {
-                    priArr.add(`${this.quoteIdentifier(a.name)}`);
+                    priArr.add(this.quoteIdentifier(a.name));
                 }
             });
         }
 
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                modifyArr.push(` ADD (${this.genColumnBasicSql(a, false, tableData)})`);
+                modifyArr.push(`${baseSql} ADD (${this.genColumnBasicSql(a, false, tableData)})`);
                 if (a.remark) {
-                    commentArr.push(`COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} is '${QuoteEscape(a.remark)}'`);
+                    commentArr.push(`COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}'`);
                 }
                 if (a.pri) {
-                    priArr.add(`"${a.name}"`);
+                    priArr.add(this.quoteIdentifier(a.name));
                 }
             });
         }
 
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
-                dropArr.push(`${this.quoteIdentifier(a.name)}`);
+                dropArr.push(this.quoteIdentifier(a.name));
             });
         }
 
         let dropPkSql = '';
         if (priArr.size > 0) {
-            let resPri = (tableData.fields as { res: RowDefinition[] }).res.find((a: RowDefinition) => a.pri);
+            let resPri = tableData.fields.res.find((a: RowDefinition) => a.pri);
             if (resPri) {
-                priArr.add(`"${resPri.name}"`);
+                priArr.add(this.quoteIdentifier(resPri.name));
             }
-            // 如果有编辑主键字段，则删除主键，再添加主键
-            // 解析表字段中是否含有主键，有的话就删除主键
-            if ((tableData.fields as { oldFields: RowDefinition[] }).oldFields.find((a: RowDefinition) => a.pri)) {
+            if (tableData.fields.oldFields.find((a: RowDefinition) => a.pri)) {
                 dropPkSql = `ALTER TABLE ${dbTable} DROP PRIMARY KEY;`;
             }
         }
 
-        let modifySql = modifyArr.length > 0 ? baseSql + modifyArr.join(' ') + ';' : '';
-        let dropSql = dropArr.length > 0 ? baseSql + ` DROP (${dropArr.join(',')}) ;` : '';
-        let renameSql = renameArr.join('');
+        let modifySql = modifyArr.length > 0 ? modifyArr.join(';\n') + ';' : '';
+        let dropSql = dropArr.length > 0 ? `${baseSql} DROP (${dropArr.join(',')});` : '';
+        let renameSql = renameArr.join(';\n') + (renameArr.length > 0 ? ';' : '');
         let addPkSql = priArr.size > 0 ? `ALTER TABLE ${dbTable} ADD CONSTRAINT "PK_${tableName}" PRIMARY KEY (${Array.from(priArr).join(',')});` : '';
-        let commentSql = commentArr.join(';');
+        let commentSql = commentArr.join(';\n') + (commentArr.length > 0 ? ';' : '');
 
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
-    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
-        // 不能直接修改索引名或字段、需要先删后加
+    getModifyIndexSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<IndexDefinition>): string {
         let dropIndexNames: string[] = [];
         let addIndexs: IndexDefinition[] = [];
 
@@ -471,13 +440,14 @@ class OracleDialect implements DbDialect {
             let sql: string[] = [];
             if (dropIndexNames.length > 0) {
                 dropIndexNames.forEach((a) => {
-                    sql.push(`DROP INDEX ${a}`);
+                    sql.push(`DROP INDEX ${this.quoteIdentifier(a)}`);
                 });
             }
 
             if (addIndexs.length > 0) {
                 addIndexs.forEach((a) => {
-                    sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} ON "${tableName}" (${a.columnNames.join(',')})`);
+                    const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
+                    sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${this.quoteIdentifier(tableName)} (${cols})`);
                 });
             }
             return sql.join(';');
@@ -485,24 +455,23 @@ class OracleDialect implements DbDialect {
         return '';
     }
 
-    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
-        let schemaArr = (tableData.db as string).split('/');
-        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+    getModifyTableInfoSql(tableData: TableInfoEditContext): string {
+        let schema = extractSchema(tableData.db);
 
         let sql = '';
         if (tableData.tableComment != tableData.oldTableComment) {
-            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
-            sql = `COMMENT ON TABLE ${dbTable} is '${QuoteEscape(tableData.tableComment as string)}';`;
+            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            sql = `COMMENT ON TABLE ${dbTable} IS '${QuoteEscape(tableData.tableComment)}';`;
         }
         if (tableData.tableName != tableData.oldTableName) {
-            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
-            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName as string)}`;
+            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName)};`;
         }
         return sql;
     }
 
     getDataType(columnType: string): DataType {
-        if (DbInst.isNumber(columnType)) {
+        if (matchNumericType(columnType)) {
             return DataType.Number;
         }
         // 日期时间类型 oracle只有date和timestamp类型
@@ -513,16 +482,7 @@ class OracleDialect implements DbDialect {
     }
 
     wrapValue(columnType: string, value: unknown): string | number {
-        if (value == null) {
-            return 'NULL';
-        }
-        if (DbInst.isNumber(columnType)) {
-            return value as number;
-        }
-        if (value && this.getDataType(columnType) === DataType.DateTime) {
-            return `to_timestamp('${value}', 'yyyy-mm-dd hh24:mi:ss')`;
-        }
-        return `'${value}'`;
+        return wrapValueOracle(columnType, value) as string | number;
     }
 
     getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
@@ -559,3 +519,5 @@ class OracleDialect implements DbDialect {
         }
     }
 }
+
+registerDbDialect(DbType.oracle, new OracleDialect());

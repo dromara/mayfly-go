@@ -41,7 +41,7 @@
         >
             <!-- 分配标签（TagTreeCheck 自定义控件走插槽） -->
             <template #codePaths="{ form }">
-                <TagTreeCheck height="calc(100vh - 390px)" v-model="form.codePaths" :tag-type="0" />
+                <TagTreeCheck height-mode="fixed" height="calc(100vh - 390px)" v-model="form.codePaths" :tag-type="0" />
             </template>
         </auto-form-drawer>
 

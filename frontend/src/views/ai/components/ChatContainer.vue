@@ -46,7 +46,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'conversation-created', id: number): void;
-    (e: 'interrupt-action', event: InterruptActionEvent): void;
 }>();
 
 const store = useChatStore();

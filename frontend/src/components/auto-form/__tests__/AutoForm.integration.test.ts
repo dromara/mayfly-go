@@ -83,6 +83,19 @@ describe('AutoForm 控件渲染与双向绑定', () => {
         expect(form.name).toBe('hello');
     });
 
+    it('monaco 字段是异步控件：解析完成后渲染，并透传值与只读位', async () => {
+        const form = reactive<Record<string, any>>({ script: 'select 1' });
+        const wrapper = mountForm({
+            modelValue: form,
+            items: [{ prop: 'script', label: 'fields.name', type: 'monaco', props: { language: 'sql' } }] as AutoFormItem[],
+        });
+        // 异步控件：字段 chunk 经真实动态 import 加载，需轮询等待解析与重渲染
+        await vi.waitFor(() => expect(wrapper.find('.monaco-stub').exists()).toBe(true));
+        const editor = wrapper.findComponent({ name: 'MonacoEditorStub' });
+        expect(editor.props('modelValue')).toBe('select 1');
+        expect(editor.props('options')).toEqual({ readOnly: false });
+    });
+
     it('select 渲染静态 options 且 label 经 $t，选择写入 form', async () => {
         const form = reactive<Record<string, any>>({});
         const wrapper = mountForm({

@@ -1,0 +1,32 @@
+/* Glass Material Presets (材质预设层)
+------------------------------- */
+// 语义化材质变体，使用方式：class="glass-material-sidebar"
+
+@use 'core' as *;
+
+.glass-mode {
+    // 侧边栏材质
+    .glass-material-sidebar {
+        @include glass-base;
+    }
+
+    // 顶栏材质
+    .glass-material-navbar {
+        @include glass-base;
+    }
+
+    // 卡片材质（带高光）
+    .glass-material-card {
+        @include glass-card;
+    }
+
+    // 弹层材质（Dialog / Drawer）
+    .glass-material-overlay {
+        @include glass-heavy;
+    }
+
+    // 强调材质（hover / active 轻玻璃）
+    .glass-material-accent {
+        @include glass-light;
+    }
+}

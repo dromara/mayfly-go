@@ -124,16 +124,24 @@ import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import { AutoFormDrawer, type AutoFormData, type AutoFormTab } from '@/components/auto-form';
 import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
-import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
-import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
-import { compatibleDuplicateStrategy, DbType, getDbDialect } from '@/views/ops/db/dialect';
+import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
+import { DbInst } from '@/views/ops/db/db';
+// 经惰性作用域注册联想：本表单的 SQL 字段已是异步编辑器，静态引入 completion 会让它重新进入首屏
+import { createSqlCompletionScope } from '@/views/ops/db/completion/lazy';
+import { getDbDialect, getDialectCapabilities } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncDuplicateStrategyEnum } from '@/views/ops/db/sync/enums';
-import { computed, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { ColumnMetadata, DataSyncTask, Db, DbTableInfo } from '@/views/ops/db/types';
+import type { ColumnMetadata, DataSyncTask, Db, DbNodeParams, DbTableInfo } from '@/views/ops/db/types';
 
 const { t } = useI18n();
+
+/** 本表单的 SQL 联想使用方作用域（数据源 SQL 字段可联想库/表/字段） */
+const sqlCompletion = createSqlCompletionScope();
+
+// 卸载时释放本使用方；仅当没有其他 SQL 联想使用方存活时才会真正注销全局 provider
+onBeforeUnmount(() => sqlCompletion.release());
 
 const props = defineProps({
     data: {
@@ -146,7 +154,12 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits<{
+    /** 取消编辑，父级关闭弹窗 */
+    cancel: [];
+    /** 保存成功，回传表单，父级据此刷新任务列表 */
+    'val-change': [form: AutoFormData];
+}>();
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
@@ -202,7 +215,7 @@ const tabs: AutoFormTab[] = [
                 label: 'db.keyDuplicateStrategy',
                 type: 'enum',
                 enums: DbDataSyncDuplicateStrategyEnum,
-                when: (f) => compatibleDuplicateStrategy(f.targetDbType!),
+                when: (f) => getDialectCapabilities(getDbDialect(f.targetDbType!)).supportsDuplicateStrategy,
                 onChange: () => handleDuplicateStrategy(),
             },
             { prop: 'previewDataSql', label: 'db.selectSql', type: 'custom' },
@@ -328,7 +341,7 @@ const onOpened = async (form: AutoFormData) => {
 
     // 注册sql代码提示
     if (srcDbId && srcDbName) {
-        registerDbCompletionItemProvider(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
+        sqlCompletion.register(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
     }
 };
 
@@ -373,23 +386,14 @@ const refreshPreviewInsertSql = () => {
     state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(internalForm.value.targetTableName!, state.previewFieldArr, internalForm.value.duplicateStrategy!);
 };
 
-interface DbSelectParams {
-    id: number;
-    db: string;
-    dbs: string[];
-    type: string;
-    databases?: string[];
-    name?: string;
-}
-
-const onSelectSrcDb = async (params: DbSelectParams) => {
+const onSelectSrcDb = async (params: DbNodeParams) => {
     //  初始化数据源
     params.databases = params.dbs; // 数据源里需要这个值
     state.srcDbInst = await DbInst.getOrNewInst(params);
-    registerDbCompletionItemProvider(params.id, params.db, params.dbs, params.type);
+    sqlCompletion.register(params.id, params.db, params.dbs, params.type ?? '');
 };
 
-const onSelectTargetDb = async (params: DbSelectParams) => {
+const onSelectTargetDb = async (params: DbNodeParams) => {
     state.targetDbInst = await DbInst.getOrNewInst(params);
     await loadDbTables(params.id, params.db);
 };
@@ -426,20 +430,8 @@ const handleGetSrcFields = async () => {
         return;
     }
 
-    // 执行sql
-    let sql: string;
-
-    if (internalForm.value.srcDbType === DbType.mssql) {
-        // mssql的分页语法不一样
-        let top1 = `select top 1`;
-        sql = `${top1} * from (${dataSql}) a`;
-    } else if (internalForm.value.srcDbType === DbType.oracle) {
-        // oracle的分页关键字不一样
-        let hasCondition = /where/i.test(dataSql!);
-        sql = `${dataSql} ${hasCondition ? 'and' : 'where'} rownum <= 1`;
-    } else {
-        sql = `${dataSql} limit 1`;
-    }
+    // 取一行预览的 SQL 由源库方言自描述（mssql TOP / oracle ROWNUM / 其余 LIMIT）
+    const sql = getDbDialect(internalForm.value.srcDbType!).getPreviewSql(dataSql!);
 
     const res = await dbApi.sqlExec.request({
         id: internalForm.value.srcDbId,

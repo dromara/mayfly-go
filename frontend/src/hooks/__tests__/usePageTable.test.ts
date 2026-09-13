@@ -16,9 +16,9 @@ describe('usePageTable', () => {
         };
     });
 
-    it('初始化默认状态', () => {
+    it('初始化默认状态：tableData 为空数组（不预渲染占位行，避免 slot 控件以 undefined 挂载触发校验告警）', () => {
         const { tableData, total, searchParams, loading } = usePageTable(true, mockApi as any);
-        expect(tableData.value).toEqual([{}]);
+        expect(tableData.value).toEqual([]);
         expect(total.value).toBe(0);
         expect(searchParams.value.pageNum).toBe(1);
         expect(searchParams.value.pageSize).toBe(10);
@@ -50,10 +50,10 @@ describe('usePageTable', () => {
         expect(tableData.value[2]).toMatchObject({ id: 3 });
     });
 
-    it('无 api 时 getTableData 不执行', async () => {
+    it('无 api 时 getTableData 不执行，tableData 保持初始空数组', async () => {
         const { getTableData, tableData } = usePageTable(true, undefined);
         await getTableData();
-        expect(tableData.value).toEqual([{}]);
+        expect(tableData.value).toEqual([]);
     });
 
     it('search 重置 pageNum 为 1', async () => {

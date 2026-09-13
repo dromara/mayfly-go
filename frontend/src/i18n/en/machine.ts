@@ -41,6 +41,7 @@ export default {
         cmd: 'Command',
         execCmdRecord: 'Executive command record',
         execTime: 'Execution time',
+        noCmdRecord: 'No command records in this session',
         operator: 'Operator',
         beginTime: 'Begin Time',
         endTime: 'End Time',

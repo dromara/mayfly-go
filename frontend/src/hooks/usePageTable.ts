@@ -28,8 +28,8 @@ export const usePageTable = (
     dataCallBack?: (data: Record<string, unknown>) => Record<string, unknown>
 ) => {
     const state = reactive({
-        // 表格数据
-        tableData: [{}] as Record<string, unknown>[],
+        // 表格数据：初始为空数组，避免 el-table v-show 渲染占位空对象行导致 slot 内控件（如 el-switch）以 undefined 值挂载并触发校验告警
+        tableData: [] as Record<string, unknown>[],
         // 总数量
         total: 0,
         // 查询参数,包含分页参数

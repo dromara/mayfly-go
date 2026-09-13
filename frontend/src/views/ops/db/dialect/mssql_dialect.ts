@@ -1,19 +1,12 @@
-import { DbInst } from '../db';
-import {
-    commonCustomKeywords,
-    DataType,
-    DbDialect,
-    DialectInfo,
-    DuplicateStrategy,
-    EditorCompletion,
-    EditorCompletionItem,
-    QuoteEscape,
-    IndexDefinition,
-    RowDefinition,
-} from './index';
-import { language as sqlLanguage } from 'monaco-editor/languages/definitions/sql/sql.js';
-
-export { MSSQL_TYPE_LIST, MssqlDialect };
+import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
+import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition, SqlSnippetTemplate } from './types';
+import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
+import { buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueMssql } from './shared/utils';
+import { defineCapabilities, mssqlQuotePairs, mssqlSplitOptions } from './shared/capabilities';
+import { offsetFetchPageSnippet } from './shared/snippets';
+import { DbType } from './dbType';
+import { registerDbDialect } from './registry';
+import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
 // 参考官方文档：https://docs.microsoft.com/zh-cn/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver15
 const MSSQL_TYPE_LIST = [
@@ -63,6 +56,7 @@ const MSSQL_TYPE_LIST = [
 // 函数参考官方文档 https://learn.microsoft.com/zh-cn/sql/t-sql/functions/functions?view=sql-server-ver15
 
 let mssqlDialectInfo: DialectInfo;
+let mssqlCompletions: EditorCompletion;
 
 const customKeywords: EditorCompletionItem[] = [
     {
@@ -97,16 +91,44 @@ const fixedLengthTypes = [
 ];
 
 class MssqlDialect implements DbDialect {
+    getCapabilities(): DialectCapabilities {
+        return defineCapabilities({
+            supportsIndexComment: true,
+            defaultIndexType: 'NONCLUSTERED',
+            // IDENTITY 属性建表后不可变更，仅新建时可设置
+            canEditAutoIncrementOnEdit: false,
+            quotePairs: mssqlQuotePairs,
+            sqlSplitOptions: mssqlSplitOptions,
+        });
+    }
+
     getInfo(): DialectInfo {
         if (mssqlDialectInfo) {
             return mssqlDialectInfo;
         }
 
+        mssqlDialectInfo = {
+            name: 'MSSQL',
+            icon: 'icon db/sqlserver',
+            defaultPort: 1433,
+            formatSqlDialect: 'transactsql',
+            columnTypes: MSSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),
+        };
+        return mssqlDialectInfo;
+    }
+
+    /** 编辑器联想词由 monaco 语言定义派生，按需加载并缓存（详见 types.ts 的 DialectInfo 注释） */
+    async getEditorCompletions(): Promise<EditorCompletion> {
+        if (mssqlCompletions) {
+            return mssqlCompletions;
+        }
+
+        const { language: sqlLanguage } = await import('monaco-editor/languages/definitions/sql/sql.js');
         let { keywords, operators, builtinVariables, builtinFunctions } = sqlLanguage;
         let functions = builtinFunctions.map((a: string): EditorCompletionItem => ({ label: a, insertText: `${a}()`, description: 'func' }));
 
         let excludeKeywords = new Set(operators);
-        let editorCompletions: EditorCompletion = {
+        mssqlCompletions = {
             keywords: keywords
                 .filter((a: string) => !excludeKeywords.has(a)) // 移除已存在的operator、function
                 .map((a: string): EditorCompletionItem => ({ label: a, description: 'keyword' }))
@@ -116,20 +138,11 @@ class MssqlDialect implements DbDialect {
             functions,
             variables: builtinVariables.map((a: string): EditorCompletionItem => ({ label: a, description: 'var' })),
         };
-
-        mssqlDialectInfo = {
-            name: 'MSSQL',
-            icon: 'icon db/sqlserver',
-            defaultPort: 1433,
-            formatSqlDialect: 'transactsql',
-            columnTypes: MSSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),
-            editorCompletions,
-        };
-        return mssqlDialectInfo;
+        return mssqlCompletions;
     }
 
     getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        let schema = db.split('/')[1];
+        let schema = extractSchema(db);
         return `SELECT *, 0 AS _MAY_ORDER_F_ FROM ${this.quoteIdentifier(schema)}.${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${
             orderBy ? orderBy + ', _MAY_ORDER_F_' : 'order by _MAY_ORDER_F_'
         } ${this.getPageSql(pageNum, limit)};`.toUpperCase();
@@ -139,56 +152,17 @@ class MssqlDialect implements DbDialect {
         return ` offset ${(pageNum - 1) * limit} rows fetch next ${limit} rows only`.toUpperCase();
     }
 
+    getPreviewSql(sql: string, limit = 1): string {
+        // T-SQL 无 LIMIT，TOP 须包裹为子查询
+        return `SELECT TOP ${limit} * FROM (${sql}) a`;
+    }
+
+    getPageSnippet(): SqlSnippetTemplate {
+        return offsetFetchPageSnippet;
+    }
+
     getDefaultRows(): RowDefinition[] {
-        return [
-            { name: 'id', type: 'bigint', length: '', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
-            { name: 'creator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
-            {
-                name: 'creator',
-                type: 'nvarchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建人姓名',
-            },
-            {
-                name: 'create_time',
-                type: 'datetime2',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建时间',
-            },
-            { name: 'updator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-            {
-                name: 'updator',
-                type: 'nvarchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改人姓名',
-            },
-            {
-                name: 'update_time',
-                type: 'datetime2',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改时间',
-            },
-        ];
+        return createDefaultRows(defaultRowsConfigs.mssql);
     }
 
     getDefaultIndex(): IndexDefinition {
@@ -196,7 +170,8 @@ class MssqlDialect implements DbDialect {
             indexName: '',
             columnNames: [],
             unique: false,
-            indexType: 'NONCLUSTERED',
+            // 索引类型取自能力声明，避免与 defaultIndexType 各写一份而漂移
+            indexType: this.getCapabilities().defaultIndexType,
             indexComment: '',
         };
     }
@@ -208,89 +183,101 @@ class MssqlDialect implements DbDialect {
     genColumnBasicSql(cl: RowDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
-        // mssql哪些字段允许有长度
+        // mssql哪些字段允许有长度/精度
         let length = '';
         if (!fixedLengthTypes.includes(cl.type)) {
-            length = cl.length ? `(${cl.length})` : '';
+            if (cl.length) {
+                length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
+            }
         }
-        return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${cl.auto_increment ? 'IDENTITY(1,1)' : ''} ${defVal} ${cl.notNull ? 'NOT NULL' : 'NULL'} `;
+        const parts = [
+            this.quoteIdentifier(cl.name),
+            cl.type + length,
+            cl.auto_increment ? 'IDENTITY(1,1)' : '',
+            defVal,
+            cl.notNull ? 'NOT NULL' : 'NULL',
+        ];
+        return parts.filter(Boolean).join(' ');
     }
-    getCreateTableSql(data: Record<string, unknown>): string {
-        let schema = (data.db as string).split('/')[1];
+
+    /** MSSQL ALTER COLUMN 专用：不允许 IDENTITY 和 DEFAULT */
+    genAlterColumnSql(cl: RowDefinition): string {
+        let length = '';
+        if (!fixedLengthTypes.includes(cl.type)) {
+            if (cl.length) {
+                length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
+            }
+        }
+        const parts = [this.quoteIdentifier(cl.name), cl.type + length, cl.notNull ? 'NOT NULL' : 'NULL'];
+        return parts.filter(Boolean).join(' ');
+    }
+
+    getCreateTableSql(data: TableEditContext): string {
+        let schema = extractSchema(data.db);
 
         // 创建表结构
         let pks = [] as string[];
         let fields: string[] = [];
         let fieldComments: string[] = [];
-        (data.fields as { res: RowDefinition[] }).res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: RowDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
             item.remark &&
                 fieldComments.push(
                     `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(item.remark)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'COLUMN', N'${item.name}'`
                 );
             if (item.pri) {
-                pks.push(`${this.quoteIdentifier(item.name)}`);
+                pks.push(this.quoteIdentifier(item.name));
             }
         });
 
-        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName as string)}`;
+        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName)}`;
 
         // 建表语句
-        let createTable = `CREATE TABLE ${baseTable}
-                ( ${fields.join(',')}
-                  ${pks.length > 0 ? `, PRIMARY KEY CLUSTERED (${pks.join(',')})` : ''}
-                );`;
+        const pkClause = pks.length > 0 ? `,\n  PRIMARY KEY CLUSTERED (${pks.join(',')})` : '';
+        let createTable = `CREATE TABLE ${baseTable} (\n  ${fields.join(',\n  ')}${pkClause}\n);`;
 
         let createIndexSql = this.getCreateIndexSql(data);
 
         // 表注释
         if (data.tableComment) {
-            createTable += ` EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(data.tableComment as string)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName as string}';`;
+            createTable += `\nEXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(data.tableComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}';`;
         }
 
-        return createTable + createIndexSql + fieldComments.join(';');
+        return createTable + (createIndexSql ? '\n' + createIndexSql : '') + (fieldComments.length > 0 ? '\n' + fieldComments.join(';\n') : '');
     }
 
-    getCreateIndexSql(data: Record<string, unknown>): string {
-        // CREATE UNIQUE NONCLUSTERED INDEX [aaa]
-        // ON [dbo].[无标题] (
-        //   [id],
-        //   [name]
-        // )
-        let schema = (data.db as string).split('/')[1];
-        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(data.tableName as string)}`;
+    getCreateIndexSql(data: TableEditContext): string {
+        let schema = extractSchema(data.db);
+        let baseTable = buildSchemaTable(this.quoteIdentifier, data.db, data.tableName);
 
         let indexComment = [] as string[];
 
         // 创建索引
         let sql: string[] = [];
-        (data.indexs as { res: IndexDefinition[] }).res.forEach((a: IndexDefinition) => {
-            let columnNames = a.columnNames.map((b: string) => `${this.quoteIdentifier(b)}`);
-            sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} on ${baseTable} (${columnNames.join(',')})`);
+        data.indexs.res.forEach((a: IndexDefinition) => {
+            let columnNames = a.columnNames.map((b: string) => this.quoteIdentifier(b));
+            sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} (${columnNames.join(',')})`);
             if (a.indexComment) {
                 indexComment.push(
-                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment ?? '')}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName as string}', N'INDEX', N'${a.indexName}'`
+                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment ?? '')}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'INDEX', N'${a.indexName}'`
                 );
             }
         });
 
         let arr = [];
-        sql.length > 0 && arr.push(sql.join(';'));
-        indexComment.length > 0 && arr.push(indexComment.join(';'));
-        return arr.join(';');
+        sql.length > 0 && arr.push(sql.join(';\n'));
+        indexComment.length > 0 && arr.push(indexComment.join(';\n'));
+        return arr.join(';\n');
     }
 
-    getModifyColumnSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        // sql执行顺序
-        // 1. 删除字段
-        // 2. 添加字段
-        // 3. 修改字段名字
-        // 4. 修改字段类型
-        // 5. 修改字段注释
-        // 6. 添加字段注释
+    getDropTableSql(db: string, table: string): string {
+        // 必须带 schema 限定，否则会落到连接用户的默认 schema 而删错表
+        return `DROP TABLE ${buildSchemaTable(this.quoteIdentifier, db, table)}`;
+    }
 
-        let schema = (tableData.db as string).split('/')[1];
-        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+        let schema = extractSchema(tableData.db);
+        let baseTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableName);
 
         let delSql = '';
         let addArr = [] as string[];
@@ -304,7 +291,7 @@ class MssqlDialect implements DbDialect {
         }
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                addArr.push(` ALTER TABLE ${baseTable} ADD ${this.genColumnBasicSql(a)}`);
+                addArr.push(`ALTER TABLE ${baseTable} ADD ${this.genColumnBasicSql(a)}`);
                 if (a.remark) {
                     addCommentArr.push(
                         `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.remark)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'COLUMN', N'${a.name}'`
@@ -316,10 +303,10 @@ class MssqlDialect implements DbDialect {
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
                 if (a.oldName && a.name !== a.oldName) {
-                    renameArr.push(` EXEC sp_rename '${baseTable}.${this.quoteIdentifier(a.oldName)}', '${QuoteEscape(a.name)}', 'COLUMN' `);
-                } else {
-                    updArr.push(` ALTER TABLE ${baseTable} ALTER COLUMN ${this.genColumnBasicSql(a)} `);
+                    renameArr.push(`EXEC sp_rename '${baseTable}.${this.quoteIdentifier(a.oldName)}', '${QuoteEscape(a.name)}', 'COLUMN'`);
                 }
+                // ALTER COLUMN 只允许 type 和 nullability，不允许 IDENTITY/DEFAULT
+                updArr.push(`ALTER TABLE ${baseTable} ALTER COLUMN ${this.genAlterColumnSql(a)}`);
                 if (a.remark) {
                     changeCommentArr.push(`IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
@@ -335,40 +322,40 @@ ELSE
 'MS_Description', N'${QuoteEscape(a.remark)}',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableName}',
-'COLUMN',N'${a.name}'`);
+'COLUMN', N'${a.name}'`);
                 }
             });
         }
 
         let arr = [];
         delSql && arr.push(delSql);
-        addArr.length > 0 && arr.push(addArr.join(';'));
-        renameArr.length > 0 && arr.push(renameArr.join(';'));
-        updArr.length > 0 && arr.push(updArr.join(';'));
-        changeCommentArr.length > 0 && arr.push(changeCommentArr.join(';'));
-        addCommentArr.length > 0 && arr.push(addCommentArr.join(';'));
+        addArr.length > 0 && arr.push(addArr.join(';\n'));
+        renameArr.length > 0 && arr.push(renameArr.join(';\n'));
+        updArr.length > 0 && arr.push(updArr.join(';\n'));
+        changeCommentArr.length > 0 && arr.push(changeCommentArr.join(';\n'));
+        addCommentArr.length > 0 && arr.push(addCommentArr.join(';\n'));
 
-        return arr.join(';');
+        return arr.join(';\n');
     }
 
-    getModifyIndexSql(tableData: Record<string, unknown>, tableName: string, changeData: { del: IndexDefinition[]; add: IndexDefinition[]; upd: IndexDefinition[] }): string {
-        let schema = (tableData.db as string).split('/')[1];
-        let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
+    getModifyIndexSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<IndexDefinition>): string {
+        let schema = extractSchema(tableData.db);
+        let baseTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableName);
 
         let dropArr = [] as string[];
         let addArr = [] as string[];
         let commentArr = [] as string[];
 
         const pushDrop = (a: IndexDefinition) => {
-            dropArr.push(` DROP INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} `);
+            dropArr.push(`DROP INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable}`);
         };
         const pushAdd = (a: IndexDefinition) => {
             addArr.push(
-                ` CREATE ${a.unique ? 'UNIQUE' : ''} NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} (${a.columnNames.map((b: string) => this.quoteIdentifier(b)).join(',')}) `
+                `CREATE ${a.unique ? 'UNIQUE ' : ''}NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} (${a.columnNames.map((b: string) => this.quoteIdentifier(b)).join(',')})`
             );
             if (a.indexComment) {
                 commentArr.push(
-                    ` EXEC sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'INDEX', N'${a.indexName}' `
+                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'INDEX', N'${a.indexName}'`
                 );
             }
         };
@@ -389,78 +376,51 @@ ELSE
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => pushAdd(a));
         }
-        let dropSql = dropArr.join(';');
-        let addSql = addArr.join(';');
-        let commentSql = commentArr.join(';');
+        let dropSql = dropArr.join(';\n');
+        let addSql = addArr.join(';\n');
+        let commentSql = commentArr.join(';\n');
 
         let arr = [];
         dropSql && arr.push(dropSql);
         addSql && arr.push(addSql);
         commentSql && arr.push(commentSql);
-        return arr.join(';');
+        return arr.join(';\n');
     }
 
-    getModifyTableInfoSql(tableData: Record<string, unknown>): string {
-        let schemaArr = (tableData.db as string).split('/');
-        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+    getModifyTableInfoSql(tableData: TableInfoEditContext): string {
+        let schema = extractSchema(tableData.db);
 
         let sql = '';
 
         if (tableData.oldTableName !== tableData.tableName) {
-            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName as string)}`;
-            // 查找是否存在注释，存在则修改，不存在则添加
-            sql += `EXEC sp_rename '${baseTable}', '${tableData.tableName as string}';`;
+            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            sql += `EXEC sp_rename '${baseTable}', '${tableData.tableName}';\n`;
         }
 
         if (tableData.oldTableComment !== tableData.tableComment) {
-            // 转义注释中的单引号和换行符
             let tableComment = (tableData.tableComment as string).replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
             sql += `IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
-'TABLE', N'${tableData.tableName as string}', NULL, NULL)) > 0)
+'TABLE', N'${tableData.tableName}', NULL, NULL)) > 0)
   EXEC sp_updateextendedproperty
 'MS_Description', N'${tableComment}',
 'SCHEMA', N'${schema}',
-'TABLE', N'${tableData.tableName as string}'
+'TABLE', N'${tableData.tableName}'
 ELSE
   EXEC sp_addextendedproperty
 'MS_Description', N'${tableComment}',
 'SCHEMA', N'${schema}',
-'TABLE', N'${tableData.tableName as string}'`;
+'TABLE', N'${tableData.tableName}'`;
         }
         return sql;
     }
 
     getDataType(columnType: string): DataType {
-        if (DbInst.isNumber(columnType)) {
-            return DataType.Number;
-        }
-        // 日期时间类型
-        if (/datetime|timestamp/gi.test(columnType)) {
-            return DataType.DateTime;
-        }
-        // 日期类型
-        if (/date/gi.test(columnType)) {
-            return DataType.Date;
-        }
-        // 时间类型
-        if (/time/gi.test(columnType)) {
-            return DataType.Time;
-        }
-        return DataType.String;
+        return getDefaultDataType(columnType) as DataType;
     }
 
     wrapValue(columnType: string, value: unknown): string | number {
-        if (value == null) {
-            return 'NULL';
-        }
-        if (this.getDataType(columnType) == DataType.Number) {
-            return value as number;
-        }
-        if (this.getDataType(columnType) == DataType.String) {
-            return `N'${value}'`;
-        }
-        return `'${value}'`;
+        return wrapValueMssql(columnType, value) as string | number;
     }
 
     getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
@@ -492,3 +452,5 @@ ELSE
         return baseSql;
     }
 }
+
+registerDbDialect(DbType.mssql, new MssqlDialect());

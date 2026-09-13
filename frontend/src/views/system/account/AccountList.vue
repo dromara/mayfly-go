@@ -10,14 +10,14 @@
             :columns="columns"
         >
             <template #tableHeader>
-                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="onEditAccount(false)">{{ $t('common.create') }}</el-button>
-                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="onDeleteAccount()" type="danger" icon="delete">
+                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editEntity()">{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.delAccount" :disabled="selectionData.length < 1" @click="onDelete" type="danger" icon="delete">
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
 
             <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.addAccount]" @click="onEditAccount(data)" type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]" @click="editEntity(data)" type="primary">{{ $t('common.edit') }}</el-button>
 
                 <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="onShowRoleEdit(data)" type="success">
                     {{ $t('system.account.roleAllocation') }}
@@ -56,7 +56,7 @@
         </el-dialog>
 
         <role-allocation v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="onCancel()" />
-        <account-edit :title="accountDialog.title" v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="onValChange()" />
+        <account-edit :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" @val-change="onValChange" />
     </div>
 </template>
 
@@ -66,11 +66,12 @@ import { hasPerms } from '@/components/auth/auth';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { useEditDialog } from '@/hooks/useResourceForm';
+import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
 import { accountApi } from '../api';
 import { AccountStatusEnum } from '../enums';
-import type { Account, SysRole } from '../types';
+import type { Account } from '../types';
 
 const AccountEdit = defineAsyncComponent(() => import('./AccountEdit.vue'));
 const RoleAllocation = defineAsyncComponent(() => import('./RoleAllocation.vue'));
@@ -101,46 +102,25 @@ const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.chan
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
 
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
-const state = reactive({
-    /**
-     * 选中的数据
-     */
-    selectionData: [],
-    /**
-     * 查询条件
-     */
-    query: {
-        username: '',
-        pageNum: 1,
-        pageSize: 0,
-    },
-    showRoleDialog: {
-        title: '',
-        visible: false,
-        accountRoles: [],
-    },
-    showResourceDialog: {
-        title: '',
-        visible: false,
-        resources: [],
-        defaultProps: {
-            children: 'children',
-            label: 'name',
-        },
-    },
-    roleDialog: {
-        visible: false,
-        account: null as Account | null,
-        roles: [],
-    },
-    accountDialog: {
-        title: '',
-        visible: false,
-        data: null as Account | null,
-    },
+const { editDialog, editEntity } = useEditDialog<Account>('personal.accountInfo');
+
+const selectionData = ref<Account[]>([]);
+const query = ref({
+    username: '',
+    pageNum: 1,
+    pageSize: 0,
 });
 
-const { selectionData, query, showRoleDialog, roleDialog, accountDialog } = toRefs(state);
+const showRoleDialog = ref({
+    title: '',
+    visible: false,
+    accountRoles: [] as Record<string, unknown>[],
+});
+
+const roleDialog = ref({
+    visible: false,
+    account: null as Account | null,
+});
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -148,59 +128,46 @@ onMounted(() => {
     }
 });
 
-const search = async () => {
+const search = () => {
     pageTableRef.value?.search();
 };
 
 const onChangeStatus = async (row: Account) => {
-    let id = row.id;
-    let status = row.status == AccountStatusEnum.Disable.value ? AccountStatusEnum.Enable.value : AccountStatusEnum.Disable.value;
-    await accountApi.changeStatus.request({
-        id,
-        status,
-    });
+    const id = row.id;
+    const status = row.status == AccountStatusEnum.Disable.value ? AccountStatusEnum.Enable.value : AccountStatusEnum.Disable.value;
+    await accountApi.changeStatus.request({ id, status });
     Msg.operateSuccess();
     search();
 };
 
 const onResetOtpSecret = async (row: Account) => {
-    let id = row.id;
-    await accountApi.resetOtpSecret.request({
-        id,
-    });
+    await accountApi.resetOtpSecret.request({ id: row.id });
     Msg.operateSuccess();
     row.otpSecret = '-';
 };
 
-const onEditAccount = (data: Account | false) => {
-    if (!data) {
-        state.accountDialog.title = useI18nCreateTitle('personal.accountInfo');
-        state.accountDialog.data = null;
-    } else {
-        state.accountDialog.title = useI18nEditTitle('personal.accountInfo');
-        state.accountDialog.data = data;
-    }
-    state.accountDialog.visible = true;
-};
-
 const onShowRoleEdit = (data: Account) => {
-    state.roleDialog.visible = true;
-    state.roleDialog.account = data;
+    roleDialog.value.visible = true;
+    roleDialog.value.account = data;
 };
 
 const onCancel = () => {
-    state.roleDialog.visible = false;
-    state.roleDialog.account = null;
+    roleDialog.value.visible = false;
+    roleDialog.value.account = null;
 };
 
 const onValChange = () => {
-    state.accountDialog.visible = false;
+    editDialog.value.visible = false;
     search();
 };
 
-const onDeleteAccount = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x: Account) => x.username).join('、'));
-    await accountApi.del.request({ id: state.selectionData.map((x: Account) => x.id).join(',') });
+const onDelete = async () => {
+    try {
+        await useI18nDeleteConfirm(selectionData.value.map((x) => x.username).join('、'));
+    } catch {
+        return; // 用户取消
+    }
+    await accountApi.del.request({ id: selectionData.value.map((x) => x.id).join(',') });
     Msg.deleteSuccess();
     search();
 };

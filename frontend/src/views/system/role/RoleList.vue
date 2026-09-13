@@ -134,7 +134,6 @@ const search = () => {
 };
 
 const roleEditChange = () => {
-    Msg.saveSuccess();
     search();
 };
 

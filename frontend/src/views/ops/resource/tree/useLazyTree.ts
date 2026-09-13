@@ -167,7 +167,6 @@ export function useLazyTree(options: LazyTreeOptions) {
         });
         expandedKeys.value = validKeys;
         bump();
-        afterHydrateHooks.forEach((h) => h(data.value[0]));
     }
 
     /** 首次加载根节点（容器 onMounted 调用） */
@@ -260,7 +259,7 @@ export function useLazyTree(options: LazyTreeOptions) {
         }
     }
 
-    /** 展开祖先路径并水合，使 key 节点可见（供定位/深链展开） */
+    /** 展开祖先路径并水合，使 key 节点可见（供定位/深链展开）；仅展开祖先，不展开目标自身 */
     async function ensureVisible(key: string): Promise<boolean> {
         const chain: TreeNode[] = [];
         let k: string | undefined = key;
@@ -272,7 +271,10 @@ export function useLazyTree(options: LazyTreeOptions) {
             chain.unshift(n);
             k = parentIndex.get(k);
         }
-        for (const n of chain) {
+        // 只展开祖先链（chain 末位即目标本身）：定位只需目标可见，是否展开其子级交由用户交互决定，
+        // 避免定位即触发目标子节点的懒加载（如库名/ES 实例展开拉表/索引，慢且可能失败冒出错误占位）
+        for (let i = 0; i < chain.length - 1; i++) {
+            const n = chain[i];
             if (!n.hasChildren) {
                 continue;
             }

@@ -65,6 +65,7 @@ registerContributor({
     resourceType: TagResourceTypeEnum.Redis.value,
     hasChildren: true,
     renderer: NodeRedis,
+    locateCode: (node) => node.params.code as string,
     loadRoots: async (groupNode) => {
         const res = await redisApi.redisList.request({ tagPath: groupNode.params?.tagPath as string });
         if (!res.total) {

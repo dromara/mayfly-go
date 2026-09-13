@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="'mongo:save'" type="primary" icon="plus" @click="editMongo(false)" plain>{{ $t('common.create') }}</el-button>
-                <el-button v-auth="'mongo:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>
+                <el-button v-auth="'mongo:save'" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="'mongo:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="onDelete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -25,23 +25,14 @@
 
             <template #action="{ data }">
                 <el-button @click="showDatabases(data.id)" link>{{ $t('mongo.db') }}</el-button>
-
                 <el-button @click="showUsers(data.id)" link type="success">cmd</el-button>
-
-                <el-button v-auth="'mongo:save'" @click="editMongo(data)" link type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button v-auth="'mongo:save'" @click="editEntity(data)" link type="primary">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
-        <mongo-dbs v-model:visible="dbsVisible" :id="state.dbOps.dbId"></mongo-dbs>
-
-        <mongo-run-command v-model:visible="usersVisible" :id="state.dbOps.dbId" />
-
-        <mongo-edit
-            @val-change="search()"
-            :title="mongoEditDialog.title"
-            v-model:visible="mongoEditDialog.visible"
-            v-model:mongo="mongoEditDialog.data"
-        ></mongo-edit>
+        <mongo-dbs v-model:visible="dbsVisible" :id="dbId" />
+        <mongo-run-command v-model:visible="usersVisible" :id="dbId" />
+        <mongo-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
     </div>
 </template>
 
@@ -49,9 +40,9 @@
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { defineAsyncComponent, onMounted, reactive, toRefs, useTemplateRef } from 'vue';
-import { useRoute } from 'vue-router';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
+import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import { mongoApi } from './api';
 import type { Mongo } from './types';
@@ -62,13 +53,22 @@ const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue
 
 const props = defineProps({
     lazy: {
-        type: [Boolean],
+        type: Boolean,
         default: false,
     },
 });
 
-const route = useRoute();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const checkRouteTagPath = useRouteTagPath();
+const { editDialog, editEntity } = useEditDialog<Mongo>('mongo.mongo');
+
+const query = ref({
+    pageNum: 1,
+    pageSize: 0,
+    tagPath: '',
+});
+
+const selectionData = ref<Mongo[]>([]);
 
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('mongo.keywordPlaceholder')];
 
@@ -81,27 +81,9 @@ const columns = [
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(170).fixedRight().alignCenter(),
 ];
 
-const state = reactive({
-    dbOps: {
-        dbId: 0,
-        db: '',
-    },
-    selectionData: [],
-    query: {
-        pageNum: 1,
-        pageSize: 0,
-        tagPath: '',
-    },
-    mongoEditDialog: {
-        visible: false,
-        data: null as Mongo | null,
-        title: '',
-    },
-    dbsVisible: false,
-    usersVisible: false,
-});
-
-const { selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
+const dbsVisible = ref(false);
+const usersVisible = ref(false);
+const dbId = ref(0);
 
 onMounted(() => {
     if (!props.lazy) {
@@ -109,53 +91,34 @@ onMounted(() => {
     }
 });
 
-const checkRouteTagPath = (query: Record<string, unknown>) => {
-    if (route.query.tagPath) {
-        query.tagPath = route.query.tagPath as string;
-    }
-    return query;
+const showDatabases = (id: number) => {
+    dbId.value = id;
+    dbsVisible.value = true;
 };
 
-const showDatabases = async (id: number) => {
-    state.dbOps.dbId = id;
-    state.dbsVisible = true;
+const showUsers = (id: number) => {
+    dbId.value = id;
+    usersVisible.value = true;
 };
 
-const showUsers = async (id: number) => {
-    state.dbOps.dbId = id;
-    state.usersVisible = true;
-};
-
-const deleteMongo = async () => {
+const onDelete = async () => {
+    const records = selectionData.value || [];
+    if (records.length === 0) return;
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: Mongo) => x.name).join('、'));
-        await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: Mongo) => x.id).join(',') });
-        Msg.deleteSuccess();
-        search();
-    } catch (err) {
-        //
+        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
+    } catch {
+        return; // 用户取消
     }
+    await mongoApi.deleteMongo.request({ id: records.map((x) => x.id).join(',') });
+    Msg.deleteSuccess();
+    search();
 };
 
-const search = async (tagPath: string = '') => {
-    if (tagPath) {
-        state.query.tagPath = tagPath;
-    }
+const search = (tagPath?: string) => {
+    // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
+    query.value.tagPath = tagPath ?? '';
     pageTableRef.value?.search();
-};
-
-const editMongo = async (data: Mongo | false) => {
-    if (!data) {
-        state.mongoEditDialog.data = null;
-        state.mongoEditDialog.title = useI18nCreateTitle('mongo.mongo');
-    } else {
-        state.mongoEditDialog.data = data;
-        state.mongoEditDialog.title = useI18nEditTitle('mongo.mongo');
-    }
-    state.mongoEditDialog.visible = true;
 };
 
 defineExpose({ search });
 </script>
-
-<style></style>

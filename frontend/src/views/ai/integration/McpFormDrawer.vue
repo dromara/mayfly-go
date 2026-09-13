@@ -1,5 +1,5 @@
 <template>
-    <auto-form-drawer ref="drawerRef" v-model="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" :items="formItems" :data="editData" size="560px" append-to-body :confirm-api="handleSave" @submitted="emit('saved')" @opened="onOpened">
+    <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" :items="formItems" :data="editData" size="560px" append-to-body :confirm-api="handleSave" @submitted="emit('saved')" @opened="onOpened">
         <template #headers="{ form }">
             <div class="headers-editor">
                 <MonacoEditor v-model="form.headers" language="json" height="140px" />

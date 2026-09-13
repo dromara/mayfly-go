@@ -8,6 +8,7 @@
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
+            :data-handler-fn="handleData"
         >
             <template #tableHeader>
                 <el-button v-auth="perms.save" type="primary" icon="plus" @click="edit(false)">{{ $t('common.create') }}</el-button>
@@ -18,8 +19,8 @@
             <template #status="{ data }">
                 <span v-if="actionBtns[perms.status]">
                     <el-switch
-                        v-model="data.status"
-                        @click="updStatus(data.id, data.status)"
+                        :model-value="data.status === 1 ? 1 : -1"
+                        @change="(val: 1 | -1) => updStatus(data.id, val)"
                         inline-prompt
                         :active-text="$t('common.enable')"
                         :inactive-text="$t('common.disable')"
@@ -29,7 +30,7 @@
                 </span>
                 <span v-else>
                     <el-tag v-if="data.status == 1" class="ml-2" type="success">{{ $t('common.enable') }}</el-tag>
-                    <el-tag v-else class="ml-2" type="danger">{{ $t('common.enable') }}</el-tag>
+                    <el-tag v-else class="ml-2" type="danger">{{ $t('common.disable') }}</el-tag>
                 </span>
             </template>
 
@@ -42,7 +43,7 @@
             </template>
         </page-table>
 
-        <data-sync-task-edit @val-change="search" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
+        <data-sync-task-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
 
         <data-sync-task-log v-model:visible="logsDialog.visible" v-model:taskId="logsDialog.taskId" :running="state.logsDialog.running" />
     </div>
@@ -57,10 +58,21 @@ import { Msg, useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nE
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import type { PageResult } from '@/types/common';
 import type { DataSyncTask } from '../types';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
+
+/** 归一 status 字段：Go int8 零值 0 映射为 -1（停用），避免 ElSwitch model-value 校验告警 */
+const handleData = (res: PageResult<DataSyncTask>) => {
+    for (const task of res.list) {
+        if (task.status !== 1 && task.status !== -1) {
+            task.status = -1;
+        }
+    }
+    return res;
+};
 
 const perms = {
     save: 'db:sync:save',

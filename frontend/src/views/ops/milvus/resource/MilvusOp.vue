@@ -65,8 +65,6 @@ const props = defineProps<{
 // 使用 per-tab 独立 store，实现多标签页状态隔离
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
-const emits = defineEmits(['init']);
-
 const activeTab = ref('databases');
 
 // 在子组件挂载前同步全局 ac，确保子组件 watcher / onMounted 发出的 API 请求使用正确的凭证

@@ -61,8 +61,8 @@ const props = defineProps({
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-//定义事件
-const emit = defineEmits(['cancel', 'val-change']);
+//保存成功与主动取消都只 emit cancel，父级用它关闭弹窗（val-change 从不触发，故不声明）
+const emit = defineEmits<{ cancel: [] }>();
 
 const defaultProps = {
     children: 'children',

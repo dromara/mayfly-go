@@ -11,7 +11,7 @@
                         </el-input>
                     </div>
 
-                    <TreeContainer ref="treeContainerRef" :load-root="loadRoot" :filter-text="filterText" @node-click="onTreeNodeClick" />
+                    <TreeContainer ref="treeContainerRef" :load-root="loadRoot" :filter-text="filterText" :resolve-locate="resolveCodePathLocate" @node-click="onTreeNodeClick" />
                 </el-card>
             </el-splitter-panel>
 
@@ -120,13 +120,14 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { storeToRefs } from 'pinia';
 import TreeContainer from './tree/TreeContainer.vue';
+import { resolveCodePathLocate } from './locateResource';
 import type { TreeNode } from './tree/types';
 import { getResourceTypes, loadResourceTags } from './resource';
 import {
@@ -147,6 +148,7 @@ const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
 
 const treeContainerRef = useTemplateRef<{
     locate: (key: string) => Promise<void>;
+    locateIdentity: (identity: string) => Promise<void>;
     refresh: (key?: string) => void;
     getNode: (key: string) => TreeNode | undefined;
 }>('treeContainerRef');
@@ -212,42 +214,35 @@ const loadRoot = () => loadResourceTags(getResourceTypes());
 
 // ---------------------------------- autoOpen 定位 ----------------------------------
 
-// autoOpen 待定位的节点 key：目标节点可能尚未水合，容器在每次水合完成后自动重试
+// autoOpen 待定位的资源 codePath（原始串，解析与逐层下钻交由注入树容器的 resolveCodePathLocate 完成）
+let pendingLocateCodePath = '';
+
+// 消费待定位 codePath：tree 就绪即发起定位
+// 首次挂载由 onMounted 触发、keep-alive 缓存后再次进入由 onActivated 触发（此时不会再次 onMounted）
+// 注意：仅在 DOM 已挂载/重新挂载时消费，避免在 deactivated 状态对脱离的 DOM 定位导致滚动失效
+const consumePendingLocate = () => {
+    if (!pendingLocateCodePath) {
+        return;
+    }
+    treeContainerRef.value?.locateIdentity(pendingLocateCodePath);
+    pendingLocateCodePath = '';
+};
+
 watch(
     () => autoOpenResource.value.codePath,
     (autoOpenCodePath: string) => {
         if (!autoOpenCodePath) {
             return;
         }
-
-        // 解析 codePath 的最后一段作为定位目标（中间层级由容器按需展开）
-        const parts = autoOpenCodePath.split('/');
-        let lastKey = '';
-        let currentTagPath = '';
-        let lastResourceKey = '';
-        for (const part of parts) {
-            if (!part) {
-                continue;
-            }
-            const [key, value] = part.split('|');
-            if (!value) {
-                currentTagPath = currentTagPath + key + '/';
-                lastKey = currentTagPath;
-                continue;
-            }
-            // 资源段：'-' 前为资源类型，值为资源根节点 code
-            if (!lastResourceKey) {
-                lastKey = `${currentTagPath}-${key}`;
-            }
-            lastResourceKey = value;
-        }
+        pendingLocateCodePath = autoOpenCodePath;
+        // 捕获后立即清空 store，避免重复触发或返回页面时再次定位
         autoOpenResourceStore.setCodePath('');
-        if (lastKey || lastResourceKey) {
-            treeContainerRef.value?.locate(lastResourceKey && lastResourceKey !== lastKey ? lastResourceKey : lastKey);
-        }
     },
     { immediate: true }
 );
+
+onMounted(consumePendingLocate);
+onActivated(consumePendingLocate);
 
 // ---------------------------------- 节点点击 → tab 联动 ----------------------------------
 
