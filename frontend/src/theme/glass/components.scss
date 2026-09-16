@@ -13,7 +13,7 @@ body.glass-mode {
         position: relative;
         isolation: isolate;
         background: transparent !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-bottom: 1px solid var(--glass-hairline-soft) !important;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
 
         &::before {
@@ -28,7 +28,7 @@ body.glass-mode {
     }
 
     .layout-navbars-tagsview-ul-li {
-        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        border: 1px solid var(--glass-hairline) !important;
     }
 
     // 激活页签: 与强调按钮同源的实色品牌渐变 + 白字(旧版主色 32% 半透在亮壁纸上糊成脏蓝块, 白字不可读)
@@ -48,7 +48,7 @@ body.glass-mode {
         position: relative;
         isolation: isolate;
         background: transparent !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-bottom: 1px solid var(--glass-hairline-soft) !important;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08) !important;
 
         &::before {
@@ -84,14 +84,14 @@ body.glass-mode {
     .layout-aside {
         backdrop-filter: var(--glass-fx-chrome) !important;
         -webkit-backdrop-filter: var(--glass-fx-chrome) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-right: 1px solid var(--glass-hairline-soft) !important;
         box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
     }
 
     .layout-columns-warp > aside {
         backdrop-filter: var(--glass-fx-chrome) !important;
         -webkit-backdrop-filter: var(--glass-fx-chrome) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border-right: 1px solid var(--glass-hairline-soft) !important;
     }
 
     /* 弹层（下拉 / 选择器 / Popover / 气泡）- 强制半透明背景 + 模糊
@@ -107,7 +107,7 @@ body.glass-mode {
         backdrop-filter: var(--glass-fx-elevated) !important;
         -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
         border-radius: 8px !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
     }
 
@@ -115,6 +115,25 @@ body.glass-mode {
     // 不再被刷成白底却留着深色箭头(白盒黑菱形)。浅色弹层的箭头则与玻璃底对齐：
     .el-popper:not(.is-dark) .el-popper__arrow::before {
         background: var(--glass-bg-elevated) !important;
+    }
+
+    // AI 输入框 '/' '@' 触发菜单(.trigger-menu / .resource-tree-panel 共用该类):
+    // 组件内用实色 --el-bg-color-overlay 挡住磨砂 → 改半透玻璃底, 与 el-popper 同档, 跟随全局磨砂
+    .trigger-menu {
+        background: var(--glass-bg-elevated) !important;
+        background-image: var(--glass-sheen) !important;
+        backdrop-filter: var(--glass-fx-elevated) !important;
+        -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
+        border: 1px solid var(--glass-hairline) !important;
+        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+    }
+
+    // 触发菜单项 hover/选中: 组件内 --el-fill-color-light 在玻璃底上太淡看不出，
+    // 改用与 EP 菜单同源的主色浅衬 + 主色文字，明确区分当前项
+    .trigger-menu__item:hover,
+    .trigger-menu__item.is-selected {
+        background: var(--glass-accent-bg) !important;
+        color: var(--el-color-primary) !important;
     }
 
     // 弹层内嵌表格 / 复选框透明，避免子元素实色白叠加吃光根层玻璃
@@ -135,14 +154,16 @@ body.glass-mode {
         background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.2) !important;
     }
 
-    /* Dialog 弹窗 - 大型浮层玻璃(对齐 tokhub modal 档: bg 0.78 + elevated 模糊)
-       同 Drawer: blur 挂 ::before, 规避 monaco fixedOverflowWidgets 弹层被包含块劫持错位 */
+    /* Dialog 弹窗 - 大型浮层玻璃(bg 0.78 + elevated 模糊)
+       同 Drawer: blur 挂 ::before, 规避 monaco fixedOverflowWidgets 弹层被包含块劫持错位。
+       ⚠ isolation: isolate 必需: 让 ::before 的 z-index:-1 留在 dialog 层叠上下文内
+       分割线穿透问题由下方 .el-splitter-bar__* z-index 归零 + .el-overlay 高 z-index 根治 */
     .el-dialog {
         position: relative;
         isolation: isolate;
         background: transparent !important;
         border-radius: 12px !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient), 0 16px 48px rgba(0, 0, 0, 0.18) !important;
 
         &::before {
@@ -165,7 +186,7 @@ body.glass-mode {
         backdrop-filter: var(--glass-fx-elevated) !important;
         -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
         border-radius: 12px !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient), 0 16px 48px rgba(0, 0, 0, 0.18) !important;
     }
 
@@ -176,7 +197,7 @@ body.glass-mode {
         background-image: var(--glass-sheen) !important;
         backdrop-filter: var(--glass-fx-elevated) !important;
         -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
-        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border: 1px solid var(--glass-hairline-soft) !important;
         border-radius: 8px !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
     }
@@ -207,11 +228,13 @@ body.glass-mode {
         --accent: var(--glass-accent-bg);
     }
 
-    // Drawer 抽屉 - 大型浮层玻璃(对齐 tokhub modal 档, 0.78 兼顾设置抽屉内容可读)
+    // Drawer 抽屉 - 大型浮层玻璃(0.78 兼顾设置抽屉内容可读)
     // blur 挂 ::before 而非抽屉本体: 抽屉会承载 monaco 编辑器(fixedOverflowWidgets)，
     // 祖先级 backdrop-filter 会劫持 fixed 弹层的包含块导致补全层错位。
+    // ⚠ isolation: isolate 必需: 让 ::before 的 z-index:-1 留在抽屉层叠上下文内，
+    //   否则伪元素逃逸到抽屉背后、玻璃底不显(表现为纯白)
     // ⚠ 禁止改写 position: EP 抽屉本体是 position:fixed + rtl/ltr 偏移定位，
-    // 加 position:relative 会使右锚定失效(抽屉跑到左侧)；fixed 本身已是定位元素，::before 直接可用
+    //   加 position:relative 会使右锚定失效(抽屉跑到左侧)
     .el-drawer {
         isolation: isolate;
         background: transparent !important;
@@ -229,45 +252,35 @@ body.glass-mode {
         }
     }
 
-    // 遮罩层: 加磨砂让背后内容退到"玻璃后面", 浮层与页面分出景深
+    // 遮罩层: 不再强制 z-index(EP PopupManager 动态分配弹层/遮罩层叠顺序，
+    // !important 写死会压住内部 el-select 等 popper 下拉)。
+    // 分割线穿透已由 .el-splitter-bar__* z-index:0 根治，遮罩无需再堆超高值
     .el-overlay {
-        background: rgba(0, 0, 0, 0.18) !important;
-        backdrop-filter: blur(12px) saturate(1.3) !important;
-        -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+        background: rgba(0, 0, 0, 0.28) !important;
     }
 
-    /* 表格固定列 - 柔和磨砂带(同 el-table-v2 方案): 薄白纱+blur 糊住滚动内容, 与壁纸同调不死白
+    // 分割面板拖拽条/折叠图标: z-index 归零，杜绝其穿透盖在 dialog/drawer 之上
+    // （EP 默认 dragger z-index:1、collapse-icon z-index:9，hover/拖拽时会浮到弹窗上方）
+    .el-splitter-bar__dragger,
+    .el-splitter-bar__collapse-icon,
+    .el-splitter__mask {
+        z-index: 0 !important;
+    }
+
+    /* 表格固定列 - 遮挡滚动内容
+       ⚠ 性能: 此前每格挂 backdrop-filter:blur(24)，宽表横向滚动时几十个模糊层每帧重采样 → 掉帧。
+       业界(Linear/Notion)固定列均用近实底遮挡, 不逐格模糊。改 0.88 tint 底: 足以挡住滚过的文字,
+       又保留 ~12% 壁纸色透(非死白带), 材质仍与玻璃面板同调。
     ------------------------------- */
     .el-table-fixed-column--left,
     .el-table-fixed-column--right,
     [class*="fixed-column--left"],
-    [class*="fixed-column--right"] {
-        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
-        backdrop-filter: blur(24px) saturate(1.5);
-        -webkit-backdrop-filter: blur(24px) saturate(1.5);
-    }
-
-    // 固定列表头
-    .el-table-fixed-column--left.el-table__cell,
-    .el-table-fixed-column--right.el-table__cell {
-        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
-    }
-
-    // 旧版 Element Plus 固定列
+    [class*="fixed-column--right"],
     .el-table__fixed,
-    .el-table__fixed-right {
-        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
-    }
-
-    // el-table-v2(虚拟表格, DB 结果页): 固定列是独立浮层面板(__left/__right), 默认底色 var(--el-bg-color)
-    // 在玻璃态是薄纱档 → 横向滚动到其下的数据列直接透叠出来(No. 列与内容重叠)。
-    // 遮挡不靠实白(整条死白带与清透壁纸格格不入), 靠 薄白纱 + backdrop blur:
-    // 面板把下方滚动内容糊成与壁纸同调的柔和色带(树节点选中行同款质感), 文字不可辨=有效遮挡
+    .el-table__fixed-right,
     .el-table-v2__left,
     .el-table-v2__right {
-        background-color: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.62) !important;
-        backdrop-filter: blur(24px) saturate(1.5);
-        -webkit-backdrop-filter: blur(24px) saturate(1.5);
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.88) !important;
     }
 
     /* 卡片 - 磨砂玻璃(panel 档): 镜面光泽 + 高光环 + 环境投影, 底色沿用 --el-bg-color 半透明档
@@ -278,7 +291,7 @@ body.glass-mode {
         position: relative;
         isolation: isolate;
         background-image: var(--glass-sheen) !important;
-        border: 1px solid rgba(255, 255, 255, 0.6) !important;
+        border: 1px solid var(--glass-hairline-strong) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
 
         &::before {
@@ -347,10 +360,6 @@ body.glass-mode {
         background-color: transparent !important;
     }
 
-    .pane-header {
-        // 零磨砂: 去 blur, 壁纸直透(分隔靠发丝线与薄底)
-    }
-
     /* Monaco 编辑器 - 玻璃化（对齐 tokhub 实测方案，同为 monaco 0.56）
        monaco 的 editor.css 里 .monaco-editor 与 .monaco-editor-background 均消费 --vscode-editor-background，
        但主题服务运行时生成的 monaco-colors 样式表会给画布各层刷上不透明实色，仅靠改写 CSS 变量对部分层不可靠。
@@ -363,6 +372,13 @@ body.glass-mode {
     .monaco-editor .monaco-editor-background,
     .monaco-editor .margin {
         background-color: transparent !important;
+    }
+
+    // 1.5) 行号颜色：Solarized 主题的行号是蓝灰色(#237893)，在白色 dialog 背景上非常突兀，
+    //      改为中性灰 token(暗态自动提亮)，与普通编辑器一致
+    .monaco-editor .line-numbers,
+    .monaco-editor .margin-view-overlays {
+        color: var(--glass-editor-gutter-fg) !important;
     }
 
     // 2) EditContext 隐藏输入层（monaco 0.56+，z-index:-10）含真实文本与浏览器原生光标：
@@ -394,15 +410,14 @@ body.glass-mode {
     //    fixedOverflowWidgets: true(补全/hover 弹层为 position: fixed 且按视口坐标定位)，
     //    而 backdrop-filter 会把容器变成 fixed 后代的包含块, 弹层将被平移约一个容器距离。
     //    正解(与 card/navbar 同模式): 玻璃底+blur 挂 ::before, 容器本体不产生包含块。
-    //    零磨砂全局档: 代码区不加 blur —— 壁纸清晰细节直透, 白底 0.32 仅作文字衬底;
-    //    高光环 + 环境投影保材质一致
+    //    box-shadow 用中性色(不用 --glass-ambient 的蓝色成分)，避免半透明边框透出蓝色伪影
     .monaco-editor-custom {
         position: relative;
         isolation: isolate;
         background: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.55) !important; // tokhub --glass-monaco-border 实测值
+        border: 1px solid var(--glass-hairline-strong) !important;
         border-radius: 8px;
-        box-shadow: var(--glass-edge), var(--glass-ambient) !important;
+        box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 2px 10px rgba(0, 0, 0, 0.1) !important;
 
         &::before {
             content: '';
@@ -420,20 +435,25 @@ body.glass-mode {
     }
 
     /* AI 助手玻璃化（AiAssistantFab 抽屉 + AiAssistant 全屏页面共用 AiAssistantBody）
-       关键：drawer 外壳必须透明，由内部各面板独立承担玻璃；
-       否则外壳白 + 卡片白双层叠加会退化回实白（这正是会话列表不玻璃的原因）
+       外壳自身给一层薄磨砂底(糊住背后页面保证可读)，内部各面板再叠自己的玻璃卡片。
+       AI 助手为聊天 UI 不含 monaco，故 ::before 的 backdrop-filter 安全。
     ------------------------------- */
     // 注意：ai-assistant-drawer 类直接挂在 .el-drawer 元素上，须用同类选择器（无空格）
     .ai-assistant-drawer.el-drawer {
+        isolation: isolate;
         background: transparent !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
         box-shadow: none !important;
 
-        // 抽屉玻璃底已改挂 .el-drawer::before，这里须一并禁用，
-        // 否则外壳纱 + 内部卡片双层叠加会重新退化回实白
+        // 薄磨砂底: 0.5 白 + blur 糊住背后页面，比实白轻、比全透明确
         &::before {
-            display: none;
+            display: block;
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.5);
+            backdrop-filter: var(--glass-fx-elevated);
+            -webkit-backdrop-filter: var(--glass-fx-elevated);
         }
     }
 
@@ -448,19 +468,19 @@ body.glass-mode {
     // 抽屉标题栏玻璃(零磨砂档: 去 blur, 薄底+发丝线)
     .ai-fab-drawer__header {
         background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.3) !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border-bottom: 1px solid var(--glass-hairline) !important;
     }
 
     // 会话侧栏卡片玻璃（独立面板，透出背景渐变）
     .conv-sidebar {
         background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.3) !important;
-        border: 1px solid rgba(255, 255, 255, 0.45) !important;
+        border: 1px solid var(--glass-hairline-strong) !important;
     }
 
     // 聊天区玻璃（独立面板）
     .ai-assistant-body__chat {
         background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.26) !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         border-radius: 12px;
     }
 
@@ -473,7 +493,7 @@ body.glass-mode {
         background-image: var(--glass-sheen) !important;
         backdrop-filter: var(--glass-fx-elevated) !important;
         -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
     }
 
@@ -487,8 +507,8 @@ body.glass-mode {
 
     // Loading 遮罩：模糊让被遮内容退到"玻璃后"，形成景深（业界通行做法）
     .el-loading-mask {
-        backdrop-filter: blur(10px) saturate(1.2) !important;
-        -webkit-backdrop-filter: blur(10px) saturate(1.2) !important;
+        backdrop-filter: var(--glass-fx-veil) !important;
+        -webkit-backdrop-filter: var(--glass-fx-veil) !important;
     }
 
     // 全局加载遮罩(NextLoading)：必须"自绘"壁纸而非 backdrop-filter 面纱 ——
@@ -512,10 +532,10 @@ body.glass-mode {
         }
     }
 
-    // 粘性表头：blur 采样滚动中的行（对齐 tokhub table.css），避免半透表头与行文字透叠
+    // 粘性表头: 去逐格 backdrop-filter(表头是独立滚动容器, 下方无滚动内容, blur 仅静态合成 N 层
+    // 且违背"零磨砂"面板哲学)。表头与行的分隔改由发丝底边承担, 文字可读性靠 P1 加深的墨色保证
     .el-table th.el-table__cell {
-        backdrop-filter: blur(12px) saturate(1.6);
-        -webkit-backdrop-filter: blur(12px) saturate(1.6);
+        border-bottom: 1px solid var(--glass-hairline-soft) !important;
     }
 
     // 分页组件: EP 默认实色白方块 → 清透薄底; 激活页码用与强调按钮/激活页签同源的实色品牌渐变
@@ -534,7 +554,7 @@ body.glass-mode {
 
     // Alert：EP 实色浅块 → 语义半透明着色玻璃（保留四态可辨识性，border 走玻璃发丝线）
     .el-alert {
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        border: 1px solid var(--glass-hairline-soft) !important;
     }
     .el-alert--success { background: color-mix(in srgb, var(--el-color-success) 16%, transparent) !important; }
     .el-alert--warning { background: color-mix(in srgb, var(--el-color-warning) 16%, transparent) !important; }
@@ -546,7 +566,7 @@ body.glass-mode {
         position: relative;
         isolation: isolate;
         background: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
 
         &::before {
@@ -562,33 +582,24 @@ body.glass-mode {
 
         > .el-tabs__header {
             background: transparent !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+            border-bottom: 1px solid var(--glass-hairline-soft) !important;
         }
         > .el-tabs__header .el-tabs__item.is-active {
             background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.35) !important;
         }
     }
 
-    // 分割线：EP 灰实线 → 玻璃发丝线（暗态降 alpha，避免暗底上亮线刺眼）
+    // 分割线：EP 灰实线 → 玻璃发丝线（hairline token 已含暗态翻值，无需再写 html.dark）
     .el-divider {
-        border-color: rgba(255, 255, 255, 0.35) !important;
-        background-color: rgba(255, 255, 255, 0.35) !important;
-
-        html.dark & {
-            border-color: rgba(255, 255, 255, 0.12) !important;
-            background-color: rgba(255, 255, 255, 0.12) !important;
-        }
+        border-color: var(--glass-hairline) !important;
+        background-color: var(--glass-hairline) !important;
 
         .el-divider__text {
-            background-color: rgba(255, 255, 255, 0.15) !important;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            background-color: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.15) !important;
+            backdrop-filter: var(--glass-fx-soft);
+            -webkit-backdrop-filter: var(--glass-fx-soft);
             border-radius: 4px;
             padding: 2px 8px;
-
-            html.dark & {
-                background-color: rgba(0, 0, 0, 0.25) !important;
-            }
         }
     }
 
@@ -602,7 +613,7 @@ body.glass-mode {
     [data-slot='context-menu-sub-content'] {
         isolation: isolate;
         background: transparent !important; // 洗掉 bg-popover 变量底, 色底由 ::before 承担
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
 
         &::before {
@@ -621,13 +632,13 @@ body.glass-mode {
         background: var(--glass-bg-modal) !important;
         backdrop-filter: var(--glass-fx-elevated) !important;
         -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
-        border: 1px solid rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid var(--glass-hairline) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
     }
 
     // shadcn card：常嵌套于玻璃面板内(AI 聊天等)，不再叠 blur 层(防双重采样发闷)，仅补高光环/发丝边统一材质边界
     [data-slot='card'] {
-        border-color: rgba(255, 255, 255, 0.5) !important;
+        border-color: var(--glass-hairline-strong) !important;
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
     }
 

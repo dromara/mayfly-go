@@ -1,6 +1,6 @@
 <template>
   <div class="template-selector">
-    <el-dialog v-model="visible" :title="$t('db.teTemplateSelector')" width="700px" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="$t('db.teTemplateSelector')" width="700px" :close-on-click-modal="false" append-to-body>
       <div class="template-selector__search">
         <el-input v-model="searchKeyword" :placeholder="$t('db.teTemplateSearch')" clearable prefix-icon="Search" />
         <el-select v-model="selectedCategory" :placeholder="$t('db.teTemplateCategory')" clearable style="width: 140px">

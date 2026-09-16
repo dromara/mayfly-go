@@ -18,8 +18,8 @@ export const LinkTypeEnum = {
 export const ResourceTypeEnum = {
     Machine: EnumValue.of(1, 'tag.machine').setExtra({ icon: 'icon machine/machine', iconColor: 'var(--el-color-primary)' }).tagTypeSuccess(),
     Db: EnumValue.of(2, 'tag.db').setExtra({ icon: 'icon db/db', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
-    Redis: EnumValue.of(3, 'redis').setExtra({ icon: 'icon redis/redis', iconColor: 'var(--el-color-danger)' }).tagTypeInfo(),
-    Mongo: EnumValue.of(4, 'mongo').setExtra({ icon: 'icon mongo/mongo', iconColor: 'var(--el-color-success)' }).tagTypeDanger(),
+    Redis: EnumValue.of(3, 'tag.redis').setExtra({ icon: 'icon redis/redis', iconColor: 'var(--el-color-danger)' }).tagTypeInfo(),
+    Mongo: EnumValue.of(4, 'tag.mongo').setExtra({ icon: 'icon mongo/mongo', iconColor: 'var(--el-color-success)' }).tagTypeDanger(),
     AuthCert: EnumValue.of(5, 'ac.ac').setExtra({ icon: 'Ticket', iconColor: 'var(--el-color-success)' }),
     Es: EnumValue.of(6, 'tag.es').setExtra({ icon: 'icon es/es-color', iconColor: 'var(--el-color-warning)' }).tagTypeWarning(),
     Container: EnumValue.of(7, 'tag.container').setExtra({ icon: 'icon docker/docker', iconColor: 'var(--el-color-primary)' }),

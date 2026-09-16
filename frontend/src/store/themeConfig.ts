@@ -336,6 +336,11 @@ export const useThemeConfig = defineStore('themeConfig', {
             set('--el-table-row-hover-bg-color', 'rgba(255, 255, 255, 0.12)');
             // 文本墨色: EP 默认 secondary #909399 / placeholder #a8abb2 在浅色玻璃上仅 ~2.8:1,
             // 达不到 4.5:1 → 观感"发灰不清晰"。玻璃态统一加深到 slate 档。
+            // primary/regular 同样下压: 面板白底清透(0.22~0.26)、壁纸直透鲜艳, 正文/导航是主要
+            // 承载文字, 默认 #303133/#606266 在亮壁纸上对比不足; 加深墨色换可读(不动 alpha/磨砂,
+            // 保住用户定调的通透鲜艳观感)。
+            set('--el-text-color-primary', '#1f2937');
+            set('--el-text-color-regular', '#374151');
             set('--el-text-color-secondary', '#64748b');
             set('--el-text-color-placeholder', '#6b7280');
         },
@@ -350,6 +355,7 @@ export const useThemeConfig = defineStore('themeConfig', {
                 '--el-table-bg-color', '--el-table-tr-bg-color',
                 '--el-table-header-bg-color', '--el-table-row-hover-bg-color',
                 '--el-text-color-secondary', '--el-text-color-placeholder',
+                '--el-text-color-primary', '--el-text-color-regular',
                 '--glass-frost-fx', '--glass-frost-veil',
             ];
             vars.forEach(v => el.style.removeProperty(v));

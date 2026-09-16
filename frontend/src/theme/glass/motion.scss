@@ -1,12 +1,14 @@
 /* Glass Motion System (过渡动画层)
 ------------------------------- */
+// 仅过渡 background / border-color(轻量、可插值)。
+// ⚠ 禁止 transition backdrop-filter: 模糊插值合成开销大, 且部分引擎不支持插值会直接跳变, 反而更卡。
 
 .glass-mode {
     .layout-aside,
     .layout-navbars-breadcrumb-index,
     .el-dialog,
     .el-drawer {
-        transition: background 0.25s var(--ease-out-quart), backdrop-filter 0.25s var(--ease-out-quart), border-color 0.25s var(--ease-out-quart);
+        transition: background 0.25s var(--ease-out-quart), border-color 0.25s var(--ease-out-quart);
     }
 
     // 禁用动画模式
@@ -14,5 +16,17 @@
     .layout-aside-transition-false .layout-aside,
     .layout-aside-transition-false .layout-navbars-breadcrumb-index {
         transition-duration: 0.01ms !important;
+    }
+}
+
+// 系统级"减弱动效"偏好降级(PRODUCT.md 无障碍硬性要求): 玻璃过渡瞬时切换, 保留最终态视觉
+@media (prefers-reduced-motion: reduce) {
+    .glass-mode {
+        .layout-aside,
+        .layout-navbars-breadcrumb-index,
+        .el-dialog,
+        .el-drawer {
+            transition-duration: 0.01ms !important;
+        }
     }
 }

@@ -1,6 +1,6 @@
 export default {
     tag: {
-        relateTag: 'Relate Tag',
+        relateTag: 'Resource Group',
         keywordFilterPlaceholder: 'keyword filter',
         nameFilterPlaceholder: 'Keyword filtering (right-click node operation)',
         tagFilterPlaceholder: 'Enter the keyword -> Search for expanded node information',

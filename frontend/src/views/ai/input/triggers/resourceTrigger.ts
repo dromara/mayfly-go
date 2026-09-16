@@ -24,6 +24,7 @@ export function createResourceTrigger(): TriggerDef {
     return {
         kind: 'resource',
         chars: ['@', '＠'],
+        hintI18nKey: 'ai.chat.resourceTriggerPlaceholder',
         panelComponent: ResourceTreePanel,
     };
 }

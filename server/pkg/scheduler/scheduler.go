@@ -3,7 +3,9 @@ package scheduler
 import (
 	"errors"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/collx"
+	"time"
 
 	"github.com/robfig/cron/v3"
 )
@@ -62,6 +64,27 @@ func AddFunByKey(key, spec string, cmd func()) error {
 	}
 	key2IdMap.Store(key, id)
 	return nil
+}
+
+// AddFunByKeyWithLock 添加带分布式锁的定时任务，支持多实例部署。
+// 每次 cron 触发时尝试获取 Redis 分布式锁，获取成功才执行 cmd。
+// 若 Redis 未配置（单机模式），则退化为普通执行。
+// lockDuration 为锁的持有时间，应大于 cmd 最大执行时间。
+func AddFunByKeyWithLock(key, spec string, lockDuration time.Duration, cmd func()) error {
+	return AddFunByKey(key, spec, func() {
+		lock := rediscli.NewLock("scheduler:"+key, lockDuration)
+		if lock == nil {
+			// Redis 未配置，单机模式直接执行
+			cmd()
+			return
+		}
+		if !lock.Lock() {
+			logx.Debugf("[scheduler] skip cron job [%s], another instance is running", key)
+			return
+		}
+		defer lock.UnLock()
+		cmd()
+	})
 }
 
 func ExistKey(key string) bool {

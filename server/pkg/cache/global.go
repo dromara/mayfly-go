@@ -41,6 +41,18 @@ func Del(key string) {
 	c.Delete(key)
 }
 
+// Incr 原子自增缓存中的整数值并返回新值。
+// 若 key 不存在则初始化为 0 后自增（返回 1）。
+// 底层使用 Redis INCR 或本地 mutex，保证多实例并发安全。
+func Incr(key string) (int64, error) {
+	return c.Incr(key)
+}
+
+// IncrWithTTL 原子自增并刷新 key 的过期时间，用于需要自动回收的计数器缓存
+func IncrWithTTL(key string, ttl time.Duration) (int64, error) {
+	return c.IncrWithTTL(key, ttl)
+}
+
 func UseRedisCache() bool {
 	return rediscli.GetCli() != nil
 }

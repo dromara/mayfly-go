@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	_ "mayfly-go/internal/ai/init"
+	_ "mayfly-go/internal/alert/init"
 	_ "mayfly-go/internal/auth/init"
 	_ "mayfly-go/internal/common/init"
 	_ "mayfly-go/internal/db/init"
@@ -10,6 +11,7 @@ import (
 	_ "mayfly-go/internal/es/init"
 	_ "mayfly-go/internal/file/init"
 	_ "mayfly-go/internal/flow/init"
+	_ "mayfly-go/internal/label/init"
 	_ "mayfly-go/internal/machine/init"
 	_ "mayfly-go/internal/milvus/init"
 	_ "mayfly-go/internal/mongo/init"

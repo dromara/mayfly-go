@@ -378,6 +378,14 @@ defineExpose({
 });
 </script>
 
+<style lang="scss" scoped>
+/* 垂直分割面板 flex 最小尺寸修复：同 ResourceOp 水平分割的 min-width:0 修复，
+ * 纵向 flex 对应 min-height:0，允许面板内容（Monaco/表格）不阻止面板收缩 */
+:deep(.el-splitter__vertical > .el-splitter-panel) {
+    min-height: 0;
+}
+</style>
+
 <style lang="scss">
 .sql-file-exec {
     display: inline-flex;

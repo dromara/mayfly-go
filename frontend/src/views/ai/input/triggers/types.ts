@@ -72,6 +72,8 @@ export interface TriggerDef {
     kind: 'skill' | 'resource';
     /** 触发字符（含全角变体，如中文输入法下的 ＠ ／） */
     chars: string[];
+    /** hint 栏 i18n key（ChatInput 底部动态渲染快捷键提示） */
+    hintI18nKey: string;
     /** 列表模式：按查询词构建菜单项 */
     buildItems?: (query: string, ctx: TriggerContext) => TriggerMenuItem[];
     /** 面板模式组件（如 ResourceTreePanel） */

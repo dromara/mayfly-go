@@ -5,7 +5,7 @@
             {{ item.label ? $t(item.label, item.labelParams ?? {}) : '' }}
         </ADivider>
 
-        <AFormItem v-else :prop="item.prop" :label="item.label ? $t(item.label, item.labelParams ?? {}) : ''" :required="isRequired || undefined" :class="{ 'is-narrow-col': effectiveSpan < 24 }">
+        <AFormItem v-else :prop="item.prop" :label="item.label ? $t(item.label, item.labelParams ?? {}) : ''" :required="isRequired || undefined" :class="{ 'is-narrow-col': effectiveSpan < 24, 'has-tooltip-label': !!item.tooltip }">
             <!-- 标签旁 tooltip 提示 -->
             <template v-if="item.tooltip" #label>
                 <div class="flex items-center">

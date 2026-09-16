@@ -119,7 +119,7 @@ func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, page
 
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 	logx.Debug("start deleting machine terminal playback records every hour...")
-	scheduler.AddFun("@every 60m", func() {
+	scheduler.AddFunByKeyWithLock("machine-termop-cleanup", "@every 60m", 30*time.Minute, func() {
 		defer gox.Recover()
 		startDate := time.Now().AddDate(0, 0, -config.GetMachine().TermOpSaveDays)
 		cond := &entity.MachineTermOpQuery{

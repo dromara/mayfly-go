@@ -31,7 +31,12 @@ func (j JsonTime) MarshalJSON() ([]byte, error) {
 
 func (j *JsonTime) UnmarshalJSON(b []byte) error {
 	s := strings.ReplaceAll(string(b), "\"", "")
-	// t, err := time.Parse(timex.DefaultDateTimeFormat, s)
+	// 空字符串视为零值，便于业务层通过 .IsZero() 检测缺失字段并给出清晰错误，
+	// 而非在 JSON 绑定阶段就返回 500
+	if s == "" {
+		*j = JsonTime{Time: time.Time{}}
+		return nil
+	}
 	t, err := time.ParseInLocation(timex.DefaultDateTimeFormat, s, time.Local)
 	if err != nil {
 		return err

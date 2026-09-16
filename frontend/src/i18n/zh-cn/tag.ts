@@ -1,6 +1,6 @@
 export default {
     tag: {
-        relateTag: '关联标签',
+        relateTag: '资源分组',
         keywordFilterPlaceholder: '关键字过滤',
         nameFilterPlaceholder: '关键字过滤(右击节点操作)',
         tagFilterPlaceholder: '输入关键字->搜索已展开节点信息',

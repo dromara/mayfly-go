@@ -21,6 +21,7 @@ func (m *MsgChannel) ReqConfs() *req.Confs {
 
 	reqs := [...]*req.Conf{
 		req.NewGet("", m.GetMsgChannels).RequiredPermissionCode(basePermCode),
+		req.NewGet("simple", m.GetSimpleChannels).RequiredPermissionCode(basePermCode),
 		req.NewPost("", m.SaveMsgChannels).Log(req.NewLogSaveI(imsg.LogMsgChannelSave)).RequiredPermissionCode("msg:channel:save"),
 		req.NewDelete("", m.DelMsgChannels).Log(req.NewLogSaveI(imsg.LogMsgChannelDelete)).RequiredPermissionCode("msg:channel:del"),
 	}
@@ -33,6 +34,24 @@ func (m *MsgChannel) GetMsgChannels(rc *req.Ctx) {
 	res, err := m.msgChannelApp.GetPageList(condition, rc.GetPageParam())
 	biz.ErrIsNil(err)
 	rc.ResData = res
+}
+
+// GetSimpleChannels 返回所有启用渠道的 id 和 name（供告警渠道选择器等使用）
+type simpleChannel struct {
+	Id   uint64 `json:"id"`
+	Name string `json:"name"`
+}
+
+func (m *MsgChannel) GetSimpleChannels(rc *req.Ctx) {
+	channels, err := m.msgChannelApp.ListByCond(nil)
+	biz.ErrIsNil(err)
+	result := make([]simpleChannel, 0, len(channels))
+	for _, ch := range channels {
+		if ch.Status == entity.ChannelStatusEnable {
+			result = append(result, simpleChannel{Id: ch.Id, Name: ch.Name})
+		}
+	}
+	rc.ResData = result
 }
 
 func (m *MsgChannel) SaveMsgChannels(rc *req.Ctx) {

@@ -6,7 +6,7 @@
         :dialog="{ alignCenter: true, transition: 'dialog-bounce' }"
     >
         <el-watermark
-            :zIndex="100000"
+            :zIndex="1"
             :width="210"
             v-if="themeConfig.isWatermark"
             :font="{ color: 'rgba(180, 180, 180, 0.3)' }"

@@ -20,6 +20,7 @@ import (
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
+	"time"
 )
 
 type Machine interface {
@@ -261,9 +262,10 @@ func (m *machineAppImpl) GetSshTunnelMachine(ctx context.Context, machineId int)
 
 func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("start collecting and caching machine state information periodically...")
-	scheduler.AddFun("@every 2m", func() {
+	scheduler.AddFunByKeyWithLock("machine-stats", "@every 2m", 90*time.Second, func() {
 		defer gox.Recover()
 		machineIds, _ := m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"))
+		logx.Debugf("[machine] TimerUpdateStats: found %d enabled SSH machines", len(machineIds))
 		for _, ma := range machineIds {
 			gox.Go(func() {
 				mid := ma.Id
@@ -275,8 +277,9 @@ func (m *machineAppImpl) TimerUpdateStats() {
 					logx.Errorf("failed to get machine [id=%d] status information periodically, failed to get machine cli: %s", mid, err.Error())
 					return
 				}
-				cache.SaveMachineStats(mid, cli.GetAllStats())
-				logx.Debugf("time to get the machine [id=%d] status information end", mid)
+				stats := cli.GetAllStats()
+				cache.SaveMachineStats(mid, stats)
+				logx.Debugf("time to get the machine [id=%d] status information end, saved to cache", mid)
 			}, func(err error) {
 				logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", ma.Id), err)
 			})

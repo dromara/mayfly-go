@@ -33,13 +33,12 @@
                     @reorder="(from, to) => store.reorderQueuedMessage(convId, from, to)"
                 />
 
-                <!-- 输入框 -->
+                <!-- 输入框（placeholder 由 ChatInput 从触发器注册表自动拼接） -->
                 <ChatInput
                     ref="chatInputRef"
                     :loading="senderLoading"
                     :disabled="false"
                     :auto-focus="true"
-                    :placeholder="t('ai.chat.inputPlaceholder')"
                     :skills="skills"
                     :should-queue="shouldQueue"
                     @submit="onSubmit"

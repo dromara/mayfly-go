@@ -335,6 +335,13 @@ body,
         margin-left: 0 !important;
     }
 
+    /* 带 tooltip 的自定义 label 插槽：Element Plus 的 required * 会渲染在插槽外部，
+     * 通过 flex 布局让 * 与标签文本同行显示 */
+    .el-form-item.has-tooltip-label .el-form-item__label {
+        display: flex !important;
+        align-items: center !important;
+    }
+
     /* 栅格列允许收缩到内容以下（min-width:auto 时 min-content 会撑破窄容器产生横向滚动） */
     .el-row .el-col {
         min-width: 0;

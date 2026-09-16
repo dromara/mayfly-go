@@ -390,6 +390,15 @@ const onResizeOpPanel = () => {
     overflow: hidden;
     padding: 4px;
 }
+
+/* 水平分割面板 flex 最小尺寸修复：
+ * 面板内 Monaco 等内容有较大的 intrinsic min-content，
+ * flexbox 默认 min-width:auto 会阻止面板缩小到内容尺寸以下，
+ * 导致分割线只能向左（面板缩小方向）不能向右（面板需进一步缩小方向）。
+ * 设 min-width:0 覆盖自动最小尺寸，允许面板自由收缩。 */
+:deep(.el-splitter__horizontal > .el-splitter-panel) {
+    min-width: 0;
+}
 </style>
 
 <style lang="scss">

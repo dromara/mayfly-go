@@ -30,4 +30,6 @@ const (
 	ImsgNumMilvus  = 130000
 	ImsgNumAi      = 140000
 	ImsgNumFile    = 150000
+	ImsgNumAlert   = 160000
+	ImsgNumLabel   = 170000
 )

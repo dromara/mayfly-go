@@ -155,7 +155,7 @@
             @submit-sql="onSubmitEditTableSql"
         />
 
-        <el-dialog width="55%" :title="`'${state.chooseTableName}' DDL`" v-model="state.ddlDialog.visible">
+        <el-dialog width="55%" :title="`'${state.chooseTableName}' DDL`" v-model="state.ddlDialog.visible" append-to-body>
             <monaco-editor height="400px" language="sql" v-model="state.ddlDialog.ddl" :options="{ readOnly: true }" />
         </el-dialog>
 

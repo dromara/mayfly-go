@@ -64,6 +64,29 @@
     --glass-border-alpha: 0.15;
     --glass-border-width: 1px;
 
+    // 发丝描边三档(单一来源, 组件禁止再硬编码 rgba(255,255,255,x) 边框):
+    // soft=内部分隔/弱边界 · 默认=浮层/面板标准描边 · strong=强调外框(卡片/编辑器)
+    --glass-hairline-soft: rgba(255, 255, 255, 0.28);
+    --glass-hairline: rgba(255, 255, 255, 0.35);
+    --glass-hairline-strong: rgba(255, 255, 255, 0.55);
+
+    // 模糊档位(浮层 blur 已由 --glass-fx-elevated 承担, 这里补两处非浮层场景):
+    // veil=加载遮罩轻糊 · soft=分隔线文字薄底。禁止逐选择器写 blur(Npx)
+    --glass-fx-veil: blur(10px) saturate(1.2);
+    --glass-fx-soft: blur(8px) saturate(1.3);
+
+    // 编辑器行号墨色(亮态中性灰, 暗态提亮): 替代硬编码 #999
+    --glass-editor-gutter-fg: #999;
+
+    // 语义 z 层阶(取代 arbitrary 999/9999/99999): 机器悬浮窗 9999 是页内最高,
+    // 模态遮罩须压过它, 故 modal-backdrop 起于万位; toast/tooltip 再高一档
+    --z-float: 1000;
+    --z-fullscreen: 2000;
+    --z-window: 9999;
+    --z-modal-backdrop: 10000;
+    --z-toast: 10100;
+    --z-tooltip: 10200;
+
     // 光影
     --glass-shadow-opacity: 0.08;
     --glass-shadow-spread: 20px;
@@ -135,6 +158,13 @@ html.dark {
     --glass-sheen: linear-gradient(120deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02) 45%, transparent 60%, rgba(255, 255, 255, 0.04));
     --glass-edge: inset 0 1.5px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
     --glass-ambient: 0 4px 24px rgba(0, 0, 0, 0.3), 0 12px 48px rgba(0, 0, 0, 0.25);
+
+    // 暗态发丝描边: 白 alpha 大幅收敛(亮态 0.35 在暗底上刺眼割裂), 走同一 token 翻值
+    --glass-hairline-soft: rgba(255, 255, 255, 0.08);
+    --glass-hairline: rgba(255, 255, 255, 0.12);
+    --glass-hairline-strong: rgba(255, 255, 255, 0.2);
+    // 暗态编辑器行号提亮(中性灰在深底上偏暗)
+    --glass-editor-gutter-fg: #6b7280;
 
     --glass-bg: rgba(30, 30, 40, var(--glass-bg-alpha));
     --glass-bg-heavy: rgba(30, 30, 40, var(--glass-bg-heavy-alpha));

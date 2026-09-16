@@ -18,6 +18,7 @@ const (
 	TagRelateTypeMachineCmd     TagRelateType = 2 // 关联机器命令配置
 	TagRelateTypeMachineCronJob TagRelateType = 3 // 关联机器定时任务配置
 	TagRelateTypeFlowDef        TagRelateType = 4 // 关联流程定义
+	TagRelateTypeAlertRule      TagRelateType = 5 // 关联告警规则
 )
 
 // 关联标签信息，如果要实现填充关联标签信息，则结构体需要实现该接口

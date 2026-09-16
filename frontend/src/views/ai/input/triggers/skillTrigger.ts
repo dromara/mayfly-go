@@ -37,6 +37,7 @@ export function createSkillTrigger(): TriggerDef {
     return {
         kind: 'skill',
         chars: ['/', '／'],
+        hintI18nKey: 'ai.chat.skillTriggerPlaceholder',
         buildItems: (query, ctx) => buildSkillItems(ctx.skills, query),
         onSelect: selectSkillItem,
     };

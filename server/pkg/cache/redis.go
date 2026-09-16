@@ -45,6 +45,29 @@ func (rc *RedisCache) Get(k string) (any, bool) {
 	}
 }
 
+// Incr 使用 Redis INCR 命令原子自增，天然支持多实例并发安全
+func (rc *RedisCache) Incr(key string) (int64, error) {
+	return rc.redisCli.Incr(context.Background(), key).Result()
+}
+
+// IncrWithTTL 自增后刷新过期时间。
+// INCR 创建的是永不过期的 key，若不在自增时设置 TTL，
+// 业务侧删除计数器 key 的逻辑一旦遗漏（规则被删除、进程重启等）就会永久泄漏。
+// ttl <= 0 表示不设置过期时间，保持与 Incr 一致。
+func (rc *RedisCache) IncrWithTTL(key string, ttl time.Duration) (int64, error) {
+	ctx := context.Background()
+	val, err := rc.redisCli.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	if ttl > 0 {
+		if err = rc.redisCli.Expire(ctx, key, ttl).Err(); err != nil {
+			return val, err
+		}
+	}
+	return val, nil
+}
+
 func (rc *RedisCache) Delete(k string) error {
 	return rc.redisCli.Del(context.Background(), k).Err()
 }

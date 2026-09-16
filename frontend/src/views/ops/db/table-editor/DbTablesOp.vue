@@ -90,7 +90,7 @@
             </el-table-column>
         </el-table>
 
-        <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.column')}`" v-model="columnDialog.visible">
+        <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.column')}`" v-model="columnDialog.visible" append-to-body>
             <el-table border stripe :data="columnDialog.columns" size="small">
                 <el-table-column prop="columnName" :label="$t('db.columnName')" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="120" prop="columnType" :label="$t('common.type')" show-overflow-tooltip> </el-table-column>
@@ -99,7 +99,7 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.index')}`" v-model="indexDialog.visible">
+        <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.index')}`" v-model="indexDialog.visible" append-to-body>
             <el-table border stripe :data="indexDialog.indexs" size="small">
                 <el-table-column prop="indexName" :label="$t('common.name')" min-width="120" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnName" :label="$t('db.columnName')" min-width="120" show-overflow-tooltip> </el-table-column>
@@ -109,11 +109,11 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog width="55%" :title="`'${chooseTableName}' DDL`" v-model="ddlDialog.visible">
+        <el-dialog width="55%" :title="`'${chooseTableName}' DDL`" v-model="ddlDialog.visible" append-to-body>
             <monaco-editor height="400px" language="sql" v-model="ddlDialog.ddl" :options="{ readOnly: true }" />
         </el-dialog>
 
-        <el-dialog :title="$t('db.erDiagram')" v-model="erDialog.visible" width="90%" top="5vh" destroy-on-close>
+        <el-dialog :title="$t('db.erDiagram')" v-model="erDialog.visible" width="90%" top="5vh" destroy-on-close append-to-body>
             <div v-loading="erDialog.loading" style="height: 70vh">
                 <ErDiagram v-if="erDialog.tables.length > 0" :tables="erDialog.tables" @table-click="onErTableClick" />
                 <el-empty v-else-if="!erDialog.loading" :description="$t('db.erDiagramEmpty')" />

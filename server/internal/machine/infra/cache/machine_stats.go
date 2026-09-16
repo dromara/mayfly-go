@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"errors"
 	"fmt"
 	"mayfly-go/internal/machine/mcm"
 	global_cache "mayfly-go/pkg/cache"
@@ -16,9 +15,10 @@ func SaveMachineStats(machineId uint64, stat *mcm.Stats) error {
 }
 
 func GetMachineStats(machineId uint64) (*mcm.Stats, error) {
-	cacheStr := global_cache.GetStr(fmt.Sprintf(MachineStatCacheKey, machineId))
+	cacheKey := fmt.Sprintf(MachineStatCacheKey, machineId)
+	cacheStr := global_cache.GetStr(cacheKey)
 	if cacheStr == "" {
-		return nil, errors.New("不存在该值")
+		return nil, fmt.Errorf("machine stats cache miss, key=%s", cacheKey)
 	}
 	return jsonx.ToByStr[mcm.Stats](cacheStr)
 }

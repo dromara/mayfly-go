@@ -42,8 +42,9 @@
                         @change="onFilesPicked"
                     />
                     <div v-if="!hintGone" class="chat-input__hint" :class="{ 'chat-input__hint--faded': !hintVisible }">
-                        <kbd>/</kbd> {{ t('ai.chat.skillTriggerPlaceholder') }}
-                        <kbd>@</kbd> {{ t('ai.chat.resourceTriggerPlaceholder') }}
+                        <template v-for="trig in triggerDefs" :key="trig.kind">
+                            <kbd>{{ trig.chars[0] }}</kbd> {{ t(trig.hintI18nKey) }}
+                        </template>
                     </div>
                 </div>
                 <div class="chat-input__actions-right">
@@ -139,7 +140,7 @@ import './chipTypes';
 import './triggers';
 import type { ChatInputSubmitData, SkillItem } from './types';
 import type { MessageAttachment } from '../protocol/types';
-import { TriggerMenu, ResourceTreePanel, useTriggerState, selectResourceFromPanel } from './triggers';
+import { TriggerMenu, ResourceTreePanel, useTriggerState, selectResourceFromPanel, getTriggerDefs } from './triggers';
 import type { ResourceTreeSelectPayload } from './triggers/ResourceTreePanel.vue';
 
 /** 活跃芯片（从编辑器文档同步，仅用于 canSend 判断；展示内联在编辑器内） */
@@ -196,6 +197,9 @@ const trigger = reactive(
     }),
 );
 
+/** 已注册触发器列表（hint 栏动态渲染，新增触发器零改动自动回显） */
+const triggerDefs = computed(() => getTriggerDefs());
+
 // 活跃芯片
 const activeChips = ref<ActiveChip[]>([]);
 
@@ -239,10 +243,19 @@ const canSend = computed(() => {
     return editorText.value.trim().length > 0 || activeChips.value.length > 0 || pendingAttachments.value.length > 0;
 });
 
-/** 占位符：入队态提示新消息将加入队列（queuePlaceholder） */
+/** 占位符：入队态提示新消息将加入队列（queuePlaceholder）；
+ *  正常态从注册表自动拼接（如「输入消息，/ 选择一个技能...，@ 引用资源...」），
+ *  新增触发器零改动自动回显；`@` 来自 trig.chars 而非 i18n 文本，避免 vue-i18n 转义问题 */
 const currentPlaceholder = computed(() => {
     if (props.shouldQueue) return t('ai.chat.queueMessage');
-    return props.placeholder || t('ai.chat.inputPlaceholder');
+    if (props.placeholder) return props.placeholder;
+
+    const base = t('ai.chat.inputPlaceholder');
+    const triggers = getTriggerDefs();
+    if (triggers.length === 0) return base;
+
+    const hints = triggers.map((trig) => `${trig.chars[0]} ${t(trig.hintI18nKey)}`);
+    return `${base}，${hints.join('，')}...`;
 });
 
 // ========== 编辑器生命周期 ==========

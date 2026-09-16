@@ -28,6 +28,16 @@ type Cache interface {
 	// GetInt  获取int缓存值
 	GetInt(k string) (int, bool)
 
+	// Incr 原子自增缓存中的整数值并返回新值。
+	// 若 key 不存在，则初始化为 0 后自增（返回 1）。
+	// 必须为原子操作，在 Redis/多实例场景下保证并发安全。
+	Incr(key string) (int64, error)
+
+	// IncrWithTTL 原子自增并为 key 设置（刷新）过期时间。
+	// 用于计数器这类需要无限续期但必须自动回收的缓存：
+	// 纯 Incr 在 Redis 下会创建永不过期的 key，在本地缓存下则会一直保持首次写入时的过期时间。
+	IncrWithTTL(key string, ttl time.Duration) (int64, error)
+
 	// Delete 删除缓存
 	Delete(key string) error
 
