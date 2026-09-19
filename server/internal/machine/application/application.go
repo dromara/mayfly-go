@@ -43,3 +43,7 @@ func GetMachineCronJobApp() MachineCronJob {
 func GetMachineTermOpApp() MachineTermOp {
 	return ioc.Get[MachineTermOp]()
 }
+
+func GetMachineCmdConfApp() MachineCmdConf {
+	return ioc.Get[MachineCmdConf]()
+}

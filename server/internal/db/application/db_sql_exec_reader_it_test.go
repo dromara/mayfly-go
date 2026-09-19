@@ -27,6 +27,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/imsg"
 	"mayfly-go/pkg/i18n"
 )
@@ -76,7 +77,7 @@ func TestITExecReaderComplexSqlFileRealExec(t *testing.T) {
 				5: "",
 			}
 			for _, r := range rows {
-				id, ok := dbi.ValToInt64(r["id"])
+				id, ok := value.ValToInt64(r["id"])
 				require.True(t, ok, "id取值形态异常: %T", r["id"])
 				val := strings.TrimSpace(fmt.Sprintf("%v", r["val"]))
 				if b, isBytes := r["val"].([]byte); isBytes {

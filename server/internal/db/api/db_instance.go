@@ -143,7 +143,7 @@ func (d *Instance) GetDbServer(rc *req.Ctx) {
 	instanceId := getInstanceId(rc)
 	conn, err := d.dbApp.GetDbConnByInstanceId(rc.MetaCtx, instanceId)
 	biz.ErrIsNil(err)
-	res, err := conn.GetMetadata().GetDbServer()
+	res, err := conn.Metadata().GetDbServer()
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

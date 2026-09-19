@@ -16,9 +16,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITWholeDb ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -27,6 +27,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/dbm/sqlparser"
 )
 
@@ -169,7 +170,7 @@ func itWdbDumpFlags(t *testing.T, conn *dbi.DbConn, target dbi.DbType, dumpDDL, 
 // itWdbIndexNames 读回表的全部索引名（小写），用于断言索引确实存在/已迁移
 func itWdbIndexNames(t *testing.T, conn *dbi.DbConn, table string) []string {
 	t.Helper()
-	indexs, err := conn.GetMetadata().GetTableIndex(table)
+	indexs, err := conn.Metadata().GetTableIndex(table)
 	require.NoError(t, err, "[%s] 读取索引失败", table)
 	return lowerIndexNames(indexs)
 }
@@ -197,7 +198,7 @@ func itWdbRowsSafe(t *testing.T, conn *dbi.DbConn, table string) int64 {
 		t.Logf("[%s] 表不可读（视为0行）：%s", table, err.Error())
 		return 0
 	}
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok)
 	return cnt
 }

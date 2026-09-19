@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
-	_ "mayfly-go/internal/db/dbm/postgres"
-	_ "mayfly-go/internal/db/dbm/sqlite"
+	_ "mayfly-go/internal/db/dbm/dialect/postgres"
+	_ "mayfly-go/internal/db/dbm/dialect/sqlite"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 )
 

@@ -24,8 +24,8 @@ import (
 
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
-	_ "mayfly-go/internal/db/dbm/mysql" // 注册mysql方言
-	_ "mayfly-go/internal/db/dbm/postgres"
+	_ "mayfly-go/internal/db/dbm/dialect/mysql" // 注册mysql方言
+	_ "mayfly-go/internal/db/dbm/dialect/postgres"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	masksvc "mayfly-go/internal/db/domain/mask"
 )

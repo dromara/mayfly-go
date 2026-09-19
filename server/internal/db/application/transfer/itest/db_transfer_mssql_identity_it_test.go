@@ -14,9 +14,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITMssqlIdentity ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"regexp"
 	"strings"
 	"testing"
@@ -27,6 +27,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/dbm/sqlparser"
 )
 
@@ -101,7 +102,7 @@ func itMsRowCount(t *testing.T, conn *dbi.DbConn, table string) int64 {
 	_, rows, err := conn.Query("SELECT COUNT(*) AS cnt FROM " + quote(table))
 	require.NoError(t, err, "[%s] 查询行数失败", table)
 	require.Len(t, rows, 1)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "[%s] 行数取值形态异常: %T", table, rows[0]["cnt"])
 	return cnt
 }
@@ -113,7 +114,7 @@ func itMsIdentityColumn(t *testing.T, conn *dbi.DbConn, table string) int64 {
 		"SELECT COUNT(*) AS cnt FROM sys.columns WHERE object_id = OBJECT_ID('dbo.%s') AND is_identity = 1", table))
 	require.NoError(t, err, "[%s] 查询标识列失败", table)
 	require.Len(t, rows, 1)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "标识列数取值形态异常: %T", rows[0]["cnt"])
 	return cnt
 }
@@ -191,9 +192,9 @@ func TestITMssqlIdentityParallelShardImport(t *testing.T) {
 	conn := itMssqlNode(t)
 	defer conn.Close()
 
-	origTargetRows := dbi.ShardTargetRows
-	dbi.ShardTargetRows = shardRows
-	defer func() { dbi.ShardTargetRows = origTargetRows }()
+	origTargetRows := transfer.ShardTargetRows
+	transfer.ShardTargetRows = shardRows
+	defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	for cycle := 0; cycle < cycles; cycle++ {

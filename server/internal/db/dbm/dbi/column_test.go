@@ -169,23 +169,25 @@ func TestColumnGetColumnType(t *testing.T) {
 // ---------- GetDbDataType 数据类型注册与查找 ----------
 
 func TestGetDbDataType(t *testing.T) {
-	// 未注册的数据库类型返回默认类型（string/DTString/CTVarchar）
+	// 未注册的数据库类型返回默认类型（string/DTString/TCVarchar）
 	dt := GetDbDataType(DbType("not-exist-db"), "varchar")
 	assert.Equal(t, DefaultDbDataType, dt)
-	assert.Equal(t, CTVarchar, dt.CommonType)
+	assert.Equal(t, TCVarchar, dt.Category())
 	assert.Equal(t, DTString, dt.DataType)
 
 	// 注册测试类型（小写作为key，查找不区分大小写）
 	testDbType := DbType("test-dbtype-get")
-	registerColumnDbDataTypes(testDbType,
-		NewDbDataType("VARCHAR", DTString).WithCT(CTVarchar),
-		NewDbDataType("INT8", DTInt64).WithCT(CTInt8),
-	)
+	RegisterTypeEngine(testDbType, func(b *TypeEngineBuilder) {
+		b.RegisterTypes(
+			NewDbDataType("VARCHAR", DTString).WithCategory(TCVarchar),
+			NewDbDataType("INT8", DTInt64).WithCategory(TCInt8),
+		)
+	})
 
 	assert.Equal(t, "VARCHAR", GetDbDataType(testDbType, "varchar").Name)
 	assert.Equal(t, "VARCHAR", GetDbDataType(testDbType, "VARCHAR").Name)
 	assert.Equal(t, "INT8", GetDbDataType(testDbType, "int8").Name)
-	assert.Equal(t, CTInt8, GetDbDataType(testDbType, "int8").CommonType)
+	assert.Equal(t, TCInt8, GetDbDataType(testDbType, "int8").Category())
 	// 未注册的类型名同样返回默认类型
 	assert.Equal(t, DefaultDbDataType, GetDbDataType(testDbType, "unknown-type"))
 }

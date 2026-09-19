@@ -118,6 +118,7 @@ export interface DataSyncTask extends BaseModel {
     taskKey: string;
     recentState: number;
     runningState: number;
+    syncMode: number;
     srcDbId: number;
     srcDbName: string;
     srcTagPath: string;
@@ -126,12 +127,24 @@ export interface DataSyncTask extends BaseModel {
     updField: string;
     updFieldVal: string;
     updFieldSrc: string;
+    updFieldSecondary: string;
+    softDeleteField: string;
+    softDeleteValue: string;
+    transformRules: string;
+    filterCondition: string;
+    nullStrategy: number;
+    nullDefault: string;
     targetDbId: number;
     targetDbName: string;
     targetTagPath: string;
     targetTableName: string;
     fieldMap: string;
     duplicateStrategy: number;
+    schemaEvolveMode: number;
+    biDirEnabled: boolean;
+    reverseTaskId: number;
+    conflictStrategy: number;
+    biDirTimestampField: string;
 }
 
 /** 数据同步日志 (对应 entity.DataSyncLog) */
@@ -143,6 +156,15 @@ export interface DataSyncLog {
     resNum: number;
     errText: string;
     status: number;
+    durationMs: number;
+    throughput: number;
+    batchCount: number;
+    insertCount: number;
+    updateCount: number;
+    deleteCount: number;
+    skipCount: number;
+    schemaChanges: number;
+    runLog: string;
 }
 
 /** 数据库迁移任务实体 (对应 entity.DbTransferTask) */
@@ -175,6 +197,21 @@ export interface DbTransferTask extends BaseModel {
     targetInstName: string;
     targetTagPath: string;
     extra?: Record<string, unknown>;
+}
+
+/** 数据库迁移执行日志 (对应 entity.DbTransferLog) */
+export interface DbTransferLog {
+    id: number;
+    createTime: string;
+    taskId: number;
+    mode: number;
+    targetFile: string;
+    errText: string;
+    status: number;
+    durationMs: number;
+    totalRows: number;
+    tableCount: number;
+    runLog: string;
 }
 
 /** 数据库备份信息 */

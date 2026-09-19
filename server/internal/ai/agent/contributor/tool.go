@@ -29,3 +29,17 @@ type ToolContributor interface {
 	// Tools 返回贡献的工具列表；tc 可能为 nil（调用方无 Agent 上下文时）
 	Tools(ctx context.Context, tc *ToolContributionContext) ([]tool.BaseTool, error)
 }
+
+// DeferredToolContributor 可延迟加载的工具贡献者（可选接口）
+//
+// 实现此接口的 ToolContributor 可声明其贡献的工具中哪些可延迟加载
+// （初始对模型不可见，经 tool_search 元工具按需发现加载）。
+// 用于工具总量超过阈值时避免挤占上下文与 KV-cache。
+//
+// 典型场景：MCP 工具数量庞大时，仅保留核心工具直注，其余经 tool_search
+// 按需加载。内置核心工具（db/machine/resource/memory 等）不应实现此接口。
+type DeferredToolContributor interface {
+	ToolContributor
+	// DeferredToolNames 返回可延迟加载的工具名称集合
+	DeferredToolNames() map[string]struct{}
+}

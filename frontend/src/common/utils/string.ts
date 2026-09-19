@@ -103,11 +103,22 @@ export function getTextWidth(str: string) {
 }
 
 /**
- *
- * @returns uuid
+ * 生成 UUID v4
+ * 优先使用 crypto.randomUUID（仅安全上下文可用），
+ * 不可用时降级为 crypto.getRandomValues 手动拼接（HTTP 下亦可工作）。
  */
-export function randomUuid() {
-    return crypto.randomUUID();
+export function randomUuid(): string {
+    const crypto = globalThis.crypto;
+    if (typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // fallback: 用 getRandomValues 生成 16 字节后按 UUID v4 格式格式化
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
 /**

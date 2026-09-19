@@ -14,9 +14,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITAutoIncrement ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -25,6 +25,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 const itAiTable = "it_ai_tbl"
@@ -70,7 +71,7 @@ func itAiMaxId(t *testing.T, conn *dbi.DbConn) int64 {
 	_, rows, err := conn.Query(fmt.Sprintf("SELECT COALESCE(MAX(id), 0) AS mid FROM %s", quote(itAiTable)))
 	require.NoError(t, err, "[%s] 查询最大id失败", conn.Info.Type)
 	require.Len(t, rows, 1)
-	mid, ok := dbi.ValToInt64(rows[0]["mid"])
+	mid, ok := value.ValToInt64(rows[0]["mid"])
 	require.True(t, ok, "最大id取值形态异常: %T", rows[0]["mid"])
 	return mid
 }
@@ -90,7 +91,7 @@ func itAiRowCount(t *testing.T, conn *dbi.DbConn) int64 {
 	_, rows, err := conn.Query(fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", quote(itAiTable)))
 	require.NoError(t, err, "[%s] 查询行数失败", conn.Info.Type)
 	require.Len(t, rows, 1)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "行数取值形态异常: %T", rows[0]["cnt"])
 	return cnt
 }
@@ -135,7 +136,7 @@ func TestITAutoIncrementMigrateKeepsSequence(t *testing.T) {
 				"迁移后自增未续接已迁移数据（新行id应=%d）", rows+1)
 
 			// 目标元数据仍须标记自增，否则后续结构再迁移会静默丢失该语义
-			cols, err := tgtConn.GetMetadata().GetColumns(itAiTable)
+			cols, err := tgtConn.Metadata().GetColumns(itAiTable)
 			require.NoError(t, err, "读取目标列元数据失败")
 			require.NotEmpty(t, cols)
 			hasIncr := false
@@ -254,9 +255,9 @@ func TestITAutoIncrementParallelShardImport(t *testing.T) {
 			conn := node.conn(t)
 			defer conn.Close()
 
-			origTargetRows := dbi.ShardTargetRows
-			dbi.ShardTargetRows = shardRows
-			defer func() { dbi.ShardTargetRows = origTargetRows }()
+			origTargetRows := transfer.ShardTargetRows
+			transfer.ShardTargetRows = shardRows
+			defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 			app := &transfer.DbTransferAppImpl{}
 			for cycle := 0; cycle < cycles; cycle++ {
@@ -312,7 +313,7 @@ func itAiDistinctIdCount(t *testing.T, conn *dbi.DbConn) int64 {
 	_, rows, err := conn.Query(fmt.Sprintf("SELECT COUNT(DISTINCT id) AS cnt FROM %s", quote(itAiTable)))
 	require.NoError(t, err, "[%s] 查询去重id数失败", conn.Info.Type)
 	require.Len(t, rows, 1)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "去重id数取值形态异常: %T", rows[0]["cnt"])
 	return cnt
 }

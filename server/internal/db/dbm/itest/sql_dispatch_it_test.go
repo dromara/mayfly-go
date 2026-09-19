@@ -4,8 +4,8 @@ package itest
 // 镜像 ExecuteSql 的分发规则（切割→解析→按Stmt类型分发）：
 //   - SelectStmt/WithStmt/OtherStmt → Query（读）
 //   - InsertStmt/UpdateStmt/DeleteStmt/DdlStmt → Exec（写）
-// 重点验证易混淆语句在真实驱动下按该规则执行的兼容性：
-//   - OtherStmt（SET/EXPLAIN/PRAGMA等非标准语句）走 Query —— 驱动需返回空/正常结果集而非报错
+// 重点验证易混淆语句在真实后端下按该规则执行的兼容性：
+//   - OtherStmt（SET/EXPLAIN/PRAGMA等非标准语句）走 Query —— 后端需返回空/正常结果集而非报错
 //   - 前置注释的 SELECT（切割器剥离注释后）不得误判为非查询而走 Exec 导致结果丢失
 //   - pg INSERT...RETURNING 走 Exec —— 数据正确插入（RETURNING行不展示为已知行为）
 //
@@ -102,16 +102,16 @@ func TestITSqliteDispatchMatrix(t *testing.T) {
 }
 
 // TestITExecSqlViaQueryEffect 实证：exec类SQL（DML/DDL）误用Query执行时数据是否生效
-// database/sql语义下大多数驱动会真实执行语句（返回空结果集），但丢失rowsAffected且
-// 结果表现为空查询；本用例验证本项目三种方言驱动的真实行为
+// database/sql语义下大多数后端会真实执行语句（返回空结果集），但丢失rowsAffected且
+// 结果表现为空查询；本用例验证本项目三种方言后端的真实行为
 func TestITExecSqlViaQueryEffect(t *testing.T) {
-	// mysql：INSERT/UPDATE/DDL走Query——数据生效、无驱动错误
+	// mysql：INSERT/UPDATE/DDL走Query——数据生效、无后端错误
 	mconn := mysqlConn(t)
 	defer mconn.Close()
 	mustExec(t, mconn, "DROP TABLE IF EXISTS `it_exec_via_query`")
 	mustExec(t, mconn, "CREATE TABLE `it_exec_via_query` (id INT PRIMARY KEY, v VARCHAR(50))")
 	_, _, err := mconn.Query("INSERT INTO `it_exec_via_query` VALUES (1, 'a')")
-	require.NoError(t, err, "mysql驱动对Query执行INSERT应兼容（返回空结果集）")
+	require.NoError(t, err, "mysql后端对Query执行INSERT应兼容（返回空结果集）")
 	_, _, err = mconn.Query("UPDATE `it_exec_via_query` SET v = 'b' WHERE id = 1")
 	require.NoError(t, err)
 	_, rows, err := mconn.Query("SELECT v FROM `it_exec_via_query` WHERE id = 1")
@@ -126,7 +126,7 @@ func TestITExecSqlViaQueryEffect(t *testing.T) {
 	mustExec(t, pconn, "DROP TABLE IF EXISTS it_exec_via_query")
 	mustExec(t, pconn, "CREATE TABLE it_exec_via_query (id int PRIMARY KEY, v text)")
 	_, _, err = pconn.Query("INSERT INTO it_exec_via_query VALUES (1, 'a')")
-	require.NoError(t, err, "pg驱动对Query执行INSERT应兼容")
+	require.NoError(t, err, "pg后端对Query执行INSERT应兼容")
 	_, rows, err = pconn.Query("SELECT v FROM it_exec_via_query WHERE id = 1")
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
@@ -138,7 +138,7 @@ func TestITExecSqlViaQueryEffect(t *testing.T) {
 	mustExec(t, sconn, "DROP TABLE IF EXISTS `it_exec_via_query`")
 	mustExec(t, sconn, "CREATE TABLE `it_exec_via_query` (id INTEGER PRIMARY KEY, v TEXT)")
 	_, _, err = sconn.Query("INSERT INTO `it_exec_via_query` VALUES (1, 'a')")
-	require.NoError(t, err, "sqlite驱动对Query执行INSERT应兼容")
+	require.NoError(t, err, "sqlite后端对Query执行INSERT应兼容")
 	_, rows, err = sconn.Query("SELECT v FROM `it_exec_via_query` WHERE id = 1")
 	require.NoError(t, err)
 	require.Len(t, rows, 1)

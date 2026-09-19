@@ -82,11 +82,11 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 		opt(agent)
 	}
 
-	// 统一宿主装配：注册中心/上下文管理器未显式指定时装配默认运行时，
+	// 统一宿主装配：注册中心/上下文管理器/CheckPointStore 未显式指定时装配默认运行时，
 	// 确保扩展以真实依赖装配（修复此前 InitDefault(nil,nil) 时序缺陷）；
 	// 全量显式指定时跳过装配，避免无谓的装配开销与激活副作用
 	// （中断扩展装载、记忆提取装配等由自定义注册中心的装配方自行负责）
-	if agent.registry == nil || agent.contextManager == nil {
+	if agent.registry == nil || agent.contextManager == nil || agent.checkPointStore == nil {
 		rt, err := AssembleDefault(ctx)
 		if err != nil {
 			return nil, err
@@ -101,11 +101,15 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 			// 复用宿主装配期单次获取的 ChatModel（避免重复 IOC 查询）
 			agent.chatModel = rt.ChatModel
 		}
+		if agent.checkPointStore == nil && rt.CheckPointStore != nil {
+			agent.checkPointStore = rt.CheckPointStore
+		}
 	}
 
 	// 工具列表统一经贡献者注册中心聚合（内置 + 宿主扩展，后注册者覆盖先注册者），
 	// 不存在绕过插件机制的装配旁路；AgentId 已注入贡献上下文，条件工具组可按 Agent 过滤
-	agent.tools = agent.registry.BuildTools(ctx, &contributor.ToolContributionContext{
+	// deferredNames 为 DeferredToolContributor 声明的可延迟工具名集合（tool search 用）
+	agent.tools, agent.deferredToolNames = agent.registry.BuildTools(ctx, &contributor.ToolContributionContext{
 		AgentId: agent.id,
 	})
 
@@ -113,11 +117,11 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 	agent.middlewares = append(agent.registry.CollectMiddlewares(ctx), agent.middlewares...)
 
 	// 工具搜索（eino v0.9 tool search middleware）：工具总量超过阈值时，
-	// MCP 工具转为 deferred —— 模型经 tool_search 元工具按需发现加载，
+	// DeferredToolContributor 声明的工具转为 deferred —— 模型经 tool_search 元工具按需发现加载，
 	// 避免大工具清单挤占上下文（未配置阈值时全量直注，行为不变）。
 	// 接线契约：ToolsConfig 须换用静态工具清单，DynamicTools 由中间件在
 	// BeforeAgent 阶段追加为可执行工具（避免 runCtx.Tools 重名重复注册）
-	tsMw, staticTools := buildToolSearchMiddleware(ctx, agent.tools, aiconfig.GetAgentConfig().ToolSearchThreshold)
+	tsMw, staticTools := buildToolSearchMiddleware(ctx, agent.tools, agent.deferredToolNames, aiconfig.GetAgentConfig().ToolSearchThreshold)
 	if tsMw != nil {
 		agent.middlewares = append(agent.middlewares, tsMw)
 		agent.tools = staticTools
@@ -185,10 +189,12 @@ type Agent struct {
 	instruction string // 系统提示词（静态部分，注入 adk Instruction）
 	maxStep     int    // agent最大执行步数，防止死循环
 
-	tools          []tool.BaseTool               // 可调用的工具列表（经 Registry 聚合）
-	middlewares    []contributor.AgentMiddleware // 中间件（经 Registry 聚合 + 选项追加）
-	registry       *contributor.Registry         // 贡献者注册中心（生命周期/用量回调/中间件聚合来源）
-	contextManager *ContextManager               // 上下文管理器
+	tools             []tool.BaseTool               // 可调用的工具列表（经 Registry 聚合）
+	deferredToolNames map[string]struct{}           // 可延迟加载的工具名集合（DeferredToolContributor 声明）
+	middlewares       []contributor.AgentMiddleware // 中间件（经 Registry 聚合 + 选项追加）
+	registry          *contributor.Registry         // 贡献者注册中心（生命周期/用量回调/中间件聚合来源）
+	contextManager    *ContextManager               // 上下文管理器
+	checkPointStore   CheckPointStore               // 中断恢复 checkpoint 存储（多实例部署经 WithCheckPointStore 注入共享后端）
 }
 
 // Run 运行agent（轮次管道：装配输入 → 执行 → 事件处理 → 收尾兑底）
@@ -219,9 +225,10 @@ func (a *Agent) Run(ctx context.Context, messages []*session.Message, runOpts ..
 		SetTurnId(inputMsg, runOptions.turnId)
 	}
 
-	checkPointStore, err := GetDefaultCheckPointStore()
-	if err != nil {
-		return nil, err
+	checkPointStore := a.checkPointStore
+	if checkPointStore == nil {
+		// 降级：option 与 runtime 均未注入时创建默认实例（进程内 cache 后端）
+		checkPointStore = NewCheckPointStore()
 	}
 	runner := adk.NewTypedRunner[*schema.AgenticMessage](adk.TypedRunnerConfig[*schema.AgenticMessage]{
 		EnableStreaming: true,
@@ -235,6 +242,7 @@ func (a *Agent) Run(ctx context.Context, messages []*session.Message, runOpts ..
 
 	var events *adk.AsyncIterator[*agentEvent]
 	var outputMessages []*session.Message
+	var err error // err 在 defer 中引用，须提前声明
 
 	// 轮次收尾兜底：无论正常返回、错误返回还是 panic，都保证错误消息下发、
 	// 消息持久化与生命周期/用量回调执行

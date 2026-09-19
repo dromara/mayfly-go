@@ -178,7 +178,7 @@ func TestRegistry_BuildTools_OverrideByName(t *testing.T) {
 		&fakeTool{name: "shell_exec"}, // 同名覆盖
 	}})
 
-	tools := b.Build().BuildTools(context.Background(), nil)
+	tools, _ := b.Build().BuildTools(context.Background(), nil)
 	if len(tools) != 2 {
 		t.Fatalf("expected 2 tools after override, got %d", len(tools))
 	}
@@ -197,7 +197,7 @@ func TestRegistry_BuildTools_FailOpen(t *testing.T) {
 	b.RegisterTool(&fakeToolProvider{id: "broken", err: errors.New("boom")})
 	b.RegisterTool(&fakeToolProvider{id: "ok", tools: []tool.BaseTool{&fakeTool{name: "file_read"}}})
 
-	tools := b.Build().BuildTools(context.Background(), nil)
+	tools, _ := b.Build().BuildTools(context.Background(), nil)
 	if len(tools) != 1 {
 		t.Fatalf("broken contributor should be skipped, got %d tools", len(tools))
 	}
@@ -206,8 +206,9 @@ func TestRegistry_BuildTools_FailOpen(t *testing.T) {
 // TestRegistry_BuildTools_NilRegistry nil registry 安全
 func TestRegistry_BuildTools_NilRegistry(t *testing.T) {
 	var r *Registry
-	if tools := r.BuildTools(context.Background(), nil); tools != nil {
-		t.Errorf("nil registry should return nil, got %v", tools)
+	tools, deferred := r.BuildTools(context.Background(), nil)
+	if tools != nil || deferred != nil {
+		t.Errorf("nil registry should return nil, got tools=%v, deferred=%v", tools, deferred)
 	}
 }
 

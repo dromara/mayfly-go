@@ -56,7 +56,7 @@ import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
-import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
+import { DbDataSyncModeEnum, DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import type { PageResult } from '@/types/common';
 import type { DataSyncTask } from '../types';
@@ -86,6 +86,7 @@ const searchItems = [SearchItem.input('name', 'common.name')];
 // 任务名、修改人、修改时间、最近一次任务执行状态、状态(停用启用)、操作
 const columns = ref([
     TableColumn.new('taskName', 'db.taskName'),
+    TableColumn.new('syncMode', 'db.syncMode').typeTag(DbDataSyncModeEnum),
     TableColumn.new('cron', 'Cron'),
     TableColumn.new('runningState', 'db.runState').typeTag(DbDataSyncRunningStateEnum),
     TableColumn.new('recentState', 'db.recentState').typeTag(DbDataSyncRecentStateEnum),
@@ -156,9 +157,17 @@ const edit = async (data: DataSyncTask | false) => {
 
 const run = async (id: number) => {
     await useI18nConfirm('db.runConfirm');
-    await dbSyncApi.runDatasyncTask.request({ taskId: id });
-    Msg.operateSuccess();
-    setTimeout(search, 1000);
+    try {
+        await dbSyncApi.runDatasyncTask.request({ taskId: id });
+        Msg.operateSuccess();
+        // 执行后自动弹出日志弹窗，查看实时执行日志
+        state.logsDialog.taskId = id;
+        state.logsDialog.visible = true;
+        state.logsDialog.running = true;
+    } catch (e) {
+        //
+    }
+    setTimeout(search, 2000);
 };
 
 const stop = async (id: number) => {

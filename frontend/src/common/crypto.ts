@@ -1,3 +1,4 @@
+import forge from 'node-forge';
 import { getToken } from '@/common/utils/storage';
 import openApi from './openApi';
 import { notBlank } from './assert';
@@ -16,14 +17,12 @@ export async function AesEncrypt(word: string, key?: string): Promise<string> {
         throw new Error('AES key is empty');
     }
 
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(key);
-    const iv = keyData.slice(0, 16);
-
-    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-CBC' }, false, ['encrypt']);
-    const encrypted = await crypto.subtle.encrypt({ name: 'AES-CBC', iv }, cryptoKey, encoder.encode(word));
-
-    return arrayBufferToBase64(encrypted);
+    const iv = key.substring(0, 16);
+    const cipher = forge.cipher.createCipher('AES-CBC', forge.util.encodeUtf8(key));
+    cipher.start({ iv: forge.util.encodeUtf8(iv) });
+    cipher.update(forge.util.createBuffer(forge.util.encodeUtf8(word)));
+    cipher.finish();
+    return forge.util.encode64(cipher.output.getBytes());
 }
 
 /**
@@ -40,44 +39,19 @@ export async function AesDecrypt(word: string, key?: string): Promise<string> {
         throw new Error('AES key is empty');
     }
 
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(key);
-    const iv = keyData.slice(0, 16);
-
-    const data = base64ToArrayBuffer(word);
-
-    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-CBC' }, false, ['decrypt']);
-    const decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, cryptoKey, data as BufferSource);
-
-    return new TextDecoder().decode(decrypted);
+    const iv = key.substring(0, 16);
+    const decipher = forge.cipher.createDecipher('AES-CBC', forge.util.encodeUtf8(key));
+    decipher.start({ iv: forge.util.encodeUtf8(iv) });
+    decipher.update(forge.util.createBuffer(forge.util.decode64(word)));
+    decipher.finish();
+    return forge.util.decodeUtf8(decipher.output.getBytes());
 }
 
-/** ArrayBuffer 转 Base64（分块处理避免调用栈溢出） */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    const chunkSize = 0x8000; // 32KB per chunk
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize) as unknown as number[]);
-    }
-    return btoa(binary);
-}
-
-/** Base64 转 ArrayBuffer */
-function base64ToArrayBuffer(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-}
-
-let cachedCryptoKey: CryptoKey | null = null;
+let cachedRsaPublicKey: forge.pki.rsa.PublicKey | null = null;
 
 /** 重置 RSA 加密缓存，使下次加密重新获取公钥 */
 export function resetRsaCryptoKey() {
-    cachedCryptoKey = null;
+    cachedRsaPublicKey = null;
     sessionStorage.removeItem('RsaPublicKey');
 }
 
@@ -91,14 +65,9 @@ export async function getRsaPublicKey() {
     return publicKey;
 }
 
-/** PEM 格式公钥转 CryptoKey（SPKI 格式，RSA-OAEP + SHA-256） */
-async function pemToCryptoKey(pem: string): Promise<CryptoKey> {
-    const base64 = pem
-        .replace(/-----BEGIN PUBLIC KEY-----/g, '')
-        .replace(/-----END PUBLIC KEY-----/g, '')
-        .replace(/\s/g, '');
-    const der = base64ToArrayBuffer(base64);
-    return crypto.subtle.importKey('spki', der as BufferSource, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
+/** PEM 格式公钥解析为 forge PublicKey */
+function parsePemPublicKey(pem: string): forge.pki.rsa.PublicKey {
+    return forge.pki.publicKeyFromPem(pem) as forge.pki.rsa.PublicKey;
 }
 
 /**
@@ -113,13 +82,15 @@ export async function RsaEncrypt(value: string): Promise<string> {
         return '';
     }
 
-    if (!cachedCryptoKey) {
-        const publicKey = (await getRsaPublicKey()) as string;
-        notBlank(publicKey, '获取公钥失败');
-        cachedCryptoKey = await pemToCryptoKey(publicKey);
+    if (!cachedRsaPublicKey) {
+        const publicKeyPem = (await getRsaPublicKey()) as string;
+        notBlank(publicKeyPem, '获取公钥失败');
+        cachedRsaPublicKey = parsePemPublicKey(publicKeyPem);
     }
 
-    const encoder = new TextEncoder();
-    const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, cachedCryptoKey, encoder.encode(value));
-    return arrayBufferToBase64(encrypted);
+    const encrypted = cachedRsaPublicKey.encrypt(value, 'RSA-OAEP', {
+        md: forge.md.sha256.create(),
+        mgf1: { md: forge.md.sha256.create() },
+    });
+    return forge.util.encode64(encrypted);
 }

@@ -14,10 +14,10 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITComplexStrings ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"bytes"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -26,6 +26,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // itComplexTexts 复杂字符串样本：按行轮转写入文本列
@@ -239,9 +240,9 @@ func TestITComplexStringsAcrossDialects(t *testing.T) {
 				}
 				// 时间/数值列：两侧均为数值/时间类，按产品校验器同一套语义比对（容忍标度呈现差异）
 				for _, col := range itTypedColumns {
-					assert.True(t, dbi.CanonicalNumericEqual(srcRows[i][col], tgtRows[i][col]),
+					assert.True(t, value.CanonicalNumericEqual(srcRows[i][col], tgtRows[i][col]),
 						"第%d行(%q)列[%s]迁移失真, 源=%q 目标=%q", i+1, sampleOf(i), col,
-						dbi.CanonicalValue(srcRows[i][col]), dbi.CanonicalValue(tgtRows[i][col]))
+						value.CanonicalValue(srcRows[i][col]), value.CanonicalValue(tgtRows[i][col]))
 				}
 			}
 		})

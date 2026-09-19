@@ -17,9 +17,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITImportDump ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/dbm/sqlparser"
 )
 
@@ -63,7 +64,7 @@ func itCountLeak(t *testing.T, conn *dbi.DbConn, table string) int64 {
 	quote := conn.GetDialect().Quoter().QuoteIdent
 	_, rows, err := conn.Query(fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", quote(table)))
 	require.NoError(t, err)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "count应为数值: %#v", rows[0]["cnt"])
 	return cnt
 }

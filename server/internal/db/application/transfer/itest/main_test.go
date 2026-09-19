@@ -26,6 +26,7 @@ import (
 
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // TestMain 集成测试入口：环境初始化与清理。
@@ -134,7 +135,7 @@ func itPairAll(nodes []itDialectNode) []itPair {
 func itIdentityBatch(t *testing.T, conn *dbi.DbConn, table string, identity bool, inserts ...string) string {
 	t.Helper()
 	if conn.Info.Type != itMssql.dbType {
-		require.Len(t, inserts, 1, "多语句批次仅 mssql 使用（其余方言驱动未开 multiStatements）")
+		require.Len(t, inserts, 1, "多语句批次仅 mssql 使用（其余方言后端未开 multiStatements）")
 		return inserts[0]
 	}
 	if !identity {
@@ -155,17 +156,17 @@ func itIdentityBatch(t *testing.T, conn *dbi.DbConn, table string, identity bool
 func itTextAt(row map[string]any, column string) string {
 	switch v := row[column].(type) {
 	case nil:
-		return dbi.CanonicalNilValue
+		return value.CanonicalNilValue
 	case string:
 		return v
 	case []byte:
 		return string(v)
 	default:
-		return dbi.CanonicalValue(v)
+		return value.CanonicalValue(v)
 	}
 }
 
-// itAsBytes 驱动返回的文本列可能是string或[]byte，统一为字节比对
+// itAsBytes 后端返回的文本列可能是string或[]byte，统一为字节比对
 func itAsBytes(v any) []byte {
 	switch val := v.(type) {
 	case []byte:

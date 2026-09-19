@@ -17,11 +17,11 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -timeout 30m -run TestITHeteroMigrate ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +31,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 const (
@@ -370,25 +371,25 @@ func hetNorm(t *testing.T, col string, v any) string {
 	}
 	switch col {
 	case "c_bool":
-		b, ok := dbi.ValToBool(v)
+		b, ok := value.ValToBool(v)
 		require.True(t, ok, "c_bool无法归一: %v", v)
 		if b {
 			return "true"
 		}
 		return "false"
 	case "c_f32":
-		f, ok := dbi.ValToFloat64(v)
+		f, ok := value.ValToFloat64(v)
 		require.True(t, ok, "c_f32无法归一: %v", v)
 		return fmt.Sprintf("%v", float32(f))
 	case "c_f64":
 		// pg float8走numeric文本valuer（如"0.0000000001"），mysql double读回float64（"1e-10"），
 		// 同一值两种文本表示，统一ParseFloat后按最短表示比对
-		f, ok := dbi.ValToFloat64(v)
+		f, ok := value.ValToFloat64(v)
 		require.True(t, ok, "c_f64无法归一: %v", v)
 		return fmt.Sprintf("%v", f)
 	case "c_dec":
 		// sqlite NUMERIC亲和会把decimal字面量物化为浮点（物理限制），统一按float最短表示
-		f, ok := dbi.ValToFloat64(v)
+		f, ok := value.ValToFloat64(v)
 		if ok {
 			return fmt.Sprintf("%v", f)
 		}

@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
-	_ "mayfly-go/internal/db/dbm/postgres" // 注册postgres方言
+	_ "mayfly-go/internal/db/dbm/dialect/postgres" // 注册postgres方言
 )
 
 // ---------------------------------------------------------------------
@@ -28,16 +28,16 @@ func TestITPgConnectAndMetadata(t *testing.T) {
 	conn := pgConn(t)
 	defer conn.Close()
 
-	server, err := conn.GetMetadata().GetDbServer()
+	server, err := conn.Metadata().GetDbServer()
 	require.NoError(t, err)
 	t.Logf("postgres server version: %+v", server)
 	assert.Contains(t, server.Version, "PostgreSQL")
 
-	dbs, err := conn.GetMetadata().GetDbNames()
+	dbs, err := conn.Metadata().GetDbNames()
 	require.NoError(t, err)
 	assert.Contains(t, dbs, itPgDatabase)
 
-	tables, err := conn.GetMetadata().GetTables()
+	tables, err := conn.Metadata().GetTables()
 	require.NoError(t, err)
 	t.Logf("tables in %s: %d", itPgDatabase, len(tables))
 }
@@ -69,7 +69,7 @@ func TestITPgGenTableDDLRoundtrip(t *testing.T) {
 	}
 
 	// 真实回读元数据，逐项断言DDL执行结果符合预期
-	readCols, err := conn.GetMetadata().GetColumns(table)
+	readCols, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	require.Len(t, readCols, 8)
 	byName := make(map[string]dbi.Column)
@@ -104,7 +104,7 @@ func TestITPgGenTableDDLRoundtrip(t *testing.T) {
 	assert.Equal(t, 32, byName["code"].CharMaxLength)
 
 	// 表注释转义正确落地
-	tbs, err := conn.GetMetadata().GetTables(table)
+	tbs, err := conn.Metadata().GetTables(table)
 	require.NoError(t, err)
 	require.NotEmpty(t, tbs)
 	assert.Equal(t, "表'注'释", tbs[0].TableComment)
@@ -113,7 +113,7 @@ func TestITPgGenTableDDLRoundtrip(t *testing.T) {
 	for _, ddl := range gen.GenTableDDL(dbi.Table{TableName: table}, readCols, true) {
 		mustExec(t, conn, ddl)
 	}
-	readCols2, err := conn.GetMetadata().GetColumns(table)
+	readCols2, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	require.Len(t, readCols2, 8)
 	assert.True(t, byName2AutoIncrement(readCols2))
@@ -154,7 +154,7 @@ func TestITPgEscapeDataRoundtrip(t *testing.T) {
 		v_bytea bytea
 	)`, quote(table)))
 
-	columns, err := conn.GetMetadata().GetColumns(table)
+	columns, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	require.Len(t, columns, 6)
 
@@ -235,7 +235,7 @@ func TestITPgCopyTable(t *testing.T) {
 	require.NoError(t, conn.GetDialect().CopyTable(&dbi.DbCopyTable{TableName: table, CopyData: true}))
 	time.Sleep(2 * time.Second) // 数据为异步复制
 
-	tables, err := conn.GetMetadata().GetTables()
+	tables, err := conn.Metadata().GetTables()
 	require.NoError(t, err)
 	var copyName string
 	for _, tb := range tables {

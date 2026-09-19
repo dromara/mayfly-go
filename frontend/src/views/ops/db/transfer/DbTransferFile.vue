@@ -44,14 +44,11 @@
                     >
                         {{ $t('db.run') }}
                     </el-button>
-
-                    <el-button v-if="data.logId" @click="onOpenLog(data)" type="success" link>{{ $t('db.log') }}</el-button>
                 </template>
             </page-table>
         </el-dialog>
 
-        <!-- 日志执行结束后刷新文件列表状态 -->
-        <TerminalLog v-model:log-id="state.logsDialog.logId" v-model:visible="state.logsDialog.visible" :title="state.logsDialog.title" @finished="search" />
+
 
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
             <auto-form v-model="state.runDialog.runForm" :items="runFormItems" label-width="auto">
@@ -89,7 +86,6 @@ import { hasPerms } from '@/components/auth/auth';
 import FileInfo from '@/components/file/FileInfo.vue';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
-import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
@@ -104,7 +100,6 @@ interface DbTransferFile {
     fileKey: string;
     fileDbType: string;
     status: number;
-    logId: number;
     state: number;
     createTime: string;
 }
@@ -150,7 +145,7 @@ const perms = {
 
 const actionBtns = hasPerms([perms.del, perms.down, perms.run]);
 
-const actionWidth = ((actionBtns[perms.run] ? 1 : 0) + 1) * 55;
+const actionWidth = (actionBtns[perms.run] ? 1 : 0) * 55;
 
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 
@@ -174,13 +169,6 @@ const state = reactive({
         name: null,
         pageNum: 1,
         pageSize: 10,
-    },
-    logsDialog: {
-        logId: 0,
-        title: t('db.log'),
-        visible: false,
-        data: null as DbTransferFile | null,
-        running: false,
     },
     runDialog: {
         title: t('db.transferFileRunDialogTitle'),
@@ -241,12 +229,6 @@ const onDel = async function () {
     }
 };
 
-const onOpenLog = function (data: { logId: number; state: number }) {
-    state.logsDialog.logId = data.logId;
-    state.logsDialog.visible = true;
-    state.logsDialog.title = t('db.log');
-    state.logsDialog.running = data.state === 1;
-};
 
 // 运行sql，弹出选择需要运行的库，默认运行当前数据库，需要保证数据库类型与sql文件一致
 const onOpenRun = function (data: DbTransferFile) {

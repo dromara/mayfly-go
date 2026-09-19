@@ -64,10 +64,37 @@
                             </el-select>
                         </template>
                     </el-table-column>
+                    <!-- Phase 3: 转换类型列 -->
+                    <el-table-column prop="transformType" :label="$t('db.transformRules')" :width="160">
+                        <template #default="scope">
+                            <el-select v-model="scope.row.transformType" size="small">
+                                <el-option :label="$t('db.none')" value="column"></el-option>
+                                <el-option :label="$t('db.transformTypeConstant')" value="constant"></el-option>
+                                <el-option :label="$t('db.transformTypeExpr')" value="expr"></el-option>
+                            </el-select>
+                        </template>
+                    </el-table-column>
+                    <!-- Phase 3: 转换配置列 -->
+                    <el-table-column prop="transformConfig" :label="$t('db.transformConfig')" :width="200">
+                        <template #default="scope">
+                            <el-input
+                                v-if="scope.row.transformType === 'constant'"
+                                v-model="scope.row.transformConfig"
+                                size="small"
+                                :placeholder="$t('db.transformConstantPlaceholder')"
+                            />
+                            <el-input
+                                v-if="scope.row.transformType === 'expr'"
+                                v-model="scope.row.transformConfig"
+                                size="small"
+                                :placeholder="$t('db.transformExprPlaceholder')"
+                            />
+                        </template>
+                    </el-table-column>
                 </el-table>
             </template>
 
-            <!-- SQL 预览（只读，绑定预览状态而非表单） -->
+            <!-- SQL 预览 -->
             <template #previewDataSql>
                 <el-input type="textarea" :model-value="state.previewDataSql" readonly :rows="10" />
             </template>
@@ -85,8 +112,11 @@
                                     case fieldTab:
                                         tabActiveName = basicTab;
                                         break;
-                                    case sqlPreviewTab:
+                                    case advancedTab:
                                         tabActiveName = fieldTab;
+                                        break;
+                                    case sqlPreviewTab:
+                                        tabActiveName = advancedTab;
                                         break;
                                 }
                             }
@@ -103,6 +133,9 @@
                                         tabActiveName = fieldTab;
                                         break;
                                     case fieldTab:
+                                        tabActiveName = advancedTab;
+                                        break;
+                                    case advancedTab:
                                         tabActiveName = sqlPreviewTab;
                                         break;
                                 }
@@ -126,21 +159,23 @@ import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { DbInst } from '@/views/ops/db/db';
-// 经惰性作用域注册联想：本表单的 SQL 字段已是异步编辑器，静态引入 completion 会让它重新进入首屏
 import { createSqlCompletionScope } from '@/views/ops/db/completion/lazy';
 import { getDbDialect, getDialectCapabilities } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
-import { DbDataSyncDuplicateStrategyEnum } from '@/views/ops/db/sync/enums';
+import {
+    DbDataSyncDuplicateStrategyEnum,
+    DbDataSyncModeEnum,
+    DbNullStrategyEnum,
+    DbSchemaEvolveModeEnum,
+    DbConflictStrategyEnum,
+} from '@/views/ops/db/sync/enums';
 import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ColumnMetadata, DataSyncTask, Db, DbNodeParams, DbTableInfo } from '@/views/ops/db/types';
 
 const { t } = useI18n();
 
-/** 本表单的 SQL 联想使用方作用域（数据源 SQL 字段可联想库/表/字段） */
 const sqlCompletion = createSqlCompletionScope();
-
-// 卸载时释放本使用方；仅当没有其他 SQL 联想使用方存活时才会真正注销全局 provider
 onBeforeUnmount(() => sqlCompletion.release());
 
 const props = defineProps({
@@ -153,11 +188,8 @@ const props = defineProps({
     },
 });
 
-//定义事件
 const emit = defineEmits<{
-    /** 取消编辑，父级关闭弹窗 */
     cancel: [];
-    /** 保存成功，回传表单，父级据此刷新任务列表 */
     'val-change': [form: AutoFormData];
 }>();
 
@@ -167,13 +199,12 @@ const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unk
 
 const basicTab = 'basic';
 const fieldTab = 'field';
+const advancedTab = 'advanced';
 const sqlPreviewTab = 'sqlPreview';
 
-/** 目标表下拉选项（从已加载的表列表生成） */
 const targetTableOptions = () =>
     Promise.resolve(state.targetTableList.map((item) => ({ value: item.tableName, label: item.tableName + (item.tableComment && '-' + item.tableComment) })));
 
-/** 表单声明（AutoFormTab[] 向导式三步：基础信息 / 字段映射 / SQL 预览；复杂控件走插槽） */
 const tabs: AutoFormTab[] = [
     {
         name: basicTab,
@@ -189,6 +220,15 @@ const tabs: AutoFormTab[] = [
                 span: 4,
                 props: { inlinePrompt: true, activeText: t('common.enable'), inactiveText: t('common.disable'), activeValue: 1, inactiveValue: -1 },
             },
+            {
+                prop: 'syncMode',
+                label: 'db.syncMode',
+                type: 'enum',
+                enums: DbDataSyncModeEnum,
+                required: true,
+                span: 8,
+                tooltip: 'db.syncModeTips',
+            },
             { prop: 'srcDbId', label: 'db.srcDb', type: 'custom', required: true },
             { prop: 'targetDbId', label: 'db.targetDb', type: 'custom', required: true },
             { prop: 'dataSql', label: 'db.srcDataSql', type: 'monaco', required: true, props: { language: 'sql', height: '200px' } },
@@ -197,6 +237,8 @@ const tabs: AutoFormTab[] = [
             { prop: 'updField', label: 'db.updateField', tooltip: 'db.updateFieldTips', placeholder: 'db.updateFiledPlaceholder', span: 12 },
             { prop: 'updFieldVal', label: 'db.updateFieldValue', tooltip: 'db.updateFieldValueTips', placeholder: 'db.updateFieldValuePlaceholder', span: 12 },
             { prop: 'updFieldSrc', label: 'db.fieldValueSrc', tooltip: 'db.fieldValueSrcTips', placeholder: 'db.fieldValueSrcPlaceholder', span: 12 },
+            // Phase 2: 辅助增量字段
+            { prop: 'updFieldSecondary', label: 'db.updFieldSecondary', tooltip: 'db.updFieldSecondaryTips', placeholder: 'db.updFieldSecondaryPlaceholder', span: 12 },
         ],
     },
     {
@@ -204,6 +246,59 @@ const tabs: AutoFormTab[] = [
         label: 'db.fieldMap',
         disabled: () => !baseFieldCompleted.value,
         items: [{ prop: 'fieldMap', label: 'db.fieldMap', type: 'custom', required: true }],
+    },
+    // Phase 3/5/6: 高级配置 tab
+    {
+        name: advancedTab,
+        label: 'db.advancedSettings',
+        disabled: () => !baseFieldCompleted.value,
+        items: [
+            // Phase 3: 数据转换与过滤
+            { prop: 'filterCondition', label: 'db.filterCondition', tooltip: 'db.filterConditionTips', placeholder: 'db.filterConditionPlaceholder', span: 12 },
+            {
+                prop: 'nullStrategy',
+                label: 'db.nullStrategy',
+                type: 'enum',
+                enums: DbNullStrategyEnum,
+                tooltip: 'db.nullStrategyTips',
+                span: 8,
+            },
+            { prop: 'nullDefault', label: 'db.nullDefault', placeholder: 'db.nullDefaultPlaceholder', span: 8 },
+            // Phase 5: Schema 演化
+            {
+                prop: 'schemaEvolveMode',
+                label: 'db.schemaEvolveMode',
+                type: 'enum',
+                enums: DbSchemaEvolveModeEnum,
+                tooltip: 'db.schemaEvolveTips',
+                span: 8,
+            },
+            // Phase 6.3: 双向同步
+            {
+                prop: 'biDirEnabled',
+                label: 'db.biDirEnabled',
+                type: 'switch',
+                tooltip: 'db.biDirEnabledTips',
+                span: 6,
+                props: { inlinePrompt: true, activeText: t('common.enable'), inactiveText: t('common.disable') },
+            },
+            {
+                prop: 'conflictStrategy',
+                label: 'db.conflictStrategy',
+                type: 'enum',
+                enums: DbConflictStrategyEnum,
+                tooltip: 'db.conflictStrategyTips',
+                span: 8,
+                when: (f) => !!f.biDirEnabled,
+            },
+            {
+                prop: 'biDirTimestampField',
+                label: 'db.biDirTimestampField',
+                placeholder: 'db.biDirTimestampFieldPlaceholder',
+                span: 10,
+                when: (f) => !!f.biDirEnabled,
+            },
+        ],
     },
     {
         name: sqlPreviewTab,
@@ -244,8 +339,19 @@ type FormData = {
     updField?: string;
     updFieldVal?: string;
     updFieldSrc?: string;
-    fieldMap?: { src: string; target: string }[];
+    updFieldSecondary?: string;
+    fieldMap?: { src: string; target: string; transformType?: string; transformConfig?: string }[];
     status?: 1 | 2;
+    syncMode?: 1 | 2 | 3 | 4 | 5 | 6;
+    softDeleteField?: string;
+    softDeleteValue?: string;
+    filterCondition?: string;
+    nullStrategy?: 0 | 1 | 2;
+    nullDefault?: string;
+    schemaEvolveMode?: 0 | 1 | 2;
+    biDirEnabled?: boolean;
+    conflictStrategy?: 1 | 2 | 3;
+    biDirTimestampField?: string;
     duplicateStrategy?: -1 | 1 | 2;
 };
 
@@ -256,12 +362,22 @@ const basicFormData = {
     pageSize: 1000,
     updField: '',
     updFieldVal: '0',
-    fieldMap: [{ src: 'a', target: 'b' }],
+    updFieldSecondary: '',
+    fieldMap: [{ src: 'a', target: 'b', transformType: 'column', transformConfig: '' }],
     status: 1,
+    syncMode: 1,
+    softDeleteField: '',
+    softDeleteValue: '',
+    filterCondition: '',
+    nullStrategy: 0,
+    nullDefault: '',
+    schemaEvolveMode: 0,
+    biDirEnabled: false,
+    conflictStrategy: 1,
+    biDirTimestampField: '',
     duplicateStrategy: -1,
 } as FormData;
 
-/** 传给 AutoFormDrawer 的回填数据：新建态用默认值；编辑态任务实体经 @opened 异步加载后填充 */
 const editData = { ...basicFormData, taskCron: '' } as unknown as AutoFormData;
 
 const state = reactive({
@@ -277,11 +393,8 @@ const state = reactive({
 });
 
 const tabActiveName = ref('basic');
-
-/** 抽屉打开后暂存的内部表单引用（向导切换、SQL 预览与提交均基于它） */
 const internalForm = ref<AutoFormData>({});
 
-// 基础字段信息是否填写完整
 const baseFieldCompleted = computed(() => {
     const form = internalForm.value;
     return form.srcDbId && form.srcDbName && form.targetDbId && form.targetDbName && form.targetTableName;
@@ -298,37 +411,46 @@ const onOpened = async (form: AutoFormData) => {
     }
 
     let data = await dbSyncApi.getDatasyncTask.request({ taskId: propsData?.id });
-    // 原始任务实体(fieldMap 为 JSON 字符串)转换为表单结构(fieldMap 随后解析为数组)
     const formData = data as unknown as FormData;
     if (!formData.duplicateStrategy) {
         formData.duplicateStrategy = -1;
     }
+    if (formData.nullStrategy === undefined) {
+        formData.nullStrategy = 0;
+    }
+    if (formData.schemaEvolveMode === undefined) {
+        formData.schemaEvolveMode = 0;
+    }
+    if (formData.conflictStrategy === undefined) {
+        formData.conflictStrategy = 1;
+    }
     try {
-        formData.fieldMap = JSON.parse(data.fieldMap);
+        const parsed = JSON.parse(data.fieldMap);
+        // 兼容旧数据：无 transformType 字段时补默认值
+        formData.fieldMap = parsed.map((fm: any) => ({
+            src: fm.src,
+            target: fm.target,
+            transformType: fm.transformType || 'column',
+            transformConfig: fm.transformConfig || '',
+        }));
     } catch (e) {
         formData.fieldMap = [];
     }
     Object.assign(form, formData);
     let { srcDbId, srcDbName, targetDbId } = formData;
 
-    //  初始化src数据源
     if (srcDbId) {
-        // 通过tagPath查询实例列表
         const dbInfoRes = await dbApi.dbs.request({ id: srcDbId });
         const db = dbInfoRes.list[0] as Db & { databases?: string[] };
-        // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = await DbInst.getOrNewInst(db);
         form.srcDbType = state.srcDbInst.type;
         form.srcInstName = db.name;
     }
 
-    //  初始化target数据源
     if (targetDbId) {
-        // 通过tagPath查询实例列表
         const dbInfoRes = await dbApi.dbs.request({ id: targetDbId });
         const db = dbInfoRes.list[0] as Db & { databases?: string[] };
-        // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.targetDbInst = await DbInst.getOrNewInst(db);
         form.targetDbType = state.targetDbInst.type;
@@ -339,7 +461,6 @@ const onOpened = async (form: AutoFormData) => {
         await loadDbTables(targetDbId, formData.targetDbName);
     }
 
-    // 注册sql代码提示
     if (srcDbId && srcDbName) {
         sqlCompletion.register(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
     }
@@ -355,11 +476,9 @@ watch(tabActiveName, async (newValue: string) => {
             let targetDbDialect = getDbDialect(state.targetDbInst.type);
             let updField = internalForm.value.updField!;
 
-            // 判断sql是否以where .*结尾
             let hasCondition = /where/i.test(internalForm.value.dataSql!);
             state.previewDataSql = `${internalForm.value.dataSql?.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${internalForm.value.updFieldVal || ''}'`;
 
-            // 检查字段映射中是否存在重复的目标字段
             let fields = new Set();
             internalForm.value.fieldMap?.map((a: { src: string; target: string }) => {
                 if (a.target) {
@@ -387,8 +506,7 @@ const refreshPreviewInsertSql = () => {
 };
 
 const onSelectSrcDb = async (params: DbNodeParams) => {
-    //  初始化数据源
-    params.databases = params.dbs; // 数据源里需要这个值
+    params.databases = params.dbs;
     state.srcDbInst = await DbInst.getOrNewInst(params);
     sqlCompletion.register(params.id, params.db, params.dbs, params.type ?? '');
 };
@@ -399,7 +517,6 @@ const onSelectTargetDb = async (params: DbNodeParams) => {
 };
 
 const loadDbTables = async (dbId: number, db: string) => {
-    // 加载db下的表
     let data = await dbApi.tableInfos.request({ id: dbId, db });
     state.targetTableList = data;
     if (data && data.length > 0) {
@@ -411,28 +528,21 @@ const loadDbTables = async (dbId: number, db: string) => {
 };
 
 const handleGetSrcFields = async () => {
-    // 执行sql，获取字段信息
     const dataSql = internalForm.value.dataSql as string | undefined;
     if (!dataSql || !dataSql.trim()) {
         Msg.warning('db.noDataSqlMsg');
         return;
     }
-
-    // 判断sql是否是查询语句
     if (!/^select/i.test(dataSql.trim()!)) {
         Msg.warning('db.notSelectSql');
         return;
     }
-
-    // 判断是否有多条sql
     if (/;/i.test(dataSql!)) {
         Msg.warning('db.notOneSql');
         return;
     }
 
-    // 取一行预览的 SQL 由源库方言自描述（mssql TOP / oracle ROWNUM / 其余 LIMIT）
     const sql = getDbDialect(internalForm.value.srcDbType!).getPreviewSql(dataSql!);
-
     const res = await dbApi.sqlExec.request({
         id: internalForm.value.srcDbId,
         db: internalForm.value.srcDbName,
@@ -446,36 +556,39 @@ const handleGetSrcFields = async () => {
 
     let data = res[0];
 
-    let filedMap: Record<string, string> = {};
+    let filedMap: Record<string, { target: string; transformType: string; transformConfig: string }> = {};
     if (internalForm.value.fieldMap && internalForm.value.fieldMap.length > 0) {
-        internalForm.value.fieldMap.forEach((a: { src: string; target: string }) => {
-            filedMap[a.src] = a.target;
+        internalForm.value.fieldMap.forEach((a: any) => {
+            filedMap[a.src] = { target: a.target, transformType: a.transformType || 'column', transformConfig: a.transformConfig || '' };
         });
     }
 
     const srcColumns = data.columns ?? [];
-
-    internalForm.value.fieldMap = srcColumns.map((a) => ({ src: a.name, target: filedMap[a.name] || '' }));
+    internalForm.value.fieldMap = srcColumns.map((a) => {
+        const existing = filedMap[a.name];
+        return {
+            src: a.name,
+            target: existing?.target || '',
+            transformType: existing?.transformType || 'column',
+            transformConfig: existing?.transformConfig || '',
+        };
+    });
 
     state.previewRes = data;
 };
 
 const handleGetTargetFields = async () => {
-    // 查询目标表下的字段信息
     if (internalForm.value.targetDbName && internalForm.value.targetTableName) {
         let columns = await state.targetDbInst.loadColumns(internalForm.value.targetDbName, internalForm.value.targetTableName);
         if (columns && Array.isArray(columns)) {
             state.targetColumnList = columns;
-            // 过滤目标字段，不存在的字段值设置为空
             let names = columns.map((a) => a.columnName?.toLowerCase());
 
-            internalForm.value.fieldMap?.forEach((a: { src: string; target: string }) => {
+            internalForm.value.fieldMap?.forEach((a: any) => {
                 if (a.target && !names.includes(a.target)) {
                     a.target = '';
                 }
-                // 优先设置字段名和src一样的值
                 if (names.includes(a.src?.toLowerCase())) {
-                    // 从columns中取出
                     let res = columns.find((col) => col.columnName?.toLowerCase() === a.src?.toLowerCase());
                     if (res) {
                         a.target = res.columnName;
@@ -486,9 +599,10 @@ const handleGetTargetFields = async () => {
     }
 };
 
-// confirmApi 提交动作：组装 fieldMap 后走统一提交；成功提示与关闭抽屉由组件内置逻辑处理
+// 提交动作：组装 fieldMap（含转换规则）后走统一提交
 const btnOk = async () => {
     const reqForm: Record<string, unknown> = { ...internalForm.value };
+    // 将字段映射（含转换类型和配置）序列化为 JSON
     reqForm.fieldMap = JSON.stringify(internalForm.value.fieldMap);
     await saveExec(reqForm);
     emit('val-change', internalForm.value);

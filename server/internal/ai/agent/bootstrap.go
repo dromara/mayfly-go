@@ -24,6 +24,9 @@ type DefaultRuntime struct {
 	Registry *contributor.Registry
 	// ChatModel 默认聊天模型（装配期单次获取，Agent/摘要器等复用，避免重复 IOC 查询）
 	ChatModel model.AgenticModel
+	// CheckPointStore 中断恢复 checkpoint 存储（多实例部署可注入共享后端如 Redis；
+	// 未显式注入时使用进程内 cache 后端，适用于单实例部署）
+	CheckPointStore CheckPointStore
 }
 
 var (
@@ -137,9 +140,18 @@ func assembleDefault(ctx context.Context) (*DefaultRuntime, error) {
 
 	// 长期记忆提取由 memory_extraction 扩展在装配期激活（原副作用装配已移除）
 
+	// checkpoint 存储（多实例部署可经 WithCheckPointStore option 注入共享后端；
+	// 默认使用进程内 cache 后端，适用于单实例部署）
+	checkPointStore := NewCheckPointStore()
+
 	logx.Infof("[agent] default runtime assembled, summary=[%s], contributors=%v",
 		registry.Summary(), registry.ContributorIds())
-	return &DefaultRuntime{ContextManager: cm, Registry: registry, ChatModel: chatModel}, nil
+	return &DefaultRuntime{
+		ContextManager:  cm,
+		Registry:        registry,
+		ChatModel:       chatModel,
+		CheckPointStore: checkPointStore,
+	}, nil
 }
 
 // GetDefaultContextManager 获取默认上下文管理器（并发安全，装配失败不缓存）

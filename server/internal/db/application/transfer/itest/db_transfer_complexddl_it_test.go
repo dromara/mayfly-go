@@ -14,9 +14,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run 'TestITSpecialColumnNames|TestITComplexDdlLiterals|TestITDumpScriptHeader' ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // itSpecialColNames 特殊列名后缀样本
@@ -175,16 +176,16 @@ func TestITSpecialColumnNamesMigrate(t *testing.T) {
 				"导入失败, dump脚本:\n%s", itTruncate(script, 6000))
 
 			// 列名集合与顺序必须完全保真
-			srcMetaCols, err := srcConn.GetMetadata().GetColumns(table)
+			srcMetaCols, err := srcConn.Metadata().GetColumns(table)
 			require.NoError(t, err)
-			tgtMetaCols, err := tgtConn.GetMetadata().GetColumns(table)
+			tgtMetaCols, err := tgtConn.Metadata().GetColumns(table)
 			require.NoError(t, err)
 			assert.Equal(t, lowerColNames(srcMetaCols), lowerColNames(tgtMetaCols), "迁移后列名失真")
 
 			// 主键必须仍是迁移前的特殊主键列（校验器依赖主键抽样）
-			srcPk, err := srcConn.GetMetadata().GetPrimaryKey(table)
+			srcPk, err := srcConn.Metadata().GetPrimaryKey(table)
 			require.NoError(t, err)
-			tgtPk, err := tgtConn.GetMetadata().GetPrimaryKey(table)
+			tgtPk, err := tgtConn.Metadata().GetPrimaryKey(table)
 			require.NoError(t, err)
 			assert.Equal(t, strings.ToLower(srcPk), strings.ToLower(tgtPk), "主键列名迁移失真")
 
@@ -200,9 +201,9 @@ func TestITSpecialColumnNamesMigrate(t *testing.T) {
 			}
 
 			// 特殊索引名需在目标库存在（各方言自动生成的内部索引数量不同，仅断言目标含该索引）
-			_, err = srcConn.GetMetadata().GetTableIndex(table)
+			_, err = srcConn.Metadata().GetTableIndex(table)
 			require.NoError(t, err)
-			tgtIdx, err := tgtConn.GetMetadata().GetTableIndex(table)
+			tgtIdx, err := tgtConn.Metadata().GetTableIndex(table)
 			require.NoError(t, err)
 			assert.Contains(t, lowerIndexNames(tgtIdx), strings.ToLower(itSpecialIndexName),
 				"特殊索引名未迁移, 目标索引: %v", lowerIndexNames(tgtIdx))
@@ -337,12 +338,12 @@ func TestITComplexDdlLiteralsMigrate(t *testing.T) {
 				"导入失败, dump脚本:\n%s", itTruncate(script, 6000))
 
 			// 注释回读保真
-			tgtTables, err := tgtConn.GetMetadata().GetTables(table)
+			tgtTables, err := tgtConn.Metadata().GetTables(table)
 			require.NoError(t, err)
 			require.Len(t, tgtTables, 1, "目标表不存在")
 			assert.Equal(t, cxDdlTableComment, tgtTables[0].TableComment, "表注释迁移失真")
 
-			tgtCols, err := tgtConn.GetMetadata().GetColumns(table)
+			tgtCols, err := tgtConn.Metadata().GetColumns(table)
 			require.NoError(t, err)
 			var gotColComment string
 			for _, c := range tgtCols {
@@ -405,7 +406,7 @@ func TestITDumpScriptHeaderCommentSafe(t *testing.T) {
 			_, rows, err := tgtConn.Query(fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", quote(itHdrInjectTableName)))
 			require.NoError(t, err, "含换行表名的目标表查询失败")
 			require.Len(t, rows, 1)
-			cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+			cnt, ok := value.ValToInt64(rows[0]["cnt"])
 			require.True(t, ok, "count应为数值: %#v", rows[0]["cnt"])
 			assert.Equal(t, int64(wantRows), cnt, "含换行表名迁移行数不应丢失或重复")
 

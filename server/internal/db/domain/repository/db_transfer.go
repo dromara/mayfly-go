@@ -20,3 +20,11 @@ type DbTransferCheckpoint interface {
 	// GetByTaskId 获取指定任务的检查点，不存在返回nil
 	GetByTaskId(taskId uint64) (*entity.DbTransferCheckpoint, error)
 }
+
+// DbTransferLog 迁移任务执行日志仓储
+type DbTransferLog interface {
+	base.Repo[*entity.DbTransferLog]
+
+	// GetLogList 分页获取指定任务的日志列表
+	GetLogList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error)
+}

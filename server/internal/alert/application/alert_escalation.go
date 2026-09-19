@@ -14,7 +14,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/taskx"
 	"sort"
 	"strings"
 	"sync"
@@ -147,14 +147,14 @@ func (a *alertEscalationAppImpl) StartEscalationLoop() {
 		a.escSem = make(chan struct{}, 5)
 	}
 	// 使用分布式锁调度，多实例部署时只有一个实例执行升级扫描
-	scheduler.AddFunByKeyWithLock("alert-escalation", "@every 1m", 50*time.Second, func() {
+	_ = taskx.BindCronTaskWithLock("alert-escalation", "@every 1m", 50*time.Second, true, func() {
 		defer gox.Recover()
 		a.scanEscalations()
 	})
 }
 
 func (a *alertEscalationAppImpl) StopEscalationLoop() {
-	scheduler.RemoveByKey("alert-escalation")
+	taskx.UnbindCronTask("alert-escalation")
 }
 
 func (a *alertEscalationAppImpl) scanEscalations() {

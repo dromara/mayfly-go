@@ -3,11 +3,13 @@ package dbtool
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	"mayfly-go/internal/db/domain/mask"
 	"mayfly-go/pkg/i18n"
 
@@ -59,14 +61,44 @@ func GetQueryData() (tool.InvokableTool, error) {
 				return nil, fmt.Errorf("too many SQL statements, maximum allowed is 10, got %d", len(param.SQLs))
 			}
 
-			conn, err := application.GetDbApp().GetDbConn(ctx, uint64(param.DbId), param.DbName)
+			conn, err := ensureDbConn(ctx, param.DbId, param.DbName)
 			if err != nil {
-				return nil, tools.NewToolError(err, tools.RecoverRetry)
+				return nil, err
 			}
 
 			results := make([]SingleQueryResult, 0, len(param.SQLs))
 			for _, sql := range param.SQLs {
 				if sql == "" {
+					continue
+				}
+
+				// 安全校验：QueryData 仅允许只读查询语句（SELECT/WITH/SHOW/EXPLAIN 等），
+				// 防止通过查询通道执行写操作（INSERT/UPDATE/DELETE/DROP 等）
+				isReadOnly := false
+				if stmt, parseErr := conn.GetDialect().GetSQLParser().Parse(sql); parseErr == nil && stmt != nil {
+					switch stmt.(type) {
+					case *sqlstmt.SelectStmt, *sqlstmt.WithStmt, *sqlstmt.OtherStmt:
+						isReadOnly = true
+					}
+				}
+				if !isReadOnly {
+					// 解析失败或非只读类型，按关键字兜底判定
+					kind := conn.GetDialect().GetSQLSplitter().LeadingKeyword(sql)
+					if kind == "" && len(sql) >= 10 {
+						kind = strings.ToLower(sql[:10])
+					} else if kind == "" {
+						kind = strings.ToLower(sql)
+					}
+					isReadOnly = strings.Contains(kind, "select") || strings.Contains(kind, "with") ||
+						strings.Contains(kind, "show") || strings.Contains(kind, "explain") ||
+						strings.Contains(kind, "describe") || strings.Contains(kind, "desc")
+				}
+				if !isReadOnly {
+					result := SingleQueryResult{
+						SQL:   sql,
+						Error: "QueryData tool only allows read-only queries (SELECT/WITH/SHOW/EXPLAIN). Use ExecSql tool for data modification operations, which requires user approval.",
+					}
+					results = append(results, result)
 					continue
 				}
 

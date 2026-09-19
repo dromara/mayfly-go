@@ -34,6 +34,14 @@ func validateDataSyncSql(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 	if task.UpdFieldSrc != "" && !identifierReg.MatchString(task.UpdFieldSrc) {
 		return errorx.NewBizf("invalid updFieldSrc [%s]: only identifiers like [id] or [a.id] are allowed", task.UpdFieldSrc)
 	}
+	// SoftDeleteField 同样为标识符，需白名单校验（防止 SQL 注入）
+	if task.SoftDeleteField != "" && !identifierReg.MatchString(task.SoftDeleteField) {
+		return errorx.NewBizf("invalid softDeleteField [%s]: only identifiers like [id] or [a.id] are allowed", task.SoftDeleteField)
+	}
+	// BiDirTimestampField 用于冲突检测 SELECT，需白名单校验
+	if task.BiDirTimestampField != "" && !identifierReg.MatchString(task.BiDirTimestampField) {
+		return errorx.NewBizf("invalid biDirTimestampField [%s]: only identifiers like [id] or [a.id] are allowed", task.BiDirTimestampField)
+	}
 
 	if strings.TrimSpace(task.DataSql) == "" {
 		return errorx.NewBiz("data sql is required")

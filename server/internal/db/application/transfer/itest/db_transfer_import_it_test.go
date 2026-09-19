@@ -7,9 +7,9 @@ package itest
 // 运行方式：cd server && go test -tags it -count=1 -v ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 

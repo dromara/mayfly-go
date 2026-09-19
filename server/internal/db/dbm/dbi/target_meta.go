@@ -18,7 +18,7 @@ func BuildTargetTableMeta(targetConn *DbConn, tableName string, columns []Column
 	}
 	if len(uniqueCols) == 0 {
 		// 无主键时尝试取唯一索引，且仅当只存在一个唯一索引时才可作为冲突检测列（多个唯一索引无法确定冲突语义）
-		indexs, err := targetConn.GetMetadata().GetTableIndex(tableName)
+		indexs, err := targetConn.Metadata().GetTableIndex(tableName)
 		if err == nil {
 			var uniqueIndexes []Index
 			for _, index := range indexs {

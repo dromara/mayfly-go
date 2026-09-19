@@ -22,8 +22,8 @@ import (
 
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
-	_ "mayfly-go/internal/db/dbm/mysql"  // 注册mysql方言
-	_ "mayfly-go/internal/db/dbm/sqlite" // 注册sqlite方言
+	_ "mayfly-go/internal/db/dbm/dialect/mysql"  // 注册mysql方言
+	_ "mayfly-go/internal/db/dbm/dialect/sqlite" // 注册sqlite方言
 )
 
 // TestMain 集成测试入口
@@ -85,7 +85,7 @@ func mustExec(t *testing.T, conn *dbi.DbConn, sql string) {
 	}
 }
 
-// normalizeDbValue 归一化数据库驱动返回值，便于跨库对比
+// normalizeDbValue 归一化数据库后端返回值，便于跨库对比
 func normalizeDbValue(v any) any {
 	switch val := v.(type) {
 	case []byte:
@@ -179,7 +179,7 @@ func setupMysqlSourceTable(t *testing.T, conn *dbi.DbConn, table string) ([]dbi.
 		PRIMARY KEY (id)
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`, quote(table)))
 
-	columns, err := conn.GetMetadata().GetColumns(table)
+	columns, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	require.Len(t, columns, 10)
 

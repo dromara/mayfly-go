@@ -8,9 +8,8 @@ import (
 	"strings"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/domain/entity"
-	sysapp "mayfly-go/internal/sys/application"
-	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -48,7 +47,7 @@ type TransferVerifyReport struct {
 	AllMatch bool                `json:"allMatch"` // 所有表count一致且抽样内容无差异
 }
 
-// Verify 校验迁移任务源库与目标库的数据一致性（复用Run的异步+syslog日志模式）。
+// Verify 校验迁移任务源库与目标库的数据一致性。
 // return logId, error
 func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64, error) {
 	// 先原子占位再创建运行日志：顺序颠倒时并发触发的失败方会留下一条永不结束的Running日志
@@ -62,12 +61,7 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 		return 0, errorx.NewBizf("db transfer task [%d] not found", taskId)
 	}
 
-	logId, err := app.logApp.CreateLog(ctx, &sysapp.CreateLogReq{
-		Description: "DBMS - Verify DB Transfer",
-		ReqParam:    collx.Kvs("taskId", taskId),
-		Type:        sysentity.SyslogTypeRunning,
-		Resp:        "Data verification starts...",
-	})
+	logId, err := app.CreateLog(ctx, taskId)
 	if err != nil {
 		app.runGuard.Release(taskId)
 		return 0, err
@@ -83,24 +77,16 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 		// 后台异步执行，脱离请求ctx取消信号并保留链路信息
 		ctx = context.WithoutCancel(ctx)
 		defer app.runGuard.Release(taskId)
-		defer app.logApp.Flush(logId, true)
 
 		report := app.buildVerifyReport(ctx, logId, task)
 
-		// 报告写入日志Resp（可查询）
+		// 报告写入日志RunLog（可查询）
 		reportJson, err := json.Marshal(report)
 		if err != nil {
 			app.Log(ctx, logId, fmt.Sprintf("marshal verify report failed: %s", err.Error()))
 			return
 		}
-		logType := sysentity.SyslogTypeSuccess
-		if !report.AllMatch {
-			logType = sysentity.SyslogTypeError
-		}
-		app.logApp.AppendLog(logId, &sysapp.AppendLogReq{
-			AppendResp: string(reportJson),
-			Type:       logType,
-		})
+		app.Log(ctx, logId, string(reportJson))
 
 		// 更新任务运行状态
 		transferState := entity.DbTransferTaskRunStateSuccess
@@ -111,20 +97,19 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 		ut.Id = taskId
 		ut.RunningState = transferState
 		if err := app.UpdateById(context.Background(), ut); err != nil {
-			logx.Errorf("failed to update transfer task [%d] running state: %s", taskId, err.Error())
+			logx.ErrorfContext(ctx, "failed to update transfer task [%d] running state: %s", taskId, err.Error())
 		}
+
+		// 结束日志（更新状态和耗时）
+		var endErr error
+		if !report.AllMatch {
+			endErr = fmt.Errorf("verification failed: not all tables match")
+		}
+		app.EndTransfer(ctx, logId, taskId, "data verification complete", endErr, nil)
 	}, func(panicErr error) {
-		// panic兜底：结束日志并重置任务运行态，否则任务永久停留在Running
-		app.logApp.AppendLog(logId, &sysapp.AppendLogReq{
-			AppendResp: fmt.Sprintf("db transfer verify panicked: %s", panicErr.Error()),
-			Type:       sysentity.SyslogTypeError,
-		})
-		ut := new(entity.DbTransferTask)
-		ut.Id = taskId
-		ut.RunningState = entity.DbTransferTaskRunStateFail
-		if err := app.UpdateById(context.Background(), ut); err != nil {
-			logx.Errorf("failed to update transfer task [%d] running state: %s", taskId, err.Error())
-		}
+		// panic兜底：与Run()的panic handler一致，通过EndTransfer统一完成日志收尾（摘要/状态/耗时）与守卫释放，
+		// 否则日志永远停留在"执行中"状态（旧实现仅更新task状态+释放守卫，跳过了log落库）
+		app.EndTransfer(ctx, logId, taskId, "db transfer verify panicked", panicErr, nil)
 	})
 
 	return logId, nil
@@ -150,9 +135,9 @@ func (app *DbTransferAppImpl) buildVerifyReport(ctx context.Context, logId uint6
 	// 待校验表（与Run取表逻辑一致）
 	var tables []dbi.Table
 	if task.CheckedKeys == "all" {
-		tables, err = srcConn.GetMetadata().GetTables()
+		tables, err = srcConn.Metadata().GetTables()
 	} else {
-		tables, err = srcConn.GetMetadata().GetTables(strings.Split(task.CheckedKeys, ",")...)
+		tables, err = srcConn.Metadata().GetTables(strings.Split(task.CheckedKeys, ",")...)
 	}
 	if err != nil {
 		app.Log(ctx, logId, "failed to get source table information: "+err.Error())
@@ -306,7 +291,7 @@ func fetchRowsByPkValues(ctx context.Context, conn *dbi.DbConn, tableName, pkCol
 
 // pkColumnSqlValue 获取目标表主键列对应的SQL字面量生成函数
 func pkColumnSqlValue(conn *dbi.DbConn, tableName, pkColumn string) (func(any) string, error) {
-	columns, err := conn.GetMetadata().GetColumns(tableName)
+	columns, err := conn.Metadata().GetColumns(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("get columns of table [%s] failed: %w", tableName, err)
 	}
@@ -326,7 +311,7 @@ func distinctRowCount(rows []map[string]any, pk string) int {
 		if row[pk] == nil { // 主键为NULL的行无法对齐，不参与比对也不计数
 			continue
 		}
-		seen[dbi.CanonicalRowKey(row, pk)] = struct{}{}
+		seen[value.CanonicalRowKey(row, pk)] = struct{}{}
 	}
 	return len(seen)
 }
@@ -336,14 +321,14 @@ func distinctRowCount(rows []map[string]any, pk string) int {
 // 任一侧列元数据获取失败或类型非数值均不入集，保持严格文本比对（宁可误报不可漏报）
 func numericCommonColumns(srcConn, tgtConn *dbi.DbConn, tableName string) map[string]bool {
 	numeric := func(conn *dbi.DbConn) map[string]bool {
-		cols, err := conn.GetMetadata().GetColumns(tableName)
+		cols, err := conn.Metadata().GetColumns(tableName)
 		if err != nil {
 			return nil
 		}
 		set := make(map[string]bool, len(cols))
 		for i := range cols {
 			col := &cols[i]
-			if dbi.IsNumericCommonType(dbi.GetDbDataType(conn.Info.Type, col.DataType).CommonType) {
+			if dbi.IsNumericCategory(dbi.GetDbDataType(conn.Info.Type, col.DataType).Category()) {
 				set[strings.ToLower(col.ColumnName)] = true
 			}
 		}
@@ -374,7 +359,7 @@ func countTableRows(ctx context.Context, conn *dbi.DbConn, tableName string) (in
 	if len(rows) == 0 {
 		return 0, fmt.Errorf("empty count result of table [%s]", tableName)
 	}
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	if !ok {
 		return 0, fmt.Errorf("invalid count value of table [%s]: %#v", tableName, rows[0]["cnt"])
 	}
@@ -383,7 +368,7 @@ func countTableRows(ctx context.Context, conn *dbi.DbConn, tableName string) (in
 
 // singlePkColumn 获取表的单列主键列名（任意类型）；无主键/联合主键/查询失败返回""
 func singlePkColumn(conn *dbi.DbConn, tableName string) string {
-	columns, err := conn.GetMetadata().GetColumns(tableName)
+	columns, err := conn.Metadata().GetColumns(tableName)
 	if err != nil {
 		return ""
 	}
@@ -425,13 +410,13 @@ func sampleOrderedRows(ctx context.Context, conn *dbi.DbConn, tableName, pkColum
 func compareSampledRows(srcRows, tgtRows []map[string]any, srcPk, tgtPk string, numericCols map[string]bool, maxReport int) []string {
 	tgtIndex := make(map[string]map[string]any, len(tgtRows))
 	for _, row := range tgtRows {
-		tgtIndex[dbi.CanonicalRowKey(row, tgtPk)] = row
+		tgtIndex[value.CanonicalRowKey(row, tgtPk)] = row
 	}
 
 	mismatch := make([]string, 0)
 	seen := make(map[string]bool)
 	for _, srcRow := range srcRows {
-		pk := dbi.CanonicalRowKey(srcRow, srcPk)
+		pk := value.CanonicalRowKey(srcRow, srcPk)
 		if srcRow[srcPk] == nil {
 			// 主键为NULL的行无法与目标对齐，跳过；显式判NULL而非比对规范化串，
 			// 避免主键值恰为字符串"<nil>"的行被误跳过
@@ -470,12 +455,12 @@ func compareRowValues(srcRow, tgtRow map[string]any, numericCols map[string]bool
 		lowerCol := strings.ToLower(col)
 		tgtVal := lowerTgtRow[lowerCol]
 		if numericCols[lowerCol] {
-			if !dbi.CanonicalNumericEqual(srcRow[col], tgtVal) {
+			if !value.CanonicalNumericEqual(srcRow[col], tgtVal) {
 				return false
 			}
 			continue
 		}
-		if !dbi.CanonicalEqual(srcRow[col], tgtVal) {
+		if !value.CanonicalEqual(srcRow[col], tgtVal) {
 			return false
 		}
 	}

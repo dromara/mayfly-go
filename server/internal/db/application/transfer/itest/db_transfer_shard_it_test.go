@@ -7,9 +7,9 @@ package itest
 // 运行方式：cd server && go test -tags it -count=1 -v ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 const shardItRows = 3000
@@ -64,9 +65,9 @@ func TestITShardPlanAndMigrate_MysqlToPg(t *testing.T) {
 		strings.NewReader(buildDumpScript(srcQuote, srcTable, shardItRows))))
 
 	// 调小分片目标行数：3000行/1000行每片 → 3片（验证多分片路径）
-	origTargetRows := dbi.ShardTargetRows
-	dbi.ShardTargetRows = 1000
-	defer func() { dbi.ShardTargetRows = origTargetRows }()
+	origTargetRows := transfer.ShardTargetRows
+	transfer.ShardTargetRows = 1000
+	defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	wheres := app.PlanTableShards(context.Background(), 0, srcConn, srcTable, shardItRows)
@@ -130,9 +131,9 @@ func TestITShardPlanAndMigrate_MysqlToPg(t *testing.T) {
 	_, statRows, err := tgtConn.Query(fmt.Sprintf(
 		"SELECT COUNT(DISTINCT id) AS cnt, MIN(id) AS mn, MAX(id) AS mx FROM %s", tgtQuote(tgtTable)))
 	require.NoError(t, err)
-	cnt, ok1 := dbi.ValToInt64(statRows[0]["cnt"])
-	mn, ok2 := dbi.ValToInt64(statRows[0]["mn"])
-	mx, ok3 := dbi.ValToInt64(statRows[0]["mx"])
+	cnt, ok1 := value.ValToInt64(statRows[0]["cnt"])
+	mn, ok2 := value.ValToInt64(statRows[0]["mn"])
+	mx, ok3 := value.ValToInt64(statRows[0]["mx"])
 	require.True(t, ok1 && ok2 && ok3, "统计结果应为数值形态: %#v", statRows[0])
 	assert.Equal(t, int64(shardItRows), cnt, "分片导入不应有重复或丢失")
 	assert.Equal(t, int64(1), mn)
@@ -161,9 +162,9 @@ func TestITPlanShards_PgMetadata(t *testing.T) {
 	_, err = conn.Exec(fmt.Sprintf("INSERT INTO %s (val) VALUES ('a'), ('b'), ('c')", quote(table)))
 	require.NoError(t, err)
 
-	origTargetRows := dbi.ShardTargetRows
-	dbi.ShardTargetRows = 2 // 3行/2行每片 → 2片
-	defer func() { dbi.ShardTargetRows = origTargetRows }()
+	origTargetRows := transfer.ShardTargetRows
+	transfer.ShardTargetRows = 2 // 3行/2行每片 → 2片
+	defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	wheres := app.PlanTableShards(context.Background(), 0, conn, table, 3)

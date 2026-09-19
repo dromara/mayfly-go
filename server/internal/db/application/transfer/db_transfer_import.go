@@ -54,7 +54,7 @@ func (app *DbTransferAppImpl) ImportDumpStream(ctx context.Context, logId uint64
 
 	splitErr := iterImportStmts(splitter, r, func(stmt string) error {
 		if _, err := targetConn.TxExecContext(ctx, tx, stmt); err != nil {
-			app.Log(ctx, logId, fmt.Sprintf("sql exec failed: %s", truncateStmtForLog(stmt)), err, nil)
+			app.Log(ctx, logId, fmt.Sprintf("sql exec failed: %s", truncateStmtForLog(stmt)))
 			return err
 		}
 		pending++

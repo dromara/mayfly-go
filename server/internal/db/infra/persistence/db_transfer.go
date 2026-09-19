@@ -45,3 +45,19 @@ func (d *dbTransferCheckpointRepoImpl) GetByTaskId(taskId uint64) (*entity.DbTra
 	}
 	return list[0], nil
 }
+
+type dbTransferLogRepoImpl struct {
+	base.RepoImpl[*entity.DbTransferLog]
+}
+
+var _ repository.DbTransferLog = (*dbTransferLogRepoImpl)(nil)
+
+func newDbTransferLogRepo() repository.DbTransferLog {
+	return &dbTransferLogRepoImpl{}
+}
+
+// GetLogList 分页获取指定任务的日志列表
+func (d *dbTransferLogRepoImpl) GetLogList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error) {
+	qd := model.NewCond().Eq("task_id", condition.TaskId)
+	return d.PageByCond(qd, condition.PageParam)
+}

@@ -12,16 +12,16 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITSpecialTableNames ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // itSpecialTableNames 特殊表名后缀样本（desc用于失败信息说明）
@@ -72,7 +72,7 @@ func TestITSpecialTableNamesAcrossDialects(t *testing.T) {
 					_, rows, err := tgtConn.Query(fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", tgtQuote(table)))
 					require.NoError(t, err, "特殊表名目标表查询失败")
 					require.Len(t, rows, 1)
-					cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+					cnt, ok := value.ValToInt64(rows[0]["cnt"])
 					require.True(t, ok, "count应为数值: %#v", rows[0]["cnt"])
 					assert.Equal(t, int64(wantRows), cnt, "特殊表名迁移行数不应丢失或重复")
 
@@ -115,9 +115,9 @@ func TestITSpecialTableNamesShardMigrate(t *testing.T) {
 	itCreateShardComplexTable(t, srcConn, table)
 	itInsertShardComplexRows(t, srcConn, table, shardCxRows)
 
-	origTargetRows := dbi.ShardTargetRows
-	dbi.ShardTargetRows = 1000
-	defer func() { dbi.ShardTargetRows = origTargetRows }()
+	origTargetRows := transfer.ShardTargetRows
+	transfer.ShardTargetRows = 1000
+	defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 	app := &transfer.DbTransferAppImpl{}
 	wheres := app.PlanTableShards(context.Background(), 0, srcConn, table, shardCxRows)
@@ -134,7 +134,7 @@ func TestITSpecialTableNamesShardMigrate(t *testing.T) {
 
 	_, rows, err := tgtConn.Query(fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", tgtQuote(table)))
 	require.NoError(t, err)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok)
 	assert.Equal(t, int64(shardCxRows), cnt, "特殊表名分片迁移不应丢行或重复")
 

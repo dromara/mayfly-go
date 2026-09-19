@@ -9,7 +9,7 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     const env = loadEnv(mode, process.cwd(), '');
     const isProd = process.env.NODE_ENV === 'production';
     const pathResolve = (dir: string): any => {
-        return resolve(__dirname, '.', dir);
+        return resolve(import.meta.dirname, '.', dir);
     };
 
     return {
@@ -56,8 +56,8 @@ export default defineConfig(({ mode }: ConfigEnv) => {
                     entryFileNames: `assets/js/[hash]-[name].js`,
                     chunkFileNames: `assets/js/[hash]-[name].js`,
                     assetFileNames: `assets/[ext]/[hash]-[name].[ext]`,
-                    hashCharacters: 'hex',
-                    advancedChunks: {
+                    hashCharacters: 'hex' as const,
+                    codeSplitting: {
                         groups: [
                             // 各分组必须显式给 priority：rolldown 未标注优先级的组会输给标注过的组，
                             // 一旦 preload-helper 落到别组，它又会被并入体积最大的 monaco（见下方注释）。

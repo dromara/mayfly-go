@@ -27,6 +27,7 @@ export type {
     DataSyncTask,
     DataSyncLog,
     DbTransferTask,
+    DbTransferLog,
     DbBackup,
     DbBackupHistory,
     DbRestore,

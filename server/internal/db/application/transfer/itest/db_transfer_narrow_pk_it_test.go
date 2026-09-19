@@ -3,19 +3,19 @@ package itest
 // 窄整型（smallint）主键表的主键分片迁移真实链路集成测试（mysql/pg/sqlite/mssql）。
 //
 // 为何必须有真实库用例：迁移并行度依赖 PlanTableShards 读取主键 MIN/MAX 并用
-// dbi.ValToInt64 归一，而各驱动对窄整型的返值形态差异极大——本机实测 mysql/pg/mssql
+// value.ValToInt64 归一，而各后端对窄整型的返值形态差异极大——本机实测 mysql/pg/mssql
 // 对 SMALLINT 列的 MIN/MAX **均**返回 int16（mssql进一步为 TINYINT→int16、INT→int32、BIGINT→int64，
 // sqlite则为string），而 ValToInt64 当时只识别 int64/int/int32/uint64/float64/[]byte/string；
 // 归一失败后 PlanTableShards 按「空表/非数值」语义返回 nil，大表并行迁移**静默退化为整表单任务**
-//（既无报错也无日志）。单测只能证明函数自身行为，「哪个驱动返回哪种Go形态」只能实测，
+//（既无报错也无日志）。单测只能证明函数自身行为，「哪个后端返回哪种Go形态」只能实测，
 // 故此处按方言矩阵钉死。
 //
 // 运行：cd server && go test -tags it -count=1 -run TestITNarrowIntPrimaryKey ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 const itNarrowPkTable = "it_narrow_pk_tbl"
@@ -66,7 +67,7 @@ func itNarrowAgg(t *testing.T, conn *dbi.DbConn, expr string) int64 {
 	_, rows, err := conn.Query(fmt.Sprintf("SELECT %s AS agg FROM %s", expr, quote(itNarrowPkTable)))
 	require.NoError(t, err, "[%s] 查询聚合失败: %s", conn.Info.Type, expr)
 	require.Len(t, rows, 1)
-	agg, ok := dbi.ValToInt64(rows[0]["agg"])
+	agg, ok := value.ValToInt64(rows[0]["agg"])
 	require.True(t, ok, "[%s] 聚合值形态异常: %T", conn.Info.Type, rows[0]["agg"])
 	return agg
 }
@@ -85,9 +86,9 @@ func TestITNarrowIntPrimaryKeySharding(t *testing.T) {
 			conn := node.conn(t)
 			defer conn.Close()
 
-			origTargetRows := dbi.ShardTargetRows
-			dbi.ShardTargetRows = shardRows
-			defer func() { dbi.ShardTargetRows = origTargetRows }()
+			origTargetRows := transfer.ShardTargetRows
+			transfer.ShardTargetRows = shardRows
+			defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 			itNarrowPrepare(t, conn, rows)
 			defer func() {
@@ -96,9 +97,9 @@ func TestITNarrowIntPrimaryKeySharding(t *testing.T) {
 			}()
 
 			// 元数据必须把smallint识别为可分片整型主键，否则本用例失去鉴别力
-			columns, err := conn.GetMetadata().GetColumns(itNarrowPkTable)
+			columns, err := conn.Metadata().GetColumns(itNarrowPkTable)
 			require.NoError(t, err, "[%s] 查询列元数据失败", node.name)
-			require.Equal(t, "id", dbi.DetectIntPrimaryKey(columns),
+			require.Equal(t, "id", transfer.DetectIntPrimaryKey(columns),
 				"[%s] smallint主键应判为可分片（元数据类型=%v）", node.name, columns)
 
 			app := &transfer.DbTransferAppImpl{}

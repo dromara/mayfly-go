@@ -77,7 +77,7 @@ func TestRegisterHostInstaller_OverrideBuiltinTool(t *testing.T) {
 	InstallAll(b, Deps{})
 	RunHostInstallers(b)
 
-	tools := b.Build().BuildTools(context.Background(), nil)
+	tools, _ := b.Build().BuildTools(context.Background(), nil)
 	for _, bt := range tools {
 		ti, err := bt.Info(context.Background())
 		if err != nil {

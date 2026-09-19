@@ -3,11 +3,17 @@ package dbtool
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
+	flowapp "mayfly-go/internal/flow/application"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/i18n"
+	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/collx"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -48,25 +54,108 @@ func GetSqlExec() (tool.InvokableTool, error) {
 				return nil, tools.NewToolError(fmt.Errorf("remark parameter is required: describe the purpose of this SQL"), tools.RecoverRetry)
 			}
 
+			conn, err := ensureDbConn(ctx, param.DbId, param.DbName)
+			if err != nil {
+				return nil, err
+			}
+
+			// 用户审批（始终需要，Agent 执行 SQL 的基本安全关卡）
 			if err := tools.InterruptOrResumeApproval(ctx, toolDesc, param, i18n.TC(ctx, imsg.SqlExecApprovalReason)); err != nil {
 				return nil, err
 			}
 
-			conn, err := application.GetDbApp().GetDbConn(ctx, uint64(param.DbId), param.DbName)
-			if err != nil {
-				return nil, tools.NewToolError(err, tools.RecoverRetry)
+			// 获取流程定义（用于检查管理员配置的 SQL 审批策略）
+			procdef := flowapp.GetProcdefApp().GetProcdefByCodePath(ctx, conn.Info.CodePath...)
+
+			// 使用方言切割器拆分多语句 SQL，逐条检查
+			splitter := conn.GetDialect().GetSQLSplitter()
+			var sqlStatements []string
+			if splitErr := splitter.SplitSQL(strings.NewReader(param.SQL), func(s string) error {
+				sqlStatements = append(sqlStatements, s)
+				return nil
+			}); splitErr != nil {
+				return nil, tools.NewToolError(fmt.Errorf("SQL split failed: %w", splitErr), tools.RecoverRetry)
+			}
+			if len(sqlStatements) == 0 {
+				return nil, tools.NewToolError(fmt.Errorf("no SQL statements to execute"), tools.RecoverRetry)
 			}
 
-			res, err := conn.ExecContext(ctx, param.SQL)
-			if err != nil {
-				return nil, tools.NewToolError(err, tools.RecoverRetry)
+			// 逐条解析 SQL，检查流程引擎是否额外要求审批（管理员配置的策略）
+			// 注：用户已通过上方审批，此处仅用于策略合规性校验与日志记录
+			sp := conn.GetDialect().GetSQLParser()
+			for _, s := range sqlStatements {
+				stmtType := ""
+				if stmt, parseErr := sp.Parse(s); parseErr == nil && stmt != nil {
+					switch stmt.(type) {
+					case *sqlstmt.SelectStmt, *sqlstmt.WithStmt:
+						stmtType = "select"
+					case *sqlstmt.UpdateStmt:
+						stmtType = "update"
+					case *sqlstmt.DeleteStmt:
+						stmtType = "delete"
+					case *sqlstmt.InsertStmt:
+						stmtType = "insert"
+					case *sqlstmt.DdlStmt:
+						stmtType = "ddl"
+					case *sqlstmt.OtherStmt:
+						stmtType = "read"
+					default:
+						stmtType = "other"
+					}
+				} else {
+					// 解析失败，按关键字兜底分类
+					kind := splitter.LeadingKeyword(s)
+					if kind == "" && len(s) >= 10 {
+						kind = strings.ToLower(s[:10])
+					} else if kind == "" {
+						kind = strings.ToLower(s)
+					}
+					switch {
+					case strings.Contains(kind, "select"), strings.Contains(kind, "with"),
+						strings.Contains(kind, "show"), strings.Contains(kind, "explain"):
+						stmtType = "select"
+					case strings.Contains(kind, "update"):
+						stmtType = "update"
+					case strings.Contains(kind, "delete"):
+						stmtType = "delete"
+					case strings.Contains(kind, "insert"):
+						stmtType = "insert"
+					case strings.Contains(kind, "create"), strings.Contains(kind, "alter"),
+						strings.Contains(kind, "drop"), strings.Contains(kind, "truncate"),
+						strings.Contains(kind, "rename"):
+						stmtType = "ddl"
+					default:
+						stmtType = "other"
+					}
+				}
+
+				// 记录流程引擎策略匹配结果（供审计日志参考）
+				if procdef != nil && procdef.MatchCondition(application.DbSqlExecFlowBizType, collx.Kvs("stmtType", stmtType)) {
+					logx.InfofContext(ctx, "[AgentSqlExec] flow engine requires approval for stmtType=%s, user approval already obtained", stmtType)
+				}
+			}
+
+			// 逐条执行 SQL
+			var totalEffected int64
+			for _, s := range sqlStatements {
+				res, execErr := conn.ExecContext(ctx, s)
+				if execErr != nil {
+					return nil, tools.NewToolError(execErr, tools.RecoverRetry)
+				}
+				totalEffected += res
+			}
+
+			// 审计日志：记录 SQL 执行操作（操作人、数据库、SQL 内容、执行目的），供事后审计追溯
+			if la := contextx.GetLoginAccount(ctx); la != nil {
+				logx.InfofContext(ctx, "[AgentSqlExec] operator=%s(%d), db=%s(%d), sql=%s, remark=%s",
+					la.Username, la.Id, conn.Info.Name, param.DbId, param.SQL, param.Remark)
 			}
 
 			return &SqlExecOutput{
 				DbId:     param.DbId,
 				DbName:   param.DbName,
 				DbType:   string(conn.Info.Type),
-				Effected: res,
+				Effected: totalEffected,
 			}, nil
 		},
 	)

@@ -454,7 +454,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 	whereStr := updatestmt.Where.Text
 
 	// 获取表主键列名,排除使用别名
-	primaryKey, err := dbConn.GetMetadata().GetPrimaryKey(tableName)
+	primaryKey, err := dbConn.Metadata().GetPrimaryKey(tableName)
 	if err != nil {
 		logx.ErrorfContext(ctx, "update SQL - failed to get primary key column: %s", err.Error())
 		return d.doExec(ctx, dbConn, sqlExecParam.Sql)

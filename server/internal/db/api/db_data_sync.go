@@ -110,7 +110,8 @@ func (d *DataSyncTask) Stop(rc *req.Ctx) {
 
 func (d *DataSyncTask) GetTask(rc *req.Ctx) {
 	taskId := d.getTaskId(rc)
-	dbEntity, _ := d.dataSyncTaskApp.GetById(taskId)
+	dbEntity, err := d.dataSyncTaskApp.GetById(taskId)
+	biz.ErrIsNil(err)
 	rc.ResData = dbEntity
 }
 

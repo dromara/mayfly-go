@@ -253,7 +253,7 @@ func (app *instanceAppImpl) getDatabases(ctx context.Context, instance *entity.D
 	}
 	defer dbConn.Close()
 
-	return dbConn.GetMetadata().GetDbNames()
+	return dbConn.Metadata().GetDbNames()
 }
 
 func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert, database string) *dbi.DbInfo {

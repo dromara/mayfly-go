@@ -42,6 +42,8 @@ type DbTransferFileQuery struct {
 }
 
 type DbTransferLogQuery struct {
+	model.PageParam
+
 	TaskId uint64 `json:"task_id" form:"taskId"`
 }
 

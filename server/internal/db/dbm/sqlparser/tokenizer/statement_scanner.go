@@ -61,13 +61,11 @@ func (e *UnterminatedError) Error() string {
 // StatementScanner 方言感知的语句扫描器：按分隔符切割语句，保留注释与字面量原文，
 // 并感知 BEGIN..END / CASE..END 等复合块（块内分隔符不切割）。
 //
-// 设计对齐国际同类实现：
 //   - 词法区域（字符串/引用标识符/注释）由 DialectConfig 决定，与词法器共用同一套原语，
-//     避免切割与解析两处规则漂移（sql-formatter 的 DialectOptions + quotePatterns 同构思路）；
-//   - 注释原文保留（DataGrip/DBeaver 行为），否则 Oracle /*+ hint */ 与 MySQL /*!40101 ... */
+//     避免切割与解析两处规则漂移；
+//   - 注释原文保留，否则 Oracle /*+ hint */ 与 MySQL /*!40101 ... */
 //     可执行注释会被静默删除，且注释紧邻的 token 会粘连成非法 SQL；
-//   - 未闭合字面量/注释返回明确错误而非静默吞并后续脚本（psql 会进入续行等待，
-//     批处理场景无交互，故必须报错）。
+//   - 未闭合字面量/注释返回明确错误而非静默吞并后续脚本。
 //
 // 流式用法：多次 Feed（按行/按块均可）+ 一次 Finish；内部只缓存当前语句，
 // 未闭合复合块除外（受 maxPendingBlockBytes 保护）

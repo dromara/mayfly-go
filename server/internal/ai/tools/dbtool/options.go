@@ -3,12 +3,14 @@ package dbtool
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"mayfly-go/internal/ai/application/resource"
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/logx"
@@ -16,6 +18,20 @@ import (
 
 // maxDatabasesPerAsset 单个资产最多展开的库选项数量，防止库过多时选项列表过长
 const maxDatabasesPerAsset = 50
+
+// ensureDbConn 数据库工具公共连接获取模板：
+// 校验 DbId 非零后获取数据库连接。
+// 各工具在调用本函数前应已完成 TryApplyResumedParams 和参数补全中断。
+func ensureDbConn(ctx context.Context, dbId int64, dbName string) (*dbi.DbConn, error) {
+	if dbId == 0 {
+		return nil, tools.NewToolError(fmt.Errorf("dbId is required"), tools.RecoverRetry)
+	}
+	conn, err := application.GetDbApp().GetDbConn(ctx, uint64(dbId), dbName)
+	if err != nil {
+		return nil, tools.NewToolError(err, tools.RecoverRetry)
+	}
+	return conn, nil
+}
 
 // queryDbOptions 查询当前用户有权限操作的数据库资产并展开为可选项
 // （数据源为统一资源查询服务，经「数据库实例+授权凭证+数据库」标签做账号级权限过滤；

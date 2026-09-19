@@ -260,7 +260,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetMetadata().GetTables()
+	res, err := d.getDbConn(rc).Metadata().GetTables()
 	biz.ErrIsNilAppendErr(err, "get table error: %s")
 	rc.ResData = res
 }
@@ -268,7 +268,7 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName cannot be empty")
-	res, err := d.getDbConn(rc).GetMetadata().GetTableIndex(tn)
+	res, err := d.getDbConn(rc).Metadata().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "get table index error: %s")
 	rc.ResData = res
 }
@@ -279,7 +279,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	biz.NotEmpty(tn, "tableName cannot be empty")
 
 	dbi := d.getDbConn(rc)
-	res, err := dbi.GetMetadata().GetColumns(tn)
+	res, err := dbi.Metadata().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "get column metadata error: %s")
 	rc.ResData = res
 }
@@ -288,7 +288,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 func (d *Db) HintTables(rc *req.Ctx) {
 	dbi := d.getDbConn(rc)
 
-	metadata := dbi.GetMetadata()
+	metadata := dbi.Metadata()
 	// 获取所有表
 	tables, err := metadata.GetTables()
 	biz.ErrIsNil(err)
@@ -329,18 +329,18 @@ func (d *Db) HintTables(rc *req.Ctx) {
 func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName cannot be empty")
-	res, err := d.getDbConn(rc).GetMetadata().GetTableDDL(tn, false)
+	res, err := d.getDbConn(rc).Metadata().GetTableDDL(tn, false)
 	biz.ErrIsNilAppendErr(err, "get table DDL error: %s")
 	rc.ResData = res
 }
 
 func (d *Db) GetVersion(rc *req.Ctx) {
-	version := d.getDbConn(rc).GetMetadata().GetCompatibleDbVersion()
+	version := d.getDbConn(rc).Metadata().GetCompatibleDbVersion()
 	rc.ResData = version
 }
 
 func (d *Db) GetSchemas(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetMetadata().GetSchemas()
+	res, err := d.getDbConn(rc).Metadata().GetSchemas()
 	biz.ErrIsNilAppendErr(err, "get schemas error: %s")
 	rc.ResData = res
 }

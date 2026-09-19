@@ -16,7 +16,7 @@ func newMockConn(t *testing.T) (*DbConn, sqlmock.Sqlmock) {
 	assert.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
 
-	return &DbConn{Id: "test-conn", Info: &DbInfo{Type: DbType("test-mock-db")}, db: db}, mock
+	return &DbConn{Id: "test-conn", Info: &DbInfo{Type: DbType("test-mock-db"), db: db}}, mock
 }
 
 func newMockRows() *sqlmock.Rows {

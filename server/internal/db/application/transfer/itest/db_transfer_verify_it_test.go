@@ -8,9 +8,9 @@ package itest
 // 必须使用两个不同数据库（mysql源 + pg目标）。
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 

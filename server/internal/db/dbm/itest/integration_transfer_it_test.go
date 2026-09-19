@@ -27,7 +27,7 @@ import (
 // 驱动真实DumpDbScript（db_dump_batch_it_test.go / db_transfer_whole_db_it_test.go）
 func dumpTableScript(t *testing.T, conn *dbi.DbConn, table string, targetDialect dbi.Dialect, targetDbType dbi.DbType) string {
 	t.Helper()
-	srcMeta := conn.GetMetadata()
+	srcMeta := conn.Metadata()
 	srcDialect := conn.GetDialect()
 
 	tbs, err := srcMeta.GetTables(table)

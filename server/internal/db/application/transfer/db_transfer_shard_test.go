@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // ---------------- normalizeConcurrency ----------------
@@ -48,7 +48,7 @@ func TestDbValToInt64(t *testing.T) {
 		{int64(-9223372036854775808), -9223372036854775808, true}, // 极小值
 	}
 	for _, c := range cases {
-		got, ok := dbi.ValToInt64(c.v)
+		got, ok := value.ValToInt64(c.v)
 		assert.Equal(t, c.ok, ok, "输入%#v的ok", c.v)
 		if c.ok {
 			assert.Equal(t, c.want, got, "输入%#v的值", c.v)

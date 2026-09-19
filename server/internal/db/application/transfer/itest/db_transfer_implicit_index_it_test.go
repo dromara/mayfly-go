@@ -16,9 +16,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITSqliteImplicitIndex ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 const itImplicitIdxTable = "it_impl_idx_tbl"
@@ -55,7 +56,7 @@ func TestITSqliteImplicitIndexMetadata(t *testing.T) {
 		_, _ = conn.Exec("DROP TABLE IF EXISTS " + itImplicitIdxTable)
 	}()
 
-	indexs, err := conn.GetMetadata().GetTableIndex(itImplicitIdxTable)
+	indexs, err := conn.Metadata().GetTableIndex(itImplicitIdxTable)
 	require.NoError(t, err, "查询索引信息失败")
 
 	byName := make(map[string]dbi.Index, len(indexs))
@@ -116,7 +117,7 @@ func TestITSqliteImplicitIndexDumpImport(t *testing.T) {
 
 	_, rows, err := conn.Query(fmt.Sprintf(`SELECT COUNT(*) AS cnt FROM %s`, itImplicitIdxTable))
 	require.NoError(t, err)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "行数取值形态异常: %T", rows[0]["cnt"])
 	assert.Equal(t, int64(3), cnt, "导入后行数不符（结构段DROP重建后应为源2行+用例1行）")
 }

@@ -19,12 +19,12 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -timeout 40m -run TestITMultiTableBigData ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"bufio"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,6 +34,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // mtBigTableSpec 单张多类型大表规格
@@ -483,20 +484,20 @@ func mtNormCell(t *testing.T, col string, v any) string {
 	}
 	switch col {
 	case "c_bool":
-		b, ok := dbi.ValToBool(v)
+		b, ok := value.ValToBool(v)
 		require.True(t, ok, "c_bool无法归一: %v", v)
 		if b {
 			return "true"
 		}
 		return "false"
 	case "c_f32":
-		f, ok := dbi.ValToFloat64(v)
+		f, ok := value.ValToFloat64(v)
 		require.True(t, ok, "c_f32无法归一: %v", v)
 		return fmt.Sprintf("%v", float32(f)) // FLOAT/REAL为float32精度
 	case "c_dec36", "c_dec10", "c_dec":
 		// sqlite弱类型会把decimal字面量物化为浮点（高精度串精度丢失，sqlite物理限制）；
 		// 两侧统一按float最短表示比对（高精度保真由单表全类型roundtrip IT覆盖）
-		f, ok := dbi.ValToFloat64(v)
+		f, ok := value.ValToFloat64(v)
 		if ok {
 			return fmt.Sprintf("%v", f)
 		}
@@ -528,7 +529,7 @@ func mtJSONNorm(t *testing.T, s string) string {
 
 func mtVal(t *testing.T, v any, name string) int64 {
 	t.Helper()
-	i, ok := dbi.ValToInt64(v)
+	i, ok := value.ValToInt64(v)
 	require.True(t, ok, "聚合值[%s]无法归一: %v", name, v)
 	return i
 }

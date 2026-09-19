@@ -455,7 +455,21 @@ export default {
             placeholder: 'please enter content search icon or select icon',
             empty: 'No related icons',
         },
-        
+
+        // Generic log viewer
+        logViewer: {
+            searchPlaceholder: 'Search logs...',
+            matchedLines: 'matched',
+            enableAutoScroll: 'Enable auto-scroll',
+            disableAutoScroll: 'Disable auto-scroll',
+            download: 'Download logs',
+            empty: 'No logs yet',
+            loading: 'Loading...',
+            finished: 'Finished',
+            streaming: 'Streaming',
+            totalLines: 'lines',
+        },
+
         // System message notifications
         sysmsg: {
             notifications: {

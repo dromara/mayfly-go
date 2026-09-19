@@ -115,14 +115,13 @@ defineExpose({ openSearch });
         box-shadow: unset !important;
         border-radius: 0 !important;
         background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        padding-top: 100px;
     }
 
     ::v-deep(.el-autocomplete) {
         width: 560px;
-        position: absolute;
-        top: 100px;
-        left: 50%;
-        transform: translateX(-50%);
     }
 }
 </style>

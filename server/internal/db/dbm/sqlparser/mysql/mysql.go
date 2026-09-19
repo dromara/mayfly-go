@@ -20,3 +20,18 @@ func (*MysqlParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 	}()
 	return NewParser(stmt).Parse()
 }
+
+// RewritePagination MySQL 分页改写：LIMIT offset, count
+func (p *MysqlParser) RewritePagination(sql string, offset, limit int64) (string, error) {
+	// MySQL 使用标准 LIMIT/OFFSET 语法
+	return sqlstmt.DefaultRewritePagination(sql, offset, limit), nil
+}
+
+// ClassifyStmt 基于 AST 判定语句类型，解析失败时回退到文本判定
+func (p *MysqlParser) ClassifyStmt(sql string) (sqlstmt.StmtType, error) {
+	stmt, err := p.Parse(sql)
+	if err != nil {
+		return "", err
+	}
+	return sqlstmt.DefaultClassifyStmt(stmt.StmtKind()), nil
+}

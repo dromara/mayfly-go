@@ -35,12 +35,14 @@ var En = map[i18n.MsgId]string{
 	LogDtsVerify:       "dts - Verify data",
 
 	// data sync
-	LogDataSyncSave:         "datasync - Save data sync task",
-	LogDataSyncDelete:       "datasync - Delete data sync task",
-	LogDataSyncChangeStatus: "datasync - Change status",
-	DataSyncSuccessMsg:      "the synchronous task was executed successfully. New data: {{.count}}",
-	DataSyncFailMsg:         "execution failure: {{.msg}}",
-	DataSyncingMsg:          "during the execution of this task, {{.count}} has been synchronized",
+	LogDataSyncSave:             "datasync - Save data sync task",
+	LogDataSyncDelete:           "datasync - Delete data sync task",
+	LogDataSyncChangeStatus:     "datasync - Change status",
+	DataSyncSuccessMsg:          "the synchronous task was executed successfully. New data: {{.count}}",
+	DataSyncFailMsg:             "execution failure: {{.msg}}",
+	DataSyncingMsg:              "during the execution of this task, {{.count}} has been synchronized",
+	DataSyncValidationMsg:       "data validation: source={{.srcCount}}, target={{.targetCount}}, diff={{.diff}}",
+	DataSyncBiDirReverseCreated: "bidirectional sync: reverse task [{{.reverseTaskId}}] created for forward task [{{.forwardTaskId}}]",
 
 	// db mask
 	LogDbMaskRuleSave:        "mask - Save masking rule",

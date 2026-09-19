@@ -67,7 +67,7 @@ func OmitGeneratedColumns(columns []Column, values [][]any, targetDbType DbType)
 }
 
 // GenTableDDL 生成通用表DDL
-func GenTableDDL(dialect Dialect, md Metadata, tableName string, dropBeforeCreate bool) (string, error) {
+func GenTableDDL(dialect Dialect, md MetadataProvider, tableName string, dropBeforeCreate bool) (string, error) {
 	// 1.获取表信息
 	tbs, err := md.GetTables(tableName)
 	if err != nil {
@@ -145,7 +145,7 @@ func GenInsertSqlColumnAndValues(dialect Dialect, dbType DbType, columns []Colum
 			// 若走数值列的SQLValueNumeric通道会退化为字符串字面量'true'，
 			// 写入目标数值/布尔列直接报错（mysql报1366 Incorrect integer value）。
 			// SQLValueBool统一输出true/false字面量（mysql tinyint与pg/sqlite的bool/int均接受）
-			if columnTypes[i].CommonType == CTBool {
+			if columnTypes[i].Category() == TCBool {
 				vs = append(vs, SQLValueBool(v))
 				continue
 			}

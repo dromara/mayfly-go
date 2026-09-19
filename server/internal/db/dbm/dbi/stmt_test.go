@@ -9,10 +9,12 @@ import (
 // 为测试专用dbType注册数据类型：未注册时全部退化到DefaultDbDataType（字符串类型），
 // 测不出数字类型“无引号输出”与字符串类型“强制引号”的分叉行为
 func init() {
-	registerColumnDbDataTypes(DbType("test-stmt-db"),
-		NewDbDataType("int8", DTInt64).WithCT(CTInt8),
-		NewDbDataType("varchar", DTString).WithCT(CTVarchar),
-	)
+	RegisterTypeEngine(DbType("test-stmt-db"), func(b *TypeEngineBuilder) {
+		b.RegisterTypes(
+			NewDbDataType("int8", DTInt64).WithCategory(TCInt8),
+			NewDbDataType("varchar", DTString).WithCategory(TCVarchar),
+		)
+	})
 }
 
 func TestGenInsertSqlColumnAndValues(t *testing.T) {

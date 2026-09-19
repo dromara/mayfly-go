@@ -144,7 +144,7 @@ func TestITMysqlNonQueryDdlVariants(t *testing.T) {
 
 	// ALTER TABLE ADD COLUMN
 	mustExec(t, conn, "ALTER TABLE `it_ddl_v` ADD COLUMN remark VARCHAR(50) DEFAULT 'n/a'")
-	cols, err := conn.GetMetadata().GetColumns("it_ddl_v")
+	cols, err := conn.Metadata().GetColumns("it_ddl_v")
 	require.NoError(t, err)
 	found := false
 	for _, c := range cols {
@@ -156,7 +156,7 @@ func TestITMysqlNonQueryDdlVariants(t *testing.T) {
 
 	// CREATE INDEX + 索引元信息回读
 	mustExec(t, conn, "CREATE INDEX idx_it_ddl_v_val ON `it_ddl_v` (val)")
-	indexes, err := conn.GetMetadata().GetTableIndex("it_ddl_v")
+	indexes, err := conn.Metadata().GetTableIndex("it_ddl_v")
 	require.NoError(t, err)
 	require.NotEmpty(t, indexes, "应回读到索引")
 	// 注：mysql实现中meta SQL显式排除了PRIMARY主键索引（index_name != 'PRIMARY'），
@@ -189,7 +189,7 @@ func TestITPgNonQueryDdlVariants(t *testing.T) {
 
 	// ALTER TABLE
 	mustExec(t, conn, "ALTER TABLE "+quote("it_ddl_v")+" ADD COLUMN remark VARCHAR(50) DEFAULT 'n/a'")
-	cols, err := conn.GetMetadata().GetColumns("it_ddl_v")
+	cols, err := conn.Metadata().GetColumns("it_ddl_v")
 	require.NoError(t, err)
 	found := false
 	for _, c := range cols {
@@ -201,7 +201,7 @@ func TestITPgNonQueryDdlVariants(t *testing.T) {
 
 	// CREATE INDEX + 元信息回读
 	mustExec(t, conn, "CREATE INDEX idx_it_ddl_v_val ON "+quote("it_ddl_v")+" (val)")
-	indexes, err := conn.GetMetadata().GetTableIndex("it_ddl_v")
+	indexes, err := conn.Metadata().GetTableIndex("it_ddl_v")
 	require.NoError(t, err)
 	require.NotEmpty(t, indexes, "应回读到索引")
 	var hasVal bool
@@ -219,13 +219,13 @@ func TestITSqliteConnectAndMetadata(t *testing.T) {
 	defer conn.Close()
 
 	// 数据库服务信息（版本号非空）
-	server, err := conn.GetMetadata().GetDbServer()
+	server, err := conn.Metadata().GetDbServer()
 	require.NoError(t, err)
 	require.NotNil(t, server)
 	assert.NotEmpty(t, server.Version, "sqlite版本应非空")
 
 	// 库名列表（sqlite为单文件库）
-	dbNames, err := conn.GetMetadata().GetDbNames()
+	dbNames, err := conn.Metadata().GetDbNames()
 	require.NoError(t, err)
 	require.NotEmpty(t, dbNames)
 
@@ -233,11 +233,11 @@ func TestITSqliteConnectAndMetadata(t *testing.T) {
 	quote := conn.GetDialect().Quoter().Quote
 	mustExec(t, conn, "DROP TABLE IF EXISTS "+quote("it_meta"))
 	mustExec(t, conn, "CREATE TABLE "+quote("it_meta")+" (id INTEGER PRIMARY KEY, name TEXT NOT NULL, score REAL DEFAULT 0)")
-	tables, err := conn.GetMetadata().GetTables("it_meta")
+	tables, err := conn.Metadata().GetTables("it_meta")
 	require.NoError(t, err)
 	require.NotEmpty(t, tables, "应回读到it_meta表")
 
-	cols, err := conn.GetMetadata().GetColumns("it_meta")
+	cols, err := conn.Metadata().GetColumns("it_meta")
 	require.NoError(t, err)
 	require.Len(t, cols, 3)
 	byName := make(map[string]dbi.Column)
@@ -249,7 +249,7 @@ func TestITSqliteConnectAndMetadata(t *testing.T) {
 	assert.Contains(t, byName, "score")
 }
 
-// toInt64 数值归一（sqlite/mysql驱动可能返回int64/string等）
+// toInt64 数值归一（sqlite/mysql后端可能返回int64/string等）
 func toInt64(v any) int64 {
 	switch val := v.(type) {
 	case int64:

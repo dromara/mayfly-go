@@ -50,6 +50,8 @@ const (
 	DataSyncSuccessMsg
 	DataSyncFailMsg
 	DataSyncingMsg
+	DataSyncValidationMsg
+	DataSyncBiDirReverseCreated
 
 	// db mask
 	LogDbMaskRuleSave

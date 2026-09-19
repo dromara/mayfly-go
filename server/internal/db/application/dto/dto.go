@@ -3,6 +3,7 @@ package dto
 import (
 	"io"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/export"
 	"mayfly-go/internal/db/domain/entity"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 )
@@ -29,14 +30,11 @@ type DumpDb struct {
 	Writer       io.Writer
 	TargetDbType dbi.DbType
 
+	// ExportFormat 导出格式（"sql"/"csv"/"json" 等），空值默认 "sql"
+	ExportFormat string
+	// Settings 导出配置选项，nil 时使用 DefaultSettings
+	Settings *export.Settings
+
 	Log      func(msg string)
 	Progress func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) // dump进度
-}
-
-func DefaultDumpLog(msg string) {
-
-}
-
-func DefaultDumpProgress(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-
 }

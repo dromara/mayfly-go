@@ -58,6 +58,16 @@ func WithContextManager(contextManager *ContextManager) option {
 	}
 }
 
+// WithCheckPointStore 注入中断恢复 checkpoint 存储（多实例部署唯一扩展入口）
+//
+// 多实例部署须注入共享后端（如 Redis），确保任意实例可恢复任意实例挂起的中断；
+// 未指定时使用 DefaultRuntime 装配的进程内 cache 后端（仅适用于单实例部署）。
+func WithCheckPointStore(store CheckPointStore) option {
+	return func(agent *Agent) {
+		agent.checkPointStore = store
+	}
+}
+
 func WithMaxStep(maxStep int) option {
 	return func(agent *Agent) {
 		agent.maxStep = maxStep

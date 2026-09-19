@@ -464,7 +464,21 @@ export default {
             placeholder: '请输入内容搜索图标或者选择图标',
             empty: '无相关图标',
         },
-        
+
+        // 通用日志查看器
+        logViewer: {
+            searchPlaceholder: '搜索日志...',
+            matchedLines: '条匹配',
+            enableAutoScroll: '开启自动滚动',
+            disableAutoScroll: '关闭自动滚动',
+            download: '下载日志',
+            empty: '暂无日志',
+            loading: '加载中...',
+            finished: '已完成',
+            streaming: '实时流',
+            totalLines: '行',
+        },
+
         // 系统消息通知
         sysmsg: {
             notifications: {

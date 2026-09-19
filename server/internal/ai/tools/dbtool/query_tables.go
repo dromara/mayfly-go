@@ -5,7 +5,6 @@ import (
 
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/tools"
-	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/i18n"
 
@@ -42,12 +41,12 @@ func GetQueryTables() (tool.InvokableTool, error) {
 				}
 			}
 
-			conn, err := application.GetDbApp().GetDbConn(ctx, uint64(param.DbId), param.DbName)
+			conn, err := ensureDbConn(ctx, param.DbId, param.DbName)
 			if err != nil {
-				return nil, tools.NewToolError(err, tools.RecoverRetry)
+				return nil, err
 			}
 
-			tables, err := conn.GetMetadata().GetTables()
+			tables, err := conn.Metadata().GetTables()
 			if err != nil {
 				return nil, tools.NewToolError(err, tools.RecoverRetry)
 			}

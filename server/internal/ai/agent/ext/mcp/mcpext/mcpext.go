@@ -55,7 +55,20 @@ func SetServerLoader(loader func(ctx context.Context) ([]*ServerConfig, error)) 
 }
 
 // McpToolsExtension MCP 工具扩展
-type McpToolsExtension struct{}
+//
+// 实现 ToolContributor + DeferredToolContributor 通道：遍历启用的 MCP 服务器
+// （仅 HTTP 传输），逐个连接发现工具并包装为 eino InvokableTool 贡献给 Agent。
+// 全部 MCP 工具均声明为可延迟加载（tool search 中间件按需发现加载），
+// 避免大工具清单挤占上下文与 KV-cache。
+// 连接经进程级缓存管理器复用：配置指纹未变时不重连，单个服务器
+// 连接失败 fail-open（Warnf 日志，不影响装配）。
+// 管理端增删改/启停变更经 application 层重置默认 Agent 实现运行期即时生效。
+type McpToolsExtension struct {
+	// deferredNames 缓存最近一次 Tools() 构建的全部工具名（全部可延迟）
+	// BuildTools 在同一调用栈中先 Tools() 后 DeferredToolNames()，mu 保护并发安全
+	mu            sync.Mutex
+	deferredNames map[string]struct{}
+}
 
 // NewExtension 创建 MCP 工具扩展
 func NewExtension() *McpToolsExtension {
@@ -63,6 +76,7 @@ func NewExtension() *McpToolsExtension {
 }
 
 var _ contributor.ToolContributor = (*McpToolsExtension)(nil)
+var _ contributor.DeferredToolContributor = (*McpToolsExtension)(nil)
 
 func (e *McpToolsExtension) Id() string { return "mcp_tools" }
 
@@ -76,7 +90,28 @@ func (e *McpToolsExtension) Tools(ctx context.Context, tc *contributor.ToolContr
 		logx.WarnfContext(ctx, "[mcp_tools] load mcp servers failed: %v", err)
 		return nil, nil
 	}
-	return connMgr.toolsOf(ctx, servers), nil
+	tools := connMgr.toolsOf(ctx, servers)
+	// 缓存全部工具名（全部 MCP 工具均可延迟加载）
+	names := make(map[string]struct{}, len(tools))
+	for _, t := range tools {
+		if info, err := t.Info(ctx); err == nil {
+			names[info.Name] = struct{}{}
+		}
+	}
+	e.mu.Lock()
+	e.deferredNames = names
+	e.mu.Unlock()
+	return tools, nil
+}
+
+// DeferredToolNames 返回全部 MCP 工具名（全部可延迟加载）
+//
+// 实现 DeferredToolContributor 接口：MCP 工具数量可能庞大，全部经 tool_search
+// 元工具按需发现加载，避免挤占上下文与 KV-cache。
+func (e *McpToolsExtension) DeferredToolNames() map[string]struct{} {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.deferredNames
 }
 
 // serverConn 单个 MCP 服务器的长连接缓存（连接保持至不再被引用或配置变更）

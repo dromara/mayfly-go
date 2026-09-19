@@ -19,7 +19,7 @@ type Activatable interface {
 	Activate(ctx context.Context) error
 }
 
-// Activate 激活全部装配期贡献者（按注册顺序遍历全部通道条目，fail-open）
+// Activate 激活全部装配期贡献者（仅遍历 ChannelService 通道，fail-open）
 //
 // 由宿主在 WithFilter 裁剪后调用一次。返回首个激活错误（全部贡献者均会
 // 尝试激活，错误仅用于宿主日志诊断，不阻断装配）。
@@ -28,19 +28,19 @@ func (r *Registry) Activate(ctx context.Context) error {
 		return nil
 	}
 	var firstErr error
-	for _, e := range r.entries {
-		a, ok := e.c.(Activatable)
+	for _, e := range view[Contributor](r, ChannelService) {
+		a, ok := e.(Activatable)
 		if !ok {
 			continue
 		}
 		if err := a.Activate(ctx); err != nil {
-			logx.ErrorfContext(ctx, "[contributor] activate contributor %s error: %v", e.id, err)
+			logx.ErrorfContext(ctx, "[contributor] activate contributor %s error: %v", e.Id(), err)
 			if firstErr == nil {
 				firstErr = err
 			}
 			continue
 		}
-		logx.InfofContext(ctx, "[contributor] contributor %s activated", e.id)
+		logx.InfofContext(ctx, "[contributor] contributor %s activated", e.Id())
 	}
 	return firstErr
 }

@@ -9,7 +9,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/taskx"
 	"sync"
 	"time"
 )
@@ -77,19 +77,19 @@ func (a *alertEngineAppImpl) StartEvalLoop() {
 	a.evalSem = make(chan struct{}, 10) // 最多 10 个规则并发评估
 
 	// 使用分布式锁调度，多实例部署时只有一个实例执行评估
-	scheduler.AddFunByKeyWithLock("alert-eval", "@every 1m", 50*time.Second, func() {
+	_ = taskx.BindCronTaskWithLock("alert-eval", "@every 1m", 50*time.Second, true, func() {
 		defer gox.Recover()
 		a.evaluateAll()
 	})
 
 	// 分组刷新循环：使用分布式锁，每10秒检查一次待发送的分组
-	scheduler.AddFunByKeyWithLock("alert-group-flush", "@every 10s", 8*time.Second, func() {
+	_ = taskx.BindCronTaskWithLock("alert-group-flush", "@every 10s", 8*time.Second, true, func() {
 		defer gox.Recover()
 		a.flushGroups()
 	})
 
 	// 已终结事件自动清理：每天凌晨执行，清理超过 30 天的 Recovered/Closed 事件
-	scheduler.AddFunByKeyWithLock("alert-event-cleanup", "0 0 3 * * ?", 30*time.Minute, func() {
+	_ = taskx.BindCronTaskWithLock("alert-event-cleanup", "0 0 3 * * ?", 30*time.Minute, true, func() {
 		defer gox.Recover()
 		deleted, err := a.eventApp.CleanupTerminal(context.Background(), eventRetainDays)
 		if err != nil {
@@ -104,9 +104,9 @@ func (a *alertEngineAppImpl) StartEvalLoop() {
 func (a *alertEngineAppImpl) Stop() {
 	a.stopOnce.Do(func() {
 		logx.Info("[alert] stopping alert evaluation loop")
-		scheduler.RemoveByKey("alert-eval")
-		scheduler.RemoveByKey("alert-group-flush")
-		scheduler.RemoveByKey("alert-event-cleanup")
+		taskx.UnbindCronTask("alert-eval")
+		taskx.UnbindCronTask("alert-group-flush")
+		taskx.UnbindCronTask("alert-event-cleanup")
 		// 同时停止升级扫描循环
 		if a.escalationApp != nil {
 			a.escalationApp.StopEscalationLoop()

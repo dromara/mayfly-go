@@ -338,6 +338,45 @@ func V1_12() []*gormigrate.Migration {
 			},
 			Rollback: noopRollback,
 		},
+
+		// ================================================================
+		//  数据同步模块字段补齐（同步任务 + 同步日志新增列）
+		// ================================================================
+
+		{
+			// 同步任务表新增：同步模式、辅助增量字段、转换规则、过滤条件、空值策略、
+			// 软删除配置、Schema 演化、双向同步等字段。AutoMigrate 幂等，仅添加缺失列。
+			ID: "v1.12.0-sync-task-columns",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DataSyncTask{})
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 同步日志表新增：监控指标字段（耗时、字节数、吞吐量、各操作计数等）。
+			ID: "v1.12.0-sync-log-metrics",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DataSyncLog{})
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 同步日志表新增：运行日志字段（追加式执行过程记录）。
+			ID: "v1.12.0-sync-log-run-log",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DataSyncLog{})
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 迁移任务执行日志表（t_db_transfer_log），对齐数据同步日志架构：
+			// 每次执行生成独立记录，支持历史查询与指标统计。
+			ID: "v1.12.0-db-transfer-log",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DbTransferLog{})
+			},
+			Rollback: noopRollback,
+		},
 	}
 }
 

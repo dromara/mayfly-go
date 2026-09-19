@@ -14,10 +14,10 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITTypesBackupRestore ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"bytes"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +27,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // typesRTColumns 类型化列（各方言DDL差异由typesRTCreateTable处理）
@@ -93,25 +94,25 @@ func typesRTCanonical(t *testing.T, col string, v any) string {
 	}
 	switch col {
 	case "v_bool":
-		b, ok := dbi.ValToBool(v)
+		b, ok := value.ValToBool(v)
 		require.True(t, ok, "v_bool无法归一: %v", v)
 		if b {
 			return "true"
 		}
 		return "false"
 	case "v_big":
-		i, ok := dbi.ValToInt64(v)
+		i, ok := value.ValToInt64(v)
 		require.True(t, ok, "v_big无法归一: %v", v)
 		return fmt.Sprintf("%d", i)
 	case "v_flo":
-		f, ok := dbi.ValToFloat64(v)
+		f, ok := value.ValToFloat64(v)
 		require.True(t, ok, "v_flo无法归一: %v", v)
 		// 最短表示：同一float64在导出/导入/回读全链路应精确一致
 		return fmt.Sprintf("%v", f)
 	case "v_dec":
 		// decimal高精度各库返值形态不同（string/[]byte/float），统一按浮点等值断言；
 		// 精度保真由同方言dump→导入→回读链路的两侧同函数处理保证
-		if f, ok := dbi.ValToFloat64(v); ok {
+		if f, ok := value.ValToFloat64(v); ok {
 			return fmt.Sprintf("%v", f)
 		}
 		return strings.TrimSpace(fmt.Sprintf("%v", v))
@@ -136,7 +137,7 @@ func typesRTSnapshot(t *testing.T, conn *dbi.DbConn, table string) map[int64]map
 	require.NoError(t, err)
 	snap := make(map[int64]map[string]string, len(rows))
 	for _, row := range rows {
-		id, ok := dbi.ValToInt64(row["id"])
+		id, ok := value.ValToInt64(row["id"])
 		require.True(t, ok, "id无法归一: %v", row["id"])
 		m := make(map[string]string, len(typesRTColumns))
 		for _, col := range typesRTColumns {

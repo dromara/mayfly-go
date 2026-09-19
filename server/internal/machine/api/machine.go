@@ -14,6 +14,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -36,10 +37,11 @@ import (
 var safeShellArgRegexp = regexp.MustCompile(`^[a-zA-Z0-9_\-./:+*@?=]+$`)
 
 type Machine struct {
-	machineApp          application.Machine       `inject:"T"`
-	machineTermOpApp    application.MachineTermOp `inject:"T"`
-	tagTreeApp          tagapp.TagTreeService     `inject:"T"`
-	resourceAuthCertApp tagapp.ResourceAuthCert   `inject:"T"`
+	machineApp          application.Machine        `inject:"T"`
+	machineTermOpApp    application.MachineTermOp  `inject:"T"`
+	machineCmdConfApp   application.MachineCmdConf `inject:"T"`
+	tagTreeApp          tagapp.TagTreeService      `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert    `inject:"T"`
 }
 
 func (m *Machine) ReqConfs() *req.Confs {
@@ -421,6 +423,19 @@ func (m *Machine) RunCmd(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
 
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
+
+	// 命令安全过滤：检查是否匹配管理员配置的命令过滤规则（MachineCmdConf）
+	// 与 AI Agent、Web 终端共享同一套命令分析器（mcm.CmdAnalyzer），确保安全策略一致
+	cmdConfs := m.machineCmdConfApp.GetCmdConfsByMachineTags(rc.MetaCtx, cli.Info.CodePath...)
+	if len(cmdConfs) > 0 {
+		filters := make([]*mcm.CmdFilterRule, 0, len(cmdConfs))
+		for _, mc := range cmdConfs {
+			filters = append(filters, &mcm.CmdFilterRule{CmdRegexp: mc.CmdRegexp, Strategy: mc.Stratege})
+		}
+		if matched := mcm.MatchCmdFilters(form.Cmd, filters); matched != nil {
+			biz.ErrIsNilAppendErr(errorx.NewBizI(rc.MetaCtx, imsg.TerminalCmdDisable), "%s")
+		}
+	}
 
 	rc.ReqParam = collx.Kvs("machine", cli.Info, "cmd", form.Cmd)
 

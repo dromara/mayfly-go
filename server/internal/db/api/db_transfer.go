@@ -59,6 +59,9 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 		req.NewPost("/files/del/:fileId", d.FileDel).Log(req.NewLogSaveI(imsg.LogDtsDeleteFile)).RequiredPermissionCode("db:transfer:files:del"),
 
 		req.NewPost("/files/run", d.FileRun).Log(req.NewLogSaveI(imsg.LogDtsRunSqlFile)).RequiredPermissionCode("db:transfer:files:run"),
+
+		// 迁移任务历史日志列表（按 taskId 过滤 SysLog）
+		req.NewGet(":taskId/logs", d.Logs).RequiredPermissionCode("db:transfer:log"),
 	}
 
 	return req.NewConfs("/dbTransfer", reqs[:]...)
@@ -199,4 +202,15 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 			ClientId: fm.ClientId,
 		}))
 	})
+}
+
+// Logs 迁移任务历史日志列表（按 taskId 过滤 DbTransferLog，每次执行一条记录）
+func (d *DbTransferTask) Logs(rc *req.Ctx) {
+	taskId := cast.ToUint64(rc.PathParam("taskId"))
+	queryCond := rc.BindQuery[entity.DbTransferLogQuery]()
+	queryCond.TaskId = taskId
+
+	res, err := d.dbTransferTaskApp.GetLogList(queryCond, "create_time DESC")
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }

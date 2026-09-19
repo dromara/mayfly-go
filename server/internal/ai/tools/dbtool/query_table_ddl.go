@@ -6,7 +6,6 @@ import (
 
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/tools"
-	"mayfly-go/internal/db/application"
 	"mayfly-go/pkg/i18n"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -46,13 +45,13 @@ func GetQueryTableDDL() (tool.InvokableTool, error) {
 				return nil, tools.NewToolError(fmt.Errorf("%s", i18n.TC(ctx, imsg.MissingRequiredParams)), tools.RecoverRetry)
 			}
 
-			conn, err := application.GetDbApp().GetDbConn(ctx, uint64(param.DbId), param.DbName)
+			conn, err := ensureDbConn(ctx, param.DbId, param.DbName)
 			if err != nil {
-				return nil, tools.NewToolError(err, tools.RecoverRetry)
+				return nil, err
 			}
 
 			ddls := make(map[string]string, len(param.TableNames))
-			md := conn.GetMetadata()
+			md := conn.Metadata()
 			for _, tableName := range param.TableNames {
 				ddl, err := md.GetTableDDL(tableName, false)
 				if err != nil {

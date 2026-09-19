@@ -12,8 +12,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/rediscli"
-	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
@@ -48,6 +47,9 @@ type machineCronJobAppImpl struct {
 
 	tagTreeApp       tagapp.TagTreeReader `inject:"T"`
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
+
+	// runGuard 分布式运行守卫：按 cron job key 互斥，防止多实例重复执行
+	runGuard taskx.RunGuard[string]
 }
 
 var _ MachineCronJob = (*machineCronJobAppImpl)(nil)
@@ -113,20 +115,18 @@ func (m *machineCronJobAppImpl) InitCronJob() {
 }
 
 func (m *machineCronJobAppImpl) RunCronJob(key string) {
-	// 简单使用redis分布式锁防止多实例同一时刻重复执行
-	if lock := rediscli.NewLock(key, 30*time.Second); lock != nil {
-		if !lock.Lock() {
-			return
-		}
-		defer lock.UnLock()
+	// 分布式互斥：多实例部署时只有一个实例执行同一 cron job
+	if !m.runGuard.Acquire(key) {
+		return
 	}
+	defer m.runGuard.Release(key)
 
 	cronJob := new(entity.MachineCronJob)
 	cronJob.Key = key
 	err := m.GetByCond(cronJob)
 	// 不存在或禁用，则移除该任务
 	if err != nil || cronJob.Status == entity.MachineCronJobStatusDisable {
-		scheduler.RemoveByKey(key)
+		taskx.UnbindCronTask(key)
 		return
 	}
 
@@ -156,11 +156,11 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
 
 	if isDisable {
-		scheduler.RemoveByKey(key)
+		taskx.UnbindCronTask(key)
 		return
 	}
 
-	if err := scheduler.AddFunByKey(key, mcj.Cron, func() {
+	if err := taskx.BindCronTask(key, mcj.Cron, true, func() {
 		defer gox.Recover()
 		m.RunCronJob(key)
 	}); err != nil {

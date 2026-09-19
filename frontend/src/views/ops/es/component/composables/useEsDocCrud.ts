@@ -4,6 +4,7 @@
  */
 import Api from '@/common/Api';
 import { exportCsv, exportExcel, exportFile } from '@/common/utils/export';
+import { randomUuid } from '@/common/utils/string';
 import { getClientId, getToken } from '@/common/utils/storage';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { esApi } from '@/views/ops/es/api';
@@ -232,7 +233,7 @@ export function useEsDocCrud(options: UseEsDocCrudOptions) {
         const exportUrl = esApi.exportData.getUrl().replace('{instanceId}', String(instId));
 
         // Generate UUID for progress tracking
-        const exportId = crypto.randomUUID();
+        const exportId = randomUuid();
 
         // If "selected" scope with large dataset, pass selected IDs as ES terms query
         // If "query" scope, pass the current search query

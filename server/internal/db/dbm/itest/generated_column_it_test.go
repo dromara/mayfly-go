@@ -12,8 +12,8 @@ package itest
 // 运行方式：cd server && go test -tags it -count=1 -run TestITGeneratedColumn ./internal/db/dbm/
 
 import (
-	"mayfly-go/internal/db/dbm"
 	"fmt"
+	"mayfly-go/internal/db/dbm"
 	"strings"
 	"testing"
 
@@ -163,7 +163,7 @@ func gcRows(t *testing.T, conn *dbi.DbConn, table string) []map[string]any {
 	return rows
 }
 
-// gcId 取行的id值：驱动可能以[]byte回传数值列（未开启列值转换），必须先归一再取数值
+// gcId 取行的id值：后端可能以[]byte回传数值列（未开启列值转换），必须先归一再取数值
 func gcId(row map[string]any) int64 {
 	id, _ := toFloat(normalizeDbValue(row["id"]))
 	return int64(id)
@@ -185,7 +185,7 @@ func TestITGeneratedColumnMetadata(t *testing.T) {
 			mustExec(t, conn, gcSourceDDL(st, table))
 			mustExec(t, conn, gcBaseInsert(st, table))
 
-			cols, err := conn.GetMetadata().GetColumns(table)
+			cols, err := conn.Metadata().GetColumns(table)
 			require.NoError(t, err)
 			require.Len(t, cols, 5)
 
@@ -243,7 +243,7 @@ func TestITGeneratedColumnPgIdentity(t *testing.T) {
   v varchar(20)
 )`, table))
 
-	cols, err := conn.GetMetadata().GetColumns(table)
+	cols, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	colById := make(map[string]dbi.Column, len(cols))
 	for _, col := range cols {
@@ -274,7 +274,7 @@ func TestITGeneratedColumnSameDialect(t *testing.T) {
 			mustExec(t, conn, gcSourceDDL(st, srcTable))
 			mustExec(t, conn, gcBaseInsert(st, srcTable))
 
-			srcCols, err := conn.GetMetadata().GetColumns(srcTable)
+			srcCols, err := conn.Metadata().GetColumns(srcTable)
 			require.NoError(t, err)
 
 			// 列元数据复制到目标表名（同方言无需类型转换，与迁移链路的srcDbType==targetDbType分支一致）
@@ -291,7 +291,7 @@ func TestITGeneratedColumnSameDialect(t *testing.T) {
 			}
 
 			// 结构保真：目标库回读，两个派生列必须仍是生成列（不能退化为普通列）
-			dstCols, err := conn.GetMetadata().GetColumns(dstTable)
+			dstCols, err := conn.Metadata().GetColumns(dstTable)
 			require.NoError(t, err)
 			rateName := "g_rate"
 			if st == gcMysql {
@@ -359,7 +359,7 @@ func TestITGeneratedColumnHeterogeneous(t *testing.T) {
 			mustExec(t, srcConn, gcSourceDDL(srcType, srcTable))
 			mustExec(t, srcConn, gcBaseInsert(srcType, srcTable))
 
-			srcCols, err := srcConn.GetMetadata().GetColumns(srcTable)
+			srcCols, err := srcConn.Metadata().GetColumns(srcTable)
 			require.NoError(t, err)
 
 			dstDialect := dstConn.GetDialect()
@@ -376,7 +376,7 @@ func TestITGeneratedColumnHeterogeneous(t *testing.T) {
 			}
 
 			// 目标列必须是普通列（异构不重建派生表达式），且无NULL默认值隐患
-			dstCols, err := dstConn.GetMetadata().GetColumns(dstTable)
+			dstCols, err := dstConn.Metadata().GetColumns(dstTable)
 			require.NoError(t, err)
 			require.Len(t, dstCols, len(cols), "异构迁移后目标列数不得变化（生成列不得被丢弃）")
 			for _, col := range dstCols {
@@ -429,7 +429,7 @@ func TestITGeneratedColumnUpsert(t *testing.T) {
 			mustExec(t, conn, gcBaseInsert(st, table))
 
 			// 与数据同步链路一致：列集与目标表元信息全部取自目标表自身元数据
-			cols, err := conn.GetMetadata().GetColumns(table)
+			cols, err := conn.Metadata().GetColumns(table)
 			require.NoError(t, err)
 			rateName := "g_rate"
 			if st == gcMysql {
@@ -512,7 +512,7 @@ func TestITGeneratedColumnLongExpr(t *testing.T) {
 		table, exprText))
 	mustExec(t, conn, fmt.Sprintf("INSERT INTO `%s` (id, a) VALUES (1, 1)", table))
 
-	cols, err := conn.GetMetadata().GetColumns(table)
+	cols, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	var longCol dbi.Column
 	found := false

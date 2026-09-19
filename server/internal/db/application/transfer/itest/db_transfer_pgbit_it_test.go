@@ -11,17 +11,17 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITPgBitRoundtrip ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"bufio"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/application/dto"
-	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 /* bit列读回位串文本（string/[]byte/nil形态兑底） */
@@ -77,7 +77,7 @@ func TestITPgBitRoundtrip(t *testing.T) {
 		require.NoError(t, err)
 		m := make(map[int64]map[string]string, len(rs))
 		for _, row := range rs {
-			id, _ := dbi.ValToInt64(row["id"])
+			id, _ := value.ValToInt64(row["id"])
 			m[id] = map[string]string{
 				"c_bit8":   bitText(t, row["c_bit8"]),
 				"c_bit1":   bitText(t, row["c_bit1"]),

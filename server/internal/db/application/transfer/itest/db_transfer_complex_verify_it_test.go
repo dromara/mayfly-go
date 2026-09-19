@@ -12,9 +12,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITComplex ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -24,6 +24,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 // itDumpTable 驱动真实dump生成脚本：可选DDL/数据、可选分片where条件
@@ -191,9 +192,9 @@ func TestITShardComplexValuesMigrate(t *testing.T) {
 			itCreateShardComplexTable(t, srcConn, table)
 			itInsertShardComplexRows(t, srcConn, table, shardCxRows)
 
-			origTargetRows := dbi.ShardTargetRows
-			dbi.ShardTargetRows = 1000 // 2400行/每片1000行 → 3片
-			defer func() { dbi.ShardTargetRows = origTargetRows }()
+			origTargetRows := transfer.ShardTargetRows
+			transfer.ShardTargetRows = 1000 // 2400行/每片1000行 → 3片
+			defer func() { transfer.ShardTargetRows = origTargetRows }()
 
 			app := &transfer.DbTransferAppImpl{}
 			wheres := app.PlanTableShards(context.Background(), 0, srcConn, table, shardCxRows)
@@ -222,12 +223,12 @@ func TestITShardComplexValuesMigrate(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, statRows, 1)
 			for _, key := range []string{"cnt", "dc"} {
-				cnt, ok := dbi.ValToInt64(statRows[0][key])
+				cnt, ok := value.ValToInt64(statRows[0][key])
 				require.True(t, ok, "%s应为数值: %#v", key, statRows[0][key])
 				assert.Equal(t, int64(shardCxRows), cnt, "%s分片导入不应丢行或重复", key)
 			}
-			mn, ok1 := dbi.ValToInt64(statRows[0]["mn"])
-			mx, ok2 := dbi.ValToInt64(statRows[0]["mx"])
+			mn, ok1 := value.ValToInt64(statRows[0]["mn"])
+			mx, ok2 := value.ValToInt64(statRows[0]["mx"])
 			require.True(t, ok1 && ok2)
 			assert.Equal(t, int64(1), mn)
 			assert.Equal(t, int64(shardCxRows), mx)
@@ -244,9 +245,9 @@ func TestITShardComplexValuesMigrate(t *testing.T) {
 						"第%d行(%q)列[%s]分片迁移失真, 源=%q 目标=%q", i+1, sampleOf(i), col,
 						itTruncate(itTextAt(srcRows[i], col), 80), itTruncate(itTextAt(tgtRows[i], col), 80))
 				}
-				assert.True(t, dbi.CanonicalNumericEqual(srcRows[i]["v_num"], tgtRows[i]["v_num"]),
+				assert.True(t, value.CanonicalNumericEqual(srcRows[i]["v_num"], tgtRows[i]["v_num"]),
 					"第%d行列[v_num]分片迁移失真, 源=%q 目标=%q", i+1,
-					dbi.CanonicalValue(srcRows[i]["v_num"]), dbi.CanonicalValue(tgtRows[i]["v_num"]))
+					value.CanonicalValue(srcRows[i]["v_num"]), value.CanonicalValue(tgtRows[i]["v_num"]))
 			}
 
 			// 产品校验器对分片迁移结果应零误报

@@ -15,6 +15,7 @@ import (
 
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
 func appTestConn(t *testing.T, di *dbi.DbInfo) *dbi.DbConn {
@@ -97,7 +98,7 @@ func appRowCount(t *testing.T, conn *dbi.DbConn) int64 {
 	_, rows, err := conn.Query("SELECT COUNT(*) AS cnt FROM " + quote(appExecTable))
 	require.NoError(t, err, "[%s] 用例表不可读", conn.Info.Type)
 	require.Len(t, rows, 1)
-	cnt, ok := dbi.ValToInt64(rows[0]["cnt"])
+	cnt, ok := value.ValToInt64(rows[0]["cnt"])
 	require.True(t, ok, "行数取值形态异常: %T", rows[0]["cnt"])
 	return cnt
 }

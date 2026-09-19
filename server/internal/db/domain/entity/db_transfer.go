@@ -74,3 +74,28 @@ const (
 	DbTransferTaskRunStateFail    int8 = -1 // 执行失败
 	DbTransferTaskRunStateStop    int8 = -2 // 手动终止
 )
+
+// DbTransferLog 迁移任务执行日志（对齐 DataSyncLog 架构）。
+// 每次执行生成独立记录，支持历史查询与指标统计。
+type DbTransferLog struct {
+	model.IdModel
+
+	CreateTime *time.Time `json:"createTime" gorm:"not null;"`                                  // 创建时间
+	TaskId     uint64     `json:"taskId" gorm:"not null;index;comment:迁移任务id"`                  // 迁移任务id
+	Mode       int8       `json:"mode" gorm:"not null;comment:迁移模式 1数据库 2文件"`                   // 迁移模式
+	TargetFile string     `json:"targetFile" gorm:"size:255;comment:目标文件名"`                     // 目标文件名（文件迁移模式）
+	ErrText    string     `json:"errText" gorm:"type:text;comment:错误信息"`                        // 错误信息
+	Status     int8       `json:"status" gorm:"not null;default:2;comment:状态:2.执行中 1.成功  0.失败"` // 状态:2.执行中 1.成功 0.失败
+
+	// 监控指标
+	DurationMs int64 `json:"durationMs" gorm:"comment:执行耗时(毫秒)"` // 执行耗时（毫秒）
+	TotalRows  int64 `json:"totalRows" gorm:"comment:迁移总行数"`     // 迁移总行数
+	TableCount int   `json:"tableCount" gorm:"comment:迁移表数"`     // 迁移表数
+
+	// 运行日志：追加式执行过程记录
+	RunLog string `json:"runLog" gorm:"type:text;comment:运行日志"` // 运行日志（追加式）
+}
+
+func (d *DbTransferLog) TableName() string {
+	return "t_db_transfer_log"
+}

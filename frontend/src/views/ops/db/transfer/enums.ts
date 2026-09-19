@@ -12,3 +12,9 @@ export const DbTransferFileStatusEnum = {
     Success: EnumValue.of(2, 'common.success').setTagType('success'),
     Fail: EnumValue.of(-1, 'common.fail').setTagType('danger'),
 };
+
+export const DbTransferLogStatusEnum = {
+    Running: EnumValue.of(2, 'db.running').setTagType('primary'),
+    Success: EnumValue.of(1, 'common.success').setTagType('success'),
+    Fail: EnumValue.of(0, 'common.fail').setTagType('danger'),
+};

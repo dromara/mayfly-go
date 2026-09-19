@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
-	_ "mayfly-go/internal/db/dbm/mysql"  // 注册mysql方言
-	_ "mayfly-go/internal/db/dbm/sqlite" // 注册sqlite方言
+	_ "mayfly-go/internal/db/dbm/dialect/mysql"  // 注册mysql方言
+	_ "mayfly-go/internal/db/dbm/dialect/sqlite" // 注册sqlite方言
 )
 
 // ---------------------------------------------------------------------
@@ -29,11 +29,11 @@ func TestITMysqlConnectAndMetadata(t *testing.T) {
 	conn := mysqlConn(t)
 	defer conn.Close()
 
-	server, err := conn.GetMetadata().GetDbServer()
+	server, err := conn.Metadata().GetDbServer()
 	require.NoError(t, err)
 	t.Logf("mysql server version: %+v", server)
 
-	tables, err := conn.GetMetadata().GetTables()
+	tables, err := conn.Metadata().GetTables()
 	require.NoError(t, err)
 	t.Logf("tables in %s: %d", itMysqlDatabase, len(tables))
 }
@@ -65,7 +65,7 @@ func TestITMysqlGenTableDDLRoundtrip(t *testing.T) {
 	}
 
 	// 真实回读元数据，逐项断言DDL执行结果符合预期
-	readCols, err := conn.GetMetadata().GetColumns(table)
+	readCols, err := conn.Metadata().GetColumns(table)
 	require.NoError(t, err)
 	require.Len(t, readCols, 7)
 	byName := make(map[string]dbi.Column)
@@ -99,7 +99,7 @@ func TestITMysqlGenTableDDLRoundtrip(t *testing.T) {
 	for _, ddl := range gen.GenTableDDL(dbi.Table{TableName: table2}, readCols, false) {
 		mustExec(t, conn, ddl)
 	}
-	readCols2, err := conn.GetMetadata().GetColumns(table2)
+	readCols2, err := conn.Metadata().GetColumns(table2)
 	require.NoError(t, err)
 	require.Len(t, readCols2, 7)
 	byName2 := make(map[string]dbi.Column)
@@ -169,10 +169,10 @@ func TestITMysqlCopyTable(t *testing.T) {
 	require.NoError(t, conn.GetDialect().CopyTable(&dbi.DbCopyTable{TableName: "it_copy_src", CopyData: true}))
 	time.Sleep(2 * time.Second) // 数据为异步复制
 
-	tables, err := conn.GetMetadata().GetTables("it_copy_src_copy_%")
+	tables, err := conn.Metadata().GetTables("it_copy_src_copy_%")
 	// GetTables过滤可能不支持通配，退化用全表名比对
 	if err != nil || len(tables) == 0 {
-		tables, err = conn.GetMetadata().GetTables()
+		tables, err = conn.Metadata().GetTables()
 		require.NoError(t, err)
 	}
 
@@ -309,7 +309,7 @@ func TestITSqliteFullFlow(t *testing.T) {
 	require.NoError(t, dialect.CopyTable(&dbi.DbCopyTable{TableName: "it_sqlite_flow", CopyData: true}))
 	time.Sleep(1 * time.Second)
 
-	tables, err := conn.GetMetadata().GetTables()
+	tables, err := conn.Metadata().GetTables()
 	require.NoError(t, err)
 	var copyName string
 	for _, tb := range tables {

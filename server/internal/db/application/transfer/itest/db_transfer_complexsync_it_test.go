@@ -13,9 +13,9 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITDataSyncComplex ./internal/db/application/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/transfer"
 	"strings"
 	"testing"
 
@@ -24,6 +24,7 @@ import (
 
 	dbsync "mayfly-go/internal/db/application/sync"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/domain/entity"
 )
 
@@ -164,7 +165,7 @@ func itSetColumnParamByName(t *testing.T, conn *dbi.DbConn, table, pk, column st
 func findRowByPk(rows []map[string]any, pk string, pkVal int) map[string]any {
 	key := strings.ToLower(pk)
 	for _, row := range rows {
-		if v, ok := dbi.ValToInt64(row[key]); ok && v == int64(pkVal) {
+		if v, ok := value.ValToInt64(row[key]); ok && v == int64(pkVal) {
 			return row
 		}
 	}
@@ -176,12 +177,12 @@ func assertComplexRowsEqual(t *testing.T, srcRows, tgtRows []map[string]any, col
 	t.Helper()
 	tgtByPk := make(map[int64]map[string]any, len(tgtRows))
 	for _, row := range tgtRows {
-		if v, ok := dbi.ValToInt64(row[strings.ToLower(itSpecialPkName)]); ok {
+		if v, ok := value.ValToInt64(row[strings.ToLower(itSpecialPkName)]); ok {
 			tgtByPk[v] = row
 		}
 	}
 	for _, srcRow := range srcRows {
-		pkVal, ok := dbi.ValToInt64(srcRow[strings.ToLower(itSpecialPkName)])
+		pkVal, ok := value.ValToInt64(srcRow[strings.ToLower(itSpecialPkName)])
 		require.True(t, ok, "源行缺少主键值")
 		tgtRow, exist := tgtByPk[pkVal]
 		require.True(t, exist, "目标库缺少主键[%d]的行", pkVal)

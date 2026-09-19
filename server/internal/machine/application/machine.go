@@ -17,7 +17,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
@@ -262,7 +262,7 @@ func (m *machineAppImpl) GetSshTunnelMachine(ctx context.Context, machineId int)
 
 func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("start collecting and caching machine state information periodically...")
-	scheduler.AddFunByKeyWithLock("machine-stats", "@every 2m", 90*time.Second, func() {
+	_ = taskx.BindCronTaskWithLock("machine-stats", "@every 2m", 90*time.Second, true, func() {
 		defer gox.Recover()
 		machineIds, _ := m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"))
 		logx.Debugf("[machine] TimerUpdateStats: found %d enabled SSH machines", len(machineIds))

@@ -20,3 +20,18 @@ func (*PgsqlParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
 	}()
 	return NewParser(stmt).Parse()
 }
+
+// RewritePagination PostgreSQL 分页改写：LIMIT count OFFSET offset
+func (p *PgsqlParser) RewritePagination(sql string, offset, limit int64) (string, error) {
+	// PostgreSQL 也支持 LIMIT/OFFSET 语法，与默认实现兼容
+	return sqlstmt.DefaultRewritePagination(sql, offset, limit), nil
+}
+
+// ClassifyStmt 基于 AST 判定语句类型
+func (p *PgsqlParser) ClassifyStmt(sql string) (sqlstmt.StmtType, error) {
+	stmt, err := p.Parse(sql)
+	if err != nil {
+		return "", err
+	}
+	return sqlstmt.DefaultClassifyStmt(stmt.StmtKind()), nil
+}

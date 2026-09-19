@@ -82,8 +82,8 @@
         <db-transfer-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
         <db-transfer-file :title="filesDialog.title" v-model:visible="filesDialog.visible" v-model:data="filesDialog.data" />
 
-        <!-- 日志执行结束（迁移完成/失败/停止）后刷新列表运行状态 -->
-        <TerminalLog v-model:log-id="logsDialog.logId" v-model:visible="logsDialog.visible" :title="logsDialog.title" @finished="search" />
+        <!-- 迁移日志历史列表 -->
+        <db-transfer-log :task-id="logsDialog.taskId" :running="logsDialog.running" v-model:visible="logsDialog.visible" @cancel="search" />
     </div>
 </template>
 
@@ -92,7 +92,6 @@ import { hasPerms } from '@/components/auth/auth';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
-import TerminalLog from '@/components/terminal/TerminalLog.vue';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
@@ -103,6 +102,7 @@ import type { DbTransferTask } from '../types';
 
 const DbTransferEdit = defineAsyncComponent(() => import('./DbTransferEdit.vue'));
 const DbTransferFile = defineAsyncComponent(() => import('./DbTransferFile.vue'));
+const DbTransferLog = defineAsyncComponent(() => import('./DbTransferLog.vue'));
 
 const { t } = useI18n();
 
@@ -156,10 +156,9 @@ const state = reactive({
         title: '',
     },
     logsDialog: {
-        logId: 0,
+        taskId: 0,
         title: '',
         visible: false,
-        data: null as { logId: number; state: number } | null,
         running: false,
     },
     filesDialog: {
@@ -200,20 +199,20 @@ const stop = async (id: number) => {
     search();
 };
 
-const onOpenLog = (data: { logId: number; state: number }) => {
-    state.logsDialog.logId = data.logId;
+const onOpenLog = (data: { taskId: number; running: boolean }) => {
+    state.logsDialog.taskId = data.taskId;
     state.logsDialog.visible = true;
     state.logsDialog.title = t('db.log');
-    state.logsDialog.running = data.state === DbTransferRunningStateEnum.Running.value;
+    state.logsDialog.running = data.running;
 };
 
 const onReRun = async (data: DbTransferTask) => {
     await useI18nConfirm('db.runConfirm');
     try {
-        let res = await dbTransferApi.runDbTransferTask.request({ taskId: data.id });
+        await dbTransferApi.runDbTransferTask.request({ taskId: data.id });
         Msg.operateSuccess();
-        // 拿到日志id之后，弹出日志弹窗
-        onOpenLog({ logId: res, state: DbTransferRunningStateEnum.Running.value });
+        // 执行后弹出日志弹窗
+        onOpenLog({ taskId: data.id, running: true });
     } catch (e) {
         //
     }
@@ -226,10 +225,10 @@ const onReRun = async (data: DbTransferTask) => {
 const onVerify = async (data: DbTransferTask) => {
     await useI18nConfirm('db.verifyConfirm');
     try {
-        const res = await dbTransferApi.verifyDbTransferTask.request({ taskId: data.id });
+        await dbTransferApi.verifyDbTransferTask.request({ taskId: data.id });
         Msg.operateSuccess();
-        // 校验为异步任务，拿到日志id后弹出日志弹窗查看校验报告
-        onOpenLog({ logId: res, state: DbTransferRunningStateEnum.Running.value });
+        // 校验为异步任务，弹出日志弹窗查看校验报告
+        onOpenLog({ taskId: data.id, running: true });
     } catch (e) {
         //
     }

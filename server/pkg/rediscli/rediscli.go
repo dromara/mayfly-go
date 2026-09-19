@@ -73,3 +73,21 @@ func HGetAll(key string) map[string]string {
 func HDel(key string, fields ...string) int {
 	return int(cli.HDel(context.TODO(), key, fields...).Val())
 }
+
+// CasDel 原子比较并删除：仅当 key 的当前值等于 expected 时才删除。
+// 返回 true 表示成功删除（值匹配），false 表示值不匹配或 key 不存在。
+// 底层通过 Lua 脚本保证原子性，用于分布式锁的所有权验证释放。
+func CasDel(key string, expected string) bool {
+	script := redis.NewScript(`
+		if redis.call("get", KEYS[1]) == ARGV[1] then
+			return redis.call("del", KEYS[1])
+		else
+			return 0
+		end
+	`)
+	result, err := script.Run(context.Background(), cli, []string{key}, expected).Int64()
+	if err != nil {
+		return false
+	}
+	return result > 0
+}

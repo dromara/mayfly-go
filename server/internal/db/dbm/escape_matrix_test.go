@@ -13,14 +13,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"mayfly-go/internal/db/dbm/clickhouse"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/dm"
-	"mayfly-go/internal/db/dbm/mssql"
-	"mayfly-go/internal/db/dbm/mysql"
-	"mayfly-go/internal/db/dbm/oracle"
-	"mayfly-go/internal/db/dbm/postgres"
-	"mayfly-go/internal/db/dbm/sqlite"
+	"mayfly-go/internal/db/dbm/dialect/clickhouse"
+	"mayfly-go/internal/db/dbm/dialect/dm"
+	"mayfly-go/internal/db/dbm/dialect/mssql"
+	"mayfly-go/internal/db/dbm/dialect/mysql"
+	"mayfly-go/internal/db/dbm/dialect/oracle"
+	"mayfly-go/internal/db/dbm/dialect/postgres"
+	"mayfly-go/internal/db/dbm/dialect/sqlite"
 )
 
 // complexVal 复杂字符串：单引号/双引号/反斜杠/CR/CRLF/LF/tab/中文/emoji/多行JSON

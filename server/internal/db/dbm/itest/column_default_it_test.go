@@ -228,7 +228,7 @@ func TestITColumnDefaultRoundtrip(t *testing.T) {
 				mustExec(t, srcConn, buildDflSourceDDL(srcType, srcTable))
 
 				// 2. 读源库元数据并转换到目标方言类型
-				srcCols, err := srcConn.GetMetadata().GetColumns(srcTable)
+				srcCols, err := srcConn.Metadata().GetColumns(srcTable)
 				require.NoError(t, err)
 				require.Len(t, srcCols, len(dflCases)+1, "源表列数不符")
 
@@ -265,7 +265,7 @@ func TestITColumnDefaultRoundtrip(t *testing.T) {
 				// 4b. 类型保真断言（从目标库回读元数据，不依赖生成的DDL文本）：
 				// 定点数列不得因跨方言转换退化为浮点（金额类值静默失真），
 				// 源列声明了小数秒精度时目标列必须同样携带该精度（否则秒以下数据静默截断）
-				dstCols, err := dstConn.GetMetadata().GetColumns(dstTable)
+				dstCols, err := dstConn.Metadata().GetColumns(dstTable)
 				require.NoError(t, err)
 				dstColByName := make(map[string]dbi.Column, len(dstCols))
 				for _, col := range dstCols {
@@ -278,8 +278,8 @@ func TestITColumnDefaultRoundtrip(t *testing.T) {
 					}
 					switch c.kind {
 					case "dec":
-						ct := dbi.GetDbDataType(dstType, dstCol.DataType).CommonType
-						assert.True(t, ct == dbi.CTDecimal || ct == dbi.CTNumeric,
+						ct := dbi.GetDbDataType(dstType, dstCol.DataType).Category()
+						assert.True(t, ct == dbi.TCDecimal || ct == dbi.TCNumeric,
 							"定点数列 [%s] 在目标库退化为非精确数值类型: %s", c.col, dstCol.GetColumnType())
 					case "ts3":
 						// sqlite无小数秒概念（源与目标均不适用），其余组合必须携带精度3

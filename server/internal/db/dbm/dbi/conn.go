@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"mayfly-go/internal/db/dbm/dbi/scan"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -19,38 +20,37 @@ type WalkQueryRowsFunc func(row map[string]any, columns []*QueryColumn) error
 type DbConn struct {
 	Id   string
 	Info *DbInfo
-
-	db *sql.DB
 }
 
 /******************* pool.Conn impl *******************/
 
 // 关闭连接
 func (d *DbConn) Close() error {
-	if d.db != nil {
+	if db := d.Info.GetDb(); db != nil {
 		defer mcm.CloseSshTunnel(d.Info)
-		if err := d.db.Close(); err != nil {
+		if err := db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %v", d.Id, err)
 			return err
 		}
 		logx.Debugf("dbm - conn close success, connId: %s", d.Id)
-		d.db = nil
+		d.Info.db = nil
 	}
 
 	return nil
 }
 
 func (d *DbConn) Ping() error {
-	stats := d.db.Stats()
+	db := d.Info.GetDb()
+	stats := db.Stats()
 	logx.Debugf("[%s] db stats -> open: %d, idle: %d,  inUse: %d, maxOpen: %d", d.Info.Name, stats.OpenConnections, stats.Idle, stats.InUse, stats.MaxOpenConnections)
 	if stats.OpenConnections == 0 {
 		logx.Infof("[%s]-[%s] db stats: no open connections", d.Info.Name, d.Info.Database)
 	}
 
-	return d.db.Ping()
+	return db.Ping()
 }
 
-// 执行数据库查询返回的列信息
+// 执行查询语句返回的列信息
 type QueryColumn struct {
 	Name string `json:"name"` // 列名
 	Key  string `json:"key"`  // 列唯一标识
@@ -86,7 +86,7 @@ func (qc *QueryColumn) SQLValue(val any) any {
 }
 
 func (d *DbConn) GetDb() *sql.DB {
-	return d.db
+	return d.Info.GetDb()
 }
 
 // 执行查询语句
@@ -109,7 +109,8 @@ func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any)
 
 // 将查询结果映射至struct，可具体参考sqlx库
 func (d *DbConn) Query2Struct(execSql string, dest any) error {
-	rows, err := d.db.Query(execSql)
+	db := d.Info.GetDb()
+	rows, err := db.Query(execSql)
 	if err != nil {
 		return err
 	}
@@ -120,7 +121,7 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 			rows.Close()
 		}
 	}()
-	return scanAll(rows, dest, false)
+	return scan.All(rows, dest, false)
 }
 
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
@@ -166,10 +167,11 @@ func (d *DbConn) ExecContext(ctx context.Context, execSql string, args ...any) (
 func (d *DbConn) TxExecContext(ctx context.Context, tx *sql.Tx, execSql string, args ...any) (int64, error) {
 	var res sql.Result
 	var err error
+	db := d.Info.GetDb()
 	if tx != nil {
 		res, err = tx.ExecContext(ctx, execSql, args...)
 	} else {
-		res, err = d.db.ExecContext(ctx, execSql, args...)
+		res, err = db.ExecContext(ctx, execSql, args...)
 	}
 
 	if err != nil {
@@ -180,17 +182,18 @@ func (d *DbConn) TxExecContext(ctx context.Context, tx *sql.Tx, execSql string, 
 
 // Begin 开启事务
 func (d *DbConn) Begin() (*sql.Tx, error) {
-	return d.db.Begin()
+	db := d.Info.GetDb()
+	return db.Begin()
 }
 
 // GetDialect 获取数据库dialect实现接口
 func (d *DbConn) GetDialect() Dialect {
-	return d.Info.Meta.GetDialect(d)
+	return d.Info.Backend.GetDialect(d.Info)
 }
 
-// GetMetadata 获取数据库MetaData
-func (d *DbConn) GetMetadata() Metadata {
-	return d.Info.Meta.GetMetadata(d)
+// Metadata 创建新的 Schema 元数据访问入口（每次调用创建新实例，不共享缓存）
+func (d *DbConn) Metadata() *Metadata {
+	return NewMetadata(d.Info.Backend, d.Info.Backend.GetMetadataProvider(d.Info), d.Info.Backend.GetServerInfo(d.Info))
 }
 
 // GetDbDataType 获取定义的数据库数据类型
@@ -198,12 +201,13 @@ func (d *DbConn) GetDbDataType(dataType string) *DbDataType {
 	return GetDbDataType(d.Info.Type, dataType)
 }
 
-// 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
+// 游标方式遍历查询rows, walkFn error不为nil, 则退出遍历
 func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	rows, err := d.db.QueryContext(cancelCtx, selectSql, args...)
+	db := d.Info.GetDb()
+	rows, err := db.QueryContext(cancelCtx, selectSql, args...)
 	if err != nil {
 		return nil, err
 	}

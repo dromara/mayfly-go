@@ -15,7 +15,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/timex"
@@ -119,7 +119,7 @@ func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, page
 
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 	logx.Debug("start deleting machine terminal playback records every hour...")
-	scheduler.AddFunByKeyWithLock("machine-termop-cleanup", "@every 60m", 30*time.Minute, func() {
+	_ = taskx.BindCronTaskWithLock("machine-termop-cleanup", "@every 60m", 30*time.Minute, true, func() {
 		defer gox.Recover()
 		startDate := time.Now().AddDate(0, 0, -config.GetMachine().TermOpSaveDays)
 		cond := &entity.MachineTermOpQuery{

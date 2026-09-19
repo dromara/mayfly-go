@@ -246,18 +246,28 @@ func (r *Registry) CollectContext(ctx context.Context, in *TurnInput) []PromptFr
 //
 // 同名工具覆盖协议：后注册者覆盖先注册者（保留先注册位置），
 // 内置工具贡献者注册在前、业务插件注册在后，插件可替换内置实现。
-func (r *Registry) BuildTools(ctx context.Context, tc *ToolContributionContext) []tool.BaseTool {
+//
+// 第二个返回值为可延迟加载的工具名集合（经 DeferredToolContributor 可选接口声明）；
+// 未实现 DeferredToolContributor 的贡献者其全部工具视为不可延迟。
+// 调用方据此将 deferred 工具从静态清单中分离（如 tool search 中间件按需加载）。
+func (r *Registry) BuildTools(ctx context.Context, tc *ToolContributionContext) ([]tool.BaseTool, map[string]struct{}) {
 	if r == nil {
-		return nil
+		return nil, nil
 	}
 	// ordered 保持先注册位置，覆盖时仅替换实现
 	ordered := make([]tool.BaseTool, 0, 16)
 	index := make(map[string]int)
+	deferredNames := make(map[string]struct{})
 	for _, c := range view[ToolContributor](r, ChannelTool) {
 		toolList, err := c.Tools(ctx, tc)
 		if err != nil {
 			logx.WarnfContext(ctx, "[contributor] tool contributor %s build tools error: %v", c.Id(), err)
 			continue
+		}
+		// 收集该贡献者声明的可延迟工具名（可选接口）
+		var contribDeferred map[string]struct{}
+		if dc, ok := c.(DeferredToolContributor); ok {
+			contribDeferred = dc.DeferredToolNames()
 		}
 		for _, t := range toolList {
 			ti, err := t.Info(ctx)
@@ -269,13 +279,30 @@ func (r *Registry) BuildTools(ctx context.Context, tc *ToolContributionContext) 
 				// 同名覆盖（后注册胜出）：高价值诊断事件，插件替换内置实现的唯一痕迹
 				logx.InfofContext(ctx, "[contributor] tool %s overridden by contributor %s (was index %d)", ti.Name, c.Id(), i)
 				ordered[i] = t
+				// 覆盖时同步更新 deferred 状态（新贡献者的声明覆盖旧）
+				if _, wasDeferred := deferredNames[ti.Name]; wasDeferred {
+					delete(deferredNames, ti.Name)
+				}
+				if contribDeferred != nil {
+					if _, ok := contribDeferred[ti.Name]; ok {
+						deferredNames[ti.Name] = struct{}{}
+					}
+				}
 				continue
 			}
 			index[ti.Name] = len(ordered)
 			ordered = append(ordered, t)
+			if contribDeferred != nil {
+				if _, ok := contribDeferred[ti.Name]; ok {
+					deferredNames[ti.Name] = struct{}{}
+				}
+			}
 		}
 	}
-	return ordered
+	if len(deferredNames) == 0 {
+		return ordered, nil
+	}
+	return ordered, deferredNames
 }
 
 // NotifyTurnStart 通知全部生命周期贡献者轮次开始（fail-open）

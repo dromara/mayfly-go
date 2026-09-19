@@ -11,11 +11,11 @@ package itest
 // 运行：cd server && go test -tags it -count=1 -run TestITDumpRealProduct ./internal/db/application/transfer/
 
 import (
-	"mayfly-go/internal/db/application/transfer"
 	"bufio"
 	"context"
 	"fmt"
 	"io"
+	"mayfly-go/internal/db/application/transfer"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,6 +26,7 @@ import (
 
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/export"
 	"mayfly-go/internal/db/dbm/sqlparser"
 )
 
@@ -133,13 +134,13 @@ func TestITDumpRealProductRowBudget(t *testing.T) {
 	// 产物体积与源数据同量级：偏小说明静默截断/丢行
 	assert.Greater(t, size, int64(15<<20), "2万行×~1KB产物应≥15MB（偏小说明导出丢数据）")
 	// 分批生效的直接证据：写入次数≈批次数，且无巨型块
-	assert.GreaterOrEqual(t, probe.chunks, rowCount/dbi.DumpInsertBatchRows, "每次flush应产生一个写入块")
+	assert.GreaterOrEqual(t, probe.chunks, rowCount/export.DefaultBatchRows, "每次flush应产生一个写入块")
 	assert.Less(t, probe.max, 4<<20, "最大写入块应<4MB（出现整表级巨型块说明行数/字节预算失效，内存峰值与单包上限都会失控）")
 
 	script := itReadFile(t, path)
 	inserts := itInsertStmts(conn.GetDialect().GetSQLSplitter(), itSplitStmts(t, conn, script))
-	assert.Equal(t, rowCount/dbi.DumpInsertBatchRows, len(inserts),
-		"真实产物必须是%d行/批的批量INSERT", dbi.DumpInsertBatchRows)
+	assert.Equal(t, rowCount/export.DefaultBatchRows, len(inserts),
+		"真实产物必须是%d行/批的批量INSERT", export.DefaultBatchRows)
 	t.Logf("产物 %.1fMB, 写入块 %d 次(最大 %.2fMB), INSERT语句 %d 条",
 		float64(size)/(1<<20), probe.chunks, float64(probe.max)/(1<<20), len(inserts))
 
