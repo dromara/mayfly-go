@@ -180,7 +180,7 @@ func TestITHeteroMigrate(t *testing.T) {
 	nodes := map[string]func(t *testing.T) *dbi.DbConn{
 		"mysql":    itMysqlNode,
 		"postgres": itPgNode,
-		"sqlite":   itSqliteNode,
+		"sqlite":   itSQLiteNode,
 		"mssql":    itMssqlNode,
 	}
 	for _, spec := range hetSpecs {

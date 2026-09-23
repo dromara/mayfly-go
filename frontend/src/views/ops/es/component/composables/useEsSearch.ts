@@ -102,7 +102,7 @@ export function useEsSearch(options: UseEsSearchOptions) {
             return await esApi.alertError(error, t('es.execError'));
         }
 
-        let fieldMap: Record<string, { width: number }> = {} as Record<string, { width: number }>;
+        let fieldMap: Record<string, { width: number }> = {};
         fieldMap['_id'] = { width: 50 };
 
         state.datas = state.searchRes.hits.hits.map((a: EsHit) => {

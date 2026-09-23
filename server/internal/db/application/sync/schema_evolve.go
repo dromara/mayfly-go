@@ -14,7 +14,7 @@ const (
 	// SchemaChangeTargetColumnMissing 目标表缺少 fieldMap 映射所需的列。
 	SchemaChangeTargetColumnMissing SchemaChangeType = "TARGET_COLUMN_MISSING"
 	// SchemaChangeSourceColumnMissing 源查询结果缺少 fieldMap 映射所需的源列。
-	// 若源表删除了某列或 DataSql 未包含该列，同步会静默产生 NULL 值。
+	// 若源表删除了某列或 DataSQL 未包含该列，同步会静默产生 NULL 值。
 	SchemaChangeSourceColumnMissing SchemaChangeType = "SOURCE_COLUMN_MISSING"
 )
 
@@ -41,6 +41,7 @@ func NewSchemaDetector(mode entity.SchemaEvolveMode) *SchemaDetector {
 }
 
 // DetectChanges 检测 fieldMap 映射的目标列是否在目标表中存在。
+// 不检测源列（srcColumns 传 nil）；如需检测源查询结果缺列，请调用 DetectChangesWithSource 并传入源列名。
 func (d *SchemaDetector) DetectChanges(fieldMap []map[string]string, targetColumns []dbi.Column) []SchemaChange {
 	if d == nil {
 		return nil
@@ -55,11 +56,8 @@ func (d *SchemaDetector) DetectChangesWithSource(fieldMap []map[string]string, s
 		return nil
 	}
 
-	// 构建源列名集合（小写）
-	srcColSet := make(map[string]bool, len(srcColumns))
-	for _, col := range srcColumns {
-		srcColSet[strings.ToLower(col)] = true
-	}
+	// 源列缺失检测（复用聚焦方法，保持单一实现）
+	changes := d.DetectSourceColumnChanges(fieldMap, srcColumns)
 
 	// 构建目标列名集合（小写）
 	targetColMap := make(map[string]dbi.Column, len(targetColumns))
@@ -67,23 +65,8 @@ func (d *SchemaDetector) DetectChangesWithSource(fieldMap []map[string]string, s
 		targetColMap[strings.ToLower(col.ColumnName)] = col
 	}
 
-	var changes []SchemaChange
-
 	for _, fm := range fieldMap {
-		srcCol := fm["src"]
 		targetCol := fm["target"]
-
-		// 检测源列是否存在
-		if srcCol != "" && len(srcColSet) > 0 {
-			if !srcColSet[strings.ToLower(srcCol)] {
-				changes = append(changes, SchemaChange{
-					Type:       SchemaChangeSourceColumnMissing,
-					ColumnName: srcCol,
-					NewValue:   "mapped in fieldMap but not found in source query result",
-				})
-			}
-		}
-
 		// 检测目标列是否存在
 		if targetCol != "" {
 			if _, ok := targetColMap[strings.ToLower(targetCol)]; !ok {
@@ -99,10 +82,39 @@ func (d *SchemaDetector) DetectChangesWithSource(fieldMap []map[string]string, s
 	return changes
 }
 
+// DetectSourceColumnChanges 检测 fieldMap 映射的源列是否存在于源查询结果列中。
+// 源列缺失会导致同步静默产生 NULL 值（源表删列或 DataSQL 未 select 该列）。
+// srcColumns 为空时不检测（无法获取源查询列信息，避免误报所有源列缺失）。
+func (d *SchemaDetector) DetectSourceColumnChanges(fieldMap []map[string]string, srcColumns []string) []SchemaChange {
+	if d == nil || len(srcColumns) == 0 {
+		return nil
+	}
+	srcColSet := make(map[string]bool, len(srcColumns))
+	for _, col := range srcColumns {
+		srcColSet[strings.ToLower(col)] = true
+	}
+
+	var changes []SchemaChange
+	for _, fm := range fieldMap {
+		srcCol := fm["src"]
+		if srcCol == "" {
+			continue
+		}
+		if !srcColSet[strings.ToLower(srcCol)] {
+			changes = append(changes, SchemaChange{
+				Type:       SchemaChangeSourceColumnMissing,
+				ColumnName: srcCol,
+				NewValue:   "mapped in fieldMap but not found in source query result",
+			})
+		}
+	}
+	return changes
+}
+
 // HandleChanges 处理检测到的 Schema 变更。
 // 根据 mode 决定是仅告警还是自动适配（跳过缺失列映射）。
 // 返回应跳过的目标列名集合（auto 模式下目标表不存在的列应跳过，避免 INSERT 报错）。
-func (d *SchemaDetector) HandleChanges(_ func(string, ...any), changes []SchemaChange, taskName string) map[string]bool {
+func (d *SchemaDetector) HandleChanges(changes []SchemaChange, taskName string) map[string]bool {
 	if d == nil || len(changes) == 0 {
 		return nil
 	}

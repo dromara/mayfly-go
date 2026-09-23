@@ -58,8 +58,8 @@ func TestFixColumnDefault(t *testing.T) {
 	}
 }
 
-// TestFixColumnDefault_GeneratedSql 归一后的形态经统一默认值生成器必须产出正确DDL片段
-func TestFixColumnDefault_GeneratedSql(t *testing.T) {
+// TestFixColumnDefault_GeneratedSQL 归一后的形态经统一默认值生成器必须产出正确DDL片段
+func TestFixColumnDefault_GeneratedSQL(t *testing.T) {
 	tests := []struct {
 		name     string
 		raw      string
@@ -88,7 +88,7 @@ func TestFixColumnDefault_GeneratedSql(t *testing.T) {
 			col := &dbi.Column{ColumnDefault: tt.raw, DataType: tt.dataType}
 			FixColumnDefault(col)
 			// 必须走方言SQLGenerator实际使用的Of入口（携带源侧表达式标记），裸文本入口无法体现该语义
-			assert.Equal(t, tt.want, dbi.GenColumnDefaultSqlOf(col, tt.dataType, dbi.QuoteEscape))
+			assert.Equal(t, tt.want, dbi.GenColumnDefaultSQLOf(col, tt.dataType, dbi.QuoteEscape))
 		})
 	}
 }
@@ -97,7 +97,7 @@ func TestFixColumnDefault_GeneratedSql(t *testing.T) {
 func itAfterInsert(t *testing.T, table string, columns []dbi.Column) string {
 	t.Helper()
 	var buf bytes.Buffer
-	require.NoError(t, (&DumpHelper{}).AfterInsert(&buf, table, columns))
+	require.NoError(t, (&DumpTxnWrapper{}).AfterInsert(&buf, table, columns))
 	return buf.String()
 }
 

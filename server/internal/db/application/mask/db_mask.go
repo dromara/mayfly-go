@@ -14,12 +14,10 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	masksvc "mayfly-go/internal/db/domain/mask"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/internal/db/imsg"
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
@@ -27,29 +25,20 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 )
 
-type MaskApp interface {
-	base.App[*entity.DbMaskRule]
+// MaskEngine 通用脱敏引擎：提供脱敏能力供任意模块使用（不局限于数据库查询场景）。
+// 其他模块只需注入 MaskEngine 即可复用脱敏规则与脱敏逻辑。
+type MaskEngine interface {
+	// MaskValue 对单个值执行脱敏，返回脱敏后的值。
+	// nil值原样返回nil；字符串值按命中算法脱敏后返回string；
+	// 数值/布尔等非字符串输入会先转为字符串再脱敏，返回类型为string。
+	// instanceId: 数据库实例ID；db/table/column: 列的上下文定位。
+	// 未启用脱敏/账号豁免/无规则命中时返回原值(nil error)。
+	MaskValue(ctx context.Context, instanceId uint64, db, table, column string, value any) (any, error)
 
-	// GetRulePageList 分页获取脱敏规则
-	GetRulePageList(condition *entity.MaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error)
-
-	// SaveRule 保存脱敏规则
-	SaveRule(ctx context.Context, rule *entity.DbMaskRule) error
-
-	// DeleteRule 删除脱敏规则
-	DeleteRule(ctx context.Context, id uint64) error
-
-	// GetTagPageList 分页获取列标签
-	GetTagPageList(condition *entity.MaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error)
-
-	// GetTagById 根据id获取列标签
-	GetTagById(id uint64) (*entity.DbMaskColumn, error)
-
-	// SaveTag 保存列标签
-	SaveTag(ctx context.Context, tag *entity.DbMaskColumn) error
-
-	// DeleteTag 删除列标签
-	DeleteTag(ctx context.Context, id uint64) error
+	// MaskRowMap 对map结构的一行数据执行脱敏（就地修改map中的值）。
+	// instanceId: 数据库实例ID；db/table: 表级上下文。
+	// 未启用脱敏/账号豁免时不做任何修改。
+	MaskRowMap(ctx context.Context, instanceId uint64, db, table string, row map[string]any) error
 
 	// BuildStmtRowMasker 根据解析后的stmt与查询结果列构建行脱敏器
 	// 未启用脱敏/账号豁免/无规则命中时返回(nil, nil)；
@@ -59,6 +48,39 @@ type MaskApp interface {
 	// BuildQueryRowMasker 根据sql与查询结果列构建行脱敏器（内部解析sql），供AI工具等未预解析场景使用
 	// 错误语义同BuildStmtRowMasker
 	BuildQueryRowMasker(ctx context.Context, dbConn *dbi.DbConn, sql string, columns []*dbi.QueryColumn) (*masksvc.RowMasker, error)
+}
+
+// MaskRuleApp 脱敏规则与列标签的管理（CRUD），供API层调用。
+type MaskRuleApp interface {
+	base.App[*entity.DbMaskRule]
+
+	// GetRulePageList 分页获取脱敏规则
+	GetRulePageList(condition *entity.DbMaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error)
+
+	// SaveRule 保存脱敏规则
+	SaveRule(ctx context.Context, rule *entity.DbMaskRule) error
+
+	// DeleteRule 删除脱敏规则
+	DeleteRule(ctx context.Context, id uint64) error
+
+	// GetTagPageList 分页获取列标签
+	GetTagPageList(condition *entity.DbMaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error)
+
+	// GetTagById 根据id获取列标签
+	GetTagById(id uint64) (*entity.DbMaskColumn, error)
+
+	// SaveTag 保存列标签
+	SaveTag(ctx context.Context, tag *entity.DbMaskColumn) error
+
+	// DeleteTag 删除列标签
+	DeleteTag(ctx context.Context, id uint64) error
+}
+
+// MaskApp 脱敏应用门面：组合通用脱敏引擎 + 规则管理，保持向后兼容。
+// 新代码推荐按职责注入 MaskEngine 或 MaskRuleApp，而非 MaskApp。
+type MaskApp interface {
+	MaskEngine
+	MaskRuleApp
 }
 
 var _ MaskApp = (*MaskAppImpl)(nil)
@@ -76,11 +98,12 @@ type MaskAppImpl struct {
 // planCache 脱敏计划缓存：规则全局生效 + 列标签按实例生效
 // 任一规则/列标签变更时主动失效，并设置TTL兜底（防直接改库绕过失效逻辑）
 type planCache struct {
-	mu      sync.RWMutex
-	plans   map[uint64]*planCacheEntry
-	exempts map[uint64]time.Time // 账号豁免判定缓存
-	version int64                // 变更版本号
-	ttl     time.Duration
+	mu         sync.RWMutex
+	plans      map[uint64]*planCacheEntry
+	exempts    map[uint64]time.Time // 豁免账号正结果缓存
+	notExempts map[uint64]time.Time // 非豁免账号负结果缓存（避免反复查角色）
+	version    int64                // 变更版本号
+	ttl        time.Duration
 }
 
 type planCacheEntry struct {
@@ -96,9 +119,10 @@ const (
 
 func newPlanCache() planCache {
 	return planCache{
-		plans:   make(map[uint64]*planCacheEntry),
-		exempts: make(map[uint64]time.Time),
-		ttl:     planCacheTtl,
+		plans:      make(map[uint64]*planCacheEntry),
+		exempts:    make(map[uint64]time.Time),
+		notExempts: make(map[uint64]time.Time),
+		ttl:        planCacheTtl,
 	}
 }
 
@@ -141,6 +165,7 @@ func (m *MaskAppImpl) invalidate() {
 	m.planCache.version++
 	m.planCache.plans = make(map[uint64]*planCacheEntry)
 	m.planCache.exempts = make(map[uint64]time.Time)
+	m.planCache.notExempts = make(map[uint64]time.Time)
 }
 
 // buildPlan 加载规则与列标签并构建脱敏计划
@@ -278,7 +303,7 @@ func parseMaskParams(paramsJson string) (masksvc.Params, error) {
 	return params, nil
 }
 
-// isExemptAccount 判断当前登录账号是否命中脱敏豁免角色（带缓存）
+// isExemptAccount 判断当前登录账号是否命中脱敏豁免角色（正/负结果均缓存，避免高频查询反复查角色）
 func (m *MaskAppImpl) isExemptAccount(ctx context.Context, accountId uint64) bool {
 	exemptRoleIds := config.GetDbms().MaskExemptRoleIds
 	if len(exemptRoleIds) == 0 || accountId == 0 {
@@ -286,29 +311,43 @@ func (m *MaskAppImpl) isExemptAccount(ctx context.Context, accountId uint64) boo
 	}
 
 	m.planCache.mu.RLock()
-	expireAt, ok := m.planCache.exempts[accountId]
-	m.planCache.mu.RUnlock()
-	if ok && time.Now().Before(expireAt) {
+	if exp, ok := m.planCache.exempts[accountId]; ok && time.Now().Before(exp) {
+		m.planCache.mu.RUnlock()
 		return true
 	}
+	if exp, ok := m.planCache.notExempts[accountId]; ok && time.Now().Before(exp) {
+		m.planCache.mu.RUnlock()
+		return false
+	}
+	m.planCache.mu.RUnlock()
 
 	accountRoles, err := m.roleApp.GetAccountRoles(accountId)
 	if err != nil {
 		logx.ErrorfContext(ctx, "get account roles for mask exempt failed: %s", err.Error())
 		return false
 	}
+	exempt := false
 	for _, ar := range accountRoles {
 		if collx.ArrayContains(exemptRoleIds, ar.RoleId) {
-			m.planCache.mu.Lock()
-			if m.planCache.exempts == nil {
-				m.planCache.exempts = make(map[uint64]time.Time)
-			}
-			m.planCache.exempts[accountId] = time.Now().Add(exemptCacheTtl)
-			m.planCache.mu.Unlock()
-			return true
+			exempt = true
+			break
 		}
 	}
-	return false
+	expireAt := time.Now().Add(exemptCacheTtl)
+	m.planCache.mu.Lock()
+	if m.planCache.exempts == nil {
+		m.planCache.exempts = make(map[uint64]time.Time)
+	}
+	if m.planCache.notExempts == nil {
+		m.planCache.notExempts = make(map[uint64]time.Time)
+	}
+	if exempt {
+		m.planCache.exempts[accountId] = expireAt
+	} else {
+		m.planCache.notExempts[accountId] = expireAt
+	}
+	m.planCache.mu.Unlock()
+	return exempt
 }
 
 // BuildStmtRowMasker 根据解析后的stmt与查询结果列构建行脱敏器
@@ -359,6 +398,47 @@ func (m *MaskAppImpl) buildRowMasker(ctx context.Context, dbConn *dbi.DbConn, se
 	return buildRowMaskerFromPlan(plan, dbConn.Info.GetDatabase(), selectStmt, columns, dbConn.GetDialect().GetSQLParser()), nil
 }
 
+// MaskValue 对单个值执行脱敏（通用能力，任意模块可调用）。
+// 未启用脱敏/账号豁免/无规则命中时返回原值。
+func (m *MaskAppImpl) MaskValue(ctx context.Context, instanceId uint64, db, table, column string, value any) (any, error) {
+	if !config.GetDbms().MaskEnabled {
+		return value, nil
+	}
+	if account := contextx.GetLoginAccount(ctx); account != nil && m.isExemptAccount(ctx, account.Id) {
+		return value, nil
+	}
+	plan, err := m.getPlan(ctx, instanceId)
+	if err != nil {
+		return nil, err
+	}
+	if plan == nil || plan.Empty() {
+		return value, nil
+	}
+	return plan.MaskValue(db, table, column, value), nil
+}
+
+// MaskRowMap 对map结构的一行数据执行脱敏（就地修改map中的值）。
+// 未启用脱敏/账号豁免时不做任何修改。
+func (m *MaskAppImpl) MaskRowMap(ctx context.Context, instanceId uint64, db, table string, row map[string]any) error {
+	if !config.GetDbms().MaskEnabled || len(row) == 0 {
+		return nil
+	}
+	if account := contextx.GetLoginAccount(ctx); account != nil && m.isExemptAccount(ctx, account.Id) {
+		return nil
+	}
+	plan, err := m.getPlan(ctx, instanceId)
+	if err != nil {
+		return err
+	}
+	if plan == nil || plan.Empty() {
+		return nil
+	}
+	for column, value := range row {
+		row[column] = plan.MaskValue(db, table, column, value)
+	}
+	return nil
+}
+
 // maxMaskLineageDepth 派生表血缘递归解析的最大深度限制，防恶意深嵌套SQL过度解析
 const maxMaskLineageDepth = 5
 
@@ -374,7 +454,7 @@ type queryLineage struct {
 }
 
 // buildRowMaskerFromPlan 基于给定脱敏计划构建行脱敏器（纯函数，不依赖配置/账号/规则库，便于跨方言运行时验证）
-func buildRowMaskerFromPlan(plan *masksvc.Plan, database string, selectStmt *sqlstmt.SelectStmt, columns []*dbi.QueryColumn, parser sqlparser.SqlParser) *masksvc.RowMasker {
+func buildRowMaskerFromPlan(plan *masksvc.Plan, database string, selectStmt *sqlstmt.SelectStmt, columns []*dbi.QueryColumn, parser sqlparser.SQLParser) *masksvc.RowMasker {
 	resultKeys := make([]string, 0, len(columns))
 	for _, col := range columns {
 		resultKeys = append(resultKeys, col.Key)
@@ -392,7 +472,7 @@ func buildRowMaskerFromPlan(plan *masksvc.Plan, database string, selectStmt *sql
 			tableOf[key] = ref.table
 		}
 	}
-	// 仅按名字兑底的模式下，重名列场景（行数据key是col.Key，连接查询重名列会被改名）别名映射补充按Name查找；
+	// 仅按名字兜底的模式下，重名列场景（行数据key是col.Key，连接查询重名列会被改名）别名映射补充按Name查找；
 	// 位置对应模式下Key已直接映射，不做补充（避免表达式项被邻近同名列的错误归属）
 	if selectStmt != nil && len(selectStmt.Items) != len(columns) {
 		for _, col := range columns {
@@ -416,12 +496,12 @@ func buildRowMaskerFromPlan(plan *masksvc.Plan, database string, selectStmt *sql
 
 // buildQueryLineage 构建SELECT语句的列级血缘。
 //   - resultKeys为期望结果列列表：其长度与select项数一致且无星号展开时按位置精确对应
-//     （覆盖别名/无别名/限定名/重名列全部场景）；否则退化为按结果列名/别名映射兑底
+//     （覆盖别名/无别名/限定名/重名列全部场景）；否则退化为按结果列名/别名映射兜底
 //   - resultKeys为nil表示派生表内层血缘：按输出列名记录（含别名与纯列引用），
 //     星号展开时内层输出列未知，整体放弃
 //   - plan/database用于校验表达式项token引用是否命中脱敏计划（内层血缘传nil）
 //   - parser用于递归解析派生表内层SQL以建立表级血缘，depth限制递归深度
-func buildQueryLineage(sel *sqlstmt.SelectStmt, resultKeys []string, plan *masksvc.Plan, database string, parser sqlparser.SqlParser, depth int) *queryLineage {
+func buildQueryLineage(sel *sqlstmt.SelectStmt, resultKeys []string, plan *masksvc.Plan, database string, parser sqlparser.SQLParser, depth int) *queryLineage {
 	if sel == nil || depth > maxMaskLineageDepth {
 		return nil
 	}
@@ -548,7 +628,7 @@ func buildQueryLineage(sel *sqlstmt.SelectStmt, resultKeys []string, plan *masks
 			lin.refs[outCol] = ref
 		}
 	} else {
-		// 外层按名字兑底：仅带别名的普通列按结果列名映射（星号展开等场景）
+		// 外层按名字兜底：仅带别名的普通列按结果列名映射（星号展开等场景）
 		for _, item := range sel.Items {
 			if item.Alias == "" || item.ColumnName == "" || strings.ContainsAny(item.ColumnName, "( ") {
 				continue
@@ -561,15 +641,15 @@ func buildQueryLineage(sel *sqlstmt.SelectStmt, resultKeys []string, plan *masks
 }
 
 // addDerived 递归解析派生表SQL，建立其别名到"输出列 -> 内层源表/源列"血缘的映射
-func (l *queryLineage) addDerived(alias, rawText string, parser sqlparser.SqlParser, depth int) {
+func (l *queryLineage) addDerived(alias, rawText string, parser sqlparser.SQLParser, depth int) {
 	if alias == "" || parser == nil {
 		return
 	}
-	innerSql := extractParenInner(rawText)
-	if innerSql == "" {
+	innerSQL := extractParenInner(rawText)
+	if innerSQL == "" {
 		return
 	}
-	stmt, err := parser.Parse(innerSql)
+	stmt, err := parser.Parse(innerSQL)
 	if err != nil {
 		return
 	}
@@ -771,174 +851,4 @@ func (l *queryLineage) resolveExprItem(key, exprBody string, colRefs map[string]
 		l.refs[key] = exprColRef{colName: colName, table: refTable, locked: true}
 		return
 	}
-}
-
-// extractParenInner 从以'('开头的文本截取首个平衡括号对内的内容
-// （方言解析器的派生表Name可能带别名/ON等尾巴，如"(SELECT ...) t"、"(...) y ON"），失败返回空串
-func extractParenInner(text string) string {
-	if !strings.HasPrefix(text, "(") {
-		return ""
-	}
-	depth := 0
-	for i := 0; i < len(text); i++ {
-		switch text[i] {
-		case '\'': // 跳过单引号字符串字面量（含''转义），避免字面量括号干扰配对
-			for i++; i < len(text); i++ {
-				if text[i] == '\'' {
-					if i+1 < len(text) && text[i+1] == '\'' {
-						i++
-						continue
-					}
-					break
-				}
-			}
-		case '(':
-			depth++
-		case ')':
-			depth--
-			if depth == 0 {
-				return text[1:i]
-			}
-		}
-	}
-	return ""
-}
-
-// stripTableAlias 去除列名的表别名前缀与引用符，如 t.phone -> phone、t."PHONE" -> PHONE
-func stripTableAlias(column string) string {
-	if idx := lastDotIdx(column); idx >= 0 {
-		column = column[idx+1:]
-	}
-	return strings.Trim(column, "`\"'")
-}
-
-// stripTableName 去除表名的库名前缀与引用符，如 `db`.`t_user` -> t_user
-func stripTableName(table string) string {
-	table = strings.Trim(table, "`\"'")
-	if idx := lastDotIdx(table); idx >= 0 {
-		table = table[idx+1:]
-	}
-	return table
-}
-
-func lastDotIdx(s string) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == '.' {
-			return i
-		}
-	}
-	return -1
-}
-
-// stripExprAliasSuffix 去除select项文本尾部的 AS 别名（大小写不敏感），返回表达式主体
-func stripExprAliasSuffix(text string) string {
-	if idx := strings.LastIndex(strings.ToUpper(text), " AS "); idx >= 0 {
-		return strings.TrimSpace(text[:idx])
-	}
-	return strings.TrimSpace(text)
-}
-
-// exprColRef 查询内列引用的血缘信息（供表达式项token匹配与派生表血缘传播）
-type exprColRef struct {
-	colName string // 源列名（保留原始大小写）
-	table   string // 来源表（限定名场景）；空串且locked=true表示确定无来源表，仅全局规则解析
-	locked  bool   // 血缘是否锁定（锁定后不再按tables列表顺序逐表尝试兑底）
-}
-
-// isExprItem 判断select项是否为表达式/函数项。
-// 项类型分类已收敛到解析器（base.ClassifySelectItem，跨方言Kind语义一致），应用层仅消费Kind
-func isExprItem(item sqlstmt.SelectItem) bool {
-	return item.Kind == sqlstmt.SelectItemExpr || item.Kind == sqlstmt.SelectItemFunction
-}
-
-// GetRulePageList 分页获取脱敏规则
-func (m *MaskAppImpl) GetRulePageList(condition *entity.MaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error) {
-	return m.maskRuleRepo.GetPageList(condition, orderBy...)
-}
-
-// SaveRule 保存脱敏规则，校验算法与参数合法性
-func (m *MaskAppImpl) SaveRule(ctx context.Context, rule *entity.DbMaskRule) error {
-	if rule.MatchType != entity.MaskMatchTypeRegex && rule.MatchType != entity.MaskMatchTypeExact && rule.MatchType != entity.MaskMatchTypePrefix {
-		return errorx.NewBizf("invalid mask rule match type: %d", rule.MatchType)
-	}
-	if _, err := masksvc.Get(rule.Algorithm); err != nil {
-		return err
-	}
-	if _, err := parseMaskParams(rule.Params); err != nil {
-		return err
-	}
-	if rule.MatchType == entity.MaskMatchTypeRegex && rule.Pattern != "" {
-		if _, err := masksvc.NewPlan([]*masksvc.Rule{{MatchType: masksvc.MatchTypeRegex, Pattern: rule.Pattern}}, nil); err != nil {
-			return err
-		}
-	}
-	if err := m.maskRuleRepo.Save(ctx, rule); err != nil {
-		return err
-	}
-	m.invalidate()
-	return nil
-}
-
-// DeleteRule 删除脱敏规则
-func (m *MaskAppImpl) DeleteRule(ctx context.Context, id uint64) error {
-	if err := m.maskRuleRepo.DeleteById(ctx, id); err != nil {
-		return err
-	}
-	m.invalidate()
-	return nil
-}
-
-// GetTagPageList 分页获取列标签
-func (m *MaskAppImpl) GetTagPageList(condition *entity.MaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error) {
-	return m.maskColumnRepo.GetPageList(condition, orderBy...)
-}
-
-// GetTagById 根据id获取列标签
-func (m *MaskAppImpl) GetTagById(id uint64) (*entity.DbMaskColumn, error) {
-	return m.maskColumnRepo.GetById(id)
-}
-
-// SaveTag 保存列标签，校验动作对应的算法/规则配置
-func (m *MaskAppImpl) SaveTag(ctx context.Context, tag *entity.DbMaskColumn) error {
-	if tag.InstanceId == 0 {
-		return errorx.NewBizf("mask column tag instance id is required")
-	}
-	switch tag.Action {
-	case entity.MaskColumnActionBind:
-		if tag.Algorithm == "" && tag.RuleId == 0 {
-			return errorx.NewBizI(ctx, imsg.ErrMaskTagNeedAlgoOrRule)
-		}
-		if tag.Algorithm != "" {
-			if _, err := masksvc.Get(tag.Algorithm); err != nil {
-				return err
-			}
-		} else if _, err := m.maskRuleRepo.GetById(tag.RuleId); err != nil {
-			return err
-		}
-	case entity.MaskColumnActionExempt:
-	default:
-		return errorx.NewBizf("invalid mask column action: %d", tag.Action)
-	}
-	if _, err := parseMaskParams(tag.Params); err != nil {
-		return err
-	}
-	if err := m.maskColumnRepo.Save(ctx, tag); err != nil {
-		return err
-	}
-	m.invalidate()
-	return nil
-}
-
-// DeleteTag 删除列标签
-func (m *MaskAppImpl) DeleteTag(ctx context.Context, id uint64) error {
-	if err := m.maskColumnRepo.DeleteById(ctx, id); err != nil {
-		return err
-	}
-	m.invalidate()
-	return nil
-}
-
-// GetMaskApp 获取脱敏应用门面
-func GetMaskApp() MaskApp {
-	return ioc.Get[MaskApp]()
 }

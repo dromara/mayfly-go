@@ -82,7 +82,7 @@ func (c *ResourceAuthCert) SaveAuthCert(rc *req.Ctx) {
 }
 
 func (c *ResourceAuthCert) Delete(rc *req.Ctx) {
-	id := rc.PathParamInt("id")
+	id := cast.ToUint64(rc.PathParam("id"))
 	rc.ReqParam = id
 	biz.ErrIsNil(c.resourceAuthCertApp.DeleteAuthCert(rc.MetaCtx, cast.ToUint64(id)))
 }

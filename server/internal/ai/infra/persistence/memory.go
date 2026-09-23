@@ -51,7 +51,7 @@ func (m *memoryRepoImpl) SelectByUser(ctx context.Context, userId string, keywor
 	args = append(args, limit)
 
 	var memories []*entity.Memory
-	if err := m.SelectBySql(sql.String(), &memories, args...); err != nil {
+	if err := m.SelectBySQL(sql.String(), &memories, args...); err != nil {
 		return nil, err
 	}
 	return memories, nil

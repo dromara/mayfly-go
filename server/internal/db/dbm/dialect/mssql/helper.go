@@ -43,10 +43,10 @@ func (ch *ColumnHelper) FixColumn(column *dbi.Column) {
 
 }
 
-var _ dbi.DumpHelper = (*DumpHelper)(nil)
+var _ dbi.DumpTxnWrapper = (*DumpTxnWrapper)(nil)
 
-type DumpHelper struct {
-	dbi.DefaultDumpHelper
+type DumpTxnWrapper struct {
+	dbi.DefaultDumpTxnWrapper
 }
 
 // hasIdentityColumn 判断表是否包含自增列
@@ -60,13 +60,13 @@ func hasIdentityColumn(columns []dbi.Column) bool {
 }
 
 // mssql 在insert语句前后不能识别begin和commit语句
-func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+func (dh *DumpTxnWrapper) BeforeInsert(writer io.Writer, tableName string) error {
 	return nil
 }
 
 // mssql 在insert语句前后不能识别begin和commit语句；无自增列时也不输出COMMIT
-func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
-	// 对应BeforeInsertSql输出的identity_insert on，需输出off，否则会话保持on状态，
+func (dh *DumpTxnWrapper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
+	// 对应BeforeInsertSQL输出的identity_insert on，需输出off，否则会话保持on状态，
 	// 后续其他含自增表的on语句会报"already ON for table"错误
 	if hasIdentityColumn(columns) {
 		_, err := writer.Write([]byte(fmt.Sprintf("set identity_insert %s off;\n", mssqlQuoter.QuoteIdent(tableName))))
@@ -76,7 +76,7 @@ func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []
 }
 
 // 仅含自增列的表才需要set identity_insert，否则mssql报"does not have the identity property"错误
-func (dh *DumpHelper) BeforeInsertSql(tableName string, columns []dbi.Column) string {
+func (dh *DumpTxnWrapper) BeforeInsertSQL(tableName string, columns []dbi.Column) string {
 	if !hasIdentityColumn(columns) {
 		return ""
 	}

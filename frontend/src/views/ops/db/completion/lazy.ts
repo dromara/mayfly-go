@@ -10,17 +10,21 @@
  *
  * ## 为什么需要「使用方作用域」而不是一对准 register/dispose 函数
  *
- * monaco 的补全注册表按语言全局共享（一个 language 同时只有一个 provider 生效），provider 闭包持有
- * 注册时刻的库上下文。本站又用 keep-alive + 多标签页，于是数据库标签页、同步任务抽屉、SQL 执行审批
- * 表单可能同时存活且各自持有不同库上下文，因此：
- * - 任一使用方卸载不能无条件注销，否则其余使用方的联想一起失效，而它们只在挂载/选库时注册过一次，
- *   不会自愈；
- * - 注销后还要把 provider 交回**上一个仍在存活的注册者**，否则 provider 会继续停留在已卸载使用方的
- *   库上下文上；
- * - 被别的页面抢走过 provider 的使用方，回到前台时须重新申领（见 SqlCompletionScope#refresh）。
+ * monaco 的补全注册表按语言全局共享（一个 language 同时只有一个 provider 生效）。
+ * 本站用 keep-alive + 多标签页，数据库标签页、同步任务抽屉、SQL 执行审批表单可能同时存活
+ * 且各自持有不同库上下文。若 provider 闭包只记最后一次注册者，用户在 A 库编辑器里触发补全
+ * 会拿到 B 库的提示（跨标签页/跨页面串扰）。
  *
- * 这里按「注册顺序」维护使用方列表而非做 model 级路由：补全上下文的归属单位是使用方（一个页面/表单），
- * 而 monaco 只在注册期接受闭包，改成 model 级分发需要每个编辑器暴露自己的 model uri，代价与收益不匹配。
+ * 因此 provider 只注册一次，内部按 editorUri（每个编辑器实例的唯一标识）查 scopeByEditor
+ * 路由到正确的库上下文；各使用方在 register 时把自己的 editorUri 登记到本表，provider
+ * 触发时按 URI 命中；未命中则回落 owners 末位（兼容未上报 editorUri 的场景）。
+ *
+ * ## 为什么 provider 一旦安装就不再注销
+ *
+ * 若使用方全部释放时异步 dispose，会与「加载中的 claim」形成竞态：dispose 前一次
+ * 迟到的 install 回调把 claimed 置 true 却又被 dispose，后续任何 claim 因 claimed=true
+ * 直接短路，导致同一会话内永久失去联想。SQL 补全 provider 对未登记的编辑器返回 null
+ * 与「provider 被 dispose」的行为等价（该编辑器无补全），故选择安装即常驻以彻底消除竞态。
  */
 let modulePromise: Promise<typeof import('./index')> | null = null;
 
@@ -30,10 +34,24 @@ type CompletionParams = {
     db: string;
     dbs: string[] | undefined;
     dbType: string;
+    /** 编辑器实例唯一标识（monaco model.uri.toString()），多编辑器共存时按编辑器路由补全上下文 */
+    editorUri?: string;
 };
 
-/** 存活的使用方，按申领先后排列，末位即当前持有全局 provider 者 */
+/** 存活的使用方，按申领先后排列，末位即未上报 editorUri 时的回落目标 */
 const owners: CompletionParams[] = [];
+
+/**
+ * 编辑器 URI → 补全作用域（CompletionParams）映射表。
+ * provider 按 editorUri 查表取参数，使多编辑器共存时各走各的库上下文，不再互相覆盖。
+ * 与 owners（作用域列表，按申领先后排列）互补：owners 提供回落目标，本表提供精确路由。
+ */
+const scopeByEditor: Map<string, CompletionParams> = new Map();
+
+/** provider 是否已安装；一旦安装即常驻，不再回到 false（见文件头「安装即常驻」说明） */
+let providerInstalled = false;
+/** 并发 claim 去重：多个使用方同时首启时只发一次 install */
+let providerInstalling = false;
 
 /**
  * 取用补全实现模块。
@@ -52,12 +70,26 @@ function loadCompletion() {
     return modulePromise;
 }
 
-/** 申领全局 provider：把 provider 闭包指向本使用方的上下文 */
-function claim(params: CompletionParams) {
-    // 同一时刻发起的多次申领挂在同一 promise 上，按附加顺序执行，故最后一次生效（与原同步语义一致）
+/**
+ * 确保全局 provider 已安装：首次调用触发异步注册，后续调用为 no-op。
+ * 未命中的编辑器由 resolver 返回 null，provider 直接放弃产出建议。
+ */
+function ensureProvider() {
+    if (providerInstalled || providerInstalling) {
+        return;
+    }
+    providerInstalling = true;
     loadCompletion()
-        .then(({ registerDbCompletionItemProvider }) => registerDbCompletionItemProvider(params.dbId, params.db, params.dbs, params.dbType))
-        .catch((e: unknown) => console.error('[db] load sql completion failed:', e));
+        .then(({ registerDbCompletionItemProvider }) => {
+            // provider 每次触发时按 editorUri 查 scopeByEditor 取对应库上下文；未登记时回落 owners 末位
+            registerDbCompletionItemProvider((editorUri: string) => scopeByEditor.get(editorUri) || owners[owners.length - 1] || null);
+            providerInstalled = true;
+        })
+        .catch((e: unknown) => {
+            console.error('[db] load sql completion failed:', e);
+            // 加载失败允许下次 claim 重试；成功安装即常驻
+            providerInstalling = false;
+        });
 }
 
 /** SQL 联想使用方作用域：一个使用方（页面/表单组件）对应一个实例 */
@@ -67,23 +99,30 @@ export type SqlCompletionScope = {
      *
      * @param dbs 实例下的库列表，用于 `.` 触发时的库名联想；缺省表示不做库名联想
      * @param dbType 数据库类型，决定方言（关键字、切分符、引用符）
+     * @param editorUri 编辑器实例唯一标识（monaco model.uri.toString()），多编辑器共存时按编辑器路由补全上下文
      */
-    register(dbId: number, db: string, dbs: string[] | undefined, dbType: string): void;
+    register(dbId: number, db: string, dbs: string[] | undefined, dbType: string, editorUri?: string): void;
     /**
-     * 重新申领：以上次注册的上下文把 provider 指回本使用方，未注册过则为空操作。
+     * 提升本作用域在 owners 中的位置到末位（回落目标）。
      *
-     * 用于 keep-alive 页面回到前台（onActivated）——期间 provider 可能已被其他页面申领。
+     * 用于 keep-alive 页面回到前台（onActivated）——期间其他页面可能已注册，
+     * 回落目标需要指回本作用域。
      */
     refresh(): void;
-    /** 释放本使用方；交回上一个存活的使用方，无人存活时才注销全局 provider */
+    /** 释放本作用域：清理登记的 editorUri 映射并移出 owners；provider 本身保持安装状态 */
     release(): void;
+    /**
+     * 补登编辑器实例标识：编辑器 @ready 后才能拿到 URI，此时 register 已调用过，
+     * 需单独补登使 provider 能按编辑器路由到本作用域。
+     */
+    setEditorUri(editorUri: string): void;
 };
 
 export function createSqlCompletionScope(): SqlCompletionScope {
     // 本作用域在 owners 中的槽位；register 首次调用时入列，release 时出列
     let slot: CompletionParams | null = null;
 
-    /** 把本作用域的槽位移到末位（成为当前生效者） */
+    /** 把本作用域的槽位移到末位（成为回落时的当前生效者） */
     function promote(active: CompletionParams) {
         const index = owners.indexOf(active);
         if (index === owners.length - 1) {
@@ -94,46 +133,50 @@ export function createSqlCompletionScope(): SqlCompletionScope {
     }
 
     return {
-        register(dbId: number, db: string, dbs: string[] | undefined, dbType: string) {
+        register(dbId: number, db: string, dbs: string[] | undefined, dbType: string, editorUri?: string) {
             if (slot) {
-                Object.assign(slot, { dbId, db, dbs, dbType });
+                Object.assign(slot, { dbId, db, dbs, dbType, editorUri: editorUri ?? slot.editorUri });
             } else {
-                slot = { dbId, db, dbs, dbType };
+                slot = { dbId, db, dbs, dbType, editorUri };
                 owners.push(slot);
             }
+            if (slot.editorUri) {
+                scopeByEditor.set(slot.editorUri, slot);
+            }
             promote(slot);
-            claim(slot);
+            ensureProvider();
         },
         refresh() {
             if (!slot) {
                 return;
             }
             promote(slot);
-            claim(slot);
+            ensureProvider();
+        },
+        setEditorUri(editorUri: string) {
+            if (!slot) {
+                return;
+            }
+            // 清理旧 editorUri 映射条目（同一 slot 的编辑器标识通常不变，但防御性清理避免残留）
+            if (slot.editorUri && slot.editorUri !== editorUri) {
+                scopeByEditor.delete(slot.editorUri);
+            }
+            slot.editorUri = editorUri;
+            scopeByEditor.set(editorUri, slot);
+            ensureProvider();
         },
         release() {
             if (!slot) {
                 return;
             }
-            // 只有本使用方正在持有 provider 时，退出才需要交接
-            const wasActive = slot === owners[owners.length - 1];
+            // 清理本作用域登记的 editorUri
+            if (slot.editorUri) {
+                scopeByEditor.delete(slot.editorUri);
+            }
             owners.splice(owners.indexOf(slot), 1);
             slot = null;
-            // modulePromise 为空说明编辑器从未加载，注册表里不会有本语言 provider
-            if (!modulePromise) {
-                return;
-            }
-            const previous = owners[owners.length - 1];
-            if (previous) {
-                if (wasActive) {
-                    claim(previous);
-                }
-                return;
-            }
-            // 清理路径不外抛：编辑器模块加载失败时本就无可注销的东西
-            modulePromise
-                .then(({ disposeDbCompletionItemProvider }) => disposeDbCompletionItemProvider())
-                .catch(() => undefined);
+            // 不注销 provider：resolver 对未登记编辑器返回 null 与「dispose」行为等价，
+            // 且避免「异步 install 未落定 + 立即 dispose」的状态分歧导致后续 claim 永久失效
         },
     };
 }

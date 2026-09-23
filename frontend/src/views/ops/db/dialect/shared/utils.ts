@@ -17,7 +17,7 @@ export function QuoteEscape(str: string): string {
 
 /**
  * 子串匹配：检查 text 是否包含 arr 中任意元素（大小写敏感）
- * 原实现分散在 PostgreSQL/Oracle/DM 三个方言中，逻辑完全相同
+ * 各方言（PostgreSQL/Oracle/DM 等）逻辑一致，收敛为共用实现
  */
 export function matchType(text: string, arr: string[]): boolean {
     if (!text || !arr || arr.length === 0) {
@@ -66,7 +66,7 @@ export function matchNumericType(columnType: string): RegExpMatchArray | null {
 
 /**
  * 通用数据类型判断（适用于大多数关系型数据库）
- * 原实现分散在 MySQL/PostgreSQL/MSSQL/SQLite/ClickHouse/DM 六个方言中
+ * 多数方言逻辑一致，收敛为共用实现
  */
 export function getDefaultDataType(columnType: string): 'string' | 'number' | 'date' | 'time' | 'datetime' {
     const lower = columnType.toLowerCase();
@@ -95,7 +95,7 @@ export function getDefaultDataType(columnType: string): 'string' | 'number' | 'd
 
 /**
  * 通用值包装（适用于大多数关系型数据库）
- * 原实现分散在 MySQL/PostgreSQL/SQLite/DM 四个方言中
+ * 多数方言逻辑一致，收敛为共用实现
  */
 export function wrapValueDefault(columnType: string, value: unknown): string | number | boolean | null {
     if (value == null) {

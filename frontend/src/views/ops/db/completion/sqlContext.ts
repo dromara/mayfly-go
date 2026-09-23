@@ -196,7 +196,7 @@ export function resolveNearestTableContext(sql: string, cursorOffset: number, de
 
 /**
  * 解析语句作用域内的所有表（按出现顺序，含别名/库名），
- * 用于 SELECT/WHERE/ON 等列上下文提示全作用域字段（对齐 DataGrip 多表场景行为）。
+ * 用于 SELECT/WHERE/ON 等列上下文提示全作用域字段（多表 JOIN 场景）。
  */
 export function resolveScopeTableContexts(sql: string, defaultDb: string): TableCtx[] {
     return parseTableRefs(sql, defaultDb).map((r) => r.table);

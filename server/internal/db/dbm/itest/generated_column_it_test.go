@@ -13,7 +13,7 @@ package itest
 
 import (
 	"fmt"
-	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/ititest/scratchclean"
 	"strings"
 	"testing"
 
@@ -34,19 +34,53 @@ const itMssqlDatabase = "mayfly_it"
 // gcMssqlConn 连接本机SQL Server集成测试容器；容器未启动时跳过用例（不影响其余方言回归）
 func gcMssqlConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
-	conn, err := dbm.Conn(itCtx(), &dbi.DbInfo{
+	conn, err := scratchclean.Conn(itCtx(), &dbi.DbInfo{
 		Type: gcMssql, Host: "127.0.0.1", Port: 11433,
 		Username: "sa", Password: "Mayfly_123456",
 		Database: itMssqlDatabase + "/dbo", Params: "encrypt=disable",
 	})
 	if err != nil {
-		t.Skipf("mssql it container unavailable: %s", err.Error())
+		scratchclean.SkipOrRequire(t, "mssql", err.Error())
 	}
 	if err = conn.Ping(); err != nil {
 		_ = conn.Close()
-		t.Skipf("mssql it container unreachable: %s", err.Error())
+		scratchclean.SkipOrRequire(t, "mssql", err.Error())
 	}
 	return conn
+}
+
+func TestITMssqlReconcileDelete(t *testing.T) {
+	conn := gcMssqlConn(t)
+	defer conn.Close()
+	mustExec(t, conn, "CREATE TABLE it_delete_single (id int PRIMARY KEY)")
+	mustExec(t, conn, "INSERT INTO it_delete_single VALUES (1),(2),(3000),(4000)")
+	keys := make([][]any, 3000)
+	for i := range keys {
+		keys[i] = []any{i + 1}
+	}
+	gen := conn.GetDialect().GetSQLGenerator()
+	statements := gen.GenBatchDelete("it_delete_single", []string{"id"}, keys, nil)
+	require.Len(t, statements, 1)
+	affected, err := conn.Exec(statements[0])
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), affected)
+	_, rows, err := conn.Query("SELECT id FROM it_delete_single ORDER BY id")
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	assert.Equal(t, "3000", fmt.Sprint(rows[2]["id"]))
+
+	mustExec(t, conn, "CREATE TABLE it_delete_composite (k1 int, k2 nvarchar(30), PRIMARY KEY(k1,k2))")
+	mustExec(t, conn, "INSERT INTO it_delete_composite VALUES (1,N'中文'),(1,N'b'),(2,N'b')")
+	statements = gen.GenBatchDelete("it_delete_composite", []string{"k1", "k2"}, [][]any{{1, "中文"}, {2, "b"}}, nil)
+	require.Len(t, statements, 1)
+	affected, err = conn.Exec(statements[0])
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), affected)
+	_, rows, err = conn.Query("SELECT k1,k2 FROM it_delete_composite ORDER BY k1")
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	assert.Equal(t, "中文", fmt.Sprint(rows[0]["k2"]))
+	assert.Equal(t, "2", fmt.Sprint(rows[1]["k1"]))
 }
 
 func gcConn(t *testing.T, dt dbi.DbType) *dbi.DbConn {

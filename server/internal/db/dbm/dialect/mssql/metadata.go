@@ -14,10 +14,10 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 const (
 	MSSQL_DBS_KEY        = "MSSQL_DBS"
@@ -34,7 +34,6 @@ var (
 
 type MssqlMetadata struct {
 	dbi.DefaultServerInfo
-	dbi.DefaultMetadataProvider
 
 	di *dbi.DbInfo
 }
@@ -55,7 +54,7 @@ func (md *MssqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 }
 
 func (md *MssqlMetadata) GetDbNames() ([]string, error) {
-	_, res, err := md.di.Query(metaSql.Get(MSSQL_DBS_KEY))
+	_, res, err := md.di.Query(metaSQL.Get(MSSQL_DBS_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +78,7 @@ func (md *MssqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(metaSql.Get(MSSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSQL.Get(MSSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +109,7 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := md.di.Query(fmt.Sprintf(metaSql.Get(MSSQL_COLUMN_MA_KEY), tableName), md.di.CurrentSchema())
+	_, res, err := md.di.Query(fmt.Sprintf(metaSQL.Get(MSSQL_COLUMN_MA_KEY), tableName), md.di.CurrentSchema())
 	if err != nil {
 		return nil, err
 	}
@@ -155,34 +154,36 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 	return columns, nil
 }
 
-// 获取表主键字段名，不存在主键标识则默认第一个字段
-func (md *MssqlMetadata) GetPrimaryKey(tablename string) (string, error) {
+// GetPrimaryKeys 获取表的有序主键列名（联合主键多列）；无主键返回空切片
+func (md *MssqlMetadata) GetPrimaryKeys(tablename string) ([]string, error) {
 	columns, err := md.GetColumns(tablename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(columns) == 0 {
-		return "", errorx.NewBizf("[%s] 表不存在", tablename)
+		return nil, errorx.NewBizf("[%s] 表不存在", tablename)
 	}
 
+	pks := make([]string, 0, 2)
 	for _, v := range columns {
 		if v.IsPrimaryKey {
-			return v.ColumnName, nil
+			pks = append(pks, v.ColumnName)
 		}
 	}
 
-	return columns[0].ColumnName, nil
+	// 联合主键返回多列；无主键返回空切片（不兜底首列）
+	return pks, nil
 }
 
 // 需要收集唯一键涉及的字段，所以需要查询出带主键的索引
 func (md *MssqlMetadata) getTableIndexWithPK(tableName string) ([]dbi.Index, error) {
-	_, res, err := md.di.Query(metaSql.Get(MSSQL_INDEX_INFO_KEY), md.di.CurrentSchema(), tableName)
+	_, res, err := md.di.Query(metaSQL.Get(MSSQL_INDEX_INFO_KEY), md.di.CurrentSchema(), tableName)
 	if err != nil {
 		return nil, err
 	}
-	indexs := make([]dbi.Index, 0)
+	indexes := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, dbi.Index{
+		indexes = append(indexes, dbi.Index{
 			IndexName:    cast.ToString(re["indexName"]),
 			ColumnName:   cast.ToString(re["columnName"]),
 			IndexType:    cast.ToString(re["indexType"]),
@@ -193,16 +194,19 @@ func (md *MssqlMetadata) getTableIndexWithPK(tableName string) ([]dbi.Index, err
 		})
 	}
 	// 把查询结果以索引名分组，多个索引字段以逗号连接
-	// 返回分组合并后的结果，原实现误返回未分组的indexs导致组合索引被拆为多行
-	return dbi.GroupIndexColumns(indexs), nil
+	// 返回分组合并后的结果（组合索引须合并为一行，不能返回未分组的逐列结果）
+	return dbi.GroupIndexColumns(indexes), nil
 }
 
 // 获取表索引信息
 func (md *MssqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	indexs, _ := md.getTableIndexWithPK(tableName)
+	indexes, err := md.getTableIndexWithPK(tableName)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]dbi.Index, 0)
 	// 过滤掉主键索引
-	for _, v := range indexs {
+	for _, v := range indexes {
 		if v.IsPrimaryKey {
 			continue
 		}
@@ -217,7 +221,7 @@ func (md *MssqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (s
 }
 
 func (md *MssqlMetadata) GetSchemas() ([]string, error) {
-	_, res, err := md.di.Query(metaSql.Get(MSSQL_DB_SCHEMAS_KEY))
+	_, res, err := md.di.Query(metaSQL.Get(MSSQL_DB_SCHEMAS_KEY))
 	if err != nil {
 		return nil, err
 	}

@@ -54,7 +54,7 @@ func (md *MysqlDialect) Quoter() dbi.Quoter {
 	return mysqlQuoter
 }
 
-func (md *MysqlDialect) GetSQLParser() sqlparser.SqlParser {
+func (md *MysqlDialect) GetSQLParser() sqlparser.SQLParser {
 	return new(mysql.MysqlParser)
 }
 
@@ -64,5 +64,5 @@ func (md *MysqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 }
 
 func (md *MysqlDialect) GetSQLGenerator() dbi.SQLGenerator {
-	return &SQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: md.Quoter}, Dialect: md}
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: md.Quoter}, Dialect: md}
 }

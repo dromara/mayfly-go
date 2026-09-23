@@ -26,9 +26,8 @@ type Shard struct {
 
 // DetectIntPrimaryKey 判定表是否存在**真实的单列整型主键**，返回主键列名；否则返回 ""（不应分片）。
 //
-// 注意：不使用 Metadata.GetPrimaryKey 的"默认第一个字段"兜底——该兜底可能返回非主键字段，
-// 若据此生成 min/max 范围过滤，NULL行/不匹配行会被过滤条件排除导致丢数据。
-// 仅信任 GetColumns 元数据的 IsPrimaryKey 标识：
+// 注意：不依赖 GetPrimaryKeys（其只给列名，不含类型/宽度信息），而是直接读 GetColumns 的
+// IsPrimaryKey + 数据类型判定——分片需"单列、整型"主键才能做数值范围切分，否则按下列规则不分片：
 //   - 联合主键（多个IsPrimaryKey列）→ 不分片
 //   - 无主键 → 不分片
 //   - 非整型主键（varchar/复合类型等，无法做数值范围切分）→ 不分片

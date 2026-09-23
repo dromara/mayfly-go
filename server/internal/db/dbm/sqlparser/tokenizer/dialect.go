@@ -12,17 +12,16 @@ type BlockMode int
 const (
 	// BlockNone 不感知复合块，块内分号照常切割（sqlite/clickhouse 等无过程语句的方言）
 	BlockNone BlockMode = iota
-	// BlockSql 仅感知 BEGIN..END 与 CASE..END（T-SQL 的 IF/WHILE 无 END 闭合；PG 过程体多在引号内）
-	BlockSql
+	// BlockSQL 仅感知 BEGIN..END 与 CASE..END（T-SQL 的 IF/WHILE 无 END 闭合；PG 过程体多在引号内）
+	BlockSQL
 	// BlockProcedural 额外感知 IF..END IF / LOOP..END LOOP / WHILE..END WHILE（mysql 存储程序、Oracle 系 PL-SQL）
 	BlockProcedural
 )
 
 // DialectConfig SQL 方言语义能力表（切割器与词法器共用的单一事实来源）。
 //
-// 此前切割器（sqlparser.Splitter / PgsqlSplitter）与词法器各自维护一套引号/注释规则，
-// 三方语义独立演进而产生漂移（如词法器无条件把 \ 当转义符，PG 的 'a\' 会吞掉后续 token），
-// 新增能力必须同时改多处。现统一由本表声明，方言只需注册一次。
+// 引号/注释/复合块等方言语义在此集中声明一处，切割器与词法器共用，避免两处各自维护而漂移
+// （例如若无条件把 \ 当转义符，PG 的 'a\' 会被判未闭合而吞掉后续 token）。新增语义位只需在本表加一字段。
 type DialectConfig struct {
 	// BackslashEscape 字符串内反斜杠是否为转义符（mysql/clickhouse true）。
 	// 标准 SQL 与 PG（standard_conforming_strings=on）中 \ 为普通字符，必须 false，
@@ -97,11 +96,11 @@ var (
 		DollarQuote:             true,
 		EscapeStringPrefix:      true,
 		NestedBlockComment:      true,
-		BlockMode:               BlockSql,
+		BlockMode:               BlockSQL,
 	}
 
-	// SqliteConfig sqlite 语义（兼容 MySQL 的两种引用符，但反斜杠为普通字符）
-	SqliteConfig = DialectConfig{
+	// SQLiteConfig sqlite 语义（兼容 MySQL 的两种引用符，但反斜杠为普通字符）
+	SQLiteConfig = DialectConfig{
 		BacktickAsIdentifier:    true,
 		BracketQuote:            true,
 		DoubleQuoteAsIdentifier: true,
@@ -111,7 +110,7 @@ var (
 	MssqlConfig = DialectConfig{
 		BracketQuote:            true,
 		DoubleQuoteAsIdentifier: true,
-		BlockMode:               BlockSql,
+		BlockMode:               BlockSQL,
 	}
 
 	// OracleConfig oracle 语义（q-quote + PL-SQL 过程块）

@@ -50,7 +50,7 @@ func (app *DbTransferFileAppImpl) Delete(ctx context.Context, id ...uint64) erro
 	}
 
 	// 删除对应的文件：文件可能已被存储侧生命周期策略清理，此处记录失败原因但不阻断任务记录删除，
-	// 否则一个失文的file_key会让该记录永远无法删除（旧实现直接丢弃返回值，文件残留无人知晓）
+	// 否则一个失效的file_key会让该记录永远无法删除
 	for _, file := range arr {
 		if file.FileKey == "" {
 			continue

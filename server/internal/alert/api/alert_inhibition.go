@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/imsg"
@@ -33,7 +34,7 @@ func (a *AlertInhibition) List(rc *req.Ctx) {
 }
 
 func (a *AlertInhibition) GetById(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	inhibition, err := a.inhibitionApp.GetById(id)
 	biz.ErrIsNil(err)
 	rc.ResData = inhibition
@@ -47,12 +48,12 @@ func (a *AlertInhibition) Save(rc *req.Ctx) {
 
 func (a *AlertInhibition) Update(rc *req.Ctx) {
 	inhibition := rc.BindJson[entity.AlertInhibition]()
-	inhibition.Id = uint64(rc.PathParamInt("id"))
+	inhibition.Id = cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(a.inhibitionApp.SaveAlertInhibition(rc.MetaCtx, inhibition))
 }
 
 func (a *AlertInhibition) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	status := int8(rc.PathParamInt("status"))
 	biz.ErrIsNil(a.inhibitionApp.ChangeStatus(rc.MetaCtx, id, status))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)

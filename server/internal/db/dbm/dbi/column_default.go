@@ -6,7 +6,7 @@ import (
 
 // 本文件为「列默认值」主题：解析各源库元数据呈现的默认值原文（形态互不相同），
 // 并按目标方言/目标列类型生成DEFAULT子句。识别逻辑为形态驱动而非方言驱动，
-// 详见 GenColumnDefaultSql 的决策链注释
+// 详见 GenColumnDefaultSQL 的决策链注释
 
 // TimePartDate/TimePartTime 时间类默认值的语义分量：该关键字/函数返回值包含日期部分还是时间部分
 const (
@@ -130,7 +130,7 @@ var dateTimeTypeKeywords = []string{"date", "time"}
 func IsDefaultRawExprForm(raw string) bool {
 	val := strings.TrimSpace(raw)
 	for val != "" {
-		if IsQuotedSqlLiteral(val) {
+		if IsQuotedSQLLiteral(val) {
 			return false
 		}
 		inner, balanced := UnwrapOuterParens(val)
@@ -139,12 +139,12 @@ func IsDefaultRawExprForm(raw string) bool {
 		}
 		val = inner
 	}
-	if IsSqlFunctionExpr(val) {
+	if IsSQLFunctionExpr(val) {
 		_, _, _, ok := ParseTimeKeywordDefault(val)
 		return !ok
 	}
 	// 剥括号后是无参关键字/裸字面量（(CURRENT_TIMESTAMP)、((3))、NULL、TRUE）：语义与裸值一致，可原样还原
-	if IsPlainSqlLiteral(val) {
+	if IsPlainSQLLiteral(val) {
 		return false
 	}
 	// 剩下的裸文本/括号运算形态（(1 + 2)、USER、('a' || 'b')、sysdate + 1）：对字面量必带引号的源库而言
@@ -166,7 +166,7 @@ func IsDateTimeType(dataType string) bool {
 }
 
 // defaultStringTypeKeywords 默认值必定按字符串字面量呈现的类型关键字片段（Contains匹配）：
-// 不含日期时间类（其默认值多为CURRENT_TIMESTAMP这类裸关键字，由IsPlainSqlLiteral分支处理）
+// 不含日期时间类（其默认值多为CURRENT_TIMESTAMP这类裸关键字，由IsPlainSQLLiteral分支处理）
 var defaultStringTypeKeywords = []string{
 	"char", "text", "blob", "binary", "enum", "set", "lob", "json", "string", "uuid", "var", "clob",
 }
@@ -176,11 +176,11 @@ func isStringTypeColumn(dataType string) bool {
 	return anyStringContains(strings.ToLower(dataType), defaultStringTypeKeywords)
 }
 
-// GenColumnDefaultSql 依据元数据返回的默认值原文生成列的 DEFAULT 子句（含前导空格），无需输出时返回空串。
+// GenColumnDefaultSQL 依据元数据返回的默认值原文生成列的 DEFAULT 子句（含前导空格），无需输出时返回空串。
 //
 // 各库默认值的呈现形态互不相同（MySQL 8.0为去引号的原始值、5.7/sqlite/达梦为带引号字面量、
 // pg为带::cast的字面量、SQL Server为带外层括号的定义原文），而结构迁移是把**源库**的元数据喂给
-// **目标方言**的生成器，故此处必须能处理所有陌生形态，旧实现在各方言重复实现且各自有误，统一按下列决策链：
+// **目标方言**的生成器，故此处必须统一处理所有陌生形态，按下列决策链：
 //  1. 空串与裸NULL（无默认值）→ 不输出；
 //  2. 纯空白原文（MySQL 8.0的 DEFAULT ' ' 呈现为单个空格）→ 按字面量引用，不可先Trim再判空而丢失；
 //  3. 带引号字面量 → 还原原始值后按目标方言重新转义引用（内容可为NULL、空串、含引号/反斜杠/括号的任意文本）；
@@ -198,28 +198,28 @@ func isStringTypeColumn(dataType string) bool {
 //     宁可让目标库显式报类型错误，也不静默丢弃默认值；裸值形态的首尾空白属于默认值本身，不得剥除。
 //
 // 需要按目标库语法约束精细书写时间默认值的方言（如MySQL要求CURRENT_TIMESTAMP的小数秒与列fsp严格一致），
-// 应在调用本函数前自行归一默认值原文（见mysql/sqlgen.go的mysqlTimeDefaultSql）
+// 应在调用本函数前自行归一默认值原文（见mysql/sqlgen.go的mysqlTimeDefaultSQL）
 //
 // dataType 用于区分同为 (0) 呈现的 varchar DEFAULT '(0)' 与整型表达式 DEFAULT (0)（MySQL 8.0去引号呈现导致）。
 // escape 为目标方言的字面量内容转义函数（标准SQL单引号双写或mysql额外双写反斜杠）。
 //
 // 本入口无法获知源库信息，仅适用于默认值原文形态无歧义的场景；结构迁移/导出必须由源列元数据生成DDL，
-// 应使用GenColumnDefaultSqlOf，以识别源侧标记的表达式默认值
-func GenColumnDefaultSql(raw string, dataType string, escape func(string) string) string {
-	return genColumnDefaultSql(raw, dataType, escape, false)
+// 应使用GenColumnDefaultSQLOf，以识别源侧标记的表达式默认值
+func GenColumnDefaultSQL(raw string, dataType string, escape func(string) string) string {
+	return genColumnDefaultSQL(raw, dataType, escape, false)
 }
 
-// GenColumnDefaultSqlOf 基于源列元数据生成DEFAULT子句：除原文形态判定外，还能识别源侧标记的
+// GenColumnDefaultSQLOf 基于源列元数据生成DEFAULT子句：除原文形态判定外，还能识别源侧标记的
 // 表达式默认值（Column.IsExprDefault）——各库函数名与表达式语法互不相通，不可安全还原时统一省略，
 // 绝不退化为字符串字面量而静默污染目标表默认值
-func GenColumnDefaultSqlOf(column *Column, dataType string, escape func(string) string) string {
+func GenColumnDefaultSQLOf(column *Column, dataType string, escape func(string) string) string {
 	if column == nil {
 		return ""
 	}
-	return genColumnDefaultSql(column.ColumnDefault, dataType, escape, column.IsExprDefault)
+	return genColumnDefaultSQL(column.ColumnDefault, dataType, escape, column.IsExprDefault)
 }
 
-func genColumnDefaultSql(raw string, dataType string, escape func(string) string, isExprDefault bool) string {
+func genColumnDefaultSQL(raw string, dataType string, escape func(string) string, isExprDefault bool) string {
 	if raw == "" {
 		return ""
 	}
@@ -231,8 +231,8 @@ func genColumnDefaultSql(raw string, dataType string, escape func(string) string
 	if val == "NULL" {
 		return ""
 	}
-	if IsQuotedSqlLiteral(val) {
-		return " DEFAULT '" + escape(UnwrapSqlLiteral(val)) + "'"
+	if IsQuotedSQLLiteral(val) {
+		return " DEFAULT '" + escape(UnwrapSQLLiteral(val)) + "'"
 	}
 	// 当前日期/时间类默认值（含MySQL 8.0元数据的CURRENT_TIMESTAMP(3)/curdate()/now()形态）必须在函数
 	// 表达式判定之前处理：否则会被当作跨源不支持的函数而静默丢弃默认值
@@ -247,11 +247,11 @@ func genColumnDefaultSql(raw string, dataType string, escape func(string) string
 		}
 	}
 	// 源侧已标记为表达式默认值（pg的gen_random_uuid()、MySQL 8.0的(uuid())）：无法跨库还原，必须省略；
-	// 旧逻辑对字符串列的裸函数形态一律按字面量保留，使DEFAULT (uuid())被写成DEFAULT 'uuid()'而静默污染默认值
-	if isExprDefault || (IsSqlFunctionExpr(val) && !isStringType) {
+	// 否则字符串列会把 DEFAULT (uuid()) 写成 DEFAULT 'uuid()' 而静默污染默认值
+	if isExprDefault || (IsSQLFunctionExpr(val) && !isStringType) {
 		return ""
 	}
-	if IsPlainSqlLiteral(val) {
+	if IsPlainSQLLiteral(val) {
 		// 二进制/位列的0x与b'01'形态是真实的SQL字面量，必须裸拼（引用后会变成同名字符而失真）
 		if isBinaryOrBitType(dataType) && (isHexLiteral(val) || isBitLiteral(val)) {
 			return " DEFAULT " + val
@@ -270,14 +270,14 @@ func genColumnDefaultSql(raw string, dataType string, escape func(string) string
 			// (1)+(2) 这类非整体包裹的片段不是定义原文的外层包装，无法安全还原为字面量，省略
 			return ""
 		case balanced:
-			if lit, ok := AsSqlStringLiteral(inner); ok {
+			if lit, ok := AsSQLStringLiteral(inner); ok {
 				// ('abc')、(N'abc')：外层括号是表达式包装，内层才是字面量，还原后重新转义引用
 				return " DEFAULT '" + escape(lit) + "'"
 			}
 			if !isStringType {
 				// 非字符串列的括号形态来自表达式默认值（MySQL 8.0.13+的(1+2)、SQL Server的(getdate())）：
 				// 能证明是裸字面量则还原，否则跳过，绝不把表达式写成字符串默认值
-				if IsPlainSqlLiteral(inner) {
+				if IsPlainSQLLiteral(inner) {
 					return " DEFAULT " + inner
 				}
 				return ""

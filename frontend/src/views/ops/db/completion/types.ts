@@ -4,6 +4,17 @@ import type { CursorClause } from './sqlContext';
 import type { DbInst } from '../db';
 
 /**
+ * 补全贡献者需要的实例能力切片。
+ *
+ * 贡献者只读元数据，不需也不应依赖 DbInst 的全部职责（连接/缓存/执行等），
+ * 故按实际调用面收窄；测试也可据此注入局部 mock，无需对整个类做类型断言。
+ */
+export type CompletionDbInst = Pick<DbInst, 'loadTables' | 'loadViews' | 'loadColumns'>;
+
+/** 补全需要的方言能力切片（同上，按实际调用面收窄） */
+export type CompletionDialect = Pick<DbDialect, 'getEditorCompletions' | 'getPageSnippet' | 'quoteIdentifier'>;
+
+/**
  * SQL 补全上下文：由 context.ts 统一构建，
  * 贡献者只依赖上下文编程，不直接接触编辑器模型（单一职责，便于扩展与测试）
  */
@@ -30,14 +41,14 @@ export interface SqlCompletionContext {
     dotAlias: string;
     /** 光标所处子句类型（table：表名期望位置；column：字段/表达式位置；free：全量兜底） */
     clause: CursorClause;
-    /** 数据库实例 */
-    dbInst: DbInst;
+    /** 数据库实例（仅暴露补全用到的元数据读取能力） */
+    dbInst: CompletionDbInst;
     /** 当前库名 */
     db: string;
     /** 可切换的所有库名 */
     dbs: string[];
-    /** 数据库方言 */
-    dialect: DbDialect;
+    /** 数据库方言（仅暴露补全用到的能力） */
+    dialect: CompletionDialect;
     /** 数据库类型（mysql/postgres/...，用于切割与光标区域判定的方言选项） */
     dbType: string;
     /** 方言接受的标识符引用符 */

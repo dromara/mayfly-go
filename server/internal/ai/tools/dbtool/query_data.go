@@ -113,7 +113,7 @@ func GetQueryData() (tool.InvokableTool, error) {
 					// AI查询结果同样执行服务端脱敏（首次行回调时构建脱敏器，未启用时为nil）
 					if rowMasker == nil {
 						var maskErr error
-						rowMasker, maskErr = application.GetMaskApp().BuildQueryRowMasker(ctx, conn, sql, columns)
+						rowMasker, maskErr = application.GetMaskEngine().BuildQueryRowMasker(ctx, conn, sql, columns)
 						if maskErr != nil {
 							// fail-close：脱敏计划不可用时阻断本次查询，避免敏感数据明文透出
 							return maskErr

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
-	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	mssqlparser "mayfly-go/internal/db/dbm/sqlparser/mssql"
 	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -28,10 +28,10 @@ type MssqlDialect struct {
 	di *dbi.DbInfo
 }
 
-// GetSQLParser 语法与标准SQL最接近，沿用pgsql解析器。
-// 但分页改写需使用 SQL Server 的 OFFSET-FETCH 语法，故包装一层。
-func (md *MssqlDialect) GetSQLParser() sqlparser.SqlParser {
-	return &MssqlParser{inner: new(pgsql.PgsqlParser)}
+// GetSQLParser 语法与标准SQL最接近，沿用pgsql解析器（见 sqlparser/mssql）。
+// 但分页改写需使用 SQL Server 的 OFFSET-FETCH 语法，故由其包装一层。
+func (md *MssqlDialect) GetSQLParser() sqlparser.SQLParser {
+	return mssqlparser.NewParser()
 }
 
 func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
@@ -71,7 +71,7 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 				}
 
 			}
-			columnsSql := strings.Join(columnNames, ",")
+			columnsSQL := strings.Join(columnNames, ",")
 
 			// 复制数据
 			// 设置允许填充自增列之后，显示指定列名可以插入自增列
@@ -79,7 +79,7 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			if hasIdentity {
 				identityInsertOn = fmt.Sprintf("SET IDENTITY_INSERT [%s].[%s] ON", schema, newTableName)
 			}
-			_, err = md.di.Exec(fmt.Sprintf(" %s INSERT INTO [%s].[%s] (%s) SELECT * FROM [%s].[%s]", identityInsertOn, schema, newTableName, columnsSql, schema, copy.TableName))
+			_, err = md.di.Exec(fmt.Sprintf(" %s INSERT INTO [%s].[%s] (%s) SELECT * FROM [%s].[%s]", identityInsertOn, schema, newTableName, columnsSQL, schema, copy.TableName))
 			if err != nil {
 				logx.Warnf("复制表[%s]数据失败: %s", copy.TableName, err.Error())
 			}
@@ -116,12 +116,12 @@ func (md *MssqlDialect) CopyTableDDL(tableName string, newTableName string) (str
 	sqlArr := sqlGener.GenTableDDL(*tabInfo, columns, true)
 
 	// 设置索引
-	indexs, err := metadata.GetTableIndex(tableName)
+	indexes, err := metadata.GetTableIndex(tableName)
 	if err != nil {
-		logx.Errorf("failed to get indexs, %s", tableName)
+		logx.Errorf("failed to get indexes, %s", tableName)
 		return strings.Join(sqlArr, ";"), err
 	}
-	sqlArr = append(sqlArr, sqlGener.GenIndexDDL(*tabInfo, indexs)...)
+	sqlArr = append(sqlArr, sqlGener.GenIndexDDL(*tabInfo, indexes)...)
 	return strings.Join(sqlArr, ";"), nil
 }
 
@@ -129,8 +129,8 @@ func (md *MssqlDialect) Quoter() dbi.Quoter {
 	return mssqlQuoter
 }
 
-func (md *MssqlDialect) GetDumpHelper() dbi.DumpHelper {
-	return new(DumpHelper)
+func (md *MssqlDialect) GetDumpTxnWrapper() dbi.DumpTxnWrapper {
+	return new(DumpTxnWrapper)
 }
 
 // GetSQLSplitter T-SQL切割器：[标识符]（]] 为转义右括号）、# 为临时表前缀而非注释符、BEGIN..END 块感知
@@ -139,5 +139,5 @@ func (md *MssqlDialect) GetSQLSplitter() sqlparser.SQLSplitter {
 }
 
 func (md *MssqlDialect) GetSQLGenerator() dbi.SQLGenerator {
-	return &SQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: md.Quoter}, di: md.di}
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: md.Quoter}, di: md.di}
 }

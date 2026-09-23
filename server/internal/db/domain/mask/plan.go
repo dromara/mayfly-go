@@ -187,6 +187,20 @@ func (p *Plan) Resolve(db, table, column string) (Algorithm, Params) {
 	return nil, nil
 }
 
+// MaskValue 对单个值执行脱敏：按(db, table, column)解析命中算法并应用。
+// nil值原样返回nil；非字符串输入（数值/布尔等）转字符串后脱敏，返回string类型。
+// 未命中任何规则/计划为空时返回原值。通用能力，任意模块可直接调用。
+func (p *Plan) MaskValue(db, table, column string, value any) any {
+	if p.Empty() || column == "" {
+		return value
+	}
+	alg, params := p.Resolve(db, table, column)
+	if alg == nil {
+		return value
+	}
+	return maskValue(alg, params, value)
+}
+
 // Empty 判断计划是否为空（无任何规则与标签），用于快速跳过
 func (p *Plan) Empty() bool {
 	return p == nil || (len(p.tags) == 0 && len(p.exactRules) == 0 && len(p.prefixRules) == 0 && len(p.regexRules) == 0)
@@ -207,7 +221,7 @@ type maskFn struct {
 //   - tables: sql解析出的表名列表，可为空（表达式等场景）
 //   - tableOf: 结果列名 -> 来源表名的精确映射（限定名场景如 t.col AS p）。键存在即锁定归属：
 //     值为空串表示确定无来源表（如表达式无限定token），仅空表上下文解析（全局规则/通配标签）；
-//     键不存在的列才按tables列表顺序尝试兑底
+//     键不存在的列才按tables列表顺序尝试兜底
 //   - resultColumns: 查询结果的列名列表
 //   - srcColumnOf: 结果列名 -> 来源真实列名的映射（用于别名场景），未提供的列使用结果列名本身匹配
 //

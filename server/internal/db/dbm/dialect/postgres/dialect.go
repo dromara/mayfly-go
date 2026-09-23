@@ -85,19 +85,19 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return nil
 }
 
-func (pd *PgsqlDialect) GetDumpHelper() dbi.DumpHelper {
-	return new(DumpHelper)
+func (pd *PgsqlDialect) GetDumpTxnWrapper() dbi.DumpTxnWrapper {
+	return new(DumpTxnWrapper)
 }
 
 func (md *PgsqlDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{
-		BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: md.Quoter},
-		dialect:          md,
-		di:               md.di,
+		DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: md.Quoter},
+		dialect:             md,
+		di:                  md.di,
 	}
 }
 
-func (pd *PgsqlDialect) GetSQLParser() sqlparser.SqlParser {
+func (pd *PgsqlDialect) GetSQLParser() sqlparser.SQLParser {
 	return new(pgsql.PgsqlParser)
 }
 

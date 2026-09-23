@@ -26,3 +26,12 @@ select il.name     as indexName,
 from pragma_index_list('%s') il
 where il.origin != 'pk'
 order by il.seq
+
+---------------------------------------
+--SQLITE_VIEWS 视图信息（sqlite_master.type='view'，sql 即 CREATE VIEW 原文；排除内部 sqlite_ 前缀）
+SELECT name AS "viewName", sql AS "viewDefinition"
+FROM sqlite_master WHERE type = 'view' AND name NOT LIKE 'sqlite_%'
+ORDER BY name
+---------------------------------------
+--SQLITE_VIEW_DDL 视图定义（sqlite_master.sql 存 CREATE VIEW 原文）
+SELECT sql AS "viewDefinition" FROM sqlite_master WHERE type = 'view' AND name = ?

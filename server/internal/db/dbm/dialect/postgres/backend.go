@@ -107,11 +107,11 @@ const (
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 	Param string
 }
 
-func (pm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (pm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	db := d.Database
 	var dbParam string
 	existSchema := false
@@ -150,6 +150,14 @@ func (pm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 	}
 
 	return sql.Open("postgres", dsn)
+}
+
+// GetCapabilities pg 系方言：核心能力全支持（含独立 schema 层），并声明已实现的视图与序列内省。
+// 视图/序列查询基于 pg 9.x 通用系统表，对 gauss/kingbase/vastbase 亦适用。
+func (pm *Backend) GetCapabilities() dbi.MetadataCapabilities {
+	return dbi.NewAllCapabilities().
+		With(dbi.FeatViews, dbi.FeatSequences).
+		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 
 func (pm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {

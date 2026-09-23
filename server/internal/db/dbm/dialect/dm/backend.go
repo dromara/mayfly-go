@@ -141,10 +141,10 @@ const (
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 }
 
-func (dm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (dm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "dm"
 	db := d.Database
 	dbParam := "?escapeProcess=true"
@@ -163,6 +163,14 @@ func (dm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 
 func (dm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
 	return &DMDialect{di: di}
+}
+
+// GetCapabilities 达梦：核心能力全支持（含独立 schema 层），并声明已实现的视图与序列内省
+// （DMMetadata 实现 MetadataNavigator，SupportedKinds 含 view/sequence，与声明一致）。
+func (dm *Backend) GetCapabilities() dbi.MetadataCapabilities {
+	return dbi.NewAllCapabilities().
+		With(dbi.FeatViews, dbi.FeatSequences).
+		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 
 func (dm *Backend) GetServerInfo(di *dbi.DbInfo) dbi.ServerInfo {

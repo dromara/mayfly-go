@@ -55,7 +55,7 @@ const mountHostOpen = async (host: typeof AutoFormDialog | typeof AutoFormDrawer
     });
     await flushPromises();
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const textInput = document.body.querySelector('input[type="text"]') as HTMLInputElement | null;
+    const textInput = document.body.querySelector<HTMLInputElement>('input[type="text"]');
     return { switches: document.body.querySelectorAll('.el-switch').length, nameValue: textInput?.value, warns: switchWarns(warnSpy) };
 };
 

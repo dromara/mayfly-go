@@ -39,8 +39,8 @@
             <!-- 列 -->
             <g v-for="(col, colIdx) in table.columns" :key="colIdx" :transform="`translate(0, ${30 + colIdx * 24})`">
               <rect x="0" width="200" height="24" :fill="colIdx % 2 === 0 ? '#fafafa' : 'white'" />
-              <text x="8" :y="16" font-size="12" :fill="col.pri ? '#e6a23c' : '#303133'">
-                {{ col.pri ? '🔑 ' : '' }}{{ col.name }}
+              <text x="8" :y="16" font-size="12" :fill="col.isPrimaryKey ? '#e6a23c' : '#303133'">
+                {{ col.isPrimaryKey ? '🔑 ' : '' }}{{ col.name }}
               </text>
               <text x="192" :y="16" text-anchor="end" font-size="11" fill="#909399">{{ col.type }}</text>
             </g>

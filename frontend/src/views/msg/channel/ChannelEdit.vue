@@ -11,7 +11,7 @@
 
 <script lang="ts" setup>
 import EnumValue from '@/common/Enum';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import { computed, type Component, type PropType } from 'vue';
 import { channelApi } from '../api';
 import { ChannelStatusEnum, ChannelTypeEnum } from '../enums';
@@ -47,8 +47,8 @@ const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；extra 走插槽承载渠道类型扩展配置） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<ChannelForm>，渲染 + 校验唯一数据源；extra 走插槽承载渠道类型扩展配置） */
+const items = defineFormItems<ChannelForm>([
     { prop: 'name', label: 'msg.name', required: true },
     { prop: 'status', label: 'common.status', type: 'enum', enums: ChannelStatusEnum },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
@@ -58,14 +58,14 @@ const items: AutoFormItem[] = [
         type: 'enum',
         enums: ChannelTypeEnum,
         required: true,
-        // 切换渠道类型时重置扩展配置
-        onChange: (_val: unknown, form: AutoFormData) => {
-            (form as ChannelForm).extra = {};
+        // 切换渠道类型时重置扩展配置（不同类型的 extra 字段集不重叠）
+        onChange: (_value, form) => {
+            form.extra = {};
         },
     },
     { prop: 'url', label: 'URL', required: true },
     { prop: 'extra', type: 'custom' },
-];
+]);
 
 const defaultForm = (): ChannelForm => {
     return {
@@ -80,9 +80,8 @@ const defaultForm = (): ChannelForm => {
 };
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData | null>(() => {
-    const form = props.form as ChannelForm | null;
-    return (form ? { ...form } : defaultForm()) as unknown as AutoFormData;
+const editData = computed<ChannelForm>(() => {
+    return props.form ? { ...defaultForm(), ...props.form } : defaultForm();
 });
 
 const { isFetching: saveBtnLoading, execute: saveFormExec } = channelApi.save.useApi();

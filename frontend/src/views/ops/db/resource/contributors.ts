@@ -7,8 +7,7 @@ import { formatByteSize } from '@/common/utils/format';
 import { registerContributor, type TreeNode, type TreeNodeData } from '@/views/ops/resource/tree';
 import { dbApi } from '../api';
 import { DbInst } from '../db';
-import { getDbDialect, getDialectCapabilities } from '../dialect/index';
-import type { DbInstance, Db, DbTableInfo, DbSql, DbNamesParam } from '../types';
+import type { DbInstance, Db, DbTableInfo, DbSql, DbNamesParam, DbMetadataObject } from '../types';
 import {
     DbInstKind,
     DbDbsKind,
@@ -18,20 +17,27 @@ import {
     DbSqlMenuKind,
     DbTableKind,
     DbSqlKind,
+    DbObjectMenuKind,
+    DbObjectKind,
+    DbTableSearchKind,
+    DbTableResultsKind,
+    DB_TABLE_SEARCH_THRESHOLD,
+    DB_TABLE_SEARCH_LIMIT,
+    tableResultsKey,
+    DB_OBJECT_KINDS,
+    ObjectIcon,
     DbIcon,
     SchemaIcon,
     TableIcon,
+    SqlIcon,
     dbNodeParams,
     getDbOpTabCompInst,
 } from './helpers';
+import { getDbCapabilities } from './composables/useCapabilities';
 
 const NodeDbInst = defineAsyncComponent(() => import('./NodeDbInst.vue'));
 const NodeDbTable = defineAsyncComponent(() => import('./NodeDbTable.vue'));
-
-const SqlIcon = {
-    name: 'icon db/sql',
-    color: '#f56c6c',
-};
+const NodeDbTableSearch = defineAsyncComponent(() => import('./NodeDbTableSearch.vue'));
 
 // 数据库实例节点
 registerContributor({
@@ -72,7 +78,7 @@ registerContributor({
             params: {
                 ...x,
                 tagPath,
-                username: (authCerts[x.authCertName || ''] as Record<string, unknown>)?.username,
+                username: (authCerts[x.authCertName || ''])?.username,
                 instCode: params.instCode,
                 dbCode: x.code,
             },
@@ -89,7 +95,7 @@ registerContributor({
     locateCode: (node) => node.params.dbCode as string,
     loadChildren: async (node) => {
         const params = node.params;
-        const dbs = (await DbInst.getDbNames(params as unknown as DbNamesParam))?.sort();
+        const dbs = (await DbInst.getDbNames(params))?.sort();
         if (!dbs?.length) {
             return [];
         }
@@ -124,8 +130,9 @@ registerContributor({
     icon: DbIcon,
     loadChildren: async (node) => {
         const params = node.params;
-        // 是否展开 schema 层级由方言能力自描述，新增方言无需改动本文件
-        if (getDialectCapabilities(getDbDialect(params.type as string)).supportsSchema) {
+        // schema 层是否展开、支持哪些扩展对象，均由后端 /capabilities 单一事实源自描述（新增方言/能力前端零改动）
+        const caps = await getDbCapabilities(params.id as number, params.db as string);
+        if (caps.namespace.HasSchema) {
             const { id, db } = params;
             const schemaNames = await dbApi.dbSchemas.request({ id, db });
             return schemaNames.map((sn: string) => ({
@@ -133,10 +140,11 @@ registerContributor({
                 kind: DbSchemaKind,
                 label: sn,
                 icon: SchemaIcon,
-                params: { ...params, schema: sn, db: `${db}/${sn}` },
+                // 把已协商到的 backendFeatures 向下传递，schema 子节点展开时无需再请求 /capabilities
+                params: { ...params, schema: sn, db: `${db}/${sn}`, capsFeatures: caps.backendFeatures },
             }));
         }
-        return tablesMenuChildren(node);
+        return buildMenuChildren(node, caps.backendFeatures);
     },
 });
 
@@ -146,7 +154,12 @@ registerContributor({
     hasChildren: true,
     selectable: true,
     icon: SchemaIcon,
-    loadChildren: async (node) => tablesMenuChildren(node),
+    loadChildren: async (node) => {
+        // 优先复用父 db 节点向下传递的 features；缺失（如直接定位到 schema 节点）才回源协商
+        const inherited = node.params.capsFeatures as string[] | undefined;
+        const features = inherited ?? (await getDbCapabilities(dbNodeParams(node).id, dbNodeParams(node).db)).backendFeatures;
+        return buildMenuChildren(node, features);
+    },
 });
 
 // 数据库表菜单节点
@@ -162,23 +175,40 @@ registerContributor({
         if (!compRef) {
             return [];
         }
-        const tables = (await compRef.loadTables(params)) ?? [];
-        return tables.map((x: DbTableInfo) => {
-            const tableSize = x.dataLength + x.indexLength;
-            return {
-                key: `${node.key}.${x.tableName}`,
-                kind: DbTableKind,
-                label: x.tableName,
-                labelRemark: `${x.tableName} ${x.tableComment ? '| ' + x.tableComment : ''}`,
-                icon: TableIcon,
-                params: {
-                    ...params,
-                    tableName: x.tableName,
-                    tableComment: x.tableComment,
-                    size: tableSize == 0 ? '' : formatByteSize(tableSize, 1),
-                },
-            };
-        });
+        // 以 limit=阈值+1 做「限量探测」判断表是否过多，不必然全量拉取
+        const probe = (await dbApi.tableInfos.request({ id: params.id, db: params.db, limit: DB_TABLE_SEARCH_THRESHOLD + 1 })) ?? [];
+        if (probe.length <= DB_TABLE_SEARCH_THRESHOLD) {
+            // 少量：直接全量渲染（探测结果即全量），无需搜索框
+            return tableLeafNodes(node, params, probe);
+        }
+        // 超阈值：稳定的搜索框节点 + 并列结果容器节点。输入只刷新结果容器，
+        // 搜索框不处于被刷新子树内 → 不重挂载，光标/焦点与输入值得以保留。
+        return [tableSearchNode(node, params), tableResultsNode(node, params)];
+    },
+});
+
+// 表名搜索框节点（仅表过多或处于搜索态时出现）：输入即回写父表菜单节点 params.tableFilter 并刷新之
+registerContributor({
+    kind: DbTableSearchKind,
+    renderer: NodeDbTableSearch,
+    hasChildren: false,
+    selectable: false,
+});
+
+// 搜索结果容器节点：展开时按已提交的 tableFilter 走服务端 LIKE 下推；未输入时给出引导提示
+registerContributor({
+    kind: DbTableResultsKind,
+    hasChildren: true,
+    icon: TableIcon,
+    releaseOnCollapse: true,
+    loadChildren: async (node) => {
+        const params = dbNodeParams(node);
+        const like = (node.params.tableFilter as string | undefined) ?? '';
+        if (!like) {
+            return [{ key: `${node.key}.hint`, kind: 'db-truncated', label: 'db.tooManyTablesHint', disabled: true }];
+        }
+        const rows = (await dbApi.tableInfos.request({ id: params.id, db: params.db, like, limit: DB_TABLE_SEARCH_LIMIT })) ?? [];
+        return tableLeafNodes(node, params, rows);
     },
 });
 
@@ -195,7 +225,8 @@ registerContributor({
             kind: DbSqlKind,
             label: x.name,
             icon: SqlIcon,
-            params: { ...params, sqlName: x.name },
+            // parentKey 指向 sql 叶子真正的父（SQL 菜单节点），而非继承来的库节点 key
+            params: { ...params, parentKey: node.key, sqlName: x.name },
         }));
     },
 });
@@ -212,10 +243,77 @@ registerContributor({
     icon: SqlIcon,
 });
 
-/** 库/schema 节点展开后的表菜单 + SQL 菜单两个子节点 */
-const tablesMenuChildren = (node: TreeNode): TreeNodeData[] => {
+// 扩展对象分类菜单节点（视图/序列/存储过程…）：展开时按 kind 懒加载后端 MetaNavigator 节点
+registerContributor({
+    kind: DbObjectMenuKind,
+    hasChildren: true,
+    icon: ObjectIcon,
+    loadChildren: async (node) => {
+        const p = dbNodeParams(node);
+        const objKind = node.params.objKind as string;
+        const nodes = await dbApi.metaObjects.request({ id: p.id, db: p.db, kind: objKind, schema: p.schema as string | undefined });
+        return (nodes ?? []).map((n: DbMetadataObject) => ({
+            key: `${node.key}.${n.name}`,
+            kind: DbObjectKind,
+            label: n.name,
+            labelRemark: n.comment ? `${n.name} | ${n.comment}` : n.name,
+            icon: ObjectIcon,
+            // parentKey 指向对象叶子真正的父（视图/序列等对象菜单节点），而非继承来的库节点 key
+            params: { ...p, parentKey: node.key, objName: n.name, objKind, objAttrs: n.attrs },
+        }));
+    },
+});
+
+// 扩展对象叶子节点（具体视图/序列等）
+registerContributor({
+    kind: DbObjectKind,
+    icon: ObjectIcon,
+});
+
+/** 表叶子节点集合（表菜单在搜索态/普通态复用同一映射） */
+const tableLeafNodes = (node: TreeNode, params: Record<string, unknown>, tables: DbTableInfo[]): TreeNodeData[] =>
+    tables.map((x: DbTableInfo) => {
+        const tableSize = x.dataLength + x.indexLength;
+        return {
+            key: `${node.key}.${x.tableName}`,
+            kind: DbTableKind,
+            label: x.tableName,
+            labelRemark: `${x.tableName} ${x.tableComment ? '| ' + x.tableComment : ''}`,
+            icon: TableIcon,
+            params: {
+                ...params,
+                // parentKey 必须指向表叶子的实际树父节点（表菜单 / 搜索结果容器），
+                // 而非从上层继承来的库节点 key：否则改表后 reloadNode(parentKey) 会去刷新库节点，
+                // 只重建菜单子节点（不发 t-infos），令表菜单节点停在「加载中」永不水合。
+                parentKey: node.key,
+                tableName: x.tableName,
+                tableComment: x.tableComment,
+                size: tableSize == 0 ? '' : formatByteSize(tableSize, 1),
+            },
+        };
+    });
+
+/** 表名搜索框节点：携带库粒度 params 与父表菜单 key（渲染器据此定位并列结果节点） */
+const tableSearchNode = (node: TreeNode, params: Record<string, unknown>): TreeNodeData => ({
+    key: `${node.key}.table-search`,
+    kind: DbTableSearchKind,
+    label: '',
+    params: { ...params, menuKey: node.key },
+});
+
+/** 搜索结果容器节点：稳定 key；输入刷新它而非表菜单，保证搜索框不被重挂载 */
+const tableResultsNode = (node: TreeNode, params: Record<string, unknown>): TreeNodeData => ({
+    key: tableResultsKey(node.key),
+    kind: DbTableResultsKind,
+    label: 'db.tableSearchResults',
+    icon: TableIcon,
+    params: { ...params, menuKey: node.key, tableFilter: '' },
+});
+
+/** 库/schema 展开后子节点：表菜单 + 后端声明支持的扩展对象分类菜单（视图/序列…，能力位驱动显隐）+ SQL 菜单置最后 */
+const buildMenuChildren = (node: TreeNode, features: string[]): TreeNodeData[] => {
     const params = { ...node.params, parentKey: node.key };
-    return [
+    const children: TreeNodeData[] = [
         {
             key: `${node.key}.table-menu`,
             kind: DbTableMenuKind,
@@ -223,12 +321,24 @@ const tablesMenuChildren = (node: TreeNode): TreeNodeData[] => {
             icon: TableIcon,
             params: { ...params, key: `${node.key}.table-menu` },
         },
-        {
-            key: `${node.key}.sql-menu`,
-            kind: DbSqlMenuKind,
-            label: 'SQL',
-            icon: SqlIcon,
-            params: { ...params, key: `${node.key}.sql-menu` },
-        },
     ];
+    for (const obj of DB_OBJECT_KINDS) {
+        if (!features.includes(obj.feature)) continue;
+        children.push({
+            key: `${node.key}.obj-${obj.kind}`,
+            kind: DbObjectMenuKind,
+            label: obj.label,
+            icon: ObjectIcon,
+            params: { ...params, key: `${node.key}.obj-${obj.kind}`, objKind: obj.kind },
+        });
+    }
+    // SQL 菜单置于最后（表/视图/序列等对象之后），与用户浏览优先级一致
+    children.push({
+        key: `${node.key}.sql-menu`,
+        kind: DbSqlMenuKind,
+        label: 'SQL',
+        icon: SqlIcon,
+        params: { ...params, key: `${node.key}.sql-menu` },
+    });
+    return children;
 };

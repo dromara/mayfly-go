@@ -2,25 +2,31 @@ import Api from '@/common/Api';
 import { AesEncrypt } from '@/common/crypto';
 import type { PageParam, PageResult } from '@/types/common';
 import { createSqlExecNotification, registerSqlExecAborter } from '@/components/system-message/db/db-sql-exec-progress';
-import type { Db, DbInstance, DbSql, DbSqlExec, DbTableInfo, DbBackup, DbBackupHistory, DbRestore, DbInstanceServerInfo, ColumnMetadata, DbInstanceListParam, DbListParam, SqlExecRes, DbMaskRule, DbMaskColumn, DbMaskRuleQuery, DbMaskColumnQuery, DbMaskRuleSaveForm, DbMaskColumnSaveForm } from './types';
+import type { Db, DbInstance, DbSql, DbSqlExec, DbTableInfo, DbBackup, DbBackupHistory, DbRestore, DbInstanceServerInfo, ColumnMetadata, DbInstanceListParam, DbListParam, SqlExecRes, DbMaskRule, DbMaskColumn, DbMaskRuleQuery, DbMaskColumnQuery, DbMaskRuleSaveForm, DbMaskColumnSaveForm, DbCapabilities, DbMetadataObject } from './types';
 
 export const dbApi = {
     // 获取权限列表
     dbs: Api.newGet<PageResult<Db>, DbListParam>('/dbs'),
     dbTags: Api.newGet<Db[]>('/dbs/tags'),
-    saveDb: Api.newPost<void>('/dbs'),
+    saveDb: Api.newPost<number>('/dbs'),
     deleteDb: Api.newDelete<void>('/dbs/{id}'),
     dumpDb: Api.newPost<void>('/dbs/{id}/dump'),
-    tableInfos: Api.newGet<DbTableInfo[]>('/dbs/{id}/t-infos'),
+    // 表清单：like/limit 为可选的服务端名称过滤下推（超大 schema 资源树按需加载）
+    tableInfos: Api.newGet<DbTableInfo[], { id: number; db: string; like?: string; limit?: number }>('/dbs/{id}/t-infos'),
+    // 扩展元数据对象节点（视图/序列/存储过程…），由后端 MetaNavigator 提供，按 features 能力位决定是否请求
+    metaObjects: Api.newGet<DbMetadataObject[], { id: number; db: string; kind: string; schema?: string }>('/dbs/{id}/meta-objects'),
+    // 单个扩展对象的 DDL 原文（点开节点查看）
+    metaObjectDdl: Api.newGet<string, { id: number; db: string; kind: string; schema?: string; name: string }>('/dbs/{id}/meta-object-ddl'),
+    // 方言能力协商：能力位（features）+ 命名空间层次的单一事实源，前端据此数据驱动渲染、不再各自硬编码
+    capabilities: Api.newGet<DbCapabilities, { id: number; db: string }>('/dbs/{id}/capabilities'),
     tableIndex: Api.newGet<Record<string, unknown>[]>('/dbs/{id}/t-index'),
     tableDdl: Api.newGet<string>('/dbs/{id}/t-create-ddl'),
     copyTable: Api.newPost<void>('/dbs/{id}/copy-table'),
+    // 获取指定表的列元数据（列名/类型/注释/主键等）：SQL 补全按表 fragment 取列与表结构/数据编辑共用
     columnMetadata: Api.newGet<ColumnMetadata[]>('/dbs/{id}/c-metadata'),
     // 获取库的 schema 列表：后端 GetSchemas 是各方言通用实现（pg/oracle/mssql/dm/clickhouse... 均有），
     // 是否调用由方言能力 supportsSchema 决定，并非 postgres 专属；方法名保持方言中立，路径中的 pg 为历史遗留。
     dbSchemas: Api.newGet<string[]>('/dbs/{id}/pg/schemas'),
-    // 获取表即列提示
-    hintTables: Api.newGet<string[]>('/dbs/{id}/hint-tables'),
     sqlExec: Api.newPost<SqlExecRes[], Record<string, unknown>>('/dbs/{id}/exec-sql').withBeforeHandler(async (param) => await encryptField(param, 'sql')),
     // 保存sql
     saveSql: Api.newPost<void>('/dbs/{id}/sql'),
@@ -124,8 +130,8 @@ export function uploadSqlFile(
         filename: file.name,
     };
 
-    // 创建 Api 实例
-    const api = Api.newPost(`/dbs/${params.dbId}/exec-sql-file`);
+    // 创建 Api 实例（走 uploadRaw 传输文件流，后端不返回响应体，进度经通知通道回传）
+    const api = Api.newPost<void>(`/dbs/${params.dbId}/exec-sql-file`);
 
     // 使用 uploadRaw 直接传递文件流
     const { abort } = api.uploadRaw(file, queryParams, {

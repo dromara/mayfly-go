@@ -8,9 +8,12 @@ package itest
 // 必须使用两个不同数据库（mysql源 + pg目标）。
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/application/transfer"
+	"mayfly-go/internal/db/dbm/export"
 	"strings"
 	"testing"
 
@@ -19,6 +22,37 @@ import (
 
 	"mayfly-go/internal/db/dbm/dbi"
 )
+
+func TestITVerifyNameCase(t *testing.T) {
+	conn := verifyPgConn(t)
+	defer conn.Close()
+	const source = "IT_Verify_Case"
+	_, err := conn.Exec(`CREATE TABLE "IT_Verify_Case" ("ID" int PRIMARY KEY, "Amount" numeric(20,6))`)
+	require.NoError(t, err)
+	_, err = conn.Exec(`INSERT INTO "IT_Verify_Case" VALUES (1,1.500000),(2,900719925474.100000)`)
+	require.NoError(t, err)
+	var script bytes.Buffer
+	require.NoError(t, transfer.DumpDbScript(context.Background(), conn, &dto.DumpDb{
+		Tables: []string{source}, DumpDDL: true, DumpData: true, NameCase: export.NameCaseLower, Writer: &script,
+	}))
+	app := &transfer.DbTransferAppImpl{}
+	require.NoError(t, app.ImportDumpStream(context.Background(), 0, conn, &script))
+	res := app.VerifyTableWithNameCase(context.Background(), conn, conn, source, export.NameCaseLower)
+	require.Empty(t, res.Err)
+	require.Empty(t, res.SampleErr)
+	assert.True(t, res.CountMatch)
+	assert.Equal(t, 2, res.Sampled)
+	assert.Empty(t, res.MismatchPk)
+
+	_, err = conn.Exec(`CREATE TABLE "IT_Generated_Case" ("Amount" int, "Total" int GENERATED ALWAYS AS ("Amount" * 2) STORED)`)
+	require.NoError(t, err)
+	script.Reset()
+	err = transfer.DumpDbScript(context.Background(), conn, &dto.DumpDb{
+		Tables: []string{"IT_Generated_Case"}, DumpDDL: true, NameCase: export.NameCaseUpper, Writer: &script,
+	})
+	require.ErrorContains(t, err, "generated column")
+	assert.NotContains(t, script.String(), "DROP TABLE", "不支持的组合必须在输出破坏性 DDL 前失败")
+}
 
 const verifyItTable = "it_verify_src"
 

@@ -24,11 +24,11 @@ const props = withDefaults(defineProps<Props>(), {
 
 onBeforeMount(() => props.collapsed && findIndex());
 onMounted(() => {
-    resize({ target: { innerWidth: window.innerWidth } } as unknown as UIEvent);
+    resize();
     window.addEventListener('resize', resize);
 });
 onActivated(() => {
-    resize({ target: { innerWidth: window.innerWidth } } as unknown as UIEvent);
+    resize();
     window.addEventListener('resize', resize);
 });
 onUnmounted(() => {
@@ -38,9 +38,9 @@ onDeactivated(() => {
     window.removeEventListener('resize', resize);
 });
 
-// 监听屏幕变化
-const resize = (e: UIEvent) => {
-    let width = (e.target as Window).innerWidth;
+// 监听屏幕变化：断点只取决于视口宽度，故直接读 window.innerWidth（初始化时也要算一次，不依赖事件对象）
+const resize = () => {
+    const width = window.innerWidth;
     switch (!!width) {
         case width < 768:
             breakPoint.value = 'xs';

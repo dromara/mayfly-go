@@ -1,8 +1,19 @@
 import { getServerConf, getSysStyleConfig } from '@/common/sysconfig';
 import { formatDate } from '@/common/utils/format';
-import { getLocal, getThemeConfig } from '@/common/utils/storage';
+import { getThemeConfig, removeLocal } from '@/common/utils/storage';
+import { getDarkColor, getLightColor } from '@/common/utils/theme';
 import { useUserInfo } from '@/store/userInfo';
 import { defineStore } from 'pinia';
+
+// 主题色键：写入 Element Plus 的 --el-color-* 契约（全站 175 处消费的是 el 名）。
+// --color-* 在 tailwind 里是 var(--primary) 的派生别名（输出），写它没有消费者
+const THEME_COLOR_KEYS = ['primary', 'success', 'info', 'warning', 'danger'] as const;
+
+// 背景色键：消费方读的是 --bg-* 自定义属性
+const THEME_BG_KEYS = ['menuBar', 'menuBarColor', 'topBar', 'columnsMenuBar', 'topBarColor', 'columnsMenuBarColor'] as const;
+
+// 玻璃态下被覆盖的文字墨色变量：亮/暗两分支对它们的处理不对称，切换时必须能单独清除
+const GLASS_TEXT_KEYS = ['--el-text-color-primary', '--el-text-color-regular', '--el-text-color-secondary', '--el-text-color-placeholder'];
 
 // 系统默认logo图标，对应于@/assets/image/logo.svg
 const logoIcon =
@@ -179,7 +190,11 @@ export const useThemeConfig = defineStore('themeConfig', {
                 // 直接赋值会让这些字段变成 undefined（曾导致 ElSwitch 的 model-value 校验告警）
                 // isDrawer 强制为 false：缓存中可能残留上次会话的 drawer 开启状态，导致 mount 时短暂打开再关闭触发告警
                 this.themeConfig = { ...this.themeConfig, ...tc, isDrawer: false };
-                document.documentElement.style.cssText = getLocal('themeConfigStyle') || '';
+                // 旧版把整份 html 内联 cssText 存进缓存并无条件回放，会把某次会话（尤其浅色玻璃态）
+                // 写下的 --el-text-color-* / --el-bg-color* 带进另一种明暗模式，导致暗色底 + 亮色字而看似空白；
+                // 变量一律由 themeConfig 派生，此处顺带清除历史快照并释放配额
+                removeLocal('themeConfigStyle');
+                this.applyCustomThemeVars();
 
                 // 恢复液态玻璃态模式
                 if (this.themeConfig.isGlassMode) {
@@ -257,7 +272,37 @@ export const useThemeConfig = defineStore('themeConfig', {
                     this.themeConfig.terminalTheme = 'light';
                 }
             }
-            // 玻璃模式：切换明暗后重新计算玻璃变量（亮/暗基底色不同）
+            // 明暗切换后重算主题变量（-light-N 梯度方向随明暗改变）与玻璃变量
+            this.applyCustomThemeVars();
+        },
+        /**
+         * 依据 themeConfig 重新计算并写入自定义主题变量（主题变量写入的唯一入口）。
+         *
+         * 取「从状态派生」而非「录制并回放原始 cssText」：themeConfig 本体已由 App.vue 深度监听持久化，
+         * 回放快照只会把上一个会话的明暗相关值固定注入到当前模式。重算幂等，可随时调用。
+         */
+        applyCustomThemeVars() {
+            const el = document.documentElement;
+            // EP 暗模式下的 -light-N 是向深色混合，与亮模式方向相反
+            const ramp = this.themeConfig.isDark ? getDarkColor : getLightColor;
+            for (const key of THEME_COLOR_KEYS) {
+                const value = this.themeConfig[key];
+                if (!value) {
+                    continue;
+                }
+                const name = `--el-color-${key}`;
+                el.style.setProperty(name, value);
+                for (let i = 1; i <= 9; i++) {
+                    el.style.setProperty(`${name}-light-${i}`, ramp(value, i / 10));
+                }
+            }
+            for (const key of THEME_BG_KEYS) {
+                const value = this.themeConfig[key];
+                if (value) {
+                    el.style.setProperty(`--bg-${key}`, value);
+                }
+            }
+            // 玻璃模式会覆盖同名 --bg-*，必须在其之后重算，以保持「自定义底色 → 玻璃半透明」的既有层叠次序
             if (this.themeConfig.isGlassMode) {
                 this._applyGlassVariables();
             }
@@ -311,6 +356,9 @@ export const useThemeConfig = defineStore('themeConfig', {
                 set('--el-table-tr-bg-color', 'rgba(30, 32, 48, 0.25)');
                 set('--el-table-header-bg-color', 'rgba(30, 32, 48, 0.18)');
                 set('--el-table-row-hover-bg-color', 'rgba(255, 255, 255, 0.06)');
+                // 暗色玻璃不覆盖文字墨色（沿用 EP 暗模式自带的浅色字），但必须显式清除亮色分支曾写入的墨色：
+                // 否则「亮玻璃 → 暗玻璃」（玻璃常开、仅切明暗）时深墨会残留在暗底上，文字看似空白
+                GLASS_TEXT_KEYS.forEach((v) => el.style.removeProperty(v));
                 return;
             }
 
@@ -359,20 +407,6 @@ export const useThemeConfig = defineStore('themeConfig', {
                 '--glass-frost-fx', '--glass-frost-veil',
             ];
             vars.forEach(v => el.style.removeProperty(v));
-            // 恢复缓存中的原始样式
-            const savedStyle = getLocal('themeConfigStyle');
-            if (savedStyle) {
-                // 重新解析原始变量
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(`<html style="${savedStyle}"></html>`, 'text/html');
-                const origStyle = doc.documentElement.getAttribute('style') || '';
-                origStyle.split(';').forEach(pair => {
-                    const [key] = pair.split(':').map(s => s.trim());
-                    if (key && vars.includes(key)) {
-                        el.style.removeProperty(key);
-                    }
-                });
-            }
         },
         // 设置玻璃壁纸：切换 <html data-wallpaper> 属性（'none' 移除属性，回退默认动态光斑）
         // 内置预设的渐变由 wallpaper.scss 依据该属性选择器应用；'custom' 走 --backdrop-image 图层

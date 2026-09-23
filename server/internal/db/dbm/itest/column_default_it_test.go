@@ -30,7 +30,7 @@ import (
 const (
 	dflMysql    = dbi.DbType("mysql")
 	dflPostgres = dbi.DbType("postgres")
-	dflSqlite   = dbi.DbType("sqlite")
+	dflSQLite   = dbi.DbType("sqlite")
 )
 
 // dflCase 单个默认值用例：kind决定各方言列类型，lit决定各方言DEFAULT子句书写形态，want为期望库内值
@@ -59,7 +59,7 @@ func dflStrLitAll(v string) map[dbi.DbType]string {
 	return map[dbi.DbType]string{
 		dflMysql:    dflStrLit(dflMysql, v),
 		dflPostgres: dflStrLit(dflPostgres, v),
-		dflSqlite:   dflStrLit(dflSqlite, v),
+		dflSQLite:   dflStrLit(dflSQLite, v),
 	}
 }
 
@@ -78,40 +78,40 @@ var dflCases = []dflCase{
 	{col: "d_backslash", kind: "str", lit: map[dbi.DbType]string{
 		dflMysql:    `'a\\b'`,
 		dflPostgres: `'a\b'`,
-		dflSqlite:   `'a\b'`,
+		dflSQLite:   `'a\b'`,
 	}, want: `a\b`},
 	// NOT NULL列的字符串默认值NULL：MySQL不允许NOT NULL DEFAULT NULL（建表即报1067），
 	// 故元数据中的裸NULL必为字符串内容，不得当作无默认值丢弃
 	{col: "d_nullstr", kind: "str", lit: dflStrLitAll("NULL"), want: "NULL"},
 	// 可空列的显式DEFAULT NULL：等价于无默认值，插入省略该列必须得到NULL
 	{col: "d_explicit_null", kind: "str", lit: map[dbi.DbType]string{
-		dflMysql: "NULL", dflPostgres: "NULL", dflSqlite: "NULL",
+		dflMysql: "NULL", dflPostgres: "NULL", dflSQLite: "NULL",
 	}, want: nil},
 	{col: "d_no_default", kind: "str", lit: map[dbi.DbType]string{}, want: nil},
 	{col: "d_int_neg", kind: "int", lit: map[dbi.DbType]string{
-		dflMysql: "-1", dflPostgres: "-1", dflSqlite: "-1",
+		dflMysql: "-1", dflPostgres: "-1", dflSQLite: "-1",
 	}, want: int64(-1)},
 	{col: "d_int_zero", kind: "int", lit: map[dbi.DbType]string{
-		dflMysql: "0", dflPostgres: "0", dflSqlite: "0",
+		dflMysql: "0", dflPostgres: "0", dflSQLite: "0",
 	}, want: int64(0)},
 	{col: "d_bigint", kind: "bigint", lit: map[dbi.DbType]string{
-		dflMysql: "9223372036854775807", dflPostgres: "9223372036854775807", dflSqlite: "9223372036854775807",
+		dflMysql: "9223372036854775807", dflPostgres: "9223372036854775807", dflSQLite: "9223372036854775807",
 	}, want: int64(9223372036854775807)},
 	{col: "d_dec", kind: "dec", lit: map[dbi.DbType]string{
-		dflMysql: "12.34", dflPostgres: "12.34", dflSqlite: "12.34",
+		dflMysql: "12.34", dflPostgres: "12.34", dflSQLite: "12.34",
 	}, want: "12.34"},
 	{col: "d_ts", kind: "ts", lit: map[dbi.DbType]string{
-		dflMysql: "CURRENT_TIMESTAMP", dflPostgres: "CURRENT_TIMESTAMP", dflSqlite: "CURRENT_TIMESTAMP",
+		dflMysql: "CURRENT_TIMESTAMP", dflPostgres: "CURRENT_TIMESTAMP", dflSQLite: "CURRENT_TIMESTAMP",
 	}, want: "NON_NULL", loose: true, ddlSub: "CURRENT_TIMESTAMP"},
 	// 带小数秒精度的自动初始化默认值：MySQL要求默认值的fsp与列定义严格相等（不匹配即Error 1067），
 	// 而sqlite不接受CURRENT_TIMESTAMP的参数，故源侧按各方言自身语法书写、目标侧必须重新归一
 	{col: "d_ts3", kind: "ts3", lit: map[dbi.DbType]string{
-		dflMysql: "CURRENT_TIMESTAMP(3)", dflPostgres: "CURRENT_TIMESTAMP(3)", dflSqlite: "CURRENT_TIMESTAMP",
+		dflMysql: "CURRENT_TIMESTAMP(3)", dflPostgres: "CURRENT_TIMESTAMP(3)", dflSQLite: "CURRENT_TIMESTAMP",
 	}, want: "NON_NULL", loose: true, ddlSub: "CURRENT_TIMESTAMP"},
 	// 纯日期列的当日默认值：MySQL 8.0元数据以(CURRENT_DATE)表达式形态呈现，PG/sqlite为裸关键字，
 	// 归一不当会在目标库产生Error 1064（裸CURRENT_DATE不是合法的MySQL默认值）而丢默认值
 	{col: "d_date", kind: "date", lit: map[dbi.DbType]string{
-		dflMysql: "(CURRENT_DATE)", dflPostgres: "CURRENT_DATE", dflSqlite: "CURRENT_DATE",
+		dflMysql: "(CURRENT_DATE)", dflPostgres: "CURRENT_DATE", dflSQLite: "CURRENT_DATE",
 	}, want: "NON_NULL", loose: true, ddlSub: "CURRENT_DATE"},
 	// 字符串列的默认值内容恰好与SQL关键字/函数/数字同形：MySQL 8.0元数据去引号呈现，
 	// 若误当裸字面量拼入DDL，varchar DEFAULT TRUE会被目标库重新解释为'1'（静默数据损坏），
@@ -122,23 +122,23 @@ var dflCases = []dflCase{
 	{col: "d_zero_str", kind: "str", lit: dflStrLitAll("0"), want: "0"},
 }
 
-// dflColTypeSql 返回该用例列在指定方言下的列类型与约束片段（不含DEFAULT）
-func dflColTypeSql(dt dbi.DbType, c dflCase) string {
-	strType := map[dbi.DbType]string{dflMysql: "varchar(64)", dflPostgres: "character varying(64)", dflSqlite: "text"}[dt]
+// dflColTypeSQL 返回该用例列在指定方言下的列类型与约束片段（不含DEFAULT）
+func dflColTypeSQL(dt dbi.DbType, c dflCase) string {
+	strType := map[dbi.DbType]string{dflMysql: "varchar(64)", dflPostgres: "character varying(64)", dflSQLite: "text"}[dt]
 	switch c.kind {
 	case "int":
-		return map[dbi.DbType]string{dflMysql: "int", dflPostgres: "integer", dflSqlite: "integer"}[dt] + " NOT NULL"
+		return map[dbi.DbType]string{dflMysql: "int", dflPostgres: "integer", dflSQLite: "integer"}[dt] + " NOT NULL"
 	case "bigint":
-		return map[dbi.DbType]string{dflMysql: "bigint", dflPostgres: "bigint", dflSqlite: "integer"}[dt] + " NOT NULL"
+		return map[dbi.DbType]string{dflMysql: "bigint", dflPostgres: "bigint", dflSQLite: "integer"}[dt] + " NOT NULL"
 	case "dec":
-		return map[dbi.DbType]string{dflMysql: "decimal(10,2)", dflPostgres: "numeric(10,2)", dflSqlite: "numeric(10,2)"}[dt] + " NOT NULL"
+		return map[dbi.DbType]string{dflMysql: "decimal(10,2)", dflPostgres: "numeric(10,2)", dflSQLite: "numeric(10,2)"}[dt] + " NOT NULL"
 	case "ts":
-		return map[dbi.DbType]string{dflMysql: "timestamp", dflPostgres: "timestamp", dflSqlite: "timestamp"}[dt] + " NOT NULL"
+		return map[dbi.DbType]string{dflMysql: "timestamp", dflPostgres: "timestamp", dflSQLite: "timestamp"}[dt] + " NOT NULL"
 	case "ts3":
 		// sqlite无小数秒概念，列类型不带精度参数；mysql用datetime避开同表多个timestamp的特殊约束
-		return map[dbi.DbType]string{dflMysql: "datetime(3)", dflPostgres: "timestamp(3)", dflSqlite: "timestamp"}[dt] + " NOT NULL"
+		return map[dbi.DbType]string{dflMysql: "datetime(3)", dflPostgres: "timestamp(3)", dflSQLite: "timestamp"}[dt] + " NOT NULL"
 	case "date":
-		return map[dbi.DbType]string{dflMysql: "date", dflPostgres: "date", dflSqlite: "date"}[dt] + " NOT NULL"
+		return map[dbi.DbType]string{dflMysql: "date", dflPostgres: "date", dflSQLite: "date"}[dt] + " NOT NULL"
 	}
 	// 字符串列：显式DEFAULT NULL与无默认值两例必须可空，其余非空以验证NULL字符串默认值
 	switch c.col {
@@ -154,7 +154,7 @@ func buildDflSourceDDL(dt dbi.DbType, table string) string {
 	var sb strings.Builder
 	sb.WriteString("CREATE TABLE " + quote(table) + " (id INT NOT NULL,")
 	for _, c := range dflCases {
-		sb.WriteString("\n  " + quote(c.col) + " " + dflColTypeSql(dt, c))
+		sb.WriteString("\n  " + quote(c.col) + " " + dflColTypeSQL(dt, c))
 		if lit, ok := c.lit[dt]; ok {
 			sb.WriteString(" DEFAULT " + lit)
 		}
@@ -195,8 +195,8 @@ func dflConn(t *testing.T, dt dbi.DbType) *dbi.DbConn {
 
 // TestITColumnDefaultRoundtrip 9个源→目标组合的列默认值结构与语义往返
 func TestITColumnDefaultRoundtrip(t *testing.T) {
-	srcTypes := []dbi.DbType{dflMysql, dflPostgres, dflSqlite}
-	dstTypes := []dbi.DbType{dflMysql, dflPostgres, dflSqlite}
+	srcTypes := []dbi.DbType{dflMysql, dflPostgres, dflSQLite}
+	dstTypes := []dbi.DbType{dflMysql, dflPostgres, dflSQLite}
 
 	for _, srcType := range srcTypes {
 		for _, dstType := range dstTypes {
@@ -248,12 +248,12 @@ func TestITColumnDefaultRoundtrip(t *testing.T) {
 				}
 
 				// 4. 结构断言：应有默认值的列，其DDL行必须仍含DEFAULT子句（防静默丢弃）
-				createSql := strings.Join(ddls, "\n")
+				createSQL := strings.Join(ddls, "\n")
 				for _, c := range dflCases {
 					if c.want == nil {
 						continue
 					}
-					line := sqlLineOfColumn(createSql, dstDialect.Quoter().QuoteIdent(c.col))
+					line := sqlLineOfColumn(createSQL, dstDialect.Quoter().QuoteIdent(c.col))
 					require.NotEmpty(t, line, "目标DDL中未找到列 [%s]", c.col)
 					assert.Contains(t, strings.ToUpper(line), "DEFAULT", "列 [%s] 默认值被静默丢弃: %s", c.col, line)
 					if c.ddlSub != "" {
@@ -283,7 +283,7 @@ func TestITColumnDefaultRoundtrip(t *testing.T) {
 							"定点数列 [%s] 在目标库退化为非精确数值类型: %s", c.col, dstCol.GetColumnType())
 					case "ts3":
 						// sqlite无小数秒概念（源与目标均不适用），其余组合必须携带精度3
-						if srcType != dflSqlite && dstType != dflSqlite {
+						if srcType != dflSQLite && dstType != dflSQLite {
 							assert.Contains(t, dstCol.GetColumnType(), "(3)",
 								"小数秒精度未带入目标列 [%s]: %s", c.col, dstCol.GetColumnType())
 						}
@@ -315,8 +315,8 @@ func TestITColumnDefaultRoundtrip(t *testing.T) {
 }
 
 // sqlLineOfColumn 从建表SQL中取出包含指定列引用的那一行（用于按列做DEFAULT存在性断言）
-func sqlLineOfColumn(createSql, quotedCol string) string {
-	for _, line := range strings.Split(createSql, "\n") {
+func sqlLineOfColumn(createSQL, quotedCol string) string {
+	for _, line := range strings.Split(createSQL, "\n") {
 		if strings.Contains(line, quotedCol) {
 			return line
 		}

@@ -42,7 +42,7 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 		return columns, nil
 	}
 
-	_, res, err := od.di.Query(fmt.Sprintf(metaSql.Get(ORACLE11_COLUMN_MA_KEY), tableName))
+	_, res, err := od.di.Query(fmt.Sprintf(metaSQL.Get(ORACLE11_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -69,39 +69,4 @@ func (od *OracleMetadata11) GetColumns(tableNames ...string) ([]dbi.Column, erro
 		columns = append(columns, column)
 	}
 	return columns, nil
-}
-
-func (od *OracleMetadata11) genColumnBasicSql(column dbi.Column) string {
-	dialect := od.di.GetDialect()
-	colName := dialect.Quoter().QuoteIdent(column.ColumnName)
-
-	if column.AutoIncrement {
-		// 11g以前的版本 如果是自增，自增列数据类型必须是number，不需要设置默认值和空值，建表后设置自增序列
-		return fmt.Sprintf(" %s NUMBER", colName)
-	}
-
-	nullAble := ""
-	if !column.Nullable {
-		nullAble = " NOT NULL"
-	}
-
-	defVal := dbi.GenColumnDefaultSqlOf(&column, column.DataType, dbi.QuoteEscape)
-
-	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), defVal, nullAble)
-	return columnSql
-}
-
-// 11g及以下版本会设置自增序列和触发器
-func (od *OracleMetadata11) GenerateTableOtherDDL(tableInfo dbi.Table, quoteTableName string, columns []dbi.Column) []string {
-	result := make([]string, 0)
-	for _, col := range columns {
-		if col.AutoIncrement {
-			seqName := fmt.Sprintf("%s_%s_seq", tableInfo.TableName, col.ColumnName)
-			trgName := fmt.Sprintf("%s_%s_trg", tableInfo.TableName, col.ColumnName)
-			result = append(result, fmt.Sprintf("CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1", seqName))
-			result = append(result, fmt.Sprintf("CREATE OR REPLACE TRIGGER %s BEFORE INSERT ON %s FOR EACH ROW WHEN (NEW.%s IS NULL) BEGIN SELECT %s.nextval INTO :new.%s FROM dual; END", trgName, quoteTableName, col.ColumnName, seqName, col.ColumnName))
-		}
-	}
-
-	return result
 }

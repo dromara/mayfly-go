@@ -12,7 +12,7 @@ func newTestSQLGenerator() *SQLGenerator {
 	// 触发mssql列类型注册（TypeEngine注册包含向dbDataTypes的同步）
 	dbi.GetTypeEngine(DbTypeMssql)
 	meta := dbi.GetBackend(DbTypeMssql)
-	return &SQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: (&MssqlDialect{}).Quoter}, di: &dbi.DbInfo{Type: DbTypeMssql, Backend: meta}}
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: (&MssqlDialect{}).Quoter}, di: &dbi.DbInfo{Type: DbTypeMssql, Backend: meta}}
 }
 
 func TestMssqlQuoteTableName(t *testing.T) {
@@ -242,15 +242,33 @@ func TestMssqlGenBatchDelete_SinglePK(t *testing.T) {
 	assert.Contains(t, sqls[0], "[id] NOT IN ('1', '2', '3')")
 }
 
-func TestMssqlGenBatchDelete_BatchSplit(t *testing.T) {
+// TestMssqlGenBatchDelete_NoSplit 大量主键必须保持**单条** NOT IN 语句：
+// 「删除目标中 NOT IN 源主键集」的对账语义一旦按参数上限拆成多条独立 DELETE，逐条执行会把
+// 真实存在于源库、但落在其它批次的行误删（仅所有批次交集能存活）——静默大规模数据丢失。
+// 值为内联字面量而非绑定参数，2100 参数上限不约束字面量 IN 列表，故不得拆分。
+func TestMssqlGenBatchDelete_NoSplit(t *testing.T) {
 	gen := newTestSQLGenerator()
-	// 3000 行单列主键，每批最多 2000 行 → 应拆为 2 条 SQL
+	// 3000 行单列主键：仍应为 1 条语句，且首尾主键都出现在同一 NOT IN 列表内
 	values := make([][]any, 3000)
 	for i := range values {
 		values[i] = []any{i + 1}
 	}
 	sqls := gen.GenBatchDelete("t_user", []string{"id"}, values, nil)
-	assert.Equal(t, 2, len(sqls), "3000 rows with single PK should split into 2 batches")
+	assert.Len(t, sqls, 1, "删除对账语义要求单条 NOT IN，绝不可按批次拆分")
+	assert.Contains(t, sqls[0], "'1'")
+	assert.Contains(t, sqls[0], "'3000'")
+	assert.Equal(t, 1, strings.Count(sqls[0], "DELETE FROM"), "单条语句内不得出现第二条 DELETE")
+}
+
+// TestMssqlGenBatchDelete_CompositePK 复合主键通过 VALUES 派生表反连接，不使用行值 NOT IN。
+func TestMssqlGenBatchDelete_CompositePK(t *testing.T) {
+	gen := newTestSQLGenerator()
+	sqls := gen.GenBatchDelete("t_user", []string{"k1", "k2"}, [][]any{{1, "a"}, {2, "b"}}, nil)
+	assert.Len(t, sqls, 1)
+	assert.Contains(t, sqls[0], "NOT EXISTS")
+	assert.Contains(t, sqls[0], "VALUES ('1', N'a'), ('2', N'b')")
+	assert.Contains(t, sqls[0], "retained.[k0] = target.[k1] AND retained.[k1] = target.[k2]")
+	assert.NotContains(t, sqls[0], "([k1], [k2]) NOT IN")
 }
 
 func TestMssqlGenBatchDelete_EmptyInput(t *testing.T) {

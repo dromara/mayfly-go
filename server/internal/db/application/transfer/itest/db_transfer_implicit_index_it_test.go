@@ -13,7 +13,7 @@ package itest
 // 现口径：隐式索引改由 pragma 取列名与唯一性，主键隐式索引不返回（随CREATE TABLE的PRIMARY KEY重建），
 // 其余隐式索引在产物中以 idx_ 合法别名重建。本用例把三件事钉死：元数据真实、产物可导入、约束仍生效。
 //
-// 运行：cd server && go test -tags it -count=1 -run TestITSqliteImplicitIndex ./internal/db/application/transfer/
+// 运行：cd server && go test -tags it -count=1 -run TestITSQLiteImplicitIndex ./internal/db/application/transfer/
 
 import (
 	"context"
@@ -47,20 +47,20 @@ func itPrepareImplicitIndexTable(t *testing.T, conn *dbi.DbConn) {
 	require.NoError(t, err, "写入数据失败")
 }
 
-// TestITSqliteImplicitIndexMetadata 隐式索引必须如实上报（列名/唯一性），主键隐式索引不进入索引清单
-func TestITSqliteImplicitIndexMetadata(t *testing.T) {
-	conn := itSqliteNode(t)
+// TestITSQLiteImplicitIndexMetadata 隐式索引必须如实上报（列名/唯一性），主键隐式索引不进入索引清单
+func TestITSQLiteImplicitIndexMetadata(t *testing.T) {
+	conn := itSQLiteNode(t)
 	defer conn.Close()
 	itPrepareImplicitIndexTable(t, conn)
 	defer func() {
 		_, _ = conn.Exec("DROP TABLE IF EXISTS " + itImplicitIdxTable)
 	}()
 
-	indexs, err := conn.Metadata().GetTableIndex(itImplicitIdxTable)
+	indexes, err := conn.Metadata().GetTableIndex(itImplicitIdxTable)
 	require.NoError(t, err, "查询索引信息失败")
 
-	byName := make(map[string]dbi.Index, len(indexs))
-	for _, idx := range indexs {
+	byName := make(map[string]dbi.Index, len(indexes))
+	for _, idx := range indexes {
 		assert.NotEmpty(t, idx.ColumnName, "[%s] 索引列名不得为空（空列会在dump中生成非法DDL）", idx.IndexName)
 		assert.NotEqual(t, "id", idx.ColumnName, "主键隐式索引不应进入索引清单（随CREATE TABLE重建，且不可DROP）")
 		byName[idx.IndexName] = idx
@@ -83,9 +83,9 @@ func TestITSqliteImplicitIndexMetadata(t *testing.T) {
 	assert.True(t, named.IsUnique)
 }
 
-// TestITSqliteImplicitIndexDumpImport 含隐式索引的表，其dump产物必须可导入且约束仍然生效
-func TestITSqliteImplicitIndexDumpImport(t *testing.T) {
-	conn := itSqliteNode(t)
+// TestITSQLiteImplicitIndexDumpImport 含隐式索引的表，其dump产物必须可导入且约束仍然生效
+func TestITSQLiteImplicitIndexDumpImport(t *testing.T) {
+	conn := itSQLiteNode(t)
 	defer conn.Close()
 	itPrepareImplicitIndexTable(t, conn)
 	defer func() {

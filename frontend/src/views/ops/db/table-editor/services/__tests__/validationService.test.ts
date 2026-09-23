@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { validationService } from '../validationService';
-import type { TableDefinition, ColumnDefinition } from '../../../types/schema';
+import type { TableDefinition, TableColumnDefinition } from '../../../types/schema';
 
 describe('ValidationService', () => {
   describe('validateTable', () => {
@@ -11,8 +11,8 @@ describe('ValidationService', () => {
       const table: TableDefinition = {
         name: 'user_info',
         columns: [
-          { name: 'id', type: 'bigint', notNull: true, pri: true, auto_increment: true, remark: '主键' },
-          { name: 'username', type: 'varchar', length: '50', notNull: true, pri: false, auto_increment: false, remark: '用户名' },
+          { name: 'id', type: 'bigint', nullable: false, isPrimaryKey: true, autoIncrement: true, comment: '主键' },
+          { name: 'username', type: 'varchar', length: '50', nullable: false, isPrimaryKey: false, autoIncrement: false, comment: '用户名' },
         ],
         indexes: [],
         constraints: [],
@@ -26,7 +26,7 @@ describe('ValidationService', () => {
     it('应该检测空表名', () => {
       const table: TableDefinition = {
         name: '',
-        columns: [{ name: 'id', type: 'bigint', notNull: true, pri: false, auto_increment: false }],
+        columns: [{ name: 'id', type: 'bigint', nullable: false, isPrimaryKey: false, autoIncrement: false }],
         indexes: [],
         constraints: [],
       };
@@ -39,7 +39,7 @@ describe('ValidationService', () => {
     it('应该检测非法表名', () => {
       const table: TableDefinition = {
         name: '123table',
-        columns: [{ name: 'id', type: 'bigint', notNull: true, pri: false, auto_increment: false }],
+        columns: [{ name: 'id', type: 'bigint', nullable: false, isPrimaryKey: false, autoIncrement: false }],
         indexes: [],
         constraints: [],
       };
@@ -66,7 +66,7 @@ describe('ValidationService', () => {
       const table: TableDefinition = {
         name: 'test_table',
         columns: [
-          { name: 'id', type: 'bigint', notNull: true, pri: false, auto_increment: false },
+          { name: 'id', type: 'bigint', nullable: false, isPrimaryKey: false, autoIncrement: false },
         ],
         indexes: [],
         constraints: [],
@@ -80,8 +80,8 @@ describe('ValidationService', () => {
       const table: TableDefinition = {
         name: 'test_table',
         columns: [
-          { name: 'id', type: 'bigint', notNull: true, pri: true, auto_increment: false },
-          { name: 'id', type: 'varchar', notNull: false, pri: false, auto_increment: false },
+          { name: 'id', type: 'bigint', nullable: false, isPrimaryKey: true, autoIncrement: false },
+          { name: 'id', type: 'varchar', nullable: true, isPrimaryKey: false, autoIncrement: false },
         ],
         indexes: [],
         constraints: [],
@@ -95,12 +95,12 @@ describe('ValidationService', () => {
 
   describe('validateColumn', () => {
     it('应该检测空列名', () => {
-      const column: ColumnDefinition = {
+      const column: TableColumnDefinition = {
         name: '',
         type: 'varchar',
-        notNull: false,
-        pri: false,
-        auto_increment: false,
+        nullable: true,
+        isPrimaryKey: false,
+        autoIncrement: false,
       };
 
       const errors = validationService.validateColumn(column, { name: 'test', columns: [column], indexes: [], constraints: [] });
@@ -108,12 +108,12 @@ describe('ValidationService', () => {
     });
 
     it('应该检测空列类型', () => {
-      const column: ColumnDefinition = {
+      const column: TableColumnDefinition = {
         name: 'test_col',
         type: '',
-        notNull: false,
-        pri: false,
-        auto_increment: false,
+        nullable: true,
+        isPrimaryKey: false,
+        autoIncrement: false,
       };
 
       const errors = validationService.validateColumn(column, { name: 'test', columns: [column], indexes: [], constraints: [] });
@@ -121,12 +121,12 @@ describe('ValidationService', () => {
     });
 
     it('应该检测无效的自增列类型', () => {
-      const column: ColumnDefinition = {
+      const column: TableColumnDefinition = {
         name: 'id',
         type: 'varchar',
-        notNull: true,
-        pri: true,
-        auto_increment: true,
+        nullable: false,
+        isPrimaryKey: true,
+        autoIncrement: true,
       };
 
       const errors = validationService.validateColumn(column, { name: 'test', columns: [column], indexes: [], constraints: [] });
@@ -134,12 +134,12 @@ describe('ValidationService', () => {
     });
 
     it('应该通过有效的自增列', () => {
-      const column: ColumnDefinition = {
+      const column: TableColumnDefinition = {
         name: 'id',
         type: 'bigint',
-        notNull: true,
-        pri: true,
-        auto_increment: true,
+        nullable: false,
+        isPrimaryKey: true,
+        autoIncrement: true,
       };
 
       const errors = validationService.validateColumn(column, { name: 'test', columns: [column], indexes: [], constraints: [] });
@@ -151,7 +151,7 @@ describe('ValidationService', () => {
     it('应该返回true对于有效表', () => {
       const table: TableDefinition = {
         name: 'user',
-        columns: [{ name: 'id', type: 'bigint', notNull: true, pri: true, auto_increment: false }],
+        columns: [{ name: 'id', type: 'bigint', nullable: false, isPrimaryKey: true, autoIncrement: false }],
         indexes: [],
         constraints: [],
       };
@@ -175,7 +175,7 @@ describe('ValidationService', () => {
     it('应该返回验证通过', () => {
       const result = validationService.validateTable({
         name: 'user',
-        columns: [{ name: 'id', type: 'bigint', notNull: true, pri: true, auto_increment: false }],
+        columns: [{ name: 'id', type: 'bigint', nullable: false, isPrimaryKey: true, autoIncrement: false }],
         indexes: [],
         constraints: [],
       });

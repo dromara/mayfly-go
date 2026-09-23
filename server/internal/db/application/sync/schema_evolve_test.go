@@ -121,7 +121,7 @@ func TestSchemaDetector_HandleChanges_WarnMode(t *testing.T) {
 		{Type: SchemaChangeTargetColumnMissing, ColumnName: "email"},
 	}
 
-	skipCols := detector.HandleChanges(nil, changes, "test-task")
+	skipCols := detector.HandleChanges(changes, "test-task")
 	assert.Len(t, skipCols, 0, "warn mode should not skip any columns")
 }
 
@@ -132,9 +132,33 @@ func TestSchemaDetector_HandleChanges_AutoMode(t *testing.T) {
 		{Type: SchemaChangeTargetColumnMissing, ColumnName: "email"},
 	}
 
-	skipCols := detector.HandleChanges(nil, changes, "test-task")
+	skipCols := detector.HandleChanges(changes, "test-task")
 	assert.Len(t, skipCols, 1, "auto mode should skip missing target columns")
 	assert.True(t, skipCols["email"])
+}
+
+func TestSchemaDetector_DetectSourceColumnChanges(t *testing.T) {
+	detector := NewSchemaDetector(entity.SchemaEvolveWarn)
+
+	fieldMap := []map[string]string{
+		{"src": "id", "target": "id"},
+		{"src": "removed_col", "target": "rc"},
+	}
+
+	// 源查询结果缺少 removed_col，应报一处 SOURCE_COLUMN_MISSING
+	changes := detector.DetectSourceColumnChanges(fieldMap, []string{"id", "name"})
+	assert.Len(t, changes, 1)
+	assert.Equal(t, SchemaChangeSourceColumnMissing, changes[0].Type)
+	assert.Equal(t, "removed_col", changes[0].ColumnName)
+
+	// 源列齐全时无变更
+	assert.Len(t, detector.DetectSourceColumnChanges(fieldMap, []string{"id", "removed_col"}), 0)
+
+	// 源列信息为空（无法获取）时不检测，避免误报
+	assert.Len(t, detector.DetectSourceColumnChanges(fieldMap, nil), 0)
+
+	// 大小写不敏感
+	assert.Len(t, detector.DetectSourceColumnChanges(fieldMap, []string{"ID", "REMOVED_COL"}), 0)
 }
 
 func TestFilterFieldMapBySchemaChanges(t *testing.T) {

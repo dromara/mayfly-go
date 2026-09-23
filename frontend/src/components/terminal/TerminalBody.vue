@@ -547,7 +547,7 @@ const triggerFolderUpload = () => {
 };
 
 // 上传文件到当前路径
-const uploadFilesToCurrentPath = async (files: FileList) => {
+const uploadFilesToCurrentPath = async (files: FileList | File[]) => {
     try {
         // 获取当前路径
         const currentPath = await getCurrentPathOrDefault();
@@ -665,7 +665,7 @@ const handleFileDrop = async (items: DataTransferItemList) => {
     }
 
     if (files.length > 0) {
-        await uploadFilesToCurrentPath(files as unknown as FileList);
+        await uploadFilesToCurrentPath(files);
     }
 };
 

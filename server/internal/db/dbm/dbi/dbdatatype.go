@@ -17,7 +17,10 @@ var DefaultDbDataType = NewDbDataType("string", DTString).WithCategory(TCVarchar
 type DbDataType struct {
 	Name string //  类型名
 
-	DataType *DataType // 数据类型
+	// Codec 该列类型的值编解码策略（scan 解码 + SQLValue 编码）。
+	// 字段名不叫 DataType，以避免与 Column.DataType（类型名字符串）同名重载——
+	// dt.Codec.SQLValue(v) 读起来是「用编解码器渲染」，dt.DataType 则会误读为「类型名字符串」。
+	Codec *ValueCodec
 
 	fixColumnFunc func(column *Column) // 修复字段长度、精度等, 如mysql text会返回长度，需要将其置为0等
 
@@ -50,10 +53,10 @@ func (ct *DbDataType) FixColumn(column *Column) {
 	}
 }
 
-func NewDbDataType(name string, dataType *DataType) *DbDataType {
+func NewDbDataType(name string, codec *ValueCodec) *DbDataType {
 	return &DbDataType{
-		Name:     name,
-		DataType: dataType,
+		Name:  name,
+		Codec: codec,
 	}
 }
 

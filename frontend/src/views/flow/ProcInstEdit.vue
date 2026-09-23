@@ -42,7 +42,8 @@
 </template>
 
 <script lang="ts" setup>
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { Msg } from '@/hooks/useI18n';
 import { computed, defineAsyncComponent, reactive, ref, shallowReactive, toRefs, useTemplateRef, watch } from 'vue';
 import { procdefApi, procinstApi } from './api';
@@ -84,11 +85,11 @@ const bizComponents = shallowReactive<Record<string, unknown>>({
     redis_run_cmd_flow: RedisRunCmdFlowBizForm,
 });
 
-/** 表单声明（AutoFormItem[]；业务表单由 bizComponents 动态组件承载，自含校验） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<ProcInstStartForm>；业务表单由 bizComponents 动态组件承载，自含校验） */
+const items = defineFormItems<ProcInstStartForm>([
     { prop: 'bizType', label: 'flow.bizType', type: 'enum', enums: FlowBizType, required: true, onChange: (_value, form) => changeBizType(form) },
     { prop: 'remark', label: 'common.remark', type: 'textarea', required: true },
-];
+]);
 
 const state = reactive({
     flowProcdef: null as Procdef | null,
@@ -96,14 +97,10 @@ const state = reactive({
 
 const { flowProcdef } = toRefs(state);
 
-/** 抽屉打开后暂存的内部表单引用（业务表单绑定、提交组装均基于它） */
-const internalForm = ref<AutoFormData>();
+// 宿主抽屉的内部表单在 @opened 接管（业务表单绑定、流程定义联动与提交均基于它）
+const { form: internalForm, onOpened, requireForm } = useAutoFormModel<ProcInstStartForm>();
 
-const onOpened = (form: AutoFormData) => {
-    internalForm.value = form;
-};
-
-const submitForm = computed(() => internalForm.value as ProcInstStartForm);
+const submitForm = computed(requireForm);
 
 const { execute: procinstStart } = procinstApi.start.useApi(submitForm);
 
@@ -130,7 +127,7 @@ const changeResourceCode = async (resourceType: string, code: string) => {
     }
 };
 
-const changeBizType = (form: AutoFormData) => {
+const changeBizType = (form: ProcInstStartForm) => {
     //重置流程定义ID
     form.procdefId = 0;
     state.flowProcdef = null;
@@ -168,8 +165,9 @@ const resetState = () => {
     };
 };
 
-// @cancel 时抽屉已由 AutoFormDrawer 关闭，仅需重置状态
+// 抽屉内置 @cancel 与自定义 #footer 的取消按钮均会进入此处：内置路径下 visible 已置 false，再赋一次为幂等
 const onCancel = () => {
+    visible.value = false;
     resetState();
 };
 </script>

@@ -46,7 +46,7 @@ func (c *CSVConsumer) Begin(w io.Writer, tableName string, columns []dbi.Column,
 }
 
 func (c *CSVConsumer) ConsumeBatch(w io.Writer, tableName string, columns []dbi.Column, rows [][]any,
-	helper dbi.DumpHelper, sqlGen dbi.SQLGenerator, settings *Settings) error {
+	helper dbi.DumpTxnWrapper, sqlGen dbi.SQLGenerator, settings *Settings) error {
 	for _, row := range rows {
 		record := make([]string, len(columns))
 		for i, val := range row {

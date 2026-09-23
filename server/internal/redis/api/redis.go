@@ -141,7 +141,7 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 }
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {
-	ri, err := r.redisApp.GetRedisConn(rc.MetaCtx, uint64(rc.PathParamInt("id")), 0)
+	ri, err := r.redisApp.GetRedisConn(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")), 0)
 	biz.ErrIsNil(err)
 
 	section := rc.Query("section")
@@ -218,7 +218,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 }
 
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
-	ri, err := r.redisApp.GetRedisConn(rc.MetaCtx, uint64(rc.PathParamInt("id")), 0)
+	ri, err := r.redisApp.GetRedisConn(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")), 0)
 	biz.ErrIsNil(err)
 
 	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "non-cluster mode")
@@ -280,5 +280,5 @@ func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
 
 // 获取redis id与要操作的库号（统一路径）
 func getIdAndDbNum(rc *req.Ctx) (uint64, int) {
-	return uint64(rc.PathParamInt("id")), rc.PathParamInt("db")
+	return cast.ToUint64(rc.PathParam("id")), rc.PathParamInt("db")
 }

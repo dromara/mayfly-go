@@ -9,6 +9,8 @@ import (
 
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/dbi/value"
+	"mayfly-go/internal/db/dbm/export"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gox"
@@ -61,7 +63,7 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 		return 0, errorx.NewBizf("db transfer task [%d] not found", taskId)
 	}
 
-	logId, err := app.CreateLog(ctx, taskId)
+	logId, err := app.CreateLog(ctx, taskId, entity.DbTransferLogPurposeVerify)
 	if err != nil {
 		app.runGuard.Release(taskId)
 		return 0, err
@@ -78,12 +80,18 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 		ctx = context.WithoutCancel(ctx)
 		defer app.runGuard.Release(taskId)
 
+		app.Log(ctx, logId, fmt.Sprintf("开始执行数据校验: %s（只读比对，不迁移数据）", task.TaskName))
 		report := app.buildVerifyReport(ctx, logId, task)
+
+		// 回填校验指标：校验不迁移数据，但仍统计涉及的表数与行数，
+		// 否则日志列表的「表数/行数」两列对校验记录恒为 0，易被误读为「什么都没做」
+		app.setVerifyMetrics(logId, report)
 
 		// 报告写入日志RunLog（可查询）
 		reportJson, err := json.Marshal(report)
 		if err != nil {
-			app.Log(ctx, logId, fmt.Sprintf("marshal verify report failed: %s", err.Error()))
+			// 必须走收尾，否则日志与任务状态永远停留在「执行中」
+			app.EndVerify(ctx, logId, taskId, "marshal verify report failed", err)
 			return
 		}
 		app.Log(ctx, logId, string(reportJson))
@@ -105,11 +113,11 @@ func (app *DbTransferAppImpl) Verify(ctx context.Context, taskId uint64) (uint64
 		if !report.AllMatch {
 			endErr = fmt.Errorf("verification failed: not all tables match")
 		}
-		app.EndTransfer(ctx, logId, taskId, "data verification complete", endErr, nil)
+		app.EndVerify(ctx, logId, taskId, "data verification complete", endErr)
 	}, func(panicErr error) {
-		// panic兜底：与Run()的panic handler一致，通过EndTransfer统一完成日志收尾（摘要/状态/耗时）与守卫释放，
-		// 否则日志永远停留在"执行中"状态（旧实现仅更新task状态+释放守卫，跳过了log落库）
-		app.EndTransfer(ctx, logId, taskId, "db transfer verify panicked", panicErr, nil)
+		// panic兜底：与Run()的panic handler一致，通过收尾函数统一完成日志收尾（摘要/状态/耗时）与守卫释放，
+		// 否则日志会永远停留在"执行中"状态
+		app.EndVerify(ctx, logId, taskId, "db transfer verify panicked", panicErr)
 	})
 
 	return logId, nil
@@ -150,10 +158,12 @@ func (app *DbTransferAppImpl) buildVerifyReport(ctx context.Context, logId uint6
 
 	results := make([]TableVerifyResult, 0, len(tableNames))
 	for _, tableName := range tableNames {
-		res := app.VerifyTable(ctx, srcConn, targetConn, tableName)
+		res := app.VerifyTableWithNameCase(ctx, srcConn, targetConn, tableName, int(task.NameCase))
 		results = append(results, res)
 		if res.Err != "" {
 			app.Log(ctx, logId, fmt.Sprintf("verify table [%s] error: %s", tableName, res.Err))
+		} else if res.SampleErr != "" {
+			app.Log(ctx, logId, fmt.Sprintf("verify table [%s] incomplete: %s", tableName, res.SampleErr))
 		} else if !res.CountMatch || len(res.MismatchPk) > 0 {
 			app.Log(ctx, logId, fmt.Sprintf("verify table [%s] mismatch: src=%d target=%d mismatchPk=%v",
 				tableName, res.SrcCount, res.TargetCount, res.MismatchPk))
@@ -162,9 +172,9 @@ func (app *DbTransferAppImpl) buildVerifyReport(ctx context.Context, logId uint6
 		}
 	}
 	report.Results = results
-	allMatch := true
+	allMatch := len(results) > 0
 	for _, res := range results {
-		if res.Err != "" || !res.CountMatch || len(res.MismatchPk) > 0 {
+		if res.Err != "" || res.SampleErr != "" || !res.CountMatch || len(res.MismatchPk) > 0 {
 			allMatch = false
 			break
 		}
@@ -174,9 +184,15 @@ func (app *DbTransferAppImpl) buildVerifyReport(ctx context.Context, logId uint6
 }
 
 // VerifyTable 校验单表：两侧count(*)比对 + 全量/多窗口抽样内容比对。
-// 抽样失败（无单列主键/查询异常）不视为校验失败，记录至SampleErr，count比对照常。
+// 抽样失败记录至 SampleErr，行数比对照常，但任务级报告不得宣称内容一致。
 func (app *DbTransferAppImpl) VerifyTable(ctx context.Context, srcConn, targetConn *dbi.DbConn, tableName string) TableVerifyResult {
+	return app.VerifyTableWithNameCase(ctx, srcConn, targetConn, tableName, export.NameCaseNone)
+}
+
+// VerifyTableWithNameCase 按迁移任务的名称规则定位目标表，源侧标识符始终保持原样。
+func (app *DbTransferAppImpl) VerifyTableWithNameCase(ctx context.Context, srcConn, targetConn *dbi.DbConn, tableName string, nameCase int) TableVerifyResult {
 	res := TableVerifyResult{TableName: tableName}
+	targetTable := export.ConvertName(tableName, nameCase)
 
 	// count比对
 	srcCount, err := countTableRows(ctx, srcConn, tableName)
@@ -184,7 +200,7 @@ func (app *DbTransferAppImpl) VerifyTable(ctx context.Context, srcConn, targetCo
 		res.Err = fmt.Sprintf("query source count failed: %s", err.Error())
 		return res
 	}
-	targetCount, err := countTableRows(ctx, targetConn, tableName)
+	targetCount, err := countTableRows(ctx, targetConn, targetTable)
 	if err != nil {
 		res.Err = fmt.Sprintf("query target count failed: %s", err.Error())
 		return res
@@ -195,7 +211,7 @@ func (app *DbTransferAppImpl) VerifyTable(ctx context.Context, srcConn, targetCo
 
 	// 抽样内容比对：需要两侧均有单列主键（任意类型）作对齐键
 	srcPk := singlePkColumn(srcConn, tableName)
-	tgtPk := singlePkColumn(targetConn, tableName)
+	tgtPk := singlePkColumn(targetConn, targetTable)
 	if srcPk == "" || tgtPk == "" {
 		res.SampleErr = "no single primary key column, skip content sampling"
 		return res
@@ -203,8 +219,8 @@ func (app *DbTransferAppImpl) VerifyTable(ctx context.Context, srcConn, targetCo
 
 	srcRows, sampleErr := sampleSourceRows(ctx, srcConn, tableName, srcPk, srcCount)
 	if sampleErr != nil {
-		// 抽样错误不可等同于“空表”：旧实现吞错后返回nil，两者无法区分，
-		// 导致查询失败被当成无需比对而静默报“一致”，必须记录真实失败原因
+		// 抽样错误不可等同于“空表”：吞掉错误会让查询失败被当成“无需比对”而静默报“一致”，
+		// 故必须记录真实失败原因
 		res.SampleErr = fmt.Sprintf("sample source rows failed: %s", sampleErr.Error())
 		return res
 	}
@@ -217,13 +233,13 @@ func (app *DbTransferAppImpl) VerifyTable(ctx context.Context, srcConn, targetCo
 
 	// 目标侧按源侧抽到的主键值精确回捞，保证两侧比对的是同一批行（不能按目标侧offset抽样，
 	// 两侧行数不一致时窗口会错位而产生假阳性差异）
-	tgtRows, fetchErr := fetchRowsByPkValues(ctx, targetConn, tableName, tgtPk, srcRows, srcPk)
+	tgtRows, fetchErr := fetchRowsByPkValues(ctx, targetConn, targetTable, tgtPk, srcRows, srcPk)
 	if fetchErr != nil {
 		res.SampleErr = fmt.Sprintf("fetch target rows by pk failed: %s", fetchErr.Error())
 		return res
 	}
 	res.Sampled = distinctRowCount(srcRows, srcPk)
-	res.MismatchPk = compareSampledRows(srcRows, tgtRows, srcPk, tgtPk, numericCommonColumns(srcConn, targetConn, tableName), VerifyMaxMismatchReport)
+	res.MismatchPk = compareSampledRows(srcRows, tgtRows, srcPk, tgtPk, numericCommonColumns(srcConn, targetConn, tableName, targetTable), VerifyMaxMismatchReport)
 	return res
 }
 
@@ -255,7 +271,7 @@ func sampleSourceRows(ctx context.Context, conn *dbi.DbConn, tableName, pk strin
 // fetchRowsByPkValues 按源侧抽样的主键值从目标表回捞对应行（IN分批查询）。
 // 主键值以目标库该列的数据类型生成字面量，避免跨方言的日期/二进制呈现差异
 func fetchRowsByPkValues(ctx context.Context, conn *dbi.DbConn, tableName, pkColumn string, srcRows []map[string]any, srcPk string) ([]map[string]any, error) {
-	sqlValue, err := pkColumnSqlValue(conn, tableName, pkColumn)
+	sqlValue, err := pkColumnSQLValue(conn, tableName, pkColumn)
 	if err != nil {
 		return nil, err
 	}
@@ -289,15 +305,15 @@ func fetchRowsByPkValues(ctx context.Context, conn *dbi.DbConn, tableName, pkCol
 	return res, nil
 }
 
-// pkColumnSqlValue 获取目标表主键列对应的SQL字面量生成函数
-func pkColumnSqlValue(conn *dbi.DbConn, tableName, pkColumn string) (func(any) string, error) {
+// pkColumnSQLValue 获取目标表主键列对应的SQL字面量生成函数
+func pkColumnSQLValue(conn *dbi.DbConn, tableName, pkColumn string) (func(any) string, error) {
 	columns, err := conn.Metadata().GetColumns(tableName)
 	if err != nil {
 		return nil, fmt.Errorf("get columns of table [%s] failed: %w", tableName, err)
 	}
 	for i := range columns {
 		if columns[i].ColumnName == pkColumn {
-			return dbi.GetDbDataType(conn.Info.Type, columns[i].DataType).DataType.SQLValue, nil
+			return dbi.GetDbDataType(conn.Info.Type, columns[i].DataType).Codec.SQLValue, nil
 		}
 	}
 	return nil, fmt.Errorf("primary key column [%s] not found in table [%s]", pkColumn, tableName)
@@ -319,8 +335,12 @@ func distinctRowCount(rows []map[string]any, pk string) int {
 // numericCommonColumns 取两侧均为数值类的列名集合（小写）：此类列跨方言比对时按数值语义判等，
 // 容忍同一数值的标度呈现差异（如numeric(20,6)的"1.500000"与sqlite NUMERIC亲和后的"1.5"）；
 // 任一侧列元数据获取失败或类型非数值均不入集，保持严格文本比对（宁可误报不可漏报）
-func numericCommonColumns(srcConn, tgtConn *dbi.DbConn, tableName string) map[string]bool {
-	numeric := func(conn *dbi.DbConn) map[string]bool {
+func numericCommonColumns(srcConn, tgtConn *dbi.DbConn, tableName string, targetTables ...string) map[string]bool {
+	targetTable := tableName
+	if len(targetTables) > 0 {
+		targetTable = targetTables[0]
+	}
+	numeric := func(conn *dbi.DbConn, tableName string) map[string]bool {
 		cols, err := conn.Metadata().GetColumns(tableName)
 		if err != nil {
 			return nil
@@ -335,8 +355,8 @@ func numericCommonColumns(srcConn, tgtConn *dbi.DbConn, tableName string) map[st
 		return set
 	}
 
-	srcNumeric := numeric(srcConn)
-	tgtNumeric := numeric(tgtConn)
+	srcNumeric := numeric(srcConn, tableName)
+	tgtNumeric := numeric(tgtConn, targetTable)
 	if len(srcNumeric) == 0 || len(tgtNumeric) == 0 {
 		return nil
 	}
@@ -388,14 +408,21 @@ func singlePkColumn(conn *dbi.DbConn, tableName string) string {
 
 // sampleOrderedRows 按主键升序从offset处抽样limit行。
 //
-// 使用LIMIT语法（mysql/pg/sqlite均支持）；mssql等不支持LIMIT的方言会返回错误，
-// 由调用方记录SampleErr，count比对照常。错误不再吞掉，以便区分“空表”与“抽样失败”
+// 使用方言分页改写，错误记录至 SampleErr，以区分空表、抽样失败和内容一致。
 func sampleOrderedRows(ctx context.Context, conn *dbi.DbConn, tableName, pkColumn string, limit int, offset int64) ([]map[string]any, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
 	quote := conn.GetDialect().Quoter().QuoteIdent
-	sqlStr := fmt.Sprintf("SELECT * FROM %s ORDER BY %s ASC LIMIT %d OFFSET %d", quote(tableName), quote(pkColumn), limit, offset)
+	baseSQL := fmt.Sprintf("SELECT * FROM %s ORDER BY %s ASC", quote(tableName), quote(pkColumn))
+	sqlStr := sqlparser.DefaultRewritePagination(baseSQL, offset, int64(limit))
+	if rewriter := sqlparser.GetPaginationRewriter(conn.GetDialect().GetSQLParser()); rewriter != nil {
+		var err error
+		sqlStr, err = rewriter.RewritePagination(baseSQL, offset, int64(limit))
+		if err != nil {
+			return nil, err
+		}
+	}
 	_, rows, err := conn.QueryContext(ctx, sqlStr)
 	if err != nil {
 		return nil, err

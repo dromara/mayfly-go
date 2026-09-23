@@ -49,9 +49,9 @@ interface TagPathInfo {
 type TagInfoMap = Record<string, TagTree>;
 
 const props = defineProps({
-    // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]
+    // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]（后者为标签信息列表）
     path: {
-        type: [String, Array] as PropType<string | string[] | Record<string, unknown>[]>,
+        type: [String, Array] as PropType<string | string[] | TagTree[]>,
     },
     // code，可直接设置该值展示路径信息
     code: {
@@ -93,21 +93,14 @@ const handlePopoverShow = () => {
     }
 };
 
-const paths = computed(() => {
-    if (Array.isArray(codePath.value)) {
-        const ps = [];
-        // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]
-        for (let p of codePath.value as (string | { codePath: string })[]) {
-            if (typeof p === 'string') {
-                ps.push(p);
-            } else {
-                ps.push(p.codePath);
-            }
-        }
-        return ps;
+const paths = computed<string[]>(() => {
+    const value = codePath.value;
+    // 兼容["default/test1/test2/"] 与 [{id: 1, codePath: "default/test1/test2/"}]
+    if (Array.isArray(value)) {
+        return value.map((p) => (typeof p === 'string' ? p : p.codePath));
     }
 
-    return [codePath.value];
+    return value ? [value] : [];
 });
 
 onMounted(() => {
@@ -147,7 +140,7 @@ const setCodePaths = async () => {
             clear();
             return;
         }
-        codePath.value = tagInfos as unknown as Record<string, unknown>[];
+        codePath.value = tagInfos;
     }
 
     if (!paths.value) {
@@ -168,7 +161,7 @@ const loadPopoverTagInfo = async () => {
     if (props.code) {
         const tagInfos = await tagApi.listByQuery.request({ codes: props.code });
         if (tagInfos.length > 0) {
-            codePath.value = tagInfos as unknown as Record<string, unknown>[];
+            codePath.value = tagInfos;
         }
     }
 

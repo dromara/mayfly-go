@@ -93,7 +93,7 @@ describe('策略派发', () => {
         const { exportByKey } = createExport();
         await exportByKey('csv');
         expect(exportCsv).toHaveBeenCalledTimes(1);
-        const [filename, cols, datas] = (exportCsv as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+        const [filename, cols, datas] = (exportCsv as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(filename).toMatch(/^Data-tbl-\d{12}$/);
         expect(cols).toEqual(['id', 'name']);
         expect(datas).toBe(allRows);
@@ -103,7 +103,7 @@ describe('策略派发', () => {
         const { exportByKey } = createExport();
         await exportByKey('excel');
         expect(exportExcel).toHaveBeenCalledTimes(1);
-        const [filename, sheets] = (exportExcel as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+        const [filename, sheets] = (exportExcel as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(filename).toMatch(/^Data-tbl-\d{12}$/);
         expect(sheets).toEqual([{ name: 'Data', columns: ['id', 'name'], datas: allRows }]);
     });
@@ -114,7 +114,7 @@ describe('策略派发', () => {
         expect(DbInst.getInst).toHaveBeenCalledWith(7);
         expect(genInsertSql).toHaveBeenCalledWith('testdb', 'tbl', allRows);
         expect(exportFile).toHaveBeenCalledTimes(1);
-        const [filename, content] = (exportFile as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+        const [filename, content] = (exportFile as ReturnType<typeof vi.fn>).mock.calls[0];
         expect(filename).toMatch(/^Data-tbl-\d{12}\.sql$/);
         expect(content).toContain('INSERT INTO');
     });

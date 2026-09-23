@@ -110,3 +110,27 @@ FROM
     SYS.SYSCOLUMNS COLS
 
 WHERE TABS.ID = COLS.ID AND SCHS.ID = TABS.SCHID;
+---------------------------------------
+--DM_VIEWS 视图信息（达梦 Oracle 兼容，ALL_VIEWS/ALL_TAB_COMMENTS）
+SELECT
+  v.OWNER AS "schemaName",
+  v.VIEW_NAME AS "viewName",
+  COALESCE(tc.COMMENTS, '') AS "viewComment"
+FROM ALL_VIEWS v
+  LEFT JOIN ALL_TAB_COMMENTS tc ON tc.OWNER = v.OWNER AND tc.TABLE_NAME = v.VIEW_NAME
+WHERE v.OWNER = COALESCE(NULLIF('%s', ''), (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)))
+ORDER BY v.VIEW_NAME
+---------------------------------------
+--DM_SEQUENCES 序列信息（含定义属性，供前端属性面板；ALL_SEQUENCES，列取 Oracle 通用集）
+SELECT
+  s.SEQUENCE_OWNER AS "schemaName",
+  s.SEQUENCE_NAME AS "seqName",
+  s.MIN_VALUE AS "minValue",
+  s.MAX_VALUE AS "maxValue",
+  s.INCREMENT_BY AS "incrementBy",
+  s.CACHE_SIZE AS "cacheSize",
+  s.LAST_NUMBER AS "lastValue",
+  s.CYCLE_FLAG AS "cycleFlag"
+FROM ALL_SEQUENCES s
+WHERE s.SEQUENCE_OWNER = COALESCE(NULLIF('%s', ''), (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)))
+ORDER BY s.SEQUENCE_NAME

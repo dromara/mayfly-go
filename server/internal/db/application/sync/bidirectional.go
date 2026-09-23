@@ -72,13 +72,13 @@ func (m *BidirectionalSyncManager) buildReverseTask(forward *entity.DataSyncTask
 		SrcDbId:    forward.TargetDbId,
 		SrcDbName:  forward.TargetDbName,
 		SrcTagPath: forward.TargetTagPath,
-		// 反向任务 DataSql：从正向的目标表全量查询（用户可按需调整）
-		DataSql: fmt.Sprintf("SELECT * FROM %s", forward.TargetTableName),
+		// 反向任务 DataSQL：从正向的目标表全量查询（用户可按需调整）
+		DataSQL: fmt.Sprintf("SELECT * FROM %s", forward.TargetTableName),
 
 		TargetDbId:    forward.SrcDbId,
 		TargetDbName:  forward.SrcDbName,
 		TargetTagPath: forward.SrcTagPath,
-		// 反向任务的目标表名无法从正向 DataSql 自动推断，需用户手动配置
+		// 反向任务的目标表名无法从正向 DataSQL 自动推断，需用户手动配置
 		// EnsureReverseTask 返回后由调用方提示用户补充
 		TargetTableName: "",
 
@@ -270,16 +270,17 @@ func (d *ConflictDetector) ResolveConflict(taskName string, rowKey string) strin
 	}
 }
 
-// BuildValidationSQL 构建数据校验 SQL（Phase 6.2）。
+// BuildValidationSQL 构建数据校验 SQL。
 // 对比源/目标行数，可选 checksum 对比。
+// checksumSQL 不含分页子句，调用方须通过 paginateTopN 按源库方言改写。
 func BuildValidationSQL(srcTable, targetTable string, keyColumns []string) (srcCountSQL, targetCountSQL string, checksumSQL string) {
 	srcCountSQL = fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", srcTable)
 	targetCountSQL = fmt.Sprintf("SELECT COUNT(*) AS cnt FROM %s", targetTable)
 
 	if len(keyColumns) > 0 {
-		// checksum：按主键排序后取前 100 行的 key 值拼接做简单对比
+		// checksum：按主键排序后取前 100 行的 key 值拼接做简单对比（分页由调用方方言改写）
 		cols := strings.Join(keyColumns, ", ")
-		checksumSQL = fmt.Sprintf("SELECT %s FROM %s ORDER BY %s LIMIT 100", cols, srcTable, cols)
+		checksumSQL = fmt.Sprintf("SELECT %s FROM %s ORDER BY %s", cols, srcTable, cols)
 	}
 	return
 }
@@ -293,10 +294,21 @@ func (sec *syncExecContext) target2SrcMap() map[string]string {
 	return m
 }
 
+// escapeFnForDialect 根据数据库类型返回合适的字符串字面量转义函数。
+// MySQL/ClickHouse 默认模式下反斜杠是转义字符，必须双写；其余方言用标准SQL（仅转义单引号）。
+func escapeFnForDialect(dbType dbi.DbType) func(any) string {
+	switch string(dbType) {
+	case "mysql", "clickhouse":
+		return dbi.SQLValueStringEscapeBackslash
+	default:
+		return dbi.SQLValueString
+	}
+}
+
 // buildPKWhereClause 根据源行数据和字段映射构建目标表主键 WHERE 子句。
 // 用于冲突检测时按主键查询目标行。
-// target2Src 为目标列→源列的反向映射，targetDialect 用于安全格式化 SQL 字面量。
-func buildPKWhereClause(srcRow map[string]any, target2Src map[string]string, targetTableMeta *dbi.TargetTableMeta, targetDialect dbi.Dialect) string {
+// target2Src 为目标列→源列的反向映射；escapeFn 按目标方言转义字符串值（MySQL用反斜杠转义，其余标准SQL）。
+func buildPKWhereClause(srcRow map[string]any, target2Src map[string]string, targetTableMeta *dbi.TargetTableMeta, escapeFn func(any) string) string {
 	if len(targetTableMeta.UniqueColumns) == 0 {
 		return ""
 	}
@@ -311,26 +323,30 @@ func buildPKWhereClause(srcRow map[string]any, target2Src map[string]string, tar
 		if !ok {
 			return ""
 		}
-		// 安全格式化值：根据 Go 类型选择正确的 SQL 字面量表示
-		sqlVal := formatSQLLiteral(val)
+		// 安全格式化值：根据 Go 类型与目标方言选择正确的 SQL 字面量表示
+		sqlVal := formatSQLLiteral(val, escapeFn)
 		conditions = append(conditions, fmt.Sprintf("%s = %s", pkCol, sqlVal))
 	}
 	return strings.Join(conditions, " AND ")
 }
 
 // formatSQLLiteral 将 Go 值安全格式化为 SQL 字面量，防止 SQL 注入。
-func formatSQLLiteral(val any) string {
+// escapeFn 用于字符串类型值的方言转义（如 MySQL 需额外转义反斜杠），数值/布尔直接输出。
+func formatSQLLiteral(val any, escapeFn func(any) string) string {
 	if val == nil {
 		return "NULL"
 	}
 	switch v := val.(type) {
 	case string:
-		// 转义单引号并用单引号包裹
-		escaped := strings.ReplaceAll(v, "'", "''")
-		return fmt.Sprintf("'%s'", escaped)
+		if escapeFn != nil {
+			return escapeFn(v)
+		}
+		return dbi.SQLValueString(v)
 	case []byte:
-		escaped := strings.ReplaceAll(string(v), "'", "''")
-		return fmt.Sprintf("'%s'", escaped)
+		if escapeFn != nil {
+			return escapeFn(string(v))
+		}
+		return dbi.SQLValueString(string(v))
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
 		return fmt.Sprintf("%v", v)
 	case bool:
@@ -339,10 +355,10 @@ func formatSQLLiteral(val any) string {
 		}
 		return "0"
 	default:
-		// 其他类型转为字符串后安全转义
-		s := fmt.Sprintf("%v", v)
-		escaped := strings.ReplaceAll(s, "'", "''")
-		return fmt.Sprintf("'%s'", escaped)
+		if escapeFn != nil {
+			return escapeFn(fmt.Sprintf("%v", v))
+		}
+		return dbi.SQLValueString(fmt.Sprintf("%v", v))
 	}
 }
 
@@ -367,6 +383,14 @@ func NewSyncMetrics() *SyncMetrics {
 func (m *SyncMetrics) RecordBatch(rows int) {
 	m.TotalRows += rows
 	m.BatchCount++
+}
+
+// RecordWrite 记录一批写入的新增/更新/被唯一约束忽略行数。
+// ignored 为声明了忽略但未真正落库的行，与过滤/冲突检测/空值跳过同属「未写入」，并入 SkipCount。
+func (m *SyncMetrics) RecordWrite(inserts, updates, ignored int) {
+	m.InsertCount += inserts
+	m.UpdateCount += updates
+	m.SkipCount += ignored
 }
 
 // ToSyncLog 将指标填充到 DataSyncLog
@@ -409,14 +433,15 @@ func buildPKKey(srcRow map[string]any, target2Src map[string]string, targetTable
 // batchLoadConflictTargetRows 批量查询目标表中的冲突检测行。
 // 将 N 次单行查询合并为分批批量查询，消除 N+1 性能问题。
 // 每批最多 conflictBatchSize 行，防止 OR 条件过长。
-// 返回 map[pkKey]targetRow；若无需检测（无冲突检测器或无主键）则返回 nil。
+// 返回 map[pkKey]targetRow 与 error；若无需检测（无冲突检测器或无主键）则返回 nil, nil。
+// 查询失败返回 error：调用方必须中止本批次，绝不能把「查询失败」当成「无冲突」而静默覆盖目标已变更行。
 func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 	ctx context.Context,
 	srcRes []map[string]any,
 	sec *syncExecContext,
-) map[string]map[string]any {
+) (map[string]map[string]any, error) {
 	if sec.conflictDetector == nil || len(sec.targetTableMeta.UniqueColumns) == 0 || len(srcRes) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	task := sec.task
@@ -437,7 +462,7 @@ func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 		if pkKey == "" {
 			continue
 		}
-		pkWhere := buildPKWhereClause(srcData, target2Src, targetTableMeta, targetDbConn.GetDialect())
+		pkWhere := buildPKWhereClause(srcData, target2Src, targetTableMeta, escapeFnForDialect(targetDbConn.Info.Type))
 		if pkWhere == "" {
 			continue
 		}
@@ -445,7 +470,7 @@ func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 	}
 
 	if len(entries) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// 构建 SELECT 列：时间戳字段 + 主键列
@@ -468,10 +493,10 @@ func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 		for i, e := range batch {
 			orConditions[i] = e.clause
 		}
-		batchSql := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
+		batchSQL := fmt.Sprintf("SELECT %s FROM %s WHERE %s",
 			selectCols, task.TargetTableName, strings.Join(orConditions, " OR "))
 
-		_, _ = targetDbConn.WalkQueryRows(ctx, batchSql, func(row map[string]any, cols []*dbi.QueryColumn) error {
+		if _, err := targetDbConn.WalkQueryRows(ctx, batchSQL, func(row map[string]any, cols []*dbi.QueryColumn) error {
 			targetRow := make(map[string]any, len(row))
 			for k, v := range row {
 				targetRow[k] = v
@@ -487,8 +512,11 @@ func (app *DataSyncAppImpl) batchLoadConflictTargetRows(
 				result[pkKey] = targetRow
 			}
 			return nil
-		})
+		}); err != nil {
+			// 查询失败不能吞掉：缺失的目标行会被误判为「无冲突」，进而用源行覆盖目标已变更行
+			return nil, fmt.Errorf("failed to query target rows for conflict detection: %w", err)
+		}
 	}
 
-	return result
+	return result, nil
 }

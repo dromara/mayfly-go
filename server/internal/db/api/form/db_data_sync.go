@@ -15,7 +15,7 @@ type DataSyncTaskForm struct {
 	SrcDbId     int64  `binding:"required" json:"srcDbId"`
 	SrcDbName   string `binding:"required" json:"srcDbName"`
 	SrcTagPath  string `binding:"required" json:"srcTagPath"`
-	DataSql     string `binding:"required" json:"dataSql"`
+	DataSQL     string `binding:"required" json:"dataSql"`
 	PageSize    int    `binding:"required" json:"pageSize"`
 	UpdField    string `binding:"required" json:"updField"`
 	UpdFieldVal string `binding:"required" json:"updFieldVal"`
@@ -32,7 +32,7 @@ type DataSyncTaskForm struct {
 	FieldMap          string `binding:"required" json:"fieldMap"`
 	DuplicateStrategy int    `json:"duplicateStrategy"`
 
-	// Phase 3: 数据转换与过滤
+	// 数据转换与过滤
 	TransformRules  string              `json:"transformRules"`
 	FilterCondition string              `json:"filterCondition"`
 	NullStrategy    entity.NullStrategy `json:"nullStrategy"`
@@ -42,10 +42,10 @@ type DataSyncTaskForm struct {
 	SoftDeleteField string `json:"softDeleteField"`
 	SoftDeleteValue string `json:"softDeleteValue"`
 
-	// Phase 5: Schema 演化感知
+	// Schema 演化感知
 	SchemaEvolveMode entity.SchemaEvolveMode `json:"schemaEvolveMode"`
 
-	// Phase 6.3: 双向同步
+	// 双向同步
 	BiDirEnabled        bool                    `json:"biDirEnabled"`
 	ConflictStrategy    entity.ConflictStrategy `json:"conflictStrategy"`
 	BiDirTimestampField string                  `json:"biDirTimestampField"`

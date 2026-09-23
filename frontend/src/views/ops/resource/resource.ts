@@ -4,19 +4,14 @@ import { getRootContributor, registerContributor, validateMenuCommands, RES_GROU
 
 import type { TreeNode, TreeNodeData } from './tree/types';
 import { tagApi } from '@/views/ops/tag/api';
+import type { TagTreeNode } from '@/views/ops/tag/types';
 import type { Component } from 'vue';
 import { getResourceTypes, registerResource } from './resourceRegistry';
 import { resGroupKey } from './resourceKeys';
 import TagLabel from './TagLabel.vue';
 
-interface TagTreeData {
-    type: number;
-    code: string;
-    codePath: string;
-    name: string;
-    children?: TagTreeData[];
-    [key: string]: unknown;
-}
+/** 标签树节点形状直接复用标签模块的 VO（本模块只读 type/code/codePath/name/children） */
+type TagTreeData = TagTreeNode;
 
 // 资源配置（资源管理面板维度；树侧的根节点 kind 由资源根贡献者自声明 resourceType，不在此重复）
 export interface ResourceConfig {
@@ -160,7 +155,7 @@ export const loadResourceTags = async (resourceType: (number | string)[]): Promi
 
     const result: TreeNodeData[] = [];
     for (const tree of tags) {
-        flatten(tree as unknown as TagTreeData, [], result);
+        flatten(tree, [], result);
     }
     return result;
 };

@@ -11,8 +11,8 @@ import (
 func InitIoc() {
 	ioc.Register(new(instanceAppImpl))
 	ioc.Register(new(dbAppImpl))
-	ioc.Register(new(dbSqlExecAppImpl))
-	ioc.Register(new(dbSqlAppImpl))
+	ioc.Register(new(dbSQLExecAppImpl))
+	ioc.Register(new(dbSQLAppImpl))
 	ioc.Register(new(dbsync.DataSyncAppImpl))
 	ioc.Register(new(transfer.DbTransferAppImpl))
 	ioc.Register(new(transfer.DbTransferFileAppImpl))
@@ -36,8 +36,8 @@ func GetDbInstanceApp() Instance {
 	return ioc.Get[Instance]()
 }
 
-func GetDbSqlExecApp() DbSqlExec {
-	return ioc.Get[DbSqlExec]()
+func GetDbSQLExecApp() DbSQLExec {
+	return ioc.Get[DbSQLExec]()
 }
 
 func GetDataSyncTaskApp() dbsync.DataSyncTask {
@@ -50,4 +50,9 @@ func GetDbTransferTaskApp() transfer.DbTransferTask {
 
 func GetMaskApp() mask.MaskApp {
 	return mask.GetMaskApp()
+}
+
+// GetMaskEngine 获取通用脱敏引擎（供任意模块使用）
+func GetMaskEngine() mask.MaskEngine {
+	return mask.GetMaskEngine()
 }

@@ -6,7 +6,7 @@ package itest
 //   - 目标列静默退化为普通整型（映射丢失）：迁移后应用插入不带id的行直接报 NOT NULL 违反；
 //   - 目标序列/计数器未校正：向serial列显式插入id**不会**推进pg序列，若不校正则迁移后
 //     第一条业务插入即与已迁移数据主键冲突（Error: duplicate key value violates 主键）。
-//     pg的DumpHelper.AfterInsert为此产出 `SELECT setval(...)`，必须验证它能穿过真实导入
+//     pg的DumpTxnWrapper.AfterInsert为此产出 `SELECT setval(...)`，必须验证它能穿过真实导入
 //     链路（切割→批级事务→执行）生效，而不是只验证导出文本。
 //
 // 断言：导入后插入不带id的行必须成功，且新行id = 已迁移最大id + 1。

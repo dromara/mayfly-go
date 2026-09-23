@@ -125,23 +125,19 @@ const (
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 }
 
 func (mm *Backend) GetCapabilities() dbi.MetadataCapabilities {
-	return dbi.MetadataCapabilities{
-		SupportsSchemas:           false,
-		SupportsIndexes:           true,
-		SupportsForeignKeys:       true,
-		SupportsComments:          true,
-		SupportsDDLExport:         true,
-		SupportsGeneratedColumns:  true,
-		SupportsIdentityColumns:   true,
-		SupportsExpressionDefault: true,
-	}
+	// mysql：database 即 schema、无独立 schema 层；已实现视图导航与外键内省，显式声明对应扩展能力
+	// （声明与实现的一致性由 dbm 的护栏测试把守）
+	return dbi.NewAllCapabilities().
+		Without(dbi.FeatSchemas).
+		With(dbi.FeatViews, dbi.FeatTableRelations).
+		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 
-func (mm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (mm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	d.Network = "tcp"
 	// 使用go-sql-driver的标准DSN构建，自动对用户名、密码等特殊字符进行转义，避免注入或连接串错误
 	cfg := mysql.NewConfig()

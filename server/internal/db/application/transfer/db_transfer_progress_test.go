@@ -19,16 +19,16 @@ import (
 
 // simulateTableDump 模拟 DumpDbScript 对单表的 Progress 回调行为：
 // dataCount 从 0 开始，每行递增，按批次和表结束各回调一次
-func simulateTableDump(progress func(string, dbi.StmtType, int, bool), tableName string, rowCount int, batchSize int) {
+func simulateTableDump(progress func(string, dbi.DumpKind, int, bool), tableName string, rowCount int, batchSize int) {
 	dataCount := 0
 	for i := 1; i <= rowCount; i++ {
 		dataCount++
 		if dataCount%batchSize == 0 {
-			progress(tableName, dbi.StmtTypeInsert, dataCount, false)
+			progress(tableName, dbi.DumpKindInsert, dataCount, false)
 		}
 	}
 	// 表结束时的最终回调
-	progress(tableName, dbi.StmtTypeInsert, dataCount, true)
+	progress(tableName, dbi.DumpKindInsert, dataCount, true)
 }
 
 // TestMultiTableRowCounting 验证多表并发迁移场景下的行数统计正确性。
@@ -63,8 +63,8 @@ func TestMultiTableRowCounting(t *testing.T) {
 
 			// 这正是 transfer2Db 中每个 goroutine 的逻辑
 			lastStmtCount := 0
-			progress := func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-				if stmtType == dbi.StmtTypeInsert {
+			progress := func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
+				if stmtType == dbi.DumpKindInsert {
 					if stmtCount < lastStmtCount {
 						lastStmtCount = 0
 					}
@@ -90,8 +90,8 @@ func TestSingleTableRowCounting(t *testing.T) {
 	var totalRows int64
 	lastStmtCount := 0
 
-	progress := func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-		if stmtType == dbi.StmtTypeInsert {
+	progress := func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
+		if stmtType == dbi.DumpKindInsert {
 			if stmtCount < lastStmtCount {
 				lastStmtCount = 0
 			}
@@ -134,8 +134,8 @@ func TestMultiTableWithBatching(t *testing.T) {
 		go func(tableName string, rowCount int) {
 			defer wg.Done()
 			lastStmtCount := 0
-			progress := func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-				if stmtType == dbi.StmtTypeInsert {
+			progress := func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
+				if stmtType == dbi.DumpKindInsert {
 					if stmtCount < lastStmtCount {
 						lastStmtCount = 0
 					}
@@ -169,8 +169,8 @@ func TestEmptyTablesRowCounting(t *testing.T) {
 		{"empty3", 0},
 		{"has_data", 42},
 	} {
-		progress := func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-			if stmtType == dbi.StmtTypeInsert {
+		progress := func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
+			if stmtType == dbi.DumpKindInsert {
 				if stmtCount < lastStmtCount {
 					lastStmtCount = 0
 				}

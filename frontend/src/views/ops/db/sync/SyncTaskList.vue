@@ -37,8 +37,8 @@
             <template #action="{ data }">
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                <el-button v-if="data.status === 1 && data.runningState !== 1" @click="run(data.id)" type="success" link>{{ $t('db.run') }}</el-button>
-                <el-button v-if="data.runningState === 1" @click="stop(data.id)" type="danger" link>{{ $t('db.stop') }}</el-button>
+                <el-button v-if="actionBtns[perms.run] && data.status === 1 && data.runningState !== 1" @click="run(data.id)" type="success" link>{{ $t('db.run') }}</el-button>
+                <el-button v-if="actionBtns[perms.stop] && data.runningState === 1" @click="stop(data.id)" type="danger" link>{{ $t('db.stop') }}</el-button>
                 <el-button v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">{{ $t('db.log') }}</el-button>
             </template>
         </page-table>
@@ -59,13 +59,13 @@ import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncModeEnum, DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import type { PageResult } from '@/types/common';
-import type { DataSyncTask } from '../types';
+import type { DataSyncTaskListVO } from '../types';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
 
 /** 归一 status 字段：Go int8 零值 0 映射为 -1（停用），避免 ElSwitch model-value 校验告警 */
-const handleData = (res: PageResult<DataSyncTask>) => {
+const handleData = (res: PageResult<DataSyncTaskListVO>) => {
     for (const task of res.list) {
         if (task.status !== 1 && task.status !== -1) {
             task.status = -1;
@@ -79,6 +79,8 @@ const perms = {
     del: 'db:sync:del',
     status: 'db:sync:status',
     log: 'db:sync:log',
+    run: 'db:sync:run',
+    stop: 'db:sync:stop',
 };
 
 const searchItems = [SearchItem.input('name', 'common.name')];
@@ -98,8 +100,8 @@ const columns = ref([
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log]);
-const actionWidth = ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0)) * 55 + 55;
+const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.stop]);
+const actionWidth = ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.stop] ? 1 : 0)) * 55;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
@@ -121,13 +123,13 @@ const state = reactive({
     },
     editDialog: {
         visible: false,
-        data: null as DataSyncTask | null,
+        data: null as DataSyncTaskListVO | null,
         title: '',
     },
     logsDialog: {
         taskId: 0,
         visible: false,
-        data: null as DataSyncTask | null,
+        data: null as DataSyncTaskListVO | null,
         running: false,
     },
 });
@@ -144,7 +146,7 @@ const search = () => {
     pageTableRef.value?.search();
 };
 
-const edit = async (data: DataSyncTask | false) => {
+const edit = async (data: DataSyncTaskListVO | false) => {
     if (!data) {
         state.editDialog.data = null;
         state.editDialog.title = useI18nCreateTitle('db.dbSync');
@@ -177,7 +179,7 @@ const stop = async (id: number) => {
     search();
 };
 
-const log = async (data: DataSyncTask) => {
+const log = async (data: DataSyncTaskListVO) => {
     state.logsDialog.taskId = data.id;
     state.logsDialog.visible = true;
     state.logsDialog.running = data.runningState === 1;
@@ -195,8 +197,8 @@ const updStatus = async (id: number, status: 1 | -1) => {
 
 const del = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: DataSyncTask) => x.taskName).join('、'));
-        await dbSyncApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: DataSyncTask) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: DataSyncTaskListVO) => x.taskName).join('、'));
+        await dbSyncApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: DataSyncTaskListVO) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {

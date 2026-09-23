@@ -144,23 +144,16 @@ const (
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 }
 
 func (cm *Backend) GetCapabilities() dbi.MetadataCapabilities {
-	return dbi.MetadataCapabilities{
-		SupportsSchemas:           false,
-		SupportsIndexes:           false,
-		SupportsForeignKeys:       false,
-		SupportsComments:          true,
-		SupportsDDLExport:         true,
-		SupportsGeneratedColumns:  false,
-		SupportsIdentityColumns:   false,
-		SupportsExpressionDefault: false,
-	}
+	// clickhouse 仅支持注释与 DDL 导出；有 database 层、无独立 schema 层；支持视图内省（无序列）
+	return dbi.NewCapabilities(dbi.FeatComments, dbi.FeatDDLExport).
+		With(dbi.FeatViews).WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 
-func (cm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (cm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	dbName := d.GetDatabase()
 	if dbName == "" {
 		dbName = "default"

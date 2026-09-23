@@ -11,18 +11,18 @@ var En = map[i18n.MsgId]string{
 	// db
 	LogDbSave:       "DB - Save DB",
 	LogDbDelete:     "DB - Delete DB",
-	LogDbRunSql:     "DB - Run SQL",
-	LogDbRunSqlFile: "DB - Run SQL File",
+	LogDbRunSQL:     "DB - Run SQL",
+	LogDbRunSQLFile: "DB - Run SQL File",
 	LogDbDump:       "DB - Export DB",
 
-	SqlScripRunProgress: "sql execution progress",
+	SQLScripRunProgress: "sql execution progress",
 	ErrDbNameExist:      "The database name already exists in this instance",
 	ErrDbNotAccess:      "The operation permissions of database [{{.dbName}}] are not configured",
 
-	ErrExistRunFailSql:      "There is an execution error in sql",
+	ErrExistRunFailSQL:      "There is an execution error in sql",
 	ErrNeedSubmitWorkTicket: "This operation needs to submit a work ticket for approval",
-	ErrSqlExecCancelled:     "SQL execution cancelled",
-	ErrSqlSplitUnterminated: "unterminated {{.kind}} region at line {{.line}}, the statement boundary cannot be determined",
+	ErrSQLExecCancelled:     "SQL execution cancelled",
+	ErrSQLSplitUnterminated: "unterminated {{.kind}} region at line {{.line}}, the statement boundary cannot be determined",
 
 	// db transfer
 	LogDtsSave:         "dts - Save data transfer task",
@@ -31,7 +31,7 @@ var En = map[i18n.MsgId]string{
 	LogDtsRun:          "dts - Run data transfer task",
 	LogDtsStop:         "dts - Stop data transfer task",
 	LogDtsDeleteFile:   "dts - Delete transfer file",
-	LogDtsRunSqlFile:   "dts - Run SQL File",
+	LogDtsRunSQLFile:   "dts - Run SQL File",
 	LogDtsVerify:       "dts - Verify data",
 
 	// data sync

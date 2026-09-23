@@ -101,10 +101,10 @@ const (
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 }
 
-func (om *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (om *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	urlOptions := make(map[string]string)
 
 	db := d.Database
@@ -148,6 +148,14 @@ func (om *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 	}
 
 	return conn, err
+}
+
+// GetCapabilities oracle：核心能力全支持（含独立 schema 层），并声明已实现的视图与序列内省。
+// OracleMetadata11 内嵌 OracleMetadata 继承其 MetadataNavigator 实现，故 11/12 两版本声明均真实。
+func (om *Backend) GetCapabilities() dbi.MetadataCapabilities {
+	return dbi.NewAllCapabilities().
+		With(dbi.FeatViews, dbi.FeatSequences).
+		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 
 func (om *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {

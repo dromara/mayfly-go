@@ -34,23 +34,23 @@ type PipelineContext struct {
 // TransferStrategyRegistry 迁移策略注册表：按模式索引的策略集合。
 // 遵循开闭原则：新增模式只需 Register，无需修改调度逻辑。
 type TransferStrategyRegistry struct {
-	strategies map[int8]TransferStrategy
+	strategies map[entity.TransferMode]TransferStrategy
 }
 
 // NewTransferStrategyRegistry 创建策略注册表
 func NewTransferStrategyRegistry() *TransferStrategyRegistry {
 	return &TransferStrategyRegistry{
-		strategies: make(map[int8]TransferStrategy),
+		strategies: make(map[entity.TransferMode]TransferStrategy),
 	}
 }
 
 // Register 注册迁移策略
-func (r *TransferStrategyRegistry) Register(mode int8, strategy TransferStrategy) {
+func (r *TransferStrategyRegistry) Register(mode entity.TransferMode, strategy TransferStrategy) {
 	r.strategies[mode] = strategy
 }
 
 // Get 获取指定模式的迁移策略
-func (r *TransferStrategyRegistry) Get(mode int8) (TransferStrategy, bool) {
+func (r *TransferStrategyRegistry) Get(mode entity.TransferMode) (TransferStrategy, bool) {
 	s, ok := r.strategies[mode]
 	return s, ok
 }
@@ -80,7 +80,7 @@ func (p *TransferPipeline) Execute(ctx context.Context, pctx *PipelineContext) e
 
 // UnsupportedModeError 不支持的迁移模式错误
 type UnsupportedModeError struct {
-	Mode int8
+	Mode entity.TransferMode
 }
 
 func (e *UnsupportedModeError) Error() string {

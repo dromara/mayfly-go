@@ -14,11 +14,10 @@
                 <DrawerHeader :header="title" :back="cancel">
                     <template #extra>
                         <div class="mr-4.5">
-                            <span>{{ $props.instance?.tags?.[0]?.codePath }}</span>
+                            <!-- 实例列表接口不返回关联标签（vo.InstanceListVO 无 tags），故不渲染标签路径 -->
+                            <SvgIcon :name="getDbDialect($props.instance.type).getInfo()?.icon" :size="20" />
                             <el-divider direction="vertical" border-style="dashed" />
-                            <SvgIcon :name="getDbDialect($props.instance?.type).getInfo()?.icon" :size="20" />
-                            <el-divider direction="vertical" border-style="dashed" />
-                            <span>{{ $props.instance?.host }}:{{ $props.instance?.port }}</span>
+                            <span>{{ $props.instance.host }}:{{ $props.instance.port }}</span>
                         </div>
                     </template>
                 </DrawerHeader>
@@ -164,7 +163,7 @@ import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs, useTemplateRef } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs, useTemplateRef, type PropType } from 'vue';
 import TagCodePath from '../../component/TagCodePath.vue';
 import { dbApi } from '../api';
 import { DbInst } from '../db';
@@ -190,7 +189,8 @@ const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
 const props = defineProps({
     instance: {
-        type: [Object],
+        // 当前实例（由 InstanceList 的行数据传入），DbEdit 需据此拉凭证与库名列表
+        type: Object as PropType<DbInstance>,
         required: true,
     },
     title: {

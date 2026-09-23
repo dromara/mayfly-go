@@ -21,6 +21,11 @@ export interface TreeNodeData {
     /** label 的 title 提示 */
     labelRemark?: string;
     disabled?: boolean;
+    /**
+     * 随节点透传给子级的数据载体（如 VO 字段、tagPath、库名）。
+     * 写入整具名 VO 时需展开（`params: { ...vo }`）：interface / class 无隐式索引签名，不能直接赋给本类型；
+     * 子级读取时用 `node.params as XxxNodeParams` 收窄回具体形状。
+     */
     params?: Record<string, unknown>;
     /** 展开能力覆盖提示：显式给出时优先生效（如引用面板将库节点叶子化），否则由贡献者判定 */
     hasChildren?: boolean;

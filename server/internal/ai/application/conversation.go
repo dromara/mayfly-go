@@ -150,7 +150,7 @@ func (c *conversationAppImpl) IncrTokenUsage(ctx context.Context, convId uint64,
 	sql := "UPDATE " + table +
 		" SET prompt_tokens = prompt_tokens + ?, completion_tokens = completion_tokens + ?, total_tokens = total_tokens + ?" +
 		" WHERE id = ?"
-	return c.Repo.ExecBySql(sql, promptTokens, completionTokens, totalTokens, convId)
+	return c.Repo.ExecBySQL(sql, promptTokens, completionTokens, totalTokens, convId)
 }
 
 // toTurnItemDTO 将 entity.TurnItem 转换为 dto.TurnItemDTO

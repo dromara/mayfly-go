@@ -8,7 +8,7 @@ import { ResourceTypeEnum } from '@/common/commonEnum';
 import { createResourceOpTab } from '../../resource/resourceOp';
 import type { TreeNode } from '../../resource/tree';
 import { getDbDialect } from '../dialect/index';
-import type { DbTableInfo, DbTreeNodeData, TreeNodeCallbackData, DbNodeParams, DbTableNodeParams } from '../types';
+import type { DbTreeNodeData, TreeNodeCallbackData, DbNodeParams, DbTableNodeParams, DbObjectNodeParams } from '../types';
 
 // ---------------------------------- 异步组件 ----------------------------------
 
@@ -31,6 +31,11 @@ export const TableIcon = {
     color: '#409eff',
 };
 
+export const SqlIcon = {
+    name: 'icon db/sql',
+    color: '#f56c6c',
+};
+
 // ---------------------------------- Kind 常量 ----------------------------------
 
 export const DbInstKind = 'db-inst';
@@ -41,6 +46,41 @@ export const DbTableMenuKind = 'db-table-menu';
 export const DbSqlMenuKind = 'db-sql-menu';
 export const DbTableKind = 'db-table';
 export const DbSqlKind = 'db-sql';
+// 扩展元数据对象：分类菜单节点（视图/序列/存储过程…，可展开）与其下的对象叶子节点
+export const DbObjectMenuKind = 'db-object-menu';
+export const DbObjectKind = 'db-object';
+
+// 表节点搜索框（表数量超阈值时作为表菜单首个子节点出现，走服务端 LIKE 下推）
+export const DbTableSearchKind = 'db-table-search';
+// 搜索结果容器节点：与搜索框并列，输入只刷新本节点的子级（搜索框因此不被重挂载，保留焦点/输入）
+export const DbTableResultsKind = 'db-table-results';
+// 超过该表数量则不直接渲染全量表节点，改为显示搜索框引导服务端检索（探测用 limit=阈值+1，不全量拉取）
+export const DB_TABLE_SEARCH_THRESHOLD = 500;
+// 单次服务端搜索结果上限（避免一次吐过多表节点）
+export const DB_TABLE_SEARCH_LIMIT = 200;
+// 表搜索结果容器节点 key（由表菜单 key 派生）：contributors 建节点与搜索框组件定位结果节点共用，避免 key 后缀字面量散落两处
+export const tableResultsKey = (menuKey: string | number): string => `${menuKey}.table-results`;
+
+export const ObjectIcon = { name: 'List', color: '#e6a23c' };
+
+// 扩展对象类别 kind（与后端 dbi.ObjectKind 对齐）。DB_OBJECT_KINDS 与命令 when 判定共用，避免字面量散落。
+export const ObjectKind = {
+    View: 'view',
+    Sequence: 'sequence',
+    Procedure: 'procedure',
+    Function: 'function',
+    Trigger: 'trigger',
+} as const;
+
+// 后端能力位（SupportedFeatures 输出的对象类 feature 名，与 dbi.ObjectKindFeatures 命名对齐）→ 资源树分类节点。
+// 新增对象类别只需后端加 feature + 此处加一行，树渲染零改动（数据驱动、开闭原则）。
+export const DB_OBJECT_KINDS: { feature: string; kind: string; label: string }[] = [
+    { feature: 'view', kind: ObjectKind.View, label: 'db.view' },
+    { feature: 'sequence', kind: ObjectKind.Sequence, label: 'db.sequence' },
+    { feature: 'procedure', kind: ObjectKind.Procedure, label: 'db.procedure' },
+    { feature: 'function', kind: ObjectKind.Function, label: 'db.function' },
+    { feature: 'trigger', kind: ObjectKind.Trigger, label: 'db.trigger' },
+];
 
 // ---------------------------------- 树节点 params 收窄 ----------------------------------
 
@@ -67,6 +107,9 @@ export const dbNodeParams = <T extends DbNodeParams = DbNodeParams>(node: NodePa
 
 /** 读取表粒度节点 params（DbTableKind 及其菜单节点） */
 export const dbTableNodeParams = <T extends DbTableNodeParams = DbTableNodeParams>(node: NodeParamsBearer): T => (node.params ?? {}) as T;
+
+/** 读取扩展元数据对象叶子节点 params（DbObjectKind：视图/序列…） */
+export const dbObjectNodeParams = <T extends DbObjectNodeParams = DbObjectNodeParams>(node: NodeParamsBearer): T => (node.params ?? {}) as T;
 
 /**
  * 构造表级操作回调载荷（onEditTable / onDeleteTable / onCopyTable / onRenameTable / onGenDdl 的入参）。
@@ -95,17 +138,8 @@ export interface DbOpTabApi {
     onRefresh: () => void;
     /** 切换当前库 */
     onChangeDb: (db: DbTreeNodeData, dbName: string) => void;
-    /**
-     * 加载指定库的表清单（未选中实例时提示并返回 undefined）。
-     *
-     * 入参只声明实现真正消费的字段（实例 id + 库名），而非整个 DbInstInfo：
-     * 调用方是资源树的表菜单节点，其 params 由 contributors.ts 以 DbNodeParams 形态传入，
-     * 若在此要求完整的 DbInstInfo，会因 DbNodeParams 的索引签名把 host/database 等
-     * 未显式声明的可选字段推成 unknown 而报不可赋值。契约表达「最小所需」即可。
-     */
-    loadTables: (dbInfo: { id: number; db?: string }) => Promise<DbTableInfo[] | undefined>;
     /** 打开表数据页签 */
-    loadTableData: (db: DbTreeNodeData, dbName: string, tableName: string) => Promise<void>;
+    loadTableData: (db: DbTreeNodeData, dbName: string, tableName: string, readonly?: boolean) => Promise<void>;
     /** 复制表 */
     onCopyTable: (data: TreeNodeCallbackData) => Promise<void>;
     /** 编辑表结构 */
@@ -114,6 +148,9 @@ export interface DbOpTabApi {
     onDeleteTable: (data: TreeNodeCallbackData) => Promise<void>;
     /** 查看建表 DDL */
     onGenDdl: (data: TreeNodeCallbackData) => Promise<void>;
+    /** 查看扩展元数据对象（视图/序列…）DDL */
+    onGenObjectDdl: (args: { id: number; db: string; type: string; schema?: string; kind: string; name: string }) => Promise<void>;
+    onShowObjectProps: (args: { id: number; db: string; type: string; schema?: string; kind: string; name: string; attrs: Record<string, unknown> }) => void;
     /** 重命名表 */
     onRenameTable: (data: TreeNodeCallbackData) => Promise<void>;
     /** 关闭指定页签 */
@@ -145,6 +182,9 @@ const getDbOpTab = async (params: Record<string, unknown>, nodeKey?: string | nu
                 type: params.type,
                 tagPath: params.tagPath,
                 databases: params.dbs,
+                // 透传实例/库 code：DbDataOp 据此重建 sql-menu 等树节点 key（须与 contributors 生成的节点 key 完全一致）
+                instCode: params.instCode as string,
+                dbCode: params.dbCode as string,
             },
             db: params.db,
         },

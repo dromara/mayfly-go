@@ -17,7 +17,7 @@ func initDB(dbConf DBConf) (*gorm.DB, error) {
 		return initMysql(dbConf)
 	}
 
-	return initSqlite(dbConf)
+	return initSQLite(dbConf)
 }
 
 func initMysql(dbConf DBConf) (*gorm.DB, error) {
@@ -51,7 +51,7 @@ func initMysql(dbConf DBConf) (*gorm.DB, error) {
 	}
 }
 
-func initSqlite(dbConf DBConf) (*gorm.DB, error) {
+func initSQLite(dbConf DBConf) (*gorm.DB, error) {
 	logx.Infof("connecting to sqlite [%s]", dbConf.Address)
 	if db, err := gorm.Open(sqlite.Open(dbConf.Address), getGormConfig()); err != nil {
 		logx.Errorf("failed to connect to sqlite! [%s]", err.Error())

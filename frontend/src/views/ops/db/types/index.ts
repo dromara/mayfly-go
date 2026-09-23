@@ -8,7 +8,7 @@
  * - virtualTable.ts  虚拟表格导出策略扩展契约
  * - schema.ts        表编辑子系统私有领域模型（不经此出口，由该子系统自行导入）
  *
- * 方言契约相关类型（DbDialect / RowDefinition / IndexDefinition / TableEditContext 等）
+ * 方言契约相关类型（DbDialect / ColumnDefinition / IndexDefinition / TableEditContext 等）
  * 属方言层内核，从 '@/views/ops/db/dialect' 导入，不在此聚合，
  * 否则方言层会反向依赖 db 模块类型而形成循环。
  */
@@ -25,9 +25,16 @@ export type {
     DbInstanceListParam,
     DbListParam,
     DataSyncTask,
+    DataSyncTaskListVO,
     DataSyncLog,
+    DataSyncLogListVO,
+    DataSyncLogRunInfo,
     DbTransferTask,
+    DbTransferTaskListVO,
+    DbTransferFile,
     DbTransferLog,
+    DbTransferLogListVO,
+    DbTransferLogRunInfo,
     DbBackup,
     DbBackupHistory,
     DbRestore,
@@ -38,6 +45,9 @@ export type {
     DbMaskRuleSaveForm,
     DbMaskColumnQuery,
     DbMaskColumnSaveForm,
+    DbNamespace,
+    DbCapabilities,
+    DbMetadataObject,
 } from './entity';
 
 // VO 类型
@@ -51,6 +61,7 @@ export type {
     TableOpData,
     DbNodeParams,
     DbTableNodeParams,
+    DbObjectNodeParams,
     DbTreeNodeData,
     TreeNodeCallbackData,
 } from './vo';

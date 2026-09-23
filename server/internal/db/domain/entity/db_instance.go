@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"mayfly-go/pkg/model"
 )
 
@@ -23,17 +22,4 @@ type DbInstance struct {
 
 func (d *DbInstance) TableName() string {
 	return "t_db_instance"
-}
-
-// 获取数据库连接网络, 若没有使用ssh隧道，则直接返回。否则返回拼接的网络需要注册至指定dial
-func (d *DbInstance) GetNetwork() string {
-	network := d.Network
-	if d.SshTunnelMachineId <= 0 {
-		if network == "" {
-			return "tcp"
-		} else {
-			return network
-		}
-	}
-	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
 }

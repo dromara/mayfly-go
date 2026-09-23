@@ -30,7 +30,7 @@
             </el-table-column>
         </el-table>
 
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="$t('machine.cmdConfig')" :items="items" :data="editForm" size="40%" :confirm-api="onSubmitForm" @submitted="getCmdConfs">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="$t('machine.cmdConfig')" :items="items" :data="editForm" size="40%" :confirm-api="onSubmitForm" @opened="onOpened" @submitted="getCmdConfs">
             <!-- 过滤命令（动态标签输入） -->
             <template #cmds="{ form }">
                 <el-row>
@@ -40,7 +40,7 @@
                         :key="tag"
                         closable
                         :disable-transitions="false"
-                        @close="onCmdClose(form, tag)"
+                        @close="onCmdClose(tag)"
                         type="danger"
                     >
                         {{ tag }}
@@ -51,8 +51,8 @@
                         v-model="state.cmdInputValue"
                         class="mt-0.5"
                         size="small"
-                        @keyup.enter="onCmdInputConfirm(form)"
-                        @blur="onCmdInputConfirm(form)"
+                        @keyup.enter="onCmdInputConfirm()"
+                        @blur="onCmdInputConfirm()"
                         :placeholder="$t('machine.cmdPlaceholder')"
                     />
                     <el-button v-else class="ml-0.5 mt-0.5" size="small" @click="onShowCmdInput"> + {{ $t('machine.newCmd') }} </el-button>
@@ -81,14 +81,15 @@
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, type AutoFormItem } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { nextTick, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import type { InputInstance } from 'element-plus';
 import TagCodePath from '../../component/TagCodePath.vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cmdConfApi } from '../api';
-import type { MachineCmdConfVO } from '../types';
+import type { MachineCmdConfForm, MachineCmdConfVO } from '../types';
 import type { ResourceTag } from '@/types/common';
 
 /** 表单声明（AutoFormItem[]；命令标签输入与关联机器走 custom 插槽） */
@@ -102,11 +103,11 @@ const items: AutoFormItem[] = [
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 const cmdInputRef = useTemplateRef<InputInstance>('cmdInputRef');
 
-const DefaultForm = {
+const DefaultForm: MachineCmdConfForm = {
     id: 0,
     name: '',
-    codePaths: [] as string[],
-    cmds: [] as string[],
+    codePaths: [],
+    cmds: [],
     remark: '',
 };
 
@@ -120,7 +121,10 @@ const state = reactive({
 const { cmdConfs, dialogVisible } = toRefs(state);
 
 /** 传给 AutoFormDrawer 的回填数据（onOpenFormDialog 时设置；深拷贝由组件内部完成） */
-const editForm = ref<AutoFormData | null>(null);
+const editForm = ref<MachineCmdConfForm | null>(null);
+
+// 宿主抽屉的内部表单在 @opened 接管（命令标签的增删与提交均基于它）
+const { onOpened, requireForm } = useAutoFormModel<MachineCmdConfForm>();
 
 onMounted(async () => {
     getCmdConfs();
@@ -130,8 +134,8 @@ const getCmdConfs = async () => {
     state.cmdConfs = await cmdConfApi.list.request();
 };
 
-const onCmdClose = (rawForm: AutoFormData, tag: string) => {
-    const form = rawForm as unknown as MachineCmdConfVO;
+const onCmdClose = (tag: string) => {
+    const form = requireForm();
     form.cmds?.splice(form.cmds.indexOf(tag), 1);
 };
 
@@ -142,8 +146,8 @@ const onShowCmdInput = () => {
     });
 };
 
-const onCmdInputConfirm = (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as MachineCmdConfVO;
+const onCmdInputConfirm = () => {
+    const form = requireForm();
     if (state.cmdInputValue) {
         form.cmds?.push(state.cmdInputValue);
     }
@@ -153,14 +157,14 @@ const onCmdInputConfirm = (rawForm: AutoFormData) => {
 
 const onOpenFormDialog = (data: MachineCmdConfVO | null) => {
     if (!data) {
-        editForm.value = { ...DefaultForm } as unknown as AutoFormData;
+        editForm.value = { ...DefaultForm };
     } else {
         editForm.value = {
             ...DefaultForm,
             ...deepClone(data),
             codePaths: data.tags?.map((tag: ResourceTag) => tag.codePath) || [],
             cmds: data.cmds || [],
-        } as unknown as AutoFormData;
+        };
     }
     state.dialogVisible = true;
 };
@@ -172,9 +176,9 @@ const onDeleteCmdConf = async (data: MachineCmdConfVO) => {
     getCmdConfs();
 };
 
-// confirmApi 提交动作；成功提示与关闭抽屉由组件内置逻辑处理，submitted 后刷新列表
-const onSubmitForm = async (form: AutoFormData) => {
-    await cmdConfApi.save.request(form);
+// confirmApi 提交动作（从接管的内部表单读取提交数据）；成功提示与关闭抽屉由组件内置逻辑处理，submitted 后刷新列表
+const onSubmitForm = async () => {
+    await cmdConfApi.save.request(requireForm());
 };
 </script>
 <style></style>

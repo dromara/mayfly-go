@@ -29,9 +29,10 @@
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
 import TagTreeSelect from '@/views/ops/component/TagTreeSelect.vue';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { useSshTunnelTransform } from '@/hooks/useResourceForm';
-import { computed, ref, useTemplateRef, type PropType } from 'vue';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { computed, useTemplateRef, type PropType } from 'vue';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { milvusApi } from './api';
 import type { Milvus } from './types';
@@ -63,8 +64,8 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const emit = defineEmits(['val-change', 'cancel']);
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/authCerts/sshTunnel 走插槽） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<MilvusForm>，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/authCerts/sshTunnel 走插槽） */
+const items = defineFormItems<MilvusForm>([
     { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
     { prop: 'name', label: 'common.name', required: true, placeholder: 'common.pleaseInput' },
     { prop: 'host', label: 'milvus.host', type: 'textarea', required: true, placeholder: 'milvus.connAddress' },
@@ -72,29 +73,19 @@ const items: AutoFormItem[] = [
     { prop: 'authCerts', label: 'db.acName', type: 'custom' },
     { prop: 'database', label: 'milvus.database', placeholder: 'milvus.dbNamePlaceholder' },
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
-];
+]);
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData>(() => {
-    const milvusData = props.data as Milvus | false | undefined;
-    if (milvusData) {
-        return { ...milvusData, authCerts: milvusData.authCerts || [] } as AutoFormData;
-    }
-    return { database: 'default', sshTunnelMachineId: -1, authCerts: [] } as AutoFormData;
+const editData = computed<MilvusForm>(() => {
+    return props.data ? { ...props.data, authCerts: props.data.authCerts || [] } : { database: 'default', sshTunnelMachineId: -1, authCerts: [] };
 });
 
-/** 抽屉打开后暂存的内部表单引用（提交组装与保存后回写 id 基于它） */
-const internalForm = ref<AutoFormData>({});
+// 宿主内部表单在 @opened 接管（提交组装与保存后回写 id 基于它）
+const { onOpened, requireForm } = useAutoFormModel<MilvusForm>();
 
-const onOpened = (form: AutoFormData) => {
-    internalForm.value = form;
-};
-
-const submitForm = useSshTunnelTransform(
-    computed(() => internalForm.value)
-);
+const submitForm = useSshTunnelTransform(computed(requireForm));
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = milvusApi.testConn.useApi(submitForm);
 const { execute: saveMilvusExec, data: saveMilvusRes } = milvusApi.save.useApi(submitForm);
@@ -108,11 +99,11 @@ const testConn = async (authCert: MachineAuthCert) => {
     Msg.success('milvus.connSuccess');
 };
 
-// confirmApi 提交动作（无参，从内部表单读取提交数据）；成功提示与关闭抽屉由组件内置逻辑处理
+// confirmApi 提交动作（从接管的内部表单读取提交数据）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
     await saveMilvusExec(submitForm.value);
-    internalForm.value.id = saveMilvusRes.value;
-    emit('val-change', internalForm.value);
+    requireForm().id = saveMilvusRes.value;
+    emit('val-change', requireForm());
 };
 </script>
 

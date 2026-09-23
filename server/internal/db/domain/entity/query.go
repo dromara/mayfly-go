@@ -2,8 +2,8 @@ package entity
 
 import "mayfly-go/pkg/model"
 
-// InstanceQuery 数据库实例查询
-type InstanceQuery struct {
+// DbInstanceQuery 数据库实例查询
+type DbInstanceQuery struct {
 	model.PageParam
 
 	Id      uint64 `json:"id" form:"id"`
@@ -24,27 +24,27 @@ type DataSyncTaskQuery struct {
 type DataSyncLogQuery struct {
 	model.PageParam
 
-	TaskId uint64 `json:"task_id" form:"taskId"`
+	TaskId uint64 `json:"taskId" form:"taskId"`
 }
 
 type DbTransferTaskQuery struct {
 	model.PageParam
 
-	Name     string `json:"name" form:"name"`
-	Status   int8   `json:"status" form:"status"`
-	CronAble int8   `json:"cronAble" form:"cronAble"`
+	Name        string              `json:"name" form:"name"`
+	Status      TransferTaskStatus  `json:"status" form:"status"`
+	CronEnabled TransferCronEnabled `json:"cronEnabled" form:"cronEnabled"`
 }
 type DbTransferFileQuery struct {
 	model.PageParam
 
-	TaskId uint64 `json:"task_id" form:"taskId"`
+	TaskId uint64 `json:"taskId" form:"taskId"`
 	Name   string `json:"name" form:"name"`
 }
 
 type DbTransferLogQuery struct {
 	model.PageParam
 
-	TaskId uint64 `json:"task_id" form:"taskId"`
+	TaskId uint64 `json:"taskId" form:"taskId"`
 }
 
 // 数据库查询实体，不与数据库表字段一一对应
@@ -58,7 +58,7 @@ type DbQuery struct {
 	InstanceId uint64 `form:"instanceId"`
 }
 
-type DbSqlExecQuery struct {
+type DbSQLExecQuery struct {
 	model.PageParam
 
 	Id         uint64 `json:"id" form:"id"`
@@ -73,41 +73,4 @@ type DbSqlExecQuery struct {
 
 	Status    []int8
 	CreatorId uint64
-}
-
-// DbBackupQuery 数据库备份任务查询
-type DbBackupQuery struct {
-	Id           uint64   `json:"id" form:"id"`
-	DbName       string   `json:"dbName" form:"dbName"`
-	IntervalDay  int      `json:"intervalDay" form:"intervalDay"`
-	InDbNames    []string `json:"-" form:"-"`
-	DbInstanceId uint64   `json:"-" form:"-"`
-	Repeated     bool     `json:"repeated" form:"repeated"` // 是否重复执行
-}
-
-// DbBackupHistoryQuery 数据库备份任务查询
-type DbBackupHistoryQuery struct {
-	Id           uint64   `json:"id" form:"id"`
-	DbBackupId   uint64   `json:"dbBackupId" form:"dbBackupId"`
-	DbId         string   `json:"dbId" form:"dbId"`
-	DbName       string   `json:"dbName" form:"dbName"`
-	InDbNames    []string `json:"-" form:"-"`
-	DbInstanceId uint64   `json:"dbInstanceId" form:"dbInstanceId"`
-}
-
-// DbRestoreQuery 数据库备份任务查询
-type DbRestoreQuery struct {
-	*model.PageParam
-
-	Id           uint64   `json:"id" form:"id"`
-	DbName       string   `json:"dbName" form:"dbName"`
-	InDbNames    []string `json:"-" form:"-"`
-	DbInstanceId uint64   `json:"-" form:"-"`
-	Repeated     bool     `json:"repeated" form:"repeated"` // 是否重复执行
-}
-
-// DbRestoreHistoryQuery 数据库备份任务查询
-type DbRestoreHistoryQuery struct {
-	Id          uint64 `json:"id" form:"id"`
-	DbRestoreId uint64 `json:"dbRestoreId" form:"dbRestoreId"`
 }

@@ -31,6 +31,7 @@
 
 <script lang="ts" setup>
 import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import type { PropType } from 'vue';
 
 import { isPrefixSubsequence } from '@/common/utils/string';
 
@@ -61,17 +62,17 @@ const props = defineProps({
     },
     // 叶子节点 kind 数组，匹配到的节点强制标记为叶子节点（不展开）：选择粒度之下禁止继续钻取
     leafKinds: {
-        type: Array as () => string[],
+        type: Array as PropType<string[]>,
         default: () => [],
     },
     // 选择粒度（kind 清单或谓词函数）；缺省回退贡献者的 selectable 声明
     selectable: {
-        type: [Array, Function] as unknown as () => NodeMatcher | undefined,
+        type: [Array, Function] as PropType<NodeMatcher | undefined>,
         default: undefined,
     },
     // 节点转换函数，在节点加载后调用，可用于动态标记叶子等属性
     transformNode: {
-        type: Function as unknown as () => ((node: TreeNodeData) => TreeNodeData) | null,
+        type: [Function, null] as PropType<((node: TreeNodeData) => TreeNodeData) | null>,
         default: null,
     },
 });

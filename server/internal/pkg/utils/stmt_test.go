@@ -84,9 +84,9 @@ func TestSplitStmts_ChineseAndMultibyte(t *testing.T) {
 	assert.Equal(t, []string{"select '中文；'"}, splitAll(t, "select '中文；';", ';'))
 }
 
-// TestSplitStmts_StdSqlBackslash 标准SQL语义（sqlite/postgres/mssql等）：反斜杠为普通字符，
+// TestSplitStmts_StdSQLBackslash 标准SQL语义（sqlite/postgres/mssql等）：反斜杠为普通字符，
 // 字符串以未转义引号结束，不影响语句切割
-func TestSplitStmts_StdSqlBackslash(t *testing.T) {
+func TestSplitStmts_StdSQLBackslash(t *testing.T) {
 	opts := SplitOpts{BackslashEscape: false}
 	// sqlite中 '\' 是完整的单字符字符串，其后为另一条语句，必须切开（mysql语义下会误判为未闭合字符串）
 	assert.Equal(t, []string{`insert into t values ('\')`, `insert into t values ('x')`},

@@ -264,6 +264,13 @@ html.dark {
     font-weight: normal;
 }
 
+// auto-form 字段标签旁的说明 tooltip：内容经 slot 渲染且 popper 挂在 body 下（无 max-width），
+// 长文本会横向铺满整屏。限定气泡宽度让 pre-line 文本正常换行成多行气泡。
+.el-popper.auto-form-label-tooltip {
+    max-width: 400px;
+    line-height: 1.6;
+}
+
 // el-tooltip使用自定义主题时的样式
 .el-popper.is-customized {
     /* Set padding to ensure the height is 32px */

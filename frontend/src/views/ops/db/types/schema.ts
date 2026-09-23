@@ -1,7 +1,7 @@
 /**
  * 数据库表编辑系统 - 领域模型类型定义
  * 
- * 参考国际先进产品（DataGrip、DBeaver、TablePlus、Navicat）设计
+ * 定义 schema 领域模型：表/列/索引/约束的快照结构与差异比对类型
  */
 
 // ==================== 基础类型 ====================
@@ -17,7 +17,7 @@ export interface TableDefinition {
   database?: string;
   
   // 组成元素
-  columns: ColumnDefinition[];
+  columns: TableColumnDefinition[];
   indexes: TableIndexDefinition[];
   constraints: ConstraintDefinition[];
   
@@ -34,9 +34,14 @@ export interface TableDefinition {
 }
 
 /**
- * 列定义
+ * 列定义（表编辑子系统的富领域模型）
+ *
+ * 带 Table 前缀是为了与方言层的 ColumnDefinition（dialect/types.ts）区分开：
+ * 后者是生成 DDL 用的扁平契约（name / type / length / nullable / isPrimaryKey / autoIncrement / value / comment），
+ * 本模型是表编辑器用的富领域模型（额外携带 unique / after / ordinalPosition / extra 等 UI 与差异比对字段），
+ * 二者在 DbTableOp 里双向转换。与 TableIndexDefinition 遵循同一分层命名约定。
  */
-export interface ColumnDefinition {
+export interface TableColumnDefinition {
   name: string;
   oldName?: string; // 用于重命名追踪
   
@@ -46,17 +51,15 @@ export interface ColumnDefinition {
   numScale?: string | number;
   
   // 约束
-  notNull: boolean;
-  pri: boolean;
+  nullable: boolean;
+  isPrimaryKey: boolean;
   unique?: boolean;
-  auto_increment: boolean;
+  autoIncrement: boolean;
   
   // 默认值
   value?: string;
-  defaultValue?: string;
   
   // 注释
-  remark?: string;
   comment?: string;
   
   // 位置（MySQL）
@@ -65,7 +68,6 @@ export interface ColumnDefinition {
   
   // 元数据
   ordinalPosition?: number;
-  isNullable?: boolean;
   columnDefault?: string;
   extra?: string;
 }
@@ -77,9 +79,8 @@ export interface ColumnDefinition {
  * 后者是生成 DDL 用的扁平契约（indexName / columnNames: string[] / indexType / indexComment），
  * 本模型是表编辑器用的富领域模型（列明细、算法、锁选项、重命名追踪），二者在 DbTableOp 里双向转换。
  *
- * 曾经两者同名，导致 DbTableOp 只能导入一侧、另一侧被遮蔽，转换处还混用了两侧的字段名
- * （本模型同时留有 indexType / indexComment）——结果是索引注释从未被填进快照，
- * SchemaDiffView 永远比不出注释变更。故此处不再保留方言层字段名，索引类型一律用 type、注释一律用 comment。
+ * 本模型的索引类型统一用 type、注释统一用 comment，不复用方言层的 indexType / indexComment 字段名，
+ * 以免双向转换时两侧字段名混用而丢填索引注释。
  */
 export interface TableIndexDefinition {
   name: string;
@@ -160,9 +161,9 @@ export interface ValidationError {
 }
 
 /**
- * 验证警告（继承自 ValidationError）
+ * 验证警告（严重度为 warning 的验证条目，结构复用 ValidationError）
  */
-type ValidationWarning = ValidationError;
+export type ValidationWarning = ValidationError;
 
 // ==================== 模板类型 ====================
 
@@ -194,7 +195,7 @@ export interface ColumnTemplate {
   name: string;
   type: string;
   length?: string;
-  notNull: boolean;
+  nullable: boolean;
   defaultValue?: string;
   comment: string;
   isPrimaryKey?: boolean;
@@ -265,8 +266,10 @@ export interface TableModification {
  */
 export interface TableChange {
   type: 'ALTER' | 'RENAME' | 'COMMENT' | 'ENGINE' | 'CHARSET';
-  before: any;
-  after: any;
+  /** 变更前的表级属性值（注释/引擎/字符集等），缺省表示原本未设置 */
+  before: string | undefined;
+  /** 变更后的表级属性值，缺省表示变更后未设置 */
+  after: string | undefined;
   ddl: string;
 }
 
@@ -275,8 +278,8 @@ export interface TableChange {
  */
 export interface ColumnDiff {
   tableName: string;
-  added: ColumnDefinition[];
-  removed: ColumnDefinition[];
+  added: TableColumnDefinition[];
+  removed: TableColumnDefinition[];
   modified: ColumnModification[];
 }
 
@@ -285,8 +288,8 @@ export interface ColumnDiff {
  */
 export interface ColumnModification {
   columnName: string;
-  before: ColumnDefinition;
-  after: ColumnDefinition;
+  before: TableColumnDefinition;
+  after: TableColumnDefinition;
   changes: string[];
 }
 

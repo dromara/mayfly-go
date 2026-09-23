@@ -1,10 +1,30 @@
 import { EnumValue } from '@/common/Enum';
 
+/** 机器默认端口（SSH）：新建态表单初值与协议默认端口的同源起点 */
+export const MACHINE_DEFAULT_PORT = 22;
+
 export const MachineProtocolEnum = {
-    Ssh: EnumValue.of(1, 'SSH'),
-    Rdp: EnumValue.of(2, 'RDP'),
-    Vnc: EnumValue.of(3, 'VNC'),
+    Ssh: EnumValue.of(1, 'SSH').setExtra({ defaultPort: MACHINE_DEFAULT_PORT }),
+    Rdp: EnumValue.of(2, 'RDP').setExtra({ defaultPort: 3389 }),
+    Vnc: EnumValue.of(3, 'VNC').setExtra({ defaultPort: 5901 }),
 };
+
+/**
+ * 取协议对应的默认端口（端口属协议知识，与协议枚举同源维护，不得在各视图重复硬编码）
+ *
+ * 入参为 AutoForm 联动回调给出的原始值；非协议枚举值返回 undefined，由调用方保持当前端口。
+ */
+export const getProtocolDefaultPort = (protocol: unknown): number | undefined => {
+    const matched = Object.values(MachineProtocolEnum).find((item) => item.value === Number(protocol));
+    return matched?.extra?.defaultPort;
+};
+
+/**
+ * 公共脚本归属的虚拟机器 id（对应后端 application.Common_Script_Machine_Id）
+ *
+ * 公共脚本不挂在某台真实机器下，列表筛选与保存均用该占位 id 表达“全局可见”。
+ */
+export const COMMON_SCRIPT_MACHINE_ID = 9999999;
 
 // 脚本执行结果类型
 export const ScriptResultEnum = {

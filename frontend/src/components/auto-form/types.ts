@@ -171,6 +171,58 @@ interface AutoFormItemBase {
  */
 export type AutoFormItem = AutoFormItemBase & AutoFormOptionConfig;
 
+/**
+ * 字段配置的「业务表单视图」
+ *
+ * AutoFormItem 的表单级回调（必填/禁用/只读/显隐/联动/校验/选项级禁用/异步选项）形参是通用表单袋，
+ * 页面若按 AutoFormItem[] 声明，回调里就得把袋断言回业务表单类型才能读字段。
+ * 本视图仅把这些回调的形参换成页面自己的表单类型，其余属性与 AutoFormItem 完全一致。
+ */
+export type AutoFormItemOf<TForm extends AutoFormData> = Omit<
+    AutoFormItem,
+    'required' | 'disabled' | 'readonly' | 'when' | 'onChange' | 'validate' | 'optionDisabled' | 'options'
+> & {
+    /** 是否必填（按业务表单值动态计算） */
+    required?: boolean | ((form: TForm) => boolean);
+
+    /** 禁用（按业务表单值动态计算） */
+    disabled?: boolean | ((form: TForm) => boolean);
+
+    /** 只读（同 disabled 语义禁用控件，按业务表单值动态计算） */
+    readonly?: boolean | ((form: TForm) => boolean);
+
+    /** 条件显隐：返回 false 时隐藏该字段（隐藏时不参与校验） */
+    when?: (form: TForm) => boolean;
+
+    /** 值变化回调：联动写回的其他字段直接是业务表单属性 */
+    onChange?: (value: unknown, form: TForm) => void;
+
+    /** 自定义校验函数（语义同 AutoFormItem.validate，可读取业务表单其他字段） */
+    validate?: (value: unknown, form: TForm) => boolean | string | Promise<boolean | string>;
+
+    /** 选项级禁用（按业务表单值判定该选项是否不可选） */
+    optionDisabled?: (value: unknown, form: TForm) => boolean;
+
+    /** 选项：静态数组或异步加载函数（入参为业务表单值） */
+    options?: AutoFormSelectOption[] | ((form: TForm) => Promise<AutoFormSelectOption[]>);
+};
+
+/**
+ * 声明页面字段：回调形参拿到业务表单类型，产物仍是 AutoFormItem[]（宿主契约不变）
+ *
+ * 为什么不是把 TForm 泛型加到 AutoFormItem 上：表单级回调的 form 处于逆变位置，
+ * AutoFormItemOf<MachineForm>[] 无法赋给 AutoFormItem[]（实测 TS2322），泛型化会逼所有
+ * 声明点显式标泛型；类型在本函数这一处单向还原为契约类型（运行时是同一批字段配置对象）。
+ *
+ * @example
+ * ```ts
+ * const items = defineFormItems<MachineForm>([
+ *     { prop: 'port', type: 'number', when: (form) => form.protocol !== 0 },
+ * ]);
+ * ```
+ */
+export const defineFormItems = <TForm extends AutoFormData>(items: AutoFormItemOf<TForm>[]): AutoFormItem[] => items as AutoFormItem[];
+
 // ── 控件类型注册表（新增控件类型的“类型知识”单一出处） ──────
 
 /**
@@ -263,7 +315,8 @@ export interface AutoFormTab {
 
 /** 按点分路径读取嵌套值，中间节点不存在时返回 undefined */
 export const getNestedValue = (obj: AutoFormData, path: string): unknown => {
-    return path.split('.').reduce<unknown>((cur, key) => (cur == null ? undefined : (cur as AutoFormData)[key]), obj);
+    // 累加器声明为可读下一层的表单形（而非 unknown），故无需每次索引前再断言一次
+    return path.split('.').reduce<AutoFormData | undefined>((cur, key) => (cur == null ? undefined : cur[key]), obj);
 };
 
 /** 按点分路径写入嵌套值，中间节点不存在时自动创建空对象 */

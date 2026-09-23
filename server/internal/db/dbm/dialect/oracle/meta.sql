@@ -74,6 +74,30 @@ WHERE a.OWNER = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM SYS.dual)
   AND a.TABLE_NAME in (%s)
 order by a.COLUMN_ID
 ---------------------------------------
+--ORACLE_VIEWS 视图信息
+SELECT
+  v.OWNER AS "schemaName",
+  v.VIEW_NAME AS "viewName",
+  COALESCE(tc.COMMENTS, '') AS "viewComment"
+FROM SYS.ALL_VIEWS v
+  LEFT JOIN SYS.ALL_TAB_COMMENTS tc ON tc.OWNER = v.OWNER AND tc.TABLE_NAME = v.VIEW_NAME
+WHERE v.OWNER = COALESCE('%s', (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM SYS.dual))
+ORDER BY v.VIEW_NAME
+---------------------------------------
+--ORACLE_SEQUENCES 序列信息（含定义属性，供前端属性面板；仅取 11g~23ai 通用列，不含 12c 才有的 DATA_TYPE/START_WITH，避免 OracleMetadata11 共享实现报错）
+SELECT
+  s.SEQUENCE_OWNER AS "schemaName",
+  s.SEQUENCE_NAME AS "seqName",
+  s.MIN_VALUE AS "minValue",
+  s.MAX_VALUE AS "maxValue",
+  s.INCREMENT_BY AS "incrementBy",
+  s.CACHE_SIZE AS "cacheSize",
+  s.LAST_NUMBER AS "lastValue",
+  s.CYCLE_FLAG AS "cycleFlag"
+FROM SYS.ALL_SEQUENCES s
+WHERE s.SEQUENCE_OWNER = COALESCE('%s', (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM SYS.dual))
+ORDER BY s.SEQUENCE_NAME
+---------------------------------------
 --ORACLE11_COLUMN_MA 11版本的列信息
 SELECT a.TABLE_NAME                                              as TABLE_NAME,
        a.COLUMN_NAME                                             as COLUMN_NAME,

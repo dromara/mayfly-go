@@ -1,3 +1,4 @@
+import { reportDuplicateRegistration } from '@/common/utils/devRegistration';
 import type { ResourceConfig } from './resource';
 
 /**
@@ -10,9 +11,9 @@ import type { ResourceConfig } from './resource';
 const resources = new Map<number | string, ResourceConfig>();
 
 export function registerResource(type: number | string, rc: ResourceConfig) {
-    // 重复注册会静默覆盖已有配置（与 dbm 注册表同名覆盖同类问题），开发环境显式告警
-    if (import.meta.env.DEV && resources.has(type)) {
-        console.warn(`[resource] 资源类型 ${String(type)} 重复注册，将覆盖已有配置：`, resources.get(type));
+    // 重复注册会静默覆盖已有配置（与 dbm 注册表同名覆盖同类问题），开发环境聚合成一条告警保留明细
+    if (resources.has(type)) {
+        reportDuplicateRegistration('resource', String(type));
     }
     resources.set(type, rc);
 }

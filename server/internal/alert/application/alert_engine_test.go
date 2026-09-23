@@ -909,3 +909,60 @@ func Test30_UnreliableResultKeepsCountersAligned(t *testing.T) {
 		t.Errorf("触发信息应取自满足项, got metric=%s threshold=%s", metric, threshold)
 	}
 }
+
+// Test31_StaleAlertNoRepeatNotify 陈旧告警防刷屏回归：
+// 指标采集持续不可靠时事件停留在「告警中」，但上次通知之后再无越限确认
+// （LastTriggerTime 未随通知前移），即便 RepeatInterval 已达也不得再次推送通知。
+func Test31_StaleAlertNoRepeatNotify(t *testing.T) {
+	engine, _, _, _, notifier := newTestEngine()
+	rule := makeRule(1, 1, 1, 0)
+	rule.NotifyConfig = &entity.AlertNotifyConfig{RepeatInterval: 60}
+
+	notifyTime := time.Now().Add(-120 * time.Second) // 距上次通知已超 RepeatInterval
+	event := &entity.AlertEvent{
+		Id:              10,
+		ResourceId:      100,
+		Status:          entity.AlertEventStatusFiring,
+		NotifyCount:     1,
+		LastNotifyTime:  &notifyTime,
+		LastTriggerTime: notifyTime.Add(-30 * time.Second), // 通知之后再无越限确认
+	}
+
+	engine.sendGroupNotification(&pendingGroup{
+		Events:    []*entity.AlertEvent{event},
+		Rule:      rule,
+		FirstFire: time.Now(),
+	})
+
+	if notifier.notifyCalls != 0 {
+		t.Errorf("陈旧告警不应重复通知, expected 0 got %d", notifier.notifyCalls)
+	}
+}
+
+// Test32_FreshAlertRepeatNotifyStillSent 仍在持续越限的告警应正常重复通知：
+// 上次通知之后指标被重新确认为越限（LastTriggerTime 前移）且已达 RepeatInterval。
+func Test32_FreshAlertRepeatNotifyStillSent(t *testing.T) {
+	engine, _, _, _, notifier := newTestEngine()
+	rule := makeRule(1, 1, 1, 0)
+	rule.NotifyConfig = &entity.AlertNotifyConfig{RepeatInterval: 60}
+
+	notifyTime := time.Now().Add(-120 * time.Second)
+	event := &entity.AlertEvent{
+		Id:              10,
+		ResourceId:      100,
+		Status:          entity.AlertEventStatusFiring,
+		NotifyCount:     1,
+		LastNotifyTime:  &notifyTime,
+		LastTriggerTime: time.Now().Add(-10 * time.Second), // 通知之后又确认越限
+	}
+
+	engine.sendGroupNotification(&pendingGroup{
+		Events:    []*entity.AlertEvent{event},
+		Rule:      rule,
+		FirstFire: time.Now(),
+	})
+
+	if notifier.notifyCalls != 1 {
+		t.Errorf("持续越限应正常重复通知, expected 1 got %d", notifier.notifyCalls)
+	}
+}

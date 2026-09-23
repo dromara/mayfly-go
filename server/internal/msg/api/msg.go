@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/msg/application"
 	"mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -46,7 +47,7 @@ func (m *Msg) ReadMsg(rc *req.Ctx) {
 		RecipientId: int64(rc.GetLoginAccount().Id),
 		Status:      entity.MsgStatusUnRead,
 	}
-	cond.Id = uint64(rc.QueryInt("id"))
+	cond.Id = cast.ToUint64(rc.Query("id"))
 
 	biz.ErrIsNil(m.msgApp.UpdateByCond(rc.MetaCtx, &entity.Msg{
 		Status: entity.MsgStatusRead,

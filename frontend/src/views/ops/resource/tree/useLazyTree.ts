@@ -69,7 +69,7 @@ export function useLazyTree(options: LazyTreeOptions) {
 
     function errorPlaceholder(node: TreeNode): TreeNode {
         // 携带 retryTarget：容器点击重试时重载该节点子树
-        return { key: `${node.key}__error`, kind: ERROR_KIND, label: 'common.retry', hasChildren: false, params: { retryTarget: node.key } } as TreeNode;
+        return { key: `${node.key}__error`, kind: ERROR_KIND, label: 'common.retry', hasChildren: false, params: { retryTarget: node.key } };
     }
 
     /** 贡献者产出 → 容器节点：自带 children 视为已加载，否则可展开节点挂加载占位 */

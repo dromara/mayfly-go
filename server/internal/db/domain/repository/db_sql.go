@@ -5,6 +5,6 @@ import (
 	"mayfly-go/pkg/base"
 )
 
-type DbSql interface {
-	base.Repo[*entity.DbSql]
+type DbSQL interface {
+	base.Repo[*entity.DbSQL]
 }

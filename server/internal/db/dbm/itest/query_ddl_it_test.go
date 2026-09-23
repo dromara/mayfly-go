@@ -36,26 +36,26 @@ func TestITMysqlComplexQuery(t *testing.T) {
 	mustExec(t, conn, "INSERT INTO `it_q_dept` VALUES ('dev','开发部'),('ops','运维部')")
 
 	// 多表JOIN + 聚合 + ORDER BY + LIMIT：解析为查询并真实执行
-	joinSql := "SELECT e.dept, d.dept_name, COUNT(*) AS cnt, SUM(e.salary) AS total " +
+	joinSQL := "SELECT e.dept, d.dept_name, COUNT(*) AS cnt, SUM(e.salary) AS total " +
 		"FROM `it_q_emp` e JOIN `it_q_dept` d ON e.dept = d.dept " +
 		"GROUP BY e.dept, d.dept_name ORDER BY total DESC LIMIT 1"
-	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, joinSql))
-	_, rows, err := conn.Query(joinSql)
+	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, joinSQL))
+	_, rows, err := conn.Query(joinSQL)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, "ops", normalizeDbValue(rows[0]["dept"]))
 	assert.Equal(t, int64(700), toInt64(rows[0]["total"]))
 
 	// 子查询
-	subSql := "SELECT name FROM `it_q_emp` WHERE salary > (SELECT AVG(salary) FROM `it_q_emp`) ORDER BY id"
-	_, subRows, err := conn.Query(subSql)
+	subSQL := "SELECT name FROM `it_q_emp` WHERE salary > (SELECT AVG(salary) FROM `it_q_emp`) ORDER BY id"
+	_, subRows, err := conn.Query(subSQL)
 	require.NoError(t, err)
 	require.Len(t, subRows, 2)
 	assert.Equal(t, "carol", normalizeDbValue(subRows[0]["name"]))
 
 	// LEFT JOIN 计数（含无匹配行）
-	leftSql := "SELECT d.dept_name, COUNT(e.id) AS cnt FROM `it_q_dept` d LEFT JOIN `it_q_emp` e ON e.dept = d.dept GROUP BY d.dept_name ORDER BY d.dept_name"
-	_, leftRows, err := conn.Query(leftSql)
+	leftSQL := "SELECT d.dept_name, COUNT(e.id) AS cnt FROM `it_q_dept` d LEFT JOIN `it_q_emp` e ON e.dept = d.dept GROUP BY d.dept_name ORDER BY d.dept_name"
+	_, leftRows, err := conn.Query(leftSQL)
 	require.NoError(t, err)
 	require.Len(t, leftRows, 2)
 }
@@ -72,32 +72,32 @@ func TestITPgComplexQuery(t *testing.T) {
 	mustExec(t, conn, "INSERT INTO "+quote("it_q_emp")+" VALUES (1,'alice','dev',100),(2,'bob','dev',200),(3,'carol','ops',300),(4,'dave','ops',400)")
 	mustExec(t, conn, "INSERT INTO "+quote("it_q_dept")+" VALUES ('dev','开发部'),('ops','运维部')")
 
-	joinSql := "SELECT e.dept, d.dept_name, COUNT(*) AS cnt, SUM(e.salary) AS total " +
+	joinSQL := "SELECT e.dept, d.dept_name, COUNT(*) AS cnt, SUM(e.salary) AS total " +
 		"FROM it_q_emp e JOIN it_q_dept d ON e.dept = d.dept " +
 		"GROUP BY e.dept, d.dept_name ORDER BY total DESC LIMIT 1"
-	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, joinSql))
-	_, rows, err := conn.Query(joinSql)
+	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, joinSQL))
+	_, rows, err := conn.Query(joinSQL)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, "ops", normalizeDbValue(rows[0]["dept"]))
 	assert.Equal(t, int64(700), toInt64(rows[0]["total"]))
 
 	// pg特色：::cast + ILIKE
-	castSql := "SELECT name FROM it_q_emp WHERE dept::text ILIKE 'D%' ORDER BY id"
-	_, castRows, err := conn.Query(castSql)
+	castSQL := "SELECT name FROM it_q_emp WHERE dept::text ILIKE 'D%' ORDER BY id"
+	_, castRows, err := conn.Query(castSQL)
 	require.NoError(t, err)
 	require.Len(t, castRows, 2)
 
 	// CTE（WithStmt分发）
-	withSql := "WITH rich AS (SELECT * FROM it_q_emp WHERE salary > 250) SELECT name FROM rich ORDER BY id"
-	assert.Equal(t, "*sqlstmt.WithStmt", parseStmtType(t, conn, withSql))
-	_, withRows, err := conn.Query(withSql)
+	withSQL := "WITH rich AS (SELECT * FROM it_q_emp WHERE salary > 250) SELECT name FROM rich ORDER BY id"
+	assert.Equal(t, "*sqlstmt.WithStmt", parseStmtType(t, conn, withSQL))
+	_, withRows, err := conn.Query(withSQL)
 	require.NoError(t, err)
 	require.Len(t, withRows, 2)
 }
 
-// TestITSqliteComplexQuery sqlite复杂查询
-func TestITSqliteComplexQuery(t *testing.T) {
+// TestITSQLiteComplexQuery sqlite复杂查询
+func TestITSQLiteComplexQuery(t *testing.T) {
 	conn := sqliteConn(t)
 	defer conn.Close()
 
@@ -109,19 +109,19 @@ func TestITSqliteComplexQuery(t *testing.T) {
 	mustExec(t, conn, "INSERT INTO "+quote("it_q_emp")+" VALUES (1,'alice','dev',100),(2,'bob','dev',200),(3,'carol','ops',300),(4,'dave','ops',400)")
 	mustExec(t, conn, "INSERT INTO "+quote("it_q_dept")+" VALUES ('dev','开发部'),('ops','运维部')")
 
-	joinSql := "SELECT e.dept, d.dept_name, COUNT(*) AS cnt, SUM(e.salary) AS total " +
+	joinSQL := "SELECT e.dept, d.dept_name, COUNT(*) AS cnt, SUM(e.salary) AS total " +
 		"FROM it_q_emp e JOIN it_q_dept d ON e.dept = d.dept " +
 		"GROUP BY e.dept, d.dept_name ORDER BY total DESC LIMIT 1"
-	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, joinSql))
-	_, rows, err := conn.Query(joinSql)
+	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, joinSQL))
+	_, rows, err := conn.Query(joinSQL)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, "ops", normalizeDbValue(rows[0]["dept"]))
 	assert.Equal(t, int64(700), toInt64(rows[0]["total"]))
 
 	// 子查询 + LIMIT
-	subSql := "SELECT name FROM it_q_emp WHERE salary > (SELECT AVG(salary) FROM it_q_emp) ORDER BY id LIMIT 2"
-	_, subRows, err := conn.Query(subSql)
+	subSQL := "SELECT name FROM it_q_emp WHERE salary > (SELECT AVG(salary) FROM it_q_emp) ORDER BY id LIMIT 2"
+	_, subRows, err := conn.Query(subSQL)
 	require.NoError(t, err)
 	require.Len(t, subRows, 2)
 }
@@ -213,8 +213,8 @@ func TestITPgNonQueryDdlVariants(t *testing.T) {
 	assert.True(t, hasVal, "应回读到新建的普通索引")
 }
 
-// TestITSqliteConnectAndMetadata sqlite连接信息、库列表、表与列metadata回读
-func TestITSqliteConnectAndMetadata(t *testing.T) {
+// TestITSQLiteConnectAndMetadata sqlite连接信息、库列表、表与列metadata回读
+func TestITSQLiteConnectAndMetadata(t *testing.T) {
 	conn := sqliteConn(t)
 	defer conn.Close()
 

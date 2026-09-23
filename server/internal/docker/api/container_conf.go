@@ -83,9 +83,9 @@ func (c *ContainerConf) Delete(rc *req.Ctx) {
 }
 
 func GetCli(rc *req.Ctx) *dkm.Client {
-	id := rc.PathParamInt("id")
+	id := cast.ToUint64(rc.PathParam("id"))
 	biz.IsTrue(id > 0, "id error")
-	cli, err := application.GetContainerApp().GetContainerCli(rc.MetaCtx, uint64(id))
+	cli, err := application.GetContainerApp().GetContainerCli(rc.MetaCtx, id)
 	biz.ErrIsNil(err)
 	return cli
 }

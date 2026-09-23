@@ -13,20 +13,21 @@
         </template>
         <template #sql>
             <div class="w-full!">
-                <monaco-editor height="300px" language="sql" v-model="bizForm.sql" />
+                <monaco-editor ref="monacoEditorRef" height="300px" language="sql" v-model="bizForm.sql" @ready="onMonacoReady" />
             </div>
         </template>
     </auto-form>
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import type { MonacoEditorExpose } from '@/components/monaco/types';
 // completion 桶只能经惰性作用域触达（见 db/completion/lazy.ts 的边界约束）
 import { createSqlCompletionScope } from '@/views/ops/db/completion/lazy';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
 
 /** DB SQL 执行业务表单声明（库选择与 SQL 编辑器为 custom 插槽） */
@@ -38,6 +39,8 @@ const bizItems: AutoFormItem[] = [
 const emit = defineEmits(['changeResourceCode']);
 
 const formRef = ref<{ validate: (...args: unknown[]) => unknown; resetFields?: () => void } | null>(null);
+const monacoEditorRef = useTemplateRef<MonacoEditorExpose>('monacoEditorRef');
+let editorUri: string | undefined;
 
 const bizForm = defineModel<any>('bizForm', {
     // 对象默认值必须是工厂函数：字面量只创建一次，会被多个实例共享
@@ -60,7 +63,18 @@ onBeforeUnmount(() => {
 });
 
 const registerCompletion = () => {
-    sqlCompletion.register(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType);
+    sqlCompletion.register(bizForm.value.dbId, bizForm.value.dbName, [bizForm.value.dbName], bizForm.value.dbType, editorUri);
+};
+
+/** 编辑器就绪后上报 editorUri，使多编辑器共存时补全按编辑器路由 */
+const onMonacoReady = () => {
+    const editor = monacoEditorRef.value?.getEditor();
+    if (editor) {
+        editorUri = editor.getModel()?.uri.toString();
+        if (editorUri && bizForm.value.dbId) {
+            registerCompletion();
+        }
+    }
 };
 
 onMounted(() => {

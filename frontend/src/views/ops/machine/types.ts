@@ -18,7 +18,8 @@ export interface Machine {
     remark: string;
     sshTunnelMachineId: number;
     enableRecorder: number;
-    extra?: Record<string, unknown>;
+    /** 后端 model.ExtraData 透传的自由 map；机器侧实际仅携带 ciphers/keyExchanges 两项字符串 */
+    extra?: Record<string, string>;
     createTime: string;
     creator: string;
 }
@@ -198,7 +199,8 @@ export interface MachineVO extends AuthCerts {
     enableRecorder: number;
     stat?: MachineListStat;
     selectAuthCert?: MachineAuthCert;
-    extra?: Record<string, unknown>;
+    /** 后端 model.ExtraData 透传的自由 map；机器侧实际仅携带 ciphers/keyExchanges 两项字符串 */
+    extra?: Record<string, string>;
 }
 
 /** 简单机器视图 (对应 vo.SimpleMachineVO) */
@@ -289,17 +291,28 @@ export interface MachineCmdConfVO extends RelateTags {
     creator: string;
 }
 
-/** 机器进程信息 */
+/** 机器进程行（`ps` 输出按空白切割后映射而得，字段与表格列一一对应；数值均已在解析时格式化为展示字符串） */
 export interface MachineProcess {
-    pid: number;
-    name: string;
-    cmdline: string;
-    username: string;
-    status: string;
-    cpuPercent: number;
-    memPercent: number;
-    memRss: number;
-    createTime: string;
+    /** ps USER 列 */
+    user: string;
+    /** ps PID 列 */
+    pid: string;
+    /** ps %CPU 列 */
+    cpu: string;
+    /** ps %MEM 列 */
+    mem: string;
+    /** ps VSZ 列（已折算为 MB 字符串） */
+    vsz: string;
+    /** ps RSS 列（已折算为 MB 字符串） */
+    rss: string;
+    /** ps STAT 列 */
+    stat: string;
+    /** ps START 列 */
+    start: string;
+    /** ps TIME 列 */
+    time: string;
+    /** ps COMMAND 列（由第 10 列起重新拼接，兼容命令自带空白） */
+    command: string;
 }
 
 /** 机器列表统计信息（后端机器列表 API 返回的 stat 字段，见 machine/api/machine.go Machines） */

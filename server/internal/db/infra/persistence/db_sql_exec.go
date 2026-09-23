@@ -7,18 +7,18 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type dbSqlExecRepoImpl struct {
-	base.RepoImpl[*entity.DbSqlExec]
+type dbSQLExecRepoImpl struct {
+	base.RepoImpl[*entity.DbSQLExec]
 }
 
-var _ repository.DbSqlExec = (*dbSqlExecRepoImpl)(nil)
+var _ repository.DbSQLExec = (*dbSQLExecRepoImpl)(nil)
 
-func newDbSqlExecRepo() repository.DbSqlExec {
-	return &dbSqlExecRepoImpl{}
+func newDbSQLExecRepo() repository.DbSQLExec {
+	return &dbSQLExecRepoImpl{}
 }
 
 // 分页获取
-func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error) {
+func (d *dbSQLExecRepoImpl) GetPageList(condition *entity.DbSQLExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSQLExec], error) {
 	qd := model.NewCond().
 		Eq("db_id", condition.DbId).
 		Eq("`table`", condition.Table).

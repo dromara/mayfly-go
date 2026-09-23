@@ -80,9 +80,9 @@ func itSetupComplexPair(t *testing.T, src, tgt itDialectNode, table string) (src
 
 // itVerifyComplexPairs 参与校验器/分片链路互测的方言有序对
 var itVerifyComplexPairs = []itPair{
-	{itMysql, itPg}, {itMysql, itSqlite},
-	{itPg, itMysql}, {itPg, itSqlite},
-	{itSqlite, itMysql}, {itSqlite, itPg},
+	{itMysql, itPg}, {itMysql, itSQLite},
+	{itPg, itMysql}, {itPg, itSQLite},
+	{itSQLite, itMysql}, {itSQLite, itPg},
 }
 
 // TestITComplexStringsVerifyAcrossDialects 迁移后的复杂值表交由产品校验器比对：
@@ -180,7 +180,7 @@ func TestITShardComplexValuesMigrate(t *testing.T) {
 		imports  int // 并发导入数（sqlite单写者故串行）
 	}{
 		{itMysql, itPg, 2},
-		{itPg, itSqlite, 1},
+		{itPg, itSQLite, 1},
 	}
 	for _, p := range pairs {
 		t.Run(p.src.name+"->"+p.tgt.name, func(t *testing.T) {

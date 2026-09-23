@@ -22,6 +22,7 @@ import { onMounted, reactive, ref, toRefs, defineAsyncComponent } from 'vue';
 import { isTrue } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
 import { i18n } from '@/i18n';
+import { DbInst } from '../db';
 import { formatSql } from './utils/formatSql';
 import type { SqlExecProps } from './SqlExecBox';
 
@@ -79,6 +80,10 @@ const runSql = async () => {
         runSuccess = false;
     } finally {
         if (runSuccess) {
+            // 本弹框的调用方传入的都是表编辑器/改名生成的结构 SQL，而部分方言的改注释语句是
+            // `EXECUTE sp_addextendedproperty` 这类首关键字判不出的写法，故执行成功一律失效该库本地元数据缓存；
+            // 用户在框内改成别的语句时，多失效一次只是让补全重拉一遍元数据，不影响正确性
+            DbInst.invalidateSchema(props.dbId, props.db);
             if (props.runSuccessCallback) {
                 props.runSuccessCallback();
             }

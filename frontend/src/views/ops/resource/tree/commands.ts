@@ -1,5 +1,6 @@
 import { hasPerm } from '@/components/auth/auth';
 import { ContextmenuItem } from '@/components/contextmenu';
+import { reportDuplicateRegistration } from '@/common/utils/devRegistration';
 
 import type { TreeApi, TreeCommandCtx } from './types';
 
@@ -37,16 +38,34 @@ export interface MenuEntry {
 const commands = new Map<string, TreeCommand>();
 const menuEntries: MenuEntry[] = [];
 const menuCache = new Map<string, ContextmenuItem[]>();
+// 菜单去重索引：key → menuEntries 下标。registerMenu 幂等依赖它，
+// 使 Vite HMR 重复执行注册模块时替换而非累加（否则右键菜单项翻倍）。
+const menuIndex = new Map<string, number>();
 
 export function registerCommand(cmd: TreeCommand) {
-    if (import.meta.env.DEV && commands.has(cmd.id)) {
-        console.warn(`[tree] 命令重复注册: ${cmd.id}，将覆盖已有命令`);
+    if (commands.has(cmd.id)) {
+        reportDuplicateRegistration('tree-command', cmd.id);
     }
     commands.set(cmd.id, cmd);
 }
 
+// menuKey 取 command + trigger + kinds 的稳定签名：同一命令挂在同一组 kind 上的同一触发方式视为同一条注册
+function menuKey(entry: MenuEntry): string {
+    return `${entry.command}|${entry.trigger ?? 'menu'}|[${[...entry.kinds].sort().join(',')}]`;
+}
+
 export function registerMenu(entry: MenuEntry) {
-    menuEntries.push(entry);
+    const key = menuKey(entry);
+    const existing = menuIndex.get(key);
+    if (existing !== undefined) {
+        // 重复注册（多为 HMR 重放）：原地替换，保持注册顺序不变
+        menuEntries[existing] = entry;
+    } else {
+        menuIndex.set(key, menuEntries.length);
+        menuEntries.push(entry);
+    }
+    // 注册变更使按 kind 缓存的菜单失效，避免读到旧条目
+    menuCache.clear();
 }
 
 function sortedEntries(trigger: CommandTrigger, kind: string): MenuEntry[] {
@@ -118,5 +137,6 @@ export function findTriggerCommand(node: TreeCommandCtx['node'], tree: TreeApi, 
 export function resetCommandsForTest() {
     commands.clear();
     menuEntries.length = 0;
+    menuIndex.clear();
     menuCache.clear();
 }

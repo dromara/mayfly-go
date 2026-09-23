@@ -121,7 +121,7 @@ describe('compileJsonField - 类型白名单', () => {
 
     it('divider / monaco / time / tags 等可渲染类型保留', () => {
         for (const type of ['divider', 'monaco', 'time', 'tags'] as const) {
-            expect(compileJsonField({ prop: 'x', type } as JsonField)).toBeDefined();
+            expect(compileJsonField({ prop: 'x', type })).toBeDefined();
         }
     });
 });
@@ -232,7 +232,7 @@ describe('布局能力编译（group / prefix / suffix / tabs）', () => {
     it('group 类型编译为分组容器项，透传 groupDescription', () => {
         const items = compileJsonForm([
             { prop: 'name' },
-            { prop: 'g', type: 'group', label: 'adv.title', groupDescription: 'adv.desc' } as unknown as JsonField,
+            { prop: 'g', type: 'group', label: 'adv.title', groupDescription: 'adv.desc' },
             { prop: 'host' },
         ]);
         expect(items).toHaveLength(3);

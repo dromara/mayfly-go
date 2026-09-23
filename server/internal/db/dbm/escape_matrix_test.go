@@ -43,9 +43,9 @@ func stdEscape(s string) string {
 func assertMysqlStyle(t *testing.T, name string, dt *dbi.DbDataType, val string) {
 	t.Helper()
 	want := "'" + mysqlEscape(val) + "'"
-	assert.Equal(t, want, dt.DataType.SQLValue(val), "%s mysql式转义输出不符", name)
+	assert.Equal(t, want, dt.Codec.SQLValue(val), "%s mysql式转义输出不符", name)
 	// 关键：反斜杠必须双写（否则值会被静默解释为转义字符）
-	assert.Contains(t, dt.DataType.SQLValue(val), `\\`, "%s 应双写反斜杠", name)
+	assert.Contains(t, dt.Codec.SQLValue(val), `\\`, "%s 应双写反斜杠", name)
 }
 
 // assertStdStyle 标准SQL式转义：仅'双写，反斜杠与控制字符原样。
@@ -53,11 +53,11 @@ func assertMysqlStyle(t *testing.T, name string, dt *dbi.DbDataType, val string)
 func assertStdStyle(t *testing.T, name, litPrefix string, dt *dbi.DbDataType, val string) {
 	t.Helper()
 	want := litPrefix + "'" + stdEscape(val) + "'"
-	assert.Equal(t, want, dt.DataType.SQLValue(val), "%s 标准式转义输出不符", name)
+	assert.Equal(t, want, dt.Codec.SQLValue(val), "%s 标准式转义输出不符", name)
 	// 关键反例：反斜杠必须原样（若双写会在目标库被解释为转义导致数据损坏）
-	assert.NotContains(t, dt.DataType.SQLValue(val), `\\`, "%s 反斜杠应原样不得双写", name)
+	assert.NotContains(t, dt.Codec.SQLValue(val), `\\`, "%s 反斜杠应原样不得双写", name)
 	// 回车换行原样保留（不转义为\r\n字面量）
-	assert.Contains(t, dt.DataType.SQLValue(val), "\r\n", "%s 应原样保留CRLF", name)
+	assert.Contains(t, dt.Codec.SQLValue(val), "\r\n", "%s 应原样保留CRLF", name)
 }
 
 // TestDialectStringEscapeMatrix 各方言字符串类型转义接线矩阵
@@ -92,10 +92,10 @@ func TestDialectStringEscapeMatrix(t *testing.T) {
 // 损坏语句并连带损毁后续语句（实测报unrecognized token）；pg的text物理禁止NUL。
 // 仅mysql语义可经\0转义无损回环（见dbi.assertNoNulByte与QuoteEscapeBackslash）
 func TestDialectNulCharMatrix(t *testing.T) {
-	assert.Equal(t, `'nul\0end'`, mysql.Varchar.DataType.SQLValue(nulVal))
-	assert.Equal(t, `'nul\0end'`, clickhouse.String.DataType.SQLValue(nulVal))
-	assert.Panics(t, func() { postgres.Varchar.DataType.SQLValue(nulVal) }, "标准SQL语义含NUL应快速失败")
-	assert.Panics(t, func() { sqlite.Text.DataType.SQLValue(nulVal) }, "标准SQL语义含NUL应快速失败")
+	assert.Equal(t, `'nul\0end'`, mysql.Varchar.Codec.SQLValue(nulVal))
+	assert.Equal(t, `'nul\0end'`, clickhouse.String.Codec.SQLValue(nulVal))
+	assert.Panics(t, func() { postgres.Varchar.Codec.SQLValue(nulVal) }, "标准SQL语义含NUL应快速失败")
+	assert.Panics(t, func() { sqlite.Text.Codec.SQLValue(nulVal) }, "标准SQL语义含NUL应快速失败")
 }
 
 // TestMysqlToJsonValueRoundtrip mysql JSON值的导出转义正确性：
@@ -103,7 +103,7 @@ func TestDialectNulCharMatrix(t *testing.T) {
 func TestMysqlToJsonValueRoundtrip(t *testing.T) {
 	// 导出侧：mysql JSON列回读的规范化JSON文本 → SQL字符串字面量
 	jsonText := `{"msg": "it's \"quoted\"", "path": "C:\\tmp", "note": "a\nb"}`
-	out := mysql.JSON.DataType.SQLValue(jsonText)
+	out := mysql.JSON.Codec.SQLValue(jsonText)
 	// ' → ''、\ → \\，其余原样
 	assert.Equal(t, `'{"msg": "it''s \\"quoted\\"", "path": "C:\\\\tmp", "note": "a\\nb"}'`, out)
 }

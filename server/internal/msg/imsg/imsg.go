@@ -24,8 +24,8 @@ const (
 	MachineFileUploadFailMsg
 
 	DbDumpFailMsg
-	SqlScriptRunFailMsg
-	SqlScriptRunSuccessMsg
+	SQLScriptRunFailMsg
+	SQLScriptRunSuccessMsg
 
 	FlowUserTaskTodoMsg
 )

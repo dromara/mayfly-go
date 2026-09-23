@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -15,10 +14,10 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 const (
 	DM_DB_SCHEMAS           = "DM_DB_SCHEMAS"
@@ -36,7 +35,6 @@ var (
 
 type DMMetadata struct {
 	dbi.DefaultServerInfo
-	dbi.DefaultMetadataProvider
 
 	di *dbi.DbInfo
 }
@@ -79,7 +77,7 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(metaSql.Get(DM_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSQL.Get(DM_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +85,7 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	_, res, err = dd.di.Query(sql)
 	if err != nil {
 		// 尝试只查表名
-		sql, err = stringx.TemplateParse(metaSql.Get(DM_TABLE_INFO_NAME_ONLY), collx.M{"tableNames": names})
+		sql, err = stringx.TemplateParse(metaSQL.Get(DM_TABLE_INFO_NAME_ONLY), collx.M{"tableNames": names})
 		_, res, err = dd.di.Query(sql)
 		if err != nil {
 			return nil, err
@@ -115,9 +113,9 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := dd.di.Query(fmt.Sprintf(metaSql.Get(DM_COLUMN_MA_KEY), tableName))
+	_, res, err := dd.di.Query(fmt.Sprintf(metaSQL.Get(DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
-		_, res, err = dd.di.Query(fmt.Sprintf(metaSql.Get(DM_COLUMN_MA_EX_KEY), tableName))
+		_, res, err = dd.di.Query(fmt.Sprintf(metaSQL.Get(DM_COLUMN_MA_EX_KEY), tableName))
 		if err != nil {
 			return nil, err
 		}
@@ -146,34 +144,35 @@ func (dd *DMMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	return columns, nil
 }
 
-func (dd *DMMetadata) GetPrimaryKey(tablename string) (string, error) {
+func (dd *DMMetadata) GetPrimaryKeys(tablename string) ([]string, error) {
 	columns, err := dd.GetColumns(tablename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(columns) == 0 {
-		return "", errorx.NewBizf("[%s] 表不存在", tablename)
+		return nil, errorx.NewBizf("[%s] 表不存在", tablename)
 	}
+	pks := make([]string, 0, 2)
 	for _, v := range columns {
 		if v.IsPrimaryKey {
-			return v.ColumnName, nil
+			pks = append(pks, v.ColumnName)
 		}
 	}
 
-	return columns[0].ColumnName, nil
+	// 联合主键返回多列；无主键返回空切片（不兜底首列）
+	return pks, nil
 }
 
 // 获取表索引信息
 func (dd *DMMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := dd.di.Query(fmt.Sprintf(metaSql.Get(DM_INDEX_INFO_KEY), tableName))
+	_, res, err := dd.di.Query(fmt.Sprintf(metaSQL.Get(DM_INDEX_INFO_KEY), tableName))
 	if err != nil {
-		logx.Error("查询达梦索引信息失败", err)
-		return nil, nil
+		return nil, err
 	}
 
-	indexs := make([]dbi.Index, 0)
+	indexes := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, dbi.Index{
+		indexes = append(indexes, dbi.Index{
 			IndexName:    cast.ToString(re["INDEX_NAME"]),
 			ColumnName:   cast.ToString(re["COLUMN_NAME"]),
 			IndexType:    cast.ToString(re["INDEX_TYPE"]),
@@ -184,7 +183,7 @@ func (dd *DMMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
-	return dbi.GroupIndexColumns(indexs), nil
+	return dbi.GroupIndexColumns(indexes), nil
 }
 
 // 获取建表ddl
@@ -194,7 +193,7 @@ func (dd *DMMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (stri
 
 // 获取DM当前连接的库可访问的schemaNames
 func (dd *DMMetadata) GetSchemas() ([]string, error) {
-	sql := metaSql.Get(DM_DB_SCHEMAS)
+	sql := metaSQL.Get(DM_DB_SCHEMAS)
 	_, res, err := dd.di.Query(sql)
 	if err != nil {
 		return nil, err

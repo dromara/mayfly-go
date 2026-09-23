@@ -61,7 +61,7 @@ describe('stripIdentifierQuotes', () => {
 });
 
 describe('createCompletionQuoter', () => {
-    const dialect = { quoteIdentifier: (name: string) => '`' + name + '`' } as unknown as DbDialect;
+    const dialect = { quoteIdentifier: (name: string) => '`' + name + '`' } as DbDialect;
     const pairs = getDialectQuotePairs('mysql');
 
     it('未包裹时按方言包裹', () => {
@@ -81,12 +81,12 @@ describe('createCompletionQuoter', () => {
 });
 
 describe('quoteSuggestions', () => {
-    const dialect = { quoteIdentifier: (name: string) => '`' + name + '`' } as unknown as DbDialect;
+    const dialect = { quoteIdentifier: (name: string) => '`' + name + '`' } as DbDialect;
     const pairs = getDialectQuotePairs('mysql');
     const suggestions = [
         { label: 'id', insertText: 'id' },
         { label: 'users', insertText: 'users', sortText: '3001' },
-    ] as unknown as languages.CompletionItem[];
+    ] as languages.CompletionItem[];
 
     it('未包裹时对整批建议应用方言包裹', () => {
         const quote = createCompletionQuoter(dialect, pairs, false);

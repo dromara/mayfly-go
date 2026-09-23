@@ -6,19 +6,20 @@ import type {
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
-    RowDefinition,
-    sqlColumnType,
+    ColumnDefinition,
+    SqlColumnType,
     SqlSnippetTemplate,
 } from './types';
-import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
-import { appendLimitSql, buildSchemaTable, extractSchema, getDefaultDataType, matchType as _matchType, QuoteEscape, wrapValueDefault } from './shared/utils';
+import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
+import { appendLimitSql, buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueDefault } from './shared/utils';
 import { defineCapabilities, pgSplitOptions } from './shared/capabilities';
 import { limitOffsetPageSnippet } from './shared/snippets';
 import { DbType } from './dbType';
 import { registerDbDialect } from './registry';
+import { SchemaDialectBase } from './shared/schemaDialectBase';
 import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
-const GAUSS_TYPE_LIST: sqlColumnType[] = [
+const GAUSS_TYPE_LIST: SqlColumnType[] = [
     // 数值 - 整数型
     { udtName: 'int1', dataType: 'tinyint', desc: '微整数，别名为INT1', space: '1字节', range: '0 ~ +255' },
     { udtName: 'int2', dataType: 'smallint', desc: '小范围整数，别名为INT2。', space: '2字节', range: '-32,768 ~ +32,767' },
@@ -103,7 +104,7 @@ const replaceFunctions: EditorCompletionItem[] = [];
 let pgDialectInfo: DialectInfo;
 let pgCompletions: EditorCompletion;
 
-export class PostgresqlDialect implements DbDialect {
+export class PostgresqlDialect extends SchemaDialectBase {
     getCapabilities(): DialectCapabilities {
         return defineCapabilities({
             // 自增由 serial/identity 列类型表达而非独立列属性，故表编辑器不提供自增勾选
@@ -174,78 +175,23 @@ export class PostgresqlDialect implements DbDialect {
         return limitOffsetPageSnippet;
     }
 
-    getDefaultRows(): RowDefinition[] {
-        return createDefaultRows(defaultRowsConfigs.postgresql);
+    getDefaultColumns(): ColumnDefinition[] {
+        return createDefaultColumns(defaultColumnConfigs.postgres);
     }
 
-    getDefaultIndex(): IndexDefinition {
-        return {
-            indexName: '',
-            columnNames: [],
-            unique: false,
-            // 索引类型取自能力声明，避免与 defaultIndexType 各写一份而漂移
-            indexType: this.getCapabilities().defaultIndexType,
-            indexComment: '',
-        };
+    // ==================== 默认值格式化钩子（覆写基类的配置方法） ====================
+
+    /** PG 默认值需加引号的类型名（基类 matchType 大小写不敏感，故小写即可） */
+    protected getDefaultValueQuotedTypeNames(): string[] {
+        return ['char', 'time', 'date', 'text'];
     }
 
-    quoteIdentifier = (name: string) => {
-        return `"${name}"`;
-    };
-
-    matchType(text: string, arr: string[]): boolean {
-        return _matchType(text, arr);
+    /** PG 时间/日期列的默认值中不加引号的函数名（基类统一转小写比较） */
+    protected getUnquotedDefaultFunctionNames(): string[] {
+        return ['pg_systimestamp()', 'current_timestamp'];
     }
 
-    getDefaultValueSql(cl: RowDefinition): string {
-        if (cl.value && cl.value.length > 0) {
-            // 哪些字段默认值需要加引号
-            let marks = false;
-            if (this.matchType(cl.type, ['char', 'time', 'date', 'text'])) {
-                // 默认值是now()的time或date不需要加引号
-                if (['pg_systimestamp()', 'current_timestamp'].includes(cl.value.toLowerCase()) && this.matchType(cl.type, ['time', 'date'])) {
-                    marks = false;
-                } else {
-                    marks = true;
-                }
-            }
-            // 哪些函数不需要加引号
-            if (this.matchType(cl.value, ['nextval'])) {
-                marks = false;
-            }
-            return ` DEFAULT ${marks ? "'" : ''}${cl.value}${marks ? "'" : ''}`;
-        }
-        return '';
-    }
-
-    getTypeLengthSql(cl: RowDefinition) {
-        // 哪些字段可以指定长度
-        if (cl.length && this.matchType(cl.type, ['char', 'time', 'bit', 'num', 'decimal'])) {
-            // 哪些字段类型可以指定小数点
-            if (cl.numScale && this.matchType(cl.type, ['num', 'decimal'])) {
-                return `(${cl.length}, ${cl.numScale})`;
-            } else {
-                return `(${cl.length})`;
-            }
-        }
-        return '';
-    }
-
-    genColumnBasicSql(cl: RowDefinition): string {
-        let length = this.getTypeLengthSql(cl);
-        // 默认值
-        let defVal = this.getDefaultValueSql(cl);
-        // 如果有原名以原名为准
-        let name = cl.oldName && cl.name !== cl.oldName ? cl.oldName : cl.name;
-
-        const parts = [
-            this.quoteIdentifier(name),
-            cl.type + length,
-            cl.notNull ? 'NOT NULL' : '',
-            defVal,
-        ];
-        return parts.filter(Boolean).join(' ');
-    }
+    // ==================== PG 特有的 DDL 方法（基类无法覆盖的差异） ====================
 
     getCreateTableSql(data: TableEditContext): string {
         let createSql = '';
@@ -255,14 +201,14 @@ export class PostgresqlDialect implements DbDialect {
         // 创建表结构
         let pks = [] as string[];
         let fields: string[] = [];
-        data.fields.res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: ColumnDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
-            if (item.pri) {
+            if (item.isPrimaryKey) {
                 pks.push(this.quoteIdentifier(item.name));
             }
             // 列注释
-            if (item.remark) {
-                columCommentSql += `COMMENT ON COLUMN ${this.quoteIdentifier(data.tableName)}.${this.quoteIdentifier(item.name)} IS '${QuoteEscape(item.remark)}';`;
+            if (item.comment) {
+                columCommentSql += `COMMENT ON COLUMN ${this.quoteIdentifier(data.tableName)}.${this.quoteIdentifier(item.name)} IS '${QuoteEscape(item.comment)}';`;
             }
         });
         // 建表
@@ -280,7 +226,7 @@ export class PostgresqlDialect implements DbDialect {
         let dbTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableData.tableName);
         let schema = extractSchema(tableData.db);
         let sql: string[] = [];
-        tableData.indexs.res.forEach((a: IndexDefinition) => {
+        tableData.indexes.res.forEach((a: IndexDefinition) => {
             let colArr = a.columnNames.map((c: string) => this.quoteIdentifier(c));
             sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${dbTable} (${colArr.join(',')})`);
             if (a.indexComment) {
@@ -296,7 +242,7 @@ export class PostgresqlDialect implements DbDialect {
         return `DROP TABLE ${buildSchemaTable(this.quoteIdentifier, db, table)}`;
     }
 
-    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         let dbTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableName);
 
         let modifySql = '';
@@ -307,22 +253,22 @@ export class PostgresqlDialect implements DbDialect {
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
                 modifySql += `ALTER TABLE ${dbTable} ADD ${this.genColumnBasicSql(a)};`;
-                if (a.remark) {
-                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}';`;
+                if (a.comment) {
+                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}';`;
                 }
             });
         }
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}';`;
-                if (a.remark && a.oldName === a.name) {
+                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}';`;
+                if (a.comment && a.oldName === a.name) {
                     commentSql += cmtSql;
                 }
                 // 修改了字段名
                 if (a.oldName !== a.name) {
                     renameSql += `ALTER TABLE ${dbTable} RENAME COLUMN ${this.quoteIdentifier(a.oldName!)} TO ${this.quoteIdentifier(a.name)};`;
-                    if (a.remark) {
+                    if (a.comment) {
                         commentSql += cmtSql;
                     }
                 }
@@ -350,12 +296,12 @@ export class PostgresqlDialect implements DbDialect {
         let schema = extractSchema(tableData.db);
 
         let dropIndexNames: string[] = [];
-        let addIndexs: IndexDefinition[] = [];
+        let addIndexes: IndexDefinition[] = [];
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
                 dropIndexNames.push(a.indexName);
-                addIndexs.push(a);
+                addIndexes.push(a);
             });
         }
 
@@ -367,11 +313,11 @@ export class PostgresqlDialect implements DbDialect {
 
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                addIndexs.push(a);
+                addIndexes.push(a);
             });
         }
 
-        if (dropIndexNames.length > 0 || addIndexs.length > 0) {
+        if (dropIndexNames.length > 0 || addIndexes.length > 0) {
             let sql: string[] = [];
             if (dropIndexNames.length > 0) {
                 dropIndexNames.forEach((a) => {
@@ -380,8 +326,8 @@ export class PostgresqlDialect implements DbDialect {
                 });
             }
 
-            if (addIndexs.length > 0) {
-                addIndexs.forEach((a) => {
+            if (addIndexes.length > 0) {
+                addIndexes.forEach((a) => {
                     let colArr = a.columnNames.map((c: string) => this.quoteIdentifier(c));
                     sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${dbTable} (${colArr.join(',')})`);
                     if (a.indexComment) {
@@ -432,4 +378,4 @@ export class PostgresqlDialect implements DbDialect {
     }
 }
 
-registerDbDialect(DbType.postgresql, new PostgresqlDialect());
+registerDbDialect(DbType.postgres, new PostgresqlDialect());

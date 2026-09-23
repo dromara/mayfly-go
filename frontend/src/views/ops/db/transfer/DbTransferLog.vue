@@ -12,18 +12,18 @@
                     <span :class="{ 'text-red-500': data.durationMs > 30000 }">{{ data.durationMs ? `${data.durationMs} ms` : '-' }}</span>
                 </template>
                 <template #runLog="{ data }">
-                    <el-button v-if="data.runLog" type="primary" link size="small" @click="showRunLog(data)">
+                    <el-button type="primary" link size="small" @click="showRunLog(data)">
                         {{ $t('db.transferRunLog') }}
                     </el-button>
-                    <span v-else class="text-gray-400">-</span>
                 </template>
             </page-table>
 
             <!-- 运行日志弹窗（使用通用 LogViewer） -->
             <el-dialog v-model="runLogVisible" :title="$t('db.transferRunLog')" width="900px" :destroy-on-close="true" @close="runLogUserClosed = true">
                 <LogViewer
-                    v-if="runLogLines.length > 0"
+                    v-if="runLogLines.length > 0 || runLogLoading"
                     :lines="runLogLines"
+                    :loading="runLogLoading"
                     :finished="!state.realTime"
                     :total-lines="runLogLines.length"
                     :theme="runLogTheme"
@@ -43,8 +43,8 @@ import PageTable from '@/components/page-table/PageTable.vue';
 import { TableColumn } from '@/components/page-table';
 import { LogViewer, SyncRunLogParser, type ParsedLogLine } from '@/components/log-viewer';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
-import { DbTransferLogStatusEnum } from '@/views/ops/db/transfer/enums';
-import type { DbTransferLog } from '@/views/ops/db/types';
+import { DbTransferLogStatusEnum, DbTransferLogPurposeEnum } from '@/views/ops/db/transfer/enums';
+import type { DbTransferLogListVO } from '@/views/ops/db/types';
 import type { PageResult } from '@/types/common';
 
 const props = defineProps({
@@ -60,6 +60,7 @@ const props = defineProps({
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const columns = ref([
+    TableColumn.new('purpose', 'db.transferPurpose').alignCenter().typeTag(DbTransferLogPurposeEnum).setMinWidth(90),
     TableColumn.new('status', 'common.status').alignCenter().typeTag(DbTransferLogStatusEnum).setMinWidth(80),
     TableColumn.new('createTime', 'Time').alignCenter().isTime().setMinWidth(160),
     TableColumn.new('durationMs', 'db.transferDuration').alignCenter().isSlot().setMinWidth(100),
@@ -74,6 +75,7 @@ const runLogParser = new SyncRunLogParser();
 // 运行日志弹窗状态
 const runLogVisible = ref(false);
 const runLogUserClosed = ref(false); // 用户是否手动关闭过运行日志弹窗
+const runLogLoading = ref(false);
 const currentRunLog = ref('');
 const runLogLines = computed<ParsedLogLine[]>(() => {
     if (!currentRunLog.value) return [];
@@ -87,10 +89,23 @@ const runLogTheme = computed(() => ({
     showLevelIcon: true,
 }));
 
-const showRunLog = (data: DbTransferLog) => {
-    currentRunLog.value = data.runLog || '';
+const showRunLog = (data: DbTransferLogListVO) => {
     runLogVisible.value = true;
     runLogUserClosed.value = false; // 用户主动打开，重置关闭标记
+    loadRunLog(data.id);
+};
+
+// 拉取单条执行日志的运行日志内容（列表接口不返回该大文本，避免日志较多时响应体膨胀），返回日志文本供调用方判断是否展示
+const loadRunLog = async (logId: number): Promise<string> => {
+    if (!logId) return '';
+    runLogLoading.value = true;
+    try {
+        const res = await dbTransferApi.dbTransferTaskLogRun.request({ logId });
+        currentRunLog.value = res?.runLog || '';
+        return currentRunLog.value;
+    } finally {
+        runLogLoading.value = false;
+    }
 };
 
 // 下载运行日志
@@ -148,19 +163,18 @@ const logTableRef: Ref<any> = ref(null);
 const search = async () => {
     try {
         logTableRef.value?.search();
-        // 实时模式下，获取最新日志的运行日志内容并自动更新展示
+        // 实时模式下，获取最新一条执行日志的运行日志内容并自动更新展示
         if (state.realTime && state.query.taskId) {
             const res = (await dbTransferApi.dbTransferTaskLogs.request({
                 taskId: state.query.taskId,
                 pageNum: 1,
                 pageSize: 1,
-            })) as PageResult<DbTransferLog>;
+            })) as PageResult<DbTransferLogListVO>;
             if (res?.list?.length > 0) {
                 const latestLog = res.list[0];
-                if (latestLog.runLog) {
-                    currentRunLog.value = latestLog.runLog;
-                    // 仅在任务运行中且用户未手动关闭过运行日志弹窗时自动打开
-                    if (!runLogVisible.value && !runLogUserClosed.value) {
+                // 用户未手动关闭过运行日志弹窗时，按需拉取最新日志的运行内容，有内容则自动弹出
+                if (!runLogUserClosed.value && (await loadRunLog(latestLog.id))) {
+                    if (!runLogVisible.value) {
                         nextTick(() => {
                             runLogVisible.value = true;
                         });

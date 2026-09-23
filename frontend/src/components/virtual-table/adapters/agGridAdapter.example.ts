@@ -8,7 +8,6 @@
  *   import { agGridAdapter } from '@/components/virtual-table/adapters/agGridAdapter.example';
  *   <VirtualTable :adapter="agGridAdapter" ... />
  */
-import type { Component } from 'vue';
 import type {
     AdapterPropsInput,
     NormalizedColumn,
@@ -69,7 +68,8 @@ function getInstance(tableRef: { value: unknown }): TableInstance {
 
 export const agGridAdapter: VirtualTableAdapter = {
     name: 'ag-grid',
-    component: null as unknown as Component,
+    // 示例未引入 ag-grid 依赖，此处用等价的组件选项对象满足契约；实际接入时替换为真实 AG Grid 组件
+    component: { name: 'AgGridTable' },
     transformColumns,
     transformRowEventHandlers,
     getProps,

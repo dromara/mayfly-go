@@ -13,7 +13,7 @@ import (
 // 必须容忍常见的书写空白（decimal(10, 2)、varchar (100)），否则整串被当作类型名而落入
 // 未注册类型的varchar兼容，结构迁移时数值与长度语义静默失真
 func TestGetDataTypes(t *testing.T) {
-	sd := &SqliteMetadata{}
+	sd := &SQLiteMetadata{}
 	kases := []struct {
 		declaredType string
 		dataType     string
@@ -44,9 +44,9 @@ func TestGetDataTypes(t *testing.T) {
 	}
 }
 
-// TestGetDataTypes_RealSqliteDeclaredTypes 用真实SQLite验证前提：库内报告的声明类型
+// TestGetDataTypes_RealSQLiteDeclaredTypes 用真实SQLite验证前提：库内报告的声明类型
 // 与建表DDL原文一致（保留大小写与书写空白），因此切割必须能处理这些真实形态
-func TestGetDataTypes_RealSqliteDeclaredTypes(t *testing.T) {
+func TestGetDataTypes_RealSQLiteDeclaredTypes(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -80,7 +80,7 @@ func TestGetDataTypes_RealSqliteDeclaredTypes(t *testing.T) {
 	require.NoError(t, rows.Err())
 	require.Len(t, declared, len(declaredTypes))
 
-	sd := &SqliteMetadata{}
+	sd := &SQLiteMetadata{}
 	// 库内报告的声明类型必须与DDL原文一致（SQLite不做类型归一化）
 	assert.Equal(t, declaredTypes, declared)
 	// 真实声明形态必须能切出类型名与参数（double precision/timestamp本无参数）

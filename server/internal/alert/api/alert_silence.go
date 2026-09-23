@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/imsg"
@@ -33,7 +34,7 @@ func (a *AlertSilence) List(rc *req.Ctx) {
 }
 
 func (a *AlertSilence) GetById(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	silence, err := a.silenceApp.GetById(id)
 	biz.ErrIsNil(err)
 	rc.ResData = silence
@@ -47,12 +48,12 @@ func (a *AlertSilence) Save(rc *req.Ctx) {
 
 func (a *AlertSilence) Update(rc *req.Ctx) {
 	silence := rc.BindJson[entity.AlertSilence]()
-	silence.Id = uint64(rc.PathParamInt("id"))
+	silence.Id = cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(a.silenceApp.SaveAlertSilence(rc.MetaCtx, silence))
 }
 
 func (a *AlertSilence) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	status := int8(rc.PathParamInt("status"))
 	biz.ErrIsNil(a.silenceApp.ChangeStatus(rc.MetaCtx, id, status))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)

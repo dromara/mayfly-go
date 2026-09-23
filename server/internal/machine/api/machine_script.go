@@ -99,7 +99,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 }
 
 func GetMachineScriptId(rc *req.Ctx) uint64 {
-	scriptId := rc.PathParamInt("scriptId")
+	scriptId := cast.ToUint64(rc.PathParam("scriptId"))
 	biz.IsTrue(scriptId > 0, "scriptId error")
-	return uint64(scriptId)
+	return scriptId
 }

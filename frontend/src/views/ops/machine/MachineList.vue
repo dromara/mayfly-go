@@ -277,7 +277,6 @@ import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { MachineProtocolEnum } from './enums';
 import type { MachineVO } from './types';
 import type { PageResult } from '@/types/common';
-import type { TerminalMeta } from '@/components/terminal/common';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -459,7 +458,7 @@ const showTerminal = (row: MachineVO, event: PointerEvent) => {
         socketUrl: getMachineTerminalSocketUrl(ac),
         minTitle: `${row.name} [${(terminalId + '').slice(-2)}]`,
         minDesc: `${row.selectAuthCert?.username || ''}@${row.ip}:${row.port} (${row.name})`,
-        meta: row as unknown as TerminalMeta,
+        meta: { ...row },
     });
 };
 

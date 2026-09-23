@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	machineapp "mayfly-go/internal/machine/application"
-	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -80,9 +78,11 @@ type DbInfo struct {
 	Version        DbVersion // 数据库版本信息，用于语法兼容
 	DefaultVersion bool      // 经过查询数据库版本信息后，是否仍然使用默认版本
 
-	CodePath           []string
+	CodePath []string
+	// SshTunnelMachineId 需要经其中转机建立通道时使用的机器标识（>0 表示启用）
 	SshTunnelMachineId int
-	RemoteAddr         string `json:"-"` // ssh隧道远程地址，格式 ip:port
+	// RemoteAddr 建立通道前的目标原始地址，格式 ip:port；仅首次改写前记录，避免通道重建时误用已映射地址
+	RemoteAddr string `json:"-"`
 
 	Backend DbBackend
 
@@ -91,23 +91,14 @@ type DbInfo struct {
 
 	// db 底层连接池，由 Conn() 建立后赋值，方言通过 GetDb() 访问
 	db *sql.DB
-}
 
-var _ (mcm.SshTunnelAble) = (*DbInfo)(nil)
+	// schemaCache 服务端元数据缓存（跨请求存活，按逻辑库连接单例），由 Conn() 建立连接时初始化；
+	// 未建立连接的 DbInfo（如纯 SQL 生成）为 nil。用指针（非内嵌互斥量）以保持 DbInfo 可安全按值拷贝。
+	schemaCache *schemaCache
+}
 
 func (di *DbInfo) String() string {
 	return fmt.Sprintf("DbInfo{Id: %d, Name: %s, Type: %s, Host: %s, Port: %d, Database: %s}", di.Id, di.Name, di.Type, di.Host, di.Port, di.Database)
-}
-
-func (di *DbInfo) GetSshTunnelMachineId() int64 {
-	return int64(di.SshTunnelMachineId)
-}
-
-func (di *DbInfo) GetRemoteAddr() string {
-	if di.RemoteAddr != "" {
-		return di.RemoteAddr
-	}
-	return fmt.Sprintf("%s:%d", di.Host, di.Port)
 }
 
 // GetLogDesc 获取记录日志的描述
@@ -123,8 +114,12 @@ func (di *DbInfo) GetDb() *sql.DB {
 
 // QueryContext 执行查询语句，返回列信息、结果集和错误。
 // 支持 context 控制超时/取消。
-func (di *DbInfo) QueryContext(ctx context.Context, querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
-	rows, err := di.db.QueryContext(ctx, querySql, args...)
+//
+// 与 DbConn.walkQueryRows 共用 buildQueryColumns/scanRowMap，保证重复列名消歧、
+// QueryColumn.Key 回写与 rows.Err() 检查在各查询路径上行为一致（元数据查询常含
+// SELECT a.id, b.id 之类同名列，若不去重会静默丢列）。
+func (di *DbInfo) QueryContext(ctx context.Context, querySQL string, args ...any) ([]*QueryColumn, []map[string]any, error) {
+	rows, err := di.db.QueryContext(ctx, querySQL, args...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -134,36 +129,26 @@ func (di *DbInfo) QueryContext(ctx context.Context, querySql string, args ...any
 	if err != nil {
 		return nil, nil, err
 	}
-	cols := make([]*QueryColumn, len(colTypes))
-	scans := make([]any, len(colTypes))
-	for k, colType := range colTypes {
-		colName := colType.Name()
-		if colName == "" {
-			colName = fmt.Sprintf("<anonymous%d>", k+1)
-		}
-		qc := NewQueryColumn(colName, GetDbDataType(di.Type, colType.DatabaseTypeName()))
-		cols[k] = qc
-		scans[k] = qc.getValuePtr()
-	}
+	cols, scans := buildQueryColumns(colTypes, di.Type)
 
 	result := make([]map[string]any, 0, 16)
 	for rows.Next() {
 		if err := rows.Scan(scans...); err != nil {
 			return cols, nil, err
 		}
-		rowData := make(map[string]any, len(cols))
-		for _, col := range cols {
-			rowData[col.Name] = col.value()
-		}
-		result = append(result, rowData)
+		result = append(result, scanRowMap(cols))
 	}
-	return cols, result, rows.Err()
+	// rows.Next() 返回 false 也可能是游标中途 IO/网络错误，必须显式检查，避免静默返回截断结果
+	if err := rows.Err(); err != nil {
+		return cols, nil, wrapSQLError(err)
+	}
+	return cols, result, nil
 }
 
 // Query 便捷方法：执行查询语句，返回列信息、结果集和错误。
 // 使用 context.Background()，如需控制超时请使用 QueryContext。
-func (di *DbInfo) Query(querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
-	return di.QueryContext(context.Background(), querySql, args...)
+func (di *DbInfo) Query(querySQL string, args ...any) ([]*QueryColumn, []map[string]any, error) {
+	return di.QueryContext(context.Background(), querySQL, args...)
 }
 
 // ExecContext 执行 SQL 语句，返回影响行数和错误。
@@ -173,6 +158,8 @@ func (di *DbInfo) ExecContext(ctx context.Context, sql string, args ...any) (int
 	if err != nil {
 		return 0, err
 	}
+	// 执行成功的 DDL 改变了库结构：立即失效服务端元数据缓存（判据见 invalidateIfDDL）
+	di.invalidateIfDDL(sql)
 	return res.RowsAffected()
 }
 
@@ -192,9 +179,23 @@ func (di *DbInfo) GetDbDataType(dataType string) *DbDataType {
 	return GetDbDataType(di.Type, dataType)
 }
 
-// Metadata 便捷方法：创建 Schema 元数据访问入口。
-func (di *DbInfo) Metadata() *Metadata {
-	return NewMetadata(di.Backend, di.Backend.GetMetadataProvider(di), di.Backend.GetServerInfo(di))
+// SchemaCache 返回该连接的元数据缓存；仅在连接建立（Conn）后非 nil。
+func (di *DbInfo) SchemaCache() *schemaCache {
+	return di.schemaCache
+}
+
+// InvalidateSchemaCache 清空该连接的元数据缓存：使补全与资源树立即反映最新结构。
+// 它是缓存失效的唯一写入口（DDL 执行后的自动失效见 invalidateIfDDL，也可直接调用本方法）。
+// TTL 为兜底安全网，此处主动失效只为消除改表后的陈旧窗口；无缓存时为 no-op。
+func (di *DbInfo) InvalidateSchemaCache() {
+	if di.schemaCache != nil {
+		di.schemaCache.invalidate()
+	}
+}
+
+// Metadata 便捷方法：创建 Schema 元数据访问入口，并接入该连接的跨请求元数据缓存。
+func (di *DbInfo) Metadata() *MetadataReader {
+	return NewMetadataReader(di.Backend, di.Backend.GetMetadataProvider(di), di.Backend.GetServerInfo(di), di.SchemaCache())
 }
 
 // 连接数据库
@@ -212,22 +213,28 @@ func (di *DbInfo) Conn(ctx context.Context, backend DbBackend) (*DbConn, error) 
 		di.Database = database
 	}
 
-	if err := di.IfUseSshTunnelChangeIpPort(ctx); err != nil {
+	// 若配置了中转通道则先建立，拿到实际可拨地址与通道句柄
+	tunnel, err := di.dialTunnel(ctx)
+	if err != nil {
 		return nil, err
 	}
-	conn, err := backend.GetSqlDb(ctx, di)
+
+	conn, err := backend.GetSQLDb(ctx, di)
 	if err != nil {
+		tunnel.Close() // 建连失败，释放已建立的通道，避免其引用计数泄漏
 		logx.Errorf("db connection failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
 
 	err = conn.Ping()
 	if err != nil {
+		tunnel.Close() // 探活失败同样要释放已建立的通道
 		logx.Errorf("db ping failed: %s:%d/%s, err:%s", di.Host, di.Port, database, err.Error())
 		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
 
-	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di}
+	// 通道句柄随连接持有，连接关闭时由其显式释放
+	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di, tunnel: tunnel}
 
 	// 使用实例级连接池配置（有则覆盖，无则使用默认值）
 	maxLifetime, maxIdleTime, maxOpen, maxIdle := di.PoolConfig.Resolve()
@@ -239,32 +246,36 @@ func (di *DbInfo) Conn(ctx context.Context, backend DbBackend) (*DbConn, error) 
 	// 将底层连接存入 DbInfo，方言通过 di.GetDb() 访问
 	di.db = conn
 
+	// 建立连接即初始化该逻辑库的元数据缓存；DbInfo 随连接池单例存活，后续读取 happens-after 本次写入
+	di.schemaCache = newSchemaCache()
+
 	logx.Infof("db connection: %s:%d/%s", di.Host, di.Port, database)
 
 	return dbc, nil
 }
 
-// 如果使用了ssh隧道，将其host port改变其本地映射host port
-func (di *DbInfo) IfUseSshTunnelChangeIpPort(ctx context.Context) error {
-	// 开启ssh隧道
-	if di.SshTunnelMachineId > 0 {
-		// 防止同一DbInfo重复建立隧道：仅在首次记录原始远程地址，
-		// 否则二次调用时 GetRemoteAddr 会将已映射的本地地址当作原始地址记录，导致隧道重建后连错目标
-		if di.RemoteAddr == "" {
-			di.RemoteAddr = fmt.Sprintf("%s:%d", di.Host, di.Port)
-		}
-		sshTunnelMachine, err := GetSshTunnel(ctx, di.SshTunnelMachineId)
-		if err != nil {
-			return err
-		}
-		exposedIp, exposedPort, err := sshTunnelMachine.OpenSshTunnel(di)
-		if err != nil {
-			return err
-		}
-		di.Host = exposedIp
-		di.Port = exposedPort
+// dialTunnel 若连接配置了中转通道，则经注册的 TunnelOpener 建立通道，
+// 将 DbInfo 的目标地址改写为通道暴露的本地地址，并返回持有释放钩子的通道句柄。
+// 无通道需求时返回 (nil, nil)（其 Close 对 nil 接收者安全）。
+func (di *DbInfo) dialTunnel(ctx context.Context) (*Tunnel, error) {
+	if di.SshTunnelMachineId <= 0 {
+		return nil, nil
 	}
-	return nil
+	if tunnelOpener == nil {
+		return nil, errorx.NewBiz("tunnel is required but no tunnel opener is registered")
+	}
+	// 仅首次记录目标原始地址：通道建立后 Host/Port 被改为本地映射地址，
+	// 若重复进入此处会把本地地址误当原始地址，导致通道重建后连错目标
+	if di.RemoteAddr == "" {
+		di.RemoteAddr = fmt.Sprintf("%s:%d", di.Host, di.Port)
+	}
+	tunnel, err := tunnelOpener.Open(ctx, TunnelSpec{MachineId: di.SshTunnelMachineId, RemoteAddr: di.RemoteAddr})
+	if err != nil {
+		return nil, err
+	}
+	di.Host = tunnel.Host
+	di.Port = tunnel.Port
+	return tunnel, nil
 }
 
 // CurrentSchema 获取当前库的schema（兼容 database/schema模式）
@@ -286,11 +297,6 @@ func (di *DbInfo) GetDatabase() string {
 		return ss[0]
 	}
 	return dbName
-}
-
-// GetSshTunnel 根据ssh tunnel机器id返回ssh tunnel
-func GetSshTunnel(ctx context.Context, sshTunnelMachineId int) (*mcm.SshTunnelMachine, error) {
-	return machineapp.GetMachineApp().GetSshTunnelMachine(ctx, sshTunnelMachineId)
 }
 
 // GetDbConnId 获取连接id

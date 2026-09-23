@@ -332,13 +332,13 @@ AutoForm 的企业级布局能力，函数式与 JSON DSL 双层支持：
 **group 分组容器**（`type: 'group'`）：非字段项，渲染标题 + 可选 `groupDescription` + 带边框容器包裹后续字段，直到下一个 group。字段全部隐藏（`when`/`hidden`）时空分组不渲染：
 
 ```ts
-const items: AutoFormItem[] = [
+const items = defineFormItems<MachineForm>([
     { type: 'group', label: 'common.basic' },
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'host', label: 'Host', required: true },
     { type: 'group', label: 'common.other' },
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
-];
+]);
 ```
 
 **tabs 页签**（TabConfig）：AutoForm / AutoFormDialog / AutoFormDrawer 均支持 `tabs` prop（`AutoFormTab[]`：`{ name, label, icon?, items }`）。所有 Tab 共享同一表单数据与校验（el-tab-pane 非懒渲染，未激活 Tab 字段同样挂载，`validate` 全量生效）：
@@ -363,6 +363,37 @@ JSON Schema 内置 `tabs` 字段（`JsonTab[]`：`{ name, label, icon?, fields }
 - 提交动作函数（confirmApi / @confirm 处理器）职责边界：只做「前置业务校验（失败抛错中止）+ 参数组装 + 调 API + 成功后事件通知」；成功提示与关闭弹层一律由组件内置逻辑负责，不得重复书写。
 - `AutoFormInstance.validateField(props?)`：单字段校验（三宿主均暴露），向导式分步场景可配合 `v-model:active-tab` 只校验当前步字段。
 - 表单壳 `el-form` 原生属性（如 `scroll-to-error` 校验失败滚动到首个错误项）经 `$attrs` 直接透传。
+
+### 表单类型契约（页面表单类型不得靠断言在链路里反复换算）
+
+`AutoFormData` 是 `Record<string, any>` 表单袋，宿主（Dialog/Drawer）、字段配置回调与 `confirmApi` 之间传递的都是它。
+页面才是唯一知道业务表单形状的一方，因此**类型只在两个边界入口收敛一次**，禁止在消费点反复 `rawForm as XxxForm`：
+
+- **`defineFormItems<TForm>(items)`**（`components/auto-form`）：字段声明工厂。产物仍是 `AutoFormItem[]`（宿主契约不变），
+  但 `when` / `required` / `disabled` / `readonly` / `onChange` / `validate` / `optionDisabled` / `options(fn)` 的形参直接是 `TForm`。
+  不给 `AutoFormItem` 加 `TForm` 泛型的原因：这些回调的 `form` 处于逆变位置，`AutoFormItemOf<MachineForm>[]` 无法赋给 `AutoFormItem[]`（TS2322），
+  泛型化会逼所有声明点显式标泛型；类型在工厂内部单向还原一次即可。
+- **`useAutoFormModel<TForm>()`**（`@/hooks/useAutoFormModel`）：接管宿主 `@opened` 抛出的内部表单，返回
+  `{ form, onOpened, openedWith, requireForm }`。页面不再声明 `ref<AutoFormData>({})`、不再在 `confirmApi` 形参上收袋再断言：
+
+```ts
+const { onOpened, requireForm } = useAutoFormModel<MachineForm>();
+// 模板：<auto-form-drawer :data="editData" :confirm-api="onConfirm" @opened="onOpened" />
+
+// 回填数据：以默认值为底再覆盖行数据（行数据不携带的表单字段由默认值兑底）
+const editData = computed<MachineForm>(() => (props.data ? { ...defaultForm, ...props.data } : { ...defaultForm }));
+
+// confirmApi 只负责参数组装与调 API；前置校验属字段规则时一律写进 items 的 validate
+const onConfirm = async () => saveMachineExec(submitForm.value);
+```
+
+  需要在回填后做额外初始化时用 `openedWith((form) => void)`（产物仍是宿主要求的 `(raw: AutoFormData) => void`，回调形参已是 `TForm`）；
+  读取点密集且要持续读写同一表单时，用 `const internalForm = computed(requireForm)` 保持 `internalForm.value.x` 写法不变。
+- **前置校验不占提交环节**：「至少一项 / 非空 / 格式合法」这类校验能声明为字段规则就声明为 `validate`（返回 i18n key，由宿主转成字段级错误），
+  不要在 `confirmApi` 里 `Msg.error(...)` + `throw`。需要插值参数的提示（如列出非法项）无法用 `validate` 表达，仍留在提交动作里抛错中止。
+- **`@opened` 与 `confirmApi` 拿到的是同一个对象**：宿主内部表单只有一份，页面不得同时持有 `rawForm` 形参与 `internalForm` 引用两个句柄。
+- 门禁：`components/auto-form/__tests__/form-contract.test.ts` 扫描 `views/**.vue`，禁止 `as AutoFormData`、`： AutoFormData` 声明、
+  `as XxxForm` 袋断言与本地 `type FormData` 别名（后者会遮蔽 DOM 全局 `FormData`）。新增断言即测试红。
 
 ## 分层架构与 UI 框架无关性
 

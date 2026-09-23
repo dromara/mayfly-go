@@ -1,7 +1,7 @@
 package itest
 
 // 查询/非查询语句分发正确性实证测试：
-// 镜像 ExecuteSql 的分发规则（切割→解析→按Stmt类型分发）：
+// 镜像 ExecuteSQL 的分发规则（切割→解析→按Stmt类型分发）：
 //   - SelectStmt/WithStmt/OtherStmt → Query（读）
 //   - InsertStmt/UpdateStmt/DeleteStmt/DdlStmt → Exec（写）
 // 重点验证易混淆语句在真实后端下按该规则执行的兼容性：
@@ -78,8 +78,8 @@ func TestITPgDispatchMatrix(t *testing.T) {
 	mustExec(t, conn, "DROP TABLE IF EXISTS it_dispatch_t")
 }
 
-// TestITSqliteDispatchMatrix sqlite易混淆语句分发矩阵（沿用pg解析器+标准语义切割器）
-func TestITSqliteDispatchMatrix(t *testing.T) {
+// TestITSQLiteDispatchMatrix sqlite易混淆语句分发矩阵（沿用pg解析器+标准语义切割器）
+func TestITSQLiteDispatchMatrix(t *testing.T) {
 	conn := sqliteConn(t)
 
 	mustExec(t, conn, "DROP TABLE IF EXISTS `it_dispatch_t`")
@@ -101,10 +101,10 @@ func TestITSqliteDispatchMatrix(t *testing.T) {
 	assertCell(t, "cnt", 0, rows[0]["cnt"])
 }
 
-// TestITExecSqlViaQueryEffect 实证：exec类SQL（DML/DDL）误用Query执行时数据是否生效
+// TestITExecSQLViaQueryEffect 实证：exec类SQL（DML/DDL）误用Query执行时数据是否生效
 // database/sql语义下大多数后端会真实执行语句（返回空结果集），但丢失rowsAffected且
 // 结果表现为空查询；本用例验证本项目三种方言后端的真实行为
-func TestITExecSqlViaQueryEffect(t *testing.T) {
+func TestITExecSQLViaQueryEffect(t *testing.T) {
 	// mysql：INSERT/UPDATE/DDL走Query——数据生效、无后端错误
 	mconn := mysqlConn(t)
 	defer mconn.Close()

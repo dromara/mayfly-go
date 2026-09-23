@@ -25,7 +25,7 @@ type DbTransferTask struct {
 	dbTransferFileApp transfer.DbTransferFile `inject:"T"`
 	dbApp             application.Db          `inject:"T"`
 	tagApp            tagapp.TagTreeChecker   `inject:"T"`
-	dbSqlExecApp      application.DbSqlExec   `inject:"T"`
+	dbSQLExecApp      application.DbSQLExec   `inject:"T"`
 	fileApp           fileapp.File            `inject:"T"`
 }
 
@@ -47,10 +47,10 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 		req.NewPost(":taskId/run", d.Run).Log(req.NewLogI(imsg.LogDtsRun)).RequiredPermissionCode("db:transfer:run"),
 
 		// 停止正在执行中的任务
-		req.NewPost(":taskId/stop", d.Stop).Log(req.NewLogSaveI(imsg.LogDtsStop)).RequiredPermissionCode("db:transfer:run"),
+		req.NewPost(":taskId/stop", d.Stop).Log(req.NewLogSaveI(imsg.LogDtsStop)).RequiredPermissionCode("db:transfer:stop"),
 
 		// 数据校验：校验任务源库与目标库数据一致性，异步执行并返回日志id
-		req.NewPost(":taskId/verify", d.Verify).Log(req.NewLogI(imsg.LogDtsVerify)).RequiredPermissionCode("db:transfer:run"),
+		req.NewPost(":taskId/verify", d.Verify).Log(req.NewLogI(imsg.LogDtsVerify)).RequiredPermissionCode("db:transfer:verify"),
 
 		// 导出文件管理-列表
 		req.NewGet("/files/:taskId", d.Files),
@@ -58,10 +58,13 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 		// 导出文件管理-删除
 		req.NewPost("/files/del/:fileId", d.FileDel).Log(req.NewLogSaveI(imsg.LogDtsDeleteFile)).RequiredPermissionCode("db:transfer:files:del"),
 
-		req.NewPost("/files/run", d.FileRun).Log(req.NewLogSaveI(imsg.LogDtsRunSqlFile)).RequiredPermissionCode("db:transfer:files:run"),
+		req.NewPost("/files/run", d.FileRun).Log(req.NewLogSaveI(imsg.LogDtsRunSQLFile)).RequiredPermissionCode("db:transfer:files:run"),
 
-		// 迁移任务历史日志列表（按 taskId 过滤 SysLog）
+		// 迁移任务历史日志列表（按 taskId 过滤 DbTransferLog，每次执行一条记录）
 		req.NewGet(":taskId/logs", d.Logs).RequiredPermissionCode("db:transfer:log"),
+
+		// 单条执行日志的运行日志内容（列表接口不返回大文本，按需获取）
+		req.NewGet("logs/:logId/run", d.LogRun).RequiredPermissionCode("db:transfer:log"),
 	}
 
 	return req.NewConfs("/dbTransfer", reqs[:]...)
@@ -111,7 +114,7 @@ func (d *DbTransferTask) ChangeStatus(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) Run(rc *req.Ctx) {
-	taskId := uint64(rc.PathParamInt("taskId"))
+	taskId := cast.ToUint64(rc.PathParam("taskId"))
 	rc.ReqParam = taskId
 
 	logId, err := d.dbTransferTaskApp.Run(rc.MetaCtx, taskId)
@@ -120,12 +123,12 @@ func (d *DbTransferTask) Run(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) Stop(rc *req.Ctx) {
-	biz.ErrIsNil(d.dbTransferTaskApp.Stop(rc.MetaCtx, uint64(rc.PathParamInt("taskId"))))
+	biz.ErrIsNil(d.dbTransferTaskApp.Stop(rc.MetaCtx, cast.ToUint64(rc.PathParam("taskId"))))
 }
 
 // Verify 数据校验：异步执行，返回日志id（日志Resp中可查询校验报告）
 func (d *DbTransferTask) Verify(rc *req.Ctx) {
-	taskId := uint64(rc.PathParamInt("taskId"))
+	taskId := cast.ToUint64(rc.PathParam("taskId"))
 	rc.ReqParam = taskId
 
 	logId, err := d.dbTransferTaskApp.Verify(rc.MetaCtx, taskId)
@@ -180,7 +183,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 
 	// 备份文件可能是 zip/gz 压缩包，与「SQL文件执行」入口保持同样的解包能力；
 	// 解压/非法包在此同步报错，避免异步任务静默失败后只留下一条失败记录
-	reader, readerErr := newSqlFileReader(filename, fileReader)
+	reader, readerErr := newSQLFileReader(filename, fileReader)
 	if readerErr != nil {
 		_ = fileReader.Close()
 	}
@@ -195,7 +198,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 		defer func() {
 			_ = fileReader.Close()
 		}()
-		biz.ErrIsNil(d.dbSqlExecApp.ExecReader(ctx, &dto.SqlReaderExec{
+		biz.ErrIsNil(d.dbSQLExecApp.ExecReader(ctx, &dto.SQLReaderExec{
 			Reader:   reader,
 			Filename: filename,
 			DbConn:   targetDbConn,
@@ -205,12 +208,20 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 }
 
 // Logs 迁移任务历史日志列表（按 taskId 过滤 DbTransferLog，每次执行一条记录）
+// 列表不返回运行日志内容，避免日志较多时单次响应体过大，运行日志由 LogRun 按日志 id 单条获取
 func (d *DbTransferTask) Logs(rc *req.Ctx) {
-	taskId := cast.ToUint64(rc.PathParam("taskId"))
+	// 任务 id 以路径参数为准，覆盖 query 中可能传入的同名参数
 	queryCond := rc.BindQuery[entity.DbTransferLogQuery]()
-	queryCond.TaskId = taskId
+	queryCond.TaskId = cast.ToUint64(rc.PathParam("taskId"))
 
-	res, err := d.dbTransferTaskApp.GetLogList(queryCond, "create_time DESC")
+	res, err := d.dbTransferTaskApp.GetLogPageList(queryCond, "create_time DESC")
 	biz.ErrIsNil(err)
-	rc.ResData = res
+	rc.ResData = model.PageResultConv[*entity.DbTransferLog, *vo.DbTransferLogListVO](res)
+}
+
+// LogRun 获取单条执行日志的运行日志内容（执行中的日志取缓存，保证实时视图看到最新内容）
+func (d *DbTransferTask) LogRun(rc *req.Ctx) {
+	log, err := d.dbTransferTaskApp.GetLogWithRunLog(cast.ToUint64(rc.PathParam("logId")))
+	biz.ErrIsNil(err)
+	rc.ResData = &vo.DbTransferLogRunVO{Id: log.Id, Status: log.Status, RunLog: log.RunLog}
 }

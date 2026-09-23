@@ -11,7 +11,7 @@ type MaskRule interface {
 	base.Repo[*entity.DbMaskRule]
 
 	// GetPageList 分页获取规则
-	GetPageList(condition *entity.MaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error)
+	GetPageList(condition *entity.DbMaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error)
 
 	// ListEnabled 获取所有启用的规则
 	ListEnabled() ([]*entity.DbMaskRule, error)
@@ -22,7 +22,7 @@ type MaskColumn interface {
 	base.Repo[*entity.DbMaskColumn]
 
 	// GetPageList 分页获取列标签
-	GetPageList(condition *entity.MaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error)
+	GetPageList(condition *entity.DbMaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error)
 
 	// ListByInstance 获取指定实例的所有列标签
 	ListByInstance(instanceId uint64) ([]*entity.DbMaskColumn, error)

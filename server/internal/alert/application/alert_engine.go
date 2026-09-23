@@ -474,9 +474,17 @@ func (a *alertEngineAppImpl) sendGroupNotification(group *pendingGroup) {
 			continue
 		}
 
-		// RepeatInterval 限速：距上次通知未达间隔则跳过
+		// 重复通知的两道闸门（仅对已通知过的事件生效）：
+		//  1. RepeatInterval 限速：距上次通知未达间隔则跳过；
+		//  2. 新鲜度校验：上次通知之后指标未被重新确认为越限（LastTriggerTime 未前移）则跳过。
+		// 第 2 道闸门用于阻断"陈旧告警刷屏"：当指标采集持续不可靠（Evaluated=false）时，
+		// 引擎会跳过状态迁移，事件长期停留在「告警中」却没有任何新的越限证据，
+		// 此时分组刷新循环不应再反复推送通知，直到重新采到越限数据或确认恢复。
 		if event.NotifyCount > 0 && event.LastNotifyTime != nil {
 			if now.Sub(*event.LastNotifyTime) < time.Duration(repeatInterval)*time.Second {
+				continue
+			}
+			if !event.LastTriggerTime.After(*event.LastNotifyTime) {
 				continue
 			}
 		}

@@ -27,6 +27,9 @@ func (d *DataSyncTask) ReqConfs() *req.Confs {
 
 		req.NewGet(":taskId/logs", d.Logs).RequiredPermissionCode("db:sync:log"),
 
+		// 单条执行日志的运行日志内容（列表接口不返回大文本，按需获取）
+		req.NewGet("logs/:logId/run", d.LogRun).RequiredPermissionCode("db:sync:log"),
+
 		// 保存任务 /datasync/save
 		req.NewPost("save", d.SaveTask).Log(req.NewLogSaveI(imsg.LogDataSyncSave)).RequiredPermissionCode("db:sync:save"),
 
@@ -40,10 +43,10 @@ func (d *DataSyncTask) ReqConfs() *req.Confs {
 		req.NewPost(":taskId/status", d.ChangeStatus).Log(req.NewLogSaveI(imsg.LogDataSyncChangeStatus)).RequiredPermissionCode("db:sync:status"),
 
 		// 立即执行任务 /datasync/run
-		req.NewPost(":taskId/run", d.Run),
+		req.NewPost(":taskId/run", d.Run).RequiredPermissionCode("db:sync:run"),
 
 		// 停止正在执行中的任务
-		req.NewPost(":taskId/stop", d.Stop),
+		req.NewPost(":taskId/stop", d.Stop).RequiredPermissionCode("db:sync:stop"),
 	}
 
 	return req.NewConfs("/datasync/tasks", reqs[:]...)
@@ -56,22 +59,33 @@ func (d *DataSyncTask) Tasks(rc *req.Ctx) {
 	rc.ResData = model.PageResultConv[*entity.DataSyncTask, *vo.DataSyncTaskListVO](res)
 }
 
+// Logs 同步任务执行日志列表：不返回运行日志内容，避免日志较多时单次响应体过大，运行日志由 LogRun 按日志 id 单条获取
 func (d *DataSyncTask) Logs(rc *req.Ctx) {
+	// 任务 id 以路径参数为准，覆盖 query 中可能传入的同名参数
 	queryCond := rc.BindQuery[entity.DataSyncLogQuery]()
-	res, err := d.dataSyncTaskApp.GetTaskLogList(queryCond)
+	queryCond.TaskId = cast.ToUint64(rc.PathParam("taskId"))
+
+	res, err := d.dataSyncTaskApp.GetLogPageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = model.PageResultConv[*entity.DataSyncLog, *vo.DataSyncLogListVO](res)
+}
+
+// LogRun 获取单条执行日志的运行日志内容（执行中的日志取实时缓存，保证实时视图看到最新内容）
+func (d *DataSyncTask) LogRun(rc *req.Ctx) {
+	log, err := d.dataSyncTaskApp.GetLogWithRunLog(cast.ToUint64(rc.PathParam("logId")))
+	biz.ErrIsNil(err)
+	rc.ResData = &vo.DataSyncLogRunVO{Id: log.Id, Status: log.Status, RunLog: log.RunLog}
 }
 
 func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 	form, task := rc.BindJsonAndCopyTo[form.DataSyncTaskForm, entity.DataSyncTask]()
 
 	// 解码base64 sql
-	sqlStr, err := utils.AesDecryptByLa(task.DataSql, rc.GetLoginAccount())
+	sqlStr, err := utils.AesDecryptByLa(task.DataSQL, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 	sql := stringx.TrimSpaceAndBr(sqlStr)
-	task.DataSql = sql
-	form.DataSql = sql
+	task.DataSQL = sql
+	form.DataSQL = sql
 
 	rc.ReqParam = form
 	biz.ErrIsNil(d.dataSyncTaskApp.Save(rc.MetaCtx, task))
@@ -116,7 +130,7 @@ func (d *DataSyncTask) GetTask(rc *req.Ctx) {
 }
 
 func (d *DataSyncTask) getTaskId(rc *req.Ctx) uint64 {
-	instanceId := rc.PathParamInt("taskId")
-	biz.IsTrue(instanceId > 0, "instanceId error")
-	return uint64(instanceId)
+	taskId := cast.ToUint64(rc.PathParam("taskId"))
+	biz.IsTrue(taskId > 0, "taskId error")
+	return taskId
 }

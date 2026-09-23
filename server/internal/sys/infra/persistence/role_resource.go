@@ -33,5 +33,5 @@ func (m *roleResourceRepoImpl) GetRoleResources(roleId uint64, toEntity any) {
 		"FROM t_sys_role_resource rr JOIN t_sys_resource r ON rr.resource_id = r.id " +
 		"WHERE rr.role_id = ? AND rr.is_deleted = 0 AND r.is_deleted = 0 " +
 		"ORDER BY r.pid ASC, r.weight ASC"
-	m.SelectBySql(sql, toEntity, roleId)
+	m.SelectBySQL(sql, toEntity, roleId)
 }

@@ -10,7 +10,6 @@ export class Db {
     name: string; // 库名
     tables: DbTableInfo[]; // 数据库实例表信息
     columnsMap: Map<string, ColumnMetadata[]> = new Map(); // table -> columns
-    tableHints: Record<string, string[]> | null = null; // 提示词
 
     /**
      * 获取指定表列信息（前提需要dbInst.loadColumns）
@@ -35,5 +34,13 @@ export class Db {
             return col || cols[0];
         }
         return cols.find((c: ColumnMetadata) => c.columnName == columnName);
+    }
+
+    /**
+     * 获取指定表的全部主键列（联合主键返回多列，按列定义顺序）；无主键返回空数组。
+     * 供行级更新/删除按完整主键拼 WHERE——只用首列会命中多行。
+     */
+    getPrimaryKeys(table: string): ColumnMetadata[] {
+        return (this.getColumns(table) ?? []).filter((c: ColumnMetadata) => c.isPrimaryKey);
     }
 }

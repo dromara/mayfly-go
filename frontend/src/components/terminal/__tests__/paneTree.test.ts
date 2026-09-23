@@ -180,7 +180,7 @@ describe('layoutTree', () => {
 
 describe('getDropPosition', () => {
     const rect = (x = 0, y = 0, width = 100, height = 100): DOMRect =>
-        ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height, toJSON: () => ({}) }) as DOMRect;
+        ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height, toJSON: () => ({}) });
 
     const at = (clientX: number, clientY: number, base = 0) => getDropPosition({ clientX, clientY } as DragEvent, rect(base, base));
 

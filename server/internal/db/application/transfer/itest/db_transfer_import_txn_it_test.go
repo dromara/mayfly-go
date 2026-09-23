@@ -123,10 +123,10 @@ func TestITImportDumpCommentWrappedCommitNoPrematureCommit(t *testing.T) {
 	}
 }
 
-// TestITImportDumpStream_SqliteTarget 补齐三方言目标一致性：sqlite 目标同样要能
+// TestITImportDumpStream_SQLiteTarget 补齐三方言目标一致性：sqlite 目标同样要能
 // 过滤dump事务包装并完成全量导入（历史仅覆盖 mysql/pg）
-func TestITImportDumpStream_SqliteTarget(t *testing.T) {
-	conn := itSqliteNode(t)
+func TestITImportDumpStream_SQLiteTarget(t *testing.T) {
+	conn := itSQLiteNode(t)
 	defer conn.Close()
 
 	quote := conn.GetDialect().Quoter().QuoteIdent
@@ -174,15 +174,15 @@ func TestITRealDumpProductTxnWrapperShape(t *testing.T) {
 	assert.True(t, wrapped, "dump产物中未找到「注释头+事务语句」同属一条的形态，上方事务边界用例的前提已失效")
 }
 
-// TestITRealDumpProductNoTxnWrapperPgSqlite pg/sqlite作为**目标方言**时，备份产物不得含事务控制语句。
+// TestITRealDumpProductNoTxnWrapperPgSQLite pg/sqlite作为**目标方言**时，备份产物不得含事务控制语句。
 //
-// 这两个方言的DumpHelper显式不输出BEGIN/COMMIT（事务由导入侧自管），无论源库是何方言：
+// 这两个方言的DumpTxnWrapper显式不输出BEGIN/COMMIT（事务由导入侧自管），无论源库是何方言：
 // 产物若带回这些语句，在sqlite上会报cannot start a transaction within a transaction，
 // 在pg上会提前结束事务而丢部分提交。判定用目标方言的切割器（与导入侧一致）
-func TestITRealDumpProductNoTxnWrapperPgSqlite(t *testing.T) {
+func TestITRealDumpProductNoTxnWrapperPgSQLite(t *testing.T) {
 	for _, src := range itAllNodes {
 		src := src
-		for _, target := range []dbi.DbType{itPg.dbType, itSqlite.dbType} {
+		for _, target := range []dbi.DbType{itPg.dbType, itSQLite.dbType} {
 			target := target
 			t.Run(src.name+"->"+string(target), func(t *testing.T) {
 				conn := src.conn(t)
@@ -233,7 +233,7 @@ var itLeakExpect = map[string]map[string]struct {
 	},
 	// mssql的BEGIN/COMMIT语义与其余三方言均不同（本机SQL Server 2022实测）：
 	//   - 裸`BEGIN`不是事务语句而是块起始关键字，直接报语法错误102 → 导入中断（同sqlite属破坏性）；
-	//     这也正是mssql的DumpHelper显式不输出事务包装的原因（见mssql/helper.go）
+	//     这也正是mssql的DumpTxnWrapper显式不输出事务包装的原因（见mssql/helper.go）
 	//   - `COMMIT`会真实结束会话事务，驱动随后报“server does not have an active transaction”，
 	//     故仅第1行提前落库（survived=1，而非pg/mysql的2）
 	"mssql": {

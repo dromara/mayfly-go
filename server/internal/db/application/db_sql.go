@@ -6,12 +6,12 @@ import (
 	"mayfly-go/pkg/base"
 )
 
-type DbSql interface {
-	base.App[*entity.DbSql]
+type DbSQL interface {
+	base.App[*entity.DbSQL]
 }
 
-type dbSqlAppImpl struct {
-	base.AppImpl[*entity.DbSql, repository.DbSql]
+type dbSQLAppImpl struct {
+	base.AppImpl[*entity.DbSQL, repository.DbSQL]
 }
 
-var _ DbSql = (*dbSqlAppImpl)(nil)
+var _ DbSQL = (*dbSQLAppImpl)(nil)

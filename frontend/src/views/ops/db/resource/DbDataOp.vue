@@ -9,7 +9,7 @@
                             type="primary"
                             icon="Search"
                             link
-                            @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases, nodeKey: getSqlMenuNodeKey(nowDbInst.id, state.db) }, state.db)"
+                            @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases, nodeKey: getSqlMenuNodeKey(state.db) }, state.db)"
                             :title="$t('db.newQuery')"
                         >
                         </el-button>
@@ -46,10 +46,6 @@
                                     :false-value="0"
                                     size="small"
                                 />
-                            </el-row>
-
-                            <el-row>
-                                <el-checkbox v-model="dbConfig.cacheTable" :label="$t('db.cacheTableInfo')" :true-value="1" :false-value="0" size="small" />
                             </el-row>
 
                             <template #reference>
@@ -119,6 +115,7 @@
                         :db-id="dt.dbId"
                         :db-name="dt.db"
                         :table-name="dt.params.table ?? ''"
+                        :readonly="!!dt.params.readonly"
                         :ref="(el) => setTabComponentRef(dt, el)"
                     ></db-table-data-op>
 
@@ -128,6 +125,7 @@
                         :db-name="dt.db"
                         :sql-name="dt.params.sqlName"
                         @save-sql-success="reloadSqls"
+                        @editor-ready="(editorUri: string) => onEditorReady(dt, editorUri)"
                         :ref="(el) => setTabComponentRef(dt, el)"
                     >
                     </db-sql-editor>
@@ -159,6 +157,23 @@
             <monaco-editor height="400px" language="sql" v-model="state.ddlDialog.ddl" :options="{ readOnly: true }" />
         </el-dialog>
 
+        <el-dialog width="42%" :title="`${state.propsDialog.name} - ${$t('db.objectProps')}`" v-model="state.propsDialog.visible" append-to-body>
+            <el-descriptions :column="1" border>
+                <el-descriptions-item :label="$t('db.seqDataType')">{{ state.propsDialog.attrs.dataType }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqStartValue')">{{ state.propsDialog.attrs.startValue }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqIncrementBy')">{{ state.propsDialog.attrs.incrementBy }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqMinValue')">{{ state.propsDialog.attrs.minValue }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqMaxValue')">{{ state.propsDialog.attrs.maxValue }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqCacheSize')">{{ state.propsDialog.attrs.cacheSize }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqLastValue')">{{ state.propsDialog.attrs.lastValue || '-' }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqCycle')">{{ state.propsDialog.attrs.isCycle === 'true' ? $t('common.yes') : $t('common.no') }}</el-descriptions-item>
+            </el-descriptions>
+            <template #footer>
+                <el-button @click="state.propsDialog.visible = false">{{ $t('common.close') }}</el-button>
+                <el-button type="primary" @click="onPropsViewDdl">{{ $t('db.viewDdl') }}</el-button>
+            </template>
+        </el-dialog>
+
         <contextmenu ref="tabContextmenuRef" :dropdown="state.tabContextmenu.dropdown" :items="state.tabContextmenu.items" />
     </div>
 </template>
@@ -166,23 +181,20 @@
 <script lang="ts" setup>
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svg-icon/index.vue';
-import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
-import SqlExecBox from '@/views/ops/db/sql-editor/SqlExecBox';
-import { formatSql } from '@/views/ops/db/sql-editor/utils/formatSql';
+import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { treeEvents } from '@/views/ops/resource/tree';
 import { useEventListener, useStorage } from '@vueuse/core';
-import { ElCheckbox, ElMessageBox } from 'element-plus';
-import { defineAsyncComponent, h, onActivated, onBeforeUnmount, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { defineAsyncComponent, onActivated, onBeforeUnmount, onMounted, reactive, toRef, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dbApi } from '../api';
 import { DbInst, DbThemeConfig } from '../db';
 // SQL 联想经惰性作用域注册：静态引入 completion 会把整份编辑器（约 3.9M）拖进标签页容器的首屏
 import { createSqlCompletionScope } from '../completion/lazy';
 import { TabInfo, TabType, type TabComponentRef } from './TabInfo';
-import type { DbInstInfo, DbTreeNodeData, TableOpData, TreeNodeCallbackData } from '../types';
-import type { IndexDefinition, RowDefinition, TableInfoEditContext } from '../dialect/index';
+import type { DbTreeNodeData, TableOpData } from '../types';
 import type { DbOpTabApi } from './helpers';
 import { useDbTabs } from './composables/useDbTabs';
+import { useTableOperations } from './composables/useTableOperations';
 import { getDbDialect } from '../dialect/index';
 
 const DbTableOp = defineAsyncComponent(() => import('../table-editor/DbTableOp.vue'));
@@ -226,7 +238,6 @@ const state = reactive({
      */
     nowDbInst: {} as DbInst,
     db: '', // 当前操作的数据库
-    reloadStatus: false,
     tabContextmenu: {
         dropdown: { x: 0, y: 0 },
         items: tabContextmenuItems,
@@ -252,9 +263,52 @@ const state = reactive({
         visible: false,
         ddl: '',
     },
+    // 序列等对象的属性面板（序列无行数据，展示定义属性而非原始 DDL）
+    propsDialog: {
+        visible: false,
+        name: '',
+        attrs: {} as Record<string, unknown>,
+        args: null as null | { id: number; db: string; type: string; schema?: string; kind: string; name: string },
+    },
 });
 
 const { nowDbInst, tableCreateDialog } = toRefs(state);
+
+const chooseTableName = toRef(state, 'chooseTableName');
+const ddlDialogRef = toRef(state, 'ddlDialog');
+const propsDialogRef = toRef(state, 'propsDialog');
+
+/**
+ * 局部重载资源树节点（右击刷新与建表/改表/改名/删表/复制表的成功回调共用）。
+ *
+ * 重载即「以最新库结构为准」：表清单等节点数据直连接口重拉，不经过 DbInst.loadTables，
+ * 若不同时失效客户端元数据缓存，会出现「树已显示新结构、SQL 补全仍给旧表清单/旧列」的不一致。
+ * 页签未就绪时实例 id 与库名可能为空，由 DbInst.invalidateSchema 兜为 no-op。
+ */
+const reloadNode = (nodeKey: string) => {
+    DbInst.invalidateSchema(state.nowDbInst?.id, state.db);
+    treeEvents.emit('node:invalidate', { key: nodeKey });
+};
+
+/** 表/对象操作回调（编辑表、删除表、DDL查看、重命名、复制等） */
+const {
+    onEditTable,
+    onDeleteTable,
+    onGenDdl,
+    onGenObjectDdl,
+    onShowObjectProps,
+    onPropsViewDdl,
+    onRenameTable,
+    onCopyTable,
+    onSubmitEditTableSql,
+} = useTableOperations({
+    nowDbInst,
+    tableCreateDialog,
+    ddlDialog: ddlDialogRef,
+    propsDialog: propsDialogRef,
+    chooseTableName,
+    reloadNode,
+});
 
 /** 设置 tab 的组件 ref（模板 ref 回调，el 为子组件实例或 null） */
 const setTabComponentRef = (dt: TabInfo, el: unknown) => {
@@ -267,8 +321,8 @@ const dbConfig = useStorage('dbConfig', DbThemeConfig);
  * 本组件的 SQL 联想使用方作用域。
  *
  * 注册放在容器而非编辑器组件里，是因为补全上下文需要「当前激活 tab」的库信息：
- * el-tabs 不销毁非活跃面板，多个查询编辑器实例共存，而 monaco 的补全注册表按语言全局唯一，
- * 故必须在切 tab 时把 provider 指回当前 tab（见 onTabChange）。
+ * el-tabs 不销毁非活跃面板，多个查询编辑器实例共存，provider 按 editorUri 路由，
+ * 各 tab 的编辑器在 @ready 时上报 editorUri，切 tab 时 promote 回落目标（见 onTabChange）。
  */
 const sqlCompletion = createSqlCompletionScope();
 
@@ -277,9 +331,17 @@ const sqlCompletion = createSqlCompletionScope();
 onActivated(() => sqlCompletion.refresh());
 onBeforeUnmount(() => sqlCompletion.release());
 
+/**
+ * 编辑器就绪回调：DbSqlEditor 的 monaco 编辑器初始化完成后上报 editorUri，
+ * 登记到补全作用域使 provider 按编辑器路由（多编辑器共存时避免跨库串扰）。
+ */
+const onEditorReady = (tab: TabInfo, editorUri: string) => {
+    tab.editorUri = editorUri;
+    sqlCompletion.setEditorUri(editorUri);
+};
+
 onMounted(() => {
     changeDb(props.dbInfo, props.db);
-    state.reloadStatus = !dbConfig.value.cacheTable;
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
     useEventListener(window, 'resize', setHeight);
@@ -308,7 +370,7 @@ const changeDb = (db: DbTreeNodeData, dbName: string) => {
 };
 
 // 加载选中的表数据，即新增表数据操作tab
-const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: string) => {
+const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: string, readonly = false) => {
     if (tableName == '') {
         return;
     }
@@ -329,6 +391,7 @@ const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: stri
     tab.params = {
         ...getNowDbInfo(),
         table: tableName,
+        readonly,
     };
     addTab(tab);
 };
@@ -430,8 +493,8 @@ const onTabChange = () => {
     state.db = nowTab.db;
 
     if (nowTab.type == TabType.Query) {
-        // 注册sql提示
-        sqlCompletion.register(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
+        // 注册sql提示（携带 editorUri 使 provider 按编辑器路由，避免多编辑器共存时跨库串扰）
+        sqlCompletion.register(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type, nowTab.editorUri);
     }
 
     // 激活当前tab（需要调用DbTableData组件的active，否则表头与数据会出现错位，暂不知为啥，先这样处理）
@@ -465,7 +528,7 @@ const locationNowTreeNode = (nowTab: TabInfo | null = null) => {
 };
 
 const reloadSqls = (dbId: number, db: string) => {
-    treeEvents.emit('node:invalidate', { key: getSqlMenuNodeKey(dbId, db) });
+    treeEvents.emit('node:invalidate', { key: getSqlMenuNodeKey(db) });
 };
 
 const deleteSql = async (dbId: number, db: string, sqlName: string) => {
@@ -479,215 +542,11 @@ const deleteSql = async (dbId: number, db: string, sqlName: string) => {
     }
 };
 
-const getSqlMenuNodeKey = (dbId: number, db: string) => {
-    return `${dbId}.${db}.sql-menu`;
-};
-
-const reloadNode = (nodeKey: string) => {
-    state.reloadStatus = true;
-    treeEvents.emit('node:invalidate', { key: nodeKey });
-};
-
-const onEditTable = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, tableComment, type, parentKey, key, version } = data.params;
-    if (tableName) {
-        state.tableCreateDialog.title = useI18nEditTitle('db.table');
-        let [indexs, columns] = await Promise.all([
-            dbApi.tableIndex.request({ id, db, tableName }),
-            dbApi.columnMetadata.request({ id, db, tableName }),
-        ]);
-
-        // 预处理：在抽屉打开前完成数据转换，避免 watch(visible) 阻塞打开动画
-        const fieldsRes: RowDefinition[] = [];
-        const fieldsOld: RowDefinition[] = [];
-        const indexColumns: { name: string; remark: string }[] = [];
-        const indexsRes: IndexDefinition[] = [];
-        const indexsOld: IndexDefinition[] = [];
-
-        if (columns && Array.isArray(columns) && columns.length > 0) {
-            columns.forEach((a) => {
-                let defaultValue = '';
-                if (a.columnDefault) {
-                    defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
-                    defaultValue = defaultValue.replace("'::character varying", '');
-                }
-                let field: RowDefinition = {
-                    name: a.columnName,
-                    oldName: a.columnName,
-                    type: a.dataType,
-                    value: defaultValue,
-                    length: a.showLength ?? '',
-                    numScale: a.showScale ?? '',
-                    notNull: !a.nullable,
-                    pri: a.isPrimaryKey ?? false,
-                    auto_increment: a.autoIncrement ?? false,
-                    remark: a.columnComment ?? '',
-                };
-                fieldsRes.push(field);
-                fieldsOld.push(structuredClone(field));
-                indexColumns.push({ name: a.columnName, remark: a.columnComment ?? '' });
-            });
-        }
-
-        if (indexs && Array.isArray(indexs) && indexs.length > 0) {
-            indexs
-                .filter((a) => (a as any).indexName !== 'PRIMARY')
-                .forEach((a) => {
-                    const idx = a as any;
-                    let index: IndexDefinition = {
-                        indexName: idx.indexName,
-                        columnNames: idx.columnName?.split(',') ?? [],
-                        unique: idx.isUnique || false,
-                        indexType: idx.indexType,
-                        indexComment: idx.indexComment,
-                    };
-                    indexsRes.push(index);
-                    indexsOld.push(structuredClone(index));
-                });
-        }
-
-        DbInst.initColumns(columns ?? []);
-
-        const row = { tableName, tableComment };
-        state.tableCreateDialog.data = {
-            edit: true,
-            row,
-            indexs,
-            columns,
-            formData: {
-                tableName,
-                tableComment: tableComment ?? '',
-                oldTableName: tableName,
-                oldTableComment: tableComment ?? '',
-                db,
-                fields: { res: fieldsRes, oldFields: fieldsOld },
-                indexs: { res: indexsRes, oldIndexs: indexsOld, columns: indexColumns },
-            },
-        };
-        state.tableCreateDialog.parentKey = parentKey ?? '';
-    } else {
-        state.tableCreateDialog.title = useI18nCreateTitle('db.table');
-        state.tableCreateDialog.data = { edit: false, row: {} };
-        state.tableCreateDialog.parentKey = key ?? '';
-    }
-
-    state.tableCreateDialog.activeName = '1';
-    state.tableCreateDialog.dbId = id;
-    state.tableCreateDialog.version = version ?? '';
-    state.tableCreateDialog.db = db;
-    state.tableCreateDialog.dbType = type;
-    state.tableCreateDialog.visible = true;
-};
-
-const onDeleteTable = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, parentKey, type } = data.params;
-    await useI18nDeleteConfirm(tableName);
-
-    // 删表 DDL 由方言生成：是否带 schema 限定属方言知识，容器不再自行拼接
-    const sql = getDbDialect(type).getDropTableSql(db, tableName ?? '');
-
-    dbApi.sqlExec.request({ id, db, sql }).then((res) => {
-        let success = true;
-        for (let re of res) {
-            if (re.errorMsg) {
-                success = false;
-                Msg.error(`${re.sql} -> ${re.errorMsg}`);
-            }
-        }
-        if (success) {
-            Msg.deleteSuccess();
-            setTimeout(() => {
-                parentKey && reloadNode(parentKey);
-            }, 1000);
-        }
-    });
-};
-
-const onGenDdl = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, type } = data.params;
-    state.chooseTableName = tableName ?? '';
-    let res = await dbApi.tableDdl.request({ id, db, tableName });
-    state.ddlDialog.ddl = await formatSql(res, getDbDialect(type).getInfo().formatSqlDialect);
-    state.ddlDialog.visible = true;
-};
-
-const onRenameTable = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, tableComment, parentKey } = data.params;
-    // 此处只改名不改结构，故新旧注释保持一致，方言的「注释变更」分支自然不会触发
-    let tableData: TableInfoEditContext = {
-        db,
-        oldTableName: tableName ?? '',
-        tableName: tableName ?? '',
-        oldTableComment: tableComment ?? '',
-        tableComment: tableComment ?? '',
-    };
-
-    let value = ref(tableName ?? '');
-    // 弹出确认框
-    const promptValue = await ElMessageBox.prompt('', t('db.renamePrompt', { db, tableName }), {
-        inputValue: value.value,
-        confirmButtonText: t('common.confirm'),
-        cancelButtonText: t('common.cancel'),
-    });
-
-    tableData.tableName = promptValue.value;
-    let sql = nowDbInst.value.getDialect().getModifyTableInfoSql(tableData);
-    if (!sql) {
-        Msg.warning('db.noChange');
-        return;
-    }
-
-    SqlExecBox({
-        sql: sql,
-        dbId: id as number,
-        db: db as string,
-        formatDialect: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
-        runSuccessCallback: () => {
-            setTimeout(() => {
-                parentKey && reloadNode(parentKey);
-            }, 1000);
-        },
-    });
-};
-
-const onCopyTable = async (data: TreeNodeCallbackData) => {
-    let { db, id, tableName, parentKey } = data.params;
-
-    let checked = ref(false);
-
-    // 弹出确认框，并选择是否复制数据
-    await ElMessageBox({
-        title: `${t('db.copyTable')}【${tableName}】`,
-        type: 'warning',
-        //  icon: markRaw(Delete),
-        message: () =>
-            h(ElCheckbox, {
-                label: t('db.isCopyTableData'),
-                modelValue: checked.value,
-                'onUpdate:modelValue': (val: boolean | string | number) => {
-                    if (typeof val === 'boolean') {
-                        checked.value = val;
-                    }
-                },
-            }),
-        callback: (action: string) => {
-            if (action === 'confirm') {
-                // 执行sql
-                dbApi.copyTable.request({ id, db, tableName, copyData: checked.value }).then(() => {
-                    Msg.operateSuccess();
-                    setTimeout(() => {
-                        parentKey && reloadNode(parentKey);
-                    }, 1000);
-                });
-            }
-        },
-    });
-};
-
-const onSubmitEditTableSql = () => {
-    state.tableCreateDialog.visible = false;
-    state.tableCreateDialog.data = { edit: false, row: {} };
-    reloadNode(state.tableCreateDialog.parentKey);
+// sql-menu 树节点 key 必须与 contributors.buildMenuChildren 生成的完全一致：`${instCode}.${dbCode}.${db}.sql-menu`。
+// 早期用 `${dbId}.${db}` 拼（数字实例 id + 库名），与真实 key（实例 code + 库 code + 库名）对不上，
+// 导致保存/删除 SQL 后 invalidate 打到不存在的节点、SQL 菜单不刷新。instCode/dbCode 由 getDbOpTab 透传。
+const getSqlMenuNodeKey = (db: string) => {
+    return `${props.dbInfo.instCode}.${props.dbInfo.dbCode}.${db}.sql-menu`;
 };
 
 /**
@@ -705,18 +564,6 @@ const getNowDbInfo = () => {
     };
 };
 
-const loadTables = async (dbInfo: DbInstInfo & { db?: string }) => {
-    if (!dbInfo || !dbInfo.id) {
-        Msg.warning('db.noDbInstMsg');
-        return;
-    }
-    let { id, db } = dbInfo;
-    // 获取当前库的所有表信息
-    let tables = await DbInst.getInst(id).loadTables(db ?? '', state.reloadStatus);
-    state.reloadStatus = !dbConfig.value.cacheTable;
-    return tables;
-};
-
 const onRefresh = () => {
     clearTabs();
 };
@@ -724,12 +571,13 @@ const onRefresh = () => {
 defineExpose({
     onRefresh,
     onChangeDb: changeDb,
-    loadTables,
     loadTableData,
     onCopyTable,
     onEditTable,
     onDeleteTable,
     onGenDdl,
+    onGenObjectDdl,
+    onShowObjectProps,
     onRenameTable,
     onRemoveTab,
     addQueryTab,

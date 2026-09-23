@@ -31,25 +31,37 @@ export function useEsDocCrud(options: UseEsDocCrudOptions) {
     // Doc edit dialog state
     const docEditDialog = reactive({
         isAdd: true,
-        instId: 0 as number,
+        instId: 0,
         doc: '',
         idxName: '',
         _id: '',
         visible: false,
     });
 
-    // Export dialog state
-    const exportDialog = reactive({
+    // Export dialog state（scope/type 是多档位联合值，必须显式声明形状：
+    // 否则字面量被推成单值，后续切档写入与 watch 回调参数类型均不兼容）
+    const exportDialog = reactive<{
+        visible: boolean;
+        scope: 'selected' | 'query' | 'all';
+        type: 'csv' | 'excel' | 'json';
+        fields: string[];
+        allFields: boolean;
+        loading: boolean;
+        queryTotal: number;
+        queryTotalLoading: boolean;
+        progress: EsExportProgress | null;
+        progressTimer: ReturnType<typeof setInterval> | null;
+    }>({
         visible: false,
-        scope: 'selected' as 'selected' | 'query' | 'all',
-        type: 'csv' as 'csv' | 'excel' | 'json',
-        fields: [] as string[],
+        scope: 'selected',
+        type: 'csv',
+        fields: [],
         allFields: true,
         loading: false,
         queryTotal: -1, // -1 means not queried yet
         queryTotalLoading: false,
-        progress: null as EsExportProgress | null,
-        progressTimer: null as ReturnType<typeof setInterval> | null,
+        progress: null,
+        progressTimer: null,
     });
 
     // ---- Doc CRUD ----
@@ -204,7 +216,7 @@ export function useEsDocCrud(options: UseEsDocCrudOptions) {
 
         switch (exportDialog.type) {
             case 'csv':
-                exportCsv(filename, columns, rows as Record<string, unknown>[]);
+                exportCsv(filename, columns, rows);
                 break;
             case 'excel':
                 await exportExcel(filename, [{ name: currentIdxName(), columns, datas: rows }]);

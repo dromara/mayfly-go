@@ -278,7 +278,7 @@ const onTreeNodeClick = async (data: SysResource) => {
 
     const info = await resourceApi.detail.request({ id: data.id });
     if (typeof info.meta === 'string') {
-        info.meta = info.meta === '' ? (null as unknown as ResourceMeta) : JSON.parse(info.meta);
+        info.meta = info.meta === '' ? null : JSON.parse(info.meta);
     }
     state.currentResource = info;
 };
@@ -335,7 +335,7 @@ const onEditResource = async (data: SysResource) => {
     });
     // meta 为 '' 表示无元数据（权限/按钮类资源），置为 null 让 ResourceEdit 走默认值回填
     if (typeof res.meta === 'string') {
-        res.meta = res.meta === '' ? (null as unknown as ResourceMeta) : JSON.parse(res.meta);
+        res.meta = res.meta === '' ? null : JSON.parse(res.meta);
     }
 
     state.dialogForm.data = res;

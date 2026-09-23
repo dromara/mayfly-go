@@ -1,13 +1,13 @@
 <template>
     <div>
         <auto-form-drawer
-            ref="drawerRef"
             v-model:visible="dialogVisible"
             :title="title"
             :items="items"
             :data="editData"
             size="50%"
             :confirm-api="onConfirm"
+            @opened="onOpened"
             @cancel="emit('cancel')"
         >
             <!-- 告警条件自定义 -->
@@ -29,8 +29,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, useTemplateRef, type PropType, watch } from 'vue';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { computed, ref, type PropType, watch } from 'vue';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { alertRuleApi } from '../api';
 import type { AlertCondition, AlertRuleForm, AlertRuleVO } from '../types';
 import { AlertPriorityEnum } from '../enums';
@@ -55,8 +56,6 @@ const emit = defineEmits<{
     cancel: [];
     'val-change': [form: AlertRuleForm];
 }>();
-
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
 // 标签路径值（数组形式，用于 TagTreeCheck 多选）
 const tagPathValue = ref<string[]>([]);
@@ -99,7 +98,7 @@ watch(tagPathValue, (val) => {
  * 数值区间与 server 侧 alert_rule.go 的校验常量保持一致
  * （minEvalInterval/maxEvalInterval、minLimitCount/maxLimitCount），避免前端填得出、后端存不下
  */
-const items: AutoFormItem[] = [
+const items = defineFormItems<AlertRuleForm>([
     { prop: 'name', label: 'alert.ruleName', required: true },
     {
         prop: 'resourceType',
@@ -220,7 +219,7 @@ const items: AutoFormItem[] = [
         validate: (value) => (parseLabelJson(String(value ?? '')) ? true : 'alert.labelsInvalidJson'),
     },
     { prop: 'remark', label: 'alert.remark', type: 'textarea', rows: 2 },
-];
+]);
 
 const defaultForm: AlertRuleForm = {
     name: '',
@@ -242,38 +241,39 @@ const defaultForm: AlertRuleForm = {
     labels: '',
 };
 
+/** 宿主抽屉的内部表单在 @opened 接管（提交时序列化标签路径） */
+const { onOpened, requireForm } = useAutoFormModel<AlertRuleForm>();
+
 /** 回填数据 */
-const editData = computed<AutoFormData | null>(() => {
+const editData = computed<AlertRuleForm>(() => {
     const rule = props.data;
     if (!rule) {
         tagPathValue.value = [];
         labelBindingsJson.value = '';
-        return { ...defaultForm } as unknown as AutoFormData;
+        return { ...defaultForm };
     }
     // 始终为标签路径模式，解析 JSON 数组
     tagPathValue.value = rule.scopeValue ? (() => {
         try { return JSON.parse(rule.scopeValue); } catch { return []; }
     })() : [];
     return {
+        ...defaultForm,
         ...rule,
         condition: rule.condition || { operator: 'and', items: [] },
         notifyConfig: { ...defaultForm.notifyConfig, ...(rule.notifyConfig || {}) },
         labels: labelBindingsJson.value || rule.labels || '',
-    } as unknown as AutoFormData;
+    };
 });
 
 const { execute: saveRuleExec } = alertRuleApi.save.useApi();
 
 /** 提交 */
-const onConfirm = async (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as AlertRuleForm;
+const onConfirm = async () => {
+    const form = requireForm();
     // 始终为标签路径模式，序列化多选结果为 JSON 数组
     form.scopeValue = JSON.stringify(tagPathValue.value);
     form.labels = String(form.labels ?? '').trim();
     await saveRuleExec(form);
     emit('val-change', form);
 };
-
-// 保留 drawer ref 以便外部按需触发校验
-void drawerRef;
 </script>

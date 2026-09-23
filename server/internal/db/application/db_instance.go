@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -25,7 +26,7 @@ type Instance interface {
 	base.App[*entity.DbInstance]
 
 	// GetPageList 分页获取数据库实例
-	GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
+	GetPageList(condition *entity.DbInstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
 
 	TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
 
@@ -57,12 +58,12 @@ var _ Instance = (*instanceAppImpl)(nil)
 var _ (Instance) = (*instanceAppImpl)(nil)
 
 // GetPageList 分页获取数据库实例
-func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error) {
-	return app.GetRepo().GetInstanceList(condition, orderBy...)
+func (app *instanceAppImpl) GetPageList(condition *entity.DbInstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error) {
+	return app.GetRepo().GetPageList(condition, orderBy...)
 }
 
 func (app *instanceAppImpl) TestConn(ctx context.Context, instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {
-	instanceEntity.Network = instanceEntity.GetNetwork()
+	instanceEntity.Network = resolveInstanceNetwork(instanceEntity)
 
 	authCert, err := app.resourceAuthCertApp.GetRealAuthCert(authCert)
 	if err != nil {
@@ -80,7 +81,7 @@ func (app *instanceAppImpl) TestConn(ctx context.Context, instanceEntity *entity
 func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.SaveDbInstance) (uint64, error) {
 	instanceEntity := instance.DbInstance
 	// 默认tcp连接
-	instanceEntity.Network = instanceEntity.GetNetwork()
+	instanceEntity.Network = resolveInstanceNetwork(instanceEntity)
 	resourceType := consts.ResourceTypeDbInstance
 	authCerts := instance.AuthCerts
 	tagCodePaths := instance.TagCodePaths
@@ -244,7 +245,7 @@ func (app *instanceAppImpl) ToDbInfo(instance *entity.DbInstance, authCertName s
 }
 
 func (app *instanceAppImpl) getDatabases(ctx context.Context, instance *entity.DbInstance, ac *tagentity.ResourceAuthCert) ([]string, error) {
-	instance.Network = instance.GetNetwork()
+	instance.Network = resolveInstanceNetwork(instance)
 	dbi := app.toDbInfoByAc(instance, ac, "")
 
 	dbConn, err := dbm.Conn(ctx, dbi)
@@ -304,4 +305,17 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		Name:     me.Name,
 		Children: authCertTags,
 	}
+}
+
+// resolveInstanceNetwork 根据实例配置计算实际连接网络协议。
+// 未使用 SSH 隧道时返回配置的 Network（缺省 "tcp"）；
+// 使用 SSH 隧道时返回 "{type}+ssh:{machineId}" 格式的网络标识。
+func resolveInstanceNetwork(d *entity.DbInstance) string {
+	if d.SshTunnelMachineId <= 0 {
+		if d.Network == "" {
+			return "tcp"
+		}
+		return d.Network
+	}
+	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
 }

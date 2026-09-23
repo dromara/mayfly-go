@@ -39,7 +39,7 @@
             <template #default="{ row }">
               <el-tag v-if="row.isPrimaryKey" size="small" type="danger" style="margin-right:4px">PK</el-tag>
               <el-tag v-if="row.autoIncrement" size="small" type="warning" style="margin-right:4px">AI</el-tag>
-              <el-tag v-if="row.notNull" size="small">NN</el-tag>
+              <el-tag v-if="!row.nullable" size="small">NN</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="comment" :label="$t('db.teColumnComment')" />

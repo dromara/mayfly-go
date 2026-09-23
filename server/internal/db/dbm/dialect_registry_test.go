@@ -6,7 +6,7 @@
 // 覆盖四层断言：
 //  1. 注册表完备：预期方言键（含别名 mariadb/gauss/kingbaseEs/vastbase）全部注册，且无意外键
 //     （各方言init未被执行——如dbm.go漏加blank import——会在此暴露）
-//  2. 方言能力完备：每个方言的 Quoter/Parser/Splitter/DumpHelper/SQLGenerator 全链非nil，
+//  2. 方言能力完备：每个方言的 Quoter/Parser/Splitter/DumpTxnWrapper/SQLGenerator 全链非nil，
 //     GetSQLParser的fail-fast语义（DefaultDialect返回nil由调用处panic）在此静态拦截
 //  3. TypeEngine完备：每主方言注册了TypeEngine，别名方言通过别名映射共享主方言引擎
 //  4. 数据类型完备：每主方言类型清单非空、名字唯一（重复注册会静默覆盖）、
@@ -71,7 +71,7 @@ func TestDialectRegistryCompleteness(t *testing.T) {
 		dialect := dbi.GetDialect(dt)
 		require.NotNil(t, dialect, "[%s] Dialect为nil", dt)
 		require.NotNil(t, dialect.Quoter(), "[%s] Quoter为nil", dt)
-		require.NotNil(t, dialect.GetDumpHelper(), "[%s] DumpHelper为nil", dt)
+		require.NotNil(t, dialect.GetDumpTxnWrapper(), "[%s] DumpTxnWrapper为nil", dt)
 		require.NotNil(t, dialect.GetSQLParser(), "[%s] SQLParser为nil（方言需显式覆写选择解析器）", dt)
 		require.NotNil(t, dialect.GetSQLSplitter(), "[%s] SQLSplitter为nil", dt)
 		require.NotNil(t, dialect.GetSQLGenerator(), "[%s] SQLGenerator为nil", dt)
@@ -102,7 +102,7 @@ func TestDialectRegistryCompleteness(t *testing.T) {
 		for name, column := range dataTypes {
 			require.NotNil(t, column, "[%s] 存在nil数据类型", dt)
 			require.NotEmpty(t, column.Name, "[%s] 存在无名称的数据类型", dt)
-			require.NotEmpty(t, column.DataType, "[%s] 类型[%s]无DataType", dt, column.Name)
+			require.NotEmpty(t, column.Codec, "[%s] 类型[%s]无值编解码器Codec", dt, column.Name)
 			require.NotEqual(t, dbi.TCUnknown, column.Category(), "[%s] 类型[%s]无TypeCategory（跨方言迁移无法映射）", dt, column.Name)
 			require.False(t, seen[name], "[%s] 数据类型 [%s] 重复注册（会静默覆盖）", dt, name)
 			seen[name] = true

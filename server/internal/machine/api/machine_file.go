@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"github.com/spf13/cast"
 	"io"
 	"io/fs"
 	"mayfly-go/internal/machine/api/form"
@@ -422,7 +423,7 @@ func getFileType(fm fs.FileMode) string {
 }
 
 func GetMachineFileId(rc *req.Ctx) uint64 {
-	fileId := rc.PathParamInt("fileId")
+	fileId := cast.ToUint64(rc.PathParam("fileId"))
 	biz.IsTrue(fileId != 0, "fileId error")
-	return uint64(fileId)
+	return fileId
 }

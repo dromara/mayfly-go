@@ -35,7 +35,7 @@ func (r *labelRepoImpl) GetByKey(labelKey, labelValue string) (*entity.Label, er
 
 func (r *labelRepoImpl) ListKeys() ([]string, error) {
 	var keys []string
-	err := r.SelectBySql("SELECT DISTINCT label_key FROM t_label WHERE is_deleted = 0 ORDER BY label_key", &keys)
+	err := r.SelectBySQL("SELECT DISTINCT label_key FROM t_label WHERE is_deleted = 0 ORDER BY label_key", &keys)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (r *labelRepoImpl) ListKeys() ([]string, error) {
 
 func (r *labelRepoImpl) ListValuesByKey(labelKey string) ([]string, error) {
 	var values []string
-	err := r.SelectBySql("SELECT DISTINCT label_value FROM t_label WHERE is_deleted = 0 AND label_key = ? ORDER BY label_value", &values, labelKey)
+	err := r.SelectBySQL("SELECT DISTINCT label_value FROM t_label WHERE is_deleted = 0 AND label_key = ? ORDER BY label_value", &values, labelKey)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func (r *labelBindingRepoImpl) ListByTargetIds(targetType string, targetIds []ui
 
 func (r *labelBindingRepoImpl) ListLabelIdsByTarget(targetType string, targetId uint64) ([]uint64, error) {
 	var ids []uint64
-	err := r.SelectBySql("SELECT label_id FROM t_label_binding WHERE is_deleted = 0 AND target_type = ? AND target_id = ?", &ids, targetType, targetId)
+	err := r.SelectBySQL("SELECT label_id FROM t_label_binding WHERE is_deleted = 0 AND target_type = ? AND target_id = ?", &ids, targetType, targetId)
 	if err != nil {
 		return nil, err
 	}

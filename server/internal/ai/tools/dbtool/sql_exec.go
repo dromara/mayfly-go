@@ -19,25 +19,25 @@ import (
 	"github.com/cloudwego/eino/components/tool/utils"
 )
 
-type SqlExecParam struct {
+type SQLExecParam struct {
 	DbId   int64  `json:"dbId" jsonschema_description:"数据库ID。取值逻辑：1. 用户本次明确指定；2. 从前序工具的输入输出中继承已选定的数据库ID；3. 若均无，传0以触发参数补全。禁止凭空猜测。"`
 	DbName string `json:"dbName" jsonschema_description:"数据库名称（可选）。取值逻辑：1. 用户本次明确指定；2. 从前序工具的输入输出中继承已选定的数据库名称；3. 留空则使用资产配置的默认库。禁止凭空猜测。"`
 	SQL    string `json:"sql" jsonschema_description:"SQL语句" jsonschema:"required" `
 	Remark string `json:"remark" jsonschema_description:"执行目的说明：简要描述为什么要执行这条SQL、预期达到什么效果（供用户审批与事后审计理解）" jsonschema:"required"`
 }
 
-type SqlExecOutput struct {
+type SQLExecOutput struct {
 	DbId     int64  `json:"dbId" jsonschema_description:"数据库ID"`
 	DbName   string `json:"dbName" jsonschema_description:"数据库名称"`
 	DbType   string `json:"dbType" jsonschema_description:"数据库类型，如mysql、postgresql等"`
 	Effected int64  `json:"effected" jsonschema_description:"影响的行数"`
 }
 
-func GetSqlExec() (tool.InvokableTool, error) {
+func GetSQLExec() (tool.InvokableTool, error) {
 	return utils.InferTool("ExecSql",
-		i18n.T(imsg.ExecSqlToolInfo),
-		func(ctx context.Context, param *SqlExecParam) (*SqlExecOutput, error) {
-			toolDesc := i18n.TC(ctx, imsg.ExecSqlToolDesc)
+		i18n.T(imsg.ExecSQLToolInfo),
+		func(ctx context.Context, param *SQLExecParam) (*SQLExecOutput, error) {
+			toolDesc := i18n.TC(ctx, imsg.ExecSQLToolDesc)
 			tools.TryApplyResumedParams(ctx, param)
 			// 检查必要参数，触发参数完善（dbName 可选，留空使用资产默认库）
 			if param.DbId == 0 {
@@ -60,7 +60,7 @@ func GetSqlExec() (tool.InvokableTool, error) {
 			}
 
 			// 用户审批（始终需要，Agent 执行 SQL 的基本安全关卡）
-			if err := tools.InterruptOrResumeApproval(ctx, toolDesc, param, i18n.TC(ctx, imsg.SqlExecApprovalReason)); err != nil {
+			if err := tools.InterruptOrResumeApproval(ctx, toolDesc, param, i18n.TC(ctx, imsg.SQLExecApprovalReason)); err != nil {
 				return nil, err
 			}
 
@@ -130,7 +130,7 @@ func GetSqlExec() (tool.InvokableTool, error) {
 				}
 
 				// 记录流程引擎策略匹配结果（供审计日志参考）
-				if procdef != nil && procdef.MatchCondition(application.DbSqlExecFlowBizType, collx.Kvs("stmtType", stmtType)) {
+				if procdef != nil && procdef.MatchCondition(application.DbSQLExecFlowBizType, collx.Kvs("stmtType", stmtType)) {
 					logx.InfofContext(ctx, "[AgentSqlExec] flow engine requires approval for stmtType=%s, user approval already obtained", stmtType)
 				}
 			}
@@ -151,7 +151,7 @@ func GetSqlExec() (tool.InvokableTool, error) {
 					la.Username, la.Id, conn.Info.Name, param.DbId, param.SQL, param.Remark)
 			}
 
-			return &SqlExecOutput{
+			return &SQLExecOutput{
 				DbId:     param.DbId,
 				DbName:   param.DbName,
 				DbType:   string(conn.Info.Type),

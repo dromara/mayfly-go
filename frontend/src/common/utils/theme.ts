@@ -26,7 +26,10 @@ export function rgbToHex(r: number, g: number, b: number): string {
 // 加深颜色值，level为加深的程度，限0-1之间
 export function getDarkColor(color: string, level: number): string {
     const reg = /^\#?[0-9A-Fa-f]{6}$/;
-    if (!reg.test(color)) return ElMessage({ type: 'warning', message: '输入错误的hex颜色值' }) as unknown as string;
+    if (!reg.test(color)) {
+        ElMessage({ type: 'warning', message: '输入错误的hex颜色值' });
+        return '#000000';
+    }
     const rgb = hexToRgb(color);
     for (let i = 0; i < 3; i++) rgb[i] = Math.floor(rgb[i] * (1 - level));
     return rgbToHex(rgb[0], rgb[1], rgb[2]);
@@ -35,7 +38,10 @@ export function getDarkColor(color: string, level: number): string {
 // 变浅颜色值，level为加深的程度，限0-1之间
 export function getLightColor(color: string, level: number): string {
     const reg = /^\#?[0-9A-Fa-f]{6}$/;
-    if (!reg.test(color)) return ElMessage({ type: 'warning', message: '输入错误的hex颜色值' }) as unknown as string;
+    if (!reg.test(color)) {
+        ElMessage({ type: 'warning', message: '输入错误的hex颜色值' });
+        return '#000000';
+    }
     const rgb = hexToRgb(color);
     for (let i = 0; i < 3; i++) rgb[i] = Math.floor((255 - rgb[i]) * level + rgb[i]);
     return rgbToHex(rgb[0], rgb[1], rgb[2]);

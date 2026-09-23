@@ -24,7 +24,7 @@ vi.mock('../../db', () => ({
 }));
 
 import type { TableEditContext, ChangeDiff } from '@/views/ops/db/dialect';
-import type { RowDefinition, IndexDefinition } from '../index';
+import type { ColumnDefinition, IndexDefinition } from '../index';
 import { getDbDialect } from '../index';
 import { DbType } from '../dbType';
 
@@ -40,9 +40,9 @@ function createTestContext(overrides: Partial<TableEditContext> = {}): TableEdit
             res: [],
             oldFields: [],
         },
-        indexs: {
+        indexes: {
             res: [],
-            oldIndexs: [],
+            oldIndexes: [],
             columns: [],
         },
         ...overrides,
@@ -50,7 +50,7 @@ function createTestContext(overrides: Partial<TableEditContext> = {}): TableEdit
 }
 
 // 辅助函数：创建测试用的字段定义
-function createTestField(overrides: Partial<RowDefinition> = {}): RowDefinition {
+function createTestField(overrides: Partial<ColumnDefinition> = {}): ColumnDefinition {
     const name = overrides.name || 'id';
     return {
         name: name,
@@ -59,10 +59,10 @@ function createTestField(overrides: Partial<RowDefinition> = {}): RowDefinition 
         length: overrides.length !== undefined ? overrides.length : '', // 只在明确指定时才有长度
         numScale: '',
         value: '',
-        notNull: true,
-        pri: false, // 默认不是主键
-        auto_increment: false, // 默认不自增
-        remark: '',
+        nullable: false,
+        isPrimaryKey: false, // 默认不是主键
+        autoIncrement: false, // 默认不自增
+        comment: '',
         ...overrides,
     };
 }
@@ -89,8 +89,8 @@ describe('DDL Generation Tests', () => {
                 db: 'test_db',
                 fields: {
                     res: [
-                        createTestField({ name: 'id', type: 'bigint', length: '20', pri: true, auto_increment: true, remark: '主键ID' }),
-                        createTestField({ name: 'name', type: 'varchar', length: '100', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'id', type: 'bigint', length: '20', isPrimaryKey: true, autoIncrement: true, comment: '主键ID' }),
+                        createTestField({ name: 'name', type: 'varchar', length: '100', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -112,9 +112,9 @@ describe('DDL Generation Tests', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({
                 db: 'test_db',
-                indexs: {
+                indexes: {
                     res: [createTestIndex({ indexName: 'idx_name', columnNames: ['name', 'age'], unique: false })],
-                    oldIndexs: [],
+                    oldIndexes: [],
                     columns: [],
                 },
             });
@@ -128,7 +128,7 @@ describe('DDL Generation Tests', () => {
         it('should generate ALTER TABLE ADD COLUMN', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({ db: 'test_db' });
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [],
                 add: [createTestField({ name: 'email', type: 'varchar', length: '255' })],
                 upd: [],
@@ -144,7 +144,7 @@ describe('DDL Generation Tests', () => {
         it('should generate ALTER TABLE DROP COLUMN', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({ db: 'test_db' });
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [createTestField({ name: 'old_field' })],
                 add: [],
                 upd: [],
@@ -159,7 +159,7 @@ describe('DDL Generation Tests', () => {
         it('should generate CHANGE COLUMN for rename', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({ db: 'test_db' });
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [],
                 add: [],
                 upd: [createTestField({ name: 'new_name', oldName: 'old_name', type: 'varchar', length: '100' })],
@@ -187,15 +187,15 @@ describe('DDL Generation Tests', () => {
     });
 
     describe('PostgreSQL Dialect', () => {
-        const dbType = DbType.postgresql;
+        const dbType = DbType.postgres;
 
         it('should generate CREATE TABLE with double quotes', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({
                 fields: {
                     res: [
-                        createTestField({ name: 'id', type: 'bigserial', pri: true, remark: '主键ID' }),
-                        createTestField({ name: 'name', type: 'varchar', length: '100', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'id', type: 'bigserial', isPrimaryKey: true, comment: '主键ID' }),
+                        createTestField({ name: 'name', type: 'varchar', length: '100', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -214,9 +214,9 @@ describe('DDL Generation Tests', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({
                 db: 'test_db/test_schema',
-                indexs: {
+                indexes: {
                     res: [createTestIndex({ indexName: 'idx_name', columnNames: ['name'] })],
-                    oldIndexs: [],
+                    oldIndexes: [],
                     columns: [],
                 },
             });
@@ -231,7 +231,7 @@ describe('DDL Generation Tests', () => {
         it('should generate RENAME COLUMN', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({ db: 'test_db/test_schema' });
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [],
                 add: [],
                 upd: [createTestField({ name: 'new_name', oldName: 'old_name', type: 'varchar' })],
@@ -252,8 +252,8 @@ describe('DDL Generation Tests', () => {
             const ctx = createTestContext({
                 fields: {
                     res: [
-                        createTestField({ name: 'id', type: 'integer', pri: true, auto_increment: true, remark: '主键ID' }),
-                        createTestField({ name: 'name', type: 'text', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'id', type: 'integer', isPrimaryKey: true, autoIncrement: true, comment: '主键ID' }),
+                        createTestField({ name: 'name', type: 'text', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -269,12 +269,69 @@ describe('DDL Generation Tests', () => {
             expect(sql).toContain('NOT NULL');
         });
 
+        it('should generate composite primary key as a table-level constraint (not inline per column)', () => {
+            const dialect = getDbDialect(dbType);
+            const ctx = createTestContext({
+                fields: {
+                    res: [
+                        createTestField({ name: 'region', type: 'text', isPrimaryKey: true, autoIncrement: false }),
+                        createTestField({ name: 'code', type: 'integer', isPrimaryKey: true, autoIncrement: false }),
+                        createTestField({ name: 'name', type: 'text', nullable: false, comment: '姓名' }),
+                    ],
+                    oldFields: [],
+                },
+            });
+
+            const sql = dialect.getCreateTableSql(ctx);
+
+            // 复合主键必须是表级 PRIMARY KEY(...)，且不能逐列内联（SQLite 报「more than one primary key」）
+            expect(sql).toContain('PRIMARY KEY ("region", "code")');
+            expect(sql.match(/PRIMARY KEY/g)).toHaveLength(1);
+            // 复合主键列强制 NOT NULL，且不追加 AUTOINCREMENT
+            expect(sql).toContain('"region" text NOT NULL');
+            expect(sql).not.toContain('AUTOINCREMENT');
+        });
+
+        it('should rebuild table preserving composite primary key as table-level constraint on modify', () => {
+            const dialect = getDbDialect(dbType);
+            const ctx = createTestContext({
+                fields: {
+                    res: [
+                        createTestField({ name: 'region', type: 'text', isPrimaryKey: true, autoIncrement: false }),
+                        createTestField({ name: 'code', type: 'integer', isPrimaryKey: true, autoIncrement: false }),
+                        createTestField({ name: 'name', type: 'text', nullable: false }),
+                    ],
+                    oldFields: [
+                        createTestField({ name: 'region', type: 'text', isPrimaryKey: true, autoIncrement: false }),
+                        createTestField({ name: 'code', type: 'integer', isPrimaryKey: true, autoIncrement: false }),
+                        createTestField({ name: 'name', type: 'text', nullable: false }),
+                    ],
+                },
+            });
+            const changeData: ChangeDiff<ColumnDefinition> = {
+                del: [],
+                add: [],
+                upd: [createTestField({ name: 'name', type: 'varchar' })],
+                changed: true,
+            };
+
+            // sqlite 改表走「重命名旧表 → 建新表 → 复制 → 删旧表」，重建的建表语句必须保留表级复合主键
+            const sql = dialect.getModifyColumnSql(ctx, 'test_table', changeData);
+
+            expect(sql).toContain('PRIMARY KEY ("region", "code")');
+            // 全文只有一处 PRIMARY KEY（表级），不得逐列内联，否则 SQLite 报 more than one primary key
+            expect((sql.match(/PRIMARY KEY/g) || []).length).toBe(1);
+            expect(sql).toContain('RENAME TO');
+            expect(sql).toContain('INSERT INTO');
+            expect(sql).toContain('DROP TABLE');
+        });
+
         it('should generate CREATE INDEX', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({
-                indexs: {
+                indexes: {
                     res: [createTestIndex({ indexName: 'idx_name', columnNames: ['name'], unique: true })],
-                    oldIndexs: [],
+                    oldIndexes: [],
                     columns: [],
                 },
             });
@@ -307,8 +364,8 @@ describe('DDL Generation Tests', () => {
                 db: 'test_db/test_schema',
                 fields: {
                     res: [
-                        createTestField({ name: 'id', type: 'bigint', pri: true, auto_increment: true, remark: '主键ID' }),
-                        createTestField({ name: 'name', type: 'nvarchar', length: '100', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'id', type: 'bigint', isPrimaryKey: true, autoIncrement: true, comment: '主键ID' }),
+                        createTestField({ name: 'name', type: 'nvarchar', length: '100', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -327,7 +384,7 @@ describe('DDL Generation Tests', () => {
         it('should not include IDENTITY/DEFAULT in ALTER COLUMN', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({ db: 'test_db/test_schema' });
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [],
                 add: [],
                 upd: [
@@ -335,7 +392,7 @@ describe('DDL Generation Tests', () => {
                         name: 'name',
                         type: 'nvarchar',
                         length: '200',
-                        auto_increment: true,
+                        autoIncrement: true,
                         value: 'GETDATE()',
                     }),
                 ],
@@ -359,8 +416,8 @@ describe('DDL Generation Tests', () => {
                 db: 'test_db/test_schema',
                 fields: {
                     res: [
-                        createTestField({ name: 'ID', type: 'NUMBER', pri: true, auto_increment: true, remark: '主键ID' }),
-                        createTestField({ name: 'NAME', type: 'VARCHAR2', length: '100', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'ID', type: 'NUMBER', isPrimaryKey: true, autoIncrement: true, comment: '主键ID' }),
+                        createTestField({ name: 'NAME', type: 'VARCHAR2', length: '100', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -381,9 +438,9 @@ describe('DDL Generation Tests', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({
                 db: 'test_db/test_schema',
-                indexs: {
+                indexes: {
                     res: [createTestIndex({ indexName: 'IDX_NAME', columnNames: ['NAME', 'AGE'] })],
-                    oldIndexs: [],
+                    oldIndexes: [],
                     columns: [],
                 },
             });
@@ -398,7 +455,7 @@ describe('DDL Generation Tests', () => {
         it('should generate RENAME COLUMN', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({ db: 'test_db/test_schema' });
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [],
                 add: [],
                 upd: [createTestField({ name: 'NEW_NAME', oldName: 'OLD_NAME', type: 'VARCHAR2' })],
@@ -419,8 +476,8 @@ describe('DDL Generation Tests', () => {
             const ctx = createTestContext({
                 fields: {
                     res: [
-                        createTestField({ name: 'id', type: 'UInt64', pri: true, notNull: true, remark: '主键ID' }),
-                        createTestField({ name: 'name', type: 'String', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'id', type: 'UInt64', isPrimaryKey: true, nullable: false, comment: '主键ID' }),
+                        createTestField({ name: 'name', type: 'String', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -439,9 +496,9 @@ describe('DDL Generation Tests', () => {
         it('should generate ALTER TABLE ADD COLUMN', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext();
-            const changeData: ChangeDiff<RowDefinition> = {
+            const changeData: ChangeDiff<ColumnDefinition> = {
                 del: [],
-                add: [createTestField({ name: 'email', type: 'String', notNull: true })],
+                add: [createTestField({ name: 'email', type: 'String', nullable: false })],
                 upd: [],
                 changed: true,
             };
@@ -462,8 +519,8 @@ describe('DDL Generation Tests', () => {
                 db: 'test_db/test_schema',
                 fields: {
                     res: [
-                        createTestField({ name: 'id', type: 'BIGINT', pri: true, auto_increment: true, remark: '主键ID' }),
-                        createTestField({ name: 'name', type: 'VARCHAR', length: '100', notNull: true, remark: '姓名' }),
+                        createTestField({ name: 'id', type: 'BIGINT', isPrimaryKey: true, autoIncrement: true, comment: '主键ID' }),
+                        createTestField({ name: 'name', type: 'VARCHAR', length: '100', nullable: false, comment: '姓名' }),
                     ],
                     oldFields: [],
                 },
@@ -484,9 +541,9 @@ describe('DDL Generation Tests', () => {
             const dialect = getDbDialect(dbType);
             const ctx = createTestContext({
                 db: 'test_db/test_schema',
-                indexs: {
+                indexes: {
                     res: [createTestIndex({ indexName: 'IDX_NAME', columnNames: ['NAME'] })],
-                    oldIndexs: [],
+                    oldIndexes: [],
                     columns: [],
                 },
             });

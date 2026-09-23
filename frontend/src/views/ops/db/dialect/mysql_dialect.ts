@@ -1,6 +1,6 @@
 import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
-import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition, SqlSnippetTemplate } from './types';
-import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
+import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, ColumnDefinition, SqlSnippetTemplate } from './types';
+import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { limitCommaPageSnippet } from './shared/snippets';
 import { appendLimitSql, getDefaultDataType, QuoteEscape, wrapValueDefault } from './shared/utils';
 import { backtickQuotePairs, defineCapabilities, mysqlSplitOptions } from './shared/capabilities';
@@ -158,8 +158,8 @@ export class MysqlDialect implements DbDialect {
         return limitCommaPageSnippet;
     }
 
-    getDefaultRows(): RowDefinition[] {
-        return createDefaultRows(defaultRowsConfigs.mysql);
+    getDefaultColumns(): ColumnDefinition[] {
+        return createDefaultColumns(defaultColumnConfigs.mysql);
     }
 
     getDefaultIndex(): IndexDefinition {
@@ -177,7 +177,7 @@ export class MysqlDialect implements DbDialect {
         return `\`${name}\``;
     };
 
-    genColumnBasicSql(cl: RowDefinition): string {
+    genColumnBasicSql(cl: ColumnDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
         let length = cl.length;
@@ -190,11 +190,11 @@ export class MysqlDialect implements DbDialect {
         const parts = [
             this.quoteIdentifier(cl.name),
             cl.type + length,
-            cl.notNull ? 'NOT NULL' : 'NULL',
-            cl.auto_increment ? 'AUTO_INCREMENT' : '',
+            cl.nullable ? 'NULL' : 'NOT NULL',
+            cl.autoIncrement ? 'AUTO_INCREMENT' : '',
             defVal,
             onUpdate,
-            cl.remark ? `COMMENT '${QuoteEscape(cl.remark)}'` : '',
+            cl.comment ? `COMMENT '${QuoteEscape(cl.comment)}'` : '',
         ];
         return parts.filter(Boolean).join(' ');
     }
@@ -202,9 +202,9 @@ export class MysqlDialect implements DbDialect {
         // 创建表结构
         let pks = [] as string[];
         let fields: string[] = [];
-        data.fields.res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: ColumnDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
-            if (item.pri) {
+            if (item.isPrimaryKey) {
                 pks.push(this.quoteIdentifier(item.name));
             }
         });
@@ -217,7 +217,7 @@ export class MysqlDialect implements DbDialect {
     getCreateIndexSql(data: TableEditContext): string {
         // 创建索引
         const sqls: string[] = [];
-        data.indexs.res.forEach((a: IndexDefinition) => {
+        data.indexes.res.forEach((a: IndexDefinition) => {
             const unique = a.unique ? 'UNIQUE ' : '';
             const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
             sqls.push(`ADD ${unique}INDEX ${this.quoteIdentifier(a.indexName)}(${cols}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment ?? '')}'`);
@@ -231,7 +231,7 @@ export class MysqlDialect implements DbDialect {
         return `DROP TABLE ${this.quoteIdentifier(table)}`;
     }
 
-    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         let arr = [] as string[];
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
@@ -264,12 +264,12 @@ export class MysqlDialect implements DbDialect {
 
     getModifyIndexSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<IndexDefinition>): string {
         let dropIndexNames: string[] = [];
-        let addIndexs: IndexDefinition[] = [];
+        let addIndexes: IndexDefinition[] = [];
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
                 dropIndexNames.push(a.indexName);
-                addIndexs.push(a);
+                addIndexes.push(a);
             });
         }
 
@@ -281,11 +281,11 @@ export class MysqlDialect implements DbDialect {
 
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                addIndexs.push(a);
+                addIndexes.push(a);
             });
         }
 
-        if (dropIndexNames.length > 0 || addIndexs.length > 0) {
+        if (dropIndexNames.length > 0 || addIndexes.length > 0) {
             const parts: string[] = [];
             if (dropIndexNames.length > 0) {
                 dropIndexNames.forEach((a) => {
@@ -293,8 +293,8 @@ export class MysqlDialect implements DbDialect {
                 });
             }
 
-            if (addIndexs.length > 0) {
-                addIndexs.forEach((a) => {
+            if (addIndexes.length > 0) {
+                addIndexes.forEach((a) => {
                     const unique = a.unique ? 'UNIQUE ' : '';
                     const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
                     parts.push(`ADD ${unique}INDEX ${this.quoteIdentifier(a.indexName)}(${cols}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment ?? '')}'`);

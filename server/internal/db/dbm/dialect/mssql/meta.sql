@@ -106,3 +106,52 @@ FROM sys.tables t
 WHERE ss.name = ?
   and t.name in (%s)
 ORDER BY t.name, c.column_id
+---------------------------------------
+--MSSQL_VIEWS 视图信息（sys.views + sys.schemas，注释取扩展属性）
+SELECT
+  ss.name AS "schemaName",
+  v.name AS "viewName",
+  ISNULL(CAST(ep.value AS NVARCHAR(1024)), '') AS "viewComment"
+FROM sys.views v
+  JOIN sys.schemas ss ON ss.schema_id = v.schema_id
+  LEFT JOIN sys.extended_properties ep ON ep.major_id = v.object_id AND ep.minor_id = 0 AND ep.class = 1
+WHERE ss.name = ?
+ORDER BY v.name
+---------------------------------------
+--MSSQL_SEQUENCES 序列信息（含定义属性，供前端属性面板）
+SELECT
+  ss.name AS "schemaName",
+  sq.name AS "seqName",
+  sq.minimum_value AS "minValue",
+  sq.maximum_value AS "maxValue",
+  sq.increment AS "incrementBy",
+  sq.cache_size AS "cacheSize",
+  sq.current_value AS "lastValue",
+  CASE WHEN sq.is_cycling = 1 THEN 'Y' ELSE 'N' END AS "cycleFlag",
+  ty.name AS "dataType"
+FROM sys.sequences sq
+  JOIN sys.schemas ss ON ss.schema_id = sq.schema_id
+  JOIN sys.types ty ON ty.user_type_id = sq.user_type_id
+WHERE ss.name = ?
+ORDER BY sq.name
+---------------------------------------
+--MSSQL_VIEW_DDL 视图定义（sys.sql_modules 存原始 CREATE VIEW 语句）
+SELECT m.definition AS "viewDefinition"
+FROM sys.views v
+  JOIN sys.schemas ss ON ss.schema_id = v.schema_id
+  JOIN sys.sql_modules m ON m.object_id = v.object_id
+WHERE v.name = ? AND ss.name = ?
+---------------------------------------
+--MSSQL_SEQUENCE_DDL 序列定义（sys.sequences 重建 CREATE SEQUENCE）
+SELECT 'CREATE SEQUENCE ' + QUOTENAME(ss.name) + '.' + QUOTENAME(sq.name)
+  + ' AS ' + ty.name
+  + ' START WITH ' + CAST(sq.start_value AS NVARCHAR(40))
+  + ' INCREMENT BY ' + CAST(sq.increment AS NVARCHAR(40))
+  + ' MINVALUE ' + CAST(sq.minimum_value AS NVARCHAR(40))
+  + ' MAXVALUE ' + CAST(sq.maximum_value AS NVARCHAR(40))
+  + CASE WHEN sq.cache_size = 0 THEN ' NO CACHE' ELSE ' CACHE ' + CAST(sq.cache_size AS NVARCHAR(40)) END
+  + CASE WHEN sq.is_cycling = 1 THEN ' CYCLE' ELSE ' NO CYCLE' END AS "sequenceDdl"
+FROM sys.sequences sq
+  JOIN sys.schemas ss ON ss.schema_id = sq.schema_id
+  JOIN sys.types ty ON ty.user_type_id = sq.user_type_id
+WHERE sq.name = ? AND ss.name = ?

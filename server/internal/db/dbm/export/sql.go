@@ -9,8 +9,8 @@ import (
 
 // ========== SQLConsumer：SQL 格式导出消费者 ==========
 //
-// 生成方言感知的 INSERT 语句，支持事务控制（通过 DumpHelper）。
-// 方言差异完全委托给 DumpHelper + SQLGenerator，本消费者不含任何方言硬编码。
+// 生成方言感知的 INSERT 语句，支持事务控制（通过 DumpTxnWrapper）。
+// 方言差异完全委托给 DumpTxnWrapper + SQLGenerator，本消费者不含任何方言硬编码。
 
 // SQLConsumer SQL 格式导出消费者。
 type SQLConsumer struct{}
@@ -32,14 +32,14 @@ func (c *SQLConsumer) Begin(w io.Writer, tableName string, columns []dbi.Column,
 }
 
 func (c *SQLConsumer) ConsumeBatch(w io.Writer, tableName string, columns []dbi.Column, rows [][]any,
-	helper dbi.DumpHelper, sqlGen dbi.SQLGenerator, settings *Settings) error {
+	helper dbi.DumpTxnWrapper, sqlGen dbi.SQLGenerator, settings *Settings) error {
 	if len(rows) == 0 {
 		return nil
 	}
 
 	// 方言前置钩子（如 MSSQL/DM 的 SET IDENTITY_INSERT ON）
 	if helper != nil {
-		beforeInsert := helper.BeforeInsertSql(tableName, columns)
+		beforeInsert := helper.BeforeInsertSQL(tableName, columns)
 		if beforeInsert != "" {
 			if _, err := io.WriteString(w, beforeInsert); err != nil {
 				return err
@@ -48,8 +48,8 @@ func (c *SQLConsumer) ConsumeBatch(w io.Writer, tableName string, columns []dbi.
 	}
 
 	// 方言感知的 INSERT 生成
-	insertSql := sqlGen.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone, nil)
-	if _, err := io.WriteString(w, strings.Join(insertSql, ";\n")+";\n"); err != nil {
+	insertSQL := sqlGen.GenInsert(tableName, columns, rows, dbi.DuplicateStrategyNone, nil)
+	if _, err := io.WriteString(w, strings.Join(insertSQL, ";\n")+";\n"); err != nil {
 		return err
 	}
 	return nil
@@ -59,7 +59,7 @@ func (c *SQLConsumer) End(w io.Writer, tableName string, settings *Settings) err
 	return nil
 }
 
-// Finish SQL 无全局收尾（事务闭合由 DumpHelper.AfterInsert 按表处理）
+// Finish SQL 无全局收尾（事务闭合由 DumpTxnWrapper.AfterInsert 按表处理）
 func (c *SQLConsumer) Finish(w io.Writer, settings *Settings) error { return nil }
 
 func init() {

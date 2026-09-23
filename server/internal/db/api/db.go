@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
@@ -33,7 +34,7 @@ import (
 type Db struct {
 	instanceApp  application.Instance  `inject:"T"`
 	dbApp        application.Db        `inject:"T"`
-	dbSqlExecApp application.DbSqlExec `inject:"T"`
+	dbSQLExecApp application.DbSQLExec `inject:"T"`
 	tagApp       tagapp.TagTreeService `inject:"T"`
 }
 
@@ -50,21 +51,25 @@ func (d *Db) ReqConfs() *req.Confs {
 
 		req.NewGet(":dbId/version", d.GetVersion),
 
+		req.NewGet(":dbId/capabilities", d.Capabilities),
+
 		req.NewGet(":dbId/pg/schemas", d.GetSchemas),
 
-		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLogI(imsg.LogDbRunSql)),
+		req.NewPost(":dbId/exec-sql", d.ExecSQL).Log(req.NewLogI(imsg.LogDbRunSQL)),
 
-		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSaveI(imsg.LogDbRunSqlFile)).RequiredPermissionCode("db:sqlscript:run"),
+		req.NewPost(":dbId/exec-sql-file", d.ExecSQLFile).Log(req.NewLogSaveI(imsg.LogDbRunSQLFile)).RequiredPermissionCode("db:sqlscript:run"),
 
-		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
+		req.NewGet(":dbId/dump", d.DumpSQL).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
 
 		req.NewGet(":dbId/t-infos", d.TableInfos),
 
+		req.NewGet(":dbId/meta-objects", d.MetaObjects),
+
+		req.NewGet(":dbId/meta-object-ddl", d.MetaObjectDDL),
+
 		req.NewGet(":dbId/t-index", d.TableIndex),
 
-		req.NewGet(":dbId/c-metadata", d.ColumnMA),
-
-		req.NewGet(":dbId/hint-tables", d.HintTables),
+		req.NewGet(":dbId/c-metadata", d.ColumnMetadata),
 
 		req.NewPost(":dbId/copy-table", d.CopyTable),
 	}
@@ -92,9 +97,10 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	resVo := model.PageResultConv[*entity.DbListPO, *vo.DbListVO](res)
 	dbvos := resVo.List
 
-	instances, _ := d.instanceApp.GetByIds(collx.ArrayMap(dbvos, func(i *vo.DbListVO) uint64 {
+	instances, err := d.instanceApp.GetByIds(collx.ArrayMap(dbvos, func(i *vo.DbListVO) uint64 {
 		return i.InstanceId
 	}))
+	biz.ErrIsNil(err)
 	instancesMap := collx.ArrayToMap(instances, func(i *entity.DbInstance) uint64 {
 		return i.Id
 	})
@@ -131,10 +137,10 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 
 /**  数据库操作相关、执行sql等   ***/
 
-func (d *Db) ExecSql(rc *req.Ctx) {
-	form := rc.BindJson[form.DbSqlExecForm]()
+func (d *Db) ExecSQL(rc *req.Ctx) {
+	form := rc.BindJson[form.DbSQLExecForm]()
 
-	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
+	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SQLExecTl)*time.Second)
 	defer cancel()
 
 	dbId := getDbId(rc)
@@ -144,28 +150,28 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
 	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
-	sqlStr, err := utils.AesDecryptByLa(form.Sql, rc.GetLoginAccount())
+	sqlStr, err := utils.AesDecryptByLa(form.SQL, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 
 	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
-	biz.NotEmpty(form.Sql, "sql cannot be empty")
+	biz.NotEmpty(form.SQL, "sql cannot be empty")
 
-	execReq := &dto.DbSqlExecReq{
+	execReq := &dto.DbSQLExecReq{
 		DbId:      dbId,
 		Db:        form.Db,
 		Remark:    form.Remark,
 		DbConn:    dbConn,
-		Sql:       sqlStr,
+		SQL:       sqlStr,
 		CheckFlow: true,
 	}
 
-	execRes, err := d.dbSqlExecApp.Exec(ctx, execReq)
+	execRes, err := d.dbSQLExecApp.Exec(ctx, execReq)
 	biz.ErrIsNil(err)
 	rc.ResData = execRes
 }
 
 // 执行sql文件
-func (d *Db) ExecSqlFile(rc *req.Ctx) {
+func (d *Db) ExecSQLFile(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	clientId := rc.Query("clientId")
 	dbName := rc.Query("db")
@@ -180,11 +186,11 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	body := rc.GetRequest().Body
 	defer body.Close()
 
-	// 支持 .zip / .gz 压缩包（见 newSqlFileReader）
-	reader, err := newSqlFileReader(filename, body)
+	// 支持 .zip / .gz 压缩包（见 newSQLFileReader）
+	reader, err := newSQLFileReader(filename, body)
 	biz.ErrIsNilAppendErr(err, "failed to read sql file: %s")
 
-	biz.ErrIsNil(d.dbSqlExecApp.ExecReader(rc.MetaCtx, &dto.SqlReaderExec{
+	biz.ErrIsNil(d.dbSQLExecApp.ExecReader(rc.MetaCtx, &dto.SQLReaderExec{
 		Reader:   reader,
 		Filename: filename,
 		DbConn:   dbConn,
@@ -194,7 +200,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 }
 
 // 数据库dump
-func (d *Db) DumpSql(rc *req.Ctx) {
+func (d *Db) DumpSQL(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	dbName := rc.Query("db")
 	dumpType := rc.Query("type")
@@ -260,9 +266,38 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).Metadata().GetTables()
+	// ?like= 为可选表名过滤：方言具备服务端下推能力则按 LIKE 查询，否则回退全量取回 + 服务端子串过滤，
+	// 用于超大 schema 的资源树按需加载（避免向浏览器吐上万张表）。空 like 等价原「取全部表」语义。
+	res, err := d.getDbConn(rc).Metadata().SearchTables(rc.Query("like"), cast.ToInt(rc.Query("limit")))
 	biz.ErrIsNilAppendErr(err, "get table error: %s")
 	rc.ResData = res
+}
+
+// MetaObjects 返回指定库/schema 下某类扩展元数据对象（视图/序列等）的扁平对象列表，供资源树懒加载展开。
+// 由方言 MetadataNavigator 可选能力提供；kind 不受支持时返回空列表（前端已按 /capabilities.features 决定是否展示该节点）。
+func (d *Db) MetaObjects(rc *req.Ctx) {
+	kind := dbi.ObjectKind(rc.Query("kind"))
+	biz.NotEmpty(string(kind), "kind cannot be empty")
+	schema := rc.Query("schema")
+	objects, err := d.getDbConn(rc).Metadata().ListObjects(rc.MetaCtx, schema, kind)
+	if errors.Is(err, dbi.ErrUnsupportedKind) {
+		rc.ResData = []dbi.MetadataObject{}
+		return
+	}
+	biz.ErrIsNilAppendErr(err, "list metadata objects error: %s")
+	rc.ResData = objects
+}
+
+// MetaObjectDDL 返回单个扩展元数据对象（视图/序列…）的重建 DDL 原文，供点开对象节点时展示。
+// kind/name 必填；schema 为空回退当前库/模式；方言不支持该 kind 的 DDL 时返回明确错误。
+func (d *Db) MetaObjectDDL(rc *req.Ctx) {
+	kind := dbi.ObjectKind(rc.Query("kind"))
+	name := rc.Query("name")
+	biz.NotEmpty(string(kind), "kind cannot be empty")
+	biz.NotEmpty(name, "name cannot be empty")
+	ddl, err := d.getDbConn(rc).Metadata().ObjectDDL(rc.MetaCtx, rc.Query("schema"), kind, name)
+	biz.ErrIsNilAppendErr(err, "get metadata object ddl error: %s")
+	rc.ResData = ddl
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
@@ -273,56 +308,16 @@ func (d *Db) TableIndex(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-// @router /api/db/:dbId/c-metadata [get]
-func (d *Db) ColumnMA(rc *req.Ctx) {
+// ColumnMetadata 返回指定表的列元数据（列名/类型/注释/主键/默认值/可空等），供表结构与数据编辑使用。
+//
+// @router /api/dbs/:dbId/c-metadata [get]
+func (d *Db) ColumnMetadata(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName cannot be empty")
 
-	dbi := d.getDbConn(rc)
-	res, err := dbi.Metadata().GetColumns(tn)
+	dbConn := d.getDbConn(rc)
+	res, err := dbConn.Metadata().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "get column metadata error: %s")
-	rc.ResData = res
-}
-
-// @router /api/db/:dbId/hint-tables [get]
-func (d *Db) HintTables(rc *req.Ctx) {
-	dbi := d.getDbConn(rc)
-
-	metadata := dbi.Metadata()
-	// 获取所有表
-	tables, err := metadata.GetTables()
-	biz.ErrIsNil(err)
-	tableNames := make([]string, 0)
-	for _, v := range tables {
-		tableNames = append(tableNames, v.TableName)
-	}
-	// key = 表名，value = 列名数组
-	res := make(map[string][]string)
-
-	// 表为空，则直接返回
-	if len(tableNames) == 0 {
-		rc.ResData = res
-		return
-	}
-
-	// 获取所有表下的所有列信息
-	columnMds, err := metadata.GetColumns(tableNames...)
-	biz.ErrIsNil(err)
-	for _, v := range columnMds {
-		tName := v.TableName
-		if res[tName] == nil {
-			res[tName] = make([]string, 0)
-		}
-
-		columnName := fmt.Sprintf("%s  [%s]", v.ColumnName, v.GetColumnType())
-		comment := v.ColumnComment
-		// 如果字段备注不为空，则加上备注信息
-		if comment != "" {
-			columnName = fmt.Sprintf("%s[%s]", columnName, comment)
-		}
-
-		res[tName] = append(res[tName], columnName)
-	}
 	rc.ResData = res
 }
 
@@ -345,6 +340,21 @@ func (d *Db) GetSchemas(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+// Capabilities 方言能力协商端点：一次性吐出该库方言的静态能力、扩展对象类别、命名空间层次。
+//
+// 供前端数据驱动渲染（资源树按 features 决定 view/relation 等节点显隐、DDL/分页等按能力位），
+// 使「新增方言或能力」无需前端改动——这正是能力枚举 SupportedFeatures 作为单一事实源的价值。
+// 全部取自方言静态能力声明（Metadata.GetCapabilities），不执行任何 SQL 查询。
+func (d *Db) Capabilities(rc *req.Ctx) {
+	dbConn := d.getDbConn(rc)
+	caps := dbConn.Metadata().GetCapabilities()
+	rc.ResData = map[string]any{
+		"dbType":    string(dbConn.Info.Type),
+		"features":  caps.SupportedFeatures(),
+		"namespace": caps.NamespaceHierarchy,
+	}
+}
+
 func (d *Db) CopyTable(rc *req.Ctx) {
 	form, copy := rc.BindJsonAndCopyTo[form.DbCopyTableForm, dbi.DbCopyTable]()
 
@@ -356,6 +366,7 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 		logx.Errorf("copy table error: %s", err.Error())
 	}
 	biz.ErrIsNilAppendErr(err, "copy table error: %s")
+	// 复制表的建表语句经 dbi 执行层发出，结构变更后的元数据缓存失效已由该层统一负责
 }
 
 // contentDisposition 构造安全的Content-Disposition响应头。
@@ -405,9 +416,9 @@ func rfc5987Encode(val string) string {
 }
 
 func getDbId(rc *req.Ctx) uint64 {
-	dbId := rc.PathParamInt("dbId")
+	dbId := cast.ToUint64(rc.PathParam("dbId"))
 	biz.IsTrue(dbId > 0, "dbId error")
-	return uint64(dbId)
+	return dbId
 }
 
 func getDbName(rc *req.Ctx) string {

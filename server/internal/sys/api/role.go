@@ -80,13 +80,13 @@ func (r *Role) DelRole(rc *req.Ctx) {
 
 // 获取角色关联的资源id数组，用于分配资源时回显已拥有的资源
 func (r *Role) RoleResourceIds(rc *req.Ctx) {
-	rc.ResData = r.roleApp.GetRoleResourceIds(uint64(rc.PathParamInt("id")))
+	rc.ResData = r.roleApp.GetRoleResourceIds(cast.ToUint64(rc.PathParam("id")))
 }
 
 // 查看角色关联的资源树信息
 func (r *Role) RoleResource(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
-	r.roleApp.GetRoleResources(uint64(rc.PathParamInt("id")), &resources)
+	r.roleApp.GetRoleResources(cast.ToUint64(rc.PathParam("id")), &resources)
 	rc.ResData = resources.ToTrees(0)
 }
 
@@ -106,7 +106,7 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 // 查看角色关联的用户
 func (r *Role) RoleAccount(rc *req.Ctx) {
 	cond := rc.BindQuery[entity.RoleAccountQuery]()
-	cond.RoleId = uint64(rc.PathParamInt("id"))
+	cond.RoleId = cast.ToUint64(rc.PathParam("id"))
 	res, err := r.roleApp.GetRoleAccountPage(cond)
 	biz.ErrIsNil(err)
 	rc.ResData = res

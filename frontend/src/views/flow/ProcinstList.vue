@@ -63,7 +63,7 @@ import { useI18n } from 'vue-i18n';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { procinstApi } from './api';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus } from './enums';
-import type { Procinst, FlowBizForm } from './types';
+import type { Procinst, ProcInstStartForm } from './types';
 
 const { t } = useI18n();
 
@@ -96,6 +96,10 @@ const columns = [
 ];
 
 const pageTableRef = useTemplateRef<{ search: () => void }>('pageTableRef');
+
+/** 启动表单空值：作为抽屉打开前的占位，startProcInst 会按新建/重跑场景覆盖 */
+const emptyProcInstForm: ProcInstStartForm = { bizType: '', procdefId: 0, status: null, remark: '', bizKey: '', bizForm: {} };
+
 const state = reactive({
     /**
      * 选中的数据
@@ -119,7 +123,8 @@ const state = reactive({
     procinstEdit: {
         title: '',
         visible: false,
-        procinst: {},
+        // 传给 ProcinstEdit 的是启动表单（bizForm 为对象），非实例记录本身；并于 startProcInst 按场景覆盖
+        procinst: { ...emptyProcInstForm },
     },
 });
 
@@ -144,13 +149,17 @@ const showProcinst = (data: Procinst) => {
 const startProcInst = (procinst: Procinst | null = null) => {
     state.procinstEdit.title = t('flow.startProcess');
     if (procinst) {
-        const data = { ...procinst, bizForm: JSON.parse(procinst.bizForm || '{}') as FlowBizForm };
-        state.procinstEdit.procinst = data as unknown as Procinst;
+        // 表单态：bizForm 由实例存储的 JSON 串解析为对象，其余字段直接沿用
+        state.procinstEdit.procinst = { ...procinst, bizForm: JSON.parse(procinst.bizForm || '{}') };
     } else {
         state.procinstEdit.procinst = {
             bizType: FlowBizType.DbSqlExec.value,
+            procdefId: 0,
+            status: null,
+            remark: '',
+            bizKey: '',
             bizForm: {},
-        } as unknown as Procinst;
+        };
     }
 
     state.procinstEdit.visible = true;

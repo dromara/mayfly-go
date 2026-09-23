@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/imsg"
@@ -32,18 +33,18 @@ func (a *AlertEvent) List(rc *req.Ctx) {
 }
 
 func (a *AlertEvent) Ack(rc *req.Ctx) {
-	eventId := uint64(rc.PathParamInt("id"))
+	eventId := cast.ToUint64(rc.PathParam("id"))
 	userId := rc.GetLoginAccount().Id
 	biz.ErrIsNil(a.eventApp.Ack(rc.MetaCtx, eventId, int64(userId)))
 }
 
 func (a *AlertEvent) Close(rc *req.Ctx) {
-	eventId := uint64(rc.PathParamInt("id"))
+	eventId := cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(a.eventApp.Close(rc.MetaCtx, eventId))
 }
 
 func (a *AlertEvent) Delete(rc *req.Ctx) {
-	eventId := uint64(rc.PathParamInt("id"))
+	eventId := cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(a.eventApp.DeleteEvent(rc.MetaCtx, eventId))
 }
 

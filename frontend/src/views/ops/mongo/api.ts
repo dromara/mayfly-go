@@ -6,7 +6,7 @@ export const mongoApi = {
     mongoList: Api.newGet<PageResult<Mongo>, PageParam>('/mongos'),
     mongoTags: Api.newGet<Mongo[]>('/mongos/tags'),
     testConn: Api.newPost<void>('/mongos/test-conn'),
-    saveMongo: Api.newPost<void>('/mongos'),
+    saveMongo: Api.newPost<number>('/mongos'),
     deleteMongo: Api.newDelete<void>('/mongos/{id}'),
     databases: Api.newGet<MongoDatabasesResult>('/mongos/{id}/databases'),
     collections: Api.newGet<string[]>('/mongos/{id}/collections'),

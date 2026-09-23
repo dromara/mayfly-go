@@ -1,7 +1,7 @@
 /**
  * 方言核心类型定义
  *
- * 独立文件以避免循环依赖：shared/defaultRows.ts 需要 RowDefinition，
+ * 独立文件以避免循环依赖：shared/defaultColumns.ts 需要 ColumnDefinition，
  * 而 index.ts 需要导入 shared 模块。
  *
  * 本文件与 dbType.ts、registry.ts、shared/* 共同构成方言层的「零依赖内核」：
@@ -9,11 +9,17 @@
  * 通过 import.meta.glob 加载全部方言而不形成模块循环。
  *
  * 表编辑上下文（TableEditContext 等）也定义在此：它们是 DbDialect 各 DDL 方法的
- * 入参契约，且完全由本文件的 RowDefinition / IndexDefinition 构成，放在内核里
+ * 入参契约，且完全由本文件的 ColumnDefinition / IndexDefinition 构成，放在内核里
  * 才能保证方言层对外零依赖。
  */
 
-export interface RowDefinition {
+/**
+ * 列定义（方言层 DDL 生成的扁平契约）
+ *
+ * 仅含 DDL 生成所需的最小字段；表编辑器使用的富领域模型见 types/schema.ts 的 TableColumnDefinition，
+ * 二者在 DbTableOp 里双向转换。与 IndexDefinition 同属方言层 DDL 契约，遵循同一命名（不带 Table 前缀）。
+ */
+export interface ColumnDefinition {
     name: string;
     oldName?: string;
     type: string;
@@ -22,10 +28,11 @@ export interface RowDefinition {
     length: string | number;
     /** 小数位数 (模板 v-model.number 编辑后为 number, 初始/新增为 string) */
     numScale: string | number;
-    notNull: boolean;
-    pri: boolean;
-    auto_increment: boolean;
-    remark: string;
+    nullable: boolean;
+    isPrimaryKey: boolean;
+    autoIncrement: boolean;
+    /** 列注释（对齐 SQL COMMENT 与后端 columnComment；旧名 remark 语义含糊，已统一为 comment） */
+    comment: string;
 }
 
 export interface IndexDefinition {
@@ -36,7 +43,7 @@ export interface IndexDefinition {
     indexComment?: string;
 }
 
-export interface sqlColumnType {
+export interface SqlColumnType {
     udtName: string;
     dataType: string;
     desc: string;
@@ -60,14 +67,14 @@ export interface TableEditContext {
     db: string;
     /** 列定义（res=当前，oldFields=原始，用于差异对比） */
     fields: {
-        res: RowDefinition[];
-        oldFields: RowDefinition[];
+        res: ColumnDefinition[];
+        oldFields: ColumnDefinition[];
     };
-    /** 索引定义（res=当前，oldIndexs=原始，columns=可选列下拉） */
-    indexs: {
+    /** 索引定义（res=当前，oldIndexes=原始，columns=可选列下拉） */
+    indexes: {
         res: IndexDefinition[];
-        oldIndexs: IndexDefinition[];
-        columns: { name: string; remark: string }[];
+        oldIndexes: IndexDefinition[];
+        columns: { name: string; comment: string }[];
     };
 }
 
@@ -75,7 +82,7 @@ export interface TableEditContext {
  * 表信息（名称/注释）编辑上下文。
  *
  * getModifyTableInfoSql 只依赖名称与注释的新旧值，不需要列/索引明细。窄化契约后，
- * 资源树「重命名表」这类只改名不改结构的场景可直接构造，无需伪造空的 fields/indexs；
+ * 资源树「重命名表」这类只改名不改结构的场景可直接构造，无需伪造空的 fields/indexes；
  * TableEditContext 在结构上满足本类型，故表编辑器的调用点无需改动。
  */
 export type TableInfoEditContext = Pick<TableEditContext, 'db' | 'tableName' | 'oldTableName' | 'tableComment' | 'oldTableComment'>;
@@ -97,15 +104,19 @@ export interface EditorCompletionItem {
     description: string;
 }
 
+/**
+ * 编辑器联想词集合：各方言可按自身语法覆盖面只配其中几类，
+ * 故四类均可缺省（补全侧对每类做空值兜底，漏配不阻断整个补全）。
+ */
 export interface EditorCompletion {
     /** 关键字 */
-    keywords: EditorCompletionItem[];
+    keywords?: EditorCompletionItem[];
     /** 操作关键字 */
-    operators: EditorCompletionItem[];
+    operators?: EditorCompletionItem[];
     /** 函数,包括内置函数和自定义函数 */
-    functions: EditorCompletionItem[];
+    functions?: EditorCompletionItem[];
     /** 内置变量 */
-    variables: EditorCompletionItem[];
+    variables?: EditorCompletionItem[];
 }
 
 /**
@@ -172,7 +183,7 @@ export interface DialectInfo {
     /** 格式化 sql 的方言（sql-formatter 的方言标识） */
     formatSqlDialect: SqlFormatterLanguage;
     /** 列字段类型 */
-    columnTypes: sqlColumnType[];
+    columnTypes: SqlColumnType[];
 }
 
 /**
@@ -180,7 +191,6 @@ export interface DialectInfo {
  *
  * 每个方言通过 getCapabilities() 声明自身支持的特性，
  * 调用方无需通过 DbType 硬编码判断。
- * 参考 Prisma capability flags 设计。
  *
  * 本接口是「方言差异」的唯一事实源：SQL 语法能力、功能开关、表编辑器交互约束、
  * 词法特征（引用符/切割语义）全部在此声明。新增方言只需在自身文件内描述差异，
@@ -331,8 +341,8 @@ export enum DuplicateStrategy {
 /**
  * 方言契约
  *
- * 参考 Hibernate Dialect / Prisma Connector 设计，按职责分域：
- * - 元信息域：getInfo、getEditorCompletions、getDefaultRows、getDefaultIndex、getCapabilities
+ * 方言契约按职责分域：
+ * - 元信息域：getInfo、getEditorCompletions、getDefaultColumns、getDefaultIndex、getCapabilities
  * - DDL 生成域：getCreateTableSql、getCreateIndexSql、getDropTableSql、getModifyColumnSql、getModifyIndexSql、getModifyTableInfoSql
  * - 查询域：getDefaultSelectSql、getPageSql、getPreviewSql、getPageSnippet
  * - 数据类型域：getDataType、wrapValue、getBatchInsertPreviewSql
@@ -380,7 +390,7 @@ export interface DbDialect {
     getPageSnippet(): SqlSnippetTemplate;
 
     /** 获取默认审计字段（新建表时预填充） */
-    getDefaultRows(): RowDefinition[];
+    getDefaultColumns(): ColumnDefinition[];
 
     /** 获取默认索引结构 */
     getDefaultIndex(): IndexDefinition;
@@ -410,7 +420,7 @@ export interface DbDialect {
     getDropTableSql(db: string, table: string): string;
 
     /** 生成修改列 SQL */
-    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string;
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string;
 
     /** 生成修改索引 SQL */
     getModifyIndexSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<IndexDefinition>): string;

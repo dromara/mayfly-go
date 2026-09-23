@@ -11,10 +11,10 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 var (
 	_ dbi.ServerInfo       = (*ClickHouseMetadata)(nil)
@@ -54,8 +54,8 @@ func (cm *ClickHouseMetadata) GetDefaultDb() string {
 }
 
 func (cm *ClickHouseMetadata) GetSchemas() ([]string, error) {
-	// ClickHouse doesn't have schemas in the traditional sense
-	// It has databases that serve a similar purpose
+	// ClickHouse 无传统意义的 schema 层
+	// 其 database 承担相近职责
 	return cm.GetDbNames()
 }
 
@@ -154,7 +154,7 @@ func (cm *ClickHouseMetadata) getTableColumns(tableName string) ([]dbi.Column, e
 		columns = append(columns, column)
 	}
 
-	// Fix column data types
+	// 修正列数据类型
 	for i := range columns {
 		fixColumn(&columns[i])
 	}
@@ -162,37 +162,32 @@ func (cm *ClickHouseMetadata) getTableColumns(tableName string) ([]dbi.Column, e
 	return columns, nil
 }
 
-func (cm *ClickHouseMetadata) GetPrimaryKey(tableName string) (string, error) {
-	// ClickHouse primary keys are defined in the table engine settings
-	// This is a simplified implementation
+func (cm *ClickHouseMetadata) GetPrimaryKeys(tableName string) ([]string, error) {
+	// ClickHouse 主键定义在表引擎设置中（此处为简化实现）：primary_key 为逗号分隔的有序列
 	_, res, err := cm.di.Query(`SELECT primary_key FROM system.tables WHERE database = ? AND name = ?`,
 		cm.di.GetDatabase(), tableName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
+	pks := make([]string, 0, 2)
 	if len(res) > 0 {
 		if pk := cast.ToString(res[0]["primary_key"]); pk != "" {
-			// Primary key might be a comma-separated list of columns
-			pkParts := strings.Split(pk, ",")
-			if len(pkParts) > 0 {
-				return strings.TrimSpace(pkParts[0]), nil
+			for _, part := range strings.Split(pk, ",") {
+				if col := strings.TrimSpace(part); col != "" {
+					pks = append(pks, col)
+				}
 			}
 		}
 	}
 
-	// If no primary key, return the first column
-	columns, err := cm.GetColumns(tableName)
-	if err != nil || len(columns) == 0 {
-		return "", err
-	}
-
-	return columns[0].ColumnName, nil
+	// 无主键返回空切片（不兜底首列）
+	return pks, nil
 }
 
 func (cm *ClickHouseMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	// ClickHouse doesn't have traditional indexes like other databases
-	// It uses primary keys and sorting keys in MergeTree engines
+	// ClickHouse 无其他数据库那种传统二级索引
+	// MergeTree 引擎以主键与排序键充当索引
 	_, res, err := cm.di.Query(`SELECT 
 		name,
 		type,
@@ -200,7 +195,7 @@ func (cm *ClickHouseMetadata) GetTableIndex(tableName string) ([]dbi.Index, erro
 	FROM system.indexes 
 	WHERE database = ? AND table = ?`, cm.di.GetDatabase(), tableName)
 	if err != nil {
-		// If system.indexes doesn't exist or is not accessible, return empty slice
+		// system.indexes 不存在或不可访问时返回空切片
 		return []dbi.Index{}, nil
 	}
 
@@ -223,7 +218,7 @@ func (cm *ClickHouseMetadata) GetTableIndex(tableName string) ([]dbi.Index, erro
 }
 
 func (cm *ClickHouseMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
-	// Get the CREATE TABLE statement from system tables
+	// 从系统表读取 CREATE TABLE 语句
 	_, res, err := cm.di.Query(`SELECT create_table_query FROM system.tables WHERE database = ? AND name = ?`,
 		cm.di.GetDatabase(), tableName)
 	if err != nil {
@@ -231,8 +226,8 @@ func (cm *ClickHouseMetadata) GetTableDDL(tableName string, dropBeforeCreate boo
 	}
 
 	if len(res) > 0 {
-		if createSql, ok := res[0]["create_table_query"].(string); ok {
-			return createSql, nil
+		if createSQL, ok := res[0]["create_table_query"].(string); ok {
+			return createSQL, nil
 		}
 	}
 

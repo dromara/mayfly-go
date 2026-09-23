@@ -30,8 +30,8 @@ const commonSnippets: SqlSnippetTemplate[] = [joinSnippet, insertSnippet];
 /**
  * 获取指定方言的片段模板：通用模板 + 该方言的分页模板。
  *
- * @param dialect 数据库方言，由其自描述分页写法
+ * @param dialect 只依赖分页模板自述能力，不要求传入完整方言实例（按调用面取最窄能力）
  */
-export function getSnippets(dialect: DbDialect): SqlSnippetTemplate[] {
+export function getSnippets(dialect: Pick<DbDialect, 'getPageSnippet'>): SqlSnippetTemplate[] {
     return [...commonSnippets, dialect.getPageSnippet()];
 }

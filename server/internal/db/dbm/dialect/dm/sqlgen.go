@@ -10,7 +10,7 @@ import (
 var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
 
 type SQLGenerator struct {
-	dbi.BaseSQLGenerator
+	dbi.DefaultSQLGenerator
 	Dialect dbi.Dialect
 }
 
@@ -24,7 +24,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 		sqlArr = append(sqlArr, fmt.Sprintf("drop table if exists %s", tbName))
 	}
 	// 组装建表语句
-	createSql := fmt.Sprintf("create table %s (", tbName)
+	createSQL := fmt.Sprintf("create table %s (", tbName)
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 	columnComments := make([]string, 0)
@@ -33,27 +33,27 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 		if column.IsPrimaryKey {
 			pks = append(pks, quote(column.ColumnName))
 		}
-		fields = append(fields, sg.genColumnBasicSql(quoter, column))
+		fields = append(fields, sg.genColumnBasicSQL(quoter, column))
 		if column.ColumnComment != "" {
 			comment := dbi.QuoteEscape(column.ColumnComment)
 			columnComments = append(columnComments, fmt.Sprintf("comment on column %s.%s is '%s'", tbName, quote(column.ColumnName), comment))
 		}
 	}
-	createSql += strings.Join(fields, ",\n")
+	createSQL += strings.Join(fields, ",\n")
 	if len(pks) > 0 {
-		createSql += fmt.Sprintf(",\n PRIMARY KEY (%s)", strings.Join(pks, ","))
+		createSQL += fmt.Sprintf(",\n PRIMARY KEY (%s)", strings.Join(pks, ","))
 	}
-	createSql += "\n)"
+	createSQL += "\n)"
 
-	tableCommentSql := ""
+	tableCommentSQL := ""
 	if table.TableComment != "" {
 		comment := dbi.QuoteEscape(table.TableComment)
-		tableCommentSql = fmt.Sprintf("comment on table %s is '%s'", tbName, comment)
+		tableCommentSQL = fmt.Sprintf("comment on table %s is '%s'", tbName, comment)
 	}
 
-	sqlArr = append(sqlArr, createSql)
-	if tableCommentSql != "" {
-		sqlArr = append(sqlArr, tableCommentSql)
+	sqlArr = append(sqlArr, createSQL)
+	if tableCommentSQL != "" {
+		sqlArr = append(sqlArr, tableCommentSQL)
 	}
 
 	if len(columnComments) > 0 {
@@ -63,10 +63,10 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 	return sqlArr
 }
 
-func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
+func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []string {
 	quote := sg.Dialect.Quoter().QuoteIdent
 	sqls := make([]string, 0)
-	for _, index := range indexs {
+	for _, index := range indexes {
 		unique := ""
 		if index.IsUnique {
 			unique = "unique"
@@ -94,11 +94,11 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 	}
 
 	uniqueCols := make([]string, 0)
-	caseSqls := make([]string, 0)
+	caseSQLs := make([]string, 0)
 	identityCols := targetTableMeta.IdentityColumns
 	for _, col := range targetTableMeta.UniqueColumns {
 		uniqueCols = append(uniqueCols, col)
-		caseSqls = append(caseSqls, fmt.Sprintf("( T1.%s = T2.%s )", quote(col), quote(col)))
+		caseSQLs = append(caseSQLs, fmt.Sprintf("( T1.%s = T2.%s )", quote(col), quote(col)))
 	}
 
 	// 重复数据处理策略
@@ -126,18 +126,18 @@ func (sg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values
 
 	// GenInsert返回的SQL由调用方Exec无参数绑定执行，无法使用?占位符；
 	// 需将行值以字面量形式内联到USING子查询中（参照mssql的merge实现）
-	valueSql := make([]string, 0, len(values))
+	valueSQL := make([]string, 0, len(values))
 	for _, value := range values {
 		valArr := make([]string, 0, len(columns))
 		for j, column := range columns {
-			val := dbi.GetDbDataType(DbTypeDM, column.DataType).DataType.SQLValue(value[j])
+			val := dbi.GetDbDataType(DbTypeDM, column.DataType).Codec.SQLValue(value[j])
 			valArr = append(valArr, fmt.Sprintf("%s %s", val, quote(column.ColumnName)))
 		}
-		valueSql = append(valueSql, fmt.Sprintf("SELECT %s FROM dual", strings.Join(valArr, ", ")))
+		valueSQL = append(valueSQL, fmt.Sprintf("SELECT %s FROM dual", strings.Join(valArr, ", ")))
 	}
-	t2 := strings.Join(valueSql, " UNION ALL ")
+	t2 := strings.Join(valueSQL, " UNION ALL ")
 
-	sqlTemp := "MERGE INTO " + quote(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSqls, " OR ")
+	sqlTemp := "MERGE INTO " + quote(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSQLs, " OR ")
 	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ")"
 	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(upds, ",")
 
@@ -184,7 +184,7 @@ func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column,
 
 	// 达梦数据库只能一条条的执行insert语句，所以这里需要将values拆分成多条insert语句
 	sqls := collx.ArrayMap(values, func(value []any) string {
-		columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(sg.Dialect, DbTypeDM, columns, [][]any{value})
+		columnStr, valuesStrs := dbi.GenInsertSQLColumnAndValues(sg.Dialect, DbTypeDM, columns, [][]any{value})
 		return fmt.Sprintf("insert into %s %s values %s", quote(tableName), columnStr, valuesStrs[0])
 	})
 
@@ -196,7 +196,7 @@ func (sg *SQLGenerator) genSimpleInserts(tableName string, columns []dbi.Column,
 	return res
 }
 
-func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
+func (sg *SQLGenerator) genColumnBasicSQL(quoter dbi.Quoter, column dbi.Column) string {
 	incr := ""
 	if column.AutoIncrement {
 		incr = " IDENTITY"
@@ -208,11 +208,11 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 	}
 
 	colName := quoter.QuoteIdent(column.ColumnName)
-	// 达梦的 data_default 保留书写的引号与双写转义（字面量形态），旧实现“含左括号即丢弃”
+	// 达梦的 data_default 保留书写的引号与双写转义（字面量形态），若"含左括号即丢弃"
 	// 会使 '(0)'、'unknown (pending)' 这类默认值静默丢失；源库为MySQL 8.0时默认值是不带引号的
 	// 原始值，故必须用宽松版按字面量重新引用，不能因形态陌生而丢弃
-	defVal := dbi.GenColumnDefaultSqlOf(&column, column.DataType, dbi.QuoteEscape)
+	defVal := dbi.GenColumnDefaultSQLOf(&column, column.DataType, dbi.QuoteEscape)
 
-	columnSql := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
-	return columnSql
+	columnSQL := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
+	return columnSQL
 }

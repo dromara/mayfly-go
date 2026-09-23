@@ -2,7 +2,7 @@
 
 package application
 
-// SQL文件执行链路（DbSqlExecApp.ExecReader）真实数据库集成测试。
+// SQL文件执行链路（DbSQLExecApp.ExecReader）真实数据库集成测试。
 //
 // 与 transfer 包 importDumpStream 的分工：迁移/备份恢复链路会**过滤**脚本内事务控制语句（自己管批级提交），
 // 而用户在「SQL编辑器 → 执行SQL文件」提交的文件按脚本原样执行事务控制语句（与 mysql CLI、psql 一致的
@@ -34,8 +34,8 @@ import (
 
 // appExecReader 驱动生产 ExecReader 执行一段SQL文件内容
 func appExecReader(ctx context.Context, conn *dbi.DbConn, filename, content string) error {
-	app := &dbSqlExecAppImpl{}
-	return app.ExecReader(ctx, &dto.SqlReaderExec{
+	app := &dbSQLExecAppImpl{}
+	return app.ExecReader(ctx, &dto.SQLReaderExec{
 		DbConn:   conn,
 		Reader:   strings.NewReader(content),
 		Filename: filename,
@@ -53,8 +53,8 @@ func appExecComplexFile(quote func(string) string) string {
 		fmt.Sprintf("INSERT INTO %s VALUES (5, '');\n", quote(appExecTable))
 }
 
-// TestITExecReaderComplexSqlFileRealExec 复杂SQL文件在三方言真实库上被正确切割并完整执行
-func TestITExecReaderComplexSqlFileRealExec(t *testing.T) {
+// TestITExecReaderComplexSQLFileRealExec 复杂SQL文件在三方言真实库上被正确切割并完整执行
+func TestITExecReaderComplexSQLFileRealExec(t *testing.T) {
 	for _, node := range appDialectNodes {
 		node := node
 		t.Run(node.name, func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestITExecReaderCancelled(t *testing.T) {
 			err := appExecReader(ctx, conn, "cancel.sql", file)
 			require.Error(t, err, "已取消的ctx必须返回错误")
 
-			assert.Contains(t, err.Error(), i18n.TC(ctx, imsg.ErrSqlExecCancelled),
+			assert.Contains(t, err.Error(), i18n.TC(ctx, imsg.ErrSQLExecCancelled),
 				"取消应报明确的取消错误: %s", err.Error())
 			assert.Equal(t, int64(0), appRowCount(t, conn), "取消后不得残留已执行数据")
 		})

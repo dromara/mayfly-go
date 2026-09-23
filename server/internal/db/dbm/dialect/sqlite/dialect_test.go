@@ -10,11 +10,11 @@ import (
 
 func newTestSQLGenerator() *SQLGenerator {
 	// 触发sqlite列类型注册（TypeEngine注册包含向dbDataTypes的同步）
-	dbi.GetTypeEngine(DbTypeSqlite)
-	return &SQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: (&SqliteDialect{}).Quoter}, dialect: &SqliteDialect{}}
+	dbi.GetTypeEngine(DbTypeSQLite)
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: (&SQLiteDialect{}).Quoter}, dialect: &SQLiteDialect{}}
 }
 
-func TestSqliteGenTableDDL(t *testing.T) {
+func TestSQLiteGenTableDDL(t *testing.T) {
 	gen := newTestSQLGenerator()
 
 	columns := []dbi.Column{
@@ -38,7 +38,7 @@ func TestSqliteGenTableDDL(t *testing.T) {
 }
 
 // 默认值含单引号时需双写转义，否则 DDL 语法错误或注入
-func TestSqliteGenTableDDL_DefaultQuoteEscape(t *testing.T) {
+func TestSQLiteGenTableDDL_DefaultQuoteEscape(t *testing.T) {
 	gen := newTestSQLGenerator()
 	columns := []dbi.Column{
 		{ColumnName: "status", DataType: "text", Nullable: true, ColumnDefault: "it's"},
@@ -49,7 +49,7 @@ func TestSqliteGenTableDDL_DefaultQuoteEscape(t *testing.T) {
 
 // 非自增主键必须保留原列类型；仅AUTOINCREMENT才强制integer
 // （原实现对所有主键无条件强制integer PRIMARY KEY，text主键等迁移DDL错误）
-func TestSqliteGenTableDDL_PrimaryKeyType(t *testing.T) {
+func TestSQLiteGenTableDDL_PrimaryKeyType(t *testing.T) {
 	gen := newTestSQLGenerator()
 
 	// text单列主键：保留原类型，不带AUTOINCREMENT
@@ -68,7 +68,7 @@ func TestSqliteGenTableDDL_PrimaryKeyType(t *testing.T) {
 
 // 复合主键必须用表级PRIMARY KEY(...)声明：逐列内联PRIMARY KEY在sqlite下直接报
 // “table has more than one primary key”，生成的DDL无法执行
-func TestSqliteGenTableDDL_CompositePrimaryKey(t *testing.T) {
+func TestSQLiteGenTableDDL_CompositePrimaryKey(t *testing.T) {
 	gen := newTestSQLGenerator()
 	sqls := gen.GenTableDDL(dbi.Table{TableName: "t_cp"}, []dbi.Column{
 		{ColumnName: "a", DataType: "text", IsPrimaryKey: true, Nullable: false},
@@ -78,7 +78,7 @@ func TestSqliteGenTableDDL_CompositePrimaryKey(t *testing.T) {
 	assert.Equal(t, "CREATE TABLE \"t_cp\" (\n \"a\" text NOT NULL,\n \"b\" integer NOT NULL,\n \"c\" text,\nPRIMARY KEY (\"a\",\"b\")\n)", sqls[0])
 }
 
-func TestSqliteGenIndexDDL(t *testing.T) {
+func TestSQLiteGenIndexDDL(t *testing.T) {
 	gen := newTestSQLGenerator()
 	table := dbi.Table{TableName: "t1"}
 
@@ -90,9 +90,9 @@ func TestSqliteGenIndexDDL(t *testing.T) {
 	assert.Equal(t, "CREATE unique INDEX \"idx_name\" ON \"t1\" (\"name\") ", sqls[1])
 }
 
-// TestSqliteGenIndexDDLImplicitAutoindex 约束生成的隐式索引（sqlite_autoindex_*）必须换名重建：
+// TestSQLiteGenIndexDDLImplicitAutoindex 约束生成的隐式索引（sqlite_autoindex_*）必须换名重建：
 // sqlite_ 为内核保留前缀，原名CREATE报reserved for internal use，使sqlite备份恢复直接失败
-func TestSqliteGenIndexDDLImplicitAutoindex(t *testing.T) {
+func TestSQLiteGenIndexDDLImplicitAutoindex(t *testing.T) {
 	gen := newTestSQLGenerator()
 
 	sqls := gen.GenIndexDDL(dbi.Table{TableName: "t1"}, []dbi.Index{
@@ -111,7 +111,7 @@ func TestSqliteGenIndexDDLImplicitAutoindex(t *testing.T) {
 	assert.Equal(t, "sqlite_autoindex_", ddlIndexName("sqlite_autoindex_"), "剪掉前缀后为空则保留原名")
 }
 
-func TestSqliteGenInsert_None(t *testing.T) {
+func TestSQLiteGenInsert_None(t *testing.T) {
 	gen := newTestSQLGenerator()
 
 	columns := []dbi.Column{
@@ -125,7 +125,7 @@ func TestSqliteGenInsert_None(t *testing.T) {
 	assert.Equal(t, "INSERT INTO \"t1\" (\"id\", \"name\") VALUES \n(1, 'a'),\n(2, 'it''s')", sqls[0])
 }
 
-func TestSqliteGenInsert_IgnoreAndReplace(t *testing.T) {
+func TestSQLiteGenInsert_IgnoreAndReplace(t *testing.T) {
 	gen := newTestSQLGenerator()
 
 	columns := []dbi.Column{
@@ -148,23 +148,23 @@ func TestSqliteGenInsert_IgnoreAndReplace(t *testing.T) {
 	assert.Contains(t, sqls[1], "insert or ignore into \"t1\"")
 }
 
-// TestSqliteGenIndexDDL_SpecialNames 索引名/表名列名含引用符时必须双写转义：
+// TestSQLiteGenIndexDDL_SpecialNames 索引名/表名列名含引用符时必须双写转义：
 // DROP INDEX 此前硬编码引号拼接原始索引名，含双引号的名称会提前闭合而生成非法SQL
-func TestSqliteGenIndexDDL_SpecialNames(t *testing.T) {
+func TestSQLiteGenIndexDDL_SpecialNames(t *testing.T) {
 	gen := newTestSQLGenerator()
-	indexs := []dbi.Index{{IndexName: `idx"1`, ColumnName: "c_中文 列"}}
+	indexes := []dbi.Index{{IndexName: `idx"1`, ColumnName: "c_中文 列"}}
 
-	sqls := gen.GenIndexDDL(dbi.Table{TableName: `t"1`}, indexs)
+	sqls := gen.GenIndexDDL(dbi.Table{TableName: `t"1`}, indexes)
 	require.Len(t, sqls, 2)
 	assert.Equal(t, `DROP INDEX IF EXISTS "idx""1"`, sqls[0])
 	assert.Contains(t, sqls[1], `"idx""1"`)
 	assert.Contains(t, sqls[1], `ON "t""1" ("c_中文 列")`)
 }
 
-// TestSqliteAffinityTypeRegistered SQLite是弱类型库，列声明类型只决定存储亲和性，
+// TestSQLiteAffinityTypeRegistered SQLite是弱类型库，列声明类型只决定存储亲和性，
 // 常见外库风格类型名（INT/BIGINT/TIMESTAMP/DECIMAL/VARCHAR等）必须按官方亲和性规则注册，
 // 否则未注册类型会回退为DefaultDbDataType（TCVarchar），使这些列迁移到强类型库时被静默改成varchar
-func TestSqliteAffinityTypeRegistered(t *testing.T) {
+func TestSQLiteAffinityTypeRegistered(t *testing.T) {
 	newTestSQLGenerator()
 
 	tests := []struct {
@@ -192,7 +192,7 @@ func TestSqliteAffinityTypeRegistered(t *testing.T) {
 		{"blob", dbi.TCBlob},
 	}
 	for _, tt := range tests {
-		got := dbi.GetDbDataType(DbTypeSqlite, tt.name)
+		got := dbi.GetDbDataType(DbTypeSQLite, tt.name)
 		require.NotNil(t, got, "sqlite类型 [%s] 未注册", tt.name)
 		assert.NotEqual(t, dbi.DefaultDbDataType, got, "sqlite类型 [%s] 不得回退为默认字符串类型", tt.name)
 		assert.Equal(t, tt.want, got.Category(), "sqlite类型 [%s] 亲和性映射不符", tt.name)
@@ -201,14 +201,14 @@ func TestSqliteAffinityTypeRegistered(t *testing.T) {
 
 // ========== GenTruncate / GenBatchDelete 测试 ==========
 
-func TestSqliteGenTruncate(t *testing.T) {
+func TestSQLiteGenTruncate(t *testing.T) {
 	gen := newTestSQLGenerator()
 	sqls := gen.GenTruncate("t_user")
 	assert.Len(t, sqls, 1)
 	assert.Equal(t, "DELETE FROM \"t_user\"", sqls[0], "SQLite uses DELETE FROM instead of TRUNCATE TABLE")
 }
 
-func TestSqliteGenBatchDelete_SinglePK(t *testing.T) {
+func TestSQLiteGenBatchDelete_SinglePK(t *testing.T) {
 	gen := newTestSQLGenerator()
 	sqls := gen.GenBatchDelete("t_user", []string{"id"}, [][]any{{1}, {2}, {3}}, nil)
 	assert.Len(t, sqls, 1)
@@ -216,14 +216,14 @@ func TestSqliteGenBatchDelete_SinglePK(t *testing.T) {
 	assert.Contains(t, sqls[0], "\"id\" NOT IN ('1', '2', '3')")
 }
 
-func TestSqliteGenBatchDelete_CompositePK(t *testing.T) {
+func TestSQLiteGenBatchDelete_CompositePK(t *testing.T) {
 	gen := newTestSQLGenerator()
 	sqls := gen.GenBatchDelete("t_user", []string{"k1", "k2"}, [][]any{{1, "a"}, {2, "b"}}, nil)
 	assert.Len(t, sqls, 1)
 	assert.Contains(t, sqls[0], "(\"k1\", \"k2\") NOT IN (('1', 'a'), ('2', 'b'))")
 }
 
-func TestSqliteGenBatchDelete_EmptyInput(t *testing.T) {
+func TestSQLiteGenBatchDelete_EmptyInput(t *testing.T) {
 	gen := newTestSQLGenerator()
 	assert.Nil(t, gen.GenBatchDelete("t", nil, nil, nil))
 	assert.Nil(t, gen.GenBatchDelete("t", []string{"id"}, [][]any{}, nil))

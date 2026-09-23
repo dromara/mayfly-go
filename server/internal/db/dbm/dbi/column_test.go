@@ -61,12 +61,6 @@ func TestSQLValueStringEscapeBackslash(t *testing.T) {
 	}
 }
 
-func TestSQLValuePreserveSpecialChars(t *testing.T) {
-	// 保留特殊字符类型与标准SQL字符串转义行为一致
-	assert.Equal(t, SQLValueString("a'b\"c\nd"), SQLValuePreserveSpecialChars("a'b\"c\nd"))
-	assert.Equal(t, "'it''s'", SQLValuePreserveSpecialChars("it's"))
-}
-
 func TestSQLValueDefault(t *testing.T) {
 	assert.Equal(t, "NULL", SQLValueDefault(nil))
 	assert.Equal(t, "'123'", SQLValueDefault(123))
@@ -87,16 +81,16 @@ func TestIsNumericLiteral(t *testing.T) {
 	}
 }
 
-func TestIsPlainSqlLiteral(t *testing.T) {
+func TestIsPlainSQLLiteral(t *testing.T) {
 	for _, valid := range []string{"123", "-1.5", "0x1f", "0XABCDEF", "b'01'", "B'1'", "CURRENT_TIMESTAMP", "null", "TRUE"} {
-		assert.True(t, IsPlainSqlLiteral(valid), "should be plain literal: %s", valid)
+		assert.True(t, IsPlainSQLLiteral(valid), "should be plain literal: %s", valid)
 	}
 	for _, invalid := range []string{"", "abc", "it's", "'quoted'", "0xzz", "b'02'", "1; DROP TABLE t", "b'"} {
-		assert.False(t, IsPlainSqlLiteral(invalid), "should not be plain literal: %s", invalid)
+		assert.False(t, IsPlainSQLLiteral(invalid), "should not be plain literal: %s", invalid)
 	}
 }
 
-func TestUnwrapSqlLiteral(t *testing.T) {
+func TestUnwrapSQLLiteral(t *testing.T) {
 	kases := []struct {
 		name     string
 		val      string
@@ -117,7 +111,7 @@ func TestUnwrapSqlLiteral(t *testing.T) {
 	}
 	for _, k := range kases {
 		t.Run(k.name, func(t *testing.T) {
-			assert.Equal(t, k.expected, UnwrapSqlLiteral(k.val))
+			assert.Equal(t, k.expected, UnwrapSQLLiteral(k.val))
 		})
 	}
 }
@@ -173,7 +167,7 @@ func TestGetDbDataType(t *testing.T) {
 	dt := GetDbDataType(DbType("not-exist-db"), "varchar")
 	assert.Equal(t, DefaultDbDataType, dt)
 	assert.Equal(t, TCVarchar, dt.Category())
-	assert.Equal(t, DTString, dt.DataType)
+	assert.Equal(t, DTString, dt.Codec)
 
 	// 注册测试类型（小写作为key，查找不区分大小写）
 	testDbType := DbType("test-dbtype-get")

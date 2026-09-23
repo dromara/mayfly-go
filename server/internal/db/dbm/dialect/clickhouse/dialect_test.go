@@ -7,10 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newTestSQLGenerator() *ClickHouseSQLGenerator {
+func newTestSQLGenerator() *SQLGenerator {
 	// 触发clickhouse列类型注册（TypeEngine注册包含向dbDataTypes的同步）
 	dbi.GetTypeEngine(DbTypeClickHouse)
-	return &ClickHouseSQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: (&ClickHouseDialect{}).Quoter}, dialect: &ClickHouseDialect{}}
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: (&ClickHouseDialect{}).Quoter}, dialect: &ClickHouseDialect{}}
 }
 
 func TestClickHouseGenTableDDL(t *testing.T) {

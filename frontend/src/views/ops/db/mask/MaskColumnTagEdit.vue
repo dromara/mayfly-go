@@ -59,11 +59,12 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { computed, reactive, ref, type PropType } from 'vue';
 import { dbApi, dbMaskApi } from '../api';
 import DbSelectTree from '../widgets/DbSelectTree.vue';
-import type { DbMaskColumn, DbMaskRule } from '../types';
+import type { DbMaskColumn, DbMaskColumnSaveForm, DbMaskRule } from '../types';
 
 const props = defineProps({
     data: {
@@ -79,7 +80,7 @@ const emit = defineEmits<{
     /** 取消编辑，父级关闭弹窗 */
     cancel: [];
     /** 数据变更需刷新列表；由 auto-form 的 submitted 转发时不带表单，故 payload 可选 */
-    'val-change': [form?: FormData];
+    'val-change': [form?: DbMaskColumnSaveForm];
 }>();
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
@@ -111,8 +112,8 @@ const algorithmOptions = [
     { label: 'db.maskAlgoBankCard', value: 'bankCard' },
 ];
 
-/** 表单声明（AutoFormItem[]），绑定规则/算法仅在动作=绑定时展示；库名由资源树选择带出，不再单独表单项 */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<DbMaskColumnSaveForm>），绑定规则/算法仅在动作=绑定时展示；库名由资源树选择带出，不再单独表单项 */
+const items = defineFormItems<DbMaskColumnSaveForm>([
     { prop: 'instanceId', label: 'db.maskInstance', type: 'custom', required: true, rules: [Rules.requiredSelect('db.maskInstance')] },
     {
         prop: 'tableName',
@@ -176,40 +177,30 @@ const items: AutoFormItem[] = [
         tooltip: 'db.maskParamsPlaceholder',
     },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
-];
+]);
 
-type FormData = {
-    id?: number;
-    instanceId: number;
-    dbName?: string;
-    tableName?: string;
-    columnName?: string;
-    action: number;
-    ruleId?: number;
-    algorithm?: string;
-    params?: string;
-    remark?: string;
-};
-
-const basicFormData = {
+/** 新建态的字段默认值（instanceId 待用户选择，刻意不给值，故为 Partial） */
+const basicFormData: DbMaskColumnSaveForm = {
     instanceId: undefined,
     dbName: '',
     tableName: '',
     columnName: '',
     action: 1,
-} as unknown as FormData;
+};
+
+// 宿主抽屉的内部表单在 @opened 接管（表/列联动与提交均基于它）
+const { openedWith, requireForm } = useAutoFormModel<DbMaskColumnSaveForm>();
 
 /** 新建态用默认值，编辑态深拷贝行数据回填 */
-const editData = computed<AutoFormData | null>(() => {
+const editData = computed<DbMaskColumnSaveForm | null>(() => {
     if (props.data?.id) {
-        return deepClone(props.data) as unknown as AutoFormData;
+        return deepClone(props.data);
     }
-    return { ...basicFormData } as unknown as AutoFormData;
+    return { ...basicFormData };
 });
 
 /** 加载当前库下表名选项 */
-const loadTableOptions = async (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as FormData;
+const loadTableOptions = async (form: DbMaskColumnSaveForm) => {
     if (!selectState.dbId || !form.dbName) {
         return;
     }
@@ -225,8 +216,7 @@ const loadTableOptions = async (rawForm: AutoFormData) => {
 };
 
 /** 加载当前表下列名选项 */
-const loadColumnOptions = async (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as FormData;
+const loadColumnOptions = async (form: DbMaskColumnSaveForm) => {
     if (!selectState.dbId || !form.dbName || !form.tableName) {
         return;
     }
@@ -242,8 +232,7 @@ const loadColumnOptions = async (rawForm: AutoFormData) => {
 };
 
 /** 切换库后重置表/列及其选项，并预加载表名选项 */
-const onSelectDb = (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as FormData;
+const onSelectDb = (form: DbMaskColumnSaveForm) => {
     form.tableName = '';
     form.columnName = '';
     tableOptions.value = [];
@@ -252,14 +241,13 @@ const onSelectDb = (rawForm: AutoFormData) => {
 };
 
 /** 切换表后重置列并预加载列名选项 */
-const onTableChange = (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as FormData;
+const onTableChange = (form: DbMaskColumnSaveForm) => {
     form.columnName = '';
     columnOptions.value = [];
     loadColumnOptions(form);
 };
 
-const onOpened = async () => {
+const onOpened = openedWith(async (form) => {
     // 新增态：重置选择器临时状态，避免残留上一次编辑的回显信息
     if (!props.data?.id) {
         selectState.dbId = undefined;
@@ -269,8 +257,6 @@ const onOpened = async () => {
         columnOptions.value = [];
         return;
     }
-
-    const form = editData.value as unknown as FormData;
 
     // 编辑态：仅有 instanceId，按实例反查 db 记录回填 dbId（用于加载表/列选项与路径回显）
     if (props.data.instanceId) {
@@ -290,10 +276,10 @@ const onOpened = async () => {
     // 已选库/表时预加载表/列选项
     await loadTableOptions(form);
     await loadColumnOptions(form);
-};
+});
 
-const btnOk = async (rawForm: AutoFormData) => {
-    const reqForm = { ...(rawForm as unknown as FormData) };
+const btnOk = async () => {
+    const reqForm = { ...requireForm() };
     // 豁免动作不携带规则/算法
     if (reqForm.action !== 1) {
         reqForm.ruleId = 0;

@@ -71,7 +71,7 @@ registerContributor({
                 kind: ContainerKind,
                 label: x.name,
                 icon: Icon,
-                params: x as unknown as Record<string, unknown>,
+                params: { ...x },
             }));
     },
 });

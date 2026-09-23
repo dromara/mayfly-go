@@ -1,11 +1,11 @@
 import Api from '@/common/Api';
 import type { PageParam, PageResult } from '@/types/common';
-import type { TagTree, Team, TeamMember, ResourceOpLog, ResourceTagQueryParam, AuthCertQueryParam, ResourceTag } from './types';
+import type { TagTree, TagTreeNode, Team, TeamMember, ResourceOpLog, ResourceTagQueryParam, AuthCertQueryParam, ResourceTag } from './types';
 import type { ResourceAuthCert } from '@/types/common';
 
 export const tagApi = {
     listByQuery: Api.newGet<TagTree[]>('/tag-trees/query'),
-    getTagTrees: Api.newGet<TagTree[]>('/tag-trees'),
+    getTagTrees: Api.newGet<TagTreeNode[]>('/tag-trees'),
     saveTagTree: Api.newPost<void>('/tag-trees'),
     delTagTree: Api.newDelete<void>('/tag-trees/{id}'),
 

@@ -64,7 +64,7 @@
                             </el-select>
                         </template>
                     </el-table-column>
-                    <!-- Phase 3: 转换类型列 -->
+                    <!-- 转换类型列 -->
                     <el-table-column prop="transformType" :label="$t('db.transformRules')" :width="160">
                         <template #default="scope">
                             <el-select v-model="scope.row.transformType" size="small">
@@ -74,7 +74,7 @@
                             </el-select>
                         </template>
                     </el-table-column>
-                    <!-- Phase 3: 转换配置列 -->
+                    <!-- 转换配置列 -->
                     <el-table-column prop="transformConfig" :label="$t('db.transformConfig')" :width="200">
                         <template #default="scope">
                             <el-input
@@ -154,7 +154,8 @@
 
 <script lang="ts" setup>
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
-import { AutoFormDrawer, type AutoFormData, type AutoFormTab } from '@/components/auto-form';
+import { AutoFormDrawer, type AutoFormTab } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
@@ -171,7 +172,7 @@ import {
 } from '@/views/ops/db/sync/enums';
 import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { ColumnMetadata, DataSyncTask, Db, DbNodeParams, DbTableInfo } from '@/views/ops/db/types';
+import type { ColumnMetadata, DataSyncTaskListVO, Db, DbNodeParams, DbTableInfo } from '@/views/ops/db/types';
 
 const { t } = useI18n();
 
@@ -180,7 +181,7 @@ onBeforeUnmount(() => sqlCompletion.release());
 
 const props = defineProps({
     data: {
-        type: Object as PropType<DataSyncTask | null>,
+        type: Object as PropType<DataSyncTaskListVO | null>,
         default: null,
     },
     title: {
@@ -190,7 +191,7 @@ const props = defineProps({
 
 const emit = defineEmits<{
     cancel: [];
-    'val-change': [form: AutoFormData];
+    'val-change': [form: SyncTaskForm];
 }>();
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
@@ -237,7 +238,7 @@ const tabs: AutoFormTab[] = [
             { prop: 'updField', label: 'db.updateField', tooltip: 'db.updateFieldTips', placeholder: 'db.updateFiledPlaceholder', span: 12 },
             { prop: 'updFieldVal', label: 'db.updateFieldValue', tooltip: 'db.updateFieldValueTips', placeholder: 'db.updateFieldValuePlaceholder', span: 12 },
             { prop: 'updFieldSrc', label: 'db.fieldValueSrc', tooltip: 'db.fieldValueSrcTips', placeholder: 'db.fieldValueSrcPlaceholder', span: 12 },
-            // Phase 2: 辅助增量字段
+            // 辅助增量字段
             { prop: 'updFieldSecondary', label: 'db.updFieldSecondary', tooltip: 'db.updFieldSecondaryTips', placeholder: 'db.updFieldSecondaryPlaceholder', span: 12 },
         ],
     },
@@ -247,13 +248,13 @@ const tabs: AutoFormTab[] = [
         disabled: () => !baseFieldCompleted.value,
         items: [{ prop: 'fieldMap', label: 'db.fieldMap', type: 'custom', required: true }],
     },
-    // Phase 3/5/6: 高级配置 tab
+    // 高级配置 tab
     {
         name: advancedTab,
         label: 'db.advancedSettings',
         disabled: () => !baseFieldCompleted.value,
         items: [
-            // Phase 3: 数据转换与过滤
+            // 数据转换与过滤
             { prop: 'filterCondition', label: 'db.filterCondition', tooltip: 'db.filterConditionTips', placeholder: 'db.filterConditionPlaceholder', span: 12 },
             {
                 prop: 'nullStrategy',
@@ -264,7 +265,7 @@ const tabs: AutoFormTab[] = [
                 span: 8,
             },
             { prop: 'nullDefault', label: 'db.nullDefault', placeholder: 'db.nullDefaultPlaceholder', span: 8 },
-            // Phase 5: Schema 演化
+            // Schema 演化
             {
                 prop: 'schemaEvolveMode',
                 label: 'db.schemaEvolveMode',
@@ -273,7 +274,7 @@ const tabs: AutoFormTab[] = [
                 tooltip: 'db.schemaEvolveTips',
                 span: 8,
             },
-            // Phase 6.3: 双向同步
+            // 双向同步
             {
                 prop: 'biDirEnabled',
                 label: 'db.biDirEnabled',
@@ -310,7 +311,7 @@ const tabs: AutoFormTab[] = [
                 label: 'db.keyDuplicateStrategy',
                 type: 'enum',
                 enums: DbDataSyncDuplicateStrategyEnum,
-                when: (f) => getDialectCapabilities(getDbDialect(f.targetDbType!)).supportsDuplicateStrategy,
+                when: (f) => !!f.targetDbType && getDialectCapabilities(getDbDialect(f.targetDbType)).supportsDuplicateStrategy,
                 onChange: () => handleDuplicateStrategy(),
             },
             { prop: 'previewDataSql', label: 'db.selectSql', type: 'custom' },
@@ -319,7 +320,7 @@ const tabs: AutoFormTab[] = [
     },
 ];
 
-type FormData = {
+type SyncTaskForm = {
     id?: number;
     taskName?: string;
     taskCron: string;
@@ -341,21 +342,43 @@ type FormData = {
     updFieldSrc?: string;
     updFieldSecondary?: string;
     fieldMap?: { src: string; target: string; transformType?: string; transformConfig?: string }[];
-    status?: 1 | 2;
-    syncMode?: 1 | 2 | 3 | 4 | 5 | 6;
+    status?: number;
+    syncMode?: number;
     softDeleteField?: string;
     softDeleteValue?: string;
     filterCondition?: string;
-    nullStrategy?: 0 | 1 | 2;
+    nullStrategy?: number;
     nullDefault?: string;
-    schemaEvolveMode?: 0 | 1 | 2;
+    schemaEvolveMode?: number;
     biDirEnabled?: boolean;
-    conflictStrategy?: 1 | 2 | 3;
+    conflictStrategy?: number;
     biDirTimestampField?: string;
-    duplicateStrategy?: -1 | 1 | 2;
+    duplicateStrategy?: number;
 };
 
-const basicFormData = {
+/**
+ * 解析实体存储的 fieldMap JSON 串为表单行数组。
+ * 无值或非法 JSON 回退空数组；旧数据缺 transformType 时补列映射默认值。
+ */
+function parseFieldMapRows(raw?: string): NonNullable<SyncTaskForm['fieldMap']> {
+    if (!raw) {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw) as Record<string, string>[];
+        return parsed.map((fm) => ({
+            src: fm.src,
+            target: fm.target,
+            transformType: fm.transformType || 'column',
+            transformConfig: fm.transformConfig || '',
+        }));
+    } catch {
+        return [];
+    }
+}
+
+const basicFormData: SyncTaskForm = {
+    taskCron: '',
     srcDbId: -1,
     targetDbId: -1,
     dataSql: 'select * from',
@@ -376,9 +399,9 @@ const basicFormData = {
     conflictStrategy: 1,
     biDirTimestampField: '',
     duplicateStrategy: -1,
-} as FormData;
+};
 
-const editData = { ...basicFormData, taskCron: '' } as unknown as AutoFormData;
+const editData: SyncTaskForm = { ...basicFormData };
 
 const state = reactive({
     targetTableList: [] as { tableName: string; tableComment: string }[],
@@ -393,7 +416,10 @@ const state = reactive({
 });
 
 const tabActiveName = ref('basic');
-const internalForm = ref<AutoFormData>({});
+
+// 宿主抽屉的内部表单在 @opened 接管；computed 保持读取点写法不变（指向宿主同一个响应式对象）
+const { openedWith, requireForm } = useAutoFormModel<SyncTaskForm>();
+const internalForm = computed(requireForm);
 
 const baseFieldCompleted = computed(() => {
     const form = internalForm.value;
@@ -402,8 +428,7 @@ const baseFieldCompleted = computed(() => {
 
 const { execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi();
 
-const onOpened = async (form: AutoFormData) => {
-    internalForm.value = form;
+const onOpened = openedWith(async () => {
     tabActiveName.value = 'basic';
     const propsData = props.data;
     if (!propsData?.id) {
@@ -411,7 +436,9 @@ const onOpened = async (form: AutoFormData) => {
     }
 
     let data = await dbSyncApi.getDatasyncTask.request({ taskId: propsData?.id });
-    const formData = data as unknown as FormData;
+    // 实体里的 fieldMap 是 JSON 串，必须先解析成行数组，剩下的字段才能整体当表单视图模型用
+    const { fieldMap: fieldMapJson, ...taskFields } = data;
+    const formData: SyncTaskForm = { ...taskFields, fieldMap: parseFieldMapRows(fieldMapJson) };
     if (!formData.duplicateStrategy) {
         formData.duplicateStrategy = -1;
     }
@@ -424,19 +451,7 @@ const onOpened = async (form: AutoFormData) => {
     if (formData.conflictStrategy === undefined) {
         formData.conflictStrategy = 1;
     }
-    try {
-        const parsed = JSON.parse(data.fieldMap);
-        // 兼容旧数据：无 transformType 字段时补默认值
-        formData.fieldMap = parsed.map((fm: any) => ({
-            src: fm.src,
-            target: fm.target,
-            transformType: fm.transformType || 'column',
-            transformConfig: fm.transformConfig || '',
-        }));
-    } catch (e) {
-        formData.fieldMap = [];
-    }
-    Object.assign(form, formData);
+    Object.assign(internalForm.value, formData);
     let { srcDbId, srcDbName, targetDbId } = formData;
 
     if (srcDbId) {
@@ -444,8 +459,8 @@ const onOpened = async (form: AutoFormData) => {
         const db = dbInfoRes.list[0] as Db & { databases?: string[] };
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = await DbInst.getOrNewInst(db);
-        form.srcDbType = state.srcDbInst.type;
-        form.srcInstName = db.name;
+        internalForm.value.srcDbType = state.srcDbInst.type;
+        internalForm.value.srcInstName = db.name;
     }
 
     if (targetDbId) {
@@ -453,8 +468,8 @@ const onOpened = async (form: AutoFormData) => {
         const db = dbInfoRes.list[0] as Db & { databases?: string[] };
         db.databases = db.database?.split(' ').sort() || [];
         state.targetDbInst = await DbInst.getOrNewInst(db);
-        form.targetDbType = state.targetDbInst.type;
-        form.targetInstName = db.name;
+        internalForm.value.targetDbType = state.targetDbInst.type;
+        internalForm.value.targetInstName = db.name;
     }
 
     if (targetDbId && formData.targetDbName) {
@@ -464,7 +479,7 @@ const onOpened = async (form: AutoFormData) => {
     if (srcDbId && srcDbName) {
         sqlCompletion.register(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
     }
-};
+});
 
 watch(tabActiveName, async (newValue: string) => {
     switch (newValue) {
@@ -474,13 +489,14 @@ watch(tabActiveName, async (newValue: string) => {
             break;
         case sqlPreviewTab:
             let targetDbDialect = getDbDialect(state.targetDbInst.type);
-            let updField = internalForm.value.updField!;
+            let updField = internalForm.value.updField ?? '';
+            let dataSql = internalForm.value.dataSql ?? '';
 
-            let hasCondition = /where/i.test(internalForm.value.dataSql!);
-            state.previewDataSql = `${internalForm.value.dataSql?.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${internalForm.value.updFieldVal || ''}'`;
+            let hasCondition = /where/i.test(dataSql);
+            state.previewDataSql = `${dataSql.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${internalForm.value.updFieldVal || ''}'`;
 
             let fields = new Set();
-            internalForm.value.fieldMap?.map((a: { src: string; target: string }) => {
+            internalForm.value.fieldMap?.map((a) => {
                 if (a.target) {
                     fields.add(a.target);
                 }
@@ -491,7 +507,7 @@ watch(tabActiveName, async (newValue: string) => {
                 return;
             }
 
-            let fieldArr = internalForm.value.fieldMap?.map((a: { src: string; target: string }) => targetDbDialect.quoteIdentifier(a.target)) || [];
+            let fieldArr = internalForm.value.fieldMap?.map((a) => targetDbDialect.quoteIdentifier(a.target)) || [];
             state.previewFieldArr = fieldArr;
             refreshPreviewInsertSql();
             break;
@@ -502,7 +518,7 @@ watch(tabActiveName, async (newValue: string) => {
 
 const refreshPreviewInsertSql = () => {
     let targetDbDialect = getDbDialect(state.targetDbInst.type);
-    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(internalForm.value.targetTableName!, state.previewFieldArr, internalForm.value.duplicateStrategy!);
+    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(internalForm.value.targetTableName ?? '', state.previewFieldArr, internalForm.value.duplicateStrategy ?? -1);
 };
 
 const onSelectSrcDb = async (params: DbNodeParams) => {
@@ -528,21 +544,21 @@ const loadDbTables = async (dbId: number, db: string) => {
 };
 
 const handleGetSrcFields = async () => {
-    const dataSql = internalForm.value.dataSql as string | undefined;
+    const dataSql = internalForm.value.dataSql;
     if (!dataSql || !dataSql.trim()) {
         Msg.warning('db.noDataSqlMsg');
         return;
     }
-    if (!/^select/i.test(dataSql.trim()!)) {
+    if (!/^select/i.test(dataSql.trim())) {
         Msg.warning('db.notSelectSql');
         return;
     }
-    if (/;/i.test(dataSql!)) {
+    if (/;/i.test(dataSql)) {
         Msg.warning('db.notOneSql');
         return;
     }
 
-    const sql = getDbDialect(internalForm.value.srcDbType!).getPreviewSql(dataSql!);
+    const sql = getDbDialect(internalForm.value.srcDbType ?? '').getPreviewSql(dataSql);
     const res = await dbApi.sqlExec.request({
         id: internalForm.value.srcDbId,
         db: internalForm.value.srcDbName,
@@ -558,7 +574,7 @@ const handleGetSrcFields = async () => {
 
     let filedMap: Record<string, { target: string; transformType: string; transformConfig: string }> = {};
     if (internalForm.value.fieldMap && internalForm.value.fieldMap.length > 0) {
-        internalForm.value.fieldMap.forEach((a: any) => {
+        internalForm.value.fieldMap.forEach((a) => {
             filedMap[a.src] = { target: a.target, transformType: a.transformType || 'column', transformConfig: a.transformConfig || '' };
         });
     }
@@ -584,7 +600,7 @@ const handleGetTargetFields = async () => {
             state.targetColumnList = columns;
             let names = columns.map((a) => a.columnName?.toLowerCase());
 
-            internalForm.value.fieldMap?.forEach((a: any) => {
+            internalForm.value.fieldMap?.forEach((a) => {
                 if (a.target && !names.includes(a.target)) {
                     a.target = '';
                 }
@@ -601,11 +617,11 @@ const handleGetTargetFields = async () => {
 
 // 提交动作：组装 fieldMap（含转换规则）后走统一提交
 const btnOk = async () => {
-    const reqForm: Record<string, unknown> = { ...internalForm.value };
-    // 将字段映射（含转换类型和配置）序列化为 JSON
-    reqForm.fieldMap = JSON.stringify(internalForm.value.fieldMap);
+    const form = requireForm();
+    // 字段映射（含转换类型与配置）序列化为 JSON 后提交
+    const reqForm = { ...form, fieldMap: JSON.stringify(form.fieldMap ?? []) };
     await saveExec(reqForm);
-    emit('val-change', internalForm.value);
+    emit('val-change', form);
 };
 
 const cancel = () => {

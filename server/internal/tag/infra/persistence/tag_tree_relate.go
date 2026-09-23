@@ -35,7 +35,7 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	if err := tr.SelectBySql(sql, &res, relateType, tagPaths); err != nil {
+	if err := tr.SelectBySQL(sql, &res, relateType, tagPaths); err != nil {
 		return res, err
 	}
 	return res, nil
@@ -60,7 +60,7 @@ ORDER BY
 	t.code_path
 	`
 	now := time.Now()
-	tr.SelectBySql(sql, &res, now, now, entity.TagRelateTypeTeam, accountId)
+	tr.SelectBySQL(sql, &res, now, now, entity.TagRelateTypeTeam, accountId)
 	return res
 }
 
@@ -82,6 +82,6 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	tr.SelectBySql(sql, &res, relateId, relateType)
+	tr.SelectBySQL(sql, &res, relateId, relateType)
 	return res
 }

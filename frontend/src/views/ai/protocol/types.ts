@@ -115,6 +115,10 @@ export interface Conversation {
     status: number;
     totalMessageCount: number;
     totalTokens: number;
+    /** 累计提示词 token（后端 vo.ConversationVO 直接下发，totalTokens = prompt + completion） */
+    promptTokens: number;
+    /** 累计生成词 token */
+    completionTokens: number;
     createTime: string;
     updateTime: string;
 }

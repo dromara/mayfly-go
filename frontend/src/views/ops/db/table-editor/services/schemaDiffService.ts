@@ -16,7 +16,7 @@ import type {
   IndexModification,
   ConstraintDiff,
   ConstraintModification,
-  ColumnDefinition,
+  TableColumnDefinition,
   TableIndexDefinition,
   ConstraintDefinition,
 } from '../../types/schema';
@@ -134,8 +134,8 @@ class SchemaDiffService {
    */
   private diffColumns(
     tableName: string,
-    sourceColumns: ColumnDefinition[],
-    targetColumns: ColumnDefinition[]
+    sourceColumns: TableColumnDefinition[],
+    targetColumns: TableColumnDefinition[]
   ): ColumnDiff {
     const result: ColumnDiff = {
       tableName,
@@ -183,7 +183,7 @@ class SchemaDiffService {
   /**
    * 对比单个列
    */
-  private diffColumn(source: ColumnDefinition, target: ColumnDefinition): string[] {
+  private diffColumn(source: TableColumnDefinition, target: TableColumnDefinition): string[] {
     const changes: string[] = [];
     const t = i18n.global.t;
     const none = t('db.diffNone');
@@ -204,30 +204,30 @@ class SchemaDiffService {
     }
     
     // 对比非空约束
-    if (source.notNull !== target.notNull) {
-      changes.push(`${t('db.diffChangeNotNull')}: ${source.notNull} -> ${target.notNull}`);
+    if (source.nullable !== target.nullable) {
+      changes.push(`${t('db.nullable')}: ${source.nullable} -> ${target.nullable}`);
     }
     
     // 对比主键
-    if (source.pri !== target.pri) {
-      changes.push(`${t('db.diffChangePri')}: ${source.pri} -> ${target.pri}`);
+    if (source.isPrimaryKey !== target.isPrimaryKey) {
+      changes.push(`${t('db.diffChangePri')}: ${source.isPrimaryKey} -> ${target.isPrimaryKey}`);
     }
     
     // 对比自增
-    if (source.auto_increment !== target.auto_increment) {
-      changes.push(`${t('db.diffChangeAutoInc')}: ${source.auto_increment} -> ${target.auto_increment}`);
+    if (source.autoIncrement !== target.autoIncrement) {
+      changes.push(`${t('db.diffChangeAutoInc')}: ${source.autoIncrement} -> ${target.autoIncrement}`);
     }
     
     // 对比默认值
-    const sourceDefault = source.value || source.defaultValue;
-    const targetDefault = target.value || target.defaultValue;
+    const sourceDefault = source.value;
+    const targetDefault = target.value;
     if (sourceDefault !== targetDefault) {
       changes.push(`${t('db.diffChangeDefault')}: ${sourceDefault || none} -> ${targetDefault || none}`);
     }
     
     // 对比注释
-    const sourceComment = source.remark || source.comment;
-    const targetComment = target.remark || target.comment;
+    const sourceComment = source.comment;
+    const targetComment = target.comment;
     if (sourceComment !== targetComment) {
       changes.push(`${t('db.diffChangeComment')}: ${sourceComment || none} -> ${targetComment || none}`);
     }

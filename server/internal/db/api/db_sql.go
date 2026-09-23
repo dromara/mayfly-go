@@ -9,81 +9,82 @@ import (
 	"mayfly-go/pkg/req"
 )
 
-type DbSql struct {
-	dbSqlApp application.DbSql `inject:"T"`
+type DbSQL struct {
+	dbSQLApp application.DbSQL `inject:"T"`
 }
 
-func (d *DbSql) ReqConfs() *req.Confs {
+func (d *DbSQL) ReqConfs() *req.Confs {
 	reqs := [...]*req.Conf{
 		// 用户sql相关
-		req.NewPost(":dbId/sql", d.SaveSql),
+		req.NewPost(":dbId/sql", d.SaveSQL),
 
-		req.NewGet(":dbId/sql", d.GetSql),
+		req.NewGet(":dbId/sql", d.GetSQL),
 
-		req.NewDelete(":dbId/sql", d.DeleteSql),
+		req.NewDelete(":dbId/sql", d.DeleteSQL),
 
-		req.NewGet(":dbId/sql-names", d.GetSqlNames),
+		req.NewGet(":dbId/sql-names", d.GetSQLNames),
 	}
 
 	return req.NewConfs("/dbs", reqs[:]...)
 }
 
-// @router /api/db/:dbId/sql [post]
-func (d *DbSql) SaveSql(rc *req.Ctx) {
-	dbSqlForm := rc.BindJson[form.DbSqlSaveForm]()
-	rc.ReqParam = dbSqlForm
+// @router /api/dbs/:dbId/sql [post]
+func (d *DbSQL) SaveSQL(rc *req.Ctx) {
+	dbSQLForm := rc.BindJson[form.DbSQLSaveForm]()
+	rc.ReqParam = dbSQLForm
 
 	dbId := getDbId(rc)
 
 	account := rc.GetLoginAccount()
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name, Db: dbSqlForm.Db}
-	dbSql.CreatorId = account.Id
-	e := d.dbSqlApp.GetByCond(dbSql)
+	dbSQL := &entity.DbSQL{Type: dbSQLForm.Type, DbId: dbId, Name: dbSQLForm.Name, Db: dbSQLForm.Db}
+	dbSQL.CreatorId = account.Id
+	e := d.dbSQLApp.GetByCond(dbSQL)
 
 	// 更新sql信息
-	dbSql.Sql = dbSqlForm.Sql
+	dbSQL.SQL = dbSQLForm.SQL
 	if e == nil {
-		d.dbSqlApp.UpdateById(rc.MetaCtx, dbSql)
+		d.dbSQLApp.UpdateById(rc.MetaCtx, dbSQL)
 	} else {
-		d.dbSqlApp.Insert(rc.MetaCtx, dbSql)
+		d.dbSQLApp.Insert(rc.MetaCtx, dbSQL)
 	}
 }
 
 // 获取所有保存的sql names
-func (d *DbSql) GetSqlNames(rc *req.Ctx) {
+func (d *DbSQL) GetSQLNames(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	dbName := getDbName(rc)
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
-	dbSql.CreatorId = rc.GetLoginAccount().Id
-	sqls, _ := d.dbSqlApp.ListByCond(model.NewModelCond(dbSql).Columns("id", "name"))
+	dbSQL := &entity.DbSQL{Type: 1, DbId: dbId, Db: dbName}
+	dbSQL.CreatorId = rc.GetLoginAccount().Id
+	sqls, err := d.dbSQLApp.ListByCond(model.NewModelCond(dbSQL).Columns("id", "name"))
+	biz.ErrIsNil(err)
 
 	rc.ResData = sqls
 }
 
 // 删除保存的sql
-func (d *DbSql) DeleteSql(rc *req.Ctx) {
-	dbSql := &entity.DbSql{Type: 1, DbId: getDbId(rc)}
-	dbSql.CreatorId = rc.GetLoginAccount().Id
-	dbSql.Name = rc.Query("name")
-	dbSql.Db = rc.Query("db")
+func (d *DbSQL) DeleteSQL(rc *req.Ctx) {
+	dbSQL := &entity.DbSQL{Type: 1, DbId: getDbId(rc)}
+	dbSQL.CreatorId = rc.GetLoginAccount().Id
+	dbSQL.Name = rc.Query("name")
+	dbSQL.Db = rc.Query("db")
 
-	biz.ErrIsNil(d.dbSqlApp.DeleteByCond(rc.MetaCtx, dbSql))
+	biz.ErrIsNil(d.dbSQLApp.DeleteByCond(rc.MetaCtx, dbSQL))
 }
 
-// @router /api/db/:dbId/sql [get]
-func (d *DbSql) GetSql(rc *req.Ctx) {
+// @router /api/dbs/:dbId/sql [get]
+func (d *DbSQL) GetSQL(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	dbName := getDbName(rc)
 	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
-	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
-	dbSql.CreatorId = rc.GetLoginAccount().Id
-	dbSql.Name = rc.Query("name")
+	dbSQL := &entity.DbSQL{Type: 1, DbId: dbId, Db: dbName}
+	dbSQL.CreatorId = rc.GetLoginAccount().Id
+	dbSQL.Name = rc.Query("name")
 
-	e := d.dbSqlApp.GetByCond(dbSql)
+	e := d.dbSQLApp.GetByCond(dbSQL)
 	if e != nil {
 		return
 	}
-	rc.ResData = dbSql
+	rc.ResData = dbSQL
 }

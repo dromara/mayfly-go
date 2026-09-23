@@ -43,6 +43,8 @@ func DumpDbScript(ctx context.Context, dbConn *dbi.DbConn, reqParam *dto.DumpDb)
 		WithDumpDDL(reqParam.DumpDDL).
 		WithDumpData(reqParam.DumpData).
 		WithTargetType(reqParam.TargetDbType).
+		WithSkipDropTable(reqParam.SkipDropTable).
+		WithNameCase(reqParam.NameCase).
 		WithLog(reqParam.Log).
 		WithProgress(reqParam.Progress)
 

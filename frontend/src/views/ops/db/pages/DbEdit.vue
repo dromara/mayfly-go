@@ -74,7 +74,7 @@ import { resourceAuthCertApi } from '../../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { DbGetDbNamesMode } from '../enums';
 import { useI18nFormValidate } from '@/hooks/useI18n';
-import { AutoForm, type AutoFormItem } from '@/components/auto-form';
+import { AutoForm, defineFormItems } from '@/components/auto-form';
 import type { Db, DbInstance, DbForm } from '../types';
 import type { ResourceAuthCert } from '@/types/common';
 
@@ -82,7 +82,9 @@ import type { ResourceAuthCert } from '@/types/common';
 
 const props = defineProps({
     instance: {
-        type: [Boolean, Object, null],
+        // 当前选中的数据库实例；false 表示尚未选择
+        type: Object as PropType<DbInstance | false | null>,
+        default: null,
     },
     db: {
         type: Object as PropType<Partial<Db> | null>,
@@ -108,23 +110,25 @@ const indeterminateDbNames = ref(false);
 
 const dbForm = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('dbForm');
 
+/** 新建态数据库表单初值（也是取消/重置时的回到形状） */
+const initialDbForm: DbForm = {
+    id: null,
+    name: null,
+    code: '',
+    getDatabaseMode: DbGetDbNamesMode.Auto.value,
+    database: '',
+    remark: '',
+    instanceId: null,
+    authCertName: '',
+};
+
 const state = reactive({
     allDatabases: [] as string[],
     dbNamesSelected: [] as string[],
     dbNamesFiltered: [] as string[],
     filterString: '',
-    selectInstalce: {} as Record<string, unknown>,
     authCerts: [] as ResourceAuthCert[],
-    form: {
-        id: null,
-        name: null,
-        code: '',
-        getDatabaseMode: DbGetDbNamesMode.Auto.value,
-        database: '',
-        remark: '',
-        instanceId: null as number | null,
-        authCertName: '',
-    } as DbForm,
+    form: { ...initialDbForm },
     instances: [] as DbInstance[],
     loadingDbNames: false,
 });
@@ -143,28 +147,29 @@ watch(dialogVisible, () => {
             state.dbNamesSelected = db.database?.split(' ') ?? [];
         }
     } else {
-        state.form = { getDatabaseMode: DbGetDbNamesMode.Auto.value, id: null, name: null, code: '', database: '', remark: '', instanceId: null, authCertName: '' };
+        state.form = { ...initialDbForm };
         state.dbNamesSelected = [];
     }
 });
 
-const onChangeGetDatabaseMode = (val: number) => {
+const onChangeGetDatabaseMode = (val?: number) => {
     if (val == DbGetDbNamesMode.Auto.value) {
         state.dbNamesSelected = [];
     }
 };
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；authCertName/database 选项渲染复杂走插槽） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<DbForm>，渲染 + 校验唯一数据源；authCertName/database 选项渲染复杂走插槽） */
+const items = defineFormItems<DbForm>([
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'authCertName', label: 'db.acName', required: true },
-    { prop: 'getDatabaseMode', label: 'db.getDbMode', type: 'enum', enums: DbGetDbNamesMode, required: true, onChange: (val: unknown) => onChangeGetDatabaseMode(val as number) },
+    // 改为自动获取时已选库名不再成立，需清空
+    { prop: 'getDatabaseMode', label: 'db.getDbMode', type: 'enum', enums: DbGetDbNamesMode, required: true, onChange: (_value, form) => onChangeGetDatabaseMode(form.getDatabaseMode) },
     { prop: 'database', label: 'DB' },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
-];
+]);
 
 const getAuthCerts = async () => {
-    const inst = props.instance as Partial<DbInstance> | false | null;
+    const inst = props.instance;
     const res = await resourceAuthCertApi.listByQuery.request({
         resourceCode: (inst && inst.code) || '',
         resourceType: TagResourceTypeEnum.DbInstance.value,
@@ -176,8 +181,10 @@ const getAuthCerts = async () => {
 const getAllDatabase = async (authCertName: string) => {
     try {
         state.loadingDbNames = true;
-        const req: Record<string, unknown> = { ...(props.instance as Record<string, unknown>) };
-        req.authCert = state.authCerts?.find((x: ResourceAuthCert) => x.name == authCertName);
+        const req = {
+            ...(props.instance || {}),
+            authCert: state.authCerts?.find((x: ResourceAuthCert) => x.name == authCertName),
+        };
         let dbs = await dbApi.getAllDatabase.request(req);
         state.allDatabases = dbs;
 

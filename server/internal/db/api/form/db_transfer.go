@@ -1,6 +1,9 @@
 package form
 
-import "mayfly-go/pkg/model"
+import (
+	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/pkg/model"
+)
 
 type DbTransferTaskForm struct {
 	model.ExtraData
@@ -8,7 +11,7 @@ type DbTransferTaskForm struct {
 	Id uint64 `json:"id"`
 
 	TaskName         string `binding:"required" json:"taskName"` // 任务名称
-	CronAble         int    `json:"cronAble"`                    // 是否定时  1是 -1否
+	CronEnabled      int    `json:"cronEnabled"`                 // 是否定时  1是 -1否
 	Cron             string `json:"cron"`                        // 定时任务cron表达式
 	Mode             int    `binding:"required" json:"mode"`     // 数据迁移方式，1、迁移到数据库  2、迁移到文件
 	TargetFileDbType string `json:"targetFileDbType"`            // 目标文件数据库类型
@@ -35,13 +38,8 @@ type DbTransferTaskForm struct {
 }
 
 type DbTransferTaskStatusForm struct {
-	Id     uint64 `binding:"required" json:"taskId" form:"taskId"`
-	Status int8   `json:"status" form:"status"`
-}
-
-type DbTransferFileForm struct {
-	Id       uint64 `json:"id"`
-	FileName string `json:"fileName" form:"fileName"`
+	Id     uint64                    `binding:"required" json:"taskId" form:"taskId"`
+	Status entity.TransferTaskStatus `json:"status" form:"status"`
 }
 
 type DbTransferFileRunForm struct {

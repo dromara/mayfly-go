@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/spf13/cast"
 	"mayfly-go/internal/tag/api/form"
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
@@ -106,7 +107,7 @@ func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) ([]*dto.SimpleT
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
 	cond := new(entity.TagTreeQuery)
 
-	cond.Id = uint64(rc.QueryInt("id"))
+	cond.Id = cast.ToUint64(rc.Query("id"))
 
 	if tagPaths := rc.Query("tagPaths"); tagPaths != "" {
 		cond.CodePaths = strings.Split(tagPaths, ",")
@@ -132,7 +133,7 @@ func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
-	biz.ErrIsNil(p.tagTreeApp.Delete(rc.MetaCtx, uint64(rc.PathParamInt("id"))))
+	biz.ErrIsNil(p.tagTreeApp.Delete(rc.MetaCtx, cast.ToUint64(rc.PathParam("id"))))
 }
 
 func (p *TagTree) ListResourceTags(rc *req.Ctx) {
@@ -185,5 +186,5 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 
 // 获取关联的标签id
 func (p *TagTree) GetRelateTagIds(rc *req.Ctx) {
-	rc.ResData = p.tagTreeRelateApp.GetTagPathsByRelate(entity.TagRelateType(rc.PathParamInt("relateType")), uint64(rc.PathParamInt("relateId")))
+	rc.ResData = p.tagTreeRelateApp.GetTagPathsByRelate(entity.TagRelateType(rc.PathParamInt("relateType")), cast.ToUint64(rc.PathParam("relateId")))
 }

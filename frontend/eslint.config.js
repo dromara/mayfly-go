@@ -29,6 +29,22 @@ export default [
     ...tseslint.configs.recommended,
     ...vuePlugin.configs['flat/recommended'],
     {
+        // 类型感知规则（单条引入，不开整套 recommendedTypeChecked 以免存量噪声淹没真正的问题）：
+        // 只拦截「不改变表达式类型的冗余断言」——as unknown as 这类静默逃逸堆积的成因。
+        // 仅覆盖 .ts：.vue 逐文件建型需额外扩展名声明且内存开销陡增，模板内断言由 vue-tsc 与审查兼顾
+        files: ['**/*.ts'],
+        languageOptions: {
+            parserOptions: {
+                projectService: true,
+                tsconfigRootDir: import.meta.dirname,
+                extraFileExtensions: ['.vue'],
+            },
+        },
+        rules: {
+            '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+        },
+    },
+    {
         files: ['**/*.{js,ts,tsx,vue}'],
         languageOptions: {
             ecmaVersion: 2021,

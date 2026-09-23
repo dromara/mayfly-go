@@ -115,7 +115,7 @@ func itInsertComplexRows(t *testing.T, conn *dbi.DbConn, table string) int {
 	for i := range cols {
 		ph = append(ph, itPlaceholder(conn, i+1))
 	}
-	insertSql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", quote(table), strings.Join(cols, ", "), strings.Join(ph, ", "))
+	insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", quote(table), strings.Join(cols, ", "), strings.Join(ph, ", "))
 
 	// JSON列取值：以合法JSON文本为主（非法JSON另由v_text覆盖）
 	jsonVals := []string{
@@ -141,7 +141,7 @@ func itInsertComplexRows(t *testing.T, conn *dbi.DbConn, table string) int {
 		if conn.Info.Type == "sqlite" {
 			jsonArg = jsonVals[i%len(jsonVals)]
 		}
-		_, err := conn.Exec(insertSql, int64(i+1), text, text, jsonArg, itComplexBlob, timeVal, numVal, nullVal)
+		_, err := conn.Exec(insertSQL, int64(i+1), text, text, jsonArg, itComplexBlob, timeVal, numVal, nullVal)
 		require.NoError(t, err, "写入第%d行失败, v_text=%q", i+1, text)
 	}
 	return total
@@ -191,9 +191,9 @@ var itTypedColumns = []string{"v_time", "v_num"}
 // TestITComplexStringsAcrossDialects 八种方言有序对的复杂字符串端到端保真验证
 func TestITComplexStringsAcrossDialects(t *testing.T) {
 	pairs := []itPair{
-		{itMysql, itPg}, {itMysql, itSqlite}, {itMysql, itMssql},
-		{itPg, itMysql}, {itPg, itSqlite},
-		{itSqlite, itMysql}, {itSqlite, itPg},
+		{itMysql, itPg}, {itMysql, itSQLite}, {itMysql, itMssql},
+		{itPg, itMysql}, {itPg, itSQLite},
+		{itSQLite, itMysql}, {itSQLite, itPg},
 		// mssql作为异构源：SQL Server的nvarchar/varbinary元数据与值形态进入dump链路
 		{itMssql, itMysql},
 	}

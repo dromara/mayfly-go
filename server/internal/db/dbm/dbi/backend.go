@@ -15,16 +15,14 @@ var (
 	instanceIndex   = make(map[uint64][]string) // instanceId → []connId
 )
 
-type DbVersion string
-
 // DbBackend 数据库方言后端（工厂）
 // 每个 DbType 注册一个 DbBackend，负责创建连接、提供方言、元数据等能力
 //
 // 工厂方法统一接收 *DbInfo（连接信息），不再依赖 *DbConn（连接实例），
 // 解耦工厂与产品容器，支持在无真实连接的场景下（如纯 SQL 生成、单元测试）独立使用方言能力。
 type DbBackend interface {
-	// GetSqlDb 根据数据库信息建立底层 *sql.DB 连接
-	GetSqlDb(context.Context, *DbInfo) (*sql.DB, error)
+	// GetSQLDb 根据数据库信息建立底层 *sql.DB 连接
+	GetSQLDb(context.Context, *DbInfo) (*sql.DB, error)
 
 	// GetDialect 获取数据库方言。接收 *DbInfo 而非 *DbConn，
 	// 方言内部需要执行 SQL 时通过 di.GetDb() 获取底层连接
@@ -129,34 +127,22 @@ func GetConnIdsByInstance(instanceId uint64) []string {
 	return cp
 }
 
-// ========== BaseBackend：DbBackend 默认基类 ==========
+// ========== DefaultBackend：DbBackend 默认基类 ==========
 
-// BaseBackend DbBackend 默认基类，提供 GetCapabilities 与 CommitTargetTx 的通用默认实现。
+// DefaultBackend DbBackend 默认基类，提供 GetCapabilities 与 CommitTargetTx 的通用默认实现。
 // 各方言 Backend 嵌入此结构体后，仅需覆写差异方法（如特殊能力声明或事务提交怪癖）。
-type BaseBackend struct{}
+type DefaultBackend struct{}
 
 // GetCapabilities 默认能力：全部支持（适用于 mssql/oracle/dm 等全功能方言）。
 // 能力不足的方言（mysql/sqlite/clickhouse 等）必须覆写此方法。
-func (b *BaseBackend) GetCapabilities() MetadataCapabilities {
-	return MetadataCapabilities{
-		SupportsSchemas:           true,
-		SupportsIndexes:           true,
-		SupportsForeignKeys:       true,
-		SupportsComments:          true,
-		SupportsDDLExport:         true,
-		SupportsGeneratedColumns:  true,
-		SupportsIdentityColumns:   true,
-		SupportsExpressionDefault: true,
-		NamespaceHierarchy: NamespaceHierarchy{
-			HasDatabase: true,
-			HasSchema:   true,
-		},
-	}
+func (b *DefaultBackend) GetCapabilities() MetadataCapabilities {
+	// 默认基类视为全能力方言（mssql/oracle/dm/pgsql 等）；能力不足的方言覆写删减
+	return NewAllCapabilities().WithNamespace(NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 
 // CommitTargetTx 默认提交：直接 tx.Commit()。
 // 方言后端若存在提交怪癖（如 mssql），覆写此方法处理。
-func (b *BaseBackend) CommitTargetTx(conn *DbConn, tx *sql.Tx) error {
+func (b *DefaultBackend) CommitTargetTx(conn *DbConn, tx *sql.Tx) error {
 	if tx == nil {
 		return nil
 	}

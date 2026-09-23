@@ -16,7 +16,7 @@ var (
 
 // FixColumnDefault 列默认值只剥去 ::type 的cast后缀，保留字面量的书写引号：
 //
-// 旧实现把引号一并还原为原始值，导致两类静默丢失：
+// 若把引号一并还原为原始值，会导致两类静默丢失：
 //   - 空串默认值经还原后为空串，与“无默认值”完全不可区分，迁建表时默认值丢失；
 //   - '(0)'、'unknown (pending)' 这类内容含括号的默认值，与表达式默认值不可区分，
 //     被“含左括号即视为函数”的规则丢弃。
@@ -49,7 +49,7 @@ func FixColumnDefault(column *dbi.Column) {
 		column.ColumnDefault = match
 	}
 	// pg的字面量默认值恒带引号，不带引号又呈函数/运算形态的必为表达式默认值（如uuid列的gen_random_uuid()）：
-	// 标记后统一不输出，旧逻辑会写成 DEFAULT 'gen_random_uuid()'，uuid/jsonb列建表即报非法输入，
+	// 标记后统一不输出，否则会写成 DEFAULT 'gen_random_uuid()'，uuid/jsonb列建表即报非法输入，
 	// text列则静默把函数名当成默认值内容
 	dbi.MarkExprDefault(column)
 }
@@ -57,19 +57,19 @@ func FixColumnDefault(column *dbi.Column) {
 // pg的函数默认值外层cast无需在此处理：实测pg会自行消除无意义cast（now()::timestamp回显为now()），
 // 仍残留cast文本的只能是无法跨库还原的表达式
 
-var _ dbi.DumpHelper = (*DumpHelper)(nil)
+var _ dbi.DumpTxnWrapper = (*DumpTxnWrapper)(nil)
 
-type DumpHelper struct {
-	dbi.DefaultDumpHelper
+type DumpTxnWrapper struct {
+	dbi.DefaultDumpTxnWrapper
 }
 
 // pg导入方（transfer2Db/ExecReader）已在自身事务内逐条执行，脚本内的BEGIN/COMMIT语句
 // 会提交/破坏外层事务（报 unexpected transaction status idle），故不输出，与sqlite/mssql保持一致
-func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+func (dh *DumpTxnWrapper) BeforeInsert(writer io.Writer, tableName string) error {
 	return nil
 }
 
-func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
+func (dh *DumpTxnWrapper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
 	// 设置自增序列当前值
 	for _, column := range columns {
 		if column.AutoIncrement {

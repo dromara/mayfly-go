@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"github.com/spf13/cast"
 	"mayfly-go/internal/milvus/domain/entity"
 	"mayfly-go/internal/milvus/domain/repository"
 	"mayfly-go/internal/milvus/imsg"
@@ -174,12 +175,12 @@ func (a *milvusAppImpl) Delete(ctx context.Context, id uint64) error {
 
 // GetMilvusClient 获取 Milvus 客户端
 func (a *milvusAppImpl) GetMilvusConn(rc *req.Ctx) (*mvm.MilvusConn, error) {
-	id := rc.PathParamInt("id")
+	id := cast.ToUint64(rc.PathParam("id"))
 	biz.IsTrue(id > 0, "milvusId error")
 
 	db := rc.Query("db")
 	// 连接层统一进行数据权限校验，避免各操作接口遗漏鉴权
-	milvusEntity, err := a.GetById(uint64(id))
+	milvusEntity, err := a.GetById(id)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +189,7 @@ func (a *milvusAppImpl) GetMilvusConn(rc *req.Ctx) (*mvm.MilvusConn, error) {
 	}
 
 	if db == "" {
-		m, err := a.GetById(uint64(id))
+		m, err := a.GetById(id)
 		if err != nil {
 			return nil, err
 		}
@@ -199,8 +200,8 @@ func (a *milvusAppImpl) GetMilvusConn(rc *req.Ctx) (*mvm.MilvusConn, error) {
 	}
 	// 读取 ac（授权凭证名），用于缓存键区分和连接凭证选择
 	acName := rc.Query("ac")
-	return mvm.GetMilvusConn(rc, uint64(id), db, acName, func() (*mvm.MilvusInfo, error) {
-		me, err := a.GetById(uint64(id))
+	return mvm.GetMilvusConn(rc, id, db, acName, func() (*mvm.MilvusInfo, error) {
+		me, err := a.GetById(id)
 		if err != nil {
 			return nil, errorx.NewBiz("milvus not found")
 		}

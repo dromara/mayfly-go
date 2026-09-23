@@ -214,7 +214,9 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
     const result = uaf.data.value as (Result & { error: unknown; status: number }) | undefined;
     if (!result) {
         Msg.error('common.requestFailedError');
-        return Promise.reject(result);
+        // 统一抛出 Error：业务失败时调用方 catch 到的是响应体对象，其 `String(err)` 分支对无原型对象会抛
+        // TypeError（面板直接崩），抛 Error 则各调用点的 `instanceof Error ? err.message` 能正常取到文案
+        return Promise.reject(new Error('common.requestFailedError'));
     }
     // es代理请求
     if (reqOptions?.esProxyReq) {
@@ -243,7 +245,7 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
 
         try {
             refreshingToken = true;
-            const res = await openApi.refreshToken({ refresh_token: getRefreshToken() }) as { token: string; refresh_token: string };
+            const res = await openApi.refreshToken({ refresh_token: getRefreshToken() });
             saveToken(res.token);
             saveRefreshToken(res.refresh_token);
             // 重新缓存后端用户权限code
@@ -269,14 +271,19 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
         await router.push({
             path: URL_401,
         });
-        return Promise.reject(result);
+        return Promise.reject(new Error(result.msg || ''));
     }
 
-    // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可。忽略登录超时或没有权限的提示（直接跳转至401页面）
+    // 返回码非成功时，错误 msg 已由下方统一 toast（无权限已跳转 401 页面）
+    let errMsg = '';
     if (result.msg && resultCode != ResultEnum.NO_PERMISSION) {
         Msg.error(result.msg);
-        uaf.error.value = new Error(result.msg);
+        errMsg = result.msg;
+        // 业务失败不会进入 fetch 自身的 error 通道，此处手动置位，保证 isError/error 与请求失败一致
+        uaf.error.value = new Error(errMsg);
     }
 
-    return Promise.reject(result);
+    // 抛 Error 而非响应体（msg 已由中心层 toast 过，此处仅供调用方展示细节）：避免调用点对对象做 String 转换报
+    // 「Cannot convert object to primitive value」
+    return Promise.reject(new Error(errMsg));
 }

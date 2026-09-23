@@ -9,6 +9,6 @@ import (
 type Instance interface {
 	base.Repo[*entity.DbInstance]
 
-	// 分页获取数据库实例信息列表
-	GetInstanceList(condition *entity.InstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
+	// GetPageList 分页获取数据库实例信息列表
+	GetPageList(condition *entity.DbInstanceQuery, orderBy ...string) (*model.PageResult[*entity.DbInstance], error)
 }

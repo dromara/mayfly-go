@@ -43,7 +43,7 @@ var itSpecialTableNames = []struct{ suffix, desc string }{
 // TestITSpecialTableNamesAcrossDialects 特殊表名三方言迁移链路
 func TestITSpecialTableNamesAcrossDialects(t *testing.T) {
 	pairs := []itPair{
-		{itMysql, itPg}, {itPg, itMysql}, {itSqlite, itPg},
+		{itMysql, itPg}, {itPg, itMysql}, {itSQLite, itPg},
 	}
 
 	for _, p := range pairs {

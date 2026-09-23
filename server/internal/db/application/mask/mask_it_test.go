@@ -17,22 +17,27 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	_ "mayfly-go/internal/db/dbm/dialect/mysql" // 注册mysql方言
 	_ "mayfly-go/internal/db/dbm/dialect/postgres"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 	masksvc "mayfly-go/internal/db/domain/mask"
+	"mayfly-go/internal/db/ititest/scratchclean"
 )
 
 const maskItMysqlDatabase = "mayfly_dbm_it"
 
 const maskItPgDatabase = "mayfly_pg_it"
+
+func TestMain(m *testing.M) {
+	os.Exit(scratchclean.Run(m.Run))
+}
 
 func maskItCtx() context.Context {
 	return context.Background()
@@ -40,21 +45,14 @@ func maskItCtx() context.Context {
 
 func maskMysqlConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
-	// 先连server确保库存在
-	serverConn, err := dbm.Conn(maskItCtx(), &dbi.DbInfo{Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: "information_schema"})
-	require.NoError(t, err)
-	defer serverConn.Close()
-	_, err = serverConn.Exec("CREATE DATABASE IF NOT EXISTS `" + maskItMysqlDatabase + "` DEFAULT CHARSET utf8mb4")
-	require.NoError(t, err)
-
-	conn, err := dbm.Conn(maskItCtx(), &dbi.DbInfo{Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: maskItMysqlDatabase})
+	conn, err := scratchclean.Conn(maskItCtx(), &dbi.DbInfo{Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: maskItMysqlDatabase})
 	require.NoError(t, err)
 	return conn
 }
 
 func maskPgConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
-	conn, err := dbm.Conn(maskItCtx(), &dbi.DbInfo{Type: "postgres", Host: "127.0.0.1", Port: 5432, Username: "postgres", Password: "postgres", Database: maskItPgDatabase})
+	conn, err := scratchclean.Conn(maskItCtx(), &dbi.DbInfo{Type: "postgres", Host: "127.0.0.1", Port: 5432, Username: "postgres", Password: "postgres", Database: maskItPgDatabase})
 	require.NoError(t, err)
 	require.NoError(t, conn.Ping())
 	return conn
@@ -600,7 +598,7 @@ func TestMaskITPgComplex2(t *testing.T) {
 	assertColMasked(t, cols, map[string]bool{cols[0].Key: true, cols[1].Key: false})
 	checkMaskedJson(t, cols)
 
-	// 4. 派生表大写列名：递归血缘精确归属，未命中表标签时全局规则兑底
+	// 4. 派生表大写列名：递归血缘精确归属，未命中表标签时全局规则兜底
 	rows, cols = runMaskQuery(t, conn, plan, `SELECT t."PHONE" FROM (SELECT "PHONE" FROM t_mask_user) t`)
 	require.Len(t, rows, 1)
 	assert.Equal(t, "138****1234", rows[0]["PHONE"], "PG派生表PHONE应通过血缘归属并走全局规则脱敏")
@@ -700,4 +698,99 @@ func TestMaskITPgKeywordColumn(t *testing.T) {
 		"SELECT CONCAT(t.comment, 'x') AS c3 FROM t_kw_mask t",
 		`SELECT CONCAT(t."comment", 'x') AS c4 FROM t_kw_mask t`,
 	})
+}
+
+// ========== MaskEngine 通用脱敏能力集成测试 ==========
+// 验证 Plan.MaskValue 在真实数据库数据上的行为，这是 MaskAppImpl.MaskValue/MaskRowMap
+// 的核心执行路径。其他模块注入 MaskEngine 后最终调用的就是这条链路。
+
+// TestMaskITPlanMaskValueMysql 验证 Plan.MaskValue 单值脱敏在 MySQL 真实数据上的行为
+func TestMaskITPlanMaskValueMysql(t *testing.T) {
+	conn := maskMysqlConn(t)
+	defer conn.Close()
+	setupMaskMysqlTables(t, conn)
+	plan := maskItPlan(t)
+
+	// 从真实数据库读取原始值
+	var rawRows []map[string]any
+	_, err := conn.WalkQueryRows(maskItCtx(), "SELECT phone, email, address FROM t_user",
+		func(row map[string]any, columns []*dbi.QueryColumn) error {
+			rawRows = append(rawRows, row)
+			return nil
+		})
+	require.NoError(t, err)
+	require.Len(t, rawRows, 1)
+
+	// 用 Plan.MaskValue 对每个值单独脱敏（模拟 MaskAppImpl.MaskValue 的核心路径）
+	phone := rawRows[0]["phone"]
+	maskedPhone := plan.MaskValue(maskItMysqlDatabase, "t_user", "phone", phone)
+	// t_user.phone 绑定hash标签
+	assert.Equal(t, maskItHash("13800001234"), maskedPhone, "MaskValue: t_user.phone应命中hash标签")
+
+	email := rawRows[0]["email"]
+	maskedEmail := plan.MaskValue(maskItMysqlDatabase, "t_user", "email", email)
+	// email命中全局正则规则
+	assert.NotEqual(t, "zhangsan@example.com", maskedEmail, "MaskValue: email应被脱敏")
+
+	addr := rawRows[0]["address"]
+	maskedAddr := plan.MaskValue(maskItMysqlDatabase, "t_user", "address", addr)
+	// address不命中任何规则
+	assert.Equal(t, "北京市朝阳区", maskedAddr, "MaskValue: address不应脱敏")
+
+	// t_log表整表豁免
+	maskedLogPhone := plan.MaskValue(maskItMysqlDatabase, "t_log", "phone", "13700003456")
+	assert.Equal(t, "13700003456", maskedLogPhone, "MaskValue: t_log.phone应豁免不脱敏")
+}
+
+// TestMaskITPlanMaskValuePg 验证 Plan.MaskValue 在 PostgreSQL 真实数据上的行为（大写列名场景）
+func TestMaskITPlanMaskValuePg(t *testing.T) {
+	conn := maskPgConn(t)
+	defer conn.Close()
+	setupMaskPgTables(t, conn)
+	plan := maskItPlan(t)
+
+	// PG大写列名：Plan.MaskValue大小写不敏感匹配
+	maskedPhone := plan.MaskValue(maskItPgDatabase, "t_mask_user", "PHONE", "13800001234")
+	assert.NotEqual(t, "13800001234", maskedPhone, "MaskValue: PG大写PHONE应被脱敏")
+
+	maskedName := plan.MaskValue(maskItPgDatabase, "t_mask_user", "USER_NAME", "zhangsan")
+	assert.NotEqual(t, "zhangsan", maskedName, "MaskValue: PG大写USER_NAME应被脱敏")
+
+	maskedAddr := plan.MaskValue(maskItPgDatabase, "t_mask_user", "ADDRESS", "北京市朝阳区")
+	assert.Equal(t, "北京市朝阳区", maskedAddr, "MaskValue: PG ADDRESS不应脱敏")
+}
+
+// TestMaskITPlanMaskRowMapPattern 验证行map脱敏模式（模拟 MaskAppImpl.MaskRowMap 的核心循环）
+func TestMaskITPlanMaskRowMapPattern(t *testing.T) {
+	conn := maskMysqlConn(t)
+	defer conn.Close()
+	setupMaskMysqlTables(t, conn)
+	plan := maskItPlan(t)
+
+	// 模拟 MaskRowMap 的核心逻辑：遍历map每个key，用Plan.MaskValue替换
+	row := map[string]any{
+		"phone":   "13800001234",
+		"email":   "zhangsan@example.com",
+		"address": "北京市朝阳区",
+		"id":      1,
+	}
+	for column, value := range row {
+		row[column] = plan.MaskValue(maskItMysqlDatabase, "t_user", column, value)
+	}
+
+	// phone命中hash标签
+	assert.Equal(t, maskItHash("13800001234"), row["phone"])
+	// email命中正则规则
+	assert.NotEqual(t, "zhangsan@example.com", row["email"])
+	// address不脱敏
+	assert.Equal(t, "北京市朝阳区", row["address"])
+	// id不脱敏（非敏感列）
+	assert.Equal(t, 1, row["id"])
+
+	// 空map不做任何修改
+	emptyRow := map[string]any{}
+	for column, value := range emptyRow {
+		emptyRow[column] = plan.MaskValue(maskItMysqlDatabase, "t_user", column, value)
+	}
+	assert.Empty(t, emptyRow)
 }

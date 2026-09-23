@@ -92,7 +92,7 @@
                             </template>
 
                             <div class="h-full" v-if="Number.isInteger(state.activeTabName) && Number.parseInt(String(state.activeTabName)) === index">
-                                <component lazy :ref="(el: unknown) => setComponentRef(el as ComponentPublicInstance, index)" :is="resource?.componentConf.component"></component>
+                                <component lazy :ref="(el: unknown) => setComponentRef(el, index)" :is="resource?.componentConf.component"></component>
                             </div>
                         </el-tab-pane>
                     </el-tabs>
@@ -127,29 +127,27 @@ import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { AutoFormDialog, type AutoFormItem } from '@/components/auto-form';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { getResourceConfigs } from '@/views/ops/resource/resource';
-import { computed, nextTick, onMounted, reactive, ref, toRefs, useTemplateRef, watch, type ComponentPublicInstance } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, toRefs, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import TagCodePath from '../component/TagCodePath.vue';
-import type { TagTree } from './types';
+import type { TagTree, TagTreeNode } from './types';
 import { tagApi } from './api';
 
-const compRefs = ref<ComponentPublicInstance[]>([]);
-const setComponentRef = (el: ComponentPublicInstance | null, index: number) => {
-    if (el) compRefs.value[index] = el;
+/** 标签下各资源子页统一暴露的检索入口（由子页 defineExpose({ search }) 约定） */
+interface SearchableResource {
+    search: (tagPath: string) => void;
+}
+
+const compRefs = ref<SearchableResource[]>([]);
+const setComponentRef = (el: unknown, index: number) => {
+    // 动态组件实例无法静态推知其 expose 的成员，按上面的契约在此唯一入口处收敛一次
+    if (el) compRefs.value[index] = el as SearchableResource;
 };
 
 const { t } = useI18n();
 
-interface TreeNodeData {
-    id: number;
-    type?: number;
-    codePath?: string;
-    namePath?: string;
-    name: string;
-    remark?: string;
-    children?: TreeNodeData[];
-    [key: string]: unknown;
-}
+/** 树侧节点即标签树 VO（含 children）；不再另定义一层 loosely-typed 形状，以免赋值时需断言 */
+type TreeNodeData = TagTreeNode;
 
 interface TreeNode {
     data: TreeNodeData;
@@ -169,9 +167,14 @@ const tagFormItems: AutoFormItem[] = [
 
 const TagDetail = 'tagDetail';
 
-const allNode = {
+/** 「全部资源」合成根：不对应任何标签记录，标识字段取空值，详情页签按 id 命中本节点时隐藏 */
+const allNode: TreeNodeData = {
     id: -1,
+    code: '',
+    codePath: '',
+    namePath: '',
     name: t('tag.allResource'),
+    remark: '',
     type: TagResourceTypeEnum.Tag.value,
     children: [],
 };
@@ -195,8 +198,15 @@ const contextmenuAdd = new ContextmenuItem('addTag', 'tag.createSubTag')
     .withPermission('tag:save')
     .withHideFunc((data: unknown) => {
         const d = data as TreeNodeData;
-        // 非标签类型不可添加子标签
-        return d.type != TagResourceTypeEnum.Tag.value || (!!d.children && d.children?.[0].type != TagResourceTypeEnum.Tag.value);
+        // 「所有资源」为前端合成根节点（非标签记录），在其下建子标签会以 pid=-1 提交，根层级新建走页面「+」按钮
+        if (d.id == allNode.id) {
+            return true;
+        }
+
+        // 非标签类型不可添加子标签；首个子节点已存在且不是标签时也不可
+        // （不能写成 d.children?.[0].type：子节点为空数组时 [0] 为 undefined，求值会报错导致整个右键菜单不弹出）
+        const firstChild = d.children?.[0];
+        return d.type != TagResourceTypeEnum.Tag.value || (!!firstChild && firstChild.type != TagResourceTypeEnum.Tag.value);
     })
     .withOnClick((data: unknown) => onShowSaveTagDialog(data as TreeNodeData));
 
@@ -219,7 +229,7 @@ const contextmenuDel = new ContextmenuItem('delete', 'common.delete')
     .withOnClick((data: unknown) => onDeleteTag(data as TreeNodeData));
 
 const state = reactive({
-    data: [] as TagTree[],
+    data: [] as TreeNodeData[],
     saveTabDialog: {
         title: '',
         visible: false,
@@ -241,7 +251,7 @@ const state = reactive({
         items: [contextmenuEdit, contextmenuAdd, contextmenuDel],
     },
     activeTabName: TagDetail as string | number,
-    currentTag: null as TagTree | null,
+    currentTag: null as TreeNodeData | null,
     resourceCount: {} as Record<string, number>,
 });
 
@@ -264,7 +274,7 @@ watch(filterTag, (val) => {
 
 watch(
     () => state.currentTag,
-    (val: TagTree | null) => {
+    (val: TreeNodeData | null) => {
         if (val?.type == TagResourceTypeEnum.Tag.value) {
             tagApi.countTagResource.request({ tagPath: val.codePath }).then((res: Record<string, number>) => {
                 state.resourceCount = res;
@@ -285,12 +295,12 @@ const setNowTabData = async () => {
     }
 };
 
-const getResouceCompRef = (index: number): Promise<{ search: (tagPath: string) => void }> => {
+const getResouceCompRef = (index: number): Promise<SearchableResource> => {
     // 使用一个 Promise 来确保组件引用已经被设置
     return new Promise((resolve) => {
         const checkRef = () => {
             if (compRefs.value[index]) {
-                resolve(compRefs.value[index] as unknown as { search: (tagPath: string) => void });
+                resolve(compRefs.value[index]);
             } else {
                 // 如果引用还没有设置，稍后再检查
                 setTimeout(checkRef, 10);
@@ -309,7 +319,7 @@ const filterNode = (value: string, data: TreeNodeData) => {
 
 const search = async () => {
     let res = await tagApi.getTagTrees.request({ flatten: '0' });
-    res.unshift(allNode as unknown as TagTree);
+    res.unshift(allNode);
     state.data = res;
 };
 
@@ -331,7 +341,7 @@ const onTreeNodeClick = async (data: TreeNodeData) => {
     contextmenuRef.value?.closeContextmenu();
 
     if (data.id == allNode.id) {
-        state.currentTag = data as unknown as TagTree;
+        state.currentTag = data;
         state.activeTabName = 0 as string | number;
         onTabChange();
         return;

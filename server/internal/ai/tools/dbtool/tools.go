@@ -21,7 +21,7 @@ func Tools() ([]tool.BaseTool, error) {
 		{"QueryTableDDL", GetQueryTableDDL},
 		{"QueryTables", GetQueryTables},
 		{"QueryData", GetQueryData},
-		{"ExecSql", GetSqlExec},
+		{"ExecSql", GetSQLExec},
 	}
 
 	toolList := make([]tool.BaseTool, 0, len(factories))

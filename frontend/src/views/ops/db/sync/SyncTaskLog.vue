@@ -7,7 +7,7 @@
                 <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml-2"></el-button>
             </template>
 
-            <!-- Phase 4: 同步指标概览卡片 -->
+            <!-- 同步指标概览卡片 -->
             <div v-if="state.latestLog" class="sync-metrics-summary mb-3">
                 <el-row :gutter="12">
                     <el-col :span="5">
@@ -36,7 +36,7 @@
             </div>
 
             <page-table ref="logTableRef" :page-api="dbSyncApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
-                <!-- Phase 4: 指标列自定义渲染 -->
+                <!-- 指标列自定义渲染 -->
                 <template #durationMs="{ data }">
                     <span :class="{ 'text-red-500': data.durationMs > 30000 }">{{ data.durationMs ? `${data.durationMs} ms` : '-' }}</span>
                 </template>
@@ -44,18 +44,18 @@
                     <span :class="{ 'text-green-500': data.throughput > 1000 }">{{ data.throughput || '-' }}</span>
                 </template>
                 <template #runLog="{ data }">
-                    <el-button v-if="data.runLog" type="primary" link size="small" @click="showRunLog(data)">
+                    <el-button type="primary" link size="small" @click="showRunLog(data)">
                         {{ $t('db.syncRunLog') }}
                     </el-button>
-                    <span v-else class="text-gray-400">-</span>
                 </template>
             </page-table>
 
             <!-- 运行日志弹窗（使用通用 LogViewer） -->
             <el-dialog v-model="runLogVisible" :title="$t('db.syncRunLog')" width="900px" :destroy-on-close="true">
                 <LogViewer
-                    v-if="runLogLines.length > 0"
+                    v-if="runLogLines.length > 0 || runLogLoading"
                     :lines="runLogLines"
+                    :loading="runLogLoading"
                     :finished="!state.realTime"
                     :total-lines="runLogLines.length"
                     :theme="runLogTheme"
@@ -76,7 +76,7 @@ import { TableColumn } from '@/components/page-table';
 import { LogViewer, SyncRunLogParser, type ParsedLogLine } from '@/components/log-viewer';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncLogStatusEnum } from '@/views/ops/db/sync/enums';
-import type { DataSyncLog } from '@/views/ops/db/types';
+import type { DataSyncLogListVO } from '@/views/ops/db/types';
 import type { PageResult } from '@/types/common';
 
 const props = defineProps({
@@ -108,6 +108,7 @@ const runLogParser = new SyncRunLogParser();
 
 // 运行日志弹窗状态
 const runLogVisible = ref(false);
+const runLogLoading = ref(false);
 const currentRunLog = ref('');
 const runLogLines = computed<ParsedLogLine[]>(() => {
     if (!currentRunLog.value) return [];
@@ -121,9 +122,22 @@ const runLogTheme = computed(() => ({
     showLevelIcon: true,
 }));
 
-const showRunLog = (data: DataSyncLog) => {
-    currentRunLog.value = data.runLog || '';
+const showRunLog = (data: DataSyncLogListVO) => {
     runLogVisible.value = true;
+    loadRunLog(data.id);
+};
+
+// 拉取单条执行日志的运行日志内容（列表接口不返回该大文本，避免日志较多时响应体膨胀），返回日志文本供调用方判断是否展示
+const loadRunLog = async (logId: number): Promise<string> => {
+    if (!logId) return '';
+    runLogLoading.value = true;
+    try {
+        const res = await dbSyncApi.datasyncLogRun.request({ logId });
+        currentRunLog.value = res?.runLog || '';
+        return currentRunLog.value;
+    } finally {
+        runLogLoading.value = false;
+    }
 };
 
 // 下载运行日志
@@ -177,15 +191,14 @@ const logTableRef: Ref<any> = ref(null);
 const search = async () => {
     try {
         logTableRef.value?.search();
-        // 实时模式下，获取最新日志的运行日志内容并自动更新展示
+        // 实时模式下，获取最新一条执行日志的运行日志内容并自动更新展示
         if (state.realTime && state.query.taskId) {
-            const res = (await dbSyncApi.datasyncLogs.request({ taskId: state.query.taskId, pageNum: 1, pageSize: 1 })) as PageResult<DataSyncLog>;
+            const res = await dbSyncApi.datasyncLogs.request({ taskId: state.query.taskId, pageNum: 1, pageSize: 1 });
             if (res?.list?.length > 0) {
                 const latestLog = res.list[0];
                 state.latestLog = latestLog;
-                if (latestLog.runLog) {
-                    currentRunLog.value = latestLog.runLog;
-                    // 任务运行中时自动打开运行日志弹窗
+                // 运行内容按日志 id 单独拉取，有内容时自动弹出（任务未开始时不弹出，避免空弹窗反复闪现）
+                if (await loadRunLog(latestLog.id)) {
                     if (!runLogVisible.value) {
                         nextTick(() => {
                             runLogVisible.value = true;
@@ -217,7 +230,7 @@ const state = reactive({
     polling: false,
     pollingIndex: 0 as any,
     realTime: props.running,
-    latestLog: null as DataSyncLog | null,
+    latestLog: null as DataSyncLogListVO | null,
     query: {
         taskId: 0,
         name: null,

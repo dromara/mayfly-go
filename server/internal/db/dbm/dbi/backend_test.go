@@ -11,11 +11,11 @@ import (
 
 // stubBackend 测试用DbBackend实现
 type stubBackend struct {
-	BaseBackend
+	DefaultBackend
 	dialect Dialect
 }
 
-func (m *stubBackend) GetSqlDb(ctx context.Context, d *DbInfo) (*sql.DB, error) { return nil, nil }
+func (m *stubBackend) GetSQLDb(ctx context.Context, d *DbInfo) (*sql.DB, error) { return nil, nil }
 func (m *stubBackend) GetDialect(d *DbInfo) Dialect                             { return m.dialect }
 func (m *stubBackend) GetServerInfo(d *DbInfo) ServerInfo                       { return nil }
 func (m *stubBackend) GetMetadataProvider(d *DbInfo) MetadataProvider           { return nil }

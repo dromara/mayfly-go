@@ -31,14 +31,18 @@ type DataSyncTaskListVO struct {
 	ReverseTaskId uint64 `json:"reverseTaskId"`
 }
 
+// DataSyncLogListVO 数据同步执行日志列表行。
+// 不含 runLog/dataSqlFull：两者为 text 大字段，列表一次返回多条会使响应体膨胀至数百 KB，
+// 运行日志由按日志 id 的接口单条获取
 type DataSyncLogListVO struct {
-	CreateTime  *time.Time `json:"createTime"`
-	DataSqlFull string     `json:"dataSqlFull"`
-	ResNum      int        `json:"resNum"`
-	ErrText     string     `json:"errText"`
-	Status      *int       `json:"status"`
+	Id         uint64     `json:"id"`
+	CreateTime *time.Time `json:"createTime"`
+	TaskId     uint64     `json:"taskId"`
+	ResNum     int        `json:"resNum"`
+	ErrText    string     `json:"errText"`
+	Status     *int       `json:"status"`
 
-	// Phase 4: 监控指标
+	// 监控指标
 	DurationMs    int64 `json:"durationMs"`
 	Throughput    int   `json:"throughput"`
 	BatchCount    int   `json:"batchCount"`
@@ -47,7 +51,11 @@ type DataSyncLogListVO struct {
 	DeleteCount   int   `json:"deleteCount"`
 	SkipCount     int   `json:"skipCount"`
 	SchemaChanges int   `json:"schemaChanges"`
+}
 
-	// 运行日志
+// DataSyncLogRunVO 单条数据同步执行日志的运行日志内容
+type DataSyncLogRunVO struct {
+	Id     uint64 `json:"id"`
+	Status int8   `json:"status"`
 	RunLog string `json:"runLog"`
 }

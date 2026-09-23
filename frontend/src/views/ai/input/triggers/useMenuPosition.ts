@@ -38,7 +38,7 @@ export function useMenuPosition() {
         });
 
         const applyPosition = () =>
-            computePosition({ getBoundingClientRect: () => buildRect(getCoords()) } as HTMLElement, menuEl, {
+            computePosition({ getBoundingClientRect: () => buildRect(getCoords()) }, menuEl, {
                 placement: 'top-start',
                 middleware: [offset(8), flip(), shiftMiddleware({ padding: 8 })],
             }).then(({ x, y }) => {
@@ -50,7 +50,7 @@ export function useMenuPosition() {
 
         applyPosition();
         stopAutoUpdate();
-        stopAutoUpdate = autoUpdate({ getBoundingClientRect: () => buildRect(getCoords()) } as HTMLElement, menuEl, applyPosition);
+        stopAutoUpdate = autoUpdate({ getBoundingClientRect: () => buildRect(getCoords()) }, menuEl, applyPosition);
     };
 
     const stop = () => {

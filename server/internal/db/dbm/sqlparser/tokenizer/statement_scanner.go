@@ -284,7 +284,7 @@ func quoteKindLabel(r rune) string {
 	return string(r)
 }
 
-// isQuoteStart 下标处（已解码 rune）是否为方言引用符/字符串起始符（委派能力表，与 MaskSqlComments 同源）
+// isQuoteStart 下标处（已解码 rune）是否为方言引用符/字符串起始符（委派能力表，与 MaskSQLComments 同源）
 func (s *StatementScanner) isQuoteStart(r rune) bool {
 	return s.cfg.IsQuoteStart(r)
 }
@@ -334,7 +334,7 @@ func (s *StatementScanner) consumeWord(word string, pos, wordEnd int, allowBlock
 		}
 	case "declare":
 		// PL-SQL 匿名块：DECLARE 变量段内的分号属声明结尾，仅语句起始且无块上下文时入块
-		// （T-SQL 的 DECLARE 是独立语句，BlockSql 档位不处理）
+		// （T-SQL 的 DECLARE 是独立语句，BlockSQL 档位不处理）
 		if len(s.blockStack) == 0 && strings.TrimSpace(s.buf[:pos]) == "" {
 			s.pushBlock("declare")
 		}

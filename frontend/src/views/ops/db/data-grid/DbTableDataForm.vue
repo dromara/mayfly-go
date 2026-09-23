@@ -18,7 +18,7 @@
                     :data-type="dbInst.getDialect().getDataType(column.dataType ?? '')"
                     :placeholder="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType"
                     :column-name="column.columnName"
-                    :disabled="column.autoIncrement"
+                    :disabled="column.autoIncrement || column.masked"
                 />
             </el-form-item>
         </el-form>
@@ -34,7 +34,7 @@ import { ref, watch, onMounted, useTemplateRef } from 'vue';
 import type { FormInstance } from 'element-plus';
 import ColumnValueInput from '../widgets/ColumnValueInput.vue';
 import { DbInst } from '../db';
-import { useI18nFormValidate } from '@/hooks/useI18n';
+import { useI18nFormValidate, Msg } from '@/hooks/useI18n';
 import type { TableColumnDef } from '../types';
 
 /**
@@ -115,6 +115,12 @@ const onConfirm = async () => {
         sql = await dbInst.genUpdateSql(db, tableName, updateColumnValue, old);
     } else {
         sql = await dbInst.genInsertSql(db, tableName, [data], true);
+    }
+
+    if (!sql) {
+        // 更新场景无主键：无法安全定位单行，禁止提交
+        Msg.warning('db.needPkToOperate');
+        return;
     }
 
     dbInst.promptExeSql(db, sql, undefined, () => {

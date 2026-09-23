@@ -2,7 +2,7 @@
  * DB 模块 VO 类型定义
  * 表信息、列元数据、表格列定义等视图对象
  */
-import type { RowDefinition, IndexDefinition } from '../dialect/types';
+import type { ColumnDefinition, IndexDefinition } from '../dialect/types';
 import type { DbInstInfo } from './entity';
 
 // ==================== 表信息 ====================
@@ -111,7 +111,7 @@ export interface TableOpData {
     /** 表基本信息 (tableName/tableComment) */
     row: Record<string, unknown>;
     /** 表索引信息 */
-    indexs?: Record<string, unknown>[];
+    indexes?: Record<string, unknown>[];
     /** 表列元数据 */
     columns?: ColumnMetadata[];
     /** 预处理的表单数据（编辑模式由 onEditTable 提前构建，避免 watch 阻塞抽屉动画） */
@@ -121,8 +121,8 @@ export interface TableOpData {
         oldTableName: string;
         oldTableComment: string;
         db?: string;
-        fields: { res: RowDefinition[]; oldFields: RowDefinition[] };
-        indexs: { res: IndexDefinition[]; oldIndexs: IndexDefinition[]; columns: { name: string; remark: string }[] };
+        fields: { res: ColumnDefinition[]; oldFields: ColumnDefinition[] };
+        indexes: { res: IndexDefinition[]; oldIndexes: IndexDefinition[]; columns: { name: string; comment: string }[] };
     };
 }
 
@@ -158,6 +158,26 @@ export interface DbNodeParams {
 }
 
 /**
+ * db 资源树「扩展元数据对象」叶子节点（视图/序列/存储过程…）的 params。
+ *
+ * 生产方是 contributors.ts 的 DbObjectMenuKind（展开后端 MetadataObject 时叠加对象字段），
+ * 消费方是 DbDataOp 的对象查看回调（查看 DDL / 属性面板 / 浏览数据）。
+ * 继承库粒度 DbNodeParams，仅补充对象级字段。
+ */
+export interface DbObjectNodeParams extends DbNodeParams {
+    /** 数据库类型（对象节点必带，用于取方言） */
+    type: string;
+    /** 对象类别（view/sequence/...），与后端 dbi.ObjectKind 对齐 */
+    objKind: string;
+    /** 对象名 */
+    objName: string;
+    /** 所属 schema（pg 等分层库有；mysql 类可缺省） */
+    schema?: string;
+    /** 对象定义属性（如序列 dataType/startValue/...），随 meta-objects 列表返回 */
+    objAttrs?: Record<string, unknown>;
+}
+
+/**
  * db 资源树「表」粒度节点的 params。
  *
  * 生产方是 resource/contributors.ts 的表节点（由库节点 params 展开后叠加表字段），
@@ -188,6 +208,10 @@ export interface DbTableNodeParams extends DbNodeParams {
 export interface DbTreeNodeData extends DbInstInfo {
     /** 资源树节点 key */
     nodeKey?: string;
+    /** 实例 code（资源树节点 key 首段，用于重建 sql-menu 等节点 key） */
+    instCode?: string;
+    /** 库 code（资源树节点 key 中段，同上） */
+    dbCode?: string;
     /** 实例下的库名列表 */
     dbs?: string[];
     /** 当前库名 */

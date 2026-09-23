@@ -57,19 +57,19 @@ var (
 		imsg.DbDumpFailMsg,
 		MsgChannelSite, MsgChannelWs)
 
-	MsgTmplSqlScriptRunFail = newMsgTmpl(entity.MsgTypeNotify,
-		entity.MsgSubtypeSqlScriptRunFail,
+	MsgTmplSQLScriptRunFail = newMsgTmpl(entity.MsgTypeNotify,
+		entity.MsgSubtypeSQLScriptRunFail,
 		entity.MsgStatusRead,
-		imsg.SqlScriptRunFailMsg,
+		imsg.SQLScriptRunFailMsg,
 		MsgChannelSite, MsgChannelWs)
 
-	MsgTmplSqlScriptRunSuccess = newMsgTmpl(entity.MsgTypeNotify,
-		entity.MsgSubtypeSqlScriptRunSuccess,
+	MsgTmplSQLScriptRunSuccess = newMsgTmpl(entity.MsgTypeNotify,
+		entity.MsgSubtypeSQLScriptRunSuccess,
 		entity.MsgStatusRead,
-		imsg.SqlScriptRunSuccessMsg,
+		imsg.SQLScriptRunSuccessMsg,
 		MsgChannelSite, MsgChannelWs)
 
-	MsgTmplSqlScriptRunProgress = &MsgTmplChannel{
+	MsgTmplSQLScriptRunProgress = &MsgTmplChannel{
 		Tmpl: &entity.MsgTmpl{
 			ExtraData: model.ExtraData{
 				Extra: collx.M{

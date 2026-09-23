@@ -28,6 +28,20 @@ WHERE
   )
 ORDER BY table_name
 ---------------------------------------
+--MYSQL_TABLE_SEARCH 表名模糊检索（服务端下推，超大 schema 资源树按需加载；? 为 LIKE 模式，可选 LIMIT ?）
+SELECT
+  table_name tableName,
+  table_comment tableComment,
+  table_rows tableRows,
+  data_length dataLength,
+  index_length indexLength,
+  create_time createTime
+FROM information_schema.tables
+WHERE table_type = 'BASE TABLE'
+  AND table_schema = (SELECT database())
+  AND table_name LIKE ?
+ORDER BY table_name
+---------------------------------------
 --MYSQL_INDEX_INFO 索引信息
 SELECT
   index_name indexName,
@@ -96,3 +110,46 @@ WHERE table_schema = (SELECT DATABASE())
   AND table_name IN (%s)
 ORDER BY table_name,
          ordinal_position
+---------------------------------------
+--MYSQL_VIEWS 视图信息
+SELECT
+  v.table_schema viewSchema,
+  v.table_name viewName,
+  v.view_definition viewDefinition,
+  COALESCE(t.table_comment, '') viewComment
+FROM information_schema.views v
+LEFT JOIN information_schema.tables t
+  ON t.table_schema = v.table_schema AND t.table_name = v.table_name
+WHERE v.table_schema = COALESCE(NULLIF(?, ''), DATABASE())
+ORDER BY v.table_name
+---------------------------------------
+--MYSQL_TABLE_RELATIONS 外键关系
+SELECT
+  k.constraint_name fkName,
+  k.column_name columnName,
+  k.referenced_table_name refTable,
+  k.referenced_column_name refColumn,
+  r.update_rule updateRule,
+  r.delete_rule deleteRule
+FROM information_schema.KEY_COLUMN_USAGE k
+JOIN information_schema.REFERENTIAL_CONSTRAINTS r
+  ON r.constraint_schema = k.constraint_schema AND r.constraint_name = k.constraint_name
+WHERE k.table_schema = COALESCE(NULLIF(?, ''), DATABASE())
+  AND k.table_name = ?
+  AND k.referenced_table_name IS NOT NULL
+ORDER BY k.constraint_name, k.ordinal_position
+
+---------------------------------------
+--MYSQL_TABLE_KEYS 主键与唯一键约束（成员列按键内序号有序）
+SELECT
+  tc.constraint_name keyName,
+  tc.constraint_type keyType,
+  k.column_name columnName,
+  k.ordinal_position ordinal
+FROM information_schema.TABLE_CONSTRAINTS tc
+JOIN information_schema.KEY_COLUMN_USAGE k
+  ON k.constraint_schema = tc.constraint_schema AND k.constraint_name = tc.constraint_name AND k.table_name = tc.table_name
+WHERE tc.table_schema = COALESCE(NULLIF(?, ''), DATABASE())
+  AND tc.table_name = ?
+  AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+ORDER BY tc.constraint_name, k.ordinal_position

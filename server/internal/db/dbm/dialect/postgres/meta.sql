@@ -39,6 +39,24 @@ WHERE
 ORDER BY
   c.relname;
 ---------------------------------------
+--PGSQL_TABLE_SEARCH 表名服务端搜索（LIKE 下推，$1 为绑定模式；可选 LIMIT 由代码追加；schema 取 current_schema()，与 PGSQL_TABLE_INFO 同源）
+SELECT DISTINCT
+  c.relname AS "tableName",
+  COALESCE(b.description, '') AS "tableComment",
+  pg_total_relation_size(c.oid) AS "dataLength",
+  pg_indexes_size(c.oid) AS "indexLength",
+  psut.n_live_tup AS "tableRows"
+FROM
+  pg_class c
+  LEFT JOIN pg_description b ON c.oid = b.objoid AND b.objsubid = 0
+  JOIN pg_stat_user_tables psut ON psut.relid = c.oid
+WHERE
+  c.relkind = 'r'
+  AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = current_schema())
+  AND c.relname LIKE $1
+ORDER BY
+  c.relname;
+---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT a.indexname                                                         AS "indexName",
        'BTREE'                                                           AS "IndexType",
@@ -116,3 +134,80 @@ WHERE
 ORDER BY
   a.table_name,
   a.ordinal_position;
+---------------------------------------
+--PGSQL_VIEWS 视图信息
+SELECT
+  n.nspname AS "schemaName",
+  c.relname AS "viewName",
+  pg_get_viewdef(c.oid) AS "viewDefinition",
+  COALESCE(obj_description(c.oid), '') AS "viewComment"
+FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'v'
+  AND n.nspname = COALESCE(NULLIF('%s', ''), current_schema())
+ORDER BY c.relname
+---------------------------------------
+--PGSQL_SEQUENCES 序列信息（含定义属性 + 当前值，供前端「属性面板」直接展示，免二次查询）
+SELECT
+  n.nspname AS "schemaName",
+  c.relname AS "seqName",
+  COALESCE(obj_description(c.oid), '') AS "seqComment",
+  format_type(s.seqtypid, NULL) AS "dataType",
+  s.seqstart AS "startValue",
+  s.seqincrement AS "incrementBy",
+  s.seqmin AS "minValue",
+  s.seqmax AS "maxValue",
+  s.seqcache AS "cacheSize",
+  s.seqcycle AS "isCycle",
+  COALESCE(ps.last_value::text, '') AS "lastValue"
+FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_sequence s ON s.seqrelid = c.oid
+  LEFT JOIN pg_sequences ps ON ps.schemaname = n.nspname AND ps.sequencename = c.relname
+WHERE c.relkind = 'S'
+  AND n.nspname = COALESCE(NULLIF('%s', ''), current_schema())
+ORDER BY c.relname
+---------------------------------------
+--PGSQL_VIEW_DDL 视图定义
+SELECT pg_get_viewdef(c.oid) AS "viewDefinition"
+FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'v'
+  AND n.nspname = COALESCE(NULLIF('%s', ''), current_schema())
+  AND c.relname = '%s'
+---------------------------------------
+--PGSQL_SEQUENCE_DDL 序列定义（pg 无内建序列DDL函数，由 pg_sequence 目录列重建 CREATE SEQUENCE）
+SELECT
+  'CREATE SEQUENCE ' || quote_ident(n.nspname) || '.' || quote_ident(c.relname)
+  || ' AS ' || format_type(s.seqtypid, NULL)
+  || ' INCREMENT BY ' || s.seqincrement
+  || ' MINVALUE ' || s.seqmin
+  || ' MAXVALUE ' || s.seqmax
+  || ' START WITH ' || s.seqstart
+  || ' CACHE ' || s.seqcache
+  || CASE WHEN s.seqcycle THEN ' CYCLE' ELSE ' NO CYCLE' END AS "sequenceDdl"
+FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  JOIN pg_sequence s ON s.seqrelid = c.oid
+WHERE c.relkind = 'S'
+  AND n.nspname = COALESCE(NULLIF('%s', ''), current_schema())
+  AND c.relname = '%s'
+
+---------------------------------------
+--PGSQL_TABLE_KEYS 主键与唯一键约束（成员列按键内序号有序）
+-- 注意：information_schema.key_column_usage.ordinal_position 是「列在表中的位置」而非「键内序」（PG 知名坑），
+-- 故用 pg_constraint.conkey 的 unnest WITH ORDINALITY 取真实键内顺序；contype p=主键 u=唯一键。
+SELECT
+  con.conname AS "keyName",
+  CASE con.contype WHEN 'p' THEN 'PRIMARY KEY' WHEN 'u' THEN 'UNIQUE' END AS "keyType",
+  a.attname AS "columnName",
+  ck.ord AS "ordinal"
+FROM pg_constraint con
+JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS ck(attnum, ord) ON true
+JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ck.attnum
+JOIN pg_class c ON c.oid = con.conrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = COALESCE(NULLIF('%s', ''), current_schema())
+  AND c.relname = '%s'
+  AND con.contype IN ('p', 'u')
+ORDER BY con.conname, ck.ord

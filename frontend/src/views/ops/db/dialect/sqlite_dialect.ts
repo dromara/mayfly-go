@@ -6,11 +6,11 @@ import type {
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
-    RowDefinition,
-    sqlColumnType,
+    ColumnDefinition,
+    SqlColumnType,
     SqlSnippetTemplate,
 } from './types';
-import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
+import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { appendLimitSql, getDefaultDataType, wrapValueDefault } from './shared/utils';
 import { defineCapabilities, sqliteQuotePairs, sqliteSplitOptions } from './shared/capabilities';
 import { limitCommaPageSnippet } from './shared/snippets';
@@ -19,7 +19,7 @@ import { registerDbDialect } from './registry';
 import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
 // 参考官方文档：https://www.sqlite.org/datatype3.html
-const SQLITE_TYPE_LIST: sqlColumnType[] = [
+const SQLITE_TYPE_LIST: SqlColumnType[] = [
     // INTEGER
     { udtName: 'int', dataType: 'int', desc: '', space: '', range: '' },
     { udtName: 'integer', dataType: 'integer', desc: '', space: '', range: '' },
@@ -189,8 +189,8 @@ class SqliteDialect implements DbDialect {
         return limitCommaPageSnippet;
     }
 
-    getDefaultRows(): RowDefinition[] {
-        return createDefaultRows(defaultRowsConfigs.sqlite);
+    getDefaultColumns(): ColumnDefinition[] {
+        return createDefaultColumns(defaultColumnConfigs.sqlite);
     }
 
     getDefaultIndex(): IndexDefinition {
@@ -208,17 +208,22 @@ class SqliteDialect implements DbDialect {
         return `\"${name}\"`;
     };
 
-    genColumnBasicSql(cl: RowDefinition): string {
+    genColumnBasicSql(cl: ColumnDefinition, inlinePk: boolean = true): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
         let length = '';
         if (cl.length) {
             length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
         }
-        let nullAble = cl.notNull ? 'NOT NULL' : 'NULL';
-        if (cl.pri) {
-            const parts = [this.quoteIdentifier(cl.name), cl.type + length, 'PRIMARY KEY', cl.auto_increment ? 'AUTOINCREMENT' : '', nullAble];
+        let nullAble = cl.nullable ? 'NULL' : 'NOT NULL';
+        // 单/无主键：列内联 PRIMARY KEY（AUTOINCREMENT 依赖 "INTEGER PRIMARY KEY AUTOINCREMENT" 的列内联形态）
+        if (cl.isPrimaryKey && inlinePk) {
+            const parts = [this.quoteIdentifier(cl.name), cl.type + length, 'PRIMARY KEY', cl.autoIncrement ? 'AUTOINCREMENT' : '', nullAble];
             return parts.filter(Boolean).join(' ');
+        }
+        // 复合主键：不能逐列内联 PRIMARY KEY（SQLite 报「more than one primary key」），改由表级约束声明，主键列强制 NOT NULL
+        if (cl.isPrimaryKey) {
+            nullAble = 'NOT NULL';
         }
         const parts = [this.quoteIdentifier(cl.name), cl.type + length, nullAble, defVal];
         return parts.filter(Boolean).join(' ');
@@ -226,10 +231,16 @@ class SqliteDialect implements DbDialect {
 
     getCreateTableSql(data: TableEditContext): string {
         // 创建表结构
+        const pkCols = data.fields.res.filter((item) => item.name && item.isPrimaryKey);
+        // 复合主键走表级约束（inlinePk=false），单/无主键保持列内联
+        const inlinePk = pkCols.length <= 1;
         let fields: string[] = [];
-        data.fields.res.forEach((item: RowDefinition) => {
-            item.name && fields.push(this.genColumnBasicSql(item));
+        data.fields.res.forEach((item: ColumnDefinition) => {
+            item.name && fields.push(this.genColumnBasicSql(item, inlinePk));
         });
+        if (pkCols.length > 1) {
+            fields.push(`PRIMARY KEY (${pkCols.map((c) => this.quoteIdentifier(c.name)).join(', ')})`);
+        }
 
         return `CREATE TABLE ${this.quoteIdentifier(data.tableName)} (\n  ${fields.join(',\n  ')}\n);`;
     }
@@ -237,7 +248,7 @@ class SqliteDialect implements DbDialect {
     getCreateIndexSql(data: TableEditContext): string {
         // 创建索引
         let sql = [] as string[];
-        data.indexs.res.forEach((a: IndexDefinition) => {
+        data.indexes.res.forEach((a: IndexDefinition) => {
             const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
             sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${this.quoteIdentifier(data.tableName)} (${cols})`);
         });
@@ -252,13 +263,13 @@ class SqliteDialect implements DbDialect {
     getModifyColumnSql(
         tableData: TableEditContext,
         tableName: string,
-        changeData: ChangeDiff<RowDefinition>
+        changeData: ChangeDiff<ColumnDefinition>
     ): string {
         // sqlite修改表结构需要先删除再创建
         let sql = [] as string[];
 
         // 1.删除旧表索引
-        tableData.indexs.res.forEach((a: IndexDefinition) => {
+        tableData.indexes.res.forEach((a: IndexDefinition) => {
             a.indexName && sql.push(`DROP INDEX ${this.quoteIdentifier(a.indexName)}`);
         });
 
@@ -275,7 +286,7 @@ class SqliteDialect implements DbDialect {
 
         let queryFields = [] as string[];
         let insertFields = [] as string[];
-        tableData.fields.res.forEach((a: RowDefinition) => {
+        tableData.fields.res.forEach((a: ColumnDefinition) => {
             if (addFields.includes(a.name) || delFields.includes(a.name)) {
                 return;
             }
@@ -289,7 +300,7 @@ class SqliteDialect implements DbDialect {
         }
 
         // 5.创建索引
-        tableData.indexs.res.forEach((a: IndexDefinition) => {
+        tableData.indexes.res.forEach((a: IndexDefinition) => {
             if (a.indexName) {
                 const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
                 sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${this.quoteIdentifier(tableName)} (${cols})`);

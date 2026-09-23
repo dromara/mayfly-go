@@ -1,7 +1,7 @@
 // Package sqlparser SQL 解析器框架。
 //
 // 设计原则：
-//   - 核心接口 SqlParser 仅定义 Parse（所有方言必须实现）
+//   - 核心接口 SQLParser 仅定义 Parse（所有方言必须实现）
 //   - 可选能力通过独立接口声明（PaginationRewriter / StatementClassifier）
 //   - 调用方通过类型断言检测能力，实现开闭原则：
 //     新增能力不修改现有接口/实现，仅新增接口 + 按需实现
@@ -14,9 +14,9 @@ import (
 
 // ========== 核心接口 ==========
 
-// SqlParser SQL 解析器核心接口。
+// SQLParser SQL 解析器核心接口。
 // 所有方言必须实现此接口，提供基础的 SQL 解析能力。
-type SqlParser interface {
+type SQLParser interface {
 	// Parse 解析单条 SQL 语句为 AST
 	Parse(stmt string) (sqlstmt.Stmt, error)
 }
@@ -40,40 +40,25 @@ type StatementClassifier interface {
 
 // ========== 便捷函数（封装类型断言，调用方无需关心断言逻辑）==========
 
-// GetPaginationRewriter 尝试从 SqlParser 获取分页改写能力。
+// GetPaginationRewriter 尝试从 SQLParser 获取分页改写能力。
 // 若 parser 不支持此能力，返回 nil（调用方应做 nil 检查并回退到默认实现）。
-func GetPaginationRewriter(parser SqlParser) PaginationRewriter {
+func GetPaginationRewriter(parser SQLParser) PaginationRewriter {
 	if pw, ok := parser.(PaginationRewriter); ok {
 		return pw
 	}
 	return nil
 }
 
-// GetStatementClassifier 尝试从 SqlParser 获取语句分类能力。
+// GetStatementClassifier 尝试从 SQLParser 获取语句分类能力。
 // 若 parser 不支持此能力，返回 nil。
-func GetStatementClassifier(parser SqlParser) StatementClassifier {
+func GetStatementClassifier(parser SQLParser) StatementClassifier {
 	if sc, ok := parser.(StatementClassifier); ok {
 		return sc
 	}
 	return nil
 }
 
-// ========== 向后兼容别名 ==========
-
-// StmtType 别名：保留向后兼容，实际类型定义在 sqlstmt 包
-type StmtType = sqlstmt.StmtType
-
-// StmtType 常量别名
-const (
-	StmtTypeSelect = sqlstmt.StmtTypeSelect
-	StmtTypeInsert = sqlstmt.StmtTypeInsert
-	StmtTypeUpdate = sqlstmt.StmtTypeUpdate
-	StmtTypeDelete = sqlstmt.StmtTypeDelete
-	StmtTypeDDL    = sqlstmt.StmtTypeDDL
-	StmtTypeOther  = sqlstmt.StmtTypeOther
-)
-
-// DefaultRewritePagination 默认分页改写实现（LIMIT/OFFSET 语法）。
+// DefaultRewritePagination 默认分页改写实现（LIMIT/OFFSET 语法），转调 sqlstmt。
 // 供不支持 PaginationRewriter 的调用方作为回退使用。
 func DefaultRewritePagination(sql string, offset, limit int64) string {
 	return sqlstmt.DefaultRewritePagination(sql, offset, limit)

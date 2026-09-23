@@ -61,8 +61,8 @@ type Repo[T model.ModelI] interface {
 	// DeleteByCondWithDb 使用指定gorm db执行，主要用于事务执行
 	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
 
-	// ExecBySql 执行原生sql
-	ExecBySql(sql string, params ...any) error
+	// ExecBySQL 执行原生sql
+	ExecBySQL(sql string, params ...any) error
 
 	// GetById 根据实体id查询
 	GetById(id uint64, cols ...string) (T, error)
@@ -83,8 +83,8 @@ type Repo[T model.ModelI] interface {
 	// PageByCond 根据查询条件分页查询
 	PageByCond(cond any, pageParam model.PageParam, cols ...string) (*model.PageResult[T], error)
 
-	// SelectBySql 根据sql语句查询数据
-	SelectBySql(sql string, res any, params ...any) error
+	// SelectBySQL 根据sql语句查询数据
+	SelectBySQL(sql string, res any, params ...any) error
 
 	// CountByCond 根据指定条件统计model表的数量
 	CountByCond(cond any) int64
@@ -213,8 +213,8 @@ func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond
 	return gormx.DeleteByCondWithDb(db, br.GetModel(), toQueryCond(cond))
 }
 
-func (br *RepoImpl[T]) ExecBySql(sql string, params ...any) error {
-	return gormx.ExecSql(sql, params...)
+func (br *RepoImpl[T]) ExecBySQL(sql string, params ...any) error {
+	return gormx.ExecSQL(sql, params...)
 }
 
 func (br *RepoImpl[T]) GetById(id uint64, cols ...string) (T, error) {
@@ -245,8 +245,8 @@ func (br *RepoImpl[T]) PageByCond(cond any, pageParam model.PageParam, cols ...s
 	return gormx.PageByCond(br.GetModel(), toQueryCond(cond).Columns(cols...), pageParam, models)
 }
 
-func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
-	return gormx.SelectBySql(sql, res, params...)
+func (br *RepoImpl[T]) SelectBySQL(sql string, res any, params ...any) error {
+	return gormx.SelectBySQL(sql, res, params...)
 }
 
 func (br *RepoImpl[T]) CountByCond(cond any) int64 {

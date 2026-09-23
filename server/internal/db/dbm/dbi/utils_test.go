@@ -159,8 +159,8 @@ func parseStdLiteral(s string) string {
 	return buf.String()
 }
 
-// TestIsQuotedSqlLiteral 字面量判定必须做完整的引号成对校验，不能用“首尾是引号”或子串正则代替
-func TestIsQuotedSqlLiteral(t *testing.T) {
+// TestIsQuotedSQLLiteral 字面量判定必须做完整的引号成对校验，不能用“首尾是引号”或子串正则代替
+func TestIsQuotedSQLLiteral(t *testing.T) {
 	kases := []struct {
 		input string
 		want  bool
@@ -180,12 +180,12 @@ func TestIsQuotedSqlLiteral(t *testing.T) {
 		{`"abc"`, false},
 	}
 	for _, k := range kases {
-		assert.Equal(t, k.want, IsQuotedSqlLiteral(k.input), "input=%q", k.input)
+		assert.Equal(t, k.want, IsQuotedSQLLiteral(k.input), "input=%q", k.input)
 	}
 }
 
-// TestIsSqlFunctionExpr 函数形式判定不得误伤内容含括号的文本默认值
-func TestIsSqlFunctionExpr(t *testing.T) {
+// TestIsSQLFunctionExpr 函数形式判定不得误伤内容含括号的文本默认值
+func TestIsSQLFunctionExpr(t *testing.T) {
 	kases := []struct {
 		input string
 		want  bool
@@ -205,7 +205,7 @@ func TestIsSqlFunctionExpr(t *testing.T) {
 		{"", false},
 	}
 	for _, k := range kases {
-		assert.Equal(t, k.want, IsSqlFunctionExpr(k.input), "input=%q", k.input)
+		assert.Equal(t, k.want, IsSQLFunctionExpr(k.input), "input=%q", k.input)
 	}
 }
 
@@ -236,10 +236,10 @@ func TestUnwrapOuterParens(t *testing.T) {
 	}
 }
 
-// TestGenColumnDefaultSql 列默认值往DDL的全集回归：覆盖各库元数据的真实呈现形态
+// TestGenColumnDefaultSQL 列默认值往DDL的全集回归：覆盖各库元数据的真实呈现形态
 // （MySQL 8.0去引号裸值、5.7/MariaDB/达梦/sqlite带引号字面量、pg剥cast后的字面量、
 // SQL Server/MySQL 8.0.13+带外层括号的定义原文），全部经真实库实测确认
-func TestGenColumnDefaultSql(t *testing.T) {
+func TestGenColumnDefaultSQL(t *testing.T) {
 	escape := QuoteEscape
 	kases := []struct {
 		name     string
@@ -330,24 +330,24 @@ func TestGenColumnDefaultSql(t *testing.T) {
 
 	for _, k := range kases {
 		t.Run(k.name, func(t *testing.T) {
-			assert.Equal(t, k.expected, GenColumnDefaultSql(k.raw, k.dataType, escape))
+			assert.Equal(t, k.expected, GenColumnDefaultSQL(k.raw, k.dataType, escape))
 		})
 	}
 }
 
-// TestGenColumnDefaultSql_MysqlEscape mysql目标必须额外双写反斜杠（默认未开启NO_BACKSLASH_ESCAPES）
-func TestGenColumnDefaultSql_MysqlEscape(t *testing.T) {
-	assert.Equal(t, ` DEFAULT 'a\\b'`, GenColumnDefaultSql(`a\b`, "varchar", QuoteEscapeBackslash))
-	assert.Equal(t, ` DEFAULT 'a\\b'`, GenColumnDefaultSql(`'a\b'`, "varchar", QuoteEscapeBackslash))
-	assert.Equal(t, ` DEFAULT 'it\\''s'`, GenColumnDefaultSql(`it\'s`, "varchar", QuoteEscapeBackslash))
+// TestGenColumnDefaultSQL_MysqlEscape mysql目标必须额外双写反斜杠（默认未开启NO_BACKSLASH_ESCAPES）
+func TestGenColumnDefaultSQL_MysqlEscape(t *testing.T) {
+	assert.Equal(t, ` DEFAULT 'a\\b'`, GenColumnDefaultSQL(`a\b`, "varchar", QuoteEscapeBackslash))
+	assert.Equal(t, ` DEFAULT 'a\\b'`, GenColumnDefaultSQL(`'a\b'`, "varchar", QuoteEscapeBackslash))
+	assert.Equal(t, ` DEFAULT 'it\\''s'`, GenColumnDefaultSQL(`it\'s`, "varchar", QuoteEscapeBackslash))
 	// 标准SQL方言（pg/sqlite）反斜杠保持字面量
-	assert.Equal(t, ` DEFAULT 'a\b'`, GenColumnDefaultSql(`a\b`, "varchar", QuoteEscape))
+	assert.Equal(t, ` DEFAULT 'a\b'`, GenColumnDefaultSQL(`a\b`, "varchar", QuoteEscape))
 }
 
-// TestGenColumnDefaultSql_LiteralRoundTrip 生成的DEFAULT子句内容按目标方言解析后必须等于原始默认值：
+// TestGenColumnDefaultSQL_LiteralRoundTrip 生成的DEFAULT子句内容按目标方言解析后必须等于原始默认值：
 // 分别验证“源为带引号字面量”与“源为MySQL 8.0去引号裸值”（已实测：8.0的COLUMN_DEFAULT就是
 // 未加引号未转义的原始值）两种形态，以及目标为mysql与目标为标准SQL两条路径
-func TestGenColumnDefaultSql_LiteralRoundTrip(t *testing.T) {
+func TestGenColumnDefaultSQL_LiteralRoundTrip(t *testing.T) {
 	originals := []string{
 		"abc", "it's", "", " ", "  x  ", "NULL", "(0)", "unknown (pending)", "待确认(必填)",
 		`a\b`, `{"k": "v's"}`, "line1\nline2", `'; DROP TABLE users; --`, `a"b"c`, "'x\\b'x",
@@ -356,37 +356,37 @@ func TestGenColumnDefaultSql_LiteralRoundTrip(t *testing.T) {
 
 	for _, origin := range originals {
 		// 源为带引号字面量（pg剥cast后、sqlite、达梦、MySQL 5.7）→ 目标为标准SQL方言
-		if stdRaw := "'" + QuoteEscape(origin) + "'"; IsQuotedSqlLiteral(stdRaw) {
-			got := GenColumnDefaultSql(stdRaw, "varchar", QuoteEscape)
+		if stdRaw := "'" + QuoteEscape(origin) + "'"; IsQuotedSQLLiteral(stdRaw) {
+			got := GenColumnDefaultSQL(stdRaw, "varchar", QuoteEscape)
 			assert.Equal(t, origin, parseStdLiteral(defaultLiteralBody(t, got)), "字面量形态→标准SQL方言往返不等, raw=%q", stdRaw)
 		}
 
 		if origin == "" {
-			assert.Equal(t, "", GenColumnDefaultSql(origin, "varchar", QuoteEscape), "空原文即无默认值")
+			assert.Equal(t, "", GenColumnDefaultSQL(origin, "varchar", QuoteEscape), "空原文即无默认值")
 			continue
 		}
 		if origin == "NULL" {
 			// 已知限制：MySQL 8.0把 DEFAULT 'NULL' 与无默认值同样呈现为裸NULL，原理上不可区分，只能丢弃
-			assert.Equal(t, "", GenColumnDefaultSql(origin, "varchar", QuoteEscape), "NULL裸形态无法与无默认值区分")
+			assert.Equal(t, "", GenColumnDefaultSQL(origin, "varchar", QuoteEscape), "NULL裸形态无法与无默认值区分")
 			continue
 		}
 
 		// 源为MySQL 8.0裸值 → 目标为mysql（反斜杠与单引号均需双写）
-		gotMysql := GenColumnDefaultSql(origin, "varchar", QuoteEscapeBackslash)
+		gotMysql := GenColumnDefaultSQL(origin, "varchar", QuoteEscapeBackslash)
 		assert.Equal(t, origin, parseMysqlLiteral(defaultLiteralBody(t, gotMysql)), "裸值形态→mysql方言往返不等, origin=%q", origin)
 		// 源为MySQL 8.0裸值 → 目标为标准SQL方言（反斜杠不是转义符）
-		gotStd := GenColumnDefaultSql(origin, "varchar", QuoteEscape)
+		gotStd := GenColumnDefaultSQL(origin, "varchar", QuoteEscape)
 		assert.Equal(t, origin, parseStdLiteral(defaultLiteralBody(t, gotStd)), "裸值形态→标准SQL方言往返不等, origin=%q", origin)
 	}
 }
 
 // defaultLiteralBody 取字符串引用形态的DEFAULT子句内容（剥去前缀与首尾引用符），非引用形态直接失败
-func defaultLiteralBody(t *testing.T, defaultSql string) string {
+func defaultLiteralBody(t *testing.T, defaultSQL string) string {
 	t.Helper()
-	if !strings.HasPrefix(defaultSql, " DEFAULT '") || !strings.HasSuffix(defaultSql, "'") {
-		t.Fatalf("默认值未按字符串字面量引用: %q", defaultSql)
+	if !strings.HasPrefix(defaultSQL, " DEFAULT '") || !strings.HasSuffix(defaultSQL, "'") {
+		t.Fatalf("默认值未按字符串字面量引用: %q", defaultSQL)
 	}
-	return strings.TrimSuffix(strings.TrimPrefix(defaultSql, " DEFAULT '"), "'")
+	return strings.TrimSuffix(strings.TrimPrefix(defaultSQL, " DEFAULT '"), "'")
 }
 
 // TestParseTimeKeywordDefault 「当前日期/时间」类默认值原文识别：各源库形态各异，

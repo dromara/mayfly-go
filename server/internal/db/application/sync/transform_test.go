@@ -8,6 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFilterExactNumbers(t *testing.T) {
+	assert.True(t, NewFilterEngine("id > 9007199254740992").Match(map[string]any{"id": int64(9007199254740993)}))
+	assert.True(t, compareOrdered("18446744073709551615", ">", "18446744073709551614"))
+	assert.True(t, compareOrdered("0.12345678901234567891", ">", "0.12345678901234567890"))
+	assert.True(t, compareOrdered("-9007199254740993", "<", "-9007199254740992"))
+	assert.True(t, compareOrdered("1e2", ">=", "100.000"))
+	assert.True(t, compareOrdered("2026-09-22", ">", "2026-09-21"))
+	_, ok := parseFilterNumber("1e99999999")
+	assert.False(t, ok)
+}
+
 // ========== TransformEngine Tests ==========
 
 func TestNewTransformEngine_EmptyRules(t *testing.T) {
@@ -187,6 +198,31 @@ func TestTransformEngine_NilStrategyPass(t *testing.T) {
 
 // ========== FilterEngine Tests ==========
 
+func TestFilterExpressionGroupsAndQuotes(t *testing.T) {
+	row := map[string]any{"a": 1, "b": 0, "c": 0, "name": "rock AND roll (OR jazz)", "quote": "it's"}
+	for condition, expected := range map[string]bool{
+		"a == 1 OR b == 1 AND c == 1":       true,
+		"(a == 1 OR b == 1) AND c == 1":     false,
+		"((a == 1 AND b == 0) OR c == 1)":   true,
+		"name == 'rock AND roll (OR jazz)'": true,
+		"quote == 'it''s'":                  true,
+		"a == 0 OR name like '%AND%'":       true,
+	} {
+		t.Run(condition, func(t *testing.T) {
+			engine := NewFilterEngine(condition)
+			require.NoError(t, engine.Validate())
+			assert.Equal(t, expected, engine.Match(row))
+		})
+	}
+	for _, invalid := range []string{"a === 1", "a == 1 AND", "(a == 1", "a == 1)", "name == 'unclosed", "a == 1 OR ()", "name == 'a' 'b'"} {
+		t.Run(invalid, func(t *testing.T) {
+			engine := NewFilterEngine(invalid)
+			require.Error(t, engine.Validate())
+			assert.False(t, engine.Match(row), "非法条件不得放行")
+		})
+	}
+}
+
 func TestFilterEngine_Nil(t *testing.T) {
 	engine := NewFilterEngine("")
 	assert.Nil(t, engine, "empty condition should return nil engine")
@@ -222,6 +258,30 @@ func TestFilterEngine_LessThan(t *testing.T) {
 
 	assert.True(t, engine.Match(map[string]any{"age": "15"}))
 	assert.False(t, engine.Match(map[string]any{"age": "20"}))
+}
+
+func TestFilterEngine_GreaterThan_NumericSemantics(t *testing.T) {
+	engine := NewFilterEngine("age > 18")
+	require.NotNil(t, engine)
+
+	// 字符串比较会把 "9" > "18" 误判为 true（'9' > '1'），数值比较必须为 false
+	assert.False(t, engine.Match(map[string]any{"age": "9"}), "9 > 18 must be false under numeric comparison")
+	assert.True(t, engine.Match(map[string]any{"age": "100"}), "100 > 18 must be true")
+	assert.False(t, engine.Match(map[string]any{"age": "18"}), "18 > 18 must be false")
+}
+
+func TestFilterEngine_LessThan_NumericSemantics(t *testing.T) {
+	engine := NewFilterEngine("age < 18")
+	require.NotNil(t, engine)
+
+	assert.True(t, engine.Match(map[string]any{"age": "9"}), "9 < 18 must be true under numeric comparison")
+	assert.False(t, engine.Match(map[string]any{"age": "100"}), "100 < 18 must be false")
+}
+
+func TestEvalConditionSimple_StringFallback(t *testing.T) {
+	// 非数值场景回退字符串比较，保持向后兼容
+	assert.True(t, evalConditionSimple("2024-01-02", ">", "2024-01-01"))
+	assert.False(t, evalConditionSimple("abc", ">=", "abd"))
 }
 
 func TestFilterEngine_Like(t *testing.T) {

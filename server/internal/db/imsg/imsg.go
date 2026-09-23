@@ -20,18 +20,18 @@ const (
 	// db
 	LogDbSave
 	LogDbDelete
-	LogDbRunSql
-	LogDbRunSqlFile
+	LogDbRunSQL
+	LogDbRunSQLFile
 	LogDbDump
 
-	SqlScripRunProgress
+	SQLScripRunProgress
 	ErrDbNameExist
 	ErrDbNotAccess
 
-	ErrExistRunFailSql
+	ErrExistRunFailSQL
 	ErrNeedSubmitWorkTicket
-	ErrSqlExecCancelled
-	ErrSqlSplitUnterminated
+	ErrSQLExecCancelled
+	ErrSQLSplitUnterminated
 
 	// db transfer
 	LogDtsSave
@@ -40,7 +40,7 @@ const (
 	LogDtsRun
 	LogDtsStop
 	LogDtsDeleteFile
-	LogDtsRunSqlFile
+	LogDtsRunSQLFile
 	LogDtsVerify
 
 	// data sync

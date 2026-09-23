@@ -39,12 +39,11 @@ export interface RedisSaveForm {
     sshTunnelMachineId?: number;
 }
 
-/** Redis key 信息 */
+/** Redis key 信息（对应后端 vo.KeyInfo） */
 export interface RedisKeyInfo {
     key: string;
     type: string;
     ttl: number;
-    size: number;
 }
 
 /** Redis scan 结果 (对应后端 vo.Keys) */

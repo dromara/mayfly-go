@@ -100,7 +100,7 @@
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} ${$t('db.index')}`" v-model="indexDialog.visible" append-to-body>
-            <el-table border stripe :data="indexDialog.indexs" size="small">
+            <el-table border stripe :data="indexDialog.indexes" size="small">
                 <el-table-column prop="indexName" :label="$t('common.name')" min-width="120" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnName" :label="$t('db.columnName')" min-width="120" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="seqInIndex" :label="$t('db.seqInIndex')" show-overflow-tooltip> </el-table-column>
@@ -149,7 +149,7 @@ import { formatSql } from '../sql-editor/utils/formatSql';
 import { fuzzyMatchField } from '@/common/utils/string';
 import { useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import ErDiagram from './ErDiagram.vue';
-import type { TableDefinition, ColumnDefinition, TableIndexDefinition, IndexColumnDefinition } from '../types/schema';
+import type { TableDefinition, TableColumnDefinition, TableIndexDefinition, IndexColumnDefinition } from '../types/schema';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 // DDL 查看是低频动作，编辑器主体（约 3.9M）随弹窗首次打开才加载
@@ -194,7 +194,7 @@ const state = reactive({
     },
     indexDialog: {
         visible: false,
-        indexs: [] as Record<string, unknown>[],
+        indexes: [] as Record<string, unknown>[],
     },
     ddlDialog: {
         visible: false,
@@ -214,7 +214,7 @@ const state = reactive({
             // 修改表时，传递修改数据
             edit: false,
             row: {},
-            indexs: [],
+            indexes: [],
             columns: [],
         } as TableOpData,
     },
@@ -301,7 +301,7 @@ const showColumns = async (row: DbTableInfo) => {
 
 const showTableIndex = async (row: DbTableInfo) => {
     state.chooseTableName = row.tableName;
-    state.indexDialog.indexs = await dbApi.tableIndex.request({
+    state.indexDialog.indexes = await dbApi.tableIndex.request({
         id: props.dbId,
         db: props.db,
         tableName: row.tableName,
@@ -336,16 +336,16 @@ const showErDiagram = async () => {
                 dbApi.tableIndex.request({ id: props.dbId, db: props.db, tableName: tableInfo.tableName }).catch(() => []),
             ]);
 
-            const colDefs: ColumnDefinition[] = columns.map((c: ColumnMetadata) => ({
+            const colDefs: TableColumnDefinition[] = columns.map((c: ColumnMetadata) => ({
                 name: c.columnName,
                 type: c.dataType || 'varchar',
                 length: c.showLength ? String(c.showLength) : '',
                 numScale: c.showScale ? String(c.showScale) : '',
-                notNull: !c.nullable,
-                pri: c.isPrimaryKey || false,
-                auto_increment: c.autoIncrement || false,
+                nullable: c.nullable ?? false,
+                isPrimaryKey: c.isPrimaryKey || false,
+                autoIncrement: c.autoIncrement || false,
                 value: c.columnDefault ? String(c.columnDefault).replace(/^'|'$/g, '') : '',
-                remark: c.columnComment || '',
+                comment: c.columnComment || '',
             }));
 
             // 后端 t-index 下发的是扁平结构（DbTableIndex），此处转为表编辑子系统的领域模型
@@ -416,13 +416,13 @@ const openEditTable = async (row: DbTableInfo | { tableName: string } | false) =
     state.tableCreateDialog.activeName = '1';
 
     if (row === false) {
-        state.tableCreateDialog.data = { edit: false, row: {}, indexs: [], columns: [] };
+        state.tableCreateDialog.data = { edit: false, row: {}, indexes: [], columns: [] };
         state.tableCreateDialog.title = useI18nCreateTitle('db.table');
     }
 
     if (row && row.tableName) {
         state.tableCreateDialog.title = useI18nEditTitle('db.table');
-        let indexs = await dbApi.tableIndex.request({
+        let indexes = await dbApi.tableIndex.request({
             id: props.dbId,
             db: props.db,
             tableName: row.tableName,
@@ -432,7 +432,7 @@ const openEditTable = async (row: DbTableInfo | { tableName: string } | false) =
             db: props.db,
             tableName: row.tableName,
         });
-        state.tableCreateDialog.data = { edit: true, row: { ...row }, indexs, columns };
+        state.tableCreateDialog.data = { edit: true, row: { ...row }, indexes, columns };
     }
 };
 

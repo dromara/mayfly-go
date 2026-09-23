@@ -20,6 +20,18 @@ export interface Account extends BaseModel {
     extra?: Record<string, unknown>;
 }
 
+/** 账号保存表单（对应 POST /sys/accounts 请求体，表单可缺省的字段均标为可选） */
+export interface AccountForm {
+    id?: number | null;
+    name?: string | null;
+    username?: string | null;
+    mobile?: string | null;
+    email?: string | null;
+    password?: string;
+    status?: number;
+    extra?: Record<string, unknown>;
+}
+
 /** 系统配置实体 (对应 entity.Config) */
 export interface SysConfig extends BaseModel {
     id: number;
@@ -54,8 +66,8 @@ export interface SysResource extends BaseModel {
     code: string;
     name: string;
     weight: number;
-    /** meta 信息，接口返回 JSON 字符串，前端解析后为 ResourceMeta 对象 */
-    meta: string | ResourceMeta;
+    /** meta 信息，接口返回 JSON 字符串，前端解析后为 ResourceMeta 对象；空字符串（权限/按钮类资源无元数据）解析为 null */
+    meta: string | ResourceMeta | null;
     /** 子资源节点（树形结构，叶子节点为 null） */
     children?: SysResource[] | null;
 }
@@ -75,6 +87,15 @@ export interface SysRole extends BaseModel {
     remark: string;
     code: string;
     type: number;
+}
+
+/** 角色保存表单（对应 POST /sys/roles 请求体） */
+export interface RoleForm {
+    id?: number | null;
+    name?: string;
+    code?: string;
+    status?: number;
+    remark?: string;
 }
 
 /** 角色资源关联 (对应 entity.RoleResource) */

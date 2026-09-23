@@ -52,7 +52,7 @@ func itRunDataSync(t *testing.T, srcConn, tgtConn *dbi.DbConn, table, pk string,
 		}
 		tgtColumns = append(tgtColumns, col)
 	}
-	meta := dbi.BuildTargetTableMeta(tgtConn, table, tgtColumns)
+	meta := dbsync.BuildTargetTableMeta(tgtConn, table, tgtColumns)
 	require.NotEmpty(t, meta.UniqueColumns, "冲突检测列应为表主键")
 
 	task := &entity.DataSyncTask{TargetTableName: table, DuplicateStrategy: strategy}
@@ -69,8 +69,8 @@ func TestITDataSyncComplexValuesAndNames(t *testing.T) {
 	}{
 		{itMysql, itPg, dbi.DuplicateStrategyUpdate, true},
 		{itPg, itMysql, dbi.DuplicateStrategyUpdate, true},
-		{itPg, itSqlite, dbi.DuplicateStrategyUpdate, true},
-		{itMysql, itSqlite, dbi.DuplicateStrategyIgnore, false},
+		{itPg, itSQLite, dbi.DuplicateStrategyUpdate, true},
+		{itMysql, itSQLite, dbi.DuplicateStrategyIgnore, false},
 		{itMysql, itPg, dbi.DuplicateStrategyIgnore, false},
 	}
 

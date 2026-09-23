@@ -49,9 +49,9 @@ func TestColumnDefaultOf_NilByteSlice(t *testing.T) {
 	assert.Equal(t, "''", columnDefaultOf([]byte{}, false), "空切片为空串默认值")
 }
 
-// gcCreateSql 真实mysql:8.0.46的SHOW CREATE TABLE输出（反引号列名含反斜杠、表达式内含
+// gcCreateSQL 真实mysql:8.0.46的SHOW CREATE TABLE输出（反引号列名含反斜杠、表达式内含
 // 单引号/反斜杠/非ASCII字面量、VIRTUAL列带NOT NULL、以及普通列/索引/约束行）
-const gcCreateSql = "CREATE TABLE `t_gexpr2` (\n" +
+const gcCreateSQL = "CREATE TABLE `t_gexpr2` (\n" +
 	"  `id` int NOT NULL,\n" +
 	"  `a` int NOT NULL,\n" +
 	"  `b\\b` int NOT NULL,\n" +
@@ -67,7 +67,7 @@ const gcCreateSql = "CREATE TABLE `t_gexpr2` (\n" +
 // TestParseMysqlGeneratedColumns 生成列定义原文必须逐字节取回（可直接重放入DDL），
 // 且不得把普通列/索引行误判为生成列
 func TestParseMysqlGeneratedColumns(t *testing.T) {
-	genColumns := parseMysqlGeneratedColumns(gcCreateSql)
+	genColumns := parseMysqlGeneratedColumns(gcCreateSQL)
 
 	// 只识别出生成列，普通列名不入表
 	assert.Len(t, genColumns, 5)
@@ -97,17 +97,17 @@ func TestParseMysqlGeneratedColumnsAbnormal(t *testing.T) {
 		"关键字前置":            "CREATE TABLE `t` (\n  `g` int GENERATED ALWAYS AS ((`a` + 1)) NOT NULL VIRTUAL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB",
 		"空表达式":             "CREATE TABLE `t` (\n  `g` int GENERATED ALWAYS AS () VIRTUAL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB",
 	}
-	for name, createSql := range cases {
+	for name, createSQL := range cases {
 		t.Run(name, func(t *testing.T) {
-			assert.Empty(t, parseMysqlGeneratedColumns(createSql))
+			assert.Empty(t, parseMysqlGeneratedColumns(createSQL))
 		})
 	}
 }
 
 // TestParseMysqlGeneratedColumnsMariaDB MariaDB的形态差异：PERSISTENT等价STORED，且类型带显示宽度
 func TestParseMysqlGeneratedColumnsMariaDB(t *testing.T) {
-	createSql := "CREATE TABLE `t_m` (\n  `id` int(11) NOT NULL,\n  `a` int(11) NOT NULL,\n  `g` int(11) GENERATED ALWAYS AS (`a` + 1) PERSISTENT,\n  `v` int(11) GENERATED ALWAYS AS (`a` * 2) VIRTUAL COMMENT '翻倍',\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB"
-	genColumns := parseMysqlGeneratedColumns(createSql)
+	createSQL := "CREATE TABLE `t_m` (\n  `id` int(11) NOT NULL,\n  `a` int(11) NOT NULL,\n  `g` int(11) GENERATED ALWAYS AS (`a` + 1) PERSISTENT,\n  `v` int(11) GENERATED ALWAYS AS (`a` * 2) VIRTUAL COMMENT '翻倍',\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB"
+	genColumns := parseMysqlGeneratedColumns(createSQL)
 	require.Len(t, genColumns, 2)
 	assert.Equal(t, "`a` + 1", genColumns["g"].expr)
 	assert.True(t, genColumns["g"].stored, "PERSISTENT等价STORED")

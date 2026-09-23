@@ -32,12 +32,13 @@ func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 func (od *OracleDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{
-		BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: od.Quoter},
-		Dialect:          od,
+		DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: od.Quoter},
+		Dialect:             od,
+		version:             od.di.Version,
 	}
 }
 
-func (od *OracleDialect) GetSQLParser() sqlparser.SqlParser {
+func (od *OracleDialect) GetSQLParser() sqlparser.SQLParser {
 	return new(oracle.OracleParser)
 }
 

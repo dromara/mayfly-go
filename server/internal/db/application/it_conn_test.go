@@ -13,26 +13,25 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/dbi/value"
+	"mayfly-go/internal/db/ititest/scratchclean"
 )
+
+// TestMain 负责本包所有真实库用例的独占资源清理，失败也必须收尾。
+func TestMain(m *testing.M) {
+	os.Exit(scratchclean.Run(m.Run))
+}
 
 func appTestConn(t *testing.T, di *dbi.DbInfo) *dbi.DbConn {
 	t.Helper()
-	conn, err := dbm.Conn(context.Background(), di)
+	conn, err := scratchclean.Conn(context.Background(), di)
 	require.NoError(t, err, "连接本地集成测试数据库失败: %s:%d/%s", di.Type, di.Port, di.Database)
 	return conn
 }
 
 func appMysqlConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
-	admin := appTestConn(t, &dbi.DbInfo{
-		Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: "information_schema",
-	})
-	defer admin.Close()
-	_, err := admin.Exec("CREATE DATABASE IF NOT EXISTS mayfly_dbm_it DEFAULT CHARSET utf8mb4")
-	require.NoError(t, err)
 	return appTestConn(t, &dbi.DbInfo{
 		Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: "mayfly_dbm_it",
 	})
@@ -47,7 +46,7 @@ func appPgConn(t *testing.T) *dbi.DbConn {
 	return conn
 }
 
-func appSqliteConn(t *testing.T) *dbi.DbConn {
+func appSQLiteConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "app_sql_exec_it.sqlite")
 	// sqlite方言要求库文件已存在
@@ -74,7 +73,7 @@ var appDialectNodes = []appDialectNode{
 	// postgres：事务内BEGIN仅告警不提交 → 失败可整体回滚（残留0行）
 	{name: "pg", conn: appPgConn, ddl: "(id int PRIMARY KEY, val varchar(200))", survivedOnTxnBegin: 0, errOnTxnBegin: "it_no_such_table"},
 	// sqlite：事务内BEGIN直接报错 → 在该语句即中断，整体回滚（残留0行）
-	{name: "sqlite", conn: appSqliteConn, ddl: "(id INTEGER PRIMARY KEY, val TEXT)", survivedOnTxnBegin: 0, errOnTxnBegin: "cannot start a transaction within a transaction"},
+	{name: "sqlite", conn: appSQLiteConn, ddl: "(id INTEGER PRIMARY KEY, val TEXT)", survivedOnTxnBegin: 0, errOnTxnBegin: "cannot start a transaction within a transaction"},
 }
 
 const appExecTable = "it_exec_reader"

@@ -11,9 +11,9 @@ func newTestSQLGenerator(dbType dbi.DbType) *SQLGenerator {
 	// 触发postgres列类型注册（TypeEngine注册包含向dbDataTypes的同步）
 	dbi.GetTypeEngine(dbType)
 	return &SQLGenerator{
-		BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: (&PgsqlDialect{}).Quoter},
-		dialect:          &PgsqlDialect{},
-		di:               &dbi.DbInfo{Type: dbType},
+		DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: (&PgsqlDialect{}).Quoter},
+		dialect:             &PgsqlDialect{},
+		di:                  &dbi.DbInfo{Type: dbType},
 	}
 }
 

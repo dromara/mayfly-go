@@ -11,18 +11,18 @@ var Zh_CN = map[i18n.MsgId]string{
 	// db
 	LogDbSave:       "DB-保存数据库",
 	LogDbDelete:     "DB-删除数据库",
-	LogDbRunSql:     "DB-运行SQL",
-	LogDbRunSqlFile: "DB-执行SQL文件",
+	LogDbRunSQL:     "DB-运行SQL",
+	LogDbRunSQLFile: "DB-执行SQL文件",
 	LogDbDump:       "DB-导出数据库",
 
-	SqlScripRunProgress: "sql执行进度",
+	SQLScripRunProgress: "sql执行进度",
 	ErrDbNameExist:      "该实例下数据库名已存在",
 	ErrDbNotAccess:      "未配置数据库【{{.dbName}}】的操作权限",
 
-	ErrExistRunFailSql:      "存在执行错误的sql",
+	ErrExistRunFailSQL:      "存在执行错误的sql",
 	ErrNeedSubmitWorkTicket: "该操作需要提交工单审批执行",
-	ErrSqlExecCancelled:     "SQL执行已取消",
-	ErrSqlSplitUnterminated: "SQL第{{.line}}行存在未闭合的 {{.kind}} 区域，无法判定语句边界，请补全后重试",
+	ErrSQLExecCancelled:     "SQL执行已取消",
+	ErrSQLSplitUnterminated: "SQL第{{.line}}行存在未闭合的 {{.kind}} 区域，无法判定语句边界，请补全后重试",
 
 	// db transfer
 	LogDtsSave:         "dts-保存数据迁移任务",
@@ -31,7 +31,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogDtsRun:          "dts-执行数据迁移任务",
 	LogDtsStop:         "dts-终止数据迁移任务",
 	LogDtsDeleteFile:   "dts-删除迁移文件",
-	LogDtsRunSqlFile:   "dts-执行sql文件",
+	LogDtsRunSQLFile:   "dts-执行sql文件",
 	LogDtsVerify:       "dts-数据校验",
 
 	// data sync

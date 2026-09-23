@@ -53,7 +53,7 @@ func SanitizeCommentText(str string) string {
 	}, str)
 }
 
-// UnwrapSqlLiteral 还原SQL字符串字面量的原始值：仅剥去最外层的一对单引号，并把内部双写的单引号还原。
+// UnwrapSQLLiteral 还原SQL字符串字面量的原始值：仅剥去最外层的一对单引号，并把内部双写的单引号还原。
 //
 // 各数据库元数据对默认值的呈现不一致：MySQL 8.0起 information_schema.COLUMNS.COLUMN_DEFAULT 返回
 // 未加引号的原始值（如内容含单引号的默认值直接呈现为 it+单引号+s），5.7/MariaDB与sqlite的
@@ -63,19 +63,19 @@ func SanitizeCommentText(str string) string {
 //
 // 必须只剥最外层一对：按字符集剥除所有首尾引号会把默认值本身以引号开头/结尾的内容当成语法
 // 引用剥掉，使结构迁移生成的DDL默认值静默失真。
-func UnwrapSqlLiteral(val string) string {
+func UnwrapSQLLiteral(val string) string {
 	if len(val) < 2 || val[0] != '\'' || val[len(val)-1] != '\'' {
 		return val
 	}
 	return strings.ReplaceAll(val[1:len(val)-1], "''", "'")
 }
 
-// IsQuotedSqlLiteral 判断文本是否是一个完整且合法的SQL字符串字面量：首尾各一个单引号，且内部单引号均成对出现。
+// IsQuotedSQLLiteral 判断文本是否是一个完整且合法的SQL字符串字面量：首尾各一个单引号，且内部单引号均成对出现。
 //
 // 必须做完整的成对校验，不能用“首尾是引号”或子串正则（如 .+' 匹配）代替：
 //   - 前者会把 a'b'c 这类未包引号的原始值误判为字面量而裸拼进DDL（语法错误）；
 //   - 后者会把 'abc' + 'def' 这类拼接表达式误判为单个字面量。
-func IsQuotedSqlLiteral(val string) bool {
+func IsQuotedSQLLiteral(val string) bool {
 	if len(val) < 2 || val[0] != '\'' || val[len(val)-1] != '\'' {
 		return false
 	}
@@ -94,14 +94,14 @@ func IsQuotedSqlLiteral(val string) bool {
 	return true
 }
 
-// IsSqlFunctionExpr 判断默认值原文是否是函数调用形式的表达式（如 now()、abs(-1)、date_trunc(...)）。
+// IsSQLFunctionExpr 判断默认值原文是否是函数调用形式的表达式（如 now()、abs(-1)、date_trunc(...)）。
 //
-// 结构迁移为避免跨源函数不支持而会跳过函数类默认值，但旧实现统一用“含左括号即视为函数”判定，
-// 使内容含括号的字符串默认值（如 '(0)'、'unknown (pending)'、'待确认(必填)'）被静默丢弃，
+// 结构迁移会跳过函数类默认值（避免跨源函数不支持），但“含左括号即视为函数”的粗判定会误伤
+// 内容含括号的字符串默认值（如 '(0)'、'unknown (pending)'、'待确认(必填)'），
 // 迁移后目标表缺少本应存活的默认值。本函数要求“以右括号结尾，且首个左括号之前的前缀是合法函数名”，
 // 前缀不允许空格（unknown (pending) 这类自文本的函数名与括号间有空格，不是合法函数调用）但允许句点
 // （pg_catalog.now()、dbo.fn() 这类限定名），含引号/非ASCII开头的内容均不会被误判为函数。
-func IsSqlFunctionExpr(val string) bool {
+func IsSQLFunctionExpr(val string) bool {
 	val = strings.TrimSpace(val)
 	idx := strings.IndexByte(val, '(')
 	if idx <= 0 || !strings.HasSuffix(val, ")") {
@@ -117,16 +117,16 @@ func IsSqlFunctionExpr(val string) bool {
 	return true
 }
 
-// AsSqlStringLiteral 若文本是带引号的SQL字符串字面量（允许SQL Server/Oracle的N前缀），返回其原始值。
+// AsSQLStringLiteral 若文本是带引号的SQL字符串字面量（允许SQL Server/Oracle的N前缀），返回其原始值。
 //
 // 仅在确定身处定义原文的括号包装内部时调用，不对顶层裸值启用N前缀处理：
 // 源库为MySQL 8.0时裸 N'abc' 意味着默认值内容就是 N'abc'，误剥会静默改变值
-func AsSqlStringLiteral(val string) (string, bool) {
+func AsSQLStringLiteral(val string) (string, bool) {
 	v := stripNationalPrefix(strings.TrimSpace(val))
-	if !IsQuotedSqlLiteral(v) {
+	if !IsQuotedSQLLiteral(v) {
 		return "", false
 	}
-	return UnwrapSqlLiteral(v), true
+	return UnwrapSQLLiteral(v), true
 }
 
 // anyStringContains 判断s是否包含subs中的任一片段（子串语义，适用于类型名关键字判定）
@@ -202,7 +202,7 @@ func stripNationalPrefix(val string) string {
 
 var dateTimeLiteralRegexp = regexp.MustCompile(`^\d{4}-\d{1,2}-\d{1,2}([ T]\d{1,2}:\d{1,2}(:\d{1,2}(\.\d+)?)?)?$`)
 
-var plainSqlKeywords = map[string]struct{}{
+var plainSQLKeywords = map[string]struct{}{
 	"CURRENT_TIMESTAMP": {},
 	"CURRENT_DATE":      {},
 	"CURRENT_TIME":      {},
@@ -241,22 +241,22 @@ func isBitLiteral(val string) bool {
 	return true
 }
 
-// IsPlainSqlLiteral 判断元数据返回的默认值原文是否可安全直接拼入SQL（不加引号）。
+// IsPlainSQLLiteral 判断元数据返回的默认值原文是否可安全直接拼入SQL（不加引号）。
 //
 // 仅数字字面量、0x十六进制字面量、b'01'位字面量与少量无括号的关键字（如CURRENT_TIMESTAMP）成立；
 // 其余形态（含未知类型/枚举等字符串默认值）一律按字符串字面量引用后再输出，既修复了
 // enum/set等未被引号类型清单覆盖的列直接裸拼产生的语法错误，也封堵了
 // “元数据文本被当作SQL片段执行”的注入面。
 //
-// 注：本函数只判定形态，能否裸拼还取决于目标列类型（字符串类列必须引用，见GenColumnDefaultSql）
-func IsPlainSqlLiteral(val string) bool {
+// 注：本函数只判定形态，能否裸拼还取决于目标列类型（字符串类列必须引用，见GenColumnDefaultSQL）
+func IsPlainSQLLiteral(val string) bool {
 	if val == "" {
 		return false
 	}
 	if IsNumericLiteral(val) {
 		return true
 	}
-	if _, ok := plainSqlKeywords[strings.ToUpper(val)]; ok {
+	if _, ok := plainSQLKeywords[strings.ToUpper(val)]; ok {
 		return true
 	}
 	if isHexLiteral(val) || isBitLiteral(val) {

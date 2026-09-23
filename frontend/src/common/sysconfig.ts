@@ -142,7 +142,7 @@ export async function getServerConf(): Promise<{ i18n: string; version: string }
  * @returns 配置值
  */
 export async function getConfigValue(key: string): Promise<string> {
-    return (await openApi.getConfigValue({ key })) as string;
+    return (await openApi.getConfigValue({ key }));
 }
 
 /**

@@ -109,7 +109,7 @@ func itInsertSpecialColumnRows(t *testing.T, conn *dbi.DbConn, table, pk string,
 	for i := range allCols {
 		ph = append(ph, itPlaceholder(conn, i+1))
 	}
-	insertSql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", quote(table), strings.Join(quoteList(quote, allCols), ", "), strings.Join(ph, ", "))
+	insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", quote(table), strings.Join(quoteList(quote, allCols), ", "), strings.Join(ph, ", "))
 
 	total := len(itComplexTexts)
 	for i := 0; i < total; i++ {
@@ -118,7 +118,7 @@ func itInsertSpecialColumnRows(t *testing.T, conn *dbi.DbConn, table, pk string,
 		for j := range cols {
 			args = append(args, itComplexTexts[(i+j)%total])
 		}
-		_, err := conn.Exec(insertSql, args...)
+		_, err := conn.Exec(insertSQL, args...)
 		require.NoError(t, err, "写入第%d行失败", i+1)
 	}
 	return total
@@ -152,7 +152,7 @@ func itReadRowsByPk(t *testing.T, conn *dbi.DbConn, table, pk string) []map[stri
 // TestITSpecialColumnNamesMigrate 特殊列名/主键名/索引名的结构+数据迁移全链路
 func TestITSpecialColumnNamesMigrate(t *testing.T) {
 	pairs := []itPair{
-		{itMysql, itPg}, {itPg, itMysql}, {itSqlite, itPg}, {itMysql, itSqlite},
+		{itMysql, itPg}, {itPg, itMysql}, {itSQLite, itPg}, {itMysql, itSQLite},
 	}
 
 	cols := make([]string, 0, len(itSpecialColNames))
@@ -183,11 +183,11 @@ func TestITSpecialColumnNamesMigrate(t *testing.T) {
 			assert.Equal(t, lowerColNames(srcMetaCols), lowerColNames(tgtMetaCols), "迁移后列名失真")
 
 			// 主键必须仍是迁移前的特殊主键列（校验器依赖主键抽样）
-			srcPk, err := srcConn.Metadata().GetPrimaryKey(table)
+			srcPk, err := srcConn.Metadata().GetPrimaryKeys(table)
 			require.NoError(t, err)
-			tgtPk, err := tgtConn.Metadata().GetPrimaryKey(table)
+			tgtPk, err := tgtConn.Metadata().GetPrimaryKeys(table)
 			require.NoError(t, err)
-			assert.Equal(t, strings.ToLower(srcPk), strings.ToLower(tgtPk), "主键列名迁移失真")
+			assert.Equal(t, lowerNames(srcPk), lowerNames(tgtPk), "主键列名迁移失真")
 
 			// 逐行逐列内容比对
 			srcRows := itReadRowsByPk(t, srcConn, table, itSpecialPkName)
@@ -229,9 +229,18 @@ func lowerColNames(columns []dbi.Column) []string {
 	return res
 }
 
-func lowerIndexNames(indexs []dbi.Index) []string {
-	res := make([]string, 0, len(indexs))
-	for _, i := range indexs {
+// lowerNames 主键列名数组按序小写归一，供源/目标主键保真比对
+func lowerNames(names []string) []string {
+	res := make([]string, 0, len(names))
+	for _, n := range names {
+		res = append(res, strings.ToLower(n))
+	}
+	return res
+}
+
+func lowerIndexNames(indexes []dbi.Index) []string {
+	res := make([]string, 0, len(indexes))
+	for _, i := range indexes {
 		res = append(res, strings.ToLower(i.IndexName))
 	}
 	return res
@@ -372,7 +381,7 @@ const itHdrInjectTableName = "it_cxhdr_ok\nDROP TABLE no_such_tbl_cxhdr"
 // TestITDumpScriptHeaderCommentSafe dump脚本中的表名注释头必须不可注入可执行语句
 func TestITDumpScriptHeaderCommentSafe(t *testing.T) {
 	pairs := []itPair{
-		{itMysql, itPg}, {itPg, itSqlite}, {itSqlite, itMysql},
+		{itMysql, itPg}, {itPg, itSQLite}, {itSQLite, itMysql},
 	}
 
 	for _, p := range pairs {

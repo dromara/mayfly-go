@@ -15,7 +15,7 @@ func pgSQLValueBytes(val any) string {
 	if strVal, ok := val.(string); ok && dbi.IsHexString(strVal) {
 		return fmt.Sprintf("'\\x%s'", strVal)
 	}
-	return dbi.SQLValuePreserveSpecialChars(val)
+	return dbi.SQLValueString(val)
 }
 
 // pgSQLValueBit pg的bit列值转SQL：lib/pq对bit/bit varying列读回文本位串（如"11111111"），
@@ -71,7 +71,7 @@ var (
 	// 不清会生成float4(24)这类非法DDL；同money一样属于无参数类型
 	Float4      = dbi.NewDbDataType("float4", dbi.DTNumeric).WithCategory(dbi.TCNumeric).WithFixColumn(dbi.ClearNumPrecision)
 	Float8      = dbi.NewDbDataType("float8", dbi.DTNumeric).WithCategory(dbi.TCNumeric).WithFixColumn(dbi.ClearNumPrecision)
-	Bpchar      = dbi.NewDbDataType("bpchar", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCChar)
+	Bpchar      = dbi.NewDbDataType("bpchar", dbi.DTString).WithCategory(dbi.TCChar)
 	Smallserial = dbi.NewDbDataType("smallserial", dbi.DTInt16).WithCategory(dbi.TCInt2).WithFixColumn(dbi.ClearNumPrecision)
 	Serial      = dbi.NewDbDataType("serial", dbi.DTInt32).WithCategory(dbi.TCInt4).WithFixColumn(dbi.ClearNumPrecision)
 	Bigserial   = dbi.NewDbDataType("bigserial", dbi.DTInt64).WithCategory(dbi.TCInt8).WithFixColumn(dbi.ClearNumPrecision)
@@ -79,12 +79,12 @@ var (
 
 	Money = dbi.NewDbDataType("money", dbi.DTString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)
 
-	Char    = dbi.NewDbDataType("char", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCChar)
-	Nchar   = dbi.NewDbDataType("nchar", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCVarchar)
-	Varchar = dbi.NewDbDataType("varchar", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCVarchar)
-	Text    = dbi.NewDbDataType("text", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCText).WithFixColumn(dbi.ClearCharMaxLength)
-	Json    = dbi.NewDbDataType("json", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCJSON).WithFixColumn(dbi.ClearCharMaxLength)
-	Jsonb   = dbi.NewDbDataType("jsonb", dbi.DTStringPreserveSpecial).WithCategory(dbi.TCJSON).WithFixColumn(dbi.ClearCharMaxLength)
+	Char    = dbi.NewDbDataType("char", dbi.DTString).WithCategory(dbi.TCChar)
+	Nchar   = dbi.NewDbDataType("nchar", dbi.DTString).WithCategory(dbi.TCVarchar)
+	Varchar = dbi.NewDbDataType("varchar", dbi.DTString).WithCategory(dbi.TCVarchar)
+	Text    = dbi.NewDbDataType("text", dbi.DTString).WithCategory(dbi.TCText).WithFixColumn(dbi.ClearCharMaxLength)
+	Json    = dbi.NewDbDataType("json", dbi.DTString).WithCategory(dbi.TCJSON).WithFixColumn(dbi.ClearCharMaxLength)
+	Jsonb   = dbi.NewDbDataType("jsonb", dbi.DTString).WithCategory(dbi.TCJSON).WithFixColumn(dbi.ClearCharMaxLength)
 	Bytea   = dbi.NewDbDataType("bytea", DTBytesPg).WithCategory(dbi.TCBinary)
 
 	// pg的bit(默认1bit)与bit varying(内部名varbit，information_schema呈现为"bit varying")，

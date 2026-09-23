@@ -23,7 +23,8 @@
 
 <script lang="ts" setup>
 import EnumValue from '@/common/Enum';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { computed, ref, watch, type PropType } from 'vue';
 import { channelApi, tmplApi } from '../api';
@@ -54,8 +55,8 @@ const emit = defineEmits(['cancel', 'success']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；channelIds/tmpl 为自定义插槽） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<TmplForm>，渲染 + 校验唯一数据源；channelIds/tmpl 为自定义插槽） */
+const items = defineFormItems<TmplForm>([
     { prop: 'name', label: 'msg.name', required: true },
     { prop: 'status', label: 'common.status', type: 'enum', enums: ChannelStatusEnum },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
@@ -63,7 +64,7 @@ const items: AutoFormItem[] = [
     { prop: 'msgType', label: 'common.type', type: 'enum', enums: TmplTypeEnum, required: true },
     { prop: 'title', label: 'msg.title' },
     { prop: 'tmpl', label: 'msg.tmpl', type: 'monaco', required: true, tooltip: 'msg.msgTmplTooltip', slot: 'tmpl' },
-];
+]);
 
 const defaultForm = (): TmplForm => {
     return {
@@ -82,9 +83,8 @@ const defaultForm = (): TmplForm => {
 const channels = ref<MsgChannel[]>([]);
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData | null>(() => {
-    const form = props.form as TmplForm | null;
-    return (form ? { ...form } : defaultForm()) as unknown as AutoFormData;
+const editData = computed<TmplForm>(() => {
+    return props.form ? { ...defaultForm(), ...props.form } : defaultForm();
 });
 
 const { isFetching: saveBtnLoading, execute: saveFormExec } = tmplApi.save.useApi();
@@ -99,15 +99,17 @@ watch(visible, (v) => {
     });
 });
 
-/** 回填完成后异步补充关联渠道（参数为 AutoFormDrawer 内部表单引用） */
-const onOpened = (rawForm: AutoFormData) => {
-    const form = rawForm as TmplForm;
-    if (props.form) {
-        tmplApi.relateChannels.request({ id: props.form.id }).then((res) => {
-            form.channelIds = res.map((item: MsgChannel) => item.id);
-        });
+/** 回填完成后异步补充关联渠道（列表行数据不携带关联关系，需按模板 id 单查） */
+const { openedWith } = useAutoFormModel<TmplForm>();
+
+const onOpened = openedWith((form) => {
+    if (!props.form) {
+        return;
     }
-};
+    tmplApi.relateChannels.request({ id: props.form.id }).then((res) => {
+        form.channelIds = res.map((item: MsgChannel) => item.id);
+    });
+});
 
 // 统一提交：confirmApi 由 AutoFormDrawer 内置逻辑驱动（校验 → 保存 → 成功提示 → submitted → 关闭抽屉，全程 loading 防重复提交）
 </script>

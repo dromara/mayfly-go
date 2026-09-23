@@ -165,7 +165,7 @@ func (m *Machine) TestConn(rc *req.Ctx) {
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("machineId"))
+	id := cast.ToUint64(rc.PathParam("machineId"))
 	status := int8(rc.PathParamInt("status"))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)
 	biz.ErrIsNil(m.machineApp.ChangeStatus(rc.MetaCtx, id, status))

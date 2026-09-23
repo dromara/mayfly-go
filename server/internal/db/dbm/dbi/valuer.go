@@ -64,21 +64,9 @@ func ValuerInt16() Valuer {
 	}
 }
 
-func ValuerByte() Valuer {
-	return &byteValuer{
-		DefaultValuer: new(DefaultValuer[sql.NullByte]),
-	}
-}
-
 func ValuerBit() Valuer {
 	return &bitValuer{
 		DefaultValuer: new(DefaultValuer[[]byte]),
-	}
-}
-
-func ValuerFloat64() Valuer {
-	return &float64Valuer{
-		DefaultValuer: new(DefaultValuer[sql.NullFloat64]),
 	}
 }
 
@@ -184,19 +172,6 @@ func (s *int16Valuer) Value() any {
 	return nil
 }
 
-// byte（uint8）
-
-type byteValuer struct {
-	*DefaultValuer[sql.NullByte]
-}
-
-func (s *byteValuer) Value() any {
-	if s.ValuePtr.Valid {
-		return s.ValuePtr.Byte
-	}
-	return nil
-}
-
 // bit
 
 type bitValuer struct {
@@ -221,19 +196,6 @@ func (s *bitValuer) Value() any {
 		return int64(uval)
 	}
 	return uval
-}
-
-// float64
-
-type float64Valuer struct {
-	*DefaultValuer[sql.NullFloat64]
-}
-
-func (s *float64Valuer) Value() any {
-	if s.ValuePtr.Valid {
-		return s.ValuePtr.Float64
-	}
-	return nil
 }
 
 // bytes

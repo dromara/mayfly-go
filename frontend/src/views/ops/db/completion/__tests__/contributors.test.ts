@@ -36,12 +36,13 @@ const labelText = (s: languages.CompletionItem): string => (typeof s.label === '
 
 /** 构建最小可用的补全上下文，dbInst 各加载方法均可按用例覆写 */
 const createCtx = (overrides: Partial<SqlCompletionContext> = {}): SqlCompletionContext => {
-    // dbInst 只提供数据（表信息 / 字段提示原始串），建议项形状由 suggestions.ts 负责
-    const dbInst = {
+    // dbInst 只提供数据（表信息 / 按表结构化列），建议项形状由 suggestions.ts 负责
+    const dbInst: SqlCompletionContext['dbInst'] = {
         loadTables: vi.fn().mockResolvedValue([]),
-        loadDbHints: vi.fn().mockResolvedValue({}),
+        loadColumns: vi.fn().mockResolvedValue([]),
+        loadViews: vi.fn().mockResolvedValue([]),
     };
-    const dialect = {
+    const dialect: SqlCompletionContext['dialect'] = {
         getEditorCompletions: async () => ({
             keywords: [{ label: 'SELECT', description: 'keyword' }],
             operators: [{ label: '=', description: 'operator' }],
@@ -65,31 +66,31 @@ const createCtx = (overrides: Partial<SqlCompletionContext> = {}): SqlCompletion
         isDotTrigger: false,
         dotAlias: '',
         clause: 'free',
-        dbInst: dbInst as unknown as SqlCompletionContext['dbInst'],
+        dbInst,
         db: 'test',
         dbs: ['test', 'db1'],
-        dialect: dialect as unknown as SqlCompletionContext['dialect'],
+        dialect,
         dbType: 'mysql',
         quotePairs: [{ open: '`', close: '`' }],
         isWordQuoted: false,
         quoteIdentifier: (name: string) => '`' + name + '`',
         ...overrides,
-    } as SqlCompletionContext;
+    };
 };
 
 describe('columnContributor', () => {
     it('`.` 别名触发：按别名解析表并返回字段建议（insertText 按方言包裹）', async () => {
-        const loadDbHints = vi.fn().mockResolvedValue({ users: ['id  [int][]'] });
+        const loadColumns = vi.fn().mockResolvedValue([{ columnName: 'id', columnType: 'int', dataType: 'int', columnComment: '' }]);
         const ctx = createCtx({
             isDotTrigger: true,
             dotAlias: 'u',
             statement: 'SELECT * FROM users u WHERE u.',
         });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadDbHints = loadDbHints;
+        ctx.dbInst.loadColumns = loadColumns;
 
         const result = await columnContributor.contribute(ctx);
         expect(result?.exclusive).toBe(true);
-        expect(loadDbHints).toHaveBeenCalledWith('test');
+        expect(loadColumns).toHaveBeenCalledWith('test', 'users');
         expect(result?.suggestions[0].insertText).toBe('`id`');
     });
 
@@ -100,7 +101,7 @@ describe('columnContributor', () => {
             dotAlias: 'db1',
             statement: 'SELECT * FROM db1.',
         });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadTables = loadTables;
+        ctx.dbInst.loadTables = loadTables;
 
         const result = await columnContributor.contribute(ctx);
         expect(result?.exclusive).toBe(true);
@@ -117,7 +118,7 @@ describe('columnContributor', () => {
             dbs: ['db1'],
             statement: 'SELECT * FROM db1.',
         });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadTables = loadTables;
+        ctx.dbInst.loadTables = loadTables;
 
         await columnContributor.contribute(ctx);
         expect(loadTables).toHaveBeenCalledWith('id_1/db1');
@@ -133,15 +134,24 @@ describe('columnContributor', () => {
     });
 
     it('空格触发：JOIN 多表场景提示作用域内全部表字段（按表顺序去重）', async () => {
-        // 字段提示按库整体返回：b 表的 id 与 a 表同名
-        const loadDbHints = vi.fn().mockResolvedValue({ a: ['id  [int][]'], b: ['name  [varchar][]', 'id  [int][]'] });
+        // 按表取列：b 表的 id 与 a 表同名（列顺序 a: id；b: name, id）
+        const loadColumns = vi.fn().mockImplementation((_db: string, table: string) =>
+            Promise.resolve(
+                table === 'a'
+                    ? [{ columnName: 'id', columnType: 'int', dataType: 'int', columnComment: '' }]
+                    : [
+                          { columnName: 'name', columnType: 'varchar', dataType: 'varchar', columnComment: '' },
+                          { columnName: 'id', columnType: 'int', dataType: 'int', columnComment: '' },
+                      ],
+            ),
+        );
         const statement = 'SELECT * FROM a x JOIN b y ON x.id = y.id WHERE ';
         const ctx = createCtx({ statement, statementCursorOffset: statement.length, clause: 'column' });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadDbHints = loadDbHints;
+        ctx.dbInst.loadColumns = loadColumns;
 
         const result = await columnContributor.contribute(ctx);
         // 作用域内 a、b 两张表各自被读取一次
-        expect(loadDbHints).toHaveBeenCalledTimes(2);
+        expect(loadColumns).toHaveBeenCalledTimes(2);
         // 同名字段去重，插入文本按方言包裹
         expect(result?.suggestions.map((s) => s.insertText)).toEqual(['`id`', '`name`']);
     });
@@ -152,27 +162,27 @@ describe('columnContributor', () => {
     });
 
     it('空格触发：INSERT INTO 语句提示目标表字段', async () => {
-        const loadDbHints = vi.fn().mockResolvedValue({ users: ['name  [varchar][]'] });
+        const loadColumns = vi.fn().mockResolvedValue([{ columnName: 'name', columnType: 'varchar', dataType: 'varchar', columnComment: '' }]);
         const ctx = createCtx({ statement: 'INSERT INTO users (name, ', statementCursorOffset: 26, clause: 'column' });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadDbHints = loadDbHints;
+        ctx.dbInst.loadColumns = loadColumns;
 
         const result = await columnContributor.contribute(ctx);
-        expect(loadDbHints).toHaveBeenCalledWith('test');
+        expect(loadColumns).toHaveBeenCalledWith('test', 'users');
         expect(result?.suggestions.map((s) => s.insertText)).toEqual(['`name`']);
     });
 
     it('`.` 库.表.字段两级限定触发（db1.orders.）', async () => {
-        const loadDbHints = vi.fn().mockResolvedValue({ orders: ['order_no  [varchar][]'] });
+        const loadColumns = vi.fn().mockResolvedValue([{ columnName: 'order_no', columnType: 'varchar', dataType: 'varchar', columnComment: '' }]);
         const ctx = createCtx({
             isDotTrigger: true,
             dotAlias: 'db1.orders',
             statement: 'SELECT * FROM db1.orders.',
         });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadDbHints = loadDbHints;
+        ctx.dbInst.loadColumns = loadColumns;
 
         const result = await columnContributor.contribute(ctx);
         expect(result?.exclusive).toBe(true);
-        expect(loadDbHints).toHaveBeenCalledWith('db1');
+        expect(loadColumns).toHaveBeenCalledWith('db1', 'orders');
         expect(result?.suggestions[0].insertText).toBe('`order_no`');
     });
 
@@ -203,7 +213,7 @@ describe('tableContributor', () => {
     it('产出表名建议（insertText 包裹 + 排序在字段之后）', async () => {
         const loadTables = vi.fn().mockResolvedValue([{ tableName: 'users', tableComment: '用户表' }]);
         const ctx = createCtx({ clause: 'table' });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadTables = loadTables;
+        ctx.dbInst.loadTables = loadTables;
 
         const result = await tableContributor.contribute(ctx);
         expect(loadTables).toHaveBeenCalledWith('test');
@@ -212,6 +222,21 @@ describe('tableContributor', () => {
         expect((result?.suggestions[0]!.label as { description: string }).description).toBe('用户表');
         expect(result?.suggestions[0]!.insertText).toBe('`users`');
         expect(result?.suggestions[0]!.sortText).toBe('300');
+    });
+
+    it('表名建议一并纳入视图（不同图标 + 注释右侧灰显 + 方言包裹）', async () => {
+        const ctx = createCtx({ clause: 'table' });
+        ctx.dbInst.loadTables = vi.fn().mockResolvedValue([{ tableName: 'users', tableComment: '用户表' }]);
+        ctx.dbInst.loadViews = vi.fn().mockResolvedValue([{ name: 'v_user_active', comment: '活跃用户视图' }]);
+
+        const result = await tableContributor.contribute(ctx);
+        const labels = result!.suggestions.map((s) => labelText(s));
+        // 表与视图都应出现在 FROM/JOIN 位置联想中
+        expect(labels).toContain('users');
+        expect(labels).toContain('v_user_active');
+        const view = result!.suggestions.find((s) => labelText(s) === 'v_user_active')!;
+        expect(view.insertText).toBe('`v_user_active`');
+        expect((view.label as { description: string }).description).toBe('活跃用户视图');
     });
 
     it('字段/表达式位置（column 子句）不产出表名建议', async () => {
@@ -228,15 +253,15 @@ describe('keywordContributor', () => {
     });
 
     it('方言漏配某类建议时降级为空列表，不阻断补全', async () => {
-        const dialect = {
-            getEditorCompletions: async () => ({
-                keywords: [{ label: 'SELECT', description: 'keyword' }],
-                operators: undefined,
-                functions: undefined,
-                variables: undefined,
-            }),
-        };
-        const result = await keywordContributor.contribute(createCtx({ dialect: dialect as unknown as SqlCompletionContext['dialect'] }));
+        const ctx = createCtx();
+        // 仅覆写联想词产出，其余方言能力沿用 createCtx 的缺省桩
+        ctx.dialect.getEditorCompletions = async () => ({
+            keywords: [{ label: 'SELECT', description: 'keyword' }],
+            operators: undefined,
+            functions: undefined,
+            variables: undefined,
+        });
+        const result = await keywordContributor.contribute(ctx);
         expect(result?.suggestions).toHaveLength(1);
     });
 });
@@ -258,7 +283,7 @@ describe('snippetContributor', () => {
     it('分页模板随方言自描述而变（pg 系换成 OFFSET 形）', async () => {
         const ctx = createCtx({ dbType: 'postgres' });
         // 片段取自 dialect.getPageSnippet() 而非 ctx.dbType：换预设即换模板，补全层不参与决策
-        (ctx.dialect as unknown as Record<string, unknown>).getPageSnippet = () => limitOffsetPageSnippet;
+        ctx.dialect.getPageSnippet = () => limitOffsetPageSnippet;
 
         const result = await snippetContributor.contribute(ctx);
         const labels = result?.suggestions.map((s) => labelText(s));
@@ -288,13 +313,13 @@ describe('createDefaultContributors 贡献者链', () => {
     });
 
     it('`.` 触发命中字段场景时提前收敛，仅返回 column 结果', async () => {
-        const loadDbHints = vi.fn().mockResolvedValue({ users: ['id  [int][]'] });
+        const loadColumns = vi.fn().mockResolvedValue([{ columnName: 'id', columnType: 'int', dataType: 'int', columnComment: '' }]);
         const ctx = createCtx({
             isDotTrigger: true,
             dotAlias: 'u',
             statement: 'SELECT * FROM users u WHERE u.',
         });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadDbHints = loadDbHints;
+        ctx.dbInst.loadColumns = loadColumns;
 
         // 模拟补全入口的贡献者链执行逻辑
         const suggestions = [];
@@ -317,7 +342,7 @@ describe('createDefaultContributors 贡献者链', () => {
     it('空格触发（表名期望位置）时非专属贡献者结果合并', async () => {
         const loadTables = vi.fn().mockResolvedValue([]);
         const ctx = createCtx({ statement: 'FROM ', statementCursorOffset: 5, clause: 'table' });
-        (ctx.dbInst as unknown as Record<string, unknown>).loadTables = loadTables;
+        ctx.dbInst.loadTables = loadTables;
 
         const suggestions = [];
         for (const contributor of createDefaultContributors()) {

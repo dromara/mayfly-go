@@ -59,18 +59,19 @@ describe('getInfo()：纯元数据，不依赖 monaco', () => {
 
 describe('getEditorCompletions()：异步按需加载', () => {
     it.each(allDialects().map((d) => [d.label, d.dialect] as const))('%s 返回四类联想词', async (_label, dialect) => {
-        const completions = await dialect.getEditorCompletions();
-        expect(Array.isArray(completions.keywords)).toBe(true);
-        expect(Array.isArray(completions.operators)).toBe(true);
-        expect(Array.isArray(completions.functions)).toBe(true);
-        expect(Array.isArray(completions.variables)).toBe(true);
-        expect(completions.keywords.length, '关键字联想为空，语言定义可能未正确加载').toBeGreaterThan(0);
+        // 类型上四类可缺省（方言按需配置），此处给空数组默认值以便统一断言真实方言都产出了内容
+        const { keywords = [], operators = [], functions = [], variables = [] } = await dialect.getEditorCompletions();
+        expect(Array.isArray(keywords)).toBe(true);
+        expect(Array.isArray(operators)).toBe(true);
+        expect(Array.isArray(functions)).toBe(true);
+        expect(Array.isArray(variables)).toBe(true);
+        expect(keywords.length, '关键字联想为空，语言定义可能未正确加载').toBeGreaterThan(0);
         // 每项建议至少要有 label，否则 monaco 渲染补全列表时会拿到 undefined
-        expect(completions.keywords.every((k) => !!k.label)).toBe(true);
+        expect(keywords.every((k) => !!k.label)).toBe(true);
     });
 
     it('MySQL 的联想词确实来自 monaco 语言定义并叠加了自定义函数', async () => {
-        const { keywords, functions } = await getDbDialect(DbType.mysql).getEditorCompletions();
+        const { keywords = [], functions = [] } = await getDbDialect(DbType.mysql).getEditorCompletions();
         expect(keywords.length).toBeGreaterThan(100);
         // 自定义重写函数（带参数提示）应覆盖同名内置函数，而不是与其并存
         const concat = functions.filter((f) => f.label === 'CONCAT');
@@ -94,7 +95,7 @@ describe('getEditorCompletions()：异步按需加载', () => {
 
 describe('getDialectCapabilities()：实例级缓存', () => {
     it('同一方言多次读取命中缓存，返回同一对象', () => {
-        const dialect = getDbDialect(DbType.postgresql);
+        const dialect = getDbDialect(DbType.postgres);
         expect(getDialectCapabilities(dialect)).toBe(getDialectCapabilities(dialect));
     });
 
@@ -154,7 +155,7 @@ describe('getPageSnippet()：分页写法由方言自描述', () => {
 
     it('派生方言继承基类分页模板，无需重复声明', () => {
         const mysql = getDbDialect(DbType.mysql).getPageSnippet();
-        const postgres = getDbDialect(DbType.postgresql).getPageSnippet();
+        const postgres = getDbDialect(DbType.postgres).getPageSnippet();
         const oracle = getDbDialect(DbType.oracle).getPageSnippet();
 
         expect(getDbDialect(DbType.mariadb).getPageSnippet(), 'mariadb 应继承 mysql').toBe(mysql);
@@ -170,7 +171,7 @@ describe('getPageSnippet()：分页写法由方言自描述', () => {
         const used = new Set(allDialects().map(({ dialect }) => dialect.getPageSnippet()));
         expect(used.size).toBe(4);
         expect(getDbDialect(DbType.mysql).getPageSnippet()).toBe(limitCommaPageSnippet);
-        expect(getDbDialect(DbType.postgresql).getPageSnippet()).toBe(limitOffsetPageSnippet);
+        expect(getDbDialect(DbType.postgres).getPageSnippet()).toBe(limitOffsetPageSnippet);
         expect(getDbDialect(DbType.mssql).getPageSnippet()).toBe(offsetFetchPageSnippet);
         expect(getDbDialect(DbType.oracle).getPageSnippet()).toBe(rownumPageSnippet);
     });

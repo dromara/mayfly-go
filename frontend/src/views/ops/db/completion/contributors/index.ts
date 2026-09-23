@@ -40,7 +40,7 @@ function orderOf(name: string): number {
 /**
  * 注册补全贡献者。
  *
- * 同名贡献者重复注册时覆盖旧实现（便于测试与方言定制场景替换内置行为）。
+ * 同名贡献者重复注册时覆盖先前注册的实例（便于测试与方言定制场景替换内置行为）。
  *
  * @param contributor 贡献者实现，name 作为唯一标识
  * @param order 执行顺序权重，越小越先执行。命中 exclusive 的贡献者会提前收敛整条链，

@@ -178,9 +178,9 @@ func RemoveQueryParam(req *http.Request, paramNames ...string) error {
 }
 
 func getInstanceId(rc *req.Ctx) uint64 {
-	instanceId := rc.PathParamInt("instanceId")
+	instanceId := cast.ToUint64(rc.PathParam("instanceId"))
 	biz.IsTrue(instanceId > 0, "instanceId error")
-	return uint64(instanceId)
+	return instanceId
 }
 
 // ---- Export progress tracking ----

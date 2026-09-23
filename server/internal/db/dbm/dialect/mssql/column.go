@@ -90,7 +90,7 @@ func (m *mssqlUuidValuer) Value() any {
 }
 
 // DTUuidString uuid专用字符串类型：与DTString唯一差异是Valuer懂驱动的二进制GUID形态
-var DTUuidString = (&dbi.DataType{
+var DTUuidString = (&dbi.ValueCodec{
 	Name:     "string",
 	Valuer:   func() dbi.Valuer { return &mssqlUuidValuer{DefaultValuer: new(dbi.DefaultValuer[nullUuid])} },
 	SQLValue: dbi.SQLValueString,
@@ -204,7 +204,7 @@ var (
 	Rowversion       = dbi.NewDbDataType("rowversion", DTBytesMssql).WithCategory(dbi.TCBinary).WithFixColumn(dbi.ClearNumPrecision)
 	Hierarchyid      = dbi.NewDbDataType("hierarchyid", dbi.DTString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)
 	Uniqueidentifier = dbi.NewDbDataType("uniqueidentifier", DTUuidString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)
-	Sql_variant      = dbi.NewDbDataType("sql_variant", dbi.DTString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)
+	SQL_variant      = dbi.NewDbDataType("sql_variant", dbi.DTString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)
 	Xml              = dbi.NewDbDataType("xml", dbi.DTString).WithCategory(dbi.TCLongtext).WithFixColumn(dbi.ClearNumPrecision)
 	Table            = dbi.NewDbDataType("table", dbi.DTString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)
 	Geometry         = dbi.NewDbDataType("geometry", dbi.DTString).WithCategory(dbi.TCVarchar).WithFixColumn(dbi.ClearNumPrecision)

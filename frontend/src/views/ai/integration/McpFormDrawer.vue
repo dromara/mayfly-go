@@ -37,7 +37,8 @@
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '@/hooks/useI18n';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { pluginApi, type PluginInstance } from './api';
 
@@ -68,8 +69,37 @@ const discoveredTools = ref<{ name: string; description: string }[]>([]);
 // 编辑态原始启停值（保存后若变化需经启停接口同步）
 const origEnabled = ref(1);
 
+/** MCP 实例连接配置（内联在 instance.config 里，后端为跨插件类型共用的自由 map） */
+interface McpInstanceConfig {
+    url: string;
+    headers: string;
+    timeoutSec: number;
+}
+
+/** MCP 实例编辑表单 */
+interface McpForm {
+    code: string;
+    name: string;
+    description: string;
+    enabled: number;
+}
+
+/**
+ * 从实例 config 读出 MCP 连接配置
+ *
+ * config 是后端自由 map，本函数是唯一的边界转换点（逐键校类型，代替在读取点反复断言）。
+ */
+function mcpConfigOf(config?: Record<string, unknown>): McpInstanceConfig {
+    return {
+        url: typeof config?.url === 'string' ? config.url : '',
+        headers: typeof config?.headers === 'string' ? config.headers : '',
+        timeoutSec: typeof config?.timeoutSec === 'number' ? config.timeoutSec : 30,
+    };
+}
+
 /** 表单声明（enabled/测试连接区仅编辑态展示，headers/timeoutSec 为 custom 插槽） */
-const formItems = computed<AutoFormItem[]>(() => [
+const formItems = computed(() =>
+    defineFormItems<McpForm & McpInstanceConfig>([
     {
         prop: 'name',
         label: 'ai.integration.mcpName',
@@ -103,7 +133,8 @@ const formItems = computed<AutoFormItem[]>(() => [
     { prop: 'timeoutSec', label: 'ai.integration.mcpTimeout', type: 'custom' },
     { prop: 'enabled', label: 'ai.integration.mcpEnabled', type: 'switch', when: () => isEdit.value, props: { 'active-value': 1, 'inactive-value': 0 } },
     { prop: 'testArea', type: 'custom', when: () => isEdit.value },
-]);
+    ])
+);
 
 // 紧凑 JSON 格式化为缩进形式（非法 JSON 原样返回，交给保存校验提示）
 const prettyJson = (s: string) => {
@@ -114,22 +145,25 @@ const prettyJson = (s: string) => {
     }
 };
 
-/** 传给 AutoFormDrawer 的回填数据：连接配置内联在实例 config（McpInstanceConfig：url/headers/timeoutSec） */
-const editData = computed<AutoFormData | null>(() => {
+/** 传给 AutoFormDrawer 的回填数据：连接配置内联在实例 config */
+const editData = computed<McpForm & McpInstanceConfig>(() => {
     if (props.server) {
-        const cfg = (props.server.config || {}) as Partial<{ url: string; headers: string; timeoutSec: number }>;
+        const cfg = mcpConfigOf(props.server.config);
         return {
             code: props.server.code,
             name: props.server.name,
             description: props.server.description,
-            url: cfg.url || '',
-            headers: prettyJson(cfg.headers || ''),
-            timeoutSec: cfg.timeoutSec || 30,
+            url: cfg.url,
+            headers: prettyJson(cfg.headers),
+            timeoutSec: cfg.timeoutSec,
             enabled: props.server.enabled,
-        } as unknown as AutoFormData;
+        };
     }
-    return { code: '', name: '', description: '', url: '', headers: '', timeoutSec: 30, enabled: 1 } as unknown as AutoFormData;
+    return { code: '', name: '', description: '', url: '', headers: '', timeoutSec: 30, enabled: 1 };
 });
+
+// 宿主抽屉的内部表单在 @opened 接管（提交组装基于它）
+const { openedWith, requireForm } = useAutoFormModel<McpForm & McpInstanceConfig>();
 
 // 打开时重置测试状态，编辑态记录原始启停值；列表页「查看工具」入口自动执行连接测试
 watch(visible, (open) => {
@@ -144,10 +178,10 @@ watch(visible, (open) => {
     }
 });
 
-/** 抽屉打开且回填完成后清残留校验状态（参数为 AutoFormDrawer 内部表单引用，占位避免未使用告警） */
-const onOpened = (_form: AutoFormData) => {
+/** 抽屉打开且回填完成后清残留校验状态 */
+const onOpened = openedWith(() => {
     drawerRef.value?.clearValidate?.();
-};
+});
 
 const handleTest = async () => {
     testing.value = true;
@@ -163,16 +197,8 @@ const handleTest = async () => {
 };
 
 // confirmApi 提交动作：headers 前置校验（失败抛错中止，组件保持抽屉打开）+ 组装后提交；成功提示与关闭抽屉由组件内置逻辑处理
-const handleSave = async (rawForm: AutoFormData) => {
-    const form = rawForm as {
-        code: string;
-        name: string;
-        description: string;
-        url: string;
-        headers: string;
-        timeoutSec: number;
-        enabled: number;
-    };
+const handleSave = async () => {
+    const form = requireForm();
     // headers 需为合法 JSON 对象（后端同样校验）
     if (form.headers?.trim()) {
         try {

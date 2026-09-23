@@ -1,6 +1,5 @@
 /**
  * 模板系统 - TemplateService
- * 内置模板数据已拆分到 templateData.ts
  */
 
 import type { TableTemplate, TableDefinition } from '../../types/schema';
@@ -106,12 +105,12 @@ class TemplateService {
         type: col.type,
         length: col.length,
         numScale: '',
-        notNull: col.notNull,
-        pri: col.isPrimaryKey || false,
+        nullable: col.nullable,
+        isPrimaryKey: col.isPrimaryKey || false,
         unique: col.unique || false,
-        auto_increment: col.autoIncrement || false,
+        autoIncrement: col.autoIncrement || false,
         value: col.defaultValue || '',
-        remark: col.comment || '',
+        comment: col.comment || '',
       })),
       indexes: template.indexes?.map(idx => ({
         name: idx.name,
@@ -145,12 +144,12 @@ class TemplateService {
         name: col.name,
         type: col.type,
         length: col.length?.toString(),
-        notNull: col.notNull,
-        isPrimaryKey: col.pri,
-        autoIncrement: col.auto_increment,
+        nullable: col.nullable,
+        isPrimaryKey: col.isPrimaryKey,
+        autoIncrement: col.autoIncrement,
         unique: col.unique,
         defaultValue: col.value,
-        comment: col.remark || '',
+        comment: col.comment || '',
       })),
       indexes: table.indexes.map(idx => ({
         name: idx.name,

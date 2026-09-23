@@ -5,16 +5,16 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 )
 
-var _ dbi.DumpHelper = (*DumpHelper)(nil)
+var _ dbi.DumpTxnWrapper = (*DumpTxnWrapper)(nil)
 
-type DumpHelper struct {
-	dbi.DefaultDumpHelper
+type DumpTxnWrapper struct {
+	dbi.DefaultDumpTxnWrapper
 }
 
-func (db *DumpHelper) BeforeInsert(writer io.Writer, tableName string) error {
+func (db *DumpTxnWrapper) BeforeInsert(writer io.Writer, tableName string) error {
 	return nil
 }
 
-func (db *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
+func (db *DumpTxnWrapper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) error {
 	return nil
 }

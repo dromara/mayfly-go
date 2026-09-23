@@ -175,7 +175,8 @@
 import { Rules } from '@/common/rule';
 import { formatByteSize } from '@/common/utils/format';
 import { deepClone } from '@/common/utils/object';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, type AutoFormItem } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { computed, reactive, ref, watch, type PropType } from 'vue';
 import { dockerApi } from '../api';
@@ -215,7 +216,7 @@ const state = reactive({
     images: [] as DockerImageItem[],
 });
 
-const submitForm = ref({} as Record<string, unknown>);
+const submitForm = ref<Record<string, unknown>>({});
 
 //定义事件
 const emit = defineEmits(['cancel', 'success']);
@@ -270,15 +271,15 @@ const items = computed<AutoFormItem[]>(() => [
     { prop: 'envsStr', label: 'docker.envParam', type: 'textarea', rows: 3, placeholder: 'docker.envParamTips' },
 ]);
 
+/** 创建容器表单（形状即上方默认值，提交前另加实例 id 与拆好的 envs/labels/cmd） */
+type ContainerCreateForm = typeof defaultForm;
+
 /** 传给 AutoFormDrawer 的回填数据（新建态默认值，深拷贝由组件内部完成） */
-const editData = deepClone(defaultForm) as unknown as AutoFormData;
+const editData = deepClone(defaultForm);
 
-/** 抽屉打开后暂存的内部表单引用（端口/挂载卷/设备表格编辑与提交组装基于它） */
-const internalForm = ref<AutoFormData>({});
-
-const onOpened = (form: AutoFormData) => {
-    internalForm.value = form;
-};
+// 宿主抽屉的内部表单在 @opened 接管；computed 保持读取点写法不变（端口/挂载卷/设备表格编辑与提交均基于它）
+const { onOpened, requireForm } = useAutoFormModel<ContainerCreateForm>();
+const internalForm = computed(requireForm);
 
 const { execute: createExec } = dockerApi.containerCreate.useApi(submitForm);
 
@@ -340,8 +341,8 @@ const handleDevicesDelete = (index: number) => {
 };
 
 // confirmApi 提交动作：组装提交参数（端口/环境变量/标签/命令）后创建容器；成功提示与关闭抽屉由组件内置逻辑处理
-const btnOk = async (rawForm: AutoFormData) => {
-    const form = rawForm as typeof defaultForm;
+const btnOk = async () => {
+    const form = requireForm();
     submitForm.value = { ...form };
     submitForm.value.id = props.id;
 

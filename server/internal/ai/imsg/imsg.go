@@ -17,9 +17,9 @@ const (
 	ApprovalDesc
 	RejectReasonDefault
 	MissingRequiredParams
-	SqlExecApprovalReason
-	ExecSqlToolDesc
-	ExecSqlToolInfo
+	SQLExecApprovalReason
+	ExecSQLToolDesc
+	ExecSQLToolInfo
 	DbQueryDataToolDesc
 	DbQueryDataToolInfo
 	DbQueryTableDDLToolDesc

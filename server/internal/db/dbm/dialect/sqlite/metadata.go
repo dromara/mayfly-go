@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	_ "embed"
-	"errors"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
@@ -15,10 +14,10 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 const (
 	SQLITE_TABLE_INFO_KEY = "SQLITE_TABLE_INFO"
@@ -33,18 +32,17 @@ var (
 )
 
 var (
-	_ dbi.ServerInfo       = (*SqliteMetadata)(nil)
-	_ dbi.MetadataProvider = (*SqliteMetadata)(nil)
+	_ dbi.ServerInfo       = (*SQLiteMetadata)(nil)
+	_ dbi.MetadataProvider = (*SQLiteMetadata)(nil)
 )
 
-type SqliteMetadata struct {
+type SQLiteMetadata struct {
 	dbi.DefaultServerInfo
-	dbi.DefaultMetadataProvider
 
 	di *dbi.DbInfo
 }
 
-func (sd *SqliteMetadata) GetDbServer() (*dbi.DbServer, error) {
+func (sd *SQLiteMetadata) GetDbServer() (*dbi.DbServer, error) {
 	_, res, err := sd.di.Query("SELECT SQLITE_VERSION() as version")
 	if err != nil {
 		return nil, err
@@ -59,7 +57,7 @@ func (sd *SqliteMetadata) GetDbServer() (*dbi.DbServer, error) {
 	return ds, nil
 }
 
-func (sd *SqliteMetadata) GetDbNames() ([]string, error) {
+func (sd *SQLiteMetadata) GetDbNames() ([]string, error) {
 	databases := make([]string, 0)
 	_, res, err := sd.di.Query("PRAGMA database_list")
 	if err != nil {
@@ -73,7 +71,7 @@ func (sd *SqliteMetadata) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (sd *SqliteMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
+func (sd *SQLiteMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := sd.di.GetDialect()
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
@@ -82,7 +80,7 @@ func (sd *SqliteMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(metaSql.Get(SQLITE_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSQL.Get(SQLITE_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +108,7 @@ func (sd *SqliteMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 // 如 decimal(10,2)  提取decimal, 10 ,2
 // 如:text 提取text,null,null
 // 如:varchar(100)  提取varchar, 100
-func (sd *SqliteMetadata) getDataTypes(dataType string) (string, string, string) {
+func (sd *SQLiteMetadata) getDataTypes(dataType string) (string, string, string) {
 	matches := dataTypeRegexp.FindStringSubmatch(dataType)
 	if len(matches) == 0 {
 		return dataType, "", ""
@@ -119,7 +117,7 @@ func (sd *SqliteMetadata) getDataTypes(dataType string) (string, string, string)
 }
 
 // 获取列元信息, 如列名等
-func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+func (sd *SQLiteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	columns := make([]dbi.Column, 0)
 	for i := 0; i < len(tableNames); i++ {
 		tableName := tableNames[i]
@@ -131,7 +129,7 @@ func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 		}
 		for _, re := range res {
 			// 默认值保留 dflt_value 的书写原文（带引号的字面量形态），由SQLGenerator统一按字面量语义
-			// 还原并重新转义；旧实现在此处ReplaceAll删除了内容中的全部单引号，使 DEFAULT 'it''s'
+			// 还原并重新转义；若在此 ReplaceAll 删除内容中的全部单引号，会使 DEFAULT 'it''s'
 			// 的默认值失真为 its（结构迁移静默改变表定义）；若在此提前剥引号，则 '(0)' 这类
 			// 内容本身含括号的默认值会与表达式默认值无法区分而被丢弃
 			defaultValue := cast.ToString(re["dflt_value"])
@@ -147,7 +145,7 @@ func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 				ColumnComment: "",
 				Nullable:      cast.ToInt(re["notnull"]) != 1,
 				// pk是列在主键内的序号（0表示非主键列），复合主键的所有列都是主键；
-				// 旧实现 pk==1 仅标记首个主键列，导致复合主键表迁移时其余主键列静默失去主键约束
+				// 若按 pk==1 只标记首个主键列，复合主键表迁移时其余主键列会静默失去主键约束
 				IsPrimaryKey: pkPos != 0,
 				// 仅 INTEGER 主键是 rowid 别名而具备自增语义；声明为其他类型的主键列（如text主键）
 				// 不应标记自增，否则DDL重建时会被强制改写为 integer 主键（列类型静默改变）
@@ -174,34 +172,48 @@ func (sd *SqliteMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 	return columns, nil
 }
 
-func (sd *SqliteMetadata) GetPrimaryKey(tableName string) (string, error) {
+// GetPrimaryKeys 获取表的有序主键列名（PRAGMA table_info 的 pk 为键内序号）；无主键返回空切片
+func (sd *SQLiteMetadata) GetPrimaryKeys(tableName string) ([]string, error) {
 	_, res, err := sd.di.Query(fmt.Sprintf("PRAGMA table_info(%s)", sd.di.GetDialect().Quoter().QuoteIdent(tableName)))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
+
+	// pk 为 1 起的键内序号，按序号收集全部主键列（联合主键多列）
+	maxSeq := 0
 	for _, re := range res {
-		if cast.ToInt(re["pk"]) == 1 {
-			return cast.ToString(re["name"]), nil
+		if seq := cast.ToInt(re["pk"]); seq > maxSeq {
+			maxSeq = seq
+		}
+	}
+	pks := make([]string, 0, maxSeq)
+	for pos := 1; pos <= maxSeq; pos++ {
+		for _, re := range res {
+			if cast.ToInt(re["pk"]) == pos {
+				pks = append(pks, cast.ToString(re["name"]))
+				break
+			}
 		}
 	}
 
-	return "", errors.New("不存在主键")
+	// 无主键返回空切片（不报错、不兜底首列）
+	return pks, nil
 }
 
 // 获取表索引信息
 //
 // 列名与唯一性均来自pragma（见SQLITE_INDEX_INFO模板）：约束生成的隐式索引在sqlite_master中
 // 无sql文本，旧口径按sql正则提取会得到空列名，并使dump生成 DROP/CREATE 空列索引的非法语句
-func (sd *SqliteMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
+func (sd *SQLiteMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	// 模板以字符串字面量匹配表名，必须转义单引号，否则含单引号的表名会破坏SQL
-	_, res, err := sd.di.Query(fmt.Sprintf(metaSql.Get(SQLITE_INDEX_INFO_KEY), dbi.QuoteEscape(tableName)))
+	_, res, err := sd.di.Query(fmt.Sprintf(metaSQL.Get(SQLITE_INDEX_INFO_KEY), dbi.QuoteEscape(tableName)))
 	if err != nil {
 		return nil, err
 	}
 
-	indexs := make([]dbi.Index, 0)
+	indexes := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, dbi.Index{
+		indexes = append(indexes, dbi.Index{
 			IndexName:    cast.ToString(re["indexName"]),
 			ColumnName:   cast.ToString(re["columnName"]),
 			IndexType:    cast.ToString(re["indexType"]),
@@ -211,11 +223,11 @@ func (sd *SqliteMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			IsPrimaryKey: false,
 		})
 	}
-	return indexs, nil
+	return indexes, nil
 }
 
 // 获取建表ddl
-func (sd *SqliteMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
+func (sd *SQLiteMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 	var builder strings.Builder
 
 	if dropBeforeCreate {
@@ -234,6 +246,6 @@ func (sd *SqliteMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (
 	return builder.String(), nil
 }
 
-func (sd *SqliteMetadata) GetSchemas() ([]string, error) {
+func (sd *SQLiteMetadata) GetSchemas() ([]string, error) {
 	return nil, nil
 }

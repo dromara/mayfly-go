@@ -62,7 +62,7 @@ func (p *Procdef) GetProcdefPage(rc *req.Ctx) {
 }
 
 func (p *Procdef) GetProcdefDetail(rc *req.Ctx) {
-	def, err := p.procdefApp.GetById(cast.ToUint64(rc.PathParamInt("id")))
+	def, err := p.procdefApp.GetById(cast.ToUint64(rc.PathParam("id")))
 	biz.ErrIsNil(err)
 	res := new(vo.Procdef)
 	biz.ErrIsNil(structx.Copy(res, def))
@@ -107,8 +107,8 @@ func (a *Procdef) SaveFlowDef(rc *req.Ctx) {
 }
 
 func (a *Procdef) GetFlowDef(rc *req.Ctx) {
-	defId := rc.PathParamInt("id")
-	procdef, err := a.procdefApp.GetById(uint64(defId))
+	defId := cast.ToUint64(rc.PathParam("id"))
+	procdef, err := a.procdefApp.GetById(defId)
 	biz.ErrIsNil(err)
 	rc.ResData = procdef.GetFlowDef()
 }

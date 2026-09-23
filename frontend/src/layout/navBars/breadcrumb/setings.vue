@@ -510,24 +510,21 @@ type ThemeColorKey = 'primary' | 'success' | 'info' | 'warning' | 'danger' | 'te
 type ThemeBgColorKey = 'menuBar' | 'menuBarColor' | 'topBar' | 'columnsMenuBar' | 'topBarColor' | 'columnsMenuBarColor';
 
 // 1、全局主题
+// 参与 CSS 变量的主题色（终端三色由 xterm 以 JS 值读取，不需写变量）
+const CSS_COLOR_KEYS: ThemeColorKey[] = ['primary', 'success', 'info', 'warning', 'danger'];
+
 const onColorPickerChange = (color: ThemeColorKey) => {
-    setPropertyFun(`--color-${color}`, themeConfig.value[color]);
-    setDispatchThemeConfig();
-};
-// 1、全局主题设置函数
-const setPropertyFun = (color: string, targetVal: string) => {
-    document.documentElement.style.setProperty(color, targetVal);
-    for (let i = 1; i <= 9; i++) {
-        document.documentElement.style.setProperty(`${color}-light-${i}`, getLightColor(targetVal, i / 10));
+    if (CSS_COLOR_KEYS.includes(color)) {
+        setDispatchThemeConfig();
     }
 };
-// 2、菜单 / 顶栏
+
+// 2、菜单 / 顶栏（变量名拼接与明暗梯度统一由 store 的派生入口负责，此处不再直接写 CSS 变量；bg 仅为模板侧标识来源）
 const onBgColorPickerChange = (bg: ThemeBgColorKey) => {
-    document.documentElement.style.setProperty(`--bg-${bg}`, themeConfig.value[bg]);
+    setDispatchThemeConfig();
     onTopBarGradualChange();
     onMenuBarGradualChange();
     onColumnsMenuBarGradualChange();
-    setDispatchThemeConfig();
 };
 // 2、菜单 / 顶栏 --> 顶栏背景渐变
 const onTopBarGradualChange = () => {
@@ -772,17 +769,11 @@ const onDrawerClose = () => {
     themeConfig.value.isDrawer = false;
 };
 
-// 触发 store 布局配置更新
+// 主题配置变更后重新派生并写入 CSS 变量
+// （themeConfig 本体由 App.vue 深度监听持久化；旧版此处存整份 html 内联 cssText 并在下次启动回放，
+// 会把上一会话的明暗相关变量固定注入当前模式，导致暗色底配亮色文字而看似空白）
 const setDispatchThemeConfig = () => {
-    setLocalThemeConfigStyle();
-};
-
-// 存储布局配置全局主题样式（html根标签）
-const setLocalThemeConfigStyle = () => {
-    // 剔除 --backdrop-image：壁纸 base64 与 themeConfig.bgImage 存的是同一份数据，
-    // 双份直塞会把该键撑爆配额导致整个写入失败；init 会从 bgImage 重新注入 DOM 变量
-    const cssText = document.documentElement.style.cssText.replace(/--backdrop-image:\s*(?:url\("[^"]*"\)|none)\s*;?/g, '');
-    setLocal('themeConfigStyle', cssText);
+    themeConfigStore.applyCustomThemeVars();
 };
 // 一键复制配置
 const onCopyConfigClick = () => {

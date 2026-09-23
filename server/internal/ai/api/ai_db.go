@@ -17,19 +17,19 @@ type AiDB struct{}
 func (a *AiDB) ReqConfs() *req.Confs {
 	reqs := [...]*req.Conf{
 		// 文生SQL接口
-		req.NewPost("/sql-gen", a.GenerateSql),
+		req.NewPost("/sql-gen", a.GenerateSQL),
 	}
 
 	return req.NewConfs("/ai/db", reqs[:]...)
 }
 
-// GenerateSqlResponse 生成SQL响应结果
-type GenerateSqlResponse struct {
-	Sql string `json:"sql"` // 生成的SQL语句
+// GenerateSQLResponse 生成SQL响应结果
+type GenerateSQLResponse struct {
+	SQL string `json:"sql"` // 生成的SQL语句
 }
 
-// GenerateSql 根据自然语言生成SQL语句
-func (a *AiDB) GenerateSql(rc *req.Ctx) {
+// GenerateSQL 根据自然语言生成SQL语句
+func (a *AiDB) GenerateSQL(rc *req.Ctx) {
 
 	req := struct {
 		DbType          string   `json:"dbType" binding:"omitempty"`         // 数据库类型
@@ -45,16 +45,16 @@ func (a *AiDB) GenerateSql(rc *req.Ctx) {
 	}
 
 	// 生成提示词
-	promptText := generateSqlPrompt(dbType, req.NaturalLanguage, req.Tables)
+	promptText := generateSQLPrompt(dbType, req.NaturalLanguage, req.Tables)
 	logx.Infof("生成的SQL提示词: %s", promptText)
 
 	// 调用AI生成SQL - 这里提供一个模拟实现
 	// 在实际项目中，需要调用真实的AI模型API进行SQL生成
-	generatedSql := fmt.Sprintf("-- 根据您的需求生成的SQL:\n-- 自然语言描述: %s\n-- 数据库类型: %s\n-- 相关表名: %s\nSELECT * FROM %s WHERE 1=1",
+	generatedSQL := fmt.Sprintf("-- 根据您的需求生成的SQL:\n-- 自然语言描述: %s\n-- 数据库类型: %s\n-- 相关表名: %s\nSELECT * FROM %s WHERE 1=1",
 		req.NaturalLanguage, dbType, strings.Join(req.Tables, ", "),
 		strings.Join(req.Tables, ", "))
 	if len(req.Tables) == 0 {
-		generatedSql = fmt.Sprintf("-- 根据您的需求生成的SQL:\n-- 自然语言描述: %s\n-- 数据库类型: %s\nSELECT * FROM users WHERE 1=1",
+		generatedSQL = fmt.Sprintf("-- 根据您的需求生成的SQL:\n-- 自然语言描述: %s\n-- 数据库类型: %s\nSELECT * FROM users WHERE 1=1",
 			req.NaturalLanguage, dbType)
 	}
 
@@ -78,7 +78,7 @@ func (a *AiDB) GenerateSql(rc *req.Ctx) {
 
 		// 模拟流式输出，逐字符发送SQL内容
 		var sqlContent string
-		for _, char := range generatedSql {
+		for _, char := range generatedSQL {
 			sqlContent += string(char)
 			// 构建SSE消息
 			message := fmt.Sprintf("data: {\"sql\": \"%s\"}\n\n", strings.ReplaceAll(sqlContent, "\"", "\\\""))
@@ -108,11 +108,11 @@ func (a *AiDB) GenerateSql(rc *req.Ctx) {
 	}
 
 	// 非流式输出，使用标准响应格式
-	rc.ResData = &GenerateSqlResponse{Sql: generatedSql}
+	rc.ResData = &GenerateSQLResponse{SQL: generatedSQL}
 }
 
-// generateSqlPrompt 生成SQL提示词
-func generateSqlPrompt(dbType, text string, tables []string) string {
+// generateSQLPrompt 生成SQL提示词
+func generateSQLPrompt(dbType, text string, tables []string) string {
 	// 使用prompt包中的GetPrompt函数获取提示词模板
 	// 如果没有找到模板，则使用默认模板
 	return ""

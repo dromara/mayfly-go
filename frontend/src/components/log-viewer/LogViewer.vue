@@ -71,29 +71,27 @@
                 <span>{{ $t('components.logViewer.loading') }}</span>
             </div>
 
-            <!-- 虚拟滚动列表 -->
-            <div v-else class="log-viewer__list" :style="{ height: `${totalHeight}px` }">
-                <div class="log-viewer__spacer" :style="{ transform: `translateY(${offsetY}px)` }">
-                    <div
-                        v-for="line in visibleLines"
-                        :key="line.lineIndex"
-                        :class="['log-viewer__line', `level-${line.level.toLowerCase()}`]"
-                        :style="{ height: `${props.lineHeight}px` }"
-                    >
-                        <!-- 行号 -->
-                        <span v-if="theme.showLineNumbers" class="log-viewer__line-number">{{ line.lineIndex + 1 }}</span>
+            <!-- 虚拟滚动列表：占位高度由上下 padding 撑起，让日志行留在常规文档流中 -->
+            <div v-else class="log-viewer__list" :style="listStyle">
+                <div
+                    v-for="line in visibleLines"
+                    :key="line.lineIndex"
+                    :class="['log-viewer__line', `level-${line.level.toLowerCase()}`]"
+                    :style="{ height: `${props.lineHeight}px` }"
+                >
+                    <!-- 行号 -->
+                    <span v-if="theme.showLineNumbers" class="log-viewer__line-number">{{ line.lineIndex + 1 }}</span>
 
-                        <!-- 时间戳 -->
-                        <span v-if="theme.showTimestamp && line.timestamp" class="log-viewer__timestamp">{{ line.timestamp }}</span>
+                    <!-- 时间戳 -->
+                    <span v-if="theme.showTimestamp && line.timestamp" class="log-viewer__timestamp">{{ line.timestamp }}</span>
 
-                        <!-- 级别图标 -->
-                        <el-icon v-if="theme.showLevelIcon" :class="['log-viewer__level-icon', `level-${line.level.toLowerCase()}`]">
-                            <component :is="getLevelIcon(line.level)" />
-                        </el-icon>
+                    <!-- 级别图标 -->
+                    <el-icon v-if="theme.showLevelIcon" :class="['log-viewer__level-icon', `level-${line.level.toLowerCase()}`]">
+                        <component :is="getLevelIcon(line.level)" />
+                    </el-icon>
 
-                        <!-- 消息内容（支持搜索高亮） -->
-                        <span class="log-viewer__message" v-html="highlightText(line.message)" />
-                    </div>
+                    <!-- 消息内容（支持搜索高亮） -->
+                    <span class="log-viewer__message" v-html="highlightText(line.message)" />
                 </div>
             </div>
         </div>
@@ -238,6 +236,21 @@ const visibleLines = computed(() => {
     const start = startIndex.value;
     const end = Math.min(start + visibleCount.value, filteredLines.value.length);
     return filteredLines.value.slice(start, end);
+});
+
+/**
+ * 虚拟列表的占位样式
+ *
+ * 用上下 padding 而非绝对定位的 spacer 撑起总高度，日志行因此保持在常规文档流里：
+ * 单行不换行时，超长行的实际宽度才能扩散到滚动容器上，形成可用的横向滚动条。
+ */
+const listStyle = computed(() => {
+    // 行数减少（清空/过滤）后 scrollTop 可能还是旧值，此处夹住避免占位高度超出总高度
+    const padTop = Math.min(offsetY.value, totalHeight.value);
+    return {
+        paddingTop: `${padTop}px`,
+        paddingBottom: `${Math.max(totalHeight.value - padTop - visibleLines.value.length * props.lineHeight, 0)}px`,
+    };
 });
 
 // 状态文本
@@ -431,19 +444,14 @@ defineExpose({
 
     &__list {
         position: relative;
-        overflow: hidden;
-    }
-
-    &__spacer {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
     }
 
     &__line {
         display: flex;
         align-items: center;
+        // 行宽随最长内容增长，超出可视区由 __content 横向滚动；不足可视区时仍撑满整行，保证底色与分隔线完整
+        width: max-content;
+        min-width: 100%;
         padding: 0 12px;
         border-bottom: 1px solid var(--el-border-color-extra-light);
         font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
@@ -517,8 +525,6 @@ defineExpose({
 
     &__message {
         flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
     &__loading {

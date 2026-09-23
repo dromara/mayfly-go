@@ -1,5 +1,5 @@
 import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
-import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, IndexDefinition, RowDefinition, sqlColumnType, SqlSnippetTemplate } from './types';
+import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, IndexDefinition, ColumnDefinition, SqlColumnType, SqlSnippetTemplate } from './types';
 import { appendLimitSql, QuoteEscape } from './shared/utils';
 import { backtickQuotePairs, clickhouseSplitOptions, defineCapabilities } from './shared/capabilities';
 import { limitCommaPageSnippet } from './shared/snippets';
@@ -66,7 +66,7 @@ class ClickHouseDialect implements DbDialect {
         return limitCommaPageSnippet;
     }
 
-    getDefaultRows(): RowDefinition[] {
+    getDefaultColumns(): ColumnDefinition[] {
         return [
             {
                 name: 'id',
@@ -74,10 +74,10 @@ class ClickHouseDialect implements DbDialect {
                 value: '',
                 length: '',
                 numScale: '',
-                notNull: true,
-                pri: true,
-                auto_increment: true,
-                remark: '主键',
+                nullable: false,
+                isPrimaryKey: true,
+                autoIncrement: true,
+                comment: '主键',
             },
         ];
     }
@@ -98,7 +98,7 @@ class ClickHouseDialect implements DbDialect {
         return `\`${name}\``;
     }
 
-    genColumnBasicSql(cl: RowDefinition): string {
+    genColumnBasicSql(cl: ColumnDefinition): string {
         // ClickHouse 部分类型需要参数：FixedString(N)、Decimal(P,S)、DateTime64(N)
         let typeWithParams = cl.type;
         if (cl.length) {
@@ -109,21 +109,21 @@ class ClickHouseDialect implements DbDialect {
             }
         }
         let colDef = `${this.quoteIdentifier(cl.name)} ${typeWithParams}`;
-        if (cl.notNull) {
+        if (!cl.nullable) {
             colDef += ' NOT NULL';
         }
-        if (cl.remark) {
-            colDef += ` COMMENT '${QuoteEscape(cl.remark)}'`;
+        if (cl.comment) {
+            colDef += ` COMMENT '${QuoteEscape(cl.comment)}'`;
         }
         return colDef;
     }
 
     getCreateTableSql(data: TableEditContext): string {
-        const columnDefs = data.fields.res.map((col: RowDefinition) => `  ${this.genColumnBasicSql(col)}`);
+        const columnDefs = data.fields.res.map((col: ColumnDefinition) => `  ${this.genColumnBasicSql(col)}`);
 
         // ClickHouse 需要指定 ORDER BY 子句
-        const pkCols = data.fields.res.filter((c: RowDefinition) => c.pri);
-        const orderClause = pkCols.length > 0 ? pkCols.map((c: RowDefinition) => this.quoteIdentifier(c.name)).join(', ') : 'tuple()';
+        const pkCols = data.fields.res.filter((c: ColumnDefinition) => c.isPrimaryKey);
+        const orderClause = pkCols.length > 0 ? pkCols.map((c: ColumnDefinition) => this.quoteIdentifier(c.name)).join(', ') : 'tuple()';
 
         let sql = `CREATE TABLE ${this.quoteIdentifier(data.tableName)} (\n${columnDefs.join(',\n')}\n) ENGINE = MergeTree() ORDER BY (${orderClause})`;
 
@@ -137,7 +137,7 @@ class ClickHouseDialect implements DbDialect {
     getCreateIndexSql(data: TableEditContext): string {
         // ClickHouse indexes are typically defined in the table creation statement
         // This is a simplified implementation
-        if (data.indexs.res.length === 0) return '';
+        if (data.indexes.res.length === 0) return '';
         return '-- ClickHouse indexes are typically defined in the CREATE TABLE statement';
     }
 
@@ -146,20 +146,20 @@ class ClickHouseDialect implements DbDialect {
         return `DROP TABLE ${this.quoteIdentifier(table)}`;
     }
 
-    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         const { del, add, upd } = changeData;
         let sql = '';
 
         // Handle deleted columns
         if (del && del.length > 0) {
-            const dropColumns = del.map((col: RowDefinition) => `DROP COLUMN ${this.quoteIdentifier(col.name)}`).join(',\n');
+            const dropColumns = del.map((col: ColumnDefinition) => `DROP COLUMN ${this.quoteIdentifier(col.name)}`).join(',\n');
             sql += `ALTER TABLE ${this.quoteIdentifier(tableName)}\n${dropColumns};\n\n`;
         }
 
         // Handle added columns
         if (add && add.length > 0) {
             const addColumns = add
-                .map((col: RowDefinition) => {
+                .map((col: ColumnDefinition) => {
                     let colDef = `ADD COLUMN ${this.genColumnBasicSql(col)}`;
                     return colDef;
                 })
@@ -170,7 +170,7 @@ class ClickHouseDialect implements DbDialect {
         // Handle updated columns
         if (upd && upd.length > 0) {
             const modifyColumns = upd
-                .map((col: RowDefinition) => {
+                .map((col: ColumnDefinition) => {
                     let colDef = `MODIFY COLUMN ${this.genColumnBasicSql(col)}`;
                     return colDef;
                 })
@@ -242,7 +242,7 @@ class ClickHouseDialect implements DbDialect {
         return `INSERT INTO ${this.quoteIdentifier(tableName)} (${quotedColumns}) VALUES (${placeholders})`;
     }
 
-    private getColumnTypes(): sqlColumnType[] {
+    private getColumnTypes(): SqlColumnType[] {
         return [
             { udtName: 'UInt8', dataType: 'UInt8', desc: '8-bit unsigned integer', space: '数值' },
             { udtName: 'UInt16', dataType: 'UInt16', desc: '16-bit unsigned integer', space: '数值' },

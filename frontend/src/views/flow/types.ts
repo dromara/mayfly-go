@@ -2,6 +2,7 @@
  * Flow 模块类型定义
  * 对应后端: flow/domain/entity/*
  */
+import type { ResourceTag } from '@/views/ops/tag/types';
 
 // ==================== Entity ====================
 
@@ -18,24 +19,35 @@ export interface Procdef {
     creator: string;
 }
 
+/**
+ * 流程定义列表行 / 详情 (对应 vo.Procdef = entity.Procdef + tagentity.RelateTags)
+ *
+ * 仅 GET /flow/procdefs（列表）与 /flow/procdefs/detail/{id} 经 FillTagInfo 填充 tags；
+ * GET /flow/procdefs/{resourceType}/{resourceCode} 返回裸实体，仍用 Procdef。
+ */
+export type ProcdefVO = Procdef & { tags?: ResourceTag[] };
+
 /** 流程定义查询参数 (根据资源) */
 export interface ProcdefResourceParam {
     resourceType: string;
     resourceCode: string;
 }
 
-/** 流程实例实体 (对应 entity.Procinst) */
+/** 流程实例（对应接口返回的 vo.ProcinstVO 与列表行） */
 export interface Procinst {
     id: number;
     procdefId: number;
     procdefName: string;
     flowDef: string;
+    /** 流程变量（列表与详情接口均返回） */
     vars: Record<string, unknown>;
     bizType: string;
     bizKey: string;
     bizForm: string;
     bizStatus: number;
     bizHandleRes: string;
+    /** 当前任务 key */
+    taskKey?: string;
     status: number;
     remark: string;
     endTime?: string;

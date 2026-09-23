@@ -25,14 +25,18 @@ describe('资源注册中心', () => {
         expect(getResourceConfigs()).toContain(conf);
     });
 
-    it('重复注册同一资源类型时开发环境给出告警', () => {
+    it('重复注册同一资源类型时开发环境给出告警（按批次聚合，需等微任务刷出）', async () => {
+        // 告警经 queueMicrotask 聚合刷出，断言前需让出微任务队列
+        const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const first = makeConf('test-registry-dup', 1);
         registerResource('test-registry-dup', first);
+        await settle();
         expect(warnSpy).not.toHaveBeenCalled();
 
         const second = makeConf('test-registry-dup', 2);
         registerResource('test-registry-dup', second);
+        await settle();
         expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(String(warnSpy.mock.calls[0][0])).toContain('test-registry-dup');
         // 后注册者覆盖先注册者

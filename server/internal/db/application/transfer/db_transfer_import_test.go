@@ -10,8 +10,8 @@ import (
 
 	_ "mayfly-go/internal/db/dbm" // 触发各方言注册，使用生产同款方言切割器
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
+	"mayfly-go/internal/db/imsg"
 )
 
 // 导入切割全链路单测（不依赖真实数据库）
@@ -42,7 +42,7 @@ func dumpExecuted(t *testing.T, dbType dbi.DbType, sql string) []string {
 }
 
 // mayflyDumpMysql 平台自有 dump 产物真实形态：注释分段头紧贴其后的语句，数据段以 BEGIN;/COMMIT; 包装
-// （见 db_dump.go 与 dbi.DefaultDumpHelper.BeforeInsert/AfterInsert）
+// （见 db_dump.go 与 dbi.DefaultDumpTxnWrapper.BeforeInsert/AfterInsert）
 const mayflyDumpMysql = `
 -- ----------------------------
 -- Dump Platform: mayfly-go
@@ -171,7 +171,7 @@ func TestImportDumpUnterminatedFailsLoud(t *testing.T) {
 		require.ErrorAsf(t, err, &ue, "[%s] 未闭合内容必须返回 UnterminatedError, got=%v", name, err)
 		assert.Equalf(t, 2, ue.Line, "[%s] 切割错误行号定位不准", name)
 		// 业务错误转换：转为国际化文案（排障依赖行号与区域类型），不得返回 nil 或吞掉错误
-		bizErr := sqlparser.SplitError(t.Context(), err)
+		bizErr := imsg.SplitError(t.Context(), err)
 		require.Error(t, bizErr)
 		assert.Contains(t, bizErr.Error(), "2", "转换后的错误缺少行号信息")
 	}
@@ -198,10 +198,10 @@ func TestImportDumpNoDataLossOnLargeScript(t *testing.T) {
 	}
 }
 
-// TestImportDumpPlSqlBlockNotTreatedAsTxnStart 以 BEGIN 开头的存储过程/匿名块不能被当成事务开始语句过滤
+// TestImportDumpPlSQLBlockNotTreatedAsTxnStart 以 BEGIN 开头的存储过程/匿名块不能被当成事务开始语句过滤
 //
 // 过滤判定用的是「归一化后整体等于 BEGIN」，块体内容使其不等于 BEGIN，故不会被静默丢弃。
-func TestImportDumpPlSqlBlockNotTreatedAsTxnStart(t *testing.T) {
+func TestImportDumpPlSQLBlockNotTreatedAsTxnStart(t *testing.T) {
 	block := "-- 自定义段\nBEGIN\n  INSERT INTO t VALUES (1);\n  INSERT INTO t VALUES (2);\nEND;"
 	got := dumpExecuted(t, "oracle", block)
 	require.Len(t, got, 1, "PL/SQL 块被错误切割")

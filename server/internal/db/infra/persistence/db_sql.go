@@ -6,12 +6,12 @@ import (
 	"mayfly-go/pkg/base"
 )
 
-type dbSqlRepoImpl struct {
-	base.RepoImpl[*entity.DbSql]
+type dbSQLRepoImpl struct {
+	base.RepoImpl[*entity.DbSQL]
 }
 
-var _ repository.DbSql = (*dbSqlRepoImpl)(nil)
+var _ repository.DbSQL = (*dbSQLRepoImpl)(nil)
 
-func newDbSqlRepo() repository.DbSql {
-	return &dbSqlRepoImpl{}
+func newDbSQLRepo() repository.DbSQL {
+	return &dbSQLRepoImpl{}
 }

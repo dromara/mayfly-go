@@ -77,7 +77,7 @@ func (p *Team) DelTeam(rc *req.Ctx) {
 
 // 获取团队的成员信息
 func (p *Team) GetTeamMembers(rc *req.Ctx) {
-	condition := &entity.TeamMember{TeamId: uint64(rc.PathParamInt("id"))}
+	condition := &entity.TeamMember{TeamId: cast.ToUint64(rc.PathParam("id"))}
 	condition.Username = rc.Query("username")
 
 	res, err := p.teamApp.GetMemberPage(condition, rc.GetPageParam())
@@ -114,9 +114,9 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 
 // 删除团队成员
 func (p *Team) DelTeamMember(rc *req.Ctx) {
-	tid := rc.PathParamInt("id")
-	aid := rc.PathParamInt("accountId")
+	tid := cast.ToUint64(rc.PathParam("id"))
+	aid := cast.ToUint64(rc.PathParam("accountId"))
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
-	p.teamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
+	p.teamApp.DeleteMember(rc.MetaCtx, tid, aid)
 }

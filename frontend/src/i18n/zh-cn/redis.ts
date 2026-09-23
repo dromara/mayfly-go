@@ -10,6 +10,7 @@ export default {
         hostTips: `请输入host:port；sentinel模式为: mastername=sentinelhost:port，若集群或哨兵需设多个节点可使用','分割`,
         nodePassword: '节点密码',
         sentinelHostErr: 'sentinel模式host需为: mastername=sentinelhost:sentinelport模式',
+        hostPortErr: 'host 需为 host:port 形式（多个节点用 , 分隔），以下条目缺端口: {hosts}',
         delimiter: '分隔符',
         keyMatchTips: 'match 支持*模糊key, 回车搜索',
         loadMore: '加载更多',

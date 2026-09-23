@@ -110,7 +110,7 @@ import { defineAsyncComponent, reactive, shallowReactive, toRefs, watch } from '
 import { procinstApi, procinstTaskApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus, ProcinstTaskStatus } from './enums';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import type { Procinst, ProcinstTask, HisProcinstOp, FlowNode, FlowDef } from './types';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
@@ -157,7 +157,8 @@ const { procinst, flowDef, form, saveBtnLoading } = toRefs(state);
 
 /** 审批表单声明 */
 const approveItems: AutoFormItem[] = [
-    { prop: 'status', label: 'flow.approveResult', type: 'select', required: true, enums: ProcinstTaskStatus },
+    // 枚举选项需用 type:'enum'（'select' 只读 options，会给 enums 导致下拉无选项）
+    { prop: 'status', label: 'flow.approveResult', type: 'enum', required: true, enums: ProcinstTaskStatus },
     { prop: 'remark', label: 'common.remark', type: 'textarea', props: { clearable: true }, placeholder: 'common.remark' },
 ];
 

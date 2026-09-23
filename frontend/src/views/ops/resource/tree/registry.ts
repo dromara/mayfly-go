@@ -1,5 +1,6 @@
 import type { Component } from 'vue';
 
+import { reportDuplicateRegistration } from '@/common/utils/devRegistration';
 import type { NodeKind, TreeNode, TreeNodeData } from './types';
 
 /**
@@ -53,8 +54,8 @@ const contributors = new Map<NodeKind, TreeContributor>();
 const resourceTypeIndex = new Map<string, NodeKind>();
 
 export function registerContributor(contributor: TreeContributor) {
-    if (import.meta.env.DEV && contributors.has(contributor.kind)) {
-        console.warn(`[tree] 节点类型 ${contributor.kind} 重复注册，将覆盖已有贡献者`);
+    if (contributors.has(contributor.kind)) {
+        reportDuplicateRegistration('tree-contributor', contributor.kind);
     }
     // 资源根贡献者声明 resourceType 即自动登记类型映射（根 kind 单一事实源在贡献者）
     if (contributor.resourceType !== undefined) {

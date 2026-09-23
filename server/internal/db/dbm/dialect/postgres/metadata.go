@@ -13,26 +13,27 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 const (
-	PGSQL_DB_SCHEMAS     = "PGSQL_DB_SCHEMAS"
-	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
-	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
-	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
+	PGSQL_DB_SCHEMAS       = "PGSQL_DB_SCHEMAS"
+	PGSQL_TABLE_INFO_KEY   = "PGSQL_TABLE_INFO"
+	PGSQL_TABLE_SEARCH_KEY = "PGSQL_TABLE_SEARCH"
+	PGSQL_INDEX_INFO_KEY   = "PGSQL_INDEX_INFO"
+	PGSQL_COLUMN_MA_KEY    = "PGSQL_COLUMN_MA"
 )
 
 var (
 	_ dbi.ServerInfo       = (*PgsqlMetadata)(nil)
 	_ dbi.MetadataProvider = (*PgsqlMetadata)(nil)
+	_ dbi.TableSearcher    = (*PgsqlMetadata)(nil)
 )
 
 type PgsqlMetadata struct {
 	dbi.DefaultServerInfo
-	dbi.DefaultMetadataProvider
 
 	di *dbi.DbInfo
 }
@@ -89,7 +90,7 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(metaSql.Get(PGSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSQL.Get(PGSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +100,33 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 		return nil, err
 	}
 
-	tables := make([]dbi.Table, 0)
+	tables := pgTables(res)
+	return tables, nil
+}
+
+// SearchTables 服务端按表名 LIKE 下推 + 限量（dbi.TableSearcher）：超大 schema 无需先拉全量再过滤。
+// LIKE 模式与 LIMIT 均为绑定参数；用户输入的 %_\ 经转义后按字面「包含」匹配。
+// kingbaseEs/gauss/vastbase 复用 PgsqlMetadata，同样获得下推能力。
+func (pd *PgsqlMetadata) SearchTables(like string, limit int) ([]dbi.Table, error) {
+	sql := metaSQL.Get(PGSQL_TABLE_SEARCH_KEY)
+	args := []any{"%" + dbi.EscapeLikeWildcards(like) + "%"}
+	if limit > 0 {
+		sql += " LIMIT $2"
+		args = append(args, limit)
+	}
+	_, res, err := pd.di.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	return pgTables(res), nil
+}
+
+// pgTables 将 PGSQL_TABLE_INFO / PGSQL_TABLE_SEARCH 的行结果映射为 dbi.Table（两路径共用，消除重复）。
+func pgTables(res []map[string]any) []dbi.Table {
+	tables := make([]dbi.Table, 0, len(res))
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    re["tableName"].(string),
+			TableName:    cast.ToString(re["tableName"]),
 			TableComment: cast.ToString(re["tableComment"]),
 			CreateTime:   cast.ToString(re["createTime"]),
 			TableRows:    cast.ToInt(re["tableRows"]),
@@ -110,7 +134,7 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 			IndexLength:  cast.ToInt64(re["indexLength"]),
 		})
 	}
-	return tables, nil
+	return tables
 }
 
 // 获取列元信息, 如列名等
@@ -120,7 +144,7 @@ func (pd *PgsqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := pd.di.Query(fmt.Sprintf(metaSql.Get(PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := pd.di.Query(fmt.Sprintf(metaSQL.Get(PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -202,21 +226,23 @@ func (pd *PgsqlMetadata) markGeneratedColumns(tableNamesLiteral string, columns 
 	}
 }
 
-func (pd *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
+func (pd *PgsqlMetadata) GetPrimaryKeys(tablename string) ([]string, error) {
 	columns, err := pd.GetColumns(tablename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(columns) == 0 {
-		return "", errorx.NewBizf("[%s] 表不存在", tablename)
+		return nil, errorx.NewBizf("[%s] 表不存在", tablename)
 	}
+	pks := make([]string, 0, 2)
 	for _, v := range columns {
 		if v.IsPrimaryKey {
-			return v.ColumnName, nil
+			pks = append(pks, v.ColumnName)
 		}
 	}
 
-	return columns[0].ColumnName, nil
+	// 联合主键返回多列；无主键返回空切片（不兜底首列）
+	return pks, nil
 }
 
 // 获取表索引信息
@@ -224,14 +250,14 @@ func (pd *PgsqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	dialect := pd.di.GetDialect()
 	// 表名需转义单引号后拼入模板（模板为字符串字面量拼接，与GetColumns保持一致）
 	escTableName := dbi.QuoteEscape(dialect.Quoter().Trim(tableName))
-	_, res, err := pd.di.Query(fmt.Sprintf(metaSql.Get(PGSQL_INDEX_INFO_KEY), escTableName))
+	_, res, err := pd.di.Query(fmt.Sprintf(metaSQL.Get(PGSQL_INDEX_INFO_KEY), escTableName))
 	if err != nil {
 		return nil, err
 	}
 
-	indexs := make([]dbi.Index, 0)
+	indexes := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, dbi.Index{
+		indexes = append(indexes, dbi.Index{
 			IndexName:    cast.ToString(re["indexName"]),
 			ColumnName:   cast.ToString(re["columnName"]),
 			IndexType:    cast.ToString(re["IndexType"]),
@@ -244,7 +270,7 @@ func (pd *PgsqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	// 把查询结果以索引名分组，索引字段以逗号连接
 	result := make([]dbi.Index, 0)
 	key := ""
-	for _, v := range indexs {
+	for _, v := range indexes {
 		// 当前的索引名
 		in := v.IndexName
 		if key == in {
@@ -269,7 +295,7 @@ func (pd *PgsqlMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (s
 
 // 获取pgsql当前连接的库可访问的schemaNames
 func (pd *PgsqlMetadata) GetSchemas() ([]string, error) {
-	sql := metaSql.Get(PGSQL_DB_SCHEMAS)
+	sql := metaSQL.Get(PGSQL_DB_SCHEMAS)
 	_, res, err := pd.di.Query(sql)
 	if err != nil {
 		return nil, err

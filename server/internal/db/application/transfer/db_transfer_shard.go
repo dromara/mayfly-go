@@ -40,8 +40,8 @@ func (app *DbTransferAppImpl) PlanTableShards(ctx context.Context, logId uint64,
 
 	// 查询主键范围（空表MIN/MAX为NULL → 不分片）
 	quote := srcConn.GetDialect().Quoter().QuoteIdent
-	minMaxSql := fmt.Sprintf("SELECT MIN(%s) AS mn, MAX(%s) AS mx FROM %s", quote(pk), quote(pk), quote(tableName))
-	_, rows, err := srcConn.Query(minMaxSql)
+	minMaxSQL := fmt.Sprintf("SELECT MIN(%s) AS mn, MAX(%s) AS mx FROM %s", quote(pk), quote(pk), quote(tableName))
+	_, rows, err := srcConn.Query(minMaxSQL)
 	if err != nil || len(rows) == 0 {
 		app.Log(ctx, logId, fmt.Sprintf("plan shards: query pk range of table [%s] failed: %v, fallback to whole-table transfer", tableName, err))
 		return nil

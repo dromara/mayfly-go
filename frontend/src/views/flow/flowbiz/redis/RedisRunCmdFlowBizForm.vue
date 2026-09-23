@@ -18,7 +18,7 @@
 
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
 import type { TreeNodeData } from '@/views/ops/resource/tree/types';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';

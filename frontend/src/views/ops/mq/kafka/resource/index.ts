@@ -66,7 +66,7 @@ registerContributor({
             key: `kafka.${x.code}`,
             kind: KafkaKind,
             label: x.name,
-            params: x as unknown as Record<string, unknown>,
+            params: { ...x },
         }));
     },
 });

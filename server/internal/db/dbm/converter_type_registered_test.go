@@ -6,7 +6,7 @@ package dbm
 // 类型注册表中按 Name 命中，且命中的 DataType 与产出对象一致。
 //
 // 为何必须钉死：dump/导入生成 INSERT 时，值转 SQL 是按「目标列类型名」查注册表取 SQLValue
-// （如 mssql/sqlgen.go 的 dbi.GetDbDataType(DbTypeMssql, column.DataType).DataType.SQLValue(v)），
+// （如 mssql/sqlgen.go 的 dbi.GetDbDataType(DbTypeMssql, column.DataType).Codec.SQLValue(v)），
 // 查不到会**静默回退** DefaultDbDataType（普通字符串字面量）。本机实测：mssql 的
 // varchar(max)/nvarchar(max)/varbinary(max) 只由异构转换产出、曾漏注册，使 BLOB 迁入
 // SQL Server 时值被输出为 '00ff' 字面量（报 Implicit conversion from varchar to varbinary(max)），
@@ -69,7 +69,7 @@ func TestConverterOutputTypesRegistered(t *testing.T) {
 					// 注册表以小写类型名为键，但Name保留方言原始大小写（如oracle的BLOB），故按大小写无关比较
 					assert.True(t, strings.EqualFold(target.Name, resolved.Name),
 						"[%s] 类型[%s]按名回查命中了 %s", dt, target.Name, resolved.Name)
-					assert.Same(t, target.DataType, resolved.DataType,
+					assert.Same(t, target.Codec, resolved.Codec,
 						"[%s] 类型[%s]注册对象的值转换者与产出者不一致（SQLValue/Valuer会按注册对象执行）",
 						dt, target.Name)
 				}

@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from 'vue';
+import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18nCreateTitle, useI18nEditTitle } from './useI18n';
 import type { AutoFormData } from '@/components/auto-form/types';
@@ -9,14 +9,16 @@ import type { AutoFormData } from '@/components/auto-form/types';
  * 各资源编辑组件（DB/Machine/Redis/Mongo/ES/Milvus/Kafka）共享同一转换逻辑，
  * 避免 getReqForm 中重复书写 if (!sshTunnelMachineId || sshTunnelMachineId <= 0) 样板。
  *
+ * 泛型透传页面业务表单类型（而不是把结果降级回无类型表单袋），提交载荷因此仍受字段类型检查；
+ * 约束取「表单袋 ∩ 携带该字段」，故已标注的业务表单与未标注的宽袋调用点均可传入。
+ *
  * @param form 当前表单数据（Ref 或 computed）
  * @returns 转换后的表单（computed，原表单不被修改）
  */
-export function useSshTunnelTransform(form: Ref<AutoFormData>) {
+export function useSshTunnelTransform<T extends AutoFormData & { sshTunnelMachineId?: number | null }>(form: Ref<T>): ComputedRef<T> {
     return computed(() => {
         const reqForm = { ...form.value };
-        const id = reqForm.sshTunnelMachineId as number | null | undefined;
-        if (!id || id <= 0) {
+        if (!reqForm.sshTunnelMachineId || reqForm.sshTunnelMachineId <= 0) {
             reqForm.sshTunnelMachineId = -1;
         }
         return reqForm;
@@ -33,7 +35,7 @@ export function useRouteTagPath() {
     const route = useRoute();
     return (query: Record<string, unknown>) => {
         if (route.query.tagPath) {
-            query.tagPath = route.query.tagPath as string;
+            query.tagPath = route.query.tagPath;
         }
         return query;
     };

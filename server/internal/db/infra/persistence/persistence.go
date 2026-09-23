@@ -7,8 +7,8 @@ import (
 func InitIoc() {
 	ioc.Register(NewInstanceRepo())
 	ioc.Register(newDbRepo())
-	ioc.Register(newDbSqlRepo())
-	ioc.Register(newDbSqlExecRepo())
+	ioc.Register(newDbSQLRepo())
+	ioc.Register(newDbSQLExecRepo())
 	ioc.Register(newDataSyncTaskRepo())
 	ioc.Register(newDataSyncLogRepo())
 	ioc.Register(newDbTransferTaskRepo())

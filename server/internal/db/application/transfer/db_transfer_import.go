@@ -7,6 +7,7 @@ import (
 
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
+	"mayfly-go/internal/db/imsg"
 )
 
 // importStmtBatchSize 导入侧批级提交的语句数阈值。
@@ -41,8 +42,9 @@ func iterImportStmts(splitter sqlparser.SQLSplitter, r io.Reader, exec func(stmt
 //
 // 事务语义：每importStmtBatchSize条语句提交一次；语句流中的事务控制语句被过滤
 // （见shouldSkipImportStmt），事务边界完全由本函数显式管理。
-// 失败时回滚当前批次并返回错误；由于表级DDL含DROP重建（dropBeforeCreate恒定生效），
-// 失败表重跑时数据自清理，批级部分提交不会造成重复数据。
+// 失败时回滚当前批次并返回错误。幂等性取决于任务的 deleteTable 配置：默认（建表前 DROP 重建）
+// 下失败表重跑时数据自清理，批级部分提交不会造成重复数据；若配置为「不删除表」，DDL 不含 DROP，
+// 目标表已存在时建表语句会失败，需调用方自行保证目标表为空或不存在。
 func (app *DbTransferAppImpl) ImportDumpStream(ctx context.Context, logId uint64, targetConn *dbi.DbConn, r io.Reader) error {
 	splitter := targetConn.GetDialect().GetSQLSplitter()
 
@@ -72,7 +74,7 @@ func (app *DbTransferAppImpl) ImportDumpStream(ctx context.Context, logId uint64
 
 	if splitErr != nil {
 		dbi.RollbackTx(tx)
-		return sqlparser.SplitError(ctx, splitErr)
+		return imsg.SplitError(ctx, splitErr)
 	}
 	// 提交尾批（pending可能为0：空事务提交无副作用，但必须关闭tx释放连接）
 	if err := dbi.CommitTargetTx(targetConn, tx); err != nil {

@@ -18,7 +18,7 @@ func newMaskRuleRepo() repository.MaskRule {
 }
 
 // GetPageList 分页获取规则
-func (m *maskRuleRepoImpl) GetPageList(condition *entity.MaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error) {
+func (m *maskRuleRepoImpl) GetPageList(condition *entity.DbMaskRuleQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskRule], error) {
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		Like("pattern", condition.Keyword).
@@ -43,7 +43,7 @@ func newMaskColumnRepo() repository.MaskColumn {
 }
 
 // GetPageList 分页获取列标签
-func (m *maskColumnRepoImpl) GetPageList(condition *entity.MaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error) {
+func (m *maskColumnRepoImpl) GetPageList(condition *entity.DbMaskColumnQuery, orderBy ...string) (*model.PageResult[*entity.DbMaskColumn], error) {
 	qd := model.NewCond().
 		Eq("instance_id", condition.InstanceId).
 		Eq("db_name", condition.DbName).

@@ -30,7 +30,7 @@ const splitContractFile = "sqlparser/testdata/split_cases.json"
 type splitContractCase struct {
 	Name     string   `json:"name"`
 	DbType   string   `json:"dbType"`
-	Sql      string   `json:"sql"`
+	SQL      string   `json:"sql"`
 	Expected []string `json:"expected"`
 }
 
@@ -56,13 +56,13 @@ func TestSplitContractWithFrontend(t *testing.T) {
 			require.NotNil(t, splitter, "方言 [%s] 未装配切割器", tc.DbType)
 
 			stmts := make([]string, 0, len(tc.Expected))
-			err := splitter.SplitSQL(strings.NewReader(tc.Sql), func(stmt string) error {
+			err := splitter.SplitSQL(strings.NewReader(tc.SQL), func(stmt string) error {
 				stmts = append(stmts, stmt)
 				return nil
 			})
 			// 契约用例全部为良构脚本：报错说明切割器误判了某个区域（会直接导致漏执行/错执行）
-			require.NoError(t, err, "[%s] 良构脚本不应报切割错误\nsql: %s", tc.DbType, tc.Sql)
-			assert.Equal(t, tc.Expected, stmts, "[%s] 切割结果与契约不符\nsql: %s", tc.DbType, tc.Sql)
+			require.NoError(t, err, "[%s] 良构脚本不应报切割错误\nsql: %s", tc.DbType, tc.SQL)
+			assert.Equal(t, tc.Expected, stmts, "[%s] 切割结果与契约不符\nsql: %s", tc.DbType, tc.SQL)
 
 			covered[dt]++
 		})

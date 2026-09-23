@@ -13,7 +13,43 @@ import (
 func newTestSQLGenerator() *SQLGenerator {
 	// 触发mysql列类型注册（TypeEngine注册包含向dbDataTypes的同步）
 	dbi.GetTypeEngine(DbTypeMysql)
-	return &SQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: (&MysqlDialect{}).Quoter}, Dialect: &MysqlDialect{}}
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: (&MysqlDialect{}).Quoter}, Dialect: &MysqlDialect{}}
+}
+
+// 参数化直插：多值单语句，占位符数与展平参数数严格一致
+func TestMysqlGenInsertParams(t *testing.T) {
+	gen := newTestSQLGenerator()
+	cols := []dbi.Column{{ColumnName: "id"}, {ColumnName: "name"}}
+
+	stmt, args, err := gen.GenInsertParams("t_user", cols, [][]any{{int64(1), "alice"}, {int64(2), "bob"}})
+	require.NoError(t, err)
+	assert.Equal(t, "INSERT INTO `t_user` (`id`,`name`) VALUES (?,?),(?,?)", stmt)
+	assert.Equal(t, []any{int64(1), "alice", int64(2), "bob"}, args)
+	assert.Equal(t, 4, len(args), "2 行 × 2 列 = 4 个占位参数")
+}
+
+// 行宽与列数不符须报错，防占位符与参数错位（迁移核心据此回退并中断该批）
+func TestMysqlGenInsertParams_RowWidthMismatch(t *testing.T) {
+	gen := newTestSQLGenerator()
+	cols := []dbi.Column{{ColumnName: "id"}, {ColumnName: "name"}}
+	_, _, err := gen.GenInsertParams("t_user", cols, [][]any{{int64(1), "a"}, {int64(2)}})
+	require.Error(t, err)
+}
+
+// 空列/空行返回 ("", nil, nil)：调用方（executeTargetInsert）据此回退文本路径
+func TestMysqlGenInsertParams_Empty(t *testing.T) {
+	gen := newTestSQLGenerator()
+	cols := []dbi.Column{{ColumnName: "id"}}
+
+	stmt, args, err := gen.GenInsertParams("t_user", cols, nil)
+	require.NoError(t, err)
+	assert.Empty(t, stmt)
+	assert.Nil(t, args)
+
+	stmt2, args2, err2 := gen.GenInsertParams("t_user", nil, [][]any{{1}})
+	require.NoError(t, err2)
+	assert.Empty(t, stmt2)
+	assert.Nil(t, args2)
 }
 
 func TestMysqlGenTableDDL(t *testing.T) {
@@ -28,17 +64,17 @@ func TestMysqlGenTableDDL(t *testing.T) {
 	sqls := gen.GenTableDDL(table, columns, true)
 	assert.Len(t, sqls, 2)
 	assert.Equal(t, "DROP TABLE IF EXISTS `t_user`", sqls[0])
-	createSql := sqls[1]
+	createSQL := sqls[1]
 
-	assert.Contains(t, createSql, "CREATE TABLE `t_user` (\n")
+	assert.Contains(t, createSQL, "CREATE TABLE `t_user` (\n")
 	// 列定义：非空自增主键
-	assert.Contains(t, createSql, "`id` int NOT NULL AUTO_INCREMENT COMMENT '自增主键'")
+	assert.Contains(t, createSQL, "`id` int NOT NULL AUTO_INCREMENT COMMENT '自增主键'")
 	// varchar列带长度
-	assert.Contains(t, createSql, "`name` varchar(50) COMMENT '姓名'")
+	assert.Contains(t, createSQL, "`name` varchar(50) COMMENT '姓名'")
 	// 主键列名必须引用（元数据标识符可合法含空格/分号等）
-	assert.Contains(t, createSql, "PRIMARY KEY (`id`)")
+	assert.Contains(t, createSQL, "PRIMARY KEY (`id`)")
 	// 表注释单引号转义
-	assert.Contains(t, createSql, " COMMENT '用户表'")
+	assert.Contains(t, createSQL, " COMMENT '用户表'")
 
 	// 不删除重建时不含DROP
 	sqls2 := gen.GenTableDDL(table, columns, false)
@@ -203,9 +239,9 @@ func TestMysqlGenTableDDL_SpecialPkColumnName(t *testing.T) {
 // Quotes内部使用的Quote会按空格切分，含空格的真实列名会被切成两段生成非法DDL
 func TestMysqlGenIndexDDL_SpecialColumnNames(t *testing.T) {
 	gen := newTestSQLGenerator()
-	indexs := []dbi.Index{{IndexName: "idx;名 --x", ColumnName: "c_中文 列,c_分;号"}}
+	indexes := []dbi.Index{{IndexName: "idx;名 --x", ColumnName: "c_中文 列,c_分;号"}}
 
-	sqls := gen.GenIndexDDL(dbi.Table{TableName: "t 特殊"}, indexs)
+	sqls := gen.GenIndexDDL(dbi.Table{TableName: "t 特殊"}, indexes)
 	require.Len(t, sqls, 1)
 	assert.Contains(t, sqls[0], "ALTER TABLE `t 特殊`")
 	assert.Contains(t, sqls[0], "`idx;名 --x`")
@@ -249,10 +285,10 @@ func TestMysqlGenTableDDL_NoLiteralDefaultWithoutValue(t *testing.T) {
 	assert.NotContains(t, sqls[0], "DEFAULT")
 }
 
-// TestMysqlTimeDefaultSql MySQL对「当前日期/时间」默认值的严格语法约束回归：
+// TestMysqlTimeDefaultSQL MySQL对「当前日期/时间」默认值的严格语法约束回归：
 // 自动初始化子只能是CURRENT_TIMESTAMP且其小数秒参数必须与列fsp严格一致（不匹配即Error 1067），
 // CURRENT_DATE/CURRENT_TIME/curdate()/SYSDATE等写法必须改写成8.0.13+的表达式默认值形态
-func TestMysqlTimeDefaultSql(t *testing.T) {
+func TestMysqlTimeDefaultSQL(t *testing.T) {
 	kases := []struct {
 		columnType string
 		rawDefault string
@@ -283,7 +319,7 @@ func TestMysqlTimeDefaultSql(t *testing.T) {
 	}
 
 	for _, k := range kases {
-		defVal, handled := mysqlTimeDefaultSql(k.rawDefault, k.columnType)
+		defVal, handled := mysqlTimeDefaultSQL(k.rawDefault, k.columnType)
 		assert.Equal(t, k.handled, handled, "raw=%q type=%q", k.rawDefault, k.columnType)
 		assert.Equal(t, k.expected, defVal, "raw=%q type=%q", k.rawDefault, k.columnType)
 	}
@@ -335,7 +371,7 @@ func TestMysqlGenBatchDelete_CompositePK(t *testing.T) {
 	gen := newTestSQLGenerator()
 	sqls := gen.GenBatchDelete("t_user", []string{"k1", "k2"}, [][]any{{1, "a"}, {2, "b"}}, nil)
 	assert.Len(t, sqls, 1)
-	assert.Contains(t, sqls[0], "(`k1`, `k2`) NOT IN (('1', 'a'), ('2', 'b'))")
+	assert.Contains(t, sqls[0], "(`k1`, `k2`) NOT IN (('1', CONVERT(X'61' USING utf8mb4)), ('2', CONVERT(X'62' USING utf8mb4)))")
 }
 
 func TestMysqlGenBatchDelete_EmptyInput(t *testing.T) {

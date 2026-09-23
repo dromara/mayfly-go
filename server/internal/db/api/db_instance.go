@@ -54,7 +54,7 @@ func (d *Instance) ReqConfs() *req.Confs {
 // Instances 获取数据库实例信息
 // @router /api/instances [get]
 func (d *Instance) Instances(rc *req.Ctx) {
-	queryCond := rc.BindQuery[entity.InstanceQuery]()
+	queryCond := rc.BindQuery[entity.DbInstanceQuery]()
 
 	tags := d.tagApp.GetAccountTags(rc.GetLoginAccount().Id, &tagentity.TagTreeQuery{
 		TypePaths:     collx.AsArray(tagentity.NewTypePaths(tagentity.TagTypeDbInstance, tagentity.TagTypeAuthCert)),
@@ -149,7 +149,7 @@ func (d *Instance) GetDbServer(rc *req.Ctx) {
 }
 
 func getInstanceId(rc *req.Ctx) uint64 {
-	instanceId := rc.PathParamInt("instanceId")
+	instanceId := cast.ToUint64(rc.PathParam("instanceId"))
 	biz.IsTrue(instanceId > 0, "instanceId error")
-	return uint64(instanceId)
+	return instanceId
 }

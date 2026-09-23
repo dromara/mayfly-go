@@ -21,7 +21,7 @@ vi.mock('../MonacoEditorDialog.vue', () => ({
         name: 'MonacoEditorDialogStub',
         inheritAttrs: false,
         setup(_props, { attrs }) {
-            boxState.attrs = attrs as Record<string, unknown>;
+            boxState.attrs = attrs;
             return () => h('div', { class: 'monaco-dialog-stub' });
         },
     }),

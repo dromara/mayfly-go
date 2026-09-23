@@ -1,6 +1,6 @@
 import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
-import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition, SqlSnippetTemplate } from './types';
-import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
+import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, ColumnDefinition, SqlSnippetTemplate } from './types';
+import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueMssql } from './shared/utils';
 import { defineCapabilities, mssqlQuotePairs, mssqlSplitOptions } from './shared/capabilities';
 import { offsetFetchPageSnippet } from './shared/snippets';
@@ -161,8 +161,8 @@ class MssqlDialect implements DbDialect {
         return offsetFetchPageSnippet;
     }
 
-    getDefaultRows(): RowDefinition[] {
-        return createDefaultRows(defaultRowsConfigs.mssql);
+    getDefaultColumns(): ColumnDefinition[] {
+        return createDefaultColumns(defaultColumnConfigs.mssql);
     }
 
     getDefaultIndex(): IndexDefinition {
@@ -180,7 +180,7 @@ class MssqlDialect implements DbDialect {
         return `[${name}]`;
     };
 
-    genColumnBasicSql(cl: RowDefinition): string {
+    genColumnBasicSql(cl: ColumnDefinition): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';
         let defVal = val ? `DEFAULT ${val}` : '';
         // mssql哪些字段允许有长度/精度
@@ -193,22 +193,22 @@ class MssqlDialect implements DbDialect {
         const parts = [
             this.quoteIdentifier(cl.name),
             cl.type + length,
-            cl.auto_increment ? 'IDENTITY(1,1)' : '',
+            cl.autoIncrement ? 'IDENTITY(1,1)' : '',
             defVal,
-            cl.notNull ? 'NOT NULL' : 'NULL',
+            cl.nullable ? 'NULL' : 'NOT NULL',
         ];
         return parts.filter(Boolean).join(' ');
     }
 
     /** MSSQL ALTER COLUMN 专用：不允许 IDENTITY 和 DEFAULT */
-    genAlterColumnSql(cl: RowDefinition): string {
+    genAlterColumnSql(cl: ColumnDefinition): string {
         let length = '';
         if (!fixedLengthTypes.includes(cl.type)) {
             if (cl.length) {
                 length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
             }
         }
-        const parts = [this.quoteIdentifier(cl.name), cl.type + length, cl.notNull ? 'NOT NULL' : 'NULL'];
+        const parts = [this.quoteIdentifier(cl.name), cl.type + length, cl.nullable ? 'NULL' : 'NOT NULL'];
         return parts.filter(Boolean).join(' ');
     }
 
@@ -219,13 +219,13 @@ class MssqlDialect implements DbDialect {
         let pks = [] as string[];
         let fields: string[] = [];
         let fieldComments: string[] = [];
-        data.fields.res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: ColumnDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
-            item.remark &&
+            item.comment &&
                 fieldComments.push(
-                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(item.remark)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'COLUMN', N'${item.name}'`
+                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(item.comment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'COLUMN', N'${item.name}'`
                 );
-            if (item.pri) {
+            if (item.isPrimaryKey) {
                 pks.push(this.quoteIdentifier(item.name));
             }
         });
@@ -254,7 +254,7 @@ class MssqlDialect implements DbDialect {
 
         // 创建索引
         let sql: string[] = [];
-        data.indexs.res.forEach((a: IndexDefinition) => {
+        data.indexes.res.forEach((a: IndexDefinition) => {
             let columnNames = a.columnNames.map((b: string) => this.quoteIdentifier(b));
             sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} ON ${baseTable} (${columnNames.join(',')})`);
             if (a.indexComment) {
@@ -275,7 +275,7 @@ class MssqlDialect implements DbDialect {
         return `DROP TABLE ${buildSchemaTable(this.quoteIdentifier, db, table)}`;
     }
 
-    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         let schema = extractSchema(tableData.db);
         let baseTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableName);
 
@@ -292,9 +292,9 @@ class MssqlDialect implements DbDialect {
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
                 addArr.push(`ALTER TABLE ${baseTable} ADD ${this.genColumnBasicSql(a)}`);
-                if (a.remark) {
+                if (a.comment) {
                     addCommentArr.push(
-                        `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.remark)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'COLUMN', N'${a.name}'`
+                        `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.comment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'COLUMN', N'${a.name}'`
                     );
                 }
             });
@@ -307,19 +307,19 @@ class MssqlDialect implements DbDialect {
                 }
                 // ALTER COLUMN 只允许 type 和 nullability，不允许 IDENTITY/DEFAULT
                 updArr.push(`ALTER TABLE ${baseTable} ALTER COLUMN ${this.genAlterColumnSql(a)}`);
-                if (a.remark) {
+                if (a.comment) {
                     changeCommentArr.push(`IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableName}',
 'COLUMN', N'${a.name}')) > 0)
   EXEC sp_updateextendedproperty
-'MS_Description', N'${QuoteEscape(a.remark)}',
+'MS_Description', N'${QuoteEscape(a.comment)}',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableName}',
 'COLUMN', N'${a.name}'
 ELSE
   EXEC sp_addextendedproperty
-'MS_Description', N'${QuoteEscape(a.remark)}',
+'MS_Description', N'${QuoteEscape(a.comment)}',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableName}',
 'COLUMN', N'${a.name}'`);
@@ -398,7 +398,7 @@ ELSE
         }
 
         if (tableData.oldTableComment !== tableData.tableComment) {
-            let tableComment = (tableData.tableComment as string).replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
+            let tableComment = (tableData.tableComment).replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
             sql += `IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableData.tableName}', NULL, NULL)) > 0)

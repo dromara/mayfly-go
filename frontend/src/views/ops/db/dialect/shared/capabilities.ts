@@ -158,6 +158,45 @@ export const defaultCapabilities: DialectCapabilities = {
 };
 
 /**
+ * 映射桥可覆盖的能力键域：DialectCapabilities 里的布尔位。
+ * 非布尔成员（如默认索引类型）不参与后端协商，故不纳入键域；
+ * 据此可直写 negotiated[key] = false，无需把能力对象展开成无类型记录的索引视图。
+ */
+export type BooleanCapabilityKey = {
+    [K in keyof DialectCapabilities]: DialectCapabilities[K] extends boolean ? K : never;
+}[keyof DialectCapabilities];
+
+/**
+ * 后端能力位 → 前端能力位映射桥。
+ *
+ * 后端 /capabilities 端点返回的 features 数组（SupportedFeatures()）是运行时单一事实源，
+ * 本映射将其「翻译」为前端 DialectCapabilities 的布尔字段覆盖。
+ *
+ * 协商语义：前端方言静态声明为天花板（前端不支持的能力后端无法赋予），
+ * 后端实际能力为约束（后端不支持的能力前端必须关闭）。
+ *
+ * 映射仅覆盖「前端有能力位且后端有对应 feature」的交叉项；
+ * 纯前端能力（supportsTableEdit 等）无后端对应 feature，保持前端声明不变；
+ * 纯后端能力（view/sequence 等扩展对象）由 NegotiatedCapabilities.backendFeatures 原样透传。
+ *
+ * 新增能力时：后端加 feature 常量 + 此处加一行映射（若前端有对应能力位），
+ * 协商函数与消费方零修改（开闭原则）。
+ */
+export const featureCapabilityMap: Record<string, Partial<Record<BooleanCapabilityKey, boolean>>> = {
+    // 后端 comments → 表/列/索引注释三合一（后端不区分粒度）
+    comments: { supportsTableComment: true, supportsColumnComment: true, supportsIndexComment: true },
+    // 后端 indexes → 索引相关能力
+    indexes: { supportsIndexComment: true },
+    // 后端 identity_columns / generated_columns → 自增/生成列支持
+    identity_columns: { supportsAutoIncrement: true },
+    generated_columns: { supportsAutoIncrement: true },
+    // 后端 ddl_export → 可视化表编辑（DDL 导出是表编辑的前提）
+    ddl_export: { supportsTableEdit: true },
+    // 后端 schemas → schema 支持（与 namespace.HasSchema 互为冗余保障）
+    schemas: { supportsSchema: true },
+};
+
+/**
  * 声明方言能力：合并缺省值与本方言差异项。
  *
  * 用法（方言内）：

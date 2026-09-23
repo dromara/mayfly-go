@@ -61,7 +61,7 @@
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
                 <el-button v-if="actionBtns[perms.log]" type="warning" link @click="onOpenLog(data)">{{ $t('db.log') }}</el-button>
-                <el-button v-if="data.runningState === DbTransferRunningStateEnum.Running.value" @click="stop(data.id)" type="danger" link>
+                <el-button v-if="actionBtns[perms.stop] && data.runningState === DbTransferRunningStateEnum.Running.value" @click="stop(data.id)" type="danger" link>
                     {{ $t('db.stop') }}
                 </el-button>
                 <el-button
@@ -72,7 +72,7 @@
                 >
                     {{ $t('db.run') }}
                 </el-button>
-                <el-button v-if="actionBtns[perms.run] && data.mode === 1 && data.runningState !== DbTransferRunningStateEnum.Running.value" type="info" link @click="onVerify(data)">
+                <el-button v-if="actionBtns[perms.verify] && data.mode === 1 && data.runningState !== DbTransferRunningStateEnum.Running.value" type="info" link @click="onVerify(data)">
                     {{ $t('db.verify') }}
                 </el-button>
                 <el-button v-if="actionBtns[perms.files] && data.mode === 2" type="success" link @click="openFiles(data)">{{ $t('db.file') }}</el-button>
@@ -98,7 +98,7 @@ import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferRunningStateEnum } from '@/views/ops/db/transfer/enums';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { DbTransferTask } from '../types';
+import type { DbTransferTaskListVO } from '../types';
 
 const DbTransferEdit = defineAsyncComponent(() => import('./DbTransferEdit.vue'));
 const DbTransferFile = defineAsyncComponent(() => import('./DbTransferFile.vue'));
@@ -112,6 +112,8 @@ const perms = {
     status: 'db:transfer:status',
     log: 'db:transfer:log',
     run: 'db:transfer:run',
+    stop: 'db:transfer:stop',
+    verify: 'db:transfer:verify',
     files: 'db:transfer:files',
 };
 
@@ -128,9 +130,9 @@ const columns = ref([
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.files]);
+const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.stop, perms.verify, perms.files]);
 const actionWidth =
-    ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.files] ? 1 : 0)) * 55;
+    ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.stop] ? 1 : 0) + (actionBtns[perms.verify] ? 1 : 0) + (actionBtns[perms.files] ? 1 : 0)) * 55;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 
@@ -152,7 +154,7 @@ const state = reactive({
     },
     editDialog: {
         visible: false,
-        data: null as DbTransferTask | null,
+        data: null as DbTransferTaskListVO | null,
         title: '',
     },
     logsDialog: {
@@ -165,7 +167,7 @@ const state = reactive({
         taskId: 0,
         title: '',
         visible: false,
-        data: null as DbTransferTask | null,
+        data: null as DbTransferTaskListVO | null,
     },
 });
 
@@ -181,7 +183,7 @@ const search = () => {
     pageTableRef.value?.search();
 };
 
-const edit = async (data: DbTransferTask | false) => {
+const edit = async (data: DbTransferTaskListVO | false) => {
     if (!data) {
         state.editDialog.data = null;
         state.editDialog.title = t('db.createDbTransferDialogTitle');
@@ -199,20 +201,21 @@ const stop = async (id: number) => {
     search();
 };
 
-const onOpenLog = (data: { taskId: number; running: boolean }) => {
-    state.logsDialog.taskId = data.taskId;
+const onOpenLog = (data: DbTransferTaskListVO, running = false) => {
+    // 列表行是任务 VO，主键字段为 id（此前取 data.taskId 得到 undefined，日志接口会按空 taskId 请求）
+    state.logsDialog.taskId = data.id;
     state.logsDialog.visible = true;
     state.logsDialog.title = t('db.log');
-    state.logsDialog.running = data.running;
+    state.logsDialog.running = running || data.runningState === DbTransferRunningStateEnum.Running.value;
 };
 
-const onReRun = async (data: DbTransferTask) => {
+const onReRun = async (data: DbTransferTaskListVO) => {
     await useI18nConfirm('db.runConfirm');
     try {
         await dbTransferApi.runDbTransferTask.request({ taskId: data.id });
         Msg.operateSuccess();
         // 执行后弹出日志弹窗
-        onOpenLog({ taskId: data.id, running: true });
+        onOpenLog(data, true);
     } catch (e) {
         //
     }
@@ -222,19 +225,19 @@ const onReRun = async (data: DbTransferTask) => {
     }, 2000);
 };
 
-const onVerify = async (data: DbTransferTask) => {
+const onVerify = async (data: DbTransferTaskListVO) => {
     await useI18nConfirm('db.verifyConfirm');
     try {
         await dbTransferApi.verifyDbTransferTask.request({ taskId: data.id });
         Msg.operateSuccess();
         // 校验为异步任务，弹出日志弹窗查看校验报告
-        onOpenLog({ taskId: data.id, running: true });
+        onOpenLog(data, true);
     } catch (e) {
         //
     }
 };
 
-const openFiles = async (data: DbTransferTask) => {
+const openFiles = async (data: DbTransferTaskListVO) => {
     state.filesDialog.visible = true;
     state.filesDialog.title = t('db.transferFileManage');
     state.filesDialog.taskId = data.id;
@@ -252,8 +255,8 @@ const updStatus = async (id: number, status: 1 | -1) => {
 
 const del = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferTask) => x.taskName).join('、'));
-        await dbTransferApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: DbTransferTask) => x.id).join(',') });
+        await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferTaskListVO) => x.taskName).join('、'));
+        await dbTransferApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: DbTransferTaskListVO) => x.id).join(',') });
         Msg.deleteSuccess();
         search();
     } catch (err) {

@@ -5,10 +5,40 @@ import (
 	"database/sql"
 	_ "mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/domain/entity"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestValidationRowEncoding(t *testing.T) {
+	columns := []*dbi.QueryColumn{{Key: "a"}, {Key: "b"}}
+	encode := func(a, b any) string {
+		return encodeValidationRow(map[string]any{"a": a, "b": b}, columns)
+	}
+	assert.NotEqual(t, encode("a|b", "c"), encode("a", "b|c"))
+	assert.NotEqual(t, encode(nil, ""), encode("<nil>", ""))
+	assert.NotEqual(t, encode("", "N;"), encode(nil, nil))
+	assert.Equal(t, encode(42, "中文"), encode(int64(42), "中文"))
+}
+
+func TestReconcileKeySafety(t *testing.T) {
+	meta := &dbi.TargetTableMeta{UniqueColumns: []string{"id"}}
+	columns := []dbi.Column{{ColumnName: "id", DataType: "int", IsPrimaryKey: true}}
+	assert.NoError(t, validateReconcileKeys("mysql", meta, columns))
+	assert.Error(t, validateReconcileKeys("mysql", nil, columns))
+	assert.Error(t, validateReconcileKeys("mysql", meta, nil))
+	assert.Error(t, validateReconcileKeys("clickhouse", meta, columns))
+	assert.Error(t, validateReconcileKeys("mysql", meta, []dbi.Column{{ColumnName: "id", DataType: "varchar", Nullable: true}}))
+	assert.Error(t, validateReconcileKeys("mysql", meta, []dbi.Column{{ColumnName: "id", DataType: "varbinary", IsPrimaryKey: true}}))
+	sec := &syncExecContext{task: &entity.DataSyncTask{SyncMode: entity.DataSyncModeIncrementalHardDel}, targetTableMeta: meta}
+	assert.Error(t, sec.collectReconcileKeys([]map[string]any{{"id": nil}}))
+	assert.Error(t, sec.collectReconcileKeys([]map[string]any{{"other": 1}}))
+	assert.NoError(t, sec.collectReconcileKeys([]map[string]any{{"id": 1}}))
+	sec.reconcileKeys = make([][]any, maxReconcileKeys)
+	assert.Error(t, sec.collectReconcileKeys([]map[string]any{{"id": 2}}))
+	assert.Len(t, sec.reconcileKeys, maxReconcileKeys)
+}
 
 // fakeMetadataProvider 测试用元数据实现（仅GetTableIndex参与断言，其余返回零值）
 type fakeMetadataProvider struct {
@@ -26,7 +56,7 @@ func (f *fakeMetadataProvider) GetTables(tableNames ...string) ([]dbi.Table, err
 func (f *fakeMetadataProvider) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	return nil, nil
 }
-func (f *fakeMetadataProvider) GetPrimaryKey(tableName string) (string, error) { return "", nil }
+func (f *fakeMetadataProvider) GetPrimaryKeys(tableName string) ([]string, error) { return nil, nil }
 func (f *fakeMetadataProvider) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 	return "", nil
 }
@@ -50,7 +80,7 @@ type fakeBackend struct {
 	mp dbi.MetadataProvider
 }
 
-func (m fakeBackend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) { return nil, nil }
+func (m fakeBackend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) { return nil, nil }
 func (m fakeBackend) GetDialect(d *dbi.DbInfo) dbi.Dialect                         { return nil }
 func (m fakeBackend) GetServerInfo(d *dbi.DbInfo) dbi.ServerInfo                   { return &fakeServerInfo{} }
 func (m fakeBackend) GetMetadataProvider(d *dbi.DbInfo) dbi.MetadataProvider       { return m.mp }
@@ -65,7 +95,7 @@ func TestBuildTargetTableMeta_PrimaryKeyFirst(t *testing.T) {
 		{ColumnName: "id", IsPrimaryKey: true, AutoIncrement: true},
 		{ColumnName: "name"},
 	}
-	meta := dbi.BuildTargetTableMeta(newFakeConn(&fakeMetadataProvider{}), "t1", columns)
+	meta := BuildTargetTableMeta(newFakeConn(&fakeMetadataProvider{}), "t1", columns)
 	assert.Equal(t, []string{"id"}, meta.UniqueColumns)
 	assert.Equal(t, []string{"id"}, meta.IdentityColumns)
 }
@@ -77,7 +107,7 @@ func TestBuildTargetTableMeta_MultiPrimaryKey(t *testing.T) {
 		{ColumnName: "k2", IsPrimaryKey: true},
 		{ColumnName: "val"},
 	}
-	meta := dbi.BuildTargetTableMeta(newFakeConn(&fakeMetadataProvider{}), "t1", columns)
+	meta := BuildTargetTableMeta(newFakeConn(&fakeMetadataProvider{}), "t1", columns)
 	assert.Equal(t, []string{"k1", "k2"}, meta.UniqueColumns)
 }
 
@@ -90,7 +120,7 @@ func TestBuildTargetTableMeta_SingleUniqueIndex(t *testing.T) {
 			{IndexName: "idx_org", ColumnName: "org", IsUnique: false},
 		},
 	}
-	meta := dbi.BuildTargetTableMeta(newFakeConn(md), "t1", columns)
+	meta := BuildTargetTableMeta(newFakeConn(md), "t1", columns)
 	assert.Equal(t, []string{"code", "org"}, meta.UniqueColumns)
 }
 
@@ -103,11 +133,11 @@ func TestBuildTargetTableMeta_MultiUniqueIndexDegenerate(t *testing.T) {
 			{IndexName: "uk_org", ColumnName: "org", IsUnique: true},
 		},
 	}
-	meta := dbi.BuildTargetTableMeta(newFakeConn(md), "t1", columns)
+	meta := BuildTargetTableMeta(newFakeConn(md), "t1", columns)
 	assert.Empty(t, meta.UniqueColumns)
 }
 
-// normalizeBatchSize：存量任务的PageSize可能为0，分批取模前必须兑底，避免除零panic
+// normalizeBatchSize：存量任务的PageSize可能为0，分批取模前必须兜底，避免除零panic
 func TestNormalizeBatchSize(t *testing.T) {
 	assert.Equal(t, 500, normalizeBatchSize(0))
 	assert.Equal(t, 500, normalizeBatchSize(-1))
@@ -120,6 +150,6 @@ func TestBuildTargetTableMeta_IndexQueryError(t *testing.T) {
 	// 索引查询失败：不中断流程，退化为直接插入（由数据库约束报错提示）
 	columns := []dbi.Column{{ColumnName: "code"}}
 	md := &fakeMetadataProvider{indexErr: assert.AnError}
-	meta := dbi.BuildTargetTableMeta(newFakeConn(md), "t1", columns)
+	meta := BuildTargetTableMeta(newFakeConn(md), "t1", columns)
 	assert.Empty(t, meta.UniqueColumns)
 }

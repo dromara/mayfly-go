@@ -1,7 +1,7 @@
 // Package dbtoolext 数据库工具扩展
 //
 // 实现 ToolContributor 通道：贡献数据库查询/执行工具（QueryTableDDL、
-// QueryTables、QueryData、ExecSql）。业务插件注册同名工具即可覆盖
+// QueryTables、QueryData、ExecSQL）。业务插件注册同名工具即可覆盖
 // （后注册胜出），或经配置按 Id（db_tools）裁剪。
 package dbtoolext
 

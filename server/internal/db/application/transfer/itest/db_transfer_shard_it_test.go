@@ -113,8 +113,8 @@ func TestITShardPlanAndMigrate_MysqlToPg(t *testing.T) {
 				return err
 			}
 			for _, row := range shardRows {
-				insSql := fmt.Sprintf("INSERT INTO %s (id, val) VALUES (%v, '%s')", tgtQuote(tgtTable), row["id"], dbValToStr(row["val"]))
-				if _, err := tgtConn.TxExec(tx, insSql); err != nil {
+				insSQL := fmt.Sprintf("INSERT INTO %s (id, val) VALUES (%v, '%s')", tgtQuote(tgtTable), row["id"], dbValToStr(row["val"]))
+				if _, err := tgtConn.TxExec(tx, insSQL); err != nil {
 					dbi.RollbackTx(tx)
 					return err
 				}

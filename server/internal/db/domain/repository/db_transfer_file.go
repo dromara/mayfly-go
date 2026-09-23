@@ -9,6 +9,6 @@ import (
 type DbTransferFile interface {
 	base.Repo[*entity.DbTransferFile]
 
-	// 分页获取数据库实例信息列表
+	// 分页获取迁移文件列表
 	GetPageList(condition *entity.DbTransferFileQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferFile], error)
 }

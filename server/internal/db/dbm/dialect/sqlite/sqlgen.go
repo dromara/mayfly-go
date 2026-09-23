@@ -10,7 +10,7 @@ import (
 var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
 
 type SQLGenerator struct {
-	dbi.BaseSQLGenerator
+	dbi.DefaultSQLGenerator
 	dialect dbi.Dialect
 }
 
@@ -23,7 +23,7 @@ func (ssg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", tbName))
 	}
 	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", tbName)
+	createSQL := fmt.Sprintf("CREATE TABLE %s (\n", tbName)
 	fields := make([]string, 0)
 
 	// 把通用类型转换为达梦类型
@@ -35,9 +35,9 @@ func (ssg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 		}
 	}
 	for _, column := range columns {
-		fields = append(fields, ssg.genColumnBasicSql(quoter, column, pkCount == 1))
+		fields = append(fields, ssg.genColumnBasicSQL(quoter, column, pkCount == 1))
 	}
-	createSql += strings.Join(fields, ",\n")
+	createSQL += strings.Join(fields, ",\n")
 	if pkCount > 1 {
 		pkNames := make([]string, 0, pkCount)
 		for _, column := range columns {
@@ -45,11 +45,11 @@ func (ssg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 				pkNames = append(pkNames, quoter.QuoteIdent(column.ColumnName))
 			}
 		}
-		createSql += fmt.Sprintf(",\nPRIMARY KEY (%s)", strings.Join(pkNames, ","))
+		createSQL += fmt.Sprintf(",\nPRIMARY KEY (%s)", strings.Join(pkNames, ","))
 	}
-	createSql += "\n)"
+	createSQL += "\n)"
 
-	sqlArr = append(sqlArr, createSql)
+	sqlArr = append(sqlArr, createSQL)
 
 	return sqlArr
 }
@@ -68,12 +68,12 @@ func ddlIndexName(indexName string) string {
 	return indexName
 }
 
-func (ssg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
+func (ssg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []string {
 	quoter := ssg.dialect.Quoter()
 	quote := quoter.QuoteIdent
 
 	sqls := make([]string, 0)
-	for _, index := range indexs {
+	for _, index := range indexes {
 		unique := ""
 		if index.IsUnique {
 			unique = "unique"
@@ -97,7 +97,7 @@ func (ssg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 
 func (ssg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	if duplicateStrategy == dbi.DuplicateStrategyNone {
-		return collx.AsArray(dbi.GenCommonInsert(ssg.dialect, DbTypeSqlite, tableName, columns, values))
+		return collx.AsArray(dbi.GenCommonInsert(ssg.dialect, DbTypeSQLite, tableName, columns, values))
 	}
 
 	sqls := make([]string, 0)
@@ -106,7 +106,7 @@ func (ssg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, value
 	quote := ssg.dialect.Quoter().QuoteIdent
 
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
-		columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(ssg.dialect, DbTypeSqlite, columns, values)
+		columnStr, valuesStrs := dbi.GenInsertSQLColumnAndValues(ssg.dialect, DbTypeSQLite, columns, values)
 		sqls = append(sqls, fmt.Sprintf("insert or ignore into %s %s VALUES \n%s", quote(tableName), columnStr, strings.Join(valuesStrs, ",\n")))
 		sqls = append(sqls, "PRAGMA foreign_keys = true")
 		return sqls
@@ -115,7 +115,7 @@ func (ssg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, value
 	// DuplicateStrategyUpdate: 真正的 UPSERT（ON CONFLICT DO UPDATE SET），
 	// 替代旧 INSERT OR REPLACE（本质 DELETE+INSERT，会破坏外键关系）
 	// 需要 SQLite 3.35.0+ 支持 ON CONFLICT DO UPDATE 语法
-	columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(ssg.dialect, DbTypeSqlite, columns, values)
+	columnStr, valuesStrs := dbi.GenInsertSQLColumnAndValues(ssg.dialect, DbTypeSQLite, columns, values)
 
 	conflictClause := ssg.genOnConflictDoUpdate(columns, targetTableMeta)
 	if conflictClause == "" {
@@ -148,7 +148,7 @@ func (ssg *SQLGenerator) genOnConflictDoUpdate(columns []dbi.Column, targetTable
 		if uniqueSet[strings.ToLower(trim(col.ColumnName))] {
 			continue
 		}
-		if dbi.PreservableGeneratedColumn(col, DbTypeSqlite) || col.IsGenerated {
+		if dbi.PreservableGeneratedColumn(col, DbTypeSQLite) || col.IsGenerated {
 			continue
 		}
 		quotedName := quote(col.ColumnName)
@@ -172,7 +172,7 @@ func (ssg *SQLGenerator) GenTruncate(tableName string) []string {
 	return []string{fmt.Sprintf("DELETE FROM %s", quote(tableName))}
 }
 
-func (ssg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column, inlinePk bool) string {
+func (ssg *SQLGenerator) genColumnBasicSQL(quoter dbi.Quoter, column dbi.Column, inlinePk bool) string {
 	nullAble := ""
 	if !column.Nullable {
 		nullAble = " NOT NULL"
@@ -190,9 +190,9 @@ func (ssg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column,
 	}
 
 	// 默认值统一由dbi按元数据形态判定：字面量重新转义引用、函数类跳过、可证裸值原样输出；
-	// 旧实现“含左括号即视为函数而丢弃”会使 DEFAULT '(0)'、'unknown (pending)' 类默认值静默丢失；
+	// 若"含左括号即视为函数而丢弃"，会使 DEFAULT '(0)'、'unknown (pending)' 类默认值静默丢失；
 	// 源库为MySQL 8.0时默认值不带引号，必须能按字面量重新引用，不能因形态陌生而丢弃
-	defVal := dbi.GenColumnDefaultSqlOf(&column, column.DataType, dbi.QuoteEscape)
+	defVal := dbi.GenColumnDefaultSQLOf(&column, column.DataType, dbi.QuoteEscape)
 
 	return fmt.Sprintf(" %s %s%s%s", quoteColumnName, column.GetColumnType(), nullAble, defVal)
 }

@@ -99,7 +99,7 @@ const DefaultForm: AuthCertForm = {
     resourceType: TagResourceTypeEnum.PublicAuthCert.value,
     resourceCode: '',
     ciphertext: '',
-    extra: {} as Record<string, unknown>,
+    extra: {},
     remark: '',
 };
 
@@ -110,7 +110,7 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 const acFormRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown; resetFields: () => void }>('acFormRef');
 
 const state = reactive({
-    form: { ...DefaultForm } as AuthCertForm,
+    form: { ...DefaultForm },
     btnLoading: false,
     publicAuthCerts: [] as ResourceAuthCert[],
 });
@@ -128,10 +128,8 @@ watch(dialogVisible, (val: boolean) => {
 });
 
 const setForm = (val: ResourceAuthCert | undefined) => {
-    const formData = { ...val } as AuthCertForm;
-    if (!formData.extra) {
-        formData.extra = {};
-    }
+    // 以 DefaultForm 为底再覆盖凭证字段：extra 等表单必填字段在凭证记录里可缺省
+    const formData: AuthCertForm = { ...DefaultForm, ...val, extra: val?.extra || {} };
     state.form = formData;
     if (state.form.ciphertextType == AuthCertCiphertextTypeEnum.Public.value) {
         getPublicAuthCerts();

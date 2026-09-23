@@ -44,7 +44,7 @@ func (m *MsgTmpl) GetMsgTmpls(rc *req.Ctx) {
 }
 
 func (m *MsgTmpl) GetMsgTmplChannels(rc *req.Ctx) {
-	channels, err := m.msgTmplApp.GetTmplChannels(rc.MetaCtx, cast.ToUint64(rc.PathParamInt("id")))
+	channels, err := m.msgTmplApp.GetTmplChannels(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")))
 	biz.ErrIsNil(err)
 	rc.ResData = collx.ArrayMap(channels, func(val *entity.MsgChannel) collx.M {
 		return collx.M{

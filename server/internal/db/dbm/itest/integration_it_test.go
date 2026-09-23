@@ -166,6 +166,23 @@ func TestITMysqlCopyTable(t *testing.T) {
 
 	_, _ = setupMysqlSourceTable(t, conn, "it_copy_src")
 
+	// CopyTable 生成 <src>_copy_<时间戳> 新表；若不回收，每次运行都残留一张 → 测试库无限膨胀撑爆磁盘。
+	// 故：运行前清历史残留（含此前泄漏），并用 t.Cleanup 清本次产物，做到零残留 + 自愈。
+	quote := conn.GetDialect().Quoter().Quote
+	dropCopies := func() {
+		all, err := conn.Metadata().GetTables()
+		if err != nil {
+			return
+		}
+		for _, tb := range all {
+			if strings.HasPrefix(tb.TableName, "it_copy_src_copy_") {
+				_, _ = conn.Exec("DROP TABLE IF EXISTS " + quote(tb.TableName))
+			}
+		}
+	}
+	dropCopies()
+	defer dropCopies() // 注册于 defer conn.Close() 之后 → 返回时先清表（此时连接仍在），且 FailNow/panic 也执行
+
 	require.NoError(t, conn.GetDialect().CopyTable(&dbi.DbCopyTable{TableName: "it_copy_src", CopyData: true}))
 	time.Sleep(2 * time.Second) // 数据为异步复制
 
@@ -197,7 +214,7 @@ func TestITMysqlCopyTable(t *testing.T) {
 // mysql → sqlite 异构迁移全流程（等价DumpDb链路：元数据→类型转换→DDL→数据→校验）
 // ---------------------------------------------------------------------
 
-func TestITMysqlToSqliteMigration(t *testing.T) {
+func TestITMysqlToSQLiteMigration(t *testing.T) {
 	mconn := mysqlConn(t)
 	defer mconn.Close()
 	sconn := sqliteConn(t)
@@ -250,8 +267,8 @@ func TestITMysqlToSqliteMigration(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, insertValues, 3)
 
-	insertSqls := targetDialect.GetSQLGenerator().GenInsert(destTable, insertColumns, insertValues, dbi.DuplicateStrategyNone, nil)
-	for _, sql := range insertSqls {
+	insertSQLs := targetDialect.GetSQLGenerator().GenInsert(destTable, insertColumns, insertValues, dbi.DuplicateStrategyNone, nil)
+	for _, sql := range insertSQLs {
 		mustExec(t, sconn, sql)
 	}
 
@@ -267,7 +284,7 @@ func TestITMysqlToSqliteMigration(t *testing.T) {
 // sqlite 全流程
 // ---------------------------------------------------------------------
 
-func TestITSqliteFullFlow(t *testing.T) {
+func TestITSQLiteFullFlow(t *testing.T) {
 	conn := sqliteConn(t)
 	defer conn.Close()
 
@@ -322,4 +339,78 @@ func TestITSqliteFullFlow(t *testing.T) {
 	copyRows := readAllRows(t, conn, copyName, "id")
 	assert.Len(t, copyRows, 3)
 	assert.Equal(t, "it's", normalizeDbValue(copyRows[0]["name"]))
+}
+
+// TestITMysqlSearchTablesAndMetaObjects 连库验证「表名下推过滤」与「扩展对象内省」两条新链路：
+// SearchTables 走 MYSQL_TABLE_SEARCH（LIKE ? 服务端下推、大小写不敏感、LIMIT 截断）；
+// ListObjects(view) 走 MetadataNavigator（MYSQL_VIEWS，空 schema 回退当前库）。
+func TestITMysqlSearchTablesAndMetaObjects(t *testing.T) {
+	conn := mysqlConn(t)
+	defer conn.Close()
+	md := conn.Metadata()
+
+	ddls := []string{
+		"DROP VIEW IF EXISTS it_srch_vw",
+		"DROP TABLE IF EXISTS it_srch_users",
+		"DROP TABLE IF EXISTS it_srch_orders",
+		"CREATE TABLE it_srch_users (id INT PRIMARY KEY, name VARCHAR(50))",
+		"CREATE TABLE it_srch_orders (id INT PRIMARY KEY, amount INT)",
+		"CREATE VIEW it_srch_vw AS SELECT id, name FROM it_srch_users",
+	}
+	for _, ddl := range ddls {
+		_, err := conn.Exec(ddl)
+		require.NoError(t, err, ddl)
+	}
+	defer func() {
+		for _, ddl := range []string{"DROP VIEW IF EXISTS it_srch_vw", "DROP TABLE IF EXISTS it_srch_users", "DROP TABLE IF EXISTS it_srch_orders"} {
+			_, _ = conn.Exec(ddl)
+		}
+	}()
+
+	names := func(ts []dbi.Table) []string {
+		out := make([]string, 0, len(ts))
+		for _, x := range ts {
+			out = append(out, x.TableName)
+		}
+		return out
+	}
+	has := func(ss []string, want string) bool {
+		for _, s := range ss {
+			if s == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 子串下推命中两张表
+	got, err := md.SearchTables("it_srch", 0)
+	require.NoError(t, err)
+	gn := names(got)
+	require.True(t, has(gn, "it_srch_users") && has(gn, "it_srch_orders"), "SearchTables(it_srch) 应命中两张表，得 %v", gn)
+
+	// 大小写不敏感（LIKE 模式 USERS 命中 it_srch_users）
+	got2, err := md.SearchTables("USERS", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"it_srch_users"}, names(got2))
+
+	// LIMIT 截断
+	got3, err := md.SearchTables("it_srch", 1)
+	require.NoError(t, err)
+	require.Len(t, got3, 1)
+
+	// 视图节点内省（空 schema → 当前库）
+	nodes, err := md.ListObjects(itCtx(), "", dbi.KindView)
+	require.NoError(t, err)
+	viewNames := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		viewNames = append(viewNames, n.Name)
+	}
+	require.True(t, has(viewNames, "it_srch_vw"), "ListObjects(view) 应含 it_srch_vw，得 %v", viewNames)
+
+	// 视图 DDL（SHOW CREATE VIEW 权威定义）
+	ddl, err := md.ObjectDDL(itCtx(), "", dbi.KindView, "it_srch_vw")
+	require.NoError(t, err, "mysql 视图 ObjectDDL 应成功")
+	assert.Contains(t, ddl, "it_srch_vw")
+	assert.Contains(t, ddl, "VIEW")
 }

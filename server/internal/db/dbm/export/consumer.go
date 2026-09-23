@@ -3,12 +3,12 @@
 // 与契约层 dbi 平级、单向依赖 dbi，模块内三层职责分离：
 //   - Consumer（格式层）：每种导出格式实现此接口，负责输出序列化
 //   - Exporter（编排层）：游标遍历、分批策略、列映射等共享逻辑（exporter.go）
-//   - DumpHelper + SQLGenerator（方言层，在 dbi 包）：方言差异由各方言自行实现
+//   - DumpTxnWrapper + SQLGenerator（方言层，在 dbi 包）：方言差异由各方言自行实现
 //
 // 开闭原则：
 //   - 新增导出格式：实现 Consumer 接口并在 init 中 Register/RegisterFactory，
 //     Descriptors() 自动暴露给上层（前端格式清单无需改动），本模块其余代码零修改
-//   - 新增方言：实现 DumpHelper + SQLGenerator 后导出功能自动可用
+//   - 新增方言：实现 DumpTxnWrapper + SQLGenerator 后导出功能自动可用
 package export
 
 import (
@@ -29,7 +29,7 @@ type Consumer interface {
 	// SupportsScript 声明该格式的产物是否为**方言脚本形态**——true 时 Exporter 编排器启用：
 	//   - SQL 头部注释段（平台/时间/方言标识）
 	//   - DDL 与索引导出段（GenTableDDL/GenIndexDDL）
-	//   - 方言事务前后置钩子（DumpHelper.BeforeInsert/AfterInsert/BeforeInsertSql）
+	//   - 方言事务前后置钩子（DumpTxnWrapper.BeforeInsert/AfterInsert/BeforeInsertSQL）
 	//
 	// 编排器只探测本能力，禁止按 Format 名称字符串分支——新增脚本类格式（如某方言专用脚本）
 	// 只需在自身实现中声明 true，编排器零修改（开闭原则）
@@ -51,7 +51,7 @@ type Consumer interface {
 	//   - helper: 方言导出辅助（SQL 格式用于事务控制，其他格式忽略）
 	//   - sqlGen: 方言 SQL 生成器（SQL 格式用于生成 INSERT，其他格式忽略）
 	ConsumeBatch(w io.Writer, tableName string, columns []dbi.Column, rows [][]any,
-		helper dbi.DumpHelper, sqlGen dbi.SQLGenerator, settings *Settings) error
+		helper dbi.DumpTxnWrapper, sqlGen dbi.SQLGenerator, settings *Settings) error
 
 	// End 表数据导出结束后调用，写入格式尾部（如 JSON 数组闭合、CSV 缓冲落盘等）
 	End(w io.Writer, tableName string, settings *Settings) error

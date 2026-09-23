@@ -67,6 +67,8 @@ const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/Mona
 const emits = defineEmits<{
     /** 脚本保存成功，回传所属库，父级据此刷新该库下的脚本树节点 */
     saveSqlSuccess: [dbId: number, dbName: string];
+    /** 编辑器初始化完成，上报 model URI，父级据此登记到补全作用域使多编辑器共存时按模型路由 */
+    editorReady: [modelUri: string];
 }>();
 
 const { t } = useI18n();
@@ -131,7 +133,12 @@ onMounted(async () => {
         state.sql = res.sql;
     }
     // 编辑器为按需加载，快捷键等初始化挂在其 @ready 上（见模板），此处不再用定时器猜就绪时机
-    await getNowDbInst().loadDbHints(props.dbName);
+    // 元数据分级：此处仅 fire-and-forget 预热「表名清单」（轻，已 localStorage 缓存），编辑器立即可交互；
+    // 列补全改走按表 fragment（敲到 tbl./别名. 时才经 loadColumns → c-metadata 取该表列，前端按表缓存 + 服务端进程内缓存）。
+    // 结构新鲜度由事件驱动，本地缓存失效只有两个入口：SQL 执行（编辑器按 isDdlSql 判定、表编辑弹框按构造一律失效）
+    // 与资源树节点重载（右击刷新、建/改/改名/删/复制表回调，见 DbDataOp.reloadNode），两者都汇到 DbInst.invalidateSchema。
+    // 本地表清单缓存无 TTL：他端/外部工具改表不会触发上述入口，需右击刷新才会重取（服务端 schema 缓存另有 TTL 兜底）。
+    getNowDbInst().loadTables(props.dbName).then(() => {});
 });
 
 const splitterRef = useTemplateRef<{ $el: HTMLElement }>('splitterRef');
@@ -299,6 +306,12 @@ const initMonacoEditor = async () => {
         return;
     }
     monacoEditor = editorInstance;
+
+    // 上报 model URI：父级（DbDataOp）登记到补全作用域，使多编辑器共存时 provider 按模型路由
+    const modelUri = monacoEditor.getModel()?.uri.toString();
+    if (modelUri) {
+        emits('editorReady', modelUri);
+    }
 
     // 快捷键常量属于 monaco 运行时。本函数由编辑器的 ready 事件触发，此刻编辑器 chunk 已在内存，
     // 动态导入不会多下一份，却能让本组件的静态图与 monaco 脱钩（否则 SQL 编辑器 tab 要等整份编辑器下载完才出现）

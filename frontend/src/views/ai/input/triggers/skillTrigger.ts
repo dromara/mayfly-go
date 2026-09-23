@@ -21,7 +21,7 @@ export function buildSkillItems(skills: SkillItem[], query: string): TriggerMenu
             description: s.description,
             icon: s.icon,
             kind: 'skill' as const,
-            data: s as unknown as Record<string, unknown>,
+            data: s,
         }));
 }
 

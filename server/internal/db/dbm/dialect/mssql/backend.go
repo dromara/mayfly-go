@@ -23,7 +23,7 @@ func init() {
 			Float, Real, Date, Datetimeoffset, Datetime2, Smalldatetime, Datetime, Time,
 			Char, Varchar, VarcharMax, NvarcharMax, VarbinaryMax,
 			Text, Nchar, Nvarchar, Ntext, Binary, Varbinary,
-			Cursor, Rowversion, Hierarchyid, Uniqueidentifier, Sql_variant, Xml, Table,
+			Cursor, Rowversion, Hierarchyid, Uniqueidentifier, SQL_variant, Xml, Table,
 			Geometry, Geography,
 		)
 
@@ -105,7 +105,7 @@ const (
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 }
 
 // CommitTargetTx mssql驱动存在已知怪癖：连接池复用的conn在特定时序下commit会返回
@@ -125,7 +125,7 @@ func (mm *Backend) CommitTargetTx(conn *dbi.DbConn, tx *sql.Tx) error {
 	return nil
 }
 
-func (mm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (mm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	query := url.Values{}
 	query.Add("app name", "mayfly")
 	query.Add("tlsmin", "1.0")
@@ -155,6 +155,14 @@ func (mm *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 
 func (mm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
 	return &MssqlDialect{di: di}
+}
+
+// GetCapabilities SQL Server：核心能力全支持（server>database>schema 三层），并声明已实现的视图与序列内省
+// （MssqlMetadata 实现 MetadataNavigator，SupportedKinds 含 view/sequence，与声明一致）。
+func (mm *Backend) GetCapabilities() dbi.MetadataCapabilities {
+	return dbi.NewAllCapabilities().
+		With(dbi.FeatViews, dbi.FeatSequences).
+		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 
 func (mm *Backend) GetServerInfo(di *dbi.DbInfo) dbi.ServerInfo {

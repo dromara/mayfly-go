@@ -14,26 +14,27 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 const (
-	MYSQL_DBS            = "MYSQL_DBS"
-	MYSQL_TABLE_INFO_KEY = "MYSQL_TABLE_INFO"
-	MYSQL_INDEX_INFO_KEY = "MYSQL_INDEX_INFO"
-	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
+	MYSQL_DBS              = "MYSQL_DBS"
+	MYSQL_TABLE_INFO_KEY   = "MYSQL_TABLE_INFO"
+	MYSQL_TABLE_SEARCH_KEY = "MYSQL_TABLE_SEARCH"
+	MYSQL_INDEX_INFO_KEY   = "MYSQL_INDEX_INFO"
+	MYSQL_COLUMN_MA_KEY    = "MYSQL_COLUMN_MA"
 )
 
 var (
 	_ dbi.ServerInfo       = (*MysqlMetadata)(nil)
 	_ dbi.MetadataProvider = (*MysqlMetadata)(nil)
+	_ dbi.TableSearcher    = (*MysqlMetadata)(nil)
 )
 
 type MysqlMetadata struct {
 	dbi.DefaultServerInfo
-	dbi.DefaultMetadataProvider
 
 	di *dbi.DbInfo
 }
@@ -54,7 +55,7 @@ func (md *MysqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 }
 
 func (md *MysqlMetadata) GetDbNames() ([]string, error) {
-	_, res, err := md.di.Query(metaSql.Get(MYSQL_DBS))
+	_, res, err := md.di.Query(metaSQL.Get(MYSQL_DBS))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(metaSql.Get(MYSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSQL.Get(MYSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +87,34 @@ func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	}
 
 	tables := make([]dbi.Table, 0)
+	for _, re := range res {
+		tables = append(tables, dbi.Table{
+			TableName:    cast.ToString(re["tableName"]),
+			TableComment: cast.ToString(re["tableComment"]),
+			CreateTime:   cast.ToString(re["createTime"]),
+			TableRows:    cast.ToInt(re["tableRows"]),
+			DataLength:   cast.ToInt64(re["dataLength"]),
+			IndexLength:  cast.ToInt64(re["indexLength"]),
+		})
+	}
+	return tables, nil
+}
+
+// SearchTables 把表名 LIKE 过滤下推到 information_schema，避免超大 schema 全量取回后内存过滤。
+// like 作为绑定参数传入（驱动负责引号/转义），通配符由本函数按「包含」语义包裹。
+func (md *MysqlMetadata) SearchTables(like string, limit int) ([]dbi.Table, error) {
+	sql := metaSQL.Get(MYSQL_TABLE_SEARCH_KEY)
+	args := []any{"%" + dbi.EscapeLikeWildcards(like) + "%"}
+	if limit > 0 {
+		// limit 为 int（经 cast.ToInt 归一），以绑定参数下传，不拼接进 SQL 文本
+		sql += " LIMIT ?"
+		args = append(args, limit)
+	}
+	_, res, err := md.di.Query(sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	tables := make([]dbi.Table, 0, len(res))
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
 			TableName:    cast.ToString(re["tableName"]),
@@ -131,7 +160,7 @@ func (md *MysqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbi.QuoteEscapeBackslash(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := md.di.Query(fmt.Sprintf(metaSql.Get(MYSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := md.di.Query(fmt.Sprintf(metaSQL.Get(MYSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +224,7 @@ type mysqlGenColumn struct {
 //     concat(`a`,_utf8mb4\'-\')（HEX证实为5C 27），原文嵌入DDL必然语法错误；
 //  2. 表达式的值按latin1解释后再转成连接字符集，含非ASCII字面量时双重编码，'中文'的字节
 //     由E4B8AD变成C3A4C2B8AD，重建后该列值静默乱码（比报错更隐蔽）；
-//  3. 旧版本存在长度截断，截断后的表达式派生语义已改变。
+//  3. 表达式若存在长度截断，截断后的派生语义已改变。
 //
 // SHOW CREATE TABLE是MySQL自身给出的可原样重放的DDL文本（mysqldump亦以其为源），三项均有保证。
 // 解析不到该列（表达式含裸换行等非常形态）则不标记，退回「目标建普通列 + 插入源值」的保守语义，
@@ -250,9 +279,9 @@ func mysqlShowCreateText(row map[string]any) string {
 //
 // MySQL的生成列定义恒为独立一行且列名必以反引号引用，物化关键字紧随表达式之后，
 // 因此只认这一形态；其余行（普通列、索引、约束、表选项）一律跳过
-func parseMysqlGeneratedColumns(createSql string) map[string]mysqlGenColumn {
+func parseMysqlGeneratedColumns(createSQL string) map[string]mysqlGenColumn {
 	genColumns := make(map[string]mysqlGenColumn)
-	for _, line := range strings.Split(createSql, "\n") {
+	for _, line := range strings.Split(createSQL, "\n") {
 		line = strings.TrimRight(strings.TrimSpace(line), ",")
 		if !strings.HasPrefix(line, "`") {
 			continue
@@ -345,35 +374,37 @@ func skipMysqlQuoted(s string, start int, quote byte, backslashEscape bool) (int
 	return 0, false
 }
 
-// 获取表主键字段名，不存在主键标识则默认第一个字段
-func (md *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
+// GetPrimaryKeys 获取表的有序主键列名（联合主键多列）；无主键返回空切片
+func (md *MysqlMetadata) GetPrimaryKeys(tablename string) ([]string, error) {
 	columns, err := md.GetColumns(tablename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(columns) == 0 {
-		return "", errorx.NewBizf("[%s] 表不存在", tablename)
+		return nil, errorx.NewBizf("[%s] 表不存在", tablename)
 	}
 
+	pks := make([]string, 0, 2)
 	for _, v := range columns {
 		if v.IsPrimaryKey {
-			return v.ColumnName, nil
+			pks = append(pks, v.ColumnName)
 		}
 	}
 
-	return columns[0].ColumnName, nil
+	// 联合主键返回多列；无主键返回空切片（不兜底首列）
+	return pks, nil
 }
 
 // 获取表索引信息
 func (md *MysqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := md.di.Query(metaSql.Get(MYSQL_INDEX_INFO_KEY), tableName)
+	_, res, err := md.di.Query(metaSQL.Get(MYSQL_INDEX_INFO_KEY), tableName)
 	if err != nil {
 		return nil, err
 	}
 
-	indexs := make([]dbi.Index, 0)
+	indexes := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, dbi.Index{
+		indexes = append(indexes, dbi.Index{
 			IndexName:    cast.ToString(re["indexName"]),
 			ColumnName:   cast.ToString(re["columnName"]),
 			IndexType:    cast.ToString(re["indexType"]),
@@ -385,7 +416,7 @@ func (md *MysqlMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
-	return dbi.GroupIndexColumns(indexs), nil
+	return dbi.GroupIndexColumns(indexes), nil
 }
 
 // 获取建表ddl

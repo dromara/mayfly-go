@@ -7,7 +7,7 @@
 import { i18n } from '@/i18n';
 import type { 
   TableDefinition, 
-  ColumnDefinition, 
+  TableColumnDefinition, 
   TableIndexDefinition,
   ConstraintDefinition,
   ValidationResult,
@@ -40,7 +40,7 @@ class ValidationService {
       });
     }
     
-    const primaryKeys = table.columns.filter(c => c.pri);
+    const primaryKeys = table.columns.filter(c => c.isPrimaryKey);
     if (primaryKeys.length === 0) {
       errors.push({
         code: 'NO_PRIMARY_KEY',
@@ -112,7 +112,7 @@ class ValidationService {
     }
   }
   
-  validateColumn(column: ColumnDefinition, table: TableDefinition): ValidationError[] {
+  validateColumn(column: TableColumnDefinition, table: TableDefinition): ValidationError[] {
     const errors: ValidationError[] = [];
     this.validateColumnName(column.name, column, errors);
     this.validateColumnType(column, errors);
@@ -122,7 +122,7 @@ class ValidationService {
     return errors;
   }
   
-  private validateColumnName(name: string, column: ColumnDefinition, errors: ValidationError[]) {
+  private validateColumnName(name: string, column: TableColumnDefinition, errors: ValidationError[]) {
     const unnamed = this.t('db.valTableNameUnnamed');
     if (!name || name.trim() === '') {
       errors.push({
@@ -153,7 +153,7 @@ class ValidationService {
     }
   }
   
-  private validateColumnType(column: ColumnDefinition, errors: ValidationError[]) {
+  private validateColumnType(column: TableColumnDefinition, errors: ValidationError[]) {
     if (!column.type || column.type.trim() === '') {
       errors.push({
         code: 'COLUMN_TYPE_REQUIRED',
@@ -190,7 +190,7 @@ class ValidationService {
     }
   }
   
-  private validateColumnLength(column: ColumnDefinition, errors: ValidationError[]) {
+  private validateColumnLength(column: TableColumnDefinition, errors: ValidationError[]) {
     if (column.length !== undefined && column.length !== '') {
       const length = Number(column.length);
       if (isNaN(length) || length <= 0) {
@@ -235,8 +235,8 @@ class ValidationService {
     }
   }
   
-  private validateAutoIncrement(column: ColumnDefinition, errors: ValidationError[]) {
-    if (!column.auto_increment) return;
+  private validateAutoIncrement(column: TableColumnDefinition, errors: ValidationError[]) {
+    if (!column.autoIncrement) return;
     
     const intTypes = ['int', 'integer', 'bigint', 'smallint', 'tinyint', 'mediumint'];
     const isIntType = intTypes.some(t => column.type.toLowerCase().includes(t));
@@ -246,33 +246,33 @@ class ValidationService {
         code: 'AUTO_INCREMENT_TYPE_INVALID',
         message: this.t('db.valAutoIncTypeInvalid'),
         severity: 'error',
-        location: { type: 'column', name: column.name, field: 'auto_increment' },
+        location: { type: 'column', name: column.name, field: 'autoIncrement' },
         suggestion: this.t('db.valAutoIncTypeSuggestion'),
       });
     }
     
-    if (!column.pri && !column.unique) {
+    if (!column.isPrimaryKey && !column.unique) {
       errors.push({
         code: 'AUTO_INCREMENT_NOT_KEY',
         message: this.t('db.valAutoIncNotKey'),
         severity: 'warning',
-        location: { type: 'column', name: column.name, field: 'auto_increment' },
+        location: { type: 'column', name: column.name, field: 'autoIncrement' },
         suggestion: this.t('db.valAutoIncNotKeySuggestion'),
       });
     }
     
-    if (!column.notNull) {
+    if (column.nullable) {
       errors.push({
         code: 'AUTO_INCREMENT_NULLABLE',
         message: this.t('db.valAutoIncNullable'),
         severity: 'warning',
-        location: { type: 'column', name: column.name, field: 'auto_increment' },
+        location: { type: 'column', name: column.name, field: 'autoIncrement' },
       });
     }
   }
   
-  private validateDefaultValue(column: ColumnDefinition, errors: ValidationError[]) {
-    const defaultValue = column.value || column.defaultValue;
+  private validateDefaultValue(column: TableColumnDefinition, errors: ValidationError[]) {
+    const defaultValue = column.value;
     if (!defaultValue) return;
     
     // 整数类型默认值校验：必须为数字或函数调用（如 CURRENT_TIMESTAMP）
@@ -420,7 +420,7 @@ class ValidationService {
     }
   }
   
-  private checkDuplicateColumns(columns: ColumnDefinition[], tableName: string, errors: ValidationError[]) {
+  private checkDuplicateColumns(columns: TableColumnDefinition[], tableName: string, errors: ValidationError[]) {
     const columnNames = columns.map(c => c.name);
     const duplicates = columnNames.filter((name, index) => columnNames.indexOf(name) !== index);
     

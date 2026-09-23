@@ -192,7 +192,7 @@ func TestITTypesBackupRestoreRoundtrip(t *testing.T) {
 	}{
 		{"mysql", itMysqlNode},
 		{"pg", itPgNode},
-		{"sqlite", itSqliteNode},
+		{"sqlite", itSQLiteNode},
 	}
 	for _, n := range nodes {
 		t.Run(n.name, func(t *testing.T) {

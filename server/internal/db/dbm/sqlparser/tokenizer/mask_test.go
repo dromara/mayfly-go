@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestMaskSqlComments 注释掩码：普通注释等长替换为空白，字面量保留原文，可执行注释解壳保留内容。
+// TestMaskSQLComments 注释掩码：普通注释等长替换为空白，字面量保留原文，可执行注释解壳保留内容。
 // 供导入侧「按语句整体文本识别事务控制语句」使用（切割保留注释后不掩码会误判）
-func TestMaskSqlComments(t *testing.T) {
+func TestMaskSQLComments(t *testing.T) {
 	cases := []struct {
 		name string
 		cfg  DialectConfig
@@ -33,7 +33,7 @@ func TestMaskSqlComments(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := MaskSqlComments(c.sql, c.cfg)
+			got := MaskSQLComments(c.sql, c.cfg)
 			if got != c.want {
 				t.Fatalf("掩码不符:\n got=%q\nwant=%q", got, c.want)
 			}
@@ -53,8 +53,8 @@ func TestMaskSqlComments(t *testing.T) {
 	}
 }
 
-// TestMaskSqlCommentsIdempotent 掩码结果再次掩码必须不变（幂等），否则多次判定会漂移
-func TestMaskSqlCommentsIdempotent(t *testing.T) {
+// TestMaskSQLCommentsIdempotent 掩码结果再次掩码必须不变（幂等），否则多次判定会漂移
+func TestMaskSQLCommentsIdempotent(t *testing.T) {
 	texts := []string{
 		"-- c\nBEGIN;",
 		"/* a /* b */ c */ SELECT 1;",
@@ -65,10 +65,10 @@ func TestMaskSqlCommentsIdempotent(t *testing.T) {
 	for _, d := range []struct {
 		name string
 		cfg  DialectConfig
-	}{{"std", StdConfig}, {"mysql", MysqlConfig}, {"pg", PgConfig}, {"oracle", OracleConfig}, {"mssql", MssqlConfig}, {"clickhouse", ClickhouseConfig}, {"sqlite", SqliteConfig}, {"dm", DmConfig}} {
+	}{{"std", StdConfig}, {"mysql", MysqlConfig}, {"pg", PgConfig}, {"oracle", OracleConfig}, {"mssql", MssqlConfig}, {"clickhouse", ClickhouseConfig}, {"sqlite", SQLiteConfig}, {"dm", DmConfig}} {
 		for _, text := range texts {
-			once := MaskSqlComments(text, d.cfg)
-			if twice := MaskSqlComments(once, d.cfg); twice != once {
+			once := MaskSQLComments(text, d.cfg)
+			if twice := MaskSQLComments(once, d.cfg); twice != once {
 				t.Fatalf("[%s] 掩码不幂等:\n first=%q\nsecond=%q", d.name, once, twice)
 			}
 		}

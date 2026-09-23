@@ -7,7 +7,7 @@ describe('getValueByPath', () => {
         orderNo: 1212211,
         products: [{ id: 12 }, { id: 24 }],
         jsonStr: '{"nested": "value"}',
-    } as unknown as Record<string, unknown>;
+    } as Record<string, unknown>;
 
     it('简单路径', () => {
         expect(getValueByPath(obj, 'orderNo')).toBe(1212211);

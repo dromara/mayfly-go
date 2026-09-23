@@ -20,7 +20,7 @@ import (
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 )
 
-// dumpTableScript 组装“表结构DDL + 数据INSERT + DumpHelper包装”脚本：逐环节调用生产生成器
+// dumpTableScript 组装“表结构DDL + 数据INSERT + DumpTxnWrapper包装”脚本：逐环节调用生产生成器
 // （ConvToTargetDbColumn/GenTableDDL/GenInsert/BeforeInsert/AfterInsert），用于验证**列类型映射与转义**。
 //
 // 它不等同于生产DumpDbScript（未复刻其分批预算与多表编排），导出链路的权威IT在transfer包
@@ -56,7 +56,7 @@ func dumpTableScript(t *testing.T, conn *dbi.DbConn, table string, targetDialect
 	}
 
 	sb.WriteString("\n-- ----------------------------\n-- Data: " + table + " \n-- ----------------------------\n")
-	dumpHelper := targetDialect.GetDumpHelper()
+	dumpHelper := targetDialect.GetDumpTxnWrapper()
 	require.NoError(t, dumpHelper.BeforeInsert(&sb, table))
 
 	var rows [][]any
@@ -70,8 +70,8 @@ func dumpTableScript(t *testing.T, conn *dbi.DbConn, table string, targetDialect
 	})
 	require.NoError(t, err)
 	if len(rows) > 0 {
-		insertSqls := gen.GenInsert(table, cols, rows, dbi.DuplicateStrategyNone, nil)
-		sb.WriteString(strings.Join(insertSqls, ";\n") + ";\n")
+		insertSQLs := gen.GenInsert(table, cols, rows, dbi.DuplicateStrategyNone, nil)
+		sb.WriteString(strings.Join(insertSQLs, ";\n") + ";\n")
 	}
 	require.NoError(t, dumpHelper.AfterInsert(&sb, table, cols))
 
@@ -111,7 +111,7 @@ func execStmtsInTx(t *testing.T, conn *dbi.DbConn, script io.Reader) int {
 	return stmtCount
 }
 
-// parseStmtType 解析SQL返回Stmt具体类型名（模拟ExecuteSql的解析分发判断）
+// parseStmtType 解析SQL返回Stmt具体类型名（模拟ExecuteSQL的解析分发判断）
 func parseStmtType(t *testing.T, conn *dbi.DbConn, sql string) string {
 	t.Helper()
 	stmt, err := conn.GetDialect().GetSQLParser().Parse(sql)
@@ -120,22 +120,22 @@ func parseStmtType(t *testing.T, conn *dbi.DbConn, sql string) string {
 	return fmt.Sprintf("%T", stmt)
 }
 
-// execDispatched 模拟ExecuteSql分发链路：切割→解析→按Stmt类型分发查询/执行
+// execDispatched 模拟ExecuteSQL分发链路：切割→解析→按Stmt类型分发查询/执行
 func execDispatched(t *testing.T, conn *dbi.DbConn, script string) {
 	t.Helper()
 	splitter := conn.GetDialect().GetSQLSplitter()
 	parser := conn.GetDialect().GetSQLParser()
-	require.NoError(t, splitter.SplitSQL(strings.NewReader(script), func(oneSql string) error {
-		stmt, parseErr := parser.Parse(oneSql)
+	require.NoError(t, splitter.SplitSQL(strings.NewReader(script), func(oneSQL string) error {
+		stmt, parseErr := parser.Parse(oneSQL)
 		if parseErr != nil {
-			t.Fatalf("parse [%s] failed: %s", oneSql, parseErr.Error())
+			t.Fatalf("parse [%s] failed: %s", oneSQL, parseErr.Error())
 		}
 		switch stmt.(type) {
 		case *sqlstmt.SelectStmt, *sqlstmt.WithStmt, *sqlstmt.OtherStmt:
-			_, _, err := conn.Query(oneSql)
+			_, _, err := conn.Query(oneSQL)
 			return err
 		default:
-			_, err := conn.Exec(oneSql)
+			_, err := conn.Exec(oneSQL)
 			return err
 		}
 	}))
@@ -146,7 +146,7 @@ func execDispatched(t *testing.T, conn *dbi.DbConn, script string) {
 // ---------------------------------------------------------------------
 
 // sqlite脚本含反斜杠字面量值：标准SQL切割语义下的真实执行（切割器方言修复的端到端验证）
-func TestITSqliteScriptBackslashStmts(t *testing.T) {
+func TestITSQLiteScriptBackslashStmts(t *testing.T) {
 	sconn := sqliteConn(t)
 	defer sconn.Close()
 
@@ -170,11 +170,11 @@ insert into %s values (2, 'x\;y');`,
 // SQL 执行分发链路（切割 → 解析 → 按类型分发）
 // ---------------------------------------------------------------------
 
-func TestITMysqlSqlExecDispatch(t *testing.T) {
+func TestITMysqlSQLExecDispatch(t *testing.T) {
 	conn := mysqlConn(t)
 	defer conn.Close()
 
-	// 解析类型断言（模拟ExecuteSql的Stmt类型分发判断）
+	// 解析类型断言（模拟ExecuteSQL的Stmt类型分发判断）
 	assert.Equal(t, "*sqlstmt.DdlStmt", parseStmtType(t, conn, "create table `it_exec` (id int primary key, val varchar(100))"))
 	assert.Equal(t, "*sqlstmt.InsertStmt", parseStmtType(t, conn, "insert into `it_exec` values (1, 'a')"))
 	assert.Equal(t, "*sqlstmt.UpdateStmt", parseStmtType(t, conn, "update `it_exec` set val = 'b' where id = 1"))
@@ -197,7 +197,7 @@ func TestITMysqlSqlExecDispatch(t *testing.T) {
 	assert.Equal(t, "u;p'q", normalizeDbValue(rows[0]["val"]))
 }
 
-func TestITSqliteSqlExecDispatch(t *testing.T) {
+func TestITSQLiteSQLExecDispatch(t *testing.T) {
 	conn := sqliteConn(t)
 	defer conn.Close()
 

@@ -101,11 +101,11 @@ registerContributor({
         }
 
         const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
-        const keyspace = res.Keyspace as unknown as Record<string, string>;
+        const keyspace = res.Keyspace as Record<string, string>;
         for (const db in keyspace) {
             for (const d of dbs) {
                 if (db == d.params?.name) {
-                    d.params!.keys = keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
+                    d.params.keys = keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
                 }
             }
         }

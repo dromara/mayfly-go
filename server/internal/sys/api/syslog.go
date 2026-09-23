@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -28,5 +29,5 @@ func (r *Syslog) Syslogs(rc *req.Ctx) {
 }
 
 func (r *Syslog) SyslogDetail(rc *req.Ctx) {
-	rc.ResData = r.syslogApp.GetLogDetail(uint64(rc.PathParamInt("id")))
+	rc.ResData = r.syslogApp.GetLogDetail(cast.ToUint64(rc.PathParam("id")))
 }

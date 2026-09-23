@@ -1,6 +1,6 @@
 package itest
 
-// 反向异构数据库迁移集成测试（与正向 TestITMysqlToPgMigration/TestITMysqlToSqliteMigration 对称）：
+// 反向异构数据库迁移集成测试（与正向 TestITMysqlToPgMigration/TestITMysqlToSQLiteMigration 对称）：
 //   - pg 源 → mysql / sqlite 目标：pg 专属类型（serial/bytea/numeric）转换 + pg 字符串（反斜杠原样语义）
 //     经 mysql 方言导出（反斜杠转义语义）后的转义正确性
 //   - sqlite 源 → pg / mysql 目标：sqlite 动态类型列经 ConvToTargetDbColumn 的转换与回环
@@ -54,8 +54,8 @@ func TestITPgToMysqlMigration(t *testing.T) {
 	}
 }
 
-// TestITPgToSqliteMigration pg源 → sqlite目标异构迁移
-func TestITPgToSqliteMigration(t *testing.T) {
+// TestITPgToSQLiteMigration pg源 → sqlite目标异构迁移
+func TestITPgToSQLiteMigration(t *testing.T) {
 	pconn := pgConn(t)
 	defer pconn.Close()
 	sconn := sqliteConn(t)
@@ -72,8 +72,8 @@ func TestITPgToSqliteMigration(t *testing.T) {
 	}
 }
 
-// setupSqliteSourceTable 建立sqlite反向迁移源表并填充数据
-func setupSqliteSourceTable(t *testing.T, conn *dbi.DbConn, table string) []map[string]any {
+// setupSQLiteSourceTable 建立sqlite反向迁移源表并填充数据
+func setupSQLiteSourceTable(t *testing.T, conn *dbi.DbConn, table string) []map[string]any {
 	t.Helper()
 	quote := conn.GetDialect().Quoter().Quote
 	mustExec(t, conn, "DROP TABLE IF EXISTS "+quote(table))
@@ -84,14 +84,14 @@ func setupSqliteSourceTable(t *testing.T, conn *dbi.DbConn, table string) []map[
 	return readAllRows(t, conn, table, "id")
 }
 
-// TestITSqliteToPgMigration sqlite源 → pg目标异构迁移
-func TestITSqliteToPgMigration(t *testing.T) {
+// TestITSQLiteToPgMigration sqlite源 → pg目标异构迁移
+func TestITSQLiteToPgMigration(t *testing.T) {
 	sconn := sqliteConn(t)
 	pconn := pgConn(t)
 	defer pconn.Close()
 
 	srcTable := "it_rvmig_sq_src"
-	expectRows := setupSqliteSourceTable(t, sconn, srcTable)
+	expectRows := setupSQLiteSourceTable(t, sconn, srcTable)
 	script := dumpTableScript(t, sconn, srcTable, pconn.GetDialect(), "postgres")
 
 	// 结构断言：sqlite integer primary key 应转 pg serial 自增
@@ -105,14 +105,14 @@ func TestITSqliteToPgMigration(t *testing.T) {
 	}
 }
 
-// TestITSqliteToMysqlMigration sqlite源 → mysql目标异构迁移
-func TestITSqliteToMysqlMigration(t *testing.T) {
+// TestITSQLiteToMysqlMigration sqlite源 → mysql目标异构迁移
+func TestITSQLiteToMysqlMigration(t *testing.T) {
 	sconn := sqliteConn(t)
 	mconn := mysqlConn(t)
 	defer mconn.Close()
 
 	srcTable := "it_rvmig_sq_src"
-	expectRows := setupSqliteSourceTable(t, sconn, srcTable)
+	expectRows := setupSQLiteSourceTable(t, sconn, srcTable)
 	script := dumpTableScript(t, sconn, srcTable, mconn.GetDialect(), "mysql")
 
 	execStmtsInTx(t, mconn, strings.NewReader(script))

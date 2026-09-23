@@ -193,8 +193,8 @@ export function useFileOperations(options: UseFileOperationsOptions) {
             {
                 machineId: options.machineId() as number,
                 authCertName: options.authCertName() as string,
-                protocol: options.protocol() as number,
-                fileId: options.fileId() as number,
+                protocol: options.protocol(),
+                fileId: options.fileId(),
                 path: path,
                 filename: file.name,
             },
@@ -231,8 +231,8 @@ export function useFileOperations(options: UseFileOperationsOptions) {
             {
                 machineId: options.machineId() as number,
                 authCertName: options.authCertName() as string,
-                protocol: options.protocol() as number,
-                fileId: options.fileId() as number,
+                protocol: options.protocol(),
+                fileId: options.fileId(),
                 path: options.nowPath(),
             },
             {

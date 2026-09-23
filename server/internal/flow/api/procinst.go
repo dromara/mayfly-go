@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/flow/api/form"
 	"mayfly-go/internal/flow/api/vo"
 	"mayfly-go/internal/flow/application"
@@ -58,13 +59,13 @@ func (p *Procinst) ProcinstStart(rc *req.Ctx) {
 }
 
 func (p *Procinst) ProcinstCancel(rc *req.Ctx) {
-	instId := uint64(rc.PathParamInt("id"))
+	instId := cast.ToUint64(rc.PathParam("id"))
 	rc.ReqParam = instId
 	biz.ErrIsNil(p.procinstApp.CancelProc(rc.MetaCtx, instId))
 }
 
 func (p *Procinst) GetProcinstDetail(rc *req.Ctx) {
-	pi, err := p.procinstApp.GetById(uint64(rc.PathParamInt("id")))
+	pi, err := p.procinstApp.GetById(cast.ToUint64(rc.PathParam("id")))
 	biz.ErrIsNil(err, "procinst not found")
 	pivo := new(vo.ProcinstVO)
 	structx.Copy(pivo, pi)

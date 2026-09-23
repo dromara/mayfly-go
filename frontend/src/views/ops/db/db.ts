@@ -4,7 +4,9 @@ import SqlExecBox from './sql-editor/SqlExecBox';
 
 import { Msg } from '@/hooks/useI18n';
 import { DbDialect, getDbDialect, matchNumericType } from './dialect';
+import { negotiateCapabilities, type NegotiatedCapabilities, type BackendCapabilities } from './dialect/registry';
 import { flexColumnWidth, initColumns } from './core/columnWidth';
+import { buildInsertSql, buildUpdateSql, buildDeleteSql, buildCountSql, resolveSchemaPrefix } from './core/sqlGen';
 
 // core 模块
 import { Db } from './core/db';
@@ -15,8 +17,7 @@ import {
     clearAllDbInstCache,
     getCachedTables,
     setCachedTables,
-    getCachedHints,
-    setCachedHints,
+    removeCachedTables,
     getDbNames,
 } from './core/dbCache';
 
@@ -57,6 +58,21 @@ export class DbInst {
     databases: string[];
 
     /**
+     * 按库缓存后端原始能力（/capabilities 端点响应）。
+     * 首次 loadCapabilities() 时填充，后续复用避免重复请求。
+     */
+    private _backendCaps?: Map<string, BackendCapabilities>;
+
+    /**
+     * 按库缓存协商后的能力（静态方言 ∩ 后端实际）。
+     * 与 _backendCaps 同步填充，消费方直接取用无需再次协商。
+     */
+    private _negotiatedCaps?: Map<string, NegotiatedCapabilities>;
+
+    /** 按库缓存视图列表（表名补全纳入视图）；结构变更时随 invalidateSchemaCache 失效 */
+    private _viewsByDb?: Map<string, Array<{ name: string; comment?: string }>>;
+
+    /**
      * 默认查询分页数量
      */
     static DefaultLimit = 25;
@@ -87,28 +103,58 @@ export class DbInst {
     }
 
     /**
-     * 加载数据库表信息
+     * 加载并缓存指定库的后端能力声明（/capabilities 端点），同时完成协商。
+     *
+     * 首次调用发请求并缓存；后续调用直接返回缓存的协商结果。
+     * 协商 = 静态方言能力（天花板）∩ 后端实际能力（约束），
+     * 消费方一律用本方法取能力，不分别查前端方言与后端端点再手动合并。
+     *
      * @param dbName 数据库名
-     * @param reload 是否重新请求接口获取数据
-     * @returns 表信息
+     * @returns 协商后的能力声明（含 backendFeatures 与 namespace）
      */
-    async loadTables(dbName: string, reload?: boolean) {
-        const db = this.getDb(dbName);
-        let key = this.dbTablesKey(dbName);
-        let tables = getCachedTables(key);
-        // 优先从 table 缓存中获取
-        if (!reload && tables) {
-            db.tables = tables;
-            return tables;
+    async loadCapabilities(dbName: string): Promise<NegotiatedCapabilities> {
+        if (!this._backendCaps) {
+            this._backendCaps = new Map();
+            this._negotiatedCaps = new Map();
         }
-        // 重置列信息缓存与表提示信息
+        const cached = this._negotiatedCaps!.get(dbName);
+        if (cached) {
+            return cached;
+        }
+        const backend = await dbApi.capabilities.request({ id: this.id, db: dbName });
+        this._backendCaps.set(dbName, backend);
+        const negotiated = negotiateCapabilities(this.getDialect(), backend);
+        this._negotiatedCaps!.set(dbName, negotiated);
+        return negotiated;
+    }
+
+    /**
+     * 获取已缓存的协商能力（同步）。未加载过返回 undefined。
+     * 调用方先检查返回值，未缓存时先调 loadCapabilities()。
+     */
+    getNegotiatedCapabilities(dbName: string): NegotiatedCapabilities | undefined {
+        return this._negotiatedCaps?.get(dbName);
+    }
+
+    /**
+     * 加载数据库表信息：命中本地缓存则直接用，否则拉取并写入缓存。
+     *
+     * 不提供「强制重拉」入参：结构新鲜度由事件驱动（DDL 执行/树节点重载→{@link invalidateSchemaCache}），
+     * 带表名过滤的搜索走 dbApi.tableInfos 的 `like` 下推（见资源树表菜单节点），与本全量缓存无关。
+     */
+    async loadTables(dbName: string) {
+        const db = this.getDb(dbName);
+        const key = this.dbTablesKey(dbName);
+        const cached = getCachedTables(key);
+        if (cached) {
+            db.tables = cached;
+            return cached;
+        }
+        // 重置按表列缓存，使表清单重新拉取后 SQL 补全的列也重新取
         db.columnsMap?.clear();
-        tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
+        const tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
         setCachedTables(key, tables);
         db.tables = tables;
-
-        // 异步加载表提示信息
-        this.loadDbHints(dbName, true).then(() => {});
         return tables;
     }
 
@@ -146,8 +192,12 @@ export class DbInst {
         return this.getDb(dbName).getColumn(table, columnName);
     }
 
-    dbTableHintsKey(dbName: string) {
-        return `db-table-hints_${this.id}_${dbName}`;
+    /**
+     * 获取指定表的全部主键列（联合主键返回多列）；无主键返回空数组
+     */
+    async loadPrimaryKeys(dbName: string, table: string): Promise<ColumnMetadata[]> {
+        await this.loadColumns(dbName, table);
+        return this.getDb(dbName).getPrimaryKeys(table);
     }
 
     dbTablesKey(dbName: string) {
@@ -155,20 +205,39 @@ export class DbInst {
     }
 
     /**
-     * 获取库信息提示
+     * 失效指定库的表列表 + 按表列 + 视图本地缓存。
+     *
+     * 表结构变更（建表 / 改表 / 删表 / 执行 DDL、新增或修改列注释）后必须调用：
+     * 否则 SQL 补全会命中过期的缓存，出现「编辑器里已填了列注释、补全却不显示」「新建表/视图补全不出来」等假象。
+     * 清缓存后，下次 loadTables / loadColumns / loadViews 未命中即重新拉取最新元数据。
      */
-    async loadDbHints(dbName: string, reload?: boolean): Promise<Record<string, string[]>> {
-        const db = this.getDb(dbName);
-        let key = this.dbTableHintsKey(dbName);
-        let hints = getCachedHints(key);
-        if (!reload && hints) {
-            db.tableHints = hints;
-            return hints;
+    invalidateSchemaCache(dbName: string) {
+        removeCachedTables(this.dbTablesKey(dbName));
+        // 清空按表列缓存与视图缓存，使改表后 SQL 补全的按表列/视图重新拉取
+        this.getDb(dbName).columnsMap?.clear();
+        this._viewsByDb?.delete(dbName);
+    }
+
+    /**
+     * 加载指定库的视图列表（名称 + 注释），供 SQL 补全把视图与表一起联想。
+     * 方言不支持视图内省或请求失败时返回空数组（不影响表补全）。
+     */
+    async loadViews(dbName: string): Promise<Array<{ name: string; comment?: string }>> {
+        if (!this._viewsByDb) {
+            this._viewsByDb = new Map();
         }
-        hints = (await dbApi.hintTables.request({ id: this.id, db: db.name })) as unknown as Record<string, string[]>;
-        db.tableHints = hints;
-        setCachedHints(key, hints);
-        return hints;
+        const cached = this._viewsByDb.get(dbName);
+        if (cached) {
+            return cached;
+        }
+        try {
+            const objs = await dbApi.metaObjects.request({ id: this.id, db: dbName, kind: 'view' });
+            const views = (objs ?? []).map((o) => ({ name: o.name, comment: o.comment }));
+            this._viewsByDb.set(dbName, views);
+            return views;
+        } catch {
+            return [];
+        }
     }
 
     /**
@@ -186,7 +255,7 @@ export class DbInst {
         });
         for (let re of res) {
             if (re.errorMsg) {
-                Msg.error(`${re.sql} -> 执行失败: ${re.errorMsg}`);
+                Msg.error('db.sqlExecFailDetail', { sql: re.sql, error: re.errorMsg });
             }
         }
         return res;
@@ -215,8 +284,7 @@ export class DbInst {
      * @returns count sql
      */
     getDefaultCountSql = (table: string, condition?: string) => {
-        return `SELECT COUNT(*) count
-                FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
+        return buildCountSql(table, this.wrapName, condition);
     };
 
     // 获取指定表的默认查询sql
@@ -235,32 +303,9 @@ export class DbInst {
         if (!datas) {
             return '';
         }
-        let schema = '';
-        let arr = dbName.split('/');
-        if (arr.length == 1) {
-            schema = this.wrapName(dbName) + '.';
-        } else if (arr.length == 2) {
-            schema = this.wrapName(arr[1]) + '.';
-        }
-
-        let dbDialect = this.getDialect();
+        const schema = resolveSchemaPrefix(dbName, this.wrapName);
         const columns = await this.loadColumns(dbName, table);
-        const sqls = [];
-        for (let data of datas) {
-            let colNames = [];
-            let values = [];
-            for (let column of columns) {
-                const colName = column.columnName;
-                if (skipNull && data[colName] == null) {
-                    continue;
-                }
-                colNames.push(this.wrapName(colName));
-                values.push(dbDialect.wrapValue(column.dataType, data[colName]));
-            }
-            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')})
-                       VALUES (${values.join(', ')})`);
-        }
-        return sqls.join(';\n') + ';';
+        return buildInsertSql(this.getDialect(), schema, table, columns, datas, skipNull, this.wrapName);
     }
 
     /**
@@ -271,29 +316,18 @@ export class DbInst {
      * @param rowData 表的一行完整数据（需要获取主键信息）
      */
     async genUpdateSql(dbName: string, table: string, columnValue: Record<string, unknown>, rowData: Record<string, unknown>) {
-        let schema = '';
-        let dbArr = dbName.split('/');
-        if (dbArr.length == 2) {
-            schema = this.wrapName(dbArr[1]) + '.';
+        const schema = resolveSchemaPrefix(dbName, this.wrapName);
+        const keyColumns = await this.loadPrimaryKeys(dbName, table);
+        if (keyColumns.length === 0) {
+            return '';
         }
-
-        let sql = `UPDATE ${schema}${this.wrapName(table)}
-                   SET `;
-        // 主键列信息
-        const primaryKey = await this.loadTableColumn(dbName, table);
-        let primaryKeyType = primaryKey!.dataType;
-        let primaryKeyName = primaryKey!.columnName;
-        let primaryKeyValue = rowData[primaryKeyName];
-        const dialect = this.getDialect();
-        for (let k of Object.keys(columnValue)) {
-            const v = columnValue[k];
-            // 更新字段列信息
-            const updateColumn = await this.loadTableColumn(dbName, table, k);
-            sql += ` ${this.wrapName(k)} = ${dialect.wrapValue(updateColumn!.dataType, v)},`;
+        // 加载更新列的数据类型（用于 wrapValue）
+        const updateDataTypes: Record<string, string> = {};
+        for (const k of Object.keys(columnValue)) {
+            const col = await this.loadTableColumn(dbName, table, k);
+            updateDataTypes[k] = col?.dataType ?? 'varchar';
         }
-        sql = sql.substring(0, sql.length - 1);
-
-        return sql + ` WHERE ${this.wrapName(primaryKeyName)} = ${this.getDialect().wrapValue(primaryKeyType, primaryKeyValue)} ;`;
+        return buildUpdateSql(this.getDialect(), schema, table, columnValue, updateDataTypes, keyColumns, rowData, this.wrapName);
     }
 
     /**
@@ -303,12 +337,8 @@ export class DbInst {
      * @param datas 要删除的记录
      */
     async genDeleteByPrimaryKeysSql(db: string, table: string, datas: Record<string, unknown>[]) {
-        const primaryKey = await this.loadTableColumn(db, table);
-        const primaryKeyColumnName = primaryKey!.columnName;
-        const ids = datas.map((d: Record<string, unknown>) => `${this.getDialect().wrapValue(primaryKey!.dataType, d[primaryKeyColumnName])}`).join(',');
-        return `DELETE
-                FROM ${this.wrapName(table)}
-                WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
+        const keyColumns = await this.loadPrimaryKeys(db, table);
+        return buildDeleteSql(this.getDialect(), table, keyColumns, datas, this.wrapName);
     }
 
     /*
@@ -395,6 +425,19 @@ export class DbInst {
     }
 
     /**
+     * 失效指定库的本地元数据缓存（表清单 / 按表列 / 视图）。
+     *
+     * 供「结构变更后清缓存」的通用调用点（SQL 执行弹框、资源树重载等）使用：
+     * 实例尚未在客户端缓存时无缓存可失效，故为 no-op，不像 {@link getInst} 那样抛错而打断调用方的成功回调。
+     */
+    static invalidateSchema(dbId?: number, dbName?: string) {
+        if (!dbId || !dbName) {
+            return;
+        }
+        getCachedDbInst<DbInst>(dbId)?.invalidateSchemaCache(dbName);
+    }
+
+    /**
      * 获取数据库实例信息，若不存在，调接口获取数据库信息
      * @param dbId 数据库id
      * @returns
@@ -467,9 +510,4 @@ export const DbThemeConfig = {
      * 是否自动定位至树节点
      */
     locationTreeNode: true,
-
-    /**
-     * 是否缓存表信息
-     */
-    cacheTable: true,
 };

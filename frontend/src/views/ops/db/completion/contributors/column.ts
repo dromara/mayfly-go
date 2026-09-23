@@ -19,7 +19,7 @@ function matchDbName(ctx: SqlCompletionContext, dbPart: string): string {
 }
 
 /**
- * 表字段联想贡献者，覆盖以下场景（上下文感知，对齐 DataGrip 等产品行为）：
+ * 表字段联想贡献者，覆盖以下场景（按 SQL 上下文感知）：
  * 1. `.` 触发（专属场景，命中后收敛贡献者链）：
  *    - 【库.表名联想】`.` 前是库名；
  *    - 【库.表.字段联想】`.` 前是 `db.table` 两级限定；
@@ -50,7 +50,7 @@ export const columnContributor: SuggestionContributor = {
         for (const tableInfo of scopeTables) {
             const items = await columnSuggestions(ctx.dbInst, tableInfo.db, tableInfo.tableName, ctx.range);
             for (const suggestion of items) {
-                const insertText = (suggestion.insertText as string) ?? '';
+                const insertText = (suggestion.insertText) ?? '';
                 // 多表同名字段只保留首个（按表声明顺序）
                 if (seen.has(insertText)) {
                     continue;

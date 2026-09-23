@@ -1,6 +1,7 @@
 package vo
 
 import (
+	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/model"
 	"time"
 )
@@ -14,15 +15,15 @@ type DbTransferTaskListVO struct {
 	UpdateTime *time.Time `json:"updateTime"`
 	Modifier   string     `json:"modifier"`
 
-	RunningState     int8   `json:"runningState"`
-	LogId            uint64 `json:"logId"`
-	TaskName         string `json:"taskName"`         // 任务名称
-	Status           int    `json:"status"`           // 任务状态 1启用 -1禁用
-	CronAble         int    `json:"cronAble"`         // 是否定时  1是 -1否
-	Cron             string `json:"cron"`             // 定时任务cron表达式
-	Mode             int    `json:"mode"`             // 数据迁移方式，1、迁移到数据库  2、迁移到文件
-	TargetFileDbType string `json:"targetFileDbType"` // 目标文件数据库类型
-	FileSaveDays     int    `json:"fileSaveDays"`     // 文件保存天数
+	RunningState     entity.TransferRunState `json:"runningState"`
+	LogId            uint64                  `json:"logId"`
+	TaskName         string                  `json:"taskName"`         // 任务名称
+	Status           int                     `json:"status"`           // 任务状态 1启用 -1禁用
+	CronEnabled      int                     `json:"cronEnabled"`      // 是否定时  1是 -1否
+	Cron             string                  `json:"cron"`             // 定时任务cron表达式
+	Mode             int                     `json:"mode"`             // 数据迁移方式，1、迁移到数据库  2、迁移到文件
+	TargetFileDbType string                  `json:"targetFileDbType"` // 目标文件数据库类型
+	FileSaveDays     int                     `json:"fileSaveDays"`     // 文件保存天数
 
 	CheckedKeys string `json:"checkedKeys"` // 选中需要迁移的表
 	DeleteTable int    `json:"deleteTable"` // 创建表前是否删除表
@@ -40,4 +41,29 @@ type DbTransferTaskListVO struct {
 	TargetDbType   string `json:"targetDbType"`   // 目标库类型
 	TargetInstName string `json:"targetInstName"` // 目标库实例名
 	TargetTagPath  string `json:"targetTagPath"`  // 目标库tagPath
+}
+
+// DbTransferLogListVO 迁移执行日志列表行。
+// 不含 runLog：运行日志为追加式大文本，列表一次返回15条会使响应体膨胀至数百 KB，由按日志 id 的接口单条获取
+type DbTransferLogListVO struct {
+	Id         uint64                      `json:"id"`
+	CreateTime *time.Time                  `json:"createTime"`
+	TaskId     uint64                      `json:"taskId"`
+	Mode       entity.TransferMode         `json:"mode"`
+	Purpose    entity.DbTransferLogPurpose `json:"purpose"`
+	TargetFile string                      `json:"targetFile"`
+	ErrText    string                      `json:"errText"`
+	Status     int8                        `json:"status"`
+
+	// 监控指标
+	DurationMs int64 `json:"durationMs"`
+	TotalRows  int64 `json:"totalRows"`
+	TableCount int   `json:"tableCount"`
+}
+
+// DbTransferLogRunVO 单条迁移执行日志的运行日志内容
+type DbTransferLogRunVO struct {
+	Id     uint64 `json:"id"`
+	Status int8   `json:"status"`
+	RunLog string `json:"runLog"`
 }

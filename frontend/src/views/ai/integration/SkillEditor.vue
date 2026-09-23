@@ -13,7 +13,7 @@
         <!-- 头部右侧：状态信息 + 编辑态操作（发布 / zip 导入导出） -->
         <template #header-extra>
             <div class="top-bar">
-                <el-tag size="small" type="info">{{ internalForm.code || '-' }}</el-tag>
+                <el-tag size="small" type="info">{{ internalForm?.code || '-' }}</el-tag>
                 <el-tag v-if="skill" size="small">v{{ skill.version }}</el-tag>
                 <el-tag size="small" :type="formStatus === 'published' ? 'success' : 'warning'">
                     {{ formStatus === 'published' ? $t('ai.integration.statusPublished') : $t('ai.integration.statusDraft') }}
@@ -119,7 +119,8 @@ import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { downloadFile } from '@/common/utils/file';
 import { Msg, useI18nConfirm, useI18nFormValidate } from '@/hooks/useI18n';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem, type AutoFormTab } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems, type AutoFormTab } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { pluginApi } from './api';
 import { buildTree, languageFromPath, fileTypeColor, parentDirs } from './utils';
@@ -154,8 +155,17 @@ const skill = ref<Skill | null>(null);
 const formStatus = ref('draft');
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown> }>('drawerRef');
 
+/** 技能元数据表单（资源文件由资源页签单独落库，不在表单字段里） */
+interface SkillForm {
+    code: string;
+    description: string;
+    allowedTools: string;
+    instructions: string;
+}
+
 /** 表单声明（instructions 为 custom 插槽，description 字段承载原 field-tip 提示） */
-const formItems = computed<AutoFormItem[]>(() => [
+const formItems = computed(() =>
+    defineFormItems<SkillForm>([
     {
         prop: 'code',
         label: 'ai.integration.skillCode',
@@ -178,7 +188,8 @@ const formItems = computed<AutoFormItem[]>(() => [
         description: 'ai.integration.skillInstructionsHint',
         rules: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.skillInstructions') }), trigger: 'blur' }],
     },
-]);
+    ])
+);
 
 /** 页签布局：basic 元数据表单 / resources 资源文件管理（resourcePanel 为 custom 插槽） */
 const drawerTabs = computed<AutoFormTab[]>(() => [
@@ -186,14 +197,13 @@ const drawerTabs = computed<AutoFormTab[]>(() => [
     { name: 'resources', label: 'ai.integration.tabResources', items: [{ prop: 'resourcePanel', type: 'custom' }] },
 ]);
 
-/** 回填数据恒为空默认值：编辑态元数据经 @opened 异步加载后填充（内部 form 引用暂存于 internalForm） */
-const defaultFormData = { code: '', description: '', allowedTools: '', instructions: '' } as unknown as AutoFormData;
+/** 回填数据恒为空默认值：编辑态元数据经 @opened 异步加载后填充 */
+const defaultFormData: SkillForm = { code: '', description: '', allowedTools: '', instructions: '' };
 
-/** 抽屉打开后暂存的内部表单引用（header-extra 状态展示、异步回填与提交均基于它） */
-const internalForm = ref<AutoFormData>({});
+// 宿主抽屉的内部表单在 @opened 接管（header-extra 状态展示、异步回填与提交均基于它）
+const { form: internalForm, openedWith, requireForm } = useAutoFormModel<SkillForm>();
 
-const onOpened = async (form: AutoFormData) => {
-    internalForm.value = form;
+const onOpened = openedWith(async (form) => {
     resetAll(form);
     if (!props.skillId) return;
     loading.value = true;
@@ -213,7 +223,7 @@ const onOpened = async (form: AutoFormData) => {
     } finally {
         loading.value = false;
     }
-};
+});
 
 // ── 资源状态（编辑态 DB / 新建态本地暂存） ──────
 const resources = ref<SkillResource[]>([]);
@@ -246,11 +256,11 @@ const closeNewFile = () => {
     newFilePath.value = '';
 };
 
-const resetAll = (form: AutoFormData) => {
+const resetAll = (form: SkillForm) => {
     skill.value = null;
     formStatus.value = 'draft';
     createdSkillId.value = null;
-    Object.assign(form, { code: '', description: '', allowedTools: '', instructions: '' });
+    Object.assign(form, defaultFormData);
     resources.value = [];
     localResources.value = [];
     resourcesLoaded.value = false;
@@ -380,9 +390,9 @@ const handleImportFile = async (e: Event) => {
         if (imported) {
             skill.value = imported;
             formStatus.value = imported.status;
-            Object.assign(internalForm.value, { code: imported.code, description: imported.description || '' });
+            Object.assign(requireForm(), { code: imported.code, description: imported.description || '' });
             const ins = await pluginApi.getInstructions.request({ id: imported.id });
-            internalForm.value.instructions = ins?.content || '';
+            requireForm().instructions = ins?.content || '';
         }
         await loadResources();
         resourcesLoaded.value = true;
@@ -417,7 +427,7 @@ const handleSubmit = async () => {
     // 校验失败内部已 toast（catch 吞掉 reject，避免落入下方资源落库失败提示分支）
     const valid = await useI18nFormValidate(drawerRef).catch(() => false);
     if (valid === false) return;
-    const form = internalForm.value as { code: string; description: string; allowedTools: string; instructions: string };
+    const form = requireForm();
     saving.value = true;
     try {
         let skillId = props.skillId || createdSkillId.value;

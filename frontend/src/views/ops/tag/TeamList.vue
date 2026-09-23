@@ -36,6 +36,7 @@
             :data="addTeamDialog.form"
             size="40%"
             :confirm-api="onSaveTeam"
+            @opened="onTeamFormOpened"
             @submitted="onTeamSaved"
             @cancel="onCancelSaveTeam"
         >
@@ -79,7 +80,8 @@
 <script lang="ts" setup>
 import { notBlank } from '@/common/assert';
 import { formatDate } from '@/common/utils/format';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
@@ -110,8 +112,8 @@ const { t } = useI18n();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 const showMemPageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('showMemPageTableRef');
 
-/** 团队编辑表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；codePaths 走插槽承载 TagTreeCheck） */
-const items: AutoFormItem[] = [
+/** 团队编辑表单声明（defineFormItems<TeamForm>，渲染 + 校验唯一数据源；codePaths 走插槽承载 TagTreeCheck） */
+const items = defineFormItems<TeamForm>([
     { prop: 'name', label: 'common.name', required: true, disabled: (f) => (f.id ?? 0) > 0 },
     {
         prop: 'validityDate',
@@ -131,7 +133,7 @@ const items: AutoFormItem[] = [
     },
     { prop: 'remark', label: 'common.remark' },
     { prop: 'codePaths', label: 'common.tag', type: 'custom' },
-];
+]);
 
 const searchItems = [SearchItem.input('name', 'common.name')];
 const columns = [
@@ -146,12 +148,18 @@ const columns = [
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(130).fixedRight().noShowOverflowTooltip().alignCenter(),
 ];
 
+/** 团队表单初值（新增与取消编辑均回到该形状） */
+const initialTeamForm: TeamForm = { id: 0, name: '', validityDate: ['', ''], validityStartDate: '', validityEndDate: '', remark: '', codePaths: [] };
+
+/** 团队成员表单初值（teamId 按当前团队覆写） */
+const initialMemberForm: TeamMemberForm = { accountIds: [], teamId: 0 };
+
 const state = reactive({
     currentEditPermissions: false,
     addTeamDialog: {
         title: '',
         visible: false,
-        form: { id: 0, name: '', validityDate: ['', ''], validityStartDate: '', validityEndDate: '', remark: '', codePaths: [] } as TeamForm,
+        form: { ...initialTeamForm },
     },
     query: {
         pageNum: 1,
@@ -181,10 +189,7 @@ const state = reactive({
         },
         title: '',
         addVisible: false,
-        memForm: {
-            accountIds: [] as number[],
-            teamId: 0 as number,
-        } as TeamMemberForm,
+        memForm: { ...initialMemberForm },
         accounts: Array(),
     },
 });
@@ -227,9 +232,12 @@ const onShowSaveTeamDialog = async (data: Team | null) => {
     state.addTeamDialog.visible = true;
 };
 
+// 宿主抽屉的内部表单在 @opened 接管（有效期区间拆分为起止字段后提交）
+const { onOpened: onTeamFormOpened, requireForm } = useAutoFormModel<TeamForm>();
+
 // confirmApi 提交动作：组装有效期后走统一提交；成功提示与关闭抽屉由组件内置逻辑处理
-const onSaveTeam = async (rawForm: AutoFormData) => {
-    const form = rawForm as TeamForm;
+const onSaveTeam = async () => {
+    const form = requireForm();
     form.validityStartDate = formatDate(form.validityDate?.[0]);
     form.validityEndDate = formatDate(form.validityDate?.[1]);
     await tagApi.saveTeam.request(form);
@@ -290,7 +298,7 @@ const onAddMember = async () => {
 };
 
 const onCancelAddMember = () => {
-    state.showMemDialog.memForm = {} as TeamMemberForm;
+    state.showMemDialog.memForm = { ...initialMemberForm };
     state.showMemDialog.addVisible = false;
 };
 </script>

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/flow/application"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -21,7 +22,7 @@ func (p *HisProcinstOp) ReqConfs() *req.Confs {
 }
 
 func (p *HisProcinstOp) GetHisProcinstOps(rc *req.Ctx) {
-	res, err := p.hisProcinstOpApp.ListByCond(&entity.HisProcinstOp{ProcinstId: uint64(rc.PathParamInt("id"))})
+	res, err := p.hisProcinstOpApp.ListByCond(&entity.HisProcinstOp{ProcinstId: cast.ToUint64(rc.PathParam("id"))})
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

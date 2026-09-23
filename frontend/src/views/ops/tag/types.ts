@@ -67,15 +67,23 @@ export interface TeamMember {
 
 // ==================== VO ====================
 
-/** 标签树节点 (用于展示) */
+/**
+ * 标签树节点（树接口 /tag-trees 实际产出形状：含 children）。
+ * 审计字段仅详情接口返回，树接口不返，故均可缺省。
+ */
 export interface TagTreeNode {
     id: number;
     type: number;
     code: string;
     codePath: string;
     name: string;
+    namePath?: string;
     remark: string;
     children?: TagTreeNode[];
+    creator?: string;
+    createTime?: string;
+    modifier?: string;
+    updateTime?: string;
 }
 
 /** 资源标签路径 */

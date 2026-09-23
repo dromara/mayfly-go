@@ -145,7 +145,7 @@ func TestITDumpRealProductRowBudget(t *testing.T) {
 		float64(size)/(1<<20), probe.chunks, float64(probe.max)/(1<<20), len(inserts))
 
 	// 异构导入sqlite：由生产ImportDumpStream从文件流式恢复，行数与抽样内容必须一致
-	sq := itSqliteNode(t)
+	sq := itSQLiteNode(t)
 	defer sq.Close()
 	sqPath := filepath.Join(t.TempDir(), table+"_sqlite.sql")
 	sqProbe, sqSize := itDumpToFile(t, conn, []string{table}, "sqlite", true, sqPath)

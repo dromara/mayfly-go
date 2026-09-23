@@ -12,7 +12,7 @@ import (
 var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
 
 type SQLGenerator struct {
-	dbi.BaseSQLGenerator
+	dbi.DefaultSQLGenerator
 	Dialect dbi.Dialect
 }
 
@@ -25,7 +25,7 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 	}
 
 	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", quoter.QuoteIdent(table.TableName))
+	createSQL := fmt.Sprintf("CREATE TABLE %s (\n", quoter.QuoteIdent(table.TableName))
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 
@@ -35,31 +35,31 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 			// 否则 PRIMARY KEY (id 主键;号) 这类语句直接语法错误
 			pks = append(pks, quoter.QuoteIdent(column.ColumnName))
 		}
-		fields = append(fields, msg.genColumnBasicSql(quoter, column))
+		fields = append(fields, msg.genColumnBasicSQL(quoter, column))
 	}
 
 	// 建表ddl
-	createSql += strings.Join(fields, ",\n")
+	createSQL += strings.Join(fields, ",\n")
 	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
+		createSQL += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
 	}
-	createSql += "\n)"
+	createSQL += "\n)"
 
 	// 表注释
 	if table.TableComment != "" {
-		createSql += fmt.Sprintf(" COMMENT '%s'", dbi.QuoteEscapeBackslash(table.TableComment))
+		createSQL += fmt.Sprintf(" COMMENT '%s'", dbi.QuoteEscapeBackslash(table.TableComment))
 	}
 
-	sqlArr = append(sqlArr, createSql)
+	sqlArr = append(sqlArr, createSQL)
 
 	return sqlArr
 }
 
-func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
+func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []string {
 	sqlArr := make([]string, 0)
 	quoter := msg.Dialect.Quoter()
 
-	for _, index := range indexs {
+	for _, index := range indexes {
 		unique := ""
 		if index.IsUnique {
 			unique = "unique"
@@ -88,6 +88,41 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 	return sqlArr
 }
 
+// GenBatchDelete 使用完整保留键集合。文本键编码为 UTF-8 十六进制字面量，
+// 避免反斜杠转义及 NO_BACKSLASH_ESCAPES 设置改变键值而误删保留行。
+func (msg *SQLGenerator) GenBatchDelete(tableName string, keyColumns []string, keyValues [][]any, _ *dbi.TargetTableMeta) []string {
+	if len(keyColumns) == 0 || len(keyValues) == 0 {
+		return nil
+	}
+	tuples := make([]string, 0, len(keyValues))
+	for _, row := range keyValues {
+		if len(row) != len(keyColumns) {
+			return nil
+		}
+		values := make([]string, len(row))
+		for i, v := range row {
+			if v == nil {
+				return nil
+			}
+			switch value := v.(type) {
+			case string:
+				values[i] = fmt.Sprintf("CONVERT(X'%x' USING utf8mb4)", value)
+			case []byte:
+				values[i] = fmt.Sprintf("X'%x'", value)
+			default:
+				values[i] = dbi.SQLValueString(v)
+			}
+		}
+		tuple := strings.Join(values, ", ")
+		if len(keyColumns) > 1 {
+			tuple = "(" + tuple + ")"
+		}
+		tuples = append(tuples, tuple)
+	}
+	quote := msg.Dialect.Quoter().QuoteIdent
+	return []string{fmt.Sprintf("DELETE FROM %s WHERE %s", quote(tableName), dbi.BuildBatchDeleteWhere(keyColumns, tuples, quote))}
+}
+
 func (msg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
 	if duplicateStrategy == dbi.DuplicateStrategyNone {
 		return collx.AsArray(dbi.GenCommonInsert(msg.Dialect, DbTypeMysql, tableName, columns, values))
@@ -96,13 +131,13 @@ func (msg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, value
 	quote := msg.Dialect.Quoter().QuoteIdent
 
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
-		columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(msg.Dialect, DbTypeMysql, columns, values)
+		columnStr, valuesStrs := dbi.GenInsertSQLColumnAndValues(msg.Dialect, DbTypeMysql, columns, values)
 		return collx.AsArray[string](fmt.Sprintf("insert ignore into %s %s VALUES \n%s", quote(tableName), columnStr, strings.Join(valuesStrs, ",\n")))
 	}
 
 	// DuplicateStrategyUpdate: 真正的 UPSERT（INSERT ... ON DUPLICATE KEY UPDATE），
 	// 替代旧 REPLACE INTO（本质 DELETE+INSERT，会破坏外键关系）
-	columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(msg.Dialect, DbTypeMysql, columns, values)
+	columnStr, valuesStrs := dbi.GenInsertSQLColumnAndValues(msg.Dialect, DbTypeMysql, columns, values)
 	updateSet := msg.genOnDuplicateKeyUpdateSet(columns, targetTableMeta)
 	if updateSet == "" {
 		// 所有列均为唯一键列或生成列，无法生成 UPDATE 子句，退化为 INSERT IGNORE
@@ -138,7 +173,7 @@ func (msg *SQLGenerator) genOnDuplicateKeyUpdateSet(columns []dbi.Column, target
 	return strings.Join(sets, ", ")
 }
 
-func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
+func (msg *SQLGenerator) genColumnBasicSQL(quoter dbi.Quoter, column dbi.Column) string {
 	dataType := column.DataType
 
 	incr := ""
@@ -170,10 +205,10 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 
 	// 默认值的呈现形态随MySQL版本而异（8.0为原始值，5.7/MariaDB为带引号字面量），
 	// 且enum/set/binary等类型的默认值必须引用，统一由dbi按字面量/裸值语义还原并重新转义；
-	// 日期时间类的自动初始化默认值受MySQL严格语法约束，必须先走mysqlTimeDefaultSql局部判定
-	defVal, handled := mysqlTimeDefaultSql(column.ColumnDefault, columnType)
+	// 日期时间类的自动初始化默认值受MySQL严格语法约束，必须先走mysqlTimeDefaultSQL局部判定
+	defVal, handled := mysqlTimeDefaultSQL(column.ColumnDefault, columnType)
 	if !handled {
-		defVal = dbi.GenColumnDefaultSqlOf(&column, dataType, dbi.QuoteEscapeBackslash)
+		defVal = dbi.GenColumnDefaultSQLOf(&column, dataType, dbi.QuoteEscapeBackslash)
 	}
 	// BLOB/TEXT/JSON（含异构迁移过来的clob等大字列）在MySQL中不接受字面量默认值（报Error 1101），
 	// 必须改写为8.0.13+的表达式默认值形态 DEFAULT ('xxx')，否则跨库建表直接失败
@@ -204,16 +239,16 @@ func (msg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column)
 			quoter.QuoteIdent(column.ColumnName), columnType, dbi.GeneratedColumnExpr(column), storage, genNull, comment)
 	}
 
-	columnSql := fmt.Sprintf(" %s %s%s%s%s%s%s", quoter.QuoteIdent(column.ColumnName), columnType, nullAble, incr, defVal, mysqlOnUpdateSql(column, columnType), comment)
-	return columnSql
+	columnSQL := fmt.Sprintf(" %s %s%s%s%s%s%s", quoter.QuoteIdent(column.ColumnName), columnType, nullAble, incr, defVal, mysqlOnUpdateSQL(column, columnType), comment)
+	return columnSQL
 }
 
-// mysqlOnUpdateSql 生成MySQL的「自动更新」子句（ON UPDATE CURRENT_TIMESTAMP[(fsp)]），子句原文来自源列EXTRA。
+// mysqlOnUpdateSQL 生成MySQL的「自动更新」子句（ON UPDATE CURRENT_TIMESTAMP[(fsp)]），子句原文来自源列EXTRA。
 //
 // MySQL要求其小数秒与列定义的fsp严格一致（datetime(3) ON UPDATE CURRENT_TIMESTAMP 直接报Error 1067），
 // 故不按原文直接回拼而是按目标列fsp重写；仅datetime/timestamp类列接受该子句，且只接受
 // 「当前日期时间」关键字形态，其他内容（异常元数据）一律不写入，避免非法DDL与注入
-func mysqlOnUpdateSql(column dbi.Column, columnType string) string {
+func mysqlOnUpdateSQL(column dbi.Column, columnType string) string {
 	raw, _ := column.Extra[dbi.ColumnExtraOnUpdate].(string)
 	expr := strings.TrimSpace(raw)
 	if expr == "" {
@@ -246,7 +281,7 @@ func mysqlNoLiteralDefaultType(dataType string) bool {
 	return strings.Contains(lower, "text") || strings.Contains(lower, "blob") || strings.Contains(lower, "json")
 }
 
-// mysqlTimeDefaultSql 生成MySQL日期时间类列的「当前日期/时间」默认值子句（含前导空格）。
+// mysqlTimeDefaultSQL 生成MySQL日期时间类列的「当前日期/时间」默认值子句（含前导空格）。
 //
 // MySQL对该类默认值的语法约束远比通用判定严格（以下均探测自MySQL 8.0）：
 //   - DATETIME/TIMESTAMP只接受CURRENT_TIMESTAMP（NOW/LOCALTIMESTAMP等同义写法归一为该形式）作为自动初始化
@@ -257,7 +292,7 @@ func mysqlNoLiteralDefaultType(dataType string) bool {
 //   - 目标列只有日期/只有时间时，按目标列可承载的分量归一（如源CURRENT_TIMESTAMP迁入date列即取当日）
 //
 // handled为false表示该默认值不属于本函数处理范围（字面量/NULL/其他表达式），交由通用判定生成
-func mysqlTimeDefaultSql(rawDefault string, columnType string) (defVal string, handled bool) {
+func mysqlTimeDefaultSQL(rawDefault string, columnType string) (defVal string, handled bool) {
 	if rawDefault == "" {
 		return "", false
 	}
@@ -295,4 +330,36 @@ func mysqlTimeDefaultSql(rawDefault string, columnType string) (defVal string, h
 		return fmt.Sprintf(" DEFAULT CURRENT_TIMESTAMP(%d)", fsp), true
 	}
 	return " DEFAULT CURRENT_TIMESTAMP", true
+}
+
+var _ dbi.ParamInserter = (*SQLGenerator)(nil)
+
+// GenInsertParams 生成 MySQL 参数化多值 INSERT：
+//
+//	INSERT INTO `t` (`c1`,`c2`) VALUES (?,?,...),(?,?,...)
+//
+// 值以 ? 占位、交由驱动绑定，规避「dump 成文本 → 目标重解析」路径的转义边界与精度损失隐患。
+// rows 为已适配为目标可绑定形态的行值（列数须与 columns 一致，否则报错防占位符与参数错位）。
+func (msg *SQLGenerator) GenInsertParams(tableName string, columns []dbi.Column, rows [][]any) (string, []any, error) {
+	if len(columns) == 0 || len(rows) == 0 {
+		return "", nil, nil
+	}
+	quote := msg.Dialect.Quoter().QuoteIdent
+	cols := make([]string, len(columns))
+	for i, c := range columns {
+		cols[i] = quote(c.ColumnName)
+	}
+	oneRow := "(" + strings.TrimSuffix(strings.Repeat("?,", len(columns)), ",") + ")"
+
+	groups := make([]string, len(rows))
+	args := make([]any, 0, len(rows)*len(columns))
+	for i, row := range rows {
+		if len(row) != len(columns) {
+			return "", nil, fmt.Errorf("mysql: insert row %d has %d values but %d columns", i, len(row), len(columns))
+		}
+		groups[i] = oneRow
+		args = append(args, row...)
+	}
+	stmt := fmt.Sprintf("INSERT INTO %s (%s) VALUES %s", quote(tableName), strings.Join(cols, ","), strings.Join(groups, ","))
+	return stmt, args, nil
 }

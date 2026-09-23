@@ -1,6 +1,7 @@
 package dbi
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,13 +50,55 @@ func TestGetDbConnId(t *testing.T) {
 	assert.Equal(t, "db-5:mydb/public", GetDbConnId(5, "mydb/public"))
 }
 
-// GetRemoteAddr：ssh隧道映射后地址优先于原始host:port
-func TestDbInfo_GetRemoteAddr(t *testing.T) {
-	di := &DbInfo{Host: "10.0.0.1", Port: 3306}
-	assert.Equal(t, "10.0.0.1:3306", di.GetRemoteAddr())
+// fakeTunnelOpener 记录每次建立请求的 spec 并返回固定的本地可拨地址
+type fakeTunnelOpener struct {
+	got []TunnelSpec
+}
 
-	di.RemoteAddr = "127.0.0.1:33306"
-	assert.Equal(t, "127.0.0.1:33306", di.GetRemoteAddr())
+func (f *fakeTunnelOpener) Open(_ context.Context, spec TunnelSpec) (*Tunnel, error) {
+	f.got = append(f.got, spec)
+	return NewTunnel("127.0.0.1", 33306, func() {}), nil
+}
+
+// dialTunnel 隧道建立的地址改写与原始地址保留（防二次改写连错目标）
+func TestDbInfo_dialTunnel(t *testing.T) {
+	opener := &fakeTunnelOpener{}
+	RegisterTunnelOpener(opener)
+	defer func() { tunnelOpener = nil }() // 复位全局，避免污染其他用例
+
+	// 未配置中转：返回 nil 句柄，不改写地址，不触碰 opener
+	plain := &DbInfo{Host: "10.0.0.1", Port: 3306}
+	tun, err := plain.dialTunnel(context.Background())
+	assert.NoError(t, err)
+	assert.Nil(t, tun)
+	assert.Equal(t, "10.0.0.1", plain.Host)
+	assert.Empty(t, opener.got)
+
+	// 配置中转：目标地址改写为通道本地地址，原始地址被记录进 RemoteAddr
+	di := &DbInfo{Host: "10.0.0.1", Port: 3306, SshTunnelMachineId: 7}
+	tun, err = di.dialTunnel(context.Background())
+	assert.NoError(t, err)
+	assert.NotNil(t, tun)
+	assert.Equal(t, "127.0.0.1", di.Host)
+	assert.Equal(t, 33306, di.Port)
+	assert.Equal(t, "10.0.0.1:3306", di.RemoteAddr)
+	// opener 收到的是「中转机id + 原始地址」，而非改写后的本地地址
+	assert.Equal(t, TunnelSpec{MachineId: 7, RemoteAddr: "10.0.0.1:3306"}, opener.got[0])
+
+	// 二次进入不得把已被改写的本地地址当作原始地址覆盖（否则隧道重建会连错目标）
+	_, _ = di.dialTunnel(context.Background())
+	assert.Equal(t, "10.0.0.1:3306", di.RemoteAddr)
+}
+
+// Tunnel.Close 对 nil 接收者安全，且释放钩子只触发一次语义由实现方保证，此处仅验证 nil 安全
+func TestTunnel_CloseNilSafe(t *testing.T) {
+	var nilTunnel *Tunnel
+	assert.NotPanics(t, func() { nilTunnel.Close() })
+
+	released := 0
+	tun := NewTunnel("127.0.0.1", 1, func() { released++ })
+	tun.Close()
+	assert.Equal(t, 1, released)
 }
 
 func TestDbType_Equal(t *testing.T) {

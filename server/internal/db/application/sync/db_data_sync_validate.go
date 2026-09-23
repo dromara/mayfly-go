@@ -24,12 +24,18 @@ func (app *DataSyncAppImpl) getSrcDialect(task *entity.DataSyncTask) (dbi.Dialec
 // UpdField/UpdFieldSrc会直接拼入where与order by子句，白名单杜绝SQL注入面
 var identifierReg = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$`)
 
-// validateDataSyncSql 校验同步任务的DataSql与增量字段合法性（保存与运行双重拦截）：
+// validateDataSyncSQL 校验同步任务的DataSQL与增量字段合法性（保存与运行双重拦截）：
 //  1. UpdField/UpdFieldSrc必须匹配标识符白名单
-//  2. DataSql必须是**单条**SELECT/WITH查询（拒绝DML/DDL/多语句）
-func validateDataSyncSql(dialect dbi.Dialect, task *entity.DataSyncTask) error {
+//  2. DataSQL必须是**单条**SELECT/WITH查询（拒绝DML/DDL/多语句）
+func validateDataSyncSQL(dialect dbi.Dialect, task *entity.DataSyncTask) error {
+	if err := NewFilterEngine(task.FilterCondition).Validate(); err != nil {
+		return errorx.NewBizf("invalid filter condition: %s", err.Error())
+	}
 	if task.UpdField != "" && !identifierReg.MatchString(task.UpdField) {
 		return errorx.NewBizf("invalid updField [%s]: only identifiers like [id] or [a.id] are allowed", task.UpdField)
+	}
+	if task.UpdFieldSecondary != "" && !identifierReg.MatchString(task.UpdFieldSecondary) {
+		return errorx.NewBizf("invalid updFieldSecondary [%s]: only identifiers like [id] or [a.id] are allowed", task.UpdFieldSecondary)
 	}
 	if task.UpdFieldSrc != "" && !identifierReg.MatchString(task.UpdFieldSrc) {
 		return errorx.NewBizf("invalid updFieldSrc [%s]: only identifiers like [id] or [a.id] are allowed", task.UpdFieldSrc)
@@ -43,13 +49,13 @@ func validateDataSyncSql(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 		return errorx.NewBizf("invalid biDirTimestampField [%s]: only identifiers like [id] or [a.id] are allowed", task.BiDirTimestampField)
 	}
 
-	if strings.TrimSpace(task.DataSql) == "" {
+	if strings.TrimSpace(task.DataSQL) == "" {
 		return errorx.NewBiz("data sql is required")
 	}
 
 	// 先按方言切割器切分，保证仅一条语句（解析器只解析单条，多条语句的尾部可能被忽略）
 	stmtCount := 0
-	if err := dialect.GetSQLSplitter().SplitSQL(strings.NewReader(task.DataSql), func(s string) error {
+	if err := dialect.GetSQLSplitter().SplitSQL(strings.NewReader(task.DataSQL), func(s string) error {
 		if strings.TrimSpace(s) != "" {
 			stmtCount++
 		}
@@ -61,7 +67,7 @@ func validateDataSyncSql(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 		return errorx.NewBizf("data sql must be a single statement, got %d statements", stmtCount)
 	}
 
-	stmt, err := dialect.GetSQLParser().Parse(task.DataSql)
+	stmt, err := dialect.GetSQLParser().Parse(task.DataSQL)
 	if err != nil {
 		return errorx.NewBizf("data sql parse failed: %s", err.Error())
 	}
@@ -84,7 +90,7 @@ func validateDataSyncSql(dialect dbi.Dialect, task *entity.DataSyncTask) error {
 		if task.UpdField != "" {
 			return errorx.NewBizf("data sql with with-clause does not support incremental updField: the runner appends conditions at the statement tail which cannot be reliably positioned")
 		}
-		if !whereReg.MatchString(task.DataSql) && dataSyncTrailingClauseReg.MatchString(task.DataSql) {
+		if !whereReg.MatchString(task.DataSQL) && dataSyncTrailingClauseReg.MatchString(task.DataSQL) {
 			return errorx.NewBizf("data sql with with-clause cannot contain group by/having/order by/limit clauses when it has no where: appended where would produce invalid sql")
 		}
 		return nil
@@ -98,7 +104,7 @@ var dataSyncTrailingClauseReg = regexp.MustCompile(`(?i)\b(group\s+by|having|ord
 
 // validateDataSyncAppendable 校验Run时尾部拼接不会产生非法SQL。
 //
-// 同步执行按 `dataSql [where 1=1] [and upd > val] [order by upd asc]` 形态在语句尾部追加条件：
+// 同步执行按 `dataSQL [where 1=1] [and upd > val] [order by upd asc]` 形态在语句尾部追加条件：
 //   - 无WHERE时补"where 1=1"
 //   - 配置了增量字段时追加"and upd > val"与"order by upd asc"
 //
@@ -116,20 +122,20 @@ func validateDataSyncAppendable(sel *sqlstmt.SelectStmt, task *entity.DataSyncTa
 	return nil
 }
 
-// dataSqlHasWhere 判断DataSql是否已含WHERE条件（用于决定是否补"where 1=1"）。
+// dataSQLHasWhere 判断DataSQL是否已含WHERE条件（用于决定是否补"where 1=1"）。
 //
 // 优先用源方言解析器判定（SelectStmt.Where非空），替代旧(?i)where正则——
 // 旧正则会把不含where条件但字段名/表名/字符串字面量含"where"子串的SQL误判为已有条件，
 // 导致后续拼接"and updField > x"时产生非法SQL。
 // WITH语句（解析结果无法内省where）与解析失败场景降级正则兜底
-func dataSqlHasWhere(dialect dbi.Dialect, task *entity.DataSyncTask) bool {
+func dataSQLHasWhere(dialect dbi.Dialect, task *entity.DataSyncTask) bool {
 	if dialect != nil {
-		if stmt, err := dialect.GetSQLParser().Parse(task.DataSql); err == nil {
+		if stmt, err := dialect.GetSQLParser().Parse(task.DataSQL); err == nil {
 			if sel, ok := stmt.(*sqlstmt.SelectStmt); ok {
 				return sel.Where != nil
 			}
-			return whereReg.MatchString(task.DataSql)
+			return whereReg.MatchString(task.DataSQL)
 		}
 	}
-	return whereReg.MatchString(task.DataSql)
+	return whereReg.MatchString(task.DataSQL)
 }

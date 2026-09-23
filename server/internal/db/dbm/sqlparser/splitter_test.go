@@ -1,7 +1,6 @@
 package sqlparser
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -123,9 +122,6 @@ func TestSplitSQLCallbackError(t *testing.T) {
 	})
 	assert.Same(t, execErr, err, "回调错误应原样返回")
 	assert.Equal(t, []string{"select 1", "select 2"}, got)
-
-	// SplitError 不得包装修改非切割类错误
-	assert.Same(t, execErr, SplitError(context.Background(), err))
 }
 
 // TestSplitSQLBomAndLargeValue 导入文件常见形态：带 UTF-8 BOM 的脚本与单行超长字面量

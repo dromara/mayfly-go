@@ -40,9 +40,10 @@
 
 <script lang="ts" setup>
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { useSshTunnelTransform } from '@/hooks/useResourceForm';
 import { computed, ref, useTemplateRef, type PropType } from 'vue';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { redisApi } from './api';
@@ -67,46 +68,44 @@ const DB_OPTIONS = Array.from({ length: 16 }, (_, i) => i);
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；sentinel 专属字段按 mode 条件显隐） */
-const items = computed<AutoFormItem[]>(() => [
-    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true, slot: 'tagCodePaths' },
-    { prop: 'name', label: 'common.name', required: true },
-    { prop: 'mode', label: 'mode', type: 'select', required: true, options: [{ value: 'standalone', label: 'standalone' }, { value: 'cluster', label: 'cluster' }, { value: 'sentinel', label: 'sentinel' }] },
-    { prop: 'host', label: 'host', type: 'textarea', rows: 2, required: true, placeholder: 'redis.hostTips' },
-    { prop: 'username', label: 'common.username' },
-    { prop: 'password', label: 'common.password', type: 'password', props: { autocomplete: 'new-password' } },
-    { prop: 'redisNodePassword', label: 'redis.nodePassword', type: 'password', when: (f) => f.mode == 'sentinel', props: { autocomplete: 'new-password' } },
-    { prop: 'db', label: 'DB', required: true, slot: 'db' },
-    { prop: 'remark', label: 'common.remark', type: 'textarea' },
-    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel', slot: 'sshTunnelMachineId' },
-]);
+/** 表单声明（defineFormItems<RedisSaveForm>，渲染 + 校验唯一数据源；sentinel 专属字段按 mode 条件显隐） */
+const items = computed(() =>
+    defineFormItems<RedisSaveForm>([
+        { prop: 'tagCodePaths', label: 'tag.relateTag', required: true, slot: 'tagCodePaths' },
+        { prop: 'name', label: 'common.name', required: true },
+        { prop: 'mode', label: 'mode', type: 'select', required: true, options: [{ value: 'standalone', label: 'standalone' }, { value: 'cluster', label: 'cluster' }, { value: 'sentinel', label: 'sentinel' }] },
+        { prop: 'host', label: 'host', type: 'textarea', rows: 2, required: true, placeholder: 'redis.hostTips' },
+        { prop: 'username', label: 'common.username' },
+        { prop: 'password', label: 'common.password', type: 'password', props: { autocomplete: 'new-password' } },
+        { prop: 'redisNodePassword', label: 'redis.nodePassword', type: 'password', when: (f) => f.mode == 'sentinel', props: { autocomplete: 'new-password' } },
+        { prop: 'db', label: 'DB', required: true, slot: 'db' },
+        { prop: 'remark', label: 'common.remark', type: 'textarea' },
+        { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel', slot: 'sshTunnelMachineId' },
+    ])
+);
+
+/** 新建态默认值（编辑态以 Redis 行数据覆盖，行数据不携带的表单字段由此兑底） */
+const defaultForm: RedisSaveForm = { db: '0', tagCodePaths: [] };
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData>(() => {
-    const redis = props.data as RedisSaveForm | false | undefined;
-    if (redis) {
-        return { ...redis } as AutoFormData;
-    }
-    return { db: '0', tagCodePaths: [] } as AutoFormData;
+const editData = computed<RedisSaveForm>(() => {
+    return props.data ? { ...defaultForm, ...props.data } : { ...defaultForm };
 });
 
 const dbList = ref<number[]>([0]);
 
-/** 抽屉打开后暂存的内部表单引用（DB 互转与提交均基于它） */
-const internalForm = ref<AutoFormData>({});
+// 宿主内部表单在 @opened 接管（DB 互转与提交均基于它）
+const { openedWith, requireForm } = useAutoFormModel<RedisSaveForm>();
 
-const onOpened = (form: AutoFormData) => {
-    internalForm.value = form;
+const onOpened = openedWith((form) => {
     if (props.data) {
-        convertDb((form.db as string) || '0');
+        convertDb(form.db || '0');
     } else {
         dbList.value = [0];
     }
-};
+});
 
-const submitForm = useSshTunnelTransform(
-    computed(() => internalForm.value)
-);
+const submitForm = useSshTunnelTransform(computed(requireForm));
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi();
 const { execute: saveRedisExec } = redisApi.saveRedis.useApi();
@@ -120,16 +119,37 @@ const convertDb = (db: string) => {
  */
 const onDbListChange = (list: number[]) => {
     dbList.value = list;
-    internalForm.value.db = list.length == 0 ? '' : list.join(',');
+    requireForm().db = list.length == 0 ? '' : list.join(',');
 };
 
-/** 组装请求表单（含 sentinel 主从形态校验） */
+/**
+ * 找出缺端口的 host 条目（hostTips 已要求 host:port，多节点以 ',' 分隔）。
+ * 不校则要到建立连接时才报后端 “missing port in address”，保存时无任何提示。
+ */
+function findHostsWithoutPort(host: string): string[] {
+    return host
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => !!item && !/:\d+$/.test(item));
+}
+
+/** 组装请求表单（含 sentinel 主从形态校验）；返回 undefined 表示校验未通过 */
 const buildReqForm = (): RedisSaveForm | undefined => {
-    const reqForm = { ...submitForm.value } as RedisSaveForm;
+    const reqForm = { ...submitForm.value };
     if (reqForm.mode == 'sentinel' && (reqForm.host ?? '').split('=').length != 2) {
         Msg.error('redis.sentinelHostErr');
         return;
     }
+
+    // sentinel 的 host 形如 mastername=host:port，由上方等号校验保证，此处只校其余模式的 host:port
+    if (reqForm.mode != 'sentinel') {
+        const invalidHosts = findHostsWithoutPort(reqForm.host ?? '');
+        if (invalidHosts.length > 0) {
+            Msg.error('redis.hostPortErr', { hosts: invalidHosts.join(', ') });
+            return;
+        }
+    }
+
     return reqForm;
 };
 
@@ -145,11 +165,11 @@ const onTestConn = async () => {
 const onConfirm = async () => {
     const reqForm = buildReqForm();
     if (!reqForm) {
-        // sentinel 主从形态校验失败（buildReqForm 内已 toast），保持抽屉打开
-        return;
+        // 宿主以「抛错」为取消语义：此处若只 return，会被当成提交成功而弹「保存成功」并关掉抽屉（校验提示已在 buildReqForm 内给过）
+        throw new Error('redis host validation failed');
     }
     await saveRedisExec(reqForm);
-    emit('val-change', internalForm.value);
+    emit('val-change', requireForm());
 };
 </script>
 <style lang="scss"></style>

@@ -15,8 +15,12 @@ func init() {
 }
 
 var (
-	cronService = cron.New(cron.WithSeconds())
-	key2IdMap   collx.SM[string, cron.EntryID]
+	// SecondOptional 使秒字段可选，同时兼容 5 字段（标准 cron，如 "0 0 * * *"）
+	// 与 6 字段（含秒，如 "0 0 3 * * ?"）两种表达式；保留 Descriptor 以支持 "@every ..." 等。
+	cronService = cron.New(cron.WithParser(cron.NewParser(
+		cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
+	)))
+	key2IdMap collx.SM[string, cron.EntryID]
 )
 
 func Start() {

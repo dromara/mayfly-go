@@ -39,7 +39,8 @@ export const machineApi = {
     // 删除机器
     del: Api.newDelete<void>('/machines/{id}'),
     scripts: Api.newGet<MachineScriptVO[]>('/machines/{machineId}/scripts'),
-    scriptCategorys: Api.newGet<string[]>('/machines/scripts/categorys'),
+    // 无脚本时后端返回 nil slice（序列化为 null），故可为空
+    scriptCategorys: Api.newGet<string[] | null>('/machines/scripts/categorys'),
     runScript: Api.newGet<string>('/machines/scripts/{scriptId}/{acName}/run'),
     saveScript: Api.newPost<void>('/machines/{machineId}/scripts'),
     deleteScript: Api.newDelete<void>('/machines/{machineId}/scripts/{scriptId}'),

@@ -4,6 +4,12 @@ import { getValueByPath } from '@/common/utils/object';
 import { getTextWidth } from '@/common/utils/string';
 import { i18n } from '@/i18n';
 
+// 列宽自动计算相关常量
+const CELL_PADDING = 30; // 单元格左右内间距等
+const HEADER_PADDING = 60; // 表头文本计宽的额外留白
+const MAX_AUTO_WIDTH = 400; // 自动计宽上限
+const TAG_CHROME_WIDTH = 22; // el-tag 相对纯文本额外占用的边框 + 内边距
+
 export class TableColumn {
     /**
      * 属性字段
@@ -57,6 +63,14 @@ export class TableColumn {
      * 类型展示需要的额外参数，如枚举转换的EnumValue值等
      */
     typeParam: unknown;
+
+    /**
+     * 列宽自动计算的计宽扩展点：计算某一行该列「实际渲染内容」所占宽度(px)。
+     * 默认按「格式化后的展示文本」测宽（见 autoCalculateMinWidth）；若某列的渲染形态与展示文本
+     * 差异较大（如 tag 列：展示文本需按枚举翻译，且渲染为带边框/内边距的标签），则由该列在构造时
+     * 覆写此函数即可，无需改动通用列宽算法（开闭原则）。入参为整行数据，与渲染器入参保持一致。
+     */
+    measureContentWidth?: (rowData: Record<string, unknown>) => number;
 
     width: number | string;
 
@@ -134,6 +148,13 @@ export class TableColumn {
     typeTag(param: unknown): TableColumn {
         this.type = 'tag';
         this.typeParam = param;
+        // tag 展示文本为枚举翻译后的标签，且渲染为带边框/内边距的 el-tag，故按「标签文本 + 标签外框」计宽。
+        // 不能复用 formatFunc：渲染器需将原始枚举值传给 enum-tag 自行解析，formatFunc 会污染该入参。
+        const enums = param as Record<string, EnumValue>;
+        this.measureContentWidth = (rowData: Record<string, unknown>) => {
+            const value = this.getValueByData(rowData); // tag 列无 formatFunc，等价于原始枚举值，与渲染入参一致
+            return getTextWidth(i18n.global.t(EnumValue.getLabelByValue(enums, value as string | number))) + TAG_CHROME_WIDTH;
+        };
         return this;
     }
 
@@ -205,54 +226,40 @@ export class TableColumn {
     }
 
     /**
-     * 自动计算最小宽度
-     * @param str 字符串
+     * 自动计算该列最小宽度：遍历数据行取「实际渲染内容」最大宽度，与表头宽度取较大值后设置上限。
+     * 渲染内容的度量委托给 measureContentWidth（列可覆写），默认按格式化后的展示文本测宽，
+     * 因此新增特殊渲染形态的列只需提供自己的 measureContentWidth，无需改动本算法。
      * @param tableData 表数据
-     * @param label 表头label也参与宽度计算
-     * @returns 列宽度
      */
     autoCalculateMinWidth = (tableData: Record<string, unknown>[]) => {
-        const prop = this.prop;
-        const label = this.label;
-
-        if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
+        if (!tableData || tableData.length === 0) {
             return 0;
         }
 
-        let maxWidthText = '';
-        let maxWidthValue;
-        // 为了兼容formatFunc格式化回调函数
-        let maxData;
-        // 获取该列中最长的数据(内容)
-        for (let i = 0; i < tableData.length; i++) {
-            const nowData = tableData[i];
-            const nowValue = getValueByPath(nowData, prop);
-            if (!nowValue) {
+        // 计宽策略：列自带渲染宽度解析器(如 tag 列)则用之，否则按「格式化后的展示文本」测宽
+        const measure =
+            this.measureContentWidth ??
+            ((rowData: Record<string, unknown>) => {
+                const value = this.getValueByData(rowData);
+                const text = value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
+                return getTextWidth(text);
+            });
+
+        let maxContentWidth = 0;
+        for (const rowData of tableData) {
+            const value = getValueByPath(rowData, this.prop);
+            // 空内容不参与计宽（0 为有效展示值，需参与）
+            if (value === null || value === undefined || value === '') {
                 continue;
             }
-            // 转为字符串比较长度
-            let nowText;
-            if (typeof nowValue === 'object') {
-                nowText = JSON.stringify(nowValue);
-            } else {
-                nowText = nowValue + '';
-            }
+            maxContentWidth = Math.max(maxContentWidth, measure(rowData));
+        }
 
-            if (nowText.length > maxWidthText.length) {
-                maxWidthText = nowText;
-                maxWidthValue = nowValue;
-                maxData = nowData;
-            }
-        }
-        if (this.formatFunc && maxWidthValue) {
-            maxWidthText = this.formatFunc(maxData!, prop) + '';
-        }
-        // 需要加上表格的内间距等，视情况加
-        const contentWidth: number = getTextWidth(maxWidthText) + 30;
-        // 获取label的宽度，取较大的宽度
-        const columnWidth: number = getTextWidth(i18n.global.t(label)) + 60;
-        const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
-        // 设置上限与累加需要额外增加的宽度
-        this.minWidth = (flexWidth > 400 ? 400 : flexWidth) + this.addWidth;
+        // 内容宽度需加上单元格内间距，再与表头宽度取较大值
+        const contentWidth = maxContentWidth + CELL_PADDING;
+        const columnWidth = getTextWidth(i18n.global.t(this.label)) + HEADER_PADDING;
+        const flexWidth = Math.max(contentWidth, columnWidth);
+        // 设置上限并累加需要额外增加的宽度
+        this.minWidth = Math.min(flexWidth, MAX_AUTO_WIDTH) + this.addWidth;
     };
 }

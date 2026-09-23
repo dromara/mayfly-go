@@ -52,13 +52,21 @@ func (g *RunGuard[T]) lockTTL() time.Duration {
 // Acquire 原子地标记任务为运行中。
 // 返回 false 表示任务已在运行中（本次获取失败，调用方不应执行任务）。
 func (g *RunGuard[T]) Acquire(taskId T) bool {
+	_, ok := g.AcquireWithRunId(taskId)
+	return ok
+}
+
+// AcquireWithRunId 与 Acquire 同为原子获取，但额外返回本次执行唯一标识（runId）。
+// 日志、启动收尾、停止检查、水位推进等需围绕同一 runId 判定归属，避免“锁仍在，但已被新执行接管”
+// 时旧日志被错杀、或旧批次在新实例已接管后继续写入。
+func (g *RunGuard[T]) AcquireWithRunId(taskId T) (string, bool) {
 	g.mu.Lock()
 	if g.held == nil {
 		g.held = make(map[T]string)
 	}
 	if _, exists := g.held[taskId]; exists {
 		g.mu.Unlock()
-		return false
+		return "", false
 	}
 
 	val := stringx.Rand(32)
@@ -69,22 +77,22 @@ func (g *RunGuard[T]) Acquire(taskId T) bool {
 		if err != nil {
 			g.mu.Unlock()
 			logx.Errorf("[RunGuard] redis SetNX failed for task %v: %v", taskId, err)
-			return false
+			return "", false
 		}
 		if !ok {
 			g.mu.Unlock()
-			return false
+			return "", false
 		}
 		// SETNX 成功，持锁写入所有权值
 		g.held[taskId] = val
 		g.mu.Unlock()
-		return true
+		return val, true
 	}
 
 	// Redis 未配置：本地互斥即最终裁决
 	g.held[taskId] = val
 	g.mu.Unlock()
-	return true
+	return val, true
 }
 
 // Release 释放任务运行标记，无论任务当前是否标记为运行中均安全调用。
@@ -108,6 +116,57 @@ func (g *RunGuard[T]) Release(taskId T) {
 		key := fmt.Sprintf("%s%v", runGuardKeyPrefix, taskId)
 		rediscli.CasDel(key, val)
 	}
+}
+
+// ReleaseWithRunId 仅当当前持有的 runId 与传入一致时才释放。
+// 避免旧 runId 的收尾误删新持有者的锁（TTL 自然过期后新实例已接管的场景）。
+func (g *RunGuard[T]) ReleaseWithRunId(taskId T, runId string) bool {
+	g.mu.Lock()
+	val, exists := g.held[taskId]
+	if !exists || val != runId {
+		g.mu.Unlock()
+		return false
+	}
+	delete(g.held, taskId)
+	g.mu.Unlock()
+
+	if cli := rediscli.GetCli(); cli != nil {
+		key := fmt.Sprintf("%s%v", runGuardKeyPrefix, taskId)
+		rediscli.CasDel(key, runId)
+	}
+	return true
+}
+
+// CurrentRunId 返回当前持有任务锁的 runId（无持有则空串）。
+// 优先本地 held（无延迟），本地无时回退 Redis GET（跨实例可见）。
+func (g *RunGuard[T]) CurrentRunId(taskId T) string {
+	g.mu.Lock()
+	val, ok := g.held[taskId]
+	g.mu.Unlock()
+	if ok {
+		return val
+	}
+
+	if cli := rediscli.GetCli(); cli != nil {
+		key := fmt.Sprintf("%s%v", runGuardKeyPrefix, taskId)
+		v, err := cli.Get(context.Background(), key).Result()
+		if err != nil {
+			// go-redis 对 key 不存在返回 redis.Nil，属正常无持有情形，不记错
+			return ""
+		}
+		return v
+	}
+
+	return ""
+}
+
+// IsCurrentRun 判断传入的 runId 是否为任务当前持有者。
+// 供批次循环、水位推进、收尾等写前确认“同一次执行”，避免被接管后旧任务继续写入。
+func (g *RunGuard[T]) IsCurrentRun(taskId T, runId string) bool {
+	if runId == "" {
+		return false
+	}
+	return g.CurrentRunId(taskId) == runId
 }
 
 // IsRunning 判断任务是否处于运行中。

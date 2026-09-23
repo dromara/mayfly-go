@@ -1,6 +1,7 @@
 package value
 
 import (
+	"encoding/json"
 	"math"
 	"strconv"
 	"strings"
@@ -38,6 +39,9 @@ func ValToFloat64(v any) (float64, bool) {
 		return ParseStrToFloat64(string(x))
 	case string:
 		return ParseStrToFloat64(x)
+	case json.Number:
+		// JSON 数字在 UseNumber 下解码为 json.Number（底层 string），按字符串解析避免 float64 丢精度
+		return ParseStrToFloat64(string(x))
 	default:
 		return 0, false
 	}
@@ -137,6 +141,9 @@ func ValToInt64(v any) (int64, bool) {
 		return ParseStrToInt64(string(x))
 	case string:
 		return ParseStrToInt64(x)
+	case json.Number:
+		// JSON 数字在 UseNumber 下解码为 json.Number（底层 string），按字符串解析避免 float64 丢大整数精度
+		return ParseStrToInt64(string(x))
 	default:
 		return 0, false
 	}

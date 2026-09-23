@@ -9,8 +9,8 @@ import (
 type DbTransferTask interface {
 	base.Repo[*entity.DbTransferTask]
 
-	// 分页获取数据库实例信息列表
-	GetTaskList(condition *entity.DbTransferTaskQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferTask], error)
+	// 分页获取数据迁移任务列表
+	GetPageList(condition *entity.DbTransferTaskQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferTask], error)
 }
 
 // DbTransferCheckpoint 迁移断点续传检查点仓储
@@ -25,6 +25,6 @@ type DbTransferCheckpoint interface {
 type DbTransferLog interface {
 	base.Repo[*entity.DbTransferLog]
 
-	// GetLogList 分页获取指定任务的日志列表
-	GetLogList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error)
+	// GetPageList 分页获取指定任务的日志列表
+	GetPageList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error)
 }

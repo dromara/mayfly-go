@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"mayfly-go/internal/db/dbm/dbi/scan"
-	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 )
@@ -20,6 +19,9 @@ type WalkQueryRowsFunc func(row map[string]any, columns []*QueryColumn) error
 type DbConn struct {
 	Id   string
 	Info *DbInfo
+
+	// tunnel 该连接建立时持有的中转通道句柄，连接关闭时释放；无通道时为 nil
+	tunnel *Tunnel
 }
 
 /******************* pool.Conn impl *******************/
@@ -27,7 +29,8 @@ type DbConn struct {
 // 关闭连接
 func (d *DbConn) Close() error {
 	if db := d.Info.GetDb(); db != nil {
-		defer mcm.CloseSshTunnel(d.Info)
+		// 释放随连接持有的中转通道（nil 接收者安全），与底层连接关闭解耦于任何业务模块
+		defer d.tunnel.Close()
 		if err := db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %v", d.Id, err)
 			return err
@@ -66,9 +69,9 @@ func NewQueryColumn(colName string, columnType *DbDataType) *QueryColumn {
 	return &QueryColumn{
 		Name:       colName,
 		Key:        colName,
-		Type:       columnType.DataType.Name,
+		Type:       columnType.Codec.Name,
 		DbDataType: columnType,
-		valuer:     columnType.DataType.Valuer(),
+		valuer:     columnType.Codec.Valuer(),
 	}
 }
 
@@ -82,7 +85,7 @@ func (qc *QueryColumn) value() any {
 }
 
 func (qc *QueryColumn) SQLValue(val any) any {
-	return qc.DbDataType.DataType.SQLValue(val)
+	return qc.DbDataType.Codec.SQLValue(val)
 }
 
 func (d *DbConn) GetDb() *sql.DB {
@@ -91,15 +94,15 @@ func (d *DbConn) GetDb() *sql.DB {
 
 // 执行查询语句
 // 依次返回 列信息数组(顺序)，结果map，错误
-func (d *DbConn) Query(querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
-	return d.QueryContext(context.Background(), querySql, args...)
+func (d *DbConn) Query(querySQL string, args ...any) ([]*QueryColumn, []map[string]any, error) {
+	return d.QueryContext(context.Background(), querySQL, args...)
 }
 
 // 执行查询语句
 // 依次返回 列信息数组(顺序)，结果map，错误
-func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
+func (d *DbConn) QueryContext(ctx context.Context, querySQL string, args ...any) ([]*QueryColumn, []map[string]any, error) {
 	result := make([]map[string]any, 0, 16)
-	cols, err := d.WalkQueryRows(ctx, querySql, func(row map[string]any, columns []*QueryColumn) error {
+	cols, err := d.WalkQueryRows(ctx, querySQL, func(row map[string]any, columns []*QueryColumn) error {
 		result = append(result, row)
 		return nil
 	}, args...)
@@ -108,9 +111,9 @@ func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any)
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
-func (d *DbConn) Query2Struct(execSql string, dest any) error {
+func (d *DbConn) Query2Struct(execSQL string, dest any) error {
 	db := d.Info.GetDb()
-	rows, err := db.Query(execSql)
+	rows, err := db.Query(execSQL)
 	if err != nil {
 		return err
 	}
@@ -125,15 +128,15 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 }
 
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
-func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
-	if qcs, err := d.walkQueryRows(ctx, querySql, walkFn, args...); err != nil {
+func (d *DbConn) WalkQueryRows(ctx context.Context, querySQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+	if qcs, err := d.walkQueryRows(ctx, querySQL, walkFn, args...); err != nil {
 		// 如果是手动停止 则默认返回当前已遍历查询的数据即可
 		// walkFn返回的StopWalkQueryError可能被包装，需用errors.As而非类型断言
 		var stopErr *StopWalkQueryError
 		if errors.As(err, &stopErr) {
 			return qcs, nil
 		}
-		return qcs, wrapSqlError(err)
+		return qcs, wrapSQLError(err)
 	} else {
 		return qcs, nil
 	}
@@ -152,31 +155,34 @@ func (d *DbConn) Exec(sql string, args ...any) (int64, error) {
 
 // 事务执行 update, insert, delete，建表等sql，若tx == nil，则不使用事务
 // 返回影响条数和错误
-func (d *DbConn) TxExec(tx *sql.Tx, execSql string, args ...any) (int64, error) {
-	return d.TxExecContext(context.Background(), tx, execSql, args...)
+func (d *DbConn) TxExec(tx *sql.Tx, execSQL string, args ...any) (int64, error) {
+	return d.TxExecContext(context.Background(), tx, execSQL, args...)
 }
 
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
-func (d *DbConn) ExecContext(ctx context.Context, execSql string, args ...any) (int64, error) {
-	return d.TxExecContext(ctx, nil, execSql, args...)
+func (d *DbConn) ExecContext(ctx context.Context, execSQL string, args ...any) (int64, error) {
+	return d.TxExecContext(ctx, nil, execSQL, args...)
 }
 
 // 事务执行 update, insert, delete，建表等sql，若tx == nil，则不适用事务
 // 返回影响条数和错误
-func (d *DbConn) TxExecContext(ctx context.Context, tx *sql.Tx, execSql string, args ...any) (int64, error) {
+func (d *DbConn) TxExecContext(ctx context.Context, tx *sql.Tx, execSQL string, args ...any) (int64, error) {
 	var res sql.Result
 	var err error
 	db := d.Info.GetDb()
 	if tx != nil {
-		res, err = tx.ExecContext(ctx, execSql, args...)
+		res, err = tx.ExecContext(ctx, execSQL, args...)
 	} else {
-		res, err = db.ExecContext(ctx, execSql, args...)
+		res, err = db.ExecContext(ctx, execSQL, args...)
 	}
 
 	if err != nil {
-		return 0, wrapSqlError(err)
+		return 0, wrapSQLError(err)
 	}
+	// 执行成功的 DDL 改变了库结构：立即失效服务端元数据缓存（判据见 DbInfo.invalidateIfDDL）。
+	// 事务内语句执行成功但事务后来回滚时会多失效一次，下次内省重新查库即可，不影响正确性
+	d.Info.invalidateIfDDL(execSQL)
 	return res.RowsAffected()
 }
 
@@ -191,9 +197,10 @@ func (d *DbConn) GetDialect() Dialect {
 	return d.Info.Backend.GetDialect(d.Info)
 }
 
-// Metadata 创建新的 Schema 元数据访问入口（每次调用创建新实例，不共享缓存）
-func (d *DbConn) Metadata() *Metadata {
-	return NewMetadata(d.Info.Backend, d.Info.Backend.GetMetadataProvider(d.Info), d.Info.Backend.GetServerInfo(d.Info))
+// Metadata 创建新的 Schema 元数据访问入口，并接入该连接的跨请求元数据缓存。
+// reader 实例仍按请求新建，但其读穿透共享 DbInfo 上的 schemaCache（跨请求）；方言 provider 不感知缓存。
+func (d *DbConn) Metadata() *MetadataReader {
+	return NewMetadataReader(d.Info.Backend, d.Info.Backend.GetMetadataProvider(d.Info), d.Info.Backend.GetServerInfo(d.Info), d.Info.SchemaCache())
 }
 
 // GetDbDataType 获取定义的数据库数据类型
@@ -201,13 +208,46 @@ func (d *DbConn) GetDbDataType(dataType string) *DbDataType {
 	return GetDbDataType(d.Info.Type, dataType)
 }
 
+// buildQueryColumns 依据结果集列类型构建列信息数组与对应的扫描占位符。
+// dbType 用于解析各列的数据库数据类型（决定值的编解码器）；空列名以 <anonymousN> 命名。
+// 由 DbConn.walkQueryRows 与 DbInfo.QueryContext 共用，确保两条查询路径的列建模完全一致。
+func buildQueryColumns(colTypes []*sql.ColumnType, dbType DbType) ([]*QueryColumn, []any) {
+	cols := make([]*QueryColumn, len(colTypes))
+	scans := make([]any, len(colTypes))
+	for k, colType := range colTypes {
+		colName := colType.Name()
+		if colName == "" {
+			colName = fmt.Sprintf("<anonymous%d>", k+1)
+		}
+		qc := NewQueryColumn(colName, GetDbDataType(dbType, colType.DatabaseTypeName()))
+		cols[k] = qc
+		scans[k] = qc.getValuePtr()
+	}
+	return cols, scans
+}
+
+// scanRowMap 将已 Scan 的一行值装配为 map。重复列名以列序号消歧并回写 QueryColumn.Key，
+// 避免同名列（如 SELECT a.id, b.id）相互覆盖导致静默丢列。
+func scanRowMap(cols []*QueryColumn) map[string]any {
+	rowData := make(map[string]any, len(cols))
+	for i := range cols {
+		colname := cols[i].Name
+		if _, e := rowData[colname]; e {
+			colname = colname + strconv.Itoa(i)
+			cols[i].Key = colname
+		}
+		rowData[colname] = cols[i].value()
+	}
+	return rowData
+}
+
 // 游标方式遍历查询rows, walkFn error不为nil, 则退出遍历
-func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+func (d *DbConn) walkQueryRows(ctx context.Context, selectSQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	db := d.Info.GetDb()
-	rows, err := db.QueryContext(cancelCtx, selectSql, args...)
+	rows, err := db.QueryContext(cancelCtx, selectSQL, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,41 +259,24 @@ func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn Wal
 	if err != nil {
 		return nil, err
 	}
-	lenCols := len(colTypes)
 	// 列名用于前端表头名称按照数据库与查询字段顺序显示
-	cols := make([]*QueryColumn, lenCols)
-	// 这里表示一行填充数据
-	scans := make([]any, lenCols)
-	// 这里表示一行所有列的值，用[]byte表示
-	for k, colType := range colTypes {
-		// 处理字段名，如果为空，则命名为匿名列
-		colName := colType.Name()
-		if colName == "" {
-			colName = fmt.Sprintf("<anonymous%d>", k+1)
-		}
-		qc := NewQueryColumn(colName, d.GetDbDataType(colType.DatabaseTypeName()))
-		cols[k] = qc
-		scans[k] = qc.getValuePtr()
-	}
+	cols, scans := buildQueryColumns(colTypes, d.Info.Type)
 
 	for rows.Next() {
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
 		if err := rows.Scan(scans...); err != nil {
 			return cols, err
 		}
-		// 每行数据
-		rowData := make(map[string]any, lenCols)
-		// 把values中的数据复制到row中
-		for i := range scans {
-			colname := cols[i].Name
-			if _, e := rowData[colname]; e {
-				colname = colname + strconv.Itoa(i)
-				cols[i].Key = colname
+		if err = walkFn(scanRowMap(cols), cols); err != nil {
+			// StopWalkQueryError 是调用方主动结束遍历的控制流信号（取到目标行即停、超出行数上限等），
+			// 并非结果集读取失败；统一按 ERROR 打印会让每次正常提前结束都刷一条假错误，
+			// 淹没真正的遍历失败，故仅降级为 Debug
+			var stopErr *StopWalkQueryError
+			if errors.As(err, &stopErr) {
+				logx.DebugfContext(ctx, "[%s] stop walking query result set early: %s", selectSQL, err.Error())
+			} else {
+				logx.ErrorfContext(ctx, "[%s] cursor traversal query result set error, exit traversal: %s", selectSQL, err.Error())
 			}
-			rowData[colname] = cols[i].value()
-		}
-		if err = walkFn(rowData, cols); err != nil {
-			logx.ErrorfContext(ctx, "[%s] cursor traversal query result set error, exit traversal: %s", selectSql, err.Error())
 			cancelFunc()
 			return cols, err
 		}
@@ -263,14 +286,14 @@ func (d *DbConn) walkQueryRows(ctx context.Context, selectSql string, walkFn Wal
 	// 若不检查rows.Err()会静默按正常结束处理——dump导出场景将产出截断的备份文件且无任何报错，
 	// 属不可逆的数据丢失，必须显式失败
 	if err := rows.Err(); err != nil {
-		return cols, wrapSqlError(err)
+		return cols, wrapSQLError(err)
 	}
 
 	return cols, nil
 }
 
 // 包装sql执行相关错误
-func wrapSqlError(err error) error {
+func wrapSQLError(err error) error {
 	if errors.Is(err, context.Canceled) {
 		return errorx.NewBiz("execution cancel")
 	}

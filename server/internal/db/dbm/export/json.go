@@ -70,7 +70,7 @@ func (c *JSONConsumer) Begin(w io.Writer, tableName string, columns []dbi.Column
 }
 
 func (c *JSONConsumer) ConsumeBatch(w io.Writer, tableName string, columns []dbi.Column, rows [][]any,
-	helper dbi.DumpHelper, sqlGen dbi.SQLGenerator, settings *Settings) error {
+	helper dbi.DumpTxnWrapper, sqlGen dbi.SQLGenerator, settings *Settings) error {
 
 	pretty := settings != nil && settings.PrettyPrint
 	for _, row := range rows {

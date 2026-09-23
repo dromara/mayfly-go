@@ -81,13 +81,13 @@ const openEdit = async (data: DbMaskRule | null, openAtMount: boolean) => {
         // @vue/test-utils 的 setProps 形参取 T['$props']，vue-tsc 未把 defineModel 生成的 visible
         // 并入其中（mount 的 props 走另一条推导路径，可正常识别），故此处显式断言。
         // 运行时 setProps 内部即按 Record<string, unknown> 处理，断言不改变行为。
-        await wrapper.setProps({ visible: true } as unknown as Partial<InstanceType<typeof MaskRuleEdit>['$props']>);
+        await wrapper.setProps({ visible: true } as Partial<InstanceType<typeof MaskRuleEdit>['$props']>);
     }
     await flushPromises();
     // 抽屉展开 + teleport 渲染需额外一轮宏任务
     await new Promise((resolve) => setTimeout(resolve, 50));
     const switches = document.body.querySelectorAll('.el-switch').length;
-    const nameInput = document.body.querySelector('.el-drawer input[type="text"]') as HTMLInputElement | null;
+    const nameInput = document.body.querySelector<HTMLInputElement>('.el-drawer input[type="text"]');
     return { switches, nameValue: nameInput?.value, warns: switchWarns(warnSpy), i18nWarns: i18nMissWarns(warnSpy), algoOptions: algoOptionTexts() };
 };
 

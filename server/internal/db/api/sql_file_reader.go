@@ -17,18 +17,18 @@ const (
 	sqlUnzipMaxBytes = 200 << 20
 )
 
-// newSqlFileReader 按文件名后缀还原出真正的 SQL 文本流（SQL文件执行与备份文件导入共用）：
+// newSQLFileReader 按文件名后缀还原出真正的 SQL 文本流（SQL文件执行与备份文件导入共用）：
 //   - .zip：按文件名升序导入包内全部 SQL 文件，文件之间补换行，避免上一条语句与下一条粘连
 //   - .gz/.gzip：gunzip 后返回（平台下载的备份即 gzip 流，可直接回导）
 //   - 其他：原样返回，保持流式读取（百MB级脚本不进内存）
 //
 // 任何异常（非法压缩包、超出大小上限）都必须返回 error：
 // 静默返回空内容或截断内容，导入会表现为「执行成功但没导全数据」，事后无法追溯，属数据安全事故
-func newSqlFileReader(filename string, body io.Reader) (io.Reader, error) {
+func newSQLFileReader(filename string, body io.Reader) (io.Reader, error) {
 	lower := strings.ToLower(filename)
 	switch {
 	case strings.HasSuffix(lower, ".zip"):
-		return zipSqlReader(body)
+		return zipSQLReader(body)
 	case strings.HasSuffix(lower, ".gz"), strings.HasSuffix(lower, ".gzip"):
 		gr, err := gzip.NewReader(body)
 		if err != nil {
@@ -41,8 +41,8 @@ func newSqlFileReader(filename string, body io.Reader) (io.Reader, error) {
 	}
 }
 
-// zipSqlReader 读取压缩包内的 SQL 文件内容并按序拼接
-func zipSqlReader(body io.Reader) (io.Reader, error) {
+// zipSQLReader 读取压缩包内的 SQL 文件内容并按序拼接
+func zipSQLReader(body io.Reader) (io.Reader, error) {
 	// 多读1字节用于判断是否超限（超限必须报错，不能把截断后的包当成完整包）
 	data, err := io.ReadAll(io.LimitReader(body, sqlZipMaxBytes+1))
 	if err != nil {
@@ -56,7 +56,7 @@ func zipSqlReader(body io.Reader) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid zip file: %w", err)
 	}
-	entries, err := zipSqlEntries(zr)
+	entries, err := zipSQLEntries(zr)
 	if err != nil {
 		return nil, err
 	}
@@ -84,10 +84,10 @@ func zipSqlReader(body io.Reader) (io.Reader, error) {
 	return io.MultiReader(readers...), nil
 }
 
-// zipSqlEntries 选出压缩包内要导入的条目并按名称升序排序（排序保证多次导入顺序一致、结果可复现）：
+// zipSQLEntries 选出压缩包内要导入的条目并按名称升序排序（排序保证多次导入顺序一致、结果可复现）：
 //   - 跳过目录与打包产生的垃圾条目（__MACOSX/、._*、.DS_Store 等，这些是二进制元数据，执行只会报错）
 //   - 优先只取 .sql / .sql.gz 文件；包内没有此类命名时回退为全部文件（兼容既有压缩包）
-func zipSqlEntries(zr *zip.Reader) ([]*zip.File, error) {
+func zipSQLEntries(zr *zip.Reader) ([]*zip.File, error) {
 	sqlFiles := make([]*zip.File, 0, len(zr.File))
 	otherFiles := make([]*zip.File, 0, len(zr.File))
 	for _, f := range zr.File {

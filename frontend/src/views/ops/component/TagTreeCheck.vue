@@ -42,7 +42,7 @@
 <script lang="ts" setup>
 import { computed, ref, reactive, onMounted, type PropType } from 'vue';
 import { tagApi } from '../tag/api';
-import type { TagTree } from '../tag/types';
+import type { TagTreeNode } from '../tag/types';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
 import { isPrefixSubsequence } from '@/common/utils/string';
@@ -121,7 +121,7 @@ const tagTreeRef = ref<TreeInstance | null>(null);
 const filterTag = ref('');
 
 const state = reactive({
-    tags: [] as TagTree[],
+    tags: [] as TagTreeNode[],
 });
 
 onMounted(() => {

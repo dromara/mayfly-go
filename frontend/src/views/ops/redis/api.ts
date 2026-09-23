@@ -9,7 +9,7 @@ export const redisApi = {
     redisInfo: Api.newGet<Record<string, unknown>>('/redis/{id}/info'),
     clusterInfo: Api.newGet<Record<string, unknown>>('/redis/{id}/cluster-info'),
     testConn: Api.newPost<void>('/redis/test-conn'),
-    saveRedis: Api.newPost<void>('/redis'),
+    saveRedis: Api.newPost<number>('/redis'),
     delRedis: Api.newDelete<void>('/redis/{id}'),
 
     keyInfo: Api.newGet<RedisKeyInfo>('/redis/{id}/{db}/key-info'),

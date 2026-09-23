@@ -1,4 +1,5 @@
 import { computed, ref, type Ref } from 'vue';
+import { Msg } from '@/hooks/useI18n';
 import { DbInst } from '../../db';
 
 class NowUpdateCell {
@@ -36,6 +37,8 @@ interface UseTableEditOptions {
     dbId: () => number;
     db: () => string;
     table: () => string;
+    /** 只读（如视图）：禁止单元格编辑与提交 */
+    readonly?: () => boolean;
 }
 
 export function useTableEdit(options: UseTableEditOptions) {
@@ -71,7 +74,20 @@ export function useTableEdit(options: UseTableEditOptions) {
         return cellUpdateMap.value.get(rowIndex)?.columnsMap.get(columnName);
     };
 
-    const onEnterEditMode = (rowData: Record<string, unknown>, column: { key: string; dataType?: string }, rowIndex = 0, columnIndex = 0) => {
+    const onEnterEditMode = (
+        rowData: Record<string, unknown>,
+        column: { key: string; dataType?: string; masked?: boolean },
+        rowIndex = 0,
+        columnIndex = 0,
+    ) => {
+        // 只读（如视图）：不允许进入单元格编辑，避免对不可更新对象生成 UPDATE
+        if (options.readonly?.()) {
+            return;
+        }
+        // 脱敏列：单元格展示的是脱敏值，编辑保存会把脱敏串写回真实数据 → 禁止行内编辑
+        if (column.masked) {
+            return;
+        }
         // 不存在表，或者已经在编辑中，则不处理
         if (!options.table() || nowUpdateCell.value) {
             return;
@@ -149,6 +165,12 @@ export function useTableEdit(options: UseTableEditOptions) {
                 rowData[k] = v.oldValue;
             }
             res += await dbInst.genUpdateSql(db, table, updateColumnValue, rowData);
+        }
+
+        if (!res) {
+            // 无主键：无法安全定位单行，禁止行内更新
+            Msg.warning('db.needPkToOperate');
+            return;
         }
 
         dbInst.promptExeSql(db, res, undefined, () => {

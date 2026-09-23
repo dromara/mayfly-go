@@ -51,7 +51,7 @@ export const MachineAuthCertKind = 'machine-auth-cert';
 
 /** 创建终端 tab（双击凭证节点与"打开终端"菜单共用） */
 const openTerminalTab = async (ctx: TreeCommandCtx) => {
-    const m = ctx.node.params as unknown as MachineNodeParams;
+    const m = ctx.node.params as MachineNodeParams;
     const key = `${m.code}.${m.selectAuthCert!.name}.${new Date().getTime()}`;
     createResourceOpTab({
         key,
@@ -264,11 +264,11 @@ registerContributor({
                 label: x.name,
                 icon: MachineIcon,
                 disabled: x.status == -1 && x.protocol == MachineProtocolEnum.Ssh.value,
-                params: x as unknown as Record<string, unknown>,
+                params: { ...x },
             }));
     },
     loadChildren: async (node) => {
-        const machine = node.params as unknown as MachineNodeParams;
+        const machine = node.params as MachineNodeParams;
         const authCerts = machine.authCerts || [];
         return authCerts.map(
             (x: MachineAuthCert): TreeNodeData => ({

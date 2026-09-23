@@ -112,7 +112,7 @@ const { query, paramsDialog } = toRefs(state);
 
 /** 降级表单代理：params 为原始值，包装为 { value } 对象供 auto-form 使用 */
 const fallbackForm = computed({
-    get: () => ({ value: paramsDialog.value.params as unknown as string }),
+    get: () => ({ value: paramsDialog.value.params as string }),
     set: (v) => (state.paramsDialog.params = v.value),
 });
 

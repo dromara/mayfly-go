@@ -60,14 +60,14 @@ export async function getRsaPublicKey() {
     if (publicKey) {
         return publicKey;
     }
-    publicKey = (await openApi.getPublicKey()) as string;
+    publicKey = (await openApi.getPublicKey());
     sessionStorage.setItem('RsaPublicKey', publicKey);
     return publicKey;
 }
 
 /** PEM 格式公钥解析为 forge PublicKey */
 function parsePemPublicKey(pem: string): forge.pki.rsa.PublicKey {
-    return forge.pki.publicKeyFromPem(pem) as forge.pki.rsa.PublicKey;
+    return forge.pki.publicKeyFromPem(pem);
 }
 
 /**
@@ -83,7 +83,7 @@ export async function RsaEncrypt(value: string): Promise<string> {
     }
 
     if (!cachedRsaPublicKey) {
-        const publicKeyPem = (await getRsaPublicKey()) as string;
+        const publicKeyPem = (await getRsaPublicKey());
         notBlank(publicKeyPem, '获取公钥失败');
         cachedRsaPublicKey = parsePemPublicKey(publicKeyPem);
     }

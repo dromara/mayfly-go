@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	dbi.RegisterBackend(DbTypeSqlite, new(Backend))
+	dbi.RegisterBackend(DbTypeSQLite, new(Backend))
 
 	// 类型引擎注册（迁移/同步类型系统，与 Backend 解耦）
-	dbi.RegisterTypeEngine(DbTypeSqlite, func(b *dbi.TypeEngineBuilder) {
+	dbi.RegisterTypeEngine(DbTypeSQLite, func(b *dbi.TypeEngineBuilder) {
 		b.RegisterTypes(
 			Integer, Real,
 			Text,
@@ -61,29 +61,24 @@ func init() {
 }
 
 const (
-	DbTypeSqlite dbi.DbType = "sqlite"
+	DbTypeSQLite dbi.DbType = "sqlite"
 )
 
 var _ dbi.DbBackend = (*Backend)(nil)
 
 type Backend struct {
-	dbi.BaseBackend
+	dbi.DefaultBackend
 }
 
 func (sm *Backend) GetCapabilities() dbi.MetadataCapabilities {
-	return dbi.MetadataCapabilities{
-		SupportsSchemas:           false,
-		SupportsIndexes:           true,
-		SupportsForeignKeys:       true,
-		SupportsComments:          false,
-		SupportsDDLExport:         true,
-		SupportsGeneratedColumns:  true,
-		SupportsIdentityColumns:   false,
-		SupportsExpressionDefault: true,
-	}
+	// sqlite 无独立 schema 层、不支持表/列注释；支持视图内省；其余支持
+	return dbi.NewCapabilities(
+		dbi.FeatIndexes, dbi.FeatForeignKeys, dbi.FeatDDLExport,
+		dbi.FeatGeneratedColumns, dbi.FeatExpressionDefaults,
+	).With(dbi.FeatViews).WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 
-func (md *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
+func (md *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	// 用host字段来存sqlite的文件路径
 	// 检查文件是否存在,否则报错，基于sqlite会自动创建文件，为了服务器文件安全，所以先确定文件存在再连接，不自动创建
 	if _, err := os.Stat(d.Host); err != nil {
@@ -99,13 +94,13 @@ func (md *Backend) GetSqlDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 }
 
 func (sm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
-	return &SqliteDialect{di: di}
+	return &SQLiteDialect{di: di}
 }
 
 func (sm *Backend) GetServerInfo(di *dbi.DbInfo) dbi.ServerInfo {
-	return &SqliteMetadata{di: di}
+	return &SQLiteMetadata{di: di}
 }
 
 func (sm *Backend) GetMetadataProvider(di *dbi.DbInfo) dbi.MetadataProvider {
-	return &SqliteMetadata{di: di}
+	return &SQLiteMetadata{di: di}
 }

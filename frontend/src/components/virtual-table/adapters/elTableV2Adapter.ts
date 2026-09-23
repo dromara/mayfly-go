@@ -61,7 +61,7 @@ function getInstance(tableRef: { value: unknown }): TableInstance {
 
 export const elTableV2Adapter: VirtualTableAdapter = {
     name: 'el-table-v2',
-    component: ElTableV2 as unknown as import('vue').Component,
+    component: ElTableV2 as import('vue').Component,
     transformColumns,
     transformRowEventHandlers,
     getProps,

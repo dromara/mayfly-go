@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/spf13/cast"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
@@ -44,7 +45,7 @@ func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 }
 
 func (r *Resource) GetById(rc *req.Ctx) {
-	res, err := r.resourceApp.GetById(uint64(rc.PathParamInt("id")))
+	res, err := r.resourceApp.GetById(cast.ToUint64(rc.PathParam("id")))
 	biz.ErrIsNil(err, "The resource does not exist")
 	rc.ResData = res
 }
@@ -62,11 +63,11 @@ func (r *Resource) SaveResource(rc *req.Ctx) {
 }
 
 func (r *Resource) DelResource(rc *req.Ctx) {
-	biz.ErrIsNil(r.resourceApp.Delete(rc.MetaCtx, uint64(rc.PathParamInt("id"))))
+	biz.ErrIsNil(r.resourceApp.Delete(rc.MetaCtx, cast.ToUint64(rc.PathParam("id"))))
 }
 
 func (r *Resource) ChangeStatus(rc *req.Ctx) {
-	rid := uint64(rc.PathParamInt("id"))
+	rid := cast.ToUint64(rc.PathParam("id"))
 	status := int8(rc.PathParamInt("status"))
 	rc.ReqParam = collx.Kvs("id", rid, "status", status)
 	biz.ErrIsNil(r.resourceApp.ChangeStatus(rc.MetaCtx, rid, status))
@@ -86,7 +87,7 @@ func (r *Resource) Sort(rc *req.Ctx) {
 
 // GetResourceRoles
 func (r *Resource) GetResourceRoles(rc *req.Ctx) {
-	rrs, err := r.resourceApp.GetResourceRoles(uint64(rc.PathParamInt("id")))
+	rrs, err := r.resourceApp.GetResourceRoles(cast.ToUint64(rc.PathParam("id")))
 	biz.ErrIsNil(err)
 	rc.ResData = rrs
 }

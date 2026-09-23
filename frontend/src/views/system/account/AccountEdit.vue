@@ -8,6 +8,7 @@
             :data="editData"
             size="600px"
             :confirm-api="onConfirm"
+            @opened="onOpened"
             @submitted="emit('cancel')"
             @cancel="emit('cancel')"
         >
@@ -26,10 +27,11 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { randomPassword } from '@/common/utils/string';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { computed, useTemplateRef, type PropType } from 'vue';
 import { accountApi } from '../api';
-import type { Account } from '../types';
+import type { Account, AccountForm } from '../types';
 
 const props = defineProps({
     data: {
@@ -49,8 +51,8 @@ const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unk
 
 const isEdit = computed(() => !!props.data);
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；password 走自定义插槽，extra.* 为嵌套路径字段） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<AccountForm>，渲染 + 校验唯一数据源；password 走自定义插槽，extra.* 为嵌套路径字段） */
+const items = defineFormItems<AccountForm>([
     { prop: 'name', label: 'system.account.name', required: true },
     { prop: 'username', label: 'common.username', placeholder: 'system.account.usernamePlacholder', disabled: (form) => !!form.id, required: true, rules: [Rules.accountUsername] },
     { prop: 'mobile', label: 'common.mobile' },
@@ -58,16 +60,16 @@ const items: AutoFormItem[] = [
     { prop: 'password', label: 'common.password', required: true, slot: 'password' },
     { prop: 'extra.qywxUserId', label: 'system.account.qywxUserId' },
     { prop: 'extra.feishuUserId', label: 'system.account.feishuUserId' },
-];
+]);
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData>(() => {
+const editData = computed<AccountForm>(() => {
     const account = props.data;
     if (account) {
         return {
             ...account,
             extra: account.extra || { qywxUserId: '', feishuUserId: '' },
-        } as AutoFormData;
+        };
     }
     return {
         id: null,
@@ -77,13 +79,17 @@ const editData = computed<AutoFormData>(() => {
         email: null,
         password: '',
         extra: { qywxUserId: '', feishuUserId: '' },
-    } as AutoFormData;
+    };
 });
+
+// 宿主内部表单在 @opened 接管（提交与回传均基于它）
+const { onOpened, requireForm } = useAutoFormModel<AccountForm>();
 
 const { execute: saveAccountExec } = accountApi.save.useApi();
 
 // confirmApi 提交动作；成功提示与关闭抽屉由组件内置逻辑处理
-const onConfirm = async (form: AutoFormData) => {
+const onConfirm = async () => {
+    const form = requireForm();
     await saveAccountExec(form);
     emit('val-change', form);
 };

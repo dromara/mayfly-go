@@ -46,9 +46,9 @@ type Db interface {
 type dbAppImpl struct {
 	base.AppImpl[*entity.Db, repository.Db]
 
-	dbSqlRepo           repository.DbSql        `inject:"T"`
+	dbSQLRepo           repository.DbSQL        `inject:"T"`
 	dbInstanceApp       Instance                `inject:"T"`
-	dbSqlExecApp        DbSqlExec               `inject:"T"`
+	dbSQLExecApp        DbSQLExec               `inject:"T"`
 	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 }
@@ -57,9 +57,9 @@ var _ Db = (*dbAppImpl)(nil)
 
 var _ (Db) = (*dbAppImpl)(nil)
 
-// 分页获取数据库信息列表
+// GetPageList 分页获取数据库信息列表
 func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, orderBy ...string) (*model.PageResult[*entity.DbListPO], error) {
-	return d.GetRepo().GetDbList(condition, orderBy...)
+	return d.GetRepo().GetPageList(condition, orderBy...)
 }
 
 func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
@@ -123,7 +123,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 
 	for _, v := range delDb {
 		// 删除该库关联的所有sql记录
-		d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
+		d.dbSQLRepo.DeleteByCond(ctx, &entity.DbSQL{DbId: dbId, Db: v})
 	}
 
 	// 防止误传修改
@@ -160,9 +160,9 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		},
 		func(ctx context.Context) error {
 			// 删除该库下用户保存的所有sql信息
-			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
+			return d.dbSQLRepo.DeleteByCond(ctx, &entity.DbSQL{DbId: id})
 		}, func(ctx context.Context) error {
-			return d.dbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: id})
+			return d.dbSQLExecApp.DeleteBy(ctx, &entity.DbSQLExec{DbId: id})
 		}, func(ctx context.Context) error {
 			return d.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 				ResourceCode: db.Code,

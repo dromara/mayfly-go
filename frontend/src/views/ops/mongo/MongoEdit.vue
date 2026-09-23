@@ -34,9 +34,10 @@
 
 <script lang="ts" setup>
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { useSshTunnelTransform } from '@/hooks/useResourceForm';
-import { computed, ref, useTemplateRef, type PropType } from 'vue';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { computed, useTemplateRef, type PropType } from 'vue';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { mongoApi } from './api';
@@ -66,35 +67,25 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const emit = defineEmits(['cancel', 'val-change']);
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；tagCodePaths/sshTunnel 走插槽） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<MongoForm>，渲染 + 校验唯一数据源；tagCodePaths/sshTunnel 走插槽） */
+const items = defineFormItems<MongoForm>([
     { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'uri', label: 'uri', type: 'textarea', rows: 2, required: true, placeholder: 'mongodb://username:password@host1:port1' },
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
-];
+]);
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData>(() => {
-    const mongo = props.data as MongoForm | false | undefined;
-    if (mongo) {
-        return { ...mongo } as AutoFormData;
-    }
-    return { db: 0, tagCodePaths: [] } as AutoFormData;
+const editData = computed<MongoForm>(() => {
+    return props.data ? { ...props.data } : { db: 0, tagCodePaths: [] };
 });
 
-/** 抽屉打开后暂存的内部表单引用（提交组装基于它） */
-const internalForm = ref<AutoFormData>({});
+// 宿主内部表单在 @opened 接管（提交组装基于它）
+const { onOpened, requireForm } = useAutoFormModel<MongoForm>();
 
-const onOpened = (form: AutoFormData) => {
-    internalForm.value = form;
-};
-
-const submitForm = useSshTunnelTransform(
-    computed(() => internalForm.value)
-);
+const submitForm = useSshTunnelTransform(computed(requireForm));
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi();
 const { execute: saveMongoExec } = mongoApi.saveMongo.useApi();
@@ -106,10 +97,10 @@ const onTestConn = async () => {
     Msg.success('ac.connSuccess');
 };
 
-// confirmApi 提交动作（组装内部表单为请求参数）；成功提示与关闭抽屉由组件内置逻辑处理
+// confirmApi 提交动作（从接管的内部表单读取提交数据）；成功提示与关闭抽屉由组件内置逻辑处理
 const onConfirm = async () => {
     await saveMongoExec(submitForm.value);
-    emit('val-change', internalForm.value);
+    emit('val-change', requireForm());
 };
 </script>
 <style lang="scss"></style>

@@ -13,10 +13,10 @@ import (
 )
 
 //go:embed meta.sql
-var metaSqlFile string
+var metaSQLFile string
 
-// metaSql 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SqlTemplates）
-var metaSql = dbi.NewSqlTemplates(metaSqlFile)
+// metaSQL 方言元数据SQL模板（按备注key解析并缓存，格式见dbi.SQLTemplates）
+var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 // ---------------------------------- DM元数据 -----------------------------------
 const (
@@ -33,7 +33,6 @@ var (
 
 type OracleMetadata struct {
 	dbi.DefaultServerInfo
-	dbi.DefaultMetadataProvider
 
 	di *dbi.DbInfo
 
@@ -85,7 +84,7 @@ func (od *OracleMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	sql, err := stringx.TemplateParse(metaSql.Get(ORACLE_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	sql, err := stringx.TemplateParse(metaSQL.Get(ORACLE_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +133,7 @@ func (od *OracleMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 		return columns, nil
 	}
 
-	_, res, err := od.di.Query(fmt.Sprintf(metaSql.Get(ORACLE_COLUMN_MA_KEY), tableName))
+	_, res, err := od.di.Query(fmt.Sprintf(metaSQL.Get(ORACLE_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -164,33 +163,35 @@ func (od *OracleMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error)
 	return columns, nil
 }
 
-func (od *OracleMetadata) GetPrimaryKey(tablename string) (string, error) {
+func (od *OracleMetadata) GetPrimaryKeys(tablename string) ([]string, error) {
 	columns, err := od.GetColumns(tablename)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if len(columns) == 0 {
-		return "", errorx.NewBizf("[%s] 表不存在", tablename)
+		return nil, errorx.NewBizf("[%s] 表不存在", tablename)
 	}
+	pks := make([]string, 0, 2)
 	for _, v := range columns {
 		if v.IsPrimaryKey {
-			return v.ColumnName, nil
+			pks = append(pks, v.ColumnName)
 		}
 	}
 
-	return columns[0].ColumnName, nil
+	// 联合主键返回多列；无主键返回空切片（不兜底首列）
+	return pks, nil
 }
 
 // 获取表索引信息
 func (od *OracleMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := od.di.Query(fmt.Sprintf(metaSql.Get(ORACLE_INDEX_INFO_KEY), tableName))
+	_, res, err := od.di.Query(fmt.Sprintf(metaSQL.Get(ORACLE_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
 
-	indexs := make([]dbi.Index, 0)
+	indexes := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, dbi.Index{
+		indexes = append(indexes, dbi.Index{
 			IndexName:    cast.ToString(re["INDEX_NAME"]),
 			ColumnName:   cast.ToString(re["COLUMN_NAME"]),
 			IndexType:    cast.ToString(re["INDEX_TYPE"]),
@@ -201,7 +202,7 @@ func (od *OracleMetadata) GetTableIndex(tableName string) ([]dbi.Index, error) {
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
-	return dbi.GroupIndexColumns(indexs), nil
+	return dbi.GroupIndexColumns(indexes), nil
 }
 
 // 获取建表ddl
@@ -211,7 +212,7 @@ func (od *OracleMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (
 
 // 获取DM当前连接的库可访问的schemaNames
 func (od *OracleMetadata) GetSchemas() ([]string, error) {
-	sql := metaSql.Get(ORACLE_DB_SCHEMAS)
+	sql := metaSQL.Get(ORACLE_DB_SCHEMAS)
 	_, res, err := od.di.Query(sql)
 	if err != nil {
 		return nil, err

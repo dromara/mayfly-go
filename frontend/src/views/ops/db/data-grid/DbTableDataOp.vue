@@ -42,7 +42,7 @@
                     </el-popover>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" underline="never"></el-link>
+                    <el-link v-if="!readonly" @click="onShowAddDataDialog()" type="primary" icon="plus" underline="never"></el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" effect="dark" content="commit" placement="top">
@@ -139,6 +139,7 @@
             :data="datas"
             :table="tableName"
             :columns="columns"
+            :readonly="readonly"
             :loading="loading"
             :page-size="pageSize"
             :page-num="pageNum"
@@ -272,6 +273,11 @@ const props = defineProps({
     tableName: {
         type: String,
         required: true,
+    },
+    // 只读（如视图）：隐藏新增、禁用单元格编辑与删除
+    readonly: {
+        type: Boolean,
+        default: false,
     },
 });
 

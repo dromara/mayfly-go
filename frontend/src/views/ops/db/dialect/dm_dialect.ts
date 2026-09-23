@@ -6,20 +6,21 @@ import type {
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
-    RowDefinition,
-    sqlColumnType,
+    ColumnDefinition,
+    SqlColumnType,
     SqlSnippetTemplate,
 } from './types';
-import { createDefaultRows, defaultRowsConfigs } from './shared/defaultRows';
-import { appendLimitSql, buildSchemaTable, extractSchema, getDefaultDataType, matchType as _matchType, QuoteEscape, wrapValueDefault } from './shared/utils';
+import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
+import { appendLimitSql, buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueDefault } from './shared/utils';
 import { defineCapabilities, plsqlSplitOptions } from './shared/capabilities';
 import { rownumPageSnippet } from './shared/snippets';
 import { DbType } from './dbType';
 import { registerDbDialect } from './registry';
+import { SchemaDialectBase } from './shared/schemaDialectBase';
 import type { TableEditContext, TableInfoEditContext, ChangeDiff } from './types';
 
 // 参考文档:https://eco.dameng.com/document/dm/zh-cn/sql-dev/dmpl-sql-datatype.html#%E5%AD%97%E7%AC%A6%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B
-const DM_TYPE_LIST: sqlColumnType[] = [
+const DM_TYPE_LIST: SqlColumnType[] = [
     // 字符数据类型
     { udtName: 'CHAR', dataType: 'VARCHAR', desc: '定长字符串', space: '', range: '1 - 32767' },
     { udtName: 'VARCHAR', dataType: 'VARCHAR', desc: '变长字符串', space: '', range: '1 - 32767' },
@@ -362,7 +363,7 @@ const replaceFunctions: EditorCompletionItem[] = [
 
 let dmDialectInfo: DialectInfo;
 let dmCompletions: EditorCompletion;
-class DMDialect implements DbDialect {
+class DMDialect extends SchemaDialectBase {
     getCapabilities(): DialectCapabilities {
         return defineCapabilities({
             defaultIndexType: 'NORMAL',
@@ -432,73 +433,32 @@ class DMDialect implements DbDialect {
         return rownumPageSnippet;
     }
 
-    getDefaultRows(): RowDefinition[] {
-        return createDefaultRows(defaultRowsConfigs.dm);
+    getDefaultColumns(): ColumnDefinition[] {
+        return createDefaultColumns(defaultColumnConfigs.dm);
     }
 
-    getDefaultIndex(): IndexDefinition {
-        return {
-            indexName: '',
-            columnNames: [],
-            unique: false,
-            // 索引类型取自能力声明，避免与 defaultIndexType 各写一份而漂移
-            indexType: this.getCapabilities().defaultIndexType,
-            indexComment: '',
-        };
+    // ==================== 默认值格式化钩子（覆写基类的配置方法） ====================
+
+    /** DM 默认值需加引号的类型名 */
+    protected getDefaultValueQuotedTypeNames(): string[] {
+        return ['CHAR', 'TIME', 'DATE', 'TEXT'];
     }
 
-    quoteIdentifier = (name: string) => {
-        return `"${name}"`;
-    };
-
-    matchType(text: string, arr: string[]): boolean {
-        return _matchType(text, arr);
+    /** DM 时间/日期列的默认值中不加引号的函数名（基类统一转小写比较） */
+    protected getUnquotedDefaultFunctionNames(): string[] {
+        return ['current_date', 'sysdate', 'curdate', 'curtime'];
     }
 
-    getDefaultValueSql(cl: RowDefinition): string {
-        if (cl.value && cl.value.length > 0) {
-            // 哪些字段默认值需要加引号
-            let marks = false;
-            if (this.matchType(cl.type, ['CHAR', 'TIME', 'DATE', 'TEXT'])) {
-                // 默认值是now()的time或date不需要加引号
-                let val = cl.value.toUpperCase().replace(' ', '');
-                if (this.matchType(cl.type, ['TIME', 'DATE']) && ['CURRENT_DATE', 'SYSDATE', 'CURDATE', 'CURTIME'].includes(val)) {
-                    marks = false;
-                } else {
-                    marks = true;
-                }
-            }
-            // 哪些函数不需要加引号
-            if (this.matchType(cl.value, ['nextval'])) {
-                marks = false;
-            }
-            return ` DEFAULT ${marks ? "'" : ''}${cl.value}${marks ? "'" : ''}`;
-        }
-        return '';
+    /** DM 自增列使用 IDENTITY 关键字 */
+    genColumnBasicSql(cl: ColumnDefinition): string {
+        const length = this.getTypeLengthSql(cl);
+        const defVal = this.getDefaultValueSql(cl);
+        const incr = cl.autoIncrement ? 'IDENTITY' : '';
+        const name = this.resolveColumnName(cl);
+        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${incr} ${cl.nullable ? '' : 'NOT NULL'} ${defVal} `;
     }
 
-    getTypeLengthSql(cl: RowDefinition) {
-        // 哪些字段可以指定长度  VARCHAR/VARCHAR2/CHAR/BIT/NUMBER/NUMERIC/TIME、TIMESTAMP(可以指定小数秒精度)
-        if (cl.length && this.matchType(cl.type, ['CHAR', 'BIT', 'TIME', 'NUM', 'DEC'])) {
-            // 哪些字段类型可以指定小数点
-            if (cl.numScale && this.matchType(cl.type, ['NUM', 'DEC'])) {
-                return `(${cl.length}, ${cl.numScale})`;
-            } else {
-                return `(${cl.length})`;
-            }
-        }
-        return '';
-    }
-
-    genColumnBasicSql(cl: RowDefinition): string {
-        let length = this.getTypeLengthSql(cl);
-        // 默认值
-        let defVal = this.getDefaultValueSql(cl);
-        let incr = cl.auto_increment ? 'IDENTITY' : '';
-        // 如果有原名以原名为准
-        let name = cl.oldName && cl.name !== cl.oldName ? cl.oldName : cl.name;
-        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${incr} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
-    }
+    // ==================== DM 特有的 DDL 方法 ====================
 
     getCreateTableSql(data: TableEditContext): string {
         let dbTable = buildSchemaTable(this.quoteIdentifier, data.db, data.tableName);
@@ -510,14 +470,14 @@ class DMDialect implements DbDialect {
         // 创建表结构
         let pks = [] as string[];
         let fields: string[] = [];
-        data.fields.res.forEach((item: RowDefinition) => {
+        data.fields.res.forEach((item: ColumnDefinition) => {
             item.name && fields.push(this.genColumnBasicSql(item));
-            if (item.pri) {
+            if (item.isPrimaryKey) {
                 pks.push(this.quoteIdentifier(item.name));
             }
             // 列注释
-            if (item.remark) {
-                columCommentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} IS '${QuoteEscape(item.remark)}';`;
+            if (item.comment) {
+                columCommentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} IS '${QuoteEscape(item.comment)}';`;
             }
         });
         // 建表
@@ -536,7 +496,7 @@ class DMDialect implements DbDialect {
 
         // 创建索引
         let sql: string[] = [];
-        tableData.indexs.res.forEach((a: IndexDefinition) => {
+        tableData.indexes.res.forEach((a: IndexDefinition) => {
             const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
             sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${dbTable} (${cols})`);
         });
@@ -548,7 +508,7 @@ class DMDialect implements DbDialect {
         return `DROP TABLE ${buildSchemaTable(this.quoteIdentifier, db, table)}`;
     }
 
-    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<RowDefinition>): string {
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         let dbTable = buildSchemaTable(this.quoteIdentifier, tableData.db, tableName);
 
         let modifySql = '';
@@ -562,10 +522,10 @@ class DMDialect implements DbDialect {
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
                 modifySql += `ALTER TABLE ${dbTable} ADD ${this.genColumnBasicSql(a)};`;
-                if (a.remark) {
-                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}';`;
+                if (a.comment) {
+                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}';`;
                 }
-                if (a.pri) {
+                if (a.isPrimaryKey) {
                     priArr.add(this.quoteIdentifier(a.name));
                 }
             });
@@ -573,19 +533,19 @@ class DMDialect implements DbDialect {
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}';`;
-                if (a.remark && a.oldName === a.name) {
+                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.comment)}';`;
+                if (a.comment && a.oldName === a.name) {
                     commentSql += cmtSql;
                 }
                 // 修改了字段名
                 if (a.oldName !== a.name) {
                     renameSql += `ALTER TABLE ${dbTable} RENAME COLUMN ${this.quoteIdentifier(a.oldName!)} TO ${this.quoteIdentifier(a.name)};`;
-                    if (a.remark) {
+                    if (a.comment) {
                         commentSql += cmtSql;
                     }
                 }
                 modifySql += `ALTER TABLE ${dbTable} MODIFY ${this.genColumnBasicSql(a)};`;
-                if (a.pri) {
+                if (a.isPrimaryKey) {
                     priArr.add(this.quoteIdentifier(a.name));
                 }
             });
@@ -600,13 +560,13 @@ class DMDialect implements DbDialect {
         // 编辑主键
         let dropPkSql = '';
         if (priArr.size > 0) {
-            let resPri = tableData.fields.res.find((a: RowDefinition) => a.pri);
+            let resPri = tableData.fields.res.find((a: ColumnDefinition) => a.isPrimaryKey);
             if (resPri) {
                 priArr.add(this.quoteIdentifier(resPri.name));
             }
             // 如果有编辑主键字段，则删除主键，再添加主键
             // 解析表字段中是否含有主键，有的话就删除主键
-            if (tableData.fields.oldFields.find((a: RowDefinition) => a.pri)) {
+            if (tableData.fields.oldFields.find((a: ColumnDefinition) => a.isPrimaryKey)) {
                 dropPkSql = `ALTER TABLE ${dbTable} DROP PRIMARY KEY;`;
             }
         }
@@ -621,12 +581,12 @@ class DMDialect implements DbDialect {
 
         // 不能直接修改索引名和字段、需要先删后加
         let dropIndexNames: string[] = [];
-        let addIndexs: IndexDefinition[] = [];
+        let addIndexes: IndexDefinition[] = [];
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
                 dropIndexNames.push(a.indexName);
-                addIndexs.push(a);
+                addIndexes.push(a);
             });
         }
 
@@ -638,11 +598,11 @@ class DMDialect implements DbDialect {
 
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                addIndexs.push(a);
+                addIndexes.push(a);
             });
         }
 
-        if (dropIndexNames.length > 0 || addIndexs.length > 0) {
+        if (dropIndexNames.length > 0 || addIndexes.length > 0) {
             let sql: string[] = [];
             if (dropIndexNames.length > 0) {
                 dropIndexNames.forEach((a) => {
@@ -650,8 +610,8 @@ class DMDialect implements DbDialect {
                 });
             }
 
-            if (addIndexs.length > 0) {
-                addIndexs.forEach((a) => {
+            if (addIndexes.length > 0) {
+                addIndexes.forEach((a) => {
                     const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
                     sql.push(`CREATE ${a.unique ? 'UNIQUE ' : ''}INDEX ${this.quoteIdentifier(a.indexName)} ON ${dbTable} (${cols})`);
                 });

@@ -364,10 +364,10 @@ func TestITExportUnsupportedFormat(t *testing.T) {
 
 // ─────────────────────── 方言独立性（多源） ───────────────────────
 
-// TestITExportCsvSqliteSource SQLite（弱类型，聚合与列值形态与mysql差异大）→ CSV：
+// TestITExportCsvSQLiteSource SQLite（弱类型，聚合与列值形态与mysql差异大）→ CSV：
 // 同一格式实现必须对方言无关，各值与源直读一致
-func TestITExportCsvSqliteSource(t *testing.T) {
-	conn := itSqliteNode(t)
+func TestITExportCsvSQLiteSource(t *testing.T) {
+	conn := itSQLiteNode(t)
 	defer conn.Close()
 	q := conn.GetDialect().Quoter().QuoteIdent
 	mustItExec(t, conn, "CREATE TABLE "+q(itFmtTable)+" (id INTEGER PRIMARY KEY, v_num REAL, v_txt TEXT, v_bin BLOB)")
@@ -613,7 +613,7 @@ func TestITExportJsonReimportRoundtrip(t *testing.T) {
 	arr := itJsonDecode(t, buf.String())
 	require.Len(t, arr, 5)
 
-	tgt := itSqliteNode(t)
+	tgt := itSQLiteNode(t)
 	defer tgt.Close()
 	qt := tgt.GetDialect().Quoter().QuoteIdent
 	// v_dec 用 TEXT 承载：本用例验证「JSON 文本往返无损」；sqlite NUMERIC affinity 会把十进制
@@ -728,7 +728,7 @@ func TestITExportMysqlIdentityCsvJsonRoundtrip(t *testing.T) {
 	// CSV 回灌 sqlite：主键显式写入保号
 	records, err := csv.NewReader(strings.NewReader(itDumpFormatM(t, src, []string{table}, "csv", export.DefaultSettings("csv")).String())).ReadAll()
 	require.NoError(t, err)
-	tgt := itSqliteNode(t)
+	tgt := itSQLiteNode(t)
 	defer tgt.Close()
 	qt := tgt.GetDialect().Quoter().QuoteIdent
 	mustItExec(t, tgt, "CREATE TABLE "+qt(table)+" (id INTEGER PRIMARY KEY, v TEXT NOT NULL)")
@@ -841,10 +841,13 @@ func TestITExportCsvMultiTablePerTableHeader(t *testing.T) {
 	mustItExec(t, conn, `INSERT INTO `+q("it_fmt_csv_second")+` VALUES (7,'x'),(8,'y')`)
 
 	buf := itDumpFormat(t, conn, []string{itFmtTable, "it_fmt_csv_second"}, "csv", export.DefaultSettings("csv"))
-	records, err := csv.NewReader(strings.NewReader(buf.String())).ReadAll()
+	// 多表 CSV 每表列数不同（11 与 2），按设计为「不等宽分段」，读取须关闭固定字段数校验
+	rdr := csv.NewReader(strings.NewReader(buf.String()))
+	rdr.FieldsPerRecord = -1
+	records, err := rdr.ReadAll()
 	require.NoError(t, err)
-	// 表头1 + 数据5 + 表头2 + 数据2 = 10
-	require.Len(t, records, 10, "多表 CSV 必须每表独立表头分段")
+	// 表头1 + 数据5 + 表头2 + 数据2 = 9
+	require.Len(t, records, 9, "多表 CSV 必须每表独立表头分段")
 	assert.Equal(t, itFmtColumns, records[0], "第一表表头")
 	assert.Equal(t, []string{"id", "w"}, records[6], "第二表表头紧随第一表数据")
 	assert.Equal(t, "7", records[7][0])

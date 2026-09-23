@@ -8,12 +8,12 @@ import (
 	"io"
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/export"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	fileapp "mayfly-go/internal/file/application"
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gox"
@@ -68,8 +68,11 @@ type DbTransferTask interface {
 	// TimerDeleteTransferFile 定时删除迁移文件
 	TimerDeleteTransferFile()
 
-	// GetLogList 获取任务执行日志列表
-	GetLogList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error)
+	// GetLogPageList 获取任务执行日志列表（不含运行日志内容）
+	GetLogPageList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error)
+
+	// GetLogWithRunLog 按日志 id 获取单条执行日志（含运行日志内容）
+	GetLogWithRunLog(logId uint64) (*entity.DbTransferLog, error)
 }
 
 var _ (DbTransferTask) = (*DbTransferAppImpl)(nil)
@@ -82,7 +85,7 @@ type DbTransferAppImpl struct {
 	transferFileApp DbTransferFile `inject:"T"`
 	fileApp         fileapp.File   `inject:"T"`
 
-	// runGuard 运行态原子守卫：替代原cache标记，修复IsRunning检查与标记间的竞态
+	// runGuard 运行态原子守卫：把 IsRunning 的检查与置位合并为一次原子操作，消除检查-标记间的并发竞态
 	runGuard taskx.RunGuard[uint64]
 
 	// checkpointRepo 迁移断点检查点仓储
@@ -117,7 +120,7 @@ func (app *DbTransferAppImpl) getPipeline() *TransferPipeline {
 }
 
 func (app *DbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferTask], error) {
-	return app.GetRepo().GetTaskList(condition, orderBy...)
+	return app.GetRepo().GetPageList(condition, orderBy...)
 }
 
 func (app *DbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTransferTask) error {
@@ -172,8 +175,12 @@ func (app *DbTransferAppImpl) InitCronJob() {
 	if err := app.transferFileApp.UpdateByCond(ctx, &entity.DbTransferFile{Status: entity.DbTransferFileStatusFail}, &entity.DbTransferFile{Status: entity.DbTransferFileStatusRunning}); err != nil {
 		logx.ErrorfContext(ctx, "failed to reset running transfer files on startup: %s", err.Error())
 	}
+	// 把所有执行中的执行日志置为失败：进程重启/异常退出会带走执行协程，无人收尾的日志会永远停留在「执行中」
+	if err := app.ResetStaleRunningLogs(ctx); err != nil {
+		logx.ErrorfContext(ctx, "failed to reset running transfer logs on startup: %s", err.Error())
+	}
 
-	if err := app.CursorByCond(&entity.DbTransferTaskQuery{Status: entity.DbTransferTaskStatusEnable, CronAble: entity.DbTransferTaskCronAbleEnable}, func(dtt *entity.DbTransferTask) error {
+	if err := app.CursorByCond(&entity.DbTransferTaskQuery{Status: entity.DbTransferTaskStatusEnable, CronEnabled: entity.DbTransferTaskCronEnabled}, func(dtt *entity.DbTransferTask) error {
 		app.addCronJob(ctx, dtt)
 		return nil
 	}); err != nil {
@@ -193,7 +200,7 @@ func (app *DbTransferAppImpl) Run(ctx context.Context, taskId uint64) (uint64, e
 		return 0, errorx.NewBizf("db transfer task [%d] not found", taskId)
 	}
 
-	logId, err := app.CreateLog(ctx, taskId)
+	logId, err := app.CreateLog(ctx, taskId, transferPurposeOfMode(task.Mode))
 	if err != nil {
 		app.runGuard.Release(taskId)
 		return 0, fmt.Errorf("create execution log for db transfer task [%d] failed: %w", taskId, err)
@@ -292,6 +299,16 @@ func (app *DbTransferAppImpl) transfer2Db(ctx context.Context, logId uint64, tas
 
 	tableNames := collx.ArrayMap(tables, func(t dbi.Table) string { return t.TableName })
 	sort.Strings(tableNames)
+
+	// 在任何目标 DDL 前检查所有表，避免迁移到一半才发现名称碰撞或表达式不兼容。
+	columns, err := srcConn.Metadata().GetColumns(tableNames...)
+	if err == nil {
+		err = export.ValidateNameConversion(tableNames, columns, int(task.NameCase), targetConn.Info.Type)
+	}
+	if err != nil {
+		app.EndTransfer(ctx, logId, taskId, "target name validation failed", err, nil)
+		return
+	}
 
 	// 初始化/加载断点检查点（上次失败重跑时跳过已完成表，实现断点续传）
 	app.Log(ctx, logId, "[2/4] 初始化断点检查点...")
@@ -473,13 +490,15 @@ func (app *DbTransferAppImpl) executeDataPhase(
 // transferTableDDL2Db 迁移单表结构：源库dump DDL → 目标库导入
 func (app *DbTransferAppImpl) transferTableDDL2Db(ctx context.Context, logId uint64, task *entity.DbTransferTask, targetConn *dbi.DbConn, tableName string) error {
 	return app.dumpAndImport(ctx, logId, targetConn, &dto.DumpDb{
-		LogId:        logId,
-		DbId:         uint64(task.SrcDbId),
-		DbName:       task.SrcDbName,
-		TargetDbType: dbi.DbType(task.TargetDbType),
-		Tables:       []string{tableName},
-		DumpDDL:      true,
-		DumpData:     false,
+		LogId:         logId,
+		DbId:          uint64(task.SrcDbId),
+		DbName:        task.SrcDbName,
+		TargetDbType:  dbi.DbType(task.TargetDbType),
+		Tables:        []string{tableName},
+		DumpDDL:       true,
+		DumpData:      false,
+		SkipDropTable: task.DeleteTable == entity.DbTransferTaskDeleteTableNo,
+		NameCase:      int(task.NameCase),
 		Log: func(msg string) { // 记录日志
 			app.Log(ctx, logId, msg)
 		},
@@ -488,7 +507,8 @@ func (app *DbTransferAppImpl) transferTableDDL2Db(ctx context.Context, logId uin
 
 // transferTableData2Db 迁移单表数据：源库dump（可带where分片过滤）→ 目标库批级事务导入。
 // where为空表示整表导入。onRows为分片内insert行数回调（可为nil），用于上层聚合迁移进度。
-// 分片导入无DDL，失败重跑时由阶段1的DROP重建保证幂等。
+// 分片导入无DDL：默认（建表前 DROP 重建）下重跑由阶段1自清理保证幂等；若任务配置为「不删除表」
+// （deleteTable=否），阶段1不含 DROP，重跑可能重复插入，需由调用方保证目标表为空或不存在。
 func (app *DbTransferAppImpl) transferTableData2Db(ctx context.Context, logId uint64, task *entity.DbTransferTask, targetConn *dbi.DbConn, tableName, where string, onRows func(stmtCount int)) error {
 	dump := &dto.DumpDb{
 		LogId:        logId,
@@ -498,11 +518,12 @@ func (app *DbTransferAppImpl) transferTableData2Db(ctx context.Context, logId ui
 		Tables:       []string{tableName},
 		DumpDDL:      false,
 		DumpData:     true,
+		NameCase:     int(task.NameCase),
 		Log: func(msg string) { // 记录日志
 			app.Log(ctx, logId, msg)
 		},
-		Progress: func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-			if stmtType == dbi.StmtTypeInsert {
+		Progress: func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
+			if stmtType == dbi.DumpKindInsert {
 				if onRows != nil {
 					onRows(stmtCount)
 				}
@@ -653,19 +674,21 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 		}
 
 		err = app.dbApp.DumpDb(ctx, &dto.DumpDb{
-			LogId:        logId,
-			DbId:         uint64(task.SrcDbId),
-			DbName:       task.SrcDbName,
-			TargetDbType: dbi.DbType(task.TargetFileDbType),
-			Tables:       tableNames,
-			DumpDDL:      true,
-			DumpData:     true,
-			Writer:       writer,
+			LogId:         logId,
+			DbId:          uint64(task.SrcDbId),
+			DbName:        task.SrcDbName,
+			TargetDbType:  dbi.DbType(task.TargetFileDbType),
+			Tables:        tableNames,
+			DumpDDL:       true,
+			DumpData:      true,
+			SkipDropTable: task.DeleteTable == entity.DbTransferTaskDeleteTableNo,
+			NameCase:      int(task.NameCase),
+			Writer:        writer,
 			Log: func(msg string) { // 记录日志
 				app.Log(ctx, logId, msg)
 			},
-			Progress: func(currentTable string, stmtType dbi.StmtType, stmtCount int, currentStmtTypeEnd bool) {
-				if stmtType == dbi.StmtTypeInsert {
+			Progress: func(currentTable string, stmtType dbi.DumpKind, stmtCount int, currentStmtTypeEnd bool) {
+				if stmtType == dbi.DumpKindInsert {
 					if stmtCount < lastStmtCount {
 						lastStmtCount = 0
 					}
@@ -681,236 +704,6 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 			return
 		}
 	})
-}
-
-func (app *DbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
-	task, err := app.GetById(taskId)
-	if err != nil {
-		return errorx.NewBiz("task not found")
-	}
-
-	if task.RunningState != entity.DbTransferTaskRunStateRunning {
-		return errorx.NewBiz("the task is not being executed")
-	}
-	task.RunningState = entity.DbTransferTaskRunStateStop
-	if err = app.UpdateById(ctx, task); err != nil {
-		return err
-	}
-
-	app.runGuard.Release(taskId)
-	return nil
-}
-
-func (d *DbTransferAppImpl) TimerDeleteTransferFile() {
-	ctx := contextx.WithTraceId(context.Background())
-	logx.DebugContext(ctx, "start deleting transfer files periodically...")
-	scheduler.AddFun("@every 100m", func() {
-		defer gox.Recover()
-		dts, err := d.ListByCond(model.NewCond().Eq("mode", entity.DbTransferTaskModeFile).Ge("file_save_days", 1))
-		if err != nil {
-			logx.ErrorfContext(ctx, "the task to periodically get database transfer to file failed: %s", err.Error())
-			return
-		}
-		for _, dt := range dts {
-			needDelFiles, err := d.transferFileApp.ListByCond(model.NewCond().Eq("task_id", dt.Id).Le("create_time", time.Now().AddDate(0, 0, -dt.FileSaveDays)))
-			if err != nil {
-				logx.ErrorfContext(ctx, "failed to obtain the transfer file periodically: %s", err.Error())
-				continue
-			}
-			for _, nf := range needDelFiles {
-				if err := d.transferFileApp.Delete(context.Background(), nf.Id); err != nil {
-					logx.ErrorfContext(ctx, "failed to delete transfer files periodically: %s", err.Error())
-				}
-			}
-		}
-	})
-}
-
-func (app *DbTransferAppImpl) addCronJob(ctx context.Context, taskEntity *entity.DbTransferTask) {
-	key := taskEntity.TaskKey
-	enabled := taskEntity.Status == entity.DbTransferTaskStatusEnable && taskEntity.CronAble == entity.DbTransferTaskCronAbleEnable
-	if !enabled {
-		taskx.UnbindCronTask(key)
-		return
-	}
-
-	taskId := taskEntity.Id
-	// 统一内核：移除旧绑定后按状态注册新任务
-	if err := taskx.BindCronTask(key, taskEntity.Cron, true, func() {
-		logx.InfofContext(ctx, "start the transfer task: %d", taskId)
-		if _, err := app.Run(ctx, taskId); err != nil {
-			logx.WarnContext(ctx, err.Error())
-		}
-	}); err != nil {
-		logx.ErrorTraceContext(ctx, "add db transfer cron job failed", err)
-	}
-}
-
-// IsRunning 判断任务是否执行中（供api层查询展示）
-func (app *DbTransferAppImpl) IsRunning(taskId uint64) bool {
-	return app.runGuard.IsRunning(taskId)
-}
-
-func (app *DbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uint64, error) {
-	task, err := app.GetById(taskId)
-	if err != nil {
-		return 0, err
-	}
-	now := time.Now()
-	log := &entity.DbTransferLog{
-		TaskId:     taskId,
-		CreateTime: &now,
-		Mode:       task.Mode,
-		Status:     2, // 执行中（对应 entity DbTransferLog status: 2=执行中 1=成功 0=失败）
-	}
-	if err := app.transferLogRepo.Insert(ctx, log); err != nil {
-		return 0, err
-	}
-	return log.Id, nil
-}
-
-// GetLogList 获取任务执行日志列表
-func (app *DbTransferAppImpl) GetLogList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error) {
-	res, err := app.transferLogRepo.GetLogList(condition, orderBy...)
-	if err != nil {
-		return nil, err
-	}
-	// 如果查询的是最新日志（第一页），尝试从缓存获取最新的 runLog
-	if res != nil && len(res.List) > 0 && condition.PageNum <= 1 {
-		latestLog := res.List[0]
-		// 尝试从缓存获取最新日志（执行中的任务日志在缓存里）
-		cachedLog := app.getTransferLog(latestLog.Id)
-		if cachedLog != nil {
-			if cachedLog.RunLog != "" {
-				latestLog.RunLog = cachedLog.RunLog
-			}
-			// 缓存中的指标为实时值，覆盖DB中可能过时的数据
-			if cachedLog.TotalRows > 0 {
-				latestLog.TotalRows = cachedLog.TotalRows
-			}
-			if cachedLog.TableCount > 0 {
-				latestLog.TableCount = cachedLog.TableCount
-			}
-			if cachedLog.DurationMs > 0 {
-				latestLog.DurationMs = cachedLog.DurationMs
-			}
-		}
-	}
-	return res, nil
-}
-
-// Log 向运行日志追加一行带时间戳的记录，并同步更新缓存以供前端实时查看。
-// 仅写入 RunLog（用户可见），不重复写入系统日志，与 sync 模块 appendRunLog 行为一致。
-func (app *DbTransferAppImpl) Log(ctx context.Context, logId uint64, msg string) {
-	log := app.getTransferLog(logId)
-	if log != nil {
-		ts := time.Now().Format("15:04:05.000")
-		log.RunLog += fmt.Sprintf("[%s] %s\n", ts, msg)
-		app.setTransferLog(logId, log)
-	}
-}
-
-func (app *DbTransferAppImpl) EndTransfer(ctx context.Context, logId uint64, taskId uint64, msg string, err error, extra map[string]any) {
-	// runGuard.Release 延迟到任务状态更新之后，防止窗口期内另一个 Run 获取守卫并启动
-
-	transferState := entity.DbTransferTaskRunStateSuccess
-	logStatus := int8(1) // 成功
-	if err != nil {
-		msg = fmt.Sprintf("%s: %s", msg, err.Error())
-		logx.ErrorContext(ctx, msg)
-		transferState = entity.DbTransferTaskRunStateFail
-		logStatus = 0 // 失败
-	} else {
-		logx.InfoContext(ctx, msg)
-	}
-
-	// 追加最终消息到运行日志
-	log := app.getTransferLog(logId)
-	if log != nil {
-		// 计算耗时（防止负数：CreateTime 可能因时区/缓存问题晚于当前时间）
-		if log.CreateTime != nil {
-			ms := time.Since(*log.CreateTime).Milliseconds()
-			if ms > 0 {
-				log.DurationMs = ms
-			}
-		}
-
-		// 输出执行摘要
-		app.Log(ctx, logId, "========================================")
-		if err != nil {
-			app.Log(ctx, logId, "迁移执行失败")
-			app.Log(ctx, logId, fmt.Sprintf("错误信息: %s", err.Error()))
-		} else {
-			app.Log(ctx, logId, "迁移执行完成")
-		}
-		app.Log(ctx, logId, "========================================")
-		if log.TableCount > 0 {
-			app.Log(ctx, logId, fmt.Sprintf("迁移表数: %d", log.TableCount))
-		}
-		if log.TotalRows > 0 {
-			app.Log(ctx, logId, fmt.Sprintf("迁移行数: %d", log.TotalRows))
-		}
-		if log.DurationMs > 0 {
-			app.Log(ctx, logId, fmt.Sprintf("总耗时: %d ms", log.DurationMs))
-			if log.TotalRows > 0 && log.DurationMs > 0 {
-				throughput := log.TotalRows * 1000 / log.DurationMs
-				app.Log(ctx, logId, fmt.Sprintf("吞吐量: %d 行/秒", throughput))
-			}
-		}
-		app.Log(ctx, logId, "========================================")
-
-		log.Status = logStatus
-		log.ErrText = ""
-		if err != nil {
-			log.ErrText = err.Error()
-		}
-		// 落库
-		if err := app.transferLogRepo.UpdateById(context.Background(), log); err != nil {
-			logx.ErrorfContext(context.Background(), "failed to save transfer log [%d]: %s", log.Id, err.Error())
-		}
-	}
-
-	// 修改任务状态
-	task := new(entity.DbTransferTask)
-	task.Id = taskId
-	task.RunningState = transferState
-	if err := app.UpdateById(context.Background(), task); err != nil {
-		logx.ErrorfContext(context.Background(), "failed to update transfer task [%d] running state: %s", taskId, err.Error())
-	}
-
-	// 状态更新完成后再释放守卫，防止窗口期内另一个 Run 获取守卫并启动
-	app.runGuard.Release(taskId)
-}
-
-// getTransferLog 获取迁移日志（优先从内存缓存）
-func (app *DbTransferAppImpl) getTransferLog(logId uint64) *entity.DbTransferLog {
-	if logId == 0 {
-		return nil // logId=0 表示无日志上下文（如单测直接调用），跳过 DB 查询
-	}
-	log := new(entity.DbTransferLog)
-	if cache.Get(getTransferLogKey(logId), log) {
-		return log
-	}
-	if app.transferLogRepo == nil {
-		return nil // 仓储未注入时（测试场景）安全返回
-	}
-	log, err := app.transferLogRepo.GetById(logId)
-	if err != nil {
-		return nil
-	}
-	if log != nil {
-		app.setTransferLog(logId, log)
-	}
-	return log
-}
-
-// setTransferLog 设置迁移日志缓存
-func (app *DbTransferAppImpl) setTransferLog(logId uint64, log *entity.DbTransferLog) {
-	cache.Set(getTransferLogKey(logId), log, time.Duration(TransferLogCacheTTLSeconds)*time.Second)
-}
-
-func getTransferLogKey(logId uint64) string {
-	return fmt.Sprintf("mayfly:db_transfer_log:%d", logId)
 }
 
 // GetDbTransferTaskApp 获取迁移任务应用门面

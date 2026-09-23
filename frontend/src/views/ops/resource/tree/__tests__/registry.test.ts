@@ -5,6 +5,9 @@ import type { TreeNode } from '../types';
 
 const makeNode = (kind: string, key = kind): TreeNode => ({ key, kind, label: key, hasChildren: false, params: {} });
 
+/** 重复注册告警经 queueMicrotask 聚合刷出，断言前需让出微任务队列 */
+const flushPendingWarnings = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe('tree/registry 贡献者注册表', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
@@ -17,11 +20,13 @@ describe('tree/registry 贡献者注册表', () => {
         expect(getContributor('not-exist')).toBeUndefined();
     });
 
-    it('DEV 下重复注册告警（首次注册不告警，第二次起告警防静默覆盖）', () => {
+    it('DEV 下重复注册告警（首次注册不告警，第二次起告警防静默覆盖；告警按批次聚合，需等微任务刷出）', async () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         registerContributor({ kind: 'test-dup' });
+        await flushPendingWarnings();
         expect(warn).not.toHaveBeenCalled();
         registerContributor({ kind: 'test-dup' });
+        await flushPendingWarnings();
         expect(warn).toHaveBeenCalledTimes(1);
         expect(warn.mock.calls[0][0]).toContain('test-dup');
     });

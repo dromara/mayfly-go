@@ -6,6 +6,7 @@
             :items="items"
             :data="editData"
             :confirm-api="btnOk"
+            @opened="onOpened"
             @submitted="emit('val-change')"
             @cancel="emit('cancel')"
         />
@@ -15,11 +16,12 @@
 <script lang="ts" setup>
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { computed, type PropType } from 'vue';
 import { dbMaskApi } from '../api';
 import { DbMaskRuleStatusEnum } from '../enums';
-import type { DbMaskRule } from '../types';
+import type { DbMaskRule, DbMaskRuleSaveForm } from '../types';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -39,7 +41,7 @@ const emit = defineEmits<{
     /** 取消编辑，父级关闭弹窗 */
     cancel: [];
     /** 数据变更需刷新列表；由 auto-form 的 submitted 转发时不带表单，故 payload 可选 */
-    'val-change': [form?: FormData];
+    'val-change': [form?: DbMaskRuleSaveForm];
 }>();
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
@@ -56,8 +58,8 @@ const algorithmOptions = [
     { label: 'db.maskAlgoBankCard', value: 'bankCard' },
 ];
 
-/** 表单声明（AutoFormItem[]） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<DbMaskRuleSaveForm>） */
+const items = defineFormItems<DbMaskRuleSaveForm>([
     { prop: 'name', label: 'db.maskRuleName', required: true },
     {
         prop: 'matchType',
@@ -107,39 +109,30 @@ const items: AutoFormItem[] = [
         },
     },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
-];
+]);
 
-type FormData = {
-    id?: number;
-    name: string;
-    matchType: number;
-    pattern: string;
-    algorithm: string;
-    params?: string;
-    status: number;
-    weight?: number;
-    remark?: string;
-};
-
-const basicFormData = {
+const basicFormData: DbMaskRuleSaveForm = {
     name: '',
     matchType: 1,
     pattern: '',
     algorithm: 'full',
     status: DbMaskRuleStatusEnum.Enabled.value,
     weight: 100,
-} as FormData;
+};
+
+// 宿主抽屉的内部表单在 @opened 接管（提交前按 id 分新增/更新）
+const { onOpened, requireForm } = useAutoFormModel<DbMaskRuleSaveForm>();
 
 /** 新建态用默认值，编辑态深拷贝行数据回填 */
-const editData = computed<AutoFormData | null>(() => {
+const editData = computed<DbMaskRuleSaveForm | null>(() => {
     if (props.data?.id) {
-        return deepClone(props.data) as unknown as AutoFormData;
+        return deepClone(props.data);
     }
-    return { ...basicFormData } as unknown as AutoFormData;
+    return { ...basicFormData };
 });
 
-const btnOk = async (rawForm: AutoFormData) => {
-    const reqForm = { ...(rawForm as unknown as FormData) };
+const btnOk = async () => {
+    const reqForm = { ...requireForm() };
     if (reqForm.id) {
         await dbMaskApi.updateMaskRule.request(reqForm);
     } else {

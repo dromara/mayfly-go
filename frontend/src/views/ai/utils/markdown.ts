@@ -11,7 +11,7 @@ marked.setOptions({
 
 export function renderMarkdown(text: string): string {
     if (!text) return '';
-    const html = marked.parse(text, { async: false }) as string;
+    const html = marked.parse(text, { async: false });
     // 消毒防 XSS：仅保留安全的 HTML 标签与属性，允许 a/target 以支持外链新窗口打开
     return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
 }

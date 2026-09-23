@@ -1,6 +1,6 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="btnOk" @cancel="emit('cancel')">
+        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="btnOk" @opened="onOpened" @cancel="emit('cancel')">
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -8,7 +8,7 @@
 
             <!-- 数据库类型（选项含图标 + prefix 图标；自定义插槽绕过了 auto-form 的 onChange 代理，需手动 @change 触发端口联动） -->
             <template #type="{ form }">
-                <ASelect v-model="form.type" @change="(v: string) => onTypeChange(v, form)">
+                <ASelect v-model="form.type" @change="(v: string) => onTypeChange(v)">
                     <AOption
                         v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
                         :key="key"
@@ -32,7 +32,7 @@
                     :resource-code="form.code"
                     :resource-type="TagResourceTypeEnum.DbInstance.value"
                     :test-conn-btn-loading="testConnBtnLoading"
-                    @test-conn="testConn(form, $event)"
+                    @test-conn="testConn($event)"
                     :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
                 />
             </template>
@@ -46,12 +46,12 @@
 </template>
 
 <script lang="ts" setup>
-import { notBlankI18n } from '@/common/assert';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
 import { computed, type PropType, useTemplateRef } from 'vue';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { ASelect, AOption } from '@/components/auto-form/ui/adapter';
 import ResourceAuthCertTableEdit from '../../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../../component/SshTunnelSelect.vue';
@@ -94,8 +94,8 @@ const emit = defineEmits<{
 }>();
 
 /** 切换数据库类型联动：新增时重置默认端口，并清空类型相关的额外参数（自定义插槽需手动调用，auto-form 的 onChange 代理对 custom slot 不生效） */
-const onTypeChange = (val: string, form: AutoFormData) => {
-    const dbForm = form as DbInstanceForm;
+const onTypeChange = (val: string) => {
+    const dbForm = requireForm();
     if (!dbForm.id) {
         dbForm.port = getDbDialect(val).getInfo().defaultPort as number;
     }
@@ -105,16 +105,16 @@ const onTypeChange = (val: string, form: AutoFormData) => {
 /**
  * 连接参数的差异项一律问方言能力，新增方言只需在自身声明能力，无需改动本文件。
  */
-const capabilityOf = (form: AutoFormData) => getDialectCapabilities(getDbDialect((form as DbInstanceForm).type));
+const capabilityOf = (form: DbInstanceForm) => getDialectCapabilities(getDbDialect(form.type));
 /** 是否以 host/port 连接（sqlite 等文件型库为 false） */
-const isHostPortConn = (form: AutoFormData) => capabilityOf(form).connectionMode === 'host_port';
+const isHostPortConn = (form: DbInstanceForm) => capabilityOf(form).connectionMode === 'host_port';
 /** 是否以本地文件路径连接 */
-const isFilePathConn = (form: AutoFormData) => capabilityOf(form).connectionMode === 'file_path';
+const isFilePathConn = (form: DbInstanceForm) => capabilityOf(form).connectionMode === 'file_path';
 /** 是否需要 SID / Service Name 连接描述符 */
-const needSidService = (form: AutoFormData) => capabilityOf(form).connectDescriptor === 'sid_service';
+const needSidService = (form: DbInstanceForm) => capabilityOf(form).connectDescriptor === 'sid_service';
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/type/authCerts/sshTunnel 走插槽，方言额外连接参数用嵌套路径 prop） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<DbInstanceForm>，渲染 + 校验唯一数据源；group 分组容器 + tagCodePaths/type/authCerts/sshTunnel 走插槽，方言额外连接参数用嵌套路径 prop） */
+const items = defineFormItems<DbInstanceForm>([
     { type: 'group', label: 'common.basic' },
     { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
     { prop: 'name', label: 'common.name', required: true },
@@ -136,23 +136,25 @@ const items: AutoFormItem[] = [
             { value: 2, label: 'SID' },
         ],
         when: needSidService,
-        onChange: (_val: unknown, form: AutoFormData) => {
-            const extra = (form as DbInstanceForm).extra;
+        // 切换 SID/Service 后两项描述符互斥，需清空避免残留脏值
+        onChange: (_value, form) => {
+            const extra = form.extra;
             if (extra) {
                 extra.serviceName = '';
                 extra.sid = '';
             }
         },
     },
-    { prop: 'extra.serviceName', label: 'Service Name', placeholder: 'Service Name', when: (form) => needSidService(form) && (form as DbInstanceForm).extra?.stype == 1 },
-    { prop: 'extra.sid', label: 'SID', placeholder: 'SID', when: (form) => needSidService(form) && (form as DbInstanceForm).extra?.stype == 2 },
+    { prop: 'extra.serviceName', label: 'Service Name', placeholder: 'Service Name', when: (form) => needSidService(form) && form.extra?.stype == 1 },
+    { prop: 'extra.sid', label: 'SID', placeholder: 'SID', when: (form) => needSidService(form) && form.extra?.stype == 2 },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
     { type: 'group', label: 'common.account' },
-    { prop: 'authCerts', label: 'db.acName', type: 'custom' },
+    // 无凭证则实例无法连接，后端也会拒绝保存
+    { prop: 'authCerts', label: 'db.acName', type: 'custom', validate: (value) => (Array.isArray(value) && value.length > 0 ? true : 'db.acNameRequired') },
     { type: 'group', label: 'common.other' },
     { prop: 'params', label: 'db.connParam', placeholder: 'db.connParamPlaceholder' },
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
-];
+]);
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => unknown }>('drawerRef');
 
@@ -163,21 +165,24 @@ const DefaultForm: DbInstanceForm = {
     name: null,
     host: '',
     port: getDbDialect(DbType.mysql).getInfo().defaultPort,
-    extra: {} as Record<string, unknown>, // 连接需要的额外参数（json）
+    extra: {}, // 连接需要的额外参数（json）
     params: null,
     remark: '',
-    sshTunnelMachineId: null as number | null,
+    sshTunnelMachineId: null,
     authCerts: [],
     tagCodePaths: [],
 };
 
-/** 传给 AutoFormDrawer 的回填数据：新增时应用 DefaultForm；编辑时兜底 extra 为空对象（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData | null>(() => {
+// 宿主内部表单在 @opened 接管（抛出的即宿主持有的同一对象），提交与连通性测试均基于它
+const { onOpened, requireForm } = useAutoFormModel<DbInstanceForm>();
+
+/** 传给 AutoFormDrawer 的回填数据：新增时应用 DefaultForm；编辑时以默认值为底再覆盖行数据（深拷贝由组件内部完成） */
+const editData = computed<DbInstanceForm>(() => {
     const dbInst = props.data;
     if (!dbInst) {
-        return { ...DefaultForm, authCerts: [], tagCodePaths: [] } as unknown as AutoFormData;
+        return { ...DefaultForm, authCerts: [], tagCodePaths: [] };
     }
-    return { ...dbInst, extra: (dbInst.extra || {}) as Record<string, unknown> } as unknown as AutoFormData;
+    return { ...DefaultForm, ...dbInst, extra: dbInst.extra || {} };
 });
 
 const { execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi();
@@ -196,20 +201,18 @@ const buildSubmitForm = (form: DbInstanceForm): Record<string, unknown> => {
     return reqForm;
 };
 
-const testConn = async (rawForm: AutoFormData, authCert: MachineAuthCert) => {
-    const form = rawForm as unknown as DbInstanceForm;
+const testConn = async (authCert: MachineAuthCert) => {
     await useI18nFormValidate(drawerRef);
     await testConnExec({
-        ...buildSubmitForm(form),
+        ...buildSubmitForm(requireForm()),
         authCerts: [authCert],
     });
     Msg.success('db.connSuccess');
 };
 
-// confirmApi 提交动作：notBlankI18n 校验失败抛错中止（组件保持抽屉打开）；成功提示与关闭抽屉由组件内置逻辑处理
-const btnOk = async (form: AutoFormData) => {
-    const dbForm = form as unknown as DbInstanceForm;
-    notBlankI18n(dbForm.authCerts, 'db.acName');
+// confirmApi 提交动作：凭证非空已由 authCerts 字段的 validate 声明；成功提示与关闭抽屉由组件内置逻辑处理
+const btnOk = async () => {
+    const dbForm = requireForm();
     await saveInstanceExec(buildSubmitForm(dbForm));
     dbForm.id = saveInstanceRes.value;
     emit('val-change', dbForm);

@@ -18,9 +18,9 @@ const (
 )
 
 type Dbms struct {
-	QuerySqlSave bool // 是否记录查询类sql
+	QuerySQLSave bool // 是否记录查询类sql
 	MaxResultSet int  // 允许sql查询的最大结果集数。注: 0=不限制
-	SqlExecTl    int  // sql执行时间限制，超过该时间（单位：秒），执行将被取消
+	SQLExecTl    int  // sql执行时间限制，超过该时间（单位：秒），执行将被取消
 
 	MaskEnabled       bool     // 是否启用查询结果字段脱敏
 	MaskExemptRoleIds []uint64 // 脱敏豁免角色id列表，命中角色的账号查询结果不脱敏
@@ -32,9 +32,9 @@ func GetDbms() *Dbms {
 	jm := c.GetJsonM()
 
 	dbmsConf := new(Dbms)
-	dbmsConf.QuerySqlSave = c.ConvBool(jm.GetStr("querySqlSave"), false)
+	dbmsConf.QuerySQLSave = c.ConvBool(jm.GetStr("querySqlSave"), false)
 	dbmsConf.MaxResultSet = jm.GetInt("maxResultSet")
-	dbmsConf.SqlExecTl = cmp.Or(jm.GetInt("sqlExecTl"), 60)
+	dbmsConf.SQLExecTl = cmp.Or(jm.GetInt("sqlExecTl"), 60)
 	dbmsConf.MaskEnabled = c.ConvBool(jm.GetStr("maskEnabled"), false)
 	dbmsConf.MaskFailClosed = c.ConvBool(jm.GetStr("maskFailClosed"), false)
 	dbmsConf.MaskExemptRoleIds = parseMaskExemptRoleIds(jm["maskExemptRoleIds"])

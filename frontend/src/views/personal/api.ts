@@ -15,10 +15,10 @@ export interface Oauth2Status {
 
 export const personApi = {
     accountInfo: Api.newGet<AccountPersonVO>('/sys/accounts/self'),
-    updateAccount: Api.newPut('/sys/accounts/self'),
+    updateAccount: Api.newPut<void>('/sys/accounts/self'),
     authStatus: Api.newGet<Oauth2Status>('/auth/oauth2/status'),
     getMsgs: Api.newGet<PageResult<Msg>>('/msgs/self'),
     getUnreadMsgCount: Api.newGet<number>('/msgs/self/unread/count'),
-    readMsg: Api.newGet('/msgs/self/read'),
-    unbindOauth2: Api.newGet('/auth/oauth2/unbind'),
+    readMsg: Api.newGet<void>('/msgs/self/read'),
+    unbindOauth2: Api.newGet<void>('/auth/oauth2/unbind'),
 };

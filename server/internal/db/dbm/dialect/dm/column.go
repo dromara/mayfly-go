@@ -61,7 +61,7 @@ var (
 	TABLES = dbi.NewDbDataType("TABLES", DTDmArray).WithCategory(dbi.TCVarchar) // 表示一个数组
 )
 
-var DTDmStruct = &dbi.DataType{
+var DTDmStruct = &dbi.ValueCodec{
 	Name: "dm_struct",
 	Valuer: func() dbi.Valuer {
 		return &dmStructValuer{
@@ -114,7 +114,7 @@ func ParseDmStruct(dmStruct *dm.DmStruct) string {
 	return strings.Join(arr, "")
 }
 
-var DTDmArray = &dbi.DataType{
+var DTDmArray = &dbi.ValueCodec{
 	Name: "dm_struct",
 	Valuer: func() dbi.Valuer {
 		return &dmArrayValuer{

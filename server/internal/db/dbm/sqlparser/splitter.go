@@ -2,14 +2,11 @@ package sqlparser
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"io"
 
 	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
-	"mayfly-go/internal/db/imsg"
 	"mayfly-go/internal/pkg/utils"
-	"mayfly-go/pkg/errorx"
 )
 
 // SQLSplitter SQL 切割器接口
@@ -31,12 +28,12 @@ type SQLSplitter interface {
 	MaskComments(sql string) string
 }
 
-// DialectSplitter 基于方言能力表的统一 SQL 切割器（替代此前各自为政的默认/std/pgsql 三套实现）
+// DialectSplitter 基于方言能力表的统一 SQL 切割器。
 //
-// 语义与词法器共用 tokenizer.DialectConfig，各方言只需注册一次能力位：
+// 切割与词法共用同一份 tokenizer.DialectConfig 能力表，各方言只需注册一次语义位即同时驱动两者：
 //   - 注释与字面量原文保留（Oracle /*+ hint */、MySQL /*!40101 ... */ 等可执行注释不得丢弃）
 //   - BEGIN..END / CASE..END 等复合块内的分号不切割（档位由能力表 BlockMode 决定）
-//   - 未闭合的引号/注释返回 *tokenizer.UnterminatedError（可用 SplitError 转为国际化业务错误），不再静默吞并后续脚本
+//   - 未闭合的引号/注释返回 *tokenizer.UnterminatedError（由上层消息包 imsg 转为国际化业务错误），不静默吞并后续脚本
 //
 // 已知限制：不识别客户端指令型分隔符（mysql 的 `DELIMITER xx` 与 sqlcmd/SSMS 的 `GO` 批处理分隔符），
 // 分隔符由调用方通过 NewSplitter 显式指定；脚本内出现的 `DELIMITER` 行会被当作普通语句交给服务端执行。
@@ -86,7 +83,7 @@ func (s *DialectSplitter) LeadingKeyword(sql string) string {
 
 // MaskComments 按本方言语义掩码注释（等长空白，保留换行与字面量原文，可执行注释解壳）
 func (s *DialectSplitter) MaskComments(sql string) string {
-	return tokenizer.MaskSqlComments(sql, s.cfg)
+	return tokenizer.MaskSQLComments(sql, s.cfg)
 }
 
 // callbackStmts 逐条回调已切割出的语句，并优先透传扫描错误
@@ -100,24 +97,4 @@ func callbackStmts(stmts []string, scanErr error, callback utils.StmtCallback) e
 		}
 	}
 	return nil
-}
-
-// SplitSQLText 切割完整 SQL 文本为语句列表（同 SplitSQL，入参为字符串），
-// 未闭合的引号/注释返回 *tokenizer.UnterminatedError
-func SplitSQLText(sql string, cfg tokenizer.DialectConfig, delimiter ...rune) ([]string, error) {
-	delim := rune(';')
-	if len(delimiter) > 0 {
-		delim = delimiter[0]
-	}
-	return tokenizer.SplitStatements(sql, cfg, delim)
-}
-
-// SplitError 归一化语句切割错误：未闭合的引号/注释（*tokenizer.UnterminatedError）转为带行号定位的国际化业务错误；
-// 其余错误（如读取上传文件失败、回调执行失败）原样返回，不改变其类型与错误码
-func SplitError(ctx context.Context, err error) error {
-	var ue *tokenizer.UnterminatedError
-	if errors.As(err, &ue) {
-		return errorx.NewBizI(ctx, imsg.ErrSqlSplitUnterminated, "kind", ue.Kind, "line", ue.Line)
-	}
-	return err
 }

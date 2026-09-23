@@ -32,11 +32,11 @@ import (
 
 type sqlExecParam struct {
 	DbConn  *dbi.DbConn
-	Sql     string              // 执行的sql
+	SQL     string              // 执行的sql
 	Stmt    sqlstmt.Stmt        // 解析后的sql stmt
 	Procdef *flowentity.Procdef // 流程定义
 
-	SqlExecRecord *entity.DbSqlExec // sql执行记录
+	SQLExecRecord *entity.DbSQLExec // sql执行记录
 }
 
 // progressCategory sql文件执行进度消息类型
@@ -50,64 +50,64 @@ type progressMsg struct {
 	Terminated         bool   `json:"terminated"`
 }
 
-type DbSqlExec interface {
+type DbSQLExec interface {
 	flowapp.FlowBizHandler
 
 	// 执行sql
-	Exec(ctx context.Context, execSqlReq *dto.DbSqlExecReq) ([]*dto.DbSqlExecRes, error)
+	Exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error)
 
 	// ExecReader 从reader中读取sql并执行
-	ExecReader(ctx context.Context, execReader *dto.SqlReaderExec) error
+	ExecReader(ctx context.Context, execReader *dto.SQLReaderExec) error
 
 	// 根据条件删除sql执行记录
-	DeleteBy(ctx context.Context, condition *entity.DbSqlExec) error
+	DeleteBy(ctx context.Context, condition *entity.DbSQLExec) error
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error)
+	GetPageList(condition *entity.DbSQLExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSQLExec], error)
 }
 
-var _ (DbSqlExec) = (*dbSqlExecAppImpl)(nil)
+var _ (DbSQLExec) = (*dbSQLExecAppImpl)(nil)
 
-type dbSqlExecAppImpl struct {
+type dbSQLExecAppImpl struct {
 	dbApp         Db                   `inject:"T"`
-	dbSqlExecRepo repository.DbSqlExec `inject:"T"`
-	maskApp       mask.MaskApp         `inject:"T"`
+	dbSQLExecRepo repository.DbSQLExec `inject:"T"`
+	maskEngine    mask.MaskEngine      `inject:"T"`
 
 	flowProcdefApp flowapp.Procdef `inject:"T"`
 }
 
-var _ DbSqlExec = (*dbSqlExecAppImpl)(nil)
+var _ DbSQLExec = (*dbSQLExecAppImpl)(nil)
 
-func createSqlExecRecord(ctx context.Context, execSqlReq *dto.DbSqlExecReq, sql string) *entity.DbSqlExec {
-	dbSqlExecRecord := new(entity.DbSqlExec)
-	dbSqlExecRecord.DbId = execSqlReq.DbId
-	dbSqlExecRecord.Db = execSqlReq.Db
-	dbSqlExecRecord.Sql = sql
-	dbSqlExecRecord.Remark = execSqlReq.Remark
-	dbSqlExecRecord.Status = entity.DbSqlExecStatusSuccess
-	return dbSqlExecRecord
+func createSQLExecRecord(ctx context.Context, execSQLReq *dto.DbSQLExecReq, sql string) *entity.DbSQLExec {
+	dbSQLExecRecord := new(entity.DbSQLExec)
+	dbSQLExecRecord.DbId = execSQLReq.DbId
+	dbSQLExecRecord.Db = execSQLReq.Db
+	dbSQLExecRecord.SQL = sql
+	dbSQLExecRecord.Remark = execSQLReq.Remark
+	dbSQLExecRecord.Status = entity.DbSQLExecStatusSuccess
+	return dbSQLExecRecord
 }
 
-func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecReq) ([]*dto.DbSqlExecRes, error) {
-	dbConn := execSqlReq.DbConn
-	execSql := execSqlReq.Sql
+func (d *dbSQLExecAppImpl) Exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error) {
+	dbConn := execSQLReq.DbConn
+	execSQL := execSQLReq.SQL
 
 	var flowProcdef *flowentity.Procdef
-	if execSqlReq.CheckFlow {
+	if execSQLReq.CheckFlow {
 		flowProcdef = d.flowProcdefApp.GetProcdefByCodePath(ctx, dbConn.Info.CodePath...)
 	}
 
-	allExecRes := make([]*dto.DbSqlExecRes, 0)
+	allExecRes := make([]*dto.DbSQLExecRes, 0)
 
 	// 先使用方言切割器切割 SQL
 	splitter := dbConn.GetDialect().GetSQLSplitter()
 	var sqlList []string
-	err := splitter.SplitSQL(strings.NewReader(execSql), func(oneSql string) error {
-		sqlList = append(sqlList, oneSql)
+	err := splitter.SplitSQL(strings.NewReader(execSQL), func(oneSQL string) error {
+		sqlList = append(sqlList, oneSQL)
 		return nil
 	})
 	if err != nil {
-		return nil, sqlparser.SplitError(ctx, err)
+		return nil, imsg.SplitError(ctx, err)
 	}
 
 	// 获取解析器
@@ -115,70 +115,48 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 
 	// 逐条解析并执行
 	for _, sql := range sqlList {
-		var execRes *dto.DbSqlExecRes
+		var execRes *dto.DbSQLExecRes
 		var err error
 
 		stmt, parseErr := sp.Parse(sql)
-		dbSqlExecRecord := createSqlExecRecord(ctx, execSqlReq, sql)
-		dbSqlExecRecord.Type = entity.DbSqlExecTypeOther
+		dbSQLExecRecord := createSQLExecRecord(ctx, execSQLReq, sql)
+		dbSQLExecRecord.Type = entity.DbSQLExecTypeOther
 		sqlExec := &sqlExecParam{
 			DbConn:        dbConn,
-			Sql:           sql,
+			SQL:           sql,
 			Stmt:          stmt,
 			Procdef:       flowProcdef,
-			SqlExecRecord: dbSqlExecRecord,
+			SQLExecRecord: dbSQLExecRecord,
 		}
 
-		// 优先使用 Stmt 类型判断，解析失败时使用字符串匹配兜底
-		if parseErr != nil || stmt == nil {
-			// 解析失败，按语句首关键字兜底分类（切割保留注释原文，故不能按字符前缀匹配）
-			kind := sqlKind(splitter, sql)
-			if isSelect(kind) {
-				execRes, err = d.doSelect(ctx, sqlExec)
-			} else if isUpdate(kind) {
-				execRes, err = d.doUpdate(ctx, sqlExec)
-			} else if isDelete(kind) {
-				execRes, err = d.doDelete(ctx, sqlExec)
-			} else if isInsert(kind) {
-				execRes, err = d.doInsert(ctx, sqlExec)
-			} else if isOtherQuery(kind) {
-				execRes, err = d.doOtherRead(ctx, sqlExec)
-			} else if isDDL(kind) {
-				execRes, err = d.doExecDDL(ctx, sqlExec)
-			} else {
-				execRes, err = d.doExec(ctx, dbConn, sql)
-			}
-		} else {
-			// 解析成功，使用 Stmt 类型判断
-			switch stmt.(type) {
-			case *sqlstmt.WithStmt:
-				execRes, err = d.doSelect(ctx, sqlExec)
-			case *sqlstmt.SelectStmt:
-				execRes, err = d.doSelect(ctx, sqlExec)
-			case *sqlstmt.UpdateStmt:
-				execRes, err = d.doUpdate(ctx, sqlExec)
-			case *sqlstmt.DeleteStmt:
-				execRes, err = d.doDelete(ctx, sqlExec)
-			case *sqlstmt.InsertStmt:
-				execRes, err = d.doInsert(ctx, sqlExec)
-			case *sqlstmt.DdlStmt:
-				execRes, err = d.doExecDDL(ctx, sqlExec)
-			case *sqlstmt.OtherStmt:
-				execRes, err = d.doOtherRead(ctx, sqlExec)
-			default:
-				execRes, err = d.doExec(ctx, dbConn, sql)
-			}
+		// 语句分类单点收敛至 sqlparser.Classify：AST 优先，其次方言分类能力，最后整词关键字兜底
+		switch sqlparser.Classify(sp, splitter, sql, stmt, parseErr) {
+		case sqlstmt.StmtTypeSelect:
+			execRes, err = d.doSelect(ctx, sqlExec)
+		case sqlstmt.StmtTypeUpdate:
+			execRes, err = d.doUpdate(ctx, sqlExec)
+		case sqlstmt.StmtTypeDelete:
+			execRes, err = d.doDelete(ctx, sqlExec)
+		case sqlstmt.StmtTypeInsert:
+			execRes, err = d.doInsert(ctx, sqlExec)
+		case sqlstmt.StmtTypeDDL:
+			// 改结构后的元数据缓存失效由 dbi 执行层按语句类型统一负责（见 DbInfo.invalidateIfDDL）
+			execRes, err = d.doExecDDL(ctx, sqlExec)
+		case sqlstmt.StmtTypeOther:
+			execRes, err = d.doOtherRead(ctx, sqlExec)
+		default:
+			execRes, err = d.doExec(ctx, dbConn, sql)
 		}
 
 		// 执行错误
 		if err != nil {
 			if execRes == nil {
-				execRes = &dto.DbSqlExecRes{Sql: sql}
+				execRes = &dto.DbSQLExecRes{SQL: sql}
 			}
 			execRes.ErrorMsg = err.Error()
 		} else {
-			// 保存执行结果集（dbSqlExecRecord.Res尚未赋值，需传入本次执行结果）
-			d.saveSqlExecLog(ctx, dbSqlExecRecord, execRes.Res)
+			// 保存执行结果集（dbSQLExecRecord.Res尚未赋值，需传入本次执行结果）
+			d.saveSQLExecLog(ctx, dbSQLExecRecord, execRes.Res)
 		}
 		allExecRes = append(allExecRes, execRes)
 	}
@@ -186,7 +164,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *dto.DbSqlExecRe
 	return allExecRes, nil
 }
 
-func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlReaderExec) error {
+func (d *dbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLReaderExec) error {
 	dbConn := execReader.DbConn
 
 	clientId := execReader.ClientId
@@ -199,12 +177,12 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 
 	dbInfo := dbConn.Info
 	msgEvent := &msgdto.MsgTmplSendEvent{
-		TmplChannel: msgdto.MsgTmplSqlScriptRunSuccess,
+		TmplChannel: msgdto.MsgTmplSQLScriptRunSuccess,
 		Params:      collx.M{"filename": filename, "dbId": dbInfo.Id, "dbName": dbInfo.Name},
 	}
 
 	progressMsgEvent := &msgdto.MsgTmplSendEvent{
-		TmplChannel: msgdto.MsgTmplSqlScriptRunProgress,
+		TmplChannel: msgdto.MsgTmplSQLScriptRunProgress,
 		Params: collx.M{
 			"id":                 execReader.UploadId,
 			"dbCode":             dbInfo.DbCode,
@@ -232,7 +210,7 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 			logx.Errorf("exec sql reader error: %s", errInfo)
 			if needSendMsg {
 				errInfo = stringx.Truncate(errInfo, 300, 10, "...")
-				msgEvent.TmplChannel = msgdto.MsgTmplSqlScriptRunFail
+				msgEvent.TmplChannel = msgdto.MsgTmplSQLScriptRunFail
 				msgEvent.Params["error"] = errInfo
 				global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, msgEvent)
 			}
@@ -256,7 +234,7 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 				progressMsgEvent.Params["status"] = "cancelled"
 				global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, progressMsgEvent)
 			}
-			return errorx.NewBizI(ctx, imsg.ErrSqlExecCancelled)
+			return errorx.NewBizI(ctx, imsg.ErrSQLExecCancelled)
 		}
 
 		if executedStatements%50 == 0 {
@@ -273,10 +251,10 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 		return nil
 	})
 	if err != nil {
-		err = sqlparser.SplitError(ctx, err)
+		err = imsg.SplitError(ctx, err)
 		_ = tx.Rollback()
 		if needSendMsg {
-			msgEvent.TmplChannel = msgdto.MsgTmplSqlScriptRunFail
+			msgEvent.TmplChannel = msgdto.MsgTmplSQLScriptRunFail
 			msgEvent.Params["error"] = err.Error()
 			global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, msgEvent)
 		}
@@ -295,13 +273,13 @@ func (d *dbSqlExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SqlRe
 	return nil
 }
 
-type FlowDbExecSqlBizForm struct {
+type FlowDbExecSQLBizForm struct {
 	DbId   uint64 `json:"dbId"`   //  库id
 	DbName string `json:"dbName"` // 库名
-	Sql    string `json:"sql"`    // sql
+	SQL    string `json:"sql"`    // sql
 }
 
-func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowapp.BizHandleParam) (any, error) {
+func (d *dbSQLExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowapp.BizHandleParam) (any, error) {
 	procinst := bizHandleParam.Procinst
 	bizKey := procinst.BizKey
 	procinstStatus := procinst.Status
@@ -312,20 +290,20 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 		return nil, nil
 	}
 
-	execSqlBizForm, err := jsonx.ToByStr[FlowDbExecSqlBizForm](procinst.BizForm)
+	execSQLBizForm, err := jsonx.ToByStr[FlowDbExecSQLBizForm](procinst.BizForm)
 	if err != nil {
 		return nil, errorx.NewBizf("failed to parse the business form information: %s", err.Error())
 	}
 
-	dbConn, err := d.dbApp.GetDbConn(ctx, execSqlBizForm.DbId, execSqlBizForm.DbName)
+	dbConn, err := d.dbApp.GetDbConn(ctx, execSQLBizForm.DbId, execSQLBizForm.DbName)
 	if err != nil {
 		return nil, err
 	}
 
-	execRes, err := d.Exec(contextx.NewLoginAccount(&model.LoginAccount{Id: procinst.CreatorId, Username: procinst.Creator}), &dto.DbSqlExecReq{
-		DbId:      execSqlBizForm.DbId,
-		Db:        execSqlBizForm.DbName,
-		Sql:       execSqlBizForm.Sql,
+	execRes, err := d.Exec(contextx.NewLoginAccount(&model.LoginAccount{Id: procinst.CreatorId, Username: procinst.Creator}), &dto.DbSQLExecReq{
+		DbId:      execSQLBizForm.DbId,
+		Db:        execSQLBizForm.DbName,
+		SQL:       execSQLBizForm.SQL,
 		DbConn:    dbConn,
 		Remark:    procinst.Remark,
 		CheckFlow: false,
@@ -337,47 +315,47 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 	// 存在一条错误的sql，则表示业务处理失败
 	for _, er := range execRes {
 		if er.ErrorMsg != "" {
-			return execRes, errorx.NewBizI(ctx, imsg.ErrExistRunFailSql)
+			return execRes, errorx.NewBizI(ctx, imsg.ErrExistRunFailSQL)
 		}
 	}
 
 	return execRes, nil
 }
 
-func (d *dbSqlExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSqlExec) error {
-	return d.dbSqlExecRepo.DeleteByCond(ctx, condition)
+func (d *dbSQLExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSQLExec) error {
+	return d.dbSQLExecRepo.DeleteByCond(ctx, condition)
 }
 
-func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error) {
-	return d.dbSqlExecRepo.GetPageList(condition, orderBy...)
+func (d *dbSQLExecAppImpl) GetPageList(condition *entity.DbSQLExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSQLExec], error) {
+	return d.dbSQLExecRepo.GetPageList(condition, orderBy...)
 }
 
 // 保存sql执行记录，如果是查询类则根据系统配置判断是否保存
-func (d *dbSqlExecAppImpl) saveSqlExecLog(ctx context.Context, dbSqlExecRecord *entity.DbSqlExec, res any) {
-	if dbSqlExecRecord.Type != entity.DbSqlExecTypeQuery {
-		dbSqlExecRecord.Res = jsonx.ToStr(res)
-		if err := d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord); err != nil {
+func (d *dbSQLExecAppImpl) saveSQLExecLog(ctx context.Context, dbSQLExecRecord *entity.DbSQLExec, res any) {
+	if dbSQLExecRecord.Type != entity.DbSQLExecTypeQuery {
+		dbSQLExecRecord.Res = jsonx.ToStr(res)
+		if err := d.dbSQLExecRepo.Insert(ctx, dbSQLExecRecord); err != nil {
 			logx.Errorf("save sql exec record failed: %s", err.Error())
 		}
 		return
 	}
 
-	if config.GetDbms().QuerySqlSave {
-		dbSqlExecRecord.Table = "-"
-		dbSqlExecRecord.OldValue = "-"
-		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
-		if err := d.dbSqlExecRepo.Insert(ctx, dbSqlExecRecord); err != nil {
+	if config.GetDbms().QuerySQLSave {
+		dbSQLExecRecord.Table = "-"
+		dbSQLExecRecord.OldValue = "-"
+		dbSQLExecRecord.Type = entity.DbSQLExecTypeQuery
+		if err := d.dbSQLExecRepo.Insert(ctx, dbSQLExecRecord); err != nil {
 			logx.Errorf("save sql exec query record failed: %s", err.Error())
 		}
 	}
 }
 
-func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
+func (d *dbSQLExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
 	maxCount := config.GetDbms().MaxResultSet
-	sqlExecParam.SqlExecRecord.Type = entity.DbSqlExecTypeQuery
+	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeQuery
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "select")); needStartProc {
+		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "select")); needStartProc {
 			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
@@ -385,11 +363,11 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 	return d.doQuery(ctx, sqlExecParam, maxCount)
 }
 
-func (d *dbSqlExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
-	sqlExecParam.SqlExecRecord.Type = entity.DbSqlExecTypeQuery
+func (d *dbSQLExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
+	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeQuery
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "read")); needStartProc {
+		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "read")); needStartProc {
 			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
@@ -397,45 +375,45 @@ func (d *dbSqlExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExe
 	return d.doQuery(ctx, sqlExecParam, 0)
 }
 
-func (d *dbSqlExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
-	selectSql := sqlExecParam.Sql
-	sqlExecParam.SqlExecRecord.Type = entity.DbSqlExecTypeDDL
+func (d *dbSQLExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
+	selectSQL := sqlExecParam.SQL
+	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeDDL
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "ddl")); needStartProc {
+		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "ddl")); needStartProc {
 			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
-	return d.doExec(ctx, sqlExecParam.DbConn, selectSql)
+	return d.doExec(ctx, sqlExecParam.DbConn, selectSQL)
 }
 
-func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
+func (d *dbSQLExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
 	dbConn := sqlExecParam.DbConn
 
 	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "update")); needStartProc {
+		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "update")); needStartProc {
 			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
-	execRecord := sqlExecParam.SqlExecRecord
-	execRecord.Type = entity.DbSqlExecTypeUpdate
+	execRecord := sqlExecParam.SQLExecRecord
+	execRecord.Type = entity.DbSQLExecTypeUpdate
 
 	stmt := sqlExecParam.Stmt
 	if stmt == nil {
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	updatestmt, ok := stmt.(*sqlstmt.UpdateStmt)
 	if !ok {
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	// 不支持多表更新记录旧值
 	if len(updatestmt.Tables) != 1 {
 		logx.ErrorContext(ctx, "update SQL - logging old values only supports single-table updates")
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	tableName := updatestmt.Tables[0].Name
@@ -443,40 +421,44 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 
 	if tableName == "" {
 		logx.ErrorContext(ctx, "update SQL - failed to get table name")
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 	execRecord.Table = tableName
 
 	if updatestmt.Where == nil {
 		logx.ErrorContext(ctx, "update SQL - there is no where condition")
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 	whereStr := updatestmt.Where.Text
 
-	// 获取表主键列名,排除使用别名
-	primaryKey, err := dbConn.Metadata().GetPrimaryKey(tableName)
+	// 获取表全部主键列（联合主键多列），排除使用别名
+	primaryKeys, err := dbConn.Metadata().GetPrimaryKeys(tableName)
 	if err != nil {
-		logx.ErrorfContext(ctx, "update SQL - failed to get primary key column: %s", err.Error())
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		logx.ErrorfContext(ctx, "update SQL - failed to get primary key columns: %s", err.Error())
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	updateColumns := collx.ArrayMap[sqlstmt.Assignment, string](updatestmt.Set, func(a sqlstmt.Assignment) string {
 		return a.Column
 	})
 
-	primaryKeyColumn := primaryKey
-	if tableAlias != "" {
-		primaryKeyColumn = tableAlias + "." + primaryKey
+	// SELECT 需带上全部主键列，否则记录的旧值无法定位行（联合主键少列即歧义）
+	pkColumns := make([]string, 0, len(primaryKeys))
+	for _, pk := range primaryKeys {
+		if tableAlias != "" {
+			pk = tableAlias + "." + pk
+		}
+		pkColumns = append(pkColumns, pk)
 	}
-	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKeyColumn
+	updateColumnsAndPrimaryKey := strings.Join(append(updateColumns, pkColumns...), ",")
 	// 查询要更新字段数据的旧值，以及主键值
-	selectSql := fmt.Sprintf("SELECT %s FROM %s where %s", updateColumnsAndPrimaryKey, tableName+" "+tableAlias, whereStr)
+	selectSQL := fmt.Sprintf("SELECT %s FROM %s where %s", updateColumnsAndPrimaryKey, tableName+" "+tableAlias, whereStr)
 
 	// WalkQuery查出最多200条数据
 	maxRec := 200
 	nowRec := 0
 	res := make([]map[string]any, 0)
-	_, err = dbConn.WalkQueryRows(ctx, selectSql, func(row map[string]any, columns []*dbi.QueryColumn) error {
+	_, err = dbConn.WalkQueryRows(ctx, selectSQL, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		nowRec++
 		res = append(res, row)
 		if nowRec == maxRec {
@@ -486,38 +468,38 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 	})
 	if err != nil {
 		logx.ErrorfContext(ctx, "update SQL - failed to get the updated old value: %s", err.Error())
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 	execRecord.OldValue = jsonx.ToStr(res)
 
-	return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+	return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 }
 
-func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
+func (d *dbSQLExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
 	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "delete")); needStartProc {
+		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "delete")); needStartProc {
 			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
 	dbConn := sqlExecParam.DbConn
-	execRecord := sqlExecParam.SqlExecRecord
-	execRecord.Type = entity.DbSqlExecTypeDelete
+	execRecord := sqlExecParam.SQLExecRecord
+	execRecord.Type = entity.DbSQLExecTypeDelete
 
 	stmt := sqlExecParam.Stmt
 	if stmt == nil {
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	deletestmt, ok := stmt.(*sqlstmt.DeleteStmt)
 	if !ok {
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	// 不支持多表删除记录旧值
 	if len(deletestmt.Tables) != 1 {
 		logx.ErrorContext(ctx, "delete SQL - logging old values only supports single-table deletion")
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	tableName := deletestmt.Tables[0].Name
@@ -525,59 +507,69 @@ func (d *dbSqlExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 
 	if tableName == "" {
 		logx.ErrorContext(ctx, "delete SQL - failed to get table name")
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 	execRecord.Table = tableName
 
 	if deletestmt.Where == nil {
 		logx.ErrorContext(ctx, "delete SQL - there is no where condition")
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	whereStr := deletestmt.Where.Text
 	// 查询删除数据（仅用于记录旧值审计，失败不影响删除执行）
-	selectSql := fmt.Sprintf("SELECT * FROM %s where %s LIMIT 200", tableName+" "+tableAlias, whereStr)
-	if _, res, err := dbConn.QueryContext(ctx, selectSql); err != nil {
+	// 用 WalkQueryRows 遍历并计数截断，避免写死 MySQL/PG 的 LIMIT 语法（Oracle/DM/MSSQL 不识别会整条报错），
+	// 与 doUpdate 的旧值采集保持一致的跨方言做法；达到上限以 StopWalkQueryError 提前终止扫描
+	const maxAuditRows = 200
+	selectSQL := fmt.Sprintf("SELECT * FROM %s where %s", tableName+" "+tableAlias, whereStr)
+	auditRes := make([]map[string]any, 0, maxAuditRows)
+	if _, err := dbConn.WalkQueryRows(ctx, selectSQL, func(row map[string]any, _ []*dbi.QueryColumn) error {
+		auditRes = append(auditRes, row)
+		if len(auditRes) >= maxAuditRows {
+			return dbi.NewStopWalkQueryError("reached the maximum number of audit rows")
+		}
+		return nil
+	}); err != nil {
 		logx.ErrorfContext(ctx, "delete SQL - failed to query old values for audit: %s", err.Error())
 	} else {
-		execRecord.OldValue = jsonx.ToStr(res)
+		execRecord.OldValue = jsonx.ToStr(auditRes)
 	}
 
-	return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+	return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 }
 
-func (d *dbSqlExecAppImpl) doInsert(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSqlExecRes, error) {
+func (d *dbSQLExecAppImpl) doInsert(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
 	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSqlExecFlowBizType, collx.Kvs("stmtType", "insert")); needStartProc {
+		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "insert")); needStartProc {
 			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
 		}
 	}
 
 	dbConn := sqlExecParam.DbConn
-	execRecord := sqlExecParam.SqlExecRecord
-	execRecord.Type = entity.DbSqlExecTypeInsert
+	execRecord := sqlExecParam.SQLExecRecord
+	execRecord.Type = entity.DbSQLExecTypeInsert
 
 	stmt := sqlExecParam.Stmt
 	if stmt == nil {
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	insertstmt, ok := stmt.(*sqlstmt.InsertStmt)
 	if !ok {
-		return d.doExec(ctx, dbConn, sqlExecParam.Sql)
+		return d.doExec(ctx, dbConn, sqlExecParam.SQL)
 	}
 
 	execRecord.Table = insertstmt.Table.Name
 
-	return d.doExec(ctx, sqlExecParam.DbConn, sqlExecParam.Sql)
+	return d.doExec(ctx, sqlExecParam.DbConn, sqlExecParam.SQL)
 }
 
-func (d *dbSqlExecAppImpl) doQuery(ctx context.Context, sqlExecParam *sqlExecParam, maxRows int) (*dto.DbSqlExecRes, error) {
+func (d *dbSQLExecAppImpl) doQuery(ctx context.Context, sqlExecParam *sqlExecParam, maxRows int) (*dto.DbSQLExecRes, error) {
 	dbConn := sqlExecParam.DbConn
-	sql := sqlExecParam.Sql
+	sql := sqlExecParam.SQL
 
 	// 查询结果脱敏开关（服务端强制执行，fail-close模式下构建失败阻断查询）
-	maskEnabled := d.maskApp != nil && config.GetDbms().MaskEnabled
+	maskEnabled := d.maskEngine != nil && config.GetDbms().MaskEnabled
 
 	res := make([]map[string]any, 0, 16)
 	nowRows := 0
@@ -592,7 +584,7 @@ func (d *dbSqlExecAppImpl) doQuery(ctx context.Context, sqlExecParam *sqlExecPar
 		if maskEnabled {
 			if rowMasker == nil {
 				var maskErr error
-				rowMasker, maskErr = d.maskApp.BuildStmtRowMasker(ctx, dbConn, sqlExecParam.Stmt, columns)
+				rowMasker, maskErr = d.maskEngine.BuildStmtRowMasker(ctx, dbConn, sqlExecParam.Stmt, columns)
 				if maskErr != nil {
 					// fail-close：脱敏计划不可用时阻断本次查询，避免敏感数据明文透出
 					return maskErr
@@ -610,14 +602,14 @@ func (d *dbSqlExecAppImpl) doQuery(ctx context.Context, sqlExecParam *sqlExecPar
 		return nil, err
 	}
 
-	return &dto.DbSqlExecRes{
-		Sql:     sql,
+	return &dto.DbSQLExecRes{
+		SQL:     sql,
 		Columns: cols,
 		Res:     res,
 	}, nil
 }
 
-func (d *dbSqlExecAppImpl) doExec(ctx context.Context, dbConn *dbi.DbConn, sql string) (*dto.DbSqlExecRes, error) {
+func (d *dbSQLExecAppImpl) doExec(ctx context.Context, dbConn *dbi.DbConn, sql string) (*dto.DbSQLExecRes, error) {
 	rowsAffected, err := dbConn.ExecContext(ctx, sql)
 	if err != nil {
 		return nil, err
@@ -626,50 +618,13 @@ func (d *dbSqlExecAppImpl) doExec(ctx context.Context, dbConn *dbi.DbConn, sql s
 	res := make([]map[string]any, 0)
 	res = append(res, collx.Kvs("rowsAffected", rowsAffected))
 
-	return &dto.DbSqlExecRes{
+	return &dto.DbSQLExecRes{
 		Columns: []*dbi.QueryColumn{
 			{Name: "rowsAffected", Key: "rowsAffected", Type: "number"},
 		},
 		Res: res,
-		Sql: sql,
+		SQL: sql,
 	}, err
 }
 
-func isSelect(kind string) bool {
-	return strings.Contains(kind, "select")
-}
-
-func isUpdate(kind string) bool {
-	return strings.Contains(kind, "update")
-}
-
-func isDelete(kind string) bool {
-	return strings.Contains(kind, "delete")
-}
-
-func isInsert(kind string) bool {
-	return strings.Contains(kind, "insert")
-}
-
-func isOtherQuery(kind string) bool {
-	return strings.Contains(kind, "explain") || strings.Contains(kind, "show") || strings.Contains(kind, "with")
-}
-
-func isDDL(kind string) bool {
-	return strings.Contains(kind, "create") || strings.Contains(kind, "alter") ||
-		strings.Contains(kind, "drop") || strings.Contains(kind, "truncate") || strings.Contains(kind, "rename") ||
-		// 各方言的 COMMENT ON 注释语句及 GRANT/REVOKE 授权语句均为非查询类 DDL/DCL
-		strings.Contains(kind, "comment") || strings.Contains(kind, "grant") || strings.Contains(kind, "revoke")
-}
-
-// sqlKind 返回用于语句类型兜底判定的关键字：取方言语义下的首个整词关键字（已跳过前导空白与注释）；
-// 取不到时（如以 '(' 开头的括号查询）回落到文本前缀，保持原有的包含匹配语义
-func sqlKind(splitter sqlparser.SQLSplitter, sql string) string {
-	if kind := splitter.LeadingKeyword(sql); kind != "" {
-		return kind
-	}
-	if len(sql) < 10 {
-		return strings.ToLower(sql)
-	}
-	return strings.ToLower(sql[:10])
-}
+// 语句分类逻辑已下沉至 sqlparser.Classify（单一入口），此处不再保留字符串兜底判定。

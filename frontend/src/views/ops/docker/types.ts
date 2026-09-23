@@ -19,6 +19,16 @@ export interface ContainerListParam extends PageParam {
     tagPath?: string;
 }
 
+/** 容器配置保存表单 (对应 form.ContainerSave) */
+export interface ContainerConfForm {
+    id?: number | null;
+    code?: string;
+    name?: string | null;
+    addr: string;
+    remark?: string;
+    tagCodePaths: string[];
+}
+
 /** Docker 容器信息 */
 export interface DockerContainer {
     id: string;

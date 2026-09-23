@@ -255,7 +255,7 @@ func (k *Kafka) DeleteGroup(rc *req.Ctx) {
 
 // 获取请求路径上的kafka id
 func (k *Kafka) GetKafkaId(rc *req.Ctx) uint64 {
-	dbId := rc.PathParamInt("id")
+	dbId := cast.ToUint64(rc.PathParam("id"))
 	biz.IsTrue(dbId > 0, "kafkaId error")
-	return uint64(dbId)
+	return dbId
 }

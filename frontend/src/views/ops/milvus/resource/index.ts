@@ -69,7 +69,7 @@ registerCommand({
     id: 'milvus.ac.open',
     txt: '',
     handler: async (ctx: TreeCommandCtx) => {
-        const milvus = (ctx.node.params ?? {}) as unknown as MilvusNodeParams;
+        const milvus = (ctx.node.params ?? {}) as MilvusNodeParams;
         const acName = milvus.selectAuthCert?.name || '';
         // 仅在首次创建时初始化（已存在的标签页只是激活，不重置状态）
         const compRef = await getMilvusOpTabCompInst(milvus, acName, ctx.node.key);
@@ -96,11 +96,11 @@ registerContributor({
             key: `milvus.${x.id}`,
             kind: MilvusKind,
             label: x.name,
-            params: x as unknown as Record<string, unknown>,
+            params: { ...x },
         }));
     },
     loadChildren: async (node) => {
-        const milvus = node.params as unknown as MilvusNodeParams;
+        const milvus = node.params as MilvusNodeParams;
         const authCerts = milvus.authCerts || [];
         return authCerts.map(
             (x: MachineAuthCert): TreeNodeData => ({

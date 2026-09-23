@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/imsg"
@@ -34,7 +35,7 @@ func (a *AlertEscalation) List(rc *req.Ctx) {
 }
 
 func (a *AlertEscalation) GetById(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	esc, err := a.escalationApp.GetById(id)
 	biz.ErrIsNil(err)
 	rc.ResData = esc
@@ -48,12 +49,12 @@ func (a *AlertEscalation) Save(rc *req.Ctx) {
 
 func (a *AlertEscalation) Update(rc *req.Ctx) {
 	escalation := rc.BindJson[entity.AlertEscalation]()
-	escalation.Id = uint64(rc.PathParamInt("id"))
+	escalation.Id = cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(a.escalationApp.SaveAlertEscalation(rc.MetaCtx, escalation))
 }
 
 func (a *AlertEscalation) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	status := int8(rc.PathParamInt("status"))
 	biz.IsTrueBy(status == entity.AlertEscalationStatusEnable || status == entity.AlertEscalationStatusDisable,
 		errorx.NewBizI(rc.MetaCtx, imsg.ErrEscalationStatusInvalid))

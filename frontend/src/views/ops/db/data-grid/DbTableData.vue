@@ -151,6 +151,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    readonly: {
+        type: Boolean,
+        default: false,
+    },
     data: {
         type: Array,
     },
@@ -245,6 +249,7 @@ const { canEdit, isUpdated, hasUpdatedFields, onEnterEditMode, onExitEditMode: e
     dbId: () => state.dbId,
     db: () => state.db,
     table: () => state.table,
+    readonly: () => props.readonly,
 });
 
 const { executeStrategy, exportByKey, getExportStrategies, getGenStrategies } = useTableExport({
@@ -266,9 +271,9 @@ const cmDataCopyCell = new ContextmenuItem('copyValue', 'common.copy')
 const cmDataDel = new ContextmenuItem('deleteData', 'common.delete')
     .withIcon('delete')
     .withOnClick(() => onDeleteData())
-    .withHideFunc(() => state.table === '');
+    .withHideFunc(() => state.table === '' || props.readonly);
 
-const cmFormView = new ContextmenuItem('formView', 'db.formView').withIcon('Document').withOnClick(() => onEditRowData());
+const cmFormView = new ContextmenuItem('formView', 'db.formView').withIcon('Document').withOnClick(() => onEditRowData()).withHideFunc(() => state.table === '' || props.readonly);
 
 /** 把导出策略翻译为菜单项：文案/图标/权限/可见性全部取自策略自描述，本组件不认识任何具体格式 */
 const toStrategyMenuItem = (strategy: TableExportStrategy, onClick: () => void) => {
@@ -472,7 +477,13 @@ const onExitEditMode = (rowData: Record<string, unknown>, column: VirtualTableCo
 const onDeleteData = async () => {
     const deleteDatas = Array.from(selectionRowsMap.value.values());
     const dbInst = getNowDbInst();
-    dbInst.promptExeSql(state.db, await dbInst.genDeleteByPrimaryKeysSql(state.db, state.table, deleteDatas as Record<string, unknown>[]), undefined, () => {
+    const delSql = await dbInst.genDeleteByPrimaryKeysSql(state.db, state.table, deleteDatas as Record<string, unknown>[]);
+    if (!delSql) {
+        // 无主键表：无法安全定位单行，禁止行内删除
+        Msg.warning('db.needPkToOperate');
+        return;
+    }
+    dbInst.promptExeSql(state.db, delSql, undefined, () => {
         emits('dataDelete', deleteDatas);
     });
 };

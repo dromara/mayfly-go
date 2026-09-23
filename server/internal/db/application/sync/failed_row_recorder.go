@@ -102,12 +102,15 @@ func (r *FailedRowRecorder) Len() int {
 
 // Summary 返回失败摘要（用于日志输出）
 func (r *FailedRowRecorder) Summary() string {
-	if r == nil || r.totalCount == 0 {
+	if r == nil {
 		return "无失败行"
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	if r.totalCount == 0 {
+		return "无失败行"
+	}
 	if r.totalCount > len(r.failedRows) {
 		return fmt.Sprintf("共 %d 条失败行（保留最近 %d 条）", r.totalCount, len(r.failedRows))
 	}

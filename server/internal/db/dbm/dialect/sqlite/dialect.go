@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-var _ dbi.Dialect = (*SqliteDialect)(nil)
+var _ dbi.Dialect = (*SQLiteDialect)(nil)
 
-type SqliteDialect struct {
+type SQLiteDialect struct {
 	dbi.DefaultDialect
 
 	di *dbi.DbInfo
@@ -22,11 +22,11 @@ type SqliteDialect struct {
 
 // GetSQLParser 语法与标准SQL最接近，沿用pgsql解析器。
 // 由本方言显式选择解析器（dbi通用层不依赖任何具体方言），复用决策收敛在方言自身
-func (sd *SqliteDialect) GetSQLParser() sqlparser.SqlParser {
+func (sd *SQLiteDialect) GetSQLParser() sqlparser.SQLParser {
 	return new(pgsql.PgsqlParser)
 }
 
-func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
+func (sd *SQLiteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	tableName := copy.TableName
 
 	// 生成新表名,为老表明+_copy_时间戳
@@ -60,19 +60,19 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (sd *SqliteDialect) GetDumpHelper() dbi.DumpHelper {
-	return new(DumpHelper)
+func (sd *SQLiteDialect) GetDumpTxnWrapper() dbi.DumpTxnWrapper {
+	return new(DumpTxnWrapper)
 }
 
 // GetSQLSplitter sqlite切割器：反斜杠为普通字符（若按mysql语义会把 '\' 误判为转义引号导致后续语句被吞），
 // 并兼容 mysql 形态的反引号与方括号引用标识符
-func (sd *SqliteDialect) GetSQLSplitter() sqlparser.SQLSplitter {
-	return sqlparser.NewSplitter(tokenizer.SqliteConfig)
+func (sd *SQLiteDialect) GetSQLSplitter() sqlparser.SQLSplitter {
+	return sqlparser.NewSplitter(tokenizer.SQLiteConfig)
 }
 
-func (sd *SqliteDialect) GetSQLGenerator() dbi.SQLGenerator {
+func (sd *SQLiteDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{
-		BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: sd.Quoter},
-		dialect:          sd,
+		DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: sd.Quoter},
+		dialect:             sd,
 	}
 }

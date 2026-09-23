@@ -33,6 +33,7 @@
             :data="editData"
             width="640px"
             :confirm-api="onConfirm"
+            @opened="onOpened"
             @submitted="onSubmitted"
         >
             <template #sourceMatch="{ form }">
@@ -54,7 +55,8 @@ import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
-import { AutoFormDialog, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDialog, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { alertInhibitionApi } from '../api';
 import { AlertRuleStatusEnum } from '../enums';
 import type { AlertInhibitionVO, AlertInhibitionForm } from '../types';
@@ -99,7 +101,7 @@ const editTitle = ref('');
 const editRow = ref<AlertInhibitionVO | null>(null);
 const equalLabelsText = ref('');
 
-const formItems: AutoFormItem[] = [
+const formItems = defineFormItems<AlertInhibitionForm>([
     { prop: 'name', label: 'alert.inhibitionName', required: true },
     {
         prop: 'sourceMatch',
@@ -122,7 +124,7 @@ const formItems: AutoFormItem[] = [
         tooltip: 'alert.equalLabelsTips',
     },
     { prop: 'remark', label: 'alert.remark', type: 'textarea', rows: 3 },
-];
+]);
 
 const defaultForm: AlertInhibitionForm = {
     name: '',
@@ -133,11 +135,11 @@ const defaultForm: AlertInhibitionForm = {
     remark: '',
 };
 
-const editData = computed<AutoFormData | null>(() => {
-    if (!editRow.value) {
-        return { ...defaultForm } as unknown as AutoFormData;
-    }
-    return { ...editRow.value } as unknown as AutoFormData;
+// 宿主内部表单在 @opened 接管（提交组装基于它）
+const { onOpened, requireForm } = useAutoFormModel<AlertInhibitionForm>();
+
+const editData = computed<AlertInhibitionForm>(() => {
+    return editRow.value ? { ...defaultForm, ...editRow.value } : { ...defaultForm };
 });
 
 // 弹窗打开时解析 equal 标签为逗号分隔文本
@@ -169,9 +171,9 @@ const onEdit = (row: AlertInhibitionVO) => {
     dialogVisible.value = true;
 };
 
-const onConfirm = async (rawForm: AutoFormData) => {
-    const form = rawForm as unknown as AlertInhibitionForm;
-    // 序列化 equal 标签
+const onConfirm = async () => {
+    const form = requireForm();
+    // 序列化 equal 标签（编辑态用逗号分隔文本承载，存储为 JSON 数组）
     const equalArr = equalLabelsText.value
         .split(',')
         .map((s) => s.trim())

@@ -24,9 +24,9 @@
               <span class="col-name">+ {{ col.name }}</span>
               <span class="col-type">{{ col.type }}{{ col.length ? `(${col.length})` : '' }}</span>
               <span class="col-attrs">
-                <el-tag v-if="col.pri" size="small" type="danger">PK</el-tag>
-                <el-tag v-if="col.notNull" size="small">NN</el-tag>
-                <el-tag v-if="col.auto_increment" size="small" type="warning">AI</el-tag>
+                <el-tag v-if="col.isPrimaryKey" size="small" type="danger">PK</el-tag>
+                <el-tag v-if="!col.nullable" size="small">NN</el-tag>
+                <el-tag v-if="col.autoIncrement" size="small" type="warning">AI</el-tag>
               </span>
             </div>
           </div>

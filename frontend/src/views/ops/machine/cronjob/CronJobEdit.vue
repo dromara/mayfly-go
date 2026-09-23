@@ -15,9 +15,9 @@
 
 <script lang="ts" setup>
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
-import { computed } from 'vue';
+import { computed, type PropType } from 'vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cronJobApi } from '../api';
 import { CronJobSaveExecResTypeEnum, CronJobStatusEnum } from '../enums';
@@ -26,7 +26,8 @@ import type { ResourceTag } from '@/types/common';
 
 const props = defineProps({
     data: {
-        type: Object as () => MachineCronJob | null,
+        type: Object as PropType<MachineCronJob | null>,
+        default: null,
     },
     title: {
         type: String,
@@ -37,8 +38,8 @@ const emit = defineEmits(['cancel', 'submitSuccess']);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；cron/codePaths 为自定义控件插槽） */
-const items: AutoFormItem[] = [
+/** 表单声明（cron/codePaths 为自定义控件插槽，其余由 AutoForm 按字段类型渲染） */
+const items = defineFormItems<MachineCronJobForm>([
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'cron', label: 'machine.cronExpression', required: true, slot: 'cron' },
     { prop: 'status', label: 'common.status', type: 'enum', enums: CronJobStatusEnum, required: true },
@@ -46,17 +47,21 @@ const items: AutoFormItem[] = [
     { prop: 'remark', label: 'common.remark' },
     { prop: 'script', label: 'machine.script', type: 'monaco', required: true, props: { language: 'shell', height: '200px' } },
     { prop: 'codePaths', label: 'machine.relateMachine', slot: 'codePaths' },
-];
+]);
 
-/** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
-const editData = computed<AutoFormData | null>(() => {
+/**
+ * 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成）
+ *
+ * 声明为宽松形：新建态仅预置 script/status，其余必填项由用户输入或字段 defaultValue 提供。
+ */
+const editData = computed<Partial<MachineCronJobForm>>(() => {
     if (props.data) {
         return {
             ...props.data,
             codePaths: props.data.tags?.map((tag: ResourceTag) => tag.codePath),
-        } as unknown as AutoFormData;
+        };
     }
-    return { script: '', status: 1 } as unknown as AutoFormData;
+    return { script: '', status: 1 };
 });
 
 // 统一提交：confirmApi 由 AutoFormDrawer 内置逻辑驱动（校验 → 保存 → 成功提示 → submitted → 关闭抽屉，全程 loading 防重复提交）

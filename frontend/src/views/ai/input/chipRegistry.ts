@@ -58,7 +58,7 @@ export function extractSegmentsFromNode(node: { content: { forEach: (fn: (child:
                 }
             } else if (child.type.name === 'text' && child.text) {
                 segments.push({
-                    type: 'input_text' as ContentSegmentType,
+                    type: 'input_text',
                     text: child.text,
                     extra: {},
                 });

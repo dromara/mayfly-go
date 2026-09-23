@@ -10,8 +10,11 @@ import {
     DbTableKind,
     DbSqlKind,
     DbSqlMenuKind,
+    DbObjectKind,
+    ObjectKind,
     dbNodeParams,
     dbTableNodeParams,
+    dbObjectNodeParams,
     getDbOpTabCompInst,
     toTableCallbackData,
 } from './helpers';
@@ -32,7 +35,7 @@ registerCommand({
     id: CmdRefresh,
     txt: 'common.refresh',
     icon: 'RefreshRight',
-    handler: async (ctx: TreeCommandCtx) => (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.reloadNode(ctx.node.key as string),
+    handler: async (ctx: TreeCommandCtx) => (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.reloadNode(ctx.node.key),
 });
 
 registerCommand({
@@ -124,8 +127,47 @@ registerCommand({
     },
 });
 
-// ---------------------------------- 菜单挂载 ----------------------------------
+// 扩展对象：查看 DDL（右键菜单项，复用表 DDL 对话框，经后端 MetaNavigator.NodeDDL）
+registerCommand({
+    id: 'db.object.ddl',
+    txt: 'DDL',
+    icon: 'Document',
+    handler: async (ctx: TreeCommandCtx) => {
+        const o = dbObjectNodeParams(ctx.node);
+        (await getDbOpTabCompInst(o, ctx.node.key))?.onGenObjectDdl({ id: o.id, db: o.db, type: o.type, schema: o.schema, kind: o.objKind, name: o.objName });
+    },
+});
 
+// 视图：可查询，单击像表一样浏览其结果数据（默认看数据，DDL 走右键菜单）
+// 视图一般不可更新（尤其含 JOIN/聚合），故以只读网格打开，禁用编辑/新增/删除，避免生成不可执行的 UPDATE/DELETE
+registerCommand({
+    id: 'db.object.data',
+    txt: '',
+    handler: async (ctx: TreeCommandCtx) => {
+        const o = dbObjectNodeParams(ctx.node);
+        (await getDbOpTabCompInst(o, ctx.node.key))?.loadTableData({ id: o.id, nodeKey: ctx.node.key }, o.db, o.objName, true);
+    },
+});
+
+// 序列：无行数据可浏览，单击查看其定义属性面板（数据类型/起始/步长/范围/缓存/当前值/循环），DDL 走右键
+registerCommand({
+    id: 'db.object.props',
+    txt: '',
+    handler: async (ctx: TreeCommandCtx) => {
+        const o = dbObjectNodeParams(ctx.node);
+        (await getDbOpTabCompInst(o, ctx.node.key))?.onShowObjectProps({
+            id: o.id,
+            db: o.db,
+            type: o.type,
+            schema: o.schema,
+            kind: o.objKind,
+            name: o.objName,
+            attrs: o.objAttrs ?? {},
+        });
+    },
+});
+
+// ---------------------------------- 菜单挂载 ----------------------------------
 registerMenu({ command: CmdRefresh, kinds: [DbKind, DbSchemaKind, DbTableMenuKind] });
 registerMenu({ command: 'db.table.create', kinds: [DbTableMenuKind], order: 2 });
 registerMenu({ command: 'db.table.op', kinds: [DbTableMenuKind], order: 3 });
@@ -139,3 +181,7 @@ registerMenu({ command: 'db.table.open', kinds: [DbTableKind], trigger: 'click' 
 
 registerMenu({ command: 'db.sql.open', kinds: [DbSqlKind], trigger: 'click' });
 registerMenu({ command: 'db.sql.delete', kinds: [DbSqlKind] });
+// 扩展对象：视图单击看数据、序列单击看属性；DDL 统一走右键菜单
+registerMenu({ command: 'db.object.data', kinds: [DbObjectKind], trigger: 'click', when: ({ node }) => node.params.objKind === ObjectKind.View });
+registerMenu({ command: 'db.object.props', kinds: [DbObjectKind], trigger: 'click', when: ({ node }) => node.params.objKind === ObjectKind.Sequence });
+registerMenu({ command: 'db.object.ddl', kinds: [DbObjectKind] });

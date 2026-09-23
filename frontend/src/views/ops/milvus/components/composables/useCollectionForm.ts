@@ -583,7 +583,7 @@ export function useCollectionForm(options: UseCollectionFormOptions) {
             }
 
             if (Object.keys(paramsObj).length > 0) {
-                indexParams = paramsObj as FieldIndexParams;
+                indexParams = paramsObj;
             }
         } else if (f.Indexes && f.Indexes.length > 0) {
             // 兼容旧格式：从 Indexes 数组中获取
@@ -652,7 +652,7 @@ export function useCollectionForm(options: UseCollectionFormOptions) {
     const initForm = (target: AutoFormData) => {
         resetForm();
         // 接管 AutoFormDrawer 内部表单为唯一数据源（强类型断言，后续 Object.assign 会回填完整结构）
-        form.value = target as unknown as typeof form.value;
+        form.value = target as typeof form.value;
         const editData = getEditData();
 
         if (getMode() === 'edit' && editData) {

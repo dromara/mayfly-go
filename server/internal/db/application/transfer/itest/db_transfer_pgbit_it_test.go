@@ -24,7 +24,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi/value"
 )
 
-/* bit列读回位串文本（string/[]byte/nil形态兑底） */
+/* bit列读回位串文本（string/[]byte/nil形态兜底） */
 func bitText(t *testing.T, v any) string {
 	t.Helper()
 	switch x := v.(type) {

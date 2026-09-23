@@ -137,7 +137,7 @@ const getProcess = async () => {
     // USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
     // root         1  0.0  0.0 125632  3352 ?        Ss    2019 154:04 /usr/lib/systemd/systemd --system --deserialize 22
     const psStrings = res.split('\n');
-    const ps = [];
+    const ps: MachineProcess[] = [];
     // 如果有根据名称查进程，则第一行没有表头
     const index = state.params.name == '' ? 1 : 0;
     for (let i = index; i < psStrings.length; i++) {
@@ -170,7 +170,7 @@ const getProcess = async () => {
             command,
         });
     }
-    state.processList = ps as unknown as MachineProcess[];
+    state.processList = ps;
 };
 
 watch(

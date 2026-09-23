@@ -312,6 +312,6 @@ describe('tree/useLazyTree 懒加载水合层', () => {
 
     /** 展开态以水合层的返回值为准（getNode 仅用于断言便捷性） */
     function expandedKeysValue(getNode: (key: string) => TreeNodeData | undefined, key: string) {
-        return (getNode(key) as unknown as { loaded?: boolean }).loaded === true;
+        return (getNode(key) as { loaded?: boolean }).loaded === true;
     }
 });

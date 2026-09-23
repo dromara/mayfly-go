@@ -85,6 +85,11 @@ export class TabInfo {
      */
     componentRef: TabComponentRef | null = null;
 
+    /**
+     * 编辑器实例唯一标识（monaco model.uri.toString()），用于 SQL 补全按编辑器路由
+     */
+    editorUri?: string;
+
     /** 本 tab 所属的数据库实例 */
     getNowDbInst() {
         return DbInst.getInst(this.dbId);

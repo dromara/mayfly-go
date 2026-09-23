@@ -255,3 +255,102 @@ func TestRowMaskerNilAndNonString(t *testing.T) {
 	// map中不存在的列key不会panic
 	m.MaskRow(map[string]any{})
 }
+
+// ========== Plan.MaskValue 通用单值脱敏能力测试 ==========
+
+// TestPlanMaskValueBasic 基础脱敏：正则命中手机号算法
+func TestPlanMaskValueBasic(t *testing.T) {
+	p := testPlan(t)
+	// 正则命中phone算法：前3后4
+	result := p.MaskValue("app", "t_order", "phone", "13800001234")
+	if result != "138****1234" {
+		t.Fatalf("expect 138****1234, got %v", result)
+	}
+}
+
+// TestPlanMaskValueTagPriority 标签优先级：t_user.phone绑定hash算法
+func TestPlanMaskValueTagPriority(t *testing.T) {
+	p := testPlan(t)
+	result := p.MaskValue("app", "t_user", "phone", "13800001234")
+	// hash算法输出8字符hex
+	s, ok := result.(string)
+	if !ok || len(s) != 8 {
+		t.Fatalf("expect 8-char hash, got %v (type %T)", result, result)
+	}
+}
+
+// TestPlanMaskValueExempt 豁免标签：t_log表整表豁免不脱敏
+func TestPlanMaskValueExempt(t *testing.T) {
+	p := testPlan(t)
+	result := p.MaskValue("app", "t_log", "phone", "13700003456")
+	if result != "13700003456" {
+		t.Fatalf("expect unchanged for exempt table, got %v", result)
+	}
+}
+
+// TestPlanMaskValueNoMatch 未命中规则：非敏感列返回原值
+func TestPlanMaskValueNoMatch(t *testing.T) {
+	p := testPlan(t)
+	result := p.MaskValue("app", "t_user", "address", "北京市朝阳区")
+	if result != "北京市朝阳区" {
+		t.Fatalf("expect unchanged for non-sensitive column, got %v", result)
+	}
+}
+
+// TestPlanMaskValueNilPlan 空计划返回原值
+func TestPlanMaskValueNilPlan(t *testing.T) {
+	var p *Plan
+	result := p.MaskValue("app", "t_user", "phone", "13800001234")
+	if result != "13800001234" {
+		t.Fatalf("nil plan should return original value, got %v", result)
+	}
+	// 空计划（非nil但无规则）
+	result2 := (&Plan{}).MaskValue("app", "t_user", "phone", "13800001234")
+	if result2 != "13800001234" {
+		t.Fatalf("empty plan should return original value, got %v", result2)
+	}
+}
+
+// TestPlanMaskValueEmptyColumn 空列名返回原值
+func TestPlanMaskValueEmptyColumn(t *testing.T) {
+	p := testPlan(t)
+	result := p.MaskValue("app", "t_user", "", "sensitive")
+	if result != "sensitive" {
+		t.Fatalf("empty column should return original value, got %v", result)
+	}
+}
+
+// TestPlanMaskValueNilAndNonString nil值保持nil，非字符串转字符串后脱敏
+func TestPlanMaskValueNilAndNonString(t *testing.T) {
+	p := testPlan(t)
+	// nil值保持nil
+	result := p.MaskValue("app", "t_order", "phone", nil)
+	if result != nil {
+		t.Fatalf("expect nil, got %v", result)
+	}
+	// 非字符串（int64）转字符串后脱敏
+	result2 := p.MaskValue("app", "t_order", "phone", int64(13800001234))
+	if result2 != "138****1234" {
+		t.Fatalf("expect 138****1234, got %v", result2)
+	}
+}
+
+// TestPlanMaskValueExactRule 精确规则优先于正则
+func TestPlanMaskValueExactRule(t *testing.T) {
+	p := testPlan(t)
+	// user_name命中精确规则（full算法→****）
+	result := p.MaskValue("app", "t_user", "user_name", "zhangsan")
+	if result != "********" {
+		t.Fatalf("expect ******** for full mask, got %v", result)
+	}
+}
+
+// TestPlanMaskValuePrefixRule 前缀规则命中
+func TestPlanMaskValuePrefixRule(t *testing.T) {
+	p := testPlan(t)
+	// cert_no命中前缀规则cert_（idcard算法）
+	result := p.MaskValue("app", "t_user", "cert_no", "110101199001011234")
+	if result == "110101199001011234" {
+		t.Fatal("expect idcard masked, got unchanged")
+	}
+}

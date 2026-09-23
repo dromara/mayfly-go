@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
@@ -58,5 +59,5 @@ func (m *MachineCmdConf) Save(rc *req.Ctx) {
 }
 
 func (m *MachineCmdConf) Delete(rc *req.Ctx) {
-	m.machineCmdConfApp.DeleteCmdConf(rc.MetaCtx, uint64(rc.PathParamInt("id")))
+	m.machineCmdConfApp.DeleteCmdConf(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")))
 }

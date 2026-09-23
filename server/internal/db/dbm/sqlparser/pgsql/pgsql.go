@@ -27,11 +27,7 @@ func (p *PgsqlParser) RewritePagination(sql string, offset, limit int64) (string
 	return sqlstmt.DefaultRewritePagination(sql, offset, limit), nil
 }
 
-// ClassifyStmt 基于 AST 判定语句类型
+// ClassifyStmt 基于 AST 判定语句类型，通用逻辑（含 nil AST 兜底）收敛于 sqlstmt.ClassifyByParse
 func (p *PgsqlParser) ClassifyStmt(sql string) (sqlstmt.StmtType, error) {
-	stmt, err := p.Parse(sql)
-	if err != nil {
-		return "", err
-	}
-	return sqlstmt.DefaultClassifyStmt(stmt.StmtKind()), nil
+	return sqlstmt.ClassifyByParse(p.Parse, sql)
 }

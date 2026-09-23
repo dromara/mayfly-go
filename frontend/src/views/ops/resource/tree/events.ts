@@ -39,12 +39,12 @@ class TypedEmitter<M extends object> {
             set = new Set();
             this.handlers.set(event, set);
         }
-        set.add(handler as Handler<never>);
+        set.add(handler);
         return () => this.off(event, handler);
     }
 
     off<K extends keyof M>(event: K, handler: Handler<M[K]>) {
-        this.handlers.get(event)?.delete(handler as Handler<never>);
+        this.handlers.get(event)?.delete(handler);
     }
 
     emit<K extends keyof M>(event: K, payload: M[K]) {

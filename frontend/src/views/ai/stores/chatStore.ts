@@ -236,7 +236,7 @@ export const useChatStore = defineStore('ai-chat', () => {
      */
     function userItemToMessage(item: TurnItem, turnId?: string, createTime?: string): ChatMessage {
         const segments = item.content ?? [];
-        const attachments = item.attachments?.filter((att) => !!att?.name) as MessageAttachment[] | undefined;
+        const attachments = item.attachments?.filter((att) => !!att?.name);
         return {
             id: item.id,
             role: 'user',

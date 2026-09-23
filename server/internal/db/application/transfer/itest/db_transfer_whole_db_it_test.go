@@ -170,9 +170,9 @@ func itWdbDumpFlags(t *testing.T, conn *dbi.DbConn, target dbi.DbType, dumpDDL, 
 // itWdbIndexNames 读回表的全部索引名（小写），用于断言索引确实存在/已迁移
 func itWdbIndexNames(t *testing.T, conn *dbi.DbConn, table string) []string {
 	t.Helper()
-	indexs, err := conn.Metadata().GetTableIndex(table)
+	indexes, err := conn.Metadata().GetTableIndex(table)
 	require.NoError(t, err, "[%s] 读取索引失败", table)
-	return lowerIndexNames(indexs)
+	return lowerIndexNames(indexes)
 }
 
 // itWdbDropAll 删除用例涉及的全部表
@@ -309,11 +309,11 @@ func TestITWholeDbFailedImportRerunIdempotent(t *testing.T) {
 // TestITWholeDbHeteroMigration 异构整库单流迁移：源库导出为目标方言SQL文本，导入另一方言真实库
 func TestITWholeDbHeteroMigration(t *testing.T) {
 	combos := []itPair{
-		{itMysql, itPg}, {itMysql, itSqlite}, {itMysql, itMssql},
-		{itPg, itMysql}, {itPg, itSqlite}, {itPg, itMssql},
-		{itSqlite, itMysql}, {itSqlite, itPg}, {itSqlite, itMssql},
+		{itMysql, itPg}, {itMysql, itSQLite}, {itMysql, itMssql},
+		{itPg, itMysql}, {itPg, itSQLite}, {itPg, itMssql},
+		{itSQLite, itMysql}, {itSQLite, itPg}, {itSQLite, itMssql},
 		// mssql作为异构源：SQL Server元数据（nvarchar/datetime2/varbinary/标识列）→其余方言的整库单流迁移
-		{itMssql, itMysql}, {itMssql, itPg}, {itMssql, itSqlite},
+		{itMssql, itMysql}, {itMssql, itPg}, {itMssql, itSQLite},
 	}
 	for _, c := range combos {
 		c := c
@@ -405,8 +405,8 @@ func TestITWholeDbDataOnlyProductCarriesNoDDL(t *testing.T) {
 // 数据阶段仅导入数据。若数据阶段产物重复携带索引DDL，第二阶段必然因索引重名失败
 func TestITWholeDbTwoPhaseMigrationWithIndex(t *testing.T) {
 	combos := []itPair{
-		{itMysql, itMysql}, {itPg, itPg}, {itSqlite, itSqlite}, {itMssql, itMssql},
-		{itMysql, itPg}, {itSqlite, itMysql}, {itMssql, itMysql},
+		{itMysql, itMysql}, {itPg, itPg}, {itSQLite, itSQLite}, {itMssql, itMssql},
+		{itMysql, itPg}, {itSQLite, itMysql}, {itMssql, itMysql},
 	}
 	for _, c := range combos {
 		c := c

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/imsg"
@@ -34,7 +35,7 @@ func (a *AlertNotifyPolicy) List(rc *req.Ctx) {
 }
 
 func (a *AlertNotifyPolicy) GetById(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	policy, err := a.notifyPolicyApp.GetById(id)
 	biz.ErrIsNil(err)
 	rc.ResData = policy
@@ -48,12 +49,12 @@ func (a *AlertNotifyPolicy) Save(rc *req.Ctx) {
 
 func (a *AlertNotifyPolicy) Update(rc *req.Ctx) {
 	policy := rc.BindJson[entity.AlertNotifyPolicy]()
-	policy.Id = uint64(rc.PathParamInt("id"))
+	policy.Id = cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(a.notifyPolicyApp.SaveAlertNotifyPolicy(rc.MetaCtx, policy))
 }
 
 func (a *AlertNotifyPolicy) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	status := int8(rc.PathParamInt("status"))
 	biz.IsTrueBy(status == entity.AlertNotifyPolicyStatusEnable || status == entity.AlertNotifyPolicyStatusDisable,
 		errorx.NewBizI(rc.MetaCtx, imsg.ErrNotifyPolicyStatusInvalid))

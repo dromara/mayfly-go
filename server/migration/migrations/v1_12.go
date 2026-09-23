@@ -232,7 +232,7 @@ func V1_12() []*gormigrate.Migration {
 				seedRules := []struct {
 					id        uint64
 					name      string
-					matchType int8
+					matchType dbentity.MaskMatchType
 					pattern   string
 					algorithm string
 					params    string
@@ -285,6 +285,28 @@ func V1_12() []*gormigrate.Migration {
 					}
 				}
 				return nil
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// DB 迁移任务定时列改名 cron_able → cron_enabled，与实体字段名保持一致
+			// 列名与字段名一致后，查询条件体可直接传实体/查询dto，无需在仓储层手写列名
+			ID: "v1.12.0-db-transfer-cron-column-rename",
+			Migrate: func(tx *gorm.DB) error {
+				migrator := tx.Migrator()
+				if !migrator.HasColumn(&dbentity.DbTransferTask{}, "cron_able") {
+					// 旧列不存在：全新库由 AutoMigrate 直接建出 cron_enabled，无需处理
+					return nil
+				}
+				// 两列并存（历史版本曾用别名映射过）：先搬运数据再删旧列，避免改名撞列报错
+				if migrator.HasColumn(&dbentity.DbTransferTask{}, "cron_enabled") {
+					if err := tx.Exec("UPDATE t_db_transfer_task SET cron_enabled = cron_able WHERE cron_able IS NOT NULL").Error; err != nil {
+						return err
+					}
+					// 不用 Migrator().DropColumn：sqlite 驱动走重建表流程且对该列静默无操作，DROP COLUMN 是 MySQL/SQLite 通用语法
+					return tx.Exec("ALTER TABLE t_db_transfer_task DROP COLUMN cron_able").Error
+				}
+				return migrator.RenameColumn(&dbentity.DbTransferTask{}, "cron_able", "cron_enabled")
 			},
 			Rollback: noopRollback,
 		},
@@ -369,11 +391,55 @@ func V1_12() []*gormigrate.Migration {
 			Rollback: noopRollback,
 		},
 		{
+			// 同步日志表新增 run_id 列：与 taskx.RunGuard 持锁所有权值同步，
+			// 供启动收尾/停止检查/水位推进判定“同一次执行”归属。
+			ID: "v1.12.0-sync-log-run-id",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DataSyncLog{})
+			},
+			Rollback: noopRollback,
+		},
+		{
 			// 迁移任务执行日志表（t_db_transfer_log），对齐数据同步日志架构：
 			// 每次执行生成独立记录，支持历史查询与指标统计。
 			ID: "v1.12.0-db-transfer-log",
 			Migrate: func(tx *gorm.DB) error {
 				return tx.AutoMigrate(&dbentity.DbTransferLog{})
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 迁移任务执行日志新增「执行用途」列（1迁移 2导出文件 3校验）：
+			// 区分同一任务下不同性质的执行记录，避免校验记录被误当成迁移。
+			// AutoMigrate 幂等，仅补列；历史记录取默认值 1（迁移）。
+			ID: "v1.12.0-db-transfer-log-purpose",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DbTransferLog{})
+			},
+			Rollback: noopRollback,
+		},
+		{
+			ID: "v1.12.0-sync-transfer-permissions",
+			Migrate: func(tx *gorm.DB) error {
+				resources := []struct {
+					id     int64
+					pid    int64
+					uiPath string
+					name   string
+					code   string
+					weight int
+				}{
+					{1758412801, 150, "Jra0n7De/Xk3mNpQr/", "menu.dbDataSyncRun", "db:sync:run", 1758412801},
+					{1758412802, 150, "Jra0n7De/Yw5tLsVb/", "menu.dbDataSyncStop", "db:sync:stop", 1758412802},
+					{1758412803, 1709194669, "SmLcpu6c/Dn8rKwXe/", "menu.dbTransferStop", "db:transfer:stop", 1758412803},
+					{1758412804, 1709194669, "SmLcpu6c/Ef2pMzYc/", "menu.dbTransferVerify", "db:transfer:verify", 1758412804},
+				}
+				for _, r := range resources {
+					if err := insertSysResourceWithRole(tx, r.id, r.pid, r.uiPath, 2, r.name, r.code, r.weight, "null"); err != nil {
+						return err
+					}
+				}
+				return nil
 			},
 			Rollback: noopRollback,
 		},

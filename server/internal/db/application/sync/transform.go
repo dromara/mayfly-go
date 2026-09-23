@@ -3,6 +3,7 @@ package sync
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/logx"
 	"regexp"
@@ -361,10 +362,11 @@ func defaultBuiltinFuncs() map[string]TransformFunc {
 // FilterEngine 数据过滤引擎。
 // 支持条件表达式：field == value, field != value, field > value, field < value,
 // field >= value, field <= value, field LIKE pattern。
-// 多条件用 AND / OR 连接，支持括号分组。优先级：括号 > OR > AND。
+// 多条件用 AND / OR 连接，支持括号分组。优先级：括号 > AND > OR。
 // 示例："status == 'active' AND age > 18 OR role == 'admin'"
 type FilterEngine struct {
-	condition   string
+	root        *filterExpr
+	parseErr    error
 	likeRegexps map[string]*regexp.Regexp // LIKE 模式预编译正则缓存
 }
 
@@ -374,20 +376,17 @@ func NewFilterEngine(condition string) *FilterEngine {
 	if condition == "" {
 		return nil
 	}
-	return &FilterEngine{
-		condition:   condition,
-		likeRegexps: make(map[string]*regexp.Regexp),
-	}
+	root, err := parseFilterExpr(condition, 0)
+	return &FilterEngine{root: root, parseErr: err, likeRegexps: make(map[string]*regexp.Regexp)}
 }
 
-// filterConditionReg 匹配简单条件：field op value
-var filterConditionReg = regexp.MustCompile(`^\s*(\w+)\s*(==|!=|>=|<=|>|<|LIKE)\s*['"]?([^'"]*?)['"]?\s*$`)
-
-// logicalAndReg 按 AND 分割条件表达式
-var logicalAndReg = regexp.MustCompile(`(?i)\s+AND\s+`)
-
-// logicalOrReg 按 OR 分割条件表达式
-var logicalOrReg = regexp.MustCompile(`(?i)\s+OR\s+`)
+// Validate 必须在任何目标写入前调用，非法条件使任务失败。
+func (f *FilterEngine) Validate() error {
+	if f == nil {
+		return nil
+	}
+	return f.parseErr
+}
 
 // Match 判断源行是否满足过滤条件。返回 true 表示保留该行。
 func (f *FilterEngine) Match(srcRow map[string]any) bool {
@@ -395,44 +394,7 @@ func (f *FilterEngine) Match(srcRow map[string]any) bool {
 		return true
 	}
 
-	// 按 OR 分割为多个组，任一组匹配即保留（OR 语义）
-	orGroups := splitByLogicalOp(f.condition, logicalOrReg)
-	for _, group := range orGroups {
-		group = strings.TrimSpace(group)
-		if group == "" {
-			continue
-		}
-		// 每个 OR 组内按 AND 分割，所有条件必须满足（AND 语义）
-		andConditions := splitByLogicalOp(group, logicalAndReg)
-		groupMatch := true
-		for _, cond := range andConditions {
-			cond = strings.TrimSpace(cond)
-			if cond == "" {
-				continue
-			}
-			matches := filterConditionReg.FindStringSubmatch(cond)
-			if matches == nil {
-				// 条件无法解析：记录告警并放行该行，避免静默丢弃数据
-				logx.Warnf("filter condition [%s] cannot be parsed, row passed through", cond)
-				return true
-			}
-			field, op, expected := matches[1], matches[2], matches[3]
-			actual, ok := lookupRowValue(srcRow, field)
-			if !ok {
-				groupMatch = false
-				break
-			}
-			actualStr := fmt.Sprintf("%v", actual)
-			if !f.evalCondition(actualStr, op, expected) {
-				groupMatch = false
-				break
-			}
-		}
-		if groupMatch {
-			return true
-		}
-	}
-	return false
+	return f.parseErr == nil && f.root != nil && f.root.match(f, srcRow)
 }
 
 // evalCondition 求值单个条件，LIKE 模式使用预编译正则缓存。
@@ -461,56 +423,51 @@ func (f *FilterEngine) matchLike(actual, pattern string) bool {
 	return re.MatchString(actual)
 }
 
-// evalConditionSimple 非 LIKE 的简单条件求值
+// evalConditionSimple 非 LIKE 的简单条件求值。
+// 大小比较（> < >= <=）优先按数值语义：两侧均可解析为数值时按数值比较，
+// 否则回退到字符串比较（兼容日期串、版本号等非数值场景）。
+// 等值比较（== = !=）保持字符串语义，避免状态码等值被数值化后丢失前导零/格式差异。
 func evalConditionSimple(actual, op, expected string) bool {
 	switch strings.ToUpper(op) {
 	case "==", "=":
 		return actual == expected
 	case "!=":
 		return actual != expected
-	case ">":
-		return actual > expected
-	case "<":
-		return actual < expected
-	case ">=":
-		return actual >= expected
-	case "<=":
-		return actual <= expected
+	case ">", "<", ">=", "<=":
+		return compareOrdered(actual, op, expected)
 	default:
 		return false
 	}
 }
 
-// splitByLogicalOp 按指定逻辑操作符分割条件表达式（括号感知）。
-// 仅在括号深度为 0 时才分割，确保 "(a == 1 OR b == 2) AND c == 3" 不被错误拆分。
-func splitByLogicalOp(cond string, re *regexp.Regexp) []string {
-	// 快速路径：无括号时直接用正则分割
-	if !strings.ContainsAny(cond, "()") {
-		return re.Split(cond, -1)
-	}
-	// 括号感知分割：仅在深度为 0 处分割
-	locs := re.FindAllStringIndex(cond, -1)
-	if len(locs) == 0 {
-		return []string{cond}
-	}
-	var result []string
-	depth := 0
-	prev := 0
-	for _, loc := range locs {
-		// 计算 loc 起始位置的括号深度
-		for _, ch := range cond[prev:loc[0]] {
-			switch ch {
-			case '(':
-				depth++
-			case ')':
-				depth--
-			}
+// compareOrdered 大小比较：两侧均为数值时按数值比较，否则按字符串比较。
+func compareOrdered(actual, op, expected string) bool {
+	cmp := strings.Compare(actual, expected)
+	if a, ok := parseFilterNumber(actual); ok {
+		if e, ok := parseFilterNumber(expected); ok {
+			cmp = a.Cmp(e)
 		}
-		if depth == 0 {
-			result = append(result, cond[prev:loc[0]])
-		}
-		prev = loc[1]
 	}
-	result = append(result, cond[prev:])
-	return result
+	switch op {
+	case ">":
+		return cmp > 0
+	case "<":
+		return cmp < 0
+	case ">=":
+		return cmp >= 0
+	case "<=":
+		return cmp <= 0
+	}
+	return false
+}
+
+// 限定十进制语法及指数规模，避免 BIGINT/DECIMAL 经浮点转换丢精度或恶意指数消耗资源。
+var filterNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]{1,3})?$`)
+
+func parseFilterNumber(s string) (*big.Rat, bool) {
+	s = strings.TrimSpace(s)
+	if len(s) > 1024 || !filterNumber.MatchString(s) {
+		return nil, false
+	}
+	return new(big.Rat).SetString(s)
 }

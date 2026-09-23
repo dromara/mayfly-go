@@ -26,15 +26,15 @@ export interface EsInstanceListParam extends PageParam {
     tagPath?: string;
 }
 
-/** ES 索引信息 */
+/** ES 索引信息（对应 _cat/indices 的返回列；未包在 h= 参数里的列由调用方按需追加，故可缺省） */
 export interface EsIndex {
     index: string;
     health: string;
     status: string;
     'docs.count': string;
     'store.size': string;
-    pri: string;
-    rep: string;
+    pri?: string;
+    rep?: string;
 }
 
 /** ES 导出进度 (对应后端 exportProgress) */

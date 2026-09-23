@@ -10,7 +10,7 @@
             <template v-if="item.tooltip" #label>
                 <div class="flex items-center">
                     {{ item.label ? $t(item.label, item.labelParams ?? {}) : '' }}
-                    <ATooltip placement="top">
+                    <ATooltip placement="top" popper-class="auto-form-label-tooltip">
                         <template #content>
                             <span style="white-space: pre-line">{{ tooltipContent }}</span>
                         </template>
@@ -52,15 +52,24 @@ const props = defineProps<{
 
 const slots = useSlots();
 
-const { t } = useI18n();
+const { t, tm } = useI18n();
 
-/** tooltip 内容（支持多 key 多行） */
+/** tooltip 内容：
+ *  - item.tooltip 为单个 i18n key 或 key 数组；
+ *  - key 对应的消息若为数组（逐行文案），逐行展开；否则按普通 key 翻译；
+ *  - 最终以换行拼接，配合气泡的 white-space: pre-line 渲染成多行 */
 const tooltipContent = computed(() => {
     const tips = props.item.tooltip;
     if (!tips) {
         return '';
     }
-    return (Array.isArray(tips) ? tips : [tips]).map((key) => t(key)).join('\n');
+    const keys = Array.isArray(tips) ? tips : [tips];
+    return keys
+        .flatMap((key) => {
+            const message = tm(key);
+            return Array.isArray(message) ? (message as string[]) : [t(key)];
+        })
+        .join('\n');
 });
 
 /** 动态 required（星号显示；校验规则由 AutoForm formRules 生成，判定逻辑与 AutoForm 共用） */

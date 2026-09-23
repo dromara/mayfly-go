@@ -147,6 +147,60 @@ export interface DataSyncTask extends BaseModel {
     biDirTimestampField: string;
 }
 
+/**
+ * 数据同步任务列表行 (对应 vo.DataSyncTaskListVO)。
+ *
+ * 与详情实体的关键差异：后端 VO 将 TaskCron 序列化为 `cron`（键名不同），
+ * 且只带列表页所需字段；dataSql/fieldMap 等同步配置不在列表返回，由详情接口回填。
+ */
+export interface DataSyncTaskListVO {
+    id: number;
+    taskName: string;
+    /** cron 表达式；详情实体里键名为 taskCron */
+    cron: string;
+    syncMode: number;
+    status: number;
+    recentState: number;
+    runningState: number;
+    srcDbId: number;
+    srcDbName: string;
+    targetDbId: number;
+    targetDbName: string;
+    targetTableName: string;
+    biDirEnabled: boolean;
+    reverseTaskId: number;
+    createTime: string;
+    creator: string;
+    updateTime: string;
+    modifier: string;
+    modifierId?: number;
+}
+
+/** 数据同步日志列表行 (对应 vo.DataSyncLogListVO)；VO 不含 runLog/dataSqlFull，运行日志按日志 id 单独获取 */
+export interface DataSyncLogListVO {
+    id: number;
+    taskId: number;
+    status: number;
+    createTime: string;
+    durationMs: number;
+    throughput: number;
+    batchCount: number;
+    insertCount: number;
+    updateCount: number;
+    deleteCount: number;
+    skipCount: number;
+    resNum: number;
+    schemaChanges: number;
+    errText: string;
+}
+
+/** 单条数据同步执行日志的运行日志内容 (对应 vo.DataSyncLogRunVO) */
+export interface DataSyncLogRunInfo {
+    id: number;
+    status: number;
+    runLog: string;
+}
+
 /** 数据同步日志 (对应 entity.DataSyncLog) */
 export interface DataSyncLog {
     id: number;
@@ -172,7 +226,7 @@ export interface DbTransferTask extends BaseModel {
     id: number;
     taskName: string;
     taskKey: string;
-    cronAble: number;
+    cronEnabled: number;
     cron: string;
     mode: number;
     targetFileDbType: string;
@@ -199,18 +253,61 @@ export interface DbTransferTask extends BaseModel {
     extra?: Record<string, unknown>;
 }
 
+/**
+ * 迁移任务列表行 (对应 vo.DbTransferTaskListVO)：详情实体去掉后端列表不返回的字段。
+ * taskKey 为后端内部标识；concurrency 在编辑抽屉里按默认值补齐。
+ */
+export type DbTransferTaskListVO = Omit<DbTransferTask, 'taskKey' | 'concurrency'>;
+
+/** 迁移导出文件 (对应 entity.DbTransferFile) */
+export interface DbTransferFile {
+    id: number;
+    /** 所属迁移任务 ID */
+    taskId: number;
+    /** 文件存储键 */
+    fileKey: string;
+    /** sql 文件的数据库类型 */
+    fileDbType: string;
+    /** 状态 1、执行中 2、执行成功 -1、执行失败 */
+    status: number;
+    createTime: string;
+}
+
 /** 数据库迁移执行日志 (对应 entity.DbTransferLog) */
 export interface DbTransferLog {
     id: number;
     createTime: string;
     taskId: number;
     mode: number;
+    purpose: number;
     targetFile: string;
     errText: string;
     status: number;
     durationMs: number;
     totalRows: number;
     tableCount: number;
+    runLog: string;
+}
+
+/** 数据库迁移执行日志列表行 (对应 vo.DbTransferLogListVO)；VO 不含 runLog，运行日志按日志 id 单独获取 */
+export interface DbTransferLogListVO {
+    id: number;
+    createTime: string;
+    taskId: number;
+    mode: number;
+    purpose: number;
+    targetFile: string;
+    errText: string;
+    status: number;
+    durationMs: number;
+    totalRows: number;
+    tableCount: number;
+}
+
+/** 单条迁移执行日志的运行日志内容 (对应 vo.DbTransferLogRunVO) */
+export interface DbTransferLogRunInfo {
+    id: number;
+    status: number;
     runLog: string;
 }
 
@@ -252,8 +349,10 @@ export interface DbRestore {
 /** 数据库实例服务器信息 */
 export interface DbInstanceServerInfo {
     version: string;
-    uptime: string;
-    connections: number;
+    majorVersion: number;
+    minorVersion: number;
+    /** 其余运行时信息（对应后端 dbi.DbServer.Extra，为嵌套对象而非展平） */
+    extra?: Record<string, unknown>;
     [key: string]: unknown;
 }
 
@@ -309,3 +408,26 @@ export interface DbMaskColumnQuery extends PageParam {
 
 /** 脱敏列标签保存表单 */
 export type DbMaskColumnSaveForm = Partial<Omit<DbMaskColumn, keyof BaseModel>>;
+
+// 方言能力协商响应（GET /dbs/{id}/capabilities）：能力单一事实源来自后端，前端据此数据驱动渲染资源树
+export interface DbNamespace {
+    HasDatabase: boolean;
+    HasSchema: boolean;
+    HasCatalog: boolean;
+}
+
+export interface DbCapabilities {
+    dbType: string;
+    // 支持的能力名清单（如 "schemas"/"view"/"sequence"/"relation"…），由后端 SupportedFeatures() 稳定升序输出
+    features: string[];
+    namespace: DbNamespace;
+}
+
+// 扩展元数据对象节点（GET /dbs/{id}/meta-objects?kind=view|sequence|…）
+export interface DbMetadataObject {
+    name: string;
+    kind: string;
+    schema?: string;
+    comment?: string;
+    attrs?: Record<string, unknown>;
+}

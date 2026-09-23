@@ -68,8 +68,8 @@ func TestScannerDialectMatrix(t *testing.T) {
 		{"oracle END LOOP 不出块", OracleConfig, "BEGIN FOR i IN 1..3 LOOP x:=1; END LOOP; END;", []string{"BEGIN FOR i IN 1..3 LOOP x:=1; END LOOP; END"}},
 		{"oracle 保留 hint 注释", OracleConfig, "SELECT /*+ INDEX(t idx) */ a FROM t;", []string{"SELECT /*+ INDEX(t idx) */ a FROM t"}},
 		// ---- sqlite ----
-		{"sqlite 反引号与方括号", SqliteConfig, "SELECT `a;b`, [c;d];SELECT 2;", []string{"SELECT `a;b`, [c;d]", "SELECT 2"}},
-		{"sqlite 反斜杠为普通字符", SqliteConfig, `SELECT '\';SELECT 2;`, []string{`SELECT '\'`, "SELECT 2"}},
+		{"sqlite 反引号与方括号", SQLiteConfig, "SELECT `a;b`, [c;d];SELECT 2;", []string{"SELECT `a;b`, [c;d]", "SELECT 2"}},
+		{"sqlite 反斜杠为普通字符", SQLiteConfig, `SELECT '\';SELECT 2;`, []string{`SELECT '\'`, "SELECT 2"}},
 		// ---- 复杂字符串与文件形态 ----
 		{"流起始 UTF-8 BOM 剥离", StdConfig, "\ufeffSELECT 1;\nSELECT 2;", []string{"SELECT 1", "SELECT 2"}},
 		{"相邻字符串字面量跨行拼接", PgConfig, "SELECT 'a'\n'b;c';", []string{"SELECT 'a'\n'b;c'"}},

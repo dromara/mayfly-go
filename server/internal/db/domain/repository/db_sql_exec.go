@@ -6,9 +6,9 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type DbSqlExec interface {
-	base.Repo[*entity.DbSqlExec]
+type DbSQLExec interface {
+	base.Repo[*entity.DbSQLExec]
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSqlExec], error)
+	GetPageList(condition *entity.DbSQLExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSQLExec], error)
 }

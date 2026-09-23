@@ -98,3 +98,79 @@ func TestResolveDumpColumnKeysErrorTextSafe(t *testing.T) {
 	assert.NotContains(t, err.Error(), "\n", "错误信息不得含裸换行: %q", err.Error())
 	assert.NotContains(t, err.Error(), "DROP TABLE x \n", "换行需被归一化，避免注释提前结束")
 }
+
+// newConvExporter 构造仅用于测试标识符转换/开关行为的编排器。
+// 传入非 nil settings 以绕开 NewExporter 内 consumer.Format() 的 nil 解引用（这些用例不需要 consumer）。
+func newConvExporter() *Exporter {
+	return NewExporter(nil, nil, &Settings{}, nil)
+}
+
+func TestValidateNameConversion(t *testing.T) {
+	require.Error(t, ValidateNameConversion([]string{"Orders", "orders"}, nil, NameCaseLower, "postgres"))
+	require.Error(t, ValidateNameConversion([]string{"t"}, col("t", "ID", "id"), NameCaseUpper, "postgres"))
+	generated := dbi.Column{TableName: "t", ColumnName: "Total"}
+	dbi.MarkGeneratedColumn(&generated, "postgres", `("Amount" * 2)`, dbi.GenerationStored)
+	require.Error(t, ValidateNameConversion([]string{"t"}, []dbi.Column{generated}, NameCaseUpper, "postgres"))
+	require.NoError(t, ValidateNameConversion([]string{"t"}, []dbi.Column{generated}, NameCaseNone, "postgres"))
+	require.NoError(t, ValidateNameConversion([]string{"t"}, []dbi.Column{generated}, NameCaseUpper, "mysql"))
+}
+
+// TestExporterDefaults 新建编排器默认建表前 DROP、不做大小写转换（兼容既有硬编码行为，
+// 避免零值反转导致既有备份/迁移静默改变语义）
+func TestExporterDefaults(t *testing.T) {
+	e := newConvExporter()
+	assert.True(t, e.dropBeforeCreate, "默认必须建表前 DROP")
+	assert.Equal(t, NameCaseNone, e.nameCase, "默认不转换大小写")
+}
+
+// TestWithSkipDropTable deleteTable=否 → SkipDropTable=true → 不生成 DROP；
+// 反之保持 DROP。这是「保留已有表」能力的开关，语义反转即数据被误删或建表失败
+func TestWithSkipDropTable(t *testing.T) {
+	e := newConvExporter()
+	assert.True(t, e.WithSkipDropTable(false).dropBeforeCreate, "不跳过时仍应 DROP")
+	assert.False(t, e.WithSkipDropTable(true).dropBeforeCreate, "跳过时不得 DROP")
+}
+
+// TestConvIdent 大小写转换策略：None/0 原样、Upper 转大写、Lower 转小写
+func TestConvIdent(t *testing.T) {
+	assert.Equal(t, "T_Order", newConvExporter().WithNameCase(NameCaseNone).convIdent("T_Order"))
+	assert.Equal(t, "T_Order", newConvExporter().WithNameCase(0).convIdent("T_Order"), "0 按不转换处理")
+	assert.Equal(t, "T_ORDER", newConvExporter().WithNameCase(NameCaseUpper).convIdent("T_Order"))
+	assert.Equal(t, "t_order", newConvExporter().WithNameCase(NameCaseLower).convIdent("T_Order"))
+}
+
+// TestConvColumnsDoesNotMutateInput 转换必须返回副本，不得就地修改入参：
+// 源库查询与列映射（resolveDumpColumnKeys）仍依赖原始列名，若被就地改写将导致取值错位/NULL
+func TestConvColumnsDoesNotMutateInput(t *testing.T) {
+	src := col("t_order", "id", "Amount")
+	e := newConvExporter().WithNameCase(NameCaseUpper)
+
+	got := e.convColumns(src)
+	assert.Equal(t, "ID", got[0].ColumnName)
+	assert.Equal(t, "AMOUNT", got[1].ColumnName)
+	assert.Equal(t, "T_ORDER", got[0].TableName, "所属表名同步转换")
+
+	// 入参保持原样
+	assert.Equal(t, "id", src[0].ColumnName, "不得就地修改入参列名")
+	assert.Equal(t, "Amount", src[1].ColumnName)
+	assert.Equal(t, "t_order", src[0].TableName)
+}
+
+// TestConvColumnsNoneReturnsSame None/0 时直接返回原切片（零拷贝快路径）
+func TestConvColumnsNoneReturnsSame(t *testing.T) {
+	src := col("t_order", "id")
+	e := newConvExporter().WithNameCase(NameCaseNone)
+	assert.Equal(t, "id", e.convColumns(src)[0].ColumnName)
+}
+
+// TestConvTableAndIndexes 表名与索引列名按策略转换，供建表/建索引 DDL 引用转换后的标识符
+func TestConvTableAndIndexes(t *testing.T) {
+	e := newConvExporter().WithNameCase(NameCaseLower)
+
+	tbl := e.convTable(dbi.Table{TableName: "T_Order"})
+	assert.Equal(t, "t_order", tbl.TableName)
+
+	idxs := e.convIndexes([]dbi.Index{{ColumnName: "ID"}, {ColumnName: "Amount"}})
+	assert.Equal(t, "id", idxs[0].ColumnName)
+	assert.Equal(t, "amount", idxs[1].ColumnName)
+}

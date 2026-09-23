@@ -36,6 +36,7 @@ export interface MongoDatabasesResult {
 
 /** 按 id 更新文档结果（对应 mongo.UpdateResult，无 json tag） */
 export interface MongoUpdateResult {
+    Acknowledged: boolean;
     MatchedCount: number;
     ModifiedCount: number;
     UpsertedCount: number;
@@ -44,10 +45,12 @@ export interface MongoUpdateResult {
 
 /** 按 id 删除文档结果（对应 mongo.DeleteResult，无 json tag） */
 export interface MongoDeleteResult {
+    Acknowledged: boolean;
     DeletedCount: number;
 }
 
 /** 插入文档结果（对应 mongo.InsertOneResult，无 json tag） */
 export interface MongoInsertResult {
+    Acknowledged: boolean;
     InsertedID: unknown;
 }

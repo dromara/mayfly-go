@@ -1,11 +1,14 @@
 package dbi
 
 import (
-	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/stringx"
+	"context"
+	"errors"
+	"fmt"
 	"strings"
-	"sync"
+
+	"mayfly-go/pkg/utils/collx"
+
+	"github.com/spf13/cast"
 )
 
 // ========== ServerInfo：数据库服务器信息（静态/轻量）==========
@@ -25,7 +28,7 @@ type ServerInfo interface {
 // ========== MetadataProvider：方言实现的 Schema 内省能力（接口）==========
 
 // MetadataProvider 方言提供的 Schema 内省能力
-// 各方言实现此接口（嵌入 DefaultMetadataProvider 覆写差异方法）
+// 各方言以自身的 Metadata 结构体实现本接口全部方法（SQL 均方言特定，无通用默认实现）
 //
 // ⚠️ 扩展规约（开闭原则，后续新增内省对象类型前必读）：
 // 视图/存储过程/序列/触发器等新元数据对象类型，**禁止往本接口加方法**——
@@ -34,7 +37,7 @@ type ServerInfo interface {
 //  1. 在 dbi 定义独立的可选能力接口，如：
 //     type ViewProvider interface { GetViews(names ...string) ([]View, error) }
 //  2. 仅支持该能力的方言实现它（保留编译期断言 var _ ViewProvider = (*metadata)(nil)）
-//  3. Metadata 代理方法内以类型断言探测，未实现的方言返回明确的 ErrNotSupported
+//  3. MetadataReader 代理方法内以类型断言探测，未实现的方言返回明确的 ErrNotSupported
 //  4. MetadataCapabilities 增加 SupportsViews 声明，上层/前端先查能力再调用
 //
 // 遵循此规约时，新增对象类型的改动面 = dbi 一个新接口 + 单方言实现，其余方言零修改。
@@ -51,8 +54,9 @@ type MetadataProvider interface {
 	// GetColumns 获取指定表名的所有列元信息
 	GetColumns(tableNames ...string) ([]Column, error)
 
-	// GetPrimaryKey 获取表主键字段名，没有主键标识则默认第一个字段
-	GetPrimaryKey(tableName string) (string, error)
+	// GetPrimaryKeys 获取表的有序主键列名（联合主键返回多列，按键内顺序）；
+	// 无主键返回空切片（不兜底首列——交由上层决定无键策略，如禁用行级编辑/删除）
+	GetPrimaryKeys(tableName string) ([]string, error)
 
 	// GetTableIndex 获取表索引信息
 	GetTableIndex(tableName string) ([]Index, error)
@@ -61,53 +65,59 @@ type MetadataProvider interface {
 	GetTableDDL(tableName string, dropBeforeCreate bool) (string, error)
 }
 
-// ========== Metadata：Schema 元数据访问入口（独立类，带请求级缓存）==========
+// ========== MetadataReader：Schema 元数据访问入口（独立类，带请求级缓存）==========
 
-// Metadata Schema 元数据访问入口（短生命周期，按请求创建）
+// MetadataReader Schema 元数据访问入口（短生命周期，按请求创建）
 //
 //   - 独立类，作为方言 MetadataProvider 的代理
-//   - 请求级缓存：仅在本次 Metadata 生命周期内有效，避免同一请求内重复查询
+//   - 请求级缓存：仅在本次 MetadataReader 生命周期内有效，避免同一请求内重复查询
 //   - 用完即弃：不跨请求共享，其他平台的 DDL 变更在下次请求时可见
 //
 // 设计决策：持有 DbBackend（而非 *DbConn）引用，解耦元数据访问与连接容器。
-// 这样 DbInfo（无连接时）也能创建 Metadata 用于纯 SQL 生成/能力查询场景。
-type Metadata struct {
+// 这样 DbInfo（无连接时）也能创建 MetadataReader 用于纯 SQL 生成/能力查询场景。
+type MetadataReader struct {
 	backend    DbBackend        // 方言后端（用于 GetCapabilities）
 	provider   MetadataProvider // 方言提供的实际查询能力
 	serverInfo ServerInfo       // 方言提供的服务器信息
 
-	// 请求级缓存：仅在本次 Metadata 生命周期内有效
+	// 请求级缓存：仅在本次 MetadataReader 生命周期内有效
 	cache map[string]any
+
+	// schemaCache 跨请求的进程内元数据缓存（归属 DbInfo，可为 nil，如无连接的纯 SQL 生成场景）。
+	// 缓存策略集中于门面消费，方言 provider 不感知；能力探测（m.provider.(X)）不受影响。
+	schemaCache *schemaCache
 }
 
-// NewMetadata 创建新的 Metadata（每次请求创建新实例）
-// backend 可为 nil（如纯测试场景），此时 GetCapabilities/HasFeature 返回零值。
-func NewMetadata(backend DbBackend, provider MetadataProvider, serverInfo ServerInfo) *Metadata {
-	return &Metadata{
-		backend:    backend,
-		provider:   provider,
-		serverInfo: serverInfo,
-		cache:      make(map[string]any),
+// NewMetadataReader 创建新的 MetadataReader（每次请求创建新实例）
+// backend 可为 nil（如纯测试场景），此时 GetCapabilities 返回零值。
+// schemaCache 可为 nil；非 nil 时为全量表清单与单表列提供跨请求缓存。
+func NewMetadataReader(backend DbBackend, provider MetadataProvider, serverInfo ServerInfo, schemaCache *schemaCache) *MetadataReader {
+	return &MetadataReader{
+		backend:     backend,
+		provider:    provider,
+		serverInfo:  serverInfo,
+		cache:       make(map[string]any),
+		schemaCache: schemaCache,
 	}
 }
 
 // GetDbServer 获取数据库服务实例信息（委托 ServerInfo）
-func (m *Metadata) GetDbServer() (*DbServer, error) {
+func (m *MetadataReader) GetDbServer() (*DbServer, error) {
 	return m.serverInfo.GetDbServer()
 }
 
 // GetCompatibleDbVersion 获取兼容版本信息（委托 ServerInfo）
-func (m *Metadata) GetCompatibleDbVersion() DbVersion {
+func (m *MetadataReader) GetCompatibleDbVersion() DbVersion {
 	return m.serverInfo.GetCompatibleDbVersion()
 }
 
 // GetDefaultDb 获取默认库（委托 ServerInfo）
-func (m *Metadata) GetDefaultDb() string {
+func (m *MetadataReader) GetDefaultDb() string {
 	return m.serverInfo.GetDefaultDb()
 }
 
 // GetSchemas 获取数据库的 schema 列表（带请求级缓存）
-func (m *Metadata) GetSchemas() ([]string, error) {
+func (m *MetadataReader) GetSchemas() ([]string, error) {
 	const key = "schemas"
 	if v, ok := m.cache[key]; ok {
 		return v.([]string), nil
@@ -121,7 +131,7 @@ func (m *Metadata) GetSchemas() ([]string, error) {
 }
 
 // GetDbNames 获取数据库名称列表（带请求级缓存）
-func (m *Metadata) GetDbNames() ([]string, error) {
+func (m *MetadataReader) GetDbNames() ([]string, error) {
 	const key = "dbNames"
 	if v, ok := m.cache[key]; ok {
 		return v.([]string), nil
@@ -135,7 +145,7 @@ func (m *Metadata) GetDbNames() ([]string, error) {
 }
 
 // GetTableNames 获取表名列表（带请求级缓存）
-func (m *Metadata) GetTableNames() ([]string, error) {
+func (m *MetadataReader) GetTableNames() ([]string, error) {
 	const key = "tableNames"
 	if v, ok := m.cache[key]; ok {
 		return v.([]string), nil
@@ -152,8 +162,28 @@ func (m *Metadata) GetTableNames() ([]string, error) {
 	return names, nil
 }
 
-// GetTables 获取表信息（带请求级缓存）
-func (m *Metadata) GetTables(tableNames ...string) ([]Table, error) {
+// cachedRead 跨请求缓存读穿透：m.schemaCache 命中未过期即返回；否则执行 fn，且仅成功结果入缓存。
+// schemaCache 为 nil（无连接的纯 SQL 生成场景）时直接执行 fn。
+// TTL / 仅成功入缓存 / nil 兜底等策略单一收敛于此：
+// 新增可跨请求缓存的元数据方法只需包一层 cachedRead，无需重复 get/set 样板（开闭原则）。
+func (m *MetadataReader) cachedRead[T any](scKey string, fn func() (T, error)) (T, error) {
+	if m.schemaCache == nil {
+		return fn()
+	}
+	if v, ok := m.schemaCache.get(scKey); ok {
+		return v.(T), nil
+	}
+	result, err := fn()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	m.schemaCache.set(scKey, result)
+	return result, nil
+}
+
+// tablesRequest 带表名参数读取表信息，仅请求级 cache 去重（key 含表名列表，不入跨请求缓存）
+func (m *MetadataReader) tablesRequest(tableNames ...string) ([]Table, error) {
 	key := "tables:" + strings.Join(tableNames, ",")
 	if v, ok := m.cache[key]; ok {
 		return v.([]Table), nil
@@ -166,8 +196,16 @@ func (m *Metadata) GetTables(tableNames ...string) ([]Table, error) {
 	return result, nil
 }
 
-// GetColumns 获取指定表名的所有列元信息（带请求级缓存）
-func (m *Metadata) GetColumns(tableNames ...string) ([]Column, error) {
+// GetTables 获取表信息：无参全量走跨请求 schema 缓存（覆盖 /t-infos 大库表名清单）；带表名过滤仅请求级 cache
+func (m *MetadataReader) GetTables(tableNames ...string) ([]Table, error) {
+	if len(tableNames) == 0 {
+		return m.cachedRead("tables", func() ([]Table, error) { return m.tablesRequest() })
+	}
+	return m.tablesRequest(tableNames...)
+}
+
+// columnsRequest 带表名参数读取列信息，仅请求级 cache 去重
+func (m *MetadataReader) columnsRequest(tableNames ...string) ([]Column, error) {
 	key := "columns:" + strings.Join(tableNames, ",")
 	if v, ok := m.cache[key]; ok {
 		return v.([]Column), nil
@@ -180,22 +218,31 @@ func (m *Metadata) GetColumns(tableNames ...string) ([]Column, error) {
 	return result, nil
 }
 
-// GetPrimaryKey 获取表主键字段名（带请求级缓存）
-func (m *Metadata) GetPrimaryKey(tableName string) (string, error) {
-	key := "pk:" + tableName
-	if v, ok := m.cache[key]; ok {
-		return v.(string), nil
+// GetColumns 获取指定表名的列元信息：单表调用（fragment 按需取列）走跨请求 schema 缓存；
+// 多表批量仅请求级 cache（避免跨请求 key 组合爆炸）
+func (m *MetadataReader) GetColumns(tableNames ...string) ([]Column, error) {
+	if len(tableNames) == 1 {
+		return m.cachedRead("columns:"+tableNames[0], func() ([]Column, error) { return m.columnsRequest(tableNames...) })
 	}
-	result, err := m.provider.GetPrimaryKey(tableName)
+	return m.columnsRequest(tableNames...)
+}
+
+// GetPrimaryKeys 获取表的有序主键列名（联合主键多列；无主键返回空切片），带请求级缓存
+func (m *MetadataReader) GetPrimaryKeys(tableName string) ([]string, error) {
+	key := "pks:" + tableName
+	if v, ok := m.cache[key]; ok {
+		return v.([]string), nil
+	}
+	result, err := m.provider.GetPrimaryKeys(tableName)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	m.cache[key] = result
 	return result, nil
 }
 
 // GetTableIndex 获取表索引信息（带请求级缓存）
-func (m *Metadata) GetTableIndex(tableName string) ([]Index, error) {
+func (m *MetadataReader) GetTableIndex(tableName string) ([]Index, error) {
 	key := "indexes:" + tableName
 	if v, ok := m.cache[key]; ok {
 		return v.([]Index), nil
@@ -209,190 +256,249 @@ func (m *Metadata) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // GetTableDDL 获取建表 DDL（不缓存，因参数含 dropBeforeCreate 选项）
-func (m *Metadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
+func (m *MetadataReader) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 	return m.provider.GetTableDDL(tableName, dropBeforeCreate)
-}
-
-// ClearCache 清空请求级缓存（同一请求内需要刷新时调用）
-func (m *Metadata) ClearCache() {
-	m.cache = make(map[string]any)
 }
 
 // GetCapabilities 返回当前方言的元数据能力声明（委托 DbBackend）。
 // backend 为 nil 时返回零值（所有能力为 false），不会 panic。
-func (m *Metadata) GetCapabilities() MetadataCapabilities {
+func (m *MetadataReader) GetCapabilities() MetadataCapabilities {
 	if m.backend == nil {
 		return MetadataCapabilities{}
 	}
 	return m.backend.GetCapabilities()
 }
 
-// HasFeature 检查当前方言在给定版本下是否支持指定特性。
-// 先查版本相关能力表（VersionFeatures），再查静态能力声明。
-// serverVersion 为当前数据库版本（由 GetDbServer 获取），空串表示版本未知。
-func (m *Metadata) HasFeature(featureName string) bool {
-	caps := m.GetCapabilities()
+// ========== 表名过滤（超大 schema 服务端下推 / 回退）==========
 
-	// 1. 查版本相关能力表
-	if minVer, ok := caps.VersionFeatures[featureName]; ok {
-		server, err := m.GetDbServer()
-		if err != nil || server == nil {
-			return false // 无法获取版本信息，保守返回 false
-		}
-		return CompareDbVersion(server.Version, string(minVer)) >= 0
-	}
-
-	// 2. 查静态能力声明
-	return caps.HasStaticFeature(featureName)
+// TableSearcher 可选能力：把表名模糊过滤下推到系统目录查询，用于超大 schema 的资源树按需加载，
+// 避免先全量取回再过滤。未实现本能力的方言由 MetadataReader.SearchTables 回退为「GetTables + 内存子串过滤」，
+// 功能一致、仅缺下推优化（渐进接入，开闭原则）。
+type TableSearcher interface {
+	// SearchTables 返回表名匹配 like（子串、不区分大小写）的表；limit <= 0 表示不限制条数。
+	SearchTables(like string, limit int) ([]Table, error)
 }
 
-// ========== MetadataCapabilities：方言能力声明 ==========
-
-// MetadataCapabilities 方言元数据能力声明
-// 用于前端动态查询方言支持的能力、运维诊断、新增方言时声明特性
-type MetadataCapabilities struct {
-	SupportsSchemas     bool // 是否支持 Schema（pg/mssql/oracle/dm 支持，mysql/sqlite/clickhouse 不支持）
-	SupportsIndexes     bool // 是否支持索引
-	SupportsForeignKeys bool // 是否支持外键
-	SupportsComments    bool // 是否支持表/列注释
-	SupportsDDLExport   bool // 是否支持 DDL 导出
-
-	// 高级能力维度
-	SupportsGeneratedColumns  bool // 是否支持生成列（且可通过元数据准确识别）
-	SupportsIdentityColumns   bool // 是否支持标识列/序列自增语义
-	SupportsExpressionDefault bool // 是否能安全区分字面量默认值与表达式默认值
-
-	// NamespaceHierarchy 命名空间层次声明（Catalog > Schema > Table 三层可选模型）
-	NamespaceHierarchy NamespaceHierarchy
-
-	// VersionFeatures 版本相关能力表
-	// key: 特性名称（如 "window_functions"、"stored_generated_columns"）
-	// value: 最低支持版本（数据库版本 >= 此版本时支持该特性）
-	VersionFeatures map[string]DbVersion
+// SearchTables 按表名过滤/限量获取表清单：like 与 limit 皆空时等价 GetTables 全量；
+// 具备 TableSearcher 则把 LIKE/LIMIT 下推到系统目录，否则回退全量取回 + 不区分大小写子串过滤。
+// 传 limit>0 且 like 为空即为「限量探测」（如判断某库表是否过多以决定是否启用搜索），不必然全量拉取。
+func (m *MetadataReader) SearchTables(like string, limit int) ([]Table, error) {
+	if like == "" && limit <= 0 {
+		return m.GetTables()
+	}
+	if ts, ok := m.provider.(TableSearcher); ok {
+		tables, err := ts.SearchTables(like, limit)
+		if err == nil {
+			return tables, nil
+		}
+		// 下推失败（如某方言专属系统目录 SQL 在特定实例/版本不兼容）：回退「全量+过滤」通用路径，
+		// 保证表浏览不被专属优化拖垮；真实的连接错误会在回退的 GetTables 再次暴露并返回。
+		base, ferr := m.GetTables()
+		if ferr != nil {
+			return nil, err
+		}
+		return filterTablesByLike(base, like, limit), nil
+	}
+	tables, err := m.GetTables()
+	if err != nil {
+		return nil, err
+	}
+	return filterTablesByLike(tables, like, limit), nil
 }
 
-// HasStaticFeature 检查静态能力声明（按特性名称映射到对应字段）
-func (c MetadataCapabilities) HasStaticFeature(featureName string) bool {
-	switch featureName {
-	case "schemas":
-		return c.SupportsSchemas
-	case "indexes":
-		return c.SupportsIndexes
-	case "foreign_keys":
-		return c.SupportsForeignKeys
-	case "comments":
-		return c.SupportsComments
-	case "ddl_export":
-		return c.SupportsDDLExport
-	case "generated_columns":
-		return c.SupportsGeneratedColumns
-	case "identity_columns":
-		return c.SupportsIdentityColumns
-	case "expression_default":
-		return c.SupportsExpressionDefault
-	default:
-		return false
+// EscapeLikeWildcards 转义 LIKE 模式中的通配符 % \ _（各方言 TableSearcher 下推共用）。
+// 用户输入的表名按字面子串匹配，不应被当作 LIKE 通配符；反斜杠须最先转义。
+// mysql/postgres 的 LIKE 均以反斜杠为默认转义符；oracle 无默认转义符需自带 ESCAPE 子句。
+func EscapeLikeWildcards(s string) string {
+	if !strings.ContainsAny(s, `%\_`) {
+		return s
 	}
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
 }
 
-// ========== NamespaceHierarchy：命名空间层次声明 ==========
-
-// NamespaceHierarchy 数据库命名空间层次结构声明。
-// 不同数据库的命名空间层次差异很大：
-//   - MySQL：database = schema（一层，HasDatabase=true, HasSchema=false）
-//   - PostgreSQL：database > schema（两层）
-//   - SQL Server：server > database > schema（三层）
-//   - Oracle：container > pdb > schema（三层）
-//   - SQLite：无 schema 概念（一层，HasDatabase=true）
-type NamespaceHierarchy struct {
-	HasDatabase bool // 是否有 database 层
-	HasSchema   bool // 是否有 schema 层（独立于 database）
-	HasCatalog  bool // 是否有 catalog 层（如 SQL Server 的 server 级）
+// filterTablesByLike 不区分大小写的表名子串过滤（like 为空则不过滤），limit>0 时截断。
+// MetadataReader.SearchTables 的无下推回退路径复用；空 like + limit 即「限量探测」。
+func filterTablesByLike(tables []Table, like string, limit int) []Table {
+	pattern := strings.ToLower(like)
+	out := make([]Table, 0, 16)
+	for _, t := range tables {
+		if pattern == "" || strings.Contains(strings.ToLower(t.TableName), pattern) {
+			out = append(out, t)
+			if limit > 0 && len(out) >= limit {
+				break
+			}
+		}
+	}
+	return out
 }
 
-// ========== CompareDbVersion：版本比较 ==========
+// ========== 扩展元数据对象模型：表/列/索引之外的对象（视图/序列/外键等）==========
+//
+// 与上方「核心访问」的分工：MetadataProvider / Metadata 是各方言**必须**实现的表/列/索引内省；
+// 本段 MetadataNavigator / ForeignKeyProvider 是**可选**能力接口，供资源树按类别懒加载「新对象」，
+// 方言未实现则其 MetadataReader 代理返回 ErrUnsupportedKind。新增对象类别只加常量 + 单方言实现，其余方言零改动
+// （与 sqlparser 的 PaginationRewriter/StatementClassifier、本包 ParamInserter 同属「可选能力 + 探测」范式）。
 
-// CompareDbVersion 比较两个版本字符串的大小。
-// 返回 -1（a < b）、0（a == b）、1（a > b）。
-// 支持格式："8.0.32"、"16.1"、"22.0.0.0.0" 等。
-// 从左到右逐段比较数值，跳过非数字前缀。
-func CompareDbVersion(a, b string) int {
-	aParts := parseVersionParts(a)
-	bParts := parseVersionParts(b)
+// ErrUnsupportedKind 表示某方言未支持请求的元数据对象类别。
+// 上层用 errors.Is 判定，可据此在前端隐藏对应树节点。
+var ErrUnsupportedKind = errors.New("unsupported metadata object kind")
 
-	maxLen := len(aParts)
-	if len(bParts) > maxLen {
-		maxLen = len(bParts)
-	}
+// ObjectKind 元数据对象类别标识。
+//
+// 仅覆盖「尚无一等类型」的新对象：schema/table/column/index 已有 Table/Column/Index
+// 与专用方法，不在此列。新增类别只需加常量并在目标方言 ListObjects 内处理，其余方言零改动。
+type ObjectKind string
 
-	for i := 0; i < maxLen; i++ {
-		aVal, bVal := 0, 0
-		if i < len(aParts) {
-			aVal = aParts[i]
-		}
-		if i < len(bParts) {
-			bVal = bParts[i]
-		}
-		if aVal < bVal {
-			return -1
-		}
-		if aVal > bVal {
-			return 1
-		}
-	}
-	return 0
+const (
+	KindView      ObjectKind = "view"
+	KindProcedure ObjectKind = "procedure"
+	KindFunction  ObjectKind = "function"
+	KindSequence  ObjectKind = "sequence"
+	KindTrigger   ObjectKind = "trigger"
+)
+
+// MetadataObject 元数据对象的统一轻量描述，供资源树渲染成对象节点。
+//
+// 通用字段覆盖大多数对象的展示需求；类别特有信息（如视图定义文本、序列的数据类型）
+// 放 Attrs，避免为每新增一类对象就往结构体塞字段。
+type MetadataObject struct {
+	Name    string         `json:"name"`
+	Kind    ObjectKind     `json:"kind"`
+	Schema  string         `json:"schema,omitempty"`
+	Comment string         `json:"comment,omitempty"`
+	Attrs   map[string]any `json:"attrs,omitempty"`
 }
 
-// parseVersionParts 从版本字符串中提取数值段
-func parseVersionParts(version string) []int {
-	// 跳过非数字前缀
-	start := 0
-	for start < len(version) && (version[start] < '0' || version[start] > '9') {
-		start++
-	}
-	if start >= len(version) {
-		return nil
-	}
-	version = version[start:]
+// MetadataNavigator 可选能力接口：对新对象类别做「列对象 + 取 DDL」的通用内省。
+//
+// 方言按需实现（编译期 `var _ MetadataNavigator = (*XxxMetadata)(nil)` 断言），
+// 只支持自身具备的 kind，对不支持的 kind 返回 ErrUnsupportedKind。
+type MetadataNavigator interface {
+	// SupportedKinds 返回本方言 ListObjects 真正可列举的对象类别，供「能力声明⟺实现」做 kind 级一致性校验。
+	// 必须是纯静态方法（返回字面量集合，不得触碰连接/执行 SQL）——护栏需在无库环境下构造 provider 引用即可调用。
+	// 注意：某 kind 可列举不代表 ObjectDDL 也支持（ObjectDDL 支持面可更窄，如某方言能列出某类对象但不生成其 DDL）。
+	SupportedKinds() []ObjectKind
 
-	var parts []int
-	current := 0
-	hasDigit := false
-	for i := 0; i < len(version); i++ {
-		c := version[i]
-		if c >= '0' && c <= '9' {
-			current = current*10 + int(c-'0')
-			hasDigit = true
-		} else if c == '.' && hasDigit {
-			parts = append(parts, current)
-			current = 0
-			hasDigit = false
-		} else if hasDigit {
-			parts = append(parts, current)
-			current = 0
-			hasDigit = false
-		}
-	}
-	if hasDigit {
-		parts = append(parts, current)
-	}
-	return parts
+	// ListObjects 列出 schema 下某类对象。schema 为空表示当前库/模式。
+	ListObjects(ctx context.Context, schema string, kind ObjectKind) ([]MetadataObject, error)
+
+	// ObjectDDL 返回对象的重建 DDL 原文。kind 不受支持时返回 ErrUnsupportedKind。
+	ObjectDDL(ctx context.Context, schema string, kind ObjectKind, name string) (string, error)
 }
 
-// ParseDbVersion 从原始版本字符串解析主/次版本号，填充到 DbServer。
-// 支持常见格式："8.0.32"、"16.1 (Debian 16.1-1.pgdg120+1)"、"22.0.0.0.0" 等。
-// 解析失败时 MajorVersion/MinorVersion 保持零值，不影响 Version 原始字段。
-func ParseDbVersion(server *DbServer) {
-	if server == nil || server.Version == "" {
-		return
+// ForeignKey 表间关系（外键）的结构化详情。
+//
+// 列级映射无法用通用导航节点表达，且被 ER 图、跨库迁移建表拓扑排序等结构化消费，
+// 故单独建模，而非塞进 MetadataObject.Attrs。
+type ForeignKey struct {
+	Name      string `json:"name"`
+	Table     string `json:"table"`
+	Column    string `json:"column"`
+	RefTable  string `json:"refTable"`
+	RefColumn string `json:"refColumn"`
+	OnUpdate  string `json:"onUpdate,omitempty"`
+	OnDelete  string `json:"onDelete,omitempty"`
+}
+
+// ForeignKeyProvider 可选能力接口：内省指定表的外键关系。
+type ForeignKeyProvider interface {
+	GetForeignKeys(ctx context.Context, schema, table string) ([]ForeignKey, error)
+}
+
+// KeyType 表键约束类别。仅覆盖主键与唯一键——它们才是「行标识」的来源；
+// 外键另有 ForeignKeyProvider，普通索引另有 GetTableIndex，职责不混。
+type KeyType string
+
+const (
+	KeyTypePrimary KeyType = "primary" // 主键
+	KeyTypeUnique  KeyType = "unique"  // 唯一键
+)
+
+// KeyColumn 键约束中的一列。Ordinal 为键内序号（1 起），联合键顺序敏感（PK(a,b) ≠ PK(b,a)），
+// 与 information_schema.KEY_COLUMN_USAGE.ORDINAL_POSITION 对齐。
+type KeyColumn struct {
+	Name    string `json:"name"`
+	Ordinal int    `json:"ordinal"`
+}
+
+// KeyConstraint 表键约束（主键/唯一键）的有序列集合。
+//
+// 建模对齐 information_schema.TABLE_CONSTRAINTS + KEY_COLUMN_USAGE：键是一等约束对象、
+// 成员列带序，而非「每列一个 isPrimaryKey 布尔」——后者无法表达联合键的顺序，也逼出 GetPrimaryKey
+// 单列兜底之类的错误。行级更新/删除的 WHERE、迁移 upsert 冲突键都应以本结构为准。
+type KeyConstraint struct {
+	Name    string      `json:"name"`
+	Type    KeyType     `json:"type"`
+	Columns []KeyColumn `json:"columns"`
+}
+
+// KeyProvider 可选能力接口：内省指定表的主键与唯一键约束（有序列）。
+type KeyProvider interface {
+	GetKeys(ctx context.Context, schema, table string) ([]KeyConstraint, error)
+}
+
+// ParseKeyRows 将统一形状的内省结果（列别名 keyName/keyType/columnName/ordinal）聚合为有序 KeyConstraint 列表。
+// 采用 information_schema 风格四列查询的方言（mysql/pgsql/mssql/oracle/dm）共用本函数，避免分组逻辑在各方言重复漂移；
+// keyType 值为 'PRIMARY KEY' 视为主键，其余按唯一键。sqlite/clickhouse 结构不同，各自组装。
+func ParseKeyRows(res []map[string]any) []KeyConstraint {
+	keys := make([]KeyConstraint, 0, len(res))
+	idx := make(map[string]int, len(res))
+	for _, re := range res {
+		name := cast.ToString(re["keyName"])
+		kt := KeyTypeUnique
+		if cast.ToString(re["keyType"]) == "PRIMARY KEY" {
+			kt = KeyTypePrimary
+		}
+		col := KeyColumn{Name: cast.ToString(re["columnName"]), Ordinal: cast.ToInt(re["ordinal"])}
+		if at, ok := idx[name]; ok {
+			keys[at].Columns = append(keys[at].Columns, col)
+			continue
+		}
+		idx[name] = len(keys)
+		keys = append(keys, KeyConstraint{Name: name, Type: kt, Columns: []KeyColumn{col}})
 	}
-	parts := parseVersionParts(server.Version)
-	if len(parts) > 0 {
-		server.MajorVersion = parts[0]
+	return keys
+}
+
+// ---------- MetadataReader 代理：对 provider 做能力探测，未实现者返回明确错误而非静默空 ----------
+
+// ListObjects 代理到 provider 的 MetadataNavigator 能力；方言未实现则返回 ErrUnsupportedKind。
+func (m *MetadataReader) ListObjects(ctx context.Context, schema string, kind ObjectKind) ([]MetadataObject, error) {
+	nav, ok := m.provider.(MetadataNavigator)
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedKind, kind)
 	}
-	if len(parts) > 1 {
-		server.MinorVersion = parts[1]
+	return nav.ListObjects(ctx, schema, kind)
+}
+
+// ObjectDDL 代理到 provider 的 MetadataNavigator 能力；方言未实现则返回 ErrUnsupportedKind。
+func (m *MetadataReader) ObjectDDL(ctx context.Context, schema string, kind ObjectKind, name string) (string, error) {
+	nav, ok := m.provider.(MetadataNavigator)
+	if !ok {
+		return "", fmt.Errorf("%w: %s", ErrUnsupportedKind, kind)
 	}
+	return nav.ObjectDDL(ctx, schema, kind, name)
+}
+
+// GetForeignKeys 代理到 provider 的 ForeignKeyProvider 能力；方言未实现则返回 ErrUnsupportedKind。
+func (m *MetadataReader) GetForeignKeys(ctx context.Context, schema, table string) ([]ForeignKey, error) {
+	rr, ok := m.provider.(ForeignKeyProvider)
+	if !ok {
+		return nil, fmt.Errorf("%w: relations", ErrUnsupportedKind)
+	}
+	return rr.GetForeignKeys(ctx, schema, table)
+}
+
+// GetKeys 代理到 provider 的 KeyProvider 能力（主键/唯一键有序列）；方言未实现则返回 ErrUnsupportedKind。
+func (m *MetadataReader) GetKeys(ctx context.Context, schema, table string) ([]KeyConstraint, error) {
+	kr, ok := m.provider.(KeyProvider)
+	if !ok {
+		return nil, fmt.Errorf("%w: keys", ErrUnsupportedKind)
+	}
+	return kr.GetKeys(ctx, schema, table)
 }
 
 // ========== DefaultServerInfo：ServerInfo 默认实现 ==========
@@ -407,13 +513,6 @@ func (dd *DefaultServerInfo) GetCompatibleDbVersion() DbVersion {
 func (dd *DefaultServerInfo) GetDefaultDb() string {
 	return ""
 }
-
-// ========== DefaultMetadataProvider：MetadataProvider 默认实现 ==========
-
-// DefaultMetadataProvider MetadataProvider 默认实现
-// 当前 MetadataProvider 的所有方法均需方言特定实现，无通用默认值
-// 各方言嵌入此结构体仅为保持嵌入模式一致性，便于未来添加通用默认实现
-type DefaultMetadataProvider struct{}
 
 // 数据库服务实例信息
 type DbServer struct {
@@ -450,86 +549,20 @@ type Index struct {
 // GroupIndexColumns 将平铺的索引记录按索引名分组，同索引的多个列名以逗号连接。
 // 数据库索引查询结果通常每个列一行，本函数将其合并为每个索引一条记录。
 // 适用于 MySQL/PostgreSQL/Oracle/DM 等标准方言的索引结果合并。
+//
+// 采用「索引名→首次出现位置」映射做顺序无关分组（与 ParseKeyRows 一致），
+// 避免同名索引行不相邻时被拆成多条重复记录；列名按输入顺序拼接。
 func GroupIndexColumns(indexes []Index) []Index {
-	result := make([]Index, 0)
-	prevKey := ""
+	result := make([]Index, 0, len(indexes))
+	pos := make(map[string]int, len(indexes))
 	for _, idx := range indexes {
-		if prevKey == idx.IndexName {
+		if at, ok := pos[idx.IndexName]; ok {
 			// 同索引字段以逗号连接
-			last := len(result) - 1
-			result[last].ColumnName += "," + idx.ColumnName
-		} else {
-			prevKey = idx.IndexName
-			result = append(result, idx)
+			result[at].ColumnName += "," + idx.ColumnName
+			continue
 		}
+		pos[idx.IndexName] = len(result)
+		result = append(result, idx)
 	}
 	return result
-}
-
-// ------------------------- 元数据sql操作 -------------------------
-//
-// 各方言元数据SQL模板由方言包自持（//go:embed 与方言实现同居一处，新增方言时包内自包含），
-// dbi仅提供通用的解析与缓存能力（SqlTemplates）
-
-// SqlTemplates 方言元数据SQL模板：解析「--KEY 备注说明」分段格式的sql文件内容，
-// 按备注key取用并缓存。格式：段落以分隔线切分，每段首行为 --KEY 备注信息
-// （如 --MYSQL_TABLE_INFO 表详细信息），正文为实际sql
-//
-// 用法（方言包内）：
-//
-//	//go:embed meta.sql
-//	var metaSqlFile string
-//	var metaSql = dbi.NewSqlTemplates(metaSqlFile)
-type SqlTemplates struct {
-	content string
-	mu      sync.RWMutex // 保护 cache 的并发读写
-	cache   map[string]string
-}
-
-func NewSqlTemplates(content string) *SqlTemplates {
-	return &SqlTemplates{content: content, cache: make(map[string]string, 20)}
-}
-
-// Get 获取key对应的sql内容，首次访问时解析全量段落并缓存
-func (t *SqlTemplates) Get(key string) string {
-	t.mu.RLock()
-	sql := t.cache[key]
-	t.mu.RUnlock()
-	if sql != "" {
-		return sql
-	}
-
-	allSql := t.content
-	sqls := strings.Split(allSql, "---------------------------------------")
-	var resSql string
-	for _, sql := range sqls {
-		sql = stringx.TrimSpaceAndBr(sql)
-		if sql == "" {
-			continue
-		}
-		// 获取sql第一行的sql备注信息如：--MYSQL_TABLE_MA 表信息元数据
-		info := strings.SplitN(sql, "\n", 2)
-		if len(info) < 2 {
-			// 内容只有一行（无实际sql），跳过，避免越界
-			continue
-		}
-		// 获取sql key；如：MYSQL_TABLE_MA，格式不合法则跳过
-		keyParts := strings.Split(strings.Split(info[0], " ")[0], "--")
-		if len(keyParts) < 2 {
-			continue
-		}
-		sqlKey := keyParts[1]
-		// 原始sql，即去除第一行的key与备注信息
-		rowSql := info[1]
-		if key == sqlKey {
-			resSql = rowSql
-		}
-		t.mu.Lock()
-		t.cache[sqlKey] = rowSql
-		t.mu.Unlock()
-	}
-	if resSql == "" {
-		logx.Error("sql metadata key not found: %s", key)
-	}
-	return resSql
 }

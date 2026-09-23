@@ -16,8 +16,8 @@ var En = map[i18n.MsgId]string{
 	MachineFileUploadFailMsg:    "[{{.filename}}] -> <machine-info code={{.machineCode}}>{{.machineName}}</machine-info> [{{.path}}]. error: {{.error}}",
 
 	DbDumpFailMsg:          "Database [<db-info id={{.dbId}}>{{.dbName}}</db-info>] dump failed, error: <error-text>{{.error}}</error-text>",
-	SqlScriptRunFailMsg:    "Script {{.filename}} execution failed on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], error: <error-text>{{.error}}</error-text>",
-	SqlScriptRunSuccessMsg: "Script {{.filename}} executed successfully on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], cost {{.cost}}",
+	SQLScriptRunFailMsg:    "Script {{.filename}} execution failed on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], error: <error-text>{{.error}}</error-text>",
+	SQLScriptRunSuccessMsg: "Script {{.filename}} executed successfully on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], cost {{.cost}}",
 
 	FlowUserTaskTodoMsg: "Work order [{{.procdefName}}] submitted by [{{.creator}}] is now at [{{.taskName}}] node. Please process it promptly. <a href='#/flow/procinst-tasks'>Handle it >>></a>",
 }

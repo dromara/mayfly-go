@@ -93,16 +93,7 @@ import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferFileStatusEnum } from '@/views/ops/db/transfer/enums';
 import { onMounted, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { DbTransferTask, DbNodeParams } from '../types';
-
-interface DbTransferFile {
-    id: number;
-    fileKey: string;
-    fileDbType: string;
-    status: number;
-    state: number;
-    createTime: string;
-}
+import type { DbTransferTaskListVO, DbNodeParams, DbTransferFile } from '../types';
 
 interface RunForm {
     id: number;
@@ -115,11 +106,23 @@ interface RunForm {
     targetDbType: string;
 }
 
+/** 运行表单初值（打开/取消弹窗均重置回该形状，避免残留上一次的目标库选择） */
+const initialRunForm = (): RunForm => ({
+    id: 0,
+    dbType: '',
+    clientId: '',
+    targetDbId: 0,
+    targetDbName: '',
+    targetTagPath: '',
+    targetInstName: '',
+    targetDbType: '',
+});
+
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: Object as PropType<DbTransferTask | null>,
+        type: Object as PropType<DbTransferTaskListVO | null>,
     },
     title: {
         type: String,
@@ -174,20 +177,11 @@ const state = reactive({
         title: t('db.transferFileRunDialogTitle'),
         visible: false,
         data: null as DbTransferFile | null,
-        runForm: {
-            id: 0,
-            dbType: '',
-            clientId: '',
-            targetDbId: 0,
-            targetDbName: '',
-            targetTagPath: '',
-            targetInstName: '',
-            targetDbType: '',
-        },
+        runForm: initialRunForm(),
         loading: false,
         onCancel: function () {
             state.runDialog.visible = false;
-            state.runDialog.runForm = {} as RunForm;
+            state.runDialog.runForm = initialRunForm();
         },
         onConfirm: async function () {
             await useI18nFormValidate(runFormRef);
@@ -232,7 +226,7 @@ const onDel = async function () {
 
 // 运行sql，弹出选择需要运行的库，默认运行当前数据库，需要保证数据库类型与sql文件一致
 const onOpenRun = function (data: DbTransferFile) {
-    state.runDialog.runForm = { id: data.id, dbType: data.fileDbType } as RunForm;
+    state.runDialog.runForm = { ...initialRunForm(), id: data.id, dbType: data.fileDbType };
     state.runDialog.visible = true;
 };
 

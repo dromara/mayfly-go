@@ -42,6 +42,117 @@ func TestITPgConnectAndMetadata(t *testing.T) {
 	t.Logf("tables in %s: %d", itPgDatabase, len(tables))
 }
 
+// pg 服务端表名搜索（dbi.TableSearcher 下推）：真实子串命中、下划线转义为字面、空 like+limit 限量探测。
+// 通过 Metadata 代理验证功能契约（与 api/前端消费路径一致）。
+func TestITPgSearchTables(t *testing.T) {
+	conn := pgConn(t)
+	defer conn.Close()
+	md := conn.Metadata()
+
+	all, err := md.GetTables()
+	require.NoError(t, err)
+	if len(all) == 0 {
+		t.Skip("pg itest 库无表，跳过搜索验证")
+	}
+
+	// 取真实表名前缀作为搜索词，应命中该表
+	name := all[0].TableName
+	probe := name
+	if len(probe) > 3 {
+		probe = probe[:3]
+	}
+	hits, err := md.SearchTables(probe, 0)
+	require.NoError(t, err)
+	var found bool
+	for _, h := range hits {
+		if strings.EqualFold(h.TableName, name) {
+			found = true
+		}
+	}
+	assert.True(t, found, "子串 %q 应命中表 %s", probe, name)
+
+	// 下划线是 LIKE 通配符：转义后按字面匹配，含下划线的不存在名应零命中（不误配）
+	literal, err := md.SearchTables("zz_no_such_tbl_xyz", 0)
+	require.NoError(t, err)
+	assert.Empty(t, literal)
+
+	// 空 like + limit：限量探测（服务端截断）
+	capped, err := md.SearchTables("", 2)
+	require.NoError(t, err)
+	assert.LessOrEqual(t, len(capped), 2, "limit=2 应至多返回 2 张表")
+}
+
+// TestITPgSequenceNodeDDL 回归：序列此前 ObjectDDL 返回 unsupported metadata object kind，现应重建 CREATE SEQUENCE。
+func TestITPgSequenceNodeDDL(t *testing.T) {
+	conn := pgConn(t)
+	defer conn.Close()
+	md := conn.Metadata()
+
+	seq := "it_pg_seq_ddl"
+	mustExec(t, conn, "DROP SEQUENCE IF EXISTS "+seq)
+	mustExec(t, conn, "CREATE SEQUENCE "+seq+" AS bigint INCREMENT BY 5 MINVALUE 100 MAXVALUE 999999 START WITH 100 CACHE 7 CYCLE")
+	// 用 defer（注册于 defer conn.Close() 之后 → 返回时先删序列再关连接）；t.Cleanup 在 Close 之后运行会对已关闭连接 panic
+	defer func() { _, _ = conn.Exec("DROP SEQUENCE IF EXISTS " + seq) }()
+
+	ddl, err := md.ObjectDDL(itCtx(), "", dbi.KindSequence, seq)
+	require.NoError(t, err, "pg 应支持序列 DDL（此前返回 unsupported kind）")
+	up := strings.ToUpper(ddl)
+	assert.Contains(t, up, "CREATE SEQUENCE")
+	assert.Contains(t, ddl, "INCREMENT BY 5")
+	assert.Contains(t, ddl, "START WITH 100")
+	assert.Contains(t, ddl, "CACHE 7")
+	assert.Contains(t, up, "CYCLE")
+
+	// 序列仍可被列举（ListObjects 与 ObjectDDL 双路径一致），且定义属性随列表返回（供前端属性面板）
+	nodes, err := md.ListObjects(itCtx(), "", dbi.KindSequence)
+	require.NoError(t, err)
+	var seqNode *dbi.MetadataObject
+	for i := range nodes {
+		if nodes[i].Name == seq {
+			seqNode = &nodes[i]
+		}
+	}
+	require.NotNil(t, seqNode, "ListObjects 应含刚建序列")
+	assert.Equal(t, "bigint", seqNode.Attrs["dataType"])
+	assert.Equal(t, "5", seqNode.Attrs["incrementBy"])
+	assert.Equal(t, "7", seqNode.Attrs["cacheSize"])
+	assert.Equal(t, "true", seqNode.Attrs["isCycle"])
+}
+
+// TestITPgViewIntrospection pg 视图内省：ListObjects(view) 命中 + ObjectDDL(view) 经 pg_get_viewdef 取回定义
+func TestITPgViewIntrospection(t *testing.T) {
+	conn := pgConn(t)
+	defer conn.Close()
+	md := conn.Metadata()
+
+	base := "it_pg_vw_base"
+	vw := "it_pg_vw"
+	_, _ = conn.Exec("DROP VIEW IF EXISTS " + vw)
+	_, _ = conn.Exec("DROP TABLE IF EXISTS " + base)
+	// defer 注册于 defer conn.Close() 之后 → 返回时先清对象（连接仍在）
+	defer func() {
+		_, _ = conn.Exec("DROP VIEW IF EXISTS " + vw)
+		_, _ = conn.Exec("DROP TABLE IF EXISTS " + base)
+	}()
+	mustExec(t, conn, "CREATE TABLE "+base+" (id bigint PRIMARY KEY, name varchar(50))")
+	mustExec(t, conn, "CREATE VIEW "+vw+" AS SELECT id, name FROM "+base+" WHERE id > 0")
+
+	objs, err := md.ListObjects(itCtx(), "", dbi.KindView)
+	require.NoError(t, err)
+	var listed bool
+	for _, o := range objs {
+		if o.Name == vw {
+			listed = true
+		}
+	}
+	assert.True(t, listed, "ListObjects(view) 应含 %s", vw)
+
+	ddl, err := md.ObjectDDL(itCtx(), "", dbi.KindView, vw)
+	require.NoError(t, err, "pg 视图 ObjectDDL 应成功")
+	// pg_get_viewdef 返回视图的 SELECT 体，应引用基表
+	assert.Contains(t, strings.ToLower(ddl), strings.ToLower(base))
+}
+
 // DDL生成→真实执行→元数据回读→再用回读元数据二次建表（元数据↔DDL双向闭环）
 func TestITPgGenTableDDLRoundtrip(t *testing.T) {
 	conn := pgConn(t)
@@ -222,12 +333,18 @@ func TestITPgCopyTable(t *testing.T) {
 	table := "it_pg_copy_src"
 	quote := conn.GetDialect().Quoter().Quote
 	mustExec(t, conn, "DROP TABLE IF EXISTS "+quote(table))
-	// copy表名带时间戳后缀，清理历史残留避免前缀匹配到旧表
-	_, staleRes, err := conn.Query("SELECT tablename FROM pg_tables WHERE tablename LIKE $1", table+"_copy_%")
-	require.NoError(t, err)
-	for _, re := range staleRes {
-		mustExec(t, conn, fmt.Sprintf("DROP TABLE IF EXISTS %s", quote(fmt.Sprintf("%v", re["tablename"]))))
+	// copy表名带时间戳后缀：运行前后都清理，避免历史残留与本次产物堆积撑爆测试库
+	dropCopies := func() {
+		_, staleRes, qerr := conn.Query("SELECT tablename FROM pg_tables WHERE tablename LIKE $1", table+"_copy_%")
+		if qerr != nil {
+			return
+		}
+		for _, re := range staleRes {
+			_, _ = conn.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quote(fmt.Sprintf("%v", re["tablename"]))))
+		}
 	}
+	dropCopies()
+	defer dropCopies() // 注册于 defer conn.Close() 之后 → 返回时先清表（连接仍在）
 	// serial自增表：CopyTable需要重建序列，覆盖该复杂链路
 	mustExec(t, conn, fmt.Sprintf("CREATE TABLE %s (id serial PRIMARY KEY, val varchar(50))", quote(table)))
 	mustExec(t, conn, fmt.Sprintf("INSERT INTO %s (val) VALUES ('a'), ('b'), ('中文🙂')", quote(table)))
@@ -324,7 +441,7 @@ func TestITMysqlToPgMigration(t *testing.T) {
 // SQL 执行分发链路（切割 → 解析 → 按类型分发）
 // ---------------------------------------------------------------------
 
-func TestITPgSqlExecDispatch(t *testing.T) {
+func TestITPgSQLExecDispatch(t *testing.T) {
 	conn := pgConn(t)
 	defer conn.Close()
 

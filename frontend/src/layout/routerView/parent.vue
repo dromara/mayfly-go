@@ -98,7 +98,8 @@ const getIframesRoutes = async () => {
         if (v.meta.linkType === LinkTypeEnum.Iframes.value) {
             v.meta.isIframeOpen = false;
             v.meta.loading = true;
-            state.iframes.push({ ...v } as unknown as RouteItem);
+            // iframe 渲染只消费 path/meta；路由记录的 children/redirect/name 与 RouteItem 形状不同构，故不带入
+            state.iframes.push({ path: v.path, meta: v.meta });
         }
     });
 };

@@ -12,6 +12,7 @@ export default {
         hostTips: `Enter host:port; The sentinel mode is mastername=sentinelhost:port. If the cluster or sentinels need multiple nodes, they can be separated by ','`,
         nodePassword: 'Node Password',
         sentinelHostErr: 'Sentinel model host for: mastername = sentinelhost: sentinelport mode',
+        hostPortErr: 'host must be in host:port form (separate nodes with ,); missing port: {hosts}',
         delimiter: 'Delimiter',
         keyMatchTips: 'match supports * obfuscated key, enter search',
         loadMore: 'Load More',

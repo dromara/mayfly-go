@@ -10,7 +10,7 @@ import (
 var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
 
 type SQLGenerator struct {
-	dbi.BaseSQLGenerator
+	dbi.DefaultSQLGenerator
 	dialect dbi.Dialect
 
 	di *dbi.DbInfo
@@ -26,7 +26,7 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteTableName))
 	}
 	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", quoteTableName)
+	createSQL := fmt.Sprintf("CREATE TABLE %s (\n", quoteTableName)
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 	columnComments := make([]string, 0)
@@ -37,7 +37,7 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 			pks = append(pks, quote(column.ColumnName))
 		}
 
-		fields = append(fields, msg.genColumnBasicSql(quoter, column))
+		fields = append(fields, msg.genColumnBasicSQL(quoter, column))
 
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
@@ -46,24 +46,24 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 		}
 	}
 
-	createSql += strings.Join(fields, ",\n")
+	createSQL += strings.Join(fields, ",\n")
 	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
+		createSQL += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
 	}
-	createSql += "\n)"
+	createSQL += "\n)"
 
-	tableCommentSql := ""
+	tableCommentSQL := ""
 	if table.TableComment != "" {
 		commentTmp := "COMMENT ON TABLE %s IS '%s'"
-		tableCommentSql = fmt.Sprintf(commentTmp, quoteTableName, dbi.QuoteEscape(table.TableComment))
+		tableCommentSQL = fmt.Sprintf(commentTmp, quoteTableName, dbi.QuoteEscape(table.TableComment))
 	}
 
 	// create
-	sqlArr = append(sqlArr, createSql)
+	sqlArr = append(sqlArr, createSQL)
 
 	// table comment
-	if tableCommentSql != "" {
-		sqlArr = append(sqlArr, tableCommentSql)
+	if tableCommentSQL != "" {
+		sqlArr = append(sqlArr, tableCommentSQL)
 	}
 	// column comment
 	if len(columnComments) > 0 {
@@ -73,14 +73,14 @@ func (msg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, drop
 	return sqlArr
 }
 
-func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
+func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []string {
 	quoter := msg.dialect.Quoter()
 	quote := quoter.QuoteIdent
 
 	creates := make([]string, 0)
 	drops := make([]string, 0)
 	comments := make([]string, 0)
-	for _, index := range indexs {
+	for _, index := range indexes {
 		unique := ""
 		if index.IsUnique {
 			unique = " unique"
@@ -125,25 +125,25 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []stri
 }
 
 func (psg *SQLGenerator) GenInsert(tableName string, columns []dbi.Column, values [][]any, duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta) []string {
-	insertSql := dbi.GenCommonInsert(psg.dialect, psg.di.Type, tableName, columns, values)
+	insertSQL := dbi.GenCommonInsert(psg.dialect, psg.di.Type, tableName, columns, values)
 
 	// 根据冲突策略生成后缀
 	suffix := ""
 	if psg.di.Type == DbTypeGauss {
 		// 高斯db使用ON DUPLICATE KEY UPDATE 语法参考 https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
-		suffix = psg.gaussOnDuplicateStrategySql(duplicateStrategy, targetTableMeta, columns)
+		suffix = psg.gaussOnDuplicateStrategySQL(duplicateStrategy, targetTableMeta, columns)
 	} else {
 		// pgsql 默认使用 on conflict 语法参考 http://www.postgres.cn/docs/12/sql-insert.html
 		// vastbase语法参考 https://docs.vastdata.com.cn/zh/docs/VastbaseE100Ver3.0.0/doc/SQL%E8%AF%AD%E6%B3%95/INSERT.html
 		// kingbase语法参考 https://help.kingbase.com.cn/v8/development/sql-plsql/sql/SQL_Statements_9.html#insert
-		suffix = psg.pgsqlOnDuplicateStrategySql(duplicateStrategy, targetTableMeta, columns)
+		suffix = psg.pgsqlOnDuplicateStrategySQL(duplicateStrategy, targetTableMeta, columns)
 	}
 
-	return collx.AsArray[string](insertSql + suffix)
+	return collx.AsArray[string](insertSQL + suffix)
 }
 
 // pgsql默认唯一键冲突策略，生成过程中不查询数据库（唯一列由调用方预查传入）
-func (psg *SQLGenerator) pgsqlOnDuplicateStrategySql(duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta, columns []dbi.Column) string {
+func (psg *SQLGenerator) pgsqlOnDuplicateStrategySQL(duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta, columns []dbi.Column) string {
 	// on conflict do nothing 无需指定冲突列，可匹配任意唯一约束
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		return " \n on conflict do nothing"
@@ -187,7 +187,7 @@ func (psg *SQLGenerator) pgsqlOnDuplicateStrategySql(duplicateStrategy int, targ
 }
 
 // 高斯db唯一键冲突策略,使用ON DUPLICATE KEY UPDATE 参考：https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
-func (psg *SQLGenerator) gaussOnDuplicateStrategySql(duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta, columns []dbi.Column) string {
+func (psg *SQLGenerator) gaussOnDuplicateStrategySQL(duplicateStrategy int, targetTableMeta *dbi.TargetTableMeta, columns []dbi.Column) string {
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		return " \n ON DUPLICATE KEY UPDATE NOTHING"
 	}
@@ -219,7 +219,7 @@ func (psg *SQLGenerator) gaussOnDuplicateStrategySql(duplicateStrategy int, targ
 	return suffix + strings.Join(sets, ", ")
 }
 
-func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
+func (pd *SQLGenerator) genColumnBasicSQL(quoter dbi.Quoter, column dbi.Column) string {
 	colName := quoter.QuoteIdent(column.ColumnName)
 	dataType := string(column.DataType)
 
@@ -261,13 +261,13 @@ func (pd *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 	}
 
 	// 默认值统一由dbi判定：FixColumnDefault已保留字面量书写形态，此处按字面量重新转义引用；
-	// 旧实现仅对char/text/date/time/lob这几类加引号，jsonb/uuid/citext等类型的字面量默认值会被
+	// 若仅对char/text/date/time/lob这几类加引号，jsonb/uuid/citext等类型的字面量默认值会被
 	// 裸拼进DDL直接产生语法错误；且无条件把含now/current_timestamp的默认值改写为CURRENT_TIMESTAMP，
 	// 使 DEFAULT '2020-01-01 00:00:00' 这类字面量被改写为错误默认值
 	// 源库为MySQL 8.0时默认值不带引号，必须能按字面量重新引用，不能因形态陌生而丢弃；
 	// pg的now()/now等等价于CURRENT_TIMESTAMP，由dbi按目标列类型统一归一为无参标准关键字
-	defVal := dbi.GenColumnDefaultSqlOf(&column, dataType, dbi.QuoteEscape)
+	defVal := dbi.GenColumnDefaultSQLOf(&column, dataType, dbi.QuoteEscape)
 
-	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), nullAble, defVal)
-	return columnSql
+	columnSQL := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), nullAble, defVal)
+	return columnSQL
 }

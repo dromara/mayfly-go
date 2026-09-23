@@ -14,6 +14,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import ElementPlus from 'element-plus';
 import { createI18n } from 'vue-i18n';
 import AutoForm from '../AutoForm.vue';
+import { EnumValue } from '@/common/Enum';
 import AutoFormDialog from '../AutoFormDialog.vue';
 import AutoFormDrawer from '../AutoFormDrawer.vue';
 import type { AutoFormItem, AutoFormTab } from '../types';
@@ -117,7 +118,7 @@ describe('AutoForm 控件渲染与双向绑定', () => {
         expect(options[0].textContent).toContain('Name');
         expect(options[1].textContent).toContain('Raw Label');
 
-        await (select.vm as any).handleOptionSelect({ value: 1, label: 'Name' });
+        await (select.vm).handleOptionSelect({ value: 1, label: 'Name' });
         await flushPromises();
         expect(form.type).toBe(1);
     });
@@ -150,7 +151,7 @@ describe('AutoForm 控件渲染与双向绑定', () => {
                     prop: 'level',
                     label: 'fields.type',
                     type: 'enum',
-                    enums: { A: { value: 'a', label: 'A' }, B: { value: 'b', label: 'B' } } as unknown as AutoFormItem['enums'],
+                    enums: { A: new EnumValue('a', 'A'), B: new EnumValue('b', 'B') },
                     excludeValues: ['b'],
                 },
             ] as AutoFormItem[],

@@ -78,12 +78,12 @@ func SelectByCond(dbModel model.ModelI, cond *model.QueryCond) error {
 	return NewQuery(dbModel, cond).GenGdb().Find(cond.GetDest()).Error
 }
 
-// SelectBySql 根据sql查询数据
-func SelectBySql(sql string, toEntity any, params ...any) error {
+// SelectBySQL 根据sql查询数据
+func SelectBySQL(sql string, toEntity any, params ...any) error {
 	return global.Db.Raw(sql, params...).Scan(toEntity).Error
 }
 
-func ExecSql(sql string, params ...any) error {
+func ExecSQL(sql string, params ...any) error {
 	return global.Db.Exec(sql, params...).Error
 }
 

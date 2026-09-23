@@ -10,7 +10,7 @@ import (
 var _ dbi.SQLGenerator = (*SQLGenerator)(nil)
 
 type SQLGenerator struct {
-	dbi.BaseSQLGenerator
+	dbi.DefaultSQLGenerator
 	di *dbi.DbInfo
 }
 
@@ -36,7 +36,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 	}
 
 	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", quoteTable)
+	createSQL := fmt.Sprintf("CREATE TABLE %s (\n", quoteTable)
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 	columnComments := make([]string, 0)
@@ -45,7 +45,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 		if column.IsPrimaryKey {
 			pks = append(pks, quote(column.ColumnName))
 		}
-		fields = append(fields, sg.genColumnBasicSql(quoter, column))
+		fields = append(fields, sg.genColumnBasicSQL(quoter, column))
 		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'COLUMN', N'%s'"
 
 		// 防止注释内含有特殊字符串导致sql出错
@@ -56,24 +56,24 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 	}
 
 	// create
-	createSql += strings.Join(fields, ",\n")
+	createSQL += strings.Join(fields, ",\n")
 	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", \n PRIMARY KEY CLUSTERED (%s)", strings.Join(pks, ","))
+		createSQL += fmt.Sprintf(", \n PRIMARY KEY CLUSTERED (%s)", strings.Join(pks, ","))
 	}
-	createSql += "\n)"
+	createSQL += "\n)"
 
 	// comment
-	tableCommentSql := ""
+	tableCommentSQL := ""
 	if table.TableComment != "" {
 		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s'"
 
-		tableCommentSql = fmt.Sprintf(commentTmp, dbi.QuoteEscape(table.TableComment), sg.di.CurrentSchema(), tbName)
+		tableCommentSQL = fmt.Sprintf(commentTmp, dbi.QuoteEscape(table.TableComment), sg.di.CurrentSchema(), tbName)
 	}
 
-	sqlArr = append(sqlArr, createSql)
+	sqlArr = append(sqlArr, createSQL)
 
-	if tableCommentSql != "" {
-		sqlArr = append(sqlArr, tableCommentSql)
+	if tableCommentSQL != "" {
+		sqlArr = append(sqlArr, tableCommentSQL)
 	}
 	if len(columnComments) > 0 {
 		sqlArr = append(sqlArr, columnComments...)
@@ -82,12 +82,12 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 	return sqlArr
 }
 
-func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexs []dbi.Index) []string {
+func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []string {
 	quote := sg.di.GetDialect().Quoter().QuoteIdent
 	tbName := table.TableName
 	sqls := make([]string, 0)
 	comments := make([]string, 0)
-	for _, index := range indexs {
+	for _, index := range indexes {
 		unique := ""
 		if index.IsUnique {
 			unique = "unique"
@@ -152,7 +152,7 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 		return strs
 	}
 
-	ignoreDupSql := ""
+	ignoreDupSQL := ""
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		// 收集唯一索引涉及到的字段（由调用方预查传入，生成过程中不查询数据库）
 		uniqueColumns := make([]string, 0)
@@ -166,8 +166,8 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 		if len(uniqueColumns) > 0 {
 			// 设置忽略重复键
 			// ALTER TABLE dbo.TEST ADD CONSTRAINT uniqueRows UNIQUE (ColA, ColB, ColC, ColD) WITH (IGNORE_DUP_KEY = ON)
-			ignoreDupSql = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT uniqueRows UNIQUE (%s) WITH (IGNORE_DUP_KEY = {sign})", sg.quoteTableName(sg.di.GetDialect().Quoter().QuoteIdent, tableName), strings.Join(uniqueColumns, ","))
-			res = append(res, strings.ReplaceAll(ignoreDupSql, "{sign}", "ON"))
+			ignoreDupSQL = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT uniqueRows UNIQUE (%s) WITH (IGNORE_DUP_KEY = {sign})", sg.quoteTableName(sg.di.GetDialect().Quoter().QuoteIdent, tableName), strings.Join(uniqueColumns, ","))
+			res = append(res, strings.ReplaceAll(ignoreDupSQL, "{sign}", "ON"))
 		}
 	}
 
@@ -182,13 +182,13 @@ func (sg *SQLGenerator) batchInsertSimple(tableName string, columns []dbi.Column
 		}
 	}
 
-	columnStr, valuesStrs := dbi.GenInsertSqlColumnAndValues(sg.di.GetDialect(), DbTypeMssql, columns, values)
-	insertSql := fmt.Sprintf("%s insert into %s %s VALUES \n%s", identityInsertOn, baseTable, columnStr, strings.Join(valuesStrs, ",\n"))
-	res = append(res, insertSql)
+	columnStr, valuesStrs := dbi.GenInsertSQLColumnAndValues(sg.di.GetDialect(), DbTypeMssql, columns, values)
+	insertSQL := fmt.Sprintf("%s insert into %s %s VALUES \n%s", identityInsertOn, baseTable, columnStr, strings.Join(valuesStrs, ",\n"))
+	res = append(res, insertSQL)
 
 	// 执行完之后，设置忽略重复键
-	if ignoreDupSql != "" {
-		res = append(res, strings.ReplaceAll(ignoreDupSql, "{sign}", "OFF"))
+	if ignoreDupSQL != "" {
+		res = append(res, strings.ReplaceAll(ignoreDupSQL, "{sign}", "OFF"))
 	}
 	return res
 }
@@ -222,7 +222,7 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 		return sg.batchInsertSimple(tableName, columns, values, duplicateStrategy, nil)
 	}
 	// 重复数据处理策略
-	updSqls := make([]string, 0)
+	updSQLs := make([]string, 0)
 	insertVals := make([]string, 0)
 	insertCols := make([]string, 0)
 
@@ -236,36 +236,36 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 		}
 		if !collx.ArrayContains(identityCols, sg.di.GetDialect().Quoter().Trim(columnName)) {
 			// update子句中的列名需引用，避免保留字/特殊字符列名导致语法错误
-			updSqls = append(updSqls, fmt.Sprintf("T1.%s = T2.%s", quoteName, quoteName))
+			updSQLs = append(updSQLs, fmt.Sprintf("T1.%s = T2.%s", quoteName, quoteName))
 		}
 		insertCols = append(insertCols, quoteName)
 		insertVals = append(insertVals, fmt.Sprintf("T2.%s", quoteName))
 	}
-	if len(insertCols) == 0 || len(updSqls) == 0 {
+	if len(insertCols) == 0 || len(updSQLs) == 0 {
 		// 除计算列/自增列/主键列外无可写入列，无法生成merge语句，退化为简单插入
 		return sg.batchInsertSimple(tableName, columns, values, duplicateStrategy, nil)
 	}
 
 	// 把values二维数组转为一维数组
-	valueSql := make([]string, 0)
+	valueSQL := make([]string, 0)
 	for _, value := range values {
 		// 注意：valArr必须每行重新收集，否则多行时前一行的值会累积到后续行导致参数错位
 		valArr := make([]string, 0, len(columns))
 		for j, column := range columns {
-			val := dbi.GetDbDataType(DbTypeMssql, column.DataType).DataType.SQLValue(value[j])
+			val := dbi.GetDbDataType(DbTypeMssql, column.DataType).Codec.SQLValue(value[j])
 			// select别名列名需引用，与T2.列名引用保持一致
 			valArr = append(valArr, fmt.Sprintf("%s %s", val, quote(column.ColumnName)))
 		}
-		valueSql = append(valueSql, fmt.Sprintf("select %s", strings.Join(valArr, ", ")))
+		valueSQL = append(valueSQL, fmt.Sprintf("select %s", strings.Join(valArr, ", ")))
 	}
 
 	quoteTable := sg.quoteTableName(quote, tableName)
-	unionSql := strings.Join(valueSql, " UNION ALL ")
-	caseSql := strings.Join(caseArr, " AND ")
+	unionSQL := strings.Join(valueSQL, " UNION ALL ")
+	caseSQL := strings.Join(caseArr, " AND ")
 
-	sqlTemp := "MERGE INTO " + quoteTable + " T1 USING (" + unionSql + ") T2 ON " + caseSql
+	sqlTemp := "MERGE INTO " + quoteTable + " T1 USING (" + unionSQL + ") T2 ON " + caseSQL
 	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ") "
-	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(updSqls, ",")
+	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(updSQLs, ",")
 
 	identityInsertOn := ""
 	if hashIdentity {
@@ -274,11 +274,11 @@ func (sg *SQLGenerator) batchInsertMerge(tableName string, columns []dbi.Column,
 
 	}
 	// MERGE语句必须以分号结尾，否则报Msg 10713（A MERGE statement must be terminated by a semi-colon）
-	mergeSql := sqlTemp + ";"
+	mergeSQL := sqlTemp + ";"
 	if identityInsertOn != "" {
-		mergeSql = identityInsertOn + "\n" + mergeSql
+		mergeSQL = identityInsertOn + "\n" + mergeSQL
 	}
-	res = append(res, mergeSql)
+	res = append(res, mergeSQL)
 
 	return res
 }
@@ -291,7 +291,12 @@ func (sg *SQLGenerator) GenTruncate(tableName string) []string {
 
 // GenBatchDelete 生成按主键/唯一键批量删除语句（删除 NOT IN 给定值的记录）。
 // 用于硬删除/软删除同步：源库不存在但目标库存在的记录需删除。
-// MSSQL 参数上限 2100，需分批执行
+//
+// 必须产出**单条** DELETE：删除条件是「NOT IN 完整源主键集」，若按参数上限把主键集拆成多条
+// `... NOT IN (batch_i)` 分别执行，则一行只有在同时属于所有批次时才不会被删，等价于按批次交集
+// 保留——绝大多数真实存在于源库的行会被误删（静默数据丢失）。值为 SQLValueString 内联字面量而非
+// 绑定参数，MSSQL 2100 参数上限并不约束字面量 IN 列表，故无需（也不能）拆分，与其余方言保持一致。
+// 表名需带 schema 限定（[schema].[table]），故不复用 DefaultSQLGenerator 的 BuildBatchDelete。
 func (sg *SQLGenerator) GenBatchDelete(tableName string, keyColumns []string, keyValues [][]any, targetTableMeta *dbi.TargetTableMeta) []string {
 	if len(keyColumns) == 0 || len(keyValues) == 0 {
 		return nil
@@ -299,49 +304,41 @@ func (sg *SQLGenerator) GenBatchDelete(tableName string, keyColumns []string, ke
 	quote := sg.di.GetDialect().Quoter().QuoteIdent
 	baseTable := sg.quoteTableName(quote, tableName)
 
-	// 分批：每批最多 2000 个参数（MSSQL 上限 2100，留余量）
-	batchSize := 2000 / len(keyColumns)
-	if batchSize < 1 {
-		batchSize = 1
-	}
-
-	var sqls []string
-	for i := 0; i < len(keyValues); i += batchSize {
-		end := i + batchSize
-		if end > len(keyValues) {
-			end = len(keyValues)
+	tuples := make([]string, 0, len(keyValues))
+	for _, row := range keyValues {
+		if len(row) != len(keyColumns) {
+			return nil
 		}
-		batch := keyValues[i:end]
-
-		tuples := make([]string, 0, len(batch))
-		for _, row := range batch {
-			vals := make([]string, 0, len(keyColumns))
-			for _, v := range row {
-				vals = append(vals, dbi.SQLValueString(v))
+		vals := make([]string, 0, len(keyColumns))
+		for _, v := range row {
+			literal := dbi.SQLValueString(v)
+			if _, ok := v.(string); ok {
+				literal = "N" + literal
 			}
-			if len(keyColumns) == 1 {
-				tuples = append(tuples, vals[0])
-			} else {
-				tuples = append(tuples, fmt.Sprintf("(%s)", strings.Join(vals, ", ")))
-			}
+			vals = append(vals, literal)
 		}
-
-		var where string
 		if len(keyColumns) == 1 {
-			where = fmt.Sprintf("%s NOT IN (%s)", quote(keyColumns[0]), strings.Join(tuples, ", "))
+			tuples = append(tuples, vals[0])
 		} else {
-			quotedCols := make([]string, len(keyColumns))
-			for j, col := range keyColumns {
-				quotedCols[j] = quote(col)
-			}
-			where = fmt.Sprintf("(%s) NOT IN (%s)", strings.Join(quotedCols, ", "), strings.Join(tuples, ", "))
+			tuples = append(tuples, fmt.Sprintf("(%s)", strings.Join(vals, ", ")))
 		}
-		sqls = append(sqls, fmt.Sprintf("DELETE FROM %s WHERE %s", baseTable, where))
 	}
-	return sqls
+
+	if len(keyColumns) == 1 {
+		return []string{fmt.Sprintf("DELETE FROM %s WHERE %s", baseTable, dbi.BuildBatchDeleteWhere(keyColumns, tuples, quote))}
+	}
+	// SQL Server 不支持行值 NOT IN；VALUES 派生表保留完整键集，以反连接执行差集删除。
+	aliases := make([]string, len(keyColumns))
+	predicates := make([]string, len(keyColumns))
+	for i, key := range keyColumns {
+		aliases[i] = quote(fmt.Sprintf("k%d", i))
+		predicates[i] = fmt.Sprintf("retained.%s = target.%s", aliases[i], quote(key))
+	}
+	return []string{fmt.Sprintf("DELETE target FROM %s AS target WHERE NOT EXISTS (SELECT 1 FROM (VALUES %s) AS retained (%s) WHERE %s)",
+		baseTable, strings.Join(tuples, ", "), strings.Join(aliases, ", "), strings.Join(predicates, " AND "))}
 }
 
-func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) string {
+func (sg *SQLGenerator) genColumnBasicSQL(quoter dbi.Quoter, column dbi.Column) string {
 	colName := quoter.QuoteIdent(column.ColumnName)
 	dataType := column.DataType
 
@@ -371,10 +368,10 @@ func (sg *SQLGenerator) genColumnBasicSql(quoter dbi.Quoter, column dbi.Column) 
 	}
 
 	// SQL Server的 object_definition 返回带最外层括号的定义原文（如 ('abc')、(N'abc')、(3)、(getdate())），
-	// 旧实现直接按含括号判定为函数而丢弃，导致所有默认值在结构迁移时静默丢失；
+	// 若直接按含括号判定为函数而丢弃，会导致所有默认值在结构迁移时静默丢失；
 	// 统一由dbi做括号平衡剔除与分类（内层字面量还原、表达式跳过），源库为MySQL 8.0的裸值也能存活
-	defVal := dbi.GenColumnDefaultSqlOf(&column, dataType, dbi.QuoteEscape)
+	defVal := dbi.GenColumnDefaultSQLOf(&column, dataType, dbi.QuoteEscape)
 
-	columnSql := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
-	return columnSql
+	columnSQL := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
+	return columnSQL
 }

@@ -1,6 +1,7 @@
 package value
 
 import (
+	"encoding/json"
 	"math"
 	"reflect"
 	"testing"
@@ -86,6 +87,20 @@ func TestValToInt64CoversAllIntKinds(t *testing.T) {
 }
 
 // TestParseStrToInt64 文本形态：定宽空格、浮点式文本、越界与非数值
+// TestValToInt64JsonNumber JSON 数字在 UseNumber 下解码为 json.Number（底层 string），归一函数须覆盖该形态，
+// 否则 JSON 取值链路（导出/校验）会静默走兜底路径。大整数经字符串解析不得丢 float64 精度。
+func TestValToInt64JsonNumber(t *testing.T) {
+	n, ok := ValToInt64(json.Number("9007199254740993"))
+	assert.True(t, ok)
+	assert.Equal(t, int64(9007199254740993), n, "大整数经 json.Number 不得丢精度")
+	_, ok = ValToInt64(json.Number("abc"))
+	assert.False(t, ok, "非数值 json.Number 应判为失败")
+
+	f, ok := ValToFloat64(json.Number("12.5"))
+	assert.True(t, ok)
+	assert.Equal(t, 12.5, f)
+}
+
 func TestParseStrToInt64(t *testing.T) {
 	tests := []struct {
 		text string

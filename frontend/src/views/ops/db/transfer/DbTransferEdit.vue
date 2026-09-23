@@ -58,7 +58,7 @@
             <!-- 迁移表选择（过滤输入 + 树勾选） -->
             <template #checkedKeys>
                 <div class="w-full">
-                    <el-input v-model="state.filterSrcTableText" placeholder="filter table" size="small" />
+                    <el-input v-model="state.filterSrcTableText" :placeholder="$t('db.transferTableFilter')" size="small" />
                     <el-tree
                         ref="srcTreeRef"
                         class="w-full! overflow-y-auto"
@@ -82,22 +82,22 @@ import { computed, nextTick, reactive, ref, useTemplateRef, watch, type PropType
 
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
-import { AutoFormDrawer, type AutoFormData, type AutoFormItem } from '@/components/auto-form';
+import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
+import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
-import { Msg } from '@/hooks/useI18n';
 import { dbApi } from '@/views/ops/db/api';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect, getDbDialectMap } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
-import type { DbTransferTask, Db, DbNodeParams } from '@/views/ops/db/types';
+import type { DbTransferTaskListVO, Db, DbNodeParams } from '@/views/ops/db/types';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
 const props = defineProps({
     data: {
-        type: Object as PropType<DbTransferTask | null>,
+        type: Object as PropType<DbTransferTaskListVO | null>,
         default: null,
     },
     title: {
@@ -110,7 +110,7 @@ const emit = defineEmits<{
     /** 取消编辑，父级关闭弹窗 */
     cancel: [];
     /** 保存成功，回传表单，父级据此刷新任务列表 */
-    'val-change': [form: AutoFormData];
+    'val-change': [form: DbTransferForm];
 }>();
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
@@ -120,8 +120,8 @@ const fileTypeOptions = [
     { label: '.sql', value: 'sql' },
 ];
 
-/** 表单声明（AutoFormItem[]，渲染 + 校验唯一数据源；复杂控件走 custom 插槽承载） */
-const items: AutoFormItem[] = [
+/** 表单声明（defineFormItems<DbTransferForm>，渲染 + 校验唯一数据源；复杂控件走 custom 插槽承载） */
+const items = defineFormItems<DbTransferForm>([
     { prop: 'taskName', label: 'db.taskName', required: true },
     {
         prop: 'status',
@@ -131,8 +131,8 @@ const items: AutoFormItem[] = [
         props: { inlinePrompt: true, activeText: t('common.enable'), inactiveText: t('common.disable'), activeValue: 1, inactiveValue: -1 },
     },
     {
-        prop: 'cronAble',
-        label: 'db.cronAble',
+        prop: 'cronEnabled',
+        label: 'db.cronEnabled',
         type: 'radio',
         span: 12,
         required: true,
@@ -141,7 +141,7 @@ const items: AutoFormItem[] = [
             { label: 'common.no', value: -1 },
         ],
     },
-    { prop: 'cron', label: 'cron', type: 'custom', required: (f) => f.cronAble == 1 },
+    { prop: 'cron', label: 'cron', type: 'custom', required: (f) => f.cronEnabled == 1 },
     { prop: 'srcDbId', label: 'db.srcDb', type: 'custom', rules: [Rules.requiredSelect('db.srcDb')] },
     {
         prop: 'mode',
@@ -181,7 +181,9 @@ const items: AutoFormItem[] = [
     {
         prop: 'nameCase',
         label: 'db.nameCase',
+        tooltip: 'db.nameCaseTips',
         type: 'radio',
+        span: 12,
         required: true,
         options: [
             { label: 'db.none', value: 1 },
@@ -189,20 +191,38 @@ const items: AutoFormItem[] = [
             { label: 'db.lower', value: 3 },
         ],
     },
+    {
+        prop: 'deleteTable',
+        label: 'db.deleteTable',
+        type: 'radio',
+        span: 12,
+        required: true,
+        tooltip: 'db.deleteTableTips',
+        options: [
+            { label: 'common.yes', value: 1 },
+            { label: 'common.no', value: 2 },
+        ],
+    },
     { prop: 'dbObjDivider', label: 'db.dbObj', type: 'divider' },
-    { prop: 'checkedKeys', type: 'custom' },
-];
+    // 迁移表由左侧树勾选写入 checkedKeys，故校验直接读树的勾选结果
+    { prop: 'checkedKeys', type: 'custom', validate: () => (getCheckedKeys().length > 0 ? true : 'db.noTransferTableMsg') },
+]);
 
-type FormData = {
+/**
+ * 迁移任务编辑表单
+ *
+ * 枚举型字段（mode/strategy/nameCase/deleteTable/cronEnabled/runningState）取后端同一数值型，
+ * 合法取值由 items 中对应的枚举选项限定，避免与行数据（实体同样使用 number）之间靠断言换算。
+ */
+type DbTransferForm = {
     id?: number;
     taskName: string;
     status: number;
-    cronAble: 1 | -1;
+    cronEnabled: number;
     cron: string;
-    mode: 1 | 2;
+    mode: number;
     targetFileDbType?: string;
     fileSaveDays?: number;
-    dbType: 1 | 2;
     srcDbId?: number;
     srcDbName?: string;
     srcDbType?: string;
@@ -214,20 +234,24 @@ type FormData = {
     targetDbName?: string;
     targetTagPath?: string;
     targetDbType?: string;
-    strategy: 1 | 2;
+    strategy: number;
     /** 迁移并发度（1~16），0/空表示用后端默认值4 */
     concurrency?: number;
-    nameCase: 1 | 2 | 3;
-    deleteTable?: 1 | 2;
+    nameCase: number;
+    deleteTable?: number;
     checkedKeys: string;
-    runningState: 1 | 2;
-    extra: { fileType: string };
+    runningState: number;
+    /** 导出附加参数；表单经嵌套路径 'extra.fileType' 写入，形状由后端决定，故与实体一致保持开放记录 */
+    extra?: Record<string, unknown>;
 };
 
-const basicFormData = {
+/** 新建态默认值（taskName/cron 由用户输入，此处为空串） */
+const basicFormData: DbTransferForm = {
+    taskName: '',
     mode: 1,
     status: 1,
-    cronAble: -1,
+    cron: '',
+    cronEnabled: -1,
     strategy: 1,
     nameCase: 1,
     deleteTable: 1,
@@ -235,7 +259,7 @@ const basicFormData = {
     checkedKeys: '',
     runningState: 1,
     extra: { fileType: fileTypeOptions[0].value },
-} as FormData;
+};
 
 const srcTableList = ref<{ tableName: string; tableComment: string }[]>([]);
 const srcTableListDisabled = ref(false);
@@ -261,26 +285,29 @@ const state = reactive({
     ],
 });
 
-/** 传给 AutoFormDrawer 的回填数据（新建态用默认值，编辑态深拷贝行数据并补齐缺省项） */
-const editData = computed<AutoFormData | null>(() => {
-    if (props.data?.id) {
-        const form = deepClone(props.data) as unknown as FormData;
-        form.cronAble = form.cronAble || -1;
-        form.mode = form.mode || 1;
-        form.concurrency = form.concurrency || 4;
-        form.extra = form.extra || { fileType: fileTypeOptions[0].value };
-        return form as unknown as AutoFormData;
-    }
-    return { ...basicFormData } as unknown as AutoFormData;
-});
-
-/** 抽屉打开后暂存的内部表单引用（源表勾选写 checkedKeys、提交时读取） */
-const internalForm = ref<AutoFormData>({});
+/** 抽屉打开后接管的内部表单（源表勾选写 checkedKeys、提交时读取） */
+const { openedWith, requireForm } = useAutoFormModel<DbTransferForm>();
 
 const { execute: saveExec } = dbTransferApi.saveDbTransferTask.useApi();
 
-const onOpened = async (form: AutoFormData) => {
-    internalForm.value = form;
+/** 传给 AutoFormDrawer 的回填数据（新建态用默认值，编辑态深拷贝行数据并补齐缺省项） */
+const editData = computed<DbTransferForm | null>(() => {
+    if (props.data?.id) {
+        const row = deepClone(props.data);
+        return {
+            ...basicFormData,
+            ...row,
+            cronEnabled: row.cronEnabled || -1,
+            mode: row.mode || 1,
+            deleteTable: row.deleteTable || 1,
+            // concurrency 列表接口不返回（见 DbTransferTaskListVO 注释），编辑态固定用默认值 4
+            extra: row.extra || { fileType: fileTypeOptions[0].value },
+        };
+    }
+    return { ...basicFormData };
+});
+
+const onOpened = openedWith(async (form) => {
     const propsData = props.data;
     if (!propsData?.id) {
         await nextTick(() => {
@@ -289,8 +316,7 @@ const onOpened = async (form: AutoFormData) => {
         return;
     }
 
-    const formData = form as unknown as FormData;
-    const { srcDbId, targetDbId } = formData;
+    const { srcDbId, targetDbId } = form;
 
     //  初始化src数据源
     if (srcDbId) {
@@ -300,8 +326,8 @@ const onOpened = async (form: AutoFormData) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
 
-        if (srcDbId && formData.srcDbName) {
-            await loadDbTables(srcDbId, formData.srcDbName);
+        if (srcDbId && form.srcDbName) {
+            await loadDbTables(srcDbId, form.srcDbName);
         }
     }
 
@@ -315,8 +341,8 @@ const onOpened = async (form: AutoFormData) => {
     }
 
     // 初始化勾选迁移表
-    srcTreeRef.value?.setCheckedKeys(formData.checkedKeys.split(','));
-};
+    srcTreeRef.value?.setCheckedKeys(form.checkedKeys ? form.checkedKeys.split(',') : []);
+});
 
 watch(
     () => state.filterSrcTableText,
@@ -335,6 +361,19 @@ const onSelectTargetDb = async (_params: DbNodeParams) => {
     // Target db selected
 };
 
+/** 读取源表树的勾选结果（树未挂载时为空） */
+const getCheckedKeys = () => {
+    const tree = srcTreeRef.value;
+    if (!tree) {
+        return [];
+    }
+    let checks = tree.getCheckedKeys(false);
+    if (checks.indexOf('all') >= 0) {
+        return ['all'];
+    }
+    return checks.filter((item: string) => !defaultKeys.includes(item));
+};
+
 const loadDbTables = async (dbId: number, db: string) => {
     // 加载db下的表
     srcTableList.value = await dbApi.tableInfos.request({ id: dbId, db });
@@ -344,10 +383,11 @@ const loadDbTables = async (dbId: number, db: string) => {
 const handleSrcTableCheckChange = (data: { id: string; name: string }, checked: boolean) => {
     if (data.id === 'all') {
         srcTableListDisabled.value = checked;
+        const form = requireForm();
         if (checked) {
-            internalForm.value.checkedKeys = 'all';
+            form.checkedKeys = 'all';
         } else {
-            internalForm.value.checkedKeys = '';
+            form.checkedKeys = '';
         }
     }
     if (data.id && (data.id + '').startsWith('list-item')) {
@@ -365,7 +405,7 @@ const handleLoadSrcTableTree = () => {
         return {
             id: item.tableName,
             label: item.tableName + (item.tableComment && '-' + item.tableComment),
-            // 存入 reactive 后 Ref 会被自动解包为 boolean，保留响应式禁用状态
+            // 存入 reactive 后 Ref 会被自动解包为 boolean，保留响应式禁用状态（解包发生在代理层，静态不可推知）
             disabled: srcTableListDisabled as unknown as boolean,
         };
     });
@@ -373,30 +413,17 @@ const handleLoadSrcTableTree = () => {
 
 const srcTreeRef = ref();
 
-const getCheckedKeys = () => {
-    let checks = srcTreeRef.value!.getCheckedKeys(false);
-    if (checks.indexOf('all') >= 0) {
-        return ['all'];
-    }
-    return checks.filter((item: string) => !defaultKeys.includes(item));
-};
+// confirmApi 提交动作：把树勾选结果写回 checkedKeys（“至少选一张表”已由 checkedKeys 字段的 validate 声明）
+const btnOk = async () => {
+    const reqForm = { ...requireForm() };
 
-// confirmApi 提交动作：组装勾选表并前置校验（失败抛错中止，组件保持抽屉打开）；成功提示与关闭抽屉由组件内置逻辑处理
-const btnOk = async (rawForm: AutoFormData) => {
-    const reqForm = { ...(rawForm as unknown as FormData) };
-
-    let checkedKeys = getCheckedKeys();
+    const checkedKeys = getCheckedKeys();
     if (checkedKeys.length > 0) {
         reqForm.checkedKeys = checkedKeys.join(',');
     }
 
-    if (!reqForm.checkedKeys) {
-        Msg.error('db.noTransferTableMsg');
-        throw new Error('no transfer tables checked');
-    }
-
     await saveExec(reqForm);
-    emit('val-change', rawForm);
+    emit('val-change', reqForm);
 };
 </script>
 <style lang="scss"></style>

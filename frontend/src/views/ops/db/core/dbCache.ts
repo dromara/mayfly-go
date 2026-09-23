@@ -9,7 +9,9 @@ import { DbGetDbNamesMode } from '../enums';
 
 // ==================== 本地存储缓存 ====================
 
-const hintsStorage: RemovableRef<Map<string, Record<string, string[]>>> = useLocalStorage('db-table-hints', new Map());
+// 一次性清理已废弃的 hints 本地缓存键：列补全改走按表 c-metadata 后不再读取该键（无迁移脚本，停止读取 + 清除）。
+localStorage.removeItem('db-table-hints');
+
 const tableStorage: RemovableRef<Map<string, DbTableInfo[]>> = useLocalStorage('db-tables', new Map());
 
 // ==================== 实例缓存 ====================
@@ -98,14 +100,9 @@ export function setCachedTables(key: string, tables: DbTableInfo[]): void {
     tableStorage.value.set(key, tables);
 }
 
-// ==================== 表提示缓存 ====================
-
-export function getCachedHints(key: string): Record<string, string[]> | undefined {
-    return hintsStorage.value.get(key);
-}
-
-export function setCachedHints(key: string, hints: Record<string, string[]>): void {
-    hintsStorage.value.set(key, hints);
+/** 删除表列表缓存：表结构变更（建表/改表/删表/执行 DDL）后失效，使下次读取重新拉取 */
+export function removeCachedTables(key: string): void {
+    tableStorage.value.delete(key);
 }
 
 // ==================== 库名获取 ====================

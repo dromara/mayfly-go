@@ -1,7 +1,7 @@
 import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import { registerCommand, registerContributor, registerMenu, type TreeCommandCtx, type TreeNode } from '@/views/ops/resource/tree';
 import { esApi } from '@/views/ops/es/api';
-import type { EsInstance } from '../types';
+import type { EsIndex, EsInstance } from '../types';
 import { defineResourceConfig } from '@/views/ops/resource/resourceRegistry';
 import { createResourceOpTab } from '@/views/ops/resource/resourceOp';
 import { defineAsyncComponent } from 'vue';
@@ -61,7 +61,7 @@ registerCommand({
             },
             tabComponentProps: { icon: Icon },
         });
-        tab.componentInstance?.onViewIndexData?.(ctx.node.label as string);
+        tab.componentInstance?.onViewIndexData?.(ctx.node.label);
     },
 });
 
@@ -91,8 +91,8 @@ registerContributor({
     },
     loadChildren: async (node: TreeNode) => {
         const instId = node.params?.id as number;
-        const res = await esApi.proxyReq('get', instId, '/_cat/indices/?h=index,health,status,docs.count,store.size&format=json');
-        const list = (res as unknown as { index: string; health?: string; 'docs.count'?: string }[]) || [];
+        // 代理接口的响应形状随 path 而变，故在调用处按 _cat/indices 的实际列声明
+        const list = (await esApi.proxyReq<EsIndex[]>('get', instId, '/_cat/indices/?h=index,health,status,docs.count,store.size&format=json')) ?? [];
         return list
             .filter((idx) => !idx.index.startsWith('.'))
             .map((idx) => ({

@@ -4,13 +4,13 @@
  * 独立成文件的原因：本常量被全部方言文件在模块体执行期（自注册）引用，
  * 必须与 registry.ts、types.ts 同属方言层的「零依赖内核」，才能支撑
  * index.ts 用 import.meta.glob 加载全部方言而不形成模块循环。
- * 历史上它与聚合出口同文件，曾导致
+ * 若把它并入聚合出口，会触发
  * `Cannot access 'DbType' before initialization` 的 TDZ 运行时报错。
  */
 export const DbType = {
     mysql: 'mysql',
     mariadb: 'mariadb',
-    postgresql: 'postgres',
+    postgres: 'postgres',
     gauss: 'gauss',
     dm: 'dm', // 达梦
     oracle: 'oracle',

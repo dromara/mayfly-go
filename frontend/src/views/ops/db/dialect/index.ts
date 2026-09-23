@@ -16,7 +16,7 @@
  * - registry.ts    方言注册表与查询
  * - shared/utils.ts       跨方言共享的纯函数工具
  * - shared/capabilities.ts 能力缺省值与引用符/切割语义预设
- * - shared/defaultRows.ts  默认审计字段预设
+ * - shared/defaultColumns.ts  默认审计字段预设
  *
  * **新增方言流程（开闭原则，只需 2 步、不改动本文件）**：
  * 1. 在 dbType.ts 中添加类型常量；
@@ -46,14 +46,14 @@ const dialectModules = import.meta.glob('./*_dialect.ts', { eager: true });
 // 方言契约与能力声明等纯类型
 export type {
     DbDialect,
-    RowDefinition,
+    ColumnDefinition,
     IndexDefinition,
     DialectInfo,
     DialectCapabilities,
     QuotePair,
     SqlSplitOptions,
     SqlBlockMode,
-    sqlColumnType,
+    SqlColumnType,
     EditorCompletionItem,
     EditorCompletion,
     SqlSnippetTemplate,
@@ -70,7 +70,8 @@ export { DataType, ColumnTypeSubscript, commonCustomKeywords, DuplicateStrategy 
 export { DbType } from './dbType';
 
 // 注册表
-export { getDbDialect, getDbDialectMap, getDialectCapabilities } from './registry';
+export { getDbDialect, getDbDialectMap, getDialectCapabilities, negotiateCapabilities } from './registry';
+export type { NegotiatedCapabilities, BackendCapabilities, BackendNamespace } from './registry';
 
 // 共享工具
 export {
@@ -90,6 +91,7 @@ export {
 export {
     defineCapabilities,
     defaultCapabilities,
+    featureCapabilityMap,
     standardQuotePairs,
     backtickQuotePairs,
     sqliteQuotePairs,
@@ -106,7 +108,10 @@ export {
 } from './shared/capabilities';
 
 // 默认审计字段预设
-export { createDefaultRows, defaultRowsConfigs, type DefaultRowsConfig } from './shared/defaultRows';
+export { createDefaultColumns, defaultColumnConfigs, type DefaultColumnConfig } from './shared/defaultColumns';
+
+// Schema 型方言 DDL 共享基类（postgres/oracle/dm 及其兼容方言继承此基类）
+export { SchemaDialectBase } from './shared/schemaDialectBase';
 
 // 分页片段模板预设（方言的 getPageSnippet() 从中挑选）
 export { limitCommaPageSnippet, limitOffsetPageSnippet, offsetFetchPageSnippet, rownumPageSnippet } from './shared/snippets';

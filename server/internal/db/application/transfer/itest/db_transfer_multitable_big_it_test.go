@@ -266,7 +266,7 @@ func TestITMultiTableBigData(t *testing.T) {
 	}{
 		{"mysql", itMysqlNode},
 		{"pg", itPgNode},
-		{"sqlite", itSqliteNode},
+		{"sqlite", itSQLiteNode},
 	}
 	for _, n := range nodes {
 		n := n
@@ -276,6 +276,14 @@ func TestITMultiTableBigData(t *testing.T) {
 			defer conn.Close()
 			quote := conn.GetDialect().Quoter().QuoteIdent
 			dialect := string(conn.Info.Type)
+
+			// 大表用例结束即删：这些表合计 GB 级，用后不清会长期占用 scratch 库撑爆磁盘（下次运行自动重建）。
+			// 用 defer 而非 t.Cleanup——defer 注册于 defer conn.Close() 之后，返回时先删表（连接仍在），FailNow/panic 亦执行。
+			defer func() {
+				for i := range mtSpecs {
+					_, _ = conn.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", quote(mtSpecs[i].name)))
+				}
+			}()
 
 			for i := range mtSpecs {
 				mtCreateAndLoad(t, conn, &mtSpecs[i], dialect)

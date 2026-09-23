@@ -236,7 +236,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 
 func (a *Account) ChangeStatus(rc *req.Ctx) {
 	account := &entity.Account{}
-	account.Id = uint64(rc.PathParamInt("id"))
+	account.Id = cast.ToUint64(rc.PathParam("id"))
 
 	status := entity.AccountStatus(int8(rc.PathParamInt("status")))
 	biz.ErrIsNil(entity.AccountStatusEnum.Valid(status))
@@ -258,7 +258,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 
 // 获取账号角色信息列表
 func (a *Account) AccountRoles(rc *req.Ctx) {
-	rc.ResData = a.getAccountRoles(uint64(rc.PathParamInt("id")))
+	rc.ResData = a.getAccountRoles(cast.ToUint64(rc.PathParam("id")))
 }
 
 func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
@@ -302,7 +302,7 @@ func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.resourceApp.GetAccountResources(uint64(rc.PathParamInt("id")), &resources))
+	biz.ErrIsNil(a.resourceApp.GetAccountResources(cast.ToUint64(rc.PathParam("id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 
@@ -316,7 +316,7 @@ func (a *Account) RelateRole(rc *req.Ctx) {
 // 重置otp秘钥
 func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	account := &entity.Account{OtpSecret: "-"}
-	accountId := uint64(rc.PathParamInt("id"))
+	accountId := cast.ToUint64(rc.PathParam("id"))
 	account.Id = accountId
 	rc.ReqParam = collx.Kvs("accountId", accountId)
 	biz.ErrIsNil(a.accountApp.Update(rc.MetaCtx, account))

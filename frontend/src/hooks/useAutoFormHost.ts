@@ -21,7 +21,13 @@ import { buildDefaultForm, getNestedValue, setNestedValue, switchActiveValue, sw
 export interface AutoFormHostProps extends AutoFormItemsProps {
     /** 编辑数据（对象回填表单；false/null 表示新增，按字段 defaultValue 回填） */
     data?: AutoFormData | boolean | null;
-    /** 统一提交 API（可选）：传入后确认走内置默认提交逻辑，confirm 事件不再触发 */
+    /**
+     * 统一提交 API（可选）：传入后确认走内置默认提交逻辑，confirm 事件不再触发。
+     *
+     * 取消 / 失败的唯一语义是「抛错」：宿主 catch 后保留弹层并解除 loading，不弹成功提示。
+     * 正常 return（含 undefined）一律视为提交成功 —— 前置校验未通过时必须 throw，
+     * 否则会出现“没保存却提示保存成功并关掉弹层”。
+     */
     confirmApi?: (form: AutoFormData) => Promise<unknown>;
     /** 确认按钮 loading（由父组件的保存请求状态驱动） */
     confirmLoading?: boolean;
@@ -60,8 +66,9 @@ export const useAutoFormHost = (options: {
     /** 生效的字段配置：schema 优先编译，否则使用 items（tabs 模式下合并所有 Tab 字段，供 buildDefaultForm 使用，与 AutoForm 共用解析逻辑） */
     const items = resolveFormItems(props);
 
-    const state = reactive({
-        form: {} as AutoFormData,
+    // 显式声明 state 形状：form 在初始化时为空对象，但后续按表单字段读写，不能退推成 {}
+    const state = reactive<{ form: AutoFormData }>({
+        form: {},
     });
 
     // 弹层打开时回填编辑数据或应用字段默认值（深拷贝，避免嵌套对象编辑中突变污染外部行数据）。

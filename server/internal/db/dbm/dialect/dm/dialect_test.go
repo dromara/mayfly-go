@@ -10,7 +10,7 @@ import (
 func newTestSQLGenerator() *SQLGenerator {
 	// 触发达梦列类型注册（TypeEngine注册包含向dbDataTypes的同步）
 	dbi.GetTypeEngine(DbTypeDM)
-	return &SQLGenerator{BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: (&DMDialect{}).Quoter}, Dialect: &DMDialect{}}
+	return &SQLGenerator{DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: (&DMDialect{}).Quoter}, Dialect: &DMDialect{}}
 }
 
 func TestDmGenTableDDL(t *testing.T) {

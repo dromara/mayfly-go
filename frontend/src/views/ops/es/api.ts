@@ -58,16 +58,16 @@ export const esApi = {
         const t = i18n.global.t;
         switch (method) {
             case 'get':
-                res = await Api.newGet<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true }) as EsProxyRes;
+                res = await Api.newGet<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true });
                 break;
             case 'post':
-                res = await Api.newPost<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true }) as EsProxyRes;
+                res = await Api.newPost<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true });
                 break;
             case 'put':
-                res = await Api.newPut<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true }) as EsProxyRes;
+                res = await Api.newPut<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true });
                 break;
             case 'delete':
-                res = await Api.newDelete<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true }) as EsProxyRes;
+                res = await Api.newDelete<EsProxyRes>(`/es/instance/proxy/${id}/${path}`).request(param, { esProxyReq: true });
                 break;
         }
         let error = res.error || (Array.isArray(res.failures) && res.failures.length > 0 && res.failures[0]) || res.msg;

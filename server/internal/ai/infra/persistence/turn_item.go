@@ -21,7 +21,7 @@ func (t *turnItemRepoImpl) SelectByTurnId(ctx context.Context, conversationId ui
 	var items []*entity.TurnItem
 	// 按 item_id 排序而非自增 id：item_id 是触发时刻生成的有序 UUID（SortableUUID），
 	// 字典序 == 触发时序；落库顺序（写入序）与触发顺序解耦，不能作为排序依据
-	if err := t.SelectBySql("SELECT * FROM t_ai_turn_item WHERE conversation_id = ? AND turn_id = ? AND is_deleted = 0 ORDER BY item_id ASC", &items, conversationId, turnId); err != nil {
+	if err := t.SelectBySQL("SELECT * FROM t_ai_turn_item WHERE conversation_id = ? AND turn_id = ? AND is_deleted = 0 ORDER BY item_id ASC", &items, conversationId, turnId); err != nil {
 		return nil, err
 	}
 	return items, nil
@@ -30,7 +30,7 @@ func (t *turnItemRepoImpl) SelectByTurnId(ctx context.Context, conversationId ui
 func (t *turnItemRepoImpl) SelectRecentByConvId(ctx context.Context, conversationId uint64, limit int) ([]*entity.TurnItem, error) {
 	var items []*entity.TurnItem
 	sql := "SELECT * FROM t_ai_turn_item WHERE conversation_id = ? AND item_type != ? AND is_deleted = 0 ORDER BY item_id DESC LIMIT ?"
-	if err := t.SelectBySql(sql, &items, conversationId, entity.ItemTypeReasoning, limit); err != nil {
+	if err := t.SelectBySQL(sql, &items, conversationId, entity.ItemTypeReasoning, limit); err != nil {
 		return nil, err
 	}
 	// 倒序取出的结果反转为时间正序
@@ -55,7 +55,7 @@ func (t *turnItemRepoImpl) SelectTurnGroups(ctx context.Context, conversationId 
 	sql += " ORDER BY MIN(turn_id) DESC LIMIT ?"
 	args = append(args, limit)
 
-	if err := t.SelectBySql(sql, &turnIds, args...); err != nil {
+	if err := t.SelectBySQL(sql, &turnIds, args...); err != nil {
 		return nil, err
 	}
 

@@ -20,15 +20,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	_ "mayfly-go/internal/db/dbm/dialect/mysql"  // 注册mysql方言
 	_ "mayfly-go/internal/db/dbm/dialect/sqlite" // 注册sqlite方言
+	"mayfly-go/internal/db/ititest/scratchclean"
 )
 
 // TestMain 集成测试入口
 func TestMain(m *testing.M) {
-	os.Exit(m.Run())
+	os.Exit(scratchclean.Run(m.Run))
 }
 
 const itMysqlDatabase = "mayfly_dbm_it"
@@ -39,25 +39,15 @@ func itCtx() context.Context {
 	return context.Background()
 }
 
-// 直接连接到mysql server（不指定业务库），确保测试库存在
-func ensureMysqlDatabase(t *testing.T) {
-	t.Helper()
-	conn := connectDbInfo(t, &dbi.DbInfo{Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: "information_schema"})
-	defer conn.Close()
-	_, err := conn.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARSET utf8mb4", itMysqlDatabase))
-	require.NoError(t, err)
-}
-
 func connectDbInfo(t *testing.T, di *dbi.DbInfo) *dbi.DbConn {
 	t.Helper()
-	conn, err := dbm.Conn(itCtx(), di)
+	conn, err := scratchclean.Conn(itCtx(), di)
 	require.NoError(t, err)
 	return conn
 }
 
 func mysqlConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
-	ensureMysqlDatabase(t)
 	return connectDbInfo(t, &dbi.DbInfo{Type: "mysql", Host: "127.0.0.1", Port: 3306, Username: "root", Password: "111049", Database: itMysqlDatabase})
 }
 
@@ -214,9 +204,9 @@ func setupMysqlSourceTable(t *testing.T, conn *dbi.DbConn, table string) ([]dbi.
 		}
 		values = append(values, rowVals)
 	}
-	insertSqls := gen.GenInsert(table, columns, values, dbi.DuplicateStrategyNone, nil)
-	require.NotEmpty(t, insertSqls)
-	for _, sql := range insertSqls {
+	insertSQLs := gen.GenInsert(table, columns, values, dbi.DuplicateStrategyNone, nil)
+	require.NotEmpty(t, insertSQLs)
+	for _, sql := range insertSQLs {
 		mustExec(t, conn, sql)
 	}
 	return columns, rows

@@ -70,7 +70,7 @@ describe('tree/commands 命令与菜单注册表', () => {
         expect(items[0].isHide(shown)).toBe(false);
         expect(items[0].isHide(hidden)).toBe(true);
 
-        items[0].onClickFunc!(shown);
+        items[0].onClickFunc(shown);
         expect(handler).toHaveBeenCalledWith(shown);
     });
 

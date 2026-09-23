@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n';
 
 import { DbInst } from '../../db';
 import { getDialectCapabilities } from '../../dialect';
+import { isDdlSql } from '../../core/sqlKind';
 import type { SqlExecRes, SqlExecResColumn, TableColumnDef } from '../../types';
 import { getCurrentStatement, splitSqlStatements } from '../utils/sqlParser';
 /** DbTableData 组件通过 defineExpose 暴露的方法 */
@@ -92,6 +93,8 @@ export function useSqlExec(options: UseSqlExecOptions) {
      */
     const pushNewTab = (id: number): ExecResTabState => {
         const tab = new ExecResTab(id);
+        // 写入 reactive 数组后，Vue 在代理层将实例内的 Ref 字段解包（loading: Ref<boolean> → boolean），
+        // 对外形状即 ExecResTabState；该解包无法由「推入原始实例」这一静态行为推知，故在此唯一入口跨一次
         state.execResTabs.push(tab as unknown as ExecResTabState);
         return state.execResTabs[state.execResTabs.length - 1];
     };
@@ -213,6 +216,10 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
             state.execResTabs[i].data = results;
             cancelUpdateFields(execRes);
+            // 批量执行含 DDL：失效补全元数据缓存，反映最新表/字段/注释
+            if (sqls.some(isDdlSql)) {
+                getNowDbInst().invalidateSchemaCache(dbName);
+            }
         } catch (e: unknown) {
             execRes.data = [];
             execRes.tableColumn = [];
@@ -287,6 +294,10 @@ export function useSqlExec(options: UseSqlExecOptions) {
                 };
             });
             cancelUpdateFields(execRes);
+            // 执行了 DDL：失效补全元数据缓存，使表名/字段/注释联想反映最新结构
+            if (isDdlSql(sql)) {
+                getNowDbInst().invalidateSchemaCache(dbName);
+            }
         } catch (e: unknown) {
             execRes.data = [];
             execRes.tableColumn = [];
@@ -362,13 +373,21 @@ export function useSqlExec(options: UseSqlExecOptions) {
     };
 
     /**
-     * 数据删除事件
+     * 数据删除事件：真实 DELETE 已由数据网格按全主键列生成并执行，
+     * 此处仅把被删行从当前结果页签的本地数据里剔除。
+     * 必须按【全部主键列】联合匹配——只按首列会在联合主键下误删共享首列值的其它显示行；
+     * 无主键无法可靠定位单行，跳过本地剔除（不兜底首列），交由刷新兜底。
      */
     const onDeleteData = async (deleteDatas: Record<string, unknown>[], dt: ExecResTabLike) => {
         const dbInst = getNowDbInst();
-        const primaryKey = await dbInst.loadTableColumn(dbName, dt.table);
-        const primaryKeyColumnName = primaryKey!.columnName;
-        dt.data = dt.data.filter((d: Record<string, unknown>) => !(deleteDatas.findIndex((x: Record<string, unknown>) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1));
+        const keyColumns = await dbInst.loadPrimaryKeys(dbName, dt.table);
+        if (keyColumns.length === 0) {
+            return;
+        }
+        const keyNames = keyColumns.map((c) => c.columnName);
+        const rowKey = (row: Record<string, unknown>) => keyNames.map((k) => String(row[k])).join('\u0000');
+        const deletedKeys = new Set(deleteDatas.map(rowKey));
+        dt.data = dt.data.filter((d: Record<string, unknown>) => !deletedKeys.has(rowKey(d)));
     };
 
     const submitUpdateFields = (dt: ExecResTabLike) => {

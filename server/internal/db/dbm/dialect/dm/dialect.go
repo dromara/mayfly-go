@@ -71,18 +71,18 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return nil
 }
 
-func (dd *DMDialect) GetDumpHelper() dbi.DumpHelper {
-	return new(DumpHelper)
+func (dd *DMDialect) GetDumpTxnWrapper() dbi.DumpTxnWrapper {
+	return new(DumpTxnWrapper)
 }
 
 func (sd *DMDialect) GetSQLGenerator() dbi.SQLGenerator {
 	return &SQLGenerator{
-		BaseSQLGenerator: dbi.BaseSQLGenerator{QuoterFn: sd.Quoter},
-		Dialect:          sd,
+		DefaultSQLGenerator: dbi.DefaultSQLGenerator{QuoterFn: sd.Quoter},
+		Dialect:             sd,
 	}
 }
 
-func (sd *DMDialect) GetSQLParser() sqlparser.SqlParser {
+func (sd *DMDialect) GetSQLParser() sqlparser.SQLParser {
 	return new(dm.DmParser)
 }
 

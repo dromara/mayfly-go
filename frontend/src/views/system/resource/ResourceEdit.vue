@@ -22,18 +22,17 @@ import { Rules } from '@/common/rule';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import iconSelector from '@/components/icon-selector/index.vue';
 import { Msg, useI18nFormValidate } from '@/hooks/useI18n';
-import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { reactive, toRefs, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { resourceApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
-import type { ResourceMeta } from '../types';
+import type { ResourceMeta, SysResource } from '../types';
 
 const { t } = useI18n();
 
 const props = defineProps({
-    data: {
-        type: [Boolean, Object],
-    },
+    // 列表行数据（新增时仅携 pid/type 预置值）；false 表示新增
+    data: Object as PropType<Partial<SysResource> | boolean | null>,
     title: {
         type: String,
     },
@@ -183,8 +182,7 @@ watch(visible, () => {
         return;
     }
     if (props.data && typeof props.data === 'object') {
-        const data = props.data as ResourceForm;
-        state.form = { ...data, meta: normalizeMeta(data.meta) };
+        state.form = { ...props.data, meta: normalizeMeta(props.data.meta) };
     } else {
         state.form = { meta: { ...defaultMeta } };
     }

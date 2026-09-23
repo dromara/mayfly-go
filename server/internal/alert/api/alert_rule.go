@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/service"
@@ -64,7 +65,7 @@ func (a *AlertRule) Metrics(rc *req.Ctx) {
 }
 
 func (a *AlertRule) GetById(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	rule, err := a.ruleApp.GetById(id)
 	biz.ErrIsNil(err)
 	rc.ResData = rule
@@ -82,7 +83,7 @@ func (a *AlertRule) Save(rc *req.Ctx) {
 
 func (a *AlertRule) Update(rc *req.Ctx) {
 	rule := rc.BindJson[entity.AlertRule]()
-	rule.Id = uint64(rc.PathParamInt("id"))
+	rule.Id = cast.ToUint64(rc.PathParam("id"))
 	if rule.Labels == "" {
 		rule.Labels = "{}"
 	}
@@ -90,7 +91,7 @@ func (a *AlertRule) Update(rc *req.Ctx) {
 }
 
 func (a *AlertRule) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	status := int8(rc.PathParamInt("status"))
 	biz.IsTrueBy(status == entity.AlertRuleStatusEnable || status == entity.AlertRuleStatusDisable,
 		errorx.NewBizI(rc.MetaCtx, imsg.ErrRuleStatusInvalid))

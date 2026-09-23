@@ -124,8 +124,9 @@ const state = reactive({
     searchItems: [
         SearchItem.select('type', 'common.type').withEnum(ScriptTypeEnum),
         SearchItem.select('category', 'machine.category').withOptionsApi(
-            OptionsApi.new(machineApi.scriptCategorys, {}).withConvertFn((res) => {
-                return res.map((x: string) => {
+            OptionsApi.new(machineApi.scriptCategorys, {}).withConvertFn((res: string[] | null) => {
+                // 无脚本时接口返回 null，直接 map 会抛错
+                return (res ?? []).map((x: string) => {
                     return {
                         label: x,
                         value: x,

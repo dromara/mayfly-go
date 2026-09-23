@@ -1,6 +1,7 @@
 package api
 
 import (
+	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/application/mask"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
@@ -11,7 +12,7 @@ import (
 )
 
 type DbMask struct {
-	maskApp mask.MaskApp `inject:"T"`
+	maskApp mask.MaskRuleApp `inject:"T"`
 }
 
 func (d *DbMask) ReqConfs() *req.Confs {
@@ -39,7 +40,7 @@ func (d *DbMask) ReqConfs() *req.Confs {
 // Rules 分页获取脱敏规则
 // @router /api/dbs/mask-rules [get]
 func (d *DbMask) Rules(rc *req.Ctx) {
-	queryCond := rc.BindQuery[entity.MaskRuleQuery]()
+	queryCond := rc.BindQuery[entity.DbMaskRuleQuery]()
 	res, err := d.maskApp.GetRulePageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -48,15 +49,27 @@ func (d *DbMask) Rules(rc *req.Ctx) {
 // SaveRule 保存脱敏规则
 // @router /api/dbs/mask-rules [post]
 func (d *DbMask) SaveRule(rc *req.Ctx) {
-	rule := rc.BindJson[entity.DbMaskRule]()
-	rc.ReqParam = rule
+	form := rc.BindJson[form.DbMaskRuleForm]()
+	rc.ReqParam = form
+
+	rule := &entity.DbMaskRule{
+		Name:      form.Name,
+		MatchType: form.MatchType,
+		Pattern:   form.Pattern,
+		Algorithm: form.Algorithm,
+		Params:    form.Params,
+		Status:    form.Status,
+		Weight:    form.Weight,
+		Remark:    form.Remark,
+	}
+	rule.Id = form.Id
 	biz.ErrIsNil(d.maskApp.SaveRule(rc.MetaCtx, rule))
 }
 
 // DeleteRule 删除脱敏规则
 // @router /api/dbs/mask-rules/:id [delete]
 func (d *DbMask) DeleteRule(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	biz.IsTrue(id > 0, "id error")
 	rc.ReqParam = id
 	biz.ErrIsNil(d.maskApp.DeleteRule(rc.MetaCtx, id))
@@ -65,7 +78,7 @@ func (d *DbMask) DeleteRule(rc *req.Ctx) {
 // Columns 分页获取脱敏列标签
 // @router /api/dbs/mask-columns [get]
 func (d *DbMask) Columns(rc *req.Ctx) {
-	queryCond := rc.BindQuery[entity.MaskColumnQuery]()
+	queryCond := rc.BindQuery[entity.DbMaskColumnQuery]()
 	res, err := d.maskApp.GetTagPageList(queryCond)
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -74,15 +87,28 @@ func (d *DbMask) Columns(rc *req.Ctx) {
 // SaveColumn 保存脱敏列标签
 // @router /api/dbs/mask-columns [post]
 func (d *DbMask) SaveColumn(rc *req.Ctx) {
-	tag := rc.BindJson[entity.DbMaskColumn]()
-	rc.ReqParam = tag
+	form := rc.BindJson[form.DbMaskColumnForm]()
+	rc.ReqParam = form
+
+	tag := &entity.DbMaskColumn{
+		InstanceId: form.InstanceId,
+		DbName:     form.DbName,
+		MatchTable: form.TableName,
+		ColumnName: form.ColumnName,
+		Action:     form.Action,
+		RuleId:     form.RuleId,
+		Algorithm:  form.Algorithm,
+		Params:     form.Params,
+		Remark:     form.Remark,
+	}
+	tag.Id = form.Id
 	biz.ErrIsNil(d.maskApp.SaveTag(rc.MetaCtx, tag))
 }
 
 // DeleteColumn 删除脱敏列标签
 // @router /api/dbs/mask-columns/:id [delete]
 func (d *DbMask) DeleteColumn(rc *req.Ctx) {
-	id := cast.ToUint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	biz.IsTrue(id > 0, "id error")
 	rc.ReqParam = id
 	biz.ErrIsNil(d.maskApp.DeleteTag(rc.MetaCtx, id))

@@ -57,3 +57,12 @@ WHERE database = '{{.Database}}';
 SELECT sum(rows) as row_count 
 FROM system.parts 
 WHERE database = '{{.Database}}' AND table = '{{.Table}}';
+
+---------------------------------------
+--CLICKHOUSE_VIEWS 视图信息（system.tables 引擎为视图类；create_table_query 即完整 DDL）
+SELECT name AS "viewName", create_table_query AS "viewDefinition", comment AS "viewComment"
+FROM system.tables WHERE database = ? AND engine IN ('View', 'MaterializedView', 'LiveView', 'WindowView')
+ORDER BY name
+---------------------------------------
+--CLICKHOUSE_VIEW_DDL 视图定义（create_table_query 存完整 CREATE VIEW / MATERIALIZED VIEW 语句）
+SELECT create_table_query AS "viewDefinition" FROM system.tables WHERE database = ? AND name = ?

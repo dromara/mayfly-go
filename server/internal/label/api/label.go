@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/spf13/cast"
 	"mayfly-go/internal/label/application"
 	"mayfly-go/internal/label/domain/entity"
 	"mayfly-go/internal/label/imsg"
@@ -69,12 +70,12 @@ func (l *Label) Save(rc *req.Ctx) {
 
 func (l *Label) Update(rc *req.Ctx) {
 	label := rc.BindJson[entity.Label]()
-	label.Id = uint64(rc.PathParamInt("id"))
+	label.Id = cast.ToUint64(rc.PathParam("id"))
 	biz.ErrIsNil(l.labelApp.SaveLabel(rc.MetaCtx, label))
 }
 
 func (l *Label) Delete(rc *req.Ctx) {
-	id := uint64(rc.PathParamInt("id"))
+	id := cast.ToUint64(rc.PathParam("id"))
 	rc.ReqParam = id
 	biz.ErrIsNil(l.labelApp.DeleteLabel(rc.MetaCtx, id))
 }
@@ -83,7 +84,7 @@ func (l *Label) Delete(rc *req.Ctx) {
 
 func (l *Label) ListBindings(rc *req.Ctx) {
 	targetType := rc.PathParam("targetType")
-	targetId := uint64(rc.PathParamInt("targetId"))
+	targetId := cast.ToUint64(rc.PathParam("targetId"))
 	bindings, err := l.labelBindingApp.ListByTarget(rc.MetaCtx, targetType, targetId)
 	biz.ErrIsNil(err)
 	rc.ResData = bindings
@@ -103,9 +104,9 @@ func (l *Label) SaveBindings(rc *req.Ctx) {
 }
 
 func (l *Label) DeleteBinding(rc *req.Ctx) {
-	labelId := uint64(rc.PathParamInt("labelId"))
+	labelId := cast.ToUint64(rc.PathParam("labelId"))
 	targetType := rc.PathParam("targetType")
-	targetId := uint64(rc.PathParamInt("targetId"))
+	targetId := cast.ToUint64(rc.PathParam("targetId"))
 	rc.ReqParam = collx.Kvs("labelId", labelId, "targetType", targetType, "targetId", targetId)
 	biz.ErrIsNil(l.labelBindingApp.DeleteBinding(rc.MetaCtx, labelId, targetType, targetId))
 }

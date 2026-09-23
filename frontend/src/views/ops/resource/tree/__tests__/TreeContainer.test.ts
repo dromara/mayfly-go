@@ -23,7 +23,7 @@ vi.mock('@/components/contextmenu', async () => {
 
 let seq = 0;
 const makeChildren = (parent: string, kind: string) =>
-    Array.from({ length: 3 }, () => ({ key: `${parent}-c${++seq}`, kind, label: 'leaf' }) as TreeNodeData);
+    Array.from({ length: 3 }, () => ({ key: `${parent}-c${++seq}`, kind, label: 'leaf' }));
 
 beforeEach(() => {
     registerContributor({

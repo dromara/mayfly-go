@@ -30,7 +30,7 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
 import { computed, onMounted, reactive, toRefs, watch } from 'vue';
 import { tagApi } from '../tag/api';
-import type { TagTree } from '../tag/types';
+import type { TagTreeNode } from '../tag/types';
 
 const props = defineProps({
     tagType: {
@@ -47,7 +47,7 @@ const props = defineProps({
 const modelValue = defineModel<string[] | string>('modelValue');
 
 const state = reactive({
-    tags: [] as TagTree[],
+    tags: [] as TagTreeNode[],
 });
 
 const { tags } = toRefs(state);
