@@ -52,7 +52,11 @@ export function useEsSearch(options: UseEsSearchOptions) {
     });
 
     const fetchIndices = async () => {
-        const res = await esApi.proxyReq<EsIndexInfo[]>('get', instId, `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`);
+        const res = await esApi.proxyReq<EsIndexInfo[]>(
+            'get',
+            instId,
+            `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`
+        );
         indices.value = (res || []).filter((idx) => !idx.index.startsWith('.')).sort((a, b) => a.index.localeCompare(b.index));
         // Auto-select first index if no idxName provided
         if (!currentIdxName.value && indices.value.length > 0) {
@@ -136,7 +140,15 @@ export function useEsSearch(options: UseEsSearchOptions) {
         if (state.datas.length > 0) {
             let keys = Object.keys(fieldMap).sort();
             state.fields = keys.filter((k) => k != '_score');
-            state.columns = keys.map((k) => ({ title: k, width: fieldMap[k].width, key: k, dataKey: k, class: 'es-table-column', _filterd: true, _show: true }));
+            state.columns = keys.map((k) => ({
+                title: k,
+                width: fieldMap[k].width,
+                key: k,
+                dataKey: k,
+                class: 'es-table-column',
+                _filterd: true,
+                _show: true,
+            }));
             state.columns.unshift({
                 title: '#',
                 width: 50,

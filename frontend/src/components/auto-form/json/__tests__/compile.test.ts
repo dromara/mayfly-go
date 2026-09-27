@@ -22,8 +22,7 @@ vi.mock('@/i18n', () => ({
 import request from '@/common/request';
 
 /** 调用编译产物的异步 options 函数 */
-const loadOptions = (item: AutoFormItem, form: Record<string, unknown> = {}) =>
-    (item.options as (form: Record<string, unknown>) => Promise<unknown[]>)(form);
+const loadOptions = (item: AutoFormItem, form: Record<string, unknown> = {}) => (item.options as (form: Record<string, unknown>) => Promise<unknown[]>)(form);
 
 describe('compileJsonField', () => {
     it('基础字段映射', () => {
@@ -224,17 +223,18 @@ describe('buildDefaultForm', () => {
     });
 
     it('无 prop 的 divider 字段不进入表单数据', () => {
-        expect(buildDefaultForm([{ type: 'divider', label: 't' }, { prop: 'a', defaultValue: 1 }])).toEqual({ a: 1 });
+        expect(
+            buildDefaultForm([
+                { type: 'divider', label: 't' },
+                { prop: 'a', defaultValue: 1 },
+            ])
+        ).toEqual({ a: 1 });
     });
 });
 
 describe('布局能力编译（group / prefix / suffix / tabs）', () => {
     it('group 类型编译为分组容器项，透传 groupDescription', () => {
-        const items = compileJsonForm([
-            { prop: 'name' },
-            { prop: 'g', type: 'group', label: 'adv.title', groupDescription: 'adv.desc' },
-            { prop: 'host' },
-        ]);
+        const items = compileJsonForm([{ prop: 'name' }, { prop: 'g', type: 'group', label: 'adv.title', groupDescription: 'adv.desc' }, { prop: 'host' }]);
         expect(items).toHaveLength(3);
         expect(items[1]).toMatchObject({ type: 'group', label: 'adv.title', groupDescription: 'adv.desc' });
         expect(items[1].prop).toBe('g');

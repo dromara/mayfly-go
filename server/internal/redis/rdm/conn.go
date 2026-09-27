@@ -76,6 +76,29 @@ func (r *RedisConn) Scan(cursor uint64, match string, count int64) ([]string, ui
 	return r.GetCmdable().Scan(context.Background(), cursor, match, count).Result()
 }
 
+// Pipelined 以管道方式批量执行命令，用于 key 列表的元信息读取等「一次要看很多 key」的场景。
+// cluster 模式下由客户端按槽自动拆分到各节点，单条命令的失败由调用方按命令对象自行判断
+func (r *RedisConn) Pipelined(ctx context.Context, fn func(redis.Pipeliner)) error {
+	switch r.Info.Mode {
+	case ClusterMode:
+		if r.ClusterCli == nil {
+			return errorx.NewBiz("redis cluster client is nil")
+		}
+		pipe := r.ClusterCli.Pipeline()
+		fn(pipe)
+		_, err := pipe.Exec(ctx)
+		return err
+	default:
+		if r.Cli == nil {
+			return errorx.NewBiz("redis client is nil")
+		}
+		pipe := r.Cli.Pipeline()
+		fn(pipe)
+		_, err := pipe.Exec(ctx)
+		return err
+	}
+}
+
 // 执行redis命令
 // 如: SET str value命令则args为['SET', 'str', 'val']
 func (r *RedisConn) RunCmd(ctx context.Context, args ...any) (any, error) {

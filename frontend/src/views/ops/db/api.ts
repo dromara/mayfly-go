@@ -1,8 +1,35 @@
 import Api from '@/common/Api';
 import { AesEncrypt } from '@/common/crypto';
+import { getClientId } from '@/common/utils/storage';
 import type { PageParam, PageResult } from '@/types/common';
 import { createSqlExecNotification, registerSqlExecAborter } from '@/components/system-message/db/db-sql-exec-progress';
-import type { Db, DbInstance, DbSql, DbSqlExec, DbTableInfo, DbBackup, DbBackupHistory, DbRestore, DbInstanceServerInfo, ColumnMetadata, DbInstanceListParam, DbListParam, SqlExecRes, DbMaskRule, DbMaskColumn, DbMaskRuleQuery, DbMaskColumnQuery, DbMaskRuleSaveForm, DbMaskColumnSaveForm, DbCapabilities, DbMetadataObject } from './types';
+import { createDataImportNotification, finishDataImportNotification } from '@/components/system-message/db/db-data-import-progress';
+import type {
+    Db,
+    DbInstance,
+    DbSql,
+    DbSqlExec,
+    DbTableInfo,
+    DbBackup,
+    DbBackupHistory,
+    DbRestore,
+    DbInstanceServerInfo,
+    ColumnMetadata,
+    DbInstanceListParam,
+    DbListParam,
+    SqlExecRes,
+    DbMaskRule,
+    DbMaskColumn,
+    DbMaskRuleQuery,
+    DbMaskColumnQuery,
+    DbMaskRuleSaveForm,
+    DbMaskColumnSaveForm,
+    DbCapabilities,
+    DbMetadataObject,
+    ImportColumn,
+    ImportPreviewResult,
+    DataImportResult,
+} from './types';
 
 export const dbApi = {
     // 获取权限列表
@@ -159,4 +186,77 @@ export function uploadSqlFile(
     registerSqlExecAborter(uploadId, abort);
 
     return { uploadId, abort };
+}
+
+/** 数据文件导入参数：目标库表、列映射与解析/写入选项 */
+export interface DataImportParams {
+    dbId: number;
+    dbName: string;
+    table: string;
+    /** 文件列→表列映射（有序，target 空=跳过） */
+    columns: ImportColumn[];
+    /** 文件首行是否为表头 */
+    hasHeader: boolean;
+    /** CSV 分隔符，默认逗号 */
+    separator?: string;
+    /** Excel 工作表名，默认首个 */
+    sheet?: string;
+    /** 空单元格是否写入 NULL */
+    emptyAsNull?: boolean;
+    /** 主键/唯一冲突策略：-1/空=直接插入 1=忽略 2=更新 */
+    duplicateStrategy?: number;
+    /** 单批插入行数 */
+    batchSize?: number;
+}
+
+/**
+ * 预览表格文件：解析表头与样本行，供构建列映射界面（不落库）
+ */
+export function previewImportFile(file: File, params: Pick<DataImportParams, 'dbId' | 'hasHeader' | 'separator' | 'sheet'>): Promise<ImportPreviewResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('hasHeader', String(params.hasHeader));
+    if (params.separator) formData.append('separator', params.separator);
+    if (params.sheet) formData.append('sheet', params.sheet);
+    return Api.newPost<ImportPreviewResult>(`/dbs/${params.dbId}/import-data-preview`).request(formData);
+}
+
+/**
+ * 执行表格文件数据导入：按列映射把文件数据批量写入目标表
+ *
+ * 导入为同步长请求，期间由后端 Ws 回传进度：这里生成 uploadId 并创建进度通知，
+ * 请求结束（成功/失败）后兼底关闭。clientId 随 URL 传递，供后端定位回传目标连接。
+ */
+export async function importTableData(file: File, params: DataImportParams): Promise<DataImportResult> {
+    const uploadId = `data_import_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('db', params.dbName);
+    formData.append('table', params.table);
+    formData.append('columns', JSON.stringify(params.columns));
+    formData.append('hasHeader', String(params.hasHeader));
+    formData.append('uploadId', uploadId);
+    if (params.separator) formData.append('separator', params.separator);
+    if (params.sheet) formData.append('sheet', params.sheet);
+    formData.append('emptyAsNull', String(params.emptyAsNull ?? true));
+    if (params.duplicateStrategy) formData.append('duplicateStrategy', String(params.duplicateStrategy));
+    if (params.batchSize) formData.append('batchSize', String(params.batchSize));
+
+    createDataImportNotification({
+        uploadId,
+        title: file.name,
+        dbCode: '',
+        dbName: params.dbName,
+        table: params.table,
+        imported: 0,
+        total: 0,
+        terminated: false,
+        status: 'importing',
+    });
+
+    try {
+        return await Api.newPost<DataImportResult>(`/dbs/${params.dbId}/import-data?clientId=${getClientId()}`).request(formData);
+    } finally {
+        finishDataImportNotification(uploadId);
+    }
 }

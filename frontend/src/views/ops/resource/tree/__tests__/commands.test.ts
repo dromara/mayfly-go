@@ -14,7 +14,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TreeCommandCtx, TreeNode } from '../types';
 import { findTriggerCommand, registerCommand, registerMenu, resetCommandsForTest, resolveNodeMenu, validateMenuCommands } from '../commands';
 
-const makeNode = (kind: string, key = kind, params?: Record<string, unknown>): TreeNode => ({ key, kind, label: key, hasChildren: false, params: params ?? {} });
+const makeNode = (kind: string, key = kind, params?: Record<string, unknown>): TreeNode => ({
+    key,
+    kind,
+    label: key,
+    hasChildren: false,
+    params: params ?? {},
+});
 const makeCtx = (node: TreeNode): TreeCommandCtx => ({ node, tree: { locate: async () => {}, refresh: () => {}, getNode: () => undefined } });
 
 describe('tree/commands 命令与菜单注册表', () => {

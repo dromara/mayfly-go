@@ -18,7 +18,14 @@ import type { SqlCompletionContext } from './types';
  * @param dbs 可切换的所有库名
  * @param dbType 数据库类型
  */
-export async function buildCompletionContext(model: editor.ITextModel, position: Position, dbId: number, db: string, dbs: string[] = [], dbType: string): Promise<SqlCompletionContext> {
+export async function buildCompletionContext(
+    model: editor.ITextModel,
+    position: Position,
+    dbId: number,
+    db: string,
+    dbs: string[] = [],
+    dbType: string
+): Promise<SqlCompletionContext> {
     const dbInst = await DbInst.getInstA(dbId);
     const dialect = getDbDialect(dbType);
     // 词法特征（切割语义、引用符）统一取自方言能力声明，避免多处平行查表

@@ -109,13 +109,15 @@ const handleConsumeMessage = (topic: string) => {
 
 defineExpose({
     initKafka,
-    onRefresh: ()=>{initKafka({id:kafkaId.value})},
-    onClose: ()=>{
+    onRefresh: () => {
+        initKafka({ id: kafkaId.value });
+    },
+    onClose: () => {
         kafkaId.value = 0;
         selectedTopic.value = '';
         topics.value = [];
         groups.value = [];
-    }
+    },
 });
 </script>
 

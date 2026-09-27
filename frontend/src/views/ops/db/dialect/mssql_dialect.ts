@@ -1,5 +1,14 @@
 import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
-import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, ColumnDefinition, SqlSnippetTemplate } from './types';
+import type {
+    DbDialect,
+    DialectCapabilities,
+    DialectInfo,
+    EditorCompletion,
+    EditorCompletionItem,
+    IndexDefinition,
+    ColumnDefinition,
+    SqlSnippetTemplate,
+} from './types';
 import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { buildSchemaTable, extractSchema, getDefaultDataType, QuoteEscape, wrapValueMssql } from './shared/utils';
 import { defineCapabilities, mssqlQuotePairs, mssqlSplitOptions } from './shared/capabilities';
@@ -190,13 +199,7 @@ class MssqlDialect implements DbDialect {
                 length = cl.numScale ? `(${cl.length},${cl.numScale})` : `(${cl.length})`;
             }
         }
-        const parts = [
-            this.quoteIdentifier(cl.name),
-            cl.type + length,
-            cl.autoIncrement ? 'IDENTITY(1,1)' : '',
-            defVal,
-            cl.nullable ? 'NULL' : 'NOT NULL',
-        ];
+        const parts = [this.quoteIdentifier(cl.name), cl.type + length, cl.autoIncrement ? 'IDENTITY(1,1)' : '', defVal, cl.nullable ? 'NULL' : 'NOT NULL'];
         return parts.filter(Boolean).join(' ');
     }
 
@@ -398,7 +401,7 @@ ELSE
         }
 
         if (tableData.oldTableComment !== tableData.tableComment) {
-            let tableComment = (tableData.tableComment).replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
+            let tableComment = tableData.tableComment.replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
             sql += `IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableData.tableName}', NULL, NULL)) > 0)

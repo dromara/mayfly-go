@@ -50,7 +50,7 @@ export const columnContributor: SuggestionContributor = {
         for (const tableInfo of scopeTables) {
             const items = await columnSuggestions(ctx.dbInst, tableInfo.db, tableInfo.tableName, ctx.range);
             for (const suggestion of items) {
-                const insertText = (suggestion.insertText) ?? '';
+                const insertText = suggestion.insertText ?? '';
                 // 多表同名字段只保留首个（按表声明顺序）
                 if (seen.has(insertText)) {
                     continue;

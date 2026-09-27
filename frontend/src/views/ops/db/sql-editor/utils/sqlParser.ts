@@ -51,7 +51,7 @@ function readDollarTag(sql: string, i: number): string {
             // 校验 tag 体（i+1..j-1）为合法字符
             for (let k = i + 1; k < j; k++) {
                 const t = sql[k];
-                if (!(t >= 'a' && t <= 'z' || t >= 'A' && t <= 'Z' || t >= '0' && t <= '9' || t === '_')) {
+                if (!((t >= 'a' && t <= 'z') || (t >= 'A' && t <= 'Z') || (t >= '0' && t <= '9') || t === '_')) {
                     return '';
                 }
             }
@@ -122,7 +122,27 @@ const isLineBreakChar = (ch: string | undefined): boolean => ch === undefined ||
 const txnBeginWords = new Set(['transaction', 'tran', 'work', 'distributed', 'deferred', 'immediate', 'exclusive', 'read', 'commented']);
 
 /** 可与 END 构成一个闭合词的关键字（END IF / END LOOP / END TRY 等），随 END 一并消费，避免被当作块起始词再入栈 */
-const endCloserWords = new Set(['if', 'loop', 'while', 'case', 'repeat', 'for', 'try', 'catch', 'block', 'function', 'procedure', 'proc', 'package', 'pkg', 'trigger', 'transaction', 'tran', 'handler', 'with']);
+const endCloserWords = new Set([
+    'if',
+    'loop',
+    'while',
+    'case',
+    'repeat',
+    'for',
+    'try',
+    'catch',
+    'block',
+    'function',
+    'procedure',
+    'proc',
+    'package',
+    'pkg',
+    'trigger',
+    'transaction',
+    'tran',
+    'handler',
+    'with',
+]);
 
 /** procedural 档位额外纳入的过程块起始词；不含 repeat/for（MySQL REPEAT() 同名函数；FOR 必携 LOOP，由 LOOP 计入） */
 const proceduralOpeners = new Set(['if', 'loop', 'while']);
@@ -190,7 +210,7 @@ function createEndAheadChecker(sql: string): (from: number) => boolean {
             return false;
         }
         endAheadIdx = -1;
-        for (let j = from; j < sql.length; ) {
+        for (let j = from; j < sql.length;) {
             if (!isWordStart(sql[j])) {
                 j++;
                 continue;
@@ -316,7 +336,13 @@ function scanSql(
                 commentStart = i;
             } else if (char === "'" || char === '"') {
                 // 双引号在标准 SQL 系为标识符引用符（仅影响光标区域归属），mysql 系为字符串字面量
-                state = enterString(char, true, options.backslashEscape || isEscapeStringQuote(sql, i, options), char === '"' && options.doubleQuoteAsIdentifier, char);
+                state = enterString(
+                    char,
+                    true,
+                    options.backslashEscape || isEscapeStringQuote(sql, i, options),
+                    char === '"' && options.doubleQuoteAsIdentifier,
+                    char
+                );
             } else if (options.backtickQuote && char === '`') {
                 // 反引号标识符内反斜杠为普通字符，转义靠双写 ``
                 state = enterString(char, true, false, true, char);

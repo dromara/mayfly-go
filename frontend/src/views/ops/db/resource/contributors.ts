@@ -78,7 +78,7 @@ registerContributor({
             params: {
                 ...x,
                 tagPath,
-                username: (authCerts[x.authCertName || ''])?.username,
+                username: authCerts[x.authCertName || '']?.username,
                 instCode: params.instCode,
                 dbCode: x.code,
             },

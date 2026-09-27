@@ -36,7 +36,9 @@ body.glass-mode {
         background: var(--glass-btn-primary-grad) !important;
         background-image: var(--glass-btn-primary-sheen), var(--glass-btn-primary-grad);
         color: oklch(1 0 0 / 0.98) !important;
-        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3), 0 1px 6px color-mix(in oklab, var(--el-color-primary, #409eff) 30%, transparent);
+        box-shadow:
+            inset 0 1px 0 oklch(1 0 0 / 0.3),
+            0 1px 6px color-mix(in oklab, var(--el-color-primary, #409eff) 30%, transparent);
     }
 
     /* 顶栏玻璃效果（transverse 布局顶部菜单栏）
@@ -164,7 +166,10 @@ body.glass-mode {
         background: transparent !important;
         border-radius: 12px !important;
         border: 1px solid var(--glass-hairline) !important;
-        box-shadow: var(--glass-edge), var(--glass-ambient), 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+        box-shadow:
+            var(--glass-edge),
+            var(--glass-ambient),
+            0 16px 48px rgba(0, 0, 0, 0.18) !important;
 
         &::before {
             content: '';
@@ -187,7 +192,10 @@ body.glass-mode {
         -webkit-backdrop-filter: var(--glass-fx-elevated) !important;
         border-radius: 12px !important;
         border: 1px solid var(--glass-hairline) !important;
-        box-shadow: var(--glass-edge), var(--glass-ambient), 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+        box-shadow:
+            var(--glass-edge),
+            var(--glass-ambient),
+            0 16px 48px rgba(0, 0, 0, 0.18) !important;
     }
 
     /* 顶栏溢出/弹出子菜单容器（append to body，脱离顶栏祖先）玻璃化，
@@ -274,8 +282,8 @@ body.glass-mode {
     ------------------------------- */
     .el-table-fixed-column--left,
     .el-table-fixed-column--right,
-    [class*="fixed-column--left"],
-    [class*="fixed-column--right"],
+    [class*='fixed-column--left'],
+    [class*='fixed-column--right'],
     .el-table__fixed,
     .el-table__fixed-right,
     .el-table-v2__left,
@@ -405,28 +413,35 @@ body.glass-mode {
         --vscode-editor-inactiveSelectionBackground: rgba(var(--el-color-primary-rgb, 64, 158, 255), 0.16) !important;
     }
 
-    // 4) 编辑器容器：自带磨砂玻璃底，与宿主无关（抽屉 / 弹窗 / 整页 SQL 编辑器都成立）。
-    //    ⚠ 关键约束: backdrop-filter 禁止挂在容器自身 —— MonacoEditor 配了
-    //    fixedOverflowWidgets: true(补全/hover 弹层为 position: fixed 且按视口坐标定位)，
-    //    而 backdrop-filter 会把容器变成 fixed 后代的包含块, 弹层将被平移约一个容器距离。
-    //    正解(与 card/navbar 同模式): 玻璃底+blur 挂 ::before, 容器本体不产生包含块。
+    // 3.5) Monaco 右键/上下文菜单：菜单可滚动元素的内联背景取自 --vscode-menu.background，
+    //      自定义主题未把它落成不透明实色，玻璃态下便透出背后壁纸与结果表格，文字完全不可读。
+    //      直接给菜单盒与内层强制不透明弹层底（!important 压过内联背景），随明暗态；
+    //      前景/边框/圆角/阴影仍由 monaco 主题提供。
+    //      用实色而非 --glass-bg-elevated + blur：context-view 可能为 fixed 且含 fixed 子菜单，
+    //      在其上挂 backdrop-filter 会劫持子菜单的包含块（见本文件 monaco 容器注释）。
+    .context-view.monaco-menu-container,
+    .context-view.monaco-menu-container .monaco-menu,
+    .context-view.monaco-menu-container .monaco-scrollable-element {
+        background-color: var(--el-bg-color-overlay) !important;
+    }
+
+    // 4) 编辑器容器：自带半透明玻璃底，与宿主无关（抽屉 / 弹窗 / 整页 SQL 编辑器都成立）。
+    //    这里刻意【不用 isolation: isolate + ::before(z-index:-1)】那套玻璃底写法：
+    //    isolation 会新建层叠上下文，把编辑器内 position:fixed 的右键菜单(.context-view)
+    //    困在本容器的层叠上下文里，其 z-index(2575) 便无法参与根层叠上下文竞争，
+    //    结果被全局水印(el-watermark 遮罩层，是容器上层的兄弟节点)盖住、菜单读不清。
+    //    本容器玻璃底只是半透明色、无 backdrop-filter，直接挂 background 即可：
+    //    background 既不新建层叠上下文、也不成为 fixed 后代的包含块，fixed 弹层定位与层阶都不受影响。
     //    box-shadow 用中性色(不用 --glass-ambient 的蓝色成分)，避免半透明边框透出蓝色伪影
     .monaco-editor-custom {
         position: relative;
-        isolation: isolate;
-        background: transparent !important;
+        background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.32) !important;
         border: 1px solid var(--glass-hairline-strong) !important;
         border-radius: 8px;
-        box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 2px 10px rgba(0, 0, 0, 0.1) !important;
-
-        &::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            z-index: -1;
-            border-radius: inherit;
-            background: rgba(var(--glass-tint-rgb, 255, 255, 255), 0.32);
-        }
+        box-shadow:
+            inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+            0 2px 10px rgba(0, 0, 0, 0.1) !important;
     }
 
     // 编辑器抽屉：降到半透明（玻璃底在 .el-drawer 的 ::before 上，故这里覆盖 ::before）
@@ -556,10 +571,18 @@ body.glass-mode {
     .el-alert {
         border: 1px solid var(--glass-hairline-soft) !important;
     }
-    .el-alert--success { background: color-mix(in srgb, var(--el-color-success) 16%, transparent) !important; }
-    .el-alert--warning { background: color-mix(in srgb, var(--el-color-warning) 16%, transparent) !important; }
-    .el-alert--error { background: color-mix(in srgb, var(--el-color-danger) 16%, transparent) !important; }
-    .el-alert--info { background: color-mix(in srgb, var(--el-color-info) 16%, transparent) !important; }
+    .el-alert--success {
+        background: color-mix(in srgb, var(--el-color-success) 16%, transparent) !important;
+    }
+    .el-alert--warning {
+        background: color-mix(in srgb, var(--el-color-warning) 16%, transparent) !important;
+    }
+    .el-alert--error {
+        background: color-mix(in srgb, var(--el-color-danger) 16%, transparent) !important;
+    }
+    .el-alert--info {
+        background: color-mix(in srgb, var(--el-color-info) 16%, transparent) !important;
+    }
 
     // border-card 选项卡：EP 实白底 → panel 档玻璃；blur 挂 ::before 规避内部 sticky 表格的 backdrop root 问题
     .el-tabs--border-card {
@@ -722,21 +745,34 @@ body.glass-mode {
     .el-button--warning:not(.is-plain, .is-link, .is-text),
     .el-button--info:not(.is-plain, .is-link, .is-text) {
         border-color: transparent !important;
-        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), inset 0 -1px 0 oklch(0 0 0 / 0.18) !important;
+        box-shadow:
+            inset 0 1px 0 oklch(1 0 0 / 0.35),
+            inset 0 -1px 0 oklch(0 0 0 / 0.18) !important;
     }
 
     .el-button--success:not(.is-plain, .is-link, .is-text) {
-        background-image: var(--glass-btn-primary-sheen),
-            linear-gradient(180deg, color-mix(in srgb, var(--el-color-success, #67c23a) 80%, black), color-mix(in srgb, var(--el-color-success, #67c23a) 56%, black));
+        background-image:
+            var(--glass-btn-primary-sheen),
+            linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--el-color-success, #67c23a) 80%, black),
+                color-mix(in srgb, var(--el-color-success, #67c23a) 56%, black)
+            );
     }
 
     .el-button--warning:not(.is-plain, .is-link, .is-text) {
-        background-image: var(--glass-btn-primary-sheen),
-            linear-gradient(180deg, color-mix(in srgb, var(--el-color-warning, #e6a23c) 82%, black), color-mix(in srgb, var(--el-color-warning, #e6a23c) 58%, black));
+        background-image:
+            var(--glass-btn-primary-sheen),
+            linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--el-color-warning, #e6a23c) 82%, black),
+                color-mix(in srgb, var(--el-color-warning, #e6a23c) 58%, black)
+            );
     }
 
     .el-button--info:not(.is-plain, .is-link, .is-text) {
-        background-image: var(--glass-btn-primary-sheen),
+        background-image:
+            var(--glass-btn-primary-sheen),
             linear-gradient(180deg, color-mix(in srgb, var(--el-color-info, #909399) 84%, black), color-mix(in srgb, var(--el-color-info, #909399) 62%, black));
     }
 
@@ -763,7 +799,9 @@ body.glass-mode {
     .el-select__wrapper.is-focused,
     .el-textarea__inner:focus {
         background-color: var(--glass-input-hover-bg) !important;
-        box-shadow: inset 0 0 0 1px var(--el-color-primary), inset 0 1px 2px oklch(0 0 0 / 0.05) !important;
+        box-shadow:
+            inset 0 0 0 1px var(--el-color-primary),
+            inset 0 1px 2px oklch(0 0 0 / 0.05) !important;
     }
 
     // 开关: 未选中=深色半透轨道(内压影); 选中=on-color 压暗实底(轨道内的"启用"白字需要实底对比)
@@ -777,7 +815,9 @@ body.glass-mode {
     .el-switch.is-checked .el-switch__core {
         background-color: var(--glass-switch-on-bg) !important;
         border-color: transparent !important;
-        box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), 0 0 10px color-mix(in oklab, var(--el-switch-on-color, var(--el-color-primary)) 35%, transparent) !important;
+        box-shadow:
+            inset 0 1px 0 oklch(1 0 0 / 0.35),
+            0 0 10px color-mix(in oklab, var(--el-switch-on-color, var(--el-color-primary)) 35%, transparent) !important;
     }
 
     .el-switch__action {

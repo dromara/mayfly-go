@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { esApi } from '@/views/ops/es/api';
 import { defineAsyncComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';

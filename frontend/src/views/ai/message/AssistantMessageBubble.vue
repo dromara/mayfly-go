@@ -4,11 +4,7 @@
         <template v-if="renderSegments.length > 0">
             <template v-for="(seg, i) in renderSegments" :key="i">
                 <!-- 文本段：跳过空内容，直接渲染 HTML -->
-                <div
-                    v-if="seg.type === 'text' && seg.text"
-                    class="assistant-message__text"
-                    v-html="renderMarkdown(seg.text)"
-                />
+                <div v-if="seg.type === 'text' && seg.text" class="assistant-message__text" v-html="renderMarkdown(seg.text)" />
                 <!-- 过程段：ProcessGroup 折叠展示 -->
                 <ProcessGroup
                     v-else-if="seg.type === 'process'"
@@ -26,11 +22,7 @@
                     :compressed-message-count="seg.part.compressedMessageCount"
                 />
                 <!-- 轮次终止提示（用户停止 / 流式错误） -->
-                <div
-                    v-else-if="seg.type === 'notice'"
-                    class="assistant-message__notice"
-                    :class="`assistant-message__notice--${seg.part.kind}`"
-                >
+                <div v-else-if="seg.type === 'notice'" class="assistant-message__notice" :class="`assistant-message__notice--${seg.part.kind}`">
                     <CircleStopIcon v-if="seg.part.kind === 'stopped'" class="assistant-message__notice-icon" />
                     <CircleAlertIcon v-else class="assistant-message__notice-icon" />
                     <span>{{ seg.part.text }}</span>
@@ -318,7 +310,8 @@ const renderSegments = computed((): RenderSegment[] => {
 }
 
 @keyframes assistant-dot-pulse {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 0.3;
     }
     50% {

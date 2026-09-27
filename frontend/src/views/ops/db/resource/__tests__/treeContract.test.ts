@@ -92,9 +92,7 @@ describe('DbOpTabApi 跨组件契约不得退化为 any', () => {
 
     it('DbDataOp 的 defineExpose 仍受 satisfies DbOpTabApi 约束（地基守卫）', () => {
         const src = readFileSync(DB_DATA_OP_FILE, 'utf8');
-        expect(src, '摘掉 satisfies 后接口与实现即可各自漂移，上面两层守卫全部失效').toMatch(
-            /defineExpose\(\{[\s\S]*?\}\s*satisfies\s+DbOpTabApi\s*\)/
-        );
+        expect(src, '摘掉 satisfies 后接口与实现即可各自漂移，上面两层守卫全部失效').toMatch(/defineExpose\(\{[\s\S]*?\}\s*satisfies\s+DbOpTabApi\s*\)/);
     });
 });
 

@@ -403,12 +403,10 @@ class DMDialect extends SchemaDialectBase {
                 .map((a: string): EditorCompletionItem => ({ label: a, description: 'keyword' }))
                 .concat(
                     // 加上自定义的关键字
-                    commonCustomKeywords.map(
-                        (a): EditorCompletionItem => ({
-                            label: a,
-                            description: 'keyword',
-                        })
-                    )
+                    commonCustomKeywords.map((a): EditorCompletionItem => ({
+                        label: a,
+                        description: 'keyword',
+                    }))
                 ),
             operators: operators.map((a: string): EditorCompletionItem => ({ label: a, description: 'operator' })),
             functions: replaceFunctions,

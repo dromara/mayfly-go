@@ -1,6 +1,10 @@
 package rdm
 
-import "github.com/spf13/cast"
+import (
+	"strings"
+
+	"github.com/spf13/cast"
+)
 
 // write cmd
 var writeCmd = map[string]string{
@@ -23,8 +27,11 @@ var writeCmd = map[string]string{
 	"FLUSHDB":          "FLUSHDB",
 	"GEOADD":           "GEOADD key [NX|XX] [CH] longitude latitude member [longitude latitude member ...]",
 	"GETDEL":           "GETDEL key",
+	"GETEX":            "GETEX key [EX seconds|PX milliseconds|EXAT timestamp|PERSIST]",
 	"GETSET":           "GETSET key value",
 	"HDEL":             "HDEL key field [field ...]",
+	"HEXPIRE":          "HEXPIRE key seconds [NX | XX | GT | LT] FIELDS numfields field [field ...]",
+	"HPERSIST":         "HPERSIST key FIELDS numfields field [field ...]",
 	"HINCRBY":          "HINCRBY key field increment",
 	"HINCRBYFLOAT":     "HINCRBYFLOAT key field increment",
 	"HMSET":            "HMSET key field value [field value ...]",
@@ -77,6 +84,9 @@ var writeCmd = map[string]string{
 	"XDEL":             "XDEL key ID [ID ...]",
 	"XGROUP":           "XGROUP CREATE key groupname id|$ [MKSTREAM], XGROUP CREATECONSUMER key groupname consumername, XGROUP DELCONSUMER key groupname consumername, XGROUP DESTROY key groupname, XGROUP SETID key groupname id|$",
 	"XTRIM":            "XTRIM key MAXLEN [~] count",
+	"XACK":             "XACK key group name [ID ...]",
+	"PFADD":            "PFADD key element [element ...]",
+	"PFMERGE":          "PFMERGE destkey sourcekey [sourcekey ...]",
 	"ZADD":             "ZADD key score member [score] [member]",
 	"ZDIFFSTORE":       "ZDIFFSTORE destination numkeys key [key ...]",
 	"ZINCRBY":          "ZINCRBY key increment member",
@@ -91,8 +101,37 @@ var writeCmd = map[string]string{
 	"ZUNIONSTORE":      "ZUNIONSTORE destination numkeys key [key ...] [WEIGHTS weight [weight ...]] [AGGREGATE SUM|MIN|MAX]",
 }
 
-// 判断命令是否写命令
+// IsWriteCmd 判断命令是否写命令。
+//
+// Redis 命令名大小写不敏感，而命令控制台原样透传用户输入，因此这里统一大写化再查表：
+// 否则 `hset foo bar baz` 会被判成读命令，写权限校验与工单审批同时失守
 func IsWriteCmd(cmd any) bool {
-	_, ok := writeCmd[cast.ToString(cmd)]
+	_, ok := writeCmd[strings.ToUpper(cast.ToString(cmd))]
+	return ok
+}
+
+// dangerousCmd 可能阻塞实例、清空数据或绕过数据权限的命令，只允许拥有独立数据操作权限的账号执行
+var dangerousCmd = map[string]string{
+	"FLUSHALL":  "FLUSHALL [ASYNC|SYNC]",
+	"FLUSHDB":   "FLUSHDB [ASYNC|SYNC]",
+	"KEYS":      "KEYS pattern",
+	"CONFIG":    "CONFIG GET|SET|RESETSTAT ...",
+	"DEBUG":     "DEBUG ...",
+	"SHUTDOWN":  "SHUTDOWN [NOSAVE|SAVE]",
+	"SLAVEOF":   "SLAVEOF host port",
+	"REPLICAOF": "REPLICAOF host port",
+	"SWAPDB":    "SWAPDB index1 index2",
+	"SCRIPT":    "SCRIPT EXISTS|FLUSH|KILL|LOAD ...",
+	"EVAL":      "EVAL script numkeys key [key ...] arg [arg ...]",
+	"EVALSHA":   "EVALSHA sha1 numkeys key [key ...] arg [arg ...]",
+	"FUNCTION":  "FUNCTION DELETE|FLUSH|RESTORE ...",
+	"CLUSTER":   "CLUSTER FAILZONE|FORGET|RESET|SAVECONFIG ...",
+	"ACL":       "ACL DELUSER|SETUSER|SAVE ...",
+	"MONITOR":   "MONITOR",
+}
+
+// IsDangerousCmd 判断命令是否为高危命令
+func IsDangerousCmd(cmd any) bool {
+	_, ok := dangerousCmd[strings.ToUpper(cast.ToString(cmd))]
 	return ok
 }

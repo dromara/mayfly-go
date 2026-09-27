@@ -1,6 +1,16 @@
 <template>
     <div>
-        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="saveFormExec" @submitted="(form) => emit('success', form)" @cancel="emit('cancel')" @opened="onOpened">
+        <auto-form-drawer
+            v-model:visible="visible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-api="saveFormExec"
+            @submitted="(form) => emit('success', form)"
+            @cancel="emit('cancel')"
+            @opened="onOpened"
+        >
             <!-- 消息渠道多选（选项需展示类型/编码/名称组合信息，自定义插槽） -->
             <template #channelIds="{ form: f }">
                 <el-select v-model="f.channelIds" multiple clearable filterable class="w-full!">

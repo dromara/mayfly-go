@@ -18,7 +18,15 @@
             </template>
             <!-- DB 多选（支持手输库号，逗号拼接回 form.db；cluster 模式禁用） -->
             <template #db="{ form }">
-                <el-select :model-value="dbList" :disabled="form.mode == 'cluster'" multiple allow-create filterable class="w-full!" @update:model-value="onDbListChange">
+                <el-select
+                    :model-value="dbList"
+                    :disabled="form.mode == 'cluster'"
+                    multiple
+                    allow-create
+                    filterable
+                    class="w-full!"
+                    @update:model-value="onDbListChange"
+                >
                     <el-option v-for="db in DB_OPTIONS" :key="db" :label="db" :value="db" />
                 </el-select>
             </template>
@@ -61,9 +69,12 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const emit = defineEmits(['val-change', 'cancel']);
+const emit = defineEmits<{
+    'val-change': [form: RedisSaveForm];
+    cancel: [];
+}>();
 
-/** 可选 DB 列表 */
+/** DB 快捷选项（Redis 编译期默认 16 库）；选择器开了 allow-create，超出范围的库号可直接手输 */
 const DB_OPTIONS = Array.from({ length: 16 }, (_, i) => i);
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
@@ -73,11 +84,27 @@ const items = computed(() =>
     defineFormItems<RedisSaveForm>([
         { prop: 'tagCodePaths', label: 'tag.relateTag', required: true, slot: 'tagCodePaths' },
         { prop: 'name', label: 'common.name', required: true },
-        { prop: 'mode', label: 'mode', type: 'select', required: true, options: [{ value: 'standalone', label: 'standalone' }, { value: 'cluster', label: 'cluster' }, { value: 'sentinel', label: 'sentinel' }] },
+        {
+            prop: 'mode',
+            label: 'mode',
+            type: 'select',
+            required: true,
+            options: [
+                { value: 'standalone', label: 'standalone' },
+                { value: 'cluster', label: 'cluster' },
+                { value: 'sentinel', label: 'sentinel' },
+            ],
+        },
         { prop: 'host', label: 'host', type: 'textarea', rows: 2, required: true, placeholder: 'redis.hostTips' },
         { prop: 'username', label: 'common.username' },
         { prop: 'password', label: 'common.password', type: 'password', props: { autocomplete: 'new-password' } },
-        { prop: 'redisNodePassword', label: 'redis.nodePassword', type: 'password', when: (f) => f.mode == 'sentinel', props: { autocomplete: 'new-password' } },
+        {
+            prop: 'redisNodePassword',
+            label: 'redis.nodePassword',
+            type: 'password',
+            when: (f) => f.mode == 'sentinel',
+            props: { autocomplete: 'new-password' },
+        },
         { prop: 'db', label: 'DB', required: true, slot: 'db' },
         { prop: 'remark', label: 'common.remark', type: 'textarea' },
         { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel', slot: 'sshTunnelMachineId' },

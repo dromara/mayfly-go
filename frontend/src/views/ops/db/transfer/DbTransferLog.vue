@@ -7,7 +7,14 @@
                 <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml-2"></el-button>
             </template>
 
-            <page-table ref="logTableRef" :page-api="dbTransferApi.dbTransferTaskLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
+            <page-table
+                ref="logTableRef"
+                :page-api="dbTransferApi.dbTransferTaskLogs"
+                v-model:query-form="query"
+                :tool-button="false"
+                :columns="columns"
+                size="small"
+            >
                 <template #durationMs="{ data }">
                     <span :class="{ 'text-red-500': data.durationMs > 30000 }">{{ data.durationMs ? `${data.durationMs} ms` : '-' }}</span>
                 </template>
@@ -62,10 +69,13 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 const columns = ref([
     TableColumn.new('purpose', 'db.transferPurpose').alignCenter().typeTag(DbTransferLogPurposeEnum).setMinWidth(90),
     TableColumn.new('status', 'common.status').alignCenter().typeTag(DbTransferLogStatusEnum).setMinWidth(80),
-    TableColumn.new('createTime', 'Time').alignCenter().isTime().setMinWidth(160),
+    TableColumn.new('createTime', 'db.execTime').alignCenter().isTime().setMinWidth(160),
     TableColumn.new('durationMs', 'db.transferDuration').alignCenter().isSlot().setMinWidth(100),
     TableColumn.new('totalRows', 'db.transferTotalRows').alignCenter().setMinWidth(100),
     TableColumn.new('tableCount', 'db.transferTableCount').alignCenter().setMinWidth(90),
+    // 目标文件名只在导出文件类执行里有值；错误信息只在失败执行里有值，两者均靠 tooltip 展示全文
+    TableColumn.new('targetFile', 'db.transferTargetFile').setMinWidth(160),
+    TableColumn.new('errText', 'db.errText').setMinWidth(160),
     TableColumn.new('runLog', 'db.transferRunLog').alignCenter().isSlot().setMinWidth(100),
 ]);
 

@@ -109,7 +109,10 @@ describe('usePageTable', () => {
         const { getTableData, tableData } = usePageTable(true, mockApi as any, { pageNum: 1, pageSize: 10 }, undefined, dataCallBack);
         await getTableData();
         expect(dataCallBack).toHaveBeenCalled();
-        expect(tableData.value).toEqual([{ id: 1, extra: true }, { id: 2, extra: true }]);
+        expect(tableData.value).toEqual([
+            { id: 1, extra: true },
+            { id: 2, extra: true },
+        ]);
     });
 
     it('请求失败时 loading 恢复为 false', async () => {

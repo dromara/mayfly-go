@@ -87,7 +87,14 @@ const items = defineFormItems<DbMaskRuleSaveForm>([
         placeholder: 'db.maskPatternPlaceholder',
         rules: [Rules.requiredInput('db.maskPattern')],
     },
-    { prop: 'algorithm', label: 'db.maskAlgorithm', type: 'select', required: true, options: algorithmOptions, rules: [Rules.requiredSelect('db.maskAlgorithm')] },
+    {
+        prop: 'algorithm',
+        label: 'db.maskAlgorithm',
+        type: 'select',
+        required: true,
+        options: algorithmOptions,
+        rules: [Rules.requiredSelect('db.maskAlgorithm')],
+    },
     {
         prop: 'params',
         label: 'db.maskParams',

@@ -38,12 +38,24 @@ function getExportProgress() {
 }
 
 export const esApi = {
-    get instances() { return getInstances(); },
-    get deleteInstance() { return getDeleteInstance(); },
-    get saveInstance() { return getSaveInstance(); },
-    get testConn() { return getTestConn(); },
-    get exportData() { return getExportData(); },
-    get exportProgress() { return getExportProgress(); },
+    get instances() {
+        return getInstances();
+    },
+    get deleteInstance() {
+        return getDeleteInstance();
+    },
+    get saveInstance() {
+        return getSaveInstance();
+    },
+    get testConn() {
+        return getTestConn();
+    },
+    get exportData() {
+        return getExportData();
+    },
+    get exportProgress() {
+        return getExportProgress();
+    },
 
     // proxyGet: Api.newGet('/es/instance/proxy/{id}/{path}'),
     // proxyPost: Api.newPost('/es/instance/proxy/{id}/{path}'),

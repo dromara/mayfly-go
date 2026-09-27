@@ -107,7 +107,8 @@ const findIndex = () => {
     let prev = 0;
     for (let index = 0; index < fields.length; index++) {
         const current = fields[index] as VNode;
-        prev += (current!.props![breakPoint.value]?.span ?? current!.props?.span ?? 1) + (current!.props![breakPoint.value]?.offset ?? current!.props?.offset ?? 0);
+        prev +=
+            (current!.props![breakPoint.value]?.span ?? current!.props?.span ?? 1) + (current!.props![breakPoint.value]?.offset ?? current!.props?.offset ?? 0);
         if (Number(prev) > props.collapsedRows * gridCols.value - suffixCols) {
             hiddenIndex.value = index;
             find = true;

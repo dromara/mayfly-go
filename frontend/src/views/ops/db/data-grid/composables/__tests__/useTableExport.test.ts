@@ -8,7 +8,7 @@ vi.mock('@/common/utils/export', () => ({
     exportFile: vi.fn(),
 }));
 
-const genInsertSql = vi.fn().mockResolvedValue("INSERT INTO `t` (`id`) VALUES (1);");
+const genInsertSql = vi.fn().mockResolvedValue('INSERT INTO `t` (`id`) VALUES (1);');
 
 vi.mock('../../../db', () => ({
     DbInst: { getInst: vi.fn(() => ({ genInsertSql })) },

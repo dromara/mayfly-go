@@ -33,18 +33,10 @@
         <el-dialog v-model="editVisible" :title="$t(editTitle)" width="500px" destroy-on-close>
             <el-form :model="editForm" label-width="100px">
                 <el-form-item :label="$t('label.labelKey')" required>
-                    <el-input
-                        v-model="editForm.labelKey"
-                        :placeholder="$t('label.labelKeyPlaceholder')"
-                        :disabled="isEditMode"
-                    />
+                    <el-input v-model="editForm.labelKey" :placeholder="$t('label.labelKeyPlaceholder')" :disabled="isEditMode" />
                 </el-form-item>
                 <el-form-item :label="$t('label.labelValue')" required>
-                    <el-input
-                        v-model="editForm.labelValue"
-                        :placeholder="$t('label.labelValuePlaceholder')"
-                        :disabled="isEditMode"
-                    />
+                    <el-input v-model="editForm.labelValue" :placeholder="$t('label.labelValuePlaceholder')" :disabled="isEditMode" />
                 </el-form-item>
                 <el-form-item :label="$t('label.color')">
                     <el-color-picker v-model="editForm.extra!.color" />
@@ -149,5 +141,4 @@ const onDelete = async (row: LabelVO) => {
 };
 </script>
 
-<style lang="scss" scoped>
-</style>
+<style lang="scss" scoped></style>

@@ -20,18 +20,24 @@
                             <template #suffix>rows/s</template>
                         </el-statistic>
                     </el-col>
-                    <el-col :span="3.5">
-                        <el-statistic :title="$t('db.syncInsertCount')" :value="state.latestLog.insertCount || 0"></el-statistic>
+                    <!-- 校验模式不写数据，新增/更新/删除/跳过的写路径统计恒为 0 无意义，以校验行数替代 -->
+                    <el-col v-if="isValidationMode" :span="7">
+                        <el-statistic :title="$t('db.syncValidationRows')" :value="state.latestLog.resNum || 0"></el-statistic>
                     </el-col>
-                    <el-col :span="3.5">
-                        <el-statistic :title="$t('db.syncUpdateCount')" :value="state.latestLog.updateCount || 0"></el-statistic>
-                    </el-col>
-                    <el-col :span="3.5">
-                        <el-statistic :title="$t('db.syncDeleteCount')" :value="state.latestLog.deleteCount || 0"></el-statistic>
-                    </el-col>
-                    <el-col :span="3.5">
-                        <el-statistic :title="$t('db.syncSkipCount')" :value="state.latestLog.skipCount || 0"></el-statistic>
-                    </el-col>
+                    <template v-else>
+                        <el-col :span="3.5">
+                            <el-statistic :title="$t('db.syncInsertCount')" :value="state.latestLog.insertCount || 0"></el-statistic>
+                        </el-col>
+                        <el-col :span="3.5">
+                            <el-statistic :title="$t('db.syncUpdateCount')" :value="state.latestLog.updateCount || 0"></el-statistic>
+                        </el-col>
+                        <el-col :span="3.5">
+                            <el-statistic :title="$t('db.syncDeleteCount')" :value="state.latestLog.deleteCount || 0"></el-statistic>
+                        </el-col>
+                        <el-col :span="3.5">
+                            <el-statistic :title="$t('db.syncSkipCount')" :value="state.latestLog.skipCount || 0"></el-statistic>
+                        </el-col>
+                    </template>
                 </el-row>
             </div>
 
@@ -75,7 +81,7 @@ import PageTable from '@/components/page-table/PageTable.vue';
 import { TableColumn } from '@/components/page-table';
 import { LogViewer, SyncRunLogParser, type ParsedLogLine } from '@/components/log-viewer';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
-import { DbDataSyncLogStatusEnum } from '@/views/ops/db/sync/enums';
+import { DbDataSyncLogStatusEnum, DbDataSyncModeEnum } from '@/views/ops/db/sync/enums';
 import type { DataSyncLogListVO } from '@/views/ops/db/types';
 import type { PageResult } from '@/types/common';
 
@@ -91,17 +97,29 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const columns = ref([
-    TableColumn.new('status', 'common.status').alignCenter().typeTag(DbDataSyncLogStatusEnum).setMinWidth(80),
-    TableColumn.new('createTime', 'Time').alignCenter().isTime().setMinWidth(160),
-    TableColumn.new('durationMs', 'db.syncDuration').alignCenter().isSlot().setMinWidth(100),
-    TableColumn.new('throughput', 'db.syncThroughput').alignCenter().isSlot().setMinWidth(100),
-    TableColumn.new('insertCount', 'db.syncInsertCount').alignCenter().setMinWidth(90),
-    TableColumn.new('updateCount', 'db.syncUpdateCount').alignCenter().setMinWidth(90),
-    TableColumn.new('deleteCount', 'db.syncDeleteCount').alignCenter().setMinWidth(90),
-    TableColumn.new('skipCount', 'db.syncSkipCount').alignCenter().setMinWidth(90),
-    TableColumn.new('runLog', 'db.syncRunLog').alignCenter().isSlot().setMinWidth(100),
-]);
+// 校验模式不写数据，日志列表的写路径统计列（新增/更新/删除/跳过）替换为单列校验行数（后端落在 resNum）
+const buildColumns = (validation: boolean) => {
+    const metricCols = validation
+        ? [TableColumn.new('resNum', 'db.syncValidationRows').alignCenter().setMinWidth(90)]
+        : [
+              TableColumn.new('insertCount', 'db.syncInsertCount').alignCenter().setMinWidth(90),
+              TableColumn.new('updateCount', 'db.syncUpdateCount').alignCenter().setMinWidth(90),
+              TableColumn.new('deleteCount', 'db.syncDeleteCount').alignCenter().setMinWidth(90),
+              TableColumn.new('skipCount', 'db.syncSkipCount').alignCenter().setMinWidth(90),
+          ];
+    return [
+        TableColumn.new('status', 'common.status').alignCenter().typeTag(DbDataSyncLogStatusEnum).setMinWidth(80),
+        TableColumn.new('createTime', 'db.execTime').alignCenter().isTime().setMinWidth(160),
+        TableColumn.new('durationMs', 'db.syncDuration').alignCenter().isSlot().setMinWidth(100),
+        TableColumn.new('throughput', 'db.syncThroughput').alignCenter().isSlot().setMinWidth(100),
+        ...metricCols,
+        // 失败原因只在失败行有值，全文靠溢出 tooltip 展示
+        TableColumn.new('errText', 'db.errText').setMinWidth(160),
+        TableColumn.new('runLog', 'db.syncRunLog').alignCenter().isSlot().setMinWidth(100),
+    ];
+};
+
+const columns = ref(buildColumns(false));
 
 // 运行日志解析器
 const runLogParser = new SyncRunLogParser();
@@ -160,9 +178,23 @@ watch(dialogVisible, (newValue: any) => {
     }
 
     state.query.taskId = props.taskId!;
+    state.syncMode = undefined;
+    rebuildColumns(false);
     search();
     state.realTime = props.running;
     watchPolling(props.running);
+    // 校验模式的统计行措辞与写路径模式不同；详情接口顺便带出 syncMode，失败则退回通用统计展示
+    if (props.taskId) {
+        dbSyncApi.getDatasyncTask
+            .request({ taskId: props.taskId })
+            .then((task) => {
+                state.syncMode = task?.syncMode;
+                rebuildColumns(isValidationMode.value);
+            })
+            .catch(() => {
+                // 详情获取失败不影响日志列表展示
+            });
+    }
 });
 
 const startPolling = () => {
@@ -231,6 +263,7 @@ const state = reactive({
     pollingIndex: 0 as any,
     realTime: props.running,
     latestLog: null as DataSyncLogListVO | null,
+    syncMode: undefined as number | undefined,
     query: {
         taskId: 0,
         name: null,
@@ -240,6 +273,14 @@ const state = reactive({
 });
 
 const { query, realTime } = toRefs(state);
+
+const isValidationMode = computed(() => state.syncMode === DbDataSyncModeEnum.Validation.value);
+
+// PageTable 内部以 reactive(props.columns) 固化了首次传入的数组引用，整体重新赋值不生效，
+// 必须用 splice 原地替换内容才能同步到已渲染的表格
+const rebuildColumns = (validation: boolean) => {
+    columns.value.splice(0, columns.value.length, ...buildColumns(validation));
+};
 </script>
 <style lang="scss">
 .sync-metrics-summary {

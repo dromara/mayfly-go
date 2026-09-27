@@ -49,8 +49,7 @@ export const InterruptResumeStatus = {
     Skipped: 'skipped',
 } as const;
 
-export type InterruptResumeStatusValue =
-    (typeof InterruptResumeStatus)[keyof typeof InterruptResumeStatus];
+export type InterruptResumeStatusValue = (typeof InterruptResumeStatus)[keyof typeof InterruptResumeStatus];
 
 /** 判断中断是否已决策（非 Pending 即视为已决策） */
 export function isInterruptDecided(status?: string): boolean {

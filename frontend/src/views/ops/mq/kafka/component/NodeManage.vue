@@ -52,7 +52,7 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import {computed, nextTick, onMounted, reactive, ref, toRefs} from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, toRefs } from 'vue';
 import { mqApi } from '../../api';
 import type { KafkaBroker, KafkaConfigEntry } from '../../types';
 
@@ -88,7 +88,7 @@ const filteredBrokerConfigs = computed(() => {
     return state.brokerConfigs.filter((config) => config.Key.toLowerCase().includes(searchConfig.value.toLowerCase()));
 });
 
-onMounted(() => setTimeout(()=>nextTick(refreshBrokers), 500) );
+onMounted(() => setTimeout(() => nextTick(refreshBrokers), 500));
 
 const refreshBrokers = async () => {
     loading.value = true;

@@ -1,10 +1,5 @@
 <template>
-    <Attachment
-        size="sm"
-        class="attachment-item"
-        :class="{ 'is-clickable': clickable }"
-        @click="onClick"
-    >
+    <Attachment size="sm" class="attachment-item" :class="{ 'is-clickable': clickable }" @click="onClick">
         <template v-if="attachment.kind === 'image' && imageSrc">
             <AttachmentMedia variant="image">
                 <img :src="imageSrc" :alt="attachment.name" class="size-full object-cover" />
@@ -37,13 +32,7 @@
          scale 0.6：contain 默认把大图放大到占满视口（观感全屏），初始降至 60%，
          滚轮/工具栏可再缩放与放大，小图在缩放后仍清晰可辨 -->
     <Teleport to="body">
-        <ElImageViewer
-            v-if="imageViewerVisible && imageSrc"
-            :url-list="[imageSrc]"
-            :scale="0.6"
-            hide-on-click-modal
-            @close="imageViewerVisible = false"
-        />
+        <ElImageViewer v-if="imageViewerVisible && imageSrc" :url-list="[imageSrc]" :scale="0.6" hide-on-click-modal @close="imageViewerVisible = false" />
     </Teleport>
 </template>
 
@@ -61,14 +50,7 @@ import { ElImageViewer } from 'element-plus';
 import { getFileUrl } from '@/common/request';
 import { formatAttachmentSize } from '../input/attachments';
 import type { MessageAttachment } from '../protocol/types';
-import {
-    Attachment,
-    AttachmentAction,
-    AttachmentContent,
-    AttachmentDescription,
-    AttachmentMedia,
-    AttachmentTitle,
-} from '@/components/ui/attachment';
+import { Attachment, AttachmentAction, AttachmentContent, AttachmentDescription, AttachmentMedia, AttachmentTitle } from '@/components/ui/attachment';
 
 const props = defineProps<{
     attachment: MessageAttachment;
@@ -91,20 +73,17 @@ const emit = defineEmits<{
 const imageViewerVisible = ref(false);
 
 /** 图片展示源：本地 dataUrl（发送前上传前的输入框预览）优先，否则经文件服务 fileKey 访问 */
-const imageSrc = computed(() =>
-    props.attachment.dataUrl || (props.attachment.fileKey ? getFileUrl(props.attachment.fileKey) : ''),
-);
+const imageSrc = computed(() => props.attachment.dataUrl || (props.attachment.fileKey ? getFileUrl(props.attachment.fileKey) : ''));
 
 /** 有内容载体的附件才可交互（文本需父层启用展开交互，输入框预览态不可点） */
 const clickable = computed(
-    () => (props.attachment.kind === 'image' && !!imageSrc.value)
-        || (props.attachment.kind === 'text' && props.expandableText === true && !!props.attachment.fileKey),
+    () =>
+        (props.attachment.kind === 'image' && !!imageSrc.value) ||
+        (props.attachment.kind === 'text' && props.expandableText === true && !!props.attachment.fileKey)
 );
 
 /** 文本附件可展开预览（需父层启用展开交互；内容统一经 fileKey 拉取） */
-const expandable = computed(
-    () => props.expandableText === true && props.attachment.kind === 'text' && !!props.attachment.fileKey,
-);
+const expandable = computed(() => props.expandableText === true && props.attachment.kind === 'text' && !!props.attachment.fileKey);
 
 const onClick = () => {
     if (props.attachment.kind === 'image' && imageSrc.value) {

@@ -1,4 +1,7 @@
 import Api, { UploadOptions } from '@/common/Api';
+import config from '@/common/config';
+import { joinClientParams } from '@/common/request';
+import { templateResolve } from '@/common/utils/string';
 import type { PageParam, PageResult } from '@/types/common';
 import { createUploadFileNotification, registerUploadFileAborter } from '@/components/system-message/machine/machine-file-upload-progress';
 import { createUploadFolderNotification, registerUploadFolderAborter } from '@/components/system-message/machine/machine-folder-upload-progress';
@@ -56,7 +59,6 @@ export const machineApi = {
     uploadFile: Api.newUpload<void>('/machines/{machineId}/files/{fileId}/upload'),
     uploadFolder: Api.newPost<void>('/machines/{machineId}/files/{fileId}/upload-folder'),
     fileContent: Api.newGet<string>('/machines/{machineId}/files/{fileId}/read'),
-    downloadFile: Api.newGet<string>('/machines/{machineId}/files/{fileId}/download'),
     createFile: Api.newPost<void>('/machines/{machineId}/files/{id}/create-file'),
     // 修改文件内容
     updateFileContent: Api.newPost<void>('/machines/{machineId}/files/{id}/write'),
@@ -96,6 +98,32 @@ export function getMachineTerminalSocketUrl(authCertName: string) {
  */
 export function getMachineRdpSocketUrl(authCertName: string) {
     return `/api/machines/rdp/${authCertName}`;
+}
+
+/** 文件下载端点路径模板，占位由 templateResolve 填充 */
+const FILE_DOWNLOAD_PATH = '/machines/{machineId}/files/{fileId}/download';
+
+/**
+ * 构造由浏览器直接导航触发的文件下载地址。
+ *
+ * 下载需要走「另存为」而非 XHR，因此端点路径与查询参数在此集中拼装，
+ * 调用方不再手写 URL；参数经 URLSearchParams 编码，含空格或中文的路径不会被截断。
+ */
+export function buildFileDownloadUrl(params: {
+    machineId: number;
+    fileId: number;
+    path: string;
+    authCertName?: string;
+    protocol: number;
+}): string {
+    const query = new URLSearchParams({
+        path: params.path,
+        machineId: String(params.machineId),
+        authCertName: params.authCertName ?? '',
+        fileId: String(params.fileId),
+        protocol: String(params.protocol),
+    });
+    return `${config.baseApiUrl}${templateResolve(FILE_DOWNLOAD_PATH, params)}?${query.toString()}&${joinClientParams()}`;
 }
 
 /**
@@ -209,7 +237,6 @@ export function uploadFolder(files: FileList | File[], params: FolderUploadParam
 
         return () =>
             new Promise<void>((resolve, reject) => {
-
                 const { abort } = uploadFile(
                     file,
                     {

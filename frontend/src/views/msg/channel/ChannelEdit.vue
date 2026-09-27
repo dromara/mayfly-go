@@ -1,6 +1,15 @@
 <template>
     <div>
-        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="saveFormExec" @submitted="(form) => emit('success', form)" @cancel="emit('cancel')">
+        <auto-form-drawer
+            v-model:visible="visible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-api="saveFormExec"
+            @submitted="(form) => emit('success', form)"
+            @cancel="emit('cancel')"
+        >
             <!-- 渠道类型扩展配置（动态组件） -->
             <template #extra="{ form: f }">
                 <component v-if="channelTypeComp(f.type)" :is="channelTypeComp(f.type)" v-model:extra="f.extra" />

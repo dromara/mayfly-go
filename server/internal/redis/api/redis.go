@@ -24,8 +24,9 @@ import (
 )
 
 type Redis struct {
-	redisApp application.Redis     `inject:"T"`
-	tagApp   tagapp.TagTreeService `inject:"T"`
+	redisApp    application.Redis     `inject:"T"`
+	keyValueApp application.KeyValue  `inject:"T"`
+	tagApp      tagapp.TagTreeService `inject:"T"`
 }
 
 func (rs *Redis) ReqConfs() *req.Confs {
@@ -48,11 +49,29 @@ func (rs *Redis) ReqConfs() *req.Confs {
 		// 获取指定redis keys
 		req.NewPost(":id/:db/scan", rs.ScanKeys),
 
-		req.NewGet(":id/:db/key-info", rs.KeyInfo),
+		// 数据视角：前端表格结构、能力位与操作清单全部由后端描述符驱动
+		req.NewGet(":id/:db/views", rs.Views),
 
-		req.NewGet(":id/:db/key-ttl", rs.TtlKey),
+		// 实例命令目录：命令控制台的输入提示与执行前确认依据，由实例自描述而非平台内置表
+		req.NewGet(":id/:db/commands", rs.Commands),
 
-		req.NewGet(":id/:db/key-memuse", rs.MemoryUsage),
+		req.NewGet(":id/:db/key-meta", rs.KeyMeta),
+
+		req.NewPost(":id/:db/key-values", rs.KeyValues),
+
+		// 成员的增改删与批量删除，命令构造下沉到各类型处理器
+		req.NewPut(":id/:db/key-value", rs.PutKeyValue).Log(req.NewLogSaveI(imsg.LogRedisKeyOp)),
+
+		// 视角扩展操作（集合运算、位统计、GEO 检索等）
+		req.NewPost(":id/:db/key-op", rs.RunKeyOp).Log(req.NewLogSaveI(imsg.LogRedisKeyOp)),
+
+		// key 列表的类型/过期时间批量摘要，供树的角标与筛选
+		req.NewPost(":id/:db/key-summary", rs.KeySummary),
+
+		req.NewPut(":id/:db/key-ttl", rs.SetKeyTtl).Log(req.NewLogSaveI(imsg.LogRedisKeyOp)),
+		req.NewPut(":id/:db/key-rename", rs.RenameKey).Log(req.NewLogSaveI(imsg.LogRedisKeyOp)),
+		req.NewPost(":id/:db/key-copy", rs.CopyKey).Log(req.NewLogSaveI(imsg.LogRedisKeyOp)),
+		req.NewPost(":id/:db/del-keys", rs.DeleteKeys).Log(req.NewLogSaveI(imsg.LogRedisKeyOp)),
 	}
 
 	return req.NewConfs("/redis", reqs[:]...)

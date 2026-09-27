@@ -102,15 +102,13 @@ registerContributor({
     loadChildren: async (node) => {
         const milvus = node.params as MilvusNodeParams;
         const authCerts = milvus.authCerts || [];
-        return authCerts.map(
-            (x: MachineAuthCert): TreeNodeData => ({
-                key: `milvus.${milvus.id}.${x.name}`,
-                kind: MilvusAcKind,
-                label: x.username,
-                icon: AuthCertIcon,
-                params: { ...milvus, selectAuthCert: x },
-            })
-        );
+        return authCerts.map((x: MachineAuthCert): TreeNodeData => ({
+            key: `milvus.${milvus.id}.${x.name}`,
+            kind: MilvusAcKind,
+            label: x.username,
+            icon: AuthCertIcon,
+            params: { ...milvus, selectAuthCert: x },
+        }));
     },
 });
 

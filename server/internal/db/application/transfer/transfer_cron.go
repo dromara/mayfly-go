@@ -30,7 +30,8 @@ func (app *DbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
 		return err
 	}
 
-	app.runGuard.Release(taskId)
+	// 跨实例可见的停止信号：RequestStop = Release（本实例持有的 fast path）+ Redis 停止标记（他实例持有的批边界自查）。
+	app.runGuard.RequestStop(taskId)
 	return nil
 }
 
@@ -59,10 +60,15 @@ func (d *DbTransferAppImpl) TimerDeleteTransferFile() {
 	})
 }
 
+// transferTaskScheduled 迁移任务是否会被注册为定时任务：需同时满足任务启用与开启定时调度。
+// 保存前的表达式校验与 addCronJob 的绑定判定共用此函数，避免两处口径漂移。
+func transferTaskScheduled(taskEntity *entity.DbTransferTask) bool {
+	return taskEntity.Status == entity.DbTransferTaskStatusEnable && taskEntity.CronEnabled == entity.DbTransferTaskCronEnabled
+}
+
 func (app *DbTransferAppImpl) addCronJob(ctx context.Context, taskEntity *entity.DbTransferTask) {
 	key := taskEntity.TaskKey
-	enabled := taskEntity.Status == entity.DbTransferTaskStatusEnable && taskEntity.CronEnabled == entity.DbTransferTaskCronEnabled
-	if !enabled {
+	if !transferTaskScheduled(taskEntity) {
 		taskx.UnbindCronTask(key)
 		return
 	}

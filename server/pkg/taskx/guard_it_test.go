@@ -28,10 +28,11 @@ func TestMain(m *testing.M) {
 	}
 	rediscli.SetCli(cli)
 	code := m.Run()
-	// 清理测试 key
-	keys, _ := cli.Keys(ctx, "mayfly:run-guard:ittest*").Result()
-	if len(keys) > 0 {
-		cli.Del(ctx, keys...)
+	// 清理测试 key：既清历史用例前缀，也清 RequestStop 用例使用的数字 taskId 段
+	for _, pattern := range []string{"mayfly:run-guard:ittest*", "mayfly:run-guard:97*", "mayfly:run-stop:*"} {
+		if keys, _ := cli.Keys(ctx, pattern).Result(); len(keys) > 0 {
+			cli.Del(ctx, keys...)
+		}
 	}
 	cli.Close()
 	os.Exit(code)
@@ -399,4 +400,68 @@ func TestBindCronTask_RebindReplacesCallback(t *testing.T) {
 	c1Final := atomic.LoadInt32(&counter1)
 	assert.Equal(t, c1AfterRebind, c1Final, "重新绑定后旧回调不应再执行")
 	assert.True(t, atomic.LoadInt32(&counter2) > 0, "新回调应已执行")
+}
+
+// ========== RequestStop / IsStopRequested / ClearStopRequest ==========
+
+// 跨实例停止标记：非持有者调 RequestStop 后，持有者能从 IsStopRequested 看到停止意图；
+// 而 IsCurrentRun 因本地 fast path 未清仍返回 true，与批边界的合并判断（IsCurrentRun || IsStopRequested）
+// 一起验证了为什么需要独立通道而不能只删锁。
+func TestRunGuard_RequestStop_CrossInstanceVisible(t *testing.T) {
+	const taskId uint64 = 97001
+	holder := &RunGuard[uint64]{}
+	observer := &RunGuard[uint64]{}
+
+	runId, ok := holder.AcquireWithRunId(taskId)
+	require.True(t, ok)
+	t.Cleanup(func() { holder.ReleaseWithRunId(taskId, runId) })
+
+	// 非持有者发起停止
+	observer.RequestStop(taskId)
+
+	assert.True(t, holder.IsStopRequested(taskId), "持有者应看到跨实例停止标记")
+	// 双侧 IsCurrentRun 均为 true：本地 fast path 与 Redis 锁都还在，RequestStop 只写标记不删锁
+	assert.True(t, holder.IsCurrentRun(taskId, runId), "持有者本地 fast path 仍显示持有")
+	assert.True(t, observer.IsCurrentRun(taskId, runId), "非持有者走 Redis fallback 也能读到 holder 那份锁")
+}
+
+func TestRunGuard_RequestStop_LocalHolderFastPath(t *testing.T) {
+	const taskId uint64 = 97002
+	guard := &RunGuard[uint64]{}
+	runId, ok := guard.AcquireWithRunId(taskId)
+	require.True(t, ok)
+	t.Cleanup(func() { guard.ClearStopRequest(taskId) })
+
+	guard.RequestStop(taskId)
+	// RequestStop 内部先 Release：本地 held 清空，IsCurrentRun 立即 false
+	assert.False(t, guard.IsCurrentRun(taskId, runId), "本实例持有的场景 Release 已生效")
+	// Redis 里仍写了停止标记，其他观察方可读到
+	assert.True(t, guard.IsStopRequested(taskId))
+}
+
+func TestRunGuard_AcquireClearsStaleMarker(t *testing.T) {
+	const taskId uint64 = 97003
+	guard := &RunGuard[uint64]{}
+	// 模拟上一轮 endRunning 异常没清，Redis 里留下停止标记
+	guard.RequestStop(taskId)
+	require.True(t, guard.IsStopRequested(taskId))
+
+	// Acquire 应顺手清 stale 标记，否则新一轮首批即被误判"要停止"
+	_, ok := guard.AcquireWithRunId(taskId)
+	require.True(t, ok)
+	t.Cleanup(func() { guard.ClearStopRequest(taskId) })
+	assert.False(t, guard.IsStopRequested(taskId), "Acquire 必须清 stale 停止标记")
+}
+
+func TestRunGuard_ClearStopRequest_Idempotent(t *testing.T) {
+	const taskId uint64 = 97004
+	guard := &RunGuard[uint64]{}
+	// 无标记时 Clear 不 panic、也不报错
+	guard.ClearStopRequest(taskId)
+	guard.RequestStop(taskId)
+	guard.ClearStopRequest(taskId)
+	assert.False(t, guard.IsStopRequested(taskId))
+	// 再清一次仍 false（幂等）
+	guard.ClearStopRequest(taskId)
+	assert.False(t, guard.IsStopRequested(taskId))
 }

@@ -1,12 +1,6 @@
 <template>
     <Transition name="trigger-menu">
-        <div
-            v-if="visible"
-            ref="panelRef"
-            class="trigger-menu resource-tree-panel"
-            :style="menuStyle"
-            @mousedown.prevent
-        >
+        <div v-if="visible" ref="panelRef" class="trigger-menu resource-tree-panel" :style="menuStyle" @mousedown.prevent>
             <div class="resource-tree-panel__header">{{ t('ai.chat.resourceTreeTitle') }}</div>
             <TreeContainer
                 class="resource-tree-panel__tree"

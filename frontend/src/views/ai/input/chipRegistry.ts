@@ -81,4 +81,3 @@ export function extractSegmentsFromNode(node: { content: { forEach: (fn: (child:
 
     return merged.filter((s) => s.type !== 'input_text' || s.text.trim().length > 0);
 }
-

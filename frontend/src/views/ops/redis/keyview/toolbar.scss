@@ -1,0 +1,16 @@
+/*
+ * Redis 数据操作页的样式入口：工具条语汇（计数药丸 / 图标工具组 / 列表尾部块）来自全站共享的
+ * theme/common/ops-toolbar.scss，本文件只保留 redis 侧的变量别名，供 keyview 与 resource
+ * 下的 scoped 样式继续按 $redis-* 取用。
+ *
+ * 各消费方在自己的 <style scoped> 里 @use 本文件，Sass 会把规则输出到引入方块内，
+ * 选择器仍带组件作用域，不会跨组件污染。
+ */
+@use '@/theme/common/ops-toolbar.scss' as *;
+
+// 容器级圆角（模块内卡片、编辑器、表格保持一致）
+$redis-radius: $ops-radius;
+
+// 统一缓动：指数 ease-out，时长落在 150~250ms
+$redis-ease: $ops-ease;
+$redis-duration: $ops-duration;

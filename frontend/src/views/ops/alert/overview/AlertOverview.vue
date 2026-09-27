@@ -252,8 +252,16 @@
                         <div class="trend-bars">
                             <div v-for="point in overview.notifyTrend" :key="point.hour" class="trend-bar-item">
                                 <div class="trend-bar-wrapper">
-                                    <div class="trend-bar success-bar" :style="{ height: getTrendBarHeight(point.success) + '%' }" :title="$t('alert.todaySuccess') + ': ' + point.success"></div>
-                                    <div class="trend-bar failed-bar" :style="{ height: getTrendBarHeight(point.failed) + '%' }" :title="$t('alert.todayFailed') + ': ' + point.failed"></div>
+                                    <div
+                                        class="trend-bar success-bar"
+                                        :style="{ height: getTrendBarHeight(point.success) + '%' }"
+                                        :title="$t('alert.todaySuccess') + ': ' + point.success"
+                                    ></div>
+                                    <div
+                                        class="trend-bar failed-bar"
+                                        :style="{ height: getTrendBarHeight(point.failed) + '%' }"
+                                        :title="$t('alert.todayFailed') + ': ' + point.failed"
+                                    ></div>
                                 </div>
                                 <span class="trend-label">{{ point.hour }}</span>
                             </div>
@@ -351,9 +359,15 @@ const overview = ref<AlertOverviewData>({
     todayNotifyCount: 0,
     ruleStats: { total: 0, enabled: 0, disabled: 0, byPriority: {}, byResourceType: {} },
     notifyStats: {
-        todaySent: 0, successRate: 0, policyMatched: 0, totalEvents: 0,
-        unmatchedCount: 0, channelDistribution: {},
-        todaySuccess: 0, todayFailed: 0, byChannel: {},
+        todaySent: 0,
+        successRate: 0,
+        policyMatched: 0,
+        totalEvents: 0,
+        unmatchedCount: 0,
+        channelDistribution: {},
+        todaySuccess: 0,
+        todayFailed: 0,
+        byChannel: {},
     },
     silenceStats: { total: 0, active: 0, silencedCount: 0 },
     inhibitionStats: { total: 0, active: 0, inhibitedCount: 0 },
@@ -364,8 +378,12 @@ const overview = ref<AlertOverviewData>({
     recentEvents: { total: 0, list: [] },
     notifyTrend: [],
     qualityReport: {
-        avgSendDelay: 0, maxSendDelay: 0, queueLength: 0,
-        weeklySuccess: 0, monthlySuccess: 0, topFailReasons: [],
+        avgSendDelay: 0,
+        maxSendDelay: 0,
+        queueLength: 0,
+        weeklySuccess: 0,
+        monthlySuccess: 0,
+        topFailReasons: [],
     },
 });
 
@@ -431,7 +449,7 @@ const getChannelBarWidth = (count: number): number => {
 // 计算趋势条形图高度（基于所有趋势点中的最大值）
 const getTrendBarHeight = (value: number): number => {
     const trend = overview.value.notifyTrend || [];
-    const maxVal = Math.max(...trend.map(p => Math.max(p.success, p.failed)), 1);
+    const maxVal = Math.max(...trend.map((p) => Math.max(p.success, p.failed)), 1);
     return Math.max(2, (value / maxVal) * 100);
 };
 
@@ -750,8 +768,12 @@ onBeforeUnmount(() => {
             height: 8px;
             border-radius: 50%;
         }
-        .success-dot { background-color: var(--el-color-success); }
-        .failed-dot { background-color: var(--el-color-danger); }
+        .success-dot {
+            background-color: var(--el-color-success);
+        }
+        .failed-dot {
+            background-color: var(--el-color-danger);
+        }
     }
 
     // 质量报告
@@ -762,7 +784,9 @@ onBeforeUnmount(() => {
             align-items: center;
             padding: 6px 0;
             border-bottom: 1px solid var(--el-border-color-lighter);
-            &:last-child { border-bottom: none; }
+            &:last-child {
+                border-bottom: none;
+            }
         }
         .quality-label {
             font-size: 13px;

@@ -170,7 +170,9 @@ const loadPopoverTagInfo = async () => {
     }
 
     popoverTagInfos.value = (await getAllCodePaths(paths.value as string[])) || {};
-    codePaths.value = paths.value.filter((p): p is string => typeof p === 'string' && p !== undefined).map((p: string) => parseTagPathWithInfo(p, popoverTagInfos.value));
+    codePaths.value = paths.value
+        .filter((p): p is string => typeof p === 'string' && p !== undefined)
+        .map((p: string) => parseTagPathWithInfo(p, popoverTagInfos.value));
 };
 
 const clear = () => {

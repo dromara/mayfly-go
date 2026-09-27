@@ -27,7 +27,16 @@ import { findTriggerCommand, resolveNodeMenu } from './commands';
 import { TreeApiKey } from './context';
 import { DEFAULT_TREE_SCOPE, treeEvents } from './events';
 import { getContributor } from './registry';
-import { ERROR_KIND, LOADING_KIND, type LocateOutcome, type LocateResolver, type TreeNode, type TreeNodeData, type TreeApi, type TreeEngineExpose } from './types';
+import {
+    ERROR_KIND,
+    LOADING_KIND,
+    type LocateOutcome,
+    type LocateResolver,
+    type TreeNode,
+    type TreeNodeData,
+    type TreeApi,
+    type TreeEngineExpose,
+} from './types';
 import TreeEngineV2 from './TreeEngineV2.vue';
 import { useLazyTree } from './useLazyTree';
 

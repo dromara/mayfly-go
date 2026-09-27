@@ -9,10 +9,7 @@
         <!-- 有内容：CollapsibleSection 折叠（CollapsibleSection header） -->
         <CollapsibleSection v-else :title="titleText">
             <template #icon>
-                <BrainIcon
-                    class="reasoning-part__icon"
-                    :class="{ 'reasoning-part__icon--pulse': active }"
-                />
+                <BrainIcon class="reasoning-part__icon" :class="{ 'reasoning-part__icon--pulse': active }" />
             </template>
             <pre class="reasoning-part__content">{{ content }}</pre>
         </CollapsibleSection>
@@ -76,7 +73,8 @@ const titleText = computed(() => {
 }
 
 @keyframes reasoning-pulse {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
     }
     50% {

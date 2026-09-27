@@ -30,9 +30,3 @@ type Keys struct {
 	Keys   []string          `json:"keys"`
 	DbSize int64             `json:"dbSize"`
 }
-
-type KeyInfo struct {
-	Key  string `json:"key"`
-	Ttl  int    `json:"ttl"`
-	Type string `json:"type"`
-}

@@ -23,18 +23,33 @@
             </template>
             <template #srcDb="{ data }">
                 <el-tooltip :content="`${data.srcTagPath} > ${data.srcInstName} > ${data.srcDbName}`">
-                    <span>
+                    <span class="block truncate">
                         <SvgIcon :name="getDbDialect(data.srcDbType).getInfo().icon" :size="18" />
                         {{ data.srcDbName }}
                     </span>
                 </el-tooltip>
             </template>
             <template #targetDb="{ data }">
-                <el-tooltip :content="`${data.targetTagPath} > ${data.targetInstName} > ${data.targetDbName}`">
-                    <span>
+                <!-- 迁移到文件没有目标库，该列展示生成 SQL 所用的方言 -->
+                <el-tooltip v-if="data.mode === DbTransferModeEnum.File.value" :content="fileTargetTip(data)">
+                    <span class="block truncate">
+                        <SvgIcon v-if="data.targetFileDbType" :name="getDbDialect(data.targetFileDbType).getInfo().icon" :size="18" />
+                        {{ fileTargetDialectName(data.targetFileDbType) }}
+                    </span>
+                </el-tooltip>
+                <el-tooltip v-else :content="`${data.targetTagPath} > ${data.targetInstName} > ${data.targetDbName}`">
+                    <span class="block truncate">
                         <SvgIcon :name="getDbDialect(data.targetDbType).getInfo().icon" :size="18" />
                         {{ data.targetDbName }}
                     </span>
+                </el-tooltip>
+            </template>
+            <!-- 迁移范围：全部表 / N 张表（悬停看表名清单）/ 未设置，用普通文本而非 tag，避免被当成状态标签 -->
+            <template #checkedKeys="{ data }">
+                <span v-if="isAllTables(data.checkedKeys)" class="block truncate">{{ $t('db.allTable') }}</span>
+                <span v-else-if="!transferTables(data.checkedKeys).length" class="block truncate text-red-500">{{ $t('db.pleaseSetting') }}</span>
+                <el-tooltip v-else :content="transferTablesTip(data.checkedKeys)">
+                    <span class="block truncate">{{ $t('db.transferTablesCount', { count: transferTables(data.checkedKeys).length }) }}</span>
                 </el-tooltip>
             </template>
 
@@ -61,7 +76,12 @@
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
                 <el-button v-if="actionBtns[perms.log]" type="warning" link @click="onOpenLog(data)">{{ $t('db.log') }}</el-button>
-                <el-button v-if="actionBtns[perms.stop] && data.runningState === DbTransferRunningStateEnum.Running.value" @click="stop(data.id)" type="danger" link>
+                <el-button
+                    v-if="actionBtns[perms.stop] && data.runningState === DbTransferRunningStateEnum.Running.value"
+                    @click="stop(data.id)"
+                    type="danger"
+                    link
+                >
                     {{ $t('db.stop') }}
                 </el-button>
                 <el-button
@@ -72,7 +92,12 @@
                 >
                     {{ $t('db.run') }}
                 </el-button>
-                <el-button v-if="actionBtns[perms.verify] && data.mode === 1 && data.runningState !== DbTransferRunningStateEnum.Running.value" type="info" link @click="onVerify(data)">
+                <el-button
+                    v-if="actionBtns[perms.verify] && data.mode === 1 && data.runningState !== DbTransferRunningStateEnum.Running.value"
+                    type="info"
+                    link
+                    @click="onVerify(data)"
+                >
                     {{ $t('db.verify') }}
                 </el-button>
                 <el-button v-if="actionBtns[perms.files] && data.mode === 2" type="success" link @click="openFiles(data)">{{ $t('db.file') }}</el-button>
@@ -95,7 +120,13 @@ import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
-import { DbTransferRunningStateEnum } from '@/views/ops/db/transfer/enums';
+import {
+    DbTransferRunningStateEnum,
+    DbTransferModeEnum,
+    DbTransferStrategyEnum,
+    DbTransferDeleteTableEnum,
+    DbTransferNameCaseEnum,
+} from '@/views/ops/db/transfer/enums';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { DbTransferTaskListVO } from '../types';
@@ -119,20 +150,74 @@ const perms = {
 
 const searchItems = [SearchItem.input('name', 'common.name')];
 
+/**
+ * 默认收起的列：配置类列取值多为默认值（全量、不转换、并发度 4），
+ * 创建/修改两组审计信息只需常驻一组，逐列常驻会把操作列顶到屏外；
+ * 需要时在右上角「表格配置」里按需勾选
+ */
+const optionalColumns = [
+    TableColumn.new('strategy', 'db.transferStrategy').typeTag(DbTransferStrategyEnum).alignCenter(),
+    TableColumn.new('deleteTable', 'db.deleteTable').typeTag(DbTransferDeleteTableEnum).alignCenter(),
+    TableColumn.new('nameCase', 'db.nameCase').typeTag(DbTransferNameCaseEnum).alignCenter(),
+    TableColumn.new('concurrency', 'db.concurrency').alignCenter(),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('createTime', 'common.createTime').isTime(),
+];
+optionalColumns.forEach((column) => (column.show = 0));
+
 const columns = ref([
-    TableColumn.new('taskName', 'db.taskName').setMinWidth(150).isSlot(),
-    TableColumn.new('srcDb', 'db.srcDb').setMinWidth(150).isSlot(),
-    // TableColumn.new('targetDb', '目标库').setMinWidth(150).isSlot(),
+    // 任务名是主识别信息，预留比默认更宽的宽度，过长仍可由溢出 tooltip 看全称
+    TableColumn.new('taskName', 'db.taskName').setMinWidth(180).isSlot(),
+    TableColumn.new('mode', 'db.transferMode').typeTag(DbTransferModeEnum).alignCenter(),
+    // 以下三列插槽内已自带 el-tooltip，需关掉列的溢出提示（否则叠成两个气泡）；
+    // 省略号不跟该开关走，改由插槽内的 block truncate 自己保证单行
+    TableColumn.new('srcDb', 'db.srcDb').setMinWidth(150).isSlot().noShowOverflowTooltip(),
+    TableColumn.new('targetDb', 'db.transferTarget').setMinWidth(150).isSlot().noShowOverflowTooltip(),
+    TableColumn.new('checkedKeys', 'db.transferScope').alignCenter().isSlot().setMinWidth(100).noShowOverflowTooltip(),
+    // 未启用定时时该列展示“手动”，不留空白占位符，避免被当成数据缺失
+    TableColumn.new('cron', 'db.cronEnabled')
+        .alignCenter()
+        .setFormatFunc((data: DbTransferTaskListVO) => (data.cronEnabled === 1 ? data.cron : t('db.manual'))),
     TableColumn.new('runningState', 'db.runState').typeTag(DbTransferRunningStateEnum),
     TableColumn.new('status', 'common.status').isSlot(),
     TableColumn.new('modifier', 'common.modifier'),
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
+    ...optionalColumns,
 ]);
+
+/**
+ * 迁移范围展示辅助：checkedKeys 为 'all'（源库全表）或逗号分隔的表名清单
+ */
+const isAllTables = (checkedKeys?: string) => checkedKeys === 'all';
+
+const transferTables = (checkedKeys?: string) => (checkedKeys ? checkedKeys.split(',').filter(Boolean) : []);
+
+/** 表名清单提示：全库迁移时只展示前若干个，避免提示框过长 */
+const transferTablesTip = (checkedKeys?: string) => {
+    const tables = transferTables(checkedKeys);
+    return `${tables.slice(0, 20).join('、')}${tables.length > 20 ? ' …' : ''}`;
+};
+
+/** 文件迁移的 SQL 方言名；历史任务可能未配置，不能回退成某个方言的名字展示，否则会误导为目标方言 */
+const fileTargetDialectName = (dbType?: string) => (dbType ? getDbDialect(dbType).getInfo().name : t('db.pleaseSetting'));
+
+/** 文件迁移的目标信息：无目标库，按生成 SQL 的方言展示；保留天数非正数时后端不会自动清理文件，故不展示该项 */
+const fileTargetTip = (data: DbTransferTaskListVO) => {
+    const dialect = fileTargetDialectName(data.targetFileDbType);
+    if (data.fileSaveDays < 1) return `${t('db.transfer2File')} · ${dialect}`;
+    return `${t('db.transfer2File')} · ${dialect} · ${t('db.fileSaveDays')}: ${data.fileSaveDays}${t('db.day')}`;
+};
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.stop, perms.verify, perms.files]);
 const actionWidth =
-    ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.stop] ? 1 : 0) + (actionBtns[perms.verify] ? 1 : 0) + (actionBtns[perms.files] ? 1 : 0)) * 55;
+    ((actionBtns[perms.save] ? 1 : 0) +
+        (actionBtns[perms.log] ? 1 : 0) +
+        (actionBtns[perms.run] ? 1 : 0) +
+        (actionBtns[perms.stop] ? 1 : 0) +
+        (actionBtns[perms.verify] ? 1 : 0) +
+        (actionBtns[perms.files] ? 1 : 0)) *
+    55;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 

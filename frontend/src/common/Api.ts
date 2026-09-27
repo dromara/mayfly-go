@@ -69,13 +69,17 @@ class Api<T = unknown, P = unknown> {
 
     /**
      * fetch 请求对应的该api
+     *
+     * 结果回退只能用 ?? 而不能用 ||：接口返回 0 / false / 空字符串也是合法结果（如 Redis 位图的
+     * BITPOS 命中第 0 位），用 || 会让这些值被当成「没数据」而回退成 execute 的 undefined
+     *
      * @param {Object} param 请求该api的参数
      * @param options options
      */
     async request(param?: P, options: RequestOptions = {}): Promise<T> {
         const { execute, data } = this.useApi(param, options);
         const res = await execute();
-        return (data.value as T) || (res as T);
+        return (data.value as T) ?? (res as T);
     }
 
     /**

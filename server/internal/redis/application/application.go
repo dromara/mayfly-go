@@ -6,6 +6,7 @@ import (
 
 func InitIoc() {
 	ioc.Register(new(redisAppImpl))
+	ioc.Register(new(keyValueAppImpl))
 }
 
 func Init() {

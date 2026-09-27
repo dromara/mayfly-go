@@ -49,11 +49,7 @@ export function writeInterruptDecision(convId: number, decision: ResumeDecision)
     const store = useChatStore();
     // 决策解释委托给类型 handler（interpretDecisionWithFallback），
     // 类型特定 action 语义由 handler.interpretDecision 解释，无 handler 时回退通用映射
-    const resumeStatus = interpretDecisionWithFallback(
-        decision.action,
-        decision.payload,
-        getInterruptHandler(decision.interruptType),
-    ).status;
+    const resumeStatus = interpretDecisionWithFallback(decision.action, decision.payload, getInterruptHandler(decision.interruptType)).status;
 
     // 1. pendingInterrupts：翻转决策状态
     const slice = store.getSlice(convId);
@@ -68,12 +64,7 @@ export function writeInterruptDecision(convId: number, decision: ResumeDecision)
     //    - resumeType：决议徽章数据源（与历史路径 extra.interrupt.resume.type 同值域），
     //      恢复成功后 clearDecidedInterrupts 移除中断条目，徽章由 part 自身承接
     const resolved = isInterruptResolvedStatus(resumeStatus);
-    syncToolCallPartDecision(
-        convId,
-        decision.toolCallId,
-        resolved ? ToolCallStatus.Pending : ToolCallStatus.Cancelled,
-        resumeStatus,
-    );
+    syncToolCallPartDecision(convId, decision.toolCallId, resolved ? ToolCallStatus.Pending : ToolCallStatus.Cancelled, resumeStatus);
 }
 
 // ==================== 恢复失败回滚 ====================
@@ -118,12 +109,7 @@ export function clearDecidedInterrupts(convId: number, decisions: ResumeDecision
  * 轮次终止提示：用户主动停止 / 流式错误，写入当前 turn 的 assistant 消息。
  * 仅前端展示（notice part 不落库，历史加载时自然消失）
  */
-export function writeTurnNotice(
-    convId: number,
-    turnId: string | null | undefined,
-    kind: NoticePart['kind'],
-    text: string,
-) {
+export function writeTurnNotice(convId: number, turnId: string | null | undefined, kind: NoticePart['kind'], text: string) {
     const store = useChatStore();
     store.appendTurnNoticePart(convId, turnId, {
         type: 'notice',
@@ -144,12 +130,7 @@ function syncToolCallPartStatus(convId: number, toolCallId: string | undefined, 
  * 将 toolCallId 匹配的 tool_call part 双写决策结果（跨所有消息）：
  * status（执行状态机）+ resumeType（决议徽章数据源，可选）
  */
-function syncToolCallPartDecision(
-    convId: number,
-    toolCallId: string | undefined,
-    status: string,
-    resumeType?: string,
-) {
+function syncToolCallPartDecision(convId: number, toolCallId: string | undefined, status: string, resumeType?: string) {
     if (!toolCallId) return;
     const store = useChatStore();
     const slice = store.getSlice(convId);

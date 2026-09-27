@@ -110,10 +110,7 @@ export abstract class SchemaDialectBase implements DbDialect {
             let needsQuotes = false;
             if (this.matchType(cl.type, this.getDefaultValueQuotedTypeNames())) {
                 const lowerVal = cl.value.toLowerCase().replace(/\s+/g, '');
-                if (
-                    this.matchType(cl.type, ['time', 'date']) &&
-                    this.getUnquotedDefaultFunctionNames().includes(lowerVal)
-                ) {
+                if (this.matchType(cl.type, ['time', 'date']) && this.getUnquotedDefaultFunctionNames().includes(lowerVal)) {
                     needsQuotes = false;
                 } else {
                     needsQuotes = true;
@@ -139,12 +136,7 @@ export abstract class SchemaDialectBase implements DbDialect {
         const length = this.getTypeLengthSql(cl);
         const defVal = this.getDefaultValueSql(cl);
         const name = this.resolveColumnName(cl);
-        const parts = [
-            this.quoteIdentifier(name),
-            cl.type + length,
-            cl.nullable ? '' : 'NOT NULL',
-            defVal,
-        ];
+        const parts = [this.quoteIdentifier(name), cl.type + length, cl.nullable ? '' : 'NOT NULL', defVal];
         return parts.filter(Boolean).join(' ');
     }
 

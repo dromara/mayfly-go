@@ -504,11 +504,7 @@ const submit = async () => {
  * @param nowArr 修改后的对象数组
  * @param key 标志对象唯一属性
  */
-const filterChangedData = <T extends object>(
-    oldArr: T[],
-    nowArr: T[],
-    key: string
-): ChangeDiff<T> => {
+const filterChangedData = <T extends object>(oldArr: T[], nowArr: T[], key: string): ChangeDiff<T> => {
     let data: ChangeDiff<T> = {
         del: [] as T[],
         add: [] as T[],

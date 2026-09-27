@@ -256,7 +256,8 @@ var keyInfoCmd = &cobra.Command{
 		key, _ := cmd.Flags().GetString("key")
 
 		apiClient := shared.NewClient(cmd)
-		result, err := apiClient.GetKeyInfo(redisId, db, key)
+		meta, err := apiClient.GetKeyMeta(redisId, db, key)
+		result := meta
 		if err != nil {
 			return shared.Fail(i18n.MsgRedisExecFailed, err)
 		}
@@ -280,7 +281,8 @@ var keyTtlCmd = &cobra.Command{
 		key, _ := cmd.Flags().GetString("key")
 
 		apiClient := shared.NewClient(cmd)
-		result, err := apiClient.GetKeyTTL(redisId, db, key)
+		meta, err := apiClient.GetKeyMeta(redisId, db, key)
+		result := meta["ttl"]
 		if err != nil {
 			return shared.Fail(i18n.MsgRedisExecFailed, err)
 		}
@@ -304,7 +306,8 @@ var keyMemCmd = &cobra.Command{
 		key, _ := cmd.Flags().GetString("key")
 
 		apiClient := shared.NewClient(cmd)
-		result, err := apiClient.GetKeyMemoryUsage(redisId, db, key)
+		meta, err := apiClient.GetKeyMeta(redisId, db, key)
+		result := meta["memuse"]
 		if err != nil {
 			return shared.Fail(i18n.MsgRedisExecFailed, err)
 		}

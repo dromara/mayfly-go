@@ -245,7 +245,16 @@ const dbConfig = useStorage('dbConfig', DbThemeConfig);
 
 const { selectionRowsMap, isSelection, selectionRow, rowEventHandlers, rowClass, clearSelection } = useTableSelection(() => state.datas);
 
-const { canEdit, isUpdated, hasUpdatedFields, onEnterEditMode, onExitEditMode: exitEdit, submitUpdateFields: doSubmitUpdate, cancelUpdateFields: doCancelUpdate, clearEditState } = useTableEdit({
+const {
+    canEdit,
+    isUpdated,
+    hasUpdatedFields,
+    onEnterEditMode,
+    onExitEditMode: exitEdit,
+    submitUpdateFields: doSubmitUpdate,
+    cancelUpdateFields: doCancelUpdate,
+    clearEditState,
+} = useTableEdit({
     dbId: () => state.dbId,
     db: () => state.db,
     table: () => state.table,
@@ -273,7 +282,10 @@ const cmDataDel = new ContextmenuItem('deleteData', 'common.delete')
     .withOnClick(() => onDeleteData())
     .withHideFunc(() => state.table === '' || props.readonly);
 
-const cmFormView = new ContextmenuItem('formView', 'db.formView').withIcon('Document').withOnClick(() => onEditRowData()).withHideFunc(() => state.table === '' || props.readonly);
+const cmFormView = new ContextmenuItem('formView', 'db.formView')
+    .withIcon('Document')
+    .withOnClick(() => onEditRowData())
+    .withHideFunc(() => state.table === '' || props.readonly);
 
 /** 把导出策略翻译为菜单项：文案/图标/权限/可见性全部取自策略自描述，本组件不认识任何具体格式 */
 const toStrategyMenuItem = (strategy: TableExportStrategy, onClick: () => void) => {
@@ -390,13 +402,15 @@ const setTableColumns = (columns: TableColumnDef[]) => {
         const dataTypeSubscript = ColumnTypeSubscript[dataType];
         const remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
         const title = x.masked ? `${columnName} [${t('db.maskedTag')}]` : columnName;
+        // 单元格取值键与表头标题可能不一致（如执行结果表标题 'SQL'、数据键 'sql'），列宽须按数据键量算内容
+        const dataKey = x.key ?? columnName;
         return {
             ...x,
             dataType,
             dataTypeSubscript,
             remark,
-            key: x.key ?? columnName,
-            width: DbInst.flexColumnWidth(title, state.datas),
+            key: dataKey,
+            width: DbInst.flexColumnWidth(title, state.datas, dataKey),
             title,
             align: dataType === DataType.Number ? 'right' : 'left',
             headerClass: 'table-column',

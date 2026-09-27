@@ -247,7 +247,7 @@ export interface MachineFileVO {
     machineId: number;
 }
 
-/** 机器文件信息 (对应 vo.MachineFileInfo) */
+/** 机器文件信息 (对应 vo.MachineFileInfo，只描述后端返回的事实) */
 export interface MachineFileInfo {
     name: string;
     path: string;
@@ -257,14 +257,27 @@ export interface MachineFileInfo {
     modTime: string;
     uid: number;
     gid: number;
-    // UI-only extended fields
-    isFolder?: boolean;
-    icon?: string;
-    nameEdit?: boolean;
-    dirSize?: string;
-    loadingDirSize?: boolean;
-    stat?: string;
-    loadingStat?: boolean;
+}
+
+/**
+ * 文件列表的行视图模型：在后端事实之上叠加渲染与交互状态。
+ *
+ * 字段全部必填，由 `lsFile` 一次性构造，因此消费方不需要处理「没初始化」的分支；
+ * 把它们与 VO 字段分开的意义在于：后端契约变动不会连带渲染态，渲染态也不会被误当成接口字段。
+ */
+export interface FileRowVM extends MachineFileInfo {
+    /** 是否目录（由 type 推导，模板不再比较字面量） */
+    isFolder: boolean;
+    /** 文件图标名 */
+    icon: string;
+    /** 处于行内重命名编辑态 */
+    nameEdit: boolean;
+    /** 目录大小读数，空串表示尚未计算 */
+    dirSize: string;
+    loadingDirSize: boolean;
+    /** stat 原文读数，空串表示尚未拉取 */
+    stat: string;
+    loadingStat: boolean;
 }
 
 /** 机器用户信息 */

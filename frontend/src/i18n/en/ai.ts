@@ -198,7 +198,7 @@ export default {
             pluginManagement: 'Plugin Management',
             newPlugin: 'New Plugin',
             emptyText: 'No plugins yet',
-            emptyDesc: 'Create a plugin to extend the Agent\'s capabilities',
+            emptyDesc: "Create a plugin to extend the Agent's capabilities",
             searchPlaceholder: 'Search plugin name/code',
             allTypes: 'All Types',
             testConnect: 'Test Connection',
@@ -277,7 +277,8 @@ export default {
             contextWindow: 'Context Window (Tokens)',
             maxRetries: 'Max Retries',
             maxFailovers: 'Max Failovers',
-            failoverDesc: 'On failure the primary model retries first, then fails over to fallback models in order. Max failovers 0 means all fallbacks are available.',
+            failoverDesc:
+                'On failure the primary model retries first, then fails over to fallback models in order. Max failovers 0 means all fallbacks are available.',
             fallbacks: 'Fallback Models',
             addFallback: 'Add Fallback Model',
             toolSearchThreshold: 'Tool Search Threshold',

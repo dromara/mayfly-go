@@ -19,7 +19,9 @@
                     {{ formStatus === 'published' ? $t('ai.integration.statusPublished') : $t('ai.integration.statusDraft') }}
                 </el-tag>
                 <template v-if="isEdit">
-                    <el-button v-if="formStatus === 'published'" size="small" plain @click="togglePublish(false)">{{ $t('ai.integration.unpublish') }}</el-button>
+                    <el-button v-if="formStatus === 'published'" size="small" plain @click="togglePublish(false)">{{
+                        $t('ai.integration.unpublish')
+                    }}</el-button>
                     <el-button v-else size="small" type="success" plain @click="togglePublish(true)">{{ $t('ai.integration.publish') }}</el-button>
                     <el-button size="small" plain @click="triggerImport">{{ $t('ai.integration.importZip') }}</el-button>
                     <el-button size="small" plain @click="handleExport">{{ $t('ai.integration.exportZip') }}</el-button>
@@ -97,7 +99,12 @@
                             <el-tag v-if="isDirty && isEdit" size="small" type="warning">{{ $t('ai.integration.unsaved') }}</el-tag>
                             <el-button v-if="isDirty && isEdit" size="small" type="primary" @click="handleSaveFileContent">{{ $t('common.save') }}</el-button>
                         </div>
-                        <MonacoEditor :model-value="fileContent" :language="languageFromPath(activeFilePath)" height="100%" @update:model-value="handleContentChange" />
+                        <MonacoEditor
+                            :model-value="fileContent"
+                            :language="languageFromPath(activeFilePath)"
+                            height="100%"
+                            @update:model-value="handleContentChange"
+                        />
                     </template>
                     <div v-else class="editor-empty">{{ $t('ai.integration.noResources') }}</div>
                 </div>
@@ -166,28 +173,28 @@ interface SkillForm {
 /** 表单声明（instructions 为 custom 插槽，description 字段承载原 field-tip 提示） */
 const formItems = computed(() =>
     defineFormItems<SkillForm>([
-    {
-        prop: 'code',
-        label: 'ai.integration.skillCode',
-        required: true,
-        placeholder: 'e.g. code-review',
-        description: 'ai.integration.skillCodeHint',
-        disabled: () => isEdit.value,
-        rules: [
-            { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.skillCode') }), trigger: 'blur' },
-            { pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/, message: () => t('ai.integration.skillCodePattern'), trigger: 'blur' },
-        ],
-    },
-    { prop: 'description', label: 'ai.integration.skillDescription', type: 'textarea', props: { rows: 2 } },
-    { prop: 'allowedTools', label: 'ai.integration.skillAllowedTools', placeholder: 'ai.integration.skillAllowedToolsPlaceholder' },
-    {
-        prop: 'instructions',
-        label: 'ai.integration.skillInstructions',
-        type: 'custom',
-        required: true,
-        description: 'ai.integration.skillInstructionsHint',
-        rules: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.skillInstructions') }), trigger: 'blur' }],
-    },
+        {
+            prop: 'code',
+            label: 'ai.integration.skillCode',
+            required: true,
+            placeholder: 'e.g. code-review',
+            description: 'ai.integration.skillCodeHint',
+            disabled: () => isEdit.value,
+            rules: [
+                { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.skillCode') }), trigger: 'blur' },
+                { pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/, message: () => t('ai.integration.skillCodePattern'), trigger: 'blur' },
+            ],
+        },
+        { prop: 'description', label: 'ai.integration.skillDescription', type: 'textarea', props: { rows: 2 } },
+        { prop: 'allowedTools', label: 'ai.integration.skillAllowedTools', placeholder: 'ai.integration.skillAllowedToolsPlaceholder' },
+        {
+            prop: 'instructions',
+            label: 'ai.integration.skillInstructions',
+            type: 'custom',
+            required: true,
+            description: 'ai.integration.skillInstructionsHint',
+            rules: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.skillInstructions') }), trigger: 'blur' }],
+        },
     ])
 );
 
@@ -208,10 +215,7 @@ const onOpened = openedWith(async (form) => {
     if (!props.skillId) return;
     loading.value = true;
     try {
-        const [s, ins] = await Promise.all([
-            pluginApi.getSkill.request({ id: props.skillId }),
-            pluginApi.getInstructions.request({ id: props.skillId }),
-        ]);
+        const [s, ins] = await Promise.all([pluginApi.getSkill.request({ id: props.skillId }), pluginApi.getInstructions.request({ id: props.skillId })]);
         skill.value = s;
         formStatus.value = s.status;
         Object.assign(form, {

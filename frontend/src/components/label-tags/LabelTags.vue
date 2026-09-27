@@ -7,13 +7,7 @@
             :disabled="!getLabelDescription(label.key, label.value)"
             placement="top"
         >
-            <el-tag
-                :size="size"
-                :style="getLabelTagStyle(label.key, label.value)"
-                class="label-tags__item"
-            >
-                {{ label.key }}:{{ label.value }}
-            </el-tag>
+            <el-tag :size="size" :style="getLabelTagStyle(label.key, label.value)" class="label-tags__item"> {{ label.key }}:{{ label.value }} </el-tag>
         </el-tooltip>
     </div>
     <span v-else class="label-tags__empty">-</span>

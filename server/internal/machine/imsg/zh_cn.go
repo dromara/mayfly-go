@@ -34,6 +34,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogMachineCronJobSave:   "机器-保存计划任务",
 	LogMachineCronJobDelete: "机器-删除计划任务",
 	LogMachineCronJobRun:    "机器-执行计划任务",
+	ErrCronJobSpecInvalid:   "计划任务的 cron 表达式【{{.cron}}】非法，任务不会按计划执行：{{.reason}}",
 
 	LogMachineSecurityCmdSave:   "机器-安全-保存命令配置",
 	LogMachineSecurityCmdDelete: "机器-安全-删除命令配置",

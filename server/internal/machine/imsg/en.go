@@ -34,6 +34,7 @@ var En = map[i18n.MsgId]string{
 	LogMachineCronJobSave:   "Machine - save cronjob",
 	LogMachineCronJobDelete: "Machine - delete cronjob",
 	LogMachineCronJobRun:    "Machine - run cronjob",
+	ErrCronJobSpecInvalid:   "The cron expression [{{.cron}}] of the cron job is invalid, so it will never run as planned: {{.reason}}",
 
 	LogMachineSecurityCmdSave:   "Machine - Security - Save command configuration",
 	LogMachineSecurityCmdDelete: "Machine - Security - Delete command configuration",

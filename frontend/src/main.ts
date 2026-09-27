@@ -23,7 +23,6 @@ import { initSysMsgs } from './common/syssocket';
 
 const app = createVaporApp(App);
 
-
 registElSvgIcon(app);
 directive(app);
 initSysMsgs();

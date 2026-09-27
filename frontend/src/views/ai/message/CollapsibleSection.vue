@@ -1,21 +1,12 @@
 <template>
     <div class="collapsible-section">
-        <button
-            type="button"
-            class="collapsible-section__trigger"
-            :disabled="forceOpen"
-            :aria-expanded="open"
-            @click="toggle"
-        >
+        <button type="button" class="collapsible-section__trigger" :disabled="forceOpen" :aria-expanded="open" @click="toggle">
             <slot name="icon" />
             <span class="collapsible-section__title">{{ title }}</span>
             <span v-if="summary" class="collapsible-section__summary">{{ summary }}</span>
             <slot name="extra" />
             <!-- chevron 在行尾（icon → title → meta → chevron） -->
-            <ChevronRightIcon
-                class="collapsible-section__arrow"
-                :class="{ 'is-expanded': open }"
-            />
+            <ChevronRightIcon class="collapsible-section__arrow" :class="{ 'is-expanded': open }" />
         </button>
         <!-- 展开内容：grid 高度动画 + 内层 opacity 淡入（CollapsibleSection） -->
         <div class="collapsible-section__collapse" :class="{ 'is-expanded': open }">

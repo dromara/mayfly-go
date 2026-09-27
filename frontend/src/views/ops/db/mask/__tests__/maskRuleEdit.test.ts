@@ -32,7 +32,16 @@ vi.mock('@/i18n', () => ({ i18n: { global: { t: (key: string) => key } } }));
 vi.mock('@/common/request', () => ({ default: { request: vi.fn().mockResolvedValue([]) } }));
 
 // 占位文案由 AutoForm 内部 t() 渲染，测试用的 common 必须与真实命名空间同形，否则“无缺 key 告警”断言不成立
-const common = { status: '状态', enable: '启用', disable: '禁用', remark: '备注', cancel: '取消', confirm: '确定', pleaseInput: '请输入{label}', pleaseSelect: '请选择{label}' };
+const common = {
+    status: '状态',
+    enable: '启用',
+    disable: '禁用',
+    remark: '备注',
+    cancel: '取消',
+    confirm: '确定',
+    pleaseInput: '请输入{label}',
+    pleaseSelect: '请选择{label}',
+};
 const i18n = createI18n({
     legacy: false,
     globalInjection: true,

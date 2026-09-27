@@ -78,9 +78,14 @@ func (d *DbTransferTask) Tasks(rc *req.Ctx) {
 	resVo := model.PageResultConv[*entity.DbTransferTask, *vo.DbTransferTaskListVO](res)
 
 	for _, item := range resVo.List {
-		item.RunningState = entity.DbTransferTaskRunStateSuccess
-		if d.dbTransferTaskApp.IsRunning(item.Id) {
+		// 运行状态以库里的最近一次执行结果为准（从未跑过的任务保持零值，即「未执行」），守卫只用于修正「当前是否在跑」：
+		// 无条件写死成功会把失败、终止的任务也显示成成功
+		switch {
+		case d.dbTransferTaskApp.IsRunning(item.Id):
 			item.RunningState = entity.DbTransferTaskRunStateRunning
+		case item.RunningState == entity.DbTransferTaskRunStateRunning:
+			// 库里仍是执行中但守卫（本实例 + Redis 跨实例）已无人持有：执行协程随进程退出或锁已过期
+			item.RunningState = entity.DbTransferTaskRunStateStop
 		}
 	}
 

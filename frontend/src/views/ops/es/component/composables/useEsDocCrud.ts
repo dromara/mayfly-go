@@ -124,7 +124,12 @@ export function useEsDocCrud(options: UseEsDocCrudOptions) {
         if (!query) return false;
         const bool = query.bool;
         if (!bool) return Object.keys(query).length > 0;
-        return (bool.must?.length ?? 0) > 0 || (bool.should?.length ?? 0) > 0 || (bool.must_not?.length ?? 0) > 0 || ((bool as Record<string, unknown>).filter as unknown[] | undefined)?.length;
+        return (
+            (bool.must?.length ?? 0) > 0 ||
+            (bool.should?.length ?? 0) > 0 ||
+            (bool.must_not?.length ?? 0) > 0 ||
+            ((bool as Record<string, unknown>).filter as unknown[] | undefined)?.length
+        );
     });
 
     const onOpenExportDialog = () => {

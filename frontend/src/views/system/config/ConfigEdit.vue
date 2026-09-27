@@ -1,6 +1,15 @@
 <template>
     <div>
-        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="1000px" :confirm-api="onConfirm" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer
+            v-model:visible="visible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="1000px"
+            :confirm-api="onConfirm"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
             <!-- 权限账号（远程搜索，走插槽保留 remote 能力） -->
             <template #permissionAccount>
                 <el-select

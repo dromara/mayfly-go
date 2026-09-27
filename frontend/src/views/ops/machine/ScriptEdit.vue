@@ -1,6 +1,17 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="1000px" :confirm-api="onConfirm" @opened="onOpened" @submitted="emit('submitSuccess')" @cancel="emit('cancel')">
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="1000px"
+            :confirm-api="onConfirm"
+            @opened="onOpened"
+            @submitted="emit('submitSuccess')"
+            @cancel="emit('cancel')"
+        >
             <!-- 脚本入参表单定义（v1 JSON Schema 表格编辑器） -->
             <template #params>
                 <auto-form-schema-edit v-model="params" />

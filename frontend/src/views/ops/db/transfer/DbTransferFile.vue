@@ -48,8 +48,6 @@
             </page-table>
         </el-dialog>
 
-
-
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
             <auto-form v-model="state.runDialog.runForm" :items="runFormItems" label-width="auto">
                 <template #dbType>
@@ -222,7 +220,6 @@ const onDel = async function () {
         //
     }
 };
-
 
 // 运行sql，弹出选择需要运行的库，默认运行当前数据库，需要保证数据库类型与sql文件一致
 const onOpenRun = function (data: DbTransferFile) {

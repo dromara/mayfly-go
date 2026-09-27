@@ -25,7 +25,10 @@ describe('tree/useLazyTree 懒加载水合层', () => {
         registerContributor({ kind: 'root', hasChildren: true });
         const { data, init } = useLazyTree({
             loadChildren: async () => [],
-            loadRoot: async () => [{ key: 'r1', kind: 'root', label: 'r1' }, { key: 'l1', kind: 'leaf', label: 'l1' }],
+            loadRoot: async () => [
+                { key: 'r1', kind: 'root', label: 'r1' },
+                { key: 'l1', kind: 'leaf', label: 'l1' },
+            ],
         });
         await init();
         expect(data.value.map((n) => n.key)).toEqual(['r1', 'l1']);
@@ -37,9 +40,7 @@ describe('tree/useLazyTree 懒加载水合层', () => {
         // 故意不为 'tag' 注册贡献者：标签骨架由内存预构，展开能力来自 children 而非贡献者
         const { data, init, expandedKeys, expandNode, collapseNode } = useLazyTree({
             loadChildren: async () => [],
-            loadRoot: async () => [
-                { key: 'tag1', kind: 'tag', label: 'tag', children: [{ key: 'tag1-19', kind: 'group', label: 'g' }] },
-            ],
+            loadRoot: async () => [{ key: 'tag1', kind: 'tag', label: 'tag', children: [{ key: 'tag1-19', kind: 'group', label: 'g' }] }],
         });
         await init();
         expect(data.value[0].hasChildren).toBe(true);
@@ -237,7 +238,10 @@ describe('tree/useLazyTree 懒加载水合层', () => {
             loadChildren: async () => [{ key: `leaf-v${version}`, kind: 'leaf', label: 'leaf' }],
         });
         const rootLoader = vi.fn(async () => [{ key: `r-v${version}`, kind: 'root', label: 'r' }]);
-        const { getNode, init, expandNode, refresh, data } = useLazyTree({ loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n), loadRoot: rootLoader });
+        const { getNode, init, expandNode, refresh, data } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: rootLoader,
+        });
         await init();
         await expandNode('r-v0');
 

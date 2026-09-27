@@ -2,11 +2,7 @@
     <!-- 按事件顺序逐项分发（renderEventList） -->
     <div class="process-group-events">
         <template v-for="part in events" :key="part.id">
-            <ReasoningPart
-                v-if="part.type === 'reasoning'"
-                :content="part.text"
-                :active="followActive ? part.active : false"
-            />
+            <ReasoningPart v-if="part.type === 'reasoning'" :content="part.text" :active="followActive ? part.active : false" />
             <ToolCallPart
                 v-else-if="part.type === 'tool_call'"
                 :tool-name="part.toolName"

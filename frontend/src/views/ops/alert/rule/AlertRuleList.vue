@@ -1,6 +1,13 @@
 <template>
     <div class="h-full">
-        <page-table ref="pageTableRef" :page-api="alertRuleApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns" :data-handler-fn="handleListData">
+        <page-table
+            ref="pageTableRef"
+            :page-api="alertRuleApi.list"
+            :search-items="searchItems"
+            v-model:query-form="query"
+            :columns="columns"
+            :data-handler-fn="handleListData"
+        >
             <template #tableHeader>
                 <el-button v-auth="'alert:rule:save'" type="primary" icon="plus" @click="onAdd">{{ $t('alert.addRule') }}</el-button>
             </template>

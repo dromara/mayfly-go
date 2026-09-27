@@ -109,7 +109,7 @@
 
 <script lang="ts" setup>
 import { isTrue, notBlank } from '@/common/assert';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { formatByteSize } from '@/common/utils/format';
 import { Msg } from '@/hooks/useI18n';
 import { mongoApi } from '@/views/ops/mongo/api';

@@ -16,7 +16,12 @@
             @node-collapse="onCollapse"
         >
             <template #default="{ data: node }">
-                <TreeRowContent :node="node" :show-actions="props.showActions" @retry="(n) => emit('nodeRetry', n)" @row-contextmenu="(e, n) => emit('rowContextmenu', e, n)" />
+                <TreeRowContent
+                    :node="node"
+                    :show-actions="props.showActions"
+                    @retry="(n) => emit('nodeRetry', n)"
+                    @row-contextmenu="(e, n) => emit('rowContextmenu', e, n)"
+                />
             </template>
         </el-tree-v2>
     </div>

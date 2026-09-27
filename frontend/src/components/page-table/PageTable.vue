@@ -115,7 +115,7 @@
 
                             <!-- 枚举类型使用tab展示 -->
                             <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag :size="props.size" :enums="(item.typeParam as any)" :value="(item.getValueByData(scope.row) as any)"></enum-tag>
+                                <enum-tag :size="props.size" :enums="item.typeParam as any" :value="item.getValueByData(scope.row) as any"></enum-tag>
                             </template>
 
                             <template #default="scope" v-else>

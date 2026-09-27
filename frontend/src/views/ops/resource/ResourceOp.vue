@@ -11,7 +11,13 @@
                         </el-input>
                     </div>
 
-                    <TreeContainer ref="treeContainerRef" :load-root="loadRoot" :filter-text="filterText" :resolve-locate="resolveCodePathLocate" @node-click="onTreeNodeClick" />
+                    <TreeContainer
+                        ref="treeContainerRef"
+                        :load-root="loadRoot"
+                        :filter-text="filterText"
+                        :resolve-locate="resolveCodePathLocate"
+                        @node-click="onTreeNodeClick"
+                    />
                 </el-card>
             </el-splitter-panel>
 
@@ -171,7 +177,9 @@ const tabContextmenuItems = ref<ContextmenuItem[]>([]);
 
 const cmTabCloseAll = new ContextmenuItem('closeAll', 'layout.tagsView.closeAll').withIcon('Close').withOnClick(() => closeAllTabs());
 
-const cmTabCloseLeft = new ContextmenuItem('closeLeft', 'layout.tagsView.closeLeft').withIcon('Back').withOnClick((data: unknown) => closeLeftTabs((data as Record<string, unknown>).tabKey as string));
+const cmTabCloseLeft = new ContextmenuItem('closeLeft', 'layout.tagsView.closeLeft')
+    .withIcon('Back')
+    .withOnClick((data: unknown) => closeLeftTabs((data as Record<string, unknown>).tabKey as string));
 
 const cmTabCloseRight = new ContextmenuItem('closeRight', 'layout.tagsView.closeRight')
     .withIcon('Right')

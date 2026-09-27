@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { MessageScrollerProviderProps } from './useMessageScroller'
-import { provideMessageScroller } from './useMessageScroller'
+import type { MessageScrollerProviderProps } from './useMessageScroller';
+import { provideMessageScroller } from './useMessageScroller';
 
-const props = defineProps<MessageScrollerProviderProps>()
+const props = defineProps<MessageScrollerProviderProps>();
 
-provideMessageScroller(props)
+provideMessageScroller(props);
 </script>
 
 <template>
-  <slot />
+    <slot />
 </template>

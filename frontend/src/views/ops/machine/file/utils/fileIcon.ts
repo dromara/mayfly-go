@@ -1,10 +1,12 @@
+import { fileExt } from './fileExt';
+
 /**
  * 根据文件扩展名返回对应的图标名称
  * @param filename 文件名
  * @returns 图标名称
  */
 export function getFileIcon(filename: string): string {
-    const fileExtension = filename.split('.').pop()?.toLowerCase() ?? '';
+    const fileExtension = fileExt(filename);
 
     switch (fileExtension) {
         case 'doc':

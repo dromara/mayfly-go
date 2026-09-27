@@ -290,5 +290,17 @@ export function useLazyTree(options: LazyTreeOptions) {
         afterHydrateHooks.push(cb);
     }
 
-    return { data, expandedKeys, init, setRoot, hydrate, expandNode, collapseNode, refresh, ensureVisible, getNode: (key: string) => nodeIndex.get(key), onAfterHydrate };
+    return {
+        data,
+        expandedKeys,
+        init,
+        setRoot,
+        hydrate,
+        expandNode,
+        collapseNode,
+        refresh,
+        ensureVisible,
+        getNode: (key: string) => nodeIndex.get(key),
+        onAfterHydrate,
+    };
 }

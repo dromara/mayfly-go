@@ -141,7 +141,7 @@ watch(
             elapsedTimer = null;
         }
     },
-    { immediate: true },
+    { immediate: true }
 );
 
 onBeforeUnmount(() => {

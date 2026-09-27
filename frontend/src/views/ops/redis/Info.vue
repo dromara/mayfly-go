@@ -1,24 +1,17 @@
 <template>
     <div>
-        <el-dialog
-            :title="title"
-            v-model="visible"
-            :show-close="true"
-            width="1000px"
-            @close="close()"
-            body-class="h-[65vh] overflow-y-auto overflow-x-hidden"
-        >
+        <el-dialog :title="title" v-model="visible" :show-close="true" width="1000px" body-class="h-[65vh] overflow-y-auto overflow-x-hidden">
             <el-row :gutter="20">
                 <el-col :lg="16" :md="16">
                     <el-descriptions class="redis-info info-server" :title="$t('redis.redisInfoTitle')" :column="3" size="small" border>
-                        <el-descriptions-item :label="$t('redis.version')">{{ info.Server.redis_version }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.port')">{{ info.Server.tcp_port }}</el-descriptions-item>
-                        <el-descriptions-item label="PID">{{ info.Server.process_id }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.mode')">{{ info.Server.redis_mode }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.os')">{{ info.Server.os }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.uptimeDays')">{{ info.Server.uptime_in_days }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.execPath')">{{ info.Server.executable }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.confFile')">{{ info.Server.config_file }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.version')">{{ info.Server?.redis_version }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.port')">{{ info.Server?.tcp_port }}</el-descriptions-item>
+                        <el-descriptions-item label="PID">{{ info.Server?.process_id }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.mode')">{{ info.Server?.redis_mode }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.os')">{{ info.Server?.os }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.uptimeDays')">{{ info.Server?.uptime_in_days }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.execPath')">{{ info.Server?.executable }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.confFile')">{{ info.Server?.config_file }}</el-descriptions-item>
                     </el-descriptions>
                 </el-col>
                 <el-col :lg="8" :md="8" class="redis-info">
@@ -37,23 +30,23 @@
 
                 <el-col :lg="12" :md="12">
                     <el-descriptions class="redis-info info-client" :title="$t('redis.clientConn')" :column="3" size="small" border>
-                        <el-descriptions-item :label="$t('redis.connectedNum')">{{ info.Clients.connected_clients }}</el-descriptions-item>
-                        <el-descriptions-item :label="$t('redis.blockedClientNum')">{{ info.Clients.blocked_clients }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.connectedNum')">{{ info.Clients?.connected_clients }}</el-descriptions-item>
+                        <el-descriptions-item :label="$t('redis.blockedClientNum')">{{ info.Clients?.blocked_clients }}</el-descriptions-item>
                     </el-descriptions>
                 </el-col>
             </el-row>
 
             <el-descriptions class="redis-info info-memory" title="CPU" :column="2" size="small" border>
-                <el-descriptions-item :label="$t('redis.sysCpu')">{{ info.CPU.used_cpu_sys }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.userCpu')">{{ info.CPU.used_cpu_user }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.sysChildCpu')">{{ info.CPU.used_cpu_sys_children }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.userChildCpu')">{{ info.CPU.used_cpu_user_children }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.sysCpu')">{{ info.CPU?.used_cpu_sys }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.userCpu')">{{ info.CPU?.used_cpu_user }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.sysChildCpu')">{{ info.CPU?.used_cpu_sys_children }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.userChildCpu')">{{ info.CPU?.used_cpu_user_children }}</el-descriptions-item>
             </el-descriptions>
 
             <el-row :gutter="20" class="redis-info">
                 <el-col :lg="24" :md="24">
-                    <span style="font-size: 14px; font-weight: 700">{{ $t('redis.keyCount') }}</span>
-                    <el-table :data="Keyspace" stripe max-height="250" style="width: 100%" border>
+                    <span class="text-sm font-bold">{{ $t('redis.keyCount') }}</span>
+                    <el-table :data="state.keyspaceRows" stripe max-height="250" style="width: 100%" border>
                         <el-table-column prop="db" label="DB" min-width="100" show-overflow-tooltip> </el-table-column>
                         <el-table-column prop="keys" label="keys" min-width="70" show-overflow-tooltip> </el-table-column>
                         <el-table-column prop="expires" label="expires" min-width="70" show-overflow-tooltip> </el-table-column>
@@ -63,11 +56,11 @@
             </el-row>
 
             <el-descriptions class="redis-info info-state" :title="$t('redis.countInfo')" :column="3" size="small" border>
-                <el-descriptions-item :label="$t('redis.totalCmdProcess')">{{ info.Stats.total_commands_processed }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.curQps')">{{ info.Stats.instantaneous_ops_per_sec }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.expiredKeys')">{{ info.Stats.expired_keys }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.netInputBytes')">{{ info.Stats.total_net_input_bytes }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('redis.netOutputBytes')">{{ info.Stats.total_net_output_bytes }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.totalCmdProcess')">{{ info.Stats?.total_commands_processed }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.curQps')">{{ info.Stats?.instantaneous_ops_per_sec }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.expiredKeys')">{{ info.Stats?.expired_keys }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.netInputBytes')">{{ info.Stats?.total_net_input_bytes }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('redis.netOutputBytes')">{{ info.Stats?.total_net_output_bytes }}</el-descriptions-item>
             </el-descriptions>
 
             <el-descriptions class="redis-info info-persistence" :title="$t('redis.persistence')" :column="3" size="small" border>
@@ -79,7 +72,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, watch, toRefs, nextTick } from 'vue';
+import { reactive, watch, nextTick } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
 import ECharts from '@/components/echarts/ECharts.vue';
 import { ECOption } from '@/components/echarts/config';
@@ -87,46 +80,57 @@ import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
-const props = defineProps({
-    title: {
-        type: String,
-    },
-    info: {
-        type: [Object],
-        default: () => {},
-    },
-});
-
-const emit = defineEmits(['close']);
+/** INFO 各分段（Server/Clients/CPU/Stats/...）→ 段内字段；父组件从 redisInfo 接口原样透传 */
+const props = withDefaults(
+    defineProps<{
+        title?: string;
+        info?: Record<string, Record<string, unknown>>;
+    }>(),
+    { info: () => ({}) }
+);
 
 const visible = defineModel<boolean>('visible', { default: false });
 
-const state = reactive({
-    memInfo: {} as Record<string, unknown>,
-    Keyspace: [] as Record<string, unknown>[],
-    memOption: {} as ECOption,
+/** keyspace 表格的行：db 号 + 该库的 keys/expires/avg_ttl */
+interface KeyspaceRow {
+    db: string;
+    [field: string]: unknown;
+}
+
+/** 显式接口标注而非 {} as Record 断言，避免字段被推导成空对象类型 */
+interface InfoState {
+    memInfo: Record<string, unknown>;
+    keyspaceRows: KeyspaceRow[];
+    memOption: ECOption;
+}
+
+const state = reactive<InfoState>({
+    memInfo: {},
+    keyspaceRows: [],
+    memOption: {},
 });
 
-const { Keyspace } = toRefs(state);
 watch(
     () => props.info,
-    (info: Record<string, Record<string, unknown>>) => {
-        state.memInfo = info['Memory'];
-        if (state.memInfo) {
+    (info) => {
+        const mem = info['Memory'];
+        if (mem) {
+            state.memInfo = mem;
             initCharts();
         }
-        if (info['Keyspace']) {
-            let arr = [];
-            for (let k in info['Keyspace']) {
-                let data: Record<string, unknown> = { db: k };
-                let d = (info['Keyspace'][k] as string).split(',');
-                for (let f of d) {
-                    let v = f.split('=');
-                    data[v[0]] = v[1];
+        // keyspace 段形如 { db0: 'keys=5,expires=1,avg_ttl=0', ... }，拆成一行一个库
+        const keyspace = info['Keyspace'];
+        if (keyspace) {
+            state.keyspaceRows = Object.entries(keyspace).map(([db, raw]) => {
+                const row: KeyspaceRow = { db };
+                for (const pair of String(raw).split(',')) {
+                    const [key, value] = pair.split('=');
+                    if (key) {
+                        row[key] = value ?? '';
+                    }
                 }
-                arr.push(data);
-            }
-            state.Keyspace = arr;
+                return row;
+            });
         }
     }
 );
@@ -189,26 +193,10 @@ const initMemStats = () => {
 
     state.memOption = option;
 };
-
-const close = () => {
-    visible.value = false;
-    emit('close');
-};
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .redis-info {
     margin-top: 12px;
-}
-
-.row .title {
-    font-size: 12px;
-    color: #8492a6;
-    margin-right: 6px;
-}
-
-.row .value {
-    font-size: 12px;
-    color: var(--el-color-success);
 }
 </style>

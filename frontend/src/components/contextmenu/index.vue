@@ -12,8 +12,18 @@
             focus-outside.prevent：el-dialog 等容器的焦点管理会把焦点抢回弹窗，触发 reka 的
             focusOutside dismiss 导致菜单打开即关闭；外部点击由 pointerDownOutside 负责关闭，
             Escape 由 escapeKeyDown 负责，均不受此拦截影响
+
+            close-auto-focus.prevent：弹层卸载时 FocusScope 会在 setTimeout(0) 里把焦点还给
+            「菜单打开前」捕获的元素，而菜单项回调与弹层卸载同时到期（都 = 关闭动画时长），
+            这一下抢焦点必然落在回调刚建立的焦点目标之后。本组件的触发点是 display:none 的
+            隐形派发点，恢复焦点无意义，只会抢走调用方刚聚焦的输入框（如行内编辑态），故统一阻止
         -->
-        <ContextMenuContent v-if="visibleItems.length" class="w-auto min-w-36 z-[2190]" @focus-outside.prevent>
+        <ContextMenuContent
+            v-if="visibleItems.length"
+            class="w-auto min-w-36 z-[2190]"
+            @focus-outside.prevent
+            @close-auto-focus.prevent
+        >
             <ContextmenuItemNode :items="visibleItems" :payload="state.item" @select="onSelect" />
         </ContextMenuContent>
     </ContextMenu>
@@ -68,9 +78,7 @@ const openContextmenu = async (item: unknown) => {
     if (!visibleItems.value.length || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
         return;
     }
-    dispatchRef.value?.dispatchEvent(
-        new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window, clientX: pos.x, clientY: pos.y })
-    );
+    dispatchRef.value?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, view: window, clientX: pos.x, clientY: pos.y }));
 };
 
 // 关闭右键菜单：派发 Escape 键交给 reka-ui 的关闭逻辑。

@@ -4,7 +4,7 @@
             :ref="
                 (el: unknown) => {
                     nextTick(() => {
-                        focus && (el as InstanceType<typeof ElInput>)?.$el?.querySelector?.('input')?.focus() || (el as HTMLInputElement)?.focus?.();
+                        (focus && (el as InstanceType<typeof ElInput>)?.$el?.querySelector?.('input')?.focus()) || (el as HTMLInputElement)?.focus?.();
                     });
                 }
             "

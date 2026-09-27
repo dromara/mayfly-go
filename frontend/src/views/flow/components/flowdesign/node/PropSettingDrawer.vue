@@ -19,7 +19,15 @@
                 <el-input v-model="name" clearable></el-input>
             </el-form-item>
 
-            <component v-if="props.node" ref="formItemsRef" :is="getCustomNode(props.node.type)?.propSettingComp" v-model="form" :disabled="disabled" :nodes="nodes" :node="node">
+            <component
+                v-if="props.node"
+                ref="formItemsRef"
+                :is="getCustomNode(props.node.type)?.propSettingComp"
+                v-model="form"
+                :disabled="disabled"
+                :nodes="nodes"
+                :node="node"
+            >
                 <template v-slot:[key]="data" v-for="(item, key) in $slots">
                     <slot :name="key" v-bind="data || {}"></slot>
                 </template>

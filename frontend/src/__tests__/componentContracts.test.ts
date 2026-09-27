@@ -62,7 +62,10 @@ function listSfc(dir: string): string[] {
  * 不剥注释就会被当成真实声明，产出一批假阳性。（`(?<!:)` 是为了不错过 `https://` 里的双斜杠。）
  */
 function stripComments(src: string): string {
-    return src.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(?<!:)\/\/[^\n]*/g, '');
+    return src
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(?<!:)\/\/[^\n]*/g, '');
 }
 
 type EmitBlock = { kind: 'array' | 'typed'; text: string };
@@ -176,7 +179,10 @@ describe('组件事件契约', () => {
             // 成员类型里带泛型与箭头函数时，收尾 `>` 不能被提前截断
             [`const emit = defineEmits<{ m: [map: Map<string, () => void>] }>();`, ['m']],
             // 真实形态一：多行 + 每个成员上方带文档注释（DbTableData.vue）
-            [`const e = defineEmits<{\n    /** 说明 */\n    changeUpdatedField: [hasUpdatedFields: boolean];\n    /** 说明 */\n    dataDelete: [rows: Record<string, unknown>[]];\n}>();`, ['changeUpdatedField', 'dataDelete']],
+            [
+                `const e = defineEmits<{\n    /** 说明 */\n    changeUpdatedField: [hasUpdatedFields: boolean];\n    /** 说明 */\n    dataDelete: [rows: Record<string, unknown>[]];\n}>();`,
+                ['changeUpdatedField', 'dataDelete'],
+            ],
             // 真实形态二：payload 是内联对象类型，其字段名不能被认成事件名（DbTableDataHeader.vue）
             [`const e = defineEmits<{ sortChange: [sort: { key: string; order: string }] }>();`, ['sortChange']],
         ];
@@ -205,9 +211,7 @@ describe('组件事件契约', () => {
     });
 
     it('已收口目录不再使用数组式 defineEmits', () => {
-        const offenders = sfcs
-            .filter((r) => r.usesArrayStyle && TYPED_ONLY_DIRS.some((dir) => r.rel.startsWith(dir + path.sep)))
-            .map((r) => r.rel);
+        const offenders = sfcs.filter((r) => r.usesArrayStyle && TYPED_ONLY_DIRS.some((dir) => r.rel.startsWith(dir + path.sep))).map((r) => r.rel);
         expect(offenders, `数组式 emits 的 payload 不受类型检查，请改成 defineEmits<{ 事件名: [参数类型] }>()\n${offenders.join('\n')}`).toEqual([]);
     });
 
@@ -228,15 +232,15 @@ describe('组件事件契约', () => {
      * 已收口目录由上面的禁令守住，其余目录按文件数钉住存量：改完一个就下调该数值（或把整个目录加入
      * TYPED_ONLY_DIRS），直到全部归零后删除本棘轮与 TYPED_ONLY_DIRS。
      *
-     * 数值为实测存量（受检 342 个 SFC 中仍用数组式的文件数）。
+     * 数值为实测存量（受检 352 个 SFC 中仍用数组式的文件数）。
      */
-    const ARRAY_STYLE_FILE_BASELINE = 58;
+    const ARRAY_STYLE_FILE_BASELINE = 57;
 
     it('数组式 defineEmits 的文件数不超过存量基线（棘轮）', () => {
         const list = sfcs.filter((r) => r.usesArrayStyle).map((r) => r.rel);
         expect(
             list.length,
-            `数组式 emits 的 payload 不受类型检查。剩 ${list.length} 个文件:\n${list.join('\n')}\n新增的一律用 defineEmits<{ 事件名: [参数类型] }>()；顺手清理则下调基线`,
+            `数组式 emits 的 payload 不受类型检查。剩 ${list.length} 个文件:\n${list.join('\n')}\n新增的一律用 defineEmits<{ 事件名: [参数类型] }>()；顺手清理则下调基线`
         ).toBeLessThanOrEqual(ARRAY_STYLE_FILE_BASELINE);
     });
 });

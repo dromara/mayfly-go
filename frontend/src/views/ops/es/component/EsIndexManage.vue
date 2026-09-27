@@ -131,11 +131,16 @@ const tableColumns = computed(() => [
         title: t('es.indexName'),
         width: 220,
         sortable: true,
-        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h('a', {
-            href: 'javascript:void(0)',
-            style: { color: 'var(--el-color-primary)', textDecoration: 'none' },
-            onClick: () => emit('viewData', rowData.index)
-        }, rowData.index)
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) =>
+            h(
+                'a',
+                {
+                    href: 'javascript:void(0)',
+                    style: { color: 'var(--el-color-primary)', textDecoration: 'none' },
+                    onClick: () => emit('viewData', rowData.index),
+                },
+                rowData.index
+            ),
     },
     {
         dataKey: 'aliases',
@@ -144,21 +149,31 @@ const tableColumns = computed(() => [
         width: 200,
         cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => {
             const aliases = aliasesMap[rowData.index] || [];
-            return h('div', { class: 'flex items-center gap-1 flex-wrap' },
-                [...aliases.map((alias: string) => h(ElTag, {
-                    closable: true,
-                    size: 'small',
-                    type: 'info',
-                    onClose: () => onRemoveAlias(rowData.index, alias)
-                }, () => alias)),
-                h(ElButton, {
-                    link: true,
-                    type: 'primary',
-                    size: 'small',
-                    onClick: () => onAddAlias(rowData)
-                }, () => h(SvgIcon, { name: 'Plus', size: 14 }))]
-            );
-        }
+            return h('div', { class: 'flex items-center gap-1 flex-wrap' }, [
+                ...aliases.map((alias: string) =>
+                    h(
+                        ElTag,
+                        {
+                            closable: true,
+                            size: 'small',
+                            type: 'info',
+                            onClose: () => onRemoveAlias(rowData.index, alias),
+                        },
+                        () => alias
+                    )
+                ),
+                h(
+                    ElButton,
+                    {
+                        link: true,
+                        type: 'primary',
+                        size: 'small',
+                        onClick: () => onAddAlias(rowData),
+                    },
+                    () => h(SvgIcon, { name: 'Plus', size: 14 })
+                ),
+            ]);
+        },
     },
     {
         dataKey: 'health',
@@ -167,7 +182,7 @@ const tableColumns = computed(() => [
         width: 100,
         sortable: true,
         align: 'center',
-        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h(ElTag, { size: 'small', type: getHealthTagType(rowData.health) }, () => rowData.health)
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h(ElTag, { size: 'small', type: getHealthTagType(rowData.health) }, () => rowData.health),
     },
     {
         dataKey: 'status',
@@ -176,7 +191,8 @@ const tableColumns = computed(() => [
         width: 100,
         sortable: true,
         align: 'center',
-        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => h(ElTag, { size: 'small', type: rowData.status === 'open' ? 'success' : 'danger' }, () => rowData.status)
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) =>
+            h(ElTag, { size: 'small', type: rowData.status === 'open' ? 'success' : 'danger' }, () => rowData.status),
     },
     { dataKey: 'pri', key: 'pri', title: 'pri', width: 70, align: 'center' },
     { dataKey: 'rep', key: 'rep', title: 'rep', width: 70, align: 'center' },
@@ -187,7 +203,7 @@ const tableColumns = computed(() => [
         width: 120,
         sortable: true,
         align: 'right',
-        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => (rowData['docs.count'] as string | number) ?? '-'
+        cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => (rowData['docs.count'] as string | number) ?? '-',
     },
     { dataKey: 'store.size', key: 'store.size', title: t('es.size'), width: 120, sortable: true, align: 'right' },
     {
@@ -198,7 +214,10 @@ const tableColumns = computed(() => [
         fixed: 'right',
         align: 'center',
         cellRenderer: ({ rowData }: { rowData: EsIndexRow }) => {
-            const dropdownTrigger = h(ElButton, { link: true, type: 'primary', size: 'small' }, () => [t('common.more'), h(SvgIcon, { name: 'ArrowDown', size: 14 })]);
+            const dropdownTrigger = h(ElButton, { link: true, type: 'primary', size: 'small' }, () => [
+                t('common.more'),
+                h(SvgIcon, { name: 'ArrowDown', size: 14 }),
+            ]);
             const dropdownMenu = [
                 h(ElDropdownItem, { key: 'copyName', command: 'copyName' }, () => t('es.contextmenu.index.copyName')),
                 h(ElDropdownItem, { key: 'refresh', command: 'refresh' }, () => t('es.contextmenu.index.refresh')),
@@ -208,17 +227,21 @@ const tableColumns = computed(() => [
                 rowData.status === 'open'
                     ? h(ElDropdownItem, { key: 'close', command: 'close' }, () => t('es.contextmenu.index.Close'))
                     : h(ElDropdownItem, { key: 'open', command: 'open' }, () => t('es.contextmenu.index.Open')),
-                h(ElDropdownItem, { key: 'delete', command: 'delete', divided: true }, () => t('common.delete'))
+                h(ElDropdownItem, { key: 'delete', command: 'delete', divided: true }, () => t('common.delete')),
             ];
             return h('div', { class: 'flex items-center justify-center gap-1' }, [
                 h(ElButton, { link: true, type: 'primary', size: 'small', onClick: () => onViewDetail(rowData) }, () => t('es.indexDetail')),
-                h(ElDropdown, {
-                    trigger: 'click',
-                    onCommand: (cmd: string) => onRowCommand(cmd, rowData)
-                }, { default: () => dropdownTrigger, dropdown: () => h(ElDropdownMenu, {}, () => dropdownMenu) })
+                h(
+                    ElDropdown,
+                    {
+                        trigger: 'click',
+                        onCommand: (cmd: string) => onRowCommand(cmd, rowData),
+                    },
+                    { default: () => dropdownTrigger, dropdown: () => h(ElDropdownMenu, {}, () => dropdownMenu) }
+                ),
             ]);
-        }
-    }
+        },
+    },
 ]);
 
 const addIndexVisible = ref(false);
@@ -286,7 +309,11 @@ const fetchVersion = async () => {
 const fetchIndices = async () => {
     loading.value = true;
     try {
-        const res = await esApi.proxyReq<EsIndexRow[]>('get', props.instId, `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`);
+        const res = await esApi.proxyReq<EsIndexRow[]>(
+            'get',
+            props.instId,
+            `/_cat/indices/?h=index,health,status,uuid,pri,rep,docs.count,docs.deleted,store.size,sc,cd`
+        );
         const list = res || [];
         indices.value = showSysIndex.value ? list : list.filter((idx) => !idx.index.startsWith('.'));
         // Fetch aliases for all indices

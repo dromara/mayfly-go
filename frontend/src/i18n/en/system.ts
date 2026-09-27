@@ -96,7 +96,8 @@ export default {
             baesPathPlaceholder: 'The default is ./file in the directory corresponding to the executable file',
 
             s3Endpoint: 'S3 Endpoint',
-            s3EndpointPlaceholder: 'S3-compatible object storage endpoint, e.g. http://127.0.0.1:9000. S3 storage is enabled only when this and the following S3 configs are all filled, otherwise local storage is used',
+            s3EndpointPlaceholder:
+                'S3-compatible object storage endpoint, e.g. http://127.0.0.1:9000. S3 storage is enabled only when this and the following S3 configs are all filled, otherwise local storage is used',
             s3Region: 'S3 Region',
             s3RegionPlaceholder: 'S3 region, default us-east-1',
             s3Bucket: 'S3 Bucket',
@@ -119,7 +120,8 @@ export default {
             maskEnabled: 'Query Result Masking',
             maskEnabledPlaceholder: 'When enabled, query results are masked by mask rules and column tags. Disabled by default',
             maskFailClosed: 'Block Query on Mask Failure',
-            maskFailClosedPlaceholder: 'Whether to block the query when mask plan build fails: if disabled, degrade to no masking (recommended for security-sensitive deployments)',
+            maskFailClosedPlaceholder:
+                'Whether to block the query when mask plan build fails: if disabled, degrade to no masking (recommended for security-sensitive deployments)',
             maskExemptRoleIds: 'Mask Exempt Roles',
             maskExemptRoleIdsPlaceholder: 'Accounts with these roles are not masked. Separate multiple role ids with commas, leave empty for no exemption',
 

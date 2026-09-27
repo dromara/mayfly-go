@@ -56,9 +56,7 @@
                                 >
                                     <div class="flex justify-between">
                                         {{ item.columnName }}
-                                        <el-text size="small">
-                                            {{ item.columnType }}{{ item.columnComment && ' - ' + item.columnComment }}
-                                        </el-text>
+                                        <el-text size="small"> {{ item.columnType }}{{ item.columnComment && ' - ' + item.columnComment }} </el-text>
                                     </div>
                                 </el-option>
                             </el-select>
@@ -163,12 +161,14 @@ import { DbInst } from '@/views/ops/db/db';
 import { createSqlCompletionScope } from '@/views/ops/db/completion/lazy';
 import { getDbDialect, getDialectCapabilities } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
+import { TASK_EXTRA_KEYS, readExtraNumber, readExtraBool } from '@/views/ops/db/sync/taskExtra';
 import {
     DbDataSyncDuplicateStrategyEnum,
     DbDataSyncModeEnum,
     DbNullStrategyEnum,
     DbSchemaEvolveModeEnum,
     DbConflictStrategyEnum,
+    DbCursorInclusivityEnum,
 } from '@/views/ops/db/sync/enums';
 import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -239,7 +239,13 @@ const tabs: AutoFormTab[] = [
             { prop: 'updFieldVal', label: 'db.updateFieldValue', tooltip: 'db.updateFieldValueTips', placeholder: 'db.updateFieldValuePlaceholder', span: 12 },
             { prop: 'updFieldSrc', label: 'db.fieldValueSrc', tooltip: 'db.fieldValueSrcTips', placeholder: 'db.fieldValueSrcPlaceholder', span: 12 },
             // 辅助增量字段
-            { prop: 'updFieldSecondary', label: 'db.updFieldSecondary', tooltip: 'db.updFieldSecondaryTips', placeholder: 'db.updFieldSecondaryPlaceholder', span: 12 },
+            {
+                prop: 'updFieldSecondary',
+                label: 'db.updFieldSecondary',
+                tooltip: 'db.updFieldSecondaryTips',
+                placeholder: 'db.updFieldSecondaryPlaceholder',
+                span: 12,
+            },
         ],
     },
     {
@@ -299,6 +305,32 @@ const tabs: AutoFormTab[] = [
                 span: 10,
                 when: (f) => !!f.biDirEnabled,
             },
+            // 交付语义与节流（P0）：存于后端 Extra，非查询维度不占列
+            {
+                prop: 'cursorInclusivity',
+                label: 'db.cursorInclusivity',
+                type: 'enum',
+                enums: DbCursorInclusivityEnum,
+                tooltip: 'db.cursorInclusivityTips',
+                span: 8,
+            },
+            {
+                prop: 'sleepBetweenBatchesMs',
+                label: 'db.sleepBetweenBatchesMs',
+                type: 'number',
+                tooltip: 'db.sleepBetweenBatchesTips',
+                props: { min: 0, max: 60000, step: 100 },
+                span: 8,
+            },
+            // P1：跳过增量字段索引校验（视图/函数索引/无法定位单表时的逃生阀）
+            {
+                prop: 'skipIndexValidation',
+                label: 'db.skipIndexValidation',
+                type: 'switch',
+                tooltip: 'db.skipIndexValidationTips',
+                span: 8,
+                props: { inlinePrompt: true },
+            },
         ],
     },
     {
@@ -311,11 +343,21 @@ const tabs: AutoFormTab[] = [
                 label: 'db.keyDuplicateStrategy',
                 type: 'enum',
                 enums: DbDataSyncDuplicateStrategyEnum,
-                when: (f) => !!f.targetDbType && getDialectCapabilities(getDbDialect(f.targetDbType)).supportsDuplicateStrategy,
+                // 校验模式不写数据，重复策略无意义
+                when: (f) =>
+                    !!f.targetDbType &&
+                    f.syncMode !== DbDataSyncModeEnum.Validation.value &&
+                    getDialectCapabilities(getDbDialect(f.targetDbType)).supportsDuplicateStrategy,
                 onChange: () => handleDuplicateStrategy(),
             },
             { prop: 'previewDataSql', label: 'db.selectSql', type: 'custom' },
-            { prop: 'previewInsertSql', label: 'db.insertSql', type: 'custom' },
+            {
+                prop: 'previewInsertSql',
+                label: 'db.insertSql',
+                type: 'custom',
+                // 校验模式不写数据，插入 SQL 预览无意义（与键冲突策略同语义）
+                when: (f) => f.syncMode !== DbDataSyncModeEnum.Validation.value,
+            },
         ],
     },
 ];
@@ -354,6 +396,11 @@ type SyncTaskForm = {
     conflictStrategy?: number;
     biDirTimestampField?: string;
     duplicateStrategy?: number;
+    // P0：交付语义与节流（后端存于 Extra，前端表单作为一等字段读写，onOpened 从 extra 回填）
+    cursorInclusivity?: number;
+    sleepBetweenBatchesMs?: number;
+    // P1：跳过增量字段索引校验的逃生阀，同样存于 Extra
+    skipIndexValidation?: boolean;
 };
 
 /**
@@ -399,6 +446,9 @@ const basicFormData: SyncTaskForm = {
     conflictStrategy: 1,
     biDirTimestampField: '',
     duplicateStrategy: -1,
+    cursorInclusivity: 0,
+    sleepBetweenBatchesMs: 0,
+    skipIndexValidation: false,
 };
 
 const editData: SyncTaskForm = { ...basicFormData };
@@ -417,13 +467,15 @@ const state = reactive({
 
 const tabActiveName = ref('basic');
 
-// 宿主抽屉的内部表单在 @opened 接管；computed 保持读取点写法不变（指向宿主同一个响应式对象）
-const { openedWith, requireForm } = useAutoFormModel<SyncTaskForm>();
+// 宿主抽屉的内部表单在 @opened 接管（指向宿主同一个响应式对象）：
+// 交互期读取（提交/字段联动/表加载）走 requireForm；
+// 渲染期派生状态只能读 form —— 抽屉关闭时宿主也会渲染 #footer 与 Tab 的 disabled，此时尚未接管表单
+const { form: hostForm, openedWith, requireForm } = useAutoFormModel<SyncTaskForm>();
 const internalForm = computed(requireForm);
 
 const baseFieldCompleted = computed(() => {
-    const form = internalForm.value;
-    return form.srcDbId && form.srcDbName && form.targetDbId && form.targetDbName && form.targetTableName;
+    const form = hostForm.value;
+    return !!form && !!form.srcDbId && !!form.srcDbName && !!form.targetDbId && !!form.targetDbName && !!form.targetTableName;
 });
 
 const { execute: saveExec } = dbSyncApi.saveDatasyncTask.useApi();
@@ -451,6 +503,12 @@ const onOpened = openedWith(async () => {
     if (formData.conflictStrategy === undefined) {
         formData.conflictStrategy = 1;
     }
+    // cursorInclusivity / sleepBetweenBatchesMs / skipIndexValidation 存于后端 Extra（非查询维度）；
+    // 集中经 taskExtra 访问器读取，避免 key 名散落各处后端改名时静默失效。
+    const extra = (taskFields as { extra?: Record<string, unknown> }).extra;
+    formData.cursorInclusivity = readExtraNumber(extra, TASK_EXTRA_KEYS.cursorInclusivity);
+    formData.sleepBetweenBatchesMs = readExtraNumber(extra, TASK_EXTRA_KEYS.sleepBetweenBatchesMs);
+    formData.skipIndexValidation = readExtraBool(extra, TASK_EXTRA_KEYS.skipIndexValidation);
     Object.assign(internalForm.value, formData);
     let { srcDbId, srcDbName, targetDbId } = formData;
 
@@ -493,6 +551,13 @@ watch(tabActiveName, async (newValue: string) => {
             let dataSql = internalForm.value.dataSql ?? '';
 
             let hasCondition = /where/i.test(dataSql);
+            if (internalForm.value.syncMode === DbDataSyncModeEnum.Validation.value) {
+                // 校验模式执行时按整条 DataSQL 查全表比对行数（buildSyncQuery 的水位条件不参与），
+                // 且不写目标表：select 预览展示真正会执行的查询本身，插入语句预览不生成
+                state.previewDataSql = dataSql.trim() || t('db.noDataSqlMsg');
+                state.previewInsertSql = '';
+                return;
+            }
             state.previewDataSql = `${dataSql.trim() || t('db.noDataSqlMsg')} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${internalForm.value.updFieldVal || ''}'`;
 
             let fields = new Set();
@@ -518,7 +583,11 @@ watch(tabActiveName, async (newValue: string) => {
 
 const refreshPreviewInsertSql = () => {
     let targetDbDialect = getDbDialect(state.targetDbInst.type);
-    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(internalForm.value.targetTableName ?? '', state.previewFieldArr, internalForm.value.duplicateStrategy ?? -1);
+    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(
+        internalForm.value.targetTableName ?? '',
+        state.previewFieldArr,
+        internalForm.value.duplicateStrategy ?? -1
+    );
 };
 
 const onSelectSrcDb = async (params: DbNodeParams) => {

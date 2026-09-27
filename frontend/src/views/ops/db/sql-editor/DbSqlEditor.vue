@@ -1,6 +1,15 @@
 <template>
     <div class="h-full flex flex-col">
-        <SqlEditorToolbar :token="token" :upload-url="getUploadSqlFileUrl()" :upload-fn="handleSqlFileUpload" @run="onRunSql()" @format="onFormatSql()" @commit="onCommit()" @save="saveSql()" />
+        <SqlEditorToolbar
+            :token="token"
+            :upload-url="getUploadSqlFileUrl()"
+            :upload-fn="handleSqlFileUpload"
+            @run="onRunSql()"
+            @run-all="onRunAllSql()"
+            @format="onFormatSql()"
+            @commit="onCommit()"
+            @save="saveSql()"
+        />
 
         <el-splitter ref="splitterRef" class="flex-1 min-h-0" layout="vertical" @resize-end="onResizeTableHeight">
             <el-splitter-panel :size="state.editorSize" max="80%">
@@ -107,7 +116,18 @@ const state = reactive({
 
 const { tableDataHeight } = toRefs(state);
 
-const { getNowDbInst, pushNewTab, onRunSql, changeUpdatedField, onDeleteData, submitUpdateFields, cancelUpdateFields, onRemoveTab, activeTab: active } = useSqlExec({
+const {
+    getNowDbInst,
+    pushNewTab,
+    onRunSql,
+    onRunAllSql,
+    changeUpdatedField,
+    onDeleteData,
+    submitUpdateFields,
+    cancelUpdateFields,
+    onRemoveTab,
+    activeTab: active,
+} = useSqlExec({
     dbId: props.dbId,
     dbName: props.dbName,
     state,
@@ -138,7 +158,9 @@ onMounted(async () => {
     // 结构新鲜度由事件驱动，本地缓存失效只有两个入口：SQL 执行（编辑器按 isDdlSql 判定、表编辑弹框按构造一律失效）
     // 与资源树节点重载（右击刷新、建/改/改名/删/复制表回调，见 DbDataOp.reloadNode），两者都汇到 DbInst.invalidateSchema。
     // 本地表清单缓存无 TTL：他端/外部工具改表不会触发上述入口，需右击刷新才会重取（服务端 schema 缓存另有 TTL 兜底）。
-    getNowDbInst().loadTables(props.dbName).then(() => {});
+    getNowDbInst()
+        .loadTables(props.dbName)
+        .then(() => {});
 });
 
 const splitterRef = useTemplateRef<{ $el: HTMLElement }>('splitterRef');
@@ -347,6 +369,24 @@ const initMonacoEditor = async () => {
         run: async function () {
             try {
                 await onRunSql(true);
+            } catch (e: unknown) {
+                e instanceof Error && e.message && Msg.error(e.message);
+            }
+        },
+    });
+
+    // 注册快捷键：ctrl + shift + enter 执行编辑器内的全部sql（忽略选区与光标）
+    monacoEditor.addAction({
+        id: 'run-all-sql-action' + getKey(),
+        label: t('db.runAllSql'),
+        precondition: undefined,
+        keybindingContext: undefined,
+        keybindings: [KeyMod.chord(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.Enter, 0)],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.7,
+        run: async function () {
+            try {
+                await onRunAllSql();
             } catch (e: unknown) {
                 e instanceof Error && e.message && Msg.error(e.message);
             }

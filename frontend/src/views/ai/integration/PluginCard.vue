@@ -8,7 +8,15 @@
             <!-- MCP：启停 + 实例健康状态；技能：引用技能发布状态 -->
             <template v-if="item.pluginType === 'mcp'">
                 <el-tag size="small" :type="item.status === InstanceStatus.Healthy ? 'success' : item.status === InstanceStatus.Error ? 'danger' : 'info'">
-                    {{ $t(item.status === InstanceStatus.Healthy ? 'ai.integration.instanceHealthy' : item.status === InstanceStatus.Error ? 'ai.integration.instanceError' : 'ai.integration.instanceUnknown') }}
+                    {{
+                        $t(
+                            item.status === InstanceStatus.Healthy
+                                ? 'ai.integration.instanceHealthy'
+                                : item.status === InstanceStatus.Error
+                                  ? 'ai.integration.instanceError'
+                                  : 'ai.integration.instanceUnknown'
+                        )
+                    }}
                 </el-tag>
                 <el-tag size="small" :type="item.enabled === 1 ? 'success' : 'info'" effect="plain">
                     {{ item.enabled === 1 ? $t('common.enabled') : $t('common.disabled') }}
@@ -34,7 +42,9 @@
             </template>
             <!-- 技能：发布 / 取消发布 / 导出 -->
             <template v-else>
-                <el-button v-if="item.skillStatus === 'draft'" size="small" plain type="success" @click="emit('publish')">{{ $t('ai.integration.publish') }}</el-button>
+                <el-button v-if="item.skillStatus === 'draft'" size="small" plain type="success" @click="emit('publish')">{{
+                    $t('ai.integration.publish')
+                }}</el-button>
                 <el-button v-else size="small" plain @click="emit('unpublish')">{{ $t('ai.integration.unpublish') }}</el-button>
                 <el-button size="small" plain @click="emit('export')">{{ $t('ai.integration.exportZip') }}</el-button>
             </template>

@@ -1,14 +1,7 @@
 <template>
     <!-- 编辑模式：原地 textarea（UserMessageBubble 编辑态） -->
     <div v-if="isEditing" ref="editContainer" class="user-message-edit" @blur="onEditBlur">
-        <textarea
-            ref="editTextarea"
-            v-model="editValue"
-            class="user-message-edit__textarea"
-            rows="1"
-            @keydown="onEditKeydown"
-            @input="autoResize"
-        ></textarea>
+        <textarea ref="editTextarea" v-model="editValue" class="user-message-edit__textarea" rows="1" @keydown="onEditKeydown" @input="autoResize"></textarea>
         <div class="user-message-edit__actions">
             <Button
                 variant="ghost"
@@ -20,13 +13,7 @@
                 <XIcon class="size-3" />
                 {{ t('common.cancel') }}
             </Button>
-            <Button
-                size="sm"
-                class="h-7 rounded-lg px-2.5 text-xs"
-                :disabled="!editValue.trim()"
-                @mousedown.prevent
-                @click="sendEdit"
-            >
+            <Button size="sm" class="h-7 rounded-lg px-2.5 text-xs" :disabled="!editValue.trim()" @mousedown.prevent @click="sendEdit">
                 <ArrowUpIcon class="size-3" />
                 {{ t('ai.chat.send') }}
             </Button>
@@ -137,9 +124,7 @@ const expandedTextName = ref<string | null>(null);
 const toggleTextPreview = (name: string) => {
     expandedTextName.value = expandedTextName.value === name ? null : name;
 };
-const expandedAttachment = computed(() =>
-    cardAttachments.value.find((a) => a.kind === 'text' && a.name === expandedTextName.value),
-);
+const expandedAttachment = computed(() => cardAttachments.value.find((a) => a.kind === 'text' && a.name === expandedTextName.value));
 
 /**
  * 展开预览内容：统一经文件服务 /sys/files/{fileKey} 拉取
@@ -172,7 +157,7 @@ watch(
             if (expandedAttachment.value?.fileKey === key) expandedTextContent.value = t('ai.attach.previewFailed');
         }
     },
-    { immediate: true },
+    { immediate: true }
 );
 
 // ==================== 原地编辑 ====================
@@ -196,7 +181,7 @@ watch(
             // 编辑态下滚动到可见
             editContainer.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         });
-    },
+    }
 );
 
 const autoResize = () => {
@@ -259,7 +244,9 @@ const onEditBlur = (e: FocusEvent) => {
     line-height: 1.6;
     color: var(--el-text-color-primary);
     outline: none;
-    transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+    transition:
+        border-color 0.15s ease-out,
+        box-shadow 0.15s ease-out;
     overflow-y: auto;
 }
 

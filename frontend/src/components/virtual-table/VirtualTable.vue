@@ -1,11 +1,6 @@
 <template>
     <div ref="containerRef" class="virtual-table" :style="height ? { height } : {}">
-        <component
-            :is="adapter.component"
-            ref="tableRef"
-            v-bind="adapterProps"
-            class="virtual-table__inner"
-        >
+        <component :is="adapter.component" ref="tableRef" v-bind="adapterProps" class="virtual-table__inner">
             <!-- header slot: 仅当消费者提供时才透传，否则使用适配器默认表头 -->
             <template v-if="$slots.header" #header="slotProps">
                 <slot name="header" v-bind="slotProps" />

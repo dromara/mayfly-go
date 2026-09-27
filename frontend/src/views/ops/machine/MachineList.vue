@@ -208,12 +208,7 @@
             </template>
         </terminal-dialog>
 
-        <machine-edit
-            :title="editDialog.title"
-            v-model:visible="editDialog.visible"
-            v-model:data="editDialog.data"
-            @val-change="search()"
-        ></machine-edit>
+        <machine-edit :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" @val-change="search()"></machine-edit>
 
         <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
@@ -409,7 +404,10 @@ const handleData = (res: PageResult<MachineVO>) => {
     return res;
 };
 
-interface DropdownCommand { type: string; data: MachineVO; }
+interface DropdownCommand {
+    type: string;
+    data: MachineVO;
+}
 const handleCommand = (command: DropdownCommand) => {
     const data = command.data;
     const type = command.type;

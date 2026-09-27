@@ -31,50 +31,52 @@
         <!-- 告警事件列表 -->
         <div class="table-container">
             <page-table ref="pageTableRef" :page-api="alertEventApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
-            <template #resourceName="{ data }">
-                {{ data.resourceName || `${getResourceTypeLabel(data.resourceType)}#${data.resourceId}` }}
-            </template>
+                <template #resourceName="{ data }">
+                    {{ data.resourceName || `${getResourceTypeLabel(data.resourceType)}#${data.resourceId}` }}
+                </template>
 
-            <template #metric="{ data }">
-                {{ getMetricLabel(data.metric) }}
-            </template>
+                <template #metric="{ data }">
+                    {{ getMetricLabel(data.metric) }}
+                </template>
 
-            <template #currentValue="{ data }">
-                {{ formatMetricValue(data.metric, data.currentValue) }}
-            </template>
+                <template #currentValue="{ data }">
+                    {{ formatMetricValue(data.metric, data.currentValue) }}
+                </template>
 
-            <template #threshold="{ data }">
-                {{ formatThreshold(data.threshold) }}
-            </template>
+                <template #threshold="{ data }">
+                    {{ formatThreshold(data.threshold) }}
+                </template>
 
-            <template #priority="{ data }">
-                <enum-tag :enums="AlertPriorityEnum" :value="data.priority" />
-            </template>
+                <template #priority="{ data }">
+                    <enum-tag :enums="AlertPriorityEnum" :value="data.priority" />
+                </template>
 
-            <template #status="{ data }">
-                <enum-tag :enums="AlertEventStatusEnum" :value="data.status" />
-            </template>
+                <template #status="{ data }">
+                    <enum-tag :enums="AlertEventStatusEnum" :value="data.status" />
+                </template>
 
-            <template #action="{ data }">
-                <el-button link v-if="data.status === AlertEventStatusFiring" @click="onAck(data)" type="primary">{{ $t('alert.confirm') }}</el-button>
-                <el-button
-                    link
-                    v-if="data.status === AlertEventStatusFiring || data.status === AlertEventStatusAcknowledged || data.status === AlertEventStatusRecovered"
-                    @click="onClose(data)"
-                    type="warning"
-                >
-                    {{ $t('common.close') }}
-                </el-button>
-                <el-button
-                    link
-                    v-if="data.status === AlertEventStatusRecovered || data.status === AlertEventStatusClosed"
-                    @click="onDelete(data)"
-                    type="danger"
-                >
-                    {{ $t('common.delete') }}
-                </el-button>
-            </template>
-        </page-table>
+                <template #action="{ data }">
+                    <el-button link v-if="data.status === AlertEventStatusFiring" @click="onAck(data)" type="primary">{{ $t('alert.confirm') }}</el-button>
+                    <el-button
+                        link
+                        v-if="
+                            data.status === AlertEventStatusFiring || data.status === AlertEventStatusAcknowledged || data.status === AlertEventStatusRecovered
+                        "
+                        @click="onClose(data)"
+                        type="warning"
+                    >
+                        {{ $t('common.close') }}
+                    </el-button>
+                    <el-button
+                        link
+                        v-if="data.status === AlertEventStatusRecovered || data.status === AlertEventStatusClosed"
+                        @click="onDelete(data)"
+                        type="danger"
+                    >
+                        {{ $t('common.delete') }}
+                    </el-button>
+                </template>
+            </page-table>
         </div>
     </div>
 </template>

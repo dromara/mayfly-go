@@ -13,7 +13,18 @@
 import { defineStore } from 'pinia';
 import { ref, computed, reactive } from 'vue';
 import type { ChatInputSubmitData } from '../input/types';
-import type { ChatMessage, Conversation, InterruptEvent, TurnItem, ItemDelta, TurnGroupVO, MessagePart, NoticePart, ToolCallPart, MessageAttachment } from '../protocol/types';
+import type {
+    ChatMessage,
+    Conversation,
+    InterruptEvent,
+    TurnItem,
+    ItemDelta,
+    TurnGroupVO,
+    MessagePart,
+    NoticePart,
+    ToolCallPart,
+    MessageAttachment,
+} from '../protocol/types';
 import { forEachInterruptHandler } from '../registries/interruptRegistry';
 import { ToolCallStatus } from '../registries/statuses';
 
@@ -179,11 +190,9 @@ export const useChatStore = defineStore('ai-chat', () => {
             const resolvedToolCallIds = new Set<string>();
             for (const itemVO of latestGroup.items) {
                 if (
-                    itemVO.itemType === 'tool_call'
-                    && (itemVO.status === ToolCallStatus.Success
-                        || itemVO.status === ToolCallStatus.Failed
-                        || itemVO.status === ToolCallStatus.Cancelled)
-                    && itemVO.toolCallId
+                    itemVO.itemType === 'tool_call' &&
+                    (itemVO.status === ToolCallStatus.Success || itemVO.status === ToolCallStatus.Failed || itemVO.status === ToolCallStatus.Cancelled) &&
+                    itemVO.toolCallId
                 ) {
                     resolvedToolCallIds.add(itemVO.toolCallId);
                 }
@@ -215,8 +224,9 @@ export const useChatStore = defineStore('ai-chat', () => {
                         };
                         // 去重：按 actionId 或 toolCallId 避免重复添加
                         const exists = slice.pendingInterrupts.some(
-                            (i) => i.actionId === interruptEvt.actionId
-                                || (interruptEvt.toolCallId && i.toolCallId === interruptEvt.toolCallId && i.type === interruptEvt.type),
+                            (i) =>
+                                i.actionId === interruptEvt.actionId ||
+                                (interruptEvt.toolCallId && i.toolCallId === interruptEvt.toolCallId && i.type === interruptEvt.type)
                         );
                         if (!exists) {
                             slice.pendingInterrupts.push(interruptEvt);
@@ -340,9 +350,7 @@ export const useChatStore = defineStore('ai-chat', () => {
             // 通过 toolCallId 匹配已有 part，避免创建重复 part
             if (item.type === 'tool_call' && item.tool_call_id) {
                 const tcId = item.tool_call_id;
-                const existingPart = assistantMsg.parts?.find(
-                    (p): p is ToolCallPart => p.type === 'tool_call' && p.toolCallId === tcId,
-                );
+                const existingPart = assistantMsg.parts?.find((p): p is ToolCallPart => p.type === 'tool_call' && p.toolCallId === tcId);
                 if (existingPart) {
                     // 更新 part 的 id 为新 itemId，使后续 onItemCompleted 能匹配
                     existingPart.id = item.id;
@@ -376,9 +384,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         if (partIndex === -1 && streamingItem.type === 'tool_call') {
             const tcId = streamingItem.tool_call_id;
             if (tcId) {
-                partIndex = assistantMsg.parts.findIndex(
-                    (p): p is ToolCallPart => p.type === 'tool_call' && p.toolCallId === tcId,
-                );
+                partIndex = assistantMsg.parts.findIndex((p): p is ToolCallPart => p.type === 'tool_call' && p.toolCallId === tcId);
             }
         }
         if (partIndex === -1) return;
@@ -408,9 +414,7 @@ export const useChatStore = defineStore('ai-chat', () => {
             // fallback: 通过 toolCallId 匹配（resume 流程中 itemId 与原始 part 不同）
             if (partIndex === -1 && item.type === 'tool_call' && item.tool_call_id) {
                 const tcId = item.tool_call_id;
-                partIndex = assistantMsg.parts.findIndex(
-                    (p): p is ToolCallPart => p.type === 'tool_call' && p.toolCallId === tcId,
-                );
+                partIndex = assistantMsg.parts.findIndex((p): p is ToolCallPart => p.type === 'tool_call' && p.toolCallId === tcId);
             }
             if (partIndex !== -1) {
                 // 用完整的 item 数据替换 part
@@ -419,10 +423,7 @@ export const useChatStore = defineStore('ai-chat', () => {
                     // 实时完成事件无 extra：继承原 part 的恢复决策类型，
                     // 避免替换后决议徽章（已批准/已完善等）丢失
                     const prevPart = assistantMsg.parts[partIndex];
-                    if (
-                        completedPart.type === 'tool_call' && !completedPart.resumeType
-                        && prevPart?.type === 'tool_call'
-                    ) {
+                    if (completedPart.type === 'tool_call' && !completedPart.resumeType && prevPart?.type === 'tool_call') {
                         completedPart.resumeType = prevPart.resumeType;
                     }
                     assistantMsg.parts[partIndex] = completedPart;
@@ -596,8 +597,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         const slice = getOrCreateSlice(convId);
         // 去重：按 actionId 或 toolCallId+type 避免重复
         const exists = slice.pendingInterrupts.some(
-            (i) => i.actionId === interrupt.actionId
-                || (interrupt.toolCallId && i.toolCallId === interrupt.toolCallId && i.type === interrupt.type),
+            (i) => i.actionId === interrupt.actionId || (interrupt.toolCallId && i.toolCallId === interrupt.toolCallId && i.type === interrupt.type)
         );
         if (!exists) {
             slice.pendingInterrupts.push(interrupt);

@@ -119,7 +119,6 @@ export default {
         record: 'Record',
 
         // file
-        upload: 'Upload',
         download: 'Download',
         copy: 'Copy',
         move: 'Move',
@@ -130,9 +129,19 @@ export default {
         attribute: 'Attribute',
         user: 'User',
         group: 'Group',
-        renameTips: 'rename: Double-click the file name cell and then press Ente',
+        size: 'Size',
+        emptyDir: 'This directory is empty. Upload files or create a file/folder.',
+        emptyFilter: 'No name matches “{keyword}”',
+        clearFilter: 'Clear filter',
+        fileOpTips: 'How to operate',
+        fileOpTipsContent:
+            'Click a name to enter the directory or preview the file; right-click a row and choose Rename, or select a row and press F2; Enter submits, Esc or a click outside cancels; Enter opens the current row.',
         fileDetail: 'File Details',
-        createFile: 'Create File',
+        createName: 'New file or folder',
+        createTo: 'Will be created in: {path}',
+        createDirSuccess: 'Directory {name} created',
+        createFileSuccess: 'File {name} created',
+        fileNameNoSeparator: 'Name cannot contain /',
         pasteSuccess: 'Paste successfully',
         sameDirNoPaste: 'Can not paste in the same directory',
         renameSuccess: 'Rename successfully',
@@ -143,6 +152,16 @@ export default {
         fileUploadSuccess: 'Machine file upload successful',
         fileUploadFail: 'Machine file upload failed',
         fileUpload: 'File Upload',
+
+        // file content editor
+        unsavedBadge: 'Unsaved',
+        unsavedCloseConfirm: 'The content has unsaved changes. Close and discard them?',
+
+        // file config list
+        newFileConf: 'New file config',
+        fileConfEmpty: 'No file config yet. A directory config browses that directory; a file config opens its content quickly.',
+        fileConfRequired: 'Name and path are required',
+        openFileManager: 'Open file manager',
 
         // Folder upload progress
         folderUploadProgress: 'Folder Upload Progress',

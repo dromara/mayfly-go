@@ -38,20 +38,20 @@ import { isItemRequired, resolveFormItems } from './shared';
 import { isSelectPromptItem, type AutoFormData, type AutoFormItem, type AutoFormInstance, type AutoFormTab } from './types';
 
 const props = defineProps<{
-        /** 字段配置（渲染 + 校验数据源），与 schema 二选一 */
-        items?: AutoFormItem[];
-        /** v1 JSON Schema 表单定义（经编译层转为 items），与 items 二选一，优先 schema */
-        schema?: AutoFormJsonSchema | JsonField[];
-        /** Tab 页签布局（每个 Tab 为一组字段，共享表单数据与校验），与 schema 内置 tabs 等效 */
-        tabs?: AutoFormTab[];
-        /** 栅格列数（默认 1，字段可用 span 单独覆盖） */
-        cols?: number;
-        /** 全局只读模式（所有字段禁用，字段级 readonly 同样生效） */
-        readonly?: boolean;
-        /** label 位置（right 右侧水平对齐 / top 输入项上方；缺省 right，抽屉场景由 AutoFormDrawer 默认传 top） */
-        labelPosition?: 'left' | 'right' | 'top';
-        /** label 宽度（默认 auto：mirror 测量全表单最宽 label 后统一右对齐；嵌套弹窗等场景测量漂移导致个别 label 溢出压线时，可传固定宽度如 '80px'） */
-        labelWidth?: string;
+    /** 字段配置（渲染 + 校验数据源），与 schema 二选一 */
+    items?: AutoFormItem[];
+    /** v1 JSON Schema 表单定义（经编译层转为 items），与 items 二选一，优先 schema */
+    schema?: AutoFormJsonSchema | JsonField[];
+    /** Tab 页签布局（每个 Tab 为一组字段，共享表单数据与校验），与 schema 内置 tabs 等效 */
+    tabs?: AutoFormTab[];
+    /** 栅格列数（默认 1，字段可用 span 单独覆盖） */
+    cols?: number;
+    /** 全局只读模式（所有字段禁用，字段级 readonly 同样生效） */
+    readonly?: boolean;
+    /** label 位置（right 右侧水平对齐 / top 输入项上方；缺省 right，抽屉场景由 AutoFormDrawer 默认传 top） */
+    labelPosition?: 'left' | 'right' | 'top';
+    /** label 宽度（默认 auto：mirror 测量全表单最宽 label 后统一右对齐；嵌套弹窗等场景测量漂移导致个别 label 溢出压线时，可传固定宽度如 '80px'） */
+    labelWidth?: string;
 }>();
 
 const { t } = useI18n();
@@ -84,8 +84,7 @@ watchEffect(() => {
 });
 
 /** Tab 禁用（静态布尔或根据表单值动态计算） */
-const isTabDisabled = (tab: AutoFormTab): boolean =>
-    typeof tab.disabled === 'function' ? tab.disabled(model.value) : !!tab.disabled;
+const isTabDisabled = (tab: AutoFormTab): boolean => (typeof tab.disabled === 'function' ? tab.disabled(model.value) : !!tab.disabled);
 
 /** 生效的字段配置：schema 优先编译，否则使用 items（与 Dialog/Drawer 共用同一解析逻辑） */
 const allItems = resolveFormItems(props);

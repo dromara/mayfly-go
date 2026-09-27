@@ -53,7 +53,11 @@ describe('isPrefixSubsequence', () => {
 });
 
 describe('fuzzyMatchField', () => {
-    const fields = [{ name: 'username', comment: '用户名' }, { name: 'password', comment: '密码' }, { name: 'email', comment: '邮箱' }];
+    const fields = [
+        { name: 'username', comment: '用户名' },
+        { name: 'password', comment: '密码' },
+        { name: 'email', comment: '邮箱' },
+    ];
 
     it('按字段名模糊匹配', () => {
         const result = fuzzyMatchField('uname', fields, (f) => f.name);
@@ -62,7 +66,12 @@ describe('fuzzyMatchField', () => {
     });
 
     it('多提取函数匹配', () => {
-        const result = fuzzyMatchField('密码', fields, (f) => f.name, (f) => f.comment);
+        const result = fuzzyMatchField(
+            '密码',
+            fields,
+            (f) => f.name,
+            (f) => f.comment
+        );
         expect(result).toHaveLength(1);
         expect(result[0].name).toBe('password');
     });

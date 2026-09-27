@@ -205,11 +205,8 @@ onUnmounted(() => {
     window.removeEventListener('resize', getInputWidth);
 });
 // 监听双向绑定 modelValue 的变化
-watch(
-    modelValue,
-    () => {
-        initModeValueEcho();
-        initFontIconName();
-    }
-);
+watch(modelValue, () => {
+    initModeValueEcho();
+    initFontIconName();
+});
 </script>

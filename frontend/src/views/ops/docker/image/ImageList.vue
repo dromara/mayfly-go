@@ -2,72 +2,72 @@
     <div class="component-container">
         <div class="card p-2!">
             <el-row :gutter="5">
-            <el-col :span="4">
-                <el-input :placeholder="$t('docker.imageName')" v-model="params.name" plain clearable></el-input>
-            </el-col>
+                <el-col :span="4">
+                    <el-input :placeholder="$t('docker.imageName')" v-model="params.name" plain clearable></el-input>
+                </el-col>
 
-            <el-col :span="4">
-                <EnumSelect v-model="params.state" :enums="ImageStateEnum" :placeholder="$t('docker.status')" clearable />
-            </el-col>
+                <el-col :span="4">
+                    <EnumSelect v-model="params.state" :enums="ImageStateEnum" :placeholder="$t('docker.status')" clearable />
+                </el-col>
 
-            <el-col :span="4">
-                <div class="flex items-center gap-2">
-                    <el-button @click="getImages" type="primary" icon="refresh" circle plain></el-button>
-                    <el-upload :on-success="uploadSuccess" action="" :http-request="uploadImage" :headers="{ token }" :show-file-list="false" name="file">
-                        <el-button type="primary" icon="upload" circle plain></el-button>
-                    </el-upload>
-                </div>
-            </el-col>
-        </el-row>
+                <el-col :span="4">
+                    <div class="flex items-center gap-2">
+                        <el-button @click="getImages" type="primary" icon="refresh" circle plain></el-button>
+                        <el-upload :on-success="uploadSuccess" action="" :http-request="uploadImage" :headers="{ token }" :show-file-list="false" name="file">
+                            <el-button type="primary" icon="upload" circle plain></el-button>
+                        </el-upload>
+                    </div>
+                </el-col>
+            </el-row>
         </div>
 
         <el-table :data="filterTableDatas" v-loading="state.loadingImages">
-        <el-table-column prop="id" label="ID" :min-width="100" show-overflow-tooltip>
-            <template #default="{ row }">
-                <el-link type="primary" underline="never">
-                    {{ row.id.split(':')[1].substring(0, 12) }}
-                </el-link>
-            </template>
-        </el-table-column>
+            <el-table-column prop="id" label="ID" :min-width="100" show-overflow-tooltip>
+                <template #default="{ row }">
+                    <el-link type="primary" underline="never">
+                        {{ row.id.split(':')[1].substring(0, 12) }}
+                    </el-link>
+                </template>
+            </el-table-column>
 
-        <el-table-column prop="tags" :label="$t('docker.tag')" :min-width="250">
-            <template #default="{ row }">
-                <el-tag v-for="tag in row.tags" :key="tag" type="primary">{{ tag || '-' }}</el-tag>
-            </template>
-        </el-table-column>
+            <el-table-column prop="tags" :label="$t('docker.tag')" :min-width="250">
+                <template #default="{ row }">
+                    <el-tag v-for="tag in row.tags" :key="tag" type="primary">{{ tag || '-' }}</el-tag>
+                </template>
+            </el-table-column>
 
-        <el-table-column prop="size" :label="$t('docker.size')" :min-width="60">
-            <template #default="{ row }">
-                {{ formatByteSize(row.size) }}
-            </template>
-        </el-table-column>
+            <el-table-column prop="size" :label="$t('docker.size')" :min-width="60">
+                <template #default="{ row }">
+                    {{ formatByteSize(row.size) }}
+                </template>
+            </el-table-column>
 
-        <el-table-column prop="createTime" :label="$t('common.createTime')" width="160">
-            <template #default="scope">
-                {{ formatDate(scope.row.createTime) }}
-            </template>
-        </el-table-column>
+            <el-table-column prop="createTime" :label="$t('common.createTime')" width="160">
+                <template #default="scope">
+                    {{ formatDate(scope.row.createTime) }}
+                </template>
+            </el-table-column>
 
-        <el-table-column prop="isUse" :label="$t('common.status')" :min-width="50">
-            <template #default="{ row }">
-                <EnumTag :enums="ImageStateEnum" :value="row.isUse" />
-            </template>
-        </el-table-column>
+            <el-table-column prop="isUse" :label="$t('common.status')" :min-width="50">
+                <template #default="{ row }">
+                    <EnumTag :enums="ImageStateEnum" :value="row.isUse" />
+                </template>
+            </el-table-column>
 
-        <el-table-column :label="$t('common.operation')" width="130">
-            <template #default="{ row }">
-                <el-button @click="exportImage(row)" type="warning" link plain>{{ $t('docker.export') }}</el-button>
+            <el-table-column :label="$t('common.operation')" width="130">
+                <template #default="{ row }">
+                    <el-button @click="exportImage(row)" type="warning" link plain>{{ $t('docker.export') }}</el-button>
 
-                <el-popconfirm :title="$t('docker.stopImageConfirm')" @confirm="imageRemove(row)" width="170">
-                    <template #reference>
-                        <el-button :disabled="row.isUse == ImageStateEnum.Used.value" type="danger" link plain>
-                            {{ $t('common.delete') }}
-                        </el-button>
-                    </template>
-                </el-popconfirm>
-            </template>
-        </el-table-column>
-    </el-table>
+                    <el-popconfirm :title="$t('docker.stopImageConfirm')" @confirm="imageRemove(row)" width="170">
+                        <template #reference>
+                            <el-button :disabled="row.isUse == ImageStateEnum.Used.value" type="danger" link plain>
+                                {{ $t('common.delete') }}
+                            </el-button>
+                        </template>
+                    </el-popconfirm>
+                </template>
+            </el-table-column>
+        </el-table>
     </div>
 
     <el-dialog

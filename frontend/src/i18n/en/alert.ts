@@ -229,23 +229,38 @@ export default {
         sourceMatchRequired: 'Source alert labels are required',
         targetMatchRequired: 'Target alert labels are required',
         inhibitionNameRequired: 'Please enter the inhibition rule name',
-        sourceMatchTips: 'When an alert matches these labels, it becomes the inhibition source.\nE.g.: A cluster-down alert triggers suppression of instance-down alerts within that cluster.',
-        targetMatchTips: 'Alerts matching these labels will be suppressed and no notifications will be sent.\nE.g.: Suppress all instance-down alerts when the cluster is down.',
-        equalLabelsTips: 'Source and target alerts must have the same value on these label keys to trigger inhibition.\nE.g.: If "cluster" is specified, only alerts within the same cluster are inhibited.\nLeave empty to suppress all targets when the source matches (global inhibition).',
+        sourceMatchTips:
+            'When an alert matches these labels, it becomes the inhibition source.\nE.g.: A cluster-down alert triggers suppression of instance-down alerts within that cluster.',
+        targetMatchTips:
+            'Alerts matching these labels will be suppressed and no notifications will be sent.\nE.g.: Suppress all instance-down alerts when the cluster is down.',
+        equalLabelsTips:
+            'Source and target alerts must have the same value on these label keys to trigger inhibition.\nE.g.: If "cluster" is specified, only alerts within the same cluster are inhibited.\nLeave empty to suppress all targets when the source matches (global inhibition).',
 
         // ---- Form Tooltip Tips ----
-        scopeValueTips: 'Limit the resource scope for this rule. Only metrics from selected resources will trigger alerts.\nE.g.: Select a machine to monitor only its CPU/memory metrics.',
-        conditionTips: 'Define metric and threshold conditions for triggering alerts.\nSupports multi-condition AND/OR combinations, e.g. CPU > 80% AND memory > 90%.',
-        evalIntervalTips: 'How often (in seconds) the system evaluates the alert condition.\nLower values mean faster alerts but higher system load. Recommended: 30-120s.',
-        triggerCountTips: 'How many consecutive times the condition must be met before an alert fires.\nPrevents false alerts from transient spikes. Set to 1 for immediate triggering.',
-        recoveryCountTips: 'How many consecutive recoveries before sending a recovery notification.\nPrevents repeated alert/recovery cycles when metrics fluctuate near the threshold.',
-        groupWaitTips: 'Wait time before sending the first notification for a new alert group.\nCollects alerts in the same group during this period to merge into one notification.',
+        scopeValueTips:
+            'Limit the resource scope for this rule. Only metrics from selected resources will trigger alerts.\nE.g.: Select a machine to monitor only its CPU/memory metrics.',
+        conditionTips:
+            'Define metric and threshold conditions for triggering alerts.\nSupports multi-condition AND/OR combinations, e.g. CPU > 80% AND memory > 90%.',
+        evalIntervalTips:
+            'How often (in seconds) the system evaluates the alert condition.\nLower values mean faster alerts but higher system load. Recommended: 30-120s.',
+        triggerCountTips:
+            'How many consecutive times the condition must be met before an alert fires.\nPrevents false alerts from transient spikes. Set to 1 for immediate triggering.',
+        recoveryCountTips:
+            'How many consecutive recoveries before sending a recovery notification.\nPrevents repeated alert/recovery cycles when metrics fluctuate near the threshold.',
+        groupWaitTips:
+            'Wait time before sending the first notification for a new alert group.\nCollects alerts in the same group during this period to merge into one notification.',
         groupIntervalTips: 'Interval for re-sending notifications when new alerts join an already-notified group.\nPrevents frequent notification bursts.',
-        repeatIntervalTips: 'Interval for re-sending notifications for ongoing alerts.\nEnsures recipients don\'t miss persistent alerts due to overlooked notifications.',
-        notifyRoutesTips: 'Route alerts to different notification channels and receivers based on label matching.\nE.g.: P0 alerts go to phone calls, P2 alerts only go to email.',
-        notifyPolicyTips: 'Automatically route alerts to notification channels via label matching.\nMultiple policies can stack: channels and receivers from all matching policies are merged.\nE.g.: A severity=critical policy + a team=infra policy both match, both sets of channels receive the notification.',
-        groupByLabelsTips: 'Group alerts by specified label keys. Alerts in the same group are merged into one notification.\nE.g.: Group by cluster to merge alerts from the same cluster.',
-        matchLabelsTips: 'Limit which alerts are silenced by label matching. Only matching alerts will be silenced.\nLeave empty to match all alerts by resource type.',
-        escalationRulesTips: 'Escalate notifications progressively when alerts remain unresolved.\nEach level can have different channels and receivers to ensure alerts are not missed.',
+        repeatIntervalTips:
+            "Interval for re-sending notifications for ongoing alerts.\nEnsures recipients don't miss persistent alerts due to overlooked notifications.",
+        notifyRoutesTips:
+            'Route alerts to different notification channels and receivers based on label matching.\nE.g.: P0 alerts go to phone calls, P2 alerts only go to email.',
+        notifyPolicyTips:
+            'Automatically route alerts to notification channels via label matching.\nMultiple policies can stack: channels and receivers from all matching policies are merged.\nE.g.: A severity=critical policy + a team=infra policy both match, both sets of channels receive the notification.',
+        groupByLabelsTips:
+            'Group alerts by specified label keys. Alerts in the same group are merged into one notification.\nE.g.: Group by cluster to merge alerts from the same cluster.',
+        matchLabelsTips:
+            'Limit which alerts are silenced by label matching. Only matching alerts will be silenced.\nLeave empty to match all alerts by resource type.',
+        escalationRulesTips:
+            'Escalate notifications progressively when alerts remain unresolved.\nEach level can have different channels and receivers to ensure alerts are not missed.',
     },
 };

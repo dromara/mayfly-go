@@ -1,15 +1,6 @@
 <template>
-    <div 
-        v-if="globalNotificationState.activeCount > 0" 
-        class="fixed z-[2000]"
-        :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }"
-    >
-        <el-badge 
-            :value="globalNotificationState.activeCount" 
-            :max="99" 
-            class="cursor-move"
-            @mousedown="startDrag"
-        >
+    <div v-if="globalNotificationState.activeCount > 0" class="fixed z-[2000]" :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }">
+        <el-badge :value="globalNotificationState.activeCount" :max="99" class="cursor-move" @mousedown="startDrag">
             <el-button
                 circle
                 type="primary"
@@ -38,7 +29,11 @@
                     <div class="p-4">
                         <!-- 直接展示所有通知 -->
                         <div class="flex flex-col gap-2">
-                            <div v-for="task in allTasks" :key="task.id" class="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                            <div
+                                v-for="task in allTasks"
+                                :key="task.id"
+                                class="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700"
+                            >
                                 <!-- 显示通知标题 -->
                                 <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{{ translateTitle(task.options.title) }}</div>
                                 <!-- 直接渲染原有组件 -->

@@ -45,6 +45,11 @@
                     <el-link v-if="!readonly" @click="onShowAddDataDialog()" type="primary" icon="plus" underline="never"></el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
+                    <el-tooltip v-if="!readonly" :show-after="500" effect="dark" :content="$t('db.importData')" placement="top">
+                        <el-link v-auth="'db:sqlscript:run'" @click="openImportDialog" type="warning" icon="upload" underline="never"></el-link>
+                    </el-tooltip>
+                    <el-divider v-if="!readonly" direction="vertical" border-style="dashed" />
+
                     <el-tooltip :show-after="500" effect="dark" content="commit" placement="top">
                         <el-link @click="onCommit()" type="success" icon="CircleCheck" underline="never"> </el-link>
                     </el-tooltip>
@@ -242,6 +247,16 @@
             v-model="addDataDialog.data"
             @submit-success="onRefresh"
         />
+
+        <DbTableDataImport
+            v-if="!readonly"
+            :db-id="dbId"
+            :db-name="dbName"
+            :table-name="tableName"
+            :columns="columns"
+            v-model:visible="importDialogVisible"
+            @success="onRefresh"
+        />
     </div>
 </template>
 
@@ -258,6 +273,7 @@ import { useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import DbTableData from './DbTableData.vue';
 import DbTableDataForm from './DbTableDataForm.vue';
+import DbTableDataImport from './DbTableDataImport.vue';
 
 const { t } = useI18n();
 
@@ -606,6 +622,12 @@ const cancelUpdateFields = () => {
 const onShowAddDataDialog = async () => {
     state.addDataDialog.title = t('db.addDataDialogTitle', { tableName: props.tableName });
     state.addDataDialog.visible = true;
+};
+
+// 数据文件导入弹窗（CSV/Excel）
+const importDialogVisible = ref(false);
+const openImportDialog = () => {
+    importDialogVisible.value = true;
 };
 
 defineExpose({

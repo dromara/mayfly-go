@@ -20,8 +20,7 @@
             <el-table-column :label="$t('common.operation')" min-width="120px">
                 <template #header>
                     <el-text tag="b">{{ $t('common.operation') }}</el-text>
-                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="onOpenFormDialog(null)">
-                    </el-button>
+                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="onOpenFormDialog(null)"> </el-button>
                 </template>
                 <template #default="scope">
                     <el-button v-auth="'cmdconf:save'" @click="onOpenFormDialog(scope.row)" type="primary" link>{{ $t('common.edit') }}</el-button>
@@ -30,7 +29,17 @@
             </el-table-column>
         </el-table>
 
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="$t('machine.cmdConfig')" :items="items" :data="editForm" size="40%" :confirm-api="onSubmitForm" @opened="onOpened" @submitted="getCmdConfs">
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="$t('machine.cmdConfig')"
+            :items="items"
+            :data="editForm"
+            size="40%"
+            :confirm-api="onSubmitForm"
+            @opened="onOpened"
+            @submitted="getCmdConfs"
+        >
             <!-- 过滤命令（动态标签输入） -->
             <template #cmds="{ form }">
                 <el-row>
@@ -71,7 +80,9 @@
 
             <template #footer>
                 <el-button :loading="drawerRef?.submitting" @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-                <el-button v-auth="'cmdconf:save'" type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{ $t('common.confirm') }}</el-button>
+                <el-button v-auth="'cmdconf:save'" type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()">{{
+                    $t('common.confirm')
+                }}</el-button>
             </template>
         </auto-form-drawer>
     </div>

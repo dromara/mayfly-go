@@ -339,11 +339,20 @@
                             <span v-if="!themeConfig.bgImage" class="wallpaper-thumb__plus">+</span>
                             <span v-if="themeConfig.glassWallpaper === 'custom'" class="wallpaper-thumb__check">✓</span>
                         </div>
-                        <span class="wallpaper-name" :class="{ 'is-active': themeConfig.glassWallpaper === 'custom' }">{{ $t('layout.config.wallpaperCustom') }}</span>
+                        <span class="wallpaper-name" :class="{ 'is-active': themeConfig.glassWallpaper === 'custom' }">{{
+                            $t('layout.config.wallpaperCustom')
+                        }}</span>
                     </div>
                 </div>
                 <!-- 隐藏上传器：由「自定义」瓦片 / 更换按钮程序化触发 -->
-                <el-upload ref="bgUploadRef" class="wallpaper-upload-hidden" :auto-upload="false" :show-file-list="false" accept="image/*" :on-change="onBgImageUpload">
+                <el-upload
+                    ref="bgUploadRef"
+                    class="wallpaper-upload-hidden"
+                    :auto-upload="false"
+                    :show-file-list="false"
+                    accept="image/*"
+                    :on-change="onBgImageUpload"
+                >
                     <span></span>
                 </el-upload>
                 <template v-if="themeConfig.glassWallpaper === 'custom' && themeConfig.bgImage">
@@ -661,7 +670,12 @@ const compressWallpaper = (file: File): Promise<string> =>
         const img = new Image();
         img.onload = () => {
             URL.revokeObjectURL(objectUrl);
-            for (const [edge, q] of [[2560, 0.82], [1920, 0.72], [1440, 0.62], [1280, 0.5]] as const) {
+            for (const [edge, q] of [
+                [2560, 0.82],
+                [1920, 0.72],
+                [1440, 0.62],
+                [1280, 0.5],
+            ] as const) {
                 const dataUrl = encodeWallpaper(img, edge, q);
                 if (dataUrl && dataUrl.length <= WALLPAPER_BUDGET) {
                     resolve(dataUrl);

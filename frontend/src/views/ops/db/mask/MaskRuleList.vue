@@ -19,7 +19,9 @@
 
                     <template #status="{ data }">
                         <el-switch
-                            :model-value="data.status === DbMaskRuleStatusEnum.Enabled.value ? DbMaskRuleStatusEnum.Enabled.value : DbMaskRuleStatusEnum.Disabled.value"
+                            :model-value="
+                                data.status === DbMaskRuleStatusEnum.Enabled.value ? DbMaskRuleStatusEnum.Enabled.value : DbMaskRuleStatusEnum.Disabled.value
+                            "
                             @change="(val: number) => changeRuleStatus(data, val)"
                             inline-prompt
                             :active-text="$t('common.enable')"
@@ -158,11 +160,7 @@ const formatInstance = (id: number) => {
 
 /** 列标签生效范围文案：库名/表名/列名，留空为全部 */
 const formatTagScope = (data: DbMaskColumn) => {
-    const parts = [
-        `${t('db.db')}: ${data.dbName || '*'}`,
-        `${t('db.table')}: ${data.tableName || '*'}`,
-        `${t('db.columnName')}: ${data.columnName || '*'}`,
-    ];
+    const parts = [`${t('db.db')}: ${data.dbName || '*'}`, `${t('db.table')}: ${data.tableName || '*'}`, `${t('db.columnName')}: ${data.columnName || '*'}`];
     return parts.join(' / ');
 };
 

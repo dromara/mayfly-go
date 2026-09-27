@@ -1,26 +1,26 @@
 <template>
     <div class="component-container">
         <el-space>
-        <el-select size="small" v-model="selectedCollection" style="min-width: 200px" @change="loadList" filterable clearable :teleported="false">
-            <el-option v-for="item in collections" :key="item" :label="item" :value="item" />
-        </el-select>
+            <el-select size="small" v-model="selectedCollection" style="min-width: 200px" @change="loadList" filterable clearable :teleported="false">
+                <el-option v-for="item in collections" :key="item" :label="item" :value="item" />
+            </el-select>
 
-        <el-button type="primary" size="small" icon="plus" @click="handleCreate">
-            {{ $t('milvus.createPartition') }}
-        </el-button>
-        <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
-    </el-space>
+            <el-button type="primary" size="small" icon="plus" @click="handleCreate">
+                {{ $t('milvus.createPartition') }}
+            </el-button>
+            <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
+        </el-space>
 
-    <el-table :data="list">
-        <el-table-column prop="id" label="id" />
-        <el-table-column prop="name" :label="$t('milvus.partitionName')" />
-        <el-table-column prop="createTime" :label="$t('common.createTime')" />
-        <el-table-column :label="$t('common.operation')" width="200">
-            <template #default="{ row }">
-                <el-button size="small" type="warning" plain @click="handleRelease(row)">{{ $t('milvus.release') }}</el-button>
-                <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-            </template>
-        </el-table-column>
+        <el-table :data="list">
+            <el-table-column prop="id" label="id" />
+            <el-table-column prop="name" :label="$t('milvus.partitionName')" />
+            <el-table-column prop="createTime" :label="$t('common.createTime')" />
+            <el-table-column :label="$t('common.operation')" width="200">
+                <template #default="{ row }">
+                    <el-button size="small" type="warning" plain @click="handleRelease(row)">{{ $t('milvus.release') }}</el-button>
+                    <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+            </el-table-column>
         </el-table>
     </div>
 
@@ -112,14 +112,11 @@ onMounted(() => {
     loadList();
 });
 
-watch(
-    [() => props.milvusId, () => milvusStore.authCertName],
-    () => {
-        list.value = [];
-        loadList();
-        milvusStore.clear();
-    }
-);
+watch([() => props.milvusId, () => milvusStore.authCertName], () => {
+    list.value = [];
+    loadList();
+    milvusStore.clear();
+});
 </script>
 
 <style scoped>

@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/internal/machine/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
@@ -12,6 +13,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -69,6 +71,13 @@ func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJob
 // 保存机器任务信息
 func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *dto.SaveMachineCronJob) error {
 	mcj := param.CronJob
+
+	// 会被调度的任务先校验表达式：注册失败只写服务端日志，不拦下就是「保存成功但永不执行」
+	if cronJobScheduled(mcj) {
+		if err := scheduler.ValidateSpec(mcj.Cron); err != nil {
+			return errorx.NewBizI(ctx, imsg.ErrCronJobSpecInvalid, "cron", mcj.Cron, "reason", err.Error())
+		}
+	}
 
 	// 赋值cron job key
 	if mcj.Id == 0 {
@@ -151,11 +160,15 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 	}
 }
 
+// cronJobScheduled 计划任务是否会被注册为定时任务：禁用态只解绑不注册。
+// 保存前的表达式校验与 addCronJob 的绑定判定共用此函数，避免两处口径漂移。
+func cronJobScheduled(mcj *entity.MachineCronJob) bool {
+	return mcj.Status != entity.MachineCronJobStatusDisable
+}
+
 func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	key := mcj.Key
-	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
-
-	if isDisable {
+	if !cronJobScheduled(mcj) {
 		taskx.UnbindCronTask(key)
 		return
 	}

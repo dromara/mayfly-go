@@ -12,6 +12,7 @@ func InitIoc() {
 	ioc.Register(new(instanceAppImpl))
 	ioc.Register(new(dbAppImpl))
 	ioc.Register(new(dbSQLExecAppImpl))
+	ioc.Register(new(dbDataImportAppImpl))
 	ioc.Register(new(dbSQLAppImpl))
 	ioc.Register(new(dbsync.DataSyncAppImpl))
 	ioc.Register(new(transfer.DbTransferAppImpl))

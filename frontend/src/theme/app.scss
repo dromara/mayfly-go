@@ -211,7 +211,6 @@ body,
     color: var(--el-color-info);
 }
 
-
 /* 全局滚动条（统一样式：细条、圆角、透明轨道、主题 token，
    对齐 shadcn scroll-area 的 bg-border 基准；窄屏宽度收窄见 media/scrollbar.scss） */
 * {
@@ -258,20 +257,17 @@ body,
     filter: grayscale(100%);
 }
 
-
 .fade-enter-active,
 .fade-leave-active {
-    transition: opacity .2s ease-in-out;
+    transition: opacity 0.2s ease-in-out;
 }
 
 .fade-enter,
 .fade-leave-to
 
-/* .fade-leave-active below version 2.1.8 */
-    {
+/* .fade-leave-active below version 2.1.8 */ {
     opacity: 0;
 }
-
 
 /* custom card */
 .card {

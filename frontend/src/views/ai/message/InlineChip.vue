@@ -1,9 +1,5 @@
 <template>
-    <span
-        class="inline-chip"
-        :style="{ background: reg?.color.bg, color: reg?.color.text, borderColor: reg?.color.border }"
-        :title="text"
-    >
+    <span class="inline-chip" :style="{ background: reg?.color.bg, color: reg?.color.text, borderColor: reg?.color.border }" :title="text">
         <span class="chat-chip__icon" :data-icon="icon" />
         <span class="inline-chip__name">{{ text }}</span>
     </span>

@@ -117,10 +117,7 @@ export async function readChatAttachment(file: File): Promise<MessageAttachment>
             reader.readAsDataURL(file);
         });
         // GIF 保留原样以尽量保留动画；小图免重绘；大图压缩控制传输/落库体积
-        const dataUrl =
-            file.type === 'image/gif' || file.size <= IMAGE_INLINE_THRESHOLD
-                ? raw
-                : await compressImage(raw);
+        const dataUrl = file.type === 'image/gif' || file.size <= IMAGE_INLINE_THRESHOLD ? raw : await compressImage(raw);
         return { ...base, kind: 'image', dataUrl };
     }
 
@@ -173,9 +170,7 @@ export async function uploadChatAttachment(att: MessageAttachment): Promise<stri
 
 /** 批量上传附件并回填 fileKey（本地预览字段 dataUrl/text 保留，发送前即时回显不受影响） */
 export async function uploadChatAttachments(attachments: MessageAttachment[]): Promise<MessageAttachment[]> {
-    return Promise.all(
-        attachments.map(async (att) => ({ ...att, fileKey: await uploadChatAttachment(att) })),
-    );
+    return Promise.all(attachments.map(async (att) => ({ ...att, fileKey: await uploadChatAttachment(att) })));
 }
 
 /**
@@ -203,10 +198,7 @@ export function buildMessageContent(text: string, attachments?: MessageAttachmen
  * LLM 侧由后端解析为 base64 data URL 后转 UserInputImage block；
  * text 为 i18n 占位说明随段持久化）
  */
-export function buildImageSegments(
-    attachments?: MessageAttachment[],
-    placeholder = '',
-): ContentSegment[] {
+export function buildImageSegments(attachments?: MessageAttachment[], placeholder = ''): ContentSegment[] {
     if (!attachments?.length) return [];
     return attachments
         .filter((att): att is MessageAttachment => att.kind === 'image' && !!att.fileKey)

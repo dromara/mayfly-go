@@ -1,6 +1,14 @@
 <template>
     <div class="auth-cert-edit">
-        <el-dialog :title="props.title" v-model="dialogVisible" :show-close="false" width="600px" :destroy-on-close="true" :close-on-click-modal="false" append-to-body>
+        <el-dialog
+            :title="props.title"
+            v-model="dialogVisible"
+            :show-close="false"
+            width="600px"
+            :destroy-on-close="true"
+            :close-on-click-modal="false"
+            append-to-body
+        >
             <auto-form ref="acFormRef" v-model="form" :items="items">
                 <!-- 密文输入（密码 / 私钥两种形态，含查看密文入口） -->
                 <template #ciphertext>
@@ -199,7 +207,13 @@ const items: AutoFormItem[] = [
     { prop: 'ciphertext', label: 'common.password', type: 'custom', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.Password.value },
     { prop: 'ciphertext', label: 'ac.privateKey', type: 'custom', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value },
     { prop: 'extra.passphrase', label: 'ac.privateKeyPwd', type: 'password', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value },
-    { prop: 'ciphertext', label: 'ac.publicAc', type: 'custom', slot: 'publicAuthCert', when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.Public.value },
+    {
+        prop: 'ciphertext',
+        label: 'ac.publicAc',
+        type: 'custom',
+        slot: 'publicAuthCert',
+        when: (f) => f.ciphertextType == AuthCertCiphertextTypeEnum.Public.value,
+    },
     { prop: 'remark', label: 'common.remark', type: 'textarea', rows: 2 },
 ];
 

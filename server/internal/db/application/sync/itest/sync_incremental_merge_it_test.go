@@ -43,7 +43,7 @@ func setupMerge(t *testing.T) (*sync.DataSyncAppImpl, *dbi.DbConn, *dbi.DbConn) 
 }
 
 func mergeTask(updField, watermark string) *entity.DataSyncTask {
-	return &entity.DataSyncTask{
+	task := &entity.DataSyncTask{
 		Id:              mergeItTaskId,
 		TaskName:        "it-sync-merge",
 		SrcDbId:         1,
@@ -58,6 +58,10 @@ func mergeTask(updField, watermark string) *entity.DataSyncTask {
 		UpdFieldVal:     watermark,
 		DataSQL:         fmt.Sprintf("SELECT id, name, update_time FROM %s", mergeItSrcTable),
 	}
+	// 本用例断言的是“水位推进后边界行不重发”的旧语义；P0 后 Merge Auto 默认 Inclusive（at-least-once），
+	// 保留历史断言需显式 Exclusive；inclusive 行为另由 sync_inclusive_cursor_it_test.go 直接回归。
+	task.SetCursorInclusivity(entity.CursorInclusivityExclusive)
+	return task
 }
 
 // queryMergeNames 查询目标表 id→name 映射，供逐行断言。

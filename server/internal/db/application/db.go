@@ -39,6 +39,10 @@ type Db interface {
 	// 根据数据库实例id获取连接，随机返回该instanceId下已连接的conn，若不存在则是使用该instanceId关联的db进行连接并返回。
 	GetDbConnByInstanceId(ctx context.Context, instanceId uint64) (*dbi.DbConn, error)
 
+	// GetDbTypesByDbIds 按库id批量获取其所属实例的数据库类型（mysql/pgsql等），返回 dbId -> dbType。
+	// 只读元数据不开库连接；库或实例已被删除时该 dbId 不出现在结果里
+	GetDbTypesByDbIds(dbIds []uint64) (map[uint64]string, error)
+
 	// DumpDb dumpDb
 	DumpDb(ctx context.Context, reqParam *dto.DumpDb) error
 }
@@ -217,6 +221,49 @@ func (d *dbAppImpl) GetDbConnByInstanceId(ctx context.Context, instanceId uint64
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
 	firstDb := dbs[0]
 	return d.GetDbConn(ctx, firstDb.Id, strings.Split(firstDb.Database, " ")[0])
+}
+
+func (d *dbAppImpl) GetDbTypesByDbIds(dbIds []uint64) (map[uint64]string, error) {
+	dbTypes := make(map[uint64]string, len(dbIds))
+	if len(dbIds) == 0 {
+		return dbTypes, nil
+	}
+
+	dbs, err := d.ListByCond(model.NewCond().In("id", dbIds), "id", "instance_id")
+	if err != nil {
+		return nil, errorx.NewBiz("failed to get database list by ids")
+	}
+
+	// 先取库关联的实例并去重，再按实例主键批量取类型，避免逐库查询
+	dbId2InstId := make(map[uint64]uint64, len(dbs))
+	instIdSet := make(map[uint64]struct{}, len(dbs))
+	for _, db := range dbs {
+		dbId2InstId[db.Id] = db.InstanceId
+		instIdSet[db.InstanceId] = struct{}{}
+	}
+	if len(instIdSet) == 0 {
+		return dbTypes, nil
+	}
+	instIds := make([]uint64, 0, len(instIdSet))
+	for instId := range instIdSet {
+		instIds = append(instIds, instId)
+	}
+
+	insts, err := d.dbInstanceApp.ListByCond(model.NewCond().In("id", instIds), "id", "type")
+	if err != nil {
+		return nil, errorx.NewBiz("failed to get db instance list by ids")
+	}
+	instTypes := make(map[uint64]string, len(insts))
+	for _, inst := range insts {
+		instTypes[inst.Id] = inst.Type
+	}
+
+	for dbId, instId := range dbId2InstId {
+		if dbType, ok := instTypes[instId]; ok {
+			dbTypes[dbId] = dbType
+		}
+	}
+	return dbTypes, nil
 }
 
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {

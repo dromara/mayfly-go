@@ -9,11 +9,7 @@
                 <MessageScrollerContent class="w-full gap-2 px-6 py-4">
                     <!-- 顶部加载更多指示器（data-scroll-ignore 避免引擎
                          把它当作 prepend 消息项） -->
-                    <div
-                        v-if="loadingMore"
-                        data-scroll-ignore
-                        class="flex justify-center py-2"
-                    >
+                    <div v-if="loadingMore" data-scroll-ignore class="flex justify-center py-2">
                         <Spinner class="size-4 text-muted-foreground" />
                     </div>
 
@@ -29,13 +25,7 @@
                             </EmptyContent>
                         </Empty>
                         <div class="message-list__suggestions">
-                            <button
-                                v-for="key in suggestionKeys"
-                                :key="key"
-                                type="button"
-                                class="message-list__suggestion"
-                                @click="$emit('suggest', t(key))"
-                            >
+                            <button v-for="key in suggestionKeys" :key="key" type="button" class="message-list__suggestion" @click="$emit('suggest', t(key))">
                                 {{ t(key) }}
                             </button>
                         </div>
@@ -43,11 +33,7 @@
 
                     <!-- 消息列表（不设 scroll-anchor：发送后由引擎
                          following-bottom 自动贴底；带 anchor 会被引擎锚定到视口顶部） -->
-                    <MessageScrollerItem
-                        v-for="msg in messages"
-                        :key="msg.id"
-                        :message-id="msg.id"
-                    >
+                    <MessageScrollerItem v-for="msg in messages" :key="msg.id" :message-id="msg.id">
                         <MessageBubble
                             :id="msg.id"
                             :role="msg.role === 'user' ? 'user' : 'assistant'"
@@ -99,12 +85,7 @@ import { ArrowDownIcon, MessageCircleMoreIcon } from '@lucide/vue';
 import { computed, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Spinner } from '@/components/ui/spinner';
-import {
-    Empty,
-    EmptyContent,
-    EmptyDescription,
-    EmptyMedia,
-} from '@/components/ui/empty';
+import { Empty, EmptyContent, EmptyDescription, EmptyMedia } from '@/components/ui/empty';
 import {
     MessageScroller,
     MessageScrollerButton,
@@ -205,7 +186,7 @@ watch(
                 emit('load-more');
             }
         }, 300);
-    },
+    }
 );
 
 /** 视口顶部第一条可见消息 + 视口内偏移（findTopVisibleAnchor）。
@@ -241,7 +222,7 @@ watch(
         // 双帧延迟：等引擎 defaultScroll（贴底）先落位，再锚定覆盖
         requestAnimationFrame(() => requestAnimationFrame(() => tryRestore()));
     },
-    { immediate: true },
+    { immediate: true }
 );
 
 /** 消息可能异步到达（分页/重载），元素未注册时按帧重试（MAX_RETRY_FRAMES） */
@@ -310,7 +291,10 @@ function tryRestore(frame = 0) {
     border: 1px solid var(--el-border-color-lighter);
     border-radius: 9999px;
     cursor: pointer;
-    transition: background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
+    transition:
+        background-color 0.15s ease-out,
+        border-color 0.15s ease-out,
+        color 0.15s ease-out;
 }
 
 .message-list__suggestion:hover {

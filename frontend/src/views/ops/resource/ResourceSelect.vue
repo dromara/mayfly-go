@@ -35,7 +35,17 @@ import type { PropType } from 'vue';
 
 import { isPrefixSubsequence } from '@/common/utils/string';
 
-import { getContributor, isNodeSelectable, resolveHasChildren, toNodeMatcher, TreeApiKey, type NodeMatcher, type TreeApi, type TreeNode, type TreeNodeData } from './tree';
+import {
+    getContributor,
+    isNodeSelectable,
+    resolveHasChildren,
+    toNodeMatcher,
+    TreeApiKey,
+    type NodeMatcher,
+    type TreeApi,
+    type TreeNode,
+    type TreeNodeData,
+} from './tree';
 import { loadResourceTags } from './resource';
 import TreeNodeRow from './tree/TreeNodeRow.vue';
 import { provide } from 'vue';
@@ -89,7 +99,9 @@ const treeProps = {
 };
 
 const emit = defineEmits(['change']);
-const treeRef = useTemplateRef<{ filter: (val: string) => void; getNode: (key: string | number) => { data: TreeNodeData } | undefined; blur: () => void }>('treeRef');
+const treeRef = useTemplateRef<{ filter: (val: string) => void; getNode: (key: string | number) => { data: TreeNodeData } | undefined; blur: () => void }>(
+    'treeRef'
+);
 
 const modelValue = defineModel<string | number>('modelValue');
 

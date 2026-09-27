@@ -120,7 +120,7 @@ const props = withDefaults(
         loadingMore: false,
         hasMore: true,
         skeletonCount: 6,
-    },
+    }
 );
 
 const getRowKey = (item: any, index: number): string | number => {
@@ -139,7 +139,7 @@ useIntersectionObserver(
     ([entry]) => {
         if (entry?.isIntersecting) props.loadMore?.();
     },
-    { rootMargin: '200px' },
+    { rootMargin: '200px' }
 );
 </script>
 

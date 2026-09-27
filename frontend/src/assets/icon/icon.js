@@ -72,10 +72,10 @@ function convertSvgToSymbol(svgString, symbolId) {
                 console && console.log(t);
             }
         }
-        (l = function () {
+        ((l = function () {
             var t,
                 a = document.createElement('div');
-            (a.innerHTML = svgsymbols),
+            ((a.innerHTML = svgsymbols),
                 (a = a.getElementsByTagName('svg')[0]) &&
                     (a.setAttribute('aria-hidden', 'true'),
                     (a.style.position = 'absolute'),
@@ -83,13 +83,13 @@ function convertSvgToSymbol(svgString, symbolId) {
                     (a.style.height = 0),
                     (a.style.overflow = 'hidden'),
                     (a = a),
-                    (t = document.body).firstChild ? h(a, t.firstChild) : t.appendChild(a));
+                    (t = document.body).firstChild ? h(a, t.firstChild) : t.appendChild(a)));
         }),
             document.addEventListener
                 ? ~['complete', 'loaded', 'interactive'].indexOf(document.readyState)
                     ? setTimeout(l, 0)
                     : ((e = function () {
-                          document.removeEventListener('DOMContentLoaded', e, !1), l();
+                          (document.removeEventListener('DOMContentLoaded', e, !1), l());
                       }),
                       document.addEventListener('DOMContentLoaded', e, !1))
                 : document.attachEvent &&
@@ -99,7 +99,7 @@ function convertSvgToSymbol(svgString, symbolId) {
                   s(),
                   (o.onreadystatechange = function () {
                       'complete' == o.readyState && ((o.onreadystatechange = null), d());
-                  }));
+                  })));
     }
     function d() {
         n || ((n = !0), i());

@@ -138,8 +138,23 @@ export interface IMilvusField {
     DefaultValue?: string;
     ElementType?: number;
     TypeParams?: { dim?: string; max_length?: string; [key: string]: unknown };
-    IndexParams?: { index_type?: string; indexType?: string; metric_type?: string; metricType?: string; params?: string | Record<string, unknown>; [key: string]: unknown };
-    Indexes?: { IndexType?: string; index_type?: string; MetricType?: string; metric_type?: string; Params?: Record<string, unknown>; indexParams?: Record<string, unknown>; [key: string]: unknown }[];
+    IndexParams?: {
+        index_type?: string;
+        indexType?: string;
+        metric_type?: string;
+        metricType?: string;
+        params?: string | Record<string, unknown>;
+        [key: string]: unknown;
+    };
+    Indexes?: {
+        IndexType?: string;
+        index_type?: string;
+        MetricType?: string;
+        metric_type?: string;
+        Params?: Record<string, unknown>;
+        indexParams?: Record<string, unknown>;
+        [key: string]: unknown;
+    }[];
     [key: string]: unknown;
 }
 

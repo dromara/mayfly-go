@@ -1,5 +1,14 @@
 import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
-import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, ColumnDefinition, SqlSnippetTemplate } from './types';
+import type {
+    DbDialect,
+    DialectCapabilities,
+    DialectInfo,
+    EditorCompletion,
+    EditorCompletionItem,
+    IndexDefinition,
+    ColumnDefinition,
+    SqlSnippetTemplate,
+} from './types';
 import { createDefaultColumns, defaultColumnConfigs } from './shared/defaultColumns';
 import { limitCommaPageSnippet } from './shared/snippets';
 import { appendLimitSql, getDefaultDataType, QuoteEscape, wrapValueDefault } from './shared/utils';
@@ -297,7 +306,9 @@ export class MysqlDialect implements DbDialect {
                 addIndexes.forEach((a) => {
                     const unique = a.unique ? 'UNIQUE ' : '';
                     const cols = a.columnNames.map((c) => this.quoteIdentifier(c)).join(',');
-                    parts.push(`ADD ${unique}INDEX ${this.quoteIdentifier(a.indexName)}(${cols}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment ?? '')}'`);
+                    parts.push(
+                        `ADD ${unique}INDEX ${this.quoteIdentifier(a.indexName)}(${cols}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment ?? '')}'`
+                    );
                 });
             }
             return `ALTER TABLE ${this.quoteIdentifier(tableName)}\n  ${parts.join(',\n  ')};`;

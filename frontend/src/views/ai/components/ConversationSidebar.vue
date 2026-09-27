@@ -8,12 +8,7 @@
                     <MessageSquareIcon class="size-3.5" />
                     {{ t('ai.assistant.sessions') }}
                 </h3>
-                <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    :title="t('ai.assistant.newSession')"
-                    @click="$emit('create')"
-                >
+                <Button size="icon-sm" variant="ghost" :title="t('ai.assistant.newSession')" @click="$emit('create')">
                     <PlusIcon class="size-4" />
                 </Button>
             </div>
@@ -42,22 +37,11 @@
                 >
                     <!-- 执行中指示器：替换会话图标为 primary 脉冲圆点（克制的呼吸感，不占额外空间）；
                          prefers-reduced-motion 下降级为静态圆点 -->
-                    <span
-                        v-if="item.running"
-                        class="relative flex size-3.5 shrink-0 items-center justify-center"
-                        :title="t('ai.chat.turnRunning')"
-                    >
-                        <span
-                            class="absolute size-2 rounded-full bg-primary opacity-60 animate-ping motion-reduce:animate-none"
-                            aria-hidden="true"
-                        ></span>
+                    <span v-if="item.running" class="relative flex size-3.5 shrink-0 items-center justify-center" :title="t('ai.chat.turnRunning')">
+                        <span class="absolute size-2 rounded-full bg-primary opacity-60 animate-ping motion-reduce:animate-none" aria-hidden="true"></span>
                         <span class="relative size-2 rounded-full bg-primary"></span>
                     </span>
-                    <MessageSquareIcon
-                        v-else
-                        class="size-3.5 shrink-0"
-                        :class="item.key === active ? 'text-primary' : 'text-muted-foreground'"
-                    />
+                    <MessageSquareIcon v-else class="size-3.5 shrink-0" :class="item.key === active ? 'text-primary' : 'text-muted-foreground'" />
                     <!-- 双击行内重命名（Enter/blur 提交，Esc 取消） -->
                     <input
                         v-if="editingKey === item.key"
@@ -68,7 +52,7 @@
                         @blur="commitEdit(item)"
                         @keydown.enter.prevent="commitEdit(item)"
                         @keydown.esc.prevent="cancelEdit"
-                    >
+                    />
                     <span v-else class="truncate flex-1" :title="`${item.label} · ${item.createTime}`">{{ item.label }}</span>
                     <span v-if="item.createTime && editingKey !== item.key" class="text-xs text-muted-foreground shrink-0">{{ item.createTime }}</span>
                     <!-- 删除确认：el-popconfirm 气泡（对齐项目删除确认惯例），@click.stop 阻断行切换 -->
@@ -80,12 +64,7 @@
                         @confirm="$emit('delete', item)"
                     >
                         <template #reference>
-                            <Button
-                                size="icon-xs"
-                                variant="ghost"
-                                class="opacity-0 group-hover:opacity-100 shrink-0"
-                                @click.stop
-                            >
+                            <Button size="icon-xs" variant="ghost" class="opacity-0 group-hover:opacity-100 shrink-0" @click.stop>
                                 <Trash2Icon class="size-3" />
                             </Button>
                         </template>

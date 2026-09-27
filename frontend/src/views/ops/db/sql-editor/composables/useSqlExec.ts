@@ -99,12 +99,17 @@ export function useSqlExec(options: UseSqlExecOptions) {
         return state.execResTabs[state.execResTabs.length - 1];
     };
 
-    /*
-     * 执行sql
+    /**
+     * 执行一批 SQL：
+     * - 单条：非查询类先弹出备注输入，再在当前/新 tab 执行；
+     * - 多条：按查询/非查询分类合并执行（见 runMultipleSqls）。
+     *
+     * @param sqls 待执行 SQL 列表
+     * @param emptyMsg 列表为空时的提示（已解析的 i18n 文本）
+     * @param newTab 是否在新 tab 执行
      */
-    const onRunSql = async (newTab = false) => {
-        const sqls = getSql();
-        notBlank(sqls, t('db.noSelectRunSqlMsg'));
+    const runSqlList = async (sqls: string[], emptyMsg: string, newTab = false) => {
+        notBlank(sqls, emptyMsg);
 
         if (sqls.length == 1) {
             const oneSql = sqls[0];
@@ -123,6 +128,20 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
         // 处理多条SQL - 合并相同类型的结果
         await runMultipleSqls(sqls, newTab);
+    };
+
+    /*
+     * 执行sql：有选区则执行选区，否则执行光标所在的单条语句
+     */
+    const onRunSql = async (newTab = false) => {
+        await runSqlList(getSql(), t('db.noSelectRunSqlMsg'), newTab);
+    };
+
+    /*
+     * 执行编辑器内的全部 SQL：忽略选区与光标位置，拆分为多条后逐类执行
+     */
+    const onRunAllSql = async (newTab = false) => {
+        await runSqlList(getAllSql(), t('db.noSqlToRunMsg'), newTab);
     };
 
     /**
@@ -367,6 +386,26 @@ export function useSqlExec(options: UseSqlExecOptions) {
         return [];
     };
 
+    /**
+     * 获取编辑器内的全部 SQL 语句：忽略选区与光标，按方言切割语义拆分为多条。
+     * 供「执行全部」使用，与 getSql（选区优先、否则光标所在单条）互补。
+     */
+    const getAllSql = (): string[] => {
+        const monacoEditor = options.monacoEditor;
+        // 编辑器还没初始化
+        if (!monacoEditor?.getModel()) {
+            return [];
+        }
+
+        // 按方言切割语义，感知反引号/#注释/dollar-quote/字符串转义中的分号（切割错误会导致执行错误SQL）
+        const splitOpts = getDialectCapabilities(getNowDbInst().getDialect()).sqlSplitOptions;
+        const fullSql = monacoEditor.getModel()?.getValue();
+        if (!fullSql || !fullSql.trim()) {
+            return [];
+        }
+        return splitSqlStatements(fullSql, ';', splitOpts).map((x) => x.text);
+    };
+
     const changeUpdatedField = (hasUpdatedFields: boolean, dt: ExecResTabLike) => {
         // 存在待提交的单元格变更时，该结果页签才显示提交和取消按钮
         dt.hasUpdatedFields = hasUpdatedFields;
@@ -429,10 +468,12 @@ export function useSqlExec(options: UseSqlExecOptions) {
         getNowDbInst,
         pushNewTab,
         onRunSql,
+        onRunAllSql,
         runSql,
         runMultipleSqls,
         runNonQuerySqls,
         getSql,
+        getAllSql,
         changeUpdatedField,
         onDeleteData,
         submitUpdateFields,

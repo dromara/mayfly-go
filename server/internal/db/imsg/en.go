@@ -13,6 +13,7 @@ var En = map[i18n.MsgId]string{
 	LogDbDelete:     "DB - Delete DB",
 	LogDbRunSQL:     "DB - Run SQL",
 	LogDbRunSQLFile: "DB - Run SQL File",
+	LogDbImportData: "DB - Import Data File",
 	LogDbDump:       "DB - Export DB",
 
 	SQLScripRunProgress: "sql execution progress",
@@ -50,4 +51,7 @@ var En = map[i18n.MsgId]string{
 	LogDbMaskTagSave:         "mask - Save masking column tag",
 	LogDbMaskTagDelete:       "mask - Delete masking column tag",
 	ErrMaskTagNeedAlgoOrRule: "A bind-action column tag requires an algorithm or a related rule",
+
+	// scheduled task
+	ErrTaskCronInvalid: "The cron expression [{{.cron}}] of the scheduled task is invalid, so it will never run as planned: {{.reason}}",
 }

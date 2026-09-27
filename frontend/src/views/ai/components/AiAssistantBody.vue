@@ -13,11 +13,7 @@
 
         <!-- 右侧聊天区域 -->
         <main class="ai-assistant-body__chat">
-            <ChatContainer
-                v-if="currentConversation"
-                :conversation="currentConversation"
-                @conversation-created="onConversationCreated"
-            />
+            <ChatContainer v-if="currentConversation" :conversation="currentConversation" @conversation-created="onConversationCreated" />
             <div v-else class="ai-assistant-body__empty">
                 <Empty>
                     <EmptyMedia variant="icon">

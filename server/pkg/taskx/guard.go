@@ -14,6 +14,10 @@ const (
 	// runGuardKeyPrefix Redis 分布式锁 key 前缀
 	runGuardKeyPrefix = "mayfly:run-guard:"
 
+	runGuardStopKeyPrefix = "mayfly:run-stop:"
+
+	runGuardStopMarkerTTL = 5 * time.Minute
+
 	// runGuardLockDuration 分布式锁 TTL。
 	// 同步/迁移任务通常分钟级完成，2 小时 TTL 覆盖绝大多数场景。
 	// 若任务执行时间超过 TTL，锁自动释放，另一实例可能接管——
@@ -86,12 +90,16 @@ func (g *RunGuard[T]) AcquireWithRunId(taskId T) (string, bool) {
 		// SETNX 成功，持锁写入所有权值
 		g.held[taskId] = val
 		g.mu.Unlock()
+		// 成功占位后清 stale 停止标记：上一轮 endRunning 若因异常没清，Redis 里最长会残留 5min，
+		// 新一轮首批即被误判"要停止"。Acquire 边界清是最省心的兜底位置。
+		g.ClearStopRequest(taskId)
 		return val, true
 	}
 
 	// Redis 未配置：本地互斥即最终裁决
 	g.held[taskId] = val
 	g.mu.Unlock()
+	g.ClearStopRequest(taskId)
 	return val, true
 }
 
@@ -167,6 +175,60 @@ func (g *RunGuard[T]) IsCurrentRun(taskId T, runId string) bool {
 		return false
 	}
 	return g.CurrentRunId(taskId) == runId
+}
+
+// RequestStop 请求停止运行中的任务：跨实例可见的停止信号。
+//
+// 与 Release 的语义分工：Release 是"持有者自释放"（只清本地 held + CasDel 自己那份 Redis val），
+// RequestStop 是"外部停止信号"——任何实例都可以调用，通过 Redis 标记让持有者每批边界读到后自行中止。
+//
+// 为什么不能靠 CasDel 直接删 Redis 锁解决跨实例停止：
+// 持有者的 IsCurrentRun 有本地 held fast path（避免每批读 Redis），
+// 单删 Redis 会让本地 map 与 Redis 状态分歧，持有者继续跑；
+// 引入独立"停止标记"通道，两条路径各自成立、由持有者主动收敛，无破坏性副作用。
+//
+// 本实例持有的情况：立即 Release，本地 fast path 下一批即中止；Redis 标记同步写入，
+// 让其他潜在观察方（如前端 IsRunning 查询）也能看到停止信号。
+func (g *RunGuard[T]) RequestStop(taskId T) {
+	g.Release(taskId)
+	cli := rediscli.GetCli()
+	if cli == nil {
+		return // 单实例部署：Release 已生效；无 Redis 也就没有跨实例语义
+	}
+	key := fmt.Sprintf("%s%v", runGuardStopKeyPrefix, taskId)
+	if err := cli.Set(context.Background(), key, "1", runGuardStopMarkerTTL).Err(); err != nil {
+		logx.Errorf("[RunGuard] set stop marker failed for task %v: %v", taskId, err)
+	}
+}
+
+// IsStopRequested 检查是否有跨实例停止标记。持有者在批次边界与 sleep tick 内调用。
+// Redis 不可达时保守返回 false：宁可让当前批次跑完由 endRunning 收敛，也不因 Redis 抖动误停健康任务。
+func (g *RunGuard[T]) IsStopRequested(taskId T) bool {
+	cli := rediscli.GetCli()
+	if cli == nil {
+		return false
+	}
+	key := fmt.Sprintf("%s%v", runGuardStopKeyPrefix, taskId)
+	n, err := cli.Exists(context.Background(), key).Result()
+	if err != nil {
+		logx.Errorf("[RunGuard] exists stop marker failed for task %v: %v", taskId, err)
+		return false
+	}
+	return n > 0
+}
+
+// ClearStopRequest 清除停止标记。
+// 由 AcquireWithRunId（防上一轮 stale 标记误停新一轮首批）与 endRunning（响应后收敛）双侧调用；
+// 即使两处都失败，标记本身的 5 分钟 TTL 也能自愈。
+func (g *RunGuard[T]) ClearStopRequest(taskId T) {
+	cli := rediscli.GetCli()
+	if cli == nil {
+		return
+	}
+	key := fmt.Sprintf("%s%v", runGuardStopKeyPrefix, taskId)
+	if err := cli.Del(context.Background(), key).Err(); err != nil {
+		logx.Errorf("[RunGuard] clear stop marker failed for task %v: %v", taskId, err)
+	}
 }
 
 // IsRunning 判断任务是否处于运行中。

@@ -54,9 +54,5 @@ export { default as ApprovalInterrupt } from './ApprovalInterrupt.vue';
 export { default as ConfirmationInterrupt } from './ConfirmationInterrupt.vue';
 export { default as GenericInterrupt } from './GenericInterrupt.vue';
 export { default as ParamCompletionInterrupt } from './param-completion/index.vue';
-export {
-    stateFromInterruptEvent,
-    createInterruptHandler,
-    interpretDecisionWithFallback,
-} from './helpers';
+export { stateFromInterruptEvent, createInterruptHandler, interpretDecisionWithFallback } from './helpers';
 export type { InterruptActionEvent, InterruptActionHandler, InterruptComponentProps } from './types';

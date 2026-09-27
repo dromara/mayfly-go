@@ -32,10 +32,11 @@ import (
 )
 
 type Db struct {
-	instanceApp  application.Instance  `inject:"T"`
-	dbApp        application.Db        `inject:"T"`
-	dbSQLExecApp application.DbSQLExec `inject:"T"`
-	tagApp       tagapp.TagTreeService `inject:"T"`
+	instanceApp     application.Instance     `inject:"T"`
+	dbApp           application.Db           `inject:"T"`
+	dbSQLExecApp    application.DbSQLExec    `inject:"T"`
+	dbDataImportApp application.DbDataImport `inject:"T"`
+	tagApp          tagapp.TagTreeService    `inject:"T"`
 }
 
 func (d *Db) ReqConfs() *req.Confs {
@@ -60,6 +61,11 @@ func (d *Db) ReqConfs() *req.Confs {
 		req.NewPost(":dbId/exec-sql-file", d.ExecSQLFile).Log(req.NewLogSaveI(imsg.LogDbRunSQLFile)).RequiredPermissionCode("db:sqlscript:run"),
 
 		req.NewGet(":dbId/dump", d.DumpSQL).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
+
+		// 表格文件（CSV/Excel）导入数据：先预览解析结果构建列映射，再按映射批量写入目标表
+		// 预览会解析上传文件，与导入同级授权，避免仅凭实例 id 就能让服务端解析任意文件
+		req.NewPost(":dbId/import-data-preview", d.PreviewImportData).RequiredPermissionCode("db:sqlscript:run"),
+		req.NewPost(":dbId/import-data", d.ImportData).Log(req.NewLogSaveI(imsg.LogDbImportData)).RequiredPermissionCode("db:sqlscript:run"),
 
 		req.NewGet(":dbId/t-infos", d.TableInfos),
 

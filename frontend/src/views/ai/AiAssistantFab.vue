@@ -1,11 +1,7 @@
 <template>
     <template v-if="fabVisible">
         <!-- 悬浮球：默认位于系统通知球上方错位摆放，可拖拽 + 位置记忆；需 ai:chat 权限码 -->
-        <div
-            v-auth="'ai:chat'"
-            class="ai-fab fixed z-[2000]"
-            :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }"
-        >
+        <div v-auth="'ai:chat'" class="ai-fab fixed z-[2000]" :style="{ bottom: position.bottom + 'px', right: position.right + 'px' }">
             <button
                 type="button"
                 class="ai-fab__button"
@@ -22,14 +18,7 @@
         </div>
 
         <!-- 右侧抽屉：复用 AiAssistantBody（页面与抽屉单一实现） -->
-        <el-drawer
-            v-model="drawerVisible"
-            size="min(720px, 94vw)"
-            :with-header="false"
-            append-to-body
-            class="ai-assistant-drawer"
-            @opened="onDrawerOpened"
-        >
+        <el-drawer v-model="drawerVisible" size="min(720px, 94vw)" :with-header="false" append-to-body class="ai-assistant-drawer" @opened="onDrawerOpened">
             <div class="ai-fab-drawer">
                 <header class="ai-fab-drawer__header">
                     <h3 class="ai-fab-drawer__title">
@@ -37,12 +26,7 @@
                         {{ t('ai.assistant.entryTitle') }}
                     </h3>
                     <div class="flex items-center gap-1">
-                        <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            :title="t('ai.assistant.sessions')"
-                            @click="sidebarVisible = !sidebarVisible"
-                        >
+                        <Button size="icon-sm" variant="ghost" :title="t('ai.assistant.sessions')" @click="sidebarVisible = !sidebarVisible">
                             <PanelLeftIcon class="size-4" />
                         </Button>
                         <Button size="icon-sm" variant="ghost" :title="t('common.close')" @click="drawerVisible = false">

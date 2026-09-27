@@ -400,6 +400,17 @@ func V1_12() []*gormigrate.Migration {
 			Rollback: noopRollback,
 		},
 		{
+			// 同步任务表新增 extra 列（model.ExtraData 内嵌字段）：
+			// 存放非查询/统计维度的任务配置（游标边界语义、批间 sleep、跳过索引校验等）。
+			// 旧的 v1.12.0-sync-task-columns 在本实体尚未内嵌 ExtraData 时已标记为已应用，
+			// AutoMigrate 不会重跑，需新开一个登记项触发列的创建。
+			ID: "v1.12.0-sync-task-extra-column",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DataSyncTask{})
+			},
+			Rollback: noopRollback,
+		},
+		{
 			// 迁移任务执行日志表（t_db_transfer_log），对齐数据同步日志架构：
 			// 每次执行生成独立记录，支持历史查询与指标统计。
 			ID: "v1.12.0-db-transfer-log",

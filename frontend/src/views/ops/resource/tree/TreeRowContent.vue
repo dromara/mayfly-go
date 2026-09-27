@@ -1,6 +1,10 @@
 <template>
     <!-- 懒加载占位行（淡入，见引擎动效样式） -->
-    <div v-if="node.kind === LOADING_KIND" class="tree-row-placeholder h-7 flex items-center text-(--el-text-color-secondary) select-none" :style="{ paddingLeft: '4px' }">
+    <div
+        v-if="node.kind === LOADING_KIND"
+        class="tree-row-placeholder h-7 flex items-center text-(--el-text-color-secondary) select-none"
+        :style="{ paddingLeft: '4px' }"
+    >
         <SvgIcon name="Loading" class="is-loading text-xs" />
         <span class="ml-1 text-xs">{{ $t('common.loadingMore') }}</span>
     </div>

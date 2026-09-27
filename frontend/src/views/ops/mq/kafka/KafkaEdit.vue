@@ -1,6 +1,17 @@
 <template>
     <div>
-        <auto-form-drawer ref="drawerRef" v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="40%" :confirm-api="onConfirm" @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer
+            ref="drawerRef"
+            v-model:visible="dialogVisible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="40%"
+            :confirm-api="onConfirm"
+            @submitted="emit('cancel')"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
             <!-- 关联标签 -->
             <template #tagCodePaths="{ form }">
                 <TagTreeSelect multiple :code="form.code" v-model="form.tagCodePaths" />
@@ -67,7 +78,13 @@ const items = defineFormItems<KafkaForm>([
     { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'hosts', label: 'Hosts', type: 'textarea', rows: 2, required: true, placeholder: 'mq.kafka.hostsPlaceholder' },
-    { prop: 'saslMechanism', label: 'mq.kafka.sasl_mechanism', type: 'select', options: [...SASL_MECHANISM_OPTIONS], placeholder: 'mq.kafka.sasl_mechanism_placeholder' },
+    {
+        prop: 'saslMechanism',
+        label: 'mq.kafka.sasl_mechanism',
+        type: 'select',
+        options: [...SASL_MECHANISM_OPTIONS],
+        placeholder: 'mq.kafka.sasl_mechanism_placeholder',
+    },
     { prop: 'username', label: 'mq.kafka.username' },
     { prop: 'password', label: 'common.password', type: 'password' },
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },

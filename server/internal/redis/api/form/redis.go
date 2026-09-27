@@ -1,5 +1,7 @@
 package form
 
+import "mayfly-go/internal/redis/domain/entity"
+
 type Redis struct {
 	Id                 uint64   `json:"id"`
 	Name               string   `json:"name"`
@@ -13,11 +15,6 @@ type Redis struct {
 	TagCodePaths       []string `binding:"required" json:"tagCodePaths"`
 	Remark             string   `json:"remark"`
 	FlowProcdefKey     string   `json:"flowProcdefKey"` // 审批流-流程定义key（有值则说明关键操作需要进行审批执行）,使用指针为了方便更新空字符串(取消流程审批)
-}
-
-type KeyInfo struct {
-	Key   string `binding:"required" json:"key"`
-	Timed int64  `json:"timed"`
 }
 
 type RedisScanForm struct {
@@ -38,4 +35,58 @@ type RunCmdForm struct {
 	Db     int    `json:"db"`
 	Cmd    []any  `json:"cmd"`
 	Remark string `json:"remark"`
+}
+
+// KeyMemberPageForm key 成员分页读取
+type KeyMemberPageForm struct {
+	Key     string `json:"key" binding:"required"`
+	View    string `json:"view"`
+	Cursor  string `json:"cursor"`
+	Offset  int64  `json:"offset"`
+	Size    int64  `json:"size"`
+	Keyword string `json:"keyword"`
+}
+
+// KeyMemberWriteForm 成员新增/修改/删除，args 为该视角表单收集的字段值
+type KeyMemberWriteForm struct {
+	Key     string            `json:"key" binding:"required"`
+	View    string            `json:"view"`
+	Op      string            `json:"op" binding:"required"`
+	Member  *entity.Member    `json:"member"`
+	Members []*entity.Member  `json:"members"`
+	Args    map[string]string `json:"args"`
+	Ttl     int64             `json:"ttl"`
+}
+
+// KeyOpForm 视角扩展操作
+type KeyOpForm struct {
+	Key  string            `json:"key" binding:"required"`
+	View string            `json:"view"`
+	Op   string            `json:"op" binding:"required"`
+	Args map[string]string `json:"args"`
+}
+
+// KeyTtlForm 设置 key 过期时间，ttl <= 0 表示持久化
+type KeyTtlForm struct {
+	Key string `json:"key" binding:"required"`
+	Ttl int64  `json:"ttl"`
+}
+
+// KeyRenameForm key 重命名
+type KeyRenameForm struct {
+	Key    string `json:"key" binding:"required"`
+	NewKey string `json:"newKey" binding:"required"`
+}
+
+// KeyCopyForm 复制 key，TargetDb 缺省表示留在当前库
+type KeyCopyForm struct {
+	Key      string `json:"key" binding:"required"`
+	NewKey   string `json:"newKey" binding:"required"`
+	TargetDb *int   `json:"targetDb"`
+	Replace  bool   `json:"replace"`
+}
+
+// KeysForm 批量 key 操作（类型摘要、批量删除）
+type KeysForm struct {
+	Keys []string `json:"keys" binding:"required"`
 }

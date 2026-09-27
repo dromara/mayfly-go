@@ -1,12 +1,18 @@
 import { isTrue, notBlank } from '@/common/assert';
-import config from '@/common/config';
-import { joinClientParams } from '@/common/request';
+import { downloadFile as downloadByIframe } from '@/common/utils/file';
 import { convertToBytes } from '@/common/utils/format';
 import { Msg } from '@/hooks/useI18n';
 import { useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { machineApi, uploadFile, uploadFolder } from '../../api';
-import type { MachineFileInfo } from '../../types';
+import { buildFileDownloadUrl, machineApi, uploadFile, uploadFolder } from '../../api';
+import { DIR_TYPE, FILE_TYPE, PATH_SEP, PROTECTED_PATHS } from '../constants';
+import type { FileRowVM, MachineFileInfo } from '../../types';
+
+/** 目录/普通文件判定：类型标记只在此处解释，模板与业务代码不重复比较字面量 */
+export const isDir = (file: MachineFileInfo) => file.type === DIR_TYPE;
+
+export const isFile = (file: MachineFileInfo) => file.type === FILE_TYPE;
 
 export interface UseFileOperationsOptions {
     machineId: () => number | undefined;
@@ -21,13 +27,18 @@ export interface UseFileOperationsOptions {
 
 export function useFileOperations(options: UseFileOperationsOptions) {
     const { t } = useI18n();
-    const pathSep = '/';
 
-    const copyOrMvFile = {
+    /**
+     * 剪贴板（待复制/待移动的路径集）。
+     *
+     * 必须是 reactive：它直接驱动模板里的粘贴条与按钮文案，用普通对象时 push/清空不会触发重渲染，
+     * 表现为「点了复制但粘贴条不出现，要再碰一下表格才冒出来」。
+     */
+    const copyOrMvFile = reactive({
         paths: [] as string[],
         type: 'cp',
         fromPath: '',
-    };
+    });
 
     const isCpFile = () => {
         return copyOrMvFile.type == 'cp';
@@ -80,11 +91,11 @@ export function useFileOperations(options: UseFileOperationsOptions) {
     const fileRename = async (row: MachineFileInfo, oldname: string) => {
         notBlank(row.name, t('machine.newFileNameNotEmpty'));
         await machineApi.renameFile.request({
-            machineId: parseInt(options.machineId() + ''),
+            machineId: options.machineId(),
             authCertName: options.authCertName(),
-            fileId: parseInt(options.fileId() + ''),
-            path: options.nowPath() + pathSep + oldname,
-            newname: options.nowPath() + pathSep + row.name,
+            fileId: options.fileId(),
+            path: options.nowPath() + PATH_SEP + oldname,
+            newname: options.nowPath() + PATH_SEP + row.name,
             protocol: options.protocol(),
         });
         Msg.success('machine.renameSuccess');
@@ -113,8 +124,18 @@ export function useFileOperations(options: UseFileOperationsOptions) {
         }
     };
 
+    /**
+     * 在当前目录下创建文件/目录
+     *
+     * 名称在此集中校验（入口不止弹层里的「确定」一个），带分隔符的名称会拼出与预期不同的路径，
+     * 在前置拦下比把后端错误透给用户更好定位
+     * @returns 创建后的完整路径，供调用方给出可核对的结果提示
+     */
     const createFile = async (name: string, type: string) => {
-        const path = options.nowPath() + pathSep + name;
+        // notBlank 收已翻译的文案（isTrue 才自己走 i18n），两者传参形式不同
+        notBlank(name, t('machine.newFileNameNotEmpty'));
+        isTrue(!name.includes(PATH_SEP), 'machine.fileNameNoSeparator');
+        const path = options.nowPath() + PATH_SEP + name;
         await machineApi.createFile.request({
             machineId: options.machineId(),
             authCertName: options.authCertName(),
@@ -124,19 +145,28 @@ export function useFileOperations(options: UseFileOperationsOptions) {
             type,
         });
         options.refresh();
+        return path;
     };
 
+    /**
+     * 触发浏览器下载，走全站统一的隐藏 iframe 入口。
+     *
+     * 自己拼 `a[target=_blank]` 会先开一个新标签页再由浏览器自给关闭（响应是附件下载），
+     * 表现为点一下下载整页闪动；镜像导出 / 技能导出 / 终端录制下载都用的是这个入口。
+     */
     const downloadFile = (data: MachineFileInfo) => {
-        const a = document.createElement('a');
-        a.setAttribute(
-            'href',
-            `${config.baseApiUrl}/machines/${options.machineId()}/files/${options.fileId()}/download?path=${data.path}&machineId=${options.machineId()}&authCertName=${options.authCertName()}&fileId=${options.fileId()}&protocol=${options.protocol()}&${joinClientParams()}`
+        downloadByIframe(
+            buildFileDownloadUrl({
+                machineId: options.machineId() as number,
+                fileId: options.fileId(),
+                path: data.path,
+                authCertName: options.authCertName(),
+                protocol: options.protocol(),
+            })
         );
-        a.setAttribute('target', '_blank');
-        a.click();
     };
 
-    const getDirSize = async (data: MachineFileInfo) => {
+    const getDirSize = async (data: FileRowVM) => {
         try {
             data.loadingDirSize = true;
             const res = await machineApi.dirSize.request({
@@ -152,7 +182,7 @@ export function useFileOperations(options: UseFileOperationsOptions) {
         }
     };
 
-    const showFileStat = async (data: MachineFileInfo) => {
+    const showFileStat = async (data: FileRowVM) => {
         try {
             if (data.stat) {
                 return;
@@ -249,11 +279,7 @@ export function useFileOperations(options: UseFileOperationsOptions) {
         );
     };
 
-    const dontOperate = (data: MachineFileInfo) => {
-        const path = data.path;
-        const ls = ['/', '//', '/usr', '/usr/', '/usr/bin', '/opt', '/run', '/etc', '/proc', '/var', '/mnt', '/boot', '/dev', '/home', '/media', '/root'];
-        return ls.indexOf(path) != -1;
-    };
+    const dontOperate = (data: MachineFileInfo) => PROTECTED_PATHS.has(data.path);
 
     return {
         copyOrMvFile,
@@ -272,5 +298,7 @@ export function useFileOperations(options: UseFileOperationsOptions) {
         handleFileUpload,
         handleFolderUpload,
         dontOperate,
+        isDir,
+        isFile,
     };
 }

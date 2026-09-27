@@ -88,7 +88,7 @@ class SysSocket {
      */
     private async connect(): Promise<void> {
         this.socket = await createWebSocket('/sysmsg');
-        
+
         this.socket.onopen = () => {
             this.resetReconnect();
         };
@@ -138,7 +138,7 @@ class SysSocket {
 
         this.socket.onclose = (event) => {
             this.socket = null;
-            
+
             // 如果不是手动关闭，则尝试重连
             if (!this.isManualClose) {
                 this.handleReconnect();
@@ -163,10 +163,7 @@ class SysSocket {
         this.reconnectCount++;
 
         // 指数退避：3s -> 6s -> 12s -> 24s -> 30s(max)
-        const delay = Math.min(
-            this.baseReconnectDelay * Math.pow(2, this.reconnectCount - 1),
-            this.maxReconnectDelay
-        );
+        const delay = Math.min(this.baseReconnectDelay * Math.pow(2, this.reconnectCount - 1), this.maxReconnectDelay);
 
         this.reconnectTimer = window.setTimeout(async () => {
             this.isReconnecting = false;

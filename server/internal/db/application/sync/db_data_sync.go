@@ -78,12 +78,24 @@ func (app *DataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, ord
 }
 
 func (app *DataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyncTask) error {
-	// 保存时校验DataSQL与增量字段合法性（运行时Run内还会再校验，双重拦截）
-	dialect, err := app.getSrcDialect(taskEntity)
+	// 会被调度的任务先校验 cron：绑定失败只写日志，不拦下就是「保存成功但永不执行」；
+	// 放在建连之前，避免为一个注定不合法的表达式去开源库连接
+	if syncTaskScheduled(taskEntity) {
+		if err := scheduler.ValidateSpec(taskEntity.TaskCron); err != nil {
+			return errorx.NewBizI(ctx, imsg.ErrTaskCronInvalid, "cron", taskEntity.TaskCron, "reason", err.Error())
+		}
+	}
+
+	// 保存时校验DataSQL与增量字段合法性（运行时Run内还会再校验，双重拦截）；
+	// P1：同一个 srcConn 上顺带做一次增量字段索引存在性探测，无索引直接拒保存，不重复开连接。
+	srcConn, err := app.getSrcConn(taskEntity)
 	if err != nil {
 		return err
 	}
-	if err := validateDataSyncSQL(dialect, taskEntity); err != nil {
+	if err := validateDataSyncSQL(srcConn.GetDialect(), taskEntity); err != nil {
+		return err
+	}
+	if err := ValidateIncrementalFieldIndex(ctx, srcConn, taskEntity); err != nil {
 		return err
 	}
 
@@ -331,11 +343,17 @@ func (app *DataSyncAppImpl) buildSyncQuery(ctx context.Context, task *entity.Dat
 
 		// 方言感知水位线格式化
 		formattedVal := updFieldDataType.Codec.SQLValue(task.UpdFieldVal)
-		updSQL = fmt.Sprintf("and %s > %s", task.UpdField, formattedVal)
+		// 边界语义：Auto 按模式取默认（合并/对账类为 Inclusive、追加/刷新/校验类为 Exclusive）；
+		// Inclusive 行不丢弃同时间戳边界，依赖目标 UPSERT 幂等，与业界 at-least-once 对齐。
+		cmpOp := ">"
+		if resolveCursorInclusivity(task.SyncMode, task.GetCursorInclusivity()) {
+			cmpOp = ">="
+		}
+		updSQL = fmt.Sprintf("and %s %s %s", task.UpdField, cmpOp, formattedVal)
 
-		// 辅助增量字段（多字段增量条件）
+		// 辅助增量字段（多字段增量条件）：与主字段共用水位值，边界语义同主字段
 		if task.UpdFieldSecondary != "" {
-			updSQL += fmt.Sprintf(" and %s > %s", task.UpdFieldSecondary, formattedVal)
+			updSQL += fmt.Sprintf(" and %s %s %s", task.UpdFieldSecondary, cmpOp, formattedVal)
 		}
 	}
 
@@ -567,12 +585,12 @@ func (app *DataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 			// 目标写入已完成，但任务级水位属共享状态：仅在仍是本次锁持有者时推进，
 			// 避免新实例接管后旧任务默默推水位把新执行的进度拉到旧位置。
-			if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) {
+			if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) && !app.runGuard.IsStopRequested(task.Id) {
 				if pwErr := app.persistUpdFieldVal(ctx, task); pwErr != nil {
 					logx.WarnfContext(ctx, "watermark persist failed (batch #%d): %s", batchNum, pwErr.Error())
 				}
 			} else {
-				logx.WarnfContext(ctx, "sync task [%d] was preempted, skipping watermark persist (batch #%d)", task.Id, batchNum)
+				logx.WarnfContext(ctx, "sync task [%d] was preempted or stop-requested, skipping watermark persist (batch #%d)", task.Id, batchNum)
 			}
 
 			now := time.Now()
@@ -594,8 +612,24 @@ func (app *DataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 
 			// 以 runId 而非任务级锁存在性判断“本次执行是否仍有效”，避免新实例已接管时旧任务继续写入：
 			// 旧逻辑 IsRunning(taskId) 在新实例 Acquire 后仍为 true，会默默多跑一批。
-			if !app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) {
+			// 批边界停止判定合并两个信号：
+			// - IsCurrentRun：本地/Redis 归属，捕获"TTL 过期被他实例接管"
+			// - IsStopRequested：Redis 停止标记，捕获"他实例调 StopTask"（本地 fast path 无法感知）
+			if !app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) || app.runGuard.IsStopRequested(task.Id) {
 				return errorx.NewBiz("the task has been terminated or preempted")
+			}
+
+			// 批间可打断 sleep：定位为“目标侧节流”（缓解 replica lag / WAL apply 积压）；
+			// 对 mysql/pg 默认 buffered 驱动的源侧几乎无效（长 SELECT 开头一次拉入客户端），
+			// 真需减源压需开启分片扫描（P2）。tick 内检查 runId 归属，被抢占时立刻中止。
+			if sleepMs := task.GetSleepBetweenBatchesMs(); sleepMs > 0 {
+				sleepDur := time.Duration(sleepMs) * time.Millisecond
+				alive := interruptibleSleep(sleepDur, 100*time.Millisecond, func() bool {
+					return app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) && !app.runGuard.IsStopRequested(task.Id)
+				})
+				if !alive {
+					return errorx.NewBiz("the task has been terminated or preempted during batch sleep")
+				}
 			}
 		}
 
@@ -611,12 +645,12 @@ func (app *DataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		if err := app.srcData2TargetDb(ctx, result, sec); err != nil {
 			return err
 		}
-		if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) {
+		if app.runGuard.IsCurrentRun(task.Id, syncLog.RunId) && !app.runGuard.IsStopRequested(task.Id) {
 			if pwErr := app.persistUpdFieldVal(ctx, task); pwErr != nil {
 				logx.WarnfContext(ctx, "watermark persist failed (final batch): %s", pwErr.Error())
 			}
 		} else {
-			logx.WarnfContext(ctx, "sync task [%d] was preempted, skipping watermark persist (final batch)", task.Id)
+			logx.WarnfContext(ctx, "sync task [%d] was preempted or stop-requested, skipping watermark persist (final batch)", task.Id)
 		}
 		metrics.RecordBatch(len(result))
 		batchNum++
@@ -1115,9 +1149,15 @@ func (app *DataSyncAppImpl) GetLogWithRunLog(logId uint64) (*entity.DataSyncLog,
 	return log, nil
 }
 
+// syncTaskScheduled 同步任务是否会被注册为定时任务：非启用态只解绑。
+// 保存前的表达式校验与 addCronJob 的绑定判定共用此函数，避免两处口径漂移。
+func syncTaskScheduled(taskEntity *entity.DataSyncTask) bool {
+	return taskEntity.Status == entity.DataSyncTaskStatusEnable
+}
+
 func (app *DataSyncAppImpl) addCronJob(ctx context.Context, taskEntity *entity.DataSyncTask) {
 	key := taskEntity.TaskKey
-	if taskEntity.Status != entity.DataSyncTaskStatusEnable {
+	if !syncTaskScheduled(taskEntity) {
 		taskx.UnbindCronTask(key)
 		return
 	}

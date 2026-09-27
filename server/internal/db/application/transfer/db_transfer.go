@@ -11,6 +11,7 @@ import (
 	"mayfly-go/internal/db/dbm/export"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/base"
@@ -124,6 +125,13 @@ func (app *DbTransferAppImpl) GetPageList(condition *entity.DbTransferTaskQuery,
 }
 
 func (app *DbTransferAppImpl) Save(ctx context.Context, taskEntity *entity.DbTransferTask) error {
+	// 会被调度的任务先校验 cron：绑定失败只写日志，不拦下就是「保存成功但永不执行」
+	if transferTaskScheduled(taskEntity) {
+		if err := scheduler.ValidateSpec(taskEntity.Cron); err != nil {
+			return errorx.NewBizI(ctx, imsg.ErrTaskCronInvalid, "cron", taskEntity.Cron, "reason", err.Error())
+		}
+	}
+
 	var err error
 	if taskEntity.Id == 0 { // 新建时生成key
 		taskEntity.TaskKey = stringx.RandUUID()
@@ -443,7 +451,8 @@ func (app *DbTransferAppImpl) executeDataPhase(
 					taskErr = fmt.Errorf("transfer table [%s] data panicked: %w", dt.table, e)
 				}
 			})
-			if !app.runGuard.IsRunning(taskId) {
+			// 停止/接管判定：本地/Redis 归属 + 跨实例停止标记，与 sync 侧对齐
+			if !app.runGuard.IsRunning(taskId) || app.runGuard.IsStopRequested(taskId) {
 				return errorx.NewBiz("transfer stopped")
 			}
 			lastStmtCount := 0

@@ -102,7 +102,15 @@ describe('AutoForm 控件渲染与双向绑定', () => {
         const wrapper = mountForm({
             modelValue: form,
             items: [
-                { prop: 'type', label: 'fields.type', type: 'select', options: [{ value: 1, label: 'fields.name' }, { value: 2, label: 'Raw Label' }] },
+                {
+                    prop: 'type',
+                    label: 'fields.type',
+                    type: 'select',
+                    options: [
+                        { value: 1, label: 'fields.name' },
+                        { value: 2, label: 'Raw Label' },
+                    ],
+                },
             ] as AutoFormItem[],
         });
         await flushPromises();
@@ -118,7 +126,7 @@ describe('AutoForm 控件渲染与双向绑定', () => {
         expect(options[0].textContent).toContain('Name');
         expect(options[1].textContent).toContain('Raw Label');
 
-        await (select.vm).handleOptionSelect({ value: 1, label: 'Name' });
+        await select.vm.handleOptionSelect({ value: 1, label: 'Name' });
         await flushPromises();
         expect(form.type).toBe(1);
     });
@@ -231,7 +239,12 @@ describe('AutoForm 显隐与校验联动', () => {
         });
         await flushPromises();
         // 同步调用包装后的 validator，锁定 true→通过、string→i18n 错误 的语义
-        const validator = ((wrapper.findComponent({ name: 'ElForm' }).props('rules') as Record<string, Array<{ validator: (r: unknown, v: unknown, cb: (e?: Error) => void) => void }>>).name ?? [])[0]?.validator;
+        const validator = ((
+            wrapper.findComponent({ name: 'ElForm' }).props('rules') as Record<
+                string,
+                Array<{ validator: (r: unknown, v: unknown, cb: (e?: Error) => void) => void }>
+            >
+        ).name ?? [])[0]?.validator;
         expect(validator).toBeTypeOf('function');
         const cb = vi.fn();
         validator({}, 'bad', cb);
@@ -248,7 +261,10 @@ describe('AutoForm 显隐与校验联动', () => {
             ] as AutoFormItem[],
         });
         await flushPromises();
-        const rules = wrapper.findComponent({ name: 'ElForm' }).props('rules') as Record<string, Array<{ validator: (r: unknown, v: unknown, cb: (e?: Error) => void) => void }>>;
+        const rules = wrapper.findComponent({ name: 'ElForm' }).props('rules') as Record<
+            string,
+            Array<{ validator: (r: unknown, v: unknown, cb: (e?: Error) => void) => void }>
+        >;
         const nameValidator = rules.name[0].validator;
         const connValidator = rules.conn[0].validator;
         expect(nameValidator).toBeTypeOf('function');
@@ -277,7 +293,10 @@ describe('AutoForm 显隐与校验联动', () => {
         const dialog = mountDialog({ visible: false, items: [{ prop: 'name', type: 'input' }] as AutoFormItem[] });
         await flushPromises();
         expect(typeof (dialog.vm as any).validateField).toBe('function');
-        const drawer = mount(AutoFormDrawer, { props: { visible: false, items: [{ prop: 'name', type: 'input' }] as AutoFormItem[] }, global: { plugins: [ElementPlus, i18n] } });
+        const drawer = mount(AutoFormDrawer, {
+            props: { visible: false, items: [{ prop: 'name', type: 'input' }] as AutoFormItem[] },
+            global: { plugins: [ElementPlus, i18n] },
+        });
         await flushPromises();
         expect(typeof (drawer.vm as any).validateField).toBe('function');
     });
@@ -302,7 +321,10 @@ describe('AutoForm 显隐与校验联动', () => {
                     prop: 'type',
                     label: 'fields.type',
                     type: 'select',
-                    options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }],
+                    options: [
+                        { value: 'a', label: 'A' },
+                        { value: 'b', label: 'B' },
+                    ],
                     optionDisabled: (v) => v === 'b',
                 },
             ] as AutoFormItem[],
@@ -419,7 +441,15 @@ describe('AutoForm JSON Schema 编译渲染', () => {
 
     it('不支持 JSON 下发的类型（custom/enum）跳过并告警', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const wrapper = mountForm({ schema: { version: 1, fields: [{ prop: 'a', type: 'custom' }, { prop: 'b', type: 'input' }] } });
+        const wrapper = mountForm({
+            schema: {
+                version: 1,
+                fields: [
+                    { prop: 'a', type: 'custom' },
+                    { prop: 'b', type: 'input' },
+                ],
+            },
+        });
         expect(wrapper.findAll('input').length).toBe(1);
         expect(warn).toHaveBeenCalled();
         warn.mockRestore();
@@ -431,7 +461,14 @@ describe('AutoForm JSON Schema 编译渲染', () => {
 describe('AutoFormDialog 回填与确认流程', () => {
     it('打开时对象 data 深拷贝回填：编辑表单不污染外部行数据', async () => {
         const rowData = { name: 'orig', meta: { icon: 'a' } };
-        const wrapper = mountDialog({ visible: false, data: rowData, items: [{ prop: 'name', type: 'input' }, { prop: 'meta.icon', type: 'input' }] as AutoFormItem[] });
+        const wrapper = mountDialog({
+            visible: false,
+            data: rowData,
+            items: [
+                { prop: 'name', type: 'input' },
+                { prop: 'meta.icon', type: 'input' },
+            ] as AutoFormItem[],
+        });
         await flushPromises();
         await wrapper.setProps({ visible: true });
         await flushPromises();

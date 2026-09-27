@@ -260,11 +260,7 @@ class SqliteDialect implements DbDialect {
         return `DROP TABLE ${this.quoteIdentifier(table)}`;
     }
 
-    getModifyColumnSql(
-        tableData: TableEditContext,
-        tableName: string,
-        changeData: ChangeDiff<ColumnDefinition>
-    ): string {
+    getModifyColumnSql(tableData: TableEditContext, tableName: string, changeData: ChangeDiff<ColumnDefinition>): string {
         // sqlite修改表结构需要先删除再创建
         let sql = [] as string[];
 

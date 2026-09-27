@@ -34,11 +34,7 @@ export const labelApi = {
  * @param items 列表项数组（需要有 id 字段）
  * @param labelField 标签字段名（默认 'labels'）
  */
-export async function fillLabelsToItems<T extends { id: number }>(
-    targetType: string,
-    items: T[],
-    labelField: keyof T = 'labels' as keyof T
-): Promise<void> {
+export async function fillLabelsToItems<T extends { id: number }>(targetType: string, items: T[], labelField: keyof T = 'labels' as keyof T): Promise<void> {
     if (items.length === 0) return;
 
     const targetIds = items.map((item) => item.id);

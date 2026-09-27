@@ -69,6 +69,7 @@ const (
 	DbTransferTaskModeDb   TransferMode = 1 // 数据迁移方式，1、迁移到数据库
 	DbTransferTaskModeFile TransferMode = 2 // 数据迁移方式，2、迁移到文件
 
+	DbTransferTaskRunStateNotRun  TransferRunState = 0  // 从未执行过（实体字段零值，不能当成执行成功）
 	DbTransferTaskRunStateSuccess TransferRunState = 2  // 执行成功
 	DbTransferTaskRunStateRunning TransferRunState = 1  // 运行中状态
 	DbTransferTaskRunStateFail    TransferRunState = -1 // 执行失败

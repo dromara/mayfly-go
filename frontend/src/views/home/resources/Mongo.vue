@@ -8,7 +8,9 @@
     >
         <!-- 自定义列表项 -->
         <template #item="{ resource }">
-            <div class="flex flex-col gap-2 p-2.5 border border-[var(--el-border-color-lighter)] rounded-md bg-[var(--el-bg-color)] cursor-pointer transition-all duration-200 min-w-0 max-w-full box-border hover:border-[var(--el-color-primary-light-7)] hover:bg-[var(--el-fill-color-light)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+            <div
+                class="flex flex-col gap-2 p-2.5 border border-[var(--el-border-color-lighter)] rounded-md bg-[var(--el-bg-color)] cursor-pointer transition-all duration-200 min-w-0 max-w-full box-border hover:border-[var(--el-color-primary-light-7)] hover:bg-[var(--el-fill-color-light)] hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)]"
+            >
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-1.5 font-medium text-[13px] text-[var(--el-text-color-primary)] flex-1 min-w-0">
                         <SvgIcon :name="ResourceTypeEnum.Mongo.extra.icon" :size="16" />

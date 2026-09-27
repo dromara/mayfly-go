@@ -6,18 +6,18 @@
         </div>
 
         <el-table :data="dbs" style="width: 100%">
-        <el-table-column prop="name" :label="$t('milvus.dbName')" sortable>
-            <template #default="{ row }">
-                <el-link type="primary" underline="never" @click="handleUse(row)">{{ row.name }}</el-link>
-            </template>
-        </el-table-column>
-        <el-table-column prop="create_time" :label="$t('common.createTime')" sortable />
-        <el-table-column :label="$t('common.operation')" width="200">
-            <template #default="{ row }">
-                <el-button type="warning" size="small" plain @click="handleConfig(row)">{{ $t('milvus.config') }}</el-button>
-                <el-button type="danger" size="small" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-            </template>
-        </el-table-column>
+            <el-table-column prop="name" :label="$t('milvus.dbName')" sortable>
+                <template #default="{ row }">
+                    <el-link type="primary" underline="never" @click="handleUse(row)">{{ row.name }}</el-link>
+                </template>
+            </el-table-column>
+            <el-table-column prop="create_time" :label="$t('common.createTime')" sortable />
+            <el-table-column :label="$t('common.operation')" width="200">
+                <template #default="{ row }">
+                    <el-button type="warning" size="small" plain @click="handleConfig(row)">{{ $t('milvus.config') }}</el-button>
+                    <el-button type="danger" size="small" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+            </el-table-column>
         </el-table>
     </div>
 
@@ -71,7 +71,15 @@ const createForm = ref({
 /** 建库表单声明 */
 const createItems: AutoFormItem[] = [
     { prop: 'name', label: 'milvus.databaseName', required: true, placeholder: 'milvus.databaseNamePlaceholder' },
-    { prop: 'timezone', label: 'milvus.timezone', type: 'select', required: true, options: timezones, props: { filterable: true, clearable: true }, placeholder: 'milvus.timezonePlaceholder' },
+    {
+        prop: 'timezone',
+        label: 'milvus.timezone',
+        type: 'select',
+        required: true,
+        options: timezones,
+        props: { filterable: true, clearable: true },
+        placeholder: 'milvus.timezonePlaceholder',
+    },
 ];
 
 const configDialog = ref({
@@ -86,7 +94,15 @@ const configForm = ref({
 
 /** 库属性表单声明 */
 const configItems: AutoFormItem[] = [
-    { prop: 'timezone', label: 'milvus.timezone', type: 'select', required: true, options: timezones, props: { filterable: true }, placeholder: 'milvus.timezonePlaceholder' },
+    {
+        prop: 'timezone',
+        label: 'milvus.timezone',
+        type: 'select',
+        required: true,
+        options: timezones,
+        props: { filterable: true },
+        placeholder: 'milvus.timezonePlaceholder',
+    },
 ];
 
 const loadList = async () => {
@@ -168,14 +184,11 @@ const handleUse = async (row: IDatabase) => {
     milvusApi.useDatabase(props.milvusId, row.name);
 };
 
-watch(
-    [() => props.milvusId, () => milvusStore.authCertName],
-    () => {
-        milvusStore.setDbs([]);
-        loadList();
-        milvusStore.clear();
-    }
-);
+watch([() => props.milvusId, () => milvusStore.authCertName], () => {
+    milvusStore.setDbs([]);
+    loadList();
+    milvusStore.clear();
+});
 onMounted(loadList);
 </script>
 

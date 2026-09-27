@@ -163,7 +163,14 @@ const items = defineFormItems<DbForm>([
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'authCertName', label: 'db.acName', required: true },
     // 改为自动获取时已选库名不再成立，需清空
-    { prop: 'getDatabaseMode', label: 'db.getDbMode', type: 'enum', enums: DbGetDbNamesMode, required: true, onChange: (_value, form) => onChangeGetDatabaseMode(form.getDatabaseMode) },
+    {
+        prop: 'getDatabaseMode',
+        label: 'db.getDbMode',
+        type: 'enum',
+        enums: DbGetDbNamesMode,
+        required: true,
+        onChange: (_value, form) => onChangeGetDatabaseMode(form.getDatabaseMode),
+    },
     { prop: 'database', label: 'DB' },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },
 ]);

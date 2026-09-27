@@ -64,7 +64,9 @@ function warnUnmatchedSection(parentKey: string, section: CodePathSection, acces
     const children = (access.getNode(parentKey)?.children ?? []).filter((c) => !isPlaceholderKind(c.kind));
     const missing = [...new Set(children.filter((c) => !getContributor(c.kind)?.locateCode).map((c) => c.kind))];
     if (children.length && missing.length) {
-        console.warn(`[locate] codePath 段 ${section.type}|${section.code} 未匹配到子节点，父节点 ${parentKey} 下这些 kind 未声明 locateCode：${missing.join(', ')}（新增资源需在贡献者声明 locateCode 才能被跳转定位）`);
+        console.warn(
+            `[locate] codePath 段 ${section.type}|${section.code} 未匹配到子节点，父节点 ${parentKey} 下这些 kind 未声明 locateCode：${missing.join(', ')}（新增资源需在贡献者声明 locateCode 才能被跳转定位）`
+        );
     }
 }
 

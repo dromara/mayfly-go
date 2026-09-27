@@ -78,9 +78,13 @@ func getSyncModeName(mode entity.DataSyncMode) string {
 	}
 }
 
-// getDuplicateStrategyName 返回冲突策略的可读名称（仅用于 RunLog 日志输出，非前端展示）
+// getDuplicateStrategyName 返回冲突策略的可读名称（仅用于 RunLog 日志输出，非前端展示）。
+// DuplicateStrategyNone(-1) 语义是"该模式不做冲突处理"（如增量追加），显示为"不适用"
+// 而非"未知策略(-1)"，避免用户以为配错了。
 func getDuplicateStrategyName(strategy int) string {
 	switch strategy {
+	case dbi.DuplicateStrategyNone:
+		return "不适用"
 	case dbi.DuplicateStrategyIgnore:
 		return "忽略"
 	case dbi.DuplicateStrategyUpdate:

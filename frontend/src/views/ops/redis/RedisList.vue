@@ -45,9 +45,7 @@
                     <template #header>
                         nodeId
                         <el-tooltip class="box-item" effect="dark" content="node id" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
+                            <SvgIcon name="QuestionFilled" />
                         </el-tooltip>
                     </template>
                 </el-table-column>
@@ -55,9 +53,7 @@
                     <template #header>
                         ip
                         <el-tooltip class="box-item" effect="dark" :content="$t('redis.clusterIpTips')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
+                            <SvgIcon name="QuestionFilled" />
                         </el-tooltip>
                     </template>
                     <template #default="scope">
@@ -76,29 +72,25 @@
                     <template #header>
                         masterSlaveRelation
                         <el-tooltip class="box-item" effect="dark" :content="$t('redis.masterSlaveRelationTips')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
+                            <SvgIcon name="QuestionFilled" />
                         </el-tooltip>
                     </template>
                 </el-table-column>
                 <el-table-column prop="pingSent" label="pingSent" min-width="130" show-overflow-tooltip>
                     <template #default="scope">
-                        {{ scope.row.pingSent == 0 ? 0 : new Date(parseInt(scope.row.pingSent)).toLocaleString() }}
+                        {{ scope.row.pingSent == 0 ? 0 : formatDate(Number(scope.row.pingSent)) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="pongRecv" label="pongRecv" min-width="130" show-overflow-tooltip>
                     <template #default="scope">
-                        {{ scope.row.pongRecv == 0 ? 0 : new Date(parseInt(scope.row.pongRecv)).toLocaleString() }}
+                        {{ scope.row.pongRecv == 0 ? 0 : formatDate(Number(scope.row.pongRecv)) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="configEpoch" label="configEpoch" min-width="130">
                     <template #header>
                         configEpoch
                         <el-tooltip class="box-item" effect="dark" :content="$t('redis.configEpochTips')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
+                            <SvgIcon name="QuestionFilled" />
                         </el-tooltip>
                     </template>
                 </el-table-column>
@@ -109,8 +101,8 @@
 
         <el-dialog v-if="detailVisible" v-model="detailVisible">
             <el-descriptions v-if="detailData" :title="$t('common.detail')" :column="3" border>
-                <el-descriptions-item :span="1.5" label="id">{{ detailData.id }}</el-descriptions-item>
-                <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailData.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="id">{{ detailData.id }}</el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.name')">{{ detailData.name }}</el-descriptions-item>
 
                 <el-descriptions-item :span="3" :label="$t('tag.relateTag')"><TagCodePath :code="detailData.code" /></el-descriptions-item>
 
@@ -201,16 +193,11 @@ const showDetail = (detail: Redis) => {
 };
 
 // --- 信息弹窗 ---
-const infoDialog = ref({
+const infoDialog = ref<{ title: string; visible: boolean; info: Record<string, Record<string, unknown>> }>({
     title: '',
     visible: false,
-    info: {
-        Server: {},
-        Keyspace: {},
-        Clients: {},
-        CPU: {},
-        Memory: {},
-    } as Record<string, unknown>,
+    // 预置 INFO 各分段，接口返回前模板用可选链兜底
+    info: { Server: {}, Keyspace: {}, Clients: {}, CPU: {}, Memory: {} },
 });
 
 // --- 集群信息弹窗 ---

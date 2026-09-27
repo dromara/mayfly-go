@@ -51,7 +51,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, reactive, toRefs, onMounted, defineAsyncComponent, watch } from 'vue';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { mqApi } from '../../api';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
@@ -109,12 +109,63 @@ const consumeItems = computed<AutoFormItem[]>(() => [
     { prop: 'number', label: 'mq.kafka.messageNumber', type: 'number', min: 1, max: 1000, required: true, span: 5 },
     { prop: 'group', label: 'mq.kafka.consumerGroup', type: 'custom', span: 9 },
     { prop: 'pullTimeout', label: 'mq.kafka.pullTimeout', type: 'number', min: 1, max: 100, span: 5 },
-    { prop: 'decompression', label: 'mq.kafka.decompression', type: 'select', span: 5, placeholder: 'mq.kafka.decompressionPlaceholder', props: { clearable: true, teleported: false }, options: [{ label: 'none', value: '' }, { label: 'gzip', value: 'gzip' }, { label: 'lz4', value: 'lz4' }, { label: 'zstd', value: 'zstd' }, { label: 'snappy', value: 'snappy' }] },
-    { prop: 'decode', label: 'mq.kafka.decode', type: 'select', span: 5, placeholder: 'mq.kafka.decodePlaceholder', props: { clearable: true, teleported: false }, options: [{ label: 'None', value: '' }, { label: 'Base64', value: 'base64' }] },
-    { prop: 'isolationLevel', label: 'mq.kafka.isolationLevel', type: 'select', span: 5, placeholder: 'mq.kafka.isolationLevelPlaceholder', props: { teleported: false }, options: [{ label: 'mq.kafka.readUncommitted', value: 'read_uncommitted' }, { label: 'mq.kafka.readCommitted', value: 'read_committed' }] },
+    {
+        prop: 'decompression',
+        label: 'mq.kafka.decompression',
+        type: 'select',
+        span: 5,
+        placeholder: 'mq.kafka.decompressionPlaceholder',
+        props: { clearable: true, teleported: false },
+        options: [
+            { label: 'none', value: '' },
+            { label: 'gzip', value: 'gzip' },
+            { label: 'lz4', value: 'lz4' },
+            { label: 'zstd', value: 'zstd' },
+            { label: 'snappy', value: 'snappy' },
+        ],
+    },
+    {
+        prop: 'decode',
+        label: 'mq.kafka.decode',
+        type: 'select',
+        span: 5,
+        placeholder: 'mq.kafka.decodePlaceholder',
+        props: { clearable: true, teleported: false },
+        options: [
+            { label: 'None', value: '' },
+            { label: 'Base64', value: 'base64' },
+        ],
+    },
+    {
+        prop: 'isolationLevel',
+        label: 'mq.kafka.isolationLevel',
+        type: 'select',
+        span: 5,
+        placeholder: 'mq.kafka.isolationLevelPlaceholder',
+        props: { teleported: false },
+        options: [
+            { label: 'mq.kafka.readUncommitted', value: 'read_uncommitted' },
+            { label: 'mq.kafka.readCommitted', value: 'read_committed' },
+        ],
+    },
     { prop: 'commitOffset', label: 'mq.kafka.commitOffset', type: 'switch', span: 5 },
-    { prop: 'earliest', label: 'mq.kafka.defaultConsumePosition', type: 'switch', span: 7, tooltip: 'mq.kafka.consumerOnlyTip', props: { activeText: t('mq.kafka.earliest'), inactiveText: t('mq.kafka.latest') } },
-    { prop: 'startTime', label: 'mq.kafka.defaultConsumeStartTime', type: 'date', span: 8, tooltip: 'mq.kafka.consumerOnlyTip', placeholder: 'mq.kafka.selectDateTime', props: { type: 'datetime', valueFormat: 'YYYY-MM-DD HH:mm:ss', size: 'small' } },
+    {
+        prop: 'earliest',
+        label: 'mq.kafka.defaultConsumePosition',
+        type: 'switch',
+        span: 7,
+        tooltip: 'mq.kafka.consumerOnlyTip',
+        props: { activeText: t('mq.kafka.earliest'), inactiveText: t('mq.kafka.latest') },
+    },
+    {
+        prop: 'startTime',
+        label: 'mq.kafka.defaultConsumeStartTime',
+        type: 'date',
+        span: 8,
+        tooltip: 'mq.kafka.consumerOnlyTip',
+        placeholder: 'mq.kafka.selectDateTime',
+        props: { type: 'datetime', valueFormat: 'YYYY-MM-DD HH:mm:ss', size: 'small' },
+    },
 ]);
 
 onMounted(() => {

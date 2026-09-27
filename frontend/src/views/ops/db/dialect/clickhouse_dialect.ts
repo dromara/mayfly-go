@@ -1,5 +1,14 @@
 import { commonCustomKeywords, DataType, DuplicateStrategy } from './types';
-import type { DbDialect, DialectCapabilities, DialectInfo, EditorCompletion, IndexDefinition, ColumnDefinition, SqlColumnType, SqlSnippetTemplate } from './types';
+import type {
+    DbDialect,
+    DialectCapabilities,
+    DialectInfo,
+    EditorCompletion,
+    IndexDefinition,
+    ColumnDefinition,
+    SqlColumnType,
+    SqlSnippetTemplate,
+} from './types';
 import { appendLimitSql, QuoteEscape } from './shared/utils';
 import { backtickQuotePairs, clickhouseSplitOptions, defineCapabilities } from './shared/capabilities';
 import { limitCommaPageSnippet } from './shared/snippets';

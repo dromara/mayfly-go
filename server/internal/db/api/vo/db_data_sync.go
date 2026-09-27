@@ -22,9 +22,21 @@ type DataSyncTaskListVO struct {
 	// 源/目标基本信息
 	SrcDbId         int64  `json:"srcDbId"`
 	SrcDbName       string `json:"srcDbName"`
+	SrcTagPath      string `json:"srcTagPath"`
+	SrcDbType       string `json:"srcDbType"`
 	TargetDbId      int64  `json:"targetDbId"`
 	TargetDbName    string `json:"targetDbName"`
+	TargetTagPath   string `json:"targetTagPath"`
 	TargetTableName string `json:"targetTableName"`
+	TargetDbType    string `json:"targetDbType"`
+
+	// 增量水位：列表据此回答“同步到哪了”（仅增量追加/合并模式参与拼接增量条件）
+	UpdField    string `json:"updField"`
+	UpdFieldVal string `json:"updFieldVal"`
+
+	// 写入行为配置
+	PageSize          int `json:"pageSize"`
+	DuplicateStrategy int `json:"duplicateStrategy"`
 
 	// 双向同步
 	BiDirEnabled  bool   `json:"biDirEnabled"`

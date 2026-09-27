@@ -158,7 +158,14 @@ function lazyScopeUsers(): string[] {
 describe('db 模块 monaco 依赖边界', () => {
     // 这些入口自身不渲染编辑器（编辑器在其异步子组件/弹窗里），静态闭包必须与 monaco 无关。
     // 手工登记：判据是「页面壳不吃编辑器」，与是否申领 SQL 联想无关（如审批流 SQL 表单确实要编辑器）
-    const lazyEntries = ['db.ts', 'completion/lazy.ts', 'resource/DbDataOp.vue', 'sql-editor/SqlExecDialog.vue', 'table-editor/DbTablesOp.vue', 'sync/SyncTaskEdit.vue'];
+    const lazyEntries = [
+        'db.ts',
+        'completion/lazy.ts',
+        'resource/DbDataOp.vue',
+        'sql-editor/SqlExecDialog.vue',
+        'table-editor/DbTablesOp.vue',
+        'sync/SyncTaskEdit.vue',
+    ];
 
     it.each(lazyEntries)('%s 的静态导入闭包不含 monaco（编辑器不得回流进首屏）', (entry) => {
         const badPath = findMonacoPath(path.join(DB_ROOT, entry));

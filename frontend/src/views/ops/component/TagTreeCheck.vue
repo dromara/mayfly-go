@@ -13,11 +13,13 @@
                 show-checkbox
                 check-strictly
                 :node-key="$props.nodeKey"
-                :props="{
-                    label: 'codePath',
-                    children: 'children',
-                    disabled: 'disabled',
-                } as Record<string, string>"
+                :props="
+                    {
+                        label: 'codePath',
+                        children: 'children',
+                        disabled: 'disabled',
+                    } as Record<string, string>
+                "
                 @check="tagTreeNodeCheck"
                 :filter-node-method="filterNode"
             >

@@ -396,17 +396,30 @@ export const useThemeConfig = defineStore('themeConfig', {
         _removeGlassVariables() {
             const el = document.documentElement;
             const vars = [
-                '--bg-main-color', '--bg-color', '--bg-menuBar', '--bg-topBar',
-                '--el-bg-color', '--el-bg-color-page', '--el-bg-color-overlay',
-                '--el-fill-color-blank', '--el-fill-color-light', '--el-fill-color',
-                '--el-fill-color-lighter', '--el-fill-color-extra-light',
-                '--el-table-bg-color', '--el-table-tr-bg-color',
-                '--el-table-header-bg-color', '--el-table-row-hover-bg-color',
-                '--el-text-color-secondary', '--el-text-color-placeholder',
-                '--el-text-color-primary', '--el-text-color-regular',
-                '--glass-frost-fx', '--glass-frost-veil',
+                '--bg-main-color',
+                '--bg-color',
+                '--bg-menuBar',
+                '--bg-topBar',
+                '--el-bg-color',
+                '--el-bg-color-page',
+                '--el-bg-color-overlay',
+                '--el-fill-color-blank',
+                '--el-fill-color-light',
+                '--el-fill-color',
+                '--el-fill-color-lighter',
+                '--el-fill-color-extra-light',
+                '--el-table-bg-color',
+                '--el-table-tr-bg-color',
+                '--el-table-header-bg-color',
+                '--el-table-row-hover-bg-color',
+                '--el-text-color-secondary',
+                '--el-text-color-placeholder',
+                '--el-text-color-primary',
+                '--el-text-color-regular',
+                '--glass-frost-fx',
+                '--glass-frost-veil',
             ];
-            vars.forEach(v => el.style.removeProperty(v));
+            vars.forEach((v) => el.style.removeProperty(v));
         },
         // 设置玻璃壁纸：切换 <html data-wallpaper> 属性（'none' 移除属性，回退默认动态光斑）
         // 内置预设的渐变由 wallpaper.scss 依据该属性选择器应用；'custom' 走 --backdrop-image 图层

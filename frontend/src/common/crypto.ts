@@ -60,7 +60,7 @@ export async function getRsaPublicKey() {
     if (publicKey) {
         return publicKey;
     }
-    publicKey = (await openApi.getPublicKey());
+    publicKey = await openApi.getPublicKey();
     sessionStorage.setItem('RsaPublicKey', publicKey);
     return publicKey;
 }
@@ -83,7 +83,7 @@ export async function RsaEncrypt(value: string): Promise<string> {
     }
 
     if (!cachedRsaPublicKey) {
-        const publicKeyPem = (await getRsaPublicKey());
+        const publicKeyPem = await getRsaPublicKey();
         notBlank(publicKeyPem, '获取公钥失败');
         cachedRsaPublicKey = parsePemPublicKey(publicKeyPem);
     }

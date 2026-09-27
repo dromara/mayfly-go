@@ -55,6 +55,8 @@ func TestITSecondaryIncrementalField(t *testing.T) {
 		UpdFieldVal:       "0",
 		DataSQL:           fmt.Sprintf("SELECT id, name, ctime, utime FROM %s", srcTable),
 	}
+	// 断言的是 AND 条件下“边界行不重发”旧语义；显式 Exclusive，保留历史预期（inclusive 由专项用例回归）
+	task.SetCursorInclusivity(entity.CursorInclusivityExclusive)
 	require.NoError(t, app.SyncTask(ctx, task, src, dst, &entity.DataSyncLog{}, nil))
 	require.Equal(t, "20", task.UpdFieldVal, "水位应取主增量字段末行值")
 
@@ -98,6 +100,8 @@ func TestITUpdFieldSrcAliasedWatermark(t *testing.T) {
 		UpdFieldVal: "0",
 		DataSQL:     fmt.Sprintf("SELECT id, name, upd_time AS changed_at FROM %s", srcTable),
 	}
+	// 断言 “1 行命中” 的精确增量行数，与 exclusive 旧语义相当；inclusive 下会多拉当前水位行，需显式回退
+	task.SetCursorInclusivity(entity.CursorInclusivityExclusive)
 	log1 := &entity.DataSyncLog{}
 	require.NoError(t, app.SyncTask(ctx, task, src, dst, log1, nil), log1.ErrText)
 	require.Equal(t, 2, countRows(t, dst, tgtTable))

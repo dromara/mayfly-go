@@ -18,7 +18,7 @@
         <router-view v-if="!themeConfig.isWatermark" />
 
         <Setings />
-        
+
         <!-- 全局系统通知悬浮按钮 -->
         <GlobalNotificationFab />
 

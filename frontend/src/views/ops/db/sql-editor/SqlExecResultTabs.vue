@@ -1,12 +1,6 @@
 <template>
     <div class="sql-exec-res h-full!">
-        <el-tabs
-            class="h-full! w-full!"
-            v-if="execResTabs.length > 0"
-            @tab-remove="onRemoveTab"
-            @tab-change="onTabChange"
-            :model-value="activeTab"
-        >
+        <el-tabs class="h-full! w-full!" v-if="execResTabs.length > 0" @tab-remove="onRemoveTab" @tab-change="onTabChange" :model-value="activeTab">
             <el-tab-pane class="h-full!" closable v-for="dt in execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                 <template #label>
                     <el-popover :show-after="1000" placement="top-start" :title="$t('db.execInfo')" trigger="hover" :width="300">

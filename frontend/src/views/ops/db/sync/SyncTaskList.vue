@@ -16,6 +16,34 @@
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
+            <template #taskName="{ data }">
+                <!-- 双向同步只在正向任务上挂标记，单开一列几乎全是空值；反向任务缺失的异常态用颜色+tooltip 说明。
+                标记放在名称前：单元格是截断展示，尾随会被 ellipsis 直接切掉 -->
+                <el-tooltip v-if="data.biDirEnabled" :content="biDirTip(data)">
+                    <el-tag class="mr-1" size="small" :type="data.reverseTaskId ? 'warning' : 'danger'">{{ $t('db.biDirEnabled') }}</el-tag>
+                </el-tooltip>
+                <span>{{ data.taskName }}</span>
+            </template>
+            <template #srcDb="{ data }">
+                <el-tooltip :content="`${data.srcTagPath} > ${data.srcDbName}`">
+                    <span class="block truncate">
+                        <SvgIcon v-if="data.srcDbType" :name="getDbDialect(data.srcDbType).getInfo().icon" :size="18" />
+                        {{ data.srcDbName }}
+                    </span>
+                </el-tooltip>
+            </template>
+            <template #targetTable="{ data }">
+                <el-tooltip :content="`${data.targetTagPath} > ${data.targetDbName}.${data.targetTableName}`">
+                    <span class="block truncate">
+                        <SvgIcon v-if="data.targetDbType" :name="getDbDialect(data.targetDbType).getInfo().icon" :size="18" />
+                        {{ `${data.targetDbName}.${data.targetTableName}` }}
+                    </span>
+                </el-tooltip>
+            </template>
+            <template #updFieldVal="{ data }">
+                <span>{{ syncCursorText(data) }}</span>
+            </template>
+
             <template #status="{ data }">
                 <span v-if="actionBtns[perms.status]">
                     <el-switch
@@ -37,7 +65,9 @@
             <template #action="{ data }">
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                <el-button v-if="actionBtns[perms.run] && data.status === 1 && data.runningState !== 1" @click="run(data.id)" type="success" link>{{ $t('db.run') }}</el-button>
+                <el-button v-if="actionBtns[perms.run] && data.status === 1 && data.runningState !== 1" @click="run(data.id)" type="success" link>{{
+                    $t('db.run')
+                }}</el-button>
                 <el-button v-if="actionBtns[perms.stop] && data.runningState === 1" @click="stop(data.id)" type="danger" link>{{ $t('db.stop') }}</el-button>
                 <el-button v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">{{ $t('db.log') }}</el-button>
             </template>
@@ -55,14 +85,18 @@ import { TableColumn } from '@/components/page-table';
 import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
+import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
-import { DbDataSyncModeEnum, DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
+import { DbDataSyncModeEnum, DbDataSyncDuplicateStrategyEnum, DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from '@/views/ops/db/sync/enums';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { PageResult } from '@/types/common';
 import type { DataSyncTaskListVO } from '../types';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
+
+const { t } = useI18n();
 
 /** 归一 status 字段：Go int8 零值 0 映射为 -1（停用），避免 ElSwitch model-value 校验告警 */
 const handleData = (res: PageResult<DataSyncTaskListVO>) => {
@@ -85,23 +119,56 @@ const perms = {
 
 const searchItems = [SearchItem.input('name', 'common.name')];
 
-// 任务名、修改人、修改时间、最近一次任务执行状态、状态(停用启用)、操作
-const columns = ref([
-    TableColumn.new('taskName', 'db.taskName'),
-    TableColumn.new('syncMode', 'db.syncMode').typeTag(DbDataSyncModeEnum),
-    TableColumn.new('cron', 'Cron'),
-    TableColumn.new('runningState', 'db.runState').typeTag(DbDataSyncRunningStateEnum),
-    TableColumn.new('recentState', 'db.recentState').typeTag(DbDataSyncRecentStateEnum),
-    TableColumn.new('status', 'common.status').isSlot(),
+/**
+ * 默认收起的列：创建/修改两组审计信息只需常驻一组，分页大小与键冲突策略取值基本不变，
+ * 逐列常驻会把操作列顶到屏外；需要时在右上角「表格配置」里按需勾选
+ */
+const optionalColumns = [
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('createTime', 'common.createTime').isTime(),
+    TableColumn.new('pageSize', 'db.pageSize').alignCenter(),
+    TableColumn.new('duplicateStrategy', 'db.keyDuplicateStrategy').typeTag(DbDataSyncDuplicateStrategyEnum).alignCenter(),
+];
+optionalColumns.forEach((column) => (column.show = 0));
+
+// 身份 → 同步链路（源库 → 目标库表）→ 增量水位/定时 → 当前与最近执行态 → 启停用 → 修改信息
+const columns = ref([
+    // 任务名是主识别信息，预留比默认更宽的宽度，过长仍可由溢出 tooltip 看全称
+    TableColumn.new('taskName', 'db.taskName').setMinWidth(180).isSlot(),
+    TableColumn.new('syncMode', 'db.syncMode').typeTag(DbDataSyncModeEnum).alignCenter(),
+    // 插槽内已自带 el-tooltip，需关掉列的溢出提示（否则叠成两个气泡）；
+    // 省略号不跟该开关走，改由插槽内的 block truncate 自己保证单行
+    TableColumn.new('srcDb', 'db.srcDb').setMinWidth(140).isSlot().noShowOverflowTooltip(),
+    TableColumn.new('targetTable', 'db.targetDbTable').setMinWidth(180).isSlot().noShowOverflowTooltip(),
+    TableColumn.new('updFieldVal', 'db.syncCursor').alignCenter().isSlot().setMinWidth(160),
+    TableColumn.new('cron', 'db.cron')
+        .alignCenter()
+        .setFormatFunc((data: DataSyncTaskListVO) => data.cron || t('db.manual')),
+    TableColumn.new('runningState', 'db.runState').typeTag(DbDataSyncRunningStateEnum).alignCenter(),
+    TableColumn.new('recentState', 'db.recentState').typeTag(DbDataSyncRecentStateEnum).alignCenter(),
+    TableColumn.new('status', 'common.status').isSlot(),
     TableColumn.new('modifier', 'common.modifier'),
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
+    ...optionalColumns,
 ]);
+
+/** 增量水位只对「增量追加/增量合并」生效，其余模式恒为全量扫描源查询，展示不适用 */
+const cursorModes: number[] = [DbDataSyncModeEnum.IncrementalAppend.value, DbDataSyncModeEnum.IncrementalMerge.value];
+
+const syncCursorText = (data: DataSyncTaskListVO) => {
+    if (!cursorModes.includes(data.syncMode)) return t('db.notApplicable');
+    // 水位为空或 '0' 表示尚未推进，下一次执行会全量拉取源查询结果
+    if (!data.updField || !data.updFieldVal || data.updFieldVal === '0') return t('db.syncCursorInit');
+    return `${data.updField}: ${data.updFieldVal}`;
+};
+
+/** 双向同步标记：反向任务未创建（reverseTaskId 为 0）时配对不完整，需能直接看出来 */
+const biDirTip = (data: DataSyncTaskListVO) => (data.reverseTaskId ? `${t('db.biDirEnabled')} → #${data.reverseTaskId}` : t('db.biDirReverseMissing'));
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.stop]);
-const actionWidth = ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.stop] ? 1 : 0)) * 55;
+const actionWidth =
+    ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.stop] ? 1 : 0)) * 55;
 const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
 const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
 

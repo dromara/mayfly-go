@@ -10,13 +10,7 @@
  */
 
 // ── 类型导出 ───────────────────────────────────────────────────
-export type {
-    TriggerDef,
-    TriggerContext,
-    TriggerMenuItem,
-    TriggerSelection,
-    TriggerPanelSelectPayload,
-} from './types';
+export type { TriggerDef, TriggerContext, TriggerMenuItem, TriggerSelection, TriggerPanelSelectPayload } from './types';
 
 // ── 注册表导出 ─────────────────────────────────────────────────
 export { registerTrigger, getTriggerDefs, findTriggerDef, getTriggerChars, buildTriggerTokenRegex } from './registry';

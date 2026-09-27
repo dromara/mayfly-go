@@ -78,26 +78,19 @@ const isPendingApproval = computed(() => {
     if (!props.pendingInterrupts?.length) return false;
     const tcParts = toolCallParts.value;
     // 检查是否有未决策中断匹配组内的某个 tool_call
-    return props.pendingInterrupts.some((interrupt) =>
-        !isInterruptDecided(interrupt.status)
-        && tcParts.some((tc) => tc.toolCallId && interrupt.toolCallId === tc.toolCallId),
+    return props.pendingInterrupts.some(
+        (interrupt) => !isInterruptDecided(interrupt.status) && tcParts.some((tc) => tc.toolCallId && interrupt.toolCallId === tc.toolCallId)
     );
 });
 
 /** 是否单步已完成 */
-const isSingleCompleted = computed(
-    () => props.status === 'completed' && props.events.length === 1,
-);
+const isSingleCompleted = computed(() => props.status === 'completed' && props.events.length === 1);
 
 /** 推理 parts */
-const reasoningParts = computed(() =>
-    props.events.filter((p): p is ReasoningPartType => p.type === 'reasoning'),
-);
+const reasoningParts = computed(() => props.events.filter((p): p is ReasoningPartType => p.type === 'reasoning'));
 
 /** 工具调用 parts */
-const toolCallParts = computed(() =>
-    props.events.filter((p): p is ToolCallPartType => p.type === 'tool_call'),
-);
+const toolCallParts = computed(() => props.events.filter((p): p is ToolCallPartType => p.type === 'tool_call'));
 
 /** 可见计数 */
 const stepCountText = computed(() => `${props.events.length} ${t('ai.chat.steps')}`);

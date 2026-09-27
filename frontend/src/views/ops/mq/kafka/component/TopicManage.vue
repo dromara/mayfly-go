@@ -40,7 +40,7 @@
             </el-table-column>
             <el-table-column :label="$t('common.operation')" width="130" align="center">
                 <template #default="{ row }">
-                    <el-dropdown trigger="click" @command="handleTopicCommand($event, row)" >
+                    <el-dropdown trigger="click" @command="handleTopicCommand($event, row)">
                         <el-button type="primary" size="small" link>
                             {{ $t('common.operation') }}
                         </el-button>

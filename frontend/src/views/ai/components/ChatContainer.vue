@@ -180,7 +180,7 @@ watch(
             msgLoading.value = false;
         }
     },
-    { immediate: true },
+    { immediate: true }
 );
 
 const onSend = async (data: ChatInputSubmitData) => {
@@ -192,10 +192,7 @@ const onSend = async (data: ChatInputSubmitData) => {
     // 纯文本 content 作回退/编辑用；发送给 LLM 的完整注入文本由后端 buildChatContent 生成；
     // 图片段合并后乐观回显与 WS 持久化用同一份 segments（图片卡片仅从 image 段构建，
     // 乐观消息缺段则实时不渲染、刷新后才出现——同一组装出处避免双路径不一致）
-    const segments = [
-        ...(data.segments ?? []),
-        ...buildImageSegments(attachments, t('ai.attach.imagePlaceholder')),
-    ];
+    const segments = [...(data.segments ?? []), ...buildImageSegments(attachments, t('ai.attach.imagePlaceholder'))];
     addUserMessage(data.text, attachments, segments);
     sendMessage({
         conversationId: props.conversation.id,
@@ -244,12 +241,10 @@ const autoRenameFromFirstMessage = (text: string) => {
     const conv = store.conversations.find((c) => c.id === props.conversation.id);
     const prevTitle = conv?.title ?? '';
     if (conv) conv.title = title;
-    aiApi.renameConversation
-        .request({ id: props.conversation.id, title })
-        .catch(() => {
-            // 命名失败回滚，侧栏保留默认标题
-            if (conv) conv.title = prevTitle;
-        });
+    aiApi.renameConversation.request({ id: props.conversation.id, title }).catch(() => {
+        // 命名失败回滚，侧栏保留默认标题
+        if (conv) conv.title = prevTitle;
+    });
 };
 
 const onLoadMore = async () => {

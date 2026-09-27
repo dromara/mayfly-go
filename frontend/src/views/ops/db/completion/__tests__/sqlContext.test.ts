@@ -3,7 +3,15 @@ import { describe, expect, it } from 'vitest';
 // 加载真实方言注册表：切割选项与引用符均由各方言能力声明持有，端到端校验「方言声明 → 切割/区域判定」
 // 的透传链路。方言层只依赖 monaco 的语言定义数据模块（纯数据、动态导入），故无需 mock 编辑器。
 import { getSqlSplitOptions, splitSqlStatements } from '../../sql-editor/utils/sqlParser';
-import { extractStatementAt, parseCursorTokens, resolveCursorClause, resolveCursorZone, resolveNearestTableContext, resolveScopeTableContexts, resolveTableContext } from '../sqlContext';
+import {
+    extractStatementAt,
+    parseCursorTokens,
+    resolveCursorClause,
+    resolveCursorZone,
+    resolveNearestTableContext,
+    resolveScopeTableContexts,
+    resolveTableContext,
+} from '../sqlContext';
 
 describe('extractStatementAt', () => {
     it('提取光标所在语句及光标相对偏移', () => {

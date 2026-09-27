@@ -29,6 +29,8 @@ type DbTransferTaskListVO struct {
 	DeleteTable int    `json:"deleteTable"` // 创建表前是否删除表
 	NameCase    int    `json:"nameCase"`    // 表名、字段大小写转换  1无  2大写  3小写
 	Strategy    int    `json:"strategy"`    // 迁移策略  1全量  2增量
+	// 迁移并发度：列表也需返回，编辑抽屉直接以列表行作为回填数据源，缺字段会把已保存的并发度重置回默认值
+	Concurrency int `json:"concurrency"`
 
 	SrcDbId     int64  `json:"srcDbId"`     // 源库id
 	SrcDbName   string `json:"srcDbName"`   // 源库名

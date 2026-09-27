@@ -1,6 +1,16 @@
 <template>
     <div class="db-transfer-edit">
-        <auto-form-drawer v-model:visible="dialogVisible" :title="title" :items="items" :data="editData" size="45%" :confirm-api="btnOk" @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
+        <auto-form-drawer
+            v-model:visible="dialogVisible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="45%"
+            :confirm-api="btnOk"
+            @submitted="emit('cancel')"
+            @opened="onOpened"
+            @cancel="emit('cancel')"
+        >
             <template #cron="{ form }">
                 <CrontabInput v-model="form.cron" />
             </template>
@@ -300,7 +310,6 @@ const editData = computed<DbTransferForm | null>(() => {
             cronEnabled: row.cronEnabled || -1,
             mode: row.mode || 1,
             deleteTable: row.deleteTable || 1,
-            // concurrency 列表接口不返回（见 DbTransferTaskListVO 注释），编辑态固定用默认值 4
             extra: row.extra || { fileType: fileTypeOptions[0].value },
         };
     }

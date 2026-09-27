@@ -36,7 +36,7 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { mqApi } from '../../api';
 
@@ -87,7 +87,21 @@ const produceItems: AutoFormItem[] = [
     { prop: 'value', label: 'mq.kafka.messageBody', type: 'custom', required: true },
     { prop: 'headers', label: 'mq.kafka.messageHeaders', type: 'custom' },
     { prop: 'times', label: 'mq.kafka.sendTimes', type: 'number', min: 1, max: 100, span: 6 },
-    { prop: 'compression', label: 'mq.kafka.compression', type: 'select', span: 6, placeholder: 'mq.kafka.compressionPlaceholder', props: { teleported: false }, options: [{ label: 'none', value: '' }, { label: 'gzip', value: 'gzip' }, { label: 'lz4', value: 'lz4' }, { label: 'zstd', value: 'zstd' }, { label: 'snappy', value: 'snappy' }] },
+    {
+        prop: 'compression',
+        label: 'mq.kafka.compression',
+        type: 'select',
+        span: 6,
+        placeholder: 'mq.kafka.compressionPlaceholder',
+        props: { teleported: false },
+        options: [
+            { label: 'none', value: '' },
+            { label: 'gzip', value: 'gzip' },
+            { label: 'lz4', value: 'lz4' },
+            { label: 'zstd', value: 'zstd' },
+            { label: 'snappy', value: 'snappy' },
+        ],
+    },
 ];
 
 onMounted(() => {

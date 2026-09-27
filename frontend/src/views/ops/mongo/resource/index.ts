@@ -97,20 +97,18 @@ registerContributor({
         const inst = node.params;
         // 点击mongo -> 加载mongo数据库列表
         const res = (await mongoApi.databases.request({ id: inst.id })) as any;
-        return res.Databases.map(
-            ({ Name: database, SizeOnDisk: size }: { Name: string; SizeOnDisk: number }): TreeNodeData => ({
-                key: `${node.key}.${database}`,
-                kind: MongoDbKind,
-                label: database,
-                icon: DbIcon,
-                params: {
-                    id: inst.id,
-                    instName: inst.name,
-                    database,
-                    size,
-                },
-            })
-        );
+        return res.Databases.map(({ Name: database, SizeOnDisk: size }: { Name: string; SizeOnDisk: number }): TreeNodeData => ({
+            key: `${node.key}.${database}`,
+            kind: MongoDbKind,
+            label: database,
+            icon: DbIcon,
+            params: {
+                id: inst.id,
+                instName: inst.name,
+                database,
+                size,
+            },
+        }));
     },
 });
 
@@ -141,20 +139,18 @@ registerContributor({
         const { id, database } = node.params as Record<string, any>;
         // 点击数据库集合节点 -> 加载集合列表
         const colls = (await mongoApi.collections.request({ id, database })) as any;
-        return colls.map(
-            (x: string): TreeNodeData => ({
-                key: `${node.key}.${x}`,
-                kind: MongoCollKind,
-                label: x,
-                icon: CollIcon,
-                params: {
-                    id,
-                    instName: (node.params as Record<string, any>).instName,
-                    database,
-                    collection: x,
-                },
-            })
-        );
+        return colls.map((x: string): TreeNodeData => ({
+            key: `${node.key}.${x}`,
+            kind: MongoCollKind,
+            label: x,
+            icon: CollIcon,
+            params: {
+                id,
+                instName: (node.params as Record<string, any>).instName,
+                database,
+                collection: x,
+            },
+        }));
     },
 });
 

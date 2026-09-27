@@ -1,6 +1,13 @@
 <template>
     <div class="h-full">
-        <page-table ref="pageTableRef" :page-api="alertSilenceApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns" :data-handler-fn="handleListData">
+        <page-table
+            ref="pageTableRef"
+            :page-api="alertSilenceApi.list"
+            :search-items="searchItems"
+            v-model:query-form="query"
+            :columns="columns"
+            :data-handler-fn="handleListData"
+        >
             <template #tableHeader>
                 <el-button v-auth="'alert:silence:save'" type="primary" icon="plus" @click="onAdd">{{ $t('alert.addSilence') }}</el-button>
             </template>
@@ -32,7 +39,9 @@
                         <div class="flex items-center">
                             {{ $t('alert.matchLabels') }}
                             <el-tooltip placement="top">
-                                <template #content><span style="white-space: pre-line">{{ $t('alert.matchLabelsTips') }}</span></template>
+                                <template #content
+                                    ><span style="white-space: pre-line">{{ $t('alert.matchLabelsTips') }}</span></template
+                                >
                                 <SvgIcon name="QuestionFilled" class="ml-1" />
                             </el-tooltip>
                         </div>

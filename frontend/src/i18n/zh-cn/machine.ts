@@ -120,7 +120,6 @@ export default {
         record: '记录',
 
         // file
-        upload: '上传',
         download: '下载',
         copy: '复制',
         move: '移动',
@@ -131,9 +130,18 @@ export default {
         attribute: '属性',
         user: '用户',
         group: '组',
-        renameTips: 'rename: 双击文件名单元格修改后回车',
+        size: '大小',
+        emptyDir: '该目录为空，可上传文件或新建文件/文件夹',
+        emptyFilter: '未匹配到「{keyword}」',
+        clearFilter: '清空过滤',
+        fileOpTips: '操作说明',
+        fileOpTipsContent: '单击名称进入目录或预览文件；右键文件行选「重命名」，或选中行后按 F2；回车提交、Esc 或点击其他位置取消；Enter 打开当前行。',
         fileDetail: '文件详情',
-        createFile: '新建文件',
+        createName: '新建文件或目录',
+        createTo: '将创建在：{path}',
+        createDirSuccess: '已创建目录 {name}',
+        createFileSuccess: '已创建文件 {name}',
+        fileNameNoSeparator: '名称不能包含 /',
         pasteSuccess: '粘贴成功',
         sameDirNoPaste: '同目录下不能粘贴',
         renameSuccess: '重命名成功',
@@ -144,6 +152,16 @@ export default {
         fileUploadSuccess: '机器文件上传成功',
         fileUploadFail: '机器文件上传失败',
         fileUpload: '文件上传',
+
+        // 文件内容编辑
+        unsavedBadge: '未保存',
+        unsavedCloseConfirm: '内容已修改且尚未保存，确定关闭并放弃修改？',
+
+        // 文件配置列表
+        newFileConf: '新增文件配置',
+        fileConfEmpty: '还没有文件配置：目录配置用于直接浏览该目录，文件配置用于快速查看内容。',
+        fileConfRequired: '请填写配置名称与路径',
+        openFileManager: '打开文件管理器',
 
         // 文件夹上传进度
         folderUploadProgress: '文件夹上传进度',

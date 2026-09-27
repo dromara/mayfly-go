@@ -68,7 +68,17 @@ describe('evalCondition - 组合条件', () => {
             ],
         };
         expect(evalCondition(cond, form)).toBe(true);
-        expect(evalCondition({ all: [{ field: 'env', op: 'eq', value: 'dev' }, { field: 'count', op: 'gte', value: 3 }] }, form)).toBe(false);
+        expect(
+            evalCondition(
+                {
+                    all: [
+                        { field: 'env', op: 'eq', value: 'dev' },
+                        { field: 'count', op: 'gte', value: 3 },
+                    ],
+                },
+                form
+            )
+        ).toBe(false);
     });
 
     it('any 或组合', () => {
@@ -91,7 +101,12 @@ describe('evalCondition - 组合条件', () => {
         const cond: JsonCondition = {
             all: [
                 { field: 'env', op: 'eq', value: 'prod' },
-                { any: [{ field: 'count', op: 'lt', value: 2 }, { field: 'count', op: 'gt', value: 2 }] },
+                {
+                    any: [
+                        { field: 'count', op: 'lt', value: 2 },
+                        { field: 'count', op: 'gt', value: 2 },
+                    ],
+                },
             ],
         };
         expect(evalCondition(cond, form)).toBe(true);

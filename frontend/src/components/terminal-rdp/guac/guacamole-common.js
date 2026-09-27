@@ -7172,7 +7172,6 @@ Guacamole.Keyboard = function Keyboard(element) {
                 return first;
             }
         } // end if keydown
-
         // Keyup event
         else if (first instanceof KeyupEvent && !quirks.keyupUnreliable) {
             // Release specific key if known
@@ -7192,7 +7191,6 @@ Guacamole.Keyboard = function Keyboard(element) {
             syncModifierStates(first);
             return eventLog.shift();
         } // end if keyup
-
         // Ignore any other type of event (keypress by itself is invalid, and
         // unreliable keyup events should simply be dumped)
         else return eventLog.shift();

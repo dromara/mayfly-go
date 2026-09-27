@@ -50,12 +50,7 @@
         />
 
         <div class="es-table-data flex-1 min-h-0">
-            <VirtualTable
-                :data="state.datas"
-                :columns="(state.columns as any)"
-                :loading="state.loading"
-                :row-height="state.rowHeight"
-            >
+            <VirtualTable :data="state.datas" :columns="(state.columns as any)" :loading="state.loading" :row-height="state.rowHeight">
                 <!-- ES 特有的列头渲染 -->
                 <template #header="{ columns: headerColumns }">
                     <div
@@ -138,8 +133,16 @@
                     <el-radio value="all">{{ t('es.export.exportAll') }}</el-radio>
                 </el-radio-group>
                 <el-alert
-                    v-if="(exportDialog.scope === 'all' && exportDialog.queryTotal > 10000) || (exportDialog.scope === 'query' && exportDialog.queryTotal > 10000) || (exportDialog.scope === 'selected' && state.selectKeys.length > 10000)"
-                    :title="t('es.export.largeExportTip', { total: exportDialog.scope === 'selected' ? state.selectKeys.length : (exportDialog.queryTotal >= 0 ? exportDialog.queryTotal : '...') })"
+                    v-if="
+                        (exportDialog.scope === 'all' && exportDialog.queryTotal > 10000) ||
+                        (exportDialog.scope === 'query' && exportDialog.queryTotal > 10000) ||
+                        (exportDialog.scope === 'selected' && state.selectKeys.length > 10000)
+                    "
+                    :title="
+                        t('es.export.largeExportTip', {
+                            total: exportDialog.scope === 'selected' ? state.selectKeys.length : exportDialog.queryTotal >= 0 ? exportDialog.queryTotal : '...',
+                        })
+                    "
                     type="warning"
                     :closable="false"
                     show-icon
@@ -154,7 +157,7 @@
                 </div>
                 <div>
                     <div class="el-text mb-1">{{ t('es.export.exportFields') }}</div>
-                    
+
                     <el-checkbox v-model="exportDialog.allFields" @change="onExportFieldsToggle" class="mb-1">
                         {{ t('es.export.selectAllFields') }}
                     </el-checkbox>
@@ -172,8 +175,9 @@
                             {{ t(`es.export.phase.${exportDialog.progress.phase}`) }}
                         </span>
                         <span class="el-text el-text--small" v-if="exportDialog.progress.total > 0">
-                            {{ exportDialog.progress.processed }} / {{ exportDialog.progress.total }}
-                            ({{ Math.round((exportDialog.progress.processed / exportDialog.progress.total) * 100) }}%)
+                            {{ exportDialog.progress.processed }} / {{ exportDialog.progress.total }} ({{
+                                Math.round((exportDialog.progress.processed / exportDialog.progress.total) * 100)
+                            }}%)
                         </span>
                     </div>
                     <el-progress
@@ -247,7 +251,21 @@ const {
     selectIndex,
 } = useEsSearch({ instId: props.instId, i18n });
 
-const { docEditDialog, exportDialog, hasCustomQuery, onAddDoc, onEditDoc, onEditSelectDoc, onEditRowSuccess, onDeleteDocs, doDeleteDoc, onOpenExportDialog, onExportFieldsToggle, onExportFieldsChange, onConfirmExport } = useEsDocCrud({
+const {
+    docEditDialog,
+    exportDialog,
+    hasCustomQuery,
+    onAddDoc,
+    onEditDoc,
+    onEditSelectDoc,
+    onEditRowSuccess,
+    onDeleteDocs,
+    doDeleteDoc,
+    onOpenExportDialog,
+    onExportFieldsToggle,
+    onExportFieldsChange,
+    onConfirmExport,
+} = useEsDocCrud({
     instId: props.instId,
     currentIdxName: () => currentIdxName.value,
     state,
@@ -267,10 +285,12 @@ const copyCell = new ContextmenuItem('copyCell', 'common.copyCell').withIcon('Co
     await copyToClipboard(String(rowData[column.dataKey || ''] ?? ''));
 });
 
-const copyLineJson = new ContextmenuItem('copyLineJson', 'es.contextmenu.index.copyLineJson').withIcon('CopyDocument').withOnClick(async (data: Record<string, unknown>) => {
-    const rowData = data.rowData as EsDoc;
-    await copyToClipboard(String(rowData.src ?? ''));
-});
+const copyLineJson = new ContextmenuItem('copyLineJson', 'es.contextmenu.index.copyLineJson')
+    .withIcon('CopyDocument')
+    .withOnClick(async (data: Record<string, unknown>) => {
+        const rowData = data.rowData as EsDoc;
+        await copyToClipboard(String(rowData.src ?? ''));
+    });
 
 const copySelectLineJson = new ContextmenuItem('copySelectLineJson', 'es.contextmenu.index.copySelectLineJson')
     .withIcon('CopyDocument')

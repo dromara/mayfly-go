@@ -1,5 +1,14 @@
 <template>
-    <ADrawer class="auto-form-drawer" v-model="modelVisible" :size="props.size" :direction="props.direction" :destroy-on-close="true" :before-close="onCancel" :append-to-body="props.appendToBody" :close-on-click-modal="props.closeOnClickModal">
+    <ADrawer
+        class="auto-form-drawer"
+        v-model="modelVisible"
+        :size="props.size"
+        :direction="props.direction"
+        :destroy-on-close="true"
+        :before-close="onCancel"
+        :append-to-body="props.appendToBody"
+        :close-on-click-modal="props.closeOnClickModal"
+    >
         <template #header>
             <!-- 统一头部：返回箭头 + 标题（对齐 DrawerHeader 全站样式）；header-extra 插槽渲染头部右侧操作区 -->
             <DrawerHeader :header="props.title" :back="onCancel">
@@ -8,7 +17,17 @@
                 </template>
             </DrawerHeader>
         </template>
-        <AutoForm ref="autoFormRef" class="auto-form-drawer__form" v-model="state.form" :items="items" :tabs="props.tabs" :cols="props.cols" :label-position="labelPosition" v-model:active-tab="activeTab" v-bind="$attrs">
+        <AutoForm
+            ref="autoFormRef"
+            class="auto-form-drawer__form"
+            v-model="state.form"
+            :items="items"
+            :tabs="props.tabs"
+            :cols="props.cols"
+            :label-position="labelPosition"
+            v-model:active-tab="activeTab"
+            v-bind="$attrs"
+        >
             <!-- 透传父组件插槽给 AutoForm（自定义字段渲染） -->
             <template v-for="(_, key) in slots" #[key]="scope">
                 <slot :name="key" v-bind="scope"></slot>

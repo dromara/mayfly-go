@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { defaultSplitOptions, getSqlSplitOptions, getCurrentStatement, maskSqlComments, resolveSqlSplitOptions, splitSqlStatements, SqlSplitOptions } from '../sqlParser';
+import {
+    defaultSplitOptions,
+    getSqlSplitOptions,
+    getCurrentStatement,
+    maskSqlComments,
+    resolveSqlSplitOptions,
+    splitSqlStatements,
+    SqlSplitOptions,
+} from '../sqlParser';
 import { DbType } from '../../../dialect/dbType';
 
 describe('splitSqlStatements', () => {
@@ -197,7 +205,7 @@ describe('splitSqlStatements 方言选项（数据安全回归）', () => {
     });
 
     it('postgres dollar-quoted 字符串内的分号不切割', () => {
-        const sql = "SELECT $$a;b$$; SELECT 2;";
+        const sql = 'SELECT $$a;b$$; SELECT 2;';
         const result = splitSqlStatements(sql, ';', getSqlSplitOptions('postgres'));
         expect(result).toHaveLength(2);
         expect(result[0].text).toBe('SELECT $$a;b$$');
@@ -389,12 +397,72 @@ const runCases = (cases: SplitCase[]) => {
 
 describe('方言能力位矩阵（与服务端 dbm/sqlparser 选型对齐 + 前端补齐项）', () => {
     const cases: { dbType: string; expected: Partial<SqlSplitOptions> }[] = [
-        { dbType: 'mysql', expected: { backslashEscape: true, backtickQuote: true, hashComment: true, lineCommentNeedsWhitespace: true, executableComment: true, blockMode: 'procedural' } },
-        { dbType: 'mariadb', expected: { backslashEscape: true, backtickQuote: true, hashComment: true, lineCommentNeedsWhitespace: true, executableComment: true, blockMode: 'procedural' } },
-        { dbType: 'postgres', expected: { backslashEscape: false, dollarQuote: true, escapeStringPrefix: true, nestedBlockComment: true, doubleQuoteAsIdentifier: true, blockMode: 'sql' } },
-        { dbType: 'gauss', expected: { backslashEscape: false, dollarQuote: true, escapeStringPrefix: true, nestedBlockComment: true, doubleQuoteAsIdentifier: true, blockMode: 'sql' } },
-        { dbType: 'kingbaseEs', expected: { backslashEscape: false, dollarQuote: true, escapeStringPrefix: true, nestedBlockComment: true, doubleQuoteAsIdentifier: true, blockMode: 'sql' } },
-        { dbType: 'vastbase', expected: { backslashEscape: false, dollarQuote: true, escapeStringPrefix: true, nestedBlockComment: true, doubleQuoteAsIdentifier: true, blockMode: 'sql' } },
+        {
+            dbType: 'mysql',
+            expected: {
+                backslashEscape: true,
+                backtickQuote: true,
+                hashComment: true,
+                lineCommentNeedsWhitespace: true,
+                executableComment: true,
+                blockMode: 'procedural',
+            },
+        },
+        {
+            dbType: 'mariadb',
+            expected: {
+                backslashEscape: true,
+                backtickQuote: true,
+                hashComment: true,
+                lineCommentNeedsWhitespace: true,
+                executableComment: true,
+                blockMode: 'procedural',
+            },
+        },
+        {
+            dbType: 'postgres',
+            expected: {
+                backslashEscape: false,
+                dollarQuote: true,
+                escapeStringPrefix: true,
+                nestedBlockComment: true,
+                doubleQuoteAsIdentifier: true,
+                blockMode: 'sql',
+            },
+        },
+        {
+            dbType: 'gauss',
+            expected: {
+                backslashEscape: false,
+                dollarQuote: true,
+                escapeStringPrefix: true,
+                nestedBlockComment: true,
+                doubleQuoteAsIdentifier: true,
+                blockMode: 'sql',
+            },
+        },
+        {
+            dbType: 'kingbaseEs',
+            expected: {
+                backslashEscape: false,
+                dollarQuote: true,
+                escapeStringPrefix: true,
+                nestedBlockComment: true,
+                doubleQuoteAsIdentifier: true,
+                blockMode: 'sql',
+            },
+        },
+        {
+            dbType: 'vastbase',
+            expected: {
+                backslashEscape: false,
+                dollarQuote: true,
+                escapeStringPrefix: true,
+                nestedBlockComment: true,
+                doubleQuoteAsIdentifier: true,
+                blockMode: 'sql',
+            },
+        },
         { dbType: 'clickhouse', expected: { backslashEscape: true, backtickQuote: true, hashComment: true } },
         { dbType: 'sqlite', expected: { backslashEscape: false, backtickQuote: true, bracketQuote: true, doubleQuoteAsIdentifier: true } },
         { dbType: 'mssql', expected: { backslashEscape: false, bracketQuote: true, doubleQuoteAsIdentifier: true, blockMode: 'sql' } },
@@ -433,15 +501,45 @@ describe('方言能力位矩阵（与服务端 dbm/sqlparser 选型对齐 + 前�
 describe('切割回归：行注释与块注释', () => {
     runCases([
         { name: '块注释保留原文，闭合符即 token 分隔（mysql）', sql: 'SELECT count(*)/*x*/FROM t;', dbType: 'mysql', expected: ['SELECT count(*)/*x*/FROM t'] },
-        { name: '行注释保留原文，换行仍作分隔（mysql）', sql: 'SELECT * FROM t WHERE a=1-- c\nAND b=2;', dbType: 'mysql', expected: ['SELECT * FROM t WHERE a=1-- c\nAND b=2'] },
+        {
+            name: '行注释保留原文，换行仍作分隔（mysql）',
+            sql: 'SELECT * FROM t WHERE a=1-- c\nAND b=2;',
+            dbType: 'mysql',
+            expected: ['SELECT * FROM t WHERE a=1-- c\nAND b=2'],
+        },
         { name: '`1--2` 为减法而非注释（mysql）', sql: 'SELECT 1--2; SELECT 2;', dbType: 'mysql', expected: ['SELECT 1--2', 'SELECT 2'] },
-        { name: '`--` 后跟制表符仍为注释，无换行则吞掉后续语句（mysql）', sql: 'SELECT 1--\t2; SELECT 2;', dbType: 'mysql', expected: ['SELECT 1--\t2; SELECT 2;'] },
+        {
+            name: '`--` 后跟制表符仍为注释，无换行则吞掉后续语句（mysql）',
+            sql: 'SELECT 1--\t2; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT 1--\t2; SELECT 2;'],
+        },
         { name: '行注释内分号不切割（mssql）', sql: 'SELECT 1; -- end\nSELECT 2;', dbType: 'mssql', expected: ['SELECT 1', '-- end\nSELECT 2'] },
-        { name: '块注释内含引号不影响闭合（postgres）', sql: "SELECT 1 /* 注释里的 ' 号 */; SELECT 2;", dbType: 'postgres', expected: ["SELECT 1 /* 注释里的 ' 号 */", 'SELECT 2'] },
-        { name: '注释内分号不切割（postgres）', sql: 'SELECT 1; /* 说明; 含分号 */ SELECT 2;', dbType: 'postgres', expected: ['SELECT 1', '/* 说明; 含分号 */ SELECT 2'] },
+        {
+            name: '块注释内含引号不影响闭合（postgres）',
+            sql: "SELECT 1 /* 注释里的 ' 号 */; SELECT 2;",
+            dbType: 'postgres',
+            expected: ["SELECT 1 /* 注释里的 ' 号 */", 'SELECT 2'],
+        },
+        {
+            name: '注释内分号不切割（postgres）',
+            sql: 'SELECT 1; /* 说明; 含分号 */ SELECT 2;',
+            dbType: 'postgres',
+            expected: ['SELECT 1', '/* 说明; 含分号 */ SELECT 2'],
+        },
         { name: '临时表名 # 不是注释符（mssql）', sql: 'SELECT * FROM #tmp; SELECT 2;', dbType: 'mssql', expected: ['SELECT * FROM #tmp', 'SELECT 2'] },
-        { name: 'PG 的 # 为运算符不是注释符（postgres）', sql: 'SELECT a # b FROM t; SELECT 2;', dbType: 'postgres', expected: ['SELECT a # b FROM t', 'SELECT 2'] },
-        { name: '未注册方言回退 mysql：`--` 要求后随空白，`1--2` 为减法不吞后续语句', sql: 'SELECT 1--2; SELECT 2;', dbType: 'unknown', expected: ['SELECT 1--2', 'SELECT 2'] },
+        {
+            name: 'PG 的 # 为运算符不是注释符（postgres）',
+            sql: 'SELECT a # b FROM t; SELECT 2;',
+            dbType: 'postgres',
+            expected: ['SELECT a # b FROM t', 'SELECT 2'],
+        },
+        {
+            name: '未注册方言回退 mysql：`--` 要求后随空白，`1--2` 为减法不吞后续语句',
+            sql: 'SELECT 1--2; SELECT 2;',
+            dbType: 'unknown',
+            expected: ['SELECT 1--2', 'SELECT 2'],
+        },
         { name: '未注册方言回退 mysql：# 为行注释，其后分号不切割', sql: 'SELECT 1 # c; SELECT 2;', dbType: 'unknown', expected: ['SELECT 1 # c; SELECT 2;'] },
     ]);
 });
@@ -449,59 +547,232 @@ describe('切割回归：行注释与块注释', () => {
 describe('切割回归：字符串与引用标识符', () => {
     runCases([
         { name: '双写引号转义（postgres）', sql: "SELECT 'a'';b' AS x; SELECT 2;", dbType: 'postgres', expected: ["SELECT 'a'';b' AS x", 'SELECT 2'] },
-        { name: '双写引号转义（oracle）', sql: "SELECT 'a''b;c' FROM dual; SELECT 2 FROM dual;", dbType: 'oracle', expected: ["SELECT 'a''b;c' FROM dual", 'SELECT 2 FROM dual'] },
+        {
+            name: '双写引号转义（oracle）',
+            sql: "SELECT 'a''b;c' FROM dual; SELECT 2 FROM dual;",
+            dbType: 'oracle',
+            expected: ["SELECT 'a''b;c' FROM dual", 'SELECT 2 FROM dual'],
+        },
         { name: '反斜杠不转义，其后的引号即闭合（postgres）', sql: "SELECT 'a\\'; SELECT 2;", dbType: 'postgres', expected: ["SELECT 'a\\'", 'SELECT 2'] },
         { name: '反斜杠不转义（dm）', sql: "SELECT 'a\\'; SELECT 2 FROM dual;", dbType: 'dm', expected: ["SELECT 'a\\'", 'SELECT 2 FROM dual'] },
-        { name: '反斜杠转义生效（clickhouse）', sql: "SELECT * FROM t WHERE a = 'x\\'y;b'; SELECT 2;", dbType: 'clickhouse', expected: ["SELECT * FROM t WHERE a = 'x\\'y;b'", 'SELECT 2'] },
+        {
+            name: '反斜杠转义生效（clickhouse）',
+            sql: "SELECT * FROM t WHERE a = 'x\\'y;b'; SELECT 2;",
+            dbType: 'clickhouse',
+            expected: ["SELECT * FROM t WHERE a = 'x\\'y;b'", 'SELECT 2'],
+        },
         { name: '双写与反斜杠混合（mysql）', sql: "SELECT 'a''b\\'c;d'; SELECT 2;", dbType: 'mysql', expected: ["SELECT 'a''b\\'c;d'", 'SELECT 2'] },
         { name: 'E 串内反斜杠为转义符（postgres）', sql: "SELECT E'it\\'s'; SELECT 2;", dbType: 'postgres', expected: ["SELECT E'it\\'s'", 'SELECT 2'] },
-        { name: '列名尾字母 e 不误判为 E 前缀（postgres）', sql: "SELECT table_name, 'a;b' FROM t; SELECT 2;", dbType: 'postgres', expected: ["SELECT table_name, 'a;b' FROM t", 'SELECT 2'] },
-        { name: 'dollar-quote 嵌套内层标签不构成闭合（postgres）', sql: 'SELECT $$ outer $inner$ mid $inner$ end $$; SELECT 2;', dbType: 'postgres', expected: ['SELECT $$ outer $inner$ mid $inner$ end $$', 'SELECT 2'] },
-        { name: '位置参数 $1 不当作开标签（postgres）', sql: 'SELECT * FROM t WHERE id=$1 AND name=$2; SELECT 2;', dbType: 'postgres', expected: ['SELECT * FROM t WHERE id=$1 AND name=$2', 'SELECT 2'] },
-        { name: '类型转换与数组字面量（postgres）', sql: "SELECT a::int[], '{1;2;3}'::int[] FROM t; SELECT 2;", dbType: 'postgres', expected: ["SELECT a::int[], '{1;2;3}'::int[] FROM t", 'SELECT 2'] },
-        { name: '嵌套块注释在闭合的嵌套层之外切割（postgres）', sql: 'SELECT 1 /* a /* b; */ c */; SELECT 2;', dbType: 'postgres', expected: ['SELECT 1 /* a /* b; */ c */', 'SELECT 2'] },
-        { name: '非嵌套方言在首个 */ 闭合，残余作为代码（mysql）', sql: 'SELECT 1 /* a /* b; */ c */; SELECT 2;', dbType: 'mysql', expected: ['SELECT 1 /* a /* b; */ c */', 'SELECT 2'] },
+        {
+            name: '列名尾字母 e 不误判为 E 前缀（postgres）',
+            sql: "SELECT table_name, 'a;b' FROM t; SELECT 2;",
+            dbType: 'postgres',
+            expected: ["SELECT table_name, 'a;b' FROM t", 'SELECT 2'],
+        },
+        {
+            name: 'dollar-quote 嵌套内层标签不构成闭合（postgres）',
+            sql: 'SELECT $$ outer $inner$ mid $inner$ end $$; SELECT 2;',
+            dbType: 'postgres',
+            expected: ['SELECT $$ outer $inner$ mid $inner$ end $$', 'SELECT 2'],
+        },
+        {
+            name: '位置参数 $1 不当作开标签（postgres）',
+            sql: 'SELECT * FROM t WHERE id=$1 AND name=$2; SELECT 2;',
+            dbType: 'postgres',
+            expected: ['SELECT * FROM t WHERE id=$1 AND name=$2', 'SELECT 2'],
+        },
+        {
+            name: '类型转换与数组字面量（postgres）',
+            sql: "SELECT a::int[], '{1;2;3}'::int[] FROM t; SELECT 2;",
+            dbType: 'postgres',
+            expected: ["SELECT a::int[], '{1;2;3}'::int[] FROM t", 'SELECT 2'],
+        },
+        {
+            name: '嵌套块注释在闭合的嵌套层之外切割（postgres）',
+            sql: 'SELECT 1 /* a /* b; */ c */; SELECT 2;',
+            dbType: 'postgres',
+            expected: ['SELECT 1 /* a /* b; */ c */', 'SELECT 2'],
+        },
+        {
+            name: '非嵌套方言在首个 */ 闭合，残余作为代码（mysql）',
+            sql: 'SELECT 1 /* a /* b; */ c */; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT 1 /* a /* b; */ c */', 'SELECT 2'],
+        },
         { name: '方括号标识符内分号不切（mssql）', sql: 'SELECT [a;b] FROM t; SELECT 2;', dbType: 'mssql', expected: ['SELECT [a;b] FROM t', 'SELECT 2'] },
         { name: ']] 为转义右括号（mssql）', sql: 'SELECT [a]]b;c] FROM t;', dbType: 'mssql', expected: ['SELECT [a]]b;c] FROM t'] },
-        { name: '标识符内左括号为普通字符（mssql）', sql: 'SELECT [a[b]]] FROM t; SELECT 2;', dbType: 'mssql', expected: ['SELECT [a[b]]] FROM t', 'SELECT 2'] },
+        {
+            name: '标识符内左括号为普通字符（mssql）',
+            sql: 'SELECT [a[b]]] FROM t; SELECT 2;',
+            dbType: 'mssql',
+            expected: ['SELECT [a[b]]] FROM t', 'SELECT 2'],
+        },
         { name: 'N 前缀字符串（mssql）', sql: "SELECT N'a;b'; SELECT 2;", dbType: 'mssql', expected: ["SELECT N'a;b'", 'SELECT 2'] },
-        { name: 'CTE 名含分号（mssql）', sql: ';WITH [x;y] AS (SELECT 1 a) SELECT * FROM [x;y]; SELECT 2;', dbType: 'mssql', expected: ['WITH [x;y] AS (SELECT 1 a) SELECT * FROM [x;y]', 'SELECT 2'] },
+        {
+            name: 'CTE 名含分号（mssql）',
+            sql: ';WITH [x;y] AS (SELECT 1 a) SELECT * FROM [x;y]; SELECT 2;',
+            dbType: 'mssql',
+            expected: ['WITH [x;y] AS (SELECT 1 a) SELECT * FROM [x;y]', 'SELECT 2'],
+        },
         { name: '方括号标识符（sqlite）', sql: 'SELECT [a;b] FROM t;', dbType: 'sqlite', expected: ['SELECT [a;b] FROM t'] },
         { name: '反引号标识符（sqlite）', sql: 'SELECT `a;b` FROM t; SELECT 2;', dbType: 'sqlite', expected: ['SELECT `a;b` FROM t', 'SELECT 2'] },
         { name: '双引号为标识符，内 -- 不是注释（postgres）', sql: 'SELECT "a--b" FROM t;', dbType: 'postgres', expected: ['SELECT "a--b" FROM t'] },
-        { name: 'oracle q-quote 括号型定界符', sql: "INSERT INTO t VALUES (q'[it's; ok]'); SELECT 2 FROM dual;", dbType: 'oracle', expected: ["INSERT INTO t VALUES (q'[it's; ok]')", 'SELECT 2 FROM dual'] },
-        { name: 'oracle q-quote 自定义定界符', sql: "SELECT q'!it's; here!' FROM dual; SELECT 2 FROM dual;", dbType: 'oracle', expected: ["SELECT q'!it's; here!' FROM dual", 'SELECT 2 FROM dual'] },
-        { name: 'oracle 空串与拼接', sql: "SELECT '' || name || ';' FROM t; SELECT 2 FROM dual;", dbType: 'oracle', expected: ["SELECT '' || name || ';' FROM t", 'SELECT 2 FROM dual'] },
-        { name: 'dm q-quote 生效', sql: "SELECT q'[a;b]' FROM dual; SELECT 2 FROM dual;", dbType: 'dm', expected: ["SELECT q'[a;b]' FROM dual", 'SELECT 2 FROM dual'] },
+        {
+            name: 'oracle q-quote 括号型定界符',
+            sql: "INSERT INTO t VALUES (q'[it's; ok]'); SELECT 2 FROM dual;",
+            dbType: 'oracle',
+            expected: ["INSERT INTO t VALUES (q'[it's; ok]')", 'SELECT 2 FROM dual'],
+        },
+        {
+            name: 'oracle q-quote 自定义定界符',
+            sql: "SELECT q'!it's; here!' FROM dual; SELECT 2 FROM dual;",
+            dbType: 'oracle',
+            expected: ["SELECT q'!it's; here!' FROM dual", 'SELECT 2 FROM dual'],
+        },
+        {
+            name: 'oracle 空串与拼接',
+            sql: "SELECT '' || name || ';' FROM t; SELECT 2 FROM dual;",
+            dbType: 'oracle',
+            expected: ["SELECT '' || name || ';' FROM t", 'SELECT 2 FROM dual'],
+        },
+        {
+            name: 'dm q-quote 生效',
+            sql: "SELECT q'[a;b]' FROM dual; SELECT 2 FROM dual;",
+            dbType: 'dm',
+            expected: ["SELECT q'[a;b]' FROM dual", 'SELECT 2 FROM dual'],
+        },
         { name: '未闭合 q-quote 归为一条（降级不报错）', sql: "SELECT q'[abc FROM dual;", dbType: 'oracle', expected: ["SELECT q'[abc FROM dual;"] },
     ]);
 });
 
 describe('切割回归：复合语句块 BEGIN..END', () => {
     runCases([
-        { name: '存储过程体不切割（mysql）', sql: 'CREATE PROCEDURE p(IN a INT) BEGIN SELECT 1; SELECT a; END;\nSELECT 2;', dbType: 'mysql', expected: ['CREATE PROCEDURE p(IN a INT) BEGIN SELECT 1; SELECT a; END', 'SELECT 2'] },
-        { name: 'IF..END IF 与 CASE 嵌套（mysql）', sql: 'CREATE PROCEDURE p() BEGIN IF a THEN SELECT 1; ELSE SELECT CASE WHEN x THEN 1 END; END IF; LOOP SET @i=1; IF @i>2 THEN LEAVE l; END IF; END LOOP l; END; SELECT 9;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN IF a THEN SELECT 1; ELSE SELECT CASE WHEN x THEN 1 END; END IF; LOOP SET @i=1; IF @i>2 THEN LEAVE l; END IF; END LOOP l; END', 'SELECT 9'] },
-        { name: '标签 LOOP（mysql）', sql: 'CREATE PROCEDURE p() BEGIN l: LOOP SELECT 1; END LOOP l; END;SELECT 2;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN l: LOOP SELECT 1; END LOOP l; END', 'SELECT 2'] },
-        { name: '触发器体（mysql）', sql: 'CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN SET @a = 1; SET @b = 2; END;\nSELECT 2;', dbType: 'mysql', expected: ['CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN SET @a = 1; SET @b = 2; END', 'SELECT 2'] },
+        {
+            name: '存储过程体不切割（mysql）',
+            sql: 'CREATE PROCEDURE p(IN a INT) BEGIN SELECT 1; SELECT a; END;\nSELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE PROCEDURE p(IN a INT) BEGIN SELECT 1; SELECT a; END', 'SELECT 2'],
+        },
+        {
+            name: 'IF..END IF 与 CASE 嵌套（mysql）',
+            sql: 'CREATE PROCEDURE p() BEGIN IF a THEN SELECT 1; ELSE SELECT CASE WHEN x THEN 1 END; END IF; LOOP SET @i=1; IF @i>2 THEN LEAVE l; END IF; END LOOP l; END; SELECT 9;',
+            dbType: 'mysql',
+            expected: [
+                'CREATE PROCEDURE p() BEGIN IF a THEN SELECT 1; ELSE SELECT CASE WHEN x THEN 1 END; END IF; LOOP SET @i=1; IF @i>2 THEN LEAVE l; END IF; END LOOP l; END',
+                'SELECT 9',
+            ],
+        },
+        {
+            name: '标签 LOOP（mysql）',
+            sql: 'CREATE PROCEDURE p() BEGIN l: LOOP SELECT 1; END LOOP l; END;SELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE PROCEDURE p() BEGIN l: LOOP SELECT 1; END LOOP l; END', 'SELECT 2'],
+        },
+        {
+            name: '触发器体（mysql）',
+            sql: 'CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN SET @a = 1; SET @b = 2; END;\nSELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW BEGIN SET @a = 1; SET @b = 2; END', 'SELECT 2'],
+        },
         { name: '事务开启语句照常切割（mysql）', sql: 'BEGIN; SELECT 1; COMMIT;', dbType: 'mysql', expected: ['BEGIN', 'SELECT 1', 'COMMIT'] },
         { name: '空块（mysql）', sql: 'CREATE PROCEDURE p() BEGIN END;SELECT 1;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN END', 'SELECT 1'] },
-        { name: '块内字符串含分号（mysql）', sql: "CREATE PROCEDURE p() BEGIN SELECT 'a;b'; END;SELECT 2;", dbType: 'mysql', expected: ["CREATE PROCEDURE p() BEGIN SELECT 'a;b'; END", 'SELECT 2'] },
-        { name: 'END 紧跟分号（mysql）', sql: 'CREATE PROCEDURE p() BEGIN SELECT 1;END;SELECT 2;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN SELECT 1;END', 'SELECT 2'] },
-        { name: '关键字小写同样生效（mysql）', sql: 'create procedure p() begin select 1; end;select 2;', dbType: 'mysql', expected: ['create procedure p() begin select 1; end', 'select 2'] },
-        { name: '块内 DDL 的 IF NOT EXISTS 不入块（mysql）', sql: 'CREATE PROCEDURE p() BEGIN CREATE TABLE IF NOT EXISTS t (a INT); SELECT CASE WHEN x THEN 1 END; END;SELECT 1;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN CREATE TABLE IF NOT EXISTS t (a INT); SELECT CASE WHEN x THEN 1 END; END', 'SELECT 1'] },
-        { name: 'BEGIN 无配对 END 时降级为普通语句切割（mysql）', sql: 'CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN SELECT 1', 'SELECT 2'] },
-        { name: 'BEGIN TRY/CATCH（mssql）', sql: 'BEGIN TRY SELECT 1; END TRY BEGIN CATCH SELECT 2; END CATCH;\nSELECT 3;', dbType: 'mssql', expected: ['BEGIN TRY SELECT 1; END TRY BEGIN CATCH SELECT 2; END CATCH', 'SELECT 3'] },
-        { name: '嵌套 BEGIN（mssql）', sql: 'BEGIN BEGIN SELECT 1; END END;SELECT 2;', dbType: 'mssql', expected: ['BEGIN BEGIN SELECT 1; END END', 'SELECT 2'] },
-        { name: 'IF/ELSE 无 END 闭合，按普通语句切割（mssql）', sql: 'IF 1=1 SELECT 1; ELSE SELECT 2;', dbType: 'mssql', expected: ['IF 1=1 SELECT 1', 'ELSE SELECT 2'] },
-        { name: 'DECLARE 为独立语句（mssql）', sql: 'DECLARE @i INT; WHILE @i < 10 BEGIN SET @i = @i + 1; END;\nSELECT 4;', dbType: 'mssql', expected: ['DECLARE @i INT', 'WHILE @i < 10 BEGIN SET @i = @i + 1; END', 'SELECT 4'] },
-        { name: 'Oracle 匿名块 DECLARE..BEGIN..END', sql: 'DECLARE x INT; BEGIN x := 1; DBMS_OUTPUT.PUT_LINE(x); END;\nSELECT 2 FROM dual;', dbType: 'oracle', expected: ['DECLARE x INT; BEGIN x := 1; DBMS_OUTPUT.PUT_LINE(x); END', 'SELECT 2 FROM dual'] },
-        { name: 'Oracle FOR..LOOP（大小写混合）', sql: 'CREATE PROCEDURE p AS BEGIN FOR i IN 1..3 LOOP INSERT INTO t VALUES(i); END LOOP; END;\nSELECT 2 FROM dual;', dbType: 'oracle', expected: ['CREATE PROCEDURE p AS BEGIN FOR i IN 1..3 LOOP INSERT INTO t VALUES(i); END LOOP; END', 'SELECT 2 FROM dual'] },
-        { name: 'PG BEGIN ATOMIC', sql: 'CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN 1; END;\nSELECT 2;', dbType: 'postgres', expected: ['CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN 1; END', 'SELECT 2'] },
+        {
+            name: '块内字符串含分号（mysql）',
+            sql: "CREATE PROCEDURE p() BEGIN SELECT 'a;b'; END;SELECT 2;",
+            dbType: 'mysql',
+            expected: ["CREATE PROCEDURE p() BEGIN SELECT 'a;b'; END", 'SELECT 2'],
+        },
+        {
+            name: 'END 紧跟分号（mysql）',
+            sql: 'CREATE PROCEDURE p() BEGIN SELECT 1;END;SELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE PROCEDURE p() BEGIN SELECT 1;END', 'SELECT 2'],
+        },
+        {
+            name: '关键字小写同样生效（mysql）',
+            sql: 'create procedure p() begin select 1; end;select 2;',
+            dbType: 'mysql',
+            expected: ['create procedure p() begin select 1; end', 'select 2'],
+        },
+        {
+            name: '块内 DDL 的 IF NOT EXISTS 不入块（mysql）',
+            sql: 'CREATE PROCEDURE p() BEGIN CREATE TABLE IF NOT EXISTS t (a INT); SELECT CASE WHEN x THEN 1 END; END;SELECT 1;',
+            dbType: 'mysql',
+            expected: ['CREATE PROCEDURE p() BEGIN CREATE TABLE IF NOT EXISTS t (a INT); SELECT CASE WHEN x THEN 1 END; END', 'SELECT 1'],
+        },
+        {
+            name: 'BEGIN 无配对 END 时降级为普通语句切割（mysql）',
+            sql: 'CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE PROCEDURE p() BEGIN SELECT 1', 'SELECT 2'],
+        },
+        {
+            name: 'BEGIN TRY/CATCH（mssql）',
+            sql: 'BEGIN TRY SELECT 1; END TRY BEGIN CATCH SELECT 2; END CATCH;\nSELECT 3;',
+            dbType: 'mssql',
+            expected: ['BEGIN TRY SELECT 1; END TRY BEGIN CATCH SELECT 2; END CATCH', 'SELECT 3'],
+        },
+        {
+            name: '嵌套 BEGIN（mssql）',
+            sql: 'BEGIN BEGIN SELECT 1; END END;SELECT 2;',
+            dbType: 'mssql',
+            expected: ['BEGIN BEGIN SELECT 1; END END', 'SELECT 2'],
+        },
+        {
+            name: 'IF/ELSE 无 END 闭合，按普通语句切割（mssql）',
+            sql: 'IF 1=1 SELECT 1; ELSE SELECT 2;',
+            dbType: 'mssql',
+            expected: ['IF 1=1 SELECT 1', 'ELSE SELECT 2'],
+        },
+        {
+            name: 'DECLARE 为独立语句（mssql）',
+            sql: 'DECLARE @i INT; WHILE @i < 10 BEGIN SET @i = @i + 1; END;\nSELECT 4;',
+            dbType: 'mssql',
+            expected: ['DECLARE @i INT', 'WHILE @i < 10 BEGIN SET @i = @i + 1; END', 'SELECT 4'],
+        },
+        {
+            name: 'Oracle 匿名块 DECLARE..BEGIN..END',
+            sql: 'DECLARE x INT; BEGIN x := 1; DBMS_OUTPUT.PUT_LINE(x); END;\nSELECT 2 FROM dual;',
+            dbType: 'oracle',
+            expected: ['DECLARE x INT; BEGIN x := 1; DBMS_OUTPUT.PUT_LINE(x); END', 'SELECT 2 FROM dual'],
+        },
+        {
+            name: 'Oracle FOR..LOOP（大小写混合）',
+            sql: 'CREATE PROCEDURE p AS BEGIN FOR i IN 1..3 LOOP INSERT INTO t VALUES(i); END LOOP; END;\nSELECT 2 FROM dual;',
+            dbType: 'oracle',
+            expected: ['CREATE PROCEDURE p AS BEGIN FOR i IN 1..3 LOOP INSERT INTO t VALUES(i); END LOOP; END', 'SELECT 2 FROM dual'],
+        },
+        {
+            name: 'PG BEGIN ATOMIC',
+            sql: 'CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN 1; END;\nSELECT 2;',
+            dbType: 'postgres',
+            expected: ['CREATE FUNCTION f() RETURNS int LANGUAGE sql BEGIN ATOMIC RETURN 1; END', 'SELECT 2'],
+        },
         { name: 'PG 事务 BEGIN 不入口（postgres）', sql: 'BEGIN; SELECT 1; COMMIT;', dbType: 'postgres', expected: ['BEGIN', 'SELECT 1', 'COMMIT'] },
-        { name: 'PG DO 块（体在 dollar-quote 内）', sql: 'DO $$ DECLARE x int; BEGIN x := 1; END $$;\nSELECT 2;', dbType: 'postgres', expected: ['DO $$ DECLARE x int; BEGIN x := 1; END $$', 'SELECT 2'] },
-        { name: '顶层表达式 CASE 正常闭合（postgres）', sql: 'SELECT CASE WHEN a THEN 1 END; SELECT 2;', dbType: 'postgres', expected: ['SELECT CASE WHEN a THEN 1 END', 'SELECT 2'] },
-        { name: '无块感知方言仍按分号切割（sqlite）', sql: 'BEGIN; INSERT INTO t VALUES(1); COMMIT;', dbType: 'sqlite', expected: ['BEGIN', 'INSERT INTO t VALUES(1)', 'COMMIT'] },
-        { name: 'CASE 表达式不入口（clickhouse，blockMode=none）', sql: 'SELECT CASE WHEN a THEN 1 END; SELECT 2;', dbType: 'clickhouse', expected: ['SELECT CASE WHEN a THEN 1 END', 'SELECT 2'] },
+        {
+            name: 'PG DO 块（体在 dollar-quote 内）',
+            sql: 'DO $$ DECLARE x int; BEGIN x := 1; END $$;\nSELECT 2;',
+            dbType: 'postgres',
+            expected: ['DO $$ DECLARE x int; BEGIN x := 1; END $$', 'SELECT 2'],
+        },
+        {
+            name: '顶层表达式 CASE 正常闭合（postgres）',
+            sql: 'SELECT CASE WHEN a THEN 1 END; SELECT 2;',
+            dbType: 'postgres',
+            expected: ['SELECT CASE WHEN a THEN 1 END', 'SELECT 2'],
+        },
+        {
+            name: '无块感知方言仍按分号切割（sqlite）',
+            sql: 'BEGIN; INSERT INTO t VALUES(1); COMMIT;',
+            dbType: 'sqlite',
+            expected: ['BEGIN', 'INSERT INTO t VALUES(1)', 'COMMIT'],
+        },
+        {
+            name: 'CASE 表达式不入口（clickhouse，blockMode=none）',
+            sql: 'SELECT CASE WHEN a THEN 1 END; SELECT 2;',
+            dbType: 'clickhouse',
+            expected: ['SELECT CASE WHEN a THEN 1 END', 'SELECT 2'],
+        },
     ]);
 });
 
@@ -510,13 +781,38 @@ describe('切割回归：过程关键字同名标识符（不得误入块）', (
         { name: '表名 loop（mysql）', sql: 'SELECT * FROM loop; SELECT 2;', dbType: 'mysql', expected: ['SELECT * FROM loop', 'SELECT 2'] },
         { name: '表名 while（mysql）', sql: 'SELECT * FROM `while`; SELECT 2;', dbType: 'mysql', expected: ['SELECT * FROM `while`', 'SELECT 2'] },
         { name: '函数式 IF（mysql）', sql: 'SELECT IF(a,1,2) FROM t; SELECT 2;', dbType: 'mysql', expected: ['SELECT IF(a,1,2) FROM t', 'SELECT 2'] },
-        { name: 'DDL IF NOT EXISTS（mysql）', sql: 'CREATE TABLE IF NOT EXISTS t (a INT); SELECT 2;', dbType: 'mysql', expected: ['CREATE TABLE IF NOT EXISTS t (a INT)', 'SELECT 2'] },
+        {
+            name: 'DDL IF NOT EXISTS（mysql）',
+            sql: 'CREATE TABLE IF NOT EXISTS t (a INT); SELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE TABLE IF NOT EXISTS t (a INT)', 'SELECT 2'],
+        },
         { name: 'REPEAT() 同名函数（mysql）', sql: "SELECT REPEAT('a',2); SELECT 2;", dbType: 'mysql', expected: ["SELECT REPEAT('a',2)", 'SELECT 2'] },
-        { name: '子串命中防护（begins/case_id/end_at）', sql: 'UPDATE begins SET case_id = 1 WHERE end_at IS NULL; SELECT 2;', dbType: 'mysql', expected: ['UPDATE begins SET case_id = 1 WHERE end_at IS NULL', 'SELECT 2'] },
-        { name: '表名 ends（含 end 前缀）', sql: 'SELECT * FROM ends WHERE ends = 1; SELECT 2;', dbType: 'mysql', expected: ['SELECT * FROM ends WHERE ends = 1', 'SELECT 2'] },
-        { name: '表名 loop（oracle）', sql: 'SELECT * FROM loop; SELECT 2 FROM dual;', dbType: 'oracle', expected: ['SELECT * FROM loop', 'SELECT 2 FROM dual'] },
+        {
+            name: '子串命中防护（begins/case_id/end_at）',
+            sql: 'UPDATE begins SET case_id = 1 WHERE end_at IS NULL; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['UPDATE begins SET case_id = 1 WHERE end_at IS NULL', 'SELECT 2'],
+        },
+        {
+            name: '表名 ends（含 end 前缀）',
+            sql: 'SELECT * FROM ends WHERE ends = 1; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT * FROM ends WHERE ends = 1', 'SELECT 2'],
+        },
+        {
+            name: '表名 loop（oracle）',
+            sql: 'SELECT * FROM loop; SELECT 2 FROM dual;',
+            dbType: 'oracle',
+            expected: ['SELECT * FROM loop', 'SELECT 2 FROM dual'],
+        },
         { name: '表名 while_（mssql）', sql: 'SELECT * FROM while_; SELECT 2;', dbType: 'mssql', expected: ['SELECT * FROM while_', 'SELECT 2'] },
-        { name: '表达式 CASE 与普通语句共存（mysql）', sql: 'SELECT CASE WHEN a THEN 1 END, b FROM t; SELECT * FROM loop; SELECT 2;', dbType: 'mysql', expected: ['SELECT CASE WHEN a THEN 1 END, b FROM t', 'SELECT * FROM loop', 'SELECT 2'] },
+        {
+            name: '表达式 CASE 与普通语句共存（mysql）',
+            sql: 'SELECT CASE WHEN a THEN 1 END, b FROM t; SELECT * FROM loop; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT CASE WHEN a THEN 1 END, b FROM t', 'SELECT * FROM loop', 'SELECT 2'],
+        },
     ]);
 });
 
@@ -525,15 +821,55 @@ describe('切割回归：真实脚本与复杂字面量', () => {
         { name: '相邻字符串字面量跨行拼接（postgres）', sql: "SELECT 'a'\n'b;c';", dbType: 'postgres', expected: ["SELECT 'a'\n'b;c'"] },
         { name: '字符串含 NUL 字节不影响闭合（mysql）', sql: "SELECT 'a\u0000b;c'; SELECT 2;", dbType: 'mysql', expected: ["SELECT 'a\u0000b;c'", 'SELECT 2'] },
         { name: '单行超长字面量整条保留（mysql）', sql: `SELECT '${'a'.repeat(70000)};x';`, dbType: 'mysql', expected: [`SELECT '${'a'.repeat(70000)};x'`] },
-        { name: '嵌套 CASE（mysql）', sql: 'SELECT CASE WHEN CASE WHEN x THEN 1 END THEN 2 END; SELECT 2;', dbType: 'mysql', expected: ['SELECT CASE WHEN CASE WHEN x THEN 1 END THEN 2 END', 'SELECT 2'] },
-        { name: '匿名块 EXCEPTION 段（oracle）', sql: 'BEGIN x:=1; EXCEPTION WHEN OTHERS THEN NULL; END;\nSELECT 2 FROM dual;', dbType: 'oracle', expected: ['BEGIN x:=1; EXCEPTION WHEN OTHERS THEN NULL; END', 'SELECT 2 FROM dual'] },
-        { name: '块内字符串含 END 文本不出块（mysql）', sql: "CREATE PROCEDURE p() BEGIN SELECT 'END;'; END;SELECT 2;", dbType: 'mysql', expected: ["CREATE PROCEDURE p() BEGIN SELECT 'END;'; END", 'SELECT 2'] },
-        { name: '注释中的 END 不出块，无配对 END 则关闭块感知重切（mysql）', sql: 'CREATE PROCEDURE p() BEGIN SELECT 1; -- END\nSELECT 2;', dbType: 'mysql', expected: ['CREATE PROCEDURE p() BEGIN SELECT 1', '-- END\nSELECT 2'] },
-        { name: 'CASE 缺配对 END 不吞并后续语句（mysql）', sql: 'SELECT CASE WHEN a THEN 1;SELECT 2;', dbType: 'mysql', expected: ['SELECT CASE WHEN a THEN 1', 'SELECT 2'] },
-        { name: 'BEGIN 无分号且块未闭合时降级重切（postgres）', sql: 'BEGIN\nSELECT 1;SELECT 2;SELECT 3;', dbType: 'postgres', expected: ['BEGIN\nSELECT 1', 'SELECT 2', 'SELECT 3'] },
-        { name: 'mssql IF..BEGIN..END ELSE..BEGIN..END', sql: 'IF 1=1 BEGIN SELECT 1; END ELSE BEGIN SELECT 2; END;', dbType: 'mssql', expected: ['IF 1=1 BEGIN SELECT 1; END ELSE BEGIN SELECT 2; END'] },
+        {
+            name: '嵌套 CASE（mysql）',
+            sql: 'SELECT CASE WHEN CASE WHEN x THEN 1 END THEN 2 END; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT CASE WHEN CASE WHEN x THEN 1 END THEN 2 END', 'SELECT 2'],
+        },
+        {
+            name: '匿名块 EXCEPTION 段（oracle）',
+            sql: 'BEGIN x:=1; EXCEPTION WHEN OTHERS THEN NULL; END;\nSELECT 2 FROM dual;',
+            dbType: 'oracle',
+            expected: ['BEGIN x:=1; EXCEPTION WHEN OTHERS THEN NULL; END', 'SELECT 2 FROM dual'],
+        },
+        {
+            name: '块内字符串含 END 文本不出块（mysql）',
+            sql: "CREATE PROCEDURE p() BEGIN SELECT 'END;'; END;SELECT 2;",
+            dbType: 'mysql',
+            expected: ["CREATE PROCEDURE p() BEGIN SELECT 'END;'; END", 'SELECT 2'],
+        },
+        {
+            name: '注释中的 END 不出块，无配对 END 则关闭块感知重切（mysql）',
+            sql: 'CREATE PROCEDURE p() BEGIN SELECT 1; -- END\nSELECT 2;',
+            dbType: 'mysql',
+            expected: ['CREATE PROCEDURE p() BEGIN SELECT 1', '-- END\nSELECT 2'],
+        },
+        {
+            name: 'CASE 缺配对 END 不吞并后续语句（mysql）',
+            sql: 'SELECT CASE WHEN a THEN 1;SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT CASE WHEN a THEN 1', 'SELECT 2'],
+        },
+        {
+            name: 'BEGIN 无分号且块未闭合时降级重切（postgres）',
+            sql: 'BEGIN\nSELECT 1;SELECT 2;SELECT 3;',
+            dbType: 'postgres',
+            expected: ['BEGIN\nSELECT 1', 'SELECT 2', 'SELECT 3'],
+        },
+        {
+            name: 'mssql IF..BEGIN..END ELSE..BEGIN..END',
+            sql: 'IF 1=1 BEGIN SELECT 1; END ELSE BEGIN SELECT 2; END;',
+            dbType: 'mssql',
+            expected: ['IF 1=1 BEGIN SELECT 1; END ELSE BEGIN SELECT 2; END'],
+        },
         // 客户端指令型分隔符不在能力表范围（与服务端 DialectSplitter 一致），此用例锁定当前行为不得恶化为吞并整段脚本
-        { name: 'DELIMITER 指令不识别（mysql，已知限制）', sql: 'DELIMITER ;;\nCREATE PROCEDURE p() BEGIN SELECT 1;;\nEND;;\nDELIMITER ;', dbType: 'mysql', expected: ['DELIMITER', 'CREATE PROCEDURE p() BEGIN SELECT 1;;\nEND', 'DELIMITER'] },
+        {
+            name: 'DELIMITER 指令不识别（mysql，已知限制）',
+            sql: 'DELIMITER ;;\nCREATE PROCEDURE p() BEGIN SELECT 1;;\nEND;;\nDELIMITER ;',
+            dbType: 'mysql',
+            expected: ['DELIMITER', 'CREATE PROCEDURE p() BEGIN SELECT 1;;\nEND', 'DELIMITER'],
+        },
     ]);
 
     it('导入文件开头的 UTF-8 BOM 不归入语句文本，但保留在偏移内', () => {
@@ -551,20 +887,57 @@ describe('切割回归：真实复杂 SQL', () => {
     runCases([
         {
             name: '带游标的完整存储过程（mysql）',
-            sql: 'CREATE DEFINER=root@localhost PROCEDURE sp_x(IN p_id INT)\nBEGIN\n  DECLARE v_cnt INT DEFAULT 0;\n  DECLARE done INT DEFAULT FALSE;\n  DECLARE cur CURSOR FOR SELECT id FROM t WHERE id=p_id;\n  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;\n  IF v_cnt > 0 THEN\n    OPEN cur;\n    read_loop: LOOP\n      FETCH cur INTO v_cnt;\n      IF done THEN LEAVE read_loop; END IF;\n    END LOOP read_loop;\n    CLOSE cur;\n  END IF;\n  SELECT CASE WHEN v_cnt=0 THEN \'空\' ELSE CONCAT(\'共\', v_cnt, \'条\') END;\nEND;',
+            sql: "CREATE DEFINER=root@localhost PROCEDURE sp_x(IN p_id INT)\nBEGIN\n  DECLARE v_cnt INT DEFAULT 0;\n  DECLARE done INT DEFAULT FALSE;\n  DECLARE cur CURSOR FOR SELECT id FROM t WHERE id=p_id;\n  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;\n  IF v_cnt > 0 THEN\n    OPEN cur;\n    read_loop: LOOP\n      FETCH cur INTO v_cnt;\n      IF done THEN LEAVE read_loop; END IF;\n    END LOOP read_loop;\n    CLOSE cur;\n  END IF;\n  SELECT CASE WHEN v_cnt=0 THEN '空' ELSE CONCAT('共', v_cnt, '条') END;\nEND;",
             dbType: 'mysql',
-            expected: ['CREATE DEFINER=root@localhost PROCEDURE sp_x(IN p_id INT)\nBEGIN\n  DECLARE v_cnt INT DEFAULT 0;\n  DECLARE done INT DEFAULT FALSE;\n  DECLARE cur CURSOR FOR SELECT id FROM t WHERE id=p_id;\n  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;\n  IF v_cnt > 0 THEN\n    OPEN cur;\n    read_loop: LOOP\n      FETCH cur INTO v_cnt;\n      IF done THEN LEAVE read_loop; END IF;\n    END LOOP read_loop;\n    CLOSE cur;\n  END IF;\n  SELECT CASE WHEN v_cnt=0 THEN \'空\' ELSE CONCAT(\'共\', v_cnt, \'条\') END;\nEND'],
+            expected: [
+                "CREATE DEFINER=root@localhost PROCEDURE sp_x(IN p_id INT)\nBEGIN\n  DECLARE v_cnt INT DEFAULT 0;\n  DECLARE done INT DEFAULT FALSE;\n  DECLARE cur CURSOR FOR SELECT id FROM t WHERE id=p_id;\n  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;\n  IF v_cnt > 0 THEN\n    OPEN cur;\n    read_loop: LOOP\n      FETCH cur INTO v_cnt;\n      IF done THEN LEAVE read_loop; END IF;\n    END LOOP read_loop;\n    CLOSE cur;\n  END IF;\n  SELECT CASE WHEN v_cnt=0 THEN '空' ELSE CONCAT('共', v_cnt, '条') END;\nEND",
+            ],
         },
-        { name: 'CTE + 窗口函数（mysql）', sql: 'WITH t AS (SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn FROM x) SELECT * FROM t WHERE rn=1; SELECT 2;', dbType: 'mysql', expected: ['WITH t AS (SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn FROM x) SELECT * FROM t WHERE rn=1', 'SELECT 2'] },
-        { name: 'JSON 路径含分号（mysql）', sql: "SELECT JSON_EXTRACT(doc, '$.a[0].b;c') FROM t; SELECT 2;", dbType: 'mysql', expected: ["SELECT JSON_EXTRACT(doc, '$.a[0].b;c') FROM t", 'SELECT 2'] },
-        { name: '中文与全角标点字面量（mysql）', sql: "INSERT INTO t(name, remark) VALUES('张三', '含分号;与中文——破折号'); SELECT 2;", dbType: 'mysql', expected: ["INSERT INTO t(name, remark) VALUES('张三', '含分号;与中文——破折号')", 'SELECT 2'] },
-        { name: '中文标识符（mysql）', sql: 'SELECT `用户;名` FROM `订单表`; SELECT 2;', dbType: 'mysql', expected: ['SELECT `用户;名` FROM `订单表`', 'SELECT 2'] },
+        {
+            name: 'CTE + 窗口函数（mysql）',
+            sql: 'WITH t AS (SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn FROM x) SELECT * FROM t WHERE rn=1; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['WITH t AS (SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn FROM x) SELECT * FROM t WHERE rn=1', 'SELECT 2'],
+        },
+        {
+            name: 'JSON 路径含分号（mysql）',
+            sql: "SELECT JSON_EXTRACT(doc, '$.a[0].b;c') FROM t; SELECT 2;",
+            dbType: 'mysql',
+            expected: ["SELECT JSON_EXTRACT(doc, '$.a[0].b;c') FROM t", 'SELECT 2'],
+        },
+        {
+            name: '中文与全角标点字面量（mysql）',
+            sql: "INSERT INTO t(name, remark) VALUES('张三', '含分号;与中文——破折号'); SELECT 2;",
+            dbType: 'mysql',
+            expected: ["INSERT INTO t(name, remark) VALUES('张三', '含分号;与中文——破折号')", 'SELECT 2'],
+        },
+        {
+            name: '中文标识符（mysql）',
+            sql: 'SELECT `用户;名` FROM `订单表`; SELECT 2;',
+            dbType: 'mysql',
+            expected: ['SELECT `用户;名` FROM `订单表`', 'SELECT 2'],
+        },
         { name: 'CRLF 换行下的行注释（mysql）', sql: 'SELECT 1; -- c\r\nSELECT 2;\r\n', dbType: 'mysql', expected: ['SELECT 1', '-- c\r\nSELECT 2'] },
         // 行注释仅以 \n 终止（与服务端 StatementScanner 一致）：全文只用 CR 换行时，注释后文本不产出语句
         { name: '仅 CR 换行的行注释延伸至文末（mysql）', sql: 'SELECT 1; -- c\rSELECT 2;', dbType: 'mysql', expected: ['SELECT 1'] },
-        { name: '函数定义后跟普通语句（postgres）', sql: 'CREATE FUNCTION f() RETURNS void AS $$ BEGIN PERFORM 1; END $$ LANGUAGE plpgsql;\nDROP FUNCTION f();', dbType: 'postgres', expected: ['CREATE FUNCTION f() RETURNS void AS $$ BEGIN PERFORM 1; END $$ LANGUAGE plpgsql', 'DROP FUNCTION f()'] },
-        { name: '注释后的复合块定义（mysql）', sql: '/* lead */ CREATE PROCEDURE p() BEGIN SELECT 1; END;\nSELECT 2;', dbType: 'mysql', expected: ['/* lead */ CREATE PROCEDURE p() BEGIN SELECT 1; END', 'SELECT 2'] },
-        { name: 'INTERVAL 与字面量（clickhouse）', sql: "SELECT now() - INTERVAL 3 DAY AS d, 'a;b'; SELECT 2;", dbType: 'clickhouse', expected: ["SELECT now() - INTERVAL 3 DAY AS d, 'a;b'", 'SELECT 2'] },
+        {
+            name: '函数定义后跟普通语句（postgres）',
+            sql: 'CREATE FUNCTION f() RETURNS void AS $$ BEGIN PERFORM 1; END $$ LANGUAGE plpgsql;\nDROP FUNCTION f();',
+            dbType: 'postgres',
+            expected: ['CREATE FUNCTION f() RETURNS void AS $$ BEGIN PERFORM 1; END $$ LANGUAGE plpgsql', 'DROP FUNCTION f()'],
+        },
+        {
+            name: '注释后的复合块定义（mysql）',
+            sql: '/* lead */ CREATE PROCEDURE p() BEGIN SELECT 1; END;\nSELECT 2;',
+            dbType: 'mysql',
+            expected: ['/* lead */ CREATE PROCEDURE p() BEGIN SELECT 1; END', 'SELECT 2'],
+        },
+        {
+            name: 'INTERVAL 与字面量（clickhouse）',
+            sql: "SELECT now() - INTERVAL 3 DAY AS d, 'a;b'; SELECT 2;",
+            dbType: 'clickhouse',
+            expected: ["SELECT now() - INTERVAL 3 DAY AS d, 'a;b'", 'SELECT 2'],
+        },
     ]);
 });
 

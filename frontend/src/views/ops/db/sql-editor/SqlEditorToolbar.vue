@@ -2,7 +2,14 @@
     <div class="flex-shrink-0">
         <div class="card p-1! flex items-center justify-between">
             <div>
-                <el-link @click="emit('run')" underline="never" class="ml-3.5" icon="VideoPlay"> </el-link>
+                <el-tooltip :show-after="1000" class="box-item" effect="dark" :content="$t('db.runSql')" placement="top">
+                    <el-link @click="emit('run')" underline="never" class="ml-3.5" icon="VideoPlay"> </el-link>
+                </el-tooltip>
+                <el-divider direction="vertical" border-style="dashed" />
+
+                <el-tooltip :show-after="1000" class="box-item" effect="dark" :content="$t('db.runAllSql')" placement="top">
+                    <el-link @click="emit('runAll')" type="primary" underline="never" icon="DArrowRight"> </el-link>
+                </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
                 <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
@@ -51,6 +58,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     run: [];
+    runAll: [];
     format: [];
     commit: [];
     save: [];

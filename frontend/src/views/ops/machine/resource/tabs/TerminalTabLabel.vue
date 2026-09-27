@@ -1,10 +1,7 @@
 <template>
     <div class="terminal-tab-label flex items-center gap-1.5">
         <!-- 连接状态指示器 -->
-        <span
-            class="w-2 h-2 rounded-full shrink-0 transition-all duration-300"
-            :class="statusClasses"
-        ></span>
+        <span class="w-2 h-2 rounded-full shrink-0 transition-all duration-300" :class="statusClasses"></span>
         <!-- 终端图标 -->
         <SvgIcon v-if="icon" :name="icon.name" :color="icon.color" class="text-xs shrink-0" />
         <!-- 终端名称（从外层 tab.name 获取） -->
@@ -18,7 +15,7 @@ import SvgIcon from '@/components/svg-icon/index.vue';
 
 const props = withDefaults(
     defineProps<{
-        tabName?: string;  // 从外层 tab.name 传入
+        tabName?: string; // 从外层 tab.name 传入
         icon?: { name: string; color?: string };
         status?: 'connected' | 'disconnected' | 'connecting' | 'error' | string;
     }>(),

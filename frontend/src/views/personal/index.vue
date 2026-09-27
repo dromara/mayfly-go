@@ -47,12 +47,14 @@ defineOptions({
 });
 
 /** 密码修改表单声明（AutoFormItem[]） */
-const items: AutoFormItem[] = [{
-    prop: 'password',
-    label: 'common.password',
-    type: 'password',
-    placeholder: 'personal.inputNewPasswordPlaceholder',
-}];
+const items: AutoFormItem[] = [
+    {
+        prop: 'password',
+        label: 'common.password',
+        type: 'password',
+        placeholder: 'personal.inputNewPasswordPlaceholder',
+    },
+];
 
 const state = reactive({
     accountInfo: {

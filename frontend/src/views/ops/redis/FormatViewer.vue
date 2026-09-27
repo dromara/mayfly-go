@@ -1,33 +1,41 @@
 <template>
-    <div class="format-viewer-container">
-        <div class="mb-1 flex justify-end">
-            <el-select v-model="selectedView" class="format-selector" size="small" placeholder="Text">
-                <template #prefix>
-                    <SvgIcon name="view" />
-                </template>
-                <el-option v-for="item of Object.keys(viewers)" :key="item" :label="item" :value="item"> </el-option>
-            </el-select>
-            <el-tag type="primary" :disable-transitions="true" class="ml-2">Size: {{ formatByteSize(state.contentSize) }}</el-tag>
+    <div class="format-viewer-container flex min-h-0 flex-col">
+        <!-- 查看方式靠左，读数与复制靠右 -->
+        <div class="flex items-center gap-2 pb-1.5">
+            <el-radio-group v-model="selectedView" size="small">
+                <el-radio-button v-for="item of viewerOptions" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
+            </el-radio-group>
+            <div class="ml-auto flex items-center gap-2">
+                <span class="size-text">{{ formatByteSize(state.contentSize) }}</span>
+                <el-tooltip :content="$t('common.copy')" placement="top">
+                    <el-button text size="small" icon="DocumentCopy" :aria-label="$t('common.copy')" @click="onCopyContent" />
+                </el-tooltip>
+            </div>
         </div>
 
-        <component ref="viewerRef" :is="components[viewerComponent]" :content="state.content" :name="selectedView"> </component>
+        <component :is="components[viewerComponent]" ref="viewerRef" v-model:content="state.content" :readonly="props.readonly" class="min-h-0 flex-1" />
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, reactive, computed, watch, toRefs, onMounted, type Component } from 'vue';
+import { ref, reactive, computed, watch, toRefs, onMounted, nextTick, type Component } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { copyToClipboard } from '@/common/utils/string';
 import ViewerText from './ViewerText.vue';
 import ViewerJson from './ViewerJson.vue';
 import { formatByteSize } from '@/common/utils/format';
 
-const props = defineProps({
-    content: {
-        type: String,
-    },
-    height: {
-        type: String,
-        default: '0px',
-    },
-});
+const props = defineProps<{
+    content?: string;
+    /** 只读：值由服务端统计得出（如 HyperLogLog 基数），不允许直接改写 */
+    readonly?: boolean;
+}>();
+
+/** 正文与服务端快照是否不一致，宿主据此决定「保存」是否可用 */
+const emit = defineEmits<{
+    change: [dirty: boolean];
+}>();
+
+const { t } = useI18n();
 
 const components: Record<string, Component> = {
     ViewerText,
@@ -53,9 +61,17 @@ const viewers: Record<string, { value: string }> = {
 
 const { selectedView } = toRefs(state);
 
+/** 切换器只两种，分段控件比下拉少一次点击，也能一眼看到可选项 */
+const viewerOptions = computed(() =>
+    Object.keys(viewers).map((name) => ({ value: name, label: name === 'Json' ? t('redis.formatJson') : t('redis.formatText') }))
+);
+
 const viewerComponent = computed(() => {
     return viewers[state.selectedView].value;
 });
+
+// 服务端下发的快照是「未修改」的基准线，只有偏离它才算脏
+let baseline = '';
 
 watch(
     () => props.content,
@@ -64,11 +80,21 @@ watch(
     }
 );
 
+// 用户编辑后同步读数与脏标记；控件回写的同值内容不会触发本监听
+watch(
+    () => state.content,
+    (val: string) => {
+        state.contentSize = new Blob([val]).size;
+        emit('change', val !== baseline);
+    }
+);
+
 onMounted(() => {
     setContent(props.content ?? '');
 });
 
 const setContent = (content: string) => {
+    baseline = content;
     state.content = content;
     state.contentSize = new Blob([content]).size;
     try {
@@ -77,6 +103,12 @@ const setContent = (content: string) => {
     } catch (e) {
         state.selectedView = 'Text';
     }
+    nextTick(() => emit('change', false));
+};
+
+const onCopyContent = async () => {
+    // 复制结果提示由 copyToClipboard 统一发出
+    await copyToClipboard(state.content);
 };
 
 const getContent = () => {
@@ -87,34 +119,35 @@ defineExpose({ getContent });
 </script>
 
 <style lang="scss">
-.format-selector {
-    width: 130px;
+.format-viewer-container .size-text {
+    color: var(--el-text-color-secondary);
+    font-family: var(--el-font-family-mono, ui-monospace, monospace);
+    font-size: 12px;
 }
 
-.format-selector .el-input__inner {
-    height: 22px !important;
-}
-
-/*outline same with text viewer's .el-textarea__inner*/
+// 编辑器容器：统一圆角与描边，深浅色都走变量，避免写死浅色值
 .format-viewer-container .text-formated-container {
-    border: 1px solid var(--el-border-color-light, #ebeef5);
-    padding: 5px 10px;
-    border-radius: 4px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+    padding: 4px 8px;
     clear: both;
+}
+
+.format-viewer-container .el-textarea__inner {
+    border-radius: 8px;
 }
 
 .format-viewer-container .formater-binary-tag {
     font-size: 80%;
 }
 
-// 默认文本框样式
-
-.format-viewer-container .el-textarea textarea {
-    font-size: 14px;
-    height: calc(100vh - 550px + v-bind(height));
+// 高度完全由外层 flex 容器决定，不再用「100vh - 魔法数」猜可用空间
+.format-viewer-container .el-textarea,
+.format-viewer-container .text-formated-container {
+    height: 100%;
 }
 
-.format-viewer-container .monaco-editor-content {
-    height: calc(100vh - 565px + v-bind(height)) !important;
+.format-viewer-container .el-textarea .el-textarea__inner {
+    font-size: 14px;
 }
 </style>

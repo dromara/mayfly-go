@@ -83,7 +83,8 @@ const placeholder = computed(() => {
     }
 
     const placeholder =
-        (search?.props?.placeholder as string | undefined) ?? (search?.type?.includes('input') ? t('common.pleaseInput', { label }) : t('common.pleaseSelect', { label }));
+        (search?.props?.placeholder as string | undefined) ??
+        (search?.type?.includes('input') ? t('common.pleaseInput', { label }) : t('common.pleaseSelect', { label }));
     return { placeholder: t(placeholder) };
 });
 </script>

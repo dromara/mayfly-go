@@ -9,11 +9,7 @@ const item = (clickId: string, opts: Partial<ContextmenuItem> = {}): Contextmenu
 
 describe('filterVisibleItems', () => {
     it('剔除 affix 项与 hideFunc 命中的项', () => {
-        const items = [
-            item('a'),
-            item('affixed', { affix: true }),
-            item('hidden', { hideFunc: () => true }),
-        ];
+        const items = [item('a'), item('affixed', { affix: true }), item('hidden', { hideFunc: () => true })];
         const visible = filterVisibleItems(items, {});
         expect(visible.map((v) => v.clickId)).toEqual(['a']);
     });

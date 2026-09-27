@@ -132,7 +132,7 @@ watch(
             requestAnimationFrame(() => messageListRef.value?.scrollToEnd());
         }
     },
-    { flush: 'post' },
+    { flush: 'post' }
 );
 
 // ==================== 队列项编辑/删除 ====================

@@ -15,8 +15,7 @@
         radial-gradient(ellipse 55% 70% at 88% 78%, rgba(255, 145, 200, 0.5), transparent 64%),
         radial-gradient(ellipse 60% 45% at 62% 2%, rgba(120, 215, 255, 0.5), transparent 60%),
         radial-gradient(ellipse 45% 55% at 80% 42%, rgba(185, 160, 255, 0.42), transparent 58%),
-        radial-gradient(ellipse 50% 40% at 26% 88%, rgba(150, 250, 210, 0.42), transparent 60%),
-        #e9f1fb;
+        radial-gradient(ellipse 50% 40% at 26% 88%, rgba(150, 250, 210, 0.42), transparent 60%), #e9f1fb;
 
     // 极光 aurora
     --wallpaper-aurora:
@@ -56,11 +55,21 @@
 }
 
 // 预设生效：以壁纸渐变替换 .app-backdrop 默认光斑底色（明暗通用，靠源码顺序覆盖暗色默认）
-html[data-wallpaper='aurora'] .app-backdrop { background: var(--wallpaper-aurora); }
-html[data-wallpaper='dusk'] .app-backdrop { background: var(--wallpaper-dusk); }
-html[data-wallpaper='reef'] .app-backdrop { background: var(--wallpaper-reef); }
-html[data-wallpaper='bloom'] .app-backdrop { background: var(--wallpaper-bloom); }
-html[data-wallpaper='nebula'] .app-backdrop { background: var(--wallpaper-nebula); }
+html[data-wallpaper='aurora'] .app-backdrop {
+    background: var(--wallpaper-aurora);
+}
+html[data-wallpaper='dusk'] .app-backdrop {
+    background: var(--wallpaper-dusk);
+}
+html[data-wallpaper='reef'] .app-backdrop {
+    background: var(--wallpaper-reef);
+}
+html[data-wallpaper='bloom'] .app-backdrop {
+    background: var(--wallpaper-bloom);
+}
+html[data-wallpaper='nebula'] .app-backdrop {
+    background: var(--wallpaper-nebula);
+}
 
 // 选内置预设时隐藏自定义图层，避免与壁纸渐变叠加
 html[data-wallpaper]:not([data-wallpaper='custom']) .app-backdrop__image {
@@ -81,11 +90,21 @@ html[data-wallpaper] .app-backdrop__overlay {
 }
 
 // —— 加载遮罩(.loading-next)镜像：遮罩自绘背景须跟随当前壁纸模式，与最终态一致(含轻纱) ——
-html[data-wallpaper='aurora'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-aurora) !important; }
-html[data-wallpaper='dusk'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-dusk) !important; }
-html[data-wallpaper='reef'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-reef) !important; }
-html[data-wallpaper='bloom'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-bloom) !important; }
-html[data-wallpaper='nebula'] body.glass-mode .loading-next { background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-nebula) !important; }
+html[data-wallpaper='aurora'] body.glass-mode .loading-next {
+    background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-aurora) !important;
+}
+html[data-wallpaper='dusk'] body.glass-mode .loading-next {
+    background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-dusk) !important;
+}
+html[data-wallpaper='reef'] body.glass-mode .loading-next {
+    background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-reef) !important;
+}
+html[data-wallpaper='bloom'] body.glass-mode .loading-next {
+    background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-bloom) !important;
+}
+html[data-wallpaper='nebula'] body.glass-mode .loading-next {
+    background: linear-gradient(var(--wallpaper-scrim), var(--wallpaper-scrim)), var(--wallpaper-nebula) !important;
+}
 html[data-wallpaper]:not([data-wallpaper='custom']) body.glass-mode .loading-next::before {
     display: none;
 }

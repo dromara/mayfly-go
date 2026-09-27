@@ -1,10 +1,5 @@
 <template>
-    <el-dialog
-        :title="isEdit ? $t('milvus.editPrivilegeGroup') : $t('milvus.addPrivilegeGroup')"
-        v-model="visible"
-        :close-on-click-modal="false"
-        width="750px"
-    >
+    <el-dialog :title="isEdit ? $t('milvus.editPrivilegeGroup') : $t('milvus.addPrivilegeGroup')" v-model="visible" :close-on-click-modal="false" width="750px">
         <!-- 权限组名称 -->
         <auto-form v-model="form" :items="formItems" label-width="auto" />
 
@@ -33,7 +28,7 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import type { PropType } from 'vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { milvusApi } from '../api';

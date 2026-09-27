@@ -20,10 +20,7 @@ export function useMenuPosition() {
      * @param getCoords 光标坐标（view.coordsAtPos 结果）
      * @param menuEl 浮层自身 DOM（误传编辑器容器会定位到错误位置）
      */
-    const update = (
-        getCoords: () => { left: number; top: number; bottom: number },
-        menuEl: HTMLElement | null | undefined,
-    ) => {
+    const update = (getCoords: () => { left: number; top: number; bottom: number }, menuEl: HTMLElement | null | undefined) => {
         if (!menuEl) return;
 
         const buildRect = (coords: { left: number; top: number; bottom: number }) => ({

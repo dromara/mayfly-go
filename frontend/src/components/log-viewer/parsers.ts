@@ -19,7 +19,8 @@ import { LogLevel } from './types';
  */
 export class TimestampLevelParser implements LogParser {
     // 匹配 [timestamp] LEVEL message 或 [timestamp] message
-    private static readonly PATTERN = /^\[(\d{1,4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}(?:\.\d{1,3})?|\d{1,2}:\d{1,2}:\d{1,2}(?:\.\d{1,3})?)\]\s*(?:(DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\s+)?(.*)$/i;
+    private static readonly PATTERN =
+        /^\[(\d{1,4}[-/]\d{1,2}[-/]\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}(?:\.\d{1,3})?|\d{1,2}:\d{1,2}:\d{1,2}(?:\.\d{1,3})?)\]\s*(?:(DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\s+)?(.*)$/i;
 
     parse(line: string, lineIndex: number): ParsedLogLine {
         const match = line.match(TimestampLevelParser.PATTERN);

@@ -8,7 +8,9 @@
     .layout-navbars-breadcrumb-index,
     .el-dialog,
     .el-drawer {
-        transition: background 0.25s var(--ease-out-quart), border-color 0.25s var(--ease-out-quart);
+        transition:
+            background 0.25s var(--ease-out-quart),
+            border-color 0.25s var(--ease-out-quart);
     }
 
     // 禁用动画模式

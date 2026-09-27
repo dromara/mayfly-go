@@ -14,8 +14,15 @@ const (
 	LogRedisSave = iota + consts.ImsgNumRedis
 	LogRedisDelete
 	LogRedisRunCmd
+	LogRedisKeyOp
 
 	ErrRedisInfoExist
 	ErrSubmitFlowRunCmd
 	ErrHasRunFailCmd
+	ErrRedisKeyTypeUnsupported
+	ErrRedisKeyViewUnsupported
+	ErrRedisKeyNotFound
+	ErrRedisDangerousCmd
+	ErrRedisKeyAlreadyExist
+	ErrRedisCopySkipped
 )

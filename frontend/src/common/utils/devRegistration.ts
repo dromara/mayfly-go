@@ -25,10 +25,7 @@ function flush(registry: string, state: Pending) {
         return;
     }
     const keys = state.keys.splice(0, state.keys.length);
-    const hint =
-        keys.length >= HMR_LIKE_BATCH
-            ? '（整批重复，符合 Vite HMR 重放注册模块的特征；若未改动过注册代码请排查是否重复导入）'
-            : '';
+    const hint = keys.length >= HMR_LIKE_BATCH ? '（整批重复，符合 Vite HMR 重放注册模块的特征；若未改动过注册代码请排查是否重复导入）' : '';
     console.warn(`[dev-registration] ${registry} 重复注册 ${keys.length} 项，均已覆盖${hint}: ${keys.join(', ')}`);
 }
 

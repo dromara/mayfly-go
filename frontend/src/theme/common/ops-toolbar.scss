@@ -1,0 +1,80 @@
+/*
+ * 运维类页面的工具条语汇（全站共享）：图标工具组 / 底部固定动作条 / 列表尾部 / 读数文案。
+ *
+ * 原先只在 redis/keyview 里有一份，机器文件、DB 等同类页面各写只会越长越歪，
+ * 因此提到 theme/common 下由各方 scoped 样式 @use 引入（Sass 会把规则输出到引入方的
+ * scoped 块内，选择器仍带组件作用域，不会互相污染）。
+ *
+ * 颜色一律走 Element Plus 主题变量，保证浅色 / 深色 / 玻璃态三套主题同源自适应。
+ */
+
+// 容器级圆角（面板、编辑器、表格保持一致）
+$ops-radius: 8px;
+
+// 统一缓动：指数 ease-out，时长落在 150~250ms
+$ops-ease: cubic-bezier(0.25, 0.8, 0.25, 1);
+$ops-duration: 0.2s;
+
+// 图标工具组：浅底容器把零散动作包成一组，静止态保持中性色，hover 才提亮
+.tool-group {
+    padding: 2px;
+    border-radius: $ops-radius;
+    background-color: var(--el-fill-color-light);
+
+    .tool-btn {
+        height: 24px;
+        margin: 0 !important;
+        padding: 0 6px;
+        border-radius: 6px;
+        color: var(--el-text-color-regular);
+        transition:
+            background-color $ops-duration $ops-ease,
+            color $ops-duration $ops-ease;
+    }
+
+    .tool-btn:hover {
+        background-color: var(--el-bg-color);
+        color: var(--el-color-primary);
+    }
+
+    .tool-btn--danger:hover {
+        color: var(--el-color-danger);
+    }
+}
+
+// 面板底部动作条：常态放读数，选择态/剪贴板态原位换成动作，
+// 高度固定，切换模式时上方工具条与列表都不会抖动
+.list-bar {
+    display: flex;
+    min-height: 30px;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+// 列表尾部「加载更多」：虚线块表示「下面还有内容」
+.load-more {
+    width: 100%;
+    height: 30px;
+    border: 1px dashed var(--el-border-color);
+    border-radius: $ops-radius;
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+    transition:
+        border-color $ops-duration $ops-ease,
+        color $ops-duration $ops-ease;
+}
+
+.load-more:hover {
+    border-color: var(--el-color-primary);
+    color: var(--el-color-primary);
+}
+
+// 读数文案：由底部动作条承载，自身不管布局
+// 用 regular 而非 secondary/placeholder：读数是用户判断「筛对了吗、选了几项」的依据，
+// secondary 在浅色主题上约 3:1，12px 正文不够 AA
+.list-status {
+    color: var(--el-text-color-regular);
+    font-size: 12px;
+    white-space: nowrap;
+}

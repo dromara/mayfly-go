@@ -5,8 +5,22 @@
                 <el-link @click="emit('refreshData')" icon="refresh" underline="never" :title="t('common.refresh')" />
                 <el-link @click="emit('basicSearch')" icon="Search" underline="never" :title="t('es.opSearch')" />
                 <el-link v-auth="perms.saveData" @click="emit('addDoc')" icon="plus" underline="never" :title="t('common.create')" />
-                <el-link v-auth="perms.delData" :disabled="selectKeysLen === 0" @click="emit('deleteDocs')" icon="Minus" underline="never" :title="t('common.delete')" />
-                <el-link v-auth="perms.saveData" :disabled="selectKeysLen !== 1" @click="emit('editSelectDoc')" icon="EditPen" underline="never" :title="t('common.edit')" />
+                <el-link
+                    v-auth="perms.delData"
+                    :disabled="selectKeysLen === 0"
+                    @click="emit('deleteDocs')"
+                    icon="Minus"
+                    underline="never"
+                    :title="t('common.delete')"
+                />
+                <el-link
+                    v-auth="perms.saveData"
+                    :disabled="selectKeysLen !== 1"
+                    @click="emit('editSelectDoc')"
+                    icon="EditPen"
+                    underline="never"
+                    :title="t('common.edit')"
+                />
                 <el-link :disabled="state.search.from === 0" @click="emit('firstPage')" icon="DArrowLeft" underline="never" :title="t('es.page.home')" />
                 <el-link :disabled="state.search.from === 0" @click="emit('prevPage')" icon="ArrowLeft" underline="never" :title="t('es.page.prev')" />
                 <el-dropdown placement="bottom" size="small" :teleported="false" :title="t('es.page.changeSize')">
@@ -41,7 +55,15 @@
                     :title="t('es.page.next')"
                 />
 
-                <el-dropdown placement="bottom" size="small" :max-height="300" :hide-on-click="false" trigger="click" :teleported="false" :title="t('es.opViewColumns')">
+                <el-dropdown
+                    placement="bottom"
+                    size="small"
+                    :max-height="300"
+                    :hide-on-click="false"
+                    trigger="click"
+                    :teleported="false"
+                    :title="t('es.opViewColumns')"
+                >
                     <el-link icon="Operation" underline="never" />
                     <template #dropdown>
                         <el-dropdown-menu class="dropdown-menu">

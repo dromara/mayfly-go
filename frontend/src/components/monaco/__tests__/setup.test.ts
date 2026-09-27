@@ -29,7 +29,12 @@ const supportedActions = (language: string) => {
 
 describe('monaco 装配入口', () => {
     it('只注册项目用到的语言', () => {
-        expect(monaco.languages.getLanguages().map((l) => l.id).sort()).toEqual(EXPECTED_LANGUAGES);
+        expect(
+            monaco.languages
+                .getLanguages()
+                .map((l) => l.id)
+                .sort()
+        ).toEqual(EXPECTED_LANGUAGES);
     });
 
     it('导出编辑器 API 与快捷键常量', () => {

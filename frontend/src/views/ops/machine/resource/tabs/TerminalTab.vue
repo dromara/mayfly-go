@@ -14,7 +14,14 @@
                 :protocol="protocol"
             >
                 <template v-if="protocol != MachineProtocolEnum.Ssh.value" #pane="{ register, setStatus }">
-                    <MachineRdp :ref="register" :machine-id="machineId" :auth-cert="authCertName" :protocol="protocol" class="h-full w-full" @status-change="(status: TerminalStatus) => setStatus(status)" />
+                    <MachineRdp
+                        :ref="register"
+                        :machine-id="machineId"
+                        :auth-cert="authCertName"
+                        :protocol="protocol"
+                        class="h-full w-full"
+                        @status-change="(status: TerminalStatus) => setStatus(status)"
+                    />
                 </template>
             </TerminalPanes>
         </div>

@@ -102,16 +102,18 @@ func (app *DbTransferAppImpl) Log(ctx context.Context, logId uint64, msg string)
 // runEndTitles 运行日志收尾摘要标题，按本次执行的用途区分文案。
 // 校验与迁移共用收尾逻辑，若统一用迁移措辞，会让人误以为一次只读校验执行了数据迁移
 type runEndTitles struct {
-	success string // 成功收尾标题
-	fail    string // 失败收尾标题
+	success    string // 成功收尾标题
+	fail       string // 失败收尾标题
+	tableCount string // 表数统计行的前缀（"迁移表数" vs "校验表数"）
+	rowCount   string // 行数统计行的前缀（"迁移行数" vs "校验行数"）
 }
 
 var (
 	// 数据迁移（库→库、库→文件）收尾标题
-	transferEndTitles = runEndTitles{success: "迁移执行完成", fail: "迁移执行失败"}
+	transferEndTitles = runEndTitles{success: "迁移执行完成", fail: "迁移执行失败", tableCount: "迁移表数", rowCount: "迁移行数"}
 
-	// 数据校验收尾标题：校验全程只读比对，不写入任何数据
-	verifyEndTitles = runEndTitles{success: "数据校验完成", fail: "数据校验未通过"}
+	// 数据校验收尾标题：校验全程只读比对，不写入任何数据；统计行措辞随之改为"校验"
+	verifyEndTitles = runEndTitles{success: "数据校验完成", fail: "数据校验未通过", tableCount: "校验表数", rowCount: "校验行数"}
 )
 
 // EndTransfer 迁移执行收尾
@@ -160,10 +162,10 @@ func (app *DbTransferAppImpl) endRun(ctx context.Context, logId uint64, taskId u
 		}
 		appendRunLine(log, "========================================")
 		if log.TableCount > 0 {
-			appendRunLine(log, fmt.Sprintf("迁移表数: %d", log.TableCount))
+			appendRunLine(log, fmt.Sprintf("%s: %d", titles.tableCount, log.TableCount))
 		}
 		if log.TotalRows > 0 {
-			appendRunLine(log, fmt.Sprintf("迁移行数: %d", log.TotalRows))
+			appendRunLine(log, fmt.Sprintf("%s: %d", titles.rowCount, log.TotalRows))
 		}
 		if log.DurationMs > 0 {
 			appendRunLine(log, fmt.Sprintf("总耗时: %d ms", log.DurationMs))
@@ -197,6 +199,9 @@ func (app *DbTransferAppImpl) endRun(ctx context.Context, logId uint64, taskId u
 
 	// 状态更新完成后再释放守卫，防止窗口期内另一个 Run 获取守卫并启动
 	app.runGuard.Release(taskId)
+	// 收敛跨实例停止标记：即使上面 Release 是本实例持有走的清理，Redis 里的停止标记仍需显式清；
+	// 若标记设置方是本实例，这里等价幂等清理。5min TTL 是最终兜底。
+	app.runGuard.ClearStopRequest(taskId)
 }
 
 // ResetStaleRunningLogs 启动收尾：把仍处于「执行中」的日志置为失败。

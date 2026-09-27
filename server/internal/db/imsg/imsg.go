@@ -22,6 +22,7 @@ const (
 	LogDbDelete
 	LogDbRunSQL
 	LogDbRunSQLFile
+	LogDbImportData
 	LogDbDump
 
 	SQLScripRunProgress
@@ -59,4 +60,7 @@ const (
 	LogDbMaskTagSave
 	LogDbMaskTagDelete
 	ErrMaskTagNeedAlgoOrRule
+
+	// 定时调度（同步任务与迁移任务共用）
+	ErrTaskCronInvalid
 )

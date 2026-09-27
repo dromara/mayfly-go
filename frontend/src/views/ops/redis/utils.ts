@@ -1,135 +1,110 @@
+/**
+ * key 名列表 → 分组树：把 `a:b:c` 这类 key 按分隔符折叠成目录层。
+ *
+ * 树模型里有两种节点：目录（继续嵌套）与 key（叶子）。同一段名既是目录又是 key 的场景
+ * （目录 `aa` 与 key `aa`）靠 key 叶子的魔法键后缀区分，段名本身不会带上后缀，因此判别无歧义；
+ * 每层目录用无原型对象承载，key 里出现 `__proto__`、`constructor` 这类段名时不会污染对象原型
+ */
+
 interface TreeNode {
     name: string;
+    /** 1 目录，2 key（与资源树渲染层的图标判断约定一致） */
     type?: number;
     key?: string;
-    fullName?: string;
     open?: boolean;
-    keyNode?: boolean;
     keyCount?: number;
     children?: TreeNode[];
     [key: string]: unknown;
 }
 
-interface TreeFolderNode {
-    keyNode: boolean;
-    nameBuffer: string;
+/** key 叶子在目录层里挂载用的魔法键后缀：段名里带反引号的概率极低，撞名即视作目录 */
+const KEY_SUFFIX = '`k`';
+
+interface TreeKeyNode {
+    keyNode: true;
 }
 
-type TreeFolder = Record<string, any>;
+interface TreeFolder {
+    [key: string]: TreeFolder | TreeKeyNode;
+}
 
-export function keysToTree(keys: string[], separator: string = ':', openStatus: Set<string> | null = null, forceCut = 20000) {
-    const tree: TreeFolder = {};
+const isFolderName = (name: string): boolean => !name.endsWith(KEY_SUFFIX);
+
+export function keysToTree(keys: string[], separator: string = ':', openStatus: Set<string> | null = null) {
+    const tree: TreeFolder = Object.create(null) as TreeFolder;
     keys.forEach((key: string) => {
         let currentNode = tree;
-        const keyStr = key;
-        const keySplited = keyStr.split(separator);
-        const lastIndex = keySplited.length - 1;
+        const segments = key.split(separator);
+        const lastIndex = segments.length - 1;
 
-        keySplited.forEach((value: string, index: number) => {
-            // key node
+        segments.forEach((segment: string, index: number) => {
             if (index === lastIndex) {
-                currentNode[`${keyStr}\`k\``] = {
-                    keyNode: true,
-                    nameBuffer: key,
-                };
+                currentNode[`${key}${KEY_SUFFIX}`] = { keyNode: true };
+                return;
             }
-            // folder node
-            else {
-                currentNode[value] === undefined && (currentNode[value] = {});
+            if (!isFolderName(segment) || currentNode[segment] === undefined) {
+                currentNode[segment] = Object.create(null) as TreeFolder;
             }
-
-            currentNode = currentNode[value];
+            currentNode = currentNode[segment] as TreeFolder;
         });
     });
 
-    // to tree format
-    return formatTreeData(tree, '', separator, openStatus, forceCut);
+    return formatTreeData(tree, '', separator, openStatus);
 }
 
 export function keysToList(keys: string[]) {
-    return keys.map((x: string) => {
-        return {
-            key: x,
-            name: x,
-        };
-    });
+    return keys.map((key: string) => ({ key, name: key }));
 }
 
-function formatTreeData(tree: TreeFolder, previousKey: string = '', separator: string = ':', openStatus: Set<string> | null = null, forceCut: number = 20000) {
-    return Object.keys(tree).map((key) => {
-        const node: TreeNode = { name: key || '[Empty]' };
-
-        // folder node
-        if (!tree[key].keyNode && Object.keys(tree[key]).length > 0) {
-            // fullName
-            const tillNowKeyName = previousKey + key + separator;
-
-            node.type = 1;
-            // folder's fullName may same with key name, such as 'aa-'
-            node.key = tillNowKeyName;
-            if (openStatus) {
-                node.open = openStatus?.has(node.key);
+function formatTreeData(tree: TreeFolder, previousKey: string = '', separator: string = ':', openStatus: Set<string> | null = null): TreeNode[] {
+    return Object.keys(tree).map((name) => {
+        if (isFolderName(name) && Object.keys(tree[name]).length > 0) {
+            const node = tree[name] as TreeFolder;
+            const tillNowKeyName = previousKey + name + separator;
+            const children = formatTreeData(node, tillNowKeyName, separator, openStatus);
+            // 目录的 key 带分隔符结尾，与同名 key 的全名（如目录 `aa-` 与 key `aa`）区分开
+            const treeNode: TreeNode = {
+                name: name || '[Empty]',
+                type: 1,
+                key: tillNowKeyName,
+                children,
+                keyCount: children.reduce((sum: number, child: TreeNode) => sum + (child.keyCount || 1), 0),
+            };
+            if (openStatus?.has(tillNowKeyName)) {
+                treeNode.open = true;
+                // 只有展开过的目录需要立即有序（el-tree 渲染读的就是这份顺序）；
+                // 未展开的等展开时由 RedisDataOp 对渲染节点补排，避免整棵树白排一遍
+                children.sort(
+                    compareNodeByName(
+                        (child) => !!child.children,
+                        (child) => child.name
+                    )
+                );
             }
-            node.children = formatTreeData(tree[key], tillNowKeyName, separator, openStatus, forceCut);
-            node.keyCount = node.children.reduce((a: number, b: TreeNode) => a + (b.keyCount || 1), 0);
-            // too many children, force cut, do not incluence keyCount display
-            // node.open && node.children.length > forceCut && node.children.splice(forceCut);
-            // keep folder node in front of the tree and sorted(not include the outest list)
-            // async sort, only for opened folders
-            node.open && sortKeysAndFolder(node.children);
-            node.fullName = tillNowKeyName;
-            return node;
+            return treeNode;
         }
 
-        node.type = 2;
-        // key node
-        node.name = key.replace(/`k`$/, '');
-        // node.nameBuffer = tree[key].nameBuffer.toJSON();
-        node.key = node.name;
-
-        return node;
+        const keyName = isFolderName(name) ? name : name.slice(0, -KEY_SUFFIX.length);
+        return { name: keyName || '[Empty]', type: 2, key: keyName };
     });
 }
 
-export function sortKeysAndFolder(nodes: TreeNode[]) {
-    nodes.sort((a: TreeNode, b: TreeNode) => {
-        // a & b are all keys
-        if (!a.children && !b.children) {
-            return a.name > b.name ? 1 : -1;
-        }
-        // a & b are all folder
-        if (a.children && b.children) {
-            return a.name > b.name ? 1 : -1;
-        }
-
-        // a is folder, b is key
-        if (a.children) {
-            return -1;
-        }
-        // a is key, b is folder
-
-        return 1;
-    });
+/**
+ * 目录在前、key 在后，同组内按名字典序：构建树时与 el-tree 已展开的子节点共用同一排序语义
+ */
+function compareNodeByName<T>(isFolder: (node: T) => boolean, nameOf: (node: T) => string) {
+    return (a: T, b: T): number => {
+        const folderDiff = Number(isFolder(b)) - Number(isFolder(a));
+        return folderDiff !== 0 ? folderDiff : nameOf(a) > nameOf(b) ? 1 : -1;
+    };
 }
 
-// sortByTreeNode
+/** el-tree 展开后子节点是渲染好的 node（isLeaf/label），排序必须作用到它身上才能改变显示顺序 */
 export function sortByTreeNodes(nodes: { isLeaf: boolean; label: string }[]) {
-    nodes.sort((a: { isLeaf: boolean; label: string }, b: { isLeaf: boolean; label: string }) => {
-        // a & b are all keys
-        if (a.isLeaf && b.isLeaf) {
-            return a.label > b.label ? 1 : -1;
-        }
-        // a & b are all folder
-        if (!a.isLeaf && !b.isLeaf) {
-            return a.label > b.label ? 1 : -1;
-        }
-
-        // a is folder, b is key
-        if (!a.isLeaf) {
-            return -1;
-        }
-        // a is key, b is folder
-
-        return 1;
-    });
+    nodes.sort(
+        compareNodeByName(
+            (node) => !node.isLeaf,
+            (node) => node.label
+        )
+    );
 }

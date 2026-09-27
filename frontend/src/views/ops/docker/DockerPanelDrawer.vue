@@ -1,6 +1,14 @@
 <template>
     <div>
-        <el-drawer :append-to-body="false" title="Docker" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="true" size="80%">
+        <el-drawer
+            :append-to-body="false"
+            title="Docker"
+            v-model="dialogVisible"
+            :before-close="cancel"
+            :destroy-on-close="true"
+            :close-on-click-modal="true"
+            size="80%"
+        >
             <template #header>
                 <DrawerHeader :header="props.host" :back="cancel">
                     <template #extra>

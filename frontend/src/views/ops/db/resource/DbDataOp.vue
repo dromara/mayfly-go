@@ -76,14 +76,7 @@
         </el-row>
 
         <div id="data-exec" ref="dataExecRef" class="mt-1 flex-1 min-h-0 overflow-visible">
-            <el-tabs
-                v-if="hasOpenTabs"
-                type="card"
-                @tab-remove="onRemoveTab"
-                @tab-change="onTabChange"
-                v-model="activeTabKey"
-                class="db-data-tabs w-full"
-            >
+            <el-tabs v-if="hasOpenTabs" type="card" @tab-remove="onRemoveTab" @tab-change="onTabChange" v-model="activeTabKey" class="db-data-tabs w-full">
                 <el-tab-pane class="h-full!" closable v-for="dt in tabList" :label="dt.label" :name="dt.key" :key="dt.key">
                     <template #label>
                         <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
@@ -166,7 +159,9 @@
                 <el-descriptions-item :label="$t('db.seqMaxValue')">{{ state.propsDialog.attrs.maxValue }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('db.seqCacheSize')">{{ state.propsDialog.attrs.cacheSize }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('db.seqLastValue')">{{ state.propsDialog.attrs.lastValue || '-' }}</el-descriptions-item>
-                <el-descriptions-item :label="$t('db.seqCycle')">{{ state.propsDialog.attrs.isCycle === 'true' ? $t('common.yes') : $t('common.no') }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('db.seqCycle')">{{
+                    state.propsDialog.attrs.isCycle === 'true' ? $t('common.yes') : $t('common.no')
+                }}</el-descriptions-item>
             </el-descriptions>
             <template #footer>
                 <el-button @click="state.propsDialog.visible = false">{{ $t('common.close') }}</el-button>
@@ -291,24 +286,15 @@ const reloadNode = (nodeKey: string) => {
 };
 
 /** 表/对象操作回调（编辑表、删除表、DDL查看、重命名、复制等） */
-const {
-    onEditTable,
-    onDeleteTable,
-    onGenDdl,
-    onGenObjectDdl,
-    onShowObjectProps,
-    onPropsViewDdl,
-    onRenameTable,
-    onCopyTable,
-    onSubmitEditTableSql,
-} = useTableOperations({
-    nowDbInst,
-    tableCreateDialog,
-    ddlDialog: ddlDialogRef,
-    propsDialog: propsDialogRef,
-    chooseTableName,
-    reloadNode,
-});
+const { onEditTable, onDeleteTable, onGenDdl, onGenObjectDdl, onShowObjectProps, onPropsViewDdl, onRenameTable, onCopyTable, onSubmitEditTableSql } =
+    useTableOperations({
+        nowDbInst,
+        tableCreateDialog,
+        ddlDialog: ddlDialogRef,
+        propsDialog: propsDialogRef,
+        chooseTableName,
+        reloadNode,
+    });
 
 /** 设置 tab 的组件 ref（模板 ref 回调，el 为子组件实例或 null） */
 const setTabComponentRef = (dt: TabInfo, el: unknown) => {

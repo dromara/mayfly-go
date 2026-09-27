@@ -33,13 +33,22 @@
 
             <ATableColumn prop="options" :label="$t('components.af.optionalValues')" min-width="140px">
                 <template #default="scope">
-                    <AInput :model-value="optionsOf(scope.row as JsonField)" :placeholder="$t('components.af.optionalValuesPlaceholder')" clearable @update:model-value="(v: string) => setOptions(scope.row as JsonField, v)"> </AInput>
+                    <AInput
+                        :model-value="optionsOf(scope.row as JsonField)"
+                        :placeholder="$t('components.af.optionalValuesPlaceholder')"
+                        clearable
+                        @update:model-value="(v: string) => setOptions(scope.row as JsonField, v)"
+                    >
+                    </AInput>
                 </template>
             </ATableColumn>
 
             <ATableColumn prop="required" :label="$t('components.af.required')" min-width="65px">
                 <template #default="scope">
-                    <ACheckbox :model-value="requiredOf(scope.row as JsonField)" @update:model-value="(v: unknown) => setRequired(scope.row as JsonField, !!v)" />
+                    <ACheckbox
+                        :model-value="requiredOf(scope.row as JsonField)"
+                        @update:model-value="(v: unknown) => setRequired(scope.row as JsonField, !!v)"
+                    />
                 </template>
             </ATableColumn>
 

@@ -15,7 +15,15 @@ import { getCurrentInstance, reactive, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import { Msg, useI18nFormValidate } from './useI18n';
 import { cloneFormData, resolveFormItems, type AutoFormItemsProps } from '@/components/auto-form/shared';
-import { buildDefaultForm, getNestedValue, setNestedValue, switchActiveValue, switchInactiveValue, type AutoFormData, type AutoFormInstance } from '@/components/auto-form/types';
+import {
+    buildDefaultForm,
+    getNestedValue,
+    setNestedValue,
+    switchActiveValue,
+    switchInactiveValue,
+    type AutoFormData,
+    type AutoFormInstance,
+} from '@/components/auto-form/types';
 
 /** 宿主公共 props（Dialog / Drawer 完全一致的宿主级配置；defineProps 直接 extends 本接口，新增宿主级 prop 只改此处） */
 export interface AutoFormHostProps extends AutoFormItemsProps {
@@ -56,11 +64,13 @@ export interface AutoFormHostCallbacks {
  * @param options.visible 宿主 visible model（defineModel 返回值）
  * @param options.autoFormRef 宿主内部 AutoForm 的模板 ref
  */
-export const useAutoFormHost = (options: {
-    props: AutoFormHostProps;
-    visible: Ref<boolean>;
-    autoFormRef: { readonly value: AutoFormInstance | null | undefined };
-} & AutoFormHostCallbacks) => {
+export const useAutoFormHost = (
+    options: {
+        props: AutoFormHostProps;
+        visible: Ref<boolean>;
+        autoFormRef: { readonly value: AutoFormInstance | null | undefined };
+    } & AutoFormHostCallbacks
+) => {
     const { props, visible, autoFormRef } = options;
 
     /** 生效的字段配置：schema 优先编译，否则使用 items（tabs 模式下合并所有 Tab 字段，供 buildDefaultForm 使用，与 AutoForm 共用解析逻辑） */

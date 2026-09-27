@@ -54,6 +54,9 @@ export type {
 export type {
     DbTableInfo,
     ColumnMetadata,
+    ImportColumn,
+    ImportPreviewResult,
+    DataImportResult,
     TableColumnDef,
     RenderTableColumn,
     DbTableColumn,

@@ -6,13 +6,13 @@
         </div>
 
         <el-table :data="list">
-        <el-table-column prop="name" :label="$t('milvus.resourceGroupName')" />
-        <el-table-column :label="$t('common.operation')" width="250">
-            <template #default="{ row }">
-                <el-button size="small" @click="handleDescribe(row)">{{ $t('milvus.detail') }}</el-button>
-                <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-            </template>
-        </el-table-column>
+            <el-table-column prop="name" :label="$t('milvus.resourceGroupName')" />
+            <el-table-column :label="$t('common.operation')" width="250">
+                <template #default="{ row }">
+                    <el-button size="small" @click="handleDescribe(row)">{{ $t('milvus.detail') }}</el-button>
+                    <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+            </el-table-column>
         </el-table>
     </div>
 
@@ -115,14 +115,11 @@ const handleDrop = async (row: { name: string }) => {
 onMounted(() => {
     loadList();
 });
-watch(
-    [() => props.milvusId, () => milvusStore.authCertName],
-    () => {
-        list.value = [];
-        loadList();
-        milvusStore.clear();
-    }
-);
+watch([() => props.milvusId, () => milvusStore.authCertName], () => {
+    list.value = [];
+    loadList();
+    milvusStore.clear();
+});
 </script>
 
 <style scoped>

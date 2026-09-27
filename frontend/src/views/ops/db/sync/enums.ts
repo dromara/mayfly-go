@@ -1,7 +1,8 @@
 import { EnumValue } from '@/common/Enum';
 
 export const DbDataSyncDuplicateStrategyEnum = {
-    None: EnumValue.of(-1, 'db.none'),
+    // None(-1) 语义是"该模式不做冲突处理"（如增量追加/校验模式），显示"不适用"而非"无"，避免用户以为配错了
+    None: EnumValue.of(-1, 'db.notApplicable'),
     Ignore: EnumValue.of(1, 'db.ignore'),
     Replace: EnumValue.of(2, 'db.replace'),
 };
@@ -16,6 +17,8 @@ export const DbDataSyncModeEnum = {
 };
 
 export const DbDataSyncRecentStateEnum = {
+    // 任务创建后从未跑完过时，后端该字段为零值，不能归到成功/失败里展示
+    NotRun: EnumValue.of(0, 'db.notRun').setTagType('info'),
     Success: EnumValue.of(1, 'common.success').setTagType('success'),
     Fail: EnumValue.of(-1, 'common.fail').setTagType('danger'),
 };
@@ -48,4 +51,12 @@ export const DbConflictStrategyEnum = {
     SourceWins: EnumValue.of(1, 'db.conflictSourceWins'),
     TargetWins: EnumValue.of(2, 'db.conflictTargetWins'),
     Skip: EnumValue.of(3, 'db.conflictSkip'),
+};
+
+// 与 entity.CursorInclusivity 对齐（后端 Auto=0/Exclusive=1/Inclusive=2），
+// 实际存于 Extra（非查询维度不占列）。
+export const DbCursorInclusivityEnum = {
+    Auto: EnumValue.of(0, 'db.cursorInclusivityAuto'),
+    Exclusive: EnumValue.of(1, 'db.cursorInclusivityExclusive'),
+    Inclusive: EnumValue.of(2, 'db.cursorInclusivityInclusive'),
 };

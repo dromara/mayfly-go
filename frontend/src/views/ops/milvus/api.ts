@@ -39,8 +39,10 @@ export const milvusApi = {
     listDatabases: (milvusId: number) => Api.newGet<IDatabase[]>(`/milvus/${milvusId}/databases`).request(withAc()),
     createDatabase: (milvusId: number, data: Record<string, unknown>) => Api.newPost<void>(`/milvus/${milvusId}/databases`).request(withAc(data)),
     dropDatabase: (milvusId: number, database: string) => Api.newDelete<void>(`/milvus/${milvusId}/databases/${database}`).request(withAc()),
-    describeDatabase: (milvusId: number, database: string) => Api.newGet<IMilvusDatabaseDetail>(`/milvus/${milvusId}/databases/${database}/describe`).request(withAc()),
-    alterDatabase: (milvusId: number, database: string, data: Record<string, unknown>) => Api.newPost<void>(`/milvus/${milvusId}/databases/${database}/properties`).request(withAc(data)),
+    describeDatabase: (milvusId: number, database: string) =>
+        Api.newGet<IMilvusDatabaseDetail>(`/milvus/${milvusId}/databases/${database}/describe`).request(withAc()),
+    alterDatabase: (milvusId: number, database: string, data: Record<string, unknown>) =>
+        Api.newPost<void>(`/milvus/${milvusId}/databases/${database}/properties`).request(withAc(data)),
     useDatabase: (milvusId: number, database: string) => {
         db = database;
         // return Api.newPost(`/milvus/${milvusId}/databases/${database}/use`').request();
@@ -61,7 +63,8 @@ export const milvusApi = {
         Api.newPost<void>(`/milvus/${milvusId}/collections/${collection}/load?db=${db}`).request(withAc({}), options),
     releaseCollection: (milvusId: number, collection: string) =>
         Api.newPost<void>(`/milvus/${milvusId}/collections/${collection}/release?db=${db}`).request(withAc()),
-    hasCollection: (milvusId: number, collection: string) => Api.newGet<boolean>(`/milvus/${milvusId}/collections/${collection}/has?db=${db}`).request(withAc()),
+    hasCollection: (milvusId: number, collection: string) =>
+        Api.newGet<boolean>(`/milvus/${milvusId}/collections/${collection}/has?db=${db}`).request(withAc()),
     getLoadState: (milvusId: number, collection: string) =>
         Api.newGet<{ loaded: boolean }>(`/milvus/${milvusId}/collections/${collection}/load-state?db=${db}`).request(withAc()),
 
@@ -113,7 +116,8 @@ export const milvusApi = {
     listUsers: (milvusId: number) => Api.newGet<IUser[]>(`/milvus/${milvusId}/users`).request(withAc()),
     createUser: (milvusId: number, data: Record<string, unknown>) => Api.newPost<void>(`/milvus/${milvusId}/users`).request(withAc(data)),
     deleteUser: (milvusId: number, username: string) => Api.newDelete<void>(`/milvus/${milvusId}/users/${username}`).request(withAc()),
-    updatePassword: (milvusId: number, username: string, data: Record<string, unknown>) => Api.newPost<void>(`/milvus/${milvusId}/users/${username}/password`).request(withAc(data)),
+    updatePassword: (milvusId: number, username: string, data: Record<string, unknown>) =>
+        Api.newPost<void>(`/milvus/${milvusId}/users/${username}/password`).request(withAc(data)),
     grantRole: (milvusId: number, username: string, roleName: string) =>
         Api.newPost<void>(`/milvus/${milvusId}/users/${username}/grantRole`).request(withAc({ roleName })),
     revokeRole: (milvusId: number, username: string, roleName: string) =>
@@ -133,7 +137,8 @@ export const milvusApi = {
     listResourceGroups: (milvusId: number) => Api.newGet<string[]>(`/milvus/${milvusId}/resource-groups`).request(withAc()),
     createResourceGroup: (milvusId: number, data: Record<string, unknown>) => Api.newPost<void>(`/milvus/${milvusId}/resource-groups`).request(withAc(data)),
     dropResourceGroup: (milvusId: number, name: string) => Api.newDelete<void>(`/milvus/${milvusId}/resource-groups/${name}`).request(withAc()),
-    describeResourceGroup: (milvusId: number, name: string) => Api.newGet<IResourceGroup>(`/milvus/${milvusId}/resource-groups/${name}/describe`).request(withAc()),
+    describeResourceGroup: (milvusId: number, name: string) =>
+        Api.newGet<IResourceGroup>(`/milvus/${milvusId}/resource-groups/${name}/describe`).request(withAc()),
 
     // 系统信息
     getVersion: (milvusId: number) => Api.newGet<string>(`/milvus/${milvusId}/version`).request(withAc()),

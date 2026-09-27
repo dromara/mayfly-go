@@ -6,15 +6,15 @@
         </div>
 
         <el-table :data="list">
-        <el-table-column prop="roleName" :label="$t('milvus.roleName')" />
-        <el-table-column :label="$t('common.operation')" width="250">
-            <template #default="{ row }">
-                <el-button size="small" @click="handleGrantPrivilege(row)" :disabled="row.roleName === 'public' || row.roleName === 'admin'">
-                    {{ $t('milvus.grantPrivilege') }}
-                </el-button>
-                <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-            </template>
-        </el-table-column>
+            <el-table-column prop="roleName" :label="$t('milvus.roleName')" />
+            <el-table-column :label="$t('common.operation')" width="250">
+                <template #default="{ row }">
+                    <el-button size="small" @click="handleGrantPrivilege(row)" :disabled="row.roleName === 'public' || row.roleName === 'admin'">
+                        {{ $t('milvus.grantPrivilege') }}
+                    </el-button>
+                    <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+            </el-table-column>
         </el-table>
     </div>
 
@@ -108,14 +108,11 @@ onMounted(() => {
     loadList();
 });
 
-watch(
-    [() => props.milvusId, () => milvusStore.authCertName],
-    () => {
-        list.value = [];
-        loadList();
-        milvusStore.clear();
-    }
-);
+watch([() => props.milvusId, () => milvusStore.authCertName], () => {
+    list.value = [];
+    loadList();
+    milvusStore.clear();
+});
 </script>
 
 <style scoped>

@@ -149,10 +149,7 @@
                                         @click="ctx.dynamicField.value.selectedIdx = idxIdx"
                                     >
                                         <span>{{ idx.indexName || `${$t('common.index')} ${Number(idxIdx) + 1}` }}</span>
-                                        <el-popconfirm
-                                            :title="$t('milvus.confirmDeleteIndex')"
-                                            @confirm="ctx.handleDeleteDynamicIndex(Number(idxIdx))"
-                                        >
+                                        <el-popconfirm :title="$t('milvus.confirmDeleteIndex')" @confirm="ctx.handleDeleteDynamicIndex(Number(idxIdx))">
                                             <template #reference>
                                                 <el-icon class="delete-icon"><close /></el-icon>
                                             </template>
@@ -196,7 +193,10 @@
                                     </el-form-item>
 
                                     <el-form-item :label="$t('milvus.jsonCastType')" required>
-                                        <el-select v-model="ctx.dynamicField.value.indexes[ctx.dynamicField.value.selectedIdx].json_cast_type" style="width: 100%">
+                                        <el-select
+                                            v-model="ctx.dynamicField.value.indexes[ctx.dynamicField.value.selectedIdx].json_cast_type"
+                                            style="width: 100%"
+                                        >
                                             <el-option label="varchar" value="varchar" />
                                             <el-option label="double" value="double" />
                                             <el-option label="bool" value="bool" />
@@ -345,7 +345,12 @@
                                         />
                                     </el-form-item>
                                     <el-form-item v-if="ctx.selectedField.value.indexType?.includes('PQ')" label="m">
-                                        <el-input v-model="ctx.selectedField.value.indexParams.m" :min="1" style="width: 100%" :disabled="ctx.isEditMode.value" />
+                                        <el-input
+                                            v-model="ctx.selectedField.value.indexParams.m"
+                                            :min="1"
+                                            style="width: 100%"
+                                            :disabled="ctx.isEditMode.value"
+                                        />
                                     </el-form-item>
                                     <el-form-item v-if="ctx.selectedField.value.indexType?.includes('PQ')" label="nbits">
                                         <el-input

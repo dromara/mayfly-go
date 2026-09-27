@@ -38,9 +38,7 @@
                 :is-confirmed="readonly"
                 @change="onParamChange"
             />
-            <div v-else class="param-completion-interrupt__unsupported">
-                {{ t('ai.interrupt.paramCompletion.unsupportedType') }}: {{ paramType }}
-            </div>
+            <div v-else class="param-completion-interrupt__unsupported">{{ t('ai.interrupt.paramCompletion.unsupportedType') }}: {{ paramType }}</div>
         </div>
 
         <!-- 操作按钮 -->
@@ -111,9 +109,13 @@ const paramInputRef = ref<ParamInputInstance | null>(null);
 const paramInputValues = ref<Record<string, unknown>>({});
 const formValid = ref(false);
 
-watch(paramInputValues, () => {
-    formValid.value = paramInputRef.value?.isValid?.() ?? false;
-}, { deep: true });
+watch(
+    paramInputValues,
+    () => {
+        formValid.value = paramInputRef.value?.isValid?.() ?? false;
+    },
+    { deep: true }
+);
 
 const onParamChange = (values: Record<string, unknown>) => {
     paramInputValues.value = values;

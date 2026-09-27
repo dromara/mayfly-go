@@ -3,7 +3,6 @@
 /* 页面宽度小于576px
 ------------------------------- */
 @media screen and (max-width: index.$xs) {
-
     .el-pager,
     .el-pagination__jump {
         display: none !important;

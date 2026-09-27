@@ -21,9 +21,7 @@
             <div v-if="interrupt?.metadata?.arguments" class="approval-interrupt__params">
                 <div class="approval-interrupt__params-label">{{ t('ai.interrupt.approval.executionParams') }}</div>
                 <div class="approval-interrupt__params-content">
-                    <pre class="approval-interrupt__pre">{{
-                        formatJson(interrupt.metadata.arguments)
-                    }}</pre>
+                    <pre class="approval-interrupt__pre">{{ formatJson(interrupt.metadata.arguments) }}</pre>
                 </div>
             </div>
         </div>

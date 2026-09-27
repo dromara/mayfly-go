@@ -29,13 +29,16 @@
 
                     <FlowDesign height="300px" v-if="flowProcdef" :data="flowProcdef.flowDef" disabled center />
 
-                    <el-result v-if="!form.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')"> </el-result>
+                    <el-result v-if="!form.procdefId" icon="error" :title="$t('flow.approvalNodeNotExist')" :sub-title="$t('flow.resourceNotExistFlow')">
+                    </el-result>
                 </span>
             </template>
 
             <template #footer>
                 <el-button @click="onCancel()">{{ $t('common.cancel') }}</el-button>
-                <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()" :disabled="!internalForm?.procdefId">{{ $t('common.confirm') }}</el-button>
+                <el-button type="primary" :loading="drawerRef?.submitting" @click="drawerRef?.submit()" :disabled="!internalForm?.procdefId">{{
+                    $t('common.confirm')
+                }}</el-button>
             </template>
         </auto-form-drawer>
     </div>

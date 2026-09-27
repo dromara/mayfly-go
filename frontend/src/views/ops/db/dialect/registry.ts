@@ -170,7 +170,7 @@ export function negotiateCapabilities(dialect: DbDialect, backend: BackendCapabi
         const override = featureCapabilityMap[feature];
         if (!override) continue;
         for (const [key, value] of Object.entries(override)) {
-            backendEnabled[key] = (value) && true;
+            backendEnabled[key] = value && true;
         }
     }
 

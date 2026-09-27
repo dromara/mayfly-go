@@ -118,9 +118,7 @@ const flatten = (node: TagTreeData, namePath: string[], result: TreeNodeData[]) 
     }
 
     // 纯标签子层级继续向下递归拍平
-    children
-        .filter((child) => child.type === TagResourceTypeEnum.Tag.value)
-        .forEach((child) => flatten(child, currentNamePath, result));
+    children.filter((child) => child.type === TagResourceTypeEnum.Tag.value).forEach((child) => flatten(child, currentNamePath, result));
 };
 
 /** 资源子节点按资源类型分组为类型分组节点（展开时经分组贡献者分发到对应资源模块加载） */

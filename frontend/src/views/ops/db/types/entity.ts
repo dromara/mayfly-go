@@ -164,9 +164,19 @@ export interface DataSyncTaskListVO {
     runningState: number;
     srcDbId: number;
     srcDbName: string;
+    srcTagPath: string;
+    /** 库类型由后端列表按库id回查实例带出（同步任务表未冗余存该字段），库被删除时为空 */
+    srcDbType: string;
     targetDbId: number;
     targetDbName: string;
+    targetTagPath: string;
     targetTableName: string;
+    targetDbType: string;
+    /** 增量字段与其当前水位（仅增量追加/合并模式参与拼增量条件） */
+    updField: string;
+    updFieldVal: string;
+    pageSize: number;
+    duplicateStrategy: number;
     biDirEnabled: boolean;
     reverseTaskId: number;
     createTime: string;
@@ -255,9 +265,9 @@ export interface DbTransferTask extends BaseModel {
 
 /**
  * 迁移任务列表行 (对应 vo.DbTransferTaskListVO)：详情实体去掉后端列表不返回的字段。
- * taskKey 为后端内部标识；concurrency 在编辑抽屉里按默认值补齐。
+ * taskKey 为后端定时任务的内部标识，不对外展示。
  */
-export type DbTransferTaskListVO = Omit<DbTransferTask, 'taskKey' | 'concurrency'>;
+export type DbTransferTaskListVO = Omit<DbTransferTask, 'taskKey'>;
 
 /** 迁移导出文件 (对应 entity.DbTransferFile) */
 export interface DbTransferFile {

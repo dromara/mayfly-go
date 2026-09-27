@@ -111,10 +111,19 @@
     // 关键修正: 承载文字的强调控件不能用半透明底(亮壁纸会把主色冲淡、白字对比跌到 ~2:1, 观感"暗/脏/像禁用"),
     // 半透明只属于表面与白玻璃按钮; 强调按钮走"实色品牌渐变(上下压暗+顶部镜面光泽)"= 现代立体 accent,
     // 白字对比从 EP 默认 3.06:1 提到 ~4.5:1
-    --glass-btn-primary-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 84%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 58%, #062c5c));
-    --glass-btn-primary-hover-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 92%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 68%, #062c5c));
+    --glass-btn-primary-grad: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--el-color-primary, #409eff) 84%, #062c5c),
+        color-mix(in srgb, var(--el-color-primary, #409eff) 58%, #062c5c)
+    );
+    --glass-btn-primary-hover-grad: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--el-color-primary, #409eff) 92%, #062c5c),
+        color-mix(in srgb, var(--el-color-primary, #409eff) 68%, #062c5c)
+    );
     --glass-btn-primary-sheen: linear-gradient(to bottom, oklch(1 0 0 / 0.26), oklch(1 0 0 / 0) 46%);
-    --glass-btn-primary-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), inset 0 -1px 0 oklch(0 0 0 / 0.18), 0 2px 12px color-mix(in oklab, var(--el-color-primary, #409eff) 40%, transparent);
+    --glass-btn-primary-shadow:
+        inset 0 1px 0 oklch(1 0 0 / 0.35), inset 0 -1px 0 oklch(0 0 0 / 0.18), 0 2px 12px color-mix(in oklab, var(--el-color-primary, #409eff) 40%, transparent);
     --glass-btn-white-bg: oklch(1 0 0 / 0.6);
     --glass-btn-white-hover-bg: oklch(1 0 0 / 0.72);
     --glass-btn-white-border: oklch(0 0 0 / 0.12);
@@ -175,10 +184,19 @@ html.dark {
 
     // 小控件材质暗态: 白玻璃底翻成弱白半透明, 光泽/高光收敛, 内压影加深;
     // 强调渐变暗态提亮一档(暗底上品牌色需更亮才不发闷), 菜单选中改主色衬底+浅色字
-    --glass-btn-primary-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 92%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 66%, #062c5c));
-    --glass-btn-primary-hover-grad: linear-gradient(180deg, color-mix(in srgb, var(--el-color-primary, #409eff) 100%, #062c5c), color-mix(in srgb, var(--el-color-primary, #409eff) 76%, #062c5c));
+    --glass-btn-primary-grad: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--el-color-primary, #409eff) 92%, #062c5c),
+        color-mix(in srgb, var(--el-color-primary, #409eff) 66%, #062c5c)
+    );
+    --glass-btn-primary-hover-grad: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--el-color-primary, #409eff) 100%, #062c5c),
+        color-mix(in srgb, var(--el-color-primary, #409eff) 76%, #062c5c)
+    );
     --glass-btn-primary-sheen: linear-gradient(to bottom, oklch(1 0 0 / 0.18), oklch(1 0 0 / 0) 46%);
-    --glass-btn-primary-shadow: inset 0 1px 0 oklch(1 0 0 / 0.22), inset 0 -1px 0 oklch(0 0 0 / 0.25), 0 2px 12px color-mix(in oklab, var(--el-color-primary, #409eff) 30%, transparent);
+    --glass-btn-primary-shadow:
+        inset 0 1px 0 oklch(1 0 0 / 0.22), inset 0 -1px 0 oklch(0 0 0 / 0.25), 0 2px 12px color-mix(in oklab, var(--el-color-primary, #409eff) 30%, transparent);
     --glass-btn-white-bg: oklch(1 0 0 / 0.12);
     --glass-btn-white-hover-bg: oklch(1 0 0 / 0.16);
     --glass-btn-white-border: oklch(1 0 0 / 0.2);

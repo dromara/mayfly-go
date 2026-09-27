@@ -96,10 +96,7 @@ export interface InterruptHandler {
      * 自定义类型可定义自己的决议徽章（文案 i18n key + 样式类），
      * 返回 null 回退 ToolCallPart 的通用配置
      */
-    getResumeBadge?: (
-        status: string,
-        t: (key: string) => string,
-    ) => { label: string; badgeClass: string } | null;
+    getResumeBadge?: (status: string, t: (key: string) => string) => { label: string; badgeClass: string } | null;
 
     /** 中断操作 UI 组件（单一注册表：业务逻辑与操作组件同源） */
     component: Component;

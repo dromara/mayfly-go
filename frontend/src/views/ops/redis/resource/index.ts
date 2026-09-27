@@ -27,7 +27,7 @@ export const RedisDbKind = 'redis-db';
  * RedisDataOp tab 组件对外方法契约（与 RedisDataOp.vue 的 defineExpose 通过 satisfies 双向校验）
  */
 export interface RedisOpTabApi {
-    onDbClick: (dbInfo: any) => Promise<void>;
+    onDbClick: (dbInfo: Record<string, unknown>) => Promise<void>;
     onRefresh: () => void;
 }
 
@@ -79,29 +79,32 @@ registerContributor({
         }));
     },
     loadChildren: async (node) => {
-        const redisInfo = node.params as Record<string, any>;
+        const redisInfo = node.params;
 
-        const dbs: TreeNodeData[] = (redisInfo.db as string).split(',').map((x: string) => ({
-            key: `${node.key}.${x}`,
-            kind: RedisDbKind,
-            label: `db${x}`,
-            params: {
-                tagPath: redisInfo.tagPath,
-                id: redisInfo.id,
-                redisName: redisInfo.name,
-                code: redisInfo.code,
-                db: x,
-                name: `db${x}`,
-                keys: 0,
-            },
-        }));
+        const dbs: TreeNodeData[] = String(redisInfo.db)
+            .split(',')
+            .map((x: string) => ({
+                key: `${node.key}.${x}`,
+                kind: RedisDbKind,
+                label: `db${x}`,
+                params: {
+                    mode: redisInfo.mode,
+                    tagPath: redisInfo.tagPath,
+                    id: redisInfo.id,
+                    redisName: redisInfo.name,
+                    code: redisInfo.code,
+                    db: x,
+                    name: `db${x}`,
+                    keys: 0,
+                },
+            }));
 
         if (redisInfo.mode == 'cluster') {
             return dbs;
         }
 
         const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
-        const keyspace = res.Keyspace as Record<string, string>;
+        const keyspace = res.Keyspace;
         for (const db in keyspace) {
             for (const d of dbs) {
                 if (db == d.params?.name) {

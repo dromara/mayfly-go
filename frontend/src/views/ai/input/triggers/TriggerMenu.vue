@@ -1,11 +1,6 @@
 <template>
     <Transition name="trigger-menu">
-        <div
-            v-if="visible"
-            ref="menuRef"
-            class="trigger-menu"
-            :style="menuStyle"
-        >
+        <div v-if="visible" ref="menuRef" class="trigger-menu" :style="menuStyle">
             <div v-if="items.length === 0" class="trigger-menu__empty">
                 {{ t('ai.chat.noMatchingItems') }}
             </div>
@@ -18,10 +13,7 @@
                 @mouseenter="hoverIndex = index"
             >
                 <!-- 资源菜单按类型分组：类型切换处插入分组标题（对齐资源树选择体验） -->
-                <div
-                    v-if="item.kind === 'resource' && (index === 0 || items[index - 1]?.resourceType !== item.resourceType)"
-                    class="trigger-menu__group"
-                >
+                <div v-if="item.kind === 'resource' && (index === 0 || items[index - 1]?.resourceType !== item.resourceType)" class="trigger-menu__group">
                     {{ item.resourceType === 'machine' ? t('ai.chat.machineGroup') : t('ai.chat.dbGroup') }}
                 </div>
                 <div class="trigger-menu__item-row">

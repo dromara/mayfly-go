@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { countLeaves, getDropPosition, insertLeaf, layoutTree, removeLeaf, splitLeaf, type PaneIdGenerator, type PaneLeaf, type PaneNode, type PaneSplit } from '../paneTree';
+import {
+    countLeaves,
+    getDropPosition,
+    insertLeaf,
+    layoutTree,
+    removeLeaf,
+    splitLeaf,
+    type PaneIdGenerator,
+    type PaneLeaf,
+    type PaneNode,
+    type PaneSplit,
+} from '../paneTree';
 
 /** 固定 id 生成器：叶子 100 起自增，split 节点 -100 起自减，与测试中手工构造的节点 id 不冲突 */
 const genIds: PaneIdGenerator = (() => {
@@ -179,8 +190,17 @@ describe('layoutTree', () => {
 });
 
 describe('getDropPosition', () => {
-    const rect = (x = 0, y = 0, width = 100, height = 100): DOMRect =>
-        ({ x, y, left: x, top: y, width, height, right: x + width, bottom: y + height, toJSON: () => ({}) });
+    const rect = (x = 0, y = 0, width = 100, height = 100): DOMRect => ({
+        x,
+        y,
+        left: x,
+        top: y,
+        width,
+        height,
+        right: x + width,
+        bottom: y + height,
+        toJSON: () => ({}),
+    });
 
     const at = (clientX: number, clientY: number, base = 0) => getDropPosition({ clientX, clientY } as DragEvent, rect(base, base));
 

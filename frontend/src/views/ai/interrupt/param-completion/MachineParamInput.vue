@@ -18,10 +18,7 @@
         />
 
         <!-- 已选中的机器详细信息 -->
-        <div
-            v-if="machineValue.authCertName || machineValue.machineId"
-            class="machine-param-input__detail"
-        >
+        <div v-if="machineValue.authCertName || machineValue.machineId" class="machine-param-input__detail">
             <div class="machine-param-input__detail-row">
                 <SvgIcon name="Monitor" :size="20" />
                 <div class="machine-param-input__detail-info">

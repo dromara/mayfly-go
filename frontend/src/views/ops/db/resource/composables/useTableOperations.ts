@@ -61,10 +61,7 @@ export function useTableOperations(params: UseTableOperationsParams) {
         let { db, id, tableName, tableComment, type, parentKey, key, version } = data.params;
         if (tableName) {
             tableCreateDialog.value.title = useI18nEditTitle('db.table');
-            let [indexes, columns] = await Promise.all([
-                dbApi.tableIndex.request({ id, db, tableName }),
-                dbApi.columnMetadata.request({ id, db, tableName }),
-            ]);
+            let [indexes, columns] = await Promise.all([dbApi.tableIndex.request({ id, db, tableName }), dbApi.columnMetadata.request({ id, db, tableName })]);
 
             // 预处理：在抽屉打开前完成数据转换，避免 watch(visible) 阻塞打开动画
             const fieldsRes: ColumnDefinition[] = [];
@@ -190,15 +187,7 @@ export function useTableOperations(params: UseTableOperationsParams) {
     };
 
     /** 展示序列等对象属性面板 */
-    const onShowObjectProps = (args: {
-        id: number;
-        db: string;
-        type: string;
-        schema?: string;
-        kind: string;
-        name: string;
-        attrs: Record<string, unknown>;
-    }) => {
+    const onShowObjectProps = (args: { id: number; db: string; type: string; schema?: string; kind: string; name: string; attrs: Record<string, unknown> }) => {
         propsDialog.value.name = args.name;
         propsDialog.value.attrs = args.attrs ?? {};
         propsDialog.value.args = args;

@@ -29,9 +29,7 @@
             <!-- 右侧：操作按钮 -->
             <div class="log-viewer__actions">
                 <!-- 匹配计数 -->
-                <span v-if="searchKeyword" class="log-viewer__match-count">
-                    {{ filteredLines.length }} {{ $t('components.logViewer.matchedLines') }}
-                </span>
+                <span v-if="searchKeyword" class="log-viewer__match-count"> {{ filteredLines.length }} {{ $t('components.logViewer.matchedLines') }} </span>
 
                 <!-- 自动滚动开关 -->
                 <el-tooltip :content="autoScroll ? $t('components.logViewer.disableAutoScroll') : $t('components.logViewer.enableAutoScroll')">
@@ -104,9 +102,7 @@
                 <el-icon v-else><MoreFilled /></el-icon>
                 {{ statusText }}
             </span>
-            <span class="log-viewer__count">
-                {{ totalLines }} {{ $t('components.logViewer.totalLines') }}
-            </span>
+            <span class="log-viewer__count"> {{ totalLines }} {{ $t('components.logViewer.totalLines') }} </span>
         </div>
     </div>
 </template>

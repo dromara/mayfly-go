@@ -13,6 +13,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogDbDelete:     "DB-删除数据库",
 	LogDbRunSQL:     "DB-运行SQL",
 	LogDbRunSQLFile: "DB-执行SQL文件",
+	LogDbImportData: "DB-导入数据文件",
 	LogDbDump:       "DB-导出数据库",
 
 	SQLScripRunProgress: "sql执行进度",
@@ -50,4 +51,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogDbMaskTagSave:         "mask-保存脱敏列标签",
 	LogDbMaskTagDelete:       "mask-删除脱敏列标签",
 	ErrMaskTagNeedAlgoOrRule: "绑定规则的列标签需指定脱敏算法或关联规则",
+
+	// 定时调度
+	ErrTaskCronInvalid: "定时调度的 cron 表达式【{{.cron}}】非法，任务不会按计划执行：{{.reason}}",
 }

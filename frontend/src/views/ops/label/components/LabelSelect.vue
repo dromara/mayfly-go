@@ -9,27 +9,14 @@
                 :disabled="!getLabelDescription(label.key, label.value)"
                 placement="top"
             >
-                <el-tag
-                    closable
-                    @close="removeLabel(index)"
-                    class="label-tag"
-                    :style="getTagStyle(label)"
-                    size="small"
-                >
+                <el-tag closable @close="removeLabel(index)" class="label-tag" :style="getTagStyle(label)" size="small">
                     {{ label.key }}:{{ label.value }}
                 </el-tag>
             </el-tooltip>
         </div>
 
         <!-- 添加按钮 -->
-        <el-popover
-            v-model:visible="popoverVisible"
-            :width="420"
-            trigger="click"
-            placement="bottom-start"
-            :show-arrow="false"
-            @show="onPopoverShow"
-        >
+        <el-popover v-model:visible="popoverVisible" :width="420" trigger="click" placement="bottom-start" :show-arrow="false" @show="onPopoverShow">
             <template #reference>
                 <el-button size="small" :icon="Plus" class="add-btn">
                     {{ $t('label.addLabel') }}
@@ -39,14 +26,7 @@
             <div class="label-popover">
                 <!-- 搜索框 -->
                 <div class="search-box">
-                    <el-input
-                        v-model="searchText"
-                        :placeholder="$t('label.searchLabel')"
-                        prefix-icon="Search"
-                        clearable
-                        size="small"
-                        ref="searchInputRef"
-                    />
+                    <el-input v-model="searchText" :placeholder="$t('label.searchLabel')" prefix-icon="Search" clearable size="small" ref="searchInputRef" />
                 </div>
 
                 <!-- 统计信息 -->
@@ -62,11 +42,7 @@
                 <!-- 标签列表 -->
                 <div class="label-list" ref="labelListRef">
                     <template v-if="displayedLabels.length > 0">
-                        <div
-                            v-for="item in displayedLabels"
-                            :key="item.key"
-                            class="label-group"
-                        >
+                        <div v-for="item in displayedLabels" :key="item.key" class="label-group">
                             <div class="group-header">
                                 <span class="group-key">{{ item.key }}</span>
                             </div>
@@ -78,11 +54,7 @@
                                     :class="{ selected: isSelected(item.key, val.value) }"
                                     @click="toggleLabel(item.key, val.value)"
                                 >
-                                    <span
-                                        v-if="val.color"
-                                        class="value-color"
-                                        :style="{ backgroundColor: val.color }"
-                                    />
+                                    <span v-if="val.color" class="value-color" :style="{ backgroundColor: val.color }" />
                                     <div class="value-info">
                                         <span class="value-name">{{ val.value }}</span>
                                         <span v-if="val.description" class="value-desc">{{ val.description }}</span>

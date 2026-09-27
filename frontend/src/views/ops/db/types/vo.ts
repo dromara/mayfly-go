@@ -38,6 +38,33 @@ export interface ColumnMetadata {
     showScale?: number | null;
 }
 
+// ==================== 数据文件导入 ====================
+
+/** 列映射：一个文件列 → 一个数据库列（target 为空表示跳过该文件列） */
+export interface ImportColumn {
+    /** 文件列的位置下标字符串（如 "0"）；后端按列位置映射，预览与导入对同一文件解析列序稳定 */
+    source: string;
+    /** 目标数据库列名；空=跳过 */
+    target: string;
+}
+
+/** 文件预览结果 (对应 import-data-preview API) */
+export interface ImportPreviewResult {
+    headers: string[];
+    sampleRows: string[][];
+    totalRows: number;
+    /** Excel 内的全部工作表名（CSV 等为 undefined），供工作表下拉选择 */
+    sheets?: string[];
+}
+
+/** 数据导入结果 (对应 import-data API) */
+export interface DataImportResult {
+    totalRows: number;
+    imported: number;
+    batchCount: number;
+    affectedRow: number;
+}
+
 // ==================== 表格列定义 ====================
 
 /** 表格列定义 (DbTableData/DbTableDataForm columns prop 输入；dataType 由组件内部依据 columnType 计算) */

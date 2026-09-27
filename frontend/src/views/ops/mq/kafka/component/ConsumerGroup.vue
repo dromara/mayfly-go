@@ -57,7 +57,8 @@
                         <template #default="{ row }">
                             <div v-if="row.TPs && Object.keys(row.TPs).length" class="flex flex-col gap-1">
                                 <div v-for="(partitions, topic) in row.TPs" :key="topic" class="text-xs">
-                                    <span class="font-medium">{{ topic }}</span>:
+                                    <span class="font-medium">{{ topic }}</span
+                                    >:
                                     <el-tag v-for="p in partitions" :key="p" size="small" class="ml-1" type="info">{{ p }}</el-tag>
                                 </div>
                             </div>

@@ -1,55 +1,35 @@
 <template>
-    <div class="text-formated-container">
-        <monaco-editor ref="monacoEditorRef" :canChangeMode="false" v-model="state.modelValue" language="json" />
+    <div class="text-formated-container h-full">
+        <MonacoEditor v-model="content" :can-change-mode="false" :options="{ readOnly: props.readonly }" language="json" />
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, watch, reactive, onMounted } from 'vue';
-import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { defineAsyncComponent, watch } from 'vue';
+// monaco 体积大，按「组件内异步边界」规范延迟加载，避免把它拉进 redis 模块首屏 chunk
+const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
-const props = defineProps({
-    content: {
-        type: String,
-        default: '',
-    },
-});
+const props = defineProps<{
+    content?: string;
+    readonly?: boolean;
+}>();
 
-const monacoEditorRef = ref(null) as any;
+const content = defineModel<string>('content', { default: '' });
 
-const state = reactive({
-    modelValue: '',
-    content: null as any,
-});
-
-// 因为默认从Text viewer开始，暂时不watch（保存时会触发重新格式化）。
 watch(
     () => props.content,
-    (val: any) => {
-        setContent(val);
+    (val) => {
+        if (val !== undefined && val !== content.value) {
+            content.value = val;
+        }
     }
 );
 
-onMounted(() => {
-    setContent(props.content);
-});
-
-const setContent = (val: any) => {
-    state.modelValue = val;
-    setTimeout(() => {
-        monacoEditorRef.value?.format();
-    }, 100);
-};
-
-const getContent = () => {
-    // 尝试压缩json
-    try {
-        state.content = JSON.stringify(JSON.parse(state.modelValue));
-        return state.content;
-    } catch (e) {
-        return state.modelValue;
-    }
-};
+const getContent = () => content.value;
 
 defineExpose({ getContent });
 </script>
-<style lang="scss"></style>
+<style lang="scss" scoped>
+.text-formated-container :deep(.monaco-editor-content) {
+    height: 100% !important;
+}
+</style>

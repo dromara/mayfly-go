@@ -159,7 +159,7 @@ export function useChatStream() {
                 conversationId,
                 type: 'stop',
                 content: '',
-            }),
+            })
         );
         return true;
     };
@@ -175,7 +175,7 @@ export function useChatStream() {
                 conversationId,
                 type: 'attach',
                 content: '',
-            }),
+            })
         );
         return true;
     };

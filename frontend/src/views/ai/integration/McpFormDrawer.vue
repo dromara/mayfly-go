@@ -1,5 +1,16 @@
 <template>
-    <auto-form-drawer ref="drawerRef" v-model:visible="visible" :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')" :items="formItems" :data="editData" size="560px" append-to-body :confirm-api="handleSave" @submitted="emit('saved')" @opened="onOpened">
+    <auto-form-drawer
+        ref="drawerRef"
+        v-model:visible="visible"
+        :title="isEdit ? $t('ai.integration.editMcpServer') : $t('ai.integration.newMcpServer')"
+        :items="formItems"
+        :data="editData"
+        size="560px"
+        append-to-body
+        :confirm-api="handleSave"
+        @submitted="emit('saved')"
+        @opened="onOpened"
+    >
         <template #headers="{ form }">
             <div class="headers-editor">
                 <MonacoEditor v-model="form.headers" language="json" height="140px" />
@@ -61,7 +72,12 @@ const visible = defineModel<boolean>({ default: false });
 
 const isEdit = computed(() => !!props.server);
 
-const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; clearValidate?: () => void; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
+const drawerRef = useTemplateRef<{
+    validate: (...args: unknown[]) => Promise<unknown>;
+    clearValidate?: () => void;
+    submitting: boolean;
+    submit: () => Promise<void>;
+}>('drawerRef');
 const testing = ref(false);
 const tested = ref(false);
 const discoveredTools = ref<{ name: string; description: string }[]>([]);
@@ -100,39 +116,45 @@ function mcpConfigOf(config?: Record<string, unknown>): McpInstanceConfig {
 /** 表单声明（enabled/测试连接区仅编辑态展示，headers/timeoutSec 为 custom 插槽） */
 const formItems = computed(() =>
     defineFormItems<McpForm & McpInstanceConfig>([
-    {
-        prop: 'name',
-        label: 'ai.integration.mcpName',
-        required: true,
-        placeholder: 'ai.integration.mcpNamePlaceholder',
-        rules: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpName') }), trigger: 'blur' }],
-    },
-    {
-        prop: 'code',
-        label: 'ai.integration.mcpCode',
-        required: true,
-        placeholder: 'ai.integration.mcpCodePlaceholder',
-        disabled: () => isEdit.value,
-        rules: [
-            { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpCode') }), trigger: 'blur' },
-            { pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/, message: () => t('ai.integration.mcpCodePattern'), trigger: 'blur' },
-        ],
-    },
-    { prop: 'description', label: 'ai.integration.mcpDescription', type: 'textarea', props: { rows: 2 }, placeholder: 'ai.integration.mcpDescriptionPlaceholder' },
-    {
-        prop: 'url',
-        label: 'ai.integration.mcpUrl',
-        required: true,
-        placeholder: 'https://example.com/mcp',
-        rules: [
-            { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpUrl') }), trigger: 'blur' },
-            { pattern: /^https?:\/\//, message: () => t('ai.integration.mcpUrlPattern'), trigger: 'blur' },
-        ],
-    },
-    { prop: 'headers', label: 'ai.integration.mcpHeaders', type: 'custom' },
-    { prop: 'timeoutSec', label: 'ai.integration.mcpTimeout', type: 'custom' },
-    { prop: 'enabled', label: 'ai.integration.mcpEnabled', type: 'switch', when: () => isEdit.value, props: { 'active-value': 1, 'inactive-value': 0 } },
-    { prop: 'testArea', type: 'custom', when: () => isEdit.value },
+        {
+            prop: 'name',
+            label: 'ai.integration.mcpName',
+            required: true,
+            placeholder: 'ai.integration.mcpNamePlaceholder',
+            rules: [{ required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpName') }), trigger: 'blur' }],
+        },
+        {
+            prop: 'code',
+            label: 'ai.integration.mcpCode',
+            required: true,
+            placeholder: 'ai.integration.mcpCodePlaceholder',
+            disabled: () => isEdit.value,
+            rules: [
+                { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpCode') }), trigger: 'blur' },
+                { pattern: /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/, message: () => t('ai.integration.mcpCodePattern'), trigger: 'blur' },
+            ],
+        },
+        {
+            prop: 'description',
+            label: 'ai.integration.mcpDescription',
+            type: 'textarea',
+            props: { rows: 2 },
+            placeholder: 'ai.integration.mcpDescriptionPlaceholder',
+        },
+        {
+            prop: 'url',
+            label: 'ai.integration.mcpUrl',
+            required: true,
+            placeholder: 'https://example.com/mcp',
+            rules: [
+                { required: true, message: () => t('common.pleaseInput', { label: t('ai.integration.mcpUrl') }), trigger: 'blur' },
+                { pattern: /^https?:\/\//, message: () => t('ai.integration.mcpUrlPattern'), trigger: 'blur' },
+            ],
+        },
+        { prop: 'headers', label: 'ai.integration.mcpHeaders', type: 'custom' },
+        { prop: 'timeoutSec', label: 'ai.integration.mcpTimeout', type: 'custom' },
+        { prop: 'enabled', label: 'ai.integration.mcpEnabled', type: 'switch', when: () => isEdit.value, props: { 'active-value': 1, 'inactive-value': 0 } },
+        { prop: 'testArea', type: 'custom', when: () => isEdit.value },
     ])
 );
 

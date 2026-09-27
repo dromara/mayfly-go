@@ -170,30 +170,38 @@ const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.sav
 const normalizeMeta = (raw: unknown): ResourceMeta => {
     if (raw && typeof raw === 'object') return { ...defaultMeta, ...(raw as Partial<ResourceMeta>) };
     if (typeof raw === 'string' && raw !== '') {
-        try { return { ...defaultMeta, ...JSON.parse(raw) }; } catch { /* ignore */ }
+        try {
+            return { ...defaultMeta, ...JSON.parse(raw) };
+        } catch {
+            /* ignore */
+        }
     }
     return { ...defaultMeta };
 };
 
 // immediate：ResourceEdit 为异步组件，首次打开时 visible 无 false→true 跃迁（直接以 true 挂载），
 // 不加 immediate 则回填逻辑永不执行，对话框展示空白表单
-watch(visible, () => {
-    if (!visible.value) {
-        return;
-    }
-    if (props.data && typeof props.data === 'object') {
-        state.form = { ...props.data, meta: normalizeMeta(props.data.meta) };
-    } else {
-        state.form = { meta: { ...defaultMeta } };
-    }
+watch(
+    visible,
+    () => {
+        if (!visible.value) {
+            return;
+        }
+        if (props.data && typeof props.data === 'object') {
+            state.form = { ...props.data, meta: normalizeMeta(props.data.meta) };
+        } else {
+            state.form = { meta: { ...defaultMeta } };
+        }
 
-    // 不存在或false，都为false
-    const meta = state.form.meta;
-    meta.isKeepAlive = !!meta.isKeepAlive;
-    meta.isHide = !!meta.isHide;
-    meta.isAffix = !!meta.isAffix;
-    state.form.meta = meta;
-}, { immediate: true });
+        // 不存在或false，都为false
+        const meta = state.form.meta;
+        meta.isKeepAlive = !!meta.isKeepAlive;
+        meta.isHide = !!meta.isHide;
+        meta.isAffix = !!meta.isAffix;
+        state.form.meta = meta;
+    },
+    { immediate: true }
+);
 
 const onConfirm = async () => {
     await useI18nFormValidate(menuFormRef);

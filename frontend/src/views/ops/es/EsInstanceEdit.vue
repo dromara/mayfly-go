@@ -87,7 +87,16 @@ const items = defineFormItems<EsInstanceForm>([
     { prop: 'tagCodePaths', label: 'tag.relateTag' },
     { prop: 'name', label: 'common.name', required: true },
     { prop: 'version', label: 'common.version', disabled: true },
-    { prop: 'protocol', label: 'es.protocol', type: 'select', options: [{ value: 'http', label: 'http' }, { value: 'https', label: 'https' }], placeholder: 'http' },
+    {
+        prop: 'protocol',
+        label: 'es.protocol',
+        type: 'select',
+        options: [
+            { value: 'http', label: 'http' },
+            { value: 'https', label: 'https' },
+        ],
+        placeholder: 'http',
+    },
     { prop: 'host', label: 'Host', required: true, span: 18 },
     { prop: 'port', label: 'Port', type: 'number', span: 6, placeholder: 'es.port' },
     { prop: 'remark', label: 'common.remark', type: 'textarea' },

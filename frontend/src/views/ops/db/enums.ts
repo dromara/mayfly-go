@@ -38,4 +38,3 @@ export const DbMaskTagActionEnum = {
     Bind: EnumValue.of(1, 'db.maskActionBind').setTagType('primary'),
     Exempt: EnumValue.of(2, 'db.maskActionExempt').setTagType('warning'),
 };
-

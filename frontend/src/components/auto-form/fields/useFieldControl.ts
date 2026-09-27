@@ -51,10 +51,7 @@ export interface FieldControlReturn {
  * 各家族组件在 setup 中调用，获取共享的计算属性与状态。
  * 家族组件只需关注自身模板渲染，无需重复维护值代理、禁用判定、选项加载等逻辑。
  */
-export const useFieldControl = (
-    props: FieldControlProps,
-    modelValue: Ref<any>,
-): FieldControlReturn => {
+export const useFieldControl = (props: FieldControlProps, modelValue: Ref<any>): FieldControlReturn => {
     const { t } = useI18n();
 
     const type = computed(() => props.item.type ?? 'input');
@@ -161,7 +158,7 @@ export const useFieldControl = (
 
     /** select 选项（应用 excludeValues 剔除，与 enum/radio 行为一致） */
     const selectOptions = computed<AutoFormSelectOption[]>(() =>
-        props.item.excludeValues?.length ? state.options.filter((o) => !props.item.excludeValues!.includes(o.value)) : state.options,
+        props.item.excludeValues?.length ? state.options.filter((o) => !props.item.excludeValues!.includes(o.value)) : state.options
     );
 
     return {

@@ -20,11 +20,7 @@ import { interpretActionStatus, normalizeResumeStatus, InterruptResumeStatus } f
  * 从 extra.interrupt（后端持久化于 tool_call item extra 列的 InterruptInfo）
  * 构造公共历史恢复状态
  */
-export function stateFromInterruptEvent(
-    type: string,
-    interruptInfo: Record<string, unknown>,
-    item: TurnItem,
-): InterruptState {
+export function stateFromInterruptEvent(type: string, interruptInfo: Record<string, unknown>, item: TurnItem): InterruptState {
     const resume = interruptInfo.resume as Record<string, unknown> | undefined;
     return {
         kind: type,
@@ -49,11 +45,7 @@ export function stateFromInterruptEvent(
  * - interpretDecision 默认实现：委托 statuses 的通用 action → 状态映射兜底；
  *   类型特定 action 语义（如审批 reject 携带 reason）经 overrides 覆盖
  */
-export function createInterruptHandler(
-    type: string,
-    component: Component,
-    overrides?: Partial<Omit<InterruptHandler, 'type'>>,
-): InterruptHandler {
+export function createInterruptHandler(type: string, component: Component, overrides?: Partial<Omit<InterruptHandler, 'type'>>): InterruptHandler {
     return {
         type,
         component: markRaw(component),
@@ -92,7 +84,7 @@ export function createInterruptHandler(
 export function interpretDecisionWithFallback(
     action: string,
     payload: Record<string, unknown> | undefined,
-    handler?: InterruptHandler,
+    handler?: InterruptHandler
 ): DecisionInterpretation {
     const interpreted = handler?.interpretDecision(action, payload);
     if (interpreted?.status) return interpreted;

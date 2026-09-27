@@ -24,7 +24,9 @@ describe('buildColumnSuggestion', () => {
     });
 
     it('仅有类型时 description 不带分隔符', () => {
-        expect((buildColumnSuggestion({ columnName: 'id', columnType: 'bigint', dataType: 'bigint' }, 0, range).label as { description: string }).description).toBe('bigint');
+        expect(
+            (buildColumnSuggestion({ columnName: 'id', columnType: 'bigint', dataType: 'bigint' }, 0, range).label as { description: string }).description
+        ).toBe('bigint');
     });
 
     it('无类型无注释时 description 为空（右侧不渲染任何内容）', () => {

@@ -343,7 +343,7 @@ export default {
             previous: 'Previous',
             next: 'Next',
             noMatchMsg: 'No matching item is found',
-            
+
             // File transfer related
             downloadFile: 'Download File',
             downloadSelectedFile: 'Download Selected Path File',
@@ -358,8 +358,9 @@ export default {
             uploadFailed: 'File upload failed: {error}',
             uploading: 'Upload progress: {percent}%',
             uploadToPath: 'File will be uploaded to: {path}',
-            uploadPathTip: 'Tip: File will be uploaded to home directory (~). To upload to another directory, use cd command first, then use drag-and-drop upload.',
-            
+            uploadPathTip:
+                'Tip: File will be uploaded to home directory (~). To upload to another directory, use cd command first, then use drag-and-drop upload.',
+
             // Paste related
             manualPaste: 'Manual Paste',
             pasteManualHint: 'Unable to read clipboard content automatically. Please paste your content into the input box below:',
@@ -374,7 +375,7 @@ export default {
             closePane: 'Close This Pane',
             paneMoveTip: 'Drag the title bar to move the pane',
             paneTitle: 'Terminal {id}',
-            
+
             // Machine file upload progress notification
             machineFileUpload: {
                 uploadProgress: 'Machine File Upload Progress',
@@ -395,48 +396,64 @@ export default {
             close: 'Close',
         },
         crontab: {
-            crontabInputPlaceholder: 'Click the left button to configure',
-            crontabTitle: 'Generate cron',
+            title: 'Cron Expression Builder',
+            configure: 'Builder',
+            inputPlaceholder: 'e.g. 0 0/5 * * * ?, or click Builder to configure',
+            draftHint: 'Builder changes apply after you press Confirm',
+            invalidExpression: 'Cannot parse this expression',
+            nextRunHint: 'Next run: {time}',
+
             second: 'Second',
             minute: 'Minute',
             hour: 'Hour',
             day: 'Day',
             month: 'Month',
             week: 'Week',
-            year: 'Year',
-            timeExpression: 'Time Expression',
-            crontabCompleteExpression: 'Crontab Complete Expression',
 
-            dayCrontype1: 'Allowed wildcard [, - * / L M]',
-            crontype2: 'Not specify',
-            crontype3: 'Cycle from',
+            presetsLabel: 'Presets',
+            presetEveryMinute: 'Every minute',
+            presetEvery5Minutes: 'Every 5 minutes',
+            presetEveryHour: 'Every hour',
+            presetEveryDay: 'Daily at midnight',
+            presetEveryWeekdayMorning: 'Weekdays at 09:00',
+            presetEveryMonthFirstDay: 'Monthly on the 1st',
 
-            crontypeFrom: 'Starting on the',
-            crontypeEvery: 'It is executed every',
-            appoint: 'Appoint',
+            ruleAll: 'All',
+            ruleNone: 'Not specified',
+            ruleCycle: 'Range',
+            ruleStep: 'Step',
+            ruleList: 'Selected',
 
-            crontypeStartDay: 'th',
-            crontypeExecDay: 'days',
-            monthLastDay: 'Last day of the month',
+            fromLabel: 'From',
+            toLabel: 'To',
+            startLabel: 'Start',
+            everyLabel: 'Every',
+            selectAll: 'Select all',
+            clearAll: 'Clear',
 
-            hourCronType1: 'Allowed wildcard [, - * /]',
-            crontypeStartHour: "o 'clock",
-            crontypeExecHour: 'hours',
+            descAll: 'Runs on every {unit}',
+            descDayNone: 'The day of month is not specified, the week field decides',
+            descWeekNone: 'The day of week is not specified, the day field decides',
+            descCycle: 'Every {unit} from {from} to {to}',
+            descStep: 'From the {start} {unit}, every {every} {unit}',
+            descList: '{count} {unit}(s) selected: {values}',
 
-            crontypeStartMin: 'minutes',
-            crontypeExecMin: 'minutes',
+            dayWeekHint: 'Only one of Day and Week can be restricted, the other becomes ? automatically',
+            parseErrorTitle: 'The original expression cannot be parsed',
+            parseErrorHint: 'The builder was reset to defaults; configure it and press Confirm to overwrite',
+            descriptorTitle: 'Descriptor expression',
+            descriptorHint: 'Descriptor forms cannot be edited in the builder. Edit the input directly, or press Reset to switch to the builder',
+            previewTitle: 'Next {count} run times',
+            previewNone: 'No run time matches within the next {years} years',
+            previewFew: 'Only {count} run time(s) match within the next {years} years',
 
-            crontypeStartSecond: 'seconds',
-            crontypeExecSecond: 'seconds',
+            errFieldCount: 'Expected 5 fields (minute..week) or 6 fields (second..week), found {found}',
+            errEmptySegment: 'The {field} field is empty',
+            errSegment: '“{segment}” is not a valid way to write the {field} field',
+            errRange: 'The {field} field cannot start at {from} and end at {to}',
+            errValueRange: 'The {field} field value {value} is outside {min}-{max}',
+            errStep: 'The {field} field interval must be a positive integer',
 
-            crontypeStartMonth: 'months',
-            crontypeExecMonth: 'months',
-
-            yearly: 'Yearly',
-            crontypeStartYear: 'years',
-            crontypeExecYear: 'years',
-
-            weekCronType1: 'Allowed wildcard [, - * / L #]',
             monday: 'Monday',
             tuesday: 'Tuesday',
             wednesday: 'Wednesday',
@@ -444,11 +461,6 @@ export default {
             friday: 'Friday',
             saturday: 'Saturday',
             sunday: 'Sunday',
-
-            last5runTimes: 'Last 5 running times',
-            calculationing: 'In the calculation result',
-            noResult: 'No results meeting the conditions!',
-            onlyResult: 'Only {count} results above in the last 100 years!',
         },
         iconSelector: {
             title: 'please select the icon',

@@ -79,30 +79,10 @@ func parseRedisCmdString(cmd string) []string {
 	return args
 }
 
-// GetKeyInfo 获取 Redis Key 详情
-func (c *ApiClient) GetKeyInfo(redisId uint64, db int, key string) (interface{}, error) {
-	path := fmt.Sprintf("/redis/%d/%d/key-info?key=%s", redisId, db, url.QueryEscape(key))
-	var result interface{}
-	if err := c.Get(path, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// GetKeyTTL 获取 Redis Key 的 TTL
-func (c *ApiClient) GetKeyTTL(redisId uint64, db int, key string) (interface{}, error) {
-	path := fmt.Sprintf("/redis/%d/%d/key-ttl?key=%s", redisId, db, url.QueryEscape(key))
-	var result interface{}
-	if err := c.Get(path, &result); err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-// GetKeyMemoryUsage 获取 Redis Key 的内存占用
-func (c *ApiClient) GetKeyMemoryUsage(redisId uint64, db int, key string) (interface{}, error) {
-	path := fmt.Sprintf("/redis/%d/%d/key-memuse?key=%s", redisId, db, url.QueryEscape(key))
-	var result interface{}
+// GetKeyMeta 获取 Redis Key 的元信息（类型、编码、TTL、内存、成员数、可用视角）
+func (c *ApiClient) GetKeyMeta(redisId uint64, db int, key string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("/redis/%d/%d/key-meta?key=%s", redisId, db, url.QueryEscape(key))
+	var result map[string]interface{}
 	if err := c.Get(path, &result); err != nil {
 		return nil, err
 	}

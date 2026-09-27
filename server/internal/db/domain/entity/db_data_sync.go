@@ -2,6 +2,7 @@ package entity
 
 import (
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"time"
 )
 
@@ -83,9 +84,91 @@ const (
 	SchemaEvolveAuto SchemaEvolveMode = 2
 )
 
+// CursorInclusivity 增量游标边界语义（交付语义显式化）。
+//
+// 业界同类产品（Airbyte / Singer / Debezium snapshot）均为 at-least-once 交付：
+// cursor 边界行重发后靠目标 UPSERT 幂等吃下，避免同时间戳行被 `>` 严格比较漏拉。
+// 本项目历史上默认 `>`（Exclusive）会漏同秒边界行，本枚举使“不重发”与“不漏行”可逐任务选择：
+//   - Auto（默认）：按同步模式给出安全默认（见 application/sync.resolveCursorInclusivity）；
+//   - Exclusive：严格 >，不重发。适用于不幂等目标（直插/无主键）；同时间戳多行可能逐轮漏拉；
+//   - Inclusive：>=，同时间戳边界行会重发，依赖目标 UPSERT 幂等。仅适用于 UPSERT/对账类模式。
+//
+// 存存位置：作为任务配置项写入 DataSyncTask.Extra（无查询/统计需求，不占列）。
+type CursorInclusivity int8
+
+const (
+	CursorInclusivityAuto      CursorInclusivity = 0
+	CursorInclusivityExclusive CursorInclusivity = 1
+	CursorInclusivityInclusive CursorInclusivity = 2
+)
+
+// 同步任务 Extra 预定义 key：非过滤/统计维度、不建列的配置项统一往此处收。
+const (
+	ExtraKeyCursorInclusivity     = "cursorInclusivity"
+	ExtraKeySleepBetweenBatchesMs = "sleepBetweenBatchesMs"
+	ExtraKeySkipIndexValidation   = "skipIndexValidation"
+)
+
+// MaxSleepBetweenBatchesMs 上限（防手滑）：1 分钟。真正的精细节流应靠 cron 频率 + 分片扫描（P2），
+// 不靠单任务里把 sleep 拉很长。
+const MaxSleepBetweenBatchesMs = 60_000
+
+// GetCursorInclusivity 从 Extra 读取游标边界语义；未配置时返回 Auto。
+func (t *DataSyncTask) GetCursorInclusivity() CursorInclusivity {
+	return CursorInclusivity(t.GetExtraInt(ExtraKeyCursorInclusivity))
+}
+
+// SetCursorInclusivity 将游标边界语义写入 Extra。Auto(0) 或非法枚举值时自动清除 key（回到安全默认），
+// 避免 form/API 直连时 int(100) 等无意义值静默落到 Auto 分支，使“配置了但无效果”不可观测。
+func (t *DataSyncTask) SetCursorInclusivity(v CursorInclusivity) {
+	if v == CursorInclusivityAuto || v > CursorInclusivityInclusive {
+		delete(t.Extra, ExtraKeyCursorInclusivity)
+		return
+	}
+	t.SetExtraValue(ExtraKeyCursorInclusivity, int(v))
+}
+
+// GetSleepBetweenBatchesMs 从 Extra 读取批间 sleep 毫秒，未配置返回 0（不等待）。
+func (t *DataSyncTask) GetSleepBetweenBatchesMs() int {
+	return t.GetExtraInt(ExtraKeySleepBetweenBatchesMs)
+}
+
+// SetSleepBetweenBatchesMs 写入批间 sleep；0 时自动清除 key。与 CursorInclusivity 同理。
+func (t *DataSyncTask) SetSleepBetweenBatchesMs(ms int) {
+	if ms <= 0 {
+		delete(t.Extra, ExtraKeySleepBetweenBatchesMs)
+		return
+	}
+	t.SetExtraValue(ExtraKeySleepBetweenBatchesMs, ms)
+}
+
+// GetSkipIndexValidation 读取“跳过增量字段索引校验”逃生阀。默认 false。
+// 适用于视图/函数索引/无法从 DataSQL 直接推断列所在表的场景。
+func (t *DataSyncTask) GetSkipIndexValidation() bool {
+	v, ok := t.Extra[ExtraKeySkipIndexValidation]
+	if !ok {
+		return false
+	}
+	b, _ := v.(bool)
+	return b
+}
+
+// SetSkipIndexValidation 写入/清除跳过索引校验标志。false 时删 key。
+func (t *DataSyncTask) SetSkipIndexValidation(skip bool) {
+	if !skip {
+		delete(t.Extra, ExtraKeySkipIndexValidation)
+		return
+	}
+	if t.Extra == nil {
+		t.Extra = collx.M{}
+	}
+	t.Extra[ExtraKeySkipIndexValidation] = true
+}
+
 // DataSyncTask 数据同步
 type DataSyncTask struct {
 	model.Model
+	model.ExtraData
 
 	// 基本信息
 	TaskName     string             `json:"taskName" gorm:"not null;size:255;comment:任务名"`                       // 任务名

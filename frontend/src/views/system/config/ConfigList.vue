@@ -24,12 +24,7 @@
         </page-table>
 
         <el-dialog @close="onCloseSetConfigDialog" :title="$t('system.sysconf.confItemSetting')" v-model="paramsDialog.visible" width="700px">
-            <auto-form
-                ref="paramsFormRef"
-                v-if="paramsDialog.schema"
-                :schema="paramsDialog.schema"
-                v-model="(paramsDialog.params as any)"
-            />
+            <auto-form ref="paramsFormRef" v-if="paramsDialog.schema" :schema="paramsDialog.schema" v-model="paramsDialog.params as any" />
 
             <!-- 无 schema 时降级为单值输入（params 为原始值，经 computed 代理为对象表单） -->
             <auto-form v-else ref="paramsFormRef" v-model="fallbackForm" :items="fallbackItems" label-width="auto" />

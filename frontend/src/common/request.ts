@@ -49,7 +49,12 @@ export const baseUrl: string = config.baseApiUrl;
  * @param {Object} uri    uri
  * @param {Object} params 参数
  */
-async function request<T = unknown>(method: string, url: string, params: Record<string, unknown> | object | null = null, options: Record<string, unknown> = {}): Promise<T> {
+async function request<T = unknown>(
+    method: string,
+    url: string,
+    params: Record<string, unknown> | object | null = null,
+    options: Record<string, unknown> = {}
+): Promise<T> {
     const { execute, data } = useApiFetch(Api.create<T>(url, method) as any, params, options);
     await execute();
     return data.value as T;
@@ -122,16 +127,4 @@ export function getFileUrl(key: string) {
  */
 export function getUploadFileUrl(key: string = '') {
     return `${baseUrl}/sys/files/upload?token=${getToken()}&fileKey=${key}`;
-}
-
-/**
- * 下载文件
- * @param key 文件key
- */
-export function downloadFile(key: string) {
-    const a = document.createElement('a');
-    a.setAttribute('href', `${getFileUrl(key)}`);
-    a.setAttribute('target', '_blank');
-    a.click();
-    a.remove();
 }

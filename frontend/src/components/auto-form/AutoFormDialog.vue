@@ -1,6 +1,23 @@
 <template>
-    <ADialog :title="props.title" v-model="modelVisible" :show-close="false" :before-close="onCancel" :width="props.width" :destroy-on-close="true" :close-on-click-modal="props.closeOnClickModal">
-        <AutoForm ref="autoFormRef" v-model="state.form" :items="items" :tabs="props.tabs" :cols="props.cols" :label-position="labelPosition" v-model:active-tab="activeTab" v-bind="$attrs">
+    <ADialog
+        :title="props.title"
+        v-model="modelVisible"
+        :show-close="false"
+        :before-close="onCancel"
+        :width="props.width"
+        :destroy-on-close="true"
+        :close-on-click-modal="props.closeOnClickModal"
+    >
+        <AutoForm
+            ref="autoFormRef"
+            v-model="state.form"
+            :items="items"
+            :tabs="props.tabs"
+            :cols="props.cols"
+            :label-position="labelPosition"
+            v-model:active-tab="activeTab"
+            v-bind="$attrs"
+        >
             <!-- 透传父组件插槽给 AutoForm（自定义字段渲染） -->
             <template v-for="(_, key) in slots" #[key]="scope">
                 <slot :name="key" v-bind="scope"></slot>

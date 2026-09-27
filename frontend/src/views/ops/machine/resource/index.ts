@@ -270,16 +270,14 @@ registerContributor({
     loadChildren: async (node) => {
         const machine = node.params as MachineNodeParams;
         const authCerts = machine.authCerts || [];
-        return authCerts.map(
-            (x: MachineAuthCert): TreeNodeData => ({
-                key: `${node.key}.${x.name}`,
-                kind: MachineAuthCertKind,
-                label: x.username,
-                icon: AuthCertIcon,
-                disabled: machine.status == -1 && machine.protocol == MachineProtocolEnum.Ssh.value,
-                params: { ...machine, selectAuthCert: x },
-            })
-        );
+        return authCerts.map((x: MachineAuthCert): TreeNodeData => ({
+            key: `${node.key}.${x.name}`,
+            kind: MachineAuthCertKind,
+            label: x.username,
+            icon: AuthCertIcon,
+            disabled: machine.status == -1 && machine.protocol == MachineProtocolEnum.Ssh.value,
+            params: { ...machine, selectAuthCert: x },
+        }));
     },
 });
 

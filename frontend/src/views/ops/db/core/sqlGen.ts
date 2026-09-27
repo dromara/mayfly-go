@@ -24,7 +24,7 @@ export function buildInsertSql(
     columns: ColumnMetadata[],
     datas: Record<string, unknown>[],
     skipNull: boolean,
-    wrapName: (name: string) => string,
+    wrapName: (name: string) => string
 ): string {
     if (!datas?.length) {
         return '';
@@ -59,7 +59,7 @@ export function buildUpdateSql(
     updateDataTypes: Record<string, string>,
     keyColumns: ColumnMetadata[],
     rowData: Record<string, unknown>,
-    wrapName: (name: string) => string,
+    wrapName: (name: string) => string
 ): string {
     if (keyColumns.length === 0) {
         return '';
@@ -71,9 +71,7 @@ export function buildUpdateSql(
     }
     sql = sql.substring(0, sql.length - 1);
 
-    const where = keyColumns
-        .map((c) => `${wrapName(c.columnName)} = ${dialect.wrapValue(c.dataType, rowData[c.columnName])}`)
-        .join(' AND ');
+    const where = keyColumns.map((c) => `${wrapName(c.columnName)} = ${dialect.wrapValue(c.dataType, rowData[c.columnName])}`).join(' AND ');
     return sql + ` WHERE ${where} ;`;
 }
 
@@ -86,7 +84,7 @@ export function buildDeleteSql(
     table: string,
     keyColumns: ColumnMetadata[],
     datas: Record<string, unknown>[],
-    wrapName: (name: string) => string,
+    wrapName: (name: string) => string
 ): string {
     if (keyColumns.length === 0) {
         return '';
@@ -102,9 +100,7 @@ export function buildDeleteSql(
     const conditions = datas
         .map(
             (d: Record<string, unknown>) =>
-                '(' +
-                keyColumns.map((c) => `${wrapName(c.columnName)} = ${dialect.wrapValue(c.dataType, d[c.columnName])}`).join(' AND ') +
-                ')',
+                '(' + keyColumns.map((c) => `${wrapName(c.columnName)} = ${dialect.wrapValue(c.dataType, d[c.columnName])}`).join(' AND ') + ')'
         )
         .join(' OR ');
     return `DELETE

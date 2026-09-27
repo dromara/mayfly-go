@@ -71,8 +71,7 @@ registerCommand({
     id: 'db.table.rename',
     txt: 'db.renameTable',
     icon: 'edit',
-    handler: async (ctx: TreeCommandCtx) =>
-        (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.onRenameTable(toTableCallbackData(ctx.node)),
+    handler: async (ctx: TreeCommandCtx) => (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.onRenameTable(toTableCallbackData(ctx.node)),
 });
 
 registerCommand({
@@ -86,8 +85,7 @@ registerCommand({
     id: 'db.table.delete',
     txt: 'db.delTable',
     icon: 'Delete',
-    handler: async (ctx: TreeCommandCtx) =>
-        (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.onDeleteTable(toTableCallbackData(ctx.node)),
+    handler: async (ctx: TreeCommandCtx) => (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.onDeleteTable(toTableCallbackData(ctx.node)),
 });
 
 registerCommand({

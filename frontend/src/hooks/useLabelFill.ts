@@ -125,10 +125,7 @@ export function parseLabelPairs(labelsJson: string): { key: string; value: strin
  * <PageTable :data-handler-fn="useLabelFill('alert_rule')" ... />
  * ```
  */
-export function useLabelFill<T extends { id: number }>(
-    targetType: string,
-    options?: { labelField?: string }
-): (data: any) => Promise<any> {
+export function useLabelFill<T extends { id: number }>(targetType: string, options?: { labelField?: string }): (data: any) => Promise<any> {
     ensureColorLoaded();
     const labelField = (options?.labelField || 'labels') as keyof T;
 

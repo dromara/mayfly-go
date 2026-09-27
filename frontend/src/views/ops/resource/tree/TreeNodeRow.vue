@@ -27,7 +27,10 @@
              若仅依赖驻留态会连带锚点一起卸载导致弹层即开即消（无法点击菜单项）；
              与信息区互换走交叉淡入淡出，消除 v-if 切换的布局跳变 -->
         <Transition name="tree-row-swap" mode="out-in">
-            <span v-if="!data.disabled && showActions && (parked || dropdownVisible) && visibleMenuItems.length" class="tree-row-actions ml-auto flex items-center shrink-0 pr-1">
+            <span
+                v-if="!data.disabled && showActions && (parked || dropdownVisible) && visibleMenuItems.length"
+                class="tree-row-actions ml-auto flex items-center shrink-0 pr-1"
+            >
                 <el-dropdown size="small" trigger="click" @command="onMenuCommand" @visible-change="(v: boolean) => (dropdownVisible = v)">
                     <el-button text bg size="small" circle type="primary" @click.stop>
                         <SvgIcon name="MoreFilled" />

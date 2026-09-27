@@ -142,8 +142,8 @@ describe('columnContributor', () => {
                     : [
                           { columnName: 'name', columnType: 'varchar', dataType: 'varchar', columnComment: '' },
                           { columnName: 'id', columnType: 'int', dataType: 'int', columnComment: '' },
-                      ],
-            ),
+                      ]
+            )
         );
         const statement = 'SELECT * FROM a x JOIN b y ON x.id = y.id WHERE ';
         const ctx = createCtx({ statement, statementCursorOffset: statement.length, clause: 'column' });

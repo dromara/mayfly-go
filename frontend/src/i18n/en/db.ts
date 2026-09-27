@@ -78,10 +78,34 @@ export default {
         isCopyTableData: 'Do you copy data?',
         execSuccess: 'Successful execution',
         execFail: 'Execution failure',
-                sqlExecFailDetail: '{sql} -> Execution failed: {error}',
+        sqlExecFailDetail: '{sql} -> Execution failed: {error}',
         sqlScriptRun: 'Run SQL Script',
         sqlScriptRunSuccess: 'SQL script executed successfully',
         sqlScriptRunFail: 'SQL script execution failed',
+        importData: 'Import Data File',
+        importDataTitle: 'Import data into `{tableName}`',
+        importSelectFile: 'Select File',
+        importFormatsHint: 'Supports CSV / TSV / Excel (.xlsx/.xlsm) files',
+        importParsedRows: 'parsed {rows} rows',
+        importHasHeader: 'First row is header',
+        importSheet: 'Worksheet',
+        importSeparator: 'Separator',
+        importFileColumn: 'File Column',
+        importSample: 'Sample',
+        importTargetColumn: 'Target Column',
+        importSkip: 'Skip',
+        importEmptyAsNull: 'Write empty cell as NULL',
+        importConflict: 'On Conflict',
+        importConflictInsert: 'Insert',
+        importConflictIgnore: 'Ignore',
+        importConflictUpdate: 'Update',
+        importBatchSize: 'Batch Size',
+        importStart: 'Start Import',
+        importSuccess: 'Import finished, {imported} of {total} rows imported',
+        importNoFile: 'Please select a file to import first',
+        importNeedMapping: 'At least one target column must be mapped',
+        importParseFail: 'Failed to parse file: {error}',
+        importedRows: 'Imported Rows',
         saveSql: 'Save SQL',
         execInfo: 'Execution info',
         result: 'Result',
@@ -90,6 +114,7 @@ export default {
         tableDataEmptyTextTips:
             'tips: Single table query at the beginning of select * or click the default query data of the table name, double-click the data online modification',
         noSelectRunSqlMsg: 'Select the sql you want to execute or move the cursor near the sql you want to execute',
+        noSqlToRunMsg: 'No executable sql in the editor',
         enterExecRemarkTips: 'Please enter remark',
         execRemarkPlaceholder: 'Enter the remark to execute the sql',
         currentSqlTabIsRunning: 'The current result set tab is being executed, please use the new TAB to execute',
@@ -98,6 +123,7 @@ export default {
         scriptFileUploadRunning: `'{filename}' is being uploaded for execution, please pay attention to the result notification`,
         runSql: 'Run SQL',
         newTabRunSql: 'NewTab Run SQL',
+        runAllSql: 'Run All',
         formatSql: 'Format SQL',
 
         alias: 'Alias',
@@ -130,7 +156,8 @@ export default {
         exportCsv: 'CSV',
         exportSql: 'SQL',
         onlySelectOneData: 'Only one row can be selected',
-        needPkToOperate: 'This table has no primary key, so a single row cannot be safely located; inline edit/delete is disabled, please operate via SQL manually',
+        needPkToOperate:
+            'This table has no primary key, so a single row cannot be safely located; inline edit/delete is disabled, please operate via SQL manually',
 
         editField: 'Edit field',
         valueTypeNoMatch: 'The input does not match the type',
@@ -187,6 +214,7 @@ export default {
         transferFileManage: 'Transfer file management',
         dbFileType: 'DB dialect file',
         targetDb: 'Target DB',
+        transferTarget: 'Target',
         fileDbType: 'SQL Dialect',
         transferFileRunDialogTitle: 'Specify the database to execute the sql file',
         targetDbTypeSelectError: 'Please select [{dbType}] database',
@@ -201,13 +229,17 @@ export default {
         transferFull: 'Full',
         transferIncrement: 'Increment（not yet available）',
         nameCase: 'Convert table/column names',
-        nameCaseTips: 'Only target table and column names are converted. Name collisions are rejected. Select None when generated-column expressions must be preserved.',
+        nameCaseTips:
+            'Only target table and column names are converted. Name collisions are rejected. Select None when generated-column expressions must be preserved.',
         transferTableFilter: 'Filter table names',
+        transferScope: 'Scope',
+        transferTablesCount: '{count} table(s)',
         none: 'None',
         lower: 'Lower',
         upper: 'Upper',
         deleteTable: 'Drop table before create',
-        deleteTableTips: 'Yes drops the existing target table and its data before creating it. No keeps existing tables, but creation requires the target table to be absent; an empty table cannot be reused.',
+        deleteTableTips:
+            'Yes drops the existing target table and its data before creating it. No keeps existing tables, but creation requires the target table to be absent; an empty table cannot be reused.',
         dbObj: 'DB',
         allTable: 'All Table',
         custom: 'Custom',
@@ -215,7 +247,8 @@ export default {
         concurrency: 'Transfer Concurrency',
         concurrencyTips: 'Number of parallel table shards (1~16, default 4)',
         verify: 'Verify Data',
-        verifyConfirm: 'Compare source and target row counts and sampled contents? Matching samples do not prove full consistency. Avoid modifying either database during verification.',
+        verifyConfirm:
+            'Compare source and target row counts and sampled contents? Matching samples do not prove full consistency. Avoid modifying either database during verification.',
 
         // Transfer Log
         transferDuration: 'Duration',
@@ -226,6 +259,7 @@ export default {
         transferTotalRows: 'Rows',
         transferTotalBytes: 'Data Size',
         transferTableCount: 'Tables',
+        transferTargetFile: 'Target File',
         transferRunLog: 'Run Log',
         transferRunLogEmpty: 'No run log',
 
@@ -245,6 +279,8 @@ export default {
         updateFieldValueTips:
             'The record updates the current value of the field, such as: current time, current date, etc., and the next time the data is queried, the value condition will be added',
         updateFieldValuePlaceholder: 'Update the current maximum value of the field',
+        syncCursor: 'Incremental Cursor',
+        syncCursorInit: 'Not advanced (full pull)',
         fieldValueSrc: 'Source of values',
         fieldValueSrcTips:
             'The field name of the updated value is taken from the query result. The default is the same as the updated field. If the query result specifies a field alias and is inconsistent with the original updated field, the field value is the current updated value',
@@ -271,12 +307,26 @@ export default {
         syncModeIncrementalHardDel: 'Full Reconciliation (Missing Source Rows)',
         syncModeValidation: 'Data Validation',
         updFieldSecondary: 'Secondary Incremental Field',
-        updFieldSecondaryTips: 'Both fields use the same watermark value, joined by AND. They must accept the same watermark; this is not an independent watermark or a composite cursor.',
+        updFieldSecondaryTips:
+            'Both fields use the same watermark value, joined by AND. They must accept the same watermark; this is not an independent watermark or a composite cursor.',
         updFieldSecondaryPlaceholder: 'Secondary incremental field name',
+        // P0 delivery semantics + target-side throttle (persisted in Extra, not a queryable column)
+        cursorInclusivity: 'Cursor Boundary Semantics',
+        cursorInclusivityAuto: 'Auto (by mode)',
+        cursorInclusivityExclusive: 'Exclusive (strict >, no re-emit)',
+        cursorInclusivityInclusive: 'Inclusive (>=, at-least-once)',
+        cursorInclusivityTips:
+            'Under Auto: Append/FullRefresh/Validation use Exclusive (no re-emit), Merge/HardDel/SoftDel use Inclusive (boundary rows at same timestamp are re-emitted once, relying on target UPSERT idempotency). Aligns with at-least-once delivery from Airbyte/Debezium. Manual Inclusive is rejected for Append/FullRefresh/Validation by save-time validation.',
+        sleepBetweenBatchesMs: 'Sleep Between Batches (ms)',
+        sleepBetweenBatchesTips:
+            'Delay after each batch write, 0-60000 ms. Positioned as target-side throttling (mitigate replica lag / WAL apply backlog). Nearly ineffective on the source side under default buffered drivers of mysql/pg (long SELECT loads entire result into client at start); true source throttling requires chunked scan (not yet shipped).',
+        skipIndexValidation: 'Skip Index Validation',
+        skipIndexValidationTips:
+            'Off by default. When on, Save no longer probes whether UpdField is the leading column of an index on the source table. Use for views / functional indexes / DataSQL shapes where the physical table cannot be inferred. Without this and without an index, save is rejected to prevent per-round full scans from raising source load.',
         transformRules: 'Transform Rules',
         transformRulesTips: 'JSON format field transform rules, supporting column mapping, constants, expression functions (UPPER/LOWER/TRIM/CONCAT etc.)',
         filterCondition: 'Filter Condition',
-        filterConditionTips: 'Server-side data filter expression, e.g. status == 1 AND type LIKE \'%active%\'',
+        filterConditionTips: "Server-side data filter expression, e.g. status == 1 AND type LIKE '%active%'",
         filterConditionPlaceholder: 'e.g. status == 1',
         nullStrategy: 'Null Strategy',
         nullStrategyTips: 'How to handle NULL values from source fields',
@@ -292,6 +342,7 @@ export default {
         schemaEvolveAuto: 'Auto-adapt',
         biDirEnabled: 'Bidirectional Sync',
         biDirEnabledTips: 'Automatically create a reverse sync task for bidirectional data synchronization',
+        biDirReverseMissing: 'Reverse task not created',
         conflictStrategy: 'Conflict Strategy',
         conflictStrategyTips: 'Conflict resolution when the same row is updated on both ends in bidirectional sync',
         conflictSourceWins: 'Source Wins',
@@ -299,6 +350,7 @@ export default {
         conflictSkip: 'Skip on Conflict',
         biDirTimestampField: 'Conflict Timestamp Field',
         biDirTimestampFieldPlaceholder: 'Timestamp field for comparing update order on both ends',
+        notApplicable: 'N/A',
         // Sync log metrics
         syncDuration: 'Duration(ms)',
         syncThroughput: 'Throughput(rows/s)',
@@ -308,6 +360,7 @@ export default {
         syncUpdateCount: 'Updated',
         syncDeleteCount: 'Deleted',
         syncSkipCount: 'Skipped',
+        syncValidationRows: 'Validated Rows',
         syncSchemaChanges: 'Schema Changes',
         syncMetrics: 'Sync Metrics',
         syncRunLog: 'Run Log',
@@ -333,7 +386,11 @@ export default {
 
         running: 'Running',
         waitRun: 'Wait Run',
-        
+        notRun: 'Not Run',
+        manual: 'Manual',
+        cron: 'Schedule',
+        errText: 'Error Message',
+
         // SQL execution
         sqlExecute: 'SQL Execution',
         executedStatements: 'Executed',

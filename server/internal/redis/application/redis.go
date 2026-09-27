@@ -50,6 +50,10 @@ type Redis interface {
 
 	// 执行redis命令
 	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error)
+
+	// CheckCmdFlow 校验该命令是否需要提交工单审批：以命令名与读写类型作为流程条件，
+	// 所有会改动 redis 数据的入口（控制台命令、类型化数据操作）都必须先过这道校验
+	CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdName string) error
 }
 
 var _ Redis = (*redisAppImpl)(nil)
@@ -224,16 +228,8 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 		return nil, errorx.NewBiz("redis connection not exist")
 	}
 
-	// 开启工单流程，则校验该流程是否需要校验
-	if procdef := r.procdefApp.GetProcdefByCodePath(ctx, redisConn.Info.CodePath...); procdef != nil {
-		cmd := cmdParam.Cmd[0]
-		cmdType := "read"
-		if rdm.IsWriteCmd(cmd) {
-			cmdType = "write"
-		}
-		if needStartProc := procdef.MatchCondition(RedisRunCmdFlowBizType, collx.Kvs("cmdType", cmdType, "cmd", cmd)); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrSubmitFlowRunCmd)
-		}
+	if err := r.CheckCmdFlow(ctx, redisConn, cast.ToString(cmdParam.Cmd[0])); err != nil {
+		return nil, err
 	}
 
 	res, err := redisConn.RunCmd(ctx, cmdParam.Cmd...)
@@ -242,6 +238,26 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 		return nil, nil
 	}
 	return res, err
+}
+
+func (r *redisAppImpl) CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdName string) error {
+	if redisConn == nil {
+		return errorx.NewBiz("redis connection not exist")
+	}
+
+	procdef := r.procdefApp.GetProcdefByCodePath(ctx, redisConn.Info.CodePath...)
+	if procdef == nil {
+		return nil
+	}
+
+	cmdType := "read"
+	if rdm.IsWriteCmd(cmdName) {
+		cmdType = "write"
+	}
+	if procdef.MatchCondition(RedisRunCmdFlowBizType, collx.Kvs("cmdType", cmdType, "cmd", cmdName)) {
+		return errorx.NewBizI(ctx, imsg.ErrSubmitFlowRunCmd)
+	}
+	return nil
 }
 
 type FlowRedisRunCmdBizForm struct {

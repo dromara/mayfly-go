@@ -11,12 +11,23 @@
             @drop="onDrop($event, pane.id)"
         >
             <!-- 窗格标题栏：多窗格时显示，作为拖拽把手与关闭入口（窗格层职责，不侵入终端组件） -->
-            <div v-if="paneCount > 1" class="pane-header" draggable="true" :title="t('components.terminal.paneMoveTip')" @dragstart="onPaneDragStart($event, pane.id)">
+            <div
+                v-if="paneCount > 1"
+                class="pane-header"
+                draggable="true"
+                :title="t('components.terminal.paneMoveTip')"
+                @dragstart="onPaneDragStart($event, pane.id)"
+            >
                 <span class="pane-header-status" :class="paneStatusMeta(pane.id).className" :title="t(paneStatusMeta(pane.id).textKey)" />
                 <span class="pane-header-title">{{ t('components.terminal.paneTitle', { id: pane.id }) }}</span>
                 <span class="pane-header-actions">
                     <!-- 拆分入口：标题栏下拉，对任意类型窗格（SSH/RDP/...）通用 -->
-                    <el-dropdown v-if="paneCount < maxPanes" trigger="click" placement="bottom-end" @command="(cmd: string | number | object) => onSplitCommand(pane.id, cmd)">
+                    <el-dropdown
+                        v-if="paneCount < maxPanes"
+                        trigger="click"
+                        placement="bottom-end"
+                        @command="(cmd: string | number | object) => onSplitCommand(pane.id, cmd)"
+                    >
                         <SvgIcon
                             name="Plus"
                             :size="14"
@@ -58,7 +69,13 @@
                     其他类型终端（如 RDP）通过作用域插槽接入，需实现 TerminalExpose 约定的
                     init/close/focus/fitTerminal/getStatus（getStatus 可选，缺省时不参与状态聚合）
                 -->
-                <slot name="pane" :pane="pane" :register="(el: unknown) => registerBody(pane.id, el)" :menu-items="buildPaneMenuItems(pane.id)" :set-status="(status: TerminalStatus) => onPaneStatusChange(pane.id, status)">
+                <slot
+                    name="pane"
+                    :pane="pane"
+                    :register="(el: unknown) => registerBody(pane.id, el)"
+                    :menu-items="buildPaneMenuItems(pane.id)"
+                    :set-status="(status: TerminalStatus) => onPaneStatusChange(pane.id, status)"
+                >
                     <TerminalBody
                         :ref="(el) => registerBody(pane.id, el)"
                         :mount-init="mountInit"
@@ -537,7 +554,9 @@ defineExpose({ init, close, focus, fitAll, fitTerminal: fitAll, getStatus, split
             padding: 2px;
             border-radius: var(--el-border-radius-small);
             color: var(--el-text-color-secondary);
-            transition: color 150ms ease-out, background-color 150ms ease-out;
+            transition:
+                color 150ms ease-out,
+                background-color 150ms ease-out;
         }
 
         .pane-header-split:hover,

@@ -3,13 +3,7 @@
         <el-dialog width="750px" title="runCommand" v-model="runCmdDialog.visible" :before-close="close" :destroy-on-close="true">
             <auto-form v-model="runCmdDialog" :items="runCmdItems" label-width="auto">
                 <template #cmdName>
-                    <el-select
-                        class="w-full!"
-                        @change="changeCmd"
-                        filterable
-                        v-model="runCmdDialog.cmdName"
-                        :placeholder="$t('mongo.cmdTemplatePlaceholder')"
-                    >
+                    <el-select class="w-full!" @change="changeCmd" filterable v-model="runCmdDialog.cmdName" :placeholder="$t('mongo.cmdTemplatePlaceholder')">
                         <el-option v-for="item in mongoCmds" :key="item.name" :label="`${item.name} | ${item.description}`" :value="item.name" />
                     </el-select>
                 </template>
@@ -40,7 +34,7 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
-import type { AutoFormItem } from '@/components/auto-form';
+import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { defineAsyncComponent, reactive, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mongoApi } from './api';

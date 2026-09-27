@@ -37,7 +37,13 @@ export async function getAccountLoginSecurity(): Promise<AccountLoginSecurity | 
  *
  * @returns
  */
-export async function getSysStyleConfig(): Promise<{ title?: string; viceTitle?: string; logoIcon?: string; useWatermark?: boolean; watermarkContent?: string }> {
+export async function getSysStyleConfig(): Promise<{
+    title?: string;
+    viceTitle?: string;
+    logoIcon?: string;
+    useWatermark?: boolean;
+    watermarkContent?: string;
+}> {
     const value = await getConfigValue(SysStyleConfigKey);
     const defaultValue = {
         useWatermark: true,
@@ -142,7 +148,7 @@ export async function getServerConf(): Promise<{ i18n: string; version: string }
  * @returns 配置值
  */
 export async function getConfigValue(key: string): Promise<string> {
-    return (await openApi.getConfigValue({ key }));
+    return await openApi.getConfigValue({ key });
 }
 
 /**

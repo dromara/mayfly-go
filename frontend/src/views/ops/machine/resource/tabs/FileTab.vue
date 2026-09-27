@@ -9,7 +9,7 @@
             :file-id="selectedFileConf.fileId"
             :path="selectedFileConf.path"
         />
-        <!-- 否则显示文件配置选择列表 -->
+        <!-- 否则弹窗选择要操作的文件/目录配置 -->
         <FileConfList
             v-else
             :machine-id="machineId"
@@ -39,9 +39,7 @@ const props = defineProps<{
 // 已选择的文件配置
 const selectedFileConf = ref<{ fileId: number; path: string; name: string } | null>(
     // 如果传入了 fileId 和 initialPath，直接初始化
-    props.fileId && props.initialPath
-        ? { fileId: props.fileId, path: props.initialPath, name: '' }
-        : null
+    props.fileId && props.initialPath ? { fileId: props.fileId, path: props.initialPath, name: '' } : null
 );
 
 // 处理文件配置选择
@@ -54,7 +52,7 @@ const handleSelect = (fileConf: { fileId: number; path: string; name: string }) 
 };
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .machine-file-tab {
     height: 100%;
     overflow: hidden;

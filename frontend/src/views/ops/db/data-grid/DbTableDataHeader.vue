@@ -10,94 +10,90 @@
             borderTop: 'var(--el-table-border)',
         }"
     >
-            <!-- 行号列 -->
-            <div v-if="column.key === rowNoColumnKey" class="header-column-title">
-                <b class="el-text" tag="b"> {{ column.title }} </b>
+        <!-- 行号列 -->
+        <div v-if="column.key === rowNoColumnKey" class="header-column-title">
+            <b class="el-text" tag="b"> {{ column.title }} </b>
+        </div>
+
+        <!-- 字段名列 -->
+        <div v-else style="position: relative" @mouseenter="showColumnAction(column)" @mouseleave="hideColumnAction">
+            <!-- 字段列的数据类型 -->
+            <div class="column-type">
+                <span v-if="column.dataTypeSubscript === 'icon-clock'">
+                    <SvgIcon :size="9" name="Clock" style="cursor: unset" />
+                </span>
+                <span class="text-[8px]!" v-else>{{ column.dataTypeSubscript }}</span>
             </div>
 
-            <!-- 字段名列 -->
-            <div v-else style="position: relative" @mouseenter="showColumnAction(column)" @mouseleave="hideColumnAction">
-                <!-- 字段列的数据类型 -->
-                <div class="column-type">
-                    <span v-if="column.dataTypeSubscript === 'icon-clock'">
-                        <SvgIcon :size="9" name="Clock" style="cursor: unset" />
+            <div v-if="showColumnTip">
+                <div class="header-column-title">
+                    <b :title="column.remark" class="el-text cursor-pointer">
+                        {{ column.title }}
+                    </b>
+                </div>
+
+                <!-- 字段备注信息 -->
+                <div v-if="showColumnComment" style="color: var(--el-color-info-light-3)" class="text-[10px]! el-text el-text--small is-truncated">
+                    {{ column.columnComment }}
+                </div>
+            </div>
+
+            <div v-else class="header-column-title">
+                <b class="el-text"> {{ column.title }} </b>
+            </div>
+
+            <!-- 字段列右部分内容 -->
+            <div class="column-right">
+                <el-dropdown
+                    @command="handleColumnCommand(column, $event)"
+                    @visibleChange="onColumnActionVisibleChange(column, $event)"
+                    trigger="click"
+                    v-if="column.key !== rowNoColumnKey"
+                    size="small"
+                    placement="bottom-start"
+                >
+                    <span class="column-actions-trigger">
+                        <!-- 排序箭头图标 -->
+                        <SvgIcon
+                            v-if="column.key === nowSortColumn?.key && !showColumnActions[column.key] && !columnActionVisible[column.key]"
+                            :color="'var(--el-color-primary)'"
+                            :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
+                            :size="14"
+                        />
+                        <!-- 更多操作图标 -->
+                        <SvgIcon
+                            v-if="columnActionVisible[column.key] || showColumnActions[column.key]"
+                            name="MoreFilled"
+                            :size="14"
+                            :color="'var(--el-color-primary)'"
+                            class="column-more-icon"
+                            :class="{ 'column-more-icon-visible': columnActionVisible[column.key] || showColumnActions[column.key] }"
+                        />
                     </span>
-                    <span class="text-[8px]!" v-else>{{ column.dataTypeSubscript }}</span>
-                </div>
-
-                <div v-if="showColumnTip">
-                    <div class="header-column-title">
-                        <b :title="column.remark" class="el-text cursor-pointer">
-                            {{ column.title }}
-                        </b>
-                    </div>
-
-                    <!-- 字段备注信息 -->
-                    <div
-                        v-if="showColumnComment"
-                        style="color: var(--el-color-info-light-3)"
-                        class="text-[10px]! el-text el-text--small is-truncated"
-                    >
-                        {{ column.columnComment }}
-                    </div>
-                </div>
-
-                <div v-else class="header-column-title">
-                    <b class="el-text"> {{ column.title }} </b>
-                </div>
-
-                <!-- 字段列右部分内容 -->
-                <div class="column-right">
-                    <el-dropdown
-                        @command="handleColumnCommand(column, $event)"
-                        @visibleChange="onColumnActionVisibleChange(column, $event)"
-                        trigger="click"
-                        v-if="column.key !== rowNoColumnKey"
-                        size="small"
-                        placement="bottom-start"
-                    >
-                        <span class="column-actions-trigger">
-                            <!-- 排序箭头图标 -->
-                            <SvgIcon
-                                v-if="column.key === nowSortColumn?.key && !showColumnActions[column.key] && !columnActionVisible[column.key]"
-                                :color="'var(--el-color-primary)'"
-                                :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
-                                :size="14"
-                            />
-                            <!-- 更多操作图标 -->
-                            <SvgIcon
-                                v-if="columnActionVisible[column.key] || showColumnActions[column.key]"
-                                name="MoreFilled"
-                                :size="14"
-                                :color="'var(--el-color-primary)'"
-                                class="column-more-icon"
-                                :class="{ 'column-more-icon-visible': columnActionVisible[column.key] || showColumnActions[column.key] }"
-                            />
-                        </span>
-                        <template #dropdown>
-                            <el-dropdown-menu>
-                                <el-dropdown-item v-if="showColumnActionSort" command="sort-asc">
-                                    <SvgIcon name="top" class="mr-1" />
-                                    {{ $t('db.asc') }}
-                                </el-dropdown-item>
-                                <el-dropdown-item v-if="showColumnActionSort" command="sort-desc">
-                                    <SvgIcon name="bottom" class="mr-1" />
-                                    {{ $t('db.desc') }}
-                                </el-dropdown-item>
-                                <el-dropdown-item v-if="showColumnActionFixed && !column.fixed" command="fix">
-                                    <SvgIcon name="Paperclip" class="mr-1" />
-                                    {{ $t('db.fixed') }}
-                                </el-dropdown-item>
-                                <el-dropdown-item v-if="showColumnActionFixed && column.fixed" command="unfix">
-                                    <SvgIcon name="Minus" class="mr-1" />
-                                    {{ $t('db.cancelFiexd') }}
-                                </el-dropdown-item>
-                            </el-dropdown-menu>
-                        </template>
-                    </el-dropdown>
-                </div>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item v-if="showColumnActionSort" command="sort-asc">
+                                <SvgIcon name="top" class="mr-1" />
+                                {{ $t('db.asc') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item v-if="showColumnActionSort" command="sort-desc">
+                                <SvgIcon name="bottom" class="mr-1" />
+                                {{ $t('db.desc') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item v-if="showColumnActionFixed && !column.fixed" command="fix">
+                                <SvgIcon name="Paperclip" class="mr-1" />
+                                {{ $t('db.fixed') }}
+                            </el-dropdown-item>
+                            <el-dropdown-item v-if="showColumnActionFixed && column.fixed" command="unfix">
+                                <SvgIcon name="Minus" class="mr-1" />
+                                {{ $t('db.cancelFiexd') }}
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
             </div>
         </div>
+    </div>
 </template>
 
 <script lang="ts" setup>

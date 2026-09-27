@@ -61,7 +61,7 @@ $spacing: 8px;
 
 // 水平菜单、横向菜单高亮 背景色，鼠标 hover 时，有子级菜单的背景色
 .el-menu-item.is-active,
-.el-sub-menu.is-active>.el-sub-menu__title,
+.el-sub-menu.is-active > .el-sub-menu__title,
 .el-sub-menu:not(.is-opened):hover .el-sub-menu__title {
     @extend .el-menu-hover-bg-color;
     color: #409eff;
@@ -93,12 +93,12 @@ $spacing: 8px;
 }
 
 // 只有真正激活且未展开的子菜单才应用高亮样式
-.el-sub-menu.is-active:not(.is-opened)>.el-sub-menu__title {
+.el-sub-menu.is-active:not(.is-opened) > .el-sub-menu__title {
     color: #409eff !important;
 }
 
 // 展开的子菜单保持默认样式
-.el-sub-menu.is-active.is-opened>.el-sub-menu__title {
+.el-sub-menu.is-active.is-opened > .el-sub-menu__title {
     background-color: unset !important;
     color: #5a5a5a !important;
 }
@@ -111,7 +111,6 @@ $spacing: 8px;
 
 // 水平菜单、横向菜单折叠背景色
 .el-popper.is-pure.is-light {
-
     // 水平菜单
     .el-menu--vertical {
         background: #fafafa; // 更舒适的背景色
@@ -123,7 +122,6 @@ $spacing: 8px;
 
     // 横向菜单
     .el-menu--horizontal {
-
         .el-menu-item,
         .el-sub-menu {
             color: var(--bg-topBarColor);
@@ -186,19 +184,18 @@ html.dark {
     }
 
     // 只有真正激活且未展开的子菜单才应用高亮样式 - 暗黑模式
-    .el-sub-menu.is-active:not(.is-opened)>.el-sub-menu__title {
+    .el-sub-menu.is-active:not(.is-opened) > .el-sub-menu__title {
         color: #409eff !important;
     }
 
     // 展开的子菜单保持默认样式 - 暗黑模式
-    .el-sub-menu.is-active.is-opened>.el-sub-menu__title {
+    .el-sub-menu.is-active.is-opened > .el-sub-menu__title {
         background-color: unset !important;
         color: #b2b2b2 !important;
     }
 
     // 水平菜单、横向菜单折叠背景色 - 暗黑模式
     .el-popper.is-pure.is-light {
-
         // 水平菜单
         .el-menu--vertical {
             background: #1f1f1f; // 暗黑模式下的背景色
@@ -207,7 +204,6 @@ html.dark {
 
     // 横向菜单（经典、横向）布局 - 暗黑模式
     .el-menu.el-menu--horizontal {
-
         .el-menu-item,
         .el-sub-menu__title {
             color: #b2b2b2; // 暗黑模式下的字体颜色
@@ -243,13 +239,11 @@ html.dark {
     }
 }
 
-
 /* Card 卡片
 ------------------------------- */
 .el-card__header {
     padding: 15px 20px;
 }
-
 
 /* Breadcrumb 面包屑
 ------------------------------- */

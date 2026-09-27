@@ -18,7 +18,14 @@
                 {{ progress.filename }}
             </span>
             <!-- 取消按钮 -->
-            <el-button v-if="progress.status === '' || progress.status === 'uploading'" type="danger" size="small" text :loading="cancelLoading" @click="handleCancel">
+            <el-button
+                v-if="progress.status === '' || progress.status === 'uploading'"
+                type="danger"
+                size="small"
+                text
+                :loading="cancelLoading"
+                @click="handleCancel"
+            >
                 <SvgIcon name="Close" :size="14" />
                 {{ $t('common.cancel') }}
             </el-button>

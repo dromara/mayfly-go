@@ -1,6 +1,15 @@
 <template>
     <div class="mock-data-dialog">
-        <auto-form-drawer v-model:visible="visible" :title="title" :items="items" :data="editData" size="50%" :confirm-api="cronJobApi.save.request" @submitted="emit('submitSuccess')" @cancel="emit('cancel')">
+        <auto-form-drawer
+            v-model:visible="visible"
+            :title="title"
+            :items="items"
+            :data="editData"
+            size="50%"
+            :confirm-api="cronJobApi.save.request"
+            @submitted="emit('submitSuccess')"
+            @cancel="emit('cancel')"
+        >
             <!-- cron 表达式（自定义控件插槽） -->
             <template #cron="{ form: f }">
                 <CrontabInput v-model="f.cron" />

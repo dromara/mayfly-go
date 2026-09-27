@@ -36,13 +36,22 @@
                 </el-select>
             </el-tooltip>
 
-            <el-select size="small" v-model="selectedPartition" :placeholder="$t('milvus.partitionManagement')" style="width: 120px" clearable :teleported="false">
+            <el-select
+                size="small"
+                v-model="selectedPartition"
+                :placeholder="$t('milvus.partitionManagement')"
+                style="width: 120px"
+                clearable
+                :teleported="false"
+            >
                 <el-option size="small" :label="$t('milvus.allPartitions')" value="" />
                 <el-option size="small" v-for="partition in partitions" :key="partition" :label="partition" :value="partition" />
             </el-select>
 
             <el-dropdown size="small" trigger="click" :teleported="false">
-                <el-button size="small" text icon="grid"> {{ $t('milvus.outputFields') }} ({{ selectedFields.length }}/{{ collectionFields.length }}) </el-button>
+                <el-button size="small" text icon="grid">
+                    {{ $t('milvus.outputFields') }} ({{ selectedFields.length }}/{{ collectionFields.length }})
+                </el-button>
                 <template #dropdown>
                     <el-dropdown-menu class="fields-dropdown-menu">
                         <div class="fields-dropdown-header">
@@ -86,7 +95,9 @@
             <el-button text size="small" icon="edit" @click="handleEditData" :disabled="selectedRows.length === 0">
                 {{ $t('common.edit') }}
             </el-button>
-            <el-button text size="small" icon="download" :disabled="queryResults.length === 0"> {{ $t('milvus.export') }} ({{ selectedRows.length }}) </el-button>
+            <el-button text size="small" icon="download" :disabled="queryResults.length === 0">
+                {{ $t('milvus.export') }} ({{ selectedRows.length }})
+            </el-button>
             <el-button text size="small" icon="document-copy" :disabled="selectedRows.length === 0" @click="handleCopySelected">
                 {{ $t('common.copy') }} JSON
             </el-button>
@@ -878,19 +889,16 @@ const handleEditData = () => {
 };
 
 // 监听 milvusId 或授权凭证变化
-watch(
-    [() => props.milvusId, () => milvusStore.authCertName],
-    async () => {
-        // 重置状态
-        collectionFields.value = [];
-        partitions.value = [];
-        primaryKey.value = '';
-        queryResults.value = [];
-        hasQueried.value = false;
-        selectedRows.value = [];
-        resetQueryState();
-    }
-);
+watch([() => props.milvusId, () => milvusStore.authCertName], async () => {
+    // 重置状态
+    collectionFields.value = [];
+    partitions.value = [];
+    primaryKey.value = '';
+    queryResults.value = [];
+    hasQueried.value = false;
+    selectedRows.value = [];
+    resetQueryState();
+});
 
 onMounted(async () => {
     // 加载 collections 列表

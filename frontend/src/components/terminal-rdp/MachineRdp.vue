@@ -5,7 +5,13 @@
             <div class="btn-box">
                 <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal-rdp.clipboard')" />
                 <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal-rdp.fileManager')" />
-                <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal.fullScreenTitle')" />
+                <SvgIcon
+                    name="FullScreen"
+                    @click="state.fullscreen ? closeFullScreen() : openFullScreen()"
+                    :size="20"
+                    class="pointer-icon mr-2"
+                    :title="$t('components.terminal.fullScreenTitle')"
+                />
 
                 <el-dropdown>
                     <SvgIcon name="Monitor" :size="20" class="pointer-icon mr-2" :title="$t('components.terminal-rdp.sendShortcut')" style="color: #fff" />

@@ -80,6 +80,19 @@ var (
 		Channels: []*entity.MsgChannel{MsgChannelWs},
 	}
 
+	// 数据文件导入进度消息模板：与 SQL 脚本执行进度同构（仅 Ws 通道、无持久化文案），
+	// 前端按 uploadId 维护一个进度通知并在 terminated 时关闭
+	MsgTmplDataImportProgress = &MsgTmplChannel{
+		Tmpl: &entity.MsgTmpl{
+			ExtraData: model.ExtraData{
+				Extra: collx.M{
+					"category": "dataImportProgress",
+				},
+			},
+		},
+		Channels: []*entity.MsgChannel{MsgChannelWs},
+	}
+
 	// 机器文件上传进度消息模板
 	MsgTmplMachineFileUploadProgress = &MsgTmplChannel{
 		Tmpl: &entity.MsgTmpl{

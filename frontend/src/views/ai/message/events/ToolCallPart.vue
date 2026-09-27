@@ -1,14 +1,8 @@
 <template>
-    <div
-        class="tool-call-part"
-        :class="{ 'tool-call-part--interrupted': !!pendingInterrupt, 'tool-call-part--running': isRunning }"
-    >
+    <div class="tool-call-part" :class="{ 'tool-call-part--interrupted': !!pendingInterrupt, 'tool-call-part--running': isRunning }">
         <CollapsibleSection :title="toolName" :force-open="!!pendingInterrupt">
             <template #icon>
-                <WrenchIcon
-                    class="tool-call-part__icon"
-                    :class="{ 'is-running': isRunning, 'is-interrupted': !!pendingInterrupt }"
-                />
+                <WrenchIcon class="tool-call-part__icon" :class="{ 'is-running': isRunning, 'is-interrupted': !!pendingInterrupt }" />
             </template>
             <template #extra>
                 <!-- 终态状态圆点（StatusDot：执行中/中断由图标脉冲表达） -->
@@ -17,11 +11,7 @@
                 <span v-if="pendingInterrupt" class="tool-call-part__badge bg-warning/10 text-warning border-warning/20">
                     {{ pendingBadgeLabel }}
                 </span>
-                <span
-                    v-else-if="decidedBadge"
-                    class="tool-call-part__badge"
-                    :class="decidedBadge.class"
-                >
+                <span v-else-if="decidedBadge" class="tool-call-part__badge" :class="decidedBadge.class">
                     {{ decidedBadge.label }}
                 </span>
                 <span v-if="durationText" class="tool-call-part__duration">{{ durationText }}</span>
@@ -129,9 +119,7 @@ const pendingBadgeLabel = computed(() => {
 // ==================== 状态 meta（STATUS_DOT_COLORS / ResumeStatusBadge） ====================
 
 /** 执行中：pending/running 均视为执行中（图标脉冲表达，不显示圆点） */
-const isRunning = computed(
-    () => props.status === ToolCallStatus.Pending || props.status === ToolCallStatus.Running,
-);
+const isRunning = computed(() => props.status === ToolCallStatus.Pending || props.status === ToolCallStatus.Running);
 
 /** 终态状态圆点色（pending/running/interrupted 由脉冲图标表达，不显示） */
 const DOT_CLASSES: Record<string, string> = {
@@ -189,9 +177,7 @@ const decidedBadge = computed(() => {
         return resumeBadgeOf(props.resumeType);
     }
     if (!props.pendingInterrupts?.length || !props.toolCallId) return undefined;
-    const decided = props.pendingInterrupts.find(
-        (i) => i.toolCallId === props.toolCallId && isInterruptDecided(i.status),
-    );
+    const decided = props.pendingInterrupts.find((i) => i.toolCallId === props.toolCallId && isInterruptDecided(i.status));
     if (!decided) return undefined;
     return resumeBadgeOf(decided.status ?? '', decided.type);
 });

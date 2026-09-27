@@ -74,12 +74,7 @@ export function useTableEdit(options: UseTableEditOptions) {
         return cellUpdateMap.value.get(rowIndex)?.columnsMap.get(columnName);
     };
 
-    const onEnterEditMode = (
-        rowData: Record<string, unknown>,
-        column: { key: string; dataType?: string; masked?: boolean },
-        rowIndex = 0,
-        columnIndex = 0,
-    ) => {
+    const onEnterEditMode = (rowData: Record<string, unknown>, column: { key: string; dataType?: string; masked?: boolean }, rowIndex = 0, columnIndex = 0) => {
         // 只读（如视图）：不允许进入单元格编辑，避免对不可更新对象生成 UPDATE
         if (options.readonly?.()) {
             return;

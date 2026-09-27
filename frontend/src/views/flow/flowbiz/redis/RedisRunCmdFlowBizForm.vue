@@ -52,7 +52,15 @@ interface RedisNodeParams {
 /** Redis 命令执行业务表单声明（资源选择为 custom 插槽；id 校验保留原 message） */
 const bizItems: AutoFormItem[] = [
     { prop: 'id', label: 'DB', type: 'custom', rules: [{ required: true, message: t('flow.selectRedisPlaceholder'), trigger: ['change', 'blur'] }] },
-    { prop: 'cmd', label: 'CMD', type: 'textarea', required: true, rules: Rules.requiredInput('flow.runCmd'), props: { rows: 5 }, placeholder: 'flow.cmdPlaceholder' },
+    {
+        prop: 'cmd',
+        label: 'CMD',
+        type: 'textarea',
+        required: true,
+        rules: Rules.requiredInput('flow.runCmd'),
+        props: { rows: 5 },
+        placeholder: 'flow.cmdPlaceholder',
+    },
 ];
 
 const emit = defineEmits(['changeResourceCode']);

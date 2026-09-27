@@ -26,16 +26,9 @@
                 <!-- 序号徽章 -->
                 <span class="pending-queue__index">{{ index + 1 }}</span>
                 <!-- 消息预览（纯附件无文本时回退为附件名列表） -->
-                <span class="pending-queue__content">{{
-                    item.data.text || item.data.attachments?.map((a) => a.name).join(', ')
-                }}</span>
+                <span class="pending-queue__content">{{ item.data.text || item.data.attachments?.map((a) => a.name).join(', ') }}</span>
                 <!-- 操作按钮 -->
-                <button
-                    type="button"
-                    class="pending-queue__action"
-                    :title="t('ai.chat.editQueuedMessage')"
-                    @click="$emit('edit', item)"
-                >
+                <button type="button" class="pending-queue__action" :title="t('ai.chat.editQueuedMessage')" @click="$emit('edit', item)">
                     <PencilIcon />
                 </button>
                 <button
@@ -146,7 +139,11 @@ const onDrop = (toIndex: number) => {
     border-radius: 8px;
     background: var(--el-fill-color-lighter);
     cursor: grab;
-    transition: background 0.15s ease-out, border-color 0.15s ease-out, opacity 0.15s ease-out, transform 0.15s ease-out;
+    transition:
+        background 0.15s ease-out,
+        border-color 0.15s ease-out,
+        opacity 0.15s ease-out,
+        transform 0.15s ease-out;
 }
 
 .pending-queue__item:hover {
@@ -217,7 +214,10 @@ const onDrop = (toIndex: number) => {
     cursor: pointer;
     color: var(--el-text-color-placeholder);
     opacity: 0;
-    transition: opacity 0.15s ease-out, color 0.15s ease-out, background 0.15s ease-out;
+    transition:
+        opacity 0.15s ease-out,
+        color 0.15s ease-out,
+        background 0.15s ease-out;
 }
 
 .pending-queue__item:hover .pending-queue__action,
@@ -242,11 +242,15 @@ const onDrop = (toIndex: number) => {
 
 /* 入场/退场动画（motion 入场/退场） */
 .pending-queue-item-enter-active {
-    transition: opacity 0.15s ease-out, transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+    transition:
+        opacity 0.15s ease-out,
+        transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .pending-queue-item-leave-active {
-    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+    transition:
+        opacity 0.15s ease-out,
+        transform 0.15s ease-out;
 }
 
 .pending-queue-item-enter-from {

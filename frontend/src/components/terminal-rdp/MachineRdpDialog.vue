@@ -25,7 +25,9 @@
                         <el-popconfirm @confirm="connect(true)" :title="$t('components.terminal-rdp.reconnectConfirm')">
                             <template #reference>
                                 <div class="mr-2 cursor-pointer">
-                                    <el-tag v-if="state.status == TerminalStatus.Connected" type="success" effect="light" round> {{ $t('components.terminal-rdp.connected') }} </el-tag>
+                                    <el-tag v-if="state.status == TerminalStatus.Connected" type="success" effect="light" round>
+                                        {{ $t('components.terminal-rdp.connected') }}
+                                    </el-tag>
                                     <el-tag v-else type="danger" effect="light" round> {{ $t('components.terminal-rdp.notConnectedReconnect') }} </el-tag>
                                 </div>
                             </template>

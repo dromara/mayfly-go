@@ -14,7 +14,13 @@
         >
             <!-- 密码字段：带一键随机生成按钮（自定义插槽） -->
             <template #password="{ form: f }">
-                <el-input type="password" :model-value="f.password" autocomplete="new-password" show-password @update:model-value="(v: string) => (f.password = v)">
+                <el-input
+                    type="password"
+                    :model-value="f.password"
+                    autocomplete="new-password"
+                    show-password
+                    @update:model-value="(v: string) => (f.password = v)"
+                >
                     <template #append>
                         <el-button @click="f.password = randomPassword(10)">{{ $t('system.account.random') }}</el-button>
                     </template>
@@ -54,7 +60,14 @@ const isEdit = computed(() => !!props.data);
 /** 表单声明（defineFormItems<AccountForm>，渲染 + 校验唯一数据源；password 走自定义插槽，extra.* 为嵌套路径字段） */
 const items = defineFormItems<AccountForm>([
     { prop: 'name', label: 'system.account.name', required: true },
-    { prop: 'username', label: 'common.username', placeholder: 'system.account.usernamePlacholder', disabled: (form) => !!form.id, required: true, rules: [Rules.accountUsername] },
+    {
+        prop: 'username',
+        label: 'common.username',
+        placeholder: 'system.account.usernamePlacholder',
+        disabled: (form) => !!form.id,
+        required: true,
+        rules: [Rules.accountUsername],
+    },
     { prop: 'mobile', label: 'common.mobile' },
     { prop: 'email', label: 'common.email' },
     { prop: 'password', label: 'common.password', required: true, slot: 'password' },

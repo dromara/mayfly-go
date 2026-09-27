@@ -1,12 +1,5 @@
 <template>
-    <AInput
-        v-model="value"
-        type="textarea"
-        :rows="item.rows ?? 3"
-        :placeholder="placeholder"
-        :disabled="disabled"
-        v-bind="item.props"
-    />
+    <AInput v-model="value" type="textarea" :rows="item.rows ?? 3" :placeholder="placeholder" :disabled="disabled" v-bind="item.props" />
 </template>
 
 <script lang="ts" setup>

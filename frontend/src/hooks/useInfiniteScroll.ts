@@ -36,9 +36,7 @@ interface UseInfiniteScrollOptions<TItem, TSearch> {
  * - 首次加载 / 搜索 / 重置：page 归位 1 并替换 items
  * - loadMore：追加下一页，seq 竞态守卫避免慢响应串页
  */
-export function useInfiniteScroll<TItem, TSearch extends Record<string, any>>(
-    options: UseInfiniteScrollOptions<TItem, TSearch>,
-) {
+export function useInfiniteScroll<TItem, TSearch extends Record<string, any>>(options: UseInfiniteScrollOptions<TItem, TSearch>) {
     const { fetcher, defaultSearch, pageSize = 12 } = options;
 
     const items = ref<TItem[]>([]) as Ref<TItem[]>;

@@ -6,14 +6,14 @@
         </div>
 
         <el-table :data="list">
-        <el-table-column prop="name" :label="$t('common.username')" />
-        <el-table-column :label="$t('common.operation')" width="350">
-            <template #default="{ row }">
-                <el-button size="small" @click="handleEditRoles(row)">{{ $t('milvus.editRole') }}</el-button>
-                <el-button size="small" @click="handleChangePassword(row)">{{ $t('login.changePassword') }}</el-button>
-                <el-button size="small" type="danger" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
-            </template>
-        </el-table-column>
+            <el-table-column prop="name" :label="$t('common.username')" />
+            <el-table-column :label="$t('common.operation')" width="350">
+                <template #default="{ row }">
+                    <el-button size="small" @click="handleEditRoles(row)">{{ $t('milvus.editRole') }}</el-button>
+                    <el-button size="small" @click="handleChangePassword(row)">{{ $t('login.changePassword') }}</el-button>
+                    <el-button size="small" type="danger" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
+                </template>
+            </el-table-column>
         </el-table>
     </div>
 
@@ -77,7 +77,14 @@ const createForm = ref({
 /** 建用户表单声明 */
 const createItems: AutoFormItem[] = [
     { prop: 'username', label: 'common.username', required: true, placeholder: 'common.username' },
-    { prop: 'password', label: 'common.password', type: 'password', required: true, placeholder: 'common.password', props: { 'show-password': true, minlength: 6, maxlength: 72 } },
+    {
+        prop: 'password',
+        label: 'common.password',
+        type: 'password',
+        required: true,
+        placeholder: 'common.password',
+        props: { 'show-password': true, minlength: 6, maxlength: 72 },
+    },
 ];
 
 const passwordDialog = ref({
@@ -211,14 +218,11 @@ onMounted(() => {
     loadList();
 });
 
-watch(
-    [() => props.milvusId, () => milvusStore.authCertName],
-    () => {
-        list.value = [];
-        loadList();
-        milvusStore.clear();
-    }
-);
+watch([() => props.milvusId, () => milvusStore.authCertName], () => {
+    list.value = [];
+    loadList();
+    milvusStore.clear();
+});
 </script>
 
 <style scoped>

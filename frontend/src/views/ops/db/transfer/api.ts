@@ -16,7 +16,7 @@ export interface DbTransferFileRunForm {
 
 export const dbTransferApi = {
     // 数据库迁移相关
-    /** 迁移任务列表：后端返回 vo.DbTransferTaskListVO（不含 taskKey/concurrency） */
+    /** 迁移任务列表：后端返回 vo.DbTransferTaskListVO（不含 taskKey） */
     dbTransferTasks: Api.newGet<PageResult<DbTransferTaskListVO>>('/dbTransfer'),
     saveDbTransferTask: Api.newPost<void>('/dbTransfer/save'),
     deleteDbTransferTask: Api.newDelete<void>('/dbTransfer/{taskId}/del'),

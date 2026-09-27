@@ -42,6 +42,7 @@ const (
 	LogMachineCronJobSave
 	LogMachineCronJobDelete
 	LogMachineCronJobRun
+	ErrCronJobSpecInvalid
 
 	// security
 	LogMachineSecurityCmdSave

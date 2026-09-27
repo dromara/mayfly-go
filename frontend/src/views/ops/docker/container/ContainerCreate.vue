@@ -1,5 +1,15 @@
 <template>
-    <auto-form-drawer v-model:visible="dialogVisible" :items="items" :data="editData" size="40%" :confirm-api="btnOk" scroll-to-error @submitted="emit('cancel')" @opened="onOpened" @cancel="emit('cancel')">
+    <auto-form-drawer
+        v-model:visible="dialogVisible"
+        :items="items"
+        :data="editData"
+        size="40%"
+        :confirm-api="btnOk"
+        scroll-to-error
+        @submitted="emit('cancel')"
+        @opened="onOpened"
+        @cancel="emit('cancel')"
+    >
         <!-- 镜像（镜像列表 allow-create） -->
         <template #image="{ form }">
             <el-select v-model="form.image" filterable allow-create>

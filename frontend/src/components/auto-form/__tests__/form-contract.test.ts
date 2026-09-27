@@ -29,7 +29,7 @@ const findLines = (files: string[], pattern: RegExp): string[] =>
             .split('\n')
             .map((line, index) => ({ line, index }))
             .filter(({ line }) => pattern.test(line))
-            .map(({ line, index }) => `${file.replace(VIEWS_DIR, 'views')}:${index + 1}: ${line.trim()}`),
+            .map(({ line, index }) => `${file.replace(VIEWS_DIR, 'views')}:${index + 1}: ${line.trim()}`)
     );
 
 describe('表单类型契约守护（views 下禁止散落表单袋断言）', () => {

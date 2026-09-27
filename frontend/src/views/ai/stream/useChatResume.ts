@@ -45,9 +45,7 @@ export function useChatResume(convId: MaybeRef<number>, options: UseChatResumeOp
         // 补全 turnId（event 缺失时从 pendingInterrupts 反查）
         let turnId = event.turnId;
         if (!turnId && slice) {
-            const interrupt = slice.pendingInterrupts.find(
-                (i) => i.actionId === event.interruptId || i.toolCallId === event.toolCallId,
-            );
+            const interrupt = slice.pendingInterrupts.find((i) => i.actionId === event.interruptId || i.toolCallId === event.toolCallId);
             turnId = interrupt?.turnId || '';
         }
         if (!turnId) {

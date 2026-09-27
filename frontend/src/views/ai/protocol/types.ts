@@ -195,12 +195,7 @@ export interface NoticePart {
 }
 
 /** 消息有序片段（MessagePart） */
-export type MessagePart =
-    | { type: 'text'; id: string; text: string }
-    | ReasoningPart
-    | ToolCallPart
-    | CompactionPart
-    | NoticePart;
+export type MessagePart = { type: 'text'; id: string; text: string } | ReasoningPart | ToolCallPart | CompactionPart | NoticePart;
 
 // ==================== ChatMessage（前端展示用） ====================
 

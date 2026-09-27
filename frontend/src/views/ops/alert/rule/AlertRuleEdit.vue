@@ -17,7 +17,19 @@
 
             <!-- 范围值：标签路径多选 -->
             <template #scopeValue="{ form }">
-                <TagTreeCheck :key="form.resourceType" height-mode="fixed" height="200px" :tag-type="`${form.resourceType}`" v-model="tagPathValue" @update:model-value="(val) => { formRef = form; tagPathValue = val; }" />
+                <TagTreeCheck
+                    :key="form.resourceType"
+                    height-mode="fixed"
+                    height="200px"
+                    :tag-type="`${form.resourceType}`"
+                    v-model="tagPathValue"
+                    @update:model-value="
+                        (val) => {
+                            formRef = form;
+                            tagPathValue = val;
+                        }
+                    "
+                />
             </template>
 
             <!-- 规则标签 -->
@@ -253,9 +265,15 @@ const editData = computed<AlertRuleForm>(() => {
         return { ...defaultForm };
     }
     // 始终为标签路径模式，解析 JSON 数组
-    tagPathValue.value = rule.scopeValue ? (() => {
-        try { return JSON.parse(rule.scopeValue); } catch { return []; }
-    })() : [];
+    tagPathValue.value = rule.scopeValue
+        ? (() => {
+              try {
+                  return JSON.parse(rule.scopeValue);
+              } catch {
+                  return [];
+              }
+          })()
+        : [];
     return {
         ...defaultForm,
         ...rule,

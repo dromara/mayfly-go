@@ -8,17 +8,7 @@ export type FieldNamesProps = {
 };
 
 export type SearchItemType =
-    | 'input'
-    | 'input-number'
-    | 'select'
-    | 'select-v2'
-    | 'tree-select'
-    | 'cascader'
-    | 'date-picker'
-    | 'time-picker'
-    | 'time-select'
-    | 'switch'
-    | 'slider';
+    'input' | 'input-number' | 'select' | 'select-v2' | 'tree-select' | 'cascader' | 'date-picker' | 'time-picker' | 'time-select' | 'switch' | 'slider';
 
 /**
  * 表单组件可选项的api信息

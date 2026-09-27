@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"mayfly-go/internal/db/domain/entity"
@@ -44,13 +45,16 @@ func TestResetStaleRunningSyncLogsByRunId(t *testing.T) {
 
 	// 任务 1 已被本次执行持有：Acquire 拿到 runId 并让该 runId 挂在一条 Running 日志上；
 	// 同任务的另一条日志带不同 runId，模拟「本实例已重新执行、旧一轮遗留」。
-	runId1, ok := app.runGuard.AcquireWithRunId(uint64(1))
-	require.True(t, ok, "acquire task 1 should succeed")
+	// 使用高位段 taskId 避免与 sync/itest 用例的小 id 冲突（TestMain 里 sync 也初始化了 Redis）
+	const activeTask, staleTask, noRunTask = uint64(98201), uint64(98202), uint64(98203)
+	runId1, ok := app.runGuard.AcquireWithRunId(activeTask)
+	require.True(t, ok, "acquire active task should succeed")
+	t.Cleanup(func() { app.runGuard.ReleaseWithRunId(activeTask, runId1) })
 	repo.running = []*entity.DataSyncLog{
-		{IdModel: idModel(10), TaskId: 1, RunId: runId1, Status: entity.DataSyncTaskStateRunning}, // 活跃：跳过
-		{IdModel: idModel(11), TaskId: 1, RunId: "stale-other-run", Status: entity.DataSyncTaskStateRunning},
-		{IdModel: idModel(12), TaskId: 2, RunId: "", Status: entity.DataSyncTaskStateRunning}, // 旧行无 runId
-		{IdModel: idModel(13), TaskId: 3, RunId: "no-lock-at-all", Status: entity.DataSyncTaskStateRunning},
+		{IdModel: idModel(10), TaskId: activeTask, RunId: runId1, Status: entity.DataSyncTaskStateRunning}, // 活跃：跳过
+		{IdModel: idModel(11), TaskId: activeTask, RunId: "stale-other-run", Status: entity.DataSyncTaskStateRunning},
+		{IdModel: idModel(12), TaskId: staleTask, RunId: "", Status: entity.DataSyncTaskStateRunning}, // 旧行无 runId
+		{IdModel: idModel(13), TaskId: noRunTask, RunId: "no-lock-at-all", Status: entity.DataSyncTaskStateRunning},
 	}
 
 	require.NoError(t, app.ResetStaleRunningSyncLogs(context.Background()))
@@ -90,5 +94,59 @@ type lcNoopLogRepo struct {
 
 func (lcNoopLogRepo) Save(context.Context, *entity.DataSyncLog) error { return nil }
 func (lcNoopLogRepo) UpdateById(context.Context, *entity.DataSyncLog, ...string) error {
+	return nil
+}
+
+// TestEndRunningAppendsFailureReasonToRunLog 失败原因必须落到 RunLog 弹窗可见字段：
+// 线上真实场景——目标表 0 列时 doDataSync 在 [5/6]-[6/6] 之间 return error，
+// ErrText 列有内容但 RunLog 只到 [5/6]，用户点"运行日志"完全看不到失败原因。
+// endRunning 现在把 ErrText 追加到 RunLog 末尾，本用例锁死该行为。
+func TestEndRunningAppendsFailureReasonToRunLog(t *testing.T) {
+	app := &DataSyncAppImpl{}
+	app.Repo = &fakeDataSyncRepo{}
+	saved := &entity.DataSyncLog{}
+	app.dbDataSyncLogRepo = &captureSaveRepo{into: saved}
+
+	log := &entity.DataSyncLog{
+		Status:  entity.DataSyncTaskStateFail,
+		ErrText: "field map target column [id] not found in target table [test_sync_target]",
+		RunLog:  "[5/6] 检测Schema变更...\n- Schema检测已禁用\n",
+	}
+	app.endRunning(&entity.DataSyncTask{Id: 98301}, log)
+
+	assert.Contains(t, saved.RunLog, log.ErrText, "RunLog 末尾必须包含完整错误文本")
+	assert.Contains(t, saved.RunLog, "========================================", "RunLog 摘要行需以分隔线包起")
+	// 双重前缀回归守卫：ErrText 已含"执行失败:"，endRunning 不再叠加"同步执行失败:"
+	assert.NotContains(t, saved.RunLog, "同步执行失败: 执行失败")
+}
+
+// TestEndRunningDoesNotDuplicateExistingErrorText 若某条错误路径已经把 ErrText 写进 RunLog，
+// endRunning 不重复追加，避免弹窗里同一错误出现两次。
+func TestEndRunningDoesNotDuplicateExistingErrorText(t *testing.T) {
+	app := &DataSyncAppImpl{}
+	app.Repo = &fakeDataSyncRepo{}
+	saved := &entity.DataSyncLog{}
+	app.dbDataSyncLogRepo = &captureSaveRepo{into: saved}
+
+	errText := "boom"
+	log := &entity.DataSyncLog{
+		Status:  entity.DataSyncTaskStateFail,
+		ErrText: errText,
+		RunLog:  "已经打过: " + errText + "\n",
+	}
+	app.endRunning(&entity.DataSyncTask{Id: 98302}, log)
+
+	// 已含错误文本时不再追加，也就不会出现第二次分隔线
+	assert.Equal(t, 1, strings.Count(saved.RunLog, "已经打过"), "RunLog 未被 endRunning 二次追加")
+}
+
+// captureSaveRepo 记录最后一次 Save 的实体副本，供断言 RunLog 内容。
+type captureSaveRepo struct {
+	repository.DataSyncLog
+	into *entity.DataSyncLog
+}
+
+func (c *captureSaveRepo) Save(_ context.Context, l *entity.DataSyncLog) error {
+	*c.into = *l
 	return nil
 }

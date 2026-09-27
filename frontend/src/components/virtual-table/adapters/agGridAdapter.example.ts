@@ -8,13 +8,7 @@
  *   import { agGridAdapter } from '@/components/virtual-table/adapters/agGridAdapter.example';
  *   <VirtualTable :adapter="agGridAdapter" ... />
  */
-import type {
-    AdapterPropsInput,
-    NormalizedColumn,
-    NormalizedRowEventHandlers,
-    TableInstance,
-    VirtualTableAdapter,
-} from './types';
+import type { AdapterPropsInput, NormalizedColumn, NormalizedRowEventHandlers, TableInstance, VirtualTableAdapter } from './types';
 
 /**
  * AG Grid 列定义转换

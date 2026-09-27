@@ -8,13 +8,7 @@
         >
             <!-- 已选附件预览 -->
             <AttachmentGroup v-if="pendingAttachments.length > 0" class="chat-input__attachments flex-wrap">
-                <AttachmentItem
-                    v-for="(att, i) in pendingAttachments"
-                    :key="i"
-                    :attachment="att"
-                    removable
-                    @remove="removeAttachment(i)"
-                />
+                <AttachmentItem v-for="(att, i) in pendingAttachments" :key="i" :attachment="att" removable @remove="removeAttachment(i)" />
             </AttachmentGroup>
 
             <!-- TipTap 编辑器 -->
@@ -33,14 +27,7 @@
                     >
                         <PaperclipIcon />
                     </Button>
-                    <input
-                        ref="fileInputRef"
-                        type="file"
-                        multiple
-                        class="hidden"
-                        :accept="ATTACHMENT_ACCEPT"
-                        @change="onFilesPicked"
-                    />
+                    <input ref="fileInputRef" type="file" multiple class="hidden" :accept="ATTACHMENT_ACCEPT" @change="onFilesPicked" />
                     <div v-if="!hintGone" class="chat-input__hint" :class="{ 'chat-input__hint--faded': !hintVisible }">
                         <template v-for="trig in triggerDefs" :key="trig.kind">
                             <kbd>{{ trig.chars[0] }}</kbd> {{ t(trig.hintI18nKey) }}
@@ -107,11 +94,7 @@
  * - 芯片节点（原子内联节点，整体选中/删除）
  * - 发送时提取 segments（文本 + 芯片）
  */
-import {
-    ArrowUpIcon,
-    PaperclipIcon,
-    SquareIcon,
-} from '@lucide/vue';
+import { ArrowUpIcon, PaperclipIcon, SquareIcon } from '@lucide/vue';
 import Document from '@tiptap/extension-document';
 import HardBreak from '@tiptap/extension-hard-break';
 import Paragraph from '@tiptap/extension-paragraph';
@@ -125,12 +108,7 @@ import { Msg } from '@/hooks/useI18n';
 import { Button } from '@/components/ui/button';
 import { AttachmentGroup } from '@/components/ui/attachment';
 import AttachmentItem from '../message/AttachmentItem.vue';
-import {
-    ATTACHMENT_ACCEPT,
-    MAX_ATTACHMENT_SIZE,
-    readChatAttachment,
-    uploadChatAttachments,
-} from './attachments';
+import { ATTACHMENT_ACCEPT, MAX_ATTACHMENT_SIZE, readChatAttachment, uploadChatAttachments } from './attachments';
 import { ChipNode } from './chipNode';
 import { extractSegmentsFromNode } from './chipRegistry';
 // 副作用导入：注册 skill/resource 芯片类型（序列化 extractSegment 依赖注册表，
@@ -172,7 +150,7 @@ const props = withDefaults(
         autoFocus: false,
         skills: () => [],
         shouldQueue: false,
-    },
+    }
 );
 
 const emit = defineEmits<{
@@ -194,7 +172,7 @@ const trigger = reactive(
         getMenuEl: () => triggerMenuRef.value?.menuRef ?? resourceTreeRef.value?.panelRef,
         onSubmit: () => onSubmit(),
         skills: () => props.skills,
-    }),
+    })
 );
 
 /** 已注册触发器列表（hint 栏动态渲染，新增触发器零改动自动回显） */
@@ -331,7 +309,7 @@ watch(
     () => props.disabled,
     (val) => {
         editor.value?.setEditable(!val);
-    },
+    }
 );
 
 // ========== 触发器菜单逻辑 ==========

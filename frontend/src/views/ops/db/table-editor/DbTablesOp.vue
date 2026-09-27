@@ -71,7 +71,8 @@
                     {{ formatByteSize(scope.row.indexLength) }}
                 </template>
             </el-table-column>
-            <el-table-column v-if="dialectCapabilities.mysqlCompatible" property="createTime" :label="$t('common.createTime')" min-width="150"> </el-table-column>
+            <el-table-column v-if="dialectCapabilities.mysqlCompatible" property="createTime" :label="$t('common.createTime')" min-width="150">
+            </el-table-column>
             <el-table-column :label="$t('common.more')" min-width="160">
                 <template #default="scope">
                     <el-link @click.prevent="showColumns(scope.row)" type="primary">{{ $t('db.column') }}</el-link>
@@ -225,7 +226,8 @@ const state = reactive({
     },
 });
 
-const { loading, tableNameSearch, tableCommentSearch, dumpInfo, chooseTableName, columnDialog, indexDialog, ddlDialog, erDialog, tableCreateDialog } = toRefs(state);
+const { loading, tableNameSearch, tableCommentSearch, dumpInfo, chooseTableName, columnDialog, indexDialog, ddlDialog, erDialog, tableCreateDialog } =
+    toRefs(state);
 
 /** 方言能力：MySQL 专属列与表编辑入口的唯一判据，新增方言无需改动本文件 */
 const dialectCapabilities = computed(() => getDialectCapabilities(getDbDialect(props.dbType)));

@@ -5,6 +5,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/collx"
+	"strings"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -17,11 +18,28 @@ func init() {
 var (
 	// SecondOptional 使秒字段可选，同时兼容 5 字段（标准 cron，如 "0 0 * * *"）
 	// 与 6 字段（含秒，如 "0 0 3 * * ?"）两种表达式；保留 Descriptor 以支持 "@every ..." 等。
-	cronService = cron.New(cron.WithParser(cron.NewParser(
-		cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor,
-	)))
-	key2IdMap collx.SM[string, cron.EntryID]
+	// 解析器单独持有：注册与校验必须共用同一实例，否则会出现「校验放行、AddFun 报错」的语法漂移。
+	specParser = cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+
+	cronService = cron.New(cron.WithParser(specParser))
+	key2IdMap   collx.SM[string, cron.EntryID]
 )
+
+// ValidateSpec 校验 cron 表达式能否被本服务的解析器接受，不做注册。
+//
+// 由各任务的保存入口在落库前调用：表达式要到 AddFun 时才报错，而绑定失败仅写日志，
+// 用户看到的是「保存成功、任务永不执行」。空表达式同样判错——被调度的任务没有表达式即永不触发。
+// 返回的错误文本不含表达式本身，便于调用方嵌入自己的文案。
+func ValidateSpec(spec string) error {
+	trimmed := strings.TrimSpace(spec)
+	if trimmed == "" {
+		return errors.New("cron expression is empty")
+	}
+	if _, err := specParser.Parse(trimmed); err != nil {
+		return err
+	}
+	return nil
+}
 
 func Start() {
 	cronService.Start()

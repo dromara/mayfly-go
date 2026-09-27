@@ -127,9 +127,7 @@ export function wrapValueMssql(columnType: string, value: unknown): string | num
         return 'NULL';
     }
     const lower = columnType.toLowerCase();
-    if (
-        /^(tinyint|smallint|int|bigint|float|real|decimal|numeric|bit|money|smallmoney)$/i.test(lower)
-    ) {
+    if (/^(tinyint|smallint|int|bigint|float|real|decimal|numeric|bit|money|smallmoney)$/i.test(lower)) {
         return value as number;
     }
     if (/^bit$/i.test(lower)) {

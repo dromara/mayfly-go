@@ -352,7 +352,7 @@ export default {
             previous: '上一个',
             next: '下一个',
             noMatchMsg: '未查询到匹配项',
-            
+
             // 文件传输相关
             downloadFile: '下载文件',
             downloadSelectedFile: '下载选中路径的文件',
@@ -368,7 +368,7 @@ export default {
             uploading: '上传进度: {percent}%',
             uploadToPath: '文件将上传到路径: {path}',
             uploadPathTip: '提示: 文件将上传到用户家目录(~)。如需上传到其他目录，请先在终端中执行 cd 命令切换到目标目录，然后使用拖拽上传功能。',
-            
+
             // 粘贴相关
             manualPaste: '手动粘贴',
             pasteManualHint: '当前环境无法自动读取剪贴板内容，请手动粘贴内容到下方输入框：',
@@ -383,7 +383,7 @@ export default {
             closePane: '关闭此窗格',
             paneMoveTip: '拖动标题栏可移动窗格',
             paneTitle: '终端 {id}',
-            
+
             // 机器文件上传进度通知
             machineFileUpload: {
                 uploadProgress: '机器文件上传进度',
@@ -404,48 +404,64 @@ export default {
             close: '关闭',
         },
         crontab: {
-            crontabInputPlaceholder: '可点击左边按钮配置',
-            crontabTitle: '生成 cron',
+            title: 'cron 表达式配置',
+            configure: '可视化配置',
+            inputPlaceholder: '如 0 0/5 * * * ?，也可点左侧按钮配置',
+            draftHint: '面板修改需点「确定」生效',
+            invalidExpression: '表达式无法解析',
+            nextRunHint: '下次运行：{time}',
+
             second: '秒',
             minute: '分钟',
             hour: '小时',
             day: '日',
             month: '月',
             week: '周',
-            year: '年',
-            timeExpression: '时间表达式',
-            crontabCompleteExpression: 'crontab完整表达式',
 
-            dayCrontype1: '允许的通配符[, - * / L M]',
-            crontype2: '不指定',
-            crontype3: '周期从',
+            presetsLabel: '常用',
+            presetEveryMinute: '每分钟',
+            presetEvery5Minutes: '每 5 分钟',
+            presetEveryHour: '每小时',
+            presetEveryDay: '每天零点',
+            presetEveryWeekdayMorning: '工作日九点',
+            presetEveryMonthFirstDay: '每月一号零点',
 
-            crontypeFrom: '从',
-            crontypeEvery: '每',
-            appoint: '指定',
+            ruleAll: '全部',
+            ruleNone: '不指定',
+            ruleCycle: '区间',
+            ruleStep: '步长',
+            ruleList: '指定',
 
-            crontypeStartDay: '号开始',
-            crontypeExecDay: '日执行一次',
-            monthLastDay: '本月最后一天',
+            fromLabel: '起始',
+            toLabel: '截止',
+            startLabel: '从',
+            everyLabel: '间隔',
+            selectAll: '全选',
+            clearAll: '清空',
 
-            hourCronType1: '允许的通配符[, - * /]',
-            crontypeStartHour: '小时开始',
-            crontypeExecHour: '小时执行一次',
+            descAll: '每个{unit}都执行',
+            descDayNone: '不指定日期，执行范围由「周」决定',
+            descWeekNone: '不指定星期，执行范围由「日」决定',
+            descCycle: '{from} 至 {to} 之间的每个{unit}',
+            descStep: '从第 {start} {unit}起，每隔 {every} {unit}',
+            descList: '指定 {count} 个{unit}：{values}',
 
-            crontypeStartMin: '分钟开始',
-            crontypeExecMin: '分钟执行一次',
+            dayWeekHint: '「日」与「周」只能限定其一，限定一项时另一项自动为不指定（?）',
+            parseErrorTitle: '原表达式无法解析',
+            parseErrorHint: '面板已重置为默认值，重新配置后点「确定」即可覆盖原表达式',
+            descriptorTitle: '描述符表达式',
+            descriptorHint: '此类描述符不支持面板编辑，可在输入框直接修改；点「重置」改为可视化配置',
+            previewTitle: '最近 {count} 次运行时间',
+            previewNone: '近 {years} 年内没有符合条件的运行时间',
+            previewFew: '近 {years} 年内仅上面 {count} 次符合条件',
 
-            crontypeStartSecond: '秒开始',
-            crontypeExecSecond: '秒执行一次',
+            errFieldCount: '应为 5 段（分时日月周）或 6 段（秒分时日月周），当前 {found} 段',
+            errEmptySegment: '{field}字段为空',
+            errSegment: '{field}字段的「{segment}」不是合法写法',
+            errRange: '{field}字段的起始值 {from} 不能大于截止值 {to}',
+            errValueRange: '{field}字段的取值 {value} 超出 {min}-{max}',
+            errStep: '{field}字段的间隔需为正整数',
 
-            crontypeStartMonth: '月开始',
-            crontypeExecMonth: '月执行一次',
-
-            yearly: '每年',
-            crontypeStartYear: '年开始',
-            crontypeExecYear: '年执行一次',
-
-            weekCronType1: '允许的通配符[, - * / L #]',
             monday: '周一',
             tuesday: '周二',
             wednesday: '周三',
@@ -453,11 +469,6 @@ export default {
             friday: '周五',
             saturday: '周六',
             sunday: '周日',
-
-            last5runTimes: '最近5次运行时间',
-            calculationing: '计算结果中',
-            noResult: '没有达到条件的结果！',
-            onlyResult: '最近100年内只有上面{count}条结果！',
         },
         iconSelector: {
             title: '请选择图标',

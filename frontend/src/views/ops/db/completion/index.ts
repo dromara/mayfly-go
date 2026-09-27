@@ -35,7 +35,7 @@ const SQL_LANGUAGE = 'sql';
  *                      返回 null 表示该编辑器未登记，跳过补全。
  */
 export function registerDbCompletionItemProvider(
-    resolveParams: (editorUri: string) => { dbId: number; db: string; dbs: string[] | undefined; dbType: string } | null,
+    resolveParams: (editorUri: string) => { dbId: number; db: string; dbs: string[] | undefined; dbType: string } | null
 ) {
     // 方言切割语义按 dbType 缓存：避免每次按键补全都重新查注册表并构造能力对象
     const splitOptionsCache = new Map<string, ReturnType<typeof getSqlSplitOptions>>();
