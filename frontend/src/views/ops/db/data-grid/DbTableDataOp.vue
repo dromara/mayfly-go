@@ -65,74 +65,90 @@
                 </div>
             </el-col>
             <el-col :span="16">
-                <el-autocomplete
-                    v-model="condition"
-                    :fetch-suggestions="getColumnTips"
-                    @keyup.enter="onSelectByCondition"
-                    @select="handlerColumnSelect"
-                    popper-class="my-autocomplete"
-                    :placeholder="$t('db.autoCompleteColumnPlaceholder')"
-                    @clear="selectData"
-                    size="small"
-                    clearable
-                    class="w-full"
-                    highlight-first-item
-                    value-key="columnName"
-                    ref="condInputRef"
-                >
-                    <template #suffix>
-                        <SvgIcon @click="onSelectByCondition" name="search" />
-                    </template>
+                <div class="flex items-center gap-2 flex-wrap w-full min-w-0">
+                    <!-- 过滤双轨：可视化构建器为主，SQL 表达式退为高级模式 -->
+                    <el-radio-group v-model="state.conditionMode" size="small" class="shrink-0">
+                        <el-radio-button value="builder">{{ $t('db.filterModeBuilder') }}</el-radio-button>
+                        <el-radio-button value="sql">{{ $t('db.filterModeSql') }}</el-radio-button>
+                    </el-radio-group>
 
-                    <template #default="{ item }">
-                        <el-text tag="b"> {{ item.columnName }}</el-text>
-
-                        <el-divider direction="vertical" />
-
-                        <span style="color: var(--el-color-info-light-3)">
-                            {{ item.columnType }}
-
-                            <template v-if="item.columnComment">
-                                <el-divider direction="vertical" />
-                                {{ item.columnComment }}
-                            </template>
-                        </span>
-                    </template>
-
-                    <template #prepend>
-                        <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
+                    <template v-if="state.conditionMode === 'builder'">
+                        <el-popover v-model:visible="state.filterPopVisible" placement="bottom-start" :width="520" trigger="click">
                             <template #reference>
-                                <el-button @click.stop="chooseCondColumnName" style="color: var(--el-color-success)" text size="small">
-                                    {{ $t('db.selectColumn') }}
-                                </el-button>
+                                <el-badge :value="filterChips.length" :hidden="!filterChips.length || customSqlActive" :offset="[-4, 2]">
+                                    <el-button size="small" icon="Filter">{{ $t('db.filter') }}</el-button>
+                                </el-badge>
                             </template>
-                            <el-table
-                                :data="filterCondColumns"
-                                max-height="500"
-                                size="small"
-                                @row-click="
-                                    (...event: unknown[]) => {
-                                        onConditionRowClick(event);
-                                    }
-                                "
-                                class="cursor-pointer"
-                            >
-                                <el-table-column property="columnName" :label="$t('db.columnName')" show-overflow-tooltip>
-                                    <template #header>
-                                        <el-input
-                                            ref="columnNameSearchInputRef"
-                                            v-model="state.columnNameSearch"
-                                            size="small"
-                                            :placeholder="$t('db.columnFilterPlaceholder')"
-                                            @click.stop="(e: Event) => e.preventDefault()"
-                                        />
-                                    </template>
-                                </el-table-column>
-                                <el-table-column property="columnComment" :label="$t('common.remark')" show-overflow-tooltip> </el-table-column>
-                            </el-table>
+                            <DbTableFilterBuilder
+                                v-if="state.filterPopVisible"
+                                :columns="state.columns"
+                                :model-value="state.filterGroup"
+                                :dialect="state.dbDialect"
+                                @apply="applyBuilderFilter"
+                            />
                         </el-popover>
+
+                        <!-- 生效条件 chips：点击回构建器编辑，× 单条删除并立即生效；
+                             手写 SQL 生效期间隐藏（与实际 WHERE 不一致，由 chip-sql 表达） -->
+                        <template v-if="!customSqlActive">
+                            <span v-for="chip in filterChips" :key="chip.id" class="filter-chip">
+                                <button type="button" class="chip-text" :title="chip.text" @click="state.filterPopVisible = true">{{ chip.text }}</button>
+                                <button
+                                    type="button"
+                                    class="chip-close"
+                                    :aria-label="$t('common.delete')"
+                                    :title="$t('common.delete')"
+                                    @click="removeFilterChip(chip.id)"
+                                >
+                                    <el-icon><Close /></el-icon>
+                                </button>
+                            </span>
+                        </template>
+                        <!-- 当前生效条件为 SQL 模式下手写的表达式，与构建器条件组不一致 -->
+                        <span v-if="customSqlActive" class="filter-chip chip-sql">
+                            <button type="button" class="chip-text" :title="state.condition" @click="state.conditionMode = 'sql'">
+                                {{ $t('db.customSqlCondition') }}
+                            </button>
+                        </span>
+                        <span v-if="!filterChips.length && !customSqlActive" class="text-[12px] text-gray-400">{{ $t('db.noFilter') }}</span>
                     </template>
-                </el-autocomplete>
+
+                    <el-autocomplete
+                        v-else
+                        v-model="condition"
+                        :fetch-suggestions="getColumnTips"
+                        @keyup.enter="onSelectByCondition"
+                        @select="handlerColumnSelect"
+                        popper-class="my-autocomplete"
+                        :placeholder="$t('db.sqlConditionPlaceholder')"
+                        @clear="selectData"
+                        size="small"
+                        clearable
+                        class="flex-1 min-w-0"
+                        highlight-first-item
+                        value-key="columnName"
+                        ref="condInputRef"
+                    >
+                        <template #suffix>
+                            <SvgIcon @click="onSelectByCondition" name="search" />
+                        </template>
+
+                        <template #default="{ item }">
+                            <el-text tag="b"> {{ item.columnName }}</el-text>
+
+                            <el-divider direction="vertical" />
+
+                            <span style="color: var(--el-color-info-light-3)">
+                                {{ item.columnType }}
+
+                                <template v-if="item.columnComment">
+                                    <el-divider direction="vertical" />
+                                    {{ item.columnComment }}
+                                </template>
+                            </span>
+                        </template>
+                    </el-autocomplete>
+                </div>
             </el-col>
         </el-row>
 
@@ -208,35 +224,6 @@
             </el-col>
         </el-row>
 
-        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="500px">
-            <el-row gutter="5">
-                <el-col :span="5">
-                    <el-select v-model="conditionDialog.condition">
-                        <el-option label="=" value="="> </el-option>
-                        <el-option label="LIKE" value="LIKE"> </el-option>
-                        <el-option label=">" value=">"> </el-option>
-                        <el-option label=">=" value=">="> </el-option>
-                        <el-option label="<" value="<"> </el-option>
-                        <el-option label="<=" value="<="> </el-option>
-                    </el-select>
-                </el-col>
-                <el-col :span="19">
-                    <el-input
-                        @keyup.enter="onConfirmCondition"
-                        ref="condDialogInputRef"
-                        v-model="conditionDialog.value"
-                        :placeholder="conditionDialog.placeholder"
-                    />
-                </el-col>
-            </el-row>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="onCancelCondition">{{ $t('common.cancel') }}</el-button>
-                    <el-button type="primary" @click="onConfirmCondition">{{ $t('common.confirm') }}</el-button>
-                </span>
-            </template>
-        </el-dialog>
-
         <DbTableDataForm
             :db-inst="getNowDbInst()"
             :db-name="dbName"
@@ -263,17 +250,19 @@
 <script lang="ts" setup>
 import { computed, onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
 
+import { Close } from '@element-plus/icons-vue';
 import { copyToClipboard, fuzzyMatchField } from '@/common/utils/string';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Msg } from '@/hooks/useI18n';
 import { DbInst } from '@/views/ops/db/db';
 import { DbDialect } from '@/views/ops/db/dialect';
 import type { ColumnMetadata, TableColumnDef } from '@/views/ops/db/types';
-import { useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import DbTableData from './DbTableData.vue';
 import DbTableDataForm from './DbTableDataForm.vue';
 import DbTableDataImport from './DbTableDataImport.vue';
+import DbTableFilterBuilder from './DbTableFilterBuilder.vue';
+import { createFilterGroup, getOperatorDef, isConditionUsable, serializeFilterGroup, type TableFilterCondition, type TableFilterGroup } from './filterModel';
 
 const { t } = useI18n();
 
@@ -299,8 +288,6 @@ const props = defineProps({
 
 const dbTableRef: Ref = ref(null);
 const condInputRef: Ref = ref(null);
-const columnNameSearchInputRef: Ref = ref(null);
-const condDialogInputRef: Ref = ref(null);
 
 const defaultPageSize = DbInst.DefaultLimit;
 
@@ -326,17 +313,11 @@ const state = reactive({
     total: 0,
     showTotal: false,
     counting: false,
-    condPopVisible: false,
-    columnNameSearch: '',
-    conditionDialog: {
-        title: '',
-        placeholder: '',
-        columnRow: null as TableColumnDef | null,
-        dataTab: null,
-        visible: false,
-        condition: '=',
-        value: null,
-    },
+    // 过滤双轨模式：builder 可视化构建器 / sql 手写表达式
+    conditionMode: 'builder' as 'builder' | 'sql',
+    // 可视化构建器条件组（chips 展示与 WHERE 序列化的单一真源）
+    filterGroup: createFilterGroup(),
+    filterPopVisible: false,
     addDataDialog: {
         data: {},
         title: '',
@@ -353,8 +334,7 @@ const state = reactive({
     },
 });
 
-const { datas, condition, loading, columns, checkedShowColumns, pageNum, pageSize, pageSizes, sql, hasUpdatedFields, conditionDialog, addDataDialog } =
-    toRefs(state);
+const { datas, condition, loading, columns, checkedShowColumns, pageNum, pageSize, pageSizes, sql, hasUpdatedFields, addDataDialog } = toRefs(state);
 
 const getNowDbInst = () => {
     return DbInst.getInst(props.dbId);
@@ -364,16 +344,9 @@ onMounted(async () => {
     await onRefresh();
 
     state.dbDialect = getNowDbInst().getDialect();
-    useEventListener('click', handlerWindowClick);
 
     state.checkedShowColumns.columnNames = state.columns.map((item: TableColumnDef) => item.columnName);
 });
-
-const handlerWindowClick = () => {
-    if (state.condPopVisible) {
-        state.condPopVisible = false;
-    }
-};
 
 const onRefresh = async () => {
     state.pageNum = 1;
@@ -384,6 +357,16 @@ watch(
     () => state.pageNum,
     async () => {
         await selectData();
+    }
+);
+
+// SQL 模式清空表达式即「无过滤」：同步重置可视化条件组，避免残留 chips 在下次应用时复活
+watch(
+    () => state.condition,
+    (v) => {
+        if (state.conditionMode === 'sql' && !v.trim() && state.filterGroup.conditions.length) {
+            state.filterGroup = createFilterGroup();
+        }
     }
 );
 
@@ -510,24 +493,6 @@ const handlerColumnSelect = (column: ColumnMetadata) => {
     }
 };
 
-/**
- * 选择条件列
- */
-const chooseCondColumnName = () => {
-    state.condPopVisible = !state.condPopVisible;
-    if (state.condPopVisible) {
-        columnNameSearchInputRef.value?.clear();
-        columnNameSearchInputRef.value?.focus();
-    }
-};
-
-/**
- * 过滤条件列名
- */
-const filterCondColumns = computed(() => {
-    return filterColumns(state.columnNameSearch);
-});
-
 const filterCheckedColumns = computed(() => {
     return filterColumns(state.checkedShowColumns.searchKey);
 });
@@ -545,41 +510,50 @@ const filterColumns = (searchKey: string) => {
     );
 };
 
-/**
- * 条件查询，点击列信息后显示输入对应的值
- */
-const onConditionRowClick = (event: unknown[]) => {
-    const row = event[0] as TableColumnDef;
-    state.conditionDialog.title = t('db.conditionInputDialogTitle', { columnName: row.columnName });
-    state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
-    state.conditionDialog.columnRow = row;
-    state.conditionDialog.visible = true;
-    setTimeout(() => {
-        condDialogInputRef.value?.focus();
-    }, 100);
+/** 生效条件 chips：文案形如 `列 操作符 值`，与构建器读同一份条件组 */
+const chipText = (cond: TableFilterCondition) => {
+    const def = getOperatorDef(cond.operator);
+    const operator = def?.symbol ?? t(def?.labelKey ?? '');
+    const value =
+        def?.valueKind === 'range'
+            ? `${cond.value} ~ ${cond.value2}`
+            : def?.valueKind === 'multi'
+              ? cond.inValues.join(', ')
+              : def?.valueKind === 'single'
+                ? cond.value
+                : '';
+    return value ? `${cond.columnName} ${operator} ${value}` : `${cond.columnName} ${operator}`;
 };
 
-// 确认条件
-const onConfirmCondition = () => {
-    const conditionDialog = state.conditionDialog;
-    let condition = state.condition;
-    if (condition) {
-        condition += ` AND `;
+const filterChips = computed(() =>
+    state.filterGroup.conditions.filter((x) => isConditionUsable(x, state.columns, state.dbDialect)).map((x) => ({ id: x.id, text: chipText(x) }))
+);
+
+/** 当前生效条件为 SQL 模式下手写的表达式，与构建器条件组序列化结果不一致 */
+const customSqlActive = computed(
+    () =>
+        state.conditionMode === 'builder' &&
+        !!state.condition.trim() &&
+        state.condition.trim() !== serializeFilterGroup(state.filterGroup, state.columns, state.dbDialect)
+);
+
+/** 应用构建器条件组：序列化为 WHERE 并回第一页查询；不传 group 表示按当前条件组应用（如单条 chip 删除后） */
+const applyBuilderFilter = async (group?: TableFilterGroup) => {
+    if (group) {
+        // 不完整条件行（缺列/缺值/数值列非法文本）不参与查询，剪除以免 chips 与实际 SQL 不一致
+        // 须包一层箭头函数：直传会把 Array.filter 的下标当第二个参数传入
+        group.conditions = group.conditions.filter((cond) => isConditionUsable(cond, state.columns, state.dbDialect));
+        state.filterGroup = group;
     }
-    const row = conditionDialog.columnRow as TableColumnDef;
-    condition += `${row.columnName} ${conditionDialog.condition} `;
-    state.condition = condition + state.dbDialect.wrapValue(row.dataType ?? '', conditionDialog.value!);
-    onCancelCondition();
-    condInputRef.value?.focus();
+    state.filterPopVisible = false;
+    state.condition = serializeFilterGroup(state.filterGroup, state.columns, state.dbDialect);
+    await onRefresh();
 };
 
-const onCancelCondition = () => {
-    state.conditionDialog.visible = false;
-    state.conditionDialog.title = ``;
-    state.conditionDialog.placeholder = ``;
-    state.conditionDialog.value = null;
-    state.conditionDialog.columnRow = null;
-    state.conditionDialog.dataTab = null;
+/** 单条 chip 删除后立即生效 */
+const removeFilterChip = async (id: number) => {
+    state.filterGroup.conditions = state.filterGroup.conditions.filter((x) => x.id !== id);
+    await applyBuilderFilter();
 };
 
 /**
@@ -638,5 +612,45 @@ defineExpose({
 <style lang="scss">
 .op-page {
     margin-left: 5px;
+}
+</style>
+
+<style lang="scss" scoped>
+// 生效过滤条件 chips：与 mongo 条件条同一语汇，单条可删、点击回构建器编辑
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    max-width: 260px;
+    height: 24px;
+    padding-left: 8px;
+    border: 1px solid var(--el-border-color);
+    border-radius: 12px;
+    background: var(--el-fill-color-light);
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+
+    .chip-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .chip-close {
+        display: inline-flex;
+        align-items: center;
+        margin: 0 4px 0 2px;
+        color: var(--el-text-color-secondary);
+        cursor: pointer;
+
+        &:hover {
+            color: var(--el-color-danger);
+        }
+    }
+
+    &.chip-sql {
+        border-style: dashed;
+        color: var(--el-color-warning);
+    }
 }
 </style>

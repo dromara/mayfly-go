@@ -65,8 +65,15 @@ type MachineCronJobVO struct {
 	Script          string `json:"script"`
 	Status          int    `json:"status"`
 	SaveExecResType int    `json:"saveExecResType"`
-	Remark          string `json:"remark"`
-	Running         bool   `json:"running" gorm:"-"` // 是否运行中
+
+	// 超时/重试/通知三项必须随列表下发：编辑表单用列表行回填，缺字段会让用户改其他项保存时把这几项静默清零
+	TimeoutSeconds int    `json:"timeoutSeconds"`
+	RetryTimes     int8   `json:"retryTimes"`
+	NotifyType     int8   `json:"notifyType"`
+	NotifyTmplCode string `json:"notifyTmplCode"`
+
+	Remark  string `json:"remark"`
+	Running bool   `json:"running" gorm:"-"` // 是否运行中
 }
 
 func (mcj *MachineCronJobVO) GetRelateId() uint64 {
@@ -110,11 +117,10 @@ type MachineCmdConfVO struct {
 	tagentity.RelateTags // 标签信息
 	model.Model
 
-	Name     string              `json:"name"`
-	Cmds     model.Slice[string] `json:"cmds" gorm:"type:varchar"` // 命令配置，要加gorm标签才会正确解析model.Slice
-	Status   int8                `json:"execCmds"`                 // 状态
-	Stratege string              `json:"stratege"`                 // 策略，空禁用
-	Remark   string              `json:"remark"`                   // 备注
+	Name   string              `json:"name"`
+	Cmds   model.Slice[string] `json:"cmds" gorm:"type:varchar"` // 命令配置，要加gorm标签才会正确解析model.Slice
+	Status int8                `json:"execCmds"`                 // 状态
+	Remark string              `json:"remark"`                   // 备注
 }
 
 func (mcc *MachineCmdConfVO) GetRelateId() uint64 {

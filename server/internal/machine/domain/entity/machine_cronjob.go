@@ -17,6 +17,12 @@ type MachineCronJob struct {
 	Remark          string     `json:"remark" gorm:"size:255;comment:备注"`                    // 备注
 	LastExecTime    *time.Time `json:"lastExecTime" gorm:"comment:最后执行时间"`                   // 最后执行时间
 	SaveExecResType int        `json:"saveExecResType" gorm:"comment:保存执行记录类型"`              // 记录执行结果类型
+
+	// 二期增强：超时/重试/结果通知
+	TimeoutSeconds int    `json:"timeoutSeconds" gorm:"comment:单次执行超时秒数 0=用全局默认"`   // 命令执行超时
+	RetryTimes     int8   `json:"retryTimes" gorm:"comment:失败重试次数(仅连接/超时重试)"`       // 失败重试次数
+	NotifyType     int8   `json:"notifyType" gorm:"comment:结果通知 0不通知 1仅失败 2总是"`     // 通知方式
+	NotifyTmplCode string `json:"notifyTmplCode" gorm:"size:64;comment:通知消息模板code"` // 绑定的消息模板编码（渠道由模板关联）
 }
 
 // MachineCronJobExec 机器任务执行记录
@@ -40,4 +46,9 @@ const (
 	SaveExecResTypeNo      = -1 // 不记录执行日志
 	SaveExecResTypeOnError = 1  // 执行错误时记录日志
 	SaveExecResTypeYes     = 2  // 记录日志
+
+	// 结果通知方式
+	CronJobNotifyNone   int8 = 0 // 不通知
+	CronJobNotifyFail   int8 = 1 // 仅失败时通知
+	CronJobNotifyAlways int8 = 2 // 总是通知
 )

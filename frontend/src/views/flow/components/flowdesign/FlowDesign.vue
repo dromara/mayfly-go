@@ -172,8 +172,34 @@ const renderData = (data: any) => {
 
     lf.render(data || {});
     if (props.center) {
-        lf.translateCenter();
+        centerWhenReady();
     }
+};
+
+/**
+ * 容器真正可测量后再居中。
+ *
+ * 本组件常被抽屉 / 页签用 v-if 延迟挂载，挂载那一刻容器宽高仍是 0；而 LogicFlow 的 translateCenter
+ * 以「画布宽高」为基准算位移，宽 0 时它把图形中心对到屏幕原点 (0,0)，节点于是全挤在左上角被裁掉。
+ * 内部宽高要等 ResizeObserver 在布局稳定后才更新，而它只重画网格、不会重新居中，所以必须在拿到
+ * 非零宽高后补一次居中；设重试上限，避免容器始终不可见时空转。
+ */
+const centerWhenReady = () => {
+    let attempts = 0;
+    const tryCenter = () => {
+        const el = flowContainerRef.value;
+        if (!el) {
+            return;
+        }
+        if (el.clientWidth && el.clientHeight) {
+            lf.translateCenter();
+            return;
+        }
+        if (++attempts < 60) {
+            requestAnimationFrame(tryCenter);
+        }
+    };
+    tryCenter();
 };
 
 const getLfExtension = (): any => {
@@ -188,6 +214,7 @@ function initControl() {
         return;
     }
     const control = getLfExtension().control;
+    localizeControlItems(control);
     // 控制面板-清空画布
     control.addItem({
         iconClass: 'lf-control-clear',
@@ -213,6 +240,33 @@ function initControl() {
             }
         },
     });
+}
+
+/**
+ * 画板工具条内置项的文案本地化。
+ *
+ * @logicflow/extension 的 Control 内置 5 项（缩小 / 放大 / 适应 / 上一步 / 下一步）文案是库内硬编码中文，
+ * 它没有语言钩子。这里走它的公开 API：把内置项原样取出、只替换展示文案后再放回去——
+ * 点击行为仍是库实现（lf.zoom / resetZoom / undo / redo），我们自己复刻一遍就会在库升级时行为漂移。
+ *
+ * 顺序不能变：必须在本组件自己的两项（清空、保存）之前处理，否则内置项会被排到工具条末尾。
+ * 语言切换后需要重新打开流程设计才会更新（文案在控件初始化时取一次），与工具条上原有两项的行为一致
+ */
+function localizeControlItems(control: any) {
+    const keys: [string, string, string][] = [
+        ['zoom-out', 'flow.control.zoomOut', 'flow.control.zoomOutTip'],
+        ['zoom-in', 'flow.control.zoomIn', 'flow.control.zoomInTip'],
+        ['reset', 'flow.control.fit', 'flow.control.fitTip'],
+        ['undo', 'flow.control.undo', 'flow.control.undoTip'],
+        ['redo', 'flow.control.redo', 'flow.control.redoTip'],
+    ];
+    for (const [key, textKey, titleKey] of keys) {
+        const item = control.removeItem(key);
+        if (!item) {
+            continue;
+        }
+        control.addItem({ ...item, text: t(textKey), title: t(titleKey) });
+    }
 }
 
 function validateFlow(rawData: LogicFlow.GraphData) {
@@ -254,7 +308,7 @@ const initEvent = () => {
         propSettingEditor.value.visible = true;
     });
 
-    eventCenter.on('edge:dbclick  ', (args: any) => {
+    eventCenter.on('edge:dbclick', (args: any) => {
         propSettingEditor.value.node = args.data;
         let graphData: any = lf.getGraphData();
         propSettingEditor.value.nodes = graphData['edges'];

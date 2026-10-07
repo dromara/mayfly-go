@@ -212,7 +212,9 @@ const search = async () => {
 
 const onDel = async function () {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferFile) => x.fileKey).join('、'));
+        if (!(await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferFile) => x.fileKey).join('、')))) {
+            return;
+        }
         await dbTransferApi.dbTransferFileDel.request({ fileId: state.selectionData.map((x: DbTransferFile) => x.id).join(',') });
         Msg.deleteSuccess();
         await search();

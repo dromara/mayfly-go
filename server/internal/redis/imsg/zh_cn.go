@@ -8,8 +8,13 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogRedisRunCmd: "Redis-执行命令",
 	LogRedisKeyOp:  "Redis-数据操作",
 
-	ErrRedisInfoExist:          "该Redis信息已存在",
-	ErrSubmitFlowRunCmd:        "该操作需要提交工单审批执行",
+	ErrRedisInfoExist:    "该Redis信息已存在",
+	ErrSubmitFlowRunCmd:  "该操作需要提交工单审批执行，审批通过后会自动执行本次操作",
+	ErrRunCmdFromConsole: "该操作需要审批执行，请在 Redis 命令控制台执行同等命令以提交工单",
+
+	TriggerReasonWriteCmd:      "该命令会修改 Redis 数据",
+	TriggerReasonDangerousCmd:  "该命令属于高危命令",
+	TriggerReasonCmdIn:         "该命令在所选命令名单内",
 	ErrHasRunFailCmd:           "存在执行失败的命令",
 	ErrRedisKeyTypeUnsupported: "数据类型[{{.type}}]暂无内置视图，请使用命令控制台操作",
 	ErrRedisKeyViewUnsupported: "视图[{{.view}}]不支持数据类型[{{.type}}]",

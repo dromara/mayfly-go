@@ -240,7 +240,9 @@ const changeRuleStatus = async (rule: DbMaskRule, status: number) => {
 
 const delRule = async (rule: DbMaskRule) => {
     try {
-        await useI18nDeleteConfirm(rule.name);
+        if (!(await useI18nDeleteConfirm(rule.name))) {
+            return;
+        }
         await dbMaskApi.deleteMaskRule.request({ id: rule.id });
         Msg.deleteSuccess();
         searchRules();
@@ -251,7 +253,9 @@ const delRule = async (rule: DbMaskRule) => {
 
 const delTag = async (tag: DbMaskColumn) => {
     try {
-        await useI18nDeleteConfirm(tag.columnName || tag.tableName || tag.dbName || String(tag.id));
+        if (!(await useI18nDeleteConfirm(tag.columnName || tag.tableName || tag.dbName || String(tag.id)))) {
+            return;
+        }
         await dbMaskApi.deleteMaskColumn.request({ id: tag.id });
         Msg.deleteSuccess();
         searchTags();

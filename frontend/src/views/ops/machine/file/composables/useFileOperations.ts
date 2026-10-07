@@ -107,7 +107,9 @@ export function useFileOperations(options: UseFileOperationsOptions) {
         if (confirmMsg.length > 400) {
             confirmMsg = confirmMsg.substring(0, 400) + '...';
         }
-        await useI18nDeleteConfirm(confirmMsg);
+        if (!(await useI18nDeleteConfirm(confirmMsg))) {
+            return;
+        }
         options.setLoading(true);
         try {
             await machineApi.rmFile.request({

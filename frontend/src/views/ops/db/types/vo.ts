@@ -63,6 +63,8 @@ export interface DataImportResult {
     imported: number;
     batchCount: number;
     affectedRow: number;
+    /** 触发策略提醒：不阻断导入，但必须让操作者看见（内容由服务端按请求语言下发） */
+    warnings?: string[];
 }
 
 // ==================== 表格列定义 ====================

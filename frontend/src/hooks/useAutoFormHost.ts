@@ -41,6 +41,11 @@ export interface AutoFormHostProps extends AutoFormItemsProps {
     confirmLoading?: boolean;
     /** 点击遮罩是否关闭（默认 false：防止误点遮罩丢失已填表单数据） */
     closeOnClickModal?: boolean;
+    /**
+     * 关闭拦截（可选）：Esc / 返回箭头 / 取消按钮三条关闭路径的统一守卫。
+     * 返回 false（或抛错）保持弹层不关，供宿主在外层做「未保存修改确认」防误关丢失；不传则直接关闭
+     */
+    closeGuard?: () => boolean | Promise<boolean>;
     /** 栅格列数 */
     cols?: number;
     /** label 位置（right 右侧水平对齐 / top 输入项上方；各宿主默认值不同，由宿主 withDefaults 指定） */
@@ -121,7 +126,17 @@ export const useAutoFormHost = (
         { immediate: true }
     );
 
-    const onCancel = () => {
+    // 关闭唯一出口：守卫拒绝时保持弹层（异步守卫期间不置 visible，避免抽屉闪关）
+    const onCancel = async () => {
+        if (props.closeGuard) {
+            try {
+                if ((await props.closeGuard()) === false) {
+                    return;
+                }
+            } catch {
+                return;
+            }
+        }
         visible.value = false;
         options.onCancel?.();
     };

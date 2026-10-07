@@ -18,12 +18,7 @@
             这一下抢焦点必然落在回调刚建立的焦点目标之后。本组件的触发点是 display:none 的
             隐形派发点，恢复焦点无意义，只会抢走调用方刚聚焦的输入框（如行内编辑态），故统一阻止
         -->
-        <ContextMenuContent
-            v-if="visibleItems.length"
-            class="w-auto min-w-36 z-[2190]"
-            @focus-outside.prevent
-            @close-auto-focus.prevent
-        >
+        <ContextMenuContent v-if="visibleItems.length" class="w-auto min-w-36 z-[2190]" @focus-outside.prevent @close-auto-focus.prevent>
             <ContextmenuItemNode :items="visibleItems" :payload="state.item" @select="onSelect" />
         </ContextMenuContent>
     </ContextMenu>

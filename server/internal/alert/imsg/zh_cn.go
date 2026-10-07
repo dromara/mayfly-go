@@ -86,4 +86,10 @@ var Zh_CN = map[i18n.MsgId]string{
 	TmplAlertNotifyTitle:  "告警通知-{{.ruleName}}",
 	TmplAlertRecoverName:  "告警恢复模板",
 	TmplAlertRecoverTitle: "告警恢复-{{.ruleName}}",
+	TmplAlertNotifyBody: "【告警通知】\n规则: {{.ruleName}}\n资源: {{.resourceName}}\n指标: {{.metric}}\n" +
+		"当前值: {{.currentValue}}\n阈值: {{.threshold}}\n优先级: {{.priority}}\n" +
+		"首次触发: {{.firstTime}}\n最近触发: {{.lastTime}}\n累计触发: {{.triggerCount}}次",
+	TmplAlertRecoverBody: "【告警恢复】\n规则: {{.ruleName}}\n资源: {{.resourceName}}\n指标: {{.metric}}\n优先级: {{.priority}}\n" +
+		"首次触发: {{.firstTime}}\n恢复时间: {{.recoverTime}}\n持续时长: {{.durationText}}\n" +
+		"累计触发: {{.triggerCount}}次\n通知次数: {{.notifyCount}}次",
 }

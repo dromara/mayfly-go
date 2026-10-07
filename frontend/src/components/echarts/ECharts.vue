@@ -72,12 +72,21 @@ const resize = () => {
 
 const debouncedResize = useDebounceFn(resize, 300, { maxWait: 800 });
 
+// 容器尺寸变化监听：弹窗/折叠面板内图表常在 0 尺寸时初始化（如对话框展开动画、下方区域尚未布局），
+// 仅靠 window resize 无法恢复，导致画布恒为 0x0 不渲染；用 ResizeObserver 在容器获得真实尺寸后重绘
+let resizeObserver: ResizeObserver | undefined;
+
 onMounted(() => {
     nextTick(() => init());
     useEventListener('resize', debouncedResize);
+    if (chartRef.value && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => debouncedResize());
+        resizeObserver.observe(chartRef.value);
+    }
 });
 
 onBeforeUnmount(() => {
+    resizeObserver?.disconnect();
     chartInstance.value?.dispose();
 });
 

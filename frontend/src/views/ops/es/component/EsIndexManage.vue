@@ -420,14 +420,18 @@ const onSaveMapping = async () => {
 };
 
 const onCloseIndex = async (row: EsIndexRow) => {
-    await useI18nConfirm('es.closeIndexConfirm', { name: row.index });
+    if (!(await useI18nConfirm('es.closeIndexConfirm', { name: row.index }))) {
+        return;
+    }
     await esApi.proxyReq('post', props.instId, `/${row.index}/_close`);
     row.status = 'close';
     Msg.operateSuccess();
 };
 
 const onOpenIndex = async (row: EsIndexRow) => {
-    await useI18nConfirm('es.openIndexConfirm', { name: row.index });
+    if (!(await useI18nConfirm('es.openIndexConfirm', { name: row.index }))) {
+        return;
+    }
     await esApi.proxyReq('post', props.instId, `/${row.index}/_open`);
     row.status = 'open';
     Msg.operateSuccess();
@@ -439,13 +443,17 @@ const onFlushIndex = async (row: EsIndexRow) => {
 };
 
 const onClearCache = async (row: EsIndexRow) => {
-    await useI18nConfirm('es.clearCacheConfirm', { name: row.index });
+    if (!(await useI18nConfirm('es.clearCacheConfirm', { name: row.index }))) {
+        return;
+    }
     await esApi.proxyReq('post', props.instId, `/${row.index}/_cache/clear`);
     Msg.operateSuccess();
 };
 
 const onDeleteIndex = async (row: EsIndexRow) => {
-    await useI18nDeleteConfirm(row.index);
+    if (!(await useI18nDeleteConfirm(row.index))) {
+        return;
+    }
     await esApi.proxyReq('delete', props.instId, row.index);
     Msg.deleteSuccess();
     await fetchIndices();
@@ -478,7 +486,9 @@ const onSubmitAddAlias = async () => {
 };
 
 const onRemoveAlias = async (idxName: string, alias: string) => {
-    await useI18nDeleteConfirm(`${t('es.aliases')}: ${alias}`);
+    if (!(await useI18nDeleteConfirm(`${t('es.aliases')}: ${alias}`))) {
+        return;
+    }
     await esApi.proxyReq('delete', props.instId, `/${idxName}/_alias/${alias}`);
     Msg.deleteSuccess();
     // Update local aliases

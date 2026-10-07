@@ -334,7 +334,9 @@ const cancelEditDb = () => {
 
 const deleteDb = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: Db) => x.name).join('、'));
+        if (!(await useI18nDeleteConfirm(state.selectionData.map((x: Db) => x.name).join('、')))) {
+            return;
+        }
         for (let db of state.selectionData) {
             await dbApi.deleteDb.request({ id: db.id });
         }

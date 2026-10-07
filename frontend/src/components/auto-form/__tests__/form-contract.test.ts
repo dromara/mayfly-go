@@ -50,6 +50,16 @@ describe('表单类型契约守护（views 下禁止散落表单袋断言）', (
         expect(violations).toEqual([]);
     });
 
+    it('调用 useAutoFormModel 接管宿主表单的页面必须绑定 @opened，否则表单永远未被接管', () => {
+        // 漏绑的后果不是报错而是静默失效：requireForm 抛错被 computed 吞下（应用的 warnHandler
+        // 静音了 Vue 告警），提交载荷变成 undefined，POST 发成空 body，服务端只看到 EOF
+        const missing = vueFiles.filter((file) => {
+            const source = readFileSync(file, 'utf-8');
+            return source.includes('useAutoFormModel') && !/@opened="[A-Za-z][A-Za-z0-9_]*"/.test(source);
+        });
+        expect(missing, `未绑定 @opened: ${missing.map((f) => f.replace(VIEWS_DIR, 'views')).join(', ')}`).toEqual([]);
+    });
+
     it('禁止用本地 type FormData 承接表单形状（遮蔽 DOM 全局 FormData，且与后端 form 无对照）', () => {
         expect(findLines(vueFiles, /^type\s+FormData\s*=/m)).toEqual([]);
     });

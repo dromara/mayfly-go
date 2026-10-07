@@ -37,6 +37,7 @@ import { useI18n } from 'vue-i18n';
 import EnumValue from './common/Enum';
 import { I18nEnum } from './common/commonEnum';
 import { saveThemeConfig } from './common/utils/storage';
+import { useEscapeClosesDrawer } from '@/hooks/useEscapeClosesDrawer';
 import GlobalNotificationFab from '@/components/system-message/GlobalNotificationFab.vue';
 
 const Setings = defineAsyncComponent(() => import('@/layout/navBars/breadcrumb/setings.vue'));
@@ -49,6 +50,9 @@ const { themeConfig } = storeToRefs(themeConfigStores);
 
 // 定义变量内容
 const { locale, t } = useI18n();
+
+// 焦点停在 select 上时 Escape 会被 select 掐掉，抽屉因此关不掉（全站共用一条接缝）
+useEscapeClosesDrawer();
 
 // 页面加载时
 onMounted(() => {
@@ -118,13 +122,21 @@ const refreshWatermarkTime = () => {
     themeConfigStores.setWatermarkNowTime();
 };
 
-// 监听路由的变化，设置网站标题
+// 监听路由与语言的变化，设置网站标题
+//
+// 语言也得进依赖：标题是翻译出来的，只监听 route.path 时切完语言标签标题还停在旧语言，
+// 要等下一次跳转才更新
 watch(
-    () => route.path,
-    () => {
-        nextTick(() => {
-            document.title = `${t((route.meta.title as string) || '')} - ${themeConfig.value.globalTitle}` || themeConfig.value.globalTitle;
-        });
-    }
+    [() => route.path, locale],
+    ([path, language]) => {
+        // 读屏软件靠它选发音规则，写死 zh_CN 会让英文界面下也用中文引擎念
+        document.documentElement.lang = language;
+        if (path) {
+            nextTick(() => {
+                document.title = `${t((route.meta.title as string) || '')} - ${themeConfig.value.globalTitle}` || themeConfig.value.globalTitle;
+            });
+        }
+    },
+    { immediate: true }
 );
 </script>

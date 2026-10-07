@@ -21,7 +21,10 @@ const makeNode = (kind: string, key = kind, params?: Record<string, unknown>): T
     hasChildren: false,
     params: params ?? {},
 });
-const makeCtx = (node: TreeNode): TreeCommandCtx => ({ node, tree: { locate: async () => {}, refresh: () => {}, getNode: () => undefined } });
+const makeCtx = (node: TreeNode): TreeCommandCtx => ({
+    node,
+    tree: { locate: async () => {}, refresh: () => {}, expandNode: async () => {}, getNode: () => undefined, appendChildren: () => {} },
+});
 
 describe('tree/commands 命令与菜单注册表', () => {
     beforeEach(() => {

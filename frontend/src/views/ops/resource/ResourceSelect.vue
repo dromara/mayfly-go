@@ -89,8 +89,9 @@ const props = defineProps({
 
 // 渲染器的 showActions 由 el-tree-select 节点默认插槽透传
 
-// 选择器场景无树容器：提供空 TreeApi 桩，避免节点渲染器 inject 落空
-provide(TreeApiKey, { locate: async () => {}, refresh: () => {}, getNode: () => undefined } as TreeApi);
+// 选择器场景无树容器：提供全量空操作 TreeApi 桩（显式类型标注而非断言），避免节点渲染器 inject 落空
+const noopTreeApi: TreeApi = { locate: async () => {}, refresh: () => {}, expandNode: async () => {}, getNode: () => undefined, appendChildren: () => {} };
+provide(TreeApiKey, noopTreeApi);
 
 const treeProps = {
     label: 'label',

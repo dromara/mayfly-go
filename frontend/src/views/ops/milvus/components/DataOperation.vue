@@ -247,11 +247,10 @@
 
 <script setup lang="ts">
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
-import { Msg } from '@/hooks/useI18n';
+import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { useClipboard, useResizeObserver } from '@vueuse/core';
-import { ElMessageBox } from 'element-plus';
 import { storeToRefs } from 'pinia';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -509,9 +508,9 @@ const handleCopySelected = async () => {
 const handleDeleteSelected = async () => {
     if (!selectedCollection.value || selectedRows.value.length === 0) return;
 
-    await ElMessageBox.confirm(t('common.confirmDelete', { count: selectedRows.value.length }), t('common.warning'), {
-        type: 'warning',
-    });
+    if (!(await useI18nConfirm('common.confirmDelete', { count: selectedRows.value.length }))) {
+        return;
+    }
 
     const ids = selectedRows.value.map((row) => row[primaryKey.value]).filter((id): id is string => id != null && id !== undefined);
     if (ids.length === 0) {
@@ -857,9 +856,9 @@ const handleImportFile = () => {
 const handleClearData = async () => {
     if (!selectedCollection.value) return;
 
-    await ElMessageBox.confirm(t('milvus.confirmClearData'), t('common.warning'), {
-        type: 'warning',
-    });
+    if (!(await useI18nConfirm('milvus.confirmClearData'))) {
+        return;
+    }
 
     if (!primaryKey.value) {
         Msg.warning('milvus.noPrimaryKey');

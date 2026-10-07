@@ -167,7 +167,9 @@ const onAddAlias = async () => {
     aliasLoading.value = false;
 };
 const onRemoveAlias = async (name: string) => {
-    await useI18nDeleteConfirm(`${t('es.aliases')}: ${name}`);
+    if (!(await useI18nDeleteConfirm(`${t('es.aliases')}: ${name}`))) {
+        return;
+    }
 
     await esApi.proxyReq('delete', state.instId, `/${state.idxName}/_alias/${name}`);
     Msg.deleteSuccess();

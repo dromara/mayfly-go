@@ -13,7 +13,7 @@
 </template>
 
 <script lang="ts" setup>
-import { inject, ref } from 'vue';
+import { inject, onMounted, ref } from 'vue';
 
 import { TreeApiKey } from '@/views/ops/resource/tree/context';
 import type { TreeNode } from '@/views/ops/resource/tree/types';
@@ -30,11 +30,19 @@ const resultsKey = tableResultsKey(menuKey);
 // 本地态为准：不从 params 反向同步，避免刷新时回填覆盖用户正在输入的内容
 const keyword = ref('');
 
+// 搜索框出现即自动展开并列结果容器：首屏直接加载第一页表（浏览不被搜索门控），免去一次手动展开
+onMounted(() => {
+    tree.expandNode(resultsKey);
+});
+
 const onSearch = () => {
     const results = tree.getNode(resultsKey);
     if (results) {
         results.params.tableFilter = keyword.value;
+        // 先刷新（作废旧结果并重拉第一页），再确保结果容器展开：用户此前手动收起过结果节点时，
+        // 收起态下 refresh 只置占位不会水合，不补 expandNode 则搜索后命中不呈现（与「浏览不被门控」相悖）
         tree.refresh(resultsKey);
+        tree.expandNode(resultsKey);
         return;
     }
     // 结果节点尚未水合等异常：兜底刷新表菜单本身

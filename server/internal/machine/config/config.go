@@ -14,6 +14,7 @@ const (
 type Machine struct {
 	UploadMaxFileSize int64  // 允许上传的最大文件size
 	TermOpSaveDays    int    // 终端记录保存天数
+	MetricSaveDays    int    // 机器指标历史保存天数
 	GuacdHost         string // guacd服务地址 默认 127.0.0.1
 	GuacdPort         int    // guacd服务端口  默认 4822
 	GuacdFilePath     string // guacd服务文件存储位置，用于挂载RDP文件夹
@@ -38,6 +39,7 @@ func GetMachine() *Machine {
 	}
 	mc.UploadMaxFileSize = uploadMaxFileSize
 	mc.TermOpSaveDays = cmp.Or(jm.GetInt("termOpSaveDays"), 30)
+	mc.MetricSaveDays = cmp.Or(jm.GetInt("metricSaveDays"), 7)
 	// guacd
 	mc.GuacdHost = jm.GetStr("guacdHost")
 	mc.GuacdPort = cmp.Or(jm.GetInt("guacdPort"), 4822)

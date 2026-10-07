@@ -162,10 +162,9 @@ const onValChange = () => {
 };
 
 const onDelete = async () => {
-    try {
-        await useI18nDeleteConfirm(selectionData.value.map((x) => x.username).join('、'));
-    } catch {
-        return; // 用户取消
+    if (!(await useI18nDeleteConfirm(selectionData.value.map((x) => x.username).join('、')))) {
+        // 取消或关掉弹窗：不继续后续操作
+        return;
     }
     await accountApi.del.request({ id: selectionData.value.map((x) => x.id).join(',') });
     Msg.deleteSuccess();

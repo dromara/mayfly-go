@@ -21,7 +21,13 @@ type TagTreeRelate interface {
 	RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error
 
 	// GetRelateIds 根据标签路径获取对应关联的id
-	GetRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error)
+	// GetGovernRelateIds 取资源标签路径上挂载的「治理配置」关联（流程定义、机器命令规则集）。
+	//
+	// 这里刻意不按操作者的标签可见性收窄：治理回答的是「这个资源被怎么管」，是资源自身的属性。
+	// 若按可见性过滤，当资源同时挂在操作者看不到的标签下、而策略恰好打在那个标签上时，
+	// 这次操作就会静默不受治理——安全控制的生效与否不能取决于谁在操作。
+	// 需要按可见性过滤的是「列数据给谁看」那类查询（见 filterCodePaths 的其他调用点）
+	GetGovernRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error)
 
 	// GetTagPathsByAccountId 根据账号id获取该账号可操作的标签code路径
 	GetTagPathsByAccountId(accountId uint64) []string
@@ -100,15 +106,9 @@ func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity
 	return nil
 }
 
-func (tr *tagTreeRelateAppImpl) GetRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error) {
-	la := contextx.GetLoginAccount(ctx)
-	canAccessTagPaths := tagPaths
-	if la != nil && la.Id != consts.AdminId {
-		canAccessTagPaths = filterCodePaths(tr.tagTreeApp.ListTagByAccountId(la.Id), tagPaths)
-	}
-
-	poisibleTagPaths := make([]string, 0)
-	for _, tagPath := range canAccessTagPaths {
+func (tr *tagTreeRelateAppImpl) GetGovernRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error) {
+	poisibleTagPaths := make([]string, 0, len(tagPaths))
+	for _, tagPath := range tagPaths {
 		// 追加可能关联的标签路径，如tagPath = tag1/tag2/1|xxx/，需要获取所有关联的自身及父标签（tag1/  tag1/tag2/ tag1/tag2/1|xxx）
 		poisibleTagPaths = append(poisibleTagPaths, entity.CodePath(tagPath).GetAllPath()...)
 	}

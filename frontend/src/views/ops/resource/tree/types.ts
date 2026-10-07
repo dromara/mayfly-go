@@ -1,5 +1,3 @@
-import type { Component } from 'vue';
-
 /**
  * 资源树 v2 统一节点协议（核心对具体资产零知识）：
  * 新增资产类型 = 一个 Contributor 模块（tree/registry），核心不 import 任何具体资源。
@@ -55,7 +53,14 @@ export interface TreeApi {
     locate(key: string): Promise<void>;
     /** 重新加载该节点子树（key 传空重载根） */
     refresh(key?: string): void;
+    /** 程序化展开节点（含水合）：供节点渲染器在自身出现时自动展开并列子节点（如搜索框自动展开结果容器） */
+    expandNode(key: string): Promise<void>;
     getNode(key: string): TreeNode | undefined;
+    /**
+     * 增量追加子节点（分页「加载更多」）：不重建既有子树、不重拉前缀，虚拟列表滚动位置不受影响。
+     * replaceKey 先摘除指定直接子节点（如旧的「加载更多」占位行）再追加，保证新节点始终落在尾部。
+     */
+    appendChildren(key: string, nodes: TreeNodeData[], options?: { replaceKey?: string }): void;
 }
 
 /**
@@ -91,11 +96,3 @@ export const LOADING_KIND = '__loading__';
 export const ERROR_KIND = '__error__';
 /** 类型分组节点（资源树中"机器/数据库"等中间层，children 按资源类型路由到对应贡献者） */
 export const RES_GROUP_KIND = '__res_group__';
-
-/** 树引擎适配器契约（见 TreeEngineV2.vue）：容器只依赖此接口，换树库 = 新建适配器组件实现同契约 */
-export interface TreeEngineExpose {
-    /** 选中并高亮节点（配合 highlight-current 样式） */
-    setCurrentKey(key: string): void;
-    /** 滚动到节点（strategy: auto/center/start/end/nearest） */
-    scrollToNode(key: string, strategy?: 'auto' | 'center' | 'start' | 'end' | 'nearest'): void;
-}

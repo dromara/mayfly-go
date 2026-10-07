@@ -21,9 +21,14 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrDbNotAccess:      "未配置数据库【{{.dbName}}】的操作权限",
 
 	ErrExistRunFailSQL:      "存在执行错误的sql",
-	ErrNeedSubmitWorkTicket: "该操作需要提交工单审批执行",
-	ErrSQLExecCancelled:     "SQL执行已取消",
-	ErrSQLSplitUnterminated: "SQL第{{.line}}行存在未闭合的 {{.kind}} 区域，无法判定语句边界，请补全后重试",
+	ErrNeedSubmitWorkTicket: "该操作需要提交工单审批执行，审批通过后会自动执行本次操作",
+
+	TriggerReasonDmlRequiresApproval: "语句类型属于所选类型",
+	TriggerReasonDmlWithoutWhere:     "更新或删除缺少 WHERE 条件",
+	TriggerReasonDestructiveDdl:      "包含破坏性 DDL 操作",
+	TriggerReasonSqlSize:             "SQL 体积超过上限",
+	ErrSQLExecCancelled:              "SQL执行已取消",
+	ErrSQLSplitUnterminated:          "SQL第{{.line}}行存在未闭合的 {{.kind}} 区域，无法判定语句边界，请补全后重试",
 
 	// db transfer
 	LogDtsSave:         "dts-保存数据迁移任务",

@@ -155,7 +155,7 @@ const mappingRows = computed<MappingRow[]>(() => {
     if (!preview) return [];
     const headers = preview.headers ?? [];
     const hasHeader = headers.length > 0;
-    const colCount = hasHeader ? headers.length : preview.sampleRows[0]?.length ?? 0;
+    const colCount = hasHeader ? headers.length : (preview.sampleRows[0]?.length ?? 0);
     return Array.from({ length: colCount }, (_, i) => {
         const headerName = hasHeader ? headers[i] : '';
         return {
@@ -220,6 +220,10 @@ async function onImport() {
             batchSize: state.batchSize,
         });
         Msg.success('db.importSuccess', { imported: res.imported, total: res.totalRows });
+        // 提醒级别不阻断导入，但必须出现在操作者眼前：管理员配这一级别若只进服务端日志等于没配
+        if (res.warnings?.length) {
+            Msg.warning('db.importPolicyWarnings', { warnings: res.warnings.join('；') });
+        }
         emit('success');
         visible.value = false;
     } catch (e) {

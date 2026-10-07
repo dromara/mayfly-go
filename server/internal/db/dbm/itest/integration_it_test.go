@@ -384,20 +384,28 @@ func TestITMysqlSearchTablesAndMetaObjects(t *testing.T) {
 	}
 
 	// 子串下推命中两张表
-	got, err := md.SearchTables("it_srch", 0)
+	got, err := md.SearchTables("it_srch", 0, 0)
 	require.NoError(t, err)
 	gn := names(got)
 	require.True(t, has(gn, "it_srch_users") && has(gn, "it_srch_orders"), "SearchTables(it_srch) 应命中两张表，得 %v", gn)
 
 	// 大小写不敏感（LIKE 模式 USERS 命中 it_srch_users）
-	got2, err := md.SearchTables("USERS", 0)
+	got2, err := md.SearchTables("USERS", 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, []string{"it_srch_users"}, names(got2))
 
 	// LIMIT 截断
-	got3, err := md.SearchTables("it_srch", 1)
+	got3, err := md.SearchTables("it_srch", 1, 0)
 	require.NoError(t, err)
 	require.Len(t, got3, 1)
+
+	// OFFSET 续载：按 table_name 序跳过首条命中取第二页；offset 越界为空页（前端据此判到底）
+	got4, err := md.SearchTables("it_srch", 1, 1)
+	require.NoError(t, err)
+	require.Equal(t, []string{"it_srch_users"}, names(got4), "ORDER BY table_name 后 offset=1 应取到第二张")
+	got5, err := md.SearchTables("it_srch", 1, 2)
+	require.NoError(t, err)
+	require.Empty(t, got5, "offset 越界应返回空页")
 
 	// 视图节点内省（空 schema → 当前库）
 	nodes, err := md.ListObjects(itCtx(), "", dbi.KindView)

@@ -75,34 +75,9 @@
             </el-col>
         </el-row>
 
-        <div id="data-exec" ref="dataExecRef" class="mt-1 flex-1 min-h-0 overflow-visible">
-            <el-tabs v-if="hasOpenTabs" type="card" @tab-remove="onRemoveTab" @tab-change="onTabChange" v-model="activeTabKey" class="db-data-tabs w-full">
-                <el-tab-pane class="h-full!" closable v-for="dt in tabList" :label="dt.label" :name="dt.key" :key="dt.key">
-                    <template #label>
-                        <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
-                            <template #reference>
-                                <span @contextmenu.prevent="onTabContextmenu(dt, $event)" class="text-[12px]!">{{ dt.label }}</span>
-                            </template>
-                            <template #default>
-                                <el-descriptions :column="1" size="small">
-                                    <el-descriptions-item label="tagPath">
-                                        {{ dt.params.tagPath }}
-                                    </el-descriptions-item>
-                                    <el-descriptions-item :label="$t('common.name')">
-                                        {{ dt.params.name }}
-                                    </el-descriptions-item>
-                                    <el-descriptions-item label="Host">
-                                        <SvgIcon :name="getDbDialect(dt.params.type).getInfo().icon" :size="18" />
-                                        {{ dt.params.host }}
-                                    </el-descriptions-item>
-                                    <el-descriptions-item :label="$t('db.dbName')">
-                                        {{ dt.params.dbName }}
-                                    </el-descriptions-item>
-                                </el-descriptions>
-                            </template>
-                        </el-popover>
-                    </template>
-
+        <div id="data-exec" ref="dataExecRef" class="mt-1 flex-1 min-h-0 overflow-visible flex flex-col">
+            <Tabs v-model="activeTabKey" :tabs="tabList" class="flex-1 min-h-0" content-class="overflow-hidden" @close="onRemoveTab" @change="onTabChange">
+                <template #default="{ tab: dt }">
                     <db-table-data-op
                         v-if="dt.type === TabType.TableData"
                         :db-id="dt.dbId"
@@ -116,6 +91,7 @@
                         v-if="dt.type === TabType.Query"
                         :db-id="dt.dbId"
                         :db-name="dt.db"
+                        :db-code="(dt.params.dbCode as string) ?? ''"
                         :sql-name="dt.params.sqlName"
                         @save-sql-success="reloadSqls"
                         @editor-ready="(editorUri: string) => onEditorReady(dt, editorUri)"
@@ -130,8 +106,8 @@
                         :db-type="dt.params.type"
                         :height="state.tablesOpHeight"
                     />
-                </el-tab-pane>
-            </el-tabs>
+                </template>
+            </Tabs>
         </div>
 
         <db-table-op
@@ -168,14 +144,12 @@
                 <el-button type="primary" @click="onPropsViewDdl">{{ $t('db.viewDdl') }}</el-button>
             </template>
         </el-dialog>
-
-        <contextmenu ref="tabContextmenuRef" :dropdown="state.tabContextmenu.dropdown" :items="state.tabContextmenu.items" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svg-icon/index.vue';
+import { Tabs } from '@/components/tabs';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { treeEvents } from '@/views/ops/resource/tree';
 import { useEventListener, useStorage } from '@vueuse/core';
@@ -206,25 +180,8 @@ const props = defineProps<{
     db: string;
 }>();
 
-const tabContextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('tabContextmenuRef');
-
 /** 标签页状态：增删切换的纯状态逻辑在 useDbTabs，本组件只负责切换后的副作用 */
-const { tabs, activeTabKey, tabList, hasOpenTabs, activeTab, activateTab, addTab, closeTab, clearTabs } = useDbTabs();
-
-const tabContextmenuItems = [
-    new ContextmenuItem(1, 'db.close').withIcon('Close').withOnClick((data: unknown) => {
-        onRemoveTab((data as { key: string }).key);
-    }),
-
-    new ContextmenuItem(2, 'db.closeOther').withIcon('CircleClose').withOnClick((data: unknown) => {
-        const tabName = (data as { key: string }).key;
-        for (let tab of [...tabs.keys()]) {
-            if (tab !== tabName) {
-                onRemoveTab(tab);
-            }
-        }
-    }),
-];
+const { tabs, activeTabKey, tabList, activeTab, activateTab, addTab, closeTab, clearTabs } = useDbTabs();
 
 const state = reactive({
     defaultExpendKey: [] as string[],
@@ -233,10 +190,6 @@ const state = reactive({
      */
     nowDbInst: {} as DbInst,
     db: '', // 当前操作的数据库
-    tabContextmenu: {
-        dropdown: { x: 0, y: 0 },
-        items: tabContextmenuItems,
-    },
     tablesOpHeight: '600',
     dbServerInfo: {
         loading: true,
@@ -307,7 +260,7 @@ const dbConfig = useStorage('dbConfig', DbThemeConfig);
  * 本组件的 SQL 联想使用方作用域。
  *
  * 注册放在容器而非编辑器组件里，是因为补全上下文需要「当前激活 tab」的库信息：
- * el-tabs 不销毁非活跃面板，多个查询编辑器实例共存，provider 按 editorUri 路由，
+ * 标签页容器不销毁非活跃面板，多个查询编辑器实例共存，provider 按 editorUri 路由，
  * 各 tab 的编辑器在 @ready 时上报 editorUri，切 tab 时 promote 回落目标（见 onTabChange）。
  */
 const sqlCompletion = createSqlCompletionScope();
@@ -356,7 +309,7 @@ const changeDb = (db: DbTreeNodeData, dbName: string) => {
 };
 
 // 加载选中的表数据，即新增表数据操作tab
-const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: string, readonly = false) => {
+const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: string, readonly = false, title?: string) => {
     if (tableName == '') {
         return;
     }
@@ -369,6 +322,8 @@ const loadTableData = async (db: DbTreeNodeData, dbName: string, tableName: stri
     }
     const tab = new TabInfo();
     tab.label = tableName;
+    // 悬浮提示带上表备注（与资源树节点提示同源），无备注时回落到表名
+    tab.title = title?.trim() || undefined;
     tab.key = key;
     tab.treeNodeKey = db.nodeKey ?? '';
     tab.dbId = db.id;
@@ -419,6 +374,10 @@ const addQueryTab = async (db: DbTreeNodeData, dbName: string, sqlName: string =
     tab.type = TabType.Query;
     tab.params = {
         ...getNowDbInfo(),
+        // 库的资源编码：getNowDbInfo 取的是实例级信息、调用点传的内联节点对象也不带 code，
+        // 只能从本容器对应的库节点参数取（与 getSqlMenuNodeKey 同源）；
+        // 被触发策略拦下时提单要靠它才能解析出审批流程
+        dbCode: db.dbCode ?? props.dbInfo.dbCode ?? '',
         sqlName: sqlName,
         dbs: db.dbs,
     };
@@ -491,13 +450,7 @@ const onTabChange = () => {
     }
 };
 
-// 右键点击时：传 x,y 坐标值到子组件中（props）
-const onTabContextmenu = (v: unknown, e: MouseEvent) => {
-    const { clientX, clientY } = e;
-    state.tabContextmenu.dropdown.x = clientX;
-    state.tabContextmenu.dropdown.y = clientY;
-    tabContextmenuRef.value?.openContextmenu(v);
-};
+// 标签条（含右键关闭当前/其它/右侧/全部）与内容面板的常驻挂载保活均由 Tabs 托管，本页只按 tab 提供内容
 
 /**
  * 定位至当前树节点
@@ -519,7 +472,9 @@ const reloadSqls = (dbId: number, db: string) => {
 
 const deleteSql = async (dbId: number, db: string, sqlName: string) => {
     try {
-        await useI18nDeleteConfirm(sqlName);
+        if (!(await useI18nDeleteConfirm(sqlName))) {
+            return;
+        }
         await dbApi.deleteDbSql.request({ id: dbId, db: db, name: sqlName });
         Msg.deleteSuccess();
         reloadSqls(dbId, db);
@@ -576,41 +531,6 @@ defineExpose({
 
 <style lang="scss" scoped>
 .db-sql-exec {
-    #data-exec {
-        ::v-deep(.db-data-tabs) {
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            --el-tabs-header-height: 30px;
-
-            > .el-tabs__header {
-                margin: 0 0 5px;
-                flex-shrink: 0;
-
-                .el-tabs__item {
-                    padding: 0 5px;
-                }
-            }
-
-            > .el-tabs__content {
-                flex: 1;
-                min-height: 0;
-                overflow: visible;
-            }
-
-            .el-tab-pane {
-                height: 100%;
-            }
-        }
-
-        ::v-deep(.el-tabs__nav-next) {
-            line-height: 30px;
-        }
-        ::v-deep(.el-tabs__nav-prev) {
-            line-height: 30px;
-        }
-    }
-
     .update_field_active {
         background-color: var(--el-color-success);
     }

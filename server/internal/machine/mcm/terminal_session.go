@@ -224,11 +224,16 @@ func (ts *TerminalSession) receiveWsMsg() {
 			case MsgTypeData:
 				data := []byte(msgObj.Msg)
 				if ts.handler != nil {
-					if err := ts.handler.PreWriteHandle(data); err != nil {
-						ts.WriteToWs(err.Error())
+					notice, handleErr := ts.handler.PreWriteHandle(data)
+					if handleErr != nil {
+						ts.WriteToWs(handleErr.Error())
 						// 发送命令终止指令
 						ts.terminal.Write([]byte{EOT})
 						continue
+					}
+					// 不阻断的提示（如触发策略「仅提醒」命中）写回终端，命令照常执行
+					if notice != "" {
+						ts.WriteToWs(GetWarnContentRn(notice))
 					}
 				}
 

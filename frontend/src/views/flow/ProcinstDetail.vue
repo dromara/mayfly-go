@@ -4,7 +4,7 @@
         :title="props.title"
         v-model="visible"
         :before-close="cancel"
-        size="50%"
+        :size="FLOW_DRAWER.detail"
         body-class="p-2!"
         header-class="mb-2!"
         :destroy-on-close="true"
@@ -45,21 +45,20 @@
                         </el-descriptions-item>
                     </el-descriptions>
                 </div>
+            </el-tab-pane>
 
-                <div>
-                    <el-divider content-position="left">{{ $t('flow.bizInfo') }}</el-divider>
-                    <component v-if="procinst.bizType" ref="keyValueRef" :is="bizComponents[procinst.bizType]" :procinst="procinst"> </component>
-                </div>
+            <!-- 执行结果（业务信息）与流程图此前内联在「基本」里，和「审批记录」同级的信息却藏在不同层，
+                 现在各自成 tab；审批态默认落在业务信息，因为那才是审批人要判断的内容 -->
+            <el-tab-pane :label="$t('flow.bizInfo')" name="bizInfo">
+                <component v-if="procinst.bizType" :is="bizComponents[procinst.bizType]" :procinst="procinst"></component>
+            </el-tab-pane>
 
-                <div v-if="props.instTaskId">
-                    <el-divider content-position="left">{{ $t('flow.approveForm') }}</el-divider>
-                    <auto-form v-model="form" :items="approveItems" label-position="top" />
-                </div>
-
-                <div v-if="flowDef" class="h-75">
-                    <el-divider content-position="left">{{ $t('flow.approveNode') }}</el-divider>
+            <el-tab-pane :label="$t('flow.approveNode')" name="approveNode">
+                <!-- 画布在隐藏容器里量到的宽度是 0，因此只在页签激活时挂载 -->
+                <div v-if="flowDef && state.activeTab === 'approveNode'" class="h-75">
                     <FlowDesign disabled center :data="flowDef" />
                 </div>
+                <div v-else-if="!flowDef" class="empty-tip">{{ $t('flow.noFlowDiagram') }}</div>
             </el-tab-pane>
 
             <el-tab-pane :label="$t('flow.approvalRecord')" name="approvalRecord">
@@ -94,8 +93,14 @@
         </el-tabs>
 
         <template #footer v-if="props.instTaskId">
-            <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
-            <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+            <!-- 审批动作常驻底部：不随页签切换而消失，否则「填意见」和「点确定」分处两个页签 -->
+            <div class="approve-footer">
+                <auto-form v-model="form" :items="approveItems" label-position="top" />
+                <div class="approve-actions">
+                    <el-button @click="cancel()">{{ $t('common.cancel') }}</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">{{ $t('common.confirm') }}</el-button>
+                </div>
+            </div>
         </template>
     </el-drawer>
 </template>
@@ -112,6 +117,7 @@ import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus, ProcinstTaskStatus } from './enums';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import type { Procinst, ProcinstTask, HisProcinstOp, FlowNode, FlowDef } from './types';
+import { FLOW_DRAWER } from '@/views/flow/drawerSize';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
 const RedisRunCmdBiz = defineAsyncComponent(() => import('./flowbiz/redis/RedisRunCmdBiz.vue'));
@@ -131,6 +137,12 @@ const props = defineProps({
 
 const visible = defineModel<boolean>('visible', { default: false });
 
+// 本组件常驻复用（列表页只挂一份），构造期 props.instTaskId 还没赋值，所以默认页签必须每次打开重设：
+// 审批态先落在业务信息（那才是要判断的内容），纯查看详情从基本信息看起
+watch(visible, (opened) => {
+    if (opened) state.activeTab = props.instTaskId ? 'bizInfo' : 'basic';
+});
+
 //定义事件
 const emit = defineEmits(['cancel', 'val-change']);
 
@@ -141,6 +153,7 @@ const bizComponents = shallowReactive<Record<string, unknown>>({
 });
 
 const state = reactive({
+    // 初值只是占位：真正落在哪个页签由打开时的 instTaskId 决定（见下方 watch）
     activeTab: 'basic',
     procinst: {} as Procinst,
     flowDef: null as FlowDef | null,
@@ -240,7 +253,6 @@ const btnOk = async () => {
 
 const cancel = () => {
     visible.value = false;
-    state.activeTab = 'basic';
     emit('cancel');
 };
 
@@ -266,4 +278,21 @@ const getTaskStatusType = (status: number) => {
     return 'primary';
 };
 </script>
-<style lang="scss"></style>
+<style lang="scss">
+/* 审批区常驻底部：表单占满宽度、按钮右对齐，避免抽屉 footer 的默认居中把按钮挤到表单上方 */
+.approve-footer {
+    text-align: left;
+}
+
+.approve-footer .approve-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.empty-tip {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
+</style>

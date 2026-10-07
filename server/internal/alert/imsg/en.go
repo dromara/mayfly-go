@@ -86,4 +86,10 @@ var En = map[i18n.MsgId]string{
 	TmplAlertNotifyTitle:  "Alert - {{.ruleName}}",
 	TmplAlertRecoverName:  "Alert Recovery Template",
 	TmplAlertRecoverTitle: "Recovered - {{.ruleName}}",
+	TmplAlertNotifyBody: "[Alert Notification]\nRule: {{.ruleName}}\nResource: {{.resourceName}}\nMetric: {{.metric}}\n" +
+		"Current Value: {{.currentValue}}\nThreshold: {{.threshold}}\nPriority: {{.priority}}\n" +
+		"First Triggered: {{.firstTime}}\nLast Triggered: {{.lastTime}}\nTotal Triggers: {{.triggerCount}}",
+	TmplAlertRecoverBody: "[Alert Recovered]\nRule: {{.ruleName}}\nResource: {{.resourceName}}\nMetric: {{.metric}}\nPriority: {{.priority}}\n" +
+		"First Triggered: {{.firstTime}}\nRecovered At: {{.recoverTime}}\nDuration: {{.durationText}}\n" +
+		"Total Triggers: {{.triggerCount}}\nNotify Count: {{.notifyCount}}",
 }

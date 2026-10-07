@@ -311,7 +311,10 @@ const onCreate = () => openMember('create', undefined, props.ttl);
 const onEdit = (row: RedisKeyMember) => openMember('update', row);
 
 const onDelete = async (row: RedisKeyMember) => {
-    await props.store.deleteMembers([row]);
+    // 返回 false 表示操作者面对策略提醒选了「先不执行」：不给成功提示、也不刷新
+    if (!(await props.store.deleteMembers([row]))) {
+        return;
+    }
     Msg.deleteSuccess();
 };
 
@@ -320,7 +323,9 @@ const onBatchDelete = async () => {
     if (!rows.length) {
         return;
     }
-    await props.store.deleteMembers(rows);
+    if (!(await props.store.deleteMembers(rows))) {
+        return;
+    }
     Msg.deleteSuccess();
     onToggleBatch();
 };
@@ -351,7 +356,10 @@ const onSaveValue = async () => {
     const args: Record<string, string> = { ...toArgs(sideForm.value), [content.field]: viewerRef.value?.getContent() ?? '' };
     saving.value = true;
     try {
-        await props.store.saveMember(props.store.creating.value ? 'create' : 'update', args, null, props.ttl);
+        if (!(await props.store.saveMember(props.store.creating.value ? 'create' : 'update', args, null, props.ttl))) {
+            // 「先不执行」：内容与脏标记都原样留着，改完还能再提交
+            return;
+        }
         // 表格视角的提示由表单宿主负责，单值面板没有宿主，成功反馈在这里补上
         Msg.saveSuccess();
         dirty.value = false;

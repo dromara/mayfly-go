@@ -3,6 +3,7 @@
  */
 import { registerCommand, registerMenu, type TreeCommandCtx } from '@/views/ops/resource/tree';
 import type { DbNodeParams, DbTableNodeParams } from '../types';
+import { buildTablePage } from './contributors';
 import {
     DbKind,
     DbSchemaKind,
@@ -11,6 +12,7 @@ import {
     DbSqlKind,
     DbSqlMenuKind,
     DbObjectKind,
+    DbTableLoadMoreKind,
     ObjectKind,
     dbNodeParams,
     dbTableNodeParams,
@@ -101,7 +103,13 @@ registerCommand({
     txt: '',
     handler: async (ctx: TreeCommandCtx) => {
         const params = dbTableNodeParams<TableLeafParams>(ctx.node);
-        (await getDbOpTabCompInst(params, ctx.node.key))?.loadTableData({ id: params.id, nodeKey: ctx.node.key }, params.db, params.tableName);
+        (await getDbOpTabCompInst(params, ctx.node.key))?.loadTableData(
+            { id: params.id, nodeKey: ctx.node.key },
+            params.db,
+            params.tableName,
+            false,
+            ctx.node.labelRemark
+        );
     },
 });
 
@@ -143,7 +151,44 @@ registerCommand({
     txt: '',
     handler: async (ctx: TreeCommandCtx) => {
         const o = dbObjectNodeParams(ctx.node);
-        (await getDbOpTabCompInst(o, ctx.node.key))?.loadTableData({ id: o.id, nodeKey: ctx.node.key }, o.db, o.objName, true);
+        (await getDbOpTabCompInst(o, ctx.node.key))?.loadTableData({ id: o.id, nodeKey: ctx.node.key }, o.db, o.objName, true, ctx.node.labelRemark);
+    },
+});
+
+// 表名搜索结果「加载更多」：取下一页并增量追加到结果容器尾部，同时替换掉自身占位行（不重建已有子级）
+// in-flight 锁防同一页并发双击重复追加（锁粒度含 loaded：不同页互不阻塞，刷新后新页续载不被旧页飞行请求误挡）；
+// 发起前记录结果节点 loadSeq，回来后若已变（期间被刷新/折叠释放）则丢弃，避免把旧过滤词/旧页的数据追加进已重置的结果集
+const loadingResults = new Set<string>();
+registerCommand({
+    id: 'db.table.loadMore',
+    txt: 'db.loadMoreTables',
+    handler: async (ctx: TreeCommandCtx) => {
+        const resultsKey = ctx.node.params.resultsKey as string;
+        if (!resultsKey) {
+            return;
+        }
+        const resultsNode = ctx.tree.getNode(resultsKey);
+        if (!resultsNode) {
+            return;
+        }
+        const like = (ctx.node.params.like as string | undefined) ?? '';
+        const loaded = (ctx.node.params.loaded as number | undefined) ?? 0;
+        // 锁键含 loaded：同页(快速连点)互斥去重，异页(刷新后新续载)互不阻塞；数据正确性仍由下方 loadSeq 比对兑底
+        const lockKey = `${resultsKey}:${loaded}`;
+        if (loadingResults.has(lockKey)) {
+            return;
+        }
+        const seq = resultsNode.loadSeq ?? 0;
+        loadingResults.add(lockKey);
+        try {
+            const nodes = await buildTablePage(resultsNode, like, loaded);
+            if ((ctx.tree.getNode(resultsKey)?.loadSeq ?? 0) !== seq) {
+                return;
+            }
+            ctx.tree.appendChildren(resultsKey, nodes, { replaceKey: ctx.node.key });
+        } finally {
+            loadingResults.delete(lockKey);
+        }
     },
 });
 
@@ -183,3 +228,5 @@ registerMenu({ command: 'db.sql.delete', kinds: [DbSqlKind] });
 registerMenu({ command: 'db.object.data', kinds: [DbObjectKind], trigger: 'click', when: ({ node }) => node.params.objKind === ObjectKind.View });
 registerMenu({ command: 'db.object.props', kinds: [DbObjectKind], trigger: 'click', when: ({ node }) => node.params.objKind === ObjectKind.Sequence });
 registerMenu({ command: 'db.object.ddl', kinds: [DbObjectKind] });
+// 表搜索结果「加载更多」伪节点：单击续载
+registerMenu({ command: 'db.table.loadMore', kinds: [DbTableLoadMoreKind], trigger: 'click' });

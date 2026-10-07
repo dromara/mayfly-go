@@ -280,7 +280,9 @@ const edit = async (data: DbTransferTaskListVO | false) => {
 };
 
 const stop = async (id: number) => {
-    await useI18nConfirm('db.stopConfirm');
+    if (!(await useI18nConfirm('db.stopConfirm'))) {
+        return;
+    }
     await dbTransferApi.stopDbTransferTask.request({ taskId: id });
     Msg.operateSuccess();
     search();
@@ -295,7 +297,9 @@ const onOpenLog = (data: DbTransferTaskListVO, running = false) => {
 };
 
 const onReRun = async (data: DbTransferTaskListVO) => {
-    await useI18nConfirm('db.runConfirm');
+    if (!(await useI18nConfirm('db.runConfirm'))) {
+        return;
+    }
     try {
         await dbTransferApi.runDbTransferTask.request({ taskId: data.id });
         Msg.operateSuccess();
@@ -311,7 +315,9 @@ const onReRun = async (data: DbTransferTaskListVO) => {
 };
 
 const onVerify = async (data: DbTransferTaskListVO) => {
-    await useI18nConfirm('db.verifyConfirm');
+    if (!(await useI18nConfirm('db.verifyConfirm'))) {
+        return;
+    }
     try {
         await dbTransferApi.verifyDbTransferTask.request({ taskId: data.id });
         Msg.operateSuccess();
@@ -340,7 +346,9 @@ const updStatus = async (id: number, status: 1 | -1) => {
 
 const del = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferTaskListVO) => x.taskName).join('、'));
+        if (!(await useI18nDeleteConfirm(state.selectionData.map((x: DbTransferTaskListVO) => x.taskName).join('、')))) {
+            return;
+        }
         await dbTransferApi.deleteDbTransferTask.request({ taskId: state.selectionData.map((x: DbTransferTaskListVO) => x.id).join(',') });
         Msg.deleteSuccess();
         search();

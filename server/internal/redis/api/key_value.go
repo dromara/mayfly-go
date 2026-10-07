@@ -1,15 +1,16 @@
 package api
 
 import (
+	flowapp "mayfly-go/internal/flow/application"
 	"mayfly-go/internal/pkg/event"
 	"mayfly-go/internal/redis/api/form"
+	"mayfly-go/internal/redis/application"
 	"mayfly-go/internal/redis/application/keyvalue"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/imsg"
 	"mayfly-go/internal/redis/rdm"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )
@@ -19,6 +20,16 @@ const (
 	permDataSave = "redis:data:save"
 	permDataDel  = "redis:data:del"
 )
+
+// mustExec 断言资源操作结果。
+//
+// 带分流码的拦截（需提单 4001、需确认 4002）必须原样抛出：biz.ErrIsNil 会把任何错误重包成 code=400，
+// 码一丢，前端既判不出「需要确认」而弹不出确认框，也拿不到「提交工单」入口，
+// 只剩一句红色提示——而那句话还写着「确认后将直接执行」，等于给了个界面上完不成的承诺
+func mustExec(err error) {
+	flowapp.PreserveDecisionCode(err)
+	biz.ErrIsNil(err)
+}
 
 // 本文件的错误一律直接透出：视角处理器与应用服务给出的已是可读的业务文案（含 i18n 与 Redis 原始提示），
 // 再叠一层英文前缀会让提示变成「rename key error: 目标 key 已存在…」这种中英混排
@@ -63,8 +74,8 @@ func (r *Redis) KeyValues(rc *req.Ctx) {
 		Offset:  pageForm.Offset,
 		Size:    pageForm.Size,
 		Keyword: pageForm.Keyword,
-	})
-	biz.ErrIsNil(err)
+	}, application.WarnAckOf(pageForm.AckWarn))
+	mustExec(err)
 	rc.ResData = page
 }
 
@@ -97,8 +108,8 @@ func (r *Redis) PutKeyValue(rc *req.Ctx) {
 		Members: writeForm.Members,
 		Args:    writeForm.Args,
 		Ttl:     writeForm.Ttl,
-	})
-	biz.ErrIsNil(err)
+	}, application.WarnAckDirectOf(writeForm.AckWarn))
+	mustExec(err)
 	rc.ResData = res
 }
 
@@ -125,8 +136,8 @@ func (r *Redis) RunKeyOp(rc *req.Ctx) {
 		View: opForm.View,
 		Op:   opForm.Op,
 		Args: opForm.Args,
-	})
-	biz.ErrIsNil(err)
+	}, application.WarnAckDirectOf(opForm.AckWarn))
+	mustExec(err)
 	rc.ResData = res
 }
 
@@ -149,7 +160,7 @@ func (r *Redis) SetKeyTtl(rc *req.Ctx) {
 	r.requirePerm(rc, permDataSave)
 	r.publishResourceOpEvent(rc, ri)
 
-	biz.ErrIsNil(r.keyValueApp.SetKeyTtl(rc.MetaCtx, ri, ttlForm.Key, ttlForm.Ttl))
+	mustExec(r.keyValueApp.SetKeyTtl(rc.MetaCtx, ri, ttlForm.Key, ttlForm.Ttl, application.WarnAckDirectOf(ttlForm.AckWarn)))
 }
 
 // RenameKey 重命名 key
@@ -161,7 +172,7 @@ func (r *Redis) RenameKey(rc *req.Ctx) {
 	r.requirePerm(rc, permDataSave)
 	r.publishResourceOpEvent(rc, ri)
 
-	biz.ErrIsNil(r.keyValueApp.RenameKey(rc.MetaCtx, ri, renameForm.Key, renameForm.NewKey))
+	mustExec(r.keyValueApp.RenameKey(rc.MetaCtx, ri, renameForm.Key, renameForm.NewKey, application.WarnAckDirectOf(renameForm.AckWarn)))
 }
 
 // CopyKey 复制 key，可跨库
@@ -179,7 +190,7 @@ func (r *Redis) CopyKey(rc *req.Ctx) {
 	r.requirePerm(rc, permDataSave)
 	r.publishResourceOpEvent(rc, ri)
 
-	biz.ErrIsNil(r.keyValueApp.CopyKey(rc.MetaCtx, ri, copyForm.Key, copyForm.NewKey, db, copyForm.Replace))
+	mustExec(r.keyValueApp.CopyKey(rc.MetaCtx, ri, copyForm.Key, copyForm.NewKey, db, copyForm.Replace, application.WarnAckDirectOf(copyForm.AckWarn)))
 }
 
 // DeleteKeys 批量删除 key（POST 而非 DELETE：key 本身可能含逗号，只能按 JSON 数组传输）
@@ -191,8 +202,8 @@ func (r *Redis) DeleteKeys(rc *req.Ctx) {
 	r.requirePerm(rc, permDataDel)
 	r.publishResourceOpEvent(rc, ri)
 
-	delNum, err := r.keyValueApp.DeleteKeys(rc.MetaCtx, ri, keysForm.Keys)
-	biz.ErrIsNil(err)
+	delNum, err := r.keyValueApp.DeleteKeys(rc.MetaCtx, ri, keysForm.Keys, application.WarnAckDirectOf(keysForm.AckWarn))
+	mustExec(err)
 	rc.ResData = collx.Kvs("delNum", delNum)
 }
 
@@ -215,7 +226,7 @@ func (r *Redis) publishResourceOpEvent(rc *req.Ctx, ri *rdm.RedisConn) {
 	if len(ri.Info.CodePath) == 0 {
 		return
 	}
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, ri.Info.CodePath[0])
+	event.PublishResourceOp(rc.MetaCtx, ri.Info.CodePath)
 }
 
 // isWriteViewOp 判断视角操作是否为写操作，以描述符的声明为唯一真源

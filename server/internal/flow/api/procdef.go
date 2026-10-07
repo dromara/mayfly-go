@@ -41,6 +41,12 @@ func (p *Procdef) ReqConfs() *req.Confs {
 
 		req.NewGet("/flowdef/:id", p.GetFlowDef),
 
+		req.NewGet("/policy-schema", p.GetPolicySchema),
+
+		req.NewGet("/policy-history/:id", p.GetPolicyHistory),
+
+		req.NewPost("/policy-simulate", p.SimulatePolicy),
+
 		req.NewDelete(":id", p.Delete).Log(req.NewLogSaveI(imsg.LogProcdefDelete)).RequiredPermissionCode("flow:procdef:del"),
 	}
 
@@ -88,12 +94,42 @@ func (p *Procdef) GetProcdef(rc *req.Ctx) {
 
 func (a *Procdef) Save(rc *req.Ctx) {
 	form, procdef := rc.BindJsonAndCopyTo[form.Procdef, entity.Procdef]()
+	// 触发策略为嵌套结构，显式赋值避免字段拷贝展开后与请求体不一致
+	procdef.TriggerPolicy = form.TriggerPolicy
 	rc.ReqParam = form
 	biz.ErrIsNil(a.procdefApp.SaveProcdef(rc.MetaCtx, &dto.SaveProcdef{
 		Procdef:   procdef,
 		MsgTmplId: form.MsgTmplId,
 		CodePaths: form.CodePaths,
 	}))
+}
+
+// GetPolicyHistory 返回某流程定义的策略变更时间线（最新的在前）
+func (p *Procdef) GetPolicyHistory(rc *req.Ctx) {
+	res, err := p.procdefApp.ListPolicyHistory(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")), policyHistoryLimit)
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
+// policyHistoryLimit 时间线一次返回的变更记录条数
+const policyHistoryLimit = 50
+
+// GetPolicySchema 下发场景的字段字典、检查项与可复用条件组，驱动前端策略与条件构建器
+func (p *Procdef) GetPolicySchema(rc *req.Ctx) {
+	rc.ResData = p.procdefApp.PolicySchema(rc.MetaCtx)
+}
+
+func (p *Procdef) SimulatePolicy(rc *req.Ctx) {
+	reqForm := rc.BindJson[form.ProcdefSimulate]()
+	rc.ReqParam = reqForm
+
+	res, err := p.procdefApp.SimulateTrigger(rc.MetaCtx, &dto.SimulateTrigger{
+		BizType: reqForm.BizType,
+		Policy:  reqForm.Policy,
+		Raw:     reqForm.Raw,
+	})
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (a *Procdef) SaveFlowDef(rc *req.Ctx) {

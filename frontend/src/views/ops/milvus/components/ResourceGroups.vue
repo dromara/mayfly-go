@@ -106,7 +106,9 @@ const handleDescribe = async (row: { name: string }) => {
 };
 
 const handleDrop = async (row: { name: string }) => {
-    await useI18nConfirm('milvus.confirmDeleteResourceGroup', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmDeleteResourceGroup', { name: row.name }))) {
+        return;
+    }
     await milvusApi.dropResourceGroup(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();

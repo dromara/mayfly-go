@@ -104,15 +104,21 @@ func (pd *PgsqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	return tables, nil
 }
 
-// SearchTables 服务端按表名 LIKE 下推 + 限量（dbi.TableSearcher）：超大 schema 无需先拉全量再过滤。
-// LIKE 模式与 LIMIT 均为绑定参数；用户输入的 %_\ 经转义后按字面「包含」匹配。
+// SearchTables 服务端按表名 ILIKE 下推 + 限量（dbi.TableSearcher）：超大 schema 无需先拉全量再过滤。
+// 用 ILIKE 而非 LIKE：pg 的 LIKE 区分大小写，会与 mysql 下推/回退路径的大小写不敏感口径分叉。
+// LIKE 模式与 LIMIT/OFFSET 均为绑定参数；用户输入的 %_\ 经转义后按字面「包含」匹配。
 // kingbaseEs/gauss/vastbase 复用 PgsqlMetadata，同样获得下推能力。
-func (pd *PgsqlMetadata) SearchTables(like string, limit int) ([]dbi.Table, error) {
-	sql := metaSQL.Get(PGSQL_TABLE_SEARCH_KEY)
+func (pd *PgsqlMetadata) SearchTables(like string, limit int, offset int) ([]dbi.Table, error) {
+	// 模板尾部不应带分号（下推会再拼 LIMIT/OFFSET，分号会使其变成非法多语句）；防御性裁剪
+	sql := strings.TrimRight(metaSQL.Get(PGSQL_TABLE_SEARCH_KEY), " \t\r\n;")
 	args := []any{"%" + dbi.EscapeLikeWildcards(like) + "%"}
 	if limit > 0 {
 		sql += " LIMIT $2"
 		args = append(args, limit)
+		if offset > 0 {
+			sql += " OFFSET $3"
+			args = append(args, offset)
+		}
 	}
 	_, res, err := pd.di.Query(sql, args...)
 	if err != nil {

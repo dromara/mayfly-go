@@ -14,8 +14,6 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -37,11 +35,11 @@ import (
 var safeShellArgRegexp = regexp.MustCompile(`^[a-zA-Z0-9_\-./:+*@?=]+$`)
 
 type Machine struct {
-	machineApp          application.Machine        `inject:"T"`
-	machineTermOpApp    application.MachineTermOp  `inject:"T"`
-	machineCmdConfApp   application.MachineCmdConf `inject:"T"`
-	tagTreeApp          tagapp.TagTreeService      `inject:"T"`
-	resourceAuthCertApp tagapp.ResourceAuthCert    `inject:"T"`
+	machineApp          application.Machine          `inject:"T"`
+	machineTermOpApp    application.MachineTermOp    `inject:"T"`
+	machineBatchExecApp application.MachineBatchExec `inject:"T"`
+	tagTreeApp          tagapp.TagTreeService        `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert      `inject:"T"`
 }
 
 func (m *Machine) ReqConfs() *req.Confs {
@@ -79,6 +77,9 @@ func (m *Machine) ReqConfs() *req.Confs {
 
 		// 非交互式命令执行（适合 agent/CLI 使用）
 		req.NewPost(":machineId/:ac/run-cmd", m.RunCmd).Log(req.NewLogSaveI(imsg.LogMachineTerminalOp)),
+
+		// 多机批量命令执行
+		req.NewPost("batch-run-cmd", m.BatchRunCmd).Log(req.NewLogSaveI(imsg.LogMachineBatchRunCmd)).RequiredPermissionCode("machine:terminal"),
 	}
 
 	return req.NewConfs("machines", reqs[:]...)
@@ -272,7 +273,7 @@ func (m *Machine) WsSSH(rc *req.Ctx) {
 	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.CodePath[0])
+	event.PublishResourceOp(rc.MetaCtx, cli.Info.CodePath)
 
 	cols := rc.QueryIntDefault("cols", 80)
 	rows := rc.QueryIntDefault("rows", 32)
@@ -424,18 +425,9 @@ func (m *Machine) RunCmd(rc *req.Ctx) {
 
 	biz.ErrIsNilAppendErr(m.tagTreeApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
-	// 命令安全过滤：检查是否匹配管理员配置的命令过滤规则（MachineCmdConf）
-	// 与 AI Agent、Web 终端共享同一套命令分析器（mcm.CmdAnalyzer），确保安全策略一致
-	cmdConfs := m.machineCmdConfApp.GetCmdConfsByMachineTags(rc.MetaCtx, cli.Info.CodePath...)
-	if len(cmdConfs) > 0 {
-		filters := make([]*mcm.CmdFilterRule, 0, len(cmdConfs))
-		for _, mc := range cmdConfs {
-			filters = append(filters, &mcm.CmdFilterRule{CmdRegexp: mc.CmdRegexp, Strategy: mc.Stratege})
-		}
-		if matched := mcm.MatchCmdFilters(form.Cmd, filters); matched != nil {
-			biz.ErrIsNilAppendErr(errorx.NewBizI(rc.MetaCtx, imsg.TerminalCmdDisable), "%s")
-		}
-	}
+	// 命令安全策略：与 Web 终端、AI Agent 共用同一个前置校验入口（流程定义触发策略）
+	warnNotice, cmdErr := application.CheckMachineCmd(rc.MetaCtx, cli.Info.CodePath, form.Cmd)
+	biz.ErrIsNil(cmdErr)
 
 	rc.ReqParam = collx.Kvs("machine", cli.Info, "cmd", form.Cmd)
 
@@ -448,8 +440,27 @@ func (m *Machine) RunCmd(rc *req.Ctx) {
 	result := map[string]interface{}{
 		"output": res,
 	}
+	// 「仅提醒」命中不是失败，不能混进 output 影响脚本解析，单独立一个字段给调用方展示
+	if warnNotice != "" {
+		result["policyNotice"] = warnNotice
+	}
 	if err != nil {
 		result["error"] = err.Error()
 	}
 	rc.ResData = result
+}
+
+// BatchRunCmd 多机批量命令执行：单台失败/超时不影响他台，逐台结果聚合返回
+func (m *Machine) BatchRunCmd(rc *req.Ctx) {
+	type BatchRunCmdForm struct {
+		MachineIds []uint64 `json:"machineIds" binding:"required"`
+		Cmd        string   `json:"cmd" binding:"required"`
+	}
+	form := rc.BindJson[BatchRunCmdForm]()
+
+	rc.ReqParam = collx.Kvs("machineIds", form.MachineIds, "cmd", form.Cmd)
+
+	res, err := m.machineBatchExecApp.RunBatchCmd(rc.MetaCtx, form.MachineIds, form.Cmd)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }

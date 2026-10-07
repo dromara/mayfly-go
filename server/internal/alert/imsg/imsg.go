@@ -98,8 +98,12 @@ const (
 	ErrNotifyPolicyStatusInvalid
 
 	// ---- 默认通知模板 ----
+	// Body 为模板正文骨架：text/template 占位符（{{.ruleName}} 等）在 i18n 无参调用时
+	// 原样返回，由发送链路的模板渲染填充，因此可安全地随语言切换
 	TmplAlertNotifyName
 	TmplAlertNotifyTitle
 	TmplAlertRecoverName
 	TmplAlertRecoverTitle
+	TmplAlertNotifyBody
+	TmplAlertRecoverBody
 )

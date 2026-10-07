@@ -97,7 +97,9 @@ const submitCreate = async () => {
 };
 
 const handleDrop = async (row: IPartition) => {
-    await useI18nConfirm('milvus.confirmDeletePartition', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmDeletePartition', { name: row.name }))) {
+        return;
+    }
     await milvusApi.dropPartition(props.milvusId, milvusStore.selectedCollection, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();

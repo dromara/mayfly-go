@@ -48,16 +48,31 @@
                         <el-button class="console-copy" text size="small" icon="DocumentCopy" :aria-label="$t('common.copy')" @click="onCopy(item)" />
                     </el-tooltip>
                 </div>
+                <!-- 黄色行是「仅提醒」命中的回显：命令已照常执行，但管理员配的规则必须让操作者看见 -->
+                <div v-if="item.notice" class="console-notice text-xs">{{ item.notice }}</div>
                 <pre class="console-result font-mono text-xs">{{ item.error || item.output }}</pre>
+                <!-- 仅当命令是「需提交工单审批」被拦下时才给入口；被管理员禁止执行的命令提单也不会执行 -->
+                <el-button v-if="item.needApproval" link type="primary" class="mt-1" @click="onSubmitTicket(item)">
+                    {{ $t('flow.submitTicket') }}
+                </el-button>
             </div>
         </el-scrollbar>
+
+        <!-- 提单抽屉挂在根节点并复用「发起流程」：命令文本与实例已带过去 -->
+        <WorkTicketSubmit ref="ticketRef" :biz-type="FlowBizType.RedisRunWriteCmd.value" hidden />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, ref } from 'vue';
 import { copyToClipboard } from '@/common/utils/string';
+import { isNeedWorkTicketError, isWarnAckError } from '@/common/request';
+import { useTemplateRef } from 'vue';
+import WorkTicketSubmit from '@/views/flow/components/WorkTicketSubmit.vue';
+import { FlowBizType } from '@/views/flow/enums';
+import type { TicketPrefill } from '@/views/flow/types';
 import { useI18nConfirm } from '@/hooks/useI18n';
+import { confirmWarnAck } from '@/views/flow/warnAck';
 import type { RedisCommandSpec } from '../types';
 import type { RedisInst } from '../redis';
 import { commandNeedsConfirm, editingToken, isKeyArgument, suggestCommands, suggestKeys, splitCommand, type RedisConsoleSuggestion } from './console';
@@ -72,7 +87,7 @@ const props = defineProps<{
     hints: string[];
 }>();
 
-type ConsoleEntry = { cmd: string; output: string; error: string };
+type ConsoleEntry = { cmd: string; output: string; error: string; needApproval?: boolean; notice?: string };
 
 const cmdLine = ref('');
 const running = ref(false);
@@ -82,6 +97,23 @@ const history = ref<ConsoleEntry[]>([]);
 const commands = ref<RedisCommandSpec[]>(cachedCommandCatalog(props.redis.id) ?? []);
 
 const commandSpecOf = (name: string) => commands.value.find((item) => item.name === name.toUpperCase());
+
+// 被策略要求审批的命令直接带进提单表单，用户不必自己切页面重敲
+const ticketRef = useTemplateRef<{ open: (prefill?: TicketPrefill) => void }>('ticketRef');
+
+const onSubmitTicket = (item: ConsoleEntry) => {
+    // redisCode 决定这张工单归哪个流程审批：不带它就解析不出审批节点，确定按钮会一直不可点
+    ticketRef.value?.open({
+        bizForm: {
+            id: props.redis.id,
+            db: props.redis.db,
+            cmd: item.cmd,
+            redisCode: props.redis.code,
+            redisName: props.redis.name,
+            tagPath: props.redis.tagPath,
+        },
+    });
+};
 
 onMounted(async () => {
     if (commands.value.length) {
@@ -140,25 +172,58 @@ const onRun = async () => {
         return;
     }
     if (commandNeedsConfirm(commandSpecOf(args[0]), args[0])) {
-        try {
-            await useI18nConfirm('redis.consoleDangerConfirm', { cmd: line });
-        } catch {
-            // 取消即放弃执行：确认框被 reject 是正常交互路径，不能冒到控制台变成一条 error
+        if (!(await useI18nConfirm('redis.consoleDangerConfirm', { cmd: line }))) {
+            // 取消或关掉弹窗：不继续后续操作
             return;
         }
     }
 
     running.value = true;
+    const outcome = await runAndRecord(line, args);
+    if (outcome.kind == 'warn') {
+        // 命中「仅提醒」：此刻命令还没执行，这是唯一能改走审批的时机，交给确认框分流
+        await onWarnAck(line, args, outcome.message);
+    }
+};
+
+// runAndRecord 发一条命令并落成历史条目：首次执行与「确认后重试」共用同一段记录逻辑。
+// 条目形状（提单标记、提醒行）只在这里定义一次，否则重试分支很容易漏掉主分支刚补的标记
+async function runAndRecord(
+    line: string,
+    args: (string | number)[],
+    opts: { ackWarn?: boolean; notice?: string } = {}
+): Promise<{ kind: 'ok' } | { kind: 'warn'; message: string } | { kind: 'failed' }> {
+    running.value = true;
     try {
-        const result = await props.redis.runCmd<unknown>(args);
-        history.value.unshift({ cmd: line, output: formatOpResult(result), error: '' });
+        const result = await props.redis.runCmd<unknown>(args, opts.ackWarn === true);
+        history.value.unshift({ cmd: line, output: formatOpResult(result), error: '', notice: opts.notice });
         cmdLine.value = '';
+        return { kind: 'ok' };
     } catch (error) {
-        // 命令失败也要留在历史里，否则用户看不到服务端返回的错误原因
-        history.value.unshift({ cmd: line, output: '', error: (error as Error).message });
+        // 命令失败也要留在历史里，否则用户看不到服务端返回的错误原因；
+        // 分流按响应码而不是提示文案：文案会随语言或措辞调整，给错方向比不给入口更糟
+        const message = (error as Error).message;
+        if (isWarnAckError(error)) {
+            // 需要确认：命令未执行，先不当失败记进历史，等确认结果出来再记
+            return { kind: 'warn', message };
+        }
+        history.value.unshift({ cmd: line, output: '', error: message, needApproval: isNeedWorkTicketError(error) });
+        return { kind: 'failed' };
     } finally {
         running.value = false;
     }
+}
+
+// onWarnAck 「仅提醒」命中后的三态确认：直接执行（带确认重试一次）、提交工单（命令保持未执行）、
+// 或先不动。后两者都靠同一个条目表达，needApproval 决定提单入口出不出现
+const onWarnAck = async (line: string, args: (string | number)[], message: string) => {
+    const choice = await confirmWarnAck(message);
+    if (choice === 'run') {
+        // 确认后真跑起来了，再把命中原因留在条目上：否则「踩了哪条规则」只存在于已被点掉的弹窗里
+        await runAndRecord(line, args, { ackWarn: true, notice: message });
+        return;
+    }
+    history.value.unshift({ cmd: line, output: '', error: '', notice: message, needApproval: choice === 'ticket' });
 };
 
 const onCopy = async (item: ConsoleEntry) => {
@@ -286,6 +351,14 @@ const onCopy = async (item: ConsoleEntry) => {
 
 .console-item--error .console-result {
     color: var(--el-color-danger);
+}
+
+/* 「仅提醒」回显：命令已执行成功，颜色必须区别于红色的失败/拒绝信息 */
+.console-notice {
+    color: var(--el-color-warning);
+    margin-bottom: 2px;
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 @media (prefers-reduced-motion: reduce) {

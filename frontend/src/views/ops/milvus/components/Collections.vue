@@ -211,13 +211,17 @@ const handleDescribe = async (row: ICollection) => {
 
 // 点击加载状态 tag - 未加载时提示加载
 const handleLoadClick = async (row: ICollection) => {
-    await useI18nConfirm('milvus.confirmLoadCollection', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmLoadCollection', { name: row.name }))) {
+        return;
+    }
     handleLoad(row);
 };
 
 // 点击加载状态 tag - 已加载时提示释放
 const handleReleaseClick = async (row: ICollection) => {
-    await useI18nConfirm('milvus.confirmReleaseCollection', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmReleaseCollection', { name: row.name }))) {
+        return;
+    }
     handleRelease(row);
 };
 
@@ -246,7 +250,9 @@ const handleRelease = (row: ICollection) => {
 };
 
 const handleDrop = async (row: ICollection) => {
-    await useI18nConfirm('milvus.confirmDeleteCollection', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmDeleteCollection', { name: row.name }))) {
+        return;
+    }
 
     await milvusApi.dropCollection(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
@@ -277,7 +283,9 @@ const submitAddAlias = async () => {
 };
 
 const handleDeleteAlias = async (row: ICollection, alias: string) => {
-    await useI18nConfirm('milvus.confirmDeleteAlias', { name: alias });
+    if (!(await useI18nConfirm('milvus.confirmDeleteAlias', { name: alias }))) {
+        return;
+    }
 
     try {
         await milvusApi.dropAlias(props.milvusId, alias);

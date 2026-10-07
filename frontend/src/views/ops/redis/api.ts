@@ -7,7 +7,6 @@ import type {
     RedisKeysForm,
     RedisTargetParam,
     RedisKeyRenameForm,
-    RedisKeySummary,
     RedisKeyTtlForm,
     RedisListParam,
     RedisMemberPage,
@@ -44,9 +43,6 @@ export const redisApi = {
 
     /** 视角扩展操作（集合运算、位统计、GEO 检索等） */
     runKeyOp: Api.newPost<unknown, RedisViewOpForm>('/redis/{id}/{db}/key-op'),
-
-    /** key 列表批量摘要（类型与过期时间），一次管道请求覆盖整棵树 */
-    keySummary: Api.newPost<RedisKeySummary[], RedisKeysForm>('/redis/{id}/{db}/key-summary'),
 
     setKeyTtl: Api.newPut<void, RedisKeyTtlForm>('/redis/{id}/{db}/key-ttl'),
     renameKey: Api.newPut<void, RedisKeyRenameForm>('/redis/{id}/{db}/key-rename'),

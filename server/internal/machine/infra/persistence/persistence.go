@@ -12,4 +12,6 @@ func InitIoc() {
 	ioc.Register(newMachineCronJobExecRepo())
 	ioc.Register(newMachineTermOpRepoImpl())
 	ioc.Register(newMachineCmdConfRepo())
+	ioc.Register(newMachineHostKeyRepo())
+	ioc.Register(newMachineMetricRepo())
 }

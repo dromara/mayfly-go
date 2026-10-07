@@ -68,17 +68,35 @@
                 </el-table>
             </el-col>
         </el-row>
+
+        <el-divider />
+        <div class="mb-2 flex items-center justify-between">
+            <span style="font-size: 16px; font-weight: 700">{{ $t('machine.metricTrend') }}</span>
+            <el-radio-group v-model="state.trendRange" size="small" @change="loadTrend">
+                <el-radio-button value="1h">{{ $t('machine.last1h') }}</el-radio-button>
+                <el-radio-button value="24h">{{ $t('machine.last24h') }}</el-radio-button>
+                <el-radio-button value="7d">{{ $t('machine.last7d') }}</el-radio-button>
+            </el-radio-group>
+        </div>
+        <el-row :gutter="20">
+            <el-col :lg="12" :md="12">
+                <ECharts height="240" :option="state.trendOption" />
+            </el-col>
+            <el-col :lg="12" :md="12">
+                <ECharts height="240" :option="state.netTrendOption" />
+            </el-col>
+        </el-row>
     </el-dialog>
 </template>
 
 <script lang="ts" setup>
 import { toRefs, reactive, watch, nextTick } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
-import { machineApi } from './api';
+import { machineApi, metricApi } from './api';
 import ECharts from '@/components/echarts/ECharts.vue';
 import { ECOption } from '@/components/echarts/config';
 import { useI18n } from 'vue-i18n';
-import type { MachineStats, MachineNetIntfInfo } from './types';
+import type { MachineStats, MachineNetIntfInfo, MachineMetric } from './types';
 
 const { t } = useI18n();
 
@@ -98,6 +116,9 @@ const state = reactive({
     netInter: [] as (MachineNetIntfInfo & { name: string })[],
     memOption: {} as ECOption,
     cpuOption: {} as ECOption,
+    trendRange: '24h',
+    trendOption: {} as ECOption,
+    netTrendOption: {} as ECOption,
 });
 
 const { stats, netInter } = toRefs(state);
@@ -112,6 +133,7 @@ watch(
         if (val) {
             await setStats();
             initCharts();
+            loadTrend();
         }
     },
     { immediate: true }
@@ -120,6 +142,78 @@ watch(
 const onRefresh = async () => {
     await setStats();
     initCharts();
+    loadTrend();
+};
+
+// 趋势时间范围（毫秒）
+const RANGE_MS: Record<string, number> = { '1h': 3600_000, '24h': 86_400_000, '7d': 604_800_000 };
+
+// 加载指标历史并渲染趋势图
+const loadTrend = async () => {
+    const end = Date.now();
+    const start = end - (RANGE_MS[state.trendRange] ?? RANGE_MS['24h']);
+    const list = (await metricApi.range.request({ id: machineId.value as number, start, end })) || [];
+    renderTrend(list);
+};
+
+const renderTrend = (list: MachineMetric[]) => {
+    const times = list.map((m) => new Date(m.collectTime).toLocaleTimeString());
+
+    // 响应经 json-bigint(storeAsString) 解析后，长小数会回传成字符串（TS 的 number 声明不可信），
+    // 直接调 .toFixed 会抛错并让整张趋势图静默空白，故所有数值先收敛为 number
+    const num = (v: unknown) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    state.trendOption = {
+        title: { text: t('machine.usageTrend'), textStyle: { fontSize: 15 } },
+        tooltip: { trigger: 'axis', valueFormatter: (v) => `${Number(v).toFixed(1)}%` },
+        // 标题默认居中置顶，图例若用百分比 top 会压到标题行；改用像素把图例放到标题下方并同步下移 grid，
+        // 且与标题/绘图区各留足间距，避免三者贴在一起
+        legend: { top: 44 },
+        grid: { left: 40, right: 20, bottom: 30, top: 74 },
+        xAxis: { type: 'category', data: times },
+        yAxis: { type: 'value', max: 100 },
+        series: [
+            { name: 'CPU', type: 'line', smooth: true, showSymbol: false, data: list.map((m) => Number(num(m.cpuUsage).toFixed(1))) },
+            { name: t('machine.memory'), type: 'line', smooth: true, showSymbol: false, data: list.map((m) => Number(num(m.memUsage).toFixed(1))) },
+            { name: t('machine.disk'), type: 'line', smooth: true, showSymbol: false, data: list.map((m) => Number(num(m.diskUsage).toFixed(1))) },
+        ],
+    };
+
+    // 网络速率：相邻点累计字节差分 / 间隔秒 -> KB/s
+    const rx: number[] = [];
+    const tx: number[] = [];
+    for (let i = 0; i < list.length; i++) {
+        if (i === 0) {
+            rx.push(0);
+            tx.push(0);
+            continue;
+        }
+        const dt = (new Date(list[i].collectTime).getTime() - new Date(list[i - 1].collectTime).getTime()) / 1000;
+        if (dt <= 0) {
+            rx.push(0);
+            tx.push(0);
+            continue;
+        }
+        rx.push(Number((Math.max(0, num(list[i].netRx) - num(list[i - 1].netRx)) / dt / 1024).toFixed(1)));
+        tx.push(Number((Math.max(0, num(list[i].netTx) - num(list[i - 1].netTx)) / dt / 1024).toFixed(1)));
+    }
+
+    state.netTrendOption = {
+        title: { text: t('machine.netRate'), textStyle: { fontSize: 15 } },
+        tooltip: { trigger: 'axis', valueFormatter: (v) => `${Number(v).toFixed(1)} KB/s` },
+        // 同 trendOption：图例像素定位避开居中标题行并留足间距
+        legend: { top: 44 },
+        grid: { left: 55, right: 20, bottom: 30, top: 74 },
+        xAxis: { type: 'category', data: times },
+        yAxis: { type: 'value' },
+        series: [
+            { name: t('machine.receive'), type: 'line', smooth: true, showSymbol: false, data: rx },
+            { name: t('machine.send'), type: 'line', smooth: true, showSymbol: false, data: tx },
+        ],
+    };
 };
 
 const initMemStats = () => {

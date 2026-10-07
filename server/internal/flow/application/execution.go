@@ -96,8 +96,10 @@ func (e *executionAppImpl) CreateExecution(ctx context.Context, procinst *entity
 }
 
 func (e *executionAppImpl) ContinueExecution(ctx *ExecutionCtx) error {
-	// 合并流程实例与执行流变量，执行流变量优先级高
-	vars := collx.MapMerge(ctx.ProcinsVars, ctx.ExecutionVars)
+	// 合并流程实例与执行流变量，执行流变量优先级高；再叠加本次操作产生的事实（如审批结果）：
+	// 连线条件最常用的就是「通过走这条、驳回走那条」，而这些事实只存在于操作上下文里，
+	// 不并进来后续判定就只能看到流程级的变量
+	vars := collx.MapMerge(ctx.ProcinsVars, ctx.ExecutionVars, ctx.OpExtra)
 
 	nextNode, err := ctx.GetNextNode(vars)
 	if err != nil {

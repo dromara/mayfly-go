@@ -6,13 +6,19 @@ import type { PageParam, PageResult } from '@/types/common';
 import { createUploadFileNotification, registerUploadFileAborter } from '@/components/system-message/machine/machine-file-upload-progress';
 import { createUploadFolderNotification, registerUploadFolderAborter } from '@/components/system-message/machine/machine-folder-upload-progress';
 import type {
+    BatchCmdResult,
+    BatchFileResult,
+    DiskAnalysisResult,
     MachineCmdConfVO,
     MachineCronJobExec,
     MachineCronJobVO,
     MachineFileInfo,
     MachineFileVO,
     MachineGroupInfo,
+    MachineHealth,
+    MachineHostKeyVO,
     MachineListParam,
+    MachineMetric,
     MachineScriptVO,
     MachineStats,
     MachineUserInfo,
@@ -25,7 +31,6 @@ export const machineApi = {
     // 获取权限列表
     list: Api.newGet<PageResult<MachineVO>, MachineListParam>('/machines'),
     getByCodes: Api.newGet<SimpleMachineVO[]>('/machines/simple'),
-    tagList: Api.newGet<MachineVO[]>('/machines/tags'),
     getMachinePwd: Api.newGet<Record<string, string>>('/machines/{id}/pwd'),
     info: Api.newGet<Record<string, unknown>>('/machines/{id}/sysinfo'),
     stats: Api.newGet<MachineStats>('/machines/{id}/stats'),
@@ -86,6 +91,51 @@ export const cmdConfApi = {
     delete: Api.newDelete<void>('/machine/security/cmd-confs/{id}'),
 };
 
+export const hostKeyApi = {
+    list: Api.newGet<PageResult<MachineHostKeyVO>, PageParam & { hostAddr?: string }>('/machines/host-keys'),
+    // 撤销信任后下次连接重新走首次信任流程（用于主机重装/换钥后的指纹更新）
+    del: Api.newDelete<void>('/machines/host-keys/{ids}'),
+};
+
+export const batchExecApi = {
+    // 多机批量命令执行：单台失败/超时不影响他台，逐台结果聚合返回
+    run: Api.newPost<BatchCmdResult[], { machineIds: number[]; cmd: string }>('/machines/batch-run-cmd'),
+};
+
+export const batchFileApi = {
+    // 多机批量文件分发：文件先上传至平台文件服务得到 fileKey，再分发到各机目标目录
+    dispatch: Api.newPost<BatchFileResult[], { machineIds: number[]; fileKey: string; remotePath: string }>('/machines/batch-file'),
+};
+
+/**
+ * 将本地文件上传至平台文件服务，返回 fileKey。
+ *
+ * 批量分发需先把文件落库再逐台重开读流（io.Reader 单次消费），故与分发解耦；
+ * 走 /sys/files/upload（token 经 query 传递，与其他上传一致）
+ */
+export async function uploadFileToStore(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch(`${config.baseApiUrl}/sys/files/upload?${joinClientParams()}`, { method: 'POST', body: formData });
+    const json = await resp.json();
+    if (json.code !== 200) {
+        throw new Error(json.msg || 'upload failed');
+    }
+    return json.data as string;
+}
+
+export const metricApi = {
+    // 单机指标趋势点：start/end 为 unix 毫秒，缺省后端取最近 24 小时
+    range: Api.newGet<MachineMetric[], { id: number; start?: number; end?: number }>('/machines/{id}/metrics'),
+    // 全机器最新健康态（按登录账号可访问范围）
+    healthOverview: Api.newGet<MachineHealth[]>('/machines/health-overview'),
+};
+
+export const diskApi = {
+    // 分析指定机器某路径下的目录占用（深度受限、超时兜底）
+    analyze: Api.newPost<DiskAnalysisResult, { machineId: number; path: string; depth: number }>('/machines/{machineId}/disk-analyze'),
+};
+
 /**
  * 获取终端 WebSocket URL
  */
@@ -109,13 +159,7 @@ const FILE_DOWNLOAD_PATH = '/machines/{machineId}/files/{fileId}/download';
  * 下载需要走「另存为」而非 XHR，因此端点路径与查询参数在此集中拼装，
  * 调用方不再手写 URL；参数经 URLSearchParams 编码，含空格或中文的路径不会被截断。
  */
-export function buildFileDownloadUrl(params: {
-    machineId: number;
-    fileId: number;
-    path: string;
-    authCertName?: string;
-    protocol: number;
-}): string {
+export function buildFileDownloadUrl(params: { machineId: number; fileId: number; path: string; authCertName?: string; protocol: number }): string {
     const query = new URLSearchParams({
         path: params.path,
         machineId: String(params.machineId),

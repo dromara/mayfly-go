@@ -104,6 +104,9 @@ export default {
         mongoDataOpBase: 'Mongo-数据操作-基本权限',
         mongoDataOpSave: 'Mongo-数据操作-数据保存',
         mongoDataOpDelete: 'Mongo-数据操作-数据删除',
+        mongoDdlSave: 'Mongo-结构变更（建集合/索引）',
+        mongoDdlDel: 'Mongo-结构销毁（删集合/库/索引）',
+        mongoCmdAdmin: 'Mongo-服务器管理（账号/角色/参数）',
         mongoManage: 'Mongo管理',
         mongoManageBase: 'Mongo-管理-基本权限',
 
@@ -117,6 +120,9 @@ export default {
         flowProcDef: '流程定义',
         flowProcDefSave: '保存流程定义',
         flowProcDefDelete: '删除流程定义',
+        flowRuleSegment: '流程条件组',
+        flowRuleSegmentSave: '保存条件组',
+        flowRuleSegmentDel: '删除条件组',
 
         msgManage: '消息',
         channel: '消息渠道',

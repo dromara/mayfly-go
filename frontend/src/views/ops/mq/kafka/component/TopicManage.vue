@@ -441,7 +441,9 @@ const cancelViewTopicPartitions = () => {
 };
 
 const handleDeleteTopic = async (topic: KafkaTopicView) => {
-    await useI18nDeleteConfirm(`Topic: ${topic.name}`);
+    if (!(await useI18nDeleteConfirm(`Topic: ${topic.name}`))) {
+        return;
+    }
     try {
         await mqApi.kafkaTopicDelete.request({
             id: props.kafkaId,

@@ -2,6 +2,7 @@ import { exportExcel } from '@/common/utils/export';
 
 export default {
     db: {
+        needApprovalTip: '{count} statement(s) need approval, submit them one by one',
         // db instance
         dbManage: 'DB Management',
         port: 'Port',
@@ -47,10 +48,11 @@ export default {
         procedure: 'Procedures',
         function: 'Functions',
         trigger: 'Triggers',
-        // Server-side table-name search (shown when a database has too many tables)
+        // Server-side table-name search + paged loading (search box + first page when a database has too many tables)
         tableSearchPlaceholder: 'Search table name (server-side)',
-        tooManyTablesHint: 'Too many tables; please search by name',
         tableSearchResults: 'Search Results',
+        loadMoreTables: 'Load more tables',
+        noTableMatch: 'No tables match',
         // Sequence properties panel
         objectProps: 'Properties',
         viewDdl: 'View DDL',
@@ -101,6 +103,7 @@ export default {
         importConflictUpdate: 'Update',
         importBatchSize: 'Batch Size',
         importStart: 'Start Import',
+        importPolicyWarnings: 'trigger policy warnings: {warnings}',
         importSuccess: 'Import finished, {imported} of {total} rows imported',
         importNoFile: 'Please select a file to import first',
         importNeedMapping: 'At least one target column must be mapped',
@@ -114,6 +117,7 @@ export default {
         tableDataEmptyTextTips:
             'tips: Single table query at the beginning of select * or click the default query data of the table name, double-click the data online modification',
         noSelectRunSqlMsg: 'Select the sql you want to execute or move the cursor near the sql you want to execute',
+        policyNotices: 'policy notices',
         noSqlToRunMsg: 'No executable sql in the editor',
         enterExecRemarkTips: 'Please enter remark',
         execRemarkPlaceholder: 'Enter the remark to execute the sql',
@@ -167,16 +171,39 @@ export default {
         selectAll: 'Select All',
         submitUpdate: 'Submit changes',
         cancelUpdate: 'Cancel changes',
-        autoCompleteColumnPlaceholder:
-            'Select a column or enter a SQL conditional expression and press Enter or click the query icon to filter the results. The input can be prompted by the field name',
-        selectColumn: 'Select Column',
         columnName: 'Column Name',
         homePage: 'Home Page',
         previousPage: 'Previous Page',
         rowsPage: ' rows/page',
         rows: 'rows',
-        conditionInputDialogTitle: 'Enter the value of [{columnName}]',
         addDataDialogTitle: 'Add `{tableName}` table data',
+
+        // Data grid visual filter
+        filter: 'Filter',
+        filterModeBuilder: 'Visual',
+        filterModeSql: 'SQL',
+        noFilter: 'No filter conditions',
+        addCondition: 'Add condition',
+        applyFilter: 'Apply',
+        logicAnd: 'All (AND)',
+        logicOr: 'Any (OR)',
+        opEquals: 'equals',
+        opNotEquals: 'not equals',
+        opContains: 'contains',
+        opNotContains: 'does not contain',
+        opGreaterThan: 'greater than',
+        opGreaterEquals: 'greater or equal',
+        opLessThan: 'less than',
+        opLessEquals: 'less or equal',
+        opBetween: 'is between',
+        opIn: 'is any of',
+        opIsNull: 'is null',
+        opIsNotNull: 'is not null',
+        filterSelectColumn: 'Select column',
+        filterValuePlaceholder: 'Value',
+        filterTo: 'to',
+        customSqlCondition: 'Custom SQL condition',
+        sqlConditionPlaceholder: 'Type a SQL WHERE expression, press Enter or click the search icon to filter',
 
         exportContent: 'Export Content',
         selectExportTable: 'Select the table you want to export first',

@@ -2,6 +2,8 @@ package vo
 
 import (
 	"time"
+
+	"mayfly-go/internal/redis/domain/entity"
 )
 
 type Redis struct {
@@ -29,4 +31,6 @@ type Keys struct {
 	Cursor map[string]uint64 `json:"cursor"`
 	Keys   []string          `json:"keys"`
 	DbSize int64             `json:"dbSize"`
+	// 本批 key 的类型/过期摘要：树角标随扫描批次就位，前端无需再发独立摘要请求
+	Summaries []*entity.KeySummary `json:"summaries"`
 }

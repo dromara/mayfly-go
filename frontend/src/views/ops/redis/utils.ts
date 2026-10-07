@@ -6,7 +6,7 @@
  * 每层目录用无原型对象承载，key 里出现 `__proto__`、`constructor` 这类段名时不会污染对象原型
  */
 
-interface TreeNode {
+export interface TreeNode {
     name: string;
     /** 1 目录，2 key（与资源树渲染层的图标判断约定一致） */
     type?: number;
@@ -49,11 +49,72 @@ export function keysToTree(keys: string[], separator: string = ':', openStatus: 
         });
     });
 
-    return formatTreeData(tree, '', separator, openStatus);
+    return formatTreeData(tree, '', separator, openStatus).sort(compareTreeNode);
 }
 
 export function keysToList(keys: string[]) {
     return keys.map((key: string) => ({ key, name: key }));
+}
+
+/**
+ * 增量插入：把新增的一批 key 插入已构建好的分组树（「加载更多」用），
+ * 避免每批都全量重建整棵树。落已有目录则插叶子并沿路 keyCount++，缺目录则按序建目录链；
+ * 插入位用二分定位，维持与 keysToTree 完全相同的有序输出。
+ *
+ * 就地修改并返回传入的 tree：消费方持有的正是这份引用，重建反而会丢掉展开/勾选态。
+ */
+export function insertKeysToTree(tree: TreeNode[], keys: string[], separator = ':', openStatus: Set<string> | null = null): TreeNode[] {
+    keys.forEach((key) => insertOneKey(tree, key, separator, openStatus));
+    return tree;
+}
+
+function insertOneKey(root: TreeNode[], key: string, separator: string, openStatus: Set<string> | null) {
+    const segments = key.split(separator);
+    const lastIndex = segments.length - 1;
+    let siblings = root;
+    // 沿途经过的目录：叶子确认新增后，再给它们补 keyCount（重复 key 不动计数）
+    const folders: TreeNode[] = [];
+    let prefix = '';
+
+    for (let index = 0; index < lastIndex; index++) {
+        const segment = segments[index];
+        prefix += segment + separator;
+        // 目录用带分隔符结尾的全路径 key 匹配，与同名 key 叶子（如目录 `aa:` 与 key `aa`）区分开
+        let folder = siblings.find((node) => node.type === 1 && node.key === prefix);
+        if (!folder) {
+            folder = { name: segment || '[Empty]', type: 1, key: prefix, children: [], keyCount: 0 };
+            if (openStatus?.has(prefix)) {
+                folder.open = true;
+            }
+            sortedInsert(siblings, folder);
+        }
+        folders.push(folder);
+        siblings = folder.children as TreeNode[];
+    }
+
+    // 叶子已存在即重复 key（其祖先目录必然已存在，不会留下空目录），直接返回
+    if (siblings.some((node) => node.type === 2 && node.key === key)) {
+        return;
+    }
+    sortedInsert(siblings, { name: key || '[Empty]', type: 2, key });
+    folders.forEach((folder) => {
+        folder.keyCount = (folder.keyCount ?? 0) + 1;
+    });
+}
+
+/** 二分定位有序插入位（compareTreeNode 语义），比线性 findIndex 更稳（大目录下追加不退化成 O(n^2) 扫描） */
+function sortedInsert(siblings: TreeNode[], node: TreeNode) {
+    let lo = 0;
+    let hi = siblings.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (compareTreeNode(siblings[mid], node) < 0) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    siblings.splice(lo, 0, node);
 }
 
 function formatTreeData(tree: TreeFolder, previousKey: string = '', separator: string = ':', openStatus: Set<string> | null = null): TreeNode[] {
@@ -62,6 +123,9 @@ function formatTreeData(tree: TreeFolder, previousKey: string = '', separator: s
             const node = tree[name] as TreeFolder;
             const tillNowKeyName = previousKey + name + separator;
             const children = formatTreeData(node, tillNowKeyName, separator, openStatus);
+            // 排序下沉数据层：输出即有序（目录在前、key 在后，同组按名字典序）。
+            // 虚拟树按 data 顺序渲染，不再依赖 el-tree v1 的 root.childNodes DOM 补排
+            children.sort(compareTreeNode);
             // 目录的 key 带分隔符结尾，与同名 key 的全名（如目录 `aa-` 与 key `aa`）区分开
             const treeNode: TreeNode = {
                 name: name || '[Empty]',
@@ -72,14 +136,6 @@ function formatTreeData(tree: TreeFolder, previousKey: string = '', separator: s
             };
             if (openStatus?.has(tillNowKeyName)) {
                 treeNode.open = true;
-                // 只有展开过的目录需要立即有序（el-tree 渲染读的就是这份顺序）；
-                // 未展开的等展开时由 RedisDataOp 对渲染节点补排，避免整棵树白排一遍
-                children.sort(
-                    compareNodeByName(
-                        (child) => !!child.children,
-                        (child) => child.name
-                    )
-                );
             }
             return treeNode;
         }
@@ -89,9 +145,7 @@ function formatTreeData(tree: TreeFolder, previousKey: string = '', separator: s
     });
 }
 
-/**
- * 目录在前、key 在后，同组内按名字典序：构建树时与 el-tree 已展开的子节点共用同一排序语义
- */
+/** 目录在前、key 在后，同组内按名字典序：分组树的统一排序语义 */
 function compareNodeByName<T>(isFolder: (node: T) => boolean, nameOf: (node: T) => string) {
     return (a: T, b: T): number => {
         const folderDiff = Number(isFolder(b)) - Number(isFolder(a));
@@ -99,12 +153,8 @@ function compareNodeByName<T>(isFolder: (node: T) => boolean, nameOf: (node: T) 
     };
 }
 
-/** el-tree 展开后子节点是渲染好的 node（isLeaf/label），排序必须作用到它身上才能改变显示顺序 */
-export function sortByTreeNodes(nodes: { isLeaf: boolean; label: string }[]) {
-    nodes.sort(
-        compareNodeByName(
-            (node) => !node.isLeaf,
-            (node) => node.label
-        )
-    );
-}
+/** keysToTree 全量构建与 insertKeysToTree 增量插入共用，保证两者输出同序 */
+const compareTreeNode = compareNodeByName<TreeNode>(
+    (node) => node.type === 1,
+    (node) => node.name
+);

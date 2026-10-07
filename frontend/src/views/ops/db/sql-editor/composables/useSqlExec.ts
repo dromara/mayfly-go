@@ -8,8 +8,10 @@ import { useI18n } from 'vue-i18n';
 import { DbInst } from '../../db';
 import { getDialectCapabilities } from '../../dialect';
 import { isDdlSql } from '../../core/sqlKind';
-import type { SqlExecRes, SqlExecResColumn, TableColumnDef } from '../../types';
+import { confirmWarnAck } from '@/views/flow/warnAck';
+import type { PolicyNotice, SqlExecRes, SqlExecResColumn, TableColumnDef } from '../../types';
 import { getCurrentStatement, splitSqlStatements } from '../utils/sqlParser';
+
 /** DbTableData 组件通过 defineExpose 暴露的方法 */
 export interface DbTableDataRef {
     active: () => void;
@@ -52,6 +54,22 @@ export class ExecResTab {
 
     errorMsg: string;
 
+    /**
+     * 被触发策略要求审批的语句原文。
+     *
+     * 与 errorMsg 分开存：失败提示可能是语法错误、权限不足等任何原因，
+     * 只有这一列非空才该出现「提交工单」入口
+     */
+    needApprovalSqls: string[] = [];
+
+    /**
+     * 命中「仅提醒」后操作者选择先不执行时的提示。
+     *
+     * 与 errorMsg 分开存：语句根本没跑，不是执行失败。混在 errorMsg 里会渲染成红色「执行失败」，
+     * 操作者会以为语句出了错，而真实情况只是「等你确认或提单」
+     */
+    notice = '';
+
     constructor(id: number) {
         this.id = id;
     }
@@ -82,6 +100,14 @@ interface UseSqlExecOptions {
 
 export function useSqlExec(options: UseSqlExecOptions) {
     const { t } = useI18n();
+
+    /**
+     * 把策略提醒渲染成结果表格里的一列文本。
+     *
+     * 后端只下发 i18n key，翻译在前端完成；无提醒时留空而不是占位符，
+     * 让「有提醒」成为这一列里唯一需要读的东西
+     */
+    const noticeTexts = (notices: PolicyNotice[] | undefined): string => (notices ?? []).map((notice) => t(notice.title)).join('；');
     const { dbId, dbName, state } = options;
 
     const getNowDbInst = () => {
@@ -109,7 +135,12 @@ export function useSqlExec(options: UseSqlExecOptions) {
      * @param newTab 是否在新 tab 执行
      */
     const runSqlList = async (sqls: string[], emptyMsg: string, newTab = false) => {
-        notBlank(sqls, emptyMsg);
+        if (!sqls?.length) {
+            // 这里原先是 notBlank 抛错：整条调用链上没有捕获点，也没有全局处理器，
+            // 编辑器为空时点「执行」就是彻底没反应，用户只会以为按钮坏了
+            Msg.error(emptyMsg);
+            return;
+        }
 
         if (sqls.length == 1) {
             const oneSql = sqls[0];
@@ -208,20 +239,28 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
             // 执行所有非查询SQL
             const results: Record<string, unknown>[] = [];
+            const needApprovalSqls: string[] = [];
             for (const sql of sqls) {
                 try {
-                    const { data, execute } = getNowDbInst().execSql(dbName, sql, '');
+                    // 批量选区不逐条追问提醒：ask=false，命中的提醒随结果回显在「策略提醒」列。
+                    // 这里不能改成 ask=true：批量本身就是一条一条发请求，逐条弹窗会让人没法干活
+                    const { data, execute } = getNowDbInst().execSql(dbName, sql, '', { ask: false });
                     await execute();
                     const result = (data.value as SqlExecRes[])[0];
+                    if (result.needApproval && result.sql) {
+                        needApprovalSqls.push(result.sql);
+                    }
                     results.push({
                         sql: result.sql,
                         rowsAffected: result.res?.[0]?.rowsAffected,
                         error: result.errorMsg || '-',
+                        notices: noticeTexts(result.notices),
                     });
                 } catch (error: unknown) {
                     results.push({
                         sql: sql,
                         error: error instanceof Error ? error.message : String(error),
+                        notices: '',
                     });
                 }
             }
@@ -230,10 +269,12 @@ export function useSqlExec(options: UseSqlExecOptions) {
             state.execResTabs[i].tableColumn = [
                 { columnName: 'SQL', key: 'sql', columnType: 'string', show: true },
                 { columnName: 'RowsAffected', key: 'rowsAffected', columnType: 'number', show: true },
-                { columnName: 'Error', key: 'error', columnType: 'string', show: true },
+                { columnName: t('common.error'), key: 'error', columnType: 'string', show: true },
+                { columnName: t('db.policyNotices'), key: 'notices', columnType: 'string', show: true },
             ];
 
             state.execResTabs[i].data = results;
+            state.execResTabs[i].needApprovalSqls = needApprovalSqls;
             cancelUpdateFields(execRes);
             // 批量执行含 DDL：失效补全元数据缓存，反映最新表/字段/注释
             if (sqls.some(isDdlSql)) {
@@ -285,13 +326,40 @@ export function useSqlExec(options: UseSqlExecOptions) {
         try {
             execRes.errorMsg = '';
             execRes.sql = '';
+            execRes.notice = '';
+            execRes.needApprovalSqls = [];
 
-            const { data, execute, isFetching, abort } = getNowDbInst().execSql(dbName, sql, remark);
-            execRes.loading = isFetching;
-            execRes.abortFn = abort;
+            // 一次执行请求的封装：asked=true 才能弹确认（单条场景），acknowledged 只在操作者选过「直接执行」后带上
+            const runOnce = async (acknowledged: boolean) => {
+                const { data, execute, isFetching, abort } = getNowDbInst().execSql(dbName, sql, remark, { ask: true, acknowledged });
+                execRes.loading = isFetching;
+                execRes.abortFn = abort;
+                await execute();
+                return (data.value as SqlExecRes[])[0];
+            };
 
-            await execute();
-            const colAndData = (data.value as SqlExecRes[])[0];
+            // 命中提醒后的三态确认：选「直接执行」就带确认重试一次；选「提交工单审批」则语句保持未执行，
+            // 并把该语句交给结果区现成的提单入口；关掉弹窗只是暂缓，不给提单按钮
+            const askWarnAck = async (res: SqlExecRes, retry: (acknowledged: boolean) => Promise<SqlExecRes>): Promise<SqlExecRes> => {
+                const message = res.errorMsg || t('flow.warnAckTitle');
+                const choice = await confirmWarnAck(message);
+                if (choice === 'run') {
+                    return await retry(true);
+                }
+                // needApprovalSqls 是提单按钮的唯一出现条件，改它必须先于任何提示分支
+                state.execResTabs[i].needApprovalSqls = choice === 'ticket' ? [sql] : [];
+                // 语句没执行，必须把提示留在结果区：静默吞掉会让人以为已经跑过了
+                throw { msg: message, warnAck: true };
+            };
+
+            let colAndData = await runOnce(false);
+            if (colAndData.warnAck) {
+                // 命中「仅提醒」：此刻语句还没执行，这是唯一能改走审批的时机
+                colAndData = await askWarnAck(colAndData, runOnce);
+            }
+            // 单条路径此前会丢掉策略结论：批量路径有提醒列而单条没有，
+            // 「仅提醒」级别在最常用的单条执行场景下等于没有出口
+            state.execResTabs[i].needApprovalSqls = colAndData.needApproval ? [sql] : [];
             if (colAndData.errorMsg) {
                 throw { msg: colAndData.errorMsg };
             }
@@ -301,7 +369,9 @@ export function useSqlExec(options: UseSqlExecOptions) {
             }
 
             // 要实时响应，故需要用索引改变数据才生效
-            state.execResTabs[i].data = colAndData.res ?? [];
+            const noticeText = noticeTexts(colAndData.notices);
+            const rows = (colAndData.res ?? []).map((row: Record<string, unknown>) => ({ ...row, policyNotice: noticeText }));
+            state.execResTabs[i].data = rows.length > 0 || !noticeText ? rows : [{ policyNotice: noticeText }];
             // 兼容表格字段配置
             state.execResTabs[i].tableColumn = (colAndData.columns ?? []).map((x: SqlExecResColumn) => {
                 return {
@@ -312,6 +382,10 @@ export function useSqlExec(options: UseSqlExecOptions) {
                     show: true,
                 };
             });
+            // 提醒列只在真有提醒时出现：查询结果的列由语句自身决定，凭空挂一列恒空会被误读成表字段
+            if (noticeText) {
+                state.execResTabs[i].tableColumn.push({ columnName: t('db.policyNotices'), key: 'policyNotice', columnType: 'string', show: true });
+            }
             cancelUpdateFields(execRes);
             // 执行了 DDL：失效补全元数据缓存，使表名/字段/注释联想反映最新结构
             if (isDdlSql(sql)) {
@@ -321,8 +395,14 @@ export function useSqlExec(options: UseSqlExecOptions) {
             execRes.data = [];
             execRes.tableColumn = [];
             execRes.table = '';
+            const err = e as Record<string, unknown>;
             // 要实时响应，故需要用索引改变数据才生效
-            state.execResTabs[i].errorMsg = (e as Record<string, unknown>).msg as string;
+            if (err.warnAck) {
+                // 「仅提醒」命中而未执行：走提醒语义，不能渲染成红色的执行失败
+                state.execResTabs[i].notice = err.msg as string;
+            } else {
+                state.execResTabs[i].errorMsg = err.msg as string;
+            }
             return;
         } finally {
             execRes.sql = sql;

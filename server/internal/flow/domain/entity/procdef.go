@@ -6,44 +6,24 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
-	"mayfly-go/pkg/utils/stringx"
-	"strings"
-
-	"github.com/spf13/cast"
 )
 
 // 流程定义信息
 type Procdef struct {
 	model.Model
 
-	Name      string        `json:"name" form:"name" gorm:"size:150;comment:流程名称"`                 // 名称
-	DefKey    string        `json:"defKey" form:"defKey" gorm:"not null;size:100;comment:流程定义key"` //
-	FlowDef   string        `json:"flowDef" gorm:"type:text;comment:流程定义信息"`                       // 流程定义信息
-	Status    ProcdefStatus `json:"status" gorm:"comment:状态"`                                      // 状态
-	Condition *string       `json:"condition" gorm:"type:text;comment:触发审批的条件（计算结果返回1则需要启用该流程）"`   // 触发审批的条件（计算结果返回1则需要启用该流程）
-	Remark    *string       `json:"remark" gorm:"size:255;"`
+	Name    string        `json:"name" form:"name" gorm:"size:150;comment:流程名称"`                 // 名称
+	DefKey  string        `json:"defKey" form:"defKey" gorm:"not null;size:100;comment:流程定义key"` //
+	FlowDef string        `json:"flowDef" gorm:"type:text;comment:流程定义信息"`                       // 流程定义信息
+	Status  ProcdefStatus `json:"status" gorm:"comment:状态"`                                      // 状态
+	Remark  *string       `json:"remark" gorm:"size:255;"`
+
+	// TriggerPolicy 触发策略，决定哪些资源操作需要走该审批流程
+	TriggerPolicy *TriggerPolicy `json:"triggerPolicy" gorm:"type:text;serializer:json;comment:触发策略json"`
 }
 
 func (p *Procdef) TableName() string {
 	return "t_flow_procdef"
-}
-
-// MatchCondition 是否匹配审批条件，匹配则需要启用该流程
-//   - bizType 业务类型
-//   - param 业务参数
-//
-// Condition返回值为1，则表面该操作需要启用流程
-func (p *Procdef) MatchCondition(bizType string, param map[string]any) bool {
-	if p.Condition == nil || *p.Condition == "" {
-		return true
-	}
-
-	res, err := stringx.TemplateResolve(*p.Condition, collx.Kvs("bizType", bizType, "param", param))
-	if err != nil {
-		logx.ErrorTrace("parse condition error", err.Error())
-		return true
-	}
-	return strings.TrimSpace(res) == "1"
 }
 
 type ProcdefStatus int8
@@ -104,17 +84,26 @@ func (p *FlowDef) GetEdgeBySourceNode(sourceNodeKey string) []*FlowEdge {
 	})
 }
 
-func (p *FlowDef) GetNextNodes(key string, vars collx.M) []*FlowNode {
+// GetNextNodes 按跳转条件筛出该节点的后继节点。
+//
+// matched 由调用方提供：条件用哪些字段、怎么求值都登记在触发引擎侧，实体层只负责图结构，
+// 因此新增条件语义（可复用条件组、新字段）不必改动这里。
+// matched 返回 error 表示无法判定，调用方据此中断流转而不是猜一条分支
+func (p *FlowDef) GetNextNodes(key string, matched func(*FlowEdge) (bool, error)) ([]*FlowNode, error) {
 	edges := p.GetEdgeBySourceNode(key)
-	targetNodeKeys := make([]string, 0)
+	targetNodeKeys := make([]string, 0, len(edges))
 
 	for _, edge := range edges {
-		if edge.MatchCondition(vars) {
+		matchedEdge, err := matched(edge)
+		if err != nil {
+			return nil, err
+		}
+		if matchedEdge {
 			targetNodeKeys = append(targetNodeKeys, edge.TargetNodeKey)
 		}
 	}
 
-	return p.GetNodes(targetNodeKeys...)
+	return p.GetNodes(targetNodeKeys...), nil
 }
 
 // FlowNode 流程定义-流程节点
@@ -136,22 +125,16 @@ type FlowEdge struct {
 	Key           string `json:"key" form:"key"`                     // 跳转key
 	SourceNodeKey string `json:"sourceNodeKey" form:"sourceNodeKey"` // 源节点key
 	TargetNodeKey string `json:"targetNodeKey" form:"targetNodeKey"` // 目标节点key
-
-	Condition string `json:"condition"` // 跳转条件
 }
 
-// MatchCondition 匹配条件
-func (p *FlowEdge) MatchCondition(vars collx.M) bool {
-	if p.Condition == "" {
-		return true
-	}
+// FlowEdgeConditionKey 跳转条件在连线 extra 中的键名。
+// 流程设计器把节点与连线的属性统一写进 extra，条件树也存在这里，与其它属性同一取法
+const FlowEdgeConditionKey = "condition"
 
-	// 解析条件
-	res, err := stringx.TemplateParse(p.Condition, vars)
-	if err != nil {
-		logx.Warnf("parse condition error, edge: %s, err: %s", p.Condition, err.Error())
-		return false
-	}
+// FlowNodeCompletionConditionKey 节点完成条件在节点 extra 中的键名
+const FlowNodeCompletionConditionKey = "completionCondition"
 
-	return cast.ToBool(res)
+// Condition 返回连线上的跳转条件，nil 表示未配置条件（默认流转）
+func (p *FlowEdge) Condition() (*RuleNode, error) {
+	return RuleNodeFromExtra(p.Extra, FlowEdgeConditionKey)
 }

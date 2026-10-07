@@ -54,10 +54,12 @@ export const DbObjectKind = 'db-object';
 export const DbTableSearchKind = 'db-table-search';
 // 搜索结果容器节点：与搜索框并列，输入只刷新本节点的子级（搜索框因此不被重挂载，保留焦点/输入）
 export const DbTableResultsKind = 'db-table-results';
-// 超过该表数量则不直接渲染全量表节点，改为显示搜索框引导服务端检索（探测用 limit=阈值+1，不全量拉取）
+// 「加载更多」伪节点：分页续载入口，单击取下一页 offset 增量追加到结果容器尾部
+export const DbTableLoadMoreKind = 'db-table-load-more';
+// 超过该表数量则不直接渲染全量表节点，改为搜索框 + 首屏分页（探测用 limit=阈值+1，不全量拉取）
 export const DB_TABLE_SEARCH_THRESHOLD = 500;
-// 单次服务端搜索结果上限（避免一次吐过多表节点）
-export const DB_TABLE_SEARCH_LIMIT = 200;
+// 单页表数量上限：首屏/续载/搜索共用同一页宽（满页即认为还有下一页，短页即到底）
+export const DB_TABLE_PAGE_SIZE = 200;
 // 表搜索结果容器节点 key（由表菜单 key 派生）：contributors 建节点与搜索框组件定位结果节点共用，避免 key 后缀字面量散落两处
 export const tableResultsKey = (menuKey: string | number): string => `${menuKey}.table-results`;
 
@@ -139,7 +141,7 @@ export interface DbOpTabApi {
     /** 切换当前库 */
     onChangeDb: (db: DbTreeNodeData, dbName: string) => void;
     /** 打开表数据页签 */
-    loadTableData: (db: DbTreeNodeData, dbName: string, tableName: string, readonly?: boolean) => Promise<void>;
+    loadTableData: (db: DbTreeNodeData, dbName: string, tableName: string, readonly?: boolean, title?: string) => Promise<void>;
     /** 复制表 */
     onCopyTable: (data: TreeNodeCallbackData) => Promise<void>;
     /** 编辑表结构 */

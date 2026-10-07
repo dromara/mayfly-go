@@ -31,6 +31,12 @@ const (
 
 	ErrExistRunFailSQL
 	ErrNeedSubmitWorkTicket
+
+	// 触发策略检查项命中原因（用于拦截提示）
+	TriggerReasonDmlRequiresApproval
+	TriggerReasonDmlWithoutWhere
+	TriggerReasonDestructiveDdl
+	TriggerReasonSqlSize
 	ErrSQLExecCancelled
 	ErrSQLSplitUnterminated
 

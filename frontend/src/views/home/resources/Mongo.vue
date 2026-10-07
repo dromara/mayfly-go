@@ -18,8 +18,8 @@
                     </div>
                 </div>
                 <div class="flex flex-col gap-1.5 text-[12px] text-[var(--el-text-color-secondary)]">
+                    <!-- 连接串已脱敏（后端不回传含密码的明文）；实体无备注字段，不再渲染取不到的 remark -->
                     <div class="font-['Courier_New',monospace]">{{ resource.uri || '-' }}</div>
-                    <div v-if="resource.remark" class="overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">{{ resource.remark }}</div>
                 </div>
             </div>
         </template>

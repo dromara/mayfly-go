@@ -5,7 +5,7 @@
 //	而下游多个**数据安全相关**判定都以语句类型/首关键字为输入：
 //	 - 脱敏：按 SelectStmt 构建列级血缘（丢失则退化为仅按列名兜底）
 //	 - 审计：Update/DeleteStmt 的表名与 WHERE 用于记录旧值（丢失则误改/误删无法追溯）
-//	 - 审批：procdef.MatchCondition(stmtType) 决定 UPDATE/DELETE 是否需提工单（误判即绕过审批）
+//	 - 审批：流程触发策略按 stmtType 判定 UPDATE/DELETE 是否需提工单（误判即绕过审批）
 //	 - 兜底分类：解析失败时 sqlKind 依赖 LeadingKeyword 取首关键字
 //	 - 导入过滤：shouldSkipImportStmt 依赖「掩码注释后的整体文本」识别事务包装语句
 //	本测试把「各方言对前导注释的容忍」固化为回归断言，防止未来改动造成静默降级。

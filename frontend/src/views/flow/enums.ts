@@ -45,3 +45,17 @@ export const FlowBizType = {
     DbSqlExec: EnumValue.of('db_sql_exec_flow', 'flow.dbSqlExec').setTagType('warning'),
     RedisRunWriteCmd: EnumValue.of('redis_run_cmd_flow', 'flow.redisRunCmd').setTagType('danger'),
 };
+
+/**
+ * 流程内部条件（连线跳转、节点完成）使用的字段字典标识，与后端 flow.application.FlowInstanceBizType 一致。
+ *
+ * 前端只需要这一个已知标识来选中字典，字典里有哪些字段、能用哪些操作符全部由 policy-schema 下发
+ */
+export const FLOW_INSTANCE_BIZ_TYPE = 'flow_instance';
+
+/** 策略变更动作，与后端 entity.ProcdefPolicyAction 一致 */
+export const ProcdefPolicyAction = {
+    Create: EnumValue.of(1, 'flow.policyHistory.create').setTagType('success'),
+    Update: EnumValue.of(2, 'flow.policyHistory.update').setTagType('primary'),
+    Delete: EnumValue.of(3, 'flow.policyHistory.delete').setTagType('danger'),
+};

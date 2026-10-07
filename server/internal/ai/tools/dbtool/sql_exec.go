@@ -8,8 +8,6 @@ import (
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/tools"
 	"mayfly-go/internal/db/application"
-	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
-	flowapp "mayfly-go/internal/flow/application"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
@@ -31,6 +29,10 @@ type SQLExecOutput struct {
 	DbName   string `json:"dbName" jsonschema_description:"数据库名称"`
 	DbType   string `json:"dbType" jsonschema_description:"数据库类型，如mysql、postgresql等"`
 	Effected int64  `json:"effected" jsonschema_description:"影响的行数"`
+
+	// Warnings 管理员策略给出的提醒（已渲染成当前语言）。不阻断执行，但必须让模型看见，
+	// 否则它会向用户汇报「执行成功、一切正常」，而管理员配这一级别就是为了让人知道踩了哪条规则
+	Warnings []string `json:"warnings,omitempty" jsonschema_description:"触发策略提醒：本次执行命中了管理员配置的提醒规则"`
 }
 
 func GetSQLExec() (tool.InvokableTool, error) {
@@ -64,14 +66,11 @@ func GetSQLExec() (tool.InvokableTool, error) {
 				return nil, err
 			}
 
-			// 获取流程定义（用于检查管理员配置的 SQL 审批策略）
-			procdef := flowapp.GetProcdefApp().GetProcdefByCodePath(ctx, conn.Info.CodePath...)
-
-			// 使用方言切割器拆分多语句 SQL，逐条检查
+			// 使用方言切割器拆分多语句 SQL，逐条判定后再执行
 			splitter := conn.GetDialect().GetSQLSplitter()
 			var sqlStatements []string
-			if splitErr := splitter.SplitSQL(strings.NewReader(param.SQL), func(s string) error {
-				sqlStatements = append(sqlStatements, s)
+			if splitErr := splitter.SplitSQL(strings.NewReader(param.SQL), func(stmt string) error {
+				sqlStatements = append(sqlStatements, stmt)
 				return nil
 			}); splitErr != nil {
 				return nil, tools.NewToolError(fmt.Errorf("SQL split failed: %w", splitErr), tools.RecoverRetry)
@@ -80,59 +79,13 @@ func GetSQLExec() (tool.InvokableTool, error) {
 				return nil, tools.NewToolError(fmt.Errorf("no SQL statements to execute"), tools.RecoverRetry)
 			}
 
-			// 逐条解析 SQL，检查流程引擎是否额外要求审批（管理员配置的策略）
-			// 注：用户已通过上方审批，此处仅用于策略合规性校验与日志记录
-			sp := conn.GetDialect().GetSQLParser()
-			for _, s := range sqlStatements {
-				stmtType := ""
-				if stmt, parseErr := sp.Parse(s); parseErr == nil && stmt != nil {
-					switch stmt.(type) {
-					case *sqlstmt.SelectStmt, *sqlstmt.WithStmt:
-						stmtType = "select"
-					case *sqlstmt.UpdateStmt:
-						stmtType = "update"
-					case *sqlstmt.DeleteStmt:
-						stmtType = "delete"
-					case *sqlstmt.InsertStmt:
-						stmtType = "insert"
-					case *sqlstmt.DdlStmt:
-						stmtType = "ddl"
-					case *sqlstmt.OtherStmt:
-						stmtType = "read"
-					default:
-						stmtType = "other"
-					}
-				} else {
-					// 解析失败，按关键字兜底分类
-					kind := splitter.LeadingKeyword(s)
-					if kind == "" && len(s) >= 10 {
-						kind = strings.ToLower(s[:10])
-					} else if kind == "" {
-						kind = strings.ToLower(s)
-					}
-					switch {
-					case strings.Contains(kind, "select"), strings.Contains(kind, "with"),
-						strings.Contains(kind, "show"), strings.Contains(kind, "explain"):
-						stmtType = "select"
-					case strings.Contains(kind, "update"):
-						stmtType = "update"
-					case strings.Contains(kind, "delete"):
-						stmtType = "delete"
-					case strings.Contains(kind, "insert"):
-						stmtType = "insert"
-					case strings.Contains(kind, "create"), strings.Contains(kind, "alter"),
-						strings.Contains(kind, "drop"), strings.Contains(kind, "truncate"),
-						strings.Contains(kind, "rename"):
-						stmtType = "ddl"
-					default:
-						stmtType = "other"
-					}
-				}
-
-				// 记录流程引擎策略匹配结果（供审计日志参考）
-				if procdef != nil && procdef.MatchCondition(application.DbSQLExecFlowBizType, collx.Kvs("stmtType", stmtType)) {
-					logx.InfofContext(ctx, "[AgentSqlExec] flow engine requires approval for stmtType=%s, user approval already obtained", stmtType)
-				}
+			// 管理员配置的触发策略：判定与交互执行共用同一条链路（语句分类、事实抽取、话术都同源），
+			// 否则会出现「编辑器里拦得住、交给 Agent 就过去了」。拒绝结论必须终止本次执行：
+			// 用户在 Agent 里点的「允许执行」放行的只是这次工具调用，不能顶替策略要求的工单审批
+			agentNotices, err := application.GetDbSQLExecApp().CheckSqlsWithoutTicket(ctx, conn, sqlStatements)
+			if err != nil {
+				// 治理结论不属于「可重试的失败」：把错误退回给模型重试，等于再给它一次绕过策略的机会
+				return nil, tools.NewToolError(err, tools.RecoverNone)
 			}
 
 			// 逐条执行 SQL
@@ -156,6 +109,8 @@ func GetSQLExec() (tool.InvokableTool, error) {
 				DbName:   param.DbName,
 				DbType:   string(conn.Info.Type),
 				Effected: totalEffected,
+				// 提醒不阻断执行，但模型得知道自己踩了哪条提醒，否则它下一句就会说「一切正常」
+				Warnings: collx.ArrayFilter(agentNotices, func(notice string) bool { return notice != "" }),
 			}, nil
 		},
 	)

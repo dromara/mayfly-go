@@ -33,3 +33,22 @@ const (
 	ImsgNumAlert   = 160000
 	ImsgNumLabel   = 170000
 )
+
+// KnownResourceTypes 全部已知资源类型，供注册声明自检：写错一个不存在的类型，
+// 只会表现为「该场景在资源树里永远选不到、配了也永远不命中」，必须在能看见的时机就报出来。
+// 新增资源类型时这里要同步，常量取值唯一性由 consts_test 守住
+var KnownResourceTypes = []int8{
+	ResourceTypeMachine, ResourceTypeDbInstance, ResourceTypeRedis, ResourceTypeMongo,
+	ResourceTypeAuthCert, ResourceTypeEsInstance, ResourceTypeContainer, ResourceTypeMqKafka,
+	ResourceTypeMilvus, ResourceTypeDbName,
+}
+
+// IsResourceType 给定数值是否为已声明的资源类型
+func IsResourceType(value int8) bool {
+	for _, known := range KnownResourceTypes {
+		if known == value {
+			return true
+		}
+	}
+	return false
+}

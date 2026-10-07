@@ -63,4 +63,8 @@ type DataImportRes struct {
 	Imported    int   `json:"imported"`    // 成功写入的行数
 	BatchCount  int   `json:"batchCount"`  // 生成的批量插入语句条数
 	AffectedRow int64 `json:"affectedRow"` // 数据库返回的累计影响行数
+
+	// Warnings 触发策略给出的提醒（已按请求语言渲染）。不阻断导入，但必须回到操作者眼前：
+	// 管理员配「仅提醒」若只进服务端日志，这一级别等于没配
+	Warnings []string `json:"warnings,omitempty"`
 }

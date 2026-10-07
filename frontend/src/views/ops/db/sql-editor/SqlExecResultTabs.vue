@@ -11,8 +11,9 @@
                                         <SvgIcon class="mb-0.5! is-loading" name="Loading" color="var(--el-color-primary)" />
                                     </span>
                                     <span v-else>
-                                        <SvgIcon class="mb-0.5!" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
-                                        <SvgIcon class="mb-0.5!" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
+                                        <SvgIcon class="mb-0.5!" v-if="dt.notice && !dt.errorMsg" name="Warning" color="var(--el-color-warning)" />
+                                        <SvgIcon class="mb-0.5!" v-else-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
+                                        <SvgIcon class="mb-0.5!" v-else name="CircleCheck" color="var(--el-color-success)" />
                                     </span>
                                 </span>
 
@@ -50,8 +51,16 @@
                         </span>
                     </span>
                 </el-row>
+                <!-- 批量执行时逐条标注哪些语句被要求审批，并给出直接提单入口 -->
+                <div v-if="needApprovalOf(dt).length" class="approval-tip">
+                    <span>{{ $t('db.needApprovalTip', { count: needApprovalOf(dt).length }) }}</span>
+                    <el-button link type="primary" @click="emit('submitTicket', needApprovalOf(dt)[0], dt)">
+                        {{ $t('flow.submitTicket') }}
+                    </el-button>
+                </div>
+
                 <db-table-data
-                    v-if="!dt.errorMsg"
+                    v-if="!dt.errorMsg && !dt.notice"
                     :ref="(el: unknown) => setDbTableRef(dt, el)"
                     :db-id="dbId"
                     :db="db"
@@ -67,7 +76,23 @@
                     @data-delete="emit('dataDelete', $event, dt)"
                 ></db-table-data>
 
-                <el-result v-else icon="error" :title="$t('db.execFail')" :sub-title="dt.errorMsg"> </el-result>
+                <!-- 命中「仅提醒」但选择不执行：黄色提醒而不是红色报错，因为它根本没失败 -->
+                <el-result v-else-if="dt.notice" icon="warning" :title="$t('flow.warnAckTitle')" :sub-title="dt.notice">
+                    <template #extra>
+                        <el-button v-if="needApprovalOf(dt).length" type="primary" @click="onSubmitTicket(dt)">
+                            {{ $t('flow.submitTicket') }}
+                        </el-button>
+                    </template>
+                </el-result>
+
+                <el-result v-else icon="error" :title="$t('db.execFail')" :sub-title="dt.errorMsg">
+                    <template #extra>
+                        <!-- 只有策略要求审批的失败才给提单入口：语法错误、权限不足提单也没用 -->
+                        <el-button v-if="needApprovalOf(dt).length" type="primary" @click="onSubmitTicket(dt)">
+                            {{ $t('flow.submitTicket') }}
+                        </el-button>
+                    </template>
+                </el-result>
             </el-tab-pane>
         </el-tabs>
     </div>
@@ -89,6 +114,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     tabRemove: [targetId: number];
+    submitTicket: [sql: string, dt: ExecResTabLike];
     tabChange: [];
     submitUpdateFields: [dt: ExecResTabLike];
     cancelUpdateFields: [dt: ExecResTabLike];
@@ -102,6 +128,16 @@ const onRemoveTab = (targetId: number) => {
 
 const onTabChange = () => {
     emit('tabChange');
+};
+
+// needApprovalOf 该结果里被触发策略要求审批的语句（与「已被禁止执行」互斥）
+const needApprovalOf = (dt: ExecResTabState) => dt.needApprovalSqls ?? [];
+
+const onSubmitTicket = (dt: ExecResTabState) => {
+    const sqls = needApprovalOf(dt);
+    if (sqls.length) {
+        emit('submitTicket', sqls[0], dt);
+    }
 };
 
 const setDbTableRef = (dt: ExecResTabState, el: unknown) => {

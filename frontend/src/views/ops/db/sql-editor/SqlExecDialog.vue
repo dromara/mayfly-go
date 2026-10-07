@@ -19,11 +19,13 @@ import { dbApi } from '@/views/ops/db/api';
 import { ElButton, ElDialog, ElInput, InputInstance } from 'element-plus';
 import { onMounted, reactive, ref, toRefs, defineAsyncComponent } from 'vue';
 
-import { isTrue } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
 import { i18n } from '@/i18n';
 import { DbInst } from '../db';
 import { formatSql } from './utils/formatSql';
+import { classifySqlExecRes } from './utils/classifySqlExecRes';
+import { openTicket } from '@/views/flow/ticketService';
+import { FlowBizType } from '@/views/flow/enums';
 import type { SqlExecProps } from './SqlExecBox';
 
 /**
@@ -66,15 +68,31 @@ const runSql = async () => {
             sql: state.sqlValue.trim(),
         });
 
-        let isSuccess = true;
-        for (let re of res) {
-            if (re.errorMsg) {
-                isSuccess = false;
-                Msg.error(`${re.sql} ==>: ${re.errorMsg}`);
-            }
+        const outcome = classifySqlExecRes(res);
+
+        // 被触发策略要求审批的语句没有执行：不是失败，直接带进提单表单（dbCode 由业务表单按
+        // dbId 自行补齐，见 DbSqlExecFlowBizForm.announceResource）。语句未执行，不能走成功
+        // 回调——调用方会误按「已执行」刷新数据；确认框同步让位给提单抽屉
+        if (outcome.needApprovalSql) {
+            runSuccess = false;
+            openTicket({
+                bizType: FlowBizType.DbSqlExec.value,
+                bizForm: { dbId: props.dbId, dbName: props.db, sql: outcome.needApprovalSql },
+                remark: state.remark,
+            });
+            cancel();
+            return;
         }
 
-        isTrue(isSuccess, 'exist run faild sql');
+        for (let re of outcome.errors) {
+            Msg.error(`${re.sql} ==>: ${re.errorMsg}`);
+        }
+        if (outcome.errors.length) {
+            // 失败详情已在上面逐条提示，保留确认框供修改 SQL 重试
+            runSuccess = false;
+            return;
+        }
+
         Msg.success('db.execSuccess');
     } catch (e) {
         runSuccess = false;

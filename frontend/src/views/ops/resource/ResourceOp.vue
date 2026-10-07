@@ -99,12 +99,24 @@
                             已关闭的 tab 会永久残留缓存（连接不释放、内存无界增长）；而 max 又会静默淘汰活跃终端
                         -->
                         <template v-for="tab in resourceTabs" :key="tab.key">
-                            <component
-                                v-show="tab.key === activeResourceOpTabKey"
-                                :ref="(el: any) => el && registerComponentInstance(tab.key, el)"
-                                :is="tab.component"
-                                v-bind="tab.componentProps"
-                            />
+                            <!--
+                                v-show 必须挂在本包装层，不能挂回 <component> 上：挂在组件上的指令要靠 fallthrough
+                                透传到「组件根元素」，而 tab 组件顶层允许有第二个元素根（如 RedisDataOp 根 div 之外的
+                                WorkTicketSubmit），此时 Vue 找不到唯一的根，指令被挂到 Fragment 上静默失效——该 tab
+                                永远可见、盖住其它 tab（实测症状：激活 DB tab 仍显示 Redis 界面）。顶层注释不算根，
+                                不影响透传。main.ts 置空了 warnHandler，连 Vue 那条 dev 告警都看不到，只能靠结构规避。
+
+                                包装层是普通元素，v-show 恒生效，容器因此对 tab 组件的根结构零约束（同
+                                components/tabs/Tabs.vue 的 .mf-tabs__pane 做法）；ref 仍留在 <component> 上取组件实例。
+                                本不变式由 __tests__/dynamicComponentDirective.test.ts 钉住。
+                            -->
+                            <div v-show="tab.key === activeResourceOpTabKey" class="h-full">
+                                <component
+                                    :ref="(el: any) => el && registerComponentInstance(tab.key, el)"
+                                    :is="tab.component"
+                                    v-bind="tab.componentProps"
+                                />
+                            </div>
                         </template>
                     </div>
                 </el-card>

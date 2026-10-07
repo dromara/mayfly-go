@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/service"
+	"mayfly-go/internal/machine/mcm"
 	"testing"
 )
 
@@ -141,32 +142,11 @@ func TestCompareValue_UnknownOperator(t *testing.T) {
 	}
 }
 
-// ==================== extractMetric 测试（使用 mock stats） ====================
-
-// mockStats 模拟 mcm.Stats 结构体的导出字段
-type mockStats struct {
-	CPU     mockCPU
-	MemInfo mockMemInfo
-	FSInfos []mockFSInfo
-}
-
-type mockCPU struct {
-	Idle float64
-}
-
-type mockMemInfo struct {
-	Total     uint64
-	Available uint64
-}
-
-type mockFSInfo struct {
-	MountPoint string
-	Used       uint64
-	Free       uint64
-}
+// ==================== extractMetric 测试（直接构造 mcm.Stats，
+// 提取函数已具体类型化，mock 结构体会导致签名不兼容） ====================
 
 func TestExtractCpuRate(t *testing.T) {
-	stats := &mockStats{CPU: mockCPU{Idle: 20.0}}
+	stats := &mcm.Stats{CPU: mcm.CPUInfo{Idle: 20}}
 	rate, err := extractCpuRate(stats, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -178,7 +158,7 @@ func TestExtractCpuRate(t *testing.T) {
 }
 
 func TestExtractCpuRate_ZeroIdle(t *testing.T) {
-	stats := &mockStats{CPU: mockCPU{Idle: 0.0}}
+	stats := &mcm.Stats{CPU: mcm.CPUInfo{Idle: 0}}
 	rate, err := extractCpuRate(stats, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -190,7 +170,7 @@ func TestExtractCpuRate_ZeroIdle(t *testing.T) {
 
 func TestExtractMemRate(t *testing.T) {
 	// Total=1000, Available=300 → usage = (1000-300)/1000 * 100 = 70%
-	stats := &mockStats{MemInfo: mockMemInfo{Total: 1000, Available: 300}}
+	stats := &mcm.Stats{MemInfo: mcm.MemInfo{Total: 1000, Available: 300}}
 	rate, err := extractMemRate(stats, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -203,7 +183,7 @@ func TestExtractMemRate(t *testing.T) {
 // TestExtractMemRate_ZeroTotal 总内存为 0 说明采集数据不可信，
 // 必须返回错误让上层把本轮判定标记为不可靠，而不是伪造成 0% 触发"已恢复"
 func TestExtractMemRate_ZeroTotal(t *testing.T) {
-	stats := &mockStats{MemInfo: mockMemInfo{Total: 0, Available: 0}}
+	stats := &mcm.Stats{MemInfo: mcm.MemInfo{Total: 0, Available: 0}}
 	if _, err := extractMemRate(stats, nil); err == nil {
 		t.Error("expected error when memory total is 0")
 	}
@@ -211,7 +191,7 @@ func TestExtractMemRate_ZeroTotal(t *testing.T) {
 
 func TestExtractDiskUsage_RootMount(t *testing.T) {
 	// Used=600, Free=400 → usage = 600/(600+400) * 100 = 60%
-	stats := &mockStats{FSInfos: []mockFSInfo{
+	stats := &mcm.Stats{FSInfos: []mcm.FSInfo{
 		{MountPoint: "/", Used: 600, Free: 400},
 	}}
 	rate, err := extractDiskUsage(stats, nil)
@@ -226,7 +206,7 @@ func TestExtractDiskUsage_RootMount(t *testing.T) {
 // TestExtractDiskUsage_NoRootMount 无根分区时取所有挂载点中最高使用率：
 // 告警场景关注的是"最满的盘"，此前恒取根分区会让容器化/独立数据盘机器永不告警
 func TestExtractDiskUsage_NoRootMount(t *testing.T) {
-	stats := &mockStats{FSInfos: []mockFSInfo{
+	stats := &mcm.Stats{FSInfos: []mcm.FSInfo{
 		{MountPoint: "/data", Used: 600, Free: 400},
 		{MountPoint: "/backup", Used: 800, Free: 200},
 	}}
@@ -241,7 +221,7 @@ func TestExtractDiskUsage_NoRootMount(t *testing.T) {
 
 // TestExtractDiskUsage_PrefersRootMount 存在根分区时以根分区为准
 func TestExtractDiskUsage_PrefersRootMount(t *testing.T) {
-	stats := &mockStats{FSInfos: []mockFSInfo{
+	stats := &mcm.Stats{FSInfos: []mcm.FSInfo{
 		{MountPoint: "/data", Used: 900, Free: 100},
 		{MountPoint: "/", Used: 600, Free: 400},
 	}}
@@ -256,7 +236,7 @@ func TestExtractDiskUsage_PrefersRootMount(t *testing.T) {
 
 // TestExtractDiskUsage_EmptyFSInfos 无任何文件系统信息时返回错误（数据不可信）
 func TestExtractDiskUsage_EmptyFSInfos(t *testing.T) {
-	stats := &mockStats{FSInfos: []mockFSInfo{}}
+	stats := &mcm.Stats{FSInfos: []mcm.FSInfo{}}
 	if _, err := extractDiskUsage(stats, nil); err == nil {
 		t.Error("expected error when filesystem info is empty")
 	}
@@ -264,14 +244,14 @@ func TestExtractDiskUsage_EmptyFSInfos(t *testing.T) {
 
 // TestExtractDiskUsage_AllZeroTotal 全部分区容量为 0 时返回错误，避免除零得到 NaN
 func TestExtractDiskUsage_AllZeroTotal(t *testing.T) {
-	stats := &mockStats{FSInfos: []mockFSInfo{{MountPoint: "/", Used: 0, Free: 0}}}
+	stats := &mcm.Stats{FSInfos: []mcm.FSInfo{{MountPoint: "/", Used: 0, Free: 0}}}
 	if _, err := extractDiskUsage(stats, nil); err == nil {
 		t.Error("expected error when all partitions have zero size")
 	}
 }
 
 func TestExtractMetric_UnknownMetric(t *testing.T) {
-	stats := &mockStats{}
+	stats := &mcm.Stats{}
 	e := &MachineEvaluator{}
 	e.ensureMetrics()
 	_, err := e.extractMetric(stats, nil, "unknown_metric")
@@ -281,7 +261,7 @@ func TestExtractMetric_UnknownMetric(t *testing.T) {
 }
 
 func TestExtractMetric_Status(t *testing.T) {
-	stats := &mockStats{}
+	stats := &mcm.Stats{}
 	e := &MachineEvaluator{}
 	e.ensureMetrics()
 	val, err := e.extractMetric(stats, nil, MetricStatus)

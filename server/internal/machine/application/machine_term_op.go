@@ -7,7 +7,6 @@ import (
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
-	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
@@ -84,17 +83,12 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		LogCmd:    cli.Info.EnableRecorder == 1,
 	}
 
-	cmdConfs := m.machineCmdConfApp.GetCmdConfsByMachineTags(ctx, cli.Info.CodePath...)
-	if len(cmdConfs) > 0 {
-		createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) error {
-			for _, cmdConf := range cmdConfs {
-				if cmdConf.CmdRegexp.Match([]byte(cmd)) {
-					return errorx.NewBizI(ctx, imsg.TerminalCmdDisable)
-				}
-			}
-			return nil
-		}}
-	}
+	// 终端会话内逐条命令走与 API、AI Agent 同一个前置校验：
+	// 此前这里命中正则就直接拒绝，既不看处置级别，也与另外两个入口的判定口径分叉
+	createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) (string, error) {
+		// 第二个返回值是不阻断的「仅提醒」命中提示，由终端会话写回页面
+		return CheckMachineCmd(ctx, cli.Info.CodePath, cmd)
+	}}
 
 	mts, err := mcm.NewTerminalSession(createTsParam)
 	if err != nil {
@@ -114,7 +108,8 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 }
 
 func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, pageParam model.PageParam, orderBy ...string) (*model.PageResult[*entity.MachineTermOp], error) {
-	return m.GetRepo().GetPageList(condition, pageParam)
+	// orderBy 必须下传仓储：漏传会让调用方指定的排序静默失效，分页因此拿到不确定的行序
+	return m.GetRepo().GetPageList(condition, pageParam, orderBy...)
 }
 
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {

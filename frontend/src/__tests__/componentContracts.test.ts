@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as os from 'node:os';
 
 const SRC_ROOT = path.resolve(__dirname, '..');
 
@@ -146,11 +147,109 @@ function modelEventsOf(code: string): string[] {
     return [...names];
 }
 
+function balancedBrace(src: string, openIdx: number): string {
+    let depth = 0;
+    for (let i = openIdx; i < src.length; i++) {
+        const ch = src[i];
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+            depth--;
+            if (depth === 0) return src.slice(openIdx + 1, i);
+        }
+    }
+    return '';
+}
+
+function readStripped(absFile: string, cache: Map<string, string>): string {
+    if (cache.has(absFile)) return cache.get(absFile)!;
+    let out = '';
+    try {
+        out = stripComments(fs.readFileSync(absFile, 'utf-8'));
+    } catch {
+        out = '';
+    }
+    cache.set(absFile, out);
+    return out;
+}
+
+/** 把相对 import 说明符解析到本地文件（仅相对路径：emit 契约类型都在同目录树内，无需处理包别名） */
+function resolveModulePath(spec: string, fromAbs: string): string | null {
+    if (!spec.startsWith('.')) return null;
+    const base = path.resolve(path.dirname(fromAbs), spec);
+    const cands = [base + '.ts', base + '.tsx', base + '.vue', path.join(base, 'index.ts'), path.join(base, 'index.tsx')];
+    return cands.find((c) => fs.existsSync(c)) ?? null;
+}
+
+/**
+ * 解析引用型 emits 别名（如 defineEmits<TabsEmits>）到事件名集合：沿「同文件 interface/type 定义 → extends / & 交叉引用 →
+ * 相对 import 的契约文件」递归，seen 防环。仅当块文本是裸标识符且能在源码里真找到定义时返回成员，否则空数组——
+ * 绝不因「看不见定义」而放过真实未声明的 emit（守卫判据不放松，只是消除引用型别名的假阳性）。
+ */
+function resolveEmitsRefName(alias: string, fromAbs: string, cache: Map<string, string>, seen: Set<string> = new Set()): string[] {
+    const key = `${fromAbs}#${alias}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const src = readStripped(fromAbs, cache);
+    if (!src) return [];
+    const iface = new RegExp(String.raw`(?:export\s+)?interface\s+` + alias + String.raw`(\s+extends\s+([^{]+?))?\s*\{`);
+    const im = src.match(iface);
+    if (im) {
+        const open = src.indexOf('{', (im.index ?? 0) + im[0].length - 1);
+        const own = declaredNames({ kind: 'typed', text: `{${balancedBrace(src, open)}}` });
+        const refs = (im[2] ?? '')
+            .split(',')
+            .map((x) => x.trim())
+            .filter((x) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(x));
+        return [...new Set([...own, ...refs.flatMap((r) => resolveEmitsRefName(r, fromAbs, cache, seen))])];
+    }
+    const tm = src.match(new RegExp(String.raw`(?:export\s+)?type\s+` + alias + String.raw`\s*=\s*`));
+    if (tm) {
+        const after = (tm.index ?? 0) + tm[0].length;
+        const rest = src.slice(after);
+        const open = rest.indexOf('{');
+        const semi = rest.indexOf(';');
+        if (open >= 0 && (semi < 0 || open < semi)) {
+            return declaredNames({ kind: 'typed', text: `{${balancedBrace(src, after + open)}}` });
+        }
+        const stmt = semi >= 0 ? rest.slice(0, semi) : rest;
+        const refs = stmt
+            .split('&')
+            .map((x) => x.trim())
+            .filter((x) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(x));
+        return [...new Set(refs.flatMap((r) => resolveEmitsRefName(r, fromAbs, cache, seen)))];
+    }
+    for (const m of src.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g)) {
+        const specs = m[1].split(',').map((x) =>
+            (
+                x
+                    .trim()
+                    .split(/\s+as\s+/)
+                    .pop() ?? ''
+            ).trim()
+        );
+        if (!specs.includes(alias)) continue;
+        const target = resolveModulePath(m[2], fromAbs);
+        if (target) return resolveEmitsRefName(alias, target, cache, seen);
+    }
+    return [];
+}
+
 /** 解析一个 SFC 的事件契约 */
-function analyze(src: string, relPath: string) {
+function analyze(src: string, relPath: string, absFile = '', fileCache: Map<string, string> = new Map()) {
     const code = stripComments(src);
+    if (absFile) fileCache.set(absFile, code);
     const blocks = emitsBlocks(code);
-    const declared = blocks.flatMap(declaredNames);
+    // 引用型别名内联解析不出成员时，按「同文件类型定义 / 相对 import 契约 / extends 与交叉类型」递归补齐；解析不到即空，判据不放松
+    const declared = [
+        ...new Set(
+            blocks.flatMap((b) => {
+                const inline = declaredNames(b);
+                if (inline.length || b.kind === 'array') return inline;
+                const alias = b.text.trim();
+                return absFile && /^[A-Za-z_][A-Za-z0-9_]*$/.test(alias) ? resolveEmitsRefName(alias, absFile, fileCache) : [];
+            })
+        ),
+    ];
     const emitted = emittedOf(code);
     const auto = modelEventsOf(code);
     const consumed = CONSUMED_BY_HOST_HANDLER[relPath] ?? [];
@@ -165,10 +264,14 @@ function analyze(src: string, relPath: string) {
 }
 
 /** 受检 SFC：src 下全部组件（含 layout、App.vue 等 views/components 之外的），新增目录零登记即被覆盖 */
+const typeFileCache = new Map<string, string>();
 const sfcs = listSfc(SRC_ROOT)
     .map((file) => path.relative(SRC_ROOT, file))
     .filter((rel) => !EXCLUDE_DIRS.some((dir) => rel.startsWith(dir + path.sep)))
-    .map((rel) => ({ rel, ...analyze(fs.readFileSync(path.join(SRC_ROOT, rel), 'utf-8'), rel) }));
+    .map((rel) => {
+        const abs = path.join(SRC_ROOT, rel);
+        return { rel, ...analyze(fs.readFileSync(abs, 'utf-8'), rel, abs, typeFileCache) };
+    });
 
 describe('组件事件契约', () => {
     it('解析器认全三种声明写法，且不被 payload 类型带偏（判据错了守卫就是假绿灯）', () => {
@@ -204,6 +307,30 @@ describe('组件事件契约', () => {
         expect(modelEventsOf(`const v = defineModel<boolean>({ default: false });`)).toEqual(['update:modelValue']);
         // 注释里提到的写法必须被忽略
         expect(analyze(`// defineEmits(['ghost'])\nconst e = defineEmits<{ real: [v: boolean] }>();\nemits('real', true);`, 'x.vue').dead).toEqual([]);
+    });
+
+    // 自包含夹具验证解析机制（跨文件 .ts 契约 + interface extends 链），与任何具体功能文件解耦，且带牙齿
+    it('能解析引用型 emits 别名：interface extends + 相对 import 契约文件', () => {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-emit-alias-'));
+        try {
+            fs.writeFileSync(
+                path.join(dir, 'types.ts'),
+                "export type BaseEmits = { 'update:modelValue': [k: string]; close: [k: string]; };\nexport interface DerivedEmits extends BaseEmits {\n    change: [k: string];\n}\n"
+            );
+            const comp = path.join(dir, 'C.vue');
+            fs.writeFileSync(
+                comp,
+                "<script setup lang='ts'>\nimport type { DerivedEmits } from './types';\nconst emit = defineEmits<DerivedEmits>();\n</script>\n"
+            );
+            const got = new Set(resolveEmitsRefName('DerivedEmits', comp, new Map()));
+            expect([...got].sort()).toEqual(['change', 'close', 'update:modelValue']);
+            // 别名里没有的事件绝不能被解析出来（牙齿：不因解析而放松判据）
+            expect(got.has('nope')).toBe(false);
+            // 解析不到定义 → 返回空而非臆造声明（牙齿）
+            expect(resolveEmitsRefName('MissingEmits', comp, new Map())).toEqual([]);
+        } finally {
+            fs.rmSync(dir, { recursive: true, force: true });
+        }
     });
 
     it('受检范围内确有可检查的 SFC（防止路径写错导致用例空跑）', () => {

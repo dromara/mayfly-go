@@ -24,25 +24,39 @@ export function useI18nPleaseSelect(labelI18nKey: string) {
 /**
  * 提示确认删除
  * @param name 删除对象名称
- * @returns
+ * @returns 用户是否确认
  */
-export async function useI18nDeleteConfirm(name: string = '') {
+export async function useI18nDeleteConfirm(name: string = ''): Promise<boolean> {
     return useI18nConfirm('common.deleteConfirm2', { name });
 }
 
 /**
- * 提示确认信息
+ * 弹确认框，**用返回值表达用户的选择，不抛异常**
  * @param i18nKey i18n msg key
  * @param value i18n msg value
- * @returns
+ * @returns true = 点了确认；false = 取消或关掉弹窗（都代表「别执行后续动作」）
+ *
+ * 「取消」是正常交互结果，不是失败。用 reject 表达它，等于把 try/catch 强制分发给每一个调用点：
+ * 全仓几十处确认里多数是裸 await，用户点一下就留一条未捕获异常，个别调用点还会因此跳过后面的
+ * 清理逻辑。收敛成布尔值后，调用点只需 `if (!(await useI18nConfirm(...))) return;`。
+ *
+ * 需要区分「确认 / 取消按钮 / 关掉弹窗」三种结果时（如策略提醒要分别对应执行、提单、暂缓），
+ * 直接按 element-plus 的 reject 值判定，别把这个原语改回抛异常
  */
-export async function useI18nConfirm(i18nKey: string = '', value = {}) {
+export async function useI18nConfirm(i18nKey: string = '', value = {}): Promise<boolean> {
     const t = i18n.global.t;
-    return ElMessageBox.confirm(t(i18nKey, value), t('common.hint'), {
-        confirmButtonText: t('common.confirm'),
-        cancelButtonText: t('common.cancel'),
-        type: 'warning',
-    });
+    try {
+        await ElMessageBox.confirm(t(i18nKey, value), t('common.hint'), {
+            confirmButtonText: t('common.confirm'),
+            cancelButtonText: t('common.cancel'),
+            type: 'warning',
+        });
+        return true;
+    } catch {
+        // element-plus 的取消与关闭都走 reject，且 reject 值形态不一（'cancel' / 'close' / Error），
+        // 二者对本原语是同一件事：不继续
+        return false;
+    }
 }
 
 /**

@@ -41,7 +41,7 @@
                             </div>
                         </div>
 
-                        <el-empty v-if="globalNotificationState.activeCount === 0" :description="$t('common.noData')" :image-size="80" />
+                        <el-empty v-if="globalNotificationState.activeCount === 0" :description="$t('common.empty')" :image-size="80" />
                     </div>
                 </el-scrollbar>
             </div>

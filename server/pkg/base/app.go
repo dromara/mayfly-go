@@ -96,11 +96,16 @@ func (ai *AppImpl[T, R]) UpdateById(ctx context.Context, e T) error {
 	return ai.GetRepo().UpdateById(ctx, e)
 }
 
-// UpdateByCond 更新满足条件的数据
+// UpdateByCond 更新满足条件的数据 (单纯更新，不做其他业务逻辑处理)
 //   - values 需为模型结构体指针或map(更新零值等)
 //   - cond 可为*model.QueryCond也可以为普通查询model
+//
+// 应用层只报执行是否出错，不回传改动行数：0 行对多数条件更新是正常态（无在途数据、幂等重写），
+// 回一个「是否改到行」的布尔值会把无事发生编码成失败、迫使每个调用点丢弃它。需要按行数判
+// 「没抢到」的流转，应在业务具名方法里直接调仓储的行数入口（Repo.UpdateByCond）
 func (ai *AppImpl[T, R]) UpdateByCond(ctx context.Context, values any, cond any) error {
-	return ai.GetRepo().UpdateByCond(ctx, values, cond)
+	_, err := ai.GetRepo().UpdateByCond(ctx, values, cond)
+	return err
 }
 
 // 保存实体，实体IsCreate返回true则新增，否则更新

@@ -1,14 +1,20 @@
 package mcm
 
 import (
+	"errors"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"strings"
+	"time"
 
 	"github.com/pkg/sftp"
 	"github.com/spf13/cast"
 	"golang.org/x/crypto/ssh"
 )
+
+// ErrRunTimeout 命令执行超时。由 RunWithTimeout 在主动关闭会话后返回，
+// 调用方可用 errors.Is 识别后将结果标记为超时而非普通失败
+var ErrRunTimeout = errors.New("the command execution timed out")
 
 // Cli 机器客户端
 type Cli struct {
@@ -92,6 +98,39 @@ func (c *Cli) Run(shell string) (string, error) {
 	buf, err := session.CombinedOutput(strings.ReplaceAll(shell, "\r\n", "\n"))
 	if err != nil {
 		return string(buf), err
+	}
+	return string(buf), nil
+}
+
+// RunWithTimeout 在限时内执行shell，超时则主动关闭session。
+//
+// CombinedOutput 会阻塞在会话读上，外层 select 超时只会让调用方先返回而 session 永远泄漏，
+// 因此超时时必须主动 Close 会话令阻塞读立即返回（Close 幂等，与 defer 的收尾并发安全）。
+// 归 mcm 的通用能力，不与任何具体业务场景（如批量执行）耦合
+func (c *Cli) RunWithTimeout(timeout time.Duration, shell string) (string, error) {
+	session, err := c.GetSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	timedOut := make(chan struct{})
+	timer := time.AfterFunc(timeout, func() {
+		close(timedOut)
+		session.Close()
+	})
+	defer timer.Stop()
+
+	// 将可能存在的windows换行符替换为linux格式
+	buf, runErr := session.CombinedOutput(strings.ReplaceAll(shell, "\r\n", "\n"))
+	// 超时触发的会话中断按超时错误上报，而非误导性的底层 EOF/reset
+	select {
+	case <-timedOut:
+		return string(buf), ErrRunTimeout
+	default:
+	}
+	if runErr != nil {
+		return string(buf), runErr
 	}
 	return string(buf), nil
 }

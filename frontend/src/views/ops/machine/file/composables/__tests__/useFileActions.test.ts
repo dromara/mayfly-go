@@ -116,7 +116,11 @@ describe('按位置与条件派生可见操作', () => {
      */
     it('按权限码过滤所有位置', () => {
         perms.delete(FILE_PERM.write);
-        expect(build().actionsOn('row', [row('/srv/a.txt')]).map((a) => a.id)).toEqual(['delete']);
+        expect(
+            build()
+                .actionsOn('row', [row('/srv/a.txt')])
+                .map((a) => a.id)
+        ).toEqual(['delete']);
 
         perms.add(FILE_PERM.write);
         perms.delete(FILE_PERM.rm);

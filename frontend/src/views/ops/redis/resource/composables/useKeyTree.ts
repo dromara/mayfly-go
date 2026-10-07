@@ -7,27 +7,11 @@
  */
 import { nextTick, reactive, ref, computed, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { VirtualTreeInstance } from '@/components/virtual-tree';
 import { viewAppearance } from '../../keyview/appearance';
 import { coversAll } from '../../keyview/descriptor';
-import { keysToList, keysToTree, sortByTreeNodes } from '../../utils';
+import { insertKeysToTree, keysToList, keysToTree, type TreeNode } from '../../utils';
 import type { useKeyScan } from './useKeyScan';
-
-export interface KeyTreeNode {
-    name?: string;
-    key?: string;
-    type?: number;
-    children?: KeyTreeNode[];
-    keyCount?: number;
-    [key: string]: unknown;
-}
-
-/** el-tree 实例（仅声明用到的成员）；勾选切换交给 check-on-click-leaf，实例上没有 isChecked */
-export interface KeyTreeRef {
-    root: { childNodes: { isLeaf: boolean; label: string }[] };
-    setCurrentKey: (key: string) => void;
-    getCheckedKeys: (leafOnly?: boolean) => (string | number)[];
-    setCheckedKeys: (keys: string[]) => void;
-}
 
 /** 右键菜单实例（仅声明用到的成员） */
 export interface ContextmenuRef {
@@ -35,13 +19,16 @@ export interface ContextmenuRef {
     closeContextmenu: () => void;
 }
 
-/** el-tree 的字段映射：树数据节点名是 name，叶子判定看 leaf 字段 */
-export const treeProps = { label: 'name', children: 'children', isLeaf: 'leaf' };
+/**
+ * 虚拟树字段映射：唯一键在 key、节点名在 name、子级在 children。
+ * 叶子判定交给引擎（children 为空即叶子）；redis 树是全量物化的，不存在「可展开但未加载」的节点，无需占位 children
+ */
+export const keyTreeFieldNames = { value: 'key', label: 'name', children: 'children' };
 
 export function useKeyTree(deps: {
     /** 扫描域：树渲染的数据来源（key 列表、类型摘要、描述符） */
     scan: ReturnType<typeof useKeyScan>;
-    keyTreeRef: Ref<KeyTreeRef | null>;
+    keyTreeRef: Ref<VirtualTreeInstance | null>;
     contextmenuRef: Ref<ContextmenuRef | null>;
     /** 点击叶子打开 key 详情（tab 域副作用，由宿主注入） */
     openKeyDetail: (key: string) => void;
@@ -50,7 +37,7 @@ export function useKeyTree(deps: {
 
     const state = reactive({
         keySeparator: ':',
-        keyTreeData: [] as KeyTreeNode[],
+        keyTreeData: [] as TreeNode[],
         keyTreeExpanded: new Set<string>(),
         checkedKeys: [] as string[],
         batchSelect: false,
@@ -60,10 +47,13 @@ export function useKeyTree(deps: {
 
     const typeFilter = ref('');
 
+    /** 单个 key 是否通过当前类型筛选（无筛选即全通过）：全量渲染、增量插入与批量「全选」共用同一判据 */
+    const matchesFilter = (key: string) => !typeFilter.value || deps.scan.state.summaries[key]?.type === typeFilter.value;
+
     /** 当前类型筛选下可见的 key：树渲染与批量「全选」共用同一份判据，避免选到列表里看不见的 key */
     const visibleKeys = computed(() => {
-        const { keys, summaries } = deps.scan.state;
-        return typeFilter.value ? keys.filter((key) => summaries[key]?.type === typeFilter.value) : keys;
+        const { keys } = deps.scan.state;
+        return typeFilter.value ? keys.filter(matchesFilter) : keys;
     });
 
     /** 当前筛选下的 key 是否已全被勾选：决定底部按钮是「全选」还是「取消全选」，两者必须同一个判据 */
@@ -101,15 +91,26 @@ export function useKeyTree(deps: {
         return `${ttl}s`;
     };
 
-    /** 分组或不分组的树数据：分组走折叠树（带上已展开目录），不分组平铺一层 */
-    function renderKeyTree() {
-        const visible = visibleKeys.value;
-        state.keyTreeData = state.keySeparator ? keysToTree(visible, state.keySeparator, state.keyTreeExpanded) : keysToList(visible);
+    /**
+     * 渲染分组树。mode='full' 全量重建（重搜/切库/类型筛选变化）；mode='append' 只把新增 key
+     * 增量插入已有树（加载更多），百万级下避免每批都重建整棵树。appendedKeys 是扫描域本批新增的
+     * 原始 key，按当前类型筛选后再插入，与可见集口径一致
+     */
+    function renderKeyTree(mode: 'full' | 'append' = 'full', appendedKeys: string[] = []) {
+        if (!state.keySeparator) {
+            // 不分组：平铺一层，无层级无排序，重建成本低，增量无意义
+            state.keyTreeData = keysToList(visibleKeys.value);
+        } else if (mode === 'append' && state.keyTreeData.length) {
+            insertKeysToTree(state.keyTreeData, appendedKeys.filter(matchesFilter), state.keySeparator, state.keyTreeExpanded);
+            // el-tree-v2 按引用 watch data：就地增量修改后要换一个新顶层引用，引擎才会重建内部节点
+            state.keyTreeData = [...state.keyTreeData];
+        } else {
+            state.keyTreeData = keysToTree(visibleKeys.value, state.keySeparator, state.keyTreeExpanded);
+        }
         nextTick(() => {
-            if (visible.length <= 20) {
+            if (visibleKeys.value.length <= 20) {
                 expandAllKeyNode(state.keyTreeData);
             }
-            sortByTreeNodes(deps.keyTreeRef.value?.root.childNodes ?? []);
         });
     }
 
@@ -124,7 +125,7 @@ export function useKeyTree(deps: {
         nextTick(() => deps.keyTreeRef.value?.setCheckedKeys(state.checkedKeys));
     };
 
-    const expandAllKeyNode = (nodes: KeyTreeNode[]) => {
+    const expandAllKeyNode = (nodes: TreeNode[]) => {
         nodes.forEach((node) => {
             if (!node.children) {
                 return;
@@ -148,28 +149,24 @@ export function useKeyTree(deps: {
         deps.openKeyDetail(data.key as string);
     };
 
-    const onTreeNodeExpand = (data: Record<string, unknown>, node: Record<string, unknown>) => {
+    const onTreeNodeExpand = (data: Record<string, unknown>) => {
         state.keyTreeExpanded.add(data.key as string);
-        if (!node.customSorted) {
-            node.customSorted = true;
-            sortByTreeNodes(node.childNodes as { isLeaf: boolean; label: string }[]);
-        }
     };
 
     const onTreeNodeCollapse = (data: Record<string, unknown>) => {
         state.keyTreeExpanded.delete(data.key as string);
     };
 
-    const onRightClickNode = (event: MouseEvent, data: Record<string, unknown>, node: Record<string, unknown>) => {
+    const onRightClickNode = (event: MouseEvent, node: Record<string, unknown>) => {
         state.menuPosition.x = event.clientX;
         state.menuPosition.y = event.clientY;
         deps.contextmenuRef.value?.openContextmenu(node);
         deps.keyTreeRef.value?.setCurrentKey(node.key as string);
     };
 
-    /** leafOnly=true：勾选目录只为展开看子项，批量删除的目标必须是真实 key */
-    const syncCheckedKeys = () => {
-        state.checkedKeys = (deps.keyTreeRef.value?.getCheckedKeys(true) ?? []).filter((key) => typeof key === 'string');
+    /** 虚拟树 check 事件已归一为叶子 key 列表：勾选目录只为展开看子项，批量删除目标必须是真实 key */
+    const syncCheckedKeys = (checkedLeafKeys: string[]) => {
+        state.checkedKeys = checkedLeafKeys;
     };
 
     /** 全选 / 取消全选：setCheckedKeys 不触发 @check，已选清单要自己同步 */

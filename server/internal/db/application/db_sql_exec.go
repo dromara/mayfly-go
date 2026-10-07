@@ -36,6 +36,14 @@ type sqlExecParam struct {
 	Stmt    sqlstmt.Stmt        // 解析后的sql stmt
 	Procdef *flowentity.Procdef // 流程定义
 
+	// Notices 本次执行触发的策略提醒（不阻断，随结果回传给操作者）
+	Notices []*dto.PolicyNotice
+
+	// RequireWarnAck 命中「仅提醒」时是否需要先让操作者确认，由调用入口声明
+	RequireWarnAck bool
+	// WarnAcknowledged 操作者已确认过该提醒
+	WarnAcknowledged bool
+
 	SQLExecRecord *entity.DbSQLExec // sql执行记录
 }
 
@@ -54,7 +62,17 @@ type DbSQLExec interface {
 	flowapp.FlowBizHandler
 
 	// 执行sql
+	// Exec 执行一次 SQL 请求：必然过触发策略，无需调用方声明「要不要查」
 	Exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error)
+
+	// CheckSqlsWithoutTicket 判定「拿不到工单通道」的入口（AI Agent、数据导入）能否执行这批 SQL，返回与入参等长的提醒数组
+	CheckSqlsWithoutTicket(ctx context.Context, conn *dbi.DbConn, sqls []string) ([]string, error)
+
+	// ExecApproved 回放「工单审批通过后」的 SQL，不再过触发策略。
+	//
+	// 单独一个入口而不是给 Exec 加布尔开关：布尔的零值是「不查」，以后新增调用点忘了置位
+	// 就静默绕过治理，而这类失效在界面上完全看不出来。回放是唯一不必查的来源，让它显式点名
+	ExecApproved(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error)
 
 	// ExecReader 从reader中读取sql并执行
 	ExecReader(ctx context.Context, execReader *dto.SQLReaderExec) error
@@ -89,13 +107,18 @@ func createSQLExecRecord(ctx context.Context, execSQLReq *dto.DbSQLExecReq, sql 
 }
 
 func (d *dbSQLExecAppImpl) Exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error) {
+	// 流程定义按请求解析一次，本次的多条语句共用同一份
+	return d.exec(ctx, execSQLReq, d.flowProcdefApp.GetProcdefByCodePath(ctx, execSQLReq.DbConn.Info.CodePath...))
+}
+
+func (d *dbSQLExecAppImpl) ExecApproved(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error) {
+	// procdef 传 nil 即整条链路不判策略（见接口注释），而不是再引入一个「已审批」标记位
+	return d.exec(ctx, execSQLReq, nil)
+}
+
+func (d *dbSQLExecAppImpl) exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq, flowProcdef *flowentity.Procdef) ([]*dto.DbSQLExecRes, error) {
 	dbConn := execSQLReq.DbConn
 	execSQL := execSQLReq.SQL
-
-	var flowProcdef *flowentity.Procdef
-	if execSQLReq.CheckFlow {
-		flowProcdef = d.flowProcdefApp.GetProcdefByCodePath(ctx, dbConn.Info.CodePath...)
-	}
 
 	allExecRes := make([]*dto.DbSQLExecRes, 0)
 
@@ -122,11 +145,13 @@ func (d *dbSQLExecAppImpl) Exec(ctx context.Context, execSQLReq *dto.DbSQLExecRe
 		dbSQLExecRecord := createSQLExecRecord(ctx, execSQLReq, sql)
 		dbSQLExecRecord.Type = entity.DbSQLExecTypeOther
 		sqlExec := &sqlExecParam{
-			DbConn:        dbConn,
-			SQL:           sql,
-			Stmt:          stmt,
-			Procdef:       flowProcdef,
-			SQLExecRecord: dbSQLExecRecord,
+			DbConn:           dbConn,
+			SQL:              sql,
+			Stmt:             stmt,
+			Procdef:          flowProcdef,
+			SQLExecRecord:    dbSQLExecRecord,
+			RequireWarnAck:   execSQLReq.RequireWarnAck,
+			WarnAcknowledged: execSQLReq.WarnAcknowledged,
 		}
 
 		// 语句分类单点收敛至 sqlparser.Classify：AST 优先，其次方言分类能力，最后整词关键字兜底
@@ -154,14 +179,45 @@ func (d *dbSQLExecAppImpl) Exec(ctx context.Context, execSQLReq *dto.DbSQLExecRe
 				execRes = &dto.DbSQLExecRes{SQL: sql}
 			}
 			execRes.ErrorMsg = err.Error()
+			// 被策略要求审批的语句带上提单标记，前端据此在失败结果处直接给出提交入口；
+			// 等待确认提醒的语句带另一个标记：两者后续动作不同（一个提单、一个确认后重试）
+			execRes.NeedApproval = flowapp.IsNeedApprovalError(err)
+			execRes.WarnAck = flowapp.IsWarnAckError(err)
 		} else {
 			// 保存执行结果集（dbSQLExecRecord.Res尚未赋值，需传入本次执行结果）
 			d.saveSQLExecLog(ctx, dbSQLExecRecord, execRes.Res)
+		}
+		// 策略提醒随该条语句的结果回传：不阻断执行，但必须让操作者看到
+		if execRes != nil && len(sqlExec.Notices) > 0 {
+			execRes.Notices = sqlExec.Notices
 		}
 		allExecRes = append(allExecRes, execRes)
 	}
 
 	return allExecRes, nil
+}
+
+// checkImportedSQL 判定导入文件里的单条语句能否执行：与交互式执行共用同一个触发策略入口，
+// 提醒不阻断（导入过程里没有能逐条应答确认的人），需审批与禁止执行一律拦下。
+//
+// procdef 为空表示该库没有绑定流程定义，此时不付任何解析开销
+func (d *dbSQLExecAppImpl) checkImportedSQL(ctx context.Context, procdef *flowentity.Procdef, dbConn *dbi.DbConn, sql string) error {
+	if procdef == nil {
+		return nil
+	}
+	sp := dbConn.GetDialect().GetSQLParser()
+	stmt, parseErr := sp.Parse(sql)
+	// 分类口径与执行、审计同源（见 Exec），否则同一条语句在导入与交互执行下会得到不同结论
+	sqlExec := &sqlExecParam{DbConn: dbConn, SQL: sql, Stmt: stmt, Procdef: procdef}
+	stmtType := string(sqlparser.Classify(sp, dbConn.GetDialect().GetSQLSplitter(), sql, stmt, parseErr))
+	if err := d.checkSQLTrigger(ctx, sqlExec, stmtType); err != nil {
+		return err
+	}
+	// 提醒拦不住执行，但必须留痕：导入结束后界面只报「成功 N 条」，不记日志就等于无人知晓
+	for _, notice := range sqlExec.Notices {
+		logx.WarnContext(ctx, fmt.Sprintf("sql file import hit policy notice: %s", notice.Title))
+	}
+	return nil
 }
 
 func (d *dbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLReaderExec) error {
@@ -217,6 +273,9 @@ func (d *dbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLRe
 		}
 	}()
 
+	// 流程定义按连接粒度解析一次，别在语句循环里逐条查库
+	importProcdef := d.flowProcdefApp.GetProcdefByCodePath(ctx, dbConn.Info.CodePath...)
+
 	tx, err := dbConn.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
@@ -245,6 +304,16 @@ func (d *dbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLRe
 		}
 
 		executedStatements++
+		// 导入与交互式执行必须同一套口径：否则把「禁止执行」的语句写进 .sql 上传即可绕过策略，
+		// 这比界面上少弹一次确认框严重得多。导入也无法逐条追问（几百条语句会把导入变成人工批处理），
+		// 故提醒级放行、需审批与禁止级直接拦下，拦下就中断本次导入。
+		//
+		// 这里能给的保证是「被策略拒绝的语句绝不执行」，而不是「整个文件要么全成要么全无」：
+		// 前序语句能否回滚取决于脚本所在库的事务语义（见上文，mysql 的 DDL 会隐式提交，
+		// 那种情况下前序写入留得住，与用 mysql CLI 跑同一个脚本一致）
+		if err := d.checkImportedSQL(ctx, importProcdef, dbConn, sql); err != nil {
+			return err
+		}
 		if _, err := dbConn.TxExec(tx, sql); err != nil {
 			return err
 		}
@@ -295,18 +364,21 @@ func (d *dbSQLExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 		return nil, errorx.NewBizf("failed to parse the business form information: %s", err.Error())
 	}
 
+	// 与 Redis 回放同一套身份处理：取连接（含资源鉴权）与执行都用发起人身份
+	ctx = flowapp.BizOperatorContext(ctx, bizHandleParam)
+
 	dbConn, err := d.dbApp.GetDbConn(ctx, execSQLBizForm.DbId, execSQLBizForm.DbName)
 	if err != nil {
 		return nil, err
 	}
 
-	execRes, err := d.Exec(contextx.NewLoginAccount(&model.LoginAccount{Id: procinst.CreatorId, Username: procinst.Creator}), &dto.DbSQLExecReq{
-		DbId:      execSQLBizForm.DbId,
-		Db:        execSQLBizForm.DbName,
-		SQL:       execSQLBizForm.SQL,
-		DbConn:    dbConn,
-		Remark:    procinst.Remark,
-		CheckFlow: false,
+	// 审批通过后按原样回放，不再查策略：再查一次会命中「需审批」，工单就卡在自己身上
+	execRes, err := d.ExecApproved(ctx, &dto.DbSQLExecReq{
+		DbId:   execSQLBizForm.DbId,
+		Db:     execSQLBizForm.DbName,
+		SQL:    execSQLBizForm.SQL,
+		DbConn: dbConn,
+		Remark: procinst.Remark,
 	})
 	if err != nil {
 		return nil, err
@@ -354,10 +426,8 @@ func (d *dbSQLExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 	maxCount := config.GetDbms().MaxResultSet
 	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeQuery
 
-	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "select")); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
-		}
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "select"); err != nil {
+		return nil, err
 	}
 
 	return d.doQuery(ctx, sqlExecParam, maxCount)
@@ -366,10 +436,8 @@ func (d *dbSQLExecAppImpl) doSelect(ctx context.Context, sqlExecParam *sqlExecPa
 func (d *dbSQLExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
 	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeQuery
 
-	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "read")); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
-		}
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "read"); err != nil {
+		return nil, err
 	}
 
 	return d.doQuery(ctx, sqlExecParam, 0)
@@ -379,10 +447,8 @@ func (d *dbSQLExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecP
 	selectSQL := sqlExecParam.SQL
 	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeDDL
 
-	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "ddl")); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
-		}
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "ddl"); err != nil {
+		return nil, err
 	}
 
 	return d.doExec(ctx, sqlExecParam.DbConn, selectSQL)
@@ -391,10 +457,8 @@ func (d *dbSQLExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecP
 func (d *dbSQLExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
 	dbConn := sqlExecParam.DbConn
 
-	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "update")); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
-		}
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "update"); err != nil {
+		return nil, err
 	}
 
 	execRecord := sqlExecParam.SQLExecRecord
@@ -476,10 +540,8 @@ func (d *dbSQLExecAppImpl) doUpdate(ctx context.Context, sqlExecParam *sqlExecPa
 }
 
 func (d *dbSQLExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
-	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "delete")); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
-		}
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "delete"); err != nil {
+		return nil, err
 	}
 
 	dbConn := sqlExecParam.DbConn
@@ -539,10 +601,8 @@ func (d *dbSQLExecAppImpl) doDelete(ctx context.Context, sqlExecParam *sqlExecPa
 }
 
 func (d *dbSQLExecAppImpl) doInsert(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
-	if procdef := sqlExecParam.Procdef; procdef != nil {
-		if needStartProc := procdef.MatchCondition(DbSQLExecFlowBizType, collx.Kvs("stmtType", "insert")); needStartProc {
-			return nil, errorx.NewBizI(ctx, imsg.ErrNeedSubmitWorkTicket)
-		}
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "insert"); err != nil {
+		return nil, err
 	}
 
 	dbConn := sqlExecParam.DbConn

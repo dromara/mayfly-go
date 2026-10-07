@@ -90,6 +90,17 @@ func (m *mockEventAppForEsc) UpdateById(ctx context.Context, event *entity.Alert
 	return nil
 }
 
+func (m *mockEventAppForEsc) UpdateNotifyInfo(ctx context.Context, event *entity.AlertEvent) error {
+	return nil
+}
+
+func (m *mockEventAppForEsc) UpdateEscalationLvl(ctx context.Context, event *entity.AlertEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.saved = append(m.saved, event)
+	return nil
+}
+
 func (m *mockEventAppForEsc) ListByCond(cond any, cols ...string) ([]*entity.AlertEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -229,6 +229,8 @@ const initComponentSize = () => {
 // 语言切换
 const onLanguageChange = (lang: string) => {
     themeConfig.value.globalI18n = lang;
+    // 标成「用户自己选的」，否则下次启动会被全站默认覆盖回去
+    themeConfig.value.i18nSelected = true;
 };
 </script>
 

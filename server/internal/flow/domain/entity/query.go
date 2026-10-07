@@ -27,3 +27,14 @@ type ProcinstTaskQuery struct {
 	Candidates   []string           `json:"candidates"`           // 任务处理候选人
 	Status       ProcinstTaskStatus `json:"status" form:"status"` // 状态
 }
+
+// RuleSegmentQuery 可复用条件组分页查询条件
+type RuleSegmentQuery struct {
+	model.PageParam
+
+	// BizType 按字段字典（业务场景）过滤：条件组只能在同场景规则里被引用
+	BizType string `json:"bizType" form:"bizType"`
+
+	// Name 名称模糊匹配
+	Name string `json:"name" form:"name"`
+}

@@ -46,17 +46,20 @@ type MachineCronJobForm struct {
 	Script          string   `json:"script" binding:"required"`
 	Status          int      `json:"status" binding:"required"`
 	SaveExecResType int      `json:"saveExecResType" binding:"required"`
+	TimeoutSeconds  int      `json:"timeoutSeconds"`
+	RetryTimes      int8     `json:"retryTimes"`
+	NotifyType      int8     `json:"notifyType"`
+	NotifyTmplCode  string   `json:"notifyTmplCode"`
 	Remark          string   `json:"remark"`
 	CodePaths       []string `json:"codePaths"`
 }
 
 type MachineCmdConfForm struct {
-	Id       uint64              `json:"id"`
-	Name     string              `json:"name"`
-	Cmds     model.Slice[string] `json:"cmds"`     // 命令配置
-	Status   int8                `json:"execCmds"` // 状态
-	Stratege string              `json:"stratege"` // 策略，空禁用
-	Remark   string              `json:"remark"`   // 备注
+	Id     uint64              `json:"id"`
+	Name   string              `json:"name"`
+	Cmds   model.Slice[string] `json:"cmds"`     // 命令配置
+	Status int8                `json:"execCmds"` // 状态
+	Remark string              `json:"remark"`   // 备注
 
 	CodePaths []string `json:"codePaths"`
 }

@@ -118,17 +118,25 @@ func UpdateByIdWithDb(db *gorm.DB, model model.ModelI, columns ...string) error 
 	return db.Model(model).Select(columns).Updates(model).Error
 }
 
-// UpdateByCond 使用默认global.Dd更新满足条件的数据(model的主键值需为空，否则会带上主键条件)
-func UpdateByCond(dbModel model.ModelI, values any, cond *model.QueryCond) error {
+// UpdateByCond 更新满足条件的数据并回报真正被改动的行数，见 UpdateByCondWithDb
+func UpdateByCond(dbModel model.ModelI, values any, cond *model.QueryCond) (int64, error) {
 	return UpdateByCondWithDb(global.Db, dbModel, values, cond)
 }
 
-// UpdateByCondWithDb 使用指定gorm.DB更新满足条件的数据(model的主键值需为空，否则会带上主键条件)
-// @values values must be a struct or map.
-func UpdateByCondWithDb(db *gorm.DB, dbModel model.ModelI, values any, cond *model.QueryCond) error {
+// UpdateByCondWithDb 使用指定gorm.DB更新满足条件的数据(model的主键值需为空，否则会带上主键条件)，并回报真正被改动的行数
+//   - values must be a struct or map.
+//
+// 回报行数而不只是 error，是为了让带前置状态条件的更新（CAS）能判断本次是否抢到了这次状态流转：
+// 只看 error 的话，两个并发事务会各自认为自己更新成功，同一份数据被推进两次。
+//
+// 行数是驱动口径的「实际改动行数」：把与旧值相同的值写回去也是 0 行（datetime 精度到秒，
+// 同一秒内的重复提交连 update_time 都不变）。因此 0 行不等于「行不存在」，只有 SET 的值
+// 必然不同于旧值时（如条件带 status=旧状态 的状态流转），0 行才等价于前置条件不成立
+func UpdateByCondWithDb(db *gorm.DB, dbModel model.ModelI, values any, cond *model.QueryCond) (int64, error) {
 	gormDb := db.Model(dbModel).Select(cond.GetSelectColumns())
 	setGdbWhere(gormDb, cond)
-	return gormDb.Updates(values).Error
+	result := gormDb.Updates(values)
+	return result.RowsAffected, result.Error
 }
 
 // 根据id删除model

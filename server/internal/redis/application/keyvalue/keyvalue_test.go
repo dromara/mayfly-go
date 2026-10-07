@@ -330,3 +330,26 @@ func TestScanMatchEscape(t *testing.T) {
 		t.Fatalf("unclosed bracket must still be escaped, got %s", got)
 	}
 }
+
+// TestEveryViewDeclaresReadCmdInItsHints 面板读内容的治理口径必须由视角自己声明，且与命令台模板同源。
+//
+// ReadCmd 用于「点开 key 看内容」这路的触发策略判定，同时是前端「申请查看」拼命令的依据；
+// 它若与 ConsoleHints 脱节（或漏声明），就会出现「命令台拦得住、面板放过」或判定用了一个不存在的命令名
+func TestEveryViewDeclaresReadCmdInItsHints(t *testing.T) {
+	for _, desc := range AllDescriptors() {
+		if desc.ReadCmd == "" {
+			t.Errorf("view %s must declare ReadCmd for policy checks on content reading", desc.View)
+			continue
+		}
+		found := false
+		for _, hint := range desc.ConsoleHints {
+			if strings.EqualFold(strings.Fields(hint)[0], desc.ReadCmd) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("view %s ReadCmd %q is not one of its console command hints %v", desc.View, desc.ReadCmd, desc.ConsoleHints)
+		}
+	}
+}

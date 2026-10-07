@@ -51,6 +51,8 @@ var setDesc = withDefault(&entity.ViewDescriptor{
 			textAreaField(argSourceKeys, "redis.colSourceKeys", 3, false),
 		)),
 	},
+	// ReadCmd 面板读取本视角内容等价的命令名，触发策略判定与「申请查看」提单同口径
+	ReadCmd: "SMEMBERS",
 })
 
 type setHandler struct{}

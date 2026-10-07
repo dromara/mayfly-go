@@ -181,7 +181,9 @@ const onOpenFormDialog = (data: MachineCmdConfVO | null) => {
 };
 
 const onDeleteCmdConf = async (data: MachineCmdConfVO) => {
-    await useI18nDeleteConfirm(data.name);
+    if (!(await useI18nDeleteConfirm(data.name))) {
+        return;
+    }
     await cmdConfApi.delete.request({ id: data.id });
     Msg.deleteSuccess();
     getCmdConfs();

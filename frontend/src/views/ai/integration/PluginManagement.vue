@@ -180,16 +180,20 @@ const remove = async (item: PluginInstance) => {
     try {
         if (item.pluginType === 'skill') {
             // 技能删除走技能接口，后端联动删除引用实例
-            await useI18nConfirm('ai.integration.deleteSkillConfirm', { name: item.name });
+            if (!(await useI18nConfirm('ai.integration.deleteSkillConfirm', { name: item.name }))) {
+                return;
+            }
             await pluginApi.deleteSkill.request({ id: item.skillId! });
         } else {
-            await useI18nConfirm('ai.integration.deleteInstanceConfirm', { name: item.name });
+            if (!(await useI18nConfirm('ai.integration.deleteInstanceConfirm', { name: item.name }))) {
+                return;
+            }
             await pluginApi.deleteInstance.request({ id: item.id });
         }
         Msg.success('common.deleteSuccess');
         await reload();
     } catch {
-        // 确认取消或删除失败（请求层已 toast），静默退出
+        // 只剩请求失败（请求层已 toast）：取消在上面的确认判断里就 return 了
     }
 };
 </script>

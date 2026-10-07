@@ -1,13 +1,16 @@
 <template>
     <div>
+        <!-- 必须挂 body：本抽屉常被宿主嵌在资源操作页的玻璃卡片（glass 主题下 .el-card 带 isolation: isolate）
+             内部，不挂 body 时 z-index 被钳在卡片层叠上下文里，会被 layout 层 TagsView（isolation + z-index:4）整个盖住 -->
         <auto-form-drawer
             ref="drawerRef"
             v-model:visible="visible"
             :title="props.title"
             :items="items"
             :data="modelValue"
-            size="50%"
+            :size="FLOW_DRAWER.detail"
             :confirm-api="btnOk"
+            append-to-body
             @submitted="onSubmitted"
             @opened="onOpened"
             @cancel="onCancel"
@@ -54,6 +57,7 @@ import FlowDesign from './components/flowdesign/FlowDesign.vue';
 import { FlowBizType } from './enums';
 import type { Procdef, ProcInstStartForm } from './types';
 import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
+import { FLOW_DRAWER } from '@/views/flow/drawerSize';
 
 const DbSqlExecFlowBizForm = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecFlowBizForm.vue'));
 

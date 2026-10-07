@@ -1,7 +1,6 @@
 package mcm
 
 import (
-	"regexp"
 	"strings"
 )
 
@@ -18,12 +17,6 @@ import (
 //   - 重定向（>、<、>>）意味着文件写入或非常规输入，视为不安全
 //   - 有 shell 逃逸能力的命令（awk、find -exec、sed e 等）不应加入白名单
 // ============================================================================
-
-// CmdFilterRule 命令过滤规则（经编译的正则表达式 + 策略描述）
-type CmdFilterRule struct {
-	CmdRegexp *regexp.Regexp // 命令正则表达式
-	Strategy  string         // 策略（如 "reject"、"approval" 等）
-}
 
 // WhitelistRule 白名单命令规则
 type WhitelistRule struct {
@@ -157,18 +150,6 @@ func IsWhitelistCommand(cmd string, rules []WhitelistRule) bool {
 		}
 	}
 	return true
-}
-
-// MatchCmdFilters 检查命令是否匹配给定的过滤规则列表（正则匹配）。
-// 返回第一个匹配的规则；若无匹配返回 nil。
-// 用于 MachineCmdConf 等基于正则的命令过滤。
-func MatchCmdFilters(cmd string, filters []*CmdFilterRule) *CmdFilterRule {
-	for _, filter := range filters {
-		if filter.CmdRegexp.MatchString(cmd) {
-			return filter
-		}
-	}
-	return nil
 }
 
 // ExtractCommandNames 提取命令字符串中所有命令段的命令名（去除路径前缀）。

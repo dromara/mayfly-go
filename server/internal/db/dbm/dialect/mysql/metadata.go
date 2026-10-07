@@ -102,13 +102,18 @@ func (md *MysqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 
 // SearchTables 把表名 LIKE 过滤下推到 information_schema，避免超大 schema 全量取回后内存过滤。
 // like 作为绑定参数传入（驱动负责引号/转义），通配符由本函数按「包含」语义包裹。
-func (md *MysqlMetadata) SearchTables(like string, limit int) ([]dbi.Table, error) {
+// offset 以 OFFSET 子句下推（MySQL 语法要求 OFFSET 必须伴随 LIMIT，故仅在 limit>0 时拼接）。
+func (md *MysqlMetadata) SearchTables(like string, limit int, offset int) ([]dbi.Table, error) {
 	sql := metaSQL.Get(MYSQL_TABLE_SEARCH_KEY)
 	args := []any{"%" + dbi.EscapeLikeWildcards(like) + "%"}
 	if limit > 0 {
-		// limit 为 int（经 cast.ToInt 归一），以绑定参数下传，不拼接进 SQL 文本
+		// limit/offset 为 int（经 cast.ToInt 归一），以绑定参数下传，不拼接进 SQL 文本
 		sql += " LIMIT ?"
 		args = append(args, limit)
+		if offset > 0 {
+			sql += " OFFSET ?"
+			args = append(args, offset)
+		}
 	}
 	_, res, err := md.di.Query(sql, args...)
 	if err != nil {

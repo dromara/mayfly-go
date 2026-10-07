@@ -11,6 +11,9 @@ export default defineConfig({
     test: {
         environment: 'happy-dom',
         globals: true,
+        // 挂载真实 Element Plus 组件的用例在全量并跑时会超过默认 5s（隔离跑 1.5s，全量偶发超时），
+        // 抬高上限是为了消掉这类负载抖动误报，而不是容忍慢用例
+        testTimeout: 15_000,
     },
     resolve: {
         alias: {

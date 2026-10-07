@@ -266,14 +266,21 @@ export class DbInst {
      *
      * @param sql sql
      * @param remark 执行备注
+     * @param warnAck 命中「仅提醒」时的处理方式，两个位都由调用方显式声明：
+     *   - ask：本次能不能弹确认框。批量选区在客户端也是一条一条发请求的，
+     *     逐条弹窗没人受得了，所以批量传 false（提醒只回显、不阻断）
+     *   - acknowledged：操作者已在确认框里选了「直接执行」，后端据此不再追问。
+     *     它挡不住「需审批」「禁止执行」，只影响提醒级别
      */
-    execSql(dbName: string, sql: string, remark: string = '') {
+    execSql(dbName: string, sql: string, remark: string = '', warnAck: { ask: boolean; acknowledged?: boolean } = { ask: true }) {
         let dbId = this.id;
         return dbApi.sqlExec.useApi({
             id: dbId,
             db: dbName,
             sql: sql.trim(),
             remark,
+            askWarn: warnAck.ask,
+            ackWarn: warnAck.acknowledged === true,
         });
     }
 

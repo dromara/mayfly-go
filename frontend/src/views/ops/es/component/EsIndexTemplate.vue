@@ -286,8 +286,12 @@ const doAddTemplate = async () => {
 };
 
 const onDelTemplate = async (name: string) => {
-    await useI18nDeleteConfirm(name);
-    await useI18nConfirm('es.deleteTemplateConfirm', { name: name });
+    if (!(await useI18nDeleteConfirm(name))) {
+        return;
+    }
+    if (!(await useI18nConfirm('es.deleteTemplateConfirm', { name: name }))) {
+        return;
+    }
     await esApi.proxyReq('delete', props.instId, `/${state.v.api}/${name}`);
     Msg.deleteSuccess();
 

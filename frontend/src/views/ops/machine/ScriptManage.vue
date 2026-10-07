@@ -282,7 +282,9 @@ const submitSuccess = () => {
 };
 
 const deleteRow = async (rows: MachineScriptVO[]) => {
-    await useI18nDeleteConfirm(rows.map((x: MachineScriptVO) => x.name).join('、'));
+    if (!(await useI18nDeleteConfirm(rows.map((x: MachineScriptVO) => x.name).join('、')))) {
+        return;
+    }
     await machineApi.deleteScript.request({
         machineId: machineId.value,
         scriptId: rows.map((x: MachineScriptVO) => x.id).join(','),

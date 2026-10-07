@@ -91,10 +91,9 @@ const onDelete = async () => {
         return;
     }
     const names = records.map((r) => r.name).join('、');
-    try {
-        await useI18nDeleteConfirm(names);
-    } catch {
-        return; // 用户取消
+    if (!(await useI18nDeleteConfirm(names))) {
+        // 取消或关掉弹窗：不继续后续操作
+        return;
     }
     await milvusApi.delete.request({ ids: records.map((r) => r.id).join(',') });
     Msg.deleteSuccess();

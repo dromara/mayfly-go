@@ -106,7 +106,7 @@
     --glass-shadow: 0 2px var(--glass-shadow-spread) rgba(0, 0, 0, var(--glass-shadow-opacity));
     --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, var(--glass-highlight-alpha));
 
-    // 小控件材质(对齐 tokhub buttons.css/controls.css 实测配方):
+    // 小控件材质(本层实测配方):
     // 按钮/开关/输入框等小面积控件【不挂 backdrop-filter】—— 数量多、面积小, 合成开销大且视觉几乎无感。
     // 关键修正: 承载文字的强调控件不能用半透明底(亮壁纸会把主色冲淡、白字对比跌到 ~2:1, 观感"暗/脏/像禁用"),
     // 半透明只属于表面与白玻璃按钮; 强调按钮走"实色品牌渐变(上下压暗+顶部镜面光泽)"= 现代立体 accent,

@@ -90,6 +90,13 @@ body.glass-mode {
         box-shadow: 2px 0 12px rgba(0, 0, 0, 0.08) !important;
     }
 
+    // 侧边栏垂直菜单实色底(element.scss 的 html.dark .el-menu #1f1f1f 以属性直写, 压过 EP 内联透明变量):
+    // 顶栏水平菜单与弹层菜单已有透明覆盖, 唯独垂直菜单漏掉 → 暗色玻璃下菜单区整块实色、壁纸透不出。
+    // 限定 .layout-aside 后代: 收起态弹层菜单 teleport 在 body 下, 不受影响(保留 elevated 玻璃底)
+    .layout-aside .el-menu {
+        background-color: transparent !important;
+    }
+
     .layout-columns-warp > aside {
         backdrop-filter: var(--glass-fx-chrome) !important;
         -webkit-backdrop-filter: var(--glass-fx-chrome) !important;

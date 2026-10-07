@@ -11,7 +11,6 @@
                             class="search-input min-w-0 flex-1"
                             :placeholder="$t('redis.keyMatchTips')"
                             clearable
-                            @clear="onClearMatch"
                             @keyup.enter="onSearch"
                         >
                             <template #prefix>
@@ -44,6 +43,11 @@
                         >
                             <template #prefix>
                                 <SvgIcon name="Filter" :size="13" />
+                            </template>
+                            <template #header>
+                                <span v-if="keysHasMore" class="block max-w-[240px] px-3 py-2 text-xs leading-snug text-muted-foreground">{{
+                                    $t('redis.filterLoadedTip')
+                                }}</span>
                             </template>
                             <el-option v-for="item in typeOptions" :key="item.view" :label="$t(item.label)" :value="item.view">
                                 <span class="type-badge-mini" :style="{ '--badge-color': viewAppearance(item.view).color }">{{
@@ -85,55 +89,53 @@
                         </div>
                     </div>
 
-                    <el-scrollbar class="min-h-0 flex-1">
+                    <!-- 虚拟树自持滚动视口，需一个有确定高度的容器（flex-1 + min-h-0 撑满剩余空间） -->
+                    <div class="key-tree-viewport min-h-0 flex-1">
                         <!-- 首屏加载用骨架，不给已有内容盖一层转圈遮罩 -->
                         <div v-if="scanState.scanning && !scanState.keys.length" class="tree-skeleton">
                             <span v-for="row in SKELETON_WIDTHS" :key="row" class="skeleton-row" :style="{ width: `${row}%` }"></span>
                         </div>
-                        <template v-else>
-                            <el-tree
-                                ref="keyTreeRef"
-                                :data="treeState.keyTreeData"
-                                :props="treeProps"
-                                :indent="8"
-                                node-key="key"
-                                :show-checkbox="treeState.batchSelect"
-                                :check-on-click-leaf="true"
-                                :highlight-current="true"
-                                :auto-expand-parent="false"
-                                :default-expanded-keys="Array.from(treeState.keyTreeExpanded)"
-                                @check="syncCheckedKeys"
-                                @node-click="onTreeNodeClick"
-                                @node-expand="onTreeNodeExpand"
-                                @node-collapse="onTreeNodeCollapse"
-                                @node-contextmenu="onRightClickNode"
-                            >
-                                <template #default="{ node, data }">
-                                    <span class="key-node" :title="nodeTitle(data, node.label)">
-                                        <SvgIcon v-if="data.type == 1" :size="15" :name="node.expanded ? 'FolderOpened' : 'Folder'" />
-                                        <span v-else class="type-badge-mini" :style="{ '--badge-color': appearanceOf(data.key).color }">{{
-                                            appearanceOf(data.key).badge
-                                        }}</span>
-                                        <span :class="['ml-1.5', data.type == 1 ? 'folder-label' : 'key-label']">{{ node.label }}</span>
-                                        <span v-if="!node.isLeaf" class="node-count">{{ data.keyCount }}</span>
-                                        <span v-if="ttlOf(data.key) > 0" class="node-ttl">{{ ttlText(data.key) }}</span>
-                                    </span>
-                                </template>
-                                <template #empty>
-                                    <div class="tree-empty">
-                                        <SvgIcon name="Box" :size="26" />
-                                        <span class="mt-1.5">{{ scanState.scanParam.match ? $t('redis.noMatchedKeys') : $t('redis.noKeys') }}</span>
-                                    </div>
-                                </template>
-                            </el-tree>
+                        <VirtualTree
+                            v-else
+                            ref="keyTreeRef"
+                            :data="treeState.keyTreeData"
+                            :field-names="keyTreeFieldNames"
+                            :row-height="28"
+                            :checkable="treeState.batchSelect"
+                            check-on-click-leaf
+                            highlight-current
+                            expand-on-click-node
+                            :expanded-keys="Array.from(treeState.keyTreeExpanded)"
+                            @check="syncCheckedKeys"
+                            @node-click="onTreeNodeClick"
+                            @node-expand="onTreeNodeExpand"
+                            @node-collapse="onTreeNodeCollapse"
+                        >
+                            <template #default="{ node, data }">
+                                <span class="key-node" :title="nodeTitle(data, node.label)" @contextmenu.prevent="onRightClickNode($event, node)">
+                                    <SvgIcon v-if="data.type == 1" :size="15" :name="node.expanded ? 'FolderOpened' : 'Folder'" />
+                                    <span v-else class="type-badge-mini" :style="{ '--badge-color': appearanceOf(data.key).color }">{{
+                                        appearanceOf(data.key).badge
+                                    }}</span>
+                                    <span :class="['ml-1.5', data.type == 1 ? 'folder-label' : 'key-label']">{{ node.label }}</span>
+                                    <span v-if="!node.isLeaf" class="node-count">{{ data.keyCount }}</span>
+                                    <span v-if="ttlOf(data.key) > 0" class="node-ttl">{{ ttlText(data.key) }}</span>
+                                </span>
+                            </template>
+                            <template #empty>
+                                <div class="tree-empty">
+                                    <SvgIcon name="Box" :size="26" />
+                                    <span class="mt-1.5">{{ scanState.scanParam.match ? $t('redis.noMatchedKeys') : $t('redis.noKeys') }}</span>
+                                </div>
+                            </template>
+                        </VirtualTree>
+                    </div>
 
-                            <!-- 尾部：还有未扫完的数据就在列表末尾给虚线加载块 -->
-                            <el-button v-if="keysHasMore" class="load-more mt-1.5" text :loading="scanState.scanning" @click="runScan(true)">
-                                <SvgIcon name="ArrowDown" :size="14" />
-                                <span class="ml-1">{{ $t('redis.loadMore') }}</span>
-                            </el-button>
-                        </template>
-                    </el-scrollbar>
+                    <!-- 还有未扫完的数据就给「加载更多」；虚拟树自持视口，按钮固定在其下方 -->
+                    <el-button v-if="keysHasMore" class="load-more shrink-0" text :loading="scanState.scanning" @click="runScan(true)">
+                        <SvgIcon name="ArrowDown" :size="14" />
+                        <span class="ml-1">{{ $t('redis.loadMore') }}</span>
+                    </el-button>
 
                     <!-- 底部状态条：常态放「分组」设置与读数，选择态原位换成选择操作，面板高度不变 -->
                     <div class="list-bar">
@@ -186,31 +188,30 @@
             </el-splitter-panel>
 
             <el-splitter-panel min="380px">
-                <div class="key-deatil card h-full p-2!">
-                    <el-tabs v-if="hasTabs" v-model="state.activeName" class="h-full" @tab-remove="onRemoveTab">
-                        <el-tab-pane v-for="tab in state.dataTabs" :key="tab.key" :name="tab.key" :label="tab.label" closable class="h-full">
+                <div class="key-deatil card h-full p-2! flex flex-col">
+                    <Tabs v-model="state.activeName" :tabs="allTabs" class="flex-1 min-h-0" content-class="overflow-hidden" @close="onRemoveTab">
+                        <template #default="{ tab }">
+                            <!-- 命令控制台：实例 + 库级的独立 tab，由工具条「终端」打开，不挂在每个 key 的详情里 -->
+                            <KeyConsole v-if="tab.key === CONSOLE_TAB" :redis="redisInst" :keys="scanState.keys" :hints="consoleHints" />
                             <KeyDetail
+                                v-else
                                 :redis="redisInst"
                                 :key-name="tab.key"
                                 :dbs="configuredDbs"
-                                :create-view="tab.createView"
-                                :ttl="tab.ttl"
+                                :create-view="state.dataTabs[tab.key]?.createView"
+                                :ttl="state.dataTabs[tab.key]?.ttl"
                                 @del="onDeleteKey"
-                                @renamed="onRenamed(tab, $event)"
+                                @renamed="onRenamed(tab.key, $event)"
                                 @created="onCreated"
                                 @refresh-tree="onRefreshKeys"
                                 @open-console="onOpenConsole"
                             />
-                        </el-tab-pane>
+                        </template>
 
-                        <!-- 命令控制台：实例 + 库级的独立 tab，由工具条「终端」打开，不挂在每个 key 的详情里 -->
-                        <el-tab-pane v-if="state.consoleOpen" :name="CONSOLE_TAB" :label="$t('redis.tabConsole')" closable class="h-full">
-                            <KeyConsole :redis="redisInst" :keys="scanState.keys" :hints="consoleHints" />
-                        </el-tab-pane>
-                    </el-tabs>
-                    <div v-else class="flex h-full items-center justify-center">
-                        <el-empty :description="$t('redis.selectKeyTip')" />
-                    </div>
+                        <template #empty>
+                            <el-empty :description="$t('redis.selectKeyTip')" />
+                        </template>
+                    </Tabs>
                 </div>
             </el-splitter-panel>
         </el-splitter>
@@ -224,26 +225,35 @@
             width="520px"
         />
     </div>
+    <!-- 「清空整库」是会被策略判需审批的命令：就地给出提单出口，否则只会弹一句无路可走的红字 -->
+    <WorkTicketSubmit ref="ticketRef" :biz-type="FlowBizType.RedisRunWriteCmd.value" hidden />
 </template>
 
 <script lang="ts" setup>
 import { AutoFormDialog, defineFormItems } from '@/components/auto-form';
 import { copyToClipboard } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
+import { VirtualTree, type VirtualTreeInstance } from '@/components/virtual-tree';
+import { Tabs } from '@/components/tabs';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { treeEvents } from '@/views/ops/resource/tree';
-import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { redisApi } from '../api';
+import { execWithWarnAck } from '../warnAckOps';
 import KeyConsole from '../keyview/KeyConsole.vue';
 import KeyDetail from '../KeyDetail.vue';
+import WorkTicketSubmit from '@/views/flow/components/WorkTicketSubmit.vue';
+import { FlowBizType } from '@/views/flow/enums';
+import type { TicketPrefill } from '@/views/flow/types';
+import { isNeedWorkTicketError } from '@/common/request';
 import { CONSOLE_KEY_PLACEHOLDER } from '../keyview/descriptor';
 import { viewAppearance } from '../keyview/appearance';
 import { PERM_DATA_DEL, PERM_DATA_SAVE } from '../keyview/permission';
 import { RedisInst } from '../redis';
 import type { RedisOpTabApi } from './index';
 import { useKeyScan } from './composables/useKeyScan';
-import { treeProps, useKeyTree, type ContextmenuRef, type KeyTreeRef } from './composables/useKeyTree';
+import { keyTreeFieldNames, useKeyTree, type ContextmenuRef } from './composables/useKeyTree';
 
 /** key 详情 tab，createView 非空表示这是「新增 key」的编辑态 */
 interface RedisDataTab {
@@ -268,7 +278,7 @@ const CONSOLE_TAB = '__console__';
 const SKELETON_WIDTHS = [62, 78, 54, 86, 70, 46, 80];
 
 const contextmenuRef = useTemplateRef<ContextmenuRef>('contextmenuRef');
-const keyTreeRef = useTemplateRef<KeyTreeRef>('keyTreeRef');
+const keyTreeRef = useTemplateRef<VirtualTreeInstance>('keyTreeRef');
 
 const redisInst: RedisInst = new RedisInst();
 const { t } = useI18n();
@@ -325,7 +335,12 @@ const tabKeys = computed(() => Object.keys(state.dataTabs));
 
 /** tab 栏顺序：key tab 在前、控制台在后，关闭时取相邻 tab 也按这个顺序 */
 const tabNames = computed(() => [...tabKeys.value, ...(state.consoleOpen ? [CONSOLE_TAB] : [])]);
-const hasTabs = computed(() => tabNames.value.length > 0);
+
+/** Tabs 需要的 tabs 数组：key tab + 控制台 tab */
+const allTabs = computed(() => [
+    ...Object.values(state.dataTabs).map((tab) => ({ key: tab.key, label: tab.label })),
+    ...(state.consoleOpen ? [{ key: CONSOLE_TAB, label: t('redis.tabConsole') }] : []),
+]);
 const selectedKeys = computed(() => treeState.checkedKeys);
 
 /**
@@ -391,8 +406,8 @@ const contextmenuItems = [
 
 /** 扫描完成后必须重渲染树：两域不互相引用，这个唯一的会合点收在本组件 */
 const runScan = async (appendKey = true) => {
-    await scan.scan(appendKey);
-    tree.renderKeyTree();
+    const newKeys = await scan.scan(appendKey);
+    tree.renderKeyTree(appendKey ? 'append' : 'full', newKeys);
 };
 
 /**
@@ -414,7 +429,24 @@ const onRefreshKeys = async () => {
 
 const onSearch = () => runScan(false);
 
-const onClearMatch = () => runScan(false);
+/**
+ * 搜索词清空（点 ✕ 或键盘删空）即恢复全量浏览：搜索无结果的空列表挂着「暂无 key」
+ * 会让人误以为库空了。回车显式扫描，清空由这里兜底，两个入口不会重复——
+ * 切库 resetData 的程序性置空不是用户清空，用标志按住，避免与 onDbClick 的显式扫描重复
+ */
+let suppressMatchReset = false;
+watch(
+    () => scanState.scanParam.match,
+    (val, old) => {
+        if (suppressMatchReset) {
+            suppressMatchReset = false;
+            return;
+        }
+        if (old?.trim() && !val?.trim()) {
+            runScan(false);
+        }
+    }
+);
 
 function tabLabel(key: string): string {
     return key.length > 40 ? `${key.slice(0, 40)}...` : key;
@@ -435,6 +467,8 @@ function showKeyDetail(key: string, newTab = false) {
 }
 
 const onRemoveTab = (targetName: string) => {
+    // 仅当关闭的是当前激活 tab 时才切换激活项；关闭后台 tab（含批量关闭右侧/其它）不该改变正在看的 tab
+    const wasActive = state.activeName === targetName;
     const index = tabNames.value.indexOf(targetName);
     if (targetName === consoleKey.value) {
         consoleKey.value = '';
@@ -444,7 +478,10 @@ const onRemoveTab = (targetName: string) => {
     } else {
         delete state.dataTabs[targetName];
     }
-    state.activeName = tabNames.value[index + 1] ?? tabNames.value[index - 1] ?? '';
+    if (wasActive) {
+        // 删除后 tabNames 已重算：原 index 位即右邻、index-1 为左邻，右邻优先（与 db/mongo 的相邻切换一致）
+        state.activeName = tabNames.value[index] ?? tabNames.value[index - 1] ?? '';
+    }
 };
 
 /** 打开（或切到）命令控制台：已打开时只激活，不重复创建 */
@@ -479,8 +516,15 @@ const onCreated = async () => {
 };
 
 const onDeleteKey = async (key: string) => {
-    await useI18nDeleteConfirm(key);
-    await redisApi.delKeys.request({ id: scanState.scanParam.id as number, db: scanState.scanParam.db as number, keys: [key] });
+    if (!(await useI18nDeleteConfirm(key))) {
+        return;
+    }
+    const { executed } = await execWithWarnAck((ackWarn) =>
+        redisApi.delKeys.request({ id: scanState.scanParam.id as number, db: scanState.scanParam.db as number, keys: [key], ackWarn })
+    );
+    if (!executed) {
+        return;
+    }
     Msg.deleteSuccess();
     onRemoveTab(key);
     await onRefreshKeys();
@@ -491,26 +535,69 @@ const onDeleteSelected = async () => {
     if (!keys.length) {
         return;
     }
-    await useI18nConfirm('redis.batchDeleteKeysConfirm', { count: keys.length });
-    await redisApi.delKeys.request({ id: scanState.scanParam.id as number, db: scanState.scanParam.db as number, keys });
+    if (!(await useI18nConfirm('redis.batchDeleteKeysConfirm', { count: keys.length }))) {
+        return;
+    }
+    const { executed } = await execWithWarnAck((ackWarn) =>
+        redisApi.delKeys.request({ id: scanState.scanParam.id as number, db: scanState.scanParam.db as number, keys, ackWarn })
+    );
+    if (!executed) {
+        return;
+    }
     Msg.deleteSuccess();
     keys.forEach((key) => onRemoveTab(key));
     await onRefreshKeys();
     exitBatch();
 };
 
-const onRenamed = async (tab: RedisDataTab, newKey: string) => {
-    delete state.dataTabs[tab.key];
+const onRenamed = async (oldKey: string, newKey: string) => {
+    delete state.dataTabs[oldKey];
     state.dataTabs[newKey] = { key: newKey, label: tabLabel(newKey) };
     state.activeName = newKey;
     await onRefreshKeys();
 };
 
+const flushTicketRef = useTemplateRef<{ open: (prefill?: TicketPrefill) => void }>('ticketRef');
+
+/** 把 FLUSHDB 带进工单：审批通过后由工单执行，用户不必去命令台重敲一遍 */
+const openFlushTicket = () => {
+    flushTicketRef.value?.open({
+        bizForm: {
+            id: redisInst.id,
+            db: scanState.scanParam.db,
+            cmd: 'FLUSHDB',
+            redisCode: redisInst.code,
+            redisName: redisInst.name,
+            tagPath: redisInst.tagPath,
+        },
+    });
+};
+
 const onFlushDb = async () => {
     // 清空整库的确认文案自己说完整（带上真实的库与 key 总数）：列表处于搜索/过滤态时只剩几十行，
     // 再套一层通用删除文案会让用户误判危险范围
-    await useI18nConfirm('redis.flushDbConfirm', { db: scanState.scanParam.db, total: scanState.dbsize });
-    await redisInst.runCmd(['FLUSHDB']);
+    if (!(await useI18nConfirm('redis.flushDbConfirm', { db: scanState.scanParam.db, total: scanState.dbsize }))) {
+        return;
+    }
+
+    try {
+        const outcome = await execWithWarnAck((ackWarn) => redisInst.runCmd(['FLUSHDB'], ackWarn), { ticket: true });
+        if (!outcome.executed) {
+            // 确认框里选了「提交工单审批」：直接把提单抽屉开起来，别只把面板留在原状
+            if (outcome.ticket) {
+                openFlushTicket();
+            }
+            return;
+        }
+    } catch (error) {
+        // 需审批（4001）不是普通失败：这个命令给得出等价工单，就地下单，不再只弹一句无路可走的提示
+        if (!isNeedWorkTicketError(error)) {
+            throw error;
+        }
+        openFlushTicket();
+        return;
+    }
+
     Msg.operateSuccess();
     await onRefreshKeys();
 };
@@ -523,19 +610,29 @@ const onDbClick = async (dbInfo: Record<string, unknown>) => {
     if (!scan.applyDatabase(dbInfo)) {
         return;
     }
-    scan.resetData();
-    tree.reset();
-    state.dataTabs = {};
-    state.activeName = '';
-    // 切库后控制台的目标库已经变了，直接关掉让历史随组件销毁，避免看着旧库的结果操作新库
-    state.consoleOpen = false;
-    consoleKey.value = '';
+    // resetData 会把旧库的搜索词程序性置空，自动重扫交给下面的显式扫描，这里先按住
+    suppressMatchReset = true;
+    try {
+        scan.resetData();
+        tree.reset();
+        state.dataTabs = {};
+        state.activeName = '';
+        // 切库后控制台的目标库已经变了，直接关掉让历史随组件销毁，避免看着旧库的结果操作新库
+        state.consoleOpen = false;
+        consoleKey.value = '';
 
-    redisInst.id = dbInfo.id as number;
-    redisInst.db = Number.parseInt(String(dbInfo.db));
+        redisInst.id = dbInfo.id as number;
+        redisInst.db = Number.parseInt(String(dbInfo.db));
+        // 资源身份一并带上：命令被触发策略拦下时，提单要靠这些字段解析出审批流程
+        redisInst.code = (dbInfo.code as string) ?? '';
+        redisInst.name = (dbInfo.redisName as string) ?? '';
+        redisInst.tagPath = (dbInfo.tagPath as string) ?? '';
 
-    await scan.loadDescriptors();
-    await runScan(false);
+        await scan.loadDescriptors();
+        await runScan(false);
+    } finally {
+        suppressMatchReset = false;
+    }
 };
 
 const onRefresh = () => {
@@ -559,11 +656,6 @@ defineExpose({
 
 .key-list {
     gap: 8px;
-
-    // 滚动条浮在内容右缘之上，不给它留出空间就会压住节点的计数与 TTL 角标
-    :deep(.el-scrollbar__view) {
-        padding-right: 8px;
-    }
 
     .search-input :deep(.el-input__wrapper) {
         border-radius: $redis-radius;
@@ -605,6 +697,8 @@ defineExpose({
         height: 28px;
         align-items: center;
         overflow: hidden;
+        // 右侧留白：虚拟滚动条浮在内容右缘之上，不留空会压住计数与 TTL 角标
+        padding-right: 8px;
     }
 
     .folder-label {
@@ -720,28 +814,5 @@ defineExpose({
     font-weight: 700;
     letter-spacing: 0.2px;
     line-height: 13px;
-}
-
-.key-deatil {
-    :deep(.el-tabs__header) {
-        margin-bottom: 0;
-    }
-
-    // 页签栏与内容之间的呼吸空间加在内容侧：上面的 header margin 已被归零，
-    // 不加就会与页签下划线黏在一起（key 详情与命令控制台共用这一层）
-    :deep(.el-tabs__content) {
-        padding-top: 10px;
-    }
-
-    :deep(.el-tabs__item) {
-        height: 32px;
-        padding: 0 12px;
-        line-height: 32px;
-    }
-
-    :deep(.el-tabs__nav-next),
-    :deep(.el-tabs__nav-prev) {
-        line-height: 32px;
-    }
 }
 </style>

@@ -28,8 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { Msg } from '@/hooks/useI18n';
-import { ElMessageBox } from 'element-plus';
+import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
@@ -94,9 +93,9 @@ const handleEdit = () => {
 
 const handleDelete = async () => {
     const names = selectedGroups.value.map((g) => g.GroupName).join(', ');
-    await ElMessageBox.confirm(t('milvus.confirmDeletePrivilegeGroup', { name: names }), {
-        type: 'warning',
-    });
+    if (!(await useI18nConfirm('milvus.confirmDeletePrivilegeGroup', { name: names }))) {
+        return;
+    }
     for (const group of selectedGroups.value) {
         await milvusApi.dropPrivilegeGroup(props.milvusId, group.GroupName);
     }

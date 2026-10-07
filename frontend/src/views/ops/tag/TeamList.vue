@@ -254,7 +254,9 @@ const onCancelSaveTeam = () => {
 };
 
 const onDeleteTeam = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x: Team) => x.name).join('、'));
+    if (!(await useI18nDeleteConfirm(state.selectionData.map((x: Team) => x.name).join('、')))) {
+        return;
+    }
     await tagApi.delTeam.request({ id: state.selectionData.map((x: Team) => x.id).join(',') });
     Msg.deleteSuccess();
     search();

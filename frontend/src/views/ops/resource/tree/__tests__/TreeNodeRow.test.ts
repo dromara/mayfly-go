@@ -12,12 +12,13 @@ import { registerContributor } from '../registry';
 import { registerCommand, registerMenu } from '../commands';
 import { TreeApiKey } from '../context';
 import TreeNodeRow from '../TreeNodeRow.vue';
-import type { TreeNode } from '../types';
+import type { TreeApi, TreeNode } from '../types';
 
 /**
  * 通用行组件专测：labelRenderer 协议（kind 专属 label 渲染归贡献者，行组件零 kind 知识）。
  */
-const TreeApiStub = { locate: async () => {}, refresh: () => {}, getNode: () => undefined };
+// 显式标为 TreeApi：与 ResourceSelect/commands.test 桩同口径，接口新增方法时此处编译期即报错提醒补齐
+const TreeApiStub: TreeApi = { locate: async () => {}, refresh: () => {}, expandNode: async () => {}, getNode: () => undefined, appendChildren: () => {} };
 
 const mountRow = (data: TreeNode, showActions = false) =>
     mount(TreeNodeRow, {

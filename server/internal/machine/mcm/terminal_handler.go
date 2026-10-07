@@ -12,7 +12,9 @@ import (
 )
 
 // 命令过滤函数，若返回error，则不执行该命令
-type CmdFilterFunc func(cmd string) error
+// CmdFilterFunc 命令前置校验。返回 error 表示禁止执行；
+// 返回的 notice 是不阻断的提示（如触发策略的「仅提醒」命中），由终端会话写回页面
+type CmdFilterFunc func(cmd string) (notice string, err error)
 
 const (
 	CR  = 0x0d // 单个字节 13 通常表示发送一个 CR（Carriage Return，回车）字符 \r
@@ -32,13 +34,14 @@ type TerminalHandler struct {
 	Parser *Parser
 }
 
-// PreWriteHandle 写入数据至终端前的处理，可进行过滤等操作
-func (tf *TerminalHandler) PreWriteHandle(p []byte) error {
+// PreWriteHandle 写入数据至终端前的处理，可进行过滤等操作。
+// 第二个返回值是需要写回终端但不阻断命令执行的提示（如触发策略的「仅提醒」命中）
+func (tf *TerminalHandler) PreWriteHandle(p []byte) (notice string, err error) {
 	tf.Parser.AppendInputData(p)
 
 	// 不是回车命令，则表示命令未结束
 	if bytes.LastIndex(p, []byte{CR}) != 0 {
-		return nil
+		return "", nil
 	}
 
 	// time.Sleep(time.Millisecond * 30)
@@ -47,14 +50,19 @@ func (tf *TerminalHandler) PreWriteHandle(p []byte) error {
 	tf.Parser.Reset()
 
 	if command == "" {
-		return nil
+		return "", nil
 	}
 
-	// 执行命令过滤器
+	// 执行命令过滤器：任一过滤器拒绝即中止本次输入；不阻断的提示按顺序拼接后一并写回
+	var warns []string
 	for _, filter := range tf.Filters {
-		if err := filter(command); err != nil {
-			msg := fmt.Sprintf("\r\n%s%s", tf.Parser.Ps1, GetErrorContent(err.Error()))
-			return errorx.NewBiz(msg)
+		warn, filterErr := filter(command)
+		if filterErr != nil {
+			msg := fmt.Sprintf("\r\n%s%s", tf.Parser.Ps1, GetErrorContent(filterErr.Error()))
+			return "", errorx.NewBiz(msg)
+		}
+		if warn != "" {
+			warns = append(warns, warn)
 		}
 	}
 
@@ -63,7 +71,7 @@ func (tf *TerminalHandler) PreWriteHandle(p []byte) error {
 		Cmd:  command,
 		Time: time.Now().Unix(),
 	})
-	return nil
+	return strings.Join(warns, "\r\n"), nil
 }
 
 // HandleRead 处理从终端读取的数据进行操作
@@ -261,4 +269,9 @@ func GetErrorContent(msg string) string {
 // GetErrorContentRn 包装返回终端错误消息, 并自动回车换行
 func GetErrorContentRn(msg string) string {
 	return fmt.Sprintf("\r\n%s", GetErrorContent(msg))
+}
+
+// GetWarnContentRn 包装不阻断执行的提示：用黄色区别于红色的拒绝信息，避免操作者误以为命令被拦下
+func GetWarnContentRn(msg string) string {
+	return fmt.Sprintf("\r\n\033[1;33m%s\033[0m\r\n", msg)
 }

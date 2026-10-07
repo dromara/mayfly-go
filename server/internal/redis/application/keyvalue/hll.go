@@ -30,6 +30,8 @@ var hllDesc = &entity.ViewDescriptor{
 		"PFCOUNT {key}",
 		"PFADD {key} element",
 	},
+	// ReadCmd 面板读取本视角内容等价的命令名，触发策略判定与「申请查看」提单同口径
+	ReadCmd: "PFCOUNT",
 	Columns: []entity.Column{column("value", "redis.colPfCount", "number", 0)},
 	Form: form(
 		textAreaField(argValues, "redis.colPfValues", 5, true),

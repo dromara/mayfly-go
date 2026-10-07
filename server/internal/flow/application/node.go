@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/flow/domain/entity"
+	"mayfly-go/internal/flow/domain/trigger"
+	"mayfly-go/internal/flow/imsg"
 	"sync"
 	"time"
 
@@ -58,9 +60,28 @@ func (ec *ExecutionCtx) GetFlowNode() *entity.FlowNode {
 	return nodes[0]
 }
 
-// GetNextNodes 获取该执行流的下一个节点
+// GetNextNode 按连线跳转条件获取该执行流的下一个节点。
+//
+// 条件求值复用触发引擎：连线条件与触发策略是同一种条件树、同一套操作符，
+// 只是字段字典换成流程实例变量，因此加一类可比较的流程变量不必改动这里
 func (e *ExecutionCtx) GetNextNode(vars collx.M) (*entity.FlowNode, error) {
-	nextNodes := e.GetProcinst().GetFlowDef().GetNextNodes(e.Execution.NodeKey, vars)
+	procinst := e.GetProcinst()
+	tc := newFlowConditionContext(e.parent, vars, procinst.ProcdefId)
+
+	nextNodes, err := procinst.GetFlowDef().GetNextNodes(e.Execution.NodeKey, func(edge *entity.FlowEdge) (bool, error) {
+		condition, err := edge.Condition()
+		if err != nil {
+			return false, flowConditionError(e.parent, flowEdgeLabel(edge), err)
+		}
+		matched, err := trigger.MatchCondition(condition, tc)
+		if err != nil {
+			return false, flowConditionError(e.parent, flowEdgeLabel(edge), err)
+		}
+		return matched, nil
+	})
+	if err != nil {
+		return nil, err
+	}
 	if len(nextNodes) == 0 {
 		return nil, nil
 	}
@@ -68,6 +89,22 @@ func (e *ExecutionCtx) GetNextNode(vars collx.M) (*entity.FlowNode, error) {
 		return nil, errorx.NewBiz("执行流的下一节点只允许单个节点")
 	}
 	return nextNodes[0], nil
+}
+
+// flowConditionError 把条件问题定位到具体连线。
+//
+// 判不出来时必须中断流转，而不是「按不成立处理」继续走默认分支：
+// 条件写坏时最危险的后果不是报错，而是不声不响地跳过本该审批的那一步
+func flowConditionError(ctx context.Context, source string, err error) error {
+	return errorx.NewBizI(ctx, imsg.ErrFlowConditionInvalid, "source", source, "reason", errorReason(ctx, err))
+}
+
+// flowEdgeLabel 优先展示连线名称，未命名时退回节点 key，保证定位得到
+func flowEdgeLabel(edge *entity.FlowEdge) string {
+	if edge.Name != "" {
+		return edge.Name
+	}
+	return fmt.Sprintf("%s->%s", edge.SourceNodeKey, edge.TargetNodeKey)
 }
 
 /*  context.Context 实现方法  */

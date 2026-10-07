@@ -9,6 +9,7 @@ var En = map[i18n.MsgId]string{
 	LogMachineKillProcess:  "Machine - Kill Process",
 	LogMachineTerminalOp:   "Machine - Open Terminal",
 
+	ErrMachineNotFound:   "the target machine does not exist",
 	ErrMachineExist:      "The machine information already exists",
 	ErrSshTunnelCircular: "Circular tunnel exists, please select tunnel machine again",
 
@@ -38,5 +39,30 @@ var En = map[i18n.MsgId]string{
 
 	LogMachineSecurityCmdSave:   "Machine - Security - Save command configuration",
 	LogMachineSecurityCmdDelete: "Machine - Security - Delete command configuration",
-	TerminalCmdDisable:          "This command has been disabled...",
+	TerminalCmdDisable:          "this command has been disabled",
+
+	TriggerReasonCmdBlacklisted: "it matches the administrator command blacklist",
+	TriggerReasonCmdUnsafe:      "the command contains redirection or command substitution",
+
+	LogMachineHostKeyDelete: "Machine - Revoke host key trust",
+	ErrHostKeyMismatch:      "Host key fingerprint mismatch for {{.addr}}: trusted {{.oldFp}}, got {{.newFp}}. If the host was reinstalled or its key rotated, revoke the old fingerprint in Host Keys management and reconnect; otherwise investigate a possible man-in-the-middle attack immediately",
+	LogMachineBatchRunCmd:   "Machine - Batch run command",
+	ErrBatchMachineIdsEmpty: "please select at least one machine",
+	ErrBatchCmdEmpty:        "the command content cannot be empty",
+	ErrBatchExecMaxMachines: "the number of machines for batch execution cannot exceed {{.max}}",
+	ErrBatchConnFailed:      "connection failed: {{.reason}}",
+	BatchExecTotalTimeout:   "batch execution timed out overall: the command was not run on this machine",
+
+	ErrMachineNotFoundById: "machine [{{.machineId}}] not found",
+
+	LogMachineDiskAnalyze:         "Machine - Disk usage analysis",
+	ErrDiskPathInvalid:            "invalid path: only letters, digits and . _ / - are allowed",
+	LogMachineBatchFile:           "Machine - Batch file dispatch",
+	ErrBatchFileKeyEmpty:          "upload the file to dispatch first",
+	ErrBatchRemotePathEmpty:       "the target directory cannot be empty",
+	ErrBatchRemotePathInvalid:     "invalid target directory: it must be an absolute path without metacharacters such as ; | & $ ` < > ( ) * ? quotes and backslash, and without ..",
+	ErrBatchFileMaxMachines:       "the number of machines for batch dispatch cannot exceed {{.max}}",
+	BatchDispatchTotalTimeout:     "batch dispatch timed out overall: the file was not dispatched to this machine",
+	BatchDispatchOnlySsh:          "only ssh machines support batch file dispatch",
+	BatchDispatchOpenSourceFailed: "failed to read the source file: {{.reason}}",
 }

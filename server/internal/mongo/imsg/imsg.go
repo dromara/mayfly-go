@@ -17,6 +17,47 @@ const (
 	LogUpdateDocs
 	LogDelDocs
 	LogInsertDocs
+	LogMongoQueryDocs
+	LogMongoCreateCollection
+	LogMongoDropCollection
+	LogMongoDropDatabase
+	LogMongoCreateIndex
+	LogMongoDropIndex
+	LogMongoBatchUpdate
+	LogMongoBatchDelete
+	LogMongoExport
+	LogMongoAggregate
 
 	ErrMongoInfoExist
+	ErrMongoNotFound
+	ErrMongoInvalidId
+	ErrMongoDatabaseEmpty
+	ErrMongoCollectionEmpty
+	ErrMongoUriRequired
+	ErrMongoConnFailed
+	ErrMongoDocsEmpty
+	ErrMongoUpdateOperatorForbidden
+	ErrMongoJsonInvalid
+	ErrMongoCommandEmpty
+	ErrMongoCmdPermDenied
+	ErrMongoIdTokenInvalid
+	ErrMongoIdTokenMissing
+	ErrMongoConfirmMismatch
+	ErrMongoExecFailed
+	ErrMongoExecTimeout
+	ErrMongoDocNotMatched
+	ErrMongoDocConflict
+	ErrMongoUnauthorized
+	ErrMongoPipelineInvalid
+	ErrMongoIndexSpecsInvalid
+	ErrMongoBatchCountMismatch
+	ErrMongoFormatUnsupported
+
+	// 命令语义级别的可读名称，用于拼进权限拒绝提示
+	LevelReadName
+	LevelDataSaveName
+	LevelDataDelName
+	LevelStructSaveName
+	LevelStructDelName
+	LevelAdminName
 )

@@ -102,7 +102,9 @@ export function useEsDocCrud(options: UseEsDocCrudOptions) {
 
     const onDeleteDocs = async () => {
         let ids = state.selectKeys.map((d: EsDoc) => d._id);
-        await useI18nDeleteConfirm(ids.join(', '));
+        if (!(await useI18nDeleteConfirm(ids.join(', ')))) {
+            return;
+        }
         await doDeleteDoc(ids);
     };
 

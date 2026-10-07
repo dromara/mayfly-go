@@ -20,12 +20,13 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { onBeforeUnmount, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import type { MonacoEditorExpose } from '@/components/monaco/types';
 // completion 桶只能经惰性作用域触达（见 db/completion/lazy.ts 的边界约束）
 import { createSqlCompletionScope } from '@/views/ops/db/completion/lazy';
+import { dbApi } from '@/views/ops/db/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { Rules } from '@/common/rule';
@@ -50,6 +51,8 @@ const bizForm = defineModel<any>('bizForm', {
         dbName: '',
         dbType: '',
         tagPath: '',
+        // 库的资源编码：从被拦下的操作提单时由宿主带入，用于自动解析审批流程
+        dbCode: '',
         sql: '',
     }),
 });
@@ -81,7 +84,36 @@ onMounted(() => {
     if (bizForm.value.dbId) {
         registerCompletion();
     }
+    announceResource();
 });
+
+/**
+ * 预填完库时主动上报一次资源标识。
+ *
+ * 正常提单是用户选库后由 select-db 触发的，而被策略拦下的一键提单不会再有选库动作：
+ * 不上报，宿主就解析不出流程定义，抽屉会停在「不存在审批节点」且确定按钮不可点。
+ * 宿主只知 dbId/dbName 而不知资源编码时（如函数式执行确认框），按 id 反查补齐——
+ * 与 DbSelectTree 预填回显同一数据源；反查失败不阻断，抽屉里重选库仍可触发 select-db 上报。
+ * 等一个 tick 再抛：宿主要先完成表单接管才能接住这次变更
+ */
+const announceResource = async () => {
+    if (!bizForm.value.dbCode && bizForm.value.dbId) {
+        try {
+            const res = await dbApi.dbs.request({ id: bizForm.value.dbId });
+            // 反查期间用户可能已手选库（select-db 已带真实 code），不覆盖
+            if (!bizForm.value.dbCode) {
+                bizForm.value.dbCode = res.list?.[0]?.code ?? '';
+            }
+        } catch {
+            // 保持 dbCode 为空：下方 return，交给用户重选
+        }
+    }
+    const code = bizForm.value.dbCode;
+    if (!code) {
+        return;
+    }
+    nextTick(() => emit('changeResourceCode', TagResourceTypeEnum.Db.value, code));
+};
 
 watch(
     () => bizForm.value.dbId,

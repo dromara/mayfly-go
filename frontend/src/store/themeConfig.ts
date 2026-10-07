@@ -172,6 +172,9 @@ export const useThemeConfig = defineStore('themeConfig', {
             version: 'latest',
             // 默认初始语言，可选值"<zh-cn|en|zh-tw>"，默认 zh-cn
             globalI18n: 'zh-cn',
+            // 用户是否自己选过语言：服务端下发的 i18n 是全站默认值，不能每次启动都盖掉个人选择
+            // （原来无条件赋值，切到英文刷新就回中文）
+            i18nSelected: false,
             // 默认全局组件大小，可选值"<|large|default|small>"，默认 ''
             globalComponentSize: '',
 
@@ -215,7 +218,9 @@ export const useThemeConfig = defineStore('themeConfig', {
             }
 
             getServerConf().then((res) => {
-                this.themeConfig.globalI18n = res.i18n;
+                if (!this.themeConfig.i18nSelected) {
+                    this.themeConfig.globalI18n = res.i18n;
+                }
                 this.themeConfig.version = res.version;
             });
 

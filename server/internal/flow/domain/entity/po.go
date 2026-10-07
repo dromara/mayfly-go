@@ -8,11 +8,13 @@ import (
 type ProcdefPagePO struct {
 	model.Model
 
-	Name      string        `json:"name" form:"name" gorm:"size:150;comment:流程名称"`                 // 名称
-	DefKey    string        `json:"defKey" form:"defKey" gorm:"not null;size:100;comment:流程定义key"` //
-	Status    ProcdefStatus `json:"status" gorm:"comment:状态"`                                      // 状态
-	Condition *string       `json:"condition" gorm:"type:text;comment:触发审批的条件（计算结果返回1则需要启用该流程）"`   // 触发审批的条件（计算结果返回1则需要启用该流程）
-	Remark    *string       `json:"remark" gorm:"size:255;"`
+	Name   string        `json:"name" form:"name" gorm:"size:150;comment:流程名称"`                 // 名称
+	DefKey string        `json:"defKey" form:"defKey" gorm:"not null;size:100;comment:流程定义key"` //
+	Status ProcdefStatus `json:"status" gorm:"comment:状态"`                                      // 状态
+	Remark *string       `json:"remark" gorm:"size:255;"`
+
+	// TriggerPolicy 触发策略，列表页据此展示场景徽标与处置级别
+	TriggerPolicy *TriggerPolicy `json:"triggerPolicy" gorm:"type:text;serializer:json;comment:触发策略json"`
 }
 
 type ProcinstTaskPO struct {

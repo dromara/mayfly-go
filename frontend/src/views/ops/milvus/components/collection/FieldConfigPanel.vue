@@ -148,7 +148,7 @@
                                         :class="{ active: ctx.dynamicField.value.selectedIdx === idxIdx }"
                                         @click="ctx.dynamicField.value.selectedIdx = idxIdx"
                                     >
-                                        <span>{{ idx.indexName || `${$t('common.index')} ${Number(idxIdx) + 1}` }}</span>
+                                        <span>{{ idx.indexName || `${$t('milvus.index')} ${Number(idxIdx) + 1}` }}</span>
                                         <el-popconfirm :title="$t('milvus.confirmDeleteIndex')" @confirm="ctx.handleDeleteDynamicIndex(Number(idxIdx))">
                                             <template #reference>
                                                 <el-icon class="delete-icon"><close /></el-icon>

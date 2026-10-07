@@ -39,7 +39,8 @@ WHERE
 ORDER BY
   c.relname;
 ---------------------------------------
---PGSQL_TABLE_SEARCH 表名服务端搜索（LIKE 下推，$1 为绑定模式；可选 LIMIT 由代码追加；schema 取 current_schema()，与 PGSQL_TABLE_INFO 同源）
+--PGSQL_TABLE_SEARCH 表名服务端搜索（ILIKE 下推，$1 为绑定模式；可选 LIMIT/OFFSET 由代码追加；schema 取 current_schema()，与 PGSQL_TABLE_INFO 同源）
+-- ILIKE 而非 LIKE：pg 的 LIKE 区分大小写，会与 mysql 下推/无下推回退路径的「大小写不敏感」口径分叉（同输入两种结果）
 SELECT DISTINCT
   c.relname AS "tableName",
   COALESCE(b.description, '') AS "tableComment",
@@ -53,9 +54,9 @@ FROM
 WHERE
   c.relkind = 'r'
   AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = current_schema())
-  AND c.relname LIKE $1
+  AND c.relname ILIKE $1
 ORDER BY
-  c.relname;
+  c.relname
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT a.indexname                                                         AS "indexName",

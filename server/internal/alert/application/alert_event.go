@@ -28,6 +28,16 @@ type AlertEvent interface {
 	// TouchActiveEvent 更新活跃事件（累加触发次数）
 	TouchActiveEvent(ctx context.Context, event *entity.AlertEvent, metric string, currentValue float64) error
 
+	// UpdateNotifyInfo 仅更新事件的通知计数字段（notify_count/last_notify_time）。
+	// 通知链路与评估链路并发操作同一事件：通知侧若全量写回旧快照，
+	// 会覆盖评估侧刚写入的 CurrentValue/LastTriggerTime（破坏新鲜度闸门），因此必须限定列
+	UpdateNotifyInfo(ctx context.Context, event *entity.AlertEvent) error
+
+	// UpdateEscalationLvl 仅更新事件的升级级别列（escalation_lvl）。
+	// 升级链路发送通知期间（最长 30s）评估/通知链路可能已更新同一事件的其他字段，
+	// 全量写回旧快照会覆盖它们，因此同样限定列
+	UpdateEscalationLvl(ctx context.Context, event *entity.AlertEvent) error
+
 	// Recover 恢复事件
 	Recover(ctx context.Context, event *entity.AlertEvent) error
 
@@ -117,6 +127,16 @@ func (a *alertEventAppImpl) TouchActiveEvent(ctx context.Context, event *entity.
 	event.Metric = metric
 	event.CurrentValue = currentValue
 	return a.UpdateById(ctx, event)
+}
+
+// UpdateNotifyInfo 仅更新通知计数字段，避免全量写回旧快照覆盖评估链路并发写入的指标值
+func (a *alertEventAppImpl) UpdateNotifyInfo(ctx context.Context, event *entity.AlertEvent) error {
+	return a.GetRepo().UpdateById(ctx, event, "notify_count", "last_notify_time")
+}
+
+// UpdateEscalationLvl 仅更新升级级别列，避免升级链路全量写回旧快照覆盖并发写入
+func (a *alertEventAppImpl) UpdateEscalationLvl(ctx context.Context, event *entity.AlertEvent) error {
+	return a.GetRepo().UpdateById(ctx, event, "escalation_lvl")
 }
 
 func (a *alertEventAppImpl) Recover(ctx context.Context, event *entity.AlertEvent) error {

@@ -9,7 +9,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/pool"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/netx"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -74,7 +73,7 @@ func GetSshTunnelMachine(ctx context.Context, machineId int, getMachine func(uin
 	return pool.Get(ctx)
 }
 
-// CloseSshTunnel 关闭ssh隧道
+// CloseSshTunnel 关闭ssh隧道（隐式隧道适配：以「机器id/远程地址」为 key）
 func CloseSshTunnel(sshTunnelAble SshTunnelAble) {
 	machineId := sshTunnelAble.GetSshTunnelMachineId()
 	remoteAddr := sshTunnelAble.GetRemoteAddr()
@@ -82,6 +81,14 @@ func CloseSshTunnel(sshTunnelAble SshTunnelAble) {
 		return
 	}
 
+	closeMachineTunnel(int(machineId), buildTunnelKey(int(machineId), remoteAddr))
+}
+
+// closeMachineTunnel 关闭机器上指定 key 的隧道，与 openTunnel 的 key 契约对称。
+//
+// 惰性语义：隧道机器连接已被池回收时（隧道必然早已随连接关闭）直接返回，
+// 不因停止动作而新建连接
+func closeMachineTunnel(machineId int, key string) {
 	sshTunnelMachinePool, ok := tunnelPoolGroup.Get(fmt.Sprintf("machine-tunnel-%d", machineId))
 	if !ok {
 		return
@@ -91,18 +98,7 @@ func CloseSshTunnel(sshTunnelAble SshTunnelAble) {
 		return
 	}
 
-	sshTunnelMachine.mutex.Lock()
-	defer sshTunnelMachine.mutex.Unlock()
-
-	tunnelId := buildTunnelKey(int(machineId), remoteAddr)
-	t := sshTunnelMachine.tunnels[tunnelId]
-	if t != nil {
-		t.Release()
-		if t.Closed.Load() {
-			logx.Infof("ssh tunnel machine - delete tunnel: %s", tunnelId)
-			delete(sshTunnelMachine.tunnels, tunnelId)
-		}
-	}
+	sshTunnelMachine.closeTunnel(key)
 }
 
 // ssh隧道机器
@@ -157,27 +153,60 @@ func (stm *SshTunnelMachine) GetClient() *ssh.Client {
 	return stm.sshClients[len(stm.sshClients)-1]
 }
 
-// OpenSshTunnel 打开ssh隧道，返回暴露的ip和端口
+// OpenSshTunnel 打开ssh隧道，返回暴露的ip和端口。
+// 隐式隧道适配：以「机器id/远程地址」为 key，本地监听 127.0.0.1
 func (stm *SshTunnelMachine) OpenSshTunnel(sshTunnelAble SshTunnelAble) (exposedIp string, exposedPort int, err error) {
-	stm.mutex.Lock()
-	defer stm.mutex.Unlock()
-
 	remoteAddr := sshTunnelAble.GetRemoteAddr()
-	tunnelKey := buildTunnelKey(stm.machineId, remoteAddr)
-	tunnel := stm.tunnels[tunnelKey]
-	// 已存在该隧道，则直接返回
-	if tunnel != nil {
-		tunnel.refCount.Add(1)
-		logx.Debugf("ssh tunnel [%s] exist, refCount: %v, localConns: %d, localAddr: %s:%d", tunnelKey, tunnel.refCount.Load(), tunnel.localConns.Len(), tunnel.LocalHost, tunnel.LocalPort)
-		return tunnel.LocalHost, tunnel.LocalPort, nil
-	}
-
-	tunnel, err = NewTunnel(tunnelKey, stm.GetClient(), remoteAddr)
+	tunnel, err := stm.openTunnel(buildTunnelKey(stm.machineId, remoteAddr), "127.0.0.1:0", remoteAddr)
 	if err != nil {
 		return "", 0, err
 	}
-	stm.tunnels[tunnelKey] = tunnel
 	return tunnel.LocalHost, tunnel.LocalPort, nil
+}
+
+// openTunnel 打开（或复用）指定 key 的隧道，返回该隧道。
+//
+// 这是隧道管理的唯一核心入口：key 契约由调用方定义（隐式隧道用 buildTunnelKey），
+// 引用计数按 key 独立维护；未来新增转发形态（动态 SOCKS、远程转发等）只需增加适配，
+// 不改本方法与 tunnels 的契约。
+//
+//   - key    隧道唯一标识（同 key 复用同一隧道，引用计数加一）
+//   - localAddr 本地监听地址 host:port，port 为 0 时自动分配空闲端口
+//   - remoteAddr 经隧道转发的远程目标地址 ip:port
+func (stm *SshTunnelMachine) openTunnel(key, localAddr, remoteAddr string) (*Tunnel, error) {
+	stm.mutex.Lock()
+	defer stm.mutex.Unlock()
+
+	tunnel := stm.tunnels[key]
+	// 已存在该隧道，则直接返回
+	if tunnel != nil {
+		tunnel.refCount.Add(1)
+		logx.Debugf("ssh tunnel [%s] exist, refCount: %v, localConns: %d, localAddr: %s:%d", key, tunnel.refCount.Load(), tunnel.localConns.Len(), tunnel.LocalHost, tunnel.LocalPort)
+		return tunnel, nil
+	}
+
+	tunnel, err := NewTunnel(key, stm.GetClient(), localAddr, remoteAddr)
+	if err != nil {
+		return nil, err
+	}
+	stm.tunnels[key] = tunnel
+	return tunnel, nil
+}
+
+// closeTunnel 释放指定 key 的隧道引用，引用归零关闭后从隧道表中移除
+func (stm *SshTunnelMachine) closeTunnel(key string) {
+	stm.mutex.Lock()
+	defer stm.mutex.Unlock()
+
+	t := stm.tunnels[key]
+	if t == nil {
+		return
+	}
+	t.Release()
+	if t.Closed.Load() {
+		logx.Infof("ssh tunnel machine - delete tunnel: %s", key)
+		delete(stm.tunnels, key)
+	}
 }
 
 // GetDialConn 获取通过ssh隧道连接远程地址的连接
@@ -199,24 +228,23 @@ type Tunnel struct {
 	localConns    collx.SM[net.Conn, any] // net.Conn -> struct{}
 }
 
-// 创建一个隧道
-func NewTunnel(id string, sshClient *ssh.Client, remoteAddr string) (*Tunnel, error) {
-	localPort, err := netx.GetAvailablePort()
-	if err != nil {
-		return nil, err
-	}
-
-	localHost := "127.0.0.1"
-	localAddr := fmt.Sprintf("%s:%d", localHost, localPort)
+// 创建一个隧道，localAddr 为本地监听地址 host:port（port 为 0 时自动分配空闲端口）
+func NewTunnel(id string, sshClient *ssh.Client, localAddr, remoteAddr string) (*Tunnel, error) {
 	localListener, err := net.Listen("tcp", localAddr)
 	if err != nil {
 		return nil, err
 	}
+	// 从监听器反取实际监听地址：port 为 0 时此处才能拿到系统分配的端口
+	listenAddr, ok := localListener.Addr().(*net.TCPAddr)
+	if !ok {
+		localListener.Close()
+		return nil, errors.New("failed to parse the local listening address")
+	}
 
 	tunnel := &Tunnel{
 		Id:            id,
-		LocalHost:     localHost,
-		LocalPort:     localPort,
+		LocalHost:     listenAddr.IP.String(),
+		LocalPort:     listenAddr.Port,
 		RemoteAddr:    remoteAddr,
 		localListener: localListener,
 	}
@@ -227,7 +255,7 @@ func NewTunnel(id string, sshClient *ssh.Client, remoteAddr string) (*Tunnel, er
 	})
 	gox.Go(tunnel.startJanitor)
 
-	logx.Infof("ssh tunnel [%s] new -> localAddr: %s", tunnel.Id, localAddr)
+	logx.Infof("ssh tunnel [%s] new -> localAddr: %s", tunnel.Id, listenAddr.String())
 	return tunnel, nil
 }
 

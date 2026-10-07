@@ -125,6 +125,17 @@ export default {
             maskExemptRoleIds: 'Mask Exempt Roles',
             maskExemptRoleIdsPlaceholder: 'Accounts with these roles are not masked. Separate multiple role ids with commas, leave empty for no exemption',
 
+            mongoConf: 'Mongo Config',
+            mongoConfRemark: 'Execution limits and connection pool for the MongoDB data plane',
+            mongoExecTl: 'Operation Timeout (s)',
+            mongoExecTlPlaceholder: 'Time limit of a single Mongo operation, cancelled when exceeded. Empty or 0 falls back to the default 60',
+            mongoDefaultLimit: 'Default Page Size',
+            mongoDefaultLimitPlaceholder: 'Page size used when no limit is given, so an omitted limit never loads a whole collection into memory',
+            mongoMaxResultSet: 'Max Result Set',
+            mongoMaxResultSetPlaceholder: 'Maximum rows a query may return; results beyond it are truncated and the UI asks you to narrow the query',
+            mongoPoolSize: 'Connection Pool Size',
+            mongoPoolSizePlaceholder: 'Pool ceiling per Mongo instance. 1 serializes every operation on that instance; an explicit maxPoolSize in the uri wins',
+
             machineConf: 'Machine Config',
             machineConfRemark: 'Machine related configuration, such as the number of days terminal operation records are kept',
             uploadMaxFileSize: 'Upload file size limit',

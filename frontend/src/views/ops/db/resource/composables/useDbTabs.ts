@@ -22,9 +22,6 @@ export function useDbTabs() {
     /** 按插入顺序展开的标签页列表 */
     const tabList = computed(() => [...tabs.values()]);
 
-    /** 是否存在标签页（无则整个标签区不渲染） */
-    const hasOpenTabs = computed(() => tabs.size > 0);
-
     /** 当前激活的标签页 */
     const activeTab = computed(() => tabs.get(activeTabKey.value));
 
@@ -65,5 +62,5 @@ export function useDbTabs() {
         tabs.clear();
     };
 
-    return { tabs, activeTabKey, tabList, hasOpenTabs, activeTab, activateTab, addTab, closeTab, clearTabs };
+    return { tabs, activeTabKey, tabList, activeTab, activateTab, addTab, closeTab, clearTabs };
 }

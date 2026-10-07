@@ -51,9 +51,56 @@ type Redis interface {
 	// 执行redis命令
 	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error)
 
-	// CheckCmdFlow 校验该命令是否需要提交工单审批：以命令名与读写类型作为流程条件，
-	// 所有会改动 redis 数据的入口（控制台命令、类型化数据操作）都必须先过这道校验
-	CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdName string) error
+	// CheckCmdFlow 按已绑定流程定义的触发策略判定该命令能否直接执行：命令名与完整命令文本作为策略字段，
+	// 所有会改动 redis 数据的入口（控制台命令、类型化数据操作）都必须先过这道校验。
+	//
+	// ack 由**调用入口**声明：命令控制台与 key 面板是两个不同的入口，谁能弹确认在这里各写各的
+	//（数据库侧相反——同一个 exec-sql 端点既服务单条也服务批量选区，只有客户端知道这次是不是一批，
+	// 所以那边改由请求声明）。提醒命中时命令尚未执行，此刻转审批才是「只执行一次」；
+	// 不能追问的入口保持「不阻断、只回显」
+	CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdArgs []any, ack WarnAck) error
+
+	// TriggerProcdefOf / CheckCmdTrigger 是给批量命令的两段式入口：先解析一次流程定义，再逐条判定
+	TriggerProcdefOf(ctx context.Context, redisConn *rdm.RedisConn) *flowentity.Procdef
+	CheckCmdTrigger(ctx context.Context, procdef *flowentity.Procdef, cmdArgs []any, ack WarnAck) error
+}
+
+// WarnAck 「仅提醒」命中的处理方式，由每个操作入口显式声明，不从请求形状推断
+// （曾按「一条请求=单条执行」推断，而前端批量是逐条发请求的，结果批量一条都没执行）。
+// Ask = 该入口能否弹确认框（取决于有没有操作者在等这次结果）；
+// Acknowledged = 操作者已经选过「直接执行」
+// WarnAckMode 「仅提醒」命中时该入口的处置能力：能不能问，以及问完之后有没有路可走
+type WarnAckMode int
+
+const (
+	// WarnNoAsk 无法弹确认（结果会被广播给所有客户端，或没人在界面上等这次操作）：只回显不阻断
+	WarnNoAsk WarnAckMode = iota
+	// WarnAskTicketable 能弹确认，且拦截处可以就地转工单审批（命令控制台）
+	WarnAskTicketable
+	// WarnAskDirect 能弹确认，但该入口没有提单表单（key 面板的类型化操作）
+	WarnAskDirect
+)
+
+type WarnAck struct {
+	Mode         WarnAckMode
+	Acknowledged bool
+}
+
+// askable 该入口是否需要操作者先确认
+func (a WarnAck) askable() bool { return a.Mode != WarnNoAsk }
+
+// warnNoAsk 不弹确认的入口：提醒只回显/落日志、不阻断。
+// 用于结果会被广播给所有客户端、或没有人在界面上等这次操作的路径（如订阅 key 变更后的批量处理）
+var warnNoAsk = WarnAck{}
+
+// WarnAckOf 能弹确认，且该入口给得出提单（命令控制台的一键提单、key 面板读内容的「申请查看」）
+func WarnAckOf(acknowledged bool) WarnAck {
+	return WarnAck{Mode: WarnAskTicketable, Acknowledged: acknowledged}
+}
+
+// WarnAckDirectOf key 面板的类型化写操作：能弹确认，但没有提单表单，话术要另配
+func WarnAckDirectOf(acknowledged bool) WarnAck {
+	return WarnAck{Mode: WarnAskDirect, Acknowledged: acknowledged}
 }
 
 var _ Redis = (*redisAppImpl)(nil)
@@ -228,7 +275,7 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 		return nil, errorx.NewBiz("redis connection not exist")
 	}
 
-	if err := r.CheckCmdFlow(ctx, redisConn, cast.ToString(cmdParam.Cmd[0])); err != nil {
+	if err := r.CheckCmdFlow(ctx, redisConn, cmdParam.Cmd, WarnAckOf(cmdParam.AckWarn)); err != nil {
 		return nil, err
 	}
 
@@ -240,24 +287,34 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 	return res, err
 }
 
-func (r *redisAppImpl) CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdName string) error {
+// CheckCmdFlow 判定单条命令能否直接执行：解析流程定义 + 求值，给「一次只发一条命令」的入口用
+func (r *redisAppImpl) CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdArgs []any, ack WarnAck) error {
 	if redisConn == nil {
 		return errorx.NewBiz("redis connection not exist")
 	}
+	return r.CheckCmdTrigger(ctx, r.TriggerProcdefOf(ctx, redisConn), cmdArgs, ack)
+}
 
-	procdef := r.procdefApp.GetProcdefByCodePath(ctx, redisConn.Info.CodePath...)
+// TriggerProcdefOf 该连接生效的流程定义（未绑定流程时返回 nil）。
+//
+// 同一连接上的多条命令解析结果相同，所以批量入口只需解析一次；
+// 每条命令都解析等于每条命令多查两趟库（曾经如此：key 面板一次改十几个 key 就是二十几趟查询）
+func (r *redisAppImpl) TriggerProcdefOf(ctx context.Context, redisConn *rdm.RedisConn) *flowentity.Procdef {
+	if redisConn == nil {
+		return nil
+	}
+	return r.procdefApp.GetProcdefByCodePath(ctx, redisConn.Info.CodePath...)
+}
+
+// CheckCmdTrigger 用已解析好的流程定义判定单条命令，与 CheckCmdFlow 同一套判定口径，只是省掉重复解析
+func (r *redisAppImpl) CheckCmdTrigger(ctx context.Context, procdef *flowentity.Procdef, cmdArgs []any, ack WarnAck) error {
+	if len(cmdArgs) == 0 {
+		return errorx.NewBiz("redis cmd cannot be empty")
+	}
 	if procdef == nil {
 		return nil
 	}
-
-	cmdType := "read"
-	if rdm.IsWriteCmd(cmdName) {
-		cmdType = "write"
-	}
-	if procdef.MatchCondition(RedisRunCmdFlowBizType, collx.Kvs("cmdType", cmdType, "cmd", cmdName)) {
-		return errorx.NewBizI(ctx, imsg.ErrSubmitFlowRunCmd)
-	}
-	return nil
+	return r.checkCmdTrigger(ctx, procdef, cast.ToString(cmdArgs[0]), redisCmdText(cmdArgs), ack)
 }
 
 type FlowRedisRunCmdBizForm struct {
@@ -281,6 +338,10 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 	if err != nil {
 		return nil, errorx.NewBizf("failed to parse the business form information: %s", err.Error())
 	}
+
+	// 回放以工单发起人身份执行：审批人未必有这台实例的运维权限，用审批人身份会在鉴权处失败，
+	// 留下「审批通过却执行失败」的结果；执行归属也应记在发起人身上
+	ctx = flowapp.BizOperatorContext(ctx, bizHandleParam)
 
 	redisConn, err := r.GetRedisConn(ctx, runCmdParam.Id, runCmdParam.Db)
 	if err != nil {

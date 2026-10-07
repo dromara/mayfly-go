@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/taskx"
+	"sort"
 	"sync"
 	"time"
 )
@@ -17,11 +18,11 @@ import (
 // eventRetainDays 已终结事件（Recovered/Closed）保留天数，超过后由定时任务自动清理
 const eventRetainDays = 30
 
-// groupKey 分组键：rule_id + resource_id + 分组标签值，实现按标签分组
+// groupKey 分组键：rule_id + resource_id。
+// 按标签分组已迁移至通知策略层（AlertNotifyPolicy 标签路由），分组维度收敛为规则+资源
 type groupKey struct {
-	RuleId      uint64
-	ResourceId  uint64
-	GroupLabels string // 分组标签的序列化值，用于按标签分组
+	RuleId     uint64
+	ResourceId uint64
 }
 
 // pendingGroup 待发送的告警分组
@@ -66,7 +67,16 @@ type alertEngineAppImpl struct {
 	activeEventsMu    sync.Mutex
 	activeEventsCache []*entity.AlertEvent
 	activeEventsAt    time.Time
+
+	// 通知策略缓存（周期级 TTL）：逐次通知匹配策略需两次全量查库（策略列表 + 标签绑定），
+	// 缓存后单周期只查一次；查询失败时沿用上次缓存，避免 DB 抖动中断通知路由
+	policyMu      sync.Mutex
+	policyCache   []*entity.AlertNotifyPolicy
+	policyCacheAt time.Time
 }
+
+// policyCacheTTL 通知策略缓存时长，与活跃事件缓存一致；策略变更最长该时长后生效
+const policyCacheTTL = 60 * time.Second
 
 var _ AlertEngine = (*alertEngineAppImpl)(nil)
 
@@ -505,10 +515,12 @@ func (a *alertEngineAppImpl) sendGroupNotification(group *pendingGroup) {
 			logx.Warnf("[alert] event[%d] skipped: rule[%d] has no available channel", event.Id, group.Rule.Id)
 			continue
 		}
-		// 已投递给渠道，递增 NotifyCount 并记录通知时间
+		// 已投递给渠道，递增 NotifyCount 并记录通知时间。
+		// 必须走专用列更新：group 内 event 是旧快照，全量写回会覆盖评估链路
+		// 并发写入的 CurrentValue/LastTriggerTime（破坏新鲜度闸门）
 		event.NotifyCount++
 		event.LastNotifyTime = &now
-		if err := a.eventApp.UpdateById(context.Background(), event); err != nil {
+		if err := a.eventApp.UpdateNotifyInfo(context.Background(), event); err != nil {
 			logx.Errorf("[alert] update event notify info error: event[%d] %s", event.Id, err.Error())
 		}
 		notified = true
@@ -520,46 +532,63 @@ func (a *alertEngineAppImpl) sendGroupNotification(group *pendingGroup) {
 	}
 }
 
+// listPoliciesWithLabels 获取启用通知策略列表（带 TTL 缓存，已回填各策略 MatchLabels）。
+// 缓存消除了逐次通知的两轮全量查库；查询失败时沿用上次缓存，DB 抖动不中断通知路由
+func (a *alertEngineAppImpl) listPoliciesWithLabels() []*entity.AlertNotifyPolicy {
+	a.policyMu.Lock()
+	defer a.policyMu.Unlock()
+
+	if a.policyCache != nil && time.Since(a.policyCacheAt) < policyCacheTTL {
+		return a.policyCache
+	}
+
+	policies, err := a.notifyPolicyApp.ListEnabledWithLabels(context.Background())
+	if err != nil {
+		logx.Errorf("[alert] list notify policies error: %s", err.Error())
+		return a.policyCache
+	}
+	// 按 Id 升序固定策略遍历顺序：合并去重与「首个声明者归因」的确定性
+	// 不能依赖 SQL 未定义的返回行序
+	sort.Slice(policies, func(i, j int) bool { return policies[i].Id < policies[j].Id })
+	a.policyCache = policies
+	a.policyCacheAt = time.Now()
+	return policies
+}
+
 // resolveNotifyTarget 通过通知策略解析通知目标。
-// 查找所有标签匹配事件的通知策略，合并所有匹配策略的渠道和接收人。
-// 无匹配策略时返回空目标（不发送通知）。
+// 对缓存中的启用策略做标签子集匹配，合并所有命中策略的渠道和接收人（去重，
+// 按策略声明顺序保持确定性），并登记渠道→策略归因供通知日志使用。
+// 无命中策略时返回空目标（不发送通知）。
 func (a *alertEngineAppImpl) resolveNotifyTarget(rule *entity.AlertRule, event *entity.AlertEvent) service.NotifyTarget {
 	eventLabels := parseRuleLabels(event.Labels)
 
-	policies, err := a.notifyPolicyApp.MatchPolicies(context.Background(), eventLabels)
-	if err != nil {
-		logx.Errorf("[alert] resolve notify target: match policies error: %s", err.Error())
-		return service.NotifyTarget{}
-	}
-	if len(policies) == 0 {
-		return service.NotifyTarget{}
-	}
-
-	// 合并所有匹配策略的渠道和接收人（去重）
-	channelSet := make(map[uint64]struct{})
-	receiverSet := make(map[int64]struct{})
-	for _, p := range policies {
+	target := service.NotifyTarget{}
+	channelSeen := make(map[uint64]struct{})
+	receiverSeen := make(map[int64]struct{})
+	for _, p := range a.listPoliciesWithLabels() {
+		if !matchRuleLabelsMap(parseRuleLabels(p.MatchLabels), eventLabels) {
+			continue
+		}
+		// 按策略声明顺序去重追加，保证合并结果确定性
 		for _, ch := range p.ChannelIds {
-			channelSet[ch] = struct{}{}
+			if _, ok := channelSeen[ch]; !ok {
+				channelSeen[ch] = struct{}{}
+				target.ChannelIds = append(target.ChannelIds, ch)
+			}
 		}
 		for _, r := range p.ReceiverIds {
-			receiverSet[r] = struct{}{}
+			if _, ok := receiverSeen[r]; !ok {
+				receiverSeen[r] = struct{}{}
+				target.ReceiverIds = append(target.ReceiverIds, r)
+			}
 		}
+		// 渠道→策略归因：多策略命中同一渠道时保留首个声明者
+		target = target.WithPolicyBinding(p.Id, p.ChannelIds)
 	}
-
-	channelIds := make([]uint64, 0, len(channelSet))
-	for ch := range channelSet {
-		channelIds = append(channelIds, ch)
+	if len(target.ChannelIds) == 0 && len(target.ReceiverIds) == 0 {
+		return service.NotifyTarget{}
 	}
-	receiverIds := make([]int64, 0, len(receiverSet))
-	for r := range receiverSet {
-		receiverIds = append(receiverIds, r)
-	}
-
-	return service.NotifyTarget{
-		ChannelIds:  channelIds,
-		ReceiverIds: receiverIds,
-	}
+	return target
 }
 
 func (a *alertEngineAppImpl) getGroupWait(rule *entity.AlertRule) int {

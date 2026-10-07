@@ -137,7 +137,9 @@ const onConfirmSave = async (authCert: ResourceAuthCert) => {
 
 const onDeleteAc = async (data: ResourceAuthCert) => {
     try {
-        await useI18nDeleteConfirm(data.name);
+        if (!(await useI18nDeleteConfirm(data.name))) {
+            return;
+        }
         await resourceAuthCertApi.delete.request({ id: data.id });
         Msg.deleteSuccess();
         search();

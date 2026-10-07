@@ -295,7 +295,9 @@ const onTabClick = async (activeTab: { paneName?: string | number }) => {
 };
 
 const onDeleteMenu = async (data: SysResource) => {
-    await useI18nDeleteConfirm(data.name);
+    if (!(await useI18nDeleteConfirm(data.name))) {
+        return;
+    }
     await resourceApi.del.request({
         id: data.id,
     });

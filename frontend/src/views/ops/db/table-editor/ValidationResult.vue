@@ -166,14 +166,18 @@ const summary = computed(() => {
         border-radius: 4px;
         margin-bottom: 8px;
 
+        // 状态靠整圈描边 + 底色表达，不用单侧色条（项目 UI 规范的反面清单项）；
+        // 文字取可读色阶，EP 中阶语义色在白底上只有 2.2~2.9:1
         &.is-error {
             background: var(--el-color-danger-light-9);
-            border-left: 3px solid var(--el-color-danger);
+            border: 1px solid var(--app-color-danger-readable);
+            color: var(--app-color-danger-readable);
         }
 
         &.is-warning {
             background: var(--el-color-warning-light-9);
-            border-left: 3px solid var(--el-color-warning);
+            border: 1px solid var(--app-color-warning-readable);
+            color: var(--app-color-warning-readable);
         }
 
         &-header {

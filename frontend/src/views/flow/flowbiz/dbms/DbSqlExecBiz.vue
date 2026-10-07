@@ -1,12 +1,17 @@
 <template>
     <div>
         <el-descriptions :column="3" border>
-            <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="db.codePaths" /></el-descriptions-item>
-
-            <el-descriptions-item :span="1" :label="$t('common.name')">{{ db?.name }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="Host">
-                <SvgIcon :name="getDbDialect(db?.type).getInfo().icon" :size="20" />
-                {{ `${db?.host}:${db?.port}` }}
+            <!-- 资源信息可能取不到：工单候选人不必是该实例的可见用户，实例也可能早已被删除 -->
+            <template v-if="db">
+                <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="db.codePaths" /></el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.name')">{{ db.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="Host">
+                    <SvgIcon :name="getDbDialect(db.type).getInfo().icon" :size="20" />
+                    {{ `${db.host}:${db.port}` }}
+                </el-descriptions-item>
+            </template>
+            <el-descriptions-item v-else :span="2" :label="$t('common.name')">
+                <el-text type="warning">{{ $t('flow.resourceUnavailable') }}</el-text>
             </el-descriptions-item>
             <el-descriptions-item :span="1" :label="$t('tag.db')">{{ dbName }}</el-descriptions-item>
 
@@ -70,7 +75,8 @@ const state = reactive({
     // sqlExec: {
     //     sql: '',
     // } as any,
-    db: {} as any,
+    // 取不到资源信息时必须保持为 null，面板才能落到「不可用」提示而不是渲染 undefined
+    db: null as any,
     dbName: '',
     sql: '',
     runRes: [],
@@ -101,10 +107,14 @@ const parseBizForm = async (bizFormStr: string) => {
     state.dbName = bizForm.dbName;
 
     const dbRes = await dbApi.dbs.request({ id: bizForm.dbId });
-    state.db = dbRes.list?.[0];
+    state.db = dbRes?.list?.[0] ?? null;
+    if (!state.db) {
+        // 取不到就不查标签路径了：原来这里直接读 state.db.code，会抛 TypeError 把面板打断
+        return;
+    }
 
-    tagApi.listByQuery.request({ type: TagResourceTypeEnum.Db.value, codes: state.db.code }).then((res) => {
-        state.db.codePaths = res.map((item: any) => item.codePath);
+    tagApi.listByQuery.request({ type: TagResourceTypeEnum.Db.value, codes: state.db.code }).then((tags) => {
+        state.db.codePaths = tags.map((item: any) => item.codePath);
     });
 };
 </script>

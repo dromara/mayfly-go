@@ -8,8 +8,13 @@ var En = map[i18n.MsgId]string{
 	LogRedisRunCmd: "Redis - Run Cmd",
 	LogRedisKeyOp:  "Redis - Key Data Operation",
 
-	ErrRedisInfoExist:          "The Redis information already exists",
-	ErrSubmitFlowRunCmd:        "This operation needs to submit a work ticket for approval",
+	ErrRedisInfoExist:    "The Redis information already exists",
+	ErrSubmitFlowRunCmd:  "this operation needs approval via a work ticket, and is executed automatically once approved",
+	ErrRunCmdFromConsole: "this operation needs approval; run the equivalent command in the Redis console to submit a work ticket",
+
+	TriggerReasonWriteCmd:      "the command modifies redis data",
+	TriggerReasonDangerousCmd:  "the command is a dangerous command",
+	TriggerReasonCmdIn:         "the command is in the selected command list",
 	ErrHasRunFailCmd:           "A command failed to execute",
 	ErrRedisKeyTypeUnsupported: "The built-in view of data type [{{.type}}] is unavailable, please use the command console",
 	ErrRedisKeyViewUnsupported: "The view [{{.view}}] does not support the data type [{{.type}}]",

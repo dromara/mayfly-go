@@ -8,6 +8,7 @@
             :data="editData"
             size="40%"
             :confirm-api="onConfirm"
+            @opened="onOpened"
             @submitted="emit('cancel')"
             @cancel="emit('cancel')"
         >
@@ -50,7 +51,6 @@ interface MongoForm extends Omit<Partial<Mongo>, 'id' | 'name' | 'uri' | 'sshTun
     uri?: string | null;
     sshTunnelMachineId?: number | null;
     tagCodePaths?: string[];
-    db?: number;
 }
 
 const props = defineProps({
@@ -67,19 +67,38 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const emit = defineEmits(['cancel', 'val-change']);
 
-/** 表单声明（defineFormItems<MongoForm>，渲染 + 校验唯一数据源；tagCodePaths/sshTunnel 走插槽） */
-const items = defineFormItems<MongoForm>([
-    { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
-    { prop: 'name', label: 'common.name', required: true },
-    { prop: 'uri', label: 'uri', type: 'textarea', rows: 2, required: true, placeholder: 'mongodb://username:password@host1:port1' },
-    { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
-]);
+/**
+ * 表单声明。
+ *
+ * uri 的必填与否按新建/修改分开：接口不再回传明文连接串，编辑时只能留空表示保持不变，
+ * 若仍标为必填会逼用户去猜一个看不到的值；新建时则必须真实给出。
+ */
+const items = computed(() =>
+    defineFormItems<MongoForm>([
+        { prop: 'tagCodePaths', label: 'tag.relateTag', required: true },
+        { prop: 'name', label: 'common.name', required: true },
+        {
+            prop: 'uri',
+            label: 'uri',
+            type: 'textarea',
+            rows: 2,
+            required: !props.data,
+            placeholder: props.data ? '' : 'mongodb://username:password@host1:port1',
+            tooltip: props.data ? 'mongo.uriKeepTip' : undefined,
+        },
+        { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
+    ])
+);
 
 const drawerRef = useTemplateRef<{ validate: (...args: unknown[]) => Promise<unknown>; submitting: boolean; submit: () => Promise<void> }>('drawerRef');
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
 const editData = computed<MongoForm>(() => {
-    return props.data ? { ...props.data } : { db: 0, tagCodePaths: [] };
+    if (!props.data) {
+        return { tagCodePaths: [] };
+    }
+    // 连接串不回显：接口给出的是脱敏值，原样提交会把真实凭证换成 ****
+    return { ...props.data, uri: '' };
 });
 
 // 宿主内部表单在 @opened 接管（提交组装基于它）

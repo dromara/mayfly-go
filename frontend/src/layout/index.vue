@@ -8,12 +8,18 @@
         <div class="app-backdrop__frost"></div>
     </div>
     <component :is="layouts[themeConfig.layout]" />
+
+    <!-- 全局提单抽屉：借真实组件树给无 appContext 的函数式弹窗（SqlExecBox 体系）走提单链路，见 ticketService.ts -->
+    <WorkTicketSubmit ref="globalTicketRef" hidden />
 </template>
 
 <script setup lang="ts" name="layout">
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import { defineAsyncComponent, onMounted, type Component } from 'vue';
+import { defineAsyncComponent, onMounted, onUnmounted, type Component, useTemplateRef } from 'vue';
+import WorkTicketSubmit from '@/views/flow/components/WorkTicketSubmit.vue';
+import { registerTicketOpener, unregisterTicketOpener } from '@/views/flow/ticketService';
+import type { TicketPrefill } from '@/views/flow/types';
 
 const layouts: Record<string, Component> = {
     defaults: defineAsyncComponent(() => import('@/layout/main/defaults.vue')),
@@ -23,6 +29,14 @@ const layouts: Record<string, Component> = {
 };
 
 const { themeConfig } = storeToRefs(useThemeConfig());
+
+const globalTicketRef = useTemplateRef<{ open: (prefill?: TicketPrefill) => void }>('globalTicketRef');
+
+onMounted(() => {
+    registerTicketOpener((prefill) => globalTicketRef.value?.open(prefill));
+});
+
+onUnmounted(unregisterTicketOpener);
 
 /**
  * 进入控制台后预取 monaco 编辑器主体（生产约 967KB gzip / 3.8MB 源码），使点开编辑器时秒出。

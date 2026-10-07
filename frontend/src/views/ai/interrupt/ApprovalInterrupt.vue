@@ -7,7 +7,7 @@
                 <span class="approval-interrupt__desc">{{ interrupt?.description }}</span>
             </div>
             <Badge v-if="!readonly" variant="secondary" class="approval-interrupt__pending">{{ t('ai.interrupt.approval.pendingApproval') }}</Badge>
-            <Badge v-else variant="outline">{{ t('ai.interrupt.approval.resolved') }}</Badge>
+            <Badge v-else variant="outline">{{ t('ai.interrupt.generic.resolved') }}</Badge>
         </div>
 
         <div class="approval-interrupt__body">

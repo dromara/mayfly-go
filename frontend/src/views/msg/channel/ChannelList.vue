@@ -105,7 +105,9 @@ const editChannel = (data: MsgChannel | false) => {
 };
 
 const deleteChannel = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x) => x.code).join('、'));
+    if (!(await useI18nDeleteConfirm(state.selectionData.map((x) => x.code).join('、')))) {
+        return;
+    }
     await channelApi.del.request({ id: state.selectionData.map((x) => x.id).join(',') });
     Msg.deleteSuccess();
     search();

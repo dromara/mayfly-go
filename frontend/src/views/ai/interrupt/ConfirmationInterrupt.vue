@@ -7,7 +7,7 @@
                 <span class="confirmation-interrupt__desc">{{ interrupt?.description }}</span>
             </div>
             <Badge v-if="!readonly" variant="secondary" class="confirmation-interrupt__pending">{{ t('ai.interrupt.confirmation.pendingConfirmation') }}</Badge>
-            <Badge v-else variant="outline">{{ t('ai.interrupt.confirmation.resolved') }}</Badge>
+            <Badge v-else variant="outline">{{ t('ai.interrupt.generic.resolved') }}</Badge>
         </div>
 
         <div class="confirmation-interrupt__body">

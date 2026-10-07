@@ -8,6 +8,13 @@
             v-model:selection-data="selectionData"
             :columns="columns"
         >
+            <template #empty>
+                <div class="table-empty">
+                    <p>{{ $t('flow.procinstEmpty') }}</p>
+                    <p class="empty-tip">{{ $t('flow.procinstEmptyTip') }}</p>
+                </div>
+            </template>
+
             <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="startProcInst()">{{ $t('flow.startProcess') }}</el-button>
             </template>
@@ -58,7 +65,7 @@ import PageTable from '@/components/page-table/PageTable.vue';
 import { SearchItem } from '@/components/page-table/SearchForm';
 import { Msg, useI18nDetailTitle } from '@/hooks/useI18n';
 import { useUserInfo } from '@/store/userInfo';
-import { defineAsyncComponent, reactive, ref, toRefs, useTemplateRef } from 'vue';
+import { defineAsyncComponent, onActivated, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { procinstApi } from './api';
@@ -133,6 +140,17 @@ const { selectionData, query, procinstDetail, procinstEdit } = toRefs(state);
 const search = async () => {
     pageTableRef.value?.search();
 };
+
+const firstActivation = ref(true);
+// 提单与审批常在别的页签里完成，回到本页必须看到最新状态；
+// keep-alive 首次挂载时 PageTable 已经查过一次，跳过首触发避免重复请求
+onActivated(() => {
+    if (firstActivation.value) {
+        firstActivation.value = false;
+        return;
+    }
+    search();
+});
 
 const procinstCancel = async (data: Procinst) => {
     await procinstApi.cancel.request({ id: data.id });

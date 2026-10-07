@@ -393,10 +393,9 @@ const onErTableClick = async (tableName: string) => {
  */
 const dropTable = async (row: DbTableInfo) => {
     const tableName = row.tableName;
-    try {
-        await useI18nDeleteConfirm(tableName);
-    } catch {
-        return; // 用户取消
+    if (!(await useI18nDeleteConfirm(tableName))) {
+        // 取消或关掉弹窗：不继续后续操作
+        return;
     }
 
     const dialect = getDbDialect(props.dbType);

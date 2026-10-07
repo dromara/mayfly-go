@@ -66,8 +66,9 @@ type machineAppImpl struct {
 	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
 
-	machineScriptApp MachineScript `inject:"T"`
-	machineFileApp   MachineFile   `inject:"T"`
+	machineScriptApp MachineScript  `inject:"T"`
+	machineFileApp   MachineFile    `inject:"T"`
+	hostKeyApp       MachineHostKey `inject:"T"`
 }
 
 var _ Machine = (*machineAppImpl)(nil)
@@ -275,10 +276,14 @@ func (m *machineAppImpl) TimerUpdateStats() {
 				cli, err := m.GetCli(ctx, mid)
 				if err != nil {
 					logx.Errorf("failed to get machine [id=%d] status information periodically, failed to get machine cli: %s", mid, err.Error())
+					// 连不上也要落离线点，保证监控趋势不断线（对齐告警「取不到 stats=离线」口径）
+					GetMachineMetricApp().SaveOfflineSnapshot(ctx, mid)
 					return
 				}
 				stats := cli.GetAllStats()
 				cache.SaveMachineStats(mid, stats)
+				// 落历史指标点（best-effort，失败仅日志绝不影响采集主流程）
+				GetMachineMetricApp().SaveSnapshot(ctx, mid, stats)
 				logx.Debugf("time to get the machine [id=%d] status information end, saved to cache", mid)
 			}, func(err error) {
 				logx.ErrorTrace(fmt.Sprintf("failed to get machine [id=%d] status information on time", ma.Id), err)
@@ -352,6 +357,9 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	mi.Password = authCert.Ciphertext
 	mi.Passphrase = authCert.GetExtraString(tagentity.ExtraKeyPassphrase)
 	mi.AuthMethod = int8(authCert.CiphertextType)
+
+	// 装配主机公钥信任策略（首次信任/指纹比对/失配拒绝），未装配的连接会被连接层拒绝
+	mi.HostKeyCallback = m.hostKeyApp.VerifyCallback(mi)
 
 	// 使用了ssh隧道，则将隧道机器信息也附上
 	if me.SshTunnelMachineId > 0 {

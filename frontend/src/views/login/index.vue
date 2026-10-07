@@ -32,6 +32,7 @@
                         @command="
                             (lang: string) => {
                                 themeConfig.globalI18n = lang;
+                                themeConfig.globalI18n !== undefined && (themeConfig.i18nSelected = true);
                             }
                         "
                     >

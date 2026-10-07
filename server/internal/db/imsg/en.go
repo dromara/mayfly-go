@@ -21,9 +21,14 @@ var En = map[i18n.MsgId]string{
 	ErrDbNotAccess:      "The operation permissions of database [{{.dbName}}] are not configured",
 
 	ErrExistRunFailSQL:      "There is an execution error in sql",
-	ErrNeedSubmitWorkTicket: "This operation needs to submit a work ticket for approval",
-	ErrSQLExecCancelled:     "SQL execution cancelled",
-	ErrSQLSplitUnterminated: "unterminated {{.kind}} region at line {{.line}}, the statement boundary cannot be determined",
+	ErrNeedSubmitWorkTicket: "this operation needs approval via a work ticket, and is executed automatically once approved",
+
+	TriggerReasonDmlRequiresApproval: "the statement type is one of the selected types",
+	TriggerReasonDmlWithoutWhere:     "the update or delete has no WHERE clause",
+	TriggerReasonDestructiveDdl:      "it contains destructive DDL",
+	TriggerReasonSqlSize:             "the SQL size exceeds the limit",
+	ErrSQLExecCancelled:              "SQL execution cancelled",
+	ErrSQLSplitUnterminated:          "unterminated {{.kind}} region at line {{.line}}, the statement boundary cannot be determined",
 
 	// db transfer
 	LogDtsSave:         "dts - Save data transfer task",

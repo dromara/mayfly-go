@@ -16,4 +16,6 @@ type RunCmd struct {
 	Db     int    `json:"db"`
 	Cmd    []any  `json:"cmd"`
 	Remark string
+	// AckWarn 见 RunCmdForm.AckWarn：命中的「仅提醒」已被操作者确认
+	AckWarn bool
 }

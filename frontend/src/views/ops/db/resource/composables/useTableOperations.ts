@@ -148,7 +148,9 @@ export function useTableOperations(params: UseTableOperationsParams) {
     /** 删除表 */
     const onDeleteTable = async (data: TreeNodeCallbackData) => {
         let { db, id, tableName, parentKey, type } = data.params;
-        await useI18nDeleteConfirm(tableName);
+        if (!(await useI18nDeleteConfirm(tableName))) {
+            return;
+        }
 
         const sql = getDbDialect(type).getDropTableSql(db, tableName ?? '');
 

@@ -12,8 +12,8 @@
             lazy
         >
             <template #tableHeader>
-                <el-button v-auth="'mongo:save'" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }}</el-button>
-                <el-button v-auth="'mongo:del'" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="onDelete" plain>
+                <el-button v-auth="perms.mongoSave" type="primary" icon="plus" @click="editEntity()" plain>{{ $t('common.create') }}</el-button>
+                <el-button v-auth="perms.mongoDel" type="danger" icon="delete" :disabled="selectionData.length < 1" @click="onDelete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
             </template>
@@ -24,13 +24,13 @@
             </template>
 
             <template #action="{ data }">
-                <el-button @click="showDatabases(data.id)" link>{{ $t('mongo.db') }}</el-button>
-                <el-button @click="showUsers(data.id)" link type="success">cmd</el-button>
-                <el-button v-auth="'mongo:save'" @click="editEntity(data)" link type="primary">{{ $t('common.edit') }}</el-button>
+                <el-button @click="showDatabases(data)" link>{{ $t('mongo.db') }}</el-button>
+                <el-button @click="showCommands(data.id)" link type="success">{{ $t('mongo.commandConsole') }}</el-button>
+                <el-button v-auth="perms.mongoSave" @click="editEntity(data)" link type="primary">{{ $t('common.edit') }}</el-button>
             </template>
         </page-table>
 
-        <mongo-dbs v-model:visible="dbsVisible" :id="dbId" />
+        <mongo-dbs v-model:visible="dbsVisible" :id="dbId" :name="dbName" :code="dbCode" />
         <mongo-run-command v-model:visible="usersVisible" :id="dbId" />
         <mongo-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
     </div>
@@ -45,6 +45,7 @@ import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
 import TagCodePath from '../component/TagCodePath.vue';
 import { mongoApi } from './api';
+import { perms } from './perms';
 import type { Mongo } from './types';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
@@ -74,16 +75,19 @@ const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlacehold
 
 const columns = [
     TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(25),
+    // 连接串已脱敏（密码固定为 ****），明文凭证不再回传前端
     TableColumn.new('uri', 'mongo.connUrl'),
     TableColumn.new('createTime', 'common.createTime').isTime(),
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(170).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(210).fixedRight().alignCenter(),
 ];
 
 const dbsVisible = ref(false);
 const usersVisible = ref(false);
 const dbId = ref(0);
+const dbName = ref('');
+const dbCode = ref('');
 
 onMounted(() => {
     if (!props.lazy) {
@@ -91,12 +95,15 @@ onMounted(() => {
     }
 });
 
-const showDatabases = (id: number) => {
-    dbId.value = id;
+const showDatabases = (data: Mongo) => {
+    dbId.value = data.id;
+    // 实例名与 code 随弹窗传入：从集合跳操作 tab 时要用同一把键，否则会给同一实例再挂一个面板
+    dbName.value = data.name;
+    dbCode.value = data.code;
     dbsVisible.value = true;
 };
 
-const showUsers = (id: number) => {
+const showCommands = (id: number) => {
     dbId.value = id;
     usersVisible.value = true;
 };
@@ -104,10 +111,9 @@ const showUsers = (id: number) => {
 const onDelete = async () => {
     const records = selectionData.value || [];
     if (records.length === 0) return;
-    try {
-        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
-    } catch {
-        return; // 用户取消
+    if (!(await useI18nDeleteConfirm(records.map((x) => x.name).join('、')))) {
+        // 取消或关掉弹窗：不继续后续操作
+        return;
     }
     await mongoApi.deleteMongo.request({ id: records.map((x) => x.id).join(',') });
     Msg.deleteSuccess();

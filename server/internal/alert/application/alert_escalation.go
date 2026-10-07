@@ -267,10 +267,11 @@ func (a *alertEscalationAppImpl) checkAndEscalate(esc *entity.AlertEscalation, r
 		}
 		if freshEvent.EscalationLvl == i {
 			if len(escRule.ChannelIds) > 0 || len(escRule.ReceiverIds) > 0 {
+				// 渠道归因到升级策略，通知日志可追溯来源
 				target := service.NotifyTarget{
 					ChannelIds:  escRule.ChannelIds,
 					ReceiverIds: escRule.ReceiverIds,
-				}
+				}.WithPolicyBinding(esc.Id, escRule.ChannelIds)
 
 				notifyCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				sent, err := a.notifier.NotifyWithTarget(notifyCtx, freshEvent, rule, target)
@@ -294,7 +295,9 @@ func (a *alertEscalationAppImpl) checkAndEscalate(esc *entity.AlertEscalation, r
 	}
 
 	if needSave {
-		if err := a.eventApp.UpdateById(context.Background(), freshEvent); err != nil {
+		// 仅推进升级级别列：通知发送期间评估/通知链路可能已更新同一事件的其他字段，
+		// 全量写回旧快照会覆盖它们
+		if err := a.eventApp.UpdateEscalationLvl(context.Background(), freshEvent); err != nil {
 			logx.Errorf("[alert] save escalation level error: event[%d] %s", freshEvent.Id, err.Error())
 		}
 	}

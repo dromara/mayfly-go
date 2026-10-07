@@ -313,7 +313,9 @@ const editLineJson = new ContextmenuItem('editLineJson', 'common.edit').withIcon
 const deleteLine = new ContextmenuItem('deleteLine', 'common.delete').withIcon('Delete').withOnClick(async (data: Record<string, unknown>) => {
     const rowData = data.rowData as EsDoc;
     let ids = [rowData._id];
-    await useI18nDeleteConfirm(ids.join(', '));
+    if (!(await useI18nDeleteConfirm(ids.join(', ')))) {
+        return;
+    }
     await doDeleteDoc(ids);
 });
 
@@ -322,7 +324,9 @@ const deleteSelectLine = new ContextmenuItem('deleteLine', 'es.contextmenu.index
     .withHideFunc(() => state.selectKeys.length == 0)
     .withOnClick(async () => {
         let ids = state.selectKeys.map((a: EsDoc) => a._id);
-        await useI18nDeleteConfirm(ids.join(', '));
+        if (!(await useI18nDeleteConfirm(ids.join(', ')))) {
+            return;
+        }
         await doDeleteDoc(ids);
     });
 

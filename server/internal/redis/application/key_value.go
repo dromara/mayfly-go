@@ -33,28 +33,28 @@ type KeyValue interface {
 	Meta(ctx context.Context, conn *rdm.RedisConn, key, view string) (*entity.KeyMeta, error)
 
 	// Page 分页读取 key 的成员数据
-	Page(ctx context.Context, conn *rdm.RedisConn, q *entity.MemberQuery) (*entity.MemberPage, error)
+	Page(ctx context.Context, conn *rdm.RedisConn, q *entity.MemberQuery, ack WarnAck) (*entity.MemberPage, error)
 
 	// WriteMember 新增/修改/删除成员，key 不存在时按视角创建该类型的 key
-	WriteMember(ctx context.Context, conn *rdm.RedisConn, w *entity.MemberWrite) (any, error)
+	WriteMember(ctx context.Context, conn *rdm.RedisConn, w *entity.MemberWrite, ack WarnAck) (any, error)
 
 	// RunViewOp 执行视角扩展操作（集合运算、位统计、GEO 检索等）
-	RunViewOp(ctx context.Context, conn *rdm.RedisConn, o *entity.OpRequest) (any, error)
+	RunViewOp(ctx context.Context, conn *rdm.RedisConn, o *entity.OpRequest, ack WarnAck) (any, error)
 
 	// SummarizeKeys 批量获取 key 的类型与剩余过期时间，供 key 列表展示角标与按类型筛选
 	SummarizeKeys(ctx context.Context, conn *rdm.RedisConn, keys []string) ([]*entity.KeySummary, error)
 
 	// SetKeyTtl 设置 key 过期时间，ttl <= 0 表示持久化
-	SetKeyTtl(ctx context.Context, conn *rdm.RedisConn, key string, ttl int64) error
+	SetKeyTtl(ctx context.Context, conn *rdm.RedisConn, key string, ttl int64, ack WarnAck) error
 
 	// RenameKey 重命名 key
-	RenameKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string) error
+	RenameKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string, ack WarnAck) error
 
 	// DeleteKeys 删除若干 key，返回删除数量
-	DeleteKeys(ctx context.Context, conn *rdm.RedisConn, keys []string) (int64, error)
+	DeleteKeys(ctx context.Context, conn *rdm.RedisConn, keys []string, ack WarnAck) (int64, error)
 
 	// CopyKey 复制 key 到指定库
-	CopyKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string, db int, replace bool) error
+	CopyKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string, db int, replace bool, ack WarnAck) error
 }
 
 var _ KeyValue = (*keyValueAppImpl)(nil)
@@ -172,7 +172,7 @@ func (k *keyValueAppImpl) Meta(ctx context.Context, conn *rdm.RedisConn, key, vi
 // key 不存在（刚被删除或过期）时返回空页而不是报错：读接口对不存在的键给空结果是 Redis 语义，
 // 前端已按元信息的 exists 展示「key 已不存在」，此处再抛错只会在切换 key 的竞态里弹出无意义的提示。
 // 写接口不适用该宽松处理，见 WriteMember
-func (k *keyValueAppImpl) Page(ctx context.Context, conn *rdm.RedisConn, q *entity.MemberQuery) (*entity.MemberPage, error) {
+func (k *keyValueAppImpl) Page(ctx context.Context, conn *rdm.RedisConn, q *entity.MemberQuery, ack WarnAck) (*entity.MemberPage, error) {
 	cmd, err := connCmdable(conn)
 	if err != nil {
 		return nil, err
@@ -185,10 +185,27 @@ func (k *keyValueAppImpl) Page(ctx context.Context, conn *rdm.RedisConn, q *enti
 		return nil, err
 	}
 	q.View = hv.view
+	// 面板读内容等价于该视角声明的读命令（hash→HGETALL 等），必须与命令台敲同一条命令走同一份名单判定：
+	// 此前这里没有任何接缝，实测出现「命令台 GET 被拦、点开面板明文可见同一个值」的旁路
+	if err := k.checkReadTrigger(ctx, conn, hv.handler.Descriptor(), q.Key, ack); err != nil {
+		return nil, err
+	}
 	return hv.handler.Load(ctx, cmd, q)
 }
 
-func (k *keyValueAppImpl) WriteMember(ctx context.Context, conn *rdm.RedisConn, w *entity.MemberWrite) (any, error) {
+// checkReadTrigger 按视角声明的读命令判定本次内容读取能否进行。
+//
+// 判定用 ReadCmd 而不是底层实际命令（分页时 hash 走 HSCAN）：治理口径必须是管理员能看懂、
+// 且在命令台敲同一句会被同样命中的那个命令名，否则配了规则也拦不住真实通路
+func (k *keyValueAppImpl) checkReadTrigger(ctx context.Context, conn *rdm.RedisConn, desc *entity.ViewDescriptor, key string, ack WarnAck) error {
+	if desc == nil || desc.ReadCmd == "" {
+		// 视角没声明读命令就不判定：宁可少判，也不能拿猜出来的命令名去命中规则（那会误拦合法读取）
+		return nil
+	}
+	return k.redisApp.CheckCmdFlow(ctx, conn, []any{desc.ReadCmd, key}, ack)
+}
+
+func (k *keyValueAppImpl) WriteMember(ctx context.Context, conn *rdm.RedisConn, w *entity.MemberWrite, ack WarnAck) (any, error) {
 	cmd, err := connCmdable(conn)
 	if err != nil {
 		return nil, err
@@ -221,7 +238,7 @@ func (k *keyValueAppImpl) WriteMember(ctx context.Context, conn *rdm.RedisConn, 
 	if err != nil {
 		return nil, err
 	}
-	res, err := k.runCmds(ctx, conn, cmds)
+	res, err := k.runCmds(ctx, conn, cmds, ack)
 	if err != nil {
 		return nil, err
 	}
@@ -229,14 +246,14 @@ func (k *keyValueAppImpl) WriteMember(ctx context.Context, conn *rdm.RedisConn, 
 	// 只有本次真的把 key 从「不存在」写成「存在」才落 TTL；
 	// 否则往已有 key 上加一个成员就会顺手改掉它的过期策略
 	if w.Ttl > 0 && created {
-		if _, err := k.runCmds(ctx, conn, [][]any{{"EXPIRE", w.Key, w.Ttl}}); err != nil {
+		if _, err := k.runCmds(ctx, conn, [][]any{{"EXPIRE", w.Key, w.Ttl}}, ack); err != nil {
 			return nil, err
 		}
 	}
 	return res, nil
 }
 
-func (k *keyValueAppImpl) RunViewOp(ctx context.Context, conn *rdm.RedisConn, o *entity.OpRequest) (any, error) {
+func (k *keyValueAppImpl) RunViewOp(ctx context.Context, conn *rdm.RedisConn, o *entity.OpRequest, ack WarnAck) (any, error) {
 	cmd, err := connCmdable(conn)
 	if err != nil {
 		return nil, err
@@ -255,7 +272,7 @@ func (k *keyValueAppImpl) RunViewOp(ctx context.Context, conn *rdm.RedisConn, o 
 	if err != nil {
 		return nil, err
 	}
-	return k.runCmds(ctx, conn, cmds)
+	return k.runCmds(ctx, conn, cmds, ack)
 }
 
 func (k *keyValueAppImpl) SummarizeKeys(ctx context.Context, conn *rdm.RedisConn, keys []string) ([]*entity.KeySummary, error) {
@@ -286,16 +303,16 @@ func (k *keyValueAppImpl) SummarizeKeys(ctx context.Context, conn *rdm.RedisConn
 	return summaries, nil
 }
 
-func (k *keyValueAppImpl) SetKeyTtl(ctx context.Context, conn *rdm.RedisConn, key string, ttl int64) error {
+func (k *keyValueAppImpl) SetKeyTtl(ctx context.Context, conn *rdm.RedisConn, key string, ttl int64, ack WarnAck) error {
 	cmds := [][]any{{"PERSIST", key}}
 	if ttl > 0 {
 		cmds = [][]any{{"EXPIRE", key, ttl}}
 	}
-	_, err := k.runCmds(ctx, conn, cmds)
+	_, err := k.runCmds(ctx, conn, cmds, ack)
 	return err
 }
 
-func (k *keyValueAppImpl) RenameKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string) error {
+func (k *keyValueAppImpl) RenameKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string, ack WarnAck) error {
 	if key == newKey {
 		// 改成同名：Redis 的 RENAME 会直接报 same object，这里按「无需操作」收敛
 		return nil
@@ -309,11 +326,11 @@ func (k *keyValueAppImpl) RenameKey(ctx context.Context, conn *rdm.RedisConn, ke
 	if cmd.Exists(ctx, newKey).Val() > 0 {
 		return errorx.NewBizI(ctx, imsg.ErrRedisKeyAlreadyExist, "key", newKey)
 	}
-	_, err = k.runCmds(ctx, conn, [][]any{{"RENAME", key, newKey}})
+	_, err = k.runCmds(ctx, conn, [][]any{{"RENAME", key, newKey}}, ack)
 	return err
 }
 
-func (k *keyValueAppImpl) DeleteKeys(ctx context.Context, conn *rdm.RedisConn, keys []string) (int64, error) {
+func (k *keyValueAppImpl) DeleteKeys(ctx context.Context, conn *rdm.RedisConn, keys []string, ack WarnAck) (int64, error) {
 	if len(keys) == 0 {
 		return 0, errorx.NewBiz("redis key cannot be empty")
 	}
@@ -322,14 +339,14 @@ func (k *keyValueAppImpl) DeleteKeys(ctx context.Context, conn *rdm.RedisConn, k
 	for _, key := range keys {
 		args = append(args, key)
 	}
-	res, err := k.runCmds(ctx, conn, [][]any{args})
+	res, err := k.runCmds(ctx, conn, [][]any{args}, ack)
 	if err != nil {
 		return 0, err
 	}
 	return cast.ToInt64(res), nil
 }
 
-func (k *keyValueAppImpl) CopyKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string, db int, replace bool) error {
+func (k *keyValueAppImpl) CopyKey(ctx context.Context, conn *rdm.RedisConn, key, newKey string, db int, replace bool, ack WarnAck) error {
 	args := []any{"COPY", key, newKey}
 	if db >= 0 {
 		args = append(args, "DB", db)
@@ -337,7 +354,7 @@ func (k *keyValueAppImpl) CopyKey(ctx context.Context, conn *rdm.RedisConn, key,
 	if replace {
 		args = append(args, "REPLACE")
 	}
-	res, err := k.runCmds(ctx, conn, [][]any{args})
+	res, err := k.runCmds(ctx, conn, [][]any{args}, ack)
 	if err != nil {
 		return err
 	}
@@ -370,14 +387,16 @@ func checkCaps(caps entity.Capabilities, w *entity.MemberWrite) error {
 	return nil
 }
 
-// runCmds 按序执行命令：先做工单审批校验，再统一通过连接执行，保证所有写入口只有一条通路
-func (k *keyValueAppImpl) runCmds(ctx context.Context, conn *rdm.RedisConn, cmds [][]any) (any, error) {
+// runCmds 按序执行命令：先过触发策略校验，再统一通过连接执行，保证所有写入口只有一条通路
+// runCmds 按序执行命令：先过触发策略校验，再统一通过连接执行，保证所有写入口只有一条通路。
+// ack 由发起这次操作的入口带上：key 面板的类型化操作同样是用户点出来的，和命令控制台一样参与
+// 「仅提醒」确认，而不是悄悄执行完
+func (k *keyValueAppImpl) runCmds(ctx context.Context, conn *rdm.RedisConn, cmds [][]any, ack WarnAck) (any, error) {
 	var res any
+	// 同一连接上生效的流程定义相同：解析一次逐条复用，别把批量操作变成每条命令两趟库查询
+	procdef := k.redisApp.TriggerProcdefOf(ctx, conn)
 	for _, args := range cmds {
-		if len(args) == 0 {
-			return nil, errorx.NewBiz("redis cmd cannot be empty")
-		}
-		if err := k.redisApp.CheckCmdFlow(ctx, conn, cast.ToString(args[0])); err != nil {
+		if err := k.redisApp.CheckCmdTrigger(ctx, procdef, args, ack); err != nil {
 			return nil, err
 		}
 

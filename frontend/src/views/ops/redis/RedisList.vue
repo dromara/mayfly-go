@@ -229,10 +229,9 @@ const onShowClusterInfo = async (redis: Redis) => {
 const onDelete = async () => {
     const records = selectionData.value || [];
     if (records.length === 0) return;
-    try {
-        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
-    } catch {
-        return; // 用户取消
+    if (!(await useI18nDeleteConfirm(records.map((x) => x.name).join('、')))) {
+        // 取消或关掉弹窗：不继续后续操作
+        return;
     }
     await redisApi.delRedis.request({ id: records.map((x) => x.id).join(',') });
     Msg.deleteSuccess();

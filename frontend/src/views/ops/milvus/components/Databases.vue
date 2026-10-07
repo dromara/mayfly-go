@@ -144,7 +144,9 @@ const submitCreate = async () => {
 };
 
 const handleDrop = async (row: IDatabase) => {
-    await useI18nConfirm('milvus.confirmDeleteDatabase', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmDeleteDatabase', { name: row.name }))) {
+        return;
+    }
     await milvusApi.dropDatabase(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();

@@ -17,6 +17,28 @@
                 <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="onDelete" type="danger" icon="delete" plain>
                     {{ $t('common.delete') }}
                 </el-button>
+                <el-button v-auth="perms.updateMachine" icon="key" plain @click="gotoHostKeys">{{ $t('machine.hostKeys') }}</el-button>
+                <el-button
+                    v-auth="perms.terminal"
+                    icon="operation"
+                    plain
+                    type="warning"
+                    @click="openBatchRun"
+                >
+                    {{ $t('machine.batchRunCmd') }}
+                </el-button>
+                <el-button
+                    v-auth="perms.terminal"
+                    icon="upload"
+                    plain
+                    type="warning"
+                    @click="openBatchFile"
+                >
+                    {{ $t('machine.batchFile') }}
+                </el-button>
+                <el-button v-auth="perms.updateMachine" icon="data-line" plain @click="healthDialog.visible = true">
+                    {{ $t('machine.healthOverview') }}
+                </el-button>
             </template>
 
             <template #name="{ data }">
@@ -43,7 +65,7 @@
                     </el-row>
                     <el-row>
                         <el-text class="text-[11px]!" size="small">
-                            {{ $t('machine.cpuInfo') }}: <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
+                            {{ $t('machine.cpuInfo') }}: <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ Number(data.stat.cpuIdle).toFixed(0) }}%</span>
                         </el-text>
                     </el-row>
                 </div>
@@ -152,6 +174,14 @@
                                 {{ $t('machine.process') }}
                             </el-dropdown-item>
 
+                            <el-dropdown-item
+                                v-if="data.protocol == MachineProtocolEnum.Ssh.value"
+                                :command="{ type: 'disk-analyze', data }"
+                                :disabled="data.status == -1"
+                            >
+                                {{ $t('machine.diskAnalyze') }}
+                            </el-dropdown-item>
+
                             <el-dropdown-item :command="{ type: 'terminalRec', data }" v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
                                 {{ $t('machine.terminalPlayback') }}
                             </el-dropdown-item>
@@ -230,6 +260,11 @@
 
         <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title"></machine-rec>
 
+        <batch-run-dialog v-model:visible="batchRunCmdDialog.visible" :machines="batchRunCmdDialog.machines" />
+        <batch-file-dialog v-model:visible="batchFileDispatchDialog.visible" :machines="batchFileDispatchDialog.machines" />
+        <machine-health-dialog v-model:visible="healthDialog.visible" @view-trend="onHealthViewTrend" />
+        <disk-analyze-dialog v-model:visible="diskDialog.visible" :machine-id="diskDialog.machineId" :machine-name="diskDialog.machineName" />
+
         <machine-rdp-dialog-comp
             :title="machineRdpDialog.title"
             v-model:visible="machineRdpDialog.visible"
@@ -270,7 +305,7 @@ import { useRouter } from 'vue-router';
 import TagCodePath from '../component/TagCodePath.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { MachineProtocolEnum } from './enums';
-import type { MachineVO } from './types';
+import type { MachineHealth, MachineVO } from './types';
 import type { PageResult } from '@/types/common';
 
 // 组件
@@ -284,6 +319,10 @@ const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 const MachineFile = defineAsyncComponent(() => import('./file/MachineFile.vue'));
 const ResourceAuthCert = defineAsyncComponent(() => import('../component/ResourceAuthCert.vue'));
 const MachineRdpDialogComp = defineAsyncComponent(() => import('@/components/terminal-rdp/MachineRdpDialog.vue'));
+const BatchRunDialog = defineAsyncComponent(() => import('./component/BatchRunDialog.vue'));
+const BatchFileDialog = defineAsyncComponent(() => import('./component/BatchFileDialog.vue'));
+const MachineHealthDialog = defineAsyncComponent(() => import('./component/MachineHealthDialog.vue'));
+const DiskAnalyzeDialog = defineAsyncComponent(() => import('./component/DiskAnalyzeDialog.vue'));
 
 const { t } = useI18n();
 
@@ -390,6 +429,41 @@ const machineRdpDialog = ref({
     authCert: '',
 });
 
+const batchRunCmdDialog = ref({
+    visible: false,
+    machines: [] as MachineVO[],
+});
+
+const batchFileDispatchDialog = ref({
+    visible: false,
+    machines: [] as MachineVO[],
+});
+
+
+const healthDialog = ref({ visible: false });
+
+const diskDialog = ref({ visible: false, machineId: 0, machineName: '' });
+
+/** 批量执行：把当前勾选的机器交给对话框展示并执行 */
+const openBatchRun = () => {
+    if (!selectionData.value?.length) {
+        Msg.warning('machine.selectMachineFirst');
+        return;
+    }
+    batchRunCmdDialog.value.machines = selectionData.value;
+    batchRunCmdDialog.value.visible = true;
+};
+
+/** 批量文件分发：把当前勾选的机器交给对话框 */
+const openBatchFile = () => {
+    if (!selectionData.value?.length) {
+        Msg.warning('machine.selectMachineFirst');
+        return;
+    }
+    batchFileDispatchDialog.value.machines = selectionData.value;
+    batchFileDispatchDialog.value.visible = true;
+};
+
 // --- 数据操作 ---
 const handleData = (res: PageResult<MachineVO>) => {
     const dataList = res.list;
@@ -422,6 +496,10 @@ const handleCommand = (command: DropdownCommand) => {
         }
         case 'process': {
             showProcess(data);
+            return;
+        }
+        case 'disk-analyze': {
+            showDiskAnalyze(data);
             return;
         }
         case 'terminalRec': {
@@ -466,10 +544,9 @@ const terminalMeta = (terminalInfo: { meta?: unknown }): MachineVO => terminalIn
 const onDelete = async () => {
     const records = selectionData.value || [];
     if (records.length === 0) return;
-    try {
-        await useI18nDeleteConfirm(records.map((x) => x.name).join('、'));
-    } catch {
-        return; // 用户取消
+    if (!(await useI18nDeleteConfirm(records.map((x) => x.name).join('、')))) {
+        // 取消或关掉弹窗：不继续后续操作
+        return;
     }
     await machineApi.del.request({ id: records.map((x) => x.id).join(',') });
     Msg.deleteSuccess();
@@ -502,6 +579,12 @@ const showMachineStats = async (machine: MachineVO) => {
     machineStatsDialog.value.machineId = machine.id;
     machineStatsDialog.value.title = `${t('machine.machineState')}: ${machine.name} => ${machine.ip}`;
     machineStatsDialog.value.visible = true;
+};
+
+// 从健康总览下钻到单机监控历史：先收起总览，避免两层模态窗口叠加
+const onHealthViewTrend = (health: MachineHealth) => {
+    healthDialog.value.visible = false;
+    showMachineStats({ id: health.machineId, name: health.name, ip: health.ip } as MachineVO);
 };
 
 const search = (tagPath?: string) => {
@@ -539,9 +622,20 @@ const showInfo = (info: MachineVO) => {
     infoDialog.value.visible = true;
 };
 
+/** 主机密钥信任库入口：直达安全配置页的主机密钥标签页 */
+const gotoHostKeys = () => {
+    router.push({ path: '/machine/security', query: { tab: 'hostKey' } });
+};
+
 const showProcess = (row: MachineVO) => {
     processDialog.value.machineId = row.id;
     processDialog.value.visible = true;
+};
+
+const showDiskAnalyze = (row: MachineVO) => {
+    diskDialog.value.machineId = row.id;
+    diskDialog.value.machineName = row.name;
+    diskDialog.value.visible = true;
 };
 
 const showRec = (row: MachineVO) => {

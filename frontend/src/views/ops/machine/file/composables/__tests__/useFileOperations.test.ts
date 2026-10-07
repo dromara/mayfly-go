@@ -106,9 +106,7 @@ describe('粘贴', () => {
 
         await api.pasteFile();
 
-        expect(endpoints.cpFile.request).toHaveBeenCalledWith(
-            expect.objectContaining({ paths: ['/srv/a'], toPath: '/srv/other', machineId: 1, fileId: 7 })
-        );
+        expect(endpoints.cpFile.request).toHaveBeenCalledWith(expect.objectContaining({ paths: ['/srv/a'], toPath: '/srv/other', machineId: 1, fileId: 7 }));
         expect(api.copyOrMvFile.paths).toEqual([]);
     });
 });
@@ -119,9 +117,7 @@ describe('重命名', () => {
 
         await api.fileRename(row('new', '/srv/new'), 'old');
 
-        expect(endpoints.renameFile.request).toHaveBeenCalledWith(
-            expect.objectContaining({ machineId: 1, fileId: 7, path: '/srv/old', newname: '/srv/new' })
-        );
+        expect(endpoints.renameFile.request).toHaveBeenCalledWith(expect.objectContaining({ machineId: 1, fileId: 7, path: '/srv/old', newname: '/srv/new' }));
     });
 
     it('新名称为空时不发请求', async () => {

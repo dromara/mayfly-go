@@ -246,8 +246,8 @@ const getCaptcha = async () => {
         return;
     }
     let res = await openApi.captcha();
-    state.captchaImage = res.captchaImage;
-    state.loginForm.cid = res.captchaId;
+    state.captchaImage = res.base64Captcha;
+    state.loginForm.cid = res.cid;
 };
 
 // 校验登录表单并登录
@@ -292,6 +292,9 @@ const onSignIn = async () => {
     } catch (e: unknown) {
         state.loading.signIn = false;
         state.loginForm.captcha = '';
+        // 清空输入后必须一并清掉该字段的校验态：否则每次失败都会多出一条「请输入验证码」，
+        // 与「用户名或密码错误」同时出现，把用户引向错误的归因
+        loginFormRef.value?.clearValidate(['captcha']);
         const errObj = e as Record<string, unknown>;
         // 密码强度不足
         if (errObj?.code == 401) {

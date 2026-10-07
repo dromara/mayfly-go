@@ -40,7 +40,15 @@
                                 <el-dropdown-item>
                                     <div>
                                         <el-link @click="addFinderToList">{{ $t('machine.folder') }}</el-link>
-                                        <input ref="folderUploadRef" type="file" webkitdirectory directory :multiple="true" @change="handleFolderUpload" class="hidden" />
+                                        <input
+                                            ref="folderUploadRef"
+                                            type="file"
+                                            webkitdirectory
+                                            directory
+                                            :multiple="true"
+                                            @change="handleFolderUpload"
+                                            class="hidden"
+                                        />
                                     </div>
                                 </el-dropdown-item>
                             </el-dropdown-menu>
@@ -98,11 +106,22 @@
 
                         <template #default="scope">
                             <div class="file-name-cell flex min-w-0 cursor-pointer items-center gap-1.5" :title="scope.row.path" @click="getFile(scope.row)">
-                                <SvgIcon :size="15" :name="scope.row.icon" :color="scope.row.isFolder ? 'var(--el-color-primary)' : undefined" class="shrink-0" />
+                                <SvgIcon
+                                    :size="15"
+                                    :name="scope.row.icon"
+                                    :color="scope.row.isFolder ? 'var(--el-color-primary)' : undefined"
+                                    class="shrink-0"
+                                />
 
                                 <span class="min-w-0 flex-1">
                                     <div v-if="scope.row.nameEdit" :class="renameEditClass">
-                                        <el-input v-model="scope.row.name" size="small" :ref="focusRenameInput" @keyup.enter="submitRename" @keyup.esc="cancelRename" />
+                                        <el-input
+                                            v-model="scope.row.name"
+                                            size="small"
+                                            :ref="focusRenameInput"
+                                            @keyup.enter="submitRename"
+                                            @keyup.esc="cancelRename"
+                                        />
                                     </div>
                                     <span v-else class="block truncate font-medium">{{ scope.row.name }}</span>
                                 </span>
@@ -115,7 +134,14 @@
                             <span v-if="isFile(scope.row) || scope.row.dirSize" class="font-mono text-xs">{{
                                 isFile(scope.row) ? formatByteSize(scope.row.size) : scope.row.dirSize
                             }}</span>
-                            <el-button v-else text size="small" :loading="scope.row.loadingDirSize" :aria-label="$t('machine.calculate')" @click="getDirSize(scope.row)">
+                            <el-button
+                                v-else
+                                text
+                                size="small"
+                                :loading="scope.row.loadingDirSize"
+                                :aria-label="$t('machine.calculate')"
+                                @click="getDirSize(scope.row)"
+                            >
                                 {{ $t('machine.calculate') }}
                             </el-button>
                         </template>

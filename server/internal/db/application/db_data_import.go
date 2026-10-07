@@ -195,6 +195,19 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 	}
 	sqlGen := conn.GetDialect().GetSQLGenerator()
 
+	// 数据导入与 SQL 编辑器共用同一个权限码（db:sqlscript:run），也就必须共用同一套触发策略判定：
+	// 否则「向该表插入数据需审批」在编辑器里拦得住，换个 Excel/CSV 文件导入就绕过去了。
+	// 判定用「往该表插入一行」的代表语句而不是实际批次语句：批次大小是实现细节，
+	// 拿它决定策略结论会出现「调小批量就绕过、调大批量就误拦」
+	var warnings []string
+	if probeStmts := sqlGen.GenInsert(req.TableName, insertColumns, values[:1], strategy, targetMeta); len(probeStmts) > 0 {
+		notices, err := GetDbSQLExecApp().CheckSqlsWithoutTicket(ctx, conn, probeStmts)
+		if err != nil {
+			return nil, err
+		}
+		warnings = notices
+	}
+
 	tx, err := conn.Begin()
 	if err != nil {
 		return nil, errorx.NewBizf("begin import transaction failed: %s", err.Error())
@@ -206,7 +219,7 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		}
 	}()
 
-	res := &dto.DataImportRes{TotalRows: len(table.Rows)}
+	res := &dto.DataImportRes{TotalRows: len(table.Rows), Warnings: warnings}
 
 	// 进度回传：与「SQL文件执行」同构，仅在登录账号 + clientId + uploadId 齐全时发送 Ws 进度消息。
 	// 事件订阅为异步（SubscribeAsync）且 Ws 发送持有 Params 引用，故每次发布必须 copy 一份新 map、

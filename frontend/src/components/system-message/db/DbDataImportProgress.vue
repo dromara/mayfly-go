@@ -12,7 +12,11 @@
             </span>
         </div>
 
-        <el-progress :percentage="percentage" :stroke-width="8" :status="['error', 'failed', 'cancelled'].includes(progress.status || '') ? 'exception' : progress.terminated ? 'success' : ''"" />
+        <el-progress
+            :percentage="percentage"
+            :stroke-width="8"
+            :status="['error', 'failed', 'cancelled'].includes(progress.status || '') ? 'exception' : progress.terminated ? 'success' : ''"
+        />
 
         <!-- 详细信息 -->
         <el-descriptions border size="small" class="mt-2">

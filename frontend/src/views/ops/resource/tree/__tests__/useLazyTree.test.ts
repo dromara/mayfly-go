@@ -158,6 +158,72 @@ describe('tree/useLazyTree 懒加载水合层', () => {
         expect(getNode('s1')!.loaded).toBe(true);
     });
 
+    it('appendChildren：增量追加到尾部，既有子级不动，新节点入索引且可继续展开', async () => {
+        registerContributor({ kind: 'root', hasChildren: true, loadChildren: async () => [leaf('r1')] });
+        const { getNode, init, expandNode, appendChildren } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: async () => [{ key: 'r1', kind: 'root', label: 'r1' }],
+        });
+        await init();
+        await expandNode('r1');
+        const first = getNode('r1')!.children![0].key;
+
+        // 追加一个叶子 + 一个可展开节点：可展开新节点应挂加载占位（未水合）
+        appendChildren('r1', [
+            { key: 'r1-more', kind: 'leaf', label: 'more' },
+            { key: 'r1-branch', kind: 'root', label: 'branch' },
+        ]);
+        expect(getNode('r1')!.children!.map((c) => c.key)).toEqual([first, 'r1-more', 'r1-branch']);
+        expect(getNode('r1-more')).toBeDefined();
+        expect(getNode('r1-branch')!.loaded).toBe(false);
+        expect(getNode('r1-branch')!.children?.[0].kind).toBe(LOADING_KIND);
+        // 追加不影响父节点已水合态
+        expect(getNode('r1')!.loaded).toBe(true);
+    });
+
+    it('appendChildren replaceKey：先摘除旧占位行再落尾（加载更多翻页），新节点 key 不与被摘除者冲突', async () => {
+        registerContributor({
+            kind: 'root',
+            hasChildren: true,
+            loadChildren: async () => [leaf('r1'), { key: 'r1-more', kind: 'leaf', label: 'more' }],
+        });
+        const { getNode, init, expandNode, appendChildren } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: async () => [{ key: 'r1', kind: 'root', label: 'r1' }],
+        });
+        await init();
+        await expandNode('r1');
+        const leafKey = getNode('r1')!.children![0].key;
+
+        // 用同 key（r1-more）的新一页替换旧「加载更多」行：replaceKey 先摘旧再追加，避免 key 重复
+        appendChildren('r1', [{ key: 'r1-more', kind: 'leaf', label: 'more2' }], { replaceKey: 'r1-more' });
+        expect(getNode('r1')!.children!.map((c) => c.key)).toEqual([leafKey, 'r1-more']);
+        expect(getNode('r1-more')!.label).toBe('more2');
+    });
+
+    it('appendChildren：未水合节点为无操作；replaceKey 且空节点即仅摘除（末页到底移除占位）', async () => {
+        registerContributor({
+            kind: 'root',
+            hasChildren: true,
+            loadChildren: async () => [leaf('r1'), { key: 'r1-more', kind: 'leaf', label: 'more' }],
+        });
+        const { getNode, init, expandNode, appendChildren } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: async () => [{ key: 'r1', kind: 'root', label: 'r1' }],
+        });
+        await init();
+
+        // 未展开（loaded=false）时追加无效
+        appendChildren('r1', [leaf('r1')]);
+        expect(getNode('r1')!.loaded).toBe(false);
+
+        await expandNode('r1');
+        // 末页：空节点 + replaceKey → 仅移除「加载更多」占位行
+        appendChildren('r1', [], { replaceKey: 'r1-more' });
+        expect(getNode('r1')!.children!.map((c) => c.key)).toEqual([getNode('r1')!.children![0].key]);
+        expect(getNode('r1-more')).toBeUndefined();
+    });
+
     it('增量索引：多根交叉展开/释放后 getNode 定位互不干扰（索引只维护受影响子树）', async () => {
         registerContributor({
             kind: 'ra',
@@ -253,6 +319,43 @@ describe('tree/useLazyTree 懒加载水合层', () => {
         await refresh();
         expect(rootLoader).toHaveBeenCalledTimes(2);
         expect(data.value[0].key).toBe('r-v1');
+    });
+
+    it('收起态节点 refresh 只置占位不水合；随后 expandNode 才真正拉取（搜索后须先刷新再展开方可见结果）', async () => {
+        let loadCount = 0;
+        registerContributor({
+            kind: 'searchable',
+            hasChildren: true,
+            releaseOnCollapse: true,
+            loadChildren: async () => {
+                loadCount++;
+                return [leaf('rs')];
+            },
+        });
+        const { init, expandNode, collapseNode, refresh, getNode } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: async () => [{ key: 'rs', kind: 'searchable', label: 'rs' }],
+        });
+        await init();
+
+        // 展开首屏：水合一次
+        await expandNode('rs');
+        expect(loadCount).toBe(1);
+        expect(getNode('rs')!.loaded).toBe(true);
+
+        // 收起（releaseOnCollapse 释放子树，回退占位）
+        collapseNode('rs');
+        expect(getNode('rs')!.loaded).toBe(false);
+
+        // 收起态 refresh：不应后台触发 loadChildren（loadCount 保持 1），仅置占位
+        await refresh('rs');
+        expect(loadCount).toBe(1);
+        expect(getNode('rs')!.children?.[0].kind).toBe(LOADING_KIND);
+
+        // 再展开才真正拉取（对应 onSearch 里 refresh 之后必须补 expandNode）
+        await expandNode('rs');
+        expect(loadCount).toBe(2);
+        expect(getNode('rs')!.loaded).toBe(true);
     });
 
     it('折叠父节点同时收起后代展开态（防 TreeV2 setExpandedKeys 经后代链复活祖先）', async () => {

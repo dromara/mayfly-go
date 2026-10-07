@@ -1,12 +1,12 @@
 package api
 
 import (
+	flowapp "mayfly-go/internal/flow/application"
 	"mayfly-go/internal/pkg/event"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/rdm"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 
@@ -29,9 +29,11 @@ func (r *Redis) RunCmd(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(r.tagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.CodePath...), "%s")
 	rc.ReqParam = collx.Kvs("redis", redisConn.Info, "cmd", cmdReq.Cmd)
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, redisConn.Info.CodePath[0])
+	event.PublishResourceOp(rc.MetaCtx, redisConn.Info.CodePath)
 
 	res, err := r.redisApp.RunCmd(rc.MetaCtx, redisConn, runCmdParam)
+	// 需提单的拦截要带着错误码出去，前端据此才会在拦截处给出「提交工单」入口
+	flowapp.PreserveDecisionCode(err)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

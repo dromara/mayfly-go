@@ -21,8 +21,9 @@ import {
     DbObjectKind,
     DbTableSearchKind,
     DbTableResultsKind,
+    DbTableLoadMoreKind,
     DB_TABLE_SEARCH_THRESHOLD,
-    DB_TABLE_SEARCH_LIMIT,
+    DB_TABLE_PAGE_SIZE,
     tableResultsKey,
     DB_OBJECT_KINDS,
     ObjectIcon,
@@ -195,21 +196,20 @@ registerContributor({
     selectable: false,
 });
 
-// 搜索结果容器节点：展开时按已提交的 tableFilter 走服务端 LIKE 下推；未输入时给出引导提示
+// 搜索结果容器节点：展开时按已提交的 tableFilter（可为空）走服务端 LIKE + 分页下推，首屏固定加载第一页
 registerContributor({
     kind: DbTableResultsKind,
     hasChildren: true,
     icon: TableIcon,
     releaseOnCollapse: true,
-    loadChildren: async (node) => {
-        const params = dbNodeParams(node);
-        const like = (node.params.tableFilter as string | undefined) ?? '';
-        if (!like) {
-            return [{ key: `${node.key}.hint`, kind: 'db-truncated', label: 'db.tooManyTablesHint', disabled: true }];
-        }
-        const rows = (await dbApi.tableInfos.request({ id: params.id, db: params.db, like, limit: DB_TABLE_SEARCH_LIMIT })) ?? [];
-        return tableLeafNodes(node, params, rows);
-    },
+    loadChildren: async (node) => buildTablePage(node, (node.params.tableFilter as string | undefined) ?? '', 0),
+});
+
+// 「加载更多」伪节点：单击由 commands.ts 的 db.table.loadMore 取下一页并增量追加到结果容器尾部
+registerContributor({
+    kind: DbTableLoadMoreKind,
+    hasChildren: false,
+    selectable: false,
 });
 
 // 数据库 sql 模板菜单节点
@@ -309,6 +309,38 @@ const tableResultsNode = (node: TreeNode, params: Record<string, unknown>): Tree
     icon: TableIcon,
     params: { ...params, menuKey: node.key, tableFilter: '' },
 });
+
+/** 「加载更多」伪节点：携带结果容器 key + 当前过滤词 + 已累计条数，供续载命令定位父容器与计算 offset */
+const tableLoadMoreNode = (resultsNode: TreeNode, params: Record<string, unknown>, like: string, loaded: number): TreeNodeData => ({
+    key: `${resultsNode.key}__more`,
+    kind: DbTableLoadMoreKind,
+    label: 'db.loadMoreTables',
+    icon: TableIcon,
+    params: { ...params, resultsKey: resultsNode.key, like, loaded },
+});
+
+/**
+ * 加载一页表节点（首屏/续载/搜索共用同一映射，保证三处产出节点形状一致）：
+ * 服务端按 like 过滤 + offset/limit 取页；满页即认为还有下一页，尾部追加「加载更多」；
+ * 搜索态零命中给就地提示，浏览态（无 like）不会为空（超阈值即有表）。
+ */
+export const buildTablePage = async (resultsNode: TreeNode, like: string, offset: number): Promise<TreeNodeData[]> => {
+    const params = dbNodeParams(resultsNode);
+    const rows = (await dbApi.tableInfos.request({ id: params.id, db: params.db, like, limit: DB_TABLE_PAGE_SIZE, offset })) ?? [];
+    if (!rows.length) {
+        // 续载到底（offset>0 的空页）：不追加任何节点，仅由调用方 replaceKey 摘掉「加载更多」占位；
+        // 只有首屏零命中且处于搜索态才给「未匹配到表」提示，避免在已展示命中结果尾部误插自相矛盾的提示行
+        if (offset > 0) {
+            return [];
+        }
+        return like ? [{ key: `${resultsNode.key}__empty`, kind: 'db-truncated', label: 'db.noTableMatch', disabled: true }] : [];
+    }
+    const nodes = tableLeafNodes(resultsNode, params, rows);
+    if (rows.length >= DB_TABLE_PAGE_SIZE) {
+        nodes.push(tableLoadMoreNode(resultsNode, params, like, offset + rows.length));
+    }
+    return nodes;
+};
 
 /** 库/schema 展开后子节点：表菜单 + 后端声明支持的扩展对象分类菜单（视图/序列…，能力位驱动显隐）+ SQL 菜单置最后 */
 const buildMenuChildren = (node: TreeNode, features: string[]): TreeNodeData[] => {

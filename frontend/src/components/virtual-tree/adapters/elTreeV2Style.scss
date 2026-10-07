@@ -1,0 +1,36 @@
+/* el-tree-v2 引擎 DOM 的动效皮肤：随 defaultAdapter 的选择生效（adapters/index.ts 导入），
+   换引擎时本文件随旧适配器一起迁走。缓动/时长对齐 PRODUCT.md 统一缓动语言：ease-out-quart、150–250ms */
+
+.virtual-tree__inner {
+    /* 行 hover/选中/当前高亮背景：内置为瞬时切换 → 150ms 柔和过渡 */
+    .el-tree-node__content {
+        transition: background-color 150ms var(--ease-out-quart);
+    }
+
+    /* 箭头旋转：内置 ease-in-out 0.3s → ease-out-quart 200ms，并补色彩过渡 */
+    .el-tree-node__expand-icon {
+        transition:
+            transform 200ms var(--ease-out-quart),
+            color 120ms var(--ease-out-quart);
+    }
+
+    /* 可展开行的 hover 主色提示（仅非禁用行：is-focusable 由树库按 disabled 求值） */
+    .el-tree-node.is-focusable .el-tree-node__content:hover .el-tree-node__expand-icon {
+        color: var(--el-color-primary);
+    }
+
+    /* 懒加载占位/错误行淡入：状态出现有过渡，替代瞬时闪现 */
+    .tree-row-placeholder {
+        animation: virtual-tree-row-fade-in 200ms var(--ease-out-quart);
+    }
+}
+
+@keyframes virtual-tree-row-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

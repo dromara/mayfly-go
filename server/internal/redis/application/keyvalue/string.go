@@ -31,6 +31,8 @@ var stringDesc = withDefault(&entity.ViewDescriptor{
 		"STRLEN {key}",
 		"TYPE {key}",
 	},
+	// ReadCmd 面板读取本视角内容等价的命令名，触发策略判定与「申请查看」提单同口径
+	ReadCmd: "GET",
 	Columns: []entity.Column{column("value", "redis.colValue", "code", 0)},
 	Form: form(
 		textAreaField(argValue, "redis.colValue", 8, false),

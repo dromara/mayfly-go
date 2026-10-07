@@ -168,6 +168,12 @@ type ViewDescriptor struct {
 	// ConsoleHints 命令控制台的快捷命令模板，{key} 为占位符、执行时换成当前 key 名。
 	// 由各视角自行声明（哪些命令对该类型有意义只有该处理器知道），前端只负责渲染
 	ConsoleHints []string `json:"consoleHints"`
+	// ReadCmd 该视角「读内容」等价的命令名（如 hash 为 HGETALL），必须出现在本视角的 ConsoleHints 里。
+	//
+	// 面板读取内容按这个名字过触发策略，而不是按底层实际发出的命令：分页时 hash 走的是 HSCAN，
+	// 拿实现细节当治理口径会让管理员必须猜命令才能配对规则，也会出现「命令台拦得住、面板放过」。
+	// 「申请查看」提单也用它拼命令，保证判定、提单、命令台三处同一个口径
+	ReadCmd string `json:"readCmd"`
 }
 
 // CommandSpec 实例命令目录的一条记录，供命令控制台做输入提示与执行前确认。

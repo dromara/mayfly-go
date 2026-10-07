@@ -63,3 +63,10 @@ export const CronJobExecStatusEnum = {
     Error: EnumValue.of(-1, 'machine.cronJobExecStatusEnumFail').tagTypeDanger(),
     Success: EnumValue.of(1, 'machine.cronJobExecStatusEnumSuccess').tagTypeSuccess(),
 };
+
+// 计划任务结果通知方式
+export const CronJobNotifyTypeEnum = {
+    None: EnumValue.of(0, 'machine.cronJobNotifyNone'),
+    Fail: EnumValue.of(1, 'machine.cronJobNotifyFail').tagTypeWarning(),
+    Always: EnumValue.of(2, 'machine.cronJobNotifyAlways').tagTypeSuccess(),
+};

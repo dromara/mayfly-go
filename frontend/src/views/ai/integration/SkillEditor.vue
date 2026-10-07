@@ -360,21 +360,20 @@ const handleCreateFile = async () => {
 
 // ── 删除文件 ──────────────────────────────────────────────
 const handleDeleteFile = async (path: string) => {
-    try {
-        await useI18nConfirm('ai.integration.deleteResourceConfirm');
-        if (isEdit.value && props.skillId) {
-            await pluginApi.deleteResource.request({ id: props.skillId, path });
-            await loadResources();
-        } else {
-            localResources.value = localResources.value.filter((r) => r.path !== path);
-        }
-        if (activeFilePath.value === path) {
-            activeFilePath.value = null;
-            fileContent.value = '';
-            isDirty.value = false;
-        }
-    } catch {
-        // 确认取消或删除失败（请求层已 toast），静默退出
+    if (!(await useI18nConfirm('ai.integration.deleteResourceConfirm'))) {
+        // 只剩请求失败（请求层已 toast）：取消在上面的确认判断里就 return 了
+        return;
+    }
+    if (isEdit.value && props.skillId) {
+        await pluginApi.deleteResource.request({ id: props.skillId, path });
+        await loadResources();
+    } else {
+        localResources.value = localResources.value.filter((r) => r.path !== path);
+    }
+    if (activeFilePath.value === path) {
+        activeFilePath.value = null;
+        fileContent.value = '';
+        isDirty.value = false;
     }
 };
 

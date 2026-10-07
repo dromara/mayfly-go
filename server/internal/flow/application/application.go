@@ -11,6 +11,7 @@ func InitIoc() {
 
 	ioc.Register(new(procinstTaskAppImpl))
 	ioc.Register(new(hisProcinstOpAppImpl))
+	ioc.Register(new(ruleSegmentAppImpl))
 }
 
 func Init() {

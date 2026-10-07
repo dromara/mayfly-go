@@ -1,7 +1,6 @@
 package mcm
 
 import (
-	"regexp"
 	"testing"
 )
 
@@ -307,47 +306,6 @@ func TestIsWhitelistCommand(t *testing.T) {
 			result := IsWhitelistCommand(tt.command, rules)
 			if result != tt.expected {
 				t.Errorf("IsWhitelistCommand(%q) = %v, expected %v", tt.command, result, tt.expected)
-			}
-		})
-	}
-}
-
-// ============================================================================
-// MatchCmdFilters 测试
-// ============================================================================
-
-func TestMatchCmdFilters(t *testing.T) {
-	filters := []*CmdFilterRule{
-		{CmdRegexp: regexp.MustCompile(`rm\s+-rf`), Strategy: "reject"},
-		{CmdRegexp: regexp.MustCompile(`shutdown|reboot`), Strategy: "reject"},
-		{CmdRegexp: regexp.MustCompile(`/etc/shadow`), Strategy: "reject"},
-	}
-
-	tests := []struct {
-		name    string
-		cmd     string
-		matched bool
-	}{
-		{"匹配rm -rf", "rm -rf /tmp", true},
-		{"匹配rm  -rf多空格", "rm  -rf /tmp", true},
-		{"匹配shutdown", "shutdown -h now", true},
-		{"匹配reboot", "reboot", true},
-		{"匹配/etc/shadow", "cat /etc/shadow", true},
-		{"不匹配安全命令ls", "ls -la", false},
-		{"不匹配安全命令ps", "ps aux", false},
-		{"不匹配echo", "echo hello", false},
-		{"空filters", "rm -rf /", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var fs []*CmdFilterRule
-			if tt.name != "空filters" {
-				fs = filters
-			}
-			result := MatchCmdFilters(tt.cmd, fs)
-			if (result != nil) != tt.matched {
-				t.Errorf("MatchCmdFilters(%q) matched = %v, expected %v", tt.cmd, result != nil, tt.matched)
 			}
 		})
 	}

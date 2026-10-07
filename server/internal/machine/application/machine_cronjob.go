@@ -2,10 +2,13 @@ package application
 
 import (
 	"context"
+	"errors"
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/imsg"
+	"mayfly-go/internal/machine/mcm"
+	msgapp "mayfly-go/internal/msg/application"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
@@ -19,6 +22,9 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"time"
 )
+
+// cronJobDefaultTimeout 计划任务单次执行的默认超时（cronJob.TimeoutSeconds<=0 时使用）
+const cronJobDefaultTimeout = 120 * time.Second
 
 type MachineCronJob interface {
 	base.App[*entity.MachineCronJob]
@@ -49,6 +55,9 @@ type machineCronJobAppImpl struct {
 
 	tagTreeApp       tagapp.TagTreeReader `inject:"T"`
 	tagTreeRelateApp tagapp.TagTreeRelate `inject:"T"`
+
+	// msgTmplApp 结果通知发送器：与告警通知同一发送器，渠道由消息模板关联决定
+	msgTmplApp msgapp.MsgTmpl `inject:"T"`
 
 	// runGuard 分布式运行守卫：按 cron job key 互斥，防止多实例重复执行
 	runGuard taskx.RunGuard[string]
@@ -182,42 +191,101 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 }
 
 func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
-	execRes := &entity.MachineCronJobExec{
-		CronJobId: cronJob.Id,
-		ExecTime:  time.Now(),
+	timeout := time.Duration(cronJob.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = cronJobDefaultTimeout
+	}
+
+	machineCode := ""
+	if machine, err := m.machineApp.GetById(mid); err == nil {
+		machineCode = machine.Code
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
-	machineCli, err := m.machineApp.GetCli(ctx, mid)
+
 	res := ""
-	if err != nil {
-		machine, _ := m.machineApp.GetById(mid)
-		execRes.MachineCode = machine.Code
-	} else {
-		execRes.MachineCode = machineCli.Info.Code
-		res, err = machineCli.Run(cronJob.Script)
-		if err != nil {
-			if res == "" {
-				res = err.Error()
-			}
-			logx.Errorf("machine[%d] failed to execute cronjob[%s]: %s", mid, cronJob.Name, res)
-		} else {
+	var err error
+	attempts := int(cronJob.RetryTimes) + 1
+	for attempt := 1; attempt <= attempts; attempt++ {
+		var retryable bool
+		res, err, retryable = m.runOnce(ctx, mid, cronJob.Script, timeout)
+		if err == nil {
 			logx.Debugf("machine[%d] successfully executed cronjob[%s], execution result: %s", mid, cronJob.Name, res)
+			break
 		}
+		// 仅对连接失败/超时重试；命令非 0 退出属业务失败，不重试
+		if !retryable || attempt == attempts {
+			logx.Errorf("machine[%d] failed to execute cronjob[%s]: %s", mid, cronJob.Name, err.Error())
+			break
+		}
+		logx.Warnf("machine[%d] cronjob[%s] attempt %d/%d failed (retryable): %s", mid, cronJob.Name, attempt, attempts, err.Error())
+		time.Sleep(time.Duration(attempt) * time.Second)
+	}
+
+	execRes := &entity.MachineCronJobExec{
+		CronJobId:   cronJob.Id,
+		MachineCode: machineCode,
+		ExecTime:    time.Now(),
+	}
+	if res == "" && err != nil {
+		res = err.Error()
 	}
 	execRes.Res = res
 
-	if cronJob.SaveExecResType == entity.SaveExecResTypeNo ||
-		(cronJob.SaveExecResType == entity.SaveExecResTypeOnError && err == nil) {
+	if cronJob.SaveExecResType != entity.SaveExecResTypeNo &&
+		!(cronJob.SaveExecResType == entity.SaveExecResTypeOnError && err == nil) {
+		if err == nil {
+			execRes.Status = entity.MachineCronJobExecStatusSuccess
+		} else {
+			execRes.Status = entity.MachineCronJobExecStatusError
+		}
+		// 保存执行记录
+		m.machineCronJobExecRepo.Insert(context.TODO(), execRes)
+	}
+
+	m.notifyCronJobResult(ctx, cronJob, machineCode, res, err)
+}
+
+// runOnce 单次执行：取连接（失败=可重试）→ RunWithTimeout（超时=可重试；命令非 0 退出=业务失败不可重试）
+func (m *machineCronJobAppImpl) runOnce(ctx context.Context, mid uint64, script string, timeout time.Duration) (string, error, bool) {
+	cli, err := m.machineApp.GetCli(ctx, mid)
+	if err != nil {
+		return "", err, true
+	}
+	out, runErr := cli.RunWithTimeout(timeout, script)
+	if runErr != nil {
+		return out, runErr, errors.Is(runErr, mcm.ErrRunTimeout)
+	}
+	return out, nil, false
+}
+
+// notifyCronJobResult 按计划任务的通知方式与绑定的消息模板推送执行结果（与告警同一发送器）
+func (m *machineCronJobAppImpl) notifyCronJobResult(ctx context.Context, cronJob *entity.MachineCronJob, machineCode, res string, runErr error) {
+	if cronJob.NotifyType == entity.CronJobNotifyNone || cronJob.NotifyTmplCode == "" {
+		return
+	}
+	failed := runErr != nil
+	if cronJob.NotifyType == entity.CronJobNotifyFail && !failed {
 		return
 	}
 
-	if err == nil {
-		execRes.Status = entity.MachineCronJobExecStatusSuccess
-	} else {
-		execRes.Status = entity.MachineCronJobExecStatusError
+	status := "success"
+	if failed {
+		status = "failed"
 	}
-	// 保存执行记录
-	m.machineCronJobExecRepo.Insert(context.TODO(), execRes)
+	errMsg := ""
+	if runErr != nil {
+		errMsg = runErr.Error()
+	}
+	params := map[string]any{
+		"jobName": cronJob.Name,
+		"machine": machineCode,
+		"status":  status,
+		"result":  res,
+		"error":   errMsg,
+	}
+	if sendErr := m.msgTmplApp.Send(ctx, cronJob.NotifyTmplCode, params); sendErr != nil {
+		logx.Errorf("failed to send cronjob[%s] result notify: %s", cronJob.Name, sendErr.Error())
+	}
 }

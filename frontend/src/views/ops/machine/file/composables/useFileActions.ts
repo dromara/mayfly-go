@@ -33,10 +33,8 @@ export interface FileActionDef {
  * 批量位置不按此过滤：否则「勾选里混进一个系统目录」会让整排按钮凭空消失，
  * 用户无从知道原因；能不能删交给确认框（列出完整路径）与后端判定。
  */
-const notProtectedExceptBatch =
-    (isProtected: (row: MachineFileInfo) => boolean) =>
-    (rows: MachineFileInfo[], surface: ActionSurface) =>
-        rows.length > 0 && (surface === 'batch' || !rows.some(isProtected));
+const notProtectedExceptBatch = (isProtected: (row: MachineFileInfo) => boolean) => (rows: MachineFileInfo[], surface: ActionSurface) =>
+    rows.length > 0 && (surface === 'batch' || !rows.some(isProtected));
 
 /** 执行动作由外部注入，本模块只负责「有哪些操作、在什么条件下出现在哪里」 */
 export interface UseFileActionsDeps {
@@ -118,8 +116,7 @@ export function useFileActions(deps: UseFileActionsDeps) {
         },
     ];
 
-    const isApplicable = (action: FileActionDef, rows: MachineFileInfo[], surface: ActionSurface) =>
-        !action.applicable || action.applicable(rows, surface);
+    const isApplicable = (action: FileActionDef, rows: MachineFileInfo[], surface: ActionSurface) => !action.applicable || action.applicable(rows, surface);
 
     /** 权限 + 适用条件同时满足才出现 */
     const isVisible = (action: FileActionDef, rows: MachineFileInfo[], surface: ActionSurface) =>

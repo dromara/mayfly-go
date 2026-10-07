@@ -39,9 +39,13 @@
                     @cancel-update-fields="cancelUpdateFields"
                     @change-updated-field="changeUpdatedField"
                     @data-delete="onDeleteData"
+                    @submit-ticket="(sql: string) => submitTicket(sql)"
                 />
             </el-splitter-panel>
         </el-splitter>
+
+        <!-- 被策略拦下的语句直接带进提单表单，省掉切页面、重选库、重贴 SQL -->
+        <WorkTicketSubmit ref="ticketRef" :biz-type="FlowBizType.DbSqlExec.value" hidden />
     </div>
 </template>
 
@@ -60,12 +64,15 @@ import { DbInst } from '../db';
 
 import { joinClientParams } from '@/common/request';
 import type { MonacoEditorExpose } from '@/components/monaco/types';
+import type { TicketPrefill } from '@/views/flow/types';
 import { Msg } from '@/hooks/useI18n';
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
+import { FlowBizType } from '@/views/flow/enums';
 import SqlEditorToolbar from './SqlEditorToolbar.vue';
 import SqlExecResultTabs from './SqlExecResultTabs.vue';
+import WorkTicketSubmit from '@/views/flow/components/WorkTicketSubmit.vue';
 import { formatSql } from './utils/formatSql';
 import { useSqlExec, type ExecResTab, type ExecResTabState } from './composables/useSqlExec';
 
@@ -95,10 +102,24 @@ const props = defineProps({
     sqlName: {
         type: String,
     },
+    // 库的资源编码：被策略拦下时提单要靠它才能直接解析出审批流程
+    dbCode: {
+        type: String,
+        default: '',
+    },
 });
 
 const token = getToken();
 const monacoEditorRef = useTemplateRef<MonacoEditorExpose>('monacoEditorRef');
+
+// 被策略拦下时用于预填提单表单：语句与库已确定，用户只需确认备注
+const ticketRef = useTemplateRef<{ open: (prefill?: TicketPrefill) => void }>('ticketRef');
+
+const submitTicket = (sql: string) => {
+    // dbCode 决定这张工单归哪个流程审批：带上它，业务表单挂载时才能自己上报资源，
+    // 否则抽屉会停在「不存在审批节点」且确定按钮不可点
+    ticketRef.value?.open({ bizForm: { dbId: props.dbId, dbName: props.dbName, dbCode: props.dbCode, sql } });
+};
 
 // 编辑器实例在 ready 前不存在（编辑器为按需加载），故可空；useSqlExec 的入参契约本就是 | null
 let monacoEditor: editor.IStandaloneCodeEditor | null = null;

@@ -40,6 +40,6 @@ result, err := gormx.PageByCond(repo.GetModel(), pd, pageParam, &list)
 // 单条查询
 err := gormx.GetByCond(repo.GetModel(), pd, &entity)
 
-// 更新
-err := gormx.UpdateByCond(repo.GetModel(), values, pd)
+// 更新（回报真正被改动的行数，用于带前置状态条件的 CAS）
+rows, err := gormx.UpdateByCond(repo.GetModel(), values, pd)
 ```

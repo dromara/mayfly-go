@@ -6,4 +6,5 @@ import (
 
 func InitIoc() {
 	ioc.Register(new(mongoAppImpl))
+	ioc.Register(new(mongoDataAppImpl))
 }

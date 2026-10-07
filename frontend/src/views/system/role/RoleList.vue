@@ -151,7 +151,9 @@ const editRole = (data: SysRole | false) => {
 
 const deleteRole = async (data: SysRole[]) => {
     try {
-        await useI18nDeleteConfirm(data.map((x: SysRole) => x.name).join('、'));
+        if (!(await useI18nDeleteConfirm(data.map((x: SysRole) => x.name).join('、')))) {
+            return;
+        }
         await roleApi.del.request({
             id: data.map((x: SysRole) => x.id).join(','),
         });

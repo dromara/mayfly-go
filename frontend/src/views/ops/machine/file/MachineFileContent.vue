@@ -1,13 +1,6 @@
 <template>
     <div>
-        <el-dialog
-            destroy-on-close
-            :before-close="handleClose"
-            v-model="dialogVisible"
-            :close-on-click-modal="false"
-            top="5vh"
-            width="65%"
-        >
+        <el-dialog destroy-on-close :before-close="handleClose" v-model="dialogVisible" :close-on-click-modal="false" top="5vh" width="65%">
             <template #header>
                 <!-- 机器上的绝对路径通常很长，截断显示但保留完整值可查 -->
                 <div class="flex min-w-0 items-center gap-2">
@@ -104,10 +97,9 @@ const getFileContent = async () => {
  */
 const handleClose = async () => {
     if (isDirty.value) {
-        try {
-            await useI18nConfirm('machine.unsavedCloseConfirm');
-        } catch {
-            return; // 用户选择留在弹层继续编辑
+        if (!(await useI18nConfirm('machine.unsavedCloseConfirm'))) {
+            // 取消或关掉弹窗：不继续后续操作
+            return;
         }
     }
     dialogVisible.value = false;

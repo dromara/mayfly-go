@@ -22,7 +22,14 @@
                         <!-- 简易单个搜索项 -->
                         <div v-if="nowSearchItem" class="flex">
                             <el-dropdown v-if="props.searchItems?.length > 1">
-                                <SvgIcon :size="16" name="CaretBottom" class="mr-1! mt-1.5! simple-search-form-btn" />
+                                <SvgIcon
+                                    :size="16"
+                                    name="CaretBottom"
+                                    class="mr-1! mt-1.5! simple-search-form-btn"
+                                    role="button"
+                                    :title="$t('common.searchFields')"
+                                    :aria-label="$t('common.searchFields')"
+                                />
                                 <template #dropdown>
                                     <el-dropdown-menu>
                                         <el-dropdown-item v-for="searchItem in searchItems" :key="searchItem.prop" @click="changeSimpleFormItem(searchItem)">
@@ -49,7 +56,14 @@
                         </div>
 
                         <div class="ml-2">
-                            <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search" circle @click="search" />
+                            <el-button
+                                v-if="showToolButton('search') && searchItems?.length"
+                                icon="Search"
+                                circle
+                                :title="$t('common.search')"
+                                :aria-label="$t('common.search')"
+                                @click="search"
+                            />
 
                             <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
 
@@ -57,12 +71,14 @@
                                 v-if="showToolButton('search') && props.searchItems?.length > 1"
                                 :icon="isShowSearch ? 'ArrowDown' : 'ArrowUp'"
                                 circle
+                                :title="$t(isShowSearch ? 'common.collapse' : 'common.expand')"
+                                :aria-label="$t(isShowSearch ? 'common.collapse' : 'common.expand')"
                                 @click="isShowSearch = !isShowSearch"
                             />
 
                             <el-popover
                                 placement="bottom"
-                                title="表格配置"
+                                :title="$t('common.columnConfig')"
                                 popper-style="max-height: 550px; overflow: auto; max-width: 450px"
                                 width="auto"
                                 trigger="click"
@@ -71,7 +87,13 @@
                                     <el-checkbox v-model="item.show" :label="$t(item.label)" :true-value="1" :false-value="0" />
                                 </div>
                                 <template #reference>
-                                    <el-button icon="Operation" circle :size="props.size"></el-button>
+                                    <el-button
+                                        icon="Operation"
+                                        circle
+                                        :size="props.size"
+                                        :title="$t('common.columnConfig')"
+                                        :aria-label="$t('common.columnConfig')"
+                                    ></el-button>
                                 </template>
                             </el-popover>
                         </div>
@@ -89,7 +111,7 @@
                     :data="tableData"
                     highlight-current-row
                     v-loading="loading"
-                    :size="(props.size as 'large' | 'default' | 'small')"
+                    :size="tableSize"
                     :border="border"
                 >
                     <el-table-column v-if="props.showSelection" :selectable="selectable" type="selection" width="40" />
@@ -145,6 +167,10 @@
                             </template>
                         </el-table-column>
                     </template>
+                    <!-- 空态由页面自己说明：列表类界面的「暂无数据」不告诉用户这里能放什么、去哪儿创建 -->
+                    <template #empty>
+                        <slot name="empty">{{ $t('common.empty') }}</slot>
+                    </template>
                 </el-table>
             </div>
 
@@ -165,7 +191,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, reactive, onMounted, Ref, ref, useSlots, toValue, h } from 'vue';
+import { computed, toRefs, watch, reactive, onMounted, Ref, ref, useSlots, toValue, h } from 'vue';
 import { TableColumn } from './index';
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -179,6 +205,15 @@ import { usePageTable } from '@/hooks/usePageTable';
 import { ElInput, type TableInstance } from 'element-plus';
 
 const emit = defineEmits(['pageSizeChange', 'pageNumChange']);
+
+/**
+ * el-table 只接受三个字面量尺寸，而 props.size 是宽 string。
+ *
+ * 原来在模板里写 as 断言（`:size="(props.size as 'large' | ...)"`），靠一层括号活着：
+ * 格式化一旦吃掉括号，vue 模板解析就把竖线当过滤器读（vue/no-deprecated-filter），
+ * 所以类型收敛放在脚本里，模板只留一个普通绑定
+ */
+const tableSize = computed(() => (props.size === 'large' || props.size === 'small' ? props.size : 'default'));
 
 export interface PageTableProps {
     size?: string;

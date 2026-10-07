@@ -144,7 +144,7 @@ async function getFiles() {
     } finally {
         state.loading = false;
     }
-};
+}
 
 /** 新增：在表头插入一行草稿，同一时刻只允许一行草稿，「新增」按钮随之禁用 */
 function addDraft() {
@@ -174,7 +174,9 @@ function discardDraft() {
 }
 
 async function deleteRow(conf: MachineFileVO) {
-    await useI18nDeleteConfirm(conf.name);
+    if (!(await useI18nDeleteConfirm(conf.name))) {
+        return;
+    }
     await machineApi.delConf.request({ machineId: props.machineId, id: conf.id });
     Msg.deleteSuccess();
     getFiles();

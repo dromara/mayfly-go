@@ -12,6 +12,8 @@ func InitIoc() {
 	ioc.Register(newProcinstTaskRepo())
 	ioc.Register(newProcinstTaskCandidateRepo())
 	ioc.Register(newHisProcinstOpRepo())
+	ioc.Register(newRuleSegmentRepo())
+	ioc.Register(newProcdefPolicyHisRepo())
 }
 
 func GetProcinstTaskCandidateRepo() repository.ProcinstTaskCandidate {

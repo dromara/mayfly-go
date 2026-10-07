@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/i18n"
-	"mayfly-go/pkg/logx"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
@@ -66,31 +65,17 @@ func GetCommandExec() (tool.InvokableTool, error) {
 				return nil, tools.NewToolError(err, tools.RecoverRetry)
 			}
 
-			// 判断命令是否需要审批：
-			// 1. 白名单检测：不在白名单中的命令需要审批
-			// 2. MachineCmdConf 检查：即使白名单命令，若匹配管理员配置的安全策略也需审批
-			needApproval := false
-
-			if !isWhitelistCommand(param.Command) {
-				needApproval = true
+			// 管理员配置的命令安全策略：与 Web 终端、非交互 API 共用同一个前置校验入口。
+			// 放在向用户请求审批之前——被禁止的命令不该先弹一次「是否执行」再失败
+			notice, err := application.CheckMachineCmd(ctx, cli.Info.CodePath, param.Command)
+			if err != nil {
+				// 这是管理员策略的结论而不是可恢复的调用失败：给模型重试机会等于让它换个写法绕过治理
+				// （改大小写、拆成多条、套个管道都是常见走法），因此按不可重试上抛
+				return nil, tools.NewToolError(err, tools.RecoverNone)
 			}
 
-			// MachineCmdConf 策略检查：管理员可按机器标签配置命令过滤规则（正则匹配），
-			// 所有入口（AI Agent、Web 终端、API）共享此策略，确保一致的安全控制
-			if !needApproval {
-				cmdConfs := application.GetMachineCmdConfApp().GetCmdConfsByMachineTags(ctx, cli.Info.CodePath...)
-				if len(cmdConfs) > 0 {
-					// 将 application.MachineCmd 转换为 mcm.CmdFilterRule 供共享分析器使用
-					filters := make([]*mcm.CmdFilterRule, 0, len(cmdConfs))
-					for _, mc := range cmdConfs {
-						filters = append(filters, &mcm.CmdFilterRule{CmdRegexp: mc.CmdRegexp, Strategy: mc.Stratege})
-					}
-					if matched := mcm.MatchCmdFilters(param.Command, filters); matched != nil {
-						logx.InfofContext(ctx, "[MachineCmdConf] command matched cmdConf rule, cmd=%s, strategy=%s", param.Command, matched.Strategy)
-						needApproval = true
-					}
-				}
-			}
+			// Agent 侧独立关卡：白名单外的命令仍需用户确认，与管理员策略是两回事
+			needApproval := !isWhitelistCommand(param.Command)
 
 			if needApproval {
 				// 触发审批中断
@@ -102,6 +87,10 @@ func GetCommandExec() (tool.InvokableTool, error) {
 			// 执行命令
 			output, err := cli.Run(param.Command)
 			success := err == nil
+			if notice != "" {
+				// 提醒随输出一起给回模型：Agent 场景没有终端可写，模型也不该不知道自己踩了管理员的提醒规则
+				output = notice + "\n" + output
+			}
 
 			// 从 CLI 中获取机器信息
 			machineInfo := cli.Info

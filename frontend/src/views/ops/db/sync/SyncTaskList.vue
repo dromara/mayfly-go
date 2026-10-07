@@ -225,7 +225,9 @@ const edit = async (data: DataSyncTaskListVO | false) => {
 };
 
 const run = async (id: number) => {
-    await useI18nConfirm('db.runConfirm');
+    if (!(await useI18nConfirm('db.runConfirm'))) {
+        return;
+    }
     try {
         await dbSyncApi.runDatasyncTask.request({ taskId: id });
         Msg.operateSuccess();
@@ -240,7 +242,9 @@ const run = async (id: number) => {
 };
 
 const stop = async (id: number) => {
-    await useI18nConfirm('db.stopConfirm');
+    if (!(await useI18nConfirm('db.stopConfirm'))) {
+        return;
+    }
     await dbSyncApi.stopDatasyncTask.request({ taskId: id });
     Msg.operateSuccess();
     search();
@@ -264,7 +268,9 @@ const updStatus = async (id: number, status: 1 | -1) => {
 
 const del = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: DataSyncTaskListVO) => x.taskName).join('、'));
+        if (!(await useI18nDeleteConfirm(state.selectionData.map((x: DataSyncTaskListVO) => x.taskName).join('、')))) {
+            return;
+        }
         await dbSyncApi.deleteDatasyncTask.request({ taskId: state.selectionData.map((x: DataSyncTaskListVO) => x.id).join(',') });
         Msg.deleteSuccess();
         search();

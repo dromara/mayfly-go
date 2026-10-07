@@ -8,7 +8,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/netx"
-	"net"
 	"strings"
 	"time"
 
@@ -37,6 +36,10 @@ type MachineInfo struct {
 	RemoteAddr       string       `json:"-"` // ssh隧道远程地址，格式 ip:port
 	EnableRecorder   int8         `json:"-"` // 是否启用终端回放记录
 	CodePath         []string     `json:"codePath"`
+
+	// HostKeyCallback 主机公钥校验回调，由 application 层按信任策略（首次信任/指纹比对/失配拒绝）装配。
+	// 未装配即连接属于编程错误，连接层按拒绝处理而非静默放行
+	HostKeyCallback ssh.HostKeyCallback `json:"-"`
 }
 
 var _ (SshTunnelAble) = (*MachineInfo)(nil)
@@ -59,14 +62,27 @@ func (mi *MachineInfo) UseSshTunnel() bool {
 	return mi.SshTunnelMachine != nil
 }
 
+// HostKeyAddr 返回主机公钥信任键：连接改写前的原始目标地址（ip:port）。
+// 不能用 ssh 回调传入的 hostname：跳板隧道会把连接地址改写为本地暴露地址；
+// RemoteAddr 在改写前已被记录为原始地址，未走隧道时 Ip/Port 本身即原始值
+func (mi *MachineInfo) HostKeyAddr() string {
+	if mi.RemoteAddr != "" {
+		return mi.RemoteAddr
+	}
+	return fmt.Sprintf("%s:%d", mi.Ip, mi.Port)
+}
+
 // GetSshClient 获取ssh客户端连接
 func (mi *MachineInfo) GetSshClient(jumpClient *ssh.Client) (*ssh.Client, error) {
+	if mi.HostKeyCallback == nil {
+		// 信任策略未装配即发起连接属于装配缺陷而非可降级场景：
+		// 跳过校验等于对中间人攻击不设防，宁可让这台机器连不上
+		return nil, errorx.NewBizf("machine [%s] host key verify policy is not configured, connection rejected", mi.Name)
+	}
 	config := &ssh.ClientConfig{
-		User: mi.Username,
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			return nil
-		},
-		Timeout: 10 * time.Second,
+		User:            mi.Username,
+		HostKeyCallback: mi.HostKeyCallback,
+		Timeout:         10 * time.Second,
 	}
 	if ciphers := mi.GetExtraString("ciphers"); ciphers != "" {
 		config.Ciphers = strings.Split(ciphers, ",")

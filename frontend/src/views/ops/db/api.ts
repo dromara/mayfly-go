@@ -38,8 +38,8 @@ export const dbApi = {
     saveDb: Api.newPost<number>('/dbs'),
     deleteDb: Api.newDelete<void>('/dbs/{id}'),
     dumpDb: Api.newPost<void>('/dbs/{id}/dump'),
-    // 表清单：like/limit 为可选的服务端名称过滤下推（超大 schema 资源树按需加载）
-    tableInfos: Api.newGet<DbTableInfo[], { id: number; db: string; like?: string; limit?: number }>('/dbs/{id}/t-infos'),
+    // 表清单：like/limit/offset 为可选的服务端名称过滤与分页下推（超大 schema 资源树首屏/续载按需取页）
+    tableInfos: Api.newGet<DbTableInfo[], { id: number; db: string; like?: string; limit?: number; offset?: number }>('/dbs/{id}/t-infos'),
     // 扩展元数据对象节点（视图/序列/存储过程…），由后端 MetaNavigator 提供，按 features 能力位决定是否请求
     metaObjects: Api.newGet<DbMetadataObject[], { id: number; db: string; kind: string; schema?: string }>('/dbs/{id}/meta-objects'),
     // 单个扩展对象的 DDL 原文（点开节点查看）

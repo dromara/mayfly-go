@@ -25,7 +25,7 @@
         </template>
     </el-dialog>
 
-    <el-dialog v-model="passwordDialog.visible" :title="$t('milvus.changePassword')" width="500px">
+    <el-dialog v-model="passwordDialog.visible" :title="$t('login.changePassword')" width="500px">
         <auto-form ref="passwordFormRef" v-model="passwordForm" :items="passwordItems" label-width="auto" />
         <template #footer>
             <el-button @click="passwordDialog.visible = false">{{ $t('common.cancel') }}</el-button>
@@ -172,7 +172,9 @@ const submitPassword = async () => {
 };
 
 const handleDelete = async (row: IUser) => {
-    await useI18nConfirm('milvus.confirmDeleteUser', { name: row.name });
+    if (!(await useI18nConfirm('milvus.confirmDeleteUser', { name: row.name }))) {
+        return;
+    }
     await milvusApi.deleteUser(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();

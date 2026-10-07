@@ -207,9 +207,11 @@ func (app *DbTransferAppImpl) endRun(ctx context.Context, logId uint64, taskId u
 // ResetStaleRunningLogs 启动收尾：把仍处于「执行中」的日志置为失败。
 // 进程重启或异常退出会带走执行协程，这些日志无人收尾，不处理将永远停留在「执行中」。
 func (app *DbTransferAppImpl) ResetStaleRunningLogs(ctx context.Context) error {
-	return app.transferLogRepo.UpdateByCond(ctx,
+	// 启动时通常没有残留的「执行中」日志，0 行属正常态，因此不按行数判成败
+	_, err := app.transferLogRepo.UpdateByCond(ctx,
 		&entity.DbTransferLog{Status: entity.DbTransferLogStatusFail, ErrText: "transfer interrupted: server restarted"},
 		&entity.DbTransferLog{Status: entity.DbTransferLogStatusRunning})
+	return err
 }
 
 // setVerifyMetrics 回填校验记录的表数/行数指标到缓存（收尾时随 transferLogEndColumns 落库）。

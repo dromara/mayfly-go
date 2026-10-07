@@ -155,7 +155,7 @@ func (d *Db) ExecSQL(rc *req.Ctx) {
 
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
+	event.PublishResourceOp(rc.MetaCtx, dbConn.Info.CodePath)
 	sqlStr, err := utils.AesDecryptByLa(form.SQL, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
 
@@ -163,12 +163,13 @@ func (d *Db) ExecSQL(rc *req.Ctx) {
 	biz.NotEmpty(form.SQL, "sql cannot be empty")
 
 	execReq := &dto.DbSQLExecReq{
-		DbId:      dbId,
-		Db:        form.Db,
-		Remark:    form.Remark,
-		DbConn:    dbConn,
-		SQL:       sqlStr,
-		CheckFlow: true,
+		DbId:             dbId,
+		Db:               form.Db,
+		Remark:           form.Remark,
+		RequireWarnAck:   form.AskWarn,
+		WarnAcknowledged: form.AckWarn,
+		DbConn:           dbConn,
+		SQL:              sqlStr,
 	}
 
 	execRes, err := d.dbSQLExecApp.Exec(ctx, execReq)
@@ -274,7 +275,8 @@ func (d *Db) DumpSQL(rc *req.Ctx) {
 func (d *Db) TableInfos(rc *req.Ctx) {
 	// ?like= 为可选表名过滤：方言具备服务端下推能力则按 LIKE 查询，否则回退全量取回 + 服务端子串过滤，
 	// 用于超大 schema 的资源树按需加载（避免向浏览器吐上万张表）。空 like 等价原「取全部表」语义。
-	res, err := d.getDbConn(rc).Metadata().SearchTables(rc.Query("like"), cast.ToInt(rc.Query("limit")))
+	// ?limit=/?offset= 为分页续载参数：首屏与「加载更多」各取一页，不重拉前缀。
+	res, err := d.getDbConn(rc).Metadata().SearchTables(rc.Query("like"), cast.ToInt(rc.Query("limit")), cast.ToInt(rc.Query("offset")))
 	biz.ErrIsNilAppendErr(err, "get table error: %s")
 	rc.ResData = res
 }

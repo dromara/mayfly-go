@@ -188,9 +188,11 @@ func (a *skillPluginAppImpl) Unpublish(ctx context.Context, id uint64) error {
 }
 
 func (a *skillPluginAppImpl) updateStatus(ctx context.Context, id uint64, status string) error {
-	return a.GetRepo().UpdateByCond(ctx,
+	// 重复发布/下线同一个状态时 0 行也是成功，这里只关心有没有执行出错
+	_, err := a.GetRepo().UpdateByCond(ctx,
 		map[string]any{"status": status},
 		model.NewCond().Eq("id", id))
+	return err
 }
 
 // writeInstructions 写入 SKILL.md（存在则覆盖）：

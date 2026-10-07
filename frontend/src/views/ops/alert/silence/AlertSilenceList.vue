@@ -170,14 +170,18 @@ const onSave = async () => {
 const onToggleStatus = async (row: AlertSilenceVO) => {
     const newStatus = row.status === AlertRuleStatusEnable ? AlertRuleStatusDisable : AlertRuleStatusEnable;
     const i18nKey = newStatus === 1 ? 'alert.confirmEnable' : 'alert.confirmDisable';
-    await useI18nConfirm(i18nKey);
+    if (!(await useI18nConfirm(i18nKey))) {
+        return;
+    }
     await alertSilenceApi.changeStatus.request({ id: row.id, status: newStatus });
     Msg.operateSuccess();
     pageTableRef.value?.search();
 };
 
 const onDelete = async (row: AlertSilenceVO) => {
-    await useI18nConfirm('alert.confirmDelete');
+    if (!(await useI18nConfirm('alert.confirmDelete'))) {
+        return;
+    }
     await alertSilenceApi.del.request({ id: row.id });
     Msg.deleteSuccess();
     pageTableRef.value?.search();

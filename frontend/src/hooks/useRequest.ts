@@ -1,10 +1,9 @@
 import Api from '@/common/Api';
 import config from '@/common/config';
 import openApi from '@/common/openApi';
-import { Result, ResultEnum } from '@/common/request';
+import { Result, ResultEnum, WARN_ACK_CODE, newBizFailureError } from '@/common/request';
 import { clearUser, getClientId, getRefreshToken, getToken, saveRefreshToken, saveToken } from '@/common/utils/storage';
 import { templateResolve } from '@/common/utils/string';
-import router from '@/router';
 import { URL_401 } from '@/router/staticRouter';
 import { useThemeConfig } from '@/store/themeConfig';
 import { createFetch, UseFetchReturn } from '@vueuse/core';
@@ -268,6 +267,11 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
 
     // 如果提示没有权限，则跳转至无权限页面
     if (resultCode === ResultEnum.NO_PERMISSION) {
+        // 必须动态取 router：`@/router` 会拉起 syssocket → 系统消息组件 → 业务 api 模块，
+        // 而那些模块在模块顶层就调用 `Api.newGet()`。静态 import 会让 common/Api.ts 的求值
+        // 绕回自己（class Api 还没初始化），偶发 `Cannot access 'Api' before initialization`，
+        // 表现是懒加载出来的整块面板直接空白。
+        const { default: router } = await import('@/router');
         await router.push({
             path: URL_401,
         });
@@ -277,13 +281,20 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
     // 返回码非成功时，错误 msg 已由下方统一 toast（无权限已跳转 401 页面）
     let errMsg = '';
     if (result.msg && resultCode != ResultEnum.NO_PERMISSION) {
-        Msg.error(result.msg);
+        // WARN_ACK_CODE 不弹 toast：同一句话由「直接执行 / 提交工单」确认框呈现，
+        // 再叠一条红色报错会让人以为操作失败，而实际上操作只是还没执行。
+        // errMsg 照旧带出去，确认框正文用的就是它
+        if (resultCode != WARN_ACK_CODE) {
+            Msg.error(result.msg);
+        }
         errMsg = result.msg;
         // 业务失败不会进入 fetch 自身的 error 通道，此处手动置位，保证 isError/error 与请求失败一致
         uaf.error.value = new Error(errMsg);
     }
 
     // 抛 Error 而非响应体（msg 已由中心层 toast 过，此处仅供调用方展示细节）：避免调用点对对象做 String 转换报
-    // 「Cannot convert object to primitive value」
-    return Promise.reject(new Error(errMsg));
+    // 「Cannot convert object to primitive value」。
+    // code 一并挂在错误上：调用方要按响应码区分「需提单」与其它业务失败（如已被禁止执行），
+    // 只看文案会在改提示语或切换语言时判错
+    return Promise.reject(newBizFailureError(errMsg, resultCode));
 }

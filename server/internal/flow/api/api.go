@@ -7,4 +7,5 @@ func InitIoc() {
 	ioc.Register(new(Procinst))
 	ioc.Register(new(ProcinstTask))
 	ioc.Register(new(HisProcinstOp))
+	ioc.Register(new(RuleSegment))
 }

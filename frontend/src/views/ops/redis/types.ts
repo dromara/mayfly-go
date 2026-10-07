@@ -53,6 +53,8 @@ export interface RedisScanRes {
     cursor: Record<string, number>;
     keys: string[];
     dbSize: number;
+    /** 本批 key 的类型/过期摘要，随 SCAN 批次一并返回（对应 vo.Keys.summaries）；旧后端未返回时按空处理 */
+    summaries?: RedisKeySummary[];
 }
 
 /** key 列表批量摘要 (对应 entity.KeySummary) */
@@ -114,6 +116,8 @@ export interface RedisViewDescriptor {
     ops: RedisViewOp[];
     /** 命令控制台的快捷命令模板，{key} 占位符在渲染时换成当前 key 名 */
     consoleHints: string[];
+    /** 本视角「读内容」等价的命令名：面板读值按它过触发策略，「申请查看」也按它拼命令（三处同口径） */
+    readCmd: string;
 }
 
 /** 实例命令目录条目 (对应 entity.CommandSpec)，命令控制台的输入提示与执行前确认依据 */
@@ -165,7 +169,13 @@ export interface RedisMemberPage {
 }
 
 /** 成员读写请求 (对应 entity.MemberWrite) */
-export interface RedisMemberWriteForm extends RedisTargetParam {
+/** 写操作共有的「仅提醒」确认位（读操作不涉及处置，故不放 RedisTargetParam 基类） */
+export interface RedisWarnAckParam {
+    /** 操作者已选「直接执行」；首次请求不带，此时后端不执行而是返回确认码让界面去问 */
+    ackWarn?: boolean;
+}
+
+export interface RedisMemberWriteForm extends RedisTargetParam, RedisWarnAckParam {
     key: string;
     view?: string;
     op: string;
@@ -176,7 +186,7 @@ export interface RedisMemberWriteForm extends RedisTargetParam {
 }
 
 /** 视角操作请求 (对应 entity.OpRequest) */
-export interface RedisViewOpForm extends RedisTargetParam {
+export interface RedisViewOpForm extends RedisTargetParam, RedisWarnAckParam {
     key: string;
     view?: string;
     op: string;
@@ -196,12 +206,12 @@ export interface RedisKeyTargetForm extends RedisTargetParam {
 }
 
 /** 批量 key 参数 */
-export interface RedisKeysForm extends RedisTargetParam {
+export interface RedisKeysForm extends RedisTargetParam, RedisWarnAckParam {
     keys: string[];
 }
 
 /** 成员分页查询参数 */
-export interface RedisMemberQueryForm extends RedisTargetParam {
+export interface RedisMemberQueryForm extends RedisTargetParam, RedisWarnAckParam {
     key: string;
     view?: string;
     cursor?: string;
@@ -211,7 +221,7 @@ export interface RedisMemberQueryForm extends RedisTargetParam {
 }
 
 /** key 重命名 / 复制参数 */
-export interface RedisKeyRenameForm extends RedisTargetParam {
+export interface RedisKeyRenameForm extends RedisTargetParam, RedisWarnAckParam {
     key: string;
     newKey: string;
     /** 目标库，缺省表示当前库 */
@@ -220,7 +230,7 @@ export interface RedisKeyRenameForm extends RedisTargetParam {
 }
 
 /** key TTL 参数 */
-export interface RedisKeyTtlForm extends RedisTargetParam {
+export interface RedisKeyTtlForm extends RedisTargetParam, RedisWarnAckParam {
     key: string;
     ttl: number;
 }

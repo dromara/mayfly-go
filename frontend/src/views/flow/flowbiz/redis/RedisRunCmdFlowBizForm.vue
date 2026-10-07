@@ -23,7 +23,7 @@ import { Rules } from '@/common/rule';
 import type { TreeNodeData } from '@/views/ops/resource/tree/types';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
 import ResourceSelect from '@/views/ops/resource/ResourceSelect.vue';
-import { computed, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { FlowBizForm } from '@/views/flow/types';
 
@@ -74,12 +74,16 @@ const bizForm = defineModel<RedisRunCmdForm>('bizForm', {
         cmd: '',
         tagPath: '',
         redisName: '',
+        redisCode: '',
     }),
 });
 
 const selectRedis = computed({
     get: () => {
-        return `db${bizForm.value.db}`;
+        // 未选实例时返回空串让占位符生效：直接拼 `db${db}` 会在 db 缺省时渲染出「dbundefined」，
+        // 而 db 默认 0 又与真实的 0 号库撞值，会让人误以为已经选中了库
+        if (!bizForm.value.id) return '';
+        return `db${bizForm.value.db ?? 0}`;
     },
     set: () => {
         //
@@ -101,6 +105,23 @@ const changeRedis = (nodeData: TreeNodeData) => {
 const changeResourceCode = async (redisCode: string) => {
     emit('changeResourceCode', TagResourceTypeEnum.Redis.value, redisCode);
 };
+
+/**
+ * 预填完实例时主动上报一次资源标识。
+ *
+ * 正常提单靠用户选实例触发 changeRedis，而被策略拦下的一键提单不会再有这一步：
+ * 不上报宿主就解析不出流程定义，抽屉停在「不存在审批节点」且确定按钮不可点。
+ * 等一个 tick 再抛：宿主要先完成表单接管才能接住这次变更
+ */
+const announceResource = () => {
+    const code = bizForm.value.redisCode;
+    if (!code) {
+        return;
+    }
+    nextTick(() => changeResourceCode(code as string));
+};
+
+onMounted(announceResource);
 
 const validateBizForm = async () => {
     return formRef.value?.validate();

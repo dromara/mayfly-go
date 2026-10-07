@@ -66,7 +66,7 @@ type AlertCondition struct {
 
 // ConditionItem 条件项
 type ConditionItem struct {
-	Metric   string  `json:"metric"`   // 指标名: cpu_rate / mem_rate / disk_usage / load1 / status
+	Metric   string  `json:"metric"`   // 指标名，须为该资源类型评估器注册的指标（见 GET /alert-rules/metrics）
 	Compare  string  `json:"compare"`  // 比较方式: gt / gte / lt / lte / eq / neq
 	Value    float64 `json:"value"`    // 阈值
 	Duration int     `json:"duration"` // 持续时间(秒)，持续多久才触发

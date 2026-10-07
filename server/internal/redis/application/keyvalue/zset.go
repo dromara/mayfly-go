@@ -51,6 +51,8 @@ var zsetDesc = withDefault(&entity.ViewDescriptor{
 			textFieldWith(argMax, "redis.colMax", "redis.colMaxTips", true),
 		)),
 	},
+	// ReadCmd 面板读取本视角内容等价的命令名，触发策略判定与「申请查看」提单同口径
+	ReadCmd: "ZRANGE",
 })
 
 // 分值区间参数的字段名，与 zremrangebyscore 的操作表单对应

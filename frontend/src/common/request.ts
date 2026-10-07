@@ -36,6 +36,50 @@ export enum ResultEnum {
     ACCESS_TOKEN_INVALID = 502, // accessToken失效
 }
 
+/**
+ * 需提单才能执行的业务响应码，与后端 flow.application.CodeNeedWorkTicket 一致。
+ *
+ * 「需要审批」与「已被禁止」在界面上同为红色失败提示，但前者要给「提交工单」入口、
+ * 后者绝不能给。靠匹配提示文案区分会在改文案或换语言时静默失效，所以让后端把它
+ * 放进响应码，前端只认这个码
+ */
+export const NEED_WORK_TICKET_CODE = 4001;
+
+/** 按响应码判断业务失败类型：错误码是唯一的分流依据，绝不用文案匹配 */
+function isErrorCode(error: unknown, code: number): boolean {
+    return (error as { code?: number } | null)?.code === code;
+}
+
+/** 该错误是否是「需提交工单审批」 */
+export function isNeedWorkTicketError(error: unknown): boolean {
+    return isErrorCode(error, NEED_WORK_TICKET_CODE);
+}
+
+/**
+ * 「命中仅提醒、需操作者确认」的响应码，与后端 flowapp.CodeNeedWarnAck 对应。
+ *
+ * 与 4001 分开是必须的：两者后续动作完全不同（一个确认后重试、一个去提单），
+ * 混用一个码会让「直接执行」和「转审批」无法分流
+ */
+export const WARN_ACK_CODE = 4002;
+
+/** 该错误是否是「需要操作者确认策略提醒」 */
+export function isWarnAckError(error: unknown): boolean {
+    return isErrorCode(error, WARN_ACK_CODE);
+}
+
+/**
+ * 业务失败的错误对象：文案已由请求层统一提示，code 供调用方按响应码分流。
+ *
+ * 单独抽成工厂是为了让「失败错误必须带码」这件事可被测试覆盖：
+ * 请求层一旦漏挂 code，被拦下的命令就再也给不出提单入口，而且不会报错
+ */
+export function newBizFailureError(msg: string, code: number): Error & { code?: number } {
+    const error = new Error(msg) as Error & { code?: number };
+    error.code = code;
+    return error;
+}
+
 export const baseUrl: string = config.baseApiUrl;
 // const baseUrl: string = 'http://localhost:18888/api';
 // const baseWsUrl: string = config.baseWsUrl;

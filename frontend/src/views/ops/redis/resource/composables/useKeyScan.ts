@@ -10,11 +10,18 @@ import { redisApi } from '../../api';
 import { defaultViewOf } from '../../keyview/descriptor';
 import type { RedisKeySummary, RedisViewDescriptor } from '../../types';
 
-/** 单次扫描默认取多少 key */
+/** 浏览态（无搜索词）单次扫描的 key 数：小步快跑尽快出首屏，也作为 scanParam.count 初值 */
 const DEFAULT_COUNT = 250;
-
-/** 单次批量摘要请求的 key 数上限 */
-const SUMMARY_BATCH = 300;
+/** 搜索态单次扫描的 key 数：SCAN 只扫 count 个哈希桶、命中率低，放大 count 减少「点了加载更多半天不出数据」 */
+const SEARCH_COUNT = 1000;
+/** 大库搜索态的 count 上限：再大单次请求过重，封顶于此 */
+const SEARCH_COUNT_LARGE_DB = 2000;
+/** 库规模超过此阈值视为大库，搜索态用更大的 count */
+const LARGE_DB_SIZE = 100000;
+/** 集群模式后端遍历所有 master 再合并，按此估算的 master 数摊薄单次 count */
+const CLUSTER_MASTER_ESTIMATE = 3;
+/** 稀疏首屏自动续扫的最大轮数：本批 0 key 且游标未归零时再扫，凑出可见数据又不至于空转 */
+const MAX_EMPTY_RESCAN = 3;
 
 /** 扫描域的状态：显式声明而不是 {} as Record 断言，否则字段会被推导成空对象类型 */
 export interface KeyScanState {
@@ -31,6 +38,17 @@ export interface KeyScanState {
         count: number;
         cursor: Record<string, number>;
     };
+}
+
+/**
+ * 计算单次 SCAN 的 count（纯函数，不读 reactive state，便于单测）：
+ * - 浏览态（无搜索词）用小 count，尽快出首屏；
+ * - 搜索态 SCAN 只扫 count 个哈希桶、命中率低，按库规模放大 count 减少「点了加载更多半天不出数据」，大库封顶 SEARCH_COUNT_LARGE_DB；
+ * - 集群模式后端遍历所有 master 再合并，按估算的 master 数摊薄单次 count。
+ */
+export function resolveScanCount(match: string, dbsize: number, mode: string): number {
+    const base = match ? (dbsize > LARGE_DB_SIZE ? SEARCH_COUNT_LARGE_DB : SEARCH_COUNT) : DEFAULT_COUNT;
+    return mode === 'cluster' ? Math.floor(base / CLUSTER_MASTER_ESTIMATE) : base;
 }
 
 export function useKeyScan() {
@@ -79,59 +97,45 @@ export function useKeyScan() {
     }
 
     /**
-     * 批量拉取树的类型/过期信息：只请求还没取过的 key，并按 SUMMARY_BATCH 分批发送。
-     * 「加载更多」会让 key 列表持续增长，一次管道塞入上万个命令会把连接与浏览器都拖住
-     */
-    async function loadSummaries(keys: string[]) {
-        if (!canOperate.value) {
-            return;
-        }
-        const pending = keys.filter((key) => !state.summaries[key]);
-        for (let start = 0; start < pending.length; start += SUMMARY_BATCH) {
-            const batch = pending.slice(start, start + SUMMARY_BATCH);
-            const summaries = await redisApi.keySummary.request({ id: state.scanParam.id as number, db: state.scanParam.db as number, keys: batch });
-            (summaries ?? []).forEach((item) => {
-                state.summaries[item.key] = item;
-            });
-        }
-    }
-
-    /**
-     * 模糊搜索时提高 scan count：SCAN 每次只扫描 count 个哈希桶，count 太小会让
-     * 匹配结果稀疏到「点了加载更多半天不出数据」
-     */
-    function resolveScanCount(match: string): number {
-        let count = DEFAULT_COUNT;
-        if (match.includes('*') && match.length > 10) {
-            count = state.dbsize > 100000 ? Math.floor(state.dbsize / 10) : 1000;
-        }
-        // 集群模式下后端会遍历所有 master 再合并，按 3 个 master 估算摊薄单次 count
-        return state.scanParam.mode === 'cluster' ? Math.floor(count / 3) : count;
-    }
-
-    /**
      * 扫描一批 key。appendKey=false 表示重新搜索/刷新：必须从头开始扫，
-     * 否则会接着上一次的游标继续，新关键词命中不到数据
+     * 否则会接着上一次的游标继续，新关键词命中不到数据。
+     *
+     * 稀疏首屏自动续扫：搜索态单批可能一个匹配桶都没扫到（返回 0 key 但游标未归零），
+     * 此时自动再扫几轮凑出可见数据，最多 MAX_EMPTY_RESCAN 轮，避免用户对着空列表反复点「加载更多」。
+     * @returns 本次扫描新增的原始 key（增量渲染树的依据；appendKey=false 时即本次的全量集）
      */
-    async function scan(appendKey = true) {
+    async function scan(appendKey = true): Promise<string[]> {
         const match = state.scanParam.match?.trim() ?? '';
         if (!appendKey) {
             state.scanParam.cursor = {};
         }
 
+        const collected: string[] = [];
         state.scanning = true;
         try {
-            const res = await redisApi.scan.request({
-                id: state.scanParam.id,
-                db: state.scanParam.db,
-                match,
-                count: resolveScanCount(match),
-                cursor: state.scanParam.cursor,
-            });
-            state.keys = appendKey ? [...state.keys, ...(res.keys ?? [])] : (res.keys ?? []);
-            state.dbsize = res.dbSize;
-            state.scanParam.cursor = res.cursor;
-            await loadSummaries(state.keys);
+            for (let attempt = 0; attempt <= MAX_EMPTY_RESCAN; attempt++) {
+                const res = await redisApi.scan.request({
+                    id: state.scanParam.id,
+                    db: state.scanParam.db,
+                    match,
+                    // dbsize 首轮可能未知（为 0），拿到首批响应后即自校正，续扫轮次按真实库规模取 count
+                    count: resolveScanCount(match, state.dbsize, state.scanParam.mode),
+                    cursor: state.scanParam.cursor,
+                });
+                collected.push(...(res.keys ?? []));
+                state.dbsize = res.dbSize;
+                state.scanParam.cursor = res.cursor;
+                // 摘要随 SCAN 批次返回，直接并入：树角标随批就位，无需再发独立摘要请求
+                (res.summaries ?? []).forEach((item) => {
+                    state.summaries[item.key] = item;
+                });
+                // 拿到数据、或游标已归零（整库扫完）即停；仅当本批空且还有剩余时才自动续扫
+                if (collected.length > 0 || !keysHasMore.value) {
+                    break;
+                }
+            }
+            state.keys = appendKey ? [...state.keys, ...collected] : collected;
+            return collected;
         } finally {
             state.scanning = false;
         }

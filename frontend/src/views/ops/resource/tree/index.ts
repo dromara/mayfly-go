@@ -34,7 +34,6 @@ export {
     type TreeNodeData,
     type TreeApi,
     type TreeCommandCtx,
-    type TreeEngineExpose,
     type LocateOutcome,
     type LocateAccess,
     type LocateResolver,

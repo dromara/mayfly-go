@@ -42,7 +42,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, reactive, onMounted, type PropType } from 'vue';
+import { computed, ref, reactive, onMounted, watch, type PropType } from 'vue';
 import { tagApi } from '../tag/api';
 import type { TagTreeNode } from '../tag/types';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
@@ -129,6 +129,18 @@ const state = reactive({
 onMounted(() => {
     search();
 });
+
+// tagType 可能是异步算出来的（如「可治理资源类型」由 policy-schema 下发），而子组件的 onMounted 早于父组件拿到数据：
+// 只挂一次就会出现「首次打开缺节点、重开抽屉才对」的竞态（机器节点曾被这个竞态关在门外）。
+// 按拼接后的字符串比对，避免父组件每次重渲染都多打一次请求
+watch(
+    () => (Array.isArray(props.tagType) ? props.tagType.join(',') : String(props.tagType)),
+    (next, previous) => {
+        if (next !== previous) {
+            search();
+        }
+    }
+);
 
 const search = async () => {
     let tagType: string | number | Array<number | string> = props.tagType;

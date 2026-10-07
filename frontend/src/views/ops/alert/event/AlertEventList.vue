@@ -195,21 +195,27 @@ const query = ref({
 });
 
 const onAck = async (row: AlertEventVO) => {
-    await useI18nConfirm('alert.confirmAck');
+    if (!(await useI18nConfirm('alert.confirmAck'))) {
+        return;
+    }
     await alertEventApi.ack.request({ id: row.id });
     Msg.operateSuccess();
     pageTableRef.value?.search();
 };
 
 const onClose = async (row: AlertEventVO) => {
-    await useI18nConfirm('alert.confirmClose');
+    if (!(await useI18nConfirm('alert.confirmClose'))) {
+        return;
+    }
     await alertEventApi.close.request({ id: row.id });
     Msg.operateSuccess();
     pageTableRef.value?.search();
 };
 
 const onDelete = async (row: AlertEventVO) => {
-    await useI18nConfirm('alert.confirmDeleteEvent');
+    if (!(await useI18nConfirm('alert.confirmDeleteEvent'))) {
+        return;
+    }
     await alertEventApi.del.request({ id: row.id });
     Msg.deleteSuccess();
     pageTableRef.value?.search();

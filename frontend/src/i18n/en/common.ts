@@ -10,6 +10,7 @@ export default {
         add: 'Add',
         save: 'Save',
         close: 'Close',
+        clear: 'Clear',
         download: 'Download',
         upload: 'Upload',
         remove: 'Remove',
@@ -74,6 +75,8 @@ export default {
         copyCell: 'Copy Cell',
 
         search: 'Search',
+        columnConfig: 'Column settings',
+        searchFields: 'Switch search field',
         empty: 'No data yet',
         loadingMore: 'Loading...',
         noMore: 'All loaded',

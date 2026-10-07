@@ -154,7 +154,9 @@ const editTmpl = (data: MsgTemplate | false) => {
 };
 
 const deleteTmpl = async () => {
-    await useI18nDeleteConfirm(state.selectionData.map((x: MsgTemplate) => x.code).join('、'));
+    if (!(await useI18nDeleteConfirm(state.selectionData.map((x: MsgTemplate) => x.code).join('、')))) {
+        return;
+    }
     await tmplApi.del.request({ id: state.selectionData.map((x: MsgTemplate) => x.id).join(',') });
     Msg.deleteSuccess();
     search();

@@ -42,44 +42,54 @@ func TestITPgConnectAndMetadata(t *testing.T) {
 	t.Logf("tables in %s: %d", itPgDatabase, len(tables))
 }
 
-// pg 服务端表名搜索（dbi.TableSearcher 下推）：真实子串命中、下划线转义为字面、空 like+limit 限量探测。
+// pg 服务端表名搜索（dbi.TableSearcher 下推）：真实子串命中、大小写不敏感、下划线转义为字面、限量探测、OFFSET 续载。
 // 通过 Metadata 代理验证功能契约（与 api/前端消费路径一致）。
 func TestITPgSearchTables(t *testing.T) {
 	conn := pgConn(t)
 	defer conn.Close()
 	md := conn.Metadata()
-
-	all, err := md.GetTables()
-	require.NoError(t, err)
-	if len(all) == 0 {
-		t.Skip("pg itest 库无表，跳过搜索验证")
-	}
-
-	// 取真实表名前缀作为搜索词，应命中该表
-	name := all[0].TableName
-	probe := name
-	if len(probe) > 3 {
-		probe = probe[:3]
-	}
-	hits, err := md.SearchTables(probe, 0)
-	require.NoError(t, err)
-	var found bool
-	for _, h := range hits {
-		if strings.EqualFold(h.TableName, name) {
-			found = true
+	names := func(ts []dbi.Table) []string {
+		out := make([]string, 0, len(ts))
+		for _, x := range ts {
+			out = append(out, x.TableName)
 		}
+		return out
 	}
-	assert.True(t, found, "子串 %q 应命中表 %s", probe, name)
+
+	// 自建两张序已知的表作搜索标的（用后即删，不依赖 itest 库残留表，命中集与 offset 断言确定性成立）
+	for _, n := range []string{"it_pgsrch_alpha", "it_pgsrch_beta"} {
+		mustExec(t, conn, "DROP TABLE IF EXISTS "+n)
+		mustExec(t, conn, fmt.Sprintf("CREATE TABLE %s (id int)", n))
+	}
+	defer mustExec(t, conn, "DROP TABLE IF EXISTS it_pgsrch_alpha, it_pgsrch_beta")
+
+	// 子串下推命中两张，按 table_name 序返回
+	hits, err := md.SearchTables("it_pgsrch", 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"it_pgsrch_alpha", "it_pgsrch_beta"}, names(hits))
+
+	// 大小写不敏感（LIKE 模式大写同样命中）
+	upper, err := md.SearchTables("IT_PGSRCH", 0, 0)
+	require.NoError(t, err)
+	require.Len(t, upper, 2)
 
 	// 下划线是 LIKE 通配符：转义后按字面匹配，含下划线的不存在名应零命中（不误配）
-	literal, err := md.SearchTables("zz_no_such_tbl_xyz", 0)
+	literal, err := md.SearchTables("zz_no_such_tbl_xyz", 0, 0)
 	require.NoError(t, err)
 	assert.Empty(t, literal)
 
 	// 空 like + limit：限量探测（服务端截断）
-	capped, err := md.SearchTables("", 2)
+	capped, err := md.SearchTables("", 2, 0)
 	require.NoError(t, err)
 	assert.LessOrEqual(t, len(capped), 2, "limit=2 应至多返回 2 张表")
+
+	// OFFSET 续载：跳过首条命中取第二页；offset 越界为空页（前端据此判到底）
+	paged, err := md.SearchTables("it_pgsrch", 1, 1)
+	require.NoError(t, err)
+	require.Equal(t, []string{"it_pgsrch_beta"}, names(paged))
+	emptyPage, err := md.SearchTables("it_pgsrch", 1, 2)
+	require.NoError(t, err)
+	require.Empty(t, emptyPage)
 }
 
 // TestITPgSequenceNodeDDL 回归：序列此前 ObjectDDL 返回 unsupported metadata object kind，现应重建 CREATE SEQUENCE。

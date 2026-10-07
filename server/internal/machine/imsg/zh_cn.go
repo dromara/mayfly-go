@@ -9,6 +9,7 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogMachineKillProcess:  "机器-终止进程",
 	LogMachineTerminalOp:   "机器-终端操作",
 
+	ErrMachineNotFound:   "目标机器不存在",
 	ErrMachineExist:      "该机器信息已存在",
 	ErrSshTunnelCircular: "存在循环隧道，请重新选择隧道机器",
 
@@ -38,5 +39,30 @@ var Zh_CN = map[i18n.MsgId]string{
 
 	LogMachineSecurityCmdSave:   "机器-安全-保存命令配置",
 	LogMachineSecurityCmdDelete: "机器-安全-删除命令配置",
-	TerminalCmdDisable:          "该命令已被禁用...",
+	TerminalCmdDisable:          "该命令已被禁用",
+
+	TriggerReasonCmdBlacklisted: "命中管理员配置的命令黑名单",
+	TriggerReasonCmdUnsafe:      "命令含重定向或命令替换等不可静态审计的结构",
+
+	LogMachineHostKeyDelete: "机器-撤销主机密钥信任",
+	ErrHostKeyMismatch:      "主机 {{.addr}} 公钥指纹校验失败：已信任 {{.oldFp}}，本次为 {{.newFp}}。若该主机确为重装或换钥，请在「主机密钥」管理中撤销旧指纹后重连；否则请立即排查是否存在中间人攻击",
+	LogMachineBatchRunCmd:   "机器-批量执行命令",
+	ErrBatchMachineIdsEmpty: "请至少选择一台机器",
+	ErrBatchCmdEmpty:        "命令内容不能为空",
+	ErrBatchExecMaxMachines: "批量执行机器数不能超过 {{.max}} 台",
+	ErrBatchConnFailed:      "连接失败：{{.reason}}",
+	BatchExecTotalTimeout:   "批量执行整体超时：该台未执行命令",
+
+	ErrMachineNotFoundById: "机器 [{{.machineId}}] 不存在",
+
+	LogMachineDiskAnalyze:         "机器-磁盘占用分析",
+	ErrDiskPathInvalid:            "路径非法：仅允许字母、数字与 . _ / -",
+	LogMachineBatchFile:           "机器-批量文件分发",
+	ErrBatchFileKeyEmpty:          "请先上传待分发的文件",
+	ErrBatchRemotePathEmpty:       "目标目录不能为空",
+	ErrBatchRemotePathInvalid:     "目标目录非法：需为绝对路径，且不能含 ; | & $ ` < > ( ) * ? 引号与反斜杠等元字符或 ..",
+	ErrBatchFileMaxMachines:       "批量分发机器数不能超过 {{.max}} 台",
+	BatchDispatchTotalTimeout:     "批量分发整体超时：该台未分发文件",
+	BatchDispatchOnlySsh:          "仅 SSH 机器支持批量文件分发",
+	BatchDispatchOpenSourceFailed: "读取源文件失败：{{.reason}}",
 }

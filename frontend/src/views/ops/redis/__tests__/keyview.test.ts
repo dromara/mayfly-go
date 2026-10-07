@@ -5,15 +5,21 @@ import * as eleIcons from '@element-plus/icons-vue';
 import en from '@/i18n/en/redis';
 import zh from '@/i18n/zh-cn/redis';
 import { commandNeedsConfirm, editingToken, isKeyArgument, splitCommand, suggestCommands, suggestKeys } from '../keyview/console';
-import { keysToTree } from '../utils';
+import { insertKeysToTree, keysToTree } from '../utils';
 import type { RedisCommandSpec } from '../types';
 import { opSkins, viewSkins } from '../keyview/appearance';
 import { columnValue, coversAll, formatTtlSeconds, hasMoreMembers, prefillForm, ttlCellText } from '../keyview/descriptor';
 import type { RedisFormSchema, RedisKeyMember, RedisViewColumn } from '../types';
 
 const commandRequestMock = vi.fn();
-// commandCatalog 内部依赖 redisApi，mock 掉 IO 才能单独测缓存语义
-vi.mock('../api', () => ({ redisApi: { commands: { request: (...args: unknown[]) => commandRequestMock(...args) } } }));
+const scanRequestMock = vi.fn();
+// commandCatalog / useKeyScan 内部依赖 redisApi，mock 掉 IO 才能单独测缓存与扫描续扫语义
+vi.mock('../api', () => ({
+    redisApi: {
+        commands: { request: (...args: unknown[]) => commandRequestMock(...args) },
+        scan: { request: (...args: unknown[]) => scanRequestMock(...args) },
+    },
+}));
 
 /**
  * Redis 数据视角的跨语言契约守护。
@@ -96,6 +102,144 @@ describe('key 分组树', () => {
     it('展开过的目录内部按目录在前、key 在后排序', () => {
         const tree = keysToTree(['z:bb', 'z:aa', 'z:cc:x'], ':', new Set(['z:']));
         expect(tree[0]?.children?.map((node) => node.name)).toEqual(['cc', 'z:aa', 'z:bb']);
+    });
+
+    it('排序下沉数据层：未展开的目录也按序输出（不再依赖 DOM 补排）', () => {
+        // openStatus 为 null（无目录展开）时，旧实现按插入序输出 [z:bb, z:aa, cc]，现在恒为有序
+        const tree = keysToTree(['z:bb', 'z:aa', 'z:cc:x'], ':', null);
+        expect(tree[0]?.children?.map((node) => node.name)).toEqual(['cc', 'z:aa', 'z:bb']);
+    });
+});
+
+describe('key 分组树的增量插入', () => {
+    const label = (node: { type?: number; name: string; keyCount?: number }) => `${node.type}:${node.name}:${node.keyCount ?? 1}`;
+
+    it('落已有目录：插叶子并沿路 keyCount++，维持有序', () => {
+        const tree = keysToTree(['app:b', 'app:d'], ':', null);
+        insertKeysToTree(tree, ['app:c', 'app:a'], ':');
+        expect(tree.map(label)).toEqual(['1:app:4']);
+        expect(tree[0]?.children?.map(label)).toEqual(['2:app:a:1', '2:app:b:1', '2:app:c:1', '2:app:d:1']);
+    });
+
+    it('新路径：按序建目录链并逐层统计 keyCount', () => {
+        const tree = keysToTree(['app:a'], ':', null);
+        insertKeysToTree(tree, ['x:y:z'], ':');
+        expect(tree.map(label)).toEqual(['1:app:1', '1:x:1']);
+        expect(tree[1]?.children?.map(label)).toEqual(['1:y:1']);
+        expect(tree[1]?.children?.[0]?.children?.map(label)).toEqual(['2:x:y:z:1']);
+    });
+
+    it('重复 key 不产生重复叶子，也不动 keyCount', () => {
+        const tree = keysToTree(['app:a', 'app:b'], ':', null);
+        insertKeysToTree(tree, ['app:a'], ':');
+        expect(tree.map(label)).toEqual(['1:app:2']);
+        expect(tree[0]?.children?.map(label)).toEqual(['2:app:a:1', '2:app:b:1']);
+    });
+
+    it('目录与同名 key 增量共存不互相吞并', () => {
+        const tree = keysToTree(['aa'], ':', null);
+        insertKeysToTree(tree, ['aa:x'], ':');
+        expect(tree.filter((node) => node.type === 1).map((node) => node.name)).toEqual(['aa']);
+        expect(tree.filter((node) => node.type === 2).map((node) => node.name)).toEqual(['aa']);
+        expect(tree.find((node) => node.type === 1)?.children?.map(label)).toEqual(['2:aa:x:1']);
+    });
+
+    it('从空树增量插入与全量构建结果同序同形', () => {
+        const sampleKeys = ['m:b', 'm:a', 'b:x', 'm:c:y'];
+        const incremental = insertKeysToTree([], sampleKeys, ':');
+        const full = keysToTree(sampleKeys, ':', null);
+        expect(incremental.map(label)).toEqual(full.map(label));
+        expect(incremental[1]?.children?.map(label)).toEqual(full[1]?.children?.map(label));
+    });
+});
+
+describe('resolveScanCount 的分级', () => {
+    it('浏览态（无搜索词）用小 count 尽快出首屏', async () => {
+        const { resolveScanCount } = await import('../resource/composables/useKeyScan');
+        expect(resolveScanCount('', 0, 'standalone')).toBe(250);
+        expect(resolveScanCount('', 10000000, 'standalone')).toBe(250);
+    });
+
+    it('搜索态按库规模分级，超过阈值的大库封顶 2000', async () => {
+        const { resolveScanCount } = await import('../resource/composables/useKeyScan');
+        expect(resolveScanCount('user:*', 50000, 'standalone')).toBe(1000);
+        expect(resolveScanCount('user:*', 100000, 'standalone')).toBe(1000);
+        expect(resolveScanCount('user:*', 100001, 'standalone')).toBe(2000);
+        expect(resolveScanCount('user:*', 10000000, 'standalone')).toBe(2000);
+    });
+
+    it('集群模式按 3 个 master 摊薄单次 count', async () => {
+        const { resolveScanCount } = await import('../resource/composables/useKeyScan');
+        expect(resolveScanCount('', 1000, 'cluster')).toBe(83);
+        expect(resolveScanCount('user:*', 50000, 'cluster')).toBe(333);
+        expect(resolveScanCount('user:*', 200000, 'cluster')).toBe(666);
+    });
+});
+
+describe('scan 的稀疏首屏自动续扫', () => {
+    /** 一批扫描响应：cursor 为 0 表示整库扫完 */
+    const batch = (keys: string[], cursor: number, extra: Record<string, unknown> = {}) => ({
+        keys,
+        cursor: { '0': cursor },
+        dbSize: 1000,
+        summaries: [],
+        ...extra,
+    });
+
+    /** 起一个已登记实例/库的扫描域（动态 import 避开 vi.mock 工厂的 TDZ） */
+    async function setupScan(match = '') {
+        const { useKeyScan } = await import('../resource/composables/useKeyScan');
+        const domain = useKeyScan();
+        domain.state.scanParam.id = 1;
+        domain.state.scanParam.db = 0;
+        domain.state.scanParam.mode = 'standalone';
+        domain.state.scanParam.match = match;
+        return domain;
+    }
+
+    afterEach(() => {
+        scanRequestMock.mockReset();
+    });
+
+    it('首批就有数据只扫一次，并随批填充摘要', async () => {
+        scanRequestMock.mockResolvedValueOnce(batch(['x'], 5, { dbSize: 100, summaries: [{ key: 'x', type: 'string', ttl: -1 }] }));
+        const { state, scan } = await setupScan();
+        await expect(scan(false)).resolves.toEqual(['x']);
+        expect(scanRequestMock).toHaveBeenCalledTimes(1);
+        expect(state.summaries['x']).toEqual({ key: 'x', type: 'string', ttl: -1 });
+    });
+
+    it('本批 0 key 且游标未归零时自动续扫，直到凑出数据', async () => {
+        scanRequestMock
+            .mockResolvedValueOnce(batch([], 17))
+            .mockResolvedValueOnce(batch([], 34))
+            .mockResolvedValueOnce(batch(['a', 'b'], 0));
+        const { state, scan } = await setupScan('rare:*');
+        await expect(scan(false)).resolves.toEqual(['a', 'b']);
+        expect(scanRequestMock).toHaveBeenCalledTimes(3);
+        expect(state.keys).toEqual(['a', 'b']);
+    });
+
+    it('连续空批有上限：首扫 + 最多 3 次续扫后停止', async () => {
+        scanRequestMock.mockResolvedValue(batch([], 99));
+        const { scan } = await setupScan('rare:*');
+        await expect(scan(false)).resolves.toEqual([]);
+        expect(scanRequestMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('游标归零即停，不做无谓续扫', async () => {
+        scanRequestMock.mockResolvedValueOnce(batch([], 0));
+        const { scan } = await setupScan();
+        await expect(scan(false)).resolves.toEqual([]);
+        expect(scanRequestMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('appendKey=true 把新批接到已有 key 之后', async () => {
+        scanRequestMock.mockResolvedValueOnce(batch(['c'], 0));
+        const { state, scan } = await setupScan();
+        state.keys = ['a', 'b'];
+        await expect(scan(true)).resolves.toEqual(['c']);
+        expect(state.keys).toEqual(['a', 'b', 'c']);
     });
 });
 

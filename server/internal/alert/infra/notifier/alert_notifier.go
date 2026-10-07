@@ -73,7 +73,7 @@ func (n *alertNotifierImpl) NotifyWithTarget(ctx context.Context, event *entity.
 		return 0, err
 	}
 	sendErr := n.doSend(ctx, tmpl, channels, alertNotifyParams(event, rule), target.ReceiverIds)
-	n.recordNotifyLogs(event.Id, 0, channels, sendErr)
+	n.recordNotifyLogs(event.Id, channels, target, sendErr)
 	return len(channels), sendErr
 }
 
@@ -93,7 +93,7 @@ func (n *alertNotifierImpl) NotifyRecoverWithTarget(ctx context.Context, event *
 		return 0, err
 	}
 	sendErr := n.doSend(ctx, tmpl, channels, alertRecoverParams(event, rule), target.ReceiverIds)
-	n.recordNotifyLogs(event.Id, 0, channels, sendErr)
+	n.recordNotifyLogs(event.Id, channels, target, sendErr)
 	return len(channels), sendErr
 }
 
@@ -128,11 +128,20 @@ func baseParams(event *entity.AlertEvent, rule *entity.AlertRule, end time.Time)
 	return map[string]any{
 		"ruleName":     rule.Name,
 		"resourceName": displayName(event),
-		"metric":       event.Metric,
+		"metric":       metricDisplayName(event.ResourceType, event.Metric),
 		"priority":     event.Priority.Code(),
 		"firstTime":    formatTime(event.FirstTriggerTime),
 		"endTime":      formatTime(end),
 	}
+}
+
+// metricDisplayName 指标展示名：优先取指标注册表登记的服务端 i18n 标签，
+// 未登记的指标回退为原始 key（通知正文与阈值描述共用同一展示口径）
+func metricDisplayName(resourceType int8, metricKey string) string {
+	if def, ok := service.FindMetric(resourceType, metricKey); ok && def.LabelMsgId != 0 {
+		return i18n.T(def.LabelMsgId)
+	}
+	return metricKey
 }
 
 // displayName 资源展示名，历史事件可能缺失 resourceName，回退为资源标识避免通知内容空白
@@ -171,11 +180,8 @@ func formatThreshold(event *entity.AlertEvent) string {
 	// 获取指标定义（用于单位等元信息）
 	def, ok := service.FindMetric(event.ResourceType, metric)
 
-	// 指标名：优先使用注册表中的通知标签（人类可读 + i18n），未知指标回退为原始 key
-	metricLabel := metric
-	if msgId, ok := metricLabelMap[metric]; ok {
-		metricLabel = i18n.T(msgId)
-	}
+	// 指标名：与正文 {{.metric}} 共用同一展示口径，避免同一条通知出现两种形态
+	metricLabel := metricDisplayName(event.ResourceType, metric)
 
 	// 操作符映射：技术符号 → 人类可读符号
 	operatorSymbol := operatorSymbolMap[operator]
@@ -213,16 +219,6 @@ var operatorSymbolMap = map[string]string{
 	"lte": "≤",
 	"eq":  "=",
 	"neq": "≠",
-}
-
-// metricLabelMap 指标名 → 通知用人类可读标签（i18n）。
-// 新增指标只需在此追加一行，无需修改 formatThreshold 等现有逻辑。
-// 未知指标回退为原始 key（如 "custom_metric"），保证向前兼容。
-var metricLabelMap = map[string]i18n.MsgId{
-	"cpu_rate":   imsg.MetricCpuRate,
-	"mem_rate":   imsg.MetricMemRate,
-	"disk_usage": imsg.MetricDiskUsage,
-	"status":     imsg.MetricStatus,
 }
 
 func formatTime(t time.Time) string {
@@ -286,8 +282,9 @@ func (n *alertNotifierImpl) doSend(ctx context.Context, tmpl *msgentity.MsgTmpl,
 
 // recordNotifyLogs 记录通知发送日志到 t_alert_notify_log
 // 由于底层 SendMsg 为 fire-and-forget，此处记录的是"投递"状态：
-// SendMsg 返回 nil 视为投递成功（status=1），否则视为投递失败（status=2）
-func (n *alertNotifierImpl) recordNotifyLogs(eventId, policyId uint64, channels []*msgentity.MsgChannel, sendErr error) {
+// SendMsg 返回 nil 视为投递成功（status=1），否则视为投递失败（status=2）。
+// 策略 ID 按 NotifyTarget 的渠道→策略归因记录，日志可追溯到具体路由策略
+func (n *alertNotifierImpl) recordNotifyLogs(eventId uint64, channels []*msgentity.MsgChannel, target service.NotifyTarget, sendErr error) {
 	if n.notifyLogRepo == nil || len(channels) == 0 {
 		return
 	}
@@ -304,7 +301,7 @@ func (n *alertNotifierImpl) recordNotifyLogs(eventId, policyId uint64, channels 
 	for _, ch := range channels {
 		log := &entity.AlertNotifyLog{
 			EventId:     eventId,
-			PolicyId:    policyId,
+			PolicyId:    target.PolicyOfChannel(ch.Id),
 			ChannelId:   ch.Id,
 			ChannelName: ch.Name,
 			Status:      status,
@@ -350,9 +347,8 @@ func defaultAlertNotifyTmpl() *msgentity.MsgTmpl {
 		Title:   i18n.T(imsg.TmplAlertNotifyTitle),
 		MsgType: msgx.MsgTypeText,
 		Status:  msgentity.TmplStatusEnable,
-		Tmpl: "【告警通知】\n规则: {{.ruleName}}\n资源: {{.resourceName}}\n指标: {{.metric}}\n" +
-			"当前值: {{.currentValue}}\n阈值: {{.threshold}}\n优先级: {{.priority}}\n" +
-			"首次触发: {{.firstTime}}\n最近触发: {{.lastTime}}\n累计触发: {{.triggerCount}}次",
+		// 模板正文走 i18n：TL 无参调用原样返回，text/template 占位符保留至发送时填充
+		Tmpl: i18n.T(imsg.TmplAlertNotifyBody),
 	}
 }
 
@@ -363,8 +359,6 @@ func defaultAlertRecoverTmpl() *msgentity.MsgTmpl {
 		Title:   i18n.T(imsg.TmplAlertRecoverTitle),
 		MsgType: msgx.MsgTypeText,
 		Status:  msgentity.TmplStatusEnable,
-		Tmpl: "【告警恢复】\n规则: {{.ruleName}}\n资源: {{.resourceName}}\n指标: {{.metric}}\n优先级: {{.priority}}\n" +
-			"首次触发: {{.firstTime}}\n恢复时间: {{.recoverTime}}\n持续时长: {{.durationText}}\n" +
-			"累计触发: {{.triggerCount}}次\n通知次数: {{.notifyCount}}次",
+		Tmpl:    i18n.T(imsg.TmplAlertRecoverBody),
 	}
 }

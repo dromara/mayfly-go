@@ -3,10 +3,10 @@ package mgm
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/mongo/config"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/netx"
 	"net"
-	"regexp"
 	"time"
 
 	machineapp "mayfly-go/internal/machine/application"
@@ -29,8 +29,15 @@ func (mi *MongoInfo) Conn() (*MongoConn, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 
-	mongoOptions := options.Client().ApplyURI(mi.Uri).
-		SetMaxPoolSize(1)
+	mongoOptions := options.Client().ApplyURI(mi.Uri)
+	// URI 里显式给了 maxPoolSize 时以 URI 为准：连接串是使用者对连接的调优入口，
+	// 平台配置只是默认值，不能反过来覆盖掉显式设置。
+	//
+	// 默认值不能再是旧的 1：driver 会为每个并发操作检出一条连接，上限 1 等于把
+	// 同一实例上的所有操作串行（多个 tab、多个用户都在排队）。
+	if mongoOptions.MaxPoolSize == nil {
+		mongoOptions.SetMaxPoolSize(uint64(config.GetMongo().PoolSize))
+	}
 	// 启用ssh隧道则连接隧道机器
 	if mi.SshTunnelMachineId > 0 {
 		mongoOptions.SetDialer(&MongoSshDialer{machineId: mi.SshTunnelMachineId})
@@ -45,10 +52,7 @@ func (mi *MongoInfo) Conn() (*MongoConn, error) {
 		return nil, err
 	}
 
-	logx.Infof("连接mongo: %s", func(str string) string {
-		reg := regexp.MustCompile(`(^mongodb://.+?:)(.+)(@.+$)`)
-		return reg.ReplaceAllString(str, `${1}****${3}`)
-	}(mi.Uri))
+	logx.Infof("连接mongo: %s", MaskUri(mi.Uri))
 
 	return &MongoConn{Id: getConnId(mi.Id), Info: mi, Cli: client}, nil
 }

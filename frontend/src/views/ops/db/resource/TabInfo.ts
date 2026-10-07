@@ -50,6 +50,9 @@ export interface TabComponentRef {
 export class TabInfo {
     label: string;
 
+    /** 悬浮提示全文（表名 | 表备注）；缺省回落到 label */
+    title?: string;
+
     /**
      * tab唯一key。与name都一致
      */

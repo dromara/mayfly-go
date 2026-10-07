@@ -1,16 +1,19 @@
 <template>
     <div>
         <el-descriptions :column="3" border>
-            <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="redis.codePaths" /></el-descriptions-item>
-
-            <el-descriptions-item :span="2" :label="$t('common.code')">{{ redis?.code }}</el-descriptions-item>
-            <el-descriptions-item :span="1" :label="$t('common.name')">{{ redis?.name }}</el-descriptions-item>
-
-            <el-descriptions-item :span="1" label="Host">{{ `${redis?.host}` }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="DB">{{ state.db }}</el-descriptions-item>
-            <el-descriptions-item :span="1" label="mode">
-                {{ redis.mode }}
+            <!-- 资源信息可能取不到：工单候选人不必是该资源的可见用户，实例也可能早已被删除 -->
+            <template v-if="redis">
+                <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="redis.codePaths" /></el-descriptions-item>
+                <el-descriptions-item :span="2" :label="$t('common.code')">{{ redis.code }}</el-descriptions-item>
+                <el-descriptions-item :span="1" :label="$t('common.name')">{{ redis.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="Host">{{ redis.host }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="mode">{{ redis.mode }}</el-descriptions-item>
+            </template>
+            <el-descriptions-item v-else :span="3" :label="$t('common.name')">
+                <el-text type="warning">{{ $t('flow.resourceUnavailable') }}</el-text>
             </el-descriptions-item>
+
+            <el-descriptions-item :span="1" label="DB">{{ state.db }}</el-descriptions-item>
 
             <el-descriptions-item :span="3" :label="$t('flow.runCmd')">
                 <el-input type="textarea" disabled v-model="cmd" rows="5" />
@@ -45,7 +48,8 @@ const state = reactive({
     cmd: '',
     runRes: [],
     db: 0,
-    redis: {} as any,
+    // 取不到资源信息时必须保持为 null，面板才能落到「不可用」提示而不是渲染一串空值
+    redis: null as any,
 });
 
 const { cmd, redis, runRes } = toRefs(state);
@@ -76,13 +80,14 @@ const parseRunCmdForm = async (bizFormStr: string) => {
     state.db = bizForm.db;
 
     const res = await redisApi.redisList.request({ id: bizForm.id });
-    if (!res.list) {
+    state.redis = res?.list?.[0] ?? null;
+    if (!state.redis) {
+        // 取不到就不查标签路径了：原来这里直接读 state.redis.code，会抛 TypeError 把面板打断
         return;
     }
-    state.redis = res.list?.[0];
 
-    tagApi.listByQuery.request({ type: TagResourceTypeEnum.Redis.value, codes: state.redis.code }).then((res) => {
-        state.redis.codePaths = res.map((item: any) => item.codePath);
+    tagApi.listByQuery.request({ type: TagResourceTypeEnum.Redis.value, codes: state.redis.code }).then((tags) => {
+        state.redis.codePaths = tags.map((item: any) => item.codePath);
     });
 };
 </script>

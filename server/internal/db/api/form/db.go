@@ -25,6 +25,10 @@ type DbSQLExecForm struct {
 	Db     string `binding:"required" json:"db"`  //数据库名
 	SQL    string `binding:"required" json:"sql"` // 执行sql
 	Remark string `json:"remark"`                 // 执行备注
+	// AckWarn 操作者已在确认框里选择「直接执行」，用于命中「仅提醒」后的重试
+	AckWarn bool `json:"ackWarn"`
+	// AskWarn 该次执行能否弹确认：单条执行可以，批量选区不能逐条追问
+	AskWarn bool `json:"askWarn"`
 }
 
 // 数据库复制表

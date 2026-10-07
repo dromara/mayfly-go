@@ -177,7 +177,8 @@ export function useLazyTree(options: LazyTreeOptions) {
     /** 程序化展开（含水合）：node-expand 事件与定位路径共用 */
     async function expandNode(key: string) {
         const node = nodeIndex.get(key);
-        if (!node) {
+        // 占位/错误行不参与展开（事件过滤归位数据层：容器只转发 key，语义在此自治）
+        if (!node || node.kind === LOADING_KIND || node.kind === ERROR_KIND) {
             return;
         }
         if (!expandedKeys.value.has(key)) {
@@ -198,6 +199,10 @@ export function useLazyTree(options: LazyTreeOptions) {
     /** 折叠：维护展开态（同时收起全部后代展开态），并按声明释放子节点回收内存 */
     function collapseNode(key: string) {
         const node = nodeIndex.get(key);
+        // 占位/错误行不参与折叠（与 expandNode 对称）
+        if (node && (node.kind === LOADING_KIND || node.kind === ERROR_KIND)) {
+            return;
+        }
         const doomed = new Set<string>([key]);
         if (node) {
             collectDescendantKeys(node, doomed);
@@ -233,6 +238,42 @@ export function useLazyTree(options: LazyTreeOptions) {
         node.children = [loadingPlaceholder(node)];
         indexTree(node.children, node.key);
         bump();
+    }
+
+    /**
+     * 增量追加子节点（分页「加载更多」）：只归一化新节点并增量登记索引，不重建既有子树、不重拉前缀，
+     * 虚拟列表滚动位置与已水合子级状态不受影响（与 refresh 的全量重建语义互补）。
+     * replaceKey 先摘除指定直接子节点（如旧的「加载更多」占位行）再追加，保证新节点始终落在尾部；
+     * 仅对已水合节点生效（未水合时子级还是加载占位，追加无意义）。
+     */
+    function appendChildren(key: string, nodes: TreeNodeData[], options?: { replaceKey?: string }) {
+        const node = nodeIndex.get(key);
+        if (!node?.loaded) {
+            return;
+        }
+        let changed = false;
+        if (options?.replaceKey) {
+            const idx = node.children?.findIndex((c) => c.key === options.replaceKey) ?? -1;
+            if (idx >= 0 && node.children) {
+                const removed = node.children[idx];
+                // 摘除节点自身及其整棵子树的索引（unindexSubtree 只清后代，不含自身）：
+                // 被 replaceKey 移除的节点已从 children  splice 出去，若不删自身索引，getNode 会返回陈旧游离节点
+                nodeIndex.delete(removed.key);
+                parentIndex.delete(removed.key);
+                unindexSubtree(removed);
+                node.children.splice(idx, 1);
+                changed = true;
+            }
+        }
+        if (nodes.length) {
+            const added = nodes.map((c) => normalize(c, node.key));
+            node.children = [...(node.children ?? []), ...added];
+            indexTree(added, node.key);
+            changed = true;
+        }
+        if (changed) {
+            bump();
+        }
     }
 
     /** 刷新：key 缺省重载根，否则重载该节点子树（保持展开态） */
@@ -299,6 +340,7 @@ export function useLazyTree(options: LazyTreeOptions) {
         expandNode,
         collapseNode,
         refresh,
+        appendChildren,
         ensureVisible,
         getNode: (key: string) => nodeIndex.get(key),
         onAfterHydrate,

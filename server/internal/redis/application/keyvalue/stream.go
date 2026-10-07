@@ -57,6 +57,8 @@ var streamDesc = withDefault(&entity.ViewDescriptor{
 		)),
 		op("xinfo", "redis.opXInfo", false, nil),
 	},
+	// ReadCmd 面板读取本视角内容等价的命令名，触发策略判定与「申请查看」提单同口径
+	ReadCmd: "XRANGE",
 })
 
 // 批量条目 id 的入参名，与 xack 的操作表单对应

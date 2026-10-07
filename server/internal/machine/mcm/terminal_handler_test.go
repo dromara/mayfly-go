@@ -209,7 +209,7 @@ func TestPreWriteHandle_BasicCommand(t *testing.T) {
 	handler.Parser.OutputData = []byte("root@host:~# ")
 
 	// 输入 'l'
-	err := handler.PreWriteHandle([]byte{'l'})
+	_, err := handler.PreWriteHandle([]byte{'l'})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestPreWriteHandle_BasicCommand(t *testing.T) {
 	}
 
 	// 输入 's'
-	err = handler.PreWriteHandle([]byte{'s'})
+	_, err = handler.PreWriteHandle([]byte{'s'})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -230,7 +230,7 @@ func TestPreWriteHandle_BasicCommand(t *testing.T) {
 	// 重置 ANSI 终端状态后设置新的输出（模拟生产环境中 OutputData 增量累积的行为）
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# ls")
-	err = handler.PreWriteHandle([]byte{CR})
+	_, err = handler.PreWriteHandle([]byte{CR})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestPreWriteHandle_EmptyCommand(t *testing.T) {
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# ")
 
-	err := handler.PreWriteHandle([]byte{CR})
+	_, err := handler.PreWriteHandle([]byte{CR})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -268,11 +268,11 @@ func TestPreWriteHandle_CmdFilter(t *testing.T) {
 	handler := &TerminalHandler{
 		Parser: NewParser(120, 40),
 		Filters: []CmdFilterFunc{
-			func(cmd string) error {
+			func(cmd string) (string, error) {
 				if strings.Contains(cmd, "rm -rf") {
-					return &filterError{msg: "dangerous command blocked"}
+					return "", &filterError{msg: "dangerous command blocked"}
 				}
-				return nil
+				return "", nil
 			},
 		},
 	}
@@ -281,7 +281,7 @@ func TestPreWriteHandle_CmdFilter(t *testing.T) {
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# rm -rf /")
 
-	err := handler.PreWriteHandle([]byte{CR})
+	_, err := handler.PreWriteHandle([]byte{CR})
 	if err == nil {
 		t.Fatal("expected error for dangerous command")
 	}
@@ -293,15 +293,62 @@ func TestPreWriteHandle_CmdFilter(t *testing.T) {
 	}
 }
 
+// TestPreWriteHandle_FilterNoticeReachesTerminal 「仅提醒」的提示必须原样交回会话去写终端。
+//
+// 提示只在过滤器里返回、上层不接走，等于机器侧的提醒级别仍然只有服务端日志一处出口；
+// 拦与不拦分别看 err 与 ExecutedCmds，两处都要断言，否则判反了测试也绿
+func TestPreWriteHandle_FilterNoticeReachesTerminal(t *testing.T) {
+	handler := &TerminalHandler{
+		Parser: NewParser(120, 40),
+		Filters: []CmdFilterFunc{
+			func(cmd string) (string, error) {
+				if strings.Contains(cmd, "rm") {
+					return "策略提醒：命中 rm 相关规则，未阻断执行", nil
+				}
+				return "", nil
+			},
+		},
+	}
+	handler.Parser.OutputData = []byte("root@host:~# ")
+	handler.Parser.AppendInputData([]byte("rm -i /tmp/a"))
+	handler.Parser.Output.Listener.Reset()
+	handler.Parser.OutputData = []byte("root@host:~# rm -i /tmp/a")
+
+	notice, err := handler.PreWriteHandle([]byte{CR})
+	if err != nil {
+		t.Fatalf("提示不该阻断命令执行: %v", err)
+	}
+	if !strings.Contains(notice, "未阻断执行") {
+		t.Errorf("命中文案必须交回会话写进终端, got: %q", notice)
+	}
+	if len(handler.ExecutedCmds) != 1 {
+		t.Errorf("被提醒的命令仍要执行并记录, got %d", len(handler.ExecutedCmds))
+	}
+
+	// 没有命中提醒时不能凭空多出一行提示
+	quiet := &TerminalHandler{Parser: NewParser(120, 40), Filters: []CmdFilterFunc{func(string) (string, error) { return "", nil }}}
+	quiet.Parser.OutputData = []byte("root@host:~# ")
+	quiet.Parser.AppendInputData([]byte("ls"))
+	quiet.Parser.Output.Listener.Reset()
+	quiet.Parser.OutputData = []byte("root@host:~# ls")
+	notice, err = quiet.PreWriteHandle([]byte{CR})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if notice != "" {
+		t.Errorf("没命中规则就不该有回显, got: %q", notice)
+	}
+}
+
 func TestPreWriteHandle_CmdFilterAllowsSafeCommand(t *testing.T) {
 	handler := &TerminalHandler{
 		Parser: NewParser(120, 40),
 		Filters: []CmdFilterFunc{
-			func(cmd string) error {
+			func(cmd string) (string, error) {
 				if strings.Contains(cmd, "rm -rf") {
-					return &filterError{msg: "dangerous command blocked"}
+					return "", &filterError{msg: "dangerous command blocked"}
 				}
-				return nil
+				return "", nil
 			},
 		},
 	}
@@ -310,7 +357,7 @@ func TestPreWriteHandle_CmdFilterAllowsSafeCommand(t *testing.T) {
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# ls -la")
 
-	err := handler.PreWriteHandle([]byte{CR})
+	_, err := handler.PreWriteHandle([]byte{CR})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -332,7 +379,7 @@ func TestPreWriteHandle_MultipleCommands(t *testing.T) {
 	handler.Parser.AppendInputData([]byte("ls"))
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# ls")
-	_ = handler.PreWriteHandle([]byte{CR})
+	_, _ = handler.PreWriteHandle([]byte{CR})
 
 	// 第二个命令
 	handler.Parser.Output.Listener.Reset()
@@ -340,7 +387,7 @@ func TestPreWriteHandle_MultipleCommands(t *testing.T) {
 	handler.Parser.AppendInputData([]byte("pwd"))
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# pwd")
-	_ = handler.PreWriteHandle([]byte{CR})
+	_, _ = handler.PreWriteHandle([]byte{CR})
 
 	// 第三个命令
 	handler.Parser.Output.Listener.Reset()
@@ -348,7 +395,7 @@ func TestPreWriteHandle_MultipleCommands(t *testing.T) {
 	handler.Parser.AppendInputData([]byte("whoami"))
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@host:~# whoami")
-	_ = handler.PreWriteHandle([]byte{CR})
+	_, _ = handler.PreWriteHandle([]byte{CR})
 
 	if len(handler.ExecutedCmds) != 3 {
 		t.Fatalf("expected 3 commands, got %d", len(handler.ExecutedCmds))
@@ -375,7 +422,7 @@ func TestPreWriteHandle_DynamicPS1WithTimestamp(t *testing.T) {
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("2026-09-10 10:13:49\r\nroot@host:~# ls")
 
-	err := handler.PreWriteHandle([]byte{CR})
+	_, err := handler.PreWriteHandle([]byte{CR})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -403,7 +450,7 @@ func TestPreWriteHandle_LongHostnameNoPromptLeak(t *testing.T) {
 	handler.Parser.Output.Listener.Reset()
 	handler.Parser.OutputData = []byte("root@iZ2zeg7yvz4arzq052ys6qZ:~# docker ps")
 
-	err := handler.PreWriteHandle([]byte{CR})
+	_, err := handler.PreWriteHandle([]byte{CR})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

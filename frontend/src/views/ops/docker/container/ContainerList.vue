@@ -303,14 +303,18 @@ const containerRestart = async (param: Pick<ContainerListItem, 'containerId' | '
 };
 
 const containerStop = async (param: Pick<ContainerListItem, 'containerId' | 'name'>) => {
-    await useI18nConfirm('docker.stopContainerConfirm', { name: param.name });
+    if (!(await useI18nConfirm('docker.stopContainerConfirm', { name: param.name }))) {
+        return;
+    }
     await dockerApi.containerStop.request({ id: props.id, containerId: param.containerId });
     Msg.operateSuccess();
     getContainers();
 };
 
 const containerRemove = async (param: Pick<ContainerListItem, 'containerId' | 'name'>) => {
-    await useI18nConfirm('docker.removeContainerConfirm', { name: param.name });
+    if (!(await useI18nConfirm('docker.removeContainerConfirm', { name: param.name }))) {
+        return;
+    }
     await dockerApi.containerRemove.request({ id: props.id, containerId: param.containerId });
     Msg.deleteSuccess();
     getContainers();

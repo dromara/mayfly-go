@@ -444,12 +444,13 @@ watch([() => props.milvusId, () => milvusStore.authCertName], () => {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+/* 健康状态用整圈描边表达，不用单侧色条；颜色走可读语义色阶，暗色主题下才不是一层灰影 */
 .metric-card.is-healthy {
-    border-left: 4px solid #67c23a;
+    border: 1px solid var(--app-color-success-readable);
 }
 
 .metric-card.is-unhealthy {
-    border-left: 4px solid #f56c6c;
+    border: 1px solid var(--app-color-danger-readable);
 }
 
 .metric-icon {
@@ -567,10 +568,8 @@ watch([() => props.milvusId, () => milvusStore.authCertName], () => {
 .rg-section-title {
     font-size: 13px;
     font-weight: 600;
-    color: #606266;
+    color: var(--el-text-color-primary);
     margin-bottom: 8px;
-    padding-left: 8px;
-    border-left: 3px solid #409eff;
 }
 
 .collection-tags {

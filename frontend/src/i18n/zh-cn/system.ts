@@ -123,6 +123,17 @@ export default {
             maskExemptRoleIds: '脱敏豁免角色',
             maskExemptRoleIdsPlaceholder: '命中角色的账号查询结果不脱敏，多个角色id用英文逗号分隔，留空不豁免',
 
+            mongoConf: 'Mongo配置',
+            mongoConfRemark: 'MongoDB 数据面的执行上限与连接池配置',
+            mongoExecTl: '操作超时（秒）',
+            mongoExecTlPlaceholder: '单条 Mongo 操作的执行时间上限，超过即取消。留空或 0 使用默认值 60',
+            mongoDefaultLimit: '默认查询条数',
+            mongoDefaultLimitPlaceholder: '未指定 limit 时使用的条数，避免不限条数把整个集合读进内存',
+            mongoMaxResultSet: '最大结果集',
+            mongoMaxResultSetPlaceholder: '允许查询的最大条数，超出即截断并提示收窄条件',
+            mongoPoolSize: '连接池大小',
+            mongoPoolSizePlaceholder: '单个 Mongo 实例的连接池上限。为 1 时同一实例上所有操作串行；uri 里显式写了 maxPoolSize 则以 uri 为准',
+
             machineConf: '机器相关配置',
             machineConfRemark: '机器相关配置，如终端操作记录保存天数等',
             uploadMaxFileSize: '上传文件大小限制',

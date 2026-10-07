@@ -98,7 +98,9 @@ const handleGrantPrivilege = async (row: { roleName: string }) => {
 };
 
 const handleDrop = async (row: { roleName: string }) => {
-    await useI18nConfirm('milvus.confirmDeleteRole', { name: row.roleName });
+    if (!(await useI18nConfirm('milvus.confirmDeleteRole', { name: row.roleName }))) {
+        return;
+    }
     await milvusApi.dropRole(props.milvusId, row.roleName);
     Msg.success('milvus.deletedSuccess');
     await loadList();

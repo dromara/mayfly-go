@@ -50,10 +50,7 @@ const OWN_COMPONENTS = collectOwnComponents();
 const tagToComponent = new Map<string, string>();
 for (const name of OWN_COMPONENTS) {
     tagToComponent.set(name, name);
-    tagToComponent.set(
-        name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(),
-        name
-    );
+    tagToComponent.set(name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase(), name);
 }
 
 function listSfc(dir: string): string[] {
@@ -82,6 +79,30 @@ function templateOf(src: string): string {
     return src.replace(/<script\b[\s\S]*?<\/script>/g, '').replace(/<!--[\s\S]*?-->/g, '');
 }
 
+/**
+ * 取脚本里所有「值导入」绑定名。
+ *
+ * 不能按单行正则匹配 import：本项目 prettier 会把具名导入排成多行（一行一个名字），
+ * 单行判据认不出它们；而 `import type { X }` 只产生类型、不产生组件绑定，必须排除，
+ * 否则「忘了导入组件」会被同名的类型导入掩盖成已通过
+ */
+function importedBindings(script: string): Set<string> {
+    const names = new Set<string>();
+    for (const clause of [...script.matchAll(/import\s+([\s\S]*?)\s+from\s*['"][^'"]+['"]/g)].map((m) => m[1].trim())) {
+        const simple = clause.match(/^(?:\*\s+as\s+)?([A-Za-z_$][\w$]*)$/);
+        if (simple) names.add(simple[1]);
+        const braces = clause.match(/\{([\s\S]*)\}/);
+        if (!braces) continue;
+        for (const raw of braces[1].split(',')) {
+            const spec = raw.trim();
+            if (!spec || spec.startsWith('type ')) continue;
+            const renamed = spec.match(/\bas\s+([A-Za-z_$][\w$]*)$/);
+            names.add(renamed ? renamed[1] : spec);
+        }
+    }
+    return names;
+}
+
 describe('模板里用到的自有组件必须在 SFC 内导入', () => {
     it('桶文件确实扫到了组件名（防止判据失效导致空跑）', () => {
         expect(OWN_COMPONENTS.size).toBeGreaterThan(10);
@@ -94,16 +115,18 @@ describe('模板里用到的自有组件必须在 SFC 内导入', () => {
         for (const file of listSfc(SRC_ROOT)) {
             const src = fs.readFileSync(file, 'utf-8');
             const script = scriptOf(src);
+            const imported = importedBindings(script);
             const rel = path.relative(SRC_ROOT, file);
+            // 递归组件按文件名自引用是 SFC 的合法能力（无需也不应 import 自己），
+            // 否则条件树这类不定深度结构只能靠展开层级或把逻辑搬出组件
+            const selfName = path.basename(file, '.vue');
 
             for (const [, tag] of templateOf(src).matchAll(/<([A-Za-z][A-Za-z0-9]*(?:-[a-z0-9]+)*)[\s/>]/g)) {
                 const component = tagToComponent.get(tag);
-                if (!component || GLOBAL_COMPONENTS.has(component)) continue;
+                if (!component || GLOBAL_COMPONENTS.has(component) || component === selfName) continue;
 
-                // 绑定来源：具名/默认导入、异步组件常量、局部注册对象
-                const bound = new RegExp(
-                    `(import[^\\n]*\\b${component}\\b[^\\n]*from|\\bconst\\s+${component}\\s*=|\\b${component}\\s*:\\s*${component}\\b)`
-                ).test(script);
+                // 绑定来源：值导入（见 importedBindings）、异步组件常量、局部注册对象
+                const bound = imported.has(component) || new RegExp(`\\bconst\\s+${component}\\s*=|\\b${component}\\s*:\\s*${component}\\b`).test(script);
                 if (!bound) {
                     violations.push(`${rel}: <${tag}> 未导入 ${component}`);
                 }

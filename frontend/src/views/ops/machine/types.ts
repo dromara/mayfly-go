@@ -49,6 +49,10 @@ export interface MachineCronJob extends RelateTags {
     remark: string;
     lastExecTime?: string;
     saveExecResType: number;
+    timeoutSeconds: number;
+    retryTimes: number;
+    notifyType: number;
+    notifyTmplCode: string;
     running?: boolean;
     createTime: string;
     creator: string;
@@ -94,7 +98,6 @@ export interface MachineCmdConf {
     name: string;
     cmds: string[];
     status: number;
-    stratege: string;
     remark: string;
     createTime: string;
     creator: string;
@@ -162,6 +165,10 @@ export interface MachineCronJobForm {
     script: string;
     status: number;
     saveExecResType: number;
+    timeoutSeconds?: number;
+    retryTimes?: number;
+    notifyType?: number;
+    notifyTmplCode?: string;
     remark?: string;
     codePaths?: string[];
 }
@@ -172,7 +179,6 @@ export interface MachineCmdConfForm {
     name: string;
     cmds: string[];
     status?: number;
-    stratege?: string;
     remark?: string;
     codePaths?: string[];
 }
@@ -298,10 +304,121 @@ export interface MachineCmdConfVO extends RelateTags {
     name: string;
     cmds: string[];
     status: number;
-    stratege: string;
     remark: string;
     createTime: string;
     creator: string;
+}
+
+/** 主机公钥信任记录 (对应 entity.MachineHostKey)，由连接时自动采集（TOFU） */
+export interface MachineHostKeyVO {
+    id: number;
+    /** 信任键：连接改写前的原始目标地址 ip:port */
+    hostAddr: string;
+    keyType: string;
+    fingerprint: string;
+    remark: string;
+    createTime: string;
+    creator: string;
+}
+
+/** 单台机器的批量命令执行结果（单台失败/超时不影响他台） */
+export interface BatchCmdResult {
+    machineId: number;
+    name: string;
+    ip: string;
+    port: number;
+    authCertName: string;
+    username: string;
+
+    success: boolean;
+    output: string;
+    error: string;
+    /** 命令策略「仅提醒」命中提示（不是失败） */
+    policyNotice: string;
+    costMs: number;
+    timeout: boolean;
+}
+
+/** 单台机器的批量文件分发结果 (对应 application.BatchFileResult) */
+export interface BatchFileResult {
+    machineId: number;
+    name: string;
+    ip: string;
+    port: number;
+    authCertName: string;
+    success: boolean;
+    /** 分发字节数 */
+    bytes: number;
+    error: string;
+    costMs: number;
+}
+
+/** 机器指标历史采样点 (对应 entity.MachineMetric) */
+export interface MachineMetric {
+    id: number;
+    machineId: number;
+    /** 采集时间（后端 time.Time 序列化为 RFC3339 字符串） */
+    collectTime: string;
+    cpuUsage: number;
+    memUsage: number;
+    diskUsage: number;
+    load1: number;
+    load5: number;
+    load10: number;
+    /** 网络累计接收字节（速率由前端相邻点差分） */
+    netRx: number;
+    /** 网络累计发送字节 */
+    netTx: number;
+    /** 1在线 0离线 */
+    status: number;
+}
+
+/** 单条阈值命中明细（由告警侧按已启用的告警规则判定后回填） */
+export interface MachineHealthHit {
+    ruleId: number;
+    ruleName: string;
+    /** cpu_rate / mem_rate / disk_usage / status */
+    metric: string;
+    /** gt / gte / lt / lte / eq / neq */
+    compare: string;
+    threshold: number;
+    current: number;
+    /** 命中规则优先级：0 P0 .. 3 P3 */
+    priority: number;
+}
+
+/** 全机器健康总览单项 (对应 application.MachineHealth) */
+export interface MachineHealth {
+    machineId: number;
+    name: string;
+    ip: string;
+    port: number;
+    code: string;
+    /** 1在线 0离线 */
+    status: number;
+    cpuUsage: number;
+    memUsage: number;
+    diskUsage: number;
+    collectTime: string | null;
+    /** 命中的最差规则优先级，-1 表示无命中 */
+    priority: number;
+    /** false 表示有规则覆盖但取不到当前值，本次未能判定（不等于正常） */
+    triaged: boolean;
+    hits: MachineHealthHit[] | null;
+}
+
+/** 磁盘目录占用节点 (对应 application.DiskNode) */
+export interface DiskNode {
+    path: string;
+    /** 字节 */
+    size: number;
+}
+
+/** 磁盘分析结果 (对应 application.DiskAnalysisResult) */
+export interface DiskAnalysisResult {
+    path: string;
+    depth: number;
+    nodes: DiskNode[];
 }
 
 /** 机器进程行（`ps` 输出按空白切割后映射而得，字段与表格列一一对应；数值均已在解析时格式化为展示字符串） */

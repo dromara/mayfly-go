@@ -70,7 +70,7 @@ export type {
 } from './vo';
 
 // SQL 执行结果类型
-export type { SqlExecResColumn, SqlExecRes } from './sqlExec';
+export type { SqlExecResColumn, SqlExecRes, PolicyNotice } from './sqlExec';
 
 // 虚拟表格导出扩展契约
 export type { TableExportStrategy, TableExportContext } from './virtualTable';

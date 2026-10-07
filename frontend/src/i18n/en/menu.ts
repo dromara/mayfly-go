@@ -2,9 +2,9 @@ export default {
     menu: {
         index: 'Home',
         personalCenter: 'Personal Center',
-        myResource: 'Resource',
+        myResource: 'My Resources',
 
-        tag: 'Resource',
+        tag: 'Resources',
         tagTree: 'Resource Tree',
         label: 'Label Management',
         labelBase: 'Label - Base Permission',
@@ -104,6 +104,9 @@ export default {
         mongoDataOpBase: 'Mongo - Base Permission',
         mongoDataOpSave: 'Mongo - Save Data',
         mongoDataOpDelete: 'Mongo - Delete Data',
+        mongoDdlSave: 'Mongo - Change Schema (create collection/index)',
+        mongoDdlDel: 'Mongo - Drop Schema (drop collection/database/index)',
+        mongoCmdAdmin: 'Mongo - Server Admin (users/roles/parameters)',
         mongoManage: 'Mongo Manage',
         mongoManageBase: 'Mongo - Base Permission',
 
@@ -117,6 +120,9 @@ export default {
         flowProcDef: 'Process Define',
         flowProcDefSave: 'Save Process Define',
         flowProcDefDelete: 'Delete Process Define',
+        flowRuleSegment: 'Rule Groups',
+        flowRuleSegmentSave: 'Save Rule Group',
+        flowRuleSegmentDel: 'Delete Rule Group',
 
         msgManage: 'Message',
         channel: 'Message Channel',

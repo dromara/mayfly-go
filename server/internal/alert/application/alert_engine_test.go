@@ -218,6 +218,14 @@ func (m *mockEventApp) UpdateById(ctx context.Context, event *entity.AlertEvent)
 	return nil
 }
 
+func (m *mockEventApp) UpdateNotifyInfo(ctx context.Context, event *entity.AlertEvent) error {
+	return nil
+}
+
+func (m *mockEventApp) UpdateEscalationLvl(ctx context.Context, event *entity.AlertEvent) error {
+	return nil
+}
+
 // --- mockNotifier ---
 type mockNotifier struct {
 	mu           sync.Mutex
@@ -283,7 +291,7 @@ func handleResult(engine *alertEngineAppImpl, rule *entity.AlertRule, resourceId
 
 // ==================== 辅助函数 ====================
 
-// mockNotifyPolicyApp 通知策略 mock：MatchPolicies 始终返回空列表（无匹配策略）
+// mockNotifyPolicyApp 通知策略 mock：ListEnabledWithLabels 始终返回空列表（无启用策略）
 type mockNotifyPolicyApp struct {
 	base.AppImpl[*entity.AlertNotifyPolicy, repository.AlertNotifyPolicy]
 }
@@ -298,7 +306,7 @@ func (m *mockNotifyPolicyApp) DeleteNotifyPolicy(ctx context.Context, id uint64)
 func (m *mockNotifyPolicyApp) ChangeStatus(ctx context.Context, id uint64, status int8) error {
 	return nil
 }
-func (m *mockNotifyPolicyApp) MatchPolicies(ctx context.Context, eventLabels map[string]string) ([]*entity.AlertNotifyPolicy, error) {
+func (m *mockNotifyPolicyApp) ListEnabledWithLabels(ctx context.Context) ([]*entity.AlertNotifyPolicy, error) {
 	return nil, nil
 }
 func (m *mockNotifyPolicyApp) GetChannelDistribution() (map[string]int64, error) {

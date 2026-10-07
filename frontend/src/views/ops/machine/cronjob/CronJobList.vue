@@ -120,7 +120,9 @@ const runCronJob = async (data: MachineCronJob) => {
 
 const deleteCronJob = async () => {
     try {
-        await useI18nDeleteConfirm(state.selectionData.map((x: MachineCronJob) => x.name).join('、'));
+        if (!(await useI18nDeleteConfirm(state.selectionData.map((x: MachineCronJob) => x.name).join('、')))) {
+            return;
+        }
         await cronJobApi.delete.request({ id: state.selectionData.map((x: MachineCronJob) => x.id).join(',') });
         Msg.deleteSuccess();
         search();

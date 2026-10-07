@@ -71,13 +71,18 @@ export function useKeyFormDialog(store: KeyViewStore) {
         await submitOp(opName, {});
     }
 
+    /** 执行视角操作并弹出结果；返回 false 表示操作者面对提醒选了「先不执行」（此时不弹结果框） */
     async function submitOp(opName: string, args: Record<string, string>) {
+        const result = await store.runOp(opName, args);
+        if (result === null) {
+            return false;
+        }
         const spec = store.descriptor.value?.ops.find((item) => item.name === opName);
-        const content = formatOpResult(await store.runOp(opName, args));
         opResult.title = t(spec?.label ?? opName);
         // 操作跑完就必须给出结果：nil 回包也要占位，否则用户无法区分「没执行」与「执行了但无返回」
-        opResult.content = content || t('redis.opResultEmpty');
+        opResult.content = formatOpResult(result) || t('redis.opResultEmpty');
         opResult.visible = true;
+        return true;
     }
 
     /**
@@ -87,11 +92,17 @@ export function useKeyFormDialog(store: KeyViewStore) {
     async function submit(form: Record<string, unknown>) {
         const args = toArgs(form);
         if (state.kind === 'op') {
-            await submitOp(state.op, args);
+            if (!(await submitOp(state.op, args))) {
+                // 没执行就不关弹层，留着让操作者自己决定改哪一项
+                return;
+            }
             dialog.visible = false;
             return;
         }
-        await store.saveMember(state.op, args, state.editing, state.ttl);
+        // confirmApi 的取消语义只有抛错：正常 return 会被宿主当成「保存成功」并关掉弹层
+        if (!(await store.saveMember(state.op, args, state.editing, state.ttl))) {
+            throw new Error('warn ack cancelled');
+        }
     }
 
     return { dialog, dialogKind: () => state.kind, opResult, openMember, openOp, submit };

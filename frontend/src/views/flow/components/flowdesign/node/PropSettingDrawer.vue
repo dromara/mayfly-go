@@ -8,10 +8,10 @@
         :before-close="onCancel"
         :destroy-on-close="true"
         :close-on-click-modal="false"
-        size="40%"
+        :size="FLOW_DRAWER.node"
     >
         <template #header>
-            <DrawerHeader :header="title" :back="onCancel" />
+            <DrawerHeader :header="headerTitle" :back="onCancel" />
         </template>
 
         <el-form ref="propSettingFormRef" :model="form" label-position="top" :disabled="props.disabled">
@@ -42,13 +42,18 @@
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, useTemplateRef, type PropType } from 'vue';
+import { computed, watch, ref, useTemplateRef, type PropType } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { cloneNodeProperties } from './nodeProps';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { useI18nFormValidate, useI18nPleaseInput } from '@/hooks/useI18n';
 import { Rules } from '@/common/rule';
 import LogicFlow from '@logicflow/core';
 import { getCustomNode } from '.';
 import { notEmpty } from '@/common/assert';
+import { FLOW_DRAWER } from '@/views/flow/drawerSize';
+
+const { t } = useI18n();
 
 const props = defineProps({
     data: {
@@ -78,6 +83,9 @@ const props = defineProps({
 const propSettingFormRef = useTemplateRef('propSettingFormRef');
 const formItemsRef = useTemplateRef<{ confirm?: () => void } | null>('formItemsRef');
 
+/** 节点属性抽屉的标题：由画布组件调用，调用方通常不传，缺省也要能自解释 */
+const headerTitle = computed(() => props.title || t('flow.nodeProperty'));
+
 const visible = defineModel<boolean>('visible', { default: false });
 
 // 节点名
@@ -93,12 +101,19 @@ watch(
             return;
         }
         name.value = n.text instanceof Object ? n.text.value : (n.text ?? '');
-        form.value = { ...n.properties };
+        // 深拷贝：条件树等嵌套对象若与画布节点共享引用，编辑中途就地改动会让「取消」无法回滚，
+        // 下一次保存流程还会把这些已取消的改动静默写进流程定义
+        form.value = cloneNodeProperties(n.properties);
     }
 );
 
 const onConfirm = async () => {
-    notEmpty(name.value, useI18nPleaseInput('common.name'));
+    // 连线允许空名：画布上的边默认本就无文本，跳转条件才是边属性的真实内容；
+    // 名称必填会让存量未命名连线永远保存不了条件修改（点确定只报「请输入名称」）
+    const isEdge = !!props.node && 'sourceNodeId' in props.node;
+    if (!isEdge) {
+        notEmpty(name.value, useI18nPleaseInput('common.name'));
+    }
     if (formItemsRef.value?.confirm) {
         formItemsRef.value.confirm();
     }

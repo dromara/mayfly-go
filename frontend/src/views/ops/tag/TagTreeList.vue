@@ -398,7 +398,9 @@ const onCancelSaveTag = () => {
 };
 
 const onDeleteTag = async (data: TreeNodeData) => {
-    await useI18nDeleteConfirm(data.namePath);
+    if (!(await useI18nDeleteConfirm(data.namePath))) {
+        return;
+    }
     await tagApi.delTagTree.request({ id: data.id });
     Msg.deleteSuccess();
     await search();

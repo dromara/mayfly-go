@@ -2,24 +2,46 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/alert/domain/entity"
+	"mayfly-go/pkg/i18n"
 	"sort"
 	"sync"
 	"time"
 )
 
-// MetricDefinition 指标元信息，供保存校验与前端指标下拉共用同一数据源
+// MetricDefinition 指标元信息，供保存校验与前端指标下拉共用同一数据源。
+// 新增指标的展示文案必须在此登记，禁止在消费方（通知渲染/前端枚举）另行维护映射
 type MetricDefinition struct {
-	Key       string  `json:"key"`       // 指标名，如 cpu_rate
-	Label     string  `json:"label"`     // 展示名（i18n key），如 alert.metricCpuRate
-	Unit      string  `json:"unit"`      // 单位后缀，如 %
-	IsPercent bool    `json:"isPercent"` // 是否为百分比指标（前端阈值输入 0-100）
-	HasRange  bool    `json:"hasRange"`  // 是否存在合法取值区间
-	Min       float64 `json:"min"`       // 阈值允许的最小值
-	Max       float64 `json:"max"`       // 阈值允许的最大值
+	Key        string     `json:"key"`   // 指标名，如 cpu_rate
+	Label      string     `json:"label"` // 展示名（前端 i18n key），如 alert.metricCpuRate
+	LabelMsgId i18n.MsgId // 展示名（服务端 i18n 消息ID），通知渲染用；0 表示未配置，回退为原始 key
+	Unit       string     `json:"unit"`      // 单位后缀，如 %
+	IsPercent  bool       `json:"isPercent"` // 是否为百分比指标（前端阈值输入 0-100）
+	HasRange   bool       `json:"hasRange"`  // 是否存在合法取值区间
+	Min        float64    `json:"min"`       // 阈值允许的最小值
+	Max        float64    `json:"max"`       // 阈值允许的最大值
 }
 
 // AlertEvaluator 告警评估器接口 —— 每种资源类型一个实现
+//
+// 新增一种资源类型评估器（如 Redis/DB）的全部步骤，全程无需改动引擎/校验/前端/通知链路：
+//
+//  1. 在 application/evaluator 包新增实现文件，实现本接口并保留
+//     `var _ service.AlertEvaluator = (*XxxEvaluator)(nil)` 编译断言。
+//     评估器为单例且被引擎并发调用（最多 10 规则并发），实现必须并发安全
+//  2. 在该文件 init() 中调用 registerEvaluator(&XxxEvaluator{}) 完成注册
+//  3. 在评估器内登记指标集（MetricDefinition 含 Label/LabelMsgId 展示文案、单位、
+//     阈值区间约束），并在 imsg 两语言文件补充文案；指标提取函数使用具体数据
+//     类型直接取值，禁止 interface{} + 反射
+//  4. 为评估器接通运行时数据源（参照机器评估器：资源模块应用层接口 inject 注入 +
+//     infra 缓存，评估循环读缓存而非直连资源实例）
+//  5. 在 evaluator/contract_test.go 新增契约用例并保证全绿，按其 Evaluate 语义
+//     checklist 补齐自身行为测试
+//
+// 以下能力全部自动跟随，无需任何改动：引擎评估循环（按 ResourceType 分发）、
+// 规则保存校验（SupportsResourceType/SupportedMetric/阈值区间）、前端指标下拉
+// （/alert-rules/metrics 同源下发）、通知与阈值文案 i18n（FindMetric + LabelMsgId）
 type AlertEvaluator interface {
 	// ResourceType 返回该评估器负责的资源类型（consts.ResourceType*）
 	ResourceType() int8
@@ -132,6 +154,41 @@ func FindMetric(resourceType int8, metric string) (MetricDefinition, bool) {
 		}
 	}
 	return MetricDefinition{}, false
+}
+
+// ValidateMetrics 校验指标元信息的完整性与一致性，单一真源供两处消费：
+// 评估器注册时的启动自检（fail-fast 拒绝带缺陷元信息上线）与评估器契约测试（测试期拦截）。
+// 这些元信息同时是保存校验、前端下拉、通知渲染的正确性前提
+func ValidateMetrics(defs []MetricDefinition) error {
+	if len(defs) == 0 {
+		return fmt.Errorf("metrics is empty")
+	}
+	seen := make(map[string]struct{}, len(defs))
+	for _, def := range defs {
+		if def.Key == "" {
+			return fmt.Errorf("metric key is empty, label=%s", def.Label)
+		}
+		if _, ok := seen[def.Key]; ok {
+			return fmt.Errorf("duplicate metric key: %s", def.Key)
+		}
+		seen[def.Key] = struct{}{}
+
+		if def.Label == "" {
+			return fmt.Errorf("metric %s: label(frontend i18n key) is empty", def.Key)
+		}
+		// LabelMsgId 允许为 0（服务端展示回退原始 key），但配置了就必须已登记文案，
+		// 否则通知渲染出的指标名为空串
+		if def.LabelMsgId != 0 && i18n.T(def.LabelMsgId) == "" {
+			return fmt.Errorf("metric %s: label msgId %d has no registered text", def.Key, def.LabelMsgId)
+		}
+		if def.HasRange && def.Min > def.Max {
+			return fmt.Errorf("metric %s: invalid threshold range [%v, %v]", def.Key, def.Min, def.Max)
+		}
+		if def.IsPercent && (!def.HasRange || def.Min < 0 || def.Max > 100) {
+			return fmt.Errorf("metric %s: percent metric must have range within [0, 100]", def.Key)
+		}
+	}
+	return nil
 }
 
 // ResourceExists 资源是否存在；资源类型无评估器时返回 false

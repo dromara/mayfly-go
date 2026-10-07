@@ -115,7 +115,9 @@ const loadGroups = () => {
 };
 
 const handleDeleteGroup = async (group: KafkaGroup) => {
-    await useI18nDeleteConfirm(`Group: ${group.Group}`);
+    if (!(await useI18nDeleteConfirm(`Group: ${group.Group}`))) {
+        return;
+    }
     try {
         await mqApi.kafkaDeleteGroup.request({
             id: props.kafkaId,

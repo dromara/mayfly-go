@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 
 	"github.com/spf13/cast"
@@ -276,34 +277,51 @@ func (m *MetadataReader) GetCapabilities() MetadataCapabilities {
 // 功能一致、仅缺下推优化（渐进接入，开闭原则）。
 type TableSearcher interface {
 	// SearchTables 返回表名匹配 like（子串、不区分大小写）的表；limit <= 0 表示不限制条数。
-	SearchTables(like string, limit int) ([]Table, error)
+	// offset 为跳过条数（分页续载），仅在 limit > 0 时生效；各方言以 OFFSET 子句下推到系统目录。
+	SearchTables(like string, limit int, offset int) ([]Table, error)
 }
 
+// maxTableSearchOffset 是 SearchTables 续载 offset 的输入合法性护栏（非业务分页上限）：真实 schema 逐页「加载更多」累加不可能达到此深度，
+// 仅用于拦截越界/异常 offset 直传 SQL；取一个远超任何库表总数的宽松上界，不影响正常翻页。
+const maxTableSearchOffset = 1_000_000
+
 // SearchTables 按表名过滤/限量获取表清单：like 与 limit 皆空时等价 GetTables 全量；
-// 具备 TableSearcher 则把 LIKE/LIMIT 下推到系统目录，否则回退全量取回 + 不区分大小写子串过滤。
+// 具备 TableSearcher 则把 LIKE/LIMIT/OFFSET 下推到系统目录，否则回退全量取回 + 不区分大小写子串过滤。
 // 传 limit>0 且 like 为空即为「限量探测」（如判断某库表是否过多以决定是否启用搜索），不必然全量拉取。
-func (m *MetadataReader) SearchTables(like string, limit int) ([]Table, error) {
+// offset>0 用于「加载更多」分页续载：只取下一页而非重拉前缀，配合前端树增量追加。
+func (m *MetadataReader) SearchTables(like string, limit int, offset int) ([]Table, error) {
 	if like == "" && limit <= 0 {
 		return m.GetTables()
 	}
+	// offset 归一化（单点，避免下推路径与回退路径 filterTablesByLike 口径分叉）：
+	//   · 无 limit 时 offset 无意义；负 offset 非法（PG 的 OFFSET 拒负值会使下推报错并触发无谓回退），均钳为 0；
+	//   · offset 上界是输入合法性护栏（见 maxTableSearchOffset），仅拦截越界/垃圾值，逐页累加的续载永不会触及
+	if limit <= 0 || offset < 0 {
+		offset = 0
+	} else if offset > maxTableSearchOffset {
+		offset = maxTableSearchOffset
+	}
 	if ts, ok := m.provider.(TableSearcher); ok {
-		tables, err := ts.SearchTables(like, limit)
+		tables, err := ts.SearchTables(like, limit, offset)
 		if err == nil {
 			return tables, nil
 		}
 		// 下推失败（如某方言专属系统目录 SQL 在特定实例/版本不兼容）：回退「全量+过滤」通用路径，
-		// 保证表浏览不被专属优化拖垮；真实的连接错误会在回退的 GetTables 再次暴露并返回。
+		// 保证表浏览不被专属优化拖垮。推下失败原因已留痕（下行 logx），回退 GetTables 再失败则代表
+		// 真实的连接/基础查询错误，应以回退的错误为准向上返回（而非已预期的下推错误）。
+		// 必须留痕：静默回退会让「下推从未生效」这类缺陷长期潜伏（测试在回退路径上同样能通过）。
+		logx.Warnf("dbm: table search pushdown failed, fallback to full fetch + in-memory filter (like=%q): %v", like, err)
 		base, ferr := m.GetTables()
 		if ferr != nil {
-			return nil, err
+			return nil, ferr
 		}
-		return filterTablesByLike(base, like, limit), nil
+		return filterTablesByLike(base, like, limit, offset), nil
 	}
 	tables, err := m.GetTables()
 	if err != nil {
 		return nil, err
 	}
-	return filterTablesByLike(tables, like, limit), nil
+	return filterTablesByLike(tables, like, limit, offset), nil
 }
 
 // EscapeLikeWildcards 转义 LIKE 模式中的通配符 % \ _（各方言 TableSearcher 下推共用）。
@@ -319,13 +337,18 @@ func EscapeLikeWildcards(s string) string {
 	return s
 }
 
-// filterTablesByLike 不区分大小写的表名子串过滤（like 为空则不过滤），limit>0 时截断。
+// filterTablesByLike 不区分大小写的表名子串过滤（like 为空则不过滤）；先跳过 offset 条命中，再按 limit>0 截断。
 // MetadataReader.SearchTables 的无下推回退路径复用；空 like + limit 即「限量探测」。
-func filterTablesByLike(tables []Table, like string, limit int) []Table {
+func filterTablesByLike(tables []Table, like string, limit int, offset int) []Table {
 	pattern := strings.ToLower(like)
 	out := make([]Table, 0, 16)
+	skipped := 0
 	for _, t := range tables {
 		if pattern == "" || strings.Contains(strings.ToLower(t.TableName), pattern) {
+			if skipped < offset {
+				skipped++
+				continue
+			}
 			out = append(out, t)
 			if limit > 0 && len(out) >= limit {
 				break

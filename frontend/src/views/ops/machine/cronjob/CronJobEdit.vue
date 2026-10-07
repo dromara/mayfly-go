@@ -29,7 +29,7 @@ import CrontabInput from '@/components/crontab/CrontabInput.vue';
 import { computed, type PropType } from 'vue';
 import TagTreeCheck from '../../component/TagTreeCheck.vue';
 import { cronJobApi } from '../api';
-import { CronJobSaveExecResTypeEnum, CronJobStatusEnum } from '../enums';
+import { CronJobNotifyTypeEnum, CronJobSaveExecResTypeEnum, CronJobStatusEnum } from '../enums';
 import type { MachineCronJob, MachineCronJobForm } from '../types';
 import type { ResourceTag } from '@/types/common';
 
@@ -53,6 +53,10 @@ const items = defineFormItems<MachineCronJobForm>([
     { prop: 'cron', label: 'machine.cronExpression', required: true, slot: 'cron' },
     { prop: 'status', label: 'common.status', type: 'enum', enums: CronJobStatusEnum, required: true },
     { prop: 'saveExecResType', label: 'machine.execResRecordType', type: 'enum', enums: CronJobSaveExecResTypeEnum, required: true },
+    { prop: 'timeoutSeconds', label: 'machine.cronJobTimeout', type: 'number', tooltip: 'machine.cronJobTimeoutTips' },
+    { prop: 'retryTimes', label: 'machine.cronJobRetryTimes', type: 'number', tooltip: 'machine.cronJobRetryTips' },
+    { prop: 'notifyType', label: 'machine.cronJobNotifyType', type: 'enum', enums: CronJobNotifyTypeEnum },
+    { prop: 'notifyTmplCode', label: 'machine.cronJobNotifyTmpl', tooltip: 'machine.cronJobNotifyTmplTips' },
     { prop: 'remark', label: 'common.remark' },
     { prop: 'script', label: 'machine.script', type: 'monaco', required: true, props: { language: 'shell', height: '200px' } },
     { prop: 'codePaths', label: 'machine.relateMachine', slot: 'codePaths' },
@@ -70,7 +74,7 @@ const editData = computed<Partial<MachineCronJobForm>>(() => {
             codePaths: props.data.tags?.map((tag: ResourceTag) => tag.codePath),
         };
     }
-    return { script: '', status: 1 };
+    return { script: '', status: 1, timeoutSeconds: 0, retryTimes: 0, notifyType: 0 };
 });
 
 // 统一提交：confirmApi 由 AutoFormDrawer 内置逻辑驱动（校验 → 保存 → 成功提示 → submitted → 关闭抽屉，全程 loading 防重复提交）

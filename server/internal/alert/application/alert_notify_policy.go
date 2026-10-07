@@ -23,8 +23,10 @@ type AlertNotifyPolicy interface {
 	DeleteNotifyPolicy(ctx context.Context, id uint64) error
 	ChangeStatus(ctx context.Context, id uint64, status int8) error
 
-	// MatchPolicies 查找所有标签匹配事件的通知策略
-	MatchPolicies(ctx context.Context, eventLabels map[string]string) ([]*entity.AlertNotifyPolicy, error)
+	// ListEnabledWithLabels 返回所有启用策略并回填各策略的 MatchLabels（JSON）。
+	// 调用方（告警引擎）拿到列表后用 matchRuleLabelsMap 自行匹配，
+	// 与静默/升级策略的匹配方式保持一致，且便于引擎按周期缓存避免逐次通知全量查库
+	ListEnabledWithLabels(ctx context.Context) ([]*entity.AlertNotifyPolicy, error)
 
 	// GetChannelDistribution 按渠道统计关联的启用策略数（概览用）
 	GetChannelDistribution() (map[string]int64, error)
@@ -102,9 +104,10 @@ func (a *alertNotifyPolicyAppImpl) ChangeStatus(ctx context.Context, id uint64, 
 	return a.UpdateById(ctx, policy)
 }
 
-// MatchPolicies 查找所有标签匹配事件的通知策略。
-// matchLabels 为空表示匹配所有事件，非空要求事件标签包含策略的所有标签（AND 子集匹配）。
-func (a *alertNotifyPolicyAppImpl) MatchPolicies(ctx context.Context, eventLabels map[string]string) ([]*entity.AlertNotifyPolicy, error) {
+// ListEnabledWithLabels 返回所有启用策略并回填各策略的 MatchLabels（JSON）。
+// 标签绑定批量加载（一次查询代替 N 次）；回填后的标签值由调用方用 parseRuleLabels 解析。
+// 匹配语义：策略 MatchLabels 为空匹配所有事件，非空要求事件标签包含其全部键值对（AND 子集）
+func (a *alertNotifyPolicyAppImpl) ListEnabledWithLabels(ctx context.Context) ([]*entity.AlertNotifyPolicy, error) {
 	policies, err := a.GetRepo().ListEnabled()
 	if err != nil {
 		return nil, err
@@ -123,14 +126,16 @@ func (a *alertNotifyPolicyAppImpl) MatchPolicies(ctx context.Context, eventLabel
 		return nil, err
 	}
 
-	var matched []*entity.AlertNotifyPolicy
 	for _, p := range policies {
-		policyLabels := bindingsToMap(allLabels[p.Id])
-		if matchRuleLabelsMap(policyLabels, eventLabels) {
-			matched = append(matched, p)
+		if labels := bindingsToMap(allLabels[p.Id]); len(labels) > 0 {
+			b, err := json.Marshal(labels)
+			if err != nil {
+				return nil, err
+			}
+			p.MatchLabels = string(b)
 		}
 	}
-	return matched, nil
+	return policies, nil
 }
 
 func (a *alertNotifyPolicyAppImpl) GetChannelDistribution() (map[string]int64, error) {

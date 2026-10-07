@@ -33,14 +33,14 @@ type Repo[T model.ModelI] interface {
 	// 使用指定gorm db执行，主要用于事务执行
 	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error
 
-	// UpdateByCond 更新满足条件的数据
+	// UpdateByCond 更新满足条件的数据，并回报真正被改动的行数（行数的判读边界见 RepoImpl.UpdateByCond）
 	//  -  values 需要模型结构体或map
 	//  -  cond 条件
-	UpdateByCond(ctx context.Context, values any, cond any) error
+	UpdateByCond(ctx context.Context, values any, cond any) (int64, error)
 
-	// UpdateByCondWithDb 更新满足条件的数据
+	// UpdateByCondWithDb 更新满足条件的数据，并回报真正被改动的行数
 	//  -  values 需要模型结构体或map
-	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error
+	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) (int64, error)
 
 	// Save 保存实体，实体IsCreate返回true则新增，否则更新
 	Save(ctx context.Context, e T) error
@@ -141,40 +141,51 @@ func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, c
 	return gormx.UpdateByIdWithDb(db, br.fillBaseInfo(ctx, e), columns...)
 }
 
-func (br *RepoImpl[T]) UpdateByCond(ctx context.Context, values any, cond any) error {
+// UpdateByCond 更新满足条件的数据，并回报真正被改动的行数。
+//
+// 仓储只回事实不做判断：0 行对多数条件更新是正常态（无满足条件的数据、幂等重写），
+// 而驱动口径下把相同值写回去也是 0 行。需要按行数判「有没有抢到这次流转」的调用方，
+// 应写在名字就说明意图的业务方法里，并确保 SET 的值必然不同于旧值（如带 status=旧状态 的条件）
+func (br *RepoImpl[T]) UpdateByCond(ctx context.Context, values any, cond any) (int64, error) {
 	return br.UpdateByCondWithDb(ctx, GetDbFromCtx(ctx), values, cond)
 }
 
-func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error {
+func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) (int64, error) {
+	normalized := br.normalizeUpdateValues(ctx, values)
+	if db == nil {
+		return gormx.UpdateByCond(br.GetModel(), normalized, toQueryCond(cond))
+	}
+	return gormx.UpdateByCondWithDb(db, br.GetModel(), normalized, toQueryCond(cond))
+}
+
+// normalizeUpdateValues 把更新值归一成 gormx 可用的形态：
+// 实体走 fillBaseInfo 补修改人等信息并清空主键（否则会被当成查询条件），map 则补更新时间与修改人
+func (br *RepoImpl[T]) normalizeUpdateValues(ctx context.Context, values any) any {
 	if e, ok := values.(T); ok {
 		// 先随机设置一个id，让fillBaseInfo不填充create信息
 		e.SetId(1)
 		e = br.fillBaseInfo(ctx, e)
 		// model的主键值需为空，否则会带上主键条件
 		e.SetId(0)
-		values = e
-	} else {
-		var mapValues map[string]any
-		// 非model实体，则为map
-		if m, ok := values.(map[string]any); ok {
-			mapValues = m
-		} else if collxm, ok := values.(collx.M); ok {
-			mapValues = map[string]any(collxm)
-		}
-		if len(mapValues) > 0 {
-			mapValues[model.UpdateTimeColumn] = time.Now()
-			if la := contextx.GetLoginAccount(ctx); la != nil {
-				mapValues[model.ModifierColumn] = la.Username
-				mapValues[model.ModifierIdColumn] = la.Id
-			}
-			values = mapValues
-		}
+		return e
 	}
 
-	if db == nil {
-		return gormx.UpdateByCond(br.GetModel(), values, toQueryCond(cond))
+	var mapValues map[string]any
+	// 非model实体，则为map
+	if m, ok := values.(map[string]any); ok {
+		mapValues = m
+	} else if collxm, ok := values.(collx.M); ok {
+		mapValues = map[string]any(collxm)
 	}
-	return gormx.UpdateByCondWithDb(db, br.GetModel(), values, toQueryCond(cond))
+	if len(mapValues) == 0 {
+		return values
+	}
+	mapValues[model.UpdateTimeColumn] = time.Now()
+	if la := contextx.GetLoginAccount(ctx); la != nil {
+		mapValues[model.ModifierColumn] = la.Username
+		mapValues[model.ModifierIdColumn] = la.Id
+	}
+	return mapValues
 }
 
 func (br *RepoImpl[T]) Save(ctx context.Context, e T) error {

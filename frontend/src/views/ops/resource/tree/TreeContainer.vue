@@ -1,19 +1,22 @@
 <template>
-    <!-- 树库依赖已收口到引擎适配器（TreeEngineV2）：容器只面向引擎契约，换树库仅换一行 import -->
-    <TreeEngineV2
+    <!-- 树库依赖已收口到通用 VirtualTree（引擎差异全在适配器）：容器只面向归一化契约，换树库仅换 defaultAdapter -->
+    <VirtualTree
         ref="engineRef"
         class="w-full h-full overflow-hidden"
-        :data="data"
+        :data="treeData"
         :expanded-keys="expandedKeysArray"
         :filter-text="filterText"
+        :filter-method="filterMethod"
         :height="height"
-        :show-actions="showActions"
         @node-click="onNodeClick"
         @node-expand="onNodeExpand"
         @node-collapse="onNodeCollapse"
-        @node-retry="onRetryError"
-        @row-contextmenu="onNodeContextmenu"
-    />
+    >
+        <!-- 行渲染/重试/右键在行插槽内直连业务组件（不再经引擎转发层） -->
+        <template #default="{ data: node }">
+            <TreeRowContent :node="node" :show-actions="showActions" @retry="onRetryError" @row-contextmenu="onNodeContextmenu" />
+        </template>
+    </VirtualTree>
 
     <Contextmenu ref="contextmenuRef" :dropdown="dropdown" :items="contextmenuItems" />
 </template>
@@ -21,28 +24,21 @@
 <script lang="ts" setup>
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef } from 'vue';
 
+import { isPrefixSubsequence } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
+import { VirtualTree, type VirtualTreeInstance } from '@/components/virtual-tree';
 
 import { findTriggerCommand, resolveNodeMenu } from './commands';
 import { TreeApiKey } from './context';
 import { DEFAULT_TREE_SCOPE, treeEvents } from './events';
 import { getContributor } from './registry';
-import {
-    ERROR_KIND,
-    LOADING_KIND,
-    type LocateOutcome,
-    type LocateResolver,
-    type TreeNode,
-    type TreeNodeData,
-    type TreeApi,
-    type TreeEngineExpose,
-} from './types';
-import TreeEngineV2 from './TreeEngineV2.vue';
+import { type LocateOutcome, type LocateResolver, type TreeNode, type TreeNodeData, type TreeApi } from './types';
+import TreeRowContent from './TreeRowContent.vue';
 import { useLazyTree } from './useLazyTree';
 
 /**
  * 通用资源树容器（核心对具体资产/树库双重零知识）：
- * - 引擎适配器（TreeEngineV2）隔离树库，容器只面向引擎契约，换树库仅换适配器；
+ * - 通用 VirtualTree 隔离树库，容器只面向归一化契约，换树库仅换适配器；
  * - useLazyTree 懒加载水合层；节点渲染/单击/双击/右键/悬浮操作由贡献者与命令注册表声明；
  * - 失效/定位通过 treeEvents 事件总线，操作方无需持有树实例。
  */
@@ -74,10 +70,10 @@ const props = withDefaults(
 
 const emit = defineEmits<{ 'node-click': [node: TreeNode] }>();
 
-const engineRef = useTemplateRef<TreeEngineExpose>('engineRef');
+const engineRef = useTemplateRef<VirtualTreeInstance>('engineRef');
 const contextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('contextmenuRef');
 
-const { data, expandedKeys, init, expandNode, collapseNode, refresh, ensureVisible, getNode, onAfterHydrate } = useLazyTree({
+const { data, expandedKeys, init, expandNode, collapseNode, refresh, appendChildren, ensureVisible, getNode, onAfterHydrate } = useLazyTree({
     loadChildren: async (node) => decorate((await getContributor(node.kind)?.loadChildren?.(node)) ?? []),
     loadRoot: async () => decorate(await props.loadRoot()),
 });
@@ -86,6 +82,12 @@ const { data, expandedKeys, init, expandNode, collapseNode, refresh, ensureVisib
 const decorate = (nodes: TreeNodeData[]) => (props.transformNode ? nodes.map((n) => props.transformNode!(n)) : nodes);
 
 const expandedKeysArray = computed(() => Array.from(expandedKeys.value));
+
+/** 水合层 TreeNode（无索引签名的 interface）→ VirtualTree 归一化数据契约的桥接 */
+const treeData = computed(() => data.value as unknown as Record<string, unknown>[]);
+
+/** 过滤谓词（前缀子序列匹配，与树库无关）：容器提供谓词，VirtualTree 负责防抖接线到引擎 */
+const filterMethod = (query: string, node: Record<string, unknown>) => !query || isPrefixSubsequence(query, String(node.label ?? ''));
 
 // 根加载
 onMounted(() => {
@@ -165,7 +167,10 @@ const treeApi: TreeApi = {
     refresh: (key?: string) => {
         refresh(key).catch((e) => console.error('[tree] refresh failed:', key, e));
     },
+    expandNode,
     getNode,
+    // appendChildren 须与 loadChildren/loadRoot 同经 decorate：引用面板(transformNode)下续载节点不跳过装饰
+    appendChildren: (key, nodes, options) => appendChildren(key, decorate(nodes), options),
 };
 
 /** 按外部资源标识定位（快捷跳转/最近操作）：交由注入的 resolveLocate 解析为节点 key 后展开高亮 */
@@ -201,7 +206,8 @@ onBeforeUnmount(() => {
 
 let lastClick: { key: string; time: number } | null = null;
 
-const onNodeClick = (node: TreeNode) => {
+const onNodeClick = (raw: Record<string, unknown>) => {
+    const node = raw as unknown as TreeNode;
     // 关闭可能存在的右键菜单
     contextmenuRef.value?.closeContextmenu();
     emit('node-click', node);
@@ -229,6 +235,12 @@ const onNodeClick = (node: TreeNode) => {
     const cmd = findTriggerCommand(node, treeApi, 'click');
     if (cmd) {
         cmd.handler({ node, tree: treeApi });
+        // 挂了单击命令的实例行（打开操作面板）也要能就地展开：
+        // 没有该命令的资源（DB/Redis 实例）点行本来就能展开，两类资源行为不一致会让人以为「点了没反应」。
+        // 这里只展开不折叠——收起仍归箭头与双击管，避免连击把刚打开的子树又收掉。
+        if (node.hasChildren && !expandedKeys.value.has(node.key)) {
+            expandNode(node.key);
+        }
         return;
     }
     // 无单击命令的可展开节点：单击直接切换展开（展开态单源自管，比双击更顺滑）
@@ -256,19 +268,10 @@ const onNodeDblclick = (node: TreeNode) => {
     }
 };
 
-const onNodeExpand = (node: TreeNode) => {
-    if (node.kind === LOADING_KIND || node.kind === ERROR_KIND) {
-        return;
-    }
-    expandNode(node.key);
-};
+// 占位/错误行的展开/折叠过滤已下沉 useLazyTree 入口（数据层语义自治）：容器只透传 key
+const onNodeExpand = (raw: Record<string, unknown>) => expandNode(String(raw.key));
 
-const onNodeCollapse = (node: TreeNode) => {
-    if (node.kind === LOADING_KIND || node.kind === ERROR_KIND) {
-        return;
-    }
-    collapseNode(node.key);
-};
+const onNodeCollapse = (raw: Record<string, unknown>) => collapseNode(String(raw.key));
 
 const onRetryError = (node: TreeNode) => {
     const target = (node.params?.retryTarget as string) ?? '';

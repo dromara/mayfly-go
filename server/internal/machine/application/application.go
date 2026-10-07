@@ -12,6 +12,11 @@ func InitIoc() {
 	ioc.Register(new(machineCronJobAppImpl))
 	ioc.Register(new(machineTermOpAppImpl))
 	ioc.Register(new(machineCmdConfAppImpl))
+	ioc.Register(new(machineHostKeyAppImpl))
+	ioc.Register(new(machineBatchExecImpl))
+	ioc.Register(new(machineMetricAppImpl))
+	ioc.Register(new(machineDiskAppImpl))
+	ioc.Register(new(machineBatchFileAppImpl))
 }
 
 func Init() {
@@ -21,6 +26,8 @@ func Init() {
 		GetMachineApp().TimerUpdateStats()
 
 		GetMachineTermOpApp().TimerDeleteTermOp()
+
+		GetMachineMetricApp().TimerDeleteMetric()
 	})()
 }
 
@@ -46,4 +53,24 @@ func GetMachineTermOpApp() MachineTermOp {
 
 func GetMachineCmdConfApp() MachineCmdConf {
 	return ioc.Get[MachineCmdConf]()
+}
+
+func GetMachineHostKeyApp() MachineHostKey {
+	return ioc.Get[MachineHostKey]()
+}
+
+func GetMachineBatchExecApp() MachineBatchExec {
+	return ioc.Get[MachineBatchExec]()
+}
+
+func GetMachineMetricApp() MachineMetric {
+	return ioc.Get[MachineMetric]()
+}
+
+func GetMachineDiskApp() MachineDisk {
+	return ioc.Get[MachineDisk]()
+}
+
+func GetMachineBatchFileApp() MachineBatchFile {
+	return ioc.Get[MachineBatchFile]()
 }

@@ -338,12 +338,13 @@ func upsertSkillInstance(ctx context.Context, instRepo repository.PluginInstance
 			Enabled:     1,
 		})
 	}
-	// map 更新保零值可写（description 可能被清空）
-	return instRepo.UpdateByCond(ctx, map[string]any{
+	// map 更新保零值可写（description 可能被清空）；这里不关心改了几行，同值重写也是成功
+	_, err = instRepo.UpdateByCond(ctx, map[string]any{
 		"name":        skillRow.Name,
 		"description": skillRow.Description,
 		"config":      string(cfg),
 	}, model.NewCond().Eq("id", existing.Id))
+	return err
 }
 
 // deleteSkillInstance 技能删除时联动删除其引用实例

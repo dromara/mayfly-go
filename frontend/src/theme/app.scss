@@ -357,3 +357,17 @@ body,
     color: var(--el-color-primary);
     /* 鼠标移动到图标时的颜色 */
 }
+
+/* 列表空态（PageTable 的 #empty 插槽）
+------------------------------- */
+// 「暂无数据」只说明没有数据，不说明这里能放什么、去哪儿创建；空态由页面给主副两句，
+// 副句弱于主句，避免和表格正文抢层级
+.table-empty p {
+    margin: 0;
+    line-height: 22px;
+}
+
+.table-empty .empty-tip {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}

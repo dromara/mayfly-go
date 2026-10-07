@@ -279,11 +279,24 @@ html.dark {
 
 // dialog 动画
 /* Bounce Animation */
+// 弹跳曲线是刻意的质感，保留在 transform 上；但原来一处 `transition: all 0.5s` 有两个实际问题：
+// 一是遮罩层被 `all` 连带着把布局属性一起动画（展开时可见拖帧），二是 0.5s 让对方内容迟到半秒
+// 才可用。这里只让 opacity/transform 参与动画，并压回 240/200ms（进场略慢于退场，读起来不抢）
 .dialog-bounce-enter-active,
-.dialog-bounce-leave-active,
-.dialog-bounce-enter-active .el-dialog,
+.dialog-bounce-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.dialog-bounce-enter-active .el-dialog {
+    transition:
+        opacity 0.2s ease,
+        transform 0.24s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 .dialog-bounce-leave-active .el-dialog {
-    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition:
+        opacity 0.2s ease,
+        transform 0.18s ease-out;
 }
 
 .dialog-bounce-enter-from,
@@ -295,4 +308,114 @@ html.dark {
 .dialog-bounce-leave-to .el-dialog {
     transform: scale(0.3) translateY(-50px);
     opacity: 0;
+}
+
+// 系统要求减少动效时只留淡入淡出：位移 + 过冲正是这类用户需要避开的部分
+@media (prefers-reduced-motion: reduce) {
+    .dialog-bounce-enter-active,
+    .dialog-bounce-leave-active,
+    .dialog-bounce-enter-active .el-dialog,
+    .dialog-bounce-leave-active .el-dialog {
+        transition: opacity 0.15s linear;
+    }
+
+    .dialog-bounce-enter-from .el-dialog,
+    .dialog-bounce-leave-to .el-dialog {
+        transform: none;
+    }
+}
+
+/* 文字与状态的可读性（WCAG AA）
+------------------------------- */
+// EP 默认拿语义色中阶直接做文字：实测「需审批」徽标 2.52:1、主按钮白字 2.78:1、
+// 表格行内链接按钮 2.78:1、输入框聚焦环对白 2.78:1，而处置级别与工单状态全靠这几类元素表意，
+// 项目自己的 PRODUCT.md 也写了正文对比度 ≥4.5:1。这里只把「文字」加深一档，色相、浅底与描边都不动。
+// 必须限定在亮色主题：暗色下 EP 默认 #409eff 对近黑底是 6.93:1（实测），
+// 压暗的蓝落到暗底上反而掉到 3.38:1 —— 不加收窄就是把暗色改坏。
+// 还要排除 dark 效果：实心底上 EP 用的是白字，压暗的深字叠到同色实底只剩 2.05:1（实测）
+// dark 变体是实心底 + 白字：EP 默认底 #67c23a 上白字只有 2.24:1，压深底色而不是改文字色
+// （改文字色会让深字压深底更糟，实测 2.05:1）
+html:not(.dark) {
+    .el-tag--dark.el-tag--success {
+        --el-tag-bg-color: var(--app-color-success-readable);
+        --el-tag-border-color: var(--app-color-success-readable);
+    }
+}
+
+// 暗色下反过来：底色取浅绿档、文字取深底色，两者对调才能保证对比度
+html.dark {
+    .el-tag--dark.el-tag--success {
+        --el-tag-bg-color: var(--app-color-success-readable);
+        --el-tag-border-color: var(--app-color-success-readable);
+        --el-tag-text-color: #141414;
+    }
+}
+
+html:not(.dark) {
+    .el-tag.el-tag--primary:not(.el-tag--dark) {
+        --el-tag-text-color: #2b68ad; // vs 浅底 5.16:1
+    }
+    .el-tag.el-tag--success:not(.el-tag--dark) {
+        --el-tag-text-color: #3f7a1f; // 4.85:1
+    }
+    .el-tag.el-tag--warning:not(.el-tag--dark) {
+        --el-tag-text-color: #7a5310; // 6.37:1
+    }
+    .el-tag.el-tag--danger:not(.el-tag--dark) {
+        --el-tag-text-color: #a83a3a; // 5.68:1
+    }
+    .el-tag.el-tag--info:not(.el-tag--dark) {
+        --el-tag-text-color: #5c5f66;
+    }
+}
+
+// 实心主按钮：hover/active 也一律保持白字 ≥4.5（EP 默认 hover 变浅，会把对比度反向做到 2.78）
+.el-button--primary {
+    --el-button-bg-color: #2f6fbd;
+    --el-button-border-color: #2f6fbd;
+    --el-button-hover-bg-color: #2b68ad;
+    --el-button-hover-border-color: #2b68ad;
+    --el-button-active-bg-color: #1f5ea8;
+    --el-button-active-border-color: #1f5ea8;
+}
+
+// 链接型与文字型按钮是列表行里最高频的入口（编辑/详情/审核…），同样取深一档文字
+// 同样只在亮色生效：暗色下默认亮蓝对 #1d1e1f 有 6.01:1，压暗会掉到 2.93:1（实测）
+html:not(.dark) {
+    .el-button--primary.is-link,
+    .el-button--primary.is-text,
+    .el-button--primary.is-plain {
+        --el-button-text-color: #2b68ad;
+        --el-button-hover-text-color: #1f5ea8;
+    }
+}
+
+// 「字段名」这一层只留一档字重：EP 把带边框描述列表的标签写成 700，而表头是 600，
+// 同一层语义两种字重会让人以为它们分属不同层级（选择器与 EP 原规则同结构，靠引入顺序覆盖）
+.el-descriptions__label.el-descriptions__cell.is-bordered-label {
+    font-weight: 600;
+}
+
+// 非文本控件的指示色（聚焦环、勾选态描边）对白底需 ≥3:1，主色中阶只有 2.78
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+    --el-input-focus-border-color: #2f6fbd;
+}
+
+/* 可读语义色阶
+------------------------------- */
+// EP 的中阶语义色（success #67c23a / warning #e6a23c / danger #f56c6c）在白底上只有
+// 2.24 / 2.19 / 2.90:1，拿来当文字色或细线色直接不达 WCAG AA（正文需 ≥4.5:1）。
+// 这里按主题各给一档，凡是要被读成文字或作为状态线索的地方都取这套值：
+// 策略变更时间线的增删改行、校验结果的错误/警告条目、卡片左侧状态线、实底状态标签
+:root {
+    --app-color-success-readable: #3f7a1f; // 白底 5.23:1
+    --app-color-warning-readable: #8a5b12; // 5.86:1
+    --app-color-danger-readable: #b03a3a; // 5.98:1
+}
+
+html.dark {
+    --app-color-success-readable: #95d475; // 深底(#1d1e1f) 9.50:1
+    --app-color-warning-readable: #e6c07a; // 9.69:1
+    --app-color-danger-readable: #f89890; // 7.86:1
 }

@@ -54,6 +54,8 @@ var listDesc = withDefault(&entity.ViewDescriptor{
 		op("lpop", "redis.opLPop", true, form(numberField(argCount, "redis.colCount", false))),
 		op("rpop", "redis.opRPop", true, form(numberField(argCount, "redis.colCount", false))),
 	},
+	// ReadCmd 面板读取本视角内容等价的命令名，触发策略判定与「申请查看」提单同口径
+	ReadCmd: "LRANGE",
 })
 
 type listHandler struct{}

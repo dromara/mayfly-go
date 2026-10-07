@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/service"
+	"mayfly-go/internal/alert/imsg"
 	machineapp "mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/mcm"
 	pkgconsts "mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"reflect"
+	"sync"
 )
 
 // 机器指标名
@@ -24,43 +26,44 @@ const (
 type MachineEvaluator struct {
 	machineApp machineapp.Machine `inject:"T"`
 	// metrics 指标注册表：key=指标名，value=提取器（定义 + 取值逻辑自包含）
-	metrics metricRegistry
+	metrics metricRegistry[*mcm.Stats]
+	// metricsOnce 注册表只初始化一次：评估器为单例，引擎评估与 Metrics() 查询可能并发首次触发
+	metricsOnce sync.Once
 }
 
 var _ service.AlertEvaluator = (*MachineEvaluator)(nil)
 
 func init() {
-	registerEvaluatorFactory[MachineEvaluator]()
+	registerEvaluator(&MachineEvaluator{})
 }
 
 // initMetrics 初始化机器指标注册表。
-// 新增指标只需在此追加一行注册，无需修改 extractMetric 等现有逻辑。
+// 新增指标只需在此追加一行注册（含 Label/LabelMsgId 展示文案与提取函数），
+// 并在 imsg 的两语言文件补充对应文案，无需修改 extractMetric 等现有逻辑。
 func (e *MachineEvaluator) initMetrics() {
-	e.metrics = make(metricRegistry)
-	e.metrics.register(&MetricExtractor{
-		Definition: service.MetricDefinition{Key: MetricCpuRate, Label: "alert.metricCpuRate", Unit: "%", IsPercent: true, HasRange: true, Min: 0, Max: 100},
+	e.metrics = make(metricRegistry[*mcm.Stats])
+	e.metrics.register(&MetricExtractor[*mcm.Stats]{
+		Definition: service.MetricDefinition{Key: MetricCpuRate, Label: "alert.metricCpuRate", LabelMsgId: imsg.MetricCpuRate, Unit: "%", IsPercent: true, HasRange: true, Min: 0, Max: 100},
 		Extract:    extractCpuRate,
 	})
-	e.metrics.register(&MetricExtractor{
-		Definition: service.MetricDefinition{Key: MetricMemRate, Label: "alert.metricMemRate", Unit: "%", IsPercent: true, HasRange: true, Min: 0, Max: 100},
+	e.metrics.register(&MetricExtractor[*mcm.Stats]{
+		Definition: service.MetricDefinition{Key: MetricMemRate, Label: "alert.metricMemRate", LabelMsgId: imsg.MetricMemRate, Unit: "%", IsPercent: true, HasRange: true, Min: 0, Max: 100},
 		Extract:    extractMemRate,
 	})
-	e.metrics.register(&MetricExtractor{
-		Definition: service.MetricDefinition{Key: MetricDiskUsage, Label: "alert.metricDiskUsage", Unit: "%", IsPercent: true, HasRange: true, Min: 0, Max: 100},
+	e.metrics.register(&MetricExtractor[*mcm.Stats]{
+		Definition: service.MetricDefinition{Key: MetricDiskUsage, Label: "alert.metricDiskUsage", LabelMsgId: imsg.MetricDiskUsage, Unit: "%", IsPercent: true, HasRange: true, Min: 0, Max: 100},
 		Extract:    extractDiskUsage,
 	})
 	// status 指标特殊：不依赖 stats 对象，以"能否取到新鲜状态"判定在线/离线
-	e.metrics.register(&MetricExtractor{
-		Definition: service.MetricDefinition{Key: MetricStatus, Label: "alert.metricStatus", Unit: "", HasRange: true, Min: 0, Max: 1},
+	e.metrics.register(&MetricExtractor[*mcm.Stats]{
+		Definition: service.MetricDefinition{Key: MetricStatus, Label: "alert.metricStatus", LabelMsgId: imsg.MetricStatus, Unit: "", HasRange: true, Min: 0, Max: 1},
 		Extract:    extractStatus,
 	})
 }
 
 // ensureMetrics 懒初始化指标注册表（IoC 创建实例后首次调用时触发）
 func (e *MachineEvaluator) ensureMetrics() {
-	if e.metrics == nil {
-		e.initMetrics()
-	}
+	e.metricsOnce.Do(e.initMetrics)
 }
 
 func (e *MachineEvaluator) ResourceType() int8 {
@@ -209,51 +212,32 @@ func (e *MachineEvaluator) usesStatusMetric(condition *entity.AlertCondition) bo
 //
 // 完全委托指标注册表，无特殊分支：每个指标的 Extract 函数自行处理 statsErr。
 // 新增指标只需在 initMetrics 中注册，此处逻辑完全不变。
-func (e *MachineEvaluator) extractMetric(stats interface{}, statsErr error, metric string) (float64, error) {
+func (e *MachineEvaluator) extractMetric(stats *mcm.Stats, statsErr error, metric string) (float64, error) {
 	return e.metrics.extract(stats, statsErr, metric)
 }
 
 // extractStatus 在线状态指标：取不到 stats 时视为离线(0)，取到时视为在线(1)。
-func extractStatus(_ interface{}, statsErr error) (float64, error) {
+func extractStatus(_ *mcm.Stats, statsErr error) (float64, error) {
 	if statsErr != nil {
 		return 0, nil // 离线
 	}
 	return 1, nil // 在线
 }
 
-func extractCpuRate(stats interface{}, statsErr error) (float64, error) {
+// extractCpuRate CPU 使用率 = 100 - 空闲占比
+func extractCpuRate(stats *mcm.Stats, statsErr error) (float64, error) {
 	if statsErr != nil {
 		return 0, fmt.Errorf("machine stats unavailable: %w", statsErr)
 	}
-	v := reflect.ValueOf(stats)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	cpu := v.FieldByName("CPU")
-	if !cpu.IsValid() {
-		return 0, fmt.Errorf("CPU field not found in stats")
-	}
-	idle := cpu.FieldByName("Idle")
-	if !idle.IsValid() {
-		return 0, fmt.Errorf("CPU.Idle field not found")
-	}
-	return 100 - idle.Float(), nil
+	return 100 - float64(stats.CPU.Idle), nil
 }
 
-func extractMemRate(stats interface{}, statsErr error) (float64, error) {
+func extractMemRate(stats *mcm.Stats, statsErr error) (float64, error) {
 	if statsErr != nil {
 		return 0, fmt.Errorf("machine stats unavailable: %w", statsErr)
 	}
-	v := reflect.ValueOf(stats)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	mem := v.FieldByName("MemInfo")
-	if !mem.IsValid() {
-		return 0, fmt.Errorf("MemInfo field not found in stats")
-	}
-	total := mem.FieldByName("Total").Uint()
-	available := mem.FieldByName("Available").Uint()
+	total := stats.MemInfo.Total
+	available := stats.MemInfo.Available
 	// 总内存为 0 说明数据不可信，返回错误而非伪造成 0%，避免误判为"已恢复"
 	if total == 0 {
 		return 0, fmt.Errorf("memory total is 0, stats data unreliable")
@@ -261,32 +245,24 @@ func extractMemRate(stats interface{}, statsErr error) (float64, error) {
 	return float64(total-available) / float64(total) * 100, nil
 }
 
-func extractDiskUsage(stats interface{}, statsErr error) (float64, error) {
+func extractDiskUsage(stats *mcm.Stats, statsErr error) (float64, error) {
 	if statsErr != nil {
 		return 0, fmt.Errorf("machine stats unavailable: %w", statsErr)
 	}
-	v := reflect.ValueOf(stats)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	fsInfos := v.FieldByName("FSInfos")
-	if !fsInfos.IsValid() || fsInfos.Len() == 0 {
+	if len(stats.FSInfos) == 0 {
 		return 0, fmt.Errorf("no filesystem info in stats")
 	}
 
 	// 优先根分区；不存在时取所有挂载点中最高使用率（告警场景关注最满的盘）
 	var maxUsage float64
 	var maxFound bool
-	for i := 0; i < fsInfos.Len(); i++ {
-		fs := fsInfos.Index(i)
-		used := fs.FieldByName("Used").Uint()
-		free := fs.FieldByName("Free").Uint()
-		total := used + free
+	for _, fs := range stats.FSInfos {
+		total := fs.Used + fs.Free
 		if total == 0 {
 			continue
 		}
-		usage := float64(used) / float64(total) * 100
-		if fs.FieldByName("MountPoint").String() == "/" {
+		usage := float64(fs.Used) / float64(total) * 100
+		if fs.MountPoint == "/" {
 			return usage, nil
 		}
 		if !maxFound || usage > maxUsage {

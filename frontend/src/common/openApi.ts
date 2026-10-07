@@ -6,7 +6,7 @@ interface LoginParam {
     username: string;
     password: string;
     captcha?: string;
-    captchaId?: string;
+    cid?: string;
 }
 
 interface RefreshTokenParam {
@@ -53,8 +53,8 @@ interface OAuth2LoginConfigRes {
 }
 
 interface CaptchaRes {
-    captchaId: string;
-    captchaImage: string;
+    cid: string;
+    base64Captcha: string;
 }
 
 export default {

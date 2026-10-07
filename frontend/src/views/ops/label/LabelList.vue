@@ -133,7 +133,9 @@ const onSave = async () => {
 };
 
 const onDelete = async (row: LabelVO) => {
-    await useI18nDeleteConfirm(`${row.labelKey}=${row.labelValue}`);
+    if (!(await useI18nDeleteConfirm(`${row.labelKey}=${row.labelValue}`))) {
+        return;
+    }
     await labelApi.del.request({ id: row.id });
     Msg.deleteSuccess();
     refreshLabelColors();
