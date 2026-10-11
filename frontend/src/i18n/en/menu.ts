@@ -57,6 +57,8 @@ export default {
         dbDataOpBase: 'DB-Base Permission',
         dbDataOpSqlScriptRun: 'DB-SQL Script Run',
         dbDataExport: 'DB-Data Export',
+        dbSessionList: 'DB-Active Sessions',
+        dbSessionCancel: 'DB-Cancel Session',
         dbInstance: 'DB Instance',
         dbInstanceBase: 'Base Permission',
         dbInstanceSave: 'Save Instance',

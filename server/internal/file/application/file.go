@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"io"
 	"mayfly-go/internal/file/domain/entity"
 	"mayfly-go/internal/file/domain/repository"
@@ -11,13 +10,13 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/writerx"
 	"path"
 	"time"
 
 	"github.com/spf13/cast"
-	"gorm.io/gorm"
 )
 
 type File interface {
@@ -29,19 +28,21 @@ type File interface {
 	//   - fileKey: 文件key，若不为空则使用该文件key，否则生成新的文件key
 	//   - filename: 文件名，带文件后缀
 	//   - r: 文件内容读取流
+	//   - accessMode: 访问模式，必显式声明（参数而非默认值，避免新增调用方默默产出可匿名下载的文件）
 	//
 	// 返回值:
 	//   - fileKey: 文件key
 	//   - error: 错误信息
 	//
 	// 注意：此方法会在defer中自动调用saveFunc，无论成功或失败都会正确处理文件保存或清理工作
-	Upload(ctx context.Context, fileKey string, filename string, r io.Reader) (string, error)
+	Upload(ctx context.Context, fileKey string, filename string, r io.Reader, accessMode entity.AccessMode) (string, error)
 
 	// NewWriter 创建文件writer
 	//
 	// 参数:
 	//   - canEmptyFileKey: 文件key，若不为空则使用该文件key，否则生成新的文件key
 	//   - filename: 文件名，带文件后缀
+	//   - accessMode: 访问模式，必显式声明；同 key 覆盖写时也以本次声明为准（写入方决定该产物给谁读）
 	//
 	// 返回值:
 	//   - fileKey: 文件key
@@ -50,7 +51,19 @@ type File interface {
 	//               必须在defer中调用才会入库保存该文件信息
 	//               若传入的错误参数不为nil，则不会保存文件信息，并会删除已创建的文件
 	//   - err: 错误信息
-	NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer io.Writer, closeFunc func(*error) error, err error)
+	NewWriter(ctx context.Context, canEmptyFileKey string, filename string, accessMode entity.AccessMode) (fileKey string, writer io.Writer, closeFunc func(*error) error, err error)
+
+	// CanAnonymousRead 判定该文件是否允许经通用匿名文件路由（GET /sys/files/:key）读取。
+	//
+	// 不存在返回文件不存在错误；非 public（含遗留零值）返回访问受限错误。
+	// 该判定只服务于匿名路由自身，业务模块的下载入口已在路由上校了权限码，
+	// 因此内部读取（如恢复备份文件）直接用 GetReader，不走本方法。
+	CanAnonymousRead(ctx context.Context, fileKey string) error
+
+	// ListPublicByKeys 按 key 集合返回可匿名读取的文件信息（映射至调用方提供的接收结构）。
+	//
+	// 私有文件不在结果里：元数据端点不校验权限，若原样返回就成了探测他人数据文件名与大小的旁路。
+	ListPublicByKeys(keys []string, res any) error
 
 	// GetReader 获取文件读取器
 	//
@@ -73,9 +86,9 @@ type fileAppImpl struct {
 
 var _ File = (*fileAppImpl)(nil)
 
-func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename string, r io.Reader) (string, error) {
+func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename string, r io.Reader, accessMode entity.AccessMode) (string, error) {
 	var err error
-	fileKey, writer, closeFunc, err := f.NewWriter(ctx, fileKey, filename)
+	fileKey, writer, closeFunc, err := f.NewWriter(ctx, fileKey, filename, accessMode)
 	if err != nil {
 		return fileKey, err
 	}
@@ -92,7 +105,7 @@ func (f *fileAppImpl) Upload(ctx context.Context, fileKey string, filename strin
 	return fileKey, nil
 }
 
-func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, filename string) (fileKey string, writer io.Writer, closeFunc func(*error) error, err error) {
+func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, filename string, accessMode entity.AccessMode) (fileKey string, writer io.Writer, closeFunc func(*error) error, err error) {
 	file := &entity.File{}
 
 	// 覆盖写场景下旧文件的信息：新文件写入并保存成功后再清理旧物理文件，
@@ -107,12 +120,15 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 		err := f.GetByCond(file)
 		if err == nil {
 			oldPath, oldStorageType, oldBucket = file.Path, file.StorageType, file.GetExtraString("bucket")
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		} else if !model.IsNotFound(err) {
 			// 查询异常不能当作新文件处理，否则同key覆盖语义会被破坏（旧文件不清理且可能产生重复记录）
 			return "", nil, nil, err
 		}
 	}
 	file.Filename = filename
+	// 访问模式以本次写入声明为准：上面按 key 查旧记录时 GetByCond 会把旧行的 access_mode 一并载入，
+	// 若不重新赋值，覆盖写会继承旧文件的公开度（例如先把产物当头像上传过、后被数据文件覆盖）
+	file.AccessMode = accessMode
 
 	// 记录文件所属存储介质及元信息（s3记录bucket），保证介质/桶切换后仍能按原介质访问或给出明确错误
 	info := storage.CurrentInfo()
@@ -169,12 +185,29 @@ func (f *fileAppImpl) NewWriter(ctx context.Context, canEmptyFileKey string, fil
 	return fileKey, countWriter, closeFunc, nil
 }
 
+// CanAnonymousRead 只有显式声明为 public 的文件才能经通用匿名路由读取；其余（含遗留零值）一律拒读。
+func (f *fileAppImpl) CanAnonymousRead(ctx context.Context, fileKey string) error {
+	file, err := f.getByKey(ctx, fileKey)
+	if err != nil {
+		return err
+	}
+	if !file.IsPublic() {
+		return errorx.NewBizI(ctx, imsg.ErrFileAccessDenied)
+	}
+	return nil
+}
+
+// ListPublicByKeys 只返回 public 文件信息，私有文件从结果中自然缺失（不告知存不存在）。
+func (f *fileAppImpl) ListPublicByKeys(keys []string, res any) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	return f.ListByCondToAny(model.NewCond().In("file_key", keys).Eq("access_mode", entity.FileAccessModePublic), res)
+}
+
 func (f *fileAppImpl) GetReader(ctx context.Context, fileKey string) (string, io.ReadCloser, error) {
-	file := &entity.File{FileKey: fileKey}
-	if err := f.GetByCond(file); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil, errorx.NewBizI(ctx, imsg.ErrFileNotFound)
-		}
+	file, err := f.getByKey(ctx, fileKey)
+	if err != nil {
 		return "", nil, err
 	}
 	s, err := storage.GetByFileInfo(ctx, file.StorageType, file.GetExtraString("bucket"))
@@ -185,10 +218,22 @@ func (f *fileAppImpl) GetReader(ctx context.Context, fileKey string) (string, io
 	return file.Filename, r, err
 }
 
+// getByKey 按 fileKey 取文件记录，单点收敛「不存在即业务错误」的口径（GetReader 与访问判定共用）。
+func (f *fileAppImpl) getByKey(ctx context.Context, fileKey string) (*entity.File, error) {
+	file := &entity.File{FileKey: fileKey}
+	if err := f.GetByCond(file); err != nil {
+		if model.IsNotFound(err) {
+			return nil, errorx.NewBizI(ctx, imsg.ErrFileNotFound)
+		}
+		return nil, err
+	}
+	return file, nil
+}
+
 func (f *fileAppImpl) Remove(ctx context.Context, fileKey string) error {
 	file := &entity.File{FileKey: fileKey}
 	if err := f.GetByCond(file); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if model.IsNotFound(err) {
 			return errorx.NewBizI(ctx, imsg.ErrFileNotFound)
 		}
 		return err

@@ -3,6 +3,7 @@ package migrations
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 
 // V1_12 v1.12.0 全量迁移，按领域分节组织。
 // 所有迁移均幂等设计：重复执行安全（按 id / code / column 查重后跳过）。
+// 原生 SQL 只能用 MySQL 与 SQLite 的方言交集：时间一律 Go 侧传参，禁止 NOW()/CONCAT() 等单方言函数。
 func V1_12() []*gormigrate.Migration {
 	return []*gormigrate.Migration{
 
@@ -58,7 +60,11 @@ func V1_12() []*gormigrate.Migration {
 			// LLM 消息并入 TurnItem 后，移除废弃的 session / session_message 表
 			ID: "v1.12.0-ai-session-merge-turn-item",
 			Migrate: func(tx *gorm.DB) error {
-				return tx.Exec("DROP TABLE IF EXISTS t_ai_session, t_ai_session_message").Error
+				// SQLite 不支持一条 DROP TABLE 删多张表，须逐表执行
+				if err := tx.Exec("DROP TABLE IF EXISTS t_ai_session").Error; err != nil {
+					return err
+				}
+				return tx.Exec("DROP TABLE IF EXISTS t_ai_session_message").Error
 			},
 			Rollback: noopRollback,
 		},
@@ -143,10 +149,46 @@ func V1_12() []*gormigrate.Migration {
 				if err := tx.AutoMigrate(&aientity.PluginInstance{}); err != nil {
 					return err
 				}
-				return tx.Exec(
-					"INSERT INTO t_ai_plugin_instance (code, plugin_type, name, description, config, enabled, status, creator_id, creator, modifier_id, modifier, create_time, update_time) " +
-						"SELECT s.code, 'skill', s.name, s.description, CONCAT('{\"skillCode\":\"', s.code, '\"}'), 1, 0, 1, 'admin', 1, 'admin', NOW(), NOW() " +
-						"FROM t_ai_skill s WHERE NOT EXISTS (SELECT 1 FROM t_ai_plugin_instance i WHERE i.code = s.code)").Error
+				// 行级同步而非 INSERT...SELECT：config 需在 Go 侧拼 JSON，
+				// 且迁移 SQL 须同时兼容 MySQL 与 SQLite（后者无 NOW/CONCAT 函数）
+				var skills []aientity.Skill
+				if err := tx.Model(&aientity.Skill{}).Select("code, name, description").Find(&skills).Error; err != nil {
+					return err
+				}
+				for _, s := range skills {
+					var count int64
+					if err := tx.Model(&aientity.PluginInstance{}).Where("code = ?", s.Code).Count(&count).Error; err != nil {
+						return err
+					}
+					if count > 0 {
+						continue
+					}
+					config, err := json.Marshal(map[string]string{"skillCode": s.Code})
+					if err != nil {
+						return err
+					}
+					instance := &aientity.PluginInstance{
+						Code:        s.Code,
+						PluginType:  aientity.PluginTypeSkill,
+						Name:        s.Name,
+						Description: s.Description,
+						Config:      string(config),
+						Enabled:     1,
+						Status:      aientity.PluginStatusUnknown,
+					}
+					// 迁移直插不经过仓储层填充钩子，create_time 等非空审计字段手动补齐
+					now := time.Now()
+					instance.CreateTime = &now
+					instance.CreatorId = 1
+					instance.Creator = "admin"
+					instance.UpdateTime = &now
+					instance.ModifierId = 1
+					instance.Modifier = "admin"
+					if err := tx.Create(instance).Error; err != nil {
+						return err
+					}
+				}
+				return nil
 			},
 			Rollback: noopRollback,
 		},
@@ -258,10 +300,11 @@ func V1_12() []*gormigrate.Migration {
 					if count > 0 {
 						continue
 					}
+					now := time.Now()
 					if err := tx.Exec(
 						"INSERT INTO t_db_mask_rule (id, name, match_type, pattern, algorithm, params, status, weight, remark, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) "+
-							"VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 1, 'admin', 1, 'admin', NOW(), NOW(), 0, NULL)",
-						r.id, r.name, r.matchType, r.pattern, r.algorithm, r.params, r.weight, "内置规则",
+							"VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 1, 'admin', 1, 'admin', ?, ?, 0, NULL)",
+						r.id, r.name, r.matchType, r.pattern, r.algorithm, r.params, r.weight, "内置规则", now, now,
 					).Error; err != nil {
 						return err
 					}
@@ -640,6 +683,79 @@ func V1_12() []*gormigrate.Migration {
 			},
 			Rollback: noopRollback,
 		},
+		{
+			// 文件访问模式：区分「展示类资产可匿名读」与「业务数据产物必须走所属模块带权限码的下载入口」。
+			//
+			// 通用文件内容路由不校验 token（头像与 AI 附件由 <img src>/<a href> 直接引用，浏览器无法附加
+			// Authorization 头），因此访问控制必须按文件用途收口，否则备份/导出等整库明文产物只要 key 泄露
+			// 就能被无凭证拉走。
+			//
+			// 存量行统一归为 public：这些行都是本能力引入前由展示类资产（头像、附件、录像回放）写入的，
+			// 若留在零值（既非 1 也非 2）则会被运行期按「未知即私有」处理，等于迁移把已有头像打挂。
+			ID: "v1.12.1-file-access-mode",
+			Migrate: func(tx *gorm.DB) error {
+				if err := tx.AutoMigrate(&fileentity.File{}); err != nil {
+					return err
+				}
+				return tx.Exec("UPDATE t_sys_file SET access_mode = ? WHERE access_mode IS NULL OR access_mode NOT IN (?, ?)",
+					fileentity.FileAccessModePublic, fileentity.FileAccessModePublic, fileentity.FileAccessModePrivate).Error
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 活动会话两个功能权限码（查看列表 / 取消他人会话）。
+			//
+			// 权限码是 fail-closed 的：后端路由一旦声明 RequiredPermissionCode，而 t_sys_resource 没有对应行，
+			// 除已被授予该码的角色外所有人都会 403（且界面上只会表现为「点了没反应」），
+			// 因此资源行必须与路由同批交付，不能等上线后再补。
+			ID: "v1.12.1-db-session-resources",
+			Migrate: func(tx *gorm.DB) error {
+				resources := []sysResourceDef{
+					{1780000001, 1768729997, "ocdrUNaa/mcZUtOzR/sess0001/", 2, "menu.dbSessionList", "db:session:list", 1780000001, "null"},
+					{1780000002, 1768729997, "ocdrUNaa/mcZUtOzR/sess0002/", 2, "menu.dbSessionCancel", "db:session:cancel", 1780000002, "null"},
+				}
+				for _, r := range resources {
+					// 授予 COMMON 角色与既有 db 系按钮一致，其余角色由管理员自行分配
+					if err := insertSysResourceWithRole(tx, r.id, r.pid, r.uiPath, r.typ, r.name, r.code, r.weight, r.meta); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 表结构漂移基线表。
+			//
+			// 不往已执行过的迁移 ID 里追加建表逻辑：对升级过的库那等于没写，新动作必须用新 ID。
+			ID: "v1.12.1-db-schema-baseline",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DbSchemaBaseline{})
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// 流程实例增加「计划执行时间」列：审批通过后到点才回放业务（定时执行），幂等按列存在与否守卫
+			ID: "v1.12.1-flow-procinst-planned-exec-time",
+			Migrate: func(tx *gorm.DB) error {
+				if tx.Migrator().HasColumn(&flowentity.Procinst{}, "planned_exec_time") {
+					return nil
+				}
+				return tx.Migrator().AddColumn(&flowentity.Procinst{}, "planned_exec_time")
+			},
+			Rollback: noopRollback,
+		},
+		{
+			// SQL 执行记录补「执行后快照」列，并把旧值列从 varchar(5000) 扩为 mediumtext：
+			// 200 行的行级 JSON 极易超过 5000 字符，超限时执行记录整体写不进去（含审计一起丢）。
+			// AutoMigrate 对已有列按类型比对执行改列、对全新库直接建出目标结构，天然幂等；
+			// sqlite 侧 mediumtext 属 TEXT 亲和性，不引入方言差异
+			ID: "v1.12.1-db-sql-exec-row-snapshot",
+			Migrate: func(tx *gorm.DB) error {
+				return tx.AutoMigrate(&dbentity.DbSQLExec{})
+			},
+			Rollback: noopRollback,
+		},
 	}
 }
 
@@ -846,10 +962,11 @@ func insertSysResource(tx *gorm.DB, r sysResourceDef) error {
 	if count > 0 {
 		return nil
 	}
+	now := time.Now()
 	return tx.Exec(
 		"INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) "+
-			"VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, 1, 'admin', 1, 'admin', NOW(), NOW(), 0, NULL)",
-		r.id, r.pid, r.uiPath, r.typ, r.name, r.code, r.weight, r.meta,
+			"VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, 1, 'admin', 1, 'admin', ?, ?, 0, NULL)",
+		r.id, r.pid, r.uiPath, r.typ, r.name, r.code, r.weight, r.meta, now, now,
 	).Error
 }
 
@@ -875,9 +992,10 @@ func grantRoleResource(tx *gorm.DB, roleId, resourceId int64) error {
 	if count > 0 {
 		return nil
 	}
+	now := time.Now()
 	return tx.Exec(
-		"INSERT INTO t_sys_role_resource (role_id, resource_id, creator_id, creator, create_time, is_deleted, delete_time) VALUES (?, ?, 1, 'admin', NOW(), 0, NULL)",
-		roleId, resourceId,
+		"INSERT INTO t_sys_role_resource (role_id, resource_id, creator_id, creator, create_time, is_deleted, delete_time) VALUES (?, ?, 1, 'admin', ?, 0, NULL)",
+		roleId, resourceId, now,
 	).Error
 }
 
@@ -888,7 +1006,9 @@ func insertSysResourceWithRole(tx *gorm.DB, id, pid int64, uiPath string, typ in
 	})
 }
 
-// appendSysConfigFields 向系统配置 params 追加新字段定义（按 model 去重）。
+// appendSysConfigFields 向系统配置 params 追加新字段定义（按 model/prop 去重）。
+// params 有两种形态：旧版裸数组与 v1 JSON Schema（form-params 迁移升级后的形态），
+// 追加后按原形态写回，不能把已升级的配置悄悄降级回裸数组。
 // afterUpdate 在 params 更新后执行（如清缓存、补默认值），无需后置操作时传 nil。
 func appendSysConfigFields(tx *gorm.DB, configKey string, fields []map[string]any, afterUpdate func(*gorm.DB, *sysentity.Config) error) error {
 	config := &sysentity.Config{}
@@ -898,9 +1018,48 @@ func appendSysConfigFields(tx *gorm.DB, configKey string, fields []map[string]an
 		}
 		return err
 	}
-	var items []map[string]any
-	if err := json.Unmarshal([]byte(config.Params), &items); err != nil {
+	params, changed, err := appendConfigFields(config.Params, fields)
+	if err != nil {
 		return err
+	}
+	if !changed {
+		return nil
+	}
+	if err := tx.Model(config).Update("params", params).Error; err != nil {
+		return err
+	}
+	if afterUpdate != nil {
+		return afterUpdate(tx, config)
+	}
+	return nil
+}
+
+// appendConfigFields 按原有形态向 params 追加字段定义，返回追加后的 JSON 与「是否真的追加过」。
+//
+// v1 schema 形态按 map 处理而不是反序列化成结构体再写回：结构体只认识 version/fields 两个键，
+// 配置里其余的键（如表单布局 cols）会在写回时被静默丢掉，用户调过的布局当场消失
+func appendConfigFields(params string, fields []map[string]any) (string, bool, error) {
+	// v1 JSON Schema 形态：裸数组 unmarshal 到 map 必报错，据此区分两种形态
+	var doc map[string]any
+	if err := json.Unmarshal([]byte(params), &doc); err == nil {
+		if version, _ := doc["version"].(float64); version != 1 {
+			return "", false, fmt.Errorf("unknown config form params shape, expect version 1 but got %v", doc["version"])
+		}
+		merged, changed := mergeSchemaFields(doc["fields"], fields)
+		if !changed {
+			return params, false, nil
+		}
+		doc["fields"] = merged
+		updated, err := json.Marshal(doc)
+		if err != nil {
+			return "", false, err
+		}
+		return string(updated), true, nil
+	}
+	// 旧版裸数组形态
+	var items []map[string]any
+	if err := json.Unmarshal([]byte(params), &items); err != nil {
+		return "", false, err
 	}
 	changed := false
 	for _, add := range fields {
@@ -917,19 +1076,78 @@ func appendSysConfigFields(tx *gorm.DB, configKey string, fields []map[string]an
 		}
 	}
 	if !changed {
-		return nil
+		return params, false, nil
 	}
-	params, err := json.Marshal(items)
+	updated, err := json.Marshal(items)
 	if err != nil {
-		return err
+		return "", false, err
 	}
-	if err := tx.Model(config).Update("params", string(params)).Error; err != nil {
-		return err
+	return string(updated), true, nil
+}
+
+// mergeSchemaFields 把 legacy 字段定义追加进 v1 schema 的 fields 数组，已有同 prop 的字段则跳过
+func mergeSchemaFields(raw any, fields []map[string]any) ([]any, bool) {
+	existing, _ := raw.([]any)
+	changed := false
+	for _, add := range fields {
+		prop, _ := add["model"].(string)
+		if prop == "" || schemaHasField(existing, prop) {
+			continue
+		}
+		existing = append(existing, legacyFieldToFormField(add))
+		changed = true
 	}
-	if afterUpdate != nil {
-		return afterUpdate(tx, config)
+	return existing, changed
+}
+
+// schemaHasField 判断 v1 schema 里是否已有该 prop 的字段（条目形态按 JSON 读，不依赖结构体）
+func schemaHasField(fields []any, prop string) bool {
+	for _, entry := range fields {
+		item, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		if itemProp, _ := item["prop"].(string); itemProp == prop {
+			return true
+		}
 	}
-	return nil
+	return false
+}
+
+// legacyFieldToFormField 把 legacy 字段定义 map（model/name/placeholder/options/required）
+// 转成 v1 schema 字段的 JSON 形态，映射规则与 convertLegacyFormParams 一致（空值一律不写键，
+// 对应结构体上的 omitempty）。
+//
+// 取键统一用 comma-ok：字段定义里 placeholder/required 都是可选的（如开关型字段只带 options），
+// 直接断言会 panic，而迁移 panic 等于服务启动即退出
+func legacyFieldToFormField(add map[string]any) map[string]any {
+	field := map[string]any{}
+	if prop, _ := add["model"].(string); prop != "" {
+		field["prop"] = prop
+	}
+	if label, _ := add["name"].(string); label != "" {
+		field["label"] = label
+	}
+	if placeholder, _ := add["placeholder"].(string); placeholder != "" {
+		field["placeholder"] = placeholder
+	}
+	if required, _ := add["required"].(bool); required {
+		field["rules"] = map[string]any{"required": true}
+	}
+	if options, _ := add["options"].(string); options != "" {
+		formOptions := make([]any, 0, strings.Count(options, ",")+1)
+		for _, option := range strings.Split(options, ",") {
+			option = strings.TrimSpace(option)
+			if option == "" {
+				continue
+			}
+			formOptions = append(formOptions, map[string]any{"value": option, "label": option})
+		}
+		if len(formOptions) > 0 {
+			field["options"] = formOptions
+		}
+	}
+	return field
 }
 
 // seedBuiltinSkills 内置技能落库（按 code 查重，幂等）
@@ -942,10 +1160,11 @@ func seedBuiltinSkills(tx *gorm.DB) error {
 		if count > 0 {
 			continue
 		}
+		now := time.Now()
 		if err := tx.Exec(
 			"INSERT INTO t_ai_skill (code, name, description, allowed_tools, version, source, status, creator_id, creator, modifier_id, modifier, create_time, update_time) "+
-				"VALUES (?, ?, ?, '', '1.0.0', ?, ?, 1, 'admin', 1, 'admin', NOW(), NOW())",
-			s.Code, s.Name, s.Description, aientity.SkillSourceBuiltin, aientity.SkillStatusPublished,
+				"VALUES (?, ?, ?, '', '1.0.0', ?, ?, 1, 'admin', 1, 'admin', ?, ?)",
+			s.Code, s.Name, s.Description, aientity.SkillSourceBuiltin, aientity.SkillStatusPublished, now, now,
 		).Error; err != nil {
 			return err
 		}
@@ -956,8 +1175,8 @@ func seedBuiltinSkills(tx *gorm.DB) error {
 		content := skill.BuildSkillMd(s.Name, s.Description, "", strings.Join(s.Body, "\n"))
 		if err := tx.Exec(
 			"INSERT INTO t_ai_skill_resource (skill_id, path, content, size, creator_id, creator, modifier_id, modifier, create_time, update_time) "+
-				"VALUES (?, ?, ?, ?, 1, 'admin', 1, 'admin', NOW(), NOW())",
-			skillId, aientity.SkillMdPath, content, len(content),
+				"VALUES (?, ?, ?, ?, 1, 'admin', 1, 'admin', ?, ?)",
+			skillId, aientity.SkillMdPath, content, len(content), now, now,
 		).Error; err != nil {
 			return err
 		}

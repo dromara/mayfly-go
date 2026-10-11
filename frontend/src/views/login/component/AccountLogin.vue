@@ -336,7 +336,30 @@ const updateUserInfo = async () => {
 
 const loginResDeal = async (loginRes: LoginResult) => {
     state.loginRes = loginRes;
-    // 用户信息
+
+    const token = loginRes.token;
+    // 如果不需要otp校验，则该token即为accessToken，否则为otp校验token
+    if (loginRes.otp == -1) {
+        await signInSuccess(token, loginRes.refresh_token);
+        return;
+    }
+
+    state.otpDialog.form.otpToken = token;
+    state.otpDialog.otpUrl = loginRes.otpUrl || '';
+    state.otpDialog.visible = true;
+    setTimeout(() => {
+        otpCodeInputRef.value?.focus();
+    }, 400);
+};
+
+/**
+ * 存储登录者信息。
+ *
+ * 必须在 token 落盘之后调用：头像文件名查询走的 /sys/files/detail/:keys 需登录态，
+ * 无 token 发起会返回 501，而请求层对 501 的处理是直接跳 401 页，表现为「登录成功却被踢到无权限页」。
+ * 头像内容本身（getFileUrl）仍是匿名可读的展示类资产，不受该顺序约束
+ */
+const saveLoginerInfo = async (loginRes: LoginResult) => {
     const userInfos = {
         name: loginRes.name,
         username: loginRes.username,
@@ -359,20 +382,6 @@ const loginResDeal = async (loginRes: LoginResult) => {
     saveUser(userInfos);
     // 1、请注意执行顺序(存储用户信息到vuex)
     useUserInfo().setUserInfo(userInfos);
-
-    const token = loginRes.token;
-    // 如果不需要otp校验，则该token即为accessToken，否则为otp校验token
-    if (loginRes.otp == -1) {
-        signInSuccess(token, loginRes.refresh_token);
-        return;
-    }
-
-    state.otpDialog.form.otpToken = token;
-    state.otpDialog.otpUrl = loginRes.otpUrl || '';
-    state.otpDialog.visible = true;
-    setTimeout(() => {
-        otpCodeInputRef.value?.focus();
-    }, 400);
 };
 
 // 登录成功后的跳转
@@ -386,6 +395,9 @@ const signInSuccess = async (accessToken: string = '', refreshToken = '') => {
     // 存储 token 到浏览器缓存
     saveToken(accessToken);
     saveRefreshToken(refreshToken);
+
+    // 用户信息含需登录的查询，故置于 token 存储之后、路由初始化之前
+    await saveLoginerInfo(state.loginRes);
 
     // 初始化路由
     await initRouter();

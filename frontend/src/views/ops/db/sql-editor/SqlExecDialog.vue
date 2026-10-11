@@ -5,10 +5,14 @@
             <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" :placeholder="i18n.global.t('common.remark')" class="mt-1" />
 
             <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="cancel">{{ i18n.global.t('common.cancel') }}</el-button>
-                    <el-button @click="runSql" type="primary" :loading="btnLoading">{{ i18n.global.t('db.run') }}</el-button>
-                </span>
+                <div class="flex items-center justify-between">
+                    <!-- 执行前就地看计划：本弹框处于无 appContext 的独立 render 树，只调 openSqlPlan 唤起主树的全局计划框 -->
+                    <el-button link type="primary" @click="viewPlan">{{ i18n.global.t('db.viewPlan') }}</el-button>
+                    <span class="dialog-footer">
+                        <el-button @click="cancel">{{ i18n.global.t('common.cancel') }}</el-button>
+                        <el-button @click="runSql" type="primary" :loading="btnLoading">{{ i18n.global.t('db.run') }}</el-button>
+                    </span>
+                </div>
             </template>
         </el-dialog>
     </div>
@@ -25,6 +29,7 @@ import { DbInst } from '../db';
 import { formatSql } from './utils/formatSql';
 import { classifySqlExecRes } from './utils/classifySqlExecRes';
 import { openTicket } from '@/views/flow/ticketService';
+import { openSqlPlan } from './sqlPlanService';
 import { FlowBizType } from '@/views/flow/enums';
 import type { SqlExecProps } from './SqlExecBox';
 
@@ -49,6 +54,9 @@ const { dialogVisible, sqlValue, remark, btnLoading } = toRefs(state);
 
 let runSuccess: boolean = false;
 
+/** 查看当前待执行 SQL 的执行计划（经全局单例对话框，避开本 render 树的全局组件/i18n 缺失） */
+const viewPlan = () => openSqlPlan(props.dbId, props.db, state.sqlValue);
+
 onMounted(async () => {
     await open();
 });
@@ -66,6 +74,7 @@ const runSql = async () => {
             db: props.db,
             remark: state.remark,
             sql: state.sqlValue.trim(),
+            atomic: props.atomic === true,
         });
 
         const outcome = classifySqlExecRes(res);

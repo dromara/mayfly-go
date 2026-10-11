@@ -15,7 +15,19 @@
             v-model="itemValue"
             :placeholder="placeholder ?? $t('common.pleaseInput')"
         />
-        <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon" name="FullScreen" :size="10" />
+        <span v-if="showEditorIcon || binary" class="string-input-container-actions">
+            <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon" name="FullScreen" :size="10" />
+            <!-- 二进制列：值在链路里就是 hex 串，给一个只读预览入口（hex/base64/按 UTF-8 猜读）；
+                 文本框保留，否则从「只能看」退化成「改不了原本能改的东西」 -->
+            <SvgIcon
+                v-if="binary"
+                @mousedown="openBinaryPreview"
+                class="string-input-container-icon"
+                name="View"
+                :size="10"
+                :title="$t('db.binaryPreviewEntry')"
+            />
+        </span>
     </div>
 
     <el-date-picker
@@ -82,12 +94,13 @@
         value-format="HH:mm:ss"
         :placeholder="`time-${placeholder ?? $t('common.pleaseSelect')}`"
     />
+    <BinaryValuePreview v-model:visible="binaryPreviewVisible" :hex="String(itemValue ?? '')" :column-name="columnName" />
 </template>
 
 <script lang="ts" setup>
 /**
  * 列值录入控件：按方言数据类型分派到文本框 / 日期 / 日期时间 / 时间选择器，
- * 长文本（>50 字符）额外给出全屏编辑器入口。
+ * 长文本（>50 字符）额外给出全屏编辑器入口，JSON 形态打开前先美化（确认时仍存紧凑形态）。
  *
  * 定位是跨子模块复用的部件，故置于 widgets/：数据网格的单元格就地编辑（DbTableData）
  * 与数据表单弹窗（DbTableDataForm）都在用，与「表结构编辑」无关。
@@ -100,6 +113,7 @@ import { ElInput } from 'element-plus';
 import { computed, nextTick, ref, Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DataType } from '../dialect/index';
+import BinaryValuePreview from './BinaryValuePreview.vue';
 
 const { t } = useI18n();
 
@@ -112,6 +126,13 @@ export interface ColumnValueInputProps {
     /** 列名，用于全屏编辑器的标题 */
     columnName?: string;
     disabled?: boolean;
+    /**
+     * 该列是否二进制类型（由调用方按 isBinaryColumnType(列类型) 给出）。
+     *
+     * 不在这里自己判：控件只拿到归一后的 DataType（二进制归在 String 里），
+     * 拿不到原始列类型；而把原始类型再传一遍并在两处各判一次，就是第二套真源
+     */
+    binary?: boolean;
 }
 
 const props = withDefaults(defineProps<ColumnValueInputProps>(), {
@@ -134,13 +155,20 @@ const showEditorIcon = computed(() => {
 });
 
 const editorOpening = ref(false);
+const binaryPreviewVisible = ref(false);
+
+function openBinaryPreview() {
+    binaryPreviewVisible.value = true;
+}
 
 const openEditor = () => {
     editorOpening.value = true;
     // 编辑器语言，如：json、html、text
-    let editorLang = getEditorLangByValue(itemValue.value);
+    const editorLang = getEditorLangByValue(itemValue.value);
     MonacoEditorBox({
-        content: String(itemValue.value),
+        // JSON 先美化再交给编辑：库里存的常常是一行几 KB 的紧凑 JSON，不美化就只能在单行里左右拖；
+        // 确认时 MonacoEditorBox 仍会压回紧凑形态（存储不膨胀），美化只是编辑期的可读性手段
+        content: editorLang === 'json' ? prettyJson(String(itemValue.value)) : String(itemValue.value),
         title: `${t('db.editField')} [${props.columnName}]`,
         language: editorLang,
         confirmFn: (newVal: string) => {
@@ -151,6 +179,15 @@ const openEditor = () => {
         useDrawer: true,
     });
 };
+
+/** 美化失败（不是合法 JSON）时原样返回：美化只是体验手段，不能因此改坏用户的内容 */
+function prettyJson(value: string): string {
+    try {
+        return JSON.stringify(JSON.parse(value), null, 4);
+    } catch (e) {
+        return value;
+    }
+}
 
 const closeEditorDialog = () => {
     editorOpening.value = false;
@@ -210,10 +247,18 @@ const getEditorLangByValue = (value: string | number) => {
         padding-right: 10px;
     }
 }
-.string-input-container-icon {
+/* 两个入口图标由 flex 排布：绝对定位各自算 right 会在「只有一个」时错位，
+   两个都在时叠到同一个像素上 */
+.string-input-container-actions {
     position: absolute;
-    top: 5px; /* 调整图标的垂直位置 */
-    right: 3px; /* 调整图标的水平位置 */
+    top: 5px;
+    right: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.string-input-container-icon {
     color: var(--el-color-primary);
 }
 .string-input-container-icon:hover {

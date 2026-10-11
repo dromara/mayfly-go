@@ -46,28 +46,49 @@ func SubString(str string, begin, end int) (substr string) {
 	return string(rs[begin:end])
 }
 
-// Camel2Snake 将驼峰命名转换为下划线命名
-// 例如: "userName" -> "user_name", "HTTPServer" -> "http_server"
+// Camel2Snake 将驼峰命名转换为下划线命名。
+//
+// 连续大写视为一个首字母缩略词，只在该词的末尾划词："HTTPServer" -> "http_server"、
+// "userID" -> "user_id"，与 GORM NamingStrategy 的列名推导同口径。本身就是蛇形的
+// 物理列名（"id"、"is_deleted"）走零分配快路径原样返回
 func Camel2Snake(name string) string {
-	if name == "" {
-		return ""
+	// 先扫一遍：纯 ASCII 且不含大写字母（本就是蛇形的物理列名，最常见的输入）
+	// 原样返回，避免白分配一次
+	needConvert := false
+	for i := 0; i < len(name); i++ {
+		if name[i] >= utf8.RuneSelf || (name[i] >= 'A' && name[i] <= 'Z') {
+			needConvert = true
+			break
+		}
+	}
+	if !needConvert {
+		return name
 	}
 
 	var result strings.Builder
-	for i, r := range name {
-		// 如果当前字符是大写字母
-		if unicode.IsUpper(r) {
-			// 如果不是第一个字符，且前一个字符不是下划线，则添加下划线
-			if i > 0 {
+	result.Grow(len(name) + 4)
+	prevIsUpper, first := false, true
+	for i := 0; i < len(name); {
+		r, size := utf8.DecodeRuneInString(name[i:])
+		if !unicode.IsUpper(r) {
+			result.WriteRune(r)
+			prevIsUpper = false
+		} else {
+			nextIsLower := false
+			if n, sz := utf8.DecodeRuneInString(name[i+size:]); sz > 0 && unicode.IsLower(n) {
+				nextIsLower = true
+			}
+			// 连续大写视为一个首字母缩略词：只在前一字符不是大写（单词边界）
+			// 或后一字符是小写（缩略词末字母属于下一个单词，如 HTTPServer 的 S）时划词
+			if !first && (!prevIsUpper || nextIsLower) {
 				result.WriteRune('_')
 			}
-			// 转换为小写
 			result.WriteRune(unicode.ToLower(r))
-		} else {
-			result.WriteRune(r)
+			prevIsUpper = true
 		}
+		first = false
+		i += size
 	}
-
 	return result.String()
 }
 

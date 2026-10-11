@@ -2,8 +2,9 @@
 
 package application
 
-// application 层真实库集成测试的连接助手：与 transfer/sync 包同构（各IT包各自持有连接工厂），
-// 直连本地 mysql / postgres / sqlite，用于验证SQL文件执行链路的真实数据库语义
+// 父包真实库集成测试的连接助手：与 sqlexec/it_conn_test.go 同构（各 IT 包各自持有连接工厂）。
+// 父包留守的 IT 只有列值采样（mysql/pg）与数据导入（sqlite），故这里只提供它们所需的连接工厂；
+// exec/review/rollback/export 的方言节点与建表/行数助手随 App 一起留在 sqlexec，不在两包间共享。
 
 import (
 	"context"
@@ -13,14 +14,33 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/dbi/value"
 	"mayfly-go/internal/db/ititest/scratchclean"
+	"mayfly-go/pkg/ioc"
 )
 
-// TestMain 负责本包所有真实库用例的独占资源清理，失败也必须收尾。
+// TestMain 装配数据导入 IT 所需的最小 IOC。
+//
+// 数据导入经 GetDbSQLExecApp() 取策略闸门（见 db_data_import.go），IT 进程不跑完整 IOC 初始化，
+// 所以这里只注册一个满足 sqlexec.DbSQLExec 的本地替身：嵌入接口 + 只覆写 CheckSqlsWithoutTicket，
+// 越界用到别的方法会直接 panic 而不是静默放行。
 func TestMain(m *testing.M) {
+	ioc.Register(&itSqlExecBean{})
 	os.Exit(scratchclean.Run(m.Run))
+}
+
+// itSqlExecBean 父包 IT 用的最小执行应用替身：只实现数据导入链路真正用到的判定方法，
+// 其余方法由嵌入的接口占位（被误用即 panic）。
+type itSqlExecBean struct {
+	sqlexec.DbSQLExec
+}
+
+// CheckSqlsWithoutTicket 复刻「未绑定流程定义」时的真实结论：每条语句一个空提醒、不阻断
+// （见 sqlexec 的 checkSqlsWithoutTicket 在 procdef==nil 分支返回 make([]string, len(sqls))）。
+// IT 的 sqlite 库没有绑定流程定义，故用这一确定结论替代真实实现——父包无法构造 sqlexec 实现的未导出依赖。
+func (b *itSqlExecBean) CheckSqlsWithoutTicket(_ context.Context, _ *dbi.DbConn, sqls []string) ([]string, error) {
+	return make([]string, len(sqls)), nil
 }
 
 func appTestConn(t *testing.T, di *dbi.DbInfo) *dbi.DbConn {
@@ -48,56 +68,8 @@ func appPgConn(t *testing.T) *dbi.DbConn {
 
 func appSQLiteConn(t *testing.T) *dbi.DbConn {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "app_sql_exec_it.sqlite")
+	path := filepath.Join(t.TempDir(), "app_data_import_it.sqlite")
 	// sqlite方言要求库文件已存在
 	require.NoError(t, os.WriteFile(path, nil, 0o644))
 	return appTestConn(t, &dbi.DbInfo{Type: "sqlite", Host: path})
-}
-
-// appDialectNode 参与互测的方言节点
-type appDialectNode struct {
-	name string
-	conn func(t *testing.T) *dbi.DbConn
-	// ddl 建表列定义（id主键 + 文本列）
-	ddl string
-	// survivedOnTxnBegin 文件内含 BEGIN 且后续语句失败时，本机数据库实测残留行数
-	//（提交点由数据库决定，平台不猜测也不改写失败原因，仅固化差异供运维参考）
-	survivedOnTxnBegin int64
-	// errOnTxnBegin 上述场景下期望出现在错误信息里的底层数据库错误片段
-	errOnTxnBegin string
-}
-
-var appDialectNodes = []appDialectNode{
-	// mysql：BEGIN隐式提交当前事务 → 在途写入落库（残留1行），执行继续到坏语句才失败
-	{name: "mysql", conn: appMysqlConn, ddl: "(id int PRIMARY KEY, val varchar(200))", survivedOnTxnBegin: 1, errOnTxnBegin: "it_no_such_table"},
-	// postgres：事务内BEGIN仅告警不提交 → 失败可整体回滚（残留0行）
-	{name: "pg", conn: appPgConn, ddl: "(id int PRIMARY KEY, val varchar(200))", survivedOnTxnBegin: 0, errOnTxnBegin: "it_no_such_table"},
-	// sqlite：事务内BEGIN直接报错 → 在该语句即中断，整体回滚（残留0行）
-	{name: "sqlite", conn: appSQLiteConn, ddl: "(id INTEGER PRIMARY KEY, val TEXT)", survivedOnTxnBegin: 0, errOnTxnBegin: "cannot start a transaction within a transaction"},
-}
-
-const appExecTable = "it_exec_reader"
-
-// appPrepareTable 建一张已提交的空表（DDL不放进待执行文件：mysql的DDL会隐式提交，会干扰回滚断言）
-func appPrepareTable(t *testing.T, node appDialectNode) *dbi.DbConn {
-	t.Helper()
-	conn := node.conn(t)
-	quote := conn.GetDialect().Quoter().QuoteIdent
-	_, err := conn.Exec("DROP TABLE IF EXISTS " + quote(appExecTable))
-	require.NoError(t, err)
-	_, err = conn.Exec("CREATE TABLE " + quote(appExecTable) + " " + node.ddl)
-	require.NoError(t, err, "[%s] 建表失败", node.name)
-	return conn
-}
-
-// appRowCount 读回用例表行数
-func appRowCount(t *testing.T, conn *dbi.DbConn) int64 {
-	t.Helper()
-	quote := conn.GetDialect().Quoter().QuoteIdent
-	_, rows, err := conn.Query("SELECT COUNT(*) AS cnt FROM " + quote(appExecTable))
-	require.NoError(t, err, "[%s] 用例表不可读", conn.Info.Type)
-	require.Len(t, rows, 1)
-	cnt, ok := value.ValToInt64(rows[0]["cnt"])
-	require.True(t, ok, "行数取值形态异常: %T", rows[0]["cnt"])
-	return cnt
 }

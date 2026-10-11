@@ -32,7 +32,12 @@ func init() {
 			Date, Time, Timetz, Timestamp, Timestamptz,
 			Bytea,
 			Bit, Varbit, BitVarying,
+			Uuid,
 		)
+
+		// pg 元数据里数组列的 typname 是 `_` + 元素类型名（bigint[] → _int8），逐元素类型登记既
+		// 是第二套真相也必然漏项；声明前缀后，凡元素类型已注册的数组都能按 TCArray 解析
+		b.RegisterArrayType("_", dbi.NewDbDataType("array", dbi.DTString).WithCategory(dbi.TCArray).WithFixColumn(dbi.ClearCharLength))
 
 		// 字符串类
 		b.RegisterRules(Varchar, dbi.TCVarchar)
@@ -89,6 +94,10 @@ func init() {
 		// Enum/JSON
 		b.RegisterRules(Varchar, dbi.TCEnum)
 		b.RegisterRules(Json, dbi.TCJSON)
+
+		// UUID：pg 有原生 uuid 类型，异构源（如 clickhouse UUID、mssql uniqueidentifier）转入时
+		// 落回 uuid 而非 varchar，避免主键/索引列退化成宽字符串
+		b.RegisterRules(Uuid, dbi.TCUUID)
 	})
 
 	// 别名方言复用主方言的类型引擎
@@ -114,12 +123,10 @@ type Backend struct {
 func (pm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	db := d.Database
 	var dbParam string
-	existSchema := false
-	// postgres database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
-	ss := strings.Split(db, "/")
-	if len(ss) > 1 {
-		existSchema = true
-		dbParam = fmt.Sprintf("dbname=%s search_path=%s", escapeLibpqParam(ss[0]), escapeLibpqParam(ss[len(ss)-1]))
+	// 库位的 schema 段已在 ToDbInfo 阶段由 codec 解析进 d.Schema，此处不再拆串
+	existSchema := d.Schema != ""
+	if existSchema {
+		dbParam = fmt.Sprintf("dbname=%s search_path=%s", escapeLibpqParam(db), escapeLibpqParam(d.Schema))
 	} else {
 		dbParam = "dbname=" + escapeLibpqParam(db)
 	}
@@ -152,11 +159,12 @@ func (pm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 	return sql.Open("postgres", dsn)
 }
 
-// GetCapabilities pg 系方言：核心能力全支持（含独立 schema 层），并声明已实现的视图与序列内省。
-// 视图/序列查询基于 pg 9.x 通用系统表，对 gauss/kingbase/vastbase 亦适用。
+// GetCapabilities pg 系方言：核心能力全支持（含独立 schema 层），并声明已实现的视图、序列与会话内省。
+// 视图/序列/会话查询都基于 pg 9.x 通用系统表（pg_stat_activity 自 9.2 起即有 state/query 列），
+// 对 gauss/kingbase/vastbase 亦适用。
 func (pm *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	return dbi.NewAllCapabilities().
-		With(dbi.FeatViews, dbi.FeatSequences).
+		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 

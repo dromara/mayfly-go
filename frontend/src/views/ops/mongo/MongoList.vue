@@ -74,7 +74,7 @@ const selectionData = ref<Mongo[]>([]);
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('mongo.keywordPlaceholder')];
 
 const columns = [
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(25),
+    TableColumn.new('name', 'common.name').isSlot('name'),
     // 连接串已脱敏（密码固定为 ****），明文凭证不再回传前端
     TableColumn.new('uri', 'mongo.connUrl'),
     TableColumn.new('createTime', 'common.createTime').isTime(),

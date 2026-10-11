@@ -71,6 +71,10 @@
 
                     <el-divider direction="vertical" border-style="dashed" />
 
+                    <el-button type="primary" @click="onShowSchemaDiff(data)" link>{{ $t('db.schemaDiff') }}</el-button>
+
+                    <el-divider direction="vertical" border-style="dashed" />
+
                     <el-dropdown @command="handleMoreActionCommand">
                         <span class="el-dropdown-link-more">
                             {{ $t('common.more') }}
@@ -142,6 +146,18 @@
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>
 
+        <!-- 结构对比：两侧都靠库记录 id + 真实库名定位，同一取法不拿记录名猜库名 -->
+        <el-dialog
+            width="80%"
+            :title="$t('db.schemaDiff')"
+            :close-on-click-modal="false"
+            v-model="schemaDiffDialog.visible"
+            :destroy-on-close="true"
+            body-class="h-[65vh]"
+        >
+            <db-schema-diff v-if="schemaDiffDialog.visible" :src-db-id="schemaDiffDialog.dbId" :src-dbs="schemaDiffDialog.dbs" />
+        </el-dialog>
+
         <db-edit
             @confirm="confirmEditDb"
             @cancel="cancelEditDb"
@@ -168,6 +184,7 @@ import TagCodePath from '../../component/TagCodePath.vue';
 import { dbApi } from '../api';
 import { DbInst } from '../db';
 import DbSqlExecLog from './DbSqlExecLog.vue';
+import DbSchemaDiff from './DbSchemaDiff.vue';
 import { getDbDialect } from '../dialect/index';
 import { DbGetDbNamesMode } from '../enums';
 import type { Db, DbInstance, DbForm } from '../types';
@@ -251,6 +268,12 @@ const state = reactive({
         dbs: [] as string[],
         dbId: 0,
     },
+    // 结构对比弹框
+    schemaDiffDialog: {
+        visible: false,
+        dbs: [] as string[],
+        dbId: 0,
+    },
     chooseTableName: '',
     tableInfoDialog: {
         visible: false,
@@ -276,7 +299,7 @@ const state = reactive({
     },
 });
 
-const { query, sqlExecLogDialog, dbEditDialog, exportDialog } = toRefs(state);
+const { query, sqlExecLogDialog, schemaDiffDialog, dbEditDialog, exportDialog } = toRefs(state);
 
 const search = async () => {
     state.query.instanceId = props.instance?.id || 0;
@@ -366,6 +389,13 @@ const onShowSqlExec = async (row: Db) => {
         state.sqlExecLogDialog.dbs = res;
     });
     state.sqlExecLogDialog.visible = true;
+};
+
+// 结构对比弹窗：表清单与目标库候选由面板自己取，这里只递给它的源库定位
+const onShowSchemaDiff = async (row: Db) => {
+    state.schemaDiffDialog.dbId = row.id;
+    state.schemaDiffDialog.dbs = (await DbInst.getDbNames(row)) ?? [];
+    state.schemaDiffDialog.visible = true;
 };
 
 const onBeforeCloseSqlExecDialog = () => {

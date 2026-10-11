@@ -64,6 +64,16 @@ export function matchNumericType(columnType: string): RegExpMatchArray | null {
     return columnType ? columnType.match(/(int|uint|double|float|number|numeric|decimal|byte|bit)/gi) : null;
 }
 
+// 数值类型 token 集：覆盖 DDL（int/bigint/decimal…）、带长度与修饰的形态（bigint(20) unsigned、decimal(10,2)）
+// 以及后端归一的 Go 风格名（int8/int64/uint64/float64…）。整词（词边界）匹配，避免 point/interval 这类含 int 子串被误判。
+const NUMERIC_TYPE_RE =
+    /(^|[\s_])(tinyint|smallint|mediumint|int|integer|bigint|uint8|uint16|uint32|uint64|int8|int16|int32|int64|float32|float64|float|double|decimal|numeric|real|number|money|bit|serial|bigserial|smallserial|largeserial|uint)([\s_]|$)/i;
+
+/** isNumericType 去掉长度/精度括号后按整词判定是否数值类型（getDefaultDataType 与 wrapValueDefault 共用单一判据） */
+function isNumericType(lowerColumnType: string): boolean {
+    return NUMERIC_TYPE_RE.test(lowerColumnType.replace(/\([^)]*\)/g, ' '));
+}
+
 /**
  * 通用数据类型判断（适用于大多数关系型数据库）
  * 多数方言逻辑一致，收敛为共用实现
@@ -71,11 +81,7 @@ export function matchNumericType(columnType: string): RegExpMatchArray | null {
 export function getDefaultDataType(columnType: string): 'string' | 'number' | 'date' | 'time' | 'datetime' {
     const lower = columnType.toLowerCase();
     // 数值类型
-    if (
-        /^(tinyint|smallint|mediumint|int|integer|bigint|float|double|decimal|numeric|real|number|money|bit|serial|bigserial|smallserial|largeserial|uint|int8|int16|int32|int64|float32|float64)$/i.test(
-            lower
-        )
-    ) {
+    if (isNumericType(lower)) {
         return 'number';
     }
     // 日期时间
@@ -103,11 +109,7 @@ export function wrapValueDefault(columnType: string, value: unknown): string | n
     }
     const lower = columnType.toLowerCase();
     // 数值类型直接返回
-    if (
-        /^(tinyint|smallint|mediumint|int|integer|bigint|float|double|decimal|numeric|real|number|money|bit|serial|bigserial|smallserial|largeserial|uint|int8|int16|int32|int64|float32|float64|bool|boolean)$/i.test(
-            lower
-        )
-    ) {
+    if (isNumericType(lower)) {
         return value as number;
     }
     // 布尔类型

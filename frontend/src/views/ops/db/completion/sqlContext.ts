@@ -244,7 +244,7 @@ const tableExpectedKeywords = new Set(['from', 'join', 'into', 'update']);
 const CLAUSE_KEYWORD_REGEX = /\b(select|insert|update|delete|from|join|on|where|set|group|order|having|limit|offset|into|values|union)\b/gi;
 
 /**
- * 判定光标所处子句类型（对齐国际产品的上下文感知建议）：
+ * 判定光标所处子句类型，用于上下文感知的补全建议：
  * - FROM/JOIN/INTO/UPDATE 等表名期望位置 → table（仅提示表/库）
  * - SELECT/WHERE/ON/SET/ORDER BY/GROUP BY/HAVING 及括号内列清单 → column（提示作用域内字段）
  * - 语句为空或无关键字 → free（全量兜底）

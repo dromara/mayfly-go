@@ -72,6 +72,9 @@ const GAUSS_TYPE_LIST: SqlColumnType[] = [
     // 二进制类型
     { udtName: 'bytea', dataType: 'bytea', desc: '变长的二进制字符串', space: '4字节加上实际的二进制字符串。最大为1GB减去8203字节（即1073733621字节）。' },
 
+    // UUID 类型（常作主键：下拉里没这一项时只能手输，与后端类型引擎识别 uuid 的能力不对齐）
+    { udtName: 'uuid', dataType: 'uuid', desc: '通用唯一标识符（UUID）', space: '16字节' },
+
     // 日期/时间类型
     { udtName: 'date', dataType: 'date', desc: '日期', space: '4字节' },
     { udtName: 'time', dataType: 'time', desc: 'TIME [(p)] 只用于一日内时间,p表示小数点后的精度，取值范围为0~6。', space: '8-12字节' },

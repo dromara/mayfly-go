@@ -27,6 +27,11 @@ func TestEvaluatorContract_Machine(t *testing.T) {
 	assertEvaluatorContract(t, &MachineEvaluator{})
 }
 
+// TestEvaluatorContract_Db 数据库实例评估器接入通用契约
+func TestEvaluatorContract_Db(t *testing.T) {
+	assertEvaluatorContract(t, &DbEvaluator{})
+}
+
 // Evaluate 语义契约 checklist —— 依赖各评估器自身数据源，无法通用断言，
 // 由各评估器自身测试覆盖。新增评估器时逐条核对：
 //

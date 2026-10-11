@@ -86,7 +86,7 @@ func (r *Role) RoleResourceIds(rc *req.Ctx) {
 // 查看角色关联的资源树信息
 func (r *Role) RoleResource(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
-	r.roleApp.GetRoleResources(cast.ToUint64(rc.PathParam("id")), &resources)
+	biz.ErrIsNil(r.roleApp.GetRoleResources(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 

@@ -1,9 +1,11 @@
 package persistence
 
 import (
+	"context"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/model"
 )
 
 type resourceRepoImpl struct {
@@ -16,19 +18,23 @@ func newResourceRepo() repository.Resource {
 	return &resourceRepoImpl{}
 }
 
-func (r *resourceRepoImpl) GetChildren(uiPath string) []entity.Resource {
-	sql := "SELECT id, ui_path FROM t_sys_resource WHERE ui_path LIKE ? AND is_deleted = 0"
+func (r *resourceRepoImpl) GetChildren(ctx context.Context, uiPath string) ([]entity.Resource, error) {
+	// 表名取自实体：物理表名由 NamingStrategy 统一派生，写死后改前缀或换方言就会静默查错表
+	sql := "SELECT id, ui_path FROM " + (&entity.Resource{}).TableName() + " WHERE ui_path LIKE ? AND is_deleted = 0"
 	var rs []entity.Resource
-	r.SelectBySQL(sql, &rs, uiPath+"%")
-	return rs
+	if err := r.SelectBySQL(ctx, sql, &rs, uiPath+"%"); err != nil {
+		return nil, err
+	}
+	return rs, nil
 }
 
-func (r *resourceRepoImpl) UpdateByUiPathLike(resource *entity.Resource) error {
-	sql := "UPDATE t_sys_resource SET status=? WHERE (ui_path LIKE ?)"
-	return r.ExecBySQL(sql, resource.Status, resource.UiPath+"%")
+// UpdateByUiPathLike 按唯一标识路径前缀批量变更状态（停用/启用父节点时级联其整棵子树）
+func (r *resourceRepoImpl) UpdateByUiPathLike(ctx context.Context, resource *entity.Resource) error {
+	_, err := r.UpdateColsByCond(ctx, base.NewPatch().Set("status", resource.Status), model.NewCond().RLike("ui_path", resource.UiPath))
+	return err
 }
 
-func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) error {
+func (r *resourceRepoImpl) GetAccountResources(ctx context.Context, accountId uint64, toEntity any) error {
 	sql := `
 SELECT
   m.id,
@@ -72,5 +78,5 @@ WHERE
 ORDER BY
   m.pid ASC,
   m.weight ASC;`
-	return r.SelectBySQL(sql, toEntity, accountId)
+	return r.SelectBySQL(ctx, sql, toEntity, accountId)
 }

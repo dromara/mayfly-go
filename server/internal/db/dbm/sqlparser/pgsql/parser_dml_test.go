@@ -268,6 +268,19 @@ func TestPgDeleteUsing(t *testing.T) {
 	if len(deleteStmt.Tables) < 1 || deleteStmt.Tables[0].Name != "orders" {
 		t.Errorf("expected table='orders'")
 	}
+	// DELETE … USING 是 PostgreSQL 的多表删除：来源表必须与目标表一并登记，
+	// 采集层按「不是单表」fail-closed（跳过旧值采集），而不是靠「USING 挡住了 WHERE」这种
+	// 解析失败的巧合——把删除集由 orders×users 连接决定的事实显式交给消费方
+	if len(deleteStmt.Tables) != 2 {
+		t.Fatalf("expected 2 tables (目标 orders + 来源 users), got %+v", deleteStmt.Tables)
+	}
+	if deleteStmt.Tables[1].Name != "users" || deleteStmt.Tables[1].Alias != "u" {
+		t.Errorf("expected source table users/u registered, got %+v", deleteStmt.Tables[1])
+	}
+	// 条件本身仍应被完整解析（供准入判定与执行日志如实呈现）
+	if deleteStmt.Where == nil || deleteStmt.Where.Text != "o.user_id = u.id AND u.status = 0" {
+		t.Errorf("expected full WHERE, got %+v", deleteStmt.Where)
+	}
 }
 
 // ========== Schema.Table 测试 ==========
@@ -843,4 +856,80 @@ AND "created_at" < '2024-01-01'`
 		t.Fatal("expected WHERE")
 	}
 	t.Logf("UPDATE with multiple comments: %s", updateStmt.GetText())
+}
+
+// TestPgInsertConflictClause 逐形态断言 pgsql/sqlite 的 INSERT 冲突处理标志。
+// ON CONFLICT DO NOTHING/DO UPDATE 在目标行已存在时不新增行，而 INSERT 回滚是「删掉刚插入行」，
+// 按 VALUES 生成的 DELETE 会删掉那条既有行（数据丢失），故必须标记让采集层 fail-closed；
+// 纯 INSERT、INSERT…SELECT、RETURNING 均不属于冲突形态，不得误标。
+func TestPgInsertConflictClause(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		want bool
+	}{
+		{"plain", `INSERT INTO users (id, name) VALUES (1, 'a')`, false},
+		{"returning", `INSERT INTO users (id, name) VALUES (1, 'a') RETURNING id`, false},
+		{"from-select", `INSERT INTO users (id, name) SELECT id, name FROM src`, false},
+		{"on-conflict-nothing", `INSERT INTO users (id, name) VALUES (1, 'a') ON CONFLICT (id) DO NOTHING`, true},
+		{"on-conflict-update", `INSERT INTO users (id, name) VALUES (1, 'a') ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`, true},
+		{"on-conflict-returning", `INSERT INTO users (id, name) VALUES (1, 'a') ON CONFLICT (id) DO NOTHING RETURNING id`, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			stmt, err := NewParser(c.sql).Parse()
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			is, ok := stmt.(*sqlstmt.InsertStmt)
+			if !ok {
+				t.Fatalf("expected InsertStmt, got %T", stmt)
+			}
+			if is.HasConflictClause != c.want {
+				t.Errorf("HasConflictClause=%v, want %v", is.HasConflictClause, c.want)
+			}
+		})
+	}
+}
+
+// TestPgUpdateDeleteLimitCapture 断言尾随 LIMIT/OFFSET 被结构化捕获，且无 LIMIT 时 Limit 必须为 nil。
+// 关键回归护栏：pgsql 的 parseLimit 无 LIMIT 时仍返回非 nil 的 &Limit{}，若调用前不加
+// IsKeyword("LIMIT")||IsKeyword("OFFSET") 守卫，会让所有普通 UPDATE/DELETE 都被误判为带行限制而 fail-closed。
+func TestPgUpdateDeleteLimitCapture(t *testing.T) {
+	// 带 LIMIT（sqlite 启用 UPDATE_DELETE_LIMIT 时的形态）
+	u, err := NewParser("UPDATE users SET name = 'a' WHERE id = 1 LIMIT 10").Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	us := u.(*sqlstmt.UpdateStmt)
+	if us.Limit == nil || us.Limit.Count != 10 {
+		t.Errorf("expected UPDATE Limit.Count=10, got %+v", us.Limit)
+	}
+	if us.Where == nil || us.Where.Text != "id = 1" {
+		t.Errorf("WHERE.Text polluted by LIMIT: %+v", us.Where)
+	}
+
+	d, err := NewParser("DELETE FROM users WHERE id = 1 LIMIT 5 OFFSET 2").Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	ds := d.(*sqlstmt.DeleteStmt)
+	if ds.Limit == nil || ds.Limit.Count != 5 || ds.Limit.Offset != 2 {
+		t.Errorf("expected DELETE Limit{5,2}, got %+v", ds.Limit)
+	}
+
+	// 无 LIMIT：必须为 nil（否则普通语句会被误 fail-closed）
+	u2, _ := NewParser("UPDATE users SET name = 'a' WHERE id = 1").Parse()
+	if l := u2.(*sqlstmt.UpdateStmt).Limit; l != nil {
+		t.Errorf("expected nil Limit for UPDATE without LIMIT, got %+v", l)
+	}
+	d2, _ := NewParser("DELETE FROM users WHERE id = 1").Parse()
+	if l := d2.(*sqlstmt.DeleteStmt).Limit; l != nil {
+		t.Errorf("expected nil Limit for DELETE without LIMIT, got %+v", l)
+	}
+	// RETURNING 不得被误判为 LIMIT
+	u3, _ := NewParser("UPDATE users SET name = 'a' WHERE id = 1 RETURNING id").Parse()
+	if l := u3.(*sqlstmt.UpdateStmt).Limit; l != nil {
+		t.Errorf("expected nil Limit for UPDATE … RETURNING, got %+v", l)
+	}
 }

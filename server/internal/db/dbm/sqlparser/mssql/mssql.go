@@ -1,26 +1,37 @@
 package mssql
 
 import (
-	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"fmt"
+
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
+	"mayfly-go/pkg/logx"
 )
 
-// MssqlParser 包装 pgsql 解析器（T-SQL 语法最接近标准 SQL，无需自建完整 parser），
-// 仅覆写分页改写为 SQL Server 的 OFFSET-FETCH 语法。
+// MssqlParser SQL Server 解析器入口。
+//
+// 语法骨架与各方言共用 base（见 parser.go），本包装只提供 SQL Server 特有的能力面：
+// 分页改写用 OFFSET-FETCH 语法。曾直接包装 pgsql 解析器，使 T-SQL 的 [方括号] 标识符
+// 在解析阶段不被识别为引用名（词法能力表用的是 pg 配置），表名与列名提取因此失真
 type MssqlParser struct {
-	inner *pgsql.PgsqlParser
 }
 
-// NewParser 构造 MssqlParser（内部包装 pgsql 解析器）。
+// NewParser 构造 MssqlParser
 func NewParser() *MssqlParser {
-	return &MssqlParser{inner: new(pgsql.PgsqlParser)}
+	return new(MssqlParser)
 }
 
-func (p *MssqlParser) Parse(stmt string) (sqlstmt.Stmt, error) {
-	return p.inner.Parse(stmt)
+func (*MssqlParser) Parse(stmt string) (result sqlstmt.Stmt, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			// panic不得静默吞掉：返回错误让调用方能感知解析失败
+			logx.ErrorTrace("mssql sql parser err: ", e)
+			err = fmt.Errorf("mssql sql parse failed: %v", e)
+		}
+	}()
+	return newParser(stmt).Parse()
 }
 
-// RewritePagination SQL Server 分页改写：OFFSET-FETCH 语法（需 ORDER BY）
+// RewritePagination SQL Server 分页改写：OFFSET-FETCH 语法（要求 ORDER BY，缺失时由实现补占位排序）
 func (p *MssqlParser) RewritePagination(sql string, offset, limit int64) (string, error) {
 	return sqlstmt.MssqlRewritePagination(sql, offset, limit), nil
 }

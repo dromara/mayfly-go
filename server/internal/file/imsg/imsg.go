@@ -14,4 +14,5 @@ const (
 	ErrFileNotFound     = iota + consts.ImsgNumFile // 文件不存在
 	ErrS3NotConfigured                              // 未配置s3存储
 	ErrS3BucketMismatch                             // 文件所属s3桶与当前配置不一致
+	ErrFileAccessDenied                             // 私有文件不可经通用文件路由读取
 )

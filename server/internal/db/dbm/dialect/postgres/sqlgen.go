@@ -86,7 +86,7 @@ func (msg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []str
 			unique = " unique"
 		}
 
-		currentSchema := msg.di.CurrentSchema()
+		currentSchema := msg.di.Schema
 		// 带上后缀.  避免后续判断
 		if currentSchema != "" {
 			currentSchema = quote(currentSchema) + "."

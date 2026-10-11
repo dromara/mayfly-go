@@ -132,6 +132,49 @@ func TestCapabilityDeclarationMatchesImplementation(t *testing.T) {
 	}
 }
 
+// nonObjectFeatureProbes 非对象类能力的「声明⟺实现」探测表。
+//
+// 上面的对象类校验能数据驱动，是因为 dbi.ObjectKindFeatures 把能力映射到了 ObjectKind；
+// 而 sessions/explain 这类能力不对应任何对象类别，只能为每条能力声明一个探测函数。
+// 新增一项非对象能力只需在此加一行（开闭）：漏加等于该能力可以谎报而无人拦截
+var nonObjectFeatureProbes = []struct {
+	feat        dbi.MetadataFeature
+	implemented func(dbi.MetadataProvider) bool
+}{
+	{
+		dbi.FeatSessions,
+		func(p dbi.MetadataProvider) bool { _, ok := p.(dbi.SessionInspector); return ok },
+	},
+	{
+		dbi.FeatExplain,
+		func(p dbi.MetadataProvider) bool { _, ok := p.(dbi.ExplainAnalyzer); return ok },
+	},
+}
+
+// TestNonObjectCapabilityDeclarationMatchesImplementation 非对象类能力的声明与实际实现一致性护栏。
+func TestNonObjectCapabilityDeclarationMatchesImplementation(t *testing.T) {
+	for _, dt := range dbi.GetRegisteredDbTypes() {
+		backend := dbi.GetBackend(dt)
+		if backend == nil {
+			continue
+		}
+		caps := backend.GetCapabilities()
+		for _, probe := range nonObjectFeatureProbes {
+			if !caps.Has(probe.feat) {
+				continue
+			}
+			provider := safeProvider(backend, dt)
+			if provider == nil {
+				t.Errorf("dialect %q declares capability %q but its MetadataProvider cannot be constructed", dt, dbi.FeatureName(probe.feat))
+				continue
+			}
+			if !probe.implemented(provider) {
+				t.Errorf("dialect %q declares %q but its provider does not implement the matching capability interface", dt, dbi.FeatureName(probe.feat))
+			}
+		}
+	}
+}
+
 // safeProvider 以伪连接构造 provider 引用（仅取对象、不执行任何查询）；构造期 panic 视为不合规，返回 nil。
 func safeProvider(backend dbi.DbBackend, dt dbi.DbType) (provider dbi.MetadataProvider) {
 	defer func() {

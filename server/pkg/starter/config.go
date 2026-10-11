@@ -94,7 +94,7 @@ type DBConf struct {
 	Password     string    `yaml:"password"`
 	Config       string    `yaml:"config"` // 额外配置，如 charset=utf8&loc=Local&parseTime=true
 	MaxIdleConns int       `yaml:"max-idle-conns" default:"5"`
-	MaxOpenConns int       `yaml:"max-open-conns"`
+	MaxOpenConns int       `yaml:"max-open-conns" default:"50"` // 0 在 database/sql 语义里是「不限连接」，长事务场景会放大成连接风暴，因此必须给出上限
 }
 
 /************************ jwt ************************/

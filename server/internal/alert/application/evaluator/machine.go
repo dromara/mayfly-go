@@ -125,7 +125,7 @@ func (e *MachineEvaluator) Evaluate(ctx context.Context, param *service.EvalPara
 	// 机器状态取不到时：
 	// - 若规则使用了 status 指标，继续评估（extractStatus 会处理 statsErr 返回离线值）
 	// - 若规则未使用 status 指标，本次评估不可靠，返回 Evaluated=false 让引擎跳过状态迁移
-	if statsErr != nil && !e.usesStatusMetric(condition) {
+	if statsErr != nil && !usesMetric(condition, MetricStatus) {
 		logx.Warnf("[alert] machine[%d] stats unavailable: %s, evaluation unreliable", param.ResourceId, statsErr.Error())
 		return &service.EvalResult{Evaluated: false}, nil
 	}
@@ -154,59 +154,15 @@ func (e *MachineEvaluator) Evaluate(ctx context.Context, param *service.EvalPara
 		result.Items = append(result.Items, eval)
 	}
 
-	result.Triggered = e.isTriggered(condition.Operator, result.Items)
+	result.Triggered = isTriggered(condition.Operator, result.Items)
 	// 判定可靠性：已触发即为可靠；未触发但存在无法取值的条件项时结论不可靠，
 	// 必须禁止调用方据此把告警置为"已恢复"
 	result.Evaluated = result.Triggered || !hasUnevaluableItem(result.Items)
 	return result, nil
 }
 
-// hasUnevaluableItem 是否存在无法取值的条件项
-func hasUnevaluableItem(items []service.ConditionEval) bool {
-	for _, item := range items {
-		if item.Err != "" {
-			return true
-		}
-	}
-	return false
-}
-
 // isTriggered 按组合方式判定是否触发：
 //   - and：所有条件都满足；任一条件不可判定则整体不触发（由 Evaluated 标记为不可靠）
-//   - or ：任一条件满足即触发；无任一满足且存在不可判定条件时结论不可靠
-func (e *MachineEvaluator) isTriggered(operator string, items []service.ConditionEval) bool {
-	if operator == "or" {
-		for _, item := range items {
-			if item.Satisfied {
-				return true
-			}
-		}
-		return false
-	}
-	// 默认 and
-	if len(items) == 0 {
-		return false
-	}
-	for _, item := range items {
-		if !item.Satisfied {
-			return false
-		}
-	}
-	return true
-}
-
-// usesStatusMetric 条件中是否使用了在线状态指标
-func (e *MachineEvaluator) usesStatusMetric(condition *entity.AlertCondition) bool {
-	if condition == nil {
-		return false
-	}
-	for _, item := range condition.Items {
-		if item.Metric == MetricStatus {
-			return true
-		}
-	}
-	return false
-}
 
 // extractMetric 从已获取的机器状态中提取指定指标的值（单次 GetMachineStats，避免 N+1）。
 //

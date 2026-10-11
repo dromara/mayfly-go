@@ -24,7 +24,7 @@
             </div>
 
             <!-- 占位条：把「非激活 tab 的底部分隔线」延伸到空白区，保证整条横线贯通；
-                 激活 tab 自身底边透明，从而与下方内容区连通（VS Code 编辑器标签的连通感） -->
+                 激活 tab 自身底边透明，从而与下方内容区连通（编辑器标签的连通感） -->
             <span class="tab-spacer" aria-hidden="true"></span>
         </div>
 
@@ -81,7 +81,7 @@ const onKeydown = (event: KeyboardEvent) => {
     nextTick(() => tablistRef.value?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus());
 };
 
-// 中键点击关闭（对齐 VS Code / 浏览器标签习惯）；与 ✕ 同口径，非可关闭标签不响应
+// 中键点击关闭（对齐常见编辑器/浏览器标签习惯）；与 ✕ 同口径，非可关闭标签不响应
 const onMiddleClose = (tab: TabItem) => {
     if (tab.closable !== false) {
         emit('close', tab.key);

@@ -19,7 +19,7 @@ type AlertEvent interface {
 	GetAlertEventList(condition *entity.AlertEventQuery, orderBy ...string) (*model.PageResult[*entity.AlertEvent], error)
 
 	// FindActive 查找活跃事件
-	FindActive(ruleId, resourceId uint64) (*entity.AlertEvent, error)
+	FindActive(ctx context.Context, ruleId, resourceId uint64) (*entity.AlertEvent, error)
 
 	// CreateFiringEvent 创建告警中事件（原子操作，防止并发重复创建）
 	// 返回 (创建的事件, 是否已存在活跃事件, error)
@@ -57,28 +57,28 @@ type AlertEvent interface {
 	CleanupTerminal(ctx context.Context, retainDays int) (int64, error)
 
 	// CountGroupByStatus 按状态统计数量
-	CountGroupByStatus() (map[entity.AlertEventStatus]int64, error)
+	CountGroupByStatus(ctx context.Context) (map[entity.AlertEventStatus]int64, error)
 
 	// ---- 概览统计方法 ----
 
 	// GetAvgRecoveryTime 计算已恢复事件的平均恢复时间（秒）
-	GetAvgRecoveryTime() (int64, error)
+	GetAvgRecoveryTime(ctx context.Context) (int64, error)
 	// CountTodayNotifications 统计今日有通知的事件数
-	CountTodayNotifications(since time.Time) (int64, error)
+	CountTodayNotifications(ctx context.Context, since time.Time) (int64, error)
 	// CountPolicyMatched 统计匹配到通知策略的事件数
-	CountPolicyMatched() (int64, error)
+	CountPolicyMatched(ctx context.Context) (int64, error)
 	// CountUnmatched 统计活跃但未匹配策略的事件数
-	CountUnmatched() (int64, error)
+	CountUnmatched(ctx context.Context) (int64, error)
 	// CountEscalated 统计已升级的事件数
-	CountEscalated() (int64, error)
+	CountEscalated(ctx context.Context) (int64, error)
 	// GetMaxEscalationLevel 获取已达到的最高升级级别
-	GetMaxEscalationLevel() (int64, error)
+	GetMaxEscalationLevel(ctx context.Context) (int64, error)
 	// GetTopByTriggerCount 获取触发次数最多的事件
-	GetTopByTriggerCount(limit int) ([]*entity.AlertEvent, error)
+	GetTopByTriggerCount(ctx context.Context, limit int) ([]*entity.AlertEvent, error)
 	// GetTopByDuration 获取持续时间最长的事件
-	GetTopByDuration(limit int) ([]*entity.AlertEvent, error)
+	GetTopByDuration(ctx context.Context, limit int) ([]*entity.AlertEvent, error)
 	// GetTopByNotifyCount 获取通知次数最多的事件
-	GetTopByNotifyCount(limit int) ([]*entity.AlertEvent, error)
+	GetTopByNotifyCount(ctx context.Context, limit int) ([]*entity.AlertEvent, error)
 
 	// ListActiveFiring 获取所有告警中的事件（用于抑制检查）
 	ListActiveFiring() ([]*entity.AlertEvent, error)
@@ -94,8 +94,8 @@ func (a *alertEventAppImpl) GetAlertEventList(condition *entity.AlertEventQuery,
 	return a.GetRepo().GetAlertEventList(condition, orderBy...)
 }
 
-func (a *alertEventAppImpl) FindActive(ruleId, resourceId uint64) (*entity.AlertEvent, error) {
-	return a.GetRepo().FindActive(ruleId, resourceId)
+func (a *alertEventAppImpl) FindActive(ctx context.Context, ruleId, resourceId uint64) (*entity.AlertEvent, error) {
+	return a.GetRepo().FindActive(ctx, ruleId, resourceId)
 }
 
 func (a *alertEventAppImpl) CreateFiringEvent(ctx context.Context, rule *entity.AlertRule, resourceId uint64, resourceName, metric string, currentValue float64, threshold string) (*entity.AlertEvent, bool, error) {
@@ -116,9 +116,7 @@ func (a *alertEventAppImpl) CreateFiringEvent(ctx context.Context, rule *entity.
 		TriggerCount:     1,
 		Labels:           rule.Labels,
 	}
-	// 设置基础信息（创建时间、创建者等）
-	event.FillBaseInfo(model.IdGenTypeNone, nil)
-	return a.GetRepo().CreateIfNotActive(event)
+	return a.GetRepo().CreateIfNotActive(ctx, event)
 }
 
 func (a *alertEventAppImpl) TouchActiveEvent(ctx context.Context, event *entity.AlertEvent, metric string, currentValue float64) error {
@@ -194,7 +192,7 @@ func (a *alertEventAppImpl) DeleteEvent(ctx context.Context, eventId uint64) err
 // 规则删除或禁用时调用，防止活跃事件变成孤儿。
 func (a *alertEventAppImpl) CloseByRuleId(ctx context.Context, ruleId uint64) error {
 	repo := a.GetRepo()
-	events, err := repo.FindActiveByRuleId(ruleId)
+	events, err := repo.FindActiveByRuleId(ctx, ruleId)
 	if err != nil {
 		return err
 	}
@@ -209,47 +207,47 @@ func (a *alertEventAppImpl) CloseByRuleId(ctx context.Context, ruleId uint64) er
 
 // CleanupTerminal 清理已终结（Recovered/Closed）超过 retainDays 天的事件
 func (a *alertEventAppImpl) CleanupTerminal(ctx context.Context, retainDays int) (int64, error) {
-	return a.GetRepo().CleanupTerminal(retainDays)
+	return a.GetRepo().CleanupTerminal(ctx, retainDays)
 }
 
-func (a *alertEventAppImpl) CountGroupByStatus() (map[entity.AlertEventStatus]int64, error) {
-	return a.GetRepo().CountGroupByStatus()
+func (a *alertEventAppImpl) CountGroupByStatus(ctx context.Context) (map[entity.AlertEventStatus]int64, error) {
+	return a.GetRepo().CountGroupByStatus(ctx)
 }
 
-func (a *alertEventAppImpl) GetAvgRecoveryTime() (int64, error) {
-	return a.GetRepo().GetAvgRecoveryTime()
+func (a *alertEventAppImpl) GetAvgRecoveryTime(ctx context.Context) (int64, error) {
+	return a.GetRepo().GetAvgRecoveryTime(ctx)
 }
 
-func (a *alertEventAppImpl) CountTodayNotifications(since time.Time) (int64, error) {
-	return a.GetRepo().CountTodayNotifications(since)
+func (a *alertEventAppImpl) CountTodayNotifications(ctx context.Context, since time.Time) (int64, error) {
+	return a.GetRepo().CountTodayNotifications(ctx, since)
 }
 
-func (a *alertEventAppImpl) CountPolicyMatched() (int64, error) {
-	return a.GetRepo().CountPolicyMatched()
+func (a *alertEventAppImpl) CountPolicyMatched(ctx context.Context) (int64, error) {
+	return a.GetRepo().CountPolicyMatched(ctx)
 }
 
-func (a *alertEventAppImpl) CountUnmatched() (int64, error) {
-	return a.GetRepo().CountUnmatched()
+func (a *alertEventAppImpl) CountUnmatched(ctx context.Context) (int64, error) {
+	return a.GetRepo().CountUnmatched(ctx)
 }
 
-func (a *alertEventAppImpl) CountEscalated() (int64, error) {
-	return a.GetRepo().CountEscalated()
+func (a *alertEventAppImpl) CountEscalated(ctx context.Context) (int64, error) {
+	return a.GetRepo().CountEscalated(ctx)
 }
 
-func (a *alertEventAppImpl) GetMaxEscalationLevel() (int64, error) {
-	return a.GetRepo().GetMaxEscalationLevel()
+func (a *alertEventAppImpl) GetMaxEscalationLevel(ctx context.Context) (int64, error) {
+	return a.GetRepo().GetMaxEscalationLevel(ctx)
 }
 
-func (a *alertEventAppImpl) GetTopByTriggerCount(limit int) ([]*entity.AlertEvent, error) {
-	return a.GetRepo().GetTopByTriggerCount(limit)
+func (a *alertEventAppImpl) GetTopByTriggerCount(ctx context.Context, limit int) ([]*entity.AlertEvent, error) {
+	return a.GetRepo().GetTopByTriggerCount(ctx, limit)
 }
 
-func (a *alertEventAppImpl) GetTopByDuration(limit int) ([]*entity.AlertEvent, error) {
-	return a.GetRepo().GetTopByDuration(limit)
+func (a *alertEventAppImpl) GetTopByDuration(ctx context.Context, limit int) ([]*entity.AlertEvent, error) {
+	return a.GetRepo().GetTopByDuration(ctx, limit)
 }
 
-func (a *alertEventAppImpl) GetTopByNotifyCount(limit int) ([]*entity.AlertEvent, error) {
-	return a.GetRepo().GetTopByNotifyCount(limit)
+func (a *alertEventAppImpl) GetTopByNotifyCount(ctx context.Context, limit int) ([]*entity.AlertEvent, error) {
+	return a.GetRepo().GetTopByNotifyCount(ctx, limit)
 }
 
 // ListActiveFiring 获取所有告警中的事件（用于抑制检查）

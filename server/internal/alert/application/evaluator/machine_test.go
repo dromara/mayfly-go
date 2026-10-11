@@ -302,15 +302,14 @@ func TestExtractMetric_StatsErrorBlocksNonStatusMetric(t *testing.T) {
 // ==================== 判定可靠性测试 ====================
 
 func TestUsesStatusMetric(t *testing.T) {
-	e := &MachineEvaluator{}
-	e.ensureMetrics()
-	if !e.usesStatusMetric(&entity.AlertCondition{Items: []entity.ConditionItem{{Metric: MetricStatus, Compare: "eq", Value: 0}}}) {
+	// 判定原语已上收为评估器共用实现（evaluate_common.go），此处仍按机器 status 指标校验其语义
+	if !usesMetric(&entity.AlertCondition{Items: []entity.ConditionItem{{Metric: MetricStatus, Compare: "eq", Value: 0}}}, MetricStatus) {
 		t.Error("condition with status metric must be detected")
 	}
-	if e.usesStatusMetric(&entity.AlertCondition{Items: []entity.ConditionItem{{Metric: MetricCpuRate}}}) {
+	if usesMetric(&entity.AlertCondition{Items: []entity.ConditionItem{{Metric: MetricCpuRate}}}, MetricStatus) {
 		t.Error("condition without status metric must not be detected")
 	}
-	if e.usesStatusMetric(nil) {
+	if usesMetric(nil, MetricStatus) {
 		t.Error("nil condition must not be detected")
 	}
 }
@@ -318,24 +317,22 @@ func TestUsesStatusMetric(t *testing.T) {
 // TestIsTriggered_IgnoresUnevaluableItem AND 下含不可判定项时整体不触发，
 // 由 Evaluated=false 阻止调用方据此做状态迁移
 func TestIsTriggered_AndWithUnevaluableItem(t *testing.T) {
-	e := &MachineEvaluator{}
 	items := []service.ConditionEval{
 		{Metric: MetricCpuRate, Satisfied: true},
 		{Metric: "ghost_metric", Err: "unknown metric: ghost_metric"},
 	}
-	if e.isTriggered("and", items) {
+	if isTriggered("and", items) {
 		t.Error("AND with an unevaluable item must not trigger")
 	}
 }
 
 // TestIsTriggered_OrSatisfiedBySingleItem OR 下任一满足即触发，不受另一项取值失败影响
 func TestIsTriggered_OrSatisfiedBySingleItem(t *testing.T) {
-	e := &MachineEvaluator{}
 	items := []service.ConditionEval{
 		{Metric: "ghost_metric", Err: "unknown metric: ghost_metric"},
 		{Metric: MetricMemRate, Satisfied: true},
 	}
-	if !e.isTriggered("or", items) {
+	if !isTriggered("or", items) {
 		t.Error("OR with one satisfied item must trigger")
 	}
 }

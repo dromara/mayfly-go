@@ -1,13 +1,12 @@
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import EnumValue from '@/common/Enum';
-import { getRootContributor, registerContributor, validateMenuCommands, RES_GROUP_KIND } from './tree';
+import { getRootContributor, registerContributor, validateMenuCommands } from './tree';
 
-import type { TreeNode, TreeNodeData } from './tree/types';
+import type { TreeNodeData } from './tree/types';
 import { tagApi } from '@/views/ops/tag/api';
 import type { TagTreeNode } from '@/views/ops/tag/types';
 import type { Component } from 'vue';
 import { getResourceTypes, registerResource } from './resourceRegistry';
-import { resGroupKey } from './resourceKeys';
+import { loadTagResources } from './tagResources';
 import TagLabel from './TagLabel.vue';
 
 /** 标签树节点形状直接复用标签模块的 VO（本模块只读 type/code/codePath/name/children） */
@@ -44,7 +43,7 @@ for (const path in allResources) {
 }
 
 /**
- * 注册表完整性自检（DEV 启动期，对标 VS Code contribution validation）：
+ * 注册表完整性自检（DEV 启动期）：
  * 拼接断点显式暴露——资源类型无根贡献者/根贡献者缺 loadRoots，都会导致该资产在树中静默不可见
  */
 function validateResourceTreeLinks(): string[] {
@@ -54,7 +53,7 @@ function validateResourceTreeLinks(): string[] {
         if (!root) {
             problems.push(`资源类型 ${type} 无根贡献者（资源模块 registerContributor 需声明 resourceType）`);
         } else if (!root.loadRoots) {
-            problems.push(`资源类型 ${type} 的根贡献者 ${root.kind} 缺 loadRoots，类型分组节点无法展开出资源列表`);
+            problems.push(`资源类型 ${type} 的根贡献者 ${root.kind} 缺 loadRoots，展开标签时无法取到该类型的资源列表`);
         }
     }
     if (import.meta.env.DEV) {
@@ -72,31 +71,21 @@ if (import.meta.env.DEV) {
 export { defineResourceConfig, getResourceConfig, getResourceConfigs, getResourceTypes, registerResource } from './resourceRegistry';
 
 /**
- * 类型分组节点贡献者（"机器/数据库"等中间层）：
- * 展开时按 params.resourceType 分发到对应资源根贡献者的 loadRoots（核心协议见 tree/registry.ts）
- */
-registerContributor({
-    kind: RES_GROUP_KIND,
-    hasChildren: true,
-    loadChildren: async (node: TreeNode) => {
-        const resourceType = node.params?.resourceType as number | string;
-        const rootContributor = getRootContributor(resourceType);
-        return (await rootContributor?.loadRoots?.(node)) ?? [];
-    },
-});
-
-/**
- * 标签节点贡献者：仅声明行内 label 渲染器（'/' 路径分段高亮）。
- * 标签骨架由 loadResourceTags 内存预构（children 分支即展开能力成立），无需加载器
+ * 标签节点贡献者：标签下直接平铺各类型的根资源（无「机器/数据库」类型分组中间层）。
+ *
+ * 行内 label 由 TagLabel 渲染（'/' 路径分段高亮）；展开时的取数见 loadTagResources。
  */
 registerContributor({
     kind: 'tag',
+    hasChildren: true,
     labelRenderer: TagLabel,
+    loadChildren: (node) => loadTagResources(node.key, (node.params?.resourceTypes as (number | string)[]) ?? []),
 });
 
 /**
- * 递归拍平标签树并重写 name 为完整路径，转为统一 TreeNodeData 骨架（children 预构，内存即建）：
- * - 标签层级存在资源子节点时保留该层级，资源子节点按类型归入分组节点
+ * 递归拍平标签树并重写 name 为完整路径，转为统一 TreeNodeData 骨架（标签层内存即建，资源层按需取数）：
+ * - 标签层级存在资源子节点时保留该层级，并把它包含的资源类型（首次出现序）记在 params 上，
+ *   供展开标签时按类型路由到各资源根贡献者（资源行本身不预构，要取数才有）
  * - 纯标签子层级被拍平，其下资源子树作为独立标签层级平铺到结果中
  */
 const flatten = (node: TagTreeData, namePath: string[], result: TreeNodeData[]) => {
@@ -113,7 +102,7 @@ const flatten = (node: TagTreeData, namePath: string[], result: TreeNodeData[]) 
             key: node.codePath,
             kind: 'tag',
             label: currentNamePath.join('/'),
-            children: groupByResourceType(node.codePath, resourceChildren),
+            params: { resourceTypes: distinctResourceTypes(resourceChildren) },
         });
     }
 
@@ -121,30 +110,8 @@ const flatten = (node: TagTreeData, namePath: string[], result: TreeNodeData[]) 
     children.filter((child) => child.type === TagResourceTypeEnum.Tag.value).forEach((child) => flatten(child, currentNamePath, result));
 };
 
-/** 资源子节点按资源类型分组为类型分组节点（展开时经分组贡献者分发到对应资源模块加载） */
-const groupByResourceType = (codePath: string, resourceChildren: TagTreeData[]): TreeNodeData[] => {
-    const type2Children = new Map<number, TagTreeData[]>();
-    resourceChildren.forEach((child) => {
-        if (!type2Children.has(child.type)) {
-            type2Children.set(child.type, [child]);
-            return;
-        }
-        type2Children.get(child.type)!.push(child);
-    });
-
-    const groupNodes: TreeNodeData[] = [];
-    for (const [type, children] of type2Children) {
-        const typeEnum = EnumValue.getEnumByValue(TagResourceTypeEnum, type);
-        groupNodes.push({
-            key: resGroupKey(codePath, type),
-            kind: RES_GROUP_KIND,
-            label: typeEnum?.label || 'common.unknown',
-            icon: typeEnum?.extra.icon ? { name: typeEnum.extra.icon, color: typeEnum.extra.iconColor } : undefined,
-            params: { resourceType: type, resourceCodes: children.map((c) => c.code), tagPath: codePath },
-        });
-    }
-    return groupNodes;
-};
+/** 标签下出现过的资源类型（去重、保留首次出现顺序）：即标签展开时的取数与合并顺序 */
+const distinctResourceTypes = (resourceChildren: TagTreeData[]): (number | string)[] => [...new Set(resourceChildren.map((child) => child.type))];
 
 export const loadResourceTags = async (resourceType: (number | string)[]): Promise<TreeNodeData[]> => {
     const tags = await tagApi.getTagTrees.request({

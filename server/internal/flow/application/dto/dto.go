@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"time"
+
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/trigger"
 )
@@ -22,6 +24,8 @@ type StarProc struct {
 	BizKey  string // 业务key，若已存在则为修改重新提交流程
 	Remark  string // 备注
 	BizForm string // 业务表单信息
+	// PlannedExecTime 计划执行时间：审批通过后到点才执行；nil=批准后立即执行
+	PlannedExecTime *time.Time
 }
 
 // TriggerRequest 资源操作的前置触发策略校验入参

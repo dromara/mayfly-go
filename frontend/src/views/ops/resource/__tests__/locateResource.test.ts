@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { registerContributor } from '../tree/registry';
 import type { TreeNode, LocateAccess } from '../tree/types';
 import { parseCodePath, resolveCodePathLocate } from '../locateResource';
-import { resGroupKey } from '../resourceKeys';
 
 /**
  * codePath 定位解析单测（纯函数 + 依赖注入，无需挂载树/组件）：
@@ -31,8 +30,11 @@ const node = (key: string, kind: string, params: Record<string, unknown> = {}, c
     children,
 });
 
-/** 假树访问器：递归铺平所有子孙节点（对齐真实水合层的扁平 nodeIndex），expandNode 仅翻转 loaded 标记 */
-function makeAccess(nodes: TreeNode[], rootLoaded: boolean): LocateAccess {
+/**
+ * 假树访问器：递归铺平所有子孙节点（对齐真实水合层的扁平 nodeIndex）；
+ * expandNode 按 pending 表补挂子级并置 loaded，用来模拟「标签子级是懒加载的」这条真实链路。
+ */
+function makeAccess(nodes: TreeNode[], rootLoaded: boolean, pending: Record<string, TreeNode[]> = {}): LocateAccess {
     const map = new Map<string, TreeNode>();
     const walk = (list: TreeNode[]) => {
         for (const n of list) {
@@ -45,7 +47,13 @@ function makeAccess(nodes: TreeNode[], rootLoaded: boolean): LocateAccess {
         getNode: (k) => map.get(k),
         expandNode: async (k) => {
             const n = map.get(k);
-            if (n) n.loaded = true;
+            if (!n) return;
+            if (pending[k]) {
+                n.children = pending[k];
+                // 与真实水合层一致：补挂的子级要登记进扁平索引，否则 getNode 查不到新节点
+                walk(pending[k]);
+            }
+            n.loaded = true;
         },
         rootLoaded,
     };
@@ -69,25 +77,33 @@ describe('parseCodePath', () => {
 });
 
 describe('resolveCodePathLocate', () => {
-    it('单级资源：解析到分组下的实例节点', async () => {
-        const group = node(resGroupKey('t1/', 1), 'group', {}, [node('mc1', KIND_MACHINE, { code: 'mc1' })]);
-        const access = makeAccess([group], true);
+    it('单级资源：解析到标签下的实例节点（无类型分组中间层）', async () => {
+        const tag = node('t1/', 'tag', { resourceTypes: [1] }, [node('mc1', KIND_MACHINE, { code: 'mc1' })]);
+        const access = makeAccess([tag], true);
+        expect(await resolveCodePathLocate('t1/1|mc1/', access)).toEqual({ status: 'resolved', key: 'mc1' });
+    });
+
+    it('标签子级是懒加载的：未展开时先展开标签再匹配', async () => {
+        // 资源行不再随根预构：这一步走 loadedChildren 的「未 loaded 就 expandNode」分支，
+        // 不先展开就拿不到子级，旧实现（分组随根预构）掩盖了这个时序
+        const tag = node('t1/', 'tag', { resourceTypes: [1] });
+        const access = makeAccess([tag], true, { 't1/': [node('mc1', KIND_MACHINE, { code: 'mc1' })] });
         expect(await resolveCodePathLocate('t1/1|mc1/', access)).toEqual({ status: 'resolved', key: 'mc1' });
     });
 
     it('嵌套 tag + 凭证：逐层下钻到机器授权凭证节点', async () => {
         const cert = node('m1.root', KIND_MACHINE_CERT, { cert: { name: 'root' } });
         const machine = node('m1', KIND_MACHINE, { code: 'm1' }, [cert]);
-        const group = node(resGroupKey('a/b/', 1), 'group', {}, [machine]);
-        const access = makeAccess([group], true);
+        const tag = node('a/b/', 'tag', { resourceTypes: [1] }, [machine]);
+        const access = makeAccess([tag], true);
         expect(await resolveCodePathLocate('a/b/1|m1/5|root/', access)).toEqual({ status: 'resolved', key: 'm1.root' });
     });
 
     it('跨级跳过：数据库 codePath 含账号段(5|)但树为 实例-库名，仍解析到库名节点', async () => {
         const db = node('inst1.db1', KIND_DB, { dbCode: 'db1' });
         const inst = node('inst1', KIND_DB_INST, { code: 'inst1' }, [db]);
-        const group = node(resGroupKey('d/', 2), 'group', {}, [inst]);
-        const access = makeAccess([group], true);
+        const tag = node('d/', 'tag', { resourceTypes: [2] }, [inst]);
+        const access = makeAccess([tag], true);
         expect(await resolveCodePathLocate('d/2|inst1/5|acc1/22|db1/', access)).toEqual({ status: 'resolved', key: 'inst1.db1' });
     });
 
@@ -96,19 +112,19 @@ describe('resolveCodePathLocate', () => {
         expect(await resolveCodePathLocate('a/b/', access)).toEqual({ status: 'resolved', key: 'a/b/' });
     });
 
-    it('分组缺失且根已加载 -> missing（无权限/已删除，放弃挂起）', async () => {
+    it('标签缺失且根已加载 -> missing（无权限/已删除，放弃挂起）', async () => {
         const access = makeAccess([], true);
         expect(await resolveCodePathLocate('x/1|mc9/', access)).toEqual({ status: 'missing' });
     });
 
-    it('分组缺失但根未加载 -> pending（待水合后重试）', async () => {
+    it('标签缺失但根未加载 -> pending（待水合后重试）', async () => {
         const access = makeAccess([], false);
         expect(await resolveCodePathLocate('x/1|mc9/', access)).toEqual({ status: 'pending' });
     });
 
-    it('分组命中但首段资源 code 无人匹配 -> missing（资源已删除）', async () => {
-        const group = node(resGroupKey('t1/', 1), 'group', {}, [node('other', KIND_MACHINE, { code: 'other' })]);
-        const access = makeAccess([group], true);
+    it('标签命中但首段资源 code 无人匹配 -> missing（资源已删除）', async () => {
+        const tag = node('t1/', 'tag', { resourceTypes: [1] }, [node('other', KIND_MACHINE, { code: 'other' })]);
+        const access = makeAccess([tag], true);
         expect(await resolveCodePathLocate('t1/1|mc1/', access)).toEqual({ status: 'missing' });
     });
 });

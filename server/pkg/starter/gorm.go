@@ -1,15 +1,18 @@
 package starter
 
 import (
+	"fmt"
 	"log"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"gorm.io/gorm/schema"
 )
 
 func initDB(dbConf DBConf) (*gorm.DB, error) {
@@ -51,17 +54,37 @@ func initMysql(dbConf DBConf) (*gorm.DB, error) {
 	}
 }
 
+// sqliteBusyTimeoutMs 锁冲突时的等待上限：SQLite 是单写者引擎，元数据库的写入大量来自请求与
+// 定时任务，撞锁直接失败对用户就是「莫名报错」。5s 远小于请求超时，排不上也能自己退出
+const sqliteBusyTimeoutMs = 5000
+
+// sqliteDsn 给地址补上 busy 超时 pragma。已带查询串的地址用 & 追加，避免造出非法 DSN
+func sqliteDsn(address string) string {
+	pragma := "_pragma=busy_timeout(" + strconv.Itoa(sqliteBusyTimeoutMs) + ")"
+	if strings.Contains(address, "?") {
+		return address + "&" + pragma
+	}
+	return address + "?" + pragma
+}
+
 func initSQLite(dbConf DBConf) (*gorm.DB, error) {
 	logx.Infof("connecting to sqlite [%s]", dbConf.Address)
-	if db, err := gorm.Open(sqlite.Open(dbConf.Address), getGormConfig()); err != nil {
+	// 连接池沿用配置值，**刻意不收成一条连接**：单连接确实能让写入完全串行、从根上避开锁冲突，
+	// 但代价是「事务内的读」永远等不到第二条连接而永久挂死 —— 基座那批不收 ctx 的历史读入口在
+	// 业务事务链上大量存在（架构守卫只能看见直接写在 Tx 闭包里的那些，经仓储方法间接发生的读看不见），
+	// 而永久挂死比一次可重试的锁错误严重得多。锁冲突改由 busy_timeout 排队解决
+	db, err := gorm.Open(sqlite.Open(sqliteDsn(dbConf.Address)), getGormConfig())
+	if err != nil {
 		logx.Errorf("failed to connect to sqlite! [%s]", err.Error())
 		return nil, err
-	} else {
-		sqlDB, _ := db.DB()
-		sqlDB.SetMaxIdleConns(dbConf.MaxIdleConns)
-		sqlDB.SetMaxOpenConns(dbConf.MaxOpenConns)
-		return db, nil
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sqlite handle: %w", err)
+	}
+	sqlDB.SetMaxIdleConns(dbConf.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(dbConf.MaxOpenConns)
+	return db, nil
 }
 
 func getGormConfig() *gorm.Config {
@@ -82,8 +105,7 @@ func getGormConfig() *gorm.Config {
 		},
 	)
 
-	return &gorm.Config{NamingStrategy: schema.NamingStrategy{
-		TablePrefix:   "t_",
-		SingularTable: true,
-	}, Logger: gormLogger}
+	// 表名策略取自 gormx 的单一真源：迁移端到端测试用的是同一份配置，
+	// 两边解析出的表名才必然一致（详见 gormx.MetaNamingStrategy 的说明）
+	return &gorm.Config{NamingStrategy: gormx.MetaNamingStrategy(), Logger: gormLogger}
 }

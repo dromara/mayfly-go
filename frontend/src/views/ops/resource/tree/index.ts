@@ -23,12 +23,21 @@ export {
     type CommandTrigger,
 } from './commands';
 export { treeEvents, DEFAULT_TREE_SCOPE } from './events';
-export { TreeApiKey } from './context';
+export { TreeApiKey, TreeFilterQueryKey } from './context';
+export {
+    nodeMatchesQuery,
+    nodeDisplayLabel,
+    labelHitSegments,
+    collectMatchKeys,
+    collectVisibleRowKeys,
+    nextMatchIndex,
+    type LabelSegment,
+    type NodeVisibilityFilter,
+} from './filter';
 export { useLazyTree } from './useLazyTree';
 export {
     LOADING_KIND,
     ERROR_KIND,
-    RES_GROUP_KIND,
     type NodeKind,
     type TreeNode,
     type TreeNodeData,

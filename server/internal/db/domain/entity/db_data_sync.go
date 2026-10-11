@@ -86,7 +86,7 @@ const (
 
 // CursorInclusivity 增量游标边界语义（交付语义显式化）。
 //
-// 业界同类产品（Airbyte / Singer / Debezium snapshot）均为 at-least-once 交付：
+// 增量同步的通行交付语义是 at-least-once：
 // cursor 边界行重发后靠目标 UPSERT 幂等吃下，避免同时间戳行被 `>` 严格比较漏拉。
 // 本项目历史上默认 `>`（Exclusive）会漏同秒边界行，本枚举使“不重发”与“不漏行”可逐任务选择：
 //   - Auto（默认）：按同步模式给出安全默认（见 application/sync.resolveCursorInclusivity）；

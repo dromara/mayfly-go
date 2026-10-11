@@ -25,10 +25,10 @@ type Label interface {
 	GetLabelList(condition *entity.LabelQuery) (*model.PageResult[*entity.Label], error)
 
 	// ListKeys 获取所有标签键
-	ListKeys() ([]string, error)
+	ListKeys(ctx context.Context) ([]string, error)
 
 	// ListValuesByKey 获取指定 key 的所有值
-	ListValuesByKey(labelKey string) ([]string, error)
+	ListValuesByKey(ctx context.Context, labelKey string) ([]string, error)
 
 	// GetAutocomplete 自动补全数据
 	GetAutocomplete(labelKey string) ([]LabelAutocompleteItem, error)
@@ -85,9 +85,23 @@ func (a *labelAppImpl) SaveLabel(ctx context.Context, label *entity.Label) error
 	}
 
 	// 3. 重复检查（同 key+value 不允许重复）
-	existing, _ := a.GetRepo().GetByKey(label.LabelKey, label.LabelValue)
+	//
+	// 查询必须含已逻辑删除的行：唯一索引对墓碑行同样生效，只看未删除数据会让校验通过、
+	// 随后 INSERT 撞 idx_label_kv 变成一条数据库错误
+	existing, err := a.GetRepo().GetByKeyIncludingDeleted(label.LabelKey, label.LabelValue)
+	if err != nil {
+		return err
+	}
 	if existing != nil && existing.Id != label.Id {
-		return errorx.NewBizI(ctx, imsg.ErrLabelDuplicate, "key", label.LabelKey, "value", label.LabelValue)
+		if existing.IsDeleted == model.ModelUndeleted {
+			return errorx.NewBizI(ctx, imsg.ErrLabelDuplicate, "key", label.LabelKey, "value", label.LabelValue)
+		}
+		// 命中墓碑行：恢复它并沿用其主键，而不是报错或插新行。
+		// 用户视角下「重新添加刚删掉的标签」就是把它恢复回来，同时保留 id 与创建时间等历史
+		if err := a.RestoreByCond(ctx, model.NewCond().IncludeDeleted().Eq(model.IdColumn, existing.Id)); err != nil {
+			return err
+		}
+		label.Id = existing.Id
 	}
 
 	// 4. 持久化
@@ -105,8 +119,15 @@ func (a *labelAppImpl) DeleteLabel(ctx context.Context, id uint64) error {
 	// 引用校验：标签仍被资源绑定时不允许删除。
 	// 告警等实体的冗余 labels JSON 字段与 t_label_binding 需保持一致，若直接级联删绑定会残留
 	// 实体 JSON 中的"幽灵标签"（告警引擎按 JSON 匹配仍会命中），故在源头阻止删除。
-	if cnt := a.labelBindingRepo.CountByLabelId(id); cnt > 0 {
-		return errorx.NewBizI(ctx, imsg.ErrLabelInUse, "key", label.LabelKey, "value", label.LabelValue, "count", cnt)
+	//
+	// 统计失败时一律不得放行删除：把 SQL 错误当成「0 条绑定」会删掉仍在被使用的标签，
+	// 留下指向已删标签的孤儿绑定，而这种脏数据只能等告警引擎误匹配时才被发现
+	bindCount, err := a.labelBindingRepo.CountByLabelId(ctx, id)
+	if err != nil {
+		return err
+	}
+	if bindCount > 0 {
+		return errorx.NewBizI(ctx, imsg.ErrLabelInUse, "key", label.LabelKey, "value", label.LabelValue, "count", bindCount)
 	}
 	return a.DeleteById(ctx, id)
 }
@@ -118,12 +139,12 @@ func (a *labelAppImpl) GetLabelList(condition *entity.LabelQuery) (*model.PageRe
 	return a.PageByCond(qd, condition.PageParam)
 }
 
-func (a *labelAppImpl) ListKeys() ([]string, error) {
-	return a.GetRepo().ListKeys()
+func (a *labelAppImpl) ListKeys(ctx context.Context) ([]string, error) {
+	return a.GetRepo().ListKeys(ctx)
 }
 
-func (a *labelAppImpl) ListValuesByKey(labelKey string) ([]string, error) {
-	return a.GetRepo().ListValuesByKey(labelKey)
+func (a *labelAppImpl) ListValuesByKey(ctx context.Context, labelKey string) ([]string, error) {
+	return a.GetRepo().ListValuesByKey(ctx, labelKey)
 }
 
 func (a *labelAppImpl) GetAutocomplete(labelKey string) ([]LabelAutocompleteItem, error) {
@@ -257,6 +278,20 @@ func (a *labelBindingAppImpl) SaveBindings(ctx context.Context, bindings []*enti
 	}
 
 	// 在事务中执行增删
+	//
+	// 墓碑绑定必须在事务**之前**读：基座读入口尚未接 ctx（这是未完成的那部分改造），它走连接池
+	// 而不是事务所在的那条连接 —— 事务内的读既看不到本事务刚写入的绑定，也会在事务占满连接池时
+	// 等不到空闲连接（默认方言 SQLite 是文件库，把 max-open-conns 调小后就是长时间不返回）。
+	// 先读与在事务内读结果等价：删除集与新增集来自 ArrayCompare 的两侧，互不相交，本事务内的
+	// 删除不会新增出属于新增集的墓碑
+	var tombstones []uint64
+	if len(addedLabelIds) > 0 {
+		tombstones, err = a.GetRepo().ListDeletedLabelIds(ctx, targetType, targetId, addedLabelIds)
+		if err != nil {
+			return err
+		}
+	}
+
 	return a.Tx(ctx, func(ctx context.Context) error {
 		// 删除不再需要的绑定
 		if len(deletedLabelIds) > 0 {
@@ -269,20 +304,31 @@ func (a *labelBindingAppImpl) SaveBindings(ctx context.Context, bindings []*enti
 		}
 		return nil
 	}, func(ctx context.Context) error {
-		// 插入新增的绑定
-		if len(addedLabelIds) > 0 {
-			addedBindings := make([]*entity.LabelBinding, 0, len(addedLabelIds))
-			addedIdSet := collx.ArrayToMap(addedLabelIds, func(id uint64) uint64 { return id })
-			for _, b := range bindings {
-				if _, ok := addedIdSet[b.LabelId]; ok {
-					addedBindings = append(addedBindings, b)
-				}
-			}
-			if err := a.BatchInsert(ctx, addedBindings); err != nil {
+		if len(addedLabelIds) == 0 {
+			return nil
+		}
+		// 先恢复该目标下的墓碑绑定，只为真正没有记录的标签插入新行：idx_lb_unique 唯一索引覆盖
+		// 已软删的行，直接插入会让「解绑再绑同一标签」变成数据库唯一键错误
+		if len(tombstones) > 0 {
+			if err := a.RestoreByCond(ctx, model.NewCond().IncludeDeleted().
+				Eq("target_type", targetType).
+				Eq("target_id", targetId).
+				In("label_id", tombstones)); err != nil {
 				return err
 			}
 		}
-		return nil
+		tombstoneSet := collx.ArrayToMap(tombstones, func(id uint64) uint64 { return id })
+
+		addedBindings := make([]*entity.LabelBinding, 0, len(addedLabelIds))
+		for _, b := range bindings {
+			if _, isTombstone := tombstoneSet[b.LabelId]; !isTombstone {
+				addedBindings = append(addedBindings, b)
+			}
+		}
+		if len(addedBindings) == 0 {
+			return nil
+		}
+		return a.BatchInsert(ctx, addedBindings)
 	})
 }
 
@@ -306,24 +352,9 @@ func (a *labelBindingAppImpl) SaveBindingsByLabels(ctx context.Context, targetTy
 	// 批量查找或创建标签
 	bindings := make([]*entity.LabelBinding, 0, len(kvs))
 	for _, kv := range kvs {
-		label, err := a.labelRepo.GetByKey(kv.key, kv.value)
+		label, err := a.getOrCreateLabelIncludingTombstone(ctx, kv.key, kv.value)
 		if err != nil {
 			return err
-		}
-		if label == nil {
-			// 创建新标签
-			label = &entity.Label{
-				LabelKey:   kv.key,
-				LabelValue: kv.value,
-			}
-			if err := a.labelRepo.Insert(ctx, label); err != nil {
-				// 并发冲突：唯一约束冲突时回退为重新查询
-				if existing, queryErr := a.labelRepo.GetByKey(kv.key, kv.value); queryErr == nil && existing != nil {
-					label = existing
-				} else {
-					return err
-				}
-			}
 		}
 		bindings = append(bindings, &entity.LabelBinding{
 			LabelId:    label.Id,
@@ -430,4 +461,43 @@ func (a *labelBindingAppImpl) ListByTargets(ctx context.Context, targetType stri
 		})
 	}
 	return result, nil
+}
+
+// getOrCreateLabelIncludingTombstone 按 key+value 取标签，缺失则创建，命中墓碑则恢复后复用其主键。
+//
+// 查询必须含已逻辑删除的行：idx_label_kv 唯一索引对墓碑行同样生效，只看未删除数据会让这里
+// 判断成「不存在」，随后的 INSERT 撞数据库唯一键，而回退查询如果用同样的口径依然查不到东西，
+// 最终只能把数据库错误原样抛成一条 500 —— 「删掉标签 env=prod，再在告警规则里填 env=prod」
+// 就是这条路径。恢复墓碑而不是报错，也符合用户视角：重新添加刚删掉的标签就是把它取回来
+func (a *labelBindingAppImpl) getOrCreateLabelIncludingTombstone(ctx context.Context, labelKey, labelValue string) (*entity.Label, error) {
+	existing, err := a.labelRepo.GetByKeyIncludingDeleted(labelKey, labelValue)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		if existing.IsDeleted != model.ModelDeleted {
+			return existing, nil
+		}
+		rows, err := a.labelRepo.RestoreByCond(ctx, model.NewCond().IncludeDeleted().Eq(model.IdColumn, existing.Id))
+		if err != nil {
+			return nil, err
+		}
+		if rows == 0 {
+			// 刚读到墓碑、恢复却没命中：并发下已被他人改动，不能拿一个不确定状态的标签去绑定
+			return nil, errorx.NewBizI(ctx, imsg.ErrLabelDuplicate, "key", labelKey, "value", labelValue)
+		}
+		existing.IsDeleted = model.ModelUndeleted
+		return existing, nil
+	}
+
+	label := &entity.Label{LabelKey: labelKey, LabelValue: labelValue}
+	if err := a.labelRepo.Insert(ctx, label); err != nil {
+		// 并发下另一个请求可能刚插入同一标签：按同一口径（含墓碑）再查一次，查到就复用
+		concurrent, queryErr := a.labelRepo.GetByKeyIncludingDeleted(labelKey, labelValue)
+		if queryErr != nil || concurrent == nil {
+			return nil, err
+		}
+		return concurrent, nil
+	}
+	return label, nil
 }

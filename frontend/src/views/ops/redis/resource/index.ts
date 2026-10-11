@@ -66,8 +66,8 @@ registerContributor({
     hasChildren: true,
     renderer: NodeRedis,
     locateCode: (node) => node.params.code as string,
-    loadRoots: async (groupNode) => {
-        const res = await redisApi.redisList.request({ tagPath: groupNode.params?.tagPath as string });
+    loadRoots: async (tagPath) => {
+        const res = await redisApi.redisList.request({ tagPath });
         if (!res.total) {
             return [];
         }
@@ -75,7 +75,7 @@ registerContributor({
             key: `${x.code}`,
             kind: RedisKind,
             label: x.name,
-            params: { ...x, tagPath: String(groupNode.key) },
+            params: { ...x, tagPath },
         }));
     },
     loadChildren: async (node) => {

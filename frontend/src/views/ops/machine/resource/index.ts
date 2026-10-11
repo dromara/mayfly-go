@@ -247,15 +247,15 @@ registerMenu({ command: 'machine.terminal.open', kinds: [MachineAuthCertKind], t
 
 // ---------------------------------- 贡献者注册 ----------------------------------
 
-// 机器节点：loadRoots 供类型分组节点展开（列出标签下机器），loadChildren 展开机器列出授权凭证
+// 机器节点：loadRoots 供标签节点展开（列出标签下机器），loadChildren 展开机器列出授权凭证
 registerContributor({
     kind: MachineKind,
     resourceType: ResourceTypeEnum.Machine.value,
     hasChildren: true,
     icon: MachineIcon,
     locateCode: (node) => (node.params as MachineNodeParams).code,
-    loadRoots: async (groupNode) => {
-        const res = await machineApi.list.request({ tagPath: groupNode.params?.tagPath as string });
+    loadRoots: async (tagPath) => {
+        const res = await machineApi.list.request({ tagPath });
         return (res?.list ?? [])
             .sort((a: MachineVO, b: MachineVO) => a.name.localeCompare(b.name))
             .map((x: MachineVO) => ({

@@ -11,7 +11,6 @@
                                     <SvgIcon name="QuestionFilled" />
                                 </el-tooltip>
                             </el-space>
-                            <span>:</span>
                         </template>
 
                         <SearchFormItem @keyup.enter="handleItemKeyupEnter(item)" v-if="!item.slot" :item="item" v-model="searchParam[item.prop]" />
@@ -22,7 +21,7 @@
                 <GridItem suffix>
                     <div class="operation">
                         <el-button type="primary" icon="Search" @click="search" plain> {{ $t('common.search') }} </el-button>
-                        <el-button icon="Delete" @click="reset"> {{ $t('common.reset') }} </el-button>
+                        <el-button icon="RefreshLeft" @click="reset"> {{ $t('common.reset') }} </el-button>
                         <el-button v-if="showCollapse" type="primary" link class="search-isOpen" @click="collapsed = !collapsed">
                             {{ collapsed ? $t('common.expand') : $t('common.collapse') }}
                             <SvgIcon :name="collapsed ? 'ArrowDown' : 'ArrowUp'" :size="14" class="ml-1" />
@@ -121,6 +120,13 @@ const handleItemKeyupEnter = (item: SearchItem) => {
         .el-form-item {
             margin-bottom: 18px !important;
         }
+    }
+
+    // label 冒号由样式统一追加并弱化为辅助色：模板不再硬编码冒号元素，中英文语言下一致
+    .el-form-item__label::after {
+        content: ':';
+        margin-left: 2px;
+        color: var(--el-text-color-secondary);
     }
 
     .operation {

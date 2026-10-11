@@ -25,7 +25,13 @@
                 </template>
 
                 <template #fileKey="{ data }">
-                    <FileInfo :fileKey="data.fileKey" show-file-size :canDownload="actionBtns[perms.down] && data.status === 2" />
+                    <!-- 导出文件是整库明文产物，服务端已标为私有：只能走本模块带 db:transfer:files:down 权限码的下载入口 -->
+                    <FileInfo
+                        :fileKey="data.fileKey"
+                        :download-url="buildTransferFileDownloadUrl(data.id)"
+                        show-file-size
+                        :canDownload="actionBtns[perms.down] && data.status === 2"
+                    />
                 </template>
 
                 <template #fileDbType="{ data }">
@@ -42,7 +48,7 @@
                         type="primary"
                         link
                     >
-                        {{ $t('db.run') }}
+                        {{ $t('db.restoreToDb') }}
                     </el-button>
                 </template>
             </page-table>
@@ -87,7 +93,7 @@ import PageTable from '@/components/page-table/PageTable.vue';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
-import { dbTransferApi } from '@/views/ops/db/transfer/api';
+import { dbTransferApi, buildTransferFileDownloadUrl } from '@/views/ops/db/transfer/api';
 import { DbTransferFileStatusEnum } from '@/views/ops/db/transfer/enums';
 import { onMounted, reactive, ref, useTemplateRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';

@@ -9,7 +9,7 @@ import type { DbInst } from '../db';
  * 贡献者只读元数据，不需也不应依赖 DbInst 的全部职责（连接/缓存/执行等），
  * 故按实际调用面收窄；测试也可据此注入局部 mock，无需对整个类做类型断言。
  */
-export type CompletionDbInst = Pick<DbInst, 'loadTables' | 'loadViews' | 'loadColumns'>;
+export type CompletionDbInst = Pick<DbInst, 'loadTables' | 'loadViews' | 'loadColumns' | 'loadColumnValues'>;
 
 /** 补全需要的方言能力切片（同上，按实际调用面收窄） */
 export type CompletionDialect = Pick<DbDialect, 'getEditorCompletions' | 'getPageSnippet' | 'quoteIdentifier'>;

@@ -47,8 +47,7 @@ registerContributor({
     hasChildren: true,
     renderer: NodeDbInst,
     locateCode: (node) => node.params.code as string,
-    loadRoots: async (groupNode) => {
-        const tagPath = groupNode.params?.tagPath as string;
+    loadRoots: async (tagPath) => {
         const dbInstancesRes = await dbApi.instances.request({ tagPath, pageSize: 500 });
         const list: TreeNodeData[] = (dbInstancesRes.list ?? []).map((x: DbInstance) => ({
             key: `${x.code}`,
@@ -57,7 +56,7 @@ registerContributor({
             params: { ...x, tagPath, instCode: x.code },
         }));
         if ((dbInstancesRes.total ?? list.length) > list.length) {
-            list.push({ key: `${groupNode.key}__truncated`, kind: 'db-truncated', label: 'common.treeTruncated', disabled: true });
+            list.push({ key: `${tagPath}__truncated`, kind: 'db-truncated', label: 'common.treeTruncated', disabled: true });
         }
         return list;
     },

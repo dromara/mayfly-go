@@ -107,7 +107,7 @@ func setupRuleSegmentTest(t *testing.T) (*ruleSegmentAppImpl, *procdefAppImpl, *
 
 func newSegment(ref, name, bizType string, node *entity.RuleNode) *entity.RuleSegment {
 	segment := &entity.RuleSegment{Ref: ref, Name: name, BizType: bizType, RuleNode: node}
-	segment.FillBaseInfo(model.IdGenTypeNone, nil)
+	segment.FillBaseInfo(nil)
 	return segment
 }
 
@@ -258,7 +258,7 @@ func TestDeleteRuleSegmentBlockedWhileReferenced(t *testing.T) {
 			When:     segmentGroup(entity.LogicAll, segmentLeaf("dba_members")),
 		}},
 	}
-	procdef.FillBaseInfo(model.IdGenTypeNone, nil)
+	procdef.FillBaseInfo(nil)
 	require.NoError(t, db.Create(procdef).Error)
 
 	err := segmentApp.DeleteRuleSegment(ctx, recreated.Id)

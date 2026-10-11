@@ -135,7 +135,7 @@ func (m *machineMetricAppImpl) HealthOverview(ctx context.Context) ([]*MachineHe
 		return nil, err
 	}
 
-	latest, err := m.GetRepo().LatestPerMachine()
+	latest, err := m.GetRepo().LatestPerMachine(ctx)
 	if err != nil {
 		return nil, err
 	}

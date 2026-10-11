@@ -7,7 +7,6 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"strings"
 	"time"
 )
 
@@ -73,7 +72,10 @@ type DbInfo struct {
 	Username string
 	Password string
 	Params   string
-	Database string // 若有schema的库则为'database/scheam'格式
+	Database string // 纯库名（不含 schema）；库位中的 schema 段见 Schema 字段
+	// Schema 运行时 schema 定位维度（非持久化）：连接建立时由请求定位参数填入；
+	// 无独立 schema 层的方言（mysql/sqlite/clickhouse）恒为空。
+	Schema string
 
 	Version        DbVersion // 数据库版本信息，用于语法兼容
 	DefaultVersion bool      // 经过查询数据库版本信息后，是否仍然使用默认版本
@@ -233,8 +235,10 @@ func (di *DbInfo) Conn(ctx context.Context, backend DbBackend) (*DbConn, error) 
 		return nil, errorx.NewBizf("db connection failed: %s", err.Error())
 	}
 
-	// 通道句柄随连接持有，连接关闭时由其显式释放
-	dbc := &DbConn{Id: GetDbConnId(di.Id, database), Info: di, tunnel: tunnel}
+	// 通道句柄随连接持有，连接关闭时由其显式释放；
+	// connId 由 (Database, Schema) 经 FormatLocator 重建为与入参 locator 一致的形态，
+	// 保证与 dbm.GetDbConn（parse 之前用原始 locator 算的池键）逐字节相等（round-trip 保真）。
+	dbc := &DbConn{Id: GetDbConnId(di.Id, FormatLocator(di.Database, di.Schema)), Info: di, tunnel: tunnel}
 
 	// 使用实例级连接池配置（有则覆盖，无则使用默认值）
 	maxLifetime, maxIdleTime, maxOpen, maxIdle := di.PoolConfig.Resolve()
@@ -278,28 +282,8 @@ func (di *DbInfo) dialTunnel(ctx context.Context) (*Tunnel, error) {
 	return tunnel, nil
 }
 
-// CurrentSchema 获取当前库的schema（兼容 database/schema模式）
-func (di *DbInfo) CurrentSchema() string {
-	dbName := di.Database
-	schema := ""
-	arr := strings.Split(dbName, "/")
-	if len(arr) == 2 {
-		schema = arr[1]
-	}
-	return schema
-}
-
-// GetDatabase 获取当前数据库（兼容 database/schema模式）
-func (di *DbInfo) GetDatabase() string {
-	dbName := di.Database
-	ss := strings.Split(dbName, "/")
-	if len(ss) > 1 {
-		return ss[0]
-	}
-	return dbName
-}
-
-// GetDbConnId 获取连接id
+// GetDbConnId 获取连接id。db 为库位 locator（无 schema 层时即纯库名，有则 `库/schema`），
+// locator 本身即 (库, schema) 唯一身份，故签名不因 schema 拆段而变化。
 func GetDbConnId(dbId uint64, db string) string {
 	if dbId == 0 {
 		return ""

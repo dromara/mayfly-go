@@ -233,6 +233,20 @@ describe('AutoForm 显隐与校验联动', () => {
         expect((wrapper.findComponent({ name: 'ElForm' }).props('rules') as Record<string, unknown[]>).host).toBeUndefined();
     });
 
+    it('规则对象变化不得触发整表校验：el-form 的 validate-on-rule-change 必须显式关掉', async () => {
+        const form = reactive<Record<string, any>>({ host: '', mode: 'on' });
+        const wrapper = mountForm({
+            modelValue: form,
+            items: [{ prop: 'host', label: 'fields.host', type: 'input', required: (f) => f.mode === 'on' }] as AutoFormItem[],
+        });
+        await flushPromises();
+        // 函数式 required 让 formRules 依赖该表单值，值一变就产出新的规则对象；element-plus 默认
+        // validate-on-rule-change=true 会借此对整表跑一次 validate()（改一个下拉框，其他未填必填项全部标红，
+        // 宿主回填表单时则是抽屉一打开就满屏红）。happy-dom 下 el-form 全量校验不收集 fields，
+        // 标红结果在 DOM 上不可观测，故锁定接线本身
+        expect(wrapper.findComponent({ name: 'ElForm' }).props('validateOnRuleChange')).toBe(false);
+    });
+
     it('自定义 validate 函数包装为 validator 规则：true 通过，false/string 产生错误', async () => {
         const wrapper = mountForm({
             items: [{ prop: 'name', label: 'fields.name', type: 'input', validate: (v) => (v === 'bad' ? 'common.invalidValue' : true) }] as AutoFormItem[],

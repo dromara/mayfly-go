@@ -33,7 +33,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { defaultAdapter, defaultFieldNames } from './adapters';
-import type { VirtualTreeAdapter, VirtualTreeFieldNames, VirtualTreeInstance } from './adapters';
+import type { VirtualTreeAdapter, VirtualTreeFieldNames, VirtualTreeHandle, VirtualTreeInstance } from './adapters';
 
 const props = withDefaults(
     defineProps<{
@@ -49,7 +49,10 @@ const props = withDefaults(
         rowHeight?: number;
         /** 受控展开集（业务层持有，容器回显并兜底同步引擎） */
         expandedKeys?: string[];
-        /** 本地过滤文本（声明式入口，推荐）：变化后容器防抖 300ms 调引擎 filter，空串不过滤 */
+        /**
+         * 本地过滤文本（声明式入口，推荐）：变化后容器防抖 300ms 调引擎 filter，空串不过滤。
+         * 防抖意味着它只是「意图」，真正生效的词以 filterApplied 事件为准（高亮/计数类派生UI 应用生效值）
+         */
         filterText?: string;
         /** 本地过滤谓词：只定义「匹配」规则，由适配器接线到引擎过滤机制（引擎不支持时 no-op）；触发时机取决于 filterText 或 filter() */
         filterMethod?: (query: string, node: Record<string, unknown>) => boolean;
@@ -80,9 +83,21 @@ const emit = defineEmits<{
     nodeCollapse: [node: Record<string, unknown>];
     /** 勾选变化：叶子 key 列表（口径由适配器归一） */
     check: [checkedLeafKeys: string[]];
+    /**
+     * 过滤真正生效的查询串（防抖回调打到引擎后上报）：
+     * 防抖时长是本容器的实现细节，消费方若自己拿 filterText 做高亮/计数，会与引擎实际过滤的词差一拍
+     */
+    filterApplied: [query: string];
 }>();
 
 const adapter = computed(() => props.adapter ?? defaultAdapter);
+
+/**
+ * 缺省行高（el-tree-v2 的 itemSize 默认值）：显式传给引擎而不是依赖两边各自默认值，
+ * 因为 scrollToIndex 要拿它算偏移——行距与偏移必须出自同一个数。
+ */
+const DEFAULT_ROW_HEIGHT = 26;
+const rowHeightPx = computed(() => props.rowHeight ?? DEFAULT_ROW_HEIGHT);
 
 // ==================== 容器尺寸 ====================
 
@@ -100,7 +115,7 @@ const adapterProps = computed(() =>
         data: props.data,
         fieldNames: props.fieldNames,
         height: props.height || measuredHeight.value,
-        rowHeight: props.rowHeight,
+        rowHeight: rowHeightPx.value,
         expandedKeys: props.expandedKeys,
         checkable: props.checkable,
         checkOnClickLeaf: props.checkOnClickLeaf,
@@ -135,13 +150,31 @@ watch(
 
 /** 过滤防抖（filterText 声明式入口的实现）：输入停顿 300ms 才打到引擎，避免逐字符重建过滤集 */
 let filterTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * 把查询词打到引擎并上报生效值：防抖回调与外部「谓词变了要重过滤」（refilter）共用同一实现，
+ * 两处不能各自重复一遍——空词复位受控展开态这条规则漏在哪边都会卡「加载中」。
+ */
+function applyFilter(val: string) {
+    instance.value.filter(val);
+    emit('filterApplied', val);
+    // el-tree-v2 的 filter 会用「命中节点及其祖先链」覆盖引擎内部展开集：清空过滤时查询串为空，
+    // 谓词对每个节点（含懒加载未水合节点的「加载中」占位）都返回真，导致整树被集体展开、
+    // 未水合节点卡在加载态（filter 不回传业务层，无人 hydrate）。故清空后以受控 expandedKeys 复位。
+    // 无论有无查询词都要复位：引擎 filter() 会用「命中节点及其祖先链」整体覆盖内部展开集
+    // （useTree.filter → expandedKeySet = doFilter(query)），把用户收起的分支强行打开。
+    // 那样引擎 flatten 就与业务层的展开模型分叉——计数与自算行序都会偏，跳转滚到错行。
+    // 复位后语义收敛为「只在已展开链上查找」，与查找条文案「查找已展开的资源」一致。
+    instance.value.setExpandedKeys(props.expandedKeys);
+}
+
 watch(
     () => props.filterText,
     (val) => {
         if (filterTimer) {
             clearTimeout(filterTimer);
         }
-        filterTimer = setTimeout(() => instance.value.filter(val), 300);
+        filterTimer = setTimeout(() => applyFilter(val), 300);
     }
 );
 
@@ -172,14 +205,34 @@ onBeforeUnmount(() => {
 
 // ==================== 公开 API ====================
 
-defineExpose<VirtualTreeInstance>({
+/** 视口高（与传给引擎的高度同源）：scrollToIndex 靠它把目标行算到中间 */
+const viewportHeight = computed(() => props.height || measuredHeight.value);
+
+/**
+ * 把第 index 行滚到视口中间（行序由调用方按引擎实际渲染集自行计算）。
+ *
+ * 不用引擎的 scrollToNode/scrollToItem：它在本地过滤态下对合法下标也返回错位偏移
+ * （实测 32 行列表 idx=26 → scrollTop 0，而 113 行列表 idx=69 → 1502 正确），
+ * 表现为「计数在涨、视图不动」。偏移由本容器用「行序 × 行高 - 视口居中」自己算，
+ * 越界由浏览器对 scrollTop 的天然钳位兼平。
+ */
+const scrollToIndex = (index: number) => {
+    const item = rowHeightPx.value;
+    instance.value.scrollTo(Math.max(0, index * item - (viewportHeight.value - item) / 2));
+};
+
+defineExpose<VirtualTreeHandle>({
     setCurrentKey: (key) => instance.value.setCurrentKey(key),
     scrollToNode: (key, strategy) => instance.value.scrollToNode(key, strategy),
     scrollTo: (offset) => instance.value.scrollTo(offset),
+    scrollToIndex,
     getCheckedKeys: (leafOnly) => instance.value.getCheckedKeys(leafOnly),
     setCheckedKeys: (keys) => instance.value.setCheckedKeys(keys),
     setExpandedKeys: (keys) => instance.value.setExpandedKeys(keys),
     filter: (query) => instance.value.filter(query),
+    // 重跑「当前 filterText + 当前 filterMethod」：引擎只在 filter() 被调用时对全树求值，
+    // 谓词（如视图级类型筛选）换了引用但不重调，已渲染的行不会跟着变
+    refilter: () => applyFilter(props.filterText),
 });
 </script>
 

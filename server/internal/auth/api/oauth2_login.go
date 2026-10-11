@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"mayfly-go/internal/auth/api/vo"
@@ -133,7 +132,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 		biz.IsTrue(err != nil, "you are bound to another account")
 
 		now := time.Now()
-		err = a.oauth2App.BindOAuthAccount(&entity.Oauth2Account{
+		err = a.oauth2App.BindOAuthAccount(rc.MetaCtx, &entity.Oauth2Account{
 			AccountId:  accountId,
 			Identity:   userId,
 			CreateTime: &now,
@@ -174,9 +173,9 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 			Name:     userId,
 			Username: userId,
 		}
-		biz.ErrIsNil(a.accountApp.Create(context.TODO(), account))
+		biz.ErrIsNil(a.accountApp.Create(rc.MetaCtx, account))
 		// 绑定
-		err := a.oauth2App.BindOAuthAccount(&entity.Oauth2Account{
+		err := a.oauth2App.BindOAuthAccount(rc.MetaCtx, &entity.Oauth2Account{
 			AccountId:  account.Id,
 			Identity:   oauthAccount.Identity,
 			CreateTime: &now,
@@ -235,7 +234,7 @@ func (a *Oauth2Login) Oauth2Status(ctx *req.Ctx) {
 }
 
 func (a *Oauth2Login) Oauth2Unbind(rc *req.Ctx) {
-	a.oauth2App.Unbind(rc.GetLoginAccount().Id)
+	biz.ErrIsNil(a.oauth2App.Unbind(rc.MetaCtx, rc.GetLoginAccount().Id))
 }
 
 // 获取oauth2登录配置信息，因为有些字段是敏感字段，故单独使用接口获取

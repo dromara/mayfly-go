@@ -21,7 +21,9 @@ func newDbSQLExecRepo() repository.DbSQLExec {
 func (d *dbSQLExecRepoImpl) GetPageList(condition *entity.DbSQLExecQuery, orderBy ...string) (*model.PageResult[*entity.DbSQLExec], error) {
 	qd := model.NewCond().
 		Eq("db_id", condition.DbId).
-		Eq("`table`", condition.Table).
+		// 表名用包含匹配：执行记录里的表名带前缀/大小写差异（如 t_order、order_info），
+		// 精确等值要求用户先猜中全名，作为筛选条件几乎不可用
+		Like("`table`", condition.Table).
 		Eq("type", condition.Type).
 		Eq("creator_id", condition.CreatorId).
 		Eq("flow_biz_key", condition.FlowBizKey).

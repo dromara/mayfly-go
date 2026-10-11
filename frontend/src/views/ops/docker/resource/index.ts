@@ -61,9 +61,9 @@ registerContributor({
     selectable: true,
     icon: Icon,
     locateCode: (node) => node.params.code as string,
-    loadRoots: async (groupNode: TreeNode) => {
+    loadRoots: async (tagPath: string) => {
         // 加载标签树下的容器列表
-        const res = await dockerApi.page.request({ tagPath: groupNode.params?.tagPath as string });
+        const res = await dockerApi.page.request({ tagPath });
         return (res?.list ?? [])
             .sort((a: Container, b: Container) => a.name.localeCompare(b.name))
             .map((x: Container) => ({

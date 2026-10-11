@@ -13,20 +13,33 @@ type Lexer struct {
 	Tokens []tokenizer.Token
 	Pos    int
 	Length int
-	// SelectParser 子查询解析回调：由各方言Parser构造时注入（parseSelect的包装），
-	// 表达式解析遇到(SELECT...)时可建SelectStmt树；nil时降级为文本节点
+	// config 该方言的词法能力表：语法骨架用它判定「本方言有没有这项能力」
+	// （如层次查询），从而把方言差异留在配置里而不是散在分支中
+	config tokenizer.DialectConfig
+	// SelectParser 子查询解析回调：表达式解析遇到 (SELECT ...) 时建 SelectStmt 树，
+	// 为 nil 或解析不出主体时降级为文本节点。由 NewLexer 自接线到本层的 SELECT 骨架，
+	// 方言无需再各注一份闭包（骨架已只有一份实现）
 	SelectParser SelectParser
 }
 
 // NewLexer 创建基础词法分析器
 func NewLexer(sql string, cfg tokenizer.DialectConfig) *Lexer {
 	tok := tokenizer.New(sql, cfg)
-	return &Lexer{
+	l := &Lexer{
 		SQL:    sql,
 		Tokens: tok.Tokens,
 		Pos:    0,
 		Length: len(tok.Tokens),
+		config: cfg,
 	}
+	// 子查询解析自接线：解析不出 SELECT 主体（如 (WITH ...)）时返回 false，由表达式层降级为原文
+	l.SelectParser = func() (*sqlstmt.SelectStmt, bool) {
+		if !l.Current().IsKeyword("SELECT") {
+			return nil, false
+		}
+		return l.parseSelectStatement()
+	}
+	return l
 }
 
 // Current 返回当前 token
@@ -199,9 +212,12 @@ func (l *Lexer) SkipOrderByExpr() {
 func (l *Lexer) IsExprEnd() bool {
 	tok := l.Current()
 	// 注意：需包含 FETCH（oracle/达梦的 FETCH FIRST n ROWS ONLY 分页子句不能被当作表达式的一部分吞掉）
-	return tok.IsKeyword("FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET",
-		"UNION", "INTO", "SET", "VALUES", "ON", "USING", "FOR", "RETURNING", "FETCH") ||
-		tok.Value == ";" || tok.Value == ")"
+	if tok.IsKeyword(exprEndKeywords...) {
+		return true
+	}
+	// 层次子句头部同样是边界：`WHERE x = 1 START WITH ... CONNECT BY ...` 里 start 不是保留字，
+	// 不当边界就会被吞进条件表达式，使层次子句从解析中消失
+	return tok.Value == ";" || tok.Value == ")" || l.isHierarchicHead()
 }
 
 // IsCondEnd 判断条件表达式是否结束：在 IsExprEnd 基础上额外将 JOIN 前缀关键字
@@ -213,27 +229,19 @@ func (l *Lexer) IsCondEnd() bool {
 	return l.IsJoinStart() || l.Current().IsKeyword("JOIN")
 }
 
-// SkipCondExpr 跳过条件表达式（JOIN的ON条件专用，见IsCondEnd）
-func (l *Lexer) SkipCondExpr() {
-	for !l.Current().IsEOF() {
-		tok := l.Current()
-		if tok.Value == "(" {
-			l.SkipParentheses()
-			continue
-		}
-		if tok.Value == "," || l.IsCondEnd() {
-			break
-		}
-		l.Consume()
-	}
-}
-
 // IsFromClauseEnd 判断 FROM 子句是否结束
-// 注意：需包含 FETCH（oracle/达梦的 FETCH FIRST n ROWS ONLY 分页子句紧跟表引用之后，属于 FROM 子句的结束边界）
+// 注意：
+//   - 需包含 FETCH（oracle/达梦的 FETCH FIRST n ROWS ONLY 分页子句紧跟表引用之后，属于 FROM 子句的结束边界）
+//   - 需包含 USING/FROM（多表 DML 里目标表列表与来源表列表的分界：
+//     `DELETE a, b FROM t1 a JOIN t2 b ON ...`、`DELETE FROM t1 USING t2`、`UPDATE t SET ... FROM s`）
+//     两者都不可能出现为裸表名或别名，加入边界集合不影响任何合法 SELECT
 func (l *Lexer) IsFromClauseEnd() bool {
 	tok := l.Current()
-	return tok.IsKeyword("WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET",
-		"UNION", "INTO", "FOR", "RETURNING", "FETCH") || tok.Value == ";" || tok.Value == ")"
+	if tok.IsKeyword(fromClauseEndKeywords...) {
+		return true
+	}
+	// 层次子句头部也作边界：否则 `FROM t START WITH ...` 里的 start 会被当作 FROM 的第二张表
+	return tok.Value == ";" || tok.Value == ")" || l.isHierarchicHead()
 }
 
 // IsSelectClauseEnd 判断是否到达 SELECT 子句末尾
@@ -245,9 +253,16 @@ func (l *Lexer) IsSelectClauseEnd() bool {
 
 // IsJoinStart 判断是否为 JOIN 起始
 func (l *Lexer) IsJoinStart() bool {
-	tok := l.Current()
-	return tok.IsKeyword("LEFT", "RIGHT", "INNER", "OUTER", "NATURAL", "CROSS", "FULL", "STRAIGHT_JOIN")
+	return l.isJoinStartAt(0)
 }
+
+// isJoinStartAt 判断相对当前位置偏移 offset 的 token 是否为 JOIN 前缀
+func (l *Lexer) isJoinStartAt(offset int) bool {
+	return l.Peek(offset).IsKeyword(joinPrefixKeywords...)
+}
+
+// joinPrefixKeywords JOIN 前缀词（STRAIGHT_JOIN 只在 mysql 能力表登记，其他方言这里是标识符）
+var joinPrefixKeywords = []string{"LEFT", "RIGHT", "INNER", "OUTER", "NATURAL", "CROSS", "FULL", "STRAIGHT_JOIN"}
 
 // TextFrom 返回从 start 到当前位置的原始 SQL 文本
 // 注意：start为0（语句起始）时会包含首个 token 之前的前导注释与空白，保证语句原文完整
@@ -308,13 +323,17 @@ func (l *Lexer) ParseInt(s string) int {
 	return n
 }
 
-// Unquote 去除标识符引号
+// Unquote 去除标识符引号：mysql 的 `x`、标准 SQL 的 "x"、T-SQL/SQLite 的 [x]
 func (l *Lexer) Unquote(s string) string {
-	if len(s) >= 2 {
-		if (s[0] == '`' && s[len(s)-1] == '`') ||
-			(s[0] == '"' && s[len(s)-1] == '"') {
-			return s[1 : len(s)-1]
-		}
+	if len(s) < 2 {
+		return s
+	}
+	switch {
+	case s[0] == '`' && s[len(s)-1] == '`', s[0] == '"' && s[len(s)-1] == '"':
+		return s[1 : len(s)-1]
+	case s[0] == '[' && s[len(s)-1] == ']':
+		// ]] 是 ] 的转义形态（T-SQL），去壳后归一为单个 ]
+		return strings.ReplaceAll(s[1:len(s)-1], "]]", "]")
 	}
 	return s
 }
@@ -329,6 +348,15 @@ func (l *Lexer) SplitDotParts(text string) []string {
 		ch := text[i]
 		if inQuote {
 			current.WriteByte(ch)
+			if quoteChar == '[' {
+				// 方括号不成对转义：遇到 ] 即闭合
+				if ch == ']' {
+					inQuote = false
+					quoteChar = 0
+				}
+				current.WriteByte(ch)
+				continue
+			}
 			if ch == quoteChar {
 				if i+1 < len(text) && text[i+1] == quoteChar {
 					i++
@@ -340,7 +368,7 @@ func (l *Lexer) SplitDotParts(text string) []string {
 		} else if ch == '.' {
 			parts = append(parts, strings.TrimSpace(current.String()))
 			current.Reset()
-		} else if ch == '`' || ch == '"' {
+		} else if ch == '`' || ch == '"' || ch == '[' {
 			inQuote = true
 			quoteChar = ch
 			current.WriteByte(ch)

@@ -200,7 +200,7 @@ func (t *Tokenizer) readIdentifierOrKeyword() {
 	upper := strings.ToUpper(value)
 
 	tokType := TokenIdentifier
-	if Keywords[upper] {
+	if t.config.IsKeyword(upper) {
 		tokType = TokenKeyword
 	} else if t.config.ExtraKeywords[upper] {
 		tokType = TokenKeyword

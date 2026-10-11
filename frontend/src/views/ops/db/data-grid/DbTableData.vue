@@ -19,7 +19,7 @@
                     :row-no-column-key="rowNoColumnKey"
                     :show-column-tip="showColumnTip"
                     :show-column-comment="dbConfig.showColumnComment"
-                    :now-sort-column="nowSortColumn"
+                    :sorts="sorts"
                     :show-column-action-sort="showColumnActionSort"
                     :show-column-action-fixed="showColumnActionFixed"
                     @sort-change="onHeaderSortChange"
@@ -29,7 +29,13 @@
 
             <!-- DB 特有的单元格渲染（含编辑模式） -->
             <template #cell="{ rowData, column, rowIndex, columnIndex }">
-                <div @contextmenu="onCellContextmenu($event, rowIndex, column, rowData)" class="table-data-cell">
+                <!-- 空数据占位行：VirtualTable 为了「数据为空时表头仍可横向滚动」而注入的一行占位数据，它不是一条记录。
+                     不接住它就把「0 行结果」渲染成一行假的第 1 行空白记录，用户会以为真查到了一条空行（与 ES 数据视图同一口径） -->
+                <div v-if="rowData.__vt_empty_spacer__ && column.key === rowNoColumnKey" class="table-data-cell" style="grid-column: 1 / -1; width: 100%">
+                    <el-empty :description="$t('common.empty')" :image-size="40" />
+                </div>
+
+                <div v-else-if="!rowData.__vt_empty_spacer__" @contextmenu="onCellContextmenu($event, rowIndex, column, rowData)" class="table-data-cell">
                     <!-- 行号列 -->
                     <div v-if="column.key === rowNoColumnKey">
                         <b class="el-text el-text--small">
@@ -45,6 +51,7 @@
                                 :data-type="column.dataType"
                                 @blur="onExitEditMode(rowData, column, rowIndex)"
                                 :column-name="column.columnName"
+                                :binary="isBinaryColumnType(column.columnType)"
                                 focus
                             />
                         </div>
@@ -96,6 +103,14 @@
             @submit-success="changeUpdatedField"
         />
 
+        <DbTableRowDetail
+            v-model:visible="state.rowDetail.visible"
+            :columns="columns ?? []"
+            :db-type="state.dbType"
+            :row="state.rowDetail.row"
+            :title="state.table ? `'${state.table}' ${t('db.rowDetail')}` : t('db.rowDetail')"
+        />
+
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
@@ -114,8 +129,12 @@ import { Msg } from '../../../../hooks/useI18n';
 import { ColumnTypeSubscript, DataType, DbDialect, getDbDialect } from '../dialect/index';
 import type { ColumnMetadata, TableColumnDef, TableExportStrategy } from '../types';
 import ColumnValueInput from '../widgets/ColumnValueInput.vue';
+import { isBinaryColumnType } from '../widgets/binaryValue';
 import DbTableDataForm from './DbTableDataForm.vue';
+import DbTableRowDetail from './DbTableRowDetail.vue';
 import DbTableDataHeader from './DbTableDataHeader.vue';
+import type { ColumnSort, SortAction } from './sortModel';
+import { applySort } from './sortModel';
 import { useTableSelection } from './composables/useTableSelection';
 import { useTableEdit } from './composables/useTableEdit';
 import { useTableExport } from './composables/useTableExport';
@@ -135,7 +154,7 @@ const emits = defineEmits<{
     /** 按主键删除成功，回传被删行 */
     dataDelete: [deleteDatas: Record<string, unknown>[]];
     /** 表头排序变更 */
-    sortChange: [sort: { key: string; order: string }];
+    sortChange: [sorts: ColumnSort[]];
 }>();
 
 const props = defineProps({
@@ -206,7 +225,7 @@ const rowNoColumnKey = 'tableDataRowNo';
 
 let dbDialect: DbDialect = null!;
 
-const nowSortColumn = ref<{ key: string; order: string } | null>(null);
+const sorts = ref<ColumnSort[]>([]);
 
 // 数据加载时间计时器
 const { pause, resume } = useIntervalFn(() => {
@@ -229,6 +248,11 @@ const state = reactive({
     tableDataFormDialog: {
         data: {} as Record<string, unknown>,
         title: '',
+        visible: false,
+    },
+    // 行详情：只读纵向摊开当前行，不受编辑权限限制（只读库上更需要看清值）
+    rowDetail: {
+        row: {} as Record<string, unknown>,
         visible: false,
     },
     genTxtDialog: {
@@ -286,6 +310,12 @@ const cmFormView = new ContextmenuItem('formView', 'db.formView')
     .withIcon('Document')
     .withOnClick(() => onEditRowData())
     .withHideFunc(() => state.table === '' || props.readonly);
+
+// 行详情取菜单触发时的那一行（而不是选中集）：多选时菜单仍可用，但详情只能是一行
+const cmRowDetail = new ContextmenuItem('rowDetail', 'db.rowDetail')
+    .withIcon('Grid')
+    .withOnClick((data: { rowData: Record<string, unknown> }) => openRowDetail(data.rowData))
+    .withHideFunc(() => selectionRowsMap.value.size > 1);
 
 /** 把导出策略翻译为菜单项：文案/图标/权限/可见性全部取自策略自描述，本组件不认识任何具体格式 */
 const toStrategyMenuItem = (strategy: TableExportStrategy, onClick: () => void) => {
@@ -453,10 +483,11 @@ const onScrollChange = (scroll: { scrollLeft: number; scrollTop: number }) => {
 
 // ==================== 表头事件 ====================
 
-const onHeaderSortChange = (sort: { key: string; order: string }) => {
-    nowSortColumn.value = sort;
+const onHeaderSortChange = (sort: { key: string; order: SortAction }) => {
+    // 有序列表在本组件维护（它是 UI 状态），父组件只拿到最终列表去拼 ORDER BY
+    sorts.value = applySort(sorts.value, sort.key, sort.order);
     cancelUpdateFields();
-    emits('sortChange', sort);
+    emits('sortChange', sorts.value);
 };
 
 const onHeaderFixChange = (column: VirtualTableColumn, fixed: boolean) => {
@@ -477,7 +508,7 @@ const onCellContextmenu = (event: MouseEvent, rowIndex: number, column: { key: s
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmFormView, cmDataGen, cmDataExport];
+    state.contextmenu.items = [cmDataCopyCell, cmRowDetail, cmDataDel, cmFormView, cmDataGen, cmDataExport];
     contextmenuRef.value?.openContextmenu({ column, rowData });
 };
 
@@ -497,9 +528,16 @@ const onDeleteData = async () => {
         Msg.warning('db.needPkToOperate');
         return;
     }
-    dbInst.promptExeSql(state.db, delSql, undefined, () => {
-        emits('dataDelete', deleteDatas);
-    });
+    // 批量删除按一次原子批次提交：删到一半失败不会留下一半已删一半未删的状态
+    dbInst.promptExeSql(
+        state.db,
+        delSql,
+        undefined,
+        () => {
+            emits('dataDelete', deleteDatas);
+        },
+        true
+    );
 };
 
 const onEditRowData = () => {
@@ -517,6 +555,12 @@ const copyGenTxt = async (txt: string) => {
     await copyToClipboard(txt);
     state.genTxtDialog.visible = false;
 };
+
+/** 打开行详情：拷一份引用而不是直接用菜单传进来的对象，避免后续刷数据时详情跟着变 */
+function openRowDetail(rowData: Record<string, unknown>) {
+    state.rowDetail.row = { ...rowData };
+    state.rowDetail.visible = true;
+}
 
 const submitUpdateFields = async () => {
     await doSubmitUpdate(() => changeUpdatedField());
@@ -608,6 +652,13 @@ defineExpose({
         &:hover {
             background-color: var(--el-fill-color-light);
         }
+    }
+
+    // 多列排序的生效序号（1 起）：与箭头同色，放在触发区外不撑圆热区
+    .column-sort-order {
+        font-size: 10px;
+        line-height: 16px;
+        color: var(--el-color-primary);
     }
 
     .column-more-icon {

@@ -138,7 +138,7 @@ const items = defineFormItems<TeamForm>([
 const searchItems = [SearchItem.input('name', 'common.name')];
 const columns = [
     TableColumn.new('name', 'common.name'),
-    TableColumn.new('tags', 'team.allocateTag').isSlot().setAddWidth(40),
+    TableColumn.new('tags', 'team.allocateTag').isSlot(),
     TableColumn.new('validityDate', 'team.validity').isSlot('validityDate').setMinWidth(310),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('creator', 'common.creator'),

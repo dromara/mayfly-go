@@ -4,7 +4,7 @@ export default {
         clusterInfo: 'Cluster',
         node: 'Node',
         clusterIpTips:
-            'p:port1@port2 :port1 indicates the port through which the redis server communicates with clients, and port2 indicates the port through which nodes in the cluster communicate',
+            "p:port1{'@'}port2 :port1 indicates the port through which the redis server communicates with clients, and port2 indicates the port through which nodes in the cluster communicate",
         masterSlaveRelationTips: `If the node is slave and the master node is known, it is the ID of the master node. Otherwise, the symbol '-'`,
         configEpochTips:
             'The epoch value of a node (or the epoch value of its primary node if the node is a slave node). Each time a node fails to switch, a new, unique, increasing epoch is created.',

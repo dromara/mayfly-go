@@ -50,11 +50,11 @@ type AlertRule interface {
 	// ---- 概览统计方法 ----
 
 	// GetRuleStats 返回规则总数、启用数、禁用数
-	GetRuleStats() (total, enabled, disabled int64, err error)
+	GetRuleStats(ctx context.Context) (total, enabled, disabled int64, err error)
 	// CountGroupByPriority 按优先级分组统计
-	CountGroupByPriority() (map[string]int64, error)
+	CountGroupByPriority(ctx context.Context) (map[string]int64, error)
 	// CountGroupByResourceType 按资源类型分组统计
-	CountGroupByResourceType() (map[int8]int64, error)
+	CountGroupByResourceType(ctx context.Context) (map[int8]int64, error)
 }
 
 type alertRuleAppImpl struct {
@@ -165,16 +165,16 @@ func (a *alertRuleAppImpl) ListEnabled() ([]*entity.AlertRule, error) {
 	return a.GetRepo().ListEnabled()
 }
 
-func (a *alertRuleAppImpl) GetRuleStats() (total, enabled, disabled int64, err error) {
-	return a.GetRepo().GetRuleStats()
+func (a *alertRuleAppImpl) GetRuleStats(ctx context.Context) (total, enabled, disabled int64, err error) {
+	return a.GetRepo().GetRuleStats(ctx)
 }
 
-func (a *alertRuleAppImpl) CountGroupByPriority() (map[string]int64, error) {
-	return a.GetRepo().CountGroupByPriority()
+func (a *alertRuleAppImpl) CountGroupByPriority(ctx context.Context) (map[string]int64, error) {
+	return a.GetRepo().CountGroupByPriority(ctx)
 }
 
-func (a *alertRuleAppImpl) CountGroupByResourceType() (map[int8]int64, error) {
-	return a.GetRepo().CountGroupByResourceType()
+func (a *alertRuleAppImpl) CountGroupByResourceType(ctx context.Context) (map[int8]int64, error) {
+	return a.GetRepo().CountGroupByResourceType(ctx)
 }
 
 // validateAlertRule 全量校验告警规则并归一化默认值。

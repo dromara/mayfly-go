@@ -110,7 +110,9 @@ func applyHits(row *machineapp.MachineHealth, rule *entity.AlertRule, result *se
 			Current:   item.CurrentValue,
 			Priority:  int8(rule.Priority),
 		})
-		if row.Priority == machineapp.NoHealthHit || int8(rule.Priority) > row.Priority {
+		// 数值越小越严重，因此只有更差（更小）的规则才覆盖已记录的优先级：
+		// 反过来比较会让 P0 紧急告警被先出现的 P2 掩盖，总览显示的错误等级低于真实情况
+		if row.Priority == machineapp.NoHealthHit || int8(rule.Priority) < row.Priority {
 			row.Priority = int8(rule.Priority)
 		}
 	}

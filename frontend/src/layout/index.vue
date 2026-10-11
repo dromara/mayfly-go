@@ -11,6 +11,9 @@
 
     <!-- 全局提单抽屉：借真实组件树给无 appContext 的函数式弹窗（SqlExecBox 体系）走提单链路，见 ticketService.ts -->
     <WorkTicketSubmit ref="globalTicketRef" hidden />
+
+    <!-- 全局执行计划对话框：供含独立 render 树在内的任意入口经 openSqlPlan 唤起（见 sqlPlanService.ts） -->
+    <SqlPlanDialog v-model:visible="sqlPlanState.visible" :db-id="sqlPlanState.dbId" :db="sqlPlanState.db" :sql="sqlPlanState.sql" />
 </template>
 
 <script setup lang="ts" name="layout">
@@ -20,6 +23,8 @@ import { defineAsyncComponent, onMounted, onUnmounted, type Component, useTempla
 import WorkTicketSubmit from '@/views/flow/components/WorkTicketSubmit.vue';
 import { registerTicketOpener, unregisterTicketOpener } from '@/views/flow/ticketService';
 import type { TicketPrefill } from '@/views/flow/types';
+import SqlPlanDialog from '@/views/ops/db/sql-editor/SqlPlanDialog.vue';
+import { sqlPlanState } from '@/views/ops/db/sql-editor/sqlPlanService';
 
 const layouts: Record<string, Component> = {
     defaults: defineAsyncComponent(() => import('@/layout/main/defaults.vue')),

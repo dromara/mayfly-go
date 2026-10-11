@@ -50,11 +50,6 @@
                     </el-tooltip>
                     <el-divider v-if="!readonly" direction="vertical" border-style="dashed" />
 
-                    <el-tooltip :show-after="500" effect="dark" content="commit" placement="top">
-                        <el-link @click="onCommit()" type="success" icon="CircleCheck" underline="never"> </el-link>
-                    </el-tooltip>
-                    <el-divider direction="vertical" border-style="dashed" />
-
                     <el-tooltip :show-after="500" v-if="hasUpdatedFields" :content="$t('db.submitUpdate')" placement="top">
                         <el-link @click="submitUpdateFields()" type="success" underline="never" class="text-[12px]!">{{ $t('common.submit') }}</el-link>
                     </el-tooltip>
@@ -165,7 +160,7 @@
             :page-size="pageSize"
             :page-num="pageNum"
             :show-column-tip="true"
-            @sort-change="(sort: { key: string; order: string }) => onTableSortChange(sort)"
+            @sort-change="(sorts: ColumnSort[]) => onTableSortChange(sorts)"
             @change-updated-field="changeUpdatedField"
             @data-delete="onRefresh"
         ></db-table-data>
@@ -259,6 +254,8 @@ import { DbDialect } from '@/views/ops/db/dialect';
 import type { ColumnMetadata, TableColumnDef } from '@/views/ops/db/types';
 import { useI18n } from 'vue-i18n';
 import DbTableData from './DbTableData.vue';
+import type { ColumnSort } from './sortModel';
+import { buildOrderByClause } from './sortModel';
 import DbTableDataForm from './DbTableDataForm.vue';
 import DbTableDataImport from './DbTableDataImport.vue';
 import DbTableFilterBuilder from './DbTableFilterBuilder.vue';
@@ -559,11 +556,6 @@ const removeFilterChip = async (id: number) => {
 /**
  * 提交事务，用于没有开启自动提交事务
  */
-const onCommit = () => {
-    getNowDbInst().runSql(props.dbName, 'COMMIT;');
-    Msg.success('COMMIT success');
-};
-
 const onSelectByCondition = async () => {
     if (!existSuggestion) {
         state.pageNum = 1;
@@ -574,9 +566,9 @@ const onSelectByCondition = async () => {
 /**
  * 表排序字段变更
  */
-const onTableSortChange = async (sort: { key: string; order: string }) => {
-    const sortType = sort.order == 'desc' ? 'DESC' : 'ASC';
-    state.orderBy = `ORDER BY ${state.dbDialect.quoteIdentifier(sort.key)} ${sortType}`;
+const onTableSortChange = async (sorts: ColumnSort[]) => {
+    // 标识符引用用本库方言的 quoteIdentifier：写死双引号会让 MySQL 直接语法错误
+    state.orderBy = buildOrderByClause(sorts, (name) => state.dbDialect.quoteIdentifier(name));
     await onRefresh();
 };
 

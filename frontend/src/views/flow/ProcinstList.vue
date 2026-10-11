@@ -42,6 +42,16 @@
                         <el-button link type="warning">{{ $t('common.cancel') }}</el-button>
                     </template>
                 </el-popconfirm>
+
+                <!-- 定时执行：审批已通过但尚未到点执行（已完成+待处理），到点前可改期或取消回放 -->
+                <template v-if="data.status == ProcinstStatus.Completed.value && data.bizStatus == ProcinstBizStatus.Wait.value">
+                    <el-button link type="primary" @click="openReschedule(data)">{{ $t('flow.reschedule') }}</el-button>
+                    <el-popconfirm :title="$t('flow.cancelExecConfirm')" width="180" @confirm="procinstCancelExec(data)">
+                        <template #reference>
+                            <el-button link type="warning">{{ $t('flow.cancelExec') }}</el-button>
+                        </template>
+                    </el-popconfirm>
+                </template>
             </template>
         </page-table>
 
@@ -55,6 +65,9 @@
         />
 
         <ProcinstEdit v-model="procinstEdit.procinst" v-model:visible="procinstEdit.visible" :title="procinstEdit.title" @val-change="search()" />
+
+        <!-- 改期：只改已批准未执行工单的计划执行时间（列表与工单详情共用同一组件） -->
+        <ProcinstRescheduleDialog v-model:visible="reschedule.visible" :procinst-id="reschedule.id" :current="reschedule.current" @submitted="search()" />
     </div>
 </template>
 
@@ -68,6 +81,7 @@ import { useUserInfo } from '@/store/userInfo';
 import { defineAsyncComponent, onActivated, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ProcinstDetail from './ProcinstDetail.vue';
+import ProcinstRescheduleDialog from './components/ProcinstRescheduleDialog.vue';
 import { procinstApi } from './api';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus } from './enums';
 import type { Procinst, ProcInstStartForm } from './types';
@@ -88,8 +102,9 @@ const columns = [
     TableColumn.new('creator', 'flow.initiator'),
     TableColumn.new('bizKey', 'flow.bizKey'),
     TableColumn.new('procdefName', 'flow.procdefName'),
-    TableColumn.new('status', 'common.status').setAddWidth(8).typeTag(ProcinstStatus),
+    TableColumn.new('status', 'common.status').typeTag(ProcinstStatus),
     TableColumn.new('bizStatus', 'flow.bizStatus').typeTag(ProcinstBizStatus),
+    TableColumn.new('plannedExecTime', 'flow.plannedExecTime').isTime(),
     TableColumn.new('createTime', 'flow.startingTime').isTime(),
     TableColumn.new('endTime', 'flow.endTime').isTime(),
     TableColumn.new('duration', 'flow.duration').setFormatFunc((data: Procinst) => {
@@ -154,6 +169,21 @@ onActivated(() => {
 
 const procinstCancel = async (data: Procinst) => {
     await procinstApi.cancel.request({ id: data.id });
+    Msg.operateSuccess();
+    search();
+};
+
+// 定时执行改期/取消：仅对「已批准、待执行」工单开放（按钮已按状态隐藏）；改期表单收敛到共享组件
+const reschedule = reactive({ visible: false, id: 0, current: '' });
+
+const openReschedule = (data: Procinst) => {
+    reschedule.id = data.id;
+    reschedule.current = data.plannedExecTime ?? '';
+    reschedule.visible = true;
+};
+
+const procinstCancelExec = async (data: Procinst) => {
+    await procinstApi.cancelExec.request({ id: data.id });
     Msg.operateSuccess();
     search();
 };

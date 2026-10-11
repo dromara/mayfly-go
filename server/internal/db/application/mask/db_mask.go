@@ -48,6 +48,14 @@ type MaskEngine interface {
 	// BuildQueryRowMasker 根据sql与查询结果列构建行脱敏器（内部解析sql），供AI工具等未预解析场景使用
 	// 错误语义同BuildStmtRowMasker
 	BuildQueryRowMasker(ctx context.Context, dbConn *dbi.DbConn, sql string, columns []*dbi.QueryColumn) (*masksvc.RowMasker, error)
+
+	// BuildTableColumnMasker 为「已知单表与列清单」的整表读取场景构建行脱敏器（如数据库 dump/导出）。
+	//
+	// 该场景没有 SELECT 语句可解析（导出侧是 SELECT * FROM table 逐表遍历），因此不能复用依赖语句血缘的
+	// BuildStmtRowMasker，而是直接以 (db, table, column) 三元组解析规则；启用开关/豁免角色/fail-close
+	// 与另外两个入口走同一条链路，禁止在本方法里重写一遍判定。
+	// 未启用脱敏/账号豁免/无规则命中时返回 (nil, nil)
+	BuildTableColumnMasker(ctx context.Context, dbConn *dbi.DbConn, db, table string, columns []string) (*masksvc.RowMasker, error)
 }
 
 // MaskRuleApp 脱敏规则与列标签的管理（CRUD），供API层调用。
@@ -378,7 +386,34 @@ func (m *MaskAppImpl) BuildQueryRowMasker(ctx context.Context, dbConn *dbi.DbCon
 
 // buildRowMasker 构建行脱敏器核心逻辑
 func (m *MaskAppImpl) buildRowMasker(ctx context.Context, dbConn *dbi.DbConn, selectStmt *sqlstmt.SelectStmt, columns []*dbi.QueryColumn) (*masksvc.RowMasker, error) {
-	if !config.GetDbms().MaskEnabled {
+	plan, err := m.maskPlanForQuery(ctx, dbConn)
+	if err != nil || plan == nil {
+		return nil, err
+	}
+
+	return buildRowMaskerFromPlan(plan, dbConn.Info.Database, selectStmt, columns, dbConn.GetDialect().GetSQLParser()), nil
+}
+
+// BuildTableColumnMasker 为整表导出场景构建行脱敏器（无 SELECT 语句可解析，按 库/表/列 直接解析规则）
+func (m *MaskAppImpl) BuildTableColumnMasker(ctx context.Context, dbConn *dbi.DbConn, db, table string, columns []string) (*masksvc.RowMasker, error) {
+	plan, err := m.maskPlanForQuery(ctx, dbConn)
+	if err != nil || plan == nil || len(columns) == 0 {
+		return nil, err
+	}
+
+	// tableOf 传 nil、tables 只给当前一张表：列归属未锁定，按表名列表逐个尝试，
+	// 这正是「整表导出」应有的口径（一列只可能属于这一张表）；markMasked 不需要，
+	// 因为导出产物没有前端列头可标记
+	return masksvc.NewRowMasker(plan, db, []string{table}, nil, columns, nil, nil), nil
+}
+
+// maskPlanForQuery 单点收敛「本次请求要不要脱敏」的三道前置判定：未启用、账号豁免、无规则。
+//
+// 返回 (nil, nil) 表示本次无需脱敏（不是错误）；返回 error 表示脱敏计划不可用，
+// 调用方必须阻断当次操作（fail-close 口径与 config.MaskFailClosed 一致，由 getPlan 统一给出）。
+// 三个入口（stmt/query/table）共用此函数，避免任一入口漏掉豁免角色或降级判定
+func (m *MaskAppImpl) maskPlanForQuery(ctx context.Context, dbConn *dbi.DbConn) (*masksvc.Plan, error) {
+	if dbConn == nil || dbConn.Info == nil || !config.GetDbms().MaskEnabled {
 		return nil, nil
 	}
 
@@ -391,11 +426,10 @@ func (m *MaskAppImpl) buildRowMasker(ctx context.Context, dbConn *dbi.DbConn, se
 	if err != nil {
 		return nil, err
 	}
-	if plan == nil || plan.Empty() {
+	if plan.Empty() {
 		return nil, nil
 	}
-
-	return buildRowMaskerFromPlan(plan, dbConn.Info.GetDatabase(), selectStmt, columns, dbConn.GetDialect().GetSQLParser()), nil
+	return plan, nil
 }
 
 // MaskValue 对单个值执行脱敏（通用能力，任意模块可调用）。

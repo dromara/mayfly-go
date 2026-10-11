@@ -57,7 +57,7 @@ func (d *DbConn) Ping() error {
 type QueryColumn struct {
 	Name string `json:"name"` // 列名
 	Key  string `json:"key"`  // 列唯一标识
-	Type string `json:"type"` // 数据类型
+	Type string `json:"type"` // 列的 SQL 数据类型（驱动返回的 DatabaseTypeName，如 BIGINT/VARCHAR/DATETIME）
 
 	Masked bool `json:"masked,omitempty"` // 该列是否已被脱敏
 
@@ -65,11 +65,13 @@ type QueryColumn struct {
 	valuer     Valuer      `json:"-"`
 }
 
-func NewQueryColumn(colName string, columnType *DbDataType) *QueryColumn {
+// NewQueryColumn 构建结果列：Type 对外暴露真实 SQL 列类型（dbTypeName，驱动 DatabaseTypeName），
+// 供前端展示与按列类型归一；codec 名（如 uint64）只是服务端值编解码的实现细节，不外泄。
+func NewQueryColumn(colName, dbTypeName string, columnType *DbDataType) *QueryColumn {
 	return &QueryColumn{
 		Name:       colName,
 		Key:        colName,
-		Type:       columnType.Codec.Name,
+		Type:       dbTypeName,
 		DbDataType: columnType,
 		valuer:     columnType.Codec.Valuer(),
 	}
@@ -110,7 +112,7 @@ func (d *DbConn) QueryContext(ctx context.Context, querySQL string, args ...any)
 	return cols, result, err
 }
 
-// 将查询结果映射至struct，可具体参考sqlx库
+// 将查询结果映射至 struct（按列名匹配字段，支持嵌套结构体字段）
 func (d *DbConn) Query2Struct(execSQL string, dest any) error {
 	db := d.Info.GetDb()
 	rows, err := db.Query(execSQL)
@@ -127,9 +129,36 @@ func (d *DbConn) Query2Struct(execSQL string, dest any) error {
 	return scan.All(rows, dest, false)
 }
 
+// txQuery 查询所需的最小执行器抽象：*sql.DB 与 *sql.Tx 均满足。
+//
+// 存在的理由：为了支持事务内遍历只改写「谁发起查询」这一行，
+// 列构造/Scan/StopWalk 控制流/rows.Err 检查都保持单一份，不出现第二套游标遍历实现
+type txQuery interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
 func (d *DbConn) WalkQueryRows(ctx context.Context, querySQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
-	if qcs, err := d.walkQueryRows(ctx, querySQL, walkFn, args...); err != nil {
+	return d.walkQueryWithStop(ctx, d.Info.GetDb(), querySQL, walkFn, args...)
+}
+
+// WalkQueryRowsInTx 与 WalkQueryRows 同语义，区别是读取在给定事务内进行（tx 为 nil 时等价于走连接池）。
+//
+// 存在的理由：一批需要原子提交的语句里，UPDATE/DELETE 的旧值必须与事务自身的写入视图一致——
+// 走连接池会读到事务外的快照，一旦回滚，审计里记录的旧值可能与真实值不符，
+// 据此生成的回滚 SQL 会把数据改错
+func (d *DbConn) WalkQueryRowsInTx(ctx context.Context, tx *sql.Tx, querySQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+	if tx == nil {
+		return d.WalkQueryRows(ctx, querySQL, walkFn, args...)
+	}
+	return d.walkQueryWithStop(ctx, tx, querySQL, walkFn, args...)
+}
+
+// walkQueryWithStop 把「主动停止遍历」当控制流而非错误：上层只关心拿到的行，
+// 真正的读取错误才向上返回（已包装为业务错误）
+func (d *DbConn) walkQueryWithStop(ctx context.Context, q txQuery, querySQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+	qcs, err := d.walkQuery(ctx, q, querySQL, walkFn, args...)
+	if err != nil {
 		// 如果是手动停止 则默认返回当前已遍历查询的数据即可
 		// walkFn返回的StopWalkQueryError可能被包装，需用errors.As而非类型断言
 		var stopErr *StopWalkQueryError
@@ -137,9 +166,8 @@ func (d *DbConn) WalkQueryRows(ctx context.Context, querySQL string, walkFn Walk
 			return qcs, nil
 		}
 		return qcs, wrapSQLError(err)
-	} else {
-		return qcs, nil
 	}
+	return qcs, nil
 }
 
 // WalkTableRows 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
@@ -219,7 +247,8 @@ func buildQueryColumns(colTypes []*sql.ColumnType, dbType DbType) ([]*QueryColum
 		if colName == "" {
 			colName = fmt.Sprintf("<anonymous%d>", k+1)
 		}
-		qc := NewQueryColumn(colName, GetDbDataType(dbType, colType.DatabaseTypeName()))
+		dbTypeName := colType.DatabaseTypeName()
+		qc := NewQueryColumn(colName, dbTypeName, GetDbDataType(dbType, dbTypeName))
 		cols[k] = qc
 		scans[k] = qc.getValuePtr()
 	}
@@ -241,13 +270,13 @@ func scanRowMap(cols []*QueryColumn) map[string]any {
 	return rowData
 }
 
-// 游标方式遍历查询rows, walkFn error不为nil, 则退出遍历
-func (d *DbConn) walkQueryRows(ctx context.Context, selectSQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
+// walkQuery 游标方式遍历 rows：q 决定这次读走连接池还是事务内（见 WalkQueryRows/WalkQueryRowsInTx），
+// walkFn error 不为 nil 则退出遍历
+func (d *DbConn) walkQuery(ctx context.Context, q txQuery, selectSQL string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
-	db := d.Info.GetDb()
-	rows, err := db.QueryContext(cancelCtx, selectSQL, args...)
+	rows, err := q.QueryContext(cancelCtx, selectSQL, args...)
 	if err != nil {
 		return nil, err
 	}

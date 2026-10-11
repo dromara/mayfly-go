@@ -16,7 +16,7 @@ type SQLGenerator struct {
 
 // quoteTableName 生成带schema的表名，如 [schema].[table]；schema为空（如仅生成SQL的伪连接场景）时退化为 [table]
 func (sg *SQLGenerator) quoteTableName(quote func(string) string, tableName string) string {
-	if schema := sg.di.CurrentSchema(); schema != "" {
+	if schema := sg.di.Schema; schema != "" {
 		return fmt.Sprintf("%s.%s", quote(schema), quote(tableName))
 	}
 	return quote(tableName)
@@ -51,7 +51,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
 			comment := dbi.QuoteEscape(column.ColumnComment)
-			columnComments = append(columnComments, fmt.Sprintf(commentTmp, comment, sg.di.CurrentSchema(), tbName, column.ColumnName))
+			columnComments = append(columnComments, fmt.Sprintf(commentTmp, comment, sg.di.Schema, tbName, column.ColumnName))
 		}
 	}
 
@@ -67,7 +67,7 @@ func (sg *SQLGenerator) GenTableDDL(table dbi.Table, columns []dbi.Column, dropB
 	if table.TableComment != "" {
 		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s'"
 
-		tableCommentSQL = fmt.Sprintf(commentTmp, dbi.QuoteEscape(table.TableComment), sg.di.CurrentSchema(), tbName)
+		tableCommentSQL = fmt.Sprintf(commentTmp, dbi.QuoteEscape(table.TableComment), sg.di.Schema, tbName)
 	}
 
 	sqlArr = append(sqlArr, createSQL)
@@ -102,7 +102,7 @@ func (sg *SQLGenerator) GenIndexDDL(table dbi.Table, indexes []dbi.Index) []stri
 		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s(%s)", unique, quote(index.IndexName), sg.quoteTableName(quote, tbName), strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
 			comment := dbi.QuoteEscape(index.IndexComment)
-			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", comment, sg.di.CurrentSchema(), tbName, index.IndexName))
+			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", comment, sg.di.Schema, tbName, index.IndexName))
 		}
 	}
 	if len(comments) > 0 {

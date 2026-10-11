@@ -77,7 +77,7 @@ func (cm *ClickHouseMetadata) GetDbNames() ([]string, error) {
 
 func (cm *ClickHouseMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	query := "SELECT name, engine, comment FROM system.tables WHERE database = ?"
-	args := []any{cm.di.GetDatabase()}
+	args := []any{cm.di.Database}
 	// 指定表名时需过滤，否则导出指定表时会误导出全库所有表
 	if len(tableNames) > 0 {
 		placeholders := make([]string, len(tableNames))
@@ -134,7 +134,7 @@ func (cm *ClickHouseMetadata) getTableColumns(tableName string) ([]dbi.Column, e
 		0 as is_auto_increment
 	FROM system.columns 
 	WHERE database = ? AND table = ? 
-	ORDER BY position`, cm.di.GetDatabase(), tableName)
+	ORDER BY position`, cm.di.Database, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (cm *ClickHouseMetadata) getTableColumns(tableName string) ([]dbi.Column, e
 func (cm *ClickHouseMetadata) GetPrimaryKeys(tableName string) ([]string, error) {
 	// ClickHouse 主键定义在表引擎设置中（此处为简化实现）：primary_key 为逗号分隔的有序列
 	_, res, err := cm.di.Query(`SELECT primary_key FROM system.tables WHERE database = ? AND name = ?`,
-		cm.di.GetDatabase(), tableName)
+		cm.di.Database, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (cm *ClickHouseMetadata) GetTableIndex(tableName string) ([]dbi.Index, erro
 		type,
 		'' as comment
 	FROM system.indexes 
-	WHERE database = ? AND table = ?`, cm.di.GetDatabase(), tableName)
+	WHERE database = ? AND table = ?`, cm.di.Database, tableName)
 	if err != nil {
 		// system.indexes 不存在或不可访问时返回空切片
 		return []dbi.Index{}, nil
@@ -220,7 +220,7 @@ func (cm *ClickHouseMetadata) GetTableIndex(tableName string) ([]dbi.Index, erro
 func (cm *ClickHouseMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 	// 从系统表读取 CREATE TABLE 语句
 	_, res, err := cm.di.Query(`SELECT create_table_query FROM system.tables WHERE database = ? AND name = ?`,
-		cm.di.GetDatabase(), tableName)
+		cm.di.Database, tableName)
 	if err != nil {
 		return "", err
 	}

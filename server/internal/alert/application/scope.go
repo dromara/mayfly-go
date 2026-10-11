@@ -54,7 +54,12 @@ func expandByTagPath(ctx context.Context, tagTreeRelateApp tagapp.TagTreeRelate,
 	var relateCodePaths []string
 	if ruleId > 0 {
 		// 告警规则：从标签关联表获取
-		relateCodePaths = tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeAlertRule, ruleId)
+		var err error
+		if relateCodePaths, err = tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeAlertRule, ruleId); err != nil {
+			// 查不到范围时按「不覆盖任何资源」处理并留日志：静默当成空集会让规则看似生效实则不匹配
+			logx.Errorf("[alert] failed to get tag paths for rule %d: %v", ruleId, err)
+			return nil
+		}
 	} else {
 		// 静默规则：从 scopeValue 解析
 		if err := json.Unmarshal([]byte(scopeValue), &relateCodePaths); err != nil {

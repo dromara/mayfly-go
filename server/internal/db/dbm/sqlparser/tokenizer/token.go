@@ -48,8 +48,12 @@ var Keywords = map[string]bool{
 	"UPDATE": true, "SET": true, "DELETE": true, "CREATE": true, "DROP": true,
 	"ALTER": true, "TABLE": true, "DATABASE": true, "INDEX": true, "VIEW": true,
 	"JOIN": true, "LEFT": true, "RIGHT": true, "INNER": true, "OUTER": true,
+	// USING 不在此列：它是 mysql/pg/oracle/达梦/SQLite 的保留字（JOIN..USING、DELETE..USING），
+	// 但在 T-SQL/ClickHouse 里可以作裸表名/列名，故登记到各方言的 ExtraKeywords（见 dialect.go）
 	"NATURAL": true, "CROSS": true, "FULL": true, "ON": true, "AS": true,
-	"UNION": true, "INTERSECT": true, "EXCEPT": true, "MINUS": true, "ALL": true, "DISTINCT": true, "LIMIT": true, "OFFSET": true,
+	// 集合操作：UNION/INTERSECT/EXCEPT 跨方言通用；MINUS 只在 Oracle 系是保留字，
+	// 登记在 oracle/dm 的 ExtraKeywords（其余方言里 minus 可作裸表名/列名）
+	"UNION": true, "INTERSECT": true, "EXCEPT": true, "ALL": true, "DISTINCT": true, "LIMIT": true, "OFFSET": true,
 	"ORDER": true, "BY": true, "GROUP": true, "HAVING": true, "WITH": true,
 	"SHOW": true, "VALUES": true, "AND": true, "OR": true, "NOT": true,
 	"NULL": true, "TRUE": true, "FALSE": true, "DESC": true, "ASC": true,

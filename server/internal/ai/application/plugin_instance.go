@@ -225,7 +225,11 @@ func (a *pluginInstanceAppImpl) CreateInstance(ctx context.Context, req *Instanc
 	if err := handler.ValidateConfig(req.Config); err != nil {
 		return nil, err
 	}
-	if a.CountByCond(&entity.PluginInstance{Code: code}) > 0 {
+	exists, err := a.Exists(ctx, &entity.PluginInstance{Code: code})
+	if err != nil {
+		return nil, err
+	}
+	if exists {
 		return nil, errorx.NewBizf("instance code already exists: %s", code)
 	}
 	name := strings.TrimSpace(req.Name)
@@ -266,8 +270,14 @@ func (a *pluginInstanceAppImpl) UpdateInstance(ctx context.Context, id uint64, r
 	if inst.PluginType == entity.PluginTypeSkill {
 		return errorx.NewBiz("skill instance is managed by skill APIs, edit the skill instead")
 	}
-	if inst.Code != req.Code && a.CountByCond(&entity.PluginInstance{Code: req.Code}) > 0 {
-		return errorx.NewBizf("instance code already exists: %s", req.Code)
+	if inst.Code != req.Code {
+		exists, err := a.Exists(ctx, &entity.PluginInstance{Code: req.Code})
+		if err != nil {
+			return err
+		}
+		if exists {
+			return errorx.NewBizf("instance code already exists: %s", req.Code)
+		}
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {

@@ -65,7 +65,7 @@ func newLogTestApp() *DbTransferAppImpl {
 func newTestTask(t *testing.T, db *gorm.DB) *entity.DbTransferTask {
 	t.Helper()
 	task := &entity.DbTransferTask{TaskName: "t1", TaskKey: "k1", RunningState: entity.DbTransferTaskRunStateRunning}
-	task.FillBaseInfo(model.IdGenTypeNone, nil)
+	task.FillBaseInfo(nil)
 	require.NoError(t, db.Create(task).Error)
 	return task
 }

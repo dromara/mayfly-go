@@ -30,6 +30,13 @@ const (
 	// 与上方核心静态的 FeatForeignKeys 不同：后者表达「DDL 能否定义外键约束」（普遍为真），
 	// 本能力表达「能否枚举某表的外键关系清单」（各方言实现不一），二者不可合并。
 	FeatTableRelations
+	// FeatSessions 会话内省与取消能力（实现了 SessionInspector 才声明）。
+	// 与对象类能力不同：它不对应某个 ObjectKind，因此不参与 ObjectKindFeatures 映射，
+	// 其「声明⟺实现」校验由 dbm/boundary_test.go 的能力探测表负责
+	FeatSessions
+	// FeatExplain 执行计划分析能力（实现了 ExplainAnalyzer 才声明）。
+	// 同为非对象类能力，不参与 ObjectKindFeatures，由 boundary_test.go 的探测表将「声明」钉到「实现」
+	FeatExplain
 )
 
 // allStaticFeatures 核心静态能力集合。DefaultBackend 默认视为「全支持」，能力不足的方言经 Without 删减。
@@ -56,6 +63,8 @@ var featureNames = map[MetadataFeature]string{
 	FeatSequences:          string(KindSequence),
 	FeatTriggers:           string(KindTrigger),
 	FeatTableRelations:     "relation",
+	FeatSessions:           "sessions",
+	FeatExplain:            "explain",
 }
 
 // featureByName 由 featureNames 反向构建，避免手写两份映射而漂移。
@@ -163,6 +172,12 @@ func (c MetadataCapabilities) HasStaticFeature(name string) bool {
 		return false
 	}
 	return c.Has(f)
+}
+
+// FeatureName 返回能力枚举的稳定字符串标识；未登记命名的能力返回空串（属声明遗漏，
+// 因为每个 MetadataFeature 都必须在 featureNames 里有条目，否则能力协商与护栏日志都会失去可读名字）
+func FeatureName(f MetadataFeature) string {
+	return featureNames[f]
 }
 
 // SupportedFeatures 返回当前支持的能力稳定字符串列表（升序），供能力协商端点与诊断暴露。

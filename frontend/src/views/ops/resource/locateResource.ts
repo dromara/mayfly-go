@@ -1,13 +1,12 @@
-import { findChildByLocateCode, getContributor } from './tree/registry';
+import { findChildByLocateCode, getContributor, getRootContributor } from './tree/registry';
 import { ERROR_KIND, LOADING_KIND, type LocateAccess, type LocateOutcome } from './tree/types';
-import { resGroupKey } from './resourceKeys';
 
 /**
  * codePath 定位解析（资产域知识收口处）
  *
  * 后端标签资源以 codePath 标识自身：`tag1/tag2/type|code/`（协议见 server/internal/tag/domain/entity/tag_tree.go）。
  * 本模块把这样一条标识解析成资源树中的节点 key，供通用树容器展开定位；容器只消费 LocateResolver 契约，
- * 不认识 codePath / 分组 key / 各资源 code 字段等任何资产协议。
+ * 不认识 codePath / 各资源 code 字段等任何资产协议。
  *
  * 定位能力由各贡献者的 `locateCode` 声明提供（见 tree/registry.ts）：
  * 新增资产类型只需在自身贡献者声明 locateCode，本模块与容器均无需改动（开闭原则）。
@@ -78,7 +77,7 @@ function resolveTagNode(tagPath: string, access: LocateAccess): LocateOutcome {
     return access.rootLoaded ? { status: 'missing' } : { status: 'pending' };
 }
 
-/** 取分组/资源节点已水合的子节点（必要时展开该节点） */
+/** 取标签/资源节点已水合的子节点（必要时展开该节点） */
 async function loadedChildren(key: string, access: LocateAccess) {
     const node = access.getNode(key);
     if (node && !node.loaded) {
@@ -90,8 +89,9 @@ async function loadedChildren(key: string, access: LocateAccess) {
 /**
  * codePath → 树节点 key 解析器（实现容器注入的 LocateResolver 契约）。
  *
- * 层级依据：标签节点 → 类型分组节点（key 由 tagPath + 首段资源类型确定，故能精确命中资源所属的那个标签分支，
- * 规避同一资源挂在多个标签下的副本歧义）→ 各级资源节点（按 locateCode 匹配）。
+ * 层级依据：标签节点（key 即其 codePath）→ 各级资源节点（按 locateCode 匹配）。
+ * 标签节点下不再有一层「机器/数据库」类型分组节点，但定位仍从标签分支往下走：
+ * 同一资源挂在多个标签下时，每条 codePath 沿自己的标签分支展开，副本歧义在根上就消了。
  * codePath 段数可能多于树层级（如数据库为 实例→账号→库名，树中无账号节点），未命中的段直接跳过。
  */
 export async function resolveCodePathLocate(codePath: string, access: LocateAccess): Promise<LocateOutcome> {
@@ -101,15 +101,15 @@ export async function resolveCodePathLocate(codePath: string, access: LocateAcce
     }
 
     const [root, ...deeper] = resources;
-    const groupKey = resGroupKey(tagPath, root.type);
-    const group = access.getNode(groupKey);
-    if (!group) {
-        // 分组随根一次性预构，根已加载仍缺失说明该标签分支不可见（无权限/已删除）
+    // 标签节点就是资源的直接父层：标签不存在时区分「根未加载可重试」与「确实无权限/已删」
+    if (!access.getNode(tagPath)) {
         return access.rootLoaded ? { status: 'missing' } : { status: 'pending' };
     }
 
-    const expandedGroup = await loadedChildren(groupKey, access);
-    const first = findChildByLocateCode(expandedGroup, root.code);
+    const tag = await loadedChildren(tagPath, access);
+    // 首段自带资源类型：反查根贡献者的 kind 收窄匹配。不同资产的 code 各有一套命名空间，
+    // 同一标签下跨类型重名时只按 code 会挑错节点（旧实现靠分组节点天然隔离，去掉那层后必须显式收窄）
+    const first = tag ? findChildByLocateCode(tag, root.code, getRootContributor(root.type)?.kind) : undefined;
     if (!first) {
         return { status: 'missing' };
     }

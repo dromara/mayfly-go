@@ -219,7 +219,7 @@ func recoverCounterKey(ruleId, resourceId uint64) string {
 // handleEvalResult 处理评估结果（告警状态机核心）
 func (a *alertEngineAppImpl) handleEvalResult(ctx context.Context, rule *entity.AlertRule, rid uint64, evaluator service.AlertEvaluator, result *service.EvalResult) {
 	breached := result.Triggered
-	active, err := a.eventApp.FindActive(rule.Id, rid)
+	active, err := a.eventApp.FindActive(ctx, rule.Id, rid)
 	if err != nil {
 		logx.Errorf("[alert] find active event error: rule[%d] resource[%d] %s", rule.Id, rid, err.Error())
 		return

@@ -3,6 +3,9 @@ package application
 import (
 	"context"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/mask"
+	"mayfly-go/internal/db/application/sqlexec"
+	"mayfly-go/internal/db/application/sqlutil"
 	transfer "mayfly-go/internal/db/application/transfer"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -45,6 +48,24 @@ type Db interface {
 
 	// DumpDb dumpDb
 	DumpDb(ctx context.Context, reqParam *dto.DumpDb) error
+
+	// Explain 逐条取语句的执行计划（只读分析，EXPLAIN 不带 ANALYZE）。
+	//
+	// 与执行期共用同一套语句切割；单条取不到计划时逐条回报说明而不是整批失败
+	Explain(ctx context.Context, dbId uint64, dbName string, sqls []string) ([]*ExplainPlan, error)
+
+	// ColumnValues 采样某列出现过的去重值（不含 NULL），供编辑器值补全。
+	//
+	// 表/列先过库侧元数据校验再拼 SQL；方言没有分页改写能力时返回业务错误而不是猜一个限行语法
+	ColumnValues(ctx context.Context, dbId uint64, dbName, table, column string, limit int) ([]string, error)
+
+	// ListSessions 返回该库所属实例当前的活动会话。
+	//
+	// 方言未实现会话内省能力时透传 dbi.ErrUnsupportedKind，调用方据此判定「不支持」而非「没有会话」
+	ListSessions(ctx context.Context, dbId uint64, dbName string) ([]*dbi.SessionInfo, error)
+
+	// CancelSession 请求数据库取消指定会话当前正在执行的语句
+	CancelSession(ctx context.Context, dbId uint64, dbName, sessionId string) error
 }
 
 type dbAppImpl struct {
@@ -52,9 +73,12 @@ type dbAppImpl struct {
 
 	dbSQLRepo           repository.DbSQL        `inject:"T"`
 	dbInstanceApp       Instance                `inject:"T"`
-	dbSQLExecApp        DbSQLExec               `inject:"T"`
+	dbSQLExecApp        sqlexec.DbSQLExec       `inject:"T"`
 	tagApp              tagapp.TagTreeService   `inject:"T"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
+	// maskApp 查询结果脱敏引擎：dump 与交互式查询必须共用同一个引擎实例，
+	// 否则两边会因规则缓存/豁免角色配置不一致而对同一列给出不一致的结论
+	maskApp mask.MaskEngine `inject:"T"`
 }
 
 var _ Db = (*dbAppImpl)(nil)
@@ -200,7 +224,9 @@ func (d *dbAppImpl) GetDbConn(ctx context.Context, dbId uint64, dbName string) (
 		di.Id = db.Id
 		di.DbCode = db.Code
 
-		checkDb := di.GetDatabase()
+		// di.Database 已由 ToDbInfo 单点解析为纯库名；t_db.Database 是空格分隔的纯库名允许列表，
+		// 直接成员匹配即可（授权粒度为整库、含其所有 schema，不按 schema 细分）。
+		checkDb := di.Database
 		if db.GetDatabaseMode == entity.DbGetDatabaseModeAssign && !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
 			return nil, errorx.NewBizI(context.Background(), imsg.ErrDbNotAccess, "dbName", dbName)
 		}
@@ -266,10 +292,41 @@ func (d *dbAppImpl) GetDbTypesByDbIds(dbIds []uint64) (map[uint64]string, error)
 	return dbTypes, nil
 }
 
+// ListSessions 代理方言的会话内省能力（能力缺失返回 ErrUnsupportedKind，不虚构空列表）
+func (d *dbAppImpl) ListSessions(ctx context.Context, dbId uint64, dbName string) ([]*dbi.SessionInfo, error) {
+	dbConn, err := d.GetDbConn(ctx, dbId, dbName)
+	if err != nil {
+		return nil, err
+	}
+	return dbConn.Metadata().ListSessions(ctx)
+}
+
+// CancelSession 取消指定会话。标识合法性由方言自身校验（各库会话标识形态不同，规则不外提）
+//
+// 库侧的拒绝原因包成人话再上抛：直接透出 `Error 1094 (HY000): Unknown thread id: 1586` 时，
+// 运维得自己回忆 1094 是什么意思，而它最常见的含义只是「那条语句已经跑完了」
+func (d *dbAppImpl) CancelSession(ctx context.Context, dbId uint64, dbName, sessionId string) error {
+	dbConn, err := d.GetDbConn(ctx, dbId, dbName)
+	if err != nil {
+		return err
+	}
+	if err := dbConn.Metadata().CancelSession(ctx, sessionId); err != nil {
+		return errorx.NewBizI(ctx, imsg.ErrSessionCancelFailed, "sessionId", sessionId, "reason", sqlutil.BriefReason(err))
+	}
+	return nil
+}
+
 func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	dbConn, err := d.GetDbConn(ctx, reqParam.DbId, reqParam.DbName)
 	if err != nil {
 		return err
 	}
+
+	// 导出侧的脱敏只在本会合点装配：三个调用方（即席导出/迁移到库/备份到文件）都经过这里，
+	// 把「要不要脱敏」的决策留在调用方、把「怎么脱敏」的实现留在这里，避免判定散到 api 与 transfer 两处
+	if reqParam.Mask && reqParam.RowMask == nil {
+		reqParam.RowMask = mask.NewDumpRowMasker(d.maskApp, dbConn, reqParam.DbName).Fn()
+	}
+
 	return transfer.DumpDbScript(ctx, dbConn, reqParam)
 }

@@ -1,6 +1,11 @@
 <template>
     <div class="monaco-editor-custom relative h-full">
-        <div class="monaco-editor-content" ref="monacoTextareaRef" :style="{ height: height }"></div>
+        <!-- monaco-component 类是 monaco 主题变量表(--vscode-*)的注入选择器之一：
+             0.57 的 ContextView(右键菜单/悬浮提示)渲染在容器下 .shadow-root-host 的 ShadowRoot 内，
+             文档级变量表与样式选择器都穿不进 shadow 树，而自定义属性可跨 shadow 边界从宿主继承，
+             故在挂载点(本容器即 getContainerDomNode())补齐变量作用域，菜单内联的
+             var(--vscode-menu-background) 等才能解析，否则计算为空呈全透明 -->
+        <div class="monaco-editor-content monaco-component" ref="monacoTextareaRef" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage" filterable size="small">
             <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value" />
         </el-select>

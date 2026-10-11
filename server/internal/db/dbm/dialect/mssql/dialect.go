@@ -36,7 +36,7 @@ func (md *MssqlDialect) GetSQLParser() sqlparser.SQLParser {
 
 func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	msMetadata := md.di.Metadata()
-	schema := md.di.CurrentSchema()
+	schema := md.di.Schema
 
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := copy.TableName + "_copy_" + time.Now().Format("20060102150405")

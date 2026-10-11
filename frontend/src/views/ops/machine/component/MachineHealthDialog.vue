@@ -138,7 +138,9 @@ const metricStatus = (row: MachineHealth, metric: string): 'exception' | 'warnin
 const triageLabel = (row: MachineHealth) => {
     if (row.status !== 1) return t('machine.healthOffline');
     if (row.priority >= 0) return priorityLabel(row.priority);
-    return t('machine.healthNormal');
+    // 未判定不等于正常：取不到当前值时给「正常」，运维会把「没观测到」读成「没问题」，
+    // 而排序与颜色已经把它当异常顶到前面，文本必须与它们同一口径
+    return row.triaged === false ? t('machine.healthNotTriaged') : t('machine.healthNormal');
 };
 
 type TagType = 'danger' | 'warning' | 'info' | 'success';

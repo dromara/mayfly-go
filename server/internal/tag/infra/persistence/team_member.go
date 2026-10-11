@@ -1,6 +1,8 @@
 package persistence
 
 import (
+	"context"
+
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
@@ -27,9 +29,9 @@ func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam
 		Joins("JOIN t_sys_account a ON t.account_id = a.id AND a.status = 1").
 		WithCond(model.NewCond().Columns("t.*, a.name").
 			Eq("a.account_id", condition.AccountId).
-			Eq0("a.is_deleted", model.ModelUndeleted).
+			EqStrict("a.is_deleted", model.ModelUndeleted).
 			Eq("t.team_id", condition.TeamId).
-			Eq0("t.is_deleted", model.ModelUndeleted).
+			EqStrict("t.is_deleted", model.ModelUndeleted).
 			Like("a.username", condition.Username).
 			OrderByDesc("t.id"))
 
@@ -37,6 +39,6 @@ func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam
 	return qd.PageQuery(pageParam, res)
 }
 
-func (p *teamMemberRepoImpl) IsExist(teamId, accountId uint64) bool {
-	return p.CountByCond(&entity.TeamMember{TeamId: teamId, AccountId: accountId}) > 0
+func (p *teamMemberRepoImpl) IsExist(ctx context.Context, teamId, accountId uint64) (bool, error) {
+	return p.Exists(ctx, &entity.TeamMember{TeamId: teamId, AccountId: accountId})
 }

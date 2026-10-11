@@ -71,7 +71,7 @@ const state = reactive({
         TableColumn.new('type', 'ac.credentialType').typeTag(AuthCertTypeEnum),
         TableColumn.new('username', 'common.username'),
         TableColumn.new('ciphertextType', 'ac.ciphertextType').typeTag(AuthCertCiphertextTypeEnum),
-        TableColumn.new('resourceCode', 'ac.resourceCode').isSlot().setAddWidth(30),
+        TableColumn.new('resourceCode', 'ac.resourceCode').isSlot(),
         TableColumn.new('remark', 'common.remark'),
         TableColumn.new('creator', 'common.creator'),
         TableColumn.new('createTime', 'common.createTime').isTime(),

@@ -22,6 +22,15 @@ export interface PolicyNotice {
 export interface SqlExecRes {
     /** 执行的sql */
     sql?: string;
+    /**
+     * 结果集是否因超出行数上限而未取完。
+     *
+     * 不能拿「行数 == 上限」推断：正好那么多行的完整结果会被误报成截断，
+     * 而界面一旦误报，用户就不再相信这个提示
+     */
+    truncated?: boolean;
+    /** 本次生效的行数上限（truncated 为 true 时才有意义） */
+    rowLimit?: number;
     /** 错误信息，存在则表示该sql执行失败 */
     errorMsg?: string;
     /** 结果集列信息 */

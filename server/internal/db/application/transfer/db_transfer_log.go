@@ -6,8 +6,11 @@ import (
 	"time"
 
 	"mayfly-go/internal/db/domain/entity"
+	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/event"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 )
@@ -197,6 +200,10 @@ func (app *DbTransferAppImpl) endRun(ctx context.Context, logId uint64, taskId u
 		logx.ErrorfContext(context.Background(), "failed to update transfer task [%d] running state: %s", taskId, err.Error())
 	}
 
+	if err != nil {
+		app.notifyTaskRunFail(ctx, taskId, err.Error())
+	}
+
 	// 状态更新完成后再释放守卫，防止窗口期内另一个 Run 获取守卫并启动
 	app.runGuard.Release(taskId)
 	// 收敛跨实例停止标记：即使上面 Release 是本实例持有走的清理，Redis 里的停止标记仍需显式清；
@@ -274,4 +281,21 @@ func (app *DbTransferAppImpl) setTransferLog(logId uint64, log *entity.DbTransfe
 
 func getTransferLogKey(logId uint64) string {
 	return fmt.Sprintf("mayfly:db_transfer_log:%d", logId)
+}
+
+// notifyTaskRunFail 通知任务创建者：本次执行失败。
+//
+// 为什么必须通知而不是只写运行日志：这些任务多数由 cron 触发，没人盯着界面，
+// 失败只落在日志里等于功能静默失效（定时迁移停摆数日才被发现）。
+//
+// 收件人取任务创建者而非 ctx 里的登录账号：cron 执行上下文没有登录用户，
+// 用当前账号会漏发（自动跑失败无人收到）或错发（谁手动点一次就改发给谁）。
+// 通知失败只记日志——发通知失败不该把已经完成的收尾判成失败。
+func (app *DbTransferAppImpl) notifyTaskRunFail(ctx context.Context, taskId uint64, errText string) {
+	task, err := app.GetById(taskId)
+	if err != nil || task == nil || task.CreatorId == 0 {
+		logx.WarnfContext(ctx, "skip failure notification for transfer task [%d]: task or its creator is unavailable, err=%v", taskId, err)
+		return
+	}
+	global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, msgdto.DbTaskRunFailEvent(task.TaskName, errText, task.CreatorId))
 }

@@ -15,6 +15,11 @@ export enum TabType {
      * 表操作
      */
     TablesOp,
+
+    /**
+     * 活动会话
+     */
+    Session,
 }
 
 /**

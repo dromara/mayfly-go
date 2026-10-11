@@ -17,6 +17,7 @@ func InitIoc() {
 func Init() {
 	GetExecutionApp().Init()
 	GetProcinstTaskApp().Init()
+	InitBizHandleSweep()
 }
 
 func GetProcdefApp() Procdef {

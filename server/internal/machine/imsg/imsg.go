@@ -45,6 +45,9 @@ const (
 	LogMachineCronJobRun
 	ErrCronJobSpecInvalid
 
+	// 设置了结果通知但未绑定消息模板
+	ErrCronJobNotifyTmplRequired
+
 	// security
 	LogMachineSecurityCmdSave
 	LogMachineSecurityCmdDelete

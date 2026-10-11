@@ -53,13 +53,10 @@
                     placement="bottom-start"
                 >
                     <span class="column-actions-trigger">
-                        <!-- 排序箭头图标 -->
-                        <SvgIcon
-                            v-if="column.key === nowSortColumn?.key && !showColumnActions[column.key] && !columnActionVisible[column.key]"
-                            :color="'var(--el-color-primary)'"
-                            :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
-                            :size="14"
-                        />
+                        <!-- 参与排序的列都挂箭头：多列排序下只显一个等于把其余排序键藏起来 -->
+                        <template v-if="sortedOf(column.key) && !showColumnActions[column.key] && !columnActionVisible[column.key]">
+                            <SvgIcon :color="'var(--el-color-primary)'" :name="sortedOf(column.key)!.order === 'asc' ? 'top' : 'bottom'" :size="14" />
+                        </template>
                         <!-- 更多操作图标 -->
                         <SvgIcon
                             v-if="columnActionVisible[column.key] || showColumnActions[column.key]"
@@ -80,6 +77,11 @@
                                 <SvgIcon name="bottom" class="mr-1" />
                                 {{ $t('db.desc') }}
                             </el-dropdown-item>
+                            <!-- 多列排序下没有「再点一次同列就取消」这种隐式手势，取消必须是个显式动作 -->
+                            <el-dropdown-item v-if="showColumnActionSort && sortedOf(column.key)" command="sort-none">
+                                <SvgIcon name="Close" class="mr-1" />
+                                {{ $t('db.cancelSort') }}
+                            </el-dropdown-item>
                             <el-dropdown-item v-if="showColumnActionFixed && !column.fixed" command="fix">
                                 <SvgIcon name="Paperclip" class="mr-1" />
                                 {{ $t('db.fixed') }}
@@ -91,6 +93,8 @@
                         </el-dropdown-menu>
                     </template>
                 </el-dropdown>
+                <!-- 生效序号放在触发区外：触发区是 16px 圆形热区，塞进去会把圆形撑成胶囊并改变悬浮观感 -->
+                <span v-if="sortedOf(column.key) && sorts.length > 1" class="column-sort-order">{{ sortOrderIndex(sorts, column.key) }}</span>
             </div>
         </div>
     </div>
@@ -101,6 +105,8 @@ import SvgIcon from '@/components/svg-icon/index.vue';
 import type { VirtualTableColumn } from '@/components/virtual-table/adapters';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { ColumnSort, SortAction } from './sortModel';
+import { sortOrderIndex } from './sortModel';
 
 const { t } = useI18n();
 
@@ -109,15 +115,22 @@ const props = defineProps<{
     rowNoColumnKey: string;
     showColumnTip: boolean;
     showColumnComment: boolean;
-    nowSortColumn: { key: string; order: string } | null;
+    /** 有序多列排序列表：顺序即 SQL 里 ORDER BY 的先后 */
+    sorts: ColumnSort[];
     showColumnActionSort: boolean;
     showColumnActionFixed: boolean;
 }>();
 
 const emit = defineEmits<{
-    sortChange: [sort: { key: string; order: string }];
+    sortChange: [sort: { key: string; order: SortAction }];
     fixChange: [column: VirtualTableColumn, fixed: boolean];
 }>();
+
+/** 该列当前的排序方向；未参与排序返回 null */
+function sortedOf(column: VirtualTableColumn | string) {
+    const key = typeof column === 'string' ? column : column.key;
+    return props.sorts.find((item) => item.key === key) ?? null;
+}
 
 // 用于控制列操作按钮的显示
 const showColumnActions = ref<Record<string, boolean>>({});
@@ -138,6 +151,9 @@ const handleColumnCommand = (column: VirtualTableColumn, command: string) => {
             break;
         case 'sort-desc':
             emit('sortChange', { key: column.key, order: 'desc' });
+            break;
+        case 'sort-none':
+            emit('sortChange', { key: column.key, order: 'none' });
             break;
         case 'fix':
             emit('fixChange', column, true);

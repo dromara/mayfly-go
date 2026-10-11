@@ -9,7 +9,9 @@ export function hasPerm(code: string): boolean {
     if (!code) {
         return true;
     }
-    return useUserInfo().userInfo.permissions.some((v: string) => v === code);
+    // permissions 可能尚未写入（如本地缓存的用户信息缺该字段），按「无权限」判定而非抛错：
+    // 懒加载弹层在 setup 里调用本函数时抛错，会让整块内容直接空白
+    return useUserInfo().userInfo.permissions?.some((v: string) => v === code) ?? false;
 }
 
 /**

@@ -110,7 +110,17 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		syslog.Type = entity.SyslogTypeSuccess
 	}
 
-	m.syslogRepo.Insert(req.MetaCtx, syslog)
+	// 这里必须自己剥掉请求的取消信号：调用方（req.LogHandler）把保存放在了响应返回之后的协程里，
+	// 而 net/http 在请求结束时就 cancel 了那个 ctx，带着它写库会让这批审计记录在驱动层直接失败
+	//（实测 INSERT INTO t_sys_log 得到 rows:0 + "context canceled"）。Detach 只断取消信号，
+	// traceId 与登录账号照常保留（与 auth 登录日志的 saveLogin 同一手法）
+	saveCtx := contextx.Detach(req.MetaCtx)
+
+	// 失败必须出声：这条记录是「谁在何时做了什么」的唯一凭证，静默丢弃只能等到出事追查时
+	// 才发现审计里根本没有那一页
+	if err := m.syslogRepo.Insert(saveCtx, syslog); err != nil {
+		logx.Errorf("failed to save operation log [%s], operator=%s: %v", syslog.Description, syslog.Creator, err)
+	}
 }
 
 func (m *syslogAppImpl) GetLogDetail(logId uint64) *entity.SysLog {

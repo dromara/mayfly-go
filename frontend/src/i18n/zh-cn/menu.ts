@@ -57,6 +57,8 @@ export default {
         dbDataOpBase: 'DB-数据操作-基本权限',
         dbDataOpSqlScriptRun: 'DB-SQL脚本执行',
         dbDataExport: 'DB-数据导出',
+        dbSessionList: 'DB-活动会话',
+        dbSessionCancel: 'DB-取消会话',
         dbInstance: '数据库实例',
         dbInstanceBase: 'DB-基本权限',
         dbInstanceSave: 'DB-保存实例',

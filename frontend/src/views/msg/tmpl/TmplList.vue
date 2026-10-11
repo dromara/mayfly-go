@@ -81,7 +81,7 @@ const columns = [
     TableColumn.new('code', 'common.code'),
     TableColumn.new('name', 'msg.name'),
     TableColumn.new('status', 'common.status').typeTag(TmplStatusEnum),
-    TableColumn.new('msgType', 'common.type').typeTag(TmplTypeEnum).setAddWidth(20),
+    TableColumn.new('msgType', 'common.type').typeTag(TmplTypeEnum),
     TableColumn.new('tmpl', 'msg.tmpl').canBeautify(),
     TableColumn.new('relateChannel', 'msg.relateChannel').isSlot().alignCenter(),
     TableColumn.new('remark', 'common.remark'),

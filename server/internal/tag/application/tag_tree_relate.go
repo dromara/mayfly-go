@@ -30,10 +30,12 @@ type TagTreeRelate interface {
 	GetGovernRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error)
 
 	// GetTagPathsByAccountId 根据账号id获取该账号可操作的标签code路径
-	GetTagPathsByAccountId(accountId uint64) []string
+	//
+	// 必须回报错误：这结果决定账号的可操作资源范围，查询失败当「无范围」会让鉴权静默失效
+	GetTagPathsByAccountId(accountId uint64) ([]string, error)
 
 	// GetTagPathsByRelate 根据关联信息获取关联的标签codePaths
-	GetTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) []string
+	GetTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) ([]string, error)
 
 	// FillTagInfo 填充关联的标签信息
 	FillTagInfo(relateType entity.TagRelateType, relates ...entity.IRelateTag)
@@ -115,11 +117,11 @@ func (tr *tagTreeRelateAppImpl) GetGovernRelateIds(ctx context.Context, relateTy
 	return tr.GetRepo().SelectRelateIdsByTagPaths(relateType, poisibleTagPaths...)
 }
 
-func (tr *tagTreeRelateAppImpl) GetTagPathsByAccountId(accountId uint64) []string {
+func (tr *tagTreeRelateAppImpl) GetTagPathsByAccountId(accountId uint64) ([]string, error) {
 	return tr.GetRepo().SelectTagPathsByAccountId(accountId)
 }
 
-func (tr *tagTreeRelateAppImpl) GetTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) []string {
+func (tr *tagTreeRelateAppImpl) GetTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) ([]string, error) {
 	return tr.GetRepo().SelectTagPathsByRelate(relateType, relateId)
 }
 

@@ -133,8 +133,8 @@ registerContributor({
     hasChildren: true,
     renderer: NodeMongo,
     locateCode: (node) => node.params.code as string,
-    loadRoots: async (groupNode) => {
-        const res = await mongoApi.mongoList.request({ tagPath: groupNode.params?.tagPath as string });
+    loadRoots: async (tagPath) => {
+        const res = await mongoApi.mongoList.request({ tagPath });
         if (!res.total) {
             return [];
         }
@@ -142,7 +142,7 @@ registerContributor({
             key: `${x.code}`,
             kind: MongoKind,
             label: x.name,
-            params: { ...x, tagPath: String(groupNode.key) },
+            params: { ...x, tagPath },
         }));
     },
     loadChildren: async (node) => {

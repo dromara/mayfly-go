@@ -1,5 +1,5 @@
 <template>
-    <auto-form ref="formRef" v-model="bizForm" :items="bizItems" label-width="auto">
+    <auto-form ref="formRef" v-model="bizForm" :items="bizItems" label-position="top">
         <template #id>
             <ResourceSelect
                 v-bind="$attrs"

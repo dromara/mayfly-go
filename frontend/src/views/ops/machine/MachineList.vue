@@ -349,12 +349,12 @@ const perms = {
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('machine.keywordPlaceholder')];
 
 const columns = [
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
-    TableColumn.new('ipPort', 'Ip:Port').isSlot().setAddWidth(55),
-    TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(10),
-    TableColumn.new('status', 'common.status').isSlot().setAddWidth(5),
-    TableColumn.new('stats', 'machine.runningStat').isSlot().setAddWidth(120),
-    TableColumn.new('fs', 'machine.fs').isSlot().setAddWidth(25),
+    TableColumn.new('name', 'common.name').isSlot('name'),
+    TableColumn.new('ipPort', 'Ip:Port').isSlot(),
+    TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert'),
+    TableColumn.new('status', 'common.status').isSlot(),
+    TableColumn.new('stats', 'machine.runningStat').isSlot(),
+    TableColumn.new('fs', 'machine.fs').isSlot(),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
     TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter().noShowOverflowTooltip(),

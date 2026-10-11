@@ -107,14 +107,8 @@ type Backend struct {
 func (om *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	urlOptions := make(map[string]string)
 
-	db := d.Database
-	schema := ""
-	if db != "" {
-		ss := strings.Split(db, "/")
-		if len(ss) > 1 {
-			schema = ss[1]
-		}
-	}
+	// 库位的 schema 段已由 codec 解析进 d.Schema（无 schema 层时恒为空）
+	schema := d.Schema
 	if d.Params != "" {
 		paramArr := strings.Split(d.Params, "&")
 		for _, param := range paramArr {
@@ -154,7 +148,7 @@ func (om *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 // OracleMetadata11 内嵌 OracleMetadata 继承其 MetadataNavigator 实现，故 11/12 两版本声明均真实。
 func (om *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	return dbi.NewAllCapabilities().
-		With(dbi.FeatViews, dbi.FeatSequences).
+		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 

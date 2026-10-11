@@ -20,6 +20,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
+	"time"
 )
 
 type Instance interface {
@@ -43,14 +44,22 @@ type Instance interface {
 
 	// ToDbInfo 根据实例与授权凭证返回对应的DbInfo
 	ToDbInfo(instance *entity.DbInstance, authCertName string, database string) (*dbi.DbInfo, error)
+
+	// Health 采样实例的运行时健康事实（可达性 + 活动会话），供告警评估器消费。
+	//
+	// 返回的 error 只表示「连采样都无法开始」（实例不存在/取不到连接句柄）；
+	// 库不可达、方言不支持会话内省都是被采样到的**事实**，写进 DbHealth 而非当错误返回，
+	// 否则上层无法区分「采样失败」与「采到了坏消息」，会把坏消息当成没有数据而静默放过
+	Health(ctx context.Context, instanceId uint64) (*dbi.DbHealth, error)
 }
 
 type instanceAppImpl struct {
 	base.AppImpl[*entity.DbInstance, repository.Instance]
 
-	tagApp              tagapp.TagTreeService   `inject:"T"`
-	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"T"`
-	dbApp               Db                      `inject:"T"`
+	tagApp              tagapp.TagTreeService     `inject:"T"`
+	resourceAuthCertApp tagapp.ResourceAuthCert   `inject:"T"`
+	dbApp               Db                        `inject:"T"`
+	baselineRepo        repository.SchemaBaseline `inject:"T"`
 }
 
 var _ Instance = (*instanceAppImpl)(nil)
@@ -260,9 +269,12 @@ func (app *instanceAppImpl) getDatabases(ctx context.Context, instance *entity.D
 func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert, database string) *dbi.DbInfo {
 	di := new(dbi.DbInfo)
 	di.InstanceId = instance.Id
-	di.Database = database
 	structx.Copy(di, instance)
 	di.Extra = instance.Extra
+
+	// 库位 locator（`库/schema`）在此单点解析为结构化字段：di.Database 收窄为纯库名、schema 进 di.Schema。
+	// 用 di.Type（structx.Copy 已从实例拷入方言类型）判定是否拆 `/`；无 schema 层的方言整串即库名，不拆。
+	di.Database, di.Schema = dbi.ParseLocator(di.Type, database)
 
 	di.Username = ac.Username
 	di.Password = ac.Ciphertext
@@ -318,4 +330,42 @@ func resolveInstanceNetwork(d *entity.DbInstance) string {
 		return d.Network
 	}
 	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
+}
+
+// Health 见接口注释：事实采集，不做判定（阈值语义归告警规则）
+func (i *instanceAppImpl) Health(ctx context.Context, instanceId uint64) (*dbi.DbHealth, error) {
+	health := &dbi.DbHealth{InstanceId: instanceId, CheckedAt: time.Now()}
+
+	// 漂移事实先填：它存在平台自己的基线表里，不依赖库可达——库连不上时「结构有没有走形」仍然是已知事实，
+	// 排在后面就会被两条提前 return 跳过
+	if rows, drifted, err := i.baselineRepo.DriftStat(instanceId); err == nil {
+		// 基线行数为 0 就是没建过基线：BaselineExists 保持 false，不能拿「没漂移行」当成「有基线且稳定」
+		health.BaselineExists = rows > 0
+		health.DriftedTables = int(drifted)
+	} else {
+		logx.DebugfContext(ctx, "count schema drift for db instance [%d] failed: %s", instanceId, err.Error())
+	}
+
+	conn, err := i.dbApp.GetDbConnByInstanceId(ctx, instanceId)
+	if err != nil {
+		// 取不到连接句柄本身就是「不可达」的事实（含实例不存在），而不是采样故障：
+		// 若按 error 返回，规则里的 ping_fail 指标永远取不到值，实例真挂了也不告警
+		health.PingErr = err
+		return health, nil
+	}
+
+	if err := conn.Ping(); err != nil {
+		health.PingErr = err
+		return health, nil
+	}
+
+	sessions, err := conn.Metadata().ListSessions(ctx)
+	if err != nil {
+		// 能力缺失（或库侧拒绝查系统表）：标记为不可观测，让依赖会话的指标返回错误而非 0
+		logx.DebugfContext(ctx, "list sessions for db instance [%d] health failed: %s", instanceId, err.Error())
+		return health, nil
+	}
+	health.Sessions = sessions
+	health.SessionsAvailable = true
+	return health, nil
 }

@@ -33,11 +33,13 @@ type SqlLeafParams = DbNodeParams & { sqlName: string };
 
 // ---------------------------------- 命令注册 ----------------------------------
 
+// 刷新：与活动会话同样属库/节点级动作，复用已有工作区即可——为拿一个组件实例而新建 tab，
+// 会让 pg 在库节点上点刷新时凭空多出一个 tab（其 state.db 也不含 schema，反而失效不到真正在用的元数据缓存）
 registerCommand({
     id: CmdRefresh,
     txt: 'common.refresh',
     icon: 'RefreshRight',
-    handler: async (ctx: TreeCommandCtx) => (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key))?.reloadNode(ctx.node.key),
+    handler: async (ctx: TreeCommandCtx) => (await getDbOpTabCompInst(dbNodeParams(ctx.node), ctx.node.key, true))?.reloadNode(ctx.node.key),
 });
 
 registerCommand({
@@ -211,7 +213,21 @@ registerCommand({
 });
 
 // ---------------------------------- 菜单挂载 ----------------------------------
+// 库节点：活动会话（看这个实例上谁在跑什么、停掉指定会话）
+// 会话属库级视图，而 pg 等带 schema 层的方言的工作区 tab 按 `库/schema` 分支建立，
+// 故这里复用该库已有的工作区，否则会在已有 tab 旁边凭空多出一个只含会话的 tab（mysql 无此问题）
+registerCommand({
+    id: 'db.session.list',
+    txt: 'db.sessionList',
+    icon: 'Odometer',
+    handler: async (ctx: TreeCommandCtx) => {
+        const params = dbNodeParams(ctx.node);
+        (await getDbOpTabCompInst(params, ctx.node.key, true))?.openSessionTab({ id: params.id, nodeKey: ctx.node.key }, params.db);
+    },
+});
+
 registerMenu({ command: CmdRefresh, kinds: [DbKind, DbSchemaKind, DbTableMenuKind] });
+registerMenu({ command: 'db.session.list', kinds: [DbKind], order: 9 });
 registerMenu({ command: 'db.table.create', kinds: [DbTableMenuKind], order: 2 });
 registerMenu({ command: 'db.table.op', kinds: [DbTableMenuKind], order: 3 });
 

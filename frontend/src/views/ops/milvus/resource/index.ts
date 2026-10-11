@@ -87,8 +87,8 @@ registerContributor({
     renderer: NodeMilvus,
     // 节点 key 用 `milvus.${id}`，定位 code 取 params.code（= 实例 code）而非 key
     locateCode: (node) => (node.params as MilvusNodeParams).code,
-    loadRoots: async (groupNode) => {
-        const res = await milvusApi.list.request({ tagPath: groupNode.params?.tagPath as string });
+    loadRoots: async (tagPath) => {
+        const res = await milvusApi.list.request({ tagPath });
         if (!res.total) {
             return [];
         }

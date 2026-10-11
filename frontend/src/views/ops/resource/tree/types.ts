@@ -13,6 +13,13 @@ export interface TreeNodeData {
     kind: NodeKind;
     /** i18n key 或最终文本 */
     label: string;
+    /**
+     * 展示文本覆盖：缺省由 `t(label)` 得出（见 tree/filter.nodeDisplayLabel）。
+     *
+     * 仅当节点界面看到的文字与 label 不同时才需声明：行渲染、搜索过滤、命中高亮、命中计数
+     * 四条路径均取同一个值，贡献者自行渲染另一套文本而不声明本字段，就会让「看到的」与「能搜到的」分叉。
+     */
+    displayLabel?: string;
     icon?: { name: string; color?: string };
     /** 角标（key 数量、表大小等） */
     badge?: string | number;
@@ -94,5 +101,3 @@ export interface TreeCommandCtx {
 /** 内置占位节点类型（懒加载水合层使用） */
 export const LOADING_KIND = '__loading__';
 export const ERROR_KIND = '__error__';
-/** 类型分组节点（资源树中"机器/数据库"等中间层，children 按资源类型路由到对应贡献者） */
-export const RES_GROUP_KIND = '__res_group__';

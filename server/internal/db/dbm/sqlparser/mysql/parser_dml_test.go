@@ -89,6 +89,25 @@ func TestUpdateWithOrderByLimit(t *testing.T) {
 	if updateStmt.Where == nil || updateStmt.Where.Text != "status = 1" {
 		t.Errorf("expected WHERE='status = 1'")
 	}
+	// LIMIT 必须被结构化捕获：带行限制的 UPDATE 只影响 WHERE 匹配集的非确定子集，
+	// 采集层据此 fail-closed，否则会为未被更新的行生成覆盖式回滚
+	if updateStmt.Limit == nil || updateStmt.Limit.Count != 10 {
+		t.Errorf("expected Limit.Count=10, got %+v", updateStmt.Limit)
+	}
+	// WHERE.Text 不得吞入尾随的 ORDER BY/LIMIT（回查 SELECT 逐字回放 WHERE.Text）
+	if updateStmt.Where.Text != "status = 1" {
+		t.Errorf("WHERE.Text polluted by ORDER BY/LIMIT: %q", updateStmt.Where.Text)
+	}
+}
+
+func TestUpdateNoLimitIsNil(t *testing.T) {
+	stmt, err := NewParser("UPDATE users SET name = 'John' WHERE id = 1").Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if u := stmt.(*sqlstmt.UpdateStmt); u.Limit != nil {
+		t.Errorf("expected nil Limit for UPDATE without LIMIT, got %+v", u.Limit)
+	}
 }
 
 // ========== DELETE 测试 ==========
@@ -141,6 +160,24 @@ func TestDeleteWithOrderByLimit(t *testing.T) {
 
 	if deleteStmt.Where == nil || deleteStmt.Where.Text != "status = 0" {
 		t.Errorf("expected WHERE='status = 0'")
+	}
+	// LIMIT 必须被结构化捕获：DELETE … LIMIT n 只删 WHERE 匹配集的一个子集，
+	// 采集回查若捞回全部匹配行，回滚会为未被删除的行生成 INSERT（撞主键或插入重复行）
+	if deleteStmt.Limit == nil || deleteStmt.Limit.Count != 100 {
+		t.Errorf("expected Limit.Count=100, got %+v", deleteStmt.Limit)
+	}
+	if deleteStmt.Where.Text != "status = 0" {
+		t.Errorf("WHERE.Text polluted by ORDER BY/LIMIT: %q", deleteStmt.Where.Text)
+	}
+}
+
+func TestDeleteNoLimitIsNil(t *testing.T) {
+	stmt, err := NewParser("DELETE FROM users WHERE id = 1").Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if d := stmt.(*sqlstmt.DeleteStmt); d.Limit != nil {
+		t.Errorf("expected nil Limit for DELETE without LIMIT, got %+v", d.Limit)
 	}
 }
 
@@ -208,4 +245,39 @@ func TestDDLTruncate(t *testing.T) {
 	}
 	t.Logf("TRUNCATE stmt type: %T", stmt)
 	t.Logf("TRUNCATE text: %s", stmt.GetText())
+}
+
+// TestInsertConflictClause 逐形态断言 INSERT 的冲突处理标志：
+// 带 REPLACE / INSERT IGNORE / ON DUPLICATE KEY UPDATE 的语句在目标行已存在时并不新增行，
+// 而 INSERT 的回滚是「删掉刚插入的行」，按 VALUES 字面量生成的 DELETE 会命中并删除既有行（数据丢失），
+// 故这些形态必须被标记，采集层据此 fail-closed 跳过插入快照；纯 INSERT 不标记、正常采集。
+func TestInsertConflictClause(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		want bool
+	}{
+		{"plain", "INSERT INTO users (id, name) VALUES (1, 'a')", false},
+		{"multi-row", "INSERT INTO users (id, name) VALUES (1, 'a'), (2, 'b')", false},
+		{"replace", "REPLACE INTO users (id, name) VALUES (1, 'a')", true},
+		{"insert-ignore", "INSERT IGNORE INTO users (id, name) VALUES (1, 'a')", true},
+		{"insert-ignore-no-into", "INSERT IGNORE users (id, name) VALUES (1, 'a')", true},
+		{"on-duplicate", "INSERT INTO users (id, name) VALUES (1, 'a') ON DUPLICATE KEY UPDATE name = 'b'", true},
+		{"insert-select-plain", "INSERT INTO users (id, name) SELECT id, name FROM src", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			stmt, err := NewParser(c.sql).Parse()
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			is, ok := stmt.(*sqlstmt.InsertStmt)
+			if !ok {
+				t.Fatalf("expected InsertStmt, got %T", stmt)
+			}
+			if is.HasConflictClause != c.want {
+				t.Errorf("HasConflictClause=%v, want %v", is.HasConflictClause, c.want)
+			}
+		})
+	}
 }

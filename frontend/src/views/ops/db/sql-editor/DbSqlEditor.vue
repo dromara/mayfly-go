@@ -4,10 +4,12 @@
             :token="token"
             :upload-url="getUploadSqlFileUrl()"
             :upload-fn="handleSqlFileUpload"
+            :atomic="state.atomic"
+            @update:atomic="(value: boolean) => (state.atomic = value)"
             @run="onRunSql()"
             @run-all="onRunAllSql()"
             @format="onFormatSql()"
-            @commit="onCommit()"
+            @review="onReviewSql()"
             @save="saveSql()"
         />
 
@@ -44,6 +46,9 @@
             </el-splitter-panel>
         </el-splitter>
 
+        <!-- 非查询语句执行前确认框：填备注 + 查看执行计划 -->
+        <SqlRunRemarkDialog ref="remarkDialogRef" />
+
         <!-- 被策略拦下的语句直接带进提单表单，省掉切页面、重选库、重贴 SQL -->
         <WorkTicketSubmit ref="ticketRef" :biz-type="FlowBizType.DbSqlExec.value" hidden />
     </div>
@@ -60,6 +65,8 @@ import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef 
 import type { editor, IRange } from 'monaco-editor';
 
 import { dbApi, uploadSqlFile } from '../api';
+import SqlRunRemarkDialog from './SqlRunRemarkDialog.vue';
+import { openSqlPlan } from './sqlPlanService';
 import { DbInst } from '../db';
 
 import { joinClientParams } from '@/common/request';
@@ -115,6 +122,10 @@ const monacoEditorRef = useTemplateRef<MonacoEditorExpose>('monacoEditorRef');
 // 被策略拦下时用于预填提单表单：语句与库已确定，用户只需确认备注
 const ticketRef = useTemplateRef<{ open: (prefill?: TicketPrefill) => void }>('ticketRef');
 
+// 非查询语句执行前的确认框（备注 + 查看执行计划）；open 返回备注或 null（取消）
+const remarkDialogRef = useTemplateRef<{ open: (id: number, db: string, sql: string) => Promise<string | null> }>('remarkDialogRef');
+const askExecRemark = (sql: string) => remarkDialogRef.value?.open(props.dbId, props.dbName, sql) ?? Promise.resolve('');
+
 const submitTicket = (sql: string) => {
     // dbCode 决定这张工单归哪个流程审批：带上它，业务表单挂载时才能自己上报资源，
     // 否则抽屉会停在「不存在审批节点」且确定按钮不可点
@@ -130,6 +141,8 @@ const state = reactive({
     sqlName: '', // sql模板名称
     execResTabs: [] as ExecResTabState[],
     activeTab: 1,
+    // 原子执行开关：整批语句共用后端一个事务，全成功才提交
+    atomic: false,
     editorHeight: '500',
     tableDataHeight: '250px',
     tableDataEmptyText: t('db.tableDataEmptyTextTips'),
@@ -152,6 +165,11 @@ const {
     dbId: props.dbId,
     dbName: props.dbName,
     state,
+    atomic: () => state.atomic,
+    // 需审批语句自动开抽屉（预填库+SQL），与结果区「提交工单」按钮同一入口
+    onNeedApproval: submitTicket,
+    // 非查询语句执行前弹自定义确认框（含查看执行计划），取代原生 prompt
+    askExecRemark,
     get monacoEditor() {
         return monacoEditor ?? null;
     },
@@ -271,11 +289,16 @@ const onFormatSql = async () => {
 };
 
 /**
- * 提交事务，用于没有开启自动提交事务
+ * 查看当前编辑器内容的执行计划（整段脚本交给后端按目标库方言切分，与执行同一口径）。
  */
-const onCommit = () => {
-    getNowDbInst().runSql(props.dbName, 'COMMIT;');
-    Msg.success('COMMIT success');
+const onReviewSql = () => {
+    const sql = state.sql?.trim();
+    if (!sql) {
+        Msg.error(t('db.noSqlToRunMsg'));
+        return;
+    }
+    // 执行计划走全局单例对话框（layout 挂载），多条可在框内逐条选中
+    openSqlPlan(props.dbId, props.dbName, sql);
 };
 
 /**
@@ -493,7 +516,7 @@ defineExpose({
 /*
  * monaco hover（如 find 挂件按钮 tooltip）会向上弹出 splitter 面板顶边，
  * 而 .el-splitter-panel 默认 overflow:auto 会把溢出部分裁剪掉（视觉上像被工具栏按钮遮挡）。
- * hover 显示期间解除裁剪，使 tooltip 能像 VSCode 一样悬浮到上层；
+ * hover 显示期间解除裁剪，使 tooltip 能悬浮到上层不被裁剪；
  * :has() 仅显示期间精确匹配，且编辑器高度已恰好填满面板（无滚动条），切换不会引起布局抖动。
  */
 .el-splitter-panel:has(.monaco-hover) {

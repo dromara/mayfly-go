@@ -22,8 +22,9 @@ func TestMssqlQuoteTableName(t *testing.T) {
 	// 伪连接场景（Database为空）schema为空，不允许生成 [].[table] 形式的坏SQL
 	assert.Equal(t, "[t1]", gen.quoteTableName(quote, "t1"))
 
-	// database/schema模式下带schema前缀
-	gen.di.Database = "db1/dbo"
+	// 结构化库位：schema 段落在 di.Schema（由 locator codec 解析而来），表名带 [schema].[table] 前缀
+	gen.di.Database = "db1"
+	gen.di.Schema = "dbo"
 	assert.Equal(t, "[dbo].[t1]", gen.quoteTableName(quote, "t1"))
 }
 

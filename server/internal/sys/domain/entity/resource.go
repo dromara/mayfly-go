@@ -18,9 +18,14 @@ func (a *Resource) TableName() string {
 	return "t_sys_resource"
 }
 
-func (m *Resource) FillBaseInfo(idGenType model.IdGenType, la *model.LoginAccount) {
-	// id使用时间戳，减少id冲突概率
-	m.Model.FillBaseInfo(model.IdGenTypeTimestamp, la)
+// GenerateId 用户新增的资源（菜单/按钮）由应用侧发秒级时间戳主键，与官方迁移脚本为内置菜单
+// 写死的 id（同为迁移动作时刻的秒级时间戳）落在同一条时间轴上：用户发号值就是创建时刻，
+// 官方固定值是历史时刻，两者不靠自增区间的相邻关系避让。
+//
+// TimestampId 保证单进程同秒不重；与某条官方迁移的固定值同秒相撞是极低概率的显式主键冲突
+// 报错，不会静默写坏数据
+func (a *Resource) GenerateId() uint64 {
+	return model.TimestampId()
 }
 
 const (

@@ -144,7 +144,12 @@ func (a *AlertNotifyLog) TableName() string {
 }
 
 // FillBaseInfo 实现 model.ModelI 接口（通知日志不需要填充基础信息）
-func (a *AlertNotifyLog) FillBaseInfo(idGenType model.IdGenType, account *model.LoginAccount) {}
+func (a *AlertNotifyLog) FillBaseInfo(account *model.LoginAccount) {}
+
+// GetId 实现 model.ModelI 接口
+func (a *AlertNotifyLog) GetId() uint64 {
+	return a.Id
+}
 
 // SetId 实现 model.ModelI 接口
 func (a *AlertNotifyLog) SetId(id uint64) {

@@ -344,7 +344,7 @@ func (app *DataSyncAppImpl) buildSyncQuery(ctx context.Context, task *entity.Dat
 		// 方言感知水位线格式化
 		formattedVal := updFieldDataType.Codec.SQLValue(task.UpdFieldVal)
 		// 边界语义：Auto 按模式取默认（合并/对账类为 Inclusive、追加/刷新/校验类为 Exclusive）；
-		// Inclusive 行不丢弃同时间戳边界，依赖目标 UPSERT 幂等，与业界 at-least-once 对齐。
+		// Inclusive 行不丢弃同时间戳边界，依赖目标 UPSERT 幂等，即 at-least-once 交付语义。
 		cmpOp := ">"
 		if resolveCursorInclusivity(task.SyncMode, task.GetCursorInclusivity()) {
 			cmpOp = ">="
@@ -1113,7 +1113,10 @@ func (app *DataSyncAppImpl) InitCronJob() {
 		}
 	}()
 
-	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning})
+	// 复位进程重启前遗留的「运行中」状态：失败必须留日志，否则任务永远停在运行中而无人知道原因
+	if err := app.UpdateByCond(ctx, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning}); err != nil {
+		logx.ErrorfContext(ctx, "failed to reset running data sync tasks on startup: %s", err.Error())
+	}
 
 	// 把进程重启前遗留的「执行中」同步日志置为失败：执行协程随进程退出，无人收尾的日志会永远停留在「执行中」
 	if err := app.ResetStaleRunningSyncLogs(ctx); err != nil {

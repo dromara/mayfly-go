@@ -18,6 +18,7 @@
                     :data-type="dbInst.getDialect().getDataType(column.dataType ?? '')"
                     :placeholder="column?.columnComment ? `${column.columnType} | ${column.columnComment}` : column.columnType"
                     :column-name="column.columnName"
+                    :binary="isBinaryColumnType(column.columnType)"
                     :disabled="column.autoIncrement || column.masked"
                 />
             </el-form-item>
@@ -33,6 +34,7 @@
 import { ref, watch, onMounted, useTemplateRef } from 'vue';
 import type { FormInstance } from 'element-plus';
 import ColumnValueInput from '../widgets/ColumnValueInput.vue';
+import { isBinaryColumnType } from '../widgets/binaryValue';
 import { DbInst } from '../db';
 import { useI18nFormValidate, Msg } from '@/hooks/useI18n';
 import type { TableColumnDef } from '../types';
@@ -123,10 +125,17 @@ const onConfirm = async () => {
         return;
     }
 
-    dbInst.promptExeSql(db, sql, undefined, () => {
-        onCloseDialog();
-        emit('submitSuccess');
-    });
+    // 新增/编辑单行也以原子批次提交：失败即整批不生效，避免半条记录落库
+    dbInst.promptExeSql(
+        db,
+        sql,
+        undefined,
+        () => {
+            onCloseDialog();
+            emit('submitSuccess');
+        },
+        true
+    );
 };
 </script>
 

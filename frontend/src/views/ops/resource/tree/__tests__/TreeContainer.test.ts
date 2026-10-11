@@ -208,3 +208,83 @@ describe('TreeContainer 挂载与水合', () => {
         expect(fatal).toEqual([]);
     });
 });
+
+describe('TreeContainer 查找接线', () => {
+    /**
+     * 计数与高亮都靠容器这一层接线（expose matchedKeys / provide 生效查询词），接错不会编译报错，
+     * 表现是「计数永远为 0」或「整棵树都不标色」。
+     *
+     * 同时钉住「只认引擎已生效的词」：防抖未到点时派生 UI 不得抢跑，
+     * 否则会出现已标色/已计数但该行还没被过滤掉，此时 Enter 跳转还会静默跳空。
+     */
+    const mountFiltered = async () => {
+        const wrapper = mount(TreeContainer, {
+            props: {
+                loadRoot: async () => [
+                    { key: 'a', kind: 'leaf', label: 't_order' },
+                    { key: 'b', kind: 'leaf', label: 't_user' },
+                ],
+                filterText: '',
+            },
+            global: { components: { ElTreeV2 }, config: { globalProperties: { $t: (k: string) => k } as any } },
+        });
+        await nextTick();
+        await nextTick();
+        return wrapper;
+    };
+
+    it('防抖生效前不抢跑，生效后同步更新 matchedKeys 与命中片段标色', async () => {
+        vi.useFakeTimers();
+        const wrapper = await mountFiltered();
+
+        await wrapper.setProps({ filterText: 'order' });
+        expect(wrapper.vm.matchedKeys).toEqual([]);
+        expect(wrapper.findAll('.tree-label-hit')).toHaveLength(0);
+
+        // 防抖到点：VirtualTree 把词打到引擎并上报 filterApplied，容器据此重算
+        vi.advanceTimersByTime(300);
+        await nextTick();
+
+        expect(wrapper.vm.matchedKeys).toEqual(['a']);
+        const hits = wrapper.findAll('.tree-label-hit');
+        expect(hits).toHaveLength(1);
+        expect(hits[0].text()).toBe('order');
+
+        // 自算行序必须与真引擎的 flatten 对得上：分叉时 locate 会发 DEV 告警并跳过滚动（就是上轮「计数在涨、视图不动」的形状）
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await wrapper.vm.locate('a');
+        await nextTick();
+        expect(warn.mock.calls.map((c) => String(c[0])).join('\n')).not.toContain('不在自算可见行序内');
+        warn.mockRestore();
+
+        wrapper.unmount();
+        vi.useRealTimers();
+    });
+
+    it('宿主注入的视图级判定参与命中计数与引擎过滤（类型筛选与搜索同一口径）', async () => {
+        vi.useFakeTimers();
+        const wrapper = mount(TreeContainer, {
+            props: {
+                loadRoot: async () => [
+                    { key: 'a', kind: 'leaf', label: 't_order' },
+                    { key: 'b', kind: 'other', label: 'order_db' },
+                ],
+                filterText: '',
+                // 只看 kind=leaf：b 文本上也命中，但不属于当前筛选类型
+                nodeFilter: (node: { kind?: unknown }) => node.kind === 'leaf',
+            },
+            global: { components: { ElTreeV2 }, config: { globalProperties: { $t: (k: string) => k } as any } },
+        });
+        await nextTick();
+        await nextTick();
+
+        await wrapper.setProps({ filterText: 'order' });
+        vi.advanceTimersByTime(300);
+        await nextTick();
+
+        expect(wrapper.vm.matchedKeys).toEqual(['a']);
+
+        wrapper.unmount();
+        vi.useRealTimers();
+    });
+});

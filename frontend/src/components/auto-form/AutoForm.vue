@@ -1,5 +1,13 @@
 <template>
-    <AForm ref="formRef" :model="model" :rules="formRules" :label-position="labelPosition ?? 'right'" :label-width="labelWidth ?? 'auto'" v-bind="$attrs">
+    <AForm
+        ref="formRef"
+        :model="model"
+        :rules="formRules"
+        :validate-on-rule-change="false"
+        :label-position="labelPosition ?? 'right'"
+        :label-width="labelWidth ?? 'auto'"
+        v-bind="$attrs"
+    >
         <!-- Tab 分组布局（非懒渲染：未激活 Tab 的字段同样挂载，validate 全量生效） -->
         <ATabs v-if="activeTabs.length" v-model="activeTab">
             <ATabPane v-for="tab in activeTabs" :key="tab.name" :name="tab.name" :disabled="isTabDisabled(tab)">
@@ -89,7 +97,14 @@ const isTabDisabled = (tab: AutoFormTab): boolean => (typeof tab.disabled === 'f
 /** 生效的字段配置：schema 优先编译，否则使用 items（与 Dialog/Drawer 共用同一解析逻辑） */
 const allItems = resolveFormItems(props);
 
-/** 根据字段配置生成 element-plus 校验规则（required + validate 函数 + 自定义 rules 合并） */
+/**
+ * 根据字段配置生成 element-plus 校验规则（required + validate 函数 + 自定义 rules 合并）
+ *
+ * 字段用了函数式 required 时，本 computed 会依赖被读取的那个表单值，值一变就产出新的规则对象；
+ * element-plus 的 validate-on-rule-change 默认为 true，会在规则对象变化时对整张表单跑一次
+ * validate()——用户只是改了一个下拉框，其余未填的必填项就全部标红（宿主回填表单时同理，抽屉一打开就满屏红）。
+ * 因此模板上显式关掉它：校验只由字段自身的 change/blur 与提交时的全量校验驱动。
+ */
 const formRules = computed(() => {
     const rules: Record<string, FormItemRule[]> = {};
     // Tab 布局时（props.tabs 或 schema.tabs）校验字段为全部 Tab 字段的合集，否则用平铺 items

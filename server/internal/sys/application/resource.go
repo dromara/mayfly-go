@@ -27,7 +27,7 @@ type Resource interface {
 
 	Sort(ctx context.Context, re *entity.Resource) error
 
-	GetAccountResources(accountId uint64, toEntity any) error
+	GetAccountResources(ctx context.Context, accountId uint64, toEntity any) error
 
 	GetResourceRoles(resourceId uint64) ([]*dto.ResourceRole, error)
 }
@@ -89,7 +89,7 @@ func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, s
 		return errorx.NewBiz("Resource does not exist")
 	}
 	resource.Status = status
-	return r.GetRepo().UpdateByUiPathLike(resource)
+	return r.GetRepo().UpdateByUiPathLike(ctx, resource)
 }
 
 func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resource) error {
@@ -126,7 +126,10 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 		newParentResourceUiPath = newParentResource.UiPath
 	}
 
-	children := r.GetRepo().GetChildren(resource.UiPath)
+	children, err := r.GetRepo().GetChildren(ctx, resource.UiPath)
+	if err != nil {
+		return err
+	}
 	for _, v := range children {
 		if v.Id == sortResource.Id {
 			continue
@@ -138,7 +141,11 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 		} else {
 			updateUiPath.UiPath = strings.ReplaceAll(v.UiPath, parentResourceUiPath, newParentResourceUiPath)
 		}
-		r.Save(ctx, updateUiPath)
+		// 子节点路径必须逐个成功：中途失败就返回，否则剩下的子节点仍指向旧父路径，
+		// 菜单树会出现同一节点在旧位置仍可见、权限判定按旧路径失配
+		if err := r.Save(ctx, updateUiPath); err != nil {
+			return err
+		}
 	}
 
 	// 更新零值使用map，因为pid=0表示根节点
@@ -156,7 +163,11 @@ func (r *resourceAppImpl) checkCode(ctx context.Context, code string) error {
 	if strings.Contains(code, ",") {
 		return errorx.NewBizI(ctx, imsg.ErrResourceCodeInvalid)
 	}
-	if r.CountByCond(&entity.Resource{Code: code}) != 0 {
+	exists, err := r.Exists(ctx, &entity.Resource{Code: code})
+	if err != nil {
+		return err
+	}
+	if exists {
 		return errorx.NewBizI(ctx, imsg.ErrResourceCodeExist)
 	}
 	return nil
@@ -168,17 +179,26 @@ func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
 		return errorx.NewBiz("Resource does not exist")
 	}
 
-	// 删除当前节点及其所有子节点
-	children := r.GetRepo().GetChildren(resource.UiPath)
+	// 删除当前节点及其所有子节点。GetChildren 的 LIKE 前缀同时命中节点自身与整棵子树，
+	// 因此这里必须遍历全部子节点：早先版本在循环体里直接 return，导致只删掉第一个子节点、
+	// 其余子节点与节点自身都残留，菜单看似「删了但还在」
+	children, err := r.GetRepo().GetChildren(ctx, resource.UiPath)
+	if err != nil {
+		return err
+	}
 	for _, v := range children {
-		r.GetRepo().DeleteById(ctx, v.Id)
+		if err := r.GetRepo().DeleteById(ctx, v.Id); err != nil {
+			return err
+		}
 		// 删除角色关联的资源信息
-		return r.roleResourceRepo.DeleteByCond(ctx, &entity.RoleResource{ResourceId: v.Id})
+		if err := r.roleResourceRepo.DeleteByCond(ctx, &entity.RoleResource{ResourceId: v.Id}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) error {
+func (r *resourceAppImpl) GetAccountResources(ctx context.Context, accountId uint64, toEntity any) error {
 	// 超级管理员返回所有
 	if accountId == consts.AdminId {
 		cond := &entity.Resource{
@@ -187,7 +207,7 @@ func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) er
 		return r.ListByCondToAny(model.NewModelCond(cond).OrderByAsc("pid").OrderByAsc("weight"), toEntity)
 	}
 
-	return r.GetRepo().GetAccountResources(accountId, toEntity)
+	return r.GetRepo().GetAccountResources(ctx, accountId, toEntity)
 }
 
 func (r *resourceAppImpl) GetResourceRoles(resourceId uint64) ([]*dto.ResourceRole, error) {

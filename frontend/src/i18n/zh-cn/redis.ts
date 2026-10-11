@@ -3,7 +3,7 @@ export default {
         standaloneInfo: '单机信息',
         clusterInfo: '集群信息',
         node: '节点',
-        clusterIpTips: 'ip:port1@port2：port1指redis服务器与客户端通信的端口，port2则是集群内部节点间通信的端口',
+        clusterIpTips: "ip:port1{'@'}port2：port1指redis服务器与客户端通信的端口，port2则是集群内部节点间通信的端口",
         masterSlaveRelationTips: `如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'`,
         configEpochTips: '节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。',
         keywordPlaceholder: 'host / 名称 / 编号',

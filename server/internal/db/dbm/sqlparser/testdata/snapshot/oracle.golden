@@ -1,0 +1,1293 @@
+### proj-star
+SELECT * FROM t1
+  = *sqlstmt.SelectStmt
+  text="SELECT * FROM t1"
+  distinct=false
+  item[0] kind=0 text="*" col="" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-table-star
+SELECT a.*, b.id FROM t1 a, t2 b
+  = *sqlstmt.SelectStmt
+  text="SELECT a.*, b.id FROM t1 a, t2 b"
+  distinct=false
+  item[0] kind=0 text="a.*" col="" alias="" tbl="a"
+  item[1] kind=1 text="b.id" col="id" alias="" tbl="b"
+  from[0] schema="" name="t1" alias="a"
+  from[1] schema="" name="t2" alias="b"
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-alias-as
+SELECT id AS ident, name n2 FROM users u
+  = *sqlstmt.SelectStmt
+  text="SELECT id AS ident, name n2 FROM users u"
+  distinct=false
+  item[0] kind=1 text="id AS ident" col="id" alias="ident" tbl=""
+  item[1] kind=1 text="name n2" col="name" alias="n2" tbl=""
+  from[0] schema="" name="users" alias="u"
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-quoted-ident
+SELECT "id", "name" AS n FROM "users"
+  = *sqlstmt.SelectStmt
+  text="SELECT \"id\", \"name\" AS n FROM \"users\""
+  distinct=false
+  item[0] kind=1 text="\"id\"" col="id" alias="" tbl=""
+  item[1] kind=1 text="\"name\" AS n" col="name" alias="n" tbl=""
+  from[0] schema="" name="users" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-expr-alias
+SELECT COUNT(*) AS cnt, MAX(price) mx FROM orders o
+  = *sqlstmt.SelectStmt
+  text="SELECT COUNT(*) AS cnt, MAX(price) mx FROM orders o"
+  distinct=false
+  item[0] kind=2 text="COUNT(*) AS cnt" col="COUNT(*)" alias="cnt" tbl=""
+  item[1] kind=2 text="MAX(price) mx" col="MAX(price)" alias="mx" tbl=""
+  from[0] schema="" name="orders" alias="o"
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-case-when
+SELECT CASE WHEN a > 1 THEN 'x' ELSE 'y' END AS c FROM t
+  = *sqlstmt.SelectStmt
+  text="SELECT CASE WHEN a > 1 THEN 'x' ELSE 'y' END AS c FROM t"
+  distinct=false
+  item[0] kind=2 text="CASE WHEN a > 1 THEN 'x' ELSE 'y' END AS c" col="CASE WHEN a > 1 THEN 'x' ELSE 'y' END" alias="c" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-cast-as
+SELECT CAST(a AS CHAR) AS c FROM t
+  = *sqlstmt.SelectStmt
+  text="SELECT CAST(a AS CHAR) AS c FROM t"
+  distinct=false
+  item[0] kind=2 text="CAST(a AS CHAR) AS c" col="CAST(a AS CHAR)" alias="c" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-reserved-alias
+SELECT id AS `left`, name AS full FROM t
+  = *sqlstmt.SelectStmt
+  text="SELECT id AS `left`, name AS full FROM t"
+  distinct=false
+  item[0] kind=1 text="id AS `left" col="id" alias="`left" tbl=""
+  item[1] kind=1 text="name AS full" col="name" alias="full" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-concat
+SELECT a || '-' || b AS combo FROM t
+  = *sqlstmt.SelectStmt
+  text="SELECT a || '-' || b AS combo FROM t"
+  distinct=false
+  item[0] kind=2 text="a || '-' || b AS combo" col="a || '-' || b" alias="combo" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### proj-window-degraded
+SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn FROM t
+  = *sqlstmt.SelectStmt
+  text="SELECT ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn FROM t"
+  distinct=false
+  item[0] kind=2 text="ROW_NUMBER() OVER (PARTITION BY a ORDER BY b) rn" col="ROW_NUMBER() OVER (PARTITION BY a ORDER BY b)" alias="rn" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### from-comma-multi
+SELECT a.id FROM t1 a, t2 b, t3 c WHERE a.id = b.id
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a, t2 b, t3 c WHERE a.id = b.id"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  from[1] schema="" name="t2" alias="b"
+  from[2] schema="" name="t3" alias="c"
+  where text="a.id = b.id" tree=(a.id = b.id)
+  having=<nil>
+  limit=<nil>
+
+### from-schema-qualified
+SELECT id FROM mydb.users
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM mydb.users"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="mydb" name="users" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### from-minus-as-name
+SELECT a FROM minus
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM minus"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### from-start-as-name
+SELECT a FROM start
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM start"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="start" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### from-using-as-name
+SELECT a FROM using WHERE using = 1
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM using"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### from-mysql-keyword-as-name
+SELECT a FROM ignore WHERE ignore = 1
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM ignore WHERE ignore = 1"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="ignore" alias=""
+  where text="ignore = 1" tree=(ignore = 1)
+  having=<nil>
+  limit=<nil>
+
+### insert-mysql-keyword-as-column
+INSERT INTO t (ignore, quick) VALUES (1, 2)
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (ignore, quick) VALUES (1, 2)"
+  table schema="" name="t" alias=""
+  column[0]="ignore"
+  column[1]="quick"
+  row[0]=["1", "2"]
+  conflict=false
+
+### from-derived
+SELECT x.id FROM (SELECT id FROM t1 WHERE id > 0) x
+  = *sqlstmt.SelectStmt
+  text="SELECT x.id FROM (SELECT id FROM t1 WHERE id > 0) x"
+  distinct=false
+  item[0] kind=1 text="x.id" col="id" alias="" tbl="x"
+  from[0] schema="" name="(SELECT id FROM t1 WHERE id > 0)" alias="x"
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### from-derived-union
+SELECT x.id FROM (SELECT id FROM t1 UNION SELECT id FROM t2) x WHERE x.id > 1
+  = *sqlstmt.SelectStmt
+  text="SELECT x.id FROM (SELECT id FROM t1 UNION SELECT id FROM t2) x WHERE x.id > 1"
+  distinct=false
+  item[0] kind=1 text="x.id" col="id" alias="" tbl="x"
+  from[0] schema="" name="(SELECT id FROM t1 UNION SELECT id FROM t2)" alias="x"
+  where text="x.id > 1" tree=(x.id > 1)
+  having=<nil>
+  limit=<nil>
+
+### join-inner-on
+SELECT a.id FROM t1 a JOIN t2 b ON a.id = b.id
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a JOIN t2 b ON a.id = b.id"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=inner text="JOIN t2 b ON a.id = b.id"
+    table schema="" name="t2" alias="b"
+    on text="a.id = b.id" tree=(a.id = b.id)
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-left-outer-on
+SELECT a.id FROM t1 a LEFT OUTER JOIN t2 b ON a.id = b.id AND b.st = 1
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a LEFT OUTER JOIN t2 b ON a.id = b.id AND b.st = 1"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=left text="LEFT OUTER JOIN t2 b ON a.id = b.id AND b.st = 1"
+    table schema="" name="t2" alias="b"
+    on text="a.id = b.id AND b.st = 1" tree=((a.id = b.id) AND (b.st = 1))
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-right-on
+SELECT a.id FROM t1 a RIGHT JOIN t2 b ON a.id = b.id
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a RIGHT JOIN t2 b ON a.id = b.id"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=right text="RIGHT JOIN t2 b ON a.id = b.id"
+    table schema="" name="t2" alias="b"
+    on text="a.id = b.id" tree=(a.id = b.id)
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-full-on
+SELECT a.id FROM t1 a FULL OUTER JOIN t2 b ON a.id = b.id
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a FULL OUTER JOIN t2 b ON a.id = b.id"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=full text="FULL OUTER JOIN t2 b ON a.id = b.id"
+    table schema="" name="t2" alias="b"
+    on text="a.id = b.id" tree=(a.id = b.id)
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-cross
+SELECT a.id FROM t1 a CROSS JOIN t2 b
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a CROSS JOIN t2 b"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=cross text="CROSS JOIN t2 b"
+    table schema="" name="t2" alias="b"
+    on=<nil>
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-straight
+SELECT a.id FROM t1 a STRAIGHT_JOIN t2 b ON a.id = b.id WHERE a.id > 1
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a STRAIGHT_JOIN t2 b ON"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  from[1] schema="" name="STRAIGHT_JOIN" alias="t2"
+  from[2] schema="" name="b" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-natural
+SELECT a.id FROM t1 a NATURAL JOIN t2 b WHERE a.id > 5
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a NATURAL JOIN t2 b WHERE a.id > 5"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=natural text="NATURAL JOIN t2 b"
+    table schema="" name="t2" alias="b"
+    on=<nil>
+  where text="a.id > 5" tree=(a.id > 5)
+  having=<nil>
+  limit=<nil>
+
+### join-using
+SELECT a.id FROM t1 a INNER JOIN t2 b USING (id) WHERE a.id > 5
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a INNER JOIN t2 b USING (id) WHERE a.id > 5"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=inner text="INNER JOIN t2 b USING (id)"
+    table schema="" name="t2" alias="b"
+    on=<nil>
+  where text="a.id > 5" tree=(a.id > 5)
+  having=<nil>
+  limit=<nil>
+
+### join-chain
+SELECT a.id FROM t1 a JOIN t2 b ON a.id = b.id LEFT JOIN t3 c ON c.id = b.id JOIN t4 d ON d.cid = c.id
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a JOIN t2 b ON a.id = b.id LEFT JOIN t3 c ON c.id = b.id JOIN t4 d ON d.cid = c.id"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=inner text="JOIN t2 b ON a.id = b.id"
+    table schema="" name="t2" alias="b"
+    on text="a.id = b.id" tree=(a.id = b.id)
+  join[1] kind=left text="LEFT JOIN t3 c ON c.id = b.id"
+    table schema="" name="t3" alias="c"
+    on text="c.id = b.id" tree=(c.id = b.id)
+  join[2] kind=inner text="JOIN t4 d ON d.cid = c.id"
+    table schema="" name="t4" alias="d"
+    on text="d.cid = c.id" tree=(d.cid = c.id)
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-derived-on-derived
+SELECT x.id FROM (SELECT id FROM t1) x JOIN (SELECT id FROM t2) y ON x.id = y.id
+  = *sqlstmt.SelectStmt
+  text="SELECT x.id FROM (SELECT id FROM t1) x JOIN (SELECT id FROM t2) y ON x.id = y.id"
+  distinct=false
+  item[0] kind=1 text="x.id" col="id" alias="" tbl="x"
+  from[0] schema="" name="(SELECT id FROM t1)" alias="x"
+  join[0] kind=inner text="JOIN (SELECT id FROM t2) y ON x.id = y.id"
+    table schema="" name="(SELECT id FROM t2)" alias="y"
+    on text="x.id = y.id" tree=(x.id = y.id)
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### join-on-subquery
+SELECT a.id FROM t1 a JOIN t2 b ON a.id = b.id AND b.typ IN (SELECT typ FROM cfg WHERE on = 1)
+  = *sqlstmt.SelectStmt
+  text="SELECT a.id FROM t1 a JOIN t2 b ON a.id = b.id AND b.typ IN (SELECT typ FROM cfg WHERE on = 1)"
+  distinct=false
+  item[0] kind=1 text="a.id" col="id" alias="" tbl="a"
+  from[0] schema="" name="t1" alias="a"
+  join[0] kind=inner text="JOIN t2 b ON a.id = b.id AND b.typ IN (SELECT typ FROM cfg WHERE on = 1)"
+    table schema="" name="t2" alias="b"
+    on text="a.id = b.id AND b.typ IN (SELECT typ FROM cfg WHERE on = 1)" tree=<degraded>
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### where-and-or-not
+SELECT id FROM t WHERE (a = 1 OR b = 2) AND NOT c = 3
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE (a = 1 OR b = 2) AND NOT c = 3"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="(a = 1 OR b = 2) AND NOT c = 3" tree=((((a = 1) OR (b = 2))) AND (NOT (c = 3)))
+  having=<nil>
+  limit=<nil>
+
+### where-in-list
+SELECT id FROM t WHERE id IN (1, 2, 3)
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE id IN (1, 2, 3)"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="id IN (1, 2, 3)" tree=(id IN (1, 2, 3))
+  having=<nil>
+  limit=<nil>
+
+### where-not-in-subquery
+SELECT id FROM t WHERE id NOT IN (SELECT id FROM t2 WHERE s = 1)
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE id NOT IN (SELECT id FROM t2 WHERE s = 1)"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="id NOT IN (SELECT id FROM t2 WHERE s = 1)" tree=(id NOT IN (SUBQUERY))
+    inSubquery:
+      = *sqlstmt.SelectStmt
+      text="SELECT id FROM t2 WHERE s = 1)"
+      distinct=false
+      item[0] kind=1 text="id" col="id" alias="" tbl=""
+      from[0] schema="" name="t2" alias=""
+      where text="s = 1" tree=(s = 1)
+      having=<nil>
+      limit=<nil>
+  having=<nil>
+  limit=<nil>
+
+### where-exists
+SELECT id FROM t WHERE EXISTS (SELECT 1 FROM t2 WHERE t2.id = t.id)
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE EXISTS (SELECT 1 FROM t2 WHERE t2.id = t.id)"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="EXISTS (SELECT 1 FROM t2 WHERE t2.id = t.id)" tree=(EXISTS (SUBQUERY))
+    existsSubquery:
+      = *sqlstmt.SelectStmt
+      text="SELECT 1 FROM t2 WHERE t2.id = t.id)"
+      distinct=false
+      item[0] kind=1 text="1" col="1" alias="" tbl=""
+      from[0] schema="" name="t2" alias=""
+      where text="t2.id = t.id" tree=(t2.id = t.id)
+      having=<nil>
+      limit=<nil>
+  having=<nil>
+  limit=<nil>
+
+### where-between
+SELECT id FROM t WHERE created BETWEEN '2026-01-01' AND '2026-12-31'
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE created BETWEEN '2026-01-01' AND '2026-12-31'"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="created BETWEEN '2026-01-01' AND '2026-12-31'" tree=(created BETWEEN '2026-01-01' AND '2026-12-31')
+  having=<nil>
+  limit=<nil>
+
+### where-like-escape
+SELECT id FROM t WHERE name LIKE '%a\_%' ESCAPE '\'
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE name LIKE '%a\\_%' ESCAPE '\\'"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="name LIKE '%a\\_%' ESCAPE '\\'" tree=(name LIKE '%a\_%' ESCAPE '\')
+  having=<nil>
+  limit=<nil>
+
+### where-isnull
+SELECT id FROM t WHERE a IS NULL AND b IS NOT NULL
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE a IS NULL AND b IS NOT NULL"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="a IS NULL AND b IS NOT NULL" tree=((a IS NULL) AND (b IS NOT NULL))
+  having=<nil>
+  limit=<nil>
+
+### where-cmp-operator
+SELECT id FROM t WHERE a <> 1 AND b != 2 AND c <= 3 AND d >= 4
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE a <> 1 AND b != 2 AND c <= 3 AND d >= 4"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="a <> 1 AND b != 2 AND c <= 3 AND d >= 4" tree=((((a <> 1) AND (b != 2)) AND (c <= 3)) AND (d >= 4))
+  having=<nil>
+  limit=<nil>
+
+### where-arithmetic
+SELECT id FROM t WHERE a + b * 2 - c / 3 > 10
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE a + b * 2 - c / 3 > 10"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="a + b * 2 - c / 3 > 10" tree=(((a + (b * 2)) - (c / 3)) > 10)
+  having=<nil>
+  limit=<nil>
+
+### where-isolation-level
+SELECT id FROM t WHERE name = 'a''b'
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE name = 'a''b'"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="name = 'a''b'" tree=(name = 'a''b')
+  having=<nil>
+  limit=<nil>
+
+### where-subquery-scalar
+SELECT id FROM t WHERE price > (SELECT AVG(price) FROM t2)
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE price > (SELECT AVG(price) FROM t2)"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="price > (SELECT AVG(price) FROM t2)" tree=(price > (SUBQUERY))
+    scalarSubquery:
+      = *sqlstmt.SelectStmt
+      text="SELECT AVG(price) FROM t2)"
+      distinct=false
+      item[0] kind=2 text="AVG(price)" col="AVG(price)" alias="" tbl=""
+      from[0] schema="" name="t2" alias=""
+      where=<nil>
+      having=<nil>
+      limit=<nil>
+  having=<nil>
+  limit=<nil>
+
+### where-rownum
+SELECT id FROM t WHERE ROWNUM <= 10 AND st = 1
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE ROWNUM <= 10 AND st = 1"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="ROWNUM <= 10 AND st = 1" tree=((ROWNUM <= 10) AND (st = 1))
+  having=<nil>
+  limit=<nil>
+
+### group-having
+SELECT d, COUNT(1) c FROM t GROUP BY d HAVING COUNT(1) > 2
+  = *sqlstmt.SelectStmt
+  text="SELECT d, COUNT(1) c FROM t GROUP BY d HAVING COUNT(1) > 2"
+  distinct=false
+  item[0] kind=1 text="d" col="d" alias="" tbl=""
+  item[1] kind=2 text="COUNT(1) c" col="COUNT(1)" alias="c" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  groupBy[0]="d"
+  having text="COUNT(1) > 2" tree=(COUNT(1) > 2)
+  limit=<nil>
+
+### order-multi
+SELECT id FROM t ORDER BY a ASC, b DESC, c
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t ORDER BY a ASC, b DESC, c"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  orderBy[0] text="a" desc=false
+  orderBy[1] text="b" desc=true
+  orderBy[2] text="c" desc=false
+  limit=<nil>
+
+### order-expr
+SELECT id FROM t ORDER BY a + b DESC
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t ORDER BY a + b DESC"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  orderBy[0] text="a + b" desc=true
+  limit=<nil>
+
+### order-ordinal
+SELECT id, name FROM t ORDER BY 1, 2
+  = *sqlstmt.SelectStmt
+  text="SELECT id, name FROM t ORDER BY 1, 2"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  item[1] kind=1 text="name" col="name" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  orderBy[0] text="1" desc=false
+  orderBy[1] text="2" desc=false
+  limit=<nil>
+
+### page-limit-count
+SELECT id FROM t LIMIT 10
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t LIMIT 10"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=10 offset=0 text="LIMIT 10"
+
+### page-limit-offset
+SELECT id FROM t LIMIT 10 OFFSET 20
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t LIMIT 10 OFFSET 20"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=10 offset=20 text="LIMIT 10 OFFSET 20"
+
+### page-limit-comma
+SELECT id FROM t LIMIT 20, 10
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t LIMIT 20, 10"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=10 offset=20 text="LIMIT 20, 10"
+
+### page-offset-first
+SELECT id FROM t OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=10 offset=20 text="OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY"
+
+### page-fetch-first-only
+SELECT id FROM t FETCH FIRST 5 ROWS ONLY
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t FETCH FIRST 5 ROWS ONLY"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=5 offset=0 text="FETCH FIRST 5 ROWS ONLY"
+
+### page-limit-all
+SELECT id FROM t LIMIT ALL
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t LIMIT ALL"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=0 offset=0 text="LIMIT ALL"
+
+### page-select-top
+SELECT TOP 10 id FROM t
+  = *sqlstmt.SelectStmt
+  text="SELECT TOP 10 id FROM t"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit count=10 offset=0 text="TOP 10"
+
+### page-with-order
+SELECT id FROM t ORDER BY id DESC LIMIT 5 OFFSET 5
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t ORDER BY id DESC LIMIT 5 OFFSET 5"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  orderBy[0] text="id" desc=true
+  limit count=5 offset=5 text="LIMIT 5 OFFSET 5"
+
+### set-union
+SELECT a FROM t1 UNION SELECT a FROM t2
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t1 UNION SELECT a FROM t2"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+  union[0] op=UNION all=false text="UNION SELECT a FROM t2"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t2"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### set-union-all
+SELECT a FROM t1 UNION ALL SELECT a FROM t2
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t1 UNION ALL SELECT a FROM t2"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+  union[0] op=UNION all=true text="UNION ALL SELECT a FROM t2"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t2"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### set-except
+SELECT a FROM t1 EXCEPT SELECT a FROM t2
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t1 EXCEPT SELECT a FROM t2"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+  union[0] op=EXCEPT all=false text="EXCEPT SELECT a FROM t2"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t2"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### set-intersect
+SELECT a FROM t1 INTERSECT SELECT a FROM t2
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t1 INTERSECT SELECT a FROM t2"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+  union[0] op=INTERSECT all=false text="INTERSECT SELECT a FROM t2"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t2"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### set-minus
+SELECT a FROM t1 MINUS SELECT a FROM t2
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t1 MINUS SELECT a FROM t2"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+  union[0] op=MINUS all=false text="MINUS SELECT a FROM t2"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t2"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### set-three-way-tail-order
+SELECT a FROM t1 UNION SELECT a FROM t2 UNION SELECT a FROM t3 ORDER BY a LIMIT 3
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t1 UNION SELECT a FROM t2 UNION SELECT a FROM t3 ORDER BY a LIMIT 3"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  orderBy[0] text="a" desc=false
+  limit count=3 offset=0 text="LIMIT 3"
+  union[0] op=UNION all=false text="UNION SELECT a FROM t2"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t2 UNION"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+  union[1] op=UNION all=false text="UNION SELECT a FROM t3 ORDER BY a LIMIT 3"
+    = *sqlstmt.SelectStmt
+    text="SELECT a FROM t3 ORDER BY a LIMIT 3"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t3" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### set-parenthesized
+(SELECT a FROM t1) UNION (SELECT a FROM t2)
+  = *sqlstmt.SelectStmt
+  text="(SELECT a FROM t1) UNION (SELECT a FROM t2)"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t1" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+  union[0] op=UNION all=false text="UNION (SELECT a FROM t2)"
+    = *sqlstmt.SelectStmt
+    text="(SELECT a FROM t2)"
+    distinct=false
+    item[0] kind=1 text="a" col="a" alias="" tbl=""
+    from[0] schema="" name="t2" alias=""
+    where=<nil>
+    having=<nil>
+    limit=<nil>
+
+### select-into-outfile
+SELECT a FROM t INTO OUTFILE '/tmp/x.txt'
+  = *sqlstmt.SelectStmt
+  text="SELECT a FROM t INTO OUTFILE '/tmp/x.txt'"
+  distinct=false
+  item[0] kind=1 text="a" col="a" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### select-into-table
+SELECT id INTO bak_users FROM users WHERE id > 1
+  = *sqlstmt.SelectStmt
+  text="SELECT id INTO bak_users FROM users WHERE id > 1"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="users" alias=""
+  where text="id > 1" tree=(id > 1)
+  having=<nil>
+  limit=<nil>
+
+### hier-connect-by
+SELECT id, name FROM t START WITH mgr IS NULL CONNECT BY PRIOR id = mgr
+  = *sqlstmt.SelectStmt
+  text="SELECT id, name FROM t START WITH mgr IS NULL CONNECT BY PRIOR id = mgr"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  item[1] kind=1 text="name" col="name" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  limit=<nil>
+
+### hier-where-then-start
+SELECT id FROM t WHERE st = 1 START WITH mgr IS NULL CONNECT BY PRIOR id = mgr
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE st = 1 START WITH mgr IS NULL CONNECT BY PRIOR id = mgr"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="st = 1" tree=(st = 1)
+  having=<nil>
+  limit=<nil>
+
+### hier-order-siblings
+SELECT id FROM t START WITH mgr IS NULL CONNECT BY PRIOR id = mgr ORDER SIBLINGS BY name
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t START WITH mgr IS NULL CONNECT BY PRIOR id = mgr ORDER SIBLINGS BY name"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where=<nil>
+  having=<nil>
+  orderBy[0] text="name" desc=false
+  limit=<nil>
+
+### lock-for-update
+SELECT id FROM t WHERE id = 1 FOR UPDATE
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE id = 1 FOR UPDATE"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="id = 1" tree=(id = 1)
+  having=<nil>
+  limit=<nil>
+
+### lock-for-update-nowait
+SELECT id FROM t WHERE id = 1 FOR UPDATE NOWAIT
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE id = 1 FOR UPDATE NOWAIT"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="id = 1" tree=(id = 1)
+  having=<nil>
+  limit=<nil>
+
+### lock-for-update-skip
+SELECT id FROM t WHERE id = 1 FOR UPDATE SKIP LOCKED
+  = *sqlstmt.SelectStmt
+  text="SELECT id FROM t WHERE id = 1 FOR UPDATE SKIP LOCKED"
+  distinct=false
+  item[0] kind=1 text="id" col="id" alias="" tbl=""
+  from[0] schema="" name="t" alias=""
+  where text="id = 1" tree=(id = 1)
+  having=<nil>
+  limit=<nil>
+
+### dml-returning
+UPDATE t SET a = 1 WHERE id = 1 RETURNING id
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1 WHERE id = 1 RETURNING id"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where text="id = 1" tree=(id = 1)
+  limit=<nil>
+
+### insert-values-multi-row
+INSERT INTO t (id, name) VALUES (1, 'a'), (2, 'b')
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (id, name) VALUES (1, 'a'), (2, 'b')"
+  table schema="" name="t" alias=""
+  column[0]="id"
+  column[1]="name"
+  row[0]=["1", "'a'"]
+  row[1]=["2", "'b'"]
+  conflict=false
+
+### insert-no-column-list
+INSERT INTO t VALUES (1, 'a')
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t VALUES (1, 'a')"
+  table schema="" name="t" alias=""
+  row[0]=["1", "'a'"]
+  conflict=false
+
+### insert-schema-qualified
+INSERT INTO mydb."T" ("Id", "Name") VALUES (1, 'a')
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO mydb.\"T\" (\"Id\", \"Name\") VALUES (1, 'a')"
+  table schema="mydb" name="T" alias=""
+  column[0]="Id"
+  column[1]="Name"
+  row[0]=["1", "'a'"]
+  conflict=false
+
+### insert-backtick-quoted
+INSERT INTO mydb.`T` (`Id`, `Name`) VALUES (1, 'a')
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO mydb.`T` (`Id`, `Name`) VALUES (1, 'a')"
+  table schema="mydb" name="T" alias=""
+  column[0]="Id"
+  column[1]="Name"
+  row[0]=["1", "'a'"]
+  conflict=false
+
+### insert-select
+INSERT INTO t (id) SELECT id FROM t2 WHERE st = 1
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (id) SELECT id FROM t2 WHERE st = 1"
+  table schema="" name="t" alias=""
+  column[0]="id"
+  rows=<not-plain-literals>
+  conflict=false
+
+### insert-all
+INSERT ALL INTO t1 (a) VALUES (1) INTO t2 (b) VALUES (2) SELECT 1 FROM dual
+  = *sqlstmt.InsertStmt
+  text="INSERT ALL INTO t1 (a) VALUES (1) INTO t2 (b) VALUES (2) SELECT 1 FROM dual"
+  table schema="" name="" alias=""
+  rows=<not-plain-literals>
+  conflict=false
+
+### insert-delayed
+INSERT DELAYED IGNORE INTO t (a) VALUES (1)
+  = *sqlstmt.InsertStmt
+  text="INSERT DELAYED IGNORE INTO"
+  table schema="" name="DELAYED" alias="IGNORE"
+  rows=<not-plain-literals>
+  conflict=false
+
+### insert-values-returning
+INSERT INTO t (a) VALUES (1) RETURNING id
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (a) VALUES (1) RETURNING id"
+  table schema="" name="t" alias=""
+  column[0]="a"
+  row[0]=["1"]
+  conflict=false
+
+### insert-on-duplicate
+INSERT INTO t (id, name) VALUES (1, 'a') ON DUPLICATE KEY UPDATE name = 'b'
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (id, name) VALUES (1, 'a') ON"
+  table schema="" name="t" alias=""
+  column[0]="id"
+  column[1]="name"
+  row[0]=["1", "'a'"]
+  conflict=false
+
+### insert-on-conflict
+INSERT INTO t (id, name) VALUES (1, 'a') ON CONFLICT (id) DO UPDATE SET name = 'b'
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (id, name) VALUES (1, 'a') ON"
+  table schema="" name="t" alias=""
+  column[0]="id"
+  column[1]="name"
+  row[0]=["1", "'a'"]
+  conflict=false
+
+### insert-function-value
+INSERT INTO t (id, ct) VALUES (1, NOW())
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (id, ct) VALUES (1, NOW())"
+  table schema="" name="t" alias=""
+  column[0]="id"
+  column[1]="ct"
+  rows=<not-plain-literals>
+  conflict=false
+
+### insert-subquery-value
+INSERT INTO t (id) VALUES ((SELECT MAX(id) FROM t2))
+  = *sqlstmt.InsertStmt
+  text="INSERT INTO t (id) VALUES ((SELECT MAX(id) FROM t2))"
+  table schema="" name="t" alias=""
+  column[0]="id"
+  rows=<not-plain-literals>
+  conflict=false
+
+### update-single
+UPDATE t SET a = 1 WHERE id = 2
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1 WHERE id = 2"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where text="id = 2" tree=(id = 2)
+  limit=<nil>
+
+### update-multi-set
+UPDATE t SET a = 1, b = 'x', c = NULL WHERE id = 2
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1, b = 'x', c = NULL WHERE id = 2"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  set[1] col="b" valueText="'x'" assignText="b = 'x'"
+  set[2] col="c" valueText="NULL" assignText="c = NULL"
+  where text="id = 2" tree=(id = 2)
+  limit=<nil>
+
+### update-expr-value
+UPDATE t SET cnt = cnt + 1 WHERE id = 2
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET cnt = cnt + 1 WHERE id = 2"
+  table[0] schema="" name="t" alias=""
+  set[0] col="cnt" valueText="cnt + 1" assignText="cnt = cnt + 1"
+  where text="id = 2" tree=(id = 2)
+  limit=<nil>
+
+### update-alias-set
+UPDATE t x SET x.a = 1 WHERE x.id = 2
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t x SET x.a = 1 WHERE x.id = 2"
+  table[0] schema="" name="t" alias="x"
+  set[0] col="x.a" valueText="1" assignText="x.a = 1"
+  where text="x.id = 2" tree=(x.id = 2)
+  limit=<nil>
+
+### update-quoted-col
+UPDATE "T" SET "Id" = 1 WHERE "Id" = 2
+  = *sqlstmt.UpdateStmt
+  text="UPDATE \"T\" SET \"Id\" = 1 WHERE \"Id\" = 2"
+  table[0] schema="" name="T" alias=""
+  set[0] col="Id" valueText="1" assignText="\"Id\" = 1"
+  where text="\"Id\" = 2" tree=("Id" = 2)
+  limit=<nil>
+
+### update-subquery-set
+UPDATE t SET a = (SELECT MAX(b) FROM t2) WHERE id = 2
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = (SELECT MAX(b) FROM t2) WHERE id = 2"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="(SELECT MAX(b) FROM t2)" assignText="a = (SELECT MAX(b) FROM t2)"
+  where text="id = 2" tree=(id = 2)
+  limit=<nil>
+
+### update-limit
+UPDATE t SET a = 1 WHERE st = 1 LIMIT 10
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1 WHERE st = 1 LIMIT 10"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where text="st = 1" tree=(st = 1)
+  limit count=10 offset=0 text="LIMIT 10"
+
+### update-order-limit
+UPDATE t SET a = 1 WHERE st = 1 ORDER BY id LIMIT 10
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1 WHERE st = 1 ORDER BY id LIMIT 10"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where text="st = 1" tree=(st = 1)
+  limit count=10 offset=0 text="LIMIT 10"
+
+### update-join-mysql
+UPDATE t1 a JOIN t2 b ON a.id = b.id SET a.x = b.y WHERE b.st = 1
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t1 a JOIN t2 b ON a.id = b.id SET a.x = b.y WHERE b.st = 1"
+  table[0] schema="" name="t1" alias="a"
+  table[1] schema="" name="t2" alias="b"
+  set[0] col="a.x" valueText="b.y" assignText="a.x = b.y"
+  where text="b.st = 1" tree=(b.st = 1)
+  limit=<nil>
+
+### update-from-source
+UPDATE orders o SET total = s.amt FROM sums s WHERE s.id = o.id
+  = *sqlstmt.UpdateStmt
+  text="UPDATE orders o SET total = s.amt FROM sums s WHERE s.id = o.id"
+  table[0] schema="" name="orders" alias="o"
+  table[1] schema="" name="sums" alias="s"
+  set[0] col="total" valueText="s.amt" assignText="total = s.amt"
+  where text="s.id = o.id" tree=(s.id = o.id)
+  limit=<nil>
+
+### update-order-limit-no-where
+UPDATE t SET a = 1 ORDER BY id LIMIT 1
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1 ORDER BY id LIMIT 1"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where=<nil>
+  limit count=1 offset=0 text="LIMIT 1"
+
+### update-low-priority-ignore
+UPDATE LOW_PRIORITY IGNORE t SET a = 1 WHERE id = 1
+  = *sqlstmt.UpdateStmt
+  text="UPDATE LOW_PRIORITY IGNORE t SET a = 1 WHERE id = 1"
+  table[0] schema="" name="LOW_PRIORITY" alias="IGNORE"
+  table[1] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where text="id = 1" tree=(id = 1)
+  limit=<nil>
+
+### update-no-where
+UPDATE t SET a = 1
+  = *sqlstmt.UpdateStmt
+  text="UPDATE t SET a = 1"
+  table[0] schema="" name="t" alias=""
+  set[0] col="a" valueText="1" assignText="a = 1"
+  where=<nil>
+  limit=<nil>
+
+### update-schema-qualified
+UPDATE mydb.users SET name = 'x' WHERE id = 1
+  = *sqlstmt.UpdateStmt
+  text="UPDATE mydb.users SET name = 'x' WHERE id = 1"
+  table[0] schema="mydb" name="users" alias=""
+  set[0] col="name" valueText="'x'" assignText="name = 'x'"
+  where text="id = 1" tree=(id = 1)
+  limit=<nil>
+
+### delete-simple
+DELETE FROM t WHERE id = 2
+  = *sqlstmt.DeleteStmt
+  text="DELETE FROM t WHERE id = 2"
+  table[0] schema="" name="t" alias=""
+  where text="id = 2" tree=(id = 2)
+  limit=<nil>
+
+### delete-alias-where
+DELETE FROM t AS x WHERE x.id = 2
+  = *sqlstmt.DeleteStmt
+  text="DELETE FROM t AS x WHERE x.id = 2"
+  table[0] schema="" name="t" alias="x"
+  where text="x.id = 2" tree=(x.id = 2)
+  limit=<nil>
+
+### delete-limit
+DELETE FROM t WHERE st = 1 LIMIT 5
+  = *sqlstmt.DeleteStmt
+  text="DELETE FROM t WHERE st = 1 LIMIT 5"
+  table[0] schema="" name="t" alias=""
+  where text="st = 1" tree=(st = 1)
+  limit count=5 offset=0 text="LIMIT 5"
+
+### delete-no-where
+DELETE FROM t
+  = *sqlstmt.DeleteStmt
+  text="DELETE FROM t"
+  table[0] schema="" name="t" alias=""
+  where=<nil>
+  limit=<nil>
+
+### delete-using-mysql
+DELETE a FROM t1 a USING t2 b WHERE b.id = a.id
+  = *sqlstmt.DeleteStmt
+  text="DELETE a FROM t1 a USING t2 b WHERE b.id = a.id"
+  table[0] schema="" name="a" alias=""
+  table[1] schema="" name="t1" alias="a"
+  table[2] schema="" name="t2" alias="b"
+  where text="b.id = a.id" tree=(b.id = a.id)
+  limit=<nil>
+
+### delete-multi-table-mysql
+DELETE a, b FROM t1 a JOIN t2 b ON a.id = b.id WHERE a.st = 1
+  = *sqlstmt.DeleteStmt
+  text="DELETE a, b FROM t1 a JOIN t2 b ON a.id = b.id WHERE a.st = 1"
+  table[0] schema="" name="a" alias=""
+  table[1] schema="" name="b" alias=""
+  table[2] schema="" name="t1" alias="a"
+  table[3] schema="" name="t2" alias="b"
+  where text="a.st = 1" tree=(a.st = 1)
+  limit=<nil>
+
+### delete-modifiers-mysql
+DELETE LOW_PRIORITY QUICK IGNORE FROM t WHERE id = 1
+  = *sqlstmt.DeleteStmt
+  text="DELETE LOW_PRIORITY QUICK IGNORE FROM t WHERE id = 1"
+  table[0] schema="" name="LOW_PRIORITY" alias="QUICK"
+  table[1] schema="" name="IGNORE" alias=""
+  table[2] schema="" name="t" alias=""
+  where text="id = 1" tree=(id = 1)
+  limit=<nil>
+
+### delete-subquery
+DELETE FROM t WHERE id IN (SELECT id FROM t2 WHERE st = 1)
+  = *sqlstmt.DeleteStmt
+  text="DELETE FROM t WHERE id IN (SELECT id FROM t2 WHERE st = 1)"
+  table[0] schema="" name="t" alias=""
+  where text="id IN (SELECT id FROM t2 WHERE st = 1)" tree=(id IN (SUBQUERY))
+    inSubquery:
+      = *sqlstmt.SelectStmt
+      text="SELECT id FROM t2 WHERE st = 1)"
+      distinct=false
+      item[0] kind=1 text="id" col="id" alias="" tbl=""
+      from[0] schema="" name="t2" alias=""
+      where text="st = 1" tree=(st = 1)
+      having=<nil>
+      limit=<nil>
+  limit=<nil>
+
+### delete-schema-qualified
+DELETE FROM mydb.users WHERE id = 1
+  = *sqlstmt.DeleteStmt
+  text="DELETE FROM mydb.users WHERE id = 1"
+  table[0] schema="mydb" name="users" alias=""
+  where text="id = 1" tree=(id = 1)
+  limit=<nil>
+
+### ddl-create
+CREATE TABLE t (id INT, name VARCHAR(20))
+  = *sqlstmt.DdlStmt
+  text="CREATE TABLE t (id INT, name VARCHAR(20))"
+  ddlKind="CREATE"
+
+### ddl-alter
+ALTER TABLE t ADD COLUMN age INT
+  = *sqlstmt.DdlStmt
+  text="ALTER TABLE t ADD COLUMN age INT"
+  ddlKind="ALTER"
+
+### ddl-drop
+DROP TABLE IF EXISTS t
+  = *sqlstmt.DdlStmt
+  text="DROP TABLE IF EXISTS t"
+  ddlKind="DROP"
+
+### ddl-truncate
+TRUNCATE TABLE t
+  = *sqlstmt.DdlStmt
+  text="TRUNCATE TABLE t"
+  ddlKind="DDL"
+
+### cte-with
+WITH c AS (SELECT id FROM t) SELECT id FROM c
+  = *sqlstmt.WithStmt
+  text="WITH c AS (SELECT id FROM t) SELECT id FROM c"
+
+### stmt-show
+SHOW TABLES
+  = *sqlstmt.OtherStmt
+  text="SHOW TABLES"
+
+### stmt-unknown
+VACUUM ANALYZE t
+  = *sqlstmt.OtherStmt
+  text="VACUUM ANALYZE t"
+

@@ -47,6 +47,56 @@ to_lower() {
 }
 
 #----------------------------------------------
+# 推送前置检查
+#----------------------------------------------
+
+# 从 docker config.json 读取字符串字段（无 jq 依赖），字段不存在时输出空串
+read_docker_config_str() {
+    local config_file="$1"
+    local key="$2"
+
+    [ -f "${config_file}" ] || return 0
+
+    grep -o "\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "${config_file}" \
+        | head -1 \
+        | sed -E 's/.*:[[:space:]]*"([^"]*)"/\1/'
+}
+
+# 校验镜像所属 registry 本地是否已有登录凭据，避免多架构构建全部跑完后才因鉴权失败白费时间
+# 返回 0=已找到凭据记录；1=未发现任何凭据记录
+ensure_registry_login() {
+    local image_ref="$1"
+    local registry="${image_ref%%/*}"
+    local config_file="${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
+    local creds_store helper
+    local registry_key_pattern="\"(https?://)?${registry}/?\""
+
+    # 凭据助手（Docker Desktop 默认 credsStore=desktop），list 输出只含用户名不含密码
+    creds_store="$(read_docker_config_str "${config_file}" credsStore)"
+    if [ -n "${creds_store}" ]; then
+        helper="docker-credential-${creds_store}"
+        if command -v "${helper}" >/dev/null 2>&1; then
+            if "${helper}" list 2>/dev/null | grep -Eq "${registry_key_pattern}"; then
+                print_info "    Registry login found: ${registry}"
+                return 0
+            fi
+        fi
+    fi
+
+    # 未启用凭据助手时，登录记录会内联在 config.json 的 auths 中
+    if grep -Eq "${registry_key_pattern}" "${config_file}" 2>/dev/null; then
+        print_info "    Registry login found: ${registry}"
+        return 0
+    fi
+
+    print_error "Error: no login credentials found for registry '${registry}'."
+    print_error "       Run first: docker login ${registry} -u <account UIN>"
+    print_error "       The password is the one set in the container registry console"
+    print_error "       (access credentials), NOT the API SecretId/SecretKey."
+    return 1
+}
+
+#----------------------------------------------
 # 构建函数
 #----------------------------------------------
 build_frontend() {
@@ -119,8 +169,13 @@ build_docker() {
     
     if [ "${use_buildx}" = "1" ]; then
         image_name="ccr.ccs.tencentyun.com/mayfly/mayfly-go:${version}"
-        build_cmd="docker buildx build --no-cache --push --platform linux/amd64,linux/arm64"
+        # CCR 不兼容 buildx 默认附带的 OCI attestation manifest，关闭 provenance/sbom 后再推
+        build_cmd="docker buildx build --no-cache --push --platform linux/amd64,linux/arm64 --provenance=false --sbom=false"
         print_header "\n>>> Building Docker image (multi-arch): ${image_name}"
+
+        if ! ensure_registry_login "${image_name}"; then
+            return 1
+        fi
     else
         image_name="mayfly/mayfly-go:${version}"
         build_cmd="docker build --no-cache --platform linux/amd64"

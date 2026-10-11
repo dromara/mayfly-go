@@ -28,14 +28,17 @@ func (g *GzipWriter) WriteString(data string) {
 
 func (g *GzipWriter) Write(p []byte) (n int, err error) {
 	if g.aborted {
-		return
+		return 0, io.ErrClosedPipe
 	}
 
 	if _, err := g.writer.Write(p); err != nil {
 		g.aborted = true
 		biz.IsTrue(false, "数据库导出失败：%s", err)
 	}
-	return
+	// 必须返回真实字节数：标准库（如 encoding/csv）写后会校验 n == len(p)，
+	// 拿 (0, nil) 会被判成 short write 并在 Close 时报错——底层写入其实全部成功，
+	// 结果整份导出因这个返回值而失败
+	return len(p), nil
 }
 
 func (g *GzipWriter) Close() error {

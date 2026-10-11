@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n';
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -46,6 +47,17 @@ function lookup(root: object, path: string): boolean {
     );
 }
 
+/** 收集字典里所有叶子文案的完整 key 路径（`a.b.c`） */
+function flattenKeys(node: unknown, prefix: string, into: string[] = []): string[] {
+    if (!node || typeof node !== 'object') return into;
+    for (const [key, val] of Object.entries(node as Record<string, unknown>)) {
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (typeof val === 'string') into.push(path);
+        else flattenKeys(val, path, into);
+    }
+    return into;
+}
+
 describe('i18n key 与文案存在性', () => {
     const files = listSourceFiles(join(process.cwd(), 'src'));
 
@@ -66,5 +78,41 @@ describe('i18n key 与文案存在性', () => {
             }
         }
         expect(missing, '界面上会直接吐出裸 key:\n' + missing.join('\n')).toEqual([]);
+    });
+
+    /**
+     * 每条文案都必须能被 vue-i18n 的消息编译器编译。
+     *
+     * 判据存在的原因：本项目的占位符写的是单花括号 `{name}`，写成 `{{name}}` 时消息编译器抛
+     * "Not allowed nest placeholder"、文案里出现裸 `@` 会被当作 linked message 报 "Invalid linked format"，
+     * 而这类错误只在**渲染期真正翻译那条文案时**才暴露：实测「活动会话」面板里的 `更新于 {{time}}`
+     * 让整块组件渲染抛错、页签内一片空白，而类型检查、lint、构建与上面的 key 存在性判据全部绿灯
+     * （key 确实存在、值也确实有）。字面量花括号/`@` 需按 `{'{{.x}}'}`、`{'@'}` 转义。
+     */
+    it('两种语言的每条文案都能被 vue-i18n 编译（写法非法会导致渲染期抛错白屏）', () => {
+        const broken: string[] = [];
+        let checked = 0;
+
+        // 直接用运行时那份 i18n 实例与它已装载的字典：判据与界面行为同源
+        const originalLocale = i18n.global.locale.value;
+        for (const locale of ['zh-cn', 'en']) {
+            // 逐语言切换 locale 再按组件里的同款标量调用翻译：走的就是渲染期那条路径，
+            // 传对象形式会被判为带参数调用而对纯文案报 Invalid arguments
+            i18n.global.locale.value = locale;
+            for (const path of flattenKeys(i18n.global.getLocaleMessage(locale), '')) {
+                checked++;
+                try {
+                    // 占位符缺值只会被记为参数缺失告警（本项目已关这类告警），不影响消息编译这一步
+                    i18n.global.t(path);
+                } catch (e: unknown) {
+                    broken.push(`${locale} · ${path}: ${e instanceof Error ? e.message.split('\n')[0] : String(e)}`);
+                }
+            }
+        }
+        i18n.global.locale.value = originalLocale;
+
+        // 字典未加载会让本判据静默空跑，先要求它确实扫到了两个语言包的文案
+        expect(checked, '两种语言的文案未被真正加载').toBeGreaterThan(500);
+        expect(broken, '以下文案无法被消息编译器解析:\n' + broken.join('\n')).toEqual([]);
     });
 });

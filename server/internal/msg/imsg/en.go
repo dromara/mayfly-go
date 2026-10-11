@@ -16,6 +16,8 @@ var En = map[i18n.MsgId]string{
 	MachineFileUploadFailMsg:    "[{{.filename}}] -> <machine-info code={{.machineCode}}>{{.machineName}}</machine-info> [{{.path}}]. error: {{.error}}",
 
 	DbDumpFailMsg:          "Database [<db-info id={{.dbId}}>{{.dbName}}</db-info>] dump failed, error: <error-text>{{.error}}</error-text>",
+	DbTaskRunFailMsg:       "database task [{{.taskName}}] failed, error: <error-text>{{.error}}</error-text>",
+	DbSchemaDriftMsg:       "database [<db-info id={{.dbId}}>{{.dbName}}</db-info>] has {{.count}} table(s) whose structure no longer matches the baseline: {{.detail}}",
 	SQLScriptRunFailMsg:    "Script {{.filename}} execution failed on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], error: <error-text>{{.error}}</error-text>",
 	SQLScriptRunSuccessMsg: "Script {{.filename}} executed successfully on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], cost {{.cost}}",
 

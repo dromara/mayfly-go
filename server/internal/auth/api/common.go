@@ -12,6 +12,7 @@ import (
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -59,8 +60,9 @@ func LastLoginCheck(ctx context.Context, account *sysentity.Account, accountLogi
 		res["refresh_token"] = refreshToken
 		// 不进行otp二次校验则直接返回accessToken
 		// 保存登录消息
+		// 异步写登录信息：脱离请求取消信号，但保留链路信息与登录账号
 		gox.Go(func() {
-			saveLogin(ctx, account, loginIp)
+			saveLogin(contextx.Detach(ctx), account, loginIp)
 		})
 	}
 

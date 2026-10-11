@@ -14,7 +14,9 @@
 *.lock
 *.sum
 
-*/node_modules/
+# Dependencies and build caches. A pattern without a leading slash matches at any
+# depth (*/node_modules/ used to miss the copy at the repository root)
+node_modules/
 **/vendor/
 .idea
 .vscode
@@ -33,6 +35,10 @@ server/mayfly-go
 server/mayfly-server
 cli/cli
 build/
+
+# Local SQLite database created by running the server from the workspace: runtime
+# output holding real data, must never be committed
+server/*.db
 
 # local tool artifacts
 .impeccable/

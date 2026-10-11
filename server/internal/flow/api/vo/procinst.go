@@ -23,6 +23,9 @@ type ProcinstVO struct {
 	EndTime  *time.Time `json:"endTime"`
 	Duration int64      `json:"duration"` // 持续时间（开始到结束）
 
+	// PlannedExecTime 计划执行时间（审批通过后到点才执行，nil=立即）
+	PlannedExecTime *time.Time `json:"plannedExecTime"`
+
 	Creator    string     `json:"creator"`
 	CreatorId  uint64     `json:"creatorId"`
 	CreateTime *time.Time `json:"createTime"`

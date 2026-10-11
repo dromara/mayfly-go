@@ -8,6 +8,7 @@
         :filter-text="filterText"
         :filter-method="filterMethod"
         :height="height"
+        @filter-applied="onFilterApplied"
         @node-click="onNodeClick"
         @node-expand="onNodeExpand"
         @node-collapse="onNodeCollapse"
@@ -22,15 +23,15 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef, watch } from 'vue';
 
-import { isPrefixSubsequence } from '@/common/utils/string';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import { VirtualTree, type VirtualTreeInstance } from '@/components/virtual-tree';
+import { VirtualTree, type VirtualTreeHandle } from '@/components/virtual-tree';
 
 import { findTriggerCommand, resolveNodeMenu } from './commands';
-import { TreeApiKey } from './context';
+import { TreeApiKey, TreeFilterQueryKey } from './context';
 import { DEFAULT_TREE_SCOPE, treeEvents } from './events';
+import { collectMatchKeys, collectVisibleRowKeys, nodeMatchesQuery, type NodeVisibilityFilter } from './filter';
 import { getContributor } from './registry';
 import { type LocateOutcome, type LocateResolver, type TreeNode, type TreeNodeData, type TreeApi } from './types';
 import TreeRowContent from './TreeRowContent.vue';
@@ -57,6 +58,12 @@ const props = withDefaults(
         transformNode?: (node: TreeNodeData) => TreeNodeData;
         /** 外部过滤文本（防抖后生效） */
         filterText?: string;
+        /**
+         * 视图级附加可见性判定（如「按资源类型筛选」），与文本命中 AND 组合。
+         *
+         * 由宿主页面注入，容器不认识任何资产语义；传新函数即触发重过滤。
+         */
+        nodeFilter?: NodeVisibilityFilter;
         /** 事件作用域：匹配 treeEvents 事件的 target 才响应（多容器并存隔离） */
         eventScope?: string;
         /**
@@ -70,7 +77,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{ 'node-click': [node: TreeNode] }>();
 
-const engineRef = useTemplateRef<VirtualTreeInstance>('engineRef');
+const engineRef = useTemplateRef<VirtualTreeHandle>('engineRef');
 const contextmenuRef = useTemplateRef<InstanceType<typeof Contextmenu>>('contextmenuRef');
 
 const { data, expandedKeys, init, expandNode, collapseNode, refresh, appendChildren, ensureVisible, getNode, onAfterHydrate } = useLazyTree({
@@ -86,8 +93,64 @@ const expandedKeysArray = computed(() => Array.from(expandedKeys.value));
 /** 水合层 TreeNode（无索引签名的 interface）→ VirtualTree 归一化数据契约的桥接 */
 const treeData = computed(() => data.value as unknown as Record<string, unknown>[]);
 
-/** 过滤谓词（前缀子序列匹配，与树库无关）：容器提供谓词，VirtualTree 负责防抖接线到引擎 */
-const filterMethod = (query: string, node: Record<string, unknown>) => !query || isPrefixSubsequence(query, String(node.label ?? ''));
+/**
+ * 引擎过滤谓词：文本命中（tree/filter 纯函数）AND 宿主注入的视图级判定。
+ * 与下面 matchedKeys / visibleRowKeys 用的是同一个组合，三处不会分叉。
+ */
+const filterMethod = (query: string, node: Parameters<NodeVisibilityFilter>[0]) =>
+    nodeMatchesQuery(query, node) && (props.nodeFilter?.(node) ?? true);
+
+/**
+ * 引擎真正生效的查询词（由 VirtualTree 防抖后上报）：高亮与计数都只认它，不认 props.filterText。
+ *
+ * 防抖窗口内两者不一致：若拿「意图值」做高亮/计数，会出现已标色、已计数但该行还没被过滤掉；
+ * 此时按 Enter 跳转，目标可能还在引擎旧隐藏集里（scrollToNode 对未 flatten 的节点失效）→ 静默跳空。
+ */
+const appliedQuery = ref('');
+
+const onFilterApplied = (query: string) => {
+    appliedQuery.value = query;
+};
+
+
+/** 生效查找文本透给行组件做命中片段高亮：与引擎过滤同一时相，「被标色的字」就是「让这行留下的字」 */
+provide(TreeFilterQueryKey, computed(() => appliedQuery.value));
+
+/**
+ * 命中 key（文档序）：供查找条展示 n/N 计数并逐个跳转。
+ *
+ * 口径是「业务展开链上可见的命中」：只有这些节点真的在引擎 flattenTree 里，
+ * 计数与 Enter 可跳次数才能严格相等（收起分支的命中跳到时 indexOf 为 -1，会静默跳空并复位滚动）。
+ */
+const matchedKeys = computed(() => collectMatchKeys(appliedQuery.value, data.value, expandedKeys.value, props.nodeFilter));
+
+/**
+ * 引擎在该查询词下实际渲染的行序（与 flattenTree 等价，规则见 filter.collectVisibleRowKeys）。
+ * 只在定位时读（computed 惰性求值）：跳转要把目标滚到视口中间，而偏移 = 行序 × 行高。
+ */
+const visibleRowKeys = computed(() => collectVisibleRowKeys(appliedQuery.value, data.value, expandedKeys.value, props.nodeFilter));
+
+/**
+ * 过滤态下的两次「重跑引擎过滤」：el-tree-v2 只在 filter() 被调用时对全树求值，
+ * 下面两种变化它都看不见，不重跑就会让新数据/新谓词绕过过滤：
+ * - 视图级判定换了（如选了另一个资源类型）；
+ * - data 变了（懒加载水合出新子树）——新节点不在旧隐藏集里，会直接漏出来。
+ * 无过滤时不重跑（空词会触发引擎的全展开副作用，由 applyFilter 内的复位扛，但没必要白跑）。
+ */
+watch(
+    () => props.nodeFilter,
+    () => engineRef.value?.refilter(),
+    // 取消筛选（谓词从有到 undefined）也必须重跑：引擎的隐藏集只在 doFilter 开头被 clear，
+    // 不再次调用 filter 就会永久留着上一次的隐藏结果。post 保证读到的引擎状态是最新的
+    { flush: 'post' }
+);
+// 必须 post-flush：pre 时本容器的 job id 小于引擎组件的，会抢在 useTree 的 setData 之前跑，
+// 拿旧 treeNodes 求值等于白跑一次（新节点不在旧隐藏集里，照样漏出来）
+watch(data, () => {
+    if (appliedQuery.value || props.nodeFilter) {
+        engineRef.value?.refilter();
+    }
+}, { flush: 'post' });
 
 // 根加载
 onMounted(() => {
@@ -149,7 +212,13 @@ async function tryLocate() {
         await ensureVisible(outcome.key);
         await nextTick();
         engineRef.value?.setCurrentKey(outcome.key);
-        engineRef.value?.scrollToNode(outcome.key, 'center');
+        // 滚动偏移按自算行序给引擎（不用引擎的 scrollToNode：它在过滤态下对合法下标返回错位偏移，实测把列表弹回顶部）
+        const rowIndex = visibleRowKeys.value.indexOf(outcome.key);
+        if (rowIndex >= 0) {
+            engineRef.value?.scrollToIndex(rowIndex);
+        } else if (import.meta.env.DEV) {
+            console.warn(`[tree] 定位目标不在自算可见行序内，已跳过滚动：${outcome.key}（collectVisibleRowKeys 与引擎 flatten 分叉，需核规则）`);
+        }
     } finally {
         locating = false;
     }
@@ -306,5 +375,8 @@ defineExpose({
     locateIdentity,
     refresh: treeApi.refresh,
     getNode,
+    matchedKeys,
+    /** 引擎已生效的查询词：宿主据此判断派生值是否跟上了输入（防抖期内别拿旧计数示人） */
+    appliedQuery,
 });
 </script>

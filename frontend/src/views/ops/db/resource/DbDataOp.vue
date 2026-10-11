@@ -99,6 +99,8 @@
                     >
                     </db-sql-editor>
 
+                    <db-session-panel v-if="dt.type === TabType.Session" :db-id="dt.dbId" :db-name="dt.db"></db-session-panel>
+
                     <db-tables-op
                         v-if="dt.type == TabType.TablesOp"
                         :db-id="dt.params.id"
@@ -170,6 +172,7 @@ const DbTableOp = defineAsyncComponent(() => import('../table-editor/DbTableOp.v
 const DbSqlEditor = defineAsyncComponent(() => import('../sql-editor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('../data-grid/DbTableDataOp.vue'));
 const DbTablesOp = defineAsyncComponent(() => import('../table-editor/DbTablesOp.vue'));
+const DbSessionPanel = defineAsyncComponent(() => import('./DbSessionPanel.vue'));
 // DDL 查看是低频动作，编辑器主体随弹窗首次打开才加载
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
@@ -419,6 +422,33 @@ const addTablesOpTab = async (db: DbTreeNodeData) => {
     addTab(tab);
 };
 
+// 打开活动会话页签：同一库只开一个（与表数据页签同样按 key 复用），避免多次右键开出多份轮询
+const openSessionTab = async (db: DbTreeNodeData, dbName: string) => {
+    if (!db.id || !dbName) {
+        Msg.warning('db.noDbInstMsg');
+        return;
+    }
+    changeDb(db, dbName);
+
+    const key = `session:${db.id}.${dbName}`;
+    if (activateTab(key)) {
+        return;
+    }
+    const tab = new TabInfo();
+    tab.key = key;
+    tab.label = `${t('db.sessionList')}-${dbName}`;
+    tab.treeNodeKey = db.nodeKey ?? '';
+    tab.dbId = db.id;
+    tab.db = dbName;
+    tab.type = TabType.Session;
+    tab.params = {
+        ...getNowDbInfo(),
+        id: db.id,
+        db: dbName,
+    };
+    addTab(tab);
+};
+
 const onRemoveTab = (targetName: string) => {
     // 只有关闭的是当前激活tab时才会切换激活项，此时才需要补做切换副作用
     if (closeTab(targetName)) {
@@ -523,6 +553,7 @@ defineExpose({
     onRemoveTab,
     addQueryTab,
     addTablesOpTab,
+    openSessionTab,
     reloadSqls,
     deleteSql,
     reloadNode,

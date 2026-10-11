@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
@@ -13,6 +12,7 @@ import (
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/model"
@@ -124,12 +124,14 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 		update := &sysentity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
 		biz.ErrIsNil(update.OtpSecretEncrypt())
-		biz.ErrIsNil(a.accountApp.Update(context.Background(), update))
+		biz.ErrIsNil(a.accountApp.Update(ctx, update))
 	}
 
 	la := &sysentity.Account{Username: otpInfo.Username}
 	la.Id = accountId
-	gox.Go(func() { saveLogin(ctx, la, getIpAndRegion(rc)) })
+	// 登录信息在响应返回之后才写库：必须脱离请求 ctx 的取消信号（否则 handler 一返回这批写入就被
+	// 掐掉），同时保留登录账号与 traceId，归属和链路才接得上
+	gox.Go(func() { saveLogin(contextx.Detach(ctx), la, getIpAndRegion(rc)) })
 
 	cache.Del(tokenKey)
 	rc.ResData = collx.Kvs("token", accessToken, "refresh_token", otpInfo.RefreshToken)

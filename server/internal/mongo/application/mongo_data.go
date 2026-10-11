@@ -828,8 +828,8 @@ var ErrEmptyIndexSpecs = errors.New("mongo: index specifications must be a non-e
 // execContext 为单次数据面操作派生带执行时间上限的上下文。
 //
 // 父上下文就是请求上下文，所以客户端断开同样会取消服务端操作；这里补的是另一类保护：
-// 客户端没断、但操作本身很慢（全集合扫描、$where、缺索引的大排序）。旧实现用 context.TODO()，
-// 这类操作会永久占住 goroutine 且无法取消。
+// 客户端没断、但操作本身很慢（全集合扫描、$where、缺索引的大排序）。没有这个时间上限，
+// 这类操作会一直占住 goroutine 且无从取消。
 func execContext(ctx context.Context) (context.Context, context.CancelFunc, int) {
 	tl := config.GetMongo().ExecTl
 	if tl <= 0 {

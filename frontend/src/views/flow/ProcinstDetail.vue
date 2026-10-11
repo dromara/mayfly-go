@@ -40,10 +40,24 @@
                             <el-descriptions-item :span="1.5" :label="$t('flow.duration')">{{ formatTime(procinst.duration) }}</el-descriptions-item>
                         </div>
 
+                        <el-descriptions-item v-if="procinst.plannedExecTime" :span="1.5" :label="$t('flow.plannedExecTime')">
+                            {{ formatDate(procinst.plannedExecTime) }}
+                        </el-descriptions-item>
+
                         <el-descriptions-item :span="3" :label="$t('common.remark')">
                             {{ procinst.remark }}
                         </el-descriptions-item>
                     </el-descriptions>
+
+                    <!-- 定时执行：审批已通过但尚未到点（已完成+待处理），到点前可改期或取消回放 -->
+                    <div v-if="canScheduleExec" class="mt-3 flex gap-2">
+                        <el-button type="primary" link @click="openReschedule">{{ $t('flow.reschedule') }}</el-button>
+                        <el-popconfirm :title="$t('flow.cancelExecConfirm')" width="200" @confirm="doCancelExec">
+                            <template #reference>
+                                <el-button type="warning" link>{{ $t('flow.cancelExec') }}</el-button>
+                            </template>
+                        </el-popconfirm>
+                    </div>
                 </div>
             </el-tab-pane>
 
@@ -92,6 +106,8 @@
             </el-tab-pane>
         </el-tabs>
 
+        <ProcinstRescheduleDialog v-model:visible="rescheduleVisible" :procinst-id="procinst.id" :current="procinst.plannedExecTime" @submitted="onExecChanged" />
+
         <template #footer v-if="props.instTaskId">
             <!-- 审批动作常驻底部：不随页签切换而消失，否则「填意见」和「点确定」分处两个页签 -->
             <div class="approve-footer">
@@ -111,9 +127,10 @@ import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { Msg } from '@/hooks/useI18n';
 import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
-import { defineAsyncComponent, reactive, shallowReactive, toRefs, watch } from 'vue';
+import { defineAsyncComponent, reactive, ref, shallowReactive, toRefs, watch, computed } from 'vue';
 import { procinstApi, procinstTaskApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
+import ProcinstRescheduleDialog from './components/ProcinstRescheduleDialog.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstStatus, ProcinstTaskStatus } from './enums';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import type { Procinst, ProcinstTask, HisProcinstOp, FlowNode, FlowDef } from './types';
@@ -167,6 +184,33 @@ const state = reactive({
 });
 
 const { procinst, flowDef, form, saveBtnLoading } = toRefs(state);
+
+// 定时执行：仅「已批准、待执行」（流程已完成 + 业务待处理）可改期/取消，与列表页同一判定
+const rescheduleVisible = ref(false);
+const canScheduleExec = computed(() => procinst.value.status === ProcinstStatus.Completed.value && procinst.value.bizStatus === ProcinstBizStatus.Wait.value);
+
+const openReschedule = () => {
+    rescheduleVisible.value = true;
+};
+
+// 改期/取消后重取详情（同 id 不会重触发 watch）并通知父级刷新列表
+async function reloadProcinst() {
+    if (!props.procinstId) {
+        return;
+    }
+    state.procinst = await procinstApi.detail.request({ id: props.procinstId });
+}
+
+const onExecChanged = async () => {
+    await reloadProcinst();
+    emit('val-change');
+};
+
+const doCancelExec = async () => {
+    await procinstApi.cancelExec.request({ id: procinst.value.id });
+    Msg.operateSuccess();
+    await onExecChanged();
+};
 
 /** 审批表单声明 */
 const approveItems: AutoFormItem[] = [

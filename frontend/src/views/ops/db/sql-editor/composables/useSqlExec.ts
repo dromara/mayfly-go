@@ -1,11 +1,11 @@
 import { notBlank } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
-import { ElMessageBox } from 'element-plus';
 import type { editor, IRange } from 'monaco-editor';
 import { unref, type Ref, type UnwrapNestedRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { DbInst } from '../../db';
+import { dbApi } from '../../api';
 import { getDialectCapabilities } from '../../dialect';
 import { isDdlSql } from '../../core/sqlKind';
 import { confirmWarnAck } from '@/views/flow/warnAck';
@@ -70,6 +70,22 @@ export class ExecResTab {
      */
     notice = '';
 
+    /**
+     * 结果集是否被行数上限截断（只由服务端给的 truncated 决定，不按行数反推）
+     */
+    truncated = false;
+
+    /** 本次生效的行数上限，截断时用于告诉用户「只显示了前 N 行」 */
+    rowLimit = 0;
+
+    /**
+     * 产出该结果集的那一条语句（只单条执行路径有值）。
+     *
+     * 全量导出需要重跑它；批量路径一个 tab 里是多条语句，导出哪一条没有答案，
+     * 因此不供导出入口而不是「猜第一条」
+     */
+    exportSql = '';
+
     constructor(id: number) {
         this.id = id;
     }
@@ -95,6 +111,12 @@ interface UseSqlExecOptions {
         activeTab: number;
         tableDataEmptyText: string;
     };
+    /** 是否以原子批次执行多条语句（取编辑器工具条上的开关状态，随每次执行读取） */
+    atomic: () => boolean;
+    /** 检测到「需审批」语句时的回调：由编辑器传入提单入口，用于自动打开预填好的工单抽屉；批量场景传多条合并后的语句 */
+    onNeedApproval?: (sql: string) => void;
+    /** 执行非查询语句前的确认框（备注 + 查看执行计划），由编辑器提供；resolve 备注文本，取消 resolve null */
+    askExecRemark?: (sql: string) => Promise<string | null>;
     monacoEditor: editor.IStandaloneCodeEditor | null;
 }
 
@@ -108,10 +130,29 @@ export function useSqlExec(options: UseSqlExecOptions) {
      * 让「有提醒」成为这一列里唯一需要读的东西
      */
     const noticeTexts = (notices: PolicyNotice[] | undefined): string => (notices ?? []).map((notice) => t(notice.title)).join('；');
-    const { dbId, dbName, state } = options;
+    const { dbId, dbName, state, atomic, onNeedApproval, askExecRemark } = options;
 
     const getNowDbInst = () => {
         return DbInst.getInst(dbId);
+    };
+
+    /**
+     * 组合「取消」：先请服务端中断该执行（至少不再往回读结果），再断本地 HTTP 收尾界面。
+     *
+     * 只 abort 前端请求是不够的：连接池会保留那条正在跑的语句，界面转圈结束了库里还在跑。
+     * 服务端那一跳只取消自己的执行上下文，目标库是否真停下取决于驱动是否响应取消（要确认就去「活动会话」），
+     * 所以这里不能说「已中断」。
+     * 结果必须出声：只把遮罩收起而不告诉用户「到底取消了没有」，
+     * 他会不知道那条语句是在库里继续跑还是已经停了（服务端可能已回「该执行已结束」）
+     */
+    const cancelExec = (execId: string, abort: () => void) => () => {
+        void dbApi.cancelSqlExec
+            .request({ execId })
+            .then(() => Msg.success('db.execCancelRequested'))
+            // 失败不在这里另发一条：中心层已经把服务端的原话 toast 过了（如「该执行已结束或不存在」），
+            // 再叠一条自己编的文案只会让用户看不出到底哪个是真结论
+            .catch(() => undefined);
+        abort();
     };
 
     /**
@@ -144,14 +185,12 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
         if (sqls.length == 1) {
             const oneSql = sqls[0];
-            let execRemark;
+            let execRemark = '';
             if (!getNowDbInst().isQuerySql(oneSql)) {
-                const res = await ElMessageBox.prompt(t('db.enterExecRemarkTips'), 'Tip', {
-                    confirmButtonText: t('common.confirm'),
-                    cancelButtonText: t('common.cancel'),
-                    inputErrorMessage: t('db.execRemarkPlaceholder'),
-                });
-                execRemark = res.value;
+                // 确认框由编辑器提供（含「查看执行计划」）；取消返回 null → 中止本次执行
+                const remark = await (askExecRemark?.(oneSql) ?? Promise.resolve(''));
+                if (remark === null) return;
+                execRemark = remark;
             }
             runSql(oneSql, execRemark, newTab);
             return;
@@ -211,6 +250,17 @@ export function useSqlExec(options: UseSqlExecOptions) {
      * 执行非查询类SQL并合并结果
      */
     const runNonQuerySqls = async (sqls: string[], newTab: boolean) => {
+        // 非查询批量也先弹一次执行备注确认（与单条一致）：整批非查询语句交给确认框，
+        // 其「查看执行计划」可逐条选中；取消（null）即中止整批，不创建空结果 tab
+        let remark = '';
+        if (askExecRemark) {
+            const asked = await askExecRemark(sqls.join(';\n'));
+            if (asked === null) {
+                return;
+            }
+            remark = asked;
+        }
+
         let execRes: ExecResTabState;
         let i = 0;
         let id;
@@ -240,41 +290,70 @@ export function useSqlExec(options: UseSqlExecOptions) {
             // 执行所有非查询SQL
             const results: Record<string, unknown>[] = [];
             const needApprovalSqls: string[] = [];
-            for (const sql of sqls) {
-                try {
-                    // 批量选区不逐条追问提醒：ask=false，命中的提醒随结果回显在「策略提醒」列。
-                    // 这里不能改成 ask=true：批量本身就是一条一条发请求，逐条弹窗会让人没法干活
-                    const { data, execute } = getNowDbInst().execSql(dbName, sql, '', { ask: false });
-                    await execute();
-                    const result = (data.value as SqlExecRes[])[0];
-                    if (result.needApproval && result.sql) {
-                        needApprovalSqls.push(result.sql);
+
+            // 原子批次：整批语句一次请求发出，由后端在同一事务里逐条执行、失败整批回滚。
+            // 不能沿用下面的逐条请求：那等于 N 个独立事务，开关只体现在界面上，
+            // 失败时前面的语句早已各自提交，界面却仍按「整批原子」显示 —— 属于假承诺
+            if (atomic()) {
+                const { data, execute, isFetching, abort, execId } = getNowDbInst().execSql(dbName, sqls.join(';\n'), remark, { ask: false, atomic: true });
+                execRes.loading = isFetching;
+                execRes.abortFn = cancelExec(execId, abort);
+                await execute();
+                for (const item of (data.value as SqlExecRes[]) ?? []) {
+                    if (item.needApproval && item.sql) {
+                        needApprovalSqls.push(item.sql);
                     }
                     results.push({
-                        sql: result.sql,
-                        rowsAffected: result.res?.[0]?.rowsAffected,
-                        error: result.errorMsg || '-',
-                        notices: noticeTexts(result.notices),
+                        sql: item.sql,
+                        rowsAffected: item.res?.[0]?.rowsAffected,
+                        error: item.errorMsg || '-',
+                        notices: noticeTexts(item.notices),
                     });
-                } catch (error: unknown) {
-                    results.push({
-                        sql: sql,
-                        error: error instanceof Error ? error.message : String(error),
-                        notices: '',
-                    });
+                }
+            } else {
+                for (const sql of sqls) {
+                    try {
+                        // 批量选区不逐条追问提醒：ask=false，命中的提醒随结果回显在「策略提醒」列。
+                        // 这里不能改成 ask=true：批量本身就是一条一条发请求，逐条弹窗会让人没法干活
+                        const { data, execute } = getNowDbInst().execSql(dbName, sql, remark, { ask: false });
+                        await execute();
+                        const result = (data.value as SqlExecRes[])[0];
+                        if (result.needApproval && result.sql) {
+                            needApprovalSqls.push(result.sql);
+                        }
+                        results.push({
+                            sql: result.sql,
+                            rowsAffected: result.res?.[0]?.rowsAffected,
+                            error: result.errorMsg || '-',
+                            notices: noticeTexts(result.notices),
+                        });
+                    } catch (error: unknown) {
+                        results.push({
+                            sql: sql,
+                            error: error instanceof Error ? error.message : String(error),
+                            notices: '',
+                        });
+                    }
                 }
             }
 
-            // 设置表格列
-            state.execResTabs[i].tableColumn = [
+            // 设置表格列：提醒列只在真有提醒时出现（与单条路径一致），否则整列空值看着像缺数据
+            const cols: TableColumnDef[] = [
                 { columnName: 'SQL', key: 'sql', columnType: 'string', show: true },
                 { columnName: 'RowsAffected', key: 'rowsAffected', columnType: 'number', show: true },
                 { columnName: t('common.error'), key: 'error', columnType: 'string', show: true },
-                { columnName: t('db.policyNotices'), key: 'notices', columnType: 'string', show: true },
             ];
+            if (results.some((r) => r.notices)) {
+                cols.push({ columnName: t('db.policyNotices'), key: 'notices', columnType: 'string', show: true });
+            }
+            state.execResTabs[i].tableColumn = cols;
 
             state.execResTabs[i].data = results;
             state.execResTabs[i].needApprovalSqls = needApprovalSqls;
+            // 批量（含原子）检测到需审批语句：合并成一张工单（同一次请求里已收集全部），审批通过后整单一起回放
+            if (needApprovalSqls.length) {
+                onNeedApproval?.(needApprovalSqls.join(';\n'));
+            }
             cancelUpdateFields(execRes);
             // 批量执行含 DDL：失效补全元数据缓存，反映最新表/字段/注释
             if (sqls.some(isDdlSql)) {
@@ -328,12 +407,15 @@ export function useSqlExec(options: UseSqlExecOptions) {
             execRes.sql = '';
             execRes.notice = '';
             execRes.needApprovalSqls = [];
+            execRes.exportSql = '';
+            execRes.truncated = false;
+            execRes.rowLimit = 0;
 
             // 一次执行请求的封装：asked=true 才能弹确认（单条场景），acknowledged 只在操作者选过「直接执行」后带上
             const runOnce = async (acknowledged: boolean) => {
-                const { data, execute, isFetching, abort } = getNowDbInst().execSql(dbName, sql, remark, { ask: true, acknowledged });
+                const { data, execute, isFetching, abort, execId } = getNowDbInst().execSql(dbName, sql, remark, { ask: true, acknowledged });
                 execRes.loading = isFetching;
-                execRes.abortFn = abort;
+                execRes.abortFn = cancelExec(execId, abort);
                 await execute();
                 return (data.value as SqlExecRes[])[0];
             };
@@ -348,6 +430,9 @@ export function useSqlExec(options: UseSqlExecOptions) {
                 }
                 // needApprovalSqls 是提单按钮的唯一出现条件，改它必须先于任何提示分支
                 state.execResTabs[i].needApprovalSqls = choice === 'ticket' ? [sql] : [];
+                if (choice === 'ticket') {
+                    onNeedApproval?.(sql);
+                }
                 // 语句没执行，必须把提示留在结果区：静默吞掉会让人以为已经跑过了
                 throw { msg: message, warnAck: true };
             };
@@ -360,6 +445,14 @@ export function useSqlExec(options: UseSqlExecOptions) {
             // 单条路径此前会丢掉策略结论：批量路径有提醒列而单条没有，
             // 「仅提醒」级别在最常用的单条执行场景下等于没有出口
             state.execResTabs[i].needApprovalSqls = colAndData.needApproval ? [sql] : [];
+            // 单条命中需审批：自动打开预填好的提单抽屉（不再只靠结果区的按钮）
+            if (colAndData.needApproval) {
+                onNeedApproval?.(sql);
+            }
+            // 截断事实与源语句一起记下：没有它们，界面无法告知「这只是前 N 行」也发不出全量导出
+            state.execResTabs[i].truncated = !!colAndData.truncated;
+            state.execResTabs[i].rowLimit = colAndData.rowLimit ?? 0;
+            state.execResTabs[i].exportSql = sql;
             if (colAndData.errorMsg) {
                 throw { msg: colAndData.errorMsg };
             }

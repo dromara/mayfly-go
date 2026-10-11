@@ -1,4 +1,6 @@
 import Api from '@/common/Api';
+import config from '@/common/config';
+import { joinClientParams } from '@/common/request';
 import type { PageResult } from '@/types/common';
 import type { DbTransferFile, DbTransferLogListVO, DbTransferLogRunInfo, DbTransferTaskListVO } from '@/views/ops/db/types';
 
@@ -36,3 +38,13 @@ export const dbTransferApi = {
     dbTransferFileDel: Api.newPost<void>('/dbTransfer/files/del/{fileId}'),
     dbTransferFileRun: Api.newPost<void, DbTransferFileRunForm>('/dbTransfer/files/run'),
 };
+
+/**
+ * 导出文件的下载地址（服务端鉴权入口）。
+ *
+ * 导出文件在写入时被声明为私有，通用文件路由会拒读它，只能走本模块带 db:transfer:files:down 权限码的入口。
+ * 下载由浏览器直接导航发起（无法附带 Authorization 头），因此凭据经查询参数携带，与全站下载链接一致。
+ */
+export function buildTransferFileDownloadUrl(fileId: number): string {
+    return `${config.baseApiUrl}/dbTransfer/files/content/${fileId}?${joinClientParams()}`;
+}

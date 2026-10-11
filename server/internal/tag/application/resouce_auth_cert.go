@@ -191,14 +191,22 @@ func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64)
 	}
 
 	if rac.Type == entity.AuthCertTypePublic {
-		if r.CountByCond(&entity.ResourceAuthCert{Ciphertext: rac.Name}) > 0 {
+		related, err := r.Exists(ctx, &entity.ResourceAuthCert{Ciphertext: rac.Name})
+		if err != nil {
+			return err
+		}
+		if related {
 			return errorx.NewBizI(ctx, imsg.ErrPublicAcRelated)
 		}
 		// 公共授权凭证直接删除即可
 		return r.DeleteById(ctx, id)
 	}
 
-	if r.CountByCond(&entity.ResourceAuthCert{ResourceCode: rac.ResourceCode, ResourceType: rac.ResourceType}) <= 1 {
+	bindCount, err := r.CountByCond(&entity.ResourceAuthCert{ResourceCode: rac.ResourceCode, ResourceType: rac.ResourceType})
+	if err != nil {
+		return err
+	}
+	if bindCount <= 1 {
 		return errorx.NewBizI(ctx, imsg.ErrResourceNoBindAc)
 	}
 
@@ -318,7 +326,11 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 	if rac.Name == "" {
 		rac.Name = stringx.Rand(10)
 	} else {
-		if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
+		exists, err := r.Exists(ctx, &entity.ResourceAuthCert{Name: rac.Name})
+		if err != nil {
+			return err
+		}
+		if exists {
 			return errorx.NewBizI(ctx, imsg.ErrAcNameExist, "acName", rac.Name)
 		}
 	}

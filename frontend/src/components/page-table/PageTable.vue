@@ -1,14 +1,17 @@
 <template>
     <div class="h-full flex flex-col flex-1 overflow-hidden">
-        <transition name="page-table-search-form">
-            <!-- 查询表单 -->
-            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm" :search="search" :reset="reset" :search-col="searchCol">
-                <!-- 遍历父组件传入的 solts 透传给子组件 -->
-                <template v-for="(_, key) in useSlots()" v-slot:[key]>
-                    <slot :name="key"></slot>
-                </template>
-            </SearchForm>
-        </transition>
+        <!-- 查询表单：常驻渲染 + grid rows 0fr↔1fr 高度过渡，展开收起时下方内容随高度平滑推移 -->
+        <div class="search-form-collapse" :class="{ 'is-open': isShowSearch }">
+            <!-- 内层承担裁剪：0fr 轨道的最小尺寸含 item 自身 padding/margin（会把塌缩态撑出空白带），故裁剪层必须零内边距 -->
+            <div class="search-form-collapse-inner">
+                <SearchForm :items="tableSearchItems" v-model="queryForm" :search="search" :reset="reset" :search-col="searchCol">
+                    <!-- 遍历父组件传入的 solts 透传给子组件 -->
+                    <template v-for="(_, key) in useSlots()" v-slot:[key]>
+                        <slot :name="key"></slot>
+                    </template>
+                </SearchForm>
+            </div>
+        </div>
 
         <el-card class="h-full" body-class="h-full flex flex-col">
             <!-- 表格头部 操作按钮 -->
@@ -19,41 +22,50 @@
 
                 <slot v-if="toolButton" name="toolButton">
                     <div class="flex">
-                        <!-- 简易单个搜索项 -->
-                        <div v-if="nowSearchItem" class="flex">
-                            <el-dropdown v-if="props.searchItems?.length > 1">
-                                <SvgIcon
-                                    :size="16"
-                                    name="CaretBottom"
-                                    class="mr-1! mt-1.5! simple-search-form-btn"
-                                    role="button"
-                                    :title="$t('common.searchFields')"
-                                    :aria-label="$t('common.searchFields')"
-                                />
-                                <template #dropdown>
-                                    <el-dropdown-menu>
-                                        <el-dropdown-item v-for="searchItem in searchItems" :key="searchItem.prop" @click="changeSimpleFormItem(searchItem)">
-                                            {{ $t(searchItem.label) }}
-                                        </el-dropdown-item>
-                                    </el-dropdown-menu>
-                                </template>
-                            </el-dropdown>
+                        <!-- 简易单个搜索项：完整搜索表单展开时隐藏，避免双搜索入口同屏重复（渐进披露） -->
+                        <transition name="pt-fade">
+                            <div v-if="nowSearchItem && !isShowSearch" class="flex items-center gap-2 simple-search-bar">
+                                <!-- 字段名即触发器（filter 惯例）：ghost 文字钮 + 开合旋转小箭头，无独立圆钮 -->
+                                <el-dropdown
+                                    v-if="props.searchItems?.length > 1"
+                                    trigger="click"
+                                    popper-class="page-table-field-menu"
+                                    @visible-change="onFieldMenuVisible"
+                                >
+                                    <span class="simple-search-field" :title="$t('common.searchFields')" :aria-label="$t('common.searchFields')">
+                                        {{ $t(nowSearchItem?.label) }}
+                                        <SvgIcon :size="12" name="ArrowDown" class="simple-search-field-arrow" :class="{ 'is-open': fieldMenuOpen }" />
+                                    </span>
+                                    <template #dropdown>
+                                        <el-dropdown-menu>
+                                            <el-dropdown-item
+                                                v-for="searchItem in searchItems"
+                                                :key="searchItem.prop"
+                                                :class="{ 'is-current': searchItem.prop === nowSearchItem?.prop }"
+                                                @click="changeSimpleFormItem(searchItem)"
+                                            >
+                                                <span class="field-menu-check">
+                                                    <SvgIcon v-if="searchItem.prop === nowSearchItem?.prop" name="Check" :size="12" />
+                                                </span>
+                                                {{ $t(searchItem.label) }}
+                                            </el-dropdown-item>
+                                        </el-dropdown-menu>
+                                    </template>
+                                </el-dropdown>
+                                <span v-else class="simple-search-field is-static">{{ $t(nowSearchItem?.label) }}</span>
 
-                            <div class="text-right mr-1.5 mt-1">
-                                <el-text truncated tag="b">{{ `${$t(nowSearchItem?.label)} : ` }}</el-text>
+                                <el-form-item class="w-[200px]" :key="nowSearchItem.prop">
+                                    <SearchFormItem
+                                        @keyup.enter="searchFormItemKeyUpEnter"
+                                        v-if="!nowSearchItem.slot"
+                                        :item="nowSearchItem"
+                                        v-model="queryForm[nowSearchItem.prop]"
+                                    />
+
+                                    <slot @keyup.enter="searchFormItemKeyUpEnter" v-else :name="nowSearchItem.slot"> </slot>
+                                </el-form-item>
                             </div>
-
-                            <el-form-item class="w-[200px]" :key="nowSearchItem.prop">
-                                <SearchFormItem
-                                    @keyup.enter="searchFormItemKeyUpEnter"
-                                    v-if="!nowSearchItem.slot"
-                                    :item="nowSearchItem"
-                                    v-model="queryForm[nowSearchItem.prop]"
-                                />
-
-                                <slot @keyup.enter="searchFormItemKeyUpEnter" v-else :name="nowSearchItem.slot"> </slot>
-                            </el-form-item>
-                        </div>
+                        </transition>
 
                         <div class="ml-2">
                             <el-button
@@ -67,23 +79,32 @@
 
                             <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
 
+                            <!-- 箭头固定用 ArrowUp，展开态旋转 180° 过渡，避免图标硬切换 -->
                             <el-button
                                 v-if="showToolButton('search') && props.searchItems?.length > 1"
-                                :icon="isShowSearch ? 'ArrowDown' : 'ArrowUp'"
                                 circle
                                 :title="$t(isShowSearch ? 'common.collapse' : 'common.expand')"
                                 :aria-label="$t(isShowSearch ? 'common.collapse' : 'common.expand')"
                                 @click="isShowSearch = !isShowSearch"
-                            />
+                            >
+                                <SvgIcon :size="13" name="ArrowUp" class="search-toggle-icon" :class="{ 'is-open': isShowSearch }" />
+                            </el-button>
 
                             <el-popover
                                 placement="bottom"
                                 :title="$t('common.columnConfig')"
-                                popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                                popper-class="page-table-column-config"
                                 width="auto"
                                 trigger="click"
                             >
-                                <div v-for="(item, index) in tableColumns" :key="index">
+                                <div class="column-config-item column-config-header">
+                                    <el-checkbox
+                                        v-model="allColumnsSelected"
+                                        :indeterminate="someColumnsSelected && !allColumnsSelected"
+                                        :label="$t('common.selectAll')"
+                                    />
+                                </div>
+                                <div v-for="(item, index) in tableColumns" :key="index" class="column-config-item">
                                     <el-checkbox v-model="item.show" :label="$t(item.label)" :true-value="1" :false-value="0" />
                                 </div>
                                 <template #reference>
@@ -101,7 +122,7 @@
                 </slot>
             </div>
 
-            <div class="flex-1 overflow-auto">
+            <div class="flex-1 overflow-auto" ref="tableWrapRef">
                 <el-table
                     v-show="showTable"
                     ref="tableRef"
@@ -137,7 +158,11 @@
 
                             <!-- 枚举类型使用tab展示 -->
                             <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag :size="props.size" :enums="item.typeParam as any" :value="item.getValueByData(scope.row) as any"></enum-tag>
+                                <enum-tag
+                                    :size="props.size"
+                                    :enums="item.typeParam ?? {}"
+                                    :value="(item.getValueByData(scope.row) as string | number | boolean | null)"
+                                ></enum-tag>
                             </template>
 
                             <template #default="scope" v-else>
@@ -174,7 +199,7 @@
                 </el-table>
             </div>
 
-            <el-row v-if="props.pageable" class="mt-4" type="flex" justify="end">
+            <el-row v-if="props.pageable" class="mt-4" justify="end">
                 <el-pagination
                     :small="props.size == 'small'"
                     @current-change="pageNumChange"
@@ -191,8 +216,9 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, toRefs, watch, reactive, onMounted, Ref, ref, useSlots, toValue, h } from 'vue';
+import { computed, toRefs, watch, reactive, onMounted, Ref, ref, useSlots, useTemplateRef, toValue } from 'vue';
 import { TableColumn } from './index';
+import { useColumnAutoWidth } from './useColumnAutoWidth';
 import EnumTag from '@/components/enum-tag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
 import { storeToRefs } from 'pinia';
@@ -262,6 +288,16 @@ const tableRef = ref<TableInstance>();
 // 接收 columns 并设置为响应式
 const tableColumns = reactive<TableColumn[]>(props.columns);
 
+// 列配置全选三态：与逐列复选框经 show 字段（1 显示 / 0 隐藏）双向联动
+const allColumnsSelected = computed({
+    get: () => tableColumns.length > 0 && tableColumns.every((c) => c.show === 1),
+    set: (checked) => {
+        const val = checked ? 1 : 0;
+        tableColumns.forEach((c) => (c.show = val));
+    },
+});
+const someColumnsSelected = computed(() => tableColumns.some((c) => c.show === 1));
+
 // 接收 searchItems 并设置为响应式
 const tableSearchItems = reactive<SearchItem[]>(props.searchItems);
 
@@ -277,8 +313,6 @@ const showToolButton = (key: 'setting' | 'search') => {
 
 const nowSearchItem: Ref<SearchItem | null> = ref<SearchItem | null>(null);
 
-// 是否已经计算列宽度
-const isCalculatedWidth: Ref<boolean> = ref(false);
 const showTable: Ref<boolean> = ref(false);
 
 /**
@@ -291,6 +325,12 @@ const changeSimpleFormItem = (searchItem: SearchItem) => {
         queryForm.value[nowSearchItem.value.prop] = null;
     }
     nowSearchItem.value = searchItem;
+};
+
+// 字段下拉开合状态：驱动触发器箭头旋转过渡
+const fieldMenuOpen = ref(false);
+const onFieldMenuVisible = (visible: boolean) => {
+    fieldMenuOpen.value = visible;
 };
 
 const pageSizeChange = (val: number) => {
@@ -318,31 +358,22 @@ const state = reactive({
 
 const { pageSizes, formatVal } = toRefs(state);
 
-watch(tableData, (_newValue: Record<string, unknown>[] | null) => {
-    calculateTableColumnMinWidth();
-    // 需要计算完才能显示表格，否则会有表格闪烁的问题
-    if (!showTable.value) {
-        showTable.value = true;
-    }
-});
+/** 表格包裹层：DOM 实测单元格内容宽的取量入口 */
+const tableWrapRef = useTemplateRef<HTMLElement>('tableWrapRef');
 
-/**
- * 计算表格列宽
- */
-const calculateTableColumnMinWidth = () => {
-    if (isCalculatedWidth.value || !tableData.value || tableData.value.length === 0) {
-        return;
-    }
-
-    // 计算表格列宽
-    props.columns.forEach((item) => {
-        if (item.autoWidth && item.show) {
-            item.autoCalculateMinWidth(tableData.value);
+// 列宽自适应：首轮非空数据到达时估算打底（完成后回调显示表格防闪烁）→ 渲染后 DOM 回填精修 → 定型（翻页冻结）
+useColumnAutoWidth({
+    tableWrapRef,
+    columns: () => props.columns,
+    tableData,
+    showSelection: () => props.showSelection,
+    onEstimated: () => {
+        // 需要计算完才能显示表格，否则会有表格闪烁的问题
+        if (!showTable.value) {
+            showTable.value = true;
         }
-    });
-
-    isCalculatedWidth.value = true;
-};
+    },
+});
 
 watch(
     () => props.data,
@@ -405,21 +436,141 @@ defineExpose({
 });
 </script>
 <style scoped lang="scss">
-.page-table-search-form-enter-active {
-    transition: all 0.3s ease-out;
-}
-
-.page-table-search-form-leave-active {
-    transition: all 0.3s ease-in;
-}
-
-.page-table-search-form-enter-from {
+// 展开收起：grid-template-rows 0fr↔1fr 是布局高度的平滑过渡（v-if 切换的瞬时塌陷是跳变的根源）。
+// visibility 收起态延迟到动画结束再隐藏，避免内容在收拢过程中提前消失；
+// collapsed 下表单常驻渲染（仅视觉隐藏），展开不再重建组件
+.search-form-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
     opacity: 0;
-    transform: translateY(-30px) scale(0.95);
+    visibility: hidden;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition:
+        grid-template-rows 0.3s ease-out,
+        opacity 0.25s ease-out,
+        transform 0.3s ease-out,
+        visibility 0s linear 0.3s;
+
+    // 内层是 grid item：必须零 padding/margin，0fr 轨道才能真正归零（轨道最小尺寸含 item 自身的 padding/margin）
+    .search-form-collapse-inner {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    &.is-open {
+        grid-template-rows: 1fr;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        pointer-events: auto;
+        transition:
+            grid-template-rows 0.3s ease-out,
+            opacity 0.25s ease-out,
+            transform 0.3s ease-out,
+            visibility 0s;
+    }
 }
 
-.page-table-search-form-leave-to {
+// 简易搜索条：字段名即下拉触发器（filter 惯例），ghost 形态与输入框同高对齐
+.simple-search-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease-out, color 0.15s ease-out;
+
+    &:hover {
+        background: var(--el-fill-color-light);
+        color: var(--el-color-primary);
+    }
+
+    // 单字段无下拉：纯文字占位，不可点
+    &.is-static {
+        padding: 0;
+        cursor: default;
+
+        &:hover {
+            background: none;
+            color: var(--el-text-color-regular);
+        }
+    }
+}
+
+.simple-search-field-arrow {
+    color: var(--el-text-color-secondary);
+    transition: transform 0.2s ease-out;
+
+    &.is-open {
+        transform: rotate(180deg);
+    }
+}
+
+// 简易条复用 el-form-item 承载控件，须去掉表单的下边距，避免撑高工具行
+.simple-search-bar .el-form-item {
+    margin-bottom: 0;
+}
+
+// 展开按钮箭头：旋转过渡替代图标硬切换
+.search-toggle-icon {
+    transition: transform 0.3s ease-out;
+
+    &.is-open {
+        transform: rotate(180deg);
+    }
+}
+
+// 简易搜索条出现/隐藏的轻淡入
+.pt-fade-enter-active,
+.pt-fade-leave-active {
+    transition: opacity 0.2s ease-out;
+}
+.pt-fade-enter-from,
+.pt-fade-leave-to {
     opacity: 0;
-    transform: translateY(-30px) scale(0.95);
+}
+
+// 字段切换下拉（teleport 到 body）：scoped 下 :global 需平铺整条选择器，嵌套子规则不会被导出。
+// 玻璃底/描边/阴影由全局 elevated 档提供，这里只收紧行距并标注当前字段
+:global(.page-table-field-menu) {
+    min-width: 150px;
+}
+:global(.page-table-field-menu .el-dropdown-menu) {
+    padding: 4px;
+}
+:global(.page-table-field-menu .el-dropdown-menu__item) {
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+:global(.page-table-field-menu .el-dropdown-menu__item.is-current) {
+    color: var(--el-color-primary);
+    font-weight: 600;
+}
+.field-menu-check {
+    display: inline-flex;
+    width: 14px;
+    margin-right: 6px;
+    vertical-align: -2px;
+}
+
+// 列配置 popover（teleport 到 body）：scoped 下 :global 需平铺整条选择器，嵌套子规则不会被导出
+:global(.page-table-column-config) {
+    max-width: 450px;
+    max-height: 550px;
+    overflow: auto;
+}
+:global(.page-table-column-config .column-config-item) {
+    padding: 2px 0;
+}
+:global(.page-table-column-config .column-config-header) {
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
 }
 </style>

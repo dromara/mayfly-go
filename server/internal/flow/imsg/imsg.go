@@ -30,6 +30,7 @@ const (
 	// procinst
 	LogProcinstStart
 	LogProcinstCancel
+	LogProcinstReschedule
 	LogCompleteTask
 	LogRejectTask
 	LogBackTask
@@ -124,4 +125,7 @@ const (
 	ReasonSegmentNoResolver    // 无法展开条件组引用
 	ReasonSegmentCrossBiz      // 条件组跨场景引用
 	ReasonScenarioNotGoverned  // 策略配了该场景，但生效资源里没有它治理的资源
+
+	// ErrProcinstBizNotPending 工单不在「已批准、待执行」态（已开始执行/已执行完/已取消），无法改期或取消
+	ErrProcinstBizNotPending
 )

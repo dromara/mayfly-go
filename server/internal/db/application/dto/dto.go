@@ -35,6 +35,17 @@ type DumpDb struct {
 
 	LogId uint64
 
+	// Mask 是否对导出行数据执行查询结果脱敏（与交互式查询同一套规则与 fail-close 口径）。
+	//
+	// 由调用方显式声明而不开默认 true：脱敏串写进备份文件后恢复即把脱敏值当真实数据写回库，
+	// 是不可逆污染，因此「迁移到库」与「备份到文件」必须保持 false；
+	// 而给人看的一次性导出（api.DumpSQL）必须置 true，否则脱敏列会经导出链路明文透出
+	Mask bool
+
+	// RowMask 已装配好的行级脱敏钩子，由 application 层按 Mask 意图生成后传给导出器，
+	// 调用方不要自己设置（直接给 transfer.DumpDbScript 传 Mask=true 而无 RowMask 会被拒绝）
+	RowMask export.RowMaskFn
+
 	Writer       io.Writer
 	TargetDbType dbi.DbType
 

@@ -321,6 +321,87 @@ describe('tree/useLazyTree 懒加载水合层', () => {
         expect(data.value[0].key).toBe('r-v1');
     });
 
+    // 右击已展开的库节点→刷新：库节点重建后，仍处展开态的 public/表 菜单若不被连带水合，
+    // 就永久停在「加载中」且不再发任何请求（TreeV2 只按 expandedKeys 恢复展开，不会自己拉数据）
+    it('refresh 祖先必须沿展开态逐层重新水合后代（收起的后代不后台补拉）', async () => {
+        let midLoads = 0;
+        const deepLoads: string[] = [];
+        registerContributor({
+            kind: 'top',
+            hasChildren: true,
+            loadChildren: async () => [{ key: 'mid1', kind: 'mid', label: 'mid' }],
+        });
+        registerContributor({
+            kind: 'mid',
+            hasChildren: true,
+            loadChildren: async () => {
+                midLoads++;
+                return [
+                    { key: 'deep1', kind: 'deep', label: 'deep1' },
+                    { key: 'deep2', kind: 'deep', label: 'deep2' },
+                ];
+            },
+        });
+        registerContributor({
+            kind: 'deep',
+            hasChildren: true,
+            loadChildren: async (n) => {
+                deepLoads.push(String(n.key));
+                return [leaf(String(n.key))];
+            },
+        });
+        const { getNode, init, expandNode, refresh, expandedKeys } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: async () => [{ key: 'top1', kind: 'top', label: 'top' }],
+        });
+        await init();
+        await expandNode('top1');
+        await expandNode('mid1');
+        await expandNode('deep1');
+        expect(midLoads).toBe(1);
+        expect(deepLoads).toEqual(['deep1']);
+
+        await refresh('top1');
+
+        // 刷新保持视图（后代仍在展开态），就必须一直重拉到最深层真实子节点，
+        // 不能只补一层就等用户手动收起再展开
+        expect(expandedKeys.value.has('deep1')).toBe(true);
+        expect(midLoads).toBe(2);
+        expect(getNode('deep1')!.loaded).toBe(true);
+        expect(getNode('deep1')!.children?.[0].kind).toBe('leaf');
+        // deep2 从未展开：刷新不得把它一并拉下来（一次刷新不该扫平整棵子树）
+        expect(deepLoads).toEqual(['deep1', 'deep1']);
+        expect(getNode('deep2')!.loaded).toBe(false);
+        expect(getNode('deep2')!.children?.[0].kind).toBe(LOADING_KIND);
+    });
+
+    it('根刷新不留「展开但未水合」的死占位（整树重建后收起，不后台补拉）', async () => {
+        let loads = 0;
+        registerContributor({
+            kind: 'top',
+            hasChildren: true,
+            loadChildren: async () => {
+                loads++;
+                return [leaf('top1')];
+            },
+        });
+        const { getNode, init, expandNode, refresh, expandedKeys } = useLazyTree({
+            loadChildren: async (n) => getContributor(n.kind)!.loadChildren!(n),
+            loadRoot: async () => [{ key: 'top1', kind: 'top', label: 'top' }],
+        });
+        await init();
+        await expandNode('top1');
+        expect(loads).toBe(1);
+
+        await refresh();
+
+        // 同名根节点被重建为未水合对象：收起比卡在「加载中」诚实，也避免一次刷新放大成整棵展开树的请求风暴
+        expect(expandedKeys.value.has('top1')).toBe(false);
+        expect(getNode('top1')!.loaded).toBe(false);
+        expect(getNode('top1')!.children?.[0].kind).toBe(LOADING_KIND);
+        expect(loads).toBe(1);
+    });
+
     it('收起态节点 refresh 只置占位不水合；随后 expandNode 才真正拉取（搜索后须先刷新再展开方可见结果）', async () => {
         let loadCount = 0;
         registerContributor({

@@ -168,10 +168,18 @@ export function useTableEdit(options: UseTableEditOptions) {
             return;
         }
 
-        dbInst.promptExeSql(db, res, undefined, () => {
-            cellUpdateMap.value.clear();
-            onSuccess?.();
-        });
+        // 一批行内编辑共用一次请求并原子提交：半批落库半批失败时，用户看到的是「提交了」
+        // 而表里只有一半是新值，比整批不生效更难排查（也可能没人会去核对）
+        dbInst.promptExeSql(
+            db,
+            res,
+            undefined,
+            () => {
+                cellUpdateMap.value.clear();
+                onSuccess?.();
+            },
+            true
+        );
     };
 
     const cancelUpdateFields = (onSuccess?: () => void) => {

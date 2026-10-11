@@ -248,10 +248,21 @@ func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType 
 
 // 判断该流程实例是否可以执行修改操作
 func (p *procdefAppImpl) canModify(ctx context.Context, prodefId uint64) error {
-	if activeInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusActive}); activeInstCount > 0 {
+	// 这里只关心「有没有」，用 Exists 而不是 CountByCond：既避免统计失败被当成「没有实例」而放行修改，
+	// 也省掉为判断存在性而做的全量计数
+	activeExist, err := p.procinstApp.Exists(ctx, &entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusActive})
+	if err != nil {
+		return err
+	}
+	if activeExist {
 		return errorx.NewBizI(ctx, imsg.ErrExistProcinstRunning)
 	}
-	if suspInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusSuspended}); suspInstCount > 0 {
+
+	suspendedExist, err := p.procinstApp.Exists(ctx, &entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusSuspended})
+	if err != nil {
+		return err
+	}
+	if suspendedExist {
 		return errorx.NewBizI(ctx, imsg.ErrExistProcinstSuspended)
 	}
 	return nil

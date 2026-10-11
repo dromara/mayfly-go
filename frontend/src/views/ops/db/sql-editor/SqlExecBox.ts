@@ -13,6 +13,13 @@ export type SqlExecProps = {
      * sql-formatter 只认自己的方言名，传错会直接抛 ConfigError 使弹窗打不开。
      */
     formatDialect: SqlFormatterLanguage;
+    /**
+     * 整批语句原子执行（全成功才提交，任一条失败即整批回滚）。
+     *
+     * 数据网格的批量行编辑、删除、新增表单都传 true：用户勾的是「提交修改」，
+     * 一批改动里有一半落库一半失败，比整批不生效更难收拾
+     */
+    atomic?: boolean;
     runSuccessCallback?: Function;
     cancelCallback?: Function;
 };

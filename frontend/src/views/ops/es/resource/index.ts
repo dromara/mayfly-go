@@ -76,9 +76,9 @@ registerContributor({
     selectable: true,
     renderer: NodeEs,
     locateCode: (node) => node.params.code as string,
-    loadRoots: async (groupNode: TreeNode) => {
+    loadRoots: async (tagPath: string) => {
         // 加载es实例列表
-        const res = await esApi.instances.request({ tagPath: groupNode.params?.tagPath as string });
+        const res = await esApi.instances.request({ tagPath });
         if (!res.total) {
             return [];
         }
@@ -86,7 +86,7 @@ registerContributor({
             key: `${x.code}`,
             kind: EsInstKind,
             label: x.name,
-            params: { ...x, tagPath: String(groupNode.key) },
+            params: { ...x, tagPath },
         }));
     },
     loadChildren: async (node: TreeNode) => {

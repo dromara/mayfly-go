@@ -70,7 +70,7 @@ func (md *MssqlMetadata) GetDbNames() ([]string, error) {
 // 获取表基础元信息, 如表名等
 func (md *MssqlMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	dialect := md.di.GetDialect()
-	schema := md.di.CurrentSchema()
+	schema := md.di.Schema
 	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
@@ -109,7 +109,7 @@ func (md *MssqlMetadata) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbi.QuoteEscape(dialect.Quoter().Trim(val)))
 	}), ",")
 
-	_, res, err := md.di.Query(fmt.Sprintf(metaSQL.Get(MSSQL_COLUMN_MA_KEY), tableName), md.di.CurrentSchema())
+	_, res, err := md.di.Query(fmt.Sprintf(metaSQL.Get(MSSQL_COLUMN_MA_KEY), tableName), md.di.Schema)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (md *MssqlMetadata) GetPrimaryKeys(tablename string) ([]string, error) {
 
 // 需要收集唯一键涉及的字段，所以需要查询出带主键的索引
 func (md *MssqlMetadata) getTableIndexWithPK(tableName string) ([]dbi.Index, error) {
-	_, res, err := md.di.Query(metaSQL.Get(MSSQL_INDEX_INFO_KEY), md.di.CurrentSchema(), tableName)
+	_, res, err := md.di.Query(metaSQL.Get(MSSQL_INDEX_INFO_KEY), md.di.Schema, tableName)
 	if err != nil {
 		return nil, err
 	}

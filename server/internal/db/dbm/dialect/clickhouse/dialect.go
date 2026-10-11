@@ -6,7 +6,7 @@ import (
 
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
-	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	sqlparserch "mayfly-go/internal/db/dbm/sqlparser/clickhouse"
 	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -30,8 +30,10 @@ func (cd *ClickHouseDialect) GetDumpTxnWrapper() dbi.DumpTxnWrapper {
 	return new(dbi.DefaultDumpTxnWrapper)
 }
 
+// GetSQLParser 使用 ClickHouse 自己的解析器：反引号引用符与 # / -- 行注释按 ClickhouseConfig
+// 词法化（曾复用 pg 配置，导致 `col` 形态的表名列名提取失真）
 func (cd *ClickHouseDialect) GetSQLParser() sqlparser.SQLParser {
-	return new(pgsql.PgsqlParser)
+	return new(sqlparserch.ClickhouseParser)
 }
 
 // GetSQLSplitter clickhouse 切割器：# 与 -- 均为行注释（-- 不要求后随空白），反引号为标识符引用符

@@ -32,7 +32,7 @@ func (md *MssqlMetadata) SupportedKinds() []dbi.ObjectKind {
 // resolveSchema 空 schema 回退当前默认架构（mssql 以 `?` 绑定，需具体值而非 SQL 端判空）
 func (md *MssqlMetadata) resolveSchema(schema string) string {
 	if schema == "" {
-		return md.di.CurrentSchema()
+		return md.di.Schema
 	}
 	return schema
 }

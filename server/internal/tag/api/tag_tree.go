@@ -186,5 +186,7 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 
 // 获取关联的标签id
 func (p *TagTree) GetRelateTagIds(rc *req.Ctx) {
-	rc.ResData = p.tagTreeRelateApp.GetTagPathsByRelate(entity.TagRelateType(rc.PathParamInt("relateType")), cast.ToUint64(rc.PathParam("relateId")))
+	tagPaths, err := p.tagTreeRelateApp.GetTagPathsByRelate(entity.TagRelateType(rc.PathParamInt("relateType")), cast.ToUint64(rc.PathParam("relateId")))
+	biz.ErrIsNil(err)
+	rc.ResData = tagPaths
 }

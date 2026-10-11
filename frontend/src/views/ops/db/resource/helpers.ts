@@ -5,7 +5,7 @@
 import { defineAsyncComponent } from 'vue';
 
 import { ResourceTypeEnum } from '@/common/commonEnum';
-import { createResourceOpTab } from '../../resource/resourceOp';
+import { createResourceOpTab, allResourceOpTabs, activeResourceOpTabKey, getResourceOpTab } from '../../resource/resourceOp';
 import type { TreeNode } from '../../resource/tree';
 import { getDbDialect } from '../dialect/index';
 import type { DbTreeNodeData, TreeNodeCallbackData, DbNodeParams, DbTableNodeParams, DbObjectNodeParams } from '../types';
@@ -142,6 +142,8 @@ export interface DbOpTabApi {
     onChangeDb: (db: DbTreeNodeData, dbName: string) => void;
     /** 打开表数据页签 */
     loadTableData: (db: DbTreeNodeData, dbName: string, tableName: string, readonly?: boolean, title?: string) => Promise<void>;
+    /** 打开活动会话页签（该库所在实例的会话列表与取消入口） */
+    openSessionTab: (db: DbTreeNodeData, dbName: string) => Promise<void>;
     /** 复制表 */
     onCopyTable: (data: TreeNodeCallbackData) => Promise<void>;
     /** 编辑表结构 */
@@ -169,8 +171,42 @@ export interface DbOpTabApi {
     reloadNode: (nodeKey: string) => void;
 }
 
-const getDbOpTab = async (params: Record<string, unknown>, nodeKey?: string | number) => {
-    const tabKey = `${params.instCode}.${params.dbCode}.${params.db}`;
+/**
+ * 库工作区 tab 的 key：`实例code.库code.库名.schema`，四段均以 `.` 分隔（与 instCode/dbCode 的分段约定一致）。
+ *
+ * `params.db` 是连接定位 locator（有 schema 层时为 `库/schema`，供 DbDataOp 建连用，wire 不动）；
+ * 这里还原出纯库名并**显式带独立 schema 段**，避免把 schema 折进 `/` 与库名里可能出现的 `/` 混淆
+ * （如 mysql 库名 `foo/bar` 的库级 tab，不应被另一个库 `foo` 的库级命令误命中）。
+ * 无 schema 层的方言 schema 段为空，key 以 `.` 结尾。
+ */
+const dbOpTabKey = (params: Record<string, unknown>) => {
+    const schema = (params.schema as string) ?? '';
+    const locator = params.db as string;
+    // 仅当 locator 确实以 `/schema` 结尾时才剥回纯库名，防止无 schema 层方言的库名含 `/` 被误剥
+    const dbName = schema && locator.endsWith(`/${schema}`) ? locator.slice(0, -(`/${schema}`.length)) : locator;
+    return `${params.instCode}.${params.dbCode}.${dbName}.${schema}`;
+};
+
+/**
+ * 库级操作（活动会话等）该落进哪个已有工作区。
+ *
+ * 库节点的 dbOpTabKey 无 schema 段（以 `.` 结尾），而带 schema 层的方言是按 `库.schema` 分支建工作区 tab 的，
+ * 按库级 key 查必然查不到，于是给同一个库再挂一个 tab——用户在界面上看到「凭空多出一个操作 tab」。
+ * 这里补齐对齐：库级 key（`...db.`）正是其各 schema 分支 key（`...db.public`）的前缀，按 `.` 边界归一，
+ * 复用已有工作区（当前激活的分支优先，其次任意分支），一个都没有才由调用方按库级 key 新建。
+ * mysql（schema 段为空）库级 key 本身即已存在 → 第一步精确命中，只往已有 tab 里加子 tab。
+ */
+export const findDbWorkspaceTabKey = (dbTabKey: string): string | undefined => {
+    if (getResourceOpTab(dbTabKey)) {
+        return dbTabKey;
+    }
+    // dbTabKey 以 `.` 结尾（schema 段为空），其分支 tab 键形如 `${dbTabKey}<schema>`；以 `.` 为段边界，
+    // 天然不误命中同前缀的其他库（`...mydb.` 不会匹配 `...mydb2.public`）
+    const branchKeys = [...allResourceOpTabs.keys()].filter((key) => key.startsWith(dbTabKey) && key.length > dbTabKey.length);
+    return branchKeys.includes(activeResourceOpTabKey.value) ? activeResourceOpTabKey.value : branchKeys[0];
+};
+
+const getDbOpTab = async (params: Record<string, unknown>, nodeKey?: string | number, tabKey = dbOpTabKey(params)) => {
     return await createResourceOpTab({
         key: tabKey,
         name: `${params.name}/${params.db}`,
@@ -196,6 +232,16 @@ const getDbOpTab = async (params: Record<string, unknown>, nodeKey?: string | nu
     });
 };
 
-export const getDbOpTabCompInst = async (params: Record<string, unknown>, nodeKey?: string | number): Promise<DbOpTabApi | undefined> => {
-    return (await getDbOpTab(params, nodeKey)).componentInstance as DbOpTabApi | undefined;
+/**
+ * @param reuseDbWorkspace 库级操作入口置 true：同一库已有工作区（含 `库/schema` 分支）时复用之而非再开一个 tab，
+ * 判据见 findDbWorkspaceTabKey
+ */
+export const getDbOpTabCompInst = async (
+    params: Record<string, unknown>,
+    nodeKey?: string | number,
+    reuseDbWorkspace = false
+): Promise<DbOpTabApi | undefined> => {
+    const tabKey = dbOpTabKey(params);
+    const targetKey = reuseDbWorkspace ? (findDbWorkspaceTabKey(tabKey) ?? tabKey) : tabKey;
+    return (await getDbOpTab(params, nodeKey, targetKey)).componentInstance as DbOpTabApi | undefined;
 };

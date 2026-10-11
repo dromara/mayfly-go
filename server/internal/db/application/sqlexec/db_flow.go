@@ -1,0 +1,11 @@
+package sqlexec
+
+import flowapp "mayfly-go/internal/flow/application"
+
+const (
+	DbSQLExecFlowBizType = "db_sql_exec_flow" // db sql exec flow biz type
+)
+
+func InitDbFlowHandler() {
+	flowapp.RegisterBizHandler(DbSQLExecFlowBizType, GetDbSQLExecApp())
+}

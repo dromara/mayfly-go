@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	fileapp "mayfly-go/internal/file/application"
 	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
@@ -12,11 +11,10 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"regexp"
 	"strings"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // BatchFileResult 单台机器的批量文件分发结果。单台失败不影响他台，逐台聚合返回
@@ -114,7 +112,7 @@ func (b *machineBatchFileAppImpl) dispatchOne(ctx context.Context, machineId uin
 	me, err := b.machineApp.GetById(machineId)
 	if err != nil {
 		// GORM 原始错误（如 record not found）不能直抬给用户：界面会多出无上下文的英文短语
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if model.IsNotFound(err) {
 			res.Error = i18n.TC(ctx, imsg.ErrMachineNotFoundById, "machineId", machineId)
 		} else {
 			res.Error = err.Error()

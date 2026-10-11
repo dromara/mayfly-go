@@ -106,4 +106,12 @@ const (
 	TmplAlertRecoverTitle
 	TmplAlertNotifyBody
 	TmplAlertRecoverBody
+
+	// ---- 数据库实例指标名称 ----
+	MetricDbPingFail
+	MetricDbSessionsActive
+	MetricDbSessionMaxElapsed
+	MetricDbLockWaitCount
+	// MetricDbSchemaDrift 与表结构基线不一致的表数
+	MetricDbSchemaDrift
 )

@@ -11,6 +11,7 @@ import (
 	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/export"
+	"mayfly-go/pkg/errorx"
 )
 
 // DumpDbScript dump核心逻辑：将dbConn指向的源库表结构/数据导出为目标格式。
@@ -30,6 +31,13 @@ func DumpDbScript(ctx context.Context, dbConn *dbi.DbConn, reqParam *dto.DumpDb)
 		return &export.FormatError{Format: format}
 	}
 
+	// 声明了要脱敏却没装配钩子：宁可报错也不能静默导出未脱敏数据。
+	// 钩子由 application.DbAppImpl.DumpDb 统一装配（它同时持有连接与脱敏引擎），
+	// 任何绕过该入口直调本函数的调用方都不能只给 Mask 就算“已脱敏”
+	if reqParam.Mask && reqParam.RowMask == nil {
+		return errorx.NewBiz("masking was required but no row mask was assembled for this dump")
+	}
+
 	// 导出配置
 	settings := reqParam.Settings
 	if settings == nil {
@@ -42,6 +50,7 @@ func DumpDbScript(ctx context.Context, dbConn *dbi.DbConn, reqParam *dto.DumpDb)
 		WithTableFilter(reqParam.TableFilter).
 		WithDumpDDL(reqParam.DumpDDL).
 		WithDumpData(reqParam.DumpData).
+		WithRowMask(reqParam.RowMask).
 		WithTargetType(reqParam.TargetDbType).
 		WithSkipDropTable(reqParam.SkipDropTable).
 		WithNameCase(reqParam.NameCase).

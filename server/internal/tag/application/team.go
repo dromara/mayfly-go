@@ -31,9 +31,9 @@ type Team interface {
 
 	SaveMember(ctx context.Context, tagTeamMember *entity.TeamMember) error
 
-	DeleteMember(tx context.Context, teamId, accountId uint64)
+	DeleteMember(ctx context.Context, teamId, accountId uint64) error
 
-	IsExistMember(teamId, accounId uint64) bool
+	IsExistMember(ctx context.Context, teamId, accounId uint64) (bool, error)
 
 	DeleteTag(tx context.Context, teamId, tagId uint64) error
 }
@@ -64,7 +64,13 @@ func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) err
 
 	return p.Tx(ctx, func(ctx context.Context) error {
 		if team.Id == 0 {
-			if p.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
+			// 存在性判断走带 ctx 的 Exists：它复用本事务连接，能看见本事务尚未提交的写入。
+			// 原先用无 ctx 的 CountByCond，等于在事务外查重——两个并发同名创建都会通过校验
+			exists, err := p.Exists(ctx, &entity.Team{Name: saveParam.Name})
+			if err != nil {
+				return err
+			}
+			if exists {
 				return errorx.NewBizI(ctx, imsg.ErrNameExist)
 			}
 
@@ -90,14 +96,30 @@ func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) err
 			}
 		}
 
-		// 删除该团队关联账号的标签缓存
-		teamMembers, _ := p.teamMemberRepo.SelectByCond(&entity.TeamMember{TeamId: team.Id})
-		for _, tm := range teamMembers {
-			cache.DelAccountTagPaths(tm.AccountId)
+		// 保存团队关联的标签信息
+		if err := p.tagTreeRelateApp.RelateTag(ctx, entity.TagRelateTypeTeam, team.Id, saveParam.CodePaths...); err != nil {
+			return err
 		}
 
-		// 保存团队关联的标签信息
-		return p.tagTreeRelateApp.RelateTag(ctx, entity.TagRelateTypeTeam, team.Id, saveParam.CodePaths...)
+		// 团队关联账号的标签缓存必须等事务提交后再清，三个理由各自独立：
+		//   - 基座读入口还不接 ctx，事务内的读走的是连接池而不是事务那条连接：既读不到本事务
+		//     刚插入的成员，也会在事务占满连接池时等不到空闲连接而长时间不返回；
+		//   - 本次事务里刚加进来的成员在提交前读不到，于是新成员的标签缓存每次都被漏清；
+		//   - 缓存失效属于「提交后才该生效」的副作用，事务中途回滚却已清过缓存会留下脏读窗口。
+		// 错误也不再吞掉：清理失败意味着账号继续看到旧标签，必须留下痕迹
+		return base.AfterCommit(ctx, func(runCtx context.Context) error {
+			teamMembers, err := p.teamMemberRepo.SelectByCond(&entity.TeamMember{TeamId: team.Id})
+			if err != nil {
+				// 只记日志不把错误回报给调用方：团队本身已提交成功，而缓存陈旧只会让成员短暂看到
+				// 旧标签，下一次加载即可纠正。把它做成接口失败会让用户以为没保存而重复提交
+				logx.ErrorfContext(runCtx, "failed to list team members for tag cache invalidation, team %d: %v", team.Id, err)
+				return nil
+			}
+			for _, tm := range teamMembers {
+				cache.DelAccountTagPaths(tm.AccountId)
+			}
+			return nil
+		})
 	})
 }
 
@@ -120,19 +142,23 @@ func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam mode
 // 保存团队成员信息
 func (p *teamAppImpl) SaveMember(ctx context.Context, teamMember *entity.TeamMember) error {
 	teamMember.Id = 0
-	if p.teamMemberRepo.IsExist(teamMember.TeamId, teamMember.AccountId) {
+	exist, err := p.teamMemberRepo.IsExist(ctx, teamMember.TeamId, teamMember.AccountId)
+	if err != nil {
+		return err
+	}
+	if exist {
 		return errorx.NewBizI(ctx, imsg.ErrMemeberExist)
 	}
 	return p.teamMemberRepo.Insert(ctx, teamMember)
 }
 
 // 删除团队成员信息
-func (p *teamAppImpl) DeleteMember(ctx context.Context, teamId, accountId uint64) {
-	p.teamMemberRepo.DeleteByCond(ctx, &entity.TeamMember{TeamId: teamId, AccountId: accountId})
+func (p *teamAppImpl) DeleteMember(ctx context.Context, teamId, accountId uint64) error {
+	return p.teamMemberRepo.DeleteByCond(ctx, &entity.TeamMember{TeamId: teamId, AccountId: accountId})
 }
 
-func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
-	return p.teamMemberRepo.IsExist(teamId, accounId)
+func (p *teamAppImpl) IsExistMember(ctx context.Context, teamId, accounId uint64) (bool, error) {
+	return p.teamMemberRepo.IsExist(ctx, teamId, accounId)
 }
 
 //--------------- 标签相关接口 ---------------

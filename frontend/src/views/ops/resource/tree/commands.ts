@@ -5,7 +5,7 @@ import { reportDuplicateRegistration } from '@/common/utils/devRegistration';
 import type { TreeApi, TreeCommandCtx } from './types';
 
 /**
- * 命令/菜单注册表：操作与节点类型解耦（VS Code commands+menus 模式）。
+ * 命令/菜单注册表：操作与节点类型解耦——命令与菜单各自独立注册，再按节点类型挂载。
  * - registerCommand 定义命令（文案/图标/handler）
  * - registerMenu 声明命令挂在哪些节点类型上（when 条件 + 权限 + 分组排序 + 触发方式）
  * - 容器右键菜单与节点悬浮按钮共用 resolveNodeMenu 单源，可见性判定单点收口
@@ -108,7 +108,7 @@ export function resolveNodeMenu(kind: string): ContextmenuItem[] {
 }
 
 /**
- * 注册表完整性自检（DEV 启动期调用，对标 VS Code contribution validation）：
+ * 注册表完整性自检（DEV 启动期调用）：
  * 菜单挂了未注册命令会静默丢菜单项（拼写错误难发现），此处显式告警暴露
  * @returns 问题描述列表（空数组表示注册表完整）
  */

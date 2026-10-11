@@ -28,6 +28,10 @@ type Procinst struct {
 	Remark   string         `json:"remark" gorm:"size:255;"`
 	EndTime  *time.Time     `json:"endTime" gorm:"comment:结束时间"`
 	Duration int64          `json:"duration" gorm:"comment:流程持续时间（开始到结束）"` // 持续时间（开始到结束）
+
+	// PlannedExecTime 计划执行时间：审批通过后到点才回放业务；为空=批准后立即执行。
+	// 它是清扫任务按到期领取的 WHERE 维度，故落物理列（不能收进流程变量，否则无法在 SQL 里按时间过滤）。
+	PlannedExecTime *time.Time `json:"plannedExecTime" gorm:"comment:计划执行时间(审批通过后到点执行,空=立即)"`
 }
 
 func (a *Procinst) TableName() string {
@@ -75,6 +79,7 @@ type ProcinstBizStatus int8
 
 const (
 	ProcinstBizStatusWait    ProcinstBizStatus = 1  // 待处理
+	ProcinstBizStatusDoing   ProcinstBizStatus = 3  // 执行中：已被某个执行者领取，尚未回写结果
 	ProcinstBizStatusSuccess ProcinstBizStatus = 2  // 成功
 	ProcinstBizStatusNo      ProcinstBizStatus = -1 // 不处理
 	ProcinstBizStatusFail    ProcinstBizStatus = -2 // 失败

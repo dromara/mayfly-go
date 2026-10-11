@@ -57,8 +57,8 @@ registerContributor({
     renderer: NodeKafka,
     // 节点 key 带 `kafka.` 前缀，定位 code 取 params.code（= 集群 code）而非 key
     locateCode: (node) => node.params.code as string,
-    loadRoots: async (groupNode: TreeNode) => {
-        const res = await mqApi.kafkaList.request({ tagPath: groupNode.params?.tagPath as string });
+    loadRoots: async (tagPath: string) => {
+        const res = await mqApi.kafkaList.request({ tagPath });
         if (!res.total) {
             return [];
         }

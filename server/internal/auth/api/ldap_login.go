@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
@@ -23,7 +22,6 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
-	"gorm.io/gorm"
 )
 
 type LdapLogin struct {
@@ -93,14 +91,14 @@ func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account
 	return account, nil
 }
 
-func (a *LdapLogin) createUser(userName, displayName string) {
+func (a *LdapLogin) createUser(ctx context.Context, userName, displayName string) {
 	account := &sysentity.Account{Username: userName}
-	account.FillBaseInfo(model.IdGenTypeNone, nil)
+	account.FillBaseInfo(nil)
 	account.Name = displayName
-	biz.ErrIsNil(a.accountApp.Create(context.TODO(), account))
+	biz.ErrIsNil(a.accountApp.Create(ctx, account))
 	// 将 LADP 用户本地密码设置为空，不允许本地登录
 	account.Password = cryptox.PwdHash("")
-	biz.ErrIsNil(a.accountApp.Update(context.TODO(), account))
+	biz.ErrIsNil(a.accountApp.Update(ctx, account))
 }
 
 func (a *LdapLogin) getOrCreateUserWithLdap(ctx context.Context, userName string, password string, cols ...string) (*sysentity.Account, error) {
@@ -110,8 +108,8 @@ func (a *LdapLogin) getOrCreateUserWithLdap(ctx context.Context, userName string
 	}
 
 	account, err := a.getUser(userName, cols...)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		a.createUser(userName, userInfo.DisplayName)
+	if model.IsNotFound(err) {
+		a.createUser(ctx, userName, userInfo.DisplayName)
 		return a.getUser(userName, cols...)
 	} else if err != nil {
 		return nil, err

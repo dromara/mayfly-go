@@ -28,12 +28,22 @@ import (
 	"mayfly-go/pkg/utils/writerx"
 )
 
+// RowMaskFn 行级数据改写钩子：在一行数据交给格式层之前就地修改它（典型用途为查询结果脱敏）。
+//
+// 内核只提供接缝、不感知脱敏规则属哪个业务模块（dbm 禁止依赖业务模块，见 boundary_test 守卫）：
+//   - tableName 为该行的源表名，columns 为行 map 的实际键（与元数据列一一对应）
+//   - 返回 error 会中止整次导出：脱敏计划不可用时宁可不出文件，也不能透出未脱敏数据
+type RowMaskFn func(ctx context.Context, tableName string, columns []string, row map[string]any) error
+
 // Exporter 共享导出编排器。
 type Exporter struct {
 	dbConn   *dbi.DbConn
 	consumer Consumer
 	settings *Settings
 	writer   io.Writer
+
+	// rowMask 行级改写钩子，nil 表示不改写（默认行为不变）
+	rowMask RowMaskFn
 
 	dumpDDL  bool
 	dumpData bool
@@ -76,6 +86,12 @@ func NewExporter(dbConn *dbi.DbConn, consumer Consumer, settings *Settings, writ
 		log:              defaultLog,
 		progress:         defaultProgress,
 	}
+}
+
+// WithRowMask 设置行级改写钩子（如脱敏）。不设置则行为与之前完全一致。
+func (e *Exporter) WithRowMask(mask RowMaskFn) *Exporter {
+	e.rowMask = mask
+	return e
 }
 
 // WithTables 设置要导出的表列表
@@ -433,6 +449,12 @@ func (e *Exporter) exportData(ctx context.Context, writer *writerx.StringWriter,
 				return err
 			}
 			colKeys = resolvedKeys
+		}
+		// 行级改写必须在取列值之前作用于原始行：取完 rowValues 后再改写会漏掉长度统计与分批依据
+		if e.rowMask != nil {
+			if err := e.rowMask(ctx, tableName, colKeys, row); err != nil {
+				return err
+			}
 		}
 		rowValues := make([]any, len(cols))
 		rowBytes := 0

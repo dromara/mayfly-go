@@ -33,7 +33,7 @@ func (cm *ClickHouseMetadata) ListObjects(_ context.Context, _ string, kind dbi.
 	if kind != dbi.KindView {
 		return nil, dbi.ErrUnsupportedKind
 	}
-	_, res, err := cm.di.Query(metaSQL.Get(CLICKHOUSE_VIEWS_KEY), cm.di.GetDatabase())
+	_, res, err := cm.di.Query(metaSQL.Get(CLICKHOUSE_VIEWS_KEY), cm.di.Database)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (cm *ClickHouseMetadata) ObjectDDL(_ context.Context, _ string, kind dbi.Ob
 	if kind != dbi.KindView {
 		return "", dbi.ErrUnsupportedKind
 	}
-	_, res, err := cm.di.Query(metaSQL.Get(CLICKHOUSE_VIEW_DDL_KEY), cm.di.GetDatabase(), name)
+	_, res, err := cm.di.Query(metaSQL.Get(CLICKHOUSE_VIEW_DDL_KEY), cm.di.Database, name)
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +68,7 @@ func (cm *ClickHouseMetadata) ObjectDDL(_ context.Context, _ string, kind dbi.Ob
 // clickhouse 的 primary_key 是表引擎设置里的有序列清单；无关系型数据库那种列级唯一键约束，
 // 故仅返回主键（primary_key 为空即 MergeTree 未设主键时返回空列表，不虚构）。
 func (cm *ClickHouseMetadata) GetKeys(_ context.Context, _, table string) ([]dbi.KeyConstraint, error) {
-	_, res, err := cm.di.Query("SELECT primary_key FROM system.tables WHERE database = ? AND name = ?", cm.di.GetDatabase(), table)
+	_, res, err := cm.di.Query("SELECT primary_key FROM system.tables WHERE database = ? AND name = ?", cm.di.Database, table)
 	if err != nil {
 		return nil, err
 	}

@@ -96,6 +96,8 @@ const bizComponents = shallowReactive<Record<string, unknown>>({
 const items = defineFormItems<ProcInstStartForm>([
     { prop: 'bizType', label: 'flow.bizType', type: 'enum', enums: FlowBizType, required: true, onChange: (_value, form) => changeBizType(form) },
     { prop: 'remark', label: 'common.remark', type: 'textarea', required: true },
+    // 计划执行时间（可选）：留空则审批通过后立即执行；选了未来时间则到点才回放业务
+    { prop: 'plannedExecTime', label: 'flow.plannedExecTime', type: 'datetime', placeholder: 'flow.plannedExecTimeTip', props: { format: 'YYYY-MM-DD HH:mm:ss', valueFormat: 'YYYY-MM-DD HH:mm:ss' } },
 ]);
 
 const state = reactive({
@@ -148,6 +150,11 @@ const btnOk = async () => {
     } catch (e: unknown) {
         Msg.error('flow.procinstFormError');
         throw new Error('biz form invalid');
+    }
+
+    // 计划执行时间未设时归一为空串：model.JsonTime 将空串视为零值（= 批准后立即执行），与未传该字段同义
+    if (internalForm.value && internalForm.value.plannedExecTime == null) {
+        internalForm.value.plannedExecTime = '';
     }
 
     await procinstStart();

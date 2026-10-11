@@ -73,7 +73,7 @@ func V1_9_4() []*gormigrate.Migration {
 						Status:  1,
 						Remark:  &tmplRemark,
 					}
-					msgTmpl.FillBaseInfo(model.IdGenTypeNone, la)
+					msgTmpl.FillBaseInfo(la)
 					if err := tx.Create(msgTmpl).Error; err != nil {
 						logx.ErrorTrace("create msg tmpl error", err)
 						return err

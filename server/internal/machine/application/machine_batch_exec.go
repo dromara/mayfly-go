@@ -13,8 +13,7 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/i18n"
-
-	"gorm.io/gorm"
+	"mayfly-go/pkg/model"
 )
 
 // 批量执行限额集中收口：如未来需要可配，从这里升级为系统配置扩展点即可，不散落调用点
@@ -80,7 +79,7 @@ func (b *machineBatchExecImpl) runOne(ctx context.Context, machineId uint64, cmd
 	me, err := b.machineApp.GetById(machineId)
 	if err != nil {
 		// GORM 原始错误（如 record not found）不能直抬给用户：界面会多出无上下文的英文短语
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if model.IsNotFound(err) {
 			res.Error = i18n.TC(ctx, imsg.ErrMachineNotFoundById, "machineId", machineId)
 		} else {
 			res.Error = err.Error()

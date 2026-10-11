@@ -202,6 +202,11 @@ func (bus *EventBus[T]) doPublish(ctx context.Context, handler *eventHandler[T],
 
 func (bus *EventBus[T]) doPublishAsync(ctx context.Context, subId string, handler *eventHandler[T], event *Event[T]) {
 	defer bus.wg.Done()
+
+	// 异步投递跑在独立协程里，通常晚于 HTTP 响应返回：沿用发布方的 ctx 会让订阅者里的落库在驱动层
+	// 直接失败（实测资源操作留痕表 INSERT 得到 rows:0 + "context canceled"），错误只进日志、数据
+	// 永久丢失。WithoutCancel 只剥取消信号，traceId 与登录账号等链路信息照常保留
+	ctx = context.WithoutCancel(ctx)
 	if handler.transactional {
 		defer handler.Unlock()
 	}

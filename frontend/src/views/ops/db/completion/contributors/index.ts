@@ -4,6 +4,7 @@ import { keywordContributor } from './keyword';
 import { schemaContributor } from './schema';
 import { snippetContributor } from './snippet';
 import { tableContributor } from './table';
+import { valueContributor } from './value';
 
 /**
  * 补全贡献者注册表
@@ -16,6 +17,8 @@ import { tableContributor } from './table';
 const BUILTIN_ORDER = {
     schema: 10,
     column: 20,
+    // 值补全排在字段之后、表名之前：它只在 `列 = ` 这类窄上下文里命中，命中即 exclusive 收敛整条链
+    value: 25,
     table: 30,
     snippet: 40,
     keyword: 50,
@@ -67,9 +70,10 @@ export function registerContributor(contributor: SuggestionContributor, order: n
     chain.splice(insertAt, 0, contributor);
 }
 
-// 内置链：schema（库名）-> column（字段，含 `.` 触发的专属场景）-> table（表名）-> snippet（片段模板）-> keyword（关键字等）
+// 内置链：schema（库名）-> column（字段，含 `.` 触发的专属场景）-> value（列值）-> table（表名）-> snippet（片段模板）-> keyword（关键字等）
 registerContributor(schemaContributor, BUILTIN_ORDER.schema);
 registerContributor(columnContributor, BUILTIN_ORDER.column);
+registerContributor(valueContributor, BUILTIN_ORDER.value);
 registerContributor(tableContributor, BUILTIN_ORDER.table);
 registerContributor(snippetContributor, BUILTIN_ORDER.snippet);
 registerContributor(keywordContributor, BUILTIN_ORDER.keyword);

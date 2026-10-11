@@ -92,4 +92,9 @@ var En = map[i18n.MsgId]string{
 	TmplAlertRecoverBody: "[Alert Recovered]\nRule: {{.ruleName}}\nResource: {{.resourceName}}\nMetric: {{.metric}}\nPriority: {{.priority}}\n" +
 		"First Triggered: {{.firstTime}}\nRecovered At: {{.recoverTime}}\nDuration: {{.durationText}}\n" +
 		"Total Triggers: {{.triggerCount}}\nNotify Count: {{.notifyCount}}",
+	MetricDbPingFail:          "DB unreachable",
+	MetricDbSessionsActive:    "Active sessions",
+	MetricDbSessionMaxElapsed: "Max session elapsed seconds",
+	MetricDbLockWaitCount:     "Sessions waiting for lock",
+	MetricDbSchemaDrift:       "Tables differing from the structure baseline",
 }

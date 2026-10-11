@@ -1,11 +1,12 @@
 package api
 
 import (
-	"github.com/spf13/cast"
 	"mayfly-go/internal/msg/application"
 	"mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
+
+	"github.com/spf13/cast"
 )
 
 type Msg struct {
@@ -38,7 +39,9 @@ func (m *Msg) GetUnreadCount(rc *req.Ctx) {
 		RecipientId: int64(rc.GetLoginAccount().Id),
 		Status:      entity.MsgStatusUnRead,
 	}
-	rc.ResData = m.msgApp.CountByCond(condition)
+	count, err := m.msgApp.CountByCond(condition)
+	biz.ErrIsNil(err)
+	rc.ResData = count
 }
 
 // ReadMsg 将账号接收的未读消息标记为已读

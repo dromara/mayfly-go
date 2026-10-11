@@ -4,14 +4,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"path"
 	"regexp"
 	"strings"
-
-	"gorm.io/gorm"
 
 	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/domain/repository"
@@ -104,7 +101,7 @@ func (a *skillPluginAppImpl) ListSkills(ctx context.Context) ([]*entity.Skill, e
 func (a *skillPluginAppImpl) GetInstructions(ctx context.Context, id uint64) (string, error) {
 	res, err := a.resourceRepo.SelectBySkillIdAndPath(ctx, id, entity.SkillMdPath)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if model.IsNotFound(err) {
 			return "", nil // 无 SKILL.md 视为空正文（read_instructions 降级）
 		}
 		return "", err // 非“不存在”类错误（连接/权限等）必须上抛，避免误导前端覆盖真文
@@ -117,7 +114,11 @@ func (a *skillPluginAppImpl) CreateSkill(ctx context.Context, req *SkillSaveReq)
 	if err != nil {
 		return nil, err
 	}
-	if a.CountByCond(&entity.Skill{Code: code}) > 0 {
+	exists, err := a.Exists(ctx, &entity.Skill{Code: code})
+	if err != nil {
+		return nil, err
+	}
+	if exists {
 		return nil, errorx.NewBizf("skill code already exists: %s", code)
 	}
 	skillRow := &entity.Skill{
@@ -407,7 +408,7 @@ func (a *skillPluginAppImpl) ListPublishedSkills(ctx context.Context) ([]*skill.
 		}
 		res, err := a.resourceRepo.SelectBySkillIdAndPath(ctx, s.Id, entity.SkillMdPath)
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if model.IsNotFound(err) {
 				continue // 无 SKILL.md 的技能跳过（不注入）
 			}
 			return nil, err // 真实 DB 错误上抛，由 Registry 层退回缓存兜底

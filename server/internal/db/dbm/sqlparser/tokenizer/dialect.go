@@ -63,8 +63,16 @@ type DialectConfig struct {
 	// BlockMode 复合语句块感知档位（仅语句切割器使用）
 	BlockMode BlockMode
 
-	// ExtraKeywords 方言额外关键字集合
+	// ExtraKeywords 方言额外关键字集合：只登记该方言的**保留字**（真保留字不能作裸标识符，
+	// 登记后才能被子句边界与结构分支识别）。是否保留以各数据库官方文档为准，
+	// 非保留字（如 T-SQL 的 USING、Oracle 的 START、各方言的 TOP）一律不登记，
+	// 由解析层在「该位置只能是子句头或只能是名称」的结构判据上处理
 	ExtraKeywords map[string]bool
+
+	// Hierarchic 是否支持 START WITH / CONNECT BY 层次查询（Oracle 系）。
+	// 这两个词不是 Oracle 保留字，无法靠关键字表识别，也不能对所有方言按词值配对：
+	// 否则 T-SQL 的 `FROM start WITH (NOLOCK)`（start 作表名）会被当成层次子句头而截断 FROM
+	Hierarchic bool
 }
 
 // 各方言能力表：与前端 utils/sqlParser.ts 的 dialectSplitOptions 逐项对应，
@@ -81,6 +89,18 @@ var (
 		LineCommentNeedsWhitespace: true,
 		ExecutableComment:          true,
 		BlockMode:                  BlockProcedural,
+		// IGNORE 是 mysql 特有的 INSERT 修饰符（INSERT IGNORE，冲突时跳过插入），
+		// 非跨方言标准关键字，故只登记在 mysql 能力表：解析器据 IsKeyword("IGNORE")
+		// 识别冲突处理形态并让采集层 fail-closed，避免污染其他方言把 ignore 当关键字
+		// STRAIGHT_JOIN 是 mysql 的连接词（等价 INNER JOIN + 强制左表先行），
+		// IsJoinStart 已含该词（跨方言共用），登记后 mysql 才能识别并解析它；
+		// DELAYED / LOW_PRIORITY / HIGH_PRIORITY / QUICK 是 INSERT/UPDATE/DELETE 的语句级修饰词，
+		// 同为 MySQL 保留字，登记后骨架才认得出「INSERT DELAYED IGNORE INTO」这类形态
+		// （登记在 mysql 一侧，其他方言里 delayed/quick 仍可作裸表名）
+		ExtraKeywords: map[string]bool{
+			"IGNORE": true, "STRAIGHT_JOIN": true, "DELAYED": true,
+			"LOW_PRIORITY": true, "HIGH_PRIORITY": true, "QUICK": true, "USING": true,
+		},
 	}
 
 	// ClickhouseConfig clickhouse 语义（# 与 -- 均为行注释，-- 不要求后随空白）
@@ -97,6 +117,8 @@ var (
 		EscapeStringPrefix:      true,
 		NestedBlockComment:      true,
 		BlockMode:               BlockSQL,
+		// USING：JOIN..USING 与 DELETE..USING 的保留字（PostgreSQL 系及其兼容方言）
+		ExtraKeywords: map[string]bool{"USING": true},
 	}
 
 	// SQLiteConfig sqlite 语义（兼容 MySQL 的两种引用符，但反斜杠为普通字符）
@@ -104,6 +126,8 @@ var (
 		BacktickAsIdentifier:    true,
 		BracketQuote:            true,
 		DoubleQuoteAsIdentifier: true,
+		// SQLite 支持 JOIN..USING，但 DELETE..UPDATE 无 USING 保留语义；仍登记为保留字与 pg 一致
+		ExtraKeywords: map[string]bool{"USING": true},
 	}
 
 	// MssqlConfig T-SQL 语义（方括号标识符 + BEGIN..END/BEGIN TRY；IF、WHILE 无 END 闭合故不纳入过程关键字）
@@ -118,6 +142,11 @@ var (
 		DoubleQuoteAsIdentifier: true,
 		AltQuoteLiteral:         true,
 		BlockMode:               BlockProcedural,
+		// MINUS/USING 是 Oracle 的保留字；START/CONNECT 系层次查询词不是保留字（START 可作裸列名），
+		// 故不登记，由骨架在「只能是子句头部」的位置按单词值匹配
+		ExtraKeywords: map[string]bool{"MINUS": true, "USING": true},
+		// Hierarchic：Oracle 原生支持 START WITH / CONNECT BY 层次查询
+		Hierarchic: true,
 	}
 
 	// DmConfig 达梦语义（兼容 Oracle 的 q-quote 与 PL-SQL 过程块，反斜杠为普通字符）
@@ -125,6 +154,10 @@ var (
 		DoubleQuoteAsIdentifier: true,
 		AltQuoteLiteral:         true,
 		BlockMode:               BlockProcedural,
+		// 达梦兼容 Oracle 的 MINUS/USING；SELECT TOP 的 TOP 非保留字，同样按单词值匹配
+		ExtraKeywords: map[string]bool{"MINUS": true, "USING": true},
+		// 达梦兼容 Oracle 的层次查询语法
+		Hierarchic: true,
 	}
 )
 
@@ -143,6 +176,13 @@ const (
 
 // IsExecutableComment sql[i:] 是否为 mysql 的可执行注释起始（/*! 或 /*!NNNNN）。
 // 区域边界仍按块注释扫描，只是不视为可丢弃的注释文本
+// IsKeyword 判断该方言是否把 word 视为关键字（全局标准关键字 + 本方言额外保留字）。
+// 词法器据此给 token 定类型，测试据此校验能力表的登记面，两侧共用一个口径
+func (c DialectConfig) IsKeyword(word string) bool {
+	upper := strings.ToUpper(word)
+	return Keywords[upper] || c.ExtraKeywords[upper]
+}
+
 func (c DialectConfig) IsExecutableComment(sql string, i int) bool {
 	return c.ExecutableComment && strings.HasPrefix(sql[i:], "/*!")
 }

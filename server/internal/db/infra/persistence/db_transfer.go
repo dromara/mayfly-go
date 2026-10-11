@@ -64,8 +64,8 @@ var transferLogListColumns = []string{
 
 // GetPageList 分页获取指定任务的日志列表
 func (d *dbTransferLogRepoImpl) GetPageList(condition *entity.DbTransferLogQuery, orderBy ...string) (*model.PageResult[*entity.DbTransferLog], error) {
-	// task_id 用 Eq0：调用方未传 taskId（零值）时按 task_id = 0 过滤返回空集，
+	// task_id 用 EqStrict：调用方未传 taskId（零值）时按 task_id = 0 过滤返回空集，
 	// 用 Eq 会因零值被忽略而不加条件，退化成跨任务的全量查询
-	qd := model.NewCond().Eq0("task_id", condition.TaskId).OrderBy(orderBy...)
+	qd := model.NewCond().EqStrict("task_id", condition.TaskId).OrderBy(orderBy...)
 	return d.PageByCond(qd, condition.PageParam, transferLogListColumns...)
 }

@@ -20,6 +20,12 @@
             </el-descriptions-item>
         </el-descriptions>
 
+        <!-- 预估影响：提交人提单时抓的计划快照，审批人无需连库即可看预计影响行数/是否全表扫描 -->
+        <div v-if="plans && plans.length > 0">
+            <el-divider content-position="left">{{ $t('flow.impactAtApproval') }}</el-divider>
+            <SqlPlanList :plans="plans" />
+        </div>
+
         <div v-if="runRes && runRes.length > 0">
             <el-divider content-position="left">{{ $t('flow.handleResult') }}</el-divider>
             <el-table :data="runRes" :max-height="400">
@@ -57,6 +63,8 @@
 import { toRefs, reactive, watch, onMounted } from 'vue';
 import { dbApi } from '@/views/ops/db/api';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import SqlPlanList from '@/views/ops/db/sql-editor/SqlPlanList.vue';
+import type { SqlExplainPlan } from '@/views/ops/db/types';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { tagApi } from '@/views/ops/tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
@@ -79,10 +87,12 @@ const state = reactive({
     db: null as any,
     dbName: '',
     sql: '',
+    // 提交时快照的逐条执行计划（旧工单无此字段则为空，面板自然隐藏）
+    plans: [] as SqlExplainPlan[],
     runRes: [],
 });
 
-const { db, dbName, sql, runRes } = toRefs(state);
+const { db, dbName, sql, plans, runRes } = toRefs(state);
 
 onMounted(() => {
     parseBizForm(props.procinst.bizForm);
@@ -105,6 +115,7 @@ const parseBizForm = async (bizFormStr: string) => {
     const bizForm = JSON.parse(bizFormStr);
     state.sql = bizForm.sql;
     state.dbName = bizForm.dbName;
+    state.plans = bizForm.plans ?? [];
 
     const dbRes = await dbApi.dbs.request({ id: bizForm.dbId });
     state.db = dbRes?.list?.[0] ?? null;

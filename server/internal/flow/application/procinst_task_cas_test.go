@@ -10,6 +10,7 @@ import (
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 
 	"github.com/glebarez/sqlite"
@@ -87,9 +88,10 @@ func TestUpdateByCondInsideTransaction(t *testing.T) {
 	task := &entity.ProcinstTask{NodeKey: "approve", Status: entity.ProcinstTaskStatusProcess}
 	require.NoError(t, repo.Insert(ctx, task))
 
-	tx := global.Db.Begin()
-	require.NoError(t, tx.Error)
-	txCtx := base.NewCtxWithDb(ctx, tx)
+	// 用基座入口开事务并绑定到 ctx，与被测代码的生产路径完全一致
+	txCtx, tx, err := gormx.Begin(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tx.Rollback() })
 
 	rows, err := repo.UpdateByCond(txCtx, &entity.ProcinstTask{Status: entity.ProcinstTaskStatusCompleted}, model.NewCond().Eq("id", task.Id).Eq("status", entity.ProcinstTaskStatusProcess))
 	require.NoError(t, err)

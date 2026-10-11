@@ -131,12 +131,10 @@ func (mm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error)
 	query.Add("tlsmin", "1.0")
 	query.Add("connection timeout", "10")
 	if d.Database != "" {
-		ss := strings.Split(d.Database, "/")
-		if len(ss) > 1 {
-			query.Add("database", ss[0])
-			query.Add("schema", ss[1])
-		} else {
-			query.Add("database", d.Database)
+		// 库位的 schema 段已由 codec 解析进 d.Schema
+		query.Add("database", d.Database)
+		if d.Schema != "" {
+			query.Add("schema", d.Schema)
 		}
 	}
 	params := query.Encode()
@@ -157,11 +155,12 @@ func (mm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
 	return &MssqlDialect{di: di}
 }
 
-// GetCapabilities SQL Server：核心能力全支持（server>database>schema 三层），并声明已实现的视图与序列内省
-// （MssqlMetadata 实现 MetadataNavigator，SupportedKinds 含 view/sequence，与声明一致）。
+// GetCapabilities SQL Server：核心能力全支持（server>database>schema 三层），并声明已实现的视图与序列内省、
+// 会话内省（sys.dm_exec_sessions，MssqlMetadata 实现 SessionInspector）与执行计划分析
+// （SET SHOWPLAN_XML，MssqlMetadata 实现 ExplainAnalyzer），三者与声明一致。
 func (mm *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	return dbi.NewAllCapabilities().
-		With(dbi.FeatViews, dbi.FeatSequences).
+		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 

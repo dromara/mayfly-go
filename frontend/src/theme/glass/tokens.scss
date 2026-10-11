@@ -34,10 +34,10 @@
     --glass-accent-bg: color-mix(in srgb, var(--el-color-primary, #409eff) 20%, transparent);
     --glass-accent-edge: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 
-    // 语义材质档位令牌(业界标准架构: 组件只引用档位, 禁止逐选择器硬编码 alpha)
+    // 语义材质档位令牌(通行架构: 组件只引用档位, 禁止逐选择器硬编码 alpha)
     // chrome=铬层(顶栏/页签/侧栏) / panel=内容面板 / elevated=浮层 / modal=对话框 / drawer=抽屉
-    // content=全屏高密度文本面(终端/日志) —— 业界共识(Fluent: 内容区禁用 Acrylic;
-    // Apple: 正文用可读性优化实底): 大面积磨砂透视壁纸会导致文字颤动与视觉疲劳
+    // content=全屏高密度文本面(终端/日志) —— 通行做法(内容区不做重磨砂、
+    // 正文用可读性优化实底): 大面积磨砂透视壁纸会导致文字颤动与视觉疲劳
     // 清透全局档: 用户定调所有表面(含终端/日志 content 档)统一资源树式清透 —— 薄底+壁纸直透
     --glass-alpha-chrome: 0.22;
     --glass-alpha-panel: 0.26;

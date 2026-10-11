@@ -88,18 +88,25 @@ export function letterAvatar(name: string, size = 60, color = '') {
 
 /**
  * 计算文本所占用的宽度（px） -> 该种方式较为准确
- * 使用span标签包裹内容，然后计算span的宽度 width： px
+ * 使用span标签包裹内容，然后计算span的宽度 width： px。
+ * 量宽节点模块级复用：首次调用时挂载一次离屏隐藏节点，后续仅改文本读取宽度，
+ * 避免每次调用都创建/挂载/移除 DOM（列宽估算一次要量几百次，节点开销与 querySelector 查找都省去）。
  * @param str
  */
+let measureSpan: HTMLSpanElement | null = null;
+
 export function getTextWidth(str: string) {
-    let width = 0;
-    let html = document.createElement('span');
-    html.innerText = str;
-    html.className = 'getTextWidth';
-    document?.querySelector('body')?.appendChild(html);
-    width = (document?.querySelector('.getTextWidth') as HTMLElement).offsetWidth;
-    document?.querySelector('.getTextWidth')?.remove();
-    return width;
+    if (!document.body) {
+        return 0;
+    }
+    if (!measureSpan) {
+        measureSpan = document.createElement('span');
+        // 离屏隐藏常驻：不影响页面布局与视觉；nowrap 保证长文本量的是内容宽而非换行后的可视宽
+        measureSpan.style.cssText = 'position:absolute;top:-9999px;left:0;visibility:hidden;white-space:nowrap;';
+        document.body.appendChild(measureSpan);
+    }
+    measureSpan.innerText = str;
+    return measureSpan.offsetWidth;
 }
 
 /**
@@ -198,25 +205,42 @@ export function fuzzyMatchField<T>(keyword: string, fields: T[], ...valueExtract
 }
 
 /**
+ * 前缀子序列匹配，并返回命中的目标字符下标（升序）；未完全匹配返回 null
+ *
+ * 下标用于「命中片段高亮」：过滤判的是是否命中，高亮判的是命中了哪几个字，两者必须出自同一次
+ * 扫描。若在展示侧另写一遍匹配循环，改了规则就会标错色（界面告诉你命中了，实际按另一套规则过滤）。
+ *
+ * @param prefix 前缀（可不连续，但不改变字符的相对顺序）
+ * @param targetTemplate 目标模板
+ * @param ignoreCase 逐字符忽略大小写比较（不整体 toLowerCase：个别字符小写后长度会变，下标会错位）
+ * @returns 命中的目标字符下标；prefix 为空时为空数组（视为匹配任何目标）
+ */
+export function matchPrefixSubsequence(prefix: string, targetTemplate: string, ignoreCase = false): number[] | null {
+    if (!prefix) return [];
+
+    const hits: number[] = [];
+    let i = 0; // 指向prefix的索引
+    for (let j = 0; j < targetTemplate.length && i < prefix.length; j++) {
+        // 目标字符串指针始终向前移动
+        if (ignoreCase ? prefix[i].toLowerCase() === targetTemplate[j].toLowerCase() : prefix[i] === targetTemplate[j]) {
+            // 字符匹配，两个指针都向前移动
+            hits.push(j);
+            i++;
+        }
+    }
+
+    // 如果prefix的所有字符都被找到，返回命中下标
+    return i === prefix.length ? hits : null;
+}
+
+/**
  * 匹配是否为前缀子序列 targetTemplate=username prefix=uname -> true，prefix=uname2 -> false
  * @param prefix 字符串前缀（不连续也可以,但不改变字符的相对顺序）
  * @param targetTemplate 目标模板
  * @returns 是否匹配
  */
-export function isPrefixSubsequence(prefix: string, targetTemplate: string) {
-    let i = 0; // 指向prefix的索引
-    let j = 0; // 指向targetTemplate的索引
-
-    while (i < prefix.length && j < targetTemplate.length) {
-        if (prefix[i] === targetTemplate[j]) {
-            // 字符匹配，两个指针都向前移动
-            i++;
-        }
-        j++; // 目标字符串指针始终向前移动
-    }
-
-    // 如果prefix的所有字符都被找到，返回true
-    return i === prefix.length;
+export function isPrefixSubsequence(prefix: string, targetTemplate: string, ignoreCase = false) {
+    return matchPrefixSubsequence(prefix, targetTemplate, ignoreCase) !== null;
 }
 
 /**

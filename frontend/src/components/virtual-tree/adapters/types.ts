@@ -44,6 +44,20 @@ export interface VirtualTreeInstance {
     filter(query: string): void;
 }
 
+/**
+ * 容器实例对外的完整能力：归一化引擎 API + 容器自持的几何能力。
+ *
+ * `scrollToIndex` 不进 VirtualTreeInstance（那是适配器要翻译到引擎的契约）：
+ * 它不靠引擎的 scrollToItem，而是用「行序 × 行高 - 视口居中」自己算偏移——
+ * 引擎的按节点滚动在本地过滤态下会对合法下标返回错位值（实测把列表弹回顶部）。
+ */
+export type VirtualTreeHandle = VirtualTreeInstance & {
+    /** 把第 index 行（按引擎实际渲染行序）滚到视口中间 */
+    scrollToIndex(index: number): void;
+    /** 用当前 filterText + 当前 filterMethod 重跑一次过滤（谓词变了但引擎不会自己重求值） */
+    refilter(): void;
+};
+
 /** 归一化事件：容器只认这些签名，引擎事件口径在适配器消化 */
 export interface NormalizedTreeEvents {
     onNodeClick?: (node: Record<string, unknown>) => void;

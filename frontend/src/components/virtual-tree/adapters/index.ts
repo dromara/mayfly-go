@@ -5,7 +5,7 @@
  * 若需替换为其他树引擎，修改下方 defaultAdapter 即可（引擎 DOM 皮肤随所选适配器导入）。
  */
 export { elTreeV2Adapter } from './elTreeV2Adapter';
-export type { VirtualTreeAdapter, VirtualTreeFieldNames, VirtualTreeInstance, NormalizedTreeEvents, TreeAdapterPropsInput } from './types';
+export type { VirtualTreeAdapter, VirtualTreeFieldNames, VirtualTreeInstance, VirtualTreeHandle, NormalizedTreeEvents, TreeAdapterPropsInput } from './types';
 export { defaultFieldNames } from './types';
 
 import { elTreeV2Adapter } from './elTreeV2Adapter';

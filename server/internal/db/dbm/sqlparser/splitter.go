@@ -35,7 +35,7 @@ type SQLSplitter interface {
 //   - BEGIN..END / CASE..END 等复合块内的分号不切割（档位由能力表 BlockMode 决定）
 //   - 未闭合的引号/注释返回 *tokenizer.UnterminatedError（由上层消息包 imsg 转为国际化业务错误），不静默吞并后续脚本
 //
-// 已知限制：不识别客户端指令型分隔符（mysql 的 `DELIMITER xx` 与 sqlcmd/SSMS 的 `GO` 批处理分隔符），
+// 已知限制：不识别客户端指令型分隔符（mysql 的 `DELIMITER xx` 与部分客户端的 `GO` 批处理分隔符），
 // 分隔符由调用方通过 NewSplitter 显式指定；脚本内出现的 `DELIMITER` 行会被当作普通语句交给服务端执行。
 type DialectSplitter struct {
 	cfg       tokenizer.DialectConfig

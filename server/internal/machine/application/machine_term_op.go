@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	fileapp "mayfly-go/internal/file/application"
+	fileentity "mayfly-go/internal/file/domain/entity"
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
@@ -63,7 +64,8 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		termOpRecord.MachineId = cli.Info.Id
 		termOpRecord.Username = cli.Info.Username
 
-		fileKey, wc, closeFunc, err := m.fileApp.NewWriter(ctx, "", fmt.Sprintf("mto_%d_%s.cast", termOpRecord.MachineId, timex.TimeNo()))
+		// 录像回放在前端由 AsciinemaPlayer 直接按文件地址取流（无法附带 Authorization 头），故保持 public
+		fileKey, wc, closeFunc, err := m.fileApp.NewWriter(ctx, "", fmt.Sprintf("mto_%d_%s.cast", termOpRecord.MachineId, timex.TimeNo()), fileentity.FileAccessModePublic)
 		if err != nil {
 			return errorx.NewBizf("failed to create a terminal playback log file: %v", err)
 		}
@@ -115,6 +117,9 @@ func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, page
 func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 	logx.Debug("start deleting machine terminal playback records every hour...")
 	_ = taskx.BindCronTaskWithLock("machine-termop-cleanup", "@every 60m", 30*time.Minute, true, func() {
+		// 定时任务没有请求上下文：显式造一个带 traceId 的任务级 ctx，
+		// 使这一轮的所有写入既能串联日志，也能如实记为系统操作而非无痕归属
+		ctx := contextx.WithTraceId(context.Background())
 		defer gox.Recover()
 		startDate := time.Now().AddDate(0, 0, -config.GetMachine().TermOpSaveDays)
 		cond := &entity.MachineTermOpQuery{
@@ -126,7 +131,7 @@ func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 		}
 
 		for _, termOp := range termOps {
-			if err := m.DeleteTermOp(termOp); err != nil {
+			if err := m.DeleteTermOp(ctx, termOp); err != nil {
 				logx.Warnf("failed to delete terminal playback record: %s", err.Error())
 			}
 		}
@@ -134,10 +139,10 @@ func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
 }
 
 // 删除终端记录即对应文件
-func (m *machineTermOpAppImpl) DeleteTermOp(termOp *entity.MachineTermOp) error {
+func (m *machineTermOpAppImpl) DeleteTermOp(ctx context.Context, termOp *entity.MachineTermOp) error {
 	if err := m.DeleteById(context.Background(), termOp.Id); err != nil {
 		return err
 	}
 
-	return m.fileApp.Remove(context.TODO(), termOp.FileKey)
+	return m.fileApp.Remove(ctx, termOp.FileKey)
 }

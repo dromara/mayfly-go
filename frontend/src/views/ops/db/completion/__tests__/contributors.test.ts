@@ -26,6 +26,7 @@ import { keywordContributor } from '../contributors/keyword';
 import { schemaContributor } from '../contributors/schema';
 import { snippetContributor } from '../contributors/snippet';
 import { tableContributor } from '../contributors/table';
+import { valueContributor } from '../contributors/value';
 import { getSnippets } from '../snippets';
 // 分页模板预设属方言层事实，补全层只做消费；此处引用真实预设以校验装配链路
 import { limitCommaPageSnippet, limitOffsetPageSnippet } from '../../dialect/shared/snippets';
@@ -41,6 +42,7 @@ const createCtx = (overrides: Partial<SqlCompletionContext> = {}): SqlCompletion
         loadTables: vi.fn().mockResolvedValue([]),
         loadColumns: vi.fn().mockResolvedValue([]),
         loadViews: vi.fn().mockResolvedValue([]),
+        loadColumnValues: vi.fn().mockResolvedValue([]),
     };
     const dialect: SqlCompletionContext['dialect'] = {
         getEditorCompletions: async () => ({
@@ -306,10 +308,59 @@ describe('snippetContributor', () => {
     });
 });
 
+describe('valueContributor 列值联想', () => {
+    /** 光标在语句末尾的上下文：值位置判定靠光标前文本 */
+    const ctxAtEnd = (statement: string, values: string[] | null) => {
+        const ctx = createCtx({ statement, statementCursorOffset: statement.length });
+        ctx.dbInst.loadColumnValues = vi.fn().mockResolvedValue(values ?? []);
+        return ctx;
+    };
+
+    it('在「列 = 」位置给出该列出现过的值，并按已输片段过滤', async () => {
+        const ctx = ctxAtEnd("SELECT * FROM users u WHERE u.status = 'ac", ['active', 'closed', 'account']);
+        const result = await valueContributor.contribute(ctx);
+
+        expect(ctx.dbInst.loadColumnValues).toHaveBeenCalledWith('test', 'users', 'status');
+        expect(result?.exclusive).toBe(true);
+        expect((result?.suggestions ?? []).map((s) => (typeof s.label === 'string' ? s.label : s.label.label))).toEqual(['active', 'account']);
+    });
+
+    it('数字值裸写、文本值加引号，且已有开引号时不重复加', async () => {
+        const bare = await valueContributor.contribute(ctxAtEnd('SELECT * FROM t WHERE id = ', ['1', '22']));
+        expect((bare?.suggestions ?? []).map((s) => s.insertText)).toEqual(['1', '22']);
+
+        const text = await valueContributor.contribute(ctxAtEnd('SELECT * FROM t WHERE status = ', ['active']));
+        expect((text?.suggestions ?? []).map((s) => s.insertText)).toEqual(["'active'"]);
+
+        const quoted = await valueContributor.contribute(ctxAtEnd("SELECT * FROM t WHERE status = 'act", ['active']));
+        expect((quoted?.suggestions ?? []).map((s) => s.insertText)).toEqual(['active']);
+    });
+
+    it('含单引号的值双写，不把语句截断', async () => {
+        const result = await valueContributor.contribute(ctxAtEnd('SELECT * FROM t WHERE name = ', ["O'Brien"]));
+        expect((result?.suggestions ?? []).map((s) => s.insertText)).toEqual(["'O''Brien'"]);
+    });
+
+    it('`.` 触发是列名位置，不接管', async () => {
+        const ctx = createCtx({ isDotTrigger: true, dotAlias: 'u', statement: 'SELECT * FROM users u WHERE u.' });
+        expect(await valueContributor.contribute(ctx)).toBeUndefined();
+    });
+
+    it('取不到值时不接管补全（不能让值补全失败把列名等候选一并抹掉）', async () => {
+        expect(await valueContributor.contribute(ctxAtEnd('SELECT * FROM t WHERE status = ', []))).toBeUndefined();
+        expect(await valueContributor.contribute(ctxAtEnd('SELECT * FROM t WHERE status = ', null))).toBeUndefined();
+    });
+
+    it('非值位置不接管', async () => {
+        expect(await valueContributor.contribute(ctxAtEnd('SELECT * FROM t WHERE ', ['active']))).toBeUndefined();
+        expect(ctxAtEnd('SELECT id, name FROM t', []).statement).toBe('SELECT id, name FROM t');
+    });
+});
+
 describe('createDefaultContributors 贡献者链', () => {
-    it('按序包含五个贡献者', () => {
+    it('按序包含六个贡献者（值补全在字段之后、表名之前）', () => {
         const chain = createDefaultContributors();
-        expect(chain.map((c) => c.name)).toEqual(['schema', 'column', 'table', 'snippet', 'keyword']);
+        expect(chain.map((c) => c.name)).toEqual(['schema', 'column', 'value', 'table', 'snippet', 'keyword']);
     });
 
     it('`.` 触发命中字段场景时提前收敛，仅返回 column 结果', async () => {

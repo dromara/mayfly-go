@@ -8,7 +8,7 @@ import (
 
 // resolveCursorInclusivity 决定实际生效的水位边界比较符（`>` 或 `>=`）。
 //
-// Auto 分支按同步模式给出「业界默认安全配置」，避免用户不懂交付语义时误配：
+// Auto 分支按同步模式给出「安全默认配置」，避免用户不懂交付语义时误配：
 //   - 增量追加(1) / 全量刷新(3)：目标不做 UPSERT，重发即重复行 → 强制 Exclusive
 //   - 增量合并(2) / 全量对账(4/5)：目标 UPSERT/DELETE NOT IN 天然幂等 → Inclusive（防同秒漏拉）
 //   - 数据校验(6)：不写目标 → Exclusive（inclusive 无意义）

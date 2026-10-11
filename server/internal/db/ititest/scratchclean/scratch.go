@@ -42,7 +42,7 @@ func (s *Scope) Conn(ctx context.Context, info *dbi.DbInfo) (*dbi.DbConn, error)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	copyInfo := *info
-	adminDB, suffix, scoped := scratchTarget(info)
+	adminDB, adminSchema, targetSchema, scoped := scratchTarget(info)
 	if scoped {
 		key := fmt.Sprintf("%s/%s/%d/%s/%s/%s", info.Type, info.Host, info.Port, info.Database, info.Username, info.Params)
 		db, ok := s.dbs[key]
@@ -52,17 +52,19 @@ func (s *Scope) Conn(ctx context.Context, info *dbi.DbInfo) (*dbi.DbConn, error)
 				return nil, err
 			}
 			db = database{admin: *info, name: "mayfly_it_" + hex.EncodeToString(token[:])}
+			// 建连需结构化库位（design Y：Database 纯库名 + Schema 独立字段），不能再传 `库/schema` locator
 			db.admin.Database = adminDB
-			admin, err := dbm.Conn(ctx, &db.admin)
+			db.admin.Schema = adminSchema
+			adminConn, err := dbm.Conn(ctx, &db.admin)
 			if err != nil {
 				return nil, err
 			}
-			stmt := "CREATE DATABASE " + admin.GetDialect().Quoter().QuoteIdent(db.name)
+			stmt := "CREATE DATABASE " + adminConn.GetDialect().Quoter().QuoteIdent(db.name)
 			if info.Type == "mysql" {
 				stmt += " DEFAULT CHARSET utf8mb4"
 			}
-			_, createErr := admin.ExecContext(ctx, stmt)
-			closeErr := admin.Close()
+			_, createErr := adminConn.ExecContext(ctx, stmt)
+			closeErr := adminConn.Close()
 			if createErr == nil {
 				if s.dbs == nil {
 					s.dbs = make(map[string]database)
@@ -73,7 +75,8 @@ func (s *Scope) Conn(ctx context.Context, info *dbi.DbInfo) (*dbi.DbConn, error)
 				return nil, err
 			}
 		}
-		copyInfo.Database = db.name + suffix
+		copyInfo.Database = db.name
+		copyInfo.Schema = targetSchema
 	}
 	conn, err := dbm.Conn(ctx, &copyInfo)
 	if err != nil {
@@ -83,16 +86,16 @@ func (s *Scope) Conn(ctx context.Context, info *dbi.DbInfo) (*dbi.DbConn, error)
 	return conn, nil
 }
 
-func scratchTarget(info *dbi.DbInfo) (admin, suffix string, scoped bool) {
+func scratchTarget(info *dbi.DbInfo) (adminDB, adminSchema, targetSchema string, scoped bool) {
 	switch {
 	case info.Type == "mysql" && info.Database == "mayfly_dbm_it":
-		return "information_schema", "", true
+		return "information_schema", "", "", true
 	case info.Type == "postgres" && info.Database == "mayfly_pg_it":
-		return "postgres", "", true
+		return "postgres", "", "", true
 	case info.Type == "mssql" && info.Database == "mayfly_it/dbo":
-		return "master/dbo", "/dbo", true
+		return "master", "dbo", "dbo", true
 	default:
-		return "", "", false
+		return "", "", "", false
 	}
 }
 

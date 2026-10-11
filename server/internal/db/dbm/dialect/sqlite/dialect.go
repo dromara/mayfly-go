@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/sqlparser"
-	"mayfly-go/internal/db/dbm/sqlparser/pgsql"
+	"mayfly-go/internal/db/dbm/sqlparser/sqlite"
 	"mayfly-go/internal/db/dbm/sqlparser/tokenizer"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -20,10 +20,11 @@ type SQLiteDialect struct {
 	di *dbi.DbInfo
 }
 
-// GetSQLParser 语法与标准SQL最接近，沿用pgsql解析器。
-// 由本方言显式选择解析器（dbi通用层不依赖任何具体方言），复用决策收敛在方言自身
+// GetSQLParser 使用 SQLite 自己的解析器：语法骨架各方言共用，但引用符形态（`x` / "x" / [x]）
+// 与字符串反斜杠语义必须按 SQLiteConfig 词法化，否则引用名在解析阶段不被识别、表名列名提取失真。
+// 由本方言显式选择解析器（dbi通用层不依赖任何具体方言）
 func (sd *SQLiteDialect) GetSQLParser() sqlparser.SQLParser {
-	return new(pgsql.PgsqlParser)
+	return new(sqlite.SqliteParser)
 }
 
 func (sd *SQLiteDialect) CopyTable(copy *dbi.DbCopyTable) error {

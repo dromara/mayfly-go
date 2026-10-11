@@ -1,6 +1,7 @@
 <template>
     <ResourceSelect
         v-bind="$attrs"
+        class="db-select-tree"
         v-model="selectNode"
         @change="changeNode"
         :resource-type="ResourceTypeEnum.Db.value"
@@ -8,8 +9,11 @@
         :transform-node="transformNode"
     >
         <template #iconPrefix>
-            <SvgIcon v-if="dbType && getDbDialect(dbType)" :name="getDbDialect(dbType).getInfo().icon" :size="16" />
-            <TagCodePath :code="displayCode" />
+            <SvgIcon class="shrink-0" v-if="dbType && getDbDialect(dbType)" :name="getDbDialect(dbType).getInfo().icon" :size="16" />
+            <!-- 折叠交给组件按容器实际宽度自适应：放得下全段展示，放不下才收前置段（悬浮「…」可见段名） -->
+            <span class="db-select-path">
+                <TagCodePath auto-fold :code="displayCode" />
+            </span>
         </template>
     </ResourceSelect>
 </template>
@@ -98,4 +102,28 @@ const changeNode = (nodeData: TreeNodeData) => {
 };
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+/* 选择框内容单行契约：面包屑可收缩（超出省略），选中库名保持完整，避免靠拉宽选择器换布局 */
+.db-select-tree {
+    .el-select__selection {
+        flex-wrap: nowrap;
+    }
+
+    .el-select__prefix {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
+    .el-select__selected-item {
+        flex-shrink: 0;
+        flex-wrap: nowrap;
+    }
+
+    .db-select-path {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+</style>

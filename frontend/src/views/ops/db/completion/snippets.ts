@@ -1,5 +1,5 @@
 /**
- * SQL 片段模板（对齐国际同类产品的 snippet 能力）。
+ * SQL 片段模板。
  *
  * body 使用 monaco snippet 语法：`${1:placeholder}` 占位、Tab 逐项跳转、`$0` 最终光标位。
  *

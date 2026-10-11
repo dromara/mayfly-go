@@ -40,7 +40,7 @@ func (a *alertOverviewAppImpl) GetOverview(ctx context.Context) (*entity.AlertOv
 	data := &entity.AlertOverviewData{}
 
 	// 1. 事件状态统计
-	statusCounts, err := a.eventApp.CountGroupByStatus()
+	statusCounts, err := a.eventApp.CountGroupByStatus(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -50,31 +50,31 @@ func (a *alertOverviewAppImpl) GetOverview(ctx context.Context) (*entity.AlertOv
 	data.ClosedCount = statusCounts[entity.AlertEventStatusClosed]
 
 	// 2. MTTR 计算
-	data.AvgRecoveryTime, _ = a.eventApp.GetAvgRecoveryTime()
+	data.AvgRecoveryTime, _ = a.eventApp.GetAvgRecoveryTime(ctx)
 
 	// 3. 今日通知统计
 	today := time.Now().Truncate(24 * time.Hour)
-	data.TodayNotifyCount, _ = a.eventApp.CountTodayNotifications(today)
+	data.TodayNotifyCount, _ = a.eventApp.CountTodayNotifications(ctx, today)
 
 	// 4. 规则统计
-	data.RuleStats = a.calculateRuleStats()
+	data.RuleStats = a.calculateRuleStats(ctx)
 
 	// 5. 通知统计（阶段一 + 阶段二）
-	data.NotifyStats = a.calculateNotifyStats(statusCounts, today)
+	data.NotifyStats = a.calculateNotifyStats(ctx, statusCounts, today)
 
 	// 6. 静默统计
-	data.SilenceStats = a.calculateSilenceStats()
+	data.SilenceStats = a.calculateSilenceStats(ctx)
 
 	// 7. 抑制统计
-	data.InhibitionStats = a.calculateInhibitionStats()
+	data.InhibitionStats = a.calculateInhibitionStats(ctx)
 
 	// 8. 升级统计
-	data.EscalationStats = a.calculateEscalationStats()
+	data.EscalationStats = a.calculateEscalationStats(ctx)
 
 	// 9. Top 告警
-	data.TopFrequent, _ = a.eventApp.GetTopByTriggerCount(overviewTopN)
-	data.TopLongest, _ = a.eventApp.GetTopByDuration(overviewTopN)
-	data.TopNotified, _ = a.eventApp.GetTopByNotifyCount(overviewTopN)
+	data.TopFrequent, _ = a.eventApp.GetTopByTriggerCount(ctx, overviewTopN)
+	data.TopLongest, _ = a.eventApp.GetTopByDuration(ctx, overviewTopN)
+	data.TopNotified, _ = a.eventApp.GetTopByNotifyCount(ctx, overviewTopN)
 
 	// 10. 最近事件
 	recentEvents, err := a.eventApp.GetAlertEventList(&entity.AlertEventQuery{
@@ -90,7 +90,7 @@ func (a *alertOverviewAppImpl) GetOverview(ctx context.Context) (*entity.AlertOv
 
 	// 11. 阶段三：通知趋势（最近 24 小时，通过 repository 一条 SQL 完成）
 	since := time.Now().Add(-overviewTrendHours * time.Hour).Truncate(time.Hour)
-	trend, trendErr := a.notifyLogRepo.GetHourlyTrend(since)
+	trend, trendErr := a.notifyLogRepo.GetHourlyTrend(ctx, since)
 	if trendErr != nil {
 		logx.Warnf("[alert] get notify trend error: %v", trendErr)
 		data.NotifyTrend = []entity.NotifyTrendPoint{}
@@ -104,26 +104,26 @@ func (a *alertOverviewAppImpl) GetOverview(ctx context.Context) (*entity.AlertOv
 	}
 
 	// 12. 阶段三：通知质量报告
-	data.QualityReport = a.calculateQualityReport()
+	data.QualityReport = a.calculateQualityReport(ctx)
 
 	return data, nil
 }
 
 // calculateRuleStats 计算规则统计（通过 ruleApp repository）
-func (a *alertOverviewAppImpl) calculateRuleStats() entity.RuleStats {
+func (a *alertOverviewAppImpl) calculateRuleStats(ctx context.Context) entity.RuleStats {
 	stats := entity.RuleStats{
 		ByPriority:     make(map[string]int64),
 		ByResourceType: make(map[int8]int64),
 	}
 
-	stats.Total, stats.Enabled, stats.Disabled, _ = a.ruleApp.GetRuleStats()
+	stats.Total, stats.Enabled, stats.Disabled, _ = a.ruleApp.GetRuleStats(ctx)
 
-	byPriority, err := a.ruleApp.CountGroupByPriority()
+	byPriority, err := a.ruleApp.CountGroupByPriority(ctx)
 	if err == nil && byPriority != nil {
 		stats.ByPriority = byPriority
 	}
 
-	byResourceType, err := a.ruleApp.CountGroupByResourceType()
+	byResourceType, err := a.ruleApp.CountGroupByResourceType(ctx)
 	if err == nil && byResourceType != nil {
 		stats.ByResourceType = byResourceType
 	}
@@ -132,7 +132,7 @@ func (a *alertOverviewAppImpl) calculateRuleStats() entity.RuleStats {
 }
 
 // calculateNotifyStats 计算通知统计（阶段一 + 阶段二）
-func (a *alertOverviewAppImpl) calculateNotifyStats(statusCounts map[entity.AlertEventStatus]int64, today time.Time) entity.NotifyStats {
+func (a *alertOverviewAppImpl) calculateNotifyStats(ctx context.Context, statusCounts map[entity.AlertEventStatus]int64, today time.Time) entity.NotifyStats {
 	stats := entity.NotifyStats{
 		ChannelDistribution: make(map[string]int64),
 		ByChannel:           make(map[string]entity.ChannelStat),
@@ -140,7 +140,7 @@ func (a *alertOverviewAppImpl) calculateNotifyStats(statusCounts map[entity.Aler
 
 	// ===== 阶段一：基础统计（通过 eventApp repository） =====
 
-	stats.TodaySent, _ = a.eventApp.CountTodayNotifications(today)
+	stats.TodaySent, _ = a.eventApp.CountTodayNotifications(ctx, today)
 
 	// 总事件数
 	stats.TotalEvents = statusCounts[entity.AlertEventStatusFiring] +
@@ -148,8 +148,8 @@ func (a *alertOverviewAppImpl) calculateNotifyStats(statusCounts map[entity.Aler
 		statusCounts[entity.AlertEventStatusRecovered] +
 		statusCounts[entity.AlertEventStatusClosed]
 
-	stats.PolicyMatched, _ = a.eventApp.CountPolicyMatched()
-	stats.UnmatchedCount, _ = a.eventApp.CountUnmatched()
+	stats.PolicyMatched, _ = a.eventApp.CountPolicyMatched(ctx)
+	stats.UnmatchedCount, _ = a.eventApp.CountUnmatched(ctx)
 
 	// 策略匹配率
 	effectiveEvents := stats.TotalEvents - stats.UnmatchedCount
@@ -158,13 +158,13 @@ func (a *alertOverviewAppImpl) calculateNotifyStats(statusCounts map[entity.Aler
 	}
 
 	// 渠道分布（通过 notifyPolicyApp repository）
-	dist, err := a.notifyPolicyApp.GetChannelDistribution()
+	dist, err := a.notifyPolicyApp.GetChannelDistribution(ctx)
 	if err == nil && dist != nil {
 		stats.ChannelDistribution = dist
 	}
 
 	// ===== 阶段二：精确统计（通过 notifyLogRepo） =====
-	todaySent, todaySuccess, todayFailed, err := a.notifyLogRepo.GetTodayStats()
+	todaySent, todaySuccess, todayFailed, err := a.notifyLogRepo.GetTodayStats(ctx)
 	if err != nil {
 		logx.Warnf("[alert] get today notify stats error: %v", err)
 	} else {
@@ -179,7 +179,7 @@ func (a *alertOverviewAppImpl) calculateNotifyStats(statusCounts map[entity.Aler
 	}
 
 	// 按渠道统计
-	byChannel, err := a.notifyLogRepo.GetByChannelStats(today)
+	byChannel, err := a.notifyLogRepo.GetByChannelStats(ctx, today)
 	if err != nil {
 		logx.Warnf("[alert] get by-channel stats error: %v", err)
 	} else if byChannel != nil {
@@ -192,48 +192,65 @@ func (a *alertOverviewAppImpl) calculateNotifyStats(statusCounts map[entity.Aler
 }
 
 // calculateSilenceStats 计算静默统计（通过 silenceApp CountByCond）
-func (a *alertOverviewAppImpl) calculateSilenceStats() entity.SilenceStats {
+func (a *alertOverviewAppImpl) calculateSilenceStats(ctx context.Context) entity.SilenceStats {
 	stats := entity.SilenceStats{}
-	stats.Total = a.silenceApp.CountByCond("is_deleted = 0")
+	// 统计失败会留下零值，必须记日志：否则运维大盘上的「0 条静默」无法与「查询失败」区分，
+	// 值班同学会按前者判断当前没有静默在生效
+	var err error
+	if stats.Total, err = a.silenceApp.CountByCond("is_deleted = 0"); err != nil {
+		logx.Errorf("[alert] count silence total failed: %v", err)
+	}
 	now := time.Now()
-	stats.Active = a.silenceApp.CountByCond(
+	if stats.Active, err = a.silenceApp.CountByCond(
 		model.NewCond().Eq("status", entity.AlertSilenceStatusEnable).
 			And("start_time <= ?", now).
 			And("end_time >= ?", now),
-	)
+	); err != nil {
+		logx.Errorf("[alert] count active silences failed: %v", err)
+	}
 	return stats
 }
 
 // calculateInhibitionStats 计算抑制统计（通过 inhibitionApp CountByCond）
-func (a *alertOverviewAppImpl) calculateInhibitionStats() entity.InhibitionStats {
+func (a *alertOverviewAppImpl) calculateInhibitionStats(ctx context.Context) entity.InhibitionStats {
 	stats := entity.InhibitionStats{}
-	stats.Total = a.inhibitionApp.CountByCond("is_deleted = 0")
-	stats.Active = a.inhibitionApp.CountByCond(
+	var err error
+	if stats.Total, err = a.inhibitionApp.CountByCond("is_deleted = 0"); err != nil {
+		logx.Errorf("[alert] count inhibition total failed: %v", err)
+	}
+	if stats.Active, err = a.inhibitionApp.CountByCond(
 		model.NewCond().Eq("status", entity.AlertInhibitionStatusEnable),
-	)
+	); err != nil {
+		logx.Errorf("[alert] count active inhibitions failed: %v", err)
+	}
 	return stats
 }
 
 // calculateEscalationStats 计算升级统计（通过 escalationApp + eventApp repository）
-func (a *alertOverviewAppImpl) calculateEscalationStats() entity.EscalationStats {
+func (a *alertOverviewAppImpl) calculateEscalationStats(ctx context.Context) entity.EscalationStats {
 	stats := entity.EscalationStats{}
-	stats.Total = a.escalationApp.CountByCond("is_deleted = 0")
-	stats.Active = a.escalationApp.CountByCond(
+	var err error
+	if stats.Total, err = a.escalationApp.CountByCond("is_deleted = 0"); err != nil {
+		logx.Errorf("[alert] count escalation total failed: %v", err)
+	}
+	if stats.Active, err = a.escalationApp.CountByCond(
 		model.NewCond().Eq("status", entity.AlertEscalationStatusEnable),
-	)
-	stats.EscalatedCount, _ = a.eventApp.CountEscalated()
-	stats.MaxLevelReached, _ = a.eventApp.GetMaxEscalationLevel()
+	); err != nil {
+		logx.Errorf("[alert] count active escalations failed: %v", err)
+	}
+	stats.EscalatedCount, _ = a.eventApp.CountEscalated(ctx)
+	stats.MaxLevelReached, _ = a.eventApp.GetMaxEscalationLevel(ctx)
 	return stats
 }
 
 // calculateQualityReport 计算通知质量报告（阶段三，全部通过 repository）
-func (a *alertOverviewAppImpl) calculateQualityReport() entity.NotifyQualityReport {
+func (a *alertOverviewAppImpl) calculateQualityReport(ctx context.Context) entity.NotifyQualityReport {
 	report := entity.NotifyQualityReport{
 		TopFailReasons: []entity.FailReason{},
 	}
 
 	// 发送延迟
-	avgDelay, maxDelay, err := a.notifyLogRepo.GetSendDelay()
+	avgDelay, maxDelay, err := a.notifyLogRepo.GetSendDelay(ctx)
 	if err != nil {
 		logx.Warnf("[alert] get send delay error: %v", err)
 	}
@@ -242,7 +259,7 @@ func (a *alertOverviewAppImpl) calculateQualityReport() entity.NotifyQualityRepo
 
 	// 本周成功率
 	weekAgo := time.Now().AddDate(0, 0, -7)
-	weeklyRate, err := a.notifyLogRepo.GetSuccessRateSince(weekAgo)
+	weeklyRate, err := a.notifyLogRepo.GetSuccessRateSince(ctx, weekAgo)
 	if err != nil {
 		logx.Warnf("[alert] get weekly success rate error: %v", err)
 	}
@@ -250,14 +267,14 @@ func (a *alertOverviewAppImpl) calculateQualityReport() entity.NotifyQualityRepo
 
 	// 本月成功率
 	monthAgo := time.Now().AddDate(0, -1, 0)
-	monthlyRate, err := a.notifyLogRepo.GetSuccessRateSince(monthAgo)
+	monthlyRate, err := a.notifyLogRepo.GetSuccessRateSince(ctx, monthAgo)
 	if err != nil {
 		logx.Warnf("[alert] get monthly success rate error: %v", err)
 	}
 	report.MonthlySuccess = monthlyRate
 
 	// 主要失败原因
-	failReasons, err := a.notifyLogRepo.GetFailReasons(overviewTopN)
+	failReasons, err := a.notifyLogRepo.GetFailReasons(ctx, overviewTopN)
 	if err != nil {
 		logx.Warnf("[alert] get fail reasons error: %v", err)
 	} else if failReasons != nil {

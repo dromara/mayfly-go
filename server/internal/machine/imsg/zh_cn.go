@@ -37,6 +37,8 @@ var Zh_CN = map[i18n.MsgId]string{
 	LogMachineCronJobRun:    "机器-执行计划任务",
 	ErrCronJobSpecInvalid:   "计划任务的 cron 表达式【{{.cron}}】非法，任务不会按计划执行：{{.reason}}",
 
+	ErrCronJobNotifyTmplRequired: "计划任务已设置结果通知，但未绑定通知消息模板，通知将无法发送",
+
 	LogMachineSecurityCmdSave:   "机器-安全-保存命令配置",
 	LogMachineSecurityCmdDelete: "机器-安全-删除命令配置",
 	TerminalCmdDisable:          "该命令已被禁用",

@@ -116,10 +116,10 @@ const perms = {
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder')];
 
 const columns = ref([
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
-    TableColumn.new('type', 'common.type').isSlot().setAddWidth(-15).alignCenter(),
+    TableColumn.new('name', 'common.name').isSlot('name'),
+    TableColumn.new('type', 'common.type').isSlot().alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: DbInstance) => `${data.host}:${data.port}`),
-    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert').setAddWidth(10),
+    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert'),
     TableColumn.new('params', 'db.connParam'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),

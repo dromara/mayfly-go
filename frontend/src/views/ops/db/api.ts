@@ -10,9 +10,6 @@ import type {
     DbSql,
     DbSqlExec,
     DbTableInfo,
-    DbBackup,
-    DbBackupHistory,
-    DbRestore,
     DbInstanceServerInfo,
     ColumnMetadata,
     DbInstanceListParam,
@@ -24,6 +21,15 @@ import type {
     DbMaskColumnQuery,
     DbMaskRuleSaveForm,
     DbMaskColumnSaveForm,
+    DbSessionInfo,
+    SqlExplainPlan,
+    SqlRollback,
+    SchemaDiffResult,
+    SchemaDiffParam,
+    SchemaBaselineParam,
+    SchemaBaselineResult,
+    SchemaBaselineRow,
+    SchemaDriftResult,
     DbCapabilities,
     DbMetadataObject,
     ImportColumn,
@@ -32,12 +38,10 @@ import type {
 } from './types';
 
 export const dbApi = {
-    // 获取权限列表
+    // 数据库列表（导出走 GET /dbs/{id}/dump 直链下载，由 DbList 拼带凭据的地址，不经本层）
     dbs: Api.newGet<PageResult<Db>, DbListParam>('/dbs'),
-    dbTags: Api.newGet<Db[]>('/dbs/tags'),
     saveDb: Api.newPost<number>('/dbs'),
     deleteDb: Api.newDelete<void>('/dbs/{id}'),
-    dumpDb: Api.newPost<void>('/dbs/{id}/dump'),
     // 表清单：like/limit/offset 为可选的服务端名称过滤与分页下推（超大 schema 资源树首屏/续载按需取页）
     tableInfos: Api.newGet<DbTableInfo[], { id: number; db: string; like?: string; limit?: number; offset?: number }>('/dbs/{id}/t-infos'),
     // 扩展元数据对象节点（视图/序列/存储过程…），由后端 MetaNavigator 提供，按 features 能力位决定是否请求
@@ -64,8 +68,30 @@ export const dbApi = {
     deleteDbSql: Api.newDelete<void>('/dbs/{id}/sql'),
     // 获取数据库sql执行记录
     getSqlExecs: Api.newGet<PageResult<DbSqlExec>, PageParam>('/dbs/sql-execs'),
+    // 活动会话列表：按库取连接后代理方言的会话内省能力（不支持的方言返回「不支持」）
+    dbSessions: Api.newGet<DbSessionInfo[], { dbId: number; db: string }>('/dbs/sessions'),
+    // 取消指定会话当前语句
+    cancelDbSession: Api.newPost<void, { id: number; db: string; sessionId: string }>('/dbs/sessions/cancel'),
+    // 取消自己发起的一次执行（服务端中断，不只是断开 HTTP）
+    cancelSqlExec: Api.newPost<void, { execId: string }>('/dbs/cancel-exec'),
+    // 取语句的执行计划：与预检同一条切割口径，同样只读（后端不用 ANALYZE，看计划不执行语句）
+    sqlExplain: Api.newPost<SqlExplainPlan[], { id: number; db: string; sql: string }>('/dbs/sql-explain'),
+    // 依据执行记录当时采到的旧值生成回滚 SQL（只生成文本，不执行）
+    rollbackSql: Api.newGet<SqlRollback, { id: number }>(`/dbs/sql-execs/{id}/rollback-sql`),
+    // 结构对比（库间表结构漂移检测）：只报差异，不生成也不执行 DDL
+    schemaDiff: Api.newPost<SchemaDiffResult, SchemaDiffParam>('/dbs/schema-diff'),
+    // 建立/刷新表结构基线（以当前结构为准覆盖）
+    saveSchemaBaseline: Api.newPost<SchemaBaselineResult, SchemaBaselineParam>('/dbs/schema-baseline'),
+    // 查看某个库已有的基线行
+    listSchemaBaseline: Api.newGet<SchemaBaselineRow[], { dbId: number; db: string }>('/dbs/schema-baseline'),
+    // 立即比对一次当前结构与基线
+    checkSchemaBaseline: Api.newPost<SchemaDriftResult, SchemaBaselineParam>('/dbs/schema-baseline/check'),
+    // 清除某个库的基线
+    deleteSchemaBaseline: Api.newDelete<void, { dbId: number; db: string }>('/dbs/schema-baseline'),
     // 获取数据库兼容版本
     getCompatibleDbVersion: Api.newGet<string>('/dbs/{id}/version'),
+    // 采样某列出现过的去重值（编辑器值补全）；方言无分页改写能力时后端报错，调用侧静默降级为无候选
+    columnValues: Api.newGet<string[], { id: number; db: string; tableName: string; column: string }>('/dbs/{id}/column-values'),
 
     instances: Api.newGet<PageResult<DbInstance>, DbInstanceListParam>('/instances'),
     getInstance: Api.newGet<DbInstance>('/instances/{instanceId}'),
@@ -75,28 +101,6 @@ export const dbApi = {
     testConn: Api.newPost<void>('/instances/test-conn'),
     saveInstance: Api.newPost<number>('/instances'),
     deleteInstance: Api.newDelete<void>('/instances/{id}'),
-
-    // 获取数据库备份列表
-    getDbBackups: Api.newGet<DbBackup[]>('/dbs/{dbId}/backups'),
-    createDbBackup: Api.newPost<void>('/dbs/{dbId}/backups'),
-    deleteDbBackup: Api.newDelete<void>('/dbs/{dbId}/backups/{backupId}'),
-    getDbNamesWithoutBackup: Api.newGet<string[]>('/dbs/{dbId}/db-names-without-backup'),
-    enableDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{backupId}/enable'),
-    disableDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{backupId}/disable'),
-    startDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{backupId}/start'),
-    saveDbBackup: Api.newPut<void>('/dbs/{dbId}/backups/{id}'),
-    getDbBackupHistories: Api.newGet<DbBackupHistory[]>('/dbs/{dbId}/backup-histories'),
-    restoreDbBackupHistory: Api.newPost<void>('/dbs/{dbId}/backup-histories/{backupHistoryId}/restore'),
-    deleteDbBackupHistory: Api.newDelete<void>('/dbs/{dbId}/backup-histories/{backupHistoryId}'),
-
-    // 获取数据库恢复列表
-    getDbRestores: Api.newGet<DbRestore[]>('/dbs/{dbId}/restores'),
-    createDbRestore: Api.newPost<void>('/dbs/{dbId}/restores'),
-    deleteDbRestore: Api.newDelete<void>('/dbs/{dbId}/restores/{restoreId}'),
-    getDbNamesWithoutRestore: Api.newGet<string[]>('/dbs/{dbId}/db-names-without-restore'),
-    enableDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{restoreId}/enable'),
-    disableDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{restoreId}/disable'),
-    saveDbRestore: Api.newPut<void>('/dbs/{dbId}/restores/{id}'),
 };
 
 export const dbMaskApi = {
@@ -259,4 +263,14 @@ export async function importTableData(file: File, params: DataImportParams): Pro
     } finally {
         finishDataImportNotification(uploadId);
     }
+}
+
+/**
+ * 生成交互式执行 id
+ *
+ * 随每次 exec-sql 请求上送：服务端据此登记进行中的执行，
+ * 「取消」才能既断 HTTP 又真正中断数据库侧的语句（见 dbApi.cancelSqlExec）
+ */
+export function newSqlExecId(): string {
+    return `sql_exec_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }

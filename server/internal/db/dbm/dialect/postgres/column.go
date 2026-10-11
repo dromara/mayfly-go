@@ -87,6 +87,11 @@ var (
 	Jsonb   = dbi.NewDbDataType("jsonb", dbi.DTString).WithCategory(dbi.TCJSON).WithFixColumn(dbi.ClearCharMaxLength)
 	Bytea   = dbi.NewDbDataType("bytea", DTBytesPg).WithCategory(dbi.TCBinary)
 
+	// pg 的 uuid 是原生类型（非字符串别名），归 TCUUID：迁到无 uuid 的库按全局降级落 varchar，
+	// 目标为 pg 时由 backend 的 TCUUID 规则保持 uuid。值用字符串编解码：驱动读回的就是 uuid 文本，
+	// 写回时 'uuid文本' 是 pg 接受的字面量；uuid 不接受类型修饰符，故与 text 一样抹掉字符长度
+	Uuid = dbi.NewDbDataType("uuid", dbi.DTString).WithCategory(dbi.TCUUID).WithFixColumn(dbi.ClearCharLength)
+
 	// pg的bit(默认1bit)与bit varying(内部名varbit，information_schema呈现为"bit varying")，
 	// 三个变体名均需注册（pg_type.typname为varbit，元数据data_type可能呈现为bit varying）
 	Bit        = dbi.NewDbDataType("bit", DTBitPg).WithCategory(dbi.TCBit)

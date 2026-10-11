@@ -82,3 +82,33 @@ func TestPostgresConverter_RepresentativeMappings(t *testing.T) {
 	// json
 	assert.Equal(t, Json, resolveTarget(t, engine, dbi.TCJSON, col))
 }
+
+// TestPostgresNativeExtensionTypesRecognised pg 的 uuid 与数组列必须被类型引擎认出来。
+//
+// 存在理由：两者曾因未注册而在源类型解析处直接失败——异构迁移整表报「data type not found」，
+// 结构比对两侧都「认不出」而只能标比不了。数组按 `_` 前缀解析而非逐元素类型登记，
+// 因此元素类型认不出（自定义枚举/域）时数组仍算认不出，不得猜类别。
+func TestPostgresNativeExtensionTypesRecognised(t *testing.T) {
+	engine := dbi.GetTypeEngine(DbTypePostgres)
+
+	uuidType, ok := engine.ResolveType("uuid")
+	require.True(t, ok, "uuid 列必须可解析")
+	assert.Equal(t, dbi.TCUUID, uuidType.Category())
+
+	array, ok := engine.ResolveType("_int8")
+	require.True(t, ok, "bigint[] 的元数据名 _int8 必须可解析")
+	assert.Equal(t, dbi.TCArray, array.Category())
+	assert.Equal(t, "_int8", array.Name, "类型名须保持库侧形态，不得暴露注册用的占位名")
+	_, ok = engine.ResolveType("_myenum")
+	assert.False(t, ok, "元素类型未注册的数组不得猜类别")
+
+	// 目标为 pg 时 uuid 保持原生类型（退化成 varchar 会让主键/索引列变成宽字符串）
+	assert.Equal(t, Uuid, resolveTarget(t, engine, dbi.TCUUID, newCol()))
+	// 字符串列不会被误判成 uuid：TCUUID 规则只对源类别为 uuid 的列生效
+	assert.Equal(t, Varchar, resolveTarget(t, engine, dbi.TCVarchar, newCol()))
+
+	// uuid 不接受类型修饰符：元数据若带长度必须在读侧抹掉，否则 DDL 拼成 uuid(36) 直接建表失败
+	col := &dbi.Column{DataType: "uuid", CharMaxLength: 36}
+	uuidType.FixColumn(col)
+	assert.Equal(t, 0, col.CharMaxLength)
+}

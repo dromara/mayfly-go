@@ -92,7 +92,9 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 	teamId := teamMems.TeamId
 
 	for _, accountId := range teamMems.AccountIds {
-		if p.teamApp.IsExistMember(teamId, accountId) {
+		exist, err := p.teamApp.IsExistMember(rc.MetaCtx, teamId, accountId)
+		biz.ErrIsNil(err)
+		if exist {
 			continue
 		}
 
@@ -118,5 +120,5 @@ func (p *Team) DelTeamMember(rc *req.Ctx) {
 	aid := cast.ToUint64(rc.PathParam("accountId"))
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
-	p.teamApp.DeleteMember(rc.MetaCtx, tid, aid)
+	biz.ErrIsNil(p.teamApp.DeleteMember(rc.MetaCtx, tid, aid))
 }

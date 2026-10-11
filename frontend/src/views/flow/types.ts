@@ -71,6 +71,8 @@ export interface Procinst {
     remark: string;
     endTime?: string;
     duration: number;
+    /** 计划执行时间（审批通过后到点才执行；为空=立即） */
+    plannedExecTime?: string;
     createTime: string;
     creator: string;
     procinstTasks?: ProcinstTask[];
@@ -213,6 +215,8 @@ export interface ProcInstStartForm {
     remark: string;
     bizKey: string;
     bizForm: FlowBizForm;
+    /** 计划执行时间（可选）：审批通过后到点才执行；不填=批准后立即执行 */
+    plannedExecTime?: string | null;
 }
 
 /**

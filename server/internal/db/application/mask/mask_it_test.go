@@ -133,7 +133,7 @@ func runMaskQuery(t *testing.T, conn *dbi.DbConn, plan *masksvc.Plan, sql string
 	}
 	rows := make([]map[string]any, 0)
 	cols, err := conn.WalkQueryRows(maskItCtx(), sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
-		m := buildRowMaskerFromPlan(plan, conn.Info.GetDatabase(), sel, columns, conn.GetDialect().GetSQLParser())
+		m := buildRowMaskerFromPlan(plan, conn.Info.Database, sel, columns, conn.GetDialect().GetSQLParser())
 		if m != nil {
 			m.MaskRow(row)
 		}

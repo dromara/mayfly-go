@@ -1,13 +1,14 @@
 package api
 
 import (
-	"github.com/spf13/cast"
 	"mayfly-go/internal/label/application"
 	"mayfly-go/internal/label/domain/entity"
 	"mayfly-go/internal/label/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
+
+	"github.com/spf13/cast"
 )
 
 type Label struct {
@@ -43,14 +44,14 @@ func (l *Label) List(rc *req.Ctx) {
 }
 
 func (l *Label) ListKeys(rc *req.Ctx) {
-	keys, err := l.labelApp.ListKeys()
+	keys, err := l.labelApp.ListKeys(rc.MetaCtx)
 	biz.ErrIsNil(err)
 	rc.ResData = keys
 }
 
 func (l *Label) ListValues(rc *req.Ctx) {
 	labelKey := rc.Query("labelKey")
-	values, err := l.labelApp.ListValuesByKey(labelKey)
+	values, err := l.labelApp.ListValuesByKey(rc.MetaCtx, labelKey)
 	biz.ErrIsNil(err)
 	rc.ResData = values
 }

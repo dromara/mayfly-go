@@ -4,4 +4,4 @@
  */
 export { default as VirtualTree } from './VirtualTree.vue';
 export { defaultAdapter, elTreeV2Adapter, defaultFieldNames } from './adapters';
-export type { VirtualTreeAdapter, VirtualTreeFieldNames, VirtualTreeInstance, NormalizedTreeEvents, TreeAdapterPropsInput } from './adapters';
+export type { VirtualTreeAdapter, VirtualTreeFieldNames, VirtualTreeInstance, VirtualTreeHandle, NormalizedTreeEvents, TreeAdapterPropsInput } from './adapters';

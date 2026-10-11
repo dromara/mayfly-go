@@ -27,16 +27,18 @@ var En = map[i18n.MsgId]string{
 	ErrUserTaskNodeCandidateNotEmpty: "The candidate of the user task node [{{.name}}] cannot be empty",
 
 	// procinst
-	LogProcinstStart:  "Process - Start",
-	LogProcinstCancel: "Process - Cancel",
-	LogCompleteTask:   "Process - Completion of task",
-	LogRejectTask:     "Process - Task rejection",
-	LogBackTask:       "Process - Task rejection",
+	LogProcinstStart:      "Process - Start",
+	LogProcinstCancel:     "Process - Cancel",
+	LogProcinstReschedule: "Process - Reschedule execution",
+	LogCompleteTask:       "Process - Completion of task",
+	LogRejectTask:         "Process - Task rejection",
+	LogBackTask:           "Process - Task rejection",
 
-	ErrProcdefNotEnable:   "The process defines a non-enabled state",
-	ErrProcinstCancelSelf: "You can only cancel processes you initiated",
-	ErrProcinstCancelled:  "Process has been cancelled",
-	ErrBizHandlerFail:     "Business process failure",
+	ErrProcdefNotEnable:      "The process defines a non-enabled state",
+	ErrProcinstCancelSelf:    "You can only cancel processes you initiated",
+	ErrProcinstBizNotPending: "the ticket is not in an approved-pending-execution state (it may have started, finished, or been cancelled), so it cannot be rescheduled or cancelled",
+	ErrProcinstCancelled:     "Process has been cancelled",
+	ErrBizHandlerFail:        "Business process failure",
 
 	ErrAiTaskNodeAuditRuleNotEmpty: "The audit rule of the AI task node [{{.name}}] cannot be empty",
 

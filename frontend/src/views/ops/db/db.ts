@@ -1,4 +1,4 @@
-import { dbApi } from './api';
+import { dbApi, newSqlExecId } from './api';
 import type { ColumnMetadata, DbInstInfo, DbNamesParam } from './types';
 import SqlExecBox from './sql-editor/SqlExecBox';
 
@@ -71,6 +71,15 @@ export class DbInst {
 
     /** 按库缓存视图列表（表名补全纳入视图）；结构变更时随 invalidateSchemaCache 失效 */
     private _viewsByDb?: Map<string, Array<{ name: string; comment?: string }>>;
+
+    /**
+     * 按库缓存列值采样（值补全用），key 为 `表名|列名`。
+     *
+     * 采的是数据而不是结构，不能只靠 schema 失效：写入一批新值不会触发 invalidateSchemaCache，
+     * 因此另加一个时间上限，过期即重取。上限取得与后端进程内 schema 缓存同量级（5 分钟）：
+     * 补全候选少新一点不致错，把每次按键都变成一次 DISTINCT 扫描才致错
+     */
+    private _valuesByDb?: Map<string, Map<string, { at: number; values: string[] }>>;
 
     /**
      * 默认查询分页数量
@@ -216,6 +225,44 @@ export class DbInst {
         // 清空按表列缓存与视图缓存，使改表后 SQL 补全的按表列/视图重新拉取
         this.getDb(dbName).columnsMap?.clear();
         this._viewsByDb?.delete(dbName);
+        // 列名集合变了，旧列名的值采样也就没有意义，一并失效
+        this._valuesByDb?.delete(dbName);
+    }
+
+    /** 列值缓存的有效期（毫秒） */
+    private static readonly COLUMN_VALUES_TTL = 5 * 60 * 1000;
+
+    /**
+     * 取某列出现过的去重值，供编辑器在「列 = 」上下文里补全。
+     *
+     * 失败一律返回空数组而不是抛错：补全是一条辅助路径，方言不支持限行改写、表被删、
+     * 无权限等都应当「少一批候选」，而不是在编辑器里冒一条红色错误。
+     */
+    async loadColumnValues(dbName: string, table: string, column: string): Promise<string[]> {
+        const key = `${table}|${column}`;
+        const cached = this._valuesByDb?.get(dbName)?.get(key);
+        if (cached && Date.now() - cached.at < DbInst.COLUMN_VALUES_TTL) {
+            return cached.values;
+        }
+
+        let values: string[] = [];
+        try {
+            // 不传 limit：上限是服务端的单一事实，前端再定一份会出现两处不一致的截断长度
+            values = (await dbApi.columnValues.request({ id: this.id, db: dbName, tableName: table, column })) ?? [];
+        } catch (e) {
+            return [];
+        }
+
+        if (!this._valuesByDb) {
+            this._valuesByDb = new Map();
+        }
+        let byColumn = this._valuesByDb.get(dbName);
+        if (!byColumn) {
+            byColumn = new Map();
+            this._valuesByDb.set(dbName, byColumn);
+        }
+        byColumn.set(key, { at: Date.now(), values });
+        return values;
     }
 
     /**
@@ -246,12 +293,13 @@ export class DbInst {
      * @param sql sql
      * @param remark 执行备注
      */
-    async runSql(dbName: string, sql: string, remark: string = '') {
+    async runSql(dbName: string, sql: string, remark: string = '', atomic = false) {
         const res = await dbApi.sqlExec.request({
             id: this.id,
             db: dbName,
             sql: sql.trim(),
             remark,
+            atomic,
         });
         for (let re of res) {
             if (re.errorMsg) {
@@ -271,17 +319,25 @@ export class DbInst {
      *     逐条弹窗没人受得了，所以批量传 false（提醒只回显、不阻断）
      *   - acknowledged：操作者已在确认框里选了「直接执行」，后端据此不再追问。
      *     它挡不住「需审批」「禁止执行」，只影响提醒级别
+     *   - atomic：整批语句共用一个事务，全成功才提交、任一条失败即整批回滚。
+     *     必须在**一次请求**里带上全部语句才有效——后端是按请求切分并共用事务的，
+     *     客户端逐条发请求等于把它们变成 N 个独立批次（原子开关会静默失效）
      */
-    execSql(dbName: string, sql: string, remark: string = '', warnAck: { ask: boolean; acknowledged?: boolean } = { ask: true }) {
+    execSql(dbName: string, sql: string, remark: string = '', warnAck: { ask: boolean; acknowledged?: boolean; atomic?: boolean } = { ask: true }) {
         let dbId = this.id;
-        return dbApi.sqlExec.useApi({
+        const execId = newSqlExecId();
+        const api = dbApi.sqlExec.useApi({
             id: dbId,
             db: dbName,
             sql: sql.trim(),
             remark,
+            execId,
             askWarn: warnAck.ask,
             ackWarn: warnAck.acknowledged === true,
+            atomic: warnAck.atomic === true,
         });
+        // execId 随对象返回：调用方的「取消」要先请服务端中断，再断本地请求
+        return Object.assign(api, { execId });
     }
 
     /**
@@ -351,11 +407,12 @@ export class DbInst {
     /*
      * 弹框提示是否执行sql
      */
-    promptExeSql = (db: string, sql: string, cancelFunc: Function | undefined = undefined, successFunc: Function | undefined = undefined) => {
+    promptExeSql = (db: string, sql: string, cancelFunc: Function | undefined = undefined, successFunc: Function | undefined = undefined, atomic = false) => {
         SqlExecBox({
             sql,
             dbId: this.id,
             db,
+            atomic,
             formatDialect: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,

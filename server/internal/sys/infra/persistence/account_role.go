@@ -22,8 +22,8 @@ func (m *accountRoleRepoImpl) GetPageList(condition *entity.RoleAccountQuery, or
 	qd := gormx.NewQueryWithTableName("t_sys_account_role t").
 		Joins("JOIN t_sys_account a ON t.account_id = a.id AND a.status = 1").
 		WithCond(model.NewCond().Columns("t.creator, t.create_time, a.username, a.name accountName, a.status accountStatus, a.id accountId").
-			Eq0("a.is_deleted", model.ModelUndeleted).
-			Eq0("t.is_deleted", model.ModelUndeleted).
+			EqStrict("a.is_deleted", model.ModelUndeleted).
+			EqStrict("t.is_deleted", model.ModelUndeleted).
 			RLike("a.username", condition.Username).
 			RLike("a.name", condition.Name).
 			Eq("t.role_id", condition.RoleId).

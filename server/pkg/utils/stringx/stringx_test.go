@@ -53,3 +53,25 @@ func TestSortableUUID(t *testing.T) {
 	sort.Strings(shuffled)
 	require.Equal(t, ids, shuffled, "SortableUUIDs should already be in sorted order")
 }
+
+// TestCamel2Snake 列名转换的口径必须与 GORM NamingStrategy 一致：
+// 连续大写是一个首字母缩略词，只在词的末尾划线；本就是蛇形的物理列名原样返回
+func TestCamel2Snake(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"id", "id"},
+		{"is_deleted", "is_deleted"},
+		{"instanceId", "instance_id"},
+		{"userName", "user_name"},
+		{"Name", "name"},
+		{"Id", "id"},
+		{"HTTPServer", "http_server"},
+		{"userID", "user_id"},
+		{"DBCode", "db_code"},
+		{"targetType", "target_type"},
+	}
+	for _, c := range cases {
+		if got := Camel2Snake(c.in); got != c.want {
+			t.Errorf("Camel2Snake(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

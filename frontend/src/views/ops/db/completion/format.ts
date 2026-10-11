@@ -31,6 +31,26 @@ export function buildColumnSuggestion(col: ColumnMetadata, index: number, range:
 }
 
 /**
+ * 值建议项：label 展示库里的原始值，右侧灰显它属于哪个列（多列相邻时不然认不出在补谁的值）。
+ *
+ * insertText 由调用方按引号形态算好（数字裸写、字符串加引号、已有开引号时不重复加），
+ * 不在这里二次决策，否则格式化与插入行为会两处漂移
+ */
+export function buildValueSuggestion(value: string, column: string, index: number, range: IRange, insertText: string): languages.CompletionItem {
+    return {
+        label: {
+            label: value,
+            description: column,
+        },
+        kind: languages.CompletionItemKind.Value,
+        insertText,
+        range,
+        // 值排在字段与表之后，排序需为字符串类型
+        sortText: 500 + index + '',
+    };
+}
+
+/**
  * 表建议项：label 为表名，右侧灰显表注释，插入文本为裸表名。
  * 引用符包裹由贡献者统一经 quoteSuggestions(ctx.quoteIdentifier) 完成，此处不做二次决策（见 quoter.ts）。
  */

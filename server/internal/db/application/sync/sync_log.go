@@ -6,7 +6,10 @@ import (
 	"strings"
 
 	"mayfly-go/internal/db/domain/entity"
+	msgdto "mayfly-go/internal/msg/application/dto"
+	"mayfly-go/internal/pkg/event"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 )
 
@@ -45,6 +48,14 @@ func (app *DataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, log *ent
 		app.appendRunLog(log, "%s", log.ErrText)
 		app.appendRunLog(log, "========================================")
 	}
+	// 失败要通知任务创建者：cron 触发的同步没人盯界面，只写日志等于静默失效。
+	//
+	// 只在本次执行仍是锁持有者时通知：被新实例接管的旧收尾属于「已被取代的那一轮」，
+	// 为它发通知会把同一任务的失败刷屏，且真实结论应由接管方的收尾给出
+	if log.Status == entity.DataSyncTaskStateFail && app.runGuard.IsCurrentRun(taskEntity.Id, log.RunId) && taskEntity.CreatorId != 0 {
+		app.notifyTaskRunFail(taskEntity, log)
+	}
+
 	// 日志行属于本次执行，无论是否被接管都要落终态（防止实时缓存过期后前端看不到已完成日志）
 	app.saveLog(log)
 	app.delRunningSyncLog(log.Id)
@@ -115,4 +126,16 @@ func (app *DataSyncAppImpl) delRunningSyncLog(logId uint64) {
 
 func getRunningSyncLogKey(logId uint64) string {
 	return fmt.Sprintf("mayfly:data_sync_log:%d", logId)
+}
+
+// notifyTaskRunFail 通知同步任务创建者本次执行失败。
+//
+// 收件人取创建者而非 ctx 登录账号：cron 执行上下文没有登录用户。
+// 通知本身失败只记日志，不影响收尾流程
+func (app *DataSyncAppImpl) notifyTaskRunFail(taskEntity *entity.DataSyncTask, log *entity.DataSyncLog) {
+	errText := log.ErrText
+	if errText == "" {
+		errText = "task failed without error text"
+	}
+	global.EventBus.Publish(context.Background(), event.EventTopicMsgTmplSend, msgdto.DbTaskRunFailEvent(taskEntity.TaskName, errText, taskEntity.CreatorId))
 }

@@ -4,7 +4,13 @@
     <template v-else>
         <!-- v-if 必须放在 el-tooltip 上：插槽内无有效子节点会触发 [ElOnlyChild] 警告 -->
         <el-tooltip v-if="props.canDownload && fileSize" :content="fileSize" placement="left">
-            <el-link target="_blank" rel="noopener noreferrer" icon="Download" type="primary" :href="getFileUrl(props.fileKey)"></el-link>
+            <!--
+              业务模块提供的鉴权下载地址：走全站统一的 iframe 入口。
+              不用 <a target="_blank">：该地址携带查询参数凭据，开新标签再因 Content-Disposition 关闭会页面闪动；
+              而私有文件也不能作为无凭据的 href 直链暴露给用户复制
+            -->
+            <el-link v-if="props.downloadUrl" @click="downloadByServerUrl" icon="Download" type="primary" underline="never"></el-link>
+            <el-link v-else target="_blank" rel="noopener noreferrer" icon="Download" type="primary" :href="getFileUrl(props.fileKey)"></el-link>
         </el-tooltip>
 
         {{ fileDetail?.filename }}
@@ -17,6 +23,7 @@
 import { computed, ref, watch } from 'vue';
 import openApi from '@/common/openApi';
 import { getFileUrl } from '@/common/request';
+import { downloadFile } from '@/common/utils/file';
 import { formatByteSize } from '@/common/utils/format';
 
 interface FileDetail {
@@ -31,9 +38,23 @@ const props = withDefaults(
         files?: FileDetail[];
         canDownload?: boolean;
         showFileSize?: boolean;
+        /**
+         * 业务模块的服务端下载地址。
+         *
+         * 缺省表示该文件是可匿名读取的展示类资产，直接拼通用文件地址；
+         * 对只能经权限校验获取的数据类产物（如迁移导出文件），必须由调用方传入本模块的下载入口，
+         * 否则通用文件路由会拒读
+         */
+        downloadUrl?: string;
     }>(),
     { canDownload: true, showFileSize: false }
 );
+
+const downloadByServerUrl = () => {
+    if (props.downloadUrl) {
+        downloadFile(props.downloadUrl);
+    }
+};
 
 const loading = ref(false);
 

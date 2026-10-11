@@ -66,9 +66,9 @@ const selectionData = ref<Milvus[]>([]);
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('db.keywordPlaceholder')];
 
 const columns = ref([
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
+    TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('host', 'milvus.host').setMinWidth(200),
-    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert').setAddWidth(10),
+    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert'),
     TableColumn.new('createTime', 'common.createTime').setMinWidth(180).isTime(),
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('code', 'Code').setMinWidth(150),

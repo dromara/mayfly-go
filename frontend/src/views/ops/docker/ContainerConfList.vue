@@ -92,7 +92,7 @@ const detailDialog = ref({
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder')];
 
 const columns = ref([
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
+    TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('addr', 'docker.addr'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),

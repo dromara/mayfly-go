@@ -27,9 +27,11 @@ export class TableColumn {
     autoWidth: boolean = true;
 
     /**
-     * 自动计算宽度时，累加该值（可能列值会进行转换 如添加图标等，宽度需要比计算出来的更宽些）
+     * 弹性列：保留 min-width 参与 el-table fit 的容器富余摊派。
+     * 页面声明了弹性列时，其余数值 minWidth 列在首轮定型时固化为 width（贴内容不摊派），
+     * 富余集中到弹性列——长文本主识别列（任务名/描述类）是天然候选。
      */
-    addWidth: number = 0;
+    flexible: boolean = false;
 
     /**
      * 最小宽度
@@ -62,7 +64,7 @@ export class TableColumn {
     /**
      * 类型展示需要的额外参数，如枚举转换的EnumValue值等
      */
-    typeParam: unknown;
+    typeParam?: Record<string, EnumValue>;
 
     /**
      * 列宽自动计算的计宽扩展点：计算某一行该列「实际渲染内容」所占宽度(px)。
@@ -126,9 +128,57 @@ export class TableColumn {
         return this;
     }
 
-    setAddWidth(addWidth: number): TableColumn {
-        this.addWidth = addWidth;
+    /**
+     * 声明本列为弹性列：保留 min-width 吸收容器富余，其余数值 minWidth 列随之固化为 width。
+     * 未声明时全员 min-width 均摊（el-table 既有默认）。
+     */
+    setFlexible(): TableColumn {
+        this.flexible = true;
         return this;
+    }
+
+    /**
+     * 声明插槽列的渲染文本提取器（供自动计宽打底）。
+     * 插槽列的实际渲染形态由页面模板决定，与原始字段值往往不同
+     * （如单元格渲染 `${dbName}.${tableName}` 而数据里是两个独立字段），
+     * 默认按原始字段值计宽会失真，需显式声明渲染文本。
+     * 文本估算只覆盖文字部分；图标/tag 等渲染占位由渲染后的 DOM 实测回填（refineMinWidthByDom）自动补齐，
+     * 无需声明图标宽度。
+     * @param getText 从行数据提取单元格实际渲染的文本；T 由回调参数标注推断，页面侧无需断言
+     */
+    setSlotText<T>(getText: (rowData: T) => string): TableColumn {
+        this.measureContentWidth = (rowData: Record<string, unknown>) => getTextWidth(getText(rowData as T));
+        return this;
+    }
+
+    /**
+     * 渲染后按单元格真实内容占位宽向上修正 minWidth。
+     * 入参是渲染后的整块内容实测宽（文本+图标+间隙等，取自溢出叶子元素的 scrollWidth），
+     * 无需关心插槽里渲染了什么；
+     * 隐藏（display:none）时量到 0，直接跳过，不把隐藏态量到的错误值写进列宽。
+     * 仅向上修正：文本估算已给出的宽度不会被实测缩小。
+     */
+    refineMinWidthByDom(cellScrollWidth: number) {
+        if (!cellScrollWidth || cellScrollWidth <= 0) {
+            return;
+        }
+        // 显式声明的字符串宽（如 '10%'）是调用方的明确意图，不参与 DOM 回填；
+        // 未初始化（undefined）的自动计宽列按 0 起步参与回填
+        if (typeof this.minWidth === 'string') {
+            return;
+        }
+        const measured = Math.min(cellScrollWidth + CELL_PADDING, MAX_AUTO_WIDTH);
+        // 首轮定型已把 minWidth 固化为 width 的列（紧凑贴内容），生效约束是 width，
+        // 只修 minWidth 不改变渲染宽度，须同步向上修 width
+        if (typeof this.width === 'number') {
+            if (measured > this.width) {
+                this.width = measured;
+            }
+            return;
+        }
+        if (measured > (this.minWidth ?? 0)) {
+            this.minWidth = measured;
+        }
     }
 
     /**
@@ -145,26 +195,15 @@ export class TableColumn {
      * @param param 枚举对象, 如AccountStatusEnum
      * @returns this
      */
-    typeTag(param: unknown): TableColumn {
+    typeTag(param: Record<string, EnumValue>): TableColumn {
         this.type = 'tag';
         this.typeParam = param;
         // tag 展示文本为枚举翻译后的标签，且渲染为带边框/内边距的 el-tag，故按「标签文本 + 标签外框」计宽。
         // 不能复用 formatFunc：渲染器需将原始枚举值传给 enum-tag 自行解析，formatFunc 会污染该入参。
-        const enums = param as Record<string, EnumValue>;
         this.measureContentWidth = (rowData: Record<string, unknown>) => {
             const value = this.getValueByData(rowData); // tag 列无 formatFunc，等价于原始枚举值，与渲染入参一致
-            return getTextWidth(i18n.global.t(EnumValue.getLabelByValue(enums, value as string | number))) + TAG_CHROME_WIDTH;
+            return getTextWidth(i18n.global.t(EnumValue.getLabelByValue(param, value as string | number))) + TAG_CHROME_WIDTH;
         };
-        return this;
-    }
-
-    typeText(): TableColumn {
-        this.type = 'text';
-        return this;
-    }
-
-    typeJson(): TableColumn {
-        this.type = 'jsonText';
         return this;
     }
 
@@ -231,7 +270,7 @@ export class TableColumn {
      * 因此新增特殊渲染形态的列只需提供自己的 measureContentWidth，无需改动本算法。
      * @param tableData 表数据
      */
-    autoCalculateMinWidth = (tableData: Record<string, unknown>[]) => {
+    autoCalculateMinWidth(tableData: Record<string, unknown>[]) {
         if (!tableData || tableData.length === 0) {
             return 0;
         }
@@ -242,24 +281,54 @@ export class TableColumn {
             ((rowData: Record<string, unknown>) => {
                 const value = this.getValueByData(rowData);
                 const text = value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
-                return getTextWidth(text);
+                // 超长文本（如 JSON 大字段）精确量宽代价高，且其宽度必超上限被封顶，
+                // 最窄字符 12px 字号下也 >3px，200 字符宽必 > MAX_AUTO_WIDTH，直接按上限计不再量宽
+                return text.length > 200 ? MAX_AUTO_WIDTH : getTextWidth(text);
             });
 
         let maxContentWidth = 0;
         for (const rowData of tableData) {
-            const value = getValueByPath(rowData, this.prop);
-            // 空内容不参与计宽（0 为有效展示值，需参与）
-            if (value === null || value === undefined || value === '') {
-                continue;
+            // 自带计宽扩展点的列（插槽列/tag 列）量什么由提取器自己决定，
+            // 渲染文本可能来自任意字段甚至多字段拼接，不能按 prop 是否有值过滤，
+            // 否则插槽列（行数据里往往没有 prop 对应字段）会被整行跳过、扩展点形同虚设；
+            // 默认路径仍按原始字段值过滤空值（空内容不参与计宽）
+            if (!this.measureContentWidth) {
+                const value = getValueByPath(rowData, this.prop);
+                if (value === null || value === undefined || value === '') {
+                    continue;
+                }
             }
             maxContentWidth = Math.max(maxContentWidth, measure(rowData));
         }
 
         // 内容宽度需加上单元格内间距，再与表头宽度取较大值
         const contentWidth = maxContentWidth + CELL_PADDING;
-        const columnWidth = getTextWidth(i18n.global.t(this.label)) + HEADER_PADDING;
-        const flexWidth = Math.max(contentWidth, columnWidth);
-        // 设置上限并累加需要额外增加的宽度
-        this.minWidth = Math.min(flexWidth, MAX_AUTO_WIDTH) + this.addWidth;
-    };
+        const flexWidth = Math.max(contentWidth, headerMinWidth(this.label));
+        // 上限封顶；图标/tag 等估算覆盖不到的渲染占位由渲染后的 DOM 实测回填（refineMinWidthByDom）精修
+        this.minWidth = Math.min(flexWidth, MAX_AUTO_WIDTH);
+        // 紧凑固化列的生效约束是 width：估算结果同步向上（基线不被后续估算缩小）
+        if (typeof this.width === 'number' && this.minWidth > this.width) {
+            this.width = this.minWidth;
+        }
+        return this.minWidth;
+    }
+
+    /**
+     * 仅按表头文本估算 minWidth（无数据时的空态展示用）：内容估不到，
+     * 表头宽度让空列表的表头有合理列宽；不定型，首轮非空数据仍按内容重估。
+     */
+    autoCalculateMinWidthByHeader() {
+        if (typeof this.minWidth === 'string') {
+            return;
+        }
+        this.minWidth = headerMinWidth(this.label);
+        if (typeof this.width === 'number' && this.minWidth > this.width) {
+            this.width = this.minWidth;
+        }
+    }
+}
+
+/** 表头文本估算 minWidth：内容估不到时的列宽下限（空态展示与内容估算共用） */
+function headerMinWidth(label: string): number {
+    return Math.min(getTextWidth(i18n.global.t(label)) + HEADER_PADDING, MAX_AUTO_WIDTH);
 }

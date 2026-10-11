@@ -321,41 +321,6 @@ export interface DbTransferLogRunInfo {
     runLog: string;
 }
 
-/** 数据库备份信息 */
-export interface DbBackup {
-    id: number;
-    dbId: number;
-    dbName: string;
-    name: string;
-    cron: string;
-    status: number;
-    remark: string;
-    maxSaveDays: number;
-    createTime: string;
-}
-
-/** 数据库备份历史 */
-export interface DbBackupHistory {
-    id: number;
-    backupId: number;
-    dbName: string;
-    name: string;
-    status: number;
-    remark: string;
-    createTime: string;
-}
-
-/** 数据库恢复信息 */
-export interface DbRestore {
-    id: number;
-    dbId: number;
-    dbName: string;
-    name: string;
-    status: number;
-    remark: string;
-    createTime: string;
-}
-
 /** 数据库实例服务器信息 */
 export interface DbInstanceServerInfo {
     version: string;

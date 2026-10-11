@@ -73,7 +73,7 @@ func (n *alertNotifierImpl) NotifyWithTarget(ctx context.Context, event *entity.
 		return 0, err
 	}
 	sendErr := n.doSend(ctx, tmpl, channels, alertNotifyParams(event, rule), target.ReceiverIds)
-	n.recordNotifyLogs(event.Id, channels, target, sendErr)
+	n.recordNotifyLogs(ctx, event.Id, channels, target, sendErr)
 	return len(channels), sendErr
 }
 
@@ -93,7 +93,7 @@ func (n *alertNotifierImpl) NotifyRecoverWithTarget(ctx context.Context, event *
 		return 0, err
 	}
 	sendErr := n.doSend(ctx, tmpl, channels, alertRecoverParams(event, rule), target.ReceiverIds)
-	n.recordNotifyLogs(event.Id, channels, target, sendErr)
+	n.recordNotifyLogs(ctx, event.Id, channels, target, sendErr)
 	return len(channels), sendErr
 }
 
@@ -210,8 +210,7 @@ func formatThreshold(event *entity.AlertEvent) string {
 	return fmt.Sprintf("%s %s %s%s", metricLabel, operatorSymbol, formattedValue, unit)
 }
 
-// operatorSymbolMap 比较操作符：技术符号 → 人类可读符号
-// 参考 Grafana/Prometheus Alertmanager 的展示方式
+// operatorSymbolMap 比较操作符：技术符号 → 人类可读符号（展示取直觉符号 > ≥ < ≤ = ≠，便于通知文案可读）
 var operatorSymbolMap = map[string]string{
 	"gt":  ">",
 	"gte": "≥",
@@ -284,7 +283,7 @@ func (n *alertNotifierImpl) doSend(ctx context.Context, tmpl *msgentity.MsgTmpl,
 // 由于底层 SendMsg 为 fire-and-forget，此处记录的是"投递"状态：
 // SendMsg 返回 nil 视为投递成功（status=1），否则视为投递失败（status=2）。
 // 策略 ID 按 NotifyTarget 的渠道→策略归因记录，日志可追溯到具体路由策略
-func (n *alertNotifierImpl) recordNotifyLogs(eventId uint64, channels []*msgentity.MsgChannel, target service.NotifyTarget, sendErr error) {
+func (n *alertNotifierImpl) recordNotifyLogs(ctx context.Context, eventId uint64, channels []*msgentity.MsgChannel, target service.NotifyTarget, sendErr error) {
 	if n.notifyLogRepo == nil || len(channels) == 0 {
 		return
 	}
@@ -308,7 +307,7 @@ func (n *alertNotifierImpl) recordNotifyLogs(eventId uint64, channels []*msgenti
 			ErrorMsg:    errMsg,
 			SendTime:    now,
 		}
-		if createErr := n.notifyLogRepo.Create(log); createErr != nil {
+		if createErr := n.notifyLogRepo.Create(ctx, log); createErr != nil {
 			logx.Warnf("[alert] record notify log failed: event=%d channel=%d err=%v", eventId, ch.Id, createErr)
 		}
 	}

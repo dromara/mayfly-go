@@ -146,11 +146,13 @@ func (c *conversationAppImpl) GetByCode(ctx context.Context, code string) (*enti
 //
 // 原子自增：无读改写，单条 UPDATE 完成，与 SaveMeta 的元数据列更新互不干扰。
 func (c *conversationAppImpl) IncrTokenUsage(ctx context.Context, convId uint64, promptTokens, completionTokens, totalTokens int64) error {
-	table := new(entity.Conversation).TableName()
-	sql := "UPDATE " + table +
-		" SET prompt_tokens = prompt_tokens + ?, completion_tokens = completion_tokens + ?, total_tokens = total_tokens + ?" +
-		" WHERE id = ?"
-	return c.Repo.ExecBySQL(sql, promptTokens, completionTokens, totalTokens, convId)
+	// 累加走数据库侧原子自增（Patch.Inc）：没有读-改-写窗口，也不需要应用层手拼 UPDATE 语句
+	patch := base.NewPatch().
+		Inc("prompt_tokens", promptTokens).
+		Inc("completion_tokens", completionTokens).
+		Inc("total_tokens", totalTokens)
+	// 走应用层入口（只报执行是否出错）：这里不关心影响行数，会话不存在时 0 行属正常态
+	return c.UpdateColsByCond(ctx, patch, model.NewCond().Eq(model.IdColumn, convId))
 }
 
 // toTurnItemDTO 将 entity.TurnItem 转换为 dto.TurnItemDTO

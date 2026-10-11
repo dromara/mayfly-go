@@ -7,43 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// CurrentSchema 解析 database/schema 格式，schema部分为空或无斜杠时返回空
-func TestDbInfo_CurrentSchema(t *testing.T) {
-	cases := []struct {
-		database string
-		expected string
-	}{
-		{"", ""},
-		{"mydb", ""},
-		{"mydb/public", "public"},
-		{"mydb/dbo", "dbo"},
-		// 超过2段视为非法格式，不取值
-		{"a/b/c", ""},
-	}
-	for _, c := range cases {
-		di := &DbInfo{Database: c.database}
-		assert.Equal(t, c.expected, di.CurrentSchema(), "database: %s", c.database)
-	}
-}
-
-// GetDatabase 返回 database/schema 格式中的 database 部分
-func TestDbInfo_GetDatabase(t *testing.T) {
-	cases := []struct {
-		database string
-		expected string
-	}{
-		{"", ""},
-		{"mydb", "mydb"},
-		{"mydb/public", "mydb"},
-		{"a/b/c", "a"},
-	}
-	for _, c := range cases {
-		di := &DbInfo{Database: c.database}
-		assert.Equal(t, c.expected, di.GetDatabase(), "database: %s", c.database)
-	}
-}
-
-// GetDbConnId：dbId为0（未持久化的临时连接）必须返回空id，避免与其他池key冲突
+// GetDbConnId：dbId为0（未持久化的临时连接）必须返回空id，避免与其他池key冲突。
+// db 入参是库位 locator（可为 `库/schema`），locator 本身即 (库, schema) 唯一身份。
 func TestGetDbConnId(t *testing.T) {
 	assert.Equal(t, "", GetDbConnId(0, "mydb"))
 	assert.Equal(t, "db-5:mydb", GetDbConnId(5, "mydb"))

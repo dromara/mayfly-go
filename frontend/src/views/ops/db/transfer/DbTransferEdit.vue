@@ -156,6 +156,7 @@ const items = defineFormItems<DbTransferForm>([
     {
         prop: 'mode',
         label: 'db.transferMode',
+        tooltip: 'db.transferModeTips',
         type: 'radio',
         required: true,
         options: [
@@ -165,7 +166,7 @@ const items = defineFormItems<DbTransferForm>([
     },
     { prop: 'targetFileDbType', label: 'db.dbFileType', type: 'custom', span: 10, when: (f) => f.mode === 2, rules: [Rules.requiredSelect('db.dbFileType')] },
     { prop: 'extra.fileType', label: 'db.fileType', type: 'select', span: 6, when: (f) => f.mode === 2, options: fileTypeOptions },
-    { prop: 'fileSaveDays', label: 'db.fileSaveDays', type: 'custom', span: 8, when: (f) => f.mode === 2 },
+    { prop: 'fileSaveDays', label: 'db.fileSaveDays', tooltip: 'db.fileSaveDaysTips', type: 'custom', span: 8, when: (f) => f.mode === 2 },
     {
         prop: 'strategy',
         label: 'db.transferStrategy',
@@ -259,6 +260,8 @@ type DbTransferForm = {
 const basicFormData: DbTransferForm = {
     taskName: '',
     mode: 1,
+    // 导出文件默认保留 7 天：迁移/备份产物会持续占服务器磁盘，无保留期等于无限增长
+    fileSaveDays: 7,
     status: 1,
     cron: '',
     cronEnabled: -1,

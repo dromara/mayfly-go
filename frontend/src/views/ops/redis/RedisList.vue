@@ -167,7 +167,7 @@ const { editDialog, editEntity } = useEditDialog<Redis>('Redis');
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('redis.keywordPlaceholder')];
 
 const columns = ref([
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
+    TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('host', 'Host'),
     TableColumn.new('mode', 'Mode'),
     TableColumn.new('remark', 'common.remark'),

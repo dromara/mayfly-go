@@ -57,6 +57,21 @@ func (m *msgTmplAppImpl) GetPageList(condition *entity.MsgTmpl, pageParam model.
 }
 
 func (m *msgTmplAppImpl) SaveTmpl(ctx context.Context, msgTmpl *dto.MsgTmplSave) error {
+	// 事务前先取旧模板的渠道：它既是差异比较的基线，又必须留在事务**之外**——基座读入口不收
+	// ctx，走的是另一条连接：事务内读既看不到本事务尚未提交的写入，也会在事务占满连接池时等不到
+	// 空闲连接（部署把 max-open-conns 调小后就是长时间不返回）。
+	// 这里读的是已提交的旧状态，与本事务要写入的内容无依赖，因此提前读不改变结果
+	oldTemplChannelIds := []uint64{}
+	if msgTmpl.Id != 0 {
+		oldTemplChannels, err := m.msgTmplChannelRepo.SelectByCond(&entity.MsgTmplChannel{TmplId: msgTmpl.Id}, "channel_id")
+		if err != nil {
+			return err
+		}
+		oldTemplChannelIds = collx.ArrayMap(oldTemplChannels, func(c *entity.MsgTmplChannel) uint64 {
+			return c.ChannelId
+		})
+	}
+
 	return m.Tx(ctx, func(ctx context.Context) error {
 		mt := &entity.MsgTmpl{}
 		structx.Copy(mt, msgTmpl)
@@ -67,18 +82,6 @@ func (m *msgTmplAppImpl) SaveTmpl(ctx context.Context, msgTmpl *dto.MsgTmplSave)
 
 		if err := m.Save(ctx, mt); err != nil {
 			return err
-		}
-
-		oldTemplChannelIds := []uint64{}
-		if !isCreate {
-			oldTemplChannels, err := m.msgTmplChannelRepo.SelectByCond(&entity.MsgTmplChannel{TmplId: mt.Id}, "channel_id")
-			if err != nil {
-				return err
-			}
-
-			oldTemplChannelIds = collx.ArrayMap(oldTemplChannels, func(c *entity.MsgTmplChannel) uint64 {
-				return c.ChannelId
-			})
 		}
 
 		add, del, _ := collx.ArrayCompare(msgTmpl.ChannelIds, oldTemplChannelIds)

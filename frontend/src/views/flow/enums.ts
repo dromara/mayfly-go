@@ -22,6 +22,7 @@ export const ProcinstStatus = {
 
 export const ProcinstBizStatus = {
     Wait: EnumValue.of(1, 'flow.waitHandle').setTagType('primary'),
+    Doing: EnumValue.of(3, 'flow.handling').setTagType('info'),
     Success: EnumValue.of(2, 'flow.handleSuccess').setTagType('success'),
     Fail: EnumValue.of(-2, 'flow.handleFail').setTagType('danger'),
     No: EnumValue.of(-1, 'flow.noHandle').setTagType('warning'),

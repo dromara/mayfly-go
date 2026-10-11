@@ -24,6 +24,8 @@ const (
 	MachineFileUploadFailMsg
 
 	DbDumpFailMsg
+	DbTaskRunFailMsg
+	DbSchemaDriftMsg
 	SQLScriptRunFailMsg
 	SQLScriptRunSuccessMsg
 

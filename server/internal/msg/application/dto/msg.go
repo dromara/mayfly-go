@@ -57,6 +57,26 @@ var (
 		imsg.DbDumpFailMsg,
 		MsgChannelSite, MsgChannelWs)
 
+	// MsgTmplDbTaskRunFail 数据库任务（迁移/同步/备份导出）执行失败的通知通道。
+	//
+	// 这些任务多数由 cron 触发：失败若只写进运行日志，没有界面会打开时就永远无人知晓，
+	// 定时同步停摆几天才发现。故与 dump/脚本执行失败同级，站内 + ws 双通道推送。
+	MsgTmplDbTaskRunFail = newMsgTmpl(entity.MsgTypeNotify,
+		entity.MsgSubtypeDbTaskRunFail,
+		entity.MsgStatusRead,
+		imsg.DbTaskRunFailMsg,
+		MsgChannelSite, MsgChannelWs)
+
+	// MsgTmplDbSchemaDrift 表结构偏离基线的通知。
+	//
+	// 漂移是「没人告知的结构变更」：不推送到人，基线就只是个存着的哈希值，
+	// 等到下次发布对不上才发现。与任务失败同级（站内 + ws）
+	MsgTmplDbSchemaDrift = newMsgTmpl(entity.MsgTypeNotify,
+		entity.MsgSubtypeDbSchemaDrift,
+		entity.MsgStatusRead,
+		imsg.DbSchemaDriftMsg,
+		MsgChannelSite, MsgChannelWs)
+
 	MsgTmplSQLScriptRunFail = newMsgTmpl(entity.MsgTypeNotify,
 		entity.MsgSubtypeSQLScriptRunFail,
 		entity.MsgStatusRead,
@@ -133,5 +153,28 @@ func newMsgTmpl(mtype entity.MsgType, subtype entity.MsgSubtype, status entity.M
 	return &MsgTmplChannel{
 		Tmpl:     msgTmpl,
 		Channels: channels,
+	}
+}
+
+// DbTaskRunFailEvent 构造一条「数据库任务执行失败」通知事件。
+//
+// 收件人取任务创建者而非当前登录账号：cron 触发的执行上下文里没有登录用户，
+// 且失败只应通知到关心它的人，不做全员广播
+func DbTaskRunFailEvent(taskName, errText string, receiverId uint64) *MsgTmplSendEvent {
+	return &MsgTmplSendEvent{
+		TmplChannel: MsgTmplDbTaskRunFail,
+		Params:      collx.M{"taskName": taskName, "error": errText},
+		ReceiverIds: []uint64{receiverId},
+	}
+}
+
+// DbSchemaDriftEvent 构造一条「表结构偏离基线」通知。
+//
+// 收件人取基线创建者：漂移是否要紧只有建基线的人知道，不做全员广播
+func DbSchemaDriftEvent(dbId uint64, dbName, detail string, count int, receiverId uint64) *MsgTmplSendEvent {
+	return &MsgTmplSendEvent{
+		TmplChannel: MsgTmplDbSchemaDrift,
+		Params:      collx.M{"dbId": dbId, "dbName": dbName, "detail": detail, "count": count},
+		ReceiverIds: []uint64{receiverId},
 	}
 }

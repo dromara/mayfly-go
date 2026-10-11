@@ -16,6 +16,8 @@ var Zh_CN = map[i18n.MsgId]string{
 	MachineFileUploadFailMsg:    "[{{.filename}}] -> <machine-info code={{.machineCode}}>{{.machineName}}</machine-info>【{{.path}}】。错误信息：<error-text>{{.error}}</error-text>",
 
 	DbDumpFailMsg:          "数据库【<db-info id={{.dbId}}>{{.dbName}}</db-info>】导出失败，错误信息：<error-text>{{.error}}</error-text>",
+	DbTaskRunFailMsg:       "数据库任务【{{.taskName}}】执行失败，错误信息：<error-text>{{.error}}</error-text>",
+	DbSchemaDriftMsg:       "数据库【<db-info id={{.dbId}}>{{.dbName}}</db-info>】有 {{.count}} 张表的结构与基线不一致：{{.detail}}",
 	SQLScriptRunFailMsg:    "数据库【<db-info id={{.dbId}}>{{.dbName}}</db-info>】的脚本 {{.filename}} 执行失败，错误：<error-text>{{.error}}</error-text>",
 	SQLScriptRunSuccessMsg: "数据库【<db-info id={{.dbId}}>{{.dbName}}</db-info>】的脚本 {{.filename}} 执行成功，耗时 {{.cost}}",
 

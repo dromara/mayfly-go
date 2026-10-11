@@ -12,6 +12,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
@@ -88,6 +89,11 @@ func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *d
 		}
 	}
 
+	// 要通知就必须有模板：缺模板时发送逻辑是直接 return，用户以为配了通知却永远收不到
+	if mcj.NotifyType != entity.CronJobNotifyNone && mcj.NotifyTmplCode == "" {
+		return errorx.NewBizI(ctx, imsg.ErrCronJobNotifyTmplRequired)
+	}
+
 	// 赋值cron job key
 	if mcj.Id == 0 {
 		mcj.Key = stringx.Rand(16)
@@ -133,6 +139,10 @@ func (m *machineCronJobAppImpl) InitCronJob() {
 }
 
 func (m *machineCronJobAppImpl) RunCronJob(key string) {
+	// 定时任务入口没有请求上下文：显式造一个带 traceId 的任务级 ctx 往下传，
+	// 这一轮的执行记录既能与日志串联，也不会以「无上下文」写库而看不出是谁在什么时候跑的
+	ctx := contextx.WithTraceId(context.Background())
+
 	// 分布式互斥：多实例部署时只有一个实例执行同一 cron job
 	if !m.runGuard.Acquire(key) {
 		return
@@ -148,7 +158,11 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 		return
 	}
 
-	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
+	relateCodePaths, err := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
+	if err != nil {
+		logx.Errorf("failed to get tag paths for cronjob %s: %v", key, err)
+		return
+	}
 	var machineTags []tagentity.TagTree
 	if err := m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Types: []tagentity.TagType{tagentity.TagTypeMachine}}, &machineTags); err != nil {
 		logx.Errorf("failed to list machine tags for cronjob: %v", err)
@@ -164,7 +178,7 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 
 	for _, machine := range machines {
 		gox.Go(func() {
-			m.runCronJob0(machine.Id, cronJob)
+			m.runCronJob0(ctx, machine.Id, cronJob)
 		})
 	}
 }
@@ -190,7 +204,7 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	}
 }
 
-func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
+func (m *machineCronJobAppImpl) runCronJob0(ctx context.Context, mid uint64, cronJob *entity.MachineCronJob) {
 	timeout := time.Duration(cronJob.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = cronJobDefaultTimeout
@@ -241,7 +255,7 @@ func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 			execRes.Status = entity.MachineCronJobExecStatusError
 		}
 		// 保存执行记录
-		m.machineCronJobExecRepo.Insert(context.TODO(), execRes)
+		m.machineCronJobExecRepo.Insert(ctx, execRes)
 	}
 
 	m.notifyCronJobResult(ctx, cronJob, machineCode, res, err)

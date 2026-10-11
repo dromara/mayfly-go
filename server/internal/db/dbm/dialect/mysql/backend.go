@@ -129,11 +129,11 @@ type Backend struct {
 }
 
 func (mm *Backend) GetCapabilities() dbi.MetadataCapabilities {
-	// mysql：database 即 schema、无独立 schema 层；已实现视图导航与外键内省，显式声明对应扩展能力
+	// mysql：database 即 schema、无独立 schema 层；已实现视图导航、外键内省与会话内省，显式声明对应扩展能力
 	// （声明与实现的一致性由 dbm 的护栏测试把守）
 	return dbi.NewAllCapabilities().
 		Without(dbi.FeatSchemas).
-		With(dbi.FeatViews, dbi.FeatTableRelations).
+		With(dbi.FeatViews, dbi.FeatTableRelations, dbi.FeatSessions, dbi.FeatExplain).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 

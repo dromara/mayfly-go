@@ -298,7 +298,11 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 		return nil
 	}
 
-	if p.CountByCond(&entity.TagTree{Type: parentTagType, Code: newParentCode}) == 0 {
+	exists, err := p.Exists(ctx, &entity.TagTree{Type: parentTagType, Code: newParentCode})
+	if err != nil {
+		return err
+	}
+	if !exists {
 		return errorx.NewBiz("parent tag not found")
 	}
 
@@ -381,7 +385,7 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelRes
 	if len(childrenTagIds) == 0 {
 		return nil
 	}
-	// 删除code_path下的所有子标签
+	// 删除 code_path 下的所有子标签
 	if err := p.deleteByIds(ctx, collx.ArrayDeduplicate(childrenTagIds)); err != nil {
 		return err
 	}
@@ -517,7 +521,13 @@ func (p *tagTreeAppImpl) ListResourceTagByCode(resourceCode string) []*entity.Re
 func (p *tagTreeAppImpl) ListTagByAccountId(accountId uint64) []string {
 	tagPaths, err := cache.GetAccountTagPaths(accountId)
 	if err != nil {
-		tagPaths = p.tagTreeRelateApp.GetTagPathsByAccountId(accountId)
+		tagPaths, err = p.tagTreeRelateApp.GetTagPathsByAccountId(accountId)
+		if err != nil {
+			// 查询失败按「该账号无可见标签」处理并留日志：CanAccess 对空标签路径一律拒绝，
+			// 所以这里是失败关闭而不是失败放开；真正的问题是把它静默当成空集且不留任何痕迹
+			logx.Errorf("failed to list accessible tag paths for account %d: %v", accountId, err)
+			return nil
+		}
 		cache.SaveAccountTagPaths(accountId, tagPaths)
 	}
 	return tagPaths

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/application/transfer"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/imsg"
@@ -15,6 +16,7 @@ import (
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
 
 	"github.com/spf13/cast"
@@ -25,7 +27,7 @@ type DbTransferTask struct {
 	dbTransferFileApp transfer.DbTransferFile `inject:"T"`
 	dbApp             application.Db          `inject:"T"`
 	tagApp            tagapp.TagTreeChecker   `inject:"T"`
-	dbSQLExecApp      application.DbSQLExec   `inject:"T"`
+	dbSQLExecApp      sqlexec.DbSQLExec       `inject:"T"`
 	fileApp           fileapp.File            `inject:"T"`
 }
 
@@ -54,6 +56,9 @@ func (d *DbTransferTask) ReqConfs() *req.Confs {
 
 		// 导出文件管理-列表
 		req.NewGet("/files/:taskId", d.Files),
+
+		// 导出文件内容下载：导出文件写入时声明为私有，通用文件路由会拒读，这里是唯一取流入口
+		req.NewGet("/files/content/:fileId", d.FileContent).Log(req.NewLogSaveI(imsg.LogDtsDownloadFile)).RequiredPermissionCode("db:transfer:files:down").NoRes(),
 
 		// 导出文件管理-删除
 		req.NewPost("/files/del/:fileId", d.FileDel).Log(req.NewLogSaveI(imsg.LogDtsDeleteFile)).RequiredPermissionCode("db:transfer:files:del"),
@@ -149,6 +154,23 @@ func (d *DbTransferTask) Files(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+// FileContent 下载迁移导出文件内容。
+//
+// 导出文件（含整库明文数据）写入时声明为私有，通用文件路由 GET /sys/files/:key 会拒读它，
+// 因此本入口是唯一取流通道：权限码由框架在进 handler 前校验，下载行为本身必须留痕（数据外泄取证）
+func (d *DbTransferTask) FileContent(rc *req.Ctx) {
+	tFile, err := d.dbTransferFileApp.GetById(cast.ToUint64(rc.PathParam("fileId")))
+	biz.IsTrue(tFile != nil && err == nil, "file not found")
+	biz.NotEmpty(tFile.FileKey, "the export file is not available yet")
+
+	rc.ReqParam = collx.Kvs("fileId", tFile.Id, "taskId", tFile.TaskId, "fileDbType", tFile.FileDbType)
+
+	filename, reader, err := d.fileApp.GetReader(rc.MetaCtx, tFile.FileKey)
+	biz.ErrIsNilAppendErr(err, "failed to read the export file: %s")
+	defer reader.Close()
+	rc.Download(reader, filename)
+}
+
 func (d *DbTransferTask) FileDel(rc *req.Ctx) {
 	fileId := rc.PathParam("fileId")
 	rc.ReqParam = fileId // 记录操作日志
@@ -183,7 +205,7 @@ func (d *DbTransferTask) FileRun(rc *req.Ctx) {
 
 	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, targetDbConn.Info.CodePath...), "%s")
 
-	filename, fileReader, err := d.fileApp.GetReader(context.TODO(), tFile.FileKey)
+	filename, fileReader, err := d.fileApp.GetReader(rc.MetaCtx, tFile.FileKey)
 	biz.ErrIsNil(err)
 
 	// 备份文件可能是 zip/gz 压缩包，与「SQL文件执行」入口保持同样的解包能力；

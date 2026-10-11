@@ -59,7 +59,7 @@ func setupDbTypeTest(t *testing.T) (*dbAppImpl, *gorm.DB) {
 func newTestInstance(t *testing.T, db *gorm.DB, name, dbType string) uint64 {
 	t.Helper()
 	inst := &entity.DbInstance{Name: name, Type: dbType, Host: "127.0.0.1", Port: 3306}
-	inst.FillBaseInfo(model.IdGenTypeNone, nil)
+	inst.FillBaseInfo(nil)
 	require.NoError(t, db.Create(inst).Error)
 	return inst.Id
 }
@@ -67,7 +67,7 @@ func newTestInstance(t *testing.T, db *gorm.DB, name, dbType string) uint64 {
 func newTestDb(t *testing.T, db *gorm.DB, name string, instanceId uint64) uint64 {
 	t.Helper()
 	d := &entity.Db{Name: name, Code: name, InstanceId: instanceId}
-	d.FillBaseInfo(model.IdGenTypeNone, nil)
+	d.FillBaseInfo(nil)
 	require.NoError(t, db.Create(d).Error)
 	return d.Id
 }

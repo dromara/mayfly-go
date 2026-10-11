@@ -12,14 +12,14 @@
 
         <!-- 标签 -->
         <span class="ml-0.5 truncate" :title="data.labelRemark">
-            <!-- 贡献者行内 label 渲染器优先（如标签路径 '/' 分段高亮），缺省 i18n 文本 -->
+            <!-- 贡献者行内 label 渲染器优先（如标签路径 '/' 分段高亮），缺省 i18n 文本（查找态下命中片段标色） -->
             <component :is="labelRenderer" v-if="labelRenderer" :node="data" />
 
             <el-link v-else-if="data.disabled" type="danger" disabled underline="never">
-                {{ $t(data.label) }}
+                <TreeLabelText :text="labelText" :query="filterQuery" />
             </el-link>
 
-            <template v-else>{{ $t(data.label) }}</template>
+            <TreeLabelText v-else :text="labelText" :query="filterQuery" />
         </span>
 
         <!-- 悬浮操作按钮（与右键菜单同源：resolveNodeMenu）；出现时替代右侧信息区（对齐旧 BaseTreeNode 行为）；禁用节点不展示；
@@ -62,10 +62,12 @@ import { computed, inject, onBeforeUnmount, ref } from 'vue';
 
 import SvgIcon from '@/components/svg-icon/index.vue';
 
-import { TreeApiKey } from './context';
+import { TreeApiKey, TreeFilterQueryKey } from './context';
 import { resolveNodeMenu } from './commands';
+import { nodeDisplayLabel } from './filter';
 import { getContributor } from './registry';
 import { type TreeNode, type TreeCommandCtx } from './types';
+import TreeLabelText from './TreeLabelText.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -109,6 +111,13 @@ onBeforeUnmount(() => {
 
 /** 贡献者声明的行内 label 渲染器（kind 专属渲染知识归贡献者，行组件零 kind 知识） */
 const labelRenderer = computed(() => getContributor(props.data.kind)?.labelRenderer);
+
+/** 展示文本：与树过滤谓词取同一份（label 可能是 i18n key，渲染前先翻译） */
+const labelText = computed(() => nodeDisplayLabel(props.data));
+
+/** 生效中的查找词：无树容器的选择器场景未 provide，按不高亮渲染 */
+const filterQueryRef = inject(TreeFilterQueryKey, undefined);
+const filterQuery = computed(() => filterQueryRef?.value ?? '');
 
 // 下拉菜单展开中：保持操作按钮区渲染（锚点卸载会连带关闭 teleport 弹层）
 const dropdownVisible = ref(false);

@@ -29,7 +29,7 @@ type AlertNotifyPolicy interface {
 	ListEnabledWithLabels(ctx context.Context) ([]*entity.AlertNotifyPolicy, error)
 
 	// GetChannelDistribution 按渠道统计关联的启用策略数（概览用）
-	GetChannelDistribution() (map[string]int64, error)
+	GetChannelDistribution(ctx context.Context) (map[string]int64, error)
 }
 
 type alertNotifyPolicyAppImpl struct {
@@ -138,8 +138,8 @@ func (a *alertNotifyPolicyAppImpl) ListEnabledWithLabels(ctx context.Context) ([
 	return policies, nil
 }
 
-func (a *alertNotifyPolicyAppImpl) GetChannelDistribution() (map[string]int64, error) {
-	return a.GetRepo().GetChannelDistribution()
+func (a *alertNotifyPolicyAppImpl) GetChannelDistribution(ctx context.Context) (map[string]int64, error) {
+	return a.GetRepo().GetChannelDistribution(ctx)
 }
 
 // validateAlertNotifyPolicy 通知策略保存校验

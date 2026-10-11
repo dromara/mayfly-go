@@ -9,4 +9,5 @@ func init() {
 	starter.AddInitIocFunc(func() {
 		api.InitIoc()
 	})
+
 }

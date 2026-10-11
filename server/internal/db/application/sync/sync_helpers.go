@@ -114,7 +114,7 @@ func quoteTargetTableRef(conn *dbi.DbConn, tableName string) string {
 	quote := conn.GetDialect().Quoter().QuoteIdent
 	table := quote(tableName)
 	if conn.Info.Type == "mssql" {
-		if schema := conn.Info.CurrentSchema(); schema != "" {
+		if schema := conn.Info.Schema; schema != "" {
 			return quote(schema) + "." + table
 		}
 	}

@@ -25,11 +25,14 @@ func TestSelectBasic(t *testing.T) {
 	if len(selectStmt.Items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(selectStmt.Items))
 	}
-	if selectStmt.Items[0].Text != "id" {
-		t.Errorf("expected item[0]='id', got '%s'", selectStmt.Items[0].Text)
+	// Text 的契约是「原始文本」（保留引用符），跨方言一致；去引用符后的名字在 ColumnName。
+	// 保留引用符而非整体 Unquote：整体去引号会把 `u`.`phone` 破坏成 u`.`phone，污染限定符分段，
+	// 而脱敏血缘正是按段取词（base.ExtractExprQualifiedPairs 同时支持 `x` 与 "x"）
+	if selectStmt.Items[0].Text != "`id`" || selectStmt.Items[0].ColumnName != "id" {
+		t.Errorf("expected item[0] text='`id`' column='id', got %+v", selectStmt.Items[0])
 	}
-	if selectStmt.Items[1].Text != "name" {
-		t.Errorf("expected item[1]='name', got '%s'", selectStmt.Items[1].Text)
+	if selectStmt.Items[1].Text != "name" || selectStmt.Items[1].ColumnName != "name" {
+		t.Errorf("expected item[1] text='name' column='name', got %+v", selectStmt.Items[1])
 	}
 
 	if len(selectStmt.From) != 1 || selectStmt.From[0].Name != "users" {

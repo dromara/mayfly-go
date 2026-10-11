@@ -47,7 +47,7 @@ const columns = [
     TableColumn.new('code', 'common.code'),
     TableColumn.new('name', 'msg.name'),
     TableColumn.new('status', 'common.status').typeTag(ChannelStatusEnum),
-    TableColumn.new('type', 'common.type').typeTag(ChannelTypeEnum).setAddWidth(15),
+    TableColumn.new('type', 'common.type').typeTag(ChannelTypeEnum),
     TableColumn.new('url', 'URL'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('creator', 'common.creator'),

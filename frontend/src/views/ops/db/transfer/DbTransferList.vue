@@ -150,6 +150,9 @@ const perms = {
 
 const searchItems = [SearchItem.input('name', 'common.name')];
 
+/** 文件迁移的 SQL 方言名；历史任务可能未配置，不能回退成某个方言的名字展示，否则会误导为目标方言 */
+const fileTargetDialectName = (dbType?: string) => (dbType ? getDbDialect(dbType).getInfo().name : t('db.pleaseSetting'));
+
 /**
  * 默认收起的列：配置类列取值多为默认值（全量、不转换、并发度 4），
  * 创建/修改两组审计信息只需常驻一组，逐列常驻会把操作列顶到屏外；
@@ -166,13 +169,18 @@ const optionalColumns = [
 optionalColumns.forEach((column) => (column.show = 0));
 
 const columns = ref([
-    // 任务名是主识别信息，预留比默认更宽的宽度，过长仍可由溢出 tooltip 看全称
-    TableColumn.new('taskName', 'db.taskName').setMinWidth(180).isSlot(),
+    // 任务名是主识别信息，参与列宽自适应（含插槽内标记占位），过长由溢出 tooltip 兼底
+    TableColumn.new('taskName', 'db.taskName').isSlot(),
     TableColumn.new('mode', 'db.transferMode').typeTag(DbTransferModeEnum).alignCenter(),
     // 以下三列插槽内已自带 el-tooltip，需关掉列的溢出提示（否则叠成两个气泡）；
     // 省略号不跟该开关走，改由插槽内的 block truncate 自己保证单行
-    TableColumn.new('srcDb', 'db.srcDb').setMinWidth(150).isSlot().noShowOverflowTooltip(),
-    TableColumn.new('targetDb', 'db.transferTarget').setMinWidth(150).isSlot().noShowOverflowTooltip(),
+    TableColumn.new('srcDb', 'db.srcDb').isSlot().noShowOverflowTooltip().setSlotText((row: DbTransferTaskListVO) => row.srcDbName ?? ''),
+    TableColumn.new('targetDb', 'db.transferTarget')
+        .isSlot()
+        .noShowOverflowTooltip()
+        .setSlotText((row: DbTransferTaskListVO) =>
+            row.mode === DbTransferModeEnum.File.value ? fileTargetDialectName(row.targetFileDbType) : (row.targetDbName ?? '')
+        ),
     TableColumn.new('checkedKeys', 'db.transferScope').alignCenter().isSlot().setMinWidth(100).noShowOverflowTooltip(),
     // 未启用定时时该列展示“手动”，不留空白占位符，避免被当成数据缺失
     TableColumn.new('cron', 'db.cronEnabled')
@@ -197,9 +205,6 @@ const transferTablesTip = (checkedKeys?: string) => {
     const tables = transferTables(checkedKeys);
     return `${tables.slice(0, 20).join('、')}${tables.length > 20 ? ' …' : ''}`;
 };
-
-/** 文件迁移的 SQL 方言名；历史任务可能未配置，不能回退成某个方言的名字展示，否则会误导为目标方言 */
-const fileTargetDialectName = (dbType?: string) => (dbType ? getDbDialect(dbType).getInfo().name : t('db.pleaseSetting'));
 
 /** 文件迁移的目标信息：无目标库，按生成 SQL 的方言展示；保留天数非正数时后端不会自动清理文件，故不展示该项 */
 const fileTargetTip = (data: DbTransferTaskListVO) => {

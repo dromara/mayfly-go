@@ -13,6 +13,7 @@ import (
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
+	fileentity "mayfly-go/internal/file/domain/entity"
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
@@ -606,7 +607,10 @@ func (app *DbTransferAppImpl) transfer2File(ctx context.Context, logId uint64, t
 		fileType = "sql"
 	}
 	filename := fmt.Sprintf("dtf_%s.%s", timex.TimeNo(), fileType)
-	fileKey, writer, closeFunc, err := app.fileApp.NewWriter(ctx, "", filename)
+	// 导出文件是整库明文产物（含数据），必须声明为私有：只能经迁移模块带 db:transfer:files:down 权限码的
+	// 下载入口获取，不能因为知道 fileKey 就走通用文件路由匿名拉走。恢复链路自身在路由上已校权限码，
+	// 故直接走 GetReader 取流，不受该限制影响
+	fileKey, writer, closeFunc, err := app.fileApp.NewWriter(ctx, "", filename, fileentity.FileAccessModePrivate)
 	if err != nil {
 		app.EndTransfer(ctx, logId, taskId, "create file error", err, nil)
 		return

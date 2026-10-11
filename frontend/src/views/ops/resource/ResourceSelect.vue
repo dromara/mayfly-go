@@ -11,6 +11,7 @@
         node-key="key"
         :expand-on-click-node="true"
         filterable
+        :filter-method="onSelectFilter"
         :filter-node-method="filterNode"
         v-model="modelValue"
         @change="changeNode"
@@ -30,17 +31,17 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, toRefs, useTemplateRef, watch } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import type { PropType } from 'vue';
-
-import { isPrefixSubsequence } from '@/common/utils/string';
 
 import {
     getContributor,
     isNodeSelectable,
+    nodeMatchesQuery,
     resolveHasChildren,
     toNodeMatcher,
     TreeApiKey,
+    TreeFilterQueryKey,
     type NodeMatcher,
     type TreeApi,
     type TreeNode,
@@ -51,7 +52,7 @@ import TreeNodeRow from './tree/TreeNodeRow.vue';
 import { provide } from 'vue';
 
 /**
- * 资源选择下拉树：复用 ops 资源树的贡献者数据链路（tag 骨架 + 类型分组 + 资源懒加载）。
+ * 资源选择下拉树：复用 ops 资源树的贡献者数据链路（tag 骨架 + 标签下直接平铺的资源懒加载）。
  * 选择粒度由 selectable prop 或贡献者 selectable 声明单源判定：
  * 仅命中选择粒度的节点才外抛 change 并关闭下拉（el-tree-select 任意节点点击都触发 change，
  * 守卫收口在此，消费方无需逐处 kind 判存）。
@@ -106,22 +107,28 @@ const treeRef = useTemplateRef<{ filter: (val: string) => void; getNode: (key: s
 
 const modelValue = defineModel<string | number>('modelValue');
 
-const state = reactive({
-    filterText: '',
-});
-const { filterText } = toRefs(state);
+// 当前过滤词：由 onSelectFilter 写入（见下），同时驱动引擎过滤与行内命中高亮
+const filterText = ref('');
 
-watch(filterText, (val) => {
-    treeRef.value?.filter(val);
-});
+/**
+ * 接管 el-tree-select 的过滤入口。
+ *
+ * 不传 filter-method 时，EP 内部直接 `tree.filter(keyword)`（select.mjs），业务侧拿不到查询串，
+ * 高亮就永远拿不到输入（之前那个 watch(filterText) 因此是永不触发的死代码）。
+ * 接过来后：同一个词既打到引擎，又是 provide 给行组件的高亮源，不致于一边能搜一边不标色。
+ */
+const onSelectFilter = (query: string) => {
+    filterText.value = query;
+    treeRef.value?.filter(query);
+};
+
+// 选择器场景无树容器 provide，自行注入查找文本：命中片段与主树同样标色
+provide(TreeFilterQueryKey, filterText);
 
 const contributorOf = (data: TreeNodeData) => getContributor(data.kind);
 
-// 与主资源树同一过滤语义（前缀子序列），避免同一产品两套搜索规则（主树能搜到 a-c，选择器搜不到）
-const filterNode = (value: string, data: TreeNodeData) => {
-    if (!value) return true;
-    return isPrefixSubsequence(value, data.label);
-};
+// 与主资源树共用同一个谓词（tree/filter）：避免同一产品两套搜索规则（主树能搜到 a-c，选择器搜不到）
+const filterNode = (value: string, data: TreeNodeData) => nodeMatchesQuery(value, data);
 
 /** 选择粒度判定：显式 selectable 优先，缺省走贡献者 selectable 声明（单源协议） */
 const matchSelectable = (node: TreeNodeData): boolean => (props.selectable ? toNodeMatcher(props.selectable)(node) : isNodeSelectable(node));
@@ -151,7 +158,7 @@ const loadNode = async (node: { level: number; data: TreeNodeData }, resolve: (d
         if (node.level == 0) {
             nodes = await loadResourceTags([props.resourceType]);
         } else if (node.data.children?.length) {
-            // 预构子树（如标签骨架→类型分组）：内存中直接透传，不走贡献者懒加载
+            // 预构子树（标签骨架）：内存中直接透传，不走贡献者懒加载
             nodes = node.data.children;
         } else if (props.load) {
             nodes = await props.load(node);
@@ -179,7 +186,7 @@ const loadNode = async (node: { level: number; data: TreeNodeData }, resolve: (d
 
 const changeNode = (val: string | number) => {
     const node = treeRef.value?.getNode(val);
-    // 仅命中选择粒度的节点才是有效选择：标签/分组/中间层节点的点击仅用于展开，
+    // 仅命中选择粒度的节点才是有效选择：标签/中间层节点的点击仅用于展开，
     // 不外抛 change 也不关闭下拉（守卫单源收口，消费方 change 回调可直取 params）
     if (!node || !matchSelectable(node.data)) {
         return;

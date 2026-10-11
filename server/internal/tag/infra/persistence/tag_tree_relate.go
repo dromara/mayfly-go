@@ -1,6 +1,10 @@
 package persistence
 
+// 裸 SQL 读入口沿用无 ctx 的旧形态：这几个方法被鉴权链（CanAccess/GetAccountTags）大量复用，
+// 给它们加 ctx 会把签名级联扩散到全站鉴权点，属于渐进阶段的工作；此处只修复「SQL 错误被静默
+// 当成没有权限」这一缺陷，错误一律如实回报
 import (
+	"context"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
@@ -35,13 +39,13 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	if err := tr.SelectBySQL(sql, &res, relateType, tagPaths); err != nil {
+	if err := tr.SelectBySQL(context.Background(), sql, &res, relateType, tagPaths); err != nil {
 		return res, err
 	}
 	return res, nil
 }
 
-func (tr *tagTreeRelateRepoImpl) SelectTagPathsByAccountId(accountId uint64) []string {
+func (tr *tagTreeRelateRepoImpl) SelectTagPathsByAccountId(accountId uint64) ([]string, error) {
 	var res []string
 	sql := `
 SELECT
@@ -60,12 +64,14 @@ ORDER BY
 	t.code_path
 	`
 	now := time.Now()
-	tr.SelectBySQL(sql, &res, now, now, entity.TagRelateTypeTeam, accountId)
-	return res
+	if err := tr.SelectBySQL(context.Background(), sql, &res, now, now, entity.TagRelateTypeTeam, accountId); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // SelectTagPathsByRelate 根据关联信息查询对应的关联的标签路径
-func (tr *tagTreeRelateRepoImpl) SelectTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) []string {
+func (tr *tagTreeRelateRepoImpl) SelectTagPathsByRelate(relateType entity.TagRelateType, relateId uint64) ([]string, error) {
 	var res []string
 	sql := `
 SELECT
@@ -82,6 +88,8 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	tr.SelectBySQL(sql, &res, relateId, relateType)
-	return res
+	if err := tr.SelectBySQL(context.Background(), sql, &res, relateId, relateType); err != nil {
+		return nil, err
+	}
+	return res, nil
 }

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { defineComponent, h } from 'vue';
+import { computed, defineComponent, h } from 'vue';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
 // SvgIcon 带样式块，会触发 postcss 配置加载，测试中 mock 掉；auth/commands 链路隔离真实 i18n 初始化
@@ -10,7 +10,7 @@ vi.mock('@/components/auth/auth', () => ({ hasPerm: vi.fn(() => true), hasPerms:
 
 import { registerContributor } from '../registry';
 import { registerCommand, registerMenu } from '../commands';
-import { TreeApiKey } from '../context';
+import { TreeApiKey, TreeFilterQueryKey } from '../context';
 import TreeNodeRow from '../TreeNodeRow.vue';
 import type { TreeApi, TreeNode } from '../types';
 
@@ -20,12 +20,12 @@ import type { TreeApi, TreeNode } from '../types';
 // 显式标为 TreeApi：与 ResourceSelect/commands.test 桩同口径，接口新增方法时此处编译期即报错提醒补齐
 const TreeApiStub: TreeApi = { locate: async () => {}, refresh: () => {}, expandNode: async () => {}, getNode: () => undefined, appendChildren: () => {} };
 
-const mountRow = (data: TreeNode, showActions = false) =>
+const mountRow = (data: TreeNode, showActions = false, extraProvide: Record<symbol, unknown> = {}) =>
     mount(TreeNodeRow, {
         props: { data, showActions },
         global: {
             mocks: { $t: (key: string) => key },
-            provide: { [TreeApiKey as symbol]: TreeApiStub },
+            provide: { [TreeApiKey as symbol]: TreeApiStub, ...extraProvide },
         },
     });
 
@@ -48,6 +48,33 @@ describe('tree/TreeNodeRow 通用行组件', () => {
         const w = mountRow({ key: 'k', kind: 'row-plain', label: 'plain.label', params: {}, hasChildren: false });
         expect(w.find('.custom-label').exists()).toBe(false);
         expect(w.text()).toContain('plain.label');
+    });
+
+    it('查找态下命中片段标色，且不改写用户看到的文本', () => {
+        registerContributor({ kind: 'row-hit' });
+
+        const w = mountRow(
+            { key: 'k', kind: 'row-hit', label: 'username', params: {}, hasChildren: false },
+            false,
+            { [TreeFilterQueryKey as symbol]: computed(() => 'uname') }
+        );
+        expect(w.findAll('.tree-label-hit').map((s) => s.text())).toEqual(['u', 'name']);
+        expect(w.text()).toBe('username');
+    });
+
+    it('无查找上下文（选择器场景未 provide）与零命中都不产生标色节点', () => {
+        registerContributor({ kind: 'row-nosearch' });
+
+        const noQuery = mountRow({ key: 'k', kind: 'row-nosearch', label: 'username', params: {}, hasChildren: false });
+        expect(noQuery.findAll('.tree-label-hit')).toHaveLength(0);
+
+        const noHit = mountRow(
+            { key: 'k', kind: 'row-nosearch', label: 'username', params: {}, hasChildren: false },
+            false,
+            { [TreeFilterQueryKey as symbol]: computed(() => 'zzz') }
+        );
+        expect(noHit.findAll('.tree-label-hit')).toHaveLength(0);
+        expect(noHit.text()).toBe('username');
     });
 
     it('操作按钮驻留显示：悬浮即时不闪现，驻留 0.5s 后才出现，移开即隐藏', async () => {

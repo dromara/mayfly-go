@@ -1,10 +1,11 @@
 package persistence
 
 import (
+	"context"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -37,13 +38,13 @@ func (r *alertRuleRepoImpl) ListEnabled() ([]*entity.AlertRule, error) {
 	return r.SelectByCond(model.NewCond().Eq("status", entity.AlertRuleStatusEnable))
 }
 
-func (r *alertRuleRepoImpl) GetRuleStats() (total, enabled, disabled int64, err error) {
+func (r *alertRuleRepoImpl) GetRuleStats(ctx context.Context) (total, enabled, disabled int64, err error) {
 	type row struct {
 		Status int8
 		Cnt    int64
 	}
 	var rows []row
-	err = global.Db.Model(&entity.AlertRule{}).
+	err = gormx.DB(ctx).Model(&entity.AlertRule{}).
 		Select("status, COUNT(*) as cnt").
 		Where("is_deleted = 0").
 		Group("status").
@@ -60,13 +61,13 @@ func (r *alertRuleRepoImpl) GetRuleStats() (total, enabled, disabled int64, err 
 	return
 }
 
-func (r *alertRuleRepoImpl) CountGroupByPriority() (map[string]int64, error) {
+func (r *alertRuleRepoImpl) CountGroupByPriority(ctx context.Context) (map[string]int64, error) {
 	type priorityRow struct {
 		Priority entity.AlertPriority
 		Cnt      int64
 	}
 	var rows []priorityRow
-	err := global.Db.Model(&entity.AlertRule{}).
+	err := gormx.DB(ctx).Model(&entity.AlertRule{}).
 		Select("priority, COUNT(*) as cnt").
 		Where("is_deleted = 0").
 		Group("priority").
@@ -87,13 +88,13 @@ func (r *alertRuleRepoImpl) CountGroupByPriority() (map[string]int64, error) {
 	return result, nil
 }
 
-func (r *alertRuleRepoImpl) CountGroupByResourceType() (map[int8]int64, error) {
+func (r *alertRuleRepoImpl) CountGroupByResourceType(ctx context.Context) (map[int8]int64, error) {
 	type rtRow struct {
 		ResourceType int8
 		Cnt          int64
 	}
 	var rows []rtRow
-	err := global.Db.Model(&entity.AlertRule{}).
+	err := gormx.DB(ctx).Model(&entity.AlertRule{}).
 		Select("resource_type, COUNT(*) as cnt").
 		Where("is_deleted = 0").
 		Group("resource_type").

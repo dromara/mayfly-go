@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const genUpdateSql = vi.fn().mockResolvedValue('UPDATE `t` SET `name` = 1;');
 // promptExeSql 真实实现里要等用户确认并执行完才回调，这里直接触发成功分支
-const promptExeSql = vi.fn((_db: string, _sql: string, _unknown: undefined, onSuccess: () => void) => onSuccess());
+const promptExeSql = vi.fn((_db: string, _sql: string, _unknown: undefined, onSuccess: () => void, _atomic = false) => onSuccess());
 
 vi.mock('../../../db', () => ({
     DbInst: {
@@ -98,6 +98,11 @@ describe('useTableEdit', () => {
 
         expect(genUpdateSql).toHaveBeenCalledTimes(2);
         expect(promptExeSql).toHaveBeenCalledTimes(1);
+        // 一批行内编辑必须合成「一次请求 + 原子批次」：逐行发请求等于每行一个独立事务，
+        // 中途失败会留下一半已提交一半未提交，而界面按整体成功回调刷新数据
+        const [, submittedSql, , , submittedAtomic] = promptExeSql.mock.calls[0];
+        expect((submittedSql.match(/UPDATE/g) ?? []).length).toBe(2);
+        expect(submittedAtomic).toBe(true);
         expect(edit.hasUpdatedFields.value).toBe(false);
         expect(onSuccess).toHaveBeenCalledTimes(1);
     });

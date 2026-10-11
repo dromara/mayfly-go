@@ -567,3 +567,39 @@ func TestDmDeleteWithSchema(t *testing.T) {
 		t.Errorf("expected WHERE")
 	}
 }
+
+// TestDmUpdateDeleteLimitCapture 断言达梦 UPDATE/DELETE 的尾随 LIMIT 被结构化捕获（采集层据此 fail-closed），
+// 且无 LIMIT 时 Limit 为 nil。达梦 MySQL 兼容模式下 DELETE … LIMIT n 只删 WHERE 匹配集的子集，
+// 若不捕获 LIMIT，旧值回查会捞回全部匹配行，回滚为未被删除的行生成 INSERT（撞主键或插入重复行）。
+func TestDmUpdateDeleteLimitCapture(t *testing.T) {
+	u, err := NewParser("UPDATE users SET name = 'a' WHERE id > 1 LIMIT 10").Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	us := u.(*sqlstmt.UpdateStmt)
+	if us.Limit == nil || us.Limit.Count != 10 {
+		t.Errorf("expected UPDATE Limit.Count=10, got %+v", us.Limit)
+	}
+	if us.Where == nil || us.Where.Text != "id > 1" {
+		t.Errorf("WHERE.Text polluted by LIMIT: %+v", us.Where)
+	}
+
+	d, err := NewParser("DELETE FROM users WHERE id > 1 LIMIT 5").Parse()
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	ds := d.(*sqlstmt.DeleteStmt)
+	if ds.Limit == nil || ds.Limit.Count != 5 {
+		t.Errorf("expected DELETE Limit.Count=5, got %+v", ds.Limit)
+	}
+
+	// 无 LIMIT：必须为 nil，普通达梦 UPDATE/DELETE 不得被误判为带行限制而 fail-closed
+	u2, _ := NewParser("UPDATE users SET name = 'a' WHERE id = 1").Parse()
+	if l := u2.(*sqlstmt.UpdateStmt).Limit; l != nil {
+		t.Errorf("expected nil Limit for UPDATE without LIMIT, got %+v", l)
+	}
+	d2, _ := NewParser("DELETE FROM users WHERE id = 1").Parse()
+	if l := d2.(*sqlstmt.DeleteStmt).Limit; l != nil {
+		t.Errorf("expected nil Limit for DELETE without LIMIT, got %+v", l)
+	}
+}

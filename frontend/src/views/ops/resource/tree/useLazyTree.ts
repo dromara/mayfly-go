@@ -152,16 +152,23 @@ export function useLazyTree(options: LazyTreeOptions) {
         return promise;
     }
 
-    /** 设置根节点（首次加载 / 根刷新）：整树重建才全量重建索引 */
+    /**
+     * 设置根节点（首次加载 / 根刷新）：整树重建才全量重建索引
+     *
+     * 展开态只保留「仍在新树里且已水合」的节点（预构子树的标签骨架）：根刷新重建后，
+     * 懒加载节点都是全新的未水合对象，留着它们的展开态等于留下「显示已展开却永不水合」
+     * 的死占位（与 refresh 同一坑）。此处不逐个补水合：根刷新语义是整树重建，
+     * 逐层后台补拉会把一次刷新放大成整棵展开树的请求风暴，收起即可——用户再展开就是按需拉取。
+     */
     function setRoot(nodes: TreeNodeData[]) {
         data.value = nodes.map((n) => normalize(n));
         nodeIndex.clear();
         parentIndex.clear();
         indexTree(data.value);
-        // 清理展开态中已不存在的 key（避免引用旧树索引误判）
+        // 清理展开态中已不存在或未水合的 key（避免引用旧树索引误判、或卡在加载占位）
         const validKeys = new Set<string>();
         expandedKeys.value.forEach((k) => {
-            if (nodeIndex.has(k)) {
+            if (nodeIndex.get(k)?.loaded) {
                 validKeys.add(k);
             }
         });
@@ -276,7 +283,25 @@ export function useLazyTree(options: LazyTreeOptions) {
         }
     }
 
-    /** 刷新：key 缺省重载根，否则重载该节点子树（保持展开态） */
+    /**
+     * 按展开态递归补水合刚重建的子树。
+     *
+     * refresh 重建了目标节点的子级，新节点都是未水合的占位，而 expandedKeys 仍带着旧后代的 key
+     * （TreeV2 每次 data 重建后照它恢复展开）——这些后代因此「看着是展开态却没人去水合」，
+     * 界面永久停在「加载中」且不再发任何请求（手动收起再展开才恢复）。展开态既然被保留，
+     * 水合就必须跟着补；各层并发拉取（hydrate 内部按 key 去重且自带失败占位，不会抛穿）。
+     */
+    async function hydrateExpandedDescendants(node: TreeNode) {
+        const pending = (node.children ?? [])
+            .filter((child) => child.kind !== LOADING_KIND && child.kind !== ERROR_KIND && expandedKeys.value.has(child.key))
+            .map(async (child) => {
+                await hydrate(child);
+                await hydrateExpandedDescendants(child);
+            });
+        await Promise.all(pending);
+    }
+
+    /** 刷新：key 缺省重载根，否则重载该节点子树（保持展开态，含已展开的后代） */
     async function refresh(key?: string) {
         if (!key) {
             const roots = await options.loadRoot();
@@ -295,6 +320,7 @@ export function useLazyTree(options: LazyTreeOptions) {
         indexTree(node.children, node.key);
         if (expandedKeys.value.has(key)) {
             await hydrate(node);
+            await hydrateExpandedDescendants(node);
         } else {
             bump();
         }

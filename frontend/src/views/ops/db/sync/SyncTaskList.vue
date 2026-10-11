@@ -119,6 +119,16 @@ const perms = {
 
 const searchItems = [SearchItem.input('name', 'common.name')];
 
+/** 增量水位只对「增量追加/增量合并」生效，其余模式恒为全量扫描源查询，展示不适用 */
+const cursorModes: number[] = [DbDataSyncModeEnum.IncrementalAppend.value, DbDataSyncModeEnum.IncrementalMerge.value];
+
+const syncCursorText = (data: DataSyncTaskListVO) => {
+    if (!cursorModes.includes(data.syncMode)) return t('db.notApplicable');
+    // 水位为空或 '0' 表示尚未推进，下一次执行会全量拉取源查询结果
+    if (!data.updField || !data.updFieldVal || data.updFieldVal === '0') return t('db.syncCursorInit');
+    return `${data.updField}: ${data.updFieldVal}`;
+};
+
 /**
  * 默认收起的列：创建/修改两组审计信息只需常驻一组，分页大小与键冲突策略取值基本不变，
  * 逐列常驻会把操作列顶到屏外；需要时在右上角「表格配置」里按需勾选
@@ -133,14 +143,18 @@ optionalColumns.forEach((column) => (column.show = 0));
 
 // 身份 → 同步链路（源库 → 目标库表）→ 增量水位/定时 → 当前与最近执行态 → 启停用 → 修改信息
 const columns = ref([
-    // 任务名是主识别信息，预留比默认更宽的宽度，过长仍可由溢出 tooltip 看全称
-    TableColumn.new('taskName', 'db.taskName').setMinWidth(180).isSlot(),
+    // 任务名是主识别信息，参与列宽自适应（含插槽内标记占位），过长由溢出 tooltip 兼底；
+    // 声明为弹性列：容器富余集中到这里吸收，其余列贴内容紧凑（不声明则全员均摊）
+    TableColumn.new('taskName', 'db.taskName').isSlot().setFlexible(),
     TableColumn.new('syncMode', 'db.syncMode').typeTag(DbDataSyncModeEnum).alignCenter(),
     // 插槽内已自带 el-tooltip，需关掉列的溢出提示（否则叠成两个气泡）；
     // 省略号不跟该开关走，改由插槽内的 block truncate 自己保证单行
-    TableColumn.new('srcDb', 'db.srcDb').setMinWidth(140).isSlot().noShowOverflowTooltip(),
-    TableColumn.new('targetTable', 'db.targetDbTable').setMinWidth(180).isSlot().noShowOverflowTooltip(),
-    TableColumn.new('updFieldVal', 'db.syncCursor').alignCenter().isSlot().setMinWidth(160),
+    TableColumn.new('srcDb', 'db.srcDb').isSlot().noShowOverflowTooltip().setSlotText((row: DataSyncTaskListVO) => row.srcDbName ?? ''),
+    TableColumn.new('targetTable', 'db.targetDbTable')
+        .isSlot()
+        .noShowOverflowTooltip()
+        .setSlotText((row: DataSyncTaskListVO) => `${row.targetDbName ?? ''}.${row.targetTableName ?? ''}`),
+    TableColumn.new('updFieldVal', 'db.syncCursor').alignCenter().isSlot().setSlotText((row: DataSyncTaskListVO) => syncCursorText(row)),
     TableColumn.new('cron', 'db.cron')
         .alignCenter()
         .setFormatFunc((data: DataSyncTaskListVO) => data.cron || t('db.manual')),
@@ -151,16 +165,6 @@ const columns = ref([
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
     ...optionalColumns,
 ]);
-
-/** 增量水位只对「增量追加/增量合并」生效，其余模式恒为全量扫描源查询，展示不适用 */
-const cursorModes: number[] = [DbDataSyncModeEnum.IncrementalAppend.value, DbDataSyncModeEnum.IncrementalMerge.value];
-
-const syncCursorText = (data: DataSyncTaskListVO) => {
-    if (!cursorModes.includes(data.syncMode)) return t('db.notApplicable');
-    // 水位为空或 '0' 表示尚未推进，下一次执行会全量拉取源查询结果
-    if (!data.updField || !data.updFieldVal || data.updFieldVal === '0') return t('db.syncCursorInit');
-    return `${data.updField}: ${data.updFieldVal}`;
-};
 
 /** 双向同步标记：反向任务未创建（reverseTaskId 为 0）时配对不完整，需能直接看出来 */
 const biDirTip = (data: DataSyncTaskListVO) => (data.reverseTaskId ? `${t('db.biDirEnabled')} → #${data.reverseTaskId}` : t('db.biDirReverseMissing'));

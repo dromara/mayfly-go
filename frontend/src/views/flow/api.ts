@@ -43,6 +43,9 @@ export const procinstApi = {
     start: Api.newPost<void>('/flow/procinsts/start'),
     detail: Api.newGet<Procinst>('/flow/procinsts/{id}'),
     cancel: Api.newPost<void>('/flow/procinsts/{id}/cancel'),
+    // 定时执行：到点前改期与取消（仅「已批准、待执行」工单可操作）
+    rescheduleExec: Api.newPost<void, { id: number; plannedExecTime?: string | null }>('/flow/procinsts/{id}/reschedule-exec'),
+    cancelExec: Api.newPost<void, { id: number }>('/flow/procinsts/{id}/cancel-exec'),
     hisOp: Api.newGet<HisProcinstOp[]>('/flow/his-procinsts-op/{id}'),
 };
 

@@ -2,7 +2,7 @@ package api
 
 import (
 	"mayfly-go/internal/db/api/form"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
@@ -10,7 +10,7 @@ import (
 )
 
 type DbSQL struct {
-	dbSQLApp application.DbSQL `inject:"T"`
+	dbSQLApp sqlexec.DbSQL `inject:"T"`
 }
 
 func (d *DbSQL) ReqConfs() *req.Confs {

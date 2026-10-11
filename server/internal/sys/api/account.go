@@ -86,7 +86,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.resourceApp.GetAccountResources(account.Id, &resources))
+	biz.ErrIsNil(a.resourceApp.GetAccountResources(rc.MetaCtx, account.Id, &resources))
 	biz.IsTrue(len(resources) > 0, "no permission")
 	// 菜单树与权限code数组
 	var menus vo.AccountResourceVOList
@@ -302,7 +302,7 @@ func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.resourceApp.GetAccountResources(cast.ToUint64(rc.PathParam("id")), &resources))
+	biz.ErrIsNil(a.resourceApp.GetAccountResources(rc.MetaCtx, cast.ToUint64(rc.PathParam("id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 

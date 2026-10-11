@@ -409,7 +409,7 @@ func V1_10_5() []*gormigrate.Migration {
 						Pid:    1756122788,
 						Status: sysentity.ResourceStatusEnable,
 					}
-					resource.FillBaseInfo(model.IdGenTypeTimestamp, model.SysAccount)
+					resource.FillBaseInfo(model.SysAccount)
 					resource.Id = 1767788697
 					return tx.Create(resource).Error
 				}

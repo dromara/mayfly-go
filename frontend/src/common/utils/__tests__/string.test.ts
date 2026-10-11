@@ -8,7 +8,7 @@ vi.mock('@/i18n', () => ({
     i18n: { global: { t: (key: string) => key } },
 }));
 
-import { copyToClipboard, fuzzyMatchField, isPrefixSubsequence, templateResolve } from '../string';
+import { copyToClipboard, fuzzyMatchField, isPrefixSubsequence, matchPrefixSubsequence, templateResolve } from '../string';
 
 describe('templateResolve', () => {
     it('解析模板占位符', () => {
@@ -49,6 +49,34 @@ describe('isPrefixSubsequence', () => {
 
     it('空前缀匹配任何目标', () => {
         expect(isPrefixSubsequence('', 'anything')).toBe(true);
+    });
+});
+
+/**
+ * 命中下标与布尔判定必须同源（isPrefixSubsequence 就是它的非 null 包装）：
+ * 高亮标的是「哪几个字让这行留下」，两套扫描一旦分叉就会标错色。
+ */
+describe('matchPrefixSubsequence', () => {
+    it('返回命中的目标下标，未命中返回 null', () => {
+        expect(matchPrefixSubsequence('uname', 'username')).toEqual([0, 4, 5, 6, 7]);
+        expect(matchPrefixSubsequence('user', 'username')).toEqual([0, 1, 2, 3]);
+        expect(matchPrefixSubsequence('nameuser', 'username')).toBeNull();
+    });
+
+    it('空前缀视为匹配任何目标，命中集为空', () => {
+        expect(matchPrefixSubsequence('', 'anything')).toEqual([]);
+    });
+
+    it('默认大小写敏感，ignoreCase 下逐字符忽略大小写且不改动原文', () => {
+        expect(matchPrefixSubsequence('US', 'username')).toBeNull();
+        expect(matchPrefixSubsequence('US', 'username', true)).toEqual([0, 1]);
+        expect(matchPrefixSubsequence('us', 'USername', true)).toEqual([0, 1]);
+    });
+
+    it('与 isPrefixSubsequence 同口径（含 ignoreCase 透传）', () => {
+        expect(isPrefixSubsequence('uname', 'username')).toBe(matchPrefixSubsequence('uname', 'username') !== null);
+        expect(isPrefixSubsequence('US', 'username')).toBe(false);
+        expect(isPrefixSubsequence('US', 'username', true)).toBe(true);
     });
 });
 

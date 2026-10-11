@@ -10,13 +10,9 @@ import type { NodeKind, TreeNode, TreeNodeData } from './types';
 
 export interface TreeContributor {
     kind: NodeKind;
-    /** 声明式层级：本类型节点可挂在哪些父类型下（面包屑/分组/结构推导用） */
-    parentKinds?: NodeKind[];
-    /** 类型分组节点文案（i18n key），声明后容器可自动生成分组层 */
-    groupLabel?: string;
     /**
      * 后端资源类型（TagResourceTypeEnum/ResourceTypeEnum 值）：资源根贡献者声明，
-     * 注册时自动登记「资源类型 → 根节点 kind」映射（类型分组节点展开的路由依据），
+     * 注册时自动登记「资源类型 → 根节点 kind」映射（标签节点展开时按类型路由到对应贡献者），
      * 贡献者自身即根类型唯一事实源，无需在 ResourceConfig 重复声明
      */
     resourceType?: number | string;
@@ -24,8 +20,13 @@ export interface TreeContributor {
     /** 默认 false；函数形态可按节点动态判定 */
     hasChildren?: boolean | ((node: TreeNode) => boolean);
     loadChildren?: (node: TreeNode) => Promise<TreeNodeData[]>;
-    /** 根资源节点列表（类型分组节点展开时调用，仅资源根 kind 声明） */
-    loadRoots?: (groupNode: TreeNode) => Promise<TreeNodeData[]>;
+    /**
+     * 某标签下的根资源节点列表（仅资源根 kind 声明，由标签节点展开时调用）。
+     *
+     * 入参是标签 codePath 本身（而不是一个中间节点）：树里没有「机器/数据库」类型分组层，
+     * 标签节点直接平铺各类型的根资源，取数上下文只需知道「哪个标签」。
+     */
+    loadRoots?: (tagPath: string) => Promise<TreeNodeData[]>;
     /** 可选自定义节点渲染器，缺省用容器通用渲染器 */
     renderer?: Component;
     /**
@@ -50,7 +51,7 @@ export interface TreeContributor {
 }
 
 const contributors = new Map<NodeKind, TreeContributor>();
-/** 后端资源类型 → 根节点 kind（类型分组节点的 children 路由依据） */
+/** 后端资源类型 → 根节点 kind（标签展开时按类型路由到根贡献者的依据） */
 const resourceTypeIndex = new Map<string, NodeKind>();
 
 export function registerContributor(contributor: TreeContributor) {
@@ -84,12 +85,17 @@ export function resolveHasChildren(contributor: TreeContributor, node: TreeNode)
  * 按「贡献者声明的 locateCode」在父节点已加载的子节点中解析目标资源节点。
  * 通用能力：只依赖 locateCode 契约，不认识任何具体资源的 key 规则；
  * 未声明 locateCode 的 kind（占位行、表/索引等非标签资源）天然不参与匹配
+ *
+ * `expectedKind` 可选：传了则只在该 kind 的子节点里比。codePath 段自带资源类型，解析时应拿它收窄——
+ * 不同资产的 code 各自一套命名空间，同一父节点下跨类型重名时光靠 code 会选错节点。
  */
-export function findChildByLocateCode(parent: TreeNode | undefined, code: string): TreeNode | undefined {
+export function findChildByLocateCode(parent: TreeNode | undefined, code: string, expectedKind?: NodeKind): TreeNode | undefined {
     if (!parent?.children) {
         return undefined;
     }
-    return parent.children.find((child) => contributors.get(child.kind)?.locateCode?.(child) === code);
+    return parent.children.find(
+        (child) => (!expectedKind || child.kind === expectedKind) && contributors.get(child.kind)?.locateCode?.(child) === code,
+    );
 }
 
 /**

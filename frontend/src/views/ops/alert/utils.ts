@@ -167,8 +167,7 @@ export async function resourceMetricsOf(resourceType?: number): Promise<MetricDe
 }
 
 /**
- * 比较操作符映射：技术符号 → 人类可读符号
- * 参考 Grafana/Prometheus Alertmanager 的展示方式
+ * 比较操作符映射：技术符号 → 人类可读符号（展示取直觉符号 > ≥ < ≤ = ≠）
  */
 const compareOperatorMap: Record<string, string> = {
     gt: '>',

@@ -103,7 +103,7 @@ func (m *mockEventApp) GetAlertEventList(condition *entity.AlertEventQuery, orde
 	return nil, nil
 }
 
-func (m *mockEventApp) FindActive(ruleId, resourceId uint64) (*entity.AlertEvent, error) {
+func (m *mockEventApp) FindActive(ctx context.Context, ruleId, resourceId uint64) (*entity.AlertEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := eventKey(ruleId, resourceId)
@@ -188,19 +188,27 @@ func (m *mockEventApp) CleanupTerminal(ctx context.Context, retainDays int) (int
 	return 0, nil
 }
 
-func (m *mockEventApp) CountGroupByStatus() (map[entity.AlertEventStatus]int64, error) {
+func (m *mockEventApp) CountGroupByStatus(ctx context.Context) (map[entity.AlertEventStatus]int64, error) {
 	return nil, nil
 }
 
-func (m *mockEventApp) GetAvgRecoveryTime() (int64, error)                           { return 0, nil }
-func (m *mockEventApp) CountTodayNotifications(since time.Time) (int64, error)       { return 0, nil }
-func (m *mockEventApp) CountPolicyMatched() (int64, error)                           { return 0, nil }
-func (m *mockEventApp) CountUnmatched() (int64, error)                               { return 0, nil }
-func (m *mockEventApp) CountEscalated() (int64, error)                               { return 0, nil }
-func (m *mockEventApp) GetMaxEscalationLevel() (int64, error)                        { return 0, nil }
-func (m *mockEventApp) GetTopByTriggerCount(limit int) ([]*entity.AlertEvent, error) { return nil, nil }
-func (m *mockEventApp) GetTopByDuration(limit int) ([]*entity.AlertEvent, error)     { return nil, nil }
-func (m *mockEventApp) GetTopByNotifyCount(limit int) ([]*entity.AlertEvent, error)  { return nil, nil }
+func (m *mockEventApp) GetAvgRecoveryTime(ctx context.Context) (int64, error) { return 0, nil }
+func (m *mockEventApp) CountTodayNotifications(ctx context.Context, since time.Time) (int64, error) {
+	return 0, nil
+}
+func (m *mockEventApp) CountPolicyMatched(ctx context.Context) (int64, error)    { return 0, nil }
+func (m *mockEventApp) CountUnmatched(ctx context.Context) (int64, error)        { return 0, nil }
+func (m *mockEventApp) CountEscalated(ctx context.Context) (int64, error)        { return 0, nil }
+func (m *mockEventApp) GetMaxEscalationLevel(ctx context.Context) (int64, error) { return 0, nil }
+func (m *mockEventApp) GetTopByTriggerCount(ctx context.Context, limit int) ([]*entity.AlertEvent, error) {
+	return nil, nil
+}
+func (m *mockEventApp) GetTopByDuration(ctx context.Context, limit int) ([]*entity.AlertEvent, error) {
+	return nil, nil
+}
+func (m *mockEventApp) GetTopByNotifyCount(ctx context.Context, limit int) ([]*entity.AlertEvent, error) {
+	return nil, nil
+}
 
 func (m *mockEventApp) ListActiveFiring() ([]*entity.AlertEvent, error) {
 	m.mu.Lock()
@@ -309,7 +317,7 @@ func (m *mockNotifyPolicyApp) ChangeStatus(ctx context.Context, id uint64, statu
 func (m *mockNotifyPolicyApp) ListEnabledWithLabels(ctx context.Context) ([]*entity.AlertNotifyPolicy, error) {
 	return nil, nil
 }
-func (m *mockNotifyPolicyApp) GetChannelDistribution() (map[string]int64, error) {
+func (m *mockNotifyPolicyApp) GetChannelDistribution(ctx context.Context) (map[string]int64, error) {
 	return nil, nil
 }
 

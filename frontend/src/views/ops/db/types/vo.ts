@@ -16,6 +16,188 @@ export interface DbTableInfo {
     indexLength: number;
 }
 
+/**
+ * 执行计划的一个节点（对应后端 dbi.PlanNode）
+ *
+ * fullScan/children 都是方言给出的事实，前端不按 nodeKind 文本重算判定；
+ * children 全空不等于「都是叶子」，而是该方言没给出父子关系（只能平铺）
+ */
+export interface SqlPlanNode {
+    nodeKind: string;
+    table?: string;
+    accessMethod?: string;
+    indexName?: string;
+    estRows: number;
+    fullScan?: boolean;
+    children?: number[];
+}
+
+/** 一次计划分析的产物（对应后端 dbi.ExplainResult） */
+export interface SqlExplainResult {
+    /** 优化器估算行数，不是真实影响行数 */
+    rows: number;
+    /** 估算口径：explain = 未执行的优化器估算，展示时必须标出 */
+    estimateKind: string;
+    fullScan: boolean;
+    usedIndexes?: string[];
+    plan?: SqlPlanNode[];
+    warnings?: string[];
+}
+
+/**
+ * 单条语句的执行计划取数结果（对应后端 application.ExplainPlan）
+ *
+ * result 与 note 恰好一个非空：拿不到计划时必须有 note，不能把「没有计划」渲染成「这条语句没有扫描」
+ */
+export interface SqlExplainPlan {
+    sql: string;
+    stmtType: string;
+    result?: SqlExplainResult;
+    note?: string;
+}
+
+/**
+ * 表结构基线入参（建立/刷新与比对共用，对应后端 form.DbSchemaBaselineForm）
+ *
+ * tables 为空表示该库全部表（服务端限额内），与结构对比同一口径
+ */
+export interface SchemaBaselineParam {
+    id: number;
+    db: string;
+    tables?: string[];
+}
+
+/** 建立基线的结果 */
+export interface SchemaBaselineResult {
+    /** 纳入基线的表数 */
+    tables: number;
+    /** 覆盖范围受限之类的说明，没有它「无漂移」会被读成「整个库都没变」 */
+    note?: string;
+}
+
+/** 一张漂移的表 */
+export interface SchemaDriftTable {
+    table: string;
+    detail: string;
+}
+
+/** 一次漂移比对的结果 */
+export interface SchemaDriftResult {
+    dbId: number;
+    db: string;
+    checkedAt?: string;
+    driftedTables?: SchemaDriftTable[];
+    note?: string;
+}
+
+/** 基线行（一张表一行，对应后端 entity.DbSchemaBaseline） */
+export interface SchemaBaselineRow {
+    table: string;
+    fingerprint: string;
+    columnCount: number;
+    primaryKeys: string;
+    indexCount: number;
+    drifted: boolean;
+    driftDetail: string;
+    checkedAt?: string;
+}
+
+/**
+ * 回滚 SQL 生成结果（对应后端 dto.SqlRollback）
+ *
+ * 服务端只生成文本不执行：回滚本身是一次新变更，要走它自己的预检与审批。
+ * rows 是本次生成的语句条数，不等于原执行的影响行数（行数据采集有上限，截断时 note 非空）
+ */
+export interface SqlRollback {
+    execId: number;
+    type: number;
+    sqls: string[];
+    rows: number;
+    note?: string;
+    /** 生成前是否与执行后的行快照做过并发比对（仅 UPDATE 有意义）：false 表示降级生成，风险已写进 note */
+    verified: boolean;
+    /** 未生成回滚的行：变更之后又被修改、删除或无法定位，需人工对账 */
+    conflicts?: SqlRollbackConflict[];
+}
+
+/**
+ * 一行未生成回滚的原因（对应后端 dto.SqlRollbackConflict）
+ *
+ * reason 是枚举（concurrent-modified / row-missing / unknown-position / ambiguous-match）：
+ * 前端按枚举映射文案；后端新增枚举而前端未跟上时原样展示枚举值，不吞掉信息
+ */
+export interface SqlRollbackConflict {
+    /** 行标识：UPDATE 是主键值（如 "id=2"），INSERT 是插入行序号（如 "row #2"） */
+    key: string;
+    reason: string;
+}
+
+/**
+ * 结构对比（库间表结构漂移检测）结果，对应后端 schema.Result
+ *
+ * 只报差异不生成 DDL：真要改结构要走它自己的预检与审批。
+ * tables 只包含有差异或「比不了」的表；unavailable 是比不了的方面（内省失败、类型认不出）——
+ * 它既不是差异也不是一致，不当成一致看是这块功能不误导人的关键
+ */
+export interface SchemaDiffResult {
+    source: string;
+    target: string;
+    compared: number;
+    diffTables: number;
+    tables?: SchemaTableDiff[];
+    note?: string;
+}
+
+export interface SchemaTableDiff {
+    table: string;
+    kind: string;
+    columns?: SchemaColumnDiff[];
+    indexes?: SchemaIndexDiff[];
+    primaryKey?: { kind: string; source?: string; target?: string };
+    unavailable?: { aspect: string; reason: string }[];
+}
+
+export interface SchemaColumnDiff {
+    column: string;
+    kind: string;
+    source?: string;
+    target?: string;
+}
+
+export interface SchemaIndexDiff {
+    kind: string;
+    columns: string;
+    source?: string;
+    target?: string;
+}
+
+/** 结构对比入参（对应后端 form.DbSchemaDiffForm） */
+export interface SchemaDiffParam {
+    srcDbId: number;
+    srcDb: string;
+    dstDbId: number;
+    dstDb: string;
+    tables?: string[];
+}
+
+/**
+ * 活动会话信息（对应后端 dbi.SessionInfo）
+ *
+ * 字段全为库侧事实：startedAt 可能为空（部分方言只给出已执行时长，不虚构时间点），
+ * lockWait 由方言按自身系统表判据给出，前端不再按 state 文本猜是否等锁
+ */
+export interface DbSessionInfo {
+    /** 会话标识，取消时回传 */
+    id: string;
+    db?: string;
+    user?: string;
+    /** 当前语句已执行毫秒数 */
+    elapsedMs: number;
+    state?: string;
+    query?: string;
+    lockWait: boolean;
+}
+
 /** 数据库表列信息 (对应 columnMetadata API) */
 export interface ColumnMetadata {
     columnName: string;

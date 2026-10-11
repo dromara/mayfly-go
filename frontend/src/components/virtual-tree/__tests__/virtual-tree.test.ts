@@ -104,6 +104,29 @@ describe('VirtualTree 容器契约（stub 适配器）', () => {
         expect(stub.instance.getCheckedKeys).toHaveBeenCalledWith(true);
     });
 
+    it('scrollToIndex 自算偏移调 scrollTo，行高与传给引擎的 itemSize 同源', () => {
+        // 引擎的 scrollToItem 在本地过滤态下会对合法下标返回错位偏移（实测把列表弹回顶部），
+        // 故偏移由容器按「行序 × 行高 - 视口居中」自算；行高必须显式下发，不能两边各依赖默认值
+        const stub = makeStubAdapter();
+        const wrapper = mount(VirtualTree, { props: { data: makeTreeData(), adapter: stub.adapter, height: 400 } });
+        expect(stub.latest().rowHeight).toBe(26);
+
+        // 26 * 26 - (400 - 26) / 2 = 676 - 187 = 489
+        wrapper.vm.scrollToIndex(26);
+        expect(stub.instance.scrollTo).toHaveBeenLastCalledWith(489);
+
+        // 首行不能给引擎负偏移
+        wrapper.vm.scrollToIndex(0);
+        expect(stub.instance.scrollTo).toHaveBeenLastCalledWith(0);
+
+        // 消费方显式行高（如 redis 树 28px）同时作用于引擎入参与偏移算式
+        const stub2 = makeStubAdapter();
+        const wrapper2 = mount(VirtualTree, { props: { data: makeTreeData(), adapter: stub2.adapter, height: 400, rowHeight: 28 } });
+        expect(stub2.latest().rowHeight).toBe(28);
+        wrapper2.vm.scrollToIndex(10);
+        expect(stub2.instance.scrollTo).toHaveBeenLastCalledWith(10 * 28 - (400 - 28) / 2);
+    });
+
     it('受控展开兜底：expandedKeys 变化后回写引擎 setExpandedKeys', async () => {
         const stub = makeStubAdapter();
         const wrapper = mount(VirtualTree, { props: { data: makeTreeData(), adapter: stub.adapter, height: H, expandedKeys: ['p'] } });
@@ -114,6 +137,36 @@ describe('VirtualTree 容器契约（stub 适配器）', () => {
         await nextTick();
 
         expect(stub.instance.setExpandedKeys).toHaveBeenCalledWith(['p', 'c1']);
+    });
+
+    it('任何过滤后都以受控 expandedKeys 复位引擎展开态（含非空过滤）', async () => {
+        // 回归：el-tree-v2 的 filter('') 会让所有节点（含懒加载未水合节点的「加载中」占位）命中并集体展开，
+        // 卡在不水合的加载态；容器须在清空过滤后用受控 expandedKeys 复位
+        vi.useFakeTimers();
+        const stub = makeStubAdapter();
+        const wrapper = mount(VirtualTree, {
+            props: { data: makeTreeData(), adapter: stub.adapter, height: H, expandedKeys: ['p'], filterText: '' },
+        });
+
+        // 非空过滤也要复位：引擎 filter() 会用「命中节点及其祖先链」整体覆盖内部展开集，
+        // 把用户收起的分支强开——那样引擎 flatten 就与业务层展开模型分叉，计数与自算行序都会偏
+        await wrapper.setProps({ filterText: 'child' });
+        // 防抖未到点不得上报生效词：依赖它的高亮/计数抢跑会与引擎实际过滤集分叉
+        expect(wrapper.emitted('filterApplied')).toBeUndefined();
+        vi.advanceTimersByTime(300);
+        expect(stub.instance.filter).toHaveBeenCalledWith('child');
+        expect(wrapper.emitted('filterApplied')?.at(-1)).toEqual(['child']);
+        expect(stub.instance.setExpandedKeys).toHaveBeenCalledWith(['p']);
+
+        // 清空过滤：filter('') 清隐藏集后，用受控 expandedKeys 复位
+        (stub.instance.filter as ReturnType<typeof vi.fn>).mockClear();
+        await wrapper.setProps({ filterText: '' });
+        vi.advanceTimersByTime(300);
+        expect(stub.instance.filter).toHaveBeenCalledWith('');
+        expect(stub.instance.setExpandedKeys).toHaveBeenCalledWith(['p']);
+
+        wrapper.unmount();
+        vi.useRealTimers();
     });
 
     it('引擎事件经归一化后由容器回传', async () => {

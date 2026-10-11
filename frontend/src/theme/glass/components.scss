@@ -284,7 +284,7 @@ body.glass-mode {
 
     /* 表格固定列 - 遮挡滚动内容
        ⚠ 性能: 此前每格挂 backdrop-filter:blur(24)，宽表横向滚动时几十个模糊层每帧重采样 → 掉帧。
-       业界(Linear/Notion)固定列均用近实底遮挡, 不逐格模糊。改 0.88 tint 底: 足以挡住滚过的文字,
+       固定列用近实底遮挡而非逐格模糊（兼顾性能与观感）。改 0.88 tint 底: 足以挡住滚过的文字,
        又保留 ~12% 壁纸色透(非死白带), 材质仍与玻璃面板同调。
     ------------------------------- */
     .el-table-fixed-column--left,
@@ -347,8 +347,8 @@ body.glass-mode {
     }
 
     /* SSH 终端
-       终端 = 全屏高密度文本面, 按业界共识(Fluent 内容区禁用 Acrylic / Apple 正文用
-       可读性实底)必须给"安静近实底": 此前整链透明导致文字直接压在壁纸光斑上,
+       终端 = 全屏高密度文本面, 必须给"安静近实底"（内容区不做重磨砂、正文用
+       可读性实底）: 此前整链透明导致文字直接压在壁纸光斑上,
        逐字颤动、大面积高饱和透视 = 视觉疲劳主因。每个 pane 自带 content 档(0.88)
        + panel 模糊, 壁纸只剩极淡氛围渗透, 层级感由边缘高光环维持 */
     .terminal-wrapper,
@@ -420,16 +420,16 @@ body.glass-mode {
         --vscode-editor-inactiveSelectionBackground: rgba(var(--el-color-primary-rgb, 64, 158, 255), 0.16) !important;
     }
 
-    // 3.5) Monaco 右键/上下文菜单：菜单可滚动元素的内联背景取自 --vscode-menu.background，
-    //      自定义主题未把它落成不透明实色，玻璃态下便透出背后壁纸与结果表格，文字完全不可读。
-    //      直接给菜单盒与内层强制不透明弹层底（!important 压过内联背景），随明暗态；
-    //      前景/边框/圆角/阴影仍由 monaco 主题提供。
+    // 3.5) Monaco 右键/上下文菜单：0.57 的 ContextView 渲染在编辑器容器下 .shadow-root-host 的
+    //      ShadowRoot 内，文档级选择器（含本文件以前的 !important 兜底）穿不进 shadow 树，已删除。
+    //      自定义属性可跨 shadow 边界从宿主继承：容器带 monaco-component 类（见 MonacoEditor.vue）
+    //      后非玻璃态已能继承 monaco 变量表；玻璃态在此对同一元素改写菜单底色变量（特异性高于
+    //      monaco 的 .monaco-component 规则），给菜单弹层底（该 token 玻璃态为微透白底，可读），
+    //      随明暗态；前景/边框/圆角/阴影仍由 monaco 主题提供。
     //      用实色而非 --glass-bg-elevated + blur：context-view 可能为 fixed 且含 fixed 子菜单，
     //      在其上挂 backdrop-filter 会劫持子菜单的包含块（见本文件 monaco 容器注释）。
-    .context-view.monaco-menu-container,
-    .context-view.monaco-menu-container .monaco-menu,
-    .context-view.monaco-menu-container .monaco-scrollable-element {
-        background-color: var(--el-bg-color-overlay) !important;
+    .monaco-editor-content {
+        --vscode-menu-background: var(--el-bg-color-overlay);
     }
 
     // 4) 编辑器容器：自带半透明玻璃底，与宿主无关（抽屉 / 弹窗 / 整页 SQL 编辑器都成立）。
@@ -527,7 +527,7 @@ body.glass-mode {
         box-shadow: var(--glass-edge), var(--glass-ambient) !important;
     }
 
-    // Loading 遮罩：模糊让被遮内容退到"玻璃后"，形成景深（业界通行做法）
+    // Loading 遮罩：模糊让被遮内容退到"玻璃后"，形成景深
     .el-loading-mask {
         backdrop-filter: var(--glass-fx-veil) !important;
         -webkit-backdrop-filter: var(--glass-fx-veil) !important;

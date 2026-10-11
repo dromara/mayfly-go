@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"strings"
 
 	_ "gitee.com/chunanyong/dm"
 )
@@ -146,13 +145,10 @@ type Backend struct {
 
 func (dm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "dm"
-	db := d.Database
 	dbParam := "?escapeProcess=true"
-	if db != "" {
-		ss := strings.Split(db, "/")
-		if len(ss) > 1 {
-			dbParam = fmt.Sprintf("%s&schema=\"%s\"", dbParam, ss[1])
-		}
+	// 库位的 schema 段已由 codec 解析进 d.Schema
+	if s := d.Schema; s != "" {
+		dbParam = fmt.Sprintf("%s&schema=\"%s\"", dbParam, s)
 	}
 	if d.Params != "" {
 		dbParam += "&" + d.Params
@@ -169,7 +165,7 @@ func (dm *Backend) GetDialect(di *dbi.DbInfo) dbi.Dialect {
 // （DMMetadata 实现 MetadataNavigator，SupportedKinds 含 view/sequence，与声明一致）。
 func (dm *Backend) GetCapabilities() dbi.MetadataCapabilities {
 	return dbi.NewAllCapabilities().
-		With(dbi.FeatViews, dbi.FeatSequences).
+		With(dbi.FeatViews, dbi.FeatSequences, dbi.FeatSessions, dbi.FeatExplain).
 		WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true, HasSchema: true})
 }
 

@@ -40,6 +40,10 @@ const (
 	MsgSubtypeDbDumpFail          MsgSubtype = "db.dump.fail"
 	MsgSubtypeSQLScriptRunFail    MsgSubtype = "db.sqlscript.run.fail"
 	MsgSubtypeSQLScriptRunSuccess MsgSubtype = "db.sqlscript.run.success"
+	// 数据库任务（迁移/同步/备份导出）执行失败：定时任务失败若无人知晓，等于功能静默失效
+	MsgSubtypeDbTaskRunFail MsgSubtype = "db.task.run.fail"
+	// 表结构漂移：基线建立后库结构被人改过，不报就是「上线时一致、半年后发现早已走形」
+	MsgSubtypeDbSchemaDrift MsgSubtype = "db.schema.drift"
 
 	// flow
 	MsgSubtypeFlowUserTaskTodo MsgSubtype = "flow.usertask.todo" // 用户任务待办

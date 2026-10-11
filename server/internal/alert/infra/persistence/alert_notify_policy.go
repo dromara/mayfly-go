@@ -1,10 +1,11 @@
 package persistence
 
 import (
+	"context"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -35,13 +36,13 @@ func (r *alertNotifyPolicyRepoImpl) ListEnabled() ([]*entity.AlertNotifyPolicy, 
 	return r.SelectByCond(model.NewCond().Eq("status", entity.AlertNotifyPolicyStatusEnable))
 }
 
-func (r *alertNotifyPolicyRepoImpl) GetChannelDistribution() (map[string]int64, error) {
+func (r *alertNotifyPolicyRepoImpl) GetChannelDistribution(ctx context.Context) (map[string]int64, error) {
 	type policyChannel struct {
 		ChannelName string
 		Cnt         int64
 	}
 	var rows []policyChannel
-	err := global.Db.Table("t_alert_notify_policy p").
+	err := gormx.DB(ctx).Table("t_alert_notify_policy p").
 		Select("c.name as channel_name, COUNT(DISTINCT p.id) as cnt").
 		Joins("JOIN t_alert_notify_policy_channel pc ON pc.policy_id = p.id").
 		Joins("JOIN t_msg_channel c ON c.id = pc.channel_id").

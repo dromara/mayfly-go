@@ -148,13 +148,14 @@ type Backend struct {
 }
 
 func (cm *Backend) GetCapabilities() dbi.MetadataCapabilities {
-	// clickhouse 仅支持注释与 DDL 导出；有 database 层、无独立 schema 层；支持视图内省（无序列）
+	// clickhouse 仅支持注释与 DDL 导出；有 database 层、无独立 schema 层；支持视图内省（无序列），
+	// 并声明已实现的会话内省（system.processes）与执行计划分析（EXPLAIN json）。
 	return dbi.NewCapabilities(dbi.FeatComments, dbi.FeatDDLExport).
-		With(dbi.FeatViews).WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
+		With(dbi.FeatViews, dbi.FeatSessions, dbi.FeatExplain).WithNamespace(dbi.NamespaceHierarchy{HasDatabase: true})
 }
 
 func (cm *Backend) GetSQLDb(ctx context.Context, d *dbi.DbInfo) (*sql.DB, error) {
-	dbName := d.GetDatabase()
+	dbName := d.Database
 	if dbName == "" {
 		dbName = "default"
 	}

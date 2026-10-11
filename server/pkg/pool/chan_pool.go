@@ -202,48 +202,103 @@ func (p *ChanPool[T]) Put(conn T) error {
 		return nil
 	}
 
-	// 检查连接池是否已关闭
-	p.mu.RLock()
-	if p.closed {
-		p.mu.RUnlock()
+	// 「谁持有这条连接」的决策必须在写锁内做：Close 在持锁期间置 closed 并排空空闲队列，
+	// 而「先无锁查 closed、再发送」之间存在窗口——并发时连接会被塞进已经废弃的队列
+	// 永久泄漏，若队列已被关闭则直接 send-on-closed panic
+	discard, poolClosed := p.recycle(conn)
+	if !discard {
+		return nil
+	}
+
+	// Close 是 IO（要走协议报文、等对端响应），必须放到锁外做：一条卡住的连接不该把
+	// 整池的 Get/Put 都挡在写锁上，而那正是慢连接最容易出现的时候
+	if poolClosed {
+		// 池已关闭，调用方是最后一个碰这条连接的人，把关闭结果如实交回去
 		return conn.Close()
 	}
-	p.mu.RUnlock()
+	// 池还活着时的丢弃是正常的水位控制（超出 MaxConns、队列已满），不是调用方归还失败；
+	// 这里的 Close 只是清理，它的错误不该被翻译成 Put 失败让调用方去重试
+	conn.Close()
+	return nil
+}
 
-	// 快速路径
+// recycle 在写锁内裁定一条归还连接的归宿：是否要丢弃（discard），以及池是否已关闭（poolClosed）。
+//
+// 这里只做决策与计数，不做任何 IO——连接的 Close 由调用方在锁外执行。
+func (p *ChanPool[T]) recycle(conn T) (discard, poolClosed bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.closed {
+		return true, true
+	}
+
+	// 快速路径：队列有位置就直接回收
 	select {
 	case p.idleConns <- &chanConn[T]{conn: conn, lastActive: time.Now(), isValid: true}:
 		atomic.AddInt32(&p.stats.IdleConns, 1)
 		atomic.AddInt32(&p.stats.ActiveConns, -1)
-		return nil
+		return false, false
 	default:
 	}
 
-	// 慢速路径
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// 再次检查是否已关闭
-	if p.closed {
-		return conn.Close()
-	}
-
-	// 检查是否超过最大连接数
+	// 队列已满：超出水位就直接丢弃，否则再试一次入队
 	if atomic.LoadInt32(&p.currentConns) > int32(p.config.MaxConns) {
-		conn.Close()
 		atomic.AddInt32(&p.currentConns, -1)
 	} else {
-		// 直接放入空闲队列
 		select {
 		case p.idleConns <- &chanConn[T]{conn: conn, lastActive: time.Now(), isValid: true}:
+			atomic.AddInt32(&p.stats.ActiveConns, -1)
+			return false, false
 		default:
-			conn.Close()
 			atomic.AddInt32(&p.currentConns, -1)
 		}
 	}
 	atomic.AddInt32(&p.stats.ActiveConns, -1)
 
-	return nil
+	return true, false
+}
+
+// drainIdle 在写锁内取走当前全部空闲连接，取走后这些连接归调用方独占。
+//
+// 存在的理由：Ping 与 Close 都是网络 IO，绝不能持锁做——一轮健康检查要 Ping 全部空闲连接，
+// 一个慢连接就能把整池的 Get/Put 挡在写锁上。因此统一改成「锁内排空 → 锁外体检 → 锁内回填」
+func (p *ChanPool[T]) drainIdle() []*chanConn[T] {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// 池已关闭时空闲连接由 Close 负责回收，这里不能再抢
+	if p.closed {
+		return nil
+	}
+
+	idle := make([]*chanConn[T], 0, len(p.idleConns))
+	for len(p.idleConns) > 0 {
+		idle = append(idle, <-p.idleConns)
+	}
+	return idle
+}
+
+// refillIdle 在写锁内把仍可用的连接放回空闲队列，返回必须丢弃的连接。
+// 丢弃动作（Close 是 IO）留给调用方在锁外执行
+func (p *ChanPool[T]) refillIdle(wrappers []*chanConn[T]) (discard []*chanConn[T]) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, wrapper := range wrappers {
+		// 排空之后池被关闭了：整池计数已无意义，连接交给调用方关掉即可
+		if p.closed {
+			discard = append(discard, wrapper)
+			continue
+		}
+		select {
+		case p.idleConns <- wrapper:
+		default:
+			discard = append(discard, wrapper)
+			atomic.AddInt32(&p.currentConns, -1)
+		}
+	}
+	return discard
 }
 
 func (p *ChanPool[T]) Close() {
@@ -258,11 +313,14 @@ func (p *ChanPool[T]) Close() {
 	close(p.closeChan)
 
 	// 2. 临时转移空闲连接
+	//
+	// 这里不 close(p.idleConns)：没有任何消费端 range 该通道（healthCheck 靠 closeChan 退出），
+	// 关闭它换不来任何语义，只会让并发中的 Put 撞上 send-on-closed；连接回收由上面的排空 +
+	// 下面的逐个 Close 完成
 	idle := make([]*chanConn[T], 0, len(p.idleConns))
 	for len(p.idleConns) > 0 {
 		idle = append(idle, <-p.idleConns)
 	}
-	close(p.idleConns) // 安全关闭通道
 
 	p.mu.Unlock() // 提前释放锁，避免阻塞其他操作
 
@@ -292,94 +350,74 @@ func (p *ChanPool[T]) healthCheck() {
 }
 
 func (p *ChanPool[T]) checkIdleConns() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.closed {
+	drained := p.drainIdle()
+	if len(drained) == 0 {
 		return
 	}
 
-	idle := make([]*chanConn[T], 0, len(p.idleConns))
-	for len(p.idleConns) > 0 {
-		idle = append(idle, <-p.idleConns)
-	}
-
 	now := time.Now()
-	for _, wrapper := range idle {
+	keep := make([]*chanConn[T], 0, len(drained))
+	for _, wrapper := range drained {
+		// Ping 是网络往返，此处已不持锁
 		if now.Sub(wrapper.lastActive) > p.config.IdleTimeout || wrapper.Ping() != nil {
 			wrapper.Close()
 			atomic.AddInt32(&p.currentConns, -1)
-		} else {
-			select {
-			case p.idleConns <- wrapper:
-			default:
-				wrapper.Close()
-				atomic.AddInt32(&p.currentConns, -1)
-			}
+			continue
 		}
+		keep = append(keep, wrapper)
+	}
+
+	for _, wrapper := range p.refillIdle(keep) {
+		wrapper.Close()
 	}
 }
 
 func (p *ChanPool[T]) Resize(newMaxConns int) {
+	// 换通道前必须先把里面的活连接取出来：直接丢掉旧通道会让它们既回不了池、也永远不会被 Close
+	drained := p.drainIdle()
+
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	oldMax := p.config.MaxConns
 	p.config.MaxConns = newMaxConns
-
-	// 缩小连接池：关闭多余的空闲连接
-	if newMaxConns < oldMax {
-		toClose := oldMax - newMaxConns
-		closed := 0
-
-		// 非阻塞取出待关闭的连接
-		var wrappers []*chanConn[T]
-		for len(p.idleConns) > 0 && closed < toClose {
-			wrappers = append(wrappers, <-p.idleConns)
-			closed++
-		}
-
-		// 关闭连接并更新计数
-		for _, wrapper := range wrappers {
-			wrapper.Close()
-			atomic.AddInt32(&p.currentConns, -1)
-			atomic.AddInt32(&p.stats.IdleConns, -1)
-		}
-	}
-
-	// 重建空闲连接通道（无需迁移连接，因 channel 本身无状态）
+	// 容量必须跟着变，否则扩容后 Put 永远填不满、缩容后也拦不住
 	p.idleConns = make(chan *chanConn[T], newMaxConns)
+	keep := drained
+	if len(keep) > newMaxConns {
+		keep = keep[:newMaxConns]
+	}
+	// 容量已按 keep 的长度留足，这里的发送不会阻塞，因此可以持锁做
+	for _, wrapper := range keep {
+		p.idleConns <- wrapper
+	}
+	p.mu.Unlock()
+
+	// 超出新水位的部分关掉，Close 是 IO，放到锁外
+	for _, wrapper := range drained[len(keep):] {
+		wrapper.Close()
+		atomic.AddInt32(&p.currentConns, -1)
+		atomic.AddInt32(&p.stats.IdleConns, -1)
+	}
 }
 
 func (p *ChanPool[T]) CheckLeaks() []T {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	drained := p.drainIdle()
 
-	var leaks []T
 	now := time.Now()
-
-	// 检查所有空闲连接
-	idle := make([]*chanConn[T], 0, len(p.idleConns))
-	for len(p.idleConns) > 0 {
-		idle = append(idle, <-p.idleConns)
-	}
-
-	for _, wrapper := range idle {
-		// 判定泄漏条件：长期未使用且未被标记为活跃
+	var leaks []T
+	keep := make([]*chanConn[T], 0, len(drained))
+	for _, wrapper := range drained {
+		// 判定泄漏条件：长期未使用
 		if now.Sub(wrapper.lastActive) > 10*p.config.IdleTimeout {
 			leaks = append(leaks, wrapper.conn)
 			wrapper.Close()
 			atomic.AddInt32(&p.currentConns, -1)
 			atomic.AddInt32(&p.stats.IdleConns, -1)
-		} else {
-			// 放回空闲池
-			select {
-			case p.idleConns <- wrapper:
-			default:
-				wrapper.Close()
-				atomic.AddInt32(&p.currentConns, -1)
-			}
+			continue
 		}
+		keep = append(keep, wrapper)
+	}
+
+	for _, wrapper := range p.refillIdle(keep) {
+		wrapper.Close()
 	}
 	return leaks
 }

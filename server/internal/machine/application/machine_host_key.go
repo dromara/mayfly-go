@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -15,7 +14,7 @@ import (
 	"mayfly-go/pkg/errorx"
 
 	"golang.org/x/crypto/ssh"
-	"gorm.io/gorm"
+	"mayfly-go/pkg/model"
 )
 
 // MachineHostKey 主机公钥指纹信任库。
@@ -76,7 +75,7 @@ func (m *machineHostKeyAppImpl) lookupForTrust(addr string, key ssh.PublicKey, f
 	if err == nil {
 		return record, nil
 	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if !model.IsNotFound(err) {
 		// 信任库读不出来时不能放行：放行等于把「存储故障」降级成「不校验」
 		return nil, errorx.NewBizf("verify host key failed: %s", err.Error())
 	}
@@ -92,7 +91,7 @@ func (m *machineHostKeyAppImpl) lookupForTrust(addr string, key ssh.PublicKey, f
 	record = &entity.MachineHostKey{HostAddr: addr}
 	if err := m.GetByCond(record); err == nil {
 		return record, nil
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !model.IsNotFound(err) {
 		return nil, errorx.NewBizf("verify host key failed: %s", err.Error())
 	}
 

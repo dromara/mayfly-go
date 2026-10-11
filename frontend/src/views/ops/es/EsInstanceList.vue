@@ -95,9 +95,9 @@ const perms = {
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('es.keywordPlaceholder')];
 
 const columns = ref([
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
+    TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('host', 'host:port').setFormatFunc((data: EsInstance) => `${data.host}:${data.port}`),
-    TableColumn.new('authCerts[0].username', 'es.acName').isSlot('authCert').setAddWidth(10),
+    TableColumn.new('authCerts[0].username', 'es.acName').isSlot('authCert'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
 ]);

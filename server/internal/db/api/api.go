@@ -10,4 +10,6 @@ func InitIoc() {
 	ioc.Register(new(DataSyncTask))
 	ioc.Register(new(DbTransferTask))
 	ioc.Register(new(DbMask))
+	ioc.Register(new(DbSession))
+	ioc.Register(new(DbSchemaDiff))
 }

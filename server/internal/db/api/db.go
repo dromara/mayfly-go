@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/dto"
+	"mayfly-go/internal/db/application/sqlexec"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -34,7 +35,7 @@ import (
 type Db struct {
 	instanceApp     application.Instance     `inject:"T"`
 	dbApp           application.Db           `inject:"T"`
-	dbSQLExecApp    application.DbSQLExec    `inject:"T"`
+	dbSQLExecApp    sqlexec.DbSQLExec        `inject:"T"`
 	dbDataImportApp application.DbDataImport `inject:"T"`
 	tagApp          tagapp.TagTreeService    `inject:"T"`
 }
@@ -60,7 +61,7 @@ func (d *Db) ReqConfs() *req.Confs {
 
 		req.NewPost(":dbId/exec-sql-file", d.ExecSQLFile).Log(req.NewLogSaveI(imsg.LogDbRunSQLFile)).RequiredPermissionCode("db:sqlscript:run"),
 
-		req.NewGet(":dbId/dump", d.DumpSQL).Log(req.NewLogSaveI(imsg.LogDbDump)).NoRes(),
+		req.NewGet(":dbId/dump", d.DumpSQL).Log(req.NewLogSaveI(imsg.LogDbDump)).RequiredPermissionCode("db:data:export").NoRes(),
 
 		// 表格文件（CSV/Excel）导入数据：先预览解析结果构建列映射，再按映射批量写入目标表
 		// 预览会解析上传文件，与导入同级授权，避免仅凭实例 id 就能让服务端解析任意文件
@@ -76,6 +77,10 @@ func (d *Db) ReqConfs() *req.Confs {
 		req.NewGet(":dbId/t-index", d.TableIndex),
 
 		req.NewGet(":dbId/c-metadata", d.ColumnMetadata),
+
+		// 列值采样（编辑器值补全）：与其余元数据读取同档（靠 GetDbConn 里的资源可达校验），
+		// 不另开权限码：开了一个库里没建行的码，功能上线即除 admin 外全体 403
+		req.NewGet(":dbId/column-values", d.ColumnValues),
 
 		req.NewPost(":dbId/copy-table", d.CopyTable),
 	}
@@ -163,11 +168,13 @@ func (d *Db) ExecSQL(rc *req.Ctx) {
 	biz.NotEmpty(form.SQL, "sql cannot be empty")
 
 	execReq := &dto.DbSQLExecReq{
+		ExecId:           form.ExecId,
 		DbId:             dbId,
 		Db:               form.Db,
 		Remark:           form.Remark,
 		RequireWarnAck:   form.AskWarn,
 		WarnAcknowledged: form.AckWarn,
+		Atomic:           form.Atomic,
 		DbConn:           dbConn,
 		SQL:              sqlStr,
 	}
@@ -260,16 +267,36 @@ func (d *Db) DumpSQL(rc *req.Ctx) {
 	gzipWriter := writerx.NewGzipWriter(rc.GetWriter())
 	defer gzipWriter.Close()
 
+	// 按表记录导出数据行数（每张表写完自己那一段时上报一次最终值），用于回答「这次被拉走了多少数据」。
+	// 取 end=true 的那次上报而非累加：进度回调对同一表会多次报当前计数，累加会把同一行重复计数
+	rowCounts := map[string]int{}
+	var exportRows int
+	countProgress := func(table string, stmtType dbi.DumpKind, count int, currentStmtTypeEnd bool) {
+		if !currentStmtTypeEnd || stmtType != dbi.DumpKindInsert {
+			return
+		}
+		if prev, ok := rowCounts[table]; !ok || count > prev {
+			rowCounts[table] = count
+		}
+	}
+
 	biz.ErrIsNil(d.dbApp.DumpDb(rc.MetaCtx, &dto.DumpDb{
 		DbId:     dbId,
 		DbName:   dbName,
 		Tables:   tables,
 		DumpDDL:  needStruct,
 		DumpData: needData,
+		// 即席导出是给人看的数据副本，必须过与交互式查询同一套脱敏规则：
+		// 否则同一个脱敏列「在网格里是掩码、被导出却是明文」，脱敏等于没有
+		Mask:     true,
 		Writer:   gzipWriter,
+		Progress: countProgress,
 	}))
 
-	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType)
+	for _, cnt := range rowCounts {
+		exportRows += cnt
+	}
+	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType, "exportRows", exportRows)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
@@ -327,6 +354,20 @@ func (d *Db) ColumnMetadata(rc *req.Ctx) {
 	res, err := dbConn.Metadata().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "get column metadata error: %s")
 	rc.ResData = res
+}
+
+// ColumnValues 返回某列出现过的去重值，供编辑器在「列 = 」上下文里补全值。
+//
+// 可达性校验在应用层的 GetDbConn 里做（与其余元数据读取同源），这里不再另取一次连接
+func (d *Db) ColumnValues(rc *req.Ctx) {
+	table := rc.Query("tableName")
+	biz.NotEmpty(table, "tableName cannot be empty")
+	column := rc.Query("column")
+	biz.NotEmpty(column, "column cannot be empty")
+
+	values, err := d.dbApp.ColumnValues(rc.MetaCtx, getDbId(rc), getDbName(rc), table, column, cast.ToInt(rc.Query("limit")))
+	biz.ErrIsNilAppendErr(err, "sample column values error: %s")
+	rc.ResData = values
 }
 
 func (d *Db) GetTableDDL(rc *req.Ctx) {

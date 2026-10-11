@@ -17,4 +17,5 @@ func InitIoc() {
 	ioc.Register(newDbTransferLogRepo())
 	ioc.Register(newMaskRuleRepo())
 	ioc.Register(newMaskColumnRepo())
+	ioc.Register(newSchemaBaselineRepo())
 }

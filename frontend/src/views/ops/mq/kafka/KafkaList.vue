@@ -67,7 +67,7 @@ const selectionData = ref<Kafka[]>([]);
 const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlaceholder('mq.kafka.keywordPlaceholder')];
 
 const columns = [
-    TableColumn.new('name', 'common.name').isSlot('name').setAddWidth(15),
+    TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('hosts', 'Hosts'),
     TableColumn.new('username', 'mq.kafka.username'),
     TableColumn.new('password', 'common.password'),

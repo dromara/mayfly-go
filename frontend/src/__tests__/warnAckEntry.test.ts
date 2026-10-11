@@ -74,7 +74,8 @@ describe('两个入口都接了同一套确认流', () => {
     it('批量选区明确声明「不能弹确认」，否则每条都会被追问而无人处理', () => {
         // 批量在客户端也是一条一条发请求的，服务端看不出「这是一批」，
         // 只能由调用方声明 ask=false；漏掉就会变成「提示写着可直接执行、却一条也没跑」
-        expect(sqlExec).toMatch(/execSql\(dbName, sql, '', \{ ask: false \}\)/);
+        // 备注由批量前置确认收集（remark）后逐条带入，不再是空字面量；要钉住的是 ask: false 这个不变量
+        expect(sqlExec).toMatch(/execSql\(dbName, sql, remark, \{ ask: false \}\)/);
         // 单条执行则要确认
         expect(sqlExec).toMatch(/\{ ask: true, acknowledged \}/);
     });

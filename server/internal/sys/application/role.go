@@ -26,7 +26,7 @@ type Role interface {
 
 	GetRoleResourceIds(roleId uint64) []uint64
 
-	GetRoleResources(roleId uint64, toEntity any)
+	GetRoleResources(ctx context.Context, roleId uint64, toEntity any) error
 
 	GetResourceRoles(resourceId uint64) ([]*entity.RoleResource, error)
 
@@ -88,8 +88,8 @@ func (m *roleAppImpl) GetRoleResourceIds(roleId uint64) []uint64 {
 	return m.roleResourceRepo.GetRoleResourceIds(roleId)
 }
 
-func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
-	m.roleResourceRepo.GetRoleResources(roleId, toEntity)
+func (m *roleAppImpl) GetRoleResources(ctx context.Context, roleId uint64, toEntity any) error {
+	return m.roleResourceRepo.GetRoleResources(ctx, roleId, toEntity)
 }
 
 func (m *roleAppImpl) GetResourceRoles(resourceId uint64) ([]*entity.RoleResource, error) {

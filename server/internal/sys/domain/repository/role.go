@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/model"
@@ -26,5 +28,5 @@ type RoleResource interface {
 	// 获取角色拥有的资源id数组，从role_resource表获取
 	GetRoleResourceIds(roleId uint64) []uint64
 
-	GetRoleResources(roleId uint64, toEntity any)
+	GetRoleResources(ctx context.Context, roleId uint64, toEntity any) error
 }

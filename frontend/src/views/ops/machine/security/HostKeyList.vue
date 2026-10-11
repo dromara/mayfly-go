@@ -29,9 +29,9 @@ const perms = {
 const searchItems = [SearchItem.input('hostAddr', 'machine.hostAddr')];
 
 const columns = [
-    TableColumn.new('hostAddr', 'machine.hostAddr').setAddWidth(15),
+    TableColumn.new('hostAddr', 'machine.hostAddr'),
     TableColumn.new('keyType', 'machine.keyType'),
-    TableColumn.new('fingerprint', 'machine.fingerprint').isSlot().setAddWidth(40),
+    TableColumn.new('fingerprint', 'machine.fingerprint').isSlot(),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('createTime', 'machine.firstTrustTime').isTime(),
     TableColumn.new('creator', 'common.creator'),
