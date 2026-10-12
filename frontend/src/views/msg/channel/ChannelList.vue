@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="channelApi.list"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -16,10 +16,8 @@
                 </el-button>
             </template>
 
-            <template #action="{ data }">
-                <el-button link v-auth="perms.saveChannel" @click="editChannel(data)" type="primary">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <ChannelEdit v-model:visible="editDialog.visible" :form="editDialog.data" :title="editDialog.title" @success="search" />
     </div>
@@ -27,9 +25,9 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { channelApi } from '../api';
@@ -56,9 +54,13 @@ const columns = [
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveChannel, perms.delChannel]);
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<MsgChannel>([{ key: 'edit', label: 'common.edit', type: 'primary', perm: perms.saveChannel, onClick: (row) => editChannel(row) }])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const state = reactive({
     /**
      * 选中的数据
@@ -90,7 +92,7 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const editChannel = (data: MsgChannel | false) => {

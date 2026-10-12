@@ -13,9 +13,15 @@
             </div>
         </div>
 
-        <el-card class="h-full" body-class="h-full flex flex-col">
-            <!-- 表格头部 操作按钮 -->
-            <div class="flex justify-between">
+        <!-- 顶层列表页用 el-card 提供边框/留白；抽屉、弹窗等内嵌列表传 :card="false" 走裸容器，避免「卡片套卡片」 -->
+        <component
+            :is="props.card ? ElCard : 'div'"
+            class="h-full"
+            :class="props.card ? '' : 'flex flex-col'"
+            :body-class="props.card ? 'h-full flex flex-col' : undefined"
+        >
+            <!-- 表格头部 操作按钮：与下方表格之间留一条呼吸带（.data-table__toolbar），避免工具条控件与表头黏成一片 -->
+            <div class="data-table__toolbar flex flex-wrap items-center justify-between gap-y-2">
                 <div>
                     <slot name="tableHeader" />
                 </div>
@@ -29,7 +35,7 @@
                                 <el-dropdown
                                     v-if="props.searchItems?.length > 1"
                                     trigger="click"
-                                    popper-class="page-table-field-menu"
+                                    popper-class="data-table-field-menu"
                                     @visible-change="onFieldMenuVisible"
                                 >
                                     <span class="simple-search-field" :title="$t('common.searchFields')" :aria-label="$t('common.searchFields')">
@@ -62,7 +68,10 @@
                                         v-model="queryForm[nowSearchItem.prop]"
                                     />
 
-                                    <slot @keyup.enter="searchFormItemKeyUpEnter" v-else :name="nowSearchItem.slot"> </slot>
+                                    <!-- 事件不能直接绑在 <slot> 上（Vue 会编成插槽作用域 props、不会挂到外部内容），故包一层真元素接住回车 -->
+                                    <div v-else class="w-full" @keyup.enter="searchFormItemKeyUpEnter">
+                                        <slot :name="nowSearchItem.slot"></slot>
+                                    </div>
                                 </el-form-item>
                             </div>
                         </transition>
@@ -76,9 +85,7 @@
                                 :aria-label="$t('common.search')"
                                 @click="search"
                             />
-
-                            <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
-
+                            
                             <!-- 箭头固定用 ArrowUp，展开态旋转 180° 过渡，避免图标硬切换 -->
                             <el-button
                                 v-if="showToolButton('search') && props.searchItems?.length > 1"
@@ -91,9 +98,10 @@
                             </el-button>
 
                             <el-popover
+                                v-if="showToolButton('setting')"
                                 placement="bottom"
                                 :title="$t('common.columnConfig')"
-                                popper-class="page-table-column-config"
+                                popper-class="data-table-column-config"
                                 width="auto"
                                 trigger="click"
                             >
@@ -122,7 +130,9 @@
                 </slot>
             </div>
 
-            <div class="flex-1 overflow-auto" ref="tableWrapRef">
+            <!-- v-loading 挂在外层包裹（而非 v-show 隐藏的 el-table）：异步列表「假空不显示」阶段 el-table 隐藏，
+                 若 loading 挂在 el-table 上则加载期间无任何反馈；挂包裹层才能既防列宽跳变又保留加载转圈 -->
+            <div class="flex-1 overflow-auto" ref="tableWrapRef" v-loading="loading">
                 <el-table
                     v-show="showTable"
                     ref="tableRef"
@@ -131,7 +141,6 @@
                     @selection-change="handleSelectionChange"
                     :data="tableData"
                     highlight-current-row
-                    v-loading="loading"
                     :size="tableSize"
                     :border="border"
                 >
@@ -151,18 +160,33 @@
                             :type="item.type"
                             :width="item.width"
                         >
+                            <!-- 带帮助提示的表头（jargon 列如 VSZ/RSS/STAT）：文案 + 问号 tooltip；无 headerTip 时回落 :label -->
+                            <template #header v-if="item.headerTip">
+                                <span>{{ $t(item.label) }}</span>
+                                <el-tooltip :content="$t(item.headerTip)" placement="top">
+                                    <SvgIcon name="QuestionFilled" :size="13" class="ml-1 align-middle" />
+                                </el-tooltip>
+                            </template>
+
+                            <!-- 行内操作列：按钮由表格统一渲染，页面只需声明 setActions -->
+                            <template #default="scope" v-if="item.actions">
+                                <RowActions :items="item.actions" :options="item.actionsOptions" :data="scope.row" />
+                            </template>
+
                             <!-- 插槽：预留功能 -->
-                            <template #default="scope" v-if="item.slot">
+                            <template #default="scope" v-else-if="item.slot">
                                 <slot :name="item.slotName ? item.slotName : item.prop" :data="scope.row"></slot>
                             </template>
 
-                            <!-- 枚举类型使用tab展示 -->
-                            <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag
+                            <!-- 内置值渲染器：按列 type 从注册表解析（tag 等），新增内置形态改注册表不改本模板 -->
+                            <template #default="scope" v-else-if="resolveCellRenderer(item)">
+                                <component
+                                    :is="resolveCellRenderer(item)"
+                                    :item="item"
+                                    :row="scope.row"
+                                    :value="item.getValueByData(scope.row)"
                                     :size="props.size"
-                                    :enums="item.typeParam ?? {}"
-                                    :value="(item.getValueByData(scope.row) as string | number | boolean | null)"
-                                ></enum-tag>
+                                />
                             </template>
 
                             <template #default="scope" v-else>
@@ -199,7 +223,8 @@
                 </el-table>
             </div>
 
-            <el-row v-if="props.pageable" class="mt-4" justify="end">
+            <!-- 分页条：仅分页且确有取数 api 时出现；静态 :data 列表（无 api）自动隐藏；异步「假空不显示」阶段随表格隐藏，不留孤立分页器 -->
+            <el-row v-if="showTable && props.pageable && !!props.pageApi" class="mt-4" justify="end">
                 <el-pagination
                     :small="props.size == 'small'"
                     @current-change="pageNumChange"
@@ -211,24 +236,25 @@
                     :page-sizes="pageSizes"
                 />
             </el-row>
-        </el-card>
+        </component>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, toRefs, watch, reactive, onMounted, Ref, ref, useSlots, useTemplateRef, toValue } from 'vue';
 import { TableColumn } from './index';
+import RowActions from './RowActions.vue';
 import { useColumnAutoWidth } from './useColumnAutoWidth';
-import EnumTag from '@/components/enum-tag/EnumTag.vue';
+import { resolveCellRenderer } from './cellRenderers';
 import { useThemeConfig } from '@/store/themeConfig';
 import { storeToRefs } from 'pinia';
 import Api from '@/common/Api';
-import SearchForm from '@/components/page-table/SearchForm/index.vue';
+import SearchForm from '@/components/data-table/SearchForm/index.vue';
 import { SearchItem } from './SearchForm/index';
 import SearchFormItem from './SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { usePageTable } from '@/hooks/usePageTable';
-import { ElInput, type TableInstance } from 'element-plus';
+import { ElCard, ElInput, type TableInstance } from 'element-plus';
 
 const emit = defineEmits(['pageSizeChange', 'pageNumChange']);
 
@@ -241,31 +267,33 @@ const emit = defineEmits(['pageSizeChange', 'pageNumChange']);
  */
 const tableSize = computed(() => (props.size === 'large' || props.size === 'small' ? props.size : 'default'));
 
-export interface PageTableProps {
+export interface DataTableProps {
     size?: string;
     pageApi?: Api<any, any>; // 请求表格数据的 api
     columns: TableColumn[]; // 列配置项  ==> 必传
     showSelection?: boolean;
     selectable?: (row: Record<string, unknown>) => boolean; // 是否可选
-    pageable?: boolean;
+    pageable?: boolean; // 是否分页：true 走 pageApi 的分页返回（res.list/res.total）并显示分页条；false 或无 pageApi 时按整份列表渲染 ==> 非必传（默认 true）
     showSearch?: boolean; // 是否显示搜索表单
-    data?: Record<string, unknown>[]; // 静态 table data 数据，若存在则不会使用 requestApi 返回的 data ==> 非必传
+    data?: Record<string, unknown>[]; // 静态/受控列表数据：直接渲染该数组（响应式，上游过滤后自动更新），无需 pageApi 与分页 ==> 非必传
     lazy?: boolean; // 是否自动执行请求 api ==> 非必传（默认为false）
     beforeQueryFn?: (params: Record<string, unknown>) => Record<string, unknown>; // 执行查询时对查询参数进行处理，调整等
     dataHandlerFn?: (data: any) => any; // 数据处理回调函数，用于将请求回来的数据（分页时为 PageResult）二次加工处理等
     searchItems?: SearchItem[];
     border?: boolean; // 是否带有纵向边框 ==> 非必传（默认为false）
+    card?: boolean; // 是否用 el-card 外壳包裹：顶层列表页保持 true；抽屉/弹窗内嵌列表传 false 走裸容器，避免「卡片套卡片」 ==> 非必传（默认为true）
     toolButton?: ('setting' | 'search')[] | boolean; // 是否显示表格功能按钮 ==> 非必传（默认为true）
     searchCol?: Record<string, number> | number; // 表格搜索项 每列占比配置 ==> 非必传 { xs: 1, sm: 2, md: 2, lg: 3, xl: 4 } | number 如 3
 }
 
 // 接受父组件参数，配置默认值
-const props = withDefaults(defineProps<PageTableProps>(), {
+const props = withDefaults(defineProps<DataTableProps>(), {
     columns: () => [],
     pageable: true,
     showSelection: false,
     lazy: false,
     border: false,
+    card: true,
     toolButton: true,
     showSearch: false,
     searchItems: () => [],
@@ -364,9 +392,14 @@ const tableWrapRef = useTemplateRef<HTMLElement>('tableWrapRef');
 // 列宽自适应：首轮非空数据到达时估算打底（完成后回调显示表格防闪烁）→ 渲染后 DOM 回填精修 → 定型（翻页冻结）
 useColumnAutoWidth({
     tableWrapRef,
-    columns: () => props.columns,
+    // 必须用模板实际渲染的 tableColumns（reactive 代理）而非原始 props.columns：
+    // 页面以纯数组声明列时二者不是同一对象，写原始对象不触发代理 set 陷阱 → 回填结果不重渲染（插槽/tag 列丢宽）
+    columns: () => tableColumns,
     tableData,
     showSelection: () => props.showSelection,
+    // 异步列表：数据未到达的「假空」阶段不提前显示表格，避免「表头窄宽→内容宽」的列宽跳变（切换/挂载时的闪烁）
+    loading,
+    asyncLoad: () => !!props.pageApi,
     onEstimated: () => {
         // 需要计算完才能显示表格，否则会有表格闪烁的问题
         if (!showTable.value) {
@@ -375,11 +408,15 @@ useColumnAutoWidth({
     },
 });
 
+// 静态/受控列表：把 props.data 同步进 tableData。immediate 让「无分页、无 api、仅传 :data」的普通列表
+// 首挂载即渲染（否则 tableData 停在 usePageTable 初始的 []，要等 data 引用变化才出内容）；
+// 分页页不传 data，immediate 仅把已是 [] 的 tableData 再置一次 []，零副作用。
 watch(
     () => props.data,
     (newValue: Record<string, unknown>[] | undefined) => {
         tableData.value = newValue ?? [];
-    }
+    },
+    { immediate: true }
 );
 
 onMounted(async () => {
@@ -472,6 +509,18 @@ defineExpose({
     }
 }
 
+// 工具条与表格之间留一条呼吸带：控件（32px）紧贴表头会让「搜索项」与「列名」糊成一片，
+// 下边距把操作区与数据区分开；窄面板下工具条可 flex-wrap 换行，换行行距由 gap-y 兜底（可读性优先于单行）。
+.data-table__toolbar {
+    margin-bottom: 12px;
+}
+
+// 表头给一档浅灰底，让列名读作数据区的「标题带」（经典后台表格观感），不再与上方白底工具条糊在一起。
+// --el-fill-color-light 三套主题各自自适应：浅为 #f5f5f5 轻灰、深为暗色填充、玻璃态为半透明白透出壁纸。
+:deep(th.el-table__cell) {
+    background-color: var(--el-fill-color-light);
+}
+
 // 简易搜索条：字段名即下拉触发器（filter 惯例），ghost 形态与输入框同高对齐
 .simple-search-field {
     display: inline-flex;
@@ -538,17 +587,17 @@ defineExpose({
 
 // 字段切换下拉（teleport 到 body）：scoped 下 :global 需平铺整条选择器，嵌套子规则不会被导出。
 // 玻璃底/描边/阴影由全局 elevated 档提供，这里只收紧行距并标注当前字段
-:global(.page-table-field-menu) {
+:global(.data-table-field-menu) {
     min-width: 150px;
 }
-:global(.page-table-field-menu .el-dropdown-menu) {
+:global(.data-table-field-menu .el-dropdown-menu) {
     padding: 4px;
 }
-:global(.page-table-field-menu .el-dropdown-menu__item) {
+:global(.data-table-field-menu .el-dropdown-menu__item) {
     padding: 6px 10px;
     border-radius: 6px;
 }
-:global(.page-table-field-menu .el-dropdown-menu__item.is-current) {
+:global(.data-table-field-menu .el-dropdown-menu__item.is-current) {
     color: var(--el-color-primary);
     font-weight: 600;
 }
@@ -560,15 +609,15 @@ defineExpose({
 }
 
 // 列配置 popover（teleport 到 body）：scoped 下 :global 需平铺整条选择器，嵌套子规则不会被导出
-:global(.page-table-column-config) {
+:global(.data-table-column-config) {
     max-width: 450px;
     max-height: 550px;
     overflow: auto;
 }
-:global(.page-table-column-config .column-config-item) {
+:global(.data-table-column-config .column-config-item) {
     padding: 2px 0;
 }
-:global(.page-table-column-config .column-config-header) {
+:global(.data-table-column-config .column-config-header) {
     margin-bottom: 4px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--el-border-color-lighter);

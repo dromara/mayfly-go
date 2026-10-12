@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="resourceAuthCertApi.listByQuery"
             :search-items="state.searchItems"
             v-model:query-form="query"
@@ -19,12 +19,8 @@
                 {{ data.resourceCode }}
             </template>
 
-            <template #action="{ data }">
-                <el-button v-auth="'authcert:save'" @click="onEdit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-
-                <el-button v-auth="'authcert:del'" @click="onDeleteAc(data)" type="danger" link>{{ $t('common.delete') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <ResourceAuthCertEdit
             :title="editor.title"
@@ -42,9 +38,9 @@
 <script lang="ts" setup>
 import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
@@ -52,7 +48,7 @@ import { resourceAuthCertApi } from './api';
 import { AuthCertCiphertextTypeEnum, AuthCertTypeEnum } from './enums';
 import type { ResourceAuthCert } from '@/types/common';
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const state = reactive({
     query: {
         pageNum: 1,
@@ -77,7 +73,13 @@ const state = reactive({
         TableColumn.new('createTime', 'common.createTime').isTime(),
         TableColumn.new('modifier', 'common.modifier'),
         TableColumn.new('updateTime', 'common.updateTime').isTime(),
-        TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(120).alignCenter(),
+        TableColumn.new('action', 'common.operation')
+            .fixedRight()
+            .setActions<ResourceAuthCert>([
+                { key: 'edit', label: 'common.edit', type: 'primary', perm: 'authcert:save', onClick: (row) => onEdit(row) },
+                { key: 'del', label: 'common.delete', type: 'danger', perm: 'authcert:del', onClick: (row) => onDeleteAc(row) },
+            ])
+            .alignCenter(),
     ],
     paramsDialog: {
         visible: false,
@@ -99,7 +101,7 @@ const { query, editor } = toRefs(state);
 onMounted(() => {});
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onEdit = (data: ResourceAuthCert | false) => {

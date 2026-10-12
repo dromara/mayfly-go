@@ -9,8 +9,8 @@
             body-class="h-[65vh]"
             width="1000px"
         >
-            <page-table
-                ref="pageTableRef"
+            <data-table
+                ref="dataTableRef"
                 v-model:query-form="state.query"
                 :page-api="dbTransferApi.dbTransferFileList"
                 :lazy="true"
@@ -25,7 +25,7 @@
                 </template>
 
                 <template #fileKey="{ data }">
-                    <!-- 导出文件是整库明文产物，服务端已标为私有：只能走本模块带 db:transfer:files:down 权限码的下载入口 -->
+                    <!-- 导出文件是整库明文产物，服务端已标为私有：下载只能走本模块带 db:transfer:files:down 权限码的入口；文件名/大小由 FileInfo 组件按 fileKey 查询回显 -->
                     <FileInfo
                         :fileKey="data.fileKey"
                         :download-url="buildTransferFileDownloadUrl(data.id)"
@@ -41,17 +41,8 @@
                     </span>
                 </template>
 
-                <template #action="{ data }">
-                    <el-button
-                        v-if="actionBtns[perms.run] && data.status === DbTransferFileStatusEnum.Success.value"
-                        @click="onOpenRun(data)"
-                        type="primary"
-                        link
-                    >
-                        {{ $t('db.restoreToDb') }}
-                    </el-button>
-                </template>
-            </page-table>
+                <!-- 行内操作由表格统一渲染（见 actionColumn.setActions），列宽与按钮同源 -->
+            </data-table>
         </el-dialog>
 
         <el-dialog :title="state.runDialog.title" v-model="state.runDialog.visible" :destroy-on-close="true" width="600px">
@@ -88,8 +79,8 @@ import { getClientId } from '@/common/utils/storage';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { hasPerms } from '@/components/auth/auth';
 import FileInfo from '@/components/file/FileInfo.vue';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
 import { Msg, useI18nDeleteConfirm, useI18nFormValidate } from '@/hooks/useI18n';
 import DbSelectTree from '@/views/ops/db/widgets/DbSelectTree.vue';
 import { getDbDialect } from '@/views/ops/db/dialect';
@@ -135,7 +126,7 @@ const props = defineProps({
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const columns = ref([
     TableColumn.new('fileKey', 'db.file').setMinWidth(280).isSlot(),
@@ -152,12 +143,20 @@ const perms = {
 
 const actionBtns = hasPerms([perms.del, perms.down, perms.run]);
 
-const actionWidth = (actionBtns[perms.run] ? 1 : 0) * 55;
+const actionColumn = TableColumn.new('action', 'common.operation').fixedRight().alignCenter().setActions<DbTransferFile>([
+    {
+        key: 'restore',
+        label: 'db.restoreToDb',
+        type: 'primary',
+        perm: perms.run,
+        show: (row) => row.status === DbTransferFileStatusEnum.Success.value,
+        onClick: (row) => onOpenRun(row),
+    },
+]);
 
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
-
-onMounted(async () => {
-    if (Object.keys(actionBtns).length > 0) {
+onMounted(() => {
+    // 无恢复权限时整列不加入：该列没别的按钮，留一列空「操作」只是噪声
+    if (actionBtns[perms.run]) {
         columns.value.push(actionColumn);
     }
 });
@@ -210,10 +209,10 @@ const state = reactive({
 });
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
     // const { total, list } = await dbTransferApi.dbTransferFileList.request(state.query);
     // state.tableData = list;
-    // pageTableRef.value?.total = total;
+    // dataTableRef.value?.total = total;
 };
 
 const onDel = async function () {

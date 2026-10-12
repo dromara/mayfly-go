@@ -115,14 +115,14 @@ export function parseLabelPairs(labelsJson: string): { key: string; value: strin
 }
 
 /**
- * 创建标签填充函数（用于 PageTable 的 dataHandlerFn）
+ * 创建标签填充函数（用于 DataTable 的 dataHandlerFn）
  *
  * @param targetType 目标类型（如 'alert_rule', 'alert_silence'）
  * @param options.labelField 标签字段名，默认 'labels'
  *
  * @example
  * ```vue
- * <PageTable :data-handler-fn="useLabelFill('alert_rule')" ... />
+ * <DataTable :data-handler-fn="useLabelFill('alert_rule')" ... />
  * ```
  */
 export function useLabelFill<T extends { id: number }>(targetType: string, options?: { labelField?: string }): (data: any) => Promise<any> {

@@ -63,6 +63,14 @@ export function isNeedWorkTicketError(error: unknown): boolean {
  */
 export const WARN_ACK_CODE = 4002;
 
+/**
+ * 「执行刚结算、无需取消」的响应码，与后端 sqlexec.CodeExecJustFinished 对应。
+ *
+ * 这是一个事实而非失败：结果区的状态迁移（执行中 → 结果/已取消）本身就是反馈，
+ * 再叠一条红色报错会让操作者以为取消落空、语句去向不明
+ */
+export const EXEC_JUST_FINISHED_CODE = 4003;
+
 /** 该错误是否是「需要操作者确认策略提醒」 */
 export function isWarnAckError(error: unknown): boolean {
     return isErrorCode(error, WARN_ACK_CODE);

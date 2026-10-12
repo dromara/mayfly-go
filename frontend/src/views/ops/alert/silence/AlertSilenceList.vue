@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="alertSilenceApi.list"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -20,14 +20,8 @@
                 <enum-tag :enums="AlertRuleStatusEnum" :value="data.status" />
             </template>
 
-            <template #action="{ data }">
-                <el-button link @click="onEdit(data)" type="primary">{{ $t('alert.edit') }}</el-button>
-                <el-button link :type="data.status === AlertRuleStatusEnable ? 'warning' : 'success'" @click="onToggleStatus(data)">
-                    {{ data.status === AlertRuleStatusEnable ? $t('alert.disable') : $t('alert.enable') }}
-                </el-button>
-                <el-button link @click="onDelete(data)" type="danger">{{ $t('alert.delete') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog v-model="editVisible" :title="$t(editTitle)" width="640px" destroy-on-close>
             <el-form :model="editForm" label-width="110px">
@@ -69,9 +63,9 @@
 
 <script lang="ts" setup>
 import { computed, reactive, ref, useTemplateRef } from 'vue';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { alertSilenceApi } from '../api';
 import { AlertRuleStatusEnum } from '../enums';
@@ -99,10 +93,33 @@ const columns = [
     TableColumn.new('endTime', 'alert.endTime').isTime(),
     TableColumn.new('status', 'alert.status').isSlot().alignCenter(),
     TableColumn.new('remark', 'alert.remark'),
-    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(180).alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<AlertSilenceVO>([
+            { key: 'edit', label: 'alert.edit', type: 'primary', onClick: (row) => onEdit(row) },
+            // 启用/禁用互斥：两格各自带行级条件与配色，计宽按同组最宽的一格
+            {
+                key: 'disable',
+                label: 'alert.disable',
+                type: 'warning',
+                group: 'status',
+                show: (row) => row.status === AlertRuleStatusEnable,
+                onClick: (row) => onToggleStatus(row),
+            },
+            {
+                key: 'enable',
+                label: 'alert.enable',
+                type: 'success',
+                group: 'status',
+                show: (row) => row.status !== AlertRuleStatusEnable,
+                onClick: (row) => onToggleStatus(row),
+            },
+            { key: 'del', label: 'alert.delete', type: 'danger', onClick: (row) => onDelete(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ];
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const query = ref({
     name: '',
@@ -164,7 +181,7 @@ const onSave = async () => {
     await alertSilenceApi.save.request({ ...editForm, matchLabels: editForm.matchLabels?.trim() || '{}' });
     Msg.saveSuccess();
     editVisible.value = false;
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onToggleStatus = async (row: AlertSilenceVO) => {
@@ -175,7 +192,7 @@ const onToggleStatus = async (row: AlertSilenceVO) => {
     }
     await alertSilenceApi.changeStatus.request({ id: row.id, status: newStatus });
     Msg.operateSuccess();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onDelete = async (row: AlertSilenceVO) => {
@@ -184,7 +201,7 @@ const onDelete = async (row: AlertSilenceVO) => {
     }
     await alertSilenceApi.del.request({ id: row.id });
     Msg.deleteSuccess();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 </script>
 

@@ -1,24 +1,14 @@
 <template>
     <div class="component-container">
-        <div>
-            <el-button size="small" type="primary" @click="handleCreate" icon="plus">{{ $t('milvus.createDatabase') }}</el-button>
-            <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
-        </div>
-
-        <el-table :data="dbs" style="width: 100%">
-            <el-table-column prop="name" :label="$t('milvus.dbName')" sortable>
-                <template #default="{ row }">
-                    <el-link type="primary" underline="never" @click="handleUse(row)">{{ row.name }}</el-link>
-                </template>
-            </el-table-column>
-            <el-table-column prop="create_time" :label="$t('common.createTime')" sortable />
-            <el-table-column :label="$t('common.operation')" width="200">
-                <template #default="{ row }">
-                    <el-button type="warning" size="small" plain @click="handleConfig(row)">{{ $t('milvus.config') }}</el-button>
-                    <el-button type="danger" size="small" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+        <data-table :data="dbs" :pageable="false" :columns="columns" :card="false">
+            <template #tableHeader>
+                <el-button size="small" type="primary" @click="handleCreate" icon="plus">{{ $t('milvus.createDatabase') }}</el-button>
+                <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
+            </template>
+            <template #name="{ data }">
+                <el-link type="primary" underline="never" @click="handleUse(data)">{{ data.name }}</el-link>
+            </template>
+        </data-table>
     </div>
 
     <el-dialog v-model="createDialog.visible" :title="$t('milvus.createDatabase')" width="500px">
@@ -39,8 +29,10 @@
 </template>
 
 <script setup lang="ts">
-import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import { Msg } from '@/hooks/useI18n';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { storeToRefs } from 'pinia';
 import { onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -56,6 +48,22 @@ const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 const { dbs } = storeToRefs(milvusStore);
 
 const emits = defineEmits(['use']);
+
+// 声明式列：name 列走插槽（el-link 切库），操作列由 setActions 统一渲染并同源算宽（不再手写 width=200）
+const columns = [
+    TableColumn.new('name', 'milvus.dbName').isSlot('name').setSortable(),
+    TableColumn.new('create_time', 'common.createTime').setSortable(),
+    TableColumn.new('action', 'common.operation').setActions<IDatabase>([
+        { key: 'config', label: 'milvus.config', type: 'warning', onClick: (row) => handleConfig(row) },
+        {
+            key: 'delete',
+            label: 'common.delete',
+            type: 'danger',
+            confirm: { title: 'milvus.confirmDeleteDatabase', params: (row) => ({ name: row.name }) },
+            onClick: (row) => dropDatabase(row),
+        },
+    ], { size: 'small' }),
+];
 
 const createDialog = ref({
     visible: false,
@@ -143,10 +151,7 @@ const submitCreate = async () => {
     }
 };
 
-const handleDrop = async (row: IDatabase) => {
-    if (!(await useI18nConfirm('milvus.confirmDeleteDatabase', { name: row.name }))) {
-        return;
-    }
+const dropDatabase = async (row: IDatabase) => {
     await milvusApi.dropDatabase(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();
@@ -178,8 +183,6 @@ const submitConfig = async () => {
     }
 };
 
-const handleDetail = (_row: Record<string, unknown>) => {};
-
 const handleUse = async (row: IDatabase) => {
     milvusStore.setSelectedDb(row.name);
     emits('use', row.name);
@@ -200,10 +203,5 @@ onMounted(loadList);
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.component-container :deep(.el-table) {
-    flex: 1;
-    min-height: 0;
 }
 </style>

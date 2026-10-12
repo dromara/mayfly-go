@@ -1,19 +1,11 @@
 <template>
     <div class="component-container">
-        <div>
-            <el-button size="small" icon="plus" type="primary" @click="handleCreate">{{ $t('milvus.createResourceGroup') }}</el-button>
-            <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
-        </div>
-
-        <el-table :data="list">
-            <el-table-column prop="name" :label="$t('milvus.resourceGroupName')" />
-            <el-table-column :label="$t('common.operation')" width="250">
-                <template #default="{ row }">
-                    <el-button size="small" @click="handleDescribe(row)">{{ $t('milvus.detail') }}</el-button>
-                    <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+        <data-table :data="list" :pageable="false" :columns="columns" :card="false">
+            <template #tableHeader>
+                <el-button size="small" icon="plus" type="primary" @click="handleCreate">{{ $t('milvus.createResourceGroup') }}</el-button>
+                <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
+            </template>
+        </data-table>
     </div>
 
     <el-dialog v-model="createDialog.visible" :title="$t('milvus.createResourceGroup')" width="500px">
@@ -28,7 +20,9 @@
 <script setup lang="ts">
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import MonacoEditorBox from '@/components/monaco/MonacoEditorBox';
-import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
+import { Msg } from '@/hooks/useI18n';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -42,7 +36,27 @@ const props = defineProps<{
 
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
-const list = ref<{ name: string }[]>([]);
+/** 资源组行（listResourceGroups 返回字符串，映射成 { name } 行） */
+interface ResourceGroupRow {
+    name: string;
+}
+
+const list = ref<ResourceGroupRow[]>([]);
+
+// 声明式列：操作列由 setActions 统一渲染并同源算宽（不再手写 width=250）
+const columns = [
+    TableColumn.new('name', 'milvus.resourceGroupName'),
+    TableColumn.new('action', 'common.operation').setActions<ResourceGroupRow>([
+        { key: 'detail', label: 'milvus.detail', onClick: (row) => handleDescribe(row) },
+        {
+            key: 'delete',
+            label: 'common.delete',
+            type: 'danger',
+            confirm: { title: 'milvus.confirmDeleteResourceGroup', params: (row) => ({ name: row.name }) },
+            onClick: (row) => dropResourceGroup(row),
+        },
+    ], { size: 'small' }),
+];
 const createDialog = ref({
     visible: false,
 });
@@ -88,7 +102,7 @@ const submitCreate = async () => {
     }
 };
 
-const handleDescribe = async (row: { name: string }) => {
+const handleDescribe = async (row: ResourceGroupRow) => {
     const res = await milvusApi.describeResourceGroup(props.milvusId, row.name);
     MonacoEditorBox({
         content: JSON.stringify(res, null, 2),
@@ -105,10 +119,7 @@ const handleDescribe = async (row: { name: string }) => {
     });
 };
 
-const handleDrop = async (row: { name: string }) => {
-    if (!(await useI18nConfirm('milvus.confirmDeleteResourceGroup', { name: row.name }))) {
-        return;
-    }
+const dropResourceGroup = async (row: ResourceGroupRow) => {
     await milvusApi.dropResourceGroup(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();
@@ -130,10 +141,5 @@ watch([() => props.milvusId, () => milvusStore.authCertName], () => {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.component-container :deep(.el-table) {
-    flex: 1;
-    min-height: 0;
 }
 </style>

@@ -2,7 +2,7 @@
     <div class="mask-rule-list h-full p-3">
         <el-tabs v-model="state.activeTab">
             <el-tab-pane :label="$t('db.maskRule')" name="rule">
-                <page-table
+                <data-table
                     ref="ruleTableRef"
                     :page-api="dbMaskApi.maskRules"
                     :search-items="ruleSearchItems"
@@ -30,16 +30,11 @@
                             :inactive-value="DbMaskRuleStatusEnum.Disabled.value"
                         />
                     </template>
-
-                    <template #action="{ data }">
-                        <el-button @click="editRule(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                        <el-button type="danger" link @click="delRule(data)">{{ $t('common.delete') }}</el-button>
-                    </template>
-                </page-table>
+                </data-table>
             </el-tab-pane>
 
             <el-tab-pane :label="$t('db.maskColumnTag')" name="tag">
-                <page-table
+                <data-table
                     ref="tagTableRef"
                     :page-api="dbMaskApi.maskColumns"
                     :search-items="tagSearchItems"
@@ -62,12 +57,7 @@
                     <template #algorithm="{ data }">
                         <span>{{ data.algorithm ? getAlgoLabel(data.algorithm) : '-' }}</span>
                     </template>
-
-                    <template #action1="{ data }">
-                        <el-button @click="editTag(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                        <el-button type="danger" link @click="delTag(data)">{{ $t('common.delete') }}</el-button>
-                    </template>
-                </page-table>
+                </data-table>
             </el-tab-pane>
         </el-tabs>
 
@@ -77,9 +67,9 @@
 </template>
 
 <script lang="ts" setup>
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
 import { defineAsyncComponent, reactive, ref, toRefs, useTemplateRef } from 'vue';
@@ -106,9 +96,16 @@ const ruleColumns = ref([
     TableColumn.new('pattern', 'db.maskPattern').setMinWidth(150),
     TableColumn.new('algorithm', 'db.maskAlgorithm').isSlot().setMinWidth(130),
     TableColumn.new('weight', 'db.maskWeight').alignCenter(),
-    TableColumn.new('status', 'common.status').isSlot().alignCenter(),
+    // 状态列插槽渲染定宽 el-switch（圆钮不在字段文本里，离线估算与只量溢出回填都量不到）：+20 预留圆钮占位
+    TableColumn.new('status', 'common.status').isSlot().setAddWidth(20).alignCenter(),
     TableColumn.new('remark', 'common.remark'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(110).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<DbMaskRule>([
+            { key: 'edit', label: 'common.edit', type: 'primary', onClick: (row) => editRule(row) },
+            { key: 'del', label: 'common.delete', type: 'danger', onClick: (row) => delRule(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ]);
 
 const tagColumns = ref([
@@ -117,7 +114,13 @@ const tagColumns = ref([
     TableColumn.new('action', 'db.maskAction').typeTag(DbMaskTagActionEnum).alignCenter(),
     TableColumn.new('algorithm', 'db.maskAlgorithm').isSlot().setMinWidth(130),
     TableColumn.new('remark', 'common.remark'),
-    TableColumn.new('action1', 'common.operation').isSlot().setMinWidth(110).fixedRight().alignCenter(),
+    TableColumn.new('action1', 'common.operation')
+        .setActions<DbMaskColumn>([
+            { key: 'edit', label: 'common.edit', type: 'primary', onClick: (row) => editTag(row) },
+            { key: 'del', label: 'common.delete', type: 'danger', onClick: (row) => delTag(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ]);
 
 /** 算法标识 -> i18n key 尾段 */
@@ -164,8 +167,8 @@ const formatTagScope = (data: DbMaskColumn) => {
     return parts.join(' / ');
 };
 
-const ruleTableRef = useTemplateRef<InstanceType<typeof PageTable>>('ruleTableRef');
-const tagTableRef = useTemplateRef<InstanceType<typeof PageTable>>('tagTableRef');
+const ruleTableRef = useTemplateRef<InstanceType<typeof DataTable>>('ruleTableRef');
+const tagTableRef = useTemplateRef<InstanceType<typeof DataTable>>('tagTableRef');
 
 const state = reactive({
     activeTab: 'rule',

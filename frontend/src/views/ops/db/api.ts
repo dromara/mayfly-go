@@ -2,7 +2,7 @@ import Api from '@/common/Api';
 import { AesEncrypt } from '@/common/crypto';
 import { getClientId } from '@/common/utils/storage';
 import type { PageParam, PageResult } from '@/types/common';
-import { createSqlExecNotification, registerSqlExecAborter } from '@/components/system-message/db/db-sql-exec-progress';
+import { createSqlExecNotification, finishSqlExecNotification, registerSqlExecAborter } from '@/components/system-message/db/db-sql-exec-progress';
 import { createDataImportNotification, finishDataImportNotification } from '@/components/system-message/db/db-data-import-progress';
 import type {
     Db,
@@ -165,11 +165,16 @@ export function uploadSqlFile(
     const api = Api.newPost<void>(`/dbs/${params.dbId}/exec-sql-file`);
 
     // 使用 uploadRaw 直接传递文件流
+    //
+    // 请求收尾（成功/失败）后统一兜底关闭进度通知：执行终态本应由 Ws 消息回传，
+    // 一旦那条消息丢失，通知与状态表就会永久悬挂（服务端执行完才响应，故此处关闭不会掩盖仍在跑的进度）
     const { abort } = api.uploadRaw(file, queryParams, {
         onSuccess: () => {
+            finishSqlExecNotification(uploadId);
             options.onSuccess?.();
         },
         onError: (error) => {
+            finishSqlExecNotification(uploadId);
             options.onError?.(error);
         },
     });

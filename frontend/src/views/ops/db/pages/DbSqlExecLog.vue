@@ -1,7 +1,7 @@
 <template>
     <div class="db-sql-exec-log h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="dbApi.getSqlExecs"
             :lazy="true"
             height="100%"
@@ -15,19 +15,8 @@
                 </el-select>
             </template>
 
-            <template #action="{ data }">
-                <el-link
-                    v-if="canRestoreRollback(data)"
-                    type="primary"
-                    plain
-                    size="small"
-                    underline="never"
-                    @click="onShowRollbackSql(data)"
-                >
-                    {{ $t('db.restoreSql') }}</el-link
-                >
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions） -->
+        </data-table>
 
         <el-dialog width="55%" :title="$t('db.restoreSql')" v-model="rollbackDialog.visible">
             <!-- 行数据采集被截断、未做并发校验等说明由服务端给出：不展示就等于让用户以为「全都能改回去」 -->
@@ -58,9 +47,9 @@ import { onMounted, reactive, ref, toRefs, useTemplateRef, watch, type PropType 
 import { useI18n } from 'vue-i18n';
 import { dbApi } from '../api';
 import { DbSqlExecTypeEnum, DbSqlExecStatusEnum } from '../enums';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { formatDate } from '@/common/utils/format';
 import { copyToClipboard } from '@/common/utils/string';
 import type { DbSqlExec } from '../types';
@@ -111,10 +100,13 @@ const columns = ref([
     TableColumn.new('res', 'db.execRes'),
     TableColumn.new('createTime', 'db.execTime').isTime(),
     TableColumn.new('oldValue', 'db.oldValue').canBeautify(),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(90).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<DbSqlExec>([{ key: 'rollback', label: 'db.restoreSql', type: 'primary', show: (row) => canRestoreRollback(row), onClick: (row) => onShowRollbackSql(row) }])
+        .fixedRight()
+        .alignCenter(),
 ]);
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const state = reactive({
     dbs: [],
@@ -175,7 +167,7 @@ watch(props, async () => {
 
 const searchSqlExecLog = async () => {
     if (state.query.dbId) {
-        pageTableRef.value?.search();
+        dataTableRef.value?.search();
     }
 };
 

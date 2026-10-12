@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="redisApi.redisList"
             :before-query-fn="checkRouteTagPath"
             :searchItems="searchItems"
@@ -23,16 +23,8 @@
                 {{ data.name }}
             </template>
 
-            <template #action="{ data }">
-                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>
-                    {{ $t('redis.standaloneInfo') }}
-                </el-button>
-                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>{{ $t('redis.clusterInfo') }}</el-button>
-
-                <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button v-auth="'redis:save'" type="primary" link @click="editEntity(data)">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
 
@@ -128,9 +120,9 @@
 
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import { ref, useTemplateRef } from 'vue';
@@ -160,7 +152,7 @@ const props = defineProps({
     },
 });
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const checkRouteTagPath = useRouteTagPath();
 const { editDialog, editEntity } = useEditDialog<Redis>('Redis');
 
@@ -172,7 +164,30 @@ const columns = ref([
     TableColumn.new('mode', 'Mode'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(200).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<Redis>([
+            // 单机/哨兵与集群的详情入口互斥，同组按最宽一格计宽
+            {
+                key: 'standaloneInfo',
+                label: 'redis.standaloneInfo',
+                type: 'primary',
+                group: 'info',
+                show: (row) => row.mode === 'standalone' || row.mode === 'sentinel',
+                onClick: (row) => showInfoDialog(row),
+            },
+            {
+                key: 'clusterInfo',
+                label: 'redis.clusterInfo',
+                type: 'primary',
+                group: 'info',
+                show: (row) => row.mode === 'cluster',
+                onClick: (row) => onShowClusterInfo(row),
+            },
+            { key: 'detail', label: 'common.detail', onClick: (row) => showDetail(row) },
+            { key: 'edit', label: 'common.edit', type: 'primary', perm: 'redis:save', onClick: (row) => editEntity(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ]);
 
 const query = ref({
@@ -241,7 +256,7 @@ const onDelete = async () => {
 const search = (tagPath?: string) => {
     // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
     query.value.tagPath = tagPath ?? '';
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 defineExpose({ search });

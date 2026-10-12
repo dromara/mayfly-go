@@ -67,7 +67,9 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrAtomicUnsupportedStmt: "原子执行只支持 INSERT/UPDATE/DELETE，语句【{{.sql}}】不属于这三类：DDL 在部分数据库会隐式提交、无法回滚，查询结果也不参与回滚",
 	ErrAtomicBatchRolledBack: "第 {{.index}}/{{.total}} 条语句执行失败，整批已回滚（前面执行成功的语句同样未生效）：{{.error}}",
 
-	ErrSqlExecNotFoundToCancel: "该执行已结束或不存在，无法取消（可能已执行完成，或服务进程已重启）",
+	ErrSqlExecNotFoundToCancel: "未找到进行中的该执行，无法取消（可能早已结束、落在其他服务实例，或服务进程已重启）",
+	ErrSqlExecJustFinished:     "该执行刚刚结束，无需取消",
+	ErrSqlExecIdConflict:       "执行标识与他人进行中的执行冲突，本次执行已拒绝，请重新发起",
 	ErrSqlExecNotOwned:         "只能取消自己发起的执行",
 
 	TriggerReasonRowsExceed:    "估算影响行数达到或超过阈值（或该数据库无法给出估算）",

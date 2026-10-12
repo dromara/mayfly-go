@@ -40,7 +40,7 @@ export const accountApi = {
 
 ```vue
 <template>
-    <page-table ref="pageTableRef" :page-api="accountApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
+    <data-table ref="dataTableRef" :page-api="accountApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
         <template #tableHeader>
             <el-button v-auth="'account:add'" type="primary" @click="onAdd">
                 {{ $t('common.create') }}
@@ -51,7 +51,7 @@ export const accountApi = {
                 {{ $t('common.edit') }}
             </el-button>
         </template>
-    </page-table>
+    </data-table>
     <AccountEdit v-model:visible="editVisible" :data="editData" @success="onEditSuccess" />
 </template>
 
@@ -59,11 +59,12 @@ export const accountApi = {
 import { ref } from 'vue';
 import { accountApi } from '../api';
 import { AccountStatusEnum } from '../enums';
-import PageTable from '@/components/pagetable/PageTable.vue';
-import { SearchItem, TableColumn } from '@/components/pagetable';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
 import AccountEdit from './AccountEdit.vue';
 
-const pageTableRef = ref();
+const dataTableRef = ref();
 const editVisible = ref(false);
 const editData = ref<any>(null);
 
@@ -78,7 +79,7 @@ const columns = [
 
 const onAdd = () => { editData.value = null; editVisible.value = true; };
 const onEdit = (row: any) => { editData.value = row; editVisible.value = true; };
-const onEditSuccess = () => { editVisible.value = false; pageTableRef.value?.search(); };
+const onEditSuccess = () => { editVisible.value = false; dataTableRef.value?.search(); };
 </script>
 ```
 

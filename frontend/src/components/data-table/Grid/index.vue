@@ -41,7 +41,7 @@ onDeactivated(() => {
 // 监听屏幕变化：断点只取决于视口宽度，故直接读 window.innerWidth（初始化时也要算一次，不依赖事件对象）
 const resize = () => {
     const width = window.innerWidth;
-    switch (!!width) {
+    switch (true) {
         case width < 768:
             breakPoint.value = 'xs';
             break;

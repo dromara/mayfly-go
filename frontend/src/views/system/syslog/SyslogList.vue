@@ -1,20 +1,20 @@
 <template>
     <div class="h-full">
-        <page-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
+        <data-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
             <template #creator="{ data }">
                 <account-info :username="data.creator || ''" />
             </template>
-        </page-table>
+        </data-table>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { toRefs, reactive } from 'vue';
 import { logApi, accountApi } from '../api';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { LogTypeEnum } from '../enums';
-import { OptionsApi, SearchItem } from '@/components/page-table/SearchForm';
+import { OptionsApi, SearchItem } from '@/components/data-table/SearchForm';
 import AccountInfo from '../account/components/AccountInfo.vue';
 
 const searchItems = [
@@ -22,15 +22,12 @@ const searchItems = [
         .withPlaceholder('system.syslog.operatorPlaceholder')
         .withOptionsApi(
             OptionsApi.new(accountApi.list, { username: null })
-                .withConvertFn((res: any) => {
-                    const accounts = res.list;
-                    return accounts.map((x: any) => {
-                        return {
-                            label: x.username,
-                            value: x.id,
-                        };
-                    });
-                })
+                .withConvertFn((res) =>
+                    res.list.map((x) => ({
+                        label: x.username,
+                        value: x.id,
+                    }))
+                )
                 .isRemote('username')
         ),
     SearchItem.select('type', 'system.syslog.result').withEnum(LogTypeEnum),

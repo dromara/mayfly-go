@@ -128,4 +128,7 @@ const (
 
 	// ErrProcinstBizNotPending 工单不在「已批准、待执行」态（已开始执行/已执行完/已取消），无法改期或取消
 	ErrProcinstBizNotPending
+	// ErrProcinstStatusNotCancelable 流程不在可取消状态（仅审批中/挂起/退回可取消），
+	// 拒绝把已完成/已终止/已取消的实例再改写一次
+	ErrProcinstStatusNotCancelable
 )

@@ -41,6 +41,8 @@ export interface SysConfig extends BaseModel {
     value: string;
     remark: string;
     permission: string;
+    /** 启用状态（后端 t_sys_config.status）：1 启用 / -1 禁用，列表按此渲染启用/禁用标签 */
+    status: number;
 }
 
 /** 资源 meta 信息（meta 字段 JSON 字符串解析后的结构，对应前端路由 meta） */

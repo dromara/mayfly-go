@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="tagApi.getTeams"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -22,12 +22,8 @@
 
             <template #validityDate="{ data }"> {{ formatDate(data.validityStartDate) }} ~ {{ formatDate(data.validityEndDate) }} </template>
 
-            <template #action="{ data }">
-                <el-button @click.prevent="onShowMembers(data)" link type="primary">{{ $t('team.member') }}</el-button>
-
-                <el-button v-auth="'team:save'" @click.prevent="onShowSaveTeamDialog(data)" link type="warning">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <auto-form-drawer
             v-model:visible="addTeamDialog.visible"
@@ -47,8 +43,8 @@
         </auto-form-drawer>
 
         <el-dialog @open="setMemebers" width="50%" :title="showMemDialog.title" v-model="showMemDialog.visible">
-            <page-table
-                ref="showMemPageTableRef"
+            <data-table
+                ref="showMemDataTableRef"
                 :page-api="tagApi.getTeamMem"
                 :lazy="true"
                 :search-items="showMemDialog.searchItems"
@@ -59,10 +55,8 @@
                     <el-button v-auth="'team:member:save'" @click="onShowAddMemberDialog()" type="primary" icon="plus">{{ $t('common.add') }}</el-button>
                 </template>
 
-                <template #action="{ data }">
-                    <el-button v-auth="'team:member:del'" @click="onDeleteMember(data)" type="danger" link icon="delete"></el-button>
-                </template>
-            </page-table>
+                <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+            </data-table>
 
             <el-dialog width="400px" :title="$t('team.addMember')" :before-close="onCancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
@@ -82,9 +76,9 @@ import { notBlank } from '@/common/assert';
 import { formatDate } from '@/common/utils/format';
 import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import { useAutoFormModel } from '@/hooks/useAutoFormModel';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 import { onMounted, reactive, toRefs, useTemplateRef } from 'vue';
@@ -92,7 +86,7 @@ import { useI18n } from 'vue-i18n';
 import TagCodePath from '../component/TagCodePath.vue';
 import TagTreeCheck from '../component/TagTreeCheck.vue';
 import { tagApi } from './api';
-import type { Team } from './types';
+import type { Team, TeamMember } from './types';
 
 /** 团队编辑表单类型 */
 interface TeamForm extends Partial<Team> {
@@ -109,8 +103,8 @@ interface TeamMemberForm {
 
 const { t } = useI18n();
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
-const showMemPageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('showMemPageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
+const showMemDataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('showMemDataTableRef');
 
 /** 团队编辑表单声明（defineFormItems<TeamForm>，渲染 + 校验唯一数据源；codePaths 走插槽承载 TagTreeCheck） */
 const items = defineFormItems<TeamForm>([
@@ -145,7 +139,14 @@ const columns = [
     TableColumn.new('createTime', 'common.createTime').isTime(),
     TableColumn.new('modifier', 'common.modifier'),
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(130).fixedRight().noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<Team>([
+            { key: 'member', label: 'team.member', type: 'primary', onClick: (row) => onShowMembers(row) },
+            { key: 'edit', label: 'common.edit', type: 'warning', perm: 'team:save', onClick: (row) => onShowSaveTeamDialog(row) },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ];
 
 /** 团队表单初值（新增与取消编辑均回到该形状） */
@@ -174,7 +175,20 @@ const state = reactive({
             TableColumn.new('username', 'common.username'),
             TableColumn.new('createTime', 'team.joinTime').isTime(),
             TableColumn.new('creator', 'team.assigner'),
-            TableColumn.new('action', 'common.operation').isSlot().setMinWidth(80).fixedRight().alignCenter(),
+            TableColumn.new('action', 'common.operation')
+                .setActions<TeamMember>([
+                    {
+                        key: 'remove',
+                        label: 'common.delete',
+                        type: 'danger',
+                        icon: 'delete',
+                        iconOnly: true,
+                        perm: 'team:member:del',
+                        onClick: (row) => onDeleteMember(row),
+                    },
+                ])
+                .fixedRight()
+                .alignCenter(),
         ],
         visible: false,
         query: {
@@ -199,7 +213,7 @@ const { query, addTeamDialog, selectionData, showMemDialog } = toRefs(state);
 onMounted(() => {});
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onShowSaveTeamDialog = async (data: Team | null) => {
@@ -270,7 +284,7 @@ const onShowMembers = async (team: Team) => {
     state.showMemDialog.title = t('team.teamMember', { teamName: team.name });
 };
 
-const onDeleteMember = async (data: Record<string, unknown>) => {
+const onDeleteMember = async (data: TeamMember) => {
     await tagApi.delTeamMem.request(data);
     Msg.operateSuccess();
     // 重新赋值成员列表
@@ -281,7 +295,7 @@ const onDeleteMember = async (data: Record<string, unknown>) => {
  * 设置成员列表信息
  */
 const setMemebers = async () => {
-    showMemPageTableRef.value?.search();
+    showMemDataTableRef.value?.search();
 };
 
 const onShowAddMemberDialog = () => {

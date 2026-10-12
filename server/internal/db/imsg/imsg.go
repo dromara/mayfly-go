@@ -147,4 +147,10 @@ const (
 	SchemaDriftTableRemoved
 	LogDbSchemaBaselineSave
 	LogDbSchemaBaselineDel
+
+	// 取消比结算晚到一步（如长语句尾点取消）：与「查无此执行」是两种事实，必须分开回答
+	ErrSqlExecJustFinished
+
+	// 跨属主 execId 碰撞：登记的顶替行为不得绕过取消侧的属主校验
+	ErrSqlExecIdConflict
 )

@@ -13,18 +13,13 @@
             width="1000"
             @open="getTermOps()"
         >
-            <page-table ref="pageTableRef" :page-api="machineApi.termOpRecs" :lazy="true" height="100%" v-model:query-form="query" :columns="columns">
+            <data-table ref="dataTableRef" :page-api="machineApi.termOpRecs" :lazy="true" height="100%" v-model:query-form="query" :columns="columns">
                 <template #fileKey="{ data }">
                     <FileInfo :fileKey="data.fileKey" show-file-size />
                 </template>
 
-                <template #action="{ data }">
-                    <el-button @click="playRec(data)" loading-icon="loading" :loading="data.playRecLoding" type="primary" link>
-                        {{ $t('machine.playback') }}
-                    </el-button>
-                    <el-button @click="showExecCmds(data)" type="primary" link>{{ $t('machine.cmd') }}</el-button>
-                </template>
-            </page-table>
+                <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+            </data-table>
         </el-dialog>
 
         <!-- 全屏终端回放 -->
@@ -63,8 +58,8 @@ import { Close } from '@element-plus/icons-vue';
 import { machineApi } from './api';
 import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { formatDate } from '@/common/utils/format';
 import { getFileUrl } from '@/common/request';
 import FileInfo from '@/components/file/FileInfo.vue';
@@ -84,11 +79,17 @@ const columns = [
     TableColumn.new('createTime', 'machine.beginTime').isTime().setMinWidth(150),
     TableColumn.new('endTime', 'machine.endTime').isTime().setMinWidth(150),
     TableColumn.new('fileKey', 'machine.file').isSlot(),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(120).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<MachineTermOp & { playRecLoding?: boolean }>([
+            { key: 'playback', label: 'machine.playback', type: 'primary', loading: (row) => !!row.playRecLoding, onClick: (row) => playRec(row) },
+            { key: 'cmd', label: 'machine.cmd', type: 'primary', onClick: (row) => showExecCmds(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ];
 
 const playerRef = ref<HTMLElement | null>(null);
-const pageTableRef = ref<InstanceType<typeof PageTable> | null>(null);
+const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null);
 const state = reactive({
     title: '',
     query: {
@@ -115,7 +116,7 @@ watch(
 );
 
 const getTermOps = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const showExecCmds = (data: MachineTermOp) => {

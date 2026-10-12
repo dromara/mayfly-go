@@ -60,10 +60,11 @@ type File interface {
 	// 因此内部读取（如恢复备份文件）直接用 GetReader，不走本方法。
 	CanAnonymousRead(ctx context.Context, fileKey string) error
 
-	// ListPublicByKeys 按 key 集合返回可匿名读取的文件信息（映射至调用方提供的接收结构）。
+	// ListByKeys 按 key 集合返回文件信息（映射至调用方提供的接收结构），不按访问模式过滤。
 	//
-	// 私有文件不在结果里：元数据端点不校验权限，若原样返回就成了探测他人数据文件名与大小的旁路。
-	ListPublicByKeys(keys []string, res any) error
+	// 元数据查询不设访问模式门槛：界面统一经本方法回显文件名与大小（私有产物同样回显）。访问模式只在获取文件内容时生效：public 走匿名内容路由，
+	// private 必须经所属模块带权限码的下载入口。
+	ListByKeys(keys []string, res any) error
 
 	// GetReader 获取文件读取器
 	//
@@ -197,12 +198,12 @@ func (f *fileAppImpl) CanAnonymousRead(ctx context.Context, fileKey string) erro
 	return nil
 }
 
-// ListPublicByKeys 只返回 public 文件信息，私有文件从结果中自然缺失（不告知存不存在）。
-func (f *fileAppImpl) ListPublicByKeys(keys []string, res any) error {
+// ListByKeys 不按访问模式过滤：访问控制只约束内容获取，元数据查询由端点自身的登录校验兜底（见接口注释）。
+func (f *fileAppImpl) ListByKeys(keys []string, res any) error {
 	if len(keys) == 0 {
 		return nil
 	}
-	return f.ListByCondToAny(model.NewCond().In("file_key", keys).Eq("access_mode", entity.FileAccessModePublic), res)
+	return f.ListByCondToAny(model.NewCond().In("file_key", keys), res)
 }
 
 func (f *fileAppImpl) GetReader(ctx context.Context, fileKey string) (string, io.ReadCloser, error) {

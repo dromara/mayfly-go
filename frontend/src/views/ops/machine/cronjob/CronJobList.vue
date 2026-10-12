@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="cronJobApi.list"
             :query="searchItems"
             v-model:query-form="params"
@@ -25,14 +25,8 @@
                 <TagCodePath :path="data.tags" />
             </template>
 
-            <template #action="{ data }">
-                <el-button :disabled="data.status == CronJobStatusEnum.Disable.value" v-auth="perms.saveCronJob" type="primary" @click="runCronJob(data)" link
-                    >{{ $t('machine.cronjobRun') }}
-                </el-button>
-                <el-button v-auth="perms.saveCronJob" type="primary" @click="openFormDialog(data)" link>{{ $t('common.edit') }}</el-button>
-                <el-button type="primary" @click="showExec(data)" link>{{ $t('machine.cronjobExecRecord') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <CronJobEdit v-model:visible="cronJobEdit.visible" v-model:data="cronJobEdit.data" :title="cronJobEdit.title" @submit-success="search" />
         <CronJobExecList v-model:visible="execDialog.visible" :data="execDialog.data" />
@@ -40,9 +34,9 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import TagCodePath from '../../component/TagCodePath.vue';
@@ -70,10 +64,25 @@ const columns = ref([
     TableColumn.new('saveExecResType', 'machine.execResRecordType').typeTag(CronJobSaveExecResTypeEnum),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('codePaths', 'machine.relateMachine').isSlot().setMinWidth('250px'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<MachineCronJob>([
+            {
+                key: 'run',
+                label: 'machine.cronjobRun',
+                type: 'primary',
+                perm: perms.saveCronJob,
+                disabled: (row) => row.status == CronJobStatusEnum.Disable.value,
+                onClick: (row) => runCronJob(row),
+            },
+            { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.saveCronJob, onClick: (row) => openFormDialog(row) },
+            { key: 'execRecord', label: 'machine.cronjobExecRecord', type: 'primary', onClick: (row) => showExec(row) },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ]);
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const state = reactive({
     params: {
@@ -140,7 +149,7 @@ const showExec = async (data: MachineCronJob) => {
 };
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 </script>
 

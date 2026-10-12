@@ -182,9 +182,9 @@ export default {
         sessionCancel: '取消会话',
         sessionCancelConfirm: '确定取消会话 {id}？其正在执行的语句会立即中断：{query}',
         sessionCancelSuccess: '已请求取消该会话',
-        // 不写「数据库侧已中断该语句」：服务端只取消自己的执行上下文，语句是否真停下来取决于驱动是否响应取消；
+        // 不写「已中断」：服务端只取消自己的执行上下文，语句是否真停下来由数据库侧决定，
         // 给出不成立的保证后，用户会接着改同一批数据，结果撞上还在跑的长事务持有的锁
-        execCancelRequested: '已请求取消本次执行（数据库侧是否已停下取决于驱动，请在活动会话里确认）',
+        execCancelRequested: '已请求取消本次执行',
         sqlPlanTab: '执行计划',
         viewPlan: '查看执行计划',
         planRowsEstimated: '优化器估算 {rows} 行（不是真实影响行数）',
@@ -540,7 +540,6 @@ export default {
         executedStatements: '已执行',
         elapsedTime: '已用时',
         scriptFileUploadSuccess: 'SQL文件【{filename}】执行成功',
-        scriptFileUploadCancelled: 'SQL文件【{filename}】执行已取消',
         scriptFileUploadFailed: 'SQL文件【{filename}】执行失败: {error}',
 
         // 数据脱敏

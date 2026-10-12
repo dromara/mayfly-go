@@ -269,7 +269,7 @@ export interface DbTransferTask extends BaseModel {
  */
 export type DbTransferTaskListVO = Omit<DbTransferTask, 'taskKey'>;
 
-/** 迁移导出文件 (对应 entity.DbTransferFile) */
+/** 迁移导出文件 (对应 entity.DbTransferFile)；文件名与大小由统一文件信息组件按 fileKey 查询回显 */
 export interface DbTransferFile {
     id: number;
     /** 所属迁移任务 ID */

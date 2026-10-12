@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="dockerApi.page"
             :before-query-fn="checkRouteTagPath"
             :searchItems="searchItems"
@@ -23,11 +23,8 @@
                 {{ data.name }}
             </template>
 
-            <template #action="{ data }">
-                <el-button @click="showDetail(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button v-auth="'container:save'" type="primary" link @click="editEntity(data)">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
             <el-descriptions v-if="detailDialog.data" :title="$t('common.detail')" :column="3" border>
@@ -54,9 +51,9 @@
 
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import TagCodePath from '@/views/ops/component/TagCodePath.vue';
@@ -73,7 +70,7 @@ const props = defineProps({
     },
 });
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const checkRouteTagPath = useRouteTagPath();
 const { editDialog, editEntity } = useEditDialog<Container>('docker.containerConf');
 
@@ -96,7 +93,13 @@ const columns = ref([
     TableColumn.new('addr', 'docker.addr'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(200).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<Container>([
+            { key: 'detail', label: 'common.detail', onClick: (row) => showDetail(row) },
+            { key: 'edit', label: 'common.edit', type: 'primary', perm: 'container:save', onClick: (row) => editEntity(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ]);
 
 onMounted(() => {
@@ -125,7 +128,7 @@ const onDelete = async () => {
 const search = (tagPath?: string) => {
     // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
     query.value.tagPath = tagPath ?? '';
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 defineExpose({ search });

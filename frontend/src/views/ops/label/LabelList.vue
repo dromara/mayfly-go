@@ -1,6 +1,6 @@
 <template>
     <div class="h-full">
-        <page-table ref="pageTableRef" :page-api="labelApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
+        <data-table ref="dataTableRef" :page-api="labelApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
             <template #tableHeader>
                 <el-button v-auth="'label:save'" type="primary" icon="plus" @click="onAdd">{{ $t('label.addLabel') }}</el-button>
             </template>
@@ -24,11 +24,8 @@
                 {{ data.extra?.description || '-' }}
             </template>
 
-            <template #action="{ data }">
-                <el-button link @click="onEdit(data)" type="primary">{{ $t('common.edit') }}</el-button>
-                <el-button link @click="onDelete(data)" type="danger">{{ $t('common.delete') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog v-model="editVisible" :title="$t(editTitle)" width="500px" destroy-on-close>
             <el-form :model="editForm" label-width="100px">
@@ -55,9 +52,9 @@
 
 <script lang="ts" setup>
 import { reactive, ref, useTemplateRef } from 'vue';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
 import { useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { refreshLabelColors } from '@/hooks/useLabelFill';
@@ -71,10 +68,16 @@ const columns = [
     TableColumn.new('labelValue', 'label.labelValue').isSlot('color'),
     TableColumn.new('description', 'label.description').isSlot(),
     TableColumn.new('createTime', 'common.createTime').isTime(),
-    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(150).alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .fixedRight()
+        .setActions<LabelVO>([
+            { key: 'edit', label: 'common.edit', type: 'primary', onClick: (row) => onEdit(row) },
+            { key: 'del', label: 'common.delete', type: 'danger', onClick: (row) => onDelete(row) },
+        ])
+        .alignCenter(),
 ];
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const query = reactive({
     labelKey: '',
 });
@@ -129,7 +132,7 @@ const onSave = async () => {
     Msg.saveSuccess();
     editVisible.value = false;
     refreshLabelColors();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onDelete = async (row: LabelVO) => {
@@ -139,7 +142,7 @@ const onDelete = async (row: LabelVO) => {
     await labelApi.del.request({ id: row.id });
     Msg.deleteSuccess();
     refreshLabelColors();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 </script>
 

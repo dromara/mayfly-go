@@ -1,20 +1,11 @@
 <template>
     <div class="component-container">
-        <div>
-            <el-button size="small" icon="plus" type="primary" @click="handleCreate">{{ $t('milvus.createUser') }}</el-button>
-            <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
-        </div>
-
-        <el-table :data="list">
-            <el-table-column prop="name" :label="$t('common.username')" />
-            <el-table-column :label="$t('common.operation')" width="350">
-                <template #default="{ row }">
-                    <el-button size="small" @click="handleEditRoles(row)">{{ $t('milvus.editRole') }}</el-button>
-                    <el-button size="small" @click="handleChangePassword(row)">{{ $t('login.changePassword') }}</el-button>
-                    <el-button size="small" type="danger" @click="handleDelete(row)">{{ $t('common.delete') }}</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+        <data-table :data="list" :pageable="false" :columns="columns" :card="false">
+            <template #tableHeader>
+                <el-button size="small" icon="plus" type="primary" @click="handleCreate">{{ $t('milvus.createUser') }}</el-button>
+                <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
+            </template>
+        </data-table>
     </div>
 
     <el-dialog v-model="createDialog.visible" :title="$t('milvus.createUser')" width="500px">
@@ -48,8 +39,10 @@
 </template>
 
 <script setup lang="ts">
-import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import { Msg } from '@/hooks/useI18n';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { milvusApi } from '../api';
@@ -63,6 +56,22 @@ const props = defineProps<{
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
 const list = ref<IUser[]>([]);
+
+// 声明式列：操作列由 setActions 统一渲染并同源算宽（不再手写 width=350），行类型绑 IUser
+const columns = [
+    TableColumn.new('name', 'common.username'),
+    TableColumn.new('action', 'common.operation').setActions<IUser>([
+        { key: 'editRole', label: 'milvus.editRole', onClick: (row) => handleEditRoles(row) },
+        { key: 'changePassword', label: 'login.changePassword', onClick: (row) => handleChangePassword(row) },
+        {
+            key: 'delete',
+            label: 'common.delete',
+            type: 'danger',
+            confirm: { title: 'milvus.confirmDeleteUser', params: (row) => ({ name: row.name }) },
+            onClick: (row) => deleteUser(row),
+        },
+    ], { size: 'small' }),
+];
 const createDialog = ref({
     visible: false,
 });
@@ -171,10 +180,7 @@ const submitPassword = async () => {
     }
 };
 
-const handleDelete = async (row: IUser) => {
-    if (!(await useI18nConfirm('milvus.confirmDeleteUser', { name: row.name }))) {
-        return;
-    }
+const deleteUser = async (row: IUser) => {
     await milvusApi.deleteUser(props.milvusId, row.name);
     Msg.success('milvus.deletedSuccess');
     await loadList();
@@ -233,10 +239,5 @@ watch([() => props.milvusId, () => milvusStore.authCertName], () => {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.component-container :deep(.el-table) {
-    flex: 1;
-    min-height: 0;
 }
 </style>

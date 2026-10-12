@@ -41,7 +41,7 @@
                 </el-row>
             </div>
 
-            <page-table ref="logTableRef" :page-api="dbSyncApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
+            <data-table ref="logTableRef" :page-api="dbSyncApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
                 <!-- 指标列自定义渲染 -->
                 <template #durationMs="{ data }">
                     <span :class="{ 'text-red-500': data.durationMs > 30000 }">{{ data.durationMs ? `${data.durationMs} ms` : '-' }}</span>
@@ -54,7 +54,7 @@
                         {{ $t('db.syncRunLog') }}
                     </el-button>
                 </template>
-            </page-table>
+            </data-table>
 
             <!-- 运行日志弹窗（使用通用 LogViewer） -->
             <el-dialog v-model="runLogVisible" :title="$t('db.syncRunLog')" width="900px" :destroy-on-close="true">
@@ -77,8 +77,8 @@
 <script lang="ts" setup>
 import { computed, reactive, Ref, ref, toRefs, watch, nextTick } from 'vue';
 
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { LogViewer, SyncRunLogParser, type ParsedLogLine } from '@/components/log-viewer';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
 import { DbDataSyncLogStatusEnum, DbDataSyncModeEnum } from '@/views/ops/db/sync/enums';
@@ -276,7 +276,7 @@ const { query, realTime } = toRefs(state);
 
 const isValidationMode = computed(() => state.syncMode === DbDataSyncModeEnum.Validation.value);
 
-// PageTable 内部以 reactive(props.columns) 固化了首次传入的数组引用，整体重新赋值不生效，
+// DataTable 内部以 reactive(props.columns) 固化了首次传入的数组引用，整体重新赋值不生效，
 // 必须用 splice 原地替换内容才能同步到已渲染的表格
 const rebuildColumns = (validation: boolean) => {
     columns.value.splice(0, columns.value.length, ...buildColumns(validation));

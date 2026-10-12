@@ -1,7 +1,7 @@
 import { notBlank } from '@/common/assert';
 import { Msg } from '@/hooks/useI18n';
 import type { editor, IRange } from 'monaco-editor';
-import { unref, type Ref, type UnwrapNestedRefs } from 'vue';
+import { ref, unref, type Ref, type UnwrapNestedRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { DbInst } from '../../db';
@@ -34,7 +34,7 @@ export class ExecResTab {
 
     dbTableRef: DbTableDataRef | null = null;
 
-    abortFn: Function;
+    abortFn?: Function;
 
     tableColumn: TableColumnDef[] = [];
 
@@ -53,6 +53,14 @@ export class ExecResTab {
     hasUpdatedFields: boolean;
 
     errorMsg: string;
+
+    /**
+     * 本次执行是否被操作者取消（点了取消按钮，请求被中断）。
+     *
+     * 与 errorMsg 分开存：取消不是失败，不能渲染成红色「执行失败」；
+     * 也不能什么都不显示——结果页签会落进「成功」分支，看起来像正常跑完了
+     */
+    cancelled = false;
 
     /**
      * 被触发策略要求审批的语句原文。
@@ -132,6 +140,49 @@ export function useSqlExec(options: UseSqlExecOptions) {
     const noticeTexts = (notices: PolicyNotice[] | undefined): string => (notices ?? []).map((notice) => t(notice.title)).join('；');
     const { dbId, dbName, state, atomic, onNeedApproval, askExecRemark } = options;
 
+    /**
+     * 每个结果tab的运行代号。
+     *
+     * 取消后旧一次运行的请求 promise 仍可能迟到结算（响应与 abort 赛跑）），
+     * 其 catch/finally 若照写页签会把新一轮运行的状态抹掉——轻则清掉新运行的 abortFn（取消按钮消失），
+     * 重则用旧空值覆盖新结果。只有持当前代号的写入才允许落盘；取消动作在收尾时把代号加一
+     */
+    const runGens = new Map<number, number>();
+    const beginRun = (tabId: number): number => {
+        const gen = (runGens.get(tabId) ?? 0) + 1;
+        runGens.set(tabId, gen);
+        return gen;
+    };
+    const isCurrentRun = (tabId: number, gen: number): boolean => runGens.get(tabId) === gen;
+
+    /**
+     * 从各类抛出物里取出可展示文案。
+     *
+     * 本地分支抛的是 { msg } 普通对象（提醒确认、服务端 errorMsg），请求层抛的是 Error 实例
+     * （业务失败与网络错误，文案在 message 上，没有 msg）——只认一种会让另一类变成空白
+     */
+    const errorText = (e: unknown): string => {
+        if (e instanceof Error) {
+            return e.message;
+        }
+        const msg = (e as Record<string, unknown> | null)?.msg;
+        return typeof msg === 'string' ? msg : String(e);
+    };
+
+    /** 请求被主动中断（操作者点了取消）时的拒绝类型：不是执行失败，但也不是成功 */
+    const isAbortError = (e: unknown): boolean => (e as Error | null)?.name === 'AbortError';
+
+    /** 一次执行开始前清掉上一次的展示态：残留的失败/提醒/取消/截断会盖住或误标本次结果 */
+    const resetExecTab = (tab: ExecResTabState) => {
+        tab.errorMsg = '';
+        tab.notice = '';
+        tab.cancelled = false;
+        tab.needApprovalSqls = [];
+        tab.truncated = false;
+        tab.rowLimit = 0;
+        tab.exportSql = '';
+    };
+
     const getNowDbInst = () => {
         return DbInst.getInst(dbId);
     };
@@ -140,19 +191,31 @@ export function useSqlExec(options: UseSqlExecOptions) {
      * 组合「取消」：先请服务端中断该执行（至少不再往回读结果），再断本地 HTTP 收尾界面。
      *
      * 只 abort 前端请求是不够的：连接池会保留那条正在跑的语句，界面转圈结束了库里还在跑。
-     * 服务端那一跳只取消自己的执行上下文，目标库是否真停下取决于驱动是否响应取消（要确认就去「活动会话」），
-     * 所以这里不能说「已中断」。
+     * 服务端那一跳会尝试停掉本次执行上下文，但是否真停下来由数据库侧决定，
+     * 所以这里不能说「已中断」，只告诉用户「已请求取消」。
      * 结果必须出声：只把遮罩收起而不告诉用户「到底取消了没有」，
      * 他会不知道那条语句是在库里继续跑还是已经停了（服务端可能已回「该执行已结束」）
      */
-    const cancelExec = (execId: string, abort: () => void) => () => {
-        void dbApi.cancelSqlExec
-            .request({ execId })
-            .then(() => Msg.success('db.execCancelRequested'))
-            // 失败不在这里另发一条：中心层已经把服务端的原话 toast 过了（如「该执行已结束或不存在」），
-            // 再叠一条自己编的文案只会让用户看不出到底哪个是真结论
-            .catch(() => undefined);
-        abort();
+    const cancelExec = (execId: string, abort: () => void, terminate: () => void) => {
+        // 一次取消动作只发一发：主线程卡顿时两次点击可能都落在重渲染之前，
+        // 第二发到达时第一发早已结算注销，只能拿回「刚刚结束」——对已成功动作的纯浪费请求
+        let fired = false;
+        return () => {
+            if (fired) {
+                return;
+            }
+            fired = true;
+            void dbApi.cancelSqlExec
+                .request({ execId })
+                .then(() => Msg.success('db.execCancelRequested'))
+                // 失败不在这里另发一条：中心层已经把服务端的原话 toast 过了（如「该执行刚刚结束，无需取消」），
+                // 再叠一条自己编的文案只会让用户看不出到底哪个是真结论
+                .catch(() => undefined);
+            abort();
+            // 本地执行态同步收尾，不等请求 promise 结算：响应与 abort 无论谁赢，
+            // 页签都必须立刻离开「执行中」，否则操作者既看不到取消结果也无法再次执行
+            terminate();
+        };
     };
 
     /**
@@ -282,9 +345,25 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
         state.activeTab = id;
         const startTime = new Date().getTime();
+        const gen = beginRun(id);
+        // loading 用自有可写 ref，见 runSql 同处注释：为何不把 vueuse 的 isFetching 原样存入。
+        // 类型上 ExecResTabState 已把 loading 解包为 boolean，但运行时页签字段仍是 Ref 形状
+        // （reactive set 会写穿到 oldValue.value），与 pushNewTab 同理在此唯一写入点跨一次类型
+        const loadingRef = ref(false);
+        execRes.loading = loadingRef as unknown as boolean;
+        // 批量取消标记：取消后逐条循环必须停发新语句
+        let batchCancelled = false;
+        // 取消收尾：同步让页签离开「执行中」并把代号加一，使旧请求的迟到结算不能再写页签
+        const terminate = () => {
+            batchCancelled = true;
+            loadingRef.value = false;
+            execRes.cancelled = true;
+            execRes.abortFn = undefined;
+            runGens.set(id, gen + 1);
+        };
 
         try {
-            execRes.errorMsg = '';
+            resetExecTab(execRes);
             execRes.sql = sqls.join('\n\n---\n\n'); // 显示所有SQL
 
             // 执行所有非查询SQL
@@ -295,9 +374,9 @@ export function useSqlExec(options: UseSqlExecOptions) {
             // 不能沿用下面的逐条请求：那等于 N 个独立事务，开关只体现在界面上，
             // 失败时前面的语句早已各自提交，界面却仍按「整批原子」显示 —— 属于假承诺
             if (atomic()) {
-                const { data, execute, isFetching, abort, execId } = getNowDbInst().execSql(dbName, sqls.join(';\n'), remark, { ask: false, atomic: true });
-                execRes.loading = isFetching;
-                execRes.abortFn = cancelExec(execId, abort);
+                const { data, execute, abort, execId } = getNowDbInst().execSql(dbName, sqls.join(';\n'), remark, { ask: false, atomic: true });
+                execRes.abortFn = cancelExec(execId, abort, terminate);
+                loadingRef.value = true;
                 await execute();
                 for (const item of (data.value as SqlExecRes[]) ?? []) {
                     if (item.needApproval && item.sql) {
@@ -311,11 +390,18 @@ export function useSqlExec(options: UseSqlExecOptions) {
                     });
                 }
             } else {
+                // 逐条请求也全程暴露取消入口：取消会中断当前语句并停发后续语句，
+                // 否则长批量期间页签既无进度也无退出，「执行中」检查也不会拦同页签重跑
+                loadingRef.value = true;
                 for (const sql of sqls) {
+                    if (batchCancelled) {
+                        break;
+                    }
                     try {
                         // 批量选区不逐条追问提醒：ask=false，命中的提醒随结果回显在「策略提醒」列。
                         // 这里不能改成 ask=true：批量本身就是一条一条发请求，逐条弹窗会让人没法干活
-                        const { data, execute } = getNowDbInst().execSql(dbName, sql, remark, { ask: false });
+                        const { data, execute, abort, execId } = getNowDbInst().execSql(dbName, sql, remark, { ask: false });
+                        execRes.abortFn = cancelExec(execId, abort, terminate);
                         await execute();
                         const result = (data.value as SqlExecRes[])[0];
                         if (result.needApproval && result.sql) {
@@ -328,6 +414,9 @@ export function useSqlExec(options: UseSqlExecOptions) {
                             notices: noticeTexts(result.notices),
                         });
                     } catch (error: unknown) {
+                        if (batchCancelled) {
+                            break;
+                        }
                         results.push({
                             sql: sql,
                             error: error instanceof Error ? error.message : String(error),
@@ -335,6 +424,10 @@ export function useSqlExec(options: UseSqlExecOptions) {
                         });
                     }
                 }
+            }
+
+            if (batchCancelled) {
+                return;
             }
 
             // 设置表格列：提醒列只在真有提醒时出现（与单条路径一致），否则整列空值看着像缺数据
@@ -360,13 +453,27 @@ export function useSqlExec(options: UseSqlExecOptions) {
                 getNowDbInst().invalidateSchemaCache(dbName);
             }
         } catch (e: unknown) {
+            if (!isCurrentRun(id, gen)) {
+                return;
+            }
             execRes.data = [];
             execRes.tableColumn = [];
             execRes.table = '';
-            state.execResTabs[i].errorMsg = e instanceof Error ? e.message : String(e);
+            if (isAbortError(e) || batchCancelled) {
+                // 操作者点了取消（请求被中断）：不是失败，置为已取消，让结果区如实显示状态
+                state.execResTabs[i].cancelled = true;
+            } else {
+                state.execResTabs[i].errorMsg = errorText(e);
+            }
             return;
         } finally {
-            execRes.execTime = new Date().getTime() - startTime;
+            if (isCurrentRun(id, gen)) {
+                loadingRef.value = false;
+                execRes.execTime = new Date().getTime() - startTime;
+                // 执行结束（无论成功/失败/取消）都清空取消函数：遮罩已收起，按钮不再可见，
+                // 但引用残留会让下次打开同一 tab 时 v-if="abortFn" 误判为仍可取消
+                execRes.abortFn = undefined;
+            }
         }
 
         execRes.table = '';
@@ -402,20 +509,32 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
         state.activeTab = id;
         const startTime = new Date().getTime();
+        const gen = beginRun(id);
+        /**
+         * loading 用自有可写 ref，而不是把 vueuse 的 isFetching 原样存进页签：
+         * isFetching 是 shallowReadonly 包装的只读 ref，存进 reactive 页签后，
+         * 任何「收尾写回布尔值」的赋值都会命中 Vue set 的 readonly 分支被静默吞掉（仅 dev 告警），
+         * 页签会永久卡在「执行中」——取消后既看不到结果也无法再次执行。
+         * 自有 ref 的值完全由本运行器驱动：发起前置 true，结算/取消收尾置 false
+         */
+        const loadingRef = ref(false);
+        execRes.loading = loadingRef as unknown as boolean;
+        // 取消收尾：同步让页签离开「执行中」并把代号加一，使旧请求的迟到结算不能抹掉新一轮运行的状态
+        const terminate = () => {
+            loadingRef.value = false;
+            execRes.cancelled = true;
+            execRes.abortFn = undefined;
+            runGens.set(id, gen + 1);
+        };
         try {
-            execRes.errorMsg = '';
+            resetExecTab(execRes);
             execRes.sql = '';
-            execRes.notice = '';
-            execRes.needApprovalSqls = [];
-            execRes.exportSql = '';
-            execRes.truncated = false;
-            execRes.rowLimit = 0;
 
             // 一次执行请求的封装：asked=true 才能弹确认（单条场景），acknowledged 只在操作者选过「直接执行」后带上
             const runOnce = async (acknowledged: boolean) => {
-                const { data, execute, isFetching, abort, execId } = getNowDbInst().execSql(dbName, sql, remark, { ask: true, acknowledged });
-                execRes.loading = isFetching;
-                execRes.abortFn = cancelExec(execId, abort);
+                const { data, execute, abort, execId } = getNowDbInst().execSql(dbName, sql, remark, { ask: true, acknowledged });
+                execRes.abortFn = cancelExec(execId, abort, terminate);
+                loadingRef.value = true;
                 await execute();
                 return (data.value as SqlExecRes[])[0];
             };
@@ -425,6 +544,13 @@ export function useSqlExec(options: UseSqlExecOptions) {
             const askWarnAck = async (res: SqlExecRes, retry: (acknowledged: boolean) => Promise<SqlExecRes>): Promise<SqlExecRes> => {
                 const message = res.errorMsg || t('flow.warnAckTitle');
                 const choice = await confirmWarnAck(message);
+                // 弹窗打开期间可能已发生取消（terminate 已把代号加一并收尾页签）：
+                // 此后无论选哪项都不得再写页签或重发语句，否则语句被真正执行、
+                // 已收尾的页签被翻回「执行中」永久卡死（迟到结算全被代号守卫丢弃，无人再收尾）。
+                // 模态遮挡下取消按钮点不到，但收尾正确性不能依赖这个外部前提
+                if (!isCurrentRun(id, gen)) {
+                    throw { msg: 'cancelled' };
+                }
                 if (choice === 'run') {
                     return await retry(true);
                 }
@@ -441,6 +567,11 @@ export function useSqlExec(options: UseSqlExecOptions) {
             if (colAndData.warnAck) {
                 // 命中「仅提醒」：此刻语句还没执行，这是唯一能改走审批的时机
                 colAndData = await askWarnAck(colAndData, runOnce);
+            }
+            // 取消在 await 期间发生时，后续写入全部作废：terminate 已把页签收尾，
+            // 这里再写会把「已取消」覆盖成半截成功态
+            if (!isCurrentRun(id, gen)) {
+                return;
             }
             // 单条路径此前会丢掉策略结论：批量路径有提醒列而单条没有，
             // 「仅提醒」级别在最常用的单条执行场景下等于没有出口
@@ -485,21 +616,33 @@ export function useSqlExec(options: UseSqlExecOptions) {
                 getNowDbInst().invalidateSchemaCache(dbName);
             }
         } catch (e: unknown) {
+            if (!isCurrentRun(id, gen)) {
+                return;
+            }
             execRes.data = [];
             execRes.tableColumn = [];
             execRes.table = '';
             const err = e as Record<string, unknown>;
             // 要实时响应，故需要用索引改变数据才生效
-            if (err.warnAck) {
+            if (isAbortError(e)) {
+                // 操作者点了取消（请求被中断）：不是失败也不产出结果，
+                // 落到取消分支如实显示，而不是空的 errorMsg 被当成执行成功
+                state.execResTabs[i].cancelled = true;
+            } else if (err.warnAck) {
                 // 「仅提醒」命中而未执行：走提醒语义，不能渲染成红色的执行失败
                 state.execResTabs[i].notice = err.msg as string;
             } else {
-                state.execResTabs[i].errorMsg = err.msg as string;
+                state.execResTabs[i].errorMsg = errorText(e);
             }
             return;
         } finally {
-            execRes.sql = sql;
-            execRes.execTime = new Date().getTime() - startTime;
+            if (isCurrentRun(id, gen)) {
+                loadingRef.value = false;
+                execRes.sql = sql;
+                execRes.execTime = new Date().getTime() - startTime;
+                // 执行结束（无论成功/失败/取消）都清空取消函数，避免残留引用导致重复取消
+                execRes.abortFn = undefined;
+            }
         }
 
         // 即只有以该字符串开头的sql才可修改表数据内容

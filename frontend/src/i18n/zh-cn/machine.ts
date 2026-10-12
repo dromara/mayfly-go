@@ -39,6 +39,12 @@ export default {
         keyExchanges: '密钥交换',
         multiValuePlaceholder: `多个值用 ',' 隔开`,
 
+        // 机器协议按钮文案即协议缩写，中英文同形；openRdpTab 是「在新标签页打开 RDP」的组合文案
+        protocolSsh: 'SSH',
+        protocolRdp: 'RDP',
+        protocolVnc: 'VNC',
+        openRdpTab: 'RDP(新标签页)',
+
         // MachineRec
         playback: '回放',
         cmd: '命令',

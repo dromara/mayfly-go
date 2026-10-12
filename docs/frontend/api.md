@@ -28,7 +28,7 @@ await accountApi.del.request({ id: row.id });
 const { execute, isFetching } = accountApi.list.useApi();
 
 // 表格集成
-<page-table :page-api="accountApi.list" />
+<data-table :page-api="accountApi.list" />
 ```
 
 ## 边界

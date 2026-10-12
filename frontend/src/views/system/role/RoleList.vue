@@ -1,13 +1,13 @@
 <template>
     <div class="h-full">
-        <page-table
+        <data-table
             :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
             :page-api="roleApi.list"
-            ref="pageTableRef"
+            ref="dataTableRef"
         >
             <template #tableHeader>
                 <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">{{ $t('common.create') }}</el-button>
@@ -16,22 +16,8 @@
                 </el-button>
             </template>
 
-            <template #action="{ data }">
-                <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                <el-button @click="showResources(data)" type="info" link>{{ $t('system.role.permissionDetail') }}</el-button>
-                <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>
-                    {{ $t('system.role.permissionAllocate') }}
-                </el-button>
-                <el-button
-                    v-if="actionBtns[perms.saveAccountRole]"
-                    :disabled="data.code?.indexOf('COMMON') == 0"
-                    @click="showAccountAllocation(data)"
-                    type="success"
-                    link
-                    >{{ $t('system.role.userManage') }}</el-button
-                >
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <role-edit :title="roleEditDialog.title" v-model:visible="roleEditDialog.visible" :data="roleEditDialog.role" @val-change="roleEditChange" />
         <resource-edit
@@ -50,9 +36,9 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -89,9 +75,25 @@ const columns = ref([
 ]);
 
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource, perms.saveAccountRole]);
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(300).fixedRight().noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<SysRole>([
+        { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.updateRole, onClick: (row) => editRole(row) },
+        { key: 'permissionDetail', label: 'system.role.permissionDetail', type: 'info', onClick: (row) => showResources(row) },
+        { key: 'permissionAllocate', label: 'system.role.permissionAllocate', type: 'success', perm: perms.saveRoleResource, onClick: (row) => editResource(row) },
+        {
+            key: 'userManage',
+            label: 'system.role.userManage',
+            type: 'success',
+            perm: perms.saveAccountRole,
+            disabled: (row) => row.code?.indexOf('COMMON') == 0,
+            onClick: (row) => showAccountAllocation(row),
+        },
+    ])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const state = reactive({
     query: {
         pageNum: 1,
@@ -130,7 +132,7 @@ onMounted(() => {
 });
 
 const search = () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const roleEditChange = () => {

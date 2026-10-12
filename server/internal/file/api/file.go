@@ -15,8 +15,8 @@ type File struct {
 
 func (f *File) ReqConfs() *req.Confs {
 	reqs := [...]*req.Conf{
-		// 元数据端点需登录：它会按 key 回显文件名与大小，若允许匿名查则成为探测他人数据类产物的旁路
-		// （SPA 内的调用方走 axios 封装，本就会附带 Authorization 头，不因此改变行为）
+		// 元数据端点需登录：按 key 回显文件名与大小供界面展示（私有产物同样回显——查询文件信息不设访问模式门槛，
+		// 只有获取内容/下载才按访问模式与权限码收口，见下方内容端点）。SPA 内的调用方走 axios 封装，本就会附带 Authorization 头
 		req.NewGet("/detail/:keys", f.GetFileByKeys),
 
 		// 文件内容端点保持路由级不校 token：头像、AI 附件等展示类资产由 <img src>/<a href> 直接引用，
@@ -39,7 +39,7 @@ func (f *File) GetFileByKeys(rc *req.Ctx) {
 	biz.NotEmpty(keysStr, "keys cannot be empty")
 
 	var files []vo.SimpleFile
-	biz.ErrIsNil(f.fileApp.ListPublicByKeys(strings.Split(keysStr, ","), &files))
+	biz.ErrIsNil(f.fileApp.ListByKeys(strings.Split(keysStr, ","), &files))
 	rc.ResData = files
 }
 

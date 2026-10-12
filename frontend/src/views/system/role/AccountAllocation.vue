@@ -7,17 +7,13 @@
             :destroy-on-close="true"
             width="55%"
         >
-            <page-table ref="pageTableRef" :page-api="roleApi.roleAccounts" :search-items="searchItems" v-model:query-form="query" :columns="columns" lazy>
+            <data-table ref="dataTableRef" :page-api="roleApi.roleAccounts" :search-items="searchItems" v-model:query-form="query" :columns="columns" lazy>
                 <template #tableHeader>
                     <el-button v-auth="perms.saveAccountRole" type="primary" icon="plus" @click="onShowAddAccount()">{{ $t('common.add') }}</el-button>
                 </template>
 
-                <template #action="{ data }">
-                    <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="onRelateAccount(-1, data.accountId)" icon="delete" type="danger">
-                        {{ $t('common.remove') }}
-                    </el-button>
-                </template>
-            </page-table>
+                <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+            </data-table>
 
             <el-dialog
                 width="400px"
@@ -42,15 +38,15 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
 import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import AccountSelectFormItem from '../account/components/AccountSelectFormItem.vue';
 import { accountApi, roleApi } from '../api';
 import { AccountStatusEnum } from '../enums';
-import type { Account, SysRole } from '../types';
+import type { Account, AccountRole, SysRole } from '../types';
 
 const props = defineProps({
     role: Object as () => SysRole | null,
@@ -71,9 +67,22 @@ const columns = [
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveAccountRole]);
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(80).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<AccountRole>([
+        {
+            key: 'remove',
+            label: 'common.remove',
+            type: 'danger',
+            icon: 'delete',
+            perm: perms.saveAccountRole,
+            onClick: (row) => onRelateAccount(-1, row.accountId),
+        },
+    ])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const state = reactive({
     /**
@@ -105,7 +114,7 @@ onMounted(() => {
 
 const searchRoleAccount = () => {
     state.query.id = props.role?.id || 0;
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onRelateAccount = async (relateType: number, accountId: number) => {

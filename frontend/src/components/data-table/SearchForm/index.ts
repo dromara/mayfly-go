@@ -1,5 +1,5 @@
 import Api from '@/common/Api';
-import { VNode, ref, toValue, type Ref } from 'vue';
+import { ref, toValue, type Component, type Ref } from 'vue';
 
 export type FieldNamesProps = {
     label: string;
@@ -11,13 +11,36 @@ export type SearchItemType =
     'input' | 'input-number' | 'select' | 'select-v2' | 'tree-select' | 'cascader' | 'date-picker' | 'time-picker' | 'time-select' | 'switch' | 'slider';
 
 /**
- * 表单组件可选项的api信息
+ * 选择类控件的选项元素：至少是可按 fieldNames 指定键（label/value/children）取值的对象。
+ * 用 Record 而非具体类型，是因为 fieldNames 可自定义、选项来源结构五花八门（枚举、api 转换结果等）。
  */
-export class OptionsApi {
+export type SelectOption = Record<string, unknown>;
+
+/**
+ * 选项数据源契约：SearchItem 只关心「能否拿到选项」，不关心响应体类型。
+ * 用接口而非具体类承载，是为了让泛型 OptionsApi<TResp>（TResp 随各 api 不同）能按结构赋值进 SearchItem，
+ * 避开 `OptionsApi<PageResult>` 赋给 `OptionsApi<unknown>` 的逆变报错。
+ */
+export interface OptionsProvider {
+    params: Record<string, unknown>;
+    immediate: boolean;
+    once: boolean;
+    remoteMethodParamProp?: string;
+    getOptions(): Promise<SelectOption[]>;
+}
+
+/**
+ * 表单组件可选项的 api 信息。
+ *
+ * 泛型 TResp = 该 api 的响应类型：由 `OptionsApi.new(api, params)` 从 api 自动推断，
+ * 于是 withConvertFn 的入参 res 拿到真实类型（如 PageResult<Account>），调用点无需再写 any。
+ * api 的请求参数泛位保留 any（各 api 的 P 不同且只透传，不做约束），响应位 TResp 已收敛为具体类型。
+ */
+export class OptionsApi<TResp = unknown> implements OptionsProvider {
     /**
      * 请求获取options的api
      */
-    api: Api<any, any>;
+    api: Api<TResp, any>;
 
     /**
      * 请求参数
@@ -35,18 +58,16 @@ export class OptionsApi {
     once: boolean = true;
 
     /**
-     * 转换函数，主要用于将响应的api结果转换为满足组件options的结构
+     * 转换函数：把 api 响应（TResp）转为组件可用的选项数组
      */
-    convertFn: (apiResp: any) => any;
-
-    // remote: boolean = false;
+    convertFn?: (apiResp: TResp) => SelectOption[];
 
     /**
      * 远程方法参数属性字段，存在该值，则说明使用remote-method进行远程搜索
      */
-    remoteMethodParamProp: string;
+    remoteMethodParamProp?: string;
 
-    withConvertFn(fn: (apiResp: any) => any) {
+    withConvertFn(fn: (apiResp: TResp) => SelectOption[]) {
         this.convertFn = fn;
         return this;
     }
@@ -82,16 +103,14 @@ export class OptionsApi {
      * 调用api获取组件可选项
      * @returns 组件可选项信息
      */
-    async getOptions() {
-        let res = await this.api.request(toValue(this.params));
-        if (this.convertFn) {
-            res = this.convertFn(res);
-        }
-        return res;
+    async getOptions(): Promise<SelectOption[]> {
+        const res = await this.api.request(toValue(this.params));
+        // 无 convertFn 时假定响应本身即选项数组（调用方未提供转换器时的边界，需显式断言）
+        return this.convertFn ? this.convertFn(res) : (res as unknown as SelectOption[]);
     }
 
-    static new(api: Api<any, any>, params: Record<string, unknown>): OptionsApi {
-        const oa = new OptionsApi();
+    static new<TResp>(api: Api<TResp, any>, params: Record<string, unknown>): OptionsApi<TResp> {
+        const oa = new OptionsApi<TResp>();
         oa.api = api;
         oa.params = params;
         return oa;
@@ -123,9 +142,9 @@ export class SearchItem {
     options: unknown;
 
     /**
-     * 获取可选项的api信息
+     * 获取可选项的api信息（按结构契约持有，兼容任意响应类型的 OptionsApi<TResp>）
      */
-    optionsApi: OptionsApi;
+    optionsApi?: OptionsProvider;
 
     /**
      * 插槽名
@@ -158,14 +177,14 @@ export class SearchItem {
     offset?: number;
 
     /**
-     * 指定 label && value && children 的 key 值，用于select等类型组件
+     * 指定 label && value && children 的 key 值，用于select等类型组件；不填由 SearchFormItem 按 EP 约定兜底
      */
-    fieldNames: FieldNamesProps;
+    fieldNames?: FieldNamesProps;
 
     /**
-     * 自定义搜索内容渲染（tsx语法）
+     * 自定义搜索内容渲染（传一个函数式组件 / render 组件）
      */
-    render?: (scope: any) => VNode;
+    render?: Component;
 
     constructor(prop: string, label: string) {
         this.prop = prop;
@@ -253,34 +272,35 @@ export class SearchItem {
      * @param optionsApi 可选项api配置
      * @returns this
      */
-    withOptionsApi(optionsApi: OptionsApi): SearchItem {
+    withOptionsApi(optionsApi: OptionsProvider): SearchItem {
         this.optionsApi = optionsApi;
         // 使用api获取组件可选项需要将options转为响应式，否则组件无法响应式获取组件可选项
         this.options = ref(null);
 
         // 存在远程搜索请求参数prop，则为使用远程搜索可选项
-        if (optionsApi.remoteMethodParamProp) {
+        const remoteProp = optionsApi.remoteMethodParamProp;
+        if (remoteProp) {
             return this.withOneProps('remote', true).withOneProps('remote-method', async (value: unknown) => {
                 if (!value) {
                     (this.options as Ref).value = [];
                     return;
                 }
                 // 将输入的内容赋值为真实api请求参数中指定的属性字段
-                optionsApi.params[optionsApi.remoteMethodParamProp] = value;
-                (this.options as Ref).value = await this.optionsApi.getOptions();
+                optionsApi.params[remoteProp] = value;
+                (this.options as Ref).value = await optionsApi.getOptions();
             });
         }
 
         // 立即执行，则直接调用api获取并赋值options
-        if (this.optionsApi.immediate) {
-            this.optionsApi.getOptions().then((res) => {
+        if (optionsApi.immediate) {
+            optionsApi.getOptions().then((res) => {
                 (this.options as Ref).value = res;
             });
         } else {
             // 注册focus事件，在触发focus时赋值options
             this.bindEvent('focus', async () => {
                 if (!toValue(this.options) || !optionsApi.once) {
-                    (this.options as Ref).value = await this.optionsApi.getOptions();
+                    (this.options as Ref).value = await optionsApi.getOptions();
                 }
             });
         }

@@ -313,7 +313,7 @@
             <div class="flex items-center justify-between mb-3">
                 <h3 class="card-title mb-0">{{ $t('alert.recentEvents') }}</h3>
             </div>
-            <page-table :columns="columns" :data="recentEventsList" :pageable="false" :tool-button="false" border>
+            <data-table :columns="columns" :data="recentEventsList" :pageable="false" :tool-button="false" border>
                 <template #resourceName="{ data }">
                     {{ data.resourceName || `${getResourceTypeLabel(data.resourceType)}#${data.resourceId}` }}
                 </template>
@@ -333,15 +333,15 @@
                 <template #status="{ data }">
                     <enum-tag :enums="AlertEventStatusEnum" :value="data.status" />
                 </template>
-            </page-table>
+            </data-table>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
 import { alertOverviewApi } from '../api';
 import type { AlertOverviewData, AlertEventVO } from '../types';
 import { AlertEventStatusEnum, AlertPriorityEnum } from '../enums';

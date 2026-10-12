@@ -7,7 +7,7 @@
                 <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml-2"></el-button>
             </template>
 
-            <page-table
+            <data-table
                 ref="logTableRef"
                 :page-api="dbTransferApi.dbTransferTaskLogs"
                 v-model:query-form="query"
@@ -23,7 +23,7 @@
                         {{ $t('db.transferRunLog') }}
                     </el-button>
                 </template>
-            </page-table>
+            </data-table>
 
             <!-- 运行日志弹窗（使用通用 LogViewer） -->
             <el-dialog v-model="runLogVisible" :title="$t('db.transferRunLog')" width="900px" :destroy-on-close="true" @close="runLogUserClosed = true">
@@ -46,8 +46,8 @@
 <script lang="ts" setup>
 import { computed, reactive, Ref, ref, toRefs, watch, nextTick } from 'vue';
 
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { LogViewer, SyncRunLogParser, type ParsedLogLine } from '@/components/log-viewer';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferLogStatusEnum, DbTransferLogPurposeEnum } from '@/views/ops/db/transfer/enums';

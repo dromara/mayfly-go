@@ -155,16 +155,8 @@ func (d *Db) ExecSQL(rc *req.Ctx) {
 	defer cancel()
 
 	dbId := getDbId(rc)
-	dbConn, err := d.dbApp.GetDbConn(ctx, dbId, form.Db)
-	biz.ErrIsNil(err)
-
-	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
-
-	event.PublishResourceOp(rc.MetaCtx, dbConn.Info.CodePath)
 	sqlStr, err := utils.AesDecryptByLa(form.SQL, rc.GetLoginAccount())
 	biz.ErrIsNilAppendErr(err, "sql decoding failure: %s")
-
-	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
 	biz.NotEmpty(form.SQL, "sql cannot be empty")
 
 	execReq := &dto.DbSQLExecReq{
@@ -175,9 +167,25 @@ func (d *Db) ExecSQL(rc *req.Ctx) {
 		RequireWarnAck:   form.AskWarn,
 		WarnAcknowledged: form.AckWarn,
 		Atomic:           form.Atomic,
-		DbConn:           dbConn,
 		SQL:              sqlStr,
 	}
+
+	// 先登记再取连接：取连接（冷池拨号/建隧道）可能超过取消侧的有界等待，
+	// 登记晚于取连接时，拨号期间到达的「取消」会误报「未找到进行中的执行」而语句随后照跑。
+	// 用独立变量接登记的 runCtx：跨属主碰撞时 register 会返回 nil ctx，直接覆盖 ctx 会埋下 nil-ctx 雷，
+	// 故仅在 biz.ErrIsNil 放行（必无错）后才把可取消的 runCtx 交回 ctx 供下游使用
+	runCtx, done, err := d.dbSQLExecApp.RegisterExec(ctx, execReq)
+	biz.ErrIsNil(err)
+	defer done()
+	ctx = runCtx
+
+	dbConn, err := d.dbApp.GetDbConn(ctx, dbId, form.Db)
+	biz.ErrIsNil(err)
+	biz.ErrIsNilAppendErr(d.tagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
+	execReq.DbConn = dbConn
+
+	event.PublishResourceOp(rc.MetaCtx, dbConn.Info.CodePath)
+	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sqlStr)
 
 	execRes, err := d.dbSQLExecApp.Exec(ctx, execReq)
 	biz.ErrIsNil(err)

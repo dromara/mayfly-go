@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="milvusApi.list"
             :before-query-fn="checkRouteTagPath"
             :data-handler-fn="handleData"
@@ -28,19 +28,17 @@
                 <ResourceAuthCert v-model:select-auth-cert="data.selectAuthCert" :auth-certs="data.authCerts" />
             </template>
 
-            <template #action="{ data }">
-                <el-button v-auth="perms.inst_save" @click="editEntity(data)" link type="primary">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <milvus-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, ref, useTemplateRef } from 'vue';
@@ -52,7 +50,7 @@ import type { PageResult } from '@/types/common';
 
 const MilvusEdit = defineAsyncComponent(() => import('./MilvusEdit.vue'));
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const checkRouteTagPath = useRouteTagPath();
 const { editDialog, editEntity } = useEditDialog<Milvus>('Milvus');
 
@@ -72,7 +70,10 @@ const columns = ref([
     TableColumn.new('createTime', 'common.createTime').setMinWidth(180).isTime(),
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('code', 'Code').setMinWidth(150),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(100).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<Milvus>([{ key: 'edit', label: 'common.edit', type: 'primary', perm: perms.inst_save, onClick: (row) => editEntity(row) }])
+        .fixedRight()
+        .alignCenter(),
 ]);
 
 const handleData = (res: PageResult<Milvus>) => {
@@ -101,7 +102,7 @@ const onDelete = async () => {
 };
 
 const search = () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 defineExpose({ search });

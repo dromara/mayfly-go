@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="mongoApi.mongoList"
             :before-query-fn="checkRouteTagPath"
             :search-items="searchItems"
@@ -23,12 +23,8 @@
                 {{ data.name }}
             </template>
 
-            <template #action="{ data }">
-                <el-button @click="showDatabases(data)" link>{{ $t('mongo.db') }}</el-button>
-                <el-button @click="showCommands(data.id)" link type="success">{{ $t('mongo.commandConsole') }}</el-button>
-                <el-button v-auth="perms.mongoSave" @click="editEntity(data)" link type="primary">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <mongo-dbs v-model:visible="dbsVisible" :id="dbId" :name="dbName" :code="dbCode" />
         <mongo-run-command v-model:visible="usersVisible" :id="dbId" />
@@ -37,9 +33,9 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
@@ -59,7 +55,7 @@ const props = defineProps({
     },
 });
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const checkRouteTagPath = useRouteTagPath();
 const { editDialog, editEntity } = useEditDialog<Mongo>('mongo.mongo');
 
@@ -80,7 +76,14 @@ const columns = [
     TableColumn.new('createTime', 'common.createTime').isTime(),
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(210).fixedRight().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<Mongo>([
+            { key: 'db', label: 'mongo.db', onClick: (row) => showDatabases(row) },
+            { key: 'console', label: 'mongo.commandConsole', type: 'success', onClick: (row) => showCommands(row.id) },
+            { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.mongoSave, onClick: (row) => editEntity(row) },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ];
 
 const dbsVisible = ref(false);
@@ -123,7 +126,7 @@ const onDelete = async () => {
 const search = (tagPath?: string) => {
     // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
     query.value.tagPath = tagPath ?? '';
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 defineExpose({ search });

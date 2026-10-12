@@ -331,3 +331,53 @@ func TestSweepActuallyReachesTerminalState(t *testing.T) {
 	}
 	require.NotEmpty(t, stored.BizHandleRes, "失败原因必须落库，否则只能看出没成功而不知道为何")
 }
+
+// TestCancelProcRejectsNonCancellableStatuses 取消只能作用于「审批中/挂起/退回」：
+// 已完成实例上的「已批准、待执行」工单、已终止/已取消的实例都必须被拒绝且原状保留。
+//
+// 无条件保存的旧实现会把已完成（甚至已执行完）的实例改写成「已取消」——审计上留下假记录，
+// 「已批准、待执行」的工单也会被从清扫链路里静默吞掉（那是 CancelBizHandle 的管辖范围）
+func TestCancelProcRejectsNonCancellableStatuses(t *testing.T) {
+	db := setupBizHandleDb(t)
+	repo := &sweepProcinstRepo{}
+	app := newSchedApp(repo)
+	ctx := newAdminCtx()
+
+	for _, status := range []entity.ProcinstStatus{
+		entity.ProcinstStatusCompleted, entity.ProcinstStatusTerminated, entity.ProcinstStatusCancelled,
+	} {
+		p := &entity.Procinst{BizKey: "bk-reject", Status: status, BizStatus: entity.ProcinstBizStatusWait}
+		require.NoError(t, repo.Insert(context.Background(), p))
+
+		require.Error(t, app.CancelProc(ctx, p.Id), "status %d must not be cancellable", status)
+
+		var stored entity.Procinst
+		require.NoError(t, db.First(&stored, p.Id).Error)
+		require.Equal(t, status, stored.Status, "被拒绝的取消绝不能改写流程状态")
+		require.Equal(t, entity.ProcinstBizStatusWait, stored.BizStatus, "被拒绝的取消绝不能改写业务状态")
+	}
+}
+
+// TestCancelProcCancelsPendingStatuses 审批中/挂起/退回三种状态都可被属主取消：
+// 状态置「已取消」、业务置「不处理」（未回放的工单不再进入清扫）、并落下结束时间
+func TestCancelProcCancelsPendingStatuses(t *testing.T) {
+	db := setupBizHandleDb(t)
+	repo := &sweepProcinstRepo{}
+	app := newSchedApp(repo)
+	ctx := newAdminCtx()
+
+	for _, status := range []entity.ProcinstStatus{
+		entity.ProcinstStatusActive, entity.ProcinstStatusSuspended, entity.ProcinstStatusBack,
+	} {
+		p := &entity.Procinst{BizKey: "bk-cancel", Status: status, BizStatus: entity.ProcinstBizStatusWait}
+		require.NoError(t, repo.Insert(context.Background(), p))
+
+		require.NoError(t, app.CancelProc(ctx, p.Id))
+
+		var stored entity.Procinst
+		require.NoError(t, db.First(&stored, p.Id).Error)
+		require.Equal(t, entity.ProcinstStatusCancelled, stored.Status)
+		require.Equal(t, entity.ProcinstBizStatusNo, stored.BizStatus)
+		require.NotNil(t, stored.EndTime, "取消必须落下结束时间")
+	}
+}

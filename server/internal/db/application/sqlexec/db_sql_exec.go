@@ -88,6 +88,13 @@ type DbSQLExec interface {
 	// 只能由发起者本人取消：不校验属主就等于给任意持 token 的账号一条中断他人执行的能力
 	CancelExec(ctx context.Context, execId string, accountId uint64) error
 
+	// RegisterExec 登记一次交互式执行，返回其可取消上下文与注销函数（execId 为空时透传原 ctx）。
+	//
+	// 调用方必须在取连接等耗时步骤之前登记：取消按 execId 做有界等待，登记晚于取连接时，
+	// 冷连接（拨号/隧道）会让等待耗尽，取消误报「未找到进行中的执行」而语句随后照跑。
+	// execId 与他人进行中的执行冲突时报错拒绝：顶替行为不得绕过取消侧的属主校验
+	RegisterExec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) (context.Context, func(), error)
+
 	// ExportQuery 全量导出一次查询的结果集（不受结果集行数上限约束），产物写入 writer。
 	//
 	// 重跑同一条语句而不导出页面上已取回的行：页面行已被截断，拿它导出的是一份缺尾巴的文件。
@@ -139,10 +146,9 @@ func (d *DbSQLExecAppImpl) ExecApproved(ctx context.Context, execSQLReq *dto.DbS
 }
 
 func (d *DbSQLExecAppImpl) exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq, flowProcdef *flowentity.Procdef) ([]*dto.DbSQLExecRes, error) {
-	// 交互式执行登记进运行中表，使「取消」能在服务端侧真正中断它（前端 abort 只断 HTTP）
-	ctx, done := execRegistry.register(ctx, execSQLReq.ExecId, execSQLReq)
-	defer done()
-
+	// 交互式执行的登记已前置到入口 handler（RegisterExec，见 api/db.go ExecSQL）：
+	// 登记必须早于取连接，否则冷连接拨号期间到达的「取消」会落空；
+	// 回放等非交互入口 execId 为空，本就不登记
 	dbConn := execSQLReq.DbConn
 	execSQL := execSQLReq.SQL
 
@@ -505,6 +511,10 @@ func (d *DbSQLExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 
 func (d *DbSQLExecAppImpl) CancelExec(ctx context.Context, execId string, accountId uint64) error {
 	return execRegistry.cancel(ctx, execId, accountId)
+}
+
+func (d *DbSQLExecAppImpl) RegisterExec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) (context.Context, func(), error) {
+	return execRegistry.register(ctx, execSQLReq.ExecId, execSQLReq)
 }
 
 func (d *DbSQLExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSQLExec) error {

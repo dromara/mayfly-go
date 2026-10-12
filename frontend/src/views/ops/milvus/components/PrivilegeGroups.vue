@@ -1,26 +1,27 @@
 <template>
     <div class="component-container">
-        <!-- 工具栏 -->
-        <div class="mb5" style="display: flex; align-items: center">
-            <el-button size="small" type="primary" icon="plus" @click="handleCreate">{{ $t('milvus.addPrivilegeGroup') }}</el-button>
-            <el-button size="small" icon="edit" :disabled="!canEditSelected" @click="handleEdit">{{ $t('milvus.editPrivilegeGroup') }}</el-button>
-            <el-button size="small" type="danger" icon="delete" :disabled="!canDeleteSelected" @click="handleDelete" plain>{{
-                $t('milvus.deletePrivilegeGroup')
-            }}</el-button>
-        </div>
-
-        <!-- 权限组表格 -->
-        <el-table :data="privilegeGroups" @selection-change="handleSelectionChange" border stripe>
-            <el-table-column type="selection" width="45" />
-            <el-table-column :label="$t('milvus.privilegeGroupName')" prop="GroupName" width="200" />
-            <el-table-column :label="$t('milvus.privileges')">
-                <template #default="{ row }">
-                    <el-tag v-for="p in row.Privileges" :key="p" type="success" class="mr5 mb5" effect="dark" round>
-                        {{ p }}
-                    </el-tag>
-                </template>
-            </el-table-column>
-        </el-table>
+        <!-- 工具栏（批量操作，基于选中行）+ 表格 -->
+        <data-table
+            :data="privilegeGroups"
+            :pageable="false"
+            :columns="columns"
+            :card="false"
+            :show-selection="true"
+            v-model:selection-data="selectedGroups"
+            border
+            stripe
+        >
+            <template #tableHeader>
+                <el-button size="small" type="primary" icon="plus" @click="handleCreate">{{ $t('milvus.addPrivilegeGroup') }}</el-button>
+                <el-button size="small" icon="edit" :disabled="!canEditSelected" @click="handleEdit">{{ $t('milvus.editPrivilegeGroup') }}</el-button>
+                <el-button size="small" type="danger" icon="delete" :disabled="!canDeleteSelected" @click="handleDelete" plain>{{
+                    $t('milvus.deletePrivilegeGroup')
+                }}</el-button>
+            </template>
+            <template #privileges="{ data }">
+                <el-tag v-for="p in data.Privileges" :key="p" type="success" class="mr5 mb5" effect="dark" round>{{ p }}</el-tag>
+            </template>
+        </data-table>
 
         <!-- 编辑弹窗 -->
         <PrivilegeGroupEdit v-model:visible="editDialogVisible" :milvus-id="milvusId" :privilege-group="editingGroup" @saved="loadList" />
@@ -29,6 +30,8 @@
 
 <script setup lang="ts">
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
@@ -55,6 +58,16 @@ const BUILTIN_PRIVILEGE_GROUPS = [
 
 const privilegeGroups = ref<IPrivilegeGroup[]>([]);
 const selectedGroups = ref<IPrivilegeGroup[]>([]);
+
+// 声明式列：privileges 走插槽（tag 列表）；选中列由 DataTable 的 show-selection 接管
+const columns = [
+    TableColumn.new('GroupName', 'milvus.privilegeGroupName'),
+    // privileges 多 tag 换行：换行态回填量不到，用 setSlotText 量真实权限文本给出离线估算下限
+    TableColumn.new('Privileges', 'milvus.privileges')
+        .isSlot('privileges')
+        .noShowOverflowTooltip()
+        .setSlotText((row: IPrivilegeGroup) => (row.Privileges ?? []).join(' ')),
+];
 const editDialogVisible = ref(false);
 const editingGroup = ref<IPrivilegeGroup | null>(null);
 
@@ -73,10 +86,6 @@ const canDeleteSelected = computed(() => {
 const loadList = async () => {
     const res = await milvusApi.getPrivilegeGroups(props.milvusId);
     privilegeGroups.value = res || [];
-};
-
-const handleSelectionChange = (selection: IPrivilegeGroup[]) => {
-    selectedGroups.value = selection;
 };
 
 const handleCreate = () => {
@@ -122,10 +131,5 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.component-container :deep(.el-table) {
-    flex: 1;
-    min-height: 0;
 }
 </style>

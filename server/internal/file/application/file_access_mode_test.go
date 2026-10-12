@@ -5,7 +5,11 @@ package application
 // 缺陷现场：通用文件内容路由（GET /sys/files/:key）不校验 token——头像与 AI 附件由
 // <img src>/<a href> 直接引用，浏览器无法附加 Authorization 头。若所有文件都吃这条匿名
 // 路由，数据库备份/导出等整库明文产物只要 fileKey 泄露就能被无凭证拉走，且界面上声明的
-// 下载权限码形同虚设（后端从未校验）。收口后按文件访问模式判定：仅 public 可匿名读。
+// 下载权限码形同虚设（后端从未校验）。收口后按文件访问模式判定：内容获取仅 public 可匿名读，
+// private 必须走所属模块带权限码的下载入口。
+//
+// 元数据（文件名/大小）查询不设模式门槛：界面统一经登录态的 detail 端点回显，私有产物同样
+// 回显（迁移导出文件列表依赖此行为），访问模式只在获取内容时生效。
 //
 // 运行：cd server && go test -count=1 -run TestFileAccess ./internal/file/application/
 
@@ -95,7 +99,7 @@ func TestFileAccessCanAnonymousRead(t *testing.T) {
 	})
 }
 
-func TestFileAccessListPublicByKeys(t *testing.T) {
+func TestFileAccessListByKeys(t *testing.T) {
 	db := setupFileDb(t)
 	app := newFileApp()
 
@@ -109,14 +113,21 @@ func TestFileAccessListPublicByKeys(t *testing.T) {
 		Size     int64  `json:"size"`
 	}
 
-	// 元数据端点不校验权限，私有文件必须从结果里缺失：否则可按 key 探测他人数据产物的文件名与大小
+	// 元数据查询不设访问模式门槛：界面由统一文件组件按 key 回显文件名与大小，
+	// 私有产物同样要回显（否则迁移导出文件列表里已生成文件的行会显示成空白）
 	var rows []fileRow
-	require.NoError(t, app.ListPublicByKeys([]string{"p1", "s1", "z1"}, &rows))
-	require.Len(t, rows, 1)
-	assert.Equal(t, "p1", rows[0].FileKey)
+	require.NoError(t, app.ListByKeys([]string{"p1", "s1", "z1"}, &rows))
+	require.Len(t, rows, 3)
+
+	byKey := make(map[string]string, len(rows))
+	for _, r := range rows {
+		byKey[r.FileKey] = r.Filename
+	}
+	assert.Equal(t, "s1.sql", byKey["s1"], "私有文件的文件名也必须能查到")
+	assert.Equal(t, "z1.sql", byKey["z1"], "遗留零值行同样回显")
 
 	// 空 key 集合不查库也不报错
 	var none []fileRow
-	require.NoError(t, app.ListPublicByKeys(nil, &none))
+	require.NoError(t, app.ListByKeys(nil, &none))
 	assert.Empty(t, none)
 }

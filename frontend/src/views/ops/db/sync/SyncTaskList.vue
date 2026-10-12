@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="dbSyncApi.datasyncTasks"
             :searchItems="searchItems"
             v-model:query-form="query"
@@ -62,16 +62,8 @@
                 </span>
             </template>
 
-            <template #action="{ data }">
-                <!-- 删除、启停用、编辑 -->
-                <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                <el-button v-if="actionBtns[perms.run] && data.status === 1 && data.runningState !== 1" @click="run(data.id)" type="success" link>{{
-                    $t('db.run')
-                }}</el-button>
-                <el-button v-if="actionBtns[perms.stop] && data.runningState === 1" @click="stop(data.id)" type="danger" link>{{ $t('db.stop') }}</el-button>
-                <el-button v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">{{ $t('db.log') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 actionColumn.setActions），列宽与按钮同源 -->
+        </data-table>
 
         <data-sync-task-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
 
@@ -81,9 +73,9 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nConfirm, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbSyncApi } from '@/views/ops/db/sync/api';
@@ -160,7 +152,8 @@ const columns = ref([
         .setFormatFunc((data: DataSyncTaskListVO) => data.cron || t('db.manual')),
     TableColumn.new('runningState', 'db.runState').typeTag(DbDataSyncRunningStateEnum).alignCenter(),
     TableColumn.new('recentState', 'db.recentState').typeTag(DbDataSyncRecentStateEnum).alignCenter(),
-    TableColumn.new('status', 'common.status').isSlot(),
+    // 状态列插槽渲染定宽 el-switch（圆钮不在字段文本里，离线估算与只量溢出回填都量不到）：+20 预留圆钮占位
+    TableColumn.new('status', 'common.status').isSlot().setAddWidth(20),
     TableColumn.new('modifier', 'common.modifier'),
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
     ...optionalColumns,
@@ -171,10 +164,21 @@ const biDirTip = (data: DataSyncTaskListVO) => (data.reverseTaskId ? `${t('db.bi
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.stop]);
-const actionWidth =
-    ((actionBtns[perms.save] ? 1 : 0) + (actionBtns[perms.log] ? 1 : 0) + (actionBtns[perms.run] ? 1 : 0) + (actionBtns[perms.stop] ? 1 : 0)) * 55;
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const actionColumn = TableColumn.new('action', 'common.operation').fixedRight().alignCenter().setActions<DataSyncTaskListVO>([
+    { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.save, onClick: (row) => edit(row) },
+    {
+        key: 'run',
+        label: 'db.run',
+        type: 'success',
+        perm: perms.run,
+        group: 'runState',
+        show: (row) => row.status === 1 && row.runningState !== 1,
+        onClick: (row) => run(row.id),
+    },
+    { key: 'stop', label: 'db.stop', type: 'danger', perm: perms.stop, group: 'runState', show: (row) => row.runningState === 1, onClick: (row) => stop(row.id) },
+    { key: 'log', label: 'db.log', type: 'primary', perm: perms.log, onClick: (row) => log(row) },
+]);
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const state = reactive({
     row: {},
@@ -214,7 +218,7 @@ onMounted(async () => {
 });
 
 const search = () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const edit = async (data: DataSyncTaskListVO | false) => {

@@ -1,113 +1,48 @@
 <template>
-    <div class="file-manage">
-        <el-dialog
-            :title="$t('machine.process') + `: ${title}`"
-            v-model="visible"
-            :destroy-on-close="true"
-            :show-close="true"
-            :before-close="handleClose"
-            width="65%"
-        >
-            <div class="card p-1!">
-                <el-row>
-                    <el-col :span="4">
-                        <el-input size="small" :placeholder="$t('machine.processName')" v-model="params.name" plain clearable></el-input>
-                    </el-col>
-                    <el-col :span="4" class="ml-1">
-                        <el-select @change="getProcess" size="small" v-model="params.sortType" :placeholder="$t('machine.selectSortType')">
-                            <el-option key="cpu" :label="$t('machine.cpuDesc')" value="1"> </el-option>
-                            <el-option key="cpu" :label="$t('machine.memDesc')" value="2"> </el-option>
+    <el-dialog
+        :title="`${$t('machine.process')}${title ? ': ' + title : ''}`"
+        v-model="visible"
+        :destroy-on-close="true"
+        :show-close="true"
+        :before-close="handleClose"
+        width="65%"
+    >
+        <!-- 弹窗内嵌列表：DataTable 走裸容器（:card="false"）+ 不分页（:pageable="false"）+ 静态 :data，
+             复用与分页页同一套列配置（列显隐、自适应列宽、统一行内操作），只是不套卡片、不接分页 -->
+        <div class="h-[60vh]">
+            <data-table class="h-full" :columns="columns" :data="processList" :pageable="false" :card="false" size="small">
+                <template #tableHeader>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- 宽度类带 `!`：EP 的 .el-input/.el-select 宽度写在未分层样式里，优先级高于 Tailwind @layer 工具类，需 important 才能压过（否则控件退回 width:100% 换行堆叠） -->
+                        <el-input
+                            size="small"
+                            class="w-[150px]!"
+                            :placeholder="$t('machine.processName')"
+                            v-model="params.name"
+                            clearable
+                            @keyup.enter="getProcess"
+                        />
+                        <el-select size="small" class="w-[120px]!" v-model="params.sortType" :placeholder="$t('machine.selectSortType')" @change="getProcess">
+                            <el-option :label="$t('machine.cpuDesc')" value="1" />
+                            <el-option :label="$t('machine.memDesc')" value="2" />
                         </el-select>
-                    </el-col>
-                    <el-col :span="4" class="ml-1">
-                        <el-select @change="getProcess" size="small" v-model="params.count" :placeholder="$t('machine.selectProcessNum')">
-                            <el-option key="10" label="10" value="10"> </el-option>
-                            <el-option key="15" label="15" value="15"> </el-option>
-                            <el-option key="20" label="20" value="20"> </el-option>
-                            <el-option key="25" label="25" value="25"> </el-option>
+                        <el-select size="small" class="w-[90px]!" v-model="params.count" :placeholder="$t('machine.selectProcessNum')" @change="getProcess">
+                            <el-option v-for="n in [10, 15, 20, 25]" :key="n" :label="`${n}`" :value="`${n}`" />
                         </el-select>
-                    </el-col>
-                    <el-col :span="6">
-                        <el-button class="ml-1" @click="getProcess" type="primary" icon="refresh" size="small" plain>{{ $t('common.refresh') }}</el-button>
-                    </el-col>
-                </el-row>
-            </div>
-
-            <el-table :data="processList" size="small" :height="500">
-                <el-table-column prop="user" label="USER" :min-width="50"> </el-table-column>
-                <el-table-column prop="pid" label="PID" :min-width="50" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="cpu" label="%CPU" :min-width="40"> </el-table-column>
-                <el-table-column prop="mem" label="%MEM" :min-width="42"> </el-table-column>
-                <el-table-column prop="vsz" label="vsz" :min-width="55">
-                    <template #header>
-                        VSZ
-                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.virtualMemory')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="rss" :min-width="52">
-                    <template #header>
-                        RSS
-                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.fixedMemory')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="stat" :min-width="50">
-                    <template #header>
-                        STAT
-                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.procState')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="start" :min-width="50">
-                    <template #header>
-                        START
-                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.startTime')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="time" :min-width="50">
-                    <template #header>
-                        TIME
-                        <el-tooltip class="box-item" effect="dark" :content="$t('machine.procCpuRunTime')" placement="top">
-                            <el-icon>
-                                <question-filled />
-                            </el-icon>
-                        </el-tooltip>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="command" label="command" :min-width="120" show-overflow-tooltip> </el-table-column>
-
-                <el-table-column :label="$t('common.operation')">
-                    <template #default="scope">
-                        <el-popconfirm :title="$t('machine.killProcConfirm')" @confirm="confirmKillProcess(scope.row.pid)" width="160">
-                            <template #reference>
-                                <el-button v-auth="'machine:killprocess'" type="danger" icon="delete" size="small" plain>{{ $t('machine.kill') }}</el-button>
-                            </template>
-                        </el-popconfirm>
-                    </template>
-                </el-table-column>
-            </el-table>
-        </el-dialog>
-    </div>
+                        <el-button size="small" plain icon="refresh" @click="getProcess">{{ $t('common.refresh') }}</el-button>
+                    </div>
+                </template>
+            </data-table>
+        </div>
+    </el-dialog>
 </template>
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
 import { reactive, toRefs, watch } from 'vue';
 import { machineApi } from './api';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
 import type { MachineProcess } from './types';
 
 const props = defineProps({
@@ -173,23 +108,6 @@ const getProcess = async () => {
     state.processList = ps;
 };
 
-watch(
-    machineId,
-    (val) => {
-        if (val) {
-            state.params.id = val;
-            getProcess();
-        }
-    },
-    { immediate: true }
-);
-
-watch(visible, (val) => {
-    if (!val) {
-        // sync close state if needed
-    }
-});
-
 const confirmKillProcess = async (pid: string | number) => {
     await machineApi.killProcess.request({
         pid,
@@ -203,6 +121,51 @@ const confirmKillProcess = async (pid: string | number) => {
 const kb2Mb = (kb: string) => {
     return (parseInt(kb) / 1024).toFixed(2) + 'M';
 };
+
+/**
+ * 列声明复用 DataTable 机制：
+ * - 列宽全部交给自适应（按实际内容估宽 + 渲染后实测回填），不写死 minWidth —— 手写定宽既脆弱（PID 位数、用户名长度因机器而异，写死就会截断）又与机制重复；
+ * - jargon 列表头（VSZ/RSS/STAT/START/TIME）用 setHeaderTip 挂问号提示，与分页页同一渲染路径；
+ * - command 设为弹性列吸收容器富余并靠溢出 tooltip 兜底截断；
+ * - 操作列用 setActions：权限、就地确认、列宽从同一份声明推出。
+ */
+const columns: TableColumn[] = [
+    new TableColumn('user', 'USER'),
+    new TableColumn('pid', 'PID'),
+    new TableColumn('cpu', '%CPU'),
+    new TableColumn('mem', '%MEM'),
+    new TableColumn('vsz', 'VSZ').setHeaderTip('machine.virtualMemory'),
+    new TableColumn('rss', 'RSS').setHeaderTip('machine.fixedMemory'),
+    new TableColumn('stat', 'STAT').setHeaderTip('machine.procState'),
+    new TableColumn('start', 'START').setHeaderTip('machine.startTime'),
+    new TableColumn('time', 'TIME').setHeaderTip('machine.procCpuRunTime'),
+    new TableColumn('command', 'command').setFlexible(),
+    new TableColumn('action', 'common.operation').setActions<MachineProcess>(
+        [
+            {
+                key: 'kill',
+                label: 'machine.kill',
+                type: 'danger',
+                icon: 'delete',
+                perm: 'machine:killprocess',
+                confirm: { title: 'machine.killProcConfirm', pop: true },
+                onClick: (row: MachineProcess) => confirmKillProcess(row.pid),
+            },
+        ],
+        { size: 'small', appearance: 'plain' }
+    ),
+];
+
+watch(
+    machineId,
+    (val) => {
+        if (val) {
+            state.params.id = val;
+            getProcess();
+        }
+    },
+    { immediate: true }
+);
 
 /**
  * 关闭取消按钮触发的事件

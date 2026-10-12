@@ -187,8 +187,8 @@ export default {
         sessionCancelConfirm: 'Cancel session {id}? Its running statement is interrupted immediately: {query}',
         sessionCancelSuccess: 'Cancellation requested for this session',
         // not "the statement is interrupted on the database side": the server only cancels its own execution
-        // context, and whether the statement really stops depends on the driver honouring that cancellation
-        execCancelRequested: 'Cancellation requested for this execution (whether the database already stopped depends on the driver, check it in active sessions)',
+        // context, and whether the statement really stops is decided by the database side
+        execCancelRequested: 'Cancellation requested for this execution',
         sqlPlanTab: 'Execution Plan',
         viewPlan: 'View Execution Plan',
         planRowsEstimated: 'optimizer estimates {rows} rows (not the real number of affected rows)',
@@ -554,7 +554,6 @@ export default {
         executedStatements: 'Executed',
         elapsedTime: 'Elapsed',
         scriptFileUploadSuccess: 'SQL file [{filename}] executed successfully',
-        scriptFileUploadCancelled: 'SQL file [{filename}] execution cancelled',
         scriptFileUploadFailed: 'SQL file [{filename}] execution failed: {error}',
 
         // Data masking

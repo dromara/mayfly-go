@@ -16,6 +16,7 @@ import (
 	"mayfly-go/pkg/model"
 
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 )
@@ -123,6 +124,12 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqPa
 	})
 }
 
+// CancelProc 取消流程：仅「审批中/挂起/退回」的实例可取消。
+//
+// 写入走 CAS 条件更新而非按实体全量保存：无条件保存能把已完成（甚至已执行完）的实例
+// 改写为「已取消」——审计上留下假记录，还会把「已批准、待执行」的工单从清扫链路里吞掉
+// （那是 CancelBizHandle 的管辖范围）；与审批完成并发时也无人判赢，后写者覆盖前者。
+// CAS 下只有一方判赢，输的一方拿到明确的业务拒绝，而不是「成功但什么也没发生」
 func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) error {
 	procinst, err := p.GetById(procinstId)
 	if err != nil {
@@ -136,13 +143,24 @@ func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) err
 	if la.Id != consts.AdminId && procinst.CreatorId != la.Id {
 		return errorx.NewBizI(ctx, imsg.ErrProcinstCancelSelf)
 	}
+
 	procinst.Status = entity.ProcinstStatusCancelled
 	procinst.BizStatus = entity.ProcinstBizStatusNo
 	procinst.SetEnd()
 
 	return p.Tx(ctx, func(ctx context.Context) error {
-		if err := p.Save(ctx, procinst); err != nil {
+		rows, err := p.GetRepo().UpdateColsByCond(ctx, base.NewPatch().
+			Set("status", procinst.Status).
+			Set("biz_status", procinst.BizStatus).
+			Set("end_time", procinst.EndTime).
+			Set("duration", procinst.Duration),
+			model.NewCond().Eq(model.IdColumn, procinstId).
+				In("status", collx.AsArray(entity.ProcinstStatusActive, entity.ProcinstStatusSuspended, entity.ProcinstStatusBack)))
+		if err != nil {
 			return err
+		}
+		if rows != 1 {
+			return errorx.NewBizI(ctx, imsg.ErrProcinstStatusNotCancelable)
 		}
 
 		return flowEventBus.PublishSync(ctx, EventTopicFlowProcinstCancel, procinstId)

@@ -1,7 +1,7 @@
 import Api from '@/common/Api';
 import config from '@/common/config';
 import openApi from '@/common/openApi';
-import { Result, ResultEnum, WARN_ACK_CODE, newBizFailureError } from '@/common/request';
+import { Result, ResultEnum, WARN_ACK_CODE, EXEC_JUST_FINISHED_CODE, newBizFailureError } from '@/common/request';
 import { clearUser, getClientId, getRefreshToken, getToken, saveRefreshToken, saveToken } from '@/common/utils/storage';
 import { templateResolve } from '@/common/utils/string';
 import { URL_401 } from '@/router/staticRouter';
@@ -283,8 +283,10 @@ async function execCustomFetch(uaf: UseFetchReturn<unknown>, reqOptions?: Reques
     if (result.msg && resultCode != ResultEnum.NO_PERMISSION) {
         // WARN_ACK_CODE 不弹 toast：同一句话由「直接执行 / 提交工单」确认框呈现，
         // 再叠一条红色报错会让人以为操作失败，而实际上操作只是还没执行。
+        // EXEC_JUST_FINISHED_CODE 不弹 toast：「刚刚结束」是事实而非失败，
+        // 结果区的状态迁移本身就是反馈，红色报错只会让人以为取消落空。
         // errMsg 照旧带出去，确认框正文用的就是它
-        if (resultCode != WARN_ACK_CODE) {
+        if (resultCode != WARN_ACK_CODE && resultCode != EXEC_JUST_FINISHED_CODE) {
             Msg.error(result.msg);
         }
         errMsg = result.msg;

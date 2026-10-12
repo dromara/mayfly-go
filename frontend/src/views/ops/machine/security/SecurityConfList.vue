@@ -46,4 +46,20 @@ const handleTabChange = (_tabName: string) => {
 };
 </script>
 
-<style></style>
+<style scoped>
+/* DataTable 依赖父级固定高度撑出 flex-1 区（裸 el-table 是自然高度不需要），故让 el-tabs 把 card 高度一路传到 tab-pane */
+:deep(.el-tabs) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+:deep(.el-tabs__content) {
+    flex: 1;
+    min-height: 0;
+}
+
+:deep(.el-tab-pane) {
+    height: 100%;
+}
+</style>

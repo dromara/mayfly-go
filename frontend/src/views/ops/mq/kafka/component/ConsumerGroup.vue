@@ -21,14 +21,9 @@
                 </template>
             </el-table-column>
             <el-table-column prop="ProtocolType" :label="$t('mq.kafka.protocolType')" min-width="150" />
-            <el-table-column :label="$t('common.operation')" width="200" fixed="right" align="center">
+            <el-table-column v-bind="actionColumnProps(groupActions, groupActionOptions)">
                 <template #default="{ row }">
-                    <el-button @click="handleGetGroupMembers(row)" size="small" icon="setting" link>
-                        {{ $t('mq.kafka.Members') }}
-                    </el-button>
-                    <el-button @click="handleDeleteGroup(row)" type="danger" size="small" icon="delete" link v-auth="'kafka:group:delete'">
-                        {{ $t('common.delete') }}
-                    </el-button>
+                    <RowActions :items="groupActions" :options="groupActionOptions" :data="row" />
                 </template>
             </el-table-column>
         </el-table>
@@ -73,6 +68,8 @@
 
 <script lang="ts" setup>
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
+import { actionColumnProps, type ActionItem, type ActionOptions } from '@/components/data-table';
+import RowActions from '@/components/data-table/RowActions.vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { mqApi } from '../../api';
@@ -145,6 +142,23 @@ const handleGetGroupMembers = async (group: KafkaGroup) => {
         membersLoading.value = false;
     }
 };
+
+/**
+ * 行内操作：不走 DataTable 的面板表也用同一份声明——列宽由「文案 + 图标 + 按钮内边距」算出，
+ * 不再手写 width（英文下不够用、中文下白留一截）。options 只定义一份，列属性与渲染都读它。
+ */
+const groupActionOptions: ActionOptions = { size: 'small' };
+const groupActions: ActionItem[] = [
+    { key: 'members', label: 'mq.kafka.Members', icon: 'setting', onClick: (row: KafkaGroup) => handleGetGroupMembers(row) },
+    {
+        key: 'delete',
+        label: 'common.delete',
+        type: 'danger',
+        icon: 'delete',
+        perm: 'kafka:group:delete',
+        onClick: (row: KafkaGroup) => handleDeleteGroup(row),
+    },
+];
 
 const getStateTagType = (state: string) => {
     switch (state?.toLowerCase()) {

@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="procdefApi.list"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -43,12 +43,8 @@
                 <span v-else class="policy-empty">{{ $t('flow.policy.noRule') }}</span>
             </template>
 
-            <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.save]" @click="onEditFlowDef(data)" type="primary">{{ $t('common.edit') }}</el-button>
-
-                <el-button link v-if="actionBtns[perms.save]" @click="onShowFlowDesign(data)" type="primary">{{ $t('flow.flowDesign') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <procdef-edit v-model:visible="flowDefEditor.visible" :title="flowDefEditor.title" v-model:data="flowDefEditor.data" @val-change="handleValChange()" />
         <FlowDesignDrawer
@@ -63,9 +59,9 @@
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
 import { createPolicy, describePolicy, policySummary, SEVERITY_LABEL_KEYS, SEVERITY_TAG_TYPES, usePolicySchema } from '@/components/policy-builder';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -127,9 +123,16 @@ const scenarioText = (item: { bizType: string; severity: Severity }) => {
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.save, perms.del]) as Record<string, boolean>;
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<Procdef>([
+        { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.save, onClick: (row) => onEditFlowDef(row) },
+        { key: 'design', label: 'flow.flowDesign', type: 'primary', perm: perms.save, onClick: (row) => onShowFlowDesign(row) },
+    ])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
 
-const pageTableRef = useTemplateRef<{ search: () => void }>('pageTableRef');
+const dataTableRef = useTemplateRef<{ search: () => void }>('dataTableRef');
 const state = reactive({
     /**
      * 选中的数据
@@ -167,7 +170,7 @@ onMounted(async () => {
 });
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onEditFlowDef = (data: Procdef | false) => {

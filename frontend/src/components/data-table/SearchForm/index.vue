@@ -15,7 +15,10 @@
 
                         <SearchFormItem @keyup.enter="handleItemKeyupEnter(item)" v-if="!item.slot" :item="item" v-model="searchParam[item.prop]" />
 
-                        <slot v-else :name="item.slot"></slot>
+                        <!-- 与简易搜索条一致：slot 项的回车也触发查询（事件不能绑在 <slot> 上，包一层真元素接住） -->
+                        <div v-else class="w-full" @keyup.enter="handleItemKeyupEnter(item)">
+                            <slot :name="item.slot"></slot>
+                        </div>
                     </el-form-item>
                 </GridItem>
                 <GridItem suffix>
@@ -34,10 +37,10 @@
 </template>
 <script setup lang="ts" name="SearchForm">
 import { computed, ref } from 'vue';
-import { BreakPoint } from '@/components/page-table/Grid/interface/index';
+import { BreakPoint } from '@/components/data-table/Grid/interface/index';
 import SearchFormItem from './components/SearchFormItem.vue';
-import Grid from '@/components/page-table/Grid/index.vue';
-import GridItem from '@/components/page-table/Grid/components/GridItem.vue';
+import Grid from '@/components/data-table/Grid/index.vue';
+import GridItem from '@/components/data-table/Grid/components/GridItem.vue';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { SearchItem } from './index';
 
@@ -60,11 +63,6 @@ const getResponsive = (item: SearchItem) => {
     return {
         span: item?.span,
         offset: item.offset ?? 0,
-        // xs: item.search?.xs,
-        // sm: item.search?.sm,
-        // md: item.search?.md,
-        // lg: item.search?.lg,
-        // xl: item.search?.xl,
     };
 };
 

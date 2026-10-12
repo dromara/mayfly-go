@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
  *
  * 存在理由：这个页面的默认查询条件一旦写死状态集合，「待执行 / 不执行」的记录就会在审计列表里
  * 永远看不见（不是报错，只是查不到），而界面看起来一切正常。这类「默认值把一类记录藏起来」的
- * 回归无法靠渲染断言稳定捕获（要 mock 整条 PageTable 取数链），故直接锁源码里的默认条件与筛选项。
+ * 回归无法靠渲染断言稳定捕获（要 mock 整条 DataTable 取数链），故直接锁源码里的默认条件与筛选项。
  */
 
 const FILE = path.resolve(__dirname, '../DbSqlExecLog.vue');

@@ -1,21 +1,11 @@
 <template>
     <div class="component-container">
-        <div>
-            <el-button size="small" icon="plus" type="primary" @click="handleCreate">{{ $t('milvus.createRole') }}</el-button>
-            <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
-        </div>
-
-        <el-table :data="list">
-            <el-table-column prop="roleName" :label="$t('milvus.roleName')" />
-            <el-table-column :label="$t('common.operation')" width="250">
-                <template #default="{ row }">
-                    <el-button size="small" @click="handleGrantPrivilege(row)" :disabled="row.roleName === 'public' || row.roleName === 'admin'">
-                        {{ $t('milvus.grantPrivilege') }}
-                    </el-button>
-                    <el-button size="small" type="danger" @click="handleDrop(row)">{{ $t('common.delete') }}</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+        <data-table :data="list" :pageable="false" :columns="columns" :card="false">
+            <template #tableHeader>
+                <el-button size="small" icon="plus" type="primary" @click="handleCreate">{{ $t('milvus.createRole') }}</el-button>
+                <el-button size="small" text icon="refresh" @click="loadList" :loading="loading" />
+            </template>
+        </data-table>
     </div>
 
     <!-- 创建角色弹窗 -->
@@ -32,8 +22,10 @@
 </template>
 
 <script setup lang="ts">
-import { Msg, useI18nConfirm } from '@/hooks/useI18n';
+import { Msg } from '@/hooks/useI18n';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { useMilvusStore } from '@/views/ops/milvus/resource/store';
 import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { milvusApi } from '../api';
@@ -46,7 +38,33 @@ const props = defineProps<{
 
 const milvusStore = useMilvusStore(props.tabKey || 'milvusStore');
 
-const list = ref<{ roleName: string; privileges: unknown[] }[]>([]);
+/** 角色行（listRoles 返回字符串，映射成带 privileges 占位的行对象） */
+interface RoleRow {
+    roleName: string;
+    privileges: unknown[];
+}
+
+const list = ref<RoleRow[]>([]);
+
+// 声明式列：操作列由 setActions 统一渲染并同源算宽（不再手写 width=250），行类型绑 RoleRow
+const columns = [
+    TableColumn.new('roleName', 'milvus.roleName'),
+    TableColumn.new('action', 'common.operation').setActions<RoleRow>([
+        {
+            key: 'grant',
+            label: 'milvus.grantPrivilege',
+            disabled: (row) => row.roleName === 'public' || row.roleName === 'admin',
+            onClick: (row) => handleGrantPrivilege(row),
+        },
+        {
+            key: 'delete',
+            label: 'common.delete',
+            type: 'danger',
+            confirm: { title: 'milvus.confirmDeleteRole', params: (row) => ({ name: row.roleName }) },
+            onClick: (row) => dropRole(row),
+        },
+    ], { size: 'small' }),
+];
 const createDialog = ref({
     visible: false,
 });
@@ -97,10 +115,7 @@ const handleGrantPrivilege = async (row: { roleName: string }) => {
     grantPrivilegeRef.value?.handleGrantPrivilege(row);
 };
 
-const handleDrop = async (row: { roleName: string }) => {
-    if (!(await useI18nConfirm('milvus.confirmDeleteRole', { name: row.roleName }))) {
-        return;
-    }
+const dropRole = async (row: RoleRow) => {
     await milvusApi.dropRole(props.milvusId, row.roleName);
     Msg.success('milvus.deletedSuccess');
     await loadList();
@@ -123,10 +138,5 @@ watch([() => props.milvusId, () => milvusStore.authCertName], () => {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.component-container :deep(.el-table) {
-    flex: 1;
-    min-height: 0;
 }
 </style>

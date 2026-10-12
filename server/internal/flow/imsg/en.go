@@ -37,8 +37,10 @@ var En = map[i18n.MsgId]string{
 	ErrProcdefNotEnable:      "The process defines a non-enabled state",
 	ErrProcinstCancelSelf:    "You can only cancel processes you initiated",
 	ErrProcinstBizNotPending: "the ticket is not in an approved-pending-execution state (it may have started, finished, or been cancelled), so it cannot be rescheduled or cancelled",
-	ErrProcinstCancelled:     "Process has been cancelled",
-	ErrBizHandlerFail:        "Business process failure",
+	// Guard for cancelling a process: the same set as the list-page cancel button (active/suspended/returned)
+	ErrProcinstStatusNotCancelable: "the process is not cancellable (only active, suspended or returned processes can be cancelled; it may have completed, terminated or been cancelled)",
+	ErrProcinstCancelled:           "Process has been cancelled",
+	ErrBizHandlerFail:              "Business process failure",
 
 	ErrAiTaskNodeAuditRuleNotEmpty: "The audit rule of the AI task node [{{.name}}] cannot be empty",
 

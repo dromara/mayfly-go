@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="procinstApi.list"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -19,41 +19,8 @@
                 <el-button type="primary" icon="plus" @click="startProcInst()">{{ $t('flow.startProcess') }}</el-button>
             </template>
 
-            <template #action="{ data }">
-                <el-button link @click="showProcinst(data)" type="primary">{{ $t('common.detail') }}</el-button>
-
-                <el-button
-                    v-if="data.status == ProcinstStatus.Back.value && data.creator == useUserInfo().userInfo.username"
-                    link
-                    @click="startProcInst(data)"
-                    type="primary"
-                    >{{ $t('common.edit') }}
-                </el-button>
-
-                <el-popconfirm
-                    v-if="
-                        data.status == ProcinstStatus.Active.value || data.status == ProcinstStatus.Suspended.value || data.status == ProcinstStatus.Back.value
-                    "
-                    :title="$t('flow.cancelProcessConfirm')"
-                    width="160"
-                    @confirm="procinstCancel(data)"
-                >
-                    <template #reference>
-                        <el-button link type="warning">{{ $t('common.cancel') }}</el-button>
-                    </template>
-                </el-popconfirm>
-
-                <!-- 定时执行：审批已通过但尚未到点执行（已完成+待处理），到点前可改期或取消回放 -->
-                <template v-if="data.status == ProcinstStatus.Completed.value && data.bizStatus == ProcinstBizStatus.Wait.value">
-                    <el-button link type="primary" @click="openReschedule(data)">{{ $t('flow.reschedule') }}</el-button>
-                    <el-popconfirm :title="$t('flow.cancelExecConfirm')" width="180" @confirm="procinstCancelExec(data)">
-                        <template #reference>
-                            <el-button link type="warning">{{ $t('flow.cancelExec') }}</el-button>
-                        </template>
-                    </el-popconfirm>
-                </template>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <ProcinstDetail
             v-model:visible="procinstDetail.visible"
@@ -73,9 +40,9 @@
 
 <script lang="ts" setup>
 import { formatTime } from '@/common/utils/format';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDetailTitle } from '@/hooks/useI18n';
 import { useUserInfo } from '@/store/userInfo';
 import { defineAsyncComponent, onActivated, reactive, ref, toRefs, useTemplateRef } from 'vue';
@@ -101,7 +68,8 @@ const columns = [
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('creator', 'flow.initiator'),
     TableColumn.new('bizKey', 'flow.bizKey'),
-    TableColumn.new('procdefName', 'flow.procdefName'),
+    // 主识别列设为弹性列：内容长度方差最大，宽屏富余由它吸收；其余定长列（时间/状态/时长）贴内容、不再被均摊撑宽
+    TableColumn.new('procdefName', 'flow.procdefName').setFlexible(),
     TableColumn.new('status', 'common.status').typeTag(ProcinstStatus),
     TableColumn.new('bizStatus', 'flow.bizStatus').typeTag(ProcinstBizStatus),
     TableColumn.new('plannedExecTime', 'flow.plannedExecTime').isTime(),
@@ -114,10 +82,52 @@ const columns = [
         }
         return formatTime(duration);
     }),
-    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter(),
+    // 退回态可「编辑 + 取消」，定时待执行态可「改期 + 取消执行」，两组各自互斥（同组按最宽一格计宽）
+    TableColumn.new('action', 'common.operation')
+        .setActions<Procinst>([
+            { key: 'detail', label: 'common.detail', type: 'primary', onClick: (row) => showProcinst(row) },
+            {
+                key: 'edit',
+                label: 'common.edit',
+                type: 'primary',
+                group: 'second',
+                show: (row) => row.status == ProcinstStatus.Back.value && row.creator == useUserInfo().userInfo.username,
+                onClick: (row) => startProcInst(row),
+            },
+            {
+                key: 'cancel',
+                label: 'common.cancel',
+                type: 'warning',
+                group: 'third',
+                confirm: { title: 'flow.cancelProcessConfirm', pop: true },
+                show: (row) =>
+                    row.status == ProcinstStatus.Active.value || row.status == ProcinstStatus.Suspended.value || row.status == ProcinstStatus.Back.value,
+                onClick: (row) => procinstCancel(row),
+            },
+            {
+                key: 'reschedule',
+                label: 'flow.reschedule',
+                type: 'primary',
+                group: 'second',
+                show: (row) => row.status == ProcinstStatus.Completed.value && row.bizStatus == ProcinstBizStatus.Wait.value,
+                onClick: (row) => openReschedule(row),
+            },
+            {
+                key: 'cancelExec',
+                label: 'flow.cancelExec',
+                type: 'warning',
+                group: 'third',
+                confirm: { title: 'flow.cancelExecConfirm', pop: true },
+                show: (row) => row.status == ProcinstStatus.Completed.value && row.bizStatus == ProcinstBizStatus.Wait.value,
+                onClick: (row) => procinstCancelExec(row),
+            },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ];
 
-const pageTableRef = useTemplateRef<{ search: () => void }>('pageTableRef');
+const dataTableRef = useTemplateRef<{ search: () => void }>('dataTableRef');
 
 /** 启动表单空值：作为抽屉打开前的占位，startProcInst 会按新建/重跑场景覆盖 */
 const emptyProcInstForm: ProcInstStartForm = { bizType: '', procdefId: 0, status: null, remark: '', bizKey: '', bizForm: {} };
@@ -153,12 +163,12 @@ const state = reactive({
 const { selectionData, query, procinstDetail, procinstEdit } = toRefs(state);
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const firstActivation = ref(true);
 // 提单与审批常在别的页签里完成，回到本页必须看到最新状态；
-// keep-alive 首次挂载时 PageTable 已经查过一次，跳过首触发避免重复请求
+// keep-alive 首次挂载时 DataTable 已经查过一次，跳过首触发避免重复请求
 onActivated(() => {
     if (firstActivation.value) {
         firstActivation.value = false;

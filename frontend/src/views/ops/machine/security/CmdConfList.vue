@@ -1,33 +1,18 @@
 <template>
-    <div>
-        <el-table :data="cmdConfs" stripe>
-            <el-table-column prop="name" :label="$t('common.name')" show-overflow-tooltip min-width="100px"> </el-table-column>
-            <el-table-column prop="cmds" :label="$t('machine.filterCmds')" min-width="320px" show-overflow-tooltip>
-                <template #default="scope">
-                    <el-tag class="ml-0.5 mt-0.5" v-for="cmd in scope.row.cmds" :key="cmd" type="danger">
-                        {{ cmd }}
-                    </el-tag>
-                </template>
-            </el-table-column>
-            <el-table-column prop="codePaths" :label="$t('machine.relateMachine')" min-width="250px" show-overflow-tooltip>
-                <template #default="scope">
-                    <TagCodePath :path="scope.row.tags" />
-                </template>
-            </el-table-column>
-            <el-table-column prop="remark" :label="$t('common.remark')" show-overflow-tooltip width="120px"> </el-table-column>
-            <el-table-column prop="creator" :label="$t('common.creator')" show-overflow-tooltip width="100px"> </el-table-column>
-
-            <el-table-column :label="$t('common.operation')" min-width="120px">
-                <template #header>
-                    <el-text tag="b">{{ $t('common.operation') }}</el-text>
-                    <el-button v-auth="'cmdconf:save'" class="ml-1" type="primary" circle size="small" icon="Plus" @click="onOpenFormDialog(null)"> </el-button>
-                </template>
-                <template #default="scope">
-                    <el-button v-auth="'cmdconf:save'" @click="onOpenFormDialog(scope.row)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                    <el-button v-auth="'cmdconf:del'" @click="onDeleteCmdConf(scope.row)" type="danger" link>{{ $t('common.delete') }}</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+    <div class="h-full">
+        <data-table :data="cmdConfs" :pageable="false" :columns="columns" :card="false" stripe>
+            <template #tableHeader>
+                <el-button v-auth="'cmdconf:save'" type="primary" icon="plus" @click="onOpenFormDialog(null)">{{ $t('common.create') }}</el-button>
+            </template>
+            <template #cmds="{ data }">
+                <el-tag class="ml-0.5 mt-0.5" v-for="cmd in data.cmds" :key="cmd" type="danger">
+                    {{ cmd }}
+                </el-tag>
+            </template>
+            <template #codePaths="{ data }">
+                <TagCodePath :path="data.tags" />
+            </template>
+        </data-table>
 
         <auto-form-drawer
             ref="drawerRef"
@@ -93,6 +78,8 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Rules } from '@/common/rule';
 import { deepClone } from '@/common/utils/object';
 import { AutoFormDrawer, type AutoFormItem } from '@/components/auto-form';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { nextTick, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
@@ -130,6 +117,19 @@ const state = reactive({
 });
 
 const { cmdConfs, dialogVisible } = toRefs(state);
+
+// 声明式列：cmds/codePaths 走插槽；操作列由 setActions 统一渲染（新建按钮移到工具栏，DataTable 不支持列头内放按钮）
+const columns = [
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('cmds', 'machine.filterCmds').isSlot('cmds'),
+    TableColumn.new('codePaths', 'machine.relateMachine').isSlot('codePaths'),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('creator', 'common.creator'),
+    TableColumn.new('action', 'common.operation').setActions<MachineCmdConfVO>([
+        { key: 'edit', label: 'common.edit', type: 'primary', perm: 'cmdconf:save', onClick: (row) => onOpenFormDialog(row) },
+        { key: 'delete', label: 'common.delete', type: 'danger', perm: 'cmdconf:del', onClick: (row) => onDeleteCmdConf(row) },
+    ]),
+];
 
 /** 传给 AutoFormDrawer 的回填数据（onOpenFormDialog 时设置；深拷贝由组件内部完成） */
 const editForm = ref<MachineCmdConfForm | null>(null);

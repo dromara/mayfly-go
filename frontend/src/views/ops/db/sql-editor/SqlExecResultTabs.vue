@@ -11,7 +11,8 @@
                                         <SvgIcon class="mb-0.5! is-loading" name="Loading" color="var(--el-color-primary)" />
                                     </span>
                                     <span v-else>
-                                        <SvgIcon class="mb-0.5!" v-if="dt.notice && !dt.errorMsg" name="Warning" color="var(--el-color-warning)" />
+                                        <SvgIcon class="mb-0.5!" v-if="dt.cancelled" name="InfoFilled" color="var(--el-color-info)" />
+                                        <SvgIcon class="mb-0.5!" v-else-if="dt.notice && !dt.errorMsg" name="Warning" color="var(--el-color-warning)" />
                                         <SvgIcon class="mb-0.5!" v-else-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
                                         <SvgIcon class="mb-0.5!" v-else name="CircleCheck" color="var(--el-color-success)" />
                                     </span>
@@ -54,7 +55,7 @@
                 </div>
 
                 <!-- 有结果行才能切图表：无数据时图表只会是一张空坐标系，切换本身也没意义 -->
-                <div v-if="!dt.errorMsg && !dt.notice && dt.data?.length" class="mt-2 mb-1 ml-1 flex shrink-0 items-center gap-4">
+                <div v-if="!dt.errorMsg && !dt.notice && !dt.cancelled && dt.data?.length" class="mt-2 mb-1 ml-1 flex shrink-0 items-center gap-4">
                     <el-radio-group v-model="views[dt.id]" size="small">
                         <el-radio-button value="table">{{ $t('db.viewTable') }}</el-radio-button>
                         <el-radio-button value="chart">{{ $t('db.viewChart') }}</el-radio-button>
@@ -72,14 +73,14 @@
                 </div>
 
                 <SqlResultChart
-                    v-if="!dt.errorMsg && !dt.notice && views[dt.id] === 'chart'"
+                    v-if="!dt.errorMsg && !dt.notice && !dt.cancelled && views[dt.id] === 'chart'"
                     :columns="chartColumns(dt)"
                     :rows="dt.data"
                     class="ml-1 flex-1 min-h-0"
                 />
 
                 <db-table-data
-                    v-else-if="!dt.errorMsg && !dt.notice"
+                    v-else-if="!dt.errorMsg && !dt.notice && !dt.cancelled"
                     class="shrink-0"
                     :ref="(el: unknown) => setDbTableRef(dt, el)"
                     :db-id="dbId"
@@ -104,6 +105,9 @@
                         </el-button>
                     </template>
                 </el-result>
+
+                <!-- 操作者取消：不是失败、也没有结果可看，如实显示为「已请求取消」而不是空白的成功态 -->
+                <el-result v-else-if="dt.cancelled" icon="info" :title="$t('db.execCancelRequested')" />
 
                 <el-result v-else icon="error" :title="$t('db.execFail')" :sub-title="dt.errorMsg">
                     <template #extra>

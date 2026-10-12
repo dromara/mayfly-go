@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="machineApi.list"
             :before-query-fn="checkRouteTagPath"
             :data-handler-fn="handleData"
@@ -113,83 +113,8 @@
                 <ResourceAuthCert v-model:select-auth-cert="data.selectAuthCert" :auth-certs="data.authCerts" />
             </template>
 
-            <template #action="{ data }">
-                <span v-auth="'machine:terminal'">
-                    <el-tooltip
-                        v-if="data.protocol == MachineProtocolEnum.Ssh.value"
-                        :show-after="500"
-                        :content="$t('machine.newOpenTabTerminalTips')"
-                        placement="top"
-                    >
-                        <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>SSH</el-button>
-                    </el-tooltip>
-
-                    <el-button v-if="data.protocol == MachineProtocolEnum.Rdp.value" type="primary" @click="showRDP(data)" link>RDP</el-button>
-                    <el-button v-if="data.protocol == MachineProtocolEnum.Vnc.value" type="primary" @click="showRDP(data)" link>VNC</el-button>
-
-                    <el-divider direction="vertical" border-style="dashed" />
-                </span>
-
-                <span v-auth="'machine:file'">
-                    <el-button type="success" :disabled="data.status == -1" @click="showFileManage(data)" link>{{ $t('machine.file') }}</el-button>
-                    <el-divider direction="vertical" border-style="dashed" />
-                </span>
-
-                <el-button
-                    v-if="data.protocol == MachineProtocolEnum.Ssh.value"
-                    :disabled="data.status == -1"
-                    type="warning"
-                    @click="serviceManager(data)"
-                    link
-                    >{{ $t('machine.script') }}</el-button
-                >
-                <el-divider direction="vertical" border-style="dashed" />
-
-                <el-dropdown @command="handleCommand">
-                    <span class="el-dropdown-link-machine-list">
-                        {{ $t('common.more') }}
-                        <el-icon class="el-icon--right">
-                            <arrow-down />
-                        </el-icon>
-                    </span>
-                    <template #dropdown>
-                        <el-dropdown-menu>
-                            <el-dropdown-item :command="{ type: 'detail', data }">
-                                {{ $t('common.detail') }}
-                            </el-dropdown-item>
-
-                            <el-dropdown-item :command="{ type: 'rdp-blank', data }" v-if="data.protocol == MachineProtocolEnum.Rdp.value">
-                                RDP({{ $t('machine.newTab') }})
-                            </el-dropdown-item>
-
-                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]">
-                                {{ $t('common.edit') }}
-                            </el-dropdown-item>
-
-                            <el-dropdown-item
-                                v-if="data.protocol == MachineProtocolEnum.Ssh.value"
-                                :command="{ type: 'process', data }"
-                                :disabled="data.status == -1"
-                            >
-                                {{ $t('machine.process') }}
-                            </el-dropdown-item>
-
-                            <el-dropdown-item
-                                v-if="data.protocol == MachineProtocolEnum.Ssh.value"
-                                :command="{ type: 'disk-analyze', data }"
-                                :disabled="data.status == -1"
-                            >
-                                {{ $t('machine.diskAnalyze') }}
-                            </el-dropdown-item>
-
-                            <el-dropdown-item :command="{ type: 'terminalRec', data }" v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
-                                {{ $t('machine.terminalPlayback') }}
-                            </el-dropdown-item>
-                        </el-dropdown-menu>
-                    </template>
-                </el-dropdown>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible">
             <el-descriptions v-if="infoDialog.data" :title="$t('common.detail')" :column="3" border>
@@ -240,7 +165,7 @@
 
         <machine-edit :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" @val-change="search()"></machine-edit>
 
-        <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
+        <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" :title="processDialog.title" />
 
         <script-manage
             :title="serviceDialog.title"
@@ -293,10 +218,9 @@
 
 <script lang="ts" setup>
 import { formatByteSize, formatDate } from '@/common/utils/format';
-import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useEditDialog, useRouteTagPath } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, ref, useTemplateRef } from 'vue';
@@ -335,7 +259,7 @@ const props = defineProps({
 
 const router = useRouter();
 const terminalDialogRef = useTemplateRef<InstanceType<typeof TerminalDialog>>('terminalDialogRef');
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const checkRouteTagPath = useRouteTagPath();
 const { editDialog, editEntity } = useEditDialog<MachineVO>('machine');
 
@@ -352,16 +276,95 @@ const columns = [
     TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('ipPort', 'Ip:Port').isSlot(),
     TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert'),
-    TableColumn.new('status', 'common.status').isSlot(),
+    // 状态列插槽渲染定宽 el-switch（圆钮不在字段文本里，离线估算与只量溢出回填都量不到）：+20 预留圆钮占位
+    TableColumn.new('status', 'common.status').isSlot().setAddWidth(20),
     TableColumn.new('stats', 'machine.runningStat').isSlot(),
     TableColumn.new('fs', 'machine.fs').isSlot(),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(258).fixedRight().alignCenter().noShowOverflowTooltip(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<MachineVO>([
+            // 三种协议按机器类型互斥，同组只按最宽的一格计宽
+            {
+                key: 'ssh',
+                label: 'machine.protocolSsh',
+                type: 'primary',
+                perm: perms.terminal,
+                group: 'protocol',
+                tooltip: 'machine.newOpenTabTerminalTips',
+                disabled: (row) => row.status == -1,
+                show: (row) => row.protocol == MachineProtocolEnum.Ssh.value,
+                onClick: (row, event) => showTerminal(row, event),
+            },
+            {
+                key: 'rdp',
+                label: 'machine.protocolRdp',
+                type: 'primary',
+                perm: perms.terminal,
+                group: 'protocol',
+                show: (row) => row.protocol == MachineProtocolEnum.Rdp.value,
+                onClick: (row) => showRDP(row),
+            },
+            {
+                key: 'vnc',
+                label: 'machine.protocolVnc',
+                type: 'primary',
+                perm: perms.terminal,
+                group: 'protocol',
+                show: (row) => row.protocol == MachineProtocolEnum.Vnc.value,
+                onClick: (row) => showRDP(row),
+            },
+            {
+                key: 'file',
+                label: 'machine.file',
+                type: 'success',
+                perm: 'machine:file',
+                disabled: (row) => row.status == -1,
+                onClick: (row) => showFileManage(row),
+            },
+            {
+                key: 'script',
+                label: 'machine.script',
+                type: 'warning',
+                disabled: (row) => row.status == -1,
+                show: (row) => row.protocol == MachineProtocolEnum.Ssh.value,
+                onClick: (row) => serviceManager(row),
+            },
+            { key: 'detail', label: 'common.detail', onClick: (row) => showInfo(row) },
+            { key: 'edit', label: 'common.edit', perm: perms.updateMachine, onClick: (row) => editEntity(row) },
+            {
+                key: 'process',
+                label: 'machine.process',
+                disabled: (row) => row.status == -1,
+                show: (row) => row.protocol == MachineProtocolEnum.Ssh.value,
+                onClick: (row) => showProcess(row),
+            },
+            {
+                key: 'diskAnalyze',
+                label: 'machine.diskAnalyze',
+                disabled: (row) => row.status == -1,
+                show: (row) => row.protocol == MachineProtocolEnum.Ssh.value,
+                onClick: (row) => showDiskAnalyze(row),
+            },
+            {
+                key: 'terminalRec',
+                label: 'machine.terminalPlayback',
+                perm: perms.updateMachine,
+                show: (row) => row.enableRecorder == 1,
+                onClick: (row) => showRec(row),
+            },
+            {
+                key: 'rdpNewTab',
+                label: 'machine.openRdpTab',
+                group: 'protocol',
+                show: (row) => row.protocol == MachineProtocolEnum.Rdp.value,
+                onClick: (row) => showRDP(row, true),
+            },
+        ])
+        .fixedRight()
+        .alignCenter()
+        .noShowOverflowTooltip(),
 ];
-
-// 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
-const actionBtns: Record<string, boolean> = hasPerms([perms.updateMachine]);
 
 const params = ref({
     pageNum: 1,
@@ -390,6 +393,7 @@ const serviceDialog = ref({
 const processDialog = ref({
     visible: false,
     machineId: 0,
+    title: '',
 });
 
 const fileDialog = ref({
@@ -478,48 +482,10 @@ const handleData = (res: PageResult<MachineVO>) => {
     return res;
 };
 
-interface DropdownCommand {
-    type: string;
-    data: MachineVO;
-}
-const handleCommand = (command: DropdownCommand) => {
-    const data = command.data;
-    const type = command.type;
-    switch (type) {
-        case 'detail': {
-            showInfo(data);
-            return;
-        }
-        case 'edit': {
-            editEntity(data);
-            return;
-        }
-        case 'process': {
-            showProcess(data);
-            return;
-        }
-        case 'disk-analyze': {
-            showDiskAnalyze(data);
-            return;
-        }
-        case 'terminalRec': {
-            showRec(data);
-            return;
-        }
-        case 'rdp': {
-            showRDP(data);
-            return;
-        }
-        case 'rdp-blank': {
-            showRDP(data, true);
-            return;
-        }
-    }
-};
-
-const showTerminal = (row: MachineVO, event: PointerEvent) => {
+/** event 为点击事件（Ctrl/Cmd 点开新标签页）；动作被折进「更多」时拿不到事件，按普通打开处理 */
+const showTerminal = (row: MachineVO, event?: MouseEvent) => {
     const ac = row.selectAuthCert?.name || '';
-    if (event.ctrlKey || event.metaKey) {
+    if (event?.ctrlKey || event?.metaKey) {
         const { href } = router.resolve({
             path: `/machine/terminal`,
             query: { ac, name: row.name },
@@ -590,7 +556,7 @@ const onHealthViewTrend = (health: MachineHealth) => {
 const search = (tagPath?: string) => {
     // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
     params.value.tagPath = tagPath ?? '';
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const showFileManage = (data: MachineVO) => {
@@ -629,6 +595,7 @@ const gotoHostKeys = () => {
 
 const showProcess = (row: MachineVO) => {
     processDialog.value.machineId = row.id;
+    processDialog.value.title = `${row.name} (${row.ip}:${row.port})`;
     processDialog.value.visible = true;
 };
 
@@ -661,13 +628,3 @@ const showRDP = (row: MachineVO, blank = false) => {
 
 defineExpose({ search });
 </script>
-
-<style>
-.el-dropdown-link-machine-list {
-    cursor: pointer;
-    color: var(--el-color-primary);
-    display: flex;
-    align-items: center;
-    margin-top: 6px;
-}
-</style>

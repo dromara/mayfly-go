@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="dbTransferApi.dbTransferTasks"
             :searchItems="searchItems"
             v-model:query-form="query"
@@ -72,37 +72,8 @@
                 </span>
             </template>
 
-            <template #action="{ data }">
-                <!-- 删除、启停用、编辑 -->
-                <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-                <el-button v-if="actionBtns[perms.log]" type="warning" link @click="onOpenLog(data)">{{ $t('db.log') }}</el-button>
-                <el-button
-                    v-if="actionBtns[perms.stop] && data.runningState === DbTransferRunningStateEnum.Running.value"
-                    @click="stop(data.id)"
-                    type="danger"
-                    link
-                >
-                    {{ $t('db.stop') }}
-                </el-button>
-                <el-button
-                    v-if="actionBtns[perms.run] && data.runningState !== DbTransferRunningStateEnum.Running.value && data.status === 1"
-                    type="success"
-                    link
-                    @click="onReRun(data)"
-                >
-                    {{ $t('db.run') }}
-                </el-button>
-                <el-button
-                    v-if="actionBtns[perms.verify] && data.mode === 1 && data.runningState !== DbTransferRunningStateEnum.Running.value"
-                    type="info"
-                    link
-                    @click="onVerify(data)"
-                >
-                    {{ $t('db.verify') }}
-                </el-button>
-                <el-button v-if="actionBtns[perms.files] && data.mode === 2" type="success" link @click="openFiles(data)">{{ $t('db.file') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 actionColumn.setActions），列宽与按钮同源 -->
+        </data-table>
 
         <db-transfer-edit @val-change="search()" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
         <db-transfer-file :title="filesDialog.title" v-model:visible="filesDialog.visible" v-model:data="filesDialog.data" />
@@ -114,9 +85,9 @@
 
 <script lang="ts" setup>
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nConfirm, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { getDbDialect } from '@/views/ops/db/dialect';
 import { dbTransferApi } from '@/views/ops/db/transfer/api';
@@ -187,7 +158,8 @@ const columns = ref([
         .alignCenter()
         .setFormatFunc((data: DbTransferTaskListVO) => (data.cronEnabled === 1 ? data.cron : t('db.manual'))),
     TableColumn.new('runningState', 'db.runState').typeTag(DbTransferRunningStateEnum),
-    TableColumn.new('status', 'common.status').isSlot(),
+    // 状态列插槽渲染定宽 el-switch（圆钮不在字段文本里，离线估算与只量溢出回填都量不到）：+20 预留圆钮占位
+    TableColumn.new('status', 'common.status').isSlot().setAddWidth(20),
     TableColumn.new('modifier', 'common.modifier'),
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
     ...optionalColumns,
@@ -215,16 +187,39 @@ const fileTargetTip = (data: DbTransferTaskListVO) => {
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.save, perms.del, perms.status, perms.log, perms.run, perms.stop, perms.verify, perms.files]);
-const actionWidth =
-    ((actionBtns[perms.save] ? 1 : 0) +
-        (actionBtns[perms.log] ? 1 : 0) +
-        (actionBtns[perms.run] ? 1 : 0) +
-        (actionBtns[perms.stop] ? 1 : 0) +
-        (actionBtns[perms.verify] ? 1 : 0) +
-        (actionBtns[perms.files] ? 1 : 0)) *
-    55;
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(actionWidth).fixedRight().alignCenter();
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const actionColumn = TableColumn.new('action', 'common.operation').fixedRight().alignCenter().setActions<DbTransferTaskListVO>([
+    { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.save, onClick: (row) => edit(row) },
+    { key: 'log', label: 'db.log', type: 'warning', perm: perms.log, onClick: (row) => onOpenLog(row) },
+    {
+        key: 'stop',
+        label: 'db.stop',
+        type: 'danger',
+        perm: perms.stop,
+        group: 'runState',
+        show: (row) => row.runningState === DbTransferRunningStateEnum.Running.value,
+        onClick: (row) => stop(row.id),
+    },
+    {
+        key: 'run',
+        label: 'db.run',
+        type: 'success',
+        perm: perms.run,
+        group: 'runState',
+        show: (row) => row.runningState !== DbTransferRunningStateEnum.Running.value && row.status === 1,
+        onClick: (row) => onReRun(row),
+    },
+    {
+        key: 'verify',
+        label: 'db.verify',
+        type: 'info',
+        perm: perms.verify,
+        group: 'mode',
+        show: (row) => row.mode === 1 && row.runningState !== DbTransferRunningStateEnum.Running.value,
+        onClick: (row) => onVerify(row),
+    },
+    { key: 'files', label: 'db.file', type: 'success', perm: perms.files, group: 'mode', show: (row) => row.mode === 2, onClick: (row) => openFiles(row) },
+]);
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const state = reactive({
     row: {},
@@ -270,7 +265,7 @@ onMounted(async () => {
 });
 
 const search = () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const edit = async (data: DbTransferTaskListVO | false) => {

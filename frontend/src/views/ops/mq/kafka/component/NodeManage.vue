@@ -1,23 +1,10 @@
 <template>
     <div class="kafka-node-manage h-full card p-1! flex flex-col gap-2">
-        <div class="toolbar flex items-center mb-2">
-            <el-button @click="refreshBrokers" icon="refresh" :loading="loading" size="small" plain>
-                {{ $t('common.refresh') }}
-            </el-button>
-        </div>
-
-        <el-table :data="brokers" stripe style="width: 100%" v-loading="loading">
-            <el-table-column prop="id" :label="$t('mq.kafka.nodeId')" min-width="100" />
-            <el-table-column prop="addr" :label="$t('mq.kafka.addr')" min-width="100" />
-            <el-table-column prop="rac" :label="$t('mq.kafka.rack')" min-width="150" />
-            <el-table-column :label="$t('common.operation')" width="120" fixed="right" align="center">
-                <template #default="{ row }">
-                    <el-button @click="viewBrokerConfig(row)" type="primary" size="small" icon="setting" link>
-                        {{ $t('mq.kafka.viewConfig') }}
-                    </el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+        <data-table :data="brokers" :pageable="false" :columns="brokerColumns" :card="false" stripe v-loading="loading">
+            <template #tableHeader>
+                <el-button @click="refreshBrokers" icon="refresh" :loading="loading" size="small" plain>{{ $t('common.refresh') }}</el-button>
+            </template>
+        </data-table>
 
         <el-drawer
             :append-to-body="false"
@@ -52,6 +39,8 @@
 
 <script lang="ts" setup>
 import { Msg } from '@/hooks/useI18n';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { computed, nextTick, onMounted, reactive, ref, toRefs } from 'vue';
 import { mqApi } from '../../api';
 import type { KafkaBroker, KafkaConfigEntry } from '../../types';
@@ -80,6 +69,17 @@ const cancel = () => {
 };
 
 const { brokers, brokerConfigs } = toRefs(state);
+
+// broker 列表声明式列：操作列由 setActions 统一渲染（抽屉内的 broker 配置表为二级明细，仍用裸 el-table）
+const brokerColumns = [
+    TableColumn.new('id', 'mq.kafka.nodeId'),
+    TableColumn.new('addr', 'mq.kafka.addr'),
+    TableColumn.new('rac', 'mq.kafka.rack'),
+    TableColumn.new('action', 'common.operation')
+        .setActions<KafkaBroker>([{ key: 'viewConfig', label: 'mq.kafka.viewConfig', type: 'primary', icon: 'setting', onClick: (row) => viewBrokerConfig(row) }], { size: 'small' })
+        .fixedRight()
+        .alignCenter(),
+];
 
 const filteredBrokerConfigs = computed(() => {
     if (!searchConfig.value) {

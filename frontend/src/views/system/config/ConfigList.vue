@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :search-items="searchItems"
             :page-api="configApi.list"
             :columns="columns"
@@ -17,11 +17,8 @@
                 <el-tag v-if="data.status == -1" type="danger">{{ $t('common.disable') }}</el-tag>
             </template>
 
-            <template #action="{ data }">
-                <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)" link>{{ $t('system.sysconf.conf') }}</el-button>
-                <el-button v-if="actionBtns[perms.saveConfig]" @click="onEditConfig(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog @close="onCloseSetConfigDialog" :title="$t('system.sysconf.confItemSetting')" v-model="paramsDialog.visible" width="700px">
             <auto-form ref="paramsFormRef" v-if="paramsDialog.schema" :schema="paramsDialog.schema" v-model="paramsDialog.params as any" />
@@ -48,9 +45,9 @@
 import { hasPerms } from '@/components/auth/auth';
 import { AutoForm, type AutoFormItem } from '@/components/auto-form';
 import { isJsonFormSchema, type AutoFormJsonSchema } from '@/components/auto-form/json';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
 import { computed, defineAsyncComponent, onMounted, reactive, ref, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -76,10 +73,17 @@ const columns = ref([
     TableColumn.new('modifier', 'common.modifier'),
     TableColumn.new('updateTime', 'common.updateTime').isTime(),
 ]);
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<SysConfig>([
+        { key: 'conf', label: 'system.sysconf.conf', type: 'warning', disabled: (row) => row.status == -1, onClick: (row) => showSetConfigDialog(row) },
+        { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.saveConfig, onClick: (row) => onEditConfig(row) },
+    ])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
 const actionBtns = hasPerms([perms.saveConfig]);
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const paramsFormRef = ref<{ validate: () => Promise<unknown> } | null>(null);
 
 const state = reactive({
@@ -123,7 +127,7 @@ onMounted(() => {
 });
 
 const search = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const handleData = (res: PageResult<SysConfig & { i18nName?: string; i18nRemark?: string }>) => {

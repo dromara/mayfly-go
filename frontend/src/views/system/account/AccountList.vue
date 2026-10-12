@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="accountApi.list"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -16,32 +16,8 @@
                 </el-button>
             </template>
 
-            <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.addAccount]" @click="editEntity(data)" type="primary">{{ $t('common.edit') }}</el-button>
-
-                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="onShowRoleEdit(data)" type="success">
-                    {{ $t('system.account.roleAllocation') }}
-                </el-button>
-
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="onChangeStatus(data)" type="danger">
-                    {{ $t('common.disable') }}
-                </el-button>
-
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success" @click="onChangeStatus(data)">
-                    {{ $t('common.enable') }}
-                </el-button>
-
-                <el-button
-                    link
-                    v-if="actionBtns[perms.addAccount]"
-                    :disabled="!data.otpSecret || data.otpSecret == '-'"
-                    @click="onResetOtpSecret(data)"
-                    type="warning"
-                >
-                    {{ $t('system.account.resetOtp') }}
-                </el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog width="500px" :title="showRoleDialog.title" v-model="showRoleDialog.visible">
             <el-table border :data="showRoleDialog.accountRoles">
@@ -63,9 +39,9 @@
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nDeleteConfirm } from '@/hooks/useI18n';
 import { useEditDialog } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
@@ -99,9 +75,43 @@ const columns = [
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<Account>([
+        { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.addAccount, onClick: (row) => editEntity(row) },
+        { key: 'role', label: 'system.account.roleAllocation', type: 'success', perm: perms.saveAccountRole, onClick: (row) => onShowRoleEdit(row) },
+        // 启用/禁用互斥：两格各自带行级条件与配色，计宽按同组最宽的一格
+        {
+            key: 'disable',
+            label: 'common.disable',
+            type: 'danger',
+            group: 'status',
+            perm: perms.changeAccountStatus,
+            show: (row) => row.status == 1,
+            onClick: (row) => onChangeStatus(row),
+        },
+        {
+            key: 'enable',
+            label: 'common.enable',
+            type: 'success',
+            group: 'status',
+            perm: perms.changeAccountStatus,
+            show: (row) => row.status == -1,
+            onClick: (row) => onChangeStatus(row),
+        },
+        {
+            key: 'resetOtp',
+            label: 'system.account.resetOtp',
+            type: 'warning',
+            perm: perms.addAccount,
+            disabled: (row) => !row.otpSecret || row.otpSecret == '-',
+            onClick: (row) => onResetOtpSecret(row),
+        },
+    ])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const { editDialog, editEntity } = useEditDialog<Account>('personal.accountInfo');
 
 const selectionData = ref<Account[]>([]);
@@ -129,7 +139,7 @@ onMounted(() => {
 });
 
 const search = () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onChangeStatus = async (row: Account) => {

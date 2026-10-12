@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="esApi.instances"
             :data-handler-fn="handleData"
             :searchItems="searchItems"
@@ -27,11 +27,8 @@
                 <ResourceAuthCert v-model:select-auth-cert="data.selectAuthCert" :auth-certs="data.authCerts" />
             </template>
 
-            <template #action="{ data }">
-                <el-button @click="showInfo(data)" link>{{ $t('common.detail') }}</el-button>
-                <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-dialog v-model="infoDialog.visible" :title="$t('common.detail')">
             <el-descriptions v-if="infoDialog.data" :column="3" border>
@@ -66,9 +63,9 @@
 <script lang="ts" setup>
 import { formatDate } from '@/common/utils/format';
 import { hasPerms } from '@/components/auth/auth';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { useRouteTagPath } from '@/hooks/useResourceForm';
 import { defineAsyncComponent, onMounted, ref, useTemplateRef } from 'vue';
@@ -104,8 +101,15 @@ const columns = ref([
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns: Record<string, boolean> = hasPerms(Object.values(perms));
-const actionColumn = TableColumn.new('action', 'common.operation').isSlot().setMinWidth(180).fixedRight().noShowOverflowTooltip().alignCenter();
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const actionColumn = TableColumn.new('action', 'common.operation')
+    .setActions<EsInstance>([
+        { key: 'detail', label: 'common.detail', onClick: (row) => showInfo(row) },
+        { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.saveInstance, onClick: (row) => editInstance(row) },
+    ])
+    .fixedRight()
+    .noShowOverflowTooltip()
+    .alignCenter();
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 const checkRouteTagPath = useRouteTagPath();
 
 const selectionData = ref<EsInstance[]>([]);
@@ -172,7 +176,7 @@ const deleteInstance = async () => {
 const search = (tagPath?: string) => {
     // tagPath 为 undefined 时（如"所有资源"节点），清空过滤条件查询全部；为具体值时按标签过滤
     query.value.tagPath = tagPath ?? '';
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 defineExpose({ search });

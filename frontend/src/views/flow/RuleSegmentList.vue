@@ -1,7 +1,7 @@
 <template>
     <div class="h-full">
-        <page-table
-            ref="pageTableRef"
+        <data-table
+            ref="dataTableRef"
             :page-api="ruleSegmentApi.list"
             :search-items="searchItems"
             v-model:query-form="query"
@@ -33,10 +33,8 @@
                 }}</span>
             </template>
 
-            <template #action="{ data }">
-                <el-button v-if="actionBtns[perms.save]" link type="primary" @click="onEdit(data)">{{ $t('common.edit') }}</el-button>
-            </template>
-        </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+        </data-table>
 
         <el-drawer
             v-model="editorVisible"
@@ -117,9 +115,9 @@ import {
 } from '@/components/policy-builder';
 import PolicyConditionNode from '@/components/policy-builder/PolicyConditionNode.vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { procdefApi, ruleSegmentApi, type RuleSegmentForm } from './api';
 import type { RuleSegment } from './types';
@@ -151,7 +149,7 @@ const columns = [
     TableColumn.new('createTime', 'common.createTime').isTime(),
 ];
 
-const pageTableRef = useTemplateRef<{ search: () => void }>('pageTableRef');
+const dataTableRef = useTemplateRef<{ search: () => void }>('dataTableRef');
 const formRef = useTemplateRef<{ validate: () => Promise<boolean> }>('formRef');
 
 const { policySchema, load, reload: reloadPolicySchema } = usePolicySchema(() => procdefApi.policySchema.request());
@@ -193,7 +191,12 @@ const issues = computed<PolicyIssue[]>(() => validateConditionTree(state.ruleNod
 onMounted(async () => {
     await load();
     if (Object.keys(actionBtns).length > 0) {
-        columns.push(TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(120).alignCenter());
+        columns.push(
+            TableColumn.new('action', 'common.operation')
+                .setActions<RuleSegment>([{ key: 'edit', label: 'common.edit', type: 'primary', perm: perms.save, onClick: (row) => onEdit(row) }])
+                .fixedRight()
+                .alignCenter()
+        );
     }
 });
 
@@ -203,7 +206,7 @@ const scenarioText = (bizType: string) => {
     return label === key ? bizType : label;
 };
 
-const search = () => pageTableRef.value?.search();
+const search = () => dataTableRef.value?.search();
 
 const resetRuleNode = (bizType: string) => {
     // 换字段字典后原条件里的字段大概率不再存在，保留只会得到一串「字段已不存在」

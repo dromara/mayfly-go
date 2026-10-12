@@ -406,7 +406,12 @@ onMounted(() => {
     state.table = props.table;
     setTableData((props.data ?? []) as Record<string, unknown>[]);
 
-    if (state.loading) {
+    // 同步 loading 初值：取消/报错会卸载本组件，再次执行时先清 cancelled/errorMsg 再置 loading=true，
+    // 重新挂载那一刻 props.loading 已是 true，而 watch 不回调初值——不补这一下，
+    // 遮罩与取消按钮会整轮丢失（页签标签转圈、表格区却看似空闲，且无法取消）。
+    // watch 已在挂载前回调过则 state.loading 已同步，不重复启动计时器
+    if (props.loading && !state.loading) {
+        state.loading = true;
         startLoading();
     }
 });

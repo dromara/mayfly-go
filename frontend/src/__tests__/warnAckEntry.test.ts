@@ -99,7 +99,7 @@ describe('两个入口都接了同一套确认流', () => {
 
     it('确认码不再叠一条红色报错', () => {
         // 这句话就是操作者要看的提示，弹两遍会让他以为执行失败了
-        expect(request).toMatch(/if \(resultCode != WARN_ACK_CODE\) \{\n\s+Msg\.error\(result\.msg\)/);
+        expect(request).toMatch(/if \(resultCode != WARN_ACK_CODE && resultCode != EXEC_JUST_FINISHED_CODE\) \{\n\s+Msg\.error\(result\.msg\)/);
         // 但提示文本必须照样带出去，确认框正文用的就是它
         expect(request).toMatch(/errMsg = result\.msg;/);
     });

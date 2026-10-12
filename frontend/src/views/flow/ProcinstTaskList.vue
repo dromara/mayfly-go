@@ -3,8 +3,8 @@
         <el-tabs v-model="activeTabName" @tab-change="onTaskTabChange" class="h-full">
             <el-tab-pane :label="$t('flow.todoTask')" :name="todoTabName" class="h-full">
                 <div class="h-full">
-                    <page-table
-                        ref="todoPageTableRef"
+                    <data-table
+                        ref="todoDataTableRef"
                         :page-api="procinstTaskApi.tasks"
                         :search-items="todoSearchItems"
                         v-model:query-form="todoQuery"
@@ -15,20 +15,15 @@
                             <!-- <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editFlowDef(false)">添加</el-button> -->
                         </template>
 
-                        <template #action="{ data }">
-                            <el-button link @click="onShowProcinst(data, false)" type="primary">{{ $t('common.detail') }}</el-button>
-                            <el-button v-if="data.status == ProcinstTaskStatus.Process.value" link @click="onShowProcinst(data, true)" type="primary">
-                                {{ $t('flow.audit') }}
-                            </el-button>
-                        </template>
-                    </page-table>
+                        <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+                    </data-table>
                 </div>
             </el-tab-pane>
 
             <el-tab-pane :label="$t('flow.doneTask')" :name="doneTabName" class="h-full">
                 <div class="h-full">
-                    <page-table
-                        ref="donePageTableRef"
+                    <data-table
+                        ref="doneDataTableRef"
                         :page-api="procinstTaskApi.tasks"
                         :search-items="searchItems"
                         v-model:query-form="query"
@@ -39,10 +34,8 @@
                             <!-- <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editFlowDef(false)">添加</el-button> -->
                         </template>
 
-                        <template #action="{ data }">
-                            <el-button link @click="onShowProcinst(data, false)" type="primary">{{ $t('common.detail') }}</el-button>
-                        </template>
-                    </page-table>
+                        <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+                    </data-table>
                 </div>
             </el-tab-pane>
         </el-tabs>
@@ -61,11 +54,12 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, Ref, useTemplateRef } from 'vue';
 import { procinstTaskApi } from './api';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import ProcinstDetail from './ProcinstDetail.vue';
 import { FlowBizType, ProcinstStatus, ProcinstTaskStatus } from './enums';
+import type { ProcinstTask } from './types';
 import { formatTime } from '@/common/utils/format';
 import { useI18nDetailTitle } from '@/hooks/useI18n';
 import { useI18n } from 'vue-i18n';
@@ -85,7 +79,20 @@ const todoColumns = [
     TableColumn.new('procinst.createTime', 'flow.startingTime').isTime(),
     TableColumn.new('nodeName', 'flow.taskName'),
     TableColumn.new('createTime', 'flow.taskBeginTime').isTime(),
-    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(160).noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<ProcinstTask>([
+            { key: 'detail', label: 'common.detail', type: 'primary', onClick: (row) => onShowProcinst(row, false) },
+            {
+                key: 'audit',
+                label: 'flow.audit',
+                type: 'primary',
+                show: (row) => row.status == ProcinstTaskStatus.Process.value,
+                onClick: (row) => onShowProcinst(row, true),
+            },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ];
 
 const searchItems = [
@@ -114,7 +121,11 @@ const columns = [
         return formatTime(duration);
     }),
     TableColumn.new('remark', 'flow.approvalRemark'),
-    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(80).noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<ProcinstTask>([{ key: 'detail', label: 'common.detail', type: 'primary', onClick: (row) => onShowProcinst(row, false) }])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ];
 
 const todoTabName = 'todo';
@@ -122,8 +133,8 @@ const doneTabName = 'done';
 
 const activeTabName = ref(todoTabName);
 
-const todoPageTableRef: Ref<any> = useTemplateRef('todoPageTableRef');
-const donePageTableRef: Ref<any> = useTemplateRef('donePageTableRef');
+const todoDataTableRef: Ref<any> = useTemplateRef('todoDataTableRef');
+const doneDataTableRef: Ref<any> = useTemplateRef('doneDataTableRef');
 
 const state = reactive({
     /**
@@ -156,14 +167,14 @@ const state = reactive({
 const { selectionData, query, todoQuery, procinstDetail } = toRefs(state);
 
 const todoSearch = async () => {
-    todoPageTableRef.value?.search();
+    todoDataTableRef.value?.search();
 };
 
 const onTaskTabChange = (activeName: string) => {
     if (activeName === todoTabName) {
-        todoPageTableRef.value?.search();
+        todoDataTableRef.value?.search();
     } else {
-        donePageTableRef.value?.search();
+        doneDataTableRef.value?.search();
     }
 };
 

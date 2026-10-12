@@ -11,8 +11,8 @@
             width="65%"
             body-class="h-[65vh]"
         >
-            <page-table
-                ref="pageTableRef"
+            <data-table
+                ref="dataTableRef"
                 :page-api="cronJobApi.execList"
                 :lazy="true"
                 :search-items="searchItems"
@@ -23,7 +23,7 @@
                 <template #machineCode="{ data }">
                     <MachineDetail :code="data.machineCode" />
                 </template>
-            </page-table>
+            </data-table>
         </el-dialog>
     </div>
 </template>
@@ -31,10 +31,10 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, Ref } from 'vue';
 import { cronJobApi } from '../api';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { TableColumn } from '@/components/page-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { TableColumn } from '@/components/data-table';
 import { CronJobExecStatusEnum } from '../enums';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import MachineDetail from '../component/MachineDetail.vue';
 import type { MachineCronJob } from '../types';
 
@@ -59,7 +59,7 @@ const columns = ref([
     TableColumn.new('execTime', 'machine.cronjobExecTime').isTime().setMinWidth(150),
 ]);
 
-const pageTableRef: Ref<any> = ref(null);
+const dataTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -85,7 +85,7 @@ const dialogVisible = defineModel<boolean>('visible');
 
 const search = async () => {
     state.params.cronJobId = props.data?.id || 0;
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const cancel = () => {

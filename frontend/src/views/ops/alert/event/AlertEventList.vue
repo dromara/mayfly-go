@@ -30,7 +30,7 @@
 
         <!-- 告警事件列表 -->
         <div class="table-container">
-            <page-table ref="pageTableRef" :page-api="alertEventApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
+            <data-table ref="dataTableRef" :page-api="alertEventApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
                 <template #resourceName="{ data }">
                     {{ data.resourceName || `${getResourceTypeLabel(data.resourceType)}#${data.resourceId}` }}
                 </template>
@@ -55,36 +55,16 @@
                     <enum-tag :enums="AlertEventStatusEnum" :value="data.status" />
                 </template>
 
-                <template #action="{ data }">
-                    <el-button link v-if="data.status === AlertEventStatusFiring" @click="onAck(data)" type="primary">{{ $t('alert.confirm') }}</el-button>
-                    <el-button
-                        link
-                        v-if="
-                            data.status === AlertEventStatusFiring || data.status === AlertEventStatusAcknowledged || data.status === AlertEventStatusRecovered
-                        "
-                        @click="onClose(data)"
-                        type="warning"
-                    >
-                        {{ $t('common.close') }}
-                    </el-button>
-                    <el-button
-                        link
-                        v-if="data.status === AlertEventStatusRecovered || data.status === AlertEventStatusClosed"
-                        @click="onDelete(data)"
-                        type="danger"
-                    >
-                        {{ $t('common.delete') }}
-                    </el-button>
-                </template>
-            </page-table>
+            <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+            </data-table>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg, useI18nConfirm } from '@/hooks/useI18n';
 import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import { alertEventApi, alertOverviewApi } from '../api';
@@ -181,10 +161,38 @@ const columns = [
     TableColumn.new('firstTriggerTime', 'alert.firstTriggerTime').isTime(),
     TableColumn.new('lastTriggerTime', 'alert.lastTriggerTime').isTime(),
     TableColumn.new('recoverTime', 'alert.recoverTime').isTime(),
-    TableColumn.new('action', 'common.operation').isSlot().fixedRight().setMinWidth(120).alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<AlertEventVO>([
+            {
+                key: 'ack',
+                label: 'alert.confirm',
+                type: 'primary',
+                group: 'ackOrDel',
+                show: (row) => row.status === AlertEventStatusFiring,
+                onClick: (row) => onAck(row),
+            },
+            {
+                key: 'close',
+                label: 'common.close',
+                type: 'warning',
+                show: (row) =>
+                    row.status === AlertEventStatusFiring || row.status === AlertEventStatusAcknowledged || row.status === AlertEventStatusRecovered,
+                onClick: (row) => onClose(row),
+            },
+            {
+                key: 'del',
+                label: 'common.delete',
+                type: 'danger',
+                group: 'ackOrDel',
+                show: (row) => row.status === AlertEventStatusRecovered || row.status === AlertEventStatusClosed,
+                onClick: (row) => onDelete(row),
+            },
+        ])
+        .fixedRight()
+        .alignCenter(),
 ];
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const query = ref({
     keyword: '',
@@ -200,7 +208,7 @@ const onAck = async (row: AlertEventVO) => {
     }
     await alertEventApi.ack.request({ id: row.id });
     Msg.operateSuccess();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onClose = async (row: AlertEventVO) => {
@@ -209,7 +217,7 @@ const onClose = async (row: AlertEventVO) => {
     }
     await alertEventApi.close.request({ id: row.id });
     Msg.operateSuccess();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const onDelete = async (row: AlertEventVO) => {
@@ -218,7 +226,7 @@ const onDelete = async (row: AlertEventVO) => {
     }
     await alertEventApi.del.request({ id: row.id });
     Msg.deleteSuccess();
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 </script>
 

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/application/sqlexec"
@@ -8,6 +9,7 @@ import (
 	"mayfly-go/internal/db/imsg"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
@@ -115,5 +117,15 @@ func (d *DbSession) CancelExec(rc *req.Ctx) {
 	biz.NotEmpty(execId, "execId cannot be empty")
 	rc.ReqParam = execId
 
-	biz.ErrIsNil(d.dbSQLExecApp.CancelExec(rc.MetaCtx, execId, rc.GetLoginAccount().Id))
+	if err := d.dbSQLExecApp.CancelExec(rc.MetaCtx, execId, rc.GetLoginAccount().Id); err != nil {
+		// 登记表的错误全是业务错误（属主校验/未找到/刚刚结束），原样 panic 保住分流码：
+		// biz.ErrIsNil 会重包成 code=400，4003 一丢前端就压不掉「刚刚结束，无需取消」的
+		// 红色 toast，操作者会被一个不是错误的事实喊话（与 flowapp.PreserveDecisionCode 同一接缝）。
+		// 用 errors.As 而非直接类型断言：日后应用层若给错误加一层上下文包装，仍能穿透保住分流码
+		var bizErr *errorx.BizError
+		if errors.As(err, &bizErr) {
+			panic(bizErr)
+		}
+		biz.ErrIsNil(err)
+	}
 }

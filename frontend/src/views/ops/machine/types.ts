@@ -421,8 +421,11 @@ export interface DiskAnalysisResult {
     nodes: DiskNode[];
 }
 
-/** 机器进程行（`ps` 输出按空白切割后映射而得，字段与表格列一一对应；数值均已在解析时格式化为展示字符串） */
-export interface MachineProcess {
+/**
+ * 机器进程行（`ps` 输出按空白切割后映射而得，字段与表格列一一对应；数值均已在解析时格式化为展示字符串）。
+ * 用 type 而非 interface：作为 DataTable 的 :data 传入时需可赋给 Record<string, unknown>，而 interface 不带隐式索引签名。
+ */
+export type MachineProcess = {
     /** ps USER 列 */
     user: string;
     /** ps PID 列 */
@@ -443,7 +446,7 @@ export interface MachineProcess {
     time: string;
     /** ps COMMAND 列（由第 10 列起重新拼接，兼容命令自带空白） */
     command: string;
-}
+};
 
 /** 机器列表统计信息（后端机器列表 API 返回的 stat 字段，见 machine/api/machine.go Machines） */
 export interface MachineListStat {

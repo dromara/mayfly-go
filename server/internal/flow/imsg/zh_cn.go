@@ -37,8 +37,10 @@ var Zh_CN = map[i18n.MsgId]string{
 	ErrProcdefNotEnable:      "该流程定义非启用状态",
 	ErrProcinstCancelSelf:    "只能取消自己发起的流程",
 	ErrProcinstBizNotPending: "该工单不在「已批准、待执行」状态（可能已开始执行、已执行完或已取消），无法改期或取消",
-	ErrProcinstCancelled:     "流程已取消",
-	ErrBizHandlerFail:        "业务处理失败",
+	// 取消流程的状态守卫：与列表页的取消按钮可见条件（审批中/挂起/退回）保持同一口径
+	ErrProcinstStatusNotCancelable: "该流程不在可取消状态（仅审批中、挂起或退回的流程可取消，可能已完成、已终止或已取消）",
+	ErrProcinstCancelled:           "流程已取消",
+	ErrBizHandlerFail:              "业务处理失败",
 
 	ErrAiTaskNodeAuditRuleNotEmpty: "Ai任务节点 [{{.name}}] 的审核规则不能为空",
 

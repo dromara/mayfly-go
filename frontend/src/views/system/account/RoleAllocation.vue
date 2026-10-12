@@ -10,8 +10,8 @@
         >
             <el-tabs style="min-height: 540px" v-model="state.tabName" @tab-change="onTabChange">
                 <el-tab-pane :label="$t('system.account.allocated')" :name="relatedTabName">
-                    <page-table
-                        ref="relatePageTableRef"
+                    <data-table
+                        ref="relateDataTableRef"
                         :pageable="false"
                         :page-api="accountApi.roles"
                         v-model:query-form="releateQuery"
@@ -23,17 +23,13 @@
                             <el-button @click="onShowResources" icon="view" type="primary" link>{{ $t('system.account.menuAndPermission') }}</el-button>
                         </template>
 
-                        <template #action="{ data }">
-                            <el-button v-auth="'account:saveRoles'" type="danger" @click="onRelateRole(-1, data.roleId)" icon="delete" link plain>
-                                {{ $t('system.account.remove') }}
-                            </el-button>
-                        </template>
-                    </page-table>
+                        <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+                    </data-table>
                 </el-tab-pane>
 
                 <el-tab-pane :label="$t('system.account.undistributed')" :name="unRelatedTabName">
-                    <page-table
-                        ref="unRelatePageTableRef"
+                    <data-table
+                        ref="unRelateDataTableRef"
                         :page-api="roleApi.list"
                         :search-items="unRelatedSearchItems"
                         v-model:query-form="unRelatedQuery"
@@ -41,19 +37,8 @@
                         :search-col="3"
                         lazy
                     >
-                        <template #action="{ data }">
-                            <el-button
-                                v-auth="'account:saveRoles'"
-                                @click="onRelateRole(1, data.id)"
-                                :disabled="data.code?.indexOf('COMMON') == 0 || data.status == RoleStatusEnum.Disable.value"
-                                type="success"
-                                icon="CirclePlus"
-                                link
-                                plain
-                                >{{ $t('system.account.allocation') }}</el-button
-                            >
-                        </template>
-                    </page-table>
+                        <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+                    </data-table>
                 </el-tab-pane>
             </el-tabs>
 
@@ -80,16 +65,16 @@
 </template>
 
 <script lang="ts" setup>
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem } from '@/components/data-table/SearchForm';
 import { Msg } from '@/hooks/useI18n';
 import { reactive, toRefs, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { accountApi, roleApi } from '../api';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 import { getMenuIcon } from '../resource/index';
-import type { Account, SysResource } from '../types';
+import type { Account, AccountRole, SysResource, SysRole } from '../types';
 
 const { t } = useI18n();
 
@@ -106,7 +91,20 @@ const relatedColumns = [
     TableColumn.new('status', 'system.account.roleStatus').typeTag(RoleStatusEnum),
     TableColumn.new('creator', 'system.account.assigner'),
     TableColumn.new('createTime', 'system.account.allocateTime').isTime(),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(110).fixedRight().noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<AccountRole>([
+            {
+                key: 'remove',
+                label: 'system.account.remove',
+                type: 'danger',
+                icon: 'delete',
+                perm: 'account:saveRoles',
+                onClick: (row) => onRelateRole(-1, row.roleId),
+            },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ];
 
 const unRelatedSearchItems = [SearchItem.input('name', 'system.role.roleName'), SearchItem.input('code', 'system.role.roleCode')];
@@ -115,11 +113,25 @@ const unRelatedColumns = [
     TableColumn.new('code', 'system.role.roleCode'),
     TableColumn.new('status', 'system.account.roleStatus').typeTag(RoleStatusEnum),
     TableColumn.new('remark', 'common.remark'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(110).fixedRight().noShowOverflowTooltip().alignCenter(),
+    TableColumn.new('action', 'common.operation')
+        .setActions<SysRole>([
+            {
+                key: 'allocation',
+                label: 'system.account.allocation',
+                type: 'success',
+                icon: 'CirclePlus',
+                perm: 'account:saveRoles',
+                disabled: (row) => row.code?.indexOf('COMMON') == 0 || row.status == RoleStatusEnum.Disable.value,
+                onClick: (row) => onRelateRole(1, row.id),
+            },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
 ];
 
-const relatePageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('relatePageTableRef');
-const unRelatePageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('unRelatePageTableRef');
+const relateDataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('relateDataTableRef');
+const unRelateDataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('unRelateDataTableRef');
 
 // 已分配与未分配tab名
 const relatedTabName = 'related';
@@ -159,13 +171,13 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const searchAccountRoles = async () => {
     state.releateQuery.id = props.account?.id || 0;
-    await relatePageTableRef.value?.search();
-    relatedRoleIds = (relatePageTableRef.value?.getData() ?? []).map((x) => Number(x.roleId));
+    await relateDataTableRef.value?.search();
+    relatedRoleIds = (relateDataTableRef.value?.getData() ?? []).map((x) => Number(x.roleId));
 };
 
 const searchUnRelateRoles = () => {
     state.unRelatedQuery.notIds = relatedRoleIds.join(',');
-    unRelatePageTableRef.value?.search();
+    unRelateDataTableRef.value?.search();
 };
 
 const onTabChange = () => {

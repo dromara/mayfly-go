@@ -67,7 +67,9 @@ var En = map[i18n.MsgId]string{
 	ErrAtomicUnsupportedStmt: "atomic execution supports only INSERT/UPDATE/DELETE, statement [{{.sql}}] is none of them: DDL is committed implicitly on some databases and cannot be rolled back, and query results take no part in rollback",
 	ErrAtomicBatchRolledBack: "statement {{.index}} of {{.total}} failed, the whole batch has been rolled back (previously succeeded statements took no effect either): {{.error}}",
 
-	ErrSqlExecNotFoundToCancel: "the execution has finished or does not exist and cannot be cancelled (it may already be done, or the serving process restarted)",
+	ErrSqlExecNotFoundToCancel: "no such running execution to cancel (it finished a while ago, ran on another serving instance, or the serving process restarted)",
+	ErrSqlExecJustFinished:     "the execution just finished on its own; there is nothing to cancel",
+	ErrSqlExecIdConflict:       "the execution id collides with another user's running execution; this request is rejected, please retry",
 	ErrSqlExecNotOwned:         "only executions started by yourself can be cancelled",
 
 	TriggerReasonRowsExceed:    "the estimated affected rows reach the threshold (or this database cannot produce an estimate)",

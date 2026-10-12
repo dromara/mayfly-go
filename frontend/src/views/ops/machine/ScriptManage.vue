@@ -9,8 +9,8 @@
             :before-close="handleClose"
             width="60%"
         >
-            <page-table
-                ref="pageTableRef"
+            <data-table
+                ref="dataTableRef"
                 :page-api="machineApi.scripts"
                 :before-query-fn="checkScriptType"
                 :lazy="true"
@@ -33,14 +33,8 @@
                     >
                 </template>
 
-                <template #action="{ data }">
-                    <el-button v-auth="'machine:script:run'" v-if="data.id != null" @click="runScript(data)" type="primary" icon="video-play" link
-                        >{{ $t('machine.execute') }}
-                    </el-button>
-
-                    <el-button @click="editScript(data)" type="primary" icon="tickets" link>{{ $t('common.detail') }}</el-button>
-                </template>
-            </page-table>
+                <!-- 行内操作由表格统一渲染（见 columns 里的 setActions），列宽与按钮同源 -->
+            </data-table>
         </el-dialog>
 
         <auto-form-dialog
@@ -95,9 +89,9 @@
 <script lang="ts" setup>
 import { AutoFormDialog } from '@/components/auto-form';
 import { isJsonFormSchema, type AutoFormJsonSchema } from '@/components/auto-form/json';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
-import { SearchItem, OptionsApi } from '@/components/page-table/SearchForm';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
+import { SearchItem, OptionsApi } from '@/components/data-table/SearchForm';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { defineAsyncComponent, nextTick, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
@@ -117,7 +111,7 @@ const machineId = defineModel<number | null>('machineId');
 
 const emit = defineEmits(['cancel']);
 
-const pageTableRef = ref<InstanceType<typeof PageTable> | null>(null);
+const dataTableRef = ref<InstanceType<typeof DataTable> | null>(null);
 
 const state = reactive({
     selectionData: [],
@@ -140,7 +134,20 @@ const state = reactive({
         TableColumn.new('description', 'common.remark'),
         TableColumn.new('type', 'common.type').typeTag(ScriptResultEnum),
         TableColumn.new('category', 'machine.category'),
-        TableColumn.new('action', 'common.operation').isSlot().setMinWidth(140).alignCenter(),
+        TableColumn.new('action', 'common.operation')
+            .setActions<MachineScriptVO>([
+                {
+                    key: 'execute',
+                    label: 'machine.execute',
+                    type: 'primary',
+                    icon: 'video-play',
+                    perm: 'machine:script:run',
+                    show: (row) => row.id != null,
+                    onClick: (row) => runScript(row),
+                },
+                { key: 'detail', label: 'common.detail', type: 'primary', icon: 'tickets', onClick: (row) => editScript(row) },
+            ])
+            .alignCenter(),
     ],
     query: {
         machineId: null as number | null,
@@ -174,7 +181,7 @@ const state = reactive({
 const { columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
 
 const getScripts = async () => {
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const checkScriptType = (query: Record<string, unknown>) => {

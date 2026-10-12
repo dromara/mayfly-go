@@ -23,8 +23,8 @@
                 </DrawerHeader>
             </template>
 
-            <page-table
-                ref="pageTableRef"
+            <data-table
+                ref="dataTableRef"
                 :page-api="dbApi.dbs"
                 v-model:query-form="query"
                 :columns="columns"
@@ -62,38 +62,8 @@
                     <TagCodePath :path="data.tags" show-popover />
                 </template>
 
-                <template #action="{ data }">
-                    <el-button v-auth="perms.saveDb" @click="editDb(data)" type="primary" link>{{ $t('common.edit') }}</el-button>
-
-                    <el-divider direction="vertical" border-style="dashed" />
-
-                    <el-button type="primary" @click="onShowSqlExec(data)" link>{{ $t('db.sqlRecord') }}</el-button>
-
-                    <el-divider direction="vertical" border-style="dashed" />
-
-                    <el-button type="primary" @click="onShowSchemaDiff(data)" link>{{ $t('db.schemaDiff') }}</el-button>
-
-                    <el-divider direction="vertical" border-style="dashed" />
-
-                    <el-dropdown @command="handleMoreActionCommand">
-                        <span class="el-dropdown-link-more">
-                            {{ $t('common.more') }}
-                            <el-icon class="el-icon--right">
-                                <arrow-down />
-                            </el-icon>
-                        </span>
-                        <template #dropdown>
-                            <el-dropdown-menu>
-                                <!-- dump 不按方言门控：服务端 DumpDbScript 走通用 dbi 方言接口，
-                                     全部库类型均可导出，且支持指定目标方言做异构导出 -->
-                                <el-dropdown-item :command="{ type: 'dumpDb', data }">
-                                    {{ $t('db.dump') }}
-                                </el-dropdown-item>
-                            </el-dropdown-menu>
-                        </template>
-                    </el-dropdown>
-                </template>
-            </page-table>
+                <!-- 行内操作由表格统一渲染（见 columns 里的 setActions） -->
+            </data-table>
         </el-drawer>
 
         <el-dialog width="750px" :title="`${exportDialog.db} DB Dump`" v-model="exportDialog.visible">
@@ -176,8 +146,8 @@ import { joinClientParams } from '@/common/request';
 import { sleep } from '@/common/utils/loading';
 import { hasPerms } from '@/components/auth/auth';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
-import { TableColumn } from '@/components/page-table';
-import PageTable from '@/components/page-table/PageTable.vue';
+import { TableColumn } from '@/components/data-table';
+import DataTable from '@/components/data-table/DataTable.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
 import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs, useTemplateRef, type PropType } from 'vue';
 import TagCodePath from '../../component/TagCodePath.vue';
@@ -222,16 +192,6 @@ const emit = defineEmits<{
     cancel: [];
 }>();
 
-const columns = ref([
-    TableColumn.new('name', 'common.name'),
-    TableColumn.new('authCertName', 'db.acName'),
-    TableColumn.new('getDatabaseMode', 'db.getDbMode').typeTag(DbGetDbNamesMode),
-    TableColumn.new('database', 'DB').isSlot().setMinWidth(90),
-    TableColumn.new('remark', 'common.remark'),
-    TableColumn.new('code', 'common.code'),
-    TableColumn.new('action', 'common.operation').isSlot().setMinWidth(210).fixedRight().noShowOverflowTooltip().alignCenter(),
-]);
-
 const perms = {
     base: 'db',
     saveDb: 'db:save',
@@ -240,9 +200,29 @@ const perms = {
     restoreDb: 'db:restore',
 };
 
+const columns = ref([
+    TableColumn.new('name', 'common.name'),
+    TableColumn.new('authCertName', 'db.acName'),
+    TableColumn.new('getDatabaseMode', 'db.getDbMode').typeTag(DbGetDbNamesMode),
+    TableColumn.new('database', 'DB').isSlot().setMinWidth(90),
+    TableColumn.new('remark', 'common.remark'),
+    TableColumn.new('code', 'common.code'),
+    TableColumn.new('action', 'common.operation')
+        .setActions<Db>([
+            { key: 'edit', label: 'common.edit', type: 'primary', perm: perms.saveDb, onClick: (row) => editDb(row) },
+            { key: 'sqlRecord', label: 'db.sqlRecord', type: 'primary', onClick: (row) => onShowSqlExec(row) },
+            { key: 'schemaDiff', label: 'db.schemaDiff', type: 'primary', onClick: (row) => onShowSchemaDiff(row) },
+            // dump 不按方言门控：服务端 DumpDbScript 走通用 dbi 方言接口，全部库类型均可导出，且支持指定目标方言做异构导出
+            { key: 'dump', label: 'db.dump', onClick: (row) => onDumpDbs(row) },
+        ])
+        .fixedRight()
+        .noShowOverflowTooltip()
+        .alignCenter(),
+]);
+
 const actionBtns: Record<string, boolean> = hasPerms(Object.values(perms));
 
-const pageTableRef = useTemplateRef<InstanceType<typeof PageTable>>('pageTableRef');
+const dataTableRef = useTemplateRef<InstanceType<typeof DataTable>>('dataTableRef');
 
 const state = reactive({
     loadingDbNames: false,
@@ -303,7 +283,7 @@ const { query, sqlExecLogDialog, schemaDiffDialog, dbEditDialog, exportDialog } 
 
 const search = async () => {
     state.query.instanceId = props.instance?.id || 0;
-    pageTableRef.value?.search();
+    dataTableRef.value?.search();
 };
 
 const getDbNames = async (db: Db) => {
@@ -368,17 +348,6 @@ const deleteDb = async () => {
         //
     } finally {
         search();
-    }
-};
-
-const handleMoreActionCommand = (commond: { data: unknown; type: string }) => {
-    const data = commond.data;
-    const type = commond.type;
-    switch (type) {
-        case 'dumpDb': {
-            onDumpDbs(data as Db);
-            return;
-        }
     }
 };
 
@@ -450,12 +419,5 @@ const cancel = () => {
     .el-transfer-panel {
         width: 250px;
     }
-}
-.el-dropdown-link-more {
-    cursor: pointer;
-    color: var(--el-color-primary);
-    display: flex;
-    align-items: center;
-    margin-top: 6px;
 }
 </style>
