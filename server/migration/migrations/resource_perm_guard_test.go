@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"mayfly-go/migration/migrations/migtest"
+
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
@@ -77,8 +79,8 @@ func TestAllRoutePermissionCodesAreSeeded(t *testing.T) {
 	// 因此必须显式钉住确实扫到了东西（当前全仓 89 处声明、去重后 60 余个码）
 	require.Greater(t, len(codes), 50, "权限码扫描结果异常偏少，扫描口径可能已失效")
 
-	db := openSqliteMigDB(t)
-	require.NoError(t, newChainMigrator(db, fullChainMigrations()).Migrate())
+	db := migtest.OpenSqlite(t)
+	require.NoError(t, migtest.NewChainMigrator(db, migtest.Concat(All()...)).Migrate())
 
 	seeded := seededResourceCodes(t, db)
 	var missing []string
@@ -97,8 +99,8 @@ func TestAllRoutePermissionCodesAreSeeded(t *testing.T) {
 // 静默跳过，于是「资源行存在」的表象下 code 其实是别人的。这类冲突在库层面不报错
 // （主键各不相同），只能靠集合比对发现
 func TestSeededResourceCodesAreUnique(t *testing.T) {
-	db := openSqliteMigDB(t)
-	require.NoError(t, newChainMigrator(db, fullChainMigrations()).Migrate())
+	db := migtest.OpenSqlite(t)
+	require.NoError(t, migtest.NewChainMigrator(db, migtest.Concat(All()...)).Migrate())
 
 	var seeded []string
 	require.NoError(t, db.Table("t_sys_resource").Where("is_deleted = 0").Pluck("code", &seeded).Error)

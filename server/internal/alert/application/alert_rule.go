@@ -21,7 +21,9 @@ import (
 
 // 规则数值字段的合法区间
 const (
-	minEvalInterval  = 10    // 评估间隔下限(秒)
+	// minEvalInterval 评估间隔下限(秒)。直接绑定调度粒度：填得比调度还密也只会在那一个
+	// 调度点上被评估，接受这种值等于向用户承诺一个系统做不到的频率
+	minEvalInterval  = evalTickSeconds
 	maxEvalInterval  = 86400 // 评估间隔上限(秒)
 	minLimitCount    = 1     // 触发/恢复次数下限
 	maxLimitCount    = 1000  // 触发/恢复次数上限
@@ -77,8 +79,10 @@ func (a *alertRuleAppImpl) SaveAlertRule(ctx context.Context, rule *entity.Alert
 			return err
 		}
 	} else {
-		// 更新：先更新实体，成功后再清理旧关联并重建（避免更新失败时关联已丢失）
-		if err := a.UpdateById(ctx, rule); err != nil {
+		// 更新：先更新实体，成功后再清理旧关联并重建（避免更新失败时关联已丢失）。
+		// 保存语义是整表单覆盖，必须走 UpdateAllColumns：用 UpdateById 会因 GORM 跳过零值字段
+		// 而静默丢掉「P0 优先级、清空备注/标签」这类零值即用户意图的修改
+		if err := a.GetRepo().UpdateAllColumns(ctx, rule); err != nil {
 			return err
 		}
 		// 更新成功后清理旧标签路径关联

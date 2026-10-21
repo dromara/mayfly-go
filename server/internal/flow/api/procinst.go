@@ -106,15 +106,21 @@ func (p *Procinst) ProcinstCancelExec(rc *req.Ctx) {
 }
 
 func (p *Procinst) GetProcinstDetail(rc *req.Ctx) {
-	pi, err := p.procinstApp.GetById(cast.ToUint64(rc.PathParam("id")))
+	instId := cast.ToUint64(rc.PathParam("id"))
+	// 读接口必须与写接口同一归属口径：详情含 bizForm（SQL 全文 / 变更提案）与全部审批意见，
+	// 此前只按自增 id 取数，任意登录账号遍历 id 即可读全量工单
+	biz.ErrIsNil(p.procinstApp.CanViewProcinst(rc.MetaCtx, instId))
+	pi, err := p.procinstApp.GetById(instId)
 	biz.ErrIsNil(err, "procinst not found")
 	pivo := new(vo.ProcinstVO)
 	structx.Copy(pivo, pi)
 
-	// 流程定义信息
-	procdef, _ := p.procdefApp.GetById(pi.ProcdefId)
-	procdef.FlowDef = "" // 流程定义信息不需要返回
-	pivo.Procdef = procdef
+	// 流程定义信息：定义可能已被删除（实例是快照），取不到不影响详情展示，
+	// 旧写法直接解引用 nil 会 panic
+	if procdef, procdefErr := p.procdefApp.GetById(pi.ProcdefId); procdefErr == nil && procdef != nil {
+		procdef.FlowDef = "" // 流程定义信息不需要返回
+		pivo.Procdef = procdef
+	}
 
 	// 流程实例任务信息
 	taskQuery := &entity.ProcinstTaskQuery{ProcinstId: pi.Id}

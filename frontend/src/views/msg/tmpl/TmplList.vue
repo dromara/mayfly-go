@@ -38,7 +38,7 @@
 
         <el-dialog width="500px" :title="$t('msg.sendMsg')" v-model="sendMsgDialog.visible">
             <el-form label-width="auto">
-                <el-form-item prop="params" :label="$t('params')">
+                <el-form-item prop="params" :label="$t('msg.params')">
                     <el-input v-model.trim="sendMsgDialog.params" type="textarea" rows="5" placeholder="JSON" clearable></el-input>
                 </el-form-item>
 

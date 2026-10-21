@@ -123,6 +123,25 @@ export default {
         // FlowBizType
         dbSqlExec: 'DBMS-执行SQL',
         redisRunCmd: 'Redis-执行命令',
+        agentRemediation: 'AI-变更提案',
+        // 提案审批工单的业务信息面板
+        proposalTitle: '提案标题',
+        proposalAction: '提案动作',
+        proposalParams: '锁定参数',
+        proposalRisk: '风险等级',
+        proposalReason: '提案理由',
+        proposalOwner: '提案归属人',
+        procFromRun: '来源运行',
+        approvalNotice: '须知：本工单由 AI 运维运行自动发起；审批通过后系统按锁定参数受控执行并做只读校验，请勿另行手动执行该变更。',
+        // 处理结果（受控执行终态回写）
+        handleResultStatus: '执行状态',
+        handleResRuns: '关联运行',
+        handleResRunExec: '执行 #{id}',
+        handleResRunVerify: '校验 #{id}',
+        handleResErr: '失败原因',
+        handleResExecResult: '执行输出',
+        handleResVerifyConclusion: '校验结论',
+        handleQueuedTip: '已受理：受控执行在后台异步进行，执行完成后将回写真实结果，请稍后刷新查看。',
 
         // task
         approveNode: '审批节点',
@@ -309,6 +328,7 @@ export default {
                 insert: '插入',
                 update: '更新',
                 delete: '删除',
+                merge: '合并',
                 ddl: '改结构',
                 other: '其他',
             },

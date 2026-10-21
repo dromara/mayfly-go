@@ -1,0 +1,76 @@
+{
+  "_comment": [
+    "SQL 读写/语句类型跨语言契约（前后端唯一事实来源）。",
+    "服务端由 internal/db/dbm/classify_contract_test.go 读取（驱动生产方言装配的解析器 + sqlparser.Classify）；",
+    "前端由 views/ops/db/core/__tests__/classifyContract.test.ts 读取（isQueryStatement + 方言能力）。",
+    "stmtType = 后端 sqlparser.Classify 的权威分类（决定执行路由与触发策略）；isQuery = 前端 isQueryStatement 的读/写判定（决定结果 tab 布局与本地执行备注确认）。",
+    "多数情况 isQuery == (stmtType==select)。other 桶是有意差异：show/desc 后端归 other（读通道）、前端归只读；call/do/set/vacuum 后端仍归 other（读通道），前端按 fail-closed 归写入——两侧各自断言，本文件显式记录该分歧而非掩盖它。EXPLAIN ANALYZE <写> 已由后端解析器判为内层写类型（ExplainStmt.Inner），与前端一致。",
+    "可预期结果按真实数据库语义书写，而非任一实现的当前输出；任一侧改动分类规则都必须同步本文件，否则另一侧变红。"
+  ],
+  "cases": [
+    { "name": "select-基础", "dbType": "mysql", "sql": "SELECT id, name FROM users WHERE id > 1", "stmtType": "select", "isQuery": true },
+    { "name": "select-mariadb", "dbType": "mariadb", "sql": "SELECT * FROM t", "stmtType": "select", "isQuery": true },
+    { "name": "select-postgres", "dbType": "postgres", "sql": "SELECT * FROM t", "stmtType": "select", "isQuery": true },
+    { "name": "select-gauss", "dbType": "gauss", "sql": "SELECT 1", "stmtType": "select", "isQuery": true },
+    { "name": "select-kingbase", "dbType": "kingbaseEs", "sql": "SELECT 1", "stmtType": "select", "isQuery": true },
+    { "name": "select-vastbase", "dbType": "vastbase", "sql": "SELECT 1", "stmtType": "select", "isQuery": true },
+    { "name": "select-sqlite", "dbType": "sqlite", "sql": "SELECT * FROM t", "stmtType": "select", "isQuery": true },
+    { "name": "select-clickhouse", "dbType": "clickhouse", "sql": "SELECT id FROM t", "stmtType": "select", "isQuery": true },
+    { "name": "cte-纯读", "dbType": "postgres", "sql": "WITH c AS (SELECT id FROM t) SELECT * FROM c", "stmtType": "select", "isQuery": true },
+    { "name": "show", "dbType": "mysql", "sql": "SHOW TABLES", "stmtType": "select", "isQuery": true },
+    { "name": "describe", "dbType": "mysql", "sql": "DESCRIBE users", "stmtType": "other", "isQuery": true },
+    { "name": "explain-仅计划", "dbType": "mysql", "sql": "EXPLAIN SELECT * FROM t", "stmtType": "other", "isQuery": true },
+
+    { "name": "insert", "dbType": "mariadb", "sql": "INSERT INTO t VALUES (1)", "stmtType": "insert", "isQuery": false },
+    { "name": "update", "dbType": "postgres", "sql": "UPDATE t SET a = 1 WHERE id = 2", "stmtType": "update", "isQuery": false },
+    { "name": "delete", "dbType": "sqlite", "sql": "DELETE FROM t WHERE id = 1", "stmtType": "delete", "isQuery": false },
+    { "name": "create", "dbType": "dm", "sql": "CREATE TABLE t (id INT)", "stmtType": "ddl", "isQuery": false },
+    { "name": "truncate", "dbType": "mysql", "sql": "TRUNCATE TABLE t", "stmtType": "ddl", "isQuery": false },
+    { "name": "replace-归入insert", "dbType": "mysql", "sql": "REPLACE INTO t VALUES (1)", "stmtType": "insert", "isQuery": false },
+
+    { "name": "merge-oracle", "dbType": "oracle", "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = s.a", "stmtType": "merge", "isQuery": false },
+    { "name": "merge-mssql", "dbType": "mssql", "sql": "MERGE INTO t AS tgt USING s ON tgt.id = s.id WHEN MATCHED THEN UPDATE SET tgt.a = s.a;", "stmtType": "merge", "isQuery": false },
+
+    { "name": "cte-主语句delete", "dbType": "postgres", "sql": "WITH c AS (SELECT id FROM t) DELETE FROM u WHERE id IN (SELECT id FROM c)", "stmtType": "delete", "isQuery": false },
+    { "name": "数据修改型cte", "dbType": "postgres", "sql": "WITH c AS (DELETE FROM t RETURNING id) SELECT * FROM c", "stmtType": "delete", "isQuery": false },
+
+    { "name": "select-into-建表", "dbType": "mssql", "sql": "SELECT id INTO bak_users FROM users WHERE id > 1", "stmtType": "insert", "isQuery": false },
+    { "name": "select-into-outfile", "dbType": "mysql", "sql": "SELECT a FROM t INTO OUTFILE '/tmp/x.txt'", "stmtType": "insert", "isQuery": false },
+
+    { "name": "call-后端other前端写", "dbType": "mysql", "sql": "CALL my_proc()", "stmtType": "other", "isQuery": false },
+    { "name": "vacuum-后端other前端写", "dbType": "postgres", "sql": "VACUUM ANALYZE t", "stmtType": "other", "isQuery": false },
+    { "name": "explain-analyze-delete-两侧一致为写", "dbType": "postgres", "sql": "EXPLAIN ANALYZE DELETE FROM t WHERE id = 1", "stmtType": "delete", "isQuery": false },
+
+    { "name": "select-字符串含DELETE", "dbType": "mysql", "sql": "SELECT * FROM t WHERE note = 'please DELETE the row'", "stmtType": "select", "isQuery": true },
+    { "name": "select-字符串含INSERT-INTO", "dbType": "mysql", "sql": "SELECT id FROM t WHERE sql_text = 'INSERT INTO x VALUES (1)'", "stmtType": "select", "isQuery": true },
+    { "name": "select-JSON串含关键词", "dbType": "postgres", "sql": "SELECT * FROM t WHERE meta = '{\"action\":\"delete\",\"table\":\"users\"}'", "stmtType": "select", "isQuery": true },
+    { "name": "select-转义单引号", "dbType": "postgres", "sql": "SELECT * FROM t WHERE name = 'O''Brien'", "stmtType": "select", "isQuery": true },
+    { "name": "select-前导注释含DELETE", "dbType": "mysql", "sql": "-- DELETE FROM users\nSELECT 1", "stmtType": "select", "isQuery": true },
+    { "name": "select-块注释含UPDATE", "dbType": "oracle", "sql": "/* UPDATE t SET x = 1 */ SELECT * FROM dual", "stmtType": "select", "isQuery": true },
+    { "name": "select-CASE内串含insert", "dbType": "sqlite", "sql": "SELECT CASE WHEN act = 'insert' THEN 1 ELSE 0 END FROM t", "stmtType": "select", "isQuery": true },
+    { "name": "insert-值含分号与双引号", "dbType": "mysql", "sql": "INSERT INTO t VALUES ('a;b', \"c\", 'it''s')", "stmtType": "insert", "isQuery": false },
+    { "name": "insert-值含DELETE文本", "dbType": "postgres", "sql": "INSERT INTO logs VALUES ('DELETE FROM users')", "stmtType": "insert", "isQuery": false },
+    { "name": "insert-JSON值含drop", "dbType": "postgres", "sql": "INSERT INTO t (cfg) VALUES ('{\"drop\":\"table x\"}')", "stmtType": "insert", "isQuery": false },
+    { "name": "update-值含DROP文本", "dbType": "mysql", "sql": "UPDATE t SET name = 'DROP TABLE x' WHERE id = 1", "stmtType": "update", "isQuery": false },
+    { "name": "update-JSON值含op-delete", "dbType": "postgres", "sql": "UPDATE t SET payload = '{\"op\":\"delete\"}' WHERE id = 1", "stmtType": "update", "isQuery": false },
+    { "name": "delete-条件串含insert", "dbType": "mysql", "sql": "DELETE FROM t WHERE name = 'insert'", "stmtType": "delete", "isQuery": false },
+    { "name": "cte-体内串含INSERT-INTO且主语句delete", "dbType": "postgres", "sql": "WITH c AS (SELECT 'INSERT INTO x' AS s) DELETE FROM u WHERE id = 1", "stmtType": "delete", "isQuery": false },
+    { "name": "cte-纯读-体内串含delete", "dbType": "postgres", "sql": "WITH c AS (SELECT id FROM t) SELECT * FROM c WHERE x = 'delete from z'", "stmtType": "select", "isQuery": true },
+    { "name": "select-into-带字面量", "dbType": "mssql", "sql": "SELECT 'x' INTO bak FROM t", "stmtType": "insert", "isQuery": false },
+    { "name": "merge-ON条件串含delete", "dbType": "oracle", "sql": "MERGE INTO t USING s ON (t.name = 'delete') WHEN MATCHED THEN UPDATE SET t.a = s.a", "stmtType": "merge", "isQuery": false },
+    { "name": "explain-analyze-update-内层写", "dbType": "postgres", "sql": "EXPLAIN ANALYZE UPDATE t SET x = 'delete'", "stmtType": "update", "isQuery": false },
+    { "name": "explain-analyze-select-后端读前端写", "dbType": "postgres", "sql": "EXPLAIN ANALYZE SELECT * FROM t WHERE x = 'y'", "stmtType": "other", "isQuery": false },
+    { "name": "set-值为DELETE语句文本", "dbType": "mysql", "sql": "SET @sql = 'DELETE FROM t'", "stmtType": "other", "isQuery": false },
+    { "name": "do-dollar-quote体", "dbType": "postgres", "sql": "DO $$ BEGIN NULL; END $$", "stmtType": "other", "isQuery": false },
+
+    { "name": "select-oracle-q串含delete", "dbType": "oracle", "sql": "SELECT q'[delete from t]' AS s FROM dual", "stmtType": "select", "isQuery": true },
+    { "name": "insert-oracle-q串值", "dbType": "oracle", "sql": "INSERT INTO t VALUES (q'[a;b]')", "stmtType": "insert", "isQuery": false },
+    { "name": "select-pg-U&Unicode串", "dbType": "postgres", "sql": "SELECT U&'\\0041BC' AS s", "stmtType": "select", "isQuery": true },
+    { "name": "select-mssql方括号标识符名为delete", "dbType": "mssql", "sql": "SELECT * FROM [delete]", "stmtType": "select", "isQuery": true },
+
+    { "name": "select-oracle-N串含关键词", "dbType": "oracle", "sql": "SELECT N'insert into t' AS s FROM dual", "stmtType": "select", "isQuery": true },
+    { "name": "select-pg-E串含转义引号包住delete", "dbType": "postgres", "sql": "SELECT E'a\\'delete\\'b' AS x", "stmtType": "select", "isQuery": true },
+    { "name": "insert-mysql-N串含JSON-delete", "dbType": "mysql", "sql": "INSERT INTO t VALUES (N'{\"k\":\"delete\"}')", "stmtType": "insert", "isQuery": false },
+    { "name": "select-pg-E串hex转义", "dbType": "postgres", "sql": "SELECT E'\\x41;' AS x", "stmtType": "select", "isQuery": true }
+  ]
+}

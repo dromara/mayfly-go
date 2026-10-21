@@ -137,7 +137,12 @@ func createSQLExecRecord(ctx context.Context, execSQLReq *dto.DbSQLExecReq, sql 
 
 func (d *DbSQLExecAppImpl) Exec(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error) {
 	// 流程定义按请求解析一次，本次的多条语句共用同一份
-	return d.exec(ctx, execSQLReq, d.flowProcdefApp.GetProcdefByCodePath(ctx, execSQLReq.DbConn.Info.CodePath...))
+	procdef, err := d.flowProcdefApp.GetProcdefByCodePath(ctx, execSQLReq.DbConn.Info.CodePath...)
+	if err != nil {
+		// 定位失败即拒绝执行：把「查不到策略」当成「无策略」会让审批门禁整体失效
+		return nil, err
+	}
+	return d.exec(ctx, execSQLReq, procdef)
 }
 
 func (d *DbSQLExecAppImpl) ExecApproved(ctx context.Context, execSQLReq *dto.DbSQLExecReq) ([]*dto.DbSQLExecRes, error) {
@@ -233,6 +238,8 @@ func (d *DbSQLExecAppImpl) exec(ctx context.Context, execSQLReq *dto.DbSQLExecRe
 			execRes, err = d.doDelete(ctx, sqlExec)
 		case sqlstmt.StmtTypeInsert:
 			execRes, err = d.doInsert(ctx, sqlExec)
+		case sqlstmt.StmtTypeMerge:
+			execRes, err = d.doMerge(ctx, sqlExec)
 		case sqlstmt.StmtTypeDDL:
 			// 改结构后的元数据缓存失效由 dbi 执行层按语句类型统一负责（见 DbInfo.invalidateIfDDL）
 			execRes, err = d.doExecDDL(ctx, sqlExec)
@@ -312,6 +319,10 @@ var atomicClasses = map[sqlstmt.StmtType]bool{
 	sqlstmt.StmtTypeDelete: true,
 }
 
+// CanAtomicBatch 报告该语句类型能否进入原子批次事务。Agent 等外部入口在整批执行前
+// 据此决定是否声明 Atomic：判据必须与本文件 Exec 内部同源，另造一份迟早口径漂移
+func CanAtomicBatch(class sqlstmt.StmtType) bool { return atomicClasses[class] }
+
 // checkImportedSQL 判定导入文件里的单条语句能否执行：与交互式执行共用同一个触发策略入口，
 // 提醒不阻断（导入过程里没有能逐条应答确认的人），需审批与禁止执行一律拦下。
 //
@@ -389,7 +400,10 @@ func (d *DbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLRe
 	}()
 
 	// 流程定义按连接粒度解析一次，别在语句循环里逐条查库
-	importProcdef := d.flowProcdefApp.GetProcdefByCodePath(ctx, dbConn.Info.CodePath...)
+	importProcdef, procdefErr := d.flowProcdefApp.GetProcdefByCodePath(ctx, dbConn.Info.CodePath...)
+	if procdefErr != nil {
+		return fmt.Errorf("resolve flow procdef failed: %w", procdefErr)
+	}
 
 	tx, err := dbConn.Begin()
 	if err != nil {
@@ -835,6 +849,17 @@ func (d *DbSQLExecAppImpl) doInsert(ctx context.Context, sqlExecParam *sqlExecPa
 	// 函数/表达式/子查询整体放弃——猜出的定位值会删错行，宁可不生成（生成侧如实说明）
 	execRecord.NewValue = insertSnapshotOf(insertstmt)
 
+	return d.doExec(ctx, sqlExecParam)
+}
+
+// doMerge 执行 MERGE（upsert）：它是写语句，必须过触发策略（与交互执行/ExecSql 同源）。
+// 但 MERGE 结构未建模、无法可靠定位受影响行，故不做旧值快照采集（回滚生成侧对无快照如实降级），
+// 执行走通用写通道 doExec。
+func (d *DbSQLExecAppImpl) doMerge(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
+	if err := d.checkSQLTrigger(ctx, sqlExecParam, "merge"); err != nil {
+		return nil, err
+	}
+	sqlExecParam.SQLExecRecord.Type = entity.DbSQLExecTypeOther
 	return d.doExec(ctx, sqlExecParam)
 }
 

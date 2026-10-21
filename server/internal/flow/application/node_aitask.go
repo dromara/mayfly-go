@@ -2,21 +2,18 @@ package application
 
 import (
 	"context"
-	"fmt"
-	"mayfly-go/internal/ai/agent"
+	"mayfly-go/internal/ai/pkg/headless"
 	"mayfly-go/internal/ai/pkg/utils"
 	"mayfly-go/internal/ai/prompt"
-	"mayfly-go/internal/ai/session"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/imsg"
 	"mayfly-go/internal/flow/infra/persistence"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"time"
-
-	"github.com/cloudwego/eino/schema"
 )
 
 /******************* AI任务节点 *******************/
@@ -72,11 +69,6 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 	flowNode := ctx.GetFlowNode()
 	aitaskNode := ToAiTaskNode(flowNode)
 
-	aiagent, err := agent.GetDefaultAgent(ctx)
-	if err != nil {
-		return err
-	}
-
 	auditRule := aitaskNode.AuditRule
 	sysPrompt, err := prompt.GetPrompt("flow/biz_audit.md", collx.Kvs("rule", auditRule))
 	if err != nil {
@@ -97,20 +89,25 @@ func (u *AiTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 	allowExecute := false
 	suggestion := ""
 
-	cancelCtx, cancelFunc := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancelFunc()
-
-	res, err := aiagent.Run(cancelCtx, collx.AsArray(
-		&session.Message{Role: schema.System, Content: sysPrompt},
-		&session.Message{Role: schema.User, Content: jsonx.ToStr(procinst.BizForm)},
-	))
-	if err != nil {
-		suggestion = fmt.Sprintf("AI agent response failed: %v", err)
+	// 复用泛化无头运行门面（经中立契约包 headless 调用，破除 flow → ai/application 循环依赖）：
+	// 审计档（只读）以工单发起人身份运行，无痕模式（Persist=false，保留既有不留会话行为）；
+	// 消除与 WS 对话并行的双无头路径
+	res, runErr := headless.Run(ctx.parent, &headless.RunReq{
+		ProfileId:      headless.ProfileAuditor,
+		Instruction:    sysPrompt,
+		Input:          jsonx.ToStr(procinst.BizForm),
+		OwnerAccountId: procinst.CreatorId,
+		OwnerUsername:  procinst.Creator,
+		Timeout:        1 * time.Minute,
+		RunKind:        headless.RunKindAudit,
+	})
+	if runErr != nil {
+		suggestion = i18n.T(imsg.ErrAiTaskResponseFailed, "err", runErr)
 		logx.Error(suggestion)
 	} else {
 		resJson, err := utils.ParseLLMJSON2Map(res.Output)
 		if err != nil {
-			suggestion = fmt.Sprintf("AI agent response parsing to JSON failed: %v, response: %s", err, res.Output)
+			suggestion = i18n.T(imsg.ErrAiTaskResponseInvalid, "err", err)
 			logx.Error(suggestion)
 		} else {
 			allowExecute = resJson.GetBool("allowExecute")

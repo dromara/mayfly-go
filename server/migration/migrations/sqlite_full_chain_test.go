@@ -1,150 +1,87 @@
 package migrations
 
 import (
-	"fmt"
 	"os"
-	"strings"
 	"testing"
-	"time"
 
-	aientity "mayfly-go/internal/ai/domain/entity"
-	sysentity "mayfly-go/internal/sys/domain/entity"
-	"mayfly-go/pkg/gormx"
+	"mayfly-go/migration/migrations/migtest"
+	v112 "mayfly-go/migration/migrations/v1_12"
 
-	"github.com/glebarez/sqlite"
-	"github.com/go-gormigrate/gormigrate/v2"
+	agentopsentity "mayfly-go/internal/agentops/domain/entity"
+
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-const itMysqlDSNEnv = "MAYFLY_IT_MIGRATION_MYSQL_DSN"
-
-// openSqliteMigDB 打开迁移链端到端验证用的 SQLite 内存库。
-// NamingStrategy 必须取生产的同一份，否则没写 TableName() 的实体会被解析到另一张表上
-func openSqliteMigDB(t *testing.T) *gorm.DB {
-	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
-		DisableAutomaticPing: true,
-		NamingStrategy:       gormx.MetaNamingStrategy(),
-	})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	// :memory: 每个连接是独立库，锁死单连接避免建表与写入落在不同连接
-	sqlDB.SetMaxOpenConns(1)
-	return db
-}
-
-// fullChainMigrations 从初装到最新版本的全部迁移，顺序与 migration.run 的注册顺序一致
-func fullChainMigrations() []*gormigrate.Migration {
-	return concatMigrations(Init, V1_9, V1_10, V1_11, V1_12)
-}
-
-// concatMigrations 按注册顺序拼接各版本的迁移切片
-func concatMigrations(fs ...func() []*gormigrate.Migration) []*gormigrate.Migration {
-	var ms []*gormigrate.Migration
-	for _, f := range fs {
-		ms = append(ms, f()...)
-	}
-	return ms
-}
-
-// openMysqlTempDB 在真实 MySQL 上开一个进程独占的随机临时库，返回库连接与「删库」收尾函数。
-// adminDSN 不带库名（需要建库权限）
-func openMysqlTempDB(t *testing.T, adminDSN string) (*gorm.DB, func()) {
-	t.Helper()
-	admin, err := gorm.Open(mysql.Open(adminDSN), &gorm.Config{
-		Logger:         logger.Default.LogMode(logger.Silent),
-		NamingStrategy: gormx.MetaNamingStrategy(),
-	})
-	require.NoError(t, err)
-
-	// 库名由本测试生成的纳秒时间戳常量拼接，无外部输入面
-	dbName := fmt.Sprintf("mayfly_mig_it_%d", time.Now().UnixNano())
-	require.NoError(t, admin.Exec("CREATE DATABASE `"+dbName+"` CHARACTER SET utf8mb4").Error)
-
-	dbDSN := strings.Replace(adminDSN, "/?", "/"+dbName+"?", 1)
-	db, err := gorm.Open(mysql.Open(dbDSN), &gorm.Config{
-		Logger:         logger.Default.LogMode(logger.Silent),
-		NamingStrategy: gormx.MetaNamingStrategy(),
-	})
-	require.NoError(t, err)
-
-	return db, func() {
-		require.NoError(t, admin.Exec("DROP DATABASE IF EXISTS `"+dbName+"`").Error)
-	}
-}
-
-func newChainMigrator(db *gorm.DB, ms []*gormigrate.Migration) *gormigrate.Gormigrate {
-	return gormigrate.New(db, &gormigrate.Options{
-		TableName:                 "migrations",
-		IDColumnName:              "id",
-		IDColumnSize:              300,
-		UseTransaction:            true,
-		ValidateUnknownMigrations: false,
-	}, ms)
-}
-
-// 断言迁移链的关键落库事实：迁移全部记账（隐含迁移 ID 无重复）、
-// 迁移直插的行审计字段真实落库、内置技能同步出了插件实例
-func requireChainArtifacts(t *testing.T, db *gorm.DB, totalMigrations int) {
-	t.Helper()
-
-	var migrationCount int64
-	require.NoError(t, db.Table("migrations").Count(&migrationCount).Error)
-	require.Equal(t, int64(totalMigrations), migrationCount,
-		"每个迁移都必须留下记账记录，少一条说明存在重复 ID 或未执行项")
-
-	var granted sysentity.RoleResource
-	require.NoError(t, db.Where("role_id = 1 AND resource_id = 1775967861").First(&granted).Error)
-	require.NotNil(t, granted.CreateTime)
-	require.False(t, granted.CreateTime.IsZero(), "create_time 必须由迁移写入真实时间")
-	require.Equal(t, "admin", granted.Creator)
-
-	for _, s := range builtinSkills {
-		var instance aientity.PluginInstance
-		require.NoError(t, db.Where("code = ?", s.Code).First(&instance).Error, "技能 %s 必须同步出插件实例", s.Code)
-		require.Equal(t, aientity.PluginTypeSkill, instance.PluginType)
-		require.Equal(t, s.Name, instance.Name)
-		require.Equal(t, `{"skillCode":"`+s.Code+`"}`, instance.Config)
-		require.NotNil(t, instance.CreateTime)
-	}
-}
-
-// 完整迁移链（Init→V1_12）必须在全新 SQLite 上一次跑通。
+// 完整迁移链（initdb → 最新版本）必须在全新 SQLite 上一次跑通。
 // 迁移原生 SQL 只能用 MySQL 与 SQLite 的方言交集，任何单方言函数
 // （NOW/CONCAT 等）都会让 SQLite 用户升级到一半 panic 回滚
 func TestFullMigrationChainOnSqlite(t *testing.T) {
-	db := openSqliteMigDB(t)
+	db := migtest.OpenSqlite(t)
 
-	ms := fullChainMigrations()
-	m := newChainMigrator(db, ms)
-	require.NoError(t, m.Migrate())
+	ms := migtest.Concat(All()...)
+	require.NoError(t, migtest.NewChainMigrator(db, ms).Migrate())
 
-	requireChainArtifacts(t, db, len(ms))
+	migtest.RequireChainArtifacts(t, db, len(ms))
+}
+
+// 内置 Runbook 任务模板由 v1.12.2 批次 seed，链级落库事实单独断言：
+// 模板数据是版本包内的私有定义，只有聚合层能同时拿到完整链与它
+func TestBuiltinRunbooksSeededByChain(t *testing.T) {
+	db := migtest.OpenSqlite(t)
+
+	ms := migtest.Concat(All()...)
+	require.NoError(t, migtest.NewChainMigrator(db, ms).Migrate())
+
+	// 默认禁用落库、只读诊断档、admin 为默认负责人、Instruction 经 $skill-code 引用技能
+	for _, rb := range v112.BuiltinRunbookTemplates {
+		var task agentopsentity.AgentTask
+		require.NoError(t, db.Where("key = ?", rb.Key).First(&task).Error, "Runbook 模板 %s 必须落库", rb.Key)
+		require.Equal(t, agentopsentity.AgentTaskStatusDisable, task.Status, "Runbook 模板必须默认禁用")
+		require.Equal(t, rb.ProfileId, task.ProfileId)
+		require.Equal(t, uint64(1), task.OwnerAccountId, "默认负责人为 admin")
+		require.Contains(t, task.Instruction, "$", "Instruction 须经 $skill-code 引用技能")
+		require.NotNil(t, task.CreateTime)
+		require.False(t, task.CreateTime.IsZero(), "create_time 必须由迁移写入真实时间")
+	}
+}
+
+// TestRerunReseedsSoftDeletedResource 预置「用户删过内置菜单」的存量形态后重放迁移：
+// 必须复活而不是撞主键 1062。
+//
+// 这条路径在全新库上跑不出来（没有软删行），只会在老库上把迁移链卡死；
+// 而 t_sys_resource 的主键唯一性不含 is_deleted，所以「按未删除判存在」的守卫会走 INSERT 分支
+func TestRerunReseedsSoftDeletedResource(t *testing.T) {
+	db := migtest.OpenSqlite(t)
+
+	ms := migtest.Concat(All()...)
+	require.NoError(t, migtest.NewChainMigrator(db, ms).Migrate())
+
+	// 用户在界面上删掉一个由 v1.12.2 内置的按钮权限（软删，主键仍占位）
+	const code = "agentops:run:queryAll"
+	require.NoError(t, db.Exec("UPDATE t_sys_resource SET is_deleted = 1 WHERE code = ?", code).Error)
+
+	// 重放 v1.12 全版本条目（模拟迁移失败重试）：守卫若只看未删除行，这里会 INSERT 撞主键
+	for _, migration := range v112.Migrations() {
+		require.NoError(t, migration.Migrate(db), "migration %s 在存在软删资源行时必须幂等而非撞主键", migration.ID)
+	}
+
+	var stillDeleted int64
+	require.NoError(t, db.Table("t_sys_resource").Where("code = ? AND is_deleted = 1", code).Count(&stillDeleted).Error)
+	require.Zero(t, stillDeleted, "软删的内置资源必须被复活，否则升级后该按钮对所有人永久不可见")
 }
 
 // 迁移失败重试场景：失败迁移未记账，修复后函数体会再次执行，
 // 因此每条迁移的函数体必须自身幂等（查重后跳过），直接重跑不能报错。
-// Init/V1_9/V1_10/V1_11 的 seed 依赖记账防重跑，不在直调范围内
+// initdb/v1_9/v1_10/v1_11 的 seed 依赖记账防重跑，不在直调范围内
 func TestV1_12MigrationsAreRerunnable(t *testing.T) {
-	db := openSqliteMigDB(t)
+	db := migtest.OpenSqlite(t)
 
-	ms := fullChainMigrations()
-	m := newChainMigrator(db, ms)
-	require.NoError(t, m.Migrate())
+	ms := migtest.Concat(All()...)
+	require.NoError(t, migtest.NewChainMigrator(db, ms).Migrate())
 
-	for _, migration := range V1_12() {
+	// v112.Migrations() 已含同目录 v1_12_2.go 的 v1.12.2 批次，按发布顺序直调重跑
+	for _, migration := range v112.Migrations() {
 		require.NoError(t, migration.Migrate(db), "migration %s 重复执行必须幂等", migration.ID)
-	}
-
-	// 重跑后存量技能不得被重复同步成实例
-	for _, s := range builtinSkills {
-		var count int64
-		require.NoError(t, db.Model(&aientity.PluginInstance{}).Where("code = ?", s.Code).Count(&count).Error)
-		require.Equal(t, int64(1), count, "技能 %s 的插件实例必须只有一条", s.Code)
 	}
 }
 
@@ -156,21 +93,21 @@ func TestV1_12MigrationsAreRerunnable(t *testing.T) {
 //
 // DSN 不带库名；测试在进程独占的随机临时库里跑，结束即删库
 func TestFullMigrationChainOnMysql(t *testing.T) {
-	adminDSN := os.Getenv(itMysqlDSNEnv)
+	adminDSN := os.Getenv(migtest.ItMysqlDSNEnv)
 	if adminDSN == "" {
-		t.Skipf("set %s to run the full migration chain against a real mysql", itMysqlDSNEnv)
+		t.Skipf("set %s to run the full migration chain against a real mysql", migtest.ItMysqlDSNEnv)
 	}
 
-	db, drop := openMysqlTempDB(t, adminDSN)
+	db, drop := migtest.OpenMysqlTempDB(t, adminDSN)
 	defer drop()
 
-	ms := fullChainMigrations()
-	m := newChainMigrator(db, ms)
+	ms := migtest.Concat(All()...)
+	m := migtest.NewChainMigrator(db, ms)
 	require.NoError(t, m.Migrate())
 
-	requireChainArtifacts(t, db, len(ms))
+	migtest.RequireChainArtifacts(t, db, len(ms))
 
-	for _, migration := range V1_12() {
+	for _, migration := range v112.Migrations() {
 		require.NoError(t, migration.Migrate(db), "migration %s 重复执行必须幂等", migration.ID)
 	}
 

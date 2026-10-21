@@ -7,6 +7,7 @@ import (
 
 	"mayfly-go/internal/ai/api/form"
 	"mayfly-go/internal/ai/application"
+	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/req"
@@ -135,7 +136,7 @@ func (a *AiPlugin) ImportSkillZip(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 	// 先用声明大小预检，避免无界读入内存（声明可伪造，ImportZip 内还有二次校验兑底）
 	if fileHeader.Size > maxSkillZipBytes {
-		biz.ErrIsNil(errorx.NewBiz("zip file too large"))
+		biz.ErrIsNil(errorx.NewBizI(rc.MetaCtx, imsg.ErrSkillZipTooLarge))
 	}
 	file, err := fileHeader.Open()
 	biz.ErrIsNil(err)

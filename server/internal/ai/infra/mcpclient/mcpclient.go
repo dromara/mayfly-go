@@ -57,6 +57,9 @@ type ToolInfo struct {
 	Description string `json:"description"`
 	// InputSchema 参数 JSON Schema
 	InputSchema json.RawMessage `json:"inputSchema"`
+	// ReadOnly 服务器自报该工具为只读（MCP annotations.readOnlyHint=true）。
+	// 它是「外部工具能否进入只读诊断档」的唯一事实来源：没带注解即按写能力处理（fail-closed）
+	ReadOnly bool `json:"readOnly"`
 }
 
 // ListTools 列出服务器全部工具（按 NextCursor 自动翻页，兼容分页型服务器）
@@ -76,10 +79,13 @@ func (c *Client) ListTools(ctx context.Context) ([]ToolInfo, error) {
 					continue
 				}
 			}
+			// readOnlyHint 是指针：未上报（nil）不等于 false，必须当作「能力未知」处理（上层保守归为写）
+			readOnly := t.Annotations.ReadOnlyHint != nil && *t.Annotations.ReadOnlyHint
 			tools = append(tools, ToolInfo{
 				Name:        t.Name,
 				Description: t.Description,
 				InputSchema: schema,
+				ReadOnly:    readOnly,
 			})
 		}
 		if result.NextCursor == "" {

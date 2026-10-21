@@ -40,10 +40,8 @@ export interface TriggerMenuItem {
     label: string;
     description?: string;
     icon?: string;
-    /** 菜单项种类（决定默认图标与选中后插入的芯片类型） */
-    kind?: 'skill' | 'resource';
-    /** 资源类型（kind=resource 时用于分组渲染：machine / db） */
-    resourceType?: string;
+    /** 菜单项种类（决定选中后插入的芯片类型；开放为字符串，新增触发器无需改本契约） */
+    kind?: string;
     data?: Record<string, unknown>;
 }
 
@@ -65,14 +63,18 @@ export interface TriggerSelection {
  *
  * 两种呈现模式二选一：
  * - 列表模式：buildItems + onSelect，由通用 TriggerMenu 呈现；
- * - 面板模式：panelComponent（如资源树面板），列表项概念不存在。
+ * - 面板模式：panelComponent + onPanelSelect，由 TriggerOverlays 动态渲染该组件。
+ *
+ * 面板模式也要求把「选中载荷 → 芯片」的转换交给注册表：否则新增一个面板触发类型
+ * 就得改 TriggerOverlays 模板与处理器（此前就是这样：panelComponent 只被当布尔用，
+ * 选回调硬写成了 resource 专属的 selectResource）。
  */
 export interface TriggerDef {
-    /** 触发器种类标识（决定插入的 ChipNode type） */
-    kind: 'skill' | 'resource';
+    /** 触发器种类标识（决定插入的 ChipNode type；开放字符串以支持新增触发器） */
+    kind: string;
     /** 触发字符（含全角变体，如中文输入法下的 ＠ ／） */
     chars: string[];
-    /** hint 栏 i18n key（ChatInput 底部动态渲染快捷键提示） */
+    /** hint 栏 i18n key（输入框底部动态渲染快捷键提示） */
     hintI18nKey: string;
     /** 列表模式：按查询词构建菜单项 */
     buildItems?: (query: string, ctx: TriggerContext) => TriggerMenuItem[];
@@ -80,6 +82,8 @@ export interface TriggerDef {
     panelComponent?: Component;
     /** 列表项选中 → 插入的芯片（缺省按 item.kind/data 推导） */
     onSelect?: (item: TriggerMenuItem) => TriggerSelection;
+    /** 面板模式选中 → 插入的芯片（与 panelComponent 配对，缺省即视为该面板不支持选中） */
+    onPanelSelect?: (payload: TriggerPanelSelectPayload) => TriggerSelection;
 }
 
 /**

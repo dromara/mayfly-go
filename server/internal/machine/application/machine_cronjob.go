@@ -93,6 +93,15 @@ func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *d
 	if mcj.NotifyType != entity.CronJobNotifyNone && mcj.NotifyTmplCode == "" {
 		return errorx.NewBizI(ctx, imsg.ErrCronJobNotifyTmplRequired)
 	}
+	// 模板存在也还不够：已停用或未关联任何渠道同样发不出去，而 sendNotify 只把失败写成一条
+	// 服务端日志——界面上早已「操作成功」，配错的人看不到任何信号。与 agentops 的任务/触发器
+	// 保存校验同一取向：能在保存期拦住的配置错误，不留到执行期只写日志
+	//（msgTmplApp 单测未注入时为 nil，跳过可发性校验）
+	if mcj.NotifyType != entity.CronJobNotifyNone && mcj.NotifyTmplCode != "" && m.msgTmplApp != nil {
+		if err := m.msgTmplApp.CheckSendable(ctx, mcj.NotifyTmplCode); err != nil {
+			return err
+		}
+	}
 
 	// 赋值cron job key
 	if mcj.Id == 0 {

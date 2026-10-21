@@ -12,7 +12,7 @@
             <div
                 v-for="(item, index) in queue"
                 :key="item.id"
-                class="pending-queue__item group/queue-item"
+                class="pending-queue__item"
                 :class="{ 'is-dragging': draggingIndex === index, 'is-drag-over': dragOverIndex === index }"
                 draggable="true"
                 @dragstart="onDragStart(index, $event)"
@@ -26,7 +26,7 @@
                 <!-- 序号徽章 -->
                 <span class="pending-queue__index">{{ index + 1 }}</span>
                 <!-- 消息预览（纯附件无文本时回退为附件名列表） -->
-                <span class="pending-queue__content">{{ item.data.text || item.data.attachments?.map((a) => a.name).join(', ') }}</span>
+                <span class="pending-queue__content">{{ previewOf(item) }}</span>
                 <!-- 操作按钮 -->
                 <button type="button" class="pending-queue__action" :title="t('ai.chat.editQueuedMessage')" @click="$emit('edit', item)">
                     <PencilIcon />
@@ -55,6 +55,7 @@ import { GripVerticalIcon, PencilIcon, XIcon } from '@lucide/vue';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { QueuedMessage } from '../stores/chatStore';
+import { segmentsToText } from '../input/chipRegistry';
 
 defineProps<{
     queue: QueuedMessage[];
@@ -67,6 +68,17 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+/**
+ * 队列项预览文本：优先按段序列展开（芯片保留 `@标签` 形态），其次原文本，最后才是附件名。
+ *
+ * 不能只取 data.text：那样队列里看到的预览会把引用退成裸标签，
+ * 与消息气泡/重放后的正文不一致（段→文本的真源在 chipRegistry.segmentsToText）
+ */
+const previewOf = (item: QueuedMessage): string => {
+    const fromSegments = segmentsToText(item.data.segments);
+    return fromSegments.trim() || item.data.text || (item.data.attachments ?? []).map((a) => a.name).join(', ');
+};
 
 const draggingIndex = ref(-1);
 const dragOverIndex = ref(-1);
@@ -83,7 +95,7 @@ const onDragEnd = () => {
 };
 
 const onDrop = (toIndex: number) => {
-    const fromIndex = Number(draggingIndex.value);
+    const fromIndex = draggingIndex.value;
     draggingIndex.value = -1;
     dragOverIndex.value = -1;
     if (!Number.isNaN(fromIndex) && fromIndex !== toIndex) {

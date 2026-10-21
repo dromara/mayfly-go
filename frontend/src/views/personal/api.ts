@@ -1,10 +1,20 @@
 import Api from '@/common/Api';
 import type { Msg, PageResult } from '@/types/common';
-import type { SysRole } from '../system/types';
+
+/** 账号角色信息 (对应 vo.AccountRoleVO：后端字段为 roleName，不是角色实体里的 name) */
+export interface AccountRoleVO {
+    roleId: number;
+    roleName: string;
+    code: string;
+    status: number;
+    /** 分配时间 */
+    createTime?: string;
+    creator?: string;
+}
 
 /** 个人账号信息 (对应 vo.AccountPersonVO) */
 export interface AccountPersonVO {
-    roles: SysRole[];
+    roles: AccountRoleVO[];
 }
 
 /** OAuth2 绑定状态 (对应 vo.Oauth2Status) */

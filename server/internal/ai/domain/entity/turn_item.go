@@ -10,6 +10,12 @@ const (
 	ItemTypeReasoning  = "reasoning"          // 推理内容
 	ItemTypeToolCall   = "tool_call"          // 工具调用
 	ItemTypeCompaction = "context_compaction" // 上下文压缩（自动摘要落库的事件项）
+	// ItemTypeTurnNotice 轮次级终止提示（目前只有「用户显式停止生成」）。
+	//
+	// 为什么必须落库而不是只在前端画：这条提示标的是「本轮被人为截断」。只活在客户端内存里时，
+	// 刷新/重进会话后那一轮只剩一段在句子中途断开的回答，与模型正常答完完全同形——
+	// 运维会把「被人停了」当成「就说到这里」
+	ItemTypeTurnNotice = "turn_notice"
 )
 
 // TurnItem 落库状态常量（值域与 protocol.TurnItemStatus 一致，另含流式进行中态 active；
@@ -42,12 +48,20 @@ type TurnItem struct {
 
 	ConversationId uint64 `gorm:"column:conversation_id;not null;comment:会话ID" json:"conversationId"`
 	TurnId         string `gorm:"column:turn_id;size:64;not null;comment:Turn ID" json:"turnId"`
-	ItemType       string `gorm:"column:item_type;size:50;not null;comment:message|reasoning|tool_call|context_compaction" json:"itemType"`
+	ItemType       string `gorm:"column:item_type;size:50;not null;comment:message|reasoning|tool_call|context_compaction|turn_notice" json:"itemType"`
 	ItemId         string `gorm:"column:item_id;size:64;not null;default:'';comment:TurnItem 业务 ID（UUID）" json:"itemId"`
 	Payload        string `gorm:"column:payload;type:mediumtext;comment:TurnItem JSON 快照" json:"payload"`
 	Status         string `gorm:"column:status;size:50;not null;default:pending;comment:pending|success|failed|cancelled|interrupted" json:"status"`
 	ToolCallId     string `gorm:"column:tool_call_id;size:64;comment:ToolCall item 冗余（工具调用/中断决策定位）" json:"toolCallId"`
 }
+
+// 轮次终止提示的种类（TurnItem.ItemType=turn_notice 时生效）。
+//
+// 入库的是种类而不是文案：文案得按读取方当时的语言现渲，落死句子会把写入那一刻的语言
+// 固化进历史（中文界面停的一轮，英文界面回看仍是中文），也与本仓「模型/事实进库、文案归 i18n」口径一致
+const (
+	TurnNoticeKindStopped = "stopped" // 用户显式停止本轮生成
+)
 
 func (t *TurnItem) TableName() string {
 	return "t_ai_turn_item"

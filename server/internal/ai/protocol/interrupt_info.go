@@ -14,6 +14,10 @@ import (
 // 的强类型结构，写入侧（挂起时构建落库）与读取侧（resume 回写决策、前端
 // 历史还原）共用同一形状；WS 事件层仍由 InterruptEvent 承载。
 
+// ExtraKeyInterrupt tool_call item 的 extra 列承载中断信息的键（唯一真源）。
+// 写入侧（turn_recorder 挂起、session_store/turn_item resume 回写）与读取侧（interruptInfoOf）共用
+const ExtraKeyInterrupt = "interrupt"
+
 // InterruptInfo tool_call item extra["interrupt"] 的强类型结构。
 // 写入侧（挂起时 NewInterruptInfo 构建后序列化落库）与读取侧（resume 写决策、
 // 前端历史还原）共用同一形状，消除手写 JSON key 的拼写风险
@@ -70,15 +74,30 @@ func InterruptMsgType(kind string) string {
 	return "interrupt_" + kind
 }
 
+// 恢复动作与 resume 决策类型：跨前后端线协议的取值，唯一真源。
+//
+// 为什么必须常量化：同一组值曾在三处手写——ResumeTypeOfAction 的映射、审批恢复的 switch、
+// 参数补全的 paramActionComplete。新增一种决策时改一处不会报错，漏两处就静默走默认分支
+// （审批变成「无效动作」、补全不被识别为已完成）
+const (
+	ActionApprove  = "approve"
+	ActionReject   = "reject"
+	ActionComplete = "complete"
+
+	ResumeTypeApproved        = "approved"
+	ResumeTypeRejected        = "rejected"
+	ResumeTypeParamsCompleted = "params_completed"
+)
+
 // ResumeTypeOfAction 恢复动作转 resume 决策类型（approve → approved，snake_case）
 func ResumeTypeOfAction(action string) string {
 	switch action {
-	case "approve":
-		return "approved"
-	case "reject":
-		return "rejected"
-	case "complete":
-		return "params_completed"
+	case ActionApprove:
+		return ResumeTypeApproved
+	case ActionReject:
+		return ResumeTypeRejected
+	case ActionComplete:
+		return ResumeTypeParamsCompleted
 	default:
 		return action
 	}
@@ -87,12 +106,12 @@ func ResumeTypeOfAction(action string) string {
 // ResumeActionOfType resume 决策类型转恢复动作（approved → approve）
 func ResumeActionOfType(resumeType string) string {
 	switch resumeType {
-	case "approved":
-		return "approve"
-	case "rejected":
-		return "reject"
-	case "params_completed":
-		return "complete"
+	case ResumeTypeApproved:
+		return ActionApprove
+	case ResumeTypeRejected:
+		return ActionReject
+	case ResumeTypeParamsCompleted:
+		return ActionComplete
 	default:
 		return resumeType
 	}

@@ -83,6 +83,14 @@ export function isInterruptResolvedStatus(status: string): boolean {
 export const TurnStatus = {
     Success: 'success',
     Stopped: 'stopped',
+    /**
+     * 用户主动终止（取消参数补全 / 拒绝审批）导致的收尾。
+     *
+     * 必须与 Stopped 分开：Stopped 是「整轮生成被打断」，Cancelled 是「这一轮里某个动作被人否掉」，
+     * 二者运维含义不同；且收尾文案由服务端落的 i18n 气泡承担，前端只对 Stopped 写「已停止生成」，
+     * 两者混用会让用户只是拒了一条命令却看到「已停止生成」
+     */
+    Cancelled: 'cancelled',
     Failed: 'failed',
 } as const;
 
@@ -126,14 +134,36 @@ export function interpretActionStatus(action: string): string {
  * 前端统一经 normalizeResumeStatus 归一后驱动 UI 状态机。
  * 多数 type 与 status 同值（直接透传），仅语义不等价的需要显式映射。
  *
+ * 当前后端所有 resume type 都与对应 status 同值，所以表为空——它是扩展点而不是占位：
+ * normalizeResumeStatus 的行为就是「未登记则同值透传」，空表下所有值都走透传分支。
+ *
  * 新增后端 resume 变体时：
  * 1. 若 type === status（同值）→ 无需修改，自动透传
  * 2. 若语义不等价 → 在此追加一行，全链路（历史还原/实时决策）自动对齐
  */
 export const RESUME_TYPE_TO_STATUS: Readonly<Record<string, string>> = {};
 
-/** 将持久化 resume.type 归一化为 UI 恢复状态（未映射类型同值透传，未知值回退 Resolved） */
+/** 将持久化 resume.type 归一化为 UI 恢复状态：空值视为待决策，未登记类型同值透传 */
 export function normalizeResumeStatus(resumeType: string): string {
     if (!resumeType) return InterruptResumeStatus.Pending;
     return RESUME_TYPE_TO_STATUS[resumeType] ?? resumeType;
 }
+
+/**
+ * 决议徽章配置（i18n key + 语义色淡底）：工具行与中断卡片共用同一份。
+ *
+ * 此前配置只在 ToolCallPart 内部，三个中断组件另写一套「待处理 / 已处理」两态粗粒度
+ * 徽章，同一个 status 在两处呈现粒度不同（第二真源）；而它们又拿 readonly 当「已决策」，
+ * 导致轨迹里一条从未被批准的审批显示成「已处理」。
+ */
+export const RESUME_STATUS_BADGES: Readonly<Record<string, { class: string; labelKey: string }>> = {
+    [InterruptResumeStatus.Approved]: { class: 'bg-success/10 text-success border-success/20', labelKey: 'ai.chat.resumeStatus.approved' },
+    [InterruptResumeStatus.Resolved]: { class: 'bg-success/10 text-success border-success/20', labelKey: 'ai.chat.resumeStatus.approved' },
+    [InterruptResumeStatus.ParamsCompleted]: { class: 'bg-success/10 text-success border-success/20', labelKey: 'ai.chat.resumeStatus.paramsCompleted' },
+    [InterruptResumeStatus.Answered]: { class: 'bg-success/10 text-success border-success/20', labelKey: 'ai.chat.resumeStatus.answered' },
+    [InterruptResumeStatus.Rejected]: { class: 'bg-destructive/10 text-destructive border-destructive/20', labelKey: 'ai.chat.resumeStatus.rejected' },
+    [InterruptResumeStatus.Skipped]: { class: 'bg-muted text-muted-foreground border-border', labelKey: 'ai.chat.resumeStatus.skipped' },
+};
+
+/** 未登记状态的兜底徽章（与历史实现一致，不抛错也不显示空白） */
+export const FALLBACK_RESUME_BADGE = { class: 'bg-muted text-muted-foreground border-border', labelKey: 'ai.chat.resumeStatus.cancelled' };

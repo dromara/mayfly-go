@@ -6,7 +6,7 @@
                     <SvgIcon name="icon es/es-color" />
                 </template>
                 <template #default>
-                    <el-descriptions :column="1" size="small">
+                    <el-descriptions :column="1" size="small" label-width="90">
                         <el-descriptions-item :label="$t('common.name')">
                             {{ data.params.name }}
                         </el-descriptions-item>

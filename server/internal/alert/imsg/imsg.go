@@ -106,6 +106,10 @@ const (
 	TmplAlertRecoverTitle
 	TmplAlertNotifyBody
 	TmplAlertRecoverBody
+	// TmplStageAlertNotify / TmplStageEscalation 通知阶段：升级链路必须与首报/重复告警在正文里
+	// 可直接区分（两者共用同一份模板与同一集参数，不加阶段字段则正文逐字相同，见下）
+	TmplStageAlertNotify
+	TmplStageEscalation
 
 	// ---- 数据库实例指标名称 ----
 	MetricDbPingFail

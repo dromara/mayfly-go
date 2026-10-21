@@ -53,7 +53,11 @@ func (p *procinstTaskAppImpl) Init() {
 			return err
 		}
 
-		return p.procinstTaskCandidateRepo.DeleteByCond(ctx, &entity.ProcinstTaskCandidate{ProcinstId: procinstId})
+		// 只清「审批中」的候选人行：已完成节点的 handler/remark/end_time 只存在于候选人行，
+		// 全量删除会把前几个节点「谁批的、批了什么」一起抹掉（Reject/Back 两条路径都带了这个条件）
+		return p.procinstTaskCandidateRepo.DeleteByCond(ctx, &entity.ProcinstTaskCandidate{
+			ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess,
+		})
 	})
 
 }
@@ -95,7 +99,7 @@ func (p *procinstTaskAppImpl) RejectTask(ctx context.Context, taskOp dto.UserTas
 			taskCandidate.Handler = &taskOp.Handler
 			// 同 CompleteTask：拒绝意见也属于本次操作的候选人，不能只留在任务级共享字段上
 			taskCandidate.Remark = taskOp.Remark
-			if err := p.procinstTaskCandidateRepo.UpdateById(ctx, taskCandidate); err != nil {
+			if err := p.completeTaskCandidate(ctx, taskCandidate); err != nil {
 				return err
 			}
 		}
@@ -148,7 +152,7 @@ func (p *procinstTaskAppImpl) BackTask(ctx context.Context, taskOp dto.UserTaskO
 			taskCandidate.Handler = &taskOp.Handler
 			// 同 CompleteTask：退回意见属于本次操作的候选人
 			taskCandidate.Remark = taskOp.Remark
-			if err := p.procinstTaskCandidateRepo.UpdateById(ctx, taskCandidate); err != nil {
+			if err := p.completeTaskCandidate(ctx, taskCandidate); err != nil {
 				return err
 			}
 		}
@@ -193,7 +197,7 @@ func (p *procinstTaskAppImpl) CompleteTask(ctx context.Context, taskOp dto.UserT
 			// 审批意见落在自己的候选人行上：任务级 remark 是整节点共享的，
 			// 会签时后一个审批人会把前一个人的意见覆盖掉
 			taskCandidate.Remark = taskOp.Remark
-			if err := p.procinstTaskCandidateRepo.UpdateById(ctx, taskCandidate); err != nil {
+			if err := p.completeTaskCandidate(ctx, taskCandidate); err != nil {
 				return err
 			}
 		}
@@ -205,8 +209,15 @@ func (p *procinstTaskAppImpl) CompleteTask(ctx context.Context, taskOp dto.UserT
 		// 于是把「审批结果=通过」配成完成条件会永远判不出来 —— 节点静默卡在待审批，不报错也不提示
 		// （下面 OpExtra 那份供连线条件与操作留痕使用，两者用途不同）
 		vars.Set(flowFieldApprovalResult, ApprovalResultCompleted)
-		// map[string]any整数会被解析为float64，故统一转为float64
-		nrOfCompleted := cast.ToFloat64(vars.GetInt(NrOfCompleted) + len(taskCandidates))
+		// 已完成票数从库里派生，而不是「读变量 + len(本次匹配到的候选人)」：
+		// 那是读-改-写，4 人会签并发各写 1 票最终只会落库 1，而剩余候选人行已全部终态、
+		// 进程行也已删除 —— 节点再也无人可点，只能改库。
+		// 计数单位与 NrOfAll 一致（候选人**行**数，见 node_usertask.go），M4 的账号级去重仍未做
+		completedCount, countErr := p.countCompletedCandidates(ctx, taskId)
+		if countErr != nil {
+			return countErr
+		}
+		nrOfCompleted := cast.ToFloat64(completedCount)
 		vars.Set(NrOfCompleted, nrOfCompleted)
 		// 会签计数随执行流带走：后续连线条件也要能按「几人已通过」分流，
 		// 这些计数原本只存在于任务变量里，不带过去就只能读到审批结果一个事实
@@ -247,7 +258,7 @@ func (p *procinstTaskAppImpl) CompleteTask(ctx context.Context, taskOp dto.UserT
 func (p *procinstTaskAppImpl) getAndValidInstTask(ctx context.Context, instTaskId uint64, candidates []string) (*entity.ProcinstTask, []*entity.ProcinstTaskCandidate, *entity.Procinst, *entity.Execution, error) {
 	instTask, err := p.GetById(instTaskId)
 	if err != nil {
-		return nil, nil, nil, nil, errorx.NewBiz("procinst task not found")
+		return nil, nil, nil, nil, errorx.NewBizI(ctx, imsg.ErrProcinstTaskNotExist)
 	}
 
 	taskCandidates, err := p.procinstTaskCandidateRepo.SelectByCond(model.NewCond().
@@ -258,7 +269,7 @@ func (p *procinstTaskAppImpl) getAndValidInstTask(ctx context.Context, instTaskI
 		return nil, nil, nil, nil, err
 	}
 	if len(taskCandidates) == 0 {
-		return nil, nil, nil, nil, errorx.NewBiz("the current candidates is not a task handler and cannot complete the task")
+		return nil, nil, nil, nil, errorx.NewBizI(ctx, imsg.ErrNotTaskHandler)
 	}
 
 	procinst, err := p.procinstApp.GetById(instTask.ProcinstId)
@@ -271,10 +282,44 @@ func (p *procinstTaskAppImpl) getAndValidInstTask(ctx context.Context, instTaskI
 		return nil, nil, nil, nil, err
 	}
 	if execution.NodeKey != instTask.NodeKey {
-		return nil, nil, nil, nil, errorx.NewBiz("the current process instance node does not match and cannot process the task")
+		return nil, nil, nil, nil, errorx.NewBizI(ctx, imsg.ErrTaskNodeMismatch)
 	}
 
 	return instTask, taskCandidates, procinst, execution, nil
+}
+
+// completeTaskCandidate 把本次操作的候选人行按 CAS 落终态。
+//
+// 条件带 status=Process 并按行数判赢：UpdateById 只按 id 更新、不回报行数，
+// 双击或并发请求会都写成功，把会签票数 +2（也会让候选人行上的意见互相覆盖）。
+// 失败视为「已被处理」——与 completeInstTask 的判赢口径一致
+func (p *procinstTaskAppImpl) completeTaskCandidate(ctx context.Context, candidate *entity.ProcinstTaskCandidate) error {
+	rows, err := p.procinstTaskCandidateRepo.UpdateColsByCond(ctx, base.NewPatch().
+		Set("status", candidate.Status).
+		Set("handler", candidate.Handler).
+		Set("remark", candidate.Remark).
+		Set("end_time", candidate.EndTime).
+		Set("duration", candidate.Duration),
+		model.NewCond().Eq(model.IdColumn, candidate.Id).
+			EqStrict("status", entity.ProcinstTaskStatusProcess))
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return errorx.NewBizI(ctx, imsg.ErrProcinstTaskAlreadyHandled)
+	}
+	return nil
+}
+
+// countCompletedCandidates 已完成候选人**行**数（与 NrOfAll 同口径）。
+// 事务内查询能看见本事务刚写的行，派生结果是本轮准确票数，不依赖内存自增
+func (p *procinstTaskAppImpl) countCompletedCandidates(ctx context.Context, taskId uint64) (int, error) {
+	rows, err := p.procinstTaskCandidateRepo.SelectByCond(
+		&entity.ProcinstTaskCandidate{TaskId: taskId, Status: entity.ProcinstTaskStatusCompleted}, "id")
+	if err != nil {
+		return 0, err
+	}
+	return len(rows), nil
 }
 
 // completeInstTask 把审批任务从「审批中」原子地推到终态（通过 / 拒绝 / 退回）。

@@ -133,7 +133,7 @@ func AppendResumeInfo(ctx context.Context, interruptId string, resumeInfo any) *
 	}
 	msg := msgs[0]
 
-	msg.Extra.Set("resumeInfo", resumeInfo)
+	msg.Extra.Set(session.ExtraKeyResumeInfo, resumeInfo)
 	if err := session.DefaultSessionStore.UpdateMessage(ctx, msg); err != nil {
 		logx.ErrorfContext(ctx, "update interrupt message resumeInfo failed: %v", err)
 		return nil

@@ -8,10 +8,12 @@
             :has-more="hasMore"
             :conv-id="convId"
             :skills="skills"
+            :draft="draft"
             @send="onSend"
             @load-more="onLoadMore"
             @cancel="onStop"
             @interrupt-action="onInterruptAction"
+            @draft-applied="$emit('draft-applied')"
         />
     </div>
 </template>
@@ -28,10 +30,13 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Msg } from '@/hooks/useI18n';
 import { useChatStore } from '../stores/chatStore';
 import { useChatStream } from '../stream/useChatStream';
 import { useChatCallbacks } from '../stream/useChatCallbacks';
 import { useChatMessages } from '../hooks/useChatMessages';
+import { useConvSlice } from '../hooks/useConvSlice';
+import { usePromptSkills } from '../input/usePromptSkills';
 import { useChatResume } from '../stream/useChatResume';
 import type { Conversation, ResumeEntry } from '../protocol/types';
 import type { ChatInputSubmitData, SkillItem } from '../input/types';
@@ -42,10 +47,13 @@ import ChatPanel from './ChatPanel.vue';
 
 const props = defineProps<{
     conversation: Conversation;
+    /** 追问草稿：原样交给 ChatPanel 预填（本层不消费、不解释它） */
+    draft?: string;
 }>();
 
 const emit = defineEmits<{
     (e: 'conversation-created', id: number): void;
+    (e: 'draft-applied'): void;
 }>();
 
 const store = useChatStore();
@@ -53,36 +61,18 @@ const { t } = useI18n();
 
 const convId = computed(() => props.conversation.id);
 
-// 从 Store 获取当前会话的消息和中断
-const messages = computed(() => {
-    const slice = store.getSlice(convId.value);
-    return slice?.messages || [];
-});
-
-const interrupts = computed(() => {
-    const slice = store.getSlice(convId.value);
-    return slice?.pendingInterrupts || [];
-});
-
-const hasMore = computed(() => {
-    const slice = store.getSlice(convId.value);
-    return slice?.hasMoreMessages || false;
-});
+// 会话切片的只读视图（与运维轨迹 RunTranscript 共用同一读取层）
+const { messages, hasMore, pendingInterrupts: interrupts } = useConvSlice(convId);
 
 const msgLoading = ref(false);
 const senderLoading = ref(false);
 
-// 技能引用数据源（'/' 触发菜单，一次性加载；资源引用由 @ 触发的资源树面板懒加载）
-const skills = ref<SkillItem[]>([]);
+// 技能引用数据源（'/' 触发菜单）：获取与失败降级收敛在 usePromptSkills 单点，
+// 表单里的提示词编辑器（PromptEditor）用同一份缓存；资源引用由 @ 触发的资源树面板懒加载
+const { skills, load: loadSkills } = usePromptSkills();
 
-onMounted(async () => {
-    try {
-        // Api 实例需调用 .request() 发起请求（直接调用实例会 TypeError 且被 catch 静默吞掉）
-        skills.value = (await aiApi.listSkills.request()) || [];
-    } catch (e) {
-        // 加载失败时静默降级：触发菜单显示空列表，不影响聊天主流程
-        console.error('[ai] load skills failed:', e);
-    }
+onMounted(() => {
+    void loadSkills();
 });
 
 // 初始化 composables（convId 为 computed，内部自动跟踪变化）
@@ -103,8 +93,25 @@ const sendResume = async (entries: ResumeEntry[]): Promise<boolean> => {
 const { recordDecision } = useChatResume(convId, { send: sendResume });
 
 // 构建 StreamCallbacks
+/**
+ * 本轮是否已被后端接受（收到过 onTurnStart）与乐观气泡 id。
+ *
+ * 为什么要记：sendMessage 返回 true 只说明字节写进了 socket，不代表后端接了这轮——
+ * 上一轮还在收尾时后端会直接拒收（`conversation has a running turn`）。那时乐观气泡已经渲染、
+ * 却永远不会有回复，界面留着一条骗人的消息（实测：被拒的 flush 在流里留了个永久空泡）。
+ * 只有「本轮从未被接受」才回滚，中途失败保留气泡（内容已落库，回滚反而抹掉真实记录）。
+ */
+let turnAccepted = false;
+let lastOptimisticId: string | null = null;
+
 const streamCallbacks = computed(() => ({
     ...callbacks,
+    // 后端起了新一轮 = 这轮真的被接受了（区分「未送达」与「中途失败」的唯一可靠信号）
+    onTurnStart(turnId: string, conversationId?: number) {
+        turnAccepted = true;
+        lastOptimisticId = null;
+        callbacks.onTurnStart(turnId, conversationId);
+    },
     onEnd() {
         callbacks.onEnd();
         senderLoading.value = false;
@@ -112,6 +119,14 @@ const streamCallbacks = computed(() => ({
     onError(error: string) {
         callbacks.onError(error);
         senderLoading.value = false;
+        // 本轮根本没进模型（典型为后端仍有 running turn 而拒收）：撤掉乐观气泡。
+        // 队列场景下该项仍在待发队列里（flush 闸门不删），用户可从队列重新发出；
+        // 不撤的话，流里会多出一条永不被回答的气泡，与库里实际内容不一致
+        if (!turnAccepted && lastOptimisticId !== null) {
+            store.removeMessage(props.conversation.id, lastOptimisticId);
+            lastOptimisticId = null;
+            Msg.warning('ai.chat.messageNotDelivered');
+        }
     },
     onConversationCreated(id: number) {
         callbacks.onConversationCreated(id);
@@ -193,13 +208,19 @@ const onSend = async (data: ChatInputSubmitData) => {
     // 图片段合并后乐观回显与 WS 持久化用同一份 segments（图片卡片仅从 image 段构建，
     // 乐观消息缺段则实时不渲染、刷新后才出现——同一组装出处避免双路径不一致）
     const segments = [...(data.segments ?? []), ...buildImageSegments(attachments, t('ai.attach.imagePlaceholder'))];
-    addUserMessage(data.text, attachments, segments);
-    sendMessage({
+    turnAccepted = false;
+    const optimisticId = addUserMessage(data.text, attachments, segments);
+    lastOptimisticId = optimisticId;
+    const delivered = sendMessage({
         conversationId: props.conversation.id,
         type: 'text',
         // 文本类附件内联进 content；图片以 image 段贯穿（fileKey 由后端解析为
         // 多模态输入，展示侧经 segments 回显渲染），不再以文本占位重复描述
-        content: buildMessageContent(data.text, attachments),
+        content: buildMessageContent(data.text, attachments, {
+            // 附件标签走 i18n：这段正文会落库并进 LLM 上下文，不能写死中文
+            textFile: (name) => t('ai.attach.textFileBlock', { name }),
+            otherFile: (name) => t('ai.attach.fileBlock', { name }),
+        }),
         segments,
         // 附件元数据（fileKey 轻量引用）随消息持久化（历史回显卡片/预览，
         // 对齐后端 form.ChatAttachment）；剥离 dataUrl/text/rawFile 本地态字段
@@ -211,6 +232,13 @@ const onSend = async (data: ChatInputSubmitData) => {
             ...(fileKey !== undefined ? { fileKey } : {}),
         })),
     });
+    // 投递失败（socket 未就绪）：回滚乐观气泡，并且不进入「生成中」。否则永远等不到
+    // turn 终态事件，输入框会始终锁在 loading，后续消息还全被当成「在生成」而进队列
+    // （sendResume / sendStop 都已检查过返回值，这里是漏网的一处）
+    if (!delivered) {
+        store.removeMessage(props.conversation.id, optimisticId);
+        return;
+    }
     senderLoading.value = true;
     autoRenameFromFirstMessage(data.text);
 };
@@ -229,7 +257,7 @@ const onStop = () => {
 
 // ==================== 会话自动命名 ====================
 
-/** 默认标题（对齐后端 conversation.go 空标题兜底值，命中时不覆盖用户手动命名） */
+/** 默认标题哨兵（对齐后端 headless.DefaultConversationTitle，命中时不覆盖用户手动命名） */
 const DEFAULT_TITLE = 'New Chat';
 
 /** 首条消息自动命名：取首行前 30 字符（对齐 ChatGPT/Claude 自动命名行为） */

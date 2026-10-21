@@ -16,11 +16,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ArrowRight, Connection, FolderOpened, Menu } from '@element-plus/icons-vue';
+import { ArrowRight } from '@element-plus/icons-vue';
 import { pluginApi, type PluginTypeInfo } from './api';
 import type { PluginType } from './types';
+import { pluginTypeMeta } from './types';
+import { pluginTypeIcon } from './pluginTypeIcons';
 
 const { t } = useI18n();
 
@@ -35,16 +37,12 @@ const visible = computed({
     set: (v: boolean) => emit('update:modelValue', v),
 });
 
-// 类型展示映射（前端仅维护图标/文案映射，类型清单由后端类型注册表下发，
-// 新增插件类型零改本组件核心逻辑）
-const typeMeta: Record<string, { icon: any; color: string; nameKey?: string; descKey?: string }> = {
-    skill: { icon: FolderOpened, color: 'var(--el-color-primary)', nameKey: 'ai.integration.skillPlugin', descKey: 'ai.integration.skillPluginDesc' },
-    mcp: { icon: Connection, color: 'var(--el-color-success)', nameKey: 'ai.integration.mcpPlugin', descKey: 'ai.integration.mcpPluginDesc' },
-};
+// 类型展示映射不再本组件自写一份：图标/主色/名称/副标题全部取自 PLUGIN_TYPE_META（与卡片同源），
+// 新增插件类型只需在 types 表里登记一行，本组件零改动
 
 interface PickerType {
     type: PluginType;
-    icon: any;
+    icon: Component;
     color: string;
     name: string;
     desc: string;
@@ -56,12 +54,13 @@ onMounted(async () => {
     try {
         const list: PluginTypeInfo[] = (await pluginApi.listTypes.request()) || [];
         types.value = list.map((it) => {
-            const meta = typeMeta[it.code] || { icon: Menu, color: 'var(--el-color-info)' };
+            const meta = pluginTypeMeta(it.code);
             return {
                 type: it.code,
-                icon: meta.icon,
-                color: meta.color,
-                name: meta.nameKey ? t(meta.nameKey) : it.code,
+                icon: pluginTypeIcon(it.code),
+                color: meta.accentColor,
+                // 未登记类型直接显示后端 code 且副标题为空，不伪装成已知类型的文案
+                name: meta.labelKey ? t(meta.labelKey) : it.code,
                 desc: meta.descKey ? t(meta.descKey) : '',
             };
         });

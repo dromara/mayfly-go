@@ -31,7 +31,7 @@
  *       供 ProcessGroup / ToolCallPart / ReasoningPart 复用
  */
 import { ChevronRightIcon } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps<{
     /** 标题 */
@@ -44,6 +44,15 @@ const props = defineProps<{
 
 const innerOpen = ref(false);
 const open = computed(() => props.forceOpen || innerOpen.value);
+
+// 强制展开解除时（如审批已决策）保持展开：用户在强制展开期间已看过内容，
+// 此刻突然收起会让卡片“在点完决定的瞬间被吞掉”；之后的收起仍由用户手动控制
+watch(
+    () => props.forceOpen,
+    (forced, wasForced) => {
+        if (wasForced && !forced) innerOpen.value = true;
+    }
+);
 
 const toggle = () => {
     if (!props.forceOpen) innerOpen.value = !innerOpen.value;

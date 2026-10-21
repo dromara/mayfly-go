@@ -6,8 +6,17 @@
  * - 文本类文件（md/txt/json/代码等）→ 前端读取文本，内联到消息正文，附件另上传留档回显
  * - 其它文件（pdf/docx 等）→ 原始 File 随附件内存持有，发送时上传
  */
-import { getUploadFileUrl } from '@/common/request';
+import Api from '@/common/Api';
 import type { ContentSegment, MessageAttachment } from '../protocol/types';
+
+/**
+ * 聊天附件的统一文件服务上传入口。
+ *
+ * 走 Api 而不是自己 fetch：鉴权参数（token + clientId）与 `{code,msg,data}` 解包
+ * 只有一处实现。旧写法用 getUploadFileUrl 手拼 URL，不带 clientId，且把包体协议
+ * 复制了一份——后端调整响应结构时会静默解不出 data（表现为“上传成功但 fileKey 为空”，附件丢失）
+ */
+const chatFileUploadApi = Api.newUpload<string>('/sys/files/upload');
 
 /** 可按文本解码的扩展名（mime 缺失时兜底） */
 const TEXT_EXTENSIONS = new Set([
@@ -160,12 +169,7 @@ export async function uploadChatAttachment(att: MessageAttachment): Promise<stri
     const blob = await attachmentToBlob(att);
     const form = new FormData();
     form.append('file', blob, att.name);
-    const res = await fetch(getUploadFileUrl(), { method: 'POST', body: form });
-    const result = (await res.json()) as { code: number; msg: string; data?: string };
-    if (!res.ok || result.code !== 200 || !result.data) {
-        throw new Error(result.msg || `upload failed: ${att.name}`);
-    }
-    return result.data;
+    return chatFileUploadApi.uploadWithResult(form);
 }
 
 /** 批量上传附件并回填 fileKey（本地预览字段 dataUrl/text 保留，发送前即时回显不受影响） */
@@ -179,14 +183,20 @@ export async function uploadChatAttachments(attachments: MessageAttachment[]): P
  * - 图片以 image 段贯穿（见 buildImageSegments），不再以文本占位重复描述
  * - 其它文件以说明占位（展示元数据由消息附件渲染承担）
  */
-export function buildMessageContent(text: string, attachments?: MessageAttachment[]): string {
+export function buildMessageContent(
+    text: string,
+    attachments: MessageAttachment[] | undefined,
+    labels: { textFile: (name: string) => string; otherFile: (name: string) => string },
+): string {
     if (!attachments?.length) return text;
     let content = text;
     for (const att of attachments) {
+        // 文案由调用方从 i18n 注入（与 buildImageSegments 同一约定）：这两段文本会随消息
+        // 落库并进入 LLM 上下文，写死中文会让英文界面用户的会话记录里永久留着中文标签
         if (att.kind === 'text' && att.text) {
-            content += `\n\n--- 附件：${att.name} ---\n${att.text}`;
+            content += `\n\n${labels.textFile(att.name)}\n${att.text}`;
         } else if (att.kind === 'file') {
-            content += `\n\n[附件：${att.name}]`;
+            content += `\n\n${labels.otherFile(att.name)}`;
         }
     }
     return content;

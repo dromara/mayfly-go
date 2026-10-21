@@ -46,6 +46,9 @@ func TestUniversalInsertValueRowsLiterals(t *testing.T) {
 		{"整数与字符串", "INSERT INTO t (id, name) VALUES (1, 'tom')", [][]string{{"1", "'tom'"}}},
 		{"多行", "INSERT INTO t (id, name) VALUES (1, 'a'), (2, 'b')", [][]string{{"1", "'a'"}, {"2", "'b'"}}},
 		{"转义单引号原文保留", "INSERT INTO t (a) VALUES ('it''s')", [][]string{{"'it''s'"}}},
+		// 字符串内的分号/双引号必须归为同一个值单元（不得因 ';' 或 '"' 截断值），各方言单引号串语义一致
+		{"串内分号仍属一个值", "INSERT INTO t (a) VALUES ('x;y')", [][]string{{"'x;y'"}}},
+		{"JSON串为一个值", "INSERT INTO t (cfg) VALUES ('{\"k\":\"v;w\"}')", [][]string{{"'{\"k\":\"v;w\"}'"}}},
 		{"NULL 置标记", "INSERT INTO t (a) VALUES (NULL)", [][]string{{nullCell}}},
 		{"负数", "INSERT INTO t (a) VALUES (-5)", [][]string{{"-5"}}},
 		{"小数", "INSERT INTO t (a) VALUES (1.5)", [][]string{{"1.5"}}},

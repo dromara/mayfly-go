@@ -13,6 +13,7 @@ import (
 	"mayfly-go/internal/ai/application"
 	"mayfly-go/internal/ai/application/dto"
 	"mayfly-go/internal/ai/domain/entity"
+	"mayfly-go/internal/ai/pkg/headless"
 	"mayfly-go/internal/ai/protocol"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/internal/ai/tools"
@@ -62,9 +63,16 @@ func (a *Ai) Chat(rc *req.Ctx) {
 
 	// turn 的 baseCtx 与 WS 连接生命周期解耦：连接断开（刷新页面）不取消运行中 turn，
 	// 仅显式 stop 取消；登录身份/链路 ID 显式透传（hijacked 连接的请求 ctx 不可依赖）
+	la := contextx.GetLoginAccount(rc.MetaCtx)
 	baseCtx := contextx.WithTraceId(context.Background())
-	if la := contextx.GetLoginAccount(rc.MetaCtx); la != nil {
+	if la != nil {
 		baseCtx = contextx.WithLoginAccount(baseCtx, la)
+	}
+	// 连接级发起者标识：一次连接内不变，send/stop/attach 三个入口共用它做归属比对
+	// （身份属于连接而不是属于消息，不在循环里逐条取）
+	connUserId := ""
+	if la != nil {
+		connUserId = fmt.Sprintf("%d", la.Id)
 	}
 
 	// 连接当前订阅的 turn（切换订阅前取消旧订阅）
@@ -123,15 +131,16 @@ func (a *Ai) Chat(rc *req.Ctx) {
 
 		switch chatReq.Type {
 		case form.ChatMsgTypeStop:
-			// 显式 stop：取消 turn ctx（Run 阻塞在 goroutine，不影响读取下一条消息）
-			if !chatRt.Stop(chatReq.ConversationId) {
+			// 显式 stop：取消 turn ctx（Run 阻塞在 goroutine，不影响读取下一条消息）。
+			// 按连接归属限定：否则任何客户端知道会话 id 就能掉停别人的运行中 turn
+			if !chatRt.Stop(chatReq.ConversationId, connUserId) {
 				w.Write(protocol.NewErrorEvent("no running turn to stop", "server"))
 			}
 			continue
 		case form.ChatMsgTypeAttach:
 			// 订阅运行中 turn：先回放缓冲快照，再持续订阅实时事件（刷新/重连续流）
 			cancelSub()
-			curSub = a.attachRunningTurn(w, chatReq.ConversationId)
+			curSub = a.attachRunningTurn(w, chatReq.ConversationId, connUserId)
 			continue
 		case form.ChatMsgTypeText, form.ChatMsgTypeInterruptResume:
 			if strings.TrimSpace(chatReq.Content) == "" {
@@ -155,6 +164,11 @@ func (a *Ai) Chat(rc *req.Ctx) {
 			if w.Write(protocol.NewConversationCreatedEvent(convId)) != nil {
 				break
 			}
+		} else if authErr := a.conversationApp.AssertWritable(rc.MetaCtx, convId); authErr != nil {
+			// 客户端传来的会话 id 必须经授权：不校则任何登录账号可往任意会话追加消息（写侧越权），
+			// 包括把事后对话写进一次运维运行的审计会话里（同时污染该运行的 token 成本统计）
+			w.Write(protocol.NewErrorEvent(authErr.Error(), "server"))
+			continue
 		}
 
 		turnId := stringx.SortableUUID()
@@ -175,14 +189,10 @@ func (a *Ai) Chat(rc *req.Ctx) {
 			turnId = (*resumeList)[0].TurnId
 		}
 
-		// 会话级互斥注册（Start 时创建 turn ctx 与事件总线；userId 用于运行中列表按用户过滤）
-		userId := ""
-		if la := contextx.GetLoginAccount(rc.MetaCtx); la != nil {
-			userId = fmt.Sprintf("%d", la.Id)
-		}
-		turn, startErr := chatRt.Start(convId, turnId, userId, baseCtx)
+		// 会话级互斥注册（Start 时创建 turn ctx 与事件总线；userId 用于运行中列表与归属比对）
+		turn, startErr := chatRt.Start(convId, turnId, connUserId, baseCtx)
 		if startErr != nil {
-			w.Write(protocol.NewErrorEvent(startErr.Error(), "server"))
+			w.Write(protocol.NewErrorEvent(turnStartErrText(baseCtx, startErr), "server"))
 			continue
 		}
 
@@ -227,8 +237,11 @@ func (a *Ai) Chat(rc *req.Ctx) {
 }
 
 // attachRunningTurn 处理 attach：会话存在运行中 turn 时订阅（回放缓存快照后续流），否则回复 turn_not_running
-func (a *Ai) attachRunningTurn(w *wsWriter, convId uint64) *turnSubscription {
-	rt := chatRt.GetRunning(convId)
+//
+// userId 参与归属判定：不校时任何客户端可按会话 id 订阅别人的实时输出（流式内容越权）。
+// 非本人一律回 turn_not_running，不区分「不存在」与「不属于你」，避免把别人会话的运行状态泄露出去
+func (a *Ai) attachRunningTurn(w *wsWriter, convId uint64, userId string) *turnSubscription {
+	rt := chatRt.GetRunning(convId, userId)
 	if rt == nil {
 		w.Write(protocol.NewTurnNotRunningEvent(convId))
 		return nil
@@ -241,7 +254,12 @@ func (a *Ai) attachRunningTurn(w *wsWriter, convId uint64) *turnSubscription {
 // runTurn 执行一次 agent turn（独立 goroutine）：事件经 TurnRecorder 映射后发布到
 // turn 事件总线（不直接触碰 WS 连接），TurnItem 收集与收尾持久化同样由其承担
 func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, convId uint64, turnId string, resumeParams []any, userMessage []*session.Message, recorder *application.TurnRecorder) {
-	turnCtx := turn.ctx
+	// 运行关联注入：与无头路径同源机制（见 headless.WithRunAssoc）。
+	//
+	// 此前只有 agent_runner 会注入 RunAssoc，聊天路径登记的东西拿不到来源会话：实测提案的
+	// conversation_id 恒为 0，事后无法从提案回溯当时的诊断上下文（回放入口断链）。
+	// 聊天路径没有业务运行 id，故只带会话 id
+	turnCtx := headless.WithRunAssoc(turn.ctx, &headless.RunAssoc{ConversationId: convId})
 	publish := turn.Publish
 
 	// 恢复路径预加载：将该 turn 挂起的 interrupted tool_call item
@@ -267,6 +285,15 @@ func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, convId uint64, turnId s
 	// 完成流式输出，收集最终的 TurnItem
 	recorder.FinishStreaming()
 
+	// 轮次终态必须在落库前定下来：显式停止要作为一条 turn_notice item 与本轮其余 item 一起写出去。
+	// 旧写法是「先 Flush、后算终态、再把停止提示只推给当前客户端」，于是停止这件事零持久化：
+	// 刷新或重进会话后，那段在句子中途断开的回答与模型正常答完完全同形（真机实测到截断处留下
+	// 未闭合的 `**` 加粗语法，界面上看着像模型自己写崩了）
+	finalization := decideTurnFinalization(err)
+	if finalization.status == protocol.TurnStatusStopped {
+		recorder.CollectTurnNotice(turnId, entity.TurnNoticeKindStopped)
+	}
+
 	// 收尾持久化与统计累计使用无取消 ctx：turn ctx 可能已被显式 stop 取消，仍需保证落库
 	saveCtx := context.WithoutCancel(turnCtx)
 	recorder.Flush(saveCtx)
@@ -285,22 +312,45 @@ func (a *Ai) runTurn(turn *runningTurn, ag *agent.Agent, convId uint64, turnId s
 		}
 	}
 
-	status := protocol.TurnStatusSuccess
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			// 显式 stop 触发的取消：turn 以 stopped 终态收尾，不下发错误事件
-			status = protocol.TurnStatusStopped
-		} else {
-			status = protocol.TurnStatusFailed
-			publish(protocol.NewErrorEvent(err.Error(), "agent"))
-		}
+	if finalization.publishError {
+		publish(protocol.NewErrorEvent(err.Error(), "agent"))
 	}
 
-	publish(protocol.NewTurnCompletedEvent(turnId, status, turnUsage))
+	publish(protocol.NewTurnCompletedEvent(turnId, finalization.status, turnUsage))
 
 	// turn 收尾：终结事件总线（触发订阅泵 drain 剩余事件并写 end）并移出注册表
 	turn.bus.Finish()
 	chatRt.Remove(convId, turnId)
+}
+
+// turnFinalization turn 出错后的收尾决策：turn 终态 + 是否需要向客户端下发 error 事件
+type turnFinalization struct {
+	status       string
+	publishError bool
+}
+
+// decideTurnFinalization 把一次 turn 的错误映射成终态，并决定是否额外下发 error 事件。
+//
+// 为什么剥成纯函数：这几个分支直接决定用户在会话里看到什么（红色故障条、「已停止」提示、还是只有那条
+// 收尾气泡），而它的输入只是一个 error，不需要 WS 连接、不需要 LLM。留在 handler 里内联时它不可测，
+// 「用户自己取消了补全却被显示成系统故障」这种回归只能靠真机点出来（就是本轮真机发现的那条残留）。
+//
+// 用户主动终止（取消参数补全 / 拒绝审批）刻意**不**下发 error 事件：那两条文案本是工具层给模型的指令，
+// 外层还包着 `[NodeRunError] ... node path: [...]` 这类内部节点结构，而前端红色 notice 的唯一生产者
+// 就是 error 事件（useChatCallbacks.onError），推过去必然多亮一行红。收尾文案由 agent 落的 i18n 气泡承担。
+// 也不复用 stopped：stopped 表示「用户按了停止、中断了整轮生成」，语义不同，前端据此决定是否写停止提示
+func decideTurnFinalization(err error) turnFinalization {
+	if err == nil {
+		return turnFinalization{status: protocol.TurnStatusSuccess}
+	}
+	switch {
+	case errors.Is(err, context.Canceled):
+		return turnFinalization{status: protocol.TurnStatusStopped}
+	case agent.IsUserTerminated(err):
+		return turnFinalization{status: protocol.TurnStatusCancelled}
+	default:
+		return turnFinalization{status: protocol.TurnStatusFailed, publishError: true}
+	}
 }
 
 // pumpTurnSubscription 订阅泵：将 turn 事件转发到 WS 连接

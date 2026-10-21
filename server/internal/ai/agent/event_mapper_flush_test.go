@@ -2,12 +2,15 @@ package agent
 
 import (
 	"context"
+	"mayfly-go/internal/ai/tools"
+	"mayfly-go/pkg/utils/collx"
 	"testing"
 
 	"mayfly-go/internal/ai/protocol"
 	"mayfly-go/internal/ai/session"
 
 	"github.com/cloudwego/eino/schema"
+	"github.com/stretchr/testify/require"
 )
 
 // 验证 agent 多轮输出的正文按轮次分段为独立 message item（OutputItemDone → flush_active）：
@@ -166,4 +169,26 @@ type stubSessionStore struct {
 
 func (s *stubSessionStore) GetMessage(ctx context.Context, query *session.MessageQuery) ([]*session.Message, error) {
 	return nil, nil
+}
+
+// TestInterruptedToolItemHasNoFakeOutput 中断项不得把「请审批」说明当成工具结果。
+//
+// 缺陷类（真机）：中断时 msg.Content 是「执行SQL是高危操作，请审批」，旧实现直接写进 Output。
+// 历史重建/摘要随后把它当成“工具结果”，模型据此认为仍需审批，每次批准后又发起下一次插入，
+// 一个 turn 内连续 6 次 ExecSql，越批越多。
+func TestInterruptedToolItemHasNoFakeOutput(t *testing.T) {
+	session.DefaultSessionStore = &stubSessionStore{}
+	m := NewEventMapper()
+	m.TrackResumedToolCall("call-int", "item-int")
+
+	events := m.MapToolResultEvent(context.Background(), "turn-int", &session.Message{
+		Role: schema.Tool, ToolCallId: "call-int", ToolName: "ExecSql",
+		Content: "执行SQL是高危操作，请审批",
+		Extra:   collx.M{session.ExtraKeyToolStatus: tools.ToolStatusInterrupted},
+	})
+	require.Len(t, events, 1)
+	item := events[0].Item
+	require.NotNil(t, item)
+	require.Equal(t, protocol.TurnItemStatusInterrupted, item.Status)
+	require.Empty(t, item.Output, "中断说明不是工具结果，必须留空")
 }

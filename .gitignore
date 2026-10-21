@@ -33,6 +33,9 @@ mayfly-go-linux-amd64/
 # local build binaries
 server/mayfly-go
 server/mayfly-server
+# 端到端验证临时产物（本地构建的二进制与日志，体积大且可重生，不得入库）
+server/__mayfly_e2e_bin
+server/__mayfly_e2e_bin.log
 cli/cli
 build/
 

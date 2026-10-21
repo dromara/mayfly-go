@@ -378,14 +378,14 @@ func TestValidateConditionRejectsHalfFilledRows(t *testing.T) {
 func TestUndecidableRateIsRecordedAsUnknown(t *testing.T) {
 	andSign := presetNode(t, "andSign")
 
-	tc := newFlowConditionContext(context.Background(), flowVars(map[string]any{flowFieldNrOfAll: 0, flowFieldNrOfCompleted: 0}), 1)
+	tc := newFlowConditionContext(context.Background(), flowVars(map[string]any{flowFieldNrOfAll: 0, flowFieldNrOfCompleted: 0}), &entity.Procinst{ProcdefId: 1})
 	matched, err := trigger.MatchCondition(andSign, tc)
 	require.NoError(t, err, "算不出来不是求值失败，不能打断流转")
 	require.False(t, matched, "无从判定不能当成条件成立")
 	require.Contains(t, tc.Unknown, flowFieldNrOfCompletedRate, "算不出来的字段必须进 Unknown 留痕")
 
 	// 取到值时不应留痕：否则试算面板会把正常判定报成「未能判定」
-	resolved := newFlowConditionContext(context.Background(), flowVars(map[string]any{flowFieldNrOfAll: 2, flowFieldNrOfCompleted: 2}), 1)
+	resolved := newFlowConditionContext(context.Background(), flowVars(map[string]any{flowFieldNrOfAll: 2, flowFieldNrOfCompleted: 2}), &entity.Procinst{ProcdefId: 1})
 	require.True(t, matchFlowCondition(t, andSign, flowVars(map[string]any{flowFieldNrOfAll: 2, flowFieldNrOfCompleted: 2})))
 	require.NotContains(t, resolved.Unknown, flowFieldNrOfCompletedRate)
 }

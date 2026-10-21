@@ -9,8 +9,11 @@
  */
 import { mergeAttributes, Node } from '@tiptap/core';
 import { type DOMOutputSpec } from '@tiptap/pm/model';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { getChipType } from './chipRegistry';
+import { chipIcon, FALLBACK_CHIP_COLOR, getChipType } from './chipRegistry';
+// 副作用导入：芯片的行高固定（防药丸随 1.6 行框下坠）、图标 mask、选中轮廓等
+// CSS 规则都在此文件；漏接此 import 时 renderHTML 内联样式仍在（芯片看着像个药丸），
+// 但行高/图标 mask/轮廓全部缺失，芯片与文本错位（实测踩过）
+import './chipStyles.scss';
 
 export interface ChipNodeAttrs {
     type: string;
@@ -74,19 +77,29 @@ export const ChipNode = Node.create({
         ];
     },
 
+    // 纯文本形态（getText/复制/落库指令文本）：由芯片类型注册表决定标记写法，
+    // 未注册类型回落标签文本，保证文本里不会凭空少一截
+    renderText({ node }) {
+        const reg = getChipType(node.attrs.type);
+        return reg ? reg.toText(node.attrs) : String(node.attrs.label || '');
+    },
+
     renderHTML({ node, HTMLAttributes }) {
         const reg = getChipType(node.attrs.type);
-        const color = reg?.color || { bg: '#f0f0f0', text: '#333', border: '#ddd' };
+        const color = reg?.color || FALLBACK_CHIP_COLOR;
         const data = (node.attrs.data || {}) as Record<string, unknown>;
-        // 图标：resource 按子类型细分（机器/数据库），其余取注册图标（样式见 ChatInput 全局 .chat-chip__icon）
-        const icon = node.attrs.type === 'resource' && data.resourceType === 'db' ? 'database' : reg?.icon || 'zap';
+        // 图标由注册表解析（资源子类型判定收在 chipTypes 注册处，与消息回显 InlineChip 同源）
+        const icon = chipIcon(node.attrs.type, { label: String(node.attrs.label ?? ''), data });
 
         return [
             'span',
             mergeAttributes(HTMLAttributes, {
                 class: 'chat-chip',
                 contentEditable: 'false',
-                style: `background:${color.bg};color:${color.text};border:1px solid ${color.border};border-radius:12px;padding:1px 8px;font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:default;user-select:none;`,
+                // 内联只留「随注册表变化」的三项配色；几何（圆角/内距/字号/行高/flex）全部交回 .chat-chip。
+                // 此前两处各写一份完整清单，而内联优先级恒高——chipStyles.scss 里除 line-height
+                // 外全是永不生效的死规则（改 padding/字号界面不动，改行高才动，极易误判）
+                style: `background:${color.bg};color:${color.text};border-color:${color.border};`,
             }),
             ['span', { class: 'chat-chip__icon', 'data-icon': icon }],
             node.attrs.label || node.attrs.type,
@@ -108,22 +121,5 @@ export const ChipNode = Node.create({
                     });
                 },
         };
-    },
-
-    addProseMirrorPlugins() {
-        return [
-            new Plugin({
-                key: new PluginKey('chipNodeProtection'),
-                props: {
-                    handleKeyDown: (_view, event) => {
-                        // Backspace/Delete 选中芯片时，允许默认行为（删除原子节点）
-                        if (event.key === 'Backspace' || event.key === 'Delete') {
-                            return false;
-                        }
-                        return false;
-                    },
-                },
-            }),
-        ];
     },
 });

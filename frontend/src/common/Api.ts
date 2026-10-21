@@ -128,6 +128,28 @@ class Api<T = unknown, P = unknown> {
     }
 
     /**
+     * 上传并取回解包后的响应数据。
+     *
+     * 为什么不能复用 upload()：它的 onSuccess 无参，拿不到响应体，而文件上传的返回值
+     * （如 fileKey）正是调用方唯一需要的东西。缺这个入口时，业务侧只能自己 fetch 并
+     * 复制一份 `{code,msg,data}` 解包协议，后端调整包结构就会静默解不出值（上传“成功”但 key 为空）。
+     *
+     * 鉴权与 upload() 同源（查询参数 clientParams），不引入第二套凭据通道。
+     */
+    async uploadWithResult<R = unknown>(formData: FormData): Promise<R> {
+        const url = `${config.baseApiUrl}${this.url}?${joinClientParams()}`;
+        const res = await fetch(url, { method: 'POST', body: formData });
+        if (!res.ok) {
+            throw new Error(`upload failed: HTTP ${res.status}`);
+        }
+        const result = (await res.json()) as { code: number; msg: string; data?: R };
+        if (result.code !== 200 || result.data === undefined || result.data === null) {
+            throw new Error(result.msg || 'upload failed');
+        }
+        return result.data;
+    }
+
+    /**
      * 原始文件流上传请求（直接使用文件流作为 body，参数通过 URL query 传递）
      * @param file 文件对象
      * @param queryParams URL 查询参数对象（可选）
@@ -216,7 +238,13 @@ class Api<T = unknown, P = unknown> {
      * @param method 请求方法(get,post,put,delete...)
      */
     static create<T = unknown, P = unknown>(url: string, method: string): Api<T, P> {
-        return new Api<T, P>(url, method);
+        const api = new Api<T, P>(url, method);
+        // 关键：把实例方法绑定为自身属性。模板/配置常以「解绑 this 的方法引用」直传
+        //（如 :confirm-api="xxxApi.save.request"，AutoFormDrawer 的 confirmApi 契约），
+        // 不绑定则运行时 this 为 undefined，内部 this.url / this.useApi 全部失效
+        //（曾致任务/触发器/机器计划任务的表单保存按钮静默失败，且异常被宿主 catch 吞掉无任何提示）
+        api.request = api.request.bind(api);
+        return api;
     }
 
     /**

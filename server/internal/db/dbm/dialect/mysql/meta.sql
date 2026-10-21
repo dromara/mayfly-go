@@ -4,7 +4,7 @@ SELECT
 FROM
 	information_schema.SCHEMATA
 WHERE
-	SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema')
+	SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
 ORDER BY SCHEMA_NAME
 ---------------------------------------
 --MYSQL_TABLE_INFO 表详细信息

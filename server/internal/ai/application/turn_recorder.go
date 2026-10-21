@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/utils/stringx"
 
 	"github.com/cloudwego/eino/schema"
 )
@@ -157,7 +158,7 @@ func (r *TurnRecorder) TrackResumedToolCalls(ctx context.Context, resumeParams [
 		if item.ItemType != entity.ItemTypeToolCall || item.Status != protocol.TurnItemStatusInterrupted {
 			continue
 		}
-		info, err := jsonx.ToByStr[protocol.InterruptInfo](jsonx.ToStr(item.Extra["interrupt"]))
+		info, err := jsonx.ToByStr[protocol.InterruptInfo](jsonx.ToStr(item.Extra[protocol.ExtraKeyInterrupt]))
 		if err != nil || info == nil || info.Kind == "" {
 			continue
 		}
@@ -181,6 +182,18 @@ func (r *TurnRecorder) CollectProtocolItem(turnId string, item *protocol.TurnIte
 	r.Collect(toEntityTurnItem(r.convId, turnId, item, status))
 }
 
+// CollectTurnNotice 收集一条轮次级终止提示（kind 取 entity.TurnNoticeKind*）。
+//
+// 走 recorder 已有的 Collect→Flush 单点出口，而不是另开一次直写仓储：本仓多次栽在
+// 「同一份数据两条落库路径只改一条」，为提示新开一条写入就是把那条不变量再破一次
+func (r *TurnRecorder) CollectTurnNotice(turnId, kind string) {
+	r.CollectProtocolItem(turnId, &protocol.TurnItem{
+		Type:       entity.ItemTypeTurnNotice,
+		Id:         stringx.SortableUUID(),
+		NoticeKind: kind,
+	}, entity.ItemStatusSuccess)
+}
+
 // MarkInterrupted 将中断信息落到被中断工具调用的 tool_call item 上
 // （extra["interrupt"] 存 InterruptInfo，item 状态置 interrupted）。
 // 中断必然由工具审批/参数补全触发，本轮已收集的 tool_call item 中必能命中；
@@ -199,7 +212,7 @@ func (r *TurnRecorder) MarkInterrupted(evt *protocol.InterruptEvent) bool {
 			if item.Extra == nil {
 				item.Extra = collx.M{}
 			}
-			item.Extra["interrupt"] = protocol.NewInterruptInfo(evt, r.convId)
+			item.Extra[protocol.ExtraKeyInterrupt] = protocol.NewInterruptInfo(evt, r.convId)
 			return true
 		}
 	}

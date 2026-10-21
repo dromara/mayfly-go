@@ -3,10 +3,11 @@ import type { ColumnMetadata, DbInstInfo, DbNamesParam } from './types';
 import SqlExecBox from './sql-editor/SqlExecBox';
 
 import { Msg } from '@/hooks/useI18n';
-import { DbDialect, getDbDialect, matchNumericType } from './dialect';
+import { DbDialect, getDialectCapabilities, getDbDialect, matchNumericType } from './dialect';
 import { negotiateCapabilities, type NegotiatedCapabilities, type BackendCapabilities } from './dialect/registry';
 import { flexColumnWidth, initColumns } from './core/columnWidth';
 import { buildInsertSql, buildUpdateSql, buildDeleteSql, buildCountSql, resolveSchemaPrefix } from './core/sqlGen';
+import { isQueryStatement } from './core/sqlKind';
 
 // core 模块
 import { Db } from './core/db';
@@ -429,27 +430,15 @@ export class DbInst {
     };
 
     /**
-     * 判断sql是否为查询类sql
-     * @param sql sql
-     * @returns
+     * 判断 sql 是否为只读查询语句（决定结果 tab 布局与要不要弹执行备注确认）。
+     *
+     * 委托 core/sqlKind.isQueryStatement：通用只读首词基线与后端 sqlparser.stmtTypeFromKeyword 对齐，
+     * 方言追加项（如 sqlite 的 pragma）与切割语义一并传入；体内藏写入（WITH+DML/SELECT INTO/EXPLAIN ANALYZE）
+     * 靠 splitOptions 区分代码区与字面量降级为写入。未命中只读集合一律按写入（fail-closed）。仅判型，不回写执行文本。
      */
     isQuerySql(sql: string) {
-        // 简单截取前十个字符
-        const sqlPrefix = sql.slice(0, 10).toLowerCase();
-        const nonQuery =
-            sqlPrefix.startsWith('update') ||
-            sqlPrefix.startsWith('insert') ||
-            sqlPrefix.startsWith('delete') ||
-            sqlPrefix.startsWith('alter') ||
-            sqlPrefix.startsWith('drop') ||
-            sqlPrefix.startsWith('create') ||
-            sqlPrefix.startsWith('truncate') ||
-            sqlPrefix.startsWith('rename') ||
-            // 各方言的注释语句（comment on）及授权语句均为非查询类，由后端按方言 DDL 执行
-            sqlPrefix.startsWith('comment') ||
-            sqlPrefix.startsWith('grant') ||
-            sqlPrefix.startsWith('revoke');
-        return !nonQuery;
+        const caps = getDialectCapabilities(this.getDialect());
+        return isQueryStatement(sql, { extraReadKeywords: caps.queryStatementKeywords, splitOptions: caps.sqlSplitOptions });
     }
 
     /**

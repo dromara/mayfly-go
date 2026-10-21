@@ -26,6 +26,11 @@ const (
 
 const (
 	ReceiverKey = "receiver"
+	// ExtraKeySecret bot 类渠道（钉钉/飞书）存放在 Extra 里的加签密钥键。
+	//
+	// 必须只有一个常量说法：写入侧（列表脱敏）与消费侧（sign 计算）任一处把键名写错，
+	// 表现都不是报错而是「加签静默不算/密钥该脱敏却没脱」，而两者在界面上都看不出来
+	ExtraKeySecret = "secret"
 )
 
 // Send 发送消息

@@ -3,7 +3,7 @@
         <!-- 分组容器（GroupContainer）：标题 + 描述 + 带边框内层，跨全宽；组内字段全部隐藏时不渲染空壳 -->
         <ACol v-if="seg.group && hasVisibleItem(seg)" :span="toGridSpan(GRID_UNITS)">
             <div v-if="seg.group.label" class="mb-1 text-sm font-medium">{{ $t(seg.group.label) }}</div>
-            <div v-if="seg.group.groupDescription" class="mb-2 text-xs text-gray-400 leading-5">{{ $t(seg.group.groupDescription) }}</div>
+            <div v-if="seg.group.groupDescription" class="mb-2 text-xs text-gray-400 leading-5 whitespace-pre-line">{{ $t(seg.group.groupDescription) }}</div>
             <div class="mb-2 rounded-lg border p-3" style="border-color: var(--el-border-color-lighter)">
                 <AutoFormFieldList :items="seg.items" :form="form" :default-span="defaultSpan" :readonly="readonly">
                     <template v-for="(_, name) in $slots" :key="name" #[name]="slotProps">

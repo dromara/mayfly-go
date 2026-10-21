@@ -143,7 +143,11 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 	cli, err := m.machineApp.GetCli(rc.MetaCtx, GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "connection error: %s")
 
-	rc.ResData = cli.GetAllStats()
+	stats, err := cli.GetAllStats()
+	// 采集失败不能回一个全 0 的空壳：前端会把「没采到」当成「指标真是 0」画出来
+	biz.ErrIsNilAppendErr(err, "get machine stats error: %s")
+
+	rc.ResData = stats
 }
 
 // 保存机器信息

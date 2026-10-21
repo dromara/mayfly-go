@@ -57,7 +57,7 @@
                 <div class="ml-2 h-full">
                     <el-tabs class="h-full" @tab-change="onTabChange" v-model="state.activeTabName" v-if="currentTag">
                         <el-tab-pane v-if="currentTag.id != allNode.id" :label="$t('common.detail')" :name="TagDetail">
-                            <el-descriptions :column="2" border>
+                            <el-descriptions :column="2" border label-width="90">
                                 <el-descriptions-item :label="$t('common.type')">
                                     <EnumTag :enums="TagResourceTypeEnum" :value="currentTag.type" />
                                 </el-descriptions-item>

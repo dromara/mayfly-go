@@ -52,6 +52,10 @@ func (t *turnItemAppImpl) UpdateResumedToolCallItem(ctx context.Context, convers
 	}
 
 	row.Status = item.Status
+	// payload 整体覆盖：终态即 event_mapper 从 session 重建的完整 item，语义是「终态快照」而非增量。
+	// 这与 session_store.UpdateMessage 的参数补全 patch 语义（只改 arguments）不同，二者对同一 item
+	// 的先后依赖「补全回写恒早于终态写入」这条顺序不变量而不冲突（见 writeBackCompletedArgs 注释）。
+	// 失效条件：若将来给 payload 新增局部字段，必须同步进这里的终态 TurnItem 构造，否则整体覆盖会把它吞掉
 	row.Payload = item.Payload
 
 	// extra merge_patch 语义：仅回填 interrupt.resume，
@@ -63,10 +67,10 @@ func (t *turnItemAppImpl) UpdateResumedToolCallItem(ctx context.Context, convers
 			if row.Extra == nil {
 				row.Extra = make(map[string]any)
 			}
-			row.Extra["interrupt"] = info
+			row.Extra[protocol.ExtraKeyInterrupt] = info
 		} else if info.Resume == nil {
 			info.Resume = resume
-			row.Extra["interrupt"] = info
+			row.Extra[protocol.ExtraKeyInterrupt] = info
 		}
 	}
 	return t.turnItemRepo.UpdateById(ctx, row, "status", "payload", "extra")

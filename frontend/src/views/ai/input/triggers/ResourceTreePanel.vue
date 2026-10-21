@@ -78,52 +78,70 @@ const decorateNode = (node: TreeNodeData): TreeNodeData => {
 };
 
 /**
- * 可选叶子：由贡献者 selectable 声明单源判定（机器凭证/物理 database 均声明为选择目标），
- * 面板不再硬编码 kind 清单
+ * 叶子 kind → 芯片载荷构造器（面板按 kind 查表，不写 if/else 兜底）。
+ *
+ * 此前实现是「machine 分支 + 其余全按 db 处理」，而注释写着「不再硬编码 kind 清单」——
+ * 两者不符，且第三种可选叶子会被静默当成数据库，插进去的芯片定位信息全错。
+ * 新增一类资源必须在此登记一行：面板确实需要知道如何把树节点 params 摊平成芯片定位信息，
+ * 这是它的职责边界；但登记不全时必须失败可见，不能兜底成某一种。
  */
-const onNodeClick = (node: TreeNode) => {
-    if (!isNodeSelectable(node)) {
-        return;
-    }
-    const m = node.params as Record<string, any>;
+type LeafBuilder = (m: Record<string, any>) => ResourceTreeSelectPayload;
 
-    if (node.kind === MachineAuthCertKind) {
+const LEAF_BUILDERS: Readonly<Record<string, LeafBuilder>> = {
+    [MachineAuthCertKind]: (m) => {
         // 机器凭证叶子：params = {...machineVO, selectAuthCert}
         const cert = m.selectAuthCert || {};
-        const username = cert.username || cert.name || '';
-        emit('select', {
+        const username = String(cert.username || cert.name || '');
+        return {
             resourceType: 'machine',
             label: `${m.name}(${username})`,
             description: `${username}@${m.ip}:${m.port}`,
             extra: {
-                resourceType: 'machine',
                 id: String(m.id ?? ''),
                 code: String(m.code ?? ''),
                 ip: String(m.ip ?? ''),
                 port: String(m.port ?? ''),
                 authCertName: String(cert.name ?? ''),
-                username: String(username),
+                username,
             },
-        });
-        emit('close');
+        };
+    },
+    [DbKind]: (m) => {
+        // 物理 database 叶子：label 对齐 ops 打开 tab 的 `配置名/库名` 形式；
+        // extra 携带 dbId/dbName/账号 完整定位标识，db 工具参数直接可取不中断
+        const dbName = String(m.db ?? '');
+        return {
+            resourceType: 'db',
+            label: dbName ? `${m.name}/${dbName}` : String(m.name ?? ''),
+            description: String(m.code ?? ''),
+            extra: {
+                id: String(m.id ?? ''),
+                code: String(m.code ?? ''),
+                db: dbName,
+                authCertName: String(m.authCertName ?? ''),
+                username: String(m.username ?? ''),
+            },
+        };
+    },
+};
+
+/**
+ * 可选叶子：由贡献者 selectable 声明单源判定（机器凭证/物理 database 均声明为选择目标），
+ * 面板按 kind 查 LEAF_BUILDERS 拼载荷，不再写类型分支
+ */
+const onNodeClick = (node: TreeNode) => {
+    if (!isNodeSelectable(node)) {
         return;
     }
-    // 物理 database 叶子：label 对齐 ops 打开 tab 的 `配置名/库名` 形式；
-    // extra 携带 dbId/dbName/账号 完整定位标识，db 工具参数直接可取不中断
-    const dbName = String(m.db ?? '');
-    emit('select', {
-        resourceType: 'db',
-        label: dbName ? `${m.name}/${dbName}` : String(m.name ?? ''),
-        description: String(m.code ?? ''),
-        extra: {
-            resourceType: 'db',
-            id: String(m.id ?? ''),
-            code: String(m.code ?? ''),
-            db: dbName,
-            authCertName: String(m.authCertName ?? ''),
-            username: String(m.username ?? ''),
-        },
-    });
+    const build = LEAF_BUILDERS[node.kind ?? ''];
+    if (!build) {
+        // 未登记的 kind 明确拒绝：兜底成某一种资源会插入定位错误的芯片，比不插入更糟
+        console.warn(`[ai] resource leaf kind not registered in ResourceTreePanel: ${node.kind}`);
+        return;
+    }
+    const payload = build(node.params as Record<string, any>);
+    // resourceType 只在 builder 里写一次，extra 里那份由本处统一注入（此前两处各写一遍）
+    emit('select', { ...payload, extra: { ...payload.extra, resourceType: payload.resourceType } });
     emit('close');
 };
 
@@ -138,7 +156,10 @@ const queryText = computed(() => props.query || '');
     position: fixed;
     z-index: 1000;
     width: 300px;
-    max-height: 320px;
+    /* 高度上限声明为变量：useMenuPosition 的 size 中间件据此收缩（贴边不溢出视口），
+       var 作 fallback 保证未命中收缩时也维持原设计高度 */
+    --trigger-layer-max: 320px;
+    max-height: var(--trigger-layer-max);
     display: flex;
     flex-direction: column;
     overflow: hidden;

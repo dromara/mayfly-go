@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	_ "mayfly-go/internal/agentops/init"
 	_ "mayfly-go/internal/ai/init"
 	_ "mayfly-go/internal/alert/init"
 	_ "mayfly-go/internal/auth/init"

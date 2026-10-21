@@ -54,6 +54,7 @@ func evalGroup(node *entity.RuleNode, tc *Context, refs []string) (bool, error) 
 	}
 
 	matchedCount := 0
+	unknownBefore := len(tc.Unknown)
 	for _, item := range node.Items {
 		matched, err := evalNode(item, tc, refs)
 		if err != nil {
@@ -70,6 +71,12 @@ func evalGroup(node *entity.RuleNode, tc *Context, refs []string) (bool, error) 
 	case entity.LogicAny:
 		return matchedCount > 0, nil
 	default:
+		// 「全不成立」在存在无法判定的叶子时会 fail-open：none(field > x) 而 field 取不到值 →
+		// 叶子判 false → 整组 true → 豁免成立、操作直接放行且无日志。
+		// 有未知字段增长即拒绝判定，与「条件组被删后引用须报错」同一口径
+		if len(tc.Unknown) > unknownBefore {
+			return false, invalid("", imsg.ReasonFieldUnavailable)
+		}
 		return matchedCount == 0, nil
 	}
 }

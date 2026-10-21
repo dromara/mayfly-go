@@ -390,7 +390,7 @@ func TestFlowConditionWithSegment(t *testing.T) {
 	// 单测里没有容器，这里显式挂上同一个取数函数，验证的是「挂上之后能不能正确展开」
 	resolver := segmentApp.Resolver(ctx)
 	withResolver := func(vars collx.M) *trigger.Context {
-		return newFlowConditionContext(ctx, vars, 0).WithSegments(resolver)
+		return newFlowConditionContext(ctx, vars, nil).WithSegments(resolver)
 	}
 
 	matched, err := trigger.MatchCondition(segmentLeaf("all_approved"), withResolver(collx.M{flowFieldNrOfAll: 3, flowFieldNrOfCompleted: 3}))

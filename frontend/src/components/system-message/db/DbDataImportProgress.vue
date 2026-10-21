@@ -19,7 +19,7 @@
         />
 
         <!-- 详细信息 -->
-        <el-descriptions border size="small" class="mt-2">
+        <el-descriptions border size="small" class="mt-2" label-width="100">
             <el-descriptions-item :label="$t('db.importedRows')">{{ progress.imported }} / {{ progress.total }}</el-descriptions-item>
             <el-descriptions-item :label="$t('db.elapsedTime')">{{ state.elapsedTime }}</el-descriptions-item>
         </el-descriptions>

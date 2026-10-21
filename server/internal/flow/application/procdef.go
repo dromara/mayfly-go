@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
@@ -32,10 +33,11 @@ type Procdef interface {
 	DeleteProcdef(ctx context.Context, defId uint64) error
 
 	// GetProcdefByCodePath 根据资源编号路径获取对应的流程定义
-	GetProcdefByCodePath(ctx context.Context, codePaths ...string) *entity.Procdef
+	// GetProcdefByCodePath 返回 (nil, nil) 表示未绑定；返回 error 表示定位失败，调用方必须按 fail-closed 处置
+	GetProcdefByCodePath(ctx context.Context, codePaths ...string) (*entity.Procdef, error)
 
 	// GetProcdefByResource 根据资源获取对应的流程定义
-	GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) *entity.Procdef
+	GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) (*entity.Procdef, error)
 
 	// CheckTrigger 资源操作的前置触发策略校验，返回 nil 表示该资源未绑定流程或无需处置
 	CheckTrigger(ctx context.Context, req *dto.TriggerRequest) (*trigger.Decision, error)
@@ -121,8 +123,12 @@ func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProc
 	}
 
 	if def.Id == 0 {
-		if p.GetByCond(&entity.Procdef{DefKey: def.DefKey}) == nil {
+		switch err := p.GetByCond(&entity.Procdef{DefKey: def.DefKey}); {
+		case err == nil:
 			return errorx.NewBizI(ctx, imsg.ErrProcdefKeyExist)
+		case !errors.Is(err, model.ErrNotFound):
+			// 读失败不能当成「不存在」：唯一索引会兜住重复插入，但用户会看到一条数据库原始错误
+			return err
 		}
 	} else {
 		// 防止误修改key
@@ -224,24 +230,29 @@ func (p *procdefAppImpl) recordPolicyChange(ctx context.Context, procdefId uint6
 // 策略是安全控制，缓存意味着管理员改了之后存在不生效窗口，代价不对等。
 // 若将来部署形态变为高 RTT 的远端存储再评估，方向应是「同请求内复用」（已做：
 // Redis 批量与 SQL 文件导入都只解析一次），而不是跨请求 TTL
-func (p *procdefAppImpl) GetProcdefByCodePath(ctx context.Context, codePaths ...string) *entity.Procdef {
+func (p *procdefAppImpl) GetProcdefByCodePath(ctx context.Context, codePaths ...string) (*entity.Procdef, error) {
 	relateIds, err := p.tagTreeRelateApp.GetGovernRelateIds(ctx, tagentity.TagRelateTypeFlowDef, codePaths...)
-	if err != nil || len(relateIds) == 0 {
-		return nil
+	if err != nil {
+		// 读失败 ≠ 未绑定：调用方会把 nil 当成「该资源不受治理」而放行操作，
+		// 等于标签库一次抖动就让策略门禁在该请求上整体打开（引擎对策略缺失/版本过新都 fail-closed）
+		return nil, err
+	}
+	if len(relateIds) == 0 {
+		return nil, nil
 	}
 
 	procdefId := relateIds[len(relateIds)-1]
 	procdef, err := p.GetById(procdefId)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	if procdef.Status == entity.ProcdefStatusDisable {
-		return nil
+		return nil, nil
 	}
-	return procdef
+	return procdef, nil
 }
 
-func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) *entity.Procdef {
+func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType int8, resourceCode string) (*entity.Procdef, error) {
 	resourceCodePaths := p.tagTreeApp.ListTagPathByTypeAndCode(resourceType, resourceCode)
 	return p.GetProcdefByCodePath(ctx, resourceCodePaths...)
 }
@@ -250,7 +261,10 @@ func (p *procdefAppImpl) GetProcdefByResource(ctx context.Context, resourceType 
 func (p *procdefAppImpl) canModify(ctx context.Context, prodefId uint64) error {
 	// 这里只关心「有没有」，用 Exists 而不是 CountByCond：既避免统计失败被当成「没有实例」而放行修改，
 	// 也省掉为判断存在性而做的全量计数
-	activeExist, err := p.procinstApp.Exists(ctx, &entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusActive})
+	// 退回（Back）也是「还会被重提」的在途实例：定义删掉后那条工单再也无法重提
+	activeExist, err := p.procinstApp.Exists(ctx, model.NewCond().
+		Eq("procdef_id", prodefId).
+		In("status", []entity.ProcinstStatus{entity.ProcinstStatusActive, entity.ProcinstStatusBack}))
 	if err != nil {
 		return err
 	}
@@ -273,13 +287,13 @@ func validateFlowDef(ctx context.Context, p *entity.FlowDef) error {
 	// 检查是否有开始节点
 	startNodes := p.GetNodeByType(FlowNodeTypeStart)
 	if len(startNodes) != 1 {
-		return errorx.NewBiz("not one start node")
+		return errorx.NewBizI(ctx, imsg.ErrStartNodeNotUnique)
 	}
 
 	// 检查是否有结束节点
 	endNodes := p.GetNodeByType(FlowNodeTypeEnd)
 	if len(endNodes) != 1 {
-		return errorx.NewBiz("not one end node")
+		return errorx.NewBizI(ctx, imsg.ErrEndNodeNotUnique)
 	}
 
 	// 校验节点自身逻辑

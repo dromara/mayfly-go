@@ -62,4 +62,11 @@ type AlertEventQuery struct {
 	Status       AlertEventStatus `json:"status" form:"status"`
 	Priority     *AlertPriority   `json:"priority" form:"priority"`
 	Keyword      string           `json:"keyword" form:"keyword"`
+
+	// ResourceIds 资源 id 集合过滤（仅与 ResourceType 同用：resource_id 在不同资源类型下会重复，
+	// 单给 id 集合无法界定类型）。
+	//
+	// 故意不参与 json/form 绑定：它只由服务端的「运行身份可见面」判定注入（见 ai/tools/monitor），
+	// 一旦可被请求体/查询串绑定，调用方就能自己传一个 id 集合绕过权限收敛
+	ResourceIds []uint64 `json:"-" form:"-"`
 }

@@ -15,7 +15,14 @@ func initCache(redisConfig RedisConf) error {
 	redisCli, err := connRedis(redisConfig)
 
 	if redisCli == nil && err == nil {
-		logx.Info("no redis configuration, using local cache")
+		// 未配置 Redis 时降级为进程内缓存：单实例可用，但以下能力**不再跨实例共享也不再重启后存活**：
+		// 登录验证码、账号权限码缓存、系统公私钥、机器指标缓存（机器告警评估只读这份缓存）、
+		// 以及各处用缓存做的并发去重/分布式锁语义。
+		// 因此这里必须是 Warn 而不是 Info：本函数自己的注释就写明多实例部署依赖 Redis，
+		// 而一个只会被当成「启动成功」的 INFO 等于把这个正确性前提完全隐藏；
+		// 也不做成启动失败：本地/单实例开发不配 Redis 是合法形态，不能只因未配就直接拒起
+		logx.Warnf("no redis configuration: falling back to in-process cache; " +
+			"captcha / permission-code cache / system keypairs / machine stats are NOT shared across instances nor kept across restarts; configure redis for multi-instance deployment")
 		return nil
 	}
 
@@ -23,7 +30,7 @@ func initCache(redisConfig RedisConf) error {
 		return err
 	}
 
-	logx.Info("redis connected successfully, using Redis for caching")
+	logx.Infof("redis connected successfully [%s:%d], using Redis for caching", redisConfig.Host, redisConfig.Port)
 	rediscli.SetCli(redisCli)
 	cache.SetCache(cache.NewRedisCache(redisCli))
 	return nil

@@ -14,10 +14,18 @@ export default {
         },
         chat: {
             inputPlaceholder: 'Type a message',
+            // Full placeholder sentence and hint separator, kept in i18n instead of code-level punctuation
+            inputPlaceholderHints: '{base} — {hints}...',
+            hintSeparator: ', ',
             loadMore: 'Load more',
             result: 'Result',
             connectionFailed: 'Connection failed, please check your network or contact the administrator',
             connectionDisconnected: 'Connection disconnected, please refresh the page to retry',
+            // Unregistered message part type: show a readable hint instead of silently dropping content
+            unknownPartType: 'Unsupported content type: {type}',
+            // Queue flush rejected because the previous turn is still finishing: keep it and tell the user
+            queueFlushRejected: 'The previous turn is still finishing; this message stays in the queue, retry it from the queue later',
+            messageNotDelivered: 'The server did not accept this message; it has been returned for you to resend',
             thinking: 'Thinking',
             thinkingActive: 'Thinking...',
             steps: 'steps',
@@ -38,8 +46,6 @@ export default {
             resourceTreeTitle: 'Select a resource to reference',
             resourceTreeEmpty: 'No resources available',
             resourceTreeTip: 'Pick an auth cert under a machine; drill down to a specific database',
-            machineGroup: 'Machines',
-            dbGroup: 'Databases',
             send: 'Send',
             stop: 'Stop',
             scrollToEnd: 'Scroll to bottom',
@@ -84,6 +90,9 @@ export default {
             uploadFailed: 'Failed to upload attachments. Please retry.',
             previewFailed: 'Failed to load preview content',
             imagePlaceholder: '[Image]',
+            // Attachment body labels: persisted with the message and sent into the LLM context
+            textFileBlock: '--- Attachment: {name} ---',
+            fileBlock: '[Attachment: {name}]',
         },
         interrupt: {
             approval: {
@@ -131,7 +140,6 @@ export default {
                 confirm: 'Confirm',
                 reject: 'Reject',
                 processed: 'Processed',
-                resolved: 'Resolved',
                 rejected: 'Rejected',
                 pending: 'Pending',
                 rejectTitle: 'Rejection Reason',
@@ -162,7 +170,6 @@ export default {
             paramCompletion: {
                 title: 'Complete Parameters',
                 completeParam: 'Complete Parameters',
-                completed: 'Completed',
                 pending: 'Pending',
                 toolInfo: 'Tool Info',
                 toolName: 'Tool Name',
@@ -217,6 +224,8 @@ export default {
             skillPluginDesc: 'Create or import a skill (SKILL.md + resources); published skills are available to the Agent',
             mcpPlugin: 'MCP Server',
             mcpPluginDesc: 'Connect a Streamable HTTP MCP server and inject its tools into the Agent',
+            // Backend registry sent a type the frontend has not registered: open no form
+            unknownPluginType: 'Unsupported plugin type: {type}. Register its form and capabilities first.',
             // 技能编辑器
             newSkill: 'New Skill',
             editSkill: 'Edit Skill',

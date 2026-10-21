@@ -224,6 +224,10 @@ const onOpened = openedWith(async (form) => {
             allowedTools: s.allowedTools || '',
             instructions: ins?.content || '',
         });
+    } catch (e) {
+        // 加载失败必须留痕：只有 try/finally 时这是一个未捕获 rejection，
+        // 界面停在「空表单 + loading 已结束」，用户会以为这个技能本来就没内容
+        console.error('[ai] load skill detail failed:', e);
     } finally {
         loading.value = false;
     }
@@ -300,8 +304,9 @@ const handleNodeClick = (data: TreeNode) => {
     activeFilePath.value = data.path;
     isDirty.value = false;
     const all = isEdit.value ? resources.value : localResources.value;
-    const res = all.find((r) => r.path === data.path);
-    fileContent.value = res ? ('content' in res ? res.content || '' : '') : '';
+    // SkillResource 与 LocalResource 都必有 content，不再写 `'content' in res` 这种恒真窄化
+    // （它不表达任何约束，只会误导读者以为存在无 content 的类型）
+    fileContent.value = all.find((r) => r.path === data.path)?.content ?? '';
 };
 
 // 用户编辑：编辑态标 dirty 等手动保存；新建态实时写回本地暂存（程序赋值不走此函数）

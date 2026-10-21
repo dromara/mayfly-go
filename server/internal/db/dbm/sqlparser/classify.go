@@ -50,8 +50,19 @@ func StatementTypeByKeyword(splitter SQLSplitter, sql string) sqlstmt.StmtType {
 
 // astStmtType 将解析出的 AST 节点类型映射为 StmtType；未知节点返回 ok=false 以触发后续兜底
 func astStmtType(stmt sqlstmt.Stmt) (sqlstmt.StmtType, bool) {
-	switch stmt.(type) {
-	case *sqlstmt.SelectStmt, *sqlstmt.WithStmt:
+	switch s := stmt.(type) {
+	case *sqlstmt.SelectStmt:
+		// SELECT ... INTO（建表/导出/变量）会写出数据或文件，不是纯读：判为写（insert），
+		// 走写通道并受 DML 审批约束，避免「SELECT INTO 建表」绕过审批（与前端 isQueryStatement 同口径）
+		if s.Into {
+			return sqlstmt.StmtTypeInsert, true
+		}
+		return sqlstmt.StmtTypeSelect, true
+	case *sqlstmt.WithStmt:
+		// WITH 主语句动词由解析器回填（数据修改型 CTE 亦是写）；未回填按查询兜底，与历史一致
+		if s.MainType != "" {
+			return s.MainType, true
+		}
 		return sqlstmt.StmtTypeSelect, true
 	case *sqlstmt.UpdateStmt:
 		return sqlstmt.StmtTypeUpdate, true
@@ -59,6 +70,15 @@ func astStmtType(stmt sqlstmt.Stmt) (sqlstmt.StmtType, bool) {
 		return sqlstmt.StmtTypeDelete, true
 	case *sqlstmt.InsertStmt:
 		return sqlstmt.StmtTypeInsert, true
+	case *sqlstmt.MergeStmt:
+		return sqlstmt.StmtTypeMerge, true
+	case *sqlstmt.ExplainStmt:
+		// EXPLAIN ANALYZE <写语句> 会真执行内层写 → 判为该写类型（s.Inner）；
+		// 纯 EXPLAIN <计划> / EXPLAIN ANALYZE <SELECT> 的 Inner 为空 → Other（只读，仅回计划）
+		if s.Inner != "" {
+			return s.Inner, true
+		}
+		return sqlstmt.StmtTypeOther, true
 	case *sqlstmt.DdlStmt:
 		return sqlstmt.StmtTypeDDL, true
 	case *sqlstmt.OtherStmt:
@@ -81,6 +101,8 @@ func stmtTypeFromKeyword(kw string) sqlstmt.StmtType {
 		return sqlstmt.StmtTypeUpdate
 	case "delete":
 		return sqlstmt.StmtTypeDelete
+	case "merge":
+		return sqlstmt.StmtTypeMerge
 	case "create", "alter", "drop", "truncate", "rename", "comment", "grant", "revoke":
 		return sqlstmt.StmtTypeDDL
 	case "show", "explain", "describe", "desc":

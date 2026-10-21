@@ -61,7 +61,7 @@ type Redis interface {
 	CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisConn, cmdArgs []any, ack WarnAck) error
 
 	// TriggerProcdefOf / CheckCmdTrigger 是给批量命令的两段式入口：先解析一次流程定义，再逐条判定
-	TriggerProcdefOf(ctx context.Context, redisConn *rdm.RedisConn) *flowentity.Procdef
+	TriggerProcdefOf(ctx context.Context, redisConn *rdm.RedisConn) (*flowentity.Procdef, error)
 	CheckCmdTrigger(ctx context.Context, procdef *flowentity.Procdef, cmdArgs []any, ack WarnAck) error
 }
 
@@ -292,16 +292,20 @@ func (r *redisAppImpl) CheckCmdFlow(ctx context.Context, redisConn *rdm.RedisCon
 	if redisConn == nil {
 		return errorx.NewBiz("redis connection not exist")
 	}
-	return r.CheckCmdTrigger(ctx, r.TriggerProcdefOf(ctx, redisConn), cmdArgs, ack)
+	procdef, err := r.TriggerProcdefOf(ctx, redisConn)
+	if err != nil {
+		return err
+	}
+	return r.CheckCmdTrigger(ctx, procdef, cmdArgs, ack)
 }
 
 // TriggerProcdefOf 该连接生效的流程定义（未绑定流程时返回 nil）。
 //
 // 同一连接上的多条命令解析结果相同，所以批量入口只需解析一次；
 // 每条命令都解析等于每条命令多查两趟库（曾经如此：key 面板一次改十几个 key 就是二十几趟查询）
-func (r *redisAppImpl) TriggerProcdefOf(ctx context.Context, redisConn *rdm.RedisConn) *flowentity.Procdef {
+func (r *redisAppImpl) TriggerProcdefOf(ctx context.Context, redisConn *rdm.RedisConn) (*flowentity.Procdef, error) {
 	if redisConn == nil {
-		return nil
+		return nil, nil
 	}
 	return r.procdefApp.GetProcdefByCodePath(ctx, redisConn.Info.CodePath...)
 }

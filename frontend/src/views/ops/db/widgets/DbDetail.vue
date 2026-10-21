@@ -6,7 +6,7 @@
             </el-link>
         </template>
 
-        <el-descriptions v-loading="state.loading" :size="props.size" :column="3" border>
+        <el-descriptions v-loading="state.loading" :size="props.size" :column="3" border label-width="110">
             <el-descriptions-item :span="1" label="ID">{{ state.detail.id }}</el-descriptions-item>
             <el-descriptions-item :span="1" :label="$t('common.code')">{{ state.detail.code }}</el-descriptions-item>
             <el-descriptions-item :span="1" :label="$t('common.name')">{{ state.detail.name }}</el-descriptions-item>

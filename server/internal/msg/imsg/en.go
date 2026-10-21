@@ -22,4 +22,13 @@ var En = map[i18n.MsgId]string{
 	SQLScriptRunSuccessMsg: "Script {{.filename}} executed successfully on database [<db-info id={{.dbId}}>{{.dbName}}</db-info>], cost {{.cost}}",
 
 	FlowUserTaskTodoMsg: "Work order [{{.procdefName}}] submitted by [{{.creator}}] is now at [{{.taskName}}] node. Please process it promptly. <a href='#/flow/procinst-tasks'>Handle it >>></a>",
+
+	ErrMsgTmplNotExist:  "message template [{{.code}}] does not exist",
+	ErrMsgTmplDisabled:  "message template [{{.code}}] is disabled and cannot be used for notifications",
+	ErrMsgTmplNoChannel: "message template [{{.code}}] is not associated with any channel, so notifications cannot be delivered; associate a channel with it first",
+
+	ErrMsgTmplIdNotExist:      "message template [{{.id}}] does not exist",
+	ErrMsgTmplBizIdRequired:   "the business id is required",
+	ErrMsgTmplBizTypeRequired: "the business type is required",
+	ErrMsgTmplBizNotBound:     "no message template is associated with this business",
 }

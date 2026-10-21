@@ -9,6 +9,7 @@ import (
 	dbtoolext "mayfly-go/internal/ai/agent/ext/dbtool"
 	machinetoolext "mayfly-go/internal/ai/agent/ext/machinetool"
 	mcpext "mayfly-go/internal/ai/agent/ext/mcp/mcpext"
+	monitortoolsExt "mayfly-go/internal/ai/agent/ext/monitortool"
 	resourcetoolext "mayfly-go/internal/ai/agent/ext/resourcetool"
 	"mayfly-go/internal/ai/api"
 	"mayfly-go/internal/ai/application"
@@ -43,6 +44,8 @@ func init() {
 	ext.RegisterHostInstaller(func(b *contributor.Builder) {
 		dbtoolext.Install(b)
 		machinetoolext.Install(b)
+		// 可观测数据工具（QueryMetrics/QueryAlertHistory）：依赖 alert 应用层，同范式宿主级注册
+		monitortoolsExt.Install(b)
 		resourcetoolext.Install(b)
 		mcpext.Install(b)
 	})

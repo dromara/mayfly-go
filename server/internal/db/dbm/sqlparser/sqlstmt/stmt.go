@@ -8,6 +8,7 @@ const (
 	KindInsert Kind = "INSERT"
 	KindUpdate Kind = "UPDATE"
 	KindDelete Kind = "DELETE"
+	KindMerge  Kind = "MERGE"
 	KindDdl    Kind = "DDL"
 	KindWith   Kind = "WITH"
 	KindOther  Kind = "OTHER"

@@ -172,6 +172,201 @@ func TestCteParse(t *testing.T) {
 	}
 }
 
+// TestCteMainType WITH 的主语句/数据修改 CTE 实际类型回填 MainType（供 Classify 判「WITH 开头实为写」）。
+// 扫描器在 base（各方言共用），SELECT/INSERT/UPDATE/DELETE 为全局保留字，故 7 个方言（含薄方言
+// mssql/sqlite/clickhouse）结果必须一致。
+func TestCteMainType(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want sqlstmt.StmtType
+	}{
+		{"WITH c AS (SELECT id FROM t) SELECT * FROM c", sqlstmt.StmtTypeSelect},
+		{"WITH a AS (SELECT 1 AS x), b AS (SELECT 2 AS y) SELECT * FROM a, b", sqlstmt.StmtTypeSelect},
+		{"WITH c AS (SELECT id FROM t) DELETE FROM u WHERE id IN (SELECT id FROM c)", sqlstmt.StmtTypeDelete},
+		{"WITH c AS (SELECT id FROM t) UPDATE u SET a = 1 WHERE id IN (SELECT id FROM c)", sqlstmt.StmtTypeUpdate},
+		{"WITH c AS (SELECT id FROM t) INSERT INTO v SELECT id FROM c", sqlstmt.StmtTypeInsert},
+		// 数据修改型 CTE：主语句是 SELECT，但 CTE 体内是 DELETE → 整体为写
+		{"WITH c AS (DELETE FROM t RETURNING id) SELECT * FROM c", sqlstmt.StmtTypeDelete},
+		// WITH 主语句是 MERGE（T-SQL/Oracle 支持 WITH 前置 MERGE）→ 写
+		{"WITH c AS (SELECT id FROM t) MERGE INTO u USING c ON (u.id = c.id) WHEN MATCHED THEN UPDATE SET u.a = 1", sqlstmt.StmtTypeMerge},
+		// 不误伤：只读 CTE 体内字符串含 'delete' 字面量
+		{"WITH c AS (SELECT 'delete' AS kw) SELECT * FROM c", sqlstmt.StmtTypeSelect},
+		// 不误伤：CTE 体内注释里出现 DELETE（注释不入 token 流）
+		{"WITH c AS ( /* DELETE 只是注释 */ SELECT 1) SELECT * FROM c", sqlstmt.StmtTypeSelect},
+		// 不误伤：CTE 带列清单 (a,b)，其 "(" 体首是标识符而非 DML
+		{"WITH c(a, b) AS (SELECT 1, 2) SELECT * FROM c", sqlstmt.StmtTypeSelect},
+	}
+	// 覆盖全部 7 个方言：4 个基础方言 + 3 个薄方言（mssql/sqlite/clickhouse）
+	parsers := map[string]sqlparserParser{}
+	for name, p := range allParsers() {
+		parsers[name] = p
+	}
+	for name, p := range thinParsers() {
+		parsers[name] = p
+	}
+	if len(parsers) != 7 {
+		t.Fatalf("期望 7 个方言解析器，实际 %d", len(parsers))
+	}
+	for _, tc := range cases {
+		for name, p := range parsers {
+			stmt, err := p.Parse(tc.sql)
+			if err != nil {
+				t.Errorf("[%s] 解析失败: %v (%s)", name, err, tc.sql)
+				continue
+			}
+			withStmt, ok := stmt.(*sqlstmt.WithStmt)
+			if !ok {
+				t.Errorf("[%s] 期望 WithStmt，得到 %T (%s)", name, stmt, tc.sql)
+				continue
+			}
+			if withStmt.MainType != tc.want {
+				t.Errorf("[%s] %s: MainType=%q 期望 %q", name, tc.sql, withStmt.MainType, tc.want)
+			}
+		}
+	}
+}
+
+// TestSelectIntoParsesIntoFlag SELECT ... INTO 必须被解析器标记为写（SelectStmt.Into=true），
+// 供 Classify 判为 insert；纯 SELECT 不得误标。各方言一致。
+func TestSelectIntoParsesIntoFlag(t *testing.T) {
+	into := []string{
+		"SELECT id INTO bak_users FROM users WHERE id > 1",
+		"SELECT a FROM t INTO OUTFILE '/tmp/x.txt'",
+	}
+	for _, sql := range into {
+		for name, p := range allParsers() {
+			stmt, err := p.Parse(sql)
+			if err != nil {
+				t.Errorf("[%s] 解析失败: %v (%s)", name, err, sql)
+				continue
+			}
+			sel, ok := stmt.(*sqlstmt.SelectStmt)
+			if !ok {
+				t.Errorf("[%s] 期望 SelectStmt，得到 %T", name, stmt)
+				continue
+			}
+			if !sel.Into {
+				t.Errorf("[%s] SELECT INTO 应置 Into=true: %s", name, sql)
+			}
+		}
+	}
+	for name, p := range allParsers() {
+		stmt, err := p.Parse("SELECT id FROM users WHERE id > 1")
+		if err != nil {
+			t.Errorf("[%s] 解析失败: %v", name, err)
+			continue
+		}
+		if sel, ok := stmt.(*sqlstmt.SelectStmt); ok && sel.Into {
+			t.Errorf("[%s] 纯 SELECT 不应置 Into", name)
+		}
+	}
+}
+
+// TestExplainAnalyzeParsesInner EXPLAIN ANALYZE <写> 必须解析出 ExplainStmt.Inner=该写类型（供 Classify 判写）；
+// 纯 EXPLAIN 与 EXPLAIN ANALYZE <SELECT> 的 Inner 为空（按 other 只读）。扫描器在 base，各方言一致。
+func TestExplainAnalyzeParsesInner(t *testing.T) {
+	writeCases := []struct {
+		sql  string
+		want sqlstmt.StmtType
+	}{
+		{"EXPLAIN ANALYZE DELETE FROM t WHERE id = 1", sqlstmt.StmtTypeDelete},
+		{"EXPLAIN ANALYZE UPDATE t SET a = 1", sqlstmt.StmtTypeUpdate},
+		{"EXPLAIN ANALYZE INSERT INTO t VALUES (1)", sqlstmt.StmtTypeInsert},
+		{"EXPLAIN (ANALYZE, BUFFERS) DELETE FROM t", sqlstmt.StmtTypeDelete}, // pg 括号选项形态
+		{"EXPLAIN ANALYSE DELETE FROM t", sqlstmt.StmtTypeDelete},            // 英式拼写
+	}
+	readCases := []string{
+		"EXPLAIN SELECT * FROM t",
+		"EXPLAIN ANALYZE SELECT * FROM t", // 执行但不写
+		"EXPLAIN DELETE FROM t",           // 仅出计划，不执行
+	}
+	parsers := map[string]sqlparserParser{}
+	for name, p := range allParsers() {
+		parsers[name] = p
+	}
+	for name, p := range thinParsers() {
+		parsers[name] = p
+	}
+	for _, tc := range writeCases {
+		for name, p := range parsers {
+			stmt, err := p.Parse(tc.sql)
+			if err != nil {
+				t.Errorf("[%s] 解析失败: %v (%s)", name, err, tc.sql)
+				continue
+			}
+			ex, ok := stmt.(*sqlstmt.ExplainStmt)
+			if !ok {
+				t.Errorf("[%s] 期望 ExplainStmt，得到 %T (%s)", name, stmt, tc.sql)
+				continue
+			}
+			if ex.Inner != tc.want {
+				t.Errorf("[%s] %s: Inner=%q 期望 %q", name, tc.sql, ex.Inner, tc.want)
+			}
+		}
+	}
+	for _, sql := range readCases {
+		for name, p := range parsers {
+			stmt, err := p.Parse(sql)
+			if err != nil {
+				t.Errorf("[%s] 解析失败: %v (%s)", name, err, sql)
+				continue
+			}
+			ex, ok := stmt.(*sqlstmt.ExplainStmt)
+			if !ok {
+				t.Errorf("[%s] 期望 ExplainStmt，得到 %T (%s)", name, stmt, sql)
+				continue
+			}
+			if ex.Inner != "" {
+				t.Errorf("[%s] 只读 EXPLAIN 的 Inner 应为空，实际 %q: %s", name, ex.Inner, sql)
+			}
+		}
+	}
+}
+
+// TestMergeParse MERGE INTO 被识别为写语句（MergeStmt），7 个方言一致；且 merge 作裸标识符不受影响。
+// 值匹配（MERGE + 后随 INTO）不依赖关键字登记，故既不破坏名称位，又各方言统一。
+func TestMergeParse(t *testing.T) {
+	parsers := map[string]sqlparserParser{}
+	for name, p := range allParsers() {
+		parsers[name] = p
+	}
+	for name, p := range thinParsers() {
+		parsers[name] = p
+	}
+	if len(parsers) != 7 {
+		t.Fatalf("期望 7 个方言解析器，实际 %d", len(parsers))
+	}
+
+	mergeSqls := []string{
+		"MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = s.a WHEN NOT MATCHED THEN INSERT (a) VALUES (s.a)",
+		"merge into t using s on (t.id = s.id) when matched then update set t.a = 1",
+	}
+	for _, sql := range mergeSqls {
+		for name, p := range parsers {
+			stmt, err := p.Parse(sql)
+			if err != nil {
+				t.Errorf("[%s] MERGE 解析失败: %v (%s)", name, err, sql)
+				continue
+			}
+			if _, ok := stmt.(*sqlstmt.MergeStmt); !ok {
+				t.Errorf("[%s] MERGE 应解析为 MergeStmt，得到 %T", name, stmt)
+			}
+		}
+	}
+
+	// 名称位：merge 作列名/表名不受影响（未登记为关键字，且值匹配只发生在语句头）
+	for name, p := range parsers {
+		stmt, err := p.Parse("SELECT merge FROM t WHERE merge = 1")
+		if err != nil {
+			t.Errorf("[%s] merge 作列名解析失败: %v", name, err)
+			continue
+		}
+		if _, ok := stmt.(*sqlstmt.SelectStmt); !ok {
+			t.Errorf("[%s] merge 作列名应为 SelectStmt，得到 %T", name, stmt)
+		}
+	}
+}
+
 // TestDialectSpecificSyntax 方言特有语法（引用符/分页）解析正确
 func TestDialectSpecificSyntax(t *testing.T) {
 	cases := []struct {

@@ -274,6 +274,14 @@ export interface DialectCapabilities {
      * 缺省 {} 表示按标准 SQL 处理，详见 SqlSplitOptions
      */
     sqlSplitOptions: SqlSplitOptions;
+    /**
+     * 本方言在通用只读基线之上「额外」视为只读查询的语句首词（小写整词）。
+     *
+     * 通用只读集合（select/with/table/show/explain/describe/desc）由 core/sqlKind 单一持有，
+     * 此处只登记该方言特有、且后端会走查询通道返回结果集的语句动词——如 sqlite 的 `pragma`。
+     * 缺省 [] 表示无追加项；新增方言无需登记，确有方言特有只读语句时才覆盖（开闭原则）。
+     */
+    queryStatementKeywords: readonly string[];
 }
 
 /**

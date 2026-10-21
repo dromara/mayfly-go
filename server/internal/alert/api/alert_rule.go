@@ -1,16 +1,18 @@
 package api
 
 import (
-	"github.com/spf13/cast"
 	"mayfly-go/internal/alert/application"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/service"
 	"mayfly-go/internal/alert/imsg"
+	"mayfly-go/internal/pkg/consts"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
+
+	"github.com/spf13/cast"
 )
 
 type AlertRule struct {
@@ -40,8 +42,12 @@ func (a *AlertRule) List(rc *req.Ctx) {
 
 // ResourceMetrics 某资源类型支持的指标集合
 type ResourceMetrics struct {
-	ResourceType int8                       `json:"resourceType"`
-	Metrics      []service.MetricDefinition `json:"metrics"`
+	ResourceType int8 `json:"resourceType"`
+	// ResourceKey 资源类型的稳定字符串键（machine/db/...，真源见 consts.ResourceTypeKey）。
+	// 数值型供告警规则自身联动；键字符串供跨模块消费（如 agentops 触发器匹配条件存的就是
+	// 事件归一化后的键串）。同一接口一次下发两种形态，前端不必自抄一份数值↔键映射表
+	ResourceKey string                     `json:"resourceKey"`
+	Metrics     []service.MetricDefinition `json:"metrics"`
 }
 
 // Metrics 返回已注册评估器的资源类型及其支持的指标集合。
@@ -59,7 +65,8 @@ func (a *AlertRule) Metrics(rc *req.Ctx) {
 
 	res := make([]*ResourceMetrics, 0, len(types))
 	for _, rt := range types {
-		res = append(res, &ResourceMetrics{ResourceType: rt, Metrics: service.MetricsOf(rt)})
+		key, _ := consts.ResourceTypeKey(rt)
+		res = append(res, &ResourceMetrics{ResourceType: rt, ResourceKey: key, Metrics: service.MetricsOf(rt)})
 	}
 	rc.ResData = res
 }
@@ -71,22 +78,41 @@ func (a *AlertRule) GetById(rc *req.Ctx) {
 	rc.ResData = rule
 }
 
-func (a *AlertRule) Save(rc *req.Ctx) {
-	rule := rc.BindJson[entity.AlertRule]()
-	// Labels 为 JSON 列，空值需初始化为合法 JSON
+// alertRuleForm 告警规则保存请求体。
+//
+// priority 必须用指针承接：P0 的枚举值就是 0，与 Go 零值同形，直接绑实体无法区分
+// 「用户选了 P0」和「用户没选」。字段名与嵌入的 entity.AlertRule.Priority 同名，按 encoding/json
+// 的深度优先规则由本层字段遮蔽，因此能拿到「是否出现于请求体」这个信息
+type alertRuleForm struct {
+	entity.AlertRule
+	Priority *entity.AlertPriority `json:"priority"`
+}
+
+// toEntity 归一为领域实体：未提交 priority 时回退为 P2（与前端表单默认值、历史列默认值一致），
+// 显式提交 0 则按 P0 处理
+func (f *alertRuleForm) toEntity() *entity.AlertRule {
+	rule := f.AlertRule
+	if f.Priority != nil {
+		rule.Priority = *f.Priority
+	} else {
+		rule.Priority = entity.AlertPriorityMedium
+	}
+	// Labels 为 JSON 列，空值需归一为合法 JSON
 	if rule.Labels == "" {
 		rule.Labels = "{}"
 	}
+	return &rule
+}
+
+func (a *AlertRule) Save(rc *req.Ctx) {
+	rule := rc.BindJson[alertRuleForm]().toEntity()
 	biz.ErrIsNil(a.ruleApp.SaveAlertRule(rc.MetaCtx, rule))
 	rc.ResData = rule.Id
 }
 
 func (a *AlertRule) Update(rc *req.Ctx) {
-	rule := rc.BindJson[entity.AlertRule]()
+	rule := rc.BindJson[alertRuleForm]().toEntity()
 	rule.Id = cast.ToUint64(rc.PathParam("id"))
-	if rule.Labels == "" {
-		rule.Labels = "{}"
-	}
 	biz.ErrIsNil(a.ruleApp.SaveAlertRule(rc.MetaCtx, rule))
 }
 

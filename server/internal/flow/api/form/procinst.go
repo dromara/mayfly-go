@@ -23,6 +23,7 @@ type ProcinstReschedule struct {
 }
 
 type ProcinstTaskAudit struct {
-	Id     uint64 `json:"id" binding:"required"`
-	Remark string `json:"remark"`
+	Id uint64 `json:"id" binding:"required"`
+	// max=255 与候选人表 remark 列一致：超长会让整次审批以数据库原始错误失败（用户看到 500）
+	Remark string `json:"remark" binding:"max=255"`
 }

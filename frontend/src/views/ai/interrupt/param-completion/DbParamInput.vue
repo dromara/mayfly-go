@@ -4,15 +4,19 @@
             {{ t('ai.interrupt.paramCompletion.selectDbHint') }}
         </div>
 
-        <!-- 使用 DbSelectTree 组件 -->
+        <!-- 使用 DbSelectTree 组件：单向传值 + 事件写回（不在对象属性上直接 v-model） -->
         <DbSelectTree
-            v-model:db-id="dbValue.dbId"
-            v-model:inst-name="dbValue.instanceName"
-            v-model:db-name="dbValue.dbName"
-            v-model:tag-path="dbValue.tagPath"
-            v-model:db-type="dbValue.dbType"
+            :db-id="dbValue.dbId"
+            :inst-name="dbValue.instanceName"
+            :db-name="dbValue.dbName"
+            :tag-path="dbValue.tagPath"
+            :db-type="dbValue.dbType"
             :disabled="isConfirmed"
-            @select-db="onSelectDb"
+            @update:db-id="patch({ dbId: $event })"
+            @update:inst-name="patch({ instanceName: $event })"
+            @update:db-name="patch({ dbName: $event })"
+            @update:tag-path="patch({ tagPath: $event })"
+            @update:db-type="patch({ dbType: $event })"
         />
 
         <!-- 已选中的数据库详细信息 -->
@@ -52,19 +56,13 @@ interface Props {
     params: ParamDef[];
     readonly?: boolean;
     isConfirmed?: boolean;
-    modelValue?: DbParamValue;
+    // modelValue 不在此声明：它由下面的 defineModel 拥有契约与默认值。
+    // 两边各声明一次就是两份默认值，最终以哪份生效取决于编译器合并顺序（未定义行为面）
 }
 
 const props = withDefaults(defineProps<Props>(), {
     readonly: false,
     isConfirmed: false,
-    modelValue: () => ({
-        dbId: 0,
-        dbName: '',
-        dbType: '',
-        instanceName: '',
-        tagPath: '',
-    }),
 });
 
 const { t } = useI18n();
@@ -80,9 +78,15 @@ const dbValue = defineModel<DbParamValue>('modelValue', {
     }),
 });
 
-// 处理数据库选择
-const onSelectDb = (_params: Record<string, unknown>) => {
-    // Database selected, handled by DbSelectTree
+/**
+ * 以「整体替换值对象」的方式写回 model。
+ *
+ * 不用 `v-model:db-id="dbValue.dbId"`：那是在原地 mutate 传入的对象属性，
+ * update:modelValue 永不触发——父层的 paramInputValues 被就地改写、没有变更事件也没有
+ * 回滚点，而它同时是另一个子组件的 v-model 目标（两个子组件共享同一个可变对象互写）
+ */
+const patch = (partial: Partial<DbParamValue>) => {
+    dbValue.value = { ...dbValue.value, ...partial };
 };
 
 // 检查是否有效

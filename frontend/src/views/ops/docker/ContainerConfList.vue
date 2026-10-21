@@ -27,7 +27,7 @@
         </data-table>
 
         <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
-            <el-descriptions v-if="detailDialog.data" :title="$t('common.detail')" :column="3" border>
+            <el-descriptions v-if="detailDialog.data" :title="$t('common.detail')" :column="3" border label-width="90">
                 <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ detailDialog.data.name }}</el-descriptions-item>
 

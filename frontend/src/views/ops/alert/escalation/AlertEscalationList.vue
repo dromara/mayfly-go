@@ -38,7 +38,7 @@
                             {{ $t('alert.matchLabels') }}
                             <el-tooltip placement="top">
                                 <template #content
-                                    ><span style="white-space: pre-line">{{ $t('alert.matchLabelsTips') }}</span></template
+                                    ><span style="white-space: pre-line">{{ $t('alert.escalationMatchLabelsTips') }}</span></template
                                 >
                                 <SvgIcon name="QuestionFilled" class="ml-1" />
                             </el-tooltip>

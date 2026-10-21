@@ -10,6 +10,7 @@ export default {
         acNameRequired: '请完善授权凭证账号信息',
         dbInst: '数据库实例',
         manageDbTitle: '管理【{instName}】数据库',
+        addDbTitle: '添加数据库',
         sqlitePathPlaceholder: '请输入sqlite文件在服务器的绝对地址',
         connParamPlaceholder: '其他连接参数，形如: key1=value1&key2=value2',
         connSuccess: '连接成功',

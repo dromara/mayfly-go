@@ -181,7 +181,8 @@ export default {
         cronJobRetryTips: 'Retries only on connection failure or timeout, not on non-zero exit',
         cronJobNotifyType: 'Result Notify',
         cronJobNotifyTmpl: 'Notify Template',
-        cronJobNotifyTmplTips: 'Notify channels come from the selected template association; configure the template in Message Management - Message Template first',
+        cronJobNotifyTmplTips:
+            'Notify channels come from the selected template association; configure the template in Message Management - Message Template first',
         cronJobNotifyNone: 'No Notify',
         cronJobNotifyFail: 'On Failure',
         cronJobNotifyAlways: 'Always',

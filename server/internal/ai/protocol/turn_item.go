@@ -61,6 +61,10 @@ type TurnItem struct {
 	OriginalTokens         int `json:"original_tokens,omitempty"`
 	CompressedTokens       int `json:"compressed_tokens,omitempty"`
 	CompressedMessageCount int `json:"compressed_message_count,omitempty"`
+
+	// NoticeKind turn_notice 变体：轮次终止提示的种类（见 entity.TurnNoticeKind*）。
+	// 只存种类不存句子：文案由读取方按自己语言现渲，落死文本会把写入时的语言固化进历史
+	NoticeKind string `json:"notice_kind,omitempty"`
 }
 
 // PayloadJSON 序列化为存储 payload（剥离 type/id——分别由 item_type / item_id 列承载，

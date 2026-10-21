@@ -8,6 +8,8 @@ var Zh_CN = map[i18n.MsgId]string{
 	ApprovalTitle:           "高危操作审批",
 	ApprovalDesc:            "该操作需要审批后才能执行",
 	RejectReasonDefault:     "用户未提供具体原因",
+	TurnCancelledByUser:     "用户已取消本次操作，未执行任何变更",
+	TurnRejectedByUser:      "用户已拒绝本次操作，未执行任何变更",
 	MissingRequiredParams:   "缺少必要参数",
 	SQLExecApprovalReason:   "执行SQL是高危操作，请审批",
 	ExecSQLToolDesc:         "ExecSql【数据库SQL执行】",
@@ -26,8 +28,23 @@ var Zh_CN = map[i18n.MsgId]string{
 	MachineInfoIncomplete:      "缺少机器信息，请完善参数",
 	CommandExecApprovalReason:  "执行命令可能涉及高危操作，请审批",
 	InterruptExpired:           "该中断已失效或服务已重启，请重新发送消息发起任务",
+	TurnAlreadyRunning:         "上一轮仍在执行中，请等待其完成，或先停止该轮后再发送",
 
 	// Resource tool
 	ResourceListToolDesc: "ListResources【资源清单查询】",
 	ResourceListToolInfo: "【资源】资源清单查询工具 - 查询当前用户有权限操作的全部资源（机器、数据库等）及定位信息（id/code/ip/库名等）。适用场景：\n1. 用户询问有哪些机器/数据库等资源，或要求检查所有机器状态、整体巡检前，先用本工具获取资源清单；\n2. 用户未明确指定目标资源时，先用本工具获取资源列表，再结合用户描述选定目标或让用户选择；\n3. 需要资源定位参数（如机器的 authCertName、数据库的 dbId）却未知时，先用本工具查询。返回的资源 id/code 可直接用于后续工具调用参数。",
+
+	// 面向用户的入口错误
+	ErrConvLoginRequired:  "请先登录后再操作会话",
+	ErrConvNotFound:       "会话不存在或已被删除",
+	ErrConvReadDenied:     "无权查看该会话",
+	ErrConvModifyDenied:   "无权修改该会话",
+	ErrConvWriteDenied:    "无权在该会话中发送消息",
+	ErrConvSystemReadOnly: "该会话由系统运行创建，只读",
+
+	ErrHeadlessReqNil:        "运行请求为空",
+	ErrHeadlessOwnerRequired: "运行发起人缺失，已拒绝（无法确定工具权限范围）",
+	ErrUnknownAgentProfile:   "未知的智能体档位：{{.profileId}}",
+	ErrSkillZipTooLarge:      "技能包过大，请拆分后重新上传",
+	ErrAlertEventAppNotReady: "告警事件服务未就绪，请稍后重试",
 }

@@ -97,6 +97,8 @@ export interface MetricDefinition {
 /** 资源类型对应的可用指标 */
 export interface ResourceMetrics {
     resourceType: number;
+    /** 资源类型稳定字符串键（machine/db/...）：跨模块消费形态（如 agentops 触发器匹配条件），真源见后端 consts */
+    resourceKey: string;
     metrics: MetricDefinition[];
 }
 

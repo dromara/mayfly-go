@@ -23,7 +23,7 @@
             <div>
                 <div class="section-title">{{ $t('mongo.collState') }}</div>
                 <el-alert v-if="!stats && state.meta?.statsError" :title="state.meta.statsError" type="info" :closable="false" show-icon />
-                <el-descriptions v-else-if="stats" :column="3" size="small" border>
+                <el-descriptions v-else-if="stats" :column="3" size="small" border label-width="120">
                     <el-descriptions-item :label="$t('mongo.docCount')">{{ stats.count }}</el-descriptions-item>
                     <el-descriptions-item :label="$t('mongo.avgObjSize')">{{ formatByteSize(stats.avgObjSize) }}</el-descriptions-item>
                     <el-descriptions-item :label="$t('mongo.storageSize')">{{ formatByteSize(stats.storageSize) }}</el-descriptions-item>

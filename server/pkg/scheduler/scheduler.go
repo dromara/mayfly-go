@@ -41,6 +41,22 @@ func ValidateSpec(spec string) error {
 	return nil
 }
 
+// NextFireTime 返回 spec 在 from 之后的下一次触发时间（复用本服务解析器，避免与注册时的语法漂移）。
+//
+// 供 misfire（错过触发）判定：in-memory 调度器不持久化下次触发点，重启后以「上次触发时间」
+// 为基线算出本应触发的下一次时间，若已过去则说明重启期间错过。空/非法表达式返回错误。
+func NextFireTime(spec string, from time.Time) (time.Time, error) {
+	trimmed := strings.TrimSpace(spec)
+	if trimmed == "" {
+		return time.Time{}, errors.New("cron expression is empty")
+	}
+	sched, err := specParser.Parse(trimmed)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return sched.Next(from), nil
+}
+
 func Start() {
 	cronService.Start()
 }

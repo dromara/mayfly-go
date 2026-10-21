@@ -37,7 +37,7 @@
         </data-table>
 
         <el-dialog v-model="infoDialog.visible" :title="$t('common.detail')">
-            <el-descriptions v-if="infoDialog.data" :column="3" border>
+            <el-descriptions v-if="infoDialog.data" :column="3" border label-width="110">
                 <el-descriptions-item :span="2" :label="$t('common.name')">{{ infoDialog.data.name }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="ID">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="2" label="Host">{{ infoDialog.data.host }}</el-descriptions-item>
@@ -115,7 +115,8 @@ const columns = ref([
     TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('type', 'common.type').isSlot().alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: DbInstance) => `${data.host}:${data.port}`),
-    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert'),
+    // 授权凭证列插槽渲染 el-select（下拉箭头+padding+边框回填量不到）：+x 预留控件占位
+    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert').setAddWidth(25),
     TableColumn.new('params', 'db.connParam'),
     TableColumn.new('remark', 'common.remark'),
     TableColumn.new('code', 'common.code'),

@@ -60,7 +60,11 @@ func (cm *ClickHouseMetadata) GetSchemas() ([]string, error) {
 }
 
 func (cm *ClickHouseMetadata) GetDbNames() ([]string, error) {
-	_, res, err := cm.di.Query("SELECT name FROM system.databases WHERE name NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA') ORDER BY name")
+	// system 与两种大小写的 information_schema 是服务端自带系统库；_temporary_and_external_tables
+	// 是存放临时表/外部表的内部库（有临时表时才会出现在 system.databases），都不作为业务库下发资源树
+	_, res, err := cm.di.Query("SELECT name FROM system.databases" +
+		" WHERE name NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA', '_temporary_and_external_tables')" +
+		" ORDER BY name")
 	if err != nil {
 		return nil, err
 	}

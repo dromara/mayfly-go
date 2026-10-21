@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/internal/ai/session"
+	"mayfly-go/internal/ai/tools"
 	"mayfly-go/pkg/utils/stringx"
 
 	"github.com/cloudwego/eino/adk"
@@ -11,6 +12,10 @@ import (
 
 // option 定义了Agent的配置选项
 type option func(*Agent)
+
+// Option option 的导出别名：供跨包（如 application 层 AgentProfile 装配）
+// 以具名类型构建可变选项列表；与 option 为同一类型，直接传入 NewAgent/GetDefaultAgent。
+type Option = option
 
 func WithId(id string) option {
 	return func(agent *Agent) {
@@ -74,6 +79,38 @@ func WithMaxStep(maxStep int) option {
 	}
 }
 
+// WithInstruction 覆盖静态系统提示词（adk Instruction）
+//
+// 未指定时 NewAgent 回退渲染内置 system_prompt.md；AgentProfile 装配
+// 各角色档（诊断/执行/审查）时经此注入差异化指令。
+func WithInstruction(instruction string) option {
+	return func(agent *Agent) {
+		agent.instruction = instruction
+	}
+}
+
+// WithToolPolicy 指定工具能力策略（capability 允许集）
+//
+// 装配期对 BuildTools 结果做通用 capability 过滤（新增工具只需声明能力，
+// 过滤逻辑零改动），运行期护栏（CapabilityGuardMiddleware）统一挂载并兼管能力与一次性许可两个维度。
+// nil 或不限制策略（NewToolPolicy() 空集）表示能力维度全放行，行为与既有一致。
+func WithToolPolicy(policy *tools.ToolPolicy) option {
+	return func(agent *Agent) {
+		agent.toolPolicy = policy
+	}
+}
+
+// WithRequireRunGrant 声明本 Agent 必须由一次性运行许可驱动
+//
+// 许可由运行上下文注入（见 tools.WithRunGrant）：本次运行只允许调用许可清单里的工具。
+// 置为 true 时，没有许可的调用链会拒绝一切工具（fail-closed）——受控执行档用它保证
+// 「审批后只干已批准那一件事」不只能靠提示词。
+func WithRequireRunGrant(require bool) option {
+	return func(agent *Agent) {
+		agent.requireRunGrant = require
+	}
+}
+
 type runOptions struct {
 	adkRunOptions []adk.AgentRunOption
 	sessionKey    string
@@ -83,6 +120,9 @@ type runOptions struct {
 	// interrupted 本轮是否以中断挂起结束（事件流中检测到 Interrupted 动作时置位，
 	// 用于轮次结束原因细分为 TurnEndInterrupted）
 	interrupted bool
+
+	// tokenBudget 单轮 token 预算熔断（>0 时事件流中累计用量超限即中止运行；0=不熔断）
+	tokenBudget int64
 
 	// onChunk 流式内容块回调函数
 	// 当 Agent 产生增量输出（如 LLM 生成的每一个 Token 或片段）时触发。
@@ -152,6 +192,15 @@ func WithTurnId(turnId string) RunOption {
 func WithResumeParams(resumeParams ...any) RunOption {
 	return func(opts *runOptions) {
 		opts.resumeParams = resumeParams
+	}
+}
+
+// WithTokenBudget 设置单轮 token 预算熔断
+// 事件流中每收到一条带 usage 的完整消息即累计，超限立即中止运行（返回错误，
+// runErr 由上层转 failed 终态）。>0 时生效，用于无头运行防失控消耗。
+func WithTokenBudget(maxTotalTokens int64) RunOption {
+	return func(opts *runOptions) {
+		opts.tokenBudget = maxTotalTokens
 	}
 }
 

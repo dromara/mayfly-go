@@ -12,6 +12,7 @@ type Conversation struct {
 	Code                   string `gorm:"column:code;size:64;not null;comment:会话业务编码（UUID）" json:"code"`
 	Title                  string `gorm:"column:title;size:255;not null;default:New Chat;comment:会话标题" json:"title"`
 	Status                 int    `gorm:"column:status;not null;default:1;comment:1=active 2=archived" json:"status"`
+	Source                 string `gorm:"column:source;size:16;not null;default:user;comment:会话来源：user=用户发起 system=系统任务触发" json:"source"`
 	Compaction             string `gorm:"column:compaction;type:text;comment:对话压缩结果" json:"compaction"`
 	CompactionMessageCount int    `gorm:"column:compaction_message_count;not null;default:0;comment:压缩时消息数" json:"compactionMessageCount"`
 	TotalMessageCount      int    `gorm:"column:total_message_count;not null;default:0;comment:总消息数量" json:"totalMessageCount"`
@@ -24,6 +25,13 @@ type Conversation struct {
 const (
 	ConversationStatusActive   = 1
 	ConversationStatusArchived = 2
+)
+
+// Conversation 来源常量：用户会话列表只展示 user 来源，
+// agentops 任务/编排/评测等系统触发的 headless 会话标记 system（仅在执行历史回放入口可见）
+const (
+	ConversationSourceUser   = "user"
+	ConversationSourceSystem = "system"
 )
 
 func (c *Conversation) TableName() string {

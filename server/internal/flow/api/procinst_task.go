@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/imsg"
-	"mayfly-go/internal/pkg/consts"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -42,14 +41,12 @@ func (p *ProcinstTask) ReqConfs() *req.Confs {
 
 func (p *ProcinstTask) GetTasks(rc *req.Ctx) {
 	instTaskQuery := rc.BindQuery[entity.ProcinstTaskQuery]()
-	if laId := rc.GetLoginAccount().Id; laId != consts.AdminId {
-		// 赋值操作人为当前登录账号
-		instTaskQuery.Assignee = fmt.Sprintf("%d", rc.GetLoginAccount().Id)
-	}
 	ctx := rc.MetaCtx
 	// 代办任务
 	if instTaskQuery.Status == entity.ProcinstTaskStatusProcess {
-		instTaskQuery.Candidates = p.GetLaCandidates(contextx.GetLoginAccount(ctx))
+		candidates, err := p.GetLaCandidates(contextx.GetLoginAccount(ctx))
+		biz.ErrIsNil(err)
+		instTaskQuery.Candidates = candidates
 	} else {
 		// 我的任务
 		instTaskQuery.Handler = contextx.GetLoginAccount(ctx).Username
@@ -79,7 +76,9 @@ func (p *ProcinstTask) PassTask(rc *req.Ctx) {
 
 	la := rc.GetLoginAccount()
 	op := dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark, Handler: la.Username}
-	op.Candidate = p.GetLaCandidates(la)
+	candidates, err := p.GetLaCandidates(la)
+	biz.ErrIsNil(err)
+	op.Candidate = candidates
 	biz.ErrIsNil(p.procinstTaskApp.PassTask(rc.MetaCtx, op))
 }
 
@@ -89,7 +88,9 @@ func (p *ProcinstTask) RejectTask(rc *req.Ctx) {
 
 	la := rc.GetLoginAccount()
 	op := dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark, Handler: la.Username}
-	op.Candidate = p.GetLaCandidates(la)
+	candidates, err := p.GetLaCandidates(la)
+	biz.ErrIsNil(err)
+	op.Candidate = candidates
 	biz.ErrIsNil(p.procinstTaskApp.RejectTask(rc.MetaCtx, op))
 }
 
@@ -99,17 +100,23 @@ func (p *ProcinstTask) BackTask(rc *req.Ctx) {
 
 	la := rc.GetLoginAccount()
 	op := dto.UserTaskOp{TaskId: auditForm.Id, Remark: auditForm.Remark, Handler: la.Username}
-	op.Candidate = p.GetLaCandidates(la)
+	candidates, err := p.GetLaCandidates(la)
+	biz.ErrIsNil(err)
+	op.Candidate = candidates
 	biz.ErrIsNil(p.procinstTaskApp.BackTask(rc.MetaCtx, op))
 }
 
-func (p *ProcinstTask) GetLaCandidates(la *model.LoginAccount) []string {
+// GetLaCandidates 当前账号可作为办理人的候选人标识（自身 id + 所属角色）。
+//
+// 角色查询失败必须上抛：降级成「只有自己」会让待办列表少一半、办理时报「非办理人」——
+// fail-closed 不越权，但把一次 DB 抖动伪装成权限问题，排查方向会被带偏
+func (p *ProcinstTask) GetLaCandidates(la *model.LoginAccount) ([]string, error) {
 	candidates := []string{fmt.Sprintf("%d", la.Id)}
 
 	roles, err := p.roleApp.GetAccountRoles(la.Id)
-	if err == nil {
-		candidates = append(candidates, collx.ArrayMap(roles, func(val *sysentity.AccountRole) string { return fmt.Sprintf("role:%d", val.RoleId) })...)
+	if err != nil {
+		return nil, err
 	}
-
-	return candidates
+	candidates = append(candidates, collx.ArrayMap(roles, func(val *sysentity.AccountRole) string { return fmt.Sprintf("role:%d", val.RoleId) })...)
+	return candidates, nil
 }

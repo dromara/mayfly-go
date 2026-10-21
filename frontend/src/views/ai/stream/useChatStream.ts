@@ -10,6 +10,21 @@ export function useChatStream() {
     const socket = ref<WebSocket | null>(null);
     const reconnectTimer = ref<ReturnType<typeof setTimeout> | null>(null);
     const reconnectAttempts = ref(0);
+    /**
+     * 重连次数已耗尽的终态哨兵。
+     *
+     * 没这个哨兵时：耗尽分支既不置 reconnectTimer 也不标记终态，而 ensureOpen 的轮询条件是
+     * `!reconnectTimer.value`，于是每 150ms 再调一次 attemptReconnect —— 10s 超时前会刷出
+     * 约 66 条全局错误弹层，并重复调用 onError/onEnd（onError 每次都往 turn 追加一条 notice part）。
+     * 任何一次断网态下的 sendStop/sendAttach/sendResume 都会踩到
+     */
+    const reconnectExhausted = ref(false);
+
+    /** 复位重连状态（连接建立/主动停止/卸载三处共用）；不重置哨兵下次断网就永远不再提示 */
+    const resetReconnectState = () => {
+        reconnectAttempts.value = 0;
+        reconnectExhausted.value = false;
+    };
     const MAX_RECONNECT_ATTEMPTS = 5;
     const RECONNECT_DELAY = 3000;
     const currentCallbacks = ref<StreamCallbacks | null>(null);
@@ -40,7 +55,7 @@ export function useChatStream() {
             // 连接就绪（首次连接/重连成功）：供调用方重新 attach 运行中 turn
             callbacks.onSocketOpen?.();
 
-            reconnectAttempts.value = 0;
+            resetReconnectState();
         } catch {
             Msg.error('ai.chat.connectionFailed');
             attemptReconnect(callbacks);
@@ -91,6 +106,9 @@ export function useChatStream() {
         if (!cb) return;
 
         if (reconnectAttempts.value >= MAX_RECONNECT_ATTEMPTS) {
+            // 只报一次并终态化：后续重入直接静默返回（UI 在首次已恢复）
+            if (reconnectExhausted.value) return;
+            reconnectExhausted.value = true;
             Msg.error('ai.chat.connectionDisconnected');
             // 通知调用方终态化本轮，恢复 UI（停止按钮/输入框），避免卡死在生成中状态
             cb.onError?.('ai.chat.connectionDisconnected');
@@ -198,7 +216,7 @@ export function useChatStream() {
             ws.close(1000, 'client stop');
         }
         socket.value = null;
-        reconnectAttempts.value = 0;
+        resetReconnectState();
         return true;
     };
 
@@ -216,7 +234,7 @@ export function useChatStream() {
             }
             socket.value = null;
         }
-        reconnectAttempts.value = 0;
+        resetReconnectState();
     };
 
     onBeforeUnmount(() => {

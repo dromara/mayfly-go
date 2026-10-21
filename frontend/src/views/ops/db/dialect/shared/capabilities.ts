@@ -155,6 +155,8 @@ export const defaultCapabilities: DialectCapabilities = {
     // 词法特征
     quotePairs: standardQuotePairs,
     sqlSplitOptions: {},
+    // 只读语句首词基线在 core/sqlKind 单一持有，方言默认无追加项（如 sqlite 才覆盖加 pragma）
+    queryStatementKeywords: [],
 };
 
 /**

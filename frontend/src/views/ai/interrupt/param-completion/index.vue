@@ -6,8 +6,10 @@
                 <Badge variant="secondary" class="param-completion-interrupt__type">{{ t('ai.interrupt.paramCompletion.title') }}</Badge>
                 <span class="param-completion-interrupt__desc">{{ interrupt?.description || t('ai.interrupt.paramCompletion.completeParam') }}</span>
             </div>
-            <Badge v-if="!readonly" variant="secondary" class="param-completion-interrupt__pending">{{ t('ai.interrupt.paramCompletion.pending') }}</Badge>
-            <Badge v-else variant="outline">{{ t('ai.interrupt.paramCompletion.completed') }}</Badge>
+            <!-- 只看是否已决策：readonly 仅仅拿掉写入口。否则轨迹里一条从未补全的
+                 中断会显示「已完成」，审计读不出这里曾经卡住 -->
+            <Badge v-if="!decided" variant="secondary" class="param-completion-interrupt__pending">{{ t('ai.interrupt.paramCompletion.pending') }}</Badge>
+            <Badge v-else variant="outline" :class="badge.class">{{ badge.label }}</Badge>
         </div>
 
         <div class="param-completion-interrupt__body">
@@ -24,7 +26,7 @@
                 :options="availableOptions"
                 :description="interrupt?.description"
                 :readonly="readonly"
-                :is-confirmed="readonly"
+                :is-confirmed="decided"
                 @change="onParamChange"
             />
             <!-- 参数输入（旧模式 fallback） -->
@@ -35,7 +37,7 @@
                 v-model:model-value="paramInputValues"
                 :params="missingParams"
                 :readonly="readonly"
-                :is-confirmed="readonly"
+                :is-confirmed="decided"
                 @change="onParamChange"
             />
             <div v-else class="param-completion-interrupt__unsupported">{{ t('ai.interrupt.paramCompletion.unsupportedType') }}: {{ paramType }}</div>
@@ -60,12 +62,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { InterruptComponentProps } from '../types';
+import { useInterruptBadge } from '../helpers';
 import DbParamInput from './DbParamInput.vue';
 import GenericParamInput from './GenericParamInput.vue';
 import MachineParamInput from './MachineParamInput.vue';
 import OptionsParamInput from './OptionsParamInput.vue';
 
 const { t } = useI18n();
+const { decided, badge } = useInterruptBadge(() => props.interrupt?.status);
 
 const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,

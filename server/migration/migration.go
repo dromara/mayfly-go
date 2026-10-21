@@ -22,13 +22,8 @@ func RunMigrations(db *gorm.DB) error {
 		defer lock.UnLock()
 	}
 
-	err := run(db,
-		migrations.Init,
-		migrations.V1_9,
-		migrations.V1_10,
-		migrations.V1_11,
-		migrations.V1_12,
-	)
+	// 迁移链的顺序与批次清单以 migrations.All() 为唯一真源，本文件不再逐个点名
+	err := run(db, migrations.All()...)
 
 	if err == nil {
 		logx.Info("migrations run success")
@@ -36,10 +31,10 @@ func RunMigrations(db *gorm.DB) error {
 	return err
 }
 
-func run(db *gorm.DB, fs ...func() []*gormigrate.Migration) error {
+func run(db *gorm.DB, batches ...migrations.Batch) error {
 	var ms []*gormigrate.Migration
-	for _, f := range fs {
-		ms = append(ms, f()...)
+	for _, batch := range batches {
+		ms = append(ms, batch()...)
 	}
 
 	m := gormigrate.New(db, &gormigrate.Options{

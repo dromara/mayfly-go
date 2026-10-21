@@ -62,52 +62,19 @@ func (m *Manager) GetHistory(ctx context.Context, key string, opts ...GetOption)
 		opt(options)
 	}
 
-	// 获取元数据，检查是否有摘要和 Skip
+	// 获取元数据：摘要用于前置；Skip 的截断由 Store 自己完成（见 Store.GetHistory 契约）。
+	// 这里不再用 Count - Skip 算读取上界：Count 是 AppendMsgs 的累加快照，与 item 展开数会漂移，
+	// 拿它截断会静默丢历史（实测 160 条只读回 5 条），Count<=Skip 时甚至直接返回空
 	meta, err := m.GetMeta(ctx, key)
 	if err != nil {
 		logx.WarnfContext(ctx, "get meta error in GetHistory: %v", err)
-		// 如果获取元数据失败，直接返回 Store 的历史消息
-		sessionMsgs, err := m.store.GetHistory(ctx, key, options.messageLimit)
-		if err != nil {
-			return nil, err
-		}
-		return sessionMsgs, nil
+		// 元数据读取失败时仍读 Store（其内部会退化为 skip=0），不让元数据故障变成历史全丢
+		return m.store.GetHistory(ctx, key, options.messageLimit)
 	}
 
-	// 计算 Store 层实际需要读取的消息数量
-	// 目标：只读取未摘要的消息，避免读取已摘要的历史记录
-	var storeLimit int
-	if meta != nil && meta.Count > meta.Skip {
-		unsummarizedCount := meta.Count - meta.Skip
-		// 取未摘要消息数和用户限制中的较小值，避免加载过多数据
-		if options.messageLimit > 0 && options.messageLimit < unsummarizedCount {
-			storeLimit = options.messageLimit
-		} else {
-			storeLimit = unsummarizedCount
-		}
-		logx.DebugfContext(ctx, "count=%d, skip=%d, unsummarizedCount=%d, messageLimit=%d, storeLimit=%d",
-			meta.Count, meta.Skip, unsummarizedCount, options.messageLimit, storeLimit)
-	} else if meta != nil && meta.Count <= meta.Skip {
-		// 所有消息都已被摘要，无需从 Store 读取原始消息
-		if meta.Summary != "" {
-			return []*Message{summaryMessage(meta.Summary)}, nil
-		}
-		return []*Message{}, nil
-	} else {
-		storeLimit = options.messageLimit
-	}
-
-	// 从 Store 获取历史消息（返回最后 storeLimit 条，即所有未摘要的消息）
-	sessionMsgs, err := m.store.GetHistory(ctx, key, storeLimit)
+	sessionMsgs, err := m.store.GetHistory(ctx, key, options.messageLimit)
 	if err != nil {
 		return nil, err
-	}
-
-	// 从所有未摘要的消息中，取最新的 messageLimit 条
-	if options.messageLimit > 0 && len(sessionMsgs) > options.messageLimit {
-		sessionMsgs = sessionMsgs[len(sessionMsgs)-options.messageLimit:]
-		logx.DebugfContext(ctx, "trimmed to latest %d messages from %d unsummarized messages",
-			options.messageLimit, len(sessionMsgs)+options.messageLimit)
 	}
 
 	// 统一内存消息形态（全链路 []*session.Message，转 AgenticMessage 由 session.ToAgenticMessages 承担）
@@ -175,12 +142,10 @@ func (m *Manager) AppendMsgs(ctx context.Context, key string, msgs ...*Message) 
 	// 异步检查并执行摘要（如果配置了摘要功能）
 	if m.summaryConfig != nil && m.summaryConfig.Enabled {
 		// 快速预检查：只有当未摘要消息数接近阈值时才启动 goroutine，避免无意义调度
-		unsummarizedCount := meta.Count - meta.Skip
-		keepCount := m.summaryConfig.KeepRecentCount
-		if keepCount <= 0 {
-			keepCount = DefaultSummaryKeepCount
-		}
-		if unsummarizedCount >= m.summaryConfig.MessageThreshold {
+		if unsummarizedCount, countErr := m.store.CountUnsummarized(ctx, key); countErr != nil {
+			// 计数失败不阻断对话：只跳过自动摘要预检（下一轮 AppendMsgs 会再试）
+			logx.WarnfContext(ctx, "count unsummarized before auto summarize failed: %v", countErr)
+		} else if unsummarizedCount >= m.summaryConfig.MessageThreshold {
 			// 使用 context.WithoutCancel 防止请求结束后 context 被取消导致摘要中断
 			summaryCtx := context.WithoutCancel(ctx)
 			gox.Go(func() {
@@ -247,8 +212,12 @@ func (m *Manager) CheckAndSummarize(ctx context.Context, sessionKey string) erro
 		return nil
 	}
 
-	// 计算未摘要的消息数
-	unsummarizedCount := meta.Count - meta.Skip
+	// 计算未摘要的消息数（以 Store 的真实展开数为准，见 CountUnsummarized 注释）
+	unsummarizedCount, countErr := m.store.CountUnsummarized(ctx, sessionKey)
+	if countErr != nil {
+		logx.WarnfContext(ctx, "count unsummarized failed, skip summarize check: %v", countErr)
+		return nil
+	}
 
 	// 获取保留消息数配置
 	keepCount := config.KeepRecentCount
@@ -300,16 +269,9 @@ func (m *Manager) summarizeSession(ctx context.Context, sessionKey string, meta 
 		keepCount = DefaultSummaryKeepCount
 	}
 
-	// 计算需要读取的消息数：未摘要的消息总数
-	// 直接调用 store.GetHistory，避免 Manager.GetHistory 内部重复读取 meta
-	unsummarizedCount := meta.Count - meta.Skip
-	if unsummarizedCount <= 0 {
-		logx.WarnfContext(ctx, "no unsummarized messages found, skip summarization")
-		return nil
-	}
-
-	// 从 Store 层精确读取未摘要的消息（仅原始消息，不含摘要）
-	rawMessages, err := m.store.GetHistory(ctx, sessionKey, unsummarizedCount)
+	// 从 Store 层精确读取未摘要的消息（仅原始消息，不含摘要）。
+	// limit=0 = 不限：窗口由 Store 自己按 Skip 与真实条数界定，这里不再传 meta.Count 算术结果
+	rawMessages, err := m.store.GetHistory(ctx, sessionKey, 0)
 	if err != nil {
 		return fmt.Errorf("get history: %w", err)
 	}

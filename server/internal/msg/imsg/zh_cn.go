@@ -22,4 +22,13 @@ var Zh_CN = map[i18n.MsgId]string{
 	SQLScriptRunSuccessMsg: "数据库【<db-info id={{.dbId}}>{{.dbName}}</db-info>】的脚本 {{.filename}} 执行成功，耗时 {{.cost}}",
 
 	FlowUserTaskTodoMsg: "【{{.creator}}】提交的流程【{{.procdefName}}】已进入【{{.taskName}}】节点，请及时处理，去处理  <a href='#/flow/procinst-tasks'> >>></a>",
+
+	ErrMsgTmplNotExist:  "消息模板[{{.code}}]不存在",
+	ErrMsgTmplDisabled:  "消息模板[{{.code}}]已停用，不能用于发送通知",
+	ErrMsgTmplNoChannel: "消息模板[{{.code}}]未关联任何消息渠道，通知发不出去；请先为该模板关联渠道",
+
+	ErrMsgTmplIdNotExist:      "消息模板[{{.id}}]不存在",
+	ErrMsgTmplBizIdRequired:   "业务 ID 不能为空",
+	ErrMsgTmplBizTypeRequired: "业务类型不能为空",
+	ErrMsgTmplBizNotBound:     "该业务尚未关联消息模板",
 }

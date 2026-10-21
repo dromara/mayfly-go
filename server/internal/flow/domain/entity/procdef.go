@@ -15,7 +15,7 @@ type Procdef struct {
 	Name    string        `json:"name" form:"name" gorm:"size:150;comment:流程名称"`                 // 名称
 	DefKey  string        `json:"defKey" form:"defKey" gorm:"not null;size:100;comment:流程定义key"` //
 	FlowDef string        `json:"flowDef" gorm:"type:text;comment:流程定义信息"`                       // 流程定义信息
-	Status  ProcdefStatus `json:"status" gorm:"comment:状态"`                                      // 状态
+	Status  ProcdefStatus `json:"status" form:"status" gorm:"comment:状态"`                        // 状态
 	Remark  *string       `json:"remark" gorm:"size:255;"`
 
 	// TriggerPolicy 触发策略，决定哪些资源操作需要走该审批流程

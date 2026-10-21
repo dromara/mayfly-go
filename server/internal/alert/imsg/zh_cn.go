@@ -88,7 +88,11 @@ var Zh_CN = map[i18n.MsgId]string{
 	TmplAlertRecoverTitle: "告警恢复-{{.ruleName}}",
 	TmplAlertNotifyBody: "【告警通知】\n规则: {{.ruleName}}\n资源: {{.resourceName}}\n指标: {{.metric}}\n" +
 		"当前值: {{.currentValue}}\n阈值: {{.threshold}}\n优先级: {{.priority}}\n" +
-		"首次触发: {{.firstTime}}\n最近触发: {{.lastTime}}\n累计触发: {{.triggerCount}}次",
+		"首次触发: {{.firstTime}}\n最近触发: {{.lastTime}}\n累计触发: {{.triggerCount}}次\n通知阶段: {{.notifyStage}}",
+	// 通知阶段：升级策略触发的通知与首报/重复告警共用同一份正文，不加这一行则审批人收到两条
+	// 一模一样的消息、无法知道第二条是「因一直没人处理而升级」的提醒
+	TmplStageAlertNotify: "告警通知",
+	TmplStageEscalation:  "升级提醒（第 {{.level}} 级）",
 	TmplAlertRecoverBody: "【告警恢复】\n规则: {{.ruleName}}\n资源: {{.resourceName}}\n指标: {{.metric}}\n优先级: {{.priority}}\n" +
 		"首次触发: {{.firstTime}}\n恢复时间: {{.recoverTime}}\n持续时长: {{.durationText}}\n" +
 		"累计触发: {{.triggerCount}}次\n通知次数: {{.notifyCount}}次",

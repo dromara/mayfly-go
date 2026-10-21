@@ -25,8 +25,8 @@ import (
 )
 
 // 语句类型候选值，与执行器分派保持一致：
-// select 为查询语句，read 为解析失败或无法归类的只读语句，other 为其余语句
-var dbStmtTypes = []string{"select", "read", "insert", "update", "delete", "ddl", "other"}
+// select 为查询语句，read 为解析失败或无法归类的只读语句，merge 为 upsert 写语句，other 为其余语句
+var dbStmtTypes = []string{"select", "read", "insert", "update", "delete", "merge", "ddl", "other"}
 
 // 破坏性 DDL 关键字默认集
 var dbDestructiveKeywords = []string{"drop", "truncate", "rename"}
@@ -218,7 +218,7 @@ func dbTriggerChecks() []trigger.CheckDef {
 			BizTypes: []string{DbSQLExecFlowBizType}, Default: flowentity.SeverityRequired,
 			Params: []trigger.CheckParam{{
 				Key: "stmtTypes", TitleKey: "flow.checkParam.stmtTypes", Type: trigger.TypeEnum, Required: true,
-				Default: []string{"insert", "update", "delete", "ddl"},
+				Default: []string{"insert", "update", "delete", "merge", "ddl"},
 				Options: collx.ArrayMap(dbStmtTypes, func(item string) trigger.FieldOption {
 					return trigger.FieldOption{Value: item}
 				}),
@@ -451,7 +451,11 @@ func (d *DbSQLExecAppImpl) CheckSqlsWithoutTicket(ctx context.Context, conn *dbi
 // checkSqlsWithoutTicket 判定本体：把「从连接取信息」与「判定」分开，前者是 I/O、后者可单测
 func (d *DbSQLExecAppImpl) checkSqlsWithoutTicket(ctx context.Context, conn *dbi.DbConn, codePaths []string, dialect dbi.Dialect, sqls []string) ([]string, error) {
 	notices := make([]string, len(sqls))
-	procdef := d.flowProcdefApp.GetProcdefByCodePath(ctx, codePaths...)
+	procdef, err := d.flowProcdefApp.GetProcdefByCodePath(ctx, codePaths...)
+	if err != nil {
+		// 定位失败按「不可判定」拒绝整批，不能当成未绑定
+		return nil, err
+	}
 	if procdef == nil {
 		// 未绑定流程定义即无需治理，也不必为每条语句付解析开销
 		return notices, nil

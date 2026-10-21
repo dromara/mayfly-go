@@ -124,7 +124,11 @@ func (a *alertEventAppImpl) TouchActiveEvent(ctx context.Context, event *entity.
 	event.TriggerCount++
 	event.Metric = metric
 	event.CurrentValue = currentValue
-	return a.UpdateById(ctx, event)
+	// 只写本次触摸真正改动的列（与 UpdateNotifyInfo/UpdateEscalationLvl 同一口径）。
+	// 整行写回会用本轮开头的旧快照覆盖并发写入的 notify_count/last_notify_time
+	//（通知刷新循环与评估循环是两个独立 cron），表现为重复通知节奏偏移、已通知次数倒退；
+	// resource_name 必须带上：评估链路在「历史活跃事件资源名为空」时先回填再触摸，靠的就是这一写
+	return a.GetRepo().UpdateById(ctx, event, "last_trigger_time", "trigger_count", "metric", "current_value", "resource_name")
 }
 
 // UpdateNotifyInfo 仅更新通知计数字段，避免全量写回旧快照覆盖评估链路并发写入的指标值
@@ -141,7 +145,9 @@ func (a *alertEventAppImpl) Recover(ctx context.Context, event *entity.AlertEven
 	now := time.Now()
 	event.Status = entity.AlertEventStatusRecovered
 	event.RecoverTime = &now
-	return a.UpdateById(ctx, event)
+	// 同样只写状态列：整行写回会把恢复前旧快照的 notify_count/metric 等写回去，
+	// 而恢复通知与升级扫描可能刚更新过它们
+	return a.GetRepo().UpdateById(ctx, event, "status", "recover_time")
 }
 
 // Ack 确认告警事件。
@@ -159,7 +165,8 @@ func (a *alertEventAppImpl) Ack(ctx context.Context, eventId uint64, userId int6
 	event.Status = entity.AlertEventStatusAcknowledged
 	event.AckUserId = userId
 	event.AckTime = &now
-	return a.UpdateById(ctx, event)
+	// 按列更新：与上面几个写入口同一口径，不让用户侧动作把评估/通知链路刚写的列带回去
+	return a.GetRepo().UpdateById(ctx, event, "status", "ack_user_id", "ack_time")
 }
 
 // Close 关闭告警事件，已关闭的事件幂等拒绝
@@ -172,7 +179,7 @@ func (a *alertEventAppImpl) Close(ctx context.Context, eventId uint64) error {
 		return errorx.NewBizI(ctx, imsg.ErrEventCloseInvalidStatus)
 	}
 	event.Status = entity.AlertEventStatusClosed
-	return a.UpdateById(ctx, event)
+	return a.GetRepo().UpdateById(ctx, event, "status")
 }
 
 // DeleteEvent 删除已终结的事件。

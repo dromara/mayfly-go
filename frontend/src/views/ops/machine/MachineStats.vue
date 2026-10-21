@@ -2,7 +2,7 @@
     <el-dialog :title="title" v-model="visible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
         <el-row :gutter="20">
             <el-col :lg="12" :md="12">
-                <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border>
+                <el-descriptions size="small" :title="$t('machine.basicInfo')" :column="2" border label-width="100">
                     <template #extra>
                         <el-link @click="onRefresh" icon="refresh" underline="never" type="success"></el-link>
                     </template>

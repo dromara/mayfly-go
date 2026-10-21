@@ -63,3 +63,16 @@ func readToolFile(t *testing.T, path string) string {
 	require.NoError(t, err, path)
 	return string(content)
 }
+
+// TestAgentQueryToolIsReadOnlyAndGoverned 钉住 DbQueryData（只读、无审批的查询工具）的两条不变量：
+//  1. 只读判定走 sqlparser.Classify 单一真源，不得把整个 OtherStmt 兜底大类当只读放行
+//     （旧实现如此，使 CALL/DO/SET/VACUUM 等带副作用语句绕过 ExecSql 审批从查询通道执行写）；
+//  2. 只读通道也过触发策略（与交互执行/ExecSql 同源），且拒绝结论不可重试。
+func TestAgentQueryToolIsReadOnlyAndGoverned(t *testing.T) {
+	querySource := readToolFile(t, filepath.Join("dbtool", "query_data.go"))
+
+	require.Contains(t, querySource, "sqlparser.Classify", "查询工具必须复用 sqlparser.Classify 判定语句类型")
+	require.NotContains(t, querySource, "*sqlstmt.SelectStmt, *sqlstmt.WithStmt, *sqlstmt.OtherStmt", "不得把 OtherStmt 整体当只读放行")
+	require.Contains(t, querySource, "CheckSqlsWithoutTicket(ctx, conn, readOnlySqls)", "查询工具必须复用应用层的策略判定")
+	require.Contains(t, querySource, "tools.RecoverNone", "策略拒绝必须按不可重试上抛")
+}

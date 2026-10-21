@@ -65,7 +65,7 @@ func (f FeishuBotSender) Send(ctx context.Context, channel *msgx.Channel, msg *m
 
 	msgReq.Content.Text = content
 
-	if secret := channel.Extra.GetStr("secret"); secret != "" {
+	if secret := channel.Extra.GetStr(msgx.ExtraKeySecret); secret != "" {
 		timestamp := time.Now().Unix()
 		if sign, err := f.sign(secret, timestamp); err != nil {
 			return err

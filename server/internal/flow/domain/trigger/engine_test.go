@@ -171,8 +171,15 @@ func TestEvalGroupLogics(t *testing.T) {
 	if matched, _ := eval(group(entity.LogicAny, condition("stmtType", OpEq, "delete"), condition("dangerous", OpEq, false)), ctx); !matched {
 		t.Fatalf("any should match when one item matches")
 	}
-	if matched, _ := eval(group(entity.LogicNone, condition("stmtType", OpEq, "delete"), condition("sql", OpContains, "truncate")), ctx); !matched {
-		t.Fatalf("none should match when no item matches")
+	// none：字段全都取得到值且无一命中 → 成立
+	noneCtx := newTestContext(map[string]string{"stmtType": "update", "dangerous": "false", "sql": "select 1"})
+	if matched, err := eval(group(entity.LogicNone, condition("stmtType", OpEq, "delete"), condition("sql", OpContains, "truncate")), noneCtx); err != nil || !matched {
+		t.Fatalf("none should match when no item matches and every field is available, got %v %v", matched, err)
+	}
+	// 字段取不到值时「全不」必须拒绝判定：旧语义会让 none(sql contains x) 在 sql 缺失时恒成立，
+	// 等于把豁免条件静默放大成「永远豁免」
+	if _, err := eval(group(entity.LogicNone, condition("sql", OpContains, "truncate")), ctx); err == nil {
+		t.Fatalf("none with an unavailable field must fail closed")
 	}
 	// 空分组不表达约束，避免「全不」在空集上恒真导致意外放行
 	if matched, _ := eval(&entity.RuleNode{Kind: entity.NodeKindGroup, Logic: entity.LogicNone}, ctx); matched {

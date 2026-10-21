@@ -3,7 +3,7 @@
         <el-dialog :title="title" v-model="visible" :show-close="true" width="1000px" body-class="h-[65vh] overflow-y-auto overflow-x-hidden">
             <el-row :gutter="20">
                 <el-col :lg="16" :md="16">
-                    <el-descriptions class="redis-info info-server" :title="$t('redis.redisInfoTitle')" :column="3" size="small" border>
+                    <el-descriptions class="redis-info info-server" :title="$t('redis.redisInfoTitle')" :column="3" size="small" border label-width="130">
                         <el-descriptions-item :label="$t('redis.version')">{{ info.Server?.redis_version }}</el-descriptions-item>
                         <el-descriptions-item :label="$t('redis.port')">{{ info.Server?.tcp_port }}</el-descriptions-item>
                         <el-descriptions-item label="PID">{{ info.Server?.process_id }}</el-descriptions-item>
@@ -21,7 +21,7 @@
 
             <el-row :gutter="20">
                 <el-col :lg="12" :md="12">
-                    <el-descriptions class="redis-info info-cluster" :title="$t('redis.node')" :column="3" size="small" border>
+                    <el-descriptions class="redis-info info-cluster" :title="$t('redis.node')" :column="3" size="small" border label-width="140">
                         <el-descriptions-item :label="$t('redis.clusterEnable')">{{ info.Cluster?.cluster_enabled }}</el-descriptions-item>
                         <el-descriptions-item label="DB">{{ info.Cluster?.databases }}</el-descriptions-item>
                         <el-descriptions-item :label="$t('redis.nodeCount')">{{ info.Cluster?.nodecount }}</el-descriptions-item>
@@ -29,14 +29,14 @@
                 </el-col>
 
                 <el-col :lg="12" :md="12">
-                    <el-descriptions class="redis-info info-client" :title="$t('redis.clientConn')" :column="3" size="small" border>
+                    <el-descriptions class="redis-info info-client" :title="$t('redis.clientConn')" :column="3" size="small" border label-width="200">
                         <el-descriptions-item :label="$t('redis.connectedNum')">{{ info.Clients?.connected_clients }}</el-descriptions-item>
                         <el-descriptions-item :label="$t('redis.blockedClientNum')">{{ info.Clients?.blocked_clients }}</el-descriptions-item>
                     </el-descriptions>
                 </el-col>
             </el-row>
 
-            <el-descriptions class="redis-info info-memory" title="CPU" :column="2" size="small" border>
+            <el-descriptions class="redis-info info-memory" title="CPU" :column="2" size="small" border label-width="200">
                 <el-descriptions-item :label="$t('redis.sysCpu')">{{ info.CPU?.used_cpu_sys }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('redis.userCpu')">{{ info.CPU?.used_cpu_user }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('redis.sysChildCpu')">{{ info.CPU?.used_cpu_sys_children }}</el-descriptions-item>
@@ -55,7 +55,7 @@
                 </el-col>
             </el-row>
 
-            <el-descriptions class="redis-info info-state" :title="$t('redis.countInfo')" :column="3" size="small" border>
+            <el-descriptions class="redis-info info-state" :title="$t('redis.countInfo')" :column="3" size="small" border label-width="230">
                 <el-descriptions-item :label="$t('redis.totalCmdProcess')">{{ info.Stats?.total_commands_processed }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('redis.curQps')">{{ info.Stats?.instantaneous_ops_per_sec }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('redis.expiredKeys')">{{ info.Stats?.expired_keys }}</el-descriptions-item>
@@ -63,7 +63,7 @@
                 <el-descriptions-item :label="$t('redis.netOutputBytes')">{{ info.Stats?.total_net_output_bytes }}</el-descriptions-item>
             </el-descriptions>
 
-            <el-descriptions class="redis-info info-persistence" :title="$t('redis.persistence')" :column="3" size="small" border>
+            <el-descriptions class="redis-info info-persistence" :title="$t('redis.persistence')" :column="3" size="small" border label-width="180">
                 <el-descriptions-item :label="$t('redis.aofEnable')">{{ info.Persistence?.aof_enabled || false }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('redis.loadingPersistence')">{{ info.Persistence?.loading || false }}</el-descriptions-item>
             </el-descriptions>

@@ -16,7 +16,7 @@
                 size="small"
             >
                 <template #durationMs="{ data }">
-                    <span :class="{ 'text-red-500': data.durationMs > 30000 }">{{ data.durationMs ? `${data.durationMs} ms` : '-' }}</span>
+                    <span :class="{ 'text-red-500': data.durationMs > 30000 }">{{ data.durationMs ? formatDurationMs(data.durationMs) : '-' }}</span>
                 </template>
                 <template #runLog="{ data }">
                     <el-button type="primary" link size="small" @click="showRunLog(data)">
@@ -53,6 +53,7 @@ import { dbTransferApi } from '@/views/ops/db/transfer/api';
 import { DbTransferLogStatusEnum, DbTransferLogPurposeEnum } from '@/views/ops/db/transfer/enums';
 import type { DbTransferLogListVO } from '@/views/ops/db/types';
 import type { PageResult } from '@/types/common';
+import { formatDurationMs } from '@/common/utils/format';
 
 const props = defineProps({
     taskId: {

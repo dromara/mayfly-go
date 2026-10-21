@@ -34,7 +34,7 @@ func (m *MaskAppImpl) SaveRule(ctx context.Context, rule *entity.DbMaskRule) err
 			return err
 		}
 	}
-	if err := m.maskRuleRepo.Save(ctx, rule); err != nil {
+	if err := m.maskRuleRepo.SaveAllColumns(ctx, rule); err != nil {
 		return err
 	}
 	m.invalidate()
@@ -84,7 +84,7 @@ func (m *MaskAppImpl) SaveTag(ctx context.Context, tag *entity.DbMaskColumn) err
 	if _, err := parseMaskParams(tag.Params); err != nil {
 		return err
 	}
-	if err := m.maskColumnRepo.Save(ctx, tag); err != nil {
+	if err := m.maskColumnRepo.SaveAllColumns(ctx, tag); err != nil {
 		return err
 	}
 	m.invalidate()

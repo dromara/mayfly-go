@@ -56,9 +56,24 @@ type ExtraData struct {
 	Extra collx.M `json:"extra" gorm:"type:varchar(2000)"`
 }
 
-// SetExtraValue 设置额外信息字段值
+// SetExtraValue 设置额外信息字段值：val 为零值（空串/false/0）时**删除该键**。
+//
+// 为什么零值要删键而不是跳过：基座此前对空值直接 return，所有一切「把值改回空/关成 false/
+// 配置改回 0」的编辑都静默不生效（保存成功、旧值赖在 JSON 里，无报错）。典型受害形态：
+//   - ResourceAuthCert.CiphertextClear 传 "" 想抹掉私钥口令，实际口令仍在 extra 里随列表接口回给前端；
+//   - 会话元信息 contextTokens 归 0 时读到的是上一次的旧值；
+//   - file 从对象存储换回本地存储时，旧 bucket 键残留，拼接存储路径时会拿到已废弃的 bucket。
+//
+// 读取侧天然自洽：GetExtraString/GetExtraInt/GetExtraBool 对缺键返回对应零值，所以「没键」与
+// 「键值为零」对外等价。容器为 nil 且值为零时直接返回，不会为空删除而凭空建出一个 `{}` 落库。
+//
+// 需要「没传就保留旧值」的调用方（如不回显的密文/口令）必须自己先判空再显式传旧值，
+// 不能依赖这里的跳过语义——参考 tag/application/resouce_auth_cert.go 里 passphrase 的合并写法。
 func (m *ExtraData) SetExtraValue(key string, val any) *ExtraData {
 	if anyx.IsBlank(val) {
+		if m.Extra != nil {
+			delete(m.Extra, key)
+		}
 		return m
 	}
 	if m.Extra != nil {

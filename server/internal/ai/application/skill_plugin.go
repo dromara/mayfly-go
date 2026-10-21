@@ -284,7 +284,7 @@ func (a *skillPluginAppImpl) ImportZip(ctx context.Context, data []byte) (*entit
 		return nil, err
 	}
 
-	fmName, fmDesc, _ := skill.ParseFrontmatter(skillMd)
+	fmName, fmDesc, fmAllowedTools, _ := skill.ParseFrontmatter(skillMd)
 	code, err := normalizeSkillCode(fmName)
 	if err != nil {
 		return nil, errorx.NewBizf("invalid frontmatter name: %v", err)
@@ -306,36 +306,43 @@ func (a *skillPluginAppImpl) ImportZip(ctx context.Context, data []byte) (*entit
 		updateRow := &entity.Skill{
 			Name:        code,
 			Description: fmDesc,
-			Version:     version,
-			Source:      entity.SkillSourceImported,
+			// allowed-tools 必须落库：BuildSkillMd 写、这里读，漏了就是 roundtrip 丢字段
+			// （技能装上但预批准工具列表丢失，每次调用都要重新审批，两侧都不报错）
+			AllowedTools: fmAllowedTools,
+			Version:      version,
+			Source:       entity.SkillSourceImported,
 		}
 		updateRow.Id = old.Id
-		if err := a.GetRepo().UpdateById(ctx, updateRow, "name", "description", "version", "source"); err != nil {
+		if err := a.GetRepo().UpdateById(ctx, updateRow, "name", "description", "allowed_tools", "version", "source"); err != nil {
 			return nil, err
 		}
 		skillRow = old
 		skillRow.Version = version
+		skillRow.AllowedTools = fmAllowedTools
 	} else {
 		skillRow = &entity.Skill{
-			Code:        code,
-			Name:        code,
-			Description: fmDesc,
-			Version:     defaultSemver(),
-			Source:      entity.SkillSourceImported,
-			Status:      entity.SkillStatusDraft,
+			Code:         code,
+			Name:         code,
+			Description:  fmDesc,
+			AllowedTools: fmAllowedTools,
+			Version:      defaultSemver(),
+			Source:       entity.SkillSourceImported,
+			Status:       entity.SkillStatusDraft,
 		}
 		if err := a.Insert(ctx, skillRow); err != nil {
 			return nil, err
 		}
 	}
 
-	// 全量重建：先清空旧资源再写入（导入为覆盖语义）
-	if err := a.resourceRepo.DeleteBySkillId(ctx, skillRow.Id); err != nil {
-		return nil, err
-	}
+	// 资源刷新：**先全量写新内容，再清理旧版本遗留的文件**。
+	//
+	// 旧写法先 DeleteBySkillId 再逐文件写，中途失败会留下「技能行在、SKILL.md 已没」的半成品，
+	// ListPublishedSkills 会静默跳过它（技能凭空消失且无报错）。这里任一环节失败时 SKILL.md
+	// 仍然存在（要么是旧版要么是新版），技能不会变得不可用；残留的旧文件由下一次成功导入清理
 	if err := a.upsertResourceRow(ctx, skillRow.Id, entity.SkillMdPath, skillMd); err != nil {
 		return nil, err
 	}
+	newPaths := map[string]struct{}{entity.SkillMdPath: {}}
 	for _, res := range resources {
 		if res.path == entity.SkillMdPath {
 			continue
@@ -343,7 +350,20 @@ func (a *skillPluginAppImpl) ImportZip(ctx context.Context, data []byte) (*entit
 		if err := validateResourcePath(res.path); err != nil {
 			continue // 跳过非法路径（insert_resources）
 		}
+		newPaths[res.path] = struct{}{}
 		if err := a.upsertResourceRow(ctx, skillRow.Id, res.path, res.content); err != nil {
+			return nil, err
+		}
+	}
+	oldResources, err := a.resourceRepo.SelectBySkillId(ctx, skillRow.Id)
+	if err != nil {
+		return nil, err
+	}
+	for _, oldRes := range oldResources {
+		if _, stillPresent := newPaths[oldRes.Path]; stillPresent {
+			continue
+		}
+		if err := a.resourceRepo.DeleteById(ctx, oldRes.Id); err != nil {
 			return nil, err
 		}
 	}
@@ -413,7 +433,7 @@ func (a *skillPluginAppImpl) ListPublishedSkills(ctx context.Context) ([]*skill.
 			}
 			return nil, err // 真实 DB 错误上抛，由 Registry 层退回缓存兜底
 		}
-		_, _, body := skill.ParseFrontmatter(res.Content)
+		_, _, _, body := skill.ParseFrontmatter(res.Content)
 		if body == "" {
 			body = res.Content
 		}

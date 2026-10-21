@@ -8,6 +8,8 @@ var En = map[i18n.MsgId]string{
 	ApprovalTitle:           "High-risk Operation Approval",
 	ApprovalDesc:            "This operation requires approval before execution",
 	RejectReasonDefault:     "User did not provide a specific reason",
+	TurnCancelledByUser:     "The user cancelled this operation; nothing was executed.",
+	TurnRejectedByUser:      "The user rejected this operation; nothing was executed.",
 	MissingRequiredParams:   "Missing required parameters",
 	SQLExecApprovalReason:   "Executing SQL is a high-risk operation, please approve",
 	ExecSQLToolDesc:         "ExecSql【Database SQL Execution】",
@@ -26,8 +28,23 @@ var En = map[i18n.MsgId]string{
 	MachineInfoIncomplete:      "Missing machine information, please complete the parameters",
 	CommandExecApprovalReason:  "Executing commands may involve high-risk operations, please approve",
 	InterruptExpired:           "The interrupt has expired or the service was restarted, please send a new message to start the task",
+	TurnAlreadyRunning:         "The previous turn is still running; wait for it to finish or stop it before sending",
 
 	// Resource tool
 	ResourceListToolDesc: "ListResources【Resource List Query】",
 	ResourceListToolInfo: "[Resource] Resource List Query Tool - Query all resources (machines, databases, etc.) the current user has permission to operate, with locating info (id/code/ip/database names). Applicable scenarios:\n1. When the user asks what machines/databases exist, or before checking all machine status / overall inspection, call this tool first to get the resource list;\n2. When the user has not specified a target resource, call this tool first to get the resource list, then pick the target based on the user's description or ask the user to choose;\n3. When locating params for a resource tool are unknown (e.g. machine authCertName, database dbId), query them via this tool first. The returned id/code can be used directly as tool call arguments.",
+
+	// User-facing entry errors
+	ErrConvLoginRequired:  "Please sign in before operating on conversations",
+	ErrConvNotFound:       "Conversation not found or deleted",
+	ErrConvReadDenied:     "No permission to view this conversation",
+	ErrConvModifyDenied:   "No permission to modify this conversation",
+	ErrConvWriteDenied:    "No permission to send messages in this conversation",
+	ErrConvSystemReadOnly: "This conversation was created by a system run and is read-only",
+
+	ErrHeadlessReqNil:        "Run request is empty",
+	ErrHeadlessOwnerRequired: "Run owner is missing; request rejected (cannot determine tool permission scope)",
+	ErrUnknownAgentProfile:   "Unknown agent profile: {{.profileId}}",
+	ErrSkillZipTooLarge:      "Skill package is too large; split it and upload again",
+	ErrAlertEventAppNotReady: "Alert event service is not ready, please retry later",
 }

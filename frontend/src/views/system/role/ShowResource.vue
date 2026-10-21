@@ -14,7 +14,7 @@
                                 <el-link style="margin-left: 25px" icon="InfoFilled" type="info" underline="never" />
                             </template>
                             <template #default>
-                                <el-descriptions :column="1" size="small">
+                                <el-descriptions :column="1" size="small" label-width="90">
                                     <el-descriptions-item :label="$t('common.name')">
                                         {{ $t(data.name) }}
                                     </el-descriptions-item>

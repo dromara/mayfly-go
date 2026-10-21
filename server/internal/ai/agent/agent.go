@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"mayfly-go/internal/ai/agent/contributor"
+	"mayfly-go/internal/ai/agent/middleware"
 	aiconfig "mayfly-go/internal/ai/config"
 	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/session"
@@ -14,6 +15,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/jsonx"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/cloudwego/eino/adk"
@@ -113,8 +115,22 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 		AgentId: agent.id,
 	})
 
+	// 工具能力过滤（capability-based，通用）：Profile 施加策略时按工具声明的能力
+	// 裁剪静态工具清单与 deferred 集合 —— 新增工具只需声明能力，过滤逻辑零改动
+	// （开闭原则）。不限制策略（nil/空集）时全量放行，行为与既有一致。
+	if agent.toolPolicy.IsRestricted() {
+		agent.tools, agent.deferredToolNames = filterToolsByPolicy(ctx, agent.tools, agent.deferredToolNames, agent.toolPolicy)
+	}
+
 	// 中间件经注册中心聚合（内置 safety 中间件 + 插件），选项指定者追加在后
 	agent.middlewares = append(agent.registry.CollectMiddlewares(ctx), agent.middlewares...)
+
+	// 运行期护栏（防御纵深）：能力策略与一次性许可都在调用链上裁决。
+	// 这里不再按条件挂载：一次性许可是从运行上下文读的，装配期无从知道，若只在策略受限时挂载，
+	// 未受限档位收到的许可会被静默忽略（等于没有天花板）；无策略且无许可时判定恒为「放行」，
+	// 行为与旧一致，因此统一挂载，把「唯一挂载点」让新增档位无法遗漏（与上面装配期过滤的条件不同：
+	// 过滤改变工具清单、只能按静态策略做，许可无法参与）
+	agent.middlewares = append(agent.middlewares, middleware.NewCapabilityGuardMiddleware(agent.toolPolicy, agent.requireRunGrant))
 
 	// 工具搜索（eino v0.9 tool search middleware）：工具总量超过阈值时，
 	// DeferredToolContributor 声明的工具转为 deferred —— 模型经 tool_search 元工具按需发现加载，
@@ -172,11 +188,84 @@ func NewAgent(ctx context.Context, opts ...option) (*Agent, error) {
 //
 // Usage 为本轮各次模型调用的 token 用量累计（多步工具循环每步各带一份 usage），
 // 模型未上报 usage 时为 nil。供 api 层下发 TurnCompleted 事件与会话统计累计。
+// ToolErrors 为本轮以「工具执行失败」形态结束的工具调用（按工具名/错误片段给出）：
+// 模型可能诚实汇报失败，但那一轮 LLM 调用本身成功，只有工具级事实能区分「干成了」与「没干成」。
 type RunResult struct {
 	// Output 最终输出文本（最后一条消息内容）
 	Output string
 	// Usage 本轮 token 用量累计（无 usage 上报时为 nil）
 	Usage *schema.TokenUsage
+	// ToolErrors 失败的工具调用描述（空=本轮工具调用全部成功）
+	ToolErrors []string
+	// Interrupted 本轮是否以「等待人工审批/补充参数」的中断挂起结束。
+	//
+	// 必须由 RunResult 透出：中断不是 error，仅凭 err==nil 无法区分「干完了」与「挂在审批上」；
+	// 无头运行（运维任务、提案受控执行）没有审批应答者，把后者当成功会导致
+	// 「一次写操作都没发生却记成已执行」（已实测到该形态）
+	Interrupted bool
+}
+
+// userTerminatedText 把用户主动终止（取消参数补全 / 拒绝审批）的错误原文换成给用户看的短句：
+// 这两类前缀本是工具层给模型的指令（含「不要自动重试」等约束），外层还包着
+// [NodeRunError] ... node path: [...] 这类内部节点结构，不该原样落进会话。
+// 未命中返回 false，调用方保留原文（真实故障不能被打成「用户已取消」）
+func userTerminatedText(ctx context.Context, errText string) (string, bool) {
+	switch {
+	case tools.IsCancelledToolResult(errText):
+		return i18n.TC(ctx, imsg.TurnCancelledByUser), true
+	case tools.IsRejectedToolResult(errText):
+		return i18n.TC(ctx, imsg.TurnRejectedByUser), true
+	}
+	return "", false
+}
+
+// collectToolErrors 从本轮消息里汇总失败的工具调用（两种形态：SafeToolMiddleware 转成的带前缀
+// 字符串结果，以及结构化 ToolStatus=error 标记）。
+//
+// 中断（等待人工交互）与被拒绝的调用不计入：前者尚未结束、后者是人的决定，都不是「执行失败」。
+//
+// 拒绝判据必须用 tools.IsRejectedToolResult（Contains）而非 HasPrefix(RejectedToolPrefix)：审批拒绝
+// 经 NewToolError(RecoverRetry) → SafeToolMiddleware 转成字符串结果时会带 "[tool error] " 前缀，
+// 真实内容形如 "[tool error] [OPERATION_REJECTED] ..."，HasPrefix 恒不命中会把用户拒绝误计为执行失败
+// （与 event_mapper 归类 Cancelled 用的是同一判据，全仓不得开第二套）
+func collectToolErrors(msgs []*session.Message) []string {
+	var failed []string
+	for _, msg := range msgs {
+		if msg == nil || msg.Role != schema.Tool {
+			continue
+		}
+		status := GetToolStatus(msg)
+		if status == tools.ToolStatusInterrupted || tools.IsRejectedToolResult(msg.Content) {
+			continue
+		}
+		// 失败有两条来源：① 工具级错误（状态 error / 错误前缀）；② 调用成功但**载荷自报失败**
+		// （典型：远程命令退出码非零时，工具体为了让模型看到输出仍返回正常结果，只在结构里写
+		// success:false）。第②条不计入就会让下游把「命令执行失败」当成变更已生效——实测到命令
+		// false 失败、提案却落 executed、工单落「处理成功」。形状判定归各工具自己声明（tools.ResultJudge）
+		failedByStatus := status == tools.ToolStatusError || tools.IsToolErrorMsg(msg.Content)
+		desc := strings.TrimSpace(msg.Content)
+		if !failedByStatus {
+			ok, reason := tools.JudgeToolResult(msg.ToolName, msg.Content)
+			if ok {
+				continue
+			}
+			desc = reason
+		}
+		if msg.ToolName != "" {
+			desc = msg.ToolName + ": " + desc
+		}
+		failed = append(failed, truncateToolErrorDesc(desc))
+	}
+	return failed
+}
+
+// truncateToolErrorDesc 限制单条工具错误回传长度（工具错误可能带完整异常堆栈/SQL 回显）
+func truncateToolErrorDesc(s string) string {
+	runes := []rune(s)
+	if len(runes) <= 500 {
+		return s
+	}
+	return string(runes[:500]) + "...(截断)"
 }
 
 type Agent struct {
@@ -191,6 +280,8 @@ type Agent struct {
 
 	tools             []tool.BaseTool               // 可调用的工具列表（经 Registry 聚合）
 	deferredToolNames map[string]struct{}           // 可延迟加载的工具名集合（DeferredToolContributor 声明）
+	toolPolicy        *tools.ToolPolicy             // 工具能力策略（capability 允许集；nil/不限制=全放行）
+	requireRunGrant   bool                          // 本 Agent 必须由一次性运行许可驱动：无许可时拒绝一切工具调用
 	middlewares       []contributor.AgentMiddleware // 中间件（经 Registry 聚合 + 选项追加）
 	registry          *contributor.Registry         // 贡献者注册中心（生命周期/用量回调/中间件聚合来源）
 	contextManager    *ContextManager               // 上下文管理器
@@ -253,7 +344,12 @@ func (a *Agent) Run(ctx context.Context, messages []*session.Message, runOpts ..
 	if runOptions.resumeParams != nil {
 		resumeMsgs, resumeEvents, resumeErr := a.resumeRun(ctx, runner, checkPointStore, runOptions, adkRunOptions)
 		if resumeErr != nil {
-			return nil, resumeErr
+			// 必须回填到局部 err：下面的 defer 用 err 决定收尾形态（错误消息下发、turn 终止原因、
+			// 用量/生命周期回调）。直接 `return nil, resumeErr` 时 defer 看到的是 nil，同一轮会出现
+			// 「item 落成 completed、调用方拿到失败」两种真相（审批恢复的 checkpoint 过期是常见路径，
+			// 不是异常边角）
+			err = resumeErr
+			return nil, err
 		}
 		events = resumeEvents
 		// 中断恢复消息下发
@@ -292,12 +388,19 @@ func (a *Agent) Run(ctx context.Context, messages []*session.Message, runOpts ..
 
 	if len(outputMessages) > 0 {
 		return &RunResult{
-			Output: outputMessages[len(outputMessages)-1].Content,
-			Usage:  accumulateUsage(outputMessages),
+			Output:      outputMessages[len(outputMessages)-1].Content,
+			Usage:       accumulateUsage(outputMessages),
+			ToolErrors:  collectToolErrors(outputMessages),
+			Interrupted: runOptions.interrupted,
 		}, err
 	}
 
-	return &RunResult{Output: "finished without output message", Usage: accumulateUsage(outputMessages)}, err
+	return &RunResult{
+		Output:      "finished without output message",
+		Usage:       accumulateUsage(outputMessages),
+		ToolErrors:  collectToolErrors(outputMessages),
+		Interrupted: runOptions.interrupted,
+	}, err
 }
 
 // startRun 启动新轮次：经上下文管理器组装历史 + preamble 后交给 runner
@@ -335,7 +438,13 @@ func (a *Agent) resumeRun(ctx context.Context, runner *agenticRunner, checkPoint
 		logx.InfofContext(ctx, "[Agent.Run] resume: interruptId=%s, type=%s, action=%s, payload=%v",
 			interruptId, data.InterruptType, data.Action, jsonx.ToStr(data.Payload))
 
-		// key -> interruptId  value -> 具体类型的恢复参数
+		// key -> interruptId  value -> 具体类型的恢复参数。
+		//
+		// 该 key 必须与中断时 SetActionId(internalMsg, ic.ID)（见 events.go）写入的 eino interrupt id
+		// 同一个值：ResumeWithParams 按它匹配待恢复节点，前端回传的 InterruptId 就是从中断事件里拿的，
+		// 全链路无第二处生成（RequestId 亦只在 NewInterruptInfo 里取该 ActionId）。因此「actionId 漂移」
+		// 若真发生，表现是 resume 完全不命中、工具重新弹卡片，而非静默错乱——真机确认/取消两类动作均生效，
+		// 即反证 id 稳定
 		targets[interruptId] = data.ToTarget()
 
 		// 类型特有的预处理（如参数补全类型：按 toolCallId 缓存 + 注入 Go context），
@@ -363,6 +472,19 @@ func (a *Agent) resumeRun(ctx context.Context, runner *agenticRunner, checkPoint
 	return resumeMsgs, events, nil
 }
 
+// IsUserTerminated 该错误是否由用户主动终止（取消参数补全 / 拒绝审批）引起。
+//
+// 供 api 层决定要不要下发 error 事件：这类终止已经有那条收尾气泡，再推一条错误会让前端
+// 亮一行红色提示、且原文是内部节点结构（真机实测到的残留），属于重复且误导。
+// 判据与 userTerminatedText 复用同一个函数，不开第二套匹配规则
+func IsUserTerminated(err error) bool {
+	if err == nil {
+		return false
+	}
+	_, ok := userTerminatedText(context.Background(), err.Error())
+	return ok
+}
+
 // finalizeTurn 轮次收尾（defer 执行）：错误兜底消息 → 消息持久化 → 结束原因细分 → 生命周期/用量回调
 func (a *Agent) finalizeTurn(ctx context.Context, runOptions *runOptions, turnUserId string, inputMessages []*session.Message, outputMessages *[]*session.Message, runErr error) {
 	// 显式 stop 触发的 ctx 取消属预期行为（TurnEndAborted），
@@ -374,9 +496,17 @@ func (a *Agent) finalizeTurn(ctx context.Context, runOptions *runOptions, turnUs
 	// 如果有未处理的错误，包装为 AI 回复消息推送给前端并保存
 	// （工具错误已经在 Run 主流程单独处理，这里只处理其他类型的错误）
 	if runErr != nil {
+		// 用户主动取消/拒绝导致的终止不是系统故障：这类错误原文是一串内部实现细节（形如
+		// `[NodeRunError] failed to stream tool call ...: [LocalFunc] failed to invoke tool,
+		// toolName=..., err=[PARAM_COMPLETION_CANCELLED] ...`），直接把整串当 AI 回复落库
+		// 既不可读，也把内部节点结构暴露给用户
+		content := runErr.Error()
+		if userText, ok := userTerminatedText(ctx, content); ok {
+			content = userText
+		}
 		errMsg := &session.Message{
 			Role:    schema.Assistant,
-			Content: runErr.Error(),
+			Content: content,
 		}
 		SetTurnId(errMsg, runOptions.turnId)
 		// 推送错误消息给前端

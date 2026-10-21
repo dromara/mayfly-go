@@ -267,11 +267,11 @@ func (a *alertEscalationAppImpl) checkAndEscalate(esc *entity.AlertEscalation, r
 		}
 		if freshEvent.EscalationLvl == i {
 			if len(escRule.ChannelIds) > 0 || len(escRule.ReceiverIds) > 0 {
-				// 渠道归因到升级策略，通知日志可追溯来源
+				// 渠道归因到升级策略（带来源类型），通知日志可追溯到具体策略表与行
 				target := service.NotifyTarget{
 					ChannelIds:  escRule.ChannelIds,
 					ReceiverIds: escRule.ReceiverIds,
-				}.WithPolicyBinding(esc.Id, escRule.ChannelIds)
+				}.WithEscalationBinding(esc.Id, escRule.ChannelIds)
 
 				notifyCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				sent, err := a.notifier.NotifyWithTarget(notifyCtx, freshEvent, rule, target)

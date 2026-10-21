@@ -130,6 +130,9 @@ class SqliteDialect implements DbDialect {
             defaultIndexType: 'BTREE',
             // 嵌入式库：以文件路径而非 host/port 连接
             connectionMode: 'file_path',
+            // PRAGMA 是 sqlite 特有的只读元信息语句（如 PRAGMA table_info(t) 返回结果集），
+            // 后端按 Other 走查询通道回行，故前端也归只读，独立成结果 tab 而非当作写入
+            queryStatementKeywords: ['pragma'],
             quotePairs: sqliteQuotePairs,
             sqlSplitOptions: sqliteSplitOptions,
         });

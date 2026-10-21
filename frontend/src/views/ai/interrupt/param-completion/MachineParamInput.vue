@@ -4,17 +4,23 @@
             {{ t('ai.interrupt.paramCompletion.selectMachineHint') }}
         </div>
 
-        <!-- 使用 MachineSelectTree 组件 -->
+        <!-- 使用 MachineSelectTree 组件：单向传值 + 事件写回（不在对象属性上直接 v-model） -->
         <MachineSelectTree
-            v-model:auth-cert-name="machineValue.authCertName"
-            v-model:machine-id="machineValue.machineId"
-            v-model:machine-name="machineValue.machineName"
-            v-model:machine-ip="machineValue.machineIp"
-            v-model:machine-port="machineValue.machinePort"
-            v-model:username="machineValue.username"
-            v-model:tag-path="machineValue.tagPath"
+            :auth-cert-name="machineValue.authCertName"
+            :machine-id="machineValue.machineId"
+            :machine-name="machineValue.machineName"
+            :machine-ip="machineValue.machineIp"
+            :machine-port="machineValue.machinePort"
+            :username="machineValue.username"
+            :tag-path="machineValue.tagPath"
             :disabled="isConfirmed"
-            @select-machine="onSelectMachine"
+            @update:auth-cert-name="patch({ authCertName: $event })"
+            @update:machine-id="patch({ machineId: $event })"
+            @update:machine-name="patch({ machineName: $event })"
+            @update:machine-ip="patch({ machineIp: $event })"
+            @update:machine-port="patch({ machinePort: $event })"
+            @update:username="patch({ username: $event })"
+            @update:tag-path="patch({ tagPath: $event })"
         />
 
         <!-- 已选中的机器详细信息 -->
@@ -59,21 +65,12 @@ interface Props {
     params: ParamDef[];
     readonly?: boolean;
     isConfirmed?: boolean;
-    modelValue?: MachineParamValue;
+    // modelValue 由下方 defineModel 拥有契约与默认值，不在 Props 里重复声明（两份默认值靠编译器合并顺序决定谁生效）
 }
 
 const props = withDefaults(defineProps<Props>(), {
     readonly: false,
     isConfirmed: false,
-    modelValue: () => ({
-        authCertName: '',
-        machineId: 0,
-        machineName: '',
-        machineIp: '',
-        machinePort: 0,
-        username: '',
-        tagPath: '',
-    }),
 });
 
 const { t } = useI18n();
@@ -91,9 +88,12 @@ const machineValue = defineModel<MachineParamValue>('modelValue', {
     }),
 });
 
-// 处理机器选择
-const onSelectMachine = (_params: Record<string, unknown>) => {
-    // Machine selected
+/**
+ * 以「整体替换值对象」的方式写回 model（与 DbParamInput 同一约定）：
+ * 原地 mutate 传入对象的属性不会触发 update:modelValue，父层失去变更事件与回滚点
+ */
+const patch = (partial: Partial<MachineParamValue>) => {
+    machineValue.value = { ...machineValue.value, ...partial };
 };
 
 // 检查是否有效

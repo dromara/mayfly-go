@@ -445,6 +445,39 @@ func Test_Escalation_LabelMismatch(t *testing.T) {
 	}
 }
 
+// Test_Escalation_EmptyLabelsMatchesAllRules 升级策略未绑定任何标签时匹配全部同类型规则。
+//
+// 这是 matchRuleLabelsMap 的既定语义（空 matchLabels = 匹配所有），不是缺陷，但是个很尖的脚枪：
+// 真机实测中一条只给开发环境验证用的测试规则（labels={"notify":"dev"}），因为升级策略
+// 没有标签绑定而在 5 分钟后被升级推到了真实企微群。把该语义钉成用例，是为了将来任何
+// 收紧（例如「无绑定则不升级」）都是显式决策而不是静默变更
+func Test_Escalation_EmptyLabelsMatchesAllRules(t *testing.T) {
+	escApp, eventApp, notifier, ruleApp := newTestEscalation()
+
+	rule := makeEscRule(1)
+	rule.Labels = `{"notify":"dev"}` // 规则自带标签，但升级策略无绑定
+	ruleApp.rules = []*entity.AlertRule{rule}
+
+	firstTrigger := time.Now().Add(-10 * time.Minute)
+	event := makeEscEvent(1, 1, entity.AlertEventStatusFiring, firstTrigger, 0)
+	eventApp.events[1] = event
+
+	escPolicy := &entity.AlertEscalation{
+		Name:   "test-escalation-no-labels",
+		Status: 1,
+		Rules: entity.EscalationRuleList{
+			{DelayMinutes: 5, ChannelIds: []uint64{2}},
+		},
+	}
+
+	// escLabels 为 nil：对应 t_label_binding 里没有该升级策略的任何绑定行（存量库的普遍形态）
+	escApp.processEscalation(escPolicy, nil, ruleApp.rules)
+
+	if notifier.notifyCalls != 1 {
+		t.Errorf("expected 1 notify call (empty escalation labels match every rule), got %d", notifier.notifyCalls)
+	}
+}
+
 // Test_Escalation_NotifyConfigOverride 升级时使用升级策略的渠道配置
 func Test_Escalation_NotifyConfigOverride(t *testing.T) {
 	escApp, eventApp, notifier, ruleApp := newTestEscalation()
@@ -463,6 +496,7 @@ func Test_Escalation_NotifyConfigOverride(t *testing.T) {
 			{DelayMinutes: 5, ChannelIds: []uint64{99}, ReceiverIds: []int64{88}},
 		},
 	}
+	escPolicy.Id = 11
 
 	escApp.checkAndEscalate(escPolicy, rule, event)
 
@@ -476,6 +510,13 @@ func Test_Escalation_NotifyConfigOverride(t *testing.T) {
 	}
 	if len(notifier.lastTarget.ReceiverIds) != 1 || notifier.lastTarget.ReceiverIds[0] != 88 {
 		t.Errorf("expected escalation receiver ID 88, got %v", notifier.lastTarget.ReceiverIds)
+	}
+
+	// 归因必须带来源类型：升级策略与通知策略共用通知日志的 policy_id 一列，
+	// 两表主键空间独立且已实际重叠（真机上 policy_id=11 在通知策略表查无此行，
+	// 它就是本用例这种升级策略），只写 id 的日志无从溯源
+	if ref := notifier.lastTarget.PolicyOfChannel(99); ref.Type != entity.NotifyPolicyTypeEscalation || ref.Id != 11 {
+		t.Errorf("expected escalation policy ref {Type:Escalation Id:11}, got %+v", ref)
 	}
 }
 

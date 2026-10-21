@@ -6,8 +6,9 @@
                 <Badge variant="secondary">{{ interrupt?.type || t('ai.interrupt.generic.interrupt') }}</Badge>
                 <span class="generic-interrupt__desc">{{ interrupt?.description || t('ai.interrupt.generic.operationInterrupted') }}</span>
             </div>
-            <Badge v-if="!readonly" variant="secondary" class="generic-interrupt__pending">{{ t('ai.interrupt.generic.pending') }}</Badge>
-            <Badge v-else variant="outline">{{ t('ai.interrupt.generic.resolved') }}</Badge>
+            <!-- 与其他中断卡片同一口径：决策状态只看 status，readonly 仅拿掉写入口 -->
+            <Badge v-if="!decided" variant="secondary" class="generic-interrupt__pending">{{ t('ai.interrupt.generic.pending') }}</Badge>
+            <Badge v-else variant="outline" :class="badge.class">{{ badge.label }}</Badge>
         </div>
 
         <!-- 操作按钮 -->
@@ -29,12 +30,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { InterruptComponentProps } from './types';
 import RejectReasonPopover from './RejectReasonPopover.vue';
+import { useInterruptBadge } from './helpers';
 
 const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,
 });
 
 const { t } = useI18n();
+const { decided, badge } = useInterruptBadge(() => props.interrupt?.status);
 
 const handleAction = (action: string, payload?: Record<string, unknown>) => {
     props.onAction({

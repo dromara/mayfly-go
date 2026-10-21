@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-descriptions :column="3" border>
+        <el-descriptions :column="3" border label-width="90">
             <!-- 资源信息可能取不到：工单候选人不必是该资源的可见用户，实例也可能早已被删除 -->
             <template v-if="redis">
                 <el-descriptions-item :span="3" :label="$t('common.tag')"><TagCodePath :path="redis.codePaths" /></el-descriptions-item>

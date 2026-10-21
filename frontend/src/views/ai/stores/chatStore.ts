@@ -27,8 +27,15 @@ import type {
 } from '../protocol/types';
 import { forEachInterruptHandler } from '../registries/interruptRegistry';
 import { ToolCallStatus } from '../registries/statuses';
+import { resolveNoticeTextKey } from '../registries/noticeKinds';
+import { i18n } from '@/i18n';
+// 芯片文本形态单一真源：段→文本一律走 segmentsToText（store 内不再自写一份映射）
+import { segmentsToText } from '../input/chipRegistry';
+// 副作用导入：注册 skill/resource 芯片类型（不注册则 toText 查不到，历史文本会退化成裸标签）
+import '../input/chipTypes';
 
-const MAX_CACHED_CONVS = 8;
+// 会话切片缓存上限（导出供单测与文档同源，不在测试里重抄一个 8）
+export const MAX_CACHED_CONVS = 8;
 
 /** 格式化时间为 HH:mm */
 function formatTime(date: Date): string {
@@ -49,7 +56,8 @@ function formatItemTime(createTime?: string): string {
 export interface ConvSlice {
     messages: ChatMessage[];
     pendingInterrupts: InterruptEvent[];
-    active: boolean;
+    /** 最近一次访问时刻（毫秒）：LRU 淘汰的唯一依据 */
+    lastAccessAt: number;
     loaded: boolean;
     activeTurnId: string | null;
     hasMoreMessages: boolean;
@@ -119,7 +127,7 @@ export const useChatStore = defineStore('ai-chat', () => {
             slice = {
                 messages: [],
                 pendingInterrupts: [],
-                active: true,
+                lastAccessAt: Date.now(),
                 loaded: false,
                 activeTurnId: null,
                 hasMoreMessages: true,
@@ -132,17 +140,29 @@ export const useChatStore = defineStore('ai-chat', () => {
             };
             convs.set(convId, slice);
             evictIfNeeded();
+        } else {
+            // 命中也要刷新：LRU 的「最近使用」包含读，不刷新的话常被回看的会话反而先被淘汰
+            slice.lastAccessAt = Date.now();
         }
         return slice;
     }
 
+    /**
+     * LRU 淘汰：超出缓存上限时按最近访问时间升序丢弃最久未访问的会话切片。
+     *
+     * 当前选中会话与正在流式（activeTurnId 非空）的会话不可淘汰：后者会把未完成的 turn
+     * 中间态直接丢掉，界面表现为「生成中突然空白」
+     */
     function evictIfNeeded() {
         if (convs.size <= MAX_CACHED_CONVS) return;
-        for (const [id, slice] of convs) {
-            if (!slice.active && id !== selectedConvId.value) {
-                convs.delete(id);
-                if (convs.size <= MAX_CACHED_CONVS) break;
+        const candidates = [...convs.entries()]
+            .filter(([id, slice]) => id !== selectedConvId.value && !slice.activeTurnId)
+            .sort((a, b) => a[1].lastAccessAt - b[1].lastAccessAt);
+        for (const [id] of candidates) {
+            if (convs.size <= MAX_CACHED_CONVS) {
+                break;
             }
+            convs.delete(id);
         }
     }
 
@@ -157,10 +177,24 @@ export const useChatStore = defineStore('ai-chat', () => {
 
     // ===== 消息操作 =====
 
-    function addMessage(convId: number, msg: ChatMessage) {
+    function addMessage(convId: number, msg: ChatMessage): string {
         const slice = getOrCreateSlice(convId);
         if (!msg.time) msg.time = formatTime(new Date());
         slice.messages.push(msg);
+        return msg.id;
+    }
+
+    /**
+     * 移除一条消息（乐观插入的回滚）。
+     *
+     * 为什么需要：WebSocket 未就绪时 sendMessage 投递会失败，但乐观气泡已经入列——
+     * 留着它用户会以为消息已发出，而终态事件永不到达，输入框还会被锁在「生成中」
+     */
+    function removeMessage(convId: number, msgId: string) {
+        const slice = convs.get(convId);
+        if (!slice) return;
+        const index = slice.messages.findIndex((m) => m.id === msgId);
+        if (index >= 0) slice.messages.splice(index, 1);
     }
 
     function updateMessages(convId: number, msgs: ChatMessage[]) {
@@ -250,7 +284,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         return {
             id: item.id,
             role: 'user',
-            content: extractTextFromSegments(segments),
+            content: segmentsToText(segments),
             segments,
             ...(attachments?.length ? { attachments } : {}),
             ...(turnId ? { turnId } : {}),
@@ -294,14 +328,8 @@ export const useChatStore = defineStore('ai-chat', () => {
         return replayed;
     }
 
-    /** 从 ContentSegment 数组提取纯文本 */
-    function extractTextFromSegments(segments: Array<{ type: string; text?: string }>): string {
-        if (!Array.isArray(segments)) return '';
-        return segments
-            .filter((s) => s.type === 'output_text' || s.type === 'input_text')
-            .map((s) => s.text || '')
-            .join('');
-    }
+    /** 段序列 → 纯文本的单一真源在 chipRegistry.segmentsToText（芯片走 `@标签`/`$技能码` 形态）；
+     *  本文件不再保留一份局部实现，避免「历史重放」与「编辑器产出」两份文本不等价 */
 
     /** 从 parts 数组构建 content 字符串（用于 fallback 显示） */
     function buildContentFromParts(parts: MessagePart[]): string {
@@ -467,8 +495,11 @@ export const useChatStore = defineStore('ai-chat', () => {
 
     /**
      * 向指定 turn 的 assistant 消息追加提示 part（用户停止/流式错误）。
-     * turn 内无 assistant 消息时创建一条（与流式创建同 ID 规则，历史加载时
-     * notice part 不落库、自然消失）
+     * turn 内无 assistant 消息时创建一条（与流式创建同 ID 规则）。
+     *
+     * 按 (turn, kind) 幂等：停止提示现在**也持久化**（后端 turn_notice item），实时那一条与
+     * 历史重建那一条描述的是同一个事实。不拦就会在「停止 → 切走 → 切回」或重进会话时堆出两条
+     * 「已停止生成」；part.id 每次新生成，所以不能拿 id 去重，只能按种类去重
      */
     function appendTurnNoticePart(convId: number, turnId: string | null | undefined, part: NoticePart) {
         const slice = getOrCreateSlice(convId);
@@ -485,7 +516,11 @@ export const useChatStore = defineStore('ai-chat', () => {
             };
             slice.messages.push(msg);
         }
-        (msg.parts ??= []).push(part);
+        const parts = (msg.parts ??= []);
+        if (parts.some((existing) => existing.type === 'notice' && existing.kind === part.kind)) {
+            return;
+        }
+        parts.push(part);
     }
 
     /**
@@ -528,7 +563,7 @@ export const useChatStore = defineStore('ai-chat', () => {
 
     /** 判断是否为助手类型 item（历史重放与流式共用，新增类型两路径同时生效） */
     function isAssistantType(type: string): boolean {
-        return type === 'message' || type === 'reasoning' || type === 'tool_call' || type === 'context_compaction';
+        return type === 'message' || type === 'reasoning' || type === 'tool_call' || type === 'context_compaction' || type === 'turn_notice';
     }
 
     /** 查找当前 turn 的 assistant message */
@@ -553,7 +588,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         switch (item.type) {
             case 'message':
                 if (!item.content) return null;
-                return { type: 'text', id: item.id, text: extractTextFromSegments(item.content) };
+                return { type: 'text', id: item.id, text: segmentsToText(item.content) };
             case 'reasoning':
                 return {
                     type: 'reasoning',
@@ -576,6 +611,8 @@ export const useChatStore = defineStore('ai-chat', () => {
                     output: item.output ?? '',
                     durationMs: item.duration_ms,
                     resumeType: resume ? String(resume.type || '') || undefined : undefined,
+                    // 中断类型一并还原：历史回放的徽章要拿它找 handler，才能与实时同措辞
+                    interruptKind: interruptInfo ? String(interruptInfo.type || '') || undefined : undefined,
                 };
             }
             case 'context_compaction':
@@ -586,6 +623,17 @@ export const useChatStore = defineStore('ai-chat', () => {
                     compressedTokens: item.compressed_tokens ?? 0,
                     compressedMessageCount: item.compressed_message_count ?? 0,
                 };
+            case 'turn_notice': {
+                // 历史里的「本轮被用户停止」：后端只存种类，文案按当前语言现取，与实时路径共用
+                // 同一张登记表（registries/noticeKinds），所以刷新前后不会出现两种说法
+                const resolved = resolveNoticeTextKey(item.notice_kind);
+                return {
+                    type: 'notice',
+                    id: item.id,
+                    kind: resolved.kind,
+                    text: i18n.global.t(resolved.textKey),
+                };
+            }
             default:
                 return null;
         }
@@ -636,6 +684,17 @@ export const useChatStore = defineStore('ai-chat', () => {
     function hasQueuedMessages(convId: number): boolean {
         const slice = convs.get(convId);
         return (slice?.queuedMessages.length ?? 0) > 0;
+    }
+
+    /**
+     * 查看但不移除队首（出队确认前的预读）。
+     *
+     * 为什么需要：旧实现是「先 dequeue 再发送」，而后端可能仍认为该会话有 running turn
+     * 而拒绝这轮（实测：拒绝审批后立即 flush → 返回 `conversation has a running turn`），
+     * 队列已空、消息再也找不回来——用户看到的是「已发送」，实际什么都没落库。
+     */
+    function peekQueuedMessage(convId: number): QueuedMessage | undefined {
+        return convs.get(convId)?.queuedMessages[0];
     }
 
     /** 从队列移除指定消息（removeQueuedMessage） */
@@ -695,6 +754,31 @@ export const useChatStore = defineStore('ai-chat', () => {
         slice.oldestTurnId = null;
     }
 
+    // ===== 追问草稿（跨页面一次性投递） =====
+
+    /**
+     * 待投递草稿：由「查看产物 → 想继续追问」这类派生动作写入（如运维轨迹的「带上下文追问」），
+     * 由发起跳转的那个页面级流程取走（见 AiAssistantBody.consumeForkDraft），再以 prop 交给
+     * 它刚新建的会话面板。
+     *
+     * 为什么走 store 而不是路由 query：草稿是多行上下文（可达上千字符），塞进 URL 会撑长地址、
+     * 被浏览器历史与日志留存（含运维结论），且刷新语义会变成「再投递一次」。
+     * 为什么只当信箱、不让消费方直接 watch 它：ChatPanel 实例不止一个（聊天页 + keep-alive 缓存
+     * + 全局 FAB 抽屉），共享一份可变草稿会被先挂载的那个抢消费，预填就落在错误的会话上
+     */
+    const draft = ref('');
+
+    const stageDraft = (text: string) => {
+        draft.value = text;
+    };
+
+    /** 取走草稿并清空（一次性投递：调用方须立刻接住并负责交给目标面板，取走即不再可读） */
+    const consumeDraft = (): string => {
+        const text = draft.value;
+        draft.value = '';
+        return text;
+    };
+
     // ===== Getters =====
 
     const currentMessages = computed(() => {
@@ -724,6 +808,7 @@ export const useChatStore = defineStore('ai-chat', () => {
         getOrCreateSlice,
         // 消息操作
         addMessage,
+        removeMessage,
         updateMessages,
         prependMessages,
         // Turn 级事件
@@ -741,12 +826,17 @@ export const useChatStore = defineStore('ai-chat', () => {
         // 消息队列
         enqueueMessage,
         dequeueMessage,
+        peekQueuedMessage,
         hasQueuedMessages,
         removeQueuedMessage,
         reorderQueuedMessage,
         // 滚动锚点持久化
         setScrollAnchor,
         getScrollAnchor,
+        // 追问草稿（只由投递方 stage，消费方一律经 consumeDraft 取走）
+        draft,
+        stageDraft,
+        consumeDraft,
         // 分页
         setHasMore,
         setLoadingMore,

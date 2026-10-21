@@ -19,6 +19,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ArchiveIcon } from '@lucide/vue';
+import { formatTokenCount } from '@/common/utils/format';
 
 const props = defineProps<{
     originalTokens: number;
@@ -29,8 +30,10 @@ const props = defineProps<{
 const { t } = useI18n();
 
 const count = computed(() => props.compressedMessageCount);
-const original = computed(() => props.originalTokens.toLocaleString());
-const compressed = computed(() => props.compressedTokens.toLocaleString());
+// token 统一走 formatTokenCount：本行是时间线上的轻量提示（内联、窄位），取紧凑值不附精确数，
+// 旧写法用 formatThousands 会把「31228 → 8192」这种读不出量级的长数字塞进提示行
+const original = computed(() => formatTokenCount(props.originalTokens));
+const compressed = computed(() => formatTokenCount(props.compressedTokens));
 </script>
 
 <style scoped>

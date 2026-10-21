@@ -173,7 +173,11 @@ export function actionColumnProps(
     options: ActionOptions & { label?: string; fixed?: boolean } = {}
 ): { label: string; minWidth: number; align: string; fixed: string | undefined } {
     return {
-        label: options.label ?? 'common.operation',
+        // 默认列头必须过翻译：这里以前给的是裸键 'common.operation'，而返回值是直接 v-bind 到
+        // el-table-column 的 label 上的，结果所有用本接缝的裸表格列头直接显示英文原词
+        // （本文件算按钮宽度时倒是用了 i18n.global.t，唯独这个默认值漏了）。
+        // 调用方显式传的 label 视为已解析好的展示文本，不在这里二次翻译
+        label: options.label ?? i18n.global.t('common.operation'),
         minWidth: actionsColumnWidth(items, options) + CELL_PADDING,
         align: 'center',
         fixed: options.fixed === false ? undefined : 'right',

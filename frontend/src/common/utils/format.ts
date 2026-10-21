@@ -43,6 +43,88 @@ export function formatDocSize(size: number, fixed = 2) {
 }
 
 /**
+ * 计数千分位精确展示（详情/摘要卡用）：token 数、调用次数等需要读出精确值的场景
+ * @example 91606 -> '91,606'
+ */
+export function formatThousands(val?: number | null): string {
+    if (val === undefined || val === null || Number.isNaN(val)) {
+        return '-';
+    }
+    return val.toLocaleString('en-US');
+}
+
+/**
+ * 计数缩放的单一实现点：单位表 + 取整去尾零只有一份，所有「按量级缩写」的口径都仍从这里走。
+ *
+ * 为什么抽出来：单位表一旦被多个入口各自抄一份，就会出现「一处改了 K/M/B 另一处没改」
+ * 的真源分叉；而小数位策略确实是不同读数需要的，所以只把这一项参数化（pickDigits）
+ */
+function compactWithDigits(val: number, pickDigits: (scaled: number) => number): string {
+    const units = [
+        { limit: 1e9, suffix: 'B' },
+        { limit: 1e6, suffix: 'M' },
+        { limit: 1e3, suffix: 'K' },
+    ];
+    for (const { limit, suffix } of units) {
+        if (val >= limit) {
+            const scaled = val / limit;
+            return parseFloat(scaled.toFixed(pickDigits(scaled))).toString() + suffix;
+        }
+    }
+    return formatThousands(val);
+}
+
+/**
+ * token 数量的**唯一展示入口**：所有界面看到 token 都走它，不得自己挑 formatThousands。
+ *
+ * （原先还有一个通用导出 `formatCountCompact`，在 token 全部收编后零消费者，已删除：
+ * 留着一个导出但禁止使用就是双重死代码，还会诱导后来者把新的计数展示接到它上面）
+ *
+ * 为什么需要单独一个入口：token 量级天然很大（一次编排动辄上百万），裸千分位在概览位上根本读不出
+ * 量级；而「列表用紧凑、详情用精确」这个挑法一旦散到各页面，每个页面都会自己决定用哪个——
+ * 治理看板的「Token 消耗」就是这么变成 1,957,362 这种不可读数值的。收成一个函数后新增展示位无需再判断
+ *
+ * 精度取**3 位有效数字**而不是固定小数位：固定 2 位小数会让同一屏出现
+ * 「20.73K」与「29.6K」两种位数（看着像两种口径），而 3 位有效数字在任何量级下都是
+ * 「20.7K / 29.6K / 2.29M」这样对齐的形式，也更接近成本读数的惯常精度
+ *
+ * @param withExact 为 true 时在紧凑值后附精确值（概览卡/详情用：一眼看出量级，也能读到准确数做成本对账）；
+ *                  列表列不传（列宽有限，紧凑值已足够定位量级，精确值可在详情抽屉看）
+ * @example 2292327 -> '2.29M'；(2292327, true) -> '2.29M (2,292,327)'；20734 -> '20.7K'；8234 -> '8,234'
+ */
+export function formatTokenCount(val?: number | null, withExact = false): string {
+    if (val === undefined || val === null || Number.isNaN(val)) {
+        return '-';
+    }
+    const compact = val < 10000 ? formatThousands(val) : compactWithDigits(val, (scaled) => (scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2));
+    if (!withExact) {
+        return compact;
+    }
+    const exact = formatThousands(val);
+    // 小于万位时 compact 已等于精确值，不重复输出成「8,234 (8,234)」
+    return compact === exact ? compact : `${compact} (${exact})`;
+}
+
+/**
+ * 毫秒耗时人类可读展示（<1s 用 ms，1 分钟内用秒，跨分显示「Xm Ys」），
+ * 替代裸的「87902 ms」直出
+ * @example 876 -> '876ms'；8200 -> '8.2s'；87902 -> '1m 28s'
+ */
+export function formatDurationMs(ms?: number | null): string {
+    if (ms === undefined || ms === null || Number.isNaN(ms)) {
+        return '-';
+    }
+    if (ms < 1000) {
+        return `${Math.round(ms)}ms`;
+    }
+    if (ms < 60_000) {
+        return `${parseFloat((ms / 1000).toFixed(1))}s`;
+    }
+    const totalSeconds = Math.round(ms / 1000);
+    return `${Math.floor(totalSeconds / 60)}m ${totalSeconds % 60}s`;
+}
+
+/**
  * 容量转为对应的字节大小，如 1KB转为 1024
  * @param sizeString  1kb 1gb等
  * @returns

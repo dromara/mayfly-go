@@ -1,5 +1,5 @@
 import EnumValue from '@/common/Enum';
-import { formatDate } from '@/common/utils/format';
+import { formatDate, formatDurationMs, formatTokenCount } from '@/common/utils/format';
 import { getValueByPath } from '@/common/utils/object';
 import { getTextWidth } from '@/common/utils/string';
 import { i18n } from '@/i18n';
@@ -274,7 +274,13 @@ export class TableColumn {
         // 不能复用 formatFunc：渲染器需将原始枚举值传给 enum-tag 自行解析，formatFunc 会污染该入参。
         this.measureContentWidth = (rowData: Record<string, unknown>) => {
             const value = this.getValueByData(rowData); // tag 列无 formatFunc，等价于原始枚举值，与渲染入参一致
-            return getTextWidth(i18n.global.t(EnumValue.getLabelByValue(param, value as string | number))) + TAG_CHROME_WIDTH;
+            // 必须与 EnumTag 的渲染规则同式，否则计宽与渲染是两个真源：
+            // ① 空值整格不渲染标签，宽度就该归 0（再算上标签外框会无端撑出一段空白）；
+            // ② 未命中枚举时回显原始值，而 getLabelByValue 返回空串，旧写法会按空文本计宽却
+            //    渲出一长串原始值（后端目录新增一项就触发，正是本次要支持的那个场景）
+            if (value === '' || value == null) return 0;
+            const label = EnumValue.getLabelByValue(param, value as string | number);
+            return getTextWidth(i18n.global.t(label || String(value))) + TAG_CHROME_WIDTH;
         };
         return this;
     }
@@ -317,6 +323,29 @@ export class TableColumn {
     isEnum(enums: Record<string, EnumValue>): TableColumn {
         this.setFormatFunc((data: Record<string, unknown>, prop: string) => {
             return i18n.global.t(EnumValue.getLabelByValue(enums, getValueByPath(data, prop) as string | number));
+        });
+        return this;
+    }
+
+    /**
+     * 标识该列为 token 列：格式取 formatTokenCount（token 展示的唯一入口，有效位 2）。
+     *
+     * 本方法取代了之前的通用 isCount()：当时全部计数列都是 token 列，通用形式零消费者就是死代码；
+     * 将来若真出现非 token 的计数列，再带着真实调用点与用例一起加回来，不先留一个没人用的入口
+     */
+    isToken(): TableColumn {
+        this.setFormatFunc((data: Record<string, unknown>, prop: string) => {
+            return formatTokenCount(getValueByPath(data, prop) as number);
+        });
+        return this;
+    }
+
+    /**
+     * 标识该列为毫秒耗时列：人类可读展示（876ms / 8.2s / 1m 28s）
+     */
+    isDuration(): TableColumn {
+        this.setFormatFunc((data: Record<string, unknown>, prop: string) => {
+            return formatDurationMs(getValueByPath(data, prop) as number);
         });
         return this;
     }

@@ -107,7 +107,7 @@
                         </div>
                     </template>
 
-                    <el-descriptions :column="2" border size="small">
+                    <el-descriptions :column="2" border size="small" label-width="100">
                         <el-descriptions-item :label="$t('milvus.capacity')">
                             <el-progress :percentage="getCapacityPercentage(rg)" :color="getCapacityColor(rg)" :stroke-width="8" style="width: 150px" />
                             <span class="ml-2">{{ getCapacityPercentage(rg) }}%</span>

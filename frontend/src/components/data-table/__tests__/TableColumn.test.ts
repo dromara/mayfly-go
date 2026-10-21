@@ -205,7 +205,11 @@ describe('planRowActions / TableColumn.setActions', () => {
         const props = actionColumnProps(list);
         // 两格（120+4）+ 1 个间距 12 + 单元格内边距 30
         expect(props.minWidth).toBe(actionsColumnWidth(list) + 30);
-        expect(props.label).toBe('common.operation');
+        // 不能断言成 'common.operation'：那是没翻译的裸键，而本返回值会直接 v-bind 到列头，
+        // 把裸键当期望等于把缺陷钉成基线。现在钉两件事：取的是字典译文，且结果不再长得像个键
+        expect(props.label).toBe(i18n.global.t('common.operation'));
+        expect(props.label).not.toMatch(/^[a-z][\w]*\.[\w.]+$/);
+        expect(props.label).not.toBe('common.operation');
         expect(props.align).toBe('center');
         expect(props.fixed).toBe('right');
         // 面板表靠右不固定时可选关掉 fixed
@@ -315,9 +319,20 @@ describe('TableColumn.autoCalculateMinWidth', () => {
         expect(col.measureContentWidth!({ status: 1 })).toBe(92);
     });
 
-    it('tag 列未知枚举值按空文本计宽（仅标签外框）', () => {
+    // 计宽必须跟着渲染走：EnumTag 对「有值但未登记展示元数据」刻意回显原始值（后端目录新增一项
+    // 不该被渲成红「-」），旧用例却把「按空文本计宽」当期望钉住——那等于把双真源写成规范，
+    // 实际这类列会渲出一长串原始值而只预留标签外框宽
+    it('tag 列未知枚举值按回显的原始值计宽（与 EnumTag 渲染同源）', () => {
         const col = TableColumn.new('status', 'common.status').typeTag({ enabled: new EnumValue(1, 'Enabled') });
-        expect(col.measureContentWidth!({ status: 999 })).toBe(22);
+        // '999' 3 字符 × 10 + tag 外框 22
+        expect(col.measureContentWidth!({ status: 999 })).toBe(52);
+    });
+
+    it('tag 列空值不计宽（整格不渲染标签，再算外框会无端撑出一段空白）', () => {
+        const col = TableColumn.new('status', 'common.status').typeTag({ enabled: new EnumValue(1, 'Enabled') });
+        expect(col.measureContentWidth!({ status: '' })).toBe(0);
+        expect(col.measureContentWidth!({ status: null })).toBe(0);
+        expect(col.measureContentWidth!({})).toBe(0);
     });
 
     it('autoCalculateMinWidthByHeader 仅按表头估宽，固化列同步向上写 width', () => {

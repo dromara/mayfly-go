@@ -124,6 +124,25 @@ export default {
         // FlowBizType
         dbSqlExec: 'DBMS-Run SQL',
         redisRunCmd: 'Redis-Run Cmd',
+        agentRemediation: 'AI-Change Proposal',
+        // biz info panel for proposal approval tickets
+        proposalTitle: 'Proposal Title',
+        proposalAction: 'Proposal Action',
+        proposalParams: 'Locked Params',
+        proposalRisk: 'Risk Level',
+        proposalReason: 'Proposal Reason',
+        proposalOwner: 'Proposal Owner',
+        procFromRun: 'Source Run',
+        approvalNotice: 'Note: this ticket was created automatically by an AI operations run. Once approved, the system executes the locked parameters under control and performs a read-only verification; do not perform the change manually.',
+        // handle result (written back when controlled execution reaches a terminal state)
+        handleResultStatus: 'Exec Status',
+        handleResRuns: 'Linked Runs',
+        handleResRunExec: 'Exec #{id}',
+        handleResRunVerify: 'Verify #{id}',
+        handleResErr: 'Failure Reason',
+        handleResExecResult: 'Exec Output',
+        handleResVerifyConclusion: 'Verify Conclusion',
+        handleQueuedTip: 'Accepted: controlled execution runs asynchronously in the background. The real result will be recorded here once it finishes; refresh later.',
 
         // task
         approveNode: 'Approval Node',
@@ -311,6 +330,7 @@ export default {
                 insert: 'insert',
                 update: 'update',
                 delete: 'delete',
+                merge: 'merge',
                 ddl: 'DDL',
                 other: 'other',
             },

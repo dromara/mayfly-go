@@ -88,6 +88,8 @@ func DefaultClassifyStmt(kind Kind) StmtType {
 		return StmtTypeUpdate
 	case KindDelete:
 		return StmtTypeDelete
+	case KindMerge:
+		return StmtTypeMerge
 	case KindDdl:
 		return StmtTypeDDL
 	default:

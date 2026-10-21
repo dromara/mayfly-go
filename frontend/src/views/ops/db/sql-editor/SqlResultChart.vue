@@ -27,7 +27,7 @@
         <!-- 成不了图/被上限截断都要说出口，静默画一张局部图是在骗人 -->
         <div v-if="notice" class="mb-1 text-[12px] text-[var(--el-color-warning)]">{{ notice }}</div>
 
-        <ECharts v-if="build" :option="build.option" class="sql-result-chart__canvas" />
+        <ECharts v-if="build && active" :option="build.option" class="sql-result-chart__canvas" />
         <el-empty v-else :description="$t('db.chartNoData')" :image-size="60" />
     </div>
 </template>
@@ -49,6 +49,13 @@ const props = defineProps<{
     /** 结果集列：key 用于取行数据，label 用于展示 */
     columns: { key: string; label: string }[];
     rows: Record<string, unknown>[];
+    /**
+     * 该结果页签是否为当前激活页签。非激活时 el-tab-pane 处于 display:none，容器宽高为 0，
+     * 此时初始化 ECharts 会得到 0x0 画布，切回时靠 ResizeObserver 的防抖 resize 才恢复，
+     * 出现「先塌一下再正常」。故仅在激活时挂载 ECharts，保证 init 时容器已是真实尺寸。
+     * 图表配置（kind/列选择）仍存于本组件（随页签 v-show 常驻），切换不丢失。
+     */
+    active: boolean;
 }>();
 
 const { t } = useI18n();

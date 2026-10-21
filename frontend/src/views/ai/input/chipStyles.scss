@@ -1,0 +1,58 @@
+/**
+ * 芯片视觉样式（全局）
+ *
+ * 由 chipNode.ts 副作用导入：谁产出 `.chat-chip` DOM，谁就带上它的 CSS。
+ * 原先这些规则写在 ChatInput.vue 的 `<style>` 全局块里，于是「消息回显组件」和任何
+ * 复用编辑器的新场景（如任务指令编辑）都隐式依赖聊天输入框已被挂载过——那属于看不见的
+ * 跨组件耦合，抽出来按模块归属。
+ *
+ * TipTap 动态生成的芯片 DOM 没有 scoped 属性，因此这里必须是全局样式。
+ */
+
+/* 编辑器内芯片的兜底外观（芯片类型注册表的配色由 renderHTML 以内联样式覆盖） */
+.chat-chip {
+    background: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+    border: 1px solid var(--el-color-primary-light-7);
+    border-radius: 12px;
+    padding: 1px 8px;
+    font-size: 12px;
+    /* 紧凑行高：编辑器 1.6 的行高会把 12px 文字撑成 19.2px 行盒，药丸高到 23px 后
+       随基线对齐整体下坠，观感“比文本低”；固定 1 使药丸贴着文字基线 */
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: default;
+    user-select: none;
+    vertical-align: baseline;
+}
+
+/* 芯片是原子节点：整体选中时给明确轮廓，否则用户看不出它被选中（删除会连字一起丢） */
+.chat-chip.ProseMirror-selectednode {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 1px;
+}
+
+/* 芯片内联图标：mask + currentColor 让图标跟随芯片文字色（lucide 线条图标 data URI） */
+.chat-chip__icon {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    background-color: currentColor;
+    -webkit-mask: var(--chip-icon) no-repeat center / contain;
+    mask: var(--chip-icon) no-repeat center / contain;
+}
+
+.chat-chip__icon[data-icon='zap'] {
+    --chip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9l1-8z'/%3E%3C/svg%3E");
+}
+
+.chat-chip__icon[data-icon='server'] {
+    --chip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='8' rx='2'/%3E%3Crect x='2' y='14' width='20' height='8' rx='2'/%3E%3Cline x1='6' x2='6.01' y1='6' y2='6'/%3E%3Cline x1='6' x2='6.01' y1='18' y2='18'/%3E%3C/svg%3E");
+}
+
+.chat-chip__icon[data-icon='database'] {
+    --chip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M3 5v14a9 3 0 0 0 18 0V5'/%3E%3Cpath d='M3 12a9 3 0 0 0 18 0'/%3E%3C/svg%3E");
+}

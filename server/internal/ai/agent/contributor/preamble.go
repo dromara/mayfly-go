@@ -1,6 +1,7 @@
 package contributor
 
 import (
+	"slices"
 	"sort"
 	"unicode/utf8"
 
@@ -41,12 +42,16 @@ func BuildPreamble(fragments []PromptFragment) string {
 		total += estimateFragmentTokens(f.Content)
 	}
 
-	// 预算超限时自低优先级（列表尾部）丢弃 Droppable 片段
+	// 预算超限时自低优先级（列表尾部）丢弃 Droppable 片段。
+	//
+	// 必须倒序遍历：正序遍历会在超预算时先丢头部（Priority 最高的 memory/skill），
+	// 而 Priority 的意义就是决定丢弃顺序——正序丢弃等于让它只影响拼接顺序、不影响存活
 	kept := fragments
 	if total > preambleTokenBudget {
 		kept = make([]PromptFragment, 0, len(fragments))
 		remaining := total
-		for _, f := range fragments {
+		for i := len(fragments) - 1; i >= 0; i-- {
+			f := fragments[i]
 			if !f.Retained && remaining > preambleTokenBudget {
 				remaining -= estimateFragmentTokens(f.Content)
 				logx.Warnf("[contributor] preamble over budget, dropping fragment: %s", f.Source)
@@ -54,6 +59,8 @@ func BuildPreamble(fragments []PromptFragment) string {
 			}
 			kept = append(kept, f)
 		}
+		// 倒序收集后恢复「高优先级在前」的拼接顺序
+		slices.Reverse(kept)
 	}
 
 	parts := make([]string, 0, len(kept))

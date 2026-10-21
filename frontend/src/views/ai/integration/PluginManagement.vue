@@ -34,7 +34,7 @@
         <!-- MCP 表单（autoDiscover：打开后自动连接测试并回显工具） -->
         <McpFormDrawer v-model="mcpDrawerOpen" :server="editingMcp" :auto-discover="mcpAutoDiscover" @saved="reload" />
         <!-- 技能编辑器 -->
-        <SkillEditor v-model="skillEditorOpen" :skill-id="editingSkillId" @saved="reload" />
+        <SkillEditor v-model="skillEditorOpen" :skill-id="editingSkillId" @saved="onSkillDataChanged" />
     </div>
 </template>
 
@@ -52,7 +52,9 @@ import PluginCard from './PluginCard.vue';
 import PluginTypePicker from './PluginTypePicker.vue';
 import McpFormDrawer from './McpFormDrawer.vue';
 import SkillEditor from './SkillEditor.vue';
+import { invalidatePromptSkills } from '../input/usePromptSkills';
 import type { PluginType } from './types';
+import { PLUGIN_TYPE_META, pluginTypeMeta, pluginTypeLabel } from './types';
 
 const { t } = useI18n();
 
@@ -69,15 +71,8 @@ const { reload, bindCardList } = useInfiniteScroll<PluginInstance, { keyword: st
     pageSize: 12,
 });
 
-// ── 类型元数据（前端仅维护展示映射，类型清单由后端注册表下发） ──
-const typeMeta: Record<string, { labelKey?: string; fallback: string }> = {
-    skill: { labelKey: 'ai.integration.skillPlugin', fallback: 'skill' },
-    mcp: { labelKey: 'ai.integration.mcpPlugin', fallback: 'mcp' },
-};
-const typeLabel = (code: string) => {
-    const meta = typeMeta[code];
-    return meta?.labelKey ? t(meta.labelKey) : meta?.fallback || code;
-};
+// ── 类型元数据：取 integration/types 的 PLUGIN_TYPE_META（与卡片/选择器同源），本页不再写一份 ──
+const typeLabel = (code: string) => pluginTypeLabel(code, t);
 
 const registeredTypes = ref<PluginTypeInfo[]>([]);
 
@@ -112,7 +107,13 @@ const zipInputRef = ref();
 
 // ── 新建（类型选择器分发） ─────────────────────────────────
 const handlePick = (type: PluginType) => {
-    if (type === 'skill') {
+    // 未登记类型不开任何表单：旧实现把 else 分支全当 MCP，后端新增类型时会出现
+    // 「卡片标着新类型名、表单却是 MCP 表单」的错配编辑
+    if (!PLUGIN_TYPE_META[type]) {
+        Msg.warning('ai.integration.unknownPluginType', { type });
+        return;
+    }
+    if (pluginTypeMeta(type).form === 'skill') {
         editingSkillId.value = null;
         skillEditorOpen.value = true;
     } else {
@@ -143,12 +144,24 @@ const openSkillEdit = (item: PluginInstance) => {
 const openEdit = (item: PluginInstance) => (item.pluginType === 'skill' ? openSkillEdit(item) : openMcp(item));
 
 // ── 技能发布 / 取消发布 / 导出 ─────────────────────────────
+
+/**
+ * 技能数据变化后的统一收尾：失效输入框的技能缓存并重载列表。
+ *
+ * 不失效的话，本会话内的 `/` 引用菜单会一直读到旧技能列表（刚发布/改名/删除的技能
+ * 要刷新页面才生效），而这种「看着没生效」的反馈最难归因
+ */
+const onSkillDataChanged = async () => {
+    invalidatePromptSkills();
+    await reload();
+};
+
 const togglePublish = async (item: PluginInstance, publish: boolean) => {
     try {
         if (publish) await pluginApi.publishSkill.request({ id: item.skillId! });
         else await pluginApi.unpublishSkill.request({ id: item.skillId! });
         Msg.success('common.operateSuccess');
-        await reload();
+        await onSkillDataChanged();
     } catch {
         // 失败（请求层已 toast），列表状态保持不变
     }
@@ -169,7 +182,7 @@ const handleImportFile = async (e: Event) => {
     try {
         await pluginApi.importSkillZip.request(fd);
         Msg.success('ai.integration.importSuccess');
-        await reload();
+        await onSkillDataChanged();
     } catch {
         // 导入失败（请求层已 toast），静默退出
     }
@@ -191,7 +204,8 @@ const remove = async (item: PluginInstance) => {
             await pluginApi.deleteInstance.request({ id: item.id });
         }
         Msg.success('common.deleteSuccess');
-        await reload();
+        // 技能与 MCP 实例共用本入口：多失效一次技能缓存无害（MCP 不影响技能列表）
+        await onSkillDataChanged();
     } catch {
         // 只剩请求失败（请求层已 toast）：取消在上面的确认判断里就 return 了
     }

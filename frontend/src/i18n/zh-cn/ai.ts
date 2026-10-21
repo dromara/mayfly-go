@@ -14,10 +14,19 @@ export default {
         },
         chat: {
             inputPlaceholder: '输入消息',
+            // 占位符整句与提示项分隔符：不在代码里拼中文标点，否则英文界面会带出全角符号
+            inputPlaceholderHints: '{base}，{hints}…',
+            hintSeparator: '，',
             loadMore: '加载更多',
             result: '结果',
             connectionFailed: '连接失败，请检查网络或联系管理员',
             connectionDisconnected: '连接已断开，请刷新页面重试',
+            // 未登记的消息段类型：宁可显示一条可读提示，也不能让内容在界面上静默消失
+            unknownPartType: '暂不支持的内容类型：{type}',
+            // 队列 flush 被后端拒收（上一轮仍在收尾）：消息保留在队列里，必须让用户看见而不是静默丢弃
+            queueFlushRejected: '上一轮仍在收尾中，该消息已保留在队列里，可在队列中稍后重试',
+            // 本轮被后端拒收（未进模型）：乐观气泡已撤掉，必须告诉用户这条没发出去
+            messageNotDelivered: '这条消息未被服务端接受，已退回，请重新发送',
             thinking: '思考',
             thinkingActive: '思考中...',
             steps: '步',
@@ -38,8 +47,6 @@ export default {
             resourceTreeTitle: '选择要引用的资源',
             resourceTreeEmpty: '暂无可引用资源',
             resourceTreeTip: '机器需选到授权凭证，数据库需选到具体库',
-            machineGroup: '机器',
-            dbGroup: '数据库',
             send: '发送',
             stop: '停止',
             scrollToEnd: '滚动到底部',
@@ -87,6 +94,9 @@ export default {
             uploadFailed: '附件上传失败，请重试',
             previewFailed: '预览内容加载失败',
             imagePlaceholder: '[图片]',
+            // 附件正文标签：随消息落库并进入 LLM 上下文，必须走 i18n（写死中文会让英文用户的会话记录永久留中文）
+            textFileBlock: '--- 附件：{name} ---',
+            fileBlock: '[附件：{name}]',
         },
         interrupt: {
             approval: {
@@ -137,7 +147,6 @@ export default {
                 confirm: '确认',
                 reject: '拒绝',
                 processed: '已处理',
-                resolved: '已解决',
                 rejected: '已拒绝',
                 pending: '待处理',
                 rejectTitle: '拒绝原因',
@@ -168,7 +177,6 @@ export default {
             paramCompletion: {
                 title: '参数补全',
                 completeParam: '补全参数',
-                completed: '已补全',
                 pending: '待补全',
                 toolInfo: '工具信息',
                 toolName: '工具名称',
@@ -223,6 +231,8 @@ export default {
             skillPluginDesc: '创建或导入技能（SKILL.md + 资源文件），发布后供 Agent 引用',
             mcpPlugin: 'MCP 服务器',
             mcpPluginDesc: '接入 Streamable HTTP 传输的 MCP 服务器，注入其工具到 Agent',
+            // 后端注册表下发了前端未登记的类型：不开任何表单，避免把新类型当旧类型编辑
+            unknownPluginType: '暂不支持的插件类型：{type}，请先登记其表单与能力',
             // 技能编辑器
             newSkill: '新建技能',
             editSkill: '编辑技能',

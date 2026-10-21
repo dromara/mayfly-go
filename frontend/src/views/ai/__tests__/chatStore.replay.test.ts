@@ -101,3 +101,48 @@ describe('chatStore 刷新后历史重放场景', () => {
         expect(assistant!.time).toBe('10:31');
     });
 });
+
+describe('历史用户消息的文本形态（引用标记不得在重放时丢失）', () => {
+    /** 一条带资源芯片的用户消息：文本-芯片-文本 */
+    const replayChipMessage = (convId: number, itemId: string) => {
+        const store = useChatStore();
+        store.loadTurnGroups(convId, [
+            {
+                turnId: 't-chip',
+                items: [
+                    {
+                        id: 1,
+                        turnId: 't-chip',
+                        itemType: 'message',
+                        itemId,
+                        status: 'success',
+                        createTime: '2026-09-02T10:30:00',
+                        item: {
+                            type: 'message',
+                            id: itemId,
+                            role: 'user',
+                            content: [
+                                { type: 'input_text', text: '巡检 ' },
+                                { type: 'resource', text: '机器A', extra: { resourceType: 'machine', id: 11 } },
+                                { type: 'input_text', text: ' 的磁盘' },
+                            ],
+                        },
+                    },
+                ],
+            },
+        ] as unknown as TurnGroupVO[]);
+        return store.getSlice(convId)?.messages.find((m) => m.id === itemId);
+    };
+
+    it('芯片段按注册表文本形态进入 content', () => {
+        // 旧实现按 output_text|input_text 白名单过滤，结果会是「巡检  的磁盘」——
+        // 复制拿到缺引用的文本，「编辑→发送」发出去的消息一个 @资源 都没有
+        expect(replayChipMessage(77, 'u-chip')?.content).toBe('巡检 @机器A 的磁盘');
+    });
+
+    it('同一份文本形态在重放路径上稳定可重复（不随切片重建漂移）', () => {
+        const first = replayChipMessage(88, 'u-a')?.content;
+        const second = replayChipMessage(88, 'u-b')?.content;
+        expect(second).toBe(first);
+    });
+});

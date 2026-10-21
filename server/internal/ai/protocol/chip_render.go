@@ -47,13 +47,28 @@ func RegisterResourceIdentityRenderer(resourceType string, fn ResourceIdentityRe
 // RenderSegments 将结构化内容段渲染为最终发送给 LLM 的文本
 //
 // 存在芯片段时尾部追加聚焦指令：会话早期可能出现过其它资源的调用失败语境，
-// 明确圈定本次任务范围，防止模型被历史上下文带偏；纯文本段不追加。
+// 明确圈定本次任务范围，防止模型被历史上下文带偏；纯文本段不追加
 func RenderSegments(segments []ContentSegment) string {
-	if len(segments) == 0 {
-		return ""
+	text, hasChip := renderSegments(segments)
+	if hasChip {
+		text += "\n（以上引用资源为本次任务的唯一目标，请仅针对该资源执行，忽略会话早期出现的其它资源）"
 	}
+	return strings.TrimSpace(text)
+}
+
+// RenderInstruction 将任务/触发器指令的芯片段渲染为发给模型的提示词
+//
+// 与 RenderSegments 的唯一区别是不追加聚焦指令：那句话的前提是「会话早期出现过其它资源」，
+// 而一次无头运行的指令是预先编写、不存会话历史，追加它反而会把模型引向一个不存在的上下文。
+// 芯片→文本的逐段渲染与聊天消息共用同一实现（同一批注册表渲染器），不会出现两套展开口径
+func RenderInstruction(segments []ContentSegment) string {
+	text, _ := renderSegments(segments)
+	return strings.TrimSpace(text)
+}
+
+// renderSegments 逐段渲染（未注册渲染器的段按原文透出，纯文本段天然走此路径）
+func renderSegments(segments []ContentSegment) (text string, hasChip bool) {
 	var sb strings.Builder
-	hasChip := false
 	for _, seg := range segments {
 		if render, ok := chipRenderers[seg.Type]; ok {
 			sb.WriteString(render(seg))
@@ -62,10 +77,7 @@ func RenderSegments(segments []ContentSegment) string {
 		}
 		sb.WriteString(seg.Text)
 	}
-	if hasChip {
-		sb.WriteString("\n（以上引用资源为本次任务的唯一目标，请仅针对该资源执行，忽略会话早期出现的其它资源）")
-	}
-	return strings.TrimSpace(sb.String())
+	return sb.String(), hasChip
 }
 
 func init() {

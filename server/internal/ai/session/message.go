@@ -14,6 +14,17 @@ import (
 // 该角色仅在内存/持久化层流转，绝不进入 LLM 请求（ToAgenticMessages 统一过滤）
 const RoleInternal = schema.RoleType("internal")
 
+// MsgTypeToolCall 工具调用消息类型。
+//
+// 它是 MessageQuery.MessageType 的取值，用于按 toolCallId 定位待回写的工具调用记录（参数补全
+// 后回写最终参数、事件映射读取终态参数等）。此前在 agent/tools 各层以字面量书写，同一语义
+// 多处各持，改名或调整存储协议时极易漏改。
+const MsgTypeToolCall = "tool_call"
+
+// Message.Extra 的运行时键。写入侧（agent/msg_extra、tools 中断回写）与读取侧（本包 FromExtra、
+// application 存储层）跨层共用，必须单一真源：此前各以字面量书写，一处改名其余静默错配——
+// resumeInfo 曾在 tools 与 application 两包共 6 处各写一遍
+
 // Message 会话消息（全链路统一内存消息结构）
 //
 // api / agent / event_mapper / memory 各层均以本结构流转；eino 的
@@ -194,8 +205,8 @@ func FromAgenticMessage(msg *schema.AgenticMessage) *Message {
 	if msg.ResponseMeta != nil && msg.ResponseMeta.TokenUsage != nil {
 		m.ResponseMeta = &schema.ResponseMeta{Usage: msg.ResponseMeta.TokenUsage}
 	}
-	m.TurnId = m.Extra.GetStr("turnId") // 从 Extra 中获取 TurnId
-	m.ActionId = m.Extra.GetStr("actionId")
+	m.TurnId = m.Extra.GetStr(ExtraKeyTurnId) // 从 Extra 中获取 TurnId
+	m.ActionId = m.Extra.GetStr(ExtraKeyActionId)
 	return m
 }
 

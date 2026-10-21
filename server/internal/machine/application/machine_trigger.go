@@ -146,7 +146,11 @@ func CheckMachineCmd(ctx context.Context, codePaths []string, cmd string) (notic
 	procdefApp := flowapp.GetProcdefApp()
 	// 先定位流程定义再针对它求值：命令过滤规则的基线判定需要知道「这台机器被哪个策略管着」，
 	// 而 CheckTrigger 定位后不回传流程定义
-	procdef := procdefApp.GetProcdefByCodePath(ctx, codePaths...)
+	procdef, err := procdefApp.GetProcdefByCodePath(ctx, codePaths...)
+	if err != nil {
+		// 定位失败即拒绝执行：不能把「查不到策略」当成「没有策略」放行
+		return "", err
+	}
 	decision, err := procdefApp.CheckProcdefTrigger(ctx, procdef, &flowdto.TriggerRequest{
 		BizType:   MachineRunCmdFlowBizType,
 		CodePaths: codePaths,

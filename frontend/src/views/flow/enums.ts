@@ -45,6 +45,15 @@ export const HisProcinstOpState = {
 export const FlowBizType = {
     DbSqlExec: EnumValue.of('db_sql_exec_flow', 'flow.dbSqlExec').setTagType('warning'),
     RedisRunWriteCmd: EnumValue.of('redis_run_cmd_flow', 'flow.redisRunCmd').setTagType('danger'),
+    // AI 变更提案发起的审批工单（与后端 agentops.AgentRemediationFlowBizType 同值）。
+    // 只能由提案网关发起：手动提单入口用 ManualFlowBizType 排除它（值串再对一遍也造不出提案行）
+    AgentRemediation: EnumValue.of('agent_remediation_flow', 'flow.agentRemediation').setTagType('primary'),
+};
+
+/** 允许人工提单的业务类型：AI 提案工单由受控执行链路自动发起，不在手动提单表单里出现 */
+export const ManualFlowBizType = {
+    DbSqlExec: FlowBizType.DbSqlExec,
+    RedisRunWriteCmd: FlowBizType.RedisRunWriteCmd,
 };
 
 /**

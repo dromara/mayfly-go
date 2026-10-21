@@ -25,6 +25,7 @@ import { BrainIcon } from '@lucide/vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import CollapsibleSection from '../CollapsibleSection.vue';
+import { truncateByCodePoints } from '../text';
 
 const props = defineProps<{
     content: string;
@@ -33,12 +34,11 @@ const props = defineProps<{
 
 const { t } = useI18n();
 
-/** 标题摘要：取第一行或前 80 字符 */
+/** 标题摘要：取第一行或前 80 个**码点**（按 UTF-16 码元切会把 emoji 代理对劈开，显示半个字符） */
 const titleText = computed(() => {
     const text = props.content.trim();
     const firstLine = text.split('\n')[0];
-    if (firstLine.length > 80) return firstLine.slice(0, 80) + '\u2026';
-    return firstLine || text.slice(0, 80);
+    return truncateByCodePoints(firstLine || text, 80);
 });
 </script>
 

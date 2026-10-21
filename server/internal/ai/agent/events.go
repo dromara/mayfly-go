@@ -30,6 +30,8 @@ func (a *Agent) handleEvents(ctx context.Context, events *adk.AsyncIterator[*age
 	// 此前仅 warn 吞错，部分输出被当完整结果且 turn 置 success，
 	// 表现为「回复一半静默结束、无任何错误提示」
 	var streamErr error
+	// tokenBudget>0 时累计已消耗 token（多步工具循环每步各带一份 usage）
+	var usedTokens int64
 
 	for {
 		event, ok := events.Next()
@@ -113,6 +115,22 @@ func (a *Agent) handleEvents(ctx context.Context, events *adk.AsyncIterator[*age
 		SetTurnId(msg, runOptions.turnId)
 
 		outputMessages = append(outputMessages, msg)
+
+		// token 预算熔断：累计用量超限立即中止运行（runErr 由上层转 failed 终态），
+		// 防止失控的多步工具循环持续消耗 LLM 配额；已产出的部分输出不丢（随结果返回）。
+		// 部分模型不上报 TotalTokens（同 accumulateUsage 兜底口径），取 P+C 兜底，
+		// 否则对这类模型预算熔断静默失效
+		if runOptions.tokenBudget > 0 && msg.ResponseMeta != nil && msg.ResponseMeta.Usage != nil {
+			used := int64(msg.ResponseMeta.Usage.TotalTokens)
+			if used == 0 {
+				used = int64(msg.ResponseMeta.Usage.PromptTokens + msg.ResponseMeta.Usage.CompletionTokens)
+			}
+			usedTokens += used
+			if usedTokens > runOptions.tokenBudget {
+				return outputMessages, fmt.Errorf("token budget exceeded: used %d > budget %d (run aborted)", usedTokens, runOptions.tokenBudget)
+			}
+		}
+
 		if err := runOptions.CallOnEvent(ctx, event, msg); err != nil {
 			logx.WarnfContext(ctx, "onEvent callback error: %v", err)
 			return outputMessages, err

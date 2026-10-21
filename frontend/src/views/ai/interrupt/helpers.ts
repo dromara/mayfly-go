@@ -11,10 +11,31 @@
  */
 
 import type { Component } from 'vue';
-import { markRaw } from 'vue';
+import { computed, markRaw } from 'vue';
+import { i18n } from '@/i18n';
 import type { DecisionInterpretation, InterruptHandler, InterruptState } from '../registries/interruptRegistry';
 import type { TurnItem } from '../protocol/types';
-import { interpretActionStatus, normalizeResumeStatus, InterruptResumeStatus } from '../registries/statuses';
+import { interpretActionStatus, normalizeResumeStatus, InterruptResumeStatus, RESUME_STATUS_BADGES, FALLBACK_RESUME_BADGE, isInterruptDecided } from '../registries/statuses';
+
+/**
+ * 中断卡片头部徽章的三态判定（待决策 / 已决策含具体决议 / 只读但无状态）。
+ *
+ * 「是否已决策」必须来自 interrupt.status，不能拿 readonly 推断：readonly 代的是
+ * 「当前在只读轨迹里」，与这条中断有没有被批准无关。此前三个中断组件都用
+ * `v-if="!readonly"` 当待决策、`v-else` 直接显示「已处理」，于是轨迹里一条从未被批准的
+ * MachineCommandExec 审批会显示成「已处理」——审计完全读不出这里曾经卡住。
+ *
+ * 收成一个函数而不是三处各写：徽章语义与配置表（registries/statuses）同源，
+ * 避免工具行与卡片对同一个 status 给出不同粒度
+ */
+export function useInterruptBadge(status: () => string | undefined) {
+    const decided = computed(() => isInterruptDecided(status() ?? ''));
+    const badge = computed(() => {
+        const config = RESUME_STATUS_BADGES[status() ?? ''] ?? FALLBACK_RESUME_BADGE;
+        return { class: config.class, label: i18n.global.t(config.labelKey) };
+    });
+    return { decided, badge };
+}
 
 /**
  * 从 extra.interrupt（后端持久化于 tool_call item extra 列的 InterruptInfo）

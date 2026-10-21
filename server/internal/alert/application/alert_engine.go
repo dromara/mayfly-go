@@ -6,17 +6,45 @@ import (
 	"math"
 	"mayfly-go/internal/alert/domain/entity"
 	"mayfly-go/internal/alert/domain/service"
+	pkgconsts "mayfly-go/internal/pkg/consts"
+	opsevent "mayfly-go/internal/pkg/event"
 	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/taskx"
 	"sort"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // eventRetainDays 已终结事件（Recovered/Closed）保留天数，超过后由定时任务自动清理
 const eventRetainDays = 30
+
+// 评估调度粒度。
+//
+// shouldEvaluate 只能在调度点上判定「规则是否到期」，永远无法比调度更密。因此调度粒度必须
+// 不粗于规则允许的最小评估间隔（minEvalInterval 直接取自它），否则用户填的更小间隔会被
+// 静默拉长到调度粒度——界面写着「每隔 N 秒评估一次」、实际每 60 秒才评估一次，
+// 配置项就成了摆设。改动本组常量时必须同步核对 minEvalInterval 与前端校验下限
+const (
+	evalTickSeconds = 10
+	evalTickCron    = "@every 10s"
+	// 锁 TTL 必须覆盖单轮最坏耗时：基座契约就写在这两个地方（pkg/taskx/cron.go:28、
+	// pkg/scheduler/scheduler.go:110）——「lockDuration 应大于 run 最大执行时间」。
+	//
+	// 锁在 run 结束时由 `defer lock.UnLock()` 显式释放（scheduler.go:123），所以把 TTL 拉长**不会**
+	// 挡住本实例或别的实例的下一个触发点；反过来 TTL 短于单轮耗时才是真事故：一轮跑到一半锁先过期，
+	// 另一实例在下一个 10s 点抢到同一把锁并发跑同一轮，而 lastEvalTime 与 pendingGroups 都是
+	// **进程内**状态（各自一份、不共享），于是同一告警被评估两遍、通知也发两遍。
+	// TTL 同时是「实例崩溃后全集群停摆多久」的上限，所以取够覆盖单轮、又不长期占位的值
+	evalTickLockDuration = 60 * time.Second
+
+	// flush 锁同一个契约：flushGroups 里要真发 IM/邮件（含 30s 发送超时），比评估更容易超过一个调度点
+	groupFlushLockDuration = 60 * time.Second
+)
 
 // groupKey 分组键：rule_id + resource_id。
 // 按标签分组已迁移至通知策略层（AlertNotifyPolicy 标签路由），分组维度收敛为规则+资源
@@ -63,6 +91,10 @@ type alertEngineAppImpl struct {
 	// 评估并发限制：最多同时评估 10 条规则，防止 DB 连接池耗尽
 	evalSem chan struct{}
 
+	// 评估自旋守卫：调度粒度可能细于单次 evaluateAll 耗时（evalSem 满时派发循环会阻塞），
+	// 而 cron 不会跳过仍在运行的任务，无守卫会让多轮评估叠加、重复扫描规则表
+	evalRunning atomic.Bool
+
 	// 活跃事件缓存：每个评估周期刷新一次，避免 checkInhibition 重复查 DB
 	activeEventsMu    sync.Mutex
 	activeEventsCache []*entity.AlertEvent
@@ -87,13 +119,13 @@ func (a *alertEngineAppImpl) StartEvalLoop() {
 	a.evalSem = make(chan struct{}, 10) // 最多 10 个规则并发评估
 
 	// 使用分布式锁调度，多实例部署时只有一个实例执行评估
-	_ = taskx.BindCronTaskWithLock("alert-eval", "@every 1m", 50*time.Second, true, func() {
+	_ = taskx.BindCronTaskWithLock("alert-eval", evalTickCron, evalTickLockDuration, true, func() {
 		defer gox.Recover()
 		a.evaluateAll()
 	})
 
 	// 分组刷新循环：使用分布式锁，每10秒检查一次待发送的分组
-	_ = taskx.BindCronTaskWithLock("alert-group-flush", "@every 10s", 8*time.Second, true, func() {
+	_ = taskx.BindCronTaskWithLock("alert-group-flush", "@every 10s", groupFlushLockDuration, true, func() {
 		defer gox.Recover()
 		a.flushGroups()
 	})
@@ -125,6 +157,13 @@ func (a *alertEngineAppImpl) Stop() {
 }
 
 func (a *alertEngineAppImpl) evaluateAll() {
+	// 上一轮未跑完就跳过本轮：到期的规则不会丢，下一轮（一个调度粒度之后）仍会被 shouldEvaluate 放行
+	if !a.evalRunning.CompareAndSwap(false, true) {
+		logx.Debugf("[alert] evaluateAll skipped: previous round still running")
+		return
+	}
+	defer a.evalRunning.Store(false)
+
 	rules, err := a.ruleApp.ListEnabled()
 	if err != nil {
 		logx.Errorf("[alert] list enabled rules error: %s", err.Error())
@@ -276,10 +315,7 @@ func (a *alertEngineAppImpl) handleEvalResult(ctx context.Context, rule *entity.
 				if err := a.eventApp.TouchActiveEvent(ctx, created, metric, currentValue); err != nil {
 					logx.Errorf("[alert] touch active event error: %s", err.Error())
 				}
-				// 如果事件还没被通知过，添加到分组等待通知
-				if created.NotifyCount == 0 {
-					a.addToGroup(rule, created)
-				}
+				a.addToGroup(rule, created)
 			} else if created != nil {
 				a.addToGroup(rule, created)
 			}
@@ -291,10 +327,12 @@ func (a *alertEngineAppImpl) handleEvalResult(ctx context.Context, rule *entity.
 			if err := a.eventApp.TouchActiveEvent(ctx, active, metric, currentValue); err != nil {
 				logx.Errorf("[alert] touch active event error: %s", err.Error())
 			}
-			// 如果事件还没被通知过，添加到分组等待通知
-			if active.NotifyCount == 0 {
-				a.addToGroup(rule, active)
-			}
+			// 不区分是否已通知过：分组缓冲是**纯进程内内存**，重启即清零，旧写法用
+			// 「NotifyCount == 0」当门，导致重启后所有已通知过的活跃事件再也进不了分组，
+			// 重复告警通知从此静默停摆（真机实测：规则配了 repeatInterval/groupInterval=300，
+			// 事件持续越界 50 分钟、trigger_count 从 19 跑到 33，notify_count 始终为 1）。
+			// 重复节奏由已持久化的 LastNotifyTime 播种（见 addToGroup），因此补入组不会造成重启即轰炸
+			a.addToGroup(rule, active)
 		}
 	} else {
 		// 未越界：重置越界计数器和 Duration 追踪
@@ -386,7 +424,16 @@ func (a *alertEngineAppImpl) addToGroup(rule *entity.AlertRule, event *entity.Al
 	if !ok {
 		group = &pendingGroup{
 			Rule:      rule,
-			FirstFire: time.Now(),
+			FirstFire: event.FirstTriggerTime,
+		}
+		// 用事件里已持久化的时间戳播种分组时钟：进程重启后把旧事件重新纳入分组时，
+		// 间隔从「它原来进到的位置」继续算，而不是当成首次通知立刻发一轮，
+		// 也不会把 groupWait 从头重算。零值（历史脏数据可缺）才回退到当前时间
+		if event.LastNotifyTime != nil && !event.LastNotifyTime.IsZero() {
+			group.LastNotify = *event.LastNotifyTime
+		}
+		if group.FirstFire.IsZero() {
+			group.FirstFire = time.Now()
 		}
 		a.pendingGroups[key] = group
 	}
@@ -524,12 +571,70 @@ func (a *alertEngineAppImpl) sendGroupNotification(group *pendingGroup) {
 			logx.Errorf("[alert] update event notify info error: event[%d] %s", event.Id, err.Error())
 		}
 		notified = true
+
+		// 通知成功后发布中立运维触发事件（fail-open）：agentops 订阅后自动派生只读诊断 Run，
+		// 发布异常/无订阅者都不影响告警主链路。维持依赖不变式——alert 不依赖 ai/agentops，
+		// 仅经 internal/pkg/event 中立契约 + global.EventBus 与之解耦通信。
+		a.publishOpsTrigger(event)
 	}
 
 	// 只有实际发送了通知才更新 group.LastNotify，避免事件被跳过时 group 等待过久
 	if notified {
 		group.LastNotify = now
 	}
+}
+
+// publishOpsTrigger 把已成功通知的告警事件归一化为中立 OpsTriggerEvent 并发布到全局事件总线。
+//
+// fail-open：Publish 本身无返回值、订阅方（agentops）异步消费；此处再以 recover 兜底，确保
+// 归一化/发布的任何异常都不会回流影响告警通知主链路。维持依赖不变式——alert 不依赖
+// ai/agentops，仅经 internal/pkg/event 中立契约 + global.EventBus 与之解耦通信。
+func (a *alertEngineAppImpl) publishOpsTrigger(ev *entity.AlertEvent) {
+	// 恢复语义统一走 gox.Recover（本包其余异步派发同此）：自写 recover 会让「是否记日志、
+	// 日志格式」在各调用点漂移；回调里补上事件 id，否则只能看到一条笼统的 panic
+	defer gox.Recover(func(err error) {
+		logx.Errorf("[alert] publish ops trigger event failed (ignored): event[%d] %v", ev.Id, err)
+	})
+
+	// OccurredAt 取最近触发时间：同一事件再次越限（LastTriggerTime 前移）即视为新事件、可再派生，
+	// 未前移则被上游新鲜度闸门拦下不会重复通知（也就不会重复发布）
+	occurredAt := ev.LastTriggerTime.Unix()
+	if ev.LastTriggerTime.IsZero() {
+		occurredAt = time.Now().Unix()
+	}
+	evt := &opsevent.OpsTriggerEvent{
+		Source:       opsevent.OpsTriggerSourceAlert,
+		SourceRef:    strconv.FormatUint(ev.Id, 10),
+		ResourceType: opsTriggerResourceType(ev.ResourceType),
+		ResourceId:   ev.ResourceId,
+		ResourceName: ev.ResourceName,
+		Severity:     ev.Priority.Code(),
+		Metric:       ev.Metric,
+		Value:        ev.CurrentValue,
+		OccurredAt:   occurredAt,
+		Payload: map[string]any{
+			"ruleId":       ev.RuleId,
+			"ruleName":     ev.RuleName,
+			"threshold":    ev.Threshold,
+			"labels":       ev.Labels,
+			"status":       int8(ev.Status),
+			"triggerCount": ev.TriggerCount,
+		},
+	}
+	global.EventBus.Publish(context.Background(), opsevent.EventTopicOpsTrigger, evt)
+	logx.Debugf("[alert] published ops trigger event: event[%d] resource=%s/%d severity=%s", ev.Id, evt.ResourceType, ev.ResourceId, evt.Severity)
+}
+
+// opsTriggerResourceType 把告警资源类型枚举映射为中立事件里的资源类型字符串（供触发器匹配/诊断上下文）。
+//
+// 键名唯一真源在 consts.resourceTypeKeys（与 AI 工具入参说明、资源可见面判定同源），本函数不再自写 switch。
+// 未登记键名的类型（凭证/库名等非资源主体）回退为数值串，保证信息不丢失；新增「可被触发器按类型
+// 匹配」的资源类型时必须去那张表登记，否则这里的数字串与触发器条件里的类型名永远对不上
+func opsTriggerResourceType(rt int8) string {
+	if key, ok := pkgconsts.ResourceTypeKey(rt); ok {
+		return key
+	}
+	return strconv.Itoa(int(rt))
 }
 
 // listPoliciesWithLabels 获取启用通知策略列表（带 TTL 缓存，已回填各策略 MatchLabels）。
@@ -583,7 +688,7 @@ func (a *alertEngineAppImpl) resolveNotifyTarget(rule *entity.AlertRule, event *
 			}
 		}
 		// 渠道→策略归因：多策略命中同一渠道时保留首个声明者
-		target = target.WithPolicyBinding(p.Id, p.ChannelIds)
+		target = target.WithNotifyPolicyBinding(p.Id, p.ChannelIds)
 	}
 	if len(target.ChannelIds) == 0 && len(target.ReceiverIds) == 0 {
 		return service.NotifyTarget{}

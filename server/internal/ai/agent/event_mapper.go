@@ -77,6 +77,12 @@ func (m *EventMapper) MapChunk(turnId string, chunk *session.Message) []*protoco
 	// 处理正文内容
 	if chunk.Content != "" {
 		m.accumulatedContent += chunk.Content
+		// 累积仍是空白时不开 item：实测模型在推理闭合后会先吐出一串换行（“\n\n\n”），
+		// 旧逻辑只要 chunk 非空就开一个 message item，界面表现为一条没有任何内容的空气泡，
+		// 回放与消息统计也会被这类空 item 污染。内容真出现时才建项（累积量已暂存，不会丢字）
+		if strings.TrimSpace(m.accumulatedContent) == "" {
+			return events
+		}
 		if m.currentMessageId == "" {
 			// 首次收到正文内容，发送 item_started（item_id 触发时刻生成，时间有序）
 			m.currentMessageId = stringx.SortableUUID()
@@ -85,7 +91,7 @@ func (m *EventMapper) MapChunk(turnId string, chunk *session.Message) []*protoco
 			})
 			events = append(events, protocol.NewItemStartedEvent(turnId, item))
 		}
-		// 发送增量更新
+		// 发送增量更新（开头累积的空白不单独下发一条增量，直接随首条有效增量一并给出）
 		events = append(events, protocol.NewItemUpdatedEvent(turnId, m.currentMessageId, &protocol.ItemDelta{
 			Text: chunk.Content,
 		}))
@@ -111,13 +117,15 @@ func (m *EventMapper) completeActiveItems(turnId string) []*protocol.EventMsg {
 		m.currentReasoningId = ""
 	}
 
-	// 完成消息 item（使用累积的内容）
+	// 完成消息 item（使用累积的内容）。仅空白正文不产出项：否则会在历史上留下空消息
 	if m.currentMessageId != "" {
-		content := []protocol.ContentSegment{
-			protocol.NewOutputTextSegment(m.accumulatedContent),
+		if strings.TrimSpace(m.accumulatedContent) != "" {
+			content := []protocol.ContentSegment{
+				protocol.NewOutputTextSegment(m.accumulatedContent),
+			}
+			item := protocol.NewMessageTurnItem(m.currentMessageId, string(schema.Assistant), content)
+			events = append(events, protocol.NewItemCompletedEvent(turnId, item))
 		}
-		item := protocol.NewMessageTurnItem(m.currentMessageId, string(schema.Assistant), content)
-		events = append(events, protocol.NewItemCompletedEvent(turnId, item))
 		m.currentMessageId = ""
 	}
 
@@ -169,12 +177,21 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 			isNewItem = true
 		}
 	}
-	// 取回并清理映射；resume 流程无 item_started 缓存，从 session 恢复参数
+	// 取回并清理映射。
+	//
+	// 参数以 **session 里的值为准**：参数补全场景下 ResumeParamCompletion 已把用户补全的最终
+	// 参数回写进 tool_call 消息，而这份缓存记的是模型最初提交的原始参数（正是那个把必填留空、
+	// 导致系统弹补全的版本）。原先只在缓存为空时才读 session，会让终态 item 用原始空值覆盖掉
+	// 已回写的真值（真机核实：payload 里 authCertName 为空，output 里却是实际使用的凭证）。
+	// session 查不到时回退缓存只对「正常调用事件」有效（其缓存在 MapToolCallEvent 时点填过原始参数）；
+	// 恢复项走 TrackResumedToolCall 不填缓存，此时 session 若也读失败会落空 args——但不会 400，
+	// 下游 itemToMessages 对空 args 自愈成 {}，代价仅审计 payload 丢参数（只在 DB 读失败边缘触发）
 	args := m.toolCallArgs[msg.ToolCallId]
 	delete(m.toolCallItemIds, msg.ToolCallId)
 	delete(m.toolCallArgs, msg.ToolCallId)
-	if args == "" {
-		args = m.loadToolCallArgs(ctx, msg.ToolCallId)
+	fresh := m.loadToolCallArgs(ctx, msg.ToolCallId)
+	if fresh != "" {
+		args = fresh
 	}
 
 	item := &protocol.TurnItem{
@@ -192,7 +209,7 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 	// 检查是否有工具状态标记
 	extra := collx.M(msg.Extra)
 	if extra != nil {
-		toolStatus := extra.GetStr("toolStatus")
+		toolStatus := extra.GetStr(session.ExtraKeyToolStatus)
 		if toolStatus == tools.ToolStatusError || toolStatus == tools.ToolStatusInterrupted {
 			item.Status = protocol.TurnItemStatusFailed
 			if toolStatus == tools.ToolStatusInterrupted {
@@ -205,12 +222,21 @@ func (m *EventMapper) MapToolResultEvent(ctx context.Context, turnId string, msg
 	if item.Status == protocol.TurnItemStatusSuccess && tools.IsToolErrorMsg(msg.Content) {
 		item.Status = protocol.TurnItemStatusFailed
 	}
-	// 用户拒绝的工具调用不视为执行失败：拒绝 → Cancelled，
+	// 用户拒绝/取消的工具调用不视为执行失败：拒绝/取消 → Cancelled，
 	// 徽章由 extra.interrupt.resume 表达，状态圆点用取消色。
-	// 审批拒绝时 eino 将错误转为工具结果，无论错误标记是否透传，
-	// 只要内容为拒绝文案即归类为取消
-	if item.Status != protocol.TurnItemStatusInterrupted && strings.HasPrefix(msg.Content, "[OPERATION_REJECTED]") {
+	// 审批拒绝与参数补全取消时 eino 均将错误转为工具结果，无论错误标记是否透传，
+	// 只要内容为拒绝/取消文案即归类为取消（与 turn 级 IsUserTerminated 的判据保持同源，
+	// 否则同一轮里 turn 是 cancelled、item 却是 failed）
+	if item.Status != protocol.TurnItemStatusInterrupted &&
+		(tools.IsRejectedToolResult(msg.Content) || tools.IsCancelledToolResult(msg.Content)) {
 		item.Status = protocol.TurnItemStatusCancelled
+	}
+	// 中断项不得把「请审批」说明当成工具结果落库：中断时工具根本没执行，
+	// msg.Content 是中断说明（exec sql 场景为「执行SQL是高危操作，请审批」）。
+	// 一旦落进 Output，历史重建与摘要都会把它当作执行结果——模型据此认为"还没批"，
+	// 每次批准后又会发起下一次插入，形成自激循环（真机：一个 turn 内 6 次 ExecSql）
+	if item.Status == protocol.TurnItemStatusInterrupted {
+		item.Output = ""
 	}
 
 	// resume 流程：先发送 item_started，再发送 item_completed
@@ -280,7 +306,7 @@ func (m *EventMapper) loadToolCallArgs(ctx context.Context, toolCallId string) s
 	if toolCallId == "" {
 		return ""
 	}
-	toolCallMsgs, err := session.DefaultSessionStore.GetMessage(ctx, &session.MessageQuery{MessageType: "tool_call", ToolCallId: toolCallId})
+	toolCallMsgs, err := session.DefaultSessionStore.GetMessage(ctx, &session.MessageQuery{MessageType: session.MsgTypeToolCall, ToolCallId: toolCallId})
 	if err != nil || len(toolCallMsgs) == 0 {
 		return ""
 	}

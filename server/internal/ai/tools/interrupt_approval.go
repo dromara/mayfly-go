@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"mayfly-go/internal/ai/imsg"
+	"mayfly-go/internal/ai/protocol"
 	"mayfly-go/internal/ai/session"
 	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
@@ -46,6 +47,14 @@ func NewArrpovalInfo(ctx context.Context, toolInfo *schema.ToolInfo, arguments s
 }
 
 func InterruptOrResumeApproval(ctx context.Context, toolDesc string, arguments any, reason string) error {
+	// 提案审批已放行「该工具 + 该组参数」：不再二次弹窗。
+	//
+	// 缺这一步时，无头运行（运维任务的受控执行）里工具会挂在 StatefulInterrupt 上等一个
+	// 永远不会来的应答；而中断不产生 error，于是上层把「一次写操作都没发生」记成已执行。
+	// 判定走 RunGrant.ApprovedTools，它只在提案审批通过后下发，且绑定了批准时的参数
+	if g := RunGrantFrom(ctx); g.ApprovedFor(toolDesc, arguments) {
+		return nil
+	}
 	isApprovalResume, err := ResumeApproval(ctx, toolDesc)
 	if !isApprovalResume {
 		return InterruptApproval(ctx, toolDesc, arguments, reason)
@@ -79,7 +88,7 @@ func ResumeApproval(ctx context.Context, toolDesc string) (bool, error) {
 	if len(messages) > 0 {
 		for _, msg := range messages {
 			var resumeInfo ApprovalResume
-			if err := msg.Extra.Unmarshal("resumeInfo", &resumeInfo); err != nil {
+			if err := msg.Extra.Unmarshal(session.ExtraKeyResumeInfo, &resumeInfo); err != nil {
 				continue
 			}
 			return true, handleApprovalResult(ctx, toolDesc, &resumeInfo)
@@ -101,15 +110,15 @@ func ResumeApproval(ctx context.Context, toolDesc string) (bool, error) {
 }
 
 func handleApprovalResult(ctx context.Context, toolDesc string, data *ApprovalResume) error {
-	if data.Action == "approve" {
+	if data.Action == protocol.ActionApprove {
 		return nil
 	}
 
-	if data.Action == "reject" {
+	if data.Action == protocol.ActionReject {
 		reason := cmp.Or(data.Payload.GetStr("reason"), i18n.T(imsg.RejectReasonDefault))
 		// 构建更清晰的拒绝消息
 		msg := fmt.Sprintf(
-			"[OPERATION_REJECTED] The tool '%s' was explicitly rejected by the user.\nReason: %s\nPlease do not retry this action automatically. Ask the user for further instructions if needed.",
+			RejectedToolPrefix+" The tool '%s' was explicitly rejected by the user.\nReason: %s\nPlease do not retry this action automatically. Ask the user for further instructions if needed.",
 			toolDesc,
 			reason,
 		)

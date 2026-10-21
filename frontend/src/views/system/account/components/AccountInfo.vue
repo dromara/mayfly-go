@@ -11,7 +11,7 @@
             <template #reference>
                 <el-link type="primary">{{ props.username }}</el-link>
             </template>
-            <el-descriptions v-loading="loading" :column="2" border>
+            <el-descriptions v-loading="loading" :column="2" border label-width="90">
                 <el-descriptions-item label="username">{{ account.username }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('system.account.name')">
                     {{ account.name }}

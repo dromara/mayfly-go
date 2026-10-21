@@ -88,7 +88,10 @@ var En = map[i18n.MsgId]string{
 	TmplAlertRecoverTitle: "Recovered - {{.ruleName}}",
 	TmplAlertNotifyBody: "[Alert Notification]\nRule: {{.ruleName}}\nResource: {{.resourceName}}\nMetric: {{.metric}}\n" +
 		"Current Value: {{.currentValue}}\nThreshold: {{.threshold}}\nPriority: {{.priority}}\n" +
-		"First Triggered: {{.firstTime}}\nLast Triggered: {{.lastTime}}\nTotal Triggers: {{.triggerCount}}",
+		"First Triggered: {{.firstTime}}\nLast Triggered: {{.lastTime}}\nTotal Triggers: {{.triggerCount}}\nStage: {{.notifyStage}}",
+	// 通知阶段：升级策略触发的通知与首报/重复告警共用同一份正文，不加这一行则两条消息逐字相同
+	TmplStageAlertNotify: "Alert notification",
+	TmplStageEscalation:  "Escalation (level {{.level}})",
 	TmplAlertRecoverBody: "[Alert Recovered]\nRule: {{.ruleName}}\nResource: {{.resourceName}}\nMetric: {{.metric}}\nPriority: {{.priority}}\n" +
 		"First Triggered: {{.firstTime}}\nRecovered At: {{.recoverTime}}\nDuration: {{.durationText}}\n" +
 		"Total Triggers: {{.triggerCount}}\nNotify Count: {{.notifyCount}}",

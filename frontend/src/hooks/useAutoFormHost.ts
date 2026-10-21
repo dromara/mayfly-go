@@ -175,8 +175,11 @@ export const useAutoFormHost = (
             if (props.confirmApi) {
                 try {
                     await props.confirmApi(state.form);
-                } catch {
-                    // 保存失败（请求层已 toast），弹层保留供修改重试
+                } catch (err) {
+                    // 保存失败（请求层已 toast），弹层保留供修改重试；
+                    // console.error 保留可诊断性：若异常发生在请求发出前（如调用方传入的
+                    // confirmApi 本身抛错），请求层不会 toast，静默吞掉会导致「点了保存毫无反应」
+                    console.error('[auto-form] confirmApi submit failed:', err);
                     return;
                 }
                 Msg.saveSuccess();

@@ -54,6 +54,11 @@ func (md *MysqlMetadata) GetDbServer() (*dbi.DbServer, error) {
 	return ds, nil
 }
 
+// GetDbNames 返回实例上的业务库清单。
+//
+// 排除清单必须覆盖随实例自带的系统库 mysql/information_schema/performance_schema/sys：
+// 它们由服务端初始化产生、业务不可删，混入后会被前端库资源树当成普通库展开（sys 的 sys_config 等表尤易误读）。
+// 该清单是「库名枚举」的单一真源，实例库列表、下拉候选等都经此收敛，勿在调用侧另做过滤。
 func (md *MysqlMetadata) GetDbNames() ([]string, error) {
 	_, res, err := md.di.Query(metaSQL.Get(MYSQL_DBS))
 	if err != nil {

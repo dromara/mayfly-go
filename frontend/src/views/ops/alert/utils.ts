@@ -132,8 +132,10 @@ export function fetchResourceMetrics(): Promise<ResourceMetrics[]> {
             .request({})
             .then((res) => res || [])
             .catch(() => {
-                // 失败时清空以便下次重新加载，降级期间表单仍可使用前端枚举与兜底指标
-                resourceMetricsRequest = Promise.resolve([]);
+                // 失败必须把缓存位放回 null 让下次调用重试：若把空结果缓存成已完成的 Promise，
+                // 一次瞬时故障（后端重启、令牌刷新期的 401）就会把降级状态钉死整个页面生命周期——
+                // 资源类型下拉永久为空、已选值退化成裸数字，只能靠整页刷新恢复。
+                resourceMetricsRequest = null;
                 return [];
             });
     }

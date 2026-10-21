@@ -1,13 +1,15 @@
 <template>
     <el-popover v-if="state.total > 0" placement="bottom" :width="650" trigger="hover" :show-after="300">
         <template #reference>
-            <el-card shadow="hover" class="cursor-pointer transition-all hover:-translate-y-1" @click="onCardClick">
-                <div class="flex flex-col items-center">
-                    <SvgIcon :size="32" :name="resourceIcon" :color="resourceColor" />
-                    <div class="text-xs text-gray-600 text-center">{{ resourceLabel }}</div>
-                    <div class="text-lg font-bold text-(--el-color-primary)">{{ state.total }}</div>
-                </div>
-            </el-card>
+            <div class="resource-tile" :style="{ '--tile-color': resourceColor }" role="button" tabindex="0" @click="onCardClick" @keydown.enter="onCardClick">
+                <span class="resource-tile__label">{{ resourceLabel }}</span>
+                <span class="resource-tile__stats">
+                    <span class="resource-tile__icon">
+                        <SvgIcon :size="16" :name="resourceIcon" />
+                    </span>
+                    <span class="resource-tile__value">{{ state.total }}</span>
+                </span>
+            </div>
         </template>
 
         <!-- 资源悬浮展示 -->
@@ -20,7 +22,8 @@
             <el-scrollbar ref="scrollbarRef" :max-height="180" @scroll="handleScroll">
                 <div v-loading="state.loading" class="min-w-0">
                     <div class="grid grid-cols-2 gap-2.5">
-                        <div v-for="resource in resources" :key="resource.id" @click="navigateToResource(resource)">
+                        <!-- flex 容器 + 卡片 h-full：同一行的资源卡统一撑满行高，避免离线实例（无监控行）比别人矮一截 -->
+                        <div v-for="resource in resources" :key="resource.id" class="min-w-0 flex" @click="navigateToResource(resource)">
                             <slot name="item" :resource="resource"></slot>
                         </div>
                     </div>
@@ -36,10 +39,22 @@
             </el-scrollbar>
         </div>
     </el-popover>
+
+    <!-- 无资源时仍保留卡片位置：直接隐藏会让概览区出现空洞，也读不出哪类资源尚未纳管 -->
+    <div v-else class="resource-tile is-empty" :style="{ '--tile-color': resourceColor }">
+        <span class="resource-tile__label">{{ resourceLabel }}</span>
+        <span class="resource-tile__stats">
+            <span class="resource-tile__icon">
+                <SvgIcon :size="16" :name="resourceIcon" />
+            </span>
+            <span class="resource-tile__value">{{ state.total }}</span>
+        </span>
+    </div>
 </template>
 
 <script lang="ts" setup generic="T extends { id: number; code?: string; name?: string }">
 import SvgIcon from '@/components/svg-icon/index.vue';
+import { hasPerm } from '@/components/auth/auth';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { tagApi } from '@/views/ops/tag/api';
 import type { ElScrollbar } from 'element-plus';
@@ -58,7 +73,15 @@ const props = defineProps<{
     apiMethod: ApiMethod<T>;
 }>();
 
+const emit = defineEmits<{
+    /** 总数变化：首页指标卡据此汇总「资源总数」，避免另发一轮只取 total 的请求 */
+    (e: 'loaded', total: number): void;
+}>();
+
 const router = useRouter();
+
+// 没有资源页基础权限时，资源卡仍可悬浮查看列表，但点击不跳转
+const canOpenResource = hasPerm('resource:base');
 
 const scrollbarRef = ref<InstanceType<typeof ElScrollbar>>();
 
@@ -103,6 +126,7 @@ const initLoad = async () => {
     resources.value = items.slice(0, state.pageSize);
     state.hasMore = resources.value.length < state.total;
     state.initialized = true;
+    emit('loaded', state.total);
 };
 
 // 加载更多数据
@@ -116,6 +140,7 @@ const loadMore = async () => {
     resources.value = [...resources.value, ...newItems];
     state.currentPage = nextPage;
     state.hasMore = resources.value.length < res.total;
+    emit('loaded', state.total);
 };
 
 // 处理滚动
@@ -133,6 +158,9 @@ const handleScroll = () => {
 
 // 跳转到资源
 const navigateToResource = async (resource: T) => {
+    if (!canOpenResource) {
+        return;
+    }
     const tagResources = await tagApi.listByQuery.request({ codes: resource?.code });
     useAutoOpenResource().setCodePath(tagResources?.[0]?.codePath);
     router.push({ path: '/my-resource' });
@@ -140,14 +168,107 @@ const navigateToResource = async (resource: T) => {
 
 // 点击卡片
 const onCardClick = () => {
-    navigateToResource(resources.value[0]);
+    const first = resources.value[0];
+    if (first) {
+        navigateToResource(first);
+    }
+};
+
+/** 首页刷新：重置分页后重新拉取（含总数），供父级通过模板引用统一驱动 */
+const reload = async () => {
+    state.currentPage = 1;
+    state.hasMore = true;
+    state.initialized = false;
+    await initLoad();
 };
 
 // 暴露方法给父组件
 defineExpose({
     initLoad,
+    reload,
     state,
 });
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.resource-tile {
+    --tile-color: var(--el-color-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 14px;
+    background: var(--el-fill-color-lighter);
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        background-color 0.2s ease,
+        transform 0.2s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+        border-color: color-mix(in srgb, var(--tile-color) 38%, var(--el-border-color-lighter));
+        background: color-mix(in srgb, var(--tile-color) 7%, var(--el-fill-color-lighter));
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--tile-color);
+        outline-offset: 2px;
+    }
+
+    &.is-empty {
+        cursor: default;
+        opacity: 0.62;
+
+        &:hover {
+            transform: none;
+            border-color: var(--el-border-color-lighter);
+            background: var(--el-fill-color-lighter);
+        }
+    }
+}
+
+/* 名称独占一行：6/12 宽度下 4 列卡片只有 130-220px，横向排布会把 Elasticsearch 这类长名截断 */
+.resource-tile__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-regular);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.resource-tile__stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.resource-tile__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    color: var(--tile-color);
+    background: color-mix(in srgb, var(--tile-color) 14%, transparent);
+}
+
+.resource-tile__value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--el-text-color-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .resource-tile:hover {
+        transform: none;
+    }
+}
+</style>

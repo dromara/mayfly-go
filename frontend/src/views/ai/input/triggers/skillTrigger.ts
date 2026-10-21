@@ -13,16 +13,28 @@ import type { SkillItem } from '../types';
 
 /** 按查询词过滤技能并构建菜单项 */
 export function buildSkillItems(skills: SkillItem[], query: string): TriggerMenuItem[] {
-    return (skills || [])
-        .filter((s) => !query || s.name.toLowerCase().includes(query))
-        .map((s) => ({
-            id: s.id,
-            label: s.name,
-            description: s.description,
-            icon: s.icon,
-            kind: 'skill' as const,
-            data: s,
-        }));
+    const q = (query || '').toLowerCase();
+    return (
+        (skills || [])
+            // 显示名与技能码都要匹配：内置技能名是中文（如「数据库操作手册」），
+            // 用户按码搜（/db → db-ops-guide）是主路径，只匹配 name 会显示「没有匹配项」
+            .filter(
+                (s) =>
+                    !q ||
+                    s.name?.toLowerCase().includes(q) ||
+                    String(s.id ?? '')
+                        .toLowerCase()
+                        .includes(q)
+            )
+            .map((s) => ({
+                id: s.id,
+                label: s.name,
+                description: s.description,
+                icon: s.icon,
+                kind: 'skill' as const,
+                data: s,
+            }))
+    );
 }
 
 /** 列表项选中 → 插入的 skill 芯片 */

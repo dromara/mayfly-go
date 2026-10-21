@@ -95,13 +95,16 @@ const search = async () => {
     dataTableRef.value?.search();
 };
 
-const editChannel = (data: MsgChannel | false) => {
+const editChannel = async (data: MsgChannel | false) => {
     if (!data) {
         state.editDialog.title = useI18nCreateTitle('msg.msgChannel');
         state.editDialog.data = null;
     } else {
         state.editDialog.title = useI18nEditTitle('msg.msgChannel');
-        state.editDialog.data = data;
+        // 回填必须走详情接口而不是直接拿列表行对象：列表里的 bot 加签密钥已被后端脱敏
+        // （它不该随菜单权限可达的列表外溢），拿脱敏后的行去回填会让「编辑→保存」把密钥抹空，
+        // 而界面全程显示保存成功。详情端点与编辑按钮同一个权限点（msg:channel:save）把守
+        state.editDialog.data = await channelApi.detail.request({ id: data.id });
     }
     state.editDialog.visible = true;
 };

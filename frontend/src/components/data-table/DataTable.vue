@@ -85,6 +85,19 @@
                                 :aria-label="$t('common.search')"
                                 @click="search"
                             />
+
+                            <!-- 重置在工具条也要有入口：折叠态（多数列表页的默认态）下整个搜索表单被高度裁剪层
+                                 收起，表单里那个唯一的「重置」不可达，而简易条只能输入+搜索 —— 用户填了条件
+                                 就无法一键清空。复用同一个 reset 方法，不开第二套清空逻辑；展开表单时隐藏，
+                                 避免与表单内的重置同屏重复 -->
+                            <el-button
+                                v-if="showToolButton('search') && searchItems?.length && !isShowSearch"
+                                icon="RefreshLeft"
+                                circle
+                                :title="$t('common.reset')"
+                                :aria-label="$t('common.reset')"
+                                @click="reset"
+                            />
                             
                             <!-- 箭头固定用 ArrowUp，展开态旋转 180° 过渡，避免图标硬切换 -->
                             <el-button

@@ -8,7 +8,7 @@
                 </el-button>
             </div>
             <div class="flex items-center">
-                <span class="text-sm text-gray-500 mr-2">{{ $t('count') + ` ${groups.length}` }}</span>
+                <span class="text-sm text-gray-500 mr-2">{{ $t('common.total') + ` ${groups.length}` }}</span>
             </div>
         </div>
 

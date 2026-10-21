@@ -6,8 +6,9 @@
                 <Badge variant="secondary" class="confirmation-interrupt__type">{{ t('ai.interrupt.confirmation.title') }}</Badge>
                 <span class="confirmation-interrupt__desc">{{ interrupt?.description }}</span>
             </div>
-            <Badge v-if="!readonly" variant="secondary" class="confirmation-interrupt__pending">{{ t('ai.interrupt.confirmation.pendingConfirmation') }}</Badge>
-            <Badge v-else variant="outline">{{ t('ai.interrupt.generic.resolved') }}</Badge>
+            <!-- 只看是否已决策：readonly 仅仅拿掉写入口，不得改变决策状态的呈现 -->
+            <Badge v-if="!decided" variant="secondary" class="confirmation-interrupt__pending">{{ t('ai.interrupt.confirmation.pendingConfirmation') }}</Badge>
+            <Badge v-else variant="outline" :class="badge.class">{{ badge.label }}</Badge>
         </div>
 
         <div class="confirmation-interrupt__body">
@@ -43,12 +44,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { InterruptComponentProps } from './types';
+import { useInterruptBadge } from './helpers';
 
 const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,
 });
 
 const { t } = useI18n();
+const { decided, badge } = useInterruptBadge(() => props.interrupt?.status);
 const selectedOption = ref<string>();
 
 /** 从 metadata 中提取选项列表 */

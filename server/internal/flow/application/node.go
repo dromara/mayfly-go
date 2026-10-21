@@ -66,7 +66,7 @@ func (ec *ExecutionCtx) GetFlowNode() *entity.FlowNode {
 // 只是字段字典换成流程实例变量，因此加一类可比较的流程变量不必改动这里
 func (e *ExecutionCtx) GetNextNode(vars collx.M) (*entity.FlowNode, error) {
 	procinst := e.GetProcinst()
-	tc := newFlowConditionContext(e.parent, vars, procinst.ProcdefId)
+	tc := newFlowConditionContext(e.parent, vars, procinst)
 
 	nextNodes, err := procinst.GetFlowDef().GetNextNodes(e.Execution.NodeKey, func(edge *entity.FlowEdge) (bool, error) {
 		condition, err := edge.Condition()
@@ -86,7 +86,7 @@ func (e *ExecutionCtx) GetNextNode(vars collx.M) (*entity.FlowNode, error) {
 		return nil, nil
 	}
 	if len(nextNodes) > 1 {
-		return nil, errorx.NewBiz("执行流的下一节点只允许单个节点")
+		return nil, errorx.NewBizI(e.parent, imsg.ErrEdgeAmbiguous)
 	}
 	return nextNodes[0], nil
 }

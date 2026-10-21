@@ -149,6 +149,7 @@ import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { TableColumn } from '@/components/data-table';
 import DataTable from '@/components/data-table/DataTable.vue';
 import { Msg, useI18nCreateTitle, useI18nDeleteConfirm, useI18nEditTitle } from '@/hooks/useI18n';
+import { i18n } from '@/i18n';
 import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs, useTemplateRef, type PropType } from 'vue';
 import TagCodePath from '../../component/TagCodePath.vue';
 import { dbApi } from '../api';
@@ -318,7 +319,7 @@ const editDb = (data: Db | null) => {
             instanceId: props.instance?.id,
         };
     }
-    state.dbEditDialog.title = data ? useI18nEditTitle('db.db') : useI18nCreateTitle('db.db');
+    state.dbEditDialog.title = data ? useI18nEditTitle('db.db') : i18n.global.t('db.addDbTitle');
     state.dbEditDialog.visible = true;
 };
 

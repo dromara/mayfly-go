@@ -2,7 +2,7 @@
     <div class="db-sql-exec h-full flex flex-col">
         <el-row>
             <el-col :span="24" v-if="state.db">
-                <el-descriptions :column="4" size="small" border>
+                <el-descriptions :column="4" size="small" border label-width="130">
                     <el-descriptions-item label-align="right" :label="$t('common.operation')">
                         <el-button
                             :disabled="!state.db || !nowDbInst.id"
@@ -129,7 +129,7 @@
         </el-dialog>
 
         <el-dialog width="42%" :title="`${state.propsDialog.name} - ${$t('db.objectProps')}`" v-model="state.propsDialog.visible" append-to-body>
-            <el-descriptions :column="1" border>
+            <el-descriptions :column="1" border label-width="100">
                 <el-descriptions-item :label="$t('db.seqDataType')">{{ state.propsDialog.attrs.dataType }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('db.seqStartValue')">{{ state.propsDialog.attrs.startValue }}</el-descriptions-item>
                 <el-descriptions-item :label="$t('db.seqIncrementBy')">{{ state.propsDialog.attrs.incrementBy }}</el-descriptions-item>

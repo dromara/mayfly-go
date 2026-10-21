@@ -65,6 +65,9 @@ type SelectStmt struct {
 	OrderBy  []OrderByItem
 	Limit    *Limit
 	Unions   []UnionClause
+	// Into 标记 SELECT ... INTO（mssql/pg 建表、mysql INTO OUTFILE/DUMPFILE、变量赋值）：
+	// 它写出数据或文件，不是纯读。解析器消费 INTO 目标但不建模，仅置此标志供 Classify 判为写。
+	Into bool
 }
 
 func (*SelectStmt) StmtKind() Kind { return KindSelect }

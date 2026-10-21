@@ -76,7 +76,7 @@ func (d DingBotSender) Send(ctx context.Context, channel *msgx.Channel, msg *msg
 	}
 
 	timestamp := time.Now().UnixMilli()
-	sign, err := d.sign(channel.Extra.GetStr("secret"), timestamp)
+	sign, err := d.sign(channel.Extra.GetStr(msgx.ExtraKeySecret), timestamp)
 	if err != nil {
 		return err
 	}

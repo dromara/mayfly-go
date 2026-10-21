@@ -1,12 +1,18 @@
-# 🌈Dromara mayfly-go
+<div align="center">
 
-<p align="center">
-    <a href="./README.md">中文介绍</a> | 
-    <a href="https://www.yuque.com/may-fly/mayfly-go">Documentation</a> | 
-    <a href="https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854">Operate Video</a> 
+# 🌈 Dromara mayfly-go
+
+**A highly integrated, web-based "Unified Resource Management & Operation Platform" — machines, databases, caches, search engines, containers, message queues and AI-driven operations, all in a single entry point.**
+
+<p>
+    <a href="./README.md">中文介绍</a> |
+    <a href="./README_EN.md">English</a> |
+    <a href="https://www.yuque.com/may-fly/mayfly-go">Documentation</a> |
+    <a href="https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854">Operate Video</a> |
+    <a href="http://go.mayfly.run">Live Demo</a>
 </p>
 
-<p align="center">
+<p>
   <a href="https://gitee.com/dromara/mayfly-go" target="_blank">
     <img src="https://gitee.com/dromara/mayfly-go/badge/star.svg?theme=white" alt="star"/>
     <img src="https://gitee.com/dromara/mayfly-go/badge/fork.svg" alt="fork"/>
@@ -15,22 +21,179 @@
     <img src="https://img.shields.io/github/stars/dromara/mayfly-go.svg?style=social" alt="github star"/>
     <img src="https://img.shields.io/github/forks/dromara/mayfly-go.svg?style=social" alt="github fork"/>
   </a>
+  <a href="https://gitcode.com/dromara/mayfly-go" target="_blank">
+    <img src="https://gitcode.com/dromara/mayfly-go/star/badge.svg" alt="gitcode star"/>
+  </a>
   <a href="https://hub.docker.com/r/mayflygo/mayfly-go/tags" target="_blank">
     <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
   </a>
   <a href="https://github.com/golang/go" target="_blank">
     <img src="https://img.shields.io/badge/Golang-1.26%2B-yellow.svg" alt="golang"/>
   </a>
-  <a href="https://cn.vuejs.org" target="_blank">
-    <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
+  <a href="https://vuejs.org" target="_blank">
+    <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue"/>
+  </a>
+  <a href="./LICENSE" target="_blank">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="license"/>
   </a>
 </p>
 
-## Preface
+</div>
 
-Web-based **Unified Resource Management Platform**, integrating comprehensive operation support for Linux systems (including terminal management [terminal playback, command filtering], file management, script execution, process monitoring, and cronjob settings). It also provides data operation, data synchronization, and data migration for various databases, caches, search engines, and vector databases. Combined with work order process approval functionality, it offers enterprises an all-in-one solution for operations and management.
+---
 
-### 🗄️ Supported Databases
+## 📖 Introduction
+
+**mayfly-go** consolidates the tools scattered across day-to-day operations and development into a single platform. Built on a unified **resource tree**, it mounts machines, databases, caches, search engines, vector stores, message queues and containers, and provides visual **terminal / file / SQL / data / container / command** operations for every resource type.
+
+On top of that, the platform natively embeds **work-order process approval**, **command security interception**, an **alert center** and **multi-channel notifications (incl. WeCom / DingTalk / Feishu)**, and introduces an **AI assistant** and **AI-driven operations orchestration (AgentOps)** — forming an all-in-one loop of "operate → approve → intercept → notify → self-heal".
+
+> 🎯 Who it's for: operations engineers, DBAs, backend / full-stack developers, and teams looking to hand repetitive ops tasks to AI automation.
+
+---
+
+## ✨ Core Features
+
+<table>
+  <tr>
+    <td width="50%" valign="top">🖥️ <b>Full-stack Machine Ops</b><br/><sub>Web terminal, terminal session recording & replay, command interception, RDP remote desktop, file management, script execution, cron jobs, process monitoring, machine metrics, batch execution.</sub></td>
+    <td width="50%" valign="top">🗄️ <b>Multi-source Data Operations</b><br/><sub>Relational / document / cache / search / vector / message queues fully covered, SQL editor, inline data-grid editing, export, masking, session management.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">🔁 <b>Data Sync & Migration</b><br/><sub>Cross-database schema diff, incremental / full data sync, database migration tasks, verification and rollback SQL.</sub></td>
+    <td width="50%" valign="top">🛡️ <b>Command Security Interception</b><br/><sub>Blacklist regex rules + trigger policies (forbid / approve / warn-only), with terminal, API and AI Agent sharing one unified pre-check.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">🤖 <b>AI Assistant</b><br/><sub>Streaming chat, tool-call visualization, interrupt & approval; read-only commands auto-run, dangerous actions require human confirmation (fail-closed).</sub></td>
+    <td width="50%" valign="top">🧠 <b>AI Ops Orchestration (AgentOps)</b><br/><sub>Ops task orchestration, event triggers, change-proposal approval loop, run history & offline evaluation, governance kill switch.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">📋 <b>Work-order Process Approval</b><br/><sub>Visual process definition, condition groups, my tasks / my processes, approve-before-execute with full audit trail.</sub></td>
+    <td width="50%" valign="top">🚨 <b>Alert Center</b><br/><sub>Alert rules, event acknowledgment, silences, inhibitions, escalation policies, notification policies and an overview dashboard.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">💌 <b>Multi-channel Notifications</b><br/><sub>Site messages, WebSocket, email, <b>WeCom</b>, DingTalk and Feishu bots; signing secrets safely hosted, reusable message templates.</sub></td>
+    <td width="50%" valign="top">🔐 <b>Resource & Permission Foundation</b><br/><sub>Unified resource tree, ciphertext credential hosting, labels / teams, RBAC menu permissions, operation-log auditing.</sub></td>
+  </tr>
+</table>
+
+---
+
+## 🧩 Feature Overview
+
+<details open>
+<summary><b>🖥️ Machine (Linux) Operations</b></summary>
+
+| Feature | Description |
+| :--- | :--- |
+| Machine Management | Machine list, connection test, enable/disable, SSH tunnel, resource-tree-based access scoping |
+| Web Terminal | Interactive SSH in the browser, TUI apps like Vim supported, per-command parsing |
+| Terminal Recording & Replay | Full session recording (asciinema), with replay and executed-command log |
+| **Command Interception / Security Config** | Blacklist regex rules + trigger-policy handling levels (forbid / needs-approval / warn-only); terminal, API and AI share one pre-check |
+| RDP Remote Desktop | Windows remote desktop via Apache Guacamole |
+| File Management | Directory browsing, create, upload, download, inline edit & content view, file configs |
+| Script Management | Save scripts and run with one click, execution records |
+| Cron Jobs | Cron expression config, task start/stop, execution history |
+| Process Monitoring | Real-time process list, kill process |
+| Machine Metrics | CPU / memory / disk / network metric collection & stats, disk analysis |
+| Host Keys | known_hosts management, MITM protection |
+| Batch Commands | Multi-machine batch command execution (`batch-run-cmd`) |
+
+</details>
+
+<details open>
+<summary><b>🗄️ Databases (DBMS)</b></summary>
+
+| Feature | Description |
+| :--- | :--- |
+| Multi-dialect Support | MySQL, PostgreSQL, Oracle, SQL Server, Dameng, Gauss, SQLite, ClickHouse |
+| SQL Editor | Multi-dialect completion, multiple result tabs, execution plans, SQL classification & security guards |
+| Data Operations | Select-table-to-query, inline data-grid add/edit/delete, result export |
+| Table Structure Editing | DDL create/alter table, index management |
+| Schema Diff | Cross-database / cross-instance schema comparison |
+| Data Sync | Incremental / full sync tasks, start/stop control, sync logs |
+| Database Migration | Migration tasks, verification, migration file run / download / delete, run logs |
+| Data Masking | Masking rule config, sensitive-column display & export masking |
+| Session Management | View active sessions, cancel sessions |
+| Execution Audit | SQL execution logs, rollback SQL generation |
+
+</details>
+
+<details open>
+<summary><b>🧱 Cache / Search / Vector / Document Stores</b></summary>
+
+| Module | Features |
+| :--- | :--- |
+| **Redis** | Instance management, key browsing, JSON / text viewers, data add/edit/delete, console commands, server INFO |
+| **MongoDB** | Command execution, aggregate queries, batch operations, document view, collection / index DDL, data import/export, account & role management |
+| **Elasticsearch** | Instance management, DSL queries, index data operations |
+| **Milvus** | Vector DB connection, collection & vector data operations |
+
+</details>
+
+<details open>
+<summary><b>📨 Message Queue Kafka & 🐳 Container Docker</b></summary>
+
+| Module | Features |
+| :--- | :--- |
+| **Kafka** | Instance management, topic create/delete/config, partition scale-up, broker & config viewing, consumer groups (members / delete), produce & consume messages |
+| **Docker** | Container list & stats, start / stop / restart / remove / create, in-container terminal, live logs, image management (remove / export / import) |
+
+</details>
+
+<details open>
+<summary><b>🤖 AI Assistant & 🧠 AI Ops Orchestration (AgentOps)</b></summary>
+
+**AI Assistant (embedded in the platform sidebar)**
+
+- Streaming chat, tool-call process visualization, execution interrupts and manual approval.
+- Built-in tools: `machine command exec`, `SQL exec`, `query data`, `query tables / table DDL`, `monitor metrics`, `resource list`, `skill read`, `propose remediation`.
+- Security baseline: whitelisted read-only commands auto-run, chained commands validated segment-by-segment, and command substitution / redirection / shell-escape commands always require approval (fail-closed).
+- AI settings, integrations, plugin management and session memory.
+
+**AI Ops Orchestration (AgentOps, automated orchestration)**
+
+- **Ops Tasks**: task orchestration & manual triggering; **Event Triggers**: alert source / webhook source auto-invocation.
+- **Run History**: run detail with step trace, cancel run, start orchestration, offline evaluation, run feedback.
+- **Change Proposals**: AI-generated remediation proposal → approval → execution closed loop.
+- **Governance**: governance dashboard, stalled detection, **kill switch**, run-as-another-identity.
+
+</details>
+
+<details open>
+<summary><b>🚨 Alert Center & 💌 Notifications</b></summary>
+
+| Feature | Description |
+| :--- | :--- |
+| Alert Overview | Alert posture dashboard and distribution stats |
+| Alert Rules | Metric evaluation rule config (extensible evaluators) |
+| Alert Events | Event list, acknowledgment, status transitions |
+| Silence / Inhibition | Alert silence rules, alert inhibition rules |
+| Escalation / Notification Policy | Alert escalation policies, notification policy orchestration |
+| **Message Channels** | Site messages, WebSocket, email, **WeCom bot**, DingTalk bot, Feishu bot (signing secrets safely hosted, never leaked via list endpoints) |
+| Templates / Send | Reusable message templates, manual message sending |
+
+</details>
+
+<details open>
+<summary><b>📋 Process Approval & 🔐 System Management</b></summary>
+
+| Feature | Description |
+| :--- | :--- |
+| Process Definition | Visual approval-flow orchestration, enable/disable |
+| Rule Segment | Rule condition-group (Rule Segment) configuration |
+| My Tasks / My Processes | Pending approvals, start & track process instances |
+| Resource Tree / Auth Certs | Unified resource hierarchy tree, SSH / DB credential ciphertext hosting (ciphertext view permission separated) |
+| Labels / Teams | Label management, teams and member management |
+| Account / Role / Menu Permissions | RBAC permission model, role allocation, menu-permission allocation |
+| System Config / Operation Log | Global configuration, operation audit logs |
+| Personal Center | Personal info, my resources & base permissions |
+
+</details>
+
+---
+
+## 🗄️ Supported Databases & Middleware
 
 #### Relational Databases
 
@@ -40,73 +203,172 @@ Web-based **Unified Resource Management Platform**, integrating comprehensive op
 | SQL Server |   ✅   |   Dameng   |   ✅   |  Gauss   |   ✅   |
 |   SQLite   |   ✅   | ClickHouse |   ✅   |          |        |
 
-#### Non-Relational Databases
+#### NoSQL Databases / Middleware
 
 |   Database    | Status | Database | Status |
 | :-----------: | :----: | :------: | :----: |
 |    MongoDB    |   ✅   |  Redis   |   ✅   |
 | Elasticsearch |   ✅   |  Milvus  |   ✅   |
+|    Kafka      |   ✅   |  Docker  |   ✅   |
 
-## Development languages and major frameworks
+---
 
-- frontend：typescript、vue3、element-plus
-- backend：golang、gin、gorm
+## 🛠️ Tech Stack
 
-## Demo
+| Layer | Technology |
+| :--- | :--- |
+| Frontend | TypeScript, Vue 3 (Composition API), Vite, Element Plus, Tailwind CSS, Pinia |
+| Backend | Go 1.26+, Gin, GORM, Clean Architecture layering |
+| Remote Desktop | Apache Guacamole (RDP) |
+| Terminal Recording | Asciinema replay |
+| Deployment | Single binary with embedded frontend static assets, Docker / Docker Compose |
 
-http://go.mayfly.run
-account/password：test/test123.
+---
 
-## Screenshots of core features
+## 🚀 Quick Start
 
-#### Home page
+### Option 1: Docker (recommended)
 
-![首页](https://foruda.gitee.com/images/1714378104294194769/149fd257_1240250.png "屏幕截图")
+```bash
+# Pull and run (default port 18888, open http://ip:18888 in a browser)
+docker run -d -p 18888:18888 --name mayfly-go docker.io/mayflygo/mayfly-go:latest
+```
 
-#### Resource Manage
+### Option 2: Docker Compose
 
-![资源树](https://foruda.gitee.com/images/1757163958991119284/83eb2171_1240250.png "屏幕截图")
+```bash
+git clone https://github.com/dromara/mayfly-go.git
+cd mayfly-go
+docker-compose up -d
+```
 
-#### Resource Operation
+### Option 3: Run from source
 
-![终端操作](https://foruda.gitee.com/images/1757164093410206293/1c7dda30_1240250.png)
+```bash
+# Backend (reads server/config.yml by default, port 18888)
+cd server && go run main.go
 
-![文件操作](https://foruda.gitee.com/images/1757164149388450531/0542398c_1240250.png)
+# Frontend (development)
+cd frontend && pnpm install && pnpm dev
+```
 
-![文件查看](https://foruda.gitee.com/images/1714378482611638688/7753faf6_1240250.png "屏幕截图")
+> 📚 For detailed deployment steps — database initialization, config items, reverse proxy, etc. — see the [Documentation](https://www.yuque.com/may-fly/mayfly-go).
 
-![sql编辑器](https://foruda.gitee.com/images/1757164386318836686/c3b17a52_1240250.png)
+---
 
-![选表查数据](https://foruda.gitee.com/images/1757164281011401749/5109485f_1240250.png)
+## 🎮 Live Demo
 
-![redis操作](https://foruda.gitee.com/images/1757164442298752845/4af1b296_1240250.png)
+| URL | Account / Password |
+| :--- | :--- |
+| http://go.mayfly.run | `test` / `test123.` |
 
-![mongo操作](https://foruda.gitee.com/images/1714378916425714642/77fc0ed9_1240250.png "屏幕截图")
+---
 
-![es操作](https://foruda.gitee.com/images/1757164553845346963/b5b70381_1240250.png)
+## 🖼️ Screenshots
 
-![容器操作](https://foruda.gitee.com/images/1757164625186816754/2b195e25_1240250.png)
+> Screenshots are archived by feature module under `docs/images/<module>/`, all captured in light mode.
 
-#### Work order process approval
+### 🏠 Home Dashboard · `home/`
 
-![流程审批](https://foruda.gitee.com/images/1714379057627690037/ad136862_1240250.png "屏幕截图")
+<div align="center"><img src="./docs/images/home/overview.jpg" alt="Home Dashboard" width="820"/></div>
 
-#### System Management
+### 🌳 Resource & Permission · `resource/`
 
-##### Account
+<table>
+  <tr>
+    <td align="center" width="50%"><b>Unified Resource Tree</b><br/><img src="./docs/images/resource/resource-tree.jpg" alt="Resource Tree" width="100%"/></td>
+    <td align="center" width="50%"><b>My Resources</b><br/><img src="./docs/images/resource/my-resource.jpg" alt="My Resources" width="100%"/></td>
+  </tr>
+</table>
 
-![账号管理](https://foruda.gitee.com/images/1714379179491881231/c6d802ae_1240250.png "屏幕截图")
+### 🖥️ Machine Ops · `machine/`
 
-##### Role
+<table>
+  <tr>
+    <td align="center" width="33%"><b>Web Terminal (live SSH)</b><br/><img src="./docs/images/machine/terminal.jpg" alt="Terminal" width="100%"/></td>
+    <td align="center" width="33%"><b>File Manager</b><br/><img src="./docs/images/machine/file-manager.jpg" alt="File Manager" width="100%"/></td>
+    <td align="center" width="33%"><b>Command Security Interception</b><br/><img src="./docs/images/machine/cmd-security.jpg" alt="Command Interception" width="100%"/></td>
+  </tr>
+</table>
 
-![角色管理](https://foruda.gitee.com/images/1714379269408676381/6ac1e85c_1240250.png "屏幕截图")
+### 🗄️ Database / Cache / Document / Container · `db/` `redis/` `mongo/` `docker/`
 
-##### Menu & Permission
+<table>
+  <tr>
+    <td align="center" width="50%"><b>SQL Editor (Monaco)</b><br/><img src="./docs/images/db/sql-editor.jpg" alt="SQL Editor" width="100%"/></td>
+    <td align="center" width="50%"><b>Table Data · Visual Edit</b><br/><img src="./docs/images/db/table-data.jpg" alt="Table Data" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Data Sync</b><br/><img src="./docs/images/db/sync.jpg" alt="Data Sync" width="100%"/></td>
+    <td align="center"><b>Data Migration</b><br/><img src="./docs/images/db/transfer.jpg" alt="Data Migration" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Data Masking</b><br/><img src="./docs/images/db/mask.jpg" alt="Data Masking" width="100%"/></td>
+    <td align="center"><b>Redis Key Ops</b><br/><img src="./docs/images/redis/key-value.jpg" alt="Redis" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>MongoDB Collection Documents</b><br/><img src="./docs/images/mongo/data.jpg" alt="MongoDB" width="60%"/></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>Container Management (status / resources / ports / logs)</b><br/><img src="./docs/images/docker/containers.jpg" alt="Containers" width="60%"/></td>
+  </tr>
+</table>
 
-![菜单资源管理](https://foruda.gitee.com/images/1714379321338009940/a00d6a02_1240250.png "屏幕截图")
+### 🚨 Alert Center · `alert/`　📋 Work-order Flow · `flow/`
 
-**Additional features & instructions can be found in the project documentation above.**
+<table>
+  <tr>
+    <td align="center" width="50%"><b>Alert Overview</b><br/><img src="./docs/images/alert/overview.jpg" alt="Alert Overview" width="100%"/></td>
+    <td align="center" width="50%"><b>Alert Rules</b><br/><img src="./docs/images/alert/rules.jpg" alt="Alert Rules" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>My Pending Tasks</b><br/><img src="./docs/images/flow/tasks.jpg" alt="Flow Tasks" width="100%"/></td>
+    <td align="center"><b>Process Definition</b><br/><img src="./docs/images/flow/procdef.jpg" alt="Process Definition" width="100%"/></td>
+  </tr>
+</table>
 
-## 💌 Supporting Author
+### 🤖 AI Assistant & 🧠 AgentOps · `ai/` `agentops/`　📬 Notifications · `msg/`
 
-If you think the project is good, or you are already using it, I hope you can go to <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> to help me click ⭐ Star, which will be a great encouragement and support for me.
+<table>
+  <tr>
+    <td align="center" width="50%"><b>AI Assistant (tool calls / report)</b><br/><img src="./docs/images/ai/assistant.jpg" alt="AI Assistant" width="100%"/></td>
+    <td align="center" width="50%"><b>Governance (kill switch / KPI / runs)</b><br/><img src="./docs/images/agentops/governance.jpg" alt="Governance" width="100%"/></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>Channels (WeCom / DingTalk / Feishu / Email)</b><br/><img src="./docs/images/msg/channels.jpg" alt="Channels" width="60%"/></td>
+  </tr>
+</table>
+
+### ⚙️ System Management · `system/`
+
+<table>
+  <tr>
+    <td align="center" width="33%"><b>Accounts</b><br/><img src="./docs/images/system/account.jpg" alt="Accounts" width="100%"/></td>
+    <td align="center" width="33%"><b>Roles</b><br/><img src="./docs/images/system/role.jpg" alt="Roles" width="100%"/></td>
+    <td align="center" width="33%"><b>Menu Permissions</b><br/><img src="./docs/images/system/menu.jpg" alt="Menu Permissions" width="100%"/></td>
+  </tr>
+</table>
+
+> **MongoDB / Elasticsearch / container / Kafka operation views are also entered from the unified resource tree; more features & guides are available in the project documentation.**
+
+---
+
+## 💬 Community & Feedback
+
+Join the QQ group: [119699946](https://qm.qq.com/cgi-bin/qm/qr?k=IdJSHW0jTMhmWFHBUS9a83wxtrxDDhFj&jump_from=webapi)
+
+---
+
+## 🌟 Star History
+
+If the project has been helpful to you, please consider giving it a ⭐ Star on <a href="https://github.com/dromara/mayfly-go" target="_blank">Github</a>, <a href="https://gitee.com/dromara/mayfly-go" target="_blank">Gitee</a> or <a href="https://gitcode.com/dromara/mayfly-go" target="_blank">Gitcode</a> — it's the greatest encouragement and support!
+
+<div align="center">
+
+> Buy the author a coffee ☕️ or a bubble tea 🧋 to keep the code flowing!
+
+<img class="no-margin" src="https://foruda.gitee.com/images/1744113367791412282/36a3c23b_1240250.png" alt="WeChat tip" width="200" height="200">
+
+**Special thanks:** Sponsorships of ¥199 or more can add the author's WeChat (wx-error) to join the paid community for faster, priority technical support.
+
+</div>

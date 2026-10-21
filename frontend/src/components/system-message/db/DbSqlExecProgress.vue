@@ -23,7 +23,7 @@
         </div>
 
         <!-- 详细信息 -->
-        <el-descriptions border size="small">
+        <el-descriptions border size="small" label-width="90">
             <el-descriptions-item :label="$t('db.executedStatements')">{{ progress.executedStatements }}</el-descriptions-item>
             <el-descriptions-item :label="$t('db.elapsedTime')">{{ state.elapsedTime }}</el-descriptions-item>
         </el-descriptions>

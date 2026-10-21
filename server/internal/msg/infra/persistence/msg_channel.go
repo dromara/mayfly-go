@@ -21,6 +21,8 @@ func (m *msgChannelRepoImpl) GetPageList(condition *entity.MsgChannel, pageParam
 	pd := model.NewCond().
 		Eq("id", condition.Id).
 		Like("code", condition.Code).
+		// 名称模糊筛：渠道列表的搜索框就是这个维度，仓储不拼谓词等于接了参数却静默丢掉
+		Like("name", condition.Name).
 		OrderBy(orderBy...)
 	return m.PageByCond(pd, pageParam)
 }

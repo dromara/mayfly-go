@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/msg/application/dto"
 	"mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/internal/msg/domain/repository"
+	"mayfly-go/internal/msg/imsg"
 	"mayfly-go/internal/msg/msgx"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
@@ -28,6 +29,22 @@ type MsgTmpl interface {
 	DeleteTmpl(ctx context.Context, id uint64) error
 
 	GetTmplChannels(ctx context.Context, tmplId uint64) ([]*entity.MsgChannel, error)
+
+	// CheckSendable 校验模板当前是否可发（存在 / 已启用 / 已关联至少一个渠道），
+	// 不可发时返回按请求语言译好的业务错误（供调用方直接当 toast 文案用）。
+	//
+	// 存在动机（真机实测）：触发器/任务/机器计划任务的「结果通知模板」过去只在保存时校验
+	// 「非空」，模板已停用或未关联渠道也能存进去，直到运行收尾才在服务端日志里留一条
+	// ERROR——界面上「操作成功」，通知这条链路的最后一跳却永远不通，配错的人看不到任何信号。
+	// 判据与 Send 共用 loadSendableTmpl，不会出现「保存时放行、发送时才拒」的漂移
+	CheckSendable(ctx context.Context, tmplCode string) error
+
+	// CheckSendableById 按模板 ID 校验可发性，判据与 CheckSendable / Send 完全一致。
+	//
+	// 为何除了按编码还要一个按 ID 的入口：模板-业务关联（流程定义的待办通知等）按 ID 绑定模板，
+	// 它拿不到编码。两个入口必须汇到同一份判据上，否则就会出现「按编码查会被拒、
+	// 按 ID 绑却能绑上」的绕过路径
+	CheckSendableById(ctx context.Context, tmplId uint64) error
 
 	// Send 发送消息
 	Send(ctx context.Context, tmplCode string, params map[string]any, receiverId ...uint64) error
@@ -135,28 +152,65 @@ func (m *msgTmplAppImpl) GetTmplChannels(ctx context.Context, tmplId uint64) ([]
 	}))
 }
 
-func (m *msgTmplAppImpl) Send(ctx context.Context, tmplCode string, params map[string]any, receiverId ...uint64) error {
-	tmpl := &entity.MsgTmpl{Code: tmplCode}
-	err := m.GetByCond(tmpl)
+// CheckSendable 见 MsgTmpl 接口说明：与 Send 共用 loadSendableTmpl，保存期与发送期判据必然一致
+func (m *msgTmplAppImpl) CheckSendable(ctx context.Context, tmplCode string) error {
+	_, _, err := m.loadSendableTmpl(ctx, tmplCode)
+	return err
+}
+
+// CheckSendableById 见 MsgTmpl 接口说明：按 ID 取模板后走同一份 checkSendable 判据
+func (m *msgTmplAppImpl) CheckSendableById(ctx context.Context, tmplId uint64) error {
+	tmpl, err := m.GetById(tmplId)
 	if err != nil {
-		return errorx.NewBiz("message template does not exist")
+		return errorx.NewBizI(ctx, imsg.ErrMsgTmplIdNotExist, "id", tmplId)
 	}
+	_, err = m.checkSendable(ctx, tmpl)
+	return err
+}
+
+// loadSendableTmpl 按编码取出「现在就能发」的模板及其关联渠道 id
+func (m *msgTmplAppImpl) loadSendableTmpl(ctx context.Context, tmplCode string) (*entity.MsgTmpl, []uint64, error) {
+	tmpl := &entity.MsgTmpl{Code: tmplCode}
+	if err := m.GetByCond(tmpl); err != nil {
+		return nil, nil, errorx.NewBizI(ctx, imsg.ErrMsgTmplNotExist, "code", tmplCode)
+	}
+
+	channelIds, err := m.checkSendable(ctx, tmpl)
+	if err != nil {
+		return nil, nil, err
+	}
+	return tmpl, channelIds, nil
+}
+
+// checkSendable 可发性判据的唯一实现：已启用 + 已关联至少一个渠道。
+// Send / CheckSendable / CheckSendableById 全部经此，不可能出现「某个入口少查一项」的漂移。
+// 文案走 imsg 按请求 ctx 的语言生成（会以 toast 直接呈现给配置人，硬编码英文字面量
+// 会让中文界面冒出英文串）
+func (m *msgTmplAppImpl) checkSendable(ctx context.Context, tmpl *entity.MsgTmpl) ([]uint64, error) {
 	if tmpl.Status != entity.TmplStatusEnable {
-		return errorx.NewBiz("message template is disabled")
+		return nil, errorx.NewBizI(ctx, imsg.ErrMsgTmplDisabled, "code", tmpl.Code)
 	}
 
 	tmplChannels, err := m.msgTmplChannelRepo.SelectByCond(&entity.MsgTmplChannel{TmplId: tmpl.Id}, "channel_id")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(tmplChannels) == 0 {
-		return errorx.NewBiz("message template is not associated with any channel")
+		return nil, errorx.NewBizI(ctx, imsg.ErrMsgTmplNoChannel, "code", tmpl.Code)
 	}
 
-	channels, err := m.msgChannelApp.GetByIds(collx.ArrayMap(tmplChannels, func(c *entity.MsgTmplChannel) uint64 {
+	return collx.ArrayMap(tmplChannels, func(c *entity.MsgTmplChannel) uint64 {
 		return c.ChannelId
-	}))
+	}), nil
+}
 
+func (m *msgTmplAppImpl) Send(ctx context.Context, tmplCode string, params map[string]any, receiverId ...uint64) error {
+	tmpl, channelIds, err := m.loadSendableTmpl(ctx, tmplCode)
+	if err != nil {
+		return err
+	}
+
+	channels, err := m.msgChannelApp.GetByIds(channelIds)
 	if err != nil {
 		return err
 	}

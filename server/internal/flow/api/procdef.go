@@ -89,7 +89,9 @@ func (p *Procdef) GetProcdefDetail(rc *req.Ctx) {
 func (p *Procdef) GetProcdef(rc *req.Ctx) {
 	resourceType := rc.PathParamInt("resourceType")
 	resourceCode := rc.PathParam("resourceCode")
-	rc.ResData = p.procdefApp.GetProcdefByResource(rc.MetaCtx, int8(resourceType), resourceCode)
+	procdef, err := p.procdefApp.GetProcdefByResource(rc.MetaCtx, int8(resourceType), resourceCode)
+	biz.ErrIsNil(err)
+	rc.ResData = procdef
 }
 
 func (a *Procdef) Save(rc *req.Ctx) {

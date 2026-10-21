@@ -66,7 +66,8 @@ const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlacehold
 const columns = ref([
     TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('host', 'milvus.host').setMinWidth(200),
-    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert'),
+    // 授权凭证列插槽渲染 el-select（下拉箭头+padding+边框回填量不到）：+x 预留控件占位
+    TableColumn.new('authCerts[0].username', 'db.acName').isSlot('authCert').setAddWidth(25),
     TableColumn.new('createTime', 'common.createTime').setMinWidth(180).isTime(),
     TableColumn.new('creator', 'common.creator'),
     TableColumn.new('code', 'Code').setMinWidth(150),

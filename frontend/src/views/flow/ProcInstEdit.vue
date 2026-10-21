@@ -54,7 +54,7 @@ import { Msg } from '@/hooks/useI18n';
 import { computed, defineAsyncComponent, reactive, ref, shallowReactive, toRefs, useTemplateRef, watch } from 'vue';
 import { procdefApi, procinstApi } from './api';
 import FlowDesign from './components/flowdesign/FlowDesign.vue';
-import { FlowBizType } from './enums';
+import { FlowBizType, ManualFlowBizType } from './enums';
 import type { Procdef, ProcInstStartForm } from './types';
 import RedisRunCmdFlowBizForm from './flowbiz/redis/RedisRunCmdFlowBizForm.vue';
 import { FLOW_DRAWER } from '@/views/flow/drawerSize';
@@ -94,7 +94,9 @@ const bizComponents = shallowReactive<Record<string, unknown>>({
 
 /** 表单声明（defineFormItems<ProcInstStartForm>；业务表单由 bizComponents 动态组件承载，自含校验） */
 const items = defineFormItems<ProcInstStartForm>([
-    { prop: 'bizType', label: 'flow.bizType', type: 'enum', enums: FlowBizType, required: true, onChange: (_value, form) => changeBizType(form) },
+    // 业务类型只开放人工可提单的两种：AI 提案工单由网关自动发起，手动造一张没有提案背书的单，
+    // 批完 FlowBizHandle 找不到提案只能静默忽略（变更永不执行且无报错），不能让这种单存在
+    { prop: 'bizType', label: 'flow.bizType', type: 'enum', enums: ManualFlowBizType, required: true, onChange: (_value, form) => changeBizType(form) },
     { prop: 'remark', label: 'common.remark', type: 'textarea', required: true },
     // 计划执行时间（可选）：留空则审批通过后立即执行；选了未来时间则到点才回放业务
     { prop: 'plannedExecTime', label: 'flow.plannedExecTime', type: 'datetime', placeholder: 'flow.plannedExecTimeTip', props: { format: 'YYYY-MM-DD HH:mm:ss', valueFormat: 'YYYY-MM-DD HH:mm:ss' } },

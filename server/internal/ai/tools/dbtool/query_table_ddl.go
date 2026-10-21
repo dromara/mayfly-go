@@ -29,11 +29,10 @@ func GetQueryTableDDL() (tool.InvokableTool, error) {
 	return utils.InferTool("DbQueryTableDDL",
 		i18n.T(imsg.DbQueryTableDDLToolInfo),
 		func(ctx context.Context, param *QueryTableDDLParam) (*QueryTableDDLOutput, error) {
-			toolDesc := i18n.TC(ctx, imsg.DbQueryTableDDLToolDesc)
 			tools.TryApplyResumedParams(ctx, param)
 			// 检查必要参数，触发参数完善（dbName 可选，留空使用资产默认库）
 			if param.DbId == 0 {
-				if err := tools.InterruptOrResumeParamCompletion(ctx, toolDesc, param, i18n.TC(ctx, imsg.DbInfoIncomplete), "db", []tools.CompletionParamInfo{
+				if err := tools.InterruptOrResumeParamCompletion(ctx, "DbQueryTableDDL", param, i18n.TC(ctx, imsg.DbInfoIncomplete), "db", []tools.CompletionParamInfo{
 					{Param: "dbId", Name: "数据库ID"},
 					{Param: "dbName", Name: "数据库名称（可选，留空使用默认库）"},
 				}, queryDbOptions(ctx)); err != nil {

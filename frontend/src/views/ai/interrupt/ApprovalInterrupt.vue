@@ -6,8 +6,10 @@
                 <Badge variant="secondary" class="approval-interrupt__type">{{ t('ai.interrupt.approval.title') }}</Badge>
                 <span class="approval-interrupt__desc">{{ interrupt?.description }}</span>
             </div>
-            <Badge v-if="!readonly" variant="secondary" class="approval-interrupt__pending">{{ t('ai.interrupt.approval.pendingApproval') }}</Badge>
-            <Badge v-else variant="outline">{{ t('ai.interrupt.generic.resolved') }}</Badge>
+            <!-- 只看是否已决策：readonly 仅仅拿掉写入口，不得改变决策状态的呈现。
+                 旧写法把「只读」当成「已决策」，导致轨迹里一条从未批准的审批显示「已解决」 -->
+            <Badge v-if="!decided" variant="secondary" class="approval-interrupt__pending">{{ t('ai.interrupt.approval.pendingApproval') }}</Badge>
+            <Badge v-else variant="outline" :class="badge.class">{{ badge.label }}</Badge>
         </div>
 
         <div class="approval-interrupt__body">
@@ -46,12 +48,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { InterruptComponentProps } from './types';
 import RejectReasonPopover from './RejectReasonPopover.vue';
+import { useInterruptBadge } from './helpers';
 
 const props = withDefaults(defineProps<InterruptComponentProps>(), {
     readonly: false,
 });
 
 const { t } = useI18n();
+const { decided, badge } = useInterruptBadge(() => props.interrupt?.status);
 
 const handleAction = (action: string, payload?: Record<string, unknown>) => {
     props.onAction({

@@ -120,10 +120,10 @@ const handleItemKeyupEnter = (item: SearchItem) => {
         }
     }
 
-    // label 冒号由样式统一追加并弱化为辅助色：模板不再硬编码冒号元素，中英文语言下一致
+    // label 冒号由样式统一追加并弱化为辅助色：模板不再硬编码冒号元素，中英文语言下一致。
+    // 不额外加左边距：之前 2px 会把冒号推离文字、读成「名称 :」，跟字段名之间出现无意义的空隙
     .el-form-item__label::after {
         content: ':';
-        margin-left: 2px;
         color: var(--el-text-color-secondary);
     }
 

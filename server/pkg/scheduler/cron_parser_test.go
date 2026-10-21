@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -90,4 +91,28 @@ func TestValidateSpec_ConsistentWithAddFun(t *testing.T) {
 		}
 		assert.Equal(t, addErr == nil, ValidateSpec(spec) == nil, "spec %q 的校验与注册结论不一致", spec)
 	}
+}
+
+// TestNextFireTime 钉住 misfire 判定依赖的「下一次触发时间」计算：
+// 必须与注册同源（复用 specParser），且严格返回 from 之后的下一个触发点。
+func TestNextFireTime(t *testing.T) {
+	// 每日 00:00：从某日 06:00 起，下一次触发应为次日 00:00
+	from := time.Date(2025, 6, 15, 6, 0, 0, 0, time.UTC)
+	next, err := NextFireTime("0 0 * * *", from)
+	assert.NoError(t, err)
+	assert.True(t, next.Equal(time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)),
+		"每日 00:00 从 06:00 起的下一次触发应为次日 00:00，实际 %s", next)
+	assert.True(t, next.After(from), "下一次触发必须严格晚于 from")
+
+	// 年任务（1 月 1 日 00:00）：从年中起，下一次触发应为次年元旦
+	next2, err := NextFireTime("0 0 1 1 *", from)
+	assert.NoError(t, err)
+	assert.True(t, next2.Equal(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)),
+		"年任务从年中起的下一次触发应为次年元旦，实际 %s", next2)
+
+	// 空/非法表达式返回错误（与 ValidateSpec 同源）
+	_, err = NextFireTime("", from)
+	assert.Error(t, err, "空表达式应返回错误")
+	_, err = NextFireTime("not-a-cron", from)
+	assert.Error(t, err, "非法表达式应返回错误")
 }

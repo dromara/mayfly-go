@@ -8,6 +8,7 @@ const (
 	StmtTypeInsert StmtType = "insert"
 	StmtTypeUpdate StmtType = "update"
 	StmtTypeDelete StmtType = "delete"
+	StmtTypeMerge  StmtType = "merge"
 	StmtTypeDDL    StmtType = "ddl"
 	StmtTypeOther  StmtType = "other"
 )

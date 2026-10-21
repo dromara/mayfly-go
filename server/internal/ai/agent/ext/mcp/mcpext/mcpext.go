@@ -16,6 +16,7 @@ import (
 
 	"mayfly-go/internal/ai/agent/contributor"
 	"mayfly-go/internal/ai/infra/mcpclient"
+	aithools "mayfly-go/internal/ai/tools"
 	"mayfly-go/pkg/logx"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -194,9 +195,30 @@ func connectServerTools(ctx context.Context, server *ServerConfig, fingerprint s
 				server.Code, toolInfos[i].Name, err)
 			continue
 		}
+		// 能力声明的注册点生产者：按服务器自报的 readOnlyHint 声明工具能力。
+		// 没有这一步，ai/tools.DeclareCapability 只有内置表一个来源，所有 MCP 工具都会被保守归为
+		// 写能力而在只读诊断/审查/审批档被全量裁剪（管理员配了只读 MCP 服务器却完全用不上，
+		// 只剩一条「N dropped by capability filter」的 Info 日志）
+		declareToolCapability(ctx, wrapped)
 		result = append(result, wrapped)
 	}
 	return &serverConn{cli: cli, serverCode: server.Code, tools: result, fingerprint: fingerprint}, nil
+}
+
+// declareToolCapability 以「实际贡献给 LLM 的工具名」声明能力（带 mcp_{code}_ 前缀）。
+// 工具名取自 Info：必须与过滤/护栏查表用的名字完全一致，否则声明不命中（能力仍按写处理）。
+// 读不到元信息时不声明：保持「未声明=写能力」的保守兜底，不因声明失败而放开
+func declareToolCapability(ctx context.Context, t *mcpInvokableTool) {
+	info, err := t.Info(ctx)
+	if err != nil || info == nil || info.Name == "" {
+		logx.WarnfContext(ctx, "[mcp_tools] declare tool capability skipped (server=%s, tool=%s): %v", t.serverCode, t.info.Name, err)
+		return
+	}
+	capability := aithools.CapabilityWrite
+	if t.info.ReadOnly {
+		capability = aithools.CapabilityRead
+	}
+	aithools.DeclareCapability(info.Name, capability)
 }
 
 var _ tool.InvokableTool = (*mcpInvokableTool)(nil)

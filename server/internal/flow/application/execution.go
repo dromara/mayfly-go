@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
+	"mayfly-go/internal/flow/imsg"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/eventbus"
@@ -67,7 +68,7 @@ func (e *executionAppImpl) CreateExecution(ctx context.Context, procinst *entity
 	flowDef := procinst.GetFlowDef()
 	startNodes := flowDef.GetNodeByType(FlowNodeTypeStart)
 	if len(startNodes) == 0 || len(startNodes) > 1 {
-		return errorx.NewBiz("start node not found or more than one")
+		return errorx.NewBizI(ctx, imsg.ErrStartNodeNotUnique)
 	}
 	startNode := startNodes[0]
 
@@ -109,19 +110,27 @@ func (e *executionAppImpl) ContinueExecution(ctx *ExecutionCtx) error {
 	return e.MoveTo(ctx, nextNode)
 }
 
+// hisProcinstOpEndAction 节点结束操作留痕的固定动作值（写入 t_flow_his_procinst_op）
+const hisProcinstOpEndAction = "completed"
+
 func (e *executionAppImpl) MoveTo(ctx *ExecutionCtx, nextNode *entity.FlowNode) error {
 	execution := ctx.Execution
 	if execution == nil {
-		return errorx.NewBiz("execution is nil")
+		return errorx.NewBizI(ctx.parent, imsg.ErrExecutionNil)
 	}
 
 	// 记录当前节点结束
-	if err := e.hisProcinstOpApp.RecordEnd(ctx, "copmpleted"); err != nil {
+	if err := e.hisProcinstOpApp.RecordEnd(ctx, hisProcinstOpEndAction); err != nil {
 		return err
 	}
 
-	// 下一个节点为空，说明流程已结束
+	// 下一个节点为空：只有「当前就是结束节点」才是正常收尾。
+	// 其它节点走到这里说明连线条件全不命中（或连线缺失），静默返回会让实例停在 Active、
+	// 执行流停在旧节点、界面无待办且无任何日志——必须报错让审批人看到
 	if nextNode == nil {
+		if current := ctx.GetFlowNode(); current != nil && current.Type != FlowNodeTypeEnd {
+			return errorx.NewBizI(ctx, imsg.ErrExecutionNoNextNode, "node", current.Name)
+		}
 		return nil
 	}
 

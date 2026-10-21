@@ -32,6 +32,10 @@ const (
 
 	// tmplCacheTTL 模板缓存时长，支持不重启修改模板
 	tmplCacheTTL = 5 * time.Minute
+
+	// notifyLogErrMsgMax 通知日志失败原因列宽（t_alert_notify_log.error_msg size:500，
+	// MySQL 的 varchar(500) 计的是字符数而不是字节数，故按 rune 截断）
+	notifyLogErrMsgMax = 500
 )
 
 type alertNotifierImpl struct {
@@ -72,7 +76,7 @@ func (n *alertNotifierImpl) NotifyWithTarget(ctx context.Context, event *entity.
 	if err != nil {
 		return 0, err
 	}
-	sendErr := n.doSend(ctx, tmpl, channels, alertNotifyParams(event, rule), target.ReceiverIds)
+	sendErr := n.doSend(ctx, tmpl, channels, alertNotifyParams(event, rule, target), target.ReceiverIds)
 	n.recordNotifyLogs(ctx, event.Id, channels, target, sendErr)
 	return len(channels), sendErr
 }
@@ -99,14 +103,34 @@ func (n *alertNotifierImpl) NotifyRecoverWithTarget(ctx context.Context, event *
 
 // alertNotifyParams 告警通知模板参数。
 // 时间与数值在此处完成格式化，避免 time.Time/float64 直接渲染出 RFC3339Nano 与超长小数。
-func alertNotifyParams(event *entity.AlertEvent, rule *entity.AlertRule) map[string]any {
+func alertNotifyParams(event *entity.AlertEvent, rule *entity.AlertRule, target service.NotifyTarget) map[string]any {
 	end := time.Now()
 	params := baseParams(event, rule, end)
 	params["currentValue"] = formatMetricValue(event)
 	params["threshold"] = formatThreshold(event)
 	params["lastTime"] = formatTime(event.LastTriggerTime)
 	params["triggerCount"] = event.TriggerCount
+	params["notifyStage"] = notifyStageText(event, target)
 	return params
+}
+
+// notifyStageText 通知阶段：升级策略触发的通知必须与首报/重复告警在正文里能直接区分。
+//
+// 判据取 target 里的渠道策略归因而不是 event.EscalationLvl：升级是在 `EscalationLvl == i`
+// 分支里**先发通知后推进级别**，第 1 级那条通知时该字段仍是 0，与首报同形（拿它判会漏报
+// 第一次升级）；而 policy_type 是通知日志里已经核实过的归因事实。
+// 级别用 EscalationLvl+1：库里的 0 基索引对运维没有意义。
+//
+// 前提：一个 target 内的渠道归因必须同类型——引擎的策略通知路径只登记 notify 归因、升级路径只登记
+// escalation 归因，两条链路各自独占。若将来把它们合进同一 target，本函数会一律判成升级（遍历到任意
+// 一项即返回），到那时必须改成显式优先级而不是依赖 map 遍历顺序
+func notifyStageText(event *entity.AlertEvent, target service.NotifyTarget) string {
+	for _, ref := range target.PolicyByChannel {
+		if ref.Type == entity.NotifyPolicyTypeEscalation {
+			return i18n.T(imsg.TmplStageEscalation, "level", event.EscalationLvl+1)
+		}
+	}
+	return i18n.T(imsg.TmplStageAlertNotify)
 }
 
 // alertRecoverParams 恢复通知模板参数，与恢复模板占位符严格对应
@@ -282,7 +306,8 @@ func (n *alertNotifierImpl) doSend(ctx context.Context, tmpl *msgentity.MsgTmpl,
 // recordNotifyLogs 记录通知发送日志到 t_alert_notify_log
 // 由于底层 SendMsg 为 fire-and-forget，此处记录的是"投递"状态：
 // SendMsg 返回 nil 视为投递成功（status=1），否则视为投递失败（status=2）。
-// 策略 ID 按 NotifyTarget 的渠道→策略归因记录，日志可追溯到具体路由策略
+// 策略归因按 NotifyTarget 的渠道→策略映射记录，类型与 ID 成对写入，
+// 日志可追溯到具体是哪张策略表的哪一行把通知路由到了这个渠道
 func (n *alertNotifierImpl) recordNotifyLogs(ctx context.Context, eventId uint64, channels []*msgentity.MsgChannel, target service.NotifyTarget, sendErr error) {
 	if n.notifyLogRepo == nil || len(channels) == 0 {
 		return
@@ -292,15 +317,14 @@ func (n *alertNotifierImpl) recordNotifyLogs(ctx context.Context, eventId uint64
 	errMsg := ""
 	if sendErr != nil {
 		status = 2 // 投递失败
-		errMsg = sendErr.Error()
-		if len(errMsg) > 500 {
-			errMsg = errMsg[:500]
-		}
+		errMsg = truncateRunes(sendErr.Error(), notifyLogErrMsgMax)
 	}
 	for _, ch := range channels {
+		ref := target.PolicyOfChannel(ch.Id)
 		log := &entity.AlertNotifyLog{
 			EventId:     eventId,
-			PolicyId:    target.PolicyOfChannel(ch.Id),
+			PolicyId:    ref.Id,
+			PolicyType:  ref.Type,
 			ChannelId:   ch.Id,
 			ChannelName: ch.Name,
 			Status:      status,
@@ -311,6 +335,24 @@ func (n *alertNotifierImpl) recordNotifyLogs(ctx context.Context, eventId uint64
 			logx.Warnf("[alert] record notify log failed: event=%d channel=%d err=%v", eventId, ch.Id, createErr)
 		}
 	}
+}
+
+// truncateRunes 按字符截断到 max 个 rune，不切破多字节字符。
+//
+// 不能按字节切（errMsg[:500]）：中文错误文案一个字占 3 字节，按字节切有 2/3 概率把一个
+// 字符劈成半个而产生非法 UTF-8，MySQL utf8mb4 严格模式下整行 INSERT 直接报
+// Error 1366 Incorrect string value；而这里的写入失败只留一条 Warn，于是恰恰是
+// 「投递失败」这种最需要留痕的行反而静默丢掉（无报错的丢数据）
+func truncateRunes(s string, max int) string {
+	// 字节数已在上限内则 rune 数必然也在内，直接返回避开一次切片分配（绝大多数错误文案走这一支）
+	if len(s) <= max {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max])
 }
 
 // findTmpl 按编码查找消息模板（带 TTL 缓存）；模板不存在时回退到内置默认模板

@@ -14,7 +14,7 @@
                 :segments="segments"
                 :attachments="attachments"
                 :is-editing="isEditing"
-                @edit-send="(c) => $emit('edit-send', c)"
+                @edit-send="(c, s) => $emit('edit-send', c, s)"
                 @cancel-edit="$emit('cancel-edit')"
             />
             <AssistantMessageBubble
@@ -45,9 +45,10 @@
                         <CheckIcon v-if="copied" class="size-3.5 text-success" />
                         <CopyIcon v-else class="size-3.5" />
                     </Button>
-                    <!-- 编辑用户消息（MessageTimestamp Pencil，hover 渐现） -->
+                    <!-- 编辑用户消息（MessageTimestamp Pencil，hover 渐现）；
+                         只读轨迹态不提供：编辑会把新消息写回原会话（运维运行的审计会话） -->
                     <Button
-                        v-if="role === 'user'"
+                        v-if="role === 'user' && !readonlyTranscript"
                         variant="ghost"
                         size="icon-sm"
                         class="message-bubble__action size-6 text-muted-foreground"
@@ -69,10 +70,13 @@
  *
  * 职责：Message 布局 + 头像 + 内容分发（User/Assistant）+ Footer（时间戳/复制/流式耗时）
  * 内容渲染下沉到 UserMessageBubble / AssistantMessageBubble
+ *
+ * 写操作类控件（编辑）按渲染模式让位：复制属于阅读辅助，两种模式下都保留
  */
 import { CheckIcon, CopyIcon, PencilIcon } from '@lucide/vue';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useReadonlyTranscript } from './renderMode';
 import { copyToClipboard } from '@/common/utils/string';
 import SvgIcon from '@/components/svg-icon/index.vue';
 import { Button } from '@/components/ui/button';
@@ -81,6 +85,7 @@ import { Spinner } from '@/components/ui/spinner';
 import type { ContentSegment, InterruptEvent, MessageAttachment, MessagePart } from '../protocol/types';
 import type { InterruptActionEvent } from '../interrupt/types';
 import UserMessageBubble from './UserMessageBubble.vue';
+import type { ChipSegment } from '../input/chipRegistry';
 import AssistantMessageBubble from './AssistantMessageBubble.vue';
 
 const props = defineProps<{
@@ -103,11 +108,14 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'interrupt-action', action: InterruptActionEvent): void;
     (e: 'edit'): void;
-    (e: 'edit-send', content: string): void;
+    (e: 'edit-send', content: string, segments: ChipSegment[]): void;
     (e: 'cancel-edit'): void;
 }>();
 
 const { t } = useI18n();
+
+// 渲染模式由 MessageList 单点 provide；只读轨迹态下编辑类控件让位（复制等阅读辅助保留）
+const readonlyTranscript = useReadonlyTranscript();
 
 // ==================== 复制 ====================
 

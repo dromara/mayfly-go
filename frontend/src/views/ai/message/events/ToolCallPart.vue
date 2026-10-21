@@ -36,13 +36,14 @@
             </div>
         </CollapsibleSection>
 
-        <!-- 内联中断组件：始终可见（ToolCallEntry 内联中断，组件自带 Card 外壳） -->
+        <!-- 内联中断组件：始终可见（ToolCallEntry 内联中断，组件自带 Card 外壳）。
+             只读轨迹态传 readonly：审批/补参/确认都是写操作，不属于运行查看面 -->
         <div v-if="pendingInterrupt" class="tool-call-part__interrupt">
             <component
                 :is="getInterruptComponent(pendingInterrupt.type)"
                 :interrupt="pendingInterrupt"
                 :turn-id="turnId || pendingInterrupt.turnId || ''"
-                :readonly="false"
+                :readonly="readonlyTranscript"
                 :on-action="handleInterruptAction"
             />
         </div>
@@ -62,9 +63,13 @@ import { getInterruptComponent } from '../../interrupt';
 import { getInterruptHandler } from '../../registries/interruptRegistry';
 import type { InterruptEvent } from '../../protocol/types';
 import type { InterruptActionEvent, InterruptActionHandler } from '../../interrupt/types';
-import { InterruptResumeStatus, ToolCallStatus } from '../../registries/statuses';
-import { isInterruptDecided } from '../../registries/statuses';
+import { InterruptResumeStatus, ToolCallStatus, isInterruptDecided, RESUME_STATUS_BADGES, FALLBACK_RESUME_BADGE } from '../../registries/statuses';
 import CollapsibleSection from '../CollapsibleSection.vue';
+import { formatDurationMs } from '@/common/utils/format';
+import { useReadonlyTranscript } from '../renderMode';
+
+// 渲染模式由 MessageList 单点 provide；写操作类中断在只读轨迹态下不可决策
+const readonlyTranscript = useReadonlyTranscript();
 
 const props = defineProps<{
     toolName: string;
@@ -76,6 +81,8 @@ const props = defineProps<{
     turnId?: string;
     /** 恢复决策类型（extra.interrupt.resume.type，历史回放的权威数据源） */
     resumeType?: string;
+    /** 中断类型（extra.interrupt.type）：历史路径靠它找 handler 拿覆盖后的徽章文案 */
+    interruptKind?: string;
     pendingInterrupts?: InterruptEvent[];
 }>();
 
@@ -129,52 +136,23 @@ const DOT_CLASSES: Record<string, string> = {
 };
 const statusDotClass = computed(() => DOT_CLASSES[props.status]);
 
-/** 通用决议徽章配置（RESUME_STATUS_CONFIG，i18n key + 语义色淡底） */
-const RESUME_STATUS_CONFIG: Record<string, { class: string; labelKey: string }> = {
-    [InterruptResumeStatus.Approved]: {
-        class: 'bg-success/10 text-success border-success/20',
-        labelKey: 'ai.chat.resumeStatus.approved',
-    },
-    [InterruptResumeStatus.Resolved]: {
-        class: 'bg-success/10 text-success border-success/20',
-        labelKey: 'ai.chat.resumeStatus.approved',
-    },
-    [InterruptResumeStatus.ParamsCompleted]: {
-        class: 'bg-success/10 text-success border-success/20',
-        labelKey: 'ai.chat.resumeStatus.paramsCompleted',
-    },
-    [InterruptResumeStatus.Answered]: {
-        class: 'bg-success/10 text-success border-success/20',
-        labelKey: 'ai.chat.resumeStatus.answered',
-    },
-    [InterruptResumeStatus.Rejected]: {
-        class: 'bg-destructive/10 text-destructive border-destructive/20',
-        labelKey: 'ai.chat.resumeStatus.rejected',
-    },
-    [InterruptResumeStatus.Skipped]: {
-        class: 'bg-muted text-muted-foreground border-border',
-        labelKey: 'ai.chat.resumeStatus.skipped',
-    },
-};
-
 /** 解析决议徽章（handler 覆盖 → 通用配置 → 未知状态归入 cancelled 灰色） */
 function resumeBadgeOf(status: string, interruptType?: string) {
     const handler = interruptType ? getInterruptHandler(interruptType) : undefined;
     const override = handler?.getResumeBadge?.(status, t);
     if (override) return { class: override.badgeClass, label: override.label };
-    const config = RESUME_STATUS_CONFIG[status];
-    if (config) return { class: config.class, label: t(config.labelKey) };
-    return {
-        class: 'bg-muted text-muted-foreground border-border',
-        label: t('ai.chat.resumeStatus.cancelled'),
-    };
+    // 配置表由 registries/statuses 单点维护：工具行与中断卡片共用同一份，不再两处不同粒度
+    const config = RESUME_STATUS_BADGES[status] ?? FALLBACK_RESUME_BADGE;
+    return { class: config.class, label: t(config.labelKey) };
 }
 
 /** 已决策中断的决议小徽章：历史回放以 part.resumeType（extra.interrupt.resume.type）
  *  为权威数据源；实时路径从 pendingInterrupts 已决策项派生 */
 const decidedBadge = computed(() => {
     if (props.resumeType) {
-        return resumeBadgeOf(props.resumeType);
+        // 一并传 interruptKind：少了它，历史回放无法命中 handler 的 getResumeBadge，
+        // 同一个已批准中断刷新后会从专属措辞退回通用文案（与实时不一致）
+        return resumeBadgeOf(props.resumeType, props.interruptKind);
     }
     if (!props.pendingInterrupts?.length || !props.toolCallId) return undefined;
     const decided = props.pendingInterrupts.find((i) => i.toolCallId === props.toolCallId && isInterruptDecided(i.status));
@@ -182,10 +160,10 @@ const decidedBadge = computed(() => {
     return resumeBadgeOf(decided.status ?? '', decided.type);
 });
 
-/** 耗时展示：<1s 显示 ms，否则 s（durationMs 格式） */
+/** 耗时展示统一走公共 formatDurationMs（<1s 用 ms，1 分钟内用秒，跨分 Xm Ys） */
 const durationText = computed(() => {
     if (!props.durationMs) return '';
-    return props.durationMs < 1000 ? `${props.durationMs}ms` : `${(props.durationMs / 1000).toFixed(1)}s`;
+    return formatDurationMs(props.durationMs);
 });
 </script>
 

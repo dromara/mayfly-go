@@ -1,6 +1,6 @@
 <template>
     <el-dialog v-model="dialogVisible" :title="$t('common.detail')" width="600px" :destroy-on-close="true">
-        <el-descriptions v-loading="loading" :column="3" border>
+        <el-descriptions v-loading="loading" :column="3" border label-width="90">
             <el-descriptions-item :span="1" label="ID">{{ machineDetail.id }}</el-descriptions-item>
             <el-descriptions-item :span="1" :label="$t('common.code')">{{ machineDetail.code }}</el-descriptions-item>
             <el-descriptions-item :span="1" :label="$t('common.name')">{{ machineDetail.name }}</el-descriptions-item>

@@ -6,7 +6,9 @@ import (
 	"sync"
 
 	"mayfly-go/internal/ai/api/vo"
+	"mayfly-go/internal/ai/imsg"
 	"mayfly-go/internal/ai/protocol"
+	"mayfly-go/pkg/i18n"
 )
 
 // ==================== Turn 运行时（事件生产者与 WS 连接解耦） ====================
@@ -19,6 +21,19 @@ import (
 
 // errTurnRunning 该会话已有运行中 turn
 var errTurnRunning = errors.New("conversation has a running turn")
+
+// turnStartErrText 把 Start 的哨兵错误翻成按请求语言渲出的文案。
+//
+// 为什么不在出口直接写 err.Error()：那会把 `conversation has a running turn` 这类内部
+// 英文串直接透到用户界面（曾实测到它作为错误 notice 渲在气泡里）。哨兵本身保留——
+// 调用方仍需按错误身份判断（测试与后续分支依赖它），翻译只发生在这一层。
+func turnStartErrText(ctx context.Context, err error) string {
+	if errors.Is(err, errTurnRunning) {
+		return i18n.TC(ctx, imsg.TurnAlreadyRunning)
+	}
+	// 未登记的错误没有可靠译文，透原文好过伪装成某条已翻译文案
+	return err.Error()
+}
 
 // turnEventBus 单个运行中 turn 的事件广播器：全量缓冲（供 attach 回放）+ 多订阅者实时投递
 //
@@ -105,7 +120,7 @@ func (b *turnEventBus) Finish() {
 type runningTurn struct {
 	turnId string
 	convId uint64
-	userId string // 发起用户（运行中列表按用户过滤）
+	userId string // 发起用户：运行中列表按用户过滤，stop/attach 也按它做归属限定
 	bus    *turnEventBus
 	ctx    context.Context    // turn ctx（Start 时由 WithCancel(baseCtx) 派生，runTurn 使用）
 	cancel context.CancelFunc // 显式 stop 的取消入口（唯一真正中断 agent 的途径）
@@ -180,19 +195,26 @@ func (r *chatRuntime) Start(convId uint64, turnId, userId string, baseCtx contex
 	return rt, nil
 }
 
-// GetRunning 查询该会话运行中的 turn（无则返回 nil）
-func (r *chatRuntime) GetRunning(convId uint64) *runningTurn {
+// GetRunning 查询该会话运行中且属于指定用户的 turn（不存在或不属该用户时返回 nil）。
+//
+// 归属比对放在注册表而不是调用方：发起者身份只有这里持有（runningTurn.userId），
+// 让每个入口自己「取出来再比一次」会漏一个就是一个越权面（attach 曾就这么漏了）。
+// 返回 nil 而非区分「不存在 / 不属于你」，避免把别人会话的运行状态泄露给调用方
+func (r *chatRuntime) GetRunning(convId uint64, userId string) *runningTurn {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.turns[convId]
+	rt := r.turns[convId]
+	if rt == nil || rt.userId != userId {
+		return nil
+	}
+	return rt
 }
 
-// Stop 取消该会话运行中的 turn，返回是否存在
-func (r *chatRuntime) Stop(convId uint64) bool {
-	r.mu.Lock()
-	rt, ok := r.turns[convId]
-	r.mu.Unlock()
-	if !ok {
+// Stop 取消该会话运行中且属于指定用户的 turn，返回是否真的取消。
+// 非本人一律返回 false（与「无运行中 turn」同一结果，不泄露别人会话是否在跑）
+func (r *chatRuntime) Stop(convId uint64, userId string) bool {
+	rt := r.GetRunning(convId, userId)
+	if rt == nil {
 		return false
 	}
 	rt.Stop()

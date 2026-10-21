@@ -49,8 +49,17 @@ export const procinstApi = {
     hisOp: Api.newGet<HisProcinstOp[]>('/flow/his-procinsts-op/{id}'),
 };
 
+/** 我的任务（待办/已办）查询参数：与后端 entity.ProcinstTaskQuery 对齐 */
+export interface ProcinstTaskQuery extends PageParam {
+    /** 流程任务状态：待办传 1（ProcinstTaskStatus.Process） */
+    status?: number;
+    bizType?: string;
+    bizKey?: string;
+}
+
 export const procinstTaskApi = {
-    tasks: Api.newGet<PageResult<ProcinstTask>, PageParam>('/flow/procinsts/tasks'),
+    // 待办/已办查询：status 为流程任务状态（首页指标卡只取待办），其余筛选条件与列表页同一模型
+    tasks: Api.newGet<PageResult<ProcinstTask>, ProcinstTaskQuery>('/flow/procinsts/tasks'),
     passTask: Api.newPost<void>('/flow/procinsts/tasks/pass'),
     backTask: Api.newPost<void>('/flow/procinsts/tasks/back'),
     rejectTask: Api.newPost<void>('/flow/procinsts/tasks/reject'),

@@ -12,10 +12,16 @@
                 :tool-call-id="part.toolCallId"
                 :duration-ms="part.durationMs"
                 :resume-type="part.resumeType"
+                :interrupt-kind="part.interruptKind"
                 :turn-id="turnId"
                 :pending-interrupts="pendingInterrupts"
                 @interrupt-action="(a) => $emit('interrupt-action', a)"
             />
+            <!-- 未登记的段类型必须可见：此前 v-if 链之外没有任何分支，新增一种段会在过程区
+                 区凭空消失且无任何报错（最坏的内容丢失是静默丢失） -->
+            <div v-else class="process-group__unknown">
+                {{ $t('ai.chat.unknownPartType', { type: part.type }) }}
+            </div>
         </template>
     </div>
 </template>
@@ -48,6 +54,11 @@ defineEmits<{
 </script>
 
 <style scoped>
+.process-group__unknown {
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
 .process-group-events {
     display: flex;
     flex-direction: column;

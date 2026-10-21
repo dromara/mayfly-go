@@ -6,7 +6,7 @@
                     <SvgIcon :name="getDbDialect(d.params?.type as string)?.getInfo().icon" :size="18" />
                 </template>
                 <template #default>
-                    <el-descriptions :column="1" size="small">
+                    <el-descriptions :column="1" size="small" label-width="90">
                         <el-descriptions-item :label="$t('common.name')">
                             {{ d.params?.name }}
                         </el-descriptions-item>

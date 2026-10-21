@@ -56,8 +56,8 @@ import ProcessGroupEvents from './ProcessGroupEvents.vue';
 const props = defineProps<{
     /** 连续过程 parts 列表 */
     events: MessagePart[];
-    /** 组状态 */
-    status: 'active' | 'completed' | 'interrupted';
+    /** 过程组状态：只有两态（流式中 / 已完成），由 AssistantMessageBubble 按 streaming 传入 */
+    status: 'active' | 'completed';
     /** 待处理中断列表（传递给 ToolCallPart 进行内联渲染） */
     pendingInterrupts?: InterruptEvent[];
     /** 所属 turn ID */

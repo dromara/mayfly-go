@@ -126,17 +126,38 @@ type EscalationStats struct {
 	MaxLevelReached int64 `json:"maxLevelReached"` // 达到的最高升级级别
 }
 
+// NotifyPolicyType 通知日志的策略来源类型。
+//
+// 为什么必须有这一列（真机实测的误导成本）：t_alert_notify_log.policy_id 一列同时承载
+// t_alert_notify_policy 与 t_alert_escalation 两张表的主键，二者主键空间独立且已实际重叠——
+// 日志里的 policy_id=11 在通知策略表查无此行，它是升级策略 11。排查「这条通知为什么发给了
+// 这个渠道」时，缺来源类型会把人引到通知策略的标签匹配上去，而真正的根因在升级链路
+// （升级策略无标签绑定 → 匹配全部同 resource_type 的规则）
+type NotifyPolicyType int8
+
+const (
+	// NotifyPolicyTypeUnknown 无归因：渠道未登记来源策略，或本列上线前的历史行（来源已无法回溯）
+	NotifyPolicyTypeUnknown NotifyPolicyType = 0
+	// NotifyPolicyTypeNotify 通知策略：policy_id 对应 t_alert_notify_policy.id
+	NotifyPolicyTypeNotify NotifyPolicyType = 1
+	// NotifyPolicyTypeEscalation 升级策略：policy_id 对应 t_alert_escalation.id
+	NotifyPolicyTypeEscalation NotifyPolicyType = 2
+)
+
 // AlertNotifyLog 通知发送日志（阶段二新增）
 type AlertNotifyLog struct {
-	Id          uint64    `json:"id" gorm:"primaryKey;autoIncrement"`
-	EventId     uint64    `json:"eventId" gorm:"not null;index:idx_notify_log_event;comment:事件 ID"`
-	PolicyId    uint64    `json:"policyId" gorm:"comment:匹配的策略 ID"`
-	ChannelId   uint64    `json:"channelId" gorm:"not null;index:idx_notify_log_channel;comment:渠道 ID"`
-	ChannelName string    `json:"channelName" gorm:"size:100;comment:渠道名称"`
-	Status      int8      `json:"status" gorm:"not null;comment:1:成功 2:失败"`
-	ErrorMsg    string    `json:"errorMsg" gorm:"size:500;comment:失败原因"`
-	SendTime    time.Time `json:"sendTime" gorm:"not null;index:idx_notify_log_send_time;comment:发送时间"`
-	CreatedAt   time.Time `json:"createdAt" gorm:"autoCreateTime"`
+	Id       uint64 `json:"id" gorm:"primaryKey;autoIncrement"`
+	EventId  uint64 `json:"eventId" gorm:"not null;index:idx_notify_log_event;comment:事件 ID"`
+	PolicyId uint64 `json:"policyId" gorm:"comment:来源策略 ID（属于哪张表由 policy_type 决定）"`
+	// PolicyType 不加 gorm default 标签：加了会让值为 0 时整列从 INSERT 里被省略，
+	// 依赖库侧默认值——本仓已因此丢过 P0 优先级（见 alert_rule 的同类修复）
+	PolicyType  NotifyPolicyType `json:"policyType" gorm:"comment:策略来源类型 0:无归因/历史行 1:通知策略 2:升级策略"`
+	ChannelId   uint64           `json:"channelId" gorm:"not null;index:idx_notify_log_channel;comment:渠道 ID"`
+	ChannelName string           `json:"channelName" gorm:"size:100;comment:渠道名称"`
+	Status      int8             `json:"status" gorm:"not null;comment:1:成功 2:失败"`
+	ErrorMsg    string           `json:"errorMsg" gorm:"size:500;comment:失败原因"`
+	SendTime    time.Time        `json:"sendTime" gorm:"not null;index:idx_notify_log_send_time;comment:发送时间"`
+	CreatedAt   time.Time        `json:"createdAt" gorm:"autoCreateTime"`
 }
 
 func (a *AlertNotifyLog) TableName() string {

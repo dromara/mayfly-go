@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/sqlparser"
 	"mayfly-go/internal/db/dbm/sqlparser/sqlstmt"
 )
 
@@ -120,7 +121,7 @@ func parseStmtType(t *testing.T, conn *dbi.DbConn, sql string) string {
 	return fmt.Sprintf("%T", stmt)
 }
 
-// execDispatched 模拟ExecuteSQL分发链路：切割→解析→按Stmt类型分发查询/执行
+// execDispatched 模拟ExecuteSQL分发链路：切割→解析→按语句类型分发查询/执行
 func execDispatched(t *testing.T, conn *dbi.DbConn, script string) {
 	t.Helper()
 	splitter := conn.GetDialect().GetSQLSplitter()
@@ -130,8 +131,11 @@ func execDispatched(t *testing.T, conn *dbi.DbConn, script string) {
 		if parseErr != nil {
 			t.Fatalf("parse [%s] failed: %s", oneSQL, parseErr.Error())
 		}
-		switch stmt.(type) {
-		case *sqlstmt.SelectStmt, *sqlstmt.WithStmt, *sqlstmt.OtherStmt:
+		// 分发口径与生产 ExecuteSQL 同源：按 sqlparser.Classify 的语句类型决定读/写通道
+		// （Select/Other→Query；insert/update/delete/merge/ddl→Exec）。
+		// 不再按 AST 节点类型硬编码，以免 ExplainStmt/MergeStmt 等新节点被误路由
+		switch sqlparser.Classify(parser, splitter, oneSQL, stmt, parseErr) {
+		case sqlstmt.StmtTypeSelect, sqlstmt.StmtTypeOther:
 			_, _, err := conn.Query(oneSQL)
 			return err
 		default:

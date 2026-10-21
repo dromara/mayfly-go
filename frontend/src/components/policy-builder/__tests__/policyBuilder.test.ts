@@ -38,6 +38,14 @@ import {
 
 vi.mock('@/i18n', () => ({ i18n: { global: { t: (key: string) => key } } }));
 
+/**
+ * DbSelectTree 内部的 ResourceSelect 在挂载时会真实拉取资源树（loadResourceTags → Api.request
+ * → 从 pinia 取 token），而本文件不装 pinia。此前它能“通过”是因为别的测试文件把
+ * activePinia 泄漏到了全局（单文件跑就红）—— 属于测试自身缺少隔离，不是被测代码的问题。
+ * 直接打桩取数函数，而不是补一个假 pinia 去掩盖真实网络调用。
+ */
+vi.mock('@/views/ops/resource/resource', () => ({ loadResourceTags: async () => [] }));
+
 const i18n = createI18n({ legacy: false, globalInjection: true, locale: 'zh-cn', messages: { 'zh-cn': { ...zhCommon, ...zhFlow } } });
 
 const BIZ = 'db_sql_exec_flow';

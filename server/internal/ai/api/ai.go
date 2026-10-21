@@ -6,14 +6,11 @@ import (
 	"mayfly-go/internal/ai/api/vo"
 	"mayfly-go/internal/ai/application"
 	"mayfly-go/internal/ai/application/dto"
+	"mayfly-go/internal/ai/application/resource"
 	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/protocol"
 	"mayfly-go/internal/ai/skill"
-	dbapp "mayfly-go/internal/db/application"
-	meentity "mayfly-go/internal/db/domain/entity"
 	fileapp "mayfly-go/internal/file/application"
-	machineapp "mayfly-go/internal/machine/application"
-	mcentity "mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -25,8 +22,6 @@ import (
 type Ai struct {
 	conversationApp application.Conversation `inject:"T"`
 	turnItemApp     application.TurnItem     `inject:"T"`
-	machineApp      machineapp.Machine       `inject:"T"`
-	dbApp           dbapp.Db                 `inject:"T"`
 	fileApp         fileapp.File             `inject:"T"`
 }
 
@@ -93,16 +88,18 @@ func (a *Ai) CreateConversation(rc *req.Ctx) {
 	}
 }
 
-// DeleteConversation 删除会话
+// DeleteConversation 删除会话（仅归属账号可删：否则任意登录账号可按 id 删除别人的会话）
 func (a *Ai) DeleteConversation(rc *req.Ctx) {
 	id, err := strconv.ParseUint(rc.PathParam("id"), 10, 64)
 	biz.ErrIsNil(err)
+	biz.ErrIsNil(a.conversationApp.AssertOwned(rc.MetaCtx, id))
 	biz.ErrIsNil(a.conversationApp.DeleteConversation(rc.MetaCtx, id))
 }
 
-// RenameConversation 重命名会话
+// RenameConversation 重命名会话（仅归属账号可改）
 func (a *Ai) RenameConversation(rc *req.Ctx) {
 	rename := rc.BindJson[form.RenameConversationRequest]()
+	biz.ErrIsNil(a.conversationApp.AssertOwned(rc.MetaCtx, rename.Id))
 	biz.ErrIsNil(a.conversationApp.UpdateTitle(rc.MetaCtx, rename.Id, rename.Title))
 }
 
@@ -127,47 +124,55 @@ func (a *Ai) ChatSkills(rc *req.Ctx) {
 
 // ChatResources 可引用资源列表（`@` 触发菜单数据源，随消息下发使模型明确目标资源，
 // 避免工具调用因资源参数缺失而中断等待用户手动补充）
+//
+// 必须走 resource 门面：它按登录账号的团队资源标签做授权过滤（与工具参数补全、ListResources
+// 同一数据源）。此前直连 machineApp/dbApp 的 ListByCond，会把**全部启用机器（含 ip/port）
+// 与全部数据库**返回给任一登录用户——既是资产拓扑泄露，也让模型在越权资源上建议操作
 func (a *Ai) ChatResources(rc *req.Ctx) {
-	resources := make([]*vo.ChatResourceVO, 0)
-
-	machines, err := a.machineApp.ListByCond(&mcentity.Machine{
-		Status:   mcentity.MachineStatusEnable,
-		Protocol: mcentity.MachineProtocolSsh,
-	}, "id", "code", "name", "ip", "port")
+	list, err := resource.GetApp().List(rc.MetaCtx, rc.GetLoginAccount().Id,
+		&resource.Query{Types: []string{resource.TypeMachine, resource.TypeDb}})
 	biz.ErrIsNil(err)
-	for _, m := range machines {
+
+	rc.ResData = toChatResourceVOs(list)
+}
+
+// toChatResourceVOs 把授权过滤后的资源投影成 `@` 菜单项。
+//
+// 机器在 provider 里按「机器 × 授权凭证」展开（同一台机器挂多个凭证会出现多条），
+// 而菜单只关心资源本体，所以按 (type,id) 去重；端口从 Detail 解析，缺失即 0
+func toChatResourceVOs(list []*resource.Resource) []*vo.ChatResourceVO {
+	resources := make([]*vo.ChatResourceVO, 0, len(list))
+	seen := make(map[string]struct{}, len(list))
+	for _, r := range list {
+		key := r.Type + ":" + r.Id
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		port, _ := strconv.Atoi(r.Detail[resource.ExtraKeyPort])
 		resources = append(resources, &vo.ChatResourceVO{
-			Id:           strconv.FormatUint(m.Id, 10),
-			ResourceType: "machine",
-			Name:         m.Name,
-			Code:         m.Code,
-			Ip:           m.Ip,
-			Port:         m.Port,
-			Description:  fmt.Sprintf("%s:%d", m.Ip, m.Port),
+			Id:           r.Id,
+			ResourceType: r.Type,
+			Name:         r.Name,
+			Code:         r.Code,
+			Ip:           r.Detail[resource.ExtraKeyIp],
+			Port:         port,
+			Description:  r.Description,
 		})
 	}
-
-	dbs, err := a.dbApp.ListByCond(&meentity.Db{}, "id", "code", "name")
-	biz.ErrIsNil(err)
-	for _, d := range dbs {
-		resources = append(resources, &vo.ChatResourceVO{
-			Id:           strconv.FormatUint(d.Id, 10),
-			ResourceType: "db",
-			Name:         d.Name,
-			Code:         d.Code,
-			Description:  d.Code,
-		})
-	}
-
-	rc.ResData = resources
+	return resources
 }
 
 // ============== TurnItem 查询 ==============
 
 // ChatTurnItems 按 turn 分组加载消息（分页）
+//
+// 先过会话读取授权：路径里的 convId 是递增整数，不校归属时任何登录账号可枚举别人的会话内容
 func (a *Ai) ChatTurnItems(rc *req.Ctx) {
 	convId, err := strconv.ParseUint(rc.PathParam("id"), 10, 64)
 	biz.ErrIsNil(err)
+	biz.ErrIsNil(a.conversationApp.AssertReadable(rc.MetaCtx, convId))
 	beforeTurnId := rc.Query("beforeTurnId")
 	limit := rc.QueryIntDefault("limit", 20)
 
@@ -176,43 +181,39 @@ func (a *Ai) ChatTurnItems(rc *req.Ctx) {
 	rc.ResData = collx.ArrayMap(groups, func(g *dto.TurnGroupDTO) *vo.TurnGroupVO {
 		return &vo.TurnGroupVO{
 			TurnId: g.TurnId,
-			Items: collx.ArrayMap(g.Items, func(item *dto.TurnItemDTO) *vo.TurnItemVO {
-				return &vo.TurnItemVO{
-					Id:         item.Id,
-					TurnId:     item.TurnId,
-					ItemType:   item.ItemType,
-					ItemId:     item.ItemId,
-					Item:       item.Item,
-					Status:     item.Status,
-					ToolCallId: item.ToolCallId,
-					Extra:      item.Extra,
-					CreateTime: item.CreateTime,
-				}
-			}),
+			Items:  collx.ArrayMap(g.Items, toTurnItemVO),
 		}
 	})
 }
 
-// ChatItemsByTurn 按 turnId 加载单个 turn 的 items
+// ChatItemsByTurn 按 turnId 加载单个 turn 的 items（同样需会话读取授权）
 func (a *Ai) ChatItemsByTurn(rc *req.Ctx) {
 	convId, err := strconv.ParseUint(rc.PathParam("id"), 10, 64)
 	biz.ErrIsNil(err)
+	biz.ErrIsNil(a.conversationApp.AssertReadable(rc.MetaCtx, convId))
 	turnId := rc.PathParam("turnId")
 
 	items, err := a.conversationApp.GetItemsByTurnId(rc.MetaCtx, convId, turnId)
 	biz.ErrIsNil(err)
-	rc.ResData = collx.ArrayMap(items, func(item *dto.TurnItemDTO) *vo.TurnItemVO {
-		return &vo.TurnItemVO{
-			Id:         item.Id,
-			TurnId:     item.TurnId,
-			ItemType:   item.ItemType,
-			ItemId:     item.ItemId,
-			Item:       item.Item,
-			Status:     item.Status,
-			ToolCallId: item.ToolCallId,
-			CreateTime: item.CreateTime,
-		}
-	})
+	rc.ResData = collx.ArrayMap(items, toTurnItemVO)
+}
+
+// toTurnItemVO TurnItem 的对外投影（两个查询接口共用）。
+//
+// 必须共用：分页拉取与单 turn 刷新曾各写一份，后者漏了 Extra——而 Extra 正是中断徽章与
+// 审批卡片的数据源（extra.interrupt.resume），走刷新路径时卡片会丢「已批准/已完善」状态
+func toTurnItemVO(item *dto.TurnItemDTO) *vo.TurnItemVO {
+	return &vo.TurnItemVO{
+		Id:         item.Id,
+		TurnId:     item.TurnId,
+		ItemType:   item.ItemType,
+		ItemId:     item.ItemId,
+		Item:       item.Item,
+		Status:     item.Status,
+		ToolCallId: item.ToolCallId,
+		Extra:      item.Extra,
+		CreateTime: item.CreateTime,
+	}
 }
 
 // ============== 工具函数 ==============

@@ -9,6 +9,12 @@ import (
 	dbentity "mayfly-go/internal/db/domain/entity"
 	fileentity "mayfly-go/internal/file/domain/entity"
 	flowentity "mayfly-go/internal/flow/domain/entity"
+	"mayfly-go/migration/migrations/initdb"
+	"mayfly-go/migration/migrations/migtest"
+	"mayfly-go/migration/migrations/v1_10"
+	"mayfly-go/migration/migrations/v1_11"
+	"mayfly-go/migration/migrations/v1_12"
+	"mayfly-go/migration/migrations/v1_9"
 	"mayfly-go/pkg/model"
 
 	"github.com/go-gormigrate/gormigrate/v2"
@@ -111,7 +117,7 @@ func runV1121Migrations(t *testing.T, db *gorm.DB) {
 		want[id] = true
 	}
 	found := 0
-	for _, m := range V1_12() {
+	for _, m := range v112.Migrations() {
 		if !want[m.ID] {
 			continue
 		}
@@ -201,7 +207,7 @@ func unknownAccessModeCount(t *testing.T, db *gorm.DB) int {
 //   - t_flow_procinst：无 planned_exec_time
 func upgradeFixture(t *testing.T, db *gorm.DB, longValue string) {
 	t.Helper()
-	require.NoError(t, newChainMigrator(db, concatMigrations(Init, V1_9, V1_10, V1_11, V1_12)).Migrate())
+	require.NoError(t, migtest.NewChainMigrator(db, migtest.Concat(initdb.Migrations, v19.Migrations, v110.Migrations, v111.Migrations, v112.Migrations)).Migrate())
 
 	// 降级执行记录表：改列类型无法用 ALTER 表达（sqlite 根本没有 ALTER COLUMN），只能按旧实体重建
 	require.NoError(t, db.Exec("DROP TABLE IF EXISTS t_db_sql_exec").Error)
@@ -242,12 +248,12 @@ func legacyOldValue() string {
 //
 // 这是 SQLite 用户「升级后启动失败」的复现路径：改列类型在 SQLite 上等于重建整张表
 func TestUpgradeFromLegacySchemaOnSqlite(t *testing.T) {
-	db := openSqliteMigDB(t)
+	db := migtest.OpenSqlite(t)
 	longValue := legacyOldValue()
 	upgradeFixture(t, db, longValue)
 
 	// 走 gormigrate 正式入口：既验证迁移体能执行，也验证记账与二次启动跳过
-	require.NoError(t, newChainMigrator(db, fullChainMigrations()).Migrate())
+	require.NoError(t, migtest.NewChainMigrator(db, migtest.Concat(All()...)).Migrate())
 	requireSqlExecUpgraded(t, db, longValue)
 	requireOversizeSnapshotFits(t, db)
 	requireNoUnknownAccessMode(t, db)
@@ -266,17 +272,17 @@ func TestUpgradeFromLegacySchemaOnSqlite(t *testing.T) {
 //	运行：MAYFLY_IT_MIGRATION_MYSQL_DSN='root:***@tcp(127.0.0.1:3306)/?charset=utf8&loc=Local&parseTime=true' \
 //	       go test ./migration/migrations/ -run TestUpgradeFromLegacySchemaOnMysql
 func TestUpgradeFromLegacySchemaOnMysql(t *testing.T) {
-	adminDSN := os.Getenv(itMysqlDSNEnv)
+	adminDSN := os.Getenv(migtest.ItMysqlDSNEnv)
 	if adminDSN == "" {
-		t.Skipf("set %s to run the upgrade path against a real mysql", itMysqlDSNEnv)
+		t.Skipf("set %s to run the upgrade path against a real mysql", migtest.ItMysqlDSNEnv)
 	}
-	db, drop := openMysqlTempDB(t, adminDSN)
+	db, drop := migtest.OpenMysqlTempDB(t, adminDSN)
 	defer drop()
 
 	longValue := legacyOldValue()
 	upgradeFixture(t, db, longValue)
 
-	require.NoError(t, newChainMigrator(db, fullChainMigrations()).Migrate())
+	require.NoError(t, migtest.NewChainMigrator(db, migtest.Concat(All()...)).Migrate())
 	requireSqlExecUpgraded(t, db, longValue)
 	requireOversizeSnapshotFits(t, db)
 	requireNoUnknownAccessMode(t, db)
@@ -296,7 +302,7 @@ func TestV1121MigrationIdsAreUniqueAndPrefixed(t *testing.T) {
 	}
 
 	seen := map[string]int{}
-	for _, m := range fullChainMigrations() {
+	for _, m := range migtest.Concat(All()...) {
 		seen[m.ID]++
 	}
 	for id, n := range seen {
@@ -310,11 +316,11 @@ func TestV1121MigrationIdsAreUniqueAndPrefixed(t *testing.T) {
 // TestPlannedExecTimeColumnIsAddedOnce planned_exec_time 只由这一条迁移负责，
 // 且重复执行不得报「列已存在」
 func TestPlannedExecTimeColumnIsAddedOnce(t *testing.T) {
-	db := openSqliteMigDB(t)
+	db := migtest.OpenSqlite(t)
 	upgradeFixture(t, db, "short")
 
 	var target *gormigrate.Migration
-	for _, m := range V1_12() {
+	for _, m := range v112.Migrations() {
 		if m.ID == "v1.12.1-flow-procinst-planned-exec-time" {
 			target = m
 		}
@@ -334,9 +340,9 @@ func TestPlannedExecTimeColumnIsAddedOnce(t *testing.T) {
 // not null default 1，存量行当场就是 1。所以必须单独造出非法取值才测得到它——
 // 否则断言永真，把迁移里的 UPDATE 整条删掉也不会有人发现
 func TestFileAccessModeNormalizesUnknownValues(t *testing.T) {
-	db := openSqliteMigDB(t)
+	db := migtest.OpenSqlite(t)
 	upgradeFixture(t, db, "short")
-	require.NoError(t, newChainMigrator(db, fullChainMigrations()).Migrate())
+	require.NoError(t, migtest.NewChainMigrator(db, migtest.Concat(All()...)).Migrate())
 
 	probe := &fileentity.File{
 		FileKey: "k-probe", Filename: "avatar.png", Path: "/tmp/avatar.png",
@@ -351,7 +357,7 @@ func TestFileAccessModeNormalizesUnknownValues(t *testing.T) {
 	require.Positive(t, unknownAccessModeCount(t, db),
 		"用例前提：必须先造出非法取值的行，否则测的是空集")
 
-	for _, m := range V1_12() {
+	for _, m := range v112.Migrations() {
 		if m.ID == "v1.12.1-file-access-mode" {
 			require.NoError(t, m.Migrate(db))
 		}

@@ -62,6 +62,28 @@ const { t } = useI18n();
 const selectedValue = ref<string>('');
 const freeText = ref('');
 
+/**
+ * 选项文本 → 决策载荷的解析单点。
+ *
+ * 此前 emitChange 与 getValues 各写一份完全相同的 JSON.parse + 兜底：两处一旦分叉，
+ * 「界面显示的选中项」与「真正提交给后端的参数」就会不一致，而且没有任何报错。
+ *
+ * 本组件不对外提供 modelValue 回显入口：已决策的中断在轨迹里只渲染决议徽章（ToolCallPart
+ * 仅在 !isInterruptDecided 时下发 pendingInterrupt），卡片不会被重放，所以上层没有可绑的数据源。
+ */
+function parsePayload(raw: string): Record<string, unknown> {
+    if (!raw) return {};
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : { value: parsed };
+    } catch {
+        return { value: raw };
+    }
+}
+
+/** 当前原始文本：选中项优先，其次自由文本（两者互斥，由下方两个入口保证） */
+const currentRaw = () => selectedValue.value || freeText.value.trim();
+
 const selectOption = (opt: OptionItem) => {
     if (props.readonly) return;
     selectedValue.value = opt.value;
@@ -78,44 +100,15 @@ const onFreeTextInput = () => {
 };
 
 const emitChange = () => {
-    let payload: Record<string, unknown> = {};
-    if (selectedValue.value) {
-        try {
-            payload = JSON.parse(selectedValue.value);
-        } catch {
-            payload = { value: selectedValue.value };
-        }
-    } else if (freeText.value) {
-        try {
-            payload = JSON.parse(freeText.value);
-        } catch {
-            payload = { value: freeText.value };
-        }
-    }
-    emit('change', payload);
+    // 载荷解析与 getValues 同源，保证「看到的选中项」与「提交的参数」不会分叉
+    emit('change', parsePayload(currentRaw()));
 };
 
 const isValid = () => {
     return !!(selectedValue.value || freeText.value.trim());
 };
 
-const getValues = () => {
-    if (selectedValue.value) {
-        try {
-            return JSON.parse(selectedValue.value);
-        } catch {
-            return { value: selectedValue.value };
-        }
-    }
-    if (freeText.value) {
-        try {
-            return JSON.parse(freeText.value);
-        } catch {
-            return { value: freeText.value };
-        }
-    }
-    return {};
-};
+const getValues = () => parsePayload(currentRaw());
 
 defineExpose({
     isValid,

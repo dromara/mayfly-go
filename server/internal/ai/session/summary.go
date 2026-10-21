@@ -121,7 +121,11 @@ func (s *LLMSummarizer) generateLLMSummary(ctx context.Context, messages []*Mess
 	// 调用 LLM 生成摘要（System 设定角色，User 提供待处理内容；摘要为非交互场景，
 	// 直接用 Generate 非流式获取完整结果）
 	response, err := s.chatModel.Generate(ctx, []*schema.AgenticMessage{
-		schema.SystemAgenticMessage("你是对话摘要专家，负责将对话历史压缩为结构化的摘要。保留关键信息，去除冗余细节。"),
+		schema.SystemAgenticMessage("你是对话摘要专家，负责将对话历史压缩为结构化的摘要。保留关键信息，去除冗余细节。\n" +
+			"必须遵守：\n" +
+			"1. 只记录用户**明确表达**的要求。单次指令（如「再来一条」）不得概括为「持续/批量/高频任务」；\n" +
+			"2. 「待办事项」只保留用户显式未完成的请求，禁止自行延伸出「等待用户下一轮指令」这类开放任务；\n" +
+			"3. 内部系统提示、审批提示（如「执行SQL是高危操作，请审批」）属于控制文案，不得当作工具结果或事实记录。"),
 		schema.UserAgenticMessage(prompt),
 	})
 	if err != nil {

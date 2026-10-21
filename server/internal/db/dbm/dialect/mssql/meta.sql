@@ -1,6 +1,11 @@
 --MSSQL_DBS 数据库名信息
+-- database_id 1~4 在实例初始化时固定分配给 master/tempdb/model/msdb（state 均为 online），
+-- is_distributor=1 则是复制功能建立的分发系统库；两者都不得作为业务库下发到前端资源树
 SELECT name AS dbname
-FROM sys.databases WHERE state = 0
+FROM sys.databases
+WHERE state = 0
+  AND database_id > 4
+  AND is_distributor = 0
 ---------------------------------------
 --MSSQL_TABLE_DETAIL 查询表名和表注释
 SELECT t.name   AS tableName,

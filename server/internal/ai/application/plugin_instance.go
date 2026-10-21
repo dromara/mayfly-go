@@ -422,11 +422,16 @@ func (a *pluginInstanceAppImpl) ResolveEnabledMcpServers(ctx context.Context) ([
 
 // ============== 共享辅助 ==============
 
-// invalidateAgent 插件配置变更后重置默认 Agent 单例（fail-open，不阻断管理操作）：
-// 下次对话懒重建 Agent 并重新聚合技能清单与工具列表，配合 mcpext 连接缓存仅重连配置变更的服务器
+// invalidateDefaultAgent 插件/技能/MCP 配置变更后重置 Agent 缓存（fail-open，不阻断管理操作）：
+// 下次对话懒重建 Agent 并重新聚合技能清单与工具列表，配合 mcpext 连接缓存仅重连配置变更的服务器。
+//
+// 必须连档位（profile）缓存一起重置：两者是两份独立缓存，且工具清单在 NewAgent 时快照。
+// 只重置默认 Agent 会让新装/卸载的插件与 MCP 工具在 headless 档（提案执行、评测）里永远不生效——
+// 表现为「聊天里能用新工具，提案执行/评测却调不到」，编译与日志都不报错
 func invalidateDefaultAgent() {
 	agent.ResetDefaultAgent()
-	logx.Debug("[plugin_instance] plugin changed, default agent reset for next turn")
+	ResetAllProfiles()
+	logx.Debug("[plugin_instance] plugin changed, default & profile agents reset for next turn")
 }
 
 func (a *pluginInstanceAppImpl) invalidateAgent() { invalidateDefaultAgent() }

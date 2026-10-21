@@ -1,5 +1,10 @@
 --DM_DB_SCHEMAS 库schemas
-SELECT NAME as SCHEMA_NAME FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' ORDER BY NAME ASC
+-- SYS/SYSDBA/SYSAUDITOR/SYSSSO 是达梦初始化时创建的内置账号（各带同名默认模式），
+-- 与 Oracle 内置账号同理不作为业务 schema 下发；内置名固定且用户无法重名，排除不会误伤自建模式
+SELECT NAME as SCHEMA_NAME FROM SYS.SYSOBJECTS
+WHERE TYPE$ = 'SCH'
+  AND NAME NOT IN ('SYS', 'SYSDBA', 'SYSAUDITOR', 'SYSSSO')
+ORDER BY NAME ASC
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
 SELECT a.object_name                                      as TABLE_NAME,

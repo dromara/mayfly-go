@@ -18,7 +18,11 @@ import (
 // 未绑定流程定义时返回 nil 结论表示无需处置；业务方据此决定自己的提示文案，
 // 因此新增资源类型接入审批只需注册场景 + 调用本方法，无需重复实现定位与求值逻辑
 func (p *procdefAppImpl) CheckTrigger(ctx context.Context, req *dto.TriggerRequest) (*trigger.Decision, error) {
-	procdef := p.GetProcdefByCodePath(ctx, req.CodePaths...)
+	procdef, err := p.GetProcdefByCodePath(ctx, req.CodePaths...)
+	if err != nil {
+		// fail-closed：定位失败不能当成「未绑定」返回 nil 结论
+		return nil, err
+	}
 	if procdef == nil {
 		return nil, nil
 	}
@@ -30,7 +34,7 @@ func (p *procdefAppImpl) CheckTrigger(ctx context.Context, req *dto.TriggerReque
 func (p *procdefAppImpl) CheckProcdefTrigger(ctx context.Context, procdef *entity.Procdef, req *dto.TriggerRequest) (*trigger.Decision, error) {
 	meta, ok := trigger.BizMetaOf(req.BizType)
 	if !ok {
-		return nil, errorx.NewBizf("the flow biz type %q is not registered", req.BizType)
+		return nil, errorx.NewBizI(ctx, imsg.ErrBizTypeUnregistered, "bizType", req.BizType)
 	}
 	if procdef == nil {
 		return nil, nil
@@ -265,14 +269,14 @@ func policyCheckSchema(check trigger.CheckDef) *dto.PolicyCheck {
 func resolveSimulateInput(ctx context.Context, bizType string, raw map[string]string) (*simulateBundle, error) {
 	meta, ok := trigger.BizMetaOf(bizType)
 	if !ok {
-		return nil, errorx.NewBizf("the flow biz type %q is not registered", bizType)
+		return nil, errorx.NewBizI(ctx, imsg.ErrBizTypeUnregistered, "bizType", bizType)
 	}
 	if meta.Simulate == nil {
 		return &simulateBundle{Meta: meta, Raw: raw}, nil
 	}
 	facts, err := meta.Simulate(ctx, raw)
 	if err != nil {
-		return nil, errorx.NewBizf("failed to parse the simulated input: %s", err.Error())
+		return nil, errorx.NewBizI(ctx, imsg.ErrSimulateInputInvalid, "err", err.Error())
 	}
 	if facts == nil {
 		facts = &trigger.SimulatedFacts{}

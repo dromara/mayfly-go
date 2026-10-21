@@ -42,6 +42,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, type PropType, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { AutoFormDrawer, defineFormItems } from '@/components/auto-form';
 import { useAutoFormModel } from '@/hooks/useAutoFormModel';
 import { alertRuleApi } from '../api';
@@ -68,6 +69,10 @@ const emit = defineEmits<{
     cancel: [];
     'val-change': [form: AlertRuleForm];
 }>();
+
+// props 里的字段会原样透传给底层组件，渲染器只翻译 label/tooltip，
+// 故 placeholder 必须在此处取值翻译，直接把 i18n 键写进去会让界面显示裸键名。
+const { t } = useI18n();
 
 // 标签路径值（数组形式，用于 TagTreeCheck 多选）
 const tagPathValue = ref<string[]>([]);
@@ -169,7 +174,7 @@ const items = defineFormItems<AlertRuleForm>([
         max: 3600,
         suffix: 's',
         tooltip: 'alert.groupWaitTips',
-        props: { placeholder: 'alert.groupWaitPlaceholder' },
+        props: { placeholder: t('alert.groupWaitPlaceholder') },
     },
     {
         prop: 'notifyConfig.groupInterval',
@@ -180,7 +185,7 @@ const items = defineFormItems<AlertRuleForm>([
         max: 86400,
         suffix: 's',
         tooltip: 'alert.groupIntervalTips',
-        props: { placeholder: 'alert.groupIntervalPlaceholder' },
+        props: { placeholder: t('alert.groupIntervalPlaceholder') },
     },
     {
         prop: 'notifyConfig.repeatInterval',
@@ -191,7 +196,7 @@ const items = defineFormItems<AlertRuleForm>([
         max: 86400,
         suffix: 's',
         tooltip: 'alert.repeatIntervalTips',
-        props: { placeholder: 'alert.repeatIntervalPlaceholder' },
+        props: { placeholder: t('alert.repeatIntervalPlaceholder') },
     },
     {
         prop: 'evalInterval',
@@ -220,7 +225,7 @@ const items = defineFormItems<AlertRuleForm>([
         min: 1,
         max: 1000,
         tooltip: 'alert.recoveryCountTips',
-        props: { placeholder: 'alert.recoveryCountPlaceholder' },
+        props: { placeholder: t('alert.recoveryCountPlaceholder') },
     },
     {
         prop: 'labels',

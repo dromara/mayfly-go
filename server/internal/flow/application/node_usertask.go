@@ -8,13 +8,13 @@ import (
 	"mayfly-go/internal/flow/infra/persistence"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/internal/pkg/event"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
+	"strconv"
 	"strings"
-
-	"github.com/spf13/cast"
 )
 
 /******************* 用户任务节点 *******************/
@@ -58,7 +58,7 @@ func ToUserTaskNode(node *entity.FlowNode) (*UserTaskNode, error) {
 // 与连线跳转条件共用同一份字段字典与同一个求值上下文构造：会签计数、审批结果这些事实
 // 只需要注册一次，两类判定就都能引用，不必各写一套取数
 func IsUserTaskComplete(ctx context.Context, condition *entity.RuleNode, vars collx.M) (bool, error) {
-	tc := newFlowConditionContext(ctx, vars, 0)
+	tc := newFlowConditionContext(ctx, vars, nil)
 	matched, err := trigger.MatchCondition(condition, tc)
 	if err != nil {
 		return false, flowConditionError(ctx, "completionCondition", err)
@@ -89,6 +89,25 @@ func (h *UserTaskNodeBehavior) Validate(ctx context.Context, flowDef *entity.Flo
 	if len(usertaskNode.Candidates) == 0 {
 		return errorx.NewBizI(ctx, imsg.ErrUserTaskNodeCandidateNotEmpty, "name", node.Name)
 	}
+	// 候选人只允许「账号 id」或「role:<角色 id>」。写错成 user:5 / "5 " / 重复项都能保存，
+	// 但运行时永远匹配不到 → 节点卡死且保存期零提示；重复项还会让同一账号一次点击投多票
+	seenCandidates := make(map[string]struct{}, len(usertaskNode.Candidates))
+	for _, candidate := range usertaskNode.Candidates {
+		if candidate != strings.TrimSpace(candidate) || candidate == "" {
+			return errorx.NewBizI(ctx, imsg.ErrUserTaskNodeCandidateInvalid, "name", node.Name, "candidate", candidate)
+		}
+		if roleId, hasPrefix := strings.CutPrefix(candidate, "role:"); hasPrefix {
+			if id, err := strconv.ParseUint(roleId, 10, 64); err != nil || id == 0 {
+				return errorx.NewBizI(ctx, imsg.ErrUserTaskNodeCandidateInvalid, "name", node.Name, "candidate", candidate)
+			}
+		} else if _, err := strconv.ParseUint(candidate, 10, 64); err != nil {
+			return errorx.NewBizI(ctx, imsg.ErrUserTaskNodeCandidateInvalid, "name", node.Name, "candidate", candidate)
+		}
+		if _, dup := seenCandidates[candidate]; dup {
+			return errorx.NewBizI(ctx, imsg.ErrUserTaskNodeCandidateDuplicate, "name", node.Name, "candidate", candidate)
+		}
+		seenCandidates[candidate] = struct{}{}
+	}
 	// 完成条件缺失会导致「第一个审批人就通过」与「永远无法完成」两种都无法预期的走向，
 	// 因此保存流程时就要求配置，而不是留到运行时按默认语义猜
 	if !trigger.HasCondition(usertaskNode.CompletionCondition) {
@@ -110,7 +129,7 @@ func (u *UserTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 
 	candidates := usertaskNode.Candidates
 	if len(candidates) == 0 {
-		return errorx.NewBiz("candidates cannot be empty")
+		return errorx.NewBizI(ctx.parent, imsg.ErrUserTaskNodeCandidateNotEmpty, "name", flowNode.Name)
 	}
 
 	taskApp := GetProcinstTaskApp()
@@ -145,6 +164,13 @@ func (u *UserTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 
 			// 用户账号类型
 			if !strings.Contains(candidate, ":") {
+				// 账号 id 必须是纯数字：role:<id> 等标识（含畸形值）无法定位收件人，
+				// 旧写法 cast.ToUint64 会静默解析成 0（发往 userId=0）
+				receiverId, parseErr := strconv.ParseUint(candidate, 10, 64)
+				if parseErr != nil || receiverId == 0 {
+					logx.WarnfContext(ctx, "[flow] skip todo notify for non-account candidate: %q", candidate)
+					continue
+				}
 				params := map[string]any{
 					"creator":        procinst.Creator,
 					"procdefName":    procinst.ProcdefName,
@@ -152,19 +178,24 @@ func (u *UserTaskNodeBehavior) Execute(ctx *ExecutionCtx) error {
 					"taskName":       flowNode.Name,
 					"procinstRemark": procinst.Remark,
 				}
-				// 发送通知消息
-				global.EventBus.Publish(context.Background(), event.EventTopicBizMsgTmplSend, &msgdto.BizMsgTmplSend{
-					BizType:     FlowTaskNotifyBizKey,
-					BizId:       procinst.ProcdefId,
-					Params:      params,
-					ReceiverIds: []uint64{cast.ToUint64(candidate)},
-				})
-
-				global.EventBus.Publish(context.Background(), event.EventTopicMsgTmplSend, &msgdto.MsgTmplSendEvent{
-					TmplChannel: msgdto.MsgTmplFlowUserTaskTodo,
-					Params:      params,
-					ReceiverIds: []uint64{cast.ToUint64(candidate)},
-				})
+				// 通知属于外部副作用：放进 AfterCommit —— 事务回滚时用户不能再收到一条指向不存在待办的站内信
+				//（旧写法在事务内 Publish，且丢了 traceId/租户上下文）
+				if err := base.AfterCommit(ctx, func(runCtx context.Context) error {
+					global.EventBus.Publish(runCtx, event.EventTopicBizMsgTmplSend, &msgdto.BizMsgTmplSend{
+						BizType:     FlowTaskNotifyBizKey,
+						BizId:       procinst.ProcdefId,
+						Params:      params,
+						ReceiverIds: []uint64{receiverId},
+					})
+					global.EventBus.Publish(runCtx, event.EventTopicMsgTmplSend, &msgdto.MsgTmplSendEvent{
+						TmplChannel: msgdto.MsgTmplFlowUserTaskTodo,
+						Params:      params,
+						ReceiverIds: []uint64{receiverId},
+					})
+					return nil
+				}); err != nil {
+					return err
+				}
 			}
 		}
 

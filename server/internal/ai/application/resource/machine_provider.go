@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 
 	machineapp "mayfly-go/internal/machine/application"
@@ -46,6 +47,25 @@ func (p *machineProvider) List(ctx context.Context, accountId uint64) (resources
 		return []*Resource{}, nil
 	}
 
+	// 机器 → 可操作凭证名列表（取自标签路径的 AuthCert 段）。
+	//
+	// 为什么不能拿机器 code 当凭证名：凭证表没有 code 列，它的唯一标识就是 name（如
+	// tVUcRFKwOC），而机器 code 是另一个值（如 Umaq3B2KHkKg）。旧写法把两者当成同一个，
+	// 导致模型从资源清单读到的是一个不存在的凭证，MachineCommandExec 必然 `ac not found`
+	// 且它无论怎么猜都猜不中（实测 10/10 失败）；参数补全卡片也把错值封在选项里，用户
+	// 补全后照样失败。一台机器可挂多张凭证，故按 (机器, 凭证) 展开
+	certsByMachine := make(map[string][]string, len(codes))
+	for _, codePath := range tags.GetCodePaths() {
+		machineCode := tagentity.CodePath(codePath).GetCode(tagentity.TagTypeMachine)
+		authCertName := tagentity.CodePath(codePath).GetCode(tagentity.TagTypeAuthCert)
+		if machineCode == "" || authCertName == "" {
+			continue
+		}
+		if !slices.Contains(certsByMachine[machineCode], authCertName) {
+			certsByMachine[machineCode] = append(certsByMachine[machineCode], authCertName)
+		}
+	}
+
 	machines, err := machineapp.GetMachineApp().GetMachineList(&machineentity.MachineQuery{
 		PageParam: model.PageParam{PageNum: 1, PageSize: maxQuerySize},
 		Codes:     codes,
@@ -61,19 +81,25 @@ func (p *machineProvider) List(ctx context.Context, accountId uint64) (resources
 		if m == nil {
 			continue
 		}
-		resources = append(resources, &Resource{
-			Type:        TypeMachine,
-			Id:          strconv.FormatUint(m.Id, 10),
-			Code:        m.Code,
-			Name:        m.Name,
-			Description: fmt.Sprintf("%s:%d", m.Ip, m.Port),
-			Detail: map[string]string{
-				ExtraKeyIp:   m.Ip,
-				ExtraKeyPort: strconv.Itoa(m.Port),
-			},
-			// 机器的 code 即授权凭证名（machinetool 经 GetCliByAc(code) 建连）
-			Extra: collx.M{ExtraKeyAuthCertName: m.Code},
-		})
+		// 没有可操作凭证的机器不产出资源：旧行为会产出一条凭证名错误的资源，模型照着调用
+		// 只会得到 `ac not found`，不如一开始就不给它一个走不通的选项
+		for _, authCertName := range certsByMachine[m.Code] {
+			resources = append(resources, &Resource{
+				Type:        TypeMachine,
+				Id:          strconv.FormatUint(m.Id, 10),
+				Code:        m.Code,
+				Name:        m.Name,
+				Description: fmt.Sprintf("%s:%d", m.Ip, m.Port),
+				// 凭证名放进 Detail 对模型可见：它调用 MachineCommandExec 时必须用这个值，
+				// 藏在 Extra 里它看不到，只能猜（实测猜什么都有）
+				Detail: map[string]string{
+					ExtraKeyIp:           m.Ip,
+					ExtraKeyPort:         strconv.Itoa(m.Port),
+					ExtraKeyAuthCertName: authCertName,
+				},
+				Extra: collx.M{ExtraKeyAuthCertName: authCertName},
+			})
+		}
 	}
 	return resources, nil
 }

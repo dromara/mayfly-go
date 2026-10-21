@@ -60,12 +60,20 @@ const canReadTmpl = hasPerm(TMPL_READ_PERM);
  *
  * remote 模式下展开下拉框也会以空关键字回调，故空关键字即取首页模板列表，可直接浏览选择；
  * 有初始值时以初始值为关键字，保证选中项存在于候选中（否则下拉框只能显示原始值而非模板名称）。
+ *
+ * 检索字段由关键字的**类型**决定，而不是 valueField：valueField 只决定「选中后绑定哪个字段」，
+ * 而用户手输的关键字永远是文本。后端只支持 id 精确匹配与 code 模糊匹配（见 msg/api.GetMsgTmpls），
+ * 故文本一律按 code 搜；只有初始回填的模板主键是数字，才按 id 精确定位。
+ *
+ * 此前按 valueField 分流，使得按主键绑定的选择器（流程定义的通知模板）把用户输入的文字当 id
+ * 传给后端 → 转成 0 → 该条件被忽略 → 搜索静默退化成「返回全部首页」，输入框形同虚设，
+ * 而模板一多用户就无法从下拉里定位到想要的那个
  */
 const loadTmpls = (keyword?: string | number | null) => {
     if (!canReadTmpl) {
         return;
     }
-    const query = props.valueField === 'code' ? { code: keyword } : { id: keyword };
+    const query = typeof keyword === 'number' ? { id: keyword } : { code: keyword };
     tmplApi.list.request(query).then((res) => {
         tmpls.value = res?.list ?? [];
     });

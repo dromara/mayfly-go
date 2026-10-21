@@ -58,7 +58,9 @@ func (l *Lexer) parseSelectStatement() (*sqlstmt.SelectStmt, bool) {
 
 	// mysql 允许 INTO 出现在 FROM/WHERE/ORDER/LIMIT 之后（SELECT ... INTO OUTFILE），
 	// 与子句体位置各调用一次，两处都无需消费时是空操作
-	l.parseIntoClause()
+	if l.parseIntoClause() {
+		sel.Into = true
+	}
 
 	l.parseLocking()
 	l.ParseReturning()
@@ -85,7 +87,10 @@ func (l *Lexer) parseSelectBody() *sqlstmt.SelectStmt {
 
 	sel.Items = l.parseSelectItems()
 
-	l.parseIntoClause()
+	// SELECT ... INTO <新表>（mssql/pg 建表写入），子句体位置的 INTO
+	if l.parseIntoClause() {
+		sel.Into = true
+	}
 
 	if l.Current().IsKeyword("FROM") {
 		l.Consume()
@@ -323,13 +328,15 @@ func (l *Lexer) skipHierarchicCond() {
 // PostgreSQL 的 SELECT INTO、mysql 的 INTO OUTFILE/DUMPFILE/INTO @var）。
 //
 // 目标不建模（它是写出目的地，不参与行列集合判定），但必须消费：
-// 子句体位置不消费会让紧随的 FROM/WHERE 整段丢失，尾部位置不消费则整个导出子句失联
-func (l *Lexer) parseIntoClause() {
+// 子句体位置不消费会让紧随的 FROM/WHERE 整段丢失，尾部位置不消费则整个导出子句失联。
+// 返回是否消费了 INTO，供调用方置 SelectStmt.Into，使 SELECT INTO 被判为写而非读。
+func (l *Lexer) parseIntoClause() bool {
 	if !l.Current().IsKeyword("INTO") {
-		return
+		return false
 	}
 	l.Consume()
 	l.SkipExpr()
+	return true
 }
 
 // parseLocking 解析行锁子句：FOR UPDATE / FOR SHARE 及其修饰（OF 引用、NOWAIT、WAIT n、SKIP LOCKED）。

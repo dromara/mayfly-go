@@ -13,6 +13,9 @@ type ConversationQuery struct {
 // CreateConversationReq 创建会话请求
 type CreateConversationReq struct {
 	Title string `json:"title"`
+	// Source 会话来源（空默认 user）；系统任务（agentops headless 运行）传 system，
+	// 使用户会话列表不展示系统触发的会话（回放仍可按 convId 直达）
+	Source string `json:"source"`
 }
 
 // TurnGroupDTO turn 分组 DTO

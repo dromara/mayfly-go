@@ -182,8 +182,25 @@ func flowVarNumber(tc *trigger.Context, key string) (float64, bool) {
 //
 // 与触发策略共用 Context，字段取值同样走三态（未提供 / 取到 / 取失败），
 // 新增一类流程变量只需在字段字典里加一项，判定入口不用改
-func newFlowConditionContext(ctx context.Context, vars collx.M, procdefId uint64) *trigger.Context {
-	tc := trigger.NewContext(ctx, FlowInstanceBizType, procdefId, nil, contextx.GetLoginAccount(ctx)).WithAttributes(vars)
+func newFlowConditionContext(ctx context.Context, vars collx.M, procinst *entity.Procinst) *trigger.Context {
+	// bizType / applicant 是「实例」分组的两个字段，此前只声明了、从不赋值：
+	// 前端能勾选、保存校验也通过，运行时永远判 false；配上 none 组就是「永远豁免」
+	attrs := vars
+	procdefId := uint64(0)
+	if procinst != nil {
+		procdefId = procinst.ProcdefId
+		attrs = collx.M{}
+		for k, v := range vars {
+			attrs[k] = v
+		}
+		if _, ok := attrs[flowFieldBizType]; !ok {
+			attrs[flowFieldBizType] = procinst.BizType
+		}
+		if _, ok := attrs[flowFieldApplicant]; !ok {
+			attrs[flowFieldApplicant] = procinst.Creator
+		}
+	}
+	tc := trigger.NewContext(ctx, FlowInstanceBizType, procdefId, nil, contextx.GetLoginAccount(ctx)).WithAttributes(attrs)
 	if resolver := ruleSegmentResolver(ctx); resolver != nil {
 		tc.WithSegments(resolver)
 	}

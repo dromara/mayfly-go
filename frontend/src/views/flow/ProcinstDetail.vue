@@ -18,7 +18,7 @@
             <el-tab-pane :label="$t('common.basic')" name="basic">
                 <div>
                     <el-divider content-position="left">{{ $t('flow.proc') }}</el-divider>
-                    <el-descriptions :column="3" border>
+                    <el-descriptions :column="3" border label-width="110">
                         <el-descriptions-item :span="1" :label="$t('flow.procdefName')">{{ procinst.procdefName }}</el-descriptions-item>
                         <el-descriptions-item :span="1" :label="$t('flow.bizType')">
                             <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
@@ -138,6 +138,7 @@ import { FLOW_DRAWER } from '@/views/flow/drawerSize';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/dbms/DbSqlExecBiz.vue'));
 const RedisRunCmdBiz = defineAsyncComponent(() => import('./flowbiz/redis/RedisRunCmdBiz.vue'));
+const AgentRemediationBiz = defineAsyncComponent(() => import('./flowbiz/agentops/AgentRemediationBiz.vue'));
 
 const props = defineProps({
     procinstId: {
@@ -167,6 +168,7 @@ const emit = defineEmits(['cancel', 'val-change']);
 const bizComponents = shallowReactive<Record<string, unknown>>({
     db_sql_exec_flow: DbSqlExecBiz,
     redis_run_cmd_flow: RedisRunCmdBiz,
+    agent_remediation_flow: AgentRemediationBiz,
 });
 
 const state = reactive({

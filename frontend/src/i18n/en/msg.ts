@@ -6,6 +6,7 @@ export default {
         qywxBot: 'WeChat Work Bot',
         feishuBot: 'Feishu Bot',
         msgChannel: 'Message Channel',
+        secret: 'Sign Secret',
         smtpAccount: 'SMTP Account',
         smtpPassword: 'SMTP Password',
         msgTmpl: 'Message Template',
@@ -14,6 +15,7 @@ export default {
         tmpl: 'Template',
         send: 'Send',
         sendMsg: 'Send Message',
+        params: 'Template Params',
         selectTmplPlaceholder: 'Select a message template, type its code to search',
         tmplNoReadPerm: 'Requires message template read permission',
         msgTmplTooltip:

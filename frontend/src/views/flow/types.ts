@@ -89,6 +89,8 @@ export interface ProcinstTask {
     vars: Record<string, unknown>;
     status: number;
     remark: string;
+    /** 业务 key：任务列表的 JOIN 结果里带出（见后端 ProcinstTaskPO），详情接口可能为空 */
+    bizKey?: string;
     endTime?: string;
     duration: number;
     handler?: string;

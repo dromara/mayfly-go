@@ -173,8 +173,9 @@ const scrollToTop = () => {
 </script>
 
 <style scoped>
+/* 宽度只由模板上的 w-72 声明：scoped 里再写一个 width 属于第二真源，
+   且 Tailwind v4 下无层 scoped 样式优先级高于 utilities，会静默压掉 w-72（288px 变成 260px） */
 .conv-sidebar {
-    width: 260px;
     height: 100%;
 }
 </style>

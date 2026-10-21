@@ -3,6 +3,12 @@ select USERNAME
 from sys.all_users
 order by USERNAME
 ---------------------------------------
+--ORACLE_DB_SCHEMAS_MAINTAINED 库schemas（12c+，隐藏 Oracle 脚本自维护的内置账号）
+select USERNAME
+from sys.all_users
+where ORACLE_MAINTAINED = 'N'
+order by USERNAME
+---------------------------------------
 --ORACLE_TABLE_INFO 表详细信息
 select a.TABLE_NAME,
        b.COMMENTS as TABLE_COMMENT,

@@ -26,12 +26,22 @@ func TestAstStmtType(t *testing.T) {
 		want sqlstmt.StmtType
 	}{
 		"select": {&sqlstmt.SelectStmt{}, sqlstmt.StmtTypeSelect},
-		"with":   {&sqlstmt.WithStmt{}, sqlstmt.StmtTypeSelect},
-		"update": {&sqlstmt.UpdateStmt{}, sqlstmt.StmtTypeUpdate},
-		"delete": {&sqlstmt.DeleteStmt{}, sqlstmt.StmtTypeDelete},
-		"insert": {&sqlstmt.InsertStmt{}, sqlstmt.StmtTypeInsert},
-		"ddl":    {&sqlstmt.DdlStmt{}, sqlstmt.StmtTypeDDL},
-		"other":  {&sqlstmt.OtherStmt{}, sqlstmt.StmtTypeOther},
+		// SELECT ... INTO（建表/导出）写出数据或文件，判为写 insert
+		"select-into": {&sqlstmt.SelectStmt{Into: true}, sqlstmt.StmtTypeInsert},
+		// WITH 未回填 MainType 时兜底按查询（与历史一致）；回填后按主语句/数据修改 CTE 的实际类型
+		"with":        {&sqlstmt.WithStmt{}, sqlstmt.StmtTypeSelect},
+		"with-insert": {&sqlstmt.WithStmt{MainType: sqlstmt.StmtTypeInsert}, sqlstmt.StmtTypeInsert},
+		"with-update": {&sqlstmt.WithStmt{MainType: sqlstmt.StmtTypeUpdate}, sqlstmt.StmtTypeUpdate},
+		"with-delete": {&sqlstmt.WithStmt{MainType: sqlstmt.StmtTypeDelete}, sqlstmt.StmtTypeDelete},
+		"merge":       {&sqlstmt.MergeStmt{}, sqlstmt.StmtTypeMerge},
+		// EXPLAIN：仅计划/读→Other；EXPLAIN ANALYZE 命中内层写→判为该写类型（ExplainStmt.Inner）
+		"explain-plan":          {&sqlstmt.ExplainStmt{}, sqlstmt.StmtTypeOther},
+		"explain-analyze-write": {&sqlstmt.ExplainStmt{Inner: sqlstmt.StmtTypeDelete}, sqlstmt.StmtTypeDelete},
+		"update":                {&sqlstmt.UpdateStmt{}, sqlstmt.StmtTypeUpdate},
+		"delete":                {&sqlstmt.DeleteStmt{}, sqlstmt.StmtTypeDelete},
+		"insert":                {&sqlstmt.InsertStmt{}, sqlstmt.StmtTypeInsert},
+		"ddl":                   {&sqlstmt.DdlStmt{}, sqlstmt.StmtTypeDDL},
+		"other":                 {&sqlstmt.OtherStmt{}, sqlstmt.StmtTypeOther},
 	}
 	for name, c := range cases {
 		got, ok := astStmtType(c.stmt)
@@ -47,6 +57,8 @@ func TestStmtTypeFromKeyword(t *testing.T) {
 	assert.Equal(t, sqlstmt.StmtTypeDDL, stmtTypeFromKeyword("create"))
 	assert.Equal(t, sqlstmt.StmtTypeDDL, stmtTypeFromKeyword("grant"))
 	assert.Equal(t, sqlstmt.StmtTypeOther, stmtTypeFromKeyword("show"))
+	// MERGE（upsert）归写类型 merge，不再落到未识别
+	assert.Equal(t, sqlstmt.StmtTypeMerge, stmtTypeFromKeyword("merge"))
 	// 未识别动词返回空串，交调用方兜底
 	assert.Equal(t, sqlstmt.StmtType(""), stmtTypeFromKeyword("call"))
 	assert.Equal(t, sqlstmt.StmtType(""), stmtTypeFromKeyword(""))

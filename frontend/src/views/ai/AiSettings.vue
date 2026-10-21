@@ -192,9 +192,20 @@ const removeFallback = (index: number) => {
     state.model.fallbacks.splice(index, 1);
 };
 
+/**
+ * 表单值 → 数字配置。
+ *
+ * 只有空串/null/undefined 才算「未配置」：0 是合法值（temperature=0 即贪心解码，
+ * timeOut/maxTokens/contextWindow 也可能显式配 0）。旧写法把 0 一并判成未配置，
+ * 与 setOrDelete 的 delete 分支组合后，「打开设置页什么都没改、直接点保存」会把
+ * 这些字段从配置里物理删掉（回显也拿不到原值）
+ */
 const toNumber = (v: unknown): number | undefined => {
+    if (v === '' || v === null || v === undefined) {
+        return undefined;
+    }
     const n = Number(v);
-    return Number.isFinite(n) && n !== 0 ? n : undefined;
+    return Number.isFinite(n) ? n : undefined;
 };
 
 const load = async () => {
@@ -268,7 +279,9 @@ const onSave = async () => {
     state.saving = true;
     try {
         await saveConfig(state.modelRow, 'AiModelConfig', 'system.sysconf.aiModelConf', buildModelValue());
-        await saveConfig(state.agentRow, 'AiAgentConfig', 'menu.aiSettings.agentConfig', buildAgentValue());
+        // key 必须是存在的 i18n 项：config.name 存的是 key，系统配置列表统一 t(name) 渲染，
+        // 写错不报错，只会让那一行直接显示原始 key 串
+        await saveConfig(state.agentRow, 'AiAgentConfig', 'ai.settings.agentConfig', buildAgentValue());
         Msg.saveSuccess();
         await load();
     } finally {

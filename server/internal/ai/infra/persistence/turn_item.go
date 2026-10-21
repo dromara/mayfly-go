@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/ai/domain/entity"
 	"mayfly-go/internal/ai/domain/repository"
 	"mayfly-go/pkg/base"
+	"strings"
 )
 
 type turnItemRepoImpl struct {
@@ -27,10 +28,39 @@ func (t *turnItemRepoImpl) SelectByTurnId(ctx context.Context, conversationId ui
 	return items, nil
 }
 
+// nonMessageItemTypes 完全产不出 LLM 消息的 item 类型：reasoning 是过路推理，turn_notice 是
+// 纯展示元数据（「本轮被人为停止」），context_compaction 是压缩记账。
+//
+// 三者都进不了 application/session_store.go 的 itemToMessages 任何分支，但仍会被历史查询取回来
+// 并各占一个 limit 窗口槽位——表现是「多停几次、多压几次，模型逐渐忘掉前面的对话」，极难反查回一条 SQL。
+// 新登记一个不产消息的类型只需往本列表加一项，守卫会对着它断言 SQL 里的占位符个数
+var nonMessageItemTypes = []string{
+	entity.ItemTypeReasoning,
+	entity.ItemTypeTurnNotice,
+	entity.ItemTypeCompaction,
+}
+
+// nonMessagePlaceholders 按排除集长度生成 `?, ?, ?` 形式的占位符串，与实参个数天然一致
+func nonMessagePlaceholders() string {
+	marks := make([]string, 0, len(nonMessageItemTypes))
+	for range nonMessageItemTypes {
+		marks = append(marks, "?")
+	}
+	return strings.Join(marks, ", ")
+}
+
 func (t *turnItemRepoImpl) SelectRecentByConvId(ctx context.Context, conversationId uint64, limit int) ([]*entity.TurnItem, error) {
 	var items []*entity.TurnItem
-	sql := "SELECT * FROM t_ai_turn_item WHERE conversation_id = ? AND item_type != ? AND is_deleted = 0 ORDER BY item_id DESC LIMIT ?"
-	if err := t.SelectBySQL(ctx, sql, &items, conversationId, entity.ItemTypeReasoning, limit); err != nil {
+	// 参数与占位符逐个对应：会话 + 排除集 + limit（展开后的实参不能靠人手工对齐）
+	args := make([]any, 0, len(nonMessageItemTypes)+2)
+	args = append(args, conversationId)
+	for _, itemType := range nonMessageItemTypes {
+		args = append(args, itemType)
+	}
+	args = append(args, limit)
+
+	sql := "SELECT * FROM t_ai_turn_item WHERE conversation_id = ? AND item_type NOT IN (" + nonMessagePlaceholders() + ") AND is_deleted = 0 ORDER BY item_id DESC LIMIT ?"
+	if err := t.SelectBySQL(ctx, sql, &items, args...); err != nil {
 		return nil, err
 	}
 	// 倒序取出的结果反转为时间正序

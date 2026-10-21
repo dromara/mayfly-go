@@ -25,7 +25,7 @@ const (
 
 // Extra 通用键：类型内部复用字段（参数补全选项 payload 构建等场景取用）
 const (
-	ExtraKeyAuthCertName    = "authCertName"    // 授权凭证名（机器的 code 即凭证名）
+	ExtraKeyAuthCertName    = "authCertName"    // 授权凭证 name（与机器 code 是不同的值，机器侧由标签路径解析得出）
 	ExtraKeyIp              = "ip"              // 机器 IP
 	ExtraKeyPort            = "port"            // 机器端口
 	ExtraKeyGetDatabaseMode = "getDatabaseMode" // db：库名获取方式（dbentity.DbGetDatabaseMode）

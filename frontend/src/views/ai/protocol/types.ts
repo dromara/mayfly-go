@@ -7,6 +7,13 @@
 
 export type ContentSegmentType = 'input_text' | 'output_text' | 'skill' | 'resource' | 'image';
 
+/**
+ * 图片段类型的单点常量：展示侧要把它从正文里剔出去、改渲缩略图卡片。
+ * 写成裸字面量会在「段渲染 + 是否含正文判定 + 卡片构建 + 产出端」四处各写一遍，
+ * 新增段类型时漏改一处就静默丢内容
+ */
+export const IMAGE_SEGMENT_TYPE = 'image' satisfies ContentSegmentType;
+
 export interface ContentSegment {
     type: ContentSegmentType;
     text: string;
@@ -16,7 +23,7 @@ export interface ContentSegment {
 
 // ==================== TurnItem (tagged union) ====================
 
-export type TurnItemTypeType = 'message' | 'reasoning' | 'tool_call' | 'context_compaction';
+export type TurnItemTypeType = 'message' | 'reasoning' | 'tool_call' | 'context_compaction' | 'turn_notice';
 
 export type TurnItemStatus = 'pending' | 'success' | 'failed' | 'cancelled' | 'interrupted';
 
@@ -49,6 +56,10 @@ export interface TurnItem {
     original_tokens?: number;
     compressed_tokens?: number;
     compressed_message_count?: number;
+
+    // turn_notice 变体：轮次终止提示的种类（stopped=用户显式停止）。
+    // 入库的是种类而不是句子：句子会把写入那一刻的语言固化进历史
+    notice_kind?: string;
 }
 
 // ==================== EventMsg (WebSocket 事件协议) ====================
@@ -175,6 +186,12 @@ export interface ToolCallPart {
     /** 恢复决策类型（extra.interrupt.resume.type：approved/rejected/params_completed...，
      *  历史从 item extra 还原，实时从已决策中断继承），驱动决议徽章 */
     resumeType?: string;
+    /**
+     * 中断类型（extra.interrupt.type）：决议徽章允许由中断 handler 覆盖文案，
+     * 只有 resumeType 而缺它时，历史回放拿不到 handler，徽章会回退成通用措辞
+     * 与实时不一致（双路径分叉）
+     */
+    interruptKind?: string;
 }
 
 /** 上下文压缩提示 part（ContextCompaction 时间线节点） */
@@ -186,7 +203,13 @@ export interface CompactionPart {
     compressedMessageCount: number;
 }
 
-/** 轮次终止提示 part（用户停止 / 流式错误，仅前端展示不落库） */
+/**
+ * 轮次终止提示 part。
+ *
+ * kind=stopped 现在**也持久化**（后端写一条 turn_notice item）：只活在客户端内存里时，刷新后那轮
+ * 只剩一段在句子中途断开的回答，与模型正常答完完全同形。kind=error 仍只由实时事件写入、不落库：
+ * 它是本次连接的故障读数，刷新后拿不到当时的错误上下文，落库反而会把瞬时故障固化成永久标记
+ */
 export interface NoticePart {
     type: 'notice';
     id: string;
@@ -194,8 +217,39 @@ export interface NoticePart {
     text: string;
 }
 
+// 落库的 `notice_kind` → 文案键与展示归类属展示语义，登记表在 registries/noticeKinds.ts
+// （协议层只定线格式字段，不承载文案键）
+
 /** 消息有序片段（MessagePart） */
 export type MessagePart = { type: 'text'; id: string; text: string } | ReasoningPart | ToolCallPart | CompactionPart | NoticePart;
+
+/**
+ * 消息段元数据（单一真源）：某类段是否属于「过程段」（归入思考/工具折叠区）、
+ * 是否具备正文文本语义。
+ *
+ * 此前这些判定硬编码在三处：AssistantMessageBubble 的 isProcessPart 写死
+ * `reasoning | tool_call`、气泡分组分支只认 `text`、ProcessGroupEvents 用 v-if 链。
+ * 新增一种段类型会在三处各被静默丢一次（内容凭空消失且无任何报错）
+ */
+export interface PartMeta {
+    /** 过程段：归入「思考 · 工具」折叠区而非正文 */
+    isProcess: boolean;
+    /** 有正文文本语义（可直接当文本渲染） */
+    isTextual: boolean;
+}
+
+export const PART_META: Readonly<Record<MessagePart['type'], PartMeta>> = {
+    text: { isProcess: false, isTextual: true },
+    reasoning: { isProcess: true, isTextual: false },
+    tool_call: { isProcess: true, isTextual: false },
+    context_compaction: { isProcess: false, isTextual: false },
+    notice: { isProcess: false, isTextual: false },
+};
+
+/** 未登记的段类型返回 undefined：消费方必须显式处理（给可见提示），不得静默丢弃 */
+export function partMeta(type: string): PartMeta | undefined {
+    return PART_META[type as MessagePart['type']];
+}
 
 // ==================== ChatMessage（前端展示用） ====================
 

@@ -11,9 +11,14 @@ import (
 type AlertRule struct {
 	model.Model
 
-	Name     string        `json:"name" gorm:"size:100;not null;comment:规则名称"`
-	Status   int8          `json:"status" gorm:"not null;default:1;index:idx_alert_rule_status;comment:状态 1:启用 -1:禁用"`
-	Priority AlertPriority `json:"priority" gorm:"not null;default:2;comment:优先级 0:P0紧急 1:P1重要 2:P2一般 3:P3提示"`
+	Name   string `json:"name" gorm:"size:100;not null;comment:规则名称"`
+	Status int8   `json:"status" gorm:"not null;default:1;index:idx_alert_rule_status;comment:状态 1:启用 -1:禁用"`
+
+	// Priority 优先级。此处**不能**带 gorm 的 default 标签：P0 的枚举值恰好是 0，与 Go 零值
+	// 同形，而 GORM 对「带 default 标签且取零值」的字段会把它从 INSERT 列里整个剔除、交给
+	// 数据库默认值填充，用户选的 P0 会被静默改写成 P2。请求体缺省时的归一化放在 api 层的
+	// alertRuleForm（用指针区分「选了 P0」与「没选」），领域默认值写在代码里而不是列默认值上
+	Priority AlertPriority `json:"priority" gorm:"not null;comment:优先级 0:P0紧急 1:P1重要 2:P2一般 3:P3提示"`
 	Remark   string        `json:"remark" gorm:"size:500;comment:备注"`
 
 	// ---- 资产关联 ----

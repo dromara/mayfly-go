@@ -280,8 +280,20 @@ func (m *machineAppImpl) TimerUpdateStats() {
 					GetMachineMetricApp().SaveOfflineSnapshot(ctx, mid)
 					return
 				}
-				stats := cli.GetAllStats()
-				cache.SaveMachineStats(mid, stats)
+				stats, statsErr := cli.GetAllStats()
+				if statsErr != nil {
+					// 采不到就是采不到：不能写缓存、不能当成功打日志，也不能落一个全 0 的历史点
+					// （指标历史一旦出现人造 0 谷，趋势图与阈值回溯都会被它带偏）
+					logx.Errorf("failed to get machine [id=%d] status information periodically: %s", mid, statsErr.Error())
+					// 与连不上同一口径：落离线点保证监控趋势不断线
+					GetMachineMetricApp().SaveOfflineSnapshot(ctx, mid)
+					return
+				}
+				// 写缓存的失败必须留痕而不是丢弃（告警评估与监控面板都只读这份缓存），但不能因此
+				// 连带跳过历史点：两条通路各自独立，下面的既有注释就写着历史是 best-effort
+				if saveErr := cache.SaveMachineStats(mid, stats); saveErr != nil {
+					logx.Errorf("failed to save machine [id=%d] stats cache: %s", mid, saveErr.Error())
+				}
 				// 落历史指标点（best-effort，失败仅日志绝不影响采集主流程）
 				GetMachineMetricApp().SaveSnapshot(ctx, mid, stats)
 				logx.Debugf("time to get the machine [id=%d] status information end, saved to cache", mid)

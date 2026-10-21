@@ -56,7 +56,7 @@
 
                 <!-- 有结果行才能切图表：无数据时图表只会是一张空坐标系，切换本身也没意义 -->
                 <div v-if="!dt.errorMsg && !dt.notice && !dt.cancelled && dt.data?.length" class="mt-2 mb-1 ml-1 flex shrink-0 items-center gap-4">
-                    <el-radio-group v-model="views[dt.id]" size="small">
+                    <el-radio-group :model-value="currentView(dt.id)" size="small" @update:model-value="setView(dt.id, $event)">
                         <el-radio-button value="table">{{ $t('db.viewTable') }}</el-radio-button>
                         <el-radio-button value="chart">{{ $t('db.viewChart') }}</el-radio-button>
                     </el-radio-group>
@@ -73,9 +73,10 @@
                 </div>
 
                 <SqlResultChart
-                    v-if="!dt.errorMsg && !dt.notice && !dt.cancelled && views[dt.id] === 'chart'"
+                    v-if="!dt.errorMsg && !dt.notice && !dt.cancelled && currentView(dt.id) === 'chart'"
                     :columns="chartColumns(dt)"
                     :rows="dt.data"
+                    :active="activeTab === dt.id"
                     class="ml-1 flex-1 min-h-0"
                 />
 
@@ -144,7 +145,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     tabRemove: [targetId: number];
     submitTicket: [sql: string, dt: ExecResTabLike];
-    tabChange: [];
+    tabChange: [name: string | number];
     submitUpdateFields: [dt: ExecResTabLike];
     cancelUpdateFields: [dt: ExecResTabLike];
     changeUpdatedField: [hasUpdatedFields: boolean, dt: ExecResTabLike];
@@ -155,8 +156,9 @@ const onRemoveTab = (targetId: number) => {
     emit('tabRemove', targetId);
 };
 
-const onTabChange = () => {
-    emit('tabChange');
+// 把新激活页签的 name（即 tab id）带上：父级据此同步 state.activeTab，否则在当前页签执行会写错位置
+const onTabChange = (name: string | number) => {
+    emit('tabChange', name);
 };
 
 // needApprovalOf 该结果里被触发策略要求审批的语句（与「已被禁止执行」互斥）
@@ -189,8 +191,23 @@ const setDbTableRef = (dt: ExecResTabState, el: unknown) => {
     dt.dbTableRef = el as DbTableDataRef | null;
 };
 
-/** 每个结果页签各自的表格/图表选择，默认表格（不改变原有阅读路径） */
+/** 每个结果页签各自的表格/图表选择；未显式切换时默认表格（不改变原有阅读路径） */
 const views = reactive<Record<number, 'table' | 'chart'>>({});
+
+/**
+ * 当前视图：新建页签尚未点过切换时 views[id] 为空，一律回落到 'table'。
+ * 分段控件与内容展示共用此单一缺省，否则 views[id] 为 undefined 时内容虽是表格、控件却不高亮任一项。
+ */
+const currentView = (id: number): 'table' | 'chart' => views[id] ?? 'table';
+/**
+ * el-radio-group 的 modelValue 事件是宽类型（string|number|boolean），入参先接 unknown、在函数内收窄回视图联合：
+ * 模板里因此不必手写 `as`（断言只是骗过编译器，收窄是真校验，非法值直接忽略）。
+ */
+const setView = (id: number, view: unknown) => {
+    if (view === 'table' || view === 'chart') {
+        views[id] = view;
+    }
+};
 
 /**
  * 图表取数列一律用 key、展示用 columnName。

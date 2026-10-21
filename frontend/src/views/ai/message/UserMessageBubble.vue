@@ -1,7 +1,19 @@
 <template>
-    <!-- 编辑模式：原地 textarea（UserMessageBubble 编辑态） -->
-    <div v-if="isEditing" ref="editContainer" class="user-message-edit" @blur="onEditBlur">
-        <textarea ref="editTextarea" v-model="editValue" class="user-message-edit__textarea" rows="1" @keydown="onEditKeydown" @input="autoResize"></textarea>
+    <!-- 编辑模式：原地复用提示词编辑器（芯片能保持引用状态）。不能用 textarea：
+         芯片是原子节点，textarea 里只能显示成字面 `@aliyun(root)`，用户看到的引用状态会消失，
+         更糟的是重发时段序列被置空，模型收到的是没有任何定位信息的纯文本 -->
+    <div v-if="isEditing" ref="editContainer" class="user-message-edit">
+        <PromptEditor
+            ref="editEditor"
+            v-model:text="editValue"
+            v-model:segments="editSegments"
+            :placeholder="t('ai.chat.inputPlaceholder')"
+            :height="0"
+            :max-height="240"
+            submit-on-enter
+            @submit="sendEdit"
+            @escape="$emit('cancel-edit')"
+        />
         <div class="user-message-edit__actions">
             <Button
                 variant="ghost"
@@ -48,9 +60,9 @@
              纯图片消息无文本段，不渲染空内容区 -->
         <BubbleContent v-if="hasBubbleText" class="text-[14px] leading-[1.6]">
             <template v-for="(seg, i) in segments" :key="i">
-                <InlineChip v-if="seg.type === 'resource' || seg.type === 'skill'" :segment="seg" />
+                <InlineChip v-if="getChipType(seg.type)" :segment="seg" />
                 <!-- 图片段不在此渲染：转为缩略图卡片进上方卡片区（与附件卡片同形态） -->
-                <template v-else-if="seg.type !== 'image'">{{ seg.text }}</template>
+                <template v-else-if="seg.type !== IMAGE_SEGMENT_TYPE">{{ seg.text }}</template>
             </template>
         </BubbleContent>
     </Bubble>
@@ -60,16 +72,20 @@
 /**
  * UserMessageBubble - 用户消息气泡
  * UserMessageBubble：Bubble(muted) + 纯文本 + 附件列表
- * 编辑模式：原地 textarea 自动撑高，Enter 发送 / Esc 取消 / 失焦取消
+ * 编辑模式：原地复用提示词编辑器（芯片可保形回显），Enter 发送 / Esc 取消 / 点击外部取消
  */
 import { ArrowUpIcon } from '@lucide/vue';
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
 import { getFileUrl } from '@/common/request';
 import type { ContentSegment, MessageAttachment } from '../protocol/types';
+import { IMAGE_SEGMENT_TYPE } from '../protocol/types';
+import { getChipType, type ChipSegment } from '../input/chipRegistry';
+import PromptEditor from '../input/PromptEditor.vue';
 import InlineChip from './InlineChip.vue';
 import AttachmentItem from './AttachmentItem.vue';
+import { buildCardAttachments } from './attachmentCards';
 import { AttachmentGroup } from '@/components/ui/attachment';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 
@@ -83,7 +99,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'edit-send', content: string): void;
+    /** 重发时必须同时带上段序列：芯片的定位信息只在 extra 里，光有文本模型无法定位资源 */
+    (e: 'edit-send', content: string, segments: ChipSegment[]): void;
     (e: 'cancel-edit'): void;
 }>();
 
@@ -92,32 +109,15 @@ const { t } = useI18n();
 // ==================== 附件卡片 ====================
 
 /** 是否有非图片的内容段（纯图片消息不渲染空 BubbleContent） */
-const hasBubbleText = computed(() => (props.segments ?? []).some((seg) => seg.type !== 'image'));
+const hasBubbleText = computed(() => (props.segments ?? []).some((seg) => seg.type !== IMAGE_SEGMENT_TYPE));
 
 /**
- * 卡片列表：图片段转为缩略图卡片（与文本/文件附件同形态，点击开全屏查看器；
- * 图片以 image 段为唯一事实源，fileKey 经 /sys/files/{fileKey} 访问，
- * 无持久化 attachments 的消息也一致），后接文本/文件附件
+ * 卡片列表：image 段为主事实源 + 旧消息仅 attachments 的图片兜底 + 文本/文件附件。
+ * 装配逻辑在 attachmentCards 纯函数里（含 fileKey 去重与本地预览匹配），可单测
  */
-const cardAttachments = computed<MessageAttachment[]>(() => {
-    // 本地图片预览源（乐观消息 attachments 携带 dataUrl）：按 name 匹配即时回显，
-    // 避免刚上传完还等 /sys/files/{fileKey} 网络响应；历史消息无 dataUrl 自然回落
-    const localPreviews = new Map<string, string>();
-    for (const a of props.attachments ?? []) {
-        if (a.kind === 'image' && a.dataUrl && a.name) localPreviews.set(a.name, a.dataUrl);
-    }
-    const imageCards: MessageAttachment[] = [];
-    for (const seg of props.segments ?? []) {
-        if (seg.type !== 'image') continue;
-        const fileKey = typeof seg.extra?.fileKey === 'string' ? seg.extra.fileKey : '';
-        if (!fileKey) continue;
-        const name = typeof seg.extra?.name === 'string' && seg.extra.name ? seg.extra.name : t('ai.attach.imagePlaceholder');
-        const dataUrl = localPreviews.get(name);
-        imageCards.push({ name, kind: 'image', fileKey, ...(dataUrl ? { dataUrl } : {}) });
-    }
-    const others = (props.attachments ?? []).filter((a) => a.kind !== 'image');
-    return [...imageCards, ...others];
-});
+const cardAttachments = computed<MessageAttachment[]>(() =>
+    buildCardAttachments(props.segments, props.attachments, t('ai.attach.imagePlaceholder'))
+);
 
 /** 文本附件原地展开（按名称受控，再点同一卡片收起；纯前端态不持久化） */
 const expandedTextName = ref<string | null>(null);
@@ -147,6 +147,9 @@ watch(
             return;
         }
         try {
+            // 此处故意用 fetch 而不是 Api.newGet：取回的是文件原始文本（res.text()），
+            // 而 Api 请求层会按 `{code,msg,data}` 解 JSON 包体——任意文本文件不是包体形状，
+            // 走 Api 会把内容解没（与上传不同：上传返回的确实是解包后的 fileKey）
             const res = await fetch(getFileUrl(key));
             if (!res.ok) throw new Error(`fetch preview failed: ${res.status}`);
             const text = await res.text();
@@ -163,56 +166,48 @@ watch(
 // ==================== 原地编辑 ====================
 
 const editContainer = ref<HTMLElement | null>(null);
-const editTextarea = ref<HTMLTextAreaElement | null>(null);
+const editEditor = ref<InstanceType<typeof PromptEditor> | null>(null);
 const editValue = ref('');
+const editSegments = ref<ChipSegment[]>([]);
 
-// 进入编辑态：同步内容 + 聚焦 + 光标到末尾 + 自动撑高
+// 进入编辑态：把段序列灌回编辑器（芯片保持可点可删的引用状态），聚焦并把光标放到末尾
 watch(
     () => props.isEditing,
     (editing) => {
         if (!editing) return;
         editValue.value = props.content;
+        // ContentSegment.extra 可选而 ChipSegment 必填：补空对象，不让下游各自判空分叉
+        editSegments.value = (props.segments ?? []).map((s) => ({ type: s.type, text: s.text ?? '', extra: s.extra ?? {} }));
         nextTick(() => {
-            const ta = editTextarea.value;
-            if (!ta) return;
-            ta.focus();
-            ta.setSelectionRange(ta.value.length, ta.value.length);
-            autoResize();
-            // 编辑态下滚动到可见
+            editEditor.value?.focus();
             editContainer.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         });
     }
 );
 
-const autoResize = () => {
-    const ta = editTextarea.value;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = `${ta.scrollHeight}px`;
-};
-
 const sendEdit = () => {
     const trimmed = editValue.value.trim();
     if (!trimmed) return;
-    emit('edit-send', trimmed);
+    emit('edit-send', trimmed, editSegments.value);
 };
 
-const onEditKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendEdit();
-    } else if (e.key === 'Escape') {
-        e.preventDefault();
-        emit('cancel-edit');
-    }
-};
-
-// 失焦取消编辑（焦点移入容器内按钮时按钮已 preventDefault 阻断失焦，不会触发）
-const onEditBlur = (e: FocusEvent) => {
-    const related = e.relatedTarget as Node | null;
-    if (related && editContainer.value?.contains(related)) return;
+/**
+ * 点击编辑区外部即取消编辑。
+ *
+ * 不用 blur/focusout 判定：① 原实现把 `@blur` 挂在容器 div 上，而 blur 不冒泡，
+ * 处理函数从不执行（功能静默失效）；② 就算换成 focusout，编辑器内部焦点移动
+ * （点芯片、点按钮）也会被误判为「离开」。pointerdown 只由真实交互产生，
+ * 内部点击用 closest 放行；捕获阶段监听不受内部 stopPropagation 影响
+ */
+const onDocumentPointerDown = (e: PointerEvent) => {
+    if (!props.isEditing) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('.user-message-edit')) return;
     emit('cancel-edit');
 };
+
+document.addEventListener('pointerdown', onDocumentPointerDown, true);
+onBeforeUnmount(() => document.removeEventListener('pointerdown', onDocumentPointerDown, true));
 </script>
 
 <style scoped>
@@ -229,30 +224,6 @@ const onEditBlur = (e: FocusEvent) => {
        的 overflow:hidden / 视口横向裁剪切掉（右侧环缺口 bug） */
     margin-left: auto;
     padding: 3px;
-}
-
-.user-message-edit__textarea {
-    width: 100%;
-    min-height: 40px;
-    max-height: 160px;
-    resize: none;
-    border: 1px solid var(--el-border-color);
-    border-radius: 12px;
-    background: var(--el-bg-color);
-    padding: 8px 12px;
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--el-text-color-primary);
-    outline: none;
-    transition:
-        border-color 0.15s ease-out,
-        box-shadow 0.15s ease-out;
-    overflow-y: auto;
-}
-
-.user-message-edit__textarea:focus {
-    border-color: var(--el-color-primary);
-    box-shadow: 0 0 0 3px var(--el-color-primary-light-8);
 }
 
 /* 文本附件展开预览：全宽等宽内容块，高度上限滚动（长文件不撑爆消息流） */

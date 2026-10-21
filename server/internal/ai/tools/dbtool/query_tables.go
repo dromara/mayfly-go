@@ -28,12 +28,11 @@ func GetQueryTables() (tool.InvokableTool, error) {
 	return utils.InferTool("DbQueryTables",
 		i18n.T(imsg.DbQueryTablesToolInfo),
 		func(ctx context.Context, param *QueryTablesParam) (*QueryTablesOutput, error) {
-			toolDesc := i18n.TC(ctx, imsg.DbQueryTablesToolDesc)
 			// 优先从 resume 上下文恢复已补全的参数（解决 eino 框架 resume 时使用原始 arguments 的问题）
 			tools.TryApplyResumedParams(ctx, param)
 			// 检查必要参数，触发参数完善（dbName 可选，留空使用资产默认库）
 			if param.DbId == 0 {
-				if err := tools.InterruptOrResumeParamCompletion(ctx, toolDesc, param, i18n.TC(ctx, imsg.DbInfoIncomplete), "db", []tools.CompletionParamInfo{
+				if err := tools.InterruptOrResumeParamCompletion(ctx, "DbQueryTables", param, i18n.TC(ctx, imsg.DbInfoIncomplete), "db", []tools.CompletionParamInfo{
 					{Param: "dbId", Name: "数据库ID"},
 					{Param: "dbName", Name: "数据库名称（可选，留空使用默认库）"},
 				}, queryDbOptions(ctx)); err != nil {

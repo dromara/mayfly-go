@@ -394,7 +394,11 @@ func checkCaps(caps entity.Capabilities, w *entity.MemberWrite) error {
 func (k *keyValueAppImpl) runCmds(ctx context.Context, conn *rdm.RedisConn, cmds [][]any, ack WarnAck) (any, error) {
 	var res any
 	// 同一连接上生效的流程定义相同：解析一次逐条复用，别把批量操作变成每条命令两趟库查询
-	procdef := k.redisApp.TriggerProcdefOf(ctx, conn)
+	procdef, err := k.redisApp.TriggerProcdefOf(ctx, conn)
+	if err != nil {
+		// 策略定位失败：整批拒绝，不能静默当成「无策略」
+		return nil, err
+	}
 	for _, args := range cmds {
 		if err := k.redisApp.CheckCmdTrigger(ctx, procdef, args, ack); err != nil {
 			return nil, err

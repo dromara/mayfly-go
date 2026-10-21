@@ -296,7 +296,9 @@ func isCommandSeparator(token string) bool {
 		return false
 	}
 	switch token {
-	case ";", "&&", "||", "|", "\n", "\r":
+	case ";", "&&", "||", "|", "&", "\n", "\r":
+		// 单个 & 也是命令分隔符（后台执行）：漏了它会让 `ls -la & rm -rf /` 落进同一段、
+		// 只按首词 ls 判白名单，从而免审批后台执行 rm。isOperatorChar 早已含 &，二者必须一致
 		return true
 	}
 	return false

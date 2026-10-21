@@ -131,4 +131,30 @@ const (
 	// ErrProcinstStatusNotCancelable 流程不在可取消状态（仅审批中/挂起/退回可取消），
 	// 拒绝把已完成/已终止/已取消的实例再改写一次
 	ErrProcinstStatusNotCancelable
+	// ErrExecutionNoNextNode 执行流没有下一节点（连线条件全不命中或连线缺失）
+	ErrExecutionNoNextNode
+	// ErrBizTypeUnregistered 提单的 bizType 没有注册审批回调：批完什么也不会发生
+	ErrBizTypeUnregistered
+	// ReasonFieldUnavailable 「全不」组里存在取不到值的字段：无法判定即拒绝（否则可被当成豁免成立）
+	ReasonFieldUnavailable
+	// ErrUserTaskNodeCandidateInvalid 候选人格式非法（仅支持账号 id 与 role:<角色id>）
+	ErrUserTaskNodeCandidateInvalid
+	// ErrUserTaskNodeCandidateDuplicate 候选人重复（同一账号会一次点击投多票）
+	ErrUserTaskNodeCandidateDuplicate
+	// 以下为原先以英文句子直透前端的业务错误（i18n.md 禁止硬编码文案）
+	ErrBizHandlerNotFound
+	ErrStartNodeNotUnique
+	ErrEndNodeNotUnique
+	ErrExecutionNil
+	ErrProcdefNotExist
+	ErrProcinstNotExist
+	ErrNotLogin
+	ErrProcinstTaskNotExist
+	ErrNotTaskHandler
+	ErrTaskNodeMismatch
+	ErrSimulateInputInvalid
+	ErrAiTaskResponseFailed
+	ErrAiTaskResponseInvalid
+	// ErrEdgeAmbiguous 多条连线同时命中，无法确定唯一的下一个节点
+	ErrEdgeAmbiguous
 )

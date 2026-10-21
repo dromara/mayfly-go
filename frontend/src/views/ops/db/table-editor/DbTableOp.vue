@@ -132,7 +132,7 @@
                             show-icon
                             style="margin-top: 12px"
                         />
-                        <el-descriptions v-else :column="3" border size="small" style="margin-top: 12px">
+                        <el-descriptions v-else :column="3" border size="small" style="margin-top: 12px" label-width="90">
                             <el-descriptions-item :label="$t('db.teTemplateAppliedCols')">{{ formData.fields.res.length }}</el-descriptions-item>
                             <el-descriptions-item :label="$t('db.teTemplateAppliedIdx')">{{ formData.indexes.res.length }}</el-descriptions-item>
                         </el-descriptions>

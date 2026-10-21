@@ -126,15 +126,19 @@ func (r *Registry) List() []*Skill {
 	return list
 }
 
-// ParseFrontmatter 解析手册 frontmatter（--- 包裹的 name/description/allowed-tools）
-func ParseFrontmatter(content string) (name, description, body string) {
+// ParseFrontmatter 解析手册 frontmatter（--- 包裹的 name/description/allowed-tools）。
+//
+// allowedTools 必须一并返回：BuildSkillMd 是**会写** allowed-tools 的，解析侧不读就等于
+// 「导出/导入 roundtrip 丢字段」——zip 导入的技能装上了，但预批准工具列表每轮都要重新审批，
+// 而写读两侧都不会报错
+func ParseFrontmatter(content string) (name, description, allowedTools, body string) {
 	const fence = "---"
 	if !strings.HasPrefix(content, fence) {
-		return "", "", content
+		return "", "", "", content
 	}
 	parts := strings.SplitN(content, fence, 3)
 	if len(parts) < 3 {
-		return "", "", content
+		return "", "", "", content
 	}
 	for _, line := range strings.Split(parts[1], "\n") {
 		line = strings.TrimSpace(line)
@@ -142,10 +146,12 @@ func ParseFrontmatter(content string) (name, description, body string) {
 			name = strings.TrimSpace(v)
 		} else if v, ok := strings.CutPrefix(line, "description:"); ok {
 			description = strings.TrimSpace(v)
+		} else if v, ok := strings.CutPrefix(line, "allowed-tools:"); ok {
+			allowedTools = strings.TrimSpace(v)
 		}
 	}
 	body = strings.TrimSpace(parts[2])
-	return name, description, body
+	return name, description, allowedTools, body
 }
 
 // BuildSkillMd 由元数据与正文构建 SKILL.md 内容（frontmatter + 正文）

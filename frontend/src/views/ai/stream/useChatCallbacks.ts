@@ -5,6 +5,7 @@
 import { unref, type MaybeRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { InterruptEvent, ItemDelta, TurnItem } from '../protocol/types';
+import { TURN_NOTICE_TEXT_KEY } from '../registries/noticeKinds';
 import { useChatStore } from '../stores/chatStore';
 import { writeInterrupted, writeTurnNotice } from './eventWriter';
 import { TurnStatus } from '../registries/statuses';
@@ -50,9 +51,13 @@ export function useChatCallbacks(convId: MaybeRef<number>) {
             store.finalizeTurn(unref(convId), turnId);
             // 运行中指示器：turn 终态，会话退出执行中
             store.markConvIdle(unref(convId));
-            // 显式停止：写入“已停止”提示（由服务端 stop 协议驱动的终态，唯一真正的停止路径）
+            // 显式停止：写入“已停止”提示（由服务端 stop 协议驱动的终态，唯一真正的停止路径）。
+            // TurnStatus.Cancelled（用户取消参数补全/拒绝审批）刻意不落这里：收尾文案已由服务端
+            // 以 i18n 气泡形式落库，再叠一条会把「我拒了这条命令」显示成「我中断了整轮生成」
             if (status === TurnStatus.Stopped) {
-                writeTurnNotice(unref(convId), turnId, 'stopped', t('ai.chat.turnStopped'));
+                // 文案键取自 registries/noticeKinds（与历史重建路径同一张登记表）：两边各写一遍字面量
+                // 会在下次改文案时只改一处，同一个「停止」在刷新前后长出不同说法
+                writeTurnNotice(unref(convId), turnId, 'stopped', t(TURN_NOTICE_TEXT_KEY.stopped));
             }
         },
 

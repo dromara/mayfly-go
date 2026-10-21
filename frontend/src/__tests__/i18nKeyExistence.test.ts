@@ -38,6 +38,63 @@ function referencedKeys(source: string): string[] {
     return [...source.matchAll(/\$?\bt\(\s*'([a-z]+\.[A-Za-z0-9_.]+)'/g)].map((m) => m[1]);
 }
 
+/**
+ * 取写死的「无命名空间」key（`t('params')` 这类漏了前缀的写法）。
+ *
+ * 字典顶层全是命名空间（common / msg / agentops / flow…），所以这种 key 永远解析不到值；
+ * 而 missingWarn:false 会让它原样显示到界面上（实测：发送弹窗的字段标签就是英文原词
+ * `params`，kafka 消费组计数处是 `count`）。上面的 referencedKeys 只收「带点」的 key，
+ * 整类漏前缀写法对它完全不可见，所以单独一条判据
+ */
+function dotlessKeys(source: string): string[] {
+    return [...source.matchAll(/\$?\bt\(\s*'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+}
+
+/**
+ * 剔掉注释行。
+ *
+ * 不剔不行：注释里会合法地引用「旧的错误写法」作为反例（本仓就有几处写明「之前这里是
+ * 裸键名」），拿整文件做包含判定会把注释当成界面缺陷，红得毫无意义。只做行级识别，
+ * 不拆字符串里的 `//`（URL）——那类内容不会出现在行首
+ */
+function stripComments(source: string): string {
+    const kept: string[] = [];
+    let inHtmlComment = false;
+    for (const line of source.split('\n')) {
+        const text = line.trim();
+        if (inHtmlComment) {
+            if (text.includes('-->')) inHtmlComment = false;
+            continue;
+        }
+        if (text.startsWith('<!--')) {
+            if (!text.includes('-->')) inHtmlComment = true;
+            continue;
+        }
+        if (text.startsWith('//') || text.startsWith('/*') || text.startsWith('*') || text.startsWith('*/')) continue;
+        kept.push(line);
+    }
+    return kept.join('\n');
+}
+
+/**
+ * 取 `props: { ... }` 里**没被 t() 包起来**的点号串字面量。
+ *
+ * auto-form 的渲染器只翻译 label/tooltip，`props` 是原样透传给底层组件的，
+ * 所以把 i18n 键写进 props 不会报错、也不会被类型检查拦住，而是把裸键名显示到界面上。
+ * 实测踩过：告警规则抽屉的 4 个时间/次数输入框占位符显示成 `alert.groupWaitPlaceholder`。
+ */
+function bareKeysInProps(source: string): { prop: string; key: string }[] {
+    const out: { prop: string; key: string }[] = [];
+    for (const obj of source.matchAll(/props:\s*\{([^{}]*)\}/g)) {
+        // 先摘掉正确写法 t('a.b.c')，剩下的点号串才是漏翻译的
+        const body = obj[1].replace(/\$?\bt\(\s*['"][^'"]+['"]\s*\)/g, 'T()');
+        for (const m of body.matchAll(/([A-Za-z]+):\s*['"]([a-z]+\.[A-Za-z0-9_.]+)['"]/g)) {
+            out.push({ prop: m[1], key: m[2] });
+        }
+    }
+    return out;
+}
+
 function lookup(root: object, path: string): boolean {
     return (
         path.split('.').reduce<unknown>((node, key) => {
@@ -66,10 +123,24 @@ describe('i18n key 与文案存在性', () => {
         expect(total).toBeGreaterThan(200);
     });
 
+    it('不得出现漏了命名空间的 t(\'xxx\') 调用（字典顶层全是命名空间，这类 key 永远取不到值）', () => {
+        // 先用一段合成源码自测扫描式：不这样做，某天改了模板写法会让本判据安静地空跑
+        expect(dotlessKeys("<span>{{ $t('count') }}</span>"), '扫描式已失配，本判据在空跑').toEqual(['count']);
+
+        const bare: string[] = [];
+        for (const file of files) {
+            for (const key of new Set(dotlessKeys(stripComments(readFileSync(file, 'utf8'))))) {
+                bare.push(`${file.replace(process.cwd() + '/', '')}: t('${key}')`);
+            }
+        }
+        expect(bare, '以下调用会在界面上直接吐出英文原词:\n' + bare.join('\n')).toEqual([]);
+    });
+
     it('写死的 key 在中文与英文字典里都能取到值', () => {
         const missing: string[] = [];
         for (const file of files) {
-            for (const key of new Set(referencedKeys(readFileSync(file, 'utf8')))) {
+            const source = stripComments(readFileSync(file, 'utf8'));
+            for (const key of new Set(referencedKeys(source))) {
                 // 前缀不在字典顶层（动态拼出来的 key 不在本判据内）就跳过，其余要求两种语言都有值
                 if (!(key.split('.')[0] in dictionaries.zh)) continue;
                 for (const [locale, root] of Object.entries(dictionaries)) {
@@ -78,6 +149,23 @@ describe('i18n key 与文案存在性', () => {
             }
         }
         expect(missing, '界面上会直接吐出裸 key:\n' + missing.join('\n')).toEqual([]);
+    });
+
+    it('props 里不得直接写 i18n 键（渲染器不翻译 props，界面会显示裸键名）', () => {
+        const bare: string[] = [];
+        let propsObjects = 0;
+        for (const file of files) {
+            const source = readFileSync(file, 'utf8');
+            propsObjects += (source.match(/props:\s*\{/g) ?? []).length;
+            for (const { prop, key } of bareKeysInProps(source)) {
+                // 只认「确实是字典里的键」的点号串，避免把 'notifyConfig.groupWait' 这类
+                // 字段路径误判成漏翻译
+                if (lookup(dictionaries.zh, key)) bare.push(`${file.replace(process.cwd() + '/', '')}: props.${prop} = '${key}'`);
+            }
+        }
+        // 判据本身要能扫到东西，否则改了正则也不会红
+        expect(propsObjects, '没扫到任何 props 对象，判据已失效').toBeGreaterThan(30);
+        expect(bare, '以下 props 值会在界面上显示成裸键名，应改为 t(...) 取值:\n' + bare.join('\n')).toEqual([]);
     });
 
     /**

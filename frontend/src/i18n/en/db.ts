@@ -12,6 +12,7 @@ export default {
         acNameRequired: 'Please complete the credential account information',
         dbInst: 'DB Instance',
         manageDbTitle: 'Manage the [{instName}] database',
+        addDbTitle: 'Add Database',
         sqlitePathPlaceholder: 'Please enter the absolute address of the sqlite file on the server',
         connParamPlaceholder: 'Other connection parameters of the form key1=value1&key2=value2',
         connSuccess: 'be connected successfully',

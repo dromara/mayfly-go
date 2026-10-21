@@ -25,14 +25,18 @@ const (
 type DbMaskRule struct {
 	model.Model
 
-	Name      string         `json:"name" gorm:"size:64;not null;comment:规则名称"`
-	MatchType MaskMatchType  `json:"matchType" gorm:"not null;comment:匹配类型:1正则 2精确 3前缀"`
-	Pattern   string         `json:"pattern" gorm:"size:255;not null;comment:匹配模式"`
-	Algorithm string         `json:"algorithm" gorm:"size:32;not null;comment:脱敏算法"`
-	Params    string         `json:"params" gorm:"size:500;comment:算法参数json"`
-	Status    MaskRuleStatus `json:"status" gorm:"not null;default:1;comment:状态:1启用 0停用"`
-	Weight    int            `json:"weight" gorm:"default:0;comment:权重，越大越先匹配"`
-	Remark    string         `json:"remark" gorm:"size:255;comment:备注"`
+	Name      string        `json:"name" gorm:"size:64;not null;comment:规则名称"`
+	MatchType MaskMatchType `json:"matchType" gorm:"not null;comment:匹配类型:1正则 2精确 3前缀"`
+	Pattern   string        `json:"pattern" gorm:"size:255;not null;comment:匹配模式"`
+	Algorithm string        `json:"algorithm" gorm:"size:32;not null;comment:脱敏算法"`
+	Params    string        `json:"params" gorm:"size:500;comment:算法参数json"`
+	// Status 此处**不能**带 gorm 的 default 标签：停用的枚举值恰好是 0，与 Go 零值同形，
+	// 而 GORM 对「带 default 标签且取零值」的字段会把它从 INSERT 列里整个剔除、交给数据库
+	// 默认值填充，用户建的停用规则会被静默变成启用。更新侧同样会跳零值，
+	// 故保存必须走 repository.MaskRule.SaveAllColumns
+	Status MaskRuleStatus `json:"status" gorm:"not null;comment:状态:1启用 0停用"`
+	Weight int            `json:"weight" gorm:"default:0;comment:权重，越大越先匹配"`
+	Remark string         `json:"remark" gorm:"size:255;comment:备注"`
 }
 
 func (DbMaskRule) TableName() string {

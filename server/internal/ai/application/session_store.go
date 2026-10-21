@@ -63,16 +63,33 @@ func (s *sessionStoreImpl) AppendMsgs(ctx context.Context, sessionKey string, ms
 	return nil
 }
 
-// GetHistory 获取会话历史消息（按时间正序），由 TurnItem 转换而来
+// GetHistory 获取会话历史消息（按时间正序），由 TurnItem 转换而来。
+//
+// 未摘要窗口由本方法自己界定：先算真实消息条数（CountUnsummarized），再取这个窗口的尾部。
+// 旧写法把「Count - Skip」当读取上界交给调用方算，而 Count 是 AppendMsgs 的累加快照，
+// 与 item 展开数不等（实测 160 条只读回 5 条、count=0 时直接返回空历史）——模型会静默失忆。
+// 与 JSONL 后端对齐后，两个实现的语义都是「最近的未摘要消息」
 func (s *sessionStoreImpl) GetHistory(ctx context.Context, sessionKey string, limit int) ([]*session.Message, error) {
 	convId, err := parseConvId(sessionKey)
 	if err != nil {
 		return nil, err
 	}
-	if limit <= 0 {
-		limit = 1000
+	unsummarized, err := s.CountUnsummarized(ctx, sessionKey)
+	if err != nil {
+		return nil, err
 	}
-	items, err := s.turnItemRepo.SelectRecentByConvId(ctx, convId, limit)
+	if unsummarized <= 0 {
+		// 全部已被摘要覆盖：返回空，由 Manager 前置摘要消息
+		return []*session.Message{}, nil
+	}
+	readLimit := unsummarized
+	if limit > 0 && limit < readLimit {
+		readLimit = limit
+	}
+
+	// SelectRecentByConvId 的 limit 是 **item** 条数（一个 tool_call item 展开 2 条消息），
+	// 按消息数取 item 不会少读，多读的部分由下面的按组裁剪回收
+	items, err := s.turnItemRepo.SelectRecentByConvId(ctx, convId, readLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +97,86 @@ func (s *sessionStoreImpl) GetHistory(ctx context.Context, sessionKey string, li
 	for _, item := range items {
 		msgs = append(msgs, s.itemToMessages(ctx, item)...)
 	}
-	// 单个 item 可能产生多条消息（tool_call item → 助手调用 + 工具结果），裁剪为最后 limit 条
-	if len(msgs) > limit {
-		msgs = msgs[len(msgs)-limit:]
+	// 单个 item 可能产生多条消息（tool_call item → 助手调用 + 工具结果），裁剪为最后 readLimit 条，
+	// 但必须按「消息组」对齐（见 trimToLastCompleteGroups）
+	if len(msgs) > readLimit {
+		msgs = trimToLastCompleteGroups(msgs, readLimit)
+	}
+	// 运行时自检（代价可忽略：只看首条）：这条不变量一旦被破坏，发给模型的就是非法消息序列，
+	// 表现为模型困惑或答非所问，很难反推回这里。留一条 warn 让它可查、可持续验证，
+	// 而不是等一次人工复现
+	if len(msgs) > 0 && msgs[0].Role == schema.Tool {
+		logx.WarnfContext(ctx, "[GetHistory] illegal message sequence: window starts with an orphan "+
+			"tool result, sessionKey=%s, limit=%d", sessionKey, limit)
 	}
 	return msgs, nil
+}
+
+// CountUnsummarized 未摘要消息数 = 上下文消息条数 - 已摘要条数（Skip）。
+//
+// 计数口径与 itemToMessages 的产出对齐：message 计 1、tool_call 计 2；reasoning/turn_notice/
+// compaction 不产生上下文消息，计 0；run 内中断派生的 internal 消息不进模型上下文，也不计。
+// 不直接用 conversation.total_message_count：那是 AppendMsgs 的累加快照，与 TurnItem 真实
+// 展开数不等，拿它做读取上界会静默截断或清空上下文
+func (s *sessionStoreImpl) CountUnsummarized(ctx context.Context, sessionKey string) (int, error) {
+	convId, err := parseConvId(sessionKey)
+	if err != nil {
+		return 0, err
+	}
+	items, err := s.turnItemRepo.SelectByCond(&entity.TurnItem{ConversationId: convId}, "item_type")
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, item := range items {
+		switch item.ItemType {
+		case entity.ItemTypeMessage:
+			total++
+		case entity.ItemTypeToolCall:
+			total += 2 // 助手调用 + 工具结果
+		}
+	}
+
+	skip := 0
+	meta, metaErr := s.GetMeta(ctx, sessionKey)
+	if metaErr != nil {
+		logx.WarnfContext(ctx, "[CountUnsummarized] read meta failed, treat skip as 0: sessionKey=%s, err=%v", sessionKey, metaErr)
+	} else if meta != nil {
+		skip = meta.Skip
+	}
+	if skip < 0 {
+		skip = 0
+	}
+	if skip > total {
+		skip = total
+	}
+	// 可观测点：上下文长度异常（模型「失忆」）时，先看这行而不是去猜摘要逻辑
+	logx.DebugfContext(ctx, "[CountUnsummarized] sessionKey=%s total=%d skip=%d unsummarized=%d",
+		sessionKey, total, skip, total-skip)
+	return total - skip, nil
+}
+
+// trimToLastCompleteGroups 从尾部保留最近 limit 条消息，但保证切点不落在工具结果上。
+//
+// 为什么不能按条数硬切：一个 tool_call item 会展开成「助手（含 tool_calls）+ 工具结果」两条消息，
+// 直接取 msgs[n-limit:] 可能把助手调用切掉而留下它的工具结果，得到一个以孤立 tool 消息开头的历史
+// ——那是模型 API 的非法消息序列（tool 消息必须跟随产生它的助手调用），实际表现为模型困惑、
+// 答非所问（曾观测到模型延续上一轮主题作答）。
+// 工具结果总是紧跟它的助手调用，所以从切点往前退到首个非 tool 消息即可保证成对。
+//
+// 依赖一条当前成立的形状不变量：一个 tool_call item 只承载**一个** toolCall（见
+// agent.EventMapper.MapToolCallEvent 逐个生成 item，以及 itemToMessages 每个 item 只产出
+// 1 条含单个 ToolCalls 的 assistant + 1 条 tool）。若将来为对齐 OpenAI 原生形状把多次工具调用
+// 合并成一条 assistant（tool_calls 数 > 其后 tool 消息数），本裁剪会静默产生「部分配对」，
+// 那时必须改成按 ToolCalls 长度配对后退，而不是只看角色。
+// 不变量回归用例见 history_trim_test.go 与 session_store_history_test.go（对每个 limit 值全扫断言首条非 tool）
+// 工具结果（理论上不应出现）时保留整段，不丢历史
+func trimToLastCompleteGroups(msgs []*session.Message, limit int) []*session.Message {
+	start := len(msgs) - limit
+	for start > 0 && msgs[start] != nil && msgs[start].Role == schema.Tool {
+		start--
+	}
+	return msgs[start:]
 }
 
 // ClearHistory 清空会话历史消息（删除 TurnItem，保留会话元数据）
@@ -151,7 +243,7 @@ func (s *sessionStoreImpl) UpdateMessage(ctx context.Context, msg *session.Messa
 
 	// 中断消息的 resumeInfo 回写：决策内嵌 interrupt 对象（merge_patch）
 	if msg.Role == session.RoleInternal {
-		resumeInfo, ok := msg.Extra["resumeInfo"]
+		resumeInfo, ok := msg.Extra[session.ExtraKeyResumeInfo]
 		if !ok {
 			return nil
 		}
@@ -160,7 +252,7 @@ func (s *sessionStoreImpl) UpdateMessage(ctx context.Context, msg *session.Messa
 			return nil
 		}
 		info.Resume = protocol.NewResumeFromResumeInfo(resumeInfo)
-		item.Extra["interrupt"] = info
+		item.Extra[protocol.ExtraKeyInterrupt] = info
 		return s.turnItemRepo.UpdateById(ctx, item, "extra")
 	}
 
@@ -334,6 +426,12 @@ func (s *sessionStoreImpl) itemToMessages(ctx context.Context, item *entity.Turn
 		if args == "" {
 			args = "{}"
 		}
+		// 中断未执行时 Output 为空（见 event_mapper）：给一个机器可读的中性标记，
+		// 既避免空 tool 内容被网关拒绝，也绝不能写成「请审批」——那会让模型重复发起
+		toolOutput := ti.Output
+		if toolOutput == "" && item.Status == protocol.TurnItemStatusInterrupted {
+			toolOutput = "[interrupted]"
+		}
 		msgs := []*session.Message{
 			{
 				Id:      int64(item.Id),
@@ -350,7 +448,7 @@ func (s *sessionStoreImpl) itemToMessages(ctx context.Context, item *entity.Turn
 				TurnId:     item.TurnId,
 				Role:       schema.Tool,
 				MsgType:    entity.MsgTypeToolResult,
-				Content:    ti.Output,
+				Content:    toolOutput,
 				ToolCallId: ti.ToolCallId,
 				ToolName:   ti.ToolName,
 			},
@@ -362,7 +460,7 @@ func (s *sessionStoreImpl) itemToMessages(ctx context.Context, item *entity.Turn
 			extra := collx.M{"type": msgType}
 			// 恢复决策内嵌 interrupt 对象，反合成为恢复链路消费的 resumeInfo
 			if info.Resume != nil {
-				extra["resumeInfo"] = info.Resume.ToResumeInfo(info.Kind, info.RequestId, item.TurnId)
+				extra[session.ExtraKeyResumeInfo] = info.Resume.ToResumeInfo(info.Kind, info.RequestId, item.TurnId)
 			}
 			msgs = append(msgs, &session.Message{
 				Id:         int64(item.Id),
@@ -390,7 +488,7 @@ func interruptInfoOf(item *entity.TurnItem) *protocol.InterruptInfo {
 	if item.Extra == nil {
 		return nil
 	}
-	switch v := item.Extra["interrupt"].(type) {
+	switch v := item.Extra[protocol.ExtraKeyInterrupt].(type) {
 	case *protocol.InterruptInfo:
 		return v
 	case protocol.InterruptInfo:

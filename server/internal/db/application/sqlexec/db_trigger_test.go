@@ -26,8 +26,8 @@ type fakeProcdefReader struct {
 	broken error
 }
 
-func (f fakeProcdefReader) GetProcdefByCodePath(_ context.Context, _ ...string) *flowentity.Procdef {
-	return f.governed
+func (f fakeProcdefReader) GetProcdefByCodePath(_ context.Context, _ ...string) (*flowentity.Procdef, error) {
+	return f.governed, nil
 }
 
 func (f fakeProcdefReader) CheckProcdefTrigger(_ context.Context, procdef *flowentity.Procdef, req *flowdto.TriggerRequest) (*trigger.Decision, error) {
@@ -146,6 +146,31 @@ func TestDmlRequiresApprovalWithEmptyTypesNeverMatches(t *testing.T) {
 	}
 	if matched {
 		t.Fatalf("an empty selection must not match every statement")
+	}
+}
+
+// MERGE 是写语句：默认候选集必须含 merge，且配置含 merge 时 dml-requires-approval 必须命中，
+// 否则 MERGE 会绕过审批（历史上 MERGE 未建模，落到 other 不被 DML 规则命中）。
+func TestDmlRequiresApprovalCoversMerge(t *testing.T) {
+	def, _ := trigger.CheckOf(dbCheckDmlRequiresApproval)
+
+	hasMerge := false
+	for _, v := range dbStmtTypes {
+		if v == "merge" {
+			hasMerge = true
+		}
+	}
+	if !hasMerge {
+		t.Fatalf("dbStmtTypes 必须包含 merge 候选，否则管理员无法治理 MERGE")
+	}
+
+	ctx := trigger.NewContext(context.Background(), DbSQLExecFlowBizType, 1, map[string]string{"stmtType": "merge", "sql": "MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = 1"}, nil)
+	matched, err := def.Evaluate(context.Background(), ctx, map[string]any{"stmtTypes": []any{"insert", "update", "delete", "merge", "ddl"}})
+	if err != nil || !matched {
+		t.Fatalf("配置含 merge 时 MERGE 必须命中需审批，got matched=%v err=%v", matched, err)
+	}
+	if m2, _ := def.Evaluate(context.Background(), ctx, map[string]any{"stmtTypes": []any{"insert", "update"}}); m2 {
+		t.Fatalf("未配置 merge 时 MERGE 不应命中（治理粒度由管理员决定）")
 	}
 }
 

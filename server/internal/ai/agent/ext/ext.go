@@ -19,6 +19,7 @@ import (
 	historyext "mayfly-go/internal/ai/agent/ext/history"
 	interruptext "mayfly-go/internal/ai/agent/ext/interrupt"
 	memoryext "mayfly-go/internal/ai/agent/ext/memory"
+	proposaltoolext "mayfly-go/internal/ai/agent/ext/proposaltool"
 	skillext "mayfly-go/internal/ai/agent/ext/skill"
 	"mayfly-go/internal/ai/agent/middleware"
 	"mayfly-go/internal/ai/memory"
@@ -59,6 +60,10 @@ func InstallAll(b *contributor.Builder, deps Deps) {
 	// 技能：L1 目录注入（skill_injection）+ skill_read 工具（skill_tools）
 	skillext.Install(b)
 	skillext.InstallTools(b)
+	// 变更提案工具：propose_remediation（proposal_tools，capability=read，只读档也可用）。
+	// 工具仅面向 ai/tools.ProposalRecorder 端口，实现由 agentops 在 init 期注入（依赖倒置），
+	// 未注入时工具优雅降级，故可作为内置扩展静态安装（不引入 agent → 业务层循环依赖）。
+	proposaltoolext.Install(b)
 	environmentext.Install(b)
 	// 中断类型扩展：审批/参数补全（interrupt_approval / interrupt_param_completion）
 	interruptext.Install(b)

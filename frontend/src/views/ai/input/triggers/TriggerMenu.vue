@@ -12,17 +12,11 @@
                 @mousedown.prevent="selectItem(index)"
                 @mouseenter="hoverIndex = index"
             >
-                <!-- 资源菜单按类型分组：类型切换处插入分组标题（对齐资源树选择体验） -->
-                <div v-if="item.kind === 'resource' && (index === 0 || items[index - 1]?.resourceType !== item.resourceType)" class="trigger-menu__group">
-                    {{ item.resourceType === 'machine' ? t('ai.chat.machineGroup') : t('ai.chat.dbGroup') }}
-                </div>
                 <div class="trigger-menu__item-row">
                     <div class="trigger-menu__item-icon">
                         <slot name="icon" :item="item">
-                            <ServerIcon v-if="item.kind === 'resource' && item.resourceType === 'machine'" class="trigger-menu__zap" />
-                            <DatabaseIcon v-else-if="item.kind === 'resource'" class="trigger-menu__zap" />
-                            <ZapIcon v-else-if="!item.icon" class="trigger-menu__zap" />
-                            <span v-else v-html="item.icon" />
+                            <span v-if="item.icon" v-html="item.icon" />
+                            <component v-else :is="iconOf(item)" class="trigger-menu__zap" />
                         </slot>
                     </div>
                     <div class="trigger-menu__item-content">
@@ -37,12 +31,18 @@
 
 <script setup lang="ts">
 /**
- * TriggerMenu - 浮动建议菜单
- * 由 @floating-ui/dom 定位到光标附近
+ * TriggerMenu - 浮动建议菜单（列表模式）
+ * 由 @floating-ui/dom 定位到光标附近。
+ *
+ * 图标不在此判 kind/resourceType：图标名由 chipIcon()（芯片注册表）给出，本组件只做
+ * 「名字 → lucide 组件」的渲染映射。此前这里按 resourceType 手写 if-else 链，与 chipNode/
+ * InlineChip 各写一份同一事实；而且全仓根本没有任何代码产出 kind='resource' 的菜单项
+ * （资源走的是面板模式，无 buildItems），那些分支连同分组标题都是死代码。
  */
-import { computed, ref } from 'vue';
+import { computed, ref, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DatabaseIcon, ServerIcon, ZapIcon } from '@lucide/vue';
+import { chipIcon } from '../chipRegistry';
 import type { TriggerMenuItem } from './types';
 
 const props = defineProps<{
@@ -58,6 +58,12 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const menuRef = ref<HTMLElement | null>(null);
+
+/** 图标名 → 渲染组件（名字集合与 chipStyles.scss 的 mask 集合同源，由 SUPPORTED_CHIP_ICONS 单测卡住） */
+const MENU_ICONS: Record<string, Component> = { zap: ZapIcon, server: ServerIcon, database: DatabaseIcon };
+
+const iconOf = (item: TriggerMenuItem): Component =>
+    MENU_ICONS[chipIcon(item.kind ?? '', { label: item.label, data: (item.data ?? {}) as Record<string, unknown> })] ?? ZapIcon;
 
 /** 供父组件用 floating-ui 定位（floating 参照元素必须是菜单自身 DOM） */
 defineExpose({ menuRef });
@@ -77,7 +83,10 @@ const selectItem = (index: number) => {
     z-index: 1000;
     min-width: 220px;
     max-width: 360px;
-    max-height: 280px;
+    /* 高度上限声明为变量：useMenuPosition 的 size 中间件据此收缩（贴边不溢出视口），
+       var 作 fallback 保证未命中收缩时也维持原设计高度 */
+    --trigger-layer-max: 280px;
+    max-height: var(--trigger-layer-max);
     overflow-y: auto;
     background: var(--el-bg-color-overlay);
     border: 1px solid var(--el-border-color-light);
@@ -117,14 +126,6 @@ const selectItem = (index: number) => {
     font-size: 13px;
     color: var(--el-text-color-placeholder);
     text-align: center;
-}
-
-/* 资源分组标题（机器/数据库） */
-.trigger-menu__group {
-    padding: 6px 12px 2px;
-    font-size: 11px;
-    color: var(--el-text-color-secondary);
-    user-select: none;
 }
 
 .trigger-menu__item-row {

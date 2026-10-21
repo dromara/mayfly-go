@@ -104,6 +104,16 @@ func RegisterEvaluator(evaluator AlertEvaluator) {
 	evaluators[evaluator.ResourceType()] = evaluator
 }
 
+// UnregisterEvaluator 注销指定资源类型的评估器。
+//
+// 注册表是包级可变状态：单测注册的 fake 评估器若不摘掉，会污染同进程后续用例对
+// 「该类型是否已接入指标」的判定（SupportedResourceTypes / SupportsResourceType 都会读到它）
+func UnregisterEvaluator(resourceType int8) {
+	evalMu.Lock()
+	defer evalMu.Unlock()
+	delete(evaluators, resourceType)
+}
+
 // GetEvaluator 根据资源类型获取对应的评估器
 func GetEvaluator(resourceType int8) (AlertEvaluator, bool) {
 	evalMu.RLock()

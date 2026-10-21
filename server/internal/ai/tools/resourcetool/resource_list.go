@@ -43,15 +43,15 @@ type ListResourcesParam struct {
 type ResourceItem struct {
 	ResourceType string            `json:"resourceType" jsonschema_description:"资源类型"`
 	Id           string            `json:"id" jsonschema_description:"资源ID（作为机器/数据库等工具调用的定位参数）"`
-	Code         string            `json:"code" jsonschema_description:"资源编码（机器的 code 即授权凭证名 authCertName）"`
+	Code         string            `json:"code" jsonschema_description:"资源编码。注意：机器的 code 不是授权凭证名，调 MachineCommandExec 时 authCertName 必须取 detail.authCertName"`
 	Name         string            `json:"name" jsonschema_description:"资源名称"`
 	Description  string            `json:"description" jsonschema_description:"辅助描述（机器为 ip:port，数据库为编码）"`
-	Detail       map[string]string `json:"detail,omitempty" jsonschema_description:"类型相关明细：机器为 ip/port，数据库为可连接库名 databases"`
+	Detail       map[string]string `json:"detail,omitempty" jsonschema_description:"类型相关明细：机器为 ip/port/authCertName（authCertName 即调用工具所需的授权凭证名），数据库为可连接库名 databases"`
 }
 
 // ListResourcesOutput 资源清单查询输出
 type ListResourcesOutput struct {
-	Total     int            `json:"total" jsonschema_description:"符合条件的资源总数"`
+	Total     int            `json:"total" jsonschema_description:"符合条件的资源条目数（机器按可用凭证展开，同一机器可能多条，此时 id 相同而 detail.authCertName 不同）"`
 	Truncated bool           `json:"truncated" jsonschema_description:"结果是否因超过单次输出上限被截断，截断时请细化 resourceType 或 keyword 后重试"`
 	Resources []ResourceItem `json:"resources" jsonschema_description:"资源列表"`
 }

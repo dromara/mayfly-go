@@ -40,14 +40,17 @@ export function getTriggerChars(): string[] {
 
 const escapeCharClass = (c: string) => c.replace(/[\\\]\-\^]/g, '\\$&');
 
+/** 前置边界：空白 + CJK 正文 + 中文/全角标点（提示词里「…危险命令。@」是高频写法） */
+const BOUNDARY = '\\s\\u4e00-\\u9fff\\u3000-\\u303f\\uff00-\\uffef';
+
 /**
  * 触发词正则：光标前以触发字符开头且无空格的词（如 '/sk'、'＠机器'）。
- * 前置边界为行首/空白/CJK 字符（中文后直接输入 @ 也触发；
+ * 前置边界为行首/空白/CJK 字符与中文标点（中文或句号后直接输入 @ 也要触发；
  * 纯字母前不触发，避免邮箱 test@qq 误触）。
  */
 export function buildTriggerTokenRegex(): RegExp {
     const chars = getTriggerChars().map(escapeCharClass).join('');
-    return new RegExp(`(?:^|\\s|[\\u4e00-\\u9fff])([${chars}][^\\s]*)$`);
+    return new RegExp(`(?:^|[${BOUNDARY}])([${chars}][^\\s]*)$`);
 }
 
 // 内置触发器注册（triggerDefs 初始化之后执行，避免 TDZ）

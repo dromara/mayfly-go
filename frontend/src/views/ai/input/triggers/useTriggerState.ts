@@ -24,6 +24,10 @@ export interface UseTriggerStateOptions {
     skills: () => SkillItem[];
 }
 
+// triggerScanWindow 触发词检测的回看窗口（字符数）：只扫描光标前这么多字符，
+// 避免长文档里每次输入都对全文做正则；触发词是「紧靠光标」的短串，50 字符足够
+const triggerScanWindow = 50;
+
 export function useTriggerState(options: UseTriggerStateOptions) {
     const { getEditor, getMenuEl, onSubmit } = options;
 
@@ -40,7 +44,7 @@ export function useTriggerState(options: UseTriggerStateOptions) {
     /** 面板模式（如资源树面板）不走通用列表菜单与键盘选中 */
     const isPanelMode = computed(() => !!activeDef.value?.panelComponent);
 
-    // 浮层定位（floating-ui + autoUpdate）
+    // 浮层定位（floating-ui，滚动/尺寸订阅在 useMenuPosition 内显式管理）
     const position = useMenuPosition();
 
     const getCaretCoords = () => {
@@ -56,15 +60,15 @@ export function useTriggerState(options: UseTriggerStateOptions) {
         selectedIndex.value = 0;
     };
 
-    const reposition = () => position.update(getCaretCoords, getMenuEl());
+    const reposition = () => position.reposition();
 
     const open = (trigger: string, q = '') => {
         visible.value = true;
         char.value = trigger;
         query.value = q;
         updateItems(q);
-        // 菜单 v-if 渲染完成后再定位，否则拿不到浮层 DOM
-        nextTick(reposition);
+        // 菜单 v-if 渲染完成、overlayEl 写回后再启动定位，否则拿不到浮层 DOM
+        nextTick(() => position.start(getCaretCoords, getMenuEl));
     };
 
     const close = () => {
@@ -85,7 +89,7 @@ export function useTriggerState(options: UseTriggerStateOptions) {
         if (!editor) return '';
         const { state } = editor;
         const { from } = state.selection;
-        const textBefore = state.doc.textBetween(Math.max(0, from - 50), from, '\n');
+        const textBefore = state.doc.textBetween(Math.max(0, from - triggerScanWindow), from, '\n');
         return buildTriggerTokenRegex().exec(textBefore)?.[1] || '';
     };
 
@@ -98,7 +102,7 @@ export function useTriggerState(options: UseTriggerStateOptions) {
     const checkState = (editor: EditorLike) => {
         const { state } = editor;
         const { from } = state.selection;
-        const textBefore = state.doc.textBetween(Math.max(0, from - 50), from, '\n');
+        const textBefore = state.doc.textBetween(Math.max(0, from - triggerScanWindow), from, '\n');
 
         if (!visible.value) {
             const match = buildTriggerTokenRegex().exec(textBefore);
@@ -151,7 +155,7 @@ export function useTriggerState(options: UseTriggerStateOptions) {
         if (!editor) return;
         const { state } = editor;
         const { from } = state.selection;
-        const textBefore = state.doc.textBetween(Math.max(0, from - 50), from, '\n');
+        const textBefore = state.doc.textBetween(Math.max(0, from - triggerScanWindow), from, '\n');
         const triggerIdx = textBefore.lastIndexOf(char.value);
         if (triggerIdx >= 0) {
             const deleteFrom = from - (textBefore.length - triggerIdx);
@@ -176,16 +180,25 @@ export function useTriggerState(options: UseTriggerStateOptions) {
 
         const selection = def.onSelect
             ? def.onSelect(item)
-            : ({
-                  chip: { type: def.kind, label: item.label, data: item.data || {} },
-              } as TriggerSelection);
+            : { chip: { type: def.kind, label: item.label, data: item.data || {} } };
         insertSelection(selection);
 
         close();
     };
 
-    /** 面板模式选中（如资源树叶子节点）：删除触发词后插入芯片 */
-    const selectPanelChip = (payload: TriggerPanelSelectPayload, toSelection: (p: TriggerPanelSelectPayload) => TriggerSelection) => {
+    /**
+     * 面板模式选中（如资源树叶子节点）：删除触发词后插入芯片。
+     *
+     * 「载荷 → 芯片」的转换由当前触发器定义的 onPanelSelect 提供，而不是由调用方传进来：
+     * 否则新增一个面板触发类型就得同时改编辑器侧与浮层模板（旧实现就是把 resource 的转换写死在上层）
+     */
+    const selectPanel = (payload: TriggerPanelSelectPayload) => {
+        const toSelection = activeDef.value?.onPanelSelect;
+        if (!toSelection) {
+            // 面板声明了组件却没声明选中转换：属于注册缺失，直接关闭而不是猜一个芯片形态
+            close();
+            return;
+        }
         deleteTriggerText();
         insertSelection(toSelection(payload));
         close();
@@ -265,7 +278,7 @@ export function useTriggerState(options: UseTriggerStateOptions) {
         /** 菜单打开时的键盘拦截 */
         handleKeydown,
         selectItem,
-        selectPanelChip,
+        selectPanel,
     };
 }
 

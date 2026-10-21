@@ -1,11 +1,10 @@
 package itest
 
 // 查询/非查询语句分发正确性实证测试：
-// 镜像 ExecuteSQL 的分发规则（切割→解析→按Stmt类型分发）：
-//   - SelectStmt/WithStmt/OtherStmt → Query（读）
-//   - InsertStmt/UpdateStmt/DeleteStmt/DdlStmt → Exec（写）
+// 镜像 ExecuteSQL 的分发规则（切割→解析→sqlparser.Classify→按语句类型分发读/写通道）：
+//   - 读（Classify=Select/Other）→ Query；写（insert/update/delete/merge/ddl）→ Exec
 // 重点验证易混淆语句在真实后端下按该规则执行的兼容性：
-//   - OtherStmt（SET/EXPLAIN/PRAGMA等非标准语句）走 Query —— 后端需返回空/正常结果集而非报错
+//   - SET/PRAGMA(OtherStmt)、EXPLAIN(ExplainStmt，仅计划) 的 Classify 均归 Other → Query —— 后端需返回空/正常结果集而非报错
 //   - 前置注释的 SELECT（切割器剥离注释后）不得误判为非查询而走 Exec 导致结果丢失
 //   - pg INSERT...RETURNING 走 Exec —— 数据正确插入（RETURNING行不展示为已知行为）
 //
@@ -26,7 +25,8 @@ func TestITMysqlDispatchMatrix(t *testing.T) {
 
 	// 类型分类断言（文档化解析器行为）
 	assert.Equal(t, "*sqlstmt.OtherStmt", parseStmtType(t, conn, "SET @it_x = 1"))
-	assert.Equal(t, "*sqlstmt.OtherStmt", parseStmtType(t, conn, "EXPLAIN select 1"))
+	// EXPLAIN 解析为 ExplainStmt（仅计划/读，Classify 归 Other 走只读通道；EXPLAIN ANALYZE <写> 才判写）
+	assert.Equal(t, "*sqlstmt.ExplainStmt", parseStmtType(t, conn, "EXPLAIN select 1"))
 	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, "SHOW TABLES LIKE 'it_dispatch%'"))
 	// 前置注释被切割器剥离，不影响分类
 	assert.Equal(t, "*sqlstmt.SelectStmt", parseStmtType(t, conn, "/* header */ select 1"))
@@ -58,7 +58,7 @@ func TestITPgDispatchMatrix(t *testing.T) {
 	mustExec(t, conn, "DROP TABLE IF EXISTS it_dispatch_t")
 	mustExec(t, conn, "CREATE TABLE it_dispatch_t (id int PRIMARY KEY, v text)")
 
-	// OtherStmt(SET/EXPLAIN)→Query、ANALYZE→DdlStmt→Exec、注释SELECT→Query、DML→Exec
+	// OtherStmt(SET)/ExplainStmt(EXPLAIN，仅计划) Classify 归 Other→Query、ANALYZE→DdlStmt→Exec、注释SELECT→Query、DML→Exec
 	execDispatched(t, conn, "SET timezone = 'UTC'")
 	execDispatched(t, conn, "EXPLAIN select 1")
 	execDispatched(t, conn, "/* header */ select 1 as v")
@@ -85,9 +85,9 @@ func TestITSQLiteDispatchMatrix(t *testing.T) {
 	mustExec(t, conn, "DROP TABLE IF EXISTS `it_dispatch_t`")
 	mustExec(t, conn, "CREATE TABLE `it_dispatch_t` (id INTEGER PRIMARY KEY, v TEXT)")
 
-	// PRAGMA/EXPLAIN归OtherStmt→Query（PRAGMA本身返回结果集，Query是正确选择）
+	// PRAGMA 归 OtherStmt、EXPLAIN 归 ExplainStmt，两者 Classify 均归 Other→Query（PRAGMA本身返回结果集，Query是正确选择）
 	assert.Equal(t, "*sqlstmt.OtherStmt", parseStmtType(t, conn, "PRAGMA table_info('it_dispatch_t')"))
-	assert.Equal(t, "*sqlstmt.OtherStmt", parseStmtType(t, conn, "EXPLAIN select 1"))
+	assert.Equal(t, "*sqlstmt.ExplainStmt", parseStmtType(t, conn, "EXPLAIN select 1"))
 
 	execDispatched(t, conn, "PRAGMA table_info('it_dispatch_t')")
 	execDispatched(t, conn, "EXPLAIN select 1")

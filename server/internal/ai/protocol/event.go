@@ -22,7 +22,11 @@ const (
 const (
 	TurnStatusSuccess = "success"
 	TurnStatusStopped = "stopped" // 显式 stop 触发的 ctx 取消
-	TurnStatusFailed  = "failed"
+	// TurnStatusCancelled 用户主动终止（取消参数补全 / 拒绝审批）导致的收尾：
+	// 与「按了停止」必须可区分——前者是这一轮里某个动作被人否掉，后者是整轮生成被打断，
+	// 事后运维看 turn 状态要能分得清；且前端只对 stopped 写「已停止生成」提示，混用会多出一条误导文案
+	TurnStatusCancelled = "cancelled"
+	TurnStatusFailed    = "failed"
 )
 
 // EventMsg 结构化事件协议

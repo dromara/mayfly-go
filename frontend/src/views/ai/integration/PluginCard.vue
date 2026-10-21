@@ -1,12 +1,12 @@
 <template>
     <div class="plugin-card" @click="emit('edit')">
         <div class="card-head">
-            <span class="type-icon" :class="item.pluginType === 'skill' ? 'is-skill' : 'is-mcp'">
-                <el-icon :size="18"><FolderOpened v-if="item.pluginType === 'skill'" /><Connection v-else /></el-icon>
+            <span class="type-icon" :class="'is-' + meta.icon">
+                <el-icon :size="18"><component :is="typeIcon" /></el-icon>
             </span>
             <span class="name">{{ item.name }}</span>
-            <!-- MCP：启停 + 实例健康状态；技能：引用技能发布状态 -->
-            <template v-if="item.pluginType === 'mcp'">
+            <!-- 按能力位而非类型名分叉：MCP 有长连接，故展示健康状态与启停 -->
+            <template v-if="meta.capabilities.health">
                 <el-tag size="small" :type="item.status === InstanceStatus.Healthy ? 'success' : item.status === InstanceStatus.Error ? 'danger' : 'info'">
                     {{
                         $t(
@@ -22,26 +22,26 @@
                     {{ item.enabled === 1 ? $t('common.enabled') : $t('common.disabled') }}
                 </el-tag>
             </template>
-            <el-tag v-else size="small" :type="item.skillStatus === 'published' ? 'success' : 'warning'">
+            <el-tag v-else-if="meta.capabilities.versioning" size="small" :type="item.skillStatus === 'published' ? 'success' : 'warning'">
                 {{ item.skillStatus === 'published' ? $t('ai.integration.statusPublished') : $t('ai.integration.statusDraft') }}
             </el-tag>
         </div>
         <div class="card-desc">{{ item.description || '-' }}</div>
         <div class="card-meta">
-            <el-tag size="small" effect="plain" :type="item.pluginType === 'skill' ? 'primary' : 'success'">
-                {{ $t(item.pluginType === 'skill' ? 'ai.integration.skillPlugin' : 'ai.integration.mcpPlugin') }}
+            <el-tag size="small" effect="plain" :type="meta.tagType">
+                {{ typeLabel }}
             </el-tag>
             <span class="code">{{ item.code }}</span>
-            <span v-if="item.pluginType === 'skill' && item.skillVersion" class="version">v{{ item.skillVersion }}</span>
+            <span v-if="meta.capabilities.versioning && item.skillVersion" class="version">v{{ item.skillVersion }}</span>
         </div>
         <div class="card-footer" @click.stop>
             <!-- MCP：连接测试 / 工具查看 -->
-            <template v-if="item.pluginType === 'mcp'">
+            <template v-if="meta.capabilities.connectivity">
                 <el-button size="small" plain @click="emit('test')">{{ $t('ai.integration.testConnect') }}</el-button>
                 <el-button size="small" plain @click="emit('tools')">{{ $t('ai.integration.viewTools') }}</el-button>
             </template>
             <!-- 技能：发布 / 取消发布 / 导出 -->
-            <template v-else>
+            <template v-else-if="meta.capabilities.versioning">
                 <el-button v-if="item.skillStatus === 'draft'" size="small" plain type="success" @click="emit('publish')">{{
                     $t('ai.integration.publish')
                 }}</el-button>
@@ -57,13 +57,24 @@
 <script setup lang="ts">
 /**
  * PluginCard - 统一插件实例卡片（skill / mcp 混合渲染，PluginCard）
- * 纯展示组件：操作语义经 emit 上抛，编排逻辑收敛在 PluginManagement 页面
+ * 纯展示组件：操作语义经 emit 上抛，编排逻辑收敛在 PluginManagement 页面。
+ *
+ * 本组件不写 `pluginType === 'skill' ? … : …`：类型→文案/色/图标/能力集全部取自
+ * integration/types 的 PLUGIN_TYPE_META（单一真源），新增类型只需在表里声明能力
  */
-import { Connection, FolderOpened } from '@element-plus/icons-vue';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import type { PluginInstance } from './api';
-import { InstanceStatus } from './types';
+import { InstanceStatus, pluginTypeMeta, pluginTypeLabel } from './types';
+import { pluginTypeIcon } from './pluginTypeIcons';
 
-defineProps<{ item: PluginInstance }>();
+const props = defineProps<{ item: PluginInstance }>();
+
+const { t } = useI18n();
+
+const meta = computed(() => pluginTypeMeta(props.item.pluginType));
+const typeLabel = computed(() => pluginTypeLabel(props.item.pluginType, t));
+const typeIcon = computed(() => pluginTypeIcon(props.item.pluginType));
 
 const emit = defineEmits<{
     (e: 'edit'): void;

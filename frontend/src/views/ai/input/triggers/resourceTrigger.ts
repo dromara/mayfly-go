@@ -19,13 +19,14 @@ export function selectResourceFromPanel(payload: TriggerPanelSelectPayload): Tri
     };
 }
 
-/** 资源触发器定义（面板模式） */
+/** 资源触发器定义（面板模式：选中转换一并交给注册表） */
 export function createResourceTrigger(): TriggerDef {
     return {
         kind: 'resource',
         chars: ['@', '＠'],
         hintI18nKey: 'ai.chat.resourceTriggerPlaceholder',
         panelComponent: ResourceTreePanel,
+        onPanelSelect: selectResourceFromPanel,
     };
 }
 

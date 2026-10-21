@@ -133,12 +133,23 @@ func TestChatRuntime_MutexAndStop(t *testing.T) {
 	if _, err := r.Start(1, "t2", "u1", context.Background()); err != errTurnRunning {
 		t.Fatalf("second start should return errTurnRunning, got %v", err)
 	}
-	if r.GetRunning(1) != turn {
+	if r.GetRunning(1, "u1") != turn {
 		t.Fatal("GetRunning should return the running turn")
+	}
+	// 归属限定：别人的 turn 既查不到也停不掉（会话 id 是递增整数，不校则任何客户端可按 id
+	// 订阅他人实时输出 / 中止他人运行）
+	if r.GetRunning(1, "u2") != nil {
+		t.Fatal("GetRunning must not return another user's turn")
+	}
+	if r.Stop(1, "u2") {
+		t.Fatal("Stop by a non-owner must report false")
+	}
+	if turn.ctx.Err() != nil {
+		t.Fatalf("非本人的 Stop 不得取消别人 turn，ctx=%v", turn.ctx.Err())
 	}
 
 	// Stop 取消 turn ctx
-	if !r.Stop(1) {
+	if !r.Stop(1, "u1") {
 		t.Fatal("Stop should report the running turn exists")
 	}
 	if turn.ctx.Err() != context.Canceled {
@@ -147,7 +158,7 @@ func TestChatRuntime_MutexAndStop(t *testing.T) {
 
 	// 收尾移除后可重新 Start
 	r.Remove(1, "t1")
-	if r.GetRunning(1) != nil {
+	if r.GetRunning(1, "u1") != nil {
 		t.Fatal("turn should be removed from registry")
 	}
 	if _, err := r.Start(1, "t2", "u1", context.Background()); err != nil {

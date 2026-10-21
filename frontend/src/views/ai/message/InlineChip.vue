@@ -8,25 +8,23 @@
 <script setup lang="ts">
 /**
  * InlineChip - 消息气泡内的芯片回显标签
- * InlineChip：图标 + 名称，图标与配色查 chipRegistry（与编辑器 chipNode 同源），
- * 图标复用 ChatInput 全局 .chat-chip__icon mask 样式（zap/server/database）
+ * InlineChip：图标 + 名称，图标与配色均与编辑器 chipNode 同源（都走 chipRegistry/chipIcon），
+ * 图标 mask 样式在 input/chipStyles.scss 的全局 .chat-chip__icon
  */
 import { computed } from 'vue';
 import type { ContentSegment } from '../protocol/types';
-import { getChipType } from '../input/chipRegistry';
+import { chipIcon, getChipType } from '../input/chipRegistry';
 import '../input/chipTypes';
+// 图标 mask 样式必须在此显式导入：本组件也产出 .chat-chip__icon DOM。
+// 只靠 chipNode 的副作用导入，在纯只读轨迹路径（无编辑器）下图标是 0 尺寸空白块
+import '../input/chipStyles.scss';
 
 const props = defineProps<{ segment: ContentSegment }>();
 
 const reg = computed(() => getChipType(props.segment.type));
 
-/** resource 按子类型细分图标（机器 server / 数据库 database），其余取注册图标 */
-const icon = computed(() => {
-    if (props.segment.type === 'resource') {
-        return props.segment.extra?.resourceType === 'db' ? 'database' : 'server';
-    }
-    return reg.value?.icon || 'zap';
-});
+/** 图标与编辑器同源：子类型判定已收进注册表，这里不再重复写一遍 resourceType 分支 */
+const icon = computed(() => chipIcon(props.segment.type, { label: props.segment.text, data: props.segment.extra ?? {} }));
 
 const text = computed(() => props.segment.text);
 </script>

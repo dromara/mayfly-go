@@ -64,7 +64,7 @@
                 <div class="ml-2">
                     <el-tabs v-model="state.activeTabName" @tab-click="onTabClick" v-if="currentResource">
                         <el-tab-pane :label="$t('common.detail')" :name="ResourceDetail">
-                            <el-descriptions :title="$t('system.menu.info')" :column="2" border>
+                            <el-descriptions :title="$t('system.menu.info')" :column="2" border label-width="90">
                                 <el-descriptions-item :label="$t('common.type')">
                                     <enum-tag :enums="ResourceTypeEnum" :value="currentResource?.type" />
                                 </el-descriptions-item>

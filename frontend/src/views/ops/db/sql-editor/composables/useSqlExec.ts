@@ -281,7 +281,6 @@ export function useSqlExec(options: UseSqlExecOptions) {
      * 执行多条SQL并合并结果
      */
     const runMultipleSqls = async (sqls: string[], newTab: boolean) => {
-        state.execResTabs = [];
         // 分类SQL语句
         const nonQuerySqls: string[] = []; // 影响行数类SQL (UPDATE, INSERT, DELETE等)
         const querySqls: string[] = []; // 查询类SQL (SELECT等)
@@ -296,9 +295,24 @@ export function useSqlExec(options: UseSqlExecOptions) {
             }
         });
 
+        // 非查询整批的执行备注确认必须先于清空旧结果：清空是不可逆的破坏性动作，而确认框可取消。
+        // 一旦先清空再弹窗，用户点「取消」后上一批结果就永久消失且无从恢复。取消即整体中止——
+        // 既不新建结果 tab，也不误跑同批的查询语句，旧结果原样留在界面上。
+        let nonQueryRemark = '';
+        if (nonQuerySqls.length > 0 && askExecRemark) {
+            const asked = await askExecRemark(nonQuerySqls.join(';\n'));
+            if (asked === null) {
+                return;
+            }
+            nonQueryRemark = asked;
+        }
+
+        // 已确认真要执行，才用本轮结果替换旧结果集（多条合并执行需要一个干净的起点）
+        state.execResTabs = [];
+
         // 先执行非查询类SQL（可以合并结果）
         if (nonQuerySqls.length > 0) {
-            await runNonQuerySqls(nonQuerySqls, newTab);
+            await runNonQuerySqls(nonQuerySqls, newTab, nonQueryRemark);
             newTab = true; // 后续查询需要新标签页
         }
 
@@ -311,19 +325,11 @@ export function useSqlExec(options: UseSqlExecOptions) {
 
     /**
      * 执行非查询类SQL并合并结果
+     *
+     * 执行备注确认由调用方 runMultipleSqls 在清空旧结果前统一完成（取消即整体中止），
+     * 这里直接用传入的 remark 逐条/原子执行，不再重复弹窗
      */
-    const runNonQuerySqls = async (sqls: string[], newTab: boolean) => {
-        // 非查询批量也先弹一次执行备注确认（与单条一致）：整批非查询语句交给确认框，
-        // 其「查看执行计划」可逐条选中；取消（null）即中止整批，不创建空结果 tab
-        let remark = '';
-        if (askExecRemark) {
-            const asked = await askExecRemark(sqls.join(';\n'));
-            if (asked === null) {
-                return;
-            }
-            remark = asked;
-        }
-
+    const runNonQuerySqls = async (sqls: string[], newTab: boolean, remark: string) => {
         let execRes: ExecResTabState;
         let i = 0;
         let id;
@@ -772,12 +778,18 @@ export function useSqlExec(options: UseSqlExecOptions) {
         }
     };
 
-    const activeTab = () => {
-        const resTab = state.execResTabs[state.activeTab - 1];
-        if (!resTab || !resTab.dbTableRef) {
-            return;
+    /**
+     * 页签切换回调：把「当前激活页签」同步成用户点中的那个（tab-change 带来新页签 name，即 tab id）。
+     *
+     * 不同步的话，state.activeTab 会停在「上一次运行写入的页签」上——用户在结果-1 里执行，结果却被
+     * 写进结果-2。找页签一律按 id（不能用 activeTab-1 当下标：删过页签后 id 与下标不再对齐）。
+     */
+    const activeTab = (name?: string | number) => {
+        if (name !== undefined && name !== '') {
+            state.activeTab = Number(name);
         }
-        resTab.dbTableRef?.active();
+        const resTab = state.execResTabs.find((x) => x.id === state.activeTab);
+        resTab?.dbTableRef?.active();
     };
 
     return {
@@ -787,7 +799,6 @@ export function useSqlExec(options: UseSqlExecOptions) {
         onRunAllSql,
         runSql,
         runMultipleSqls,
-        runNonQuerySqls,
         getSql,
         getAllSql,
         changeUpdatedField,

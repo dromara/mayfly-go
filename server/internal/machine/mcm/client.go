@@ -2,6 +2,7 @@ package mcm
 
 import (
 	"errors"
+	"fmt"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"strings"
@@ -135,18 +136,22 @@ func (c *Cli) RunWithTimeout(timeout time.Duration, shell string) (string, error
 	return string(buf), nil
 }
 
-// GetAllStats 获取机器的所有状态信息
-func (c *Cli) GetAllStats() *Stats {
-	stats := new(Stats)
+// GetAllStats 获取机器的所有状态信息。
+//
+// 采集失败必须回 error，不能返一个空壳：旧写法每条失败分支都 `return stats`（已 new 好的零值结构），
+// 调用方无法区分「采样成功且指标真是 0」与「根本没采到」，于是采集器把空壳当有效数据写进缓存并打
+// 「saved to cache」，下游机器告警拿到 cpu/mem 全 0，只会静默漏报而不会报错（真机实测到脚本执行失败与
+// 输出分段不足两条路径都走这里）
+func (c *Cli) GetAllStats() (*Stats, error) {
 	res, err := c.Run(StatsShell)
 	if err != nil {
-		logx.Errorf("failed to execute machine [id=%d, name=%s] running status information script: %s", c.Info.Id, c.Info.Name, err.Error())
-		return stats
+		return nil, err
 	}
 
+	stats := new(Stats)
 	infos := strings.Split(res, "-----")
 	if len(infos) < 8 {
-		return stats
+		return nil, fmt.Errorf("machine [id=%d, name=%s] stats output unexpected: got %d segments, want >= 8", c.Info.Id, c.Info.Name, len(infos))
 	}
 	getUptime(infos[0], stats)
 	getHostname(infos[1], stats)
@@ -156,7 +161,7 @@ func (c *Cli) GetAllStats() *Stats {
 	getInterfaces(infos[5], stats)
 	getInterfaceInfo(infos[6], stats)
 	getCPU(infos[7], stats)
-	return stats
+	return stats, nil
 }
 
 // GetUsers 读取/etc/passwd，获取系统所有用户信息

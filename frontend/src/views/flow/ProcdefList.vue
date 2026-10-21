@@ -80,7 +80,12 @@ const perms = {
     del: 'flow:procdef:del',
 };
 
-const searchItems = [SearchItem.input('name', 'common.name'), SearchItem.input('defKey', 'key')];
+const searchItems = [
+    SearchItem.input('name', 'common.name'),
+    SearchItem.input('defKey', 'key'),
+    // 后端分页支持 status 过滤（form:"status"），此前界面没有入口，能力形同虚设
+    SearchItem.select('status', 'common.status').withEnum(ProcdefStatus),
+];
 const columns = [
     TableColumn.new('name', 'common.name'),
     TableColumn.new('defKey', 'flow.defKey'),

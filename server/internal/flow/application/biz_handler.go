@@ -3,8 +3,10 @@ package application
 import (
 	"context"
 	"mayfly-go/internal/flow/domain/entity"
+	"mayfly-go/internal/flow/imsg"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/i18n"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 )
@@ -70,7 +72,7 @@ func GetFlowBizHandler(bizHandleParam *BizHandleParam) (FlowBizHandler, error) {
 	flowBizType := bizHandleParam.Procinst.BizType
 	if handler, ok := handlers[flowBizType]; !ok {
 		logx.Warnf("flow biz handler not found: bizType=%s", flowBizType)
-		return nil, errorx.NewBiz("flow biz handler not found")
+		return nil, errorx.NewBiz(i18n.T(imsg.ErrBizHandlerNotFound))
 	} else {
 		return handler, nil
 	}

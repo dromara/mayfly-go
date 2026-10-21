@@ -5,12 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"log"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/filex"
 	"os"
 	"path/filepath"
@@ -283,24 +281,31 @@ func (s *JSONLStore) GetHistory(
 	return msgs, nil
 }
 
-// GetMessage 根据查询条件获取单条消息
-func (s *JSONLStore) GetMessage(ctx context.Context, query *MessageQuery) ([]*Message, error) {
-	msgs, err := s.GetHistory(ctx, "", 0)
-	if err != nil {
-		return nil, err
-	}
+// CountUnsummarized 未摘要消息条数：JSONL 后端本就是「读 skip 之后的全部消息」，
+// 与 GetHistory 同一取数口径（两个后端必须同一语义，见 Store 接口注释）
+func (s *JSONLStore) CountUnsummarized(_ context.Context, sessionKey string) (int, error) {
+	l := s.sessionLock(sessionKey)
+	l.Lock()
+	defer l.Unlock()
 
-	return collx.ArrayFilter(msgs, func(m *Message) bool {
-		if query.ToolCallId != "" && m.ToolCallId == query.ToolCallId {
-			return true
-		}
-		if query.MessageType != "" {
-			if m, ok := m.Extra["msgType"]; ok && m == query.MessageType {
-				return true
-			}
-		}
-		return false
-	}), nil
+	meta, err := s.readMeta(sessionKey)
+	if err != nil {
+		return 0, err
+	}
+	msgs, err := readMessages(s.jsonlPath(sessionKey), meta.Skip)
+	if err != nil {
+		return 0, err
+	}
+	return len(msgs), nil
+}
+
+// GetMessage 根据查询条件获取单条消息
+// GetMessage 显式失败：JSONL 是单文件历史，而 MessageQuery 不含 sessionKey，
+// 无法定位到具体会话。旧实现用空 key 读历史后返回空切片——调用方把「不支持」
+// 当成「查不到」，审批/补全的 resume 信息落不了库却查不出原因。
+// 生产走 DB 后端（application/application.go 装配），此路径只服务兜底后端
+func (s *JSONLStore) GetMessage(_ context.Context, _ *MessageQuery) ([]*Message, error) {
+	return nil, fmt.Errorf("%w: JSONLStore.GetMessage (no session key in MessageQuery)", ErrStoreUnsupported)
 }
 
 // UpdateMessage 更新单条消息
@@ -312,7 +317,7 @@ func (s *JSONLStore) UpdateMessage(ctx context.Context, msg *Message) error {
 	// 这里需要根据 ActionId 查找对应的消息
 	// 由于 JSONL 不支持直接更新，需要完整的 sessionKey 才能操作
 	// 这里返回不支持的错误
-	return errors.New("JSONLStore does not support UpdateMessage, use sessionKey-based operations")
+	return fmt.Errorf("%w: JSONLStore.UpdateMessage", ErrStoreUnsupported)
 }
 
 // ClearHistory 清空会话历史消息（保留元数据）

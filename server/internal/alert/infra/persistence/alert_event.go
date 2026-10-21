@@ -34,6 +34,12 @@ func (r *alertEventRepoImpl) GetAlertEventList(condition *entity.AlertEventQuery
 		qd = qd.EqStrict("priority", *condition.Priority)
 	}
 
+	// 可见面收窄：id 集合由服务端按运行身份注入（不可被请求绑定，见 AlertEventQuery.ResourceIds）。
+	// 空集合不走这里——「无可见资源」必须由调用方直接返回空结果，不能退化成不加过滤
+	if len(condition.ResourceIds) > 0 {
+		qd = qd.In("resource_id", condition.ResourceIds)
+	}
+
 	keyword := condition.Keyword
 	if keyword != "" {
 		keyword = "%" + keyword + "%"

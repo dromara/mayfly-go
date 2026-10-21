@@ -20,10 +20,11 @@ var metaSQL = dbi.NewSQLTemplates(metaSQLFile)
 
 // ---------------------------------- DM元数据 -----------------------------------
 const (
-	ORACLE_DB_SCHEMAS     = "ORACLE_DB_SCHEMAS"
-	ORACLE_TABLE_INFO_KEY = "ORACLE_TABLE_INFO"
-	ORACLE_INDEX_INFO_KEY = "ORACLE_INDEX_INFO"
-	ORACLE_COLUMN_MA_KEY  = "ORACLE_COLUMN_MA"
+	ORACLE_DB_SCHEMAS            = "ORACLE_DB_SCHEMAS"
+	ORACLE_DB_SCHEMAS_MAINTAINED = "ORACLE_DB_SCHEMAS_MAINTAINED"
+	ORACLE_TABLE_INFO_KEY        = "ORACLE_TABLE_INFO"
+	ORACLE_INDEX_INFO_KEY        = "ORACLE_INDEX_INFO"
+	ORACLE_COLUMN_MA_KEY         = "ORACLE_COLUMN_MA"
 )
 
 var (
@@ -210,10 +211,18 @@ func (od *OracleMetadata) GetTableDDL(tableName string, dropBeforeCreate bool) (
 	return dbi.GenTableDDL(od.di.GetDialect(), od, tableName, dropBeforeCreate)
 }
 
-// 获取DM当前连接的库可访问的schemaNames
+// GetSchemas 获取当前连接的库可访问的 schemaNames。
+//
+// 12c+ 的 ALL_USERS 带 ORACLE_MAINTAINED 列（Y 表示由 catalog.sql 等 Oracle 脚本创建并维护），
+// 据此隐藏 SYS/SYSTEM 等内置账号：它们不是业务 schema，在前端 schema 树里展开只会看到数据字典对象。
+// 11g 没有该列（直接引用会 ORA-00904 让整个 schema 列表请求失败），故先探测列是否存在，
+// 缺失时返回全量清单——多显示内置账号只是噪声，而让列表整体不可用会切断库树的 schema 层。
 func (od *OracleMetadata) GetSchemas() ([]string, error) {
-	sql := metaSQL.Get(ORACLE_DB_SCHEMAS)
-	_, res, err := od.di.Query(sql)
+	sqlKey := ORACLE_DB_SCHEMAS
+	if od.hasOracleMaintainedColumn() {
+		sqlKey = ORACLE_DB_SCHEMAS_MAINTAINED
+	}
+	_, res, err := od.di.Query(metaSQL.Get(sqlKey))
 	if err != nil {
 		return nil, err
 	}
@@ -222,4 +231,15 @@ func (od *OracleMetadata) GetSchemas() ([]string, error) {
 		schemaNames = append(schemaNames, cast.ToString(re["USERNAME"]))
 	}
 	return schemaNames, nil
+}
+
+// hasOracleMaintainedColumn 探测 12c+ 的 ALL_USERS.ORACLE_MAINTAINED 列是否存在。
+// 探测失败按不存在处理：过滤器是可选优化，不能成为 schema 列表的可用性前提。
+func (od *OracleMetadata) hasOracleMaintainedColumn() bool {
+	_, res, err := od.di.Query("SELECT COUNT(*) AS CNT FROM SYS.ALL_TAB_COLUMNS" +
+		" WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_USERS' AND COLUMN_NAME = 'ORACLE_MAINTAINED'")
+	if err != nil || len(res) == 0 {
+		return false
+	}
+	return cast.ToInt(res[0]["CNT"]) > 0
 }

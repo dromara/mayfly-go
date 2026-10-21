@@ -8,6 +8,8 @@ import (
 	"mayfly-go/internal/alert/domain/service"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/model"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -981,4 +983,98 @@ func Test32_FreshAlertRepeatNotifyStillSent(t *testing.T) {
 	if notifier.notifyCalls != 1 {
 		t.Errorf("持续越限应正常重复通知, expected 1 got %d", notifier.notifyCalls)
 	}
+}
+
+// Test33_AddToGroupResumesAfterRestart 重启后必须能把「已通知过的活跃事件」重新纳入分组，
+// 并用已持久化的时间戳播种分组时钟。
+//
+// 真机实测到的停摆：pendingGroups 是纯进程内内存、重启即清零，而两个入组调用点曾用
+// 「NotifyCount == 0」当门 —— 于是重启后所有已通知过的事件再也进不了分组，
+// 重复告警通知永久不再发生（规则配了 repeatInterval/groupInterval=300，事件持续越界 50 分钟、
+// trigger_count 从 19 跑到 33，notify_count 始终是 1）。
+// 播种 LastNotify 同时保证「补入组」不等于「重启就立刻重发一轮」
+func Test33_AddToGroupResumesAfterRestart(t *testing.T) {
+	engine, _, _, _, _ := newTestEngine()
+	rule := makeRule(1, 1, 1, 0)
+	rule.NotifyConfig = &entity.AlertNotifyConfig{GroupInterval: 300, RepeatInterval: 300}
+
+	notifyTime := time.Now().Add(-40 * time.Second)
+	resumed := &entity.AlertEvent{
+		Id: 10, ResourceId: 100, Status: entity.AlertEventStatusFiring,
+		NotifyCount: 1, LastNotifyTime: &notifyTime,
+		FirstTriggerTime: notifyTime.Add(-time.Hour), LastTriggerTime: time.Now(),
+	}
+	engine.addToGroup(rule, resumed)
+
+	group, ok := engine.pendingGroups[groupKey{RuleId: 1, ResourceId: 100}]
+	if !ok {
+		t.Fatal("已通知过的活跃事件必须能重新入组，否则重启后重复通知永久停摆")
+	}
+	if len(group.Events) != 1 {
+		t.Errorf("入组事件数应为 1, got %d", len(group.Events))
+	}
+	if !group.LastNotify.Equal(notifyTime) {
+		t.Errorf("分组时钟必须从已持久化的上次通知时间播种（否则会被当首次通知立即重发）, got %v want %v", group.LastNotify, notifyTime)
+	}
+	if !group.FirstFire.Equal(resumed.FirstTriggerTime) {
+		t.Errorf("首次越限时间应沿用事件里已持久化的值，不能重建分组就归零, got %v", group.FirstFire)
+	}
+
+	// 从未通知过的事件：保持「首次通知」语义，不得凭空造出 LastNotify
+	fresh := &entity.AlertEvent{
+		Id: 11, ResourceId: 200, Status: entity.AlertEventStatusFiring,
+		FirstTriggerTime: time.Now().Add(-time.Minute), LastTriggerTime: time.Now(),
+	}
+	engine.addToGroup(rule, fresh)
+	freshGroup, ok := engine.pendingGroups[groupKey{RuleId: 1, ResourceId: 200}]
+	if !ok {
+		t.Fatal("未通知过的事件仍须入组等待首次通知")
+	}
+	if !freshGroup.LastNotify.IsZero() {
+		t.Errorf("无已持久化通知时间时应保持首次语义, got %v", freshGroup.LastNotify)
+	}
+}
+
+// TestActiveEventAlwaysEntersGroupAtBothCallSites 两个「活跃事件入组」调用点都不得再用
+// NotifyCount 当门。
+//
+// 为什么用源码接线守卫而不是行为用例：上面的 Test33 直接调 addToGroup，测不到调用点那道门 ——
+// 把门加回去它照样绿（变异验证时这个变异真的存活了）。而缺陷本身恰好在调用点：事件已通知过一次
+// 就被永久排除在分组之外，重启后重复通知停摆。另外两个分支（并发竞争新建、已存在活跃事件）必须
+// 同改，只改一条是本仓反复出现的形态
+func TestActiveEventAlwaysEntersGroupAtBothCallSites(t *testing.T) {
+	source, err := os.ReadFile("alert_engine.go")
+	if err != nil {
+		t.Fatalf("读取 alert_engine.go 失败: %v", err)
+	}
+	text := stripLineComments(string(source))
+
+	// 先确认扫描面没空跑：三处入组调用（新建/并发竞争/已活跃）必须都在。
+	// 不钉接收者字面量：`a.` 换成 `e.`/`engine.` 的重命名与本缺陷无关，把它编进判据只会造误报；
+	// 靠「个数必须等于 3」这条计数断言防空跑已经足够
+	if got := strings.Count(text, "addToGroup(rule,"); got != 3 {
+		t.Fatalf("addToGroup 调用点应为 3 处（新建/并发竞争/已活跃），实际 %d 处：本判据已失配", got)
+	}
+
+	// 已通知过不得再成为排除理由：这道门是本轮修的缺陷本体
+	if strings.Contains(text, "NotifyCount == 0") {
+		t.Error("入组调用点不得用「NotifyCount == 0」当门：分组缓冲是纯进程内内存，重启后已通知过的活跃事件将永远进不了分组，重复告警通知静默停摆")
+	}
+}
+
+// stripLineComments 去掉行注释。
+//
+// 必需：调用点注释里会原样引用被禁的旧写法作为反面说明（本仓已两处踩到同一个误报），
+// 不剔就会把自己的注释当成缺陷；上一轮的前端 i18n 守卫也是这么修的。
+// 前提（显式写下）：不识别字符串字面量，被扫文件若出现含 `//` 的字符串会被拦腰截断；
+// 届时应改用 AST 级判据，而不是把下面的断言放宽
+func stripLineComments(source string) string {
+	var kept []string
+	for _, line := range strings.Split(source, "\n") {
+		if idx := strings.Index(line, "//"); idx >= 0 {
+			line = line[:idx]
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
 }

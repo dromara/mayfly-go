@@ -92,7 +92,7 @@
         </el-dialog>
 
         <el-dialog v-if="detailVisible" v-model="detailVisible">
-            <el-descriptions v-if="detailData" :title="$t('common.detail')" :column="3" border>
+            <el-descriptions v-if="detailData" :title="$t('common.detail')" :column="3" border label-width="90">
                 <el-descriptions-item :span="1" label="id">{{ detailData.id }}</el-descriptions-item>
                 <el-descriptions-item :span="2" :label="$t('common.name')">{{ detailData.name }}</el-descriptions-item>
 

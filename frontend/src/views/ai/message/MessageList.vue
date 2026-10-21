@@ -14,17 +14,18 @@
                     </div>
 
                     <!-- 空状态（仅非加载时渲染，避免污染引擎 children 计数）。
-                         建议芯片承担教学职责：点击回填输入框，不直接发送 -->
+                         建议芯片承担教学职责：点击回填输入框，不直接发送；
+                         只读轨迹态无输入框可回填，故不渲染建议，文案由消费方经 emptyText 注入 -->
                     <div v-if="messages.length === 0 && !loading" class="message-list__empty">
                         <Empty class="py-10">
                             <EmptyMedia variant="icon">
                                 <MessageCircleMoreIcon />
                             </EmptyMedia>
                             <EmptyContent>
-                                <EmptyDescription>{{ t('ai.assistant.startNewConversation') }}</EmptyDescription>
+                                <EmptyDescription>{{ emptyText ?? t('ai.assistant.startNewConversation') }}</EmptyDescription>
                             </EmptyContent>
                         </Empty>
-                        <div class="message-list__suggestions">
+                        <div v-if="!isTranscriptMode(effectiveMode)" class="message-list__suggestions">
                             <button v-for="key in suggestionKeys" :key="key" type="button" class="message-list__suggestion" @click="$emit('suggest', t(key))">
                                 {{ t(key) }}
                             </button>
@@ -48,7 +49,7 @@
                             :is-editing="editingMessageId === msg.id"
                             @interrupt-action="(action) => $emit('interrupt-action', action)"
                             @edit="$emit('edit-message', msg.id)"
-                            @edit-send="(c) => $emit('edit-send', c)"
+                            @edit-send="(c, s) => $emit('edit-send', c, s)"
                             @cancel-edit="$emit('cancel-edit')"
                         />
                     </MessageScrollerItem>
@@ -80,6 +81,8 @@
  *   preserveScrollOnPrepend 保证，不跳动
  * - 滚动到底部按钮：MessageScrollerButton（方向 end，自动显隐）
  * - scrollToEnd 经 defineExpose 暴露给 ChatPanel，发送后贴底（ChatInput scrollToEnd）
+ * - mode 声明本棵子树的渲染模式（chat / transcript 只读轨迹），在此单点 provide 给深层
+ *   气泡与中断卡片，避免逐层 props 穿透；空态文案由消费方传 emptyText，组件不内置业务文案
  */
 import { ArrowDownIcon, MessageCircleMoreIcon } from '@lucide/vue';
 import { computed, onBeforeUnmount, watch } from 'vue';
@@ -96,7 +99,9 @@ import {
 } from '@/components/ui/message-scroller';
 import type { ChatMessage, InterruptEvent } from '../protocol/types';
 import type { InterruptActionEvent } from '../interrupt/types';
+import { provideMessageRenderMode, DEFAULT_RENDER_MODE, isTranscriptMode, type MessageRenderMode } from './renderMode';
 import MessageBubble from './MessageBubble.vue';
+import type { ChipSegment } from '../input/chipRegistry';
 
 const props = defineProps<{
     messages: ChatMessage[];
@@ -113,7 +118,21 @@ const props = defineProps<{
     conversationId?: number | null;
     /** 恢复目标：离开时视口顶部可见消息 ID + 视口内偏移（ScrollAnchor） */
     scrollAnchor?: { id: string; offset: number } | null;
+    /** 渲染模式：必传（聊天页传 chat，轨迹类消费方传 transcript）；缺省按只读处理，一个列表实例的模式不会中途变，故一次性 provide */
+    mode?: MessageRenderMode;
+    /** 空态文案（由消费方注入，避免通用组件内置某个业务面的文案） */
+    emptyText?: string;
 }>();
+
+/**
+ * 生效模式：未声明时取 renderMode 的缺省常量（只读）。
+ *
+ * provide 与下方模板判定共用这一个值：上一轮把 inject 缺省改严为 transcript，但这里曾写着
+ * `?? 'chat'`，两边取值相反，导致改严在最常见消费路径（新只读页面忘传 mode）上不生效
+ */
+const effectiveMode = computed<MessageRenderMode>(() => props.mode ?? DEFAULT_RENDER_MODE);
+
+provideMessageRenderMode(effectiveMode.value);
 
 const emit = defineEmits<{
     (e: 'load-more'): void;
@@ -121,7 +140,7 @@ const emit = defineEmits<{
     (e: 'interrupt-action', action: InterruptActionEvent): void;
     (e: 'scroll-anchor-change', anchor: { id: string; offset: number }): void;
     (e: 'edit-message', messageId: string): void;
-    (e: 'edit-send', content: string): void;
+    (e: 'edit-send', content: string, segments: ChipSegment[]): void;
     (e: 'cancel-edit'): void;
 }>();
 

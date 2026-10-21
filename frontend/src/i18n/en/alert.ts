@@ -260,11 +260,19 @@ export default {
         notifyRoutesTips:
             'Route alerts to different notification channels and receivers based on label matching.\nE.g.: P0 alerts go to phone calls, P2 alerts only go to email.',
         notifyPolicyTips:
-            'Automatically route alerts to notification channels via label matching.\nMultiple policies can stack: channels and receivers from all matching policies are merged.\nE.g.: A severity=critical policy + a team=infra policy both match, both sets of channels receive the notification.',
+            'Automatically route alerts to notification channels via label matching.\nMultiple policies can stack: channels and receivers from all matching policies are merged.\nE.g.: A severity=critical policy + a team=infra policy both match, both sets of channels receive the notification.\nLeave the labels empty to match every alert of this resource type, so this policy\'s channels receive all of them.',
         groupByLabelsTips:
             'Group alerts by specified label keys. Alerts in the same group are merged into one notification.\nE.g.: Group by cluster to merge alerts from the same cluster.',
-        matchLabelsTips:
+        // Each of the three label-matching forms (notify policy / escalation / silence) keeps its own copy
+        // instead of sharing one key: they used to share matchLabelsTips, so the escalation form told the
+        // user that matching labels decides which alerts get *silenced* — the consequence of a different
+        // feature — while the part that actually matters ("empty matches everything") was buried in the
+        // second sentence. That is how an escalation policy ends up pushing every alert of a resource
+        // type to an external chat group.
+        silenceMatchLabelsTips:
             'Limit which alerts are silenced by label matching. Only matching alerts will be silenced.\nLeave empty to match all alerts by resource type.',
+        escalationMatchLabelsTips:
+            'Limit which alerts this escalation policy applies to: only matching alerts get escalated level by level while they stay unresolved.\nLeave empty to match every alert rule of this resource type, in which case each level below pushes to its configured channels and receivers.',
         escalationRulesTips:
             'Escalate notifications progressively when alerts remain unresolved.\nEach level can have different channels and receivers to ensure alerts are not missed.',
     },

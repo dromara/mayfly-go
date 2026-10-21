@@ -181,6 +181,126 @@
       "dbType": "vastbase",
       "sql": "SELECT /* a /* b */ c */ 1; SELECT 2;",
       "expected": ["SELECT /* a /* b */ c */ 1", "SELECT 2"]
+    },
+    {
+      "name": "pg-JSON串含双引号与分号不得误切",
+      "dbType": "postgres",
+      "sql": "INSERT INTO t (cfg) VALUES ('{\"a\":\"b;c\"}'); SELECT 2;",
+      "expected": ["INSERT INTO t (cfg) VALUES ('{\"a\":\"b;c\"}')", "SELECT 2"]
+    },
+    {
+      "name": "pg-串内双写单引号后仍有分号在串内",
+      "dbType": "postgres",
+      "sql": "INSERT INTO t VALUES ('it''s;x'); SELECT 2;",
+      "expected": ["INSERT INTO t VALUES ('it''s;x')", "SELECT 2"]
+    },
+    {
+      "name": "mysql-转义单引号后的分号仍在字符串内",
+      "dbType": "mysql",
+      "sql": "INSERT INTO t VALUES ('a\\'b;c'); SELECT 2;",
+      "expected": ["INSERT INTO t VALUES ('a\\'b;c')", "SELECT 2"]
+    },
+    {
+      "name": "pg-自定义dollar-quote标签内的分号不切割",
+      "dbType": "postgres",
+      "sql": "CREATE FUNCTION f() RETURNS int AS $body$ BEGIN RETURN 1; END $body$ LANGUAGE sql;\nSELECT 2;",
+      "expected": ["CREATE FUNCTION f() RETURNS int AS $body$ BEGIN RETURN 1; END $body$ LANGUAGE sql", "SELECT 2"]
+    },
+    {
+      "name": "sqlite-反斜杠为普通字符且串内分号不切割",
+      "dbType": "sqlite",
+      "sql": "SELECT 'a\\b;c' AS x; SELECT 2;",
+      "expected": ["SELECT 'a\\b;c' AS x", "SELECT 2"]
+    },
+    {
+      "name": "oracle-q-quote圆括号定界内含分号",
+      "dbType": "oracle",
+      "sql": "INSERT INTO t VALUES (q'(a;b)'); SELECT 2 FROM dual;",
+      "expected": ["INSERT INTO t VALUES (q'(a;b)')", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "oracle-q-quote尖括号定界内含分号",
+      "dbType": "oracle",
+      "sql": "INSERT INTO t VALUES (q'<a;b>'); SELECT 2 FROM dual;",
+      "expected": ["INSERT INTO t VALUES (q'<a;b>')", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "oracle-q-quote任意字符定界且含单引号",
+      "dbType": "oracle",
+      "sql": "INSERT INTO t VALUES (q'!it's;b!'); SELECT 2 FROM dual;",
+      "expected": ["INSERT INTO t VALUES (q'!it's;b!')", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "oracle-q-quote方括号内嵌右方括号",
+      "dbType": "oracle",
+      "sql": "INSERT INTO t VALUES (q'[a]b;c]'); SELECT 2 FROM dual;",
+      "expected": ["INSERT INTO t VALUES (q'[a]b;c]')", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "mssql-方括号内含左方括号与分号",
+      "dbType": "mssql",
+      "sql": "SELECT 1 FROM [a[b;c]; SELECT 2;",
+      "expected": ["SELECT 1 FROM [a[b;c]", "SELECT 2"]
+    },
+    {
+      "name": "pg-嵌套块注释三层",
+      "dbType": "postgres",
+      "sql": "SELECT /* a /* b /* c */ d */ e */ 1; SELECT 2;",
+      "expected": ["SELECT /* a /* b /* c */ d */ e */ 1", "SELECT 2"]
+    },
+    {
+      "name": "mysql-块注释非嵌套遇首个结束符",
+      "dbType": "mysql",
+      "sql": "SELECT /* a /* b */ 1; SELECT 2;",
+      "expected": ["SELECT /* a /* b */ 1", "SELECT 2"]
+    },
+    {
+      "name": "pg-双横线行注释内分号不切割",
+      "dbType": "postgres",
+      "sql": "SELECT 1; -- c; comment\nSELECT 2;",
+      "expected": ["SELECT 1", "-- c; comment\nSELECT 2"]
+    },
+    {
+      "name": "pg-U&串内分号不切割",
+      "dbType": "postgres",
+      "sql": "SELECT U&'a\\0041;b'; SELECT 2;",
+      "expected": ["SELECT U&'a\\0041;b'", "SELECT 2"]
+    },
+    {
+      "name": "mysql-N国家字符串内分号不切割",
+      "dbType": "mysql",
+      "sql": "SELECT N'a;b' AS x; SELECT 2;",
+      "expected": ["SELECT N'a;b' AS x", "SELECT 2"]
+    },
+    {
+      "name": "mssql-N串内双写单引号后仍有分号在串内",
+      "dbType": "mssql",
+      "sql": "SELECT N'a''b;c' AS x; SELECT 2;",
+      "expected": ["SELECT N'a''b;c' AS x", "SELECT 2"]
+    },
+    {
+      "name": "oracle-N串内分号不切割",
+      "dbType": "oracle",
+      "sql": "SELECT N'a;b' FROM dual; SELECT 2 FROM dual;",
+      "expected": ["SELECT N'a;b' FROM dual", "SELECT 2 FROM dual"]
+    },
+    {
+      "name": "pg-E串反斜杠n后分号仍在串内",
+      "dbType": "postgres",
+      "sql": "SELECT E'a\\nb;c'; SELECT 2;",
+      "expected": ["SELECT E'a\\nb;c'", "SELECT 2"]
+    },
+    {
+      "name": "pg-E串双反斜杠后分号仍在串内",
+      "dbType": "postgres",
+      "sql": "SELECT E'a\\\\b;c'; SELECT 2;",
+      "expected": ["SELECT E'a\\\\b;c'", "SELECT 2"]
+    },
+    {
+      "name": "oracle-q-quote任意问号定界",
+      "dbType": "oracle",
+      "sql": "INSERT INTO t VALUES (q'?a;b?'); SELECT 2 FROM dual;",
+      "expected": ["INSERT INTO t VALUES (q'?a;b?')", "SELECT 2 FROM dual"]
     }
   ]
 }

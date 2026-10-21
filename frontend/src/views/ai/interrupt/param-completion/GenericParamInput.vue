@@ -7,10 +7,10 @@
         <el-form label-position="top" size="small">
             <el-form-item v-for="param in params" :key="param.param" :label="param.name || param.param">
                 <el-input
-                    v-model="paramValues[param.param]"
+                    :model-value="paramValues[param.param]"
                     :placeholder="t('ai.interrupt.paramCompletion.enterParamPlaceholder', { name: param.name || param.param })"
-                    :disabled="readonly"
-                    @input="onInput(param.param, $event)"
+                    :disabled="readonly || isConfirmed"
+                    @update:model-value="patch(param.param, $event)"
                 />
             </el-form-item>
         </el-form>
@@ -29,10 +29,18 @@ interface ParamInfo {
 interface Props {
     params: ParamInfo[];
     readonly?: boolean;
+    /**
+     * 已确认（历史/轨迹里的终态）：必须参与禁用判定。
+     *
+     * 父层一直在传 `:is-confirmed`，但本组件没声明该 prop → 属性落进 $attrs 被丢弃，
+     * 只读轨迹里的参数输入框仍可直接编辑（与 Db/Machine 两个兄弟组件行为不一致）
+     */
+    isConfirmed?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     readonly: false,
+    isConfirmed: false,
 });
 
 const emit = defineEmits<{
@@ -46,8 +54,15 @@ const paramValues = defineModel<Record<string, any>>('modelValue', {
     default: () => ({}),
 });
 
-// 输入事件
-const onInput = (param: string, value: any) => {
+/**
+ * 写回：整体替换值对象后报 change。
+ *
+ * 不用 `v-model="paramValues[param.param]"`：那是原地 mutate 传入对象的属性，
+ * update:modelValue 永不触发，父层拿不到变更事件；而 onInput 里发的是 mutate 前的
+ * `{...paramValues.value}` 拷贝，与输入值存时差一个周期
+ */
+const patch = (param: string, value: unknown) => {
+    paramValues.value = { ...paramValues.value, [param]: value };
     emit('change', { ...paramValues.value });
 };
 

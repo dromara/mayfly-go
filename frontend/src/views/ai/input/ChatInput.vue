@@ -1,7 +1,7 @@
 <template>
-    <div class="chat-input" :class="{ 'chat-input--loading': loading, 'chat-input--disabled': disabled }">
-        <!-- 输入容器（Composer 卡片：限宽 max-w-3xl 居中，ChatInput L401；
-             点击空白聚焦编辑器，排除按钮/附件区）；引用芯片直接内联在编辑器内展示 -->
+    <div class="chat-input" :class="{ 'chat-input--loading': loading }">
+        <!-- 输入容器（Composer 卡片：限宽 max-w-3xl 居中）；点击空白聚焦编辑器，排除按钮/附件区；
+             引用芯片直接内联在编辑器内展示 -->
         <div
             class="chat-input__wrapper mx-auto max-w-3xl rounded-2xl border border-border bg-background transition-colors focus-within:ring-2 focus-within:ring-ring/50"
             @click="onWrapperClick"
@@ -11,8 +11,8 @@
                 <AttachmentItem v-for="(att, i) in pendingAttachments" :key="i" :attachment="att" removable @remove="removeAttachment(i)" />
             </AttachmentGroup>
 
-            <!-- TipTap 编辑器 -->
-            <div ref="editorContainer" class="chat-input__editor" />
+            <!-- 编辑器（内核见 usePromptEditor：TipTap + 芯片 + 触发器） -->
+            <div ref="editorContainerRef" class="chat-input__editor" />
 
             <!-- 工具条 -->
             <div class="chat-input__actions">
@@ -22,17 +22,13 @@
                         size="icon"
                         class="rounded-full text-muted-foreground hover:text-foreground"
                         :title="t('ai.attach.add')"
-                        :disabled="disabled || shouldQueue"
+                        :disabled="shouldQueue"
                         @click.stop="pickFiles"
                     >
                         <PaperclipIcon />
                     </Button>
                     <input ref="fileInputRef" type="file" multiple class="hidden" :accept="ATTACHMENT_ACCEPT" @change="onFilesPicked" />
-                    <div v-if="!hintGone" class="chat-input__hint" :class="{ 'chat-input__hint--faded': !hintVisible }">
-                        <template v-for="trig in triggerDefs" :key="trig.kind">
-                            <kbd>{{ trig.chars[0] }}</kbd> {{ t(trig.hintI18nKey) }}
-                        </template>
-                    </div>
+                    <TriggerHints v-if="!hintGone" class="chat-input__hint" :class="{ 'chat-input__hint--faded': !hintVisible }" />
                 </div>
                 <div class="chat-input__actions-right">
                     <Button
@@ -49,7 +45,7 @@
                         v-else
                         size="icon"
                         class="rounded-full active:scale-95 transition-transform"
-                        :disabled="!canSend"
+                        :disabled="!canSend || submitting"
                         :title="shouldQueue ? t('ai.chat.addToQueue') : t('ai.chat.send')"
                         @click.stop="onSubmit"
                     >
@@ -59,84 +55,40 @@
             </div>
         </div>
 
-        <!-- 触发器建议菜单：技能列表（通用列表菜单）/ 资源树面板（面板模式由注册表 panelComponent 决定） -->
-        <TriggerMenu
-            v-if="trigger.visible && !trigger.isPanelMode"
-            ref="triggerMenuRef"
-            :visible="trigger.visible"
-            :items="trigger.items"
-            :selected-index="trigger.selectedIndex"
-            :menu-style="trigger.menuStyle"
-            @select="trigger.selectItem"
-        />
-        <ResourceTreePanel
-            v-else-if="trigger.visible && trigger.isPanelMode"
-            ref="resourceTreeRef"
-            :visible="trigger.visible"
-            :menu-style="trigger.menuStyle"
-            :query="trigger.query"
-            @select="onResourceTreeSelect"
-            @close="trigger.dismiss"
-        />
+        <!-- 触发器浮层（技能菜单 / 资源树面板），与表单里的提示词编辑器共用同一实现 -->
+        <TriggerOverlays :prompt="prompt" />
     </div>
 </template>
 
 <script setup lang="ts">
 /**
- * ChatInput - 基于 TipTap 的富文本输入组件
- * ChatInput.tsx + ChipEditor.tsx；触发器子系统见 triggers/
+ * ChatInput - 聊天输入框（Composer）
  *
- * 功能：
- * - TipTap 编辑器（Document + Paragraph + Text + HardBreak + ChipNode）
- * - Enter 发送，Shift+Enter 换行
- * - 粘贴文件（截图/复制的图片、文本文件）自动转为附件，与选择文件同一链路
- * - `/` 触发技能选择菜单、`@` 触发资源树面板（注册表驱动，见 triggers/registry.ts）
- * - 芯片节点（原子内联节点，整体选中/删除）
- * - 发送时提取 segments（文本 + 芯片）
+ * 职责边界：本组件只负责聊天专属交互——附件选择/粘贴转附件、发送与停止按钮、入队提示、
+ * kbd 提示淡出。文档模型、芯片节点、触发器菜单与段序列化都在 usePromptEditor /
+ * TriggerOverlays（表单里的 PromptEditor 用的是同一套内核），避免两处各养一份编辑器装配。
  */
 import { ArrowUpIcon, PaperclipIcon, SquareIcon } from '@lucide/vue';
-import Document from '@tiptap/extension-document';
-import HardBreak from '@tiptap/extension-hard-break';
-import Paragraph from '@tiptap/extension-paragraph';
-import Placeholder from '@tiptap/extension-placeholder';
-import Text from '@tiptap/extension-text';
-import { Editor } from '@tiptap/vue-3';
-import type { Editor as CoreEditor } from '@tiptap/core';
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Msg } from '@/hooks/useI18n';
 import { Button } from '@/components/ui/button';
 import { AttachmentGroup } from '@/components/ui/attachment';
 import AttachmentItem from '../message/AttachmentItem.vue';
-import { ATTACHMENT_ACCEPT, MAX_ATTACHMENT_SIZE, readChatAttachment, uploadChatAttachments } from './attachments';
-import { ChipNode } from './chipNode';
-import { extractSegmentsFromNode } from './chipRegistry';
-// 副作用导入：注册 skill/resource 芯片类型（序列化 extractSegment 依赖注册表，
-// 漂浮在此处会被 tree-shake 导致芯片发送时被静默丢弃）
-import './chipTypes';
-// 副作用导入：注册 skill/resource 触发器（与芯片注册同理，见 triggers/index.ts）
-import './triggers';
+import { ATTACHMENT_ACCEPT, isSupportedAttachment, readChatAttachment, uploadChatAttachments } from './attachments';
+import type { ChipSegment } from './chipRegistry';
+import { buildSubmitData } from './submitData';
+import TriggerOverlays from './TriggerOverlays.vue';
+import TriggerHints from './TriggerHints.vue';
+import { placeholderWithHints } from './useTriggerHints';
+import { usePromptEditor } from './usePromptEditor';
 import type { ChatInputSubmitData, SkillItem } from './types';
 import type { MessageAttachment } from '../protocol/types';
-import { TriggerMenu, ResourceTreePanel, useTriggerState, selectResourceFromPanel, getTriggerDefs } from './triggers';
-import type { ResourceTreeSelectPayload } from './triggers/ResourceTreePanel.vue';
-
-/** 活跃芯片（从编辑器文档同步，仅用于 canSend 判断；展示内联在编辑器内） */
-interface ActiveChip {
-    id: string;
-    label: string;
-    kind?: 'skill' | 'resource';
-    /** 资源芯片的资源类型（machine / db） */
-    resourceType?: string;
-    icon?: string;
-    color?: { bg: string; text: string; border: string };
-}
 
 const props = withDefaults(
     defineProps<{
         placeholder?: string;
         loading?: boolean;
-        disabled?: boolean;
         autoFocus?: boolean;
         /** 可用的技能/触发项列表 */
         skills?: SkillItem[];
@@ -146,7 +98,6 @@ const props = withDefaults(
     {
         placeholder: '',
         loading: false,
-        disabled: false,
         autoFocus: false,
         skills: () => [],
         shouldQueue: false,
@@ -160,40 +111,16 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const editorContainer = ref<HTMLElement | null>(null);
-const editor = ref<Editor | null>(null);
 
-// 触发器子系统（检测/键盘/定位/选中聚合在 useTriggerState，见 triggers/）
-const triggerMenuRef = ref<InstanceType<typeof TriggerMenu> | null>(null);
-const resourceTreeRef = ref<InstanceType<typeof ResourceTreePanel> | null>(null);
-const trigger = reactive(
-    useTriggerState({
-        getEditor: () => editor.value,
-        getMenuEl: () => triggerMenuRef.value?.menuRef ?? resourceTreeRef.value?.panelRef,
-        onSubmit: () => onSubmit(),
-        skills: () => props.skills,
-    })
-);
+/** 占位符：入队态提示新消息将加入队列；正常态由触发器注册表拼接（组装单点见 useTriggerHints，
+ *  与表单里的提示词编辑器共用同一实现） */
+const currentPlaceholder = computed(() => {
+    if (props.shouldQueue) return t('ai.chat.queueMessage');
+    if (props.placeholder) return props.placeholder;
+    return placeholderWithHints('ai.chat.inputPlaceholder');
+});
 
-/** 已注册触发器列表（hint 栏动态渲染，新增触发器零改动自动回显） */
-const triggerDefs = computed(() => getTriggerDefs());
-
-// 活跃芯片
-const activeChips = ref<ActiveChip[]>([]);
-
-/** 从编辑器文档提取芯片节点，重建活跃芯片列表（选中插入与退格删除均自动同步） */
-const syncActiveChips = (e: CoreEditor) => {
-    activeChips.value = extractSegmentsFromNode(e.state.doc)
-        .filter((s) => s.type !== 'input_text')
-        .map((s, i) => ({
-            id: `${s.type}:${i}:${s.text}`,
-            label: s.text,
-            kind: s.type as 'skill' | 'resource',
-            resourceType: s.extra.resourceType ? String(s.extra.resourceType) : undefined,
-        }));
-};
-
-// 待发送附件
+// 附件（聊天专属）
 const pendingAttachments = ref<MessageAttachment[]>([]);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
@@ -213,114 +140,75 @@ const dismissHint = () => {
     setTimeout(() => (hintGone.value = true), 350);
 };
 
-/** 跟踪编辑器文本变化（TipTap 不是 Vue 响应式的，需要手动追踪） */
-const editorText = ref('');
+/**
+ * 提交重入守卫：附件上传是异步的，而 clear() 在最后一行——期间 canSend 仍为 true、
+ * 文本未清，连按两次 Enter（或连点两次发送）会并发跑两次上传（服务端留下重复文件，
+ * 两次各自拿到新附件对象，幂等去重也拦不住）并 emit 两次 submit，最终是两条同样的消息与两个 turn。
+ */
+const submitting = ref(false);
+
+const onSubmit = async () => {
+    if (!canSend.value || submitting.value) return;
+    submitting.value = true;
+    try {
+        dismissHint();
+
+        const text = prompt.text.value.trim();
+        const segments = prompt.segments();
+
+        // 附件在入队/发送前统一上传（内容落 t_sys_file，消息体只随 fileKey 轻量引用）；
+        // 失败中止且保留输入态（编辑器内容与附件可重试），入队与直接发送共享同一前置链路
+        let attachments = pendingAttachments.value;
+        if (attachments.length > 0) {
+            try {
+                attachments = await uploadChatAttachments(attachments);
+                pendingAttachments.value = attachments;
+            } catch {
+                Msg.error('ai.attach.uploadFailed');
+                return;
+            }
+        }
+        const data = buildSubmitData(text, segments, attachments);
+
+        // shouldQueue 时（回复中/待中断）加入队列而非直接发送
+        if (props.shouldQueue) {
+            emit('queue', data);
+        } else {
+            emit('submit', data);
+        }
+        clear();
+    } finally {
+        submitting.value = false;
+    }
+};
+
+// 编辑器内核：Enter 提交、Esc 停止、粘贴文件转附件
+const prompt = usePromptEditor({
+    placeholder: () => currentPlaceholder.value,
+    skills: () => props.skills ?? [],
+    autoFocus: () => props.autoFocus,
+    onSubmit,
+    onEscape: () => {
+        if (!props.loading) return false;
+        emit('cancel');
+        return true;
+    },
+    handlePaste: (event) => {
+        const files = filesFromClipboard(event.clipboardData);
+        if (files.length === 0) return false;
+        addAttachmentFiles(files);
+        return true;
+    },
+});
+
+// TipTap 挂载点：必须绑到 setup 作用域里的同名标识符。
+// 写成 ref="prompt.editorContainer" 不会解析路径，容器 ref 恒为 null，
+// usePromptEditor 的 onMounted 会直接 return —— 整个聊天输入框不渲染（实测踩过）
+const editorContainerRef = prompt.editorContainer;
 
 const canSend = computed(() => {
-    if (props.disabled) return false;
-    return editorText.value.trim().length > 0 || activeChips.value.length > 0 || pendingAttachments.value.length > 0;
+    return prompt.text.value.trim().length > 0 || prompt.chips.value.length > 0 || pendingAttachments.value.length > 0;
 });
-
-/** 占位符：入队态提示新消息将加入队列（queuePlaceholder）；
- *  正常态从注册表自动拼接（如「输入消息，/ 选择一个技能...，@ 引用资源...」），
- *  新增触发器零改动自动回显；`@` 来自 trig.chars 而非 i18n 文本，避免 vue-i18n 转义问题 */
-const currentPlaceholder = computed(() => {
-    if (props.shouldQueue) return t('ai.chat.queueMessage');
-    if (props.placeholder) return props.placeholder;
-
-    const base = t('ai.chat.inputPlaceholder');
-    const triggers = getTriggerDefs();
-    if (triggers.length === 0) return base;
-
-    const hints = triggers.map((trig) => `${trig.chars[0]} ${t(trig.hintI18nKey)}`);
-    return `${base}，${hints.join('，')}...`;
-});
-
-// ========== 编辑器生命周期 ==========
-
-onMounted(() => {
-    if (!editorContainer.value) return;
-
-    editor.value = new Editor({
-        element: editorContainer.value,
-        extensions: [
-            Document,
-            Paragraph,
-            Text,
-            HardBreak.configure({
-                keepMarks: true,
-            }),
-            ChipNode,
-            Placeholder.configure({
-                placeholder: () => currentPlaceholder.value,
-            }),
-        ],
-        content: '',
-        editable: !props.disabled,
-        autofocus: props.autoFocus ? 'end' : false,
-        editorProps: {
-            handleKeyDown: (view, event) => {
-                // 触发器菜单打开时，拦截键盘
-                if (trigger.visible) {
-                    return trigger.handleKeydown(event);
-                }
-
-                // Esc 停止流式（对齐 ChatGPT/Claude 键盘语义）
-                if (event.key === 'Escape' && props.loading) {
-                    event.preventDefault();
-                    emit('cancel');
-                    return true;
-                }
-
-                // Enter 发送（Shift+Enter 换行）
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    onSubmit();
-                    return true;
-                }
-                return false;
-            },
-            // 粘贴携带文件的剪贴板（截图/复制的图片或文本文件）转为附件，
-            // 复用选择文件同一处理链路；纯文本粘贴放行走默认插入
-            handlePaste: (_view, event) => {
-                const files = filesFromClipboard(event.clipboardData);
-                if (files.length === 0) return false;
-                event.preventDefault();
-                addAttachmentFiles(files);
-                return true;
-            },
-        },
-        onUpdate: ({ editor: e }) => {
-            // 同步文本到响应式 ref（驱动 canSend 更新）
-            editorText.value = e.getText();
-            // 从文档同步活跃芯片（选中/退格删除芯片均保持一致，驱动 canSend）
-            syncActiveChips(e);
-            // 触发词检测（菜单开合/切换/过滤，见 triggers/useTriggerState）
-            trigger.checkState(e);
-        },
-    });
-});
-
-onBeforeUnmount(() => {
-    editor.value?.destroy();
-});
-
-watch(
-    () => props.disabled,
-    (val) => {
-        editor.value?.setEditable(!val);
-    }
-);
-
-// ========== 触发器菜单逻辑 ==========
-// 触发器注册表、触发词检测、浮层定位、键盘导航与选中插入
-// 全部聚合在 triggers/ 子系统（triggers/ 目录），
-// 新增触发类型只需 registerTrigger 注册，无需改动本组件分支
-
-/** 资源树叶子选中：删除触发词后插入携带完整定位标识的资源芯片 */
-const onResourceTreeSelect = (payload: ResourceTreeSelectPayload) => {
-    trigger.selectPanelChip(payload, selectResourceFromPanel);
-};
 
 // ========== 附件选择（三分流：图片 dataURL / 文本内联 / 其它不支持） ==========
 
@@ -348,17 +236,17 @@ const filesFromClipboard = (dt: DataTransfer | null): File[] => {
     return out;
 };
 
-/** 批量添加附件（文件选择与粘贴共用）：校验大小 → 读取为消息附件（内容发送时上传统一文件服务） */
+/** 批量添加附件（文件选择与粘贴共用）：校验走 isSupportedAttachment（大小/类型限制的单点），读取为消息附件 */
 const addAttachmentFiles = async (files: File[]) => {
     for (const file of files) {
-        if (file.size > MAX_ATTACHMENT_SIZE) {
-            Msg.warning(t('ai.attach.tooLarge', { name: file.name }));
+        if (!isSupportedAttachment(file)) {
+            Msg.warning('ai.attach.tooLarge', { name: file.name });
             continue;
         }
         try {
             pendingAttachments.value.push(await readChatAttachment(file));
         } catch {
-            Msg.error(t('ai.attach.readFailed', { name: file.name }));
+            Msg.error('ai.attach.readFailed', { name: file.name });
         }
     }
 };
@@ -367,77 +255,42 @@ const removeAttachment = (index: number) => {
     pendingAttachments.value.splice(index, 1);
 };
 
-/** 点击卡片空白处聚焦编辑器（排除按钮/附件区） */
+/** 点击卡片空白处聚焦编辑器（编辑区内交给 ProseMirror 定位光标，按钮/附件区不干预） */
 const onWrapperClick = (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button, .chat-input__attachments')) return;
-    focus();
+    if (target.closest('.ProseMirror, button, .chat-input__attachments')) return;
+    prompt.focus();
 };
 
-// ========== 发送逻辑 ==========
-
-const onSubmit = async () => {
-    if (!canSend.value || !editor.value) return;
-    dismissHint();
-
-    const e = editor.value;
-    const text = e.getText().trim();
-    const segments = extractSegmentsFromNode(e.state.doc);
-
-    // 附件在入队/发送前统一上传（内容落 t_sys_file，消息体只随 fileKey 轻量引用）；
-    // 失败中止且保留输入态（编辑器内容与附件可重试），入队与直接发送共享同一前置链路
-    let attachments = pendingAttachments.value;
-    if (attachments.length > 0) {
-        try {
-            attachments = await uploadChatAttachments(attachments);
-            pendingAttachments.value = attachments;
-        } catch {
-            Msg.error(t('ai.attach.uploadFailed'));
-            return;
-        }
-    }
-    const data: ChatInputSubmitData = {
-        text,
-        segments,
-        attachments: attachments.length > 0 ? attachments : undefined,
-    };
-
-    // shouldQueue 时（回复中/待中断）加入队列而非直接发送（参考 Claude Code）
-    if (props.shouldQueue) {
-        emit('queue', data);
-        clear();
-        return;
-    }
-
-    emit('submit', data);
-    clear();
-};
-
-/** 清空输入 */
+/** 清空输入（编辑器内容与附件一并清） */
 const clear = () => {
-    editor.value?.commands.clearContent();
-    activeChips.value = [];
+    prompt.clear();
     pendingAttachments.value = [];
-    editorText.value = '';
-    trigger.close();
 };
 
-/** 聚焦 */
-const focus = () => {
-    editor.value?.commands.focus('end');
-};
-
-/** 回填内容（队列编辑/外部填充，pendingValue 机制）；attachments 为队列消息携带的已上传附件 */
-const setValue = (content: string, attachments?: MessageAttachment[]) => {
-    if (!editor.value) return;
-    editor.value.commands.setContent(content);
-    editorText.value = content;
+/**
+ * 回填内容（队列编辑/追问草稿/外部填充）；attachments 为队列消息携带的已上传附件，
+ * segments 为带芯片的段序列（有则按段还原，芯片可见可删）。
+ * 返回 false 表示编辑器尚未就绪，调用方可重试（先清后填会在未就绪时把草稿吞掉）
+ */
+const setValue = (content: string, attachments?: MessageAttachment[], segments?: ChipSegment[]): boolean => {
+    // 编辑器尚未创建（组件挂载前的跳页草稿回填）：必须返回 false 让调用方按帧重试。
+    // 内核的 setText/setSegments 在未就绪时是静默 no-op，这里直接返回 true 会让调用方
+    // 在内容实际没落地的情况下清空草稿信箱（正是本函数注释声明要防的「吞草稿」）
+    if (!prompt.ready()) {
+        return false;
+    }
+    if (segments && segments.length > 0) {
+        prompt.setSegments(segments);
+    } else {
+        prompt.setText(content);
+    }
     if (attachments?.length) pendingAttachments.value = [...attachments];
-    nextTick(() => focus());
+    nextTick(() => prompt.focus('end'));
+    return true;
 };
 
-// 外部仅消费 setValue（队列编辑/回填）；clear/focus 供内部 submit 流程复用
-defineExpose({ clear, focus, setValue });
+defineExpose({ clear, focus: () => prompt.focus('end'), setValue });
 </script>
 
 <style scoped>
@@ -446,7 +299,7 @@ defineExpose({ clear, focus, setValue });
     padding: 0 24px 20px;
 }
 
-/* Composer 卡片（卡片 token 在模板 Tailwind 类上，此处仅布局） */
+/* 输入容器（Composer 卡片） */
 .chat-input__wrapper {
     display: flex;
     flex-direction: column;
@@ -455,59 +308,28 @@ defineExpose({ clear, focus, setValue });
 
 /* 已选附件预览 */
 .chat-input__attachments {
-    margin: 12px 12px 0;
+    display: flex;
+    gap: 8px;
+    padding: 12px 12px 0;
 }
-
-/* 移除按钮配色已收敛到 AttachmentItem */
 
 /* 编辑器区域 */
 .chat-input__editor {
     min-height: 48px;
     max-height: 200px;
     overflow-y: auto;
-    padding: 12px 16px;
+    padding: 12px 14px;
     font-size: 14px;
     line-height: 1.6;
-    outline: none;
-    color: var(--el-text-color-primary);
 }
 
-.chat-input__editor :deep(.tiptap) {
-    outline: none;
-    min-height: 24px;
-    color: var(--el-text-color-primary);
-}
-
-.chat-input__editor :deep(.tiptap p) {
-    margin: 0;
-}
-
+/* TipTap 占位符 */
 .chat-input__editor :deep(.tiptap p.is-editor-empty:first-child::before) {
     content: attr(data-placeholder);
     float: left;
     color: var(--el-text-color-placeholder);
     pointer-events: none;
     height: 0;
-}
-
-.chat-input__editor :deep(.chat-chip) {
-    background: var(--el-color-primary-light-9);
-    color: var(--el-color-primary);
-    border: 1px solid var(--el-color-primary-light-7);
-    border-radius: 12px;
-    padding: 1px 8px;
-    font-size: 12px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    cursor: default;
-    user-select: none;
-    vertical-align: baseline;
-}
-
-.chat-input__editor :deep(.chat-chip.ProseMirror-selectednode) {
-    outline: 2px solid var(--el-color-primary);
-    outline-offset: 1px;
 }
 
 /* 工具条 */
@@ -532,9 +354,8 @@ defineExpose({ clear, focus, setValue });
     align-items: center;
 }
 
+/* 只负责「首次发送后淡出」的过渡：提示条本身的布局/字号/颜色/kbd 均在 TriggerHints 内 */
 .chat-input__hint {
-    font-size: 12px;
-    color: var(--el-text-color-placeholder);
     transition: opacity 0.3s ease-out;
 }
 
@@ -543,48 +364,7 @@ defineExpose({ clear, focus, setValue });
     pointer-events: none;
 }
 
-.chat-input__hint kbd {
-    display: inline-block;
-    padding: 1px 6px;
-    font-size: 11px;
-    background: var(--el-fill-color);
-    border: 1px solid var(--el-border-color);
-    border-radius: 4px;
-    font-family: inherit;
-}
-
 .chat-input--loading .chat-input__editor {
     opacity: 0.7;
-}
-
-.chat-input--disabled .chat-input__wrapper {
-    opacity: 0.5;
-    pointer-events: none;
-}
-</style>
-
-<style>
-/* 芯片内联图标：TipTap 动态生成的芯片 DOM 无 scoped 属性，需全局样式；
-   mask + currentColor 让图标跟随芯片文字色（lucide 线条图标 data URI） */
-.chat-chip__icon {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    flex-shrink: 0;
-    background-color: currentColor;
-    -webkit-mask: var(--chip-icon) no-repeat center / contain;
-    mask: var(--chip-icon) no-repeat center / contain;
-}
-
-.chat-chip__icon[data-icon='zap'] {
-    --chip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2 3 14h9l-1 8 10-12h-9l1-8z'/%3E%3C/svg%3E");
-}
-
-.chat-chip__icon[data-icon='server'] {
-    --chip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='2' width='20' height='8' rx='2'/%3E%3Crect x='2' y='14' width='20' height='8' rx='2'/%3E%3Cline x1='6' x2='6.01' y1='6' y2='6'/%3E%3Cline x1='6' x2='6.01' y1='18' y2='18'/%3E%3C/svg%3E");
-}
-
-.chat-chip__icon[data-icon='database'] {
-    --chip-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M3 5v14a9 3 0 0 0 18 0V5'/%3E%3Cpath d='M3 12a9 3 0 0 0 18 0'/%3E%3C/svg%3E");
 }
 </style>

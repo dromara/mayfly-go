@@ -117,7 +117,7 @@
         </data-table>
 
         <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible">
-            <el-descriptions v-if="infoDialog.data" :title="$t('common.detail')" :column="3" border>
+            <el-descriptions v-if="infoDialog.data" :title="$t('common.detail')" :column="3" border label-width="90">
                 <el-descriptions-item :span="1.5" label="ID">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" :label="$t('common.name')">{{ infoDialog.data.name }}</el-descriptions-item>
 
@@ -275,7 +275,8 @@ const searchItems = [SearchItem.input('keyword', 'common.keyword').withPlacehold
 const columns = [
     TableColumn.new('name', 'common.name').isSlot('name'),
     TableColumn.new('ipPort', 'Ip:Port').isSlot(),
-    TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert'),
+    // 授权凭证列插槽渲染 el-select（下拉箭头+padding+边框回填量不到）：+x 预留控件占位
+    TableColumn.new('authCerts[0].username', 'machine.acName').isSlot('authCert').setAddWidth(25),
     // 状态列插槽渲染定宽 el-switch（圆钮不在字段文本里，离线估算与只量溢出回填都量不到）：+20 预留圆钮占位
     TableColumn.new('status', 'common.status').isSlot().setAddWidth(20),
     TableColumn.new('stats', 'machine.runningStat').isSlot(),

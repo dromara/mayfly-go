@@ -107,7 +107,10 @@ export function clearDecidedInterrupts(convId: number, decisions: ResumeDecision
 
 /**
  * 轮次终止提示：用户主动停止 / 流式错误，写入当前 turn 的 assistant 消息。
- * 仅前端展示（notice part 不落库，历史加载时自然消失）
+ *
+ * stopped 现已同时持久化（后端落一条 turn_notice item，历史重建时还原同一个 part）；
+ * error 仍只写内存：它是本次连接的故障读数，刷新后拿不到当时的错误上下文，
+ * 落库反而会把瞬时故障固化成永久标记。重入同 turn 同种类的重复写由 store 按 (turn, kind) 幂等拦下
  */
 export function writeTurnNotice(convId: number, turnId: string | null | undefined, kind: NoticePart['kind'], text: string) {
     const store = useChatStore();
