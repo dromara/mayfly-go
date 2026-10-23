@@ -111,7 +111,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		if err == nil {
 			return 0, errorx.NewBizI(ctx, imsg.ErrDbInstExist)
 		}
-		instanceEntity.Code = stringx.Rand(10)
+		instanceEntity.Code = stringx.RandLower(10)
 
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)

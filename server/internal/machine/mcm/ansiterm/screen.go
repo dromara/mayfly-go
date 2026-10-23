@@ -191,8 +191,6 @@ func (s *Screen) Draw(data string) {
 				last.Data = norm.NFC.String(last.Data + string(char))
 				l1.Set(s.columns-1, last)
 			}
-		default:
-			break
 		}
 
 		if charWidth > 0 {

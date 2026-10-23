@@ -15,6 +15,9 @@ func TestAesEncrypt(t *testing.T) {
 	toString := base64.StdEncoding.EncodeToString(encrypt)
 	t.Log(toString)
 	decrypt, err := AesDecrypt(encrypt, key)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Log(string(decrypt))
 }

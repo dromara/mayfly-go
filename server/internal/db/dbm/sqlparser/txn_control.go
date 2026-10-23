@@ -35,11 +35,75 @@ func IsTxnControlStmtText(normalized string) bool {
 	if _, ok := txnControlStmtTexts[normalized]; ok {
 		return true
 	}
-	// SET autocommit / SET @@session.autocommit 等变体：会话级事务开关，同样改变事务边界
-	return strings.HasPrefix(normalized, "SET") && strings.Contains(normalized, "AUTOCOMMIT")
+	if !strings.HasPrefix(normalized, "SET") {
+		return false
+	}
+	// 会话级事务开关的 SET 变体（SET autocommit / SET @@session.autocommit）。
+	// 只在代码区找 AUTOCOMMIT：字符串字面量里的同名词（如 SET @x='AUTOCOMMIT'）不是事务开关，
+	// 不剔除会让这种普通 SET 被判为事务控制语句，进而在迁移导入时被静默跳过
+	return strings.Contains(maskStringLiterals(normalized), "AUTOCOMMIT")
+}
+
+// maskStringLiterals 把单/双引号字符串字面量（含定界符）替换为等长空白，供按代码区判关键字。
+// 支持 ” / "" 双写转义与反斜杠转义（MySQL 默认 sql_mode）；未闭合时剩余部分整体视为字面量。
+// 双引号在 ANSI_QUOTES 下是标识符而非字符串，一并掩掉对本判定无害——AUTOCOMMIT 只可能出现在代码区。
+func maskStringLiterals(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\'' && s[i] != '"' {
+			b.WriteByte(s[i])
+			continue
+		}
+		quote := s[i]
+		// 进入字面量：左侧定界符与内容一律置空白，直到右侧定界符
+		b.WriteByte(' ')
+		for i++; i < len(s); i++ {
+			if s[i] == '\\' && i+1 < len(s) {
+				// 反斜杠转义（\' \" \\）：两个字符都仍在字面量内
+				b.WriteString("  ")
+				i++
+				continue
+			}
+			if s[i] != quote {
+				b.WriteByte(' ')
+				continue
+			}
+			if i+1 < len(s) && s[i+1] == quote { // '' / "" 双写转义仍在字面量内
+				b.WriteString("  ")
+				i++
+				continue
+			}
+			b.WriteByte(' ')
+			break
+		}
+	}
+	return b.String()
 }
 
 // IsTxnControlStmt 按方言语义切割掩码后判断语句是否为事务控制语句（见 NormalizeStmtText、IsTxnControlStmtText）
 func IsTxnControlStmt(splitter SQLSplitter, stmt string) bool {
 	return IsTxnControlStmtText(NormalizeStmtText(splitter, stmt))
+}
+
+// implicitCommitStmtPrefixes 会隐式提交当前事务、但既不是 DDL 也不是事务控制语句的语句前缀（MySQL 语义）。
+// 仅用于失败时「可能已提交、无法回滚」的告警判定，不参与执行路径。
+var implicitCommitStmtPrefixes = []string{
+	"LOCK ", "UNLOCK ", "ANALYZE ", "OPTIMIZE ", "REPAIR ",
+}
+
+// IsImplicitCommitStmtText 判断归一化后的语句是否为隐式提交语句
+// （LOCK/UNLOCK TABLES、ANALYZE/OPTIMIZE/REPAIR TABLE）。
+func IsImplicitCommitStmtText(normalized string) bool {
+	for _, prefix := range implicitCommitStmtPrefixes {
+		if strings.HasPrefix(normalized, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsImplicitCommitStmt 按方言语义归一化后判断语句是否为隐式提交语句（与 IsTxnControlStmt 互补）。
+func IsImplicitCommitStmt(splitter SQLSplitter, stmt string) bool {
+	return IsImplicitCommitStmtText(NormalizeStmtText(splitter, stmt))
 }

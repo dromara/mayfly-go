@@ -118,6 +118,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	})...)
 
 	for _, mv := range machinevos {
+		stripMachineCredential(mv)
 		if machineStats, err := m.machineApp.GetMachineStats(mv.Id); err == nil {
 			mv.Stat = collx.M{
 				"cpuIdle":      machineStats.CPU.Idle,
@@ -128,6 +129,16 @@ func (m *Machine) Machines(rc *req.Ctx) {
 		}
 	}
 	rc.ResData = resVo
+}
+
+// stripMachineCredential 剥离下发前端的代理凭据：密码密文与一次性清空旗标都不回显，
+// 编辑表单密码留空代表不修改，由后端沿用旧密文。
+func stripMachineCredential(mv *vo.MachineVO) {
+	if mv == nil {
+		return
+	}
+	mv.SetExtraValue(entity.ExtraKeyProxyPassword, "")
+	mv.SetExtraValue(entity.ExtraKeyProxyPasswordClear, "")
 }
 
 func (m *Machine) SimpleMachieInfo(rc *req.Ctx) {
@@ -154,7 +165,11 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 func (m *Machine) SaveMachine(rc *req.Ctx) {
 	machineForm, me := rc.BindJsonAndCopyTo[form.MachineForm, entity.Machine]()
 
-	rc.ReqParam = machineForm
+	// 代理密码是凭据：审计日志用**脱敏副本**，不能直接删原 map 的键——
+	// BindJsonAndCopyTo 后表单与实体共享同一个 extra map，删键会把待加密落库的明文密码一并删掉
+	logForm := machineForm
+	logForm.ExtraData = entity.CloneExtraWithoutProxyCredential(machineForm.ExtraData)
+	rc.ReqParam = logForm
 
 	biz.ErrIsNil(m.machineApp.SaveMachine(rc.MetaCtx, &dto.SaveMachine{
 		Machine:      me,

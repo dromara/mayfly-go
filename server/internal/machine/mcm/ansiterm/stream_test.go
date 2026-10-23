@@ -24,6 +24,21 @@ func TestFeed_PlainText(t *testing.T) {
 	}
 }
 
+// TestFeed_CharsetSwitch ESC % G 进入 UTF-8、ESC % @ 退出 UTF-8。
+// 此前 Stream 侧的 selectOtherCharset 是空实现，真正逻辑挂在无人调用的 ByteStream
+// 同名方法上，序列被静默忽略。
+func TestFeed_CharsetSwitch(t *testing.T) {
+	_, stream := newTestStream(80, 24)
+	stream.Feed("\x1b%@")
+	if stream.UseUTF8 {
+		t.Fatal("ESC % @ 应退出 UTF-8")
+	}
+	stream.Feed("\x1b%G")
+	if !stream.UseUTF8 {
+		t.Fatal("ESC % G 应进入 UTF-8")
+	}
+}
+
 func TestFeed_CRLF(t *testing.T) {
 	screen, stream := newTestStream(80, 24)
 	stream.Feed("line1\r\nline2\r\nline3")

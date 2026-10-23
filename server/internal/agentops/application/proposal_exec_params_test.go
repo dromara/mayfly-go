@@ -14,12 +14,19 @@ import (
 	_ "mayfly-go/internal/ai/tools/machinetool"
 )
 
-// readProposalGatewaySource 读取提案网关源码（接线断言用）
+// readProposalGatewaySource 读取提案网关组件源码（接线断言用）。
+// 组件已按职责拆分为多文件，接线守卫必须对整组源码取数，否则锚点落在被拆走的文件上会假失败。
 func readProposalGatewaySource(t *testing.T) string {
 	t.Helper()
-	b, err := os.ReadFile("proposal_gateway.go")
-	require.NoError(t, err)
-	return string(b)
+	files := []string{"proposal_gateway.go", "proposal_ticket.go", "proposal_exec.go", "proposal_status.go"}
+	var sb strings.Builder
+	for _, f := range files {
+		b, err := os.ReadFile(f)
+		require.NoError(t, err)
+		sb.Write(b)
+		sb.WriteString("\n")
+	}
+	return sb.String()
 }
 
 // TestAllowedToolsRejectsMismatchedProposalParams 提案参数与工具入参不同形时，

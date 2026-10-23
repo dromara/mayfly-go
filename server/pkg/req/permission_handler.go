@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/anyx"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,18 +24,11 @@ func NewPermission(code string) *Permission {
 }
 
 var (
-	permissionCodeRegistry PermissionCodeRegistry
+	permissionCodeRegistryMu sync.RWMutex
+	permissionCodeRegistry   PermissionCodeRegistry
 )
 
 func PermissionHandler(rc *Ctx) error {
-	if permissionCodeRegistry == nil {
-		if rediscli.GetCli() == nil {
-			permissionCodeRegistry = new(DefaultPermissionCodeRegistry)
-		} else {
-			permissionCodeRegistry = new(RedisPermissionCodeRegistry)
-		}
-	}
-
 	var permission *Permission
 	if rc.Conf != nil {
 		permission = rc.Conf.requiredPermission
@@ -59,7 +53,7 @@ func PermissionHandler(rc *Ctx) error {
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {
-		if !permissionCodeRegistry.HasCode(userId, permission.Code) {
+		if !getPermissionCodeRegistry().HasCode(userId, permission.Code) {
 			return errorx.ErrPermission
 		}
 	}
@@ -73,20 +67,44 @@ func PermissionHandler(rc *Ctx) error {
 
 // 保存用户权限code
 func SavePermissionCodes(userId uint64, codes []string) {
-	permissionCodeRegistry.SaveCodes(userId, codes)
+	getPermissionCodeRegistry().SaveCodes(userId, codes)
 }
 
 // 删除用户权限code
 func DeletePermissionCodes(userId uint64) {
-	permissionCodeRegistry.Remove(userId)
+	getPermissionCodeRegistry().Remove(userId)
 }
 
 // 设置权限code注册器
 func SetPermissionCodeRegistery(pcr PermissionCodeRegistry) {
+	permissionCodeRegistryMu.Lock()
 	permissionCodeRegistry = pcr
+	permissionCodeRegistryMu.Unlock()
 }
 
 func GetPermissionCodeRegistery() PermissionCodeRegistry {
+	return getPermissionCodeRegistry()
+}
+
+// getPermissionCodeRegistry 惰性选择注册器：未配置 Redis 时用进程内缓存，否则用 Redis。
+// 用读写锁保护首次选择，避免并发请求同时改写注册器指针（原实现是裸 nil 判断）。
+func getPermissionCodeRegistry() PermissionCodeRegistry {
+	permissionCodeRegistryMu.RLock()
+	registry := permissionCodeRegistry
+	permissionCodeRegistryMu.RUnlock()
+	if registry != nil {
+		return registry
+	}
+
+	permissionCodeRegistryMu.Lock()
+	defer permissionCodeRegistryMu.Unlock()
+	if permissionCodeRegistry == nil {
+		if rediscli.GetCli() == nil {
+			permissionCodeRegistry = new(DefaultPermissionCodeRegistry)
+		} else {
+			permissionCodeRegistry = new(RedisPermissionCodeRegistry)
+		}
+	}
 	return permissionCodeRegistry
 }
 
@@ -100,26 +118,36 @@ type PermissionCodeRegistry interface {
 	Remove(userId uint64)
 }
 
-type DefaultPermissionCodeRegistry struct {
-	cache *cache.TimedCache
+// PermissionCodeLoader 从持久层加载用户权限码；ok=false 表示加载失败（按无权限处理）。
+// 由业务模块在启动时通过 SetPermissionCodeLoader 注入，避免 pkg/req 反向依赖业务层。
+type PermissionCodeLoader func(userId uint64) (codes []string, ok bool)
+
+var (
+	permissionCodeLoaderMu sync.RWMutex
+	permissionCodeLoader   PermissionCodeLoader
+)
+
+// SetPermissionCodeLoader 注册权限码回源加载器。
+func SetPermissionCodeLoader(loader PermissionCodeLoader) {
+	permissionCodeLoaderMu.Lock()
+	permissionCodeLoader = loader
+	permissionCodeLoaderMu.Unlock()
 }
 
-func (r *DefaultPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
-	if r.cache == nil {
-		r.cache = cache.NewTimedCache(time.Minute*time.Duration(jwtConf.ExpireTime), 5*time.Second)
+// loadPermissionCodes 在缓存/Redis 未命中时回源加载权限码。
+func loadPermissionCodes(userId uint64) ([]string, bool) {
+	permissionCodeLoaderMu.RLock()
+	loader := permissionCodeLoader
+	permissionCodeLoaderMu.RUnlock()
+	if loader == nil {
+		return nil, false
 	}
-	r.cache.Put(fmt.Sprintf("%v", userId), codes)
+	return loader(userId)
 }
 
-func (r *DefaultPermissionCodeRegistry) HasCode(userId uint64, code string) bool {
-	if r.cache == nil {
-		return false
-	}
-	codes, found := r.cache.Get(fmt.Sprintf("%v", userId))
-	if !found {
-		return false
-	}
-	for _, v := range codes.([]string) {
+// hasPermissionCode 判断权限码集合是否包含目标 code。
+func hasPermissionCode(codes []string, code string) bool {
+	for _, v := range codes {
 		if v == code {
 			return true
 		}
@@ -127,10 +155,41 @@ func (r *DefaultPermissionCodeRegistry) HasCode(userId uint64, code string) bool
 	return false
 }
 
-func (r *DefaultPermissionCodeRegistry) Remove(userId uint64) {
-	if r.cache != nil {
-		r.cache.Delete(fmt.Sprintf("%v", userId))
+type DefaultPermissionCodeRegistry struct {
+	cacheOnce sync.Once
+	cache     *cache.TimedCache
+}
+
+func (r *DefaultPermissionCodeRegistry) ensureCache() *cache.TimedCache {
+	r.cacheOnce.Do(func() {
+		r.cache = cache.NewTimedCache(time.Minute*time.Duration(jwtConf.ExpireTime), 5*time.Second)
+	})
+	return r.cache
+}
+
+func (r *DefaultPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
+	r.ensureCache().Put(fmt.Sprintf("%v", userId), codes)
+}
+
+func (r *DefaultPermissionCodeRegistry) HasCode(userId uint64, code string) bool {
+	key := fmt.Sprintf("%v", userId)
+	if cached, found := r.ensureCache().Get(key); found {
+		codes, ok := cached.([]string)
+		return ok && hasPermissionCode(codes, code)
 	}
+	// 进程内缓存是纯内存的：后端重启后旧 token 仍有效但缓存为空。
+	// 未命中时回源加载并回填，避免把「缓存冷」误判成「无权限」。
+	codes, ok := loadPermissionCodes(userId)
+	if !ok {
+		return false
+	}
+	// 空权限集也要回填：有效账号但无任何按钮权限时，不能每次请求都回源查库
+	r.SaveCodes(userId, codes)
+	return hasPermissionCode(codes, code)
+}
+
+func (r *DefaultPermissionCodeRegistry) Remove(userId uint64) {
+	r.ensureCache().Delete(fmt.Sprintf("%v", userId))
 }
 
 type RedisPermissionCodeRegistry struct {
@@ -141,19 +200,22 @@ func (r *RedisPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
 }
 
 func (r *RedisPermissionCodeRegistry) HasCode(userId uint64, code string) bool {
-	str, err := rediscli.Get(fmt.Sprintf("mayfly:%v:codes", userId))
-	if err != nil || str == "" {
-		return false
-	}
-
-	var codes []string
-	_ = json.Unmarshal([]byte(str), &codes)
-	for _, v := range codes {
-		if v == code {
-			return true
+	key := fmt.Sprintf("mayfly:%v:codes", userId)
+	str, err := rediscli.Get(key)
+	if err == nil && str != "" {
+		var codes []string
+		if json.Unmarshal([]byte(str), &codes) == nil {
+			// 键存在且内容合法：命中即结论，不再回源（真正的无权限要快速拒绝）
+			return hasPermissionCode(codes, code)
 		}
 	}
-	return false
+	// 键缺失/读取失败/内容损坏：回源加载并回填（Redis 重启或过期后同样不能误判无权限）
+	codes, ok := loadPermissionCodes(userId)
+	if !ok {
+		return false
+	}
+	r.SaveCodes(userId, codes)
+	return hasPermissionCode(codes, code)
 }
 
 func (r *RedisPermissionCodeRegistry) Remove(userId uint64) {

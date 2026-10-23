@@ -352,7 +352,7 @@ func indirectValue(value any) reflect.Value {
 		return reflect.Value{}
 	}
 	rv := reflect.ValueOf(value)
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return reflect.Value{}
 		}

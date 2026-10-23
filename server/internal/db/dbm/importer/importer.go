@@ -6,6 +6,7 @@
 package importer
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -25,7 +26,8 @@ type Options struct {
 	// Sheet Excel 工作表名，空则取第一个工作表；CSV 忽略此项
 	Sheet string
 
-	// PreviewLimit 仅解析用于预览的前 N 行数据（不含表头），<=0 表示不限制。全量导入时由调用方传 0
+	// PreviewLimit 仅解析用于预览的前 N 行数据（不含表头），<=0 表示不限制。
+	// 全量导入走 Stream 端到端流式，不聚合整表，故不需要行数上限
 	PreviewLimit int
 }
 
@@ -64,8 +66,53 @@ type Importer interface {
 	// Extensions 该解析器支持的文件扩展名（小写、不含点），如 ["csv"]
 	Extensions() []string
 
-	// Parse 把文件流解析为 Table。解析失败必须返回 error，不得静默丢行/截断
+	// Parse 把文件流解析为 Table（预览/小样本）。解析失败必须返回 error，不得静默丢行/截断
 	Parse(r io.Reader, opts *Options) (*Table, error)
+
+	// Stream 逐行解析并回调，不在解析层聚合整表；供全量导入端到端流式消费。
+	// 回调返回 error 即中止解析并原样向上传递（调用方用 sentinel 区分「提前结束」与真实错误）
+	Stream(r io.Reader, opts *Options, h *StreamHandler) error
+}
+
+// StreamHandler 流式解析回调：表头与数据行分别回调。
+type StreamHandler struct {
+	// OnHeader 在首条数据行之前回调一次；headers 为表头（无表头时为 nil），
+	// sheets 为多工作表格式（如 Excel）的全部工作表名（CSV 为 nil）
+	OnHeader func(headers []string, sheets []string) error
+
+	// OnRow 每条数据行回调一次（已剔除全空行）
+	OnRow func(row []string) error
+}
+
+// errStopScan 解析提前结束的控制流信号（非错误）：预览行数达到上限时用它中断迭代
+var errStopScan = errors.New("importer: stop scan")
+
+// parseTable 用 Stream 累积预览所需的前 PreviewLimit 行（Parse 的共享实现）
+func parseTable(r io.Reader, imp Importer, opts *Options) (*Table, error) {
+	if opts == nil {
+		opts = &Options{}
+	}
+	table := &Table{Rows: make([][]string, 0)}
+	handler := &StreamHandler{
+		OnHeader: func(headers []string, sheets []string) error {
+			// 空文件（无表头行）不算「有表头」，与原 Parse 行为一致
+			table.HasHeader = opts.HasHeader && headers != nil
+			table.Headers = headers
+			table.Sheets = sheets
+			return nil
+		},
+		OnRow: func(row []string) error {
+			if opts.PreviewLimit > 0 && len(table.Rows) >= opts.PreviewLimit {
+				return errStopScan
+			}
+			table.Rows = append(table.Rows, row)
+			return nil
+		},
+	}
+	if err := imp.Stream(r, opts, handler); err != nil && !errors.Is(err, errStopScan) {
+		return nil, err
+	}
+	return table, nil
 }
 
 var (

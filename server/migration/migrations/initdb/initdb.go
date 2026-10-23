@@ -219,8 +219,10 @@ func initSysConfig(tx *gorm.DB) error {
 			Name: "system.sysconf.dbmsConf",
 			Key:  "DbmsConfig",
 			// v1 JSON schema：含查询配置与脱敏配置（maskEnabled 默认关闭，需在系统配置中开启后脱敏才生效）
-			Params:     migrationx.DbmsConfParams,
-			Value:      `{"querySqlSave":"false","maxResultSet":"0","sqlExecTl":"60","maskEnabled":"false","maskFailClosed":"false","maskExemptRoleIds":""}`,
+			Params: migrationx.DbmsConfParams,
+			// maxResultSet 默认给安全上限 1000：0=不限制在裸 SELECT * 千万行表时会把全部结果读进内存，
+			// 全新安装不应从“无上限”开始；需要更大/无限制时由管理员在系统配置里显式调整
+			Value:      `{"querySqlSave":"false","maxResultSet":"1000","sqlExecTl":"60","maskEnabled":"false","maskFailClosed":"false","maskExemptRoleIds":""}`,
 			Remark:     "system.sysconf.dbmsConfRemark",
 			Permission: "admin,",
 		},

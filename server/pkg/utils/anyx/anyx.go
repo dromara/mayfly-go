@@ -22,7 +22,7 @@ func IsBlank(value any) bool {
 		return rValue.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return rValue.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return rValue.IsNil()
 	}
 	return reflect.DeepEqual(rValue.Interface(), reflect.Zero(rValue.Type()).Interface())

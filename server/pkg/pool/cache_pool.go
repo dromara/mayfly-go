@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"math/rand"
 	"mayfly-go/pkg/gox"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
@@ -77,22 +76,15 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 
 	// 尝试查找可用连接
 	if p.cache.Len() >= p.config.MaxConns {
-		keys := make([]string, 0, p.cache.Len())
-
-		p.cache.Range(func(k string, v *cacheEntry[T]) bool {
-			keys = append(keys, k)
-			return true
-		})
-
-		randomKey := keys[rand.Intn(len(keys))]
-		entry, _ := p.cache.Load(randomKey)
-		conn := entry.conn
-
-		if options.updateLastActive {
-			// 更新最后活跃时间
-			entry.setLastActive(time.Now())
+		if entry := p.anyEntry(); entry != nil {
+			if options.updateLastActive {
+				// 更新最后活跃时间
+				entry.setLastActive(time.Now())
+			}
+			return entry.conn, nil
 		}
-		return conn, nil
+		// MaxConns <= 0 且缓存为空：没有可复用的连接（直接 rand.Intn(0) 会 panic）
+		return zero, ErrNoAvailableConn
 	}
 
 	if !options.newConn {
@@ -107,14 +99,15 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 		return zero, ErrPoolClosed
 	}
 
-	// 再次检查是否已创建（防止并发）
+	// 再次检查是否已创建（防止并发）：等锁期间可能已被其他协程填满
 	if p.cache.Len() >= p.config.MaxConns {
-		for _, entry := range p.cache.Values() {
+		if entry := p.anyEntry(); entry != nil {
 			if options.updateLastActive {
 				entry.setLastActive(time.Now())
 			}
 			return entry.conn, nil
 		}
+		return zero, ErrNoAvailableConn
 	}
 
 	// 创建新连接
@@ -129,6 +122,17 @@ func (p *CachePool[T]) Get(ctx context.Context, opts ...GetOption) (T, error) {
 	})
 
 	return conn, nil
+}
+
+// anyEntry 返回缓存中任意一条连接（池满时复用），缓存为空时返回 nil。
+// 用 Range 提前终止取单条，避免把 keys/Values 全量拷出后再随机取一个。
+func (p *CachePool[T]) anyEntry() *cacheEntry[T] {
+	var found *cacheEntry[T]
+	p.cache.Range(func(_ string, entry *cacheEntry[T]) bool {
+		found = entry
+		return false
+	})
+	return found
 }
 
 // Put 将连接放回缓存

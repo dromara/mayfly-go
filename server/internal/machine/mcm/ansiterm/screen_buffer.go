@@ -150,19 +150,14 @@ func (db *ScreenBuffer) Get(key int) *StaticDefaultDict[int, Char] {
 }
 
 func (db *ScreenBuffer) GetValue(key int) StaticDefaultDict[int, Char] {
+	if sdd, exists := db.Map[key]; exists {
+		return *sdd
+	}
 	v := &StaticDefaultDict[int, Char]{
 		Data:       make(map[int]Char),
 		DefaultVal: db.DefaultChar,
 	}
-	if sdd, exists := db.Map[key]; exists {
-		v = sdd
-	} else {
-		v = &StaticDefaultDict[int, Char]{
-			Data:       make(map[int]Char),
-			DefaultVal: db.DefaultChar,
-		}
-		db.Map[key] = v
-	}
+	db.Map[key] = v
 	return *v
 }
 

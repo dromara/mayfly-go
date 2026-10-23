@@ -204,7 +204,7 @@ func (a *Account) AccountDetail(rc *req.Ctx) {
 	err := a.accountApp.GetByCond(account)
 	biz.ErrIsNilAppendErr(err, "Account does not exist: %s")
 	accountvo := new(vo.SimpleAccountVO)
-	structx.Copy(accountvo, account)
+	biz.ErrIsNil(structx.Copy(accountvo, account))
 
 	accountvo.Roles = a.getAccountRoles(account.Id)
 	rc.ResData = accountvo

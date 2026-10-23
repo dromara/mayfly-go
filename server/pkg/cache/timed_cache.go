@@ -120,9 +120,12 @@ func (c *timedcache) set(k any, x any, d time.Duration) {
 
 // Get an item from the cache. Returns the item or nil, and a bool indicating
 // whether the key was found.
+//
+// 必须用写锁：get -> Item.GetValue 会更新 AccessTime 与 UseCount（读操作也会写），
+// 用 RLock 会让并发 Get 之间产生数据竞争（权限码缓存每个请求都会走这里）。
 func (c *timedcache) Get(k any) (any, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.get(k)
 }
 
@@ -363,10 +366,6 @@ func (j *janitor) Run(c *timedcache) {
 			return
 		}
 	}
-}
-
-func stopJanitor(c *TimedCache) {
-	c.janitor.stop <- true
 }
 
 func runJanitor(c *timedcache, ci time.Duration) {

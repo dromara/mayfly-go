@@ -262,6 +262,7 @@ import { Msg } from '@/hooks/useI18n';
 import { computed, ref, watch } from 'vue';
 import { milvusApi } from '../api';
 import type { IDatabase, ICollection } from '../types';
+import { PRIVILEGE_GROUP_CATEGORIES, isPrivilegeGroupBelongsToTab } from './composables/privilegeGroups';
 
 /** Milvus 权限组 (API 返回) */
 interface MilvusPrivilegeGroup {
@@ -303,29 +304,6 @@ const emit = defineEmits<{
     'privilege-saved': [];
 }>();
 
-// 权限组分类定义
-const PRIVILEGE_GROUP_CATEGORIES = {
-    CLUSTER: {
-        name: 'cluster',
-        label: '集群权限',
-        groupNames: ['ClusterReadOnly', 'ClusterReadWrite', 'ClusterAdmin'],
-    },
-    DATABASE: {
-        name: 'database',
-        label: '数据库权限',
-        groupNames: ['DatabaseReadOnly', 'DatabaseReadWrite', 'DatabaseAdmin'],
-    },
-    COLLECTION: {
-        name: 'collection',
-        label: 'Collection权限',
-        groupNames: ['CollectionReadOnly', 'CollectionReadWrite', 'CollectionAdmin'],
-    },
-    CUSTOM: {
-        name: 'custom',
-        label: '自定义权限组',
-        groupNames: [], // 其余所有权限组
-    },
-};
 
 // Tab页签控制
 const privilegeGroupTypeTab = ref('cluster'); // 当前激活的Tab
@@ -553,23 +531,6 @@ const isDatabaseAuthorized = (dbName: string) => {
     return false;
 };
 
-// 检查权限组是否属于当前 Tab 类型
-const isPrivilegeGroupBelongsToTab = (groupName: string, tabType: string) => {
-    if (tabType === 'cluster') {
-        return PRIVILEGE_GROUP_CATEGORIES.CLUSTER.groupNames.includes(groupName);
-    } else if (tabType === 'database') {
-        return PRIVILEGE_GROUP_CATEGORIES.DATABASE.groupNames.includes(groupName);
-    } else if (tabType === 'collection') {
-        return PRIVILEGE_GROUP_CATEGORIES.COLLECTION.groupNames.includes(groupName);
-    } else {
-        // custom: 排除所有固定权限组
-        return (
-            !PRIVILEGE_GROUP_CATEGORIES.CLUSTER.groupNames.includes(groupName) &&
-            !PRIVILEGE_GROUP_CATEGORIES.DATABASE.groupNames.includes(groupName) &&
-            !PRIVILEGE_GROUP_CATEGORIES.COLLECTION.groupNames.includes(groupName)
-        );
-    }
-};
 
 // 检查 Collection 是否已授权（按当前授权方式和权限组类型独立判断）
 const isCollectionAuthorized = (collName: string) => {

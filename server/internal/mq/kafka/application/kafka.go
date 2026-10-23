@@ -87,7 +87,7 @@ func (d *kafkaAppImpl) SaveKafka(ctx context.Context, m *entity.Kafka, tagCodePa
 			return errorx.NewBizI(ctx, imsg.ErrKafkaInfoExist)
 		}
 		// 生成随机编号
-		m.Code = stringx.Rand(10)
+		m.Code = stringx.RandLower(10)
 
 		return d.Tx(ctx,
 			func(ctx context.Context) error {

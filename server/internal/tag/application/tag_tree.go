@@ -106,7 +106,7 @@ var _ TagTree = (*tagTreeAppImpl)(nil)
 func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.TagTree) error {
 	// 新建资源树节点信息
 	if tag.Id == 0 {
-		tag.Code = stringx.Rand(12)
+		tag.Code = stringx.RandLower(12)
 		if pid != 0 {
 			parentTag, err := p.GetById(pid)
 			if err != nil {

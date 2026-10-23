@@ -125,15 +125,6 @@ const (
 	exemptCacheTtl = 5 * time.Minute
 )
 
-func newPlanCache() planCache {
-	return planCache{
-		plans:      make(map[uint64]*planCacheEntry),
-		exempts:    make(map[uint64]time.Time),
-		notExempts: make(map[uint64]time.Time),
-		ttl:        planCacheTtl,
-	}
-}
-
 // getPlan 获取指定实例的脱敏计划，优先读缓存。
 // 构建失败时按MaskFailClosed配置：fail-close上抛错误阻断本次查询，
 // fail-open（默认）降级为不脱敏，避免系统库抖动阻断正常查询
@@ -160,6 +151,10 @@ func (m *MaskAppImpl) getPlan(ctx context.Context, instanceId uint64) (*masksvc.
 	// IOC以new()创建实例，planCache为零值，懒初始化防nil map写入panic
 	if m.planCache.plans == nil {
 		m.planCache.plans = make(map[uint64]*planCacheEntry)
+	}
+	// 零值 ttl 会让 expireAt 恒为当前时刻（缓存永不命中），此处惰性补上默认值
+	if m.planCache.ttl <= 0 {
+		m.planCache.ttl = planCacheTtl
 	}
 	m.planCache.plans[instanceId] = &planCacheEntry{plan: plan, version: version, expireAt: time.Now().Add(m.planCache.ttl)}
 	m.planCache.mu.Unlock()

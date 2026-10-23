@@ -16,6 +16,15 @@ func Rand(l int) string {
 	return RandByChars(l, Nums+LowerChars+UpperChars)
 }
 
+// RandLower 生成只含数字与小写字母的随机串。
+//
+// 资源/标签 code 会进入标签树的 code_path，同时被 SQL 前缀匹配与 Go 字符串前缀比较使用。
+// 含大写字母时，SQLite 的 LIKE（ASCII 大小写不敏感）与 Go 的 HasPrefix（敏感）会得出
+// 不同结论，出现「列表能看到、点开报无权」。统一小写从源头消除这种大小写歧义
+func RandLower(l int) string {
+	return RandByChars(l, Nums+LowerChars)
+}
+
 // RandUUID 生成随机 UUID（32 位，无序）
 func RandUUID() string {
 	return strings.Replace(uuid.New().String(), "-", "", -1)

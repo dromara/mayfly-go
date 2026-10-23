@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +68,25 @@ func (d *dbDataImportAppImpl) Preview(_ context.Context, req *dto.ImportPreviewR
 // importPreviewRowCount 预览返回的最大样本行数：够前端展示并推断列类型映射即可，无需整表
 const importPreviewRowCount = 20
 
+// maxImportBatchSize 单条批量 INSERT 的服务端硬上限（与前端输入上限一致）：
+// batchSize 直接来自请求参数，若不收敛，make([][]any, 0, batchSize) 会在读数据前按用户值
+// 预分配（1e9 ≈ 24GB），触发不可 recover 的 OOM 使整个进程退出
+const maxImportBatchSize = 5000
+
+// importBatchCapHint 批次切片预分配上限：实际批次仍可增长到 batchSize，但初始容量不随请求值放大
+const importBatchCapHint = 1024
+
+// clampImportBatchSize 把请求的 batchSize 收敛到 [默认值, 硬上限] 区间
+func clampImportBatchSize(batchSize int) int {
+	if batchSize <= 0 {
+		return dto.DefaultImportBatchSize
+	}
+	if batchSize > maxImportBatchSize {
+		return maxImportBatchSize
+	}
+	return batchSize
+}
+
 func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq) (*dto.DataImportRes, error) {
 	conn := req.DbConn
 	if len(req.Columns) == 0 {
@@ -81,16 +101,9 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 	if opts == nil {
 		opts = &importer.Options{}
 	}
-	// 全量导入：不限预览行数
+	// 全量导入：预览限制关闭；行数据端到端流式（Excel 由 excelize 整体读文件，但行不聚合）
 	fullOpts := *opts
 	fullOpts.PreviewLimit = 0
-	table, err := imp.Parse(req.Reader, &fullOpts)
-	if err != nil {
-		return nil, err
-	}
-	if len(table.Rows) == 0 {
-		return &dto.DataImportRes{TotalRows: 0}, nil
-	}
 
 	// 目标表列元数据：按列名（不区分大小写）建立索引，供列映射解析与类型识别
 	tableColumns, err := conn.Metadata().GetColumns(req.TableName)
@@ -102,9 +115,65 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		colByName[strings.ToLower(c.ColumnName)] = c
 	}
 
+	// ===== 第一遍（流式）：表头 + 总行数 + 每列是否出现过非空值 =====
+	// 自增列「整列为空」的判定需要知道整列是否出现过非空，故先扫一遍；该遍不驻留行数据。
+	reader := req.Reader
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return nil, errorx.NewBizf("import requires a seekable file: %s", err.Error())
+	}
+	var headers []string
+	var firstRow []string
+	maxCols := 0
+	totalRows := 0
+	anyNonEmpty := make([]bool, 0, 16)
+	resizeAny := func(n int) {
+		if n > len(anyNonEmpty) {
+			anyNonEmpty = append(anyNonEmpty, make([]bool, n-len(anyNonEmpty))...)
+		}
+	}
+	if err := imp.Stream(reader, &fullOpts, &importer.StreamHandler{
+		OnHeader: func(hs []string, _ []string) error {
+			headers = hs
+			if len(hs) > maxCols {
+				maxCols = len(hs)
+			}
+			resizeAny(len(hs))
+			return nil
+		},
+		OnRow: func(row []string) error {
+			if ctx.Err() != nil {
+				return errorx.NewBiz("import cancelled")
+			}
+			totalRows++
+			if firstRow == nil {
+				firstRow = append([]string(nil), row...)
+			}
+			if len(row) > maxCols {
+				maxCols = len(row)
+			}
+			resizeAny(len(row))
+			for i, cell := range row {
+				if !anyNonEmpty[i] && strings.TrimSpace(cell) != "" {
+					anyNonEmpty[i] = true
+				}
+			}
+			return nil
+		},
+	}); err != nil {
+		return nil, err
+	}
+	if totalRows == 0 {
+		return &dto.DataImportRes{TotalRows: 0}, nil
+	}
+	// 列数口径与原解析一致：有表头取表头宽度，否则取数据行最大宽度
+	fileCols := len(headers)
+	if fileCols == 0 {
+		fileCols = maxCols
+	}
+
 	// 解析映射：为每条映射定位文件列下标（越界即报错，避免整列静默写 NULL），并解析目标列元数据。
 	// 跳过（Target 为空）的映射不参与插入；重复目标列会生成 (a, a) 的非法 INSERT，前置拒绝。
-	sourceIndex, err := resolveSourceColumns(table, req.Columns)
+	sourceIndex, err := resolveSourceColumns(fileCols, req.Columns)
 	if err != nil {
 		return nil, err
 	}
@@ -132,15 +201,13 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 	}
 
 	// 自增/标识列若被映射但整列在文件里全为空，则从插入列中剔除，交由数据库生成下一个值。
-	// 写 NULL 到自增列只有 MySQL 碰巧接受，PG serial/identity、Oracle/MSSQL 标识列会直接报错。
-	insertColumns, keptSources = dropAllEmptyAutoIncrement(table, insertColumns, keptSources)
+	// 用第一遍的 anyNonEmpty 判定，不再回扫行数据（流式约束）
+	insertColumns, keptSources = dropAllEmptyAutoIncrement(anyNonEmpty, insertColumns, keptSources)
 	if len(insertColumns) == 0 {
 		return nil, errorx.NewBiz("all mapped columns are auto-increment with empty values, nothing to insert")
 	}
 
-	// 逐列判定是否为二进制类列：文件单元格是文本，若原样交给迁移 codec 的 SQLValueBytes，
-	// 形如 MD5/无横线 UUID 的「偶数长度全 hex」文本会被当作十六进制解码成字节而静默损坏。
-	// 二进制列按字面字节写入（[]byte(text)），语义对导入文本而言唯一且可复现。
+	// 逐列判定是否为二进制/文本类列（文件单元格是文本，二进制列按字面字节写入）
 	colIsBinary := make([]bool, len(insertColumns))
 	colIsTextual := make([]bool, len(insertColumns))
 	for i, col := range insertColumns {
@@ -148,32 +215,17 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		colIsTextual[i] = isTextualCategory(conn, col.DataType)
 	}
 
-	// 装配待插入行值：按 keptSources 顺序取文件单元格（与 insertColumns 严格对齐），
-	// 空单元格按选项与列可空性归一（见 cellValue）；二进制列转字面字节；其余交由方言 codec 归一
-	values := make([][]any, 0, len(table.Rows))
-	for _, row := range table.Rows {
-		vals := make([]any, len(insertColumns))
-		for i, srcIdx := range keptSources {
-			vals[i] = cellValue(row, srcIdx, req.EmptyAsNull, colIsBinary[i], colIsTextual[i], insertColumns[i].Nullable)
-		}
-		values = append(values, vals)
-	}
-
 	strategy := req.DuplicateStrategy
 	if strategy == 0 {
 		strategy = dbi.DuplicateStrategyNone
 	}
-	// 冲突键仅在 upsert/merge(Update) 下才需要：MySQL insert ignore / PG on conflict do nothing 等
-	// 忽略策略无需指定冲突列（可匹配任意唯一约束），故 Ignore 传 nil 即可，不能强求主键。
+	// 冲突键仅在 upsert/merge(Update) 下才需要：Ignore 策略无需指定冲突列
 	var targetMeta *dbi.TargetTableMeta
 	if strategy == dbi.DuplicateStrategyUpdate {
 		targetMeta = dbsync.BuildTargetTableMeta(conn, req.TableName, tableColumns)
 		if len(targetMeta.UniqueColumns) == 0 {
 			return nil, errorx.NewBizf("cannot update on conflict: table [%s] has no primary key or single unique index to resolve conflicts", req.TableName)
 		}
-		// 冲突键列必须出现在映射列中：否则 on-conflict/merge 依据的列不在插入列里，
-		// 数据库要么生成新值永不冲突（静默插重复，如 sqlite/PG/MySQL），要么报无效标识符（Oracle/达梦）——
-		// 两种都不是用户要的「更新冲突行」，故前置拒绝并点名缺失列。
 		mapped := make(map[string]bool, len(insertColumns))
 		for _, c := range insertColumns {
 			mapped[strings.ToLower(c.ColumnName)] = true
@@ -189,23 +241,27 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		}
 	}
 
-	batchSize := req.BatchSize
-	if batchSize <= 0 {
-		batchSize = dto.DefaultImportBatchSize
-	}
+	batchSize := clampImportBatchSize(req.BatchSize)
 	sqlGen := conn.GetDialect().GetSQLGenerator()
 
-	// 数据导入与 SQL 编辑器共用同一个权限码（db:sqlscript:run），也就必须共用同一套触发策略判定：
-	// 否则「向该表插入数据需审批」在编辑器里拦得住，换个 Excel/CSV 文件导入就绕过去了。
-	// 判定用「往该表插入一行」的代表语句而不是实际批次语句：批次大小是实现细节，
-	// 拿它决定策略结论会出现「调小批量就绕过、调大批量就误拦」
+	// 数据导入与 SQL 编辑器共用同一个权限码（db:sqlscript:run），必须共用同一套触发策略判定。
+	// 判定必须在开事务前完成：被策略拒绝时不应开启事务，更不能「写完再问」。
+	// 代表语句用「往该表插入一行」而不是实际批次语句（批次大小是实现细节）。
 	var warnings []string
-	if probeStmts := sqlGen.GenInsert(req.TableName, insertColumns, values[:1], strategy, targetMeta); len(probeStmts) > 0 {
-		notices, err := GetDbSQLExecApp().CheckSqlsWithoutTicket(ctx, conn, probeStmts)
-		if err != nil {
-			return nil, err
+	if firstRow != nil {
+		values := make([][]any, 1)
+		values[0] = make([]any, len(insertColumns))
+		for i, srcIdx := range keptSources {
+			values[0][i] = cellValue(firstRow, srcIdx, req.EmptyAsNull, colIsBinary[i], colIsTextual[i], insertColumns[i].Nullable)
 		}
-		warnings = notices
+		// 代表语句固定用「插入一行」：批次大小是实现细节，不应影响策略结论
+		if probeStmts := sqlGen.GenInsert(req.TableName, insertColumns, values[:1], strategy, targetMeta); len(probeStmts) > 0 {
+			notices, checkErr := GetDbSQLExecApp().CheckSqlsWithoutTicket(ctx, conn, probeStmts)
+			if checkErr != nil {
+				return nil, checkErr
+			}
+			warnings = notices
+		}
 	}
 
 	tx, err := conn.Begin()
@@ -219,7 +275,7 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		}
 	}()
 
-	res := &dto.DataImportRes{TotalRows: len(table.Rows), Warnings: warnings}
+	res := &dto.DataImportRes{TotalRows: totalRows, Warnings: warnings}
 
 	// 进度回传：与「SQL文件执行」同构，仅在登录账号 + clientId + uploadId 齐全时发送 Ws 进度消息。
 	// 事件订阅为异步（SubscribeAsync）且 Ws 发送持有 Params 引用，故每次发布必须 copy 一份新 map、
@@ -271,31 +327,67 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 		}
 	}()
 
-	for start := 0; start < len(values); start += batchSize {
-		end := min(start+batchSize, len(values))
-		batch := values[start:end]
+	// ===== 第二遍（流式）：逐行转换 → 按批生成 INSERT → 事务内执行 =====
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		dbi.RollbackTx(tx)
+		return nil, errorx.NewBizf("import requires a seekable file: %s", err.Error())
+	}
+
+	capHint := batchSize
+	if capHint > importBatchCapHint {
+		capHint = importBatchCapHint
+	}
+	batch := make([][]any, 0, capHint)
+
+	flushBatch := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
 		stmts := sqlGen.GenInsert(req.TableName, insertColumns, batch, strategy, targetMeta)
 		if len(stmts) == 0 {
-			dbi.RollbackTx(tx)
-			return nil, errorx.NewBiz("target dialect generated no insert statement for a non-empty batch")
+			return errorx.NewBiz("target dialect generated no insert statement for a non-empty batch")
 		}
+		batchStart := res.Imported + 1
 		for _, stmt := range stmts {
 			if ctx.Err() != nil {
-				dbi.RollbackTx(tx)
-				return nil, errorx.NewBiz("import cancelled")
+				return errorx.NewBiz("import cancelled")
 			}
 			affected, execErr := conn.TxExecContext(ctx, tx, stmt)
 			if execErr != nil {
-				dbi.RollbackTx(tx)
-				return nil, errorx.NewBizf("import failed at row batch %d-%d: %s", start+1, end, execErr.Error())
+				return errorx.NewBizf("import failed at row batch starting at %d: %s", batchStart, execErr.Error())
 			}
 			res.BatchCount++
 			res.AffectedRow += affected
 		}
 		res.Imported += len(batch)
+		batch = batch[:0]
 		publishProgress(false, res.Imported, "importing")
+		return nil
 	}
 
+	if err := imp.Stream(reader, &fullOpts, &importer.StreamHandler{
+		OnRow: func(row []string) error {
+			if ctx.Err() != nil {
+				return errorx.NewBiz("import cancelled")
+			}
+			vals := make([]any, len(insertColumns))
+			for i, srcIdx := range keptSources {
+				vals[i] = cellValue(row, srcIdx, req.EmptyAsNull, colIsBinary[i], colIsTextual[i], insertColumns[i].Nullable)
+			}
+			batch = append(batch, vals)
+			if len(batch) >= batchSize {
+				return flushBatch()
+			}
+			return nil
+		},
+	}); err != nil {
+		dbi.RollbackTx(tx)
+		return nil, err
+	}
+	if err := flushBatch(); err != nil {
+		dbi.RollbackTx(tx)
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		dbi.RollbackTx(tx)
 		return nil, errorx.NewBizf("commit import transaction failed: %s", err.Error())
@@ -307,8 +399,7 @@ func (d *dbDataImportAppImpl) Import(ctx context.Context, req *dto.DataImportReq
 // resolveSourceColumns 为每条映射解析对应的文件列下标：映射的 Source 为列位置下标的字符串
 // （有表头/无表头一致，前端按解析后的列序稳定生成）。按位置而非列名匹配，杜绝同名表头被解析到
 // 同一列导致数据错位；越界下标直接报错而非静默写 NULL。跳过（Target 为空）的映射返回 -1。
-func resolveSourceColumns(table *importer.Table, mappings []dto.ImportColumn) ([]int, error) {
-	fileCols := table.ColumnCount()
+func resolveSourceColumns(fileCols int, mappings []dto.ImportColumn) ([]int, error) {
 	idxs := make([]int, len(mappings))
 	for i, m := range mappings {
 		if m.Target == "" {
@@ -325,21 +416,17 @@ func resolveSourceColumns(table *importer.Table, mappings []dto.ImportColumn) ([
 }
 
 // dropAllEmptyAutoIncrement 剔除「被映射为自增/标识列、且文件里整列所有行都为空」的列，
-// 让数据库自行生成主键值。返回过滤后的列与对应文件下标（保持一一对应）。
-func dropAllEmptyAutoIncrement(table *importer.Table, columns []dbi.Column, sources []int) ([]dbi.Column, []int) {
+// 让数据库自行生成主键值。anyNonEmpty[i] 表示文件第 i 列是否出现过非空单元格（第一遍流式扫描结果）。
+// 返回过滤后的列与对应文件下标（保持一一对应）。
+func dropAllEmptyAutoIncrement(anyNonEmpty []bool, columns []dbi.Column, sources []int) ([]dbi.Column, []int) {
 	drop := make([]bool, len(columns))
 	anyDrop := false
 	for i, col := range columns {
 		if !col.AutoIncrement {
 			continue
 		}
-		allEmpty := true
-		for _, row := range table.Rows {
-			if ci := sources[i]; ci >= 0 && ci < len(row) && strings.TrimSpace(row[ci]) != "" {
-				allEmpty = false
-				break
-			}
-		}
+		ci := sources[i]
+		allEmpty := ci < 0 || ci >= len(anyNonEmpty) || !anyNonEmpty[ci]
 		if allEmpty {
 			drop[i] = true
 			anyDrop = true

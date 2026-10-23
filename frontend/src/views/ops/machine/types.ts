@@ -18,7 +18,7 @@ export interface Machine {
     remark: string;
     sshTunnelMachineId: number;
     enableRecorder: number;
-    /** 后端 model.ExtraData 透传的自由 map；机器侧实际仅携带 ciphers/keyExchanges 两项字符串 */
+    /** 后端 model.ExtraData 透传的自由 map；机器侧携带 ciphers/keyExchanges 与代理配置（proxyType/proxyAddr/proxyUsername，proxyPassword 仅存密文且不回显） */
     extra?: Record<string, string>;
     createTime: string;
     creator: string;
@@ -205,7 +205,7 @@ export interface MachineVO extends AuthCerts {
     enableRecorder: number;
     stat?: MachineListStat;
     selectAuthCert?: MachineAuthCert;
-    /** 后端 model.ExtraData 透传的自由 map；机器侧实际仅携带 ciphers/keyExchanges 两项字符串 */
+    /** 后端 model.ExtraData 透传的自由 map；机器侧携带 ciphers/keyExchanges 与代理配置（proxyType/proxyAddr/proxyUsername，proxyPassword 仅存密文且不回显） */
     extra?: Record<string, string>;
 }
 

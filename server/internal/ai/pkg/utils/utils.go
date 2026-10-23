@@ -64,7 +64,7 @@ func clipJSONValue(s string) string {
 	objIdx := strings.Index(s, "{")
 	arrIdx := strings.Index(s, "[")
 
-	start := -1
+	var start int
 	var open, close byte
 
 	switch {

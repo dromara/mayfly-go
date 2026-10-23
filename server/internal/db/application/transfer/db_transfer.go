@@ -14,7 +14,6 @@ import (
 	"mayfly-go/internal/db/imsg"
 	fileapp "mayfly-go/internal/file/application"
 	fileentity "mayfly-go/internal/file/domain/entity"
-	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -83,7 +82,6 @@ type DbTransferAppImpl struct {
 	base.AppImpl[*entity.DbTransferTask, repository.DbTransferTask]
 
 	dbApp           DbApp          `inject:"T"`
-	logApp          sysapp.Syslog  `inject:"T"`
 	transferFileApp DbTransferFile `inject:"T"`
 	fileApp         fileapp.File   `inject:"T"`
 

@@ -34,9 +34,11 @@ type ImportColumn struct {
 type DataImportReq struct {
 	DbConn    *dbi.DbConn
 	TableName string
-	Reader    io.Reader
-	Filename  string
-	Options   *importer.Options
+	// Reader 必须可 Seek：导入需两遍读取（第一遍扫表头/总行数与自增列是否整列为空，第二遍分批流式写入），
+	// 不在内存聚合全表
+	Reader   io.ReadSeeker
+	Filename string
+	Options  *importer.Options
 
 	// Columns 有序列映射，决定导入哪些列及其顺序；未列出的文件列不导入
 	Columns []ImportColumn

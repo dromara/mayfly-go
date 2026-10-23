@@ -114,7 +114,7 @@ func (d *mongoAppImpl) createMongo(ctx context.Context, m *entity.Mongo, tagCode
 	}
 
 	// 生成随机编号
-	m.Code = stringx.Rand(10)
+	m.Code = stringx.RandLower(10)
 
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.Insert(ctx, m)

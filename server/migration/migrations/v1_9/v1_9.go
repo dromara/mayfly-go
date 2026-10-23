@@ -24,7 +24,9 @@ func v193() []*gormigrate.Migration {
 		{
 			ID: "20250213-v1.9.3-addMachineExtra-updateMenuIcon",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&machineentity.Machine{})
+				if err := tx.AutoMigrate(&machineentity.Machine{}); err != nil {
+					return err
+				}
 
 				// 更新菜单图标
 				resourceModel := &sysentity.Resource{}
@@ -51,8 +53,12 @@ func v194() []*gormigrate.Migration {
 		{
 			ID: "20250213-v1.9.4-addMsg",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&sysentity.Account{})
-				tx.AutoMigrate(&msgentity.MsgTmpl{}, &msgentity.MsgTmplChannel{}, &msgentity.MsgChannel{}, &msgentity.MsgTmplBiz{})
+				if err := tx.AutoMigrate(&sysentity.Account{}); err != nil {
+					return err
+				}
+				if err := tx.AutoMigrate(&msgentity.MsgTmpl{}, &msgentity.MsgTmplChannel{}, &msgentity.MsgChannel{}, &msgentity.MsgTmplBiz{}); err != nil {
+					return err
+				}
 
 				la := &model.LoginAccount{Id: 1, Username: "admin"}
 				// 创建审批默认消息模板

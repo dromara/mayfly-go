@@ -104,7 +104,9 @@ func (app *instanceAppImpl) createConn(ctx context.Context, instanceId uint64) (
 func (app *instanceAppImpl) ToEsInfo(instance *entity.EsInstance, ac *tagentity.ResourceAuthCert) (*esi.EsInfo, error) {
 	ei := new(esi.EsInfo)
 	ei.InstanceId = instance.Id
-	structx.Copy(ei, instance)
+	if err := structx.Copy(ei, instance); err != nil {
+		return nil, err
+	}
 	ei.OriginUrl = fmt.Sprintf("http://%s:%d", instance.Host, instance.Port)
 
 	if ac != nil {
@@ -167,7 +169,7 @@ func (app *instanceAppImpl) SaveInst(ctx context.Context, instance *dto.SaveEsIn
 		if err == nil {
 			return 0, errorx.NewBizI(ctx, imsg.ErrEsInstExist)
 		}
-		instanceEntity.Code = stringx.Rand(10)
+		instanceEntity.Code = stringx.RandLower(10)
 
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)

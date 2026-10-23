@@ -403,7 +403,7 @@ func indirectType(v any) reflect.Type {
 		return nil
 	}
 	rt := reflect.TypeOf(v)
-	for rt != nil && rt.Kind() == reflect.Ptr {
+	for rt != nil && rt.Kind() == reflect.Pointer {
 		rt = rt.Elem()
 	}
 	if rt == nil || rt.Kind() != reflect.Struct {

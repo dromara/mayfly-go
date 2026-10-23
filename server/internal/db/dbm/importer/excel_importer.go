@@ -21,75 +21,99 @@ type ExcelImporter struct{}
 
 func (e *ExcelImporter) Extensions() []string { return []string{"xlsx", "xlsm"} }
 
+// Parse 预览/小样本解析：委托 Stream 累积前 PreviewLimit 行（<=0 不限制）
 func (e *ExcelImporter) Parse(r io.Reader, opts *Options) (*Table, error) {
+	return parseTable(r, e, opts)
+}
+
+// Stream 逐行解析并回调，不在解析层聚合整张 sheet（供全量导入端到端流式消费）。
+func (e *ExcelImporter) Stream(r io.Reader, opts *Options, h *StreamHandler) error {
 	if opts == nil {
 		opts = &Options{}
 	}
 	f, err := excelize.OpenReader(r)
 	if err != nil {
-		return nil, errorx.NewBizf("read excel file failed: %s", err.Error())
+		return errorx.NewBizf("read excel file failed: %s", err.Error())
 	}
 	defer func() { _ = f.Close() }()
 
 	sheets := f.GetSheetList()
 	if len(sheets) == 0 {
-		return nil, errorx.NewBiz("excel file has no worksheet")
+		return errorx.NewBiz("excel file has no worksheet")
 	}
 	sheet := opts.Sheet
 	if sheet == "" {
 		sheet = sheets[0]
 	}
 
-	rawRows, err := readExcelRows(f, sheet)
-	if err != nil {
-		return nil, errorx.NewBizf("read excel sheet [%s] failed: %s", sheet, err.Error())
+	headerSent := false
+	emitHeader := func(headers []string) error {
+		if headerSent {
+			return nil
+		}
+		headerSent = true
+		if h != nil && h.OnHeader != nil {
+			return h.OnHeader(headers, sheets)
+		}
+		return nil
 	}
 
-	table := &Table{Rows: make([][]string, 0, len(rawRows)), Sheets: sheets}
-	if len(rawRows) == 0 {
-		return table, nil
-	}
-	if opts.HasHeader {
-		table.HasHeader = true
-		table.Headers = rawRows[0]
-		rawRows = rawRows[1:]
-	}
-	for _, row := range rawRows {
-		if isBlankRow(row) {
-			continue
+	first := true
+	err = scanExcelRows(f, sheet, func(cols []string) error {
+		if first {
+			first = false
+			var headers []string
+			if opts.HasHeader {
+				headers = cols
+			}
+			if err := emitHeader(headers); err != nil {
+				return err
+			}
+			if opts.HasHeader {
+				return nil
+			}
 		}
-		if opts.PreviewLimit > 0 && len(table.Rows) >= opts.PreviewLimit {
-			break
+		if isBlankRow(cols) {
+			return nil
 		}
-		table.Rows = append(table.Rows, row)
+		if h != nil && h.OnRow != nil {
+			return h.OnRow(cols)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	return table, nil
+	// 空表也要回调一次表头，让调用方拿到「无表头」的确定结果
+	return emitHeader(nil)
 }
 
-// readExcelRows 以原始值模式逐行读取，并把日期/时间格式的数字单元格还原为 ISO 文本。
-func readExcelRows(f *excelize.File, sheet string) ([][]string, error) {
+// scanExcelRows 以原始值模式逐行读取并回调，日期/时间格式的数字单元格先还原为 ISO 文本。
+// 回调返回错误即中止扫描（调用方用 sentinel 区分「提前结束」与真实错误）。
+func scanExcelRows(f *excelize.File, sheet string, fn func(cols []string) error) error {
 	rows, err := f.Rows(sheet)
 	if err != nil {
-		return nil, err
+		return errorx.NewBizf("read excel sheet [%s] failed: %s", sheet, err.Error())
 	}
 	defer func() { _ = rows.Close() }()
 
 	rawOpts := excelize.Options{RawCellValue: true}
-	var result [][]string
 	rowNum := 0
 	for rows.Next() {
 		rowNum++
 		cols, colErr := rows.Columns(rawOpts)
 		if colErr != nil {
-			return nil, colErr
+			return errorx.NewBizf("read excel sheet [%s] failed: %s", sheet, colErr.Error())
 		}
 		normalizeDateCells(f, sheet, rowNum, cols)
-		result = append(result, cols)
+		if err := fn(cols); err != nil {
+			return err
+		}
 	}
 	if err := rows.Error(); err != nil {
-		return nil, err
+		return errorx.NewBizf("read excel sheet [%s] failed: %s", sheet, err.Error())
 	}
-	return result, nil
+	return nil
 }
 
 // normalizeDateCells 对「值是数字」且「单元格套了日期/时间格式」的格子，把 Excel 序列数转成 ISO 文本。

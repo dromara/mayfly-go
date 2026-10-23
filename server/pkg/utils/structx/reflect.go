@@ -15,7 +15,7 @@ func IsZeroValue(v reflect.Value) bool {
 		return !v.Bool()
 	case reflect.Float32, reflect.Float64:
 		return v.Float() == 0
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
+	case reflect.Pointer, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
 		return v.IsNil()
 	default:
 		return reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
@@ -29,7 +29,7 @@ func NewInstance[T any]() T {
 	var t T
 	typ := reflect.TypeOf(t)
 
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		// T 是 *SomeStruct
 		// 我们需要创建 SomeStruct 的实例，并返回其指针
 		elemType := typ.Elem()

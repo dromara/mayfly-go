@@ -2,10 +2,8 @@ package structx
 
 import (
 	"fmt"
-	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
@@ -149,25 +147,6 @@ func TestMap2Struct(t *testing.T) {
 	// 	fmt.Println(err)
 	// }
 	fmt.Printf("map2struct后得到的 struct 内容为:%v", s)
-}
-
-func getPrefixKeyMap(m map[string]any) map[string]map[string]any {
-	key2map := make(map[string]map[string]any)
-	for k, v := range m {
-		if !strings.Contains(k, ".") {
-			continue
-		}
-		lastIndex := strings.LastIndex(k, ".")
-		prefix := k[0:lastIndex]
-		m2 := key2map[prefix]
-		if m2 == nil {
-			key2map[prefix] = collx.M{k[lastIndex+1:]: v}
-		} else {
-			m2[k[lastIndex+1:]] = v
-		}
-		delete(m, k)
-	}
-	return key2map
 }
 
 func TestReflect(t *testing.T) {

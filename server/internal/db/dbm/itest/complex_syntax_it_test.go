@@ -127,12 +127,12 @@ func TestITComplexQueryRealExec(t *testing.T) {
 			require.Equal(t, "full_name", items[0].Alias)
 
 			// 5. 多层嵌套子查询真实执行
-			rows, ok = execQueryWithSupport(t, conn,
+			rows, _ = execQueryWithSupport(t, conn,
 				"SELECT name FROM t_emp WHERE dept IN (SELECT dept FROM t_dept WHERE city IN (SELECT city FROM t_dept WHERE dept = 'eng'))", supportRequired)
 			require.Len(t, rows, 2, "eng城市（bj）的员工应为alice/bob 2人")
 
 			// 6. 转义引号字符串真实执行（解析与执行值一致）
-			rows, ok = execQueryWithSupport(t, conn,
+			rows, _ = execQueryWithSupport(t, conn,
 				"SELECT id FROM t_emp WHERE name = 'it''s alice' OR id = 1", supportRequired)
 			require.Len(t, rows, 1)
 			require.Equal(t, 1, cellInt(t, rows[0]["id"]))

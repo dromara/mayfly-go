@@ -9,6 +9,12 @@ export const MachineProtocolEnum = {
     Vnc: EnumValue.of(3, 'VNC').setExtra({ defaultPort: 5901 }),
 };
 
+/** 机器出网代理类型（extra.proxyType）：默认直连，socks5 时使用同一 extra 中的代理配置 */
+export const MachineProxyTypeEnum = {
+    None: EnumValue.of('none', 'machine.proxyTypeNone'),
+    Socks5: EnumValue.of('socks5', 'machine.proxyTypeSocks5'),
+};
+
 /**
  * 取协议对应的默认端口（端口属协议知识，与协议枚举同源维护，不得在各视图重复硬编码）
  *

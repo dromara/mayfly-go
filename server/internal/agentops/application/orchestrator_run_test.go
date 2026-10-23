@@ -64,7 +64,7 @@ func TestOrchestrationTrailAndCostAggregation(t *testing.T) {
 	orch, runSvc := setupOrchestrator(t)
 
 	fakeRunner(t, func(_ context.Context, req *headless.RunReq) (*headless.RunResult, error) {
-		out := "ok"
+		var out string
 		switch req.ProfileId {
 		case headless.ProfileExecutor:
 			out = "unexpected executor run"
@@ -128,7 +128,7 @@ func TestOrchestrationReportProposalsComeFromStore(t *testing.T) {
 	orch, runSvc := setupOrchestrator(t)
 
 	fakeRunner(t, func(_ context.Context, req *headless.RunReq) (*headless.RunResult, error) {
-		out := "ok"
+		var out string
 		switch req.ProfileId {
 		case headless.ProfileReviewer:
 			// Reviewer 拿到的输入必须已含事实清单，否则它仍会只看到步骤自述

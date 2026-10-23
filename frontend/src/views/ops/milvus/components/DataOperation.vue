@@ -255,6 +255,7 @@ import { storeToRefs } from 'pinia';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { milvusApi } from '../api';
+import { useDocDisplay } from './composables/docDisplay';
 
 // 表格动态高度（仅 body 滚动，表头固定）
 const tableContainerRef = ref<HTMLElement>();
@@ -313,6 +314,10 @@ const totalRecords = ref(0);
 const collectionFields = ref<string[]>([]);
 const partitions = ref<string[]>([]);
 const primaryKey = ref<string>('');
+
+// 文档显示域（格式化/字段角色/列宽标签/URL 点击）收在 composable
+const { formatCellValue, isPrimaryKey, isDynamicField, isVectorField, getMinWidth, getDisplayLabel, isUrl, handleCellClick } =
+    useDocDisplay(primaryKey);
 
 // 数据
 const queryResults = ref<Record<string, unknown>[]>([]);
@@ -526,83 +531,6 @@ const handleDeleteSelected = async () => {
     setTimeout(handleQuery, 500);
 };
 
-// 格式化单元格值
-const formatCellValue = (value: unknown, field: string): string => {
-    if (value === null || value === undefined) {
-        return '';
-    }
-
-    // 动态字段
-    if (field === 'dynamicFields') {
-        if (typeof value === 'object') {
-            return JSON.stringify(value);
-        }
-        return String(value);
-    }
-
-    // 向量字段
-    if (Array.isArray(value)) {
-        const str = JSON.stringify(value);
-        return str.length > 100 ? str.substring(0, 100) + '...' : str;
-    }
-    // 其余对象数据
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-    return String(value);
-};
-
-// 判断是否为主键
-const isPrimaryKey = (field: string) => {
-    return field === primaryKey.value;
-};
-
-// 判断是否为动态字段
-const isDynamicField = (field: string) => {
-    return field === 'dynamicFields';
-};
-
-// 判断是否为向量字段
-const isVectorField = (field: string) => {
-    return field === 'vector' || field.toLowerCase().includes('vector');
-};
-
-// 获取最小列宽
-const getMinWidth = (field: string) => {
-    if (isVectorField(field)) return 300;
-    if (isDynamicField(field)) return 250;
-    if (isPrimaryKey(field)) return 180;
-    return 150;
-};
-
-// 获取显示标签
-const getDisplayLabel = (field: string) => {
-    // 主键字段显示 # 前缀
-    if (isPrimaryKey(field)) {
-        return `# ${field}`;
-    }
-    // 向量字段显示 ~ 前缀
-    if (isVectorField(field)) {
-        return `${field}`;
-    }
-    // 动态字段显示 "" 前缀
-    if (isDynamicField(field)) {
-        return `"${field}`;
-    }
-    return field;
-};
-
-// 判断是否为 URL
-const isUrl = (value: unknown): value is string => {
-    return typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
-};
-
-// 单元格点击事件
-const handleCellClick = (value: unknown, field: string) => {
-    if (isUrl(value)) {
-        window.open(value, '_blank');
-    }
-};
 
 // 样本数据导入配置对话框
 const importDialogVisible = ref(false);

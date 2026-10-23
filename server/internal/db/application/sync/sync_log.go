@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"mayfly-go/internal/db/domain/entity"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/internal/pkg/event"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 )
 
 // 数据同步任务的运行日志生命周期：收尾落库、实时缓存读写。
@@ -105,6 +108,9 @@ func (app *DataSyncAppImpl) ResetStaleRunningSyncLogs(ctx context.Context) error
 	return nil
 }
 
+// runningSyncLogTTL 运行中日志缓存 TTL
+const runningSyncLogTTL = time.Hour
+
 // getRunningSyncLog 获取运行中同步任务的缓存日志（供 GetLogPageList 实时读取）
 func (app *DataSyncAppImpl) getRunningSyncLog(logId uint64) *entity.DataSyncLog {
 	var log entity.DataSyncLog
@@ -138,4 +144,25 @@ func (app *DataSyncAppImpl) notifyTaskRunFail(taskEntity *entity.DataSyncTask, l
 		errText = "task failed without error text"
 	}
 	global.EventBus.Publish(context.Background(), event.EventTopicMsgTmplSend, msgdto.DbTaskRunFailEvent(taskEntity.TaskName, errText, taskEntity.CreatorId))
+}
+
+// GetLogPageList 获取任务执行日志列表（不含运行日志内容，列表页只需状态与指标）
+func (app *DataSyncAppImpl) GetLogPageList(condition *entity.DataSyncLogQuery, orderBy ...string) (*model.PageResult[*entity.DataSyncLog], error) {
+	return app.dbDataSyncLogRepo.GetPageList(condition, orderBy...)
+}
+
+// GetLogWithRunLog 按日志 id 获取单条执行日志的运行日志与状态。
+// 运行日志内容不在列表中返回，由该入口按需获取：执行中的日志只存于实时缓存，故优先读缓存
+func (app *DataSyncAppImpl) GetLogWithRunLog(logId uint64) (*entity.DataSyncLog, error) {
+	if log := app.getRunningSyncLog(logId); log != nil {
+		return log, nil
+	}
+	log, err := app.dbDataSyncLogRepo.GetById(logId)
+	if err != nil {
+		return nil, err
+	}
+	if log == nil {
+		return nil, errorx.NewBizf("data sync log [%d] not found", logId)
+	}
+	return log, nil
 }

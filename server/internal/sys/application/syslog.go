@@ -137,7 +137,9 @@ func (m *syslogAppImpl) GetLogDetail(logId uint64) *entity.SysLog {
 
 func (m *syslogAppImpl) CreateLog(ctx context.Context, log *CreateLogReq) (uint64, error) {
 	syslog := new(entity.SysLog)
-	structx.Copy(syslog, log)
+	if err := structx.Copy(syslog, log); err != nil {
+		return 0, err
+	}
 	syslog.ReqParam = anyx.ToString(log.ReqParam)
 	if len(log.Extra) > 0 {
 		syslog.Extra = jsonx.ToStr(log.Extra)

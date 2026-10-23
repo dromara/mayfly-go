@@ -21,6 +21,7 @@ import (
 	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
+	"sync"
 	"time"
 )
 
@@ -62,6 +63,17 @@ type machineCronJobAppImpl struct {
 
 	// runGuard 分布式运行守卫：按 cron job key 互斥，防止多实例重复执行
 	runGuard taskx.RunGuard[string]
+
+	// runCancels 本实例在跑的实例级取消表（key = cron job key）：
+	// Delete 时直接取消，避免任务删除后执行体继续跑完并补插执行记录
+	runCancelsMu sync.Mutex
+	runCancels   map[string]map[*runCancelEntry]struct{}
+}
+
+// runCancelEntry 一次在跑执行的取消登记项：用指针身份区分同一 key 的多轮/多机执行
+// （同一计划任务可能已在多台机器上并发执行，删除时必须全部取消）
+type runCancelEntry struct {
+	cancel context.CancelFunc
 }
 
 var _ MachineCronJob = (*machineCronJobAppImpl)(nil)
@@ -128,8 +140,65 @@ func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *d
 }
 
 func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
+	// 先停调度与在跑执行：仅软删任务时，执行体还会在数秒后补插一条执行记录（实测删除后 14s 仍插入），
+	// 先取消才能让「删除」对已在跑的机器也立即生效
+	if cronJob, err := m.GetById(id); err == nil && cronJob != nil {
+		taskx.UnbindCronTask(cronJob.Key)
+		m.cancelRuns(cronJob.Key)
+		// 跨实例：有 Redis 时写停止标记让其他实例上的执行也尽快收敛；无 Redis 时仅本地 Release
+		m.runGuard.RequestStop(cronJob.Key)
+	}
+
 	m.DeleteById(ctx, id)
 	m.machineCronJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
+}
+
+// registerRun 登记一轮在跑执行，返回登记项供收尾摘除
+func (m *machineCronJobAppImpl) registerRun(key string, cancel context.CancelFunc) *runCancelEntry {
+	entry := &runCancelEntry{cancel: cancel}
+	m.runCancelsMu.Lock()
+	defer m.runCancelsMu.Unlock()
+
+	if m.runCancels == nil {
+		m.runCancels = make(map[string]map[*runCancelEntry]struct{})
+	}
+	entries := m.runCancels[key]
+	if entries == nil {
+		entries = make(map[*runCancelEntry]struct{})
+		m.runCancels[key] = entries
+	}
+	entries[entry] = struct{}{}
+	return entry
+}
+
+func (m *machineCronJobAppImpl) unregisterRun(key string, entry *runCancelEntry) {
+	m.runCancelsMu.Lock()
+	defer m.runCancelsMu.Unlock()
+
+	entries := m.runCancels[key]
+	delete(entries, entry)
+	if len(entries) == 0 {
+		delete(m.runCancels, key)
+	}
+}
+
+// cancelRuns 取消指定任务当前所有在跑执行
+func (m *machineCronJobAppImpl) cancelRuns(key string) {
+	m.runCancelsMu.Lock()
+	entries := make([]*runCancelEntry, 0, len(m.runCancels[key]))
+	for entry := range m.runCancels[key] {
+		entries = append(entries, entry)
+	}
+	m.runCancelsMu.Unlock()
+
+	for _, entry := range entries {
+		entry.cancel()
+	}
+}
+
+// runStopped 本轮执行是否已应停止：本地取消信号 + 跨实例停止标记
+func (m *machineCronJobAppImpl) runStopped(ctx context.Context, key string) bool {
+	return ctx.Err() != nil || m.runGuard.IsStopRequested(key)
 }
 
 func (m *machineCronJobAppImpl) InitCronJob() {
@@ -224,13 +293,21 @@ func (m *machineCronJobAppImpl) runCronJob0(ctx context.Context, mid uint64, cro
 		machineCode = machine.Code
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	// RunCronJob 的 ctx 已脱离调度回调（Background+trace），这里保留 traceId 与上游取消信号；
+	// 同时登记本轮执行，任务被删除时 Delete 可直接取消，不必等命令自然结束
+	ctx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
+	runEntry := m.registerRun(cronJob.Key, cancelFunc)
+	defer m.unregisterRun(cronJob.Key, runEntry)
 
 	res := ""
 	var err error
 	attempts := int(cronJob.RetryTimes) + 1
 	for attempt := 1; attempt <= attempts; attempt++ {
+		if m.runStopped(ctx, cronJob.Key) {
+			logx.Warnf("machine[%d] cronjob[%s] run canceled, stop remaining attempts", mid, cronJob.Name)
+			break
+		}
 		var retryable bool
 		res, err, retryable = m.runOnce(ctx, mid, cronJob.Script, timeout)
 		if err == nil {
@@ -243,7 +320,19 @@ func (m *machineCronJobAppImpl) runCronJob0(ctx context.Context, mid uint64, cro
 			break
 		}
 		logx.Warnf("machine[%d] cronjob[%s] attempt %d/%d failed (retryable): %s", mid, cronJob.Name, attempt, attempts, err.Error())
-		time.Sleep(time.Duration(attempt) * time.Second)
+		// 退避等待也要能被删除动作打断，否则取消后仍要多等一轮重试间隔
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(attempt) * time.Second):
+		}
+	}
+
+	// 任务在执行期间被删除/停止：不再落执行记录与通知，
+	// 否则删除动作清理完执行记录后，执行体还会补插一条孤儿记录
+	if m.runStopped(ctx, cronJob.Key) {
+		logx.Warnf("machine[%d] cronjob[%s] execution canceled, skip saving exec record", mid, cronJob.Name)
+		return
 	}
 
 	execRes := &entity.MachineCronJobExec{
@@ -257,14 +346,21 @@ func (m *machineCronJobAppImpl) runCronJob0(ctx context.Context, mid uint64, cro
 	execRes.Res = res
 
 	if cronJob.SaveExecResType != entity.SaveExecResTypeNo &&
-		!(cronJob.SaveExecResType == entity.SaveExecResTypeOnError && err == nil) {
+		(cronJob.SaveExecResType != entity.SaveExecResTypeOnError || err != nil) {
 		if err == nil {
 			execRes.Status = entity.MachineCronJobExecStatusSuccess
 		} else {
 			execRes.Status = entity.MachineCronJobExecStatusError
 		}
+		// 兜底：取消登记与 Delete 之间存在空窗（例如任务恰在取号前被删），任务不在了就不写
+		if _, gerr := m.GetById(cronJob.Id); gerr != nil {
+			logx.Warnf("cronjob[%s] was deleted during execution, skip saving exec record", cronJob.Name)
+			return
+		}
 		// 保存执行记录
-		m.machineCronJobExecRepo.Insert(ctx, execRes)
+		if ierr := m.machineCronJobExecRepo.Insert(ctx, execRes); ierr != nil {
+			logx.Errorf("failed to save cronjob[%s] exec record: %s", cronJob.Name, ierr.Error())
+		}
 	}
 
 	m.notifyCronJobResult(ctx, cronJob, machineCode, res, err)

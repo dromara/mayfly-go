@@ -320,3 +320,47 @@ func TestITDataImportUpdateRequiresConflictKeyMapped(t *testing.T) {
 	require.Error(t, err, "更新策略未映射主键应报错而非静默插重复")
 	assert.Contains(t, err.Error(), "conflict key")
 }
+
+// TestITDataImportExplicitAutoIncrementKept 显式 id 非空时必须保留（不能被当成「整列为空的自增列」剔除）。
+// 用 10/20/30 而非 1/2/3，才能与数据库自增生成的 1/2/3 区分开；batch=2 覆盖跨批次 flush。
+func TestITDataImportExplicitAutoIncrementKept(t *testing.T) {
+	conn := importItPrepare(t)
+	defer conn.Close()
+
+	csv := "id,name,score,note\n" +
+		"10,alice,1.0,\n" +
+		"20,bob,2.0,\n" +
+		"30,carol,3.0,\n"
+	res, err := importItRun(conn, csv, importItTable, true, true, dbi.DuplicateStrategyNone, 2)
+	require.NoError(t, err)
+	assert.Equal(t, 3, res.TotalRows)
+	assert.Equal(t, 3, res.Imported)
+
+	rows := importItRows(t, conn, importItTable)
+	require.Len(t, rows, 3)
+	assert.Equal(t, "10", importItText(rows[0]["id"]), "显式 id 必须原样落库")
+	assert.Equal(t, "30", importItText(rows[2]["id"]), "显式 id 必须原样落库")
+}
+
+// TestITDataImportEmptyAutoIncrementGenerated id 整列为空时从插入列剔除、由数据库生成主键。
+// 这首遍流式扫描（anyNonEmpty）+ 第二遍分批写入的端到端验证。
+func TestITDataImportEmptyAutoIncrementGenerated(t *testing.T) {
+	conn := importItPrepare(t)
+	defer conn.Close()
+
+	csv := "id,name,score,note\n" +
+		",alice,1.0,\n" +
+		",bob,2.0,\n" +
+		",carol,3.0,\n"
+	res, err := importItRun(conn, csv, importItTable, true, true, dbi.DuplicateStrategyNone, 2)
+	require.NoError(t, err)
+	assert.Equal(t, 3, res.TotalRows)
+	assert.Equal(t, 3, res.Imported)
+
+	rows := importItRows(t, conn, importItTable)
+	require.Len(t, rows, 3)
+	assert.Equal(t, "alice", importItText(rows[0]["name"]))
+	assert.Equal(t, "carol", importItText(rows[2]["name"]))
+	assert.Equal(t, "1", importItText(rows[0]["id"]), "空 id 应由数据库生成")
+	assert.Equal(t, "3", importItText(rows[2]["id"]), "空 id 应由数据库生成")
+}

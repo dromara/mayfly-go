@@ -47,6 +47,7 @@ func GetDbSQLExecApp() sqlexec.DbSQLExec {
 	return sqlexec.GetDbSQLExecApp()
 }
 
+// GetDataSyncTaskApp 获取数据同步任务应用门面
 func GetDataSyncTaskApp() dbsync.DataSyncTask {
 	return dbsync.GetDataSyncTaskApp()
 }

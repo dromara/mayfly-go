@@ -104,7 +104,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 		if err == nil {
 			return errorx.NewBizI(ctx, imsg.ErrDbNameExist)
 		}
-		dbEntity.Code = stringx.Rand(10)
+		dbEntity.Code = stringx.RandLower(10)
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)

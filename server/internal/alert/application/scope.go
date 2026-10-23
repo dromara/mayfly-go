@@ -96,13 +96,3 @@ func expandByTagPath(ctx context.Context, tagTreeRelateApp tagapp.TagTreeRelate,
 	logx.Debugf("[alert] expandByTagPath: returning %d resource codes", len(codes))
 	return collx.ArrayDeduplicate(codes)
 }
-
-// containsResourceId 判断资源ID是否在给定列表中
-func containsResourceId(ids []uint64, id uint64) bool {
-	for _, v := range ids {
-		if v == id {
-			return true
-		}
-	}
-	return false
-}

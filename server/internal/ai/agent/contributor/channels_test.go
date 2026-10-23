@@ -11,10 +11,9 @@ import (
 
 // fakeMiddlewareContributor 中间件贡献者 fake
 type fakeMiddlewareContributor struct {
-	id   string
-	err  error
-	mws  []AgentMiddleware
-	noop bool
+	id  string
+	err error
+	mws []AgentMiddleware
 }
 
 func (f *fakeMiddlewareContributor) Id() string { return f.id }

@@ -339,7 +339,8 @@ func getHeadersString(headers []kgo.RecordHeader) map[string]string {
 func (kc *KafkaConn) ProduceMessage(ctx context.Context, param *ProduceMessageParam) error {
 	logx.Infof("开始生产消息...")
 	st := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// 在调用方 ctx 上叠加超时：保留 traceId 等链路信息与上游取消信号，不被 Background 截断
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	headers2 := make([]kgo.RecordHeader, len(param.Headers))
@@ -470,8 +471,6 @@ func (kc *KafkaConn) GetGroupMembers(group string) (any, any) {
 				"TPs":        subscribedTPs, // TPs:map[topicName:[0]]]]
 			})
 		}
-
-		return membersLst, nil
 	}
 
 	return membersLst, nil

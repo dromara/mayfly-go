@@ -15,10 +15,6 @@ type skillRepoImpl struct {
 
 var _ repository.Skill = (*skillRepoImpl)(nil)
 
-func newSkillRepo() repository.Skill {
-	return &skillRepoImpl{}
-}
-
 func (s *skillRepoImpl) SelectByCode(ctx context.Context, code string) (*entity.Skill, error) {
 	// GetByCond 的条件与结果落点是同一个结构体（First(dest)），条件字段必须填进目标结构体本身
 	skill := &entity.Skill{Code: code}
@@ -38,10 +34,6 @@ type skillResourceRepoImpl struct {
 }
 
 var _ repository.SkillResource = (*skillResourceRepoImpl)(nil)
-
-func newSkillResourceRepo() repository.SkillResource {
-	return &skillResourceRepoImpl{}
-}
 
 func (r *skillResourceRepoImpl) SelectBySkillId(ctx context.Context, skillId uint64) ([]*entity.SkillResource, error) {
 	cond := model.NewCond().Eq("skillId", skillId).OrderByAsc("path")
@@ -68,10 +60,6 @@ type pluginInstanceRepoImpl struct {
 }
 
 var _ repository.PluginInstance = (*pluginInstanceRepoImpl)(nil)
-
-func newPluginInstanceRepo() repository.PluginInstance {
-	return &pluginInstanceRepoImpl{}
-}
 
 func (p *pluginInstanceRepoImpl) SelectByCode(ctx context.Context, code string) (*entity.PluginInstance, error) {
 	// 同 SelectBySkillIdAndPath：条件与落点同一结构体

@@ -153,7 +153,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 			return errorx.NewBizI(ctx, imsg.ErrRedisInfoExist)
 		}
 		// 生成随机编号
-		re.Code = stringx.Rand(10)
+		re.Code = stringx.RandLower(10)
 
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)

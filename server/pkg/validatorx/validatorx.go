@@ -6,7 +6,6 @@ import (
 	"mayfly-go/pkg/utils/structx"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/locales/zh"
@@ -19,8 +18,6 @@ const CustomMsgTagName = "msg"
 
 var (
 	trans ut.Translator
-	// 使用 sync.Once 确保注册只执行一次
-	registerOnce sync.Once
 	// 全局 validator 实例
 	validate *validator.Validate
 )

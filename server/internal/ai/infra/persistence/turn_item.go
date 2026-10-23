@@ -14,10 +14,6 @@ type turnItemRepoImpl struct {
 
 var _ repository.TurnItem = (*turnItemRepoImpl)(nil)
 
-func newTurnItemRepo() repository.TurnItem {
-	return &turnItemRepoImpl{}
-}
-
 func (t *turnItemRepoImpl) SelectByTurnId(ctx context.Context, conversationId uint64, turnId string) ([]*entity.TurnItem, error) {
 	var items []*entity.TurnItem
 	// 按 item_id 排序而非自增 id：item_id 是触发时刻生成的有序 UUID（SortableUUID），

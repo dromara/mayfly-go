@@ -243,7 +243,7 @@ func (br *RepoImpl[T]) initModelType() {
 	var model T
 	modelType := reflect.TypeOf(model)
 	// 检查 model 是否为指针类型
-	if modelType.Kind() == reflect.Ptr {
+	if modelType.Kind() == reflect.Pointer {
 		// 获取指针指向的类型
 		modelType = modelType.Elem()
 	}
@@ -294,7 +294,7 @@ func (br *RepoImpl[T]) normalizeUpdateValues(ctx context.Context, values any) an
 // copyEntity 浅拷贝实体指针指向的结构体，返回独立副本
 func copyEntity[T model.ModelI](e T) T {
 	rv := reflect.ValueOf(e)
-	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return e
 	}
 	cp := reflect.New(rv.Type().Elem())

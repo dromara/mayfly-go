@@ -1,9 +1,5 @@
 package ansiterm
 
-import (
-	"strings"
-)
-
 type ByteStream struct {
 	*Stream
 	utf8Decoder func(data []byte) (string, error)
@@ -17,14 +13,6 @@ func (b *ByteStream) Feed(data []byte) {
 		dataStr = BytesToString(data)
 	}
 	b.Stream.Feed(dataStr)
-}
-
-func (b *ByteStream) selectOtherCharset(code string) {
-	if code == "@" {
-		b.UseUTF8 = false
-	} else if strings.Contains("G8", code) {
-		b.UseUTF8 = true
-	}
 }
 
 func InitByteStream(screen *Screen, strict bool) *ByteStream {

@@ -299,7 +299,7 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 			if ok, e := set(dest, source, opt.DeepCopy, converters); e == nil && ok {
 				if isSlice {
 					// FIXME: maybe should check the other types?
-					if to.Type().Elem().Kind() == reflect.Ptr {
+					if to.Type().Elem().Kind() == reflect.Pointer {
 						to.Index(i).Set(dest.Addr())
 					} else {
 						if to.Len() < i+1 {
@@ -358,7 +358,7 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 						for idx := range f.Index[:len(f.Index)-1] {
 							destField := dest.FieldByIndex(f.Index[:idx+1])
 
-							if destField.Kind() != reflect.Ptr {
+							if destField.Kind() != reflect.Pointer {
 								continue
 							}
 
@@ -474,7 +474,10 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 			to.Set(dest)
 		}
 
-		err = checkBitFlags(flgs.BitFlags)
+		// 位标记冲突属于真错误：不能留给下一轮迭代覆盖，否则返回值静默丢失
+		if cerr := checkBitFlags(flgs.BitFlags); cerr != nil {
+			return cerr
+		}
 	}
 
 	return
@@ -564,14 +567,14 @@ func deepFields(reflectType reflect.Type) []reflect.StructField {
 }
 
 func indirect(reflectValue reflect.Value) reflect.Value {
-	for reflectValue.Kind() == reflect.Ptr {
+	for reflectValue.Kind() == reflect.Pointer {
 		reflectValue = reflectValue.Elem()
 	}
 	return reflectValue
 }
 
 func indirectType(reflectType reflect.Type) (_ reflect.Type, isPtr bool) {
-	for reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
+	for reflectType.Kind() == reflect.Pointer || reflectType.Kind() == reflect.Slice {
 		reflectType = reflectType.Elem()
 		isPtr = true
 	}
@@ -588,9 +591,9 @@ func set(to, from reflect.Value, deepCopy bool, converters map[converterPair]Typ
 		return true, nil
 	}
 
-	if to.Kind() == reflect.Ptr {
+	if to.Kind() == reflect.Pointer {
 		// set `to` to nil if from is nil
-		if from.Kind() == reflect.Ptr && from.IsNil() {
+		if from.Kind() == reflect.Pointer && from.IsNil() {
 			to.Set(reflect.Zero(to.Type()))
 			return true, nil
 		} else if to.IsNil() {
@@ -608,7 +611,7 @@ func set(to, from reflect.Value, deepCopy bool, converters map[converterPair]Typ
 			}
 			// allocate new `to` variable with default value (eg. *string -> new(string))
 			to.Set(reflect.New(to.Type().Elem()))
-		} else if from.Kind() != reflect.Ptr && from.IsZero() {
+		} else if from.Kind() != reflect.Pointer && from.IsZero() {
 			to.Set(reflect.Zero(to.Type()))
 			return true, nil
 		}
@@ -624,7 +627,7 @@ func set(to, from reflect.Value, deepCopy bool, converters map[converterPair]Typ
 				toKind = reflect.TypeOf(to.Interface()).Kind()
 			}
 		}
-		if from.Kind() == reflect.Ptr && from.IsNil() {
+		if from.Kind() == reflect.Pointer && from.IsNil() {
 			to.Set(reflect.Zero(to.Type()))
 			return true, nil
 		}
@@ -643,7 +646,7 @@ func set(to, from reflect.Value, deepCopy bool, converters map[converterPair]Typ
 	if toScanner, ok := to.Addr().Interface().(sql.Scanner); ok {
 		// `from`  -> `to`
 		// *string -> sql.NullString
-		if from.Kind() == reflect.Ptr {
+		if from.Kind() == reflect.Pointer {
 			// if `from` is nil do nothing with `to`
 			if from.IsNil() {
 				return true, nil
@@ -685,7 +688,7 @@ func set(to, from reflect.Value, deepCopy bool, converters map[converterPair]Typ
 	}
 
 	// from is ptr
-	if from.Kind() == reflect.Ptr {
+	if from.Kind() == reflect.Pointer {
 		return set(to, from.Elem(), deepCopy, converters)
 	}
 

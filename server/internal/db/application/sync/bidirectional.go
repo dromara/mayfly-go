@@ -430,6 +430,9 @@ func buildPKKey(srcRow map[string]any, target2Src map[string]string, targetTable
 	return strings.Join(parts, "\x00")
 }
 
+// conflictBatchSize 冲突检测批量查询上限（防止 OR 条件过长）
+const conflictBatchSize = 100
+
 // batchLoadConflictTargetRows 批量查询目标表中的冲突检测行。
 // 将 N 次单行查询合并为分批批量查询，消除 N+1 性能问题。
 // 每批最多 conflictBatchSize 行，防止 OR 条件过长。

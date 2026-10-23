@@ -37,6 +37,17 @@ export default {
         ciphers: 'Ciphers',
         keyExchanges: 'Key Exchanges',
         multiValuePlaceholder: `multiple values are separated by ','`,
+        proxyGroup: 'Network Proxy',
+        proxyType: 'Proxy Type',
+        proxyTypeNone: 'None',
+        proxyTypeSocks5: 'SOCKS5',
+        proxyAddr: 'Proxy Address',
+        proxyAddrPlaceholder: 'host:port, e.g. 127.0.0.1:1080',
+        proxyUsername: 'Proxy Username',
+        proxyPassword: 'Proxy Password',
+        proxyPasswordPlaceholder: 'leave empty to keep unchanged',
+        proxyPasswordClear: 'Clear saved password',
+        proxyPasswordClearTips: 'Saving with this enabled removes the stored proxy password (for switching to a no-auth proxy)',
 
         // 机器协议按钮文案即协议缩写，中英文同形；openRdpTab 是「在新标签页打开 RDP」的组合文案
         protocolSsh: 'SSH',

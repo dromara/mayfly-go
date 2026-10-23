@@ -38,6 +38,17 @@ export default {
         ciphers: '加密算法',
         keyExchanges: '密钥交换',
         multiValuePlaceholder: `多个值用 ',' 隔开`,
+        proxyGroup: '网络代理',
+        proxyType: '代理类型',
+        proxyTypeNone: '不使用',
+        proxyTypeSocks5: 'SOCKS5',
+        proxyAddr: '代理地址',
+        proxyAddrPlaceholder: 'host:port，例如 127.0.0.1:1080',
+        proxyUsername: '代理用户名',
+        proxyPassword: '代理密码',
+        proxyPasswordPlaceholder: '留空表示不修改',
+        proxyPasswordClear: '清空已保存密码',
+        proxyPasswordClearTips: '启用后保存会删除已存储的代理密码（改为无认证代理时使用）',
 
         // 机器协议按钮文案即协议缩写，中英文同形；openRdpTab 是「在新标签页打开 RDP」的组合文案
         protocolSsh: 'SSH',

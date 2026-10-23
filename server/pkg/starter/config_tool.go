@@ -55,7 +55,7 @@ func ApplyConfigDefaults(obj any, parentConfigPath ...string) error {
 		}
 
 		// 如果字段是指针类型，需要先创建实例
-		if field.Kind() == reflect.Ptr {
+		if field.Kind() == reflect.Pointer {
 			if field.IsNil() {
 				newValue := reflect.New(field.Type().Elem())
 				field.Set(newValue)

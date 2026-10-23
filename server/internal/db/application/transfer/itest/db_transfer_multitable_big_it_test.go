@@ -587,16 +587,6 @@ func mtCheckBoundary(t *testing.T, conn *dbi.DbConn, spec *mtBigTableSpec, befor
 	}
 }
 
-// mtGoValueAsDriver 将Go侧期望值转为驱动返值同形态（[]byte→hex string，与ValuerBytes一致）
-func mtGoValueAsDriver(v any) any {
-	switch x := v.(type) {
-	case []byte:
-		return hex.EncodeToString(x)
-	default:
-		return v
-	}
-}
-
 // mtCheckSample 抽样行一致性比对
 func mtCheckSample(t *testing.T, conn *dbi.DbConn, spec *mtBigTableSpec, before map[int64]map[string]string) {
 	t.Helper()

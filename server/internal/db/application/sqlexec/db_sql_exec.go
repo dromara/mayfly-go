@@ -53,17 +53,6 @@ type sqlExecParam struct {
 	tx *sql.Tx
 }
 
-// progressCategory sql文件执行进度消息类型
-const progressCategory = "execSqlFileProgress"
-
-// progressMsg sql文件执行进度消息
-type progressMsg struct {
-	Id                 string `json:"id"`
-	Title              string `json:"title"`
-	ExecutedStatements int    `json:"executedStatements"`
-	Terminated         bool   `json:"terminated"`
-}
-
 type DbSQLExec interface {
 	flowapp.FlowBizHandler
 
@@ -414,6 +403,9 @@ func (d *DbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLRe
 	// 文件内的 BEGIN/COMMIT/ROLLBACK 等事务控制语句按脚本原样执行（与 mysql CLI、psql 一致的脚本自治语义）。
 	// 真实提交点由各数据库自身决定（mysql 执行 BEGIN 会隐式提交在途写入，pg 仅告警，sqlite 直接报错），
 	// 无法从语句文本可靠推断（DDL 同样会隐式提交），故这里不做猜测与改写，失败一律原样返回底层数据库错误
+	// residualCommitRisk 标记脚本是否含 DDL/事务控制语句：它们会隐式提交事务，
+	// 使「失败回滚」在执行过这类语句后不再成立（与 mysql CLI/psql 行为一致），失败时须留痕
+	residualCommitRisk := false
 	err = splitter.SplitSQL(execReader.Reader, func(sql string) error {
 		// 检查context是否已取消
 		if ctx.Err() != nil {
@@ -423,6 +415,13 @@ func (d *DbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLRe
 				global.EventBus.Publish(ctx, event.EventTopicMsgTmplSend, progressMsgEvent)
 			}
 			return errorx.NewBizI(ctx, imsg.ErrSQLExecCancelled)
+		}
+
+		// 轻量按首词/事务控制判定（不解析 AST）：仅用于失败时提示回滚边界，不影响执行路径
+		if sqlparser.StatementTypeByKeyword(splitter, sql) == sqlstmt.StmtTypeDDL ||
+			sqlparser.IsTxnControlStmt(splitter, sql) ||
+			sqlparser.IsImplicitCommitStmt(splitter, sql) {
+			residualCommitRisk = true
 		}
 
 		if executedStatements%50 == 0 {
@@ -451,6 +450,9 @@ func (d *DbSQLExecAppImpl) ExecReader(ctx context.Context, execReader *dto.SQLRe
 	if err != nil {
 		err = imsg.SplitError(ctx, err)
 		_ = tx.Rollback()
+		if residualCommitRisk {
+			logx.WarnContext(ctx, "sql file exec failed after DDL/transaction-control statements; earlier statements may have been implicitly committed and cannot be rolled back")
+		}
 		if needSendMsg {
 			msgEvent.TmplChannel = msgdto.MsgTmplSQLScriptRunFail
 			msgEvent.Params["error"] = err.Error()
@@ -577,7 +579,9 @@ func (d *DbSQLExecAppImpl) doOtherRead(ctx context.Context, sqlExecParam *sqlExe
 		return nil, err
 	}
 
-	return d.doQuery(ctx, sqlExecParam, 0)
+	// 与 doSelect 同受 maxResultSet 约束：SHOW/PROCESSLIST 等 Other 类只读语句同样可能返回大量行，
+	// 固定 0（不限制）会让结果集上限只对 SELECT 生效，形成一处静默的无界内存入口
+	return d.doQuery(ctx, sqlExecParam, config.GetDbms().MaxResultSet)
 }
 
 func (d *DbSQLExecAppImpl) doExecDDL(ctx context.Context, sqlExecParam *sqlExecParam) (*dto.DbSQLExecRes, error) {
@@ -932,5 +936,3 @@ func (d *DbSQLExecAppImpl) doExec(ctx context.Context, p *sqlExecParam) (*dto.Db
 		SQL: p.SQL,
 	}, err
 }
-
-// 语句分类逻辑已下沉至 sqlparser.Classify（单一入口），此处不再保留字符串兜底判定。

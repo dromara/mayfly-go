@@ -47,7 +47,7 @@ import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vu
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import { machineApi } from './api';
-import { getProtocolDefaultPort, MACHINE_DEFAULT_PORT, MachineProtocolEnum } from './enums';
+import { getProtocolDefaultPort, MACHINE_DEFAULT_PORT, MachineProtocolEnum, MachineProxyTypeEnum } from './enums';
 import type { MachineVO, MachineForm, MachineAuthCert } from './types';
 
 const props = defineProps({
@@ -97,6 +97,34 @@ const items = defineFormItems<MachineForm>([
     { prop: 'sshTunnelMachineId', label: 'machine.sshTunnel' },
     { prop: 'extra.ciphers', label: 'machine.ciphers', placeholder: 'machine.multiValuePlaceholder' },
     { prop: 'extra.keyExchanges', label: 'machine.keyExchanges', placeholder: 'machine.multiValuePlaceholder' },
+    { type: 'group', label: 'machine.proxyGroup' },
+    { prop: 'extra.proxyType', label: 'machine.proxyType', type: 'enum', enums: MachineProxyTypeEnum },
+    {
+        prop: 'extra.proxyAddr',
+        label: 'machine.proxyAddr',
+        placeholder: 'machine.proxyAddrPlaceholder',
+        when: (f) => f.extra?.proxyType === MachineProxyTypeEnum.Socks5.value,
+    },
+    {
+        prop: 'extra.proxyUsername',
+        label: 'machine.proxyUsername',
+        when: (f) => f.extra?.proxyType === MachineProxyTypeEnum.Socks5.value,
+    },
+    {
+        prop: 'extra.proxyPassword',
+        label: 'machine.proxyPassword',
+        type: 'password',
+        placeholder: 'machine.proxyPasswordPlaceholder',
+        when: (f) => f.extra?.proxyType === MachineProxyTypeEnum.Socks5.value,
+    },
+    {
+        prop: 'extra.proxyPasswordClear',
+        label: 'machine.proxyPasswordClear',
+        type: 'switch',
+        tooltip: 'machine.proxyPasswordClearTips',
+        props: { activeValue: 'true', inactiveValue: '' },
+        when: (f) => f.extra?.proxyType === MachineProxyTypeEnum.Socks5.value,
+    },
 ]);
 
 const defaultForm: MachineForm = {
@@ -112,7 +140,15 @@ const defaultForm: MachineForm = {
     remark: '',
     sshTunnelMachineId: null,
     enableRecorder: -1,
-    extra: { ciphers: '', keyExchanges: '' },
+    extra: {
+        ciphers: '',
+        keyExchanges: '',
+        proxyType: MachineProxyTypeEnum.None.value,
+        proxyAddr: '',
+        proxyUsername: '',
+        proxyPassword: '',
+        proxyPasswordClear: '',
+    },
 };
 
 /** 传给 AutoFormDrawer 的回填数据（深拷贝由组件内部完成） */
@@ -126,7 +162,14 @@ const editData = computed<MachineForm>(() => {
         ...defaultForm,
         ...machine,
         authCerts: machine.authCerts || [],
-        extra: machine.extra || {},
+        // 代理密码只存密文且接口不下发，编辑时一律留空，留空 = 不修改（由后端沿用旧密文）；清空需显式勾选
+        // proxyType 为空（存量机器）时归一为「不使用」，避免下拉只显示占位符、看不出当前是直连
+        extra: {
+            ...(machine.extra || {}),
+            proxyType: machine.extra?.proxyType || MachineProxyTypeEnum.None.value,
+            proxyPassword: '',
+            proxyPasswordClear: '',
+        },
     };
 });
 

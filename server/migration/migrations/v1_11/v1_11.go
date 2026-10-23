@@ -29,7 +29,9 @@ func V1_11_0() []*gormigrate.Migration {
 		{
 			ID: "20260420-v1.11.0_milvus",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&milvusentity.Milvus{})
+				if err := tx.AutoMigrate(&milvusentity.Milvus{}); err != nil {
+					return err
+				}
 
 				tx.Exec("INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (1775614966, 1775614920, 2, 1, 'milvus-保存实例', 'milvus:save', 1775614966, 'null', 12, 'admin', 12, 'admin', '2026-04-08 10:22:46', '2026-04-08 10:23:14', 'deKHISON/mqh1LvkC/', 0, NULL)")
 				tx.Exec("INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (1775614985, 1775614920, 2, 1, 'milvus-删除实例', 'milvus:del', 1775614985, 'null', 12, 'admin', 12, 'admin', '2026-04-08 10:23:06', '2026-04-08 10:23:06', 'deKHISON/Tx49ICTo/', 0, NULL)")

@@ -91,7 +91,9 @@ func (m *msgTmplAppImpl) SaveTmpl(ctx context.Context, msgTmpl *dto.MsgTmplSave)
 
 	return m.Tx(ctx, func(ctx context.Context) error {
 		mt := &entity.MsgTmpl{}
-		structx.Copy(mt, msgTmpl)
+		if err := structx.Copy(mt, msgTmpl); err != nil {
+			return err
+		}
 		isCreate := mt.Id == 0
 		if isCreate {
 			mt.Code = stringx.Rand(8)

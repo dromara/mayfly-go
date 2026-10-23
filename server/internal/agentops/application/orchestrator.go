@@ -419,7 +419,7 @@ func parsePlanSteps(output string) []*orchStep {
 	return valid
 }
 
-// 编排各档位的任务级 system 指令（与 Profile 静态指令叠加）
+// 编排各档位的任务级 system 指令（与 Profile 静态指令叠加，强调「参数锁定」与「只读复查」）
 const (
 	orchPlannerInstruction = `本次运行是「多 Agent 编排的规划阶段」。请把运维目标拆解为有序步骤清单：
 1. 仅输出 JSON 数组，格式：[{"title":"步骤标题","action":"该步骤具体做什么（含要查的资源/指标/判据）","readonly":true}]；

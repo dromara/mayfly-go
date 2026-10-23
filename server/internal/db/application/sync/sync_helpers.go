@@ -11,6 +11,9 @@ import (
 
 // 同步模块的批次/日志/命名辅助函数。
 
+// defaultSyncBatchSize 默认同步批次大小（PageSize <= 0 时使用）
+const defaultSyncBatchSize = 500
+
 func normalizeBatchSize(size int) int {
 	if size <= 0 {
 		return defaultSyncBatchSize

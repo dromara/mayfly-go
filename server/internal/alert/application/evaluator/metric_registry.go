@@ -61,12 +61,6 @@ func (r metricRegistry[T]) extract(stats T, statsErr error, metric string) (floa
 	return ext.Extract(stats, statsErr)
 }
 
-// contains 判断注册表中是否存在指定指标
-func (r metricRegistry[T]) contains(metric string) bool {
-	_, ok := r[metric]
-	return ok
-}
-
 // sortMetricDefinitions 按指标 key 升序排序，保证前端下拉顺序稳定
 func sortMetricDefinitions(defs []service.MetricDefinition) {
 	sort.Slice(defs, func(i, j int) bool {

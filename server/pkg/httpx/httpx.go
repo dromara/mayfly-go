@@ -159,7 +159,9 @@ func (r *Req) PostMulipart(files []MultipartFile, reqParams collx.M) *Resp {
 		if err != nil {
 			return &Resp{err: err}
 		}
-		io.Copy(part, reader)
+		if _, err := io.Copy(part, reader); err != nil {
+			return &Resp{err: err}
+		}
 	}
 	// 如果有其他参数，则写入body
 	for k, v := range reqParams {
@@ -183,11 +185,11 @@ func (r *Req) PostMulipart(files []MultipartFile, reqParams collx.M) *Resp {
 func sendRequest(rw *Req) *Resp {
 	respWrapper := &Resp{}
 	timeout := rw.timeout
-	if timeout > 0 {
-		rw.client.Timeout = time.Duration(timeout) * time.Second
-	} else {
+	if timeout <= 0 {
 		timeout = DefTimeout
 	}
+	// 默认超时必须真正落到 client 上：只赋值给局部变量而不使用，会让未显式设置 Timeout 的请求无限挂起
+	rw.client.Timeout = time.Duration(timeout) * time.Second
 
 	req, err := http.NewRequest(rw.method, rw.url, rw.body)
 	if err != nil {

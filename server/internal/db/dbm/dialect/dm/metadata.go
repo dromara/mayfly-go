@@ -75,7 +75,6 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	}), ",")
 
 	var res []map[string]any
-	var err error
 
 	sql, err := stringx.TemplateParse(metaSQL.Get(DM_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
@@ -84,8 +83,11 @@ func (dd *DMMetadata) GetTables(tableNames ...string) ([]dbi.Table, error) {
 
 	_, res, err = dd.di.Query(sql)
 	if err != nil {
-		// 尝试只查表名
+		// 尝试只查表名：模板解析自身的错误必须单独返回，否则会被下一条 Query 的错误掩盖
 		sql, err = stringx.TemplateParse(metaSQL.Get(DM_TABLE_INFO_NAME_ONLY), collx.M{"tableNames": names})
+		if err != nil {
+			return nil, err
+		}
 		_, res, err = dd.di.Query(sql)
 		if err != nil {
 			return nil, err

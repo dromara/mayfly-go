@@ -230,7 +230,8 @@ func (s *Stream) parseFsm() {
 					current += char
 				} else if char == "$" {
 					s.parser.SetPlain(false)
-					char = s.parser.Next()
+					// 消费修饰符后的下一字节；char 在 break 后会被外层循环重新赋值，无需保留
+					s.parser.Next()
 					break
 				} else {
 					num, _ := strconv.Atoi(current)
@@ -283,6 +284,13 @@ func (s *Stream) parseFsm() {
 
 }
 
+// selectOtherCharset 处理 ESC % @ / ESC % G 字符集切换：@ 退出 UTF-8，G8 进入 UTF-8。
+// 此前本方法为空实现，而真正的切换逻辑写在一个无人调用的 ByteStream 同名方法上，
+// 导致序列被静默忽略；现收敛到 Stream 单点。
 func (s *Stream) selectOtherCharset(code string) {
-
+	if code == "@" {
+		s.UseUTF8 = false
+	} else if strings.Contains("G8", code) {
+		s.UseUTF8 = true
+	}
 }

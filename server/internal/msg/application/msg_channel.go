@@ -35,7 +35,7 @@ func (m *msgChannelAppImpl) GetPageList(condition *entity.MsgChannel, pageParam 
 
 func (m *msgChannelAppImpl) SaveChannel(ctx context.Context, msgChannel *entity.MsgChannel) error {
 	if msgChannel.Id == 0 {
-		msgChannel.Code = stringx.Rand(8)
+		msgChannel.Code = stringx.RandLower(8)
 	}
 	return m.Save(ctx, msgChannel)
 }

@@ -1,16 +1,16 @@
 package api
 
 import (
-	"github.com/spf13/cast"
 	"mayfly-go/internal/flow/application"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
+
+	"github.com/spf13/cast"
 )
 
 type HisProcinstOp struct {
 	hisProcinstOpApp application.HisProcinstOp `inject:"T"`
-	procinstTaskApp  application.ProcinstTask  `inject:"T"`
 	// 时间线读接口的归属判定（与详情同一判据）
 	procinstApp application.Procinst `inject:"T"`
 }

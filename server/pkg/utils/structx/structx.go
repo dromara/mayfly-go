@@ -50,14 +50,14 @@ func DoWithFields(str any, doWith func(fType reflect.StructField, fValue reflect
 }
 
 func Indirect(reflectValue reflect.Value) reflect.Value {
-	for reflectValue.Kind() == reflect.Ptr {
+	for reflectValue.Kind() == reflect.Pointer {
 		reflectValue = reflectValue.Elem()
 	}
 	return reflectValue
 }
 
 func IndirectType(reflectType reflect.Type) reflect.Type {
-	for reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
+	for reflectType.Kind() == reflect.Pointer || reflectType.Kind() == reflect.Slice {
 		reflectType = reflectType.Elem()
 	}
 	return reflectType
@@ -148,7 +148,7 @@ func Maps2Structs(maps []map[string]any, structs any) error {
 func getFiledValueByPath(path string, value reflect.Value) reflect.Value {
 	split := strings.Split(path, ".")
 	for _, v := range split {
-		if value.Type().Kind() == reflect.Ptr {
+		if value.Type().Kind() == reflect.Pointer {
 			// 如果值为nil，则创建并赋值
 			if value.IsNil() {
 				value.Set(reflect.New(IndirectType(value.Type())))
@@ -188,7 +188,7 @@ func decode(name string, input any, outVal reflect.Value) error {
 
 		// We need to check here if input is a typed nil. Typed nils won't
 		// match the "input == nil" below so we check that here.
-		if inputVal.Kind() == reflect.Ptr && inputVal.IsNil() {
+		if inputVal.Kind() == reflect.Pointer && inputVal.IsNil() {
 			input = nil
 		}
 	}
@@ -211,7 +211,7 @@ func decode(name string, input any, outVal reflect.Value) error {
 		err = decodeFloat(name, input, outVal)
 	case reflect.String:
 		err = decodeString(name, input, outVal)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		_, err = decodePtr(name, input, outVal)
 	default:
 		// If we reached this point then we weren't able to decode it
@@ -422,7 +422,7 @@ func decodePtr(name string, data any, val reflect.Value) (bool, error) {
 			reflect.Func,
 			reflect.Interface,
 			reflect.Map,
-			reflect.Ptr,
+			reflect.Pointer,
 			reflect.Slice:
 			isNil = v.IsNil()
 		}

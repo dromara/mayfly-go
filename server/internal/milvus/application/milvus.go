@@ -88,7 +88,7 @@ func (a *milvusAppImpl) SaveMilvus(ctx context.Context, m *entity.Milvus, authCe
 			return errorx.NewBizI(ctx, imsg.ErrInfoExist)
 		}
 		// 生成随机编号
-		m.Code = stringx.Rand(10)
+		m.Code = stringx.RandLower(10)
 
 		return a.Tx(ctx,
 			func(ctx context.Context) error {

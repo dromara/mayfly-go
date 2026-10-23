@@ -113,7 +113,7 @@ func (p *Procinst) GetProcinstDetail(rc *req.Ctx) {
 	pi, err := p.procinstApp.GetById(instId)
 	biz.ErrIsNil(err, "procinst not found")
 	pivo := new(vo.ProcinstVO)
-	structx.Copy(pivo, pi)
+	biz.ErrIsNil(structx.Copy(pivo, pi))
 
 	// 流程定义信息：定义可能已被删除（实例是快照），取不到不影响详情展示，
 	// 旧写法直接解引用 nil 会 panic

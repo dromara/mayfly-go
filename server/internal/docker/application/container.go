@@ -60,7 +60,7 @@ func (c *containerAppImpl) SaveContainer(ctx context.Context, saveContainer *dto
 		}
 
 		// 生成随机编号
-		container.Code = stringx.Rand(10)
+		container.Code = stringx.RandLower(10)
 
 		return c.Tx(ctx, func(ctx context.Context) error {
 			if err := c.Insert(ctx, container); err != nil {

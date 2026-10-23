@@ -81,7 +81,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *dt
 	// 不存在授权凭证名，则随机生成
 	for _, ac := range resourceAuthCerts {
 		if ac.Name == "" {
-			ac.Name = stringx.Rand(10)
+			ac.Name = stringx.RandLower(10)
 		}
 	}
 
@@ -324,7 +324,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...e
 // addAuthCert 添加授权凭证
 func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
 	if rac.Name == "" {
-		rac.Name = stringx.Rand(10)
+		rac.Name = stringx.RandLower(10)
 	} else {
 		exists, err := r.Exists(ctx, &entity.ResourceAuthCert{Name: rac.Name})
 		if err != nil {
@@ -344,7 +344,10 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 	// 公共凭证
 	if rac.Type == entity.AuthCertTypePublic {
 		rac.ResourceCode = "-"
-		rac.CiphertextEncrypt()
+		// 加密失败必须中断落库：否则会把明文/空密文写进凭证表
+		if err := rac.CiphertextEncrypt(); err != nil {
+			return err
+		}
 		rac.ResourceType = -2
 		return r.Insert(ctx, rac)
 	}
@@ -365,7 +368,9 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 
 	// 如果密文类型不为公共凭证，则进行加密。公共凭证密文内容存的是明文的公共凭证名
 	if rac.CiphertextType != entity.AuthCertCiphertextTypePublic {
-		rac.CiphertextEncrypt()
+		if err := rac.CiphertextEncrypt(); err != nil {
+			return err
+		}
 	}
 
 	return r.Tx(ctx, func(ctx context.Context) error {
@@ -420,7 +425,9 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 
 	// 密文存的不是公共授权凭证名，则进行密文加密处理
 	if rac.CiphertextType != entity.AuthCertCiphertextTypePublic {
-		rac.CiphertextEncrypt()
+		if err := rac.CiphertextEncrypt(); err != nil {
+			return err
+		}
 	}
 
 	// 防止误更新

@@ -39,8 +39,7 @@ type MachineTermOp interface {
 type machineTermOpAppImpl struct {
 	base.AppImpl[*entity.MachineTermOp, repository.MachineTermOp]
 
-	machineCmdConfApp MachineCmdConf `inject:"T"`
-	fileApp           fileapp.File   `inject:"T"`
+	fileApp fileapp.File `inject:"T"`
 }
 
 var _ MachineTermOp = (*machineTermOpAppImpl)(nil)

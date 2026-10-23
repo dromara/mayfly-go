@@ -292,15 +292,6 @@ func TestViewRoundTrip(t *testing.T) {
 	}
 }
 
-// assertRejected 视角声明了写能力时不该有静默成功的路径：不支持的 op 必须返回错误
-func assertRejected(t *testing.T, view, op string) {
-	t.Helper()
-
-	if _, err := Get(view).BuildWrite(context.Background(), nil, &entity.MemberWrite{Key: "k", View: view, Op: op}); err == nil {
-		t.Fatalf("view [%s] should reject the unsupported op [%s]", view, op)
-	}
-}
-
 // TestUnsupportedType 未知类型（module 类型）必须显式报错，而不是静默返回空表格
 func TestUnsupportedType(t *testing.T) {
 	if _, err := Resolve(context.Background(), nil, "ReJSON-RL", "", "k"); err == nil {

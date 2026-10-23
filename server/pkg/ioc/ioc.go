@@ -336,7 +336,7 @@ func setFieldValue(fieldValue reflect.Value, component any) error {
 }
 
 func getComponentValueDesc(componentValueType reflect.Type) string {
-	if componentValueType.Kind() == reflect.Ptr {
+	if componentValueType.Kind() == reflect.Pointer {
 		componentValueType = structx.IndirectType(componentValueType)
 		return fmt.Sprintf("*%s.%s", componentValueType.PkgPath(), componentValueType.Name())
 	}

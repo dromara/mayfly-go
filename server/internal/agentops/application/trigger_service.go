@@ -213,18 +213,24 @@ func (t *triggerServiceAppImpl) resolveWebhookToken(ctx context.Context, tr *ent
 // 为什么没把这一列建成唯一索引：非 webhook 来源的行共享空串，唯一索引会直接拦下第二条普通
 // 触发器（见 entity.Trigger 注释）。令牌值由服务端随机生成且不采信客户端输入，碰撞概率可忽略。
 func (t *triggerServiceAppImpl) ensureWebhookTokenUnique(ctx context.Context, token string, selfId uint64) error {
-	if token == "" {
-		return nil
-	}
-	// Ne("id", selfId) 在新建（Id=0）时因零值被忽略 → 全表查重；更新时排除自身
-	exists, err := t.GetRepo().Exists(ctx, model.NewCond().EqStrict("webhookToken", token).Ne("id", selfId))
+	inUse, err := t.webhookTokenInUse(ctx, token, selfId)
 	if err != nil {
 		return err
 	}
-	if exists {
+	if inUse {
 		return errorx.NewBizI(ctx, imsg.ErrTriggerTokenInUse)
 	}
 	return nil
+}
+
+// webhookTokenInUse 仅做唯一性探测，碰撞由调用方自行处置：
+// 保存路径需要报错，轮换路径需要换号重试，两者不能共用“碰撞即报错”的入口。
+func (t *triggerServiceAppImpl) webhookTokenInUse(ctx context.Context, token string, selfId uint64) (bool, error) {
+	if token == "" {
+		return false, nil
+	}
+	// Ne("id", selfId) 在新建（Id=0）时因零值被忽略 → 全表查重；更新时排除自身
+	return t.GetRepo().Exists(ctx, model.NewCond().EqStrict("webhookToken", token).Ne("id", selfId))
 }
 
 // saveEntity 落库触发器配置：Id 为 0 走新增，否则按 entity.TriggerEditableColumns 整列更新
@@ -257,8 +263,13 @@ func (t *triggerServiceAppImpl) RotateWebhookToken(ctx context.Context, id uint6
 		if err != nil {
 			return "", err
 		}
-		if err := t.ensureWebhookTokenUnique(ctx, token, id); err != nil {
+		inUse, err := t.webhookTokenInUse(ctx, token, id)
+		if err != nil {
 			return "", err
+		}
+		if inUse {
+			// 取号碰撞：换号重试，命中上限才报分配失败（此前碰撞直接报错，重试上限形同虚设）
+			continue
 		}
 		rows, err := t.GetRepo().UpdateColsByCond(ctx,
 			base.NewPatch().Set("webhookToken", token),

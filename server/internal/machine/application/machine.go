@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/machine/imsg"
 	"mayfly-go/internal/machine/infra/cache"
 	"mayfly-go/internal/machine/mcm"
+	"mayfly-go/internal/pkg/utils"
 	tagapp "mayfly-go/internal/tag/application"
 	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -19,7 +20,9 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/taskx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/netx"
 	"mayfly-go/pkg/utils/stringx"
+	"strings"
 	"time"
 )
 
@@ -112,6 +115,9 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 		me.Status = entity.MachineStatusEnable
 		// 生成随机编号
 		me.Code = stringx.Rand(12)
+		if err := normalizeMachineProxy(me, nil); err != nil {
+			return err
+		}
 
 		return m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
@@ -136,6 +142,11 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	// 如果调整了SshTunnelMachineId Ip port等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMachine.Code == "" {
 		oldMachine, _ = m.GetById(me.Id)
+	}
+
+	// 代理密码留空代表不修改，需基于旧值合并后再落库
+	if err := normalizeMachineProxy(me, oldMachine); err != nil {
+		return err
 	}
 
 	// 校验当前操作者是否有权操作该资源，防止越权修改他人资源信息
@@ -169,6 +180,8 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 }
 
 func (m *machineAppImpl) TestConn(ctx context.Context, me *entity.Machine, authCert *tagentity.ResourceAuthCert) error {
+	// 保留编辑态 id：测试连接用表单明文密码，密码留空时要回查该机器已保存的密文
+	machineId := me.Id
 	me.Id = 0
 
 	authCert, err := m.resourceAuthCertApp.GetRealAuthCert(authCert)
@@ -176,7 +189,12 @@ func (m *machineAppImpl) TestConn(ctx context.Context, me *entity.Machine, authC
 		return err
 	}
 
-	mi, err := m.toMi(me, authCert)
+	// 测试连接的表单密码是明文（或留空复用库中密文），与生产装配的密文语义不同
+	proxyDialer, err := m.resolveTestProxy(me, machineId)
+	if err != nil {
+		return err
+	}
+	mi, err := m.buildMi(me, authCert, proxyDialer)
 	if err != nil {
 		return err
 	}
@@ -184,7 +202,9 @@ func (m *machineAppImpl) TestConn(ctx context.Context, me *entity.Machine, authC
 	if err != nil {
 		return err
 	}
-	cli.Close()
+	if cerr := cli.Close(); cerr != nil {
+		logx.Warnf("[machine] close test connection failed: %v", cerr)
+	}
 	return nil
 }
 
@@ -353,8 +373,20 @@ func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machin
 }
 
 func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAuthCert) (*mcm.MachineInfo, error) {
+	// 生产路径：代理配置来自库中 extra（密码为密文）
+	proxyDialer, err := resolveMachineProxy(me)
+	if err != nil {
+		return nil, err
+	}
+	return m.buildMi(me, authCert, proxyDialer)
+}
+
+// buildMi 组装连机器所需的 MachineInfo；proxyDialer 为 nil 表示直连。
+// 生产路径与测试连接共用，差异只在代理配置的密码来源（密文解密 / 表单明文）。
+func (m *machineAppImpl) buildMi(me *entity.Machine, authCert *tagentity.ResourceAuthCert, proxyDialer netx.OutboundDialer) (*mcm.MachineInfo, error) {
 	mi := new(mcm.MachineInfo)
-	mi.ExtraData = me.ExtraData
+	// 凭据只进拨号器：MachineInfo 会随终端/命令审计日志序列化，extra 里不能带代理密码密文
+	mi.ExtraData = sanitizeMachineExtra(me.ExtraData)
 	mi.Id = me.Id
 	mi.Code = me.Code
 	mi.Name = me.Name
@@ -373,6 +405,8 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	// 装配主机公钥信任策略（首次信任/指纹比对/失配拒绝），未装配的连接会被连接层拒绝
 	mi.HostKeyCallback = m.hostKeyApp.VerifyCallback(mi)
 
+	mi.Proxy = proxyDialer
+
 	// 使用了ssh隧道，则将隧道机器信息也附上
 	if me.SshTunnelMachineId > 0 {
 		sshTunnelMi, err := m.ToMachineInfoById(uint64(me.SshTunnelMachineId))
@@ -382,6 +416,11 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 		mi.SshTunnelMachine = sshTunnelMi
 	}
 	return mi, nil
+}
+
+// sanitizeMachineExtra 返回不含凭据的 extra 副本（代理密码与一次性清空旗标都不进 MachineInfo）
+func sanitizeMachineExtra(extra model.ExtraData) model.ExtraData {
+	return entity.CloneExtraWithoutProxyCredential(extra)
 }
 
 func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*tagentity.ResourceAuthCert) *tagdto.ResourceTag {
@@ -419,6 +458,133 @@ func (m *machineAppImpl) checkSshTunnelMachine(ctx context.Context, ip string, p
 
 	if stm.SshTunnelMachineId > 0 {
 		return m.checkSshTunnelMachine(ctx, stm.Ip, stm.Port, stm.SshTunnelMachineId, visited)
+	}
+	return nil
+}
+
+// machineProxyBuilders 代理类型 → 拨号器构造器注册表：
+// 新增代理协议（如 HTTP CONNECT）只需实现 netx.OutboundDialer 并在此注册，装配与建链代码不动。
+var machineProxyBuilders = map[string]func(me *entity.Machine) (netx.OutboundDialer, error){
+	entity.MachineProxyTypeSocks5: buildSocks5Dialer,
+}
+
+// resolveMachineProxy 生产装配：代理配置来自机器 extra（密码为 AES 密文）。
+// 未知 proxyType 直接报错，避免「拼错类型 → 静默直连出网」。
+func resolveMachineProxy(me *entity.Machine) (netx.OutboundDialer, error) {
+	proxyType := me.GetExtraString(entity.ExtraKeyProxyType)
+	switch proxyType {
+	case "", entity.MachineProxyTypeNone:
+		return nil, nil
+	}
+
+	builder, ok := machineProxyBuilders[proxyType]
+	if !ok {
+		return nil, errorx.NewBizf("[%s] unsupported machine proxy type: %q", me.Name, proxyType)
+	}
+	return builder(me)
+}
+
+// resolveTestProxy 「测试连接」专用：表单里的密码是明文；留空且为编辑态时回查库中密文。
+func (m *machineAppImpl) resolveTestProxy(me *entity.Machine, machineId uint64) (netx.OutboundDialer, error) {
+	proxyType := me.GetExtraString(entity.ExtraKeyProxyType)
+	switch proxyType {
+	case "", entity.MachineProxyTypeNone:
+		return nil, nil
+	case entity.MachineProxyTypeSocks5:
+	default:
+		return nil, errorx.NewBizf("unsupported machine proxy type: %q", proxyType)
+	}
+
+	password := me.GetExtraString(entity.ExtraKeyProxyPassword)
+	if password == "" && machineId > 0 {
+		if old, err := m.GetById(machineId); err == nil {
+			plain, derr := decryptStoredProxyPassword(old.ExtraData)
+			if derr != nil {
+				return nil, derr
+			}
+			password = plain
+		}
+	}
+	return newSocks5Dialer(me, password)
+}
+
+// buildSocks5Dialer 生产路径：解密库中密文后构造拨号器
+func buildSocks5Dialer(me *entity.Machine) (netx.OutboundDialer, error) {
+	password, err := decryptStoredProxyPassword(me.ExtraData)
+	if err != nil {
+		return nil, errorx.NewBizf("[%s] %s", me.Name, err.Error())
+	}
+	return newSocks5Dialer(me, password)
+}
+
+// decryptStoredProxyPassword 解密库中代理密码密文；空密文返回空串
+func decryptStoredProxyPassword(extra model.ExtraData) (string, error) {
+	cipher := extra.GetExtraString(entity.ExtraKeyProxyPassword)
+	if cipher == "" {
+		return "", nil
+	}
+	plain, err := utils.PwdAesDecrypt(cipher)
+	if err != nil {
+		return "", errorx.NewBizf("decrypt socks5 proxy password failed: %s", err.Error())
+	}
+	return plain, nil
+}
+
+// newSocks5Dialer 校验地址并构造拨号器（密码由调用方按来源提供：密文解密或表单明文）
+func newSocks5Dialer(me *entity.Machine, password string) (netx.OutboundDialer, error) {
+	addr := strings.TrimSpace(me.GetExtraString(entity.ExtraKeyProxyAddr))
+	if addr == "" {
+		return nil, errorx.NewBizf("[%s] socks5 proxy address is empty", me.Name)
+	}
+	return netx.Socks5Config{
+		Addr:     addr,
+		Username: me.GetExtraString(entity.ExtraKeyProxyUsername),
+		Password: password,
+	}, nil
+}
+
+// normalizeMachineProxy 落库前处理机器级代理配置：
+//   - proxyType 白名单校验：空/none 直连，socks5 走代理，其余报错（不允许静默直连）
+//   - 启用 socks5：校验地址；proxyPasswordClear=true 时清密文，否则密码留空 = 沿用旧密文，非空则加密
+//   - 未启用：清掉密码密文，避免残留凭据随 extra 泄漏
+func normalizeMachineProxy(me *entity.Machine, old *entity.Machine) error {
+	proxyType := me.GetExtraString(entity.ExtraKeyProxyType)
+	clearPassword := me.GetExtraString(entity.ExtraKeyProxyPasswordClear) == "true"
+	// 一次性旗标不落库
+	me.SetExtraValue(entity.ExtraKeyProxyPasswordClear, "")
+
+	switch proxyType {
+	case "", entity.MachineProxyTypeNone:
+		me.SetExtraValue(entity.ExtraKeyProxyPassword, "")
+		return nil
+	case entity.MachineProxyTypeSocks5:
+	default:
+		return errorx.NewBizf("unsupported machine proxy type: %q", proxyType)
+	}
+
+	addr := strings.TrimSpace(me.GetExtraString(entity.ExtraKeyProxyAddr))
+	if addr == "" {
+		return errorx.NewBiz("socks5 proxy address cannot be empty")
+	}
+	me.SetExtraValue(entity.ExtraKeyProxyAddr, addr)
+
+	password := me.GetExtraString(entity.ExtraKeyProxyPassword)
+	if clearPassword && password != "" {
+		return errorx.NewBiz("cannot set and clear socks5 proxy password at the same time")
+	}
+	switch {
+	case clearPassword:
+		me.SetExtraValue(entity.ExtraKeyProxyPassword, "")
+	case password == "":
+		if old != nil {
+			me.SetExtraValue(entity.ExtraKeyProxyPassword, old.GetExtraString(entity.ExtraKeyProxyPassword))
+		}
+	default:
+		cipher, err := utils.PwdAesEncrypt(password)
+		if err != nil {
+			return errorx.NewBizf("encrypt socks5 proxy password failed: %s", err.Error())
+		}
+		me.SetExtraValue(entity.ExtraKeyProxyPassword, cipher)
 	}
 	return nil
 }

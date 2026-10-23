@@ -2,6 +2,7 @@ package entity
 
 import (
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type Machine struct {
@@ -26,4 +27,31 @@ const (
 	MachineProtocolSsh = 1
 	MachineProtocolRdp = 2
 	MachineProtocolVnc = 3
+
+	// 机器扩展配置（extra）中的出网代理键：保存/装配/接口脱敏共用这一组键名
+	ExtraKeyProxyType          = "proxyType"
+	ExtraKeyProxyAddr          = "proxyAddr"
+	ExtraKeyProxyUsername      = "proxyUsername"
+	ExtraKeyProxyPassword      = "proxyPassword"
+	ExtraKeyProxyPasswordClear = "proxyPasswordClear"
+	// MachineProxyTypeNone proxyType 取值：显式直连
+	MachineProxyTypeNone = "none"
+	// MachineProxyTypeSocks5 proxyType 取值：SOCKS5 代理
+	MachineProxyTypeSocks5 = "socks5"
 )
+
+// CloneExtraWithoutProxyCredential 返回不含代理凭据的 extra 副本。
+// 审计日志、下发前脱敏等场景必须基于副本操作：表单与实体在 BindJsonAndCopyTo 后共享同一个 map，
+// 直接删键会连带删掉待加密落库的明文密码（实测导致“保存成功但密码未存”）。
+func CloneExtraWithoutProxyCredential(extra model.ExtraData) model.ExtraData {
+	if len(extra.Extra) == 0 {
+		return model.ExtraData{}
+	}
+	cloned := make(collx.M, len(extra.Extra))
+	for k, v := range extra.Extra {
+		cloned[k] = v
+	}
+	delete(cloned, ExtraKeyProxyPassword)
+	delete(cloned, ExtraKeyProxyPasswordClear)
+	return model.ExtraData{Extra: cloned}
+}

@@ -288,7 +288,9 @@ func v1103() []*gormigrate.Migration {
 		{
 			ID: "20250904-v1.10.3",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&dockerentity.Container{})
+				if err := tx.AutoMigrate(&dockerentity.Container{}); err != nil {
+					return err
+				}
 
 				// 删除容器菜单
 				tx.Exec("update t_sys_resource set is_deleted = 1 where code = '/container'")
@@ -428,7 +430,9 @@ func v1106() []*gormigrate.Migration {
 		{
 			ID: "20260107-v1.10.6-addDbTransferTaskExtraColumn",
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&dbentity.DbTransferTask{})
+				if err := tx.AutoMigrate(&dbentity.DbTransferTask{}); err != nil {
+					return err
+				}
 				return nil
 			},
 			Rollback: func(tx *gorm.DB) error {
@@ -502,7 +506,9 @@ func v1107() []*gormigrate.Migration {
 			ID: "20260313-v1.10.7",
 
 			Migrate: func(tx *gorm.DB) error {
-				tx.AutoMigrate(&mqentity.Kafka{})
+				if err := tx.AutoMigrate(&mqentity.Kafka{}); err != nil {
+					return err
+				}
 
 				tx.Exec("INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (1773796612, 1773796555, 2, 1, 'kafka', 'res:mq:kafka', 1773796612, 'null', 12, 'admin', 12, 'admin', '2026-03-18 09:16:53', '2026-03-18 09:16:53', 'UX7Sa6oG/cC4TRerV/', 0, NULL)")
 				tx.Exec("INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (1773796555, 94, 2, 1, 'MQ', 'res:mq', 1773796555, 'null', 12, 'admin', 12, 'admin', '2026-03-18 09:15:55', '2026-03-18 09:16:34', 'UX7Sa6oG/', 0, NULL)")

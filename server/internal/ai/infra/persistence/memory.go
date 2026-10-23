@@ -14,10 +14,6 @@ type memoryRepoImpl struct {
 
 var _ repository.Memory = (*memoryRepoImpl)(nil)
 
-func newMemoryRepo() repository.Memory {
-	return &memoryRepoImpl{}
-}
-
 func (m *memoryRepoImpl) SelectByUser(ctx context.Context, userId string, keywords []string, tags []string, limit int) ([]*entity.Memory, error) {
 	if limit <= 0 {
 		limit = 100

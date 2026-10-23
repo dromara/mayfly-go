@@ -15,9 +15,10 @@ type BizError struct {
 var (
 	Success *BizError = NewBizCode(200, "success")
 
-	ErrBiz          *BizError = NewBizCode(400, "biz error")
-	ErrServer       *BizError = NewBizCode(500, "server error")
-	ErrPermission   *BizError = NewBizCode(501, "token error")
+	ErrBiz    *BizError = NewBizCode(400, "biz error")
+	ErrServer *BizError = NewBizCode(500, "server error")
+	// 501 是权限不足（不是 token 失效；token 失效用 502），文案必须能区分，否则会被误判成登录态问题
+	ErrPermission   *BizError = NewBizCode(501, "permission denied")
 	ErrInvalidToken *BizError = NewBizCode(502, "access token invalid")
 )
 

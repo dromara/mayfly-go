@@ -11,7 +11,3 @@ type conversationRepoImpl struct {
 }
 
 var _ repository.Conversation = (*conversationRepoImpl)(nil)
-
-func newConversationRepo() repository.Conversation {
-	return &conversationRepoImpl{}
-}

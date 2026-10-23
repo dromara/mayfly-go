@@ -39,14 +39,6 @@ const (
 	hetTable = "it_hetero"
 )
 
-// hetSpecialStrings 异构迁移特殊字符串集
-var hetSpecialStrings = []string{
-	"single'quote", "double\"quote", "back\\slash", "back\\\\slash\\\\x",
-	"line\nbreak", "crlf\r\nline", "tab\there", "nul-like-placeholder-not-0x00",
-	"emoji😀🎉end", "中文混排English mixed 123", "semi;colon", "--sql-comment",
-	"/*block*/comment", "back`tick", "dollar$sign", "%s%v%d",
-}
-
 // hetSpec 单方向异构迁移规格
 type hetSpec struct {
 	name  string // 方向名

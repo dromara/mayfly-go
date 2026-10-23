@@ -29,7 +29,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/gorilla/websocket"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -377,28 +376,6 @@ func calculateMemPercentUnix(memStats container.MemoryStats) float64 {
 	return memPercent
 }
 
-func calculateBlockIO(blkio container.BlkioStats) (blkRead float64, blkWrite float64) {
-	for _, bioEntry := range blkio.IoServiceBytesRecursive {
-		switch strings.ToLower(bioEntry.Op) {
-		case "read":
-			blkRead = (blkRead + float64(bioEntry.Value)) / 1024 / 1024
-		case "write":
-			blkWrite = (blkWrite + float64(bioEntry.Value)) / 1024 / 1024
-		}
-	}
-	return
-}
-
-func calculateNetwork(network map[string]container.NetworkStats) (float64, float64) {
-	var rx, tx float64
-
-	for _, v := range network {
-		rx += float64(v.RxBytes) / 1024
-		tx += float64(v.TxBytes) / 1024
-	}
-	return rx, tx
-}
-
 func transPortToStr(ports []container.Port) []string {
 	var (
 		ipv4Ports []container.Port
@@ -616,46 +593,4 @@ func stringsToMap(list []string) map[string]string {
 		}
 	}
 	return labelMap
-}
-
-func reCreateAfterUpdate(name string, client *client.Client, config *container.Config, hostConf *container.HostConfig, networkConf *types.NetworkSettings) {
-	ctx := context.Background()
-
-	var oldNetworkConf network.NetworkingConfig
-	if networkConf != nil {
-		for networkKey := range networkConf.Networks {
-			oldNetworkConf.EndpointsConfig = map[string]*network.EndpointSettings{networkKey: {}}
-			break
-		}
-	}
-
-	oldContainer, err := client.ContainerCreate(ctx, config, hostConf, &oldNetworkConf, &v1.Platform{}, name)
-	if err != nil {
-		logx.Errorf("recreate after container update failed, err: %v", err)
-		return
-	}
-	if err := client.ContainerStart(ctx, oldContainer.ID, container.StartOptions{}); err != nil {
-		logx.Errorf("restart after container update failed, err: %v", err)
-	}
-	logx.Info("recreate after container update successful")
-}
-
-func loadVolumeBinds(binds []types.MountPoint) []form.Volume {
-	var datas []form.Volume
-	for _, bind := range binds {
-		var volumeItem form.Volume
-		volumeItem.Type = string(bind.Type)
-		if bind.Type == "volume" {
-			volumeItem.HostDir = bind.Name
-		} else {
-			volumeItem.HostDir = bind.Source
-		}
-		volumeItem.ContainerDir = bind.Destination
-		volumeItem.Mode = "ro"
-		if bind.RW {
-			volumeItem.Mode = "rw"
-		}
-		datas = append(datas, volumeItem)
-	}
-	return datas
 }
